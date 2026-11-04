@@ -1,0 +1,224 @@
+{
+ "_doc": [
+  "Casos A/B de Entradas (frente I de C5): A con `posts` de PRO, B con `digitalisimo-posts`. Las 9 entradas de prueba (`posts`: categorías, etiquetas, extracto e imagen destacada, creadas por setup.php) son las mismas en A y en B. Acciones: paginar con el enlace «siguiente» (recarga la página /2/), «Cargar más» (botón) y el desplazamiento infinito (`scroll`)."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador.",
+   "widget": "posts"
+  },
+  {
+   "kind": "nombre",
+   "match": "Read more about|Leer más|Page|Página|Previous|Anterior|Next|Siguiente",
+   "reason": "Nombres accesibles propios en español; «Leer más» conserva su texto visible y añade el título sólo para lectores de pantalla (WCAG 2.5.3), donde PRO lo sustituía por «Read more about …».",
+   "widget": "posts"
+  }
+ ],
+ "cases": {
+  "po-defaults": {
+   "title": "Clásica por defecto: 3 columnas, 6 entradas",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {}
+  },
+  "po-classic-left": {
+   "title": "Clásica: imagen a la izquierda, 2 columnas, autor/fecha/hora/comentarios, alineación automática",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_thumbnail": "left",
+    "classic_columns": "2",
+    "classic_posts_per_page": 4,
+    "classic_meta_data": [
+     "author",
+     "date",
+     "time",
+     "comments"
+    ],
+    "classic_read_more_alignment": "yes",
+    "classic_title_tag": "h4",
+    "classic_excerpt_length": 8,
+    "classic_box_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "classic_box_border_color": "#D0D5DD",
+    "classic_box_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "classic_alignment": "center",
+    "classic_title_color": "#1F2124",
+    "classic_meta_separator": "|"
+   }
+  },
+  "po-classic-none": {
+   "title": "Clásica sin imagen, 1 columna, extracto propio aplicado",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_thumbnail": "none",
+    "classic_columns": "1",
+    "classic_posts_per_page": 3,
+    "classic_apply_to_custom_excerpt": "yes",
+    "classic_excerpt_length": 4,
+    "classic_show_read_more": ""
+   }
+  },
+  "po-cards": {
+   "title": "Tarjetas por defecto",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "cards"
+   }
+  },
+  "po-cards-styled": {
+   "title": "Tarjetas: 2 columnas, sin sombra ni degradado, insignia a la izquierda, colores",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "cards",
+    "cards_columns": "2",
+    "cards_posts_per_page": 4,
+    "cards_box_shadow_box_shadow_type": "",
+    "cards_hover_effect": "none",
+    "cards_badge_position": "left",
+    "cards_badge_bg_color": "#245EFF",
+    "cards_card_bg_color": "#F5F7FA",
+    "cards_card_border_width": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "cards_card_border_color": "#D0D5DD",
+    "cards_card_border_radius": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "cards_meta_border_color": "#245EFF",
+    "cards_show_avatar": "",
+    "cards_meta_data": [
+     "date"
+    ]
+   }
+  },
+  "po-cards-none": {
+   "title": "Tarjetas sin imagen (avatar oculto), etiquetas como insignia",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "cards",
+    "cards_thumbnail": "none",
+    "cards_badge_taxonomy": "post_tag",
+    "cards_posts_per_page": 3
+   }
+  },
+  "po-masonry": {
+   "title": "Clásica en mampostería, 3 columnas",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_masonry": "yes",
+    "classic_posts_per_page": 6,
+    "classic_excerpt_length": 12
+   }
+  },
+  "po-full": {
+   "title": "Contenido completo con imagen, 2 entradas",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "full_content",
+    "full_content_posts_per_page": 2,
+    "full_content_thumbnail": "thumbnail"
+   }
+  },
+  "po-numbers": {
+   "title": "Números y anterior/siguiente, 3 por página",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_posts_per_page": 3,
+    "pagination_type": "numbers_and_prev_next",
+    "pagination_color": "#245EFF",
+    "pagination_spacing_top": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    }
+   },
+   "actions": [
+    {
+     "label": "enlace siguiente",
+     "selector": "a.page-numbers.next",
+     "wait": 4000
+    }
+   ]
+  },
+  "po-prevnext": {
+   "title": "Anterior/siguiente, 4 por página",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_posts_per_page": 4,
+    "pagination_type": "prev_next",
+    "pagination_align": "end"
+   }
+  },
+  "po-load-more": {
+   "title": "«Cargar más» con un botón, 3 por página",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "cards",
+    "cards_posts_per_page": 3,
+    "pagination_type": "load_more_on_click",
+    "load_more_no_posts_message_switcher": "yes"
+   },
+   "actions": [
+    {
+     "label": "cargar más",
+     "a": ".e-load-more-anchor ~ .elementor-button-wrapper .elementor-button",
+     "b": ".digi-loop__more .elementor-button",
+     "wait": 4000
+    },
+    {
+     "label": "cargar más (última)",
+     "a": ".e-load-more-anchor ~ .elementor-button-wrapper .elementor-button",
+     "b": ".digi-loop__more .elementor-button",
+     "wait": 4000
+    }
+   ]
+  },
+  "po-infinite": {
+   "title": "Desplazamiento infinito, 3 por página",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "classic_posts_per_page": 3,
+    "pagination_type": "load_more_infinite_scroll"
+   },
+   "actions": [
+    {
+     "label": "desplazar hasta el final",
+     "a": ".e-load-more-anchor",
+     "b": ".digi-loop__anchor",
+     "scroll": true,
+     "wait": 5000
+    }
+   ]
+  }
+ }
+}

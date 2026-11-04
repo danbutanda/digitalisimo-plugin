@@ -1,0 +1,136 @@
+{
+ "_doc": [
+  "Casos A/B del Portafolio (frente I de C5): A con `portfolio` de PRO, B con `digitalisimo-portfolio`. Acción: filtrar por un término (segundo botón de la barra)."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador.",
+   "widget": "portfolio"
+  },
+  {
+   "kind": "palabra",
+   "match": "«(all|todos)»",
+   "reason": "Texto propio en español del filtro «Todos» (PRO: «All»).",
+   "widget": "portfolio"
+  },
+  {
+   "kind": "nombre",
+   "match": "All|Todos",
+   "reason": "Texto propio en español del filtro «Todos».",
+   "widget": "portfolio"
+  }
+ ],
+ "cases": {
+  "pf-defaults": {
+   "title": "Portafolio por defecto: 3 columnas, 6 entradas",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {}
+  },
+  "pf-styled": {
+   "title": "4 columnas, proporción 1, separaciones, capa y radio",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "columns": "4",
+    "item_ratio": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "column_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "color_background": "#245EFFCC",
+    "posts_per_page": 8
+   }
+  },
+  "pf-filter": {
+   "title": "Barra de filtro por categoría",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "show_filter_bar": "yes",
+    "taxonomy": "category",
+    "posts_per_page": 9,
+    "color_filter_active": "#245EFF"
+   },
+   "actions": [
+    {
+     "label": "filtrar por el segundo término",
+     "a": ".elementor-portfolio__filter:nth-child(2)",
+     "b": ".digi-portfolio__filters > li:nth-child(2) .digi-portfolio__filter",
+     "wait": 2000
+    }
+   ]
+  }
+ }
+}

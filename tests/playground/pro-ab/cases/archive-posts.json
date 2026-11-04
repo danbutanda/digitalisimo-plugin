@@ -1,0 +1,115 @@
+{
+ "_doc": [
+  "Casos A/B de Entradas del archivo (frente I de C5): A con `archive-posts` de PRO, B con `digitalisimo-archive-posts`. `archive` da la consulta del archivo de las dos páginas (setup.php, filtro `elementor/theme/posts_archive/query_posts/query_vars` que aplican PRO y el propio)."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador.",
+   "widget": "archive-posts"
+  },
+  {
+   "kind": "nombre",
+   "match": "Read more about|Leer más|Page|Página|Previous|Anterior|Next|Siguiente",
+   "reason": "Nombres accesibles propios en español; «Leer más» conserva su texto visible y añade el título sólo para lectores de pantalla (WCAG 2.5.3), donde PRO lo sustituía por «Read more about …».",
+   "widget": "archive-posts"
+  }
+ ],
+ "cases": {
+  "ap-defaults": {
+   "title": "Archivo clásico, números por defecto, 4 por página",
+   "widget": "archive-posts",
+   "posts": 9,
+   "archive": {
+    "post_type": "post",
+    "posts_per_page": 4
+   },
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {},
+   "actions": [
+    {
+     "label": "página 2",
+     "selector": "a.page-numbers:not(.prev):not(.next)",
+     "wait": 4000
+    }
+   ]
+  },
+  "ap-cards": {
+   "title": "Archivo en tarjetas, 2 columnas",
+   "widget": "archive-posts",
+   "posts": 9,
+   "archive": {
+    "post_type": "post",
+    "posts_per_page": 4
+   },
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "_skin": "archive_cards",
+    "archive_cards_columns": "2",
+    "pagination_type": ""
+   }
+  },
+  "ap-nothing": {
+   "title": "Archivo sin resultados: mensaje",
+   "widget": "archive-posts",
+   "posts": 9,
+   "archive": {
+    "post_type": "post",
+    "s": "zzzz-no-existe"
+   },
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "nothing_found_color": "#B42318"
+   }
+  }
+ }
+}

@@ -1000,24 +1000,25 @@ abstract class Skin_Base extends \Elementor\Skin_Base {
 		echo '</div>';
 	}
 
+	// Cada dato va entre saltos de línea, como en PRO: el separador (`span + span:before`) queda entre espacios.
 	protected function render_author() {
-		echo '<span class="digi-posts__author">' . esc_html( get_the_author() ) . '</span>';
+		echo "<span class=\"digi-posts__author\">\n" . esc_html( get_the_author() ) . "\n</span>\n";
 	}
 
 	protected function render_date_by_type( $type = 'publish' ) {
 		$date = 'modified' === $type ? get_the_modified_date() : get_the_date();
 		/** Filtro documentado en wp-includes/general-template.php. */
-		echo '<span class="digi-posts__date">' . apply_filters( 'the_date', $date, get_option( 'date_format' ), '', '' ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- la fecha, como PRO.
+		echo "<span class=\"digi-posts__date\">\n" . apply_filters( 'the_date', $date, get_option( 'date_format' ), '', '' ) . "\n</span>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- la fecha, como PRO.
 	}
 
 	protected function render_time() {
-		echo '<span class="digi-posts__time">' . esc_html( (string) get_the_time() ) . '</span>';
+		echo "<span class=\"digi-posts__time\">\n" . esc_html( (string) get_the_time() ) . "\n</span>\n";
 	}
 
 	protected function render_comments() {
-		echo '<span class="digi-posts__comments">';
+		echo "<span class=\"digi-posts__comments\">\n";
 		comments_number();
-		echo '</span>';
+		echo "\n</span>\n";
 	}
 
 	/** «Leer más» al pie de la tarjeta: con la alineación automática, sin mampostería (y nunca en contenido completo). */

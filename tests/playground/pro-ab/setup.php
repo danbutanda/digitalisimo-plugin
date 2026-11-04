@@ -97,6 +97,70 @@ function digi_ab_image( $n ) {
 	return $cache[ $n ] = array( $id, (string) wp_get_attachment_url( $id ) );
 }
 
+/**
+ * Entradas de prueba (C5): las 9 primeras se crean una vez, con fecha fija (orden estable), categorías «Noticias»,
+ * «Guías» y «Casos» (una cada tres), etiquetas «par»/«impar», extracto e imagen destacada (`digi_ab_image()`). Se
+ * borra «¡Hola, mundo!» para que las cuentas sean exactas. Devuelve los IDs de las `$n` primeras (`{"$posts": n}`).
+ */
+function digi_ab_posts( $n ) {
+	static $ids = null;
+	if ( null === $ids ) {
+		$ids      = array();
+		$existing = get_posts( array( 'post_type' => 'post', 'name' => 'entrada-de-prueba-1', 'numberposts' => 1, 'fields' => 'ids' ) );
+		if ( ! $existing ) {
+			$hello = get_page_by_path( 'hello-world', OBJECT, 'post' );
+			if ( $hello ) {
+				wp_delete_post( $hello->ID, true );
+			}
+			$cats = array();
+			foreach ( array( 'Noticias', 'Guías', 'Casos' ) as $name ) {
+				$term   = term_exists( $name, 'category' ) ?: wp_insert_term( $name, 'category' );
+				$cats[] = (int) $term['term_id'];
+			}
+			for ( $i = 1; $i <= 9; $i++ ) {
+				$id = (int) wp_insert_post(
+					array(
+						'post_type'     => 'post',
+						'post_status'   => 'publish',
+						'post_title'    => "Entrada de prueba $i",
+						'post_name'     => "entrada-de-prueba-$i",
+						'post_excerpt'  => "Extracto breve de la entrada de prueba $i.",
+						'post_content'  => "Contenido de la entrada de prueba $i.",
+						'post_date'     => sprintf( '2026-01-%02d 10:00:00', $i ),
+						'post_category' => array( $cats[ ( $i - 1 ) % 3 ] ),
+						'tags_input'    => array( 0 === $i % 2 ? 'par' : 'impar' ),
+					)
+				);
+				set_post_thumbnail( $id, digi_ab_image( $i )[0] );
+			}
+		}
+		for ( $i = 1; $i <= 9; $i++ ) {
+			$post  = get_page_by_path( "entrada-de-prueba-$i", OBJECT, 'post' );
+			$ids[] = $post ? (int) $post->ID : 0;
+		}
+	}
+	return array_slice( $ids, 0, max( 0, min( 9, (int) $n ) ) );
+}
+
+/**
+ * Consulta de archivo de un caso (C5, frente I: Entradas del archivo): `"archive": {variables de WP_Query}`. Las páginas
+ * A y B del caso listan esa consulta por el filtro que PRO y el widget propio aplican a la consulta del archivo
+ * (`elementor/theme/posts_archive/query_posts/query_vars`), con la página actual (`/N/` del singular) como `paged`.
+ * Lo aplica el mu-plugin `digi-ab-archive.php`, que lee la opción `digi_ab_archive` (página → variables).
+ */
+function digi_ab_archive( $slug, array $vars ) {
+	$map = (array) get_option( 'digi_ab_archive', array() );
+	$map[ "pro-ab-$slug-a" ] = $vars;
+	$map[ "pro-ab-$slug-b" ] = $vars;
+	update_option( 'digi_ab_archive', $map, false );
+	if ( ! is_file( WPMU_PLUGIN_DIR . '/digi-ab-archive.php' ) ) {
+		file_put_contents(
+			WPMU_PLUGIN_DIR . '/digi-ab-archive.php',
+			"<?php\n// pro-ab.sh (setup.php, `archive` de un caso): consulta de archivo de las páginas A y B del caso.\nadd_filter( 'elementor/theme/posts_archive/query_posts/query_vars', static function ( \$vars ) {\n\t\$map  = (array) get_option( 'digi_ab_archive', array() );\n\t\$page = get_queried_object();\n\tif ( ! \$page || empty( \$page->post_name ) || ! isset( \$map[ \$page->post_name ] ) ) {\n\t\treturn \$vars;\n\t}\n\treturn (array) \$map[ \$page->post_name ] + array( 'paged' => max( 1, (int) get_query_var( 'page' ) ) );\n} );\n"
+		);
+	}
+}
+
 /** Etiqueta dinámica guardada como la guarda el editor. */
 function digi_ab_tag( $name, array $settings = array() ) {
 	return '[elementor-tag id="' . substr( md5( $name . wp_json_encode( $settings ) ), 0, 7 ) . '" name="' . $name . '" settings="' . rawurlencode( wp_json_encode( (object) $settings ) ) . '"]';
@@ -200,6 +264,9 @@ function digi_ab_tokens( $value ) {
 	}
 	if ( ! is_array( $value ) ) {
 		return $value;
+	}
+	if ( array( '$posts' ) === array_keys( $value ) ) {
+		return array_map( 'strval', digi_ab_posts( (int) $value['$posts'] ) );
 	}
 	if ( array( '$loop_item' ) === array_keys( $value ) ) {
 		return digi_ab_loop_item( (string) $value['$loop_item'] );
@@ -307,6 +374,9 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	}
 	$source = (string) ( $case['widget'] ?? '' );
 	$id     = digi_ab_eid( $slug );
+	if ( ! empty( $case['posts'] ) ) {
+		digi_ab_posts( (int) $case['posts'] );
+	}
 	$tree   = array(
 		array(
 			'id'       => digi_ab_eid( $slug . '-c' ),
@@ -363,6 +433,9 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	}
 	list( $entry['a'], $entry['css_a'] ) = digi_ab_page( "pro-ab-$slug-a", $tree );
 	list( $entry['b'], $entry['css_b'] ) = digi_ab_page( "pro-ab-$slug-b", $b_tree );
+	if ( isset( $case['archive'] ) ) {
+		digi_ab_archive( $slug, (array) $case['archive'] );
+	}
 	$out['cases'][ $slug ] = $entry;
 }
 if ( ! $out['cases'] ) {

@@ -54,6 +54,9 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 	/** Hoja y script compartidos (paginación, «Cargar más», infinita y mampostería). */
 	const SHARED = 'digitalisimo-loop';
 
+	/** Hoja de la piel «Tarjetas» (`assets/css/posts-cards.css`), sólo con esa piel. */
+	const CARDS = 'digitalisimo-posts-cards';
+
 	/** Widgets de PRO que paginan (además de los propios que heredan de esta clase). */
 	const PRO_PAGINATED = array( 'posts', 'archive-posts', 'loop-grid', 'loop-carousel', 'woocommerce-products', 'wc-archive-products', 'global' );
 
@@ -70,11 +73,17 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 		return 'eicon-post-list';
 	}
 
-	/** La hoja del widget y, si pagina, la compartida (en el editor, las dos siempre). */
+	/**
+	 * La hoja del widget, la de las tarjetas con una piel `*cards` y, si pagina, la compartida (en el editor, todas).
+	 */
 	public function get_style_depends(): array {
-		$own = Module::style_depends( $this->own_assets_name() );
-		if ( self::is_editor() || '' !== (string) $this->get_settings( 'pagination_type' ) ) {
+		$editor = self::is_editor();
+		$own    = Module::style_depends( $this->own_assets_name() );
+		if ( $editor || '' !== (string) $this->get_settings( 'pagination_type' ) ) {
 			array_unshift( $own, self::SHARED );
+		}
+		if ( $editor || 'cards' === substr( (string) $this->get_settings( '_skin' ), -5 ) ) {
+			$own[] = self::CARDS;
 		}
 		return $own;
 	}

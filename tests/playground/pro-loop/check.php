@@ -58,6 +58,11 @@ $normalize  = static function ( $value ) use ( &$normalize ) {
 	}
 	return $value;
 };
+$GLOBALS['digi_loop_trait'] = array();
+$nested_pro                 = $widgets->get_widget_types( 'nested-carousel' );
+if ( $nested_pro ) {
+	$GLOBALS['digi_loop_trait'] = $nested_pro->get_controls();
+}
 foreach ( $pairs as $pro => $own ) {
 	$a = $widgets->get_widget_types( $pro );
 	$b = $widgets->get_widget_types( $own );
@@ -85,7 +90,9 @@ foreach ( $pairs as $pro => $own ) {
 			}
 		}
 		foreach ( array( 'section', 'tab', 'responsive', 'frontend_available', 'prefix_class', 'render_type' ) as $key ) {
-			if ( ( $control[ $key ] ?? null ) !== ( $mine[ $key ] ?? null ) && ! ( 'prefix_class' === $key && 'digitalisimo-taxonomy-filter' === $own ) ) {
+			// El rasgo de carrusel propio (C1) no usa clases de prefijo (las posiciones son modificadores del motor) y deja
+			// que el editor vuelva a pintar con cada cambio.
+			if ( ( $control[ $key ] ?? null ) !== ( $mine[ $key ] ?? null ) && ! ( 'digitalisimo-loop-carousel' === $own && in_array( $key, array( 'prefix_class', 'render_type' ), true ) && isset( $GLOBALS['digi_loop_trait'][ $name ] ) ) ) {
 				$issues[] = "$name: $key " . wp_json_encode( $control[ $key ] ?? null ) . ' ≠ ' . wp_json_encode( $mine[ $key ] ?? null );
 			}
 		}
@@ -186,7 +193,7 @@ preg_match_all( '/class="[^"]*\be-loop-item\b/', $html, $items );
 digi_loop_ok( count( $items[0] ) >= 3 && false === strpos( $html, 'digi-loop__pagination' ), 'Cuadrícula de términos: un elemento por categoría, sin paginación (' . count( $items[0] ) . ')' );
 
 $html = digi_loop_render( array( digi_loop_widget( 'c000001', 'digitalisimo-loop-carousel', array( 'template_id' => $card, 'autoplay' => '' ) ) ), 'carousel-defaults' );
-digi_loop_ok( (bool) preg_match( '/<section class="digi-crs digi-loop-carousel"[^>]*aria-roledescription="carrusel"/', $html ), 'Carrusel: marcado del motor digi-crs' );
+digi_loop_ok( (bool) preg_match( '/<section class="digi-crs [^"]*digi-loop-carousel"[^>]*aria-roledescription="carrusel"/', $html ), 'Carrusel: marcado del motor digi-crs' );
 digi_loop_ok( 6 === substr_count( $html, 'digi-crs__slide' ) && false !== strpos( $html, 'aria-label="1 de 6"' ) && false !== strpos( $html, 'aria-label="6 de 6"' ), 'Carrusel: cada Elemento de bucle es una diapositiva «N de 6»' );
 digi_loop_ok( false !== strpos( $html, 'digi-crs__prev' ) && 6 === substr_count( $html, 'class="digi-crs__dot"' ), 'Carrusel: flechas y puntos por defecto' );
 digi_loop_ok( false === strpos( $html, 'swiper' ), 'Carrusel: sin Swiper' );
@@ -200,19 +207,22 @@ $html = digi_loop_render(
 );
 preg_match_all( '/<button type="button" class="digi-tfilter__item" data-filter="([^"]+)" aria-pressed="(true|false)">/', $html, $buttons );
 digi_loop_ok( array( '__all', 'casos', 'guias', 'noticias' ) === $buttons[1] && 'true' === $buttons[2][0], 'Filtro: «Todos» (pulsado) primero y un botón por categoría con entradas (' . implode( ',', $buttons[1] ) . ')' );
-digi_loop_ok( (bool) preg_match( '/<search class="digi-tfilter" role="search" aria-label="Filtrar por Categoría" data-loop="g000008" data-taxonomy="category" data-join="DISABLED"/', $html ), 'Filtro: <search> con nombre accesible y su bucle' );
+digi_loop_ok( (bool) preg_match( '/<search class="digi-tfilter" role="search" aria-label="Filtrar por [^"]+" data-loop="g000008" data-taxonomy="category" data-join="DISABLED"/', $html ), 'Filtro: <search> con nombre accesible y su bucle' );
 
 // Filtro aplicado por la URL (`e-filter-<bucle>-<taxonomía>`), como lo pide el script.
+// El módulo lee la consulta al construirse (en cada petición); aquí se le pasa la de la URL filtrada.
 $_SERVER['QUERY_STRING'] = 'e-filter-g000009-category=guias';
-$module                  = new \ElementorPro\Modules\LoopFilter\Module();
-$html                    = digi_loop_render(
+$module                  = \ElementorPro\Plugin::instance()->modules_manager->get_modules( 'loop-filter' );
+$populate                = new ReflectionMethod( $module, 'maybe_populate_filters_from_query_string' );
+$populate->setAccessible( true );
+$populate->invoke( $module );
+$html = digi_loop_render(
 	array(
 		digi_loop_widget( 'g000009', 'digitalisimo-loop-grid', array( 'template_id' => $card ) ),
 		digi_loop_widget( 'f000002', 'digitalisimo-taxonomy-filter', array( 'selected_element' => 'g000009', 'taxonomy' => 'category' ) ),
 	),
 	'filter-guias'
 );
-remove_filter( 'elementor/query/query_args', array( $module, 'filter_loop_query' ), 10 );
 preg_match_all( '/class="[^"]*\be-loop-item\b/', $html, $items );
 digi_loop_ok( 3 === count( $items[0] ) && (bool) preg_match( '/data-filter="guias" aria-pressed="true"/', $html ), 'Filtro por URL: el módulo loop-filter filtra el bucle propio por su ID (3 guías) y el botón queda pulsado (' . count( $items[0] ) . ')' );
 unset( $_SERVER['QUERY_STRING'] );

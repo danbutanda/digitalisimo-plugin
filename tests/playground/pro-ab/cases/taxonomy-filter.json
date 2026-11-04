@@ -1,0 +1,159 @@
+{
+ "_doc": [
+  "Casos A/B del Filtro de taxonomías (frente J de C5): A con `taxonomy-filter` de PRO y su Loop Grid de PRO, B con los dos propios (el Loop Grid hermano, `after`, también se convierte). Acción: filtrar (pulsar términos) y medir el estado de los botones."
+ ],
+ "declared": [
+  {
+   "widget": "taxonomy-filter",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los botones (contorno de 2 px con separación de 2 px)."
+  },
+  {
+   "widget": "taxonomy-filter",
+   "kind": "palabra",
+   "match": ".",
+   "reason": "«Todos» va primero en el orden del documento (orden de foco igual al visual); PRO lo ponía al final y lo adelantaba con order:-1, así que el texto en orden del DOM cambia aunque la vista sea la misma."
+  }
+ ],
+ "cases": {
+  "tf-defaults": {
+   "title": "Valores por defecto: categorías en fila, «Todos» primero",
+   "widget": "taxonomy-filter",
+   "posts": 9,
+   "after": [
+    {
+     "id": "l00pgr1",
+     "widgetType": "loop-grid",
+     "settings": {
+      "template_id": {
+       "$loop_item": "title"
+      },
+      "posts_per_page": 9,
+      "columns": "3"
+     }
+    }
+   ],
+   "settings": {
+    "selected_element": "l00pgr1",
+    "taxonomy": "category"
+   },
+   "actions": [
+    {
+     "label": "pulsar Guías",
+     "selector": "[data-filter=\"guias\"]",
+     "wait": 3000
+    },
+    {
+     "label": "pulsar Todos",
+     "selector": "[data-filter=\"__all\"]",
+     "wait": 3000
+    }
+   ]
+  },
+  "tf-multiple": {
+   "title": "Selección múltiple (O) en etiquetas, a la izquierda",
+   "widget": "taxonomy-filter",
+   "posts": 9,
+   "after": [
+    {
+     "id": "l00pgr1",
+     "widgetType": "loop-grid",
+     "settings": {
+      "template_id": {
+       "$loop_item": "title"
+      },
+      "posts_per_page": 9,
+      "columns": "3"
+     }
+    }
+   ],
+   "settings": {
+    "selected_element": "l00pgr1",
+    "taxonomy": "post_tag",
+    "multiple_selection": "yes",
+    "logical_combination": "OR",
+    "item_alignment_horizontal": "start",
+    "first_item_title": "Todas"
+   },
+   "actions": [
+    {
+     "label": "pulsar par",
+     "selector": "[data-filter=\"par\"]",
+     "wait": 3000
+    },
+    {
+     "label": "pulsar impar",
+     "selector": "[data-filter=\"impar\"]",
+     "wait": 3000
+    }
+   ]
+  },
+  "tf-vertical": {
+   "title": "Vertical estirado, con colores, borde, radio y relleno",
+   "widget": "taxonomy-filter",
+   "posts": 9,
+   "after": [
+    {
+     "id": "l00pgr1",
+     "widgetType": "loop-grid",
+     "settings": {
+      "template_id": {
+       "$loop_item": "title"
+      },
+      "posts_per_page": 9,
+      "columns": "3"
+     }
+    }
+   ],
+   "settings": {
+    "selected_element": "l00pgr1",
+    "taxonomy": "category",
+    "direction": "vertical",
+    "item_alignment_vertical": "stretch",
+    "taxonomy_filter_items_space_between": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "taxonomy_filter_normal_text_color": "#245EFF",
+    "taxonomy_filter_active_text_color": "#FFFFFF",
+    "taxonomy_filter_active_background_background": "classic",
+    "taxonomy_filter_active_background_color": "#245EFF",
+    "taxonomy_filter_normal_border_border": "solid",
+    "taxonomy_filter_normal_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "taxonomy_filter_normal_border_color": "#245EFF",
+    "taxonomy_filter_border_radius": {
+     "unit": "px",
+     "top": "6",
+     "right": "6",
+     "bottom": "6",
+     "left": "6",
+     "isLinked": true
+    },
+    "taxonomy_filter_padding": {
+     "unit": "px",
+     "top": "10",
+     "right": "16",
+     "bottom": "10",
+     "left": "16",
+     "isLinked": false
+    }
+   },
+   "actions": [
+    {
+     "label": "pulsar Casos",
+     "selector": "[data-filter=\"casos\"]",
+     "wait": 3000
+    }
+   ]
+  }
+ }
+}

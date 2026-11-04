@@ -1,0 +1,178 @@
+{
+ "_doc": [
+  "Casos A/B de la Cuadrícula de bucle (frente J de C5): A con `loop-grid` de PRO, B con `digitalisimo-loop-grid`. Las 9 entradas de prueba (`posts`) y la plantilla de Elemento de bucle (`{\"$loop_item\": \"card\"}`) son las mismas en A y en B. Acciones: paginar (enlace siguiente, número sin recargar) y filtrar con el Filtro de taxonomías hermano (`page: true`)."
+ ],
+ "declared": [
+  {
+   "widget": "loop-grid",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces de paginación y del botón «Cargar más» (contorno de 2 px con separación de 2 px)."
+  },
+  {
+   "widget": "loop-grid",
+   "kind": "nombre",
+   "match": "Anterior|Siguiente|Previous|Next|Página|Page",
+   "reason": "Textos propios de la paginación en español (anterior, siguiente y la palabra «Página» de los números para lectores de pantalla)."
+  }
+ ],
+ "cases": {
+  "lg-defaults": {
+   "title": "Valores por defecto: 3 columnas, 6 elementos",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    }
+   }
+  },
+  "lg-columns": {
+   "title": "4 columnas, 8 elementos, separaciones y misma altura",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "columns": "4",
+    "columns_tablet": "2",
+    "posts_per_page": 8,
+    "column_gap": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "equal_height": "yes"
+   }
+  },
+  "lg-numbers": {
+   "title": "Números y anterior/siguiente, recargando la página",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "posts_per_page": 3,
+    "pagination_type": "numbers_and_prev_next",
+    "pagination_color": "#245EFF",
+    "pagination_spacing_top": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    }
+   },
+   "actions": [
+    {
+     "label": "enlace siguiente",
+     "selector": "a.page-numbers.next",
+     "wait": 2500
+    }
+   ]
+  },
+  "lg-ajax": {
+   "title": "Números sin recargar (AJAX)",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "posts_per_page": 3,
+    "pagination_type": "numbers",
+    "pagination_load_type": "ajax"
+   },
+   "actions": [
+    {
+     "label": "página 2 sin recargar",
+     "selector": "a.page-numbers",
+     "wait": 2500
+    }
+   ]
+  },
+  "lg-alternate": {
+   "title": "Plantilla alterna cada 3 elementos",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "alternate_template": "yes",
+    "alternate_templates": [
+     {
+      "_id": "alt0001",
+      "template_id": {
+       "$loop_item": "alt"
+      },
+      "repeat_template": 3,
+      "show_once": ""
+     }
+    ]
+   }
+  },
+  "lg-nothing": {
+   "title": "Sin resultados, con mensaje",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "post_query_post_type": "by_id",
+    "post_query_posts_ids": [
+     "999999"
+    ],
+    "enable_nothing_found_message": "yes",
+    "nothing_found_message_color": "#E63946",
+    "nothing_found_message_html_tag": "h3"
+   }
+  },
+  "lg-terms": {
+   "title": "Bucle de términos (categorías)",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "title"
+    },
+    "_skin": "post_taxonomy",
+    "post_taxonomy_query_post_type": "category"
+   }
+  },
+  "lg-filter": {
+   "title": "Con un Filtro de taxonomías hermano: filtrar por «Guías»",
+   "widget": "loop-grid",
+   "posts": 9,
+   "before": [
+    {
+     "id": "f1lter1",
+     "widgetType": "taxonomy-filter",
+     "settings": {
+      "selected_element": "$self",
+      "taxonomy": "category"
+     }
+    }
+   ],
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    }
+   },
+   "actions": [
+    {
+     "label": "filtrar por Guías",
+     "page": true,
+     "selector": ".elementor-element-f1lter1 [data-filter=\"guias\"]",
+     "wait": 3000
+    }
+   ]
+  }
+ }
+}

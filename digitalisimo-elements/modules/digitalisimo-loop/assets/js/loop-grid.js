@@ -1,5 +1,5 @@
 /* DIGITALÍSIMO Elements · Cuadrícula de bucle (C5): paginación sin recargar (pagination_load_type = ajax). Pide el
-   enlace de la página (la misma URL que PRO) y sustituye el contenido del widget; sin jQuery. */
+   enlace de la página (la misma URL que PRO) y sustituye el contenido del widget; sin bibliotecas. */
 ((w, d) => {
 	'use strict';
 	if (w.digiLoopGrid) return;

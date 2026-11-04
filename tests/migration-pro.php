@@ -593,5 +593,88 @@ namespace {
 		$check( 'selector ' . $masks[ $target ] . '{}' === $css, "La imagen enmascarada de {$source} pasa a la de {$target} con las clases de su mapa: {$css}" );
 	}
 
+	/* ================================================================ 7. La cadena F8 → bucles de PRO → bucles propios (C5, frente J) */
+	// F8 lleva el Dynamic Grid de Element Pack al Loop Grid de PRO (con una copia Loop Item de su plantilla) y el Blog de
+	// Prime Slider al Loop Carousel de PRO (con su Loop Item generado); la etapa `pro` los lleva a los propios en la
+	// misma pasada con los mapas de C5 (aquí fijados listos: el coordinador los publica tras el A/B).
+	Registry::reset();
+	$loop_maps = array( 'loop-grid' => Registry::map( 'loop-grid', true ), 'loop-carousel' => Registry::map( 'loop-carousel', true ) );
+	if ( null !== $loop_maps['loop-grid'] && null !== $loop_maps['loop-carousel'] ) {
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+		foreach ( $loop_maps as $type => $map ) {
+			Registry::set( $type, array( 'status' => 'ready' ) + $map );
+		}
+		$card  = f8_post( array( 'post_type' => 'elementor_library', 'post_title' => 'Tarjeta' ), array( '_elementor_template_type' => 'section', '_elementor_data' => '[]' ) );
+		$blog  = doc( array( box( 'container', array( w( 'prime-slider-blog', array(), 'pb1' ), w( 'bdt-dynamic-grid', array( 'template_id' => (string) $card, 'posts_per_page' => 4, 'columns' => 2 ), 'dg1' ) ), 'lc1' ) ), array( 'post_title' => 'Blog' ) );
+		$state = migrate();
+		$grid  = find( tree( $blog ), 'dg1' );
+		$car   = find( tree( $blog ), 'pb1' );
+		$codes = doc_codes( $blog );
+		$check( ! empty( $state['done'] ) && is_array( $grid ) && 'digitalisimo-loop-grid' === $grid['widgetType'] && 'loop-grid' === ( $grid['settings']['_digitalisimo_pro'] ?? '' ), 'C5: el Dynamic Grid de Element Pack acaba en la Cuadrícula de bucle propia en la misma pasada: ' . wp_json_encode( $grid['widgetType'] ?? null ) );
+		$loop_copy = (int) get_post_meta( $card, '_digitalisimo_loop_item', true );
+		$check( is_array( $grid ) && $loop_copy > 0 && (int) ( $grid['settings']['template_id'] ?? 0 ) === $loop_copy && 'post' === ( $grid['settings']['_skin'] ?? '' ) && 4 === (int) ( $grid['settings']['posts_per_page'] ?? 0 ) && 2 === (int) ( $grid['settings']['columns'] ?? 0 ), 'C5: con la copia Loop Item de F8, su piel, sus elementos por página y sus columnas: ' . wp_json_encode( $grid['settings'] ?? null ) );
+		$check( is_array( $car ) && 'digitalisimo-loop-carousel' === $car['widgetType'] && 'loop-carousel' === ( $car['settings']['_digitalisimo_pro'] ?? '' ) && 'loop-item' === get_post_meta( (int) ( $car['settings']['template_id'] ?? 0 ), '_elementor_template_type', true ), 'C5: el Blog de Prime Slider acaba en el Carrusel de bucle propio con su Loop Item: ' . wp_json_encode( $car['widgetType'] ?? null ) );
+		$check( in_array( 'pro.converted:loop-grid:', $codes, true ) && in_array( 'pro.converted:loop-carousel:', $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'C5: el informe tiene pro.converted de los dos bucles, sin claves sin declarar: ' . wp_json_encode( $codes ) );
+		Registry::reset();
+	}
+
+	/* ================================================================ 8. La cadena F8 → Entradas de PRO → Entradas propias (C5, frente I) */
+	// F8 lleva las rejillas, listas, tarjetas y portafolios de entradas de Element Pack al widget Posts de PRO (con sus
+	// categorías y etiquetas en `digitalisimo_post_terms`); la etapa `pro` los lleva a Entradas propias en la misma pasada.
+	// En un sitio real F8 sólo guarda los controles que el widget de PRO tiene (`Native::target_controls()`): aquí el gestor
+	// de widgets de prueba da los de Posts (los que su mapa declara) y registra el propio.
+	Registry::reset();
+	if ( null !== Registry::map( 'posts', true ) ) {
+		fresh();
+		$posts_map      = Registry::map( 'posts', true );
+		$posts_controls = array_fill_keys( array_merge( (array) $posts_map['keep'], array( '_skin', 'digitalisimo_post_terms', 'digitalisimo_tags_label' ) ), array() );
+		foreach ( array_keys( (array) $posts_map['groups'] ) as $group ) {
+			foreach ( array( 'post_type', 'posts_ids', 'include', 'include_term_ids', 'include_authors', 'exclude', 'exclude_ids', 'exclude_term_ids', 'exclude_authors', 'avoid_duplicates', 'offset', 'select_date', 'date_before', 'date_after', 'orderby', 'order', 'ignore_sticky_posts', 'query_id', 'related_taxonomies', 'size', 'typography', 'font_size', 'font_weight', 'box_shadow_type', 'box_shadow', 'css_filter', 'background', 'color', 'border', 'width' ) as $sub ) {
+				$posts_controls[ $group . '_' . $sub ] = array();
+			}
+		}
+		\Elementor\Plugin::$instance = (object) array(
+			'widgets_manager' => new class( $posts_controls ) {
+				private $controls;
+				public function __construct( array $controls ) { $this->controls = $controls; }
+				public function get_widget_types( $name = null ) {
+					if ( 'posts' === $name ) {
+						$controls = $this->controls;
+						return new class( $controls ) { private $c; public function __construct( $c ) { $this->c = $c; } public function get_controls() { return $this->c; } };
+					}
+					return null === $name ? array() : ( 'digitalisimo-posts' === $name ? new stdClass() : null );
+				}
+			},
+		);
+		Pro::reset();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+		Registry::set( 'posts', array( 'status' => 'ready' ) + Registry::map( 'posts', true ) );
+		$sources = array(
+			'pg1' => array( 'bdt-post-grid', array( 'show_pagination' => 'yes', 'columns_tablet' => '3' ) ),
+			'pl1' => array( 'bdt-post-list', array( 'show_tags' => 'yes' ) ),
+			'pc1' => array( 'bdt-post-card', array() ),
+			'pf1' => array( 'bdt-portfolio-gallery', array( 'columns_mobile' => '2', 'show_tags' => 'yes' ) ),
+			'pk1' => array( 'bdt-carousel', array( 'arrows_ncx_position' => array( 'size' => 4 ) ) ),
+		);
+		$children = array();
+		foreach ( $sources as $eid => $source ) {
+			$children[] = w( $source[0], $source[1], $eid );
+		}
+		$page  = doc( array( box( 'container', $children, 'pp1' ) ), array( 'post_title' => 'Entradas' ) );
+		$state = migrate();
+		$codes = doc_codes( $page );
+		foreach ( $sources as $eid => $source ) {
+			$el = find( tree( $page ), $eid );
+			$check( ! empty( $state['done'] ) && is_array( $el ) && 'digitalisimo-posts' === $el['widgetType'] && 'posts' === ( $el['settings']['_digitalisimo_pro'] ?? '' ), "C5: {$source[0]} (Element Pack) acaba en Entradas propias en la misma pasada: " . wp_json_encode( $el['widgetType'] ?? null ) );
+			$check( is_array( $el ) && ! array_key_exists( 'columns_tablet', $el['settings'] ) && ! array_key_exists( 'thumbnail_size', $el['settings'] ) && ! array_key_exists( 'arrows_ncx_position', $el['settings'] ), "C5: {$source[0]}: lo que Posts no tiene no llega al widget propio." );
+		}
+		$pl = find( tree( $page ), 'pl1' );
+		$check( is_array( $pl ) && 'classic' === ( $pl['settings']['_skin'] ?? '' ) && array( 'category' ) === ( $pl['settings']['digitalisimo_post_terms'] ?? null ) && 'left' === ( $pl['settings']['classic_thumbnail'] ?? '' ), 'C5: la lista conserva su piel, su imagen a la izquierda y sus categorías: ' . wp_json_encode( $pl['settings'] ?? null ) );
+		$check( in_array( 'pro.converted:posts:', $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'C5: el informe tiene pro.converted de Entradas, sin claves sin declarar: ' . wp_json_encode( $codes ) );
+		manager( null );
+		Registry::reset();
+	}
+
 	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 100 );
 }

@@ -1,5 +1,5 @@
 /* DIGITALÍSIMO Elements · Filtro de taxonomías (C5): botones con aria-pressed; escribe en la URL los parámetros de PRO
-   (e-filter-<bucle>-<taxonomía>) y pide la misma página para sustituir el contenido del bucle. Sin jQuery ni REST. */
+   (e-filter-<bucle>-<taxonomía>) y pide la misma página para sustituir el contenido del bucle. Sin bibliotecas ni REST. */
 ((w, d) => {
 	'use strict';
 	if (w.digiTaxonomyFilter) return;

@@ -259,7 +259,9 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           try {
             const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
-            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+            // `scroll` (C5, desplazamiento infinito): llevar el selector a la vista en lugar de pulsarlo.
+            if (act.scroll) await el.evaluate((n) => n.scrollIntoView({ block: 'center' }));
+            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
           await page.mouse.move(0, 0);

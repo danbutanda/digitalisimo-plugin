@@ -45,11 +45,13 @@ final class Module {
 	);
 
 	/**
-	 * Recursos compartidos por los listados (paginación, «Cargar más», infinita y mampostería; `Posts_Base`): se
-	 * registran como los de cada widget y los encolan los widgets que los piden.
+	 * Recursos compartidos por los listados (paginación, «Cargar más», infinita y mampostería; `Posts_Base`) y la hoja de
+	 * la piel «Tarjetas» de Entradas y Entradas del archivo: se registran como los de cada widget y los encolan los
+	 * widgets que los piden.
 	 */
 	const SHARED = array(
 		'digitalisimo-loop' => array( 'css' => 'modules/digitalisimo-loop/assets/css/loop.css', 'js' => 'modules/digitalisimo-loop/assets/js/loop.js' ),
+		'digitalisimo-posts-cards' => array( 'css' => 'modules/digitalisimo-loop/assets/css/posts-cards.css', 'js' => '' ),
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
