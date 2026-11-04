@@ -107,6 +107,11 @@
      "kind": "control",
      "match": "sólo en B",
      "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO sólo respondía al ratón."
+    },
+    {
+     "kind": "foco",
+     "match": "el teclado no llega al control en A",
+     "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO el teclado no llegaba a ella."
     }
    ],
    "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo.",

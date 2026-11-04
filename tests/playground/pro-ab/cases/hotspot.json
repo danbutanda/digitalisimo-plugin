@@ -34,7 +34,15 @@
    "title": "Valores por defecto: imagen de muestra y un punto circular con «Expansión», información emergente al pulsar",
    "widget": "hotspot",
    "settings": {},
-   "interact": false
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
   },
   "hs-click": {
    "title": "Imagen, tres puntos (círculo, texto e icono con enlace), sin animación; abrir, cambiar y cerrar al pulsar",
@@ -254,8 +262,12 @@
     ]
    },
    "pixels": {
-    "max": 0.06,
-    "reason": "Estado con foco: con «al pasar», la información emergente propia se abre también con el foco del teclado (WCAG 1.4.13 y 2.1.1); PRO sólo la abría con el puntero."
+    "states": {
+     "focus": {
+      "max": 0.06,
+      "reason": "Con «al pasar», la información emergente propia se abre también con el foco del teclado (WCAG 1.4.13 y 2.1.1); PRO sólo la abría con el puntero."
+     }
+    }
    }
   },
   "hs-styles": {
@@ -540,7 +552,15 @@
      "match": "^(\\[acción [^\\]]*\\] )?perdida «",
      "reason": "«Deslizar desde la dirección» cerrada: PRO deja la información emergente opaca y la esconde sólo desplazándola fuera de su máscara (el texto sigue en la página y sus enlaces reciben el foco); la propia, cerrada, además queda oculta (visibility)."
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
   },
   "hs-grow": {
    "title": "Aparecer creciendo, abajo, orientación derecha y abajo; abrir al pulsar",
@@ -597,7 +617,15 @@
      "b": ".elementor-repeater-item-h1 .digi-hs__button"
     }
    ],
-   "interact": false
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
   },
   "hs-image": {
    "title": "Estilos de la imagen: ancho, alineación, alto con recorte, opacidad, borde, radio y sombra",
@@ -689,7 +717,15 @@
      }
     ]
    },
-   "interact": false
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
   },
   "hs-image-mobile": {
    "title": "Ancho por dispositivo: 60 % en el escritorio y 100 % en el móvil",
@@ -749,8 +785,18 @@
     ]
    },
    "pixels": {
-    "max": 0.3,
-    "reason": "PRO cambia con update_control() sólo el ancho del escritorio: en la tableta y el móvil el ancho sigue con el selector del widget Imagen (sobre la imagen, dentro del contenedor del escritorio), así que a 375 px su imagen queda al 60 %. El widget propio aplica el ancho de cada dispositivo al contenedor (diferencia declarada)."
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    },
+    "widths": {
+     "375": {
+      "max": 0.65,
+      "reason": "PRO cambia con update_control() sólo el ancho del escritorio: en la tableta y el móvil el ancho sigue con el selector del widget Imagen (sobre la imagen, dentro del contenedor del escritorio), así que a 375 px su imagen queda al 60 %. El widget propio aplica el ancho de cada dispositivo al contenedor (diferencia declarada)."
+     }
+    }
    },
    "declared": [
     {
@@ -810,6 +856,14 @@
       }
      }
     ]
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
    }
   }
  }
