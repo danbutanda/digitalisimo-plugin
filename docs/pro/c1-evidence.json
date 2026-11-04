@@ -1,0 +1,1252 @@
+{
+ "fecha": "2026-11-03",
+ "etapa": "C1",
+ "pro_ab": {
+  "casos": {
+   "nc-defaults": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0023,
+     "768": 0.0011,
+     "1280": 0.0006
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0.0023,
+      "768": 0.0011,
+      "1280": 0.0006
+     },
+     "punto 2": {
+      "375": 0.0023,
+      "768": 0.0011,
+      "1280": 0.0006
+     },
+     "tecla → en la flecha siguiente": {
+      "375": 0.0023,
+      "768": 0.0011,
+      "1280": 0.0006
+     }
+    },
+    "declaradas": 366,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-one-fraction": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "tecla → en la flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 33,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-progress": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "nc-style": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0019,
+     "768": 0.0009,
+     "1280": 0.0005
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0.0019,
+      "768": 0.0009,
+      "1280": 0.0005
+     }
+    },
+    "declaradas": 219,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-positions": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.002,
+     "768": 0.0008,
+     "1280": 0.0003
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "nc-icons": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-rtl": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0019,
+     "768": 0.0009,
+     "1280": 0.0005
+    },
+    "acciones": {
+     "flecha siguiente": {
+      "375": 0.0019,
+      "768": 0.0009,
+      "1280": 0.0005
+     },
+     "flecha siguiente otra vez": {
+      "375": 0.0019,
+      "768": 0.0009,
+      "1280": 0.0005
+     }
+    },
+    "declaradas": 237,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-offset": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0728,
+     "768": 0.0791,
+     "1280": 0.0489
+    },
+    "acciones": {},
+    "declaradas": 128,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:offset_sides"
+    ]
+   },
+   "nc-single": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-responsive": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0027,
+     "768": 0.0011,
+     "1280": 0.0311
+    },
+    "acciones": {},
+    "declaradas": 126,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "nc-autoplay": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.0094,
+     "768": 0.0044,
+     "1280": 0.0025
+    },
+    "acciones": {},
+    "declaradas": 142,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-defaults": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0001,
+      "768": 0,
+      "1280": 0
+     },
+     "Tercer punto": {
+      "375": 0.0004,
+      "768": 0.0002,
+      "1280": 0.0001
+     }
+    },
+    "declaradas": 150,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-default-rows": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {},
+    "declaradas": 74,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-images": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0035,
+     "768": 0.002,
+     "1280": 0.0002
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "Flecha siguiente otra vez": {
+      "375": 0.005,
+      "768": 0.0002,
+      "1280": 0.0001
+     }
+    },
+    "declaradas": 168,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-kenburns": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.1371,
+     "768": 0.137,
+     "1280": 0.1402
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.4947,
+      "768": 0.6118,
+      "1280": 0.5836
+     }
+    },
+    "declaradas": 92,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-content": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0004,
+      "768": 0.0002,
+      "1280": 0.0001
+     }
+    },
+    "declaradas": 150,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-nav-style": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0004,
+      "768": 0,
+      "1280": 0
+     },
+     "Tercer punto": {
+      "375": 0.0004,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 159,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-arrows": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "sl-dots": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {
+     "Tercer punto": {
+      "375": 0.0004,
+      "768": 0.0002,
+      "1280": 0.0001
+     }
+    },
+    "declaradas": 102,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-none": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-fade": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0001,
+      "768": 0,
+      "1280": 0
+     },
+     "Tercer punto": {
+      "375": 0.0004,
+      "768": 0.0002,
+      "1280": 0.0001
+     }
+    },
+    "declaradas": 150,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:content_animation"
+    ]
+   },
+   "sl-no-animation": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0001,
+      "768": 0,
+      "1280": 0
+     }
+    },
+    "declaradas": 114,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:content_animation"
+    ]
+   },
+   "sl-single": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0058,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:content_animation"
+    ]
+   },
+   "sl-responsive": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0006,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "acciones": {},
+    "declaradas": 74,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-autoplay": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.0044,
+     "768": 0.0021,
+     "1280": 0.0012
+    },
+    "acciones": {},
+    "declaradas": 109,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-button": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "sl-link-slide": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:infinite"
+    ]
+   },
+   "mc-defaults": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0018,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "acciones": {},
+    "declaradas": 125,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-images": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0022,
+     "768": 0.0034,
+     "1280": 0.003
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0022,
+      "768": 0.0041,
+      "1280": 0.003
+     },
+     "Tercer punto": {
+      "375": 0.0021,
+      "768": 0.0024,
+      "1280": 0.003
+     },
+     "Intro en la flecha siguiente": {
+      "375": 0.0021,
+      "768": 0.0017,
+      "1280": 0.003
+     }
+    },
+    "declaradas": 398,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-slideshow": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0025,
+     "1280": 0.0008
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0025,
+      "768": 0.0038,
+      "1280": 0.0028
+     }
+    },
+    "declaradas": 52,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop",
+     "pro.approx:skin"
+    ]
+   },
+   "mc-slideshow-thumb": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0025,
+     "1280": 0.0008
+    },
+    "acciones": {
+     "Tercera miniatura": {
+      "375": 0.0022,
+      "768": 0.0013
+     }
+    },
+    "declaradas": 52,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop",
+     "pro.approx:skin"
+    ]
+   },
+   "mc-slideshow-centered": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0058,
+     "768": 0.0039,
+     "1280": 0.0141
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0076,
+      "768": 0.0065,
+      "1280": 0.0188
+     }
+    },
+    "declaradas": 52,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop",
+     "pro.approx:skin"
+    ]
+   },
+   "mc-coverflow": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0018,
+     "768": 0.5014,
+     "1280": 0.5539
+    },
+    "acciones": {},
+    "declaradas": 112,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop",
+     "pro.approx:skin"
+    ]
+   },
+   "mc-video": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0168,
+     "768": 0.0173,
+     "1280": 0.0106
+    },
+    "acciones": {},
+    "declaradas": 37,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-play-icon": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0105,
+     "768": 0.0135,
+     "1280": 0.0073
+    },
+    "acciones": {},
+    "declaradas": 37,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-overlay-icon": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0014,
+     "768": 0.0011,
+     "1280": 0.003
+    },
+    "acciones": {},
+    "declaradas": 96,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-overlay-text": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0014,
+     "768": 0.0009,
+     "1280": 0.003
+    },
+    "acciones": {},
+    "declaradas": 104,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-style": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.0008,
+     "1280": 0.0484
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0,
+      "768": 0.001,
+      "1280": 0.0463
+     }
+    },
+    "declaradas": 42,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-progress": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.0026,
+     "1280": 0.0022
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0,
+      "768": 0.0032,
+      "1280": 0.0017
+     },
+     "Intro en la flecha siguiente": {
+      "375": 0,
+      "768": 0.0018,
+      "1280": 0.0013
+     }
+    },
+    "declaradas": 60,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-dots-style": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0015,
+     "768": 0.0026,
+     "1280": 0.0026
+    },
+    "acciones": {
+     "Tercer punto": {
+      "375": 0.0015,
+      "768": 0.0018,
+      "1280": 0.0026
+     }
+    },
+    "declaradas": 189,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:loop"
+    ]
+   },
+   "mc-fade": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0011,
+     "768": 0.0019,
+     "1280": 0.0003
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0009,
+      "768": 0.0006,
+      "1280": 0.0002
+     }
+    },
+    "declaradas": 144,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:effect",
+     "pro.approx:loop"
+    ]
+   },
+   "mc-cube": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0708,
+     "768": 0.0671,
+     "1280": 0.0631
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:effect",
+     "pro.approx:loop"
+    ]
+   },
+   "mc-responsive": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0094,
+     "768": 0.0026,
+     "1280": 0.0052
+    },
+    "acciones": {},
+    "declaradas": 146,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-single": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-lazy": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0014,
+     "768": 0.0009,
+     "1280": 0.0004
+    },
+    "acciones": {},
+    "declaradas": 104,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.approx:lazyload"
+    ]
+   },
+   "mc-custom-css": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0013,
+     "768": 0.0008,
+     "1280": 0.0023
+    },
+    "acciones": {},
+    "declaradas": 104,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     "pro.css:custom_css"
+    ]
+   },
+   "mc-autoplay": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.0087,
+     "768": 0.0044,
+     "1280": 0.005
+    },
+    "acciones": {},
+    "declaradas": 160,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-defaults": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.019,
+     "768": 0.0007,
+     "1280": 0.0075
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-stars": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0159,
+     "768": 0.0025,
+     "1280": 0.0209
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0295,
+      "768": 0.0093,
+      "1280": 0.0241
+     },
+     "Segundo punto": {
+      "375": 0.0176,
+      "768": 0.0023,
+      "1280": 0.0179
+     },
+     "Intro en la flecha siguiente": {
+      "375": 0.0292,
+      "768": 0.0021,
+      "1280": 0.0214
+     }
+    },
+    "declaradas": 447,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-outline": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0174,
+     "768": 0.0035,
+     "1280": 0.0059
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-unicode": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0126,
+     "768": 0.0007,
+     "1280": 0.0044
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-style": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0133,
+     "768": 0.0021,
+     "1280": 0.0046
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-separator": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0139,
+     "768": 0.0021,
+     "1280": 0.005
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-fraction": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 0.0153,
+     "768": 0.0016,
+     "1280": 0.0055
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-defaults": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0004,
+     "1280": 0.0003
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-images": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0011,
+     "768": 0.0007,
+     "1280": 0.0535
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0108,
+      "768": 0.0006,
+      "1280": 0.054
+     },
+     "Segundo punto": {
+      "375": 0.0108,
+      "768": 0.0006,
+      "1280": 0.054
+     },
+     "Intro en la flecha siguiente": {
+      "375": 0.0048,
+      "768": 0.0006,
+      "1280": 0.054
+     }
+    },
+    "declaradas": 324,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-stacked-left": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0088,
+     "768": 0.0004,
+     "1280": 0.0045
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-above-right": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0012,
+     "768": 0.0004,
+     "1280": 0.0002
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-left": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0005,
+     "1280": 0.0007
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-right": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0012,
+     "768": 0.0006,
+     "1280": 0.0004
+    },
+    "acciones": {},
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-bubble": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0012,
+     "768": 0.0004,
+     "1280": 0.0003
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-bubble-left": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0004,
+     "1280": 0.0003
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-bubble-right": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0012,
+     "768": 0.0004,
+     "1280": 0.0003
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-bubble-image-left": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0005,
+     "1280": 0.0007
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-responsive": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0019,
+     "768": 0.0005,
+     "1280": 0.0006
+    },
+    "acciones": {},
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-progress": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.0169,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {
+     "Flecha siguiente": {
+      "375": 0.0284,
+      "768": 0,
+      "1280": 0.005
+     }
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-autoplay": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.006,
+     "768": 0.0035,
+     "1280": 0.0024
+    },
+    "acciones": {},
+    "declaradas": 81,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   }
+  },
+  "resumen": {
+   "casos": 67,
+   "con_problemas": 0,
+   "cita_c0": "18 casos en verde con el arnés de C1"
+  }
+ },
+ "pro_migrate": {
+  "problemas": [],
+  "comprobaciones": 15
+ },
+ "interaction": {
+  "ok": 38,
+  "editor_pro": "6 widgets de PRO registrados y ocultos; la búsqueda ofrece los propios"
+ },
+ "front_budget": {
+  "caso": "carousels",
+  "peticiones": 35,
+  "proHandlers": false,
+  "proFrontend": false,
+  "swiper": false,
+  "errores": 0,
+  "problemas": 0
+ }
+}
