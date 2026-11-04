@@ -302,7 +302,11 @@
      "widths": [
       768,
       1280
-     ]
+     ],
+     "pixels": {
+      "max": 0.2,
+      "reason": "PRO (SmartMenus) cierra los submenús abiertos con cualquier cambio de tamaño de la ventana, y la captura del arnés (captureBeyondViewport) cambia el tamaño: la imagen de A sale con el submenú recién cerrado mientras la firma, tomada antes, coincide. Comprobado a mano: justo antes de la captura los dos tienen el elemento abierto y resaltado. El propio no cierra al cambiar de tamaño (recoloca los botones)."
+     }
     },
     {
      "label": "hamburguesa",
@@ -450,7 +454,11 @@
      "widths": [
       768,
       1280
-     ]
+     ],
+     "pixels": {
+      "max": 0.2,
+      "reason": "PRO (SmartMenus) cierra los submenús abiertos con cualquier cambio de tamaño de la ventana, y la captura del arnés (captureBeyondViewport) cambia el tamaño: la imagen de A sale con el submenú recién cerrado mientras la firma, tomada antes, coincide. Comprobado a mano: justo antes de la captura los dos tienen el elemento abierto y resaltado. El propio no cierra al cambiar de tamaño (recoloca los botones)."
+     }
     },
     {
      "label": "hamburguesa",

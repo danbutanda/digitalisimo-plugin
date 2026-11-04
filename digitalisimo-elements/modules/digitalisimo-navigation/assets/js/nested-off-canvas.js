@@ -50,13 +50,11 @@ const open = (p, ev) => {
 	const h = F() && F().elementsHandler;
 	if (!p.ran && h && h.runReadyTrigger) p.content.querySelectorAll('.elementor-element').forEach(n => h.runReadyTrigger(n));
 	p.ran = true;
-	if (!edit()) w.requestAnimationFrame(() => {
-		if (!p.open) return;
-		const f = focusables(p)[0];
-		if (f) return f.focus();
-		p.content.setAttribute('tabindex', '-1');
-		p.content.focus();
-	});
+	if (edit()) return;
+	const f = focusables(p)[0];
+	if (f) return f.focus();
+	p.content.setAttribute('tabindex', '-1');
+	p.content.focus();
 };
 const close = p => {
 	if (!p.open) return;
