@@ -475,6 +475,21 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'testimonial-carousel', own: 'digitalisimo-testimonial-carousel', title: 'Carrusel de testimonios', query: 'testimonios' },
         { pro: 'reviews', own: 'digitalisimo-reviews', title: 'Reseñas', query: 'reseñas' },
         { pro: 'slides', own: 'digitalisimo-slides', title: 'Diapositivas', query: 'diapositivas' },
+        // C2 (contenido, docs/pro/c2.md).
+        { pro: 'animated-headline', own: 'digitalisimo-animated-headline', title: 'Titular animado', query: 'titular' },
+        { pro: 'code-highlight', own: 'digitalisimo-code-highlight', title: 'Código resaltado', query: 'resaltado' },
+        { pro: 'table-of-contents', own: 'digitalisimo-table-of-contents', title: 'Tabla de contenido', query: 'tabla de contenido' },
+        { pro: 'share-buttons', own: 'digitalisimo-share-buttons', title: 'Botones para compartir', query: 'compartir' },
+        { pro: 'call-to-action', own: 'digitalisimo-call-to-action', title: 'Llamada a la acción con imagen', query: 'acción con imagen' },
+        { pro: 'flip-box', own: 'digitalisimo-flip-box', title: 'Tarjeta giratoria', query: 'giratoria' },
+        { pro: 'price-list', own: 'digitalisimo-price-list', title: 'Lista de precios', query: 'lista de precios' },
+        { pro: 'price-table', own: 'digitalisimo-price-table', title: 'Tabla de precios', query: 'tabla de precios' },
+        { pro: 'gallery', own: 'digitalisimo-gallery', title: 'Galería avanzada', query: 'galería avanzada' },
+        { pro: 'hotspot', own: 'digitalisimo-hotspot', title: 'Puntos de interés', query: 'puntos de interés' },
+        { pro: 'lottie', own: 'digitalisimo-lottie', title: 'Animación Lottie', query: 'lottie' },
+        { pro: 'video-playlist', own: 'digitalisimo-video-playlist', title: 'Lista de videos', query: 'lista de videos' },
+        { pro: 'countdown', own: 'digitalisimo-countdown', title: 'Cuenta regresiva', query: 'regresiva' },
+        { pro: 'progress-tracker', own: 'digitalisimo-progress-tracker', title: 'Indicador de progreso', query: 'indicador de progreso' },
       ];
       const pro = await page.evaluate(async (list) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

@@ -44,7 +44,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 
 - **C0 · Inventario, método y arnés.** «Analizar» de Migración cuenta, por sitio y red, cada widget de PRO usado (también dentro de plantillas, popups, Loop Items y revisiones), los tipos de plantilla del Theme Builder y el kit: así se ordenan las familias por uso real. Se crean el módulo de convertidores de Elements, el mecanismo para ocultar del panel, el arnés A/B y la plantilla de etapa. El orden de C1–C9 se revisa con esos datos.
 - **C1 · Carruseles.** Los cinco, sobre un motor de carrusel propio (`digi-crs`, derivado del slider anidado de F7b), sin Swiper. El Slider Optimizado (marquesina de logotipos) y el Slider anidado ligero no eran equivalentes completos y no cambian: Slides y Nested carousel tienen también widget propio nuevo. Incluye el punto de extensión de K que convierte los widgets de PRO al importar un kit. Es la familia que más pesa en el front (Swiper, 144 KB). Contrato y resultado en `docs/pro/c1.md`.
-- **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`.
+- **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`. Los catorce que quedaban tras la Cita de C0 tienen widget propio nuevo; los equivalentes parciales que ya existían (Encabezado animado, Llamada a la acción, Tarjeta destacada, Galería personalizada, Progreso de lectura y Reproductor de video) no cambian. Contrato y resultado en `docs/pro/c2.md`.
 - **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
 - **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo.
 - **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items.
@@ -67,21 +67,21 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C1 | `carousel` | `testimonial-carousel` | Testimonial Carousel | **Sustituido** | Carrusel de testimonios (`digitalisimo-testimonial-carousel`), C1 |
 | C1 | `nested-carousel` | `nested-carousel` | Carousel | **Sustituido** | Carrusel anidado (`digitalisimo-nested-carousel`), C1 |
 | C1 | `slides` | `slides` | Slides | **Sustituido** | Diapositivas (`digitalisimo-slides`), C1 |
-| C2 | `animated-headline` | `animated-headline` | Animated Headline | Existe | Encabezado animado |
+| C2 | `animated-headline` | `animated-headline` | Animated Headline | **Sustituido** | Titular animado (`digitalisimo-animated-headline`), C2; el Encabezado animado no cambia |
 | C2 | `blockquote` | `blockquote` | Blockquote | **Sustituido** | Cita (`digitalisimo-blockquote`), C0 |
-| C2 | `call-to-action` | `call-to-action` | Call to Action | Parcial | Llamada a la acción |
-| C2 | `code-highlight` | `code-highlight` | Code Highlight | Nuevo |  |
-| C2 | `countdown` | `countdown` | Countdown | Nuevo |  |
-| C2 | `flip-box` | `flip-box` | Flip Box | Parcial | Tarjeta destacada |
-| C2 | `gallery` | `gallery` | Gallery | Parcial | Galería personalizada |
-| C2 | `hotspot` | `hotspot` | Hotspot | Nuevo |  |
-| C2 | `lottie` | `lottie` | Lottie | Nuevo |  |
-| C2 | `pricing` | `price-list` | Price List | Nuevo |  |
-| C2 | `pricing` | `price-table` | Price Table | Nuevo |  |
-| C2 | `progress-tracker` | `progress-tracker` | Progress Tracker | Existe | Progreso de lectura |
-| C2 | `share-buttons` | `share-buttons` | Share Buttons | Nuevo |  |
-| C2 | `table-of-contents` | `table-of-contents` | Table of Contents | Nuevo |  |
-| C2 | `video-playlist` | `video-playlist` | Video Playlist | Parcial | Reproductor de video (lista) |
+| C2 | `call-to-action` | `call-to-action` | Call to Action | **Sustituido** | Llamada a la acción con imagen (`digitalisimo-call-to-action`), C2 |
+| C2 | `code-highlight` | `code-highlight` | Code Highlight | **Sustituido** | Código resaltado (`digitalisimo-code-highlight`), C2 |
+| C2 | `countdown` | `countdown` | Countdown | **Sustituido** | Cuenta regresiva (`digitalisimo-countdown`), C2 |
+| C2 | `flip-box` | `flip-box` | Flip Box | **Sustituido** | Tarjeta giratoria (`digitalisimo-flip-box`), C2 |
+| C2 | `gallery` | `gallery` | Gallery | **Sustituido** | Galería avanzada (`digitalisimo-gallery`), C2; la Galería personalizada no cambia |
+| C2 | `hotspot` | `hotspot` | Hotspot | **Sustituido** | Puntos de interés (`digitalisimo-hotspot`), C2 |
+| C2 | `lottie` | `lottie` | Lottie | **Sustituido** | Animación Lottie (`digitalisimo-lottie`), C2 |
+| C2 | `pricing` | `price-list` | Price List | **Sustituido** | Lista de precios (`digitalisimo-price-list`), C2 |
+| C2 | `pricing` | `price-table` | Price Table | **Sustituido** | Tabla de precios (`digitalisimo-price-table`), C2 |
+| C2 | `progress-tracker` | `progress-tracker` | Progress Tracker | **Sustituido** | Indicador de progreso (`digitalisimo-progress-tracker`), C2; el Progreso de lectura no cambia |
+| C2 | `share-buttons` | `share-buttons` | Share Buttons | **Sustituido** | Botones para compartir (`digitalisimo-share-buttons`), C2 |
+| C2 | `table-of-contents` | `table-of-contents` | Table of Contents | **Sustituido** | Tabla de contenido (`digitalisimo-table-of-contents`), C2 |
+| C2 | `video-playlist` | `video-playlist` | Video Playlist | **Sustituido** | Lista de videos (`digitalisimo-video-playlist`), C2; el Reproductor de video no cambia |
 | C3 | `mega-menu` | `mega-menu` | Menu | Nuevo |  |
 | C3 | `nav-menu` | `nav-menu` | WordPress Menu | Nuevo |  |
 | C3 | `off-canvas` | `off-canvas` | Off-Canvas | Parcial | Panel lateral (PRO usa un contenedor anidado) |
@@ -171,6 +171,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 |---|---|
 | C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · `v2026.11.03.448`. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
 | C1 | **Publicado** · Elements 4.3.0.173 y Migración 1.0.23 · `v2026.11.04.449`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
-| C2 | **En curso** (rama `pro/c2`, contrato `docs/pro/c2.md`) |
-| C2–C9 | Pendientes |
+| C2 | **Publicado** · Elements @NEXT_ELEMENTS@ y Migración @NEXT_MIGRATION@ · `@C2_TAG@`. Catorce widgets de contenido propios en `modules/digitalisimo-content/` (Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso) con sus mapas listos y fuera del panel; con la Cita de C0, la familia C2 queda sustituida entera. Detalle en `docs/pro/c2.md` |
+| C3–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |
