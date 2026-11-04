@@ -37,7 +37,7 @@
 		if (!root || root.digiHsTriggers) return;
 		try { root.digiHsTriggers = JSON.parse(root.getAttribute('data-digi-trigger') || '{}'); } catch (e) { root.digiHsTriggers = {}; }
 		root.querySelectorAll('.digi-hs:not(.digi-hs--no-tip)').forEach(function (spot) {
-			var b = spot.querySelector('.digi-hs__button');
+			var b = spot.querySelector('.digi-hs__button'), f = spot.matches('a') ? spot : b;
 			if (!b || !spot.querySelector('.digi-hs__tip')) return;
 			// Con enlace, en el móvil el paso del puntero no abre nada (como PRO): el toque sigue el enlace.
 			var hover = function () { return 'mouseenter' === trigger(root) && !(spot.classList.contains('digi-hs--link') && 'mobile' === device()); };
@@ -47,8 +47,8 @@
 				else if (hover()) only(root, spot, true);
 			});
 			b.addEventListener('pointerenter', function (e) { if ('touch' !== e.pointerType && hover()) only(root, spot, true); });
-			spot.addEventListener('pointerleave', function (e) { if ('touch' !== e.pointerType && hover() && !spot.querySelector(':focus-visible')) set(spot, false); });
-			b.addEventListener('focus', function () { if (hover() && !spot.digiHsEsc) only(root, spot, true); spot.digiHsEsc = false; });
+			spot.addEventListener('pointerleave', function (e) { if ('touch' !== e.pointerType && hover() && !spot.matches(':focus-visible') && !spot.querySelector(':focus-visible')) set(spot, false); });
+			f.addEventListener('focus', function () { if (hover() && !spot.digiHsEsc) only(root, spot, true); spot.digiHsEsc = false; });
 			spot.addEventListener('focusout', function (e) { if (hover() && !spot.contains(e.relatedTarget) && !spot.matches(':hover')) set(spot, false); });
 		});
 		var seq = root.getAttribute('data-digi-sequence');
@@ -69,7 +69,7 @@
 		document.querySelectorAll('.digi-hotspots .digi-hs--active').forEach(function (spot) {
 			var inside = spot.contains(document.activeElement);
 			set(spot, false);
-			if (inside) { var b = spot.querySelector('.digi-hs__button'); spot.digiHsEsc = b !== document.activeElement; if (b) b.focus(); }
+			if (inside) { var f = spot.matches('a') ? spot : spot.querySelector('.digi-hs__button'); spot.digiHsEsc = f !== document.activeElement; if (f) f.focus(); }
 		});
 	});
 

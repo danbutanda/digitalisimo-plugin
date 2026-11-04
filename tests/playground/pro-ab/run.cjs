@@ -522,6 +522,9 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const fa = state ? (wa[state] || {}).shot : wa.shot;
         const fb = state ? (wb[state] || {}).shot : wb.shot;
         if (!fa && !fb) continue;
+        // `pixels.states.<hover|focus>.skip` (con `reason`): el estado no se compara en píxeles, p. ej. cuando sólo B tiene
+        // algo enfocable (un control de teclado que PRO no ofrecía) y A no tiene captura con el foco.
+        if (state && ((pix.states || {})[state] || {}).skip) { if (!pix.states[state].reason) fail(`pixels.states.${state}.skip sin «reason»`); continue; }
         const p = await pixelDiff(diffPage, fa, fb, path.join(SHOTS, `${slug}-diff-${width}${state ? '-' + state : ''}.png`), tol);
         const key = state || 'normal';
         w.pixels[key] = p || { error: 'sin captura de A o de B' };

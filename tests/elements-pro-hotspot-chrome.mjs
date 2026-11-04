@@ -45,7 +45,7 @@ const state = (page, id) => page.evaluate(id => [...document.querySelectorAll(`[
   const b = s.querySelector('.digi-hs__button'), t = s.querySelector('.digi-hs__tip');
   return { open: s.classList.contains('digi-hs--active'), expanded: b.getAttribute('aria-expanded'), visible: t ? t.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : null };
 }), id);
-const sel = (id, n, part = '.digi-hs__button') => `[data-case="${id}"] .digi-hs:nth-of-type(${n}) ${part}`;
+const sel = (id, n, part = '.digi-hs__button') => `[data-case="${id}"] .elementor-repeater-item-a${n} ${part}`;
 const center = (page, s) => page.$eval(s, el => { el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
 
 // 1. «Al pulsar».
@@ -80,13 +80,13 @@ await page.keyboard.press('Tab');
 ok(await page.evaluate(() => document.activeElement.getAttribute('href') === '#isla'), 'Abierta, Tab entra en el enlace de la información emergente.');
 await page.keyboard.press('Escape');
 await sleep(100);
-ok(!(await state(page, 'click'))[1].open && await page.evaluate(() => document.activeElement.matches('[data-case="click"] .digi-hs:nth-of-type(2) .digi-hs__button')), 'Escape cierra y devuelve el foco al botón.');
+ok(!(await state(page, 'click'))[1].open && await page.evaluate(() => document.activeElement.matches('[data-case="click"] .elementor-repeater-item-a2 .digi-hs__button')), 'Escape cierra y devuelve el foco al botón.');
 const outline = await page.evaluate(() => { const b = document.activeElement, c = getComputedStyle(b); return [c.outlineStyle, c.outlineWidth, c.outlineOffset]; });
 ok(outline[0] === 'solid' && outline[1] === '2px' && outline[2] === '2px', 'Foco visible: contorno de 2 px a 2 px: ' + outline.join(' '));
 const targets = await page.evaluate(() => [...document.querySelectorAll('[data-case="click"] .digi-hs__button')].map(b => { const r = b.getBoundingClientRect(), p = getComputedStyle(b, '::before'); return [Math.round(r.width), Math.round(r.height), p.content, p.inset]; }));
 ok(targets.every(([w, h, c, i]) => w + 10 >= 24 && h + 10 >= 24 && c === '""' && i === '-5px'), 'Objetivos de 24 × 24 px como mínimo (con el área de 5 px alrededor): ' + JSON.stringify(targets));
 ok(targets[0][0] === 26 && targets[0][1] === 26, 'El punto circular mide 26 × 26 px como en PRO (18 + 2 × 4).');
-ok(await page.$eval(sel('click', 3), a => a.tagName === 'A' && a.getAttribute('href') === 'https://a.test/x'), 'Con enlace y «al pulsar», el punto es el enlace.');
+ok(await page.$eval('[data-case="click"] .elementor-repeater-item-a3', a => a.tagName === 'A' && a.getAttribute('href') === 'https://a.test/x' && !a.querySelector('.digi-hs__tip')), 'Con enlace y «al pulsar», el punto es el enlace, sin información emergente.');
 
 // 2. «Al pasar».
 await page.mouse.move(...await center(page, sel('hover', 1)));
@@ -103,7 +103,7 @@ await page.keyboard.press('Escape');
 await sleep(100);
 ok(!(await state(page, 'hover'))[1].open, 'Escape la cierra con el puntero encima (WCAG 1.4.13).');
 await page.mouse.move(5, 5);
-await page.focus(sel('click', 3));
+await page.focus('[data-case="click"] .elementor-repeater-item-a3');
 await page.keyboard.press('Tab');
 await sleep(100);
 ok((await state(page, 'hover'))[0].open, 'El foco del teclado abre en el modo «al pasar».');
@@ -117,7 +117,15 @@ ok(!(await state(page, 'hover'))[1].open, 'Al perder el foco (sin el puntero enc
 await page.mouse.move(...await center(page, sel('hover', 3)));
 await sleep(650);
 st = await state(page, 'hover');
-ok(st[2].open && st[2].visible && await page.$eval(sel('hover', 3), a => a.tagName === 'A' && document.getElementById(a.getAttribute('aria-describedby')).textContent === 'Enlace con información'), 'El enlace con información emergente la abre al pasar y la describe.');
+ok(st[2].open && st[2].visible && await page.$eval('[data-case="hover"] .elementor-repeater-item-a3', a => a.tagName === 'A' && a.querySelector('.digi-hs__tip').textContent === 'Enlace con información'), 'El enlace con información emergente (dentro, como PRO) la abre al pasar.');
+await page.mouse.move(5, 5);
+await page.focus('[data-case="hover"] .elementor-repeater-item-a3');
+await sleep(100);
+ok((await state(page, 'hover'))[2].open, 'El foco del teclado en el enlace también la abre.');
+await page.keyboard.press('Escape');
+await sleep(100);
+ok(!(await state(page, 'hover'))[2].open && await page.evaluate(() => document.activeElement.matches('[data-case="hover"] a.digi-hs')), 'Escape la cierra y el foco sigue en el enlace.');
+await page.evaluate(() => document.activeElement.blur());
 await page.mouse.move(5, 5);
 await page.click(sel('hover', 1));
 await sleep(100);
@@ -125,7 +133,7 @@ ok((await state(page, 'hover'))[0].open, 'En «al pasar», pulsar abre (un toque
 
 // 3. «Siempre visible», secuencia, dirección.
 st = await state(page, 'none');
-ok(st[0].visible && st[0].expanded === null && await page.$eval(sel('none', 1), b => b.tagName === 'SPAN'), '«Siempre visible»: a la vista y sin botón.');
+ok(st[0].visible && st[0].expanded === null && await page.$eval(sel('none', 2), b => b.tagName === 'SPAN'), '«Siempre visible»: a la vista y sin botón.');
 ok(await page.$$eval('[data-case="seq"] .digi-hs', s => s.every(x => !x.style.animationDelay)), 'Secuencia: sin retrasos hasta entrar en la pantalla.');
 await page.$eval('[data-case="seq"]', el => el.scrollIntoView({ block: 'center' }));
 await sleep(200);
@@ -139,19 +147,19 @@ await sleep(650);
 ok(await page.$eval(sel('seq', 1, '.digi-hs__tip'), t => getComputedStyle(t).transform === 'none' && t.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })), 'Abierta, entra en la máscara.');
 ok(await page.$eval('[data-case="click"] .digi-hs__outer', o => getComputedStyle(o).animationName === 'digi-hs-expand') && await page.$eval('[data-case="hover"] .digi-hs__button', b => getComputedStyle(b).animationName === 'digi-hs-beat'), 'Animaciones «Expansión» y «Latido suave».');
 // Disparador por dispositivo: «al pasar» en el escritorio.
-await page.mouse.move(...await center(page, sel('device', 1)));
+await page.mouse.move(...await center(page, sel('device', 2)));
 await sleep(100);
 ok((await state(page, 'device'))[0].open, 'Escritorio: «al pasar».');
 await page.close();
 
 page = await open({ width: 375 });
-await page.mouse.move(...await center(page, sel('device', 1)));
+await page.mouse.move(...await center(page, sel('device', 2)));
 await sleep(100);
 ok(!(await state(page, 'device'))[0].open, 'Móvil: el puntero encima no abre.');
-await page.click(sel('device', 1));
+await page.click(sel('device', 2));
 await sleep(100);
 ok((await state(page, 'device'))[0].open, 'Móvil: «al pulsar».');
-await page.click(sel('device', 1));
+await page.click(sel('device', 2));
 await sleep(100);
 ok(!(await state(page, 'device'))[0].open, 'Móvil: pulsar otra vez cierra.');
 await page.close();

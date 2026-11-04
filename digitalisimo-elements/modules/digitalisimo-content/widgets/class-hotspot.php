@@ -20,8 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * - **Marcado propio** (`digi-hotspots`, `digi-hs__…`): la imagen con `Group_Control_Image_Size` del núcleo
  *   (`wp_get_attachment_image()` con `srcset`), y cada punto con su disparador. Un punto con información emergente es un
- *   `<button>` con `aria-expanded` y `aria-controls`; con enlace, un `<a>` (la información emergente va a su lado y la
- *   describe); sin ninguna de las dos cosas, un `<span>` que no entra en el orden del foco. Un punto sin texto lleva
+ *   `<button>` con `aria-expanded` y `aria-controls`; con enlace, el punto entero es el `<a>` (como PRO, con la información
+ *   emergente dentro); sin ninguna de las dos cosas, el dibujo no entra en el orden del foco. Un punto sin texto lleva
  *   como nombre «Punto de interés N».
  * - **Información emergente** al pulsar o al pasar el puntero (por dispositivo, como PRO) y también con el foco del
  *   teclado en el modo «al pasar»; Escape la cierra. Script propio `hotspot.js` (`defer`, sin dependencias).
@@ -30,8 +30,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Diferencias declaradas con PRO: los puntos son botones o enlaces que se alcanzan con el teclado (PRO los pintaba como
  * `<div>`); la información emergente se abre también con el foco y se cierra con Escape; cerrada queda oculta
- * (`visibility`) además de transparente, así que sus enlaces no reciben el foco; con enlace y «al pasar», la información
- * emergente va junto al enlace y no dentro; los estilos de la imagen no alcanzan a las imágenes de la información
+ * (`visibility`) además de transparente, así que sus enlaces no reciben el foco; el ancho, el ancho máximo y el alto de
+ * la tableta y el móvil se aplican al contenedor como los del escritorio (PRO sólo cambiaba los del escritorio y dejaba
+ * los demás dispositivos con los selectores del widget Imagen, sobre la imagen); los estilos de la imagen no alcanzan a las imágenes de la información
  * emergente; la animación en secuencia aparece aunque la página no cargue la animación de entrada `fadeIn` del núcleo;
  * el texto y la información emergente pasan por `wp_kses_post()`.
  *
@@ -863,25 +864,28 @@ class Hotspot extends \Elementor\Widget_Base {
 				$circle ? 'digi-hs--circle' : '',
 				'' === $label && $has_ico ? 'digi-hs--icon' : '',
 			);
-			echo '<div class="' . esc_attr( implode( ' ', array_filter( $classes ) ) ) . '">';
+			// El punto: con enlace, el propio enlace (como PRO, con la información emergente dentro); si no, un `<div>`.
+			$spot = 'spot' . $index;
+			$this->add_render_attribute( $spot, 'class', array_values( array_filter( $classes ) ) );
+			$name = '' === trim( wp_strip_all_tags( $label ) ) ? sprintf( /* translators: %d: número del punto. */ esc_html__( 'Punto de interés %d', 'pro-elements' ), (int) $index + 1 ) : '';
+			if ( $is_link ) {
+				$this->add_link_attributes( $spot, $link );
+				if ( '' !== $name ) {
+					$this->add_render_attribute( $spot, 'aria-label', $name );
+				}
+			}
+			echo '<' . ( $is_link ? 'a' : 'div' ) . ' ' . $this->get_render_attribute_string( $spot ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos escapados.
 
-			// Disparador: botón con información emergente, enlace con enlace y, si no, sólo el dibujo.
+			// Disparador: botón con información emergente (sin enlace) y, si no, sólo el dibujo.
 			$key = 'trigger' . $index;
 			$this->add_render_attribute( $key, 'class', array_filter( array( 'digi-hs__button', $button_an ) ) );
 			$tag = 'span';
-			if ( $is_link ) {
-				$tag = 'a';
-				$this->add_link_attributes( $key, $link );
-				if ( $tooltip ) {
-					$this->add_render_attribute( $key, 'aria-describedby', $id );
-				}
-			} elseif ( $tooltip && $interactive ) {
+			if ( ! $is_link && $tooltip && $interactive ) {
 				$tag = 'button';
 				$this->add_render_attribute( $key, array( 'type' => 'button', 'aria-expanded' => $show ? 'true' : 'false', 'aria-controls' => $id ) );
-			}
-			if ( '' === trim( wp_strip_all_tags( $label ) ) && 'span' !== $tag ) {
-				/* translators: %d: número del punto. */
-				$this->add_render_attribute( $key, 'aria-label', sprintf( esc_html__( 'Punto de interés %d', 'pro-elements' ), (int) $index + 1 ) );
+				if ( '' !== $name ) {
+					$this->add_render_attribute( $key, 'aria-label', $name );
+				}
 			}
 			echo '<' . $tag . ' ' . $this->get_render_attribute_string( $key ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de una lista cerrada y atributos escapados.
 			if ( $circle ) {
@@ -915,7 +919,7 @@ class Hotspot extends \Elementor\Widget_Base {
 					echo '</div>';
 				}
 			}
-			echo '</div>';
+			echo $is_link ? '</a>' : '</div>';
 		}
 		echo $this->caption( $settings ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto escapado.
 		echo '</div>';

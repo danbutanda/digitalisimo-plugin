@@ -3,12 +3,38 @@
   "Casos A/B de los Puntos de interés (frente C de C2): A con `hotspot` de PRO, B con `digitalisimo-hotspot`. Imágenes con `{\"$image\": n}`. Las animaciones infinitas del punto (latido, expansión) se apagan salvo en hs-defaults; las de la información emergente terminan antes de medir.",
   "`actions`: pulsar el disparador de cada lado (en PRO, el `<div>` `.e-hotspot__button`; aquí, el `<button>`). El arnés quita el foco y el puntero tras cada acción: «al pulsar» la información emergente sigue abierta."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "hotspot",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?nuevo button «",
+   "reason": "Cada punto con información emergente es un <button> con nombre (su texto o «Punto de interés N»), aria-expanded y aria-controls: se alcanza y se abre con el teclado. En PRO era un <div> fuera del orden del foco."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control button \\d+ sólo en B",
+   "reason": "Botón propio de cada punto con información emergente (ver «nuevo button»)."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?(perdido|nuevo) link «",
+   "reason": "Un punto con enlace sin texto lleva como nombre «Punto de interés N» (en PRO, un enlace sin nombre accesible)."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px a 2 px) donde PRO dejaba el del navegador."
+  }
+ ],
  "cases": {
   "hs-defaults": {
    "title": "Valores por defecto: imagen de muestra y un punto circular con «Expansión», información emergente al pulsar",
    "widget": "hotspot",
-   "settings": {}
+   "settings": {},
+   "interact": false
   },
   "hs-click": {
    "title": "Imagen, tres puntos (círculo, texto e icono con enlace), sin animación; abrir, cambiar y cerrar al pulsar",
@@ -20,6 +46,41 @@
     "image_size": "large",
     "hotspot_animation": "",
     "hotspot": [
+     {
+      "_id": "h3",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "#estrella",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "fas fa-star",
+       "library": "fa-solid"
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 3",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 75,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 70,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
      {
       "_id": "h1",
       "hotspot_label": "",
@@ -86,41 +147,6 @@
       "hotspot_offset_y": {
        "unit": "%",
        "size": 50,
-       "sizes": []
-      },
-      "hotspot_tooltip_position": "no"
-     },
-     {
-      "_id": "h3",
-      "hotspot_label": "",
-      "hotspot_link": {
-       "url": "#estrella",
-       "is_external": "",
-       "nofollow": "",
-       "custom_attributes": ""
-      },
-      "hotspot_icon": {
-       "value": "fas fa-star",
-       "library": "fa-solid"
-      },
-      "hotspot_icon_position": "start",
-      "hotspot_icon_spacing": {
-       "unit": "px",
-       "size": 5,
-       "sizes": []
-      },
-      "hotspot_custom_size": "no",
-      "hotspot_tooltip_content": "Información del punto 3",
-      "hotspot_horizontal": "left",
-      "hotspot_offset_x": {
-       "unit": "%",
-       "size": 75,
-       "sizes": []
-      },
-      "hotspot_vertical": "top",
-      "hotspot_offset_y": {
-       "unit": "%",
-       "size": 70,
        "sizes": []
       },
       "hotspot_tooltip_position": "no"
@@ -226,6 +252,10 @@
       "hotspot_tooltip_position": "no"
      }
     ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Estado con foco: con «al pasar», la información emergente propia se abre también con el foco del teclado (WCAG 1.4.13 y 2.1.1); PRO sólo la abría con el puntero."
    }
   },
   "hs-styles": {
@@ -502,6 +532,14 @@
      "a": ".elementor-repeater-item-h2 .e-hotspot__button",
      "b": ".elementor-repeater-item-h2 .digi-hs__button"
     }
+   ],
+   "interact": false,
+   "declared": [
+    {
+     "kind": "palabra",
+     "match": "^(\\[acción [^\\]]*\\] )?perdida «",
+     "reason": "«Deslizar desde la dirección» cerrada: PRO deja la información emergente opaca y la esconde sólo desplazándola fuera de su máscara (el texto sigue en la página y sus enlaces reciben el foco); la propia, cerrada, además queda oculta (visibility)."
+    }
    ]
   },
   "hs-grow": {
@@ -558,7 +596,8 @@
      "a": ".elementor-repeater-item-h1 .e-hotspot__button",
      "b": ".elementor-repeater-item-h1 .digi-hs__button"
     }
-   ]
+   ],
+   "interact": false
   },
   "hs-image": {
    "title": "Estilos de la imagen: ancho, alineación, alto con recorte, opacidad, borde, radio y sombra",
@@ -572,11 +611,6 @@
     "width": {
      "unit": "%",
      "size": 60,
-     "sizes": []
-    },
-    "width_mobile": {
-     "unit": "%",
-     "size": 100,
      "sizes": []
     },
     "height": {
@@ -654,11 +688,92 @@
       "hotspot_tooltip_position": "no"
      }
     ]
-   }
+   },
+   "interact": false
+  },
+  "hs-image-mobile": {
+   "title": "Ancho por dispositivo: 60 % en el escritorio y 100 % en el móvil",
+   "widget": "hotspot",
+   "interact": false,
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "width": {
+     "unit": "%",
+     "size": 60,
+     "sizes": []
+    },
+    "width_mobile": {
+     "unit": "%",
+     "size": 100,
+     "sizes": []
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.3,
+    "reason": "PRO cambia con update_control() sólo el ancho del escritorio: en la tableta y el móvil el ancho sigue con el selector del widget Imagen (sobre la imagen, dentro del contenedor del escritorio), así que a 375 px su imagen queda al 60 %. El widget propio aplica el ancho de cada dispositivo al contenedor (diferencia declarada)."
+   },
+   "declared": [
+    {
+     "kind": "caja",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor (ver pixels.reason)."
+    },
+    {
+     "kind": "imagen",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor: el navegador elige otro archivo del srcset."
+    },
+    {
+     "kind": "estilo",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor."
+    }
+   ]
   },
   "hs-caption": {
    "title": "Leyenda bajo la imagen (rasgo DIGITALÍSIMO del Hotspot) con alineación, color, tipografía y separación",
    "widget": "hotspot",
+   "interact": false,
    "settings": {
     "image": {
      "$image": 1

@@ -1,7 +1,7 @@
 {
  "_doc": [
   "Casos A/B de la Animación Lottie (frente C de C2): A con `lottie` de PRO, B con `digitalisimo-lottie`. `{\"$lottie\": 1}` da la animación de prueba de setup.php como adjunto JSON (400 × 300, 50 fotogramas: un rectángulo azul que cruza y un círculo rojo que crece, visibles desde el primer fotograma) y `\"$lottie-url\"` su URL.",
-  "Comparación determinista (docs/pro/c2.md §2): o el estado final (sin disparador o al entrar en la pantalla con velocidad 5, que termina en 0,4 s, antes de medir) o el inicial («Al pulsar» sin pulsar, «Con el desplazamiento» en la misma posición de la página en A y B). `ready` espera al SVG (o al canvas) que crea la librería en cada lado."
+  "Comparación determinista (docs/pro/c2.md §2): el estado final (sin disparador con velocidad 5, que termina en 0,4 s, antes de medir; «Ninguno» sólo se reproduce al cargar) o el inicial («Al pulsar» sin pulsar, «Con el desplazamiento» en la misma posición de la página en A y B). «Al entrar en la pantalla» vuelve a reproducirse cada vez que el arnés cambia el ancho (el widget sale de la vista y vuelve), así que el fotograma medido dependería del instante: se prueba en tests/elements-pro-lottie-chrome.mjs. `ready` espera al SVG (o al canvas) que crea la librería en cada lado; `shape`, porque la animación no es texto ni <img>."
  ],
  "declared": [
   {
@@ -16,31 +16,87 @@
    "title": "Valores por defecto: sin archivo, al entrar en la pantalla (la animación de muestra de cada lado)",
    "widget": "lottie",
    "settings": {},
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
    "interact": false,
    "pixels": {
     "max": 1,
     "reason": "Sin archivo elegido, cada widget pinta su animación de muestra: la de PRO es el logotipo animado de otra marca (la interfaz de DIGITALÍSIMO Elements no muestra marcas de terceros, AGENTS.md) y la propia, un anillo neutro. El resto (contenedor, alineación, tamaño) se compara en la firma."
-   }
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
   "lt-json": {
    "title": "Adjunto JSON sin disparador, velocidad 5: se compara el último fotograma",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "trigger": "none", "play_speed": { "unit": "px", "size": 5, "sizes": [] } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
-  "lt-viewport": {
-   "title": "Adjunto JSON al entrar en la pantalla (por defecto), velocidad 5 y tramo del 0 al 80 %: el fotograma del 80 %",
+  "lt-range": {
+   "title": "Adjunto JSON sin disparador, velocidad 5 y tramo del 20 al 80 %: se compara el fotograma del 80 %",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "play_speed": { "unit": "px", "size": 5, "sizes": [] }, "end_point": { "unit": "%", "size": 80, "sizes": [] } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "start_point": {
+     "unit": "%",
+     "size": 20,
+     "sizes": []
+    },
+    "end_point": {
+     "unit": "%",
+     "size": 80,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
   "lt-click-canvas": {
    "title": "«Al pulsar» con representación en canvas, sin pulsar: el primer fotograma; ancho 300 px alineado a la izquierda",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "trigger": "on_click", "renderer": "canvas", "align": "left", "width": { "unit": "px", "size": 300, "sizes": [] } },
-   "ready": { "a": ".e-lottie__animation canvas", "b": ".digi-lottie__animation canvas" },
-   "interact": false,
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "on_click",
+    "renderer": "canvas",
+    "align": "left",
+    "width": {
+     "unit": "px",
+     "size": 300,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation canvas",
+    "b": ".digi-lottie__animation canvas"
+   },
    "declared": [
     {
      "kind": "nombre",
@@ -52,55 +108,237 @@
      "match": "sólo en B",
      "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO sólo respondía al ratón."
     }
-   ]
+   ],
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: con «Al pulsar» y sin enlace, la animación propia es un botón de teclado (WCAG 2.1.1); A no tiene captura con el foco."
+     }
+    }
+   }
   },
   "lt-caption-link": {
-   "title": "Adjunto con el título como leyenda y enlace externo; sin disparador, velocidad 5",
+   "title": "Leyenda personalizada y enlace externo; sin disparador, velocidad 5 (el nombre del enlace sale de la leyenda)",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "caption_source": "title", "link_to": "custom", "custom_link": { "url": "https://ejemplo.test/destino", "is_external": "on", "nofollow": "", "custom_attributes": "" }, "trigger": "none", "play_speed": { "unit": "px", "size": 5, "sizes": [] } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "caption_source": "custom",
+    "link_to": "custom",
+    "custom_link": {
+     "url": "https://ejemplo.test/destino",
+     "is_external": "on",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "caption": "Leyenda del enlace"
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px alrededor de la animación) donde PRO dejaba el del navegador."
+     }
+    }
+   }
+  },
+  "lt-link-title": {
+   "title": "Adjunto con el título como leyenda (el visitante no puede leer el adjunto: sin leyenda, como en PRO) y enlace externo; sin disparador, velocidad 5",
+   "widget": "lottie",
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "caption_source": "title",
+    "link_to": "custom",
+    "custom_link": {
+     "url": "https://ejemplo.test/destino",
+     "is_external": "on",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo.",
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "(perdido|nuevo) link «(Animación)?»",
+     "reason": "El enlace sin leyenda visible (el visitante no puede leer el título del adjunto, como en PRO) lleva «Animación» como nombre accesible; en PRO el enlace no tenía nombre (WCAG 2.4.4)."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px alrededor de la animación) donde PRO dejaba el del navegador."
+     }
+    }
+   }
   },
   "lt-style": {
    "title": "Estilos más usados: ancho 50 % y máximo 320 px, opacidad, filtro en gris, leyenda personalizada a la izquierda con color, tamaño y separación",
    "widget": "lottie",
    "settings": {
-    "source_json": { "$lottie": 1 },
+    "source_json": {
+     "$lottie": 1
+    },
     "caption_source": "custom",
     "caption": "Texto de la leyenda",
     "trigger": "none",
-    "play_speed": { "unit": "px", "size": 5, "sizes": [] },
-    "width": { "unit": "%", "size": 50, "sizes": [] },
-    "space": { "unit": "px", "size": 320, "sizes": [] },
-    "opacity": { "unit": "px", "size": 0.6, "sizes": [] },
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "width": {
+     "unit": "%",
+     "size": 50,
+     "sizes": []
+    },
+    "space": {
+     "unit": "px",
+     "size": 320,
+     "sizes": []
+    },
+    "opacity": {
+     "unit": "px",
+     "size": 0.6,
+     "sizes": []
+    },
     "css_filters_css_filter": "custom",
-    "css_filters_saturate": { "unit": "px", "size": 0, "sizes": [] },
+    "css_filters_saturate": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    },
     "caption_align": "left",
     "text_color": "#2a9d8f",
     "caption_typography_typography": "custom",
-    "caption_typography_font_size": { "unit": "px", "size": 22, "sizes": [] },
+    "caption_typography_font_size": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    },
     "caption_typography_font_weight": "700",
-    "caption_space": { "unit": "px", "size": 30, "sizes": [] }
+    "caption_space": {
+     "unit": "px",
+     "size": 30,
+     "sizes": []
+    }
    },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
   "lt-external": {
    "title": "URL externa (del mismo sitio) con leyenda propia, alineada a la derecha (centrada en el móvil), ancho 240 px",
    "widget": "lottie",
-   "settings": { "source": "external_url", "source_external_url": { "url": "$lottie-url", "is_external": "", "nofollow": "", "custom_attributes": "" }, "caption": "Desde una URL", "trigger": "none", "play_speed": { "unit": "px", "size": 5, "sizes": [] }, "align": "right", "align_mobile": "center", "width": { "unit": "px", "size": 240, "sizes": [] } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "settings": {
+    "source": "external_url",
+    "source_external_url": {
+     "url": "$lottie-url",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "caption": "Desde una URL",
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "align": "right",
+    "align_mobile": "center",
+    "width": {
+     "unit": "px",
+     "size": 240,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
   "lt-scroll": {
    "title": "«Con el desplazamiento» relativo a la pantalla, zona del 10 al 90 %: el fotograma de la posición inicial de la página",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "trigger": "bind_to_scroll", "viewport": { "unit": "%", "size": "", "sizes": { "start": 10, "end": 90 } } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" },
-   "interact": false
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "bind_to_scroll",
+    "viewport": {
+     "unit": "%",
+     "size": "",
+     "sizes": {
+      "start": 10,
+      "end": 90
+     }
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "interact": false,
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
   "lt-extras": {
    "title": "Descripción y botón de DIGITALÍSIMO bajo la animación (los de Media_Text_Extras en el Lottie de PRO)",
    "widget": "lottie",
-   "settings": { "source_json": { "$lottie": 1 }, "trigger": "none", "play_speed": { "unit": "px", "size": 5, "sizes": [] }, "digitalisimo_lottie_description": "Una descripción breve.", "digitalisimo_lottie_button_text": "Ver más", "digitalisimo_lottie_button_link": { "url": "https://ejemplo.test/mas", "is_external": "", "nofollow": "", "custom_attributes": "" } },
-   "ready": { "a": ".e-lottie__animation svg", "b": ".digi-lottie__animation svg" }
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "none",
+    "play_speed": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "digitalisimo_lottie_description": "Una descripción breve.",
+    "digitalisimo_lottie_button_text": "Ver más",
+    "digitalisimo_lottie_button_link": {
+     "url": "https://ejemplo.test/mas",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    }
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   }
  }
 }
