@@ -38,6 +38,10 @@
     "header_size": "h2",
     "size": "large",
     "align": "end"
+   },
+   "pixels": {
+    "max": 0.12,
+    "reason": "Foco visible propio del enlace del título (contorno de 2 px con separación de 2 px, en el color del texto); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
    }
   },
   "tl-pagetitle-archive": {

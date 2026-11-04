@@ -147,5 +147,7 @@ namespace {
 	h_check( str_contains( h_render( $own, $out['extras'] ), '>Luis Gómez</h4>' ), 'Y el widget propio lo pinta (usuario elegido).' );
 	h_classes_exist( $map, $own, h_render( $own, array( 'show_link' => 'yes' ) ) );
 
+	$ready = require h_path( 'modules/digitalisimo-convert/maps/author-box.php' );
+	h_check( 'ready' === $ready['status'] && 'hide' === $ready['panel'] && null !== \Digitalisimo\Elements\Convert\Registry::map( 'author-box' ), 'El mapa está listo (A/B de tests/playground/pro-ab.sh en verde) y oculta del panel el widget de PRO.' );
 	echo 'DIGITALÍSIMO Elements: Caja de autor (' . count( $own->controls ) . ' controles, ' . count( $own->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B) y su mapa desde el Author Box de PRO (' . count( $cases ) . " casos) validados.\n";
 }

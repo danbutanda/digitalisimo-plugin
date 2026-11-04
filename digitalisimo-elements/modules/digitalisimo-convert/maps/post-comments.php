@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'post-comments',
 	'target'  => 'digitalisimo-post-comments',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( '_skin', 'skin_temp', 'source_type', 'source_custom' ),
 	'classes' => array( '.elementor-widget-post-comments' => '.elementor-widget-digitalisimo-post-comments' ),

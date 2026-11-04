@@ -22,14 +22,14 @@
    }
   },
   "tl-excerpt-bare": {
-   "title": "Extracto de una entrada sin extracto escrito (recortado del contenido), justificado, con tipografía y sombra",
+   "title": "Extracto de una entrada sin extracto escrito (recortado del contenido a 20 palabras con «Aplicar al contenido»), justificado, con tipografía y sombra",
    "widget": "theme-post-excerpt",
    "context": {
     "post": "bare"
    },
    "settings": {
     "__dynamic__": {
-     "excerpt": "[elementor-tag id=\"f1a2b3c\" name=\"post-excerpt\" settings=\"%7B%22max_length%22%3A%2220%22%7D\"]"
+     "excerpt": "[elementor-tag id=\"f1a2b3c\" name=\"post-excerpt\" settings=\"%7B%22max_length%22%3A%2220%22%2C%22apply_to_post_content%22%3A%22yes%22%7D\"]"
     },
     "align": "justify",
     "typography_typography": "custom",
@@ -66,6 +66,10 @@
      "sizes": []
     },
     "align": "center"
+   },
+   "pixels": {
+    "max": 0.08,
+    "reason": "Foco visible propio del enlace del extracto (contorno de 2 px con separación de 2 px); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
    }
   }
  }

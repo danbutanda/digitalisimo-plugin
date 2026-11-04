@@ -20,6 +20,10 @@
      "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]",
      "link": "[elementor-tag id=\"b4c5d6e\" name=\"site-url\" settings=\"%7B%7D\"]"
     }
+   },
+   "pixels": {
+    "max": 0.18,
+    "reason": "Foco visible propio del enlace del título (contorno de 2 px con separación de 2 px, en el color del texto); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
    }
   },
   "tl-sitetitle-styled": {
@@ -75,6 +79,10 @@
      "title_color": "globals/colors?id=accent",
      "typography_typography": "globals/typography?id=secondary"
     }
+   },
+   "pixels": {
+    "max": 0.18,
+    "reason": "Foco visible propio del enlace del título (contorno de 2 px con separación de 2 px, en el color del texto); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
    }
   }
  }

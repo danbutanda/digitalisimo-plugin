@@ -569,7 +569,7 @@ class Author_Box extends \Elementor\Widget_Base {
 				'label'     => esc_html__( 'Color', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
 				'global'    => array( 'default' => Global_Colors::COLOR_SECONDARY ),
-				'selectors' => array( '{{WRAPPER}} .digi-author-box__button:hover, {{WRAPPER}} .digi-author-box__button:focus-visible' => 'border-color: {{VALUE}}; color: {{VALUE}};' ),
+				'selectors' => array( '{{WRAPPER}} .digi-author-box__button:hover' => 'border-color: {{VALUE}}; color: {{VALUE}};' ),
 				'condition' => $button,
 			)
 		);
@@ -579,7 +579,7 @@ class Author_Box extends \Elementor\Widget_Base {
 			array(
 				'label'     => esc_html__( 'Color de fondo', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
-				'selectors' => array( '{{WRAPPER}} .digi-author-box__button:hover, {{WRAPPER}} .digi-author-box__button:focus-visible' => 'background-color: {{VALUE}};' ),
+				'selectors' => array( '{{WRAPPER}} .digi-author-box__button:hover' => 'background-color: {{VALUE}};' ),
 				'condition' => $button,
 			)
 		);

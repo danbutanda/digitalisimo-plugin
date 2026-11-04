@@ -34,7 +34,7 @@ $digi_ab_classes['.elementor-author-box'] = '.digi-author-box';
 return array(
 	'source'   => 'author-box',
 	'target'   => 'digitalisimo-author-box',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO: los textos que PRO pinta traducidos y la imagen de muestra.
 	'defaults' => array(

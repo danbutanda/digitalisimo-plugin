@@ -136,6 +136,7 @@ namespace Elementor {
 	}
 	class Icons_Manager {
 		public static function is_migration_allowed() { return true; }
+		public static function is_font_icon_inline_svg() { return in_array( 'e_font_icon_svg', (array) ( $GLOBALS['h_wp']['features'] ?? array() ), true ); }
 		public static function try_get_icon_html( $icon, $attributes = array(), $tag = 'i' ) {
 			ob_start();
 			self::render_icon( $icon, $attributes, $tag );

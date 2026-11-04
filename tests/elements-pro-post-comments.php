@@ -82,5 +82,7 @@ namespace {
 	h_check( $run( $pro, $cases['custom'] ) === $run( $own, $out['custom'] ), 'Lo convertido se pinta igual que PRO.' );
 	h_classes_exist( $map, $own, '' );
 
+	$ready = require h_path( 'modules/digitalisimo-convert/maps/post-comments.php' );
+	h_check( 'ready' === $ready['status'] && 'hide' === $ready['panel'] && null !== \Digitalisimo\Elements\Convert\Registry::map( 'post-comments' ), 'El mapa está listo (A/B de tests/playground/pro-ab.sh en verde) y oculta del panel el widget de PRO.' );
 	echo 'DIGITALÍSIMO Elements: Comentarios (' . count( $own->controls ) . ' controles, sin hoja ni script) y su mapa desde el Post Comments de PRO (' . count( $cases ) . " casos) validados.\n";
 }
