@@ -31,7 +31,7 @@ foreach ( array( 'page', 'post', 'category', 'post_tag' ) as $digi_sm_type ) {
 return array(
 	'source'    => 'sitemap',
 	'target'    => 'digitalisimo-sitemap',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	'keep'      => array(
 		'sitemap_columns',

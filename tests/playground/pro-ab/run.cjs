@@ -451,7 +451,9 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const wb = B.widths[width] || {};
       const sa = wa.signature;
       const sb = wb.signature;
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length) fail('A no pinta texto ni imágenes en el widget');
+      // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
+      // basta con que A tenga controles (`focusables`), que se comparan igual.
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

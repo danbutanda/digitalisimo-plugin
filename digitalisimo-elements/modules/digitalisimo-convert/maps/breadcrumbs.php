@@ -22,7 +22,7 @@ foreach ( array( '', '-widescreen', '-laptop', '-tablet_extra', '-tablet', '-mob
 return array(
 	'source'  => 'breadcrumbs',
 	'target'  => 'digitalisimo-yoast-breadcrumbs',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'align', 'html_tag', 'text_color', 'link_color', 'link_hover_color' ),
 	'groups'  => array( 'typography' => 'typography' ),

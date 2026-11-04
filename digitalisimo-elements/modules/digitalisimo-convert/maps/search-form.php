@@ -37,7 +37,7 @@ $digi_sf_classes = array(
 return array(
 	'source'  => 'search-form',
 	'target'  => 'digitalisimo-search-form',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default).
 	'defaults' => array(

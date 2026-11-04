@@ -1,7 +1,7 @@
 .digi-author-box{align-items:center;display:flex}
 .digi-author-box__avatar{flex-shrink:0;margin-inline-end:25px;align-self:flex-start}
 .digi-author-box--image-valign-middle .digi-author-box__avatar{align-self:center}
-.digi-author-box__avatar img{border-radius:500px;object-fit:cover;width:100px}
+.digi-author-box__avatar img{border-radius:500px;object-fit:cover;width:100px;height:auto}
 .digi-author-box__text{flex-grow:1;font-size:17px}
 .digi-author-box__name{font-size:24px;margin-bottom:5px}
 .digi-author-box__bio,.digi-author-box__bio p{margin-bottom:.8em}

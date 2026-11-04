@@ -4,9 +4,9 @@
  * modules/digitalisimo-theme-elements/widgets/class-featured-image.php).
  *
  * La Imagen destacada hereda, como la de PRO, la Imagen del núcleo (imagen con la etiqueta dinámica
- * `post-featured-image` por defecto), así que todo pasa con `keep`. El envoltorio cambia `elementor-widget-theme-post-featured-image` por
- * `elementor-widget-digitalisimo-featured-image` y conserva `elementor-widget-image`, como PRO. Formato: cabecera de
- * `class-translator.php`.
+ * `post-featured-image` por defecto), así que todo pasa con `keep`. El envoltorio cambia
+ * `elementor-widget-theme-post-featured-image` por `elementor-widget-digitalisimo-featured-image` y conserva
+ * `elementor-widget-image`, como PRO. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 

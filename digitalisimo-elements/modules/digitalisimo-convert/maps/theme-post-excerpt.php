@@ -3,8 +3,8 @@
  * Post Excerpt de PRO → Extracto (`digitalisimo-post-excerpt`,
  * modules/digitalisimo-theme-elements/widgets/class-post-excerpt.php).
  *
- * El Extracto repite los controles del de PRO con el mismo nombre, valor por defecto y selectores (texto con la etiqueta
- * dinámica `post-excerpt` por defecto), así que todo pasa con `keep`. El envoltorio cambia
+ * El Extracto repite los controles del de PRO con el mismo nombre, valor por defecto y selectores (texto con la
+ * etiqueta dinámica `post-excerpt` por defecto), así que todo pasa con `keep`. El envoltorio cambia
  * `elementor-widget-theme-post-excerpt` por `elementor-widget-digitalisimo-post-excerpt`. Formato: cabecera de
  * `class-translator.php`.
  */

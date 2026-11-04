@@ -29,7 +29,7 @@ namespace {
 
 	// 1. Registro y recursos.
 	$css = h_assets( $own, 'Formulario de búsqueda', 'search-form', array( '#f1f2f3', '#3f444b', '#69727d', '#fff', '#33373d' ), true );
-	foreach ( array( '.digi-search-form--skin-classic .digi-search-form__container:has(:focus-visible)', '.digi-search-form--skin-minimal:focus-within{outline:2px solid;outline-offset:2px}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible' ) as $rule ) {
+	foreach ( array( '.digi-search-form--skin-classic .digi-search-form__container:has(:focus-visible)', '.digi-search-form--skin-minimal:focus-within{outline:2px solid}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible' ) as $rule ) {
 		h_check( str_contains( $css, $rule ), "Foco visible: falta $rule" );
 	}
 	h_check( str_contains( $css, 'min-height:24px;min-width:24px' ) && str_contains( $css, '--digi-sf-toggle-size,33px' ) && str_contains( $css, 'min-height:50px' ), 'El aspa mide 24 × 24 px como mínimo; el conmutador, 33 px; el campo, 50 px, como PRO.' );

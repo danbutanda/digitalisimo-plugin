@@ -3,9 +3,10 @@
  * Post Title de PRO → Título de la entrada (`digitalisimo-post-title`,
  * modules/digitalisimo-theme-elements/widgets/class-post-title.php).
  *
- * El Título de la entrada hereda, como el de PRO (`Title_Widget_Base`), el Encabezado del núcleo: mismos controles con el
- * mismo nombre (título con la etiqueta dinámica `post-title` por defecto, nivel `h1`), así que todo pasa con `keep`. El envoltorio cambia `elementor-widget-theme-post-title` por `elementor-widget-digitalisimo-post-title` y conserva
- * `elementor-widget-heading` y `elementor-page-title`, como PRO. Formato: cabecera de `class-translator.php`.
+ * El Título de la entrada hereda, como el de PRO (`Title_Widget_Base`), el Encabezado del núcleo: mismos controles con
+ * el mismo nombre (título con la etiqueta dinámica `post-title` por defecto, nivel `h1`), así que todo pasa con
+ * `keep`. El envoltorio cambia `elementor-widget-theme-post-title` por `elementor-widget-digitalisimo-post-title` y
+ * conserva `elementor-widget-heading` y `elementor-page-title`, como PRO. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 

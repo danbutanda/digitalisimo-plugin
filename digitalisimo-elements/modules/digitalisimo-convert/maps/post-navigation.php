@@ -33,7 +33,7 @@ foreach ( array_unique( array_map( 'strval', $digi_pn_types ) ) as $digi_pn_type
 return array(
 	'source'   => 'post-navigation',
 	'target'   => 'digitalisimo-post-navigation',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'defaults' => array(
 		'prev_label' => $digi_pn_t( 'Previous' ),

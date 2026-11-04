@@ -3,11 +3,11 @@
  * Site Logo de PRO → Logotipo del sitio (`digitalisimo-site-logo`,
  * modules/digitalisimo-theme-elements/widgets/class-site-logo.php).
  *
- * El Logotipo del sitio hereda, como el de PRO, la Imagen del núcleo con los mismos cambios (logotipo del Personalizador
- * con la etiqueta dinámica `site-logo`, tamaño `full`, enlace `site_url` por defecto, leyenda sólo del adjunto), así que
- * todo pasa con `keep`. El botón «Cambiar el logotipo» no guarda valor. El envoltorio cambia `elementor-widget-theme-site-logo` por
- * `elementor-widget-digitalisimo-site-logo` y conserva `elementor-widget-image`, como PRO. Formato: cabecera de
- * `class-translator.php`.
+ * El Logotipo del sitio hereda, como el de PRO, la Imagen del núcleo con los mismos cambios (logotipo del
+ * Personalizador con la etiqueta dinámica `site-logo`, tamaño `full`, enlace `site_url` por defecto, leyenda sólo del
+ * adjunto), así que todo pasa con `keep`. El botón «Cambiar el logotipo» no guarda valor. El envoltorio cambia
+ * `elementor-widget-theme-site-logo` por `elementor-widget-digitalisimo-site-logo` y conserva
+ * `elementor-widget-image`, como PRO. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 

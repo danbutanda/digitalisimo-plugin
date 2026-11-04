@@ -19,6 +19,10 @@
     "__dynamic__": {
      "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]"
     }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
    }
   },
   "tl-logo-styled": {
@@ -80,6 +84,10 @@
     "caption_source": "attachment",
     "caption_align": "right",
     "text_color": "#6B21A8"
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
    }
   },
   "tl-logo-custom": {
@@ -104,6 +112,10 @@
      "size": 320,
      "sizes": []
     }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
    }
   }
  }
