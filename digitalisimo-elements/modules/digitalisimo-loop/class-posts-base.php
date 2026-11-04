@@ -147,6 +147,46 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 		);
 	}
 
+	/**
+	 * Versión en Markdown del listado (una línea por entrada: título enlazado y extracto), como
+	 * `Render_Posts_Markdown_Trait` de PRO: la consulta no cuenta para «Evitar duplicados».
+	 */
+	public function render_markdown(): string {
+		$module = '\ElementorPro\Modules\QueryControl\Module';
+		$before = class_exists( $module ) && property_exists( $module, 'displayed_ids' ) ? $module::$displayed_ids : null;
+
+		$this->query_posts();
+		$query = $this->get_query();
+
+		if ( null !== $before ) {
+			$module::$displayed_ids = $before;
+		}
+
+		if ( ! $query || ! $query->have_posts() ) {
+			return '';
+		}
+
+		$clean = static function ( $value ) {
+			$text = trim( wp_strip_all_tags( (string) $value ) );
+			return '' === $text ? '' : str_replace( array( '[', ']' ), array( '\\[', '\\]' ), (string) preg_replace( '/\s+/', ' ', $text ) );
+		};
+		$lines = array();
+		foreach ( $query->posts as $post ) {
+			$title = $clean( get_the_title( $post ) );
+			if ( '' === $title ) {
+				continue;
+			}
+			$permalink = (string) get_permalink( $post );
+			$excerpt   = $clean( get_the_excerpt( $post ) );
+			$line      = '' !== $permalink ? '- [' . $title . '](' . esc_url( $permalink ) . ')' : '- ' . $title;
+			$lines[]   = '' !== $excerpt ? $line . ' — ' . $excerpt : $line;
+		}
+
+		wp_reset_postdata();
+
+		return implode( "\n", $lines );
+	}
+
 	/* ------------------------------------------------------------------ Controles del botón (Button_Widget_Trait) */
 
 	public static function get_button_sizes() {

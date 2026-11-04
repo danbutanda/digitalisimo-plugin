@@ -29,6 +29,8 @@ final class Module {
 		'digitalisimo-posts' => array( 'file' => 'widgets/class-posts.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Posts', 'css' => 'modules/digitalisimo-loop/assets/css/posts.css', 'js' => 'modules/digitalisimo-loop/assets/js/posts.js' ),
 		'digitalisimo-archive-posts' => array( 'file' => 'widgets/class-archive-posts.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Archive_Posts', 'css' => 'modules/digitalisimo-loop/assets/css/posts.css', 'js' => 'modules/digitalisimo-loop/assets/js/posts.js' ),
 		'digitalisimo-portfolio' => array( 'file' => 'widgets/class-portfolio.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Portfolio', 'css' => 'modules/digitalisimo-loop/assets/css/portfolio.css', 'js' => 'modules/digitalisimo-loop/assets/js/portfolio.js' ),
+		'digitalisimo-loop-grid' => array( 'file' => 'widgets/class-loop-grid.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Loop_Grid', 'css' => 'modules/digitalisimo-loop/assets/css/loop-grid.css', 'js' => 'modules/digitalisimo-loop/assets/js/loop-grid.js' ),
+		'digitalisimo-loop-carousel' => array( 'file' => 'widgets/class-loop-carousel.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Loop_Carousel', 'css' => 'modules/digitalisimo-loop/assets/css/loop-carousel.css', 'js' => 'modules/digitalisimo-loop/assets/js/loop-carousel.js' ),
 		'digitalisimo-taxonomy-filter' => array( 'file' => 'widgets/class-taxonomy-filter.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Taxonomy_Filter', 'css' => 'modules/digitalisimo-loop/assets/css/taxonomy-filter.css', 'js' => 'modules/digitalisimo-loop/assets/js/taxonomy-filter.js' ),
 	);
 
@@ -37,6 +39,8 @@ final class Module {
 		'digitalisimo-posts' => 'Entradas',
 		'digitalisimo-archive-posts' => 'Entradas del archivo',
 		'digitalisimo-portfolio' => 'Portafolio',
+		'digitalisimo-loop-grid' => 'Cuadrícula de bucle',
+		'digitalisimo-loop-carousel' => 'Carrusel de bucle',
 		'digitalisimo-taxonomy-filter' => 'Filtro de taxonomías',
 	);
 
