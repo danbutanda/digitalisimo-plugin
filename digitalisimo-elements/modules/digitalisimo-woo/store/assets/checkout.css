@@ -23,9 +23,9 @@
 .digi-co .woocommerce .coupon-container-grid{align-items:center;display:grid;grid-template-columns:auto auto}
 .digi-co .woocommerce .coupon-col-2{text-align:end}
 .digi-co :focus-visible{outline:2px solid;outline-offset:2px}
-.digi-co .processing{opacity:.6;pointer-events:none}
 .digi-co #ship-to-different-address{margin-top:13px;padding-inline-start:var(--shipping-heading-padding-start,30px)}
 .digi-co #ship-to-different-address span{font-weight:400}
 .digi-co .woocommerce-shipping-totals td{max-width:70px}
+.digi-co .woocommerce-checkout #payment .payment_methods li{line-height:21px}
 @media (max-width:1024px){.digi-co__container{grid-template-columns:1fr}.digi-co .digi-co__apply{width:var(--coupon-button-width,auto)}.digi-co .woocommerce #coupon_code{margin:0 0 15px;width:100%}.digi-co .woocommerce .coupon-container-grid{display:block}.digi-co .woocommerce .coupon-col-2{text-align:var(--coupon-button-alignment,start)}}
 @media (prefers-reduced-motion:reduce){.digi-co *{transition:none!important}}

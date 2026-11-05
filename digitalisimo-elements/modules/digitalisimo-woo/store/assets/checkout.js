@@ -14,6 +14,8 @@
 
 	function busy(el, on) {
 		el.classList.toggle('processing', on);
+		el.style.opacity = on ? '.6' : '';
+		el.style.pointerEvents = on ? 'none' : '';
 		el.setAttribute('aria-busy', on ? 'true' : 'false');
 	}
 
