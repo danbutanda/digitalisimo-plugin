@@ -916,6 +916,72 @@
     "problemas": 0,
     "codigos": []
    }
+  },
+  "muestra_tras_c3": {
+   "elements": "4.3.0.176",
+   "casos": [
+    "fbb-defaults",
+    "fbp-defaults",
+    "gw-heading",
+    "nc-defaults",
+    "pp-defaults",
+    "st-defaults",
+    "tpl-overrides"
+   ],
+   "problemas": 0,
+   "duracion_s": 514
   }
- }
+ },
+ "front_budget": {
+  "caso": "services",
+  "elements": "4.3.0.176",
+  "peticiones": 27,
+  "delta": {
+   "requests": 3,
+   "bytes": 16396,
+   "css": 4286,
+   "js": 5470,
+   "img": -3241,
+   "third": 0,
+   "nodes": 73,
+   "cls": 0
+  },
+  "terceros": [
+   "fonts.googleapis.com",
+   "fonts.gstatic.com"
+  ],
+  "errores": 0,
+  "cls": 0,
+  "proHandlers": false,
+  "proFrontend": false,
+  "swiper": false,
+  "iframes": 0,
+  "llamadas_facebook": 0,
+  "llamadas_pagos": 0,
+  "fachadas": 4,
+  "plugins_vivos": 0,
+  "formularios_pago": 2,
+  "bytes_recursos": {
+   "fb-css": 1976,
+   "fb-js": 1989,
+   "pay-css": 621,
+   "pay-js": 3481
+  },
+  "problemas": 0,
+  "nota": "Terceros: las fuentes de Google del kit, igual que la página vacía. Sin regresiones en empty y blockquote."
+ },
+ "validate_yml": {
+  "pruebas": 347,
+  "detalle": "Las 339 líneas de la lista de validate.yml (338 pruebas y el bucle de update-enqueue de los 7 módulos: 345 comandos), en 4 lotes por el semáforo (229, 76, 85 y 99 s), 0 fallas; build-packages.sh fuera de dist/ (BUNDLED CORE, REFERENCE LEAK, LEGACY MENTION y THEME en PASS; 19 entradas de digitalisimo-services/ y class-globals.php en el ZIP; unzip -t sin errores), validate-suite.mjs y verify-release.mjs en verde (8 ZIP): 347 en verde",
+  "nuevas": [
+   "elements-pro-facebook.php (1 223)",
+   "elements-pro-facebook-chrome.mjs (22)",
+   "elements-pro-payments.php (362)",
+   "elements-pro-payments-chrome.mjs (23)",
+   "elements-pro-template.php (32)",
+   "migration-pro-global.php (24)",
+   "elements-kit-pro-global.php (13)"
+  ]
+ },
+ "migration_pro_php": 208
 }
