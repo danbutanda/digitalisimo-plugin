@@ -288,6 +288,7 @@ namespace {
 	/* ================================================================ 2. Inventario */
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	$ids       = site();
 	$inventory = Pro::inventory();
 	$rows      = array_column( $inventory['widgets'], null, 'widget' );
@@ -335,6 +336,7 @@ namespace {
 	/* ================================================================ 3. Conversión de un documento */
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	$ids = site();
 	update_metadata( 'post', $ids['page'], '_elementor_css', array( 'status' => 'file' ) );
 	update_metadata( 'post', $ids['page'], '_elementor_page_settings', array( 'hide_title' => 'yes' ) );
@@ -415,6 +417,7 @@ namespace {
 	$check( array_search( 'pro', $stages, true ) === array_search( 'aliases', $stages, true ) + 1 && array_search( 'retire_late', $stages, true ) === array_search( 'pro', $stages, true ) + 1 && in_array( 'pro', Runner::LOOP_STAGES, true ), 'La etapa pro va entre aliases y retire_late y recorre documentos.' );
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	$ids      = site();
 	$original = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
 	$loop_raw = (string) get_metadata( 'post', $ids['loop'], '_elementor_data', true );
@@ -424,6 +427,7 @@ namespace {
 	// Por lotes: con más documentos que un lote, la etapa avanza con su cursor.
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	$many = array();
 	for ( $i = 0; $i < Runner::BATCH + 5; $i++ ) {
 		$many[] = doc( array( w( 'blockquote', array( 'blockquote_content' => 'n' . $i ), 'b' . $i ) ), array( 'post_title' => 'Lote ' . $i ) );
@@ -437,6 +441,7 @@ namespace {
 	// Migrar de punta a punta (sin Element Pack): la etapa corre dentro de la tarea y el informe lo dice.
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.171' ), 'site' );
 	$ids      = site();
 	$original = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
@@ -475,6 +480,7 @@ namespace {
 	/* ================================================================ 5. Análisis, pantalla de red y catálogo */
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
 	$ids    = site();
 	$result = Migration::analyze_step( 0 );
 	$check( ! empty( $result['done'] ) && is_array( $result['pro'] ) && ! empty( $result['pro']['done'] ), 'El análisis entero (WP-CLI) incluye el inventario de PRO.' );

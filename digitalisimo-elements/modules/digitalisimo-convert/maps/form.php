@@ -258,7 +258,7 @@ $digi_form_row = array(
 return array(
 	'source'    => 'form',
 	'target'    => 'digitalisimo-form',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default).
 	'defaults'  => array(

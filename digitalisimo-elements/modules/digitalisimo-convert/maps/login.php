@@ -17,7 +17,7 @@ $digi_login_t = static function ( $text ) {
 return array(
 	'source'   => 'login',
 	'target'   => 'digitalisimo-login',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default).
 	'defaults' => array(

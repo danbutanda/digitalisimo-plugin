@@ -13,7 +13,7 @@
   {
    "widget": "login",
    "kind": "palabra",
-   "match": "^(perdida «(Remember|Me|Lost|your|password\\?)»|nueva «(Recordarme|¿Olvidaste|tu|contraseña\\?)»)$",
+   "match": "^(perdida «(remember|me|lost|your|password)»|nueva «(recordarme|olvidaste|tu|contraseña)»)$",
    "reason": "Textos fijos del widget (no son ajustes de PRO): los del widget propio, en español y traducibles con el dominio pro-elements; los de PRO salen de su traducción al idioma del sitio (el de prueba está en inglés)."
   },
   {
@@ -62,14 +62,23 @@
     "user_placeholder": "nombre@dominio.mx",
     "password_placeholder": "Mínimo 8 caracteres",
     "show_remember_me": "",
-    "label_spacing": { "unit": "px", "size": 8 },
+    "label_spacing": {
+     "unit": "px",
+     "size": 8
+    },
     "label_color": "#1b3a57",
     "label_typography_typography": "custom",
     "label_typography_font_weight": "700",
-    "label_typography_font_size": { "unit": "px", "size": 15 },
+    "label_typography_font_size": {
+     "unit": "px",
+     "size": 15
+    },
     "links_color": "#c0392b",
     "links_hover_color": "#7b241c",
-    "row_gap": { "unit": "px", "size": 18 }
+    "row_gap": {
+     "unit": "px",
+     "size": 18
+    }
    },
    "pixels": {
     "max": 0.06,
@@ -87,10 +96,27 @@
     "field_text_color": "#222222",
     "field_background_color": "#f4f6f8",
     "field_border_color": "#8a99a8",
-    "field_border_width": { "top": "0", "right": "0", "bottom": "2", "left": "0", "unit": "px", "isLinked": false },
-    "field_border_radius": { "top": "0", "right": "0", "bottom": "0", "left": "0", "unit": "px", "isLinked": true },
+    "field_border_width": {
+     "top": "0",
+     "right": "0",
+     "bottom": "2",
+     "left": "0",
+     "unit": "px",
+     "isLinked": false
+    },
+    "field_border_radius": {
+     "top": "0",
+     "right": "0",
+     "bottom": "0",
+     "left": "0",
+     "unit": "px",
+     "isLinked": true
+    },
     "field_typography_typography": "custom",
-    "field_typography_font_size": { "unit": "px", "size": 17 }
+    "field_typography_font_size": {
+     "unit": "px",
+     "size": 17
+    }
    }
   },
   "login-align": {
@@ -120,10 +146,31 @@
     "button_background_color": "#1e88e5",
     "button_background_color_b": "#8e24aa",
     "button_border_border": "solid",
-    "button_border_width": { "top": "2", "right": "2", "bottom": "2", "left": "2", "unit": "px", "isLinked": true },
+    "button_border_width": {
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "unit": "px",
+     "isLinked": true
+    },
     "button_border_color": "#0d47a1",
-    "button_border_radius": { "top": "24", "right": "24", "bottom": "24", "left": "24", "unit": "px", "isLinked": true },
-    "button_text_padding": { "top": "14", "right": "28", "bottom": "14", "left": "28", "unit": "px", "isLinked": false },
+    "button_border_radius": {
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "unit": "px",
+     "isLinked": true
+    },
+    "button_text_padding": {
+     "top": "14",
+     "right": "28",
+     "bottom": "14",
+     "left": "28",
+     "unit": "px",
+     "isLinked": false
+    },
     "button_hover_color": "#ffeb3b",
     "button_background_hover_background": "classic",
     "button_background_hover_color": "#311b92",
