@@ -4,88 +4,116 @@
  "pro_ab": {
   "casos": {
    "ab-defaults": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 0,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-website-button": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 8,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-above-center": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 8,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-right-middle": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 0,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-custom": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 8,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-button-style": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 6,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "ab-extras": {
+    "widget": "author-box",
     "destino": "digitalisimo-author-box",
+    "contexto": "entrada full",
     "pixeles_normal": {
-     "375": 0.0,
-     "768": 0.0,
-     "1280": 0.0
+     "375": 0,
+     "768": 0,
+     "1280": 0
     },
+    "acciones": {},
     "declaradas": 0,
     "sin_motivo": 0,
     "problemas": 0,
-    "corrida": 1
+    "codigos": [],
+    "corrida": 3
    },
    "bc-defaults": {
     "destino": "digitalisimo-yoast-breadcrumbs",
@@ -154,7 +182,8 @@
     "declaradas": 2,
     "sin_motivo": 0,
     "problemas": 0,
-    "codigos": []
+    "codigos": [],
+    "corrida": 3
    },
    "pi-bare": {
     "widget": "post-info",
@@ -169,7 +198,8 @@
     "declaradas": 4,
     "sin_motivo": 0,
     "problemas": 0,
-    "codigos": []
+    "codigos": [],
+    "corrida": 3
    },
    "pi-traditional": {
     "widget": "post-info",
@@ -184,7 +214,8 @@
     "declaradas": 8,
     "sin_motivo": 0,
     "problemas": 0,
-    "codigos": []
+    "codigos": [],
+    "corrida": 3
    },
    "pi-inline-center": {
     "widget": "post-info",
@@ -209,7 +240,8 @@
       "target": "digitalisimo-post-info",
       "element": "e9e6325"
      }
-    ]
+    ],
+    "corrida": 3
    },
    "pn-defaults": {
     "widget": "post-navigation",
@@ -804,7 +836,7 @@
    "c0_c1": 85,
    "con_problemas": 0,
    "sin_motivo": 0,
-   "nota": "Dos corridas (la primera se cortó a los 28 casos; la segunda midió los 110 restantes) más la repetición de los 11 casos de la Caja de autor y la Información de la entrada tras quitar el loading forzado de sus avatares. (repetición pendiente)"
+   "nota": "Dos corridas (la primera se cortó a los 28 casos; la segunda midió los 110 restantes) más la repetición de los 11 casos de la Caja de autor y la Información de la entrada tras quitar el loading forzado de sus avatares."
   }
  },
  "validate_yml": {
@@ -816,5 +848,21 @@
   "comprobaciones": 20,
   "c4": "plantilla de entrada con los 15 elementos de tema de PRO y un bdt-post-info: 24 widgets en 4 documentos, --revert devuelve los de PRO y el de Element Pack"
  },
- "migration_pro_php": 121
+ "migration_pro_php": 121,
+ "interaction": {
+  "ok": 38,
+  "editor_pro": "21 widgets de PRO registrados y ocultos (también en una plantilla individual y una de archivo del Theme Builder); la búsqueda ofrece los propios; el Formulario de búsqueda, fuera del panel como en PRO"
+ },
+ "front_budget": {
+  "caso": "theme-elements",
+  "vista": "/digi-fb-post-2/ (plantilla de entrada con los quince)",
+  "peticiones": 39,
+  "proHandlers": false,
+  "proFrontend": false,
+  "swiper": false,
+  "errores": 0,
+  "problemas": 0,
+  "cls": 0.513,
+  "nota": "El CLS viene de las dos imágenes de reserva del núcleo (placeholder.png sin medidas) que pintan el Logotipo y la Imagen destacada en un sitio sin logotipo ni imagen destacada, como con PRO; el avatar de la Caja de autor es el de WordPress (secure.gravatar.com, ajuste del sitio), como en PRO."
+ }
 }
