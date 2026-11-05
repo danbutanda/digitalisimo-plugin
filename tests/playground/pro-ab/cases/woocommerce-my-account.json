@@ -1,0 +1,23 @@
+{
+ "cases": {
+  "ma-defaults": { "title": "Mi cuenta: escritorio, por defecto", "widget": "woocommerce-my-account", "context": "account" },
+  "ma-orders": { "title": "Mi cuenta: pedidos", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "orders" } },
+  "ma-view-order": { "title": "Mi cuenta: ver pedido", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "view-order" } },
+  "ma-edit-address": { "title": "Mi cuenta: direcciones", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "edit-address" } },
+  "ma-edit-account": { "title": "Mi cuenta: datos de la cuenta", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "edit-account" } },
+  "ma-guest": { "title": "Mi cuenta: acceso de invitada", "widget": "woocommerce-my-account", "context": "account", "woo": { "user": "guest" } },
+  "ma-horizontal": { "title": "Mi cuenta: pestañas horizontales centradas y con nombres propios", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "orders" }, "settings": {
+    "tabs_layout": "horizontal", "tabs_position": "center", "tabs_divider_weight": { "unit": "px", "size": 2 }, "tabs_divider_color": "#e63946",
+    "tabs": [ { "_id": "t1", "field_key": "dashboard", "field_label": "Dashboard", "tab_name": "Inicio" }, { "_id": "t2", "field_key": "orders", "field_label": "Orders", "tab_name": "Mis pedidos" }, { "_id": "t3", "field_key": "downloads", "field_label": "Downloads", "tab_name": "Descargas" }, { "_id": "t4", "field_key": "edit-address", "field_label": "Addresses", "tab_name": "Direcciones" }, { "_id": "t5", "field_key": "edit-account", "field_label": "Account Details", "tab_name": "Mi perfil" }, { "_id": "t6", "field_key": "customer-logout", "field_label": "Logout", "tab_name": "Salir" } ] } },
+  "ma-styled": { "title": "Mi cuenta: estilos de pestañas, secciones, tablas y botones", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "view-order" }, "settings": {
+    "tabs_normal_color": "#264653", "tabs_active_color": "#e63946", "tabs_border_type": "solid", "tabs_border_width": { "unit": "px", "top": "0", "right": "0", "bottom": "2", "left": "0", "isLinked": false }, "tabs_border_color": "#2a9d8f", "tabs_border_radius": { "unit": "px", "top": "6", "right": "6", "bottom": "6", "left": "6", "isLinked": true },
+    "tabs_typography_typography": "custom", "tabs_typography_font_size": { "unit": "px", "size": 16 },
+    "my_account_sections_background_color": "#f4f1de", "sections_border_type": "dashed", "sections_border_color": "#264653", "sections_border_radius": { "unit": "px", "top": "8", "right": "8", "bottom": "8", "left": "8", "isLinked": true },
+    "typography_section_titles_color": "#e76f51", "general_text_color": "#3d405b", "links_normal_color": "#118ab2",
+    "tables_title_color": "#073b4c", "tables_items_color": "#6d597a", "tables_divider_border_color": "#e9c46a",
+    "tables_button_normal_text_color": "#ffffff", "tables_button_normal_background_background": "classic", "tables_button_normal_background_color": "#2a9d8f" } },
+  "ma-forms-styled": { "title": "Mi cuenta: formulario de datos con estilos", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "edit-account" }, "settings": {
+    "forms_label_color": "#264653", "forms_fields_normal_color": "#3d405b", "forms_fields_normal_background_background": "classic", "forms_fields_normal_background_color": "#edf6f9", "forms_fields_border_radius": { "unit": "px", "top": "6", "right": "6", "bottom": "6", "left": "6", "isLinked": true },
+    "forms_rows_gap": { "unit": "px", "size": 14 }, "forms_buttons_normal_text_color": "#ffffff", "forms_buttons_background_background": "classic", "forms_buttons_background_color": "#e63946", "forms_buttons_border_radius": { "unit": "px", "top": "20", "right": "20", "bottom": "20", "left": "20", "isLinked": true } } }
+ }
+}

@@ -1,0 +1,166 @@
+{
+ "_doc": [
+  "Casos A/B de wc-single-elements (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Elementos del producto (obsoleto en PRO): una función de WooCommerce de una lista cerrada."
+ ],
+ "declared": [
+  {
+   "widget": "wc-single-elements",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces de WooCommerce: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-single-price": {
+   "title": "Elemento «Precio»",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "element": "woocommerce_template_single_price"
+   },
+   "widget": "wc-single-elements",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-wc-single-elements.min.css de PRO",
+     "id": "widget-wc-single-elements-css",
+     "url": "widget-wc-single-elements(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-single-title": {
+   "title": "Elemento «Título»",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "element": "woocommerce_template_single_title"
+   },
+   "widget": "wc-single-elements",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-wc-single-elements.min.css de PRO",
+     "id": "widget-wc-single-elements-css",
+     "url": "widget-wc-single-elements(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-single-meta": {
+   "title": "Elemento «Metadatos»",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "element": "woocommerce_template_single_meta"
+   },
+   "widget": "wc-single-elements",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-wc-single-elements.min.css de PRO",
+     "id": "widget-wc-single-elements-css",
+     "url": "widget-wc-single-elements(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-single-tabs": {
+   "title": "Elemento «Pestañas de datos» (sin la descripción, como PRO)",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "element": "woocommerce_output_product_data_tabs"
+   },
+   "widget": "wc-single-elements",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-wc-single-elements.min.css de PRO",
+     "id": "widget-wc-single-elements-css",
+     "url": "widget-wc-single-elements(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-single-rating": {
+   "title": "Elemento «Valoración»",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "element": "woocommerce_template_single_rating"
+   },
+   "widget": "wc-single-elements",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-wc-single-elements.min.css de PRO",
+     "id": "widget-wc-single-elements-css",
+     "url": "widget-wc-single-elements(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

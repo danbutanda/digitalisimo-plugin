@@ -1,4 +1,4 @@
-/* Resumen de la compra (digitalisimo-woo-purchase-summary): lo que el widget de PRO hacía con jQuery, sin dependencias.
+/* Resumen de la compra (digitalisimo-woo-purchase-summary): lo que hacía el script del widget de PRO, sin dependencias.
    Iguala la altura de las direcciones, junta la nota de compra con su producto y pone la animación del botón. */
 (function () {
 	'use strict';

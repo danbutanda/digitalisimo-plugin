@@ -56,6 +56,8 @@ namespace Elementor {
 		public function add_responsive_control( $name, $args, $options = array() ) { $this->add_control( $name, $args + array( 'responsive' => true ) ); }
 		public function add_group_control( $type, $args, $options = array() ) { $this->groups[ $args['name'] ] = array( 'type' => $type, 'section' => $this->section ) + $args; $this->order[] = 'group:' . $args['name']; }
 		public function __construct( $data = array(), $args = null ) {}
+		public function start_injection( $args = array() ) {}
+		public function end_injection() {}
 		public function update_responsive_control( $name, $args, $options = array() ) { $this->update_control( $name, $args, $options ); }
 		public function set_settings( $key, $value = null ) { if ( is_array( $key ) ) { $this->settings = $key; } else { $this->settings[ $key ] = $value; } }
 		public function get_id() { return 'abc1234'; }
@@ -391,6 +393,10 @@ namespace {
 		return $value;
 	}
 	function __return_empty_string() { return ''; }
+	function sanitize_text_field( $v ) { return trim( strip_tags( (string) $v ) ); }
+	function wc_get_related_products( $id, $limit = 5, $exclude = array() ) { $GLOBALS['ws']['related_args'] = array( $id, $limit, $exclude ); return array( 12, 13, 15 ); }
+	function wc_products_array_filter_visible( $p ) { return $p && 15 !== $p->get_id(); }
+	function wc_products_array_orderby( $products, $orderby = 'date', $order = 'desc' ) { $GLOBALS['ws']['orderby'] = array( $orderby, $order ); return 'asc' === $order ? array_reverse( $products ) : $products; }
 	function WC() { return (object) array( 'version' => '11.2.1' ); }
 
 	// WooCommerce: plantillas y funciones que usan los widgets de la ficha.
@@ -400,6 +406,13 @@ namespace {
 		$GLOBALS['ws']['templates'][] = $name;
 		$id   = $product ? $product->get_id() : 0;
 		echo '<div class="wc-tpl" data-tpl="' . $name . '" data-product="' . $id . '">' . $name . '</div>';
+		if ( isset( $args['related_products'] ) ) {
+			echo '<section class="related products"><h2>Related products</h2><ul class="products columns-' . (int) $args['columns'] . '" data-args="' . (int) $args['posts_per_page'] . ',' . $args['orderby'] . ',' . $args['order'] . '">';
+			foreach ( $args['related_products'] as $p ) {
+				echo '<li class="product">' . (int) $p->get_id() . apply_filters( 'woocommerce_loop_add_to_cart_link', '<a href="?add-to-cart=' . (int) $p->get_id() . '" class="button">x</a>', $p ) . '</li>';
+			}
+			echo '</ul></section>';
+		}
 	}
 	function wc_get_stock_html( $product ) { return apply_filters( 'woocommerce_get_stock_html', '<p class="stock in-stock">' . (int) $product->get_id() . ' disponibles</p>', $product ); }
 	function wc_product_sku_enabled() { return true; }
@@ -430,7 +443,7 @@ namespace {
 	function woocommerce_template_single_sharing() { echo '<div class="sharing"></div>'; }
 	function woocommerce_show_product_sale_flash() { echo '<span class="onsale">Oferta</span>'; }
 	function woocommerce_product_additional_information_tab() { echo '<table class="shop_attributes"></table>'; }
-	function woocommerce_upsell_display() { echo '<section class="up-sells"></section>'; }
+	function woocommerce_upsell_display( $limit = '-1', $columns = 4, $orderby = 'rand', $order = 'desc' ) { echo '<section class="up-sells upsells products"><h2>You may also like&hellip;</h2><ul class="products columns-' . $columns . '" data-args="' . $limit . ',' . $orderby . ',' . $order . '"><li class="product">' . apply_filters( 'woocommerce_loop_add_to_cart_link', '<a href="?add-to-cart=12" class="button">x</a>', null ) . '</li></ul></section>'; }
 
 	function check_ws( $ok, $message ) {
 		if ( ! $ok ) {
@@ -454,7 +467,8 @@ namespace {
 	require $ws_root . 'modules/theme-builder/widgets/post-content.php';
 	require $ws_root . 'modules/woocommerce/traits/product-id-trait.php';
 	require $ws_root . 'modules/woocommerce/widgets/base-widget.php';
-	foreach ( array( 'product-title', 'product-price', 'product-rating', 'product-stock', 'product-meta', 'product-short-description', 'product-content', 'product-additional-information', 'product-data-tabs', 'product-images', 'product-add-to-cart', 'single-elements', 'add-to-cart' ) as $ws_file ) {
+	require $ws_root . 'modules/woocommerce/widgets/products-base.php';
+	foreach ( array( 'product-title', 'product-price', 'product-rating', 'product-stock', 'product-meta', 'product-short-description', 'product-content', 'product-additional-information', 'product-data-tabs', 'product-images', 'product-add-to-cart', 'single-elements', 'add-to-cart', 'product-related', 'product-upsell' ) as $ws_file ) {
 		require $ws_root . 'modules/woocommerce/widgets/' . $ws_file . '.php';
 	}
 	require $ws_root . 'modules/digitalisimo-theme-elements/class-module.php';

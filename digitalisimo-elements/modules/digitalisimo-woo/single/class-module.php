@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  *   Imágenes del producto (`elementor/document/config`, 11), después de que `Convert\Panel` (10) oculte los de PRO ya
  *   sustituidos. Aquí (12) los propios toman su lugar y los de PRO sustituidos vuelven a quedar ocultos.
  * - **Vista previa del editor.** Al volver a pintar las Pestañas de datos o las Imágenes del producto, las inicia con el
- *   script de la ficha de WooCommerce (PRO lo hacía con un `<script>` en el marcado del widget). Sólo en la vista previa
+ *   script de la ficha de WooCommerce (PRO lo hacía con un script en línea dentro del marcado del widget). Sólo en la vista previa
  *   y sólo sobre lo recién pintado: nunca dos veces la misma galería o las mismas pestañas.
  */
 final class Module {

@@ -37,6 +37,11 @@ const WS_CLASSES = array(
 	'e-loop-add-to-cart-form-container'  => 'digi-atc__loop',
 	'e-loop-add-to-cart-form'            => 'digi-atc__loop-form',
 	'elementor-add-to-cart elementor-product-' => 'digi-atc__wrap digi-atc--type-',
+	// Cuadrícula de productos (la de N, `Store\Products_Base`).
+	'elementor-products-grid elementor-'  => 'digi-products-grid digi-',
+	'elementor-product-loop-item--align-' => 'digi-products--align-',
+	'elementor-show-pagination-border-'   => 'digi-products--pagination-border-',
+	'elementor-wc-products'               => 'digi-wc-products',
 );
 
 $pairs = array(
@@ -53,6 +58,8 @@ $pairs = array(
 	'woocommerce-product-add-to-cart'            => array( Pro\Product_Add_To_Cart::class, Single\Product_Add_To_Cart::class, 'Añadir al carrito', 'woocommerce-elements-single' ),
 	'wc-single-elements'                         => array( Pro\Single_Elements::class, Single\Single_Elements::class, 'Elementos del producto', 'woocommerce-elements-single' ),
 	'wc-add-to-cart'                             => array( Pro\Add_To_Cart::class, Single\Add_To_Cart::class, 'Añadir al carrito personalizado', 'woocommerce-elements' ),
+	'woocommerce-product-related'                => array( Pro\Product_Related::class, Single\Product_Related::class, 'Productos relacionados', 'woocommerce-elements-single' ),
+	'woocommerce-product-upsell'                 => array( Pro\Product_Upsell::class, Single\Product_Upsell::class, 'Ventas dirigidas', 'woocommerce-elements-single' ),
 );
 
 // Diferencias declaradas en los controles (con su motivo en el informe y en la cabecera de cada widget).
@@ -111,7 +118,8 @@ foreach ( $pairs as $source => list( $pro_class, $own_class, $title, $category )
 		}
 		$check( ( $own_class === Single\Product_Title::class ? array( 'widget-heading', $name ) : ( Single\Add_To_Cart::class === $own_class ? array( 'digitalisimo-woo-product-add-to-cart', $name ) : array( $name ) ) ) === $own->get_style_depends(), "$name: sus hojas (" . implode( ', ', $own->get_style_depends() ) . ').' );
 	} else {
-		$check( ( Single\Product_Title::class === $own_class ? array( 'widget-heading' ) : array() ) === $own->get_style_depends(), "$name: sin hoja propia." );
+		$expected = Single\Product_Title::class === $own_class ? array( 'widget-heading' ) : ( in_array( $own_class, array( Single\Product_Related::class, Single\Product_Upsell::class ), true ) ? array( 'digitalisimo-woo-products' ) : array() );
+		$check( $expected === $own->get_style_depends(), "$name: sin hoja propia (" . implode( ', ', $own->get_style_depends() ) . ').' );
 	}
 	$code = ws_code( ws_path( 'modules/digitalisimo-woo/' . $entry['file'] ) );
 	$check( ! preg_match( '/jquery|swiper|wp_register_script|elementor-pro-frontend|pro-elements-handlers|ElementorPro\\\\Modules\\\\Woocommerce/i', $code ) && ! preg_match( '/<script/i', $code ), "$name: sin jQuery, Swiper, scripts registrados a mano, clases del módulo de PRO ni <script> en el marcado." );
@@ -249,6 +257,20 @@ $check( array( 'settings' => array( 'text' => 'x' ) ) === $widgets['wc-add-to-ca
 // Producto en borrador elegido: nada (como PRO).
 $check( false === $widgets['wc-add-to-cart'][1]->get_product( 16 ), 'Un producto elegido sin publicar no se usa.' );
 
+// Productos relacionados y ventas dirigidas: la plantilla de WooCommerce con la rejilla y, si se pide, la envoltura de los botones.
+foreach ( array( array(), array( 'posts_per_page' => 2, 'columns' => 3, 'orderby' => 'price', 'order' => 'asc' ), array( 'automatically_align_buttons' => 'yes' ) ) as $i => $settings ) {
+	$html = $same( 'woocommerce-product-related', $settings, "relacionados $i" );
+	$check( str_contains( $html, '<ul class="products elementor-grid columns-' ) && str_contains( $html, '<li class="product">12' ) && ! str_contains( $html, '<li class="product">15' ), "Relacionados ($i): la lista de WooCommerce con la rejilla del núcleo y sólo los visibles." );
+	$check( ( 'yes' === ( $settings['automatically_align_buttons'] ?? '' ) ) === str_contains( $html, 'woocommerce-loop-product__buttons' ), "Relacionados ($i): la envoltura de los botones sólo si se pide." );
+	$html = $same( 'woocommerce-product-upsell', $settings, "ventas dirigidas $i" );
+	$check( str_contains( $html, '<ul class="products elementor-grid columns-' ), "Ventas dirigidas ($i): la rejilla del núcleo." );
+}
+$check( array( 'price', 'asc' ) === $GLOBALS['ws']['orderby'] || array( 'date', 'desc' ) === $GLOBALS['ws']['orderby'], 'Relacionados: el orden pedido.' );
+$check( ! array_filter( $GLOBALS['ws']['filters']['woocommerce_loop_add_to_cart_link'] ?? array() ), 'Relacionados y ventas dirigidas quitan su filtro al terminar.' );
+$GLOBALS['ws']['product_id'] = 99;
+$check( '' === $same( 'woocommerce-product-related', array(), 'sin producto' ), 'Relacionados: nada sin producto.' );
+$GLOBALS['ws']['product_id'] = 11;
+
 // 3. Panel de las plantillas de bucle de productos.
 $config = array( 'panel' => array( 'widgets_settings' => array( 'woocommerce-product-title' => array( 'categories' => array( 'recommended' ), 'show_in_panel' => true ), 'woocommerce-product-images' => array( 'show_in_panel' => false ) ) ) );
 $out    = Single\Module::document_config( $config, 5 );
@@ -305,6 +327,15 @@ $cases = array(
 		'estilos' => array( 'product_id' => '11', 'show_quantity' => 'yes', 'layout' => 'auto', 'button_type' => 'success', 'text' => 'Comprar', 'size' => 'lg', 'selected_icon' => array( 'value' => 'fas fa-cart-plus', 'library' => 'fa-solid' ), 'icon_align' => 'row-reverse', 'icon_indent' => array( 'unit' => 'px', 'size' => 8 ), 'button_css_id' => 'comprar', 'align' => 'justify', 'align_mobile' => 'center', 'content_align' => 'space-between', 'typography_typography' => 'custom', 'text_shadow_text_shadow_type' => 'yes', 'button_text_color' => '#ffffff', 'background_background' => 'classic', 'background_color' => '#000000', 'button_box_shadow_box_shadow_type' => 'yes', 'hover_color' => '#000000', 'button_background_hover_background' => 'classic', 'button_hover_box_shadow_box_shadow_type' => 'yes', 'button_hover_border_color' => '#111111', 'button_hover_transition_duration' => array( 'unit' => 's', 'size' => 0.3 ), 'hover_animation' => 'grow', 'border_border' => 'solid', 'border_radius' => array( 'top' => '4', 'right' => '4', 'bottom' => '4', 'left' => '4', 'unit' => 'px', 'isLinked' => true ), 'text_padding' => array( 'top' => '10', 'right' => '20', 'bottom' => '10', 'left' => '20', 'unit' => 'px', 'isLinked' => false ) ),
 		'fa4'     => array( 'icon' => 'fa fa-shopping-cart', 'quantity' => 2, '__dynamic__' => array( 'text' => '[elementor-tag id="b2" name="site-title" settings="%7B%7D"]' ), '__globals__' => array( 'button_text_color' => 'globals/colors?id=primary', 'typography_typography' => 'globals/typography?id=accent' ), 'custom_css' => 'selector.elementor-add-to-cart-tablet--align-left .e-atc-qty-button-holder{x:y}' ),
 	),
+	'woocommerce-product-related'                => array(
+		'defecto' => array(),
+		'estilos' => array( 'posts_per_page' => 6, 'columns' => '3', 'columns_tablet' => '2', 'columns_mobile' => '1', 'orderby' => 'price', 'order' => 'asc', 'show_heading' => '', 'column_gap' => array( 'unit' => 'px', 'size' => 10 ), 'row_gap_mobile' => array( 'unit' => 'px', 'size' => 12 ), 'align' => 'center', 'title_color' => '#111111', 'title_typography_typography' => 'custom', 'star_color' => '#ffaa00', 'price_color' => '#222222', 'old_price_color' => '#999999', 'button_text_color' => '#ffffff', 'button_background_color' => '#000000', 'button_border_border' => 'solid', 'automatically_align_buttons' => 'yes', 'view_cart_color' => '#0000ff', 'box_border_width' => array( 'unit' => 'px', 'size' => 1 ), 'box_shadow_box_shadow_type' => 'yes', 'show_onsale_flash' => 'yes', 'onsale_text_color' => '#ffffff', 'onsale_horizontal_position' => 'left', 'pagination_typography_typography' => 'custom' ),
+		'título'  => array( 'heading_color' => '#123456', 'heading_typography_typography' => 'custom', 'heading_text_align' => 'center', 'heading_spacing' => array( 'unit' => 'px', 'size' => 20 ), '__globals__' => array( 'heading_color' => 'globals/colors?id=primary' ), 'custom_css' => 'selector.elementor-wc-products .products > h2{x:y}' ),
+	),
+	'woocommerce-product-upsell'                 => array(
+		'defecto' => array(),
+		'estilos' => array( 'columns' => '2', 'orderby' => 'title', 'order' => 'asc', 'heading_color' => '#123456', 'heading_spacing_tablet' => array( 'unit' => 'px', 'size' => 8 ), 'image_border_radius' => array( 'top' => '4', 'right' => '4', 'bottom' => '4', 'left' => '4', 'unit' => 'px', 'isLinked' => true ), 'button_hover_color' => '#000000', 'custom_css' => 'selector.elementor-product-loop-item--align-center .price{x:y}' ),
+	),
 	'woocommerce-product-title'                  => array( 'defecto' => array(), 'dinámico' => array( '__dynamic__' => array( 'title' => '[elementor-tag id="c3" name="woocommerce-product-title-tag" settings="%7B%7D"]' ), 'header_size' => 'h2', 'title_color' => '#111111', 'custom_css' => '.elementor-widget-woocommerce-product-title h2{x:y}' ) ),
 );
 foreach ( $cases as $source => $set ) {
@@ -342,9 +373,10 @@ $check( "selector.digi-atc--layout-stacked .digi-atc__holder{x:y}\nselector.digi
 $check( 'yes' === $by['woocommerce-product-add-to-cart']['muestras']['digitalisimo_swatch_styles'] && 32 === $by['woocommerce-product-add-to-cart']['muestras']['digitalisimo_swatch_size']['size'], 'Añadir al carrito: el estilo de las muestras de F4-Woo pasa tal cual.' );
 $check( 'Add to Cart' === $by['wc-add-to-cart']['defecto']['text'] && 'Comprar' === $by['wc-add-to-cart']['estilos']['text'], 'Botón personalizado: el texto por defecto de PRO se completa; el escrito no cambia.' );
 $check( 'selector.digi-atc-tablet--align-left .digi-atc__holder{x:y}' === $by['wc-add-to-cart']['fa4']['custom_css'] && 'fa fa-shopping-cart' === $by['wc-add-to-cart']['fa4']['icon'], 'Botón personalizado: icono FA4 heredado y CSS personalizado.' );
+$check( 'selector.digi-wc-products .products > h2{x:y}' === $by['woocommerce-product-related']['título']['custom_css'] && 'selector.digi-products--align-center .price{x:y}' === $by['woocommerce-product-upsell']['estilos']['custom_css'], 'Relacionados y ventas dirigidas: CSS personalizado con las clases de la cuadrícula propia.' );
 $check( 'h1' === $by['woocommerce-product-title']['defecto']['header_size'] && '.elementor-widget-digitalisimo-woo-product-title h2{x:y}' === $by['woocommerce-product-title']['dinámico']['custom_css'], 'Título: nivel por defecto de PRO (h1) y CSS personalizado.' );
 // Lo convertido se pinta como PRO.
-foreach ( array( 'woocommerce-product-add-to-cart' => 'estilos', 'wc-add-to-cart' => 'estilos', 'woocommerce-product-meta' => 'tabla', 'woocommerce-product-images' => 'estilos' ) as $source => $id ) {
+foreach ( array( 'woocommerce-product-add-to-cart' => 'estilos', 'wc-add-to-cart' => 'estilos', 'woocommerce-product-meta' => 'tabla', 'woocommerce-product-images' => 'estilos', 'woocommerce-product-related' => 'estilos', 'woocommerce-product-upsell' => 'estilos' ) as $source => $id ) {
 	list( $pro, $own ) = $widgets[ $source ];
 	$a = ws_norm( ws_render( $pro, $cases[ $source ][ $id ] ), WS_CLASSES );
 	$b = ws_norm( ws_render( $own, $by[ $source ][ $id ] ) );

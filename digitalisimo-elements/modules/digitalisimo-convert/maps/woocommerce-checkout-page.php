@@ -36,6 +36,34 @@ foreach ( $digi_co_address as $digi_co_key => $digi_co_field ) {
 }
 $digi_co_billing[] = $digi_co_row( 'billing_phone', 'Phone', '' );
 $digi_co_billing[] = $digi_co_row( 'billing_email', 'Email Address', '' );
+// Textos por defecto de PRO, sólo de los controles que existen en este sitio (los mismos interruptores de WooCommerce que
+// deciden qué controles registran los dos widgets).
+$digi_co_option     = static function ( $name ) {
+	return function_exists( 'get_option' ) ? get_option( $name ) : false;
+};
+$digi_co_billing_only = function_exists( 'wc_ship_to_billing_address_only' ) && wc_ship_to_billing_address_only();
+$digi_co_defaults   = array(
+	'billing_details_section_title' => $digi_co_t( $digi_co_billing_title ),
+	'order_summary_section_title'   => $digi_co_t( 'Your Order' ),
+	'terms_conditions_message_text' => $digi_co_t( 'I have read and agree to the website' ),
+	'terms_conditions_link_text'    => $digi_co_t( 'terms and conditions' ),
+);
+if ( $digi_co_billing_only ) {
+	$digi_co_defaults['additional_information_section_title'] = $digi_co_t( 'Additional Information' );
+} elseif ( class_exists( 'WC_Shipping_Zones' ) && count( \WC_Shipping_Zones::get_zones() ) > 0 ) {
+	$digi_co_defaults['shipping_details_section_title'] = $digi_co_t( 'Ship to a different address?' );
+}
+if ( 'yes' === $digi_co_option( 'woocommerce_enable_checkout_login_reminder' ) ) {
+	$digi_co_defaults['returning_customer_section_title'] = $digi_co_t( 'Returning customer?' );
+	$digi_co_defaults['returning_customer_link_text']     = $digi_co_t( 'Click here to login' );
+}
+if ( 'yes' === $digi_co_option( 'woocommerce_enable_signup_and_login_from_checkout' ) ) {
+	$digi_co_defaults['create_account_text'] = $digi_co_t( 'Create an account?' );
+}
+if ( function_exists( 'wc_coupons_enabled' ) && wc_coupons_enabled() ) {
+	$digi_co_defaults['coupon_section_title_text']      = $digi_co_t( 'Have a coupon?' );
+	$digi_co_defaults['coupon_section_title_link_text'] = $digi_co_t( 'Click here to enter your coupon code' );
+}
 $digi_co_fields    = array(
 	'keep' => array( 'field_key', 'field_label', 'label', 'placeholder', 'default', 'repeater_state' ),
 	'ui'   => array( 'locale_notice', 'from_billing_notice', 'label_placeholder_notification' ),
@@ -46,19 +74,7 @@ return array(
 	'target'    => 'digitalisimo-woo-checkout',
 	'status'    => 'draft',
 	'panel'     => 'hide',
-	'defaults'  => array(
-		'billing_details_section_title'        => $digi_co_t( $digi_co_billing_title ),
-		'shipping_details_section_title'       => $digi_co_t( 'Ship to a different address?' ),
-		'additional_information_section_title' => $digi_co_t( 'Additional Information' ),
-		'order_summary_section_title'          => $digi_co_t( 'Your Order' ),
-		'returning_customer_section_title'     => $digi_co_t( 'Returning customer?' ),
-		'returning_customer_link_text'         => $digi_co_t( 'Click here to login' ),
-		'create_account_text'                  => $digi_co_t( 'Create an account?' ),
-		'coupon_section_title_text'            => $digi_co_t( 'Have a coupon?' ),
-		'coupon_section_title_link_text'       => $digi_co_t( 'Click here to enter your coupon code' ),
-		'terms_conditions_message_text'        => $digi_co_t( 'I have read and agree to the website' ),
-		'terms_conditions_link_text'           => $digi_co_t( 'terms and conditions' ),
-	),
+	'defaults'  => $digi_co_defaults,
 	'keep'      => array(
 		'additional_information_active',
 		'additional_information_alignment',

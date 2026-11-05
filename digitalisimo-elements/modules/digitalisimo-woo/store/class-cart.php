@@ -2356,6 +2356,7 @@ class Cart extends Base {
 	private function render_woocommerce_cart_coupon_form() {
 		$settings = $this->get_settings_for_display();
 		$button_classes = [ 'button', 'digi-cart__apply-coupon' ];
+		$coupon_text    = isset( $settings['apply_coupon_button_text'] ) && '' !== (string) $settings['apply_coupon_button_text'] ? (string) $settings['apply_coupon_button_text'] : __( 'Apply coupon', 'woocommerce' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- el texto de WooCommerce.
 		if ( $settings['forms_buttons_hover_animation'] ) {
 			$button_classes[] = 'elementor-animation-' . $settings['forms_buttons_hover_animation'];
 		}
@@ -2370,10 +2371,10 @@ class Cart extends Base {
 		<div class="coupon digi-cart__section shop_table">
 			<div class="form-row coupon-col">
 				<div class="coupon-col-start">
-					<input type="text" name="coupon_code" class="input-text" id="coupon_code" value="" placeholder="<?php echo esc_attr__( 'Código del cupón', 'pro-elements' ); ?>" />
+					<input type="text" name="coupon_code" class="input-text" id="coupon_code" value="" placeholder="<?php echo esc_attr__( 'Coupon code', 'woocommerce' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- el texto de WooCommerce. ?>" />
 				</div>
 				<div class="coupon-col-end">
-					<button <?php $this->print_render_attribute_string( 'button_coupon' ); ?> value="<?php echo esc_attr__( 'Aplicar cupón', 'pro-elements' ); ?>"><?php echo esc_html__( 'Aplicar cupón', 'pro-elements' ); ?></button>
+					<button <?php $this->print_render_attribute_string( 'button_coupon' ); ?> value="<?php echo esc_attr( $coupon_text ); ?>"><?php echo esc_html( $coupon_text ); ?></button>
 				</div>
 				<?php do_action( 'woocommerce_cart_coupon' ); ?>
 			</div>

@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
  * controles, valores por defecto y selectores. WooCommerce pinta lo suyo: la plantilla `single-product/tabs/tabs.php`
  * con el filtro `woocommerce_product_tabs`, y su script de la ficha (`wc-single-product`) las hace funcionar, con los
  * roles de pestañas que pone WooCommerce. En el editor, al volver a pintar el widget, `Single\Module` vuelve a iniciar
- * las pestañas recién pintadas (PRO lo hacía con un `<script>` en el marcado). La hoja repite la de PRO sólo dentro del
+ * las pestañas recién pintadas (PRO lo hacía con un script en línea dentro del marcado). La hoja repite la de PRO sólo dentro del
  * widget y añade el foco visible.
  */
 class Product_Data_Tabs extends Base {

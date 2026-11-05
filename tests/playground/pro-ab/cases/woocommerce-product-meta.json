@@ -1,0 +1,161 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-meta (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Metadatos del producto: SKU, categorías y etiquetas con el marcado de PRO."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-meta",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces de categorías y etiquetas: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-meta-defaults": {
+   "title": "Metadatos por defecto (en línea; rótulos de PRO completados al convertir)",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-meta",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-meta.min.css de PRO",
+     "id": "widget-woocommerce-product-meta-css",
+     "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-meta-table": {
+   "title": "Vista de tabla con divisor y estilos",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "view": "table",
+    "space_between": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "divider": "yes",
+    "divider_style": "dashed",
+    "divider_weight": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "divider_color": "#999999",
+    "text_color": "#333333",
+    "link_color": "#1d4ed8",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 15,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-meta",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-meta.min.css de PRO",
+     "id": "widget-woocommerce-product-meta-css",
+     "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-meta-stacked": {
+   "title": "Vista apilada con rótulos propios",
+   "context": {
+    "product": "variable"
+   },
+   "settings": {
+    "view": "stacked",
+    "category_caption_single": "Sección",
+    "category_caption_plural": "Secciones",
+    "tag_caption_single": "Tema",
+    "sku_caption": "Ref.",
+    "sku_missing_caption": "Sin ref."
+   },
+   "widget": "woocommerce-product-meta",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-meta.min.css de PRO",
+     "id": "widget-woocommerce-product-meta-css",
+     "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-meta-inline-divider": {
+   "title": "En línea con divisor de 20 px de alto",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {
+    "divider": "yes",
+    "divider_height": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "space_between": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-meta",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-meta.min.css de PRO",
+     "id": "widget-woocommerce-product-meta-css",
+     "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

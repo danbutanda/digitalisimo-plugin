@@ -259,6 +259,7 @@ namespace {
 		}
 		return preg_replace( '/\s+/', '', $t );
 	};
+	$map          = require h_path( 'modules/digitalisimo-convert/maps/woocommerce-checkout-page.php' ); // Con todo activo.
 	$pro_defaults = $map['defaults'] + array( 'forms_buttons_hover_animation' => '', 'purchase_button_hover_animation' => '', 'billing_details_form_fields' => $map['repeaters']['billing_details_form_fields']['default_rows'], 'shipping_details_form_fields' => $map['repeaters']['shipping_details_form_fields']['default_rows'], 'additional_information_form_fields' => $map['repeaters']['additional_information_form_fields']['default_rows'] );
 	foreach ( array(
 		'por defecto'          => array( array(), array() ),
@@ -268,6 +269,8 @@ namespace {
 		'con sesión'           => array( array(), array( 'logged_in' => true ) ),
 		'textos'               => array( array( 'billing_details_section_title' => 'Facturación', 'order_summary_section_title' => 'Tu compra', 'terms_conditions_message_text' => 'Acepto los', 'terms_conditions_link_text' => 'términos' ), array() ),
 	) as $label => list( $settings, $env ) ) {
+		$pro = h_widget( Pro_Checkout::class ); // Instancias nuevas: PRO guarda sus textos de la primera pintura.
+		$own = h_widget( Checkout::class );
 		list( $a, $hooks_a ) = $render( $pro, $settings + $pro_defaults, $env );
 		list( $b, $hooks_b ) = $render( $own, $settings + $pro_defaults, $env );
 		$ok( ! array_filter( $hooks_b['woocommerce_checkout_before_customer_details'] ?? array() ) && ! array_filter( $hooks_b['gettext'] ?? array() ) && ! array_filter( $hooks_b['woocommerce_form_field_args'] ?? array() ), "Salida ($label): el propio quita sus ganchos al terminar." );
@@ -304,7 +307,59 @@ namespace {
 	$ok( str_contains( $b, 'Acepto los <a href="https://sitio.test/terminos/" class="woocommerce-terms-and-conditions-link" target="_blank">términos</a>' ), 'Texto de términos y condiciones de los controles.' );
 
 	// 5. Conversión de ajustes reales.
-	list( $out, $codes ) = h_convert(
+	// Como `h_convert()` de los stubs, salvo que las filas de los repetidores llevan además `field_key` y `field_label`, que
+	// no son controles (en PRO tampoco): el widget las lee para saber qué campo de WooCommerce cambia cada fila.
+	$ck_convert = static function ( string $source, $own, array $cases ): array {
+		$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array() ) );
+		foreach ( $cases as $id => $settings ) {
+			$tree[0]['elements'][] = array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $source, 'settings' => $settings, 'elements' => array() );
+		}
+		$log       = array();
+		$converted = \Digitalisimo\Elements\Convert\Converter::tree( $tree, $log, true );
+		h_check( count( $cases ) === count( $log ), "$source: se convierte cada widget del árbol." );
+		$lands = static function ( $key, array $controls, array $groups = array() ) {
+			$base = \Digitalisimo\Elements\Convert\Translator::base( (string) $key );
+			if ( isset( $controls[ $base ] ) || \Digitalisimo\Elements\Convert\Translator::common( (string) $key ) || in_array( $key, array( '__globals__', '__dynamic__', \Digitalisimo\Elements\Convert\Translator::MARKER ), true ) ) {
+				return true;
+			}
+			foreach ( array_keys( $groups ) as $group ) {
+				if ( 0 === strpos( (string) $key, $group . '_' ) ) {
+					return true;
+				}
+			}
+			return false;
+		};
+		$out = array();
+		foreach ( $converted[0]['elements'] as $element ) {
+			h_check( $own->get_name() === $element['widgetType'], $element['id'] . ': pasa al widget propio.' );
+			$out[ $element['id'] ] = $element['settings'];
+			foreach ( $element['settings'] as $key => $value ) {
+				h_check( $lands( $key, $own->controls, $own->groups ), $element['id'] . ": la clave $key no cae en un control propio." );
+				if ( isset( $own->controls[ $key ] ) && 'repeater' === $own->controls[ $key ]['type'] ) {
+					foreach ( (array) $value as $row ) {
+						foreach ( array_keys( (array) $row ) as $field ) {
+							h_check( $lands( $field, $own->controls[ $key ]['fields'] ) || in_array( $field, array( 'field_key', 'field_label' ), true ), $element['id'] . ": el campo $key.$field no cae en un campo propio." );
+						}
+					}
+				}
+			}
+			foreach ( array( '__globals__', '__dynamic__' ) as $bag ) {
+				foreach ( array_keys( $element['settings'][ $bag ] ?? array() ) as $key ) {
+					h_check( $lands( $key, $own->controls, $own->groups ), $element['id'] . ": $bag.$key no cae en un control propio." );
+				}
+			}
+		}
+		$codes = array();
+		foreach ( $log as $entry ) {
+			foreach ( $entry['codes'] as $code ) {
+				$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
+			}
+		}
+		h_check( ! preg_grep( '/:pro\.unmapped:/', $codes ), "$source: claves sin declarar: " . implode( ', ', preg_grep( '/:pro\.unmapped:/', $codes ) ) );
+		h_check( $converted === \Digitalisimo\Elements\Convert\Converter::tree( $converted, $again, true ) && array() === $again, "$source: lo convertido no se convierte otra vez." );
+		return array( $out, $codes );
+	};
+	list( $out, $codes ) = $ck_convert(
 		'woocommerce-checkout-page',
 		$own,
 		array(
@@ -315,8 +370,8 @@ namespace {
 				'billing_details_section_title' => 'Datos',
 				'billing_details_form_fields' => array( array( '_id' => 'r1', 'field_key' => 'billing_first_name', 'field_label' => 'First Name', 'label' => 'Nombre', 'placeholder' => 'Ana', 'repeater_state' => '' ) ),
 				'sections_background_color'   => '#fafafa',
-				'sections_typography_typography' => 'custom',
-				'sections_typography_font_size_tablet' => array( 'size' => 13, 'unit' => 'px' ),
+				'forms_field_typography_typography' => 'custom',
+				'forms_field_typography_font_size_tablet' => array( 'size' => 13, 'unit' => 'px' ),
 				'purchase_button_normal_background_background' => 'classic',
 				'__globals__'                 => array( 'sections_title_color' => 'globals/colors?id=primary' ),
 				'__dynamic__'                 => array( 'order_summary_section_title' => '[elementor-tag id="1" name="post-title" settings="%7B%7D"]' ),
@@ -325,7 +380,7 @@ namespace {
 		)
 	);
 	$ok( 'Billing Details' === $out['d1']['billing_details_section_title'] && 'Your Order' === $out['d1']['order_summary_section_title'] && 'Have a coupon?' === $out['d1']['coupon_section_title_text'] && 10 === count( $out['d1']['billing_details_form_fields'] ) && 'First Name' === $out['d1']['billing_details_form_fields'][0]['label'], 'Por defecto: se completan los textos y las filas de PRO.' );
-	$ok( 'one-column' === $out['d2']['checkout_layout'] && 'Datos' === $out['d2']['billing_details_section_title'] && 'r1' === $out['d2']['billing_details_form_fields'][0]['_id'] && 'Nombre' === $out['d2']['billing_details_form_fields'][0]['label'] && '#fafafa' === $out['d2']['sections_background_color'] && array( 'size' => 13, 'unit' => 'px' ) === $out['d2']['sections_typography_font_size_tablet'], 'Ajustes, filas, grupos y dispositivos pasan tal cual.' );
+	$ok( 'one-column' === $out['d2']['checkout_layout'] && 'Datos' === $out['d2']['billing_details_section_title'] && 'r1' === $out['d2']['billing_details_form_fields'][0]['_id'] && 'Nombre' === $out['d2']['billing_details_form_fields'][0]['label'] && '#fafafa' === $out['d2']['sections_background_color'] && array( 'size' => 13, 'unit' => 'px' ) === $out['d2']['forms_field_typography_font_size_tablet'], 'Ajustes, filas, grupos y dispositivos pasan tal cual.' );
 	$ok( 'selector .digi-co__review{padding:0} selector .digi-co__coupon .digi-co__apply{color:red}' === $out['d2']['custom_css'] && in_array( 'd2:pro.css:custom_css', $codes, true ), 'CSS personalizado con las clases propias.' );
 	$ok( isset( $out['d2']['__globals__']['sections_title_color'], $out['d2']['__dynamic__']['order_summary_section_title'] ), 'Globales y dinámicos siguen a su control.' );
 	list( $b ) = $render( $own, array( 'checkout_layout' => 'two-column' ) + $out['d1'] );

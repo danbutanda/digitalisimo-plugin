@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
  * galería (`single-product/product-image.php`, con sus imágenes de WooCommerce y su `srcset`), que su script de la ficha
  * convierte en carrusel, lupa y caja de luz según lo que declare el tema. En la vista previa de la biblioteca encola lo
  * que WooCommerce no encola fuera de una ficha, como PRO; en el editor, `Single\Module` inicia la galería recién pintada
- * (PRO lo hacía con un `<script>` en el marcado). La hoja repite la de PRO dentro del widget.
+ * (PRO lo hacía con un script en línea dentro del marcado). La hoja repite la de PRO dentro del widget.
  */
 class Product_Images extends Base {
 

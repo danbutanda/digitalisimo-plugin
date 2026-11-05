@@ -1,4 +1,4 @@
-/* Mi cuenta (digitalisimo-woo-my-account): lo que el widget de PRO hacía con jQuery, sin dependencias. Iguala la altura
+/* Mi cuenta (digitalisimo-woo-my-account): lo que hacía el script del widget de PRO, sin dependencias. Iguala la altura
    de las direcciones y de los formularios de acceso, junta la nota de compra con su producto y pone la animación de los
    botones; en el editor alterna las páginas de la cuenta (todas pintadas) y el botón «Editar plantilla» del panel. */
 (function () {

@@ -1,5 +1,5 @@
 /* Carrito (digitalisimo-woo-cart): actualización automática al cambiar una cantidad, columna derecha fija, animación
- * de los botones que pinta WooCommerce y, en el editor, acciones desactivadas. Sin jQuery ni dependencias: escucha el
+ * de los botones que pinta WooCommerce y, en el editor, acciones desactivadas. Sin dependencias: escucha el
  * DOM y vuelve a aplicar lo suyo cuando WooCommerce reemplaza el formulario o los totales. Ajustes: `data-settings` del
  * elemento (los controles `frontend_available`). */
 (function () {

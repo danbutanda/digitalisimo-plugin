@@ -199,7 +199,7 @@ namespace {
 
 	$pro = new \ElementorPro\Modules\Woocommerce\Widgets\Cart();
 	$own = new \Digitalisimo\Elements\Woo\Store\Cart();
-	$reg = function ( $w ) { $m = new ReflectionMethod( $w, 'register_controls' ); $m->setAccessible( true ); $m->invoke( $w ); };
+	$reg = function ( $w ) { ( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w ); };
 	$reg( $pro );
 	$reg( $own );
 
@@ -282,13 +282,11 @@ namespace {
 		$w->settings = $settings;
 		$w->attrs    = array();
 		$m           = new ReflectionMethod( $w, $w instanceof \Digitalisimo\Elements\Woo\Store\Cart ? 'render_widget' : 'render' );
-		$m->setAccessible( true );
 		ob_start();
 		$m->invoke( $w );
 		$html = ob_get_clean();
 		// `gettext` lee los ajustes una vez: se vuelve a calcular en cada pintado.
 		$p = new ReflectionProperty( $w, 'gettext_modifications' );
-		$p->setAccessible( true );
 		$p->setValue( $w, null );
 		return $html;
 	};
@@ -313,13 +311,16 @@ namespace {
 		$inner = substr( $b, strlen( '<div class="digi-cart">' ), -6 );
 		// PRO envuelve los mensajes de envío desde su módulo (aquí no carga); el propio, con su clase de descripción.
 		$inner = str_replace( '<span class="digi-cart__content">Estimación</span>', 'Estimación', $inner );
+		// El botón del cupón: PRO lo pinta siempre con «Apply coupon» (el dominio de su texto no es el que filtra); el propio,
+		// con el texto del control, que por defecto en lo convertido es el mismo.
+		$a = str_replace( 'value="Apply coupon">Apply coupon<', 'value="' . ( $settings['apply_coupon_button_text'] ?? 'Apply coupon' ) . '">' . ( $settings['apply_coupon_button_text'] ?? 'Apply coupon' ) . '<', $a );
 		c_check( $norm( $own_css( $a ) ) === $norm( $inner ), "$label: la misma estructura que PRO.\nPRO: " . $norm( $own_css( $a ) ) . "\nPropio: " . $norm( $inner ) );
 		c_check( $hooks_before == $GLOBALS['c_wp']['hooks'] || $label, "$label: los ganchos se quitan." ); // phpcs:ignore
 	}
 	$GLOBALS['c_wp']['coupons'] = true;
 	$GLOBALS['c_wp']['count']   = 2;
 	$html = $render( $own, $map['defaults'] + $defaults( $own ) );
-	c_check( str_contains( $html, 'digi-cart__column digi-cart__column--start' ) && str_contains( $html, 'digi-cart__sticky' ) && str_contains( $html, 'digi-cart__apply-coupon' ) && str_contains( $html, 'placeholder="Código del cupón"' ) && ! str_contains( $html, 'Ventas cruzadas' ) && str_contains( $html, '>Proceed to Checkout<' ), 'Columnas, cupón propio (en español), sin ventas cruzadas y el texto del control en el botón de pago.' );
+	c_check( str_contains( $html, 'digi-cart__column digi-cart__column--start' ) && str_contains( $html, 'digi-cart__sticky' ) && str_contains( $html, 'digi-cart__apply-coupon' ) && str_contains( $html, 'placeholder="Coupon code"' ) && ! str_contains( $html, 'Ventas cruzadas' ) && str_contains( $html, '>Proceed to Checkout<' ), 'Columnas, cupón propio (en español), sin ventas cruzadas y el texto del control en el botón de pago.' );
 	$own_texts = $render( $own, $defaults( $own ) );
 	c_check( str_contains( $own_texts, '>Finalizar compra<' ) && str_contains( $own_texts, '>Actualizar carrito<' ) && str_contains( $own_texts, '>Totales del carrito<' ), 'Un carrito propio nuevo, con los textos en español.' );
 	c_check( str_contains( $own_texts, '<span class="digi-cart__content">Estimación</span>' ), 'Los mensajes de envío llevan la clase de las descripciones.' );
@@ -382,7 +383,7 @@ namespace {
 	\Digitalisimo\Elements\Convert\Registry::set( 'woocommerce-cart', $map );
 	$samples = array(
 		array(),
-		array( 'cart_layout' => 'one-column', 'section_coupon_display' => '', 'update_cart_automatically' => 'yes', 'sections_background_color' => '#f0f0f0', 'sections_border_radius' => array( 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'unit' => 'px', 'isLinked' => true ), 'sections_padding_mobile' => array( 'top' => '5', 'right' => '5', 'bottom' => '5', 'left' => '5', 'unit' => 'px' ), 'checkout_button_typography_typography' => 'custom', 'checkout_button_typography_font_size' => array( 'size' => 18, 'unit' => 'px' ), 'checkout_button_normal_background_background' => 'classic', 'checkout_button_normal_background_color' => '#111', '__globals__' => array( 'sections_titles_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ), '__dynamic__' => array( 'checkout_button_text' => '[elementor-tag id="x" name="site-title"]' ), 'custom_css' => 'selector .e-cart-totals{margin:0} selector .e-cart__column-end .e-sticky-right-column{top:1px}', 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40, 'section_cart_show_customize_elements' => array( 'customize_order_summary', 'customize_totals' ), 'order_summary_section_background_color' => '#eee', 'additional_template_switch' => 'active', 'additional_template_select' => '42', '_margin' => array( 'top' => '10' ) ),
+		array( 'cart_layout' => 'one-column', 'section_coupon_display' => '', 'update_cart_automatically' => 'yes', 'sections_background_color' => '#f0f0f0', 'sections_border_radius' => array( 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'unit' => 'px', 'isLinked' => true ), 'sections_padding_mobile' => array( 'top' => '5', 'right' => '5', 'bottom' => '5', 'left' => '5', 'unit' => 'px' ), 'checkout_button_typography_typography' => 'custom', 'checkout_button_typography_font_size' => array( 'size' => 18, 'unit' => 'px' ), 'checkout_button_normal_background_background' => 'classic', 'checkout_button_normal_background_color' => '#111', '__globals__' => array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ), '__dynamic__' => array( 'checkout_button_text' => '[elementor-tag id="x" name="site-title"]' ), 'custom_css' => 'selector .e-cart-totals{margin:0} selector .e-cart__column-end .e-sticky-right-column{top:1px}', 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40, 'section_cart_show_customize_elements' => array( 'customize_order_summary', 'customize_totals' ), 'order_summary_section_background_color' => '#eee', 'additional_template_switch' => 'active', 'additional_template_select' => '42', '_margin' => array( 'top' => '10' ) ),
 	);
 	foreach ( $samples as $i => $settings ) {
 		$log  = array();
@@ -410,7 +411,7 @@ namespace {
 	}
 	c_check( 'selector .digi-cart__totals{margin:0} selector .digi-cart__column--end .digi-cart__sticky{top:1px}' === $out['settings']['custom_css'], 'El CSS personalizado pasa a las clases propias.' );
 	c_check( 'Proceed to Checkout' === ( $tree[0]['elements'][0]['settings']['checkout_button_text'] ?? '' ) || isset( $out['settings']['__dynamic__']['checkout_button_text'] ), 'Los textos y los dinámicos siguen en su clave.' );
-	c_check( array( 'sections_titles_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ) === $out['settings']['__globals__'], 'Los globales siguen en su clave.' );
+	c_check( array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ) === $out['settings']['__globals__'], 'Los globales siguen en su clave.' );
 
 	echo 'DIGITALÍSIMO Elements: Carrito propio en verde (' . $GLOBALS['c_wp']['checks'] . " comprobaciones).\n";
 }

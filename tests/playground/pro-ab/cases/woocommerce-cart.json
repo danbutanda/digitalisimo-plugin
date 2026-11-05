@@ -1,0 +1,96 @@
+{
+ "_doc": [
+  "Casos A/B del Carrito (fila O de C7): A con `woocommerce-cart` de PRO, B con `digitalisimo-woo-cart`, en una página que hace de carrito con el carrito de prueba (contexto `cart`, docs: /var/tmp/digi-wt/pro-c7-reports/N-woo.md)."
+ ],
+ "declared": [],
+ "cases": {
+  "cart-defaults": {
+   "title": "Valores por defecto: dos columnas, cupón, totales",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {}
+  },
+  "cart-one-column": {
+   "title": "Una columna, sin cupón",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "cart_layout": "one-column",
+    "section_coupon_display": ""
+   }
+  },
+  "cart-empty": {
+   "title": "Carrito vacío (plantilla de WooCommerce)",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "woo": {
+    "cart": "empty"
+   },
+   "settings": {}
+  },
+  "cart-styled": {
+   "title": "Estilos más usados: secciones, títulos, campos, botones y botón de pago",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "sections_background_color": "#F4F6FA",
+    "sections_border_color": "#1F3A93",
+    "sections_border_radius": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "sections_title_color": "#1F3A93",
+    "sections_titles_typography_typography": "custom",
+    "sections_titles_typography_font_size": {
+     "unit": "px",
+     "size": 20
+    },
+    "sections_descriptions_color": "#333333",
+    "links_normal_color": "#C0392B",
+    "forms_buttons_normal_text_color": "#FFFFFF",
+    "forms_buttons_normal_background_background": "classic",
+    "forms_buttons_normal_background_color": "#1F3A93",
+    "checkout_button_normal_text_color": "#111111",
+    "checkout_button_normal_background_background": "classic",
+    "checkout_button_normal_background_color": "#F1C40F",
+    "order_summary_items_divider_color": "#1F3A93",
+    "totals_color": "#C0392B"
+   }
+  },
+  "cart-auto": {
+   "title": "Actualizar automáticamente: sin botón «Actualizar carrito»; subir una cantidad recalcula",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "update_cart_automatically": "yes"
+   },
+   "actions": [
+    {
+     "label": "subir la cantidad del primer artículo",
+     "selector": "input.qty",
+     "key": "ArrowUp",
+     "wait": 6000,
+     "widths": [
+      1280
+     ]
+    }
+   ]
+  },
+  "cart-customer": {
+   "title": "Con la clienta dentro (dirección de envío conocida)",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "woo": {
+    "user": "customer"
+   },
+   "settings": {
+    "sticky_right_column": "yes",
+    "sticky_right_column_offset": 20
+   }
+  }
+ }
+}

@@ -1,0 +1,83 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-short-description (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Descripción corta: la plantilla `single-product/short-description.php` de WooCommerce."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-short-description",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces del texto: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-short-defaults": {
+   "title": "Descripción corta por defecto",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-short-description",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-short-description.min.css de PRO",
+     "id": "widget-woocommerce-product-short-description-css",
+     "url": "widget-woocommerce-product-short-description(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-short-styled": {
+   "title": "Descripción corta centrada con color y tipografía",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "text_align": "center",
+    "text_color": "#444444",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "text_typography_line_height": {
+     "unit": "em",
+     "size": 1.8,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-short-description",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-short-description.min.css de PRO",
+     "id": "widget-woocommerce-product-short-description-css",
+     "url": "widget-woocommerce-product-short-description(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

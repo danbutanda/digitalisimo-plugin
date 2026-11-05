@@ -189,7 +189,6 @@ return array(
 		'--items-indicator-background-color' => '--mc-iibc',
 		'--items-indicator-text-color' => '--mc-iitc',
 		'--main-alignment' => '--mc-ma',
-		'--mc' => '--mc-m',
 		'--menu-cart-subtotal-color' => '--mc-mcsc',
 		'--menu-cart-subtotal-text-align' => '--mc-mcsta',
 		'--mini-cart-spacing' => '--mc-mcs',

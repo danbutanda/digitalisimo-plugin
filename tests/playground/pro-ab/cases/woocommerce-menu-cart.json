@@ -1,0 +1,266 @@
+{
+ "_doc": [
+  "Casos A/B del Carrito del menú (C7, fila O, fork MC del frente N): A con `woocommerce-menu-cart` de PRO, B con `digitalisimo-woo-menu-cart`. Con la tienda de prueba (`woo.cart`: artículos o vacío). Cada caso se mide cerrado y, con las acciones, abierto (clic o Intro en el conmutador) y cerrado otra vez con Escape. El panel lateral y el desplegable salen fuera de la caja del widget: se comparan por la firma (textos, estilos, enlaces y controles)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Cart|Carrito",
+   "reason": "El conmutador es un <button> (PRO: <a href=\"#\">) y su texto oculto para lectores de pantalla está en español («Carrito»; PRO: «Cart»)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Remove this item|Quitar «",
+   "reason": "Quitar un artículo nombra el producto en español («Quitar «Producto…» del carrito»; PRO: «Remove this item»)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Cerrar el carrito",
+   "reason": "El aspa es un <button> con nombre (PRO: un <div> sin nombre ni foco)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "control",
+   "match": "control (a|button) \\d",
+   "reason": "Conmutador <button> en lugar de <a href=\"#\"> (WCAG 4.1.2); con el panel cerrado, sus enlaces no son enfocables (inert) y no cuentan como controles visibles."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "enlace",
+   "match": "remove_item=",
+   "reason": "Los enlaces de quitar llevan el nonce de la sesión de WooCommerce de cada página (A y B son sesiones distintas): el destino es el mismo artículo."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "foco",
+   "match": ".",
+   "reason": "Orden del foco: el conmutador va antes del panel y el panel cerrado es inerte; en PRO el tabulador entraba primero en los enlaces invisibles del panel cerrado. Foco visible propio (2 px con separación de 2 px)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "imagen",
+   "match": "\\.svg|eicon",
+   "reason": "Icono propio en SVG; el de PRO es un glifo de la fuente eicons, que no se carga en un sitio con iconos SVG (no se ve)."
+  }
+ ],
+ "cases": {
+  "wmc-defaults": {
+   "title": "Valores por defecto: carrito lateral al hacer clic, con artículos",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {},
+   "pixels": {
+    "max": 0.2,
+    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    },
+    {
+     "label": "abrir con Intro",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Enter",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-empty": {
+   "title": "Carrito vacío con el indicador oculto si está vacío",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "empty"
+   },
+   "settings": {
+    "hide_empty_indicator": "hide"
+   },
+   "pixels": {
+    "max": 0.2,
+    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-mini": {
+   "title": "Mini carrito desplegable, alineado al final",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "cart_type": "mini-cart",
+    "mini_cart_alignment": "end",
+    "mini_cart_spacing": {
+     "unit": "px",
+     "size": 10
+    }
+   },
+   "pixels": {
+    "max": 0.2,
+    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-hover": {
+   "title": "Abrir al pasar el cursor y burbuja oculta",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "open_cart": "mouseover",
+    "items_indicator": "none"
+   },
+   "pixels": {
+    "max": 0.2,
+    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    }
+   ]
+  },
+  "wmc-styled": {
+   "title": "Estilos más usados: conmutador, panel, productos y botones",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "icon": "basket-solid",
+    "items_indicator": "plain",
+    "show_subtotal": "yes",
+    "alignment": "center",
+    "toggle_button_text_color": "#ffffff",
+    "toggle_button_icon_color": "#ffffff",
+    "toggle_button_background_color": "#0047ab",
+    "toggle_button_border_color": "#002b6b",
+    "toggle_button_border_width": {
+     "unit": "px",
+     "size": 2
+    },
+    "toggle_button_border_radius": {
+     "unit": "px",
+     "size": 8
+    },
+    "toggle_button_padding": {
+     "unit": "px",
+     "top": "10",
+     "right": "18",
+     "bottom": "10",
+     "left": "18",
+     "isLinked": false
+    },
+    "toggle_icon_size": {
+     "unit": "px",
+     "size": 22
+    },
+    "toggle_icon_spacing": {
+     "unit": "px",
+     "size": 10
+    },
+    "toggle_button_typography_typography": "custom",
+    "toggle_button_typography_font_size": {
+     "unit": "px",
+     "size": 16
+    },
+    "toggle_button_typography_font_weight": "700",
+    "background_color": "#fafafa",
+    "cart_padding": {
+     "unit": "px",
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "isLinked": true
+    },
+    "close_cart_icon_color": "#333333",
+    "show_remove_icon": "",
+    "divider_style": "dashed",
+    "divider_color": "#999999",
+    "buttons_layout": "stacked",
+    "view_cart_button_background_color": "#222222",
+    "checkout_button_background_color": "#0047ab",
+    "button_border_radius": {
+     "unit": "px",
+     "size": 6
+    },
+    "product_title_color": "#0047ab",
+    "subtotal_color": "#222222"
+   },
+   "pixels": {
+    "max": 0.2,
+    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  }
+ }
+}
