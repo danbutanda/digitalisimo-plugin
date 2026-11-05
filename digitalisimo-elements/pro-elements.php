@@ -143,6 +143,9 @@ function pro_elements_load_plugin_func() {
 	// Widgets de contenido propios (C2): widgets que sustituyen a los de PRO de la etapa.
 	require_once __DIR__ . '/modules/digitalisimo-content/class-module.php';
 	\Digitalisimo\Elements\Content\Module::init();
+	// Formularios propios (C6): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-forms/class-module.php';
+	\Digitalisimo\Elements\Forms\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {
