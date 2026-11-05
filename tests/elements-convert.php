@@ -237,13 +237,14 @@ namespace {
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array( 'tag' => 'h3' ) ),
 		array( 'id' => 'c2', 'elType' => 'container', 'elements' => array( array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array() ), array( 'id' => 'w3', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array() ) ) ),
-		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'paypal-button', 'settings' => array() ),
+		// 'global' nunca tiene mapa: el ejemplo de lo que queda sin convertir no cambia al llegar las etapas.
+		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'global', 'settings' => array() ),
 	) ) );
 	check_cv( $tree === Converter::tree( $tree ), 'Un mapa en borrador no convierte nada fuera de las pruebas.' );
 	$converted = Converter::tree( $tree, $log, true );
-	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'paypal-button' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
+	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'global' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
 	check_cv( 2 === count( $log ) && 'w2' === $log[1]['element'] && 'blockquote' === $log[0]['source'], 'El registro dice qué elemento cambió y de qué a qué.' );
-	check_cv( array( 'blockquote' => 2, 'paypal-button' => 1 ) === Converter::count( $tree ) && array( 'paypal-button' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
+	check_cv( array( 'blockquote' => 2, 'global' => 1 ) === Converter::count( $tree ) && array( 'global' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
 
 	// 4. Panel.
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'hide' ) );

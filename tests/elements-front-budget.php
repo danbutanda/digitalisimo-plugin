@@ -520,7 +520,7 @@ namespace {
 	check_budget( ! preg_match( '#https?://#', preg_replace( '/^\s*(\*|\/\/).*$/m', '', (string) file_get_contents( $nav_dir . 'class-search-rest.php' ) ) ), 'Search_Rest: sin direcciones de terceros.' );
 	check_budget( 4 === $nav_count, 'Deben revisarse los cuatro widgets de navegación propios (' . $nav_count . ').' );
 	$count += $nav_count;
-	check_budget( $count >= 96, 'Deben revisarse los 96 widgets propios (' . $count . ').' );
+	check_budget( $count >= 126, 'Deben revisarse los 126 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );
