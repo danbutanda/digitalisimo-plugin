@@ -1,7 +1,8 @@
 <?php
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
 // página con los cinco carruseles de PRO (C1); otra con los catorce widgets de contenido de PRO y una cuenta regresiva
-// de Element Pack (C2); y una plantilla de entrada con los elementos de tema (C4).
+// de Element Pack (C2); una plantilla de entrada con los elementos de tema (C4); y los treinta widgets de WooCommerce
+// de PRO en una plantilla de producto, una de archivo de productos, una página y una cabecera (C7).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -91,5 +92,63 @@ update_post_meta( $single, '_elementor_template_type', 'single-post' );
 update_post_meta( $single, '_elementor_edit_mode', 'builder' );
 update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
 wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single ) );
+// C7 (WooCommerce, con el WooCommerce fijado que monta pro-migrate.sh): una plantilla de producto con los quince widgets
+// de la ficha de PRO y el «Añadir al carrito» de Element Pack (`bdt-wc-add-to-cart` → `wc-add-to-cart` → propio); una de
+// archivo de productos con los nueve de listados y archivo y la rejilla de Element Pack (`bdt-wc-products` →
+// `woocommerce-products` → propio); una página con los seis de carrito, pago y cuenta; y una cabecera con el carrito del
+// menú de PRO y el de Element Pack (`bdt-wc-mini-cart` → `woocommerce-menu-cart` → propio). F8 y la etapa `pro`, en la
+// misma pasada.
+$c7_doc = static function ( $slug, $title, $type, array $elements ) {
+	$id = wp_insert_post( array( 'post_type' => $type ? 'elementor_library' : 'page', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'container', 'settings' => array(), 'elements' => $elements ) ) ) ) );
+	if ( $type ) {
+		update_post_meta( $id, '_elementor_template_type', $type );
+		wp_set_object_terms( $id, $type, 'elementor_library_type' );
+	}
+	return $id;
+};
+$product = $c7_doc( 'pm-producto', 'Producto individual', 'product', array(
+	$w( 'w1', 'woocommerce-product-title', array( 'header_size' => 'h2', 'custom_css' => 'selector .product_title{margin:0}' ) ),
+	$w( 'w2', 'woocommerce-product-price', array( 'price_color' => '#123456' ) ),
+	$w( 'w3', 'woocommerce-product-rating', array() ),
+	$w( 'w4', 'woocommerce-product-stock', array() ),
+	$w( 'w5', 'woocommerce-product-meta', array( 'view' => 'table' ) ),
+	$w( 'w6', 'woocommerce-product-short-description', array() ),
+	$w( 'w7', 'woocommerce-product-content', array() ),
+	$w( 'w8', 'woocommerce-product-additional-information', array() ),
+	$w( 'w9', 'woocommerce-product-data-tabs', array() ),
+	$w( 'w10', 'woocommerce-product-images', array() ),
+	$w( 'w11', 'woocommerce-product-add-to-cart', array( 'show_quantity' => 'yes', 'custom_css' => 'selector .e-atc-qty-button-holder{gap:4px}' ) ),
+	$w( 'w12', 'woocommerce-product-related', array( 'posts_per_page' => 4 ) ),
+	$w( 'w13', 'woocommerce-product-upsell', array() ),
+	$w( 'w14', 'wc-single-elements', array( 'element' => 'woocommerce_output_product_data_tabs' ) ),
+	$w( 'w15', 'wc-add-to-cart', array( 'text' => 'Comprar' ) ),
+	$w( 'ew1', 'bdt-wc-add-to-cart', array( 'text' => 'Comprar ya' ) ),
+) );
+$shop = $c7_doc( 'pm-tienda', 'Archivo de productos', 'product-archive', array(
+	$w( 'x1', 'wc-archive-products', array( 'paginate' => 'yes' ) ),
+	$w( 'x2', 'woocommerce-archive-products', array() ),
+	$w( 'x3', 'woocommerce-archive-description', array() ),
+	$w( 'x4', 'woocommerce-breadcrumb', array() ),
+	$w( 'x5', 'woocommerce-notices', array() ),
+	$w( 'x6', 'wc-categories', array( 'columns' => 3 ) ),
+	$w( 'x7', 'woocommerce-category-image', array() ),
+	$w( 'x8', 'woocommerce-products', array( 'columns' => 3, 'rows' => 1, 'custom_css' => 'selector .elementor-products-grid ul.products{gap:8px}' ) ),
+	$w( 'x9', 'wc-products', array() ),
+	$w( 'ew2', 'bdt-wc-products', array() ),
+) );
+$cart = $c7_doc( 'pm-carrito', 'Página de carrito', '', array(
+	$w( 'k1', 'woocommerce-cart', array( 'cart_layout' => 'one-column' ) ),
+	$w( 'k2', 'woocommerce-checkout-page', array() ),
+	$w( 'k3', 'woocommerce-my-account', array() ),
+	$w( 'k4', 'woocommerce-purchase-summary', array() ),
+	$w( 'k5', 'woocommerce-menu-cart', array() ),
+	$w( 'k6', 'wc-elements', array( 'element' => 'woocommerce_cart' ) ),
+) );
+$shop_header = $c7_doc( 'pm-cabecera-tienda', 'Cabecera de la tienda', 'header', array(
+	$w( 'm1', 'woocommerce-menu-cart', array( 'custom_css' => 'selector .elementor-menu-cart__toggle .elementor-button{gap:4px}' ) ),
+	$w( 'em1', 'bdt-wc-mini-cart', array() ),
+) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single, 'product' => $product, 'shop' => $shop, 'cart' => $cart, 'shop_header' => $shop_header ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

@@ -194,6 +194,21 @@ for (const name of ASSETS) {
     assert.ok(bytes <= max, `assets/${ext}/${name}.${ext}: ${bytes} B (tope ${max} B).`);
   }
 }
+// C7: los recursos de los widgets que sustituyen a los de PRO viven en su carpeta (`single/assets`, `store/assets`), con
+// los mismos topes; la segunda hoja de carrito, pago, cuenta, resumen y carrito del menú (`-2.css`) tiene el suyo.
+let c7Assets = 0;
+for (const dir of ['single/assets', 'store/assets']) {
+  const full = join(WOO, dir);
+  assert.ok(existsSync(full), `Existe modules/digitalisimo-woo/${dir}.`);
+  for (const name of readdirSync(full)) {
+    const max = name.endsWith('.js') ? 8192 : name.endsWith('.css') ? 4096 : 0;
+    assert.ok(max > 0, `modules/digitalisimo-woo/${dir}/${name}: sólo hojas y scripts.`);
+    const bytes = statSync(join(full, name)).size;
+    assert.ok(bytes <= max, `modules/digitalisimo-woo/${dir}/${name}: ${bytes} B (tope ${max} B).`);
+    c7Assets++;
+  }
+}
+assert.ok(c7Assets >= 30, `Recursos de C7 revisados: ${c7Assets}.`);
 const urlOk = (target) => /^\s*(['"]|\\['"])?data:/.test(target);
 for (const path of files.filter((p) => /\.(css|php|js)$/.test(p))) {
   const source = read(path);

@@ -7,8 +7,11 @@
 # catorce widgets de contenido de PRO y una cuenta regresiva de Element Pack (`bdt-countdown`) que F8 lleva a la de PRO y
 # la etapa `pro` a la propia en la misma pasada; --revert devuelve los de PRO y el de Element Pack. C4: una plantilla de
 # entrada del Theme Builder con los quince elementos de tema de PRO y un `bdt-post-info` de Element Pack (F8 → PRO →
-# propio en la misma pasada).
-# Uso: bash tests/playground/pro-migrate.sh   (OUT, TMPDIR como los demás arneses)
+# propio en la misma pasada). C7: con el WooCommerce fijado (tests/playground/woocommerce-pin.sh, montado y activado
+# antes de setup.php), los treinta widgets de WooCommerce de PRO en una plantilla de producto, una de archivo de
+# productos, una página y una cabecera, y tres de Element Pack (`bdt-wc-add-to-cart`, `bdt-wc-products` y
+# `bdt-wc-mini-cart`) que F8 lleva a los de PRO y la etapa `pro` a los propios en la misma pasada.
+# Uso: bash tests/playground/pro-migrate.sh   (OUT, TMPDIR, WOO_ZIP como los demás arneses)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export TMPDIR="${TMPDIR:-/var/tmp}"
@@ -17,7 +20,11 @@ OUT="${OUT:-/var/tmp/digi-pro-migrate}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 rm -rf "$OUT" && mkdir -p "$OUT/probe"
 cp "$ROOT/tests/playground/pro-migrate/"*.php "$OUT/probe/"
-STEPS='{"step":"runPHP","code":"<?php require \"/wordpress/wp-content/probe/setup.php\";"}'
+. "$ROOT/tests/playground/woocommerce-pin.sh"
+woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+WOO_MOUNT=()
+[ -n "$(woo_mount)" ] && WOO_MOUNT=("$(woo_mount)")
+STEPS="$(woo_step true),"'{"step":"runPHP","code":"<?php require \"/wordpress/wp-content/probe/setup.php\";"}'
 for s in inventory run run revert; do
   STEPS="$STEPS,{\"step\":\"writeFile\",\"path\":\"/wordpress/wp-content/probe/step.txt\",\"data\":\"$s\"},{\"step\":\"runPHP\",\"code\":\"<?php require \\\"/wordpress/wp-content/probe/check.php\\\";\"}"
 done
@@ -26,7 +33,7 @@ trap 'playground_cleanup' EXIT
 $CLI run-blueprint --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
-  --mount="$OUT/probe:/wordpress/wp-content/probe" > "$OUT/cli.log" 2>&1 || { tail -20 "$OUT/cli.log"; exit 1; }
+  --mount="$OUT/probe:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}" > "$OUT/cli.log" 2>&1 || { tail -20 "$OUT/cli.log"; exit 1; }
 node - "$OUT/probe/steps.jsonl" <<'JS'
 const fs = require('fs');
 const steps = fs.readFileSync(process.argv[2], 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -36,7 +43,7 @@ const ok = (c, m) => { console.log(`${c ? 'OK   ' : 'FALLA'}  ${m}`); if (!c) pr
 for (const s of steps) if (s.error) problems.push(`${s.step}: ${s.error}`);
 const inv = (by('inventory')[0] || {}).inventory || {};
 const row = (inv.widgets || []).find((w) => w.widget === 'blockquote') || {};
-ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 3 && row.documents === 2 && row.revisions === 1 && inv.where && inv.where.page === 3 && inv.where.header === 1, `inventario: 3 Blockquote en 2 documentos (página y cabecera), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 3 páginas (citas, carruseles y contenido) y una cabecera (${JSON.stringify(row).slice(0, 200)})`);
+ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 3 && row.documents === 2 && row.revisions === 1 && inv.where && inv.where.page === 4 && inv.where.header === 2, `inventario: 3 Blockquote en 2 documentos (página y cabecera), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 4 páginas (citas, carruseles, contenido y carrito de C7) y dos cabeceras (la de la cita y la de la tienda) (${JSON.stringify(row).slice(0, 200)})`);
 const c1 = ['nested-carousel', 'slides', 'media-carousel', 'testimonial-carousel', 'reviews'].map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c1.every((r) => r.family === 'C1' && r.elements === 1 && r.documents === 1 && r.target === `digitalisimo-${r.widget}`), `inventario: los cinco carruseles de PRO, familia C1, cada uno con su widget propio de destino (${JSON.stringify(c1.map((r) => [r.widget, r.family, r.target, r.elements]))})`);
 const C2 = { e1: 'animated-headline', e2: 'code-highlight', e3: 'table-of-contents', e4: 'share-buttons', e5: 'call-to-action', e6: 'flip-box', e7: 'price-list', e8: 'price-table', e9: 'gallery', e10: 'hotspot', e11: 'lottie', e12: 'video-playlist', e13: 'countdown', e14: 'progress-tracker' };
@@ -52,7 +59,7 @@ ok(t.header && t.header.q9 === 'digitalisimo-blockquote', 'la plantilla de cabec
 ok(t.revision && t.revision.q1 && t.revision.q1.startsWith('blockquote') && t.revision.q2 === 'blockquote', 'la revisión se queda con el Blockquote de PRO');
 ok(last.backup === true, 'queda la copia original de la página');
 const first = runs.find((r) => r.state && r.state.counts && r.state.counts.pro) || {};
-ok(first.state && first.state.counts.pro === 5 && first.state.counts.pro_elements === 39 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 39 widgets en 5 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, y los 15 de C4 y la información de la entrada que F8 trae de Element Pack) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
+ok(first.state && first.state.counts.pro === 9 && first.state.counts.pro_elements === 73 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 73 widgets en 9 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, los 15 de C4 y la información de la entrada que F8 trae de Element Pack, y los 30 de C7 —el carrito del menú, dos veces— y los tres de WooCommerce que F8 trae de Element Pack) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
 ok(runs.length < 2 || /No había nada que migrar/.test(last.report || '') || (last.state && last.state.counts && !last.state.counts.pro), 'una segunda pasada no vuelve a convertir nada');
 const own = { n1: 'digitalisimo-nested-carousel', s1: 'digitalisimo-slides', m1: 'digitalisimo-media-carousel', t1: 'digitalisimo-testimonial-carousel', r1: 'digitalisimo-reviews' };
 ok(t.carousels && Object.entries(own).every(([id, type]) => (t.carousels[id] || '').startsWith(type)) && t.carousels.n1ah === 'heading' && t.carousels.n1bh === 'heading', `C1: los cinco carruseles pasan a los propios y el contenido de las diapositivas anidadas no cambia (${JSON.stringify(t.carousels)})`);
@@ -69,7 +76,25 @@ ok(c4inv.every((r, i) => r.family === 'C4' && r.elements === 1 && r.documents ==
 ok(t.single && Object.entries(C4).every(([id, [, own]]) => (t.single[id] || '').split(' ')[0] === own), `C4: la plantilla de entrada pasa a los quince elementos de tema propios (${JSON.stringify(t.single)})`);
 ok(t.single && (t.single.e1 || '') === 'digitalisimo-post-info', `C4: el bdt-post-info de Element Pack acaba en la Información de la entrada propia en la misma pasada (${t.single && t.single.e1})`);
 ok(t.single && /selector \.digi-post-info__item\{/.test(t.single.h1 || '') && /elementor-widget-digitalisimo-post-title/.test(t.single.g4 || ''), 'C4: el CSS personalizado pasa a las clases propias (Información de la entrada y Título de la entrada)');
+// C7: los treinta widgets de WooCommerce de PRO (el carrito del menú, en la página y en la cabecera) y tres de Element
+// Pack (F8 → PRO → propio en la misma pasada).
+const C7 = {
+  product: { w1: ['woocommerce-product-title', 'product-title'], w2: ['woocommerce-product-price', 'product-price'], w3: ['woocommerce-product-rating', 'product-rating'], w4: ['woocommerce-product-stock', 'product-stock'], w5: ['woocommerce-product-meta', 'product-meta'], w6: ['woocommerce-product-short-description', 'product-short-description'], w7: ['woocommerce-product-content', 'product-content'], w8: ['woocommerce-product-additional-information', 'product-additional-information'], w9: ['woocommerce-product-data-tabs', 'product-data-tabs'], w10: ['woocommerce-product-images', 'product-images'], w11: ['woocommerce-product-add-to-cart', 'product-add-to-cart'], w12: ['woocommerce-product-related', 'product-related'], w13: ['woocommerce-product-upsell', 'product-upsell'], w14: ['wc-single-elements', 'single-elements'], w15: ['wc-add-to-cart', 'add-to-cart'], ew1: ['bdt-wc-add-to-cart', 'add-to-cart'] },
+  shop: { x1: ['wc-archive-products', 'archive-products'], x2: ['woocommerce-archive-products', 'archive-products-classic'], x3: ['woocommerce-archive-description', 'archive-description'], x4: ['woocommerce-breadcrumb', 'breadcrumb'], x5: ['woocommerce-notices', 'notices'], x6: ['wc-categories', 'categories'], x7: ['woocommerce-category-image', 'category-image'], x8: ['woocommerce-products', 'products'], x9: ['wc-products', 'products-classic'], ew2: ['bdt-wc-products', 'products'] },
+  cart: { k1: ['woocommerce-cart', 'cart'], k2: ['woocommerce-checkout-page', 'checkout'], k3: ['woocommerce-my-account', 'my-account'], k4: ['woocommerce-purchase-summary', 'purchase-summary'], k5: ['woocommerce-menu-cart', 'menu-cart'], k6: ['wc-elements', 'pages'] },
+  shop_header: { m1: ['woocommerce-menu-cart', 'menu-cart'], em1: ['bdt-wc-mini-cart', 'menu-cart'] },
+};
+const c7pro = [...new Set(Object.values(C7).flatMap((doc) => Object.values(doc).map(([pro]) => pro)).filter((w) => !w.startsWith('bdt-')))];
+const c7inv = c7pro.map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
+ok(c7pro.length === 30 && c7inv.every((r) => r.family === 'C7' && r.elements === (r.widget === 'woocommerce-menu-cart' ? 2 : 1) && /^digitalisimo-woo-/.test(r.target || '')) && inv.where && inv.where.product === 1 && inv.where['product-archive'] === 1, `inventario: los treinta widgets de WooCommerce de PRO, familia C7, cada uno con su widget propio (${JSON.stringify(c7inv.filter((r) => !(r.family === 'C7' && /^digitalisimo-woo-/.test(r.target || ''))).map((r) => [r.widget, r.family, r.target, r.elements]))}; ${JSON.stringify(inv.where)})`);
+for (const [doc, ids] of Object.entries(C7)) {
+  ok(t[doc] && Object.entries(ids).every(([id, [, own]]) => (t[doc][id] || '').split(' ')[0] === `digitalisimo-woo-${own}`), `C7: ${doc} pasa a los widgets de WooCommerce propios, también lo que F8 trae de Element Pack (${JSON.stringify(t[doc])})`);
+}
+ok(t.product && /digi-atc__holder/.test(t.product.w11 || '') && !/e-atc-qty-button-holder/.test(t.product.w11 || '') && t.shop && /digi-products-grid/.test(t.shop.x8 || '') && t.shop_header && /digi-mc__tg/.test(t.shop_header.m1 || ''), 'C7: el CSS personalizado pasa a las clases propias («Añadir al carrito», Productos y carrito del menú)');
 const rv = (by('revert')[0] || {}).types || {};
+for (const [doc, ids] of Object.entries(C7)) {
+  ok(rv[doc] && Object.entries(ids).every(([id, [pro]]) => (rv[doc][id] || '').split(' ')[0] === pro), `C7: --revert devuelve en ${doc} los widgets de PRO y los de Element Pack (${JSON.stringify(rv[doc])})`);
+}
 ok(rv.content && Object.entries(C2).every(([id, w]) => (rv.content[id] || '').split(' ')[0] === w), `C2: --revert devuelve los catorce widgets de PRO (${JSON.stringify(rv.content)})`);
 ok(rv.content && (rv.content.ep1 || '').split(' ')[0] === 'bdt-countdown', `C2: --revert devuelve la cuenta regresiva de Element Pack (${rv.content && rv.content.ep1})`);
 ok(rv.carousels && Object.entries({ n1: 'nested-carousel', s1: 'slides', m1: 'media-carousel', t1: 'testimonial-carousel', r1: 'reviews' }).every(([id, type]) => (rv.carousels[id] || '').split(' ')[0] === type), `C1: --revert devuelve los carruseles de PRO (${JSON.stringify(rv.carousels)})`);

@@ -47,7 +47,9 @@ $template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 // C4 (programa «sin widgets de PRO»): una plantilla individual y una de archivo del Theme Builder, para buscar en su
 // panel los elementos de tema que sólo existen ahí (categorías «Individual» y «Archivo»). Sus ID van a templates.json.
 $theme_templates = array();
-foreach ( array( 'single' => 'single-post', 'archive' => 'archive' ) as $key => $type ) {
+// C7: también una de producto y una de archivo de productos (categorías «Producto individual» y «Archivo de productos»
+// de WooCommerce, que sólo existen ahí; el sitio de interaction.sh siempre monta WooCommerce).
+foreach ( array( 'single' => 'single-post', 'archive' => 'archive', 'product' => 'product', 'product-archive' => 'product-archive' ) as $key => $type ) {
 	$slug = 'digi-ix-tpl-' . $key;
 	$tpl  = get_page_by_path( $slug, OBJECT, 'elementor_library' );
 	if ( ! $tpl ) {

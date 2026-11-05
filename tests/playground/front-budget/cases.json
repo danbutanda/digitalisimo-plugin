@@ -6853,5 +6853,280 @@
     "swiper": false
    }
   }
+ },
+ "woo-pro-product": {
+  "title": "Plantilla de producto del Theme Builder con los quince widgets propios de la ficha (programa sin widgets de PRO, C7), medida en la ficha del producto simple",
+  "since": "@NEXT_ELEMENTS@",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "product",
+    "type": "product",
+    "conditions": [
+     "include/singular/product/__WC_SIMPLE__"
+    ],
+    "widgets": [
+     {
+      "type": "digitalisimo-woo-product-title",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-images",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-price",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-breadcrumb",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-rating",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-stock",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-short-description",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-add-to-cart",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-meta",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-data-tabs",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-additional-information",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-content",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-related",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-upsell",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-single-elements",
+      "settings": {
+       "element": "woocommerce_output_product_data_tabs"
+      }
+     },
+     {
+      "type": "digitalisimo-woo-add-to-cart",
+      "settings": {
+       "product_id": "__WC_SIMPLE__",
+       "show_quantity": "yes"
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/product/digi-fb-producto-1/"
+  ],
+  "assets": {
+   "atc-css": "/digitalisimo-elements/modules/digitalisimo-woo/single/assets/product-add-to-cart\\.css",
+   "tabs-css": "/digitalisimo-elements/modules/digitalisimo-woo/single/assets/product-data-tabs\\.css",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "title": "h1.product_title",
+   "atc": ".digi-atc form.cart",
+   "tabs": ".woocommerce-tabs",
+   "gallery": ".woocommerce-product-gallery"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:title": 1,
+    "count:tabs": 2,
+    "count:gallery": 1,
+    "asset:atc-css": "<=4096",
+    "asset:tabs-css": "<=4096",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-shop": {
+  "title": "Plantilla de archivo de productos del Theme Builder con los widgets propios de la tienda (C7: migas, avisos, descripción, categorías, productos del archivo y productos), medida en la tienda",
+  "since": "@NEXT_ELEMENTS@",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "shop",
+    "type": "product-archive",
+    "conditions": [
+     "include/product_archive"
+    ],
+    "widgets": [
+     {
+      "type": "digitalisimo-woo-breadcrumb",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-notices",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-archive-description",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-categories",
+      "settings": {
+       "columns": 3
+      }
+     },
+     {
+      "type": "digitalisimo-woo-archive-products",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-products",
+      "settings": {
+       "columns": 3,
+       "rows": 1,
+       "paginate": ""
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/?post_type=product"
+  ],
+  "assets": {
+   "products-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/products\\.css",
+   "archive-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/archive-products\\.css",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "products": ".digi-products-grid ul.products li.product",
+   "grids": ".digi-products-grid"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:grids": 2,
+    "asset:products-css": "<=4096",
+    "asset:archive-css": "<=4096",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-cart": {
+  "title": "Carrito, carrito del menú y avisos propios (C7) con un producto en el carrito: dos hojas de 4 KB por widget y sin los paquetes de PRO",
+  "since": "@NEXT_ELEMENTS@",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-menu-cart",
+    "id": "fbc7mc1",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-woo-notices",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-woo-cart",
+    "id": "fbc7ct1",
+    "settings": {}
+   }
+  ],
+  "assets": {
+   "cart-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.css",
+   "cart2-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart-2\\.css",
+   "cart-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.js",
+   "mc-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.css",
+   "mc-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.js",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "cart": ".digi-cart",
+   "items": ".digi-cart .cart_item",
+   "toggle": ".digi-mc button[aria-expanded]"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-cart .cart_item",
+    "min": 1,
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:cart": 1,
+    "count:toggle": 1,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:items": 1
+    },
+    "asset:cart-css": "<=4096",
+    "asset:cart2-css": "<=4096",
+    "asset:cart-js": "<=8192",
+    "asset:mc-css": "<=4096",
+    "asset:mc-js": "<=8192",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
  }
 }

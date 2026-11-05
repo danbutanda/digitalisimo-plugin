@@ -84,6 +84,15 @@ jobs:
           node tests/elements-pro-search-form-chrome.mjs
           php tests/elements-pro-sitemap.php
           php tests/elements-pro-yoast-breadcrumbs.php
+          php tests/elements-pro-woo-single.php
+          node tests/elements-pro-woo-atc-chrome.mjs
+          php tests/elements-pro-woo-products.php
+          php tests/elements-pro-woo-archive.php
+          php tests/elements-pro-woo-cart.php
+          php tests/elements-pro-woo-checkout.php
+          php tests/elements-pro-woo-account.php
+          php tests/elements-pro-woo-menu-cart.php
+          node tests/elements-pro-woo-menu-cart-chrome.mjs
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php

@@ -827,5 +827,154 @@ namespace {
 		$check( ! preg_grep( "/^pro\\.unmapped:/", $h_codes ), "$h_legacy → $h_own sin claves sin declarar: " . wp_json_encode( $h_codes ) );
 	}
 
+	/* ====================================================== 10. Orígenes de F8 hacia los widgets de PRO de C7 (WooCommerce) */
+	// Regla 6: qué mapas de F8 (Element Pack y Prime Slider) llegan a un widget de WooCommerce de PRO. Un mapa nuevo de F8
+	// hacia uno de ellos obliga a revisar esta lista y su caso. Además, la plantilla de bucle de productos de Prime Slider
+	// (`legacy/prime-slider/class-loop-item.php`) crea el título, el precio y el «Añadir al carrito» de PRO.
+	$c7_sources = array();
+	foreach ( array_merge( glob( $legacy . 'maps/*.php' ) ?: array(), glob( $legacy . 'prime-slider/maps/*.php' ) ?: array() ) as $file ) {
+		if ( false !== strpos( basename( $file ), '.styles.' ) ) {
+			continue;
+		}
+		preg_match_all( "/'(target|fallback)'\s*=>\s*'((?:woocommerce|wc)-[a-z0-9-]+)'/", (string) file_get_contents( $file ), $m, PREG_SET_ORDER );
+		foreach ( $m as $hit ) {
+			$c7_sources[ $hit[2] ][] = basename( $file, '.php' );
+		}
+	}
+	ksort( $c7_sources );
+	foreach ( $c7_sources as $k => $list ) {
+		sort( $list );
+		$c7_sources[ $k ] = $list;
+	}
+	$c7_expected = array(
+		'wc-add-to-cart'        => array( 'bdt-wc-add-to-cart' ),
+		'woocommerce-menu-cart' => array( 'bdt-wc-mini-cart' ),
+		'woocommerce-products'  => array( 'bdt-wc-carousel', 'bdt-wc-products', 'bdt-wc-slider', 'prime-slider-woocircle', 'prime-slider-woocommerce', 'prime-slider-wooexpand', 'prime-slider-woolamp', 'prime-slider-woostand' ),
+	);
+	$check( $c7_expected === $c7_sources, 'Orígenes de F8 hacia los widgets de WooCommerce de PRO: ' . wp_json_encode( $c7_sources ) );
+	foreach ( array( 'woocommerce-product-title', 'woocommerce-product-price', 'woocommerce-product-add-to-cart' ) as $c7_loop ) {
+		$check( false !== strpos( (string) file_get_contents( $legacy . 'prime-slider/class-loop-item.php' ), "'$c7_loop'" ), "La plantilla de bucle de Prime Slider crea $c7_loop (cubierto abajo)." );
+	}
+
+	/* ================================= 11. La cadena F8 → PRO → widget propio de la ficha de producto (C7, frente M) */
+	// F8 lleva el «Añadir al carrito» de Element Pack al botón personalizado de PRO (`wc-add-to-cart`), y la plantilla de
+	// bucle de productos de Prime Slider crea el título, el precio y el «Añadir al carrito» de PRO
+	// (`legacy/prime-slider/class-loop-item.php`): la etapa `pro` los lleva a los propios en la misma pasada.
+	$m_targets = array( 'wc-add-to-cart' => 'digitalisimo-woo-add-to-cart', 'woocommerce-product-title' => 'digitalisimo-woo-product-title', 'woocommerce-product-price' => 'digitalisimo-woo-product-price', 'woocommerce-product-add-to-cart' => 'digitalisimo-woo-product-add-to-cart' );
+	Registry::reset();
+	fresh();
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+	foreach ( $m_targets as $source => $target ) {
+		$real = Registry::map( $source, true );
+		$check( null !== $real && $target === $real['target'], "Hay mapa de {$source} hacia {$target}." );
+		Registry::set( $source, array( 'status' => 'ready' ) + (array) $real );
+	}
+	$m_doc = doc(
+		array(
+			box(
+				'container',
+				array(
+					w( 'bdt-wc-add-to-cart', array( 'product_id' => array( '11' ), 'text' => 'Comprar', 'quantity' => 2 ), 'm1' ),
+					w( 'woocommerce-product-title', array( 'header_size' => 'h3', '__dynamic__' => array( 'title' => '[elementor-tag id="m9" name="woocommerce-product-title-tag" settings="%7B%7D"]' ) ), 'm2' ),
+					w( 'woocommerce-product-price', array( 'price_color' => '#123456', 'text_align' => 'center' ), 'm3' ),
+					w( 'woocommerce-product-add-to-cart', array( 'show_quantity' => 'yes' ), 'm4' ),
+				),
+				'mc1'
+			),
+		),
+		array( 'post_type' => 'elementor_library', 'post_title' => 'Producto en bucle' ),
+		array( '_elementor_template_type' => 'loop-item' )
+	);
+	$m_state = migrate();
+	$m_codes = doc_codes( $m_doc );
+	foreach ( array( 'm1' => 'digitalisimo-woo-add-to-cart', 'm2' => 'digitalisimo-woo-product-title', 'm3' => 'digitalisimo-woo-product-price', 'm4' => 'digitalisimo-woo-product-add-to-cart' ) as $eid => $target ) {
+		$el = find( tree( $m_doc ), $eid );
+		$check( is_array( $el ) && $target === $el['widgetType'], "Migrar lleva {$eid} a {$target} en la misma pasada: " . wp_json_encode( $el['widgetType'] ?? null ) );
+	}
+	$check( 4 === (int) $m_state['counts']['pro_elements'] && ! preg_grep( '/^pro\.(unmapped|dropped):/', $m_codes ), 'Los cuatro pasan por la etapa pro sin claves sin declarar ni descartadas: ' . wp_json_encode( $m_codes ) );
+	$m_cart = find( tree( $m_doc ), 'm1' )['settings'];
+	$check( '11' === ( $m_cart['product_id'] ?? '' ) && 'Comprar' === ( $m_cart['text'] ?? '' ) && 2 === ( $m_cart['quantity'] ?? 0 ) && 'wc-add-to-cart' === ( $m_cart['_digitalisimo_pro'] ?? '' ), 'El botón conserva producto, texto y cantidad: ' . wp_json_encode( $m_cart ) );
+	$m_title = find( tree( $m_doc ), 'm2' )['settings'];
+	$check( 'h3' === ( $m_title['header_size'] ?? '' ) && false !== strpos( (string) ( $m_title['__dynamic__']['title'] ?? '' ), 'woocommerce-product-title-tag' ), 'El título conserva nivel y etiqueta dinámica.' );
+	$check( 'yes' === ( find( tree( $m_doc ), 'm4' )['settings']['show_quantity'] ?? '' ) && '#123456' === ( find( tree( $m_doc ), 'm3' )['settings']['price_color'] ?? '' ), 'Precio y «Añadir al carrito» conservan sus ajustes.' );
+	Registry::reset();
+
+	/* ======================================= 12. La cadena F8 → PRO → widget propio de la tienda (C7, frente N) */
+	// Las rejillas de productos de Element Pack que F8 lleva a `woocommerce-products` acaban en `digitalisimo-woo-products`
+	// en la misma pasada de Migrar, con sus partes y su consulta, sin claves sin declarar; el carrito del menú de Element
+	// Pack acaba en el Carrito del menú propio.
+	// Como en WordPress, F8 sólo deja en el widget de PRO las claves que son controles suyos: el gestor de prueba de C2
+	// con los controles de los archivos de PRO (los de productos, con su base, las columnas de `Base_Widget` y las partes).
+	function c7_controls( array $files ): array {
+		$elements = dirname( __DIR__ ) . '/digitalisimo-elements/modules/';
+		$php      = '';
+		foreach ( $files as $file ) {
+			$php .= (string) file_get_contents( $elements . $file );
+		}
+		$subs = array( 'typography', 'font_family', 'font_size', 'font_weight', 'text_transform', 'font_style', 'text_decoration', 'line_height', 'letter_spacing', 'word_spacing', 'border', 'width', 'color', 'box_shadow_type', 'box_shadow', 'box_shadow_position', 'text_shadow_type', 'text_shadow', 'background', 'color_stop', 'color_b', 'color_b_stop', 'gradient_type', 'gradient_angle', 'gradient_position', 'image', 'position', 'attachment', 'repeat', 'size', 'post_type', 'posts_ids', 'include', 'exclude', 'include_term_ids', 'exclude_ids', 'include_authors', 'exclude_term_ids', 'exclude_authors', 'orderby', 'order', 'offset', 'related_fallback', 'fallback_ids', 'select_date', 'date_before', 'date_after', 'avoid_duplicates', 'ignore_sticky_posts', 'query_id', 'related_taxonomies' );
+		preg_match_all( "/->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $plain );
+		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $groups );
+		$list = $plain[1];
+		foreach ( $groups[1] as $group ) {
+			foreach ( $subs as $sub ) {
+				$list[] = $group . '_' . $sub;
+			}
+		}
+		$out = array( 'custom_css' => array( 'name' => 'custom_css' ) );
+		foreach ( array_unique( $list ) as $name ) {
+			foreach ( array( '', '_tablet', '_mobile' ) as $device ) {
+				$out[ $name . $device ] = array( 'name' => $name . $device );
+			}
+		}
+		return $out;
+	}
+	$c7_files = array(
+		// Más las partes de Productos de Elements (`digitalisimo_wc_*`), que se añaden al widget de PRO y al propio.
+		'woocommerce-products'  => array( 'woocommerce/widgets/products.php', 'woocommerce/widgets/products-base.php', 'woocommerce/widgets/base-widget.php', 'digitalisimo-widgets/class-products-parts.php' ),
+		'woocommerce-menu-cart' => array( 'woocommerce/widgets/menu-cart.php' ),
+	);
+	Registry::reset();
+	foreach ( array( 'bdt-wc-products', 'bdt-wc-carousel', 'bdt-wc-slider' ) as $n_legacy ) {
+		if ( null === Registry::map( 'woocommerce-products' ) ) {
+			break;
+		}
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+		$gestor                                        = new C2_Manager();
+		$gestor->controls['woocommerce-products']      = c7_controls( $c7_files['woocommerce-products'] );
+		$gestor->controls['digitalisimo-woo-products'] = array();
+		\Elementor\Plugin::$instance                  = (object) array( 'widgets_manager' => $gestor );
+		Pro::reset();
+		$n_doc   = doc( array( box( 'container', array( w( $n_legacy, array(), 'np1' ) ), 'nc1' ) ), array( 'post_title' => $n_legacy ) );
+		$n_state = migrate();
+		$n_el    = find( tree( $n_doc ), 'np1' );
+		$n_codes = doc_codes( $n_doc );
+		$check( ! empty( $n_state['done'] ) && is_array( $n_el ) && 'digitalisimo-woo-products' === $n_el['widgetType'] && 'woocommerce-products' === ( $n_el['settings']['_digitalisimo_pro'] ?? '' ) && 'yes' === ( $n_el['settings']['digitalisimo_wc_custom'] ?? '' ), "$n_legacy acaba en digitalisimo-woo-products (vía woocommerce-products) con sus partes: " . wp_json_encode( array( $n_el['widgetType'] ?? null, $n_state['counts'] ?? null ) ) );
+		$check( ! preg_grep( '/^pro\.unmapped:/', $n_codes ), "$n_legacy → digitalisimo-woo-products sin claves sin declarar: " . wp_json_encode( $n_codes ) );
+	}
+	foreach ( array(
+		'bdt-wc-mini-cart' => array( 'woocommerce-menu-cart', 'digitalisimo-woo-menu-cart', array( 'offcanvas_flip' => 'yes', 'show_cart_badge' => 'yes', 'custom_widget_cart_title' => 'Tu carrito' ) ),
+	) as $n_legacy => $n_chain ) {
+		list( $n_pro, $n_own, $n_settings ) = $n_chain;
+		if ( null === Registry::map( $n_pro ) ) {
+			continue;
+		}
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+		$gestor                     = new C2_Manager();
+		$gestor->controls[ $n_pro ] = c7_controls( $c7_files[ $n_pro ] );
+		$gestor->controls[ $n_own ] = array();
+		\Elementor\Plugin::$instance = (object) array( 'widgets_manager' => $gestor );
+		Pro::reset();
+		$n_doc   = doc( array( box( 'container', array( w( $n_legacy, $n_settings, 'nm1' ) ), 'nmc1' ) ), array( 'post_title' => $n_legacy ) );
+		$n_state = migrate();
+		$n_el    = find( tree( $n_doc ), 'nm1' );
+		$n_codes = doc_codes( $n_doc );
+		$check( ! empty( $n_state['done'] ) && is_array( $n_el ) && $n_own === $n_el['widgetType'] && $n_pro === ( $n_el['settings']['_digitalisimo_pro'] ?? '' ), "$n_legacy acaba en $n_own (vía $n_pro) en la misma pasada de Migrar: " . wp_json_encode( array( $n_el['widgetType'] ?? null, $n_state['counts'] ?? null ) ) );
+		$check( ! preg_grep( '/^pro\.unmapped:/', $n_codes ), "$n_legacy → $n_own sin claves sin declarar: " . wp_json_encode( $n_codes ) );
+	}
+	manager( null );
+	Registry::reset();
+
 	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 100 );
 }

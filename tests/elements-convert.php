@@ -32,7 +32,24 @@ namespace {
 		if ( preg_match( '/\buse\s+Base_Carousel_Trait\s*;/', $php ) ) {
 			$files[] = $elements . 'base/base-carousel-trait.php';
 		}
-		return $files;
+		// C7: los padres de los widgets de WooCommerce (columnas de `Base_Widget`, cuadrícula de `Products_Base` y los de
+		// archivo que heredan de `Products`). La presentación clásica de `wc-products` prefija sus controles con su id
+		// (`classic_columns`): la cubre `tests/elements-pro-woo-products.php`.
+		if ( preg_match( '/namespace ElementorPro\\\\Modules\\\\Woocommerce\\\\Widgets;/', $php ) ) {
+			$woo = $elements . 'modules/woocommerce/';
+			if ( preg_match( '/\bextends\s+(Products_Base|Products)\b/', $php ) ) {
+				$files[] = $woo . 'widgets/products-base.php';
+			}
+			if ( preg_match( '/\bextends\s+Products\b/', $php ) ) {
+				$files[] = $woo . 'widgets/products.php';
+			}
+			$all = '';
+			foreach ( $files as $source ) { $all .= (string) file_get_contents( $source ); }
+			if ( preg_match( '/->add_columns_responsive_control\(\)/', $all ) ) {
+				$files[] = $woo . 'widgets/base-widget.php';
+			}
+		}
+		return array_values( array_unique( $files ) );
 	}
 
 	/** Valor de una concatenación PHP de literales y variables (`'a_' . $x . '_b'`) para cada combinación de valores. */
@@ -120,6 +137,10 @@ namespace {
 		foreach ( array_merge( $controls[1], $grouped[1] ) as $expr ) {
 			$names = array_merge( $names, pro_concat( $expr, $values ) );
 		}
+		// Lo que el propio widget quita de lo heredado (`remove_control`, `remove_responsive_control`: los de archivo de
+		// WooCommerce quitan `columns`, `rows`, `orderby`… de `Products`, C7) no es un control suyo.
+		preg_match_all( "/->remove_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", (string) file_get_contents( $file ), $removed );
+		$names = array_diff( $names, $removed[1] );
 		return array_values( array_unique( $names ) );
 	}
 
