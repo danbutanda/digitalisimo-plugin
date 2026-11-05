@@ -1,0 +1,17 @@
+/* DIGITALÍSIMO Elements · Panel fuera de lienzo (C3, frente F): widgets/class-nested-off-canvas.php. Valores por defecto
+   que reproducen el panel de PRO (400 px de ancho, alto de la ventana, contenido blanco con sombra, capa 0,8). */
+body.digi-noc-lock{overflow:hidden}
+.elementor-widget-digitalisimo-nested-off-canvas{height:fit-content;--digi-noc-width:400px;--digi-noc-height:100vh;--digi-noc-justify:flex-start;--digi-noc-align:flex-start;--digi-noc-duration:1.5s;--digi-noc-overflow:auto;--digi-noc-overlay:1}
+body:not(.elementor-editor-active) .e-con .elementor-widget-digitalisimo-nested-off-canvas,body:not(.elementor-editor-active) .elementor-section .elementor-widget-digitalisimo-nested-off-canvas:first-child{position:absolute}
+body:not(.elementor-editor-active) .elementor-section .elementor-element:has(+.elementor-widget-digitalisimo-nested-off-canvas){--kit-widget-spacing:0px}
+.digi-noc{position:fixed;inset:0;width:100%;height:100%;z-index:2147483630;pointer-events:none}
+.digi-noc[aria-hidden=true]{opacity:0;visibility:hidden}
+.digi-noc[aria-hidden=true] .elementor-add-section{display:none}
+.digi-noc--closing{animation:digi-noc-close max(.001s,var(--digi-noc-duration))}
+.digi-noc__overlay{position:absolute;inset:0;background-color:rgba(0,0,0,.5);opacity:var(--digi-noc-overlay);pointer-events:all}
+.digi-noc__main{position:absolute;inset:0;display:flex;justify-content:var(--digi-noc-justify);align-items:var(--digi-noc-align)}
+.digi-noc__main.animated{animation-duration:max(.001s,var(--digi-noc-duration))}
+.digi-noc__content{width:var(--digi-noc-width);max-width:100%;height:var(--digi-noc-height);overflow:var(--digi-noc-overflow);background-color:#fff;box-shadow:2px 8px 23px 3px rgba(0,0,0,.2);pointer-events:all}
+.digi-noc__content:focus:not(:focus-visible){outline:0}
+@keyframes digi-noc-close{0%,99.99%{opacity:1;visibility:visible}to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.digi-noc--closing{animation:none}}

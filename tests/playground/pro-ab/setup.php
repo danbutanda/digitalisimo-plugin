@@ -4,7 +4,10 @@
  *
  * - página A `pro-ab-<caso>-a`: un contenedor con el widget de PRO (`widget`), sus ajustes guardados (`settings`) y,
  *   en los anidados, sus hijos (`elements`); las imágenes de prueba (`{"$image": n}`, `{"$gallery": [n, …]}`,
- *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`);
+ *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`) y los menús de WordPress (`{"$menu": "nombre"}`, el
+ *   slug de un menú con submenús), con `digi_ab_menu()`; una plantilla de bucle con tres entradas (`"$loop:nombre"`),
+ *   con `digi_ab_loop()`, y elementos antes del widget (`before`: disparadores, con `{id}` y `"$action:…"`), con
+ *   `digi_ab_before()`;
  * - página B `pro-ab-<caso>-b`: el mismo árbol convertido con `Converter::tree( $data, $log, true )` (mapas en borrador
  *   incluidos); el `id` del widget es el mismo en A y en B;
  * - las dos con la plantilla «Lienzo» (sin cabecera ni pie del tema: el foco con teclado llega antes al widget) y su CSS
@@ -103,6 +106,45 @@ function digi_ab_image( $n ) {
 }
 
 /**
+ * Menú de WordPress de prueba (`{"$menu": "nombre"}`, C3): crea una vez el menú `pro-ab-<nombre>` y devuelve su slug.
+ * Estructura fija, con submenús de dos niveles, un padre sin destino («#») y un ancla: Inicio, Servicios (Diseño,
+ * Desarrollo web › Tiendas en línea, Aplicaciones), Equipo («#» › Personas, Valores), Blog y Contacto (`#contacto`).
+ * Los destinos son páginas del sitio que no existen: el A/B no navega.
+ */
+function digi_ab_menu( $name ) {
+	static $cache = array();
+	$name = preg_replace( '/[^a-z0-9-]/', '', strtolower( (string) $name ) );
+	$slug = 'pro-ab-' . ( '' === $name ? 'menu' : $name );
+	if ( isset( $cache[ $slug ] ) ) {
+		return $cache[ $slug ];
+	}
+	$menu = wp_get_nav_menu_object( $slug );
+	if ( $menu ) {
+		return $cache[ $slug ] = (string) $menu->slug;
+	}
+	$id = wp_create_nav_menu( $slug );
+	if ( is_wp_error( $id ) ) {
+		digi_ab_fail( "No se pudo crear el menú de prueba $slug: " . $id->get_error_message() );
+		return $cache[ $slug ] = '';
+	}
+	$add = static function ( $title, $url, $parent = 0 ) use ( $id ) {
+		return (int) wp_update_nav_menu_item( $id, 0, array( 'menu-item-title' => $title, 'menu-item-url' => $url, 'menu-item-status' => 'publish', 'menu-item-type' => 'custom', 'menu-item-parent-id' => $parent ) );
+	};
+	$add( 'Inicio', home_url( '/pro-ab-inicio/' ) );
+	$services = $add( 'Servicios', home_url( '/pro-ab-servicios/' ) );
+	$add( 'Diseño', home_url( '/pro-ab-diseno/' ), $services );
+	$dev = $add( 'Desarrollo web', home_url( '/pro-ab-desarrollo/' ), $services );
+	$add( 'Tiendas en línea', home_url( '/pro-ab-tiendas/' ), $dev );
+	$add( 'Aplicaciones', home_url( '/pro-ab-aplicaciones/' ), $services );
+	$team = $add( 'Equipo', '#' );
+	$add( 'Personas', home_url( '/pro-ab-personas/' ), $team );
+	$add( 'Valores', home_url( '/pro-ab-valores/' ), $team );
+	$add( 'Blog', home_url( '/pro-ab-blog/' ) );
+	$add( 'Contacto', '#contacto' );
+	return $cache[ $slug ] = (string) wp_get_nav_menu_object( $id )->slug;
+}
+
+/**
  * Animación Lottie de prueba (frente C de C2): JSON de 400 × 300, 50 fotogramas a 25 por segundo, con un rectángulo azul
  * que cruza de izquierda a derecha y un círculo rojo que crece; las dos formas se ven desde el primer fotograma. Se
  * guarda una vez como adjunto `application/json` (sin pasar por la lista de tipos de subida). Devuelve `[ID, URL]`.
@@ -158,6 +200,9 @@ function digi_ab_lottie() {
  * animación Lottie de prueba: `{"$lottie": 1}` (adjunto) y `"$lottie-url"` (su URL).
  */
 function digi_ab_tokens( $value ) {
+	if ( is_string( $value ) && preg_match( '/^\$loop:([a-z0-9-]+)$/', $value, $m ) ) {
+		return (string) digi_ab_loop( $m[1] );
+	}
 	if ( is_string( $value ) && preg_match( '/^\$template:([a-z0-9-]+)$/', $value, $m ) ) {
 		return (string) digi_ab_template( $m[1], (array) ( $GLOBALS['digi_ab_templates'][ $m[1] ] ?? array() ) );
 	}
@@ -182,6 +227,9 @@ function digi_ab_tokens( $value ) {
 	if ( array( '$image' ) === array_keys( $value ) ) {
 		list( $id, $url ) = digi_ab_image( (int) $value['$image'] );
 		return array( 'id' => $id, 'url' => $url, 'alt' => '', 'source' => 'library', 'size' => '' );
+	}
+	if ( array( '$menu' ) === array_keys( $value ) ) {
+		return digi_ab_menu( (string) $value['$menu'] );
 	}
 	if ( array( '$gallery' ) === array_keys( $value ) ) {
 		$out = array();
@@ -235,6 +283,100 @@ function digi_ab_children( array $elements, $seed ) {
 		$element['settings'] = digi_ab_tokens( (array) ( $element['settings'] ?? array() ) );
 		$element['elements'] = digi_ab_children( (array) ( $element['elements'] ?? array() ), $seed . '-' . $i );
 		$elements[ $i ]      = $element;
+	}
+	return $elements;
+}
+
+/**
+ * Plantilla de bucle de prueba (`"$loop:nombre"`, C3 · frente F: resultados en vivo de la Búsqueda): crea una vez tres
+ * entradas publicadas («Mesa azul», «Mesa roja», «Mesa verde») y la plantilla `pro-ab-loop-<nombre>` (tipo `loop-item`)
+ * con un encabezado que enlaza la entrada con su título (etiquetas dinámicas del núcleo de funciones avanzadas), y
+ * devuelve su ID.
+ */
+function digi_ab_loop( $name ) {
+	static $cache = array();
+	$slug = 'pro-ab-loop-' . preg_replace( '/[^a-z0-9-]/', '', strtolower( (string) $name ) );
+	if ( isset( $cache[ $slug ] ) ) {
+		return $cache[ $slug ];
+	}
+	foreach ( array( 'azul', 'roja', 'verde' ) as $color ) {
+		if ( ! get_page_by_path( 'mesa-' . $color, OBJECT, 'post' ) ) {
+			wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Mesa ' . $color, 'post_name' => 'mesa-' . $color, 'post_content' => 'Una mesa ' . $color . '.' ) );
+		}
+	}
+	$existing = get_page_by_path( $slug, OBJECT, 'elementor_library' );
+	$id       = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+	if ( ! $id ) {
+		digi_ab_fail( "No se pudo crear la plantilla de bucle $slug" );
+		return $cache[ $slug ] = 0;
+	}
+	$data = array(
+		array(
+			'id'       => digi_ab_eid( $slug . '-c' ),
+			'elType'   => 'container',
+			'isInner'  => false,
+			'settings' => (object) array( 'content_width' => 'full', 'padding' => array( 'unit' => 'px', 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'isLinked' => true ) ),
+			'elements' => array(
+				array(
+					'id'         => digi_ab_eid( $slug . '-h' ),
+					'elType'     => 'widget',
+					'widgetType' => 'heading',
+					'settings'   => array(
+						'title'       => 'Título',
+						'header_size' => 'h3',
+						'__dynamic__' => array(
+							'title' => '[elementor-tag id="' . digi_ab_eid( $slug . '-t' ) . '" name="post-title" settings="%7B%7D"]',
+							'link'  => '[elementor-tag id="' . digi_ab_eid( $slug . '-u' ) . '" name="post-url" settings="%7B%7D"]',
+						),
+					),
+					'elements'   => array(),
+				),
+			),
+		),
+	);
+	update_post_meta( $id, '_elementor_template_type', 'loop-item' );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+	wp_set_object_terms( $id, 'loop-item', 'elementor_library_type' );
+	\Elementor\Core\Files\CSS\Post::create( $id )->update();
+	return $cache[ $slug ] = $id;
+}
+
+/**
+ * Elementos antes del widget en el contenedor (`before` del caso, C3 · frente F: los disparadores de un panel). En sus
+ * cadenas, `{id}` es el `id` del widget del caso y `"$action:<acción>"` el enlace de acción del núcleo
+ * (`#elementor-action:action=<acción>&settings=<base64 de {id, displayMode}>`, codificado tras la almohadilla como lo
+ * imprime el núcleo: `esc_url()` vacía la forma sin codificar) que lo nombra.
+ */
+function digi_ab_before( array $elements, $slug, $id ) {
+	$place = static function ( $value ) use ( &$place, $id ) {
+		if ( is_string( $value ) && preg_match( '/^\$action:([a-z_]+):([a-z]+)$/', $value, $m ) ) {
+			return '#elementor-action' . rawurlencode( ':action=' . $m[1] . ':' . $m[2] . '&settings=' . base64_encode( wp_json_encode( array( 'id' => $id, 'displayMode' => $m[2] ) ) ) );
+		}
+		if ( is_string( $value ) ) {
+			return str_replace( '{id}', $id, $value );
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $key => $item ) {
+				$value[ $key ] = $place( $item );
+			}
+		}
+		return $value;
+	};
+	// Los mismos IDs, `isInner` y fichas de prueba que `digi_ab_children()` (los `before` de C2 pasan por aquí), y además
+	// `{id}` y `"$action:…"` a cualquier profundidad.
+	$fill = static function ( array $elements ) use ( &$fill, $place ) {
+		foreach ( $elements as $i => $element ) {
+			$element['settings'] = $place( $element['settings'] );
+			$element['elements'] = $fill( $element['elements'] );
+			$elements[ $i ]      = $element;
+		}
+		return $elements;
+	};
+	$elements = $fill( digi_ab_children( $elements, $slug . '-before' ) );
+	foreach ( $elements as $i => $element ) {
+		$elements[ $i ]['elType'] = $element['elType'] ?? 'widget';
 	}
 	return $elements;
 }
@@ -442,21 +584,25 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			'elType'   => 'container',
 			'isInner'  => false,
 			'settings' => (array) ( $cases['container'] ?? array() ),
-			'elements' => array(
+			'elements' => array_merge(
+				digi_ab_before( (array) ( $case['before'] ?? array() ), $slug, $id ),
 				array(
-					'id'         => $id,
-					'elType'     => 'widget',
-					'widgetType' => $source,
-					'settings'   => digi_ab_tokens( (array) ( $case['settings'] ?? array() ) ),
-					'elements'   => digi_ab_children( (array) ( $case['elements'] ?? array() ), $slug ),
-				),
+					array(
+						'id'         => $id,
+						'elType'     => 'widget',
+						'widgetType' => $source,
+						'settings'   => digi_ab_tokens( (array) ( $case['settings'] ?? array() ) ),
+						'elements'   => digi_ab_children( (array) ( $case['elements'] ?? array() ), $slug ),
+					),
+				)
 			),
 		),
 	);
 	// `before` y `after` del caso (C2): elementos hermanos del widget en el mismo contenedor (los encabezados que lee una
 	// tabla de contenido, por ejemplo), con IDs deterministas e imágenes de prueba; no son de PRO y no se convierten.
-	if ( ! empty( $case['before'] ) || ! empty( $case['after'] ) ) {
-		$tree[0]['elements'] = array_merge( digi_ab_children( (array) ( $case['before'] ?? array() ), $slug . '-before' ), $tree[0]['elements'], digi_ab_children( (array) ( $case['after'] ?? array() ), $slug . '-after' ) );
+	// `before` ya lo coloca `digi_ab_before()` (C3) al construir el árbol.
+	if ( ! empty( $case['after'] ) ) {
+		$tree[0]['elements'] = array_merge( $tree[0]['elements'], digi_ab_children( (array) $case['after'], $slug . '-after' ) );
 	}
 	$map    = \Digitalisimo\Elements\Convert\Registry::map( $source, true );
 	$target = null !== $map ? (string) $map['target'] : '';

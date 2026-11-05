@@ -1,0 +1,387 @@
+{
+ "_doc": [
+  "Casos A/B del Panel fuera de lienzo (frente F de C3): A con `off-canvas` de PRO, B con `digitalisimo-nested-off-canvas`. Cada caso trae su contenedor hijo (`elements`: título y dos enlaces) y, antes del widget (`before`), dos disparadores: un botón con la etiqueta dinámica «Off-Canvas» de PRO (`ocb0001`, abrir) y otro con un enlace de acción escrito a mano (`ocb0002`, `#elementor-action:action=off_canvas:toggle&settings=…`). `shot: viewport`: el panel es fijo y se mide la ventana entera.",
+  "Acciones: abrir con el ratón, Escape, abrir con el teclado (Intro en el disparador), Tab dentro del panel (foco atrapado: del último vuelve al primero), Escape (el foco vuelve al disparador), abrir con el enlace de acción y cerrar con la capa. `focus` compara dónde queda el foco; `stay` lo deja donde está para la acción siguiente."
+ ],
+ "declared": [
+  {
+   "widget": "off-canvas",
+   "kind": "foco",
+   "match": "^\\[acción \\d+ abrir con el (ratón|enlace de acción)\\] foco en (página a «[^»]*»|cuerpo) → widget a «[^»]*»$",
+   "reason": "Al abrirse, el diálogo propio lleva el foco a su primer control también cuando se abre con el ratón (patrón de diálogo modal); PRO sólo lo hacía al abrirlo con el teclado. Con el teclado los dos hacen lo mismo (acción 3)."
+  },
+  {
+   "widget": "off-canvas",
+   "kind": "foco",
+   "match": "^\\[acción \\d+ cerrar con la capa\\] foco en página a «[^»]*» → cuerpo$",
+   "reason": "Al cerrarse con un clic en la capa, PRO devuelve el foco al disparador de una apertura anterior con el teclado (su gestor de teclado guarda el primero y no lo olvida); el propio sólo devuelve el foco si estaba dentro del panel, y aquí no lo estaba (abierto con el ratón)."
+  }
+ ],
+ "cases": {
+  "oc-defaults": {
+   "title": "Panel fuera de lienzo: valores por defecto, abrir, Escape, foco atrapado y devuelto, enlace de acción y capa",
+   "widget": "off-canvas",
+   "shot": "viewport",
+   "settings": {},
+   "before": [
+    {
+     "id": "ocb0001",
+     "widgetType": "button",
+     "settings": {
+      "text": "Abrir menú",
+      "__dynamic__": {
+       "link": "[elementor-tag id=\"oct0001\" name=\"off-canvas\" settings=\"%7B%22off_canvas%22%3A%22{id}%22%7D\"]"
+      }
+     }
+    },
+    {
+     "id": "ocb0002",
+     "widgetType": "button",
+     "settings": {
+      "text": "Alternar menú",
+      "link": {
+       "url": "$action:off_canvas:toggle",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    }
+   ],
+   "elements": [
+    {
+     "id": "occ0001",
+     "elType": "container",
+     "settings": {
+      "content_width": "full"
+     },
+     "elements": [
+      {
+       "id": "och0001",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Menú"
+       },
+       "elements": []
+      },
+      {
+       "id": "ocl0001",
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Contacto",
+        "link": {
+         "url": "/contacto/",
+         "is_external": "",
+         "nofollow": "",
+         "custom_attributes": ""
+        }
+       },
+       "elements": []
+      },
+      {
+       "id": "ocl0002",
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Tienda",
+        "link": {
+         "url": "/tienda/",
+         "is_external": "",
+         "nofollow": "",
+         "custom_attributes": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "abrir con el ratón",
+     "page": true,
+     "selector": ".elementor-element-ocb0001 a",
+     "focus": true,
+     "wait": 1200
+    },
+    {
+     "label": "Escape",
+     "page": true,
+     "selector": "body",
+     "key": "Escape",
+     "focus": true,
+     "wait": 900
+    },
+    {
+     "label": "abrir con el teclado",
+     "page": true,
+     "selector": ".elementor-element-ocb0001 a",
+     "key": "Enter",
+     "focus": true,
+     "stay": true,
+     "wait": 1200
+    },
+    {
+     "label": "Tab dentro",
+     "key": "Tab",
+     "focus": true,
+     "stay": true,
+     "wait": 400
+    },
+    {
+     "label": "Tab del último al primero",
+     "key": "Tab",
+     "focus": true,
+     "stay": true,
+     "wait": 400
+    },
+    {
+     "label": "Tab sigue dentro",
+     "key": "Tab",
+     "focus": true,
+     "stay": true,
+     "wait": 400
+    },
+    {
+     "label": "Escape devuelve el foco",
+     "key": "Escape",
+     "focus": true,
+     "wait": 1200
+    },
+    {
+     "label": "abrir con el enlace de acción",
+     "page": true,
+     "selector": ".elementor-element-ocb0002 a",
+     "focus": true,
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con la capa",
+     "a": ".e-off-canvas__overlay",
+     "b": ".digi-noc__overlay",
+     "focus": true,
+     "wait": 1200,
+     "widths": [
+      768,
+      1280
+     ]
+    }
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
+  },
+  "oc-right": {
+   "title": "Panel a la derecha, ajustado al contenido, con animaciones, capa propia y bloqueo del desplazamiento",
+   "widget": "off-canvas",
+   "shot": "viewport",
+   "settings": {
+    "off_canvas_name": "Carrito",
+    "horizontal_position": "flex-end",
+    "vertical_position": "center",
+    "width": {
+     "unit": "px",
+     "size": 320,
+     "sizes": []
+    },
+    "height": "fit-content",
+    "entrance_animation": "fadeInRight",
+    "exit_animation": "fadeInRight",
+    "offcanvas_animation_duration": {
+     "unit": "ms",
+     "size": 300,
+     "sizes": []
+    },
+    "prevent_scroll": "yes",
+    "background_background": "classic",
+    "background_color": "#F4F1EA",
+    "border_radius": {
+     "unit": "px",
+     "top": "16",
+     "right": "0",
+     "bottom": "0",
+     "left": "16",
+     "isLinked": false
+    },
+    "overlay_background_background": "classic",
+    "overlay_background_color": "rgba(36,94,255,0.45)"
+   },
+   "before": [
+    {
+     "id": "ocb0001",
+     "widgetType": "button",
+     "settings": {
+      "text": "Ver carrito",
+      "__dynamic__": {
+       "link": "[elementor-tag id=\"oct0001\" name=\"off-canvas\" settings=\"%7B%22off_canvas%22%3A%22{id}%22%7D\"]"
+      }
+     }
+    }
+   ],
+   "elements": [
+    {
+     "id": "occ0002",
+     "elType": "container",
+     "settings": {
+      "content_width": "full",
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "id": "och0002",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Tu carrito"
+       },
+       "elements": []
+      },
+      {
+       "id": "ocl0003",
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Pagar",
+        "link": {
+         "url": "/pagar/",
+         "is_external": "",
+         "nofollow": "",
+         "custom_attributes": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "abrir con el ratón",
+     "page": true,
+     "selector": ".elementor-element-ocb0001 a",
+     "focus": true,
+     "wait": 1500
+    },
+    {
+     "label": "cerrar con la capa",
+     "a": ".e-off-canvas__overlay",
+     "b": ".digi-noc__overlay",
+     "focus": true,
+     "wait": 1500,
+     "widths": [
+      768,
+      1280
+     ]
+    }
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
+  },
+  "oc-locked": {
+   "title": "Panel que no se cierra con Escape ni con la capa, sin capa visible y etiqueta nav",
+   "widget": "off-canvas",
+   "shot": "viewport",
+   "settings": {
+    "off_canvas_name": "Navegación",
+    "is_not_close_on_overlay": "yes",
+    "is_not_close_on_esc_overlay": "yes",
+    "has_overlay": "",
+    "wrapper_html_tag": "nav",
+    "width": {
+     "unit": "%",
+     "size": 40,
+     "sizes": []
+    },
+    "box_shadow_box_shadow_type": "yes",
+    "box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 0,
+     "blur": 40,
+     "spread": 0,
+     "color": "rgba(0,0,0,0.5)"
+    }
+   },
+   "before": [
+    {
+     "id": "ocb0002",
+     "widgetType": "button",
+     "settings": {
+      "text": "Alternar navegación",
+      "link": {
+       "url": "$action:off_canvas:toggle",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    }
+   ],
+   "elements": [
+    {
+     "id": "occ0003",
+     "elType": "container",
+     "settings": {
+      "content_width": "full"
+     },
+     "elements": [
+      {
+       "id": "ocl0004",
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Inicio",
+        "link": {
+         "url": "/",
+         "is_external": "",
+         "nofollow": "",
+         "custom_attributes": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "abrir con el enlace de acción",
+     "page": true,
+     "selector": ".elementor-element-ocb0002 a",
+     "wait": 1200
+    },
+    {
+     "label": "Escape no cierra",
+     "page": true,
+     "selector": "body",
+     "key": "Escape",
+     "wait": 900
+    },
+    {
+     "label": "la capa no cierra",
+     "a": ".e-off-canvas__overlay",
+     "b": ".digi-noc__overlay",
+     "wait": 900,
+     "widths": [
+      1280
+     ]
+    },
+    {
+     "label": "el enlace de acción cierra",
+     "page": true,
+     "selector": ".elementor-element-ocb0002 a",
+     "wait": 1200,
+     "widths": [
+      1280
+     ]
+    }
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
+  }
+ }
+}

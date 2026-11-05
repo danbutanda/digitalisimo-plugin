@@ -410,6 +410,62 @@ namespace {
 	}
 	check_budget( 15 === $te_count && 1 === $te_scripts, 'Deben revisarse los quince elementos de tema, con un solo script (' . $te_count . ', ' . $te_scripts . ').' );
 	$count += $te_count;
+	// Navegación y búsqueda propias (programa «sin widgets de PRO», C3, docs/pro/c3.md): los cuatro widgets de
+	// modules/digitalisimo-navigation/. Navigation\Module registra la hoja (≤ 4 KB) y, sólo si existe, el script (≤ 6 KB,
+	// defer, sin dependencias) de cada uno; el script del editor (`<nombre>-editor.js`) sólo en el editor. El Menú de
+	// WordPress y el Menú con submenús de contenido reparten su estilo en más hojas (`SHEETS` de su clase: desplegable,
+	// elementos y familia del puntero), cada una ≤ 4 KB y sólo encolada si los ajustes la usan. Sin jQuery ni SmartMenus.
+	$nav_dir    = $root . '/modules/digitalisimo-navigation/';
+	$nav_module = (string) file_get_contents( $nav_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $nav_module, $nav_entries, PREG_SET_ORDER );
+	check_budget( 4 === count( $nav_entries ), 'Navigation\\Module::WIDGETS declara los cuatro widgets de C3 (' . count( $nav_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $nav_module, $nav_scripts );
+	check_budget( count( $nav_scripts[0] ) >= 2, 'Navigation\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $nav_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Navigation\\Module: script sin defer o con jQuery.' ); }
+	$nav_count  = 0;
+	$nav_sheets = 0;
+	foreach ( $nav_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $nav_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$nav_count++;
+		$code = preg_replace( '/^\s*(\*|\/\/|\/\*).*$/m', '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|smartmenus|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni SmartMenus, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/<iframe/i', $code ), $name . ': sin JSON-LD, <script> ni <iframe> propios en la salida.' );
+		check_budget( ! preg_match( '/<img[\s>]/', $code ), $name . ': sin <img> a mano.' );
+		// La hoja principal y las de `SHEETS` de la clase, con el mismo presupuesto.
+		$css = array( $m[3] );
+		if ( preg_match( '/const\s+SHEETS\s*=\s*array\((.*?)\);/s', $source, $sheets ) ) {
+			preg_match_all( "/'digitalisimo-[a-z0-9-]+'\s*=>\s*'([^']+\.css)'/", $sheets[1], $extra );
+			$css         = array_merge( $css, $extra[1] );
+			$nav_sheets += count( $extra[1] );
+		}
+		foreach ( array_merge( array_fill_keys( $css, 4096 ), array( $m[4] => 6144 ) ) as $file => $cap ) {
+			$path = $root . '/' . $file;
+			if ( ! is_file( $path ) ) { check_budget( $file === $m[4], $name . ': falta su hoja ' . $file ); continue; }
+			check_budget( filesize( $path ) <= $cap, $file . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 4096 === $cap ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $file . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $file . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\bjQuery\s*[(.]|\$\(|\bSwiper\b|elementorProFrontend|smartmenus/i', $js ), $file . ': sin jQuery, Swiper, SmartMenus ni PRO.' );
+				check_budget( ! preg_match( '#https?://(?!www\.w3\.org/)#', $js ), $file . ': ninguna dirección de terceros en el script.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	check_budget( 7 === $nav_sheets, 'Las hojas adicionales del Menú de WordPress (5) y del Menú con submenús de contenido (2) entran en el presupuesto (' . $nav_sheets . ').' );
+	foreach ( glob( $nav_dir . 'assets/js/*-editor.js' ) as $editor ) {
+		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\s*[(.]|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );
+	}
+	// Resultados en vivo de la Búsqueda: la REST del propio sitio, sin peticiones a terceros.
+	check_budget( ! preg_match( '#https?://#', preg_replace( '/^\s*(\*|\/\/).*$/m', '', (string) file_get_contents( $nav_dir . 'class-search-rest.php' ) ) ), 'Search_Rest: sin direcciones de terceros.' );
+	check_budget( 4 === $nav_count, 'Deben revisarse los cuatro widgets de navegación propios (' . $nav_count . ').' );
+	$count += $nav_count;
 	// Servicios y plantillas propios (programa «sin widgets de PRO», C9, docs/pro/c9.md): los siete widgets de
 	// modules/digitalisimo-services/ con las mismas reglas. Services\Module registra los recursos por archivo: el handle
 	// es `Module::handle()` (`digitalisimo-<archivo>`), así que los cuatro de Facebook comparten `digitalisimo-facebook` y
@@ -467,7 +523,7 @@ namespace {
 	check_budget( str_contains( $fb_js, "'click'" ) && str_contains( $fb_js, 'XFBML.parse' ), 'facebook.js: el SDK sólo tras el clic en la fachada.' );
 	check_budget( 7 === $sv_count, 'Deben revisarse los siete widgets de servicios propios (' . $sv_count . ').' );
 	$count += $sv_count;
-	check_budget( $count >= 99, 'Deben revisarse los 99 widgets propios (' . $count . ').' );
+	check_budget( $count >= 103, 'Deben revisarse los 103 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

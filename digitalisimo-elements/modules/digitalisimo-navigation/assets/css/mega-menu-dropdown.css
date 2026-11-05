@@ -1,0 +1,26 @@
+.digi-mm__toggle{align-self:var(--dmm-toggle-align);background-color:initial;border:initial;border-radius:0;box-shadow:none;color:inherit;display:none;margin:0;min-height:0;padding:initial;position:relative;user-select:none;z-index:1000}
+.digi-mm__toggle{--dmm-g:var(--dmm-toggle-icon-color)}
+.digi-mm__toggle:hover{--dmm-g:var(--dmm-toggle-icon-color-hover,var(--dmm-toggle-icon-color))}
+.digi-mm__toggle[aria-expanded=true]{--dmm-g:var(--dmm-toggle-icon-color-active,var(--dmm-toggle-icon-color))}
+.digi-mm__toggle :is(i,svg){color:var(--dmm-g);fill:var(--dmm-g);font-size:var(--dmm-toggle-icon-size);transition:all var(--dmm-toggle-icon-hover-duration)}
+.digi-mm__toggle svg{height:auto;width:var(--dmm-toggle-icon-size)}
+.digi-mm__toggle span{align-items:center;border-radius:var(--dmm-toggle-icon-border-radius);display:flex;justify-content:center;padding:var(--dmm-toggle-icon-padding);text-align:center}
+.digi-mm__toggle .digi-mm__toggle-close{height:100%;inset:0;opacity:0;position:absolute;width:100%}
+.digi-mm__toggle .digi-mm__toggle-close svg{height:100%;object-fit:contain}
+.digi-mm__toggle [class^=elementor-animation-]{animation-duration:var(--dmm-toggle-icon-wrapper-animation-duration);transition-duration:var(--dmm-toggle-icon-wrapper-animation-duration)}
+.digi-mm__toggle[aria-expanded=true] .digi-mm__toggle-open{opacity:0}
+.digi-mm__toggle[aria-expanded=true] .digi-mm__toggle-close{opacity:1}
+.digi-mm[data-layout=dropdown]{gap:0}
+.digi-mm[data-layout=dropdown] .digi-mm__wrapper{background-color:transparent;border-color:var(--dmm-dropdown-content-box-border-color);border-radius:var(--dmm-dropdown-content-box-border-radius);border-style:var(--dmm-dropdown-content-box-border-style);box-shadow:var(--dmm-dropdown-content-box-shadow-horizontal) var(--dmm-dropdown-content-box-shadow-vertical) var(--dmm-dropdown-content-box-shadow-blur) var(--dmm-dropdown-content-box-shadow-spread) var(--dmm-dropdown-content-box-shadow-color) var(--dmm-dropdown-content-box-shadow-position, );flex-direction:column;left:var(--stretch-left);margin-block-start:var(--dmm-toggle-icon-distance-from-dropdown);max-height:var(--dmm-dropdown-content-box-height);min-width:0;overflow-x:hidden;overflow-y:auto;position:absolute;right:var(--stretch-right);top:100%;transition:max-height .3s;width:var(--stretch-width);z-index:2147483640}
+.digi-mm[data-layout=dropdown] .digi-mm__item{display:flex;flex-direction:column;width:var(--stretch-width)}
+.digi-mm[data-layout=dropdown] .digi-mm__title{background-color:#fff;flex-wrap:wrap;justify-content:var(--dmm-title-justify-content-mobile);white-space:normal;width:auto}
+.digi-mm[data-layout=dropdown] .digi-mm__title:not(.digi-mm__current){--dmm-tc:var(--dmm-title-normal-color-dropdown,var(--dmm-title-color-normal));--dmm-dc:var(--dmm-dropdown-indicator-color-normal,var(--dmm-title-normal-color-dropdown,var(--dmm-title-color-normal)))}
+.digi-mm[data-layout=dropdown] .digi-mm__current{--dmm-tc:var(--dmm-title-active-color-dropdown,var(--dmm-title-color-active));--dmm-dc:var(--dmm-dropdown-indicator-color-active,var(--dmm-title-active-color-dropdown,var(--dmm-title-color-active)));color:var(--dmm-title-active-color-dropdown,var(--dmm-title-color-active))}
+.digi-mm[data-layout=dropdown] .digi-mm__content{overflow:hidden;width:var(--stretch-width)}
+.digi-mm[data-layout=dropdown] .digi-mm__content>.e-con{margin-block-start:var(--dmm-title-distance-from-content);width:var(--width)}
+.digi-mm[data-layout=dropdown] .digi-mm__toggle[aria-expanded=true]+.digi-mm__wrapper{--dmm-wrapper-display:flex}
+.elementor .digi-mm--layout-dropdown{--dmm-wrapper-display:none}
+.elementor .digi-mm--layout-dropdown .digi-mm__toggle{display:flex}
+@media(max-width:767px){.elementor .digi-mm--bp-mobile{--dmm-wrapper-display:none}.elementor .digi-mm--bp-mobile .digi-mm__toggle{display:flex}}
+@media(max-width:1024px){.elementor .digi-mm--bp-tablet{--dmm-wrapper-display:none}.elementor .digi-mm--bp-tablet .digi-mm__toggle{display:flex}}
+@media(prefers-reduced-motion:reduce){.digi-mm__toggle *,.digi-mm__wrapper{transition:none!important}}

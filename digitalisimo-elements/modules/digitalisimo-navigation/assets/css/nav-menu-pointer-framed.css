@@ -1,0 +1,20 @@
+.digi-nav__link:before,.digi-nav__link:after{display:block;position:absolute;transition:.3s;transition-timing-function:cubic-bezier(.58,.3,.005,1)}
+.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before,.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{opacity:0}
+.digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{transform:scale(1)}
+.digi-nav--p-framed .digi-nav__link:before,.digi-nav--p-framed .digi-nav__link:after{background:transparent;border:3px solid #3f444b;bottom:0;left:0;right:0;top:0}
+.digi-nav--p-framed .digi-nav__link:before{content:""}
+.digi-nav--p-framed.digi-nav--a-grow .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{transform:scale(.75)}
+.digi-nav--p-framed.digi-nav--a-shrink .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{transform:scale(1.25)}
+.digi-nav--p-framed:is(.digi-nav--a-grow,.digi-nav--a-shrink) .digi-nav__link:before{transition:opacity .2s,transform .4s}
+.digi-nav--p-framed:is(.digi-nav--a-draw,.digi-nav--a-corners) .digi-nav__link:before,.digi-nav--p-framed:is(.digi-nav--a-draw,.digi-nav--a-corners) .digi-nav__link:after{height:3px;width:3px}
+.digi-nav--p-framed.digi-nav--a-draw .digi-nav__link:before{border-block-end-width:3px;border-block-start-width:0;border-inline-end-width:0;border-inline-start-width:3px;transition:width .1s .2s,height .1s .3s,opacity .12s .22s}
+.digi-nav--p-framed:is(.digi-nav--a-draw,.digi-nav--a-corners) .digi-nav__link:after{border-block-end-width:0;border-block-start-width:3px;border-inline-end-width:3px;border-inline-start-width:0;content:"";inset-block-end:0;inset-block-start:auto;inset-inline-end:0;inset-inline-start:auto}
+.digi-nav--p-framed.digi-nav--a-draw .digi-nav__link:after{transition:width .1s,height .1s .1s,opacity .02s .18s}
+.digi-nav--p-framed:is(.digi-nav--a-draw,.digi-nav--a-corners) .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav--p-framed:is(.digi-nav--a-draw,.digi-nav--a-corners) .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{height:100%;width:100%}
+.digi-nav--p-framed.digi-nav--a-draw .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before{transition:opacity .02s,height .1s,width .1s .1s}
+.digi-nav--p-framed.digi-nav--a-draw .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{transition:opacity .02s .2s,height .1s .2s,width .1s .3s}
+.digi-nav--p-framed.digi-nav--a-corners .digi-nav__link:before{border-block-end-width:0;border-block-start-width:3px;border-inline-end-width:0;border-inline-start-width:3px}
+.digi-nav--p-framed.digi-nav--a-corners .digi-nav__link:after{border-block-end-width:3px;border-block-start-width:0;border-inline-end-width:3px;border-inline-start-width:0}
+.digi-nav--p-framed.digi-nav--a-corners .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav--p-framed.digi-nav--a-corners .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{transition:opacity 2ms,width .4s,height .4s}
+.digi-nav--a-none,.digi-nav--a-none .digi-nav__link,.digi-nav--a-none .digi-nav__link:before,.digi-nav--a-none .digi-nav__link:after{transition-duration:0s}
+@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s!important}}

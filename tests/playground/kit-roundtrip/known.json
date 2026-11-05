@@ -175,32 +175,58 @@
    ],
    "motivo": "§17: los dos Blockquote de PRO de la página cuentan en B como Cita; ningún elemento se pierde"
   },
- {
-  "ruta": "^documents\\.page:rasgo-slides-templates\\.data\\.0\\.elements\\.0\\.widgetType$",
-  "escenarios": [
-   "R1",
-   "R1c"
-  ],
-  "valor_a": "^\"slides\"$",
-  "valor_b": "^\"digitalisimo-slides\"$",
-  "motivo": "§17 (C1): al importar, las Diapositivas de PRO con mapa listo llegan como Diapositivas propias (Convert\\Converter), con el mismo id"
- },
- {
-  "ruta": "^documents\\.page:rasgo-slides-templates\\.data\\.0\\.elements\\.0\\.settings\\.(slides\\.\\d+\\.)?[a-z0-9_]+$",
-  "escenarios": [
-   "R1",
-   "R1c"
-  ],
-  "motivo": "§17 (C1): los ajustes los traduce el mapa de las Diapositivas (digitalisimo-convert/maps/slides.php): completa los valores por defecto de PRO, también los de cada diapositiva, y deja la marca _digitalisimo_pro; la plantilla de cada diapositiva (digitalisimo_template_id) se remapea igual"
- },
- {
-  "ruta": "^(documents\\.page:rasgo-slides-templates\\.counts|counts\\.elements)\\.(slides|digitalisimo-slides)$",
-  "escenarios": [
-   "R1",
-   "R1c"
-  ],
-  "motivo": "§17 (C1): las Diapositivas de PRO de la página cuentan en B como Diapositivas propias; ningún elemento se pierde"
- },
+  {
+   "ruta": "^documents\\.page:rasgo-slides-templates\\.data\\.0\\.elements\\.0\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"slides\"$",
+   "valor_b": "^\"digitalisimo-slides\"$",
+   "motivo": "§17 (C1): al importar, las Diapositivas de PRO con mapa listo llegan como Diapositivas propias (Convert\\Converter), con el mismo id"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-slides-templates\\.data\\.0\\.elements\\.0\\.settings\\.(slides\\.\\d+\\.)?[a-z0-9_]+$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C1): los ajustes los traduce el mapa de las Diapositivas (digitalisimo-convert/maps/slides.php): completa los valores por defecto de PRO, también los de cada diapositiva, y deja la marca _digitalisimo_pro; la plantilla de cada diapositiva (digitalisimo_template_id) se remapea igual"
+  },
+  {
+   "ruta": "^(documents\\.page:rasgo-slides-templates\\.counts|counts\\.elements)\\.(slides|digitalisimo-slides)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C1): las Diapositivas de PRO de la página cuentan en B como Diapositivas propias; ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:cabecera-del-kit\\.data\\.0\\.elements\\.0|page:inicio-del-kit\\.data\\.2\\.elements\\.1)\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"nav-menu\"$",
+   "valor_b": "^\"digitalisimo-nav-menu\"$",
+   "motivo": "§17 (C3): al importar, el Menú de WordPress de PRO con mapa listo llega como Menú de WordPress propio (Convert\\Converter), con el mismo id, en la cabecera y en la página"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:cabecera-del-kit\\.data\\.0\\.elements\\.0|page:inicio-del-kit\\.data\\.2\\.elements\\.1)\\.settings\\.[a-z0-9_]+$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C3): los ajustes los traduce el mapa del Menú (digitalisimo-convert/maps/nav-menu.php): completa los valores por defecto de PRO (disposición, puntero, animaciones, icono del submenú, punto de corte, hamburguesa) y deja la marca _digitalisimo_pro; el menú sigue siendo el mismo"
+  },
+  {
+   "ruta": "^(documents\\.(elementor_library:cabecera-del-kit|page:inicio-del-kit)\\.counts|counts\\.elements)\\.(nav-menu|digitalisimo-nav-menu)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C3): los Menús de WordPress de PRO de la cabecera y de la página cuentan en B como Menús propios; ningún elemento se pierde"
+  },
  {
   "ruta": "^documents\\.page:(inicio-del-kit\\.data\\.2\\.elements\\.4|sobrescrituras-de-plantilla\\.data\\.0\\.elements\\.[01])\\.widgetType$",
   "escenarios": [
@@ -245,7 +271,7 @@
   ],
   "motivo": "§17 (C9): las Plantillas de PRO cuentan en B como Plantillas propias y la instancia global como su contenido (un Encabezado); ningún elemento se pierde"
  }
- ],
+],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
  "opciones": [
   {
