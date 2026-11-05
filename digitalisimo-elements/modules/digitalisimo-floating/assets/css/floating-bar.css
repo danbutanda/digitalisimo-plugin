@@ -12,7 +12,7 @@
 .digi-fbar__announcement-icon svg{fill:var(--digi-fbar-announcement-icon-color);height:var(--digi-fbar-announcement-icon-size);width:var(--digi-fbar-announcement-icon-size)}
 .digi-fbar__announcement-icon i{color:var(--digi-fbar-announcement-icon-color);font-size:var(--digi-fbar-announcement-icon-size)}
 .digi-fbar .digi-fbar__close-button,.digi-fbar .digi-fbar__close-button:focus,.digi-fbar .digi-fbar__close-button:hover{align-items:center;background-color:transparent;border:0;color:var(--digi-fbar-close-button-color);display:flex;justify-content:center;min-height:24px;min-width:24px;padding:0;position:absolute}
-.digi-fbar__close-icon{font-size:var(--digi-fbar-close-icon-size)}
+.digi-fbar__close-icon{display:inline-block;font-size:var(--digi-fbar-close-icon-size);line-height:1}.digi-fbar__close-icon svg{display:block}
 @media (max-width:767px){.digi-fbar .digi-fbar__close-button{top:10px}}
 .digi-fbar__overlay{background-position:50%;background-size:cover;inset:0;opacity:var(--digi-fbar-background-overlay-opacity);position:absolute;z-index:-1}
 .digi-fbar__status{clip:rect(0 0 0 0);clip-path:inset(50%);height:1px;overflow:hidden;position:absolute;white-space:nowrap;width:1px}

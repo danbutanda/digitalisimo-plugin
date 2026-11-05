@@ -273,7 +273,8 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			'id'       => digi_ab_eid( $slug . '-c' ),
 			'elType'   => 'container',
 			'isInner'  => false,
-			'settings' => (array) ( $cases['container'] ?? array() ),
+			// `container` del caso (C8) en lugar del común: los botones flotantes de PRO buscan el `.e-con-inner` de un contenedor encuadrado.
+			'settings' => (array) ( $case['container'] ?? $cases['container'] ?? array() ),
 			'elements' => array(
 				array(
 					'id'         => $id,

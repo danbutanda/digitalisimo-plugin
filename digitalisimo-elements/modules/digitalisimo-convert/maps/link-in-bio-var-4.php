@@ -20,10 +20,9 @@ return array(
 	'set'       => array( 'presentation' => '4' ),
 	// Valores por defecto de PRO que el widget propio no tiene iguales (textos en español o el de otra presentación).
 	'defaults'  => array(
-		'identity_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
 		'bio_title' => '',
 		'bio_description' => 'Join me on my journey to a healthier lifestyle',
-		'background_border_background_group_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
+		'background_border_background_group_image' => array( 'url' => ( class_exists( '\\Elementor\\Utils' ) ? \Elementor\Utils::get_placeholder_image_src() : '' ), 'id' => '', 'size' => '' ),
 	),
 	'keep'      => array(
 		'identity_image',

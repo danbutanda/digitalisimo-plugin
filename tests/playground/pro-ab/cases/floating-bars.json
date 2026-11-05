@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Barra flotante (C8, frente P): las barras de PRO floating-bars-var-2 (cinta) y -3 (cupón) frente a digitalisimo-floating-bar, en documentos de barras flotantes (`doc`). La cinta se mide con «reducir movimiento» (quieta) para comparar sin depender del instante."
+  "Barra flotante (C8, frente P): las barras de PRO floating-bars-var-2 (cinta) y -3 (cupón) frente a digitalisimo-floating-bar, en documentos de barras flotantes (`doc`). La cinta se mide con «reducir movimiento» (quieta) para comparar sin depender del instante.",
+  "`container` encuadrado: el script de PRO añade una clase al `.e-con-inner` del contenedor y falla sin él (en los documentos de botones flotantes el contenedor es encuadrado)."
  ],
  "declared": [
   {
@@ -84,7 +85,19 @@
      "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
     }
    ],
-   "reducedMotion": true
+   "reducedMotion": true,
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "La barra se mide entera; su cupón o cinta puede no tener texto propio.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "fb-3-defaults": {
    "title": "Barra flotante 3: valores por defecto",
@@ -117,7 +130,19 @@
      "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
     }
    ],
-   "reducedMotion": true
+   "reducedMotion": true,
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "La barra se mide entera; su cupón o cinta puede no tener texto propio.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "fb-2-links": {
    "title": "Cinta: titulares con enlace, pausa y cierre, abajo sin fijar",
@@ -171,6 +196,18 @@
     "floating_bar_close_switch": "yes",
     "advanced_vertical_position": "bottom",
     "advanced_toggle_sticky": ""
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "La barra se mide entera; su cupón o cinta puede no tener texto propio.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "fb-3-copy": {
@@ -218,7 +255,19 @@
      "b": ".digi-fbar__coupon-button",
      "wait": 900
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "La barra se mide entera; su cupón o cinta puede no tener texto propio.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "fb-3-text": {
    "title": "Cupón de texto, sin cierre, sin fijar",
@@ -254,6 +303,18 @@
     "style_coupon_type": "text",
     "floating_bar_close_switch": "",
     "advanced_toggle_sticky": ""
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "La barra se mide entera; su cupón o cinta puede no tener texto propio.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   }
  }

@@ -20,8 +20,6 @@ return array(
 	'set'       => array( 'presentation' => '7' ),
 	// Valores por defecto de PRO que el widget propio no tiene iguales (textos en español o el de otra presentación).
 	'defaults'  => array(
-		'identity_image_cover' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
-		'identity_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
 		'bio_title' => 'Kitchen Chronicles',
 		'bio_about' => 'About Me',
 		'bio_description' => 'I combine my love of food and storytelling to create beautiful photos.',

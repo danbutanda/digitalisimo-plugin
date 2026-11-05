@@ -43,7 +43,7 @@ class Contact_Render {
 
 	/** Aspa propia. */
 	public static function close_svg(): string {
-		return '<svg class="digi-cb__close-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>';
+		return '<i class="digi-cb__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i>';
 	}
 
 	protected $widget;

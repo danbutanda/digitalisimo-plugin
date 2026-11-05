@@ -1,7 +1,8 @@
 {
  "_doc": [
   "Botones de contacto (C8, frente P): las nueve variantes de PRO contact-buttons-var-<n> frente a digitalisimo-contact-buttons (presentación n), en documentos de botones flotantes (`doc`) vistos en su dirección; se captura el bloque fijo a la ventana (`capture`).",
-  "Diferencias comunes declaradas: foco visible propio, la fuente del kit, nombres accesibles en español y el aspa de cierre en SVG."
+  "Diferencias comunes declaradas: foco visible propio, la fuente del kit, nombres accesibles en español y el aspa de cierre en SVG.",
+  "`container` encuadrado: el script de PRO añade una clase al `.e-con-inner` del contenedor y falla sin él (en los documentos de botones flotantes el contenedor es encuadrado)."
  ],
  "declared": [
   {
@@ -219,6 +220,114 @@
    "kind": "interacción",
    "match": "eicon|close",
    "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
   }
  ],
  "cases": {
@@ -271,7 +380,19 @@
      "key": "Escape",
      "wait": 900
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-1-links": {
    "title": "Botones de contacto 1: enlaces con destino y estilos",
@@ -344,7 +465,19 @@
      "b": ".digi-cb__chat-button",
      "wait": 1200
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-3-defaults": {
    "title": "Botones de contacto 3: valores por defecto",
@@ -395,7 +528,19 @@
      "key": "Escape",
      "wait": 900
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-3-links": {
    "title": "Botones de contacto 3: enlaces con destino y estilos",
@@ -468,7 +613,19 @@
      "b": ".digi-cb__chat-button",
      "wait": 1200
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-4-defaults": {
    "title": "Botones de contacto 4: valores por defecto",
@@ -519,7 +676,19 @@
      "key": "Escape",
      "wait": 900
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-4-links": {
    "title": "Botones de contacto 4: enlaces con destino y estilos",
@@ -592,7 +761,19 @@
      "b": ".digi-cb__chat-button",
      "wait": 1200
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-5-defaults": {
    "title": "Botones de contacto 5: valores por defecto",
@@ -625,9 +806,17 @@
      "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
     }
    ],
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-5-links": {
@@ -666,9 +855,17 @@
     "chat_button_platform": "WhatsApp",
     "chat_button_number": "+525512345678"
    },
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-6-defaults": {
@@ -701,7 +898,19 @@
      "id": "widget-contact-buttons-base-css",
      "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-6-links": {
    "title": "Botones de contacto 6: enlaces con destino y estilos",
@@ -735,7 +944,6 @@
    ],
    "settings": {
     "advanced_horizontal_position": "start",
-    "style_chat_button_size": "small",
     "contact_repeater": [
      {
       "_id": "r0",
@@ -762,6 +970,18 @@
       }
      }
     ]
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-7-defaults": {
@@ -795,9 +1015,17 @@
      "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
     }
    ],
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-7-links": {
@@ -832,13 +1060,20 @@
    ],
    "settings": {
     "advanced_horizontal_position": "start",
-    "style_chat_button_size": "large",
     "chat_button_platform": "WhatsApp",
     "chat_button_number": "+525512345678"
    },
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-8-defaults": {
@@ -890,7 +1125,19 @@
      "key": "Escape",
      "wait": 900
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-8-links": {
    "title": "Botones de contacto 8: enlaces con destino y estilos",
@@ -963,7 +1210,19 @@
      "b": ".digi-cb__chat-button",
      "wait": 1200
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-9-defaults": {
    "title": "Botones de contacto 9: valores por defecto",
@@ -996,9 +1255,17 @@
      "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
     }
    ],
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-9-links": {
@@ -1037,9 +1304,17 @@
     "chat_button_platform": "WhatsApp",
     "chat_button_number": "+525512345678"
    },
-   "ready": {
-    "a": ".e-contact-buttons__chat-button[aria-expanded]",
-    "b": ".digi-cb__chat-button[aria-expanded]"
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   },
   "cb-10-defaults": {
@@ -1072,7 +1347,19 @@
      "id": "widget-contact-buttons-base-css",
      "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   }
   },
   "cb-10-links": {
    "title": "Botones de contacto 10: enlaces con destino y estilos",
@@ -1106,7 +1393,6 @@
    ],
    "settings": {
     "advanced_horizontal_position": "start",
-    "style_chat_button_size": "small",
     "contact_repeater": [
      {
       "_id": "r0",
@@ -1133,6 +1419,18 @@
       }
      }
     ]
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
    }
   }
  }

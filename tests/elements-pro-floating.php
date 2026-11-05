@@ -237,7 +237,7 @@ namespace {
 	// Sin nombres accesibles (en español), ids, el aspa y lo que sólo tiene el propio (región de estado del cupón).
 	$strip = static function ( $html ) {
 		$html = preg_replace( '/ (aria-label|aria-controls|aria-hidden|aria-expanded|id|role|data-message|data-document-id|hidden|focusable)(="[^"]*")?/', '', $html );
-		$html = preg_replace( '#<i class="eicon-close"></i>|<svg class="digi-[a-z]+__close-icon".*?</svg>#', 'X', $html );
+		$html = preg_replace( '#<i class="eicon-close"></i>|<i class="digi-[a-z]+__close-icon".*?</i>#', 'X', $html );
 		$html = preg_replace( '#<span class="digi-fbar__status"[^>]*></span>#', '', $html );
 		// Un titular sin enlace es texto (PRO pintaba un enlace sin destino).
 		$html = preg_replace( '#<a class="digi-fbar__headline">(.*?)</a>#', '<span class="digi-fbar__headline">$1</span>', $html );

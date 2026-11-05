@@ -20,7 +20,6 @@ return array(
 	'set'       => array( 'presentation' => '6' ),
 	// Valores por defecto de PRO que el widget propio no tiene iguales (textos en español o el de otra presentación).
 	'defaults'  => array(
-		'identity_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
 		'bio_title' => 'Kitchen Chronicles',
 		'bio_description' => 'Join me on my journey to a healthier lifestyle',
 	),
@@ -141,7 +140,6 @@ return array(
 		),
 		'image_links' => array(
 			'target'       => 'image_links',
-			'defaults'     => array( 'image_links_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ) ),
 			'default_rows' => array( array(), array(), array(), array() ),
 			'keep'         => array( 'image_links_image', 'image_links_url' ),
 		),

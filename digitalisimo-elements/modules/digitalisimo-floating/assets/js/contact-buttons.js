@@ -26,7 +26,7 @@
 		var animate = root.classList.contains('has-animations') && !reduce;
 		var time = root.querySelector('.digi-cb__message-bubble-time');
 		if (time) {
-			time.textContent = new Intl.DateTimeFormat(document.documentElement.lang || undefined, { hour12: '12h' === time.getAttribute('data-time-format'), hour: 'numeric', minute: 'numeric' }).format(new Date());
+			time.textContent = new Intl.DateTimeFormat('default', { hour12: '12h' === time.getAttribute('data-time-format'), hour: 'numeric', minute: 'numeric' }).format(new Date());
 		}
 		function hidden() { return !wrap || wrap.classList.contains('hidden'); }
 		function expanded(open) {

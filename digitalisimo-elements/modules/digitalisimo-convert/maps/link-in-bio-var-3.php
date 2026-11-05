@@ -20,7 +20,6 @@ return array(
 	'set'       => array( 'presentation' => '3' ),
 	// Valores por defecto de PRO que el widget propio no tiene iguales (textos en español o el de otra presentación).
 	'defaults'  => array(
-		'identity_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
 		'bio_title' => 'Kitchen Chronicles',
 		'bio_description' => 'Join me on my journey to a healthier lifestyle',
 	),
@@ -142,7 +141,6 @@ return array(
 		),
 		'cta_link' => array(
 			'target'       => 'cta_link',
-			'defaults'     => array( 'cta_link_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ) ),
 			'default_rows' => array( array( 'cta_link_text' => 'Get Healthy' ), array( 'cta_link_text' => 'Top 10 Recipes' ), array( 'cta_link_text' => 'Meal Prep' ) ),
 			'keep'         => array( 'cta_link_text', 'cta_link_image', 'cta_link_type', 'cta_link_file', 'cta_link_url', 'cta_link_mail', 'cta_link_mail_subject', 'cta_link_mail_body', 'cta_link_number', 'cta_link_location', 'cta_link_username' ),
 		),

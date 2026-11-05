@@ -22,7 +22,6 @@ return array(
 	'defaults'  => array(
 		'chat_aria_label' => 'Floating Element',
 		'top_bar_subtitle' => 'Store Manager',
-		'top_bar_image' => array( 'url' => 'http://127.0.0.1:43875/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png', 'id' => '', 'size' => '' ),
 		'message_bubble_body' => 'Hey, how can I help you today?',
 		'contact_cta_text' => 'Start conversation:',
 	),
