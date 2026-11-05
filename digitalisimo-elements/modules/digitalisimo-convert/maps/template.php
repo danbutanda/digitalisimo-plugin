@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'template',
 	'target'  => 'digitalisimo-template',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'template_id' ),
 	'classes' => array(

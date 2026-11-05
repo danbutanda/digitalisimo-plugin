@@ -13,7 +13,7 @@
   {
    "widget": "paypal-button",
    "kind": "palabra",
-   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(payment|method|connected|contact|seller|an|occurred|hay|ningún|método|pago|conectado|contacta|con|el|vendedor|se|produjo|un)»$",
+   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(payment|method|connected|contact|seller|an|occurred|hay|ningún|método|pago|conectado|contacta|con|de|el|vendedor|se|produjo|un)»$",
    "reason": "Mensaje de error por defecto (sin «Mensajes personalizados»): el propio está en español; PRO pintaba el texto fijo de su código en inglés. El mapa no puede completarlo porque, con esa opción apagada, el núcleo no da al widget los textos del panel (los usa sólo con ella encendida, y entonces el mapa sí completa los de PRO)."
   }
  ],
@@ -27,8 +27,8 @@
      "label": "clic sin cuenta",
      "selector": "button",
      "pixels": {
-      "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+      "max": 0.1,
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
      }
     }
    ],
@@ -128,8 +128,8 @@
      "label": "clic sin cuenta de pruebas",
      "selector": "button",
      "pixels": {
-      "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+      "max": 0.1,
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
      }
     }
    ],

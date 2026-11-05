@@ -22,7 +22,7 @@ $digi_pay_t = static function ( $text ) {
 return array(
 	'source'   => 'paypal-button',
 	'target'   => 'digitalisimo-paypal-button',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO que difieren de los propios (textos en español).
 	'defaults' => array(

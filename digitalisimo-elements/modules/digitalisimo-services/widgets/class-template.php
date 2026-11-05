@@ -57,11 +57,6 @@ class Template extends \Elementor\Widget_Base {
 		return false;
 	}
 
-	public function has_widget_inner_wrapper(): bool {
-		$plugin = class_exists( '\Elementor\Plugin' ) ? \Elementor\Plugin::$instance : null;
-		return ! ( is_object( $plugin ) && isset( $plugin->experiments ) && is_object( $plugin->experiments ) && $plugin->experiments->is_feature_active( 'e_optimized_markup' ) );
-	}
-
 	protected function register_controls() {
 		$this->start_controls_section(
 			'section_template',
