@@ -107,8 +107,20 @@ function digi_ab_tokens( $value ) {
 	if ( is_string( $value ) && preg_match( '/^\$fixture:([a-z]+)$/', $value, $m ) ) {
 		return (string) ( digi_ab_fixtures()[ $m[1] ] ?? '' );
 	}
+	// `"$woo:clave"`: el ID (texto) de un dato de prueba de WooCommerce (`digi_ab_woo_fixtures()`: simple, variable,
+	// sale, outofstock, reviews, category, subcategory, other_category, tag, customer, order…). C7.
+	if ( is_string( $value ) && preg_match( '/^\$woo:([a-z_]+)$/', $value, $m ) ) {
+		return (string) ( digi_ab_woo_fixtures()[ $m[1] ] ?? '' );
+	}
 	if ( ! is_array( $value ) ) {
 		return $value;
+	}
+	// `{"$woo-ids": ["simple", "sale"]}`: la lista de IDs (texto) de esos datos de prueba (control de consulta múltiple).
+	if ( array( '$woo-ids' ) === array_keys( $value ) ) {
+		$ids = digi_ab_woo_fixtures();
+		return array_values( array_map( static function ( $key ) use ( $ids ) {
+			return (string) ( $ids[ (string) $key ] ?? '' );
+		}, (array) $value['$woo-ids'] ) );
 	}
 	if ( array( '$image' ) === array_keys( $value ) ) {
 		list( $id, $url ) = digi_ab_image( (int) $value['$image'] );
@@ -219,6 +231,306 @@ function digi_ab_fixtures() {
 	return $ids;
 }
 
+/** ¿Hay WooCommerce en esta corrida? (pro-ab.sh lo monta y activate.php lo activa si algún caso lo pide). */
+function digi_ab_woo_active() {
+	return function_exists( 'WC' ) && class_exists( 'WC_Product_Simple' );
+}
+
+/**
+ * Tienda de prueba de WooCommerce (C7, `docs/pro/c7.md` «A/B con WooCommerce»): datos fijos, creados una vez y sólo si
+ * algún caso de la corrida trae `woo` o un contexto de tienda. Tienda en España y euros, sin impuestos, «Tarifa plana»
+ * de 5 € en la zona «Resto del mundo» y «Contra reembolso» como único pago (fuera de línea, sin pasarela ni red).
+ *
+ * - Categorías de producto con descripción e imagen: `categoria-producto-ab` (imagen 8), su hija
+ *   `subcategoria-producto-ab` y `otra-categoria-ab` (imagen 9); etiqueta `etiqueta-producto-ab`.
+ * - Productos (fechas fijas de febrero de 2024; «los más recientes» salen en este orden):
+ *   `simple` «Producto simple de prueba» (25 €, SKU, existencias 12, peso y medidas, descripción y extracto, imagen 1 y
+ *   galería 2 y 3, ventas dirigidas `sale` y `reviews`, ventas cruzadas `reviews`, categoría y etiqueta);
+ *   `variable` «Producto variable de prueba» (atributo propio «Talla» S/M/L, 20–22 €, imagen 7, categoría y etiqueta);
+ *   `sale` «Producto en oferta de prueba» (40 € → 30 €, imagen 4); `outofstock` «Producto agotado de prueba» (15 €,
+ *   sin existencias, imagen 5); `reviews` «Producto con reseñas de prueba» (50 €, imagen 6, tres reseñas de 5, 4 y 4
+ *   estrellas, valoración 4,33).
+ * - Clienta `cliente-ab` («Carla Cliente», rol `customer`, direcciones de facturación y envío) y su pedido `order`
+ *   (procesando, 18-03-2024: 2 × simple, 1 × oferta, tarifa plana, contra reembolso).
+ * - Carrito de prueba (`"cart": "items"`, lo llena el mu-plugin en cada petición): 2 × simple, 1 × variable (M) y
+ *   1 × oferta. Los productos relacionados no se barajan en las páginas del A/B (igual en A y en B).
+ *
+ * Devuelve los ID (`simple`, `variable`, `variation_m`, `sale`, `outofstock`, `reviews`, `category`, `subcategory`,
+ * `other_category`, `tag`, `customer`, `order`, `order_key`) o un arreglo vacío sin WooCommerce.
+ */
+function digi_ab_woo_fixtures() {
+	static $ids = null;
+	if ( null !== $ids ) {
+		return $ids;
+	}
+	$ids = array();
+	if ( ! digi_ab_woo_active() ) {
+		digi_ab_fail( 'Un caso pide WooCommerce y no está cargado (pro-ab.sh lo monta con WOO=1 o con «woo» en el caso)' );
+		return $ids;
+	}
+	$saved = get_option( 'digi_ab_woo_fixtures' );
+	if ( is_array( $saved ) && ! empty( $saved['simple'] ) && wc_get_product( (int) $saved['simple'] ) ) {
+		return $ids = $saved;
+	}
+	foreach ( array(
+		'woocommerce_coming_soon'                    => 'no',
+		'woocommerce_store_pages_only'               => 'no',
+		'woocommerce_default_country'                => 'ES:M',
+		'woocommerce_store_address'                  => 'Calle de Prueba 1',
+		'woocommerce_store_city'                     => 'Madrid',
+		'woocommerce_store_postcode'                 => '28001',
+		'woocommerce_currency'                       => 'EUR',
+		'woocommerce_currency_pos'                   => 'right_space',
+		'woocommerce_price_thousand_sep'             => '.',
+		'woocommerce_price_decimal_sep'              => ',',
+		'woocommerce_price_num_decimals'             => '2',
+		'woocommerce_calc_taxes'                     => 'no',
+		'woocommerce_enable_coupons'                 => 'yes',
+		'woocommerce_enable_guest_checkout'          => 'yes',
+		'woocommerce_enable_reviews'                 => 'yes',
+		'woocommerce_enable_review_rating'           => 'yes',
+		'woocommerce_review_rating_verification_required' => 'no',
+		'woocommerce_default_customer_address'       => 'base',
+		'woocommerce_allowed_countries'              => 'all',
+		'woocommerce_shipping_cost_requires_address' => 'no',
+		'woocommerce_cart_redirect_after_add'        => 'no',
+		'woocommerce_enable_ajax_add_to_cart'        => 'yes',
+		'woocommerce_hide_out_of_stock_items'        => 'no',
+		'woocommerce_manage_stock'                   => 'yes',
+		// Sin reserva de existencias: su consulta (`NOW() + INTERVAL`) no funciona sobre la base SQLite de Playground.
+		'woocommerce_hold_stock_minutes'             => '',
+		'woocommerce_allow_tracking'                 => 'no',
+		'woocommerce_show_marketplace_suggestions'   => 'no',
+		'woocommerce_newly_installed'                => 'no',
+		'woocommerce_onboarding_profile'             => array( 'skipped' => true ),
+	) as $name => $value ) {
+		update_option( $name, $value );
+	}
+	update_option( 'woocommerce_cod_settings', array( 'enabled' => 'yes', 'title' => 'Contra reembolso', 'description' => 'Pago al recibir el pedido (prueba).', 'instructions' => 'Pago al recibir el pedido.', 'enable_for_methods' => array(), 'enable_for_virtual' => 'yes' ) );
+	update_option( 'woocommerce_gateway_order', array( 'cod' => 0 ) );
+	// «Tarifa plana» de 5 € en la zona «Resto del mundo» (la 0): vale para cualquier dirección.
+	$zone = new WC_Shipping_Zone( 0 );
+	if ( ! $zone->get_shipping_methods() ) {
+		$instance = (int) $zone->add_shipping_method( 'flat_rate' );
+		update_option( 'woocommerce_flat_rate_' . $instance . '_settings', array( 'title' => 'Tarifa plana', 'tax_status' => 'none', 'cost' => '5' ) );
+	}
+
+	$term = static function ( $name, $slug, $taxonomy, $description, $parent = 0 ) {
+		$found = get_term_by( 'slug', $slug, $taxonomy );
+		if ( $found ) {
+			return (int) $found->term_id;
+		}
+		$made = wp_insert_term( $name, $taxonomy, array( 'slug' => $slug, 'description' => $description, 'parent' => $parent ) );
+		if ( is_wp_error( $made ) ) {
+			digi_ab_fail( "WooCommerce: no se pudo crear el término $slug: " . $made->get_error_message() );
+			return 0;
+		}
+		return (int) $made['term_id'];
+	};
+	$ids['category']       = $term( 'Categoría de productos de prueba', 'categoria-producto-ab', 'product_cat', 'Descripción de la categoría de productos de prueba.' );
+	$ids['subcategory']    = $term( 'Subcategoría de prueba', 'subcategoria-producto-ab', 'product_cat', 'Descripción de la subcategoría de prueba.', $ids['category'] );
+	$ids['other_category'] = $term( 'Otra categoría de prueba', 'otra-categoria-ab', 'product_cat', 'Descripción de otra categoría de prueba.' );
+	$ids['tag']            = $term( 'Etiqueta de productos de prueba', 'etiqueta-producto-ab', 'product_tag', 'Descripción de la etiqueta de productos de prueba.' );
+	update_term_meta( $ids['category'], 'thumbnail_id', digi_ab_image( 8 )[0] );
+	update_term_meta( $ids['other_category'], 'thumbnail_id', digi_ab_image( 9 )[0] );
+
+	$product = static function ( $product, $slug, $name, $date, array $cats, $image ) {
+		$product->set_name( $name );
+		$product->set_slug( $slug );
+		$product->set_status( 'publish' );
+		$product->set_category_ids( $cats );
+		$product->set_date_created( $date );
+		$product->set_short_description( 'Extracto de ' . lcfirst( $name ) . '.' );
+		$product->set_description( '<p>Descripción completa de ' . lcfirst( $name ) . ', con un párrafo de texto.</p>' );
+		$product->set_image_id( digi_ab_image( $image )[0] );
+		return $product;
+	};
+	$simple = $product( new WC_Product_Simple(), 'producto-simple-ab', 'Producto simple de prueba', '2024-02-10 10:00:00', array( $ids['category'] ), 1 );
+	$simple->set_regular_price( '25' );
+	$simple->set_sku( 'AB-SIMPLE' );
+	$simple->set_manage_stock( true );
+	$simple->set_stock_quantity( 12 );
+	$simple->set_weight( '1.5' );
+	$simple->set_length( '10' );
+	$simple->set_width( '20' );
+	$simple->set_height( '30' );
+	$simple->set_tag_ids( array( $ids['tag'] ) );
+	$simple->set_gallery_image_ids( array( digi_ab_image( 2 )[0], digi_ab_image( 3 )[0] ) );
+	$simple->set_purchase_note( 'Nota de compra del producto simple.' );
+	$ids['simple'] = (int) $simple->save();
+
+	$talla = new WC_Product_Attribute();
+	$talla->set_id( 0 );
+	$talla->set_name( 'Talla' );
+	$talla->set_options( array( 'S', 'M', 'L' ) );
+	$talla->set_position( 0 );
+	$talla->set_visible( true );
+	$talla->set_variation( true );
+	$variable = $product( new WC_Product_Variable(), 'producto-variable-ab', 'Producto variable de prueba', '2024-02-09 10:00:00', array( $ids['category'] ), 7 );
+	$variable->set_sku( 'AB-VARIABLE' );
+	$variable->set_attributes( array( $talla ) );
+	$variable->set_tag_ids( array( $ids['tag'] ) );
+	$ids['variable'] = (int) $variable->save();
+	$price = 20;
+	foreach ( array( 'S', 'M', 'L' ) as $size ) {
+		$variation = new WC_Product_Variation();
+		$variation->set_parent_id( $ids['variable'] );
+		$variation->set_attributes( array( 'talla' => $size ) );
+		$variation->set_regular_price( (string) $price++ );
+		$variation->set_sku( 'AB-VARIABLE-' . $size );
+		$variation->set_status( 'publish' );
+		$saved_id = (int) $variation->save();
+		if ( 'M' === $size ) {
+			$ids['variation_m'] = $saved_id;
+		}
+	}
+	WC_Product_Variable::sync( $ids['variable'] );
+	wc_delete_product_transients( $ids['variable'] );
+
+	$sale = $product( new WC_Product_Simple(), 'producto-oferta-ab', 'Producto en oferta de prueba', '2024-02-08 10:00:00', array( $ids['category'], $ids['other_category'] ), 4 );
+	$sale->set_regular_price( '40' );
+	$sale->set_sale_price( '30' );
+	$sale->set_sku( 'AB-OFERTA' );
+	$ids['sale'] = (int) $sale->save();
+
+	$out = $product( new WC_Product_Simple(), 'producto-agotado-ab', 'Producto agotado de prueba', '2024-02-07 10:00:00', array( $ids['category'] ), 5 );
+	$out->set_regular_price( '15' );
+	$out->set_sku( 'AB-AGOTADO' );
+	$out->set_stock_status( 'outofstock' );
+	$ids['outofstock'] = (int) $out->save();
+
+	$reviews = $product( new WC_Product_Simple(), 'producto-resenas-ab', 'Producto con reseñas de prueba', '2024-02-06 10:00:00', array( $ids['subcategory'], $ids['other_category'] ), 6 );
+	$reviews->set_regular_price( '50' );
+	$reviews->set_sku( 'AB-RESENAS' );
+	$reviews->set_reviews_allowed( true );
+	$ids['reviews'] = (int) $reviews->save();
+	foreach ( array( array( 'Lectora de prueba', 5, 'Muy buen producto de prueba.', '2024-02-20 09:00:00' ), array( 'Lector de prueba', 4, 'Cumple lo que promete.', '2024-02-21 09:00:00' ), array( 'Otra lectora', 4, 'Llegó a tiempo.', '2024-02-22 09:00:00' ) ) as $n => $review ) {
+		$comment = (int) wp_insert_comment( array( 'comment_post_ID' => $ids['reviews'], 'comment_author' => $review[0], 'comment_author_email' => 'resena-' . $n . '@example.org', 'comment_content' => $review[2], 'comment_date' => $review[3], 'comment_approved' => 1, 'comment_type' => 'review' ) );
+		update_comment_meta( $comment, 'rating', $review[1] );
+		update_comment_meta( $comment, 'verified', 0 );
+	}
+	WC_Comments::clear_transients( $ids['reviews'] );
+
+	// Ventas dirigidas y cruzadas del producto simple.
+	$simple = wc_get_product( $ids['simple'] );
+	$simple->set_upsell_ids( array( $ids['sale'], $ids['reviews'] ) );
+	$simple->set_cross_sell_ids( array( $ids['reviews'] ) );
+	$simple->save();
+
+	// Clienta con direcciones.
+	$user = get_user_by( 'login', 'cliente-ab' );
+	$uid  = $user ? (int) $user->ID : (int) wp_insert_user( array( 'user_login' => 'cliente-ab', 'user_pass' => wp_generate_password( 24 ), 'user_email' => 'cliente-ab@example.org', 'display_name' => 'Carla Cliente', 'first_name' => 'Carla', 'last_name' => 'Cliente', 'nickname' => 'Carla Cliente', 'role' => 'customer' ) );
+	$ids['customer'] = $uid;
+	$customer        = new WC_Customer( $uid );
+	$address         = array( 'first_name' => 'Carla', 'last_name' => 'Cliente', 'company' => '', 'address_1' => 'Calle de la Clienta 5', 'address_2' => '', 'city' => 'Madrid', 'state' => 'M', 'postcode' => '28002', 'country' => 'ES' );
+	foreach ( $address as $field => $value ) {
+		$customer->{"set_billing_$field"}( $value );
+		$customer->{"set_shipping_$field"}( $value );
+	}
+	$customer->set_billing_email( 'cliente-ab@example.org' );
+	$customer->set_billing_phone( '600000000' );
+	$customer->save();
+
+	// Pedido de la clienta.
+	$order = wc_create_order( array( 'customer_id' => $uid ) );
+	if ( is_wp_error( $order ) ) {
+		digi_ab_fail( 'WooCommerce: no se pudo crear el pedido: ' . $order->get_error_message() );
+	} else {
+		$order->add_product( wc_get_product( $ids['simple'] ), 2 );
+		$order->add_product( wc_get_product( $ids['sale'] ), 1 );
+		$order->set_address( $address + array( 'email' => 'cliente-ab@example.org', 'phone' => '600000000' ), 'billing' );
+		$order->set_address( $address, 'shipping' );
+		$shipping = new WC_Order_Item_Shipping();
+		$shipping->set_method_title( 'Tarifa plana' );
+		$shipping->set_method_id( 'flat_rate' );
+		$shipping->set_total( '5' );
+		$order->add_item( $shipping );
+		$order->set_payment_method( 'cod' );
+		$order->set_payment_method_title( 'Contra reembolso' );
+		$order->set_customer_note( 'Nota de la clienta en el pedido.' );
+		$order->calculate_totals( false );
+		$order->set_date_created( '2024-03-18 10:00:00' );
+		$order->set_status( 'processing' );
+		$ids['order']     = (int) $order->save();
+		$ids['order_key'] = (string) $order->get_order_key();
+	}
+	update_option( 'digi_ab_woo_fixtures', $ids, false );
+	return $ids;
+}
+
+/**
+ * Contextos de tienda (C7): `{"product": "simple" | "variable" | "sale" | "outofstock" | "reviews"}` (la ficha de ese
+ * producto, con `switch_to_query` como la vista previa de una plantilla de producto), `"shop"` (el archivo de
+ * productos), `{"archive": "product_cat" | "product_subcat" | "product_tag"}`, y las páginas de WooCommerce `"cart"`,
+ * `"checkout"`, `"account"` y `{"order": "received"}` (la página del caso hace de carrito, de pago, de «Mi cuenta» o de
+ * pedido recibido: `woocommerce_get_<página>_page_id` devuelve su ID). Devuelve `[consulta o null, descripción, estado]`,
+ * con el estado de la tienda que aplica el mu-plugin: `role` (cart, checkout, myaccount), `cart` (items/empty),
+ * `user` (ID de quien entra) y `order` (pedido recibido). `null` si no es un contexto de tienda.
+ */
+function digi_ab_woo_context( $context ) {
+	if ( in_array( $context, array( 'shop', 'cart', 'checkout', 'account' ), true ) ) {
+		$context = array( $context => 'default' );
+	}
+	if ( ! is_array( $context ) || 1 !== count( $context ) ) {
+		return null;
+	}
+	$kind = (string) key( $context );
+	$what = (string) current( $context );
+	if ( ! in_array( $kind, array( 'product', 'shop', 'cart', 'checkout', 'account', 'order' ), true ) && ! ( 'archive' === $kind && 0 === strpos( $what, 'product_' ) ) ) {
+		return null;
+	}
+	$ids = digi_ab_woo_fixtures();
+	if ( ! $ids ) {
+		return null;
+	}
+	if ( 'product' === $kind && in_array( $what, array( 'simple', 'variable', 'sale', 'outofstock', 'reviews' ), true ) ) {
+		return array( array( 'p' => $ids[ $what ], 'post_type' => 'product' ), "producto $what", array() );
+	}
+	if ( 'shop' === $kind ) {
+		return array( array( 'post_type' => 'product' ), 'tienda', array() );
+	}
+	$archives = array( 'product_cat' => array( 'product_cat' => 'categoria-producto-ab' ), 'product_subcat' => array( 'product_cat' => 'subcategoria-producto-ab' ), 'product_tag' => array( 'product_tag' => 'etiqueta-producto-ab' ) );
+	if ( 'archive' === $kind && isset( $archives[ $what ] ) ) {
+		return array( $archives[ $what ], "archivo $what", array() );
+	}
+	if ( 'cart' === $kind ) {
+		return array( null, 'carrito', array( 'role' => 'cart', 'cart' => 'items' ) );
+	}
+	if ( 'checkout' === $kind ) {
+		return array( null, 'pago', array( 'role' => 'checkout', 'cart' => 'items' ) );
+	}
+	if ( 'account' === $kind ) {
+		return array( null, 'mi cuenta', array( 'role' => 'myaccount', 'user' => 'customer' ) );
+	}
+	if ( 'order' === $kind && 'received' === $what && ! empty( $ids['order'] ) ) {
+		return array( null, 'pedido recibido', array( 'role' => 'checkout', 'user' => 'customer', 'order' => $ids['order'], 'order_key' => $ids['order_key'] ) );
+	}
+	return null;
+}
+
+/**
+ * Estado de tienda de una página del A/B: el del contexto más el campo `woo` del caso (objeto, opcional): `cart`
+ * (`items` o `empty`), `user` (`customer` o `guest`), `endpoint` (un punto de «Mi cuenta»: `orders`, `view-order`,
+ * `downloads`, `edit-address`, `edit-account`, `payment-methods`; `view-order` muestra el pedido de prueba) y `notices`
+ * (`true`: un aviso de éxito, uno de información y uno de error en cada petición). `user` se traduce al ID.
+ */
+function digi_ab_woo_state( array $state, $woo ) {
+	if ( is_array( $woo ) ) {
+		foreach ( array( 'cart', 'user', 'endpoint', 'notices' ) as $key ) {
+			if ( array_key_exists( $key, $woo ) ) {
+				$state[ $key ] = $woo[ $key ];
+			}
+		}
+	}
+	if ( isset( $state['user'] ) ) {
+		$state['user'] = 'customer' === $state['user'] ? (int) ( digi_ab_woo_fixtures()['customer'] ?? 0 ) : 0;
+	}
+	if ( isset( $state['endpoint'] ) && 'view-order' === $state['endpoint'] ) {
+		$state['endpoint_value'] = (string) ( digi_ab_woo_fixtures()['order'] ?? '' );
+	}
+	return $state;
+}
+
 /**
  * Consulta del contexto de un caso (`context`): `"post"` o `{"post": "full"}` (la entrada completa), `{"post":
  * "bare"}` (la entrada sin extras), `"page"` (la página de prueba) o `{"archive": "category" | "tag" | "author" |
@@ -249,31 +561,40 @@ function digi_ab_context( $context ) {
 	return null;
 }
 
-/** mu-plugin del contexto: en las páginas de `digi_ab_context` (opción), cada árbol de elementos se pinta con su consulta. */
+/**
+ * mu-plugin del contexto: en las páginas de `digi_ab_context` (opción), cada árbol de elementos se pinta con su consulta;
+ * con tienda (C7), además, el estado de WooCommerce de la página (`woo`): página que hace de carrito, de pago o de «Mi
+ * cuenta», carrito lleno o vacío, avisos, pedido recibido y punto de «Mi cuenta». Quien entra (`digi_ab_woo_users`, por
+ * ruta de la página) se decide en `determine_current_user`, también en las peticiones `?wc-ajax=` que salen de esa página
+ * (la revisión del pedido del pago); sin barra de administración.
+ */
 function digi_ab_context_plugin() {
 	$code = <<<'PHP'
 <?php
 // pro-ab.sh (setup.php, `context` de un caso): la página A o B de un caso con contexto pinta sus elementos con la
 // consulta del contexto, como la vista previa del Theme Builder (`switch_to_query`), desde el primer elemento de nivel
 // superior hasta que termina. El avatar de cualquier usuario es una imagen local (sin peticiones a terceros).
+// C7: el estado de tienda de la página (`woo`) y la persona que entra en ella (`digi_ab_woo_users`).
 add_action( 'wp', static function () {
 	$map = get_option( 'digi_ab_context' );
 	$id  = (int) get_queried_object_id();
 	if ( ! is_array( $map ) || ! $id || empty( $map[ $id ] ) || ! class_exists( '\Elementor\Plugin' ) ) {
 		return;
 	}
-	$vars  = (array) $map[ $id ]['vars'];
+	$vars  = (array) ( $map[ $id ]['vars'] ?? array() );
 	$depth = 0;
-	add_action( 'elementor/frontend/before_render', static function () use ( $vars, &$depth ) {
-		if ( 0 === $depth++ ) {
-			\Elementor\Plugin::$instance->db->switch_to_query( $vars, true );
-		}
-	}, -1000 );
-	add_action( 'elementor/frontend/after_render', static function () use ( &$depth ) {
-		if ( 0 === --$depth ) {
-			\Elementor\Plugin::$instance->db->restore_current_query();
-		}
-	}, 1000 );
+	if ( $vars ) {
+		add_action( 'elementor/frontend/before_render', static function () use ( $vars, &$depth ) {
+			if ( 0 === $depth++ ) {
+				\Elementor\Plugin::$instance->db->switch_to_query( $vars, true );
+			}
+		}, -1000 );
+		add_action( 'elementor/frontend/after_render', static function () use ( &$depth ) {
+			if ( 0 === --$depth ) {
+				\Elementor\Plugin::$instance->db->restore_current_query();
+			}
+		}, 1000 );
+	}
 	$avatar = (string) ( $map[ $id ]['avatar'] ?? '' );
 	if ( '' !== $avatar ) {
 		add_filter( 'pre_get_avatar_data', static function ( $args ) use ( $avatar ) {
@@ -282,7 +603,54 @@ add_action( 'wp', static function () {
 			return $args;
 		} );
 	}
+	$woo = (array) ( $map[ $id ]['woo'] ?? array() );
+	if ( ! $woo || ! function_exists( 'WC' ) ) {
+		return;
+	}
+	if ( ! empty( $woo['role'] ) ) {
+		add_filter( 'woocommerce_get_' . $woo['role'] . '_page_id', static function () use ( $id ) {
+			return $id;
+		} );
+	}
+	$fixtures = (array) get_option( 'digi_ab_woo_fixtures', array() );
+	if ( ! empty( $woo['cart'] ) && WC()->cart ) {
+		WC()->cart->empty_cart();
+		if ( 'items' === $woo['cart'] ) {
+			WC()->cart->add_to_cart( (int) $fixtures['simple'], 2 );
+			WC()->cart->add_to_cart( (int) $fixtures['variable'], 1, (int) $fixtures['variation_m'], array( 'attribute_talla' => 'M' ) );
+			WC()->cart->add_to_cart( (int) $fixtures['sale'], 1 );
+			WC()->cart->calculate_totals();
+		}
+	}
+	if ( ! empty( $woo['notices'] ) ) {
+		wc_add_notice( 'Aviso de éxito de prueba.', 'success' );
+		wc_add_notice( 'Aviso informativo de prueba.', 'notice' );
+		wc_add_notice( 'Aviso de error de prueba.', 'error' );
+	}
+	global $wp;
+	if ( ! empty( $woo['order'] ) ) {
+		$wp->query_vars['order-received'] = (string) $woo['order'];
+		$_GET['key']                      = (string) ( $woo['order_key'] ?? '' );
+	}
+	if ( ! empty( $woo['endpoint'] ) ) {
+		$vars_wc = WC()->query->get_query_vars();
+		$wp->query_vars[ $vars_wc[ $woo['endpoint'] ] ?? $woo['endpoint'] ] = (string) ( $woo['endpoint_value'] ?? '' );
+	}
 } );
+add_filter( 'determine_current_user', static function ( $user ) {
+	$users = get_option( 'digi_ab_woo_users' );
+	if ( ! is_array( $users ) || ! $users ) {
+		return $user;
+	}
+	$from = isset( $_GET['wc-ajax'] ) ? ( $_SERVER['HTTP_REFERER'] ?? '' ) : ( $_SERVER['REQUEST_URI'] ?? '' );
+	$path = rtrim( (string) parse_url( (string) $from, PHP_URL_PATH ), '/' );
+	return isset( $users[ $path ] ) ? (int) $users[ $path ] : $user;
+}, 30 );
+if ( get_option( 'digi_ab_woo_fixtures' ) ) {
+	add_filter( 'show_admin_bar', '__return_false' );
+	// Los relacionados no se barajan en el A/B: A y B piden la misma lista.
+	add_filter( 'woocommerce_product_related_posts_shuffle', '__return_false' );
+}
 PHP;
 	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-context.php', $code );
 }
@@ -311,7 +679,10 @@ if ( is_file( DIGI_AB_DIR . '/map-override.php' ) ) {
 
 $widgets = \Elementor\Plugin::$instance->widgets_manager;
 $out     = array( 'elementor' => ELEMENTOR_VERSION, 'override' => $override, 'cases' => array() );
-$contexts = array();
+$contexts   = array();
+$c4_context = false;
+$woo_used   = false;
+$woo_users  = array();
 foreach ( $cases['cases'] as $slug => $case ) {
 	if ( $only ? ! in_array( $slug, $only, true ) : ! empty( $case['pending'] ) ) {
 		continue;
@@ -368,22 +739,49 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	}
 	list( $entry['a'], $entry['css_a'] ) = digi_ab_page( "pro-ab-$slug-a", $tree );
 	list( $entry['b'], $entry['css_b'] ) = digi_ab_page( "pro-ab-$slug-b", $b_tree );
+	// Contexto (C4) y tienda (C7): la consulta de la página y, con WooCommerce, su estado (`woo`). Un widget de tienda
+	// de PRO (`woocommerce-*`, `wc-*`) siempre mide con la tienda de prueba.
+	$woo_used = $woo_used || (bool) preg_match( '/^(woocommerce-|wc-)/', $source );
+	$context  = null;
 	if ( isset( $case['context'] ) ) {
-		$context = digi_ab_context( $case['context'] );
+		$context = digi_ab_woo_context( $case['context'] );
+		if ( null === $context ) {
+			$context = digi_ab_context( $case['context'] );
+			$c4_context = $c4_context || null !== $context;
+		}
 		if ( null === $context ) {
 			$entry['error'] = 'context no válido: ' . wp_json_encode( $case['context'] );
-		} else {
-			$contexts[ $entry['a'] ] = $contexts[ $entry['b'] ] = array( 'vars' => $context[0], 'avatar' => digi_ab_image( 10 )[1] );
-			$entry['context']        = array( 'query' => $context[0], 'label' => $context[1] );
+		}
+	}
+	$woo_state = array();
+	if ( ! empty( $case['woo'] ) || ( null !== $context && isset( $context[2] ) ) ) {
+		$woo_used  = true;
+		$woo_state = digi_ab_woo_state( null !== $context && isset( $context[2] ) ? $context[2] : array(), $case['woo'] ?? true );
+		if ( ! empty( $woo_state['user'] ) ) {
+			$woo_users[ '/pro-ab-' . $slug . '-a' ] = $woo_users[ '/pro-ab-' . $slug . '-b' ] = (int) $woo_state['user'];
+		}
+	}
+	if ( null !== $context || $woo_state ) {
+		$contexts[ $entry['a'] ] = $contexts[ $entry['b'] ] = array( 'vars' => null !== $context ? $context[0] : array(), 'avatar' => digi_ab_image( 10 )[1], 'woo' => $woo_state );
+		$entry['context']        = array( 'query' => null !== $context ? $context[0] : null, 'label' => null !== $context ? $context[1] : 'tienda' );
+		if ( $woo_state ) {
+			$entry['context']['woo'] = $woo_state;
 		}
 	}
 	$out['cases'][ $slug ] = $entry;
 }
 // Contexto de los casos que lo piden (`context`): la consulta de cada página A y B y el mu-plugin que la aplica.
-if ( $contexts ) {
+if ( $contexts || $woo_used ) {
 	update_option( 'digi_ab_context', $contexts, false );
+	update_option( 'digi_ab_woo_users', $woo_users, false );
 	digi_ab_context_plugin();
-	$out['fixtures'] = digi_ab_fixtures();
+	if ( $c4_context ) {
+		$out['fixtures'] = digi_ab_fixtures();
+	}
+}
+// Tienda de prueba (C7): los ID de los datos de WooCommerce, para quien lea conversion.json.
+if ( $woo_used ) {
+	$out['woo'] = digi_ab_woo_fixtures();
 }
 if ( ! $out['cases'] ) {
 	digi_ab_fail( 'Ningún caso que medir (CASES no coincide con cases.json)' );

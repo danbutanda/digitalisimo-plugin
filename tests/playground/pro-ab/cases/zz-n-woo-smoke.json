@@ -1,0 +1,13 @@
+{
+ "cases": {
+  "n-smoke-cart": { "pending": "humo del arnés de tienda (frente N)", "widget": "woocommerce-cart", "context": "cart" },
+  "n-smoke-checkout": { "pending": "humo", "widget": "woocommerce-checkout-page", "context": "checkout" },
+  "n-smoke-account": { "pending": "humo", "widget": "woocommerce-my-account", "context": "account", "woo": { "endpoint": "orders" } },
+  "n-smoke-order": { "pending": "humo", "widget": "woocommerce-purchase-summary", "context": { "order": "received" } },
+  "n-smoke-product": { "pending": "humo", "widget": "woocommerce-product-title", "context": { "product": "reviews" } },
+  "n-smoke-shop": { "pending": "humo", "widget": "wc-archive-products", "context": "shop" },
+  "n-smoke-cat": { "pending": "humo", "widget": "woocommerce-archive-description", "context": { "archive": "product_cat" } },
+  "n-smoke-notices": { "pending": "humo", "widget": "woocommerce-notices", "woo": { "notices": true, "cart": "items" } },
+  "n-smoke-menu": { "pending": "humo", "widget": "woocommerce-menu-cart", "woo": { "cart": "items" } }
+ }
+}
