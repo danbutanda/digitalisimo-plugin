@@ -87,6 +87,12 @@
    "kind": "foco",
    "match": "no llega al control en A ni en B",
    "reason": "El teclado no llega a la barra a algunos anchos ni en A ni en B (documento de botones flotantes visto en su dirección); igual en los dos lados."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "nombre",
+   "match": "^perdido none «»$",
+   "reason": "Copias de los titulares de la cinta: PRO las oculta a los lectores de pantalla (`aria-hidden`) pero sus enlaces siguen siendo enfocables; las propias son además `inert` y no cuentan como controles."
   }
  ],
  "cases": {
@@ -129,8 +135,8 @@
    "pixels": {
     "states": {
      "focus": {
-      "max": 0.12,
-      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+      "skip": true,
+      "reason": "Sin botones ni enlaces la barra propia no tiene nada que enfocar; PRO sólo enfoca la barra entera (`tabindex=0`)."
      }
     }
    }

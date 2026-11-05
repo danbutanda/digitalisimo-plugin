@@ -382,7 +382,48 @@ namespace {
 		}
 	}
 
-	// 6. Nombres vetados por el empaquetado.
+	// 6. Marcado propio para la prueba en Chrome (`--write-fixture`): Botones de contacto 1, 4 y 8 y la Barra flotante 2
+	// (con pausa y cierre) y 3, con sus hojas y scripts en línea.
+	if ( in_array( '--write-fixture', $argv ?? array(), true ) ) {
+		$cases = array(
+			array( 'digitalisimo-contact-buttons', '1', array() ),
+			array( 'digitalisimo-contact-buttons', '4', array( 'advanced_horizontal_position' => 'start' ) ),
+			array( 'digitalisimo-contact-buttons', '8', array( 'advanced_horizontal_position' => 'center' ) ),
+			array( 'digitalisimo-floating-bar', '2', array( 'floating_bar_pause_switch' => 'yes', 'floating_bar_close_switch' => 'yes', 'advanced_toggle_sticky' => '', 'floating_bar_pause_icon' => array( 'value' => 'fas fa-pause', 'library' => 'fa-solid' ), 'floating_bar_play_icon' => array( 'value' => 'fas fa-play', 'library' => 'fa-solid' ) ) ),
+			array( 'digitalisimo-floating-bar', '3', array( 'advanced_toggle_sticky' => '', 'advanced_vertical_position' => 'bottom' ) ),
+		);
+		$body = '';
+		$css  = '';
+		$seen = array();
+		foreach ( $cases as $i => $case ) {
+			list( $name, $p, $extra ) = $case;
+			$f     = $families[ $name ];
+			$class = '\\ElementorPro\\Modules\\FloatingButtons\\Widgets\\' . $f['class'] . $p;
+			$settings = $defaults( ( new $class() )->build() ) + array( 'advanced_custom_css_id' => '' );
+			$widget = 'Digitalisimo\\Elements\\Floating\\Widgets\\' . $f['widget'];
+			$w = new $widget( array( 'settings' => $extra + $settings + array( 'presentation' => $p ) ) );
+			ob_start();
+			$w->print_render();
+			$html = (string) ob_get_clean();
+			$html = str_replace( array( 'abc1234', 'https://sitio.test/placeholder.png' ), array( 'w' . $i, 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22/%3E' ), $html );
+			$body .= '<div class="elementor-element" data-id="w' . $i . '" data-settings="{}" id="case-' . $name . '-' . $p . '">' . $html . "</div>\n";
+			foreach ( array( $M::path( $M::WIDGETS[ $name ]['css'] ), $M::path( $M::presentation_css( $name, $p ) ) ) as $sheet ) {
+				if ( ! isset( $seen[ $sheet ] ) ) {
+					$seen[ $sheet ] = true;
+					$css .= (string) file_get_contents( $sheet ) . "\n";
+				}
+			}
+		}
+		$js = '';
+		foreach ( array( $M::TRACK_JS, $M::WIDGETS['digitalisimo-contact-buttons']['js'], $M::WIDGETS['digitalisimo-floating-bar']['js'] ) as $file ) {
+			$js .= '<script>' . file_get_contents( $M::path( $file ) ) . "</script>\n";
+		}
+		$page = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><title>C8 · botones flotantes</title><style>\n" . $css . "</style></head>\n<body style=\"margin:0;min-height:1200px\">\n" . $body . $js . "</body></html>\n";
+		file_put_contents( $root . '/tests/fixtures/pro-floating.html', $page );
+		echo "Fixture escrita: tests/fixtures/pro-floating.html\n";
+	}
+
+	// 7. Nombres vetados por el empaquetado.
 	foreach ( array_merge( glob( $fl . '*.php' ), glob( $fl . 'widgets/*.php' ), glob( $fl . 'assets/*/*' ) ) as $file ) {
 		$src = (string) file_get_contents( $file );
 		check_fl( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $src ), basename( $file ) . ': sin nombres vetados por scripts/build-packages.sh.' );

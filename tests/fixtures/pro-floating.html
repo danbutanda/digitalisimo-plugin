@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>C8 · botones flotantes</title><style>
+/* Botones de contacto (digitalisimo-contact-buttons, C8): lo común a todas las presentaciones; cada una tiene su hoja. */
+.digi-cb__close-icon{display:inline-block;line-height:1}.digi-cb__close-icon svg{display:block}
+.digi-cb a:focus-visible,.digi-cb button:focus-visible{outline:2px solid;outline-offset:2px}
+.digi-cb [inert]{pointer-events:none}
+.e-con:has(>.e-con-inner>.elementor-widget-digitalisimo-contact-buttons)>.e-con-inner,.e-con:has(>.elementor-widget-digitalisimo-contact-buttons){max-width:unset;padding:0}
+@media (prefers-reduced-motion:reduce){.digi-cb,.digi-cb *{animation:none!important;transition:none!important}}
+
+/* Botones de contacto, presentación 1. Generada desde las hojas del núcleo de esta variante (podadas con su marcado y pasadas a clases propias). */
+.digi-cb{--digi-cb-chat-box-width:360px;--digi-cb-size-small:55px;--digi-cb-size-medium:65px;--digi-cb-size-large:75px;--digi-cb-svg-size-small:32px;--digi-cb-svg-size-medium:38px;--digi-cb-svg-size-large:42px;--digi-cb-profile-image-size-small:65px;--digi-cb-profile-image-size-medium:75px;--digi-cb-profile-image-size-large:85px;--digi-cb-dot:red;--digi-cb-dot-size:16px;--digi-cb-profile-dot-bg:#39aa59;--digi-cb-border-radius:20px;--digi-cb-icon-size-small:45px;--digi-cb-icon-size-medium:50px;--digi-cb-icon-size-large:55px;--digi-cb-horizontal-offset:25px;--digi-cb-vertical-offset:25px;--digi-cb-box-shadow:4px 4px 10px 0px rgba(0,0,0,.15);--digi-cb-button-bg:#467ff7;--digi-cb-button-bg-hover:#1c2448;--digi-cb-button-icon:#fff;--digi-cb-button-icon-hover:#fff;--digi-cb-top-bar-bg:#1c2448;--digi-cb-top-bar-title:#fff;--digi-cb-top-bar-subtitle:#fff;--digi-cb-close-button-color:#fff;--digi-cb-message-bubble-name:#000;--digi-cb-message-bubble-body:#000;--digi-cb-message-bubble-time:#000;--digi-cb-message-bubble-bubble-bg:#fff;--digi-cb-message-bubble-chat-bg:#c8d5dc;--digi-cb-chat-box-bg:#fff;--digi-cb-contact-button-icon:#fff;--digi-cb-contact-button-icon-hover:#fff;--digi-cb-contact-button-bg:#467ff7;--digi-cb-contact-button-bg-hover:#1c2448;display:flex;flex-direction:column;gap:20px;pointer-events:none;position:fixed;width:var(--digi-cb-chat-box-width);z-index:10000}@media (max-width:767px){.digi-cb{inset-inline-end:0;width:90vw}}.digi-cb.has-h-alignment-start{inset-inline-start:var(--digi-cb-horizontal-offset);justify-content:flex-start}@media (max-width:767px){.digi-cb.has-h-alignment-start{inset-inline-start:0}}.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{justify-content:flex-start;padding-inline-end:0;padding-inline-start:20px}@media (max-width:767px){.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{inset-inline-end:unset;inset-inline-start:var(--digi-cb-horizontal-offset)}}.digi-cb.has-h-alignment-end{align-items:flex-end;inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end}.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end;padding-inline-end:20px}@media (max-width:767px){.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:unset}}.digi-cb.has-h-alignment-center{inset-inline-start:50%;justify-content:center;transform:translateX(-50%)}.digi-cb.has-h-alignment-center .digi-cb__chat-button-container{justify-content:center;padding-inline:0}.digi-cb.has-h-alignment-center .digi-cb__content-wrapper{inset-inline-end:calc(var(--digi-cb-chat-box-width) / 2 - 40px);position:relative}.digi-cb.has-v-alignment-top{top:var(--digi-cb-vertical-offset)}.digi-cb.has-v-alignment-top .digi-cb__content-wrapper{order:2}.digi-cb.has-v-alignment-top .digi-cb__chat-button-container{order:1}.digi-cb.has-v-alignment-middle{align-items:center;flex-direction:row;top:50%;transform:translateY(-50%)}.digi-cb.has-v-alignment-middle .digi-cb__chat-button-container{padding-inline:0}.digi-cb.has-v-alignment-middle.has-h-alignment-start .digi-cb__content-wrapper{order:2}.digi-cb.has-h-alignment-center.has-v-alignment-middle{flex-direction:column;transform:translate(-50%,-50%)}.digi-cb.has-v-alignment-bottom{bottom:var(--digi-cb-vertical-offset)}.digi-cb.has-corners-rounded{--digi-cb-border-radius:20px}.digi-cb.has-corners-round{--digi-cb-border-radius:50px}.digi-cb.has-corners-sharp{--digi-cb-border-radius:0}.digi-cb:not(.has-animations) .digi-cb__content-wrapper.hidden{display:none}.digi-cb__chat-button-shadow,.digi-cb__content{box-shadow:var(--digi-cb-box-shadow)}.digi-cb__content{border-radius:var(--digi-cb-border-radius);font-family:inherit;overflow:hidden}.digi-cb__top-bar{align-items:center;background-color:var(--digi-cb-top-bar-bg);display:flex;gap:20px;padding:20px;position:relative}.digi-cb__top-bar-title{color:var(--digi-cb-top-bar-title);font-size:24px;font-weight:700;margin-block-end:0}.digi-cb__top-bar-subtitle{color:var(--digi-cb-top-bar-subtitle);font-size:20px;margin-block-end:0}.digi-cb__profile-image{align-items:center;display:flex;position:relative}.digi-cb__profile-image img{border-radius:50%;-o-object-fit:cover;object-fit:cover}.digi-cb__profile-image.has-size-small img{height:var(--digi-cb-profile-image-size-small);width:var(--digi-cb-profile-image-size-small)}.digi-cb__profile-image.has-size-medium img{height:var(--digi-cb-profile-image-size-medium);width:var(--digi-cb-profile-image-size-medium)}.digi-cb__profile-image.has-size-large img{height:var(--digi-cb-profile-image-size-large);width:var(--digi-cb-profile-image-size-large)}.digi-cb__profile-image.has-dot:after{background-color:var(--digi-cb-profile-dot-bg);border:3px solid var(--digi-cb-top-bar-bg);border-radius:50%;bottom:5px;content:"";height:20px;position:absolute;right:0;width:20px}.digi-cb__close-button[type=button]{background:none;border:0;color:var(--digi-cb-close-button-color);inset-inline-end:20px;padding:0;position:absolute;top:20px}.digi-cb__close-button[type=button]:focus,.digi-cb__close-button[type=button]:hover{background:none;border:0;color:var(--digi-cb-close-button-color)}.digi-cb__chat-button-container,.digi-cb__contact-icon-link,.digi-cb__content-wrapper{pointer-events:auto}.digi-cb__chat-button-container{display:flex;max-width:-moz-max-content;max-width:max-content}@media (max-width:767px){.digi-cb__chat-button-container{position:relative}}.digi-cb__chat-button[type=button]{align-items:center;background-color:var(--digi-cb-button-bg);border:0;border-radius:50%;color:var(--digi-cb-button-icon);display:flex;justify-content:center;padding:0;position:relative;transition:all .3s}.digi-cb__chat-button[type=button] svg{fill:var(--digi-cb-button-icon)}.digi-cb__chat-button[type=button]:focus,.digi-cb__chat-button[type=button]:hover{background-color:var(--digi-cb-button-bg-hover);color:var(--digi-cb-button-icon-hover);transition:all .3s}.digi-cb__chat-button[type=button]:focus svg,.digi-cb__chat-button[type=button]:hover svg{fill:var(--digi-cb-button-icon-hover)}.digi-cb__chat-button[type=button].has-dot:after{background-color:var(--digi-cb-dot);border-radius:50%;content:"";height:var(--digi-cb-dot-size);position:absolute;right:0;top:0;width:var(--digi-cb-dot-size)}.digi-cb__chat-button[type=button].has-size-small{height:var(--digi-cb-size-small);width:var(--digi-cb-size-small)}.digi-cb__chat-button[type=button].has-size-small svg{height:var(--digi-cb-svg-size-small);width:var(--digi-cb-svg-size-small)}.digi-cb__chat-button[type=button].has-size-medium{height:var(--digi-cb-size-medium);width:var(--digi-cb-size-medium)}.digi-cb__chat-button[type=button].has-size-medium svg{height:var(--digi-cb-svg-size-medium);width:var(--digi-cb-svg-size-medium)}.digi-cb__chat-button[type=button].has-size-large{height:var(--digi-cb-size-large);width:var(--digi-cb-size-large)}.digi-cb__chat-button[type=button].has-size-large svg{height:var(--digi-cb-svg-size-large);width:var(--digi-cb-svg-size-large)}.digi-cb__chat-button[type=button].has-entrance-animation-duration-slow{animation-duration:2s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-normal{animation-duration:1s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-fast{animation-duration:.8s}.digi-cb__chat-button[type=button].visible{opacity:1}.digi-cb__message-bubble{background-color:var(--digi-cb-message-bubble-chat-bg);padding:25px 20px;padding-inline-start:40px}.digi-cb__bubble{background-color:var(--digi-cb-message-bubble-bubble-bg);border-radius:15px;padding:20px;position:relative}.digi-cb__bubble:after{border-block-end-color:transparent;border-block-end-width:40px;border-block-start-color:transparent;border-block-start-width:0;border-inline-end-color:var(--digi-cb-message-bubble-bubble-bg);border-inline-end-width:40px;border-inline-start-color:transparent;border-inline-start-width:0;border-style:solid;content:"";height:0;inset-inline-start:-20px;position:absolute;top:0;width:0}.digi-cb__message-bubble-name{color:var(--digi-cb-message-bubble-name);font-size:20px;font-weight:600;line-height:25px;margin-block-end:8px}.digi-cb__message-bubble-body{color:var(--digi-cb-message-bubble-body);font-size:20px;line-height:25px;margin-block-end:8px}.digi-cb__message-bubble-time{color:var(--digi-cb-message-bubble-time);font-size:20px;font-weight:600;line-height:25px;margin-block-end:0;text-align:end}.digi-cb--p1{--digi-cb-button-bg:#324a6d;--digi-cb-button-bg-hover:#1c2448;--digi-cb-top-bar-bg:#324a6d;--digi-cb-message-bubble-name:#1c2448;--digi-cb-message-bubble-body:#1c2448;--digi-cb-message-bubble-time:#1c2448;--digi-cb-message-bubble-bubble-bg:#c8d5dc;--digi-cb-message-bubble-chat-bg:#fff;--digi-cb-contact-text:#1c2448;--digi-cb--p1-size-small:26px;--digi-cb--p1-size-medium:28px;--digi-cb--p1-size-large:32px}.digi-cb--p1 .digi-cb__contact{align-items:center;background-color:var(--digi-cb-chat-box-bg);display:flex;flex-direction:column;gap:20px;justify-content:center;padding:0 20px 20px}.digi-cb--p1 .digi-cb__message-bubble{background-color:var(--digi-cb-chat-box-bg);padding:20px;padding-inline-start:40px}.digi-cb--p1 .digi-cb__contact-text{color:var(--digi-cb-contact-text);font-size:20px;font-weight:400;line-height:25px;margin-bottom:0}.digi-cb--p1 .digi-cb__contact-links{display:flex;gap:12px}.digi-cb--p1 .digi-cb__contact-icon-link{align-items:center;background-color:var(--digi-cb-contact-button-bg);border-radius:50px;color:var(--digi-cb-contact-button-icon);display:inline-flex;justify-content:center;transition:all .3s}.digi-cb--p1 .digi-cb__contact-icon-link svg{fill:var(--digi-cb-contact-button-icon)}.digi-cb--p1 .digi-cb__contact-icon-link:focus,.digi-cb--p1 .digi-cb__contact-icon-link:hover{background-color:var(--digi-cb-contact-button-bg-hover);color:var(--digi-cb-contact-button-icon-hover);transition:all .3s}.digi-cb--p1 .digi-cb__contact-icon-link:focus svg,.digi-cb--p1 .digi-cb__contact-icon-link:hover svg{fill:var(--digi-cb-contact-button-icon-hover)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-small{height:var(--digi-cb-icon-size-small);width:var(--digi-cb-icon-size-small)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-small svg{height:var(--digi-cb--p1-size-small);width:var(--digi-cb--p1-size-small)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-medium{height:var(--digi-cb-icon-size-medium);width:var(--digi-cb-icon-size-medium)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-medium svg{height:var(--digi-cb--p1-size-medium);width:var(--digi-cb--p1-size-medium)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-large{height:var(--digi-cb-icon-size-large);width:var(--digi-cb-icon-size-large)}.digi-cb--p1 .digi-cb__contact-icon-link.has-size-large svg{height:var(--digi-cb--p1-size-large);width:var(--digi-cb--p1-size-large)}
+
+/* Botones de contacto, presentación 4. Generada desde las hojas del núcleo de esta variante (podadas con su marcado y pasadas a clases propias). */
+.digi-cb{--digi-cb-chat-box-width:360px;--digi-cb-size-small:55px;--digi-cb-size-medium:65px;--digi-cb-size-large:75px;--digi-cb-svg-size-small:32px;--digi-cb-svg-size-medium:38px;--digi-cb-svg-size-large:42px;--digi-cb-border-radius:20px;--digi-cb-contact-gap:15px;--digi-cb-horizontal-offset:25px;--digi-cb-vertical-offset:25px;--digi-cb-box-shadow:4px 4px 10px 0px rgba(0,0,0,.15);--digi-cb-button-bg:#467ff7;--digi-cb-button-bg-hover:#1c2448;--digi-cb-button-icon:#fff;--digi-cb-button-icon-hover:#fff;--digi-cb-close-button-color:#fff;--digi-cb-active-button-bg:#fff;--digi-cb-contact-button-icon:#fff;--digi-cb-contact-button-icon-hover:#fff;--digi-cb-contact-button-bg:#467ff7;--digi-cb-contact-button-bg-hover:#1c2448;--digi-cb-tooltip-text:#1c2448;--digi-cb-tooltip-bg:#fff;display:flex;flex-direction:column;gap:20px;pointer-events:none;position:fixed;width:var(--digi-cb-chat-box-width);z-index:10000}@media (max-width:767px){.digi-cb{inset-inline-end:0;width:90vw}}.digi-cb.has-h-alignment-start{inset-inline-start:var(--digi-cb-horizontal-offset);justify-content:flex-start}@media (max-width:767px){.digi-cb.has-h-alignment-start{inset-inline-start:0}}.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{justify-content:flex-start;padding-inline-end:0;padding-inline-start:20px}@media (max-width:767px){.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{inset-inline-end:unset;inset-inline-start:var(--digi-cb-horizontal-offset)}}.digi-cb.has-h-alignment-end{align-items:flex-end;inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end}.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end;padding-inline-end:20px}@media (max-width:767px){.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:unset}}.digi-cb.has-h-alignment-center{inset-inline-start:50%;justify-content:center;transform:translateX(-50%)}.digi-cb.has-h-alignment-center .digi-cb__chat-button-container{justify-content:center;padding-inline:0}.digi-cb.has-h-alignment-center .digi-cb__content-wrapper{inset-inline-end:calc(var(--digi-cb-chat-box-width) / 2 - 40px);position:relative}.digi-cb.has-v-alignment-top{top:var(--digi-cb-vertical-offset)}.digi-cb.has-v-alignment-top .digi-cb__content-wrapper{order:2}.digi-cb.has-v-alignment-top .digi-cb__chat-button-container{order:1}.digi-cb.has-v-alignment-middle{align-items:center;flex-direction:row;top:50%;transform:translateY(-50%)}.digi-cb.has-v-alignment-middle .digi-cb__chat-button-container{padding-inline:0}.digi-cb.has-v-alignment-middle.has-h-alignment-start .digi-cb__content-wrapper{order:2}.digi-cb.has-v-alignment-middle.has-h-alignment-start .digi-cb__chat-button-container{order:1;padding-inline:0}.digi-cb.has-h-alignment-center.has-v-alignment-middle{flex-direction:column;transform:translate(-50%,-50%)}.digi-cb.has-v-alignment-bottom{bottom:var(--digi-cb-vertical-offset)}.digi-cb:not(.has-animations) .digi-cb__content-wrapper.hidden{display:none}.digi-cb__chat-button-shadow,.digi-cb__contact-box-shadow,.digi-cb__content{box-shadow:var(--digi-cb-box-shadow)}.digi-cb__content{border-radius:var(--digi-cb-border-radius);font-family:inherit;overflow:hidden}.digi-cb__close-button[type=button]{background:none;border:0;color:var(--digi-cb-close-button-color);inset-inline-end:20px;padding:0;position:absolute;top:20px}.digi-cb__close-button[type=button]:focus,.digi-cb__close-button[type=button]:hover{background:none;border:0;color:var(--digi-cb-close-button-color)}.digi-cb__chat-button-container,.digi-cb__contact-icon-link,.digi-cb__content-wrapper{pointer-events:auto}.digi-cb__chat-button-container{display:flex;max-width:-moz-max-content;max-width:max-content}@media (max-width:767px){.digi-cb__chat-button-container{position:relative}}.digi-cb__chat-button[type=button]{align-items:center;background-color:var(--digi-cb-button-bg);border:0;border-radius:50%;color:var(--digi-cb-button-icon);display:flex;justify-content:center;padding:0;position:relative;transition:all .3s}.digi-cb__chat-button[type=button] svg{fill:var(--digi-cb-button-icon)}.digi-cb__chat-button[type=button]:focus,.digi-cb__chat-button[type=button]:hover{background-color:var(--digi-cb-button-bg-hover);color:var(--digi-cb-button-icon-hover);transition:all .3s}.digi-cb__chat-button[type=button]:focus svg,.digi-cb__chat-button[type=button]:hover svg{fill:var(--digi-cb-button-icon-hover)}.digi-cb__chat-button[type=button].has-size-small{height:var(--digi-cb-size-small);width:var(--digi-cb-size-small)}.digi-cb__chat-button[type=button].has-size-small svg{height:var(--digi-cb-svg-size-small);width:var(--digi-cb-svg-size-small)}.digi-cb__chat-button[type=button].has-size-medium{height:var(--digi-cb-size-medium);width:var(--digi-cb-size-medium)}.digi-cb__chat-button[type=button].has-size-medium svg{height:var(--digi-cb-svg-size-medium);width:var(--digi-cb-svg-size-medium)}.digi-cb__chat-button[type=button].has-size-large{height:var(--digi-cb-size-large);width:var(--digi-cb-size-large)}.digi-cb__chat-button[type=button].has-size-large svg{height:var(--digi-cb-svg-size-large);width:var(--digi-cb-svg-size-large)}.digi-cb__chat-button[type=button].has-entrance-animation-duration-slow{animation-duration:2s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-normal{animation-duration:1s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-fast{animation-duration:.8s}.digi-cb__chat-button[type=button].visible{opacity:1}.digi-cb--p4{--digi-cb-size-small:45px;--digi-cb-size-medium:50px;--digi-cb-size-large:55px;--digi-cb-icon-small:20px;--digi-cb-icon-medium:24px;--digi-cb-icon-large:26px;--digi-cb-button-bg-hover:#324a6d;--digi-cb-active-button-color:#1c2448;--digi-cb-contact-button-icon-hover:#467ff7;--digi-cb-contact-button-bg-hover:#fff;width:auto}.digi-cb--p4 .digi-cb__close-button{border-radius:50%;inset-inline-end:unset;inset-inline-start:unset;position:relative;top:unset}.digi-cb--p4 .digi-cb__close-button,.digi-cb--p4 .digi-cb__close-button:focus,.digi-cb--p4 .digi-cb__close-button:hover{background-color:var(--digi-cb-active-button-bg);color:var(--digi-cb-active-button-color)}.digi-cb--p4 .digi-cb__chat-button[type=button][aria-expanded=true],.digi-cb--p4 .digi-cb__close-button[type=button][aria-expanded=false]{display:none}.digi-cb--p4 .digi-cb__content{border-radius:0;box-shadow:none;margin:0;overflow:visible}.digi-cb--p4 .digi-cb__contact-links{display:flex;flex-direction:column;gap:var(--digi-cb-contact-gap)}.digi-cb--p4 .digi-cb__contact-icon-container{align-items:center;background-color:var(--digi-cb-contact-button-bg);border-radius:50px;display:inline-flex;justify-content:center;transition:all .3s}.digi-cb--p4 .digi-cb__contact-icon-link{align-items:center;display:flex;flex-direction:row;gap:14px}.digi-cb--p4 .digi-cb__contact-icon-link .digi-cb__contact-icon-container{color:var(--digi-cb-contact-button-icon)}.digi-cb--p4 .digi-cb__contact-icon-link svg{fill:var(--digi-cb-contact-button-icon)}.digi-cb--p4 .digi-cb__contact-icon-link:focus .digi-cb__contact-icon-container,.digi-cb--p4 .digi-cb__contact-icon-link:hover .digi-cb__contact-icon-container{background-color:var(--digi-cb-contact-button-bg-hover);color:var(--digi-cb-contact-button-icon-hover);transition:all .3s}.digi-cb--p4 .digi-cb__contact-icon-link:focus svg,.digi-cb--p4 .digi-cb__contact-icon-link:hover svg{fill:var(--digi-cb-contact-button-icon-hover)}.digi-cb--p4 .digi-cb__contact-tooltip{background-color:var(--digi-cb-tooltip-bg);border-radius:16px;box-shadow:2px 4px 4px 0 rgba(0,0,0,.15);color:var(--digi-cb-tooltip-text);font-size:13px;line-height:25px;padding:4px 14px;position:relative}.digi-cb--p4 .digi-cb__contact-tooltip:after{border-style:solid;content:"";height:0;position:absolute;top:50%;transform:translateY(-50%);width:0}.digi-cb--p4.has-h-alignment-end .digi-cb__chat-button-container{padding-inline-end:0}.digi-cb--p4.has-h-alignment-end .digi-cb__contact-links{align-items:flex-end}.digi-cb--p4.has-h-alignment-center .digi-cb__contact-tooltip:after,.digi-cb--p4.has-h-alignment-end .digi-cb__contact-tooltip:after{border-block-end-color:transparent;border-block-end-width:8px;border-block-start-color:transparent;border-block-start-width:8px;border-inline-end-color:transparent;border-inline-end-width:0;border-inline-start-color:var(--digi-cb-tooltip-bg);border-inline-start-width:10px;inset-inline-end:-8px}.digi-cb--p4.has-h-alignment-start .digi-cb__chat-button-container{padding-inline-start:0}.digi-cb--p4.has-h-alignment-start .digi-cb__contact-links{align-items:flex-start}.digi-cb--p4.has-h-alignment-start .digi-cb__contact-tooltip{order:2}.digi-cb--p4.has-h-alignment-start .digi-cb__contact-icon-container{order:1}.digi-cb--p4.has-h-alignment-start .digi-cb__contact-tooltip:after{border-block-end-color:transparent;border-block-end-width:8px;border-block-start-color:transparent;border-block-start-width:8px;border-inline-end-color:var(--digi-cb-tooltip-bg);border-inline-end-width:10px;border-inline-start-color:transparent;border-inline-start-width:0;inset-inline-start:-8px}.digi-cb--p4.has-h-alignment-center .digi-cb__contact-links{align-items:flex-end}.digi-cb--p4.has-h-alignment-center .digi-cb__content-wrapper{inset-inline-end:0}.digi-cb--p4.has-h-alignment-center .digi-cb__contact-tooltip{inset-inline-end:calc(100% + 14px);position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap}.digi-cb--p4.has-h-alignment-center .digi-cb__contact-icon-link{position:relative}.digi-cb--p4 .has-size-small .digi-cb__contact-icon-container,.digi-cb--p4 .has-size-small.digi-cb__chat-button,.digi-cb--p4 .has-size-small.digi-cb__close-button{height:var(--digi-cb-size-small);width:var(--digi-cb-size-small)}.digi-cb--p4 .has-size-small .digi-cb__contact-icon-container svg,.digi-cb--p4 .has-size-small.digi-cb__chat-button svg{height:var(--digi-cb-icon-small);width:var(--digi-cb-icon-small)}.digi-cb--p4 .has-size-small.digi-cb__close-button i{font-size:var(--digi-cb-icon-small)}.digi-cb--p4 .has-size-medium .digi-cb__contact-icon-container,.digi-cb--p4 .has-size-medium.digi-cb__chat-button,.digi-cb--p4 .has-size-medium.digi-cb__close-button{height:var(--digi-cb-size-medium);width:var(--digi-cb-size-medium)}.digi-cb--p4 .has-size-medium .digi-cb__contact-icon-container svg,.digi-cb--p4 .has-size-medium.digi-cb__chat-button svg{height:var(--digi-cb-icon-medium);width:var(--digi-cb-icon-medium)}.digi-cb--p4 .has-size-medium.digi-cb__close-button i{font-size:var(--digi-cb-icon-medium)}.digi-cb--p4 .has-size-large .digi-cb__contact-icon-container,.digi-cb--p4 .has-size-large.digi-cb__chat-button,.digi-cb--p4 .has-size-large.digi-cb__close-button{height:var(--digi-cb-size-large);width:var(--digi-cb-size-large)}.digi-cb--p4 .has-size-large .digi-cb__contact-icon-container svg,.digi-cb--p4 .has-size-large.digi-cb__chat-button svg{height:var(--digi-cb-icon-large);width:var(--digi-cb-icon-large)}.digi-cb--p4 .has-size-large.digi-cb__close-button i{font-size:var(--digi-cb-icon-large)}
+
+/* Botones de contacto, presentación 8. Generada desde las hojas del núcleo de esta variante (podadas con su marcado y pasadas a clases propias). */
+.digi-cb{--digi-cb-chat-box-width:360px;--digi-cb-size-small:55px;--digi-cb-size-medium:65px;--digi-cb-size-large:75px;--digi-cb-svg-size-small:32px;--digi-cb-svg-size-medium:38px;--digi-cb-svg-size-large:42px;--digi-cb-border-radius:20px;--digi-cb-horizontal-offset:25px;--digi-cb-vertical-offset:25px;--digi-cb-box-shadow:4px 4px 10px 0px rgba(0,0,0,.15);--digi-cb-button-bg:#467ff7;--digi-cb-button-bg-hover:#1c2448;--digi-cb-button-icon:#fff;--digi-cb-button-icon-hover:#fff;--digi-cb-top-bar-bg:#1c2448;--digi-cb-top-bar-title:#fff;--digi-cb-top-bar-subtitle:#fff;--digi-cb-close-button-color:#fff;--digi-cb-active-button-bg:#fff;--digi-cb-chat-box-bg:#fff;--digi-cb-contact-button-icon:#fff;--digi-cb-contact-button-bg:#467ff7;--digi-cb-contact-title-text-color:#1c2448;--digi-cb-contact-description-text-color:#1c2448;display:flex;flex-direction:column;gap:20px;pointer-events:none;position:fixed;width:var(--digi-cb-chat-box-width);z-index:10000}@media (max-width:767px){.digi-cb{inset-inline-end:0;width:90vw}}.digi-cb.has-h-alignment-start{inset-inline-start:var(--digi-cb-horizontal-offset);justify-content:flex-start}@media (max-width:767px){.digi-cb.has-h-alignment-start{inset-inline-start:0}}.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{justify-content:flex-start;padding-inline-end:0;padding-inline-start:20px}@media (max-width:767px){.digi-cb.has-h-alignment-start .digi-cb__chat-button-container{inset-inline-end:unset;inset-inline-start:var(--digi-cb-horizontal-offset)}}.digi-cb.has-h-alignment-end{align-items:flex-end;inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end}.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:var(--digi-cb-horizontal-offset);justify-content:flex-end;padding-inline-end:20px}@media (max-width:767px){.digi-cb.has-h-alignment-end .digi-cb__chat-button-container{inset-inline-end:unset}}.digi-cb.has-h-alignment-center{inset-inline-start:50%;justify-content:center;transform:translateX(-50%)}.digi-cb.has-h-alignment-center .digi-cb__chat-button-container{justify-content:center;padding-inline:0}.digi-cb.has-h-alignment-center .digi-cb__content-wrapper{inset-inline-end:calc(var(--digi-cb-chat-box-width) / 2 - 40px);position:relative}.digi-cb.has-v-alignment-top{top:var(--digi-cb-vertical-offset)}.digi-cb.has-v-alignment-top .digi-cb__content-wrapper{order:2}.digi-cb.has-v-alignment-top .digi-cb__chat-button-container{order:1}.digi-cb.has-v-alignment-middle{align-items:center;flex-direction:row;top:50%;transform:translateY(-50%)}.digi-cb.has-v-alignment-middle .digi-cb__chat-button-container{padding-inline:0}.digi-cb.has-v-alignment-middle.has-h-alignment-start .digi-cb__content-wrapper{order:2}.digi-cb.has-v-alignment-middle.has-h-alignment-start .digi-cb__chat-button-container{order:1;padding-inline:0}.digi-cb.has-h-alignment-center.has-v-alignment-middle{flex-direction:column;transform:translate(-50%,-50%)}.digi-cb.has-v-alignment-bottom{bottom:var(--digi-cb-vertical-offset)}.digi-cb.has-corners-rounded{--digi-cb-border-radius:20px}.digi-cb.has-corners-round{--digi-cb-border-radius:50px}.digi-cb.has-corners-sharp{--digi-cb-border-radius:0}.digi-cb:not(.has-animations) .digi-cb__content-wrapper.hidden{display:none}.digi-cb__chat-button-shadow,.digi-cb__content{box-shadow:var(--digi-cb-box-shadow)}.digi-cb__content{border-radius:var(--digi-cb-border-radius);font-family:inherit;overflow:hidden}.digi-cb__top-bar{align-items:center;background-color:var(--digi-cb-top-bar-bg);display:flex;gap:20px;padding:20px;position:relative}.digi-cb__top-bar-title{color:var(--digi-cb-top-bar-title);font-size:24px;font-weight:700;margin-block-end:0}.digi-cb__top-bar-subtitle{color:var(--digi-cb-top-bar-subtitle);font-size:20px;margin-block-end:0}.digi-cb__close-button[type=button]{background:none;border:0;color:var(--digi-cb-close-button-color);inset-inline-end:20px;padding:0;position:absolute;top:20px}.digi-cb__close-button[type=button]:focus,.digi-cb__close-button[type=button]:hover{background:none;border:0;color:var(--digi-cb-close-button-color)}.digi-cb__chat-button-container,.digi-cb__contact-icon-link,.digi-cb__content-wrapper{pointer-events:auto}.digi-cb__chat-button-container{display:flex;max-width:-moz-max-content;max-width:max-content}@media (max-width:767px){.digi-cb__chat-button-container{position:relative}}.digi-cb__chat-button[type=button]{align-items:center;background-color:var(--digi-cb-button-bg);border:0;border-radius:50%;color:var(--digi-cb-button-icon);display:flex;justify-content:center;padding:0;position:relative;transition:all .3s}.digi-cb__chat-button[type=button] svg{fill:var(--digi-cb-button-icon)}.digi-cb__chat-button[type=button]:focus,.digi-cb__chat-button[type=button]:hover{background-color:var(--digi-cb-button-bg-hover);color:var(--digi-cb-button-icon-hover);transition:all .3s}.digi-cb__chat-button[type=button]:focus svg,.digi-cb__chat-button[type=button]:hover svg{fill:var(--digi-cb-button-icon-hover)}.digi-cb__chat-button[type=button].has-size-small{height:var(--digi-cb-size-small);width:var(--digi-cb-size-small)}.digi-cb__chat-button[type=button].has-size-small svg{height:var(--digi-cb-svg-size-small);width:var(--digi-cb-svg-size-small)}.digi-cb__chat-button[type=button].has-size-medium{height:var(--digi-cb-size-medium);width:var(--digi-cb-size-medium)}.digi-cb__chat-button[type=button].has-size-medium svg{height:var(--digi-cb-svg-size-medium);width:var(--digi-cb-svg-size-medium)}.digi-cb__chat-button[type=button].has-size-large{height:var(--digi-cb-size-large);width:var(--digi-cb-size-large)}.digi-cb__chat-button[type=button].has-size-large svg{height:var(--digi-cb-svg-size-large);width:var(--digi-cb-svg-size-large)}.digi-cb__chat-button[type=button].has-entrance-animation-duration-slow{animation-duration:2s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-normal{animation-duration:1s}.digi-cb__chat-button[type=button].has-entrance-animation-duration-fast{animation-duration:.8s}.digi-cb__chat-button[type=button].visible{opacity:1}.digi-cb--p8{--digi-cb-size-small:48px;--digi-cb-size-medium:56px;--digi-cb-size-large:64px;--digi-cb-svg-size-small:22px;--digi-cb-svg-size-medium:28px;--digi-cb-svg-size-large:36px;--digi-cb-chat-box-width:280px;--digi-cb-button-bg:#324a6d;--digi-cb-button-bg-hover:#1c2448;--digi-cb-active-button-bg:#f3f5f8;--digi-cb-active-button-color:#324a6d;--digi-cb-top-bar-bg:#324a6d;--digi-cb-contact-button-bg:#c8d5dc;--digi-cb-contact-button-icon:#324a6d}.digi-cb--p8 .has-colors-type-default.has-platform-email,.digi-cb--p8 .has-colors-type-default.has-platform-phone,.digi-cb--p8 .has-colors-type-default.has-platform-sms,.digi-cb--p8 .has-colors-type-default.has-platform-url{--digi-cb-contact-button-icon:#467ff7}.digi-cb--p8 .has-colors-type-default.has-platform-whatsapp{--digi-cb-contact-button-icon:#25d366}.digi-cb--p8 .has-colors-type-default.has-platform-skype{--digi-cb-contact-button-icon:#00aff0}.digi-cb--p8 .has-colors-type-default.has-platform-messenger{--digi-cb-contact-button-icon:#168aff}.digi-cb--p8 .has-colors-type-default.has-platform-waze{--digi-cb-contact-button-icon:#3cf}.digi-cb--p8 .has-size-small.digi-cb__close-button{align-items:center;display:flex;height:var(--digi-cb-size-small);justify-content:center;width:var(--digi-cb-size-small)}.digi-cb--p8 .has-size-small.digi-cb__close-button .digi-cb__close-icon{font-size:24px}.digi-cb--p8 .has-size-medium.digi-cb__close-button{height:var(--digi-cb-size-medium);width:var(--digi-cb-size-medium)}.digi-cb--p8 .has-size-medium.digi-cb__close-button .digi-cb__close-icon{font-size:28px}.digi-cb--p8 .has-size-large.digi-cb__close-button{height:var(--digi-cb-size-large);width:var(--digi-cb-size-large)}.digi-cb--p8 .has-size-large.digi-cb__close-button .digi-cb__close-icon{font-size:32px}.digi-cb--p8 .digi-cb__close-button{border-radius:50%;inset-inline-end:unset;inset-inline-start:unset;position:relative;top:unset}.digi-cb--p8 .digi-cb__close-button,.digi-cb--p8 .digi-cb__close-button:focus,.digi-cb--p8 .digi-cb__close-button:hover{background-color:var(--digi-cb-active-button-bg);color:var(--digi-cb-active-button-color)}.digi-cb--p8 .digi-cb__chat-button[type=button][aria-expanded=true],.digi-cb--p8 .digi-cb__close-button[aria-expanded=false]{display:none}.digi-cb--p8 .digi-cb__top-bar-title{font-size:16px;font-weight:600;line-height:24px}.digi-cb--p8 .digi-cb__top-bar-subtitle{font-size:12px;font-weight:500px;line-height:16px}.digi-cb--p8 .digi-cb__contact-links{display:flex;flex-direction:column;gap:12px;padding:12px}.digi-cb--p8 .digi-cb__contact-icon-link{background-color:var(--digi-cb-contact-button-bg);border-end-end-radius:15px;border-end-start-radius:15px;border-start-end-radius:15px;color:var(--digi-cb-contact-button-icon);display:grid;grid-template-columns:auto 1fr;grid-template-rows:repeat(2,1fr);grid-column-gap:12px;grid-row-gap:0;padding:10px 20px}.digi-cb--p8 .digi-cb__contact-icon-link svg{fill:var(--digi-cb-contact-button-icon)}.digi-cb--p8 .digi-cb__contact-icon-link.has-size-small svg{height:var(--digi-cb-svg-size-small);width:var(--digi-cb-svg-size-small)}.digi-cb--p8 .digi-cb__contact-icon-link.has-size-medium svg{height:var(--digi-cb-svg-size-medium);width:var(--digi-cb-svg-size-medium)}.digi-cb--p8 .digi-cb__contact-icon-link.has-size-large svg{height:var(--digi-cb-svg-size-large);width:var(--digi-cb-svg-size-large)}.digi-cb--p8 .digi-cb__contact-icon-container{align-items:center;display:flex;grid-area:1/1/3/2}.digi-cb--p8 .digi-cb__contact-title{color:var(--digi-cb-contact-title-text-color);font-size:16px;font-weight:600;grid-area:1/2/2/3;line-height:24px}.digi-cb--p8 .digi-cb__contact-description{color:var(--digi-cb-contact-description-text-color);font-size:12px;font-weight:300;grid-area:2/2/3/3;line-height:16px}.digi-cb--p8 .digi-cb__links-container{background-color:var(--digi-cb-chat-box-bg)}
+
+/* Barra flotante (digitalisimo-floating-bar, C8): lo común a sus presentaciones. Clases y variables propias; los valores por defecto reproducen los de PRO. */
+.digi-fbar{--digi-fbar-announcement-bg-color:#467ff7;--digi-fbar-announcement-text-color:#fff;--digi-fbar-announcement-icon-color:#fff;--digi-fbar-close-button-color:#fff;--digi-fbar-announcement-icon-size:20px;--digi-fbar-elements-padding-block-end:12px;--digi-fbar-elements-padding-block-start:12px;--digi-fbar-elements-padding-inline-end:16px;--digi-fbar-elements-padding-inline-start:16px;--digi-fbar-elements-gap:16px;--digi-fbar-background-overlay-opacity:.5;--digi-fbar-close-icon-size:24px;align-items:center;background-color:var(--digi-fbar-announcement-bg-color);color:var(--digi-fbar-announcement-text-color);display:flex;gap:var(--digi-fbar-elements-gap);padding-block:var(--digi-fbar-elements-padding-block-start) var(--digi-fbar-elements-padding-block-end);padding-inline:var(--digi-fbar-elements-padding-inline-start) var(--digi-fbar-elements-padding-inline-end);position:relative;width:100%;z-index:10000}
+@media (max-width:767px){.digi-fbar{align-items:flex-start;display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;row-gap:16px}}
+.digi-fbar:focus{outline:none}
+.digi-fbar.has-vertical-position-top{inset-block-start:0}
+.digi-fbar.has-vertical-position-bottom{inset-block-end:0}
+.digi-fbar.is-sticky{inset-inline:0;position:fixed}
+.digi-fbar.is-hidden{display:none}
+.digi-fbar.has-close-button{padding-inline:calc(var(--digi-fbar-elements-padding-inline-start) + 20px) calc(var(--digi-fbar-elements-padding-inline-end) + 20px)}
+.digi-fbar__announcement-text{align-items:center;color:var(--digi-fbar-announcement-text-color);display:flex;font-size:16px;font-weight:400;height:100%;margin:0}
+.digi-fbar__announcement-icon{align-items:center;color:var(--digi-fbar-announcement-icon-color);display:flex;height:100%}
+.digi-fbar__announcement-icon svg{fill:var(--digi-fbar-announcement-icon-color);height:var(--digi-fbar-announcement-icon-size);width:var(--digi-fbar-announcement-icon-size)}
+.digi-fbar__announcement-icon i{color:var(--digi-fbar-announcement-icon-color);font-size:var(--digi-fbar-announcement-icon-size)}
+.digi-fbar .digi-fbar__close-button,.digi-fbar .digi-fbar__close-button:focus,.digi-fbar .digi-fbar__close-button:hover{align-items:center;background-color:transparent;border:0;color:var(--digi-fbar-close-button-color);display:flex;justify-content:center;min-height:24px;min-width:24px;padding:0;position:absolute}
+.digi-fbar__close-icon{display:inline-block;font-size:var(--digi-fbar-close-icon-size);line-height:1}.digi-fbar__close-icon svg{display:block}
+@media (max-width:767px){.digi-fbar .digi-fbar__close-button{top:10px}}
+.digi-fbar__overlay{background-position:50%;background-size:cover;inset:0;opacity:var(--digi-fbar-background-overlay-opacity);position:absolute;z-index:-1}
+.digi-fbar__status{clip:rect(0 0 0 0);clip-path:inset(50%);height:1px;overflow:hidden;position:absolute;white-space:nowrap;width:1px}
+.digi-fbar a:focus-visible,.digi-fbar button:focus-visible{outline:2px solid;outline-offset:2px}
+.e-con:has(>.e-con-inner>.elementor-widget-digitalisimo-floating-bar),.e-con:has(>.elementor-widget-digitalisimo-floating-bar){padding:0}
+.e-con:has(>.e-con-inner>.elementor-widget-digitalisimo-floating-bar)>.e-con-inner{max-width:unset;padding-block:0}
+@media (prefers-reduced-motion:reduce){.digi-fbar,.digi-fbar *{animation:none!important;transition:none!important}}
+
+/* Barra flotante, presentación 2: cinta de titulares («Ticker» de PRO). */
+.digi-fbar--p2{--digi-fbar-announcement-bg-color:#fff;--digi-fbar-headline-text-color:#1c2448;--digi-fbar-headline-text-color-hover:#467ff7;--digi-fbar-headline-icon-color:#467ff7;--digi-fbar-pause-play-icon-color:#495157;--digi-fbar-pause-play-bg-color:#f3f5f8;--digi-fbar-close-button-bg-color:#1c2448;--digi-fbar-headlines-gap:16px;--digi-fbar-headline-icon-size:16px;--digi-fbar-vertical-padding:16px;--digi-fbar-headline-icon-position:row;--digi-fbar-controls-icon-size:16px;--digi-fbar-scroll-duration:100s;--digi-fbar-scroll-direction:forwards;--digi-fbar-ticker-controls-order:1;--digi-fbar-headline-icon-gap:10px;align-items:stretch;gap:0;padding:0}
+.digi-fbar--p2.has-close-button{padding:0}
+.digi-fbar--p2 .digi-fbar__headlines{display:flex;flex-grow:1;gap:var(--digi-fbar-headlines-gap);max-width:100vw;padding-block:var(--digi-fbar-vertical-padding)}
+.digi-fbar--p2 .digi-fbar__headlines-inner{display:flex;flex-wrap:nowrap;gap:var(--digi-fbar-headlines-gap);width:max-content;z-index:1}
+.digi-fbar--p2 .digi-fbar__headlines[data-animated=true]{overflow:hidden}
+.digi-fbar--p2 .digi-fbar__headlines[data-animated=true] .digi-fbar__headlines-inner{animation:digi-fbar-scroll var(--digi-fbar-scroll-duration) var(--digi-fbar-scroll-direction) linear infinite}
+[dir=rtl] .digi-fbar--p2 .digi-fbar__headlines[data-animated=true] .digi-fbar__headlines-inner{animation-name:digi-fbar-scroll-rtl}
+.digi-fbar--p2 .digi-fbar__headlines.has-pause-hover:hover .digi-fbar__headlines-inner,.digi-fbar--p2 .digi-fbar__headlines:focus-within .digi-fbar__headlines-inner,.digi-fbar--p2 .digi-fbar__headlines.is-paused .digi-fbar__headlines-inner{animation-play-state:paused}
+.digi-fbar--p2 .digi-fbar__headline{align-items:center;color:var(--digi-fbar-headline-text-color);display:flex;flex-direction:var(--digi-fbar-headline-icon-position);gap:var(--digi-fbar-headline-icon-gap);position:relative;width:max-content;z-index:1}
+.digi-fbar--p2 a.digi-fbar__headline:focus,.digi-fbar--p2 a.digi-fbar__headline:hover{color:var(--digi-fbar-headline-text-color-hover)}
+.digi-fbar--p2 .digi-fbar__headline-icon{color:var(--digi-fbar-headline-icon-color);display:flex}
+.digi-fbar--p2 .digi-fbar__headline-icon svg{fill:var(--digi-fbar-headline-icon-color);height:var(--digi-fbar-headline-icon-size);width:var(--digi-fbar-headline-icon-size)}
+.digi-fbar--p2 .digi-fbar__headline-icon i{font-size:var(--digi-fbar-headline-icon-size)}
+.digi-fbar--p2 .digi-fbar__ticker-controls{align-items:stretch;display:flex;order:var(--digi-fbar-ticker-controls-order)}
+.digi-fbar--p2 .digi-fbar__play-pause-controls{align-items:stretch;display:flex;position:relative}
+.digi-fbar--p2 .digi-fbar__play-pause-controls button,.digi-fbar--p2 .digi-fbar__play-pause-controls button:focus,.digi-fbar--p2 .digi-fbar__play-pause-controls button:hover{align-items:center;background-color:var(--digi-fbar-pause-play-bg-color);border:0;border-radius:0;color:var(--digi-fbar-pause-play-icon-color);display:flex;justify-content:center;padding:16px;width:100%;z-index:1}
+.digi-fbar--p2 .digi-fbar__play-pause-controls svg{fill:var(--digi-fbar-pause-play-icon-color);height:var(--digi-fbar-controls-icon-size);width:var(--digi-fbar-controls-icon-size)}
+.digi-fbar--p2 .digi-fbar__play-pause-controls i{font-size:var(--digi-fbar-controls-icon-size)}
+.digi-fbar--p2 .digi-fbar__play-pause-controls [hidden]{display:none}
+.digi-fbar.digi-fbar--p2 .digi-fbar__close-button,.digi-fbar.digi-fbar--p2 .digi-fbar__close-button:focus,.digi-fbar.digi-fbar--p2 .digi-fbar__close-button:hover{align-self:stretch!important;background-color:var(--digi-fbar-close-button-bg-color);border-radius:0;inset:auto!important;order:var(--digi-fbar-ticker-controls-order);padding-inline:12px;position:relative;z-index:1}
+.digi-fbar--p2 .digi-fbar__close-icon{font-size:var(--digi-fbar-controls-icon-size)}
+.digi-fbar--p2 .digi-fbar__overlay{z-index:0}
+@keyframes digi-fbar-scroll{to{transform:translate(-100%)}}
+@keyframes digi-fbar-scroll-rtl{to{transform:translate(100%)}}
+
+/* Barra flotante, presentación 3: cupón («Coupon» de PRO). */
+.digi-fbar--p3{--digi-fbar-announcement-bg-color:#cdd9df;--digi-fbar-announcement-text-color:#1c2448;--digi-fbar-announcement-icon-color:#1c2448;--digi-fbar-close-button-color:#1c2448;--digi-fbar-coupon-button-color:#467ff7;--digi-fbar-coupon-bg-color:#fff;--digi-fbar-coupon-border-color:#467ff7;--digi-fbar-coupon-icon-gap:5px;--digi-fbar-coupon-border-width:2px;--digi-fbar-coupon-padding-block-end:8px;--digi-fbar-coupon-padding-block-start:8px;--digi-fbar-coupon-padding-inline-end:20px;--digi-fbar-coupon-padding-inline-start:20px;--digi-fbar-coupon-animation-delay:500ms;--digi-fbar-coupon-animation-duration:1000ms;--digi-fbar-coupon-width:initial;--digi-fbar-coupon-height:initial}
+.digi-fbar--p3 .digi-fbar__coupon-button,.digi-fbar--p3 .digi-fbar__coupon-button:focus,.digi-fbar--p3 .digi-fbar__coupon-button:hover{align-items:center;background-color:var(--digi-fbar-coupon-bg-color);border:0;border-radius:0;color:var(--digi-fbar-coupon-button-color);display:flex;height:var(--digi-fbar-coupon-height);justify-content:center;order:3;padding-block:var(--digi-fbar-coupon-padding-block-start) var(--digi-fbar-coupon-padding-block-end);padding-inline:var(--digi-fbar-coupon-padding-inline-start) var(--digi-fbar-coupon-padding-inline-end);position:relative;width:var(--digi-fbar-coupon-width)}
+.digi-fbar--p3 .digi-fbar__coupon-button.animated{animation-delay:var(--digi-fbar-coupon-animation-delay);animation-duration:var(--digi-fbar-coupon-animation-duration);animation-iteration-count:1}
+.digi-fbar--p3 .digi-fbar__coupon-button.has-entrance-animation{opacity:0}
+.digi-fbar--p3 .digi-fbar__coupon-button.visible{opacity:1}
+.digi-fbar--p3 .digi-fbar__coupon-button.has-border.is-type-cutout{border:var(--digi-fbar-coupon-border-width) dashed var(--digi-fbar-coupon-border-color)}
+.digi-fbar--p3 .digi-fbar__coupon-button.is-type-text{--digi-fbar-coupon-padding-block-end:0;--digi-fbar-coupon-padding-block-start:0;--digi-fbar-coupon-padding-inline-end:0;--digi-fbar-coupon-padding-inline-start:0;--digi-fbar-coupon-border-width:0;--digi-fbar-coupon-bg-color:transparent}
+.digi-fbar--p3 .digi-fbar__coupon-button[class*=-tag],.digi-fbar--p3 .digi-fbar__coupon-button[class*=-ticket]{--digi-fbar-coupon-padding-block-end:8px;--digi-fbar-coupon-padding-block-start:8px;--digi-fbar-coupon-padding-inline-end:20px;--digi-fbar-coupon-padding-inline-start:20px;background-color:transparent}
+.digi-fbar--p3 .digi-fbar__coupon-button[class*=-tag]{padding-inline-start:calc(var(--digi-fbar-coupon-padding-inline-start) + 1.5em)}
+[dir=rtl] .digi-fbar--p3 [class*=-tag] .digi-fbar__shape{transform:rotate(180deg)}
+.digi-fbar--p3 .digi-fbar__coupon-button[class*=-ticket]{padding-inline:calc(var(--digi-fbar-coupon-padding-inline-start) + .5em)}
+.digi-fbar--p3 .has-border .shape{stroke:var(--digi-fbar-coupon-border-color);stroke-width:var(--digi-fbar-coupon-border-width)}
+@media (max-width:767px){.digi-fbar--p3 .digi-fbar__coupon-button{grid-column:span 2/span 2;grid-row-start:2}}
+.digi-fbar--p3 .digi-fbar__shape{left:0;overflow:visible!important;position:absolute;z-index:-1}
+.digi-fbar--p3 .digi-fbar__shape .path{fill:var(--digi-fbar-coupon-bg-color)}
+.digi-fbar--p3 .digi-fbar__coupon-icon{color:var(--digi-fbar-coupon-button-color);display:flex}
+.digi-fbar--p3 .digi-fbar__coupon-icon svg{fill:var(--digi-fbar-coupon-button-color);height:1em;width:1em}
+.digi-fbar--p3 .digi-fbar__coupon-text-group{align-items:center;display:flex;gap:var(--digi-fbar-coupon-icon-gap)}
+.digi-fbar--p3 .digi-fbar__coupon-text-group.is-hidden{display:none}
+
+</style></head>
+<body style="margin:0;min-height:1200px">
+<div class="elementor-element" data-id="w0" data-settings="{}" id="case-digitalisimo-contact-buttons-1">		<div class="digi-cb digi-cb--p1 has-corners-rounded has-h-alignment-end has-v-alignment-bottom" id="" data-document-id="42">
+			<div aria-hidden="true" aria-label="Ventana de enlaces" class="digi-cb__content-wrapper hidden" id="digi-cb-w0-panel">
+				<div class="digi-cb__content has-animation-duration-normal">
+							<div class="digi-cb__top-bar">
+						<button class="digi-cb__close-button" aria-controls="digi-cb-w0-panel" aria-label="Cerrar Floating Element" type="button">
+				<i class="digi-cb__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i>			</button>
+					<div class="digi-cb__profile-image has-size-medium has-dot">
+									<img alt="" class="digi-cb__profile-image-el" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22/%3E" />
+							</div>
+
+			<div class="digi-cb__top-bar-details">
+									<p class="digi-cb__top-bar-title">Rob Jones</p>
+													<p class="digi-cb__top-bar-subtitle">Store Manager</p>
+							</div>
+		</div>
+				<div class="digi-cb__message-bubble">
+						<div class="digi-cb__bubble-container">
+				<div class="digi-cb__bubble">
+											<p class="digi-cb__message-bubble-name">Rob</p>
+																<p class="digi-cb__message-bubble-body">Hey, how can I help you today?</p>
+										<p class="digi-cb__message-bubble-time" data-time-format="12h"></p>
+				</div>
+			</div>
+				</div>
+				<div class="digi-cb__contact">
+										<p class="digi-cb__contact-text">Start conversation:</p>
+								<div class="digi-cb__contact-links">
+				
+					<a aria-label="Abrir WhatsApp" class="digi-cb__contact-icon-link has-size-small elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<svg class="e-font-icon-svg e-fab-fa-whatsapp" aria-hidden="true"></svg>					</a>
+				
+					<a aria-label="Abrir Email" class="digi-cb__contact-icon-link has-size-small elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<svg class="e-font-icon-svg e-fas-fa-envelope" aria-hidden="true"></svg>					</a>
+				
+					<a aria-label="Abrir SMS" class="digi-cb__contact-icon-link has-size-small elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<svg class="e-font-icon-svg e-fas-fa-sms" aria-hidden="true"></svg>					</a>
+				
+					<a aria-label="Abrir Viber" class="digi-cb__contact-icon-link has-size-small elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<svg class="e-font-icon-svg e-fab-fa-viber" aria-hidden="true"></svg>					</a>
+				
+					<a aria-label="Abrir Messenger" class="digi-cb__contact-icon-link has-size-small elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<svg class="e-font-icon-svg e-fab-fa-facebook-messenger" aria-hidden="true"></svg>					</a>
+							</div>
+				</div>
+						</div>
+			</div>
+					<div class="digi-cb__chat-button-container">
+			<button class="digi-cb__chat-button digi-cb__chat-button-shadow has-size-small elementor-animation-grow has-entrance-animation-duration-normal has-dot" aria-controls="digi-cb-w0-panel" aria-label="Mostrar u ocultar Floating Element" type="button">
+				<svg class="e-font-icon-svg e-far-fa-comment-dots" aria-hidden="true"></svg>			</button>
+		</div>
+				</div>
+		</div>
+<div class="elementor-element" data-id="w1" data-settings="{}" id="case-digitalisimo-contact-buttons-4">		<div class="digi-cb digi-cb--p4 has-h-alignment-start has-v-alignment-bottom" id="" data-document-id="42">
+			<div aria-hidden="true" aria-label="Ventana de enlaces" class="digi-cb__content-wrapper hidden" id="digi-cb-w1-panel">
+				<div class="digi-cb__content has-animation-duration-normal">
+							<div class="digi-cb__contact">
+		<div class="digi-cb__contact-links">
+				
+					<a aria-label="WhatsApp" class="digi-cb__contact-icon-link has-size-small" href="" rel="noopener noreferrer" target="_blank">
+													<span class="digi-cb__contact-tooltip digi-cb__contact-box-shadow">Tooltip</span>
+												<span class="digi-cb__contact-icon-container digi-cb__contact-box-shadow">
+							<svg class="e-font-icon-svg e-fab-fa-whatsapp" aria-hidden="true"></svg>						</span>
+					</a>
+				
+					<a aria-label="Messenger" class="digi-cb__contact-icon-link has-size-small" href="" rel="noopener noreferrer" target="_blank">
+													<span class="digi-cb__contact-tooltip digi-cb__contact-box-shadow">Tooltip</span>
+												<span class="digi-cb__contact-icon-container digi-cb__contact-box-shadow">
+							<svg class="e-font-icon-svg e-fab-fa-facebook-messenger" aria-hidden="true"></svg>						</span>
+					</a>
+				
+					<a aria-label="Email" class="digi-cb__contact-icon-link has-size-small" href="" rel="noopener noreferrer" target="_blank">
+													<span class="digi-cb__contact-tooltip digi-cb__contact-box-shadow">Tooltip</span>
+												<span class="digi-cb__contact-icon-container digi-cb__contact-box-shadow">
+							<svg class="e-font-icon-svg e-fas-fa-envelope" aria-hidden="true"></svg>						</span>
+					</a>
+				
+					<a aria-label="Telephone" class="digi-cb__contact-icon-link has-size-small" href="" rel="noopener noreferrer" target="_blank">
+													<span class="digi-cb__contact-tooltip digi-cb__contact-box-shadow">Tooltip</span>
+												<span class="digi-cb__contact-icon-container digi-cb__contact-box-shadow">
+							<svg class="e-font-icon-svg e-fas-fa-phone-alt" aria-hidden="true"></svg>						</span>
+					</a>
+							</div>
+		</div>
+						</div>
+			</div>
+					<div class="digi-cb__chat-button-container">
+			<button class="digi-cb__chat-button digi-cb__chat-button-shadow has-size-small elementor-animation-grow has-entrance-animation-duration-normal" aria-controls="digi-cb-w1-panel" aria-label="Mostrar u ocultar Links" type="button" aria-expanded="true">
+				<svg class="e-font-icon-svg e-fas-fa-ellipsis-v" aria-hidden="true"></svg>			</button>
+						<button class="digi-cb__close-button digi-cb__chat-button-shadow has-size-small" aria-controls="digi-cb-w1-panel" aria-label="Cerrar Links" type="button" aria-expanded="false">
+				<i class="digi-cb__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i>			</button>
+				</div>
+				</div>
+		</div>
+<div class="elementor-element" data-id="w2" data-settings="{}" id="case-digitalisimo-contact-buttons-8">		<div class="digi-cb digi-cb--p8 has-corners-rounded has-h-alignment-center has-v-alignment-bottom" id="" data-document-id="42">
+			<div aria-hidden="true" aria-label="Ventana de enlaces" class="digi-cb__content-wrapper hidden" id="digi-cb-w2-panel">
+				<div class="digi-cb__content">
+							<div class="digi-cb__top-bar">
+			<div class="digi-cb__top-bar-details">
+									<p class="digi-cb__top-bar-title">We&#039;re here for you</p>
+													<p class="digi-cb__top-bar-subtitle">Explore our resources</p>
+							</div>
+		</div>
+				<div class="digi-cb__links-container">
+			<div class="digi-cb__contact-links">
+				
+					<a aria-label="WhatsApp" class="digi-cb__contact-icon-link has-size-small has-platform-whatsapp has-colors-type-custom elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<span class="digi-cb__contact-icon-container">
+							<svg class="e-font-icon-svg e-fab-fa-whatsapp" aria-hidden="true"></svg>						</span>
+													<span class="digi-cb__contact-title">Title</span>
+																			<span class="digi-cb__contact-description">Description</span>
+											</a>
+				
+					<a aria-label="Messenger" class="digi-cb__contact-icon-link has-size-small has-platform-messenger has-colors-type-custom elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<span class="digi-cb__contact-icon-container">
+							<svg class="e-font-icon-svg e-fab-fa-facebook-messenger" aria-hidden="true"></svg>						</span>
+													<span class="digi-cb__contact-title">Title</span>
+																			<span class="digi-cb__contact-description">Description</span>
+											</a>
+				
+					<a aria-label="Email" class="digi-cb__contact-icon-link has-size-small has-platform-email has-colors-type-custom elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<span class="digi-cb__contact-icon-container">
+							<svg class="e-font-icon-svg e-fas-fa-envelope" aria-hidden="true"></svg>						</span>
+													<span class="digi-cb__contact-title">Title</span>
+																			<span class="digi-cb__contact-description">Description</span>
+											</a>
+				
+					<a aria-label="Telephone" class="digi-cb__contact-icon-link has-size-small has-platform-phone has-colors-type-custom elementor-animation-grow" href="" rel="noopener noreferrer" target="_blank">
+						<span class="digi-cb__contact-icon-container">
+							<svg class="e-font-icon-svg e-fas-fa-phone-alt" aria-hidden="true"></svg>						</span>
+													<span class="digi-cb__contact-title">Title</span>
+																			<span class="digi-cb__contact-description">Description</span>
+											</a>
+							</div>
+		</div>
+						</div>
+			</div>
+					<div class="digi-cb__chat-button-container">
+			<button class="digi-cb__chat-button digi-cb__chat-button-shadow has-size-small elementor-animation-grow has-entrance-animation-duration-normal" aria-controls="digi-cb-w2-panel" aria-label="Abrir Floating Element" type="button" aria-expanded="true">
+				<svg class="e-font-icon-svg e-fas-fa-life-ring" aria-hidden="true"></svg>			</button>
+						<button class="digi-cb__close-button digi-cb__chat-button-shadow has-size-small" aria-controls="digi-cb-w2-panel" aria-label="Cerrar Floating Element" type="button" aria-expanded="false">
+				<i class="digi-cb__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i>			</button>
+				</div>
+				</div>
+		</div>
+<div class="elementor-element" data-id="w3" data-settings="{}" id="case-digitalisimo-floating-bar-2"><div class="digi-fbar digi-fbar--p2 has-vertical-position-top has-close-button" id="digi-fbar-w3" data-document-id="42" role="region" aria-label="Banner"><div class="digi-fbar__headlines has-pause-hover"><div class="digi-fbar__headlines-inner"><span class="digi-fbar__headline"><span class="digi-fbar__headline-text">Item #1</span></span><span class="digi-fbar__headline"><span class="digi-fbar__headline-text">Item #2</span></span><span class="digi-fbar__headline"><span class="digi-fbar__headline-text">Item #3</span></span></div><div class="digi-fbar__overlay"></div></div><div class="digi-fbar__ticker-controls"><div class="digi-fbar__play-pause-controls"><button type="button" class="digi-fbar__pause-button" aria-label="Pausar Banner"><svg class="e-font-icon-svg e-fas-fa-pause" aria-hidden="true"></svg></button><button type="button" class="digi-fbar__play-button" aria-label="Reanudar Banner" hidden><svg class="e-font-icon-svg e-fas-fa-play" aria-hidden="true"></svg></button></div><button type="button" class="digi-fbar__close-button" aria-controls="digi-fbar-w3" aria-label="Cerrar Banner"><i class="digi-fbar__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i></button></div></div></div>
+<div class="elementor-element" data-id="w4" data-settings="{}" id="case-digitalisimo-floating-bar-3"><div class="digi-fbar digi-fbar--p3 has-vertical-position-bottom has-close-button" id="digi-fbar-w4" data-document-id="42" role="region" aria-label="Coupon Banner"><p class="digi-fbar__announcement-text">10% off on your first order!</p><span class="digi-fbar__announcement-icon"><svg class="e-font-icon-svg e-fas-fa-star" aria-hidden="true"></svg></span><button type="button" class="digi-fbar__coupon-button is-type-cutout has-border" aria-label="Copiar el código del cupón NEW10"><span class="digi-fbar__coupon-text-group digi-fbar__coupon-code"><span class="digi-fbar__coupon-icon"><svg class="e-font-icon-svg e-fas-fa-copy" aria-hidden="true"></svg></span><span class="digi-fbar__coupon-text">NEW10</span></span><span class="digi-fbar__coupon-text-group digi-fbar__coupon-success is-hidden" aria-hidden="true"><span class="digi-fbar__coupon-icon digi-fbar__coupon-success-icon"><svg class="e-font-icon-svg e-fas-fa-check" aria-hidden="true"></svg></span><span class="digi-fbar__coupon-text digi-fbar__coupon-success-message">Copied</span></span></button><span class="digi-fbar__status" role="status" data-message="Copied"></span><button type="button" class="digi-fbar__close-button" aria-controls="digi-fbar-w4" aria-label="Cerrar Coupon Banner"><i class="digi-fbar__close-icon" aria-hidden="true"><svg focusable="false" viewBox="0 0 24 24" width="1em" height="1em"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" stroke="currentColor" stroke-width="2.4" fill="none"/></svg></i></button><div class="digi-fbar__overlay"></div></div></div>
+<script>/* Botones flotantes, barra flotante (C8): recuento de clics por documento en el mismo punto del sitio que PRO
+   (`elementor_send_clicks` del núcleo, con su nonce). Sin peticiones a terceros; se envía al llegar a 10 o al salir. */
+(function () {
+	'use strict';
+	var clicks = [];
+	function send() {
+		var c = window.elementorFrontendConfig || {};
+		var url = c.urls && c.urls.ajaxurl;
+		var nonce = c.nonces && c.nonces.floatingButtonsClickTracking;
+		if (!clicks.length || !url || !nonce) { clicks = []; return; }
+		var data = new FormData();
+		data.append('action', 'elementor_send_clicks');
+		data.append('_nonce', nonce);
+		clicks.forEach(function (id) { data.append('clicks[]', id); });
+		clicks = [];
+		if (navigator.sendBeacon && navigator.sendBeacon(url, data)) { return; }
+		if (window.fetch) { fetch(url, { method: 'POST', body: data, keepalive: true }).catch(function () {}); }
+	}
+	window.digiFloatingTrack = function (el) {
+		var doc = el && el.closest('[data-elementor-type="floating-buttons"]');
+		var id = doc && doc.getAttribute('data-elementor-id');
+		if (!id || document.body.classList.contains('elementor-editor-active')) { return; }
+		clicks.push(id);
+		if (clicks.length >= 10) { send(); }
+	};
+	window.addEventListener('pagehide', send);
+})();
+</script>
+<script>/* Botones de contacto (digitalisimo-contact-buttons, C8): abre y cierra el panel (botón con aria-expanded, Escape
+   cierra y devuelve el foco), animaciones de entrada y salida, hora del mensaje y recuento de clics. Sin jQuery ni
+   dependencias; con movimiento reducido no hay animaciones. Los enlaces de contacto son enlaces normales. */
+(function () {
+	'use strict';
+	var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	function editing() { return document.body.classList.contains('elementor-editor-active'); }
+	function settings(root) {
+		var w = root.closest('[data-settings]');
+		try { return JSON.parse(w && w.getAttribute('data-settings') || '{}'); } catch (e) { return {}; }
+	}
+	function responsive(s, key) {
+		var f = window.elementorFrontend, d = f && f.getCurrentDeviceMode ? f.getCurrentDeviceMode() : innerWidth <= 767 ? 'mobile' : innerWidth <= 1024 ? 'tablet' : 'desktop';
+		return (d !== 'desktop' && s[key + '_' + d]) || (d === 'mobile' && s[key + '_tablet']) || s[key];
+	}
+	function track(e) { if (window.digiFloatingTrack) { window.digiFloatingTrack(e.currentTarget); } }
+
+	function init(root) {
+		if (!root || root.digiCb) { return; }
+		root.digiCb = true;
+		var s = settings(root);
+		var wrap = root.querySelector('.digi-cb__content-wrapper');
+		var content = root.querySelector('.digi-cb__content');
+		var toggle = root.querySelector('.digi-cb__chat-button');
+		var closers = root.querySelectorAll('.digi-cb__close-button');
+		var animate = root.classList.contains('has-animations') && !reduce;
+		var time = root.querySelector('.digi-cb__message-bubble-time');
+		if (time) {
+			time.textContent = new Intl.DateTimeFormat('default', { hour12: '12h' === time.getAttribute('data-time-format'), hour: 'numeric', minute: 'numeric' }).format(new Date());
+		}
+		function hidden() { return !wrap || wrap.classList.contains('hidden'); }
+		function expanded(open) {
+			[toggle].concat(Array.prototype.slice.call(closers)).forEach(function (b) { if (b) { b.setAttribute('aria-expanded', open ? 'true' : 'false'); } });
+		}
+		function open() {
+			var name = responsive(s, 'style_chat_box_entrance_animation');
+			if (animate && name && 'none' !== name && content) {
+				content.classList.add('animated', name);
+				wrap.classList.remove('animated-wrapper');
+				later();
+			} else if (content) { content.classList.add('visible'); }
+			wrap.classList.remove('hidden');
+			wrap.setAttribute('aria-hidden', 'false');
+			wrap.inert = false;
+			expanded(true);
+			if (!editing()) {
+				var first = wrap.querySelector('a[href],button');
+				if (first) { first.focus(); }
+			}
+		}
+		function close(back) {
+			var name = responsive(s, 'style_chat_box_exit_animation');
+			if (animate && name && 'none' !== name && content) {
+				content.classList.add('animated', 'reverse', name);
+				wrap.classList.add('animated-wrapper');
+				later();
+			} else if (content) { content.classList.remove('visible'); }
+			wrap.classList.add('hidden');
+			wrap.setAttribute('aria-hidden', 'true');
+			wrap.inert = true;
+			expanded(false);
+			if (back && toggle) { toggle.focus(); }
+		}
+		var timer = 0;
+		function settle() {
+			clearTimeout(timer);
+			if (!content || !content.classList.contains('animated')) { return; }
+			var exit = content.classList.contains('reverse');
+			content.classList.remove('animated', 'reverse', responsive(s, 'style_chat_box_entrance_animation') || 'x', responsive(s, 'style_chat_box_exit_animation') || 'x');
+			content.classList.toggle('visible', !exit);
+		}
+		// Sin `animationend` (la hoja de la animación no cargó), el panel termina de abrirse o cerrarse igual.
+		function later() { clearTimeout(timer); timer = setTimeout(settle, 2100); }
+		if (content) { content.addEventListener('animationend', settle); }
+		if (wrap) {
+			if (hidden()) { wrap.inert = true; }
+			expanded(!hidden());
+			if (toggle) { toggle.addEventListener('click', function (e) { if (hidden()) { open(); } else { close(false); } if (root.classList.contains('digi-cb--p5')) { track(e); } }); }
+			Array.prototype.forEach.call(closers, function (b) { b.addEventListener('click', function () { close(true); }); });
+			root.addEventListener('keydown', function (e) { if ('Escape' === e.key && !hidden()) { close(true); } });
+			if (editing()) { open(); }
+		} else if (toggle && root.classList.contains('digi-cb--p5')) {
+			toggle.addEventListener('click', track);
+		}
+		Array.prototype.forEach.call(root.querySelectorAll('a[href]'), function (a) { a.addEventListener('click', track); });
+		if (toggle && toggle.classList.contains('has-entrance-animation')) {
+			var entry = responsive(s, 'style_chat_button_animation');
+			var shown = function () { toggle.classList.remove(entry); toggle.classList.add('visible'); };
+			if (!entry || 'none' === entry || reduce) { shown(); } else {
+				toggle.addEventListener('animationend', shown, { once: true });
+				toggle.classList.add(entry);
+			}
+		}
+		if (root.classList.contains('digi-cb--p10')) {
+			var links = root.querySelectorAll('.digi-cb__contact-icon-link');
+			Array.prototype.forEach.call(links, function (a) {
+				a.addEventListener('focus', function () { a.classList.add('active'); });
+				a.addEventListener('blur', function () { a.classList.remove('active'); });
+			});
+		}
+	}
+
+	function scan(scope) {
+		Array.prototype.forEach.call((scope || document).querySelectorAll('.digi-cb'), init);
+	}
+	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { scan(); }); } else { scan(); }
+	function hook() {
+		window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-contact-buttons.default', function ($el) { scan($el && $el[0] ? $el[0] : null); });
+	}
+	if (window.elementorFrontend && window.elementorFrontend.hooks) { hook(); } else { window.addEventListener('elementor/frontend/init', hook); }
+})();
+</script>
+<script>/* Barra flotante (digitalisimo-floating-bar, C8): cierre (botón y Escape), posición arriba, cinta de titulares con
+   pausa, cupón que se copia con anuncio y animación de entrada. Sin jQuery ni dependencias; respeta el movimiento
+   reducido (la cinta queda quieta y el cupón aparece sin animación). */
+(function () {
+	'use strict';
+	var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	function editing() { return document.body.classList.contains('elementor-editor-active'); }
+	function settings(root) {
+		var w = root.closest('[data-settings]');
+		try { return JSON.parse(w && w.getAttribute('data-settings') || '{}'); } catch (e) { return {}; }
+	}
+	function device() {
+		var f = window.elementorFrontend;
+		if (f && f.getCurrentDeviceMode) { return f.getCurrentDeviceMode(); }
+		return innerWidth <= 767 ? 'mobile' : innerWidth <= 1024 ? 'tablet' : 'desktop';
+	}
+	function responsive(s, key) {
+		var d = device();
+		return (d !== 'desktop' && s[key + '_' + d]) || (d === 'mobile' && s[key + '_tablet']) || s[key];
+	}
+	function stickyTop(root) { return root.classList.contains('is-sticky') && root.classList.contains('has-vertical-position-top'); }
+	function track(e) { if (window.digiFloatingTrack) { window.digiFloatingTrack(e.currentTarget); } }
+
+	function close(root) {
+		if (editing()) { return; }
+		root.classList.add('is-hidden');
+		if (stickyTop(root)) { document.body.style.paddingTop = ''; }
+	}
+
+	function ticker(root, s) {
+		var box = root.querySelector('.digi-fbar__headlines');
+		var inner = box && box.querySelector('.digi-fbar__headlines-inner');
+		if (!inner || !inner.children.length) { return; }
+		var pause = root.querySelector('.digi-fbar__pause-button');
+		var play = root.querySelector('.digi-fbar__play-button');
+		function toggle(paused) {
+			box.classList.toggle('is-paused', paused);
+			if (pause && play) {
+				var hide = paused ? pause : play, show = paused ? play : pause;
+				var had = document.activeElement === hide;
+				hide.hidden = true; show.hidden = false;
+				if (had) { show.focus(); }
+			}
+		}
+		if (pause) { pause.addEventListener('click', function () { toggle(true); }); }
+		if (play) { play.addEventListener('click', function () { toggle(false); }); }
+		Array.prototype.forEach.call(inner.querySelectorAll('a'), function (a) { a.addEventListener('click', track); });
+		var items = Array.prototype.slice.call(inner.children);
+		function copy(parent, nodes) {
+			nodes.forEach(function (n) {
+				var c = n.cloneNode(true);
+				c.setAttribute('aria-hidden', 'true');
+				c.inert = true;
+				c.classList.add('digi-fbar__headline--clone');
+				parent.appendChild(c);
+			});
+		}
+		for (var i = 0; i < 50 && inner.offsetWidth < box.offsetWidth; i++) { copy(inner, items); }
+		if (reduce || editing()) { return; }
+		if ('autoplay' === (responsive(s, 'style_ticker_animation_type') || 'autoplay')) {
+			var twin = inner.cloneNode(true);
+			twin.classList.add('digi-fbar__headlines-inner--clone');
+			twin.setAttribute('aria-hidden', 'true');
+			twin.inert = true;
+			box.insertBefore(twin, box.querySelector('.digi-fbar__overlay'));
+			box.setAttribute('data-animated', 'true');
+			return;
+		}
+		var rtl = 'rtl' === getComputedStyle(root).direction;
+		window.addEventListener('scroll', function () {
+			inner.style.transform = 'translateX(' + (rtl ? '' : '-') + scrollY + 'px)';
+			var last = inner.lastElementChild.getBoundingClientRect(), edge = box.getBoundingClientRect();
+			if (rtl ? last.left >= edge.left : last.right <= edge.right) { copy(inner, items); }
+		}, { passive: true });
+	}
+
+	function coupon(root, s) {
+		var btn = root.querySelector('.digi-fbar__coupon-button');
+		if (!btn) { return; }
+		var code = btn.querySelector('.digi-fbar__coupon-code');
+		var done = btn.querySelector('.digi-fbar__coupon-success');
+		var status = root.querySelector('.digi-fbar__status');
+		var timer = 0;
+		if (btn.classList.contains('has-entrance-animation')) {
+			var name = responsive(s, 'style_coupon_animation');
+			var shown = function () {
+				btn.classList.remove('animated', name, 'has-entrance-animation');
+				btn.classList.add('visible');
+			};
+			if (reduce || editing() || !name) { shown(); } else {
+				btn.addEventListener('animationend', shown, { once: true });
+				btn.classList.add('animated', name);
+				setTimeout(shown, (parseInt(s.style_coupon_animation_delay, 10) || 0) + 2600);
+			}
+		}
+		btn.addEventListener('click', function (e) {
+			track(e);
+			var text = code ? code.textContent.trim() : '';
+			var d = responsive(s, 'style_coupon_success_message_duration') || {};
+			var ms = d.size !== undefined && d.size !== '' ? parseFloat(d.size) * ('ms' === d.unit ? 1 : 1000) : 1500;
+			var r = btn.getBoundingClientRect();
+			root.style.setProperty('--digi-fbar-coupon-width', r.width + 'px');
+			root.style.setProperty('--digi-fbar-coupon-height', r.height + 'px');
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText(text).catch(function () {});
+			} else {
+				var t = document.createElement('textarea');
+				t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+				document.body.appendChild(t); t.select();
+				try { document.execCommand('copy'); } catch (err) { /* sin portapapeles */ }
+				t.remove();
+				btn.focus();
+			}
+			if (code && done) { code.classList.add('is-hidden'); done.classList.remove('is-hidden'); }
+			if (status) { status.textContent = status.getAttribute('data-message') || ''; }
+			clearTimeout(timer);
+			timer = setTimeout(function () {
+				if (code && done) { code.classList.remove('is-hidden'); done.classList.add('is-hidden'); }
+				if (status) { status.textContent = ''; }
+				root.style.setProperty('--digi-fbar-coupon-width', 'initial');
+				root.style.setProperty('--digi-fbar-coupon-height', 'initial');
+			}, ms);
+		});
+	}
+
+	function init(root) {
+		if (!root || root.digiFbar) { return; }
+		root.digiFbar = true;
+		var s = settings(root);
+		var x = root.querySelector('.digi-fbar__close-button');
+		if (x) { x.addEventListener('click', function () { close(root); }); }
+		root.addEventListener('keydown', function (e) {
+			if ('Escape' === e.key && x) { close(root); }
+		});
+		if (!editing() && root.classList.contains('has-vertical-position-top')) {
+			if (!root.classList.contains('is-sticky')) {
+				var doc = root.closest('.elementor');
+				var bar = document.getElementById('wpadminbar');
+				if (doc) { if (bar) { bar.after(doc); } else { document.body.prepend(doc); } }
+			} else {
+				var admin = document.getElementById('wpadminbar');
+				if (admin) { root.style.top = admin.offsetHeight + 'px'; }
+				document.body.style.paddingTop = root.offsetHeight + 'px';
+			}
+		}
+		if (root.classList.contains('digi-fbar--p3')) { coupon(root, s); } else { ticker(root, s); }
+	}
+
+	function scan(scope) {
+		Array.prototype.forEach.call((scope || document).querySelectorAll('.digi-fbar'), init);
+	}
+	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { scan(); }); } else { scan(); }
+	function hook() {
+		window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-floating-bar.default', function ($el) { scan($el && $el[0] ? $el[0] : null); });
+	}
+	if (window.elementorFrontend && window.elementorFrontend.hooks) { hook(); } else { window.addEventListener('elementor/frontend/init', hook); }
+})();
+</script>
+</body></html>

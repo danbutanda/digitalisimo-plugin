@@ -328,6 +328,12 @@
    "kind": "foco",
    "match": "no llega al control en A ni en B",
    "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "transform:",
+   "reason": "Interactive (10): con el foco del teclado el enlace se despliega y muestra su título, como con el cursor encima (WCAG 1.4.13 y 2.4.7); PRO lo dejaba replegado, casi fuera de la pantalla, al recibir el foco."
   }
  ],
  "cases": {
