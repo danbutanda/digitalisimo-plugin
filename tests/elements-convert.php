@@ -32,6 +32,11 @@ namespace {
 		if ( preg_match( '/\buse\s+Base_Carousel_Trait\s*;/', $php ) ) {
 			$files[] = $elements . 'base/base-carousel-trait.php';
 		}
+		// Botones de pago de PRO (C9): heredan los controles de su base y del trait del botón del núcleo.
+		if ( preg_match( '/\bextends\s+Payment_Button\b/', $php ) ) {
+			$files[] = $elements . 'modules/payments/classes/payment-button.php';
+			$files[] = $elements . 'elementor/includes/widgets/traits/button-trait.php';
+		}
 		return $files;
 	}
 
@@ -67,6 +72,18 @@ namespace {
 		$php = '';
 		foreach ( pro_sources( $file, $elements ) as $source ) {
 			$php .= "\n" . (string) file_get_contents( $source );
+		}
+		// Controles que PRO quita con `remove_control()` (la base de pagos quita los del botón del núcleo; Stripe, los de la
+		// base que no usa): no existen en el widget salvo que el mismo archivo los vuelva a añadir después de quitarlos.
+		$removed = array();
+		foreach ( pro_sources( $file, $elements ) as $source ) {
+			$text = (string) file_get_contents( $source );
+			preg_match_all( "/->remove_(?:responsive_)?control\(\s*'([a-z0-9_]+)'\s*\)/", $text, $quits, PREG_OFFSET_CAPTURE );
+			foreach ( $quits[1] as $quit ) {
+				if ( ! preg_match( "/->add_(?:responsive_)?control\(\s*'" . $quit[0] . "'\s*,/", substr( $text, $quit[1] ) ) ) {
+					$removed[] = $quit[0];
+				}
+			}
 		}
 		$values = array();
 		preg_match_all( "/foreach\s*\(\s*\[\s*((?:'[a-z0-9_-]+'\s*,?\s*)+)\]\s*as\s*\\$([a-z_]+)\s*\)/", $php, $loops, PREG_SET_ORDER );
@@ -105,7 +122,7 @@ namespace {
 		foreach ( array_merge( $controls[1], $grouped[1] ) as $expr ) {
 			$names = array_merge( $names, pro_concat( $expr, $values ) );
 		}
-		return array_values( array_unique( $names ) );
+		return array_values( array_diff( array_unique( $names ), $removed ) );
 	}
 
 	$elements = __DIR__ . '/../digitalisimo-elements/';

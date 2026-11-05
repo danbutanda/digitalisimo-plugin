@@ -51,7 +51,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
 - **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
-- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
+- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b). Siete widgets propios en `modules/digitalisimo-services/` y, para el widget global, la sustitución por su contenido en «Migrar» y en los kits. Contrato y resultado en `docs/pro/c9.md`.
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
@@ -156,14 +156,14 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C8 | `link-in-bio` | `link-in-bio-var-5` | Services | Nuevo |  |
 | C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | Nuevo |  |
 | C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | Nuevo |  |
-| C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
-| C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
-| C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
-| C9 | `payments` | `stripe-button` | Stripe Button | Nuevo |  |
-| C9 | `social` | `facebook-button` | Facebook Button | Nuevo |  |
-| C9 | `social` | `facebook-comments` | Facebook Comments | Nuevo |  |
-| C9 | `social` | `facebook-embed` | Facebook Embed | Nuevo |  |
-| C9 | `social` | `facebook-page` | Facebook Page | Nuevo |  |
+| C9 | `global-widget` | `global` | Global | **Sustituido** | su contenido: «Migrar» y los kits ponen en su lugar el elemento guardado en la plantilla de widget, con el id de la instancia (`Convert\Globals`), C9 |
+| C9 | `library` | `template` | Template | **Sustituido** | Plantilla (`digitalisimo-template`, con las sobrescrituras de F7b y sin bucles), C9 |
+| C9 | `payments` | `paypal-button` | PayPal Button | **Sustituido** | Botón de PayPal (`digitalisimo-paypal-button`), C9 |
+| C9 | `payments` | `stripe-button` | Stripe Button | **Sustituido** | Botón de Stripe (`digitalisimo-stripe-button`, la sesión la sigue creando el punto de PRO en el servidor), C9 |
+| C9 | `social` | `facebook-button` | Facebook Button | **Sustituido** | Botón de Facebook (`digitalisimo-facebook-button`, con fachada), C9 |
+| C9 | `social` | `facebook-comments` | Facebook Comments | **Sustituido** | Comentarios de Facebook (`digitalisimo-facebook-comments`, con fachada), C9 |
+| C9 | `social` | `facebook-embed` | Facebook Embed | **Sustituido** | Publicación de Facebook (`digitalisimo-facebook-embed`, con fachada), C9 |
+| C9 | `social` | `facebook-page` | Facebook Page | **Sustituido** | Página de Facebook (`digitalisimo-facebook-page`, con fachada), C9 |
 
 ## Estado
 
@@ -173,6 +173,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C1 | **Publicado** · Elements 4.3.0.173 y Migración 1.0.23 · `v2026.11.04.449`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
 | C2 | **Publicado** · Elements 4.3.0.174 y Migración 1.0.24 · `v2026.11.05.450`. Catorce widgets de contenido propios en `modules/digitalisimo-content/` (Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso) con sus mapas listos y fuera del panel; con la Cita de C0, la familia C2 queda sustituida entera. Detalle en `docs/pro/c2.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
-| C9 | **En curso** (rama `pro/c9`, contrato `docs/pro/c9.md`) |
+| C9 | **Publicado** · Elements @NEXT_ELEMENTS@ y Migración @NEXT_MIGRATION@ · `@C9_TAG@`. Siete widgets propios en `modules/digitalisimo-services/`: Botón, Comentarios, Publicación y Página de Facebook (con fachada: ninguna petición a Facebook ni su SDK antes del clic), Botón de PayPal y Botón de Stripe (mismo flujo que PRO, ningún secreto en el navegador) y Plantilla (sobrescrituras de F7b, sin bucles), con sus mapas listos y fuera del panel; el widget global se sustituye por su contenido en «Migrar» y en los kits (§17 de `docs/fusion/k-kits.md`). Con C9, la familia queda sustituida entera. Detalle en `docs/pro/c9.md` |
 | C3, C5–C8 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

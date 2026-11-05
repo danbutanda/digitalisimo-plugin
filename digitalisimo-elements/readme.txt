@@ -4,7 +4,7 @@ Constructor visual completo: editor, funciones avanzadas, kits, plantillas y wid
 
 Incluye software libre de terceros bajo GPLv3. Sus avisos de copyright y licencias están en license.txt y COPYING; los cambios de DIGITALÍSIMO se describen en DIGITALISIMO_CHANGES.md.
 
-Todo funciona en el sitio: el constructor no se conecta con servicios ni cuentas externas. Sólo los widgets que incrustan un servicio que eliges (un vídeo de YouTube, Vimeo, Dailymotion o Wistia, un mapa de OpenStreetMap, un visor de documentos) lo contactan; con las fachadas activas, el visitante no lo hace hasta pulsar, y el servidor descarga una sola vez la portada o la imagen del mapa para servirla desde el sitio.
+Todo funciona en el sitio: el constructor no se conecta con servicios ni cuentas externas. Sólo los widgets que incrustan un servicio que eliges (un vídeo de YouTube, Vimeo, Dailymotion o Wistia, un mapa de OpenStreetMap, un visor de documentos, una publicación o una página de Facebook, un pago con PayPal o Stripe) lo contactan; con las fachadas activas, el visitante no lo hace hasta pulsar (los widgets de Facebook esperan siempre al clic), y el servidor descarga una sola vez la portada o la imagen del mapa para servirla desde el sitio.
 
 == Kits ==
 
@@ -72,6 +72,9 @@ Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por fa
 * Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas, en lugar de los carruseles de PRO: un motor propio sin Swiper ni jQuery, con teclado, botón para pausar la reproducción automática y respeto por el movimiento reducido.
 * Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso, en lugar de los widgets de contenido de PRO: sin jQuery, con teclado y foco visible, respeto por el movimiento reducido y ninguna petición a terceros antes del clic (ni redes sociales ni servicios de vídeo); Prism y la librería de Lottie sólo se piden al acercarse el widget a la pantalla.
 * Elementos de tema para las plantillas de cabecera, pie, entrada y archivo, en lugar de los de PRO: Logotipo del sitio, Título del sitio, Título de la página, Título de la entrada, Título del archivo, Extracto, Contenido de la entrada, Imagen destacada, Información de la entrada, Navegación entre entradas, Caja de autor, Comentarios, Formulario de búsqueda (con la pantalla completa como diálogo accesible), Mapa del sitio y Migas, que muestran las de Yoast o, sin Yoast, las de DIGITALÍSIMO SEO. Muestran los mismos datos que los de PRO, con foco visible y sin señales SEO propias.
+* Botón, Comentarios, Publicación y Página de Facebook, en lugar de los de PRO: muestran un botón con el nombre del servicio y sólo al pulsarlo se carga Facebook, una vez por página.
+* Botón de PayPal y Botón de Stripe, en lugar de los de PRO: el mismo pago (formulario de PayPal; sesión de Stripe creada en el servidor), con modo de prueba, mensajes en español y ninguna clave secreta en la página.
+* Plantilla, en lugar del widget Plantilla de PRO: inserta una plantilla publicada, con las sobrescrituras por clave, y nunca se incluye a sí misma. El widget global de PRO se sustituye por el elemento que guarda su plantilla, que se conserva en la biblioteca.
 
 == Formularios ==
 

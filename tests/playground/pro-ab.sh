@@ -51,6 +51,15 @@
 #     acepta si A tiene controles enfocables;
 #   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
 #     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
+# C9 (servicios y plantillas) añade, también opcionales y sin efecto en los demás casos:
+#   - `"$template:<clave>"` en los ajustes: crea (una vez) la plantilla `pro-ab-tpl-<clave>` de la biblioteca (tipo
+#     `section`, publicada y con su CSS) con los elementos de `templates.<clave>` del caso, y da su ID (la Plantilla y
+#     sus sobrescrituras de F7b);
+#   - `"widget": "global"` con `global: { widgetType, settings }`: crea la plantilla de widget global, A con la instancia
+#     (`templateID` y la copia de los ajustes, como la guarda PRO) y B con `Globals::tree()` + `Converter::tree()` (lo
+#     que hacen «Migrar» y los kits);
+#   - los widgets de Facebook: el arnés corta `connect.facebook.net` como todo otro origen, así que A pinta el plugin
+#     vacío y B la fachada; sus diferencias van declaradas en cada caso.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

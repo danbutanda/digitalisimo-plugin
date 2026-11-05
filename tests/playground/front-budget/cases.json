@@ -6853,5 +6853,63 @@
     "swiper": false
    }
   }
+ },
+ "services": {
+  "title": "Servicios propios (programa sin widgets de PRO, C9): los cuatro widgets de Facebook con fachada (ninguna petición a Facebook ni a su SDK antes del clic, que comprueba elements-pro-facebook-chrome.mjs), los botones de PayPal y Stripe (sin ninguna petición a los servicios hasta enviar) y la Plantilla, sin los paquetes de PRO; una sola hoja y un solo script por familia",
+  "since": "@NEXT_ELEMENTS@",
+  "widgets": [
+   { "type": "digitalisimo-facebook-button", "settings": { "url_type": "custom", "url": "__SITE__/" } },
+   { "type": "digitalisimo-facebook-comments", "settings": { "url_type": "custom", "url": "__SITE__/" } },
+   { "type": "digitalisimo-facebook-embed", "settings": { "type": "video", "video_url": "https://www.facebook.com/digitalisimo.medicion/videos/1234567890/" } },
+   { "type": "digitalisimo-facebook-page", "settings": { "url": "https://www.facebook.com/digitalisimo.medicion/" } },
+   { "type": "digitalisimo-paypal-button", "settings": { "product_name": "Producto de medición", "product_price": "10.00" } },
+   { "type": "digitalisimo-stripe-button", "settings": { "product_name": "Producto de medición", "stripe_product_price": 10 } },
+   { "type": "digitalisimo-template", "settings": { "template_id": "__TEMPLATE__" } }
+  ],
+  "extra": [
+   {
+    "key": "seccion",
+    "type": "section",
+    "widgets": [ { "type": "heading", "settings": { "title": "Sección de la Plantilla", "header_size": "h3" } } ]
+   }
+  ],
+  "assets": {
+   "fb-css": "/digitalisimo-services/assets/css/facebook\\.css",
+   "fb-js": "/digitalisimo-services/assets/js/facebook\\.js",
+   "pay-css": "/digitalisimo-services/assets/css/payment-button\\.css",
+   "pay-js": "/digitalisimo-services/assets/js/payment-button\\.js"
+  },
+  "calls": {
+   "facebook": "^https?://([a-z0-9-]+\\.)*(facebook\\.(com|net)|fbcdn\\.net)/",
+   "payments": "^https?://([a-z0-9-]+\\.)*(paypal(objects)?\\.com|stripe\\.(com|network))/"
+  },
+  "counts": {
+   "own": "[data-widget_type^=\"digitalisimo-\"]",
+   "fbFacade": ".digi-fb[data-digi-fb] > button.digi-fb__load[type=\"button\"]",
+   "fbLive": ".digi-fb .fb-like, .digi-fb .fb-comments, .digi-fb .fb-video, .digi-fb .fb-post, .digi-fb .fb-page, .digi-fb iframe",
+   "payForms": "form.digi-pay button[type=\"submit\"]",
+   "template": ".digi-template h3"
+  },
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "cdnjs": false,
+    "iframes": 0,
+    "call:facebook": "<=0",
+    "call:payments": "<=0",
+    "count:own": 7,
+    "count:fbFacade": 4,
+    "count:fbLive": 0,
+    "count:payForms": 2,
+    "count:template": 1,
+    "asset:fb-css": "<=2048",
+    "asset:fb-js": "<=2048",
+    "asset:pay-css": "<=1024",
+    "asset:pay-js": "<=3584"
+   }
+  }
  }
 }
