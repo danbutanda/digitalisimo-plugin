@@ -24,6 +24,8 @@ defined( 'ABSPATH' ) || exit;
  * siguen funcionando. Los formularios de acceso y de cupón se pintan dentro de las columnas, como en PRO.
  *
  * Diferencias con PRO (declaradas en el mapa y en los casos del A/B):
+ * - Las alineaciones de los títulos (facturación, información adicional, pedido, acceso y cupón) se aplican con
+ *   `text-align` sobre el título en lugar de con una variable que la hoja leía: mismo resultado, sin regla fija.
  * - Los textos de «¿Ya eres cliente?» y «¿Tienes un cupón?» salen de sus controles (en PRO el filtro de textos no los
  *   alcanzaba y siempre salía el texto por defecto).
  * - Los conmutadores de acceso y de cupón son enlaces con `role="button"`, `aria-expanded` y `aria-controls` que apuntan
@@ -179,7 +181,7 @@ class Checkout extends Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--billing-details-title-alignment: {{VALUE}};',
+					'{{WRAPPER}} .woocommerce-billing-fields h3' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
@@ -346,7 +348,7 @@ class Checkout extends Base {
 						],
 					],
 					'selectors' => [
-						'{{WRAPPER}}' => '--additional-fields-title-alignment: {{VALUE}};',
+						'{{WRAPPER}} .woocommerce-additional-fields h3' => 'text-align: {{VALUE}};',
 					],
 					'condition' => [
 						'additional_information_active!' => '',
@@ -478,7 +480,7 @@ class Checkout extends Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--order-review-title-alignment: {{VALUE}};',
+					'{{WRAPPER}} #order_review_heading' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
@@ -2997,7 +2999,7 @@ class Checkout extends Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--login-title-alignment: {{VALUE}};',
+					'{{WRAPPER}} .digi-co__login .digi-co__secondary' => 'text-align: {{VALUE}};',
 				],
 			]
 		);
@@ -3283,7 +3285,7 @@ class Checkout extends Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--coupon-title-alignment: {{VALUE}};',
+					'{{WRAPPER}} .digi-co__coupon-nudge' => 'text-align: {{VALUE}};',
 				],
 				'condition' => [
 					'coupon_section_display' => 'yes',
@@ -4148,7 +4150,7 @@ class Checkout extends Base {
 		$settings = $this->get_settings_for_display();
 		$sticky   = ! empty( $settings['sticky_right_column'] ) && 'two-column' === ( isset( $settings['checkout_layout'] ) ? $settings['checkout_layout'] : 'two-column' );
 		$offset   = $sticky && isset( $settings['sticky_right_column_offset'] ) ? (int) $settings['sticky_right_column_offset'] : 0;
-		echo '<div class="digi-co__col digi-co__col--end"><div class="digi-co__col-inner digi-co__sticky' . ( $sticky ? ' digi-co__sticky--active' : '' ) . '"' . ( $offset ? ' style="--digi-co-top:' . esc_attr( $offset ) . 'px"' : '' ) . '>';
+		echo '<div class="digi-co__col digi-co__col--end"><div class="digi-co__col-inner digi-co__sticky' . ( $sticky ? ' digi-co__sticky--active' : '' ) . '"' . ( $offset ? ' style="top:calc(' . esc_attr( $offset ) . 'px + var(--wp-admin--admin-bar--height,0px))"' : '' ) . '>';
 	}
 
 	/** `woocommerce_checkout_before_order_review_heading` (95): abre la caja del resumen. */

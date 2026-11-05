@@ -1,21 +1,18 @@
 .digi-co .woocommerce .shop_table{border:0;font-size:14px;margin-bottom:0}
-.digi-co .woocommerce .shop_table thead tr th{padding-top:0}
+.digi-co .woocommerce .shop_table thead th{padding-top:0}
 .digi-co .woocommerce .shop_table .product-quantity{font-weight:400}
-.digi-co .woocommerce .shop_table :is(td,th,tr){border:0;padding:15px 0}
+.digi-co .woocommerce .shop_table :is(td,th,tr){border:0;padding-bottom:var(--order-summary-rows-gap-bottom,15px);padding-left:0;padding-top:var(--order-summary-rows-gap-top,15px)}
 .digi-co .woocommerce .shop_table .order-total :is(td,th){padding-bottom:0}
 .digi-co .woocommerce .shop_table .cart_item td{border-bottom:var(--order-summary-items-divider-weight,0) solid var(--order-summary-items-divider-color,#69727d);color:var(--order-summary-items-color,#000);font-weight:400}
 .digi-co .woocommerce .shop_table td.product-name{max-width:150px;padding-inline-end:40px}
 .digi-co .woocommerce .shop_table td.product-total{vertical-align:top}
-.digi-co .woocommerce .shop_table :is(td,th){padding-bottom:var(--order-summary-rows-gap-bottom,15px);padding-top:var(--order-summary-rows-gap-top,15px)}
 .digi-co .woocommerce .shop_table :is(tfoot td,tfoot th,thead th){color:var(--order-summary-totals-color,#69727d);vertical-align:top}
 .digi-co .woocommerce .shop_table .order-total :is(td,th){border-top:var(--order-summary-totals-divider-weight,0) solid var(--order-summary-totals-divider-color,#69727d)}
 .digi-co .woocommerce .product-name .variation{color:var(--order-summary-variations-color,#000);font-style:normal}
-.digi-co .woocommerce-shipping-totals td{max-width:70px}
-.digi-co .woocommerce :is(#shipping_method li input,.input-radio){vertical-align:middle}
-.digi-co .woocommerce :is(#shipping_method,.wc_payment_method) label{color:var(--sections-radio-buttons-color,#69727d)}
+.digi-co :is(#shipping_method,.wc_payment_method) label{color:var(--sections-radio-buttons-color,#69727d)}
 .digi-co .woocommerce :is(.digi-co__message,.woocommerce-checkout #payment .payment_box,.woocommerce-privacy-policy-text){color:var(--sections-messages-color,#69727d);font-weight:400}
-.digi-co .woocommerce .woocommerce-privacy-policy-text p{font-size:12px;font-weight:400;margin-top:25px}
-.digi-co .woocommerce-checkout #payment .payment_methods{border-bottom:none;padding:0}
+.digi-co .woocommerce-privacy-policy-text p{font-size:12px;font-weight:400;margin-top:25px}
+.digi-co .woocommerce-checkout #payment .payment_methods{border-bottom:0;padding:0}
 .digi-co .woocommerce-checkout #payment .payment_methods .payment_box{background-color:#f9fafa}
 .digi-co .woocommerce-checkout #payment :is(.payment_box,.woocommerce-info):before{display:none}
 .digi-co .woocommerce-checkout #payment .payment_methods li{line-height:21px}
@@ -23,16 +20,10 @@
 .digi-co .woocommerce-checkout #payment #place_order{background-color:#5bc0de;border-radius:var(--purchase-button-border-radius,3px);color:var(--digi-co-p,var(--purchase-button-normal-text-color,#fff));float:none;min-height:auto;padding:var(--purchase-button-padding,1em);transition-duration:var(--purchase-button-hover-transition-duration,.3s);width:var(--purchase-button-width,auto)}
 .digi-co #place_order:hover{--digi-co-p:var(--purchase-button-hover-text-color,#fff);border-color:var(--purchase-button-hover-border-color,#5bc0de)}
 .digi-co .woocommerce-checkout .col2-set :is(.col-1,.col-2){float:none;width:auto}
-.digi-co .woocommerce-checkout .form-row>span{color:#69727d;font-size:14px;font-weight:400;margin-bottom:3px}
 .digi-co .woocommerce-checkout :is(.form-row-first,.form-row-last){width:48%}
-.digi-co .woocommerce-checkout .form-row .input-checkbox,.digi-co .woocommerce-form__input-checkbox{margin:0 5px 0 0;vertical-align:middle}
 .digi-co .woocommerce-form__label-for-checkbox span{color:var(--sections-checkboxes-color,#69727d);position:relative;top:2px}
 .digi-co .woocommerce-checkout :where(.woocommerce-account-fields,.woocommerce-billing-fields,.woocommerce-shipping-fields) .form-row{margin-bottom:var(--forms-rows-gap,5px)}
 .digi-co .woocommerce-checkout :where(.woocommerce-account-fields,.woocommerce-billing-fields,.woocommerce-shipping-fields) .form-row:last-child{margin-bottom:15px}
-.digi-co .woocommerce-shipping-fields .shipping_address{margin-bottom:var(--sections-margin,20px)}
-.digi-co #ship-to-different-address{margin-top:13px;padding-inline-start:var(--shipping-heading-padding-start,30px)}
-.digi-co #ship-to-different-address span{font-weight:400}
-.digi-co .woocommerce-info{background-color:transparent;border-top-color:transparent;padding:0}
 .digi-co .select2-container--default .select2-selection--single{background-color:#f9fafa;border:none;border-radius:var(--forms-fields-border-radius,0);height:45px}
 .digi-co .select2-container--default .select2-selection--single .select2-selection__rendered{color:var(--digi-co-f,var(--forms-fields-normal-color,#69727d));line-height:45px;padding-inline:1rem}
 .digi-co .select2-container--default .select2-selection--single .select2-selection__arrow{height:45px}

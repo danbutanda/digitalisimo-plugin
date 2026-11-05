@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-notices',
 	'target'  => 'digitalisimo-woo-notices',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'ui'      => array( 'where_to_appear_notice', 'site_settings_notice', 'one_per_page_notice' ),
 	'classes' => array(

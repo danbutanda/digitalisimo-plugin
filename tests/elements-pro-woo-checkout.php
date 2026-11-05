@@ -162,6 +162,13 @@ namespace {
 		'sólo dirección de facturación' => array( '#billing_only' => true ),
 	);
 	$all_pro = array();
+	$direct  = array(
+		'billing_details_alignment'          => '{{WRAPPER}} .woocommerce-billing-fields h3',
+		'additional_information_alignment'   => '{{WRAPPER}} .woocommerce-additional-fields h3',
+		'order_summary_alignment'            => '{{WRAPPER}} #order_review_heading',
+		'returning_customer_title_alignment' => '{{WRAPPER}} .digi-co__login .digi-co__secondary',
+		'coupon_alignment'                   => '{{WRAPPER}} .digi-co__coupon-nudge',
+	);
 	foreach ( $combos as $label => $env ) {
 		$GLOBALS['h_wp']['options'] = array( 'woocommerce_enable_checkout_login_reminder' => 'no', 'woocommerce_enable_signup_and_login_from_checkout' => 'no' );
 		$GLOBALS['ck']              = array( 'logged_in' => false, 'coupons' => true, 'zones' => 1, 'billing_only' => false, 'needs_payment' => true );
@@ -185,6 +192,11 @@ namespace {
 				}
 				$pro_part = is_array( $args[ $part ] ) ? $args[ $part ] : array( $args[ $part ] => '' );
 				$own_part = is_array( $mine[ $part ] ?? null ) ? $mine[ $part ] : array( (string) ( $mine[ $part ] ?? '' ) => '' );
+				if ( isset( $direct[ $control ] ) ) {
+					// Alineación de un título: `text-align` directo sobre el título en lugar de la variable que leía la hoja.
+					$ok( array( $direct[ $control ] => 'text-align: {{VALUE}};' ) === $own_part && 1 === count( $pro_part ) && preg_match( '/^--[a-z-]+-title-alignment: \{\{VALUE\}\};$/', (string) reset( $pro_part ) ), "$control.$part ($label): alineación directa." );
+					continue;
+				}
 				$ok( array_values( $pro_part ) === array_values( $own_part ) && count( $pro_part ) === count( $own_part ), "$control.$part ($label): las mismas reglas." );
 				foreach ( array_keys( $own_part ) as $selector ) {
 					$ok( ! preg_match( '/(?<![a-z0-9_-])(e-[a-z]|elementor-(?!animation))/', $selector ), "$control.$part ($label): selector con clases propias ($selector)." );
@@ -284,7 +296,7 @@ namespace {
 	}
 	// Columna fija resuelta en el servidor, sólo en dos columnas.
 	list( $b ) = $render( $own, array( 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40 ) + $pro_defaults );
-	$ok( str_contains( $b, 'class="digi-co__col-inner digi-co__sticky digi-co__sticky--active" style="--digi-co-top:40px"' ), 'Columna derecha fija: clase activa y desplazamiento.' );
+	$ok( str_contains( $b, 'class="digi-co__col-inner digi-co__sticky digi-co__sticky--active" style="top:calc(40px + var(--wp-admin--admin-bar--height,0px))"' ), 'Columna derecha fija: clase activa y desplazamiento.' );
 	list( $b ) = $render( $own, array( 'checkout_layout' => 'one-column', 'sticky_right_column' => 'yes' ) + $pro_defaults );
 	$ok( ! str_contains( $b, 'digi-co__sticky--active' ), 'Columna fija: no en una columna (como la condición del control).' );
 	// Acceso y cupón accesibles, con los textos de sus controles.

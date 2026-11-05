@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'wc-categories',
 	'target'  => 'digitalisimo-woo-categories',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'columns', 'number', 'source', 'categories', 'parent', 'hide_empty', 'orderby', 'order', 'products_class', 'column_gap', 'row_gap', 'align', 'image_border_radius', 'image_spacing', 'title_color', 'count_color' ),
 	'groups'  => array(

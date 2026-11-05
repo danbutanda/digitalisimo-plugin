@@ -15,7 +15,7 @@ $digi_wci = (array) require __DIR__ . '/_theme-image.php';
 return array(
 	'source'  => 'woocommerce-category-image',
 	'target'  => 'digitalisimo-woo-category-image',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => $digi_wci['keep'],
 	'groups'  => $digi_wci['groups'],

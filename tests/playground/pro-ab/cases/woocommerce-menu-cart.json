@@ -41,12 +41,6 @@
   },
   {
    "widget": "woocommerce-menu-cart",
-   "kind": "hover",
-   "match": ".",
-   "reason": "El arnés pasa el cursor por el primer enlace o botón del widget: en PRO es un enlace del panel cerrado (va antes del conmutador en el marcado); en el propio, el conmutador (el panel va después y está inerte)."
-  },
-  {
-   "widget": "woocommerce-menu-cart",
    "kind": "enlace",
    "match": "«#»",
    "reason": "El conmutador es un <button>; PRO usaba un enlace a «#»."
@@ -56,6 +50,18 @@
    "kind": "nombre",
    "match": "^nuevo none «»$",
    "reason": "Lo que hay dentro del panel cerrado es inerte (sin rol ni nombre para el árbol de accesibilidad hasta que se abre)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "estilo",
+   "match": "^\\[acción \\d+ [^\\]]*\\] «(€|[0-9][0-9.,]*)» ",
+   "reason": "Con el panel abierto, el mismo importe sale en el conmutador y en el panel; la firma toma el estilo del primero en el marcado: en PRO el del panel (va antes del conmutador), en el propio el del conmutador (orden del foco). Los dos importes tienen el mismo estilo que en PRO."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "hover",
+   "match": ".",
+   "reason": "El arnés pasa el cursor por el primer enlace o botón del widget: en PRO es un enlace del panel cerrado (va antes del conmutador en el marcado); en el propio, el conmutador (el panel va después y está inerte), que cambia sus colores al pasar el cursor."
   }
  ],
  "cases": {
@@ -67,8 +73,8 @@
    },
    "settings": {},
    "pixels": {
-    "max": 0.2,
-    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+    "max": 0.05,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
    },
    "actions": [
     {
@@ -110,8 +116,8 @@
     "hide_empty_indicator": "hide"
    },
    "pixels": {
-    "max": 0.2,
-    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+    "max": 0.06,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
    },
    "actions": [
     {
@@ -144,8 +150,8 @@
     }
    },
    "pixels": {
-    "max": 0.2,
-    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+    "max": 0.05,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
    },
    "actions": [
     {
@@ -174,8 +180,8 @@
     "items_indicator": "none"
    },
    "pixels": {
-    "max": 0.2,
-    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+    "max": 0.8,
+    "reason": "«Al pasar el cursor»: el arnés pasa el cursor por el primer control; en el propio es el conmutador, que abre el panel y su capa oscurece la página; en PRO, un enlace invisible del panel cerrado (no abre nada). Lo mismo con el foco (el tabulador llega al conmutador y el cursor sigue encima). Sin cursor, 0 %."
    },
    "actions": [
     {
@@ -183,6 +189,12 @@
      "a": ".elementor-menu-cart__toggle_button",
      "b": ".digi-mc__btn",
      "wait": 1200
+    }
+   ],
+   "declared": [
+    {
+     "match": "^\\[acción 1 abrir con clic\\] ",
+     "reason": "«Al pasar el cursor»: el cursor abre el panel y su capa tapa el botón, así que el clic del arnés cae en la capa; PRO lo tomaba por un clic fuera y cerraba el panel en el mismo gesto. El propio deja abierto el panel que la persona acaba de abrir (el clic sobre el botón abre también con el teclado, como PRO)."
     }
    ]
   },
@@ -255,8 +267,8 @@
     "subtotal_color": "#222222"
    },
    "pixels": {
-    "max": 0.2,
-    "reason": "El icono del conmutador: el de PRO (glifo de eicons) no se ve en un sitio con iconos SVG porque la fuente no se carga; el propio es un SVG visible. Con el foco, el contorno propio del botón."
+    "max": 0.3,
+    "reason": "Al pasar el cursor, el propio resalta el conmutador (el primer control del widget) con sus colores de hover; en PRO el arnés pasa el cursor por un enlace invisible del panel cerrado, que no cambia nada. Sin cursor y con las acciones, 0 %."
    },
    "actions": [
     {

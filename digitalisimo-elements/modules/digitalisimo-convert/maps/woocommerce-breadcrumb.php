@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-breadcrumb',
 	'target'  => 'digitalisimo-woo-breadcrumb',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'text_color', 'link_color', 'alignment' ),
 	'groups'  => array( 'text_typography' => 'text_typography' ),

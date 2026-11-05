@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'wc-elements',
 	'target'  => 'digitalisimo-woo-pages',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'element', 'product_id' ),
 	'classes' => array(
