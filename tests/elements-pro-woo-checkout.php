@@ -407,6 +407,6 @@ namespace {
 		$ok( strlen( $css ) > 0 && strlen( $css ) <= 4096, "$sheet: " . strlen( $css ) . ' B (tope 4 096).' );
 		$ok( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! preg_match( '/\.(e-|elementor-)/', $css ), "$sheet: sin el kit, url() ni clases del proveedor." );
 	}
-	$ok( str_contains( $css_all, ':focus-visible{outline:2px solid currentColor;outline-offset:2px}' ) && str_contains( $css_all, 'prefers-reduced-motion' ), 'Foco visible de 2 px con separación de 2 px y movimiento reducido.' );
+	$ok( str_contains( $css_all, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css_all, 'prefers-reduced-motion' ), 'Foco visible de 2 px con separación de 2 px y movimiento reducido.' );
 	echo "DIGITALÍSIMO Elements: Finalizar compra (digitalisimo-woo-checkout) frente al Checkout de PRO en verde ($checks comprobaciones).\n";
 }

@@ -17,12 +17,12 @@
 .digi-co #customer_details .form-row :is(.input-text,select,textarea),.digi-co .woocommerce :is(.digi-co__coupon,.digi-co__login-form) .form-row :is(.input-text,select,textarea){background-color:#f9fafa;border:none;border-radius:var(--forms-fields-border-radius,0);color:var(--digi-co-f,var(--forms-fields-normal-color,#69727d));font-size:14px;font-weight:400;padding:var(--forms-fields-padding,16px)}
 .digi-co .form-row :focus,.digi-co .select2-selection:focus{--digi-co-f:var(--forms-fields-focus-color,#69727d)}
 .digi-co :is(.create-account,.digi-co__coupon .form-row){margin-bottom:0!important}
-.digi-co .woocommerce button.woocommerce-button{background-color:transparent;border:2px var(--forms-buttons-border-type,solid) var(--forms-buttons-border-color,#5bc0de);border-radius:var(--forms-buttons-border-radius,3px);color:var(--digi-co-b,var(--forms-buttons-normal-text-color,#6f6f6f));padding:1rem;transition-duration:var(--forms-buttons-hover-transition-duration,.3s)}
+.digi-co .woocommerce button.woocommerce-button{background:none;border:2px var(--forms-buttons-border-type,solid) var(--forms-buttons-border-color,#5bc0de);border-radius:var(--forms-buttons-border-radius,3px);color:var(--digi-co-b,var(--forms-buttons-normal-text-color,#6f6f6f));padding:1rem;transition-duration:var(--forms-buttons-hover-transition-duration,.3s)}
 .digi-co button:hover{--digi-co-b:var(--forms-buttons-hover-text-color,#6f6f6f)}
 .digi-co .woocommerce #coupon_code{margin-right:1%}
 .digi-co .woocommerce .coupon-container-grid{align-items:center;display:grid;grid-template-columns:auto auto}
 .digi-co .woocommerce .coupon-col-2{text-align:end}
-.digi-co :focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.digi-co :focus-visible{outline:2px solid;outline-offset:2px}
 .digi-co .processing{opacity:.6;pointer-events:none}
 .digi-co #ship-to-different-address{margin-top:13px;padding-inline-start:var(--shipping-heading-padding-start,30px)}
 .digi-co #ship-to-different-address span{font-weight:400}
