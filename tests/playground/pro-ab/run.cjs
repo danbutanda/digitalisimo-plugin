@@ -420,7 +420,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const codes = [].concat(...(e.log || []).map((l) => l.codes || []));
     const own = [];
     const fail = (m) => { own.push(m); problems.push(`${slug} · ${m}`); };
-    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, widths: {}, problems: own };
+    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, context: e.context ? e.context.label : '', widths: {}, problems: own };
     summary.cases[slug] = res;
     if (e.error) fail(e.error);
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
@@ -472,7 +472,9 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const sb = wb.signature;
       // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
       // cero) vale si su caja tiene alto; el texto llega con las acciones.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && sa.height > 0)) fail('A no pinta texto ni imágenes en el widget');
+      // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
+      // basta con que A tenga controles (`focusables`), que se comparan igual.
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && sa.height > 0) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

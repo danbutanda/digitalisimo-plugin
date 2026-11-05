@@ -97,6 +97,9 @@ namespace {
 			}
 		}
 		$values = array_map( 'array_unique', $values );
+		// Nombres que PRO arma con datos del sitio (post-navigation: `$post_type . '_taxonomy'`, uno por tipo de entrada
+		// público con taxonomías): se comprueban con los de una instalación limpia.
+		$values += array( 'post_type' => array( 'post' ) );
 		$names  = array();
 		preg_match_all( "/->add_(?:responsive_)?control\(\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/", $php, $controls );
 		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/s", $php, $grouped );
@@ -218,6 +221,9 @@ namespace {
 	$manager->known = array( 'digitalisimo-prueba' );
 	$config = Panel::document_config( array( 'widgets' => array( 'blockquote' => array( 'title' => 'Q' ) ) ), 1 );
 	check_cv( false === $config['widgets']['blockquote']['show_in_panel'] && 'Q' === $config['widgets']['blockquote']['title'], 'Con el propio registrado, el de PRO sale del panel sin perder su configuración.' );
+	check_cv( false === ( $config['panel']['widgets_settings']['blockquote']['show_in_panel'] ?? null ), 'También sale de `panel.widgets_settings`, que las plantillas de PRO aplican después (C4: el contenido de la entrada).' );
+	$config = Panel::document_config( array( 'panel' => array( 'widgets_settings' => array( 'blockquote' => array( 'show_in_panel' => true ), 'heading' => array( 'show_in_panel' => true ) ) ) ), 1 );
+	check_cv( false === $config['panel']['widgets_settings']['blockquote']['show_in_panel'] && true === $config['panel']['widgets_settings']['heading']['show_in_panel'], 'Un `widgets_settings` que vuelve a mostrar el de PRO queda en falso; los demás no cambian.' );
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'show' ) );
 	check_cv( array() === Panel::document_config( array(), 1 ), 'panel => show lo deja a la vista.' );
 	// C5: en una plantilla de Elemento de bucle, los bucles propios salen de su panel como PRO quita los suyos.
@@ -226,7 +232,8 @@ namespace {
 	Registry::set( 'blockquote', null );
 	$loop_cfg = Panel::document_config( array(), 77 );
 	check_cv( false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-grid']['show_in_panel'] ?? null ) && false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-carousel']['show_in_panel'] ?? null ), 'Plantilla de Elemento de bucle: la Cuadrícula y el Carrusel de bucle propios no se ofrecen dentro (como los de PRO): ' . json_encode( $loop_cfg['panel'] ?? null ) );
-	check_cv( ! isset( Panel::document_config( array(), 1 )['panel'] ), 'En otro documento, los bucles propios siguen en el panel.' );
+	$other_cfg = Panel::document_config( array(), 1 );
+	check_cv( ! isset( $other_cfg['panel']['widgets_settings']['digitalisimo-loop-grid'] ) && ! isset( $other_cfg['panel']['widgets_settings']['digitalisimo-loop-carousel'] ), 'En otro documento, los bucles propios siguen en el panel.' );
 	Registry::reset();
 
 	// 5. Cada mapa real: declara todos los controles de PRO y apunta a un widget propio. Los controles de un widget de PRO

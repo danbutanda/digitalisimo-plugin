@@ -2820,6 +2820,37 @@
     "digitalisimo-video-playlist": {"settings": {"playlist_title": "Lista del kit", "show_image_overlay": "yes", "image_overlay": "@media:imagen-a", "tabs": [{"_id": "vp0001", "type": "hosted", "hosted_url": "@media:video", "title": "Vídeo del kit", "duration": "1:00", "thumbnail": "@media:imagen-b"}, {"_id": "vp0002", "type": "section", "title": "Sección del kit"}]}},
     "digitalisimo-countdown": {"settings": {"countdown_type": "due_date", "due_date": "2030-01-04 10:05:06", "custom_labels": "yes", "label_days": "Días del kit", "expire_actions": ["message"], "message_after_expire": "Terminó la cuenta del kit."}},
     "digitalisimo-progress-tracker": {"settings": {"type": "circular", "relative_to": "selector", "selector": "#contenido-del-kit", "percentage": "yes"}},
+    "digitalisimo-site-logo": { "settings": { "__dynamic__": { "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-site-title": { "settings": { "__dynamic__": { "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]", "link": "[elementor-tag id=\"b4c5d6e\" name=\"site-url\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-page-title": { "settings": { "title": "Título del kit", "header_size": "h1" } },
+    "digitalisimo-post-title": { "settings": { "__dynamic__": { "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-archive-title": { "settings": { "title": "Archivo del kit" } },
+    "digitalisimo-post-excerpt": { "settings": { "excerpt": "Extracto del kit." } },
+    "digitalisimo-post-content": { "settings": { "align": "center" } },
+    "digitalisimo-featured-image": { "settings": { "image": "@media:imagen-a", "image_size": "medium" } },
+    "digitalisimo-post-info": {
+      "settings": {
+        "view": "inline",
+        "icon_list": [
+          { "_id": "pi0001", "type": "author" },
+          { "_id": "pi0002", "type": "date" },
+          { "_id": "pi0003", "type": "terms", "taxonomy": "category" }
+        ]
+      }
+    },
+    "digitalisimo-post-navigation": { "settings": { "prev_label": "Anterior", "next_label": "Siguiente", "in_same_term": "yes", "post_taxonomy": "category" } },
+    "digitalisimo-author-box": { "settings": { "source": "custom", "digitalisimo_author_user": "@user:autora", "author_name": "Autora del kit", "author_bio": "Biografía del kit." } },
+    "digitalisimo-post-comments": { "settings": { "source_type": "current_post" } },
+    "digitalisimo-search-form": { "settings": { "skin": "classic", "placeholder": "Buscar en el kit", "button_type": "icon" } },
+    "digitalisimo-sitemap": {
+      "settings": {
+        "sitemap_items": [
+          { "_id": "sm0001", "sitemap_type_selector": "post_type", "sitemap_source_post_type": "page", "sitemap_title": "Páginas" },
+          { "_id": "sm0002", "sitemap_type_selector": "taxonomy", "sitemap_source_taxonomy": "category", "sitemap_title": "Categorías" }
+        ]
+      }
+    },
+    "digitalisimo-yoast-breadcrumbs": { "settings": { "html_tag": "nav", "align": "center" } },
     "digitalisimo-posts": {"settings": {"_skin": "cards", "cards_columns": "2", "cards_posts_per_page": 3, "posts_post_type": "post", "cards_read_more_text": "Leer más del kit", "pagination_type": "numbers"}},
     "digitalisimo-archive-posts": {"settings": {"_skin": "archive_classic", "archive_classic_columns": "2", "pagination_type": "prev_next", "nothing_found_message": "Nada en el archivo del kit."}},
     "digitalisimo-portfolio": {"settings": {"columns": "3", "posts_per_page": 6, "posts_post_type": "post", "show_filter_bar": "yes", "taxonomy": "category"}},

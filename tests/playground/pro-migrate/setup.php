@@ -1,8 +1,9 @@
 <?php
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
-// página con los cinco carruseles de PRO (C1), otra con los catorce widgets de contenido de PRO y una cuenta regresiva
-// de Element Pack (C2) y otra con los seis de entradas y bucles de PRO (con una plantilla de Elemento de bucle) y lo que
-// F8 lleva hacia ellos desde Element Pack y Prime Slider (C5); la cabecera lleva además unas Entradas de PRO (C5).
+// página con los cinco carruseles de PRO (C1); otra con los catorce widgets de contenido de PRO y una cuenta regresiva
+// de Element Pack (C2); una plantilla de entrada con los elementos de tema (C4); y otra página con los seis de entradas
+// y bucles de PRO (con una plantilla de Elemento de bucle) y lo que F8 lleva hacia ellos desde Element Pack y Prime
+// Slider (C5); la cabecera lleva además unas Entradas de PRO (C5).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -67,6 +68,31 @@ $content_data = array( array( 'id' => 'c7', 'elType' => 'container', 'settings' 
 $content = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con contenido', 'post_name' => 'pm-contenido' ) );
 update_post_meta( $content, '_elementor_edit_mode', 'builder' );
 update_post_meta( $content, '_elementor_data', wp_slash( wp_json_encode( $content_data ) ) );
+// C4: plantilla de entrada del Theme Builder con los quince elementos de tema de PRO y la Información de la entrada de
+// Element Pack (`bdt-post-info`), que F8 lleva a la de PRO y la etapa `pro` a la propia en la misma pasada.
+$single_data = array( array( 'id' => 'c8', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'g1', 'theme-site-logo', array( 'width' => array( 'unit' => 'px', 'size' => 120 ) ) ),
+	$w( 'g2', 'theme-site-title', array( 'header_size' => 'p' ) ),
+	$w( 'g3', 'theme-page-title', array() ),
+	$w( 'g4', 'theme-post-title', array( 'header_size' => 'h1', 'custom_css' => 'selector.elementor-widget-theme-post-title{margin:0}' ) ),
+	$w( 'g5', 'theme-archive-title', array() ),
+	$w( 'g6', 'theme-post-excerpt', array( 'align' => 'center' ) ),
+	$w( 'g7', 'theme-post-content', array() ),
+	$w( 'g8', 'theme-post-featured-image', array( 'image_size' => 'medium' ) ),
+	$w( 'h1', 'post-info', array( 'icon_list' => array( array( '_id' => 'pa', 'type' => 'author' ), array( '_id' => 'pb', 'type' => 'date' ) ), 'custom_css' => 'selector .elementor-icon-list-item{gap:4px}' ) ),
+	$w( 'h2', 'post-navigation', array( 'prev_label' => 'Anterior', 'next_label' => 'Siguiente' ) ),
+	$w( 'h3', 'author-box', array( 'source' => 'custom', 'author_name' => 'Ana' ) ),
+	$w( 'h4', 'post-comments', array() ),
+	$w( 'h5', 'search-form', array( 'placeholder' => 'Buscar' ) ),
+	$w( 'h6', 'sitemap', array( 'sitemap_items' => array( array( '_id' => 'sx', 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'Páginas' ) ) ) ),
+	$w( 'h7', 'breadcrumbs', array( 'html_tag' => 'nav' ) ),
+	$w( 'e1', 'bdt-post-info', array() ),
+) ) );
+$single = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Entrada individual', 'post_name' => 'pm-entrada' ) );
+update_post_meta( $single, '_elementor_template_type', 'single-post' );
+update_post_meta( $single, '_elementor_edit_mode', 'builder' );
+update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
+wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
 // C5: plantilla de Elemento de bucle, plantilla de sección (la del Dynamic Grid de Element Pack, que F8 copia como Loop
 // Item) y una página con los seis widgets de entradas y bucles de PRO (el filtro apunta a la cuadrícula; tres con CSS
 // personalizado) más una rejilla de entradas y un Dynamic Grid de Element Pack y un Blog de Prime Slider, que F8 lleva a
@@ -81,7 +107,7 @@ $template = static function ( $slug, $type, array $meta = array() ) {
 };
 $loop_item = $template( 'pm-elemento-de-bucle', 'loop-item', array( '_elementor_source' => 'post' ) );
 $card      = $template( 'pm-tarjeta', 'section' );
-$loops_data = array( array( 'id' => 'c8', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+$loops_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
 	$w( 'p1', 'posts', array( '_skin' => 'cards', 'cards_posts_per_page' => 3, 'custom_css' => 'selector .elementor-post__title{letter-spacing:1px}' ) ),
 	$w( 'p2', 'archive-posts', array() ),
 	$w( 'p3', 'portfolio', array( 'show_filter_bar' => 'yes' ) ),
@@ -95,5 +121,5 @@ $loops_data = array( array( 'id' => 'c8', 'elType' => 'container', 'settings' =>
 $loops = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con bucles', 'post_name' => 'pm-bucles' ) );
 update_post_meta( $loops, '_elementor_edit_mode', 'builder' );
 update_post_meta( $loops, '_elementor_data', wp_slash( wp_json_encode( $loops_data ) ) );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

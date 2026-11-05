@@ -75,6 +75,15 @@ jobs:
           node tests/elements-pro-video-playlist-chrome.mjs
           php tests/elements-pro-time.php
           node tests/elements-pro-time-chrome.mjs
+          php tests/elements-pro-theme-titles-media.php
+          php tests/elements-pro-post-info.php
+          php tests/elements-pro-post-navigation.php
+          php tests/elements-pro-author-box.php
+          php tests/elements-pro-post-comments.php
+          php tests/elements-pro-search-form.php
+          node tests/elements-pro-search-form-chrome.mjs
+          php tests/elements-pro-sitemap.php
+          php tests/elements-pro-yoast-breadcrumbs.php
           php tests/elements-pro-posts.php
           node tests/elements-pro-posts-chrome.mjs
           php tests/elements-pro-loop.php

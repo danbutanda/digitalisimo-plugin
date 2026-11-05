@@ -144,6 +144,7 @@ final class References {
 			array( 'element', 'digitalisimo-vertical-menu', 'menu', 'menu_slug' ),
 			// Caja de autor: usuario del sitio; vacío vuelve a los datos escritos a mano (class-author-box-extras.php:51,73).
 			array( 'element', 'author-box', 'digitalisimo_author_user', 'user' ),
+			array( 'element', 'digitalisimo-author-box', 'digitalisimo_author_user', 'user' ),
 			// Reseñas: el Place ID viaja, la clave de Places no (class-google-reviews.php:19,32).
 			array( 'element', 'digitalisimo-google-reviews', 'google_place_id', 'note:google_places' ),
 			// Reglas de visibilidad (E:modules/digitalisimo-conditions/class-visibility.php:130-142; class-visibility-rules.php).

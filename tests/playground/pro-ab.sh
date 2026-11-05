@@ -40,6 +40,18 @@
 # sólo ese ancho) y `pixels.states` (`{hover|focus: {max, reason} | {skip: true, reason}}`: umbral propio de un estado, u
 # omitir sus píxeles cuando sólo B tiene algo que enfocar o que lleva el puntero fuera del widget). Medios de Lottie en los
 # ajustes: `{"$lottie": 1}` da `{id, url}` de un adjunto JSON de prueba y `"$lottie-url"`, su URL.
+# C4 (elementos de tema) añade, todos opcionales y sin efecto en los casos que no los traen:
+#   - `context`: mide A y B dentro de una consulta, como la vista previa del Theme Builder (`switch_to_query()` en el
+#     primer elemento de nivel superior): `"post"` o `{"post": "full"}` (entrada completa: autora con biografía,
+#     categoría y etiqueta, extracto, bloques, imagen destacada con leyenda, comentarios con respuesta, anterior y
+#     siguiente), `{"post": "bare"}` (sin extracto, imagen, etiqueta ni comentarios), `"page"` o
+#     `{"archive": "category"|"tag"|"author"|"date"|"search"}`. Los datos de prueba (fijos e idempotentes) y el
+#     mu-plugin `digi-ab-context.php` sólo se crean si algún caso de la corrida trae `context`; los avatares salen de
+#     una imagen local. La consulta queda en conversion.json y pro-ab.json;
+#   - `blank` (con su motivo): un widget que por diseño no pinta texto ni imágenes (el buscador con botón de icono) se
+#     acepta si A tiene controles enfocables;
+#   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
+#     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
 # C5: entradas de prueba (`"posts": n` en el caso o `{"$posts": n}` en los ajustes, que da sus IDs: 9 entradas
 # deterministas con categorías «Noticias», «Guías» y «Casos», etiquetas «par»/«impar», extracto e imagen destacada),
 # plantilla de Elemento de bucle (`{"$loop_item": "card"|"alt"|"title"|"term"}`, publicada una vez y con su ID como

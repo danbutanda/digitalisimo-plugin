@@ -1,0 +1,67 @@
+{
+ "_doc": [
+  "Casos A/B de theme-archive-title → digitalisimo-archive-title (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-archive-title",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-archivetitle-category": {
+   "title": "Título del archivo de una categoría (con su contexto, por defecto)",
+   "widget": "theme-archive-title",
+   "context": {
+    "archive": "category"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"e1f2a3b\" name=\"archive-title\" settings=\"%7B%22include_context%22%3A%22yes%22%7D\"]"
+    }
+   }
+  },
+  "tl-archivetitle-tag": {
+   "title": "Título del archivo de una etiqueta, sin contexto, h2 a la derecha con color propio",
+   "widget": "theme-archive-title",
+   "context": {
+    "archive": "tag"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"e1f2a3b\" name=\"archive-title\" settings=\"%7B%22include_context%22%3A%22%22%7D\"]"
+    },
+    "header_size": "h2",
+    "align": "right",
+    "title_color": "#2A9D8F"
+   }
+  },
+  "tl-archivetitle-author": {
+   "title": "Título del archivo de una autora, tamaño XL",
+   "widget": "theme-archive-title",
+   "context": {
+    "archive": "author"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"e1f2a3b\" name=\"archive-title\" settings=\"%7B%22include_context%22%3A%22yes%22%7D\"]"
+    },
+    "size": "xl"
+   }
+  },
+  "tl-archivetitle-search": {
+   "title": "Título del archivo de una búsqueda",
+   "widget": "theme-archive-title",
+   "context": {
+    "archive": "search"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"e1f2a3b\" name=\"archive-title\" settings=\"%7B%22include_context%22%3A%22yes%22%7D\"]"
+    }
+   }
+  }
+ }
+}

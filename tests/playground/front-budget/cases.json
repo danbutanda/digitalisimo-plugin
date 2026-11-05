@@ -6816,5 +6816,43 @@
   }
  },
   "content": {"title": "Contenido propio (programa sin widgets de PRO, C2): los catorce widgets sin los paquetes de PRO; Prism y lottie-web, bajo un espaciador de 2 000 px, se piden al acercarse y nunca en la carga inicial. La hoja de Swiper y el fragmento de la caja de luz son del núcleo (la galería enlaza a la caja de luz, como la de PRO), y las fuentes de Google, las globales del kit", "since": "4.3.0.174", "widgets": [{"type": "heading", "settings": {"title": "Sección de medición", "header_size": "h2"}}, {"type": "digitalisimo-table-of-contents", "settings": {"title": "Índice"}}, {"type": "digitalisimo-animated-headline", "settings": {}}, {"type": "digitalisimo-share-buttons", "settings": {}}, {"type": "digitalisimo-call-to-action", "settings": {"bg_image": "__IMAGE__"}}, {"type": "digitalisimo-flip-box", "settings": {}}, {"type": "digitalisimo-price-list", "settings": {}}, {"type": "digitalisimo-price-table", "settings": {}}, {"type": "digitalisimo-gallery", "settings": {"gallery": ["__IMAGE__", "__IMAGE__", "__IMAGE__"], "gallery_layout": "masonry"}}, {"type": "digitalisimo-hotspot", "settings": {"image": "__IMAGE__"}}, {"type": "digitalisimo-video-playlist", "settings": {}}, {"type": "digitalisimo-countdown", "settings": {"due_date": "2030-01-04 10:05:06"}}, {"type": "digitalisimo-progress-tracker", "settings": {"type": "circular", "percentage": "yes"}}, {"type": "heading", "settings": {"title": "Segunda sección", "header_size": "h3"}}, {"type": "spacer", "settings": {"space": {"unit": "px", "size": 2000}}}, {"type": "digitalisimo-code-highlight", "settings": {"language": "javascript", "code": "const a = 1; // nota", "line_numbers": "line-numbers"}}, {"type": "digitalisimo-lottie", "settings": {"trigger": "none"}}], "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "toc": ".digi-toc__item", "timer": "[role=\"timer\"] .digi-countdown__digits", "lottieSvg": ".digi-lottie__animation svg", "tokens": ".digi-code .token"}, "actions": [{"do": "scroll", "to": "bottom"}, {"do": "wait", "ms": 2500}], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "lottieLib": false, "prism": false, "cdnjs": false, "count:own": 14, "count:toc": ">=2", "count:timer": 4, "after": {"lottieLib": true, "prismCore": true, "count:lottieSvg": ">=1", "count:tokens": ">=1"}, "count:tokens": 0}}},
-  "loop-own": {"title": "Entradas y bucles propios (programa sin widgets de PRO, C5): Entradas (clásica con números), Portafolio con filtro y una Cuadrícula de bucle propia con el buscador de F7b, sin los paquetes ni las hojas de PRO (widget-posts, widget-loop-*); el buscador refresca la cuadrícula propia pidiendo la misma página con la URL filtrada (sin el REST de PRO)", "since": "4.3.0.175", "widgets": [{"type": "digitalisimo-posts", "id": "fbpo001", "settings": {"_skin": "classic", "classic_posts_per_page": 3, "pagination_type": "numbers"}}, {"type": "digitalisimo-portfolio", "id": "fbpf001", "settings": {"posts_per_page": 4, "show_filter_bar": "yes", "taxonomy": "category"}}, {"type": "digitalisimo-loop-search", "id": "fbos001", "settings": {"destination": "loop", "selected_element": "fbog001", "label": "Buscar"}}, {"type": "digitalisimo-loop-grid", "id": "fbog001", "settings": {"template_id": "__LOOP__", "posts_per_page": 6}}], "extra": [{"key": "loop", "type": "loop-item", "widgets": [{"type": "heading", "settings": {"title": "Entrada", "__dynamic__": {"title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"}}}]}], "assets": {"pro-posts-css": "/widget-posts(\\.min)?\\.css", "pro-loop-css": "/widget-loop-[a-z-]+(\\.min)?\\.css", "filters-js": "/digitalisimo-elements/assets/js/filters\\.js", "loop-css": "/digitalisimo-loop/assets/css/", "loop-js": "/digitalisimo-loop/assets/js/"}, "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "postsItems": ".digi-posts__item", "portfolioFilter": ".elementor-widget-digitalisimo-portfolio button[aria-pressed]", "pagination": "nav.digi-loop__pagination a"}, "actions": [{"do": "mark", "selector": ".e-loop-item"}, {"do": "fill", "selector": ".elementor-element-fbos001 input[type=\"search\"]", "value": "medición 2"}, {"do": "click", "selector": ".elementor-element-fbos001 button[type=\"submit\"]"}, {"do": "waitChange", "selector": ".e-loop-item", "ms": 20000}, {"do": "wait", "ms": 500}], "modes": ["normal", "cache"], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "asset:pro-posts-css": 0, "asset:pro-loop-css": 0, "asset:filters-js": "<=10240", "asset:loop-css": "<=16384", "asset:loop-js": "<=16384", "count:own": 4, "count:postsItems": 3, "count:portfolioFilter": ">=2", "count:pagination": ">=1", "after": {"changed": ["loopSig"], "errors": 0}}}}
+ "theme-elements": {
+  "title": "Plantilla de entrada del Theme Builder con los quince elementos de tema propios (programa sin widgets de PRO, C4), medida en una entrada",
+  "since": "4.3.0.175",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "single",
+    "type": "single-post",
+    "conditions": ["include/singular/post"],
+    "widgets": [
+     { "type": "digitalisimo-site-logo", "settings": {} },
+     { "type": "digitalisimo-site-title", "settings": { "header_size": "p" } },
+     { "type": "digitalisimo-search-form", "settings": { "skin": "classic", "placeholder": "Buscar" } },
+     { "type": "digitalisimo-yoast-breadcrumbs", "settings": {} },
+     { "type": "digitalisimo-post-title", "settings": {} },
+     { "type": "digitalisimo-post-info", "settings": {} },
+     { "type": "digitalisimo-featured-image", "settings": {} },
+     { "type": "digitalisimo-post-excerpt", "settings": {} },
+     { "type": "digitalisimo-post-content", "settings": {} },
+     { "type": "digitalisimo-author-box", "settings": {} },
+     { "type": "digitalisimo-post-navigation", "settings": {} },
+     { "type": "digitalisimo-post-comments", "settings": {} },
+     { "type": "digitalisimo-page-title", "settings": {} },
+     { "type": "digitalisimo-archive-title", "settings": {} },
+     { "type": "digitalisimo-sitemap", "settings": {} }
+    ]
+   }
+  ],
+  "views": ["/digi-fb-post-2/"],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false
+   }
+  }
+ },
+  "loop-own": {"title": "Entradas y bucles propios (programa sin widgets de PRO, C5): Entradas (clásica con números), Portafolio con filtro y una Cuadrícula de bucle propia con el buscador de F7b, sin los paquetes ni las hojas de PRO (widget-posts, widget-loop-*); el buscador refresca la cuadrícula propia pidiendo la misma página con la URL filtrada (sin el REST de PRO)", "since": "4.3.0.176", "widgets": [{"type": "digitalisimo-posts", "id": "fbpo001", "settings": {"_skin": "classic", "classic_posts_per_page": 3, "pagination_type": "numbers"}}, {"type": "digitalisimo-portfolio", "id": "fbpf001", "settings": {"posts_per_page": 4, "show_filter_bar": "yes", "taxonomy": "category"}}, {"type": "digitalisimo-loop-search", "id": "fbos001", "settings": {"destination": "loop", "selected_element": "fbog001", "label": "Buscar"}}, {"type": "digitalisimo-loop-grid", "id": "fbog001", "settings": {"template_id": "__LOOP__", "posts_per_page": 6}}], "extra": [{"key": "loop", "type": "loop-item", "widgets": [{"type": "heading", "settings": {"title": "Entrada", "__dynamic__": {"title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"}}}]}], "assets": {"pro-posts-css": "/widget-posts(\\.min)?\\.css", "pro-loop-css": "/widget-loop-[a-z-]+(\\.min)?\\.css", "filters-js": "/digitalisimo-elements/assets/js/filters\\.js", "loop-css": "/digitalisimo-loop/assets/css/", "loop-js": "/digitalisimo-loop/assets/js/"}, "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "postsItems": ".digi-posts__item", "portfolioFilter": ".elementor-widget-digitalisimo-portfolio button[aria-pressed]", "pagination": "nav.digi-loop__pagination a"}, "actions": [{"do": "mark", "selector": ".e-loop-item"}, {"do": "fill", "selector": ".elementor-element-fbos001 input[type=\"search\"]", "value": "medición 2"}, {"do": "click", "selector": ".elementor-element-fbos001 button[type=\"submit\"]"}, {"do": "waitChange", "selector": ".e-loop-item", "ms": 20000}, {"do": "wait", "ms": 500}], "modes": ["normal", "cache"], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "asset:pro-posts-css": 0, "asset:pro-loop-css": 0, "asset:filters-js": "<=10240", "asset:loop-css": "<=16384", "asset:loop-js": "<=16384", "count:own": 4, "count:postsItems": 3, "count:portfolioFilter": ">=2", "count:pagination": ">=1", "after": {"changed": ["loopSig"], "errors": 0}}}}
 }

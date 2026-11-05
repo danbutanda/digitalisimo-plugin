@@ -28,3 +28,58 @@ update_option( 'elementor_element_cache_ttl', 'disable' );
 update_option( 'blogname', 'Sitio de la comparación' );
 update_option( 'blogdescription', 'A/B de widgets' );
 update_option( 'permalink_structure', '/%postname%/' );
+
+// Migas de Yoast de prueba (casos con `"yoast": true`, C4 frente H): el Breadcrumbs de PRO sólo existe con Yoast
+// (`yoast_breadcrumb()` al registrar, `WPSEO_Breadcrumbs::breadcrumb()` al pintar). Yoast no se instala en el Playground:
+// este mu-plugin mínimo imprime una ruta fija con el mismo formato que Yoast (inicio, categoría y página actual), igual
+// para A y B. Sólo se escribe si algún caso de la corrida lo pide; la corrida sin esos casos no cambia.
+$digi_ab_cases = json_decode( (string) @file_get_contents( DIGI_AB_PROBE . '/cases.json' ), true );
+$digi_ab_only  = array_filter( array_map( 'trim', explode( ',', (string) @file_get_contents( DIGI_AB_PROBE . '/only.txt' ) ) ) );
+$digi_ab_yoast = false;
+foreach ( (array) ( $digi_ab_cases['cases'] ?? array() ) as $digi_ab_slug => $digi_ab_case ) {
+	$digi_ab_chosen = $digi_ab_only ? in_array( (string) $digi_ab_slug, $digi_ab_only, true ) : empty( $digi_ab_case['pending'] );
+	$digi_ab_yoast  = $digi_ab_yoast || ( $digi_ab_chosen && ! empty( $digi_ab_case['yoast'] ) );
+}
+if ( $digi_ab_yoast ) {
+	file_put_contents(
+		WPMU_PLUGIN_DIR . '/digi-ab-yoast.php',
+		<<<'PHP'
+<?php
+// pro-ab.sh (activate.php, casos con `"yoast": true`): migas con el formato de Yoast SEO, sin Yoast.
+if ( ! class_exists( 'WPSEO_Breadcrumbs' ) ) {
+	class WPSEO_Breadcrumbs {
+		public static function breadcrumb( $before = '', $after = '', $display = true ) {
+			$links = array( array( home_url( '/' ), 'Inicio' ) );
+			$last  = wp_get_document_title();
+			if ( is_singular() ) {
+				$post  = get_queried_object();
+				$terms = $post ? get_the_category( $post->ID ) : array();
+				if ( $terms ) {
+					$links[] = array( get_category_link( $terms[0] ), $terms[0]->name );
+				}
+				$last = $post ? get_the_title( $post ) : $last;
+			} elseif ( is_category() || is_tag() ) {
+				$last = single_term_title( '', false );
+			}
+			$parts = array();
+			foreach ( $links as $link ) {
+				$parts[] = '<span><a href="' . esc_url( $link[0] ) . '">' . esc_html( $link[1] ) . '</a></span>';
+			}
+			$parts[] = '<span class="breadcrumb_last" aria-current="page">' . esc_html( $last ) . '</span>';
+			$out     = $before . '<span>' . implode( ' » ', $parts ) . '</span>' . $after;
+			if ( $display ) {
+				echo $out; // phpcs:ignore
+				return;
+			}
+			return $out;
+		}
+	}
+}
+if ( ! function_exists( 'yoast_breadcrumb' ) ) {
+	function yoast_breadcrumb( $before = '', $after = '', $display = true ) {
+		return WPSEO_Breadcrumbs::breadcrumb( $before, $after, $display );
+	}
+}
+PHP
+	);
+}

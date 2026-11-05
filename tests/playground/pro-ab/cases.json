@@ -3,7 +3,8 @@
     "Casos del A/B de pro-ab.sh. Cada caso da dos páginas con la plantilla «Lienzo»: A con el widget de PRO (`widget`) y sus ajustes guardados (`settings`, como los guarda el editor: sin lo que coincide con el default, con `__globals__` y `__dynamic__`), y B con los mismos datos convertidos por Converter::tree( …, true ).",
     "Diferencias declaradas (`declared`, en el caso o arriba con `widget`): cada una con `kind` (palabra, enlace, imagen, nombre, estilo, caja, hover, foco, interacción), `width` opcional, `match` (expresión regular sobre la línea de la diferencia, tal como la imprime el arnés) y su motivo: `reason` (texto) o `code` (clave del `drop` o del `approx` del mapa: el motivo sale del mapa, y si el mapa no la declara la diferencia no queda explicada).",
     "Píxeles: `pixels.max` (proporción de píxeles distintos entre A y B, por defecto la de arriba o PIXEL_MAX) y `pixels.tolerance` (diferencia por canal). Un caso que sube `max` necesita `pixels.reason`.",
-    "`forbid`: recursos que B no puede cargar (por defecto los de `forbid_b`, con `{widget}` sustituido por el widget de PRO). `interact: false` omite hover y foco. `pending`: el caso no se mide (motivo)."
+    "`forbid`: recursos que B no puede cargar (por defecto los de `forbid_b`, con `{widget}` sustituido por el widget de PRO). `interact: false` omite hover y foco. `pending`: el caso no se mide (motivo).",
+    "`context` (C4): mide A y B dentro de una consulta, como la vista previa del Theme Builder: `\"post\"` / `{\"post\": \"full\"}`, `{\"post\": \"bare\"}`, `\"page\"` o `{\"archive\": \"category\"|\"tag\"|\"author\"|\"date\"|\"search\"}` (datos de prueba en setup.php). `blank` (motivo): el widget no pinta texto ni imágenes y basta con que A tenga controles enfocables. `\"yoast\": true`: Yoast de prueba (mu-plugin de activate.php) para que PRO registre sus migas."
   ],
   "widths": [
     375,
