@@ -1,0 +1,665 @@
+{
+ "_doc": [
+  "Casos A/B del Código resaltado (frente A de C2): A con `code-highlight` de PRO, B con `digitalisimo-code-highlight`. `ready` espera al resaltado de Prism (tokens, números de línea o líneas resaltadas) en los dos lados. `forbid` añade a los recursos prohibidos de B la barra de Prism, clipboard.js y el cargador de librerías de PRO."
+ ],
+ "declared": [
+  {
+   "widget": "code-highlight",
+   "kind": "nombre",
+   "match": "Copy|Copiar",
+   "reason": "Botón Copiar propio con el texto en español («Copiar»); PRO usaba el de la barra de Prism («Copy»)."
+  },
+  {
+   "widget": "code-highlight",
+   "kind": "palabra",
+   "match": "Copy|Copiar",
+   "reason": "Botón Copiar propio con el texto en español («Copiar»); PRO usaba el de la barra de Prism («Copy»)."
+  },
+  {
+   "widget": "code-highlight",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del botón Copiar (criterio del estándar del front): contorno de 2 px con separación de 2 px."
+  }
+ ],
+ "cases": {
+  "ch-defaults": {
+   "title": "Valores por defecto: JavaScript de una línea, tema claro, números de línea y botón Copiar",
+   "widget": "code-highlight",
+   "settings": {},
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-multi": {
+   "title": "Varias líneas de JavaScript (comentarios, expresiones regulares, clases, plantillas) en el tema claro",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-dark": {
+   "title": "Tema oscuro (borde, radio y sombra interior)",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "theme": "dark"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-okaidia": {
+   "title": "Tema Okaidia",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "theme": "okaidia"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-solarized": {
+   "title": "Tema Solarized Light",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "theme": "solarizedlight"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-tomorrow": {
+   "title": "Tema Tomorrow sin números de línea ni botón Copiar",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "theme": "tomorrow",
+    "line_numbers": "",
+    "copy_to_clipboard": ""
+   },
+   "ready": {
+    "a": "code .token",
+    "b": "code .token"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-twilight": {
+   "title": "Tema Twilight",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "theme": "twilight"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-lines": {
+   "title": "Líneas 2 y 4-5 resaltadas con números de línea",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "highlight_lines": "2, 4-5"
+   },
+   "ready": {
+    "a": ".line-highlight",
+    "b": ".line-highlight"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-lines-plain": {
+   "title": "Líneas resaltadas sin números de línea (con su etiqueta), en Twilight",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "highlight_lines": "3-4",
+    "line_numbers": "",
+    "theme": "twilight"
+   },
+   "ready": {
+    "a": ".line-highlight",
+    "b": ".line-highlight"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-wrap": {
+   "title": "Ajuste de línea con una línea larga",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "const muyLarga = 'Esta es una línea muy larga que debería ajustarse cuando el ajuste de línea está activado en el bloque de código resaltado';\nconst otra = 1;",
+    "word_wrap": "word-wrap"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-size": {
+   "title": "Altura fija con desplazamiento y tamaño de fuente por dispositivo",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "// Saludo\nconst re = /a+b/g;\nclass Casa extends Base {\n\tconstructor( n ) {\n\t\tsuper();\n\t\tthis.n = n * 2 + 0x1f; /* bloque */\n\t\treturn `hola ${ n }` && true;\n\t}\n}\nfunction f( a, b = null ) { return a !== b ? 'x' : \"y\"; }",
+    "height": {
+     "unit": "px",
+     "size": 160,
+     "sizes": []
+    },
+    "height_mobile": {
+     "unit": "px",
+     "size": 130,
+     "sizes": []
+    },
+    "font_size": {
+     "unit": "px",
+     "size": 13,
+     "sizes": []
+    },
+    "font_size_mobile": {
+     "unit": "px",
+     "size": 11,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-php": {
+   "title": "PHP con <, > y & (gramática con markup-templating) en Okaidia",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "<?php\nnamespace App;\n// comentario & <tags>\n$a = array( 'b' => 1 < 2 && 3 > 2 );\necho \"<p>{$a['b']}</p>\";\n?>\n<div class=\"x\">&amp; &lt;</div>",
+    "language": "php",
+    "theme": "okaidia"
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-html": {
+   "title": "HTML con CSS y JavaScript incrustados en Twilight",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<style>\nbody { color: red; background: url('x.png'); }\n</style>\n<script>var a = 'b';</script>\n</head>\n<!-- comentario -->\n<body class=\"a\" data-x='1'>&copy; Hola</body>\n</html>",
+    "language": "html",
+    "theme": "twilight",
+    "line_numbers": ""
+   },
+   "ready": {
+    "a": "code .token",
+    "b": "code .token"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  },
+  "ch-indent": {
+   "title": "Sangría común de las líneas siguientes (los espacios en blanco de Prism la quitan como en PRO)",
+   "widget": "code-highlight",
+   "settings": {
+    "code": "function f( a ) {\n\t\tif ( a ) {\n\t\t\treturn a;\n\t\t}\n\t}",
+    "copy_to_clipboard": ""
+   },
+   "ready": {
+    "a": ".line-numbers-rows",
+    "b": ".line-numbers-rows"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "barra de Prism",
+     "id": "prismjs_toolbar-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/plugins/toolbar/"
+    },
+    {
+     "name": "clipboard.js",
+     "id": "prismjs_clipboard-js",
+     "url": "/digitalisimo-elements/assets/lib/prism/clipboard/"
+    },
+    {
+     "name": "cargador de librerías de PRO",
+     "id": "digitalisimo-elements-lazy-libs-js",
+     "url": "/digitalisimo-elements/modules/digitalisimo-front/assets/lazy-libs\\.js"
+    }
+   ]
+  }
+ }
+}

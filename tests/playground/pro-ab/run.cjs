@@ -190,6 +190,17 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
   const result = { url, status: 0, widths: {}, assets: {}, errors, failed, third: [] };
   try {
     await page.setViewport({ width: WIDTHS[WIDTHS.length - 1], height: 900 });
+    // `reducedMotion` del caso (C2): A y B con «reducir movimiento», para comparar el estado final de una animación.
+    if (c.reducedMotion) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    // `clock` del caso (C2): reloj del navegador fijado (Date y Date.now) en esa fecha ISO, para comparar una cuenta
+    // regresiva sin depender del segundo en que se mide cada página.
+    if (c.clock) {
+      await page.evaluateOnNewDocument((t) => {
+        const D = Date;
+        class Fixed extends D { constructor(...a) { super(...(a.length ? a : [t])); } static now() { return t; } }
+        window.Date = Fixed;
+      }, Date.parse(c.clock));
+    }
     const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
     result.status = response ? response.status() : 0;
     const html = response ? await response.text().catch(() => '') : '';
@@ -248,7 +259,8 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       }
       // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
       // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
-      // puntero encima, firma y captura. Son acumulativas dentro de un ancho; después se recarga la página.
+      // puntero encima, firma y captura; con `scroll` (C2), desplaza la página. Son acumulativas dentro de un ancho;
+      // después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
       if (actions.length) {
         w.actions = [];
@@ -258,7 +270,9 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           try {
             const el = target ? await handle.$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
-            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+            // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
+            if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
+            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
           await page.mouse.move(0, 0);
@@ -444,6 +458,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const max = pix.max !== undefined ? Number(pix.max) : PIXEL_MAX;
     const tol = pix.tolerance !== undefined ? Number(pix.tolerance) : PIXEL_TOLERANCE;
     if (max > PIXEL_MAX && !pix.reason) fail(`pixels.max ${max} sube el umbral sin «reason»`);
+    // Umbral de un ancho (`pixels.widths: { "375": { max, reason } }`, C2): sólo ese ancho, siempre con su motivo.
+    const wmax = (width) => { const x = (pix.widths || {})[width]; if (!x || x.max === undefined) return max; if (!x.reason) fail(`pixels.widths.${width}.max sin «reason»`); return Number(x.max); };
     let declaredCount = 0;
     let unexplainedCount = 0;
     for (const width of WIDTHS) {
@@ -451,9 +467,11 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const wb = B.widths[width] || {};
       const sa = wa.signature;
       const sb = wb.signature;
+      // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
+      // cero) vale si su caja tiene alto; el texto llega con las acciones.
       // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
       // basta con que A tenga controles (`focusables`), que se comparan igual.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && sa.height > 0) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));
@@ -496,8 +514,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         entry.pixels = p || { error: 'sin captura de A o de B' };
         // Umbral propio de una acción (`pixels: { max, reason }` en la acción), con su motivo como el del caso.
         const conf = (c.actions || []).find((x) => (x.label || x[side_a(x)] || x.key) === label) || {};
-        const amax = conf.pixels && conf.pixels.max !== undefined ? Number(conf.pixels.max) : max;
-        if (amax > max && !(conf.pixels || {}).reason) fail(`acción ${label}: pixels.max ${amax} sube el umbral sin «reason»`);
+        const amax = conf.pixels && conf.pixels.max !== undefined ? Number(conf.pixels.max) : wmax(width);
+        if ((conf.pixels || {}).max !== undefined && amax > max && !(conf.pixels || {}).reason) fail(`acción ${label}: pixels.max ${amax} sube el umbral sin «reason»`);
         if (!p) fail(`píxeles ${width} acción ${i + 1} (${label}): sin captura de A o de B`);
         else if (p.ratio > amax) fail(`píxeles ${width} acción ${i + 1} (${label}): ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(amax * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
         w.actions.push(entry);
@@ -506,11 +524,17 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const fa = state ? (wa[state] || {}).shot : wa.shot;
         const fb = state ? (wb[state] || {}).shot : wb.shot;
         if (!fa && !fb) continue;
+        // `pixels.states.<hover|focus>.skip` (con `reason`): el estado no se compara en píxeles, p. ej. cuando sólo B tiene
+        // algo enfocable (un control de teclado que PRO no ofrecía) y A no tiene captura con el foco.
+        if (state && ((pix.states || {})[state] || {}).skip) { if (!pix.states[state].reason) fail(`pixels.states.${state}.skip sin «reason»`); continue; }
         const p = await pixelDiff(diffPage, fa, fb, path.join(SHOTS, `${slug}-diff-${width}${state ? '-' + state : ''}.png`), tol);
         const key = state || 'normal';
         w.pixels[key] = p || { error: 'sin captura de A o de B' };
         if (!p) fail(`píxeles ${width} ${key}: sin captura de A o de B`);
-        else if (p.ratio > (key === 'focus' && FOCUS_MAX > max ? FOCUS_MAX : max)) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
+        // `pixels.states.<hover|focus>`: umbral propio de un estado (con `reason`), p. ej. cuando B muestra con el foco del
+        // teclado lo que A sólo mostraba al pasar el ratón.
+        else if (key !== 'normal' && (pix.states || {})[key] && (pix.states[key].max !== undefined)) { if (!pix.states[key].reason) fail(`pixels.states.${key}.max sin «reason»`); else if (p.ratio > Number(pix.states[key].max)) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral del estado ${(Number(pix.states[key].max) * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`); }
+        else if (p.ratio > (key === 'focus' && FOCUS_MAX > wmax(width) ? FOCUS_MAX : wmax(width))) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(wmax(width) * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
       }
       w.signature = { a: sa, b: sb };
       w.states = { a: { hover: (wa.hover || {}).styles || null, focus: (wa.focus || {}).styles || null }, b: { hover: (wb.hover || {}).styles || null, focus: (wb.focus || {}).styles || null } };

@@ -37,7 +37,7 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'single' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
 	}
 	$out['backup'] = (bool) get_post_meta( (int) $ids['page'], '_digitalisimo_ep_backup', true );

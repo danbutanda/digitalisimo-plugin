@@ -698,20 +698,24 @@ class Author_Box extends \Elementor\Widget_Base {
 		return $author;
 	}
 
-	/** Imagen del autor: un adjunto de la biblioteca con `wp_get_attachment_image()`; si no, la URL (avatar) con medidas. */
+	/**
+	 * Imagen del autor: un adjunto de la biblioteca con `wp_get_attachment_image()`; si no, la URL (avatar) con medidas.
+	 * Con medidas no se fija `loading`: lo decide WordPress o la optimización de carga del núcleo, que lo añade a toda
+	 * imagen con medidas aunque ya lo tenga (quedaba duplicado). Sin medidas, el núcleo no la toca: `loading="lazy"`.
+	 */
 	private static function avatar_html( array $author, array $settings ): string {
 		$alt = '' !== $author['display_name']
 			/* translators: %s: nombre de la persona. */
 			? sprintf( __( 'Imagen de %s', 'pro-elements' ), wp_strip_all_tags( $author['display_name'] ) )
 			: __( 'Imagen del autor', 'pro-elements' );
 		if ( $author['avatar_id'] && function_exists( 'wp_get_attachment_image' ) ) {
-			$html = (string) wp_get_attachment_image( $author['avatar_id'], 'medium', false, array( 'alt' => $alt, 'loading' => 'lazy', 'decoding' => 'async' ) );
+			$html = (string) wp_get_attachment_image( $author['avatar_id'], 'medium', false, array( 'alt' => $alt, 'decoding' => 'async' ) );
 			if ( '' !== $html ) {
 				return $html;
 			}
 		}
 		$size = 'current' === $settings['source'] ? max( 1, (int) ( $settings['avatar_size'] ?? 300 ) ) : 0;
-		return '<img src="' . esc_url( $author['avatar'] ) . '" alt="' . esc_attr( $alt ) . '"' . ( $size ? ' width="' . $size . '" height="' . $size . '"' : '' ) . ' loading="lazy" decoding="async">';
+		return '<img src="' . esc_url( $author['avatar'] ) . '" alt="' . esc_attr( $alt ) . '"' . ( $size ? ' width="' . $size . '" height="' . $size . '"' : ' loading="lazy"' ) . ' decoding="async">';
 	}
 
 	/** Piezas del «Perfil ampliado» (cabecera, nombre de usuario y cuerpo), vacías si no se usa o no está cargado. */

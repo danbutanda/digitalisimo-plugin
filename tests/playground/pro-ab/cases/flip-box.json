@@ -1,0 +1,253 @@
+{
+ "_doc": [
+  "Casos A/B de la Tarjeta giratoria (frente B de C2): A con `flip-box` de PRO, B con `digitalisimo-flip-box`. Imágenes de prueba con `{\"$image\": n}` (setup.php).",
+  "El arnés mide la tarjeta en reposo, al pasar el ratón (gira) y con el foco del teclado (también gira: al llegar al enlace o, sin enlace, a la tarjeta)."
+ ],
+ "declared": [
+  {
+   "widget": "flip-box",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  },
+  {
+   "kind": "estilo",
+   "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
+   "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
+   "widget": "flip-box"
+  },
+  {
+   "widget": "flip-box",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa)."
+  }
+ ],
+ "cases": {
+  "flipbox-defaults": {
+   "title": "Valores por defecto (giro hacia arriba, icono, botón sin enlace)",
+   "widget": "flip-box",
+   "settings": {},
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "button «Click Here»",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "control",
+     "match": "control a 1 sólo en A",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     }
+    }
+   }
+  },
+  "flipbox-push-image": {
+   "title": "Empujar hacia la izquierda, imagen en el anverso, enlace en el botón y estilos de cada cara",
+   "widget": "flip-box",
+   "settings": {
+    "flip_effect": "push",
+    "flip_direction": "left",
+    "graphic_element": "image",
+    "image": {
+     "$image": 1
+    },
+    "image_size": "medium",
+    "image_width": {
+     "unit": "%",
+     "size": 40
+    },
+    "title_text_a": "Consultoría",
+    "description_text_a": "Pasa el ratón para ver más.",
+    "title_text_b": "Hablemos",
+    "description_text_b": "Una primera reunión sin costo.",
+    "button_text": "Agendar",
+    "link": {
+     "url": "https://example.com/agenda",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "background_a_background": "classic",
+    "background_a_color": "#1B2340",
+    "background_b_background": "classic",
+    "background_b_color": "#245EFF",
+    "height": {
+     "unit": "px",
+     "size": 320
+    },
+    "border_radius": {
+     "unit": "px",
+     "size": 12
+    },
+    "title_color_a": "#FFFFFF",
+    "alignment_b": "start"
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control div 1 sólo en A",
+     "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+     },
+     "hover": {
+      "skip": true,
+      "reason": "El arnés lleva el puntero al enlace del reverso, que en reposo está fuera de la tarjeta (empujar lo deja desplazado al 100 %). En A la caja recorta con overflow:hidden y el navegador la desplaza para alcanzarlo (queda girada y corrida); en B recorta con overflow:clip, que no se desplaza (así tampoco lo hace al llegar con el teclado), y el puntero queda fuera. Con el puntero sobre la tarjeta gira igual: lo miden flipbox-defaults, flipbox-fade y flipbox-slide-down."
+     }
+    }
+   }
+  },
+  "flipbox-flip-3d": {
+   "title": "Giro a la derecha con profundidad 3D, icono enmarcado, enlace en todo el reverso; con «reducir movimiento» (A y B), para comparar el estado final del giro y no un instante de la transición",
+   "widget": "flip-box",
+   "settings": {
+    "flip_effect": "flip",
+    "flip_direction": "right",
+    "flip_3d": "elementor-flip-box--3d",
+    "icon_view": "framed",
+    "icon_shape": "square",
+    "selected_icon": {
+     "value": "fas fa-rocket",
+     "library": "fa-solid"
+    },
+    "title_text_a": "Lanzamiento",
+    "title_text_b": "Empieza hoy",
+    "description_text_b": "Todo listo en minutos.",
+    "button_text": "Comenzar",
+    "link": {
+     "url": "https://example.com/empieza",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "link_click": "box",
+    "padding_a": {
+     "unit": "px",
+     "top": "30",
+     "right": "30",
+     "bottom": "30",
+     "left": "30",
+     "isLinked": true
+    }
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control div 1 sólo en A",
+     "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+     }
+    }
+   },
+   "reducedMotion": true
+  },
+  "flipbox-fade": {
+   "title": "Fundido, sin elemento gráfico, título h2, botón grande sin enlace con colores al pasar el ratón",
+   "widget": "flip-box",
+   "settings": {
+    "flip_effect": "fade",
+    "graphic_element": "none",
+    "title_tag": "h2",
+    "title_text_a": "Precios claros",
+    "description_text_a": "",
+    "title_text_b": "Sin sorpresas",
+    "button_text": "Ver precios",
+    "button_size": "lg",
+    "button_text_color": "#FFFFFF",
+    "button_hover_text_color": "#1B2340",
+    "button_hover_background_background": "classic",
+    "button_hover_background_color": "#FFFFFF",
+    "button_border_radius": {
+     "unit": "px",
+     "size": 30
+    }
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "^perdido button «Ver precios»$",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     },
+     "hover": {
+      "max": 0.1,
+      "reason": "El primer control es distinto (ver la declaración del falso botón): en A el puntero queda sobre el botón y lo pinta con sus colores al pasar el ratón; en B queda en el centro de la tarjeta, que se muestra igual, con el botón en reposo."
+     }
+    }
+   }
+  },
+  "flipbox-slide-down": {
+   "title": "Deslizar hacia abajo con superposición en el anverso y descripción en p",
+   "widget": "flip-box",
+   "settings": {
+    "flip_effect": "slide",
+    "flip_direction": "down",
+    "description_tag": "p",
+    "background_a_background": "classic",
+    "background_a_image": {
+     "$image": 2
+    },
+    "background_overlay_a": "rgba(0,0,0,0.45)",
+    "title_text_a": "Proyecto",
+    "description_text_a": "Un caso real.",
+    "title_text_b": "Resultado",
+    "description_text_b": "Más ventas.",
+    "button_text": "",
+    "vertical_position_a": "bottom"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     }
+    }
+   }
+  }
+ }
+}

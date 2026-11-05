@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.173
+ * Version: 4.3.0.175
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.173' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.175' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -140,6 +140,9 @@ function pro_elements_load_plugin_func() {
 	// Carruseles propios (C1): motor digi-crs y los widgets que sustituyen a los carruseles de PRO.
 	require_once __DIR__ . '/modules/digitalisimo-carousel/class-module.php';
 	\Digitalisimo\Elements\Carousel\Module::init();
+	// Widgets de contenido propios (C2): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-content/class-module.php';
+	\Digitalisimo\Elements\Content\Module::init();
 	// Elementos de tema propios (C4): widgets que sustituyen a los de PRO de la etapa.
 	require_once __DIR__ . '/modules/digitalisimo-theme-elements/class-module.php';
 	\Digitalisimo\Elements\Theme_Elements\Module::init();
