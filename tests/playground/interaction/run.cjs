@@ -3,6 +3,9 @@ const puppeteer = require('puppeteer-core');
 const base = process.argv[2];
 // FACADES=1: el sitio tiene las fachadas aplicadas (Fase 3 del front); sólo cambia lo esperado de los vídeos incrustados.
 const FACADES = process.env.FACADES === '1';
+// Espera del editor (ms): 180 s por defecto; `EDITOR_MS` la amplía en una máquina lenta (el editor pide unos 300 recursos
+// y Playground los sirve con un solo proceso).
+const EDITOR_MS = Number(process.env.EDITOR_MS || 180000);
 const checks = {
   'bdt-accordion': async (page) => {
     const items = await page.$$('details.digi-accordion__item');
@@ -450,10 +453,10 @@ checks['f7b-form-conditions'] = async (page) => {
         if (!old.startsWith('200 ') || !old.includes('/digitalisimo-elements/elementor/assets/images/placeholder.png')) throw new Error(`la ruta antigua de Elementor debe llevar al núcleo incluido: ${old}`);
       }
       const [entry] = await page.evaluate(async (url) => (await fetch(url)).json(), `${base}/wp-json/wp/v2/pages?slug=digi-ix-bdt-accordion`);
-      await page.goto(`${base}/wp-admin/post.php?post=${entry.id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 180000 });
-      await page.waitForSelector('#elementor-panel', { timeout: 180000 });
-      const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
-      await frame.waitForSelector('.elementor-widget', { timeout: 180000 });
+      await page.goto(`${base}/wp-admin/post.php?post=${entry.id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: EDITOR_MS });
+      await page.waitForSelector('#elementor-panel', { timeout: EDITOR_MS });
+      const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: EDITOR_MS })).contentFrame();
+      await frame.waitForSelector('.elementor-widget', { timeout: EDITOR_MS });
       const core = await page.evaluate(() => (window.elementorCommon && window.elementorCommon.config && window.elementorCommon.config.version) || (window.ElementorConfig && window.ElementorConfig.version) || '');
       if (failedRequests.length) throw new Error('recursos no encontrados: ' + failedRequests.join(' | '));
       if (errors.length) throw new Error('errores de JavaScript: ' + errors.join(' | '));
@@ -539,10 +542,10 @@ checks['f7b-form-conditions'] = async (page) => {
       try { templates = JSON.parse(require('fs').readFileSync(`${process.env.OUT || '/tmp'}/templates.json`, 'utf8')); } catch (e) { templates = {}; }
       for (const doc of [...new Set(SUBSTITUTED.filter((w) => w.doc).map((w) => w.doc))]) {
         if (!templates[doc]) throw new Error(`setup.php no creó la plantilla «${doc}» del Theme Builder (templates.json)`);
-        await page.goto(`${base}/wp-admin/post.php?post=${templates[doc]}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 180000 });
-        await page.waitForSelector('#elementor-panel-elements-search-input', { timeout: 180000 });
-        const tplFrame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
-        await tplFrame.waitForSelector('.elementor-widget', { timeout: 180000 });
+        await page.goto(`${base}/wp-admin/post.php?post=${templates[doc]}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: EDITOR_MS });
+        await page.waitForSelector('#elementor-panel-elements-search-input', { timeout: EDITOR_MS });
+        const tplFrame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: EDITOR_MS })).contentFrame();
+        await tplFrame.waitForSelector('.elementor-widget', { timeout: EDITOR_MS });
         pro.push(...(await inspect(SUBSTITUTED.filter((w) => w.doc === doc))));
       }
       const bad = pro.filter((w) => {
