@@ -7,7 +7,10 @@
 # catorce widgets de contenido de PRO y una cuenta regresiva de Element Pack (`bdt-countdown`) que F8 lleva a la de PRO y
 # la etapa `pro` a la propia en la misma pasada; --revert devuelve los de PRO y el de Element Pack. C4: una plantilla de
 # entrada del Theme Builder con los quince elementos de tema de PRO y un `bdt-post-info` de Element Pack (F8 → PRO →
-# propio en la misma pasada).
+# propio en la misma pasada). C9: una página con tres instancias del widget global (una con un Blockquote de PRO, que
+# llega a la Cita en la misma pasada, y una sin plantilla, que se queda y se informa), la Plantilla de PRO con una
+# sobrescritura de F7b, los cuatro de Facebook, PayPal y Stripe, y una cabecera con otra instancia global; F8 no lleva
+# ningún widget de Element Pack a estos de PRO.
 # Uso: bash tests/playground/pro-migrate.sh   (OUT, TMPDIR como los demás arneses)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -36,7 +39,7 @@ const ok = (c, m) => { console.log(`${c ? 'OK   ' : 'FALLA'}  ${m}`); if (!c) pr
 for (const s of steps) if (s.error) problems.push(`${s.step}: ${s.error}`);
 const inv = (by('inventory')[0] || {}).inventory || {};
 const row = (inv.widgets || []).find((w) => w.widget === 'blockquote') || {};
-ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 3 && row.documents === 2 && row.revisions === 1 && inv.where && inv.where.page === 3 && inv.where.header === 1, `inventario: 3 Blockquote en 2 documentos (página y cabecera), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 3 páginas (citas, carruseles y contenido) y una cabecera (${JSON.stringify(row).slice(0, 200)})`);
+ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 4 && row.documents === 3 && row.revisions === 1 && inv.where && inv.where.page === 4 && inv.where.header === 2 && inv.where.widget === 1, `inventario: 4 Blockquote en 3 documentos (página, cabecera y la plantilla de widget global de C9), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 4 páginas (citas, carruseles, contenido y servicios), dos cabeceras y una plantilla de widget global (${JSON.stringify(row).slice(0, 200)} · ${JSON.stringify(inv.where)})`);
 const c1 = ['nested-carousel', 'slides', 'media-carousel', 'testimonial-carousel', 'reviews'].map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c1.every((r) => r.family === 'C1' && r.elements === 1 && r.documents === 1 && r.target === `digitalisimo-${r.widget}`), `inventario: los cinco carruseles de PRO, familia C1, cada uno con su widget propio de destino (${JSON.stringify(c1.map((r) => [r.widget, r.family, r.target, r.elements]))})`);
 const C2 = { e1: 'animated-headline', e2: 'code-highlight', e3: 'table-of-contents', e4: 'share-buttons', e5: 'call-to-action', e6: 'flip-box', e7: 'price-list', e8: 'price-table', e9: 'gallery', e10: 'hotspot', e11: 'lottie', e12: 'video-playlist', e13: 'countdown', e14: 'progress-tracker' };
@@ -52,7 +55,7 @@ ok(t.header && t.header.q9 === 'digitalisimo-blockquote', 'la plantilla de cabec
 ok(t.revision && t.revision.q1 && t.revision.q1.startsWith('blockquote') && t.revision.q2 === 'blockquote', 'la revisión se queda con el Blockquote de PRO');
 ok(last.backup === true, 'queda la copia original de la página');
 const first = runs.find((r) => r.state && r.state.counts && r.state.counts.pro) || {};
-ok(first.state && first.state.counts.pro === 5 && first.state.counts.pro_elements === 39 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 39 widgets en 5 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, y los 15 de C4 y la información de la entrada que F8 trae de Element Pack) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
+ok(first.state && first.state.counts.pro === 8 && first.state.counts.pro_elements === 50 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 50 widgets en 8 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, los 15 de C4 y la información de la entrada que F8 trae de Element Pack, y 11 de C9: tres instancias globales, la Plantilla, los cuatro de Facebook, PayPal, Stripe y el Blockquote de la plantilla de widget global) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
 ok(runs.length < 2 || /No había nada que migrar/.test(last.report || '') || (last.state && last.state.counts && !last.state.counts.pro), 'una segunda pasada no vuelve a convertir nada');
 const own = { n1: 'digitalisimo-nested-carousel', s1: 'digitalisimo-slides', m1: 'digitalisimo-media-carousel', t1: 'digitalisimo-testimonial-carousel', r1: 'digitalisimo-reviews' };
 ok(t.carousels && Object.entries(own).every(([id, type]) => (t.carousels[id] || '').startsWith(type)) && t.carousels.n1ah === 'heading' && t.carousels.n1bh === 'heading', `C1: los cinco carruseles pasan a los propios y el contenido de las diapositivas anidadas no cambia (${JSON.stringify(t.carousels)})`);
@@ -69,7 +72,22 @@ ok(c4inv.every((r, i) => r.family === 'C4' && r.elements === 1 && r.documents ==
 ok(t.single && Object.entries(C4).every(([id, [, own]]) => (t.single[id] || '').split(' ')[0] === own), `C4: la plantilla de entrada pasa a los quince elementos de tema propios (${JSON.stringify(t.single)})`);
 ok(t.single && (t.single.e1 || '') === 'digitalisimo-post-info', `C4: el bdt-post-info de Element Pack acaba en la Información de la entrada propia en la misma pasada (${t.single && t.single.e1})`);
 ok(t.single && /selector \.digi-post-info__item\{/.test(t.single.h1 || '') && /elementor-widget-digitalisimo-post-title/.test(t.single.g4 || ''), 'C4: el CSS personalizado pasa a las clases propias (Información de la entrada y Título de la entrada)');
+// C9: la página de servicios (tres instancias globales, una sin plantilla; la Plantilla con una sobrescritura; los
+// cuatro de Facebook, PayPal y Stripe) y una cabecera con otra instancia global.
+const C9 = { t1: ['template', 'digitalisimo-template'], f1: ['facebook-button', 'digitalisimo-facebook-button'], f2: ['facebook-comments', 'digitalisimo-facebook-comments'], f3: ['facebook-embed', 'digitalisimo-facebook-embed'], f4: ['facebook-page', 'digitalisimo-facebook-page'], p1: ['paypal-button', 'digitalisimo-paypal-button'], p2: ['stripe-button', 'digitalisimo-stripe-button'] };
+const c9inv = Object.values(C9).map(([pro, own]) => (inv.widgets || []).find((x) => x.widget === pro) || { widget: pro, own });
+const ginv = (inv.widgets || []).find((x) => x.widget === 'global') || {};
+ok(c9inv.every((r, i) => r.family === 'C9' && r.elements === 1 && r.documents === 1 && r.target === Object.values(C9)[i][1]) && ginv.family === 'C9' && ginv.elements === 4 && ginv.documents === 2 && ginv.target === 'su contenido', `inventario: los siete de C9 con su widget propio y el widget global (4 instancias en 2 documentos) «se convierte en su contenido» (${JSON.stringify(c9inv.map((r) => [r.widget, r.family, r.target, r.elements]).concat([[ginv.widget, ginv.elements, ginv.documents, ginv.target]]))})`);
+const sv = last.services || {};
+ok(t.services && Object.entries(C9).every(([id, [, own]]) => (t.services[id] || '').split(' ')[0] === own), `C9: la Plantilla, los cuatro de Facebook, PayPal y Stripe pasan a los propios (${JSON.stringify(t.services)})`);
+ok(sv.t1 && sv.t1.overrides === 1 && /digi-template/.test(t.services.t1 || '') && /digi-fb__plugin/.test(t.services.f4 || ''), 'C9: la Plantilla conserva su sobrescritura de F7b y el CSS personalizado pasa a las clases propias (Plantilla y Página de Facebook)');
+ok(sv.x1 && sv.x1.type === 'heading' && sv.x1.global > 0 && sv.x1.classes === `elementor-global-${sv.x1.global}` && sv.x1.title === 'Encabezado global', `C9: la instancia global pasa al Encabezado de su plantilla, con su id, la plantilla de origen y la clase de PRO (${JSON.stringify(sv.x1)})`);
+ok(sv.x2 && sv.x2.type === 'digitalisimo-blockquote' && sv.x2.global > 0, `C9: una instancia global de un Blockquote de PRO llega a la Cita en la misma pasada (global → contenido → propio: ${JSON.stringify(sv.x2)})`);
+ok(sv.x3 && sv.x3.type === 'global' && sv.x3.templateID === 999999 && last.codes && last.codes.global === 3 && last.codes.global_missing === 1 && /Instancia del widget global cuya plantilla no existe/.test(last.report || ''), `C9: la instancia sin plantilla se queda y el informe la cuenta (pro.global 3, pro.global_missing 1: ${JSON.stringify(last.codes)})`);
+ok(t.header_global && t.header_global.x9 === 'heading', `C9: la cabecera con una instancia global también se sustituye (${JSON.stringify(t.header_global)})`);
+ok(t.gw_heading && t.gw_heading.gwh === 'heading', 'C9: la plantilla de widget global se conserva sin cambios');
 const rv = (by('revert')[0] || {}).types || {};
+ok(rv.services && Object.entries(C9).every(([id, [pro]]) => (rv.services[id] || '').split(' ')[0] === pro) && ['x1', 'x2', 'x3'].every((id) => rv.services[id] === 'global') && rv.header_global && rv.header_global.x9 === 'global' && rv.gw_quote && rv.gw_quote.gwq === 'blockquote', `C9: --revert devuelve los widgets de PRO, las instancias globales y el Blockquote de la plantilla de widget (${JSON.stringify(rv.services)} · ${JSON.stringify(rv.header_global)})`);
 ok(rv.content && Object.entries(C2).every(([id, w]) => (rv.content[id] || '').split(' ')[0] === w), `C2: --revert devuelve los catorce widgets de PRO (${JSON.stringify(rv.content)})`);
 ok(rv.content && (rv.content.ep1 || '').split(' ')[0] === 'bdt-countdown', `C2: --revert devuelve la cuenta regresiva de Element Pack (${rv.content && rv.content.ep1})`);
 ok(rv.carousels && Object.entries({ n1: 'nested-carousel', s1: 'slides', m1: 'media-carousel', t1: 'testimonial-carousel', r1: 'reviews' }).every(([id, type]) => (rv.carousels[id] || '').split(' ')[0] === type), `C1: --revert devuelve los carruseles de PRO (${JSON.stringify(rv.carousels)})`);
