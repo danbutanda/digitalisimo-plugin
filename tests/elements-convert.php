@@ -68,7 +68,13 @@ namespace {
 		foreach ( pro_sources( $file, $elements ) as $source ) {
 			$php .= "\n" . (string) file_get_contents( $source );
 		}
+		// Cadenas con variables (`"prefijo_$lado"`, C8) como concatenación, y los valores de `$var = 'literal';`.
+		$php    = (string) preg_replace_callback( '/"([a-z0-9_]*)\$([a-z_]+)([a-z0-9_]*)"/', static function ( $m ) { return "'" . $m[1] . "' . \$" . $m[2] . " . '" . $m[3] . "'"; }, $php );
 		$values = array();
+		preg_match_all( "/\\$([a-z_]+)\s*=\s*'([a-z0-9_-]+)'\s*;/", $php, $literals, PREG_SET_ORDER );
+		foreach ( $literals as $literal ) {
+			$values[ $literal[1] ][] = $literal[2];
+		}
 		preg_match_all( "/foreach\s*\(\s*\[\s*((?:'[a-z0-9_-]+'\s*,?\s*)+)\]\s*as\s*\\$([a-z_]+)\s*\)/", $php, $loops, PREG_SET_ORDER );
 		foreach ( $loops as $loop ) {
 			preg_match_all( "/'([a-z0-9_-]+)'/", $loop[1], $lits );

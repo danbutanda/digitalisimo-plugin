@@ -45,7 +45,6 @@
 		if (pause) { pause.addEventListener('click', function () { toggle(true); }); }
 		if (play) { play.addEventListener('click', function () { toggle(false); }); }
 		Array.prototype.forEach.call(inner.querySelectorAll('a'), function (a) { a.addEventListener('click', track); });
-		if (reduce || editing()) { return; }
 		var items = Array.prototype.slice.call(inner.children);
 		function copy(parent, nodes) {
 			nodes.forEach(function (n) {
@@ -57,6 +56,7 @@
 			});
 		}
 		for (var i = 0; i < 50 && inner.offsetWidth < box.offsetWidth; i++) { copy(inner, items); }
+		if (reduce || editing()) { return; }
 		if ('autoplay' === (responsive(s, 'style_ticker_animation_type') || 'autoplay')) {
 			var twin = inner.cloneNode(true);
 			twin.classList.add('digi-fbar__headlines-inner--clone');

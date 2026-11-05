@@ -1,0 +1,1139 @@
+{
+ "_doc": [
+  "Botones de contacto (C8, frente P): las nueve variantes de PRO contact-buttons-var-<n> frente a digitalisimo-contact-buttons (presentación n), en documentos de botones flotantes (`doc`) vistos en su dirección; se captura el bloque fijo a la ventana (`capture`).",
+  "Diferencias comunes declaradas: foco visible propio, la fuente del kit, nombres accesibles en español y el aspa de cierre en SVG."
+ ],
+ "declared": [
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  }
+ ],
+ "cases": {
+  "cb-1-defaults": {
+   "title": "Botones de contacto 1: valores por defecto",
+   "widget": "contact-buttons-var-1",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-1.min.css del núcleo",
+     "id": "widget-contact-buttons-var-1-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-1(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900
+    }
+   ]
+  },
+  "cb-1-links": {
+   "title": "Botones de contacto 1: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-1",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-1.min.css del núcleo",
+     "id": "widget-contact-buttons-var-1-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-1(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    }
+   ]
+  },
+  "cb-3-defaults": {
+   "title": "Botones de contacto 3: valores por defecto",
+   "widget": "contact-buttons-var-3",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-3.min.css del núcleo",
+     "id": "widget-contact-buttons-var-3-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900
+    }
+   ]
+  },
+  "cb-3-links": {
+   "title": "Botones de contacto 3: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-3",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-3.min.css del núcleo",
+     "id": "widget-contact-buttons-var-3-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    }
+   ]
+  },
+  "cb-4-defaults": {
+   "title": "Botones de contacto 4: valores por defecto",
+   "widget": "contact-buttons-var-4",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-4.min.css del núcleo",
+     "id": "widget-contact-buttons-var-4-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900
+    }
+   ]
+  },
+  "cb-4-links": {
+   "title": "Botones de contacto 4: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-4",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-4.min.css del núcleo",
+     "id": "widget-contact-buttons-var-4-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    }
+   ]
+  },
+  "cb-5-defaults": {
+   "title": "Botones de contacto 5: valores por defecto",
+   "widget": "contact-buttons-var-5",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-5.min.css del núcleo",
+     "id": "widget-contact-buttons-var-5-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-5-links": {
+   "title": "Botones de contacto 5: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-5",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-5.min.css del núcleo",
+     "id": "widget-contact-buttons-var-5-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-6-defaults": {
+   "title": "Botones de contacto 6: valores por defecto",
+   "widget": "contact-buttons-var-6",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-6.min.css del núcleo",
+     "id": "widget-contact-buttons-var-6-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "cb-6-links": {
+   "title": "Botones de contacto 6: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-6",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-6.min.css del núcleo",
+     "id": "widget-contact-buttons-var-6-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "small",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   }
+  },
+  "cb-7-defaults": {
+   "title": "Botones de contacto 7: valores por defecto",
+   "widget": "contact-buttons-var-7",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-7.min.css del núcleo",
+     "id": "widget-contact-buttons-var-7-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-7-links": {
+   "title": "Botones de contacto 7: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-7",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-7.min.css del núcleo",
+     "id": "widget-contact-buttons-var-7-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-8-defaults": {
+   "title": "Botones de contacto 8: valores por defecto",
+   "widget": "contact-buttons-var-8",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-8.min.css del núcleo",
+     "id": "widget-contact-buttons-var-8-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-8(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900
+    }
+   ]
+  },
+  "cb-8-links": {
+   "title": "Botones de contacto 8: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-8",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-8.min.css del núcleo",
+     "id": "widget-contact-buttons-var-8-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-8(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200
+    }
+   ]
+  },
+  "cb-9-defaults": {
+   "title": "Botones de contacto 9: valores por defecto",
+   "widget": "contact-buttons-var-9",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-9.min.css del núcleo",
+     "id": "widget-contact-buttons-var-9-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-9(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-9-links": {
+   "title": "Botones de contacto 9: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-9",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-9.min.css del núcleo",
+     "id": "widget-contact-buttons-var-9-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-9(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   }
+  },
+  "cb-10-defaults": {
+   "title": "Botones de contacto 10: valores por defecto",
+   "widget": "contact-buttons-var-10",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-10.min.css del núcleo",
+     "id": "widget-contact-buttons-var-10-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-10(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "cb-10-links": {
+   "title": "Botones de contacto 10: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-10",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-10.min.css del núcleo",
+     "id": "widget-contact-buttons-var-10-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-10(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "small",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   }
+  }
+ }
+}

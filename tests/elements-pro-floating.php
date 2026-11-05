@@ -48,6 +48,8 @@ namespace Elementor {
 		public function end_controls_tab() {}
 		public function start_popover() {}
 		public function end_popover() {}
+		public function add_inline_editing_attributes( $k, $t = 'basic' ) {}
+		public function add_hidden_device_controls() { $this->recorded['hidden_devices'] = array( 'type' => 'hidden_devices' ); }
 		public function start_injection( $args ) {}
 		public function end_injection() {}
 		public function add_control( $name, $args, $options = array() ) { $this->recorded[ $name ] = $args; }
@@ -85,7 +87,8 @@ namespace Elementor {
 		const MEDIA = 'media'; const REPEATER = 'repeater'; const SELECT = 'select'; const SLIDER = 'slider'; const SWITCHER = 'switcher';
 		const TAB_CONTENT = 'content'; const TAB_STYLE = 'style'; const TEXT = 'text'; const TEXTAREA = 'textarea'; const URL = 'url';
 		const CHOOSE = 'choose'; const SELECT2 = 'select2'; const GALLERY = 'gallery'; const NUMBER2 = 'number'; const ICONS = 'icons'; const NUMBER = 'number'; const HIDDEN = 'hidden';
-		const ANIMATION = 'animation'; const HOVER_ANIMATION = 'hover_animation'; const RAW_HTML = 'raw_html'; const TAB_ADVANCED = 'advanced';
+		const ANIMATION = 'animation'; const EXIT_ANIMATION = 'exit_animation';
+		public static function add_tab( $a, $b ) {} const HOVER_ANIMATION = 'hover_animation'; const RAW_HTML = 'raw_html'; const TAB_ADVANCED = 'advanced';
 	}
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 	class Group_Control_Background { public static function get_type() { return 'background'; } }
@@ -163,3 +166,226 @@ namespace {
 	};
 	\Elementor\Plugin::$instance->controls_manager = new class() { public function __call( $n, $a ) { return null; } };
 
+
+	$root = dirname( __DIR__ );
+	$el   = $root . '/digitalisimo-elements/';
+	$fl   = $el . 'modules/digitalisimo-floating/';
+	require $el . 'elementor/core/base/providers/social-network-provider.php';
+	require $el . 'elementor/core/base/traits/shared-widget-controls-trait.php';
+	require $el . 'elementor/modules/floating-buttons/base/widget-contact-button-base.php';
+	require $el . 'elementor/modules/floating-buttons/base/widget-floating-bars-base.php';
+	foreach ( array( 'contact-buttons-render-base', 'contact-buttons-core-render', 'floating-bars-render-base', 'floating-bars-core-render' ) as $file ) {
+		require $el . "elementor/modules/floating-buttons/classes/render/$file.php";
+	}
+	require $el . 'modules/floating-buttons/base/widget-contact-button-base-pro.php';
+	require $el . 'modules/floating-buttons/base/widget-floating-bars-base-pro.php';
+	$families = array(
+		'digitalisimo-contact-buttons' => array( 'pro' => 'contact-buttons-var-', 'class' => 'Contact_Buttons_Var_', 'probe' => 'Contact_Probe', 'widget' => 'Contact_Buttons', 'title' => 'Botones de contacto', 'block' => 'digi-cb', 'core' => 'e-contact-buttons', 'list' => array( '1', '3', '4', '5', '6', '7', '8', '9', '10' ) ),
+		'digitalisimo-floating-bar'    => array( 'pro' => 'floating-bars-var-', 'class' => 'Floating_Bars_Var_', 'probe' => 'Bar_Probe', 'widget' => 'Floating_Bar', 'title' => 'Barra flotante', 'block' => 'digi-fbar', 'core' => 'e-floating-bars', 'list' => array( '2', '3' ) ),
+	);
+	foreach ( $families as $f ) {
+		foreach ( $f['list'] as $n ) {
+			require $el . 'modules/floating-buttons/classes/render/' . $f['pro'] . $n . '-render.php';
+			require $el . 'modules/floating-buttons/widgets/' . $f['pro'] . $n . '.php';
+		}
+	}
+	require $fl . 'class-module.php';
+	\Digitalisimo\Elements\Floating\Module::init();
+	foreach ( array( 'class-variants.php', 'class-probe.php', 'class-presentations.php', 'class-contact-probe.php', 'class-contact-render.php', 'class-bar-probe.php', 'class-bar-render.php', 'widgets/class-contact-buttons.php', 'widgets/class-floating-bar.php' ) as $file ) {
+		require_once $fl . $file;
+	}
+
+	$norm     = static function ( string $html ) { $html = preg_replace( '/\s*(Warning|Notice|Deprecated): .*? on line \d+/', '', $html ); return trim( preg_replace( array( '/>\s+/', '/\s+</' ), array( '>', '<' ), preg_replace( '/\s+/', ' ', $html ) ) ); };
+	// Valores de cada control como los da Elementor: su valor por defecto o el vacío de su tipo; filas con los de sus campos.
+	$empty    = static function ( array $c ) {
+		if ( array_key_exists( 'default', $c ) ) {
+			return $c['default'];
+		}
+		$type = $c['type'] ?? '';
+		if ( in_array( $type, array( 'url', 'media' ), true ) ) {
+			return array( 'url' => '', 'id' => '' );
+		}
+		if ( 'icons' === $type ) {
+			return array( 'value' => '', 'library' => '' );
+		}
+		if ( in_array( $type, array( 'slider', 'dimensions' ), true ) ) {
+			return array( 'unit' => 'px', 'size' => '' );
+		}
+		return '';
+	};
+	$defaults = static function ( array $controls ) use ( $empty ) {
+		$out = array();
+		foreach ( $controls as $id => $c ) {
+			if ( 0 === strpos( (string) $id, 'group:' ) || in_array( $c['type'] ?? '', array( 'section', 'tabs', 'tab', 'heading', 'divider', 'raw_html', 'alert' ), true ) ) {
+				continue;
+			}
+			$out[ $id ] = $empty( $c );
+			if ( 'repeater' === ( $c['type'] ?? '' ) ) {
+				$out[ $id ] = array_map(
+					static function ( $row ) use ( $c, $empty ) {
+						foreach ( (array) $c['fields'] as $k => $field ) {
+							$row += array( $field['name'] ?? $k => $empty( $field ) );
+						}
+						return $row;
+					},
+					(array) $out[ $id ]
+				);
+			}
+		}
+		return $out;
+	};
+	// Sin nombres accesibles (en español), ids, el aspa y lo que sólo tiene el propio (región de estado del cupón).
+	$strip = static function ( $html ) {
+		$html = preg_replace( '/ (aria-label|aria-controls|aria-hidden|aria-expanded|id|role|data-message|data-document-id|hidden|focusable)(="[^"]*")?/', '', $html );
+		$html = preg_replace( '#<i class="eicon-close"></i>|<svg class="digi-[a-z]+__close-icon".*?</svg>#', 'X', $html );
+		$html = preg_replace( '#<span class="digi-fbar__status"[^>]*></span>#', '', $html );
+		// Un titular sin enlace es texto (PRO pintaba un enlace sin destino).
+		$html = preg_replace( '#<a class="digi-fbar__headline">(.*?)</a>#', '<span class="digi-fbar__headline">$1</span>', $html );
+		// Orden de los atributos.
+		$html = preg_replace_callback( '/<(\w+)((?: [\w-]+="[^"]*")+)>/', static function ( $m ) { preg_match_all( '/ [\w-]+="[^"]*"/', $m[2], $a ); sort( $a[0] ); return '<' . $m[1] . implode( '', $a[0] ) . '>'; }, $html );
+		return $html;
+	};
+	$M = '\\Digitalisimo\\Elements\\Floating\\Module';
+	foreach ( $families as $name => $f ) {
+		$probe  = 'Digitalisimo\\Elements\\Floating\\' . $f['probe'];
+		$widget = 'Digitalisimo\\Elements\\Floating\\Widgets\\' . $f['widget'];
+		// 1. Módulo y recursos.
+		check_fl( isset( $M::WIDGETS[ $name ] ) && $f['title'] === $M::TITLES[ $name ] && $f['list'] === $M::PRESENTATIONS[ $name ] && $probe::PRESENTATIONS === $f['list'], "$name: el módulo declara el widget, su título y sus presentaciones." );
+		check_fl( is_subclass_of( $widget, $M::BASES[ $name ] ), "$name: hereda la base del núcleo que declara el módulo." );
+		$type = new $widget();
+		check_fl( $name === $type->get_name() && $f['title'] === $type->get_title() && count( $type->get_style_depends() ) === 1 + count( $f['list'] ), "$name: nombre, título y, en la instancia de tipo, la hoja común y las de todas sus presentaciones." );
+		check_fl( array( $M::TRACK, $name ) === $type->get_script_depends(), "$name: script propio y el del recuento de clics." );
+		$js = (string) file_get_contents( $M::path( $M::WIDGETS[ $name ]['js'] ) );
+		check_fl( strlen( $js ) <= 8192 && ! preg_match( '/jQuery\(|jQuery\.|\$\(|swiper/i', $js ) && str_contains( $js, 'prefers-reduced-motion' ), "$name: script ≤ 8 KB, sin jQuery ni Swiper, con movimiento reducido." );
+		$common = (string) file_get_contents( $M::path( $M::WIDGETS[ $name ]['css'] ) );
+		check_fl( strlen( $common ) <= 4096 && str_contains( $common, 'outline:2px solid' ) && str_contains( $common, 'outline-offset:2px' ) && str_contains( $common, 'prefers-reduced-motion' ), "$name: hoja común ≤ 4 KB con foco visible y movimiento reducido." );
+		foreach ( $f['list'] as $p ) {
+			$css  = (string) @file_get_contents( $M::path( $M::presentation_css( $name, $p ) ) );
+			$bare = preg_replace( '#/\*.*?\*/#s', '', $css );
+			check_fl( '' !== $css && strlen( $css ) <= 12288, "$name $p: hoja de su presentación (" . strlen( $css ) . ' B).' );
+			check_fl( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( $bare, $f['core'] ), "$name $p: hoja sin el kit, url() ni clases del núcleo." );
+			check_fl( array( $name, $name . '-' . $p ) === $M::style_depends( $name, $p ), "$name $p: `style_depends()` da la común y la suya." );
+		}
+
+		// 2. Sonda frente a la variante de PRO.
+		$lists = array();
+		foreach ( $f['list'] as $p ) {
+			$probe::use_presentation( $p );
+			$own = ( new $probe() )->build();
+			$probe::use_presentation( '' );
+			$class = '\\ElementorPro\\Modules\\FloatingButtons\\Widgets\\' . $f['class'] . $p;
+			$pro   = ( new $class() )->build();
+			$lists[ $p ] = $own;
+			check_fl( array_keys( $pro ) === array_keys( $own ), "$name $p: mismos controles y en el mismo orden que {$f['pro']}$p (" . implode( ', ', array_slice( array_merge( array_diff( array_keys( $pro ), array_keys( $own ) ), array_diff( array_keys( $own ), array_keys( $pro ) ) ), 0, 6 ) ) . ').' );
+			$texts = 0;
+			foreach ( $pro as $id => $c ) {
+				$o = $own[ $id ] ?? array();
+				foreach ( array( 'type', 'condition', 'conditions', 'selectors', 'selector', 'responsive', 'size_units', 'range', 'prefix_class', 'selectors_dictionary', 'return_value', 'frontend_available', 'render_type', 'separator' ) as $arg ) {
+					check_fl( ( $c[ $arg ] ?? null ) === ( $o[ $arg ] ?? null ), "$name $p: `$id` igual en `$arg`." );
+				}
+				check_fl( array_keys( (array) ( $c['options'] ?? array() ) ) === array_keys( (array) ( $o['options'] ?? array() ) ), "$name $p: `$id` con las mismas opciones." );
+				if ( 'repeater' === ( $c['type'] ?? '' ) ) {
+					check_fl( array_keys( (array) $c['fields'] ) === array_keys( (array) $o['fields'] ), "$name $p: repetidor `$id` con los mismos campos." );
+					foreach ( (array) $c['fields'] as $k => $field ) {
+						check_fl( ( $field['type'] ?? null ) === ( $o['fields'][ $k ]['type'] ?? null ) && ( $field['condition'] ?? null ) === ( $o['fields'][ $k ]['condition'] ?? null ) && array_keys( (array) ( $field['options'] ?? array() ) ) === array_keys( (array) ( $o['fields'][ $k ]['options'] ?? array() ) ), "$name $p: campo `$id.$k` igual (tipo, condición y opciones)." );
+					}
+					check_fl( count( (array) ( $c['default'] ?? array() ) ) === count( (array) ( $o['default'] ?? array() ) ), "$name $p: repetidor `$id` con las mismas filas por defecto." );
+				} elseif ( in_array( $c['type'] ?? '', array( 'text', 'textarea' ), true ) && is_string( $c['default'] ?? null ) && ( $c['default'] ?? null ) !== ( $o['default'] ?? null ) ) {
+					++$texts;
+				} else {
+					check_fl( ( $c['default'] ?? null ) === ( $o['default'] ?? null ), "$name $p: `$id` con el mismo valor por defecto." );
+				}
+			}
+			check_fl( $texts <= 6, "$name $p: sólo cambian textos por defecto (en español): $texts." );
+		}
+
+		// 3. Unión.
+		$merged = \Digitalisimo\Elements\Floating\Variants::merge( $lists );
+		foreach ( $lists as $p => $controls ) {
+			foreach ( $controls as $id => $c ) {
+				$m   = $merged['controls'][ $id ] ?? null;
+				$set = $merged['presentations'][ $id ] ?? array();
+				check_fl( null !== $m && in_array( (string) $p, $set, true ), "$name unión: `$id` (presentación $p) está en el widget propio." );
+				if ( count( $set ) < count( $f['list'] ) ) {
+					check_fl( isset( $m['condition']['presentation'] ) && $set === $m['condition']['presentation'], "$name unión: `$id` sólo se ve en sus presentaciones." );
+				}
+			}
+		}
+		$rw = $widget::rewrite( array( 'k' => array( 'selectors' => array( '{{WRAPPER}} .' . $f['core'] . '__x' => '--' . $f['core'] . '-y: 1' ) ) ), $widget::RENAME );
+		check_fl( array( '{{WRAPPER}} .' . $f['block'] . '__x' => '--' . $f['block'] . '-y: 1' ) === $rw['k']['selectors'], "$name: `rewrite()` pasa clases y variables del núcleo a las propias." );
+
+		// 4. Marcado: el de PRO con las clases propias y las diferencias de accesibilidad declaradas.
+		foreach ( $f['list'] as $p ) {
+			$class = '\\ElementorPro\\Modules\\FloatingButtons\\Widgets\\' . $f['class'] . $p;
+			$pro_w = new $class();
+			$settings = $defaults( $pro_w->build() ) + array( 'advanced_custom_css_id' => '' );
+			$pro_w->settings = $settings;
+			ob_start();
+			$pro_w->print_render();
+			$pro_html = $norm( (string) ob_get_clean() );
+			$own_w = new $widget( array( 'settings' => $settings + array( 'presentation' => $p ) ) );
+			ob_start();
+			$own_w->print_render();
+			$own_html = $norm( (string) ob_get_clean() );
+			check_fl( str_contains( $own_html, 'class="' . $f['block'] . ' ' . $f['block'] . '--p' . $p ) && ! str_contains( $own_html, $f['core'] ) && ! str_contains( $own_html, 'eicon' ), "$name $p: clases propias, sin la fuente de iconos del núcleo." );
+			check_fl( ! preg_match( '/powered|elementor\.com|role="(dialog|alertdialog)"/i', $own_html ), "$name $p: sin rastro del proveedor ni diálogos sin foco." );
+			$expected = str_replace( array( $f['core'] . ' ' . $f['core'] . '-var-' . $p, $f['core'] ), array( $f['block'] . ' ' . $f['block'] . '--p' . $p, $f['block'] ), $pro_html );
+			$a = $strip( $expected );
+			$b = $strip( $own_html );
+			$at = strspn( $a ^ $b, "\0" );
+			check_fl( $a === $b, "$name $p: el marcado de {$f['pro']}$p con las clases propias." . ( $a === $b ? '' : "\n  PRO: " . substr( $a, max( 0, $at - 150 ), 400 ) . "\n  propio: " . substr( $b, max( 0, $at - 150 ), 400 ) ) );
+			preg_match_all( '/<button\b[^>]*>/', $own_html, $buttons );
+			foreach ( $buttons[0] as $tag ) {
+				check_fl( (bool) preg_match( '/aria-label="[^"]+"/', $tag ), "$name $p: cada botón tiene nombre accesible ($tag)." );
+			}
+		}
+	}
+
+	// 5. Conversión con los mapas (Converter::tree): presentación fija, ningún `pro.unmapped` y lo convertido se pinta con el
+	// marcado del caso de PRO.
+	require_once $el . 'modules/digitalisimo-convert/class-module.php';
+	\Digitalisimo\Elements\Convert\Module::init();
+	foreach ( $families as $name => $f ) {
+		foreach ( $f['list'] as $p ) {
+			$source = $f['pro'] . $p;
+			$map    = \Digitalisimo\Elements\Convert\Registry::map( $source, true );
+			check_fl( null !== $map && $name === $map['target'] && 'hide' === $map['panel'] && array( 'presentation' => $p ) === $map['set'], "$source: mapa hacia $name con la presentación $p." );
+			$probe = 'Digitalisimo\\Elements\\Floating\\' . $f['probe'];
+			$probe::use_presentation( $p );
+			$color = '';
+			foreach ( ( new $probe() )->build() as $id => $c ) {
+				if ( 'color' === ( $c['type'] ?? '' ) && '' === $color ) {
+					$color = $id;
+				}
+			}
+			$probe::use_presentation( '' );
+			$samples = array(
+				array(),
+				array( 'advanced_vertical_position' => 'top', 'custom_css' => 'selector .' . $f['core'] . '-var-' . $p . '{color:red}', $color => '#123456', '__globals__' => array( $color => 'globals/colors?id=primary' ) ),
+			);
+			foreach ( $samples as $i => $settings ) {
+				$log  = array();
+				$tree = \Digitalisimo\Elements\Convert\Converter::tree( array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => $source, 'settings' => $settings, 'elements' => array() ) ) ) ), $log, true );
+				$w    = $tree[0]['elements'][0];
+				$codes = array();
+				foreach ( $log as $entry ) {
+					foreach ( (array) ( $entry['codes'] ?? array() ) as $code ) {
+						$codes[] = $code['code'] . ' ' . $code['key'];
+					}
+				}
+				check_fl( $name === $w['widgetType'] && $p === ( $w['settings']['presentation'] ?? '' ), "$source ($i): convertido a $name, presentación $p." );
+				check_fl( ! preg_grep( '/^pro\.unmapped/', $codes ), "$source ($i): ninguna clave sin declarar (" . implode( ', ', $codes ) . ').' );
+				if ( isset( $settings['custom_css'] ) ) {
+					check_fl( str_contains( (string) ( $w['settings']['custom_css'] ?? '' ), '.' . $f['block'] . '--p' . $p . '{' ) && '#123456' === ( $w['settings'][ $color ] ?? '' ) && isset( $w['settings']['__globals__'][ $color ] ), "$source: el CSS personalizado pasa a las clases propias; color y global se conservan." );
+				}
+			}
+		}
+	}
+
+	// 6. Nombres vetados por el empaquetado.
+	foreach ( array_merge( glob( $fl . '*.php' ), glob( $fl . 'widgets/*.php' ), glob( $fl . 'assets/*/*' ) ) as $file ) {
+		$src = (string) file_get_contents( $file );
+		check_fl( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $src ), basename( $file ) . ': sin nombres vetados por scripts/build-packages.sh.' );
+	}
+	echo empty( $GLOBALS['fl_failed'] ) ? 'DIGITALÍSIMO Elements: Botones de contacto y Barra flotante propios (C8) validados: ' . $GLOBALS['fl_checks'] . " comprobaciones.\n" : "FALLA: Botones de contacto y Barra flotante propios (C8).\n";
+}

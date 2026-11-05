@@ -1,0 +1,260 @@
+{
+ "_doc": [
+  "Barra flotante (C8, frente P): las barras de PRO floating-bars-var-2 (cinta) y -3 (cupón) frente a digitalisimo-floating-bar, en documentos de barras flotantes (`doc`). La cinta se mide con «reducir movimiento» (quieta) para comparar sin depender del instante."
+ ],
+ "declared": [
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  }
+ ],
+ "cases": {
+  "fb-2-defaults": {
+   "title": "Barra flotante 2: valores por defecto",
+   "widget": "floating-bars-var-2",
+   "doc": "floating-bars",
+   "settings": {},
+   "capture": {
+    "a": ".e-floating-bars",
+    "b": ".digi-fbar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-floating-bars-var-2.min.css del núcleo",
+     "id": "widget-floating-bars-var-2-css",
+     "url": "/elementor/assets/css/widget-floating-bars-var-2(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-floating-bars-base.min.css del núcleo",
+     "id": "widget-floating-bars-base-css",
+     "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "reducedMotion": true
+  },
+  "fb-3-defaults": {
+   "title": "Barra flotante 3: valores por defecto",
+   "widget": "floating-bars-var-3",
+   "doc": "floating-bars",
+   "settings": {},
+   "capture": {
+    "a": ".e-floating-bars",
+    "b": ".digi-fbar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-floating-bars-var-3.min.css del núcleo",
+     "id": "widget-floating-bars-var-3-css",
+     "url": "/elementor/assets/css/widget-floating-bars-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-floating-bars-base.min.css del núcleo",
+     "id": "widget-floating-bars-base-css",
+     "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "reducedMotion": true
+  },
+  "fb-2-links": {
+   "title": "Cinta: titulares con enlace, pausa y cierre, abajo sin fijar",
+   "widget": "floating-bars-var-2",
+   "doc": "floating-bars",
+   "capture": {
+    "a": ".e-floating-bars",
+    "b": ".digi-fbar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-floating-bars-var-2.min.css del núcleo",
+     "id": "widget-floating-bars-var-2-css",
+     "url": "/elementor/assets/css/widget-floating-bars-var-2(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-floating-bars-base.min.css del núcleo",
+     "id": "widget-floating-bars-base-css",
+     "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "reducedMotion": true,
+   "settings": {
+    "headlines_repeater": [
+     {
+      "_id": "h0",
+      "headlines_text": "Envío gratis",
+      "headlines_url": {
+       "url": "https://ejemplo.test/envios"
+      }
+     },
+     {
+      "_id": "h1",
+      "headlines_text": "Nueva colección",
+      "headlines_url": {
+       "url": "https://ejemplo.test/nuevo"
+      }
+     }
+    ],
+    "floating_bar_pause_switch": "yes",
+    "floating_bar_close_switch": "yes",
+    "advanced_vertical_position": "bottom",
+    "advanced_toggle_sticky": ""
+   }
+  },
+  "fb-3-copy": {
+   "title": "Cupón: copiar el código (texto de éxito) y cupón de etiqueta",
+   "widget": "floating-bars-var-3",
+   "doc": "floating-bars",
+   "capture": {
+    "a": ".e-floating-bars",
+    "b": ".digi-fbar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-floating-bars-var-3.min.css del núcleo",
+     "id": "widget-floating-bars-var-3-css",
+     "url": "/elementor/assets/css/widget-floating-bars-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-floating-bars-base.min.css del núcleo",
+     "id": "widget-floating-bars-base-css",
+     "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "coupon_code": "HOLA20",
+    "style_coupon_type": "price-tag",
+    "style_coupon_success_message_duration": {
+     "unit": "s",
+     "size": 30
+    }
+   },
+   "actions": [
+    {
+     "label": "copiar el código",
+     "a": ".e-floating-bars__coupon-button",
+     "b": ".digi-fbar__coupon-button",
+     "wait": 900
+    }
+   ]
+  },
+  "fb-3-text": {
+   "title": "Cupón de texto, sin cierre, sin fijar",
+   "widget": "floating-bars-var-3",
+   "doc": "floating-bars",
+   "capture": {
+    "a": ".e-floating-bars",
+    "b": ".digi-fbar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-floating-bars-var-3.min.css del núcleo",
+     "id": "widget-floating-bars-var-3-css",
+     "url": "/elementor/assets/css/widget-floating-bars-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-floating-bars-base.min.css del núcleo",
+     "id": "widget-floating-bars-base-css",
+     "url": "/elementor/assets/css/widget-floating-bars-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "style_coupon_type": "text",
+    "floating_bar_close_switch": "",
+    "advanced_toggle_sticky": ""
+   }
+  }
+ }
+}
