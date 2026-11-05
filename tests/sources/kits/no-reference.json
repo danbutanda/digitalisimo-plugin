@@ -207,6 +207,16 @@
    "motivo": "posición fija (número), no un ID"
   },
   {
+   "widget": "digitalisimo-loop-grid",
+   "control": "alternate_templates.repeat_template",
+   "motivo": "posición en la cuadrícula (número), no un ID (Cuadrícula de bucle propia, C5)"
+  },
+  {
+   "widget": "digitalisimo-loop-grid",
+   "control": "alternate_templates.static_position",
+   "motivo": "posición fija (número), no un ID (Cuadrícula de bucle propia, C5)"
+  },
+  {
    "widget": "digitalisimo-icon-nav",
    "control": "navbar_level",
    "motivo": "niveles del menú (1 a 3)"
