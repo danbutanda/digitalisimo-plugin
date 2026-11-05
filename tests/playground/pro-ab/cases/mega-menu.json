@@ -1,7 +1,7 @@
 {
  "_doc": [
   "Menú anidado de PRO (`mega-menu`) frente al propio (`digitalisimo-mega-menu`), C3 frente E (docs/pro/c3.md). Los contenidos son contenedores hijos (`elements`) con un título y enlaces. A espera al script de PRO (`data-layout`) y B al propio (`digi-mm--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): con «Abrir con: ratón», los dos cierran el contenido al salir el ratón.",
-  "Las acciones de escritorio usan el clic en el título y no el paso del ratón: PRO decide al cargar la página si abre con el ratón o con clic (con el ancho de ese momento) y el arnés vuelve a cargar la página al ancho anterior; el propio lo decide en cada evento. Un clic en el título abre en los dos modos de PRO y en el propio. El paso del ratón lo prueba tests/elements-pro-mega-menu-chrome.mjs."
+  "Las acciones de los casos con «Abrir con: ratón» usan el teclado (Intro en el botón del submenú) y no el ratón ni el clic: PRO decide al cargar la página qué eventos atiende (ratón en escritorio, clic en móvil y tableta) y el arnés vuelve a cargar la página al ancho anterior, así que en A un clic a otro ancho no abre (o abre con el paso del ratón y cierra con el clic). El teclado abre en los dos a cualquier ancho. El ratón y el clic del propio los prueba tests/elements-pro-mega-menu-chrome.mjs; el modo clic, mm-click-fit."
  ],
  "cases": {
   "mm-defaults": {
@@ -176,9 +176,10 @@
    ],
    "actions": [
     {
-     "label": "clic en el título de Servicios",
-     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
-     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
+     "label": "Intro en el botón de Servicios",
+     "key": "Enter",
+     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-dropdown-icon",
+     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__dropdown-icon",
      "stay": true,
      "widths": [
       1280
@@ -214,7 +215,8 @@
      ]
     },
     {
-     "label": "submenú de Servicios en el desplegable",
+     "label": "Intro en el botón de Servicios en el desplegable",
+     "key": "Enter",
      "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-dropdown-icon",
      "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__dropdown-icon",
      "widths": [
@@ -717,9 +719,10 @@
    ],
    "actions": [
     {
-     "label": "clic en el título de Servicios",
-     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
-     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
+     "label": "Intro en el botón de Servicios",
+     "key": "Enter",
+     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-dropdown-icon",
+     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__dropdown-icon",
      "stay": true,
      "widths": [
       1280
@@ -1112,9 +1115,10 @@
    ],
    "actions": [
     {
-     "label": "clic en el título de Servicios",
-     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
-     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
+     "label": "Intro en el botón de Servicios",
+     "key": "Enter",
+     "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-dropdown-icon",
+     "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__dropdown-icon",
      "stay": true,
      "widths": [
       1280

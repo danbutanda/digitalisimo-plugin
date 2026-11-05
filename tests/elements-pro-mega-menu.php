@@ -281,7 +281,7 @@ namespace {
 
 	// 2. Un control propio por cada control de PRO.
 	$same = static function ( $key, $a, $b ) { return ( $a[ $key ] ?? null ) === ( $b[ $key ] ?? null ); };
-	$vars = static function ( $v ) { return str_replace( array( 'elementor-widget-digitalisimo-mega-menu', '.digi-mm__current', '.digi-mm__', '.digi-mm', '--dmm-', 'digi-mm--' ), array( 'elementor-widget-n-menu', '.e-current', '.e-n-menu-', '.e-n-menu', '--n-menu-', 'e-' ), (string) $v ); };
+	$vars = static function ( $v ) { return str_replace( array( 'elementor-widget-digi-mega-menu', '.digi-mm__current', '.digi-mm__', '.digi-mm', '--dmm-', 'digi-mm--' ), array( 'elementor-widget-n-menu', '.e-current', '.e-n-menu-', '.e-n-menu', '--n-menu-', 'e-' ), (string) $v ); };
 	check_mm( array_keys( $pro->controls ) === array_keys( $own->controls ), 'Los mismos controles en el mismo orden. Sobran: ' . implode( ', ', array_diff( array_keys( $own->controls ), array_keys( $pro->controls ) ) ) . ' · faltan: ' . implode( ', ', array_diff( array_keys( $pro->controls ), array_keys( $own->controls ) ) ) );
 	check_mm( $pro->order === $own->order, 'Los mismos controles y grupos en el mismo orden.' );
 	$compare = static function ( array $p, array $o, string $name ) use ( $same, $vars ) {
@@ -466,7 +466,7 @@ namespace {
 	check_mm( 'fit_to_content' === $l['content_width'] && 'right' === $l['content_horizontal_position'] && 'dropdown' === $l['item_layout'] && 'click' === $l['open_on'] && 'fadeIn' === $l['open_animation'] && 'mobile' === $l['breakpoint_selector'] && array( 'a1', 'a2', 'a3' ) === array_column( $l['menu_items'], '_id' ) && 'equipo' === $l['menu_items'][2]['element_id'] && 'yes' === $l['menu_items'][0]['item_dropdown_content'], 'Diseño, efecto y filas con su _id y sus campos.' );
 	check_mm( 'center' === $out['style']['item_position_horizontal_mobile'] && 18 === $out['style']['menu_item_title_typography_font_size']['size'] && 180 === $out['style']['style_dropdown_indicator_rotate']['size'] && 'yes' === $out['style']['content_shadow_box_shadow_type'] && '24' === $out['style']['content_padding']['top'], 'Estilo, por dispositivo y por grupos.' );
 	check_mm( $cases['globals']['__globals__'] === $out['globals']['__globals__'] && $cases['dynamic']['__dynamic__'] === $out['dynamic']['__dynamic__'] && $cases['dynamic']['menu_items'][0]['__dynamic__'] === $out['dynamic']['menu_items'][0]['__dynamic__'], 'Globales y etiquetas dinámicas siguen a su control, también en las filas.' );
-	check_mm( "selector .digi-mm__title.digi-mm__current{font-weight:700}\nselector .digi-mm__content > .e-con.digi-mm__active{--dmm-title-color-normal:red}\n.elementor-widget-digitalisimo-mega-menu .digi-mm__toggle .digi-mm__toggle-close{opacity:.5}" === $out['css']['custom_css'], 'CSS personalizado con las clases y variables propias: ' . json_encode( $out['css']['custom_css'] ) );
+	check_mm( "selector .digi-mm__title.digi-mm__current{font-weight:700}\nselector .digi-mm__content > .e-con.digi-mm__active{--dmm-title-color-normal:red}\n.elementor-widget-digi-mega-menu .digi-mm__toggle .digi-mm__toggle-close{opacity:.5}" === $out['css']['custom_css'], 'CSS personalizado con las clases y variables propias: ' . json_encode( $out['css']['custom_css'] ) );
 	check_mm( 'cabecera' === $out['css']['_css_classes'] && 'top' === $out['css']['sticky'], 'Avanzado y fijado intactos.' );
 	check_mm( $converted === Converter::tree( $converted, $again, true ) && array() === $again, 'Lo convertido no se convierte otra vez.' );
 	$painted = $render( $out['layout'], array( new MM_Child( '<p>A</p>' ), new MM_Child( '' ), new MM_Child( '<p>C</p>' ) ) );
@@ -497,7 +497,7 @@ namespace {
 		$w->children = $fixture_kids();
 		ob_start();
 		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
-		$body .= '<div class="elementor-element elementor-widget elementor-widget-digitalisimo-mega-menu ' . $fc['wrapper'] . '" data-id="' . $fid . '">' . str_replace( '123', substr( $fid, 1 ) . '00', (string) ob_get_clean() ) . "</div>\n<div class=\"spacer\"></div>\n";
+		$body .= '<div class="elementor-element elementor-widget elementor-widget-digi-mega-menu ' . $fc['wrapper'] . '" data-id="' . $fid . '">' . str_replace( '123', substr( $fid, 1 ) . '00', (string) ob_get_clean() ) . "</div>\n<div class=\"spacer\"></div>\n";
 	}
 	$links = '';
 	foreach ( array( 'mega-menu' => Module::WIDGETS['digitalisimo-mega-menu']['css'] ) + Mega_Menu::SHEETS as $file ) {

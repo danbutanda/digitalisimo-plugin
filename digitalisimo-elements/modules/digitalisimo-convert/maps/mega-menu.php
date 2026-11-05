@@ -181,7 +181,7 @@ return array(
 	},
 	// Clases de PRO en el CSS personalizado del elemento.
 	'classes'   => array(
-		'.elementor-widget-n-menu'           => '.elementor-widget-digitalisimo-mega-menu',
+		'.elementor-widget-n-menu'           => '.elementor-widget-digi-mega-menu',
 		'.e-n-menu'                          => '.digi-mm',
 		'.e-n-menu-wrapper'                  => '.digi-mm__wrapper',
 		'.e-n-menu-heading'                  => '.digi-mm__heading',

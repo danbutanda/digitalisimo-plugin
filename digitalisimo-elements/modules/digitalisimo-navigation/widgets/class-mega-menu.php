@@ -165,8 +165,13 @@ class Mega_Menu extends Widget_Nested_Base {
 		return '.digi-mm__content';
 	}
 
+	/**
+	 * Clase del contenedor del widget. Como PRO (`elementor-widget-n-menu`, distinta de `elementor-widget-mega-menu`), no es
+	 * la que usa el núcleo para los valores globales por defecto del kit (`.elementor-widget-<nombre>`): en PRO esos valores
+	 * (tipografía de acento de los títulos, color del separador) nunca llegaban al menú, y un sitio migrado debe verse igual.
+	 */
 	protected function get_html_wrapper_class() {
-		return 'elementor-widget-' . self::NAME;
+		return 'elementor-widget-digi-mega-menu';
 	}
 
 	/** Selectores de los controles del botón y del contenido activo (los de PRO, sobre el marcado propio). */
@@ -1819,7 +1824,7 @@ class Mega_Menu extends Widget_Nested_Base {
 					$this->get_control_selector_class( 'active_content_container' ) => '--padding-top: {{TOP}}{{UNIT}}; --padding-right: {{RIGHT}}{{UNIT}}; --padding-bottom: {{BOTTOM}}{{UNIT}}; --padding-left: {{LEFT}}{{UNIT}};',
 					// Todo: Remove in version 3.21.0: https://elementor.atlassian.net/browse/ED-11888.
 					// Remove together with support for physical properties inside the container widget.
-					":where( [data-core-v316-plus='true'] .elementor-element.elementor-widget-digitalisimo-mega-menu{$widget_container_selector} > .digi-mm > .digi-mm__wrapper > .digi-mm__heading > .digi-mm__item > .digi-mm__content ) > .e-con" => "--padding-block-start: {{TOP}}{{UNIT}}; --padding-inline-end: $logical_dimensions_inline_end; --padding-block-end: {{BOTTOM}}{{UNIT}}; --padding-inline-start: $logical_dimensions_inline_start;",
+					":where( [data-core-v316-plus='true'] .elementor-element.elementor-widget-digi-mega-menu{$widget_container_selector} > .digi-mm > .digi-mm__wrapper > .digi-mm__heading > .digi-mm__item > .digi-mm__content ) > .e-con" => "--padding-block-start: {{TOP}}{{UNIT}}; --padding-inline-end: $logical_dimensions_inline_end; --padding-block-end: {{BOTTOM}}{{UNIT}}; --padding-inline-start: $logical_dimensions_inline_start;",
 				],
 				'separator' => 'before',
 			]
