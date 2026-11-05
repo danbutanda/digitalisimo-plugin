@@ -61,8 +61,9 @@ class Loop_Grid extends Loop_Base {
 	/** El compartido (si hace falta) y el propio sólo con la paginación sin recargar. */
 	public function get_script_depends(): array {
 		$scripts = parent::get_script_depends();
-		$ajax    = 'ajax' === $this->get_settings( 'pagination_load_type' ) && in_array( (string) $this->get_settings( 'pagination_type' ), array( 'numbers', 'prev_next', 'numbers_and_prev_next' ), true );
-		if ( self::is_editor() || $ajax ) {
+		// En el editor y su vista previa, primero: ahí el núcleo pide los recursos al widget registrado, sin ajustes
+		// (`Widgets_Manager::enqueue_widgets_scripts()`), y leerlos fallaría.
+		if ( self::is_editor() || ( 'ajax' === $this->get_settings( 'pagination_load_type' ) && in_array( (string) $this->get_settings( 'pagination_type' ), array( 'numbers', 'prev_next', 'numbers_and_prev_next' ), true ) ) ) {
 			$scripts = array_merge( $scripts, Module::script_depends( self::NAME ) );
 		}
 		return $scripts;
