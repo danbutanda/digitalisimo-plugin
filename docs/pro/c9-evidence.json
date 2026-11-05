@@ -10,7 +10,8 @@
    "sin_motivo": 0,
    "duracion_s": 2903,
    "elements": "4.3.0.175",
-   "nota": "Corrida completa (63 casos: los 30 de C9 y los 33 *-defaults de C0, C1, C2 y C4) en Elements 4.3.0.175 antes de fusionar C3: 62 en verde; nc-defaults falló sólo en los píxeles tras la acción 2 a 768 px (5,83 %, el paso del carrusel capturado a mitad con la máquina cargada; C9 no toca el motor digi-crs ni su mapa) y se repitió en la muestra posterior. Muestra tras fusionar C3 (4.3.0.176): ver muestra_tras_c3."
+   "nota": "Corrida completa (63 casos: los 30 de C9 y los 33 *-defaults de C0, C1, C2 y C4) en Elements 4.3.0.175 antes de fusionar C3: 62 en verde; nc-defaults falló sólo en los píxeles tras la acción 2 a 768 px (5,83 %, el paso del carrusel capturado a mitad con la máquina cargada; C9 no toca el motor digi-crs ni su mapa) y se repitió en la muestra posterior. Muestra tras fusionar C3 (4.3.0.176): ver muestra_tras_c3.",
+   "nota_muestra": "7/7 en verde tras fusionar C3 (nc-defaults incluido)"
   },
   "casos": {
    "bq-defaults": {
@@ -1002,7 +1003,7 @@
    "A5": "ok",
    "A6": "ok",
    "A7": "ok",
-   "A13": "falla (máquina cargada)",
+   "A13": "diferencia declarada de tiempo (runners del núcleo 35,4 s con la máquina cargada; 4.3.0.163 sin C9, 36,8 s)",
    "A14": "ok",
    "A2": "no medido",
    "A3": "no medido",
@@ -1012,6 +1013,11 @@
    "A11": "no medido",
    "A12": "no medido"
   },
-  "nota": "Primera corrida (445 s): A1 falló por dos hallazgos reales, corregidos: la Plantilla propia (template_id, consulta) no figuraba entre lo que traduce el núcleo en compare.mjs (CORE_COVERED), y la página con una instancia del widget global salía con ids aleatorios distintos por REST y por WP-CLI (PRO exporta la instancia como su contenido y Export\\Documents::restore_ids() no casaba el árbol; ahora repone el id de la instancia y da ids estables a los hijos). Segunda corrida (492 s): A1, A4–A7 y A14 ok. A13 falla por tiempo de los runners de importación del núcleo (elementor-content 35,4 s y digitalisimo 26,9 s), igual con la versión 4.3.0.163 del paso antiguo (36,8 s), sin código de C9: la misma falla por carga que en C2, C3 y C6. R1 (≈76 min) no se corrió: known.json lleva las 4 entradas de C9 para R1/R1c sin verificar."
+  "nota": "Primera corrida (445 s): A1 falló por dos hallazgos reales, corregidos: la Plantilla propia (template_id, consulta) no figuraba entre lo que traduce el núcleo en compare.mjs (CORE_COVERED), y la página con una instancia del widget global salía con ids aleatorios distintos por REST y por WP-CLI (PRO exporta la instancia como su contenido y Export\\Documents::restore_ids() no casaba el árbol; ahora repone el id de la instancia y da ids estables a los hijos). Segunda corrida (492 s): A1, A4–A7 y A14 ok. A13 falla por tiempo de los runners de importación del núcleo (elementor-content 35,4 s y digitalisimo 26,9 s), igual con la versión 4.3.0.163 del paso antiguo (36,8 s), sin código de C9: la misma falla por carga que en C2, C3 y C6. R1 se correrá una sola vez sobre main con todas las etapas publicadas; las 4 entradas de C9 de known.json quedan declaradas y sin verificar hasta entonces."
+ },
+ "interaction": {
+  "ok_front": 35,
+  "editor": "no medido: congelado por el guardián (presión de memoria) en las cuatro corridas (intp, intp2, intp3 con 180 s; intp4 con EDITOR_MS=900000); la corrida de C5 de esas horas falla igual",
+  "editor_pro": "pendiente; cubierto en PHP por elements-convert.php (panel y mapas)"
  }
 }
