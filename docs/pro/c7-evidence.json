@@ -1,0 +1,2453 @@
+{
+ "fecha": "2026-11-05",
+ "etapa": "C7",
+ "pro_ab": {
+  "corridas": {
+   "abm": {
+    "que": "C7 · ficha de producto (M)",
+    "casos": 49,
+    "problemas": [],
+    "duracion_s": 1906,
+    "elements": "4.3.0.175",
+    "git": "ae883cfd",
+    "sin_motivo": 0
+   },
+   "abn1": {
+    "que": "C7 · tienda (N, 1/2)",
+    "casos": 32,
+    "problemas": [
+     "wpg-product · píxeles 375 normal: 4.65 % distintos (umbral 2.00 %; A 351×2152, B 351×2152)",
+     "wpg-product · píxeles 375 hover: 4.65 % distintos (umbral 2.00 %; A 351×2152, B 351×2152)",
+     "wpg-product · píxeles 375 focus: 4.94 % distintos (umbral 2.00 %; A 351×2152, B 351×2152)",
+     "wpg-product · píxeles 768 normal: 4.03 % distintos (umbral 2.00 %; A 744×2674, B 744×2674)",
+     "wpg-product · píxeles 768 hover: 4.03 % distintos (umbral 2.00 %; A 744×2674, B 744×2674)",
+     "wpg-product · píxeles 768 focus: 4.09 % distintos (umbral 2.00 %; A 744×2674, B 744×2674)",
+     "wpg-product · píxeles 1280 normal: 2.30 % distintos (umbral 2.00 %; A 1256×2155, B 1256×2155)",
+     "wpg-product · píxeles 1280 hover: 2.30 % distintos (umbral 2.00 %; A 1256×2155, B 1256×2155)"
+    ],
+    "duracion_s": 1393,
+    "elements": "4.3.0.175",
+    "git": "ae883cfd",
+    "sin_motivo": 0
+   },
+   "abn2": {
+    "que": "C7 · tienda (N, 2/2)",
+    "casos": 32,
+    "problemas": [],
+    "duracion_s": 1820,
+    "elements": "4.3.0.176",
+    "git": "1f041ef7",
+    "sin_motivo": 0
+   },
+   "abr2": {
+    "que": "C7 · repetición de wpg-product con el orden fijo de WooCommerce (y dos de relacionados)",
+    "casos": 3,
+    "problemas": [],
+    "duracion_s": 190,
+    "elements": "4.3.0.176",
+    "git": "1f041ef7",
+    "sin_motivo": 0
+   },
+   "abd": {
+    "que": "C0, C1, C2 y C4 · muestra *-defaults",
+    "casos": 33,
+    "problemas": [],
+    "duracion_s": 1247,
+    "elements": "4.3.0.175",
+    "git": "ae883cfd",
+    "sin_motivo": 0
+   }
+  },
+  "casos": {
+   "wsm-catc-defaults": {
+    "widget": "wc-add-to-cart",
+    "destino": "digitalisimo-woo-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-catc-styled": {
+    "widget": "wc-add-to-cart",
+    "destino": "digitalisimo-woo-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-catc-quantity": {
+    "widget": "wc-add-to-cart",
+    "destino": "digitalisimo-woo-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-catc-quantity-auto": {
+    "widget": "wc-add-to-cart",
+    "destino": "digitalisimo-woo-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-single-price": {
+    "widget": "wc-single-elements",
+    "destino": "digitalisimo-woo-single-elements",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-single-title": {
+    "widget": "wc-single-elements",
+    "destino": "digitalisimo-woo-single-elements",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-single-meta": {
+    "widget": "wc-single-elements",
+    "destino": "digitalisimo-woo-single-elements",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-single-tabs": {
+    "widget": "wc-single-elements",
+    "destino": "digitalisimo-woo-single-elements",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-single-rating": {
+    "widget": "wc-single-elements",
+    "destino": "digitalisimo-woo-single-elements",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-simple": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-variable": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-stacked": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-auto-center": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-noqty-right": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-variations": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-atc-outofstock": {
+    "widget": "woocommerce-product-add-to-cart",
+    "destino": "digitalisimo-woo-product-add-to-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-addinfo-defaults": {
+    "widget": "woocommerce-product-additional-information",
+    "destino": "digitalisimo-woo-product-additional-information",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-addinfo-styled": {
+    "widget": "woocommerce-product-additional-information",
+    "destino": "digitalisimo-woo-product-additional-information",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-addinfo-heading": {
+    "widget": "woocommerce-product-additional-information",
+    "destino": "digitalisimo-woo-product-additional-information",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-content-defaults": {
+    "widget": "woocommerce-product-content",
+    "destino": "digitalisimo-woo-product-content",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-content-styled": {
+    "widget": "woocommerce-product-content",
+    "destino": "digitalisimo-woo-product-content",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-tabs-defaults": {
+    "widget": "woocommerce-product-data-tabs",
+    "destino": "digitalisimo-woo-product-data-tabs",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-tabs-styled": {
+    "widget": "woocommerce-product-data-tabs",
+    "destino": "digitalisimo-woo-product-data-tabs",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-images-simple": {
+    "widget": "woocommerce-product-images",
+    "destino": "digitalisimo-woo-product-images",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-images-sale": {
+    "widget": "woocommerce-product-images",
+    "destino": "digitalisimo-woo-product-images",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-images-styled": {
+    "widget": "woocommerce-product-images",
+    "destino": "digitalisimo-woo-product-images",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-meta-defaults": {
+    "widget": "woocommerce-product-meta",
+    "destino": "digitalisimo-woo-product-meta",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-meta-table": {
+    "widget": "woocommerce-product-meta",
+    "destino": "digitalisimo-woo-product-meta",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-meta-stacked": {
+    "widget": "woocommerce-product-meta",
+    "destino": "digitalisimo-woo-product-meta",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-meta-inline-divider": {
+    "widget": "woocommerce-product-meta",
+    "destino": "digitalisimo-woo-product-meta",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-price-simple": {
+    "widget": "woocommerce-product-price",
+    "destino": "digitalisimo-woo-product-price",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-price-sale": {
+    "widget": "woocommerce-product-price",
+    "destino": "digitalisimo-woo-product-price",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-price-stacked": {
+    "widget": "woocommerce-product-price",
+    "destino": "digitalisimo-woo-product-price",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-price-variable": {
+    "widget": "woocommerce-product-price",
+    "destino": "digitalisimo-woo-product-price",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-rating-defaults": {
+    "widget": "woocommerce-product-rating",
+    "destino": "digitalisimo-woo-product-rating",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-rating-styled": {
+    "widget": "woocommerce-product-rating",
+    "destino": "digitalisimo-woo-product-rating",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-rating-center": {
+    "widget": "woocommerce-product-rating",
+    "destino": "digitalisimo-woo-product-rating",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-related-defaults": {
+    "widget": "woocommerce-product-related",
+    "destino": "digitalisimo-woo-product-related",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abr2"
+   },
+   "wsm-related-styled": {
+    "widget": "woocommerce-product-related",
+    "destino": "digitalisimo-woo-product-related",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-related-noheading": {
+    "widget": "woocommerce-product-related",
+    "destino": "digitalisimo-woo-product-related",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-short-defaults": {
+    "widget": "woocommerce-product-short-description",
+    "destino": "digitalisimo-woo-product-short-description",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-short-styled": {
+    "widget": "woocommerce-product-short-description",
+    "destino": "digitalisimo-woo-product-short-description",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-stock-instock": {
+    "widget": "woocommerce-product-stock",
+    "destino": "digitalisimo-woo-product-stock",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-stock-out": {
+    "widget": "woocommerce-product-stock",
+    "destino": "digitalisimo-woo-product-stock",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-title-defaults": {
+    "widget": "woocommerce-product-title",
+    "destino": "digitalisimo-woo-product-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-title-styled": {
+    "widget": "woocommerce-product-title",
+    "destino": "digitalisimo-woo-product-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-title-link": {
+    "widget": "woocommerce-product-title",
+    "destino": "digitalisimo-woo-product-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-upsell-defaults": {
+    "widget": "woocommerce-product-upsell",
+    "destino": "digitalisimo-woo-product-upsell",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wsm-upsell-styled": {
+    "widget": "woocommerce-product-upsell",
+    "destino": "digitalisimo-woo-product-upsell",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abm"
+   },
+   "wcap-shop": {
+    "widget": "wc-archive-products",
+    "destino": "digitalisimo-woo-archive-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcap-category": {
+    "widget": "wc-archive-products",
+    "destino": "digitalisimo-woo-archive-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcap-styled": {
+    "widget": "wc-archive-products",
+    "destino": "digitalisimo-woo-archive-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcc-defaults": {
+    "widget": "wc-categories",
+    "destino": "digitalisimo-woo-categories",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcc-by-id": {
+    "widget": "wc-categories",
+    "destino": "digitalisimo-woo-categories",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcc-parent": {
+    "widget": "wc-categories",
+    "destino": "digitalisimo-woo-categories",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcc-current": {
+    "widget": "wc-categories",
+    "destino": "digitalisimo-woo-categories",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcc-styled": {
+    "widget": "wc-categories",
+    "destino": "digitalisimo-woo-categories",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wpg-cart": {
+    "widget": "wc-elements",
+    "destino": "digitalisimo-woo-pages",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wpg-checkout": {
+    "widget": "wc-elements",
+    "destino": "digitalisimo-woo-pages",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wpg-account": {
+    "widget": "wc-elements",
+    "destino": "digitalisimo-woo-pages",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wpg-tracking": {
+    "widget": "wc-elements",
+    "destino": "digitalisimo-woo-pages",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wpg-product": {
+    "widget": "wc-elements",
+    "destino": "digitalisimo-woo-pages",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abr2"
+   },
+   "wcpc-defaults": {
+    "widget": "wc-products",
+    "destino": "digitalisimo-woo-products-classic",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcpc-sale": {
+    "widget": "wc-products",
+    "destino": "digitalisimo-woo-products-classic",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wad-category": {
+    "widget": "woocommerce-archive-description",
+    "destino": "digitalisimo-woo-archive-description",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wad-styled": {
+    "widget": "woocommerce-archive-description",
+    "destino": "digitalisimo-woo-archive-description",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcapc-shop": {
+    "widget": "woocommerce-archive-products",
+    "destino": "digitalisimo-woo-archive-products-classic",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wcapc-category": {
+    "widget": "woocommerce-archive-products",
+    "destino": "digitalisimo-woo-archive-products-classic",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wbc-product": {
+    "widget": "woocommerce-breadcrumb",
+    "destino": "digitalisimo-woo-breadcrumb",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wbc-styled": {
+    "widget": "woocommerce-breadcrumb",
+    "destino": "digitalisimo-woo-breadcrumb",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-defaults": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-one-column": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-empty": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-styled": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-auto": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-customer": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "cart-texts": {
+    "widget": "woocommerce-cart",
+    "destino": "digitalisimo-woo-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wci-defaults": {
+    "widget": "woocommerce-category-image",
+    "destino": "digitalisimo-woo-category-image",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "wci-link": {
+    "widget": "woocommerce-category-image",
+    "destino": "digitalisimo-woo-category-image",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "co-defaults": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "co-customer": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn1"
+   },
+   "co-one-column": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "co-no-coupon": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "co-styled": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "co-coupon-open": {
+    "widget": "woocommerce-checkout-page",
+    "destino": "digitalisimo-woo-checkout",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wmc-defaults": {
+    "widget": "woocommerce-menu-cart",
+    "destino": "digitalisimo-woo-menu-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 60,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wmc-empty": {
+    "widget": "woocommerce-menu-cart",
+    "destino": "digitalisimo-woo-menu-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wmc-mini": {
+    "widget": "woocommerce-menu-cart",
+    "destino": "digitalisimo-woo-menu-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 60,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wmc-hover": {
+    "widget": "woocommerce-menu-cart",
+    "destino": "digitalisimo-woo-menu-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 60,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wmc-styled": {
+    "widget": "woocommerce-menu-cart",
+    "destino": "digitalisimo-woo-menu-cart",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 63,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-defaults": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-orders": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-view-order": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-edit-address": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-edit-account": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-guest": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-horizontal": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-styled": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.17,
+     "768": 0.12,
+     "1280": 0.15
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ma-forms-styled": {
+    "widget": "woocommerce-my-account",
+    "destino": "digitalisimo-woo-my-account",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wno-notices": {
+    "widget": "woocommerce-notices",
+    "destino": "digitalisimo-woo-notices",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-defaults": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-category": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-ids": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-sale": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-paginate": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-shop-current": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-related": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abr2"
+   },
+   "wcp-upsells": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-cross-sells": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "wcp-styled": {
+    "widget": "woocommerce-products",
+    "destino": "digitalisimo-woo-products",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ps-defaults": {
+    "widget": "woocommerce-purchase-summary",
+    "destino": "digitalisimo-woo-purchase-summary",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ps-no-message": {
+    "widget": "woocommerce-purchase-summary",
+    "destino": "digitalisimo-woo-purchase-summary",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "ps-styled": {
+    "widget": "woocommerce-purchase-summary",
+    "destino": "digitalisimo-woo-purchase-summary",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abn2"
+   },
+   "bq-defaults": {
+    "widget": "blockquote",
+    "destino": "digitalisimo-blockquote",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.13,
+     "768": 0.09,
+     "1280": 0.06
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "ah-defaults": {
+    "widget": "animated-headline",
+    "destino": "digitalisimo-animated-headline",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.01,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "ab-defaults": {
+    "widget": "author-box",
+    "destino": "digitalisimo-author-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "bc-defaults": {
+    "widget": "breadcrumbs",
+    "destino": "digitalisimo-yoast-breadcrumbs",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "cta-defaults": {
+    "widget": "call-to-action",
+    "destino": "digitalisimo-call-to-action",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "ch-defaults": {
+    "widget": "code-highlight",
+    "destino": "digitalisimo-code-highlight",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "cd-defaults": {
+    "widget": "countdown",
+    "destino": "digitalisimo-countdown",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 17.94,
+     "768": 0.78,
+     "1280": 0.46
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "flipbox-defaults": {
+    "widget": "flip-box",
+    "destino": "digitalisimo-flip-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "gal-defaults": {
+    "widget": "gallery",
+    "destino": "digitalisimo-gallery",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.02,
+     "1280": 0.02
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "hs-defaults": {
+    "widget": "hotspot",
+    "destino": "digitalisimo-hotspot",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "lt-defaults": {
+    "widget": "lottie",
+    "destino": "digitalisimo-lottie",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 9.44,
+     "768": 20.12,
+     "1280": 7.43
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "mc-defaults": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.18,
+     "768": 0.08,
+     "1280": 0.05
+    },
+    "declaradas": 125,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "nc-defaults": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.23,
+     "768": 0.11,
+     "1280": 0.06
+    },
+    "declaradas": 132,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "pc-defaults": {
+    "widget": "post-comments",
+    "destino": "digitalisimo-post-comments",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "pi-defaults": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "pn-defaults": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 22,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "plist-defaults": {
+    "widget": "price-list",
+    "destino": "digitalisimo-price-list",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "ptab-defaults": {
+    "widget": "price-table",
+    "destino": "digitalisimo-price-table",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.86,
+     "768": 0.37,
+     "1280": 0.22
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "pt-defaults": {
+    "widget": "progress-tracker",
+    "destino": "digitalisimo-progress-tracker",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "rv-defaults": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 1.9,
+     "768": 0.07,
+     "1280": 0.75
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "sb-defaults": {
+    "widget": "share-buttons",
+    "destino": "digitalisimo-share-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 47,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "sm-defaults": {
+    "widget": "sitemap",
+    "destino": "digitalisimo-sitemap",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "sl-defaults": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.04,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 78,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "toc-defaults": {
+    "widget": "table-of-contents",
+    "destino": "digitalisimo-table-of-contents",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tc-defaults": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.07,
+     "768": 0.04,
+     "1280": 0.03
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-pagetitle-defaults": {
+    "widget": "theme-page-title",
+    "destino": "digitalisimo-page-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-content-defaults": {
+    "widget": "theme-post-content",
+    "destino": "digitalisimo-post-content",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-excerpt-defaults": {
+    "widget": "theme-post-excerpt",
+    "destino": "digitalisimo-post-excerpt",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-featured-defaults": {
+    "widget": "theme-post-featured-image",
+    "destino": "digitalisimo-featured-image",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-posttitle-defaults": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-logo-defaults": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "tl-sitetitle-defaults": {
+    "widget": "theme-site-title",
+    "destino": "digitalisimo-site-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   },
+   "vpl-defaults": {
+    "widget": "video-playlist",
+    "destino": "digitalisimo-video-playlist",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 45.23,
+     "768": 0.43,
+     "1280": 0.25
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [],
+    "corrida": "abd"
+   }
+  }
+ },
+ "validate_yml": {
+  "comandos": 348,
+  "pruebas_en_workflows": 342,
+  "detalle": "Lista de validate.yml tras fusionar C3 (Elements 4.3.0.176), en 4 lotes por el semáforo: 345 en verde; 3 de Chrome de C2/C4 (elements-pro-table-of-contents-chrome, elements-pro-gallery-chrome, elements-pro-search-form-chrome) fallan sólo bajo carga (> 9) y pasan solas (corrida de las 10:46). validate-suite.mjs y verify-release.mjs en verde con paquetes construidos fuera de dist/ (ZIP de Elements con los 84 archivos de single/ y store/, LEGACY MENTION CHECK: PASS). Antes de la fusión, la misma lista (341 comandos) dio el mismo resultado."
+ },
+ "pro_migrate": {
+  "problemas": [],
+  "comprobaciones": 42,
+  "c7": "con WooCommerce 11.2.1 fijado: plantilla de producto (15 de la ficha + bdt-wc-add-to-cart), archivo de productos (9 + bdt-wc-products), página (6 de carrito, pago y cuenta) y cabecera (carrito del menú + bdt-wc-mini-cart): 81 widgets en 11 documentos con C0–C4, CSS personalizado traducido, segunda pasada sin cambios y --revert"
+ },
+ "migration_pro_php": 230,
+ "front_budget": {
+  "modo": "woo",
+  "antes_de_fusionar": {
+   "woo-empty": {
+    "requests": 35,
+    "js": 365427,
+    "css": 333550,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0
+   },
+   "woo-pro-product": {
+    "requests": 53,
+    "js": 415186,
+    "css": 400826,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": true,
+    "errors": 0,
+    "cls": 0,
+    "count:title": 1,
+    "count:atc": 2,
+    "count:tabs": 2,
+    "count:gallery": 1,
+    "asset:atc-css": 4075,
+    "asset:tabs-css": 1228,
+    "asset:pro-woo-css": 0
+   },
+   "woo-pro-shop": {
+    "requests": 40,
+    "js": 320923,
+    "css": 349671,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0,
+    "count:products": 11,
+    "count:grids": 2,
+    "asset:products-css": 2572,
+    "asset:archive-css": 1749,
+    "asset:pro-woo-css": 0
+   }
+  },
+  "tras_fusionar": {
+   "woo-empty": {
+    "requests": 35,
+    "js": 365427,
+    "css": 333550,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0
+   },
+   "woo-pro-product": {
+    "requests": 53,
+    "js": 415186,
+    "css": 400826,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": true,
+    "errors": 0,
+    "cls": 0,
+    "count:title": 1,
+    "count:atc": 2,
+    "count:tabs": 2,
+    "count:gallery": 1,
+    "asset:atc-css": 4075,
+    "asset:tabs-css": 1228,
+    "asset:pro-woo-css": 0
+   },
+   "woo-pro-shop": {
+    "requests": 40,
+    "js": 320923,
+    "css": 349671,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0,
+    "count:products": 11,
+    "count:grids": 2,
+    "asset:products-css": 2572,
+    "asset:archive-css": 1749,
+    "asset:pro-woo-css": 0
+   }
+  },
+  "carrito": {
+   "woo-empty": {
+    "requests": 35,
+    "js": 365427,
+    "css": 333550,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0
+   },
+   "woo-pro-cart": {
+    "requests": 43,
+    "js": 463676,
+    "css": 356419,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0,
+    "count:cart": 1,
+    "count:items": 0,
+    "asset:cart-css": 4042,
+    "asset:cart2-css": 4038,
+    "asset:cart-js": 4407,
+    "asset:pro-woo-css": 0
+   },
+   "woo-pro-menu-cart": {
+    "requests": 40,
+    "js": 372670,
+    "css": 343226,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "errors": 0,
+    "cls": 0,
+    "count:toggle": 1,
+    "count:items": 0,
+    "asset:mc-css": 3969,
+    "asset:mc2-css": 3943,
+    "asset:mc-js": 4316,
+    "asset:pro-woo-css": 0
+   }
+  },
+  "nota": "Ficha: la hoja de Swiper la pide la caja de luz del núcleo por el enlace a la imagen completa de la galería de WooCommerce (igual con el widget de PRO). Carrito: con el widget de Avisos en la misma página, el aviso de WooCommerce que el script lleva a su caja desplaza el carrito (CLS 0,027–0,032, como PRO, que también lo mueve); el caso del carrito se mide sin Avisos."
+ },
+ "kit_roundtrip": {
+  "R4": {
+   "woo": false,
+   "ms": 397725,
+   "aceptacion": {
+    "A1": "ok",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "ok",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "ok"
+   }
+  },
+  "nota": "A13 (tiempo por petición) falla por el runner de importación del núcleo (32,7 s; también en el paso con 4.3.0.163) con otras corridas en la máquina, como en C2 y C3. R1 no se corrió (76 min).",
+  "R4_woo": {
+   "woo": true,
+   "ms": 959897,
+   "aceptacion": {
+    "A1": "ok",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "ok",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "ok"
+   },
+   "primera_corrida": "A1 falló por el inventario: la consulta antigua posts (posts_posts_ids, posts_authors, posts_<taxonomía>_ids) de digitalisimo-woo-products-classic y de wc-products no estaba en el registro de K; declaradas en Woo\\Kit\\Module, la segunda corrida da A1 ok"
+  }
+ },
+ "interaction": {
+  "antes_de_fusionar": {
+   "ok": 38,
+   "editor_pro": "65 widgets de PRO registrados y ocultos (C0, C1, C2, C4 y C7), también en una plantilla de producto y una de archivo de productos; la búsqueda ofrece los propios; Elementos del producto y los clásicos fuera del panel, como en PRO"
+  },
+  "tras_fusionar": "pendiente"
+ },
+ "pro_ab_nota": "abm, abn1 y abd antes de fusionar C3 (Elements 4.3.0.175); abn2, abr y abr2 después (4.3.0.176). wpg-product falló en abn1 y abr por el orden al azar de WooCommerce (ventas dirigidas y relacionados de la plantilla de la ficha) y pasa en abr2 con el arnés que los ordena por título; cuenta como caso de abr2."
+}
