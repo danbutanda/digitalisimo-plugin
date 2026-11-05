@@ -197,6 +197,8 @@ digi_loop_ok( (bool) preg_match( '/<section class="digi-crs [^"]*digi-loop-carou
 digi_loop_ok( 6 === substr_count( $html, 'digi-crs__slide' ) && false !== strpos( $html, 'aria-label="1 de 6"' ) && false !== strpos( $html, 'aria-label="6 de 6"' ), 'Carrusel: cada Elemento de bucle es una diapositiva «N de 6»' );
 digi_loop_ok( false !== strpos( $html, 'digi-crs__prev' ) && 6 === substr_count( $html, 'class="digi-crs__dot"' ), 'Carrusel: flechas y puntos por defecto' );
 digi_loop_ok( false === strpos( $html, 'swiper' ), 'Carrusel: sin Swiper' );
+$track = (string) substr( $html, (int) strpos( $html, 'class="digi-crs__track"' ), (int) strpos( $html, '</section>' ) - (int) strpos( $html, 'class="digi-crs__track"' ) );
+digi_loop_ok( false === strpos( $track, '<style' ) && 6 === substr_count( $track, 'data-elementor-type="loop-item"' ), 'Carrusel: la pista sólo tiene diapositivas (las hojas del Elemento de bucle van después del carrusel)' );
 
 $html = digi_loop_render(
 	array(

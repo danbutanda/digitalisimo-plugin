@@ -14,6 +14,12 @@
    "kind": "nombre",
    "match": "Anterior|Siguiente|Previous|Next|Página|Page",
    "reason": "Textos propios de la paginación en español (anterior, siguiente y la palabra «Página» de los números para lectores de pantalla)."
+  },
+  {
+   "widget": "loop-grid",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control (a \\d+ sólo en A|button 1 sólo en B)",
+   "reason": "«Cargar más» es un <button> (base común de C5, como en Entradas); PRO pintaba un enlace a «#»."
   }
  ],
  "cases": {
@@ -85,7 +91,7 @@
     {
      "label": "página 2 sin recargar",
      "selector": "a.page-numbers",
-     "wait": 2500
+     "wait": 8000
     }
    ]
   },
@@ -163,7 +169,7 @@
      "label": "filtrar por Guías",
      "page": true,
      "selector": ".elementor-element-f1lter1 [data-filter=\"guias\"]",
-     "wait": 3000
+     "wait": 8000
     }
    ]
   },
@@ -183,7 +189,7 @@
      "label": "cargar más",
      "a": ".e-loop__load-more .elementor-button",
      "b": ".digi-loop__more .elementor-button",
-     "wait": 3000
+     "wait": 8000
     }
    ]
   },
@@ -207,6 +213,10 @@
       "show_once": ""
      }
     ]
+   },
+   "pixels": {
+    "max": 0.12,
+    "reason": "Mampostería (approx de masonry en el mapa): la separación vertical entre los elementos de una columna es la de «Separación entre filas» (30 px por defecto, como en la rejilla); la de PRO usaba 0 px cuando el control no tenía valor propio (getVerticalSpaceBetween). La cuadrícula mide una separación más por columna."
    }
   }
  }

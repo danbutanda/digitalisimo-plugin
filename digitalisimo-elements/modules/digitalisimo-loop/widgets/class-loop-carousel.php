@@ -29,6 +29,9 @@ class Loop_Carousel extends Loop_Base {
 
 	const NAME = 'digitalisimo-loop-carousel';
 
+	/** El CSS dinámico de cada elemento, después del carrusel: cada hijo de la pista es una diapositiva. */
+	public $defer_dynamic_css = true;
+
 	/** @var int Diapositiva en curso mientras dura el bucle. */
 	private $slide_index = 0;
 
@@ -229,7 +232,8 @@ class Loop_Carousel extends Loop_Base {
 	}
 
 	public function render_loop_footer() {
-		echo Engine::close(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cierre fijo.
+		echo Engine::close() . $this->deferred_css; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cierre fijo y `<style>` del CSS dinámico del núcleo.
+		$this->deferred_css = '';
 	}
 
 	/** Cada Elemento de bucle es una diapositiva de la pista. */

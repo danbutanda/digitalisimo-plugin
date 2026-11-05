@@ -133,6 +133,7 @@ abstract class Loop_Skin extends \Elementor\Skin_Base {
 
 		$widget->loop_size = $query->in_the_loop ? 1 : min( (int) $query->post_count, max( 1, (int) $widget->get_posts_per_page_value() ) );
 		$widget->render_loop_header();
+		$widget->begin_items();
 
 		if ( $query->in_the_loop ) {
 			// Es la consulta global y el bucle lo empezó el tema.
@@ -150,6 +151,7 @@ abstract class Loop_Skin extends \Elementor\Skin_Base {
 
 		wp_reset_postdata();
 
+		$widget->end_items();
 		$widget->render_loop_footer();
 		$widget->loop_size = null;
 	}
@@ -185,8 +187,24 @@ abstract class Loop_Skin extends \Elementor\Skin_Base {
 		if ( ! $document ) {
 			return;
 		}
-		$this->print_dynamic_css( get_the_ID(), $template_id );
+		$this->loop_dynamic_css( get_the_ID(), $template_id );
 		$document->print_content();
+	}
+
+	/**
+	 * CSS dinámico de un elemento (`<style id="loop-dynamic-…">`, `Loop_Css_Trait`): delante del elemento, como PRO, o
+	 * guardado en el widget para después del contenedor si el widget lo pide (`Loop_Base::$defer_dynamic_css`: en el
+	 * carrusel, cada hijo de la pista es una diapositiva).
+	 */
+	protected function loop_dynamic_css( $post_id, $template_id ) {
+		$widget = $this->parent;
+		if ( empty( $widget->defer_dynamic_css ) ) {
+			$this->print_dynamic_css( $post_id, $template_id );
+			return;
+		}
+		ob_start();
+		$this->print_dynamic_css( $post_id, $template_id );
+		$widget->deferred_css .= (string) ob_get_clean();
 	}
 
 	/** Sin plantilla, en el editor: cómo empezar (PRO pintaba una llamada a la acción con su script del editor). */

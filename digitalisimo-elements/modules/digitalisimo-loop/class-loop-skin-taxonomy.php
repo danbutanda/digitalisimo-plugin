@@ -59,6 +59,7 @@ abstract class Loop_Skin_Taxonomy extends Loop_Skin {
 		$widget->before_skin_render();
 		$widget->loop_size = count( $terms );
 		$widget->render_loop_header();
+		$widget->begin_items();
 
 		foreach ( $terms as $term ) {
 			$wp_query->loop_term = $term;
@@ -66,6 +67,7 @@ abstract class Loop_Skin_Taxonomy extends Loop_Skin {
 			$wp_query->loop_term = null;
 		}
 
+		$widget->end_items();
 		$widget->render_loop_footer();
 		$widget->loop_size = null;
 		$widget->after_skin_render();
@@ -83,7 +85,7 @@ abstract class Loop_Skin_Taxonomy extends Loop_Skin {
 		}
 		global $wp_query;
 		$term_id = isset( $wp_query->loop_term->term_id ) ? (int) $wp_query->loop_term->term_id : 0;
-		$this->print_dynamic_css( $term_id, $template_id );
+		$this->loop_dynamic_css( $term_id, $template_id );
 		$document->print_content();
 	}
 

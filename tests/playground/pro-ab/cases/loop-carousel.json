@@ -68,6 +68,24 @@
    "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en A",
    "reason": "Bucle (approx de loop): Swiper clonaba diapositivas y sus enlaces; el motor rebobina sin clones. El HTML de A y B tiene los mismos enlaces.",
    "widget": "loop-carousel"
+  },
+  {
+   "widget": "loop-carousel",
+   "kind": "nombre",
+   "match": "perdido link «Entrada de prueba \\d+»",
+   "reason": "El motor digi-crs pone `inert` en las diapositivas fuera de la vista (C1): sus enlaces salen del árbol de accesibilidad y del orden de foco hasta que se ven; Swiper los dejaba alcanzables aunque estuvieran ocultos. El HTML de A y B tiene los mismos enlaces."
+  },
+  {
+   "widget": "loop-carousel",
+   "kind": "hover",
+   "match": "^(color|border-color|outline|opacity): ",
+   "reason": "El primer control del widget no es el mismo: en B, la flecha anterior (los controles del motor van antes de la pista, orden de foco); en A, el enlace del título de la primera diapositiva. Se comparan dos elementos distintos."
+  },
+  {
+   "widget": "loop-carousel",
+   "kind": "foco",
+   "match": "^(color|border-color|outline|opacity): ",
+   "reason": "El primer control del widget no es el mismo: en B, la flecha anterior (los controles del motor van antes de la pista, orden de foco); en A, el enlace del título de la primera diapositiva. Se comparan dos elementos distintos."
   }
  ],
  "cases": {

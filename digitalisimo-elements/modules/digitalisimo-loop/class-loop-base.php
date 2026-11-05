@@ -350,6 +350,40 @@ abstract class Loop_Base extends Posts_Base {
 		return $attributes;
 	}
 
+	/** @var bool El CSS dinámico de cada elemento va después del contenedor (lo guarda la piel en `$deferred_css`). */
+	public $defer_dynamic_css = false;
+
+	/** @var string CSS dinámico guardado mientras dura el bucle (con `$defer_dynamic_css`). */
+	public $deferred_css = '';
+
+	/** Antes del primer elemento (tras `render_loop_header()`): con `$defer_dynamic_css`, guarda lo que se pinta. */
+	public function begin_items() {
+		if ( $this->defer_dynamic_css ) {
+			ob_start();
+		}
+	}
+
+	/**
+	 * Tras el último elemento (antes de `render_loop_footer()`): con `$defer_dynamic_css`, saca del contenedor las hojas
+	 * que el núcleo imprime entre los elementos (`<style id="loop-<plantilla>">` del documento del bucle,
+	 * `<style id="loop-dynamic-…">` y, en el editor, `<link id="fonts-loop-…">`) y las deja en `$deferred_css`.
+	 */
+	public function end_items() {
+		if ( ! $this->defer_dynamic_css ) {
+			return;
+		}
+		$html = (string) ob_get_clean();
+		$html = (string) preg_replace_callback(
+			'#<style id="loop-[^"]*">.*?</style>|<link [^>]*id="fonts-loop-[^"]*"[^>]*>#s',
+			function ( $m ) {
+				$this->deferred_css .= $m[0];
+				return '';
+			},
+			$html
+		);
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- elementos ya pintados por el núcleo.
+	}
+
 	/** @var int|null Elementos que pintará el bucle; lo fija la piel antes de `render_loop_header()`. */
 	public $loop_size = null;
 

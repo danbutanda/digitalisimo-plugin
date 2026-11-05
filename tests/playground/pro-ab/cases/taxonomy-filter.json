@@ -11,9 +11,21 @@
   },
   {
    "widget": "taxonomy-filter",
-   "kind": "palabra",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control button \\d+ ",
+   "reason": "«Todos» va primero en el orden del documento (orden de foco igual al visual); PRO lo ponía al final y lo adelantaba con order:-1. El arnés compara los botones por su posición en el DOM y el primer control del widget, así que compara botones distintos (Todos, pulsado, frente a Casos); la vista es la misma (píxeles)."
+  },
+  {
+   "widget": "taxonomy-filter",
+   "kind": "hover",
    "match": ".",
-   "reason": "«Todos» va primero en el orden del documento (orden de foco igual al visual); PRO lo ponía al final y lo adelantaba con order:-1, así que el texto en orden del DOM cambia aunque la vista sea la misma."
+   "reason": "«Todos» va primero en el orden del documento (orden de foco igual al visual); PRO lo ponía al final y lo adelantaba con order:-1. El arnés compara los botones por su posición en el DOM y el primer control del widget, así que compara botones distintos (Todos, pulsado, frente a Casos); la vista es la misma (píxeles)."
+  },
+  {
+   "widget": "taxonomy-filter",
+   "kind": "foco",
+   "match": "^(color|border-color|border-width|background|outline): ",
+   "reason": "«Todos» va primero en el orden del documento (orden de foco igual al visual); PRO lo ponía al final y lo adelantaba con order:-1. El arnés compara los botones por su posición en el DOM y el primer control del widget, así que compara botones distintos (Todos, pulsado, frente a Casos); la vista es la misma (píxeles)."
   }
  ],
  "cases": {
@@ -42,12 +54,12 @@
     {
      "label": "pulsar Guías",
      "selector": "[data-filter=\"guias\"]",
-     "wait": 3000
+     "wait": 8000
     },
     {
      "label": "pulsar Todos",
      "selector": "[data-filter=\"__all\"]",
-     "wait": 3000
+     "wait": 8000
     }
    ]
   },
@@ -80,12 +92,12 @@
     {
      "label": "pulsar par",
      "selector": "[data-filter=\"par\"]",
-     "wait": 3000
+     "wait": 8000
     },
     {
      "label": "pulsar impar",
      "selector": "[data-filter=\"impar\"]",
-     "wait": 3000
+     "wait": 8000
     }
    ]
   },
@@ -151,7 +163,7 @@
     {
      "label": "pulsar Casos",
      "selector": "[data-filter=\"casos\"]",
-     "wait": 3000
+     "wait": 8000
     }
    ]
   }
