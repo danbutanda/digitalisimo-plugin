@@ -1,2 +1,0 @@
-/* Contador del slider anidado (F8). */
-(()=>{const D=document,C='.digi-nslider__count',u=c=>{if(!c?.matches(C))return;const k=c.previousElementSibling.children,n=c.firstChild,i=[...k].findIndex(e=>e.getAttribute('aria-current')=='true');n.textContent=i+1||1;n.nextSibling.data=' / '+k.length;c.hidden=0};new MutationObserver(l=>l.forEach(r=>u(r.target.parentNode?.nextElementSibling))).observe(D,{subtree:1,attributeFilter:['aria-current']});D.querySelectorAll(C).forEach(u)})();

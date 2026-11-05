@@ -1,7 +1,0 @@
-/* DIGITALÍSIMO Elements F7b: lo que filters.css no cubre en los filtros ampliados. Sin colores propios (variables de los controles). */
-.digi-filter__search{display:flex;flex-wrap:wrap;align-items:center;gap:var(--digi-filter-gap,.75em)}
-.digi-filter__search>.digi-filter__label{flex:1 0 100%;margin:0}
-.digi-filter__search>.digi-filter__input{flex:1 1 12em;width:auto;min-width:0}
-.digi-filter--search.digi-filter--live .digi-filter__submit{display:inline-block}
-.digi-filter__field>.digi-filter__label{font-size:.875em}
-.digi-filter__input[type=date]{min-width:9em}
