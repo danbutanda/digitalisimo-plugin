@@ -1,0 +1,27 @@
+{
+ "_doc": [
+  "Casos A/B del Mapa del sitio (frente H de C4): A con `sitemap` de PRO, B con `digitalisimo-sitemap`. Las páginas del sitio (también las del arnés) y, con el contexto `post` del frente G, las entradas, categorías y etiquetas de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "sitemap",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces (contorno de 2 px con separación de 2 px)."
+  }
+ ],
+ "cases": {
+  "sm-defaults": {
+   "title": "Valores por defecto: páginas y categorías en cuatro columnas",
+   "widget": "sitemap",
+   "context": "post",
+   "settings": {}
+  },
+  "sm-styled": {
+   "title": "Entradas y etiquetas en dos columnas, h3, nofollow, viñeta cuadrada, colores, sangría y relleno",
+   "widget": "sitemap",
+   "context": "post",
+   "settings": {"sitemap_items": [{"_id": "s1", "sitemap_type_selector": "post_type", "sitemap_source_post_type": "post", "sitemap_title": "Entradas", "sitemap_orderby_post_type": "post_title", "sitemap_order": "asc"}, {"_id": "s2", "sitemap_type_selector": "taxonomy", "sitemap_source_taxonomy": "post_tag", "sitemap_title": "Etiquetas", "sitemap_hide_empty": ""}, {"_id": "s3", "sitemap_type_selector": "taxonomy", "sitemap_source_taxonomy": "category", "sitemap_title": "", "sitemap_hierarchical": "yes"}], "sitemap_columns": "2", "sitemap_columns_mobile": "1", "sitemap_title_tag": "h3", "sitemap_add_nofollow": "yes", "sitemap_list_item_bullet_style": "square", "sitemap_title_color": "#b00020", "sitemap_list_item_color": "#1b5e20", "sitemap_bullet_color": "#0047ab", "sitemap_list_indent": {"unit": "px", "size": 24}, "sitemap_section_padding": {"top": "12", "right": "12", "bottom": "12", "left": "12", "unit": "px", "isLinked": true}, "sitemap_title_typography_typography": "custom", "sitemap_title_typography_font_size": {"unit": "px", "size": 20}}
+  }
+ }
+}

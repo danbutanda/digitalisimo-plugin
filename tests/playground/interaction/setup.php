@@ -44,6 +44,24 @@ if ( ! get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' ) ) {
 	update_post_meta( $template, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'tplsec1', 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'tpl0001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Contenido de plantilla' ), 'elements' => array() ) ) ) ) ) ) );
 }
 $template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
+// C4 (programa «sin widgets de PRO»): una plantilla individual y una de archivo del Theme Builder, para buscar en su
+// panel los elementos de tema que sólo existen ahí (categorías «Individual» y «Archivo»). Sus ID van a templates.json.
+$theme_templates = array();
+foreach ( array( 'single' => 'single-post', 'archive' => 'archive' ) as $key => $type ) {
+	$slug = 'digi-ix-tpl-' . $key;
+	$tpl  = get_page_by_path( $slug, OBJECT, 'elementor_library' );
+	if ( ! $tpl ) {
+		$tpl_id = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+		update_post_meta( $tpl_id, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $tpl_id, '_elementor_template_type', $type );
+		update_post_meta( $tpl_id, '_elementor_version', ELEMENTOR_VERSION );
+		wp_set_object_terms( $tpl_id, $type, 'elementor_library_type' );
+		update_post_meta( $tpl_id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'tt' . substr( md5( $slug ), 0, 5 ), 'elType' => 'container', 'settings' => (object) array(), 'elements' => array( array( 'id' => 'th' . substr( md5( $slug ), 0, 5 ), 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Plantilla ' . $key ), 'elements' => array() ) ) ) ) ) ) );
+		$tpl = get_post( $tpl_id );
+	}
+	$theme_templates[ $key ] = (int) $tpl->ID;
+}
+file_put_contents( '/wordpress/wp-content/probe/templates.json', wp_json_encode( $theme_templates ) );
 // «__SITE__» en cualquier valor es la URL del sitio (imágenes de ejemplo); «__TEMPLATE__», el ID de la plantilla.
 $cases = json_decode( str_replace( array( '__SITE__', '__TEMPLATE__' ), array( untrailingslashit( home_url() ), (string) $template->ID ), (string) file_get_contents( __DIR__ . '/cases.json' ) ), true );
 foreach ( $cases as $widget => $settings ) {

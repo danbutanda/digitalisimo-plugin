@@ -1,0 +1,3 @@
+/* post-excerpt: foco visible de los enlaces del extracto (contorno de 2 px con separación de 2 px) y, con movimiento reducido, sin la transición de su color. */
+.elementor-widget-digitalisimo-post-excerpt a:focus-visible{outline:2px solid;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-post-excerpt a{transition:none!important}}
