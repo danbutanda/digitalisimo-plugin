@@ -26,10 +26,14 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-form' => array( 'file' => 'widgets/class-form.php', 'class' => 'Digitalisimo\\Elements\\Forms\\Widgets\\Form', 'css' => 'modules/digitalisimo-forms/assets/css/form.css', 'js' => 'modules/digitalisimo-forms/assets/js/form.js' ),
+		'digitalisimo-login' => array( 'file' => 'widgets/class-login.php', 'class' => 'Digitalisimo\\Elements\\Forms\\Widgets\\Login', 'css' => 'modules/digitalisimo-forms/assets/css/login.css', 'js' => 'modules/digitalisimo-forms/assets/js/login.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-form'  => 'Formulario',
+		'digitalisimo-login' => 'Inicio de sesión',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
