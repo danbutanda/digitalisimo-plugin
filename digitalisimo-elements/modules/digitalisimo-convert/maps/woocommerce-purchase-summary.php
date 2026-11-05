@@ -17,7 +17,7 @@ $digi_ps_t = static function ( $text ) {
 return array(
 	'source'   => 'woocommerce-purchase-summary',
 	'target'   => 'digitalisimo-woo-purchase-summary',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'defaults' => array(
 		'confirmation_message_text' => $digi_ps_t( 'Thank You. Your order has been received.' ),

@@ -16,7 +16,7 @@ $digi_cart_t = static function ( $text ) {
 return array(
 	'source'   => 'woocommerce-cart',
 	'target'   => 'digitalisimo-woo-cart',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'defaults' => array(
 		'update_cart_button_text'     => $digi_cart_t( 'Update Cart' ),
