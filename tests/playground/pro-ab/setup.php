@@ -875,6 +875,8 @@ if ( get_option( 'digi_ab_woo_fixtures' ) ) {
 	// Tampoco las ventas dirigidas ni las cruzadas, que WooCommerce ordena al azar por defecto (`rand`): por título.
 	add_filter( 'woocommerce_upsells_orderby', static function () { return 'title'; } );
 	add_filter( 'woocommerce_cross_sells_orderby', static function () { return 'title'; } );
+	// Ni los relacionados de la plantilla de la ficha de WooCommerce (`woocommerce_output_related_products()` pide `rand`).
+	add_filter( 'woocommerce_output_related_products_args', static function ( $args ) { $args['orderby'] = 'title'; $args['order'] = 'asc'; return $args; } );
 	// Con un solo proceso de PHP, la primera petición de fragmentos del carrito puede tardar más de los 5 s que espera
 	// `wc-cart-fragments` y el navegador la corta (igual en A y en B): 30 s en el A/B.
 	add_filter( 'woocommerce_get_script_data', static function ( $params, $handle ) {
