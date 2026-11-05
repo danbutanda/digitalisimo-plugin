@@ -250,6 +250,11 @@
    "widget": "rating",
    "control": "rating_value",
    "motivo": "valor de la valoración (número de estrellas), no un ID"
+  },
+  {
+   "widget": "digitalisimo-nav-menu",
+   "control": "menu",
+   "motivo": "Menú de WordPress (C3): slug del menú; viaja como en el Menú de PRO, con on_export() (guarda menu_id) y on_import_update_dynamic_content() del propio widget, que lo traducen al menú importado; declararlo en K lo traduciría dos veces"
   }
  ]
 }

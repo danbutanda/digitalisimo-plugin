@@ -466,7 +466,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1, C2, C4, C8): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0–C4, C8): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -510,6 +510,11 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'search-form', own: 'digitalisimo-search-form', title: 'Formulario de búsqueda', query: 'formulario de búsqueda', ownHidden: true },
         { pro: 'sitemap', own: 'digitalisimo-sitemap', title: 'Mapa del sitio', query: 'mapa del sitio' },
         { pro: 'breadcrumbs', own: 'digitalisimo-yoast-breadcrumbs', title: 'Migas (Yoast o DIGITALÍSIMO SEO)', query: 'migas', proOptional: true },
+        // C3 (navegación y búsqueda, docs/pro/c3.md).
+        { pro: 'nav-menu', own: 'digitalisimo-nav-menu', title: 'Menú de WordPress', query: 'menú de wordpress' },
+        { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
+        { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
+        { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
         // C8 (botones flotantes y Link in Bio, docs/pro/c8.md): una fila por variante de PRO con mapa listo (`contact-buttons-var-9`,
         // en borrador, no se oculta por su mapa). Los Botones de contacto y la Barra flotante heredan la base del núcleo, que no va
         // al panel (viven en documentos de botones flotantes, como las variantes de PRO): `ownHidden`. Link in Bio sí sale.

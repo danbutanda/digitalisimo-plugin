@@ -37,7 +37,7 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single', 'float', 'bar', 'bio', 'header2' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'float', 'bar', 'bio', 'header2' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
 	}
 	// C8: presentación de cada widget propio (la de la variante de PRO que sustituye).
@@ -57,6 +57,13 @@ try {
 	// Hijos del carrusel anidado (C1): sus contenedores deben conservarse con su id.
 	$cdata = json_decode( (string) get_post_meta( (int) ( $ids['carousels'] ?? 0 ), '_elementor_data', true ), true );
 	$out['nested_children'] = array_map( static function ( $e ) { return $e['id'] . ':' . $e['elType']; }, (array) ( $cdata[0]['elements'][0]['elements'] ?? array() ) );
+	// Hijos del Mega Menu y del Off-Canvas (C3): sus contenedores deben conservarse con su id.
+	$ndata = json_decode( (string) get_post_meta( (int) ( $ids['navigation'] ?? 0 ), '_elementor_data', true ), true );
+	foreach ( (array) ( $ndata[0]['elements'] ?? array() ) as $e ) {
+		if ( in_array( $e['id'] ?? '', array( 'v2', 'v3' ), true ) ) {
+			$out['nav_children'][ $e['id'] ] = array_map( static function ( $c ) { return $c['id'] . ':' . $c['elType']; }, (array) ( $e['elements'] ?? array() ) );
+		}
+	}
 } catch ( \Throwable $e ) {
 	$out['error'] = get_class( $e ) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine();
 }

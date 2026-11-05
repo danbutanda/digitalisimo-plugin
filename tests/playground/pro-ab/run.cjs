@@ -117,7 +117,7 @@ function pageSignature(sel, slug) {
     // Función del control, para emparejar A y B por lo que hacen y no por su orden en el documento (el motor propio
     // pone los controles antes de la pista; Swiper, después): anterior, siguiente, punto, pausa o el resto por etiqueta.
     const cls = `${el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
-    const role = /prev|anterior/.test(cls) ? 'prev' : /next|siguiente/.test(cls) ? 'next' : /bullet|__dot|-dot\b/.test(cls) ? 'dot' : /pause|pausar|reanudar/.test(cls) ? 'pause' : el.tagName.toLowerCase();
+    const role = /prev|anterior/.test(cls) ? 'prev' : /next|siguiente/.test(cls) ? 'next' : /bullet|__dot|-dot\b/.test(cls) ? 'dot' : /pause|pausar|reanudar/.test(cls) ? 'pause' : /__clear\b|borrar/.test(cls) ? 'clear' : el.tagName.toLowerCase();
     return { tag: el.tagName.toLowerCase(), role, color: cs.color, size: cs.fontSize, ...s, ...(svg ? { 'icon-fill': getComputedStyle(svg).fill } : {}) };
   });
   const r = root.getBoundingClientRect();
@@ -125,9 +125,10 @@ function pageSignature(sel, slug) {
 }
 
 // Estilos de estado (hover o foco) del control y de la caja.
-function stateStyles(sel) {
+// `ctl` (caso `control`, C3 · frente F): el control que se mide, cuando el primero del widget no es el comparable.
+function stateStyles(sel, ctl) {
   const root = document.querySelector(sel);
-  const el = root && (root.querySelector('a[href], button, [role="button"], [role="link"]') || root);
+  const el = root && ((ctl && root.querySelector(ctl)) || root.querySelector('a[href], button, [role="button"], [role="link"]') || root);
   if (!el) return null;
   const cs = getComputedStyle(el);
   const pick = (c) => ({ color: c.color, background: c.backgroundColor, 'border-color': c.borderColor, 'border-width': c.borderWidth, outline: `${c.outlineStyle} ${c.outlineWidth} ${c.outlineColor}`, 'outline-offset': c.outlineOffset, 'box-shadow': c.boxShadow, 'text-decoration': c.textDecorationLine, opacity: c.opacity, transform: c.transform });
@@ -234,7 +235,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       // los botones flotantes, deja su envoltorio sin alto); por defecto, el widget.
       const capSel = (c.capture || {})[side] ? `${sel} ${c.capture[side]}` : sel;
       const shot = async (state) => {
-        const clip = await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
+        // `shot: "viewport"` (caso): la ventana entera, para lo que el widget pinta fuera de su caja (un panel fijo o un
+        // desplegable de resultados, C3 · frente F). `capture` (C8): el selector recortado dentro del widget.
+        const clip = c.shot === 'viewport'
+          ? await page.evaluate(() => ({ x: scrollX, y: scrollY, width: document.documentElement.clientWidth, height: innerHeight }))
+          : await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
         await page.screenshot({ path: file, clip, captureBeyondViewport: true });
@@ -242,10 +247,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       };
       w.shot = await shot('');
       // Hover: sobre el primer enlace o botón (si no hay, sobre la caja del widget).
-      const target = (await handle.$('a[href], button, [role="button"], [role="link"]')) || handle;
+      const ctl = (c.control || {})[side] || '';
+      const target = (ctl && (await handle.$(ctl))) || (await handle.$('a[href], button, [role="button"], [role="link"]')) || handle;
       await target.hover().catch(() => {});
       await sleep(700);
-      w.hover = { styles: await page.evaluate(stateStyles, sel), shot: await shot('hover') };
+      w.hover = { styles: await page.evaluate(stateStyles, sel, ctl), shot: await shot('hover') };
       await page.mouse.move(0, 0);
       await sleep(700);
       // Foco con teclado (Tab desde el principio del documento, como :focus-visible).
@@ -257,12 +263,13 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           inside = await page.evaluate((s) => { const r = document.querySelector(s); return !!(r && document.activeElement && r.contains(document.activeElement)); }, sel);
         }
         await sleep(500);
-        w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel) : null, shot: inside ? await shot('focus') : null };
+        w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel, ctl) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
-      // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
-      // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
-      // puntero encima, firma y captura; con `scroll` (C2), desplaza la página. Son acumulativas dentro de un ancho;
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, stay, scroll, page, focus, wait, widths }`):
+      // pulsar el selector del lado (`a`/`b`, o `selector` común, relativo al widget), con `key` enfocarlo y teclear, con
+      // `type` escribir un texto, con `hover` pasar el puntero por encima o, con `scroll` (C2), desplazar la página. Tras
+      // cada una, sin foco ni puntero encima (salvo con `stay`), firma y captura. Son acumulativas dentro de un ancho;
       // después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
       if (actions.length) {
@@ -271,15 +278,26 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           const target = act[side] || act.selector || '';
           const entry = { label: act.label || target || act.key, done: true };
           try {
-            const el = target ? await handle.$(target) : handle;
+            // `page`: el selector es de la página, no del widget (un disparador fuera de él, C3 · frente F).
+            const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
             // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
             if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
-            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
+              // Dos movimientos cortos tras llegar: un ratón real (SmartMenus de PRO sólo abre con el ratón si lo detecta).
+              await el.hover();
+              const bb = await el.boundingBox();
+              if (bb) for (const d of [1, 2]) await page.mouse.move(bb.x + bb.width / 2 + d, bb.y + bb.height / 2 + d);
+            } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
-          await page.mouse.move(0, 0);
-          await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+          // `focus`: dónde queda el foco tras la acción (en el widget, fuera o en el cuerpo), comparado entre A y B.
+          if (act.focus) entry.focus = await page.evaluate((s) => { const a = document.activeElement; const r = document.querySelector(s); if (!a || a === document.body) return 'cuerpo'; return `${r && r.contains(a) ? 'widget' : 'página'} ${a.tagName.toLowerCase()} «${String(a.getAttribute('aria-label') || a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40)}»`; }, sel);
+          // `stay`: el puntero y el foco se quedan donde los dejó la acción (menús que se cierran al salir el ratón).
+          if (!act.stay) {
+            await page.mouse.move(0, 0);
+            await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+          }
           await sleep(300);
           entry.signature = await page.evaluate(pageSignature, sel, slug);
           entry.shot = await shot(`act${w.actions.length + 1}`);
@@ -472,12 +490,13 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const wb = B.widths[width] || {};
       const sa = wa.signature;
       const sb = wb.signature;
+      // `empty` (caso, con su motivo): el widget no pinta nada a la vista hasta una acción (un panel cerrado, C3 · frente F).
       // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
       // cero) vale si su caja tiene alto; el texto llega con las acciones. Con `capture` (C8: un bloque fijo a la ventana,
       // cuyo envoltorio no tiene alto) basta la captura.
       // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
       // basta con que A tenga controles (`focusables`), que se comparan igual.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && (sa.height > 0 || c.capture)) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !c.empty && !(c.shape && (sa.height > 0 || c.capture)) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));
@@ -507,6 +526,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const label = xa.label || xb.label || String(i + 1);
         if (!xa.done || !xb.done) fail(`acción ${i + 1} (${label}) no se pudo hacer en ${!xa.done ? 'A' : 'B'}: ${(!xa.done ? xa : xb).error || 'sin datos'}`);
         const ad = diffSignatures(xa.signature, xb.signature, width).map((d) => ({ ...d, detail: `[acción ${i + 1} ${label}] ${d.detail}` }));
+        if ((xa.focus || xb.focus) && xa.focus !== xb.focus) ad.push({ kind: 'foco', width, detail: `[acción ${i + 1} ${label}] foco en ${xa.focus} → ${xb.focus}` });
         const entry = { label, declared: [], unexplained: [], pixels: null };
         for (const d of ad) {
           const ex = explain(d, declared, reasons, codes);
