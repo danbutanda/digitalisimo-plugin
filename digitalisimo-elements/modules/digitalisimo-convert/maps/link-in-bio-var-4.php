@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'    => 'link-in-bio-var-4',
 	'target'    => 'digitalisimo-link-in-bio',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// La presentación de la variante; el resto de controles tiene el mismo nombre en el widget propio.
 	'set'       => array( 'presentation' => '4' ),

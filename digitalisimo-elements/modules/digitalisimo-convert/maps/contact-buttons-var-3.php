@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'    => 'contact-buttons-var-3',
 	'target'    => 'digitalisimo-contact-buttons',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// La presentación de la variante; el resto de controles tiene el mismo nombre en el widget propio.
 	'set'       => array( 'presentation' => '3' ),

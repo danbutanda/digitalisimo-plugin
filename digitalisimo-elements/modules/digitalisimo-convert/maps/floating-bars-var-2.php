@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'    => 'floating-bars-var-2',
 	'target'    => 'digitalisimo-floating-bar',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// La presentación de la variante; el resto de controles tiene el mismo nombre en el widget propio.
 	'set'       => array( 'presentation' => '2' ),
