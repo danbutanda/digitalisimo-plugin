@@ -1,0 +1,5 @@
+.digi-reading-progress{--digi-reading-color:#3f51ef;position:fixed;left:0;right:0;z-index:9999;height:4px;background:transparent;pointer-events:none}
+.digi-reading-progress--top{top:0}
+.digi-reading-progress--bottom{bottom:0}
+.admin-bar .digi-reading-progress--top{top:32px}
+.digi-reading-progress__fill{display:block;height:100%;width:0;background:var(--digi-reading-color);transform-origin:left}

@@ -1,0 +1,9 @@
+/* dia: dos líneas que aparecen desde abajo, la segunda más corta. */
+.digi-animated-link--dia::before,
+.digi-animated-link--dia::after { opacity: 0; transform: translateY(3px); transition: opacity var(--digi-link-speed) ease-out, transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--dia::after { content: ''; top: calc(100% + var(--digi-link-gap)); left: 15%; width: 70%; }
+.digi-animated-link--dia::before { transition-delay: .1s; }
+.digi-animated-link--dia:is(:hover, :focus-visible)::before,
+.digi-animated-link--dia:is(:hover, :focus-visible)::after { opacity: 1; transform: translateY(0); }
+.digi-animated-link--dia:is(:hover, :focus-visible)::before { transition-delay: 0s; }
+.digi-animated-link--dia:is(:hover, :focus-visible)::after { transition-delay: .1s; }

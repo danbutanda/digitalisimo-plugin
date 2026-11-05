@@ -1,0 +1,5 @@
+/* eirene: una píldora gruesa se aplasta en línea y el texto baja a su sitio. */
+.digi-animated-link--eirene::before { height: 7px; border-radius: 20px; transition: transform .2s cubic-bezier(.3, .6, .6, 1.5), opacity .2s; }
+.digi-animated-link--eirene > span { transform: translateY(-4px); transition: transform .2s .05s cubic-bezier(.3, .6, .6, 1.5); }
+.digi-animated-link--eirene:is(:hover, :focus-visible)::before { opacity: 1; transform: scale(1.2, .1); transition-duration: .4s; transition-timing-function: var(--digi-link-ease); }
+.digi-animated-link--eirene:is(:hover, :focus-visible) > span { transform: translateY(0); transition-duration: .4s; transition-delay: 0s; transition-timing-function: var(--digi-link-ease); }

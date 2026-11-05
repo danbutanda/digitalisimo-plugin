@@ -1,0 +1,7 @@
+/* io: dos líneas que crecen en sentidos opuestos. */
+.digi-animated-link--io::before,
+.digi-animated-link--io::after { transform: scaleX(0); transition: transform var(--digi-link-speed) var(--digi-link-ease); }
+.digi-animated-link--io::before { transform-origin: right center; }
+.digi-animated-link--io::after { content: ''; top: calc(100% + var(--digi-link-gap)); transform-origin: left center; }
+.digi-animated-link--io:is(:hover, :focus-visible)::before { transform: scaleX(1); transform-origin: left center; }
+.digi-animated-link--io:is(:hover, :focus-visible)::after { transform: scaleX(1); transform-origin: right center; }

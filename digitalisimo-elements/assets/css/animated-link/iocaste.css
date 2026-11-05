@@ -1,0 +1,5 @@
+/* iocaste: una onda recorre la base del texto. */
+.digi-animated-link--iocaste { overflow: hidden; padding: 7px 0; }
+.digi-animated-link--iocaste::before { display: none; }
+.digi-animated-link--iocaste .digi-animated-link__graphic--slide { top: -3px; left: 0; width: 300%; height: 100%; stroke-width: 2px; transition: transform .7s cubic-bezier(.1, .3, .5, 1); }
+.digi-animated-link--iocaste:is(:hover, :focus-visible) .digi-animated-link__graphic--slide { transform: translateX(-66.6%); }
