@@ -990,5 +990,28 @@
   "elements": "4.3.0.176 (con C3)",
   "c9": "página de servicios (3 instancias globales: Encabezado, Blockquote de PRO → Cita en la misma pasada y una sin plantilla que se queda con pro.global_missing; Plantilla con sobrescritura de F7b y CSS; 4 de Facebook; PayPal; Stripe) y una cabecera con otra instancia global: 58 widgets en 10 documentos en la primera pasada (11 de C9), nada en la segunda, pro.global 3 y pro.global_missing 1, --revert devuelve todo",
   "f8": "ningún widget de Element Pack acaba en los de PRO de C9"
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce",
+  "duracion_s": {
+   "R4": 492
+  },
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A13": "falla (máquina cargada)",
+   "A14": "ok",
+   "A2": "no medido",
+   "A3": "no medido",
+   "A8": "no medido",
+   "A9": "no medido",
+   "A10": "no medido",
+   "A11": "no medido",
+   "A12": "no medido"
+  },
+  "nota": "Primera corrida (445 s): A1 falló por dos hallazgos reales, corregidos: la Plantilla propia (template_id, consulta) no figuraba entre lo que traduce el núcleo en compare.mjs (CORE_COVERED), y la página con una instancia del widget global salía con ids aleatorios distintos por REST y por WP-CLI (PRO exporta la instancia como su contenido y Export\\Documents::restore_ids() no casaba el árbol; ahora repone el id de la instancia y da ids estables a los hijos). Segunda corrida (492 s): A1, A4–A7 y A14 ok. A13 falla por tiempo de los runners de importación del núcleo (elementor-content 35,4 s y digitalisimo 26,9 s), igual con la versión 4.3.0.163 del paso antiguo (36,8 s), sin código de C9: la misma falla por carga que en C2, C3 y C6. R1 (≈76 min) no se corrió: known.json lleva las 4 entradas de C9 para R1/R1c sin verificar."
  }
 }
