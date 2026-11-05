@@ -94,8 +94,10 @@ class Stripe_Button extends Payment_Button {
 			'data-digi-pay-nonce'   => wp_create_nonce( self::NONCE_ACTION ),
 			'data-digi-pay-target'  => 'yes' === ( $settings['open_in_new_window'] ?? '' ) ? '_blank' : '_self',
 			'data-digi-pay-custom'  => ! empty( $settings['custom_messages'] ) ? 'yes' : '',
-			'data-digi-pay-global'  => (string) ( $settings['error_message_global'] ?? '' ),
-			'data-digi-pay-payment' => (string) ( $settings['error_message_payment'] ?? '' ),
+			// Los textos que el script muestra: los personalizados o, con «Mensajes personalizados» apagado (el núcleo
+			// los da vacíos), los de por defecto; así un fallo de red nunca deja un mensaje vacío.
+			'data-digi-pay-global'  => (string) $this->get_custom_message( self::ERROR_MESSAGE_GLOBAL ),
+			'data-digi-pay-payment' => (string) $this->get_custom_message( self::ERROR_MESSAGE_PAYMENT_METHOD ),
 		);
 		echo '<form class="digi-pay digi-pay--stripe"';
 		foreach ( $data as $name => $value ) {

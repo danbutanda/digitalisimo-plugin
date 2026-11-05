@@ -381,7 +381,7 @@ final class Apply {
 			if ( ! is_array( $element ) ) {
 				continue;
 			}
-			if ( 'widget' === ( $element['elType'] ?? '' ) && 'template' === ( $element['widgetType'] ?? '' ) ) {
+			if ( 'widget' === ( $element['elType'] ?? '' ) && in_array( $element['widgetType'] ?? '', array( 'template', 'digitalisimo-template' ), true ) ) {
 				$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
 				$target   = isset( $settings['template_id'] ) && is_scalar( $settings['template_id'] ) ? absint( $settings['template_id'] ) : 0;
 				if ( $target === $template ) {

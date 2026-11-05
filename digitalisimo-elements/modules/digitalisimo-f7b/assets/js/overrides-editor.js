@@ -171,9 +171,11 @@
 		write(el, msgs);
 	};
 
+	// Widgets Plantilla: el de PRO y el propio (C9 de «sin widgets de PRO»).
+	const TPL = { template: 1, 'digitalisimo-template': 1 };
 	const refresh = () => {
 		if (!edited || !edited.settings || !edited.settings.get) return;
-		if ('template' === edited.type) {
+		if (TPL[edited.type]) {
 			const rows = edited.settings.get(REP);
 			if (rows && rows.on && rows !== boundRows) {
 				if (boundRows && boundRows.off) boundRows.off(null, schedule);
@@ -196,8 +198,8 @@
 		const settings = model && model.get ? model.get('settings') : null;
 		edited = { type, settings };
 		last = '';
-		if ('template' === type && settings && settings.get) delete slotsCache[String(settings.get('template_id') || '')];
-		if (settings && settings.on && ('template' === type || KINDS[type])) settings.on('change', schedule);
+		if (TPL[type] && settings && settings.get) delete slotsCache[String(settings.get('template_id') || '')];
+		if (settings && settings.on && (TPL[type] || KINDS[type])) settings.on('change', schedule);
 		schedule();
 	};
 

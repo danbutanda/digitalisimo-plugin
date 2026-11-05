@@ -9,6 +9,12 @@
    "kind": "foco",
    "match": "^(outline(-offset)?|box-shadow):",
    "reason": "Foco visible propio (estándar del front): contorno de 2 px a 2 px con un anillo claro de separación, visible sobre cualquier fondo; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "paypal-button",
+   "kind": "palabra",
+   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(payment|method|connected|contact|seller|an|occurred|hay|ningún|método|pago|conectado|contacta|con|el|vendedor|se|produjo|un)»$",
+   "reason": "Mensaje de error por defecto (sin «Mensajes personalizados»): el propio está en español; PRO pintaba el texto fijo de su código en inglés. El mapa no puede completarlo porque, con esa opción apagada, el núcleo no da al widget los textos del panel (los usa sólo con ella encendida, y entonces el mapa sí completa los de PRO)."
   }
  ],
  "cases": {
@@ -19,9 +25,21 @@
    "actions": [
     {
      "label": "clic sin cuenta",
-     "selector": "button"
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   },
   "pp-checkout": {
    "title": "Pago con cuenta, nombre, SKU, precio, envío e impuesto",
@@ -37,6 +55,14 @@
     "quantity": "2",
     "currency": "MXN",
     "text": "Comprar camiseta"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
    }
   },
   "pp-donation": {
@@ -52,6 +78,14 @@
      "unit": "px",
      "size": 12
     }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
    }
   },
   "pp-subscription": {
@@ -65,6 +99,14 @@
     "auto_renewal": "",
     "text": "Suscribirme",
     "align": "center"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
    }
   },
   "pp-sandbox": {
@@ -84,9 +126,21 @@
    "actions": [
     {
      "label": "clic sin cuenta de pruebas",
-     "selector": "button"
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   },
   "pp-styled": {
    "title": "Estilos más usados: tipografía, colores, borde, radio, relleno, sombra, a todo el ancho en móvil, sin icono",
@@ -148,6 +202,14 @@
      "spread": 0,
      "color": "rgba(0,0,0,0.3)"
     }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
    }
   },
   "pp-messages": {
@@ -171,9 +233,21 @@
    "actions": [
     {
      "label": "clic con dos errores",
-     "selector": "button"
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   }
  }
 }

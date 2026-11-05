@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'   => 'facebook-page',
 	'target'   => 'digitalisimo-facebook-page',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO (Elementor no guarda lo que coincide con ellos); los del widget propio son los mismos.
 	'defaults' => array(

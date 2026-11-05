@@ -9,6 +9,12 @@
    "kind": "foco",
    "match": "^(outline(-offset)?|box-shadow):",
    "reason": "Foco visible propio (estándar del front): contorno de 2 px a 2 px con un anillo claro de separación, visible sobre cualquier fondo; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "stripe-button",
+   "kind": "palabra",
+   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(an|occurred|se|produjo|un|gateway|connected|contact|seller|la|pasarela|está|conectada|contacta|con|el|vendedor)»$",
+   "reason": "Mensaje de error por defecto (sin «Mensajes personalizados»): el propio está en español; PRO pintaba el texto fijo de su código en inglés. El mapa no puede completarlo porque, con esa opción apagada, el núcleo no da al widget los textos del panel (los usa sólo con ella encendida, y entonces el mapa sí completa los de PRO)."
   }
  ],
  "cases": {
@@ -19,9 +25,21 @@
    "actions": [
     {
      "label": "clic sin producto",
-     "selector": "button"
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   },
   "st-product": {
    "title": "Producto con precio: el clic pide la sesión al servidor (401 sin claves)",
@@ -41,9 +59,21 @@
     {
      "label": "clic: sesión sin claves",
      "selector": "button",
-     "wait": 3000
+     "wait": 3000,
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   },
   "st-custom": {
    "title": "Entorno de prueba con mensajes personalizados: el 401 muestra el de «no conectado»",
@@ -68,9 +98,21 @@
     {
      "label": "clic: mensaje personalizado",
      "selector": "button",
-     "wait": 3000
+     "wait": 3000,
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
   },
   "st-styled": {
    "title": "Estilos más usados: a todo el ancho, tipografía, colores, radio y relleno, icono al final",
@@ -108,6 +150,14 @@
      "bottom": "14",
      "left": "24",
      "isLinked": false
+    }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.14,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
     }
    }
   }

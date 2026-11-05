@@ -12,7 +12,7 @@
   {
    "widget": "facebook-comments",
    "kind": "nombre",
-   "match": "^nuevo button «(Mostrar|Ver) [^»]+ de Facebook»$",
+   "match": "^nuevo button «(Mostrar|Ver) .+ de Facebook»$",
    "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Nombre accesible: lo que carga el botón."
   },
   {

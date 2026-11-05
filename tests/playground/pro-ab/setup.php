@@ -14,6 +14,11 @@
  * sus `drop` y `approx` (los motivos que un caso puede citar con `code`), el registro de la conversión con los códigos
  * del informe y los ajustes de B. Con `map-override.php` (variable MAP del arnés) fija ese mapa con `Registry::set()`
  * antes de convertir: sólo para depurar la mecánica sin el mapa real.
+ *
+ * C9: `"$template:<clave>"` en unos ajustes da el ID de una plantilla de la biblioteca (tipo `section`, publicada) creada
+ * con los elementos de `templates.<clave>` del caso (el widget Plantilla). Un caso con `widget: global` y `global` (el
+ * widget que guarda la plantilla: `widgetType` y `settings`) crea una plantilla de widget global: A tiene la instancia
+ * (`widgetType: global`, `templateID`) y B, la instancia sustituida por su contenido (`Convert\Globals`) y convertida.
  */
 require '/wordpress/wp-load.php';
 
@@ -153,6 +158,9 @@ function digi_ab_lottie() {
  * animación Lottie de prueba: `{"$lottie": 1}` (adjunto) y `"$lottie-url"` (su URL).
  */
 function digi_ab_tokens( $value ) {
+	if ( is_string( $value ) && preg_match( '/^\$template:([a-z0-9-]+)$/', $value, $m ) ) {
+		return (string) digi_ab_template( $m[1], (array) ( $GLOBALS['digi_ab_templates'][ $m[1] ] ?? array() ) );
+	}
 	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
 		return digi_ab_image( (int) $m[1] )[1];
 	}
@@ -182,6 +190,36 @@ function digi_ab_tokens( $value ) {
 		$value[ $key ] = digi_ab_tokens( $item );
 	}
 	return $value;
+}
+
+/**
+ * Plantilla de la biblioteca `pro-ab-tpl-<clave>` (C9): publicada, con esos elementos (IDs deterministas e imágenes de
+ * prueba) y su CSS. `$type` es su tipo (`section`, o `widget` para un widget global). Devuelve su ID.
+ */
+function digi_ab_template( $key, array $elements, $type = 'section' ) {
+	$slug     = 'pro-ab-tpl-' . $key;
+	$existing = get_page_by_path( $slug, OBJECT, 'elementor_library' );
+	$id       = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+	if ( ! $id ) {
+		digi_ab_fail( "No se pudo crear la plantilla $slug" );
+		return 0;
+	}
+	$elements = digi_ab_children( $elements, 'tpl-' . $key );
+	foreach ( $elements as $i => $element ) {
+		$elements[ $i ]['isInner'] = false;
+	}
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_template_type', $type );
+	update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
+	if ( 'widget' === $type && isset( $elements[0]['widgetType'] ) ) {
+		update_post_meta( $id, '_elementor_template_widget_type', (string) $elements[0]['widgetType'] );
+	}
+	if ( function_exists( 'wp_set_object_terms' ) ) {
+		wp_set_object_terms( $id, $type, 'elementor_library_type' );
+	}
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( digi_ab_objects( $elements ) ) ) );
+	\Elementor\Core\Files\CSS\Post::create( $id )->update();
+	return $id;
 }
 
 /** Hijos de un widget anidado (`elements` del caso), con IDs deterministas donde falten y las imágenes de prueba. */
@@ -260,6 +298,7 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	}
 	$source = (string) ( $case['widget'] ?? '' );
 	$id     = digi_ab_eid( $slug );
+	$GLOBALS['digi_ab_templates'] = (array) ( $case['templates'] ?? array() );
 	$tree   = array(
 		array(
 			'id'       => digi_ab_eid( $slug . '-c' ),
@@ -285,7 +324,34 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	$map    = \Digitalisimo\Elements\Convert\Registry::map( $source, true );
 	$target = null !== $map ? (string) $map['target'] : '';
 	$log    = array();
-	$b_tree = \Digitalisimo\Elements\Convert\Converter::tree( $tree, $log, true );
+	if ( 'global' === $source && ! empty( $case['global'] ) && class_exists( '\\Digitalisimo\\Elements\\Convert\\Globals' ) ) {
+		// C9: A con la instancia del widget global (y la copia de ajustes que guarda PRO); B, sustituida y convertida.
+		$content  = (array) $case['global'];
+		$template = digi_ab_template( $slug, array( array( 'id' => digi_ab_eid( $slug . '-g' ), 'elType' => 'widget', 'widgetType' => (string) ( $content['widgetType'] ?? '' ), 'settings' => (array) ( $content['settings'] ?? array() ), 'elements' => array() ) ), 'widget' );
+		$tree[0]['elements'][0]['templateID'] = $template;
+		$tree[0]['elements'][0]['settings']   = digi_ab_tokens( (array) ( $content['settings'] ?? array() ) );
+		$globals  = array();
+		$expanded = \Digitalisimo\Elements\Convert\Globals::tree(
+			$tree,
+			static function ( $tid ) {
+				$raw = json_decode( (string) get_post_meta( (int) $tid, '_elementor_data', true ), true );
+				return is_array( $raw ) ? $raw : null;
+			},
+			$globals
+		);
+		$b_tree = \Digitalisimo\Elements\Convert\Converter::tree( $expanded, $log, true );
+		$log    = array_merge( $globals, $log );
+		$target = (string) ( $globals[0]['target'] ?? '' );
+		$map    = array( 'status' => 'ready', 'target' => $target );
+		if ( 1 !== count( $globals ) || empty( $globals[0]['expanded'] ) ) {
+			digi_ab_fail( "$slug: la instancia del widget global no se sustituyó" );
+		}
+		$after  = digi_ab_find( $b_tree, $id );
+		$target = (string) ( $after['widgetType'] ?? $target );
+		$log    = array( array( 'source' => 'global', 'target' => $target, 'element' => $id, 'codes' => array_merge( ...array_map( static function ( $row ) { return (array) ( $row['codes'] ?? array() ); }, $log ) ) ) );
+	} else {
+		$b_tree = \Digitalisimo\Elements\Convert\Converter::tree( $tree, $log, true );
+	}
 	$entry  = array(
 		'widget'     => $source,
 		'element'    => $id,

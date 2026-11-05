@@ -378,6 +378,8 @@ namespace {
 	$check( str_contains( $render( $st, array_merge( $own, array( 'product_name' => '' ) ) ), 'hidden>Algo salió mal.</div>' ), 'Stripe nuevo: mensaje por defecto propio en español.' );
 	$scus = $render( $st, array_merge( $s_ok, array( 'custom_messages' => 'yes', 'error_message_global' => 'Error general', 'error_message_payment' => 'Sin pasarela', 'open_in_new_window' => '' ) ) );
 	$check( str_contains( $scus, 'data-digi-pay-target="_self" data-digi-pay-custom="yes" data-digi-pay-global="Error general" data-digi-pay-payment="Sin pasarela"' ), 'Stripe: misma ventana y mensajes personalizados para el script.' );
+	$snull = $render( $st, array_merge( $s_ok, array( 'custom_messages' => '', 'error_message_global' => null, 'error_message_payment' => null ) ) );
+	$check( str_contains( $snull, 'data-digi-pay-custom="" data-digi-pay-global="Se produjo un error." data-digi-pay-payment="No hay ningún método de pago conectado. Contacta con el vendedor."' ), 'Stripe sin mensajes personalizados (el núcleo los da vacíos): el script recibe los de por defecto.' );
 	$check( ( new ReflectionMethod( $st, 'is_dynamic_content' ) )->invoke( $st ) === true, 'Stripe: no entra en la caché de elementos (lleva un nonce).' );
 
 	// 6. Ningún secreto en el navegador.
