@@ -152,7 +152,8 @@ async function steps(browser, side, url) {
     };
   };
   const strip = (o) => JSON.parse(JSON.stringify(o).split(BASE).join(''));
-  const fieldsOf = (h) => { const b = Object.assign({}, h.body || {}); delete b.form_id; return b; };
+  // Fecha y hora del envío son metadatos del momento (A y B se envían con segundos de diferencia).
+  const fieldsOf = (h) => { const b = Object.assign({}, h.body || {}); delete b.form_id; delete b.Date; delete b.Time; return b; };
   const result = { runs, compare: {} };
   for (const slug of ['basic', 'steps']) {
     const A = bySide(slug, 'a');
