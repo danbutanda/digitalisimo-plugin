@@ -11,6 +11,7 @@
  *     `pro.global_missing`; una plantilla compartida se lee una sola vez; códigos con su nivel y su texto.
  *  3. `Context::global_template()` sólo devuelve plantillas de widget de la biblioteca fuera de la papelera.
  *  4. Lo engancha `Context::remap()` después del remapeo, y nada más llama a la sustitución.
+ *  5. Al exportar, `Export\Documents::restore_ids()` repone el id de una instancia exportada como su contenido.
  */
 
 namespace {
@@ -111,6 +112,22 @@ namespace {
 		}
 	}
 	$check( 1 === $callers, '4: sólo Context llama a la sustitución (' . $callers . ').' );
+
+	/* 5. Exportar: PRO exporta la instancia como el contenido de su plantilla (on_export) y el núcleo regenera los ids */
+	$saved    = array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array( kpg_global( 5, 'g1' ), kpg_w( 'heading', array(), 'h1' ) ) ) );
+	$box      = array( 'id' => 'rnd2', 'elType' => 'widget', 'widgetType' => 'nested-tabs', 'settings' => array(), 'elements' => array( array( 'id' => 'rnd3', 'elType' => 'container', 'settings' => array(), 'elements' => array( kpg_w( 'heading', array(), 'rnd4' ) ) ) ) );
+	$exported = array( array( 'id' => 'rnd0', 'elType' => 'container', 'settings' => array(), 'elements' => array( kpg_w( 'button', array( 'text' => 'De la plantilla' ), 'rnd1' ), kpg_w( 'heading', array(), 'rnd9' ) ) ) );
+	$restored = \Digitalisimo\Elements\Import\Kits\Export\Documents::restore_ids( $exported, $saved );
+	$check( is_array( $restored ) && 'c1' === $restored[0]['id'] && 'g1' === $restored[0]['elements'][0]['id'] && 'button' === $restored[0]['elements'][0]['widgetType'] && 'h1' === $restored[0]['elements'][1]['id'], '5: la instancia global exportada como su contenido conserva el id de la instancia y el documento, los suyos (antes, el árbol no casaba y quedaban ids aleatorios).' );
+	$saved[0]['elements'][0] = kpg_global( 6, 'g2' );
+	$exported[0]['elements'][0] = $box;
+	$one = \Digitalisimo\Elements\Import\Kits\Export\Documents::restore_ids( $exported, $saved );
+	$box['elements'][0]['id'] = 'otro';
+	$exported[0]['elements'][0] = $box;
+	$two = \Digitalisimo\Elements\Import\Kits\Export\Documents::restore_ids( $exported, $saved );
+	$check( is_array( $one ) && $one === $two && 'g2' === $one[0]['elements'][0]['id'] && 7 === strlen( $one[0]['elements'][0]['elements'][0]['id'] ) && 'rnd4' !== $one[0]['elements'][0]['elements'][0]['elements'][0]['id'], '5: los hijos del contenido reciben ids estables (dos exportaciones dan el mismo árbol).' );
+	$saved[0]['elements'][1] = kpg_w( 'image', array(), 'i1' );
+	$check( null === \Digitalisimo\Elements\Import\Kits\Export\Documents::restore_ids( $exported, $saved ), '5: un nodo que no casa fuera de una instancia global sigue dejando los ids nuevos (null).' );
 
 	if ( $failures ) {
 		echo "elements-kit-pro-global: {$failures} de {$checks} comprobaciones fallaron.\n";

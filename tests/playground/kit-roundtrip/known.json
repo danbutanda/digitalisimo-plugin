@@ -252,16 +252,7 @@
    "R1",
    "R1c"
   ],
-  "motivo": "§17 (C9): al importar, la instancia del widget global de PRO (widgetType global, templateID ya remapeado) pasa a ser el elemento guardado en su plantilla de widget (Convert\\Globals), con el id de la instancia; la plantilla viaja y no cambia"
- },
- {
-  "ruta": "^documents\\.page:widget-global-de-pro\\.data\\.0\\.elements\\.0\\.settings\\.(_digitalisimo_global|_css_classes)$",
-  "escenarios": [
-   "R1",
-   "R1c"
-  ],
-  "valor_a": "^\\(no existe\\)$",
-  "motivo": "§17 (C9): el contenido sustituido lleva los ajustes de la plantilla (los de la instancia son la copia que PRO no usa), la plantilla de origen en _digitalisimo_global y la clase elementor-global-<id> que PRO ponía en el envoltorio"
+  "motivo": "C9: el widget global de PRO exporta cada instancia como el contenido de su plantilla (on_export de modules/global-widget/widgets/global-widget.php), así que el kit ya lleva un Encabezado sin templateID; K le repone el id de la instancia al exportar (Export\\Documents::restore_ids()). La plantilla de widget viaja y no cambia"
  },
  {
   "ruta": "^(documents\\.page:(inicio-del-kit|sobrescrituras-de-plantilla|widget-global-de-pro)\\.counts|counts\\.elements)\\.(template|digitalisimo-template|global|heading)$",
