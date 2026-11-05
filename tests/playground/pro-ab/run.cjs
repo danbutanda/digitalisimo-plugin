@@ -242,7 +242,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           : await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
-        await page.screenshot({ path: file, clip, captureBeyondViewport: true });
+        // Con el recorte dentro de la ventana, sin `captureBeyondViewport`: esa opción vuelve a emular la ventana durante
+        // la captura y reinicia una transición en curso (p. ej. el despliegue de 0,3 s del botón 9 de contacto con el
+        // cursor encima), que sale en un cuadro al azar, distinto entre corridas en A y en B.
+        const inside = await page.evaluate((c) => c.x >= scrollX && c.y >= scrollY && c.x + c.width <= scrollX + document.documentElement.clientWidth && c.y + c.height <= scrollY + innerHeight, clip);
+        await page.screenshot({ path: file, clip, captureBeyondViewport: !inside });
         return file;
       };
       w.shot = await shot('');

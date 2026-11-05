@@ -515,9 +515,9 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
         { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
         { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
-        // C8 (botones flotantes y Link in Bio, docs/pro/c8.md): una fila por variante de PRO con mapa listo (`contact-buttons-var-9`,
-        // en borrador, no se oculta por su mapa). Los Botones de contacto y la Barra flotante heredan la base del núcleo, que no va
-        // al panel (viven en documentos de botones flotantes, como las variantes de PRO): `ownHidden`. Link in Bio sí sale.
+        // C8 (botones flotantes y Link in Bio, docs/pro/c8.md): una fila por variante de PRO. Los Botones de contacto y la
+        // Barra flotante heredan la base del núcleo, que no va al panel (viven en documentos de botones flotantes, como las
+        // variantes de PRO): `ownHidden`. Link in Bio sí sale.
         { pro: 'contact-buttons-var-1', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'contact-buttons-var-3', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'contact-buttons-var-4', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
@@ -525,6 +525,7 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'contact-buttons-var-6', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'contact-buttons-var-7', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'contact-buttons-var-8', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-9', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'contact-buttons-var-10', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
         { pro: 'floating-bars-var-2', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },
         { pro: 'floating-bars-var-3', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },

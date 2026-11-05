@@ -7,7 +7,7 @@
      - **Link in Bio** (`digitalisimo-link-in-bio`, 2–7), sin script; sale en el panel como el del núcleo.
      - Recuento de clics de los botones y la barra por el mismo punto del sitio que PRO (`floating-track.js`, 1 267 B: `elementor_send_clicks` del núcleo con su nonce).
      - Hojas por presentación de 3,6 a 11,9 KB (excepción declarada de hasta 12 KB en `tests/elements-front-budget.php` y `docs/ELEMENTS_FRONT_OBJECTIVE.md`: repiten la base del núcleo de su familia; PRO cargaba 12–32 KB por variante).
-  2. Mapas en `modules/digitalisimo-convert/maps/` (`contact-buttons-var-{1,3,4,5,6,7,8,9,10}.php`, `floating-bars-var-{2,3}.php`, `link-in-bio-var-{2..7}.php`): casi todo `keep`, la presentación fija, los valores por defecto de PRO y las clases para el CSS personalizado. Dieciséis listos y fuera del panel; `contact-buttons-var-9` (Animated Classic) en borrador hasta aclarar una diferencia del A/B con el cursor, así que esa variante no se convierte todavía.
+  2. Mapas en `modules/digitalisimo-convert/maps/` (`contact-buttons-var-{1,3,4,5,6,7,8,9,10}.php`, `floating-bars-var-{2,3}.php`, `link-in-bio-var-{2..7}.php`): casi todo `keep`, la presentación fija, los valores por defecto de PRO y las clases para el CSS personalizado. Los diecisiete, listos: las variantes de PRO siguen registradas y se pintan igual, pero salen del panel, «Migrar» las convierte y un kit que las trae llega convertido.
   3. `pro-elements.php` (tres líneas): arranque de `Floating\Module`.
 
   Volver a 4.3.0.176 no rompe el contenido sin convertir; el contenido ya convertido por Migración necesita esta versión (o `wp digitalisimo-migration --revert`).
