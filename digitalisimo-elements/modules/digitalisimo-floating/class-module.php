@@ -10,11 +10,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * - Widgets, uno por archivo en `widgets/` (namespace `Digitalisimo\Elements\Floating\Widgets`); cada frente añade su
  *   línea en `WIDGETS` y `TITLES` (y en `NESTED` si es anidado).
- * - Recursos: cada widget, su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si existe, su script
+ * - Recursos: cada widget, su hoja común `assets/css/<nombre sin digitalisimo->.css`, una hoja por presentación
+ *   `assets/css/<nombre sin digitalisimo->-<presentación>.css` (handle `<nombre>-<presentación>`; criterio 7 de
+ *   `docs/ELEMENTS_FRONT_OBJECTIVE.md`: hojas por variante) y, sólo si existe, su script
  *   `assets/js/<nombre sin digitalisimo->.js` (`defer`, sin dependencias) y su script del editor
  *   `assets/js/<nombre sin digitalisimo->-editor.js`. Sólo se registran; los encola el núcleo por
- *   `get_style_depends()`/`get_script_depends()`, que devuelven `Module::style_depends( $this->get_name() )` y
- *   `Module::script_depends( $this->get_name() )`. Una página sin estos widgets no carga nada.
+ *   `get_style_depends()`/`get_script_depends()` de cada instancia, que devuelven
+ *   `Module::style_depends( $this->get_name(), $presentación )` y `Module::script_depends( $this->get_name() )`. Una
+ *   página sin estos widgets no carga nada, y una con una presentación sólo carga su hoja.
+ * - Cada widget hereda la base de su familia en el núcleo (`BASES`); sin ella no se registra.
  * - Registro tolerante en `elementor/widgets/register` (20): un widget cuyo archivo falta o falla se omite sin error.
  */
 final class Module {
@@ -26,10 +30,22 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-floating-bar' => array( 'file' => 'widgets/class-floating-bar.php', 'class' => 'Digitalisimo\\Elements\\Floating\\Widgets\\Floating_Bar', 'css' => 'modules/digitalisimo-floating/assets/css/floating-bar.css', 'js' => 'modules/digitalisimo-floating/assets/js/floating-bar.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-floating-bar' => 'Barra flotante',
+	);
+
+	/** Presentaciones de cada widget (cada una puede tener su hoja `<nombre sin digitalisimo->-<presentación>.css`). */
+	const PRESENTATIONS = array(
+		'digitalisimo-floating-bar' => array( '2', '3' ),
+	);
+
+	/** Base del núcleo que hereda cada widget: sin ella (núcleo sin el módulo de botones flotantes) no se registra. */
+	const BASES = array(
+		'digitalisimo-floating-bar' => 'Elementor\\Modules\\FloatingButtons\\Base\\Widget_Floating_Bars_Base',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
@@ -101,17 +117,33 @@ final class Module {
 			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
 				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 			}
+			foreach ( self::PRESENTATIONS[ $handle ] ?? array() as $presentation ) {
+				$file = self::presentation_css( $handle, $presentation );
+				if ( ! wp_style_is( $handle . '-' . $presentation, 'registered' ) && is_file( self::path( $file ) ) ) {
+					wp_register_style( $handle . '-' . $presentation, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+				}
+			}
 			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
 				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}
 		}
 	}
 
-	/** Hojas de un widget del módulo: la suya si existe (para `get_style_depends()`). */
-	public static function style_depends( string $name ): array {
+	/** Hoja de una presentación, relativa a la raíz del plugin. */
+	public static function presentation_css( string $name, string $presentation ): string {
+		return isset( self::WIDGETS[ $name ] ) ? substr( self::WIDGETS[ $name ]['css'], 0, -4 ) . '-' . $presentation . '.css' : '';
+	}
+
+	/**
+	 * Hojas de un widget del módulo (para `get_style_depends()`): la común si existe y la de su presentación si existe.
+	 */
+	public static function style_depends( string $name, string $presentation = '' ): array {
 		$out = array();
 		if ( isset( self::WIDGETS[ $name ] ) && is_file( self::path( self::WIDGETS[ $name ]['css'] ) ) ) {
 			$out[] = $name;
+		}
+		if ( '' !== $presentation && in_array( $presentation, self::PRESENTATIONS[ $name ] ?? array(), true ) && is_file( self::path( self::presentation_css( $name, $presentation ) ) ) ) {
+			$out[] = $name . '-' . $presentation;
 		}
 		return $out;
 	}
@@ -137,6 +169,9 @@ final class Module {
 	/** ¿Es un widget del módulo, existe su archivo y, si es anidado, puede registrarse? */
 	public static function available( string $name ): bool {
 		if ( ! isset( self::WIDGETS[ $name ] ) || ! is_file( __DIR__ . '/' . self::WIDGETS[ $name ]['file'] ) ) {
+			return false;
+		}
+		if ( isset( self::BASES[ $name ] ) && ! class_exists( '\\' . self::BASES[ $name ] ) ) {
 			return false;
 		}
 		return ! in_array( $name, self::NESTED, true ) || ( self::feature( 'nested-elements' ) && class_exists( '\\' . self::NESTED_BASE ) );
