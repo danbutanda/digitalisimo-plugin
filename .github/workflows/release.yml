@@ -104,6 +104,11 @@ jobs:
           node tests/elements-pro-search-form-chrome.mjs
           php tests/elements-pro-sitemap.php
           php tests/elements-pro-yoast-breadcrumbs.php
+          php tests/elements-pro-facebook.php
+          node tests/elements-pro-facebook-chrome.mjs
+          php tests/elements-pro-payments.php
+          node tests/elements-pro-payments-chrome.mjs
+          php tests/elements-pro-template.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
@@ -186,6 +191,7 @@ jobs:
           php tests/migration-scale.php
           php tests/migration-network.php
           php tests/migration-pro.php
+          php tests/migration-pro-global.php
           node tests/migration-static.mjs
           node tests/migration-drive.mjs
           node tests/migration-legacy-styles.mjs
@@ -307,6 +313,7 @@ jobs:
           php tests/elements-kit-global-widget.php
           php tests/elements-kit-integration.php
           php tests/elements-kit-pro-convert.php
+          php tests/elements-kit-pro-global.php
           node tests/elements-kit-static.mjs
           node tests/elements-kit-inventory.mjs
           node tests/elements-kit-app-guard.mjs

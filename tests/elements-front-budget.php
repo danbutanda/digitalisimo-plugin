@@ -410,7 +410,64 @@ namespace {
 	}
 	check_budget( 15 === $te_count && 1 === $te_scripts, 'Deben revisarse los quince elementos de tema, con un solo script (' . $te_count . ', ' . $te_scripts . ').' );
 	$count += $te_count;
-	check_budget( $count >= 92, 'Deben revisarse los 92 widgets propios (' . $count . ').' );
+	// Servicios y plantillas propios (programa «sin widgets de PRO», C9, docs/pro/c9.md): los siete widgets de
+	// modules/digitalisimo-services/ con las mismas reglas. Services\Module registra los recursos por archivo: el handle
+	// es `Module::handle()` (`digitalisimo-<archivo>`), así que los cuatro de Facebook comparten `digitalisimo-facebook` y
+	// los dos de pago `digitalisimo-payment-button` (una página con varios los carga una vez); la Plantilla no tiene hoja
+	// ni script. Excepciones documentadas: el script de Facebook nombra el SDK del servicio (`connect.facebook.net`), que
+	// sólo pide tras el clic en la fachada (lo comprueba `elements-pro-facebook-chrome.mjs`); el botón de PayPal envía su
+	// formulario a la dirección de PayPal (el `action`, en PHP, como PRO). Que ningún secreto llega al navegador lo
+	// comprueba `elements-pro-payments.php`.
+	$sv_dir    = $root . '/modules/digitalisimo-services/';
+	$sv_module = (string) file_get_contents( $sv_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $sv_module, $sv_entries, PREG_SET_ORDER );
+	check_budget( 7 === count( $sv_entries ), 'Services\\Module::WIDGETS declara los siete widgets de C9 (' . count( $sv_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $sv_module, $sv_registrations );
+	check_budget( count( $sv_registrations[0] ) >= 2, 'Services\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $sv_registrations[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Services\\Module: script sin defer o con jQuery.' ); }
+	check_budget( str_contains( $sv_module, "return 'digitalisimo-' . preg_replace(" ), 'Services\\Module::handle() deriva el handle propio del archivo.' );
+	$sv_count   = 0;
+	$sv_handles = array();
+	$sv_checked = array();
+	foreach ( $sv_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $sv_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$sv_count++;
+		// El widget y la base común que hereda (Facebook, botón de pago), sin comentarios.
+		foreach ( array( 'Facebook' => 'class-facebook.php', 'Payment_Button' => 'class-payment-button.php' ) as $base => $file ) {
+			if ( preg_match( '/\b' . $base . '\b/', $source ) ) { $source .= (string) file_get_contents( $sv_dir . $file ); }
+		}
+		$code = preg_replace( array( '#/\*.*?\*/#s', '/^\s*(\*|\/\/).*$/m' ), '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $code ) && ! preg_match( '/<iframe|<img[\s>]/i', $code ), $name . ': sin JSON-LD, <script>, <iframe> ni <img> propios en la salida.' );
+		$sv_handles[ $name ] = array( 'css' => 'digitalisimo-' . basename( $m[3], '.css' ), 'js' => 'digitalisimo-' . basename( $m[4], '.js' ) );
+		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 'digitalisimo-template' === $name, $name . ': falta su recurso ' . $m[ $i ] ); continue; }
+			if ( isset( $sv_checked[ $m[ $i ] ] ) ) { continue; }
+			$sv_checked[ $m[ $i ] ] = true;
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\bjQuery\s*[(.]|\$\(|\bSwiper\b|elementorProFrontend|DOMPurify/', $js ), $m[ $i ] . ': sin jQuery, Swiper, DOMPurify ni PRO.' );
+				preg_match_all( '#https?://([a-z0-9.-]+)#i', $js, $hosts );
+				foreach ( $hosts[1] as $host ) { check_budget( 'www.w3.org' === $host || ( 'connect.facebook.net' === $host && str_ends_with( $m[ $i ], '/facebook.js' ) ), $m[ $i ] . ': dirección de terceros no declarada (' . $host . ').' ); }
+			}
+		}
+		check_budget( str_contains( $source, 'Module::style_depends( $this->get_name() )' ) && str_contains( $source, 'Module::script_depends( $this->get_name() )' ), $name . ': recursos sólo por Module::style_depends()/script_depends().' );
+	}
+	check_budget( array( 'digitalisimo-facebook' ) === array_values( array_unique( array_column( array_intersect_key( $sv_handles, array_flip( array( 'digitalisimo-facebook-button', 'digitalisimo-facebook-comments', 'digitalisimo-facebook-embed', 'digitalisimo-facebook-page' ) ) ), 'css' ) ) ), 'Los cuatro de Facebook comparten la hoja digitalisimo-facebook.' );
+	check_budget( array( 'digitalisimo-payment-button' ) === array_values( array_unique( array_column( array_intersect_key( $sv_handles, array_flip( array( 'digitalisimo-paypal-button', 'digitalisimo-stripe-button' ) ) ), 'js' ) ) ), 'Los dos de pago comparten el script digitalisimo-payment-button.' );
+	$fb_js = (string) file_get_contents( $sv_dir . 'assets/js/facebook.js' );
+	check_budget( str_contains( $fb_js, "'click'" ) && str_contains( $fb_js, 'XFBML.parse' ), 'facebook.js: el SDK sólo tras el clic en la fachada.' );
+	check_budget( 7 === $sv_count, 'Deben revisarse los siete widgets de servicios propios (' . $sv_count . ').' );
+	$count += $sv_count;
+	check_budget( $count >= 99, 'Deben revisarse los 99 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );
