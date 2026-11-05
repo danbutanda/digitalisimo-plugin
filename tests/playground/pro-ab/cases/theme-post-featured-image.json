@@ -1,0 +1,103 @@
+{
+ "_doc": [
+  "Casos A/B de theme-post-featured-image → digitalisimo-featured-image (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-post-featured-image",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-featured-defaults": {
+   "title": "Imagen destacada por defecto (tamaño grande, sin enlace)",
+   "widget": "theme-post-featured-image",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a9b8c7d\" name=\"post-featured-image\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "tl-featured-caption-file": {
+   "title": "Imagen destacada mediana con leyenda del adjunto, enlace al archivo (lightbox) y alineada a la izquierda",
+   "widget": "theme-post-featured-image",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a9b8c7d\" name=\"post-featured-image\" settings=\"%7B%7D\"]"
+    },
+    "image_size": "medium",
+    "caption_source": "attachment",
+    "link_to": "file",
+    "align": "left",
+    "caption_typography_typography": "custom",
+    "caption_typography_font_style": "italic",
+    "caption_space": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
+   }
+  },
+  "tl-featured-fit": {
+   "title": "Imagen destacada al 100 % con altura fija, recorte, radio, filtros y enlace personalizado",
+   "widget": "theme-post-featured-image",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a9b8c7d\" name=\"post-featured-image\" settings=\"%7B%7D\"]"
+    },
+    "image_size": "full",
+    "width": {
+     "unit": "%",
+     "size": 100,
+     "sizes": []
+    },
+    "height": {
+     "unit": "px",
+     "size": 260,
+     "sizes": []
+    },
+    "height_mobile": {
+     "unit": "px",
+     "size": 160,
+     "sizes": []
+    },
+    "object-fit": "cover",
+    "object-position": "center center",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "isLinked": true
+    },
+    "css_filters_css_filter": "custom",
+    "css_filters_saturate": {
+     "unit": "px",
+     "size": 60,
+     "sizes": []
+    },
+    "link_to": "custom",
+    "link": {
+     "url": "/entrada-ab/",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
+   }
+  }
+ }
+}

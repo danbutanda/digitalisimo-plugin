@@ -229,7 +229,7 @@ namespace {
 	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'guard+old' ), $combos, $modes );
 	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload', 'visit', 'press', 'cron' );
 	// `product`: plantilla de «Producto individual» (la vista rápida de F4-Woo en «Plantilla de producto»).
-	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product' );
+	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product', 'single-post' );
 	foreach ( $cases as $slug => $case ) {
 		check_cases( preg_match( '/^[a-z0-9-]+$/', (string) $slug ) && is_array( $case ) && isset( $case['title'] ), "$slug: nombre o título inválidos" );
 		check_cases( isset( $case['widgets'] ) || isset( $case['elements'] ) || ! empty( $case['classic'] ), "$slug: necesita widgets, elements o classic" );

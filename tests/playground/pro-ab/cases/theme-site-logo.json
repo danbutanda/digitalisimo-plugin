@@ -1,0 +1,122 @@
+{
+ "_doc": [
+  "Casos A/B de theme-site-logo → digitalisimo-site-logo (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-site-logo",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-logo-defaults": {
+   "title": "Logotipo por defecto: el del Personalizador, tamaño completo y enlace al inicio",
+   "widget": "theme-site-logo",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]"
+    }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
+   }
+  },
+  "tl-logo-styled": {
+   "title": "Logotipo a la izquierda, al 40 % (120 px en móvil), con borde, radio, sombra y opacidad, sin enlace",
+   "widget": "theme-site-logo",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]"
+    },
+    "align": "left",
+    "width": {
+     "unit": "%",
+     "size": 40,
+     "sizes": []
+    },
+    "width_mobile": {
+     "unit": "px",
+     "size": 120,
+     "sizes": []
+    },
+    "link_to": "none",
+    "image_border_border": "solid",
+    "image_border_width": {
+     "unit": "px",
+     "top": "4",
+     "right": "4",
+     "bottom": "4",
+     "left": "4",
+     "isLinked": true
+    },
+    "image_border_color": "#1C244B",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "16",
+     "right": "16",
+     "bottom": "16",
+     "left": "16",
+     "isLinked": true
+    },
+    "image_box_shadow_box_shadow_type": "yes",
+    "opacity": {
+     "unit": "px",
+     "size": 0.85,
+     "sizes": []
+    }
+   }
+  },
+  "tl-logo-file-caption": {
+   "title": "Logotipo con enlace al archivo (lightbox), tamaño mediano y leyenda del adjunto",
+   "widget": "theme-site-logo",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]"
+    },
+    "image_size": "medium",
+    "link_to": "file",
+    "caption_source": "attachment",
+    "caption_align": "right",
+    "text_color": "#6B21A8"
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
+   }
+  },
+  "tl-logo-custom": {
+   "title": "Logotipo con imagen fija, URL personalizada externa (nueva pestaña) y efecto al pasar el cursor",
+   "widget": "theme-site-logo",
+   "context": "page",
+   "settings": {
+    "image": {
+     "$image": 4
+    },
+    "image_size": "medium_large",
+    "link_to": "custom",
+    "link": {
+     "url": "https://example.org/marca/",
+     "is_external": "on",
+     "nofollow": "on",
+     "custom_attributes": ""
+    },
+    "hover_animation": "grow",
+    "width": {
+     "unit": "px",
+     "size": 320,
+     "sizes": []
+    }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del enlace de la imagen (contorno de 2 px con separación de 2 px alrededor de toda la imagen); PRO dejaba el anillo del navegador pegado a ella: en una imagen pequeña los dos anillos superan el umbral del estado con foco. Normal y hover siguen por debajo del 2 %."
+   }
+  }
+ }
+}

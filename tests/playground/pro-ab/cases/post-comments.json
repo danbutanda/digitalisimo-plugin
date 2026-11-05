@@ -1,0 +1,19 @@
+{
+ "_doc": [
+  "Casos A/B de Comentarios (frente H de C4): A con `post-comments` de PRO, B con `digitalisimo-post-comments`. Los dos pintan la plantilla de comentarios del tema con comments_template(): en la entrada de prueba (dos comentarios y una respuesta, formulario abierto) y, con «Personalizado», la misma entrada elegida desde la página de prueba (`$fixture:post`)."
+ ],
+ "cases": {
+  "pc-defaults": {
+   "title": "Entrada actual: comentarios, respuesta y formulario de la plantilla del tema",
+   "widget": "post-comments",
+   "context": "post",
+   "settings": {}
+  },
+  "pc-custom": {
+   "title": "Origen personalizado: los comentarios de la entrada de prueba en la página de prueba",
+   "widget": "post-comments",
+   "context": "page",
+   "settings": { "source_type": "custom", "source_custom": "$fixture:post" }
+  }
+ }
+}
