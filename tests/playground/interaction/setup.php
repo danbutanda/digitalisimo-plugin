@@ -4,6 +4,11 @@
  * `digi-ix-<widget>` por caso, con los ajustes por defecto del widget heredado.
  */
 require '/wordpress/wp-load.php';
+// Sin actualizaciones automáticas: con una Release más nueva en GitHub, WordPress actualizaría DIGITALÍSIMO Elements
+// (su actualizador las activa) y borraría la carpeta montada, que es la del repositorio o su copia de la corrida.
+wp_mkdir_p( WPMU_PLUGIN_DIR );
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-no-autoupdate.php', "<?php\n// Arnés de pruebas: sin actualizaciones automáticas (borrarían el plugin montado).\nadd_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );\nadd_filter( 'auto_update_plugin', '__return_false', PHP_INT_MAX );\nadd_filter( 'auto_update_theme', '__return_false', PHP_INT_MAX );\n" );
+add_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 // Con CORE=bundled el plugin Elementor no está instalado: DIGITALÍSIMO Elements trae su núcleo.
 if ( file_exists( WP_PLUGIN_DIR . '/elementor/elementor.php' ) ) {
