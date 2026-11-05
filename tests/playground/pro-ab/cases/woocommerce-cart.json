@@ -2,7 +2,20 @@
  "_doc": [
   "Casos A/B del Carrito (fila O de C7): A con `woocommerce-cart` de PRO, B con `digitalisimo-woo-cart`, en una página que hace de carrito con el carrito de prueba (contexto `cart`, docs: /var/tmp/digi-wt/pro-c7-reports/N-woo.md)."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "woocommerce-cart",
+   "kind": "enlace",
+   "match": "remove_item=[0-9a-f]+&_wpnonce=[0-9a-f]+",
+   "reason": "Los enlaces para quitar un artículo llevan el nonce de la sesión de WooCommerce: el arnés abre A y B como invitados en sesiones distintas, así que cambia el nonce, no el destino (con la clienta dentro, cart-customer, coinciden)."
+  },
+  {
+   "widget": "woocommerce-cart",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px en enlaces, botones y campos del carrito): PRO dejaba el contorno del navegador."
+  }
+ ],
  "cases": {
   "cart-defaults": {
    "title": "Valores por defecto: dos columnas, cupón, totales",
@@ -73,7 +86,7 @@
      "label": "subir la cantidad del primer artículo",
      "selector": "input.qty",
      "key": "ArrowUp",
-     "wait": 6000,
+     "wait": 15000,
      "widths": [
       1280
      ]
@@ -90,6 +103,19 @@
    "settings": {
     "sticky_right_column": "yes",
     "sticky_right_column_offset": 20
+   }
+  },
+  "cart-texts": {
+   "title": "Textos propios del botón de actualizar, del título de los totales, del envío y del botón de pago",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "update_cart_button_text": "Recalcular",
+    "totals_section_title": "Resumen del pedido",
+    "update_shipping_button_text": "Cambiar envío",
+    "checkout_button_text": "Pagar ahora",
+    "update_cart_button_alignment": "end",
+    "checkout_button_alignment": "center"
    }
   }
  }

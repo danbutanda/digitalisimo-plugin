@@ -26,9 +26,9 @@ defined( 'ABSPATH' ) || exit;
  * Diferencias con PRO (declaradas en el mapa y en los casos del A/B):
  * - Los textos de «¿Ya eres cliente?» y «¿Tienes un cupón?» salen de sus controles (en PRO el filtro de textos no los
  *   alcanzaba y siempre salía el texto por defecto).
- * - Los conmutadores de acceso y de cupón son `<button>` con `aria-expanded` y `aria-controls` (PRO: `<a href="#">`), los
- *   paneles se ocultan con `hidden`, y la tecla Intro en el cupón o en el acceso aplica el cupón o accede (en PRO enviaba
- *   el pedido).
+ * - Los conmutadores de acceso y de cupón son enlaces con `role="button"`, `aria-expanded` y `aria-controls` que apuntan
+ *   a su panel (PRO: `<a href="#">` sin estado) y se activan también con la barra espaciadora; los paneles se ocultan
+ *   con `hidden`, y la tecla Intro en el cupón o en el acceso aplica el cupón o accede (en PRO enviaba el pedido).
  * - Columna derecha fija resuelta en el servidor (clase y desplazamiento); el script propio (`store/assets/checkout.js`,
  *   sin jQuery) sólo abre y cierra los paneles, aplica el cupón y accede por las mismas peticiones que PRO, marca el
  *   desplegable de países y la animación del botón de compra, y pone en `_wp_http_referer` la página y el elemento para
@@ -3998,7 +3998,8 @@ class Checkout extends Base {
 
 	/**
 	 * Formulario de acceso dentro de la primera columna (PRO quita el de WooCommerce de `woocommerce_before_checkout_form`
-	 * y pinta el suyo aquí). El conmutador es un botón y el panel queda oculto con `hidden` (abierto en el editor).
+	 * y pinta el suyo aquí). El conmutador es un enlace con papel de botón y el panel queda oculto con `hidden` (abierto en
+	 * el editor).
 	 */
 	private function render_woocommerce_checkout_login_form() {
 		$settings = $this->get_settings_for_display();
@@ -4022,7 +4023,7 @@ class Checkout extends Base {
 		<div class="digi-co__login">
 			<div class="digi-co__login-messages"></div>
 			<div class="woocommerce-form-login-toggle digi-co__secondary">
-				<?php echo esc_html( $title ); ?> <button type="button" class="digi-co__show-login" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></button>
+				<?php echo esc_html( $title ); ?> <a href="#<?php echo esc_attr( $panel ); ?>" role="button" class="digi-co__show-login" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></a>
 			</div>
 			<div class="digi-co__login-form" id="<?php echo esc_attr( $panel ); ?>"<?php echo $editor ? '' : ' hidden'; ?>>
 				<p class="digi-co__login-nudge digi-co__desc"><?php echo esc_html__( 'Si ya has comprado con nosotros, introduce tus datos abajo. Si eres un cliente nuevo, continúa en la sección de facturación.', 'pro-elements' ); ?></p>
@@ -4086,7 +4087,7 @@ class Checkout extends Base {
 		$link  = isset( $settings['coupon_section_title_link_text'] ) ? $settings['coupon_section_title_link_text'] : esc_html__( 'Haz clic aquí para introducir tu código de cupón', 'pro-elements' );
 		?>
 		<div class="digi-co__coupon">
-			<p class="digi-co__coupon-nudge digi-co__secondary"><?php echo esc_html( $title ); ?> <button type="button" class="digi-co__show-coupon" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></button></p>
+			<p class="digi-co__coupon-nudge digi-co__secondary"><?php echo esc_html( $title ); ?> <a href="#<?php echo esc_attr( $panel ); ?>" role="button" class="digi-co__show-coupon" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></a></p>
 			<div class="digi-co__coupon-form" id="<?php echo esc_attr( $panel ); ?>"<?php echo $editor ? '' : ' hidden'; ?>>
 				<label class="digi-co__coupon-desc" for="coupon_code"><?php echo esc_html__( 'Si tienes un código de cupón, aplícalo abajo.', 'pro-elements' ); ?></label>
 				<div class="form-row">

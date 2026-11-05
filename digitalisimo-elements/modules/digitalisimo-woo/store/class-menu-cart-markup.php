@@ -28,13 +28,6 @@ final class Menu_Cart_Markup {
 	/** Opción que anota que el sitio usa el widget (activa el fragmento del panel). */
 	const OPTION = 'digitalisimo_woo_menu_cart';
 
-	/** Iconos propios (SVG, 24 × 24): carrito, cesta y bolsa; fino, medio y sólido cambian el trazo o el relleno. */
-	const ICONS = array(
-		'cart'   => 'M3 4h2.2l2.3 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.4-1.1L21 8H6.6M9 20.5a1 1 0 1 0 0-.01M17 20.5a1 1 0 1 0 0-.01',
-		'basket' => 'M3 10h18l-1.8 9.2a1.5 1.5 0 0 1-1.5 1.3H6.3a1.5 1.5 0 0 1-1.5-1.3L3 10zM7.5 10 11 3.5M16.5 10 13 3.5M9 14v3M12 14v3M15 14v3',
-		'bag'    => 'M5 7.5h14l-1 12.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 7.5zM8.5 10V6.5a3.5 3.5 0 0 1 7 0V10',
-	);
-
 	/** Engancha los fragmentos. Lo llama `Cart\Mini_Cart_Extras::init()` con WooCommerce (también en `?wc-ajax=`). */
 	public static function init(): void {
 		add_filter( 'woocommerce_add_to_cart_fragments', array( __CLASS__, 'fragments' ) );
@@ -55,21 +48,20 @@ final class Menu_Cart_Markup {
 		return $fragments;
 	}
 
-	/** Icono del conmutador: el elegido o el personalizado (`menu_icon_svg`), como `render_menu_icon()` de PRO. */
+	/** Icono del conmutador: el elegido (biblioteca del núcleo) o el personalizado (`menu_icon_svg`), como `render_menu_icon()` de PRO. */
 	public static function icon( array $settings ): string {
 		$icon = ! empty( $settings['icon'] ) ? (string) $settings['icon'] : 'cart-medium';
 		if ( 'custom' === $icon ) {
-			if ( empty( $settings['menu_icon_svg'] ) || empty( $settings['menu_icon_svg']['value'] ) ) {
-				return '';
-			}
+			// Sin icono elegido, el carrito de Font Awesome, como PRO.
+			$custom = ! empty( $settings['menu_icon_svg']['value'] ) ? $settings['menu_icon_svg'] : array( 'value' => 'fas fa-shopping-cart', 'library' => 'fa-solid' );
 			ob_start();
-			Icons_Manager::render_icon( $settings['menu_icon_svg'], array( 'class' => 'digi-mc__ci', 'aria-hidden' => 'true' ) );
+			Icons_Manager::render_icon( $custom, array( 'class' => 'digi-mc__ci', 'aria-hidden' => 'true' ) );
 			return (string) ob_get_clean();
 		}
-		list( $shape, $weight ) = array_pad( explode( '-', $icon, 2 ), 2, 'medium' );
-		$path  = self::ICONS[ $shape ] ?? self::ICONS['cart'];
-		$solid = 'solid' === $weight;
-		return '<svg class="digi-mc__ico digi-mc__ico--' . esc_attr( $weight ) . '" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false"><path d="' . esc_attr( $path ) . '" fill="' . ( $solid ? 'currentColor' : 'none' ) . '" stroke="currentColor" stroke-width="' . ( 'light' === $weight ? '1.2' : '2' ) . '" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+		// Los mismos iconos que PRO: los de la biblioteca del núcleo (con «iconos en SVG», un SVG en línea).
+		ob_start();
+		Icons_Manager::render_icon( array( 'library' => 'eicons', 'value' => 'eicon-' . preg_replace( '/[^a-z-]/', '', $icon ) ) );
+		return (string) ob_get_clean();
 	}
 
 	/** Botón que abre el carrito (subtotal, icono y contador). */

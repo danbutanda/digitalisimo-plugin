@@ -13,7 +13,7 @@
  *   con las clases propias;
  * - salida: con un `[woocommerce_checkout]` de prueba que dispara los ganchos de WooCommerce, los dos widgets envuelven
  *   lo mismo en las mismas columnas y secciones (clases de PRO pasadas a las propias), cambian los mismos textos y campos,
- *   y el propio pinta botones con `aria-expanded`/`aria-controls`, paneles con `hidden` y los textos de sus controles;
+ *   y el propio pinta conmutadores con papel de botón, `aria-expanded`/`aria-controls`, paneles con `hidden` y los textos de sus controles;
  * - mapa: cada control de PRO declarado (también los campos de los repetidores) y conversión de ajustes reales (por
  *   defecto, repetidores, globales, dinámicos, CSS personalizado) sin `pro.unmapped`, con los textos de PRO completados.
  */
@@ -290,8 +290,8 @@ namespace {
 	// Acceso y cupón accesibles, con los textos de sus controles.
 	$GLOBALS['h_wp']['options']['woocommerce_enable_checkout_login_reminder'] = 'yes';
 	list( $b ) = $render( $own, array( 'returning_customer_section_title' => '¿Cliente?', 'returning_customer_link_text' => 'Entra', 'coupon_section_title_text' => '¿Cupón?', 'coupon_section_title_link_text' => 'Escríbelo', 'purchase_button_hover_animation' => 'grow' ) + $pro_defaults );
-	$ok( preg_match( '/¿Cliente\?\s*<button type="button" class="digi-co__show-login" aria-controls="digi-co-login-abc1234" aria-expanded="false">Entra<\/button>/', $b ) && str_contains( $b, '<div class="digi-co__login-form" id="digi-co-login-abc1234" hidden>' ), 'Acceso: botón con aria-expanded y aria-controls, panel oculto, textos del control.' );
-	$ok( preg_match( '/¿Cupón\? <button type="button" class="digi-co__show-coupon" aria-controls="digi-co-coupon-abc1234" aria-expanded="false">Escríbelo<\/button>/', $b ) && str_contains( $b, '<div class="digi-co__coupon-form" id="digi-co-coupon-abc1234" hidden>' ) && str_contains( $b, '<label class="digi-co__coupon-desc" for="coupon_code">' ), 'Cupón: botón con aria-expanded y aria-controls, panel oculto, etiqueta del campo.' );
+	$ok( preg_match( '/¿Cliente\?\s*<a href="#digi-co-login-abc1234" role="button" class="digi-co__show-login" aria-controls="digi-co-login-abc1234" aria-expanded="false">Entra<\/a>/', $b ) && str_contains( $b, '<div class="digi-co__login-form" id="digi-co-login-abc1234" hidden>' ), 'Acceso: enlace con papel de botón, aria-expanded y aria-controls, panel oculto, textos del control.' );
+	$ok( preg_match( '/¿Cupón\? <a href="#digi-co-coupon-abc1234" role="button" class="digi-co__show-coupon" aria-controls="digi-co-coupon-abc1234" aria-expanded="false">Escríbelo<\/a>/', $b ) && str_contains( $b, '<div class="digi-co__coupon-form" id="digi-co-coupon-abc1234" hidden>' ) && str_contains( $b, '<label class="digi-co__coupon-desc" for="coupon_code">' ), 'Cupón: enlace con papel de botón, aria-expanded y aria-controls, panel oculto, etiqueta del campo.' );
 	$ok( str_contains( $b, 'data-digi-ajax="https://sitio.test/wp-admin/admin-ajax.php"' ) && str_contains( $b, 'data-digi-animation="elementor-animation-grow"' ), 'Datos para el script: acceso por AJAX y animación del botón de compra.' );
 	$ok( in_array( 'woocommerce_checkout_login_form', $GLOBALS['ck']['removed'], true ) && in_array( 'woocommerce_checkout_coupon_form', $GLOBALS['ck']['removed'], true ), 'Los formularios de acceso y cupón de WooCommerce se sustituyen, como en PRO.' );
 	// En el editor, los dos paneles abiertos y una persona sin sesión.

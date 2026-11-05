@@ -683,6 +683,28 @@ if ( is_file( DIGI_AB_DIR . '/map-override.php' ) ) {
 }
 
 $widgets = \Elementor\Plugin::$instance->widgets_manager;
+// Widgets de PRO que PRO no registra (C7: `woocommerce-category-image`, clase en `modules/woocommerce/widgets/` fuera de
+// `WIDGET_NAME_CLASS_NAME_MAP`): un caso con `"register_pro": {"file": "<ruta en el plugin>", "class": "<clase>"}` lo
+// registra aquí y, en cada petición, con el mu-plugin `digi-ab-register.php`, para que A pinte el widget de PRO tal cual.
+$digi_ab_register = array();
+foreach ( $cases['cases'] as $digi_ab_slug => $digi_ab_case ) {
+	$digi_ab_chosen = $only ? in_array( $digi_ab_slug, $only, true ) : empty( $digi_ab_case['pending'] );
+	if ( $digi_ab_chosen && ! empty( $digi_ab_case['register_pro']['file'] ) && ! empty( $digi_ab_case['register_pro']['class'] ) && preg_match( '/^[a-z0-9\/_-]+\.php$/', (string) $digi_ab_case['register_pro']['file'] ) ) {
+		$digi_ab_register[ (string) $digi_ab_case['register_pro']['class'] ] = (string) $digi_ab_case['register_pro']['file'];
+	}
+}
+if ( $digi_ab_register ) {
+	$digi_ab_code = "<?php\n// pro-ab.sh (setup.php, `register_pro` de un caso): registra widgets de PRO que PRO no registra.\nadd_action( 'elementor/widgets/register', static function ( \$manager ) {\n\tforeach ( " . var_export( $digi_ab_register, true ) . " as \$class => \$file ) {\n\t\trequire_once WP_PLUGIN_DIR . '/digitalisimo-elements/' . \$file;\n\t\t\$name = ( new \\ReflectionClass( \$class ) )->newInstanceWithoutConstructor()->get_name();\n\t\tif ( ! \$manager->get_widget_types( \$name ) ) {\n\t\t\t\$manager->register( new \$class() );\n\t\t}\n\t}\n}, 99 );\n";
+	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-register.php', $digi_ab_code );
+	$widgets->get_widget_types(); // Carga los widgets del núcleo (la Imagen, de la que heredan).
+	foreach ( $digi_ab_register as $digi_ab_class => $digi_ab_file ) {
+		require_once WP_PLUGIN_DIR . '/digitalisimo-elements/' . $digi_ab_file;
+		$digi_ab_widget = new $digi_ab_class();
+		if ( ! $widgets->get_widget_types( $digi_ab_widget->get_name() ) ) {
+			$widgets->register( $digi_ab_widget );
+		}
+	}
+}
 $out     = array( 'elementor' => ELEMENTOR_VERSION, 'override' => $override, 'cases' => array() );
 $contexts   = array();
 $c4_context = false;

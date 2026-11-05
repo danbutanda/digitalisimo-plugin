@@ -41,9 +41,21 @@
   },
   {
    "widget": "woocommerce-menu-cart",
-   "kind": "imagen",
-   "match": "\\.svg|eicon",
-   "reason": "Icono propio en SVG; el de PRO es un glifo de la fuente eicons, que no se carga en un sitio con iconos SVG (no se ve)."
+   "kind": "hover",
+   "match": ".",
+   "reason": "El arnés pasa el cursor por el primer enlace o botón del widget: en PRO es un enlace del panel cerrado (va antes del conmutador en el marcado); en el propio, el conmutador (el panel va después y está inerte)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "enlace",
+   "match": "«#»",
+   "reason": "El conmutador es un <button>; PRO usaba un enlace a «#»."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "^nuevo none «»$",
+   "reason": "Lo que hay dentro del panel cerrado es inerte (sin rol ni nombre para el árbol de accesibilidad hasta que se abre)."
   }
  ],
  "cases": {

@@ -19,8 +19,8 @@
    },
    "settings": {},
    "pixels": {
-    "max": 0.06,
-    "reason": "Sólo en el estado con foco: el widget mide unos 30 px de alto y el contorno propio de 2 px del enlace enfocado ocupa varios puntos de la captura; sin foco y al pasar el cursor, como PRO."
+    "max": 0.08,
+    "reason": "Sólo en el estado con foco: el widget mide 45–52 px de alto y el contorno propio de 2 px con separación de 2 px del enlace enfocado (frente al de 1 px del navegador) ocupa hasta el 7 % de la captura a 768 px; sin foco y al pasar el cursor, 0,00 %."
    }
   },
   "wbc-styled": {
@@ -42,8 +42,8 @@
     "text_typography_font_weight": "600"
    },
    "pixels": {
-    "max": 0.06,
-    "reason": "Sólo en el estado con foco: contorno propio de 2 px del enlace enfocado en un widget de poca altura."
+    "max": 0.08,
+    "reason": "Sólo en el estado con foco: el widget mide 45–52 px de alto y el contorno propio de 2 px con separación de 2 px del enlace enfocado (frente al de 1 px del navegador) ocupa hasta el 7 % de la captura a 768 px; sin foco y al pasar el cursor, 0,00 %."
    }
   }
  }

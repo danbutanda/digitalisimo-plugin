@@ -94,7 +94,7 @@
 		animate(root);
 		if (window.MutationObserver) new MutationObserver(function () { animate(root); referers(root); }).observe(root, { childList: true, subtree: true });
 		root.addEventListener('click', function (e) {
-			var b = e.target.closest('button');
+			var b = e.target.closest('button, [role="button"]');
 			if (!b || !root.contains(b)) return;
 			if (b.matches('.digi-co__show-login')) { e.preventDefault(); toggle(b, root.querySelector('.digi-co__login-form')); }
 			else if (b.matches('.digi-co__show-coupon')) { e.preventDefault(); toggle(b, root.querySelector('.digi-co__coupon-form')); }
@@ -103,6 +103,8 @@
 		});
 		// Intro en el cupón o en el acceso: aplica o accede (sin enviar el pedido).
 		root.addEventListener('keydown', function (e) {
+			// Barra espaciadora en los conmutadores (enlaces con papel de botón).
+			if (e.key === ' ' && e.target.matches('[role="button"]')) { e.preventDefault(); e.target.click(); return; }
 			if (e.key !== 'Enter' || !e.target.matches('input')) return;
 			if (e.target.closest('.digi-co__coupon-form')) { e.preventDefault(); coupon(root); }
 			else if (e.target.closest('.digi-co__login-form')) { e.preventDefault(); login(root); }

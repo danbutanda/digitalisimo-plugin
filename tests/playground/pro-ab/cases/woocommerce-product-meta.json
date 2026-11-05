@@ -35,7 +35,11 @@
      "id": "widget-woocommerce-product-meta-css",
      "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-meta-table": {
    "title": "Vista de tabla con divisor y estilos",
@@ -86,7 +90,11 @@
      "id": "widget-woocommerce-product-meta-css",
      "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-meta-stacked": {
    "title": "Vista apilada con rótulos propios",
@@ -118,7 +126,11 @@
      "id": "widget-woocommerce-product-meta-css",
      "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-meta-inline-divider": {
    "title": "En línea con divisor de 20 px de alto",
@@ -155,7 +167,11 @@
      "id": "widget-woocommerce-product-meta-css",
      "url": "widget-woocommerce-product-meta(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   }
  }
 }

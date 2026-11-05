@@ -10,7 +10,7 @@
   function count(btn) { var q = btn.querySelector('.elementor-button-icon-qty'); return q ? parseInt(q.getAttribute('data-counter'), 10) || 0 : 0; }
   function init(tw) {
     if (!tw || tw._digiMc) return;
-    var c = conf(tw), el = tw.closest('.elementor-element') || tw, btn = tw.querySelector('.digi-mc__btn'),
+    var c = conf(tw), el = tw.closest('.elementor-element') || tw, root = tw.closest('.digi-mc') || tw, btn = tw.querySelector('.digi-mc__btn'),
       box = tw.querySelector('.digi-mc__box'), main = tw.querySelector('.digi-mc__main');
     if (!btn || !box || !main) return;
     var api = tw._digiMc = { open: false };
@@ -27,6 +27,7 @@
       if (api.open) return;
       api.open = true;
       el.classList.add('digi-mc--shown');
+      root.classList.add('digi-mc--shown');
       btn.setAttribute('aria-expanded', 'true');
       box.removeAttribute('inert');
       height();
@@ -36,6 +37,7 @@
       var inside = box.contains(d.activeElement);
       api.open = false;
       el.classList.remove('digi-mc--shown');
+      root.classList.remove('digi-mc--shown');
       btn.setAttribute('aria-expanded', 'false');
       box.setAttribute('inert', '');
       if (focus || inside) btn.focus();

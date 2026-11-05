@@ -44,5 +44,19 @@
     "product_id": "$woo:simple"
    }
   }
- }
+ },
+ "declared": [
+  {
+   "widget": "wc-elements",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px) en lo que pinta WooCommerce; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "wc-elements",
+   "kind": "enlace",
+   "match": "remove_item=",
+   "reason": "Los enlaces de quitar del carrito llevan el nonce de la sesión de WooCommerce de cada página (A y B son sesiones distintas): el destino es el mismo artículo."
+  }
+ ]
 }
