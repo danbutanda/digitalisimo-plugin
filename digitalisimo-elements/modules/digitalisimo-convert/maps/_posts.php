@@ -17,10 +17,14 @@ return static function ( array $skins ): array {
 	// `skin-content-base.php` de PRO. Los de una piel que no los tiene no llegan a guardarse.
 	$controls = array( 'columns', 'posts_per_page', 'thumbnail', 'masonry', 'item_ratio', 'image_width', 'show_title', 'title_tag', 'show_excerpt', 'excerpt_length', 'apply_to_custom_excerpt', 'meta_data', 'meta_separator', 'show_read_more', 'read_more_text', 'read_more_alignment', 'open_new_tab', 'show_badge', 'badge_taxonomy', 'show_avatar', 'row_gap', 'column_gap', 'alignment', 'box_border_width', 'box_border_radius', 'box_padding', 'content_padding', 'box_bg_color', 'box_border_color', 'box_bg_color_hover', 'box_border_color_hover', 'img_border_radius', 'image_spacing', 'heading_title_style', 'title_color', 'title_spacing', 'heading_meta_style', 'meta_color', 'meta_separator_color', 'meta_spacing', 'heading_excerpt_style', 'excerpt_color', 'excerpt_spacing', 'heading_readmore_style', 'read_more_color', 'read_more_spacing', 'card_bg_color', 'card_border_color', 'card_border_width', 'card_border_radius', 'card_padding', 'card_vertical_padding', 'box_shadow_box_shadow_type', 'hover_effect', 'meta_border_color', 'heading_badge_style', 'badge_position', 'badge_bg_color', 'badge_color', 'badge_radius', 'badge_size', 'badge_margin', 'heading_avatar_style', 'avatar_size' );
 	$groups   = array( 'thumbnail_size', 'box_shadow', 'box_shadow_hover', 'thumbnail_filters', 'thumbnail_hover_filters', 'title_typography', 'text_stroke', 'meta_typography', 'excerpt_typography', 'read_more_typography', 'badge_typography' );
+	// Paginación y botón «Cargar más» (`posts-base.php` y `button-widget-trait.php` de PRO): lo común con los bucles, en
+	// `_loop-pagination.php`. Entradas conserva además `align` (los bucles lo quitan) y lleva como `keep` los
+	// controles sin valor (encabezados y separadores), salvo los tres que PRO quita del botón.
+	$paging   = (array) require __DIR__ . '/_loop-pagination.php';
+	$removed  = array( 'button_type', 'link', 'size' );
 	$out      = array(
-		// Paginación y botón «Cargar más» (`posts-base.php` y `button-widget-trait.php` de PRO).
-		'keep'     => array( 'pagination_type', 'pagination_page_limit', 'pagination_numbers_shorten', 'pagination_prev_label', 'pagination_next_label', 'pagination_align', 'pagination_individual_divider', 'pagination_individual_handle', 'pagination_individual_handle_message', 'load_more_spinner', 'heading_load_more_button', 'text', 'selected_icon', 'icon', 'icon_align', 'icon_indent', 'button_css_id', 'heading_load_more_no_posts_message', 'load_more_no_posts_message_align', 'load_more_no_posts_message_switcher', 'load_more_no_posts_custom_message', 'pagination_color_heading', 'pagination_color', 'pagination_hover_color', 'pagination_active_color', 'pagination_spacing', 'pagination_spacing_top', 'heading_load_more_style_button', 'align', 'content_align', 'button_text_color', 'hover_color', 'button_hover_border_color', 'button_hover_transition_duration', 'hover_animation', 'border_radius', 'text_padding', 'heading_load_more_on_click_no_posts_message', 'heading_load_more_on_click_infinity_scroll_no_posts_message', 'load_more_no_posts_message_color', 'load_more_spinner_color', 'load_more_spacing' ),
-		'groups'   => array(),
+		'keep'     => array_merge( (array) $paging['keep'], array_values( array_diff( (array) $paging['ui'], $removed ) ), array( 'align' ) ),
+		'groups'   => (array) $paging['groups'],
 		'defaults' => array(
 			'pagination_prev_label'             => $t( '&laquo; Previous' ),
 			'pagination_next_label'             => $t( 'Next &raquo;' ),
@@ -34,9 +38,6 @@ return static function ( array $skins ): array {
 			'size'        => 'PRO quita el tamaño del botón «Cargar más»: siempre pequeño.',
 		),
 	);
-	foreach ( array( 'pagination_typography', 'typography', 'text_shadow', 'background', 'button_box_shadow', 'button_background_hover', 'button_hover_box_shadow', 'border', 'load_more_no_posts_message' ) as $group ) {
-		$out['groups'][ $group ] = $group;
-	}
 	foreach ( $skins as $skin ) {
 		foreach ( $controls as $control ) {
 			$out['keep'][] = $skin . '_' . $control;
@@ -79,13 +80,9 @@ return static function ( array $skins ): array {
 		'.elementor-posts__hover-none'      => '.digi-posts--hover-none',
 		'.elementor-posts--show-avatar'     => '.digi-posts--show-avatar',
 		'.elementor-posts--show-thumbnail'  => '.digi-posts--show-thumbnail',
-		'.elementor-pagination'             => '.digi-loop__pagination',
-		'.e-load-more-anchor'               => '.digi-loop__anchor',
-		'.e-load-more-spinner'              => '.digi-loop__spinner',
-		'.e-load-more-message'              => '.digi-loop__message',
 		'.e-load-more-pagination-end'       => '.digi-loop--end',
 		'.e-load-more-pagination-loading'   => '.digi-loop--loading',
-	);
+	) + (array) $paging['classes'];
 	foreach ( array( 'classic', 'cards', 'full_content', 'archive_full_content' ) as $skin ) {
 		$out['classes'][ '.elementor-posts--skin-' . $skin ] = '.digi-posts--skin-' . $skin;
 	}

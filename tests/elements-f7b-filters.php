@@ -441,7 +441,7 @@ namespace {
 	Module::register_assets();
 	check_f7b( 'woo' === $GLOBALS['scripts']['digitalisimo-woo-filters'] && 'woo' === $GLOBALS['scripts']['digitalisimo-woo-filters-form'] && 'woo' === $GLOBALS['styles']['digitalisimo-woo-filters'] && isset( $GLOBALS['styles']['digitalisimo-filters'] ), 'Con F4-Woo, sus registros no se tocan.' );
 	check_f7b( hooked( 'elementor/frontend/after_register_scripts', 11 ) >= 1 && hooked( 'wp_enqueue_scripts', 6 ) >= 1, 'Registro después del de F4-Woo (10 y 5).' );
-	$sizes = array( 'modules/digitalisimo-filters/assets/f7b-filters.css' => 2048, 'assets/js/filters-form.js' => 6144, 'assets/js/filters.js' => 8192, 'modules/digitalisimo-filters/assets/filters-editor.js' => 8192 );
+	$sizes = array( 'modules/digitalisimo-filters/assets/f7b-filters.css' => 2048, 'assets/js/filters-form.js' => 6144, 'assets/js/filters.js' => 10240 /* C5: también la Cuadrícula de bucle propia. */, 'modules/digitalisimo-filters/assets/filters-editor.js' => 8192 );
 	foreach ( $sizes as $file => $cap ) { check_f7b( filesize( $root . '/' . $file ) <= $cap, $file . ' pesa ' . filesize( $root . '/' . $file ) . ' B (tope ' . $cap . ').' ); }
 	check_f7b( ! preg_match( '/url\(|#[0-9a-f]{3,6}\b|rgba?\(/i', file_get_contents( $root . '/modules/digitalisimo-filters/assets/f7b-filters.css' ) ), 'La hoja propia no define colores ni url().' );
 }

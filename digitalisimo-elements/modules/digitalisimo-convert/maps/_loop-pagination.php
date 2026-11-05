@@ -2,7 +2,8 @@
 /**
  * Lo común de los mapas de los listados de C5 con la paginación de Entradas de PRO (`posts/widgets/posts-base.php` con
  * `Button_Widget_Trait`), que la base propia (`modules/digitalisimo-loop/class-posts-base.php`) repite con los mismos
- * nombres: claves que se conservan, grupos, controles sin valor y clases del pie. Lo suman los mapas que lo usan;
+ * nombres: claves que se conservan, grupos, controles sin valor y clases del pie. Lo suman los mapas que lo usan (los
+ * bucles y, por `_posts.php`, Entradas y Entradas del archivo);
  * `Registry` ignora los archivos de `maps/` que empiezan por `_`.
  */
 defined( 'ABSPATH' ) || exit;

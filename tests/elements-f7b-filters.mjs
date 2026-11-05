@@ -130,6 +130,7 @@ class Node {
   get textContent() { return this.childNodes.map((n) => n.textContent).join(''); }
   set textContent(v) { this.childNodes.forEach((n) => { n.parentNode = null; }); this.childNodes = v ? [Object.assign(new Text(String(v)), { parentNode: this })] : []; }
   set innerHTML(html) { this.textContent = ''; parseInto(this, html, this.ownerDocument); }
+  get innerHTML() { return this.childNodes.map((n) => (n.nodeType === 3 ? n.data.replace(/&/g, '&amp;').replace(/</g, '&lt;') : `<${n.tagName.toLowerCase()}${[...n.attributes].map(([k, v]) => ` ${k}="${v.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('')}>${VOID.has(n.tagName.toLowerCase()) ? '' : n.innerHTML + `</${n.tagName.toLowerCase()}>`}`)).join(''); }
   _detach(n) { if (n.parentNode) { const s = n.parentNode.childNodes; s.splice(s.indexOf(n), 1); } n.parentNode = this; }
   appendChild(n) { this._detach(n); this.childNodes.push(n); return n; }
   insertBefore(n, ref) { this._detach(n); const i = ref ? this.childNodes.indexOf(ref) : -1; if (i < 0) this.childNodes.push(n); else this.childNodes.splice(i, 0, n); return n; }
@@ -236,7 +237,7 @@ const PAGE = `<div data-elementor-id="10" class="elementor elementor-10">${loopH
 
 // ---------------------------------------------------------------------------------------------------------------
 // Entorno: el de `elements-woo-filters.mjs` (relojes falsos, fetch controlable, historia, núcleo y módulo de PRO).
-function env({ html = PAGE, search = '' } = {}) {
+function env({ html = PAGE, search = '', pro = true } = {}) {
   const doc = makeDocument(html);
   let now = 0; const timers = [];
   const setTimeout = (fn, ms = 0) => { const t = { fn, at: now + ms, id: timers.length + 1 }; timers.push(t); return t.id; };
@@ -244,7 +245,7 @@ function env({ html = PAGE, search = '' } = {}) {
   const tick = async (ms = 0) => { now += ms; for (let t; (t = timers.filter((x) => !x.done && x.at <= now).sort((a, b) => a.at - b.at)[0]);) { t.done = true; t.fn(); } for (let i = 0; i < 5; i++) await Promise.resolve(); };
   const fetches = [];
   const fetch = (url, init) => new Promise((resolve, reject) => {
-    const call = { url, init, body: JSON.parse(init.body), resolve: (data) => resolve({ ok: true, status: 200, json: async () => data }) };
+    const call = { url, init, body: init.body ? JSON.parse(init.body) : null, resolve: (data, status = 200) => resolve({ ok: status < 400, status, json: async () => data, text: async () => data }) };
     init.signal.addEventListener('abort', () => { call.aborted = true; reject(Object.assign(new Error('abort'), { name: 'AbortError' })); });
     fetches.push(call);
   });
@@ -262,7 +263,8 @@ function env({ html = PAGE, search = '' } = {}) {
   const winListeners = {};
   const ctx = {
     document: doc, location, history, fetch, AbortController, URLSearchParams, URL, setTimeout, clearTimeout, Event: Ev, FormData: FormDataDouble, JSON, console,
-    elementorFrontend, ElementorProFrontendConfig: { urls: { rest: 'https://example.test/wp-json/' }, settings: {} },
+    elementorFrontend, ElementorProFrontendConfig: pro ? { urls: { rest: 'https://example.test/wp-json/' }, settings: {} } : undefined,
+    DOMParser: class { parseFromString(text) { return makeDocument(text); } },
     addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
   };
   ctx.window = ctx;
@@ -275,9 +277,11 @@ function env({ html = PAGE, search = '' } = {}) {
   }
   vm.runInContext(source.coordinator, ctx);
   vm.runInContext(source.form, ctx);
-  hooks.addFilter('elementor-pro/frontend/handlers', (h) => Object.assign({}, h, { taxonomyFilter: LoopFilter }), 10);
-  const handlers = hooks.applyFilters('elementor-pro/frontend/handlers', {});
-  ctx.elementorProFrontend = { modules: { taxonomyFilter: new handlers.taxonomyFilter() } };
+  if (pro) {
+    hooks.addFilter('elementor-pro/frontend/handlers', (h) => Object.assign({}, h, { taxonomyFilter: LoopFilter }), 10);
+    const handlers = hooks.applyFilters('elementor-pro/frontend/handlers', {});
+    ctx.elementorProFrontend = { modules: { taxonomyFilter: new handlers.taxonomyFilter() } };
+  }
   const ready = Object.keys(actions);
   doc.querySelectorAll('[data-widget_type]').forEach((el) => hooks.doAction('frontend/element_ready/' + el.getAttribute('data-widget_type'), [el]));
   const popstate = () => (winListeners.popstate || []).forEach((fn) => fn(new Ev('popstate')));
@@ -291,7 +295,8 @@ const response = (n) => ({ data: `<div class="elementor-widget-container"><div c
 // ---------------------------------------------------------------------------------------------------------------
 // Tamaños: filters-form.js ≤ 6 KB y el coordinador ≤ 8 KB; la hoja propia mantiene visible el botón del buscador.
 ok(statSync(JS('filters-form.js')).size <= 6144, `filters-form.js pesa ${statSync(JS('filters-form.js')).size} B, más de 6 KB`);
-ok(statSync(JS('filters.js')).size <= 8192, `filters.js pesa ${statSync(JS('filters.js')).size} B, más de 8 KB`);
+// El coordinador sube a 10 KB en C5 (programa «sin widgets de PRO»): refresca también la Cuadrícula de bucle propia.
+ok(statSync(JS('filters.js')).size <= 10240, `filters.js pesa ${statSync(JS('filters.js')).size} B, más de 10 KB`);
 ok(/\.digi-filter--search\.digi-filter--live \.digi-filter__submit\{display:inline-block\}/.test(CSS), 'Con el coordinador, el buscador conserva su botón (no se busca al teclear).');
 
 // 1 · Arranque: element_ready de los cuatro widgets; registro en el coordinador con su tipo y sus claves.
@@ -446,4 +451,56 @@ ok(/\.digi-filter--search\.digi-filter--live \.digi-filter__submit\{display:inli
   ok(e.fetches.length === 0, 'Ningún refresco por REST con destino «Archivo».');
 }
 
-console.log(`DIGITALÍSIMO Elements: formularios de los filtros ampliados de F7b con filters-form.js y el coordinador (registro, buscador, rango, lista, orden, por página, digi_ctx, popstate y «Archivo») en verde: ${checks} comprobaciones.`);
+// 6 · Cuadrícula de bucle propia (C5): sin el módulo ni el REST de PRO, el coordinador pide la misma página con la URL
+// filtrada y sustituye el contenido del bucle; lee también el Filtro de taxonomías propio; popstate y fallo con GET.
+{
+  const ownLoop = (id, items) => `<div class="elementor-element elementor-element-${id} elementor-widget elementor-widget-digitalisimo-loop-grid" data-id="${id}" data-element_type="widget" data-widget_type="digitalisimo-loop-grid.post"><div class="digi-loop-grid__items" role="list">${items}</div></div>`;
+  const tfilter = (loop, pressed) => `<div class="elementor-element elementor-element-ftax001 elementor-widget-digitalisimo-taxonomy-filter" data-id="ftax001" data-element_type="widget" data-widget_type="digitalisimo-taxonomy-filter.default"><search class="digi-tfilter" role="search" aria-label="Filtrar por Categoría" data-loop="${loop}" data-taxonomy="category" data-join="DISABLED" data-base-url="https://example.test/catalogo/" data-page-num="1">${['__all', 'guias', 'casos'].map((t) => `<button type="button" class="digi-tfilter__item" data-filter="${t}" aria-pressed="${t === pressed}">${t}</button>`).join('')}</search></div>`;
+  const html = `<div data-elementor-id="10" class="elementor elementor-10">${ownLoop('loopown', item(1) + item(2) + item(3))}${tfilter('loopown', 'guias')}${orderForm('forder9', 'loopown')}${pageForm('fpage09', 'loopown')}</div>`;
+  const page = (items, cls = '') => `<!doctype html><html><head><title>x</title></head><body><div data-elementor-id="99"><div class="elementor-element elementor-element-loopown"><p>Otro documento</p></div></div><div data-elementor-id="10" class="elementor elementor-10">${ownLoop('loopown', items).replace('elementor-widget-digitalisimo-loop-grid"', `elementor-widget-digitalisimo-loop-grid${cls}"`)}</div></body></html>`;
+  const e = env({ html, search: '?e-filter-loopown-category=guias&utm=x', pro: false });
+  const C = e.ctx.digitalisimoWooFilters;
+  ok(C.active('loopown') && !C.active('loop123') && !C.active(), 'Sin PRO: activo para la Cuadrícula propia, no para un Loop Grid de PRO.');
+  const order = formOf(e, 'forder9');
+  ok(order.classList.contains('digi-filter--live'), 'Con la Cuadrícula propia, los formularios de lista son «en vivo» sin PRO.');
+  same(JSON.parse(JSON.stringify(C.state('loopown'))), { taxonomy: { category: { terms: ['guias'], logicalJoin: 'AND' } } }, 'El estado lee el Filtro de taxonomías propio (sin «Todos»).');
+  input(order.querySelector('select'), 'title_asc', 'change');
+  await e.tick(0);
+  ok(e.fetches.length === 1 && e.fetches[0].body === null && !e.fetches[0].init.method && e.fetches[0].init.credentials === 'same-origin', 'Un GET de la misma página, sin REST.');
+  const want = '/catalogo/?utm=x&e-filter-loopown-digi_o_forder9=title_asc&e-filter-loopown-category=guias';
+  same(e.fetches[0].url, want, 'La URL filtrada con el orden y la taxonomía del filtro propio, sin perder lo ajeno.');
+  same(e.pushes, [want], 'La URL se escribe en la historia.');
+  const L = e.doc.querySelector('.elementor-element-loopown');
+  ok(L.getAttribute('aria-busy') === 'true', 'Ocupado mientras llega.');
+  e.fetches[0].resolve(page(item(7) + item(8), ' e-load-more-pagination-end'));
+  await e.tick(0);
+  ok(L.getAttribute('aria-busy') === 'false', 'Ya no ocupado.');
+  same(L.querySelectorAll('.e-loop-item').map((n) => n.querySelector('a').getAttribute('href')), ['#p7', '#p8'], 'El contenido del bucle es el de la respuesta (del mismo documento).');
+  ok(L.classList.contains('e-load-more-pagination-end') && L.classList.contains('elementor-widget-digitalisimo-loop-grid'), 'Las clases del envoltorio, las de la respuesta.');
+  ok(e.doc.querySelector('.digi-filter-status').textContent === '2 resultados', 'Anuncia el resultado en la región de estado.');
+  ok(e.doc.querySelector('.elementor-element-loopown') === L, 'El envoltorio es el mismo elemento (sus manejadores siguen).');
+  // Por página + popstate: los formularios, los botones del filtro propio y el bucle siguen a la URL.
+  formOf(e, 'fpage09').querySelector('[data-value="12"]').click();
+  await e.tick(0);
+  ok(e.fetches.length === 2 && e.fetches[1].url.includes('e-filter-loopown-digi_pp_fpage09=12'), 'Por página: otro GET con la cantidad.');
+  e.fetches[1].resolve(page(item(9)));
+  await e.tick(0);
+  e.location.search = '?e-filter-loopown-category=casos&e-filter-loopown-digi_o_forder9=date_desc';
+  e.popstate();
+  await e.tick(0);
+  ok(e.location.reloads === 0, 'popstate con claves conocidas (la taxonomía del filtro propio): sin recargar.');
+  ok(order.querySelector('select').value === 'date_desc', 'popstate: el desplegable.');
+  same(e.doc.querySelectorAll('.digi-tfilter__item').map((b) => b.getAttribute('aria-pressed')), ['false', 'false', 'true'], 'popstate: los botones del filtro propio.');
+  ok(e.fetches.length === 3 && e.fetches[2].url === '/catalogo/?e-filter-loopown-digi_o_forder9=date_desc&e-filter-loopown-category=casos' && e.pushes.length === 2, 'popstate: un GET con la URL de la historia, sin añadir historia.');
+  // Una respuesta sin el bucle (o un error): se navega a la URL filtrada, que el servidor pinta igual.
+  e.fetches[2].resolve('<html><body>sin bucle</body></html>');
+  await e.tick(0);
+  same(e.location.assigned, ['/catalogo/?e-filter-loopown-digi_o_forder9=date_desc&e-filter-loopown-category=casos'], 'Sin el bucle en la respuesta, navega a la URL filtrada.');
+  input(order.querySelector('select'), 'title_asc', 'change');
+  await e.tick(0);
+  e.fetches[3].resolve('error', 500);
+  await e.tick(0);
+  ok(e.location.assigned.length === 2, 'Con un error del servidor, también.');
+}
+
+console.log(`DIGITALÍSIMO Elements: formularios de los filtros ampliados de F7b con filters-form.js y el coordinador (registro, buscador, rango, lista, orden, por página, digi_ctx, popstate, «Archivo» y la Cuadrícula de bucle propia de C5) en verde: ${checks} comprobaciones.`);

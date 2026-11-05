@@ -21,6 +21,7 @@ namespace {
 	$GLOBALS['cv'] = array( 'filters' => array() );
 	function add_filter( $hook, $cb, $priority = 10, $args = 1 ) { $GLOBALS['cv']['filters'][ $hook ][] = $cb; }
 	function check_cv( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
+	function get_post_meta( $id, $key = "", $single = false ) { return $GLOBALS['cv']['meta'][ (int) $id ][ $key ] ?? ""; }
 
 	/** Archivos de PRO de los que salen los controles de un widget: él, su clase padre de carrusel y el trait. */
 	function pro_sources( string $file, string $elements ): array {
@@ -219,6 +220,13 @@ namespace {
 	check_cv( false === $config['widgets']['blockquote']['show_in_panel'] && 'Q' === $config['widgets']['blockquote']['title'], 'Con el propio registrado, el de PRO sale del panel sin perder su configuración.' );
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'show' ) );
 	check_cv( array() === Panel::document_config( array(), 1 ), 'panel => show lo deja a la vista.' );
+	// C5: en una plantilla de Elemento de bucle, los bucles propios salen de su panel como PRO quita los suyos.
+	$GLOBALS['cv']['meta'][77]['_elementor_template_type'] = 'loop-item';
+	$manager->known = array( 'digitalisimo-loop-grid', 'digitalisimo-loop-carousel' );
+	Registry::set( 'blockquote', null );
+	$loop_cfg = Panel::document_config( array(), 77 );
+	check_cv( false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-grid']['show_in_panel'] ?? null ) && false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-carousel']['show_in_panel'] ?? null ), 'Plantilla de Elemento de bucle: la Cuadrícula y el Carrusel de bucle propios no se ofrecen dentro (como los de PRO): ' . json_encode( $loop_cfg['panel'] ?? null ) );
+	check_cv( ! isset( Panel::document_config( array(), 1 )['panel'] ), 'En otro documento, los bucles propios siguen en el panel.' );
 	Registry::reset();
 
 	// 5. Cada mapa real: declara todos los controles de PRO y apunta a un widget propio. Los controles de un widget de PRO

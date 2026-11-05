@@ -95,6 +95,9 @@ jobs:
           node tests/elements-pro-video-playlist-chrome.mjs
           php tests/elements-pro-time.php
           node tests/elements-pro-time-chrome.mjs
+          php tests/elements-pro-posts.php
+          node tests/elements-pro-posts-chrome.mjs
+          php tests/elements-pro-loop.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
