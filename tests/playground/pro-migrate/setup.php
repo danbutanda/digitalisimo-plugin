@@ -6,6 +6,11 @@
 // Slider (C5); la cabecera lleva además unas Entradas de PRO (C5).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
+// Sin actualizaciones automáticas: con una Release más nueva en GitHub, WordPress actualizaría DIGITALÍSIMO Elements
+// (su actualizador las activa) y borraría la carpeta montada, que es la del repositorio o su copia de la corrida.
+wp_mkdir_p( WPMU_PLUGIN_DIR );
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-no-autoupdate.php', "<?php\n// Arnés de pruebas: sin actualizaciones automáticas (borrarían el plugin montado).\nadd_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );\nadd_filter( 'auto_update_plugin', '__return_false', PHP_INT_MAX );\nadd_filter( 'auto_update_theme', '__return_false', PHP_INT_MAX );\n" );
+add_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
