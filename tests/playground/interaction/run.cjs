@@ -466,8 +466,12 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0, C1, C2, C4): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
+      // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
+      // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
+      // tampoco va al panel (el buscador, como en PRO); `proOptional`, que PRO sólo lo registra con un requisito
+      // (las migas, con Yoast).
       const SUBSTITUTED = [
         { pro: 'blockquote', own: 'digitalisimo-blockquote', title: 'Cita', query: 'cita' },
         { pro: 'nested-carousel', own: 'digitalisimo-nested-carousel', title: 'Carrusel anidado', query: 'carrusel' },
@@ -490,25 +494,61 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'video-playlist', own: 'digitalisimo-video-playlist', title: 'Lista de videos', query: 'lista de videos' },
         { pro: 'countdown', own: 'digitalisimo-countdown', title: 'Cuenta regresiva', query: 'regresiva' },
         { pro: 'progress-tracker', own: 'digitalisimo-progress-tracker', title: 'Indicador de progreso', query: 'indicador de progreso' },
+        // C4 (Theme Builder y elementos de tema, docs/pro/c4.md).
+        { pro: 'theme-site-logo', own: 'digitalisimo-site-logo', title: 'Logotipo del sitio', query: 'logotipo' },
+        { pro: 'theme-site-title', own: 'digitalisimo-site-title', title: 'Título del sitio', query: 'título del sitio' },
+        { pro: 'theme-page-title', own: 'digitalisimo-page-title', title: 'Título de la página', query: 'título de la página' },
+        { pro: 'theme-post-title', own: 'digitalisimo-post-title', title: 'Título de la entrada', query: 'título de la entrada', doc: 'single' },
+        { pro: 'theme-archive-title', own: 'digitalisimo-archive-title', title: 'Título del archivo', query: 'título del archivo', doc: 'archive' },
+        { pro: 'theme-post-excerpt', own: 'digitalisimo-post-excerpt', title: 'Extracto', query: 'extracto', doc: 'single' },
+        { pro: 'theme-post-content', own: 'digitalisimo-post-content', title: 'Contenido de la entrada', query: 'contenido de la entrada', doc: 'single' },
+        { pro: 'theme-post-featured-image', own: 'digitalisimo-featured-image', title: 'Imagen destacada', query: 'imagen destacada', doc: 'single' },
+        { pro: 'post-info', own: 'digitalisimo-post-info', title: 'Información de la entrada', query: 'información de la entrada' },
+        { pro: 'post-navigation', own: 'digitalisimo-post-navigation', title: 'Navegación entre entradas', query: 'navegación entre' },
+        { pro: 'author-box', own: 'digitalisimo-author-box', title: 'Caja de autor', query: 'caja de autor' },
+        { pro: 'post-comments', own: 'digitalisimo-post-comments', title: 'Comentarios', query: 'comentarios' },
+        { pro: 'search-form', own: 'digitalisimo-search-form', title: 'Formulario de búsqueda', query: 'formulario de búsqueda', ownHidden: true },
+        { pro: 'sitemap', own: 'digitalisimo-sitemap', title: 'Mapa del sitio', query: 'mapa del sitio' },
+        { pro: 'breadcrumbs', own: 'digitalisimo-yoast-breadcrumbs', title: 'Migas (Yoast o DIGITALÍSIMO SEO)', query: 'migas', proOptional: true },
         // C3 (navegación y búsqueda, docs/pro/c3.md).
         { pro: 'nav-menu', own: 'digitalisimo-nav-menu', title: 'Menú de WordPress', query: 'menú de wordpress' },
         { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
         { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
         { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
       ];
-      const pro = await page.evaluate(async (list) => {
+      const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};
         const input = document.querySelector('#elementor-panel-elements-search-input');
         const search = async (q) => { input.value = q; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); await new Promise((r) => setTimeout(r, 1200)); return [...document.querySelectorAll('#elementor-panel-elements .elementor-element .title')].map((t) => t.textContent.trim()); };
         const out = [];
-        for (const w of list) {
-          out.push({ ...w, registered: !!cache[w.pro], proTitle: cache[w.pro] ? cache[w.pro].title : '', shown: cache[w.pro] ? cache[w.pro].show_in_panel : null, ownRegistered: !!cache[w.own], found: input ? await search(w.query) : null });
+        for (const w of items) {
+          out.push({ ...w, registered: !!cache[w.pro], proTitle: cache[w.pro] ? cache[w.pro].title : '', shown: cache[w.pro] ? cache[w.pro].show_in_panel : null, ownRegistered: !!cache[w.own], ownShown: cache[w.own] ? cache[w.own].show_in_panel : null, found: input ? await search(w.query) : null });
         }
         return out;
-      }, SUBSTITUTED);
-      const bad = pro.filter((w) => !w.registered || w.shown !== false || !w.ownRegistered || !(w.found || []).includes(w.title) || (w.found || []).includes(w.proTitle));
+      }, list);
+      const pro = await inspect(SUBSTITUTED.filter((w) => !w.doc));
+      // Las plantillas del Theme Builder de setup.php (templates.json en la carpeta de resultados).
+      let templates = {};
+      try { templates = JSON.parse(require('fs').readFileSync(`${process.env.OUT || '/tmp'}/templates.json`, 'utf8')); } catch (e) { templates = {}; }
+      for (const doc of [...new Set(SUBSTITUTED.filter((w) => w.doc).map((w) => w.doc))]) {
+        if (!templates[doc]) throw new Error(`setup.php no creó la plantilla «${doc}» del Theme Builder (templates.json)`);
+        await page.goto(`${base}/wp-admin/post.php?post=${templates[doc]}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+        await page.waitForSelector('#elementor-panel-elements-search-input', { timeout: 180000 });
+        const tplFrame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
+        await tplFrame.waitForSelector('.elementor-widget', { timeout: 180000 });
+        pro.push(...(await inspect(SUBSTITUTED.filter((w) => w.doc === doc))));
+      }
+      const bad = pro.filter((w) => {
+        if (!w.ownRegistered) return true;
+        if (w.registered ? w.shown !== false : !w.proOptional) return true;
+        if (w.proTitle && (w.found || []).includes(w.proTitle)) return true;
+        if (w.ownHidden) return w.ownShown !== false || (w.found || []).includes(w.title);
+        return !(w.found || []).includes(w.title);
+      });
       if (bad.length) throw new Error(`cada widget de PRO sustituido debe seguir registrado y fuera del panel, con el propio en su lugar: ${JSON.stringify(bad)}`);
-      results.editorPro = { ok: true, note: `${pro.length} widgets de PRO registrados y ocultos; ${pro.map((w) => `«${w.query}» → ${w.title}`).join('; ')}` };
+      if (errors.length) throw new Error('errores de JavaScript en el editor de las plantillas: ' + errors.join(' | '));
+      if (failedRequests.length) throw new Error('recursos no encontrados en el editor de las plantillas: ' + failedRequests.join(' | '));
+      results.editorPro = { ok: true, note: `${pro.filter((w) => w.registered).length} widgets de PRO registrados y ocultos${pro.some((w) => !w.registered) ? ` (sin registrar: ${pro.filter((w) => !w.registered).map((w) => w.pro).join(', ')})` : ''}; ${pro.map((w) => `«${w.query}»${w.doc ? ` (${w.doc})` : ''} → ${w.ownHidden ? `${w.title} fuera del panel, como PRO` : w.title}`).join('; ')}` };
       console.log(`OK     editor-pro · ${results.editorPro.note}`);
       console.log(`OK     editor-f7b · ${results.editorF7b.note}`);
       results.editor = { ok: true, note: `el editor de Elementor ${core} carga con panel y vista previa` };

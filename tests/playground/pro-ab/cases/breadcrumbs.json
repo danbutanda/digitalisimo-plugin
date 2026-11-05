@@ -1,0 +1,46 @@
+{
+ "_doc": [
+  "Casos A/B de Migas (frente H de C4): A con `breadcrumbs` de PRO, B con `digitalisimo-yoast-breadcrumbs`. El de PRO sólo existe con Yoast: `\"yoast\": true` hace que activate.php instale un mu-plugin con migas del formato de Yoast (inicio, categoría y entrada). Contexto `post` (frente G)."
+ ],
+ "declared": [
+  {
+   "widget": "breadcrumbs",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces de las migas (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "bc-defaults": {
+   "title": "Valores por defecto: migas de Yoast en un párrafo",
+   "widget": "breadcrumbs",
+   "context": "post",
+   "yoast": true,
+   "settings": {}
+  },
+  "bc-styled": {
+   "title": "Etiqueta nav, centrado (a la derecha en móvil), colores y tipografía",
+   "widget": "breadcrumbs",
+   "context": "post",
+   "yoast": true,
+   "settings": {
+    "html_tag": "nav",
+    "align": "center",
+    "align_mobile": "right",
+    "text_color": "#555555",
+    "link_color": "#0047ab",
+    "link_hover_color": "#b00020",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 16
+    },
+    "typography_font_weight": "600"
+   },
+   "pixels": {
+    "max": 0.05,
+    "reason": "Sólo en el estado con foco: el widget mide 46 px de alto y el contorno propio de 2 px del enlace enfocado (frente al de 1 px del navegador) ocupa el 4,2 % de la captura a 768 px; sin foco y al pasar el cursor, 0,00 %."
+   }
+  }
+ }
+}

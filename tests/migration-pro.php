@@ -23,6 +23,13 @@
  * - C2 (frente D, regla 6): qué orígenes de F8 llegan a los widgets de PRO de C2, y cada uno de Element Pack acaba en el
  *   widget propio en la misma pasada de Migrar (con el mapa de C2 del repositorio, sin claves sin declarar); la Cuenta
  *   regresiva con ajustes reales (fecha, etiquetas, mensaje, la cuenta en bucle como perpetua, CSS) y `--revert`.
+ * - C3 (frente F, regla 6, sección 6b): F8 sólo lleva a la navegación de PRO el Navbar y el Mega Menu (al `nav-menu`),
+ *   y los dos acaban en el Menú de WordPress propio en la misma pasada de Migrar, con sus clases traducidas, y `--revert`;
+ * - C4 (frente G): el título, la imagen destacada y el contenido de las entradas de Element Pack que F8 lleva a
+ *   `theme-post-title`, `theme-post-featured-image` y `theme-post-excerpt` acaban en `digitalisimo-post-title`,
+ *   `digitalisimo-featured-image` y `digitalisimo-post-excerpt` en la misma pasada de Migrar;
+ * - C4 (frente H): lo que F8 lleva a la información de la entrada, la caja de autor, los comentarios y el formulario de
+ *   búsqueda de PRO acaba en los widgets propios en la misma pasada, sin claves sin declarar.
  *
  * Se ejecuta con php-wasm (`node …/php-wasm-cli tests/migration-pro.php`): sale con 0 aunque haya un error fatal, así
  * que se juzga por la línea final.
@@ -818,6 +825,73 @@ namespace {
 	manager( null );
 	Registry::reset();
 	$check( $chained + count( $pending ) === 10, 'Cadena F8 → C2 → propio comprobada en ' . $chained . ' orígenes' . ( $pending ? '; sin mapa de C2 todavía: ' . implode( ', ', $pending ) : '' ) . '.' );
+
+	/* ===================================== 8. La cadena F8 → PRO → widget propio de los títulos y medios de tema (C4, G) */
+	// F8 lleva el título, la imagen destacada y el contenido de las entradas de Element Pack a los widgets de tema de PRO
+	// (`theme-post-title`, `theme-post-featured-image`, `theme-post-excerpt`), y la plantilla de bucle de Prime Slider
+	// crea `theme-post-title` y `theme-post-excerpt`: la etapa `pro` los lleva a los propios en la misma pasada.
+	$theme_targets = array( 'theme-post-title' => 'digitalisimo-post-title', 'theme-post-featured-image' => 'digitalisimo-featured-image', 'theme-post-excerpt' => 'digitalisimo-post-excerpt' );
+	Registry::reset();
+	fresh();
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+	foreach ( $theme_targets as $source => $target ) {
+		$real = Registry::map( $source, true );
+		$check( null !== $real && $target === $real['target'], "Hay mapa de {$source} hacia {$target}." );
+		Registry::set( $source, array( 'status' => 'ready' ) + (array) $real );
+	}
+	$single = doc(
+		array(
+			box(
+				'container',
+				array(
+					w( 'bdt-post-title', array( 'bdt_title_tag' => 'h1', 'bdt_post_link' => 'yes' ), 'et1' ),
+					w( 'bdt-post-featured-image', array( 'thumbnail_size' => 'medium', 'image_hover_animation' => 'grow' ), 'ei1' ),
+					w( 'bdt-post-content', array( 'content_type' => 'excerpt', 'limit' => array( 'size' => 25 ) ), 'ec1' ),
+				),
+				'ec0'
+			),
+		),
+		array( 'post_type' => 'elementor_library', 'post_title' => 'Entrada individual' ),
+		array( '_elementor_template_type' => 'single-post' )
+	);
+	$state = migrate();
+	$codes = doc_codes( $single );
+	foreach ( array( 'et1' => 'digitalisimo-post-title', 'ei1' => 'digitalisimo-featured-image', 'ec1' => 'digitalisimo-post-excerpt' ) as $eid => $target ) {
+		$el = find( tree( $single ), $eid );
+		$check( is_array( $el ) && $target === $el['widgetType'], "Migrar lleva {$eid} de Element Pack a {$target} en la misma pasada: " . wp_json_encode( $el['widgetType'] ?? null ) );
+	}
+	$check( 3 === (int) $state['counts']['pro_elements'] && ! preg_grep( '/^pro\.(unmapped|dropped):/', $codes ), 'Los tres pasan por la etapa pro sin claves sin declarar ni descartadas: ' . wp_json_encode( $codes ) );
+	$title = find( tree( $single ), 'et1' )['settings'];
+	$check( 'h1' === ( $title['header_size'] ?? '' ) && false !== strpos( (string) ( $title['__dynamic__']['title'] ?? '' ), 'name="post-title"' ) && false !== strpos( (string) ( $title['__dynamic__']['link'] ?? '' ), 'name="post-url"' ), 'El título conserva su nivel, la etiqueta dinámica del título y el enlace a la entrada: ' . wp_json_encode( $title ) );
+	$image = find( tree( $single ), 'ei1' )['settings'];
+	$check( 'medium' === ( $image['image_size'] ?? '' ) && 'grow' === ( $image['hover_animation'] ?? '' ) && false !== strpos( (string) ( $image['__dynamic__']['image'] ?? '' ), 'name="post-featured-image"' ), 'La imagen destacada conserva tamaño, efecto y etiqueta dinámica: ' . wp_json_encode( $image ) );
+	$excerpt = find( tree( $single ), 'ec1' )['settings'];
+	$check( false !== strpos( (string) ( $excerpt['__dynamic__']['excerpt'] ?? '' ), rawurlencode( '"max_length":25' ) ), 'El extracto conserva su número de palabras: ' . wp_json_encode( $excerpt ) );
+	Registry::reset();
+
+	/* ================================================================ 9. La cadena F8 → PRO → widget propio (C4, frente H) */
+	// Lo que F8 lleva a un elemento de entrada de PRO (Element Pack: información de la entrada, tarjeta de perfil,
+	// comentarios y buscador) acaba en el widget propio de C4 en la misma pasada de Migrar, sin claves sin declarar.
+	Registry::reset();
+	foreach ( array(
+		'bdt-post-info'     => array( 'post-info', 'digitalisimo-post-info', array( 'icon_color' => '#123456', 'text_color' => '#222222', 'space_between' => array( 'unit' => 'px', 'size' => 12 ) ) ),
+		'bdt-profile-card'  => array( 'author-box', 'digitalisimo-author-box', array() ),
+		'bdt-post-comments' => array( 'post-comments', 'digitalisimo-post-comments', array() ),
+		'bdt-search'        => array( 'search-form', 'digitalisimo-search-form', array() ),
+	) as $h_legacy => $h_chain ) {
+		list( $h_pro, $h_own, $h_settings ) = $h_chain;
+		if ( null === Registry::map( $h_pro ) ) {
+			continue; // Mapa aún en borrador: el widget de PRO queda (registrado, se ve igual).
+		}
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.173' ), 'site' );
+		$h_doc   = doc( array( box( 'container', array( w( $h_legacy, $h_settings, 'h1' ) ), 'hc1' ) ), array( 'post_title' => $h_legacy ) );
+		$h_state = migrate();
+		$h_el    = find( tree( $h_doc ), 'h1' );
+		$h_codes = doc_codes( $h_doc );
+		$check( ! empty( $h_state['done'] ) && is_array( $h_el ) && $h_own === $h_el['widgetType'] && $h_pro === ( $h_el['settings']['_digitalisimo_pro'] ?? '' ), "$h_legacy acaba en $h_own (vía $h_pro) en la misma pasada de Migrar: " . wp_json_encode( array( $h_el['widgetType'] ?? null, $h_state['counts'] ?? null ) ) );
+		$check( ! preg_grep( "/^pro\\.unmapped:/", $h_codes ), "$h_legacy → $h_own sin claves sin declarar: " . wp_json_encode( $h_codes ) );
+	}
 
 	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 100 );
 }

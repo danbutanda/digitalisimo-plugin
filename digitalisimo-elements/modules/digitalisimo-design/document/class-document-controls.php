@@ -35,6 +35,8 @@ final class Document_Controls {
 
 	const META         = '_elementor_page_settings';
 	const WIDGET       = 'theme-post-featured-image';
+	/** Widgets de imagen destacada que oculta el ajuste: el de PRO y el propio que lo sustituye (C4). */
+	const WIDGETS      = array( 'theme-post-featured-image', 'digitalisimo-featured-image' );
 	const THEME_FILTER = 'digitalisimo_theme_header_footer';
 
 	/** Tipos de documento `PageBase` que no son una página que se visita. */
@@ -248,7 +250,7 @@ final class Document_Controls {
 	}
 
 	private static function is_featured_widget( $element ): bool {
-		return is_object( $element ) && method_exists( $element, 'get_name' ) && self::WIDGET === $element->get_name();
+		return is_object( $element ) && method_exists( $element, 'get_name' ) && in_array( $element->get_name(), self::WIDGETS, true );
 	}
 
 	/** Entradas, páginas y demás `PageBase` (sin el kit ni los botones flotantes) y la página de la biblioteca. */
