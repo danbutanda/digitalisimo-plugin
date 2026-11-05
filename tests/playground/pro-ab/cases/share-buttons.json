@@ -1,0 +1,450 @@
+{
+ "_doc": [
+  "Casos A/B de los Botones para compartir (C2, frente A): A con `share-buttons` de PRO, B con `digitalisimo-share-buttons`. Los de PRO son `div role=\"button\"` sin destino (su script abre la ventana al hacer clic); los propios, enlaces normales con su destino."
+ ],
+ "declared": [
+  {
+   "widget": "share-buttons",
+   "kind": "enlace",
+   "match": "^nuevo «(https://|mailto:)",
+   "reason": "Contrato C2: cada botón es un enlace normal con la URL de compartir de su red (codificada en el servidor) o un mailto; en PRO era un div role=\"button\" sin destino y su script abría la ventana al hacer clic."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "control",
+   "match": "^control (div|a|button) \\d+ sólo en (A|B) \\((div|a|button)\\)$",
+   "reason": "Los botones de PRO son div role=\"button\" con tabindex; los propios, enlaces (y un <button> para imprimir): el arnés empareja los controles por etiqueta. Colores, tamaños y bordes se comparan en los textos, en el hover y en los píxeles."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "nombre",
+   "match": "^(perdido button «Share on [a-z-]+»|nuevo (link|button) «(Compartir en [^»]+|Compartir por correo|Imprimir la página|Compártelo)»)$",
+   "reason": "Nombre accesible en español con el nombre de la red («Compartir en Facebook») o el texto personalizado visible; PRO usaba «Share on <identificador>» en inglés, y el rol es el de un enlace (o botón para imprimir)."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "palabra",
+   "match": "^(perdida «(email|print)»|nueva «(correo|imprimir)»)$",
+   "reason": "Los títulos de Correo e Imprimir, en español; PRO pintaba «Email» y «Print» sin traducir (las demás son marcas)."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px a 2 px en el color del botón, estándar del front); PRO dejaba el anillo del navegador."
+  }
+ ],
+ "cases": {
+  "sb-defaults": {
+   "title": "Valores por defecto: Facebook, X y LinkedIn, degradado, cuadrados, icono y texto, colores oficiales",
+   "widget": "share-buttons",
+   "settings": {}
+  },
+  "sb-flat": {
+   "title": "Piel plana, cinco redes",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "flat",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "facebook"
+     },
+     {
+      "_id": "sb01",
+      "button": "whatsapp"
+     },
+     {
+      "_id": "sb02",
+      "button": "telegram"
+     },
+     {
+      "_id": "sb03",
+      "button": "pocket"
+     },
+     {
+      "_id": "sb04",
+      "button": "skype"
+     }
+    ]
+   }
+  },
+  "sb-minimal": {
+   "title": "Piel mínima con forma de círculo",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "minimal",
+    "shape": "circle",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "pinterest"
+     },
+     {
+      "_id": "sb01",
+      "button": "reddit"
+     },
+     {
+      "_id": "sb02",
+      "button": "threads"
+     }
+    ]
+   }
+  },
+  "sb-framed": {
+   "title": "Piel enmarcada, redondeada, borde de 3 px",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "framed",
+    "shape": "rounded",
+    "border_size": {
+     "unit": "px",
+     "size": 3
+    },
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "linkedin"
+     },
+     {
+      "_id": "sb01",
+      "button": "vk"
+     },
+     {
+      "_id": "sb02",
+      "button": "xing"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Foco visible propio en la piel enmarcada: contorno de 2 px a 2 px en el color de la red alrededor de un botón ya enmarcado (estándar del front); a 375 px el contorno pesa más que el 4 % general. Los estados normal y con el cursor encima quedan en 0,00 %."
+   }
+  },
+  "sb-boxed": {
+   "title": "Icono en caja, círculo",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "boxed",
+    "shape": "circle",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "tumblr"
+     },
+     {
+      "_id": "sb01",
+      "button": "digg"
+     },
+     {
+      "_id": "sb02",
+      "button": "pocket"
+     }
+    ]
+   }
+  },
+  "sb-icon": {
+   "title": "Vista sólo icono, plana y redondeada, tamaño de botón 1,2",
+   "widget": "share-buttons",
+   "settings": {
+    "view": "icon",
+    "skin": "flat",
+    "shape": "rounded",
+    "button_size": {
+     "unit": "px",
+     "size": 1.2
+    },
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "facebook"
+     },
+     {
+      "_id": "sb01",
+      "button": "x-twitter"
+     },
+     {
+      "_id": "sb02",
+      "button": "whatsapp"
+     },
+     {
+      "_id": "sb03",
+      "button": "email"
+     }
+    ]
+   },
+   "shape": "Vista «Icono»: los botones sólo pintan el icono de Font Awesome del núcleo (SVG en línea, sin texto ni imágenes); se comparan sus colores, tamaños y píxeles."
+  },
+  "sb-text": {
+   "title": "Vista sólo texto, enmarcada, con texto personalizado y tipografía",
+   "widget": "share-buttons",
+   "settings": {
+    "view": "text",
+    "skin": "framed",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 14
+    },
+    "share_buttons": [
+     {
+      "_id": "t1",
+      "button": "facebook",
+      "text": "Compártelo"
+     },
+     {
+      "_id": "t2",
+      "button": "linkedin"
+     },
+     {
+      "_id": "t3",
+      "button": "reddit"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Foco visible propio en la piel enmarcada: contorno de 2 px a 2 px en el color de la red alrededor de un botón ya enmarcado (estándar del front); a 375 px el contorno pesa más que el 4 % general. Los estados normal y con el cursor encima quedan en 0,00 %."
+   }
+  },
+  "sb-columns": {
+   "title": "Tres columnas (una en el móvil), sin etiqueta, altura y tamaño de icono",
+   "widget": "share-buttons",
+   "settings": {
+    "columns": "3",
+    "columns_mobile": "1",
+    "show_label": "",
+    "button_height": {
+     "unit": "px",
+     "size": 40
+    },
+    "icon_size": {
+     "unit": "em",
+     "size": 2
+    },
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "facebook"
+     },
+     {
+      "_id": "sb01",
+      "button": "x-twitter"
+     },
+     {
+      "_id": "sb02",
+      "button": "linkedin"
+     },
+     {
+      "_id": "sb03",
+      "button": "pinterest"
+     },
+     {
+      "_id": "sb04",
+      "button": "reddit"
+     },
+     {
+      "_id": "sb05",
+      "button": "telegram"
+     }
+    ]
+   },
+   "shape": "Vista «Icono»: los botones sólo pintan el icono de Font Awesome del núcleo (SVG en línea, sin texto ni imágenes); se comparan sus colores, tamaños y píxeles."
+  },
+  "sb-center": {
+   "title": "Alineación centrada con separaciones de 20 px",
+   "widget": "share-buttons",
+   "settings": {
+    "alignment": "center",
+    "column_gap": {
+     "unit": "px",
+     "size": 20
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 20
+    },
+    "skin": "boxed"
+   }
+  },
+  "sb-justify": {
+   "title": "Alineación justificada en el escritorio y a la derecha en el móvil",
+   "widget": "share-buttons",
+   "settings": {
+    "alignment": "justify",
+    "alignment_mobile": "right",
+    "skin": "minimal"
+   }
+  },
+  "sb-custom": {
+   "title": "Colores personalizados en la piel plana, con el cursor encima",
+   "widget": "share-buttons",
+   "settings": {
+    "color_source": "custom",
+    "skin": "flat",
+    "primary_color": "#112233",
+    "secondary_color": "#ffeedd",
+    "primary_color_hover": "#335577",
+    "secondary_color_hover": "#ffffff"
+   }
+  },
+  "sb-custom-boxed": {
+   "title": "Colores personalizados en la caja y redondeada",
+   "widget": "share-buttons",
+   "settings": {
+    "color_source": "custom",
+    "skin": "boxed",
+    "shape": "rounded",
+    "primary_color": "#7a1f5c",
+    "secondary_color": "#fff3c4"
+   }
+  },
+  "sb-custom-framed": {
+   "title": "Colores personalizados en la piel enmarcada y en la mínima",
+   "widget": "share-buttons",
+   "settings": {
+    "color_source": "custom",
+    "skin": "framed",
+    "primary_color": "#0a7d3b"
+   }
+  },
+  "sb-custom-minimal": {
+   "title": "Colores personalizados en la piel mínima",
+   "widget": "share-buttons",
+   "settings": {
+    "color_source": "custom",
+    "skin": "minimal",
+    "shape": "rounded",
+    "primary_color": "#0a7d3b",
+    "secondary_color": "#111111"
+   }
+  },
+  "sb-all": {
+   "title": "Las veinte redes de PRO, en dos columnas",
+   "widget": "share-buttons",
+   "settings": {
+    "columns": "2",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "facebook"
+     },
+     {
+      "_id": "sb01",
+      "button": "twitter"
+     },
+     {
+      "_id": "sb02",
+      "button": "linkedin"
+     },
+     {
+      "_id": "sb03",
+      "button": "pinterest"
+     },
+     {
+      "_id": "sb04",
+      "button": "reddit"
+     },
+     {
+      "_id": "sb05",
+      "button": "vk"
+     },
+     {
+      "_id": "sb06",
+      "button": "odnoklassniki"
+     },
+     {
+      "_id": "sb07",
+      "button": "tumblr"
+     },
+     {
+      "_id": "sb08",
+      "button": "digg"
+     },
+     {
+      "_id": "sb09",
+      "button": "skype"
+     },
+     {
+      "_id": "sb10",
+      "button": "stumbleupon"
+     },
+     {
+      "_id": "sb11",
+      "button": "mix"
+     },
+     {
+      "_id": "sb12",
+      "button": "telegram"
+     },
+     {
+      "_id": "sb13",
+      "button": "pocket"
+     },
+     {
+      "_id": "sb14",
+      "button": "xing"
+     },
+     {
+      "_id": "sb15",
+      "button": "whatsapp"
+     },
+     {
+      "_id": "sb16",
+      "button": "email"
+     },
+     {
+      "_id": "sb17",
+      "button": "print"
+     },
+     {
+      "_id": "sb18",
+      "button": "x-twitter"
+     },
+     {
+      "_id": "sb19",
+      "button": "threads"
+     }
+    ]
+   }
+  },
+  "sb-custom-url": {
+   "title": "URL personalizada",
+   "widget": "share-buttons",
+   "settings": {
+    "share_url_type": "custom",
+    "share_url": {
+     "url": "https://example.com/articulo/?a=1&b=2",
+     "is_external": "",
+     "nofollow": ""
+    },
+    "skin": "flat"
+   }
+  },
+  "sb-mail-print": {
+   "title": "Correo e imprimir, piel plana y vista de icono y texto",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "flat",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "email"
+     },
+     {
+      "_id": "sb01",
+      "button": "print"
+     },
+     {
+      "_id": "sb02",
+      "button": "threads"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.14,
+    "reason": "Los títulos de Correo e Imprimir están en español («Correo», «Imprimir»; PRO pintaba «Email» y «Print» sin traducir): los dos botones cambian de ancho. Colores, iconos y alturas iguales."
+   }
+  }
+ }
+}

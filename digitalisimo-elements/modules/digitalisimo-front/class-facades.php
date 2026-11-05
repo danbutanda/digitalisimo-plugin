@@ -44,6 +44,7 @@ final class Facades {
 		'digitalisimo-offcanvas'      => '\Digitalisimo\Elements\Offcanvas_Widget',
 		'digitalisimo-map'            => '\Digitalisimo\Elements\Map_Widget',
 		'digitalisimo-media-carousel' => '\Digitalisimo\Elements\Carousel\Widgets\Media_Carousel',
+		'digitalisimo-video-playlist' => '\Digitalisimo\Elements\Content\Widgets\Video_Playlist',
 	);
 
 	private static $initialized = false;

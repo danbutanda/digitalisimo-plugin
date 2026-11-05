@@ -1,0 +1,870 @@
+{
+ "_doc": [
+  "Casos A/B de los Puntos de interés (frente C de C2): A con `hotspot` de PRO, B con `digitalisimo-hotspot`. Imágenes con `{\"$image\": n}`. Las animaciones infinitas del punto (latido, expansión) se apagan salvo en hs-defaults; las de la información emergente terminan antes de medir.",
+  "`actions`: pulsar el disparador de cada lado (en PRO, el `<div>` `.e-hotspot__button`; aquí, el `<button>`). El arnés quita el foco y el puntero tras cada acción: «al pulsar» la información emergente sigue abierta."
+ ],
+ "declared": [
+  {
+   "widget": "hotspot",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?nuevo button «",
+   "reason": "Cada punto con información emergente es un <button> con nombre (su texto o «Punto de interés N»), aria-expanded y aria-controls: se alcanza y se abre con el teclado. En PRO era un <div> fuera del orden del foco."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control button \\d+ sólo en B",
+   "reason": "Botón propio de cada punto con información emergente (ver «nuevo button»)."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?(perdido|nuevo) link «",
+   "reason": "Un punto con enlace sin texto lleva como nombre «Punto de interés N» (en PRO, un enlace sin nombre accesible)."
+  },
+  {
+   "widget": "hotspot",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px a 2 px) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "hs-defaults": {
+   "title": "Valores por defecto: imagen de muestra y un punto circular con «Expansión», información emergente al pulsar",
+   "widget": "hotspot",
+   "settings": {},
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
+  },
+  "hs-click": {
+   "title": "Imagen, tres puntos (círculo, texto e icono con enlace), sin animación; abrir, cambiar y cerrar al pulsar",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "image_size": "large",
+    "hotspot_animation": "",
+    "hotspot": [
+     {
+      "_id": "h3",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "#estrella",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "fas fa-star",
+       "library": "fa-solid"
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 3",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 75,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 70,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
+     {
+      "_id": "h1",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 25,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 35,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
+     {
+      "_id": "h2",
+      "hotspot_label": "Cocina",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "<p>Isla central con <strong>encimera</strong></p>",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 55,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "pulsar el punto 1",
+     "a": ".elementor-repeater-item-h1 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h1 .digi-hs__button"
+    },
+    {
+     "label": "pulsar el punto 2 (cierra el 1)",
+     "a": ".elementor-repeater-item-h2 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h2 .digi-hs__button"
+    },
+    {
+     "label": "pulsar otra vez el punto 2 (lo cierra)",
+     "a": ".elementor-repeater-item-h2 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h2 .digi-hs__button"
+    }
+   ]
+  },
+  "hs-hover": {
+   "title": "Al pasar el cursor, con enlaces con información emergente; abre con el puntero encima",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "tooltip_trigger": "mouseenter",
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Ver salón",
+      "hotspot_link": {
+       "url": "#salon",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Salón con chimenea",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 30,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
+     {
+      "_id": "h2",
+      "hotspot_label": "Terraza",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Terraza de 20 m²",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 65,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 60,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.06,
+      "reason": "Con «al pasar», la información emergente propia se abre también con el foco del teclado (WCAG 1.4.13 y 2.1.1); PRO sólo la abría con el puntero."
+     }
+    }
+   }
+  },
+  "hs-styles": {
+   "title": "Siempre visible, con iconos al final, superposición y estilos de punto e información emergente",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "e-hotspot--overlay",
+    "tooltip_trigger": "none",
+    "tooltip_position": "right",
+    "style_hotspot_color": "#FFFFFF",
+    "style_hotspot_box_color": "#C0392B",
+    "style_hotspot_size": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "style_hotspot_padding": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "style_hotspot_border_radius": {
+     "unit": "px",
+     "top": "20",
+     "right": "20",
+     "bottom": "20",
+     "left": "20",
+     "isLinked": true
+    },
+    "style_typography_typography": "custom",
+    "style_typography_font_size": {
+     "unit": "px",
+     "size": 15,
+     "sizes": []
+    },
+    "style_typography_font_weight": "700",
+    "style_hotspot_box_shadow_box_shadow_type": "yes",
+    "style_hotspot_box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 2,
+     "blur": 6,
+     "spread": 0,
+     "color": "rgba(0,0,0,.4)"
+    },
+    "style_tooltip_text_color": "#111111",
+    "style_tooltip_color": "#FFF4D6",
+    "style_tooltip_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "style_tooltip_border_radius": {
+     "unit": "px",
+     "top": "6",
+     "right": "6",
+     "bottom": "6",
+     "left": "6",
+     "isLinked": true
+    },
+    "style_tooltip_align": "center",
+    "style_tooltip_max_width": {
+     "unit": "px",
+     "size": 220,
+     "sizes": []
+    },
+    "style_tooltip_typography_typography": "custom",
+    "style_tooltip_typography_font_size": {
+     "unit": "px",
+     "size": 14,
+     "sizes": []
+    },
+    "style_tooltip_box_shadow_box_shadow_type": "yes",
+    "style_tooltip_box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 6,
+     "blur": 18,
+     "spread": 0,
+     "color": "rgba(0,0,0,.25)"
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Entrada",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "fas fa-door-open",
+       "library": "fa-solid"
+      },
+      "hotspot_icon_position": "end",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 10,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Recibidor amplio",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 10,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 20,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
+     {
+      "_id": "h2",
+      "hotspot_label": "Jardín",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "yes",
+      "hotspot_tooltip_content": "Jardín con riego automático y árboles frutales",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 65,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "yes",
+      "hotspot_width": {
+       "unit": "px",
+       "size": 90,
+       "sizes": []
+      },
+      "hotspot_height": {
+       "unit": "px",
+       "size": 40,
+       "sizes": []
+      },
+      "hotspot_position": "top",
+      "hotspot_tooltip_text_wrap": "yes",
+      "hotspot_tooltip_width": {
+       "unit": "px",
+       "size": 160,
+       "sizes": []
+      }
+     }
+    ]
+   }
+  },
+  "hs-direction": {
+   "title": "Deslizar desde la dirección (izquierda) y aparecer creciendo por punto; abrir al pulsar",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "tooltip_animation": "e-hotspot--slide-direction",
+    "tooltip_position": "left",
+    "tooltip_animation_duration": {
+     "unit": "px",
+     "size": 200,
+     "sizes": []
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Norte",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 70,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 30,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     },
+     {
+      "_id": "h2",
+      "hotspot_label": "Sur",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 2",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 70,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 70,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "yes",
+      "hotspot_position": "bottom"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "pulsar Norte",
+     "a": ".elementor-repeater-item-h1 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h1 .digi-hs__button"
+    },
+    {
+     "label": "pulsar Sur",
+     "a": ".elementor-repeater-item-h2 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h2 .digi-hs__button"
+    }
+   ],
+   "interact": false,
+   "declared": [
+    {
+     "kind": "palabra",
+     "match": "^(\\[acción [^\\]]*\\] )?perdida «",
+     "reason": "«Deslizar desde la dirección» cerrada: PRO deja la información emergente opaca y la esconde sólo desplazándola fuera de su máscara (el texto sigue en la página y sus enlaces reciben el foco); la propia, cerrada, además queda oculta (visibility)."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
+  },
+  "hs-grow": {
+   "title": "Aparecer creciendo, abajo, orientación derecha y abajo; abrir al pulsar",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "tooltip_animation": "e-hotspot--fade-grow",
+    "tooltip_position": "bottom",
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Rincón",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "right",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 30,
+       "sizes": []
+      },
+      "hotspot_vertical": "bottom",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 30,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "pulsar Rincón",
+     "a": ".elementor-repeater-item-h1 .e-hotspot__button",
+     "b": ".elementor-repeater-item-h1 .digi-hs__button"
+    }
+   ],
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
+  },
+  "hs-image": {
+   "title": "Estilos de la imagen: ancho, alineación, alto con recorte, opacidad, borde, radio y sombra",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "align": "center",
+    "width": {
+     "unit": "%",
+     "size": 60,
+     "sizes": []
+    },
+    "height": {
+     "unit": "px",
+     "size": 320,
+     "sizes": []
+    },
+    "object-fit": "cover",
+    "object-position": "top center",
+    "opacity": {
+     "unit": "px",
+     "size": 0.8,
+     "sizes": []
+    },
+    "image_border_border": "solid",
+    "image_border_width": {
+     "unit": "px",
+     "top": "3",
+     "right": "3",
+     "bottom": "3",
+     "left": "3",
+     "isLinked": true
+    },
+    "image_border_color": "#2155CF",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "16",
+     "right": "16",
+     "bottom": "16",
+     "left": "16",
+     "isLinked": true
+    },
+    "image_box_shadow_box_shadow_type": "yes",
+    "image_box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 8,
+     "blur": 20,
+     "spread": 0,
+     "color": "rgba(0,0,0,.3)"
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "interact": false,
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
+  },
+  "hs-image-mobile": {
+   "title": "Ancho por dispositivo: 60 % en el escritorio y 100 % en el móvil",
+   "widget": "hotspot",
+   "interact": false,
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "width": {
+     "unit": "%",
+     "size": 60,
+     "sizes": []
+    },
+    "width_mobile": {
+     "unit": "%",
+     "size": 100,
+     "sizes": []
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "",
+      "hotspot_link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "hotspot_icon": {
+       "value": "",
+       "library": ""
+      },
+      "hotspot_icon_position": "start",
+      "hotspot_icon_spacing": {
+       "unit": "px",
+       "size": 5,
+       "sizes": []
+      },
+      "hotspot_custom_size": "no",
+      "hotspot_tooltip_content": "Información del punto 1",
+      "hotspot_horizontal": "left",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_vertical": "top",
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 50,
+       "sizes": []
+      },
+      "hotspot_tooltip_position": "no"
+     }
+    ]
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    },
+    "widths": {
+     "375": {
+      "max": 0.65,
+      "reason": "PRO cambia con update_control() sólo el ancho del escritorio: en la tableta y el móvil el ancho sigue con el selector del widget Imagen (sobre la imagen, dentro del contenedor del escritorio), así que a 375 px su imagen queda al 60 %. El widget propio aplica el ancho de cada dispositivo al contenedor (diferencia declarada)."
+     }
+    }
+   },
+   "declared": [
+    {
+     "kind": "caja",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor (ver pixels.reason)."
+    },
+    {
+     "kind": "imagen",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor: el navegador elige otro archivo del srcset."
+    },
+    {
+     "kind": "estilo",
+     "match": ".",
+     "reason": "Ancho del móvil aplicado al contenedor."
+    }
+   ]
+  },
+  "hs-caption": {
+   "title": "Leyenda bajo la imagen (rasgo DIGITALÍSIMO del Hotspot) con alineación, color, tipografía y separación",
+   "widget": "hotspot",
+   "interact": false,
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "digitalisimo_hotspot_caption": "Planta baja de la casa",
+    "digitalisimo_hotspot_caption_align": "center",
+    "digitalisimo_hotspot_caption_color": "#2155CF",
+    "digitalisimo_hotspot_caption_typography_typography": "custom",
+    "digitalisimo_hotspot_caption_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "digitalisimo_hotspot_caption_space": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Entrada",
+      "hotspot_tooltip_content": "Recibidor",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      },
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      }
+     }
+    ]
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: el botón propio del punto (en PRO un <div> fuera del orden del foco), así que A no tiene captura con el foco. El teclado se prueba en tests/elements-pro-hotspot-chrome.mjs."
+     }
+    }
+   }
+  }
+ }
+}

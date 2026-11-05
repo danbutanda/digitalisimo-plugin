@@ -76,6 +76,25 @@ jobs:
           php tests/elements-pro-media-carousel.php
           php tests/elements-pro-testimonials.php
           php tests/elements-pro-slides.php
+          php tests/elements-pro-animated-headline.php
+          node tests/elements-pro-animated-headline-chrome.mjs
+          php tests/elements-pro-code-highlight.php
+          node tests/elements-pro-code-highlight-chrome.mjs
+          php tests/elements-pro-table-of-contents.php
+          node tests/elements-pro-table-of-contents-chrome.mjs
+          php tests/elements-pro-share-buttons.php
+          node tests/elements-pro-share-buttons-chrome.mjs
+          php tests/elements-pro-cards.php
+          php tests/elements-pro-gallery.php
+          node tests/elements-pro-gallery-chrome.mjs
+          php tests/elements-pro-hotspot.php
+          node tests/elements-pro-hotspot-chrome.mjs
+          php tests/elements-pro-lottie.php
+          node tests/elements-pro-lottie-chrome.mjs
+          php tests/elements-pro-video-playlist.php
+          node tests/elements-pro-video-playlist-chrome.mjs
+          php tests/elements-pro-time.php
+          node tests/elements-pro-time-chrome.mjs
           php tests/elements-pro-theme-titles-media.php
           php tests/elements-pro-post-info.php
           php tests/elements-pro-post-navigation.php

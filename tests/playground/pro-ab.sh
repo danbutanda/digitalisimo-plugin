@@ -30,6 +30,15 @@
 # (`{a, b}`: selectores que deben existir dentro del widget antes de medir; por defecto se espera a que Swiper y el motor
 # `digi-crs` hayan arrancado) y `actions` (pulsar o teclear tras medir cada ancho, con firma y píxeles después de cada
 # una; ver run.cjs).
+# C2: `before`/`after` (elementos hermanos del widget en su contenedor, sin convertir: los encabezados de una tabla de
+# contenido) y `reducedMotion` (A y B con «reducir movimiento», para comparar el estado final de una animación).
+# También `clock` (fecha ISO: el reloj del navegador fijado, para una cuenta regresiva) y, en `actions`, `scroll` (píxeles o
+# `end`: desplaza la página en lugar de pulsar, para un indicador de progreso) y `shape` (motivo: el widget sólo dibuja una forma
+# al cargar; basta con que su caja tenga alto).
+# Umbrales de píxeles, siempre con `reason`: `pixels.max` (todo el caso), `pixels.widths` (`{"<ancho>": {max, reason}}`:
+# sólo ese ancho) y `pixels.states` (`{hover|focus: {max, reason} | {skip: true, reason}}`: umbral propio de un estado, u
+# omitir sus píxeles cuando sólo B tiene algo que enfocar o que lleva el puntero fuera del widget). Medios de Lottie en los
+# ajustes: `{"$lottie": 1}` da `{id, url}` de un adjunto JSON de prueba y `"$lottie-url"`, su URL.
 # C4 (elementos de tema) añade, todos opcionales y sin efecto en los casos que no los traen:
 #   - `context`: mide A y B dentro de una consulta, como la vista previa del Theme Builder (`switch_to_query()` en el
 #     primer elemento de nivel superior): `"post"` o `{"post": "full"}` (entrada completa: autora con biografía,

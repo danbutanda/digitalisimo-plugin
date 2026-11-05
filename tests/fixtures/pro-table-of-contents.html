@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabla de contenido (digitalisimo-table-of-contents)</title>
+<!-- Marcado de Table_Of_Contents::render() (lo comprueba tests/elements-pro-table-of-contents.php) dentro de documentos
+     del constructor; ?case=<plantilla> elige el escenario. Lo usa tests/elements-pro-table-of-contents-chrome.mjs. -->
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-content/assets/css/table-of-contents.css">
+<style>body{margin:0;font:16px/1.5 sans-serif}.gap{height:1400px}</style>
+</head>
+<body>
+<template id="default">
+  <div class="elementor" data-elementor-type="header"><h2>Cabecera del sitio</h2></div>
+  <div class="elementor" data-elementor-type="wp-page" data-elementor-id="10">
+    <div class="elementor-element elementor-widget elementor-widget-digitalisimo-table-of-contents digi-toc--minimized-on-tablet" data-id="toc">
+      <nav class="digi-toc" aria-labelledby="digi-toc-toc-title" data-digi-toc='{"tags":["h2","h3","h4","h5","h6"],"container":"","exclude":"","view":"numbers","nested":true,"collapse":false,"minimize":1024}'><div class="digi-toc__header"><h4 class="digi-toc__title" id="digi-toc-toc-title">Tabla de contenido</h4><button type="button" class="digi-toc__toggle" aria-expanded="true" aria-controls="digi-toc-toc" aria-label="Mostrar u ocultar la tabla de contenido"><span class="digi-toc__toggle-icon digi-toc__toggle-icon--expand"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 3l5 5 5-5z"/></svg></span><span class="digi-toc__toggle-icon digi-toc__toggle-icon--collapse"><svg aria-hidden="true" viewBox="0 0 10 10"><path d="M0 7l5-5 5 5z"/></svg></span></button></div><div class="digi-toc__body" id="digi-toc-toc"><span class="digi-toc__spinner" aria-hidden="true"></span></div><template class="digi-toc__empty">No se encontraron encabezados.</template></nav>
+    </div>
+    <h1>Título de la página</h1>
+    <div class="elementor-element elementor-widget"><h2>Primera &lt;b&gt;sección&lt;/b&gt;</h2></div>
+    <div class="gap"></div>
+    <div class="elementor-element elementor-widget"><h3>Uno punto uno</h3></div>
+    <div class="gap"></div>
+    <h3 id="propio">Uno punto dos</h3>
+    <h4>Detalle</h4>
+    <div class="gap"></div>
+    <div class="elementor-element elementor-widget" id="seccion-b"><h2>Segunda sección</h2></div>
+    <div class="gap"></div>
+    <h3 class="no-toc">Tres</h3>
+    <div class="gap"></div>
+  </div>
+  <div class="elementor" data-elementor-type="footer"><h2>Pie del sitio</h2></div>
+  <div class="elementor" data-elementor-type="popup"><h2>Emergente</h2></div>
+</template>
+
+<template id="bullets">
+  <div class="elementor" data-elementor-type="wp-post">
+    <div class="elementor-element" data-id="toc">
+      <nav class="digi-toc" aria-label="Tabla de contenido" data-digi-toc='{"tags":["h2","h3"],"container":"#main","exclude":".no-toc, .skip","view":"bullets","nested":false,"collapse":false}'><div class="digi-toc__body" id="digi-toc-toc"><span class="digi-toc__spinner" aria-hidden="true"></span></div><template class="digi-toc__marker"><svg class="marca" aria-hidden="true" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg></template><template class="digi-toc__empty">Nada</template></nav>
+    </div>
+    <h2>Fuera del contenedor</h2>
+    <div id="main">
+      <h2>Alfa</h2>
+      <h3>Alfa uno</h3>
+      <div class="no-toc"><h3>Excluido</h3></div>
+      <h2 class="skip">Saltado</h2>
+      <h2>Beta</h2>
+    </div>
+  </div>
+</template>
+
+<template id="collapse">
+  <div class="elementor" data-elementor-type="wp-page">
+    <div class="elementor-element" data-id="toc">
+      <nav class="digi-toc" aria-label="Tabla de contenido" data-digi-toc='{"tags":["h2","h3","h4"],"container":"","exclude":"","view":"numbers","nested":true,"collapse":true}'><div class="digi-toc__body digi-toc__body--collapsible" id="digi-toc-toc"><span class="digi-toc__spinner" aria-hidden="true"></span></div><template class="digi-toc__empty">Nada</template></nav>
+    </div>
+    <h2>A</h2><h3>A1</h3><h4>A1a</h4>
+    <div class="gap"></div>
+    <h2>B</h2><h3>B1</h3>
+    <div class="gap"></div>
+  </div>
+</template>
+
+<template id="empty">
+  <div class="elementor" data-elementor-type="wp-page">
+    <div class="elementor-element" data-id="toc">
+      <nav class="digi-toc" aria-label="Tabla de contenido" data-digi-toc='{"tags":["h1"],"container":"","exclude":"","view":"numbers","nested":true,"collapse":false,"minimize":"all"}'><div class="digi-toc__header"><button type="button" class="digi-toc__toggle" aria-expanded="true" aria-controls="digi-toc-toc" aria-label="Mostrar u ocultar la tabla de contenido"><span class="digi-toc__toggle-icon digi-toc__toggle-icon--expand">+</span><span class="digi-toc__toggle-icon digi-toc__toggle-icon--collapse">-</span></button></div><div class="digi-toc__body" id="digi-toc-toc"><span class="digi-toc__spinner" aria-hidden="true"></span></div><template class="digi-toc__empty">Sin <strong>encabezados</strong>.</template></nav>
+    </div>
+    <h2>No es h1</h2>
+  </div>
+</template>
+
+<template id="popup">
+  <div class="elementor" data-elementor-type="wp-page"><h2>De la página</h2></div>
+  <div class="elementor" data-elementor-type="popup">
+    <div class="elementor-element" data-id="toc">
+      <nav class="digi-toc" aria-label="Tabla de contenido" data-digi-toc='{"tags":["h2"],"container":"","exclude":"","view":"numbers","nested":true,"collapse":false,"minimize":"all"}'><div class="digi-toc__header"><button type="button" class="digi-toc__toggle" aria-expanded="true" aria-controls="digi-toc-toc" aria-label="Mostrar u ocultar la tabla de contenido"><span class="digi-toc__toggle-icon digi-toc__toggle-icon--expand">+</span><span class="digi-toc__toggle-icon digi-toc__toggle-icon--collapse">-</span></button></div><div class="digi-toc__body" id="digi-toc-toc"><span class="digi-toc__spinner" aria-hidden="true"></span></div><template class="digi-toc__empty">Nada</template></nav>
+    </div>
+    <h2>Del emergente</h2>
+  </div>
+</template>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), t = document.getElementById(q.get('case') || 'default');
+  document.body.appendChild(t.content.cloneNode(true));
+  if (q.get('editor')) document.body.classList.add('elementor-editor-active');
+  if (q.get('js') === '0') return;
+  var s = document.createElement('script');
+  s.src = '../../digitalisimo-elements/modules/digitalisimo-content/assets/js/table-of-contents.js';
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>

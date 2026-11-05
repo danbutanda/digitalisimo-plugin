@@ -97,7 +97,61 @@ function digi_ab_image( $n ) {
 	return $cache[ $n ] = array( $id, (string) wp_get_attachment_url( $id ) );
 }
 
-/** Sustituye en unos ajustes las imágenes de prueba: `{"$image": n}`, `{"$gallery": [n, …]}` y `"$image-url:n"`. */
+/**
+ * Animación Lottie de prueba (frente C de C2): JSON de 400 × 300, 50 fotogramas a 25 por segundo, con un rectángulo azul
+ * que cruza de izquierda a derecha y un círculo rojo que crece; las dos formas se ven desde el primer fotograma. Se
+ * guarda una vez como adjunto `application/json` (sin pasar por la lista de tipos de subida). Devuelve `[ID, URL]`.
+ */
+function digi_ab_lottie() {
+	static $cache = null;
+	if ( null !== $cache ) {
+		return $cache;
+	}
+	$slug     = 'pro-ab-lottie';
+	$existing = get_posts( array( 'post_type' => 'attachment', 'name' => $slug, 'post_status' => 'inherit', 'numberposts' => 1, 'fields' => 'ids' ) );
+	if ( $existing ) {
+		return $cache = array( (int) $existing[0], (string) wp_get_attachment_url( (int) $existing[0] ) );
+	}
+	$tr    = array( 'ty' => 'tr', 'p' => array( 'a' => 0, 'k' => array( 0, 0 ) ), 'a' => array( 'a' => 0, 'k' => array( 0, 0 ) ), 's' => array( 'a' => 0, 'k' => array( 100, 100 ) ), 'r' => array( 'a' => 0, 'k' => 0 ), 'o' => array( 'a' => 0, 'k' => 100 ), 'sk' => array( 'a' => 0, 'k' => 0 ), 'sa' => array( 'a' => 0, 'k' => 0 ) );
+	$ease  = static function ( $from, $to, $t0, $t1 ) {
+		$n = count( $from );
+		return array( 'a' => 1, 'k' => array( array( 'i' => array( 'x' => array_fill( 0, $n, 0.5 ), 'y' => array_fill( 0, $n, 0.5 ) ), 'o' => array( 'x' => array_fill( 0, $n, 0.5 ), 'y' => array_fill( 0, $n, 0.5 ) ), 't' => $t0, 's' => $from, 'e' => $to ), array( 't' => $t1 ) ) );
+	};
+	$layer = static function ( $ind, $name, $shape, $color, array $ks ) use ( $tr ) {
+		return array(
+			'ddd' => 0, 'ind' => $ind, 'ty' => 4, 'nm' => $name, 'sr' => 1, 'ao' => 0, 'ip' => 0, 'op' => 50, 'st' => 0, 'bm' => 0,
+			'ks'     => $ks + array( 'o' => array( 'a' => 0, 'k' => 100 ), 'r' => array( 'a' => 0, 'k' => 0 ), 'a' => array( 'a' => 0, 'k' => array( 0, 0, 0 ) ), 's' => array( 'a' => 0, 'k' => array( 100, 100, 100 ) ) ),
+			'shapes' => array( array( 'ty' => 'gr', 'nm' => $name, 'it' => array( $shape, array( 'ty' => 'fl', 'c' => array( 'a' => 0, 'k' => $color ), 'o' => array( 'a' => 0, 'k' => 100 ), 'r' => 1 ), $tr ) ) ),
+		);
+	};
+	$json = wp_json_encode(
+		array(
+			'v' => '5.5.7', 'fr' => 25, 'ip' => 0, 'op' => 50, 'w' => 400, 'h' => 300, 'nm' => 'pro-ab', 'ddd' => 0, 'assets' => array(),
+			'layers' => array(
+				$layer( 1, 'rect', array( 'ty' => 'rc', 'd' => 1, 's' => array( 'a' => 0, 'k' => array( 120, 120 ) ), 'p' => array( 'a' => 0, 'k' => array( 0, 0 ) ), 'r' => array( 'a' => 0, 'k' => 16 ) ), array( 0.141, 0.369, 1, 1 ), array( 'p' => $ease( array( 90, 150, 0 ), array( 310, 150, 0 ), 0, 50 ) ) ),
+				$layer( 2, 'dot', array( 'ty' => 'el', 'd' => 1, 's' => array( 'a' => 0, 'k' => array( 240, 240 ) ), 'p' => array( 'a' => 0, 'k' => array( 0, 0 ) ) ), array( 0.902, 0.224, 0.275, 1 ), array( 'p' => array( 'a' => 0, 'k' => array( 200, 150, 0 ) ), 's' => $ease( array( 30, 30, 100 ), array( 100, 100, 100 ), 0, 50 ) ) ),
+			),
+		)
+	);
+	$upload = wp_upload_bits( $slug . '.json', null, (string) $json );
+	if ( ! empty( $upload['error'] ) ) {
+		// `wp_upload_bits()` respeta la lista de tipos de subida: sin JSON en ella, se escribe a mano en la misma carpeta.
+		$dir    = wp_upload_dir();
+		$file   = trailingslashit( $dir['path'] ) . $slug . '.json';
+		$upload = false !== file_put_contents( $file, (string) $json ) ? array( 'file' => $file, 'error' => false ) : $upload;
+	}
+	if ( ! empty( $upload['error'] ) ) {
+		digi_ab_fail( "No se pudo crear la animación Lottie de prueba: {$upload['error']}" );
+		return $cache = array( 0, '' );
+	}
+	$id = (int) wp_insert_attachment( array( 'post_title' => 'Animación de prueba', 'post_excerpt' => 'Leyenda de la animación', 'post_name' => $slug, 'post_mime_type' => 'application/json', 'post_status' => 'inherit' ), $upload['file'] );
+	return $cache = array( $id, (string) wp_get_attachment_url( $id ) );
+}
+
+/**
+ * Sustituye en unos ajustes las imágenes de prueba: `{"$image": n}`, `{"$gallery": [n, …]}` y `"$image-url:n"`; y la
+ * animación Lottie de prueba: `{"$lottie": 1}` (adjunto) y `"$lottie-url"` (su URL).
+ */
 function digi_ab_tokens( $value ) {
 	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
 		return digi_ab_image( (int) $m[1] )[1];
@@ -107,8 +161,15 @@ function digi_ab_tokens( $value ) {
 	if ( is_string( $value ) && preg_match( '/^\$fixture:([a-z]+)$/', $value, $m ) ) {
 		return (string) ( digi_ab_fixtures()[ $m[1] ] ?? '' );
 	}
+	if ( '$lottie-url' === $value ) {
+		return digi_ab_lottie()[1];
+	}
 	if ( ! is_array( $value ) ) {
 		return $value;
+	}
+	if ( array( '$lottie' ) === array_keys( $value ) ) {
+		list( $id, $url ) = digi_ab_lottie();
+		return array( 'id' => $id, 'url' => $url, 'alt' => '', 'source' => 'library', 'size' => '' );
 	}
 	if ( array( '$image' ) === array_keys( $value ) ) {
 		list( $id, $url ) = digi_ab_image( (int) $value['$image'] );
@@ -138,6 +199,20 @@ function digi_ab_children( array $elements, $seed ) {
 		$elements[ $i ]      = $element;
 	}
 	return $elements;
+}
+
+/** El elemento con ese id en un árbol (el widget del caso, entre sus hermanos `before`/`after`). */
+function digi_ab_find( array $elements, $id ) {
+	foreach ( $elements as $element ) {
+		if ( isset( $element['id'] ) && $id === $element['id'] ) {
+			return $element;
+		}
+		$found = digi_ab_find( (array) ( $element['elements'] ?? array() ), $id );
+		if ( null !== $found ) {
+			return $found;
+		}
+	}
+	return null;
 }
 
 /** `drop` y `approx` de un mapa (y de sus repetidores, con `repetidor.clave`): motivos que un caso puede citar. */
@@ -339,6 +414,11 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			),
 		),
 	);
+	// `before` y `after` del caso (C2): elementos hermanos del widget en el mismo contenedor (los encabezados que lee una
+	// tabla de contenido, por ejemplo), con IDs deterministas e imágenes de prueba; no son de PRO y no se convierten.
+	if ( ! empty( $case['before'] ) || ! empty( $case['after'] ) ) {
+		$tree[0]['elements'] = array_merge( digi_ab_children( (array) ( $case['before'] ?? array() ), $slug . '-before' ), $tree[0]['elements'], digi_ab_children( (array) ( $case['after'] ?? array() ), $slug . '-after' ) );
+	}
 	$map    = \Digitalisimo\Elements\Convert\Registry::map( $source, true );
 	$target = null !== $map ? (string) $map['target'] : '';
 	$log    = array();
@@ -356,7 +436,7 @@ foreach ( $cases['cases'] as $slug => $case ) {
 		),
 		'reasons'    => null !== $map ? digi_ab_reasons( $map ) : array( 'drop' => array(), 'approx' => array() ),
 		'log'        => $log,
-		'settings_b' => $b_tree[0]['elements'][0]['settings'] ?? array(),
+		'settings_b' => digi_ab_find( $b_tree, $id )['settings'] ?? array(),
 		'error'      => '',
 	);
 	if ( null === $map ) {

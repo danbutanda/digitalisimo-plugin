@@ -1,0 +1,294 @@
+{
+ "_doc": [
+  "Casos A/B del Titular animado (frente A de C2): A con `animated-headline` de PRO, B con `digitalisimo-animated-headline`. Animaciones deterministas: el texto que rota tiene una duración de 10 min (se compara el estado inicial, sin cambios durante la medición) y el resaltado un trazo de 300 ms con pausa larga o «reducir movimiento» (se compara el estado final, el trazo completo). `ready` espera al trazo, a las letras o al ancho que fija el script en los dos lados."
+ ],
+ "declared": [
+  {
+   "widget": "animated-headline",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace del titular (criterio del estándar del front): contorno de 2 px con separación de 2 px."
+  }
+ ],
+ "cases": {
+  "ah-defaults": {
+   "title": "Valores por defecto (resaltado con círculo) con «reducir movimiento»: el trazo aparece completo al instante en A y en B",
+   "widget": "animated-headline",
+   "settings": {},
+   "reducedMotion": true,
+   "ready": {
+    "a": ".elementor-headline.e-animated",
+    "b": ".digi-ah--drawn"
+   }
+  },
+  "ah-highlight": {
+   "title": "Resaltado por defecto, trazo de 300 ms y pausa larga (estado final dibujado)",
+   "widget": "animated-headline",
+   "settings": {
+    "highlight_animation_duration": 300,
+    "highlight_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline.e-animated",
+    "b": ".digi-ah--drawn"
+   }
+  },
+  "ah-shapes": {
+   "title": "Resaltado en X con color, grosor, bordes redondeados, al frente, texto posterior y sin bucle",
+   "widget": "animated-headline",
+   "settings": {
+    "marker": "x",
+    "highlight_animation_duration": 300,
+    "loop": "",
+    "before_text": "Hoy es",
+    "highlighted_text": "el día",
+    "after_text": "de empezar",
+    "marker_color": "#1e88e5",
+    "stroke_width": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    },
+    "rounded_edges": "yes",
+    "above_content": "yes"
+   },
+   "ready": {
+    "a": ".elementor-headline.e-animated",
+    "b": ".digi-ah--drawn"
+   }
+  },
+  "ah-underline": {
+   "title": "Resaltado con subrayado doble, alineación al inicio y etiqueta h2",
+   "widget": "animated-headline",
+   "settings": {
+    "marker": "double_underline",
+    "highlight_animation_duration": 300,
+    "highlight_iteration_delay": 600000,
+    "alignment": "start",
+    "tag": "h2"
+   },
+   "ready": {
+    "a": ".elementor-headline.e-animated",
+    "b": ".digi-ah--drawn"
+   }
+  },
+  "ah-typing": {
+   "title": "Texto que rota, «typing» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "typing",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   }
+  },
+  "ah-typing-colors": {
+   "title": "Escritura con colores de la palabra y de la selección y palabras con acentos",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "typing",
+    "rotate_iteration_delay": 600000,
+    "highlighted_text_background_color": "#ffeb3b",
+    "highlighted_text_color": "#000000",
+    "words_color": "#d81b60",
+    "rotating_text": "diseño\ncódigo\nposicionamiento"
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   }
+  },
+  "ah-clip": {
+   "title": "Texto que rota, «clip» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "clip",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-flip": {
+   "title": "Texto que rota, «flip» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "flip",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-swirl": {
+   "title": "Texto que rota, «swirl» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "swirl",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   }
+  },
+  "ah-blinds": {
+   "title": "Texto que rota, «blinds» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "blinds",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   }
+  },
+  "ah-wave": {
+   "title": "Texto que rota, «wave» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "wave",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   }
+  },
+  "ah-drop-in": {
+   "title": "Texto que rota, «drop-in» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "drop-in",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-slide": {
+   "title": "Texto que rota, «slide» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "slide",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-slide-down": {
+   "title": "Texto que rota, «slide-down» (estado inicial: duración de 10 min para que no cambie durante la medición)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "slide-down",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-styles": {
+   "title": "Estilos: tipografías, colores, contorno y sombra del texto y del animado, alineación por dispositivo y etiqueta p",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "slide",
+    "rotate_iteration_delay": 600000,
+    "before_text": "Creamos",
+    "after_text": "para ti",
+    "tag": "p",
+    "alignment": "end",
+    "alignment_mobile": "center",
+    "title_color": "#333333",
+    "words_color": "#00897b",
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+     "unit": "px",
+     "size": 36,
+     "sizes": []
+    },
+    "title_typography_font_size_mobile": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "title_typography_font_weight": "700",
+    "title_typography_line_height": {
+     "unit": "em",
+     "size": 1.4,
+     "sizes": []
+    },
+    "words_typography_typography": "custom",
+    "words_typography_font_style": "italic",
+    "text_stroke_text_stroke_type": "yes",
+    "text_stroke_text_stroke": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "text_stroke_stroke_color": "#ff0000",
+    "animated_text_shadow_text_shadow_type": "yes",
+    "animated_text_shadow_text_shadow": {
+     "horizontal": 2,
+     "vertical": 2,
+     "blur": 3,
+     "color": "rgba(0,0,0,0.4)"
+    }
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-wrapper[style*=\"width\"]",
+    "b": ".digi-ah__dyn[style*=\"width\"]"
+   }
+  },
+  "ah-link": {
+   "title": "Resaltado con enlace (hover y foco con teclado)",
+   "widget": "animated-headline",
+   "settings": {
+    "highlight_animation_duration": 300,
+    "highlight_iteration_delay": 600000,
+    "link": {
+     "url": "#destino",
+     "is_external": "",
+     "nofollow": ""
+    }
+   },
+   "ready": {
+    "a": ".elementor-headline.e-animated",
+    "b": ".digi-ah--drawn"
+   }
+  },
+  "ah-reduced-typing": {
+   "title": "Escritura con «reducir movimiento»: la primera palabra completa en A y en B",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "typing",
+    "rotate_iteration_delay": 600000
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-letter",
+    "b": ".digi-ah__letter"
+   },
+   "reducedMotion": true
+  }
+ }
+}

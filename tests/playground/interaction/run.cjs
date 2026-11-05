@@ -466,7 +466,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0, C1, C2, C4): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -479,6 +479,22 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'testimonial-carousel', own: 'digitalisimo-testimonial-carousel', title: 'Carrusel de testimonios', query: 'testimonios' },
         { pro: 'reviews', own: 'digitalisimo-reviews', title: 'Reseñas', query: 'reseñas' },
         { pro: 'slides', own: 'digitalisimo-slides', title: 'Diapositivas', query: 'diapositivas' },
+        // C2 (contenido, docs/pro/c2.md).
+        { pro: 'animated-headline', own: 'digitalisimo-animated-headline', title: 'Titular animado', query: 'titular' },
+        { pro: 'code-highlight', own: 'digitalisimo-code-highlight', title: 'Código resaltado', query: 'resaltado' },
+        { pro: 'table-of-contents', own: 'digitalisimo-table-of-contents', title: 'Tabla de contenido', query: 'tabla de contenido' },
+        { pro: 'share-buttons', own: 'digitalisimo-share-buttons', title: 'Botones para compartir', query: 'compartir' },
+        { pro: 'call-to-action', own: 'digitalisimo-call-to-action', title: 'Llamada a la acción con imagen', query: 'acción con imagen' },
+        { pro: 'flip-box', own: 'digitalisimo-flip-box', title: 'Tarjeta giratoria', query: 'giratoria' },
+        { pro: 'price-list', own: 'digitalisimo-price-list', title: 'Lista de precios', query: 'lista de precios' },
+        { pro: 'price-table', own: 'digitalisimo-price-table', title: 'Tabla de precios', query: 'tabla de precios' },
+        { pro: 'gallery', own: 'digitalisimo-gallery', title: 'Galería avanzada', query: 'galería avanzada' },
+        { pro: 'hotspot', own: 'digitalisimo-hotspot', title: 'Puntos de interés', query: 'puntos de interés' },
+        { pro: 'lottie', own: 'digitalisimo-lottie', title: 'Animación Lottie', query: 'lottie' },
+        { pro: 'video-playlist', own: 'digitalisimo-video-playlist', title: 'Lista de videos', query: 'lista de videos' },
+        { pro: 'countdown', own: 'digitalisimo-countdown', title: 'Cuenta regresiva', query: 'regresiva' },
+        { pro: 'progress-tracker', own: 'digitalisimo-progress-tracker', title: 'Indicador de progreso', query: 'indicador de progreso' },
+        // C4 (Theme Builder y elementos de tema, docs/pro/c4.md).
         { pro: 'theme-site-logo', own: 'digitalisimo-site-logo', title: 'Logotipo del sitio', query: 'logotipo' },
         { pro: 'theme-site-title', own: 'digitalisimo-site-title', title: 'Título del sitio', query: 'título del sitio' },
         { pro: 'theme-page-title', own: 'digitalisimo-page-title', title: 'Título de la página', query: 'título de la página' },

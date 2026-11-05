@@ -1,6 +1,7 @@
 <?php
-// Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; y una
-// página con los cinco carruseles de PRO (C1); y una plantilla de entrada con los elementos de tema (C4).
+// Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
+// página con los cinco carruseles de PRO (C1); otra con los catorce widgets de contenido de PRO y una cuenta regresiva
+// de Element Pack (C2); y una plantilla de entrada con los elementos de tema (C4).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -43,9 +44,31 @@ $carousels_data = array( array( 'id' => 'c5', 'elType' => 'container', 'settings
 $carousels = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con carruseles', 'post_name' => 'pm-carruseles' ) );
 update_post_meta( $carousels, '_elementor_edit_mode', 'builder' );
 update_post_meta( $carousels, '_elementor_data', wp_slash( wp_json_encode( $carousels_data ) ) );
+// C2: página con los catorce widgets de contenido de PRO (dos con CSS personalizado) y una cuenta regresiva de Element
+// Pack (`bdt-countdown`, en bucle de 5 h), que F8 lleva a la de PRO y la etapa `pro` a la propia en la misma pasada.
+$content_data = array( array( 'id' => 'c7', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'e1', 'animated-headline', array() ),
+	$w( 'e2', 'code-highlight', array( 'language' => 'php', 'code' => '<?php echo 1;' ) ),
+	$w( 'e3', 'table-of-contents', array() ),
+	$w( 'e4', 'share-buttons', array() ),
+	$w( 'e5', 'call-to-action', array( 'title' => 'Llamada' ) ),
+	$w( 'e6', 'flip-box', array( 'custom_css' => 'selector .elementor-flip-box__front{outline:1px solid}' ) ),
+	$w( 'e7', 'price-list', array() ),
+	$w( 'e8', 'price-table', array( 'heading' => 'Plan', 'custom_css' => 'selector .elementor-price-table__heading{letter-spacing:1px}' ) ),
+	$w( 'e9', 'gallery', array() ),
+	$w( 'e10', 'hotspot', array() ),
+	$w( 'e11', 'lottie', array() ),
+	$w( 'e12', 'video-playlist', array() ),
+	$w( 'e13', 'countdown', array( 'due_date' => '2030-01-04 10:05' ) ),
+	$w( 'e14', 'progress-tracker', array( 'type' => 'circular' ) ),
+	$w( 'ep1', 'bdt-countdown', array( 'loop_time' => 'yes', 'loop_hours' => 5 ) ),
+) ) );
+$content = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con contenido', 'post_name' => 'pm-contenido' ) );
+update_post_meta( $content, '_elementor_edit_mode', 'builder' );
+update_post_meta( $content, '_elementor_data', wp_slash( wp_json_encode( $content_data ) ) );
 // C4: plantilla de entrada del Theme Builder con los quince elementos de tema de PRO y la Información de la entrada de
 // Element Pack (`bdt-post-info`), que F8 lleva a la de PRO y la etapa `pro` a la propia en la misma pasada.
-$single_data = array( array( 'id' => 'c7', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+$single_data = array( array( 'id' => 'c8', 'elType' => 'container', 'settings' => array(), 'elements' => array(
 	$w( 'g1', 'theme-site-logo', array( 'width' => array( 'unit' => 'px', 'size' => 120 ) ) ),
 	$w( 'g2', 'theme-site-title', array( 'header_size' => 'p' ) ),
 	$w( 'g3', 'theme-page-title', array() ),
@@ -68,5 +91,5 @@ update_post_meta( $single, '_elementor_template_type', 'single-post' );
 update_post_meta( $single, '_elementor_edit_mode', 'builder' );
 update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
 wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'single' => $single ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

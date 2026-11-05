@@ -1,0 +1,161 @@
+{
+ "_doc": [
+  "Casos A/B de la Lista de precios (frente B de C2): A con `price-list` de PRO, B con `digitalisimo-price-list`. Imágenes de prueba con `{\"$image\": n}` (setup.php)."
+ ],
+ "declared": [
+  {
+   "widget": "price-list",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  },
+  {
+   "kind": "estilo",
+   "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
+   "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
+   "widget": "price-list"
+  },
+  {
+   "widget": "price-list",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "La imagen de un elemento con título es decorativa (alt=\"\"): PRO repetía el título como texto alternativo y el enlace se anunciaba con el título dos veces."
+  },
+  {
+   "widget": "price-list",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa): el navegador elige el tamaño registrado que corresponde."
+  }
+ ],
+ "cases": {
+  "plist-defaults": {
+   "title": "Valores por defecto (tres elementos enlazados a «#», separador punteado)",
+   "widget": "price-list",
+   "settings": {},
+   "declared": [
+    {
+     "kind": "enlace",
+     "match": "^perdido «#( #)+»$",
+     "reason": "Error de PRO: con las filas por defecto (sin _id) acumulaba los atributos del enlace de una fila en la siguiente (href=\"# #\", \"# # #\"); la propia pinta href=\"#\" en cada fila, como dice su ajuste."
+    }
+   ]
+  },
+  "plist-images": {
+   "title": "Elementos con imagen, uno sin enlace, título h4, separador continuo y colores",
+   "widget": "price-list",
+   "settings": {
+    "price_list": [
+     {
+      "_id": "pl01",
+      "title": "Café de olla",
+      "price": "$45",
+      "item_description": "Con canela y piloncillo.",
+      "image": {
+       "$image": 1
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "pl02",
+      "title": "Chocolate",
+      "price": "$55",
+      "item_description": "Caliente, con espuma.",
+      "image": {
+       "$image": 2
+      },
+      "link": {
+       "url": "https://example.com/chocolate",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "pl03",
+      "title": "Pan dulce",
+      "price": "$25",
+      "item_description": "",
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    ],
+    "title_tag": "h4",
+    "image_size_size": "thumbnail",
+    "separator_style": "solid",
+    "separator_weight": {
+     "unit": "px",
+     "size": 1
+    },
+    "separator_color": "#C9CED9",
+    "heading_color": "#1B2340",
+    "price_color": "#245EFF",
+    "description_color": "#475066",
+    "row_gap": {
+     "unit": "px",
+     "size": 28
+    },
+    "image_spacing": {
+     "unit": "px",
+     "size": 24
+    },
+    "border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "vertical_align": "center"
+   }
+  },
+  "plist-no-separator": {
+   "title": "Sin separador, descripción en div y espacio del contenido",
+   "widget": "price-list",
+   "settings": {
+    "price_list": [
+     {
+      "_id": "pl11",
+      "title": "Plan básico",
+      "price": "$199",
+      "item_description": "Un sitio de una página.",
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "pl12",
+      "title": "Plan completo",
+      "price": "$499",
+      "item_description": "Hasta diez páginas.",
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    ],
+    "separator_style": "none",
+    "description_tag": "div",
+    "content_spacing": {
+     "unit": "px",
+     "size": 4
+    }
+   }
+  }
+ }
+}

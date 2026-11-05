@@ -1,0 +1,118 @@
+{
+ "_doc": [
+  "Casos A/B de la Tabla de precios (frente B de C2): A con `price-table` de PRO, B con `digitalisimo-price-table`."
+ ],
+ "declared": [
+  {
+   "widget": "price-table",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  },
+  {
+   "kind": "estilo",
+   "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
+   "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
+   "widget": "price-table"
+  }
+ ],
+ "cases": {
+  "ptab-defaults": {
+   "title": "Valores por defecto (dólar, 39.99, al mes, tres características, botón enlazado a «#», cinta «Popular»)",
+   "widget": "price-table",
+   "settings": {}
+  },
+  "ptab-sale-euro": {
+   "title": "Oferta en euros con el símbolo después, formato con coma, periodo al lado, cinta a la izquierda",
+   "widget": "price-table",
+   "settings": {
+    "heading": "Profesional",
+    "sub_heading": "Para equipos pequeños",
+    "currency_symbol": "euro",
+    "currency_position": "after",
+    "price": "29,90",
+    "currency_format": ",",
+    "sale": "yes",
+    "original_price": "39",
+    "period": "al mes",
+    "period_position": "beside",
+    "ribbon_title": "Oferta",
+    "ribbon_horizontal_position": "left",
+    "link": {
+     "url": "https://example.com/pro",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "button_text": "Contratar"
+   }
+  },
+  "ptab-styled": {
+   "title": "Estilos: cabecera, precio, lista sin divisor, botón con colores y sin cinta, característica sin icono",
+   "widget": "price-table",
+   "settings": {
+    "heading": "Empresa",
+    "heading_tag": "h2",
+    "currency_symbol": "custom",
+    "currency_symbol_custom": "MX$",
+    "price": "1,499",
+    "period": "",
+    "features_list": [
+     {
+      "_id": "pt01",
+      "item_text": "Soporte prioritario",
+      "selected_item_icon": {
+       "value": "fas fa-check",
+       "library": "fa-solid"
+      },
+      "item_icon_color": "#1E9E5A"
+     },
+     {
+      "_id": "pt02",
+      "item_text": "Copias diarias",
+      "selected_item_icon": {
+       "value": "fas fa-check",
+       "library": "fa-solid"
+      }
+     },
+     {
+      "_id": "pt03",
+      "item_text": "Sin icono",
+      "selected_item_icon": {
+       "value": "",
+       "library": ""
+      }
+     }
+    ],
+    "header_bg_color": "#1B2340",
+    "pricing_element_bg_color": "#F3F4F8",
+    "price_color": "#245EFF",
+    "features_list_color": "#475066",
+    "list_divider": "",
+    "show_ribbon": "",
+    "footer_additional_info": "",
+    "button_text": "Cotizar",
+    "link": {
+     "url": "https://example.com/cotizar",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "button_text_color": "#FFFFFF",
+    "button_background_background": "classic",
+    "button_background_color": "#245EFF",
+    "button_hover_color": "#245EFF",
+    "button_background_hover_background": "classic",
+    "button_background_hover_color": "#FFFFFF",
+    "button_border_radius": {
+     "unit": "px",
+     "top": "30",
+     "right": "30",
+     "bottom": "30",
+     "left": "30",
+     "isLinked": true
+    }
+   }
+  }
+ }
+}

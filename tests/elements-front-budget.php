@@ -315,6 +315,59 @@ namespace {
 	}
 	check_budget( 5 === $crs_count, 'Deben revisarse los cinco carruseles propios (' . $crs_count . ').' );
 	$count += $crs_count;
+	// Contenido propio (programa «sin widgets de PRO», C2, docs/pro/c2.md): los catorce widgets de
+	// modules/digitalisimo-content/. Content\Module registra la hoja (≤ 4 KB) y, sólo si existe, el script (≤ 6 KB, defer,
+	// sin dependencias) de cada uno; el script del editor (`<nombre>-editor.js`) sólo en el editor. Las librerías que pesan
+	// más (Prism del Código resaltado, lottie-web de la Animación Lottie) no se declaran como dependencia: su script las pide
+	// al acercarse el widget a la pantalla, nunca en la carga inicial. Excepciones documentadas: los Botones para compartir
+	// declaran además las hojas Font Awesome del núcleo (`elementor-icons-fa-*`, como PRO), y la Lista de videos pinta con
+	// `<img>` escapado la miniatura o la portada que sólo es una URL local (sin adjunto) detrás de la fachada.
+	$content_dir    = $root . '/modules/digitalisimo-content/';
+	$content_module = (string) file_get_contents( $content_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $content_module, $content_entries, PREG_SET_ORDER );
+	check_budget( 14 === count( $content_entries ), 'Content\\Module::WIDGETS declara los catorce widgets de C2 (' . count( $content_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $content_module, $content_scripts );
+	check_budget( count( $content_scripts[0] ) >= 2, 'Content\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $content_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Content\\Module: script sin defer o con jQuery.' ); }
+	$content_count = 0;
+	foreach ( $content_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $content_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$content_count++;
+		$code = preg_replace( '/^\s*(\*|\/\/|\/\*).*$/m', '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/<iframe/i', $code ), $name . ': sin JSON-LD, <script> ni <iframe> propios en la salida.' );
+		check_budget( ! preg_match( '/<img[\s>]/', $code ) || 'digitalisimo-video-playlist' === $name, $name . ': sin <img> a mano (Image_Markup o wp_get_attachment_image()).' );
+		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 4 === $i, $name . ': falta su hoja ' . $m[ $i ] ); continue; }
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\bjQuery\s*[(.]|\$\(|\bSwiper\b|elementorProFrontend/', $js ), $m[ $i ] . ': sin jQuery, Swiper ni PRO.' );
+				check_budget( ! preg_match( '#https?://(?!www\.w3\.org/)#', $js ), $m[ $i ] . ': ninguna dirección de terceros en el script.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		// Un handle siempre lleva guion; las demás cadenas del método son claves de ajustes.
+		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ) || ( 'digitalisimo-share-buttons' === $name && str_starts_with( $handle, 'elementor-icons-fa-' ) ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	foreach ( glob( $content_dir . 'assets/js/*-editor.js' ) as $editor ) {
+		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\s*[(.]|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );
+	}
+	// Las librerías grandes se piden al acercarse (IntersectionObserver), nunca como dependencia registrada.
+	foreach ( array( 'code-highlight', 'lottie' ) as $lazy ) {
+		$text = (string) file_get_contents( $content_dir . 'assets/js/' . $lazy . '.js' );
+		check_budget( str_contains( $text, 'IntersectionObserver' ), $lazy . '.js: la librería se carga al acercarse a la pantalla.' );
+	}
+	check_budget( 14 === $content_count, 'Deben revisarse los catorce widgets de contenido propios (' . $content_count . ').' );
+	$count += $content_count;
 	// Elementos de tema propios (programa «sin widgets de PRO», C4, docs/pro/c4.md): los quince widgets de
 	// modules/digitalisimo-theme-elements/ con las mismas reglas. Sus recursos los registra Theme_Elements\Module (con
 	// defer y sin dependencias): hoja ≤ 4 KB por widget y script sólo donde hace falta (el buscador, ≤ 2 KB, sólo con la
@@ -357,7 +410,7 @@ namespace {
 	}
 	check_budget( 15 === $te_count && 1 === $te_scripts, 'Deben revisarse los quince elementos de tema, con un solo script (' . $te_count . ', ' . $te_scripts . ').' );
 	$count += $te_count;
-	check_budget( $count >= 78, 'Deben revisarse los 78 widgets propios (' . $count . ').' );
+	check_budget( $count >= 92, 'Deben revisarse los 92 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );
