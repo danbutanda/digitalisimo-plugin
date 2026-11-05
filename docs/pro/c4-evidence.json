@@ -864,5 +864,28 @@
   "problemas": 0,
   "cls": 0.513,
   "nota": "El CLS viene de las dos imágenes de reserva del núcleo (placeholder.png sin medidas) que pintan el Logotipo y la Imagen destacada en un sitio sin logotipo ni imagen destacada, como con PRO; el avatar de la Caja de autor es el de WordPress (secure.gravatar.com, ajuste del sitio), como en PRO."
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce",
+  "duracion_s": {
+   "R4": 313
+  },
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A13": "ok",
+   "A14": "ok",
+   "A2": "no medido",
+   "A3": "no medido",
+   "A8": "no medido",
+   "A9": "no medido",
+   "A10": "no medido",
+   "A11": "no medido",
+   "A12": "no medido"
+  },
+  "nota": "R1 (≈76 min) no se corrió: el rasgo author-box-extras usa el author-box de PRO, que ahora llega convertido a la Caja de autor propia al importar (§17); en R1 necesitará su entrada en known.json, como las Diapositivas en C1. Los 15 elementos de tema propios tienen caso en el inventario de kits."
  }
 }
