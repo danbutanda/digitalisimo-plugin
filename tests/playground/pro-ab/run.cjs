@@ -230,8 +230,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         if (n) names.push(`${n.role} «${String(n.name || '').replace(/\s+/g, ' ').trim()}»`);
       }
       w.signature.names = names;
+      // `capture` del caso (C8): `{a, b}`, selector dentro del widget que se captura (un widget fijo a la ventana, como
+      // los botones flotantes, deja su envoltorio sin alto); por defecto, el widget.
+      const capSel = (c.capture || {})[side] ? `${sel} ${c.capture[side]}` : sel;
       const shot = async (state) => {
-        const clip = await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
+        const clip = await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
         await page.screenshot({ path: file, clip, captureBeyondViewport: true });
@@ -417,17 +420,19 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const codes = [].concat(...(e.log || []).map((l) => l.codes || []));
     const own = [];
     const fail = (m) => { own.push(m); problems.push(`${slug} · ${m}`); };
-    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, widths: {}, problems: own };
+    // `urls` (C8): las páginas que no son de tipo página (un documento de botones flotantes) traen su ruta de setup.php.
+    const page = (side) => (e.urls && e.urls[side]) || `/pro-ab-${slug}-${side}/`;
+    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: page('a'), b: page('b') }, widths: {}, problems: own };
     summary.cases[slug] = res;
     if (e.error) fail(e.error);
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
     for (const code of codes.filter((x) => x.section === 'review')) fail(`${code.code} ${code.key}: ${code.reason}`);
     const forbid = (c.forbid || CONFIG.forbid_b || []).map((f) => ({ name: f.name.split('{widget}').join(e.widget), id: f.id.split('{widget}').join(e.widget), url: f.url.split('{widget}').join(e.widget) }));
     const once = async (side) => {
-      let r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
+      let r = await measure(browser, `${BASE}${page(side)}`, sel, slug, side, forbid, c);
       for (let i = 0; i < 2 && r.transient.length; i++) {
         notes.push(`${slug}-${side}: recursos servidos con redirección o como HTML (${r.transient[0]}); se repite la medición`);
-        r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
+        r = await measure(browser, `${BASE}${page(side)}`, sel, slug, side, forbid, c);
       }
       if (r.unsettled) fail(`${side.toUpperCase()}: el carrusel no arrancó en 8 s (Swiper, digi-crs o ready.${side})`);
       if (r.transient.length) fail(`${side.toUpperCase()}: recursos del sitio servidos con redirección o como HTML: ${r.transient.slice(0, 3).join(' | ')}`);

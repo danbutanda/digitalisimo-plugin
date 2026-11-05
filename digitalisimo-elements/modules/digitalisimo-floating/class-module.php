@@ -30,28 +30,41 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-contact-buttons' => array( 'file' => 'widgets/class-contact-buttons.php', 'class' => 'Digitalisimo\\Elements\\Floating\\Widgets\\Contact_Buttons', 'css' => 'modules/digitalisimo-floating/assets/css/contact-buttons.css', 'js' => 'modules/digitalisimo-floating/assets/js/contact-buttons.js' ),
 		'digitalisimo-floating-bar' => array( 'file' => 'widgets/class-floating-bar.php', 'class' => 'Digitalisimo\\Elements\\Floating\\Widgets\\Floating_Bar', 'css' => 'modules/digitalisimo-floating/assets/css/floating-bar.css', 'js' => 'modules/digitalisimo-floating/assets/js/floating-bar.js' ),
+		'digitalisimo-link-in-bio' => array( 'file' => 'widgets/class-link-in-bio.php', 'class' => 'Digitalisimo\\Elements\\Floating\\Widgets\\Link_In_Bio', 'css' => 'modules/digitalisimo-floating/assets/css/link-in-bio.css', 'js' => 'modules/digitalisimo-floating/assets/js/link-in-bio.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-contact-buttons' => 'Botones de contacto',
 		'digitalisimo-floating-bar' => 'Barra flotante',
+		'digitalisimo-link-in-bio' => 'Link in Bio',
 	);
 
 	/** Presentaciones de cada widget (cada una puede tener su hoja `<nombre sin digitalisimo->-<presentación>.css`). */
 	const PRESENTATIONS = array(
+		'digitalisimo-contact-buttons' => array( '1', '3', '4', '5', '6', '7', '8', '9', '10' ),
 		'digitalisimo-floating-bar' => array( '2', '3' ),
+		'digitalisimo-link-in-bio' => array( '2', '3', '4', '5', '6', '7' ),
 	);
 
 	/** Base del núcleo que hereda cada widget: sin ella (núcleo sin el módulo de botones flotantes) no se registra. */
 	const BASES = array(
+		'digitalisimo-contact-buttons' => 'Elementor\\Modules\\FloatingButtons\\Base\\Widget_Contact_Button_Base',
 		'digitalisimo-floating-bar' => 'Elementor\\Modules\\FloatingButtons\\Base\\Widget_Floating_Bars_Base',
+		'digitalisimo-link-in-bio' => 'Elementor\\Modules\\LinkInBio\\Base\\Widget_Link_In_Bio_Base',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
 	const NESTED = array();
 
 	const NESTED_BASE = 'Elementor\\Modules\\NestedElements\\Base\\Widget_Nested_Base';
+
+	/** Recuento de clics en el mismo punto del sitio que PRO (`elementor_send_clicks`), compartido por la familia. */
+	const TRACK = 'digitalisimo-floating-track';
+
+	const TRACK_JS = 'modules/digitalisimo-floating/assets/js/floating-track.js';
 
 	/** Prioridad en `elementor/widgets/register`, la de `Widget_Registry`, `Woo\Registry` y F7b. */
 	const PRIORITY = 20;
@@ -113,6 +126,9 @@ final class Module {
 			return;
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
+		if ( ! wp_script_is( self::TRACK, 'registered' ) && is_file( self::path( self::TRACK_JS ) ) ) {
+			wp_register_script( self::TRACK, plugins_url( self::TRACK_JS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+		}
 		foreach ( self::WIDGETS as $handle => $asset ) {
 			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
 				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
@@ -148,10 +164,13 @@ final class Module {
 		return $out;
 	}
 
-	/** Scripts de un widget del módulo: el suyo si existe (para `get_script_depends()`). */
+	/** Scripts de un widget del módulo (para `get_script_depends()`): el del recuento de clics y el suyo, si existen. */
 	public static function script_depends( string $name ): array {
 		$out = array();
 		if ( isset( self::WIDGETS[ $name ] ) && is_file( self::path( self::WIDGETS[ $name ]['js'] ) ) ) {
+			if ( is_file( self::path( self::TRACK_JS ) ) ) {
+				$out[] = self::TRACK;
+			}
 			$out[] = $name;
 		}
 		return $out;

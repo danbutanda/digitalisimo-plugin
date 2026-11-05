@@ -61,7 +61,7 @@ class Floating_Bar extends Widget_Floating_Bars_Base {
 		$icons = class_exists( '\Elementor\Plugin' ) && \Elementor\Plugin::$instance->experiments->is_feature_active( 'e_font_icon_svg' )
 			? array()
 			: array( 'elementor-icons-fa-solid', 'elementor-icons-fa-brands', 'elementor-icons-fa-regular' );
-		return array_merge( $icons, Module::style_depends( self::NAME, self::presentation_of( (array) $this->get_settings() ) ) );
+		return array_merge( $icons, $this->presentation_styles() );
 	}
 
 	public function get_script_depends(): array {

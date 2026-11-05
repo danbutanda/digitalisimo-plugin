@@ -22,6 +22,21 @@ trait Presentations {
 		return in_array( $value, $probe::PRESENTATIONS, true ) ? $value : $probe::PRESENTATIONS[0];
 	}
 
+	/**
+	 * Hojas del widget: la común y la de su presentación; la instancia de tipo (sin datos: el editor y el registro de
+	 * recursos) declara las de todas.
+	 */
+	protected function presentation_styles(): array {
+		$probe = static::PROBE;
+		$all   = $this->is_type_instance();
+		$list  = $all ? $probe::PRESENTATIONS : array( self::presentation_of( (array) $this->get_settings() ) );
+		$out   = array();
+		foreach ( $list as $presentation ) {
+			$out = array_merge( $out, Module::style_depends( $this->get_name(), (string) $presentation ) );
+		}
+		return array_values( array_unique( $out ) );
+	}
+
 	protected function register_controls(): void {
 		$probe = static::PROBE;
 		$this->start_controls_section(
