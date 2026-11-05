@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  // Botones de PayPal y Stripe propios (C9). Sin jQuery. PayPal: con datos que faltan no se envía y se muestran los
+  // Botones de PayPal y Stripe propios (C9), sin dependencias. PayPal: con datos que faltan no se envía y se muestran los
   // mensajes. Stripe: la acción `submit_stripe_form` del servidor crea la sesión de pago (las claves nunca llegan aquí) y
   // se abre su dirección; un error se muestra como texto.
   var REMOTE = 'digi-pay__message--remote';
