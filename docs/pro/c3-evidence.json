@@ -1,0 +1,576 @@
+{
+ "fecha": "2026-11-05",
+ "etapa": "C3",
+ "pro_ab": {
+  "casos": {
+   "bq-defaults": {
+    "widget": "blockquote",
+    "destino": "digitalisimo-blockquote",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0013,
+     "768": 0.0009,
+     "1280": 0.0006
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ah-defaults": {
+    "widget": "animated-headline",
+    "destino": "digitalisimo-animated-headline",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0001,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cta-defaults": {
+    "widget": "call-to-action",
+    "destino": "digitalisimo-call-to-action",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.0002,
+     "1280": 0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ch-defaults": {
+    "widget": "code-highlight",
+    "destino": "digitalisimo-code-highlight",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cd-defaults": {
+    "widget": "countdown",
+    "destino": "digitalisimo-countdown",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.1794,
+     "768": 0.0078,
+     "1280": 0.0046
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "flipbox-defaults": {
+    "widget": "flip-box",
+    "destino": "digitalisimo-flip-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "gal-defaults": {
+    "widget": "gallery",
+    "destino": "digitalisimo-gallery",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.0002,
+     "1280": 0.0002
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "hs-defaults": {
+    "widget": "hotspot",
+    "destino": "digitalisimo-hotspot",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.0003,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lt-defaults": {
+    "widget": "lottie",
+    "destino": "digitalisimo-lottie",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0944,
+     "768": 0.2012,
+     "1280": 0.0743
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-defaults": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0018,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 125,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mm-defaults": {
+    "widget": "mega-menu",
+    "destino": "digitalisimo-mega-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 13,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mm-click-fit": {
+    "widget": "mega-menu",
+    "destino": "digitalisimo-mega-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 13,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mm-styled": {
+    "widget": "mega-menu",
+    "destino": "digitalisimo-mega-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 13,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mm-dropdown": {
+    "widget": "mega-menu",
+    "destino": "digitalisimo-mega-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mm-mobile-bp": {
+    "widget": "mega-menu",
+    "destino": "digitalisimo-mega-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-defaults": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 73,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-framed": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 44,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-background-stretch": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-dropdown-layout": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-double-line": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 35,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nm-text-none": {
+    "widget": "nav-menu",
+    "destino": "digitalisimo-nav-menu",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-defaults": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0023,
+     "768": 0.0011,
+     "1280": 0.0006
+    },
+    "declaradas": 366,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "oc-defaults": {
+    "widget": "off-canvas",
+    "destino": "digitalisimo-nested-off-canvas",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 7,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "oc-right": {
+    "widget": "off-canvas",
+    "destino": "digitalisimo-nested-off-canvas",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "oc-locked": {
+    "widget": "off-canvas",
+    "destino": "digitalisimo-nested-off-canvas",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "plist-defaults": {
+    "widget": "price-list",
+    "destino": "digitalisimo-price-list",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ptab-defaults": {
+    "widget": "price-table",
+    "destino": "digitalisimo-price-table",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0086,
+     "768": 0.0037,
+     "1280": 0.0022
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pt-defaults": {
+    "widget": "progress-tracker",
+    "destino": "digitalisimo-progress-tracker",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-defaults": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.019,
+     "768": 0.0007,
+     "1280": 0.0075
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "se-defaults": {
+    "widget": "search",
+    "destino": "digitalisimo-search",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "se-styled": {
+    "widget": "search",
+    "destino": "digitalisimo-search",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "se-enter": {
+    "widget": "search",
+    "destino": "digitalisimo-search",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "se-live": {
+    "widget": "search",
+    "destino": "digitalisimo-search",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "se-none": {
+    "widget": "search",
+    "destino": "digitalisimo-search",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sb-defaults": {
+    "widget": "share-buttons",
+    "destino": "digitalisimo-share-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 47,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-defaults": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0004,
+     "768": 0.0002,
+     "1280": 0.0001
+    },
+    "declaradas": 150,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "toc-defaults": {
+    "widget": "table-of-contents",
+    "destino": "digitalisimo-table-of-contents",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-defaults": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0007,
+     "768": 0.0004,
+     "1280": 0.0003
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "vpl-defaults": {
+    "widget": "video-playlist",
+    "destino": "digitalisimo-video-playlist",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.4523,
+     "768": 0.0043,
+     "1280": 0.0025
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   }
+  },
+  "resumen": {
+   "casos_c3": 19,
+   "casos_c0_c2": 20,
+   "declaradas": 1446,
+   "sin_motivo": 0,
+   "problemas": 0,
+   "duracion_s": 2378,
+   "anchos": [
+    375,
+    768,
+    1280
+   ]
+  }
+ },
+ "pro_migrate": {
+  "comprobaciones": 27,
+  "problemas": [],
+  "nota": "Página pm-navegacion con los cuatro widgets de navegación de PRO (Mega Menu y Off-Canvas con contenedores hijos) y el Navbar y el Mega Menu de Element Pack, y cabecera pm-cabecera-nav con el Menú y la Búsqueda de PRO: «Migrar» convierte 31 widgets en 6 documentos en la misma pasada (8 de ellos de C3), conserva los hijos, traduce el CSS del Menú y --revert devuelve los de PRO y los de Element Pack."
+ },
+ "interaction": {
+  "ok": 38,
+  "editor_pro": "24 widgets de PRO sustituidos (4 de C3) registrados y ocultos; la búsqueda ofrece los propios"
+ }
+}
