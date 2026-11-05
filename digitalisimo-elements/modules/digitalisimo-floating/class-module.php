@@ -129,14 +129,17 @@ final class Module {
 		if ( ! wp_script_is( self::TRACK, 'registered' ) && is_file( self::path( self::TRACK_JS ) ) ) {
 			wp_register_script( self::TRACK, plugins_url( self::TRACK_JS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
+		// Después de la hoja del núcleo (como las del núcleo para estos widgets): sus reglas genéricas (`.elementor a`) no
+		// pisan las propias con la misma especificidad.
+		$deps = wp_style_is( 'elementor-frontend', 'registered' ) ? array( 'elementor-frontend' ) : array();
 		foreach ( self::WIDGETS as $handle => $asset ) {
 			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
-				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), $deps, $version );
 			}
 			foreach ( self::PRESENTATIONS[ $handle ] ?? array() as $presentation ) {
 				$file = self::presentation_css( $handle, $presentation );
 				if ( ! wp_style_is( $handle . '-' . $presentation, 'registered' ) && is_file( self::path( $file ) ) ) {
-					wp_register_style( $handle . '-' . $presentation, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+					wp_register_style( $handle . '-' . $presentation, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array_merge( $deps, is_file( self::path( $asset['css'] ) ) ? array( $handle ) : array() ), $version );
 				}
 			}
 			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {

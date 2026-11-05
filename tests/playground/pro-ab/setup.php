@@ -256,6 +256,13 @@ if ( is_file( DIGI_AB_DIR . '/map-override.php' ) ) {
 	$override = (string) $map['source'];
 }
 
+// C8: los documentos de botones flotantes no admiten plantilla de página (el tema pintaría su entrada, comentarios y
+// navegación detrás del bloque fijo, distinta en A y en B): se ven con la plantilla «Lienzo» del constructor.
+if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
+	mkdir( WPMU_PLUGIN_DIR, 0777, true );
+}
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-floating-canvas.php', "<?php\nadd_filter( 'template_include', static function ( \$t ) { return is_singular( 'e-floating-buttons' ) && defined( 'ELEMENTOR_PATH' ) && is_file( ELEMENTOR_PATH . 'modules/page-templates/templates/canvas.php' ) ? ELEMENTOR_PATH . 'modules/page-templates/templates/canvas.php' : \$t; }, 99 );\n" );
+
 $widgets = \Elementor\Plugin::$instance->widgets_manager;
 $out     = array( 'elementor' => ELEMENTOR_VERSION, 'override' => $override, 'cases' => array() );
 foreach ( $cases['cases'] as $slug => $case ) {

@@ -151,7 +151,9 @@ class Bio_Render {
 			<?php
 			foreach ( $ctas_value as $key => $cta ) {
 				$formatted_link = $this->get_formatted_link_based_on_type_for_cta( $cta );
-				$cta_image = $cta['cta_link_image'] ?? [];
+				// La imagen del botón sólo existe en las presentaciones con imagen (3 y 5); en las demás, el campo del repetidor
+				// unido trae su valor por defecto y no se pinta (como en PRO, que no tenía el campo).
+				$cta_image = in_array( $this->presentation, array( '3', '5' ), true ) ? ( $cta['cta_link_image'] ?? [] ) : [];
 				$cta_has_image = ! empty( $cta_image ) &&
 					( ! empty( $cta_image['url'] || ! empty( $cta_image['id'] ) ) ) &&
 					'button' === $ctas_props_type;

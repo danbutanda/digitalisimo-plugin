@@ -51,6 +51,42 @@
    "kind": "interacción",
    "match": "eicon|close",
    "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "PRO hace enfocable la barra entera (`tabindex=0`) y le lleva el foco al cargar la página; la barra propia es una región con nombre que no roba el foco (sólo sus botones y enlaces son controles)."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "foco",
+   "match": "no llega al control en B$",
+   "reason": "Sin botones ni enlaces en la barra, B no tiene nada que enfocar; A sólo llega a la barra entera, que PRO hace enfocable."
+  },
+  {
+   "widget": "floating-bars-var-2",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega a la barra a algunos anchos ni en A ni en B (documento de botones flotantes visto en su dirección); igual en los dos lados."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "PRO hace enfocable la barra entera (`tabindex=0`) y le lleva el foco al cargar la página; la barra propia es una región con nombre que no roba el foco (sólo sus botones y enlaces son controles)."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "foco",
+   "match": "no llega al control en B$",
+   "reason": "Sin botones ni enlaces en la barra, B no tiene nada que enfocar; A sólo llega a la barra entera, que PRO hace enfocable."
+  },
+  {
+   "widget": "floating-bars-var-3",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega a la barra a algunos anchos ni en A ni en B (documento de botones flotantes visto en su dirección); igual en los dos lados."
   }
  ],
  "cases": {
@@ -207,8 +243,22 @@
       "max": 0.12,
       "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
      }
+    },
+    "max": 0.08,
+    "reason": "Con «reducir movimiento» PRO no inicia la cinta y deja a la vez «Pausar» y «Reanudar» (el segundo sólo se oculta al arrancar la animación), así que su barra crece y empuja el cierre; la propia, quieta, muestra sólo el botón que sirve (`hidden` en el otro)."
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control button",
+     "reason": "Con «reducir movimiento» PRO no inicia la cinta y deja a la vez «Pausar» y «Reanudar» (el segundo sólo se oculta al arrancar la animación), así que su barra crece y empuja el cierre; la propia, quieta, muestra sólo el botón que sirve (`hidden` en el otro)."
+    },
+    {
+     "kind": "nombre",
+     "match": "button «",
+     "reason": "Con «reducir movimiento» PRO no inicia la cinta y deja a la vez «Pausar» y «Reanudar» (el segundo sólo se oculta al arrancar la animación), así que su barra crece y empuja el cierre; la propia, quieta, muestra sólo el botón que sirve (`hidden` en el otro)."
     }
-   }
+   ]
   },
   "fb-3-copy": {
    "title": "Cupón: copiar el código (texto de éxito) y cupón de etiqueta",
