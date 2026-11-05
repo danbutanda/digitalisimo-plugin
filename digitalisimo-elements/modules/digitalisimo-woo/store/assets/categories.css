@@ -1,0 +1,8 @@
+/* Categorías de productos (digitalisimo-woo-categories): rejilla del núcleo sobre la lista de WooCommerce, como la de PRO. */
+.digi-woo-grid ul.products.elementor-grid{display:grid;margin:0;grid-column-gap:20px;grid-row-gap:40px}
+.digi-woo-grid ul.products.elementor-grid:after,.digi-woo-grid ul.products.elementor-grid:before{content:none;display:none}
+.digi-woo-grid ul.products.elementor-grid li.product{display:var(--button-align-display);flex-direction:var(--button-align-direction);float:none;justify-content:var(--button-align-justify);margin:0;padding:0;width:auto}
+.digi-woo-grid ul.products.elementor-grid li.product .onsale{display:none;padding:0}
+.woocommerce .elementor-element.digi-woo-grid ul.products li.product{width:auto}
+.elementor-widget-digitalisimo-woo-categories .product .count{background-color:inherit}
+.elementor-widget-digitalisimo-woo-categories a:focus-visible{outline:2px solid;outline-offset:2px}

@@ -33,8 +33,24 @@ abstract class Base extends Widget {
 		return array( 'woocommerce-elements' );
 	}
 
+	/**
+	 * Hoja del widget y, si existe, su segunda hoja (`store/assets/<widget sin digitalisimo-woo->-2.css`, handle
+	 * `<widget>-2`): las páginas de WooCommerce de PRO (carrito, pago, cuenta, resumen y carrito del menú) traen de 11 a
+	 * 36 KB de estilos y no caben en una hoja de 4 KB. Cada hoja sigue en su tope de 4 KB; la segunda se registra aquí, la
+	 * primera vez que el núcleo pide los recursos del widget.
+	 */
 	public function get_style_depends(): array {
-		return Registry::style_depends( $this->get_name() );
+		$handles = Registry::style_depends( $this->get_name() );
+		$slug    = substr( $this->get_name(), strlen( 'digitalisimo-woo-' ) );
+		$extra   = 'modules/digitalisimo-woo/store/assets/' . $slug . '-2.css';
+		if ( $handles && is_file( \Digitalisimo\Elements\Woo\Assets::path( $extra ) ) && function_exists( 'wp_register_style' ) ) {
+			$handle = $this->get_name() . '-2';
+			if ( ! wp_style_is( $handle, 'registered' ) ) {
+				wp_register_style( $handle, \Digitalisimo\Elements\Woo\Assets::url( $extra ), $handles, defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false );
+			}
+			$handles[] = $handle;
+		}
+		return $handles;
 	}
 
 	public function get_script_depends(): array {

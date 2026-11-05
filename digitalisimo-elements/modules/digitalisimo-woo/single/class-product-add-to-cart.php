@@ -24,6 +24,17 @@ defined( 'ABSPATH' ) || exit;
  */
 class Product_Add_To_Cart extends Base {
 
+	/**
+	 * Alineación por dispositivo (propio): además de la clase de PRO, variables que lee la hoja (`selectors` genera una
+	 * regla por dispositivo, como PRO generaba una hoja por punto de corte). Las que un valor no define quedan sin efecto.
+	 */
+	const ALIGN_VARIABLES = array(
+		'left'    => '--digi-atc-ta:left;--digi-atc-jc:flex-start;--digi-atc-qm:0;--digi-atc-bb:auto',
+		'center'  => '--digi-atc-ta:center;--digi-atc-jc:center;--digi-atc-qm:0;--digi-atc-bb:auto',
+		'right'   => '--digi-atc-ta:right;--digi-atc-jc:flex-end;--digi-atc-qm:0;--digi-atc-bb:auto',
+		'justify' => '--digi-atc-qm:auto;--digi-atc-bb:100%;--digi-atc-bw:100%;--digi-atc-lb:100%;--digi-atc-lj:center;--digi-atc-ab:auto',
+	);
+
 	public function get_name() {
 		return 'digitalisimo-woo-product-add-to-cart';
 	}
@@ -230,6 +241,10 @@ class Product_Add_To_Cart extends Base {
 					],
 				],
 				'prefix_class' => 'digi-atc%s--align-',
+				'selectors_dictionary' => self::ALIGN_VARIABLES,
+				'selectors' => [
+					'{{WRAPPER}}' => '{{VALUE}}',
+				],
 			]
 		);
 

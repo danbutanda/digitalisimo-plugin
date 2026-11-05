@@ -51,8 +51,9 @@ class Add_To_Cart extends \Elementor\Widget_Button {
 		return ! self::optimized_markup();
 	}
 
+	/** La hoja del botón del núcleo, la común de los dos «Añadir al carrito» y la propia. */
 	public function get_style_depends(): array {
-		return array_values( array_unique( array_merge( parent::get_style_depends(), Registry::style_depends( $this->get_name() ) ) ) );
+		return array_values( array_unique( array_merge( parent::get_style_depends(), Registry::style_depends( 'digitalisimo-woo-product-add-to-cart' ), Registry::style_depends( $this->get_name() ) ) ) );
 	}
 
 	protected function get_html_wrapper_class() {
@@ -174,6 +175,10 @@ class Add_To_Cart extends \Elementor\Widget_Button {
 			'align',
 			[
 				'prefix_class' => 'digi-atc%s--align-',
+				'selectors_dictionary' => Product_Add_To_Cart::ALIGN_VARIABLES,
+				'selectors' => [
+					'{{WRAPPER}}' => '{{VALUE}}',
+				],
 			]
 		);
 

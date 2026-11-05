@@ -1,0 +1,50 @@
+{
+ "_doc": [
+  "Casos A/B de Migas de la tienda (C7, frente N, fork S): A con `woocommerce-breadcrumb`, B con `digitalisimo-woo-breadcrumb`: `woocommerce_breadcrumb()` en la ficha del producto simple y en el archivo de la subcategoría."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-breadcrumb",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces de las migas (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wbc-product": {
+   "title": "Ficha del producto simple, por defecto",
+   "widget": "woocommerce-breadcrumb",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {},
+   "pixels": {
+    "max": 0.06,
+    "reason": "Sólo en el estado con foco: el widget mide unos 30 px de alto y el contorno propio de 2 px del enlace enfocado ocupa varios puntos de la captura; sin foco y al pasar el cursor, como PRO."
+   }
+  },
+  "wbc-styled": {
+   "title": "Archivo de la subcategoría: colores, tipografía y alineación al final (centro en tableta)",
+   "widget": "woocommerce-breadcrumb",
+   "context": {
+    "archive": "product_subcat"
+   },
+   "settings": {
+    "text_color": "#6d597a",
+    "link_color": "#0047ab",
+    "alignment": "end",
+    "alignment_tablet": "center",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 15
+    },
+    "text_typography_font_weight": "600"
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Sólo en el estado con foco: contorno propio de 2 px del enlace enfocado en un widget de poca altura."
+   }
+  }
+ }
+}

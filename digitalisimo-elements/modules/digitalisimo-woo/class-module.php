@@ -38,6 +38,10 @@ final class Module {
 		'Cart\\Module',
 		'Filters\\Module',
 		'Kit\\Module',
+		// C7, frente M: panel de los bucles de productos y vista previa de la ficha.
+		'Single\\Module',
+		// C7, frente N: fragmentos de relacionados y ventas de los Productos propios al cambiar el carrito.
+		'Store\\Products_Fragments',
 	);
 
 	/** @var bool */

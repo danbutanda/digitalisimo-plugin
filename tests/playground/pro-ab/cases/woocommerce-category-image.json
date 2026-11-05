@@ -1,0 +1,54 @@
+{
+ "_doc": [
+  "Casos A/B de Imagen de la categoría (C7, frente N, fork S): A con `woocommerce-category-image`, B con `digitalisimo-woo-category-image`, en el archivo de la categoría de prueba (imagen 8). Las dos heredan la Imagen del núcleo; la imagen es la etiqueta dinámica de la imagen de la categoría, como la deja el editor."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-category-image",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de el enlace de la imagen (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wci-defaults": {
+   "title": "Imagen de la categoría, tamaño grande",
+   "widget": "woocommerce-category-image",
+   "context": {
+    "archive": "product_cat"
+   },
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"6a1c0de\" name=\"woocommerce-category-image-tag\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "wci-link": {
+   "title": "Tamaño mediano, centrada, enlazada al archivo y con radio",
+   "widget": "woocommerce-category-image",
+   "context": {
+    "archive": "product_cat"
+   },
+   "settings": {
+    "__dynamic__": {
+     "image": "[elementor-tag id=\"6a1c0df\" name=\"woocommerce-category-image-tag\" settings=\"%7B%7D\"]"
+    },
+    "image_size": "medium",
+    "align": "center",
+    "link_to": "file",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "16",
+     "right": "16",
+     "bottom": "16",
+     "left": "16",
+     "isLinked": true
+    }
+   },
+   "pixels": {
+    "max": 0.05,
+    "reason": "Sólo en el estado con foco: el contorno propio de 2 px con separación de 2 px alrededor de la imagen enlazada; sin foco y al pasar el cursor, como PRO."
+   }
+  }
+ }
+}

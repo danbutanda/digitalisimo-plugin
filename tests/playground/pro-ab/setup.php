@@ -634,7 +634,12 @@ add_action( 'wp', static function () {
 	}
 	if ( ! empty( $woo['endpoint'] ) ) {
 		$vars_wc = WC()->query->get_query_vars();
-		$wp->query_vars[ $vars_wc[ $woo['endpoint'] ] ?? $woo['endpoint'] ] = (string) ( $woo['endpoint_value'] ?? '' );
+		$endpoint_var = $vars_wc[ $woo['endpoint'] ] ?? $woo['endpoint'];
+		$wp->query_vars[ $endpoint_var ] = (string) ( $woo['endpoint_value'] ?? '' );
+		// Como una petición real a `/mi-cuenta/<punto>/`: la consulta principal también lo trae (el widget de cuenta de
+		// PRO y el propio leen el punto de `$wp_query->query`).
+		$GLOBALS['wp_query']->query[ $endpoint_var ]      = $wp->query_vars[ $endpoint_var ];
+		$GLOBALS['wp_query']->query_vars[ $endpoint_var ] = $wp->query_vars[ $endpoint_var ];
 	}
 } );
 add_filter( 'determine_current_user', static function ( $user ) {
@@ -698,7 +703,8 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			'id'       => digi_ab_eid( $slug . '-c' ),
 			'elType'   => 'container',
 			'isInner'  => false,
-			'settings' => (array) ( $cases['container'] ?? array() ),
+			// C7 (frente M): `container` del caso se suma al común (p. ej. la clase `woocommerce` de la ficha).
+			'settings' => array_merge( (array) ( $cases['container'] ?? array() ), (array) ( $case['container'] ?? array() ) ),
 			'elements' => array(
 				array(
 					'id'         => $id,

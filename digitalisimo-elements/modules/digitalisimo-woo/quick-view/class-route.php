@@ -13,7 +13,7 @@ require_once __DIR__ . '/class-template.php';
  * Ruta `GET digitalisimo-elements/v1/woo/quick-view` (V.5.1 y V.4.3).
  *
  * 1. **Permiso por predicado** (`Rest::element()`): el documento `post_id` (publicado, o editable por el usuario) tiene
- *    el elemento `widget_id` y es un `digitalisimo-woo-quick-view` o un `woocommerce-products` con «Elegir qué partes
+ *    el elemento `widget_id` y es un `digitalisimo-woo-quick-view` o un `woocommerce-products` (o `digitalisimo-woo-products`) con «Elegir qué partes
  *    mostrar» y la parte `quickview`. Un `global` se sigue una vez a su plantilla. Los ajustes salen del documento,
  *    nunca de la petición. Carrito de WooCommerce cargado y cabeceras sin caché: `Woo\Rest`.
  * 2. **Producto público** (`Products::is_public()`) o 404 sin detalle.
@@ -72,7 +72,8 @@ final class Route {
 		if ( 'digitalisimo-woo-quick-view' === $type ) {
 			return true;
 		}
-		if ( 'woocommerce-products' !== $type ) {
+		// C7: también los Productos propios, que llevan las mismas partes.
+		if ( 'woocommerce-products' !== $type && 'digitalisimo-woo-products' !== $type ) {
 			return false;
 		}
 		$s = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();

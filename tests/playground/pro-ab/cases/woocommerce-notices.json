@@ -1,0 +1,40 @@
+{
+ "_doc": [
+  "Casos A/B de Avisos de la tienda (C7, frente N, fork S): A con `woocommerce-notices`, B con `digitalisimo-woo-notices`. `\"woo\": {\"notices\": true}` deja un aviso de éxito, uno informativo y uno de error en cada petición; con el carrito de prueba, el de éxito puede llevar enlaces."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-notices",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces y botones de los avisos (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wno-notices": {
+   "title": "Tres avisos (éxito, información y error)",
+   "widget": "woocommerce-notices",
+   "woo": {
+    "notices": true
+   },
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-notices.min.css de PRO",
+     "id": "widget-woocommerce-notices-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-notices(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}
