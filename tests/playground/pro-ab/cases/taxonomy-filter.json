@@ -61,7 +61,11 @@
      "selector": "[data-filter=\"__all\"]",
      "wait": 8000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Al pasar el puntero y con el foco, el arnés usa el primer botón del widget: en B «Todos» (primero en el DOM, pulsado), en A «Casos» (PRO ponía «Todos» al final); son botones distintos. Sin puntero ni foco la diferencia es 0,00–0,02 %."
+   }
   },
   "tf-multiple": {
    "title": "Selección múltiple (O) en etiquetas, a la izquierda",
@@ -99,7 +103,11 @@
      "selector": "[data-filter=\"impar\"]",
      "wait": 8000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Al pasar el puntero y con el foco, el arnés usa el primer botón del widget: en B «Todos» (primero en el DOM, pulsado), en A «Casos» (PRO ponía «Todos» al final); son botones distintos. Sin puntero ni foco la diferencia es 0,00–0,02 %."
+   }
   },
   "tf-vertical": {
    "title": "Vertical estirado, con colores, borde, radio y relleno",
@@ -165,7 +173,11 @@
      "selector": "[data-filter=\"casos\"]",
      "wait": 8000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Al pasar el puntero y con el foco, el arnés usa el primer botón del widget: en B «Todos» (primero en el DOM, pulsado), en A «Casos» (PRO ponía «Todos» al final); son botones distintos. Sin puntero ni foco la diferencia es 0,00–0,02 %."
+   }
   }
  }
 }

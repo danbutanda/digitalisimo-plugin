@@ -529,7 +529,8 @@ class Taxonomy_Filter extends \Elementor\Widget_Base {
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', '%', 'em', 'rem', 'vm', 'custom' ),
 				'selectors'  => array(
-					$item => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}',
+					// Las variables dan el área mínima de 24 × 24 px con cualquier relleno (la hoja las resta de 24 px).
+					$item => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; --digi-tfilter-pad-block: calc({{TOP}}{{UNIT}} + {{BOTTOM}}{{UNIT}}); --digi-tfilter-pad-inline: calc({{RIGHT}}{{UNIT}} + {{LEFT}}{{UNIT}});',
 				),
 			)
 		);
