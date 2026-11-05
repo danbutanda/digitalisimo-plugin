@@ -1,0 +1,24 @@
+.woocommerce .elementor-widget-digitalisimo-woo-product-rating.elementor-widget .woocommerce-product-rating{
+	align-items:center;
+	display:flex;
+	margin-bottom:0
+}
+.woocommerce .elementor-widget-digitalisimo-woo-product-rating.elementor-widget .star-rating{
+	margin-top:0
+}
+.digi-product-rating--align-left .woocommerce-product-rating{
+	justify-content:flex-start
+}
+.digi-product-rating--align-right .woocommerce-product-rating{
+	justify-content:flex-end
+}
+.digi-product-rating--align-center .woocommerce-product-rating{
+	justify-content:center
+}
+.digi-product-rating--align-justify .woocommerce-product-rating .woocommerce-review-link{
+	margin-inline-start:auto
+}
+.elementor-widget-digitalisimo-woo-product-rating a:focus-visible{
+	outline:2px solid;
+	outline-offset:2px
+}

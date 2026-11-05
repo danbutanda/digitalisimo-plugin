@@ -1,0 +1,179 @@
+.digi-acc-s .woocommerce{
+	& .form-row{
+		margin-bottom:var(--da-frg,6px);
+		margin-left:var(--da-fcgml,0);
+		margin-right:var(--da-fcgmr,0);
+		padding-left:var(--da-fcgpl,0);
+		padding-right:var(--da-fcgpr,0)
+	}
+	& .form-row label{
+		color:var(--da-flc,#69727d);
+		margin-bottom:var(--da-fls,0)
+	}
+	& .form-row :is(.input-text,select),& .select2-selection--single{
+		background:var(--da-ffnbc,#f9fafa);
+		border:none;
+		border-radius:var(--da-ffbr,0);
+		color:var(--da-ffnc,#69727d);
+		font-size:14px;
+		padding:var(--da-ffp,16px)
+	}
+	& .select2-container--default .select2-selection--single{
+		height:45px;
+		margin:0;
+		padding:0
+	}
+	& .select2-selection__rendered{
+		color:var(--da-ffnc,#69727d);
+		line-height:45px!important;
+		padding:0 1rem!important
+	}
+	& .select2-selection__arrow{
+		height:45px!important
+	}
+	& .form-row :is(.input-text,select):focus{
+		color:var(--da-fffc,#69727d);
+		transition-duration:var(--da-ffftd,.3s)
+	}
+	& ::placeholder{
+		color:var(--da-ffnc,inherit);
+		font-family:inherit;
+		opacity:.6
+	}
+	& .woocommerce-form__label-for-checkbox span{
+		color:var(--da-cc,#69727d)
+	}
+	& :is(p:last-of-type,.woocommerce-order-downloads,.woocommerce-LostPassword){
+		margin-bottom:0
+	}
+	& :is(.login,.register,.woocommerce-ResetPassword,.digi-acc__c,.shop_table,.woocommerce-message){
+		font-size:14px
+	}
+	& form .button{
+		background:#5bc0de;
+		border:none;
+		border-radius:var(--da-fbbr,3px);
+		color:var(--da-fbntc,#fff);
+		padding:var(--da-fbp,12px 32px)
+	}
+	& :is(.woocommerce-EditAccountForm,.woocommerce-address-fields) .button{
+		margin-top:20px
+	}
+	& form .button:hover{
+		color:var(--da-fbhtc,#fff);
+		transition-duration:var(--da-fbhtd,.3s)
+	}
+	& :is(.shop_table,.order-again,.woocommerce-pagination) .button{
+		background:transparent;
+		border:2px var(--da-tbbt,solid) var(--da-tbbc,#5bc0de);
+		border-radius:var(--da-tbbr,3px);
+		color:var(--da-tbntc,#69727d);
+		padding:var(--da-tbp,5px 10px);
+		vertical-align:middle
+	}
+	& .order-again .button{
+		margin:0;
+		padding:var(--da-tbp,12px 32px)
+	}
+	& :is(.shop_table,.order-again,.woocommerce-pagination) .button:hover{
+		background-color:initial;
+		transition-duration:var(--da-tbhtd,.3s)
+	}
+	& :is(td,th,tr){
+		border:none
+	}
+	& :is(h2,h3){
+		color:var(--da-tstc,#000);
+		font-weight:400;
+		margin-bottom:var(--da-sts,45px);
+		margin-top:0
+	}
+	& .woocommerce-MyAccount-content h2:first-of-type{
+		margin-top:30px
+	}
+	& :is(.wc-item-meta,.wc-item-meta-label){
+		color:var(--da-vc,#69727d)
+	}
+	& .product-quantity{
+		color:var(--da-tic,#69727d);
+		font-weight:400
+	}
+	& thead:first-child tr:first-child :is(td,th){
+		border-top:0;
+		padding-bottom:var(--da-tts,9px);
+		padding-inline-start:0;
+		padding-top:0
+	}
+	& tbody>tr>:is(td,th){
+		background-color:transparent;
+		color:var(--da-tic,#69727d);
+		padding-bottom:var(--da-osrgb,9px);
+		padding-inline-start:0;
+		padding-top:var(--da-osrgt,9px)
+	}
+	& :is(.woocommerce-orders-table__cell-order-number>a,.product-name a,.download-product a){
+		color:var(--da-tlnc,#5bc0de)
+	}
+	& :is(.woocommerce-orders-table__cell-order-number>a,.product-name a,.download-product a):hover{
+		color:var(--da-tlhc,#5bc0de)
+	}
+	& .shop_table :is(td,th){
+		border-top:var(--da-tdbw,1px) var(--da-tdbt,solid) var(--da-tdbc,#d5d8dc)
+	}
+	& :is(.shop_table thead th,.shop_table thead th span,.order_details tfoot td,.order_details tfoot th){
+		color:var(--da-ttc,#000)
+	}
+	& .order_details tfoot :is(td,th){
+		padding-inline-start:0
+	}
+	& .order_details .product-purchase-note td{
+		border-top:none;
+		padding-top:0
+	}
+	& .woocommerce-Address .title h3{
+		float:none
+	}
+	& .woocommerce-Address address{
+		padding:var(--da-sp,45px 30px 16px)
+	}
+	& .woocommerce-Address .edit{
+		float:inline-start;
+		margin-inline-start:var(--da-elms,30px);
+		margin-top:var(--da-elmt,10px);
+		position:absolute
+	}
+	& .u-columns{
+		margin-top:20px
+	}
+	& fieldset{
+		border:none;
+		margin-inline-start:0;
+		padding:0
+	}
+	& legend{
+		padding:20px 0
+	}
+}
+.digi-acc{
+	& .product-purchase-note-is-below{
+		padding-bottom:0
+	}
+}
+.digi-acc--view-order .woocommerce .shop_table td{
+	line-height:unset;
+	vertical-align:top
+}
+.digi-acc{
+	& .woocommerce-PaymentMethod .input-radio+label{
+		color:var(--da-pmrbc,#69727d)
+	}
+	& :focus-visible{
+		outline:2px solid;
+		outline-offset:2px
+	}
+}
+@media (prefers-reduced-motion:reduce){
+	.digi-acc *{
+		transition:none!important
+	}
+}

@@ -6855,7 +6855,7 @@
   }
  },
  "woo-pro-product": {
-  "title": "Plantilla de producto del Theme Builder con los quince widgets propios de la ficha (programa sin widgets de PRO, C7), medida en la ficha del producto simple",
+  "title": "Plantilla de producto del Theme Builder con los quince widgets propios de la ficha (programa sin widgets de PRO, C7), medida en la ficha del producto simple. La hoja de Swiper es del núcleo: la pide su caja de luz por el enlace a la imagen completa de la galería de WooCommerce (igual con el widget de PRO)",
   "since": "@NEXT_ELEMENTS@",
   "widgets": [],
   "extra": [
@@ -6963,7 +6963,6 @@
     "errors": 0,
     "proHandlers": false,
     "proFrontend": false,
-    "swiper": false,
     "count:title": 1,
     "count:tabs": 2,
     "count:gallery": 1,
@@ -7050,16 +7049,11 @@
   }
  },
  "woo-pro-cart": {
-  "title": "Carrito, carrito del menú y avisos propios (C7) con un producto en el carrito: dos hojas de 4 KB por widget y sin los paquetes de PRO",
+  "title": "Carrito y avisos propios (C7) con un producto en el carrito: dos hojas de 4 KB y sin los paquetes de PRO",
   "since": "@NEXT_ELEMENTS@",
   "isolate": true,
   "save": "document",
   "widgets": [
-   {
-    "type": "digitalisimo-woo-menu-cart",
-    "id": "fbc7mc1",
-    "settings": {}
-   },
    {
     "type": "digitalisimo-woo-notices",
     "settings": {}
@@ -7074,14 +7068,11 @@
    "cart-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.css",
    "cart2-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart-2\\.css",
    "cart-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.js",
-   "mc-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.css",
-   "mc-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.js",
    "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
   },
   "counts": {
    "cart": ".digi-cart",
-   "items": ".digi-cart .cart_item",
-   "toggle": ".digi-mc button[aria-expanded]"
+   "items": ".digi-cart .cart_item"
   },
   "actions": [
    {
@@ -7115,7 +7106,6 @@
     "proFrontend": false,
     "swiper": false,
     "count:cart": 1,
-    "count:toggle": 1,
     "delta.cls": "<=0.01",
     "after": {
      "count:items": 1
@@ -7123,7 +7113,70 @@
     "asset:cart-css": "<=4096",
     "asset:cart2-css": "<=4096",
     "asset:cart-js": "<=8192",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-menu-cart": {
+  "title": "Carrito del menú propio (C7) con un producto en el carrito: conmutador <button>, panel con los fragmentos de WooCommerce, dos hojas de 4 KB y sin los paquetes de PRO",
+  "since": "@NEXT_ELEMENTS@",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-menu-cart",
+    "id": "fbc7mc1",
+    "settings": {}
+   }
+  ],
+  "assets": {
+   "mc-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.css",
+   "mc2-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart-2\\.css",
+   "mc-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.js",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "toggle": ".digi-mc button[aria-expanded]",
+   "items": ".digi-mc .woocommerce-mini-cart-item"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-mc .woocommerce-mini-cart-item",
+    "min": 1,
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:toggle": 1,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:items": 1
+    },
     "asset:mc-css": "<=4096",
+    "asset:mc2-css": "<=4096",
     "asset:mc-js": "<=8192",
     "asset:pro-woo-css": "<=0"
    }
