@@ -1,0 +1,15 @@
+.digi-nav__link:before,.digi-nav__link:after{display:block;position:absolute;transition:.3s;transition-timing-function:cubic-bezier(.58,.3,.005,1)}
+.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before,.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{opacity:0}
+.digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{transform:scale(1)}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line) .digi-nav__link:before,:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line) .digi-nav__link:after{background-color:#3f444b;height:3px;left:0;width:100%;z-index:2}
+:is(.digi-nav--p-double-line,.digi-nav--p-overline) .digi-nav__link:before{content:"";top:0}
+:is(.digi-nav--p-double-line,.digi-nav--p-underline) .digi-nav__link:after{content:"";bottom:0}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-grow .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before,:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-grow .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{height:0;left:50%;width:0}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-drop-out .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{top:10px}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-drop-out .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{bottom:10px}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-drop-in .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{top:-10px}
+:is(.digi-nav--p-underline,.digi-nav--p-overline,.digi-nav--p-double-line).digi-nav--a-drop-in .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{bottom:-10px}
+:is(.digi-nav--p-double-line,.digi-nav--p-overline).digi-nav--a-slide .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{left:-20px;width:10px}
+:is(.digi-nav--p-double-line,.digi-nav--p-underline).digi-nav--a-slide .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{inset-inline-start:100%;width:10px}
+.digi-nav--a-none,.digi-nav--a-none .digi-nav__link,.digi-nav--a-none .digi-nav__link:before,.digi-nav--a-none .digi-nav__link:after{transition-duration:0s}
+@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s!important}}

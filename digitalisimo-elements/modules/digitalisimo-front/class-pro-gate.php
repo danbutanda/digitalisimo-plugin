@@ -106,6 +106,13 @@ final class Pro_Gate {
 	/** Acciones de URL que registran los paquetes (`lightbox` es del núcleo y no cuenta). */
 	const ACTIONS = array( 'popup', 'off_canvas', 'reload-page' );
 
+	/**
+	 * Etiquetas y acciones de `TAGS`/`ACTIONS` que no piden los paquetes (C3): las acciones `off_canvas:*` las registra
+	 * también el script del Panel fuera de lienzo propio, que se carga con él; un Off-Canvas de PRO en la página ya es una
+	 * razón por su clase (`HANDLED`), y sin ningún panel en la página la acción no tiene a quién abrir.
+	 */
+	const OWN = array( 'off-canvas', 'off_canvas' );
+
 	/** Ajustes que activan los efectos de movimiento, en cualquier elemento. */
 	const MOTION_KEYS = array(
 		'motion_fx_motion_fx_scrolling',
@@ -1140,8 +1147,8 @@ final class Pro_Gate {
 			$quote   = function ( $value ) {
 				return preg_quote( $value, '~' );
 			};
-			$tags    = implode( '|', array_map( $quote, self::TAGS ) );
-			$actions = implode( '|', array_map( $quote, self::ACTIONS ) );
+			$tags    = implode( '|', array_map( $quote, array_diff( self::TAGS, self::OWN ) ) );
+			$actions = implode( '|', array_map( $quote, array_diff( self::ACTIONS, self::OWN ) ) );
 			$pattern = '~\[elementor-tag\b[^\]]{0,500}?\bname=(?:\\\\{0,3}["\']|&quot;)?(?P<tag>' . $tags . ')(?=\\\\{0,3}["\'\s\]&])'
 				. '|elementor-action(?::|%3A)action(?:=|%3D)(?P<action>' . $actions . ')'
 				. '|(?P<code>elementorProFrontend)~i';

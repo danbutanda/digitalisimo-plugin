@@ -23,6 +23,8 @@
  * - C2 (frente D, regla 6): qué orígenes de F8 llegan a los widgets de PRO de C2, y cada uno de Element Pack acaba en el
  *   widget propio en la misma pasada de Migrar (con el mapa de C2 del repositorio, sin claves sin declarar); la Cuenta
  *   regresiva con ajustes reales (fecha, etiquetas, mensaje, la cuenta en bucle como perpetua, CSS) y `--revert`.
+ * - C3 (frente F, regla 6, sección 6b): F8 sólo lleva a la navegación de PRO el Navbar y el Mega Menu (al `nav-menu`),
+ *   y los dos acaban en el Menú de WordPress propio en la misma pasada de Migrar, con sus clases traducidas, y `--revert`;
  * - C4 (frente G): el título, la imagen destacada y el contenido de las entradas de Element Pack que F8 lleva a
  *   `theme-post-title`, `theme-post-featured-image` y `theme-post-excerpt` acaban en `digitalisimo-post-title`,
  *   `digitalisimo-featured-image` y `digitalisimo-post-excerpt` en la misma pasada de Migrar;
@@ -287,6 +289,9 @@ namespace {
 	\Digitalisimo\Elements\Convert\Module::init();
 	use Digitalisimo\Elements\Convert\Registry;
 	Registry::reset();
+	// El Menú de WordPress de PRO tiene su mapa listo desde C3; estas secciones lo usan como el widget de PRO sin mapa
+	// (la cadena real de C3 está en la 6b).
+	Registry::set( 'nav-menu', null );
 	Pro::reset();
 	$check( Pro::available(), 'Con el núcleo de Elements, Pro está disponible.' );
 
@@ -585,6 +590,67 @@ namespace {
 		$state = migrate();
 		$codes = doc_codes( $expo );
 		$check( 'digitalisimo-media-carousel' === find( tree( $expo ), 'ps1' )['widgetType'] && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'Con el borrador real de maps/media-carousel.php, el Expo llega al Carrusel multimedia propio sin claves sin declarar: ' . wp_json_encode( $codes ) );
+	}
+
+	/* ================================================== 6b. Regla 6 de C3: lo que F8 lleva a la navegación de PRO (frente F) */
+	// F8 lleva el Navbar y el Mega Menu de Element Pack al Menú de WordPress de PRO (`nav-menu`); ningún mapa de F8 apunta a
+	// `mega-menu`, `off-canvas` ni `search` (el Search de Element Pack va a `search-form`, de C4, y su Offcanvas al Panel
+	// lateral propio). Con el mapa de `nav-menu` listo, la etapa pro los lleva al Menú propio en la misma pasada, y las
+	// clases de PRO que F8 escribe en el CSS del elemento pasan a las propias.
+	$f8_targets = array();
+	foreach ( glob( dirname( __DIR__ ) . '/digitalisimo-migration/legacy/{maps,prime-slider}/*.php', GLOB_BRACE ) ?: array() as $file ) {
+		if ( preg_match( "/^\s*'target'\s*=>\s*'(nav-menu|mega-menu|off-canvas|search)'/m", (string) file_get_contents( $file ), $m ) ) {
+			$f8_targets[ basename( $file, '.php' ) ] = $m[1];
+		}
+	}
+	ksort( $f8_targets );
+	$check( array( 'bdt-mega-menu' => 'nav-menu', 'bdt-navbar' => 'nav-menu' ) === $f8_targets, 'F8 sólo lleva a la navegación de C3 el Navbar y el Mega Menu, al nav-menu de PRO: ' . wp_json_encode( $f8_targets ) );
+	Registry::reset();
+	$nav_real = Registry::map( 'nav-menu', true );
+	if ( null === $nav_real ) {
+		echo "AVISO: sin maps/nav-menu.php (frente E de C3) no se comprueba la cadena F8 → nav-menu → digitalisimo-nav-menu.\n";
+	} else {
+		// Las clases que F8 escribe para el menú de PRO, traducidas por el mapa del Menú propio, ya no nombran las de PRO.
+		foreach ( array( 'bdt-navbar', 'bdt-mega-menu' ) as $ep ) {
+			$ep_map = require dirname( __DIR__ ) . '/digitalisimo-migration/legacy/maps/' . $ep . '.php';
+			foreach ( (array) ( $ep_map['classes'] ?? array() ) as $to ) {
+				$own = \Digitalisimo\Elements\Convert\Translator::rewrite_classes( 'selector ' . $to . '{color:red}', (array) $nav_real['classes'] );
+				$check( ! preg_match( '/\.elementor-(nav-menu|item|sub-item|menu-toggle)|\.sub-arrow|\.highlighted/', $own ), "$ep: la clase de PRO «{$to}» que escribe F8 pasa a las del Menú propio: $own" );
+			}
+		}
+		$nav_doc = static function (): int {
+			return doc(
+				array(
+					box(
+						'container',
+						array(
+							w( 'bdt-navbar', array( 'navbar' => 'principal', 'align' => 'center', 'individuL_menu_style' => 'yes', 'repeater_field' => array( array( '_id' => 'r1', 'menu_number' => 2, 'menu_color' => '#e63946', 'menu_hover_color' => '#111111' ) ) ), 'nb1' ),
+							w( 'bdt-mega-menu', array( 'navbar' => 'principal', 'ep_megamenu_direction' => 'vertical', 'show_hamburger_menu' => 'tablet' ), 'mm1' ),
+						),
+						'nc1'
+					),
+				),
+				array( 'post_title' => 'Cabecera con menús de Element Pack' )
+			);
+		};
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+		Registry::set( 'nav-menu', array( 'status' => 'ready' ) + $nav_real );
+		$navs     = $nav_doc();
+		$original = (string) get_metadata( 'post', $navs, '_elementor_data', true );
+		$state    = migrate();
+		$nb       = find( tree( $navs ), 'nb1' );
+		$mm       = find( tree( $navs ), 'mm1' );
+		$codes    = doc_codes( $navs );
+		$check( ! empty( $state['done'] ) && 1 === (int) $state['counts']['pro'] && 2 === (int) $state['counts']['pro_elements'] && 'digitalisimo-nav-menu' === ( $nb['widgetType'] ?? '' ) && 'digitalisimo-nav-menu' === ( $mm['widgetType'] ?? '' ), 'Migrar lleva el Navbar y el Mega Menu de Element Pack al Menú propio en la misma pasada (F8 → nav-menu → digitalisimo-nav-menu): ' . wp_json_encode( array( $state['counts']['pro'] ?? null, $state['counts']['pro_elements'] ?? null, $nb['widgetType'] ?? null, $mm['widgetType'] ?? null ) ) );
+		$check( 'principal' === ( $nb['settings']['menu'] ?? '' ) && 'nav-menu' === ( $nb['settings']['_digitalisimo_pro'] ?? '' ) && 'vertical' === ( $mm['settings']['layout'] ?? '' ) && 'tablet' === ( $mm['settings']['dropdown'] ?? '' ), 'Con su menú, su disposición y su punto de corte: ' . wp_json_encode( array( $nb['settings'] ?? null, $mm['settings'] ?? null ) ) );
+		$check( ! preg_match( '/bdt-|elementor-nav-menu|elementor-item/', (string) ( $nb['settings']['custom_css'] ?? '' ) ) && false !== strpos( (string) ( $nb['settings']['custom_css'] ?? '' ), 'li:nth-child(2) > .digi-nav__link{color:#e63946;}' ), 'El color de cada elemento que F8 escribe con las clases de PRO pasa a las del Menú propio: ' . ( $nb['settings']['custom_css'] ?? '' ) );
+		$check( in_array( 'pro.converted:nav-menu:', $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'El informe tiene pro.converted del Menú, sin claves sin declarar: ' . wp_json_encode( $codes ) );
+		$backup = json_decode( (string) f8_meta( $navs, Migration::BACKUP ), true );
+		$check( is_array( $backup ) && $original === (string) ( $backup['data'] ?? '' ), 'La copia guarda los menús de Element Pack originales.' );
+		Runner::revert( true );
+		$check( $original === get_metadata( 'post', $navs, '_elementor_data', true ), '--revert devuelve los menús de Element Pack.' );
+		Registry::reset();
 	}
 
 	// Máscaras: la imagen que enmascaraba Element Pack en cada widget propio de C1, la misma a la que el mapa lleva la

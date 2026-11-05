@@ -84,6 +84,13 @@ jobs:
           node tests/elements-pro-search-form-chrome.mjs
           php tests/elements-pro-sitemap.php
           php tests/elements-pro-yoast-breadcrumbs.php
+          php tests/elements-pro-nav-menu.php
+          node tests/elements-pro-nav-menu-chrome.mjs
+          php tests/elements-pro-mega-menu.php
+          node tests/elements-pro-mega-menu-chrome.mjs
+          php tests/elements-pro-off-canvas.php
+          php tests/elements-pro-search.php
+          node tests/elements-pro-off-canvas-search-chrome.mjs
           php tests/elements-pro-form.php
           php tests/elements-pro-login.php
           node tests/elements-pro-form-chrome.mjs
