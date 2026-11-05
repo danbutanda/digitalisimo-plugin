@@ -1,0 +1,820 @@
+{
+ "fecha": "2026-11-04",
+ "etapa": "C4",
+ "pro_ab": {
+  "casos": {
+   "ab-defaults": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-website-button": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-above-center": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-right-middle": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-custom": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-button-style": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "ab-extras": {
+    "destino": "digitalisimo-author-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "bc-defaults": {
+    "destino": "digitalisimo-yoast-breadcrumbs",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "bc-styled": {
+    "destino": "digitalisimo-yoast-breadcrumbs",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "corrida": 1
+   },
+   "pc-defaults": {
+    "widget": "post-comments",
+    "destino": "digitalisimo-post-comments",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pc-custom": {
+    "widget": "post-comments",
+    "destino": "digitalisimo-post-comments",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pi-defaults": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pi-bare": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "contexto": "entrada bare",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pi-traditional": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pi-inline-center": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     {
+      "code": "pro.approx",
+      "key": "icon_align_mobile",
+      "reason": "En PRO la alineación «Centro» de un tamaño mayor seguía centrando en los menores aunque estos eligieran «Inicio» o «Fin»; el widget propio aplica cada valor sólo en su dispositivo.",
+      "section": "approx",
+      "source": "post-info",
+      "target": "digitalisimo-post-info",
+      "element": "e9e6325"
+     }
+    ]
+   },
+   "pn-defaults": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 22,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pn-labels": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pn-styled": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 22,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pn-title-only": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 22,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sf-classic": {
+    "widget": "search-form",
+    "destino": "digitalisimo-search-form",
+    "contexto": "",
+    "pixeles_normal": {
+     "375": 0.0038,
+     "768": 0.0018,
+     "1280": 0.0011
+    },
+    "acciones": {},
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sf-text": {
+    "widget": "search-form",
+    "destino": "digitalisimo-search-form",
+    "contexto": "",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sf-arrow": {
+    "widget": "search-form",
+    "destino": "digitalisimo-search-form",
+    "contexto": "",
+    "pixeles_normal": {
+     "375": 0.0021,
+     "768": 0.001,
+     "1280": 0.0006
+    },
+    "acciones": {},
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sf-minimal": {
+    "widget": "search-form",
+    "destino": "digitalisimo-search-form",
+    "contexto": "",
+    "pixeles_normal": {
+     "375": 0.0037,
+     "768": 0.0018,
+     "1280": 0.001
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sf-full": {
+    "widget": "search-form",
+    "destino": "digitalisimo-search-form",
+    "contexto": "",
+    "pixeles_normal": {
+     "375": 0.0089,
+     "768": 0.0042,
+     "1280": 0.0025
+    },
+    "acciones": {
+     "abrir": {
+      "375": 0.0059,
+      "768": 0.0028,
+      "1280": 0.0017
+     }
+    },
+    "declaradas": 33,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sm-defaults": {
+    "widget": "sitemap",
+    "destino": "digitalisimo-sitemap",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sm-styled": {
+    "widget": "sitemap",
+    "destino": "digitalisimo-sitemap",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-archivetitle-category": {
+    "widget": "theme-archive-title",
+    "destino": "digitalisimo-archive-title",
+    "contexto": "archivo category",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-archivetitle-tag": {
+    "widget": "theme-archive-title",
+    "destino": "digitalisimo-archive-title",
+    "contexto": "archivo tag",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-archivetitle-author": {
+    "widget": "theme-archive-title",
+    "destino": "digitalisimo-archive-title",
+    "contexto": "archivo author",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-archivetitle-search": {
+    "widget": "theme-archive-title",
+    "destino": "digitalisimo-archive-title",
+    "contexto": "archivo search",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-pagetitle-defaults": {
+    "widget": "theme-page-title",
+    "destino": "digitalisimo-page-title",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-pagetitle-post": {
+    "widget": "theme-page-title",
+    "destino": "digitalisimo-page-title",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-pagetitle-archive": {
+    "widget": "theme-page-title",
+    "destino": "digitalisimo-page-title",
+    "contexto": "archivo category",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-content-defaults": {
+    "widget": "theme-post-content",
+    "destino": "digitalisimo-post-content",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-content-styled": {
+    "widget": "theme-post-content",
+    "destino": "digitalisimo-post-content",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-content-global": {
+    "widget": "theme-post-content",
+    "destino": "digitalisimo-post-content",
+    "contexto": "entrada bare",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-excerpt-defaults": {
+    "widget": "theme-post-excerpt",
+    "destino": "digitalisimo-post-excerpt",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-excerpt-bare": {
+    "widget": "theme-post-excerpt",
+    "destino": "digitalisimo-post-excerpt",
+    "contexto": "entrada bare",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-excerpt-links": {
+    "widget": "theme-post-excerpt",
+    "destino": "digitalisimo-post-excerpt",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-featured-defaults": {
+    "widget": "theme-post-featured-image",
+    "destino": "digitalisimo-featured-image",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-featured-caption-file": {
+    "widget": "theme-post-featured-image",
+    "destino": "digitalisimo-featured-image",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-featured-fit": {
+    "widget": "theme-post-featured-image",
+    "destino": "digitalisimo-featured-image",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-posttitle-defaults": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-posttitle-link": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-posttitle-styled": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-posttitle-custom-css": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "contexto": "entrada full",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     {
+      "code": "pro.css",
+      "key": "custom_css",
+      "reason": "Clases del widget de PRO en el CSS personalizado del elemento, pasadas a las del widget propio.",
+      "section": "converted",
+      "source": "theme-post-title",
+      "target": "digitalisimo-post-title",
+      "element": "04df873"
+     }
+    ]
+   },
+   "tl-logo-defaults": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-logo-styled": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-logo-file-caption": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-logo-custom": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-sitetitle-defaults": {
+    "widget": "theme-site-title",
+    "destino": "digitalisimo-site-title",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-sitetitle-styled": {
+    "widget": "theme-site-title",
+    "destino": "digitalisimo-site-title",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-sitetitle-global": {
+    "widget": "theme-site-title",
+    "destino": "digitalisimo-site-title",
+    "contexto": "página",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "acciones": {},
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   }
+  },
+  "resumen": {
+   "casos": 138,
+   "c4": 53,
+   "c0_c1": 85,
+   "con_problemas": 0,
+   "sin_motivo": 0,
+   "nota": "Dos corridas (la primera se cortó a los 28 casos; la segunda midió los 110 restantes) más la repetición de los 11 casos de la Caja de autor y la Información de la entrada tras quitar el loading forzado de sus avatares. (repetición pendiente)"
+  }
+ },
+ "validate_yml": {
+  "pruebas": 313,
+  "detalle": "305 de la lista de validate.yml, 7 de update-enqueue y validate-suite: 310 en verde a la primera; 3 repetidas en verde (el editor del Carrusel anidado con PHP_BIN=php-wasm, elements-front-cases con «single-post» como tipo de extra, elements-woo-module colgado en php-wasm y en verde en 0,9 s)"
+ },
+ "pro_migrate": {
+  "problemas": [],
+  "comprobaciones": 20,
+  "c4": "plantilla de entrada con los 15 elementos de tema de PRO y un bdt-post-info: 24 widgets en 4 documentos, --revert devuelve los de PRO y el de Element Pack"
+ },
+ "migration_pro_php": 121
+}

@@ -945,7 +945,7 @@ class Post_Info extends \Elementor\Widget_Base {
 					'alt'      => sprintf( esc_attr__( 'Imagen de %s', 'pro-elements' ), wp_strip_all_tags( (string) ( $data['text'] ?? '' ) ) ),
 					'width'    => '96',
 					'height'   => '96',
-					'loading'  => 'lazy',
+					// Sin `loading`: con medidas, la optimización de carga del núcleo lo añade (y lo duplicaría).
 					'decoding' => 'async',
 				)
 			);
