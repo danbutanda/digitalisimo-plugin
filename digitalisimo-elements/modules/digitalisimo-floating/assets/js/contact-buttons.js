@@ -37,6 +37,7 @@
 			if (animate && name && 'none' !== name && content) {
 				content.classList.add('animated', name);
 				wrap.classList.remove('animated-wrapper');
+				later();
 			} else if (content) { content.classList.add('visible'); }
 			wrap.classList.remove('hidden');
 			wrap.setAttribute('aria-hidden', 'false');
@@ -52,6 +53,7 @@
 			if (animate && name && 'none' !== name && content) {
 				content.classList.add('animated', 'reverse', name);
 				wrap.classList.add('animated-wrapper');
+				later();
 			} else if (content) { content.classList.remove('visible'); }
 			wrap.classList.add('hidden');
 			wrap.setAttribute('aria-hidden', 'true');
@@ -59,13 +61,17 @@
 			expanded(false);
 			if (back && toggle) { toggle.focus(); }
 		}
-		if (content) {
-			content.addEventListener('animationend', function () {
-				var exit = content.classList.contains('reverse');
-				content.classList.remove('animated', 'reverse', responsive(s, 'style_chat_box_entrance_animation') || 'x', responsive(s, 'style_chat_box_exit_animation') || 'x');
-				content.classList.toggle('visible', !exit);
-			});
+		var timer = 0;
+		function settle() {
+			clearTimeout(timer);
+			if (!content || !content.classList.contains('animated')) { return; }
+			var exit = content.classList.contains('reverse');
+			content.classList.remove('animated', 'reverse', responsive(s, 'style_chat_box_entrance_animation') || 'x', responsive(s, 'style_chat_box_exit_animation') || 'x');
+			content.classList.toggle('visible', !exit);
 		}
+		// Sin `animationend` (la hoja de la animación no cargó), el panel termina de abrirse o cerrarse igual.
+		function later() { clearTimeout(timer); timer = setTimeout(settle, 2100); }
+		if (content) { content.addEventListener('animationend', settle); }
 		if (wrap) {
 			if (hidden()) { wrap.inert = true; }
 			expanded(!hidden());

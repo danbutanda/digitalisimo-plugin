@@ -473,8 +473,9 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const sa = wa.signature;
       const sb = wb.signature;
       // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
-      // cero) vale si su caja tiene alto; el texto llega con las acciones.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && sa.height > 0)) fail('A no pinta texto ni imágenes en el widget');
+      // cero) vale si su caja tiene alto; el texto llega con las acciones. Con `capture` (C8: un bloque fijo a la ventana,
+      // cuyo envoltorio no tiene alto) basta la captura.
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && (sa.height > 0 || c.capture))) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

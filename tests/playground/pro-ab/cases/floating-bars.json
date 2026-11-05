@@ -303,7 +303,11 @@
      "label": "copiar el código",
      "a": ".e-floating-bars__coupon-button",
      "b": ".digi-fbar__coupon-button",
-     "wait": 900
+     "wait": 900,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
     }
    ],
    "container": {
