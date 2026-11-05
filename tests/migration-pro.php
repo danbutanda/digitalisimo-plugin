@@ -282,6 +282,9 @@ namespace {
 	\Digitalisimo\Elements\Convert\Module::init();
 	use Digitalisimo\Elements\Convert\Registry;
 	Registry::reset();
+	// El Menú de WordPress de PRO tiene su mapa listo desde C3; estas secciones lo usan como el widget de PRO sin mapa
+	// (la cadena real de C3 está en la 6b).
+	Registry::set( 'nav-menu', null );
 	Pro::reset();
 	$check( Pro::available(), 'Con el núcleo de Elements, Pro está disponible.' );
 

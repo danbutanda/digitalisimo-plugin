@@ -490,6 +490,11 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'video-playlist', own: 'digitalisimo-video-playlist', title: 'Lista de videos', query: 'lista de videos' },
         { pro: 'countdown', own: 'digitalisimo-countdown', title: 'Cuenta regresiva', query: 'regresiva' },
         { pro: 'progress-tracker', own: 'digitalisimo-progress-tracker', title: 'Indicador de progreso', query: 'indicador de progreso' },
+        // C3 (navegación y búsqueda, docs/pro/c3.md).
+        { pro: 'nav-menu', own: 'digitalisimo-nav-menu', title: 'Menú de WordPress', query: 'menú de wordpress' },
+        { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
+        { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
+        { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
       ];
       const pro = await page.evaluate(async (list) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};
