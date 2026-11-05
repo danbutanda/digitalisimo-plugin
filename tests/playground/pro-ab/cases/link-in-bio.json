@@ -139,7 +139,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-2-content": {
    "title": "Classic (presentación 2): imágenes, enlaces de cada tipo e iconos con destino",
@@ -219,7 +227,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-3-defaults": {
    "title": "Showcase (presentación 3): valores por defecto",
@@ -246,7 +262,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-3-content": {
    "title": "Showcase (presentación 3): imágenes, enlaces de cada tipo e iconos con destino",
@@ -332,7 +356,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-4-defaults": {
    "title": "Links (presentación 4): valores por defecto",
@@ -359,7 +391,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-4-content": {
    "title": "Links (presentación 4): imágenes, enlaces de cada tipo e iconos con destino",
@@ -436,7 +476,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-5-defaults": {
    "title": "Services (presentación 5): valores por defecto",
@@ -463,7 +511,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-5-content": {
    "title": "Services (presentación 5): imágenes, enlaces de cada tipo e iconos con destino",
@@ -550,7 +606,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-6-defaults": {
    "title": "Portfolio Bio (presentación 6): valores por defecto",
@@ -577,7 +641,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-6-content": {
    "title": "Portfolio Bio (presentación 6): imágenes, enlaces de cada tipo e iconos con destino",
@@ -670,7 +742,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-7-defaults": {
    "title": "Business Card (presentación 7): valores por defecto",
@@ -697,7 +777,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-7-content": {
    "title": "Business Card (presentación 7): imágenes, enlaces de cada tipo e iconos con destino",
@@ -764,7 +852,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-2-style": {
    "title": "Classic: colores, esquinas redondas, borde, enlaces como texto subrayado",
@@ -823,7 +919,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-4-links-type": {
    "title": "Links: enlaces de tipo texto con separadores",
@@ -874,7 +978,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   },
   "lib-7-style": {
    "title": "Business Card: iconos con fondo y borde, esquinas rectas, color del texto de los iconos",
@@ -909,7 +1021,15 @@
      "id": "widget-link-in-bio-base-css",
      "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
   }
  }
 }
