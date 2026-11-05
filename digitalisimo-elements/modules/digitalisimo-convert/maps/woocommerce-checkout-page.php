@@ -72,7 +72,7 @@ $digi_co_fields    = array(
 return array(
 	'source'    => 'woocommerce-checkout-page',
 	'target'    => 'digitalisimo-woo-checkout',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	'defaults'  => $digi_co_defaults,
 	'keep'      => array(
