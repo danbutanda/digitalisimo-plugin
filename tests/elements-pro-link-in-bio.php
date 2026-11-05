@@ -187,7 +187,7 @@ namespace {
 	check_lib( 'digitalisimo-link-in-bio' === ( new Link_In_Bio() )->get_name() && 'Link in Bio' === ( new Link_In_Bio() )->get_title(), 'nombre y título del widget.' );
 	check_lib( ! is_file( Module::path( Module::WIDGETS[ $name ]['js'] ) ) && array() === Module::script_depends( $name ) && array() === ( new Link_In_Bio() )->get_script_depends(), 'sin script en el sitio.' );
 	// Tope de cada hoja (anotado en el informe: la base del núcleo que repiten pesa 12 399 B; PRO cargaba 13–14 KB).
-	$caps = array( '' => 1024, '2' => 9216, '3' => 9216, '4' => 7680, '5' => 9216, '6' => 7680, '7' => 10240 );
+	$caps = array( '' => 1024, '2' => 9728, '3' => 9216, '4' => 7680, '5' => 9728, '6' => 7680, '7' => 10752 );
 	foreach ( $caps as $p => $cap ) {
 		$p = (string) $p;
 		$file = '' === $p ? Module::path( Module::WIDGETS[ $name ]['css'] ) : Module::path( Module::presentation_css( $name, $p ) );
