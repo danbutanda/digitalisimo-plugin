@@ -365,7 +365,7 @@ function digi_ab_children( array $elements, $seed ) {
 }
 
 /**
- * Hermanos del widget del caso en su contenedor (`before` y `after` del caso, C5): elementos completos (`widgetType`,
+ * Hermanos del widget del caso en su contenedor (`before` y `after` del caso, C2 y C5): elementos completos (`widgetType`,
  * `settings`…) con IDs deterministas donde falten, las imágenes y plantillas de prueba y la cadena `"$self"` cambiada
  * por el ID del widget del caso (un filtro que apunta al bucle medido). Se convierten en B como el resto del árbol.
  */

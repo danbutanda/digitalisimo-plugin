@@ -490,6 +490,13 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'video-playlist', own: 'digitalisimo-video-playlist', title: 'Lista de videos', query: 'lista de videos' },
         { pro: 'countdown', own: 'digitalisimo-countdown', title: 'Cuenta regresiva', query: 'regresiva' },
         { pro: 'progress-tracker', own: 'digitalisimo-progress-tracker', title: 'Indicador de progreso', query: 'indicador de progreso' },
+        // C5 (entradas y bucles, docs/pro/c5.md).
+        { pro: 'posts', own: 'digitalisimo-posts', title: 'Entradas', query: 'entradas' },
+        { pro: 'archive-posts', own: 'digitalisimo-archive-posts', title: 'Entradas del archivo', query: 'entradas del archivo' },
+        { pro: 'portfolio', own: 'digitalisimo-portfolio', title: 'Portafolio', query: 'portafolio' },
+        { pro: 'loop-grid', own: 'digitalisimo-loop-grid', title: 'Cuadrícula de bucle', query: 'bucle' },
+        { pro: 'loop-carousel', own: 'digitalisimo-loop-carousel', title: 'Carrusel de bucle', query: 'carrusel de bucle' },
+        { pro: 'taxonomy-filter', own: 'digitalisimo-taxonomy-filter', title: 'Filtro de taxonomías', query: 'filtro' },
       ];
       const pro = await page.evaluate(async (list) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

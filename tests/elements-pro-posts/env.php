@@ -5,7 +5,7 @@
  * núcleo (`elementor/element/{widget}/{sección}/before_section_end` y `after_section_end`), el `Skin_Base` real del
  * núcleo y lo mínimo de WordPress y de PRO para **ejecutar el código de PRO** (`modules/posts/`, `theme-builder/`) y el
  * propio y comparar sus controles. Lo cargan `tests/elements-pro-posts.php` y, para listar controles,
- * `php-wasm-cli tests/elements-pro-posts-env.php dump <widget>`.
+ * `php-wasm-cli tests/elements-pro-posts/env.php dump <widget>`.
  */
 namespace Elementor\Core\Kits\Documents\Tabs {
 	class Global_Colors {
@@ -139,8 +139,8 @@ namespace Elementor {
 	if ( ! defined( 'ABSPATH' ) ) {
 		define( 'ABSPATH', __DIR__ . '/' );
 	}
-	require dirname( __DIR__ ) . '/digitalisimo-elements/elementor/includes/base/sub-controls-stack.php';
-	require dirname( __DIR__ ) . '/digitalisimo-elements/elementor/includes/base/skin-base.php';
+	require dirname( __DIR__, 2 ) . '/digitalisimo-elements/elementor/includes/base/sub-controls-stack.php';
+	require dirname( __DIR__, 2 ) . '/digitalisimo-elements/elementor/includes/base/skin-base.php';
 	class Plugin {
 		public static $instance;
 		public $editor;
@@ -233,7 +233,7 @@ namespace {
 			return;
 		}
 		$done = true;
-		$root = dirname( __DIR__ ) . '/digitalisimo-elements/';
+		$root = dirname( __DIR__, 2 ) . '/digitalisimo-elements/';
 		foreach ( array( 'traits/button-widget-trait.php', 'traits/pagination-trait.php', 'traits/query-note-trait.php', 'traits/render-posts-markdown-trait.php', 'widgets/posts-base.php', 'widgets/posts.php', 'widgets/portfolio.php', 'skins/skin-base.php', 'skins/skin-classic.php', 'skins/skin-cards.php', 'skins/skin-content-base.php', 'skins/skin-full-content.php' ) as $file ) {
 			require_once $root . 'modules/posts/' . $file;
 		}
@@ -279,7 +279,7 @@ namespace {
 		);
 	}
 
-	if ( 'dump' === ( $GLOBALS['argv'][1] ?? '' ) && 'elements-pro-posts-env.php' === basename( (string) ( $GLOBALS['argv'][0] ?? '' ) ) ) {
+	if ( 'dump' === ( $GLOBALS['argv'][1] ?? '' ) && 'env.php' === basename( (string) ( $GLOBALS['argv'][0] ?? '' ) ) ) {
 		$argv = $GLOBALS["argv"]; $pair   = pe_pairs()[ $argv[2] ?? 'posts' ];
 		$widget = pe_widget( ltrim( $pair[ ( $argv[3] ?? 'pro' ) === 'pro' ? 0 : 1 ], '\\' ) );
 		foreach ( $widget->controls as $name => $c ) {

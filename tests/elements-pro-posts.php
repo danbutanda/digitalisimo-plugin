@@ -7,7 +7,7 @@
  *   `--e-global-*`, `url()`, jQuery, Swiper ni los paquetes de PRO, sin nombres vetados por el empaquetado, sólo los
  *   colores que PRO usaba por defecto, y los recursos por instancia (paginación, tarjetas, mampostería, filtro);
  * - **los mismos controles que PRO**, comparados con los de PRO **ejecutando su código** en el entorno simulado
- *   (`elements-pro-posts-env.php`): nombres (también los de las pieles y los heredados de `Posts_Base` y
+ *   (`elements-pro-posts/env.php`): nombres (también los de las pieles y los heredados de `Posts_Base` y
  *   `Button_Widget_Trait`), tipo, valor por defecto (por dispositivo), opciones, condiciones, sensibilidad al
  *   dispositivo, `frontend_available`, `render_type`, globales y clases del envoltorio; las mismas secciones y grupos;
  * - marcado: clásica, tarjetas (insignia, avatar), contenido completo, metadatos con su espacio alrededor del separador,
@@ -18,7 +18,7 @@
  * - conversión con `Converter::tree()` de ajustes reales de los tres widgets (pieles, responsivos, globales, dinámicos,
  *   CSS personalizado con clases de PRO): ningún `pro.unmapped` y cada clave cae en un control propio.
  */
-require __DIR__ . '/elements-pro-posts-env.php';
+require __DIR__ . '/elements-pro-posts/env.php';
 
 // ── WordPress mínimo para pintar ─────────────────────────────────────────────────────────────────────────────────
 class WP_Query {

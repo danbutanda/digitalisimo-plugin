@@ -71,6 +71,7 @@ Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por fa
 * Cita, en lugar del Blockquote.
 * Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas, en lugar de los carruseles de PRO: un motor propio sin Swiper ni jQuery, con teclado, botón para pausar la reproducción automática y respeto por el movimiento reducido.
 * Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso, en lugar de los widgets de contenido de PRO: sin jQuery, con teclado y foco visible, respeto por el movimiento reducido y ninguna petición a terceros antes del clic (ni redes sociales ni servicios de vídeo); Prism y la librería de Lottie sólo se piden al acercarse el widget a la pantalla.
+* Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías, en lugar de los listados de PRO: la misma consulta y las mismas plantillas de Elemento de bucle, paginación con enlaces reales, «Cargar más» como botón e infinita sin jQuery, filtros con botones accesibles que no recargan la página y el carrusel sobre el motor propio, sin Swiper.
 
 == Formularios ==
 

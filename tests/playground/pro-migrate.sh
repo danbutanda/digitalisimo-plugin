@@ -5,7 +5,10 @@
 # Comprueba que la página y la cabecera pasan a la Cita (con el CSS personalizado traducido), que la revisión no se
 # toca, que queda la copia original y que --revert devuelve el Blockquote de PRO. C1: los cinco carruseles de PRO. C2: los
 # catorce widgets de contenido de PRO y una cuenta regresiva de Element Pack (`bdt-countdown`) que F8 lleva a la de PRO y
-# la etapa `pro` a la propia en la misma pasada; --revert devuelve los de PRO y el de Element Pack.
+# la etapa `pro` a la propia en la misma pasada; --revert devuelve los de PRO y el de Element Pack. C5: los seis widgets de
+# entradas y bucles de PRO (con una plantilla de Elemento de bucle y el filtro apuntando a la cuadrícula), unas Entradas de
+# PRO en la cabecera y una rejilla de entradas y un Dynamic Grid de Element Pack y un Blog de Prime Slider que F8 lleva a
+# Posts, Loop Grid y Loop Carousel de PRO y la etapa `pro` a los propios en la misma pasada; --revert los devuelve.
 # Uso: bash tests/playground/pro-migrate.sh   (OUT, TMPDIR como los demás arneses)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -34,12 +37,15 @@ const ok = (c, m) => { console.log(`${c ? 'OK   ' : 'FALLA'}  ${m}`); if (!c) pr
 for (const s of steps) if (s.error) problems.push(`${s.step}: ${s.error}`);
 const inv = (by('inventory')[0] || {}).inventory || {};
 const row = (inv.widgets || []).find((w) => w.widget === 'blockquote') || {};
-ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 3 && row.documents === 2 && row.revisions === 1 && inv.where && inv.where.page === 3 && inv.where.header === 1, `inventario: 3 Blockquote en 2 documentos (página y cabecera), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 3 páginas (citas, carruseles y contenido) y una cabecera (${JSON.stringify(row).slice(0, 200)})`);
+ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 3 && row.documents === 2 && row.revisions === 1 && inv.where && inv.where.page === 4 && inv.where.header === 1, `inventario: 3 Blockquote en 2 documentos (página y cabecera), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 4 páginas (citas, carruseles, contenido y bucles) y una cabecera (${JSON.stringify(row).slice(0, 200)} ${JSON.stringify(inv.where)})`);
 const c1 = ['nested-carousel', 'slides', 'media-carousel', 'testimonial-carousel', 'reviews'].map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c1.every((r) => r.family === 'C1' && r.elements === 1 && r.documents === 1 && r.target === `digitalisimo-${r.widget}`), `inventario: los cinco carruseles de PRO, familia C1, cada uno con su widget propio de destino (${JSON.stringify(c1.map((r) => [r.widget, r.family, r.target, r.elements]))})`);
 const C2 = { e1: 'animated-headline', e2: 'code-highlight', e3: 'table-of-contents', e4: 'share-buttons', e5: 'call-to-action', e6: 'flip-box', e7: 'price-list', e8: 'price-table', e9: 'gallery', e10: 'hotspot', e11: 'lottie', e12: 'video-playlist', e13: 'countdown', e14: 'progress-tracker' };
 const c2 = Object.values(C2).map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c2.every((r) => r.family === 'C2' && r.elements === 1 && r.documents === 1 && r.target === `digitalisimo-${r.widget}`), `inventario: los catorce widgets de contenido de PRO, familia C2, cada uno con su widget propio de destino (${JSON.stringify(c2.filter((r) => !(r.family === 'C2' && r.elements === 1 && r.target === `digitalisimo-${r.widget}`)).map((r) => [r.widget, r.family, r.target, r.elements]))})`);
+const C5 = { p1: ['posts', 'C5'], p2: ['archive-posts', 'C4'], p3: ['portfolio', 'C5'], p4: ['taxonomy-filter', 'C5'], p5: ['loop-grid', 'C5'], p6: ['loop-carousel', 'C5'] };
+const c5 = Object.values(C5).map(([w, fam]) => ({ fam, ...((inv.widgets || []).find((x) => x.widget === w) || { widget: w }) }));
+ok(c5.every((r) => r.family === r.fam && r.elements === (r.widget === 'posts' ? 2 : 1) && r.documents === (r.widget === 'posts' ? 2 : 1) && r.target === `digitalisimo-${r.widget}`), `inventario: los seis de entradas y bucles de PRO (Entradas del archivo, en la familia C4 del catálogo; las Entradas, también en la cabecera), cada uno con su widget propio de destino (${JSON.stringify(c5.map((r) => [r.widget, r.family, r.target, r.elements, r.documents]))})`);
 const runs = by('run');
 const last = runs[runs.length - 1] || {};
 ok(runs.some((r) => r.state && r.state.done), `Migrar termina (${runs.map((r) => JSON.stringify(r.state)).join(' | ').slice(0, 300)})`);
@@ -50,7 +56,7 @@ ok(t.header && t.header.q9 === 'digitalisimo-blockquote', 'la plantilla de cabec
 ok(t.revision && t.revision.q1 && t.revision.q1.startsWith('blockquote') && t.revision.q2 === 'blockquote', 'la revisión se queda con el Blockquote de PRO');
 ok(last.backup === true, 'queda la copia original de la página');
 const first = runs.find((r) => r.state && r.state.counts && r.state.counts.pro) || {};
-ok(first.state && first.state.counts.pro === 4 && first.state.counts.pro_elements === 23 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 23 widgets en 4 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
+ok(first.state && first.state.counts.pro === 5 && first.state.counts.pro_elements === 33 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 33 widgets en 5 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, y los 7 de C5 más los 3 que F8 trae de Element Pack y Prime Slider) y lo informa (${JSON.stringify(first.state && first.state.counts)} ${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
 ok(runs.length < 2 || /No había nada que migrar/.test(last.report || '') || (last.state && last.state.counts && !last.state.counts.pro), 'una segunda pasada no vuelve a convertir nada');
 const own = { n1: 'digitalisimo-nested-carousel', s1: 'digitalisimo-slides', m1: 'digitalisimo-media-carousel', t1: 'digitalisimo-testimonial-carousel', r1: 'digitalisimo-reviews' };
 ok(t.carousels && Object.entries(own).every(([id, type]) => (t.carousels[id] || '').startsWith(type)) && t.carousels.n1ah === 'heading' && t.carousels.n1bh === 'heading', `C1: los cinco carruseles pasan a los propios y el contenido de las diapositivas anidadas no cambia (${JSON.stringify(t.carousels)})`);
@@ -59,7 +65,16 @@ ok(t.carousels && /digi-crs__slide/.test(t.carousels.n1 || '') && !/swiper-slide
 ok(t.content && Object.entries(C2).every(([id, w]) => (t.content[id] || '').split(' ')[0] === `digitalisimo-${w}`), `C2: los catorce widgets de contenido pasan a los propios (${JSON.stringify(t.content)})`);
 ok(t.content && (t.content.ep1 || '').split(' ')[0] === 'digitalisimo-countdown', `C2: la cuenta regresiva de Element Pack llega a la propia en la misma pasada (F8 → PRO → propia: ${t.content && t.content.ep1})`);
 ok(t.content && /digi-flip-box__front/.test(t.content.e6 || '') && !/elementor-flip-box/.test(t.content.e6 || '') && /digi-price-table__heading/.test(t.content.e8 || ''), 'C2: el CSS personalizado de la tarjeta giratoria y de la tabla de precios usa las clases propias');
+const L = last.loops || {};
+const ls = L.settings || {};
+const own5 = { p1: 'digitalisimo-posts', p2: 'digitalisimo-archive-posts', p3: 'digitalisimo-portfolio', p4: 'digitalisimo-taxonomy-filter', p5: 'digitalisimo-loop-grid', p6: 'digitalisimo-loop-carousel', ep2: 'digitalisimo-posts', ep3: 'digitalisimo-loop-grid', ps1: 'digitalisimo-loop-carousel' };
+ok(t.loops && Object.entries(own5).every(([id, type]) => (t.loops[id] || '').split(' ')[0] === type), `C5: los seis de PRO y lo que F8 trae de Element Pack y Prime Slider pasan a los propios en la misma pasada (${JSON.stringify(t.loops)})`);
+ok(t.header && (t.header.hp1 || '').split(' ')[0] === 'digitalisimo-posts', `C5: las Entradas de la plantilla de cabecera también (${JSON.stringify(t.header)})`);
+ok(String((ls.p5 || {}).template_id) === String(L.loop_item) && String((ls.p6 || {}).template_id) === String(L.loop_item) && (ls.p4 || {}).selected_element === 'p5', `C5: la cuadrícula y el carrusel conservan su plantilla de Elemento de bucle y el filtro sigue apuntando a la cuadrícula (${JSON.stringify(ls)})`);
+ok(L.card_copy > 0 && String((ls.ep3 || {}).template_id) === String(L.card_copy) && (ls.ep3 || {})._skin === 'post', `C5: el Dynamic Grid de Element Pack llega a la Cuadrícula propia con la copia Loop Item de F8 (${JSON.stringify(ls.ep3)} copia ${L.card_copy})`);
+ok(t.loops && /digi-posts__title/.test(t.loops.p1 || '') && /digi-tfilter__item/.test(t.loops.p4 || '') && /digi-loop-grid__items/.test(t.loops.p5 || '') && !/elementor-post__title|e-filter-item|elementor-loop-container/.test([t.loops.p1, t.loops.p4, t.loops.p5].join(' ')), 'C5: el CSS personalizado de Entradas, del filtro y de la cuadrícula usa las clases propias');
 const rv = (by('revert')[0] || {}).types || {};
+ok(rv.loops && Object.entries({ p1: 'posts', p2: 'archive-posts', p3: 'portfolio', p4: 'taxonomy-filter', p5: 'loop-grid', p6: 'loop-carousel', ep2: 'bdt-post-grid', ep3: 'bdt-dynamic-grid', ps1: 'prime-slider-blog' }).every(([id, type]) => (rv.loops[id] || '').split(' ')[0] === type) && rv.header && (rv.header.hp1 || '').split(' ')[0] === 'posts', `C5: --revert devuelve los de PRO y los de Element Pack y Prime Slider (${JSON.stringify(rv.loops)})`);
 ok(rv.content && Object.entries(C2).every(([id, w]) => (rv.content[id] || '').split(' ')[0] === w), `C2: --revert devuelve los catorce widgets de PRO (${JSON.stringify(rv.content)})`);
 ok(rv.content && (rv.content.ep1 || '').split(' ')[0] === 'bdt-countdown', `C2: --revert devuelve la cuenta regresiva de Element Pack (${rv.content && rv.content.ep1})`);
 ok(rv.carousels && Object.entries({ n1: 'nested-carousel', s1: 'slides', m1: 'media-carousel', t1: 'testimonial-carousel', r1: 'reviews' }).every(([id, type]) => (rv.carousels[id] || '').split(' ')[0] === type), `C1: --revert devuelve los carruseles de PRO (${JSON.stringify(rv.carousels)})`);
