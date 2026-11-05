@@ -510,6 +510,11 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'search-form', own: 'digitalisimo-search-form', title: 'Formulario de búsqueda', query: 'formulario de búsqueda', ownHidden: true },
         { pro: 'sitemap', own: 'digitalisimo-sitemap', title: 'Mapa del sitio', query: 'mapa del sitio' },
         { pro: 'breadcrumbs', own: 'digitalisimo-yoast-breadcrumbs', title: 'Migas (Yoast o DIGITALÍSIMO SEO)', query: 'migas', proOptional: true },
+        // C3 (navegación y búsqueda, docs/pro/c3.md).
+        { pro: 'nav-menu', own: 'digitalisimo-nav-menu', title: 'Menú de WordPress', query: 'menú de wordpress' },
+        { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
+        { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
+        { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
         // C7 (WooCommerce, docs/pro/c7.md). Los de la ficha sólo existen en una plantilla de producto y los de archivo, en
         // una de archivo de productos (sus categorías); los obsoletos de PRO y «Elementos del producto» quedan ocultos
         // como en PRO; PRO no registra la Imagen de la categoría.

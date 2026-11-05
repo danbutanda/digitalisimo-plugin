@@ -252,13 +252,16 @@ namespace {
 
 	$tag = function ( $name ) { return '[elementor-tag id="a1b2c3d" name="' . $name . '" settings="%7B%22popup%22%3A%2212%22%7D"]'; };
 	foreach ( Pro_Gate::TAGS as $name ) {
-		check_gate( array( 'tag:' . $name ) === walk_of( array( w( 'button', array( '__dynamic__' => array( 'link' => $tag( $name ) ) ) ) ) ), 'tag:' . $name . ' en __dynamic__.' );
+		// Las de `OWN` (C3: el Panel fuera de lienzo propio registra `off_canvas:*`) no piden los paquetes.
+		$expect = in_array( $name, Pro_Gate::OWN, true ) ? array() : array( 'tag:' . $name );
+		check_gate( $expect === walk_of( array( w( 'button', array( '__dynamic__' => array( 'link' => $tag( $name ) ) ) ) ) ), 'tag:' . $name . ' en __dynamic__.' );
 	}
 	check_gate( array( 'tag:popup' ) === walk_of( array( w( 'digitalisimo-accordion', array( 'tabs' => array( array( 'title' => 'Uno' ), array( '__dynamic__' => array( 'link' => $tag( 'popup' ) ) ) ) ) ) ) ), 'tag: dentro de un repetidor.' );
 	check_gate( array() === walk_of( array( w( 'button', array( '__dynamic__' => array( 'link' => $tag( 'post-url' ) ) ) ) ) ), 'Otra etiqueta dinámica no cuenta.' );
 	$hash = '#' . rawurlencode( 'elementor-action:action=popup:open&settings=' . base64_encode( '{"id":"12","toggle":false}' ) );
 	check_gate( array( 'action:popup' ) === walk_of( array( w( 'button', array( 'link' => array( 'url' => $hash ) ) ) ) ), 'action: hash codificado en link.url.' );
-	check_gate( array( 'action:off_canvas' ) === walk_of( array( w( 'button', array( 'link' => array( 'url' => '#elementor-action:action=off_canvas:toggle&settings=e30=' ) ) ) ) ), 'action: hash sin codificar.' );
+	check_gate( array( 'action:popup' ) === walk_of( array( w( 'button', array( 'link' => array( 'url' => '#elementor-action:action=popup:toggle&settings=e30=' ) ) ) ) ), 'action: hash sin codificar.' );
+	check_gate( array() === walk_of( array( w( 'button', array( 'link' => array( 'url' => '#elementor-action:action=off_canvas:toggle&settings=e30=' ) ) ) ) ) && array( 'off-canvas', 'off_canvas' ) === Pro_Gate::OWN, 'action: off_canvas lo atiende el Panel fuera de lienzo propio (C3): no pide los paquetes.' );
 	check_gate( array( 'action:reload-page' ) === walk_of( array( w( 'text-editor', array( 'editor' => '<a href="#ELEMENTOR-ACTION%3aACTION%3dRELOAD-PAGE">x</a>' ) ) ) ), 'action: sin distinguir mayúsculas.' );
 	check_gate( array() === walk_of( array( w( 'button', array( 'link' => array( 'url' => '#' . rawurlencode( 'elementor-action:action=lightbox&settings=e30=' ) ) ) ) ) ), 'lightbox es del núcleo: no cuenta.' );
 	check_gate( array( 'code:global' ) === walk_of( array( w( 'html', array( 'html' => '<script>elementorProFrontend.modules.popup.showPopup({id:12});</script>' ) ) ) ), 'code:global con elementorProFrontend.' );
