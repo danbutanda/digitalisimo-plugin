@@ -1,7 +1,8 @@
 <?php
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
 // página con los cinco carruseles de PRO (C1); otra con los catorce widgets de contenido de PRO y una cuenta regresiva
-// de Element Pack (C2); y una plantilla de entrada con los elementos de tema (C4).
+// de Element Pack (C2); una plantilla de entrada con los elementos de tema (C4); y documentos de botones flotantes, una
+// página Link in Bio y una cabecera con las variantes de PRO de C8.
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -91,5 +92,35 @@ update_post_meta( $single, '_elementor_template_type', 'single-post' );
 update_post_meta( $single, '_elementor_edit_mode', 'builder' );
 update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
 wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single ) );
+// C8: un documento de botones flotantes (tipo de entrada del constructor `e-floating-buttons`) con los Botones de
+// contacto de PRO (Multi Chat, con CSS personalizado), otro de barra flotante (Coupon), una página Link in Bio con dos
+// variantes de PRO (Classic y Business Card) y una plantilla de cabecera con la variante Interactive. F8 no lleva ningún
+// widget de Element Pack a estas variantes (no hay cadena que convertir).
+$floating_doc = static function ( $slug, $title, $kind, array $elements ) {
+	$id = wp_insert_post( array( 'post_type' => 'e-floating-buttons', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_template_type', 'floating-buttons' );
+	update_post_meta( $id, '_elementor_floating_elements_type', $kind );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c' . $slug, 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => $elements ) ) ) ) );
+	return $id;
+};
+$float = $floating_doc( 'pm-flotantes', 'Botones flotantes', 'floating-buttons', array(
+	$w( 'k1', 'contact-buttons-var-1', array( 'top_bar_title' => 'Equipo', 'custom_css' => 'selector .e-contact-buttons__chat-button{outline:1px solid}' ) ),
+) );
+$bar = $floating_doc( 'pm-barra', 'Barra flotante', 'floating-bars', array(
+	$w( 'k2', 'floating-bars-var-3', array( 'coupon_code' => 'PM2026' ) ),
+) );
+$bio_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'l2', 'link-in-bio-var-2', array( 'bio_heading' => 'Hola' ) ),
+	$w( 'l7', 'link-in-bio-var-7', array( 'bio_title' => 'Tarjeta', 'custom_css' => 'selector .e-link-in-bio__title{letter-spacing:1px}' ) ),
+) ) );
+$bio = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Link in Bio', 'post_name' => 'pm-bio' ) );
+update_post_meta( $bio, '_elementor_edit_mode', 'builder' );
+update_post_meta( $bio, '_elementor_data', wp_slash( wp_json_encode( $bio_data ) ) );
+$header2 = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Cabecera con botones', 'post_name' => 'pm-cabecera-botones' ) );
+update_post_meta( $header2, '_elementor_template_type', 'header' );
+update_post_meta( $header2, '_elementor_edit_mode', 'builder' );
+update_post_meta( $header2, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( $w( 'k10', 'contact-buttons-var-10', array() ) ) ) ) ) ) );
+wp_set_object_terms( $header2, 'header', 'elementor_library_type' );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2 ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

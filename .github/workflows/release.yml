@@ -104,6 +104,9 @@ jobs:
           node tests/elements-pro-search-form-chrome.mjs
           php tests/elements-pro-sitemap.php
           php tests/elements-pro-yoast-breadcrumbs.php
+          php tests/elements-pro-floating.php
+          node tests/elements-pro-floating-chrome.mjs
+          php tests/elements-pro-link-in-bio.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php

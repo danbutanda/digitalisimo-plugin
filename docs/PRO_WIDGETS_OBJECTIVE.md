@@ -50,7 +50,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items.
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
-- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
+- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en tres widgets propios con presentaciones (Botones de contacto, Barra flotante y Link in Bio).
 - **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
@@ -139,23 +139,23 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | Nuevo |  |
 | C7 | `woocommerce` | `woocommerce-products` | Products | Parcial | Cuadrícula de productos y partes de F4-Woo |
 | C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 1, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 10, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 3, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 4, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 5, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 6, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 7, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 8, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | Parcial · borrador | Botones de contacto (`digitalisimo-contact-buttons`), presentación 9; mapa en borrador hasta aclarar una diferencia del A/B (`docs/pro/c8.md`, Límites), C8 |
+| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 2, C8 |
+| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 2, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 4, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 5, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 6, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 7, C8 |
 | C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
 | C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
 | C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
@@ -173,6 +173,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C1 | **Publicado** · Elements 4.3.0.173 y Migración 1.0.23 · `v2026.11.04.449`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
 | C2 | **Publicado** · Elements 4.3.0.174 y Migración 1.0.24 · `v2026.11.05.450`. Catorce widgets de contenido propios en `modules/digitalisimo-content/` (Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso) con sus mapas listos y fuera del panel; con la Cita de C0, la familia C2 queda sustituida entera. Detalle en `docs/pro/c2.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
-| C8 | **En curso** (rama `pro/c8`, contrato `docs/pro/c8.md`) |
+| C8 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C8_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también en los documentos de botones flotantes). Tres widgets propios con una presentación por variante de PRO en `modules/digitalisimo-floating/`: Botones de contacto (9), Barra flotante (2) y Link in Bio (6), que heredan las bases del núcleo; 16 mapas listos y fuera del panel, y `contact-buttons-var-9` en borrador. Detalle en `docs/pro/c8.md` |
 | C3, C5–C7, C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

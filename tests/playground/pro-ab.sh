@@ -51,6 +51,15 @@
 #     acepta si A tiene controles enfocables;
 #   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
 #     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
+# C8 (botones flotantes y Link in Bio) añade, también opcionales:
+#   - `doc`: `"floating-buttons"` o `"floating-bars"` crea A y B como documentos de botones flotantes del constructor
+#     (tipo de entrada `e-floating-buttons`, `_elementor_floating_elements_type` con ese valor) en lugar de páginas; cada
+#     uno se mide en su propia dirección (`urls` de conversion.json) con la plantilla «Lienzo» (el mu-plugin
+#     `digi-ab-floating-canvas.php`, sólo para ese tipo de entrada);
+#   - `container`: ajustes del contenedor del caso en lugar del común de cases.json (los scripts de PRO de los botones
+#     flotantes buscan el `.e-con-inner` de un contenedor encuadrado);
+#   - `capture` (`{a, b}`): selector dentro del widget que se captura, para un bloque fijo a la ventana cuyo envoltorio
+#     queda sin alto; con `shape`, basta la captura.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

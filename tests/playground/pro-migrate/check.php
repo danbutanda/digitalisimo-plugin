@@ -37,8 +37,21 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single', 'float', 'bar', 'bio', 'header2' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
+	}
+	// C8: presentación de cada widget propio (la de la variante de PRO que sustituye).
+	$out['presentations'] = array();
+	foreach ( array( 'float', 'bar', 'bio', 'header2' ) as $key ) {
+		$walk = static function ( $els ) use ( &$walk, &$out ) {
+			foreach ( (array) $els as $e ) {
+				if ( isset( $e['settings']['presentation'] ) ) {
+					$out['presentations'][ $e['id'] ] = (string) $e['settings']['presentation'];
+				}
+				$walk( $e['elements'] ?? array() );
+			}
+		};
+		$walk( json_decode( (string) get_post_meta( (int) ( $ids[ $key ] ?? 0 ), '_elementor_data', true ), true ) );
 	}
 	$out['backup'] = (bool) get_post_meta( (int) $ids['page'], '_digitalisimo_ep_backup', true );
 	// Hijos del carrusel anidado (C1): sus contenedores deben conservarse con su id.

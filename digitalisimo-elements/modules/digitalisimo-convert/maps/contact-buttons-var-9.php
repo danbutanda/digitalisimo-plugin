@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'    => 'contact-buttons-var-9',
 	'target'    => 'digitalisimo-contact-buttons',
-	'status'    => 'ready',
+	// Borrador: el caso A/B `cb-9-links` difiere con el cursor a 1 280 px sin causa entendida (docs/pro/c8.md, Límites).
+	'status'    => 'draft',
 	'panel'     => 'hide',
 	// La presentación de la variante; el resto de controles tiene el mismo nombre en el widget propio.
 	'set'       => array( 'presentation' => '9' ),
