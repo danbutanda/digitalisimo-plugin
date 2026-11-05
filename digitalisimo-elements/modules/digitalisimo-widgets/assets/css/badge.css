@@ -1,0 +1,9 @@
+.digi-badge{--x:var(--digi-badge-x,0);--y:var(--digi-badge-y,0);position:absolute;inset-block:var(--y) auto;inset-inline:auto var(--x);z-index:3;display:inline-flex;align-items:center;gap:.35em;max-width:100%;padding:.25em .6em;outline:1px solid #0000;background:CanvasText;color:Canvas;font-size:.75rem;line-height:1.3;pointer-events:none}
+.digi-badge svg{height:1em;fill:currentColor}
+.digi-badge--top-start,.digi-badge--bottom-start{inset-inline:var(--x) auto}
+.digi-badge--bottom-start,.digi-badge--bottom-end{inset-block:auto var(--y)}
+.digi-badge--pill{border-radius:99em}
+.digi-badge--ribbon{padding-right:1.2em;clip-path:polygon(0 0,100% 0,calc(100% - .6em) 50%,100% 100%,0 100%)}
+.digi-badge--tag{padding-left:1.2em;clip-path:polygon(.6em 0,100% 0,100% 100%,.6em 100%,0 50%)}
+@media (prefers-reduced-motion:no-preference){.digi-badge--float{animation:digi-badge-float 2s infinite alternate}}
+@keyframes digi-badge-float{to{translate:0 -6px}}

@@ -1,0 +1,2 @@
+/* DIGITALÍSIMO Elements · sticky «al fijarse». */
+body:not(.elementor-editor-active) :is(:is([data-settings*='"sticky":"top"'],[data-settings*='"sticky":"bottom"']):not(.elementor-sticky--active) .digi-sticky-show,.elementor-sticky--active .digi-sticky-hide,:is([data-settings*='"sticky":"top"'],[data-settings*='"sticky":"bottom"']):not(.elementor-sticky--effects) .digi-sticky-show-effects,.elementor-sticky--effects .digi-sticky-hide-effects){display:none!important}

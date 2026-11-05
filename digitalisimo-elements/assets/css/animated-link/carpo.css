@@ -1,0 +1,5 @@
+/* carpo: una línea entra desde la izquierda mientras la inferior se retira. */
+.digi-animated-link--carpo::before { transform: scaleX(0); transform-origin: left center; transition: transform var(--digi-link-speed) ease; }
+.digi-animated-link--carpo::after { content: ''; top: calc(100% + var(--digi-link-gap)); transform-origin: right center; transition: transform var(--digi-link-speed) ease; }
+.digi-animated-link--carpo:is(:hover, :focus-visible)::before { transform: scaleX(1); }
+.digi-animated-link--carpo:is(:hover, :focus-visible)::after { transform: scaleX(0); }

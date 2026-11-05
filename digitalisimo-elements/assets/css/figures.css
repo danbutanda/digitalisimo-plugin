@@ -1,0 +1,22 @@
+/* DIGITALÍSIMO Elements · figuras decorativas. */
+.digi-figure{position:absolute;inset-inline-start:0;inset-block-start:0;display:flex;pointer-events:none;transition:filter .3s ease-out}
+.digi-figure svg{display:block;width:200px;height:200px;transform:translate(var(--digi-figure-position-x,0),var(--digi-figure-position-y,0)) rotate(var(--digi-figure-rotate,0deg));transition:transform .3s ease-out}
+.elementor-element:hover>.digi-figure svg{transform:translate(var(--digi-figure-position-hover-x,var(--digi-figure-position-x,0)),var(--digi-figure-position-hover-y,var(--digi-figure-position-y,0))) rotate(var(--digi-figure-rotate-hover,var(--digi-figure-rotate,0deg)))}
+.digi-figure[data-digi-figure-animation]{opacity:0}
+.digi-figure[data-digi-figure-animation].is-visible{animation:digi-figure-fade var(--digi-figure-duration,1s) ease-out var(--digi-figure-delay,0s) both}
+.digi-figure[data-digi-figure-animation="fade-in-up"].is-visible{animation-name:digi-figure-up}
+.digi-figure[data-digi-figure-animation="fade-in-down"].is-visible{animation-name:digi-figure-down}
+.digi-figure[data-digi-figure-animation="fade-in-left"].is-visible{animation-name:digi-figure-left}
+.digi-figure[data-digi-figure-animation="fade-in-right"].is-visible{animation-name:digi-figure-right}
+.digi-figure[data-digi-figure-animation="zoom-in"].is-visible{animation-name:digi-figure-zoom-in}
+.digi-figure[data-digi-figure-animation="zoom-out"].is-visible{animation-name:digi-figure-zoom-out}
+.digi-figure[data-digi-figure-animation="rotate-in"].is-visible{animation-name:digi-figure-rotate}
+@keyframes digi-figure-fade{from{opacity:0}to{opacity:1}}
+@keyframes digi-figure-up{from{opacity:0;translate:0 50px}to{opacity:1;translate:0 0}}
+@keyframes digi-figure-down{from{opacity:0;translate:0 -50px}to{opacity:1;translate:0 0}}
+@keyframes digi-figure-left{from{opacity:0;translate:-50px 0}to{opacity:1;translate:0 0}}
+@keyframes digi-figure-right{from{opacity:0;translate:50px 0}to{opacity:1;translate:0 0}}
+@keyframes digi-figure-zoom-in{from{opacity:0;scale:0}to{opacity:1;scale:1}}
+@keyframes digi-figure-zoom-out{from{opacity:0;scale:2}to{opacity:1;scale:1}}
+@keyframes digi-figure-rotate{from{opacity:0;rotate:-360deg}to{opacity:1;rotate:0deg}}
+@media (prefers-reduced-motion:reduce){.digi-figure[data-digi-figure-animation]{opacity:1}.digi-figure[data-digi-figure-animation].is-visible{animation:none}.digi-figure svg{transition:none}}

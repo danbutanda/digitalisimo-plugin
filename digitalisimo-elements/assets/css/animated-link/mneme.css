@@ -1,0 +1,5 @@
+/* mneme: un bloque cubre el texto y se recoge; la línea desaparece. */
+.digi-animated-link--mneme::before { top: 0; height: 100%; opacity: 0; }
+.digi-animated-link--mneme::after { content: ''; transition: opacity var(--digi-link-speed) ease; }
+.digi-animated-link--mneme:is(:hover, :focus-visible)::before { opacity: 1; animation: digiLinkRise var(--digi-link-speed) ease forwards; }
+.digi-animated-link--mneme:is(:hover, :focus-visible)::after { opacity: 0; }

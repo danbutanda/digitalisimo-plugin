@@ -1,0 +1,42 @@
+/* DIGITALÍSIMO Elements · Enlace animado. Cada variante dibuja su efecto con ::before/::after o con un trazo SVG. */
+.digi-animated-link {
+	--digi-link-speed: .32s;
+	--digi-link-ease: cubic-bezier(.6, 0, .25, 1);
+	--digi-link-gap: 4px;
+	position: relative;
+	display: inline-flex;
+	white-space: nowrap;
+	font-size: 18px;
+	color: #2d3035;
+	cursor: pointer;
+}
+.digi-animated-link:not(a) { cursor: default; }
+.digi-animated-link:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.digi-animated-link::before,
+.digi-animated-link::after {
+	position: absolute;
+	left: 0;
+	top: 100%;
+	width: 100%;
+	height: 1px;
+	background: currentColor;
+	pointer-events: none;
+}
+.digi-animated-link::before { content: ''; }
+.digi-animated-link:is(.digi-animated-link--leda, .digi-animated-link--ersa, .digi-animated-link--elara, .digi-animated-link--eirene) > span { display: inline-block; }
+.digi-animated-link__graphic { position: absolute; pointer-events: none; fill: none; stroke: currentColor; stroke-width: 1px; }
+.digi-animated-link__graphic * { fill: none !important; }
+.digi-animated-link__graphic--stroke path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.digi-animated-link:is(:hover, :focus-visible) .digi-animated-link__graphic--stroke path { stroke-dashoffset: 0; }
+@keyframes digiLinkRise {
+	0% { transform: scaleY(.05); transform-origin: center bottom; }
+	50% { transform: scaleY(1); transform-origin: center bottom; }
+	51% { transform: scaleY(1); transform-origin: center top; }
+	100% { transform: scaleY(.05); transform-origin: center top; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.digi-animated-link,
+	.digi-animated-link *,
+	.digi-animated-link::before,
+	.digi-animated-link::after { animation: none !important; transition: none !important; }
+}

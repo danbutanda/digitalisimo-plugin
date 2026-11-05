@@ -1,0 +1,2 @@
+.digi-sitemap{display:flex;flex-flow:row wrap}
+.digi-sitemap__item a:focus-visible{outline:2px solid;outline-offset:2px}

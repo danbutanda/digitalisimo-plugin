@@ -1,0 +1,9 @@
+.digi-chart{--digi-chart-grid:#e3e5ec;margin:0}
+.digi-chart__caption{margin:0 0 .5rem;font-weight:600}
+.digi-chart__svg{display:block;width:100%;height:auto}
+.digi-chart__grid{stroke:var(--digi-chart-grid);stroke-width:1}
+.digi-chart__axis{fill:currentColor;font-size:13px}
+.digi-chart__legend{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:.75rem 0 0;padding:0;list-style:none;font-size:.9em}
+.digi-chart__legend li{display:inline-flex;align-items:center;gap:.35em}
+.digi-chart__swatch{display:inline-block;width:.9em;height:.9em;border-radius:2px}
+.digi-chart__table{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}

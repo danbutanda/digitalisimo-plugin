@@ -1,0 +1,50 @@
+/*
+ * Paleta DIGITALÍSIMO del lienzo de vista previa del editor (núcleo incluido): asas, marcos de selección, indicador
+ * de arrastre, botón «Añadir sección» y asas de documento de las funciones derivadas de PRO. El lienzo muestra la
+ * página real, así que esta hoja sólo redefine la interfaz del editor (--e-p-*, --e-a-* y sus botones): nunca
+ * --e-global-* ni estilos del contenido. No carga digitalisimo-ui.css: los valores de los tokens van como respaldo.
+ */
+html:root {
+	--e-p-draggable-color: var(--digi-blue, #245eff);
+	--e-p-border-section: var(--digi-blue, #245eff);
+	--e-p-border-section-hover: var(--digi-blue-dark, #164ce4);
+	--e-p-border-section-invert: #fff;
+	--e-p-border-con: var(--digi-blue, #245eff);
+	--e-p-border-con-hover: var(--digi-blue-dark, #164ce4);
+	--e-p-border-con-invert: #fff;
+	--e-p-border-widget: var(--digi-blue, #245eff);
+	--e-p-border-widget-hover: var(--digi-blue-dark, #164ce4);
+	--e-p-border-widget-invert: #fff;
+	--e-p-border-global: var(--digi-violet, #8249ee);
+	--e-p-border-global-hover: var(--digi-violet-dark, #6635db);
+	--e-p-border-global-invert: #fff;
+	--e-p-border-global-element: var(--digi-violet, #8249ee);
+	--e-a-color-primary: var(--digi-blue, #245eff);
+	--e-a-color-primary-bold: var(--digi-blue, #245eff);
+	--e-a-color-primary-bold-dark: var(--digi-blue-dark, #164ce4);
+	--e-a-color-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-color-accent-promotion: var(--digi-pink-dark, #c72f91);
+	--e-a-color-global: var(--digi-violet, #8249ee);
+	--e-a-bg-primary: var(--digi-tint, #eef2ff);
+	--e-a-btn-color: #fff;
+	--e-a-btn-bg-primary: var(--digi-blue, #245eff);
+	--e-a-btn-bg-primary-hover: var(--digi-blue-dark, #164ce4);
+	--e-a-btn-bg-primary-active: var(--digi-violet-dark, #6635db);
+	--e-a-btn-bg-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-btn-bg-accent-hover: #b0257f;
+	--e-a-btn-bg-accent-active: #9b1f70;
+}
+html body #wp-link-wrap { --e-a-color-primary-bold: var(--digi-blue, #245eff); }
+/* Botón «Añadir sección»: el degradado de los botones primarios. */
+html body.elementor-editor-active .elementor-add-section-area-button.e-button-primary {
+	background-image: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9));
+	color: #fff;
+}
+html body.elementor-editor-active .elementor-add-section-area-button.e-button-primary:is(:hover, :focus) {
+	background-image: var(--digi-gradient-hover, linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91));
+}
+/* Plantillas del Loop y caja vacía del Loop Grid: el color de lo global. */
+html body .elementor-loop-container > div.elementor-edit-area-active:first-of-type,
+html body div[class*=elementor-widget-loop] :is(.elementor-edit-area-active[data-editable-elementor-document], .elementor-edit-area-active.swiper-slide-active, .elementor-edit-area-active.e-loop-first-edit:first-of-type),
+html body .e-loop-empty-view__box--active { border-color: var(--digi-violet, #8249ee); }
+html body .e-pro-promotion-placeholder__unlock-btn { background: var(--digi-pink-dark, #c72f91); }

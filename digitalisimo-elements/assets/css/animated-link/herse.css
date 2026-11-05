@@ -1,0 +1,5 @@
+/* herse: un arco se dibuja bajo el texto. */
+.digi-animated-link--herse::before { display: none; }
+.digi-animated-link--herse .digi-animated-link__graphic--arc { top: 73%; left: -23%; }
+.digi-animated-link--herse .digi-animated-link__graphic--arc path { transition: stroke-dashoffset .4s var(--digi-link-ease); }
+.digi-animated-link--herse:is(:hover, :focus-visible) .digi-animated-link__graphic--arc path { transition-duration: .3s; transition-timing-function: ease-out; }

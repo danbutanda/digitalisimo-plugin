@@ -1,0 +1,20 @@
+.digi-author-box--header{flex-wrap:wrap}
+.digi-author-box__header{display:flex;flex:0 0 100%;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.75rem}
+.digi-author-box__badge{display:inline-block;padding:.2em .65em;border-radius:999px;background:#eef2ff;color:#1e1b4b;font-size:.8em;font-weight:600;line-height:1.4}
+.digi-author-box__username{display:block;margin:.15em 0 .5em;opacity:.75}
+.digi-author-box__stats,.digi-author-box__social{display:flex;flex-wrap:wrap;margin:.75rem 0;padding:0;list-style:none}
+.digi-author-box__stats{gap:1.25rem}
+.digi-author-box__stats li{display:flex;flex-direction:column}
+.digi-author-box__stat{font-size:1.2em;font-weight:700;line-height:1.2}
+.digi-author-box__stat-label{font-size:.85em;opacity:.75}
+.digi-author-box__social{gap:.5em}
+.digi-author-box__social-link{display:inline-flex;align-items:center;justify-content:center;min-width:2em;min-height:2em;color:inherit;text-decoration:none}
+.digi-author-box__social-link svg{width:1em;height:1em;fill:currentColor}
+.digi-author-box__social-link:focus-visible,.digi-author-box__menu>summary:focus-visible,.digi-author-box__menu-link:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.digi-author-box__menu{position:relative;margin-inline-start:auto}
+.digi-author-box__menu>summary{display:inline-flex;align-items:center;justify-content:center;min-width:2em;min-height:2em;border-radius:4px;cursor:pointer;list-style:none}
+.digi-author-box__menu>summary::-webkit-details-marker{display:none}
+.digi-author-box__menu>summary::before{content:"\22EF";content:"\22EF"/"";font-size:1.4em;line-height:1}
+.digi-author-box__menu ul{position:absolute;top:100%;inset-inline-end:0;z-index:10;min-width:12rem;margin:.25rem 0 0;padding:.4rem 0;list-style:none;border-radius:6px;background:#fff;color:#1f2937;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.digi-author-box__menu-link{display:block;padding:.45rem .9rem;color:inherit;text-decoration:none}
+a.digi-author-box__menu-link:hover{background:#f3f4f6}

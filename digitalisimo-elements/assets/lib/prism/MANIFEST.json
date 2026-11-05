@@ -1,0 +1,379 @@
+{
+  "name": "Prism",
+  "package": "prismjs",
+  "version": "1.23.0",
+  "source": "https://registry.npmjs.org/prismjs/-/prismjs-1.23.0.tgz",
+  "integrity": "sha512-c29LVsqOaLbBHuIbsTxaKENh1N2EQBOHaWv7gkHN4dgRbxSREqDnDbtFJYdpPauS4YCplMSNCABQ6Eeor69bAA==",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2012 Lea Verou",
+  "synced": "2026-10-21",
+  "generator": "scripts/sync-prism.mjs",
+  "handles": {
+    "prismjs_core": "components/prism-core.min.js",
+    "prismjs_loader": "plugins/autoloader/prism-autoloader.min.js",
+    "prismjs_normalize": "plugins/normalize-whitespace/prism-normalize-whitespace.min.js",
+    "prismjs_line_numbers": "plugins/line-numbers/prism-line-numbers.min.js",
+    "prismjs_line_highlight": "plugins/line-highlight/prism-line-highlight.min.js",
+    "prismjs_toolbar": "plugins/toolbar/prism-toolbar.min.js",
+    "prismjs_clipboard": "clipboard/clipboard.min.js",
+    "prismjs_copy_to_clipboard": "plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"
+  },
+  "languages": {
+    "markup": [
+      "markup"
+    ],
+    "html": [
+      "markup"
+    ],
+    "css": [
+      "css"
+    ],
+    "sass": [
+      "css",
+      "sass"
+    ],
+    "scss": [
+      "css",
+      "scss"
+    ],
+    "less": [
+      "css",
+      "less"
+    ],
+    "javascript": [
+      "clike",
+      "javascript"
+    ],
+    "typescript": [
+      "clike",
+      "javascript",
+      "typescript"
+    ],
+    "jsx": [
+      "markup",
+      "clike",
+      "javascript",
+      "jsx"
+    ],
+    "tsx": [
+      "markup",
+      "clike",
+      "javascript",
+      "jsx",
+      "typescript",
+      "tsx"
+    ],
+    "php": [
+      "markup",
+      "markup-templating",
+      "php"
+    ],
+    "ruby": [
+      "clike",
+      "ruby"
+    ],
+    "json": [
+      "json"
+    ],
+    "http": [
+      "http"
+    ],
+    "xml": [
+      "markup"
+    ],
+    "svg": [
+      "markup"
+    ],
+    "rust": [
+      "rust"
+    ],
+    "csharp": [
+      "clike",
+      "csharp"
+    ],
+    "dart": [
+      "clike",
+      "dart"
+    ],
+    "git": [
+      "git"
+    ],
+    "java": [
+      "clike",
+      "java"
+    ],
+    "sql": [
+      "sql"
+    ],
+    "go": [
+      "clike",
+      "go"
+    ],
+    "kotlin": [
+      "clike",
+      "kotlin"
+    ],
+    "julia": [
+      "julia"
+    ],
+    "python": [
+      "python"
+    ],
+    "swift": [
+      "clike",
+      "swift"
+    ],
+    "bash": [
+      "bash"
+    ],
+    "scala": [
+      "clike",
+      "java",
+      "scala"
+    ],
+    "haskell": [
+      "haskell"
+    ],
+    "perl": [
+      "perl"
+    ],
+    "objectivec": [
+      "clike",
+      "c",
+      "objectivec"
+    ],
+    "visual-basic,": [
+      "visual-basic"
+    ],
+    "r": [
+      "r"
+    ],
+    "c": [
+      "clike",
+      "c"
+    ],
+    "cpp": [
+      "clike",
+      "c",
+      "cpp"
+    ],
+    "aspnet": [
+      "markup",
+      "clike",
+      "csharp",
+      "aspnet"
+    ]
+  },
+  "excluded": [],
+  "companions": {
+    "clipboard": {
+      "name": "clipboard.js",
+      "package": "clipboard",
+      "version": "2.0.0",
+      "source": "https://registry.npmjs.org/clipboard/-/clipboard-2.0.0.tgz",
+      "integrity": "sha512-gXzHBlzEVqCk2b8Wpkil89S0WSMAX7eZho2zANX+EEEa9LMutGe9ICU+wHRzsH7cCHaCbUzj900P+AXOM0FE3A==",
+      "license": "MIT",
+      "copyright": "Copyright (c) Zeno Rocha",
+      "files": [
+        "clipboard/clipboard.min.js",
+        "clipboard/LICENSE"
+      ],
+      "reason": "El plugin copy-to-clipboard de Prism lo pide a un CDN si window.ClipboardJS no existe."
+    }
+  },
+  "files": {
+    "LICENSE": {
+      "sha256": "2b947f0901a7ffcf08a89957da9783c0e9c6e72cb6ce8e959f501ab5409e4d2b",
+      "bytes": 1066
+    },
+    "clipboard/LICENSE": {
+      "sha256": "a798e7b5fa604117d52d607e05f1cbac3b2fa5da087837f412a1a3c866b4b748",
+      "bytes": 1062
+    },
+    "clipboard/clipboard.min.js": {
+      "sha256": "99e1761c92764dcaeec33df3e1773160344cc4aa6b8ddaee0477372279a2c424",
+      "bytes": 10662
+    },
+    "components/prism-aspnet.min.js": {
+      "sha256": "630d960362b0e33d70194771a166c104372460e4d33d29f62d34a4becb18b386",
+      "bytes": 1103
+    },
+    "components/prism-bash.min.js": {
+      "sha256": "c5bc6ff89ad9f2d2835c08e76978303e05c27071799f58631661b4da98f09bba",
+      "bytes": 5825
+    },
+    "components/prism-c.min.js": {
+      "sha256": "c1ffa8a2665c6e2cf1c1e8c46e590405a3e98110c99f7c235fe44234b6288c44",
+      "bytes": 1635
+    },
+    "components/prism-clike.min.js": {
+      "sha256": "38e6fae6028f0e6396d338b73cdfb1177d8be9825d4f73d689966980df00dc3a",
+      "bytes": 706
+    },
+    "components/prism-core.min.js": {
+      "sha256": "d8dfb76d597ebce089c99f596c7f446fdf57293ff9de84f957c7916c1f1b15c0",
+      "bytes": 7105
+    },
+    "components/prism-cpp.min.js": {
+      "sha256": "28a985762ac038da9e7188689ca19b09086cc89b277827ecb6c31bfff058c73d",
+      "bytes": 1834
+    },
+    "components/prism-csharp.min.js": {
+      "sha256": "a2cb37551db8140c5cb093eefeca8552afb6bc09ad8a2cc2cf43dc9b240592cb",
+      "bytes": 5916
+    },
+    "components/prism-css.min.js": {
+      "sha256": "dc0fdfca1aa9e3e5cf95ad50580ddf5a3faeb796430d0e5d6a47f4f94de7b899",
+      "bytes": 1414
+    },
+    "components/prism-dart.min.js": {
+      "sha256": "466fd66d313192c5717397f468cd3f2d1663297f2aeee8d1881f4f6e1b211e35",
+      "bytes": 756
+    },
+    "components/prism-git.min.js": {
+      "sha256": "68471b31583a19cb8551cec2bf3d1a8a143a6149dd741133ae78a1daa57465ff",
+      "bytes": 236
+    },
+    "components/prism-go.min.js": {
+      "sha256": "8cc147bb352e20a0e4896c5534a82df4f6fedfd2eca4ecefdfe6ad5cd3b748da",
+      "bytes": 734
+    },
+    "components/prism-haskell.min.js": {
+      "sha256": "37fd9d4b075cefa3938ab8bdfafba28e1b6cb324b40be4db020fac8a5ef77b1b",
+      "bytes": 2881
+    },
+    "components/prism-http.min.js": {
+      "sha256": "99a31b714fe924f0a7a6394d3b6e8db37a5c4aec6852ae589558dc8f186216ca",
+      "bytes": 973
+    },
+    "components/prism-java.min.js": {
+      "sha256": "c19b6c6525ea82a8cc12bec76ee484bb5559ec1614f0f6b25c9e3bd5c4edabcd",
+      "bytes": 1964
+    },
+    "components/prism-javascript.min.js": {
+      "sha256": "f29deecfb0af435d12f2d7b3361ccc2f016e4a80d18fe6af08938eb4bc67bfee",
+      "bytes": 3608
+    },
+    "components/prism-json.min.js": {
+      "sha256": "eea5a8a72dfb16f3c8adbf06834693f2cbf6806462829464311f28677962c3be",
+      "bytes": 403
+    },
+    "components/prism-jsx.min.js": {
+      "sha256": "799f3b96f12c6ea48c6d6e92f482c65d20781301b4ccd318a92cf1775a896501",
+      "bytes": 2179
+    },
+    "components/prism-julia.min.js": {
+      "sha256": "ec0c8fa72c8fae739921f0d46c9f92b3785c1eb800e61ff9933b069dd744ac4f",
+      "bytes": 979
+    },
+    "components/prism-kotlin.min.js": {
+      "sha256": "221bf4065cc6089884f8cb36f405b23c61911884b210ec7dff1b19ef522ea6fe",
+      "bytes": 1593
+    },
+    "components/prism-less.min.js": {
+      "sha256": "f7272acf5209dadbd92229a8c6d86ac1058ab6e33dcb25133a9fc489511a2336",
+      "bytes": 685
+    },
+    "components/prism-markup-templating.min.js": {
+      "sha256": "e353ed1df6f9edccdcbd1b4062d52161c49a2c36776a148399565aac4d2e58fa",
+      "bytes": 1060
+    },
+    "components/prism-markup.min.js": {
+      "sha256": "96e2585f078d2dac25c82eb9003153b737fa98456ed48925e3871a5e4a7e29cc",
+      "bytes": 2200
+    },
+    "components/prism-objectivec.min.js": {
+      "sha256": "246443b5bc14086bcf53fa2c8d1dedd0201b4bdca6d78c021571081d6c229b84",
+      "bytes": 710
+    },
+    "components/prism-perl.min.js": {
+      "sha256": "3c29360cc5c56817209c65db39eceb7d570c43f357d5275a0d2d4b4546da0c66",
+      "bytes": 3081
+    },
+    "components/prism-php.min.js": {
+      "sha256": "efb3eb20ac7827791ff47836d2f61ca36e74a0e3512ffa4d86929114a231ba12",
+      "bytes": 5916
+    },
+    "components/prism-python.min.js": {
+      "sha256": "f38433e761099a60f1d8d814168597905dcd305cd0b8d7cf8750377f91daed59",
+      "bytes": 2015
+    },
+    "components/prism-r.min.js": {
+      "sha256": "fae550c589c603eefe0d7447843814c808e4acd0f768495ab89e48df19b3d12b",
+      "bytes": 526
+    },
+    "components/prism-ruby.min.js": {
+      "sha256": "bb95073370ed5c175c2b1924a49900be39498a7c8c756394bbad3069ab600fdf",
+      "bytes": 2172
+    },
+    "components/prism-rust.min.js": {
+      "sha256": "889ae6e10b6944b837e1f5b9b8e831723ed1f0dbe79514bb844923390633eed9",
+      "bytes": 2470
+    },
+    "components/prism-sass.min.js": {
+      "sha256": "fa4cc9728bb158a74f6904202ba6c5e1d01265ac488c18077e75dd27729c3e83",
+      "bytes": 1035
+    },
+    "components/prism-scala.min.js": {
+      "sha256": "189690fe3aa00e5fb0fad5cb37b6295d80434ba8745cc67600b6dfbe779216aa",
+      "bytes": 731
+    },
+    "components/prism-scss.min.js": {
+      "sha256": "10b11d769e79962f97cabec7bbe2cb08399226ed0f2fdb3011c9778a071cab64",
+      "bytes": 1339
+    },
+    "components/prism-sql.min.js": {
+      "sha256": "85480684cd395318a43c9a101a1de6b7b879091425493fd507ad76bc3cea9491",
+      "bytes": 3143
+    },
+    "components/prism-swift.min.js": {
+      "sha256": "3fa38fff5b2a44e7620728fb05c4c03de90333f8028d5eddb7fe26ff91e09561",
+      "bytes": 1758
+    },
+    "components/prism-tsx.min.js": {
+      "sha256": "18900aeef5d387bef10c4adec9f52a2023539409eda87b2d672f1c80161c070a",
+      "bytes": 229
+    },
+    "components/prism-typescript.min.js": {
+      "sha256": "cb408b6f84268f4a75e90d93f251ba751dca4e869df0e2365dc111e3c6e1b7e1",
+      "bytes": 1350
+    },
+    "components/prism-visual-basic.min.js": {
+      "sha256": "3e9ed8262d52424a024ebe4fe4e6641e595d5b13c1641aa55bb22707f61b1050",
+      "bytes": 1980
+    },
+    "plugins/autoloader/prism-autoloader.min.js": {
+      "sha256": "df7430d25377aa8eed2d92f873bbc32c26a9454b3e80db5045a5483879383abb",
+      "bytes": 5064
+    },
+    "plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js": {
+      "sha256": "daba7813f24af897ca353ee89f5965dcfd3190fc685deac73c94a2c3c793da96",
+      "bytes": 977
+    },
+    "plugins/line-highlight/prism-line-highlight.min.js": {
+      "sha256": "eb1567db967443ff139307cb768604116baf2c89123cb8857c7966d71843fc8b",
+      "bytes": 3466
+    },
+    "plugins/line-numbers/prism-line-numbers.min.js": {
+      "sha256": "8d648907a22eb30d672c1f88ab0934769f53da34a7e5b4732d72421355663885",
+      "bytes": 2586
+    },
+    "plugins/normalize-whitespace/prism-normalize-whitespace.min.js": {
+      "sha256": "a84f0c0b0b047820f976ff05ce01a90d71ccbec65dd46f8991bac7bbcbae3089",
+      "bytes": 2433
+    },
+    "plugins/toolbar/prism-toolbar.min.js": {
+      "sha256": "ec8fc875b3ccd7b41d8ea44dc295588f8883180430ed9147cbd452494d72bcb1",
+      "bytes": 1745
+    }
+  },
+  "cdnjs": {
+    "checked": "2026-10-21",
+    "sources": [
+      "api.cdnjs.com/libraries/prism/1.23.0?fields=sri",
+      "api.cdnjs.com/libraries/clipboard.js/2.0.0?fields=sri"
+    ],
+    "files": 44,
+    "identical": 44
+  }
+}
