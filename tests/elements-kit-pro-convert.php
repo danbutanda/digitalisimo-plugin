@@ -120,6 +120,8 @@ namespace {
 	require $E . '/modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
 	$registry = '\Digitalisimo\Elements\Convert\Registry';
+	// Desde C3 el Menú de WordPress de PRO tiene su mapa listo: aquí hace de widget de PRO sin mapa.
+	$registry::set( 'nav-menu', null );
 	$check( Pro_Convert::available() && 'digitalisimo-blockquote' === $registry::target( 'blockquote' ), '2: con el módulo cargado, la Cita tiene su mapa listo.' );
 	list( $converted, $log ) = Pro_Convert::tree( $tree );
 	foreach ( array( 'q1', 'q2', 'q3' ) as $id ) {

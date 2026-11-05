@@ -1,4 +1,5 @@
 {
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2 y C3 del programa «sin widgets de PRO»: carruseles, contenido y navegación) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2 y C5 del programa «sin widgets de PRO»: carruseles, contenido, entradas y bucles; los tres bucles de C5 también juntos en la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "media": {
     "imagen-a": {
@@ -958,13 +959,13 @@
           ]
         },
         {
-          "id": "c3d0001",
+          "id": "c3f0001",
           "elType": "container",
           "settings": {},
           "elements": [
-            { "id": "e3d0001", "elType": "widget", "widgetType": "digitalisimo-taxonomy-filter", "settings": { "selected_element": "e3d0002", "taxonomy": "category" } },
-            { "id": "e3d0002", "elType": "widget", "widgetType": "digitalisimo-loop-grid", "settings": { "template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post", "alternate_template": "yes", "alternate_templates": [ { "_id": "d3d0001", "template_id": "@template:digi-k-loop-alterna", "repeat_template": 2, "show_once": "" } ] } },
-            { "id": "e3d0003", "elType": "widget", "widgetType": "digitalisimo-loop-carousel", "settings": { "template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post" } }
+            { "id": "e3f0001", "elType": "widget", "widgetType": "digitalisimo-taxonomy-filter", "settings": { "selected_element": "e3f0002", "taxonomy": "category" } },
+            { "id": "e3f0002", "elType": "widget", "widgetType": "digitalisimo-loop-grid", "settings": { "template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post", "alternate_template": "yes", "alternate_templates": [ { "_id": "d3f0001", "template_id": "@template:digi-k-loop-alterna", "repeat_template": 2, "show_once": "" } ] } },
+            { "id": "e3f0003", "elType": "widget", "widgetType": "digitalisimo-loop-carousel", "settings": { "template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post" } }
           ]
         },
         {
@@ -2851,6 +2852,10 @@
       }
     },
     "digitalisimo-yoast-breadcrumbs": { "settings": { "html_tag": "nav", "align": "center" } },
+    "digitalisimo-nav-menu": {"settings": {"menu": "principal", "layout": "horizontal", "pointer": "underline", "submenu_icon": {"value": "fas fa-chevron-down", "library": "fa-solid"}, "dropdown": "tablet", "full_width": "stretch", "toggle": "burger"}},
+    "digitalisimo-mega-menu": {"settings": {"menu_items": [{"_id": "mm0001", "item_title": "Servicios del kit", "item_link": {"url": "@url:/digi-k-padre/"}, "item_dropdown_content": "yes"}, {"_id": "mm0002", "item_title": "Contacto del kit", "item_link": {"url": "@url:/digi-k-padre/#contacto"}}], "open_on": "click"}},
+    "digitalisimo-nested-off-canvas": {"settings": {"off_canvas_name": "Panel del kit", "horizontal_position": "flex-end", "entrance_animation": "slideInRight", "has_overlay": "yes"}},
+    "digitalisimo-search": {"settings": {"search_input_placeholder_text": "Buscar en el kit", "submit_trigger": "click_submit", "submit_button_text": "Buscar", "live_results": "yes", "template_id": "@template:digi-k-loop", "minimum_search_characters": 3, "enable_nothing_found_message": "yes", "nothing_found_message_text": "Nada en el kit"}},
     "digitalisimo-posts": {"settings": {"_skin": "cards", "cards_columns": "2", "cards_posts_per_page": 3, "posts_post_type": "post", "cards_read_more_text": "Leer más del kit", "pagination_type": "numbers"}},
     "digitalisimo-archive-posts": {"settings": {"_skin": "archive_classic", "archive_classic_columns": "2", "pagination_type": "prev_next", "nothing_found_message": "Nada en el archivo del kit."}},
     "digitalisimo-portfolio": {"settings": {"columns": "3", "posts_per_page": 6, "posts_post_type": "post", "show_filter_bar": "yes", "taxonomy": "category"}},

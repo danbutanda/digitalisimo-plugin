@@ -40,6 +40,15 @@
 # sólo ese ancho) y `pixels.states` (`{hover|focus: {max, reason} | {skip: true, reason}}`: umbral propio de un estado, u
 # omitir sus píxeles cuando sólo B tiene algo que enfocar o que lleva el puntero fuera del widget). Medios de Lottie en los
 # ajustes: `{"$lottie": 1}` da `{id, url}` de un adjunto JSON de prueba y `"$lottie-url"`, su URL.
+# C3: `{"$menu": "nombre"}` en los ajustes da el slug de un menú de WordPress de prueba con submenús de dos niveles
+# (`pro-ab-<nombre>`), `"$loop:nombre"` el ID de una plantilla de bucle con tres entradas (resultados en vivo de una
+# búsqueda), y en `before` (disparadores fuera del widget), `{id}` es el `id` del widget del caso y
+# `"$action:<acción>:<modo>"` el enlace de acción del núcleo que lo nombra (`off_canvas:open`, codificado como la etiqueta).
+# En `actions`: `hover` (pasar el puntero en lugar de pulsar), `stay` (no mover el puntero ni quitar el foco tras la acción),
+# `page` (el selector es de la página, no del widget), `type` (texto que se teclea en el elemento) y `focus` (anota dónde
+# queda el foco y lo compara entre A y B). En el caso: `shot: "viewport"` (captura de la ventana: paneles fijos y
+# desplegables que salen de la caja del widget), `control: {a, b}` (control medido en hover y foco cuando el primero del
+# widget no es el comparable) y `empty` (motivo: el widget no pinta nada hasta una acción, como un panel cerrado).
 # C4 (elementos de tema) añade, todos opcionales y sin efecto en los casos que no los traen:
 #   - `context`: mide A y B dentro de una consulta, como la vista previa del Theme Builder (`switch_to_query()` en el
 #     primer elemento de nivel superior): `"post"` o `{"post": "full"}` (entrada completa: autora con biografía,
