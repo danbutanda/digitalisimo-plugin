@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» y los 5 de F7b: cuatro filtros ampliados y el slider anidado) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1 y C2 del programa «sin widgets de PRO»: carruseles y contenido) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "media": {
     "imagen-a": {
       "png": [
@@ -70,7 +70,8 @@
     "tesela-svg": {
       "svg_file": "tesela.svg",
       "title": "Tesela SVG del kit"
-    }
+    },
+    "animacion-lottie": { "json": { "v": "5.6.8", "fr": 30, "ip": 0, "op": 30, "w": 64, "h": 64, "nm": "Animación del kit", "ddd": 0, "assets": [], "layers": [] }, "title": "Animación Lottie del kit" }
   },
   "users": [
     {
@@ -2794,7 +2795,21 @@
           { "_id": "sl0001", "heading": "Diapositiva del kit", "description": "Texto de la diapositiva.", "button_text": "Ver más", "link": { "url": "@url:/" }, "background_image": "@media:fondo-kit" }
         ]
       }
-    }
+    },
+    "digitalisimo-animated-headline": {"settings": {"headline_style": "rotate", "animation_type": "typing", "before_text": "Este sitio es", "rotating_text": "rápido\nclaro\naccesible", "after_text": "para todos", "link": {"url": "@url:/"}, "tag": "h2"}},
+    "digitalisimo-code-highlight": {"settings": {"language": "php", "code": "<?php echo 'Hola del kit'; ?>", "line_numbers": "yes", "highlight_lines": "1", "theme": "okaidia"}},
+    "digitalisimo-table-of-contents": {"settings": {"title": "Índice del kit", "headings_by_tags": ["h2", "h3"], "marker_view": "bullets", "icon": {"value": "fas fa-circle", "library": "fa-solid"}, "minimize_box": "yes"}},
+    "digitalisimo-share-buttons": {"settings": {"share_buttons": [{"_id": "sb0001", "button": "facebook"}, {"_id": "sb0002", "button": "email", "text": "Correo del kit"}], "view": "icon-text", "skin": "framed", "share_url_type": "custom", "share_url": {"url": "@url:/"}}},
+    "digitalisimo-call-to-action": {"settings": {"skin": "cover", "bg_image": "@media:fondo-kit", "graphic_element": "image", "graphic_image": "@media:imagen-a", "title": "Llamada del kit", "description": "Texto de la llamada.", "button": "Ver más", "link": {"url": "@url:/"}, "ribbon_title": "Nuevo"}},
+    "digitalisimo-flip-box": {"settings": {"graphic_element": "image", "image": "@media:imagen-a", "title_text_a": "Anverso del kit", "description_text_a": "Texto del anverso.", "title_text_b": "Reverso del kit", "button_text": "Ver más", "link": {"url": "@url:/"}, "link_click": "button", "flip_effect": "flip"}},
+    "digitalisimo-price-list": {"settings": {"price_list": [{"_id": "pl0001", "title": "Producto del kit", "price": "$10", "item_description": "Descripción del producto.", "image": "@media:imagen-b", "link": {"url": "@url:/"}}]}},
+    "digitalisimo-price-table": {"settings": {"heading": "Plan del kit", "price": "39.99", "currency_symbol": "euro", "sale": "yes", "original_price": 59, "period": "Al mes", "features_list": [{"_id": "pt0001", "item_text": "Característica del kit", "selected_item_icon": {"value": "far fa-check-circle", "library": "fa-regular"}}], "button_text": "Contratar", "link": {"url": "@url:/"}, "show_ribbon": "yes", "ribbon_title": "Popular"}},
+    "digitalisimo-gallery": {"settings": {"gallery_type": "multiple", "galleries": [{"_id": "ga0001", "gallery_title": "Galería del kit", "multiple_gallery": ["@media:imagen-a", "@media:imagen-b"]}, {"_id": "ga0002", "gallery_title": "Segunda galería", "multiple_gallery": ["@media:imagen-b"]}], "gallery_layout": "justified"}},
+    "digitalisimo-hotspot": {"settings": {"image": "@media:imagen-a", "hotspot": [{"_id": "hs0001", "hotspot_label": "Punto del kit", "hotspot_link": {"url": "@url:/"}, "hotspot_tooltip_content": "<p>Información <strong>del kit</strong>.</p>"}]}},
+    "digitalisimo-lottie": {"settings": {"source_json": "@media:animacion-lottie", "caption_source": "custom", "caption": "Animación del kit", "link_to": "custom", "custom_link": {"url": "https://ejemplo.test/destino", "is_external": "", "nofollow": ""}, "trigger": "on_click"}},
+    "digitalisimo-video-playlist": {"settings": {"playlist_title": "Lista del kit", "show_image_overlay": "yes", "image_overlay": "@media:imagen-a", "tabs": [{"_id": "vp0001", "type": "hosted", "hosted_url": "@media:video", "title": "Vídeo del kit", "duration": "1:00", "thumbnail": "@media:imagen-b"}, {"_id": "vp0002", "type": "section", "title": "Sección del kit"}]}},
+    "digitalisimo-countdown": {"settings": {"countdown_type": "due_date", "due_date": "2030-01-04 10:05:06", "custom_labels": "yes", "label_days": "Días del kit", "expire_actions": ["message"], "message_after_expire": "Terminó la cuenta del kit."}},
+    "digitalisimo-progress-tracker": {"settings": {"type": "circular", "relative_to": "selector", "selector": "#contenido-del-kit", "percentage": "yes"}}
   },
   "traits": {
     "backdrop-filter": {
