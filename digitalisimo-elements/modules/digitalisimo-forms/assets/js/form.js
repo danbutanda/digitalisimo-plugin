@@ -6,7 +6,7 @@ el=(t,c,h,id)=>{const n=d.createElement(t);n.className=c;n.setAttribute('role','
 // Eventos por jQuery si está (los de PRO) y propios digi-form-*.
 emit=(f,n,x)=>{const J=w.jQuery;if(J)J(f).trigger(n,[x]);f.dispatchEvent(new CustomEvent('digi-form-'+n,{bubbles:true,detail:x}))},
 desc=(i,id,on)=>{const b=(at(i,'aria-describedby')||'').split(' ').filter(x=>x&&x!==id&&!(!on&&/-error$/.test(x)));if(on)b.push(id);b.length?i.setAttribute('aria-describedby',b.join(' ')):i.removeAttribute('aria-describedby')};
-function bad(f,k,t){const c=d.getElementById('form-field-'+k),g=c&&c.closest(G)||f.querySelector(G+'-'+k);if(!g)return;const id='form-field-'+k+'-error';
+function bad(f,k,t){const c=f.querySelector('#'+CSS.escape('form-field-'+k)),g=c&&c.closest(G)||f.querySelector(G+'-'+k);if(!g)return;const id='form-field-'+k+'-error';
 g.classList.add('elementor-error');g.appendChild(el('span',E+H,t,id));qa(g,'input,select,textarea').forEach(i=>{i.setAttribute('aria-invalid','true');desc(i,id,1)})}
 function clear(f){qa(f,'.'+M).forEach(m=>m.remove());qa(f,'.elementor-error').forEach(g=>g.classList.remove('elementor-error'));qa(f,'[aria-invalid]').forEach(i=>{i.setAttribute('aria-invalid','false');desc(i,'',0)})}
 function steps(f){const st=qa(f,'[data-digi-step]'),n=st.length;if(!n)return null;let cur=0;

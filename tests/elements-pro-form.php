@@ -422,6 +422,12 @@ namespace {
 	check_fm( str_contains( $bar, '<div class="digi-steps"><div class="digi-steps__bar" style="--dfs-pw:33%" role="progressbar" aria-label="Progreso del formulario" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33" aria-valuetext="Paso 1 de 3"><div class="digi-steps__meter">33%</div></div></div>' ), 'Barra de progreso con su valor anunciado.' );
 	check_fm( ! str_contains( $render( $own, array( 'form_fields' => $steps, 'step_type' => 'none' ) + $defaults ), 'class="digi-steps' ), 'Sin indicadores con el tipo «ninguno».' );
 
+	// La página de la prueba en Chrome (tests/elements-pro-form-chrome.mjs) es este mismo marcado.
+	$fixture = (string) file_get_contents( __DIR__ . '/fixtures/pro-form.html' );
+	foreach ( array( array( 'form_validation' => 'custom', 'form_id' => 'basico' ), array( 'form_fields' => $steps, 'form_id' => 'pasos' ), array( 'form_fields' => $steps, 'step_type' => 'progress_bar', 'form_id' => 'barra' ) ) as $variant ) {
+		check_fm( str_contains( $fixture, $render( $own, $variant + $defaults ) ), 'tests/fixtures/pro-form.html tiene el marcado actual del formulario «' . $variant['form_id'] . '».' );
+	}
+
 	// 6. El mapa y la conversión.
 	$map = Registry::map( 'form', true );
 	check_fm( is_array( $map ) && $name === $map['target'] && 'hide' === $map['panel'], 'Mapa hacia el Formulario, que oculta el widget de PRO.' );
