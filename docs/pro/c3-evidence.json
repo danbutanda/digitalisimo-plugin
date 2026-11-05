@@ -572,5 +572,44 @@
  "interaction": {
   "ok": 38,
   "editor_pro": "24 widgets de PRO sustituidos (4 de C3) registrados y ocultos; la búsqueda ofrece los propios"
+ },
+ "front_budget": {
+  "caso": "navigation",
+  "peticiones": 10,
+  "kb": 68.4,
+  "css_kb": 30.4,
+  "js_kb": 23.7,
+  "cls": 0,
+  "proHandlers": false,
+  "proFrontend": false,
+  "smartmenus": 0,
+  "errores": 0,
+  "problemas": 0,
+  "tras_acciones": {
+   "count:nocOpen": 1,
+   "proHandlers": false,
+   "errores": 0
+  },
+  "nota": "Frente a la página vacía. Sin regresiones en empty y content."
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce, con un caso por widget de C3",
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A13": "falla",
+   "A14": "ok"
+  },
+  "duracion_r4_s": 355,
+  "max_rest_ms": 28409,
+  "nota": "A13 (tiempo por petición) falla por el runner de importación del núcleo (26,8 y 28,4 s) con otras corridas de Playground en la máquina, como en C2. R1 no se repitió (76 min); known.json lleva las tres entradas de los Menús de PRO convertidos."
+ },
+ "suite": {
+  "comandos": 331,
+  "nuevos": 7,
+  "verde": true
  }
 }
