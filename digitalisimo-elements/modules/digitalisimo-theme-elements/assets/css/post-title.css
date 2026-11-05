@@ -1,2 +1,0 @@
-/* post-title: foco visible del enlace del título (contorno de 2 px con separación de 2 px). Lo demás, la hoja del Encabezado del núcleo. */
-.elementor-widget-digitalisimo-post-title a:focus-visible{outline:2px solid;outline-offset:2px}
