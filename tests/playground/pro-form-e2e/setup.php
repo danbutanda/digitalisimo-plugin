@@ -127,6 +127,16 @@ if ( class_exists( '\Digitalisimo\Elements\F7b\Flags' ) ) {
 	\Digitalisimo\Elements\F7b\Flags::ensure();
 	\Digitalisimo\Elements\F7b\Flags::refresh();
 }
+// Ajustes de «Rendimiento» de un sitio recién instalado (la puerta de PRO entre ellos), como en pro-ab/setup.php: su
+// transición corre por WP-Cron, que aquí no se dispara. Sin la puerta, B cargaría los paquetes de PRO igual que A.
+$transition = '\\Digitalisimo\\Elements\\Front\\Transition';
+if ( class_exists( $transition ) ) {
+	for ( $i = 0; $i < 10 && $transition::pending(); $i++ ) {
+		$transition::run_now();
+	}
+	$pages['front'] = $transition::applied();
+}
+flush_rewrite_rules( false );
 $widgets = \Elementor\Plugin::$instance->widgets_manager->get_widget_types();
 $pages['registered'] = array( 'form' => isset( $widgets['form'] ), 'digitalisimo-form' => isset( $widgets['digitalisimo-form'] ) );
 file_put_contents( DIGI_E2E_DIR . '/pages.json', wp_json_encode( $pages, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );

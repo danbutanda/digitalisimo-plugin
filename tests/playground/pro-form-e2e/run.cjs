@@ -184,7 +184,8 @@ async function steps(browser, side, url) {
     for (let i = 0; i < Math.min(A.hooks.length, B.hooks.length); i++) {
       const ha = fieldsOf(A.hooks[i]);
       const hb = fieldsOf(B.hooks[i]);
-      const norm = (o) => JSON.stringify(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v).replace(/ [ab]$/, '')])));
+      // La página de cada lado (Page URL, e2e-<escenario>-a/-b) es lo único que debe cambiar.
+      const norm = (o) => JSON.stringify(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v).replace(/ [ab]$/, '').replace(/\/e2e-(\w+)-[ab]\//, '/e2e-$1-X/')])));
       check(norm(ha) === norm(hb), `${slug} webhook #${i + 1}: el mismo cuerpo (${norm(ha)} / ${norm(hb)}).`);
       check(A.hooks[i].body.form_id === B.hooks[i].body.form_id, `${slug} webhook #${i + 1}: el mismo form_id (${A.hooks[i].body.form_id}).`);
       if ('steps' === slug) check(!('Empresa' in ha) && !('Empresa' in hb) && !('empresa' in ha) && !('empresa' in hb), 'steps: el campo condicional oculto no llega al webhook.');
