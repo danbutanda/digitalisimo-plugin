@@ -247,6 +247,36 @@
    "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
   },
   {
+   "widget": "digitalisimo-form",
+   "control": "activecampaign_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
+   "widget": "digitalisimo-form",
+   "control": "convertkit_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
+   "widget": "digitalisimo-form",
+   "control": "drip_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
+   "widget": "digitalisimo-form",
+   "control": "getresponse_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
+   "widget": "digitalisimo-form",
+   "control": "mailchimp_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
+   "widget": "digitalisimo-form",
+   "control": "mailerlite_fields_map.local_id",
+   "motivo": "Formulario propio (C6): campo del propio formulario que se asocia con un campo del servicio de correo, como en el Formulario de PRO; no es un ID de contenido"
+  },
+  {
    "widget": "rating",
    "control": "rating_value",
    "motivo": "valor de la valoración (número de estrellas), no un ID"
