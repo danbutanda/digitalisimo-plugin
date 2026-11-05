@@ -18,7 +18,7 @@ $digi_mm_t = static function ( $text ) {
 return array(
 	'source'    => 'mega-menu',
 	'target'    => 'digitalisimo-mega-menu',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO que el traductor necesita para saber si el sitio los cambió.
 	'defaults'  => array(

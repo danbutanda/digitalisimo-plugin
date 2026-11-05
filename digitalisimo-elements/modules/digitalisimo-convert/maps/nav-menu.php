@@ -57,7 +57,7 @@ foreach ( array( 'fade', 'slide', 'grow', 'drop-in', 'drop-out', 'none', 'shrink
 return array(
 	'source'   => 'nav-menu',
 	'target'   => 'digitalisimo-nav-menu',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO que el traductor necesita para saber si el sitio los cambió.
 	'defaults' => array(
