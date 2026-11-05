@@ -239,11 +239,6 @@
      "kind": "control",
      "match": "control (a \\d+ sólo en A \\(a\\)|button 1 sólo en B \\(button\\))",
      "reason": "«Cargar más» es un `<button>` (PRO: un enlace a «#»): accesible por teclado con su rol correcto."
-    },
-    {
-     "kind": "nombre",
-     "match": "(perdido link|nuevo button) «Load More»",
-     "reason": "«Cargar más» es un botón (PRO: un enlace a «#»)."
     }
    ],
    "pixels": {

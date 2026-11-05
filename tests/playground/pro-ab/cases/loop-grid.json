@@ -52,7 +52,7 @@
    }
   },
   "lg-numbers": {
-   "title": "Números y anterior/siguiente, recargando la página",
+   "title": "Números y anterior/siguiente, recargando la página (sin acción: el arnés no sigue una navegación; la paginación con acción es lg-ajax)",
    "widget": "loop-grid",
    "posts": 9,
    "settings": {
@@ -67,14 +67,7 @@
      "size": 24,
      "sizes": []
     }
-   },
-   "actions": [
-    {
-     "label": "enlace siguiente",
-     "selector": "a.page-numbers.next",
-     "wait": 2500
-    }
-   ]
+   }
   },
   "lg-ajax": {
    "title": "Números sin recargar (AJAX)",
@@ -140,7 +133,7 @@
    "posts": 9,
    "settings": {
     "template_id": {
-     "$loop_item": "title"
+     "$loop_item": "term"
     },
     "_skin": "post_taxonomy",
     "post_taxonomy_query_post_type": "category"

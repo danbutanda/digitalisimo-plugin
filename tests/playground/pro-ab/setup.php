@@ -171,11 +171,11 @@ function digi_ab_tag( $name, array $settings = array() ) {
  * cadena (así la guarda el control de plantilla). `{"$loop_item": "card"}`: contenedor con la imagen destacada, el
  * título enlazado y el extracto (widgets del núcleo con etiquetas dinámicas, sin widgets de PRO: A y B pintan la misma
  * plantilla). `"alt"`: la misma tarjeta con otro fondo (plantillas alternas). `"title"`: sólo el título enlazado
- * (bucles de términos y carruseles compactos).
+ * (carruseles compactos). `"term"`: el nombre del término (etiqueta «Título del archivo», que lee el término del bucle).
  */
 function digi_ab_loop_item( $preset ) {
 	static $cache = array();
-	$preset = in_array( $preset, array( 'card', 'alt', 'title' ), true ) ? $preset : 'card';
+	$preset = in_array( $preset, array( 'card', 'alt', 'title', 'term' ), true ) ? $preset : 'card';
 	if ( isset( $cache[ $preset ] ) ) {
 		return $cache[ $preset ];
 	}
@@ -193,14 +193,17 @@ function digi_ab_loop_item( $preset ) {
 			'header_size' => 'h3',
 			'title_color' => '#1f2124',
 			'__dynamic__' => array(
-				'title' => digi_ab_tag( 'post-title' ),
+				'title' => digi_ab_tag( 'term' === $preset ? 'archive-title' : 'post-title', 'term' === $preset ? array( 'include_context' => '' ) : array() ),
 				'link'  => digi_ab_tag( 'post-url' ),
 			),
 		),
 		'elements'   => array(),
 	);
+	if ( 'term' === $preset ) {
+		unset( $title['settings']['__dynamic__']['link'] );
+	}
 	$widgets = array( $title );
-	if ( 'title' !== $preset ) {
+	if ( ! in_array( $preset, array( 'title', 'term' ), true ) ) {
 		array_unshift(
 			$widgets,
 			array(
