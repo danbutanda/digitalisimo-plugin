@@ -226,6 +226,32 @@
     "R1c"
    ],
    "motivo": "§17 (C3): los Menús de WordPress de PRO de la cabecera y de la página cuentan en B como Menús propios; ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:inicio-del-kit\\.data\\.2\\.elements\\.0\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"form\"$",
+   "valor_b": "^\"digitalisimo-form\"$",
+   "motivo": "§17 (C6): al importar, el Formulario de PRO con mapa listo llega como Formulario propio (Convert\\Converter), con el mismo id (el form_id de los envíos)"
+  },
+  {
+   "ruta": "^documents\\.page:inicio-del-kit\\.data\\.2\\.elements\\.0\\.settings\\.(form_fields\\.\\d+\\.)?[a-z0-9_]+$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C6): los ajustes los traduce el mapa del Formulario (digitalisimo-convert/maps/form.php): completa los valores por defecto de PRO, también los de cada campo, y deja la marca _digitalisimo_pro; destinatarios y webhooks siguen sin viajar (on_export)"
+  },
+  {
+   "ruta": "^(documents\\.page:inicio-del-kit\\.counts|counts\\.elements)\\.(form|digitalisimo-form)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C6): el Formulario de PRO de la página cuenta en B como Formulario propio; ningún elemento se pierde"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
