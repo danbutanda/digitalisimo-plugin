@@ -102,6 +102,9 @@ namespace {
 			}
 		}
 		$values = array_map( 'array_unique', $values );
+		// Nombres que PRO arma con datos del sitio (post-navigation: `$post_type . '_taxonomy'`, uno por tipo de entrada
+		// público con taxonomías): se comprueban con los de una instalación limpia.
+		$values += array( 'post_type' => array( 'post' ) );
 		$names  = array();
 		preg_match_all( "/->add_(?:responsive_)?control\(\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/", $php, $controls );
 		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/s", $php, $grouped );
@@ -223,6 +226,9 @@ namespace {
 	$manager->known = array( 'digitalisimo-prueba' );
 	$config = Panel::document_config( array( 'widgets' => array( 'blockquote' => array( 'title' => 'Q' ) ) ), 1 );
 	check_cv( false === $config['widgets']['blockquote']['show_in_panel'] && 'Q' === $config['widgets']['blockquote']['title'], 'Con el propio registrado, el de PRO sale del panel sin perder su configuración.' );
+	check_cv( false === ( $config['panel']['widgets_settings']['blockquote']['show_in_panel'] ?? null ), 'También sale de `panel.widgets_settings`, que las plantillas de PRO aplican después (C4: el contenido de la entrada).' );
+	$config = Panel::document_config( array( 'panel' => array( 'widgets_settings' => array( 'blockquote' => array( 'show_in_panel' => true ), 'heading' => array( 'show_in_panel' => true ) ) ) ), 1 );
+	check_cv( false === $config['panel']['widgets_settings']['blockquote']['show_in_panel'] && true === $config['panel']['widgets_settings']['heading']['show_in_panel'], 'Un `widgets_settings` que vuelve a mostrar el de PRO queda en falso; los demás no cambian.' );
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'show' ) );
 	check_cv( array() === Panel::document_config( array(), 1 ), 'panel => show lo deja a la vista.' );
 	Registry::reset();

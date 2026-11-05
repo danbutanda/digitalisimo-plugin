@@ -1,0 +1,3 @@
+/* featured-image: foco visible del enlace (contorno de 2 px con separación de 2 px) y, con movimiento reducido, sin la transición ni la animación del efecto al pasar el cursor. Lo demás, la hoja de la Imagen del núcleo. */
+.elementor-widget-digitalisimo-featured-image a:focus-visible{outline:2px solid;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-featured-image img{transition:none!important;animation:none!important}}

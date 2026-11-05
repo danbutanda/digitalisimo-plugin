@@ -369,6 +369,8 @@ namespace {
 	\Elementor\Plugin::$instance->documents->current = new \ElementorPro\Modules\ThemeBuilder\Documents\Single( 71 );
 	check_document( false === apply_filters( 'elementor/frontend/widget/should_render', true, $featured ), 'En la plantilla de entrada sí se oculta.' );
 	check_document( false === apply_filters( 'elementor/frontend/widget/should_render', false, $featured ), 'Lo que ya no se pintaba sigue sin pintarse.' );
+	$own_featured = $widget( 'digitalisimo-featured-image' );
+	check_document( false === apply_filters( 'elementor/frontend/widget/should_render', true, $own_featured ) && true === apply_filters( 'elementor/element/is_dynamic_content', false, array(), $own_featured ), 'La Imagen destacada propia (C4) también se oculta y se pinta fuera de la caché.' );
 	// La página siguiente, sin el ajuste: nada.
 	$fresh_request();
 	view( array( 'singular' => true, 'queried' => 8, 'the_id' => 8 ) );

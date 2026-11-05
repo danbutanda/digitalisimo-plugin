@@ -1,0 +1,76 @@
+{
+ "_doc": [
+  "Casos A/B de theme-post-excerpt → digitalisimo-post-excerpt (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-post-excerpt",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-excerpt-defaults": {
+   "title": "Extracto por defecto (el extracto escrito de la entrada)",
+   "widget": "theme-post-excerpt",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "excerpt": "[elementor-tag id=\"f1a2b3c\" name=\"post-excerpt\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "tl-excerpt-bare": {
+   "title": "Extracto de una entrada sin extracto escrito (recortado del contenido a 20 palabras con «Aplicar al contenido»), justificado, con tipografía y sombra",
+   "widget": "theme-post-excerpt",
+   "context": {
+    "post": "bare"
+   },
+   "settings": {
+    "__dynamic__": {
+     "excerpt": "[elementor-tag id=\"f1a2b3c\" name=\"post-excerpt\" settings=\"%7B%22max_length%22%3A%2220%22%2C%22apply_to_post_content%22%3A%22yes%22%7D\"]"
+    },
+    "align": "justify",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "typography_line_height": {
+     "unit": "em",
+     "size": 1.6,
+     "sizes": []
+    },
+    "text_shadow_text_shadow_type": "yes",
+    "title_color": "#264653"
+   }
+  },
+  "tl-excerpt-links": {
+   "title": "Extracto fijo con enlace, colores de enlace normal y al pasar el cursor y espacio entre párrafos",
+   "widget": "theme-post-excerpt",
+   "context": "post",
+   "settings": {
+    "excerpt": "Un resumen fijo con <a href=\"/pagina-ab/\">un enlace interno</a> y más texto.",
+    "link_color": "#245EFF",
+    "link_hover_color": "#E63946",
+    "link_hover_color_transition_duration": {
+     "unit": "ms",
+     "size": 200,
+     "sizes": []
+    },
+    "paragraph_spacing": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "align": "center"
+   },
+   "pixels": {
+    "max": 0.08,
+    "reason": "Foco visible propio del enlace del extracto (contorno de 2 px con separación de 2 px); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
+   }
+  }
+ }
+}

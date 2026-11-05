@@ -422,7 +422,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const fail = (m) => { own.push(m); problems.push(`${slug} · ${m}`); };
     // `urls` (C8): las páginas que no son de tipo página (un documento de botones flotantes) traen su ruta de setup.php.
     const page = (side) => (e.urls && e.urls[side]) || `/pro-ab-${slug}-${side}/`;
-    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: page('a'), b: page('b') }, widths: {}, problems: own };
+    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: page('a'), b: page('b') }, context: e.context ? e.context.label : '', widths: {}, problems: own };
     summary.cases[slug] = res;
     if (e.error) fail(e.error);
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
@@ -475,7 +475,9 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
       // cero) vale si su caja tiene alto; el texto llega con las acciones. Con `capture` (C8: un bloque fijo a la ventana,
       // cuyo envoltorio no tiene alto) basta la captura.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && (sa.height > 0 || c.capture))) fail('A no pinta texto ni imágenes en el widget');
+      // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
+      // basta con que A tenga controles (`focusables`), que se comparan igual.
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !(c.shape && (sa.height > 0 || c.capture)) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

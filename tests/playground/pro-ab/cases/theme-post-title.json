@@ -1,0 +1,102 @@
+{
+ "_doc": [
+  "Casos A/B de theme-post-title → digitalisimo-post-title (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-post-title",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-posttitle-defaults": {
+   "title": "Título de la entrada por defecto (h1 con el título de la entrada)",
+   "widget": "theme-post-title",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "tl-posttitle-link": {
+   "title": "Título de la entrada enlazado a la entrada, con antes y después, centrado, colores al pasar el cursor y transición",
+   "widget": "theme-post-title",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%22before%22%3A%22%C2%BB%20%22%2C%22after%22%3A%22%20%C2%AB%22%7D\"]",
+     "link": "[elementor-tag id=\"d4e5f6a\" name=\"post-url\" settings=\"%7B%7D\"]"
+    },
+    "align": "center",
+    "title_color": "#245EFF",
+    "title_hover_color": "#E63946",
+    "title_hover_color_transition_duration": {
+     "unit": "s",
+     "size": 0.3,
+     "sizes": []
+    },
+    "_css_classes": "entry-title"
+   },
+   "pixels": {
+    "max": 0.12,
+    "reason": "Foco visible propio del enlace del título (contorno de 2 px con separación de 2 px, en el color del texto); PRO dejaba el anillo del navegador: en una caja baja los dos anillos superan el umbral del estado con foco. Normal y hover, 0,00 %."
+   }
+  },
+  "tl-posttitle-styled": {
+   "title": "Título de la entrada h4 con tipografía propia por dispositivo, contorno y mezcla",
+   "widget": "theme-post-title",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%7D\"]"
+    },
+    "header_size": "h4",
+    "typography_typography": "custom",
+    "typography_font_family": "Georgia",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 48,
+     "sizes": []
+    },
+    "typography_font_size_tablet": {
+     "unit": "px",
+     "size": 36,
+     "sizes": []
+    },
+    "typography_font_size_mobile": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "typography_line_height": {
+     "unit": "em",
+     "size": 1.1,
+     "sizes": []
+    },
+    "typography_font_style": "italic",
+    "text_stroke_text_stroke_type": "yes",
+    "text_stroke_text_stroke": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "text_stroke_stroke_color": "#1C244B",
+    "blend_mode": "multiply"
+   }
+  },
+  "tl-posttitle-custom-css": {
+   "title": "Título de la entrada con CSS personalizado del elemento que nombra la clase de PRO",
+   "widget": "theme-post-title",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%7D\"]"
+    },
+    "custom_css": "selector.elementor-widget-theme-post-title .elementor-heading-title{color:#2A9D8F;border-bottom:3px solid #E9C46A;padding-bottom:8px}"
+   }
+  }
+ }
+}

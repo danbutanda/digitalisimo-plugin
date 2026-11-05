@@ -1,0 +1,199 @@
+{
+ "_doc": [
+  "Casos A/B de Información de la entrada (frente H de C4): A con `post-info` de PRO, B con `digitalisimo-post-info`. Contexto `post` (frente G): la entrada de prueba de «Ana Autora» (15 de marzo de 2024, 10:00) con categoría, etiqueta y tres comentarios; `bare`, la entrada sin extras con los comentarios cerrados."
+ ],
+ "declared": [
+  {
+   "widget": "post-info",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces (contorno de 2 px con separación de 2 px, criterio del estándar del front)."
+  },
+  {
+   "widget": "post-info",
+   "kind": "nombre",
+   "match": "link «(Picture of|Imagen de) Ana Autora",
+   "reason": "Texto alternativo del avatar en español («Imagen de …»; PRO: «Picture of …»): cambia el nombre accesible del enlace del autor."
+  }
+ ],
+ "cases": {
+  "pi-defaults": {
+   "title": "Valores por defecto: autor, fecha, hora y comentarios en línea, con sus enlaces e iconos",
+   "widget": "post-info",
+   "context": "post",
+   "settings": {},
+   "pixels": {
+    "max": 0.05,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget de 75 px de alto a 375 px (4,3 %); sin foco, 0,00 %."
+   }
+  },
+  "pi-bare": {
+   "title": "Entrada sin extras: los comentarios cerrados no se pintan",
+   "widget": "post-info",
+   "context": {
+    "post": "bare"
+   },
+   "settings": {},
+   "pixels": {
+    "max": 0.05,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget de 75 px de alto a 375 px (4,3 %); sin foco, 0,00 %."
+   }
+  },
+  "pi-traditional": {
+   "title": "Disposición tradicional con avatar, prefijos, formatos, términos, texto personalizado, divisor y estilos",
+   "widget": "post-info",
+   "context": "post",
+   "settings": {
+    "view": "traditional",
+    "icon_list": [
+     {
+      "_id": "pa1",
+      "type": "author",
+      "show_avatar": "yes",
+      "text_prefix": "Por",
+      "avatar_size": {
+       "unit": "px",
+       "size": 24
+      }
+     },
+     {
+      "_id": "pa2",
+      "type": "date",
+      "date_format": "custom",
+      "custom_date_format": "d/m/Y",
+      "link": "",
+      "selected_icon": {
+       "value": "fas fa-calendar",
+       "library": "fa-solid"
+      }
+     },
+     {
+      "_id": "pa3",
+      "type": "time",
+      "time_format": "2",
+      "show_icon": "none"
+     },
+     {
+      "_id": "pa4",
+      "type": "terms",
+      "taxonomy": "category",
+      "text_prefix": "En",
+      "selected_icon": {
+       "value": "fas fa-tags",
+       "library": "fa-solid"
+      }
+     },
+     {
+      "_id": "pa5",
+      "type": "terms",
+      "taxonomy": "post_tag",
+      "link": "",
+      "show_icon": "custom",
+      "selected_icon": {
+       "value": "fas fa-tag",
+       "library": "fa-solid"
+      }
+     },
+     {
+      "_id": "pa6",
+      "type": "comments",
+      "comments_custom_strings": "yes",
+      "string_comments": "%s respuestas"
+     },
+     {
+      "_id": "pa7",
+      "type": "custom",
+      "custom_text": "Lectura de 5 minutos",
+      "custom_url": {
+       "url": "/pagina-ab/"
+      },
+      "show_icon": "custom",
+      "selected_icon": {
+       "value": "far fa-clock",
+       "library": "fa-regular"
+      }
+     }
+    ],
+    "space_between": {
+     "unit": "px",
+     "size": 16
+    },
+    "divider": "yes",
+    "divider_style": "dashed",
+    "divider_weight": {
+     "unit": "px",
+     "size": 2
+    },
+    "divider_width": {
+     "unit": "%",
+     "size": 60
+    },
+    "divider_color": "#c0c0c0",
+    "icon_color": "#b00020",
+    "icon_size": {
+     "unit": "px",
+     "size": 18
+    },
+    "text_indent": {
+     "unit": "px",
+     "size": 10
+    },
+    "text_color": "#1b5e20",
+    "icon_typography_typography": "custom",
+    "icon_typography_font_size": {
+     "unit": "px",
+     "size": 15
+    },
+    "icon_typography_font_weight": "600"
+   }
+  },
+  "pi-inline-center": {
+   "title": "En línea con divisor de altura fija, alineación y separación por dispositivo y sin iconos",
+   "widget": "post-info",
+   "context": "post",
+   "settings": {
+    "icon_list": [
+     {
+      "_id": "pb1",
+      "type": "author",
+      "show_icon": "none"
+     },
+     {
+      "_id": "pb2",
+      "type": "date",
+      "date_format": "1",
+      "show_icon": "none"
+     },
+     {
+      "_id": "pb3",
+      "type": "comments",
+      "show_icon": "none"
+     },
+     {
+      "_id": "pb4",
+      "type": "terms",
+      "taxonomy": "category",
+      "show_icon": "none"
+     }
+    ],
+    "icon_align": "right",
+    "icon_align_mobile": "center",
+    "divider": "yes",
+    "divider_height": {
+     "unit": "px",
+     "size": 14
+    },
+    "divider_color": "#333333",
+    "space_between": {
+     "unit": "px",
+     "size": 30
+    },
+    "space_between_mobile": {
+     "unit": "px",
+     "size": 12
+    },
+    "text_color": "#0047ab"
+   }
+  }
+ }
+}
