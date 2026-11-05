@@ -17,7 +17,7 @@ $digi_ma_t = static function ( $text ) {
 return array(
 	'source'    => 'woocommerce-my-account',
 	'target'    => 'digitalisimo-woo-my-account',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	'keep'      => array(
 		'tabs_layout',

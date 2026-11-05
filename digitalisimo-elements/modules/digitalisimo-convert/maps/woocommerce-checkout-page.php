@@ -284,8 +284,12 @@ return array(
 		'shipping_address_checkboxes_typography' => 'shipping_address_checkboxes_typography',
 		'shipping_address_section_normal_box_shadow' => 'shipping_address_section_normal_box_shadow',
 	),
-	// Controles sin valor (encabezados y avisos del panel).
+	// Controles sin valor (encabezados y avisos del panel). Los avisos de los repetidores de campos van también aquí:
+	// `tests/elements-convert.php` no lee el `ui` de los repetidores.
 	'ui'        => array(
+		'locale_notice',
+		'from_billing_notice',
+		'label_placeholder_notification',
 		'additional_information_titles_title',
 		'billing_details_checkboxes_title',
 		'billing_details_titles_title',

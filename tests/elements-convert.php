@@ -74,6 +74,21 @@ namespace {
 			preg_match_all( "/'([a-z0-9_-]+)'/", $loop[1], $lits );
 			$values[ $loop[2] ] = array_merge( $values[ $loop[2] ] ?? array(), $lits[1] );
 		}
+		// `foreach ( $lista as $clave => $valor )` sobre un arreglo literal con claves (`$query_type_strings` de
+		// `modules/woocommerce/widgets/products.php`, C7): la variable toma las claves del arreglo.
+		preg_match_all( "/\\$([a-z_]+)\s*=\s*\[(.*?)\];/s", $php, $assoc, PREG_SET_ORDER );
+		$lists = array();
+		foreach ( $assoc as $list ) {
+			if ( preg_match_all( "/^\s*'([a-z0-9_-]+)'\s*=>/m", $list[2], $keys ) ) {
+				$lists[ $list[1] ] = $keys[1];
+			}
+		}
+		preg_match_all( "/foreach\s*\(\s*\\$([a-z_]+)\s+as\s+\\$([a-z_]+)\s*=>/", $php, $keyed, PREG_SET_ORDER );
+		foreach ( $keyed as $loop ) {
+			if ( isset( $lists[ $loop[1] ] ) ) {
+				$values[ $loop[2] ] = array_merge( $values[ $loop[2] ] ?? array(), $lists[ $loop[1] ] );
+			}
+		}
 		preg_match_all( '/function\s+([a-z_]+)\s*\(([^)]*)\)/', $php, $functions, PREG_SET_ORDER );
 		foreach ( $functions as $function ) {
 			preg_match_all( '/\$([a-z_]+)/', $function[2], $params );
@@ -201,13 +216,13 @@ namespace {
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array( 'tag' => 'h3' ) ),
 		array( 'id' => 'c2', 'elType' => 'container', 'elements' => array( array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array() ), array( 'id' => 'w3', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array() ) ) ),
-		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'woocommerce-cart', 'settings' => array() ),
+		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'paypal-button', 'settings' => array() ),
 	) ) );
 	check_cv( $tree === Converter::tree( $tree ), 'Un mapa en borrador no convierte nada fuera de las pruebas.' );
 	$converted = Converter::tree( $tree, $log, true );
-	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'woocommerce-cart' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
+	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'paypal-button' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
 	check_cv( 2 === count( $log ) && 'w2' === $log[1]['element'] && 'blockquote' === $log[0]['source'], 'El registro dice qué elemento cambió y de qué a qué.' );
-	check_cv( array( 'blockquote' => 2, 'woocommerce-cart' => 1 ) === Converter::count( $tree ) && array( 'woocommerce-cart' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
+	check_cv( array( 'blockquote' => 2, 'paypal-button' => 1 ) === Converter::count( $tree ) && array( 'paypal-button' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
 
 	// 4. Panel.
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'hide' ) );
