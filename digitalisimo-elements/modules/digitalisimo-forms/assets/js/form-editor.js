@@ -6,7 +6,7 @@
  *   reCAPTCHA) se crean otra vez con el nombre del propio, con la misma clase que usa el constructor;
  * - al elegir el tipo «Paso» en un campo que no es el primero, se inserta un paso al principio (como en el de PRO).
  */
-( function ( $ ) {
+( function () {
 	'use strict';
 	var NAME = 'digitalisimo-form';
 	var INTEGRATIONS = [ 'mailchimp', 'recaptcha', 'drip', 'activecampaign', 'getresponse', 'convertkit', 'mailerlite' ];
@@ -65,6 +65,7 @@
 	if ( window.elementor && elementor.hooks ) {
 		start();
 	} else {
-		$( window ).on( 'elementor:init', start );
+		// El editor emite `elementor/init` también como evento nativo de `window`.
+		window.addEventListener( 'elementor/init', start, { once: true } );
 	}
-}( jQuery ) );
+}() );

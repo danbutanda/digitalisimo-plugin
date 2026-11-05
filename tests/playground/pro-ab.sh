@@ -51,6 +51,10 @@
 #     acepta si A tiene controles enfocables;
 #   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
 #     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
+# C6 (formularios: `cases/form.json` y `cases/login.json`) no añade opciones: los pasos del Formulario de PRO se arman en
+# el navegador (`ready.a`) y el propio los pinta el servidor; el Inicio de sesión se mide sin sesión iniciada. Los envíos
+# (ninguno se pierde ni se duplica, con las acciones guardar, correo y webhook) no se miden aquí, sino de punta a punta
+# con tests/playground/pro-form-e2e.sh.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

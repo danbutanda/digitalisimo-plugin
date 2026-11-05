@@ -466,7 +466,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1, C2, C4): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0, C1, C2, C4, C6): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -510,6 +510,9 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'search-form', own: 'digitalisimo-search-form', title: 'Formulario de búsqueda', query: 'formulario de búsqueda', ownHidden: true },
         { pro: 'sitemap', own: 'digitalisimo-sitemap', title: 'Mapa del sitio', query: 'mapa del sitio' },
         { pro: 'breadcrumbs', own: 'digitalisimo-yoast-breadcrumbs', title: 'Migas (Yoast o DIGITALÍSIMO SEO)', query: 'migas', proOptional: true },
+        // C6 (formularios, docs/pro/c6.md).
+        { pro: 'form', own: 'digitalisimo-form', title: 'Formulario', query: 'formulario' },
+        { pro: 'login', own: 'digitalisimo-login', title: 'Inicio de sesión', query: 'inicio de sesión' },
       ];
       const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

@@ -5475,7 +5475,8 @@
     "after": {
      "count:bar": 1,
      "count:coupon": 1,
-     "count:progress": 1
+     "count:progress": 1,
+    "count:steps": 2
     },
     "asset:cart-extras-css": "<=4096",
     "asset:cart-extras-js": "<=8192"
@@ -6851,6 +6852,51 @@
     "proHandlers": false,
     "proFrontend": false,
     "swiper": false
+   }
+  }
+ },
+ "forms": {
+  "title": "Formularios propios (programa sin widgets de PRO, C6): el Formulario (con pasos, barra de progreso y las acciones guardar, correo y webhook) y el Inicio de sesión, sin los paquetes de PRO: un solo script propio con defer y sin peticiones hasta enviar",
+  "since": "@NEXT_ELEMENTS@",
+  "widgets": [
+   { "type": "heading", "settings": { "title": "Contacto", "header_size": "h2" } },
+   {
+    "type": "digitalisimo-form",
+    "settings": {
+     "form_name": "Contacto",
+     "form_fields": [
+      { "_id": "fbf0001", "field_type": "step", "field_label": "Datos" },
+      { "_id": "fbf0002", "custom_id": "name", "field_type": "text", "field_label": "Nombre", "required": "true" },
+      { "_id": "fbf0003", "custom_id": "email", "field_type": "email", "field_label": "Correo", "required": "true" },
+      { "_id": "fbf0004", "field_type": "step", "field_label": "Mensaje" },
+      { "_id": "fbf0005", "custom_id": "message", "field_type": "textarea", "field_label": "Mensaje" },
+      { "_id": "fbf0006", "custom_id": "topic", "field_type": "select", "field_label": "Tema", "field_options": "Ventas\nSoporte" },
+      { "_id": "fbf0007", "custom_id": "consent", "field_type": "checkbox", "field_label": "Avisos", "field_options": "Sí" }
+     ],
+     "step_type": "progress_bar",
+     "submit_actions": ["save-to-database", "email", "webhook"],
+     "webhooks": "https://receptor.test/hook"
+    }
+   },
+   { "type": "digitalisimo-login", "settings": { "show_lost_password": "yes" } }
+  ],
+  "counts": {
+   "own": "[data-widget_type^=\"digitalisimo-\"]",
+   "fields": ".elementor-field-group",
+   "steps": "[role=\"group\"].e-form__step, .e-form__step[role=\"group\"]",
+   "progress": "[role=\"progressbar\"]"
+  },
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "cdnjs": false,
+    "count:own": 2,
+    "count:fields": ">=5",
+    "count:progress": 1,
+    "count:steps": 2
    }
   }
  }

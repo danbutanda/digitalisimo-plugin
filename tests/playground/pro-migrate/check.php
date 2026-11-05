@@ -37,8 +37,14 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'single', 'forms' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
+	}
+	// C6: lo que importa de cada formulario de la página de formularios (acciones, destinatarios y origen de PRO).
+	$fdata = json_decode( (string) get_post_meta( (int) ( $ids['forms'] ?? 0 ), '_elementor_data', true ), true );
+	foreach ( (array) ( $fdata[0]['elements'] ?? array() ) as $e ) {
+		$s = (array) ( $e['settings'] ?? array() );
+		$out['forms'][ $e['id'] ] = array_intersect_key( $s, array_flip( array( 'form_name', 'submit_actions', 'email_to', 'webhooks', 'redirect_to', 'mailchimp_list', 'button_text', 'user_label', '_digitalisimo_pro' ) ) ) + array( 'fields' => array_column( (array) ( $s['form_fields'] ?? array() ), 'custom_id' ) );
 	}
 	$out['backup'] = (bool) get_post_meta( (int) $ids['page'], '_digitalisimo_ep_backup', true );
 	// Hijos del carrusel anidado (C1): sus contenedores deben conservarse con su id.

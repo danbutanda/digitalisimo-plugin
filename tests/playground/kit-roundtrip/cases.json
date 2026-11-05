@@ -2840,7 +2840,9 @@
         ]
       }
     },
-    "digitalisimo-yoast-breadcrumbs": { "settings": { "html_tag": "nav", "align": "center" } }
+    "digitalisimo-yoast-breadcrumbs": { "settings": { "html_tag": "nav", "align": "center" } },
+    "digitalisimo-form": { "settings": { "form_name": "Formulario del kit", "form_fields": [{ "_id": "kf0001", "custom_id": "name", "field_type": "text", "field_label": "Nombre", "required": "true" }, { "_id": "kf0002", "custom_id": "email", "field_type": "email", "field_label": "Correo" }], "button_text": "Enviar", "submit_actions": ["save-to-database"] } },
+    "digitalisimo-login": { "settings": { "button_text": "Entrar del kit", "show_lost_password": "yes", "custom_labels": "yes", "user_label": "Usuario del kit" } }
   },
   "traits": {
     "backdrop-filter": {

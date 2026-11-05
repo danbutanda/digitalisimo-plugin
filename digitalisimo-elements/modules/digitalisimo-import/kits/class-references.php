@@ -208,6 +208,9 @@ final class References {
 			array( 'element', 'form', 'form_fields', 'note:form' ),
 			array( 'element', 'form', 'submit_actions', 'note:form' ),
 			array( 'element', 'form', 'webhooks', 'note:form' ),
+			array( 'element', 'digitalisimo-form', 'form_fields', 'note:form' ),
+			array( 'element', 'digitalisimo-form', 'submit_actions', 'note:form' ),
+			array( 'element', 'digitalisimo-form', 'webhooks', 'note:form' ),
 			// Origen ACF: viaja la clave del campo (E:modules/digitalisimo-widgets/class-acf-source.php:15-21,36).
 			array( 'element', '*', 'digitalisimo_acf_field', 'note:acf' ),
 			// Imagen de un término (categoría de producto): la parte `term-meta` la traduce y `media` la incrusta (B18).

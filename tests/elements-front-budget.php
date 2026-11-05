@@ -410,7 +410,53 @@ namespace {
 	}
 	check_budget( 15 === $te_count && 1 === $te_scripts, 'Deben revisarse los quince elementos de tema, con un solo script (' . $te_count . ', ' . $te_scripts . ').' );
 	$count += $te_count;
-	check_budget( $count >= 92, 'Deben revisarse los 92 widgets propios (' . $count . ').' );
+	// Formularios propios (programa «sin widgets de PRO», C6, docs/pro/c6.md): el Formulario y el Inicio de sesión de
+	// modules/digitalisimo-forms/ con las mismas reglas. Forms\Module registra la hoja (≤ 4 KB) y, sólo si existe, el
+	// script (≤ 6 KB, defer, sin dependencias) de cada uno: el Formulario envía con fetch y FormData a la misma tubería del
+	// constructor que PRO; el Inicio de sesión no tiene script. El script del editor (`form-editor.js`, ≤ 6 KB, sin jQuery)
+	// sólo se encola en el editor.
+	$fm_dir    = $root . '/modules/digitalisimo-forms/';
+	$fm_module = (string) file_get_contents( $fm_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $fm_module, $fm_entries, PREG_SET_ORDER );
+	check_budget( 2 === count( $fm_entries ), 'Forms\\Module::WIDGETS declara los dos formularios de C6 (' . count( $fm_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $fm_module, $fm_scripts );
+	check_budget( count( $fm_scripts[0] ) >= 2, 'Forms\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $fm_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Forms\\Module: script sin defer o con jQuery.' ); }
+	$fm_count   = 0;
+	$fm_scripts = 0;
+	foreach ( $fm_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $fm_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$fm_count++;
+		$code = preg_replace( '/^\s*(\*|\/\/|\/\*).*$/m', '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/<iframe|<img[\s>]/i', $code ), $name . ': sin JSON-LD, <script>, <iframe> ni <img> propios en la salida.' );
+		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 4 === $i, $name . ': falta su hoja ' . $m[ $i ] ); continue; }
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$fm_scripts++;
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\$\(|jQuery\.(ajax|fn)|\.ajax\(|\bSwiper\b|elementorProFrontend\.config/', $js ), $m[ $i ] . ': sin jQuery, Swiper ni la configuración de PRO.' );
+				check_budget( ! preg_match( '#https?://(?!www\.w3\.org/)#', $js ), $m[ $i ] . ': ninguna dirección de terceros en el script.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	foreach ( glob( $fm_dir . 'assets/js/*-editor.js' ) as $editor ) {
+		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\b|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );
+	}
+	check_budget( 2 === $fm_count && 1 === $fm_scripts, 'Deben revisarse los dos formularios propios, con un solo script del sitio (' . $fm_count . ', ' . $fm_scripts . ').' );
+	$count += $fm_count;
+	check_budget( $count >= 94, 'Deben revisarse los 94 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

@@ -1,7 +1,8 @@
 <?php
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
 // página con los cinco carruseles de PRO (C1); otra con los catorce widgets de contenido de PRO y una cuenta regresiva
-// de Element Pack (C2); y una plantilla de entrada con los elementos de tema (C4).
+// de Element Pack (C2); una plantilla de entrada con los elementos de tema (C4); y una página con el Formulario y el
+// Inicio de sesión de PRO y los formularios de Element Pack que F8 lleva a ellos, más un Inicio de sesión en la cabecera (C6).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -26,7 +27,7 @@ if ( $rev ) {
 $header = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Cabecera con cita', 'post_name' => 'pm-cabecera' ) );
 update_post_meta( $header, '_elementor_template_type', 'header' );
 update_post_meta( $header, '_elementor_edit_mode', 'builder' );
-update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ) ) ) ) ) ) );
+update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ), array( 'id' => 'k9', 'elType' => 'widget', 'widgetType' => 'login', 'settings' => array( 'button_text' => 'Entrar', 'show_lost_password' => 'yes' ), 'elements' => array() ) ) ) ) ) ) );
 // C1: página con los cinco carruseles de PRO (el anidado, con dos contenedores hijos que se conservan).
 $w = static function ( $id, $type, array $settings, array $children = array() ) {
 	return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $type, 'settings' => $settings, 'elements' => $children );
@@ -91,5 +92,33 @@ update_post_meta( $single, '_elementor_template_type', 'single-post' );
 update_post_meta( $single, '_elementor_edit_mode', 'builder' );
 update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
 wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single ) );
+// C6: página con el Formulario de PRO (correo, webhook y redirección, con CSS personalizado) y el Inicio de sesión de
+// PRO, y los formularios de Element Pack que F8 lleva a ellos (contacto, Mailchimp, webhook y acceso de usuario): la
+// etapa `pro` los lleva a los propios en la misma pasada, con el mismo id de elemento (el form_id de los envíos).
+update_option( 'element_pack_api_settings', array( 'mailchimp_api_key' => 'abc-us1', 'mailchimp_list_id' => 'L1', 'contact_form_email' => 'ventas@sitio.test' ) );
+$forms_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'k1', 'form', array(
+		'form_name'      => 'Contacto',
+		'form_fields'    => array(
+			array( '_id' => 'fa', 'custom_id' => 'name', 'field_type' => 'text', 'field_label' => 'Nombre', 'required' => 'true' ),
+			array( '_id' => 'fb', 'custom_id' => 'email', 'field_type' => 'email', 'field_label' => 'Correo', 'required' => 'true' ),
+			array( '_id' => 'fc', 'custom_id' => 'message', 'field_type' => 'textarea', 'field_label' => 'Mensaje' ),
+		),
+		'submit_actions' => array( 'save-to-database', 'email', 'webhook', 'redirect' ),
+		'email_to'       => 'equipo@sitio.test',
+		'email_subject'  => 'Nuevo mensaje',
+		'webhooks'       => 'https://receptor.test/hook',
+		'redirect_to'    => 'https://sitio.test/gracias/',
+		'custom_css'     => 'selector.elementor-widget-form{margin:0}',
+	) ),
+	$w( 'k2', 'login', array( 'button_text' => 'Acceder', 'custom_labels' => 'yes', 'user_label' => 'Usuario' ) ),
+	$w( 'b1', 'bdt-contact-form', array( 'show_subject' => 'yes', 'show_message' => 'yes', 'redirect_after_submit' => 'yes', 'redirect_url' => array( 'url' => 'https://sitio.test/gracias/' ) ) ),
+	$w( 'b2', 'bdt-mailchimp', array() ),
+	$w( 'b3', 'bdt-webhook-form', array( 'webhook_url' => 'https://receptor.test/hook' ) ),
+	$w( 'b4', 'bdt-user-login', array() ),
+) ) );
+$forms = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con formularios', 'post_name' => 'pm-formularios' ) );
+update_post_meta( $forms, '_elementor_edit_mode', 'builder' );
+update_post_meta( $forms, '_elementor_data', wp_slash( wp_json_encode( $forms_data ) ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'single' => $single, 'forms' => $forms ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

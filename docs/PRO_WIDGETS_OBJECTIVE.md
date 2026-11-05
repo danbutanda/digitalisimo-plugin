@@ -107,8 +107,8 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | Nuevo |  |
 | C5 | `posts` | `portfolio` | Portfolio | Nuevo |  |
 | C5 | `posts` | `posts` | Posts | Nuevo |  |
-| C6 | `forms` | `form` | Form | Nuevo |  |
-| C6 | `forms` | `login` | Login | Nuevo |  |
+| C6 | `forms` | `form` | Form | **Sustituido** | Formulario (`digitalisimo-form`), C6; envía por la misma tubería del constructor |
+| C6 | `forms` | `login` | Login | **Sustituido** | Inicio de sesión (`digitalisimo-login`), C6 |
 | C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | Nuevo |  |
 | C7 | `woocommerce` | `wc-archive-products` | Archive Products | Nuevo |  |
 | C7 | `woocommerce` | `wc-categories` | Product Categories | Nuevo |  |
@@ -173,6 +173,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C1 | **Publicado** · Elements 4.3.0.173 y Migración 1.0.23 · `v2026.11.04.449`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
 | C2 | **Publicado** · Elements 4.3.0.174 y Migración 1.0.24 · `v2026.11.05.450`. Catorce widgets de contenido propios en `modules/digitalisimo-content/` (Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso) con sus mapas listos y fuera del panel; con la Cita de C0, la familia C2 queda sustituida entera. Detalle en `docs/pro/c2.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
-| C6 | **En curso** (rama `pro/c6`, contrato `docs/pro/c6.md`) |
+| C6 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C6_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
 | C3, C5, C7–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |
