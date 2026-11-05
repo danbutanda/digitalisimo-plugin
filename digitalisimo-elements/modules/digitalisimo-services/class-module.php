@@ -10,11 +10,13 @@ defined( 'ABSPATH' ) || exit;
  *
  * - Widgets, uno por archivo en `widgets/` (namespace `Digitalisimo\Elements\Services\Widgets`); cada frente añade su
  *   línea en `WIDGETS` y `TITLES` (y en `NESTED` si es anidado).
- * - Recursos: cada widget, su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si existe, su script
- *   `assets/js/<nombre sin digitalisimo->.js` (`defer`, sin dependencias) y su script del editor
- *   `assets/js/<nombre sin digitalisimo->-editor.js`. Sólo se registran; los encola el núcleo por
- *   `get_style_depends()`/`get_script_depends()`, que devuelven `Module::style_depends( $this->get_name() )` y
- *   `Module::script_depends( $this->get_name() )`. Una página sin estos widgets no carga nada.
+ * - Recursos: cada widget declara su hoja (`css`) y su script (`js`, `defer`, sin dependencias) y, sólo si existe, su
+ *   script del editor `assets/js/<nombre sin digitalisimo->-editor.js`. Varios widgets pueden compartir archivo (los
+ *   cuatro de Facebook, `facebook.css`/`facebook.js`; los dos de pago, `payment-button.*`): el handle sale del archivo
+ *   (`handle()`: `digitalisimo-<archivo sin extensión>`), así que una página con dos de ellos lo carga una vez. Sólo se
+ *   registran si el archivo existe; los encola el núcleo por `get_style_depends()`/`get_script_depends()`, que
+ *   devuelven `Module::style_depends( $this->get_name() )` y `Module::script_depends( $this->get_name() )`. Una página
+ *   sin estos widgets no carga nada.
  * - Registro tolerante en `elementor/widgets/register` (20): un widget cuyo archivo falta o falla se omite sin error.
  */
 final class Module {
@@ -26,10 +28,24 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-facebook-button'   => array( 'file' => 'widgets/class-facebook-button.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Facebook_Button', 'css' => 'modules/digitalisimo-services/assets/css/facebook.css', 'js' => 'modules/digitalisimo-services/assets/js/facebook.js' ),
+		'digitalisimo-facebook-comments' => array( 'file' => 'widgets/class-facebook-comments.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Facebook_Comments', 'css' => 'modules/digitalisimo-services/assets/css/facebook.css', 'js' => 'modules/digitalisimo-services/assets/js/facebook.js' ),
+		'digitalisimo-facebook-embed'    => array( 'file' => 'widgets/class-facebook-embed.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Facebook_Embed', 'css' => 'modules/digitalisimo-services/assets/css/facebook.css', 'js' => 'modules/digitalisimo-services/assets/js/facebook.js' ),
+		'digitalisimo-facebook-page'     => array( 'file' => 'widgets/class-facebook-page.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Facebook_Page', 'css' => 'modules/digitalisimo-services/assets/css/facebook.css', 'js' => 'modules/digitalisimo-services/assets/js/facebook.js' ),
+		'digitalisimo-paypal-button'     => array( 'file' => 'widgets/class-paypal-button.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Paypal_Button', 'css' => 'modules/digitalisimo-services/assets/css/payment-button.css', 'js' => 'modules/digitalisimo-services/assets/js/payment-button.js' ),
+		'digitalisimo-stripe-button'     => array( 'file' => 'widgets/class-stripe-button.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Stripe_Button', 'css' => 'modules/digitalisimo-services/assets/css/payment-button.css', 'js' => 'modules/digitalisimo-services/assets/js/payment-button.js' ),
+		'digitalisimo-template'          => array( 'file' => 'widgets/class-template.php', 'class' => 'Digitalisimo\\Elements\\Services\\Widgets\\Template', 'css' => 'modules/digitalisimo-services/assets/css/template.css', 'js' => 'modules/digitalisimo-services/assets/js/template.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-facebook-button'   => 'Botón de Facebook',
+		'digitalisimo-facebook-comments' => 'Comentarios de Facebook',
+		'digitalisimo-facebook-embed'    => 'Publicación de Facebook',
+		'digitalisimo-facebook-page'     => 'Página de Facebook',
+		'digitalisimo-paypal-button'     => 'Botón de PayPal',
+		'digitalisimo-stripe-button'     => 'Botón de Stripe',
+		'digitalisimo-template'          => 'Plantilla',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
@@ -97,21 +113,28 @@ final class Module {
 			return;
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
-		foreach ( self::WIDGETS as $handle => $asset ) {
-			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
-				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+		foreach ( self::WIDGETS as $asset ) {
+			$style = self::handle( $asset['css'] );
+			if ( ! wp_style_is( $style, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
+				wp_register_style( $style, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 			}
-			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
-				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+			$script = self::handle( $asset['js'] );
+			if ( ! wp_script_is( $script, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
+				wp_register_script( $script, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}
 		}
+	}
+
+	/** Handle de un recurso del módulo: `digitalisimo-<archivo sin extensión>` (`facebook.css` → `digitalisimo-facebook`). */
+	public static function handle( string $file ): string {
+		return 'digitalisimo-' . preg_replace( '/\.(css|js)$/', '', basename( $file ) );
 	}
 
 	/** Hojas de un widget del módulo: la suya si existe (para `get_style_depends()`). */
 	public static function style_depends( string $name ): array {
 		$out = array();
 		if ( isset( self::WIDGETS[ $name ] ) && is_file( self::path( self::WIDGETS[ $name ]['css'] ) ) ) {
-			$out[] = $name;
+			$out[] = self::handle( self::WIDGETS[ $name ]['css'] );
 		}
 		return $out;
 	}
@@ -120,7 +143,7 @@ final class Module {
 	public static function script_depends( string $name ): array {
 		$out = array();
 		if ( isset( self::WIDGETS[ $name ] ) && is_file( self::path( self::WIDGETS[ $name ]['js'] ) ) ) {
-			$out[] = $name;
+			$out[] = self::handle( self::WIDGETS[ $name ]['js'] );
 		}
 		return $out;
 	}
