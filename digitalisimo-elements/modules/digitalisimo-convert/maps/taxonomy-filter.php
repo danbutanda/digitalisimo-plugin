@@ -18,7 +18,7 @@ $digi_tf_t = static function ( $text ) {
 return array(
 	'source'   => 'taxonomy-filter',
 	'target'   => 'digitalisimo-taxonomy-filter',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'defaults' => array(
 		'first_item_title' => $digi_tf_t( 'All' ),

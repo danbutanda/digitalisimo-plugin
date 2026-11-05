@@ -22,7 +22,7 @@ $digi_lg_pagination = is_file( __DIR__ . '/_loop-pagination.php' ) ? (array) req
 return array(
 	'source'    => 'loop-grid',
 	'target'    => 'digitalisimo-loop-grid',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Textos por defecto de PRO: lo convertido conserva el texto que el sitio veía.
 	'defaults'  => array(

@@ -17,7 +17,7 @@ $digi_lc_paging  = is_file( __DIR__ . '/_loop-pagination.php' ) ? (array) requir
 return array(
 	'source'  => 'loop-carousel',
 	'target'  => 'digitalisimo-loop-carousel',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'defaults' => array(
 		'autoplay'                 => 'yes',
