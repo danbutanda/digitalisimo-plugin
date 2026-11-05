@@ -145,11 +145,6 @@ final class References {
 			// Caja de autor: usuario del sitio; vacío vuelve a los datos escritos a mano (class-author-box-extras.php:51,73).
 			array( 'element', 'author-box', 'digitalisimo_author_user', 'user' ),
 			array( 'element', 'digitalisimo-author-box', 'digitalisimo_author_user', 'user' ),
-			// C7: plantilla del escritorio de Mi cuenta y categorías de producto elegidas o padre de las Categorías de
-			// productos (E:modules/digitalisimo-woo/store/class-my-account.php:300,2140; class-categories.php:107,122,387-389).
-			array( 'element', 'digitalisimo-woo-my-account', 'customize_dashboard_select', 'template' ),
-			array( 'element', 'digitalisimo-woo-categories', 'categories.*', 'term' ),
-			array( 'element', 'digitalisimo-woo-categories', 'parent', 'term' ),
 			// Reseñas: el Place ID viaja, la clave de Places no (class-google-reviews.php:19,32).
 			array( 'element', 'digitalisimo-google-reviews', 'google_place_id', 'note:google_places' ),
 			// Reglas de visibilidad (E:modules/digitalisimo-conditions/class-visibility.php:130-142; class-visibility-rules.php).

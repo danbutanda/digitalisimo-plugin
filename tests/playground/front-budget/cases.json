@@ -7050,15 +7050,11 @@
   }
  },
  "woo-pro-cart": {
-  "title": "Carrito y avisos propios (C7) con un producto en el carrito: dos hojas de 4 KB y sin los paquetes de PRO",
+  "title": "Carrito propio (C7) con un producto en el carrito: dos hojas de 4 KB y sin los paquetes de PRO (sin el widget de avisos, que mueve a su caja el aviso «añadido al carrito», como el de PRO, y se mide aparte)",
   "since": "@NEXT_ELEMENTS@",
   "isolate": true,
   "save": "document",
   "widgets": [
-   {
-    "type": "digitalisimo-woo-notices",
-    "settings": {}
-   },
    {
     "type": "digitalisimo-woo-cart",
     "id": "fbc7ct1",
@@ -7138,7 +7134,7 @@
   },
   "counts": {
    "toggle": ".digi-mc button[aria-expanded]",
-   "items": ".digi-mc .woocommerce-mini-cart-item"
+   "items": ".digi-mc .digi-mc__item"
   },
   "actions": [
    {
@@ -7150,7 +7146,7 @@
    },
    {
     "do": "waitCount",
-    "selector": ".digi-mc .woocommerce-mini-cart-item",
+    "selector": ".digi-mc .digi-mc__item",
     "min": 1,
     "ms": 15000
    },

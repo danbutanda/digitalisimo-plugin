@@ -206,8 +206,9 @@ El runner final `digitalisimo` (prioridad `PHP_INT_MAX`) importa las partes en l
 | element · `slides` (rasgo) | `slides.*.digitalisimo_template_id` | template |
 | element · `digitalisimo-icon-nav` y alias; `digitalisimo-vertical-menu` | `navbar`; `menu` | menu; menu_slug |
 | element · `author-box` (rasgo) y `digitalisimo-author-box` (C4) | `digitalisimo_author_user` | user |
-| element · `digitalisimo-woo-my-account` (C7) | `customize_dashboard_select` | template |
-| element · `digitalisimo-woo-categories` (C7) | `categories.*`; `parent` | term |
+| element · `digitalisimo-woo-my-account` (C7, por el filtro, en `Woo\Kit\Module`) | `customize_dashboard_select` | template |
+| element · `digitalisimo-woo-categories` (C7, ídem) | `categories.*`; `parent` | term |
+| element · `digitalisimo-woo-products-classic` y `wc-products` (C7, ídem) | consulta antigua `posts`: `posts_posts_ids.*`; `posts_authors.*`; `posts_<taxonomía>_ids.*` (categorías, etiquetas, marcas y los atributos `pa_*` del sitio) | post; user; term |
 | element · `digitalisimo-google-reviews` | `google_place_id` | `note:google_places` |
 | element · `*` | reglas de visibilidad (`digitalisimo_visibility_rules.*`: entradas, página, usuario, términos) | post, user o term, con `gate` |
 | element · `*` | `e_display_conditions` | `conditions`: cada condición se resuelve con `scope = condition` |
