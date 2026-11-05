@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-menu-cart',
 	'target'  => 'digitalisimo-woo-menu-cart',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'defaults' => array( 'checkout_button_display' => '--cart-footer-buttons-alignment-display: none;' ),
 	'keep'    => array(
