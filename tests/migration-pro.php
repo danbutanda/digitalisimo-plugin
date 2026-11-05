@@ -755,5 +755,105 @@ namespace {
 	Registry::reset();
 	$check( $chained + count( $pending ) === 10, 'Cadena F8 → C2 → propio comprobada en ' . $chained . ' orígenes' . ( $pending ? '; sin mapa de C2 todavía: ' . implode( ', ', $pending ) : '' ) . '.' );
 
+	// Regla 6, C6 (docs/pro/c6.md): los formularios y el acceso que F8 lleva de Element Pack al Form y al Login de PRO
+	// acaban en el Formulario y el Inicio de sesión propios en la misma pasada de Migrar, con las acciones (correo,
+	// webhook, Mailchimp) y sus destinatarios intactos. Primero, qué orígenes de F8 llegan a cada uno.
+	$c6      = array( 'form', 'login' );
+	$sources = array();
+	foreach ( array_merge( glob( $legacy . 'maps/*.php' ) ?: array(), glob( $legacy . 'prime-slider/maps/*.php' ) ?: array() ) as $file ) {
+		if ( false !== strpos( basename( $file ), '.styles.' ) ) {
+			continue;
+		}
+		preg_match_all( "/'(target|fallback)'\s*=>\s*'([a-z0-9-]+)'/", (string) file_get_contents( $file ), $m, PREG_SET_ORDER );
+		foreach ( $m as $hit ) {
+			if ( in_array( $hit[2], $c6, true ) ) {
+				$sources[ $hit[2] ][] = basename( $file, '.php' );
+			}
+		}
+	}
+	ksort( $sources );
+	$expected = array(
+		'form'  => array( 'bdt-contact-form', 'bdt-mailchimp', 'bdt-webhook-form' ),
+		'login' => array( 'bdt-user-login' ),
+	);
+	$check( $expected === $sources, 'Orígenes de F8 hacia el Form y el Login de PRO: ' . wp_json_encode( $sources ) );
+	/**
+	 * Controles del Form y del Login de PRO para el gestor de prueba: los de su archivo (con grupos y dispositivos, como
+	 * `c2_controls()`) y, en el Form, los de las acciones de envío, que en WordPress registra cada acción en el widget (la
+	 * lista `keep` del mapa de C6, que `elements-pro-form.php` comprueba contra el widget).
+	 */
+	function c6_controls( string $type, array $map ): array {
+		$php   = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-elements/modules/forms/widgets/' . $type . '.php' );
+		$subs  = array( 'typography', 'font_family', 'font_size', 'font_weight', 'text_transform', 'font_style', 'text_decoration', 'line_height', 'letter_spacing', 'word_spacing', 'border', 'width', 'color', 'box_shadow_type', 'box_shadow', 'box_shadow_position', 'background', 'color_b', 'gradient_type', 'gradient_angle', 'image', 'position', 'size' );
+		preg_match_all( "/\\\$this->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $plain );
+		preg_match_all( "/\\\$this->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $groups );
+		$list = array_merge( $plain[1], 'form' === $type ? (array) $map['keep'] : array() );
+		foreach ( $groups[1] as $group ) {
+			foreach ( $subs as $sub ) {
+				$list[] = $group . '_' . $sub;
+			}
+		}
+		$out = array( 'custom_css' => array( 'name' => 'custom_css' ) );
+		foreach ( array_unique( $list ) as $name ) {
+			foreach ( array( '', '_tablet', '_mobile' ) as $device ) {
+				$out[ $name . $device ] = array( 'name' => $name . $device );
+			}
+		}
+		if ( 'form' === $type ) {
+			$fields = array();
+			foreach ( (array) $map['repeaters']['form_fields']['keep'] as $field ) {
+				$fields[] = array( 'name' => $field );
+			}
+			$out['form_fields'] = array( 'name' => 'form_fields', 'type' => 'form-fields-repeater', 'fields' => $fields );
+		}
+		return $out;
+	}
+	$c6_chained = 0;
+	$settings   = array(
+		'bdt-contact-form' => array( 'show_subject' => 'yes', 'show_message' => 'yes', 'redirect_after_submit' => 'yes', 'redirect_url' => array( 'url' => 'https://sitio.test/gracias/' ) ),
+		'bdt-mailchimp'    => array(),
+		'bdt-webhook-form' => array( 'webhook_url' => 'https://receptor.test/hook' ),
+		'bdt-user-login'   => array(),
+	);
+	foreach ( $expected as $pro_type => $origins ) {
+		foreach ( $origins as $origin ) {
+			Registry::reset();
+			$map = Registry::map( $pro_type, true );
+			$check( is_array( $map ), "Mapa de C6 para {$pro_type}." );
+			fresh();
+			f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+			update_option( 'element_pack_api_settings', array( 'mailchimp_api_key' => 'abc-us1', 'mailchimp_list_id' => 'L1', 'contact_form_email' => 'ventas@sitio.test' ) );
+			$gestor                                      = new C2_Manager();
+			$gestor->controls[ $pro_type ]               = c6_controls( $pro_type, $map );
+			$gestor->controls[ (string) $map['target'] ] = array();
+			Registry::set( $pro_type, array( 'status' => 'ready' ) + $map );
+			\Elementor\Plugin::$instance = (object) array( 'widgets_manager' => $gestor );
+			Pro::reset();
+			$doc   = doc( array( box( 'container', array( w( $origin, $settings[ $origin ], 'ef1' ) ), 'efc' ) ), array( 'post_title' => $origin ) );
+			$orig  = (string) get_metadata( 'post', $doc, '_elementor_data', true );
+			$state = migrate();
+			$el    = find( tree( $doc ), 'ef1' );
+			$codes = doc_codes( $doc );
+			$s     = (array) ( $el['settings'] ?? array() );
+			$check( ! empty( $state['done'] ) && 1 === (int) $state['counts']['converted'] && 1 === (int) $state['counts']['pro'], "Migrar convierte {$origin} con F8 y después con la etapa pro en la misma pasada: " . wp_json_encode( $state['counts'] ?? null ) );
+			$check( is_array( $el ) && $map['target'] === $el['widgetType'] && $pro_type === ( $s['_digitalisimo_pro'] ?? '' ) && 'efc' === tree( $doc )[0]['id'], "{$origin} acaba en {$map['target']} con el mismo id (el form_id de los envíos): " . wp_json_encode( $el['widgetType'] ?? null ) );
+			$check( in_array( "pro.converted:{$pro_type}:", $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), "{$origin} → {$pro_type} → {$map['target']}: sin claves sin declarar en el mapa de C6: " . wp_json_encode( preg_grep( '/^pro\./', $codes ) ) );
+			$check( false === strpos( (string) get_metadata( 'post', $doc, '_elementor_data', true ), '"bdt-' ), "No queda nada de Element Pack en el documento de {$origin}." );
+			if ( 'bdt-contact-form' === $origin ) {
+				$check( in_array( 'email', (array) $s['submit_actions'], true ) && in_array( 'redirect', (array) $s['submit_actions'], true ) && 'https://sitio.test/gracias/' === ( $s['redirect_to'] ?? '' ) && array( 'name', 'email', 'subject', 'message' ) === array_column( (array) $s['form_fields'], 'custom_id' ) && 'ventas@sitio.test' === ( $s['email_to'] ?? '' ), 'Contacto: campos, correo al mismo destinatario y redirección llegan al Formulario propio: ' . wp_json_encode( array( $s['submit_actions'] ?? null, $s['email_to'] ?? null, $s['redirect_to'] ?? null ) ) );
+			} elseif ( 'bdt-mailchimp' === $origin ) {
+				$check( in_array( 'mailchimp', (array) $s['submit_actions'], true ) && 'L1' === ( $s['mailchimp_list'] ?? '' ) && ! empty( $s['mailchimp_fields_map'] ), 'Mailchimp: la acción, la audiencia y el mapa de campos llegan al Formulario propio: ' . wp_json_encode( array( $s['submit_actions'] ?? null, $s['mailchimp_list'] ?? null ) ) );
+			} elseif ( 'bdt-webhook-form' === $origin ) {
+				$check( in_array( 'webhook', (array) $s['submit_actions'], true ) && 'https://receptor.test/hook' === ( $s['webhooks'] ?? '' ), 'Webhook: la acción y su URL llegan al Formulario propio: ' . wp_json_encode( array( $s['submit_actions'] ?? null, $s['webhooks'] ?? null ) ) );
+			}
+			Runner::revert( true );
+			$check( $orig === get_metadata( 'post', $doc, '_elementor_data', true ), "--revert devuelve {$origin} de Element Pack." );
+			++$c6_chained;
+		}
+	}
+	manager( null );
+	Registry::reset();
+	$check( 4 === $c6_chained, 'Cadena F8 → C6 → propio comprobada en ' . $c6_chained . ' orígenes.' );
+
 	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 100 );
 }
