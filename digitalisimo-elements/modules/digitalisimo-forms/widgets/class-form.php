@@ -960,8 +960,17 @@ class Form extends \Elementor\Widget_Base {
 
 		$this->end_controls_section();
 
+		// Cada acción registra sus controles como en el de PRO; las integraciones exigen el tipo del widget de PRO, que
+		// satisface `Action_Host` reenviando todo a este widget. Una acción que falla no deja su sección abierta.
+		$host = Module::action_host( $this );
 		foreach ( $actions as $action ) {
-			$action->register_settings_section( $this );
+			try {
+				$action->register_settings_section( $host );
+			} catch ( \Throwable $error ) {
+				if ( $this->get_current_section() ) {
+					$this->end_controls_section();
+				}
+			}
 		}
 
 		// Steps settings.
@@ -1915,7 +1924,7 @@ class Form extends \Elementor\Widget_Base {
 				'global' => [
 					'default' => Global_Typography::TYPOGRAPHY_ACCENT,
 				],
-				'selector' => '{{WRAPPER}} .e-form__indicators__indicator, {{WRAPPER}} .e-form__indicators__indicator__label',
+				'selector' => '{{WRAPPER}} .digi-step, {{WRAPPER}} .digi-step__label',
 				'conditions' => [
 					'terms' => [
 						[
@@ -1952,7 +1961,7 @@ class Form extends \Elementor\Widget_Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicators-spacing: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-gap: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -1990,7 +1999,7 @@ class Form extends \Elementor\Widget_Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-icon-size: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-icon: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -2016,7 +2025,7 @@ class Form extends \Elementor\Widget_Base {
 					],
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-padding: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-pad: {{SIZE}}{{UNIT}}',
 				],
 				'conditions' => [
 					'terms' => [
@@ -2055,7 +2064,7 @@ class Form extends \Elementor\Widget_Base {
 					'default' => Global_Colors::COLOR_TEXT,
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-inactive-primary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-i1: {{VALUE}};',
 				],
 			]
 		);
@@ -2067,7 +2076,7 @@ class Form extends \Elementor\Widget_Base {
 				'type' => Controls_Manager::COLOR,
 				'default' => '#ffffff',
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-inactive-secondary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-i2: {{VALUE}};',
 				],
 			]
 		);
@@ -2090,7 +2099,7 @@ class Form extends \Elementor\Widget_Base {
 					'default' => Global_Colors::COLOR_ACCENT,
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-active-primary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-a1: {{VALUE}};',
 				],
 			]
 		);
@@ -2102,7 +2111,7 @@ class Form extends \Elementor\Widget_Base {
 				'type' => Controls_Manager::COLOR,
 				'default' => '#ffffff',
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-active-secondary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-a2: {{VALUE}};',
 				],
 			]
 		);
@@ -2125,7 +2134,7 @@ class Form extends \Elementor\Widget_Base {
 					'default' => Global_Colors::COLOR_ACCENT,
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-completed-primary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-c1: {{VALUE}};',
 				],
 			]
 		);
@@ -2140,7 +2149,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_icon_shape!' => 'none',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-completed-secondary-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-c2: {{VALUE}};',
 				],
 			]
 		);
@@ -2174,7 +2183,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type!' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-divider-width: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-dw: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -2203,7 +2212,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type!' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-divider-gap: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-dg: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -2220,7 +2229,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-progress-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-p: {{VALUE}};',
 				],
 			]
 		);
@@ -2237,7 +2246,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-progress-background-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-pb: {{VALUE}};',
 				],
 			]
 		);
@@ -2266,7 +2275,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-progress-height: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-ph: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -2295,7 +2304,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-progress-border-radius: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--dfs-pr: {{SIZE}}{{UNIT}}',
 				],
 			]
 		);
@@ -2319,7 +2328,7 @@ class Form extends \Elementor\Widget_Base {
 				'global' => [
 					'default' => Global_Typography::TYPOGRAPHY_ACCENT,
 				],
-				'selector' => '{{WRAPPER}} .e-form__indicators__indicator__progress__meter',
+				'selector' => '{{WRAPPER}} .digi-steps__meter',
 				'condition' => [
 					'step_type' => 'progress_bar',
 				],
@@ -2338,7 +2347,7 @@ class Form extends \Elementor\Widget_Base {
 					'step_type' => 'progress_bar',
 				],
 				'selectors' => [
-					'{{WRAPPER}}' => '--e-form-steps-indicator-progress-meter-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--dfs-pm: {{VALUE}};',
 				],
 			]
 		);
@@ -2610,39 +2619,42 @@ class Form extends \Elementor\Widget_Base {
 		return $out;
 	}
 
-	/** Indicadores de los pasos (el mismo marcado que armaba el script de PRO, pintado en el servidor). */
+	/**
+	 * Indicadores de los pasos, pintados en el servidor con clases propias (`digi-steps`, `digi-step`…; el script de PRO
+	 * los armaba en el navegador). Decorativos para los lectores de pantalla, que oyen el paso por el nombre del grupo y
+	 * la región viva; la barra de progreso es un `progressbar` con su valor.
+	 */
 	private function step_indicators( array $instance, array $steps ): string {
 		$type  = (string) $instance['step_type'];
 		$count = count( $steps );
 		if ( 'none' === $type || ! $count ) {
 			return '';
 		}
-		$html = '<div class="e-form__indicators e-form__indicators--type-' . esc_attr( $type ) . '"';
 		if ( 'progress_bar' === $type ) {
 			$value = (int) floor( 100 / $count );
 			/* translators: 1: paso actual, 2: total de pasos. */
 			$text = sprintf( esc_html__( 'Paso %1$d de %2$d', 'pro-elements' ), 1, $count );
-			return $html . '><div class="e-form__indicators__indicator__progress" role="progressbar" aria-label="' . esc_attr__( 'Progreso del formulario', 'pro-elements' ) . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . $value . '" aria-valuetext="' . esc_attr( $text ) . '"><div class="e-form__indicators__indicator__progress__meter">' . $value . '%</div></div></div>';
+			return '<div class="digi-steps"><div class="digi-steps__bar" style="--dfs-pw:' . $value . '%" role="progressbar" aria-label="' . esc_attr__( 'Progreso del formulario', 'pro-elements' ) . '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' . $value . '" aria-valuetext="' . esc_attr( $text ) . '"><div class="digi-steps__meter">' . $value . '%</div></div></div>';
 		}
-		$html .= ' aria-hidden="true">';
-		$shape = 'e-form__indicators__indicator--shape-' . preg_replace( '/[^a-z]/', '', (string) $instance['step_icon_shape'] );
+		$html  = '<div class="digi-steps' . ( 'text' === $type ? '' : ' digi-steps--badge' ) . '" aria-hidden="true">';
+		$shape = 'digi-step__badge digi-step__badge--' . preg_replace( '/[^a-z]/', '', (string) $instance['step_icon_shape'] );
 		foreach ( $steps as $k => $step ) {
 			if ( $k ) {
-				$html .= '<div class="e-form__indicators__indicator__separator"></div>';
+				$html .= '<div class="digi-step-sep"></div>';
 			}
-			$html .= '<div class="e-form__indicators__indicator e-form__indicators__indicator--state-' . ( $k ? 'inactive' : 'active' ) . '">';
+			$html .= '<div class="digi-step digi-step--' . ( $k ? 'off' : 'on' ) . '">';
 			if ( false !== strpos( $type, 'icon' ) ) {
 				ob_start();
 				if ( ! empty( $step['selected_icon']['value'] ) ) {
 					Icons_Manager::render_icon( $step['selected_icon'], array( 'aria-hidden' => 'true' ) );
 				}
-				$html .= '<div class="e-form__indicators__indicator__icon ' . $shape . '">' . ob_get_clean() . '</div>';
+				$html .= '<div class="' . $shape . ' digi-step__icon">' . ob_get_clean() . '</div>';
 			}
 			if ( false !== strpos( $type, 'number' ) ) {
-				$html .= '<div class="e-form__indicators__indicator__number ' . $shape . '">' . ( $k + 1 ) . '</div>';
+				$html .= '<div class="' . $shape . '">' . ( $k + 1 ) . '</div>';
 			}
 			if ( false !== strpos( $type, 'text' ) ) {
-				$html .= '<span class="e-form__indicators__indicator__label">' . esc_html( (string) ( $step['field_label'] ?? '' ) ) . '</span>';
+				$html .= '<span class="digi-step__label">' . esc_html( (string) ( $step['field_label'] ?? '' ) ) . '</span>';
 			}
 			$html .= '</div>';
 		}

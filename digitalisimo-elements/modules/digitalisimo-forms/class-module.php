@@ -64,6 +64,63 @@ final class Module {
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_scripts' ) );
+		foreach ( array( 'before_section_start', 'after_section_start', 'before_section_end', 'after_section_end' ) as $phase ) {
+			add_action( 'elementor/element/' . $phase, array( __CLASS__, 'forward_' . $phase ), 10, 3 );
+		}
+	}
+
+	/**
+	 * Widgets propios que reciben los ganchos de sección del widget de PRO al que sustituyen. Los tipos de campo (fecha,
+	 * hora, número, subida, aceptación, pasos), el honeypot, Akismet y los campos condicionales de F7b añaden sus
+	 * controles con `elementor/element/form/<sección>/<fase>`; el Formulario propio tiene las mismas secciones, así que el
+	 * mismo gancho los añade también a él, sin tocar `modules/forms/`.
+	 */
+	const FORWARD = array(
+		'digitalisimo-form'  => 'form',
+		'digitalisimo-login' => 'login',
+	);
+
+	public static function forward_before_section_start( $element, $section_id, $args = array() ): void {
+		self::forward( 'before_section_start', $element, $section_id, $args );
+	}
+
+	public static function forward_after_section_start( $element, $section_id, $args = array() ): void {
+		self::forward( 'after_section_start', $element, $section_id, $args );
+	}
+
+	public static function forward_before_section_end( $element, $section_id, $args = array() ): void {
+		self::forward( 'before_section_end', $element, $section_id, $args );
+	}
+
+	public static function forward_after_section_end( $element, $section_id, $args = array() ): void {
+		self::forward( 'after_section_end', $element, $section_id, $args );
+	}
+
+	/** `elementor/element/<widget de PRO>/<sección>/<fase>` con el widget propio. */
+	public static function forward( string $phase, $element, $section_id, $args = array() ): void {
+		if ( ! is_object( $element ) || ! method_exists( $element, 'get_name' ) || ! is_string( $section_id ) ) {
+			return;
+		}
+		$name = (string) $element->get_name();
+		if ( ! isset( self::FORWARD[ $name ] ) || ! function_exists( 'do_action' ) ) {
+			return;
+		}
+		do_action( 'elementor/element/' . self::FORWARD[ $name ] . '/' . $section_id . '/' . $phase, $element, $args );
+	}
+
+	/**
+	 * Lo que reciben las acciones de envío en `register_settings_section()`: el anfitrión `Action_Host` (tipo del widget
+	 * de PRO, que exigen las integraciones) que reenvía todo al widget propio; sin el módulo de formularios, el widget.
+	 */
+	public static function action_host( $widget ) {
+		if ( class_exists( '\\ElementorPro\\Modules\\Forms\\Widgets\\Form' ) && $widget instanceof \Elementor\Controls_Stack ) {
+			try {
+				return Action_Host::wrap( $widget );
+			} catch ( \Throwable $error ) {
+				return $widget;
+			}
+		}
+		return $widget;
 	}
 
 	/**
