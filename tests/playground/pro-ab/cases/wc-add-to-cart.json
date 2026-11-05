@@ -75,7 +75,11 @@
      "id": "widget-woocommerce-product-add-to-cart-css",
      "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-catc-quantity": {
    "title": "Con cantidad: el formulario de WooCommerce, apilado y centrado",

@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-rating',
 	'target'  => 'digitalisimo-woo-product-rating',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'star_color', 'empty_star_color', 'link_color', 'star_size', 'space_between', 'alignment' ),
 	'groups'  => array(

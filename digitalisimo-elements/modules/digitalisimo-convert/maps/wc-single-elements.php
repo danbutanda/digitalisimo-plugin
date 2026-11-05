@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'wc-single-elements',
 	'target'  => 'digitalisimo-woo-single-elements',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'element' ),
 	'classes' => array( '.elementor-widget-wc-single-elements' => '.elementor-widget-digitalisimo-woo-single-elements' ),

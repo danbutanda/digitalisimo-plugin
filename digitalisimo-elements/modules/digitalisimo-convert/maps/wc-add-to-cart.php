@@ -16,7 +16,7 @@ $digi_atc_classes = (array) require __DIR__ . '/_woo-add-to-cart.php';
 return array(
 	'source'   => 'wc-add-to-cart',
 	'target'   => 'digitalisimo-woo-add-to-cart',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'defaults' => array(
 		// Texto por defecto que PRO pintaba en el idioma del sitio (Elementor no guarda lo que coincide con él).

@@ -38,7 +38,11 @@
      "id": "widget-woocommerce-product-rating-css",
      "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-rating-styled": {
    "title": "Estrellas grandes, colores y enlace justificado",
@@ -87,7 +91,11 @@
      "id": "widget-woocommerce-product-rating-css",
      "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   },
   "wsm-rating-center": {
    "title": "Valoración centrada",
@@ -118,7 +126,11 @@
      "id": "widget-woocommerce-product-rating-css",
      "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
   }
  }
 }

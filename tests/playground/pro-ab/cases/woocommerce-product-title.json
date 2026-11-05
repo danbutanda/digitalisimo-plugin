@@ -85,6 +85,10 @@
   },
   "wsm-title-link": {
    "title": "Título enlazado (foco con teclado)",
+   "pixels": {
+    "max": 0.15,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px rodea el título enlazado de una línea (59 px de alto a 375 px: 13,9 %); PRO dejaba el del navegador. Sin foco, 0,00 %."
+   },
    "context": {
     "product": "simple"
    },

@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-content',
 	'target'  => 'digitalisimo-woo-product-content',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'align', 'text_color' ),
 	'groups'  => array(

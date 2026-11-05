@@ -15,7 +15,7 @@ $digi_th = (array) require __DIR__ . '/_theme-heading.php';
 return array(
 	'source'   => 'woocommerce-product-title',
 	'target'   => 'digitalisimo-woo-product-title',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valor por defecto que PRO cambia (Elementor no guarda lo que coincide con él).
 	'defaults' => array( 'header_size' => 'h1' ),

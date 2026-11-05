@@ -18,7 +18,7 @@ $digi_pm_t = static function ( $text ) {
 return array(
 	'source'  => 'woocommerce-product-meta',
 	'target'  => 'digitalisimo-woo-product-meta',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'view', 'space_between', 'divider', 'divider_style', 'divider_weight', 'divider_width', 'divider_height', 'divider_color', 'text_color', 'link_color', 'category_caption_single', 'category_caption_plural', 'tag_caption_single', 'tag_caption_plural', 'sku_caption', 'sku_missing_caption' ),
 	'groups'  => array(

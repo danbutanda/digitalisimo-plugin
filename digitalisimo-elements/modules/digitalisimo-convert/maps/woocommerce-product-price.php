@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-price',
 	'target'  => 'digitalisimo-woo-product-price',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'text_align', 'price_color', 'sale_price_color', 'price_block', 'sale_price_spacing' ),
 	'groups'  => array(

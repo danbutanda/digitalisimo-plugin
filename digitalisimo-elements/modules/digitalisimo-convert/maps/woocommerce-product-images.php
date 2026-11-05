@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-images',
 	'target'  => 'digitalisimo-woo-product-images',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'sale_flash', 'image_border_radius', 'spacing', 'thumbs_border_radius', 'spacing_thumbs' ),
 	'groups'  => array(

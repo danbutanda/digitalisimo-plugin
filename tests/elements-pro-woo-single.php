@@ -282,7 +282,7 @@ Maps::reset();
 $codes_all = array();
 foreach ( $pairs as $source => $pair ) {
 	$map = Maps::map( $source, true );
-	$check( null !== $map && $pair[1] === ltrim( get_class( $widgets[ $source ][1] ), '\\' ) && $widgets[ $source ][1]->get_name() === $map['target'] && 'hide' === $map['panel'], "$source: mapa hacia el widget propio, que oculta el de PRO." );
+	$check( null !== $map && $pair[1] === ltrim( get_class( $widgets[ $source ][1] ), '\\' ) && $widgets[ $source ][1]->get_name() === $map['target'] && 'hide' === $map['panel'] && 'ready' === $map['status'] && null !== Maps::map( $source ), "$source: mapa listo (A/B de pro-ab.sh en verde) hacia el widget propio, que oculta el de PRO." );
 	// Cada control de PRO declarado (los del núcleo también).
 	list( $pro ) = $widgets[ $source ];
 	$declared = array_merge( (array) ( $map['keep'] ?? array() ), array_keys( (array) ( $map['rename'] ?? array() ) ), array_keys( (array) ( $map['groups'] ?? array() ) ), array_keys( (array) ( $map['drop'] ?? array() ) ), array_keys( (array) ( $map['approx'] ?? array() ) ), (array) ( $map['ui'] ?? array() ) );

@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-data-tabs',
 	'target'  => 'digitalisimo-woo-product-data-tabs',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'tab_text_color', 'tab_bg_color', 'tabs_border_color', 'active_tab_text_color', 'active_tab_bg_color', 'active_tabs_border_color', 'tab_border_radius', 'text_color', 'heading_color', 'panel_border_width', 'panel_border_radius' ),
 	'groups'  => array(

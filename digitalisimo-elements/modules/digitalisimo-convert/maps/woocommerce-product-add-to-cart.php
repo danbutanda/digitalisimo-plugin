@@ -15,7 +15,7 @@ $digi_atc_classes = (array) require __DIR__ . '/_woo-add-to-cart.php';
 return array(
 	'source'  => 'woocommerce-product-add-to-cart',
 	'target'  => 'digitalisimo-woo-product-add-to-cart',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array(
 		'layout',

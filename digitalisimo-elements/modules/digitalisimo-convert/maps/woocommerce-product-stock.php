@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'  => 'woocommerce-product-stock',
 	'target'  => 'digitalisimo-woo-product-stock',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array( 'text_color' ),
 	'groups'  => array(

@@ -15,7 +15,7 @@ $digi_wpc = is_file( __DIR__ . '/_woo-products-classes.php' ) ? (array) require 
 return array(
 	'source'  => 'woocommerce-product-upsell',
 	'target'  => 'digitalisimo-woo-product-upsell',
-	'status'  => 'draft',
+	'status'  => 'ready',
 	'panel'   => 'hide',
 	'keep'    => array_merge( array( 'orderby', 'order', 'show_heading', 'heading_color', 'heading_text_align', 'heading_spacing' ), $digi_wpb['keep'] ),
 	'groups'  => array_merge( array( 'heading_typography' => 'heading_typography' ), $digi_wpb['groups'] ),
