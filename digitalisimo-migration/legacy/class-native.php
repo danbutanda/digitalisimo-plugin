@@ -423,7 +423,7 @@ final class Native {
 				continue;
 			}
 			if ( null === $controls || isset( $controls[ $key ] ) || 0 === strpos( (string) $key, '_' ) ) {
-				$out[ $key ] = $value;
+				$out[ $key ] = null === $controls ? $value : self::rows( $value, $controls[ $key ] ?? null );
 			}
 		}
 		if ( '' !== $css ) {
@@ -432,6 +432,39 @@ final class Native {
 		$element['widgetType'] = $target;
 		$element['settings']   = $out;
 		return $element;
+	}
+
+	/**
+	 * Filas de un repetidor del widget de destino sin las claves que no son campos suyos, igual que los ajustes del
+	 * widget: un campo que sólo tenía Element Pack (el texto «Copiado» de sus botones para compartir, por ejemplo) no
+	 * llega a las filas del widget de PRO, y la etapa `pro` no lo informa después como clave sin declarar. Sin la lista
+	 * de campos (Elementor sin cargar, un control que no es repetidor) el valor queda igual.
+	 */
+	private static function rows( $value, $control ) {
+		if ( ! is_array( $value ) || ! is_array( $control ) || 'repeater' !== ( $control['type'] ?? '' ) || empty( $control['fields'] ) || ! is_array( $control['fields'] ) ) {
+			return $value;
+		}
+		$fields = array();
+		foreach ( $control['fields'] as $index => $field ) {
+			$fields[ is_array( $field ) && isset( $field['name'] ) ? (string) $field['name'] : (string) $index ] = true;
+		}
+		foreach ( $value as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			foreach ( $row as $key => $item ) {
+				if ( '__dynamic__' === $key || '__globals__' === $key ) {
+					$row[ $key ] = is_array( $item ) ? array_intersect_key( $item, $fields ) : $item;
+					if ( array() === $row[ $key ] ) {
+						unset( $row[ $key ] );
+					}
+				} elseif ( ! isset( $fields[ $key ] ) && 0 !== strpos( (string) $key, '_' ) ) {
+					unset( $row[ $key ] );
+				}
+			}
+			$value[ $index ] = $row;
+		}
+		return $value;
 	}
 
 	/** Ajustes que el adaptador resolvía en tiempo de ejecución, en los nombres de los rasgos propios. */

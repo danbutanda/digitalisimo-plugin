@@ -19,7 +19,10 @@
  * - C1 (frente K): la etapa `pro` va después de las conversiones de F8, y un Expo de Prime Slider que F8 lleva al
  *   Carrusel multimedia de PRO acaba en `digitalisimo-media-carousel` en la misma pasada de Migrar (mapa de prueba
  *   listo y, si existe, el borrador real), con la copia del original y `--revert`; las máscaras de Element Pack de los
- *   carruseles propios (`Masks::TARGETS`) coinciden con las clases de sus mapas.
+ *   carruseles propios (`Masks::TARGETS`) coinciden con las clases de sus mapas;
+ * - C2 (frente D, regla 6): qué orígenes de F8 llegan a los widgets de PRO de C2, y cada uno de Element Pack acaba en el
+ *   widget propio en la misma pasada de Migrar (con el mapa de C2 del repositorio, sin claves sin declarar); la Cuenta
+ *   regresiva con ajustes reales (fecha, etiquetas, mensaje, la cuenta en bucle como perpetua, CSS) y `--revert`.
  *
  * Se ejecuta con php-wasm (`node …/php-wasm-cli tests/migration-pro.php`): sale con 0 aunque haya un error fatal, así
  * que se juzga por la línea final.
@@ -593,7 +596,166 @@ namespace {
 		$check( 'selector ' . $masks[ $target ] . '{}' === $css, "La imagen enmascarada de {$source} pasa a la de {$target} con las clases de su mapa: {$css}" );
 	}
 
-	/* ================================================================ 7. La cadena F8 → bucles de PRO → bucles propios (C5, frente J) */
+	/* ================================================================ 7. La cadena F8 → PRO de C2 → widget propio (C2, frente D) */
+	// Regla 6 del programa: lo que F8 lleva de Element Pack o Prime Slider a un widget de PRO de C2 acaba en el widget
+	// propio en la misma pasada de Migrar, en cuanto el mapa de C2 está listo. Primero, qué orígenes de F8 llegan a cada
+	// widget de PRO de C2 (un mapa nuevo de F8 hacia uno de ellos obliga a revisar esta lista y su caso).
+	$c2      = array( 'animated-headline', 'call-to-action', 'code-highlight', 'countdown', 'flip-box', 'gallery', 'hotspot', 'lottie', 'price-list', 'price-table', 'progress-tracker', 'share-buttons', 'table-of-contents', 'video-playlist' );
+	$legacy  = dirname( __DIR__ ) . '/digitalisimo-migration/legacy/';
+	$sources = array();
+	foreach ( array_merge( glob( $legacy . 'maps/*.php' ) ?: array(), glob( $legacy . 'prime-slider/maps/*.php' ) ?: array() ) as $file ) {
+		if ( false !== strpos( basename( $file ), '.styles.' ) ) {
+			continue;
+		}
+		preg_match_all( "/'(target|fallback)'\s*=>\s*'([a-z0-9-]+)'/", (string) file_get_contents( $file ), $m, PREG_SET_ORDER );
+		foreach ( $m as $hit ) {
+			if ( in_array( $hit[2], $c2, true ) ) {
+				$sources[ $hit[2] ][] = basename( $file, '.php' );
+			}
+		}
+	}
+	ksort( $sources );
+	$expected = array(
+		'code-highlight'    => array( 'bdt-source-code' ),
+		'countdown'         => array( 'bdt-countdown' ),
+		'flip-box'          => array( 'bdt-flip-box' ),
+		'hotspot'           => array( 'bdt-marker', 'prime-slider-woohotspot' ),
+		'lottie'            => array( 'bdt-lottie-icon-box', 'bdt-lottie-image' ),
+		'price-list'        => array( 'bdt-price-list' ),
+		'price-table'       => array( 'bdt-price-table' ),
+		'share-buttons'     => array( 'bdt-social-share' ),
+		'table-of-contents' => array( 'bdt-table-of-content' ),
+	);
+	$check( $expected === $sources, 'Orígenes de F8 hacia los widgets de PRO de C2 (Prime Slider: el respaldo `hotspot` de Woo HotSpot; sin el slider anidado deja Puntos de interés de PRO): ' . wp_json_encode( $sources ) );
+
+	/**
+	 * Gestor de widgets de prueba con controles: F8 sólo deja en el widget de PRO las claves que son controles suyos
+	 * (`Native::target_controls()`), como en WordPress. Los controles salen del archivo del widget de PRO (y del widget
+	 * Imagen del núcleo para Puntos de interés, que lo extiende); cada grupo, con las subclaves de los grupos del núcleo.
+	 */
+	class C2_Manager {
+		public $controls = array();
+		public function get_widget_types( $name = null ) {
+			if ( null === $name ) {
+				return array();
+			}
+			if ( ! isset( $this->controls[ $name ] ) ) {
+				return null;
+			}
+			return new class( $this->controls[ $name ] ) {
+				private $list;
+				public function __construct( array $list ) { $this->list = $list; }
+				public function get_controls() { return $this->list; }
+				public function has_widget_inner_wrapper() { return true; }
+			};
+		}
+	}
+	function c2_controls( string $type ): array {
+		$elements = dirname( __DIR__ ) . '/digitalisimo-elements/';
+		$files    = array( 'code-highlight' => 'code-highlight/widgets/code-highlight.php', 'countdown' => 'countdown/widgets/countdown.php', 'flip-box' => 'flip-box/widgets/flip-box.php', 'hotspot' => 'hotspot/widgets/hotspot.php', 'lottie' => 'lottie/widgets/lottie.php', 'price-list' => 'pricing/widgets/price-list.php', 'price-table' => 'pricing/widgets/price-table.php', 'share-buttons' => 'share-buttons/widgets/share-buttons.php', 'table-of-contents' => 'table-of-contents/widgets/table-of-contents.php' );
+		$php      = (string) file_get_contents( $elements . 'modules/' . $files[ $type ] );
+		if ( preg_match( '/\bextends\s+Widget_Image\b/', $php ) ) {
+			$php .= (string) file_get_contents( $elements . 'elementor/includes/widgets/image.php' );
+		}
+		$subs  = array( 'typography', 'font_family', 'font_size', 'font_weight', 'text_transform', 'font_style', 'text_decoration', 'line_height', 'letter_spacing', 'word_spacing', 'border', 'width', 'color', 'box_shadow_type', 'box_shadow', 'box_shadow_position', 'text_shadow_type', 'text_shadow', 'text_stroke_type', 'text_stroke', 'stroke_color', 'background', 'color_stop', 'color_b', 'color_b_stop', 'gradient_type', 'gradient_angle', 'gradient_position', 'image', 'position', 'attachment', 'repeat', 'size', 'bg_width', 'xpos', 'ypos', 'css_filter', 'blur', 'brightness', 'contrast', 'saturate', 'hue', 'custom_dimension' );
+		// Controles de `$this` (el widget) o de `$repeater` (los campos del repetidor), con sus grupos y dispositivos.
+		$names = static function ( string $owner ) use ( $php, $subs ): array {
+			preg_match_all( '/\$' . $owner . "->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $plain );
+			preg_match_all( '/\$' . $owner . "->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $groups );
+			$list = $plain[1];
+			foreach ( $groups[1] as $group ) {
+				foreach ( $subs as $sub ) {
+					$list[] = $group . '_' . $sub;
+				}
+			}
+			$out = array();
+			foreach ( array_unique( $list ) as $name ) {
+				foreach ( array( '', '_tablet', '_mobile' ) as $device ) {
+					$out[ $name . $device ] = array( 'name' => $name . $device );
+				}
+			}
+			return $out;
+		};
+		// Más los controles comunes de todo widget que no empiezan por `_` (CSS personalizado, visibilidad).
+		$out = $names( 'this' ) + array( 'custom_css' => array( 'name' => 'custom_css' ), 'hide_desktop' => array( 'name' => 'hide_desktop' ), 'hide_tablet' => array( 'name' => 'hide_tablet' ), 'hide_mobile' => array( 'name' => 'hide_mobile' ) );
+		preg_match_all( "/\\\$this->add_control\(\s*'([a-z0-9_]+)',\s*\[(?:(?!->add_).)*?Controls_Manager::REPEATER/s", $php, $repeaters );
+		foreach ( $repeaters[1] as $name ) {
+			$out[ $name ] = array( 'name' => $name, 'type' => 'repeater', 'fields' => array_values( $names( 'repeater' ) ) );
+		}
+		return $out;
+	}
+	// Después, cada origen de Element Pack por la misma pasada de Migrar: F8 lo lleva al widget de PRO y la etapa `pro`,
+	// con el mapa de C2 (el del repositorio; si aún está en borrador, como listo), al propio, sin claves sin declarar.
+	$chained = 0;
+	$pending = array();
+	foreach ( $expected as $pro_type => $origins ) {
+		Registry::reset();
+		$map = Registry::map( $pro_type, true );
+		foreach ( $origins as $origin ) {
+			if ( 0 === strpos( $origin, 'prime-slider-' ) ) {
+				continue; // Woo HotSpot: con el slider anidado no queda ningún widget de PRO; su respaldo es el de bdt-marker.
+			}
+			fresh();
+			f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+			$gestor                      = new C2_Manager();
+			$gestor->controls[ $pro_type ] = c2_controls( $pro_type );
+			if ( null !== $map ) {
+				$gestor->controls[ (string) $map['target'] ] = array();
+				Registry::set( $pro_type, array( 'status' => 'ready' ) + $map );
+			}
+			\Elementor\Plugin::$instance = (object) array( 'widgets_manager' => $gestor );
+			Pro::reset();
+			$doc   = doc( array( box( 'container', array( w( $origin, array(), 'ep1' ) ), 'ec1' ) ), array( 'post_title' => $origin ) );
+			$state = migrate();
+			$el    = find( tree( $doc ), 'ep1' );
+			$codes = doc_codes( $doc );
+			if ( null === $map ) {
+				$pending[] = $pro_type;
+				$check( ! empty( $state['done'] ) && is_array( $el ) && $pro_type === $el['widgetType'], "Sin mapa de C2, {$origin} queda en {$pro_type} de PRO: " . wp_json_encode( $el['widgetType'] ?? null ) );
+				continue;
+			}
+			$check( ! empty( $state['done'] ) && 1 === (int) $state['counts']['converted'] && 1 === (int) $state['counts']['pro'], "Migrar convierte {$origin} con F8 y después con la etapa pro en la misma pasada: " . wp_json_encode( array( $state['counts']['converted'] ?? null, $state['counts']['pro'] ?? null ) ) );
+			$check( is_array( $el ) && $map['target'] === $el['widgetType'] && $pro_type === ( $el['settings']['_digitalisimo_pro'] ?? '' ) && 'ec1' === tree( $doc )[0]['id'], "{$origin} acaba en {$map['target']} con el mismo id, en su contenedor: " . wp_json_encode( $el['widgetType'] ?? null ) );
+			$check( in_array( "pro.converted:{$pro_type}:", $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), "{$origin} → {$pro_type} → {$map['target']}: sin claves sin declarar en el mapa de C2: " . wp_json_encode( preg_grep( '/^pro\./', $codes ) ) );
+			$check( false === strpos( (string) get_metadata( 'post', $doc, '_elementor_data', true ), '"bdt-' ), "No queda nada de Element Pack en el documento de {$origin}." );
+			++$chained;
+		}
+	}
+	// La Cuenta regresiva, con ajustes reales de Element Pack: fecha, etiquetas, mensaje al terminar y la cuenta en bucle.
+	fresh();
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.174' ), 'site' );
+	Registry::reset();
+	$gestor                                     = new C2_Manager();
+	$gestor->controls['countdown']              = c2_controls( 'countdown' );
+	$gestor->controls['digitalisimo-countdown'] = array();
+	\Elementor\Plugin::$instance                = (object) array( 'widgets_manager' => $gestor );
+	Pro::reset();
+	$ep = array(
+		'due_date' => '2031-02-03 04:05', 'show_seconds' => '', 'label_days' => 'Jours', 'end_action_type' => 'message', 'end_message' => '¡Se acabó!',
+		'number_background_color' => '#123456', 'columns' => '3', 'custom_css' => "selector .bdt-countdown-number{color:red}\nselector .elementor-countdown-digits{color:blue}",
+	);
+	$loop = array( 'loop_time' => 'yes', 'loop_hours' => '5', 'end_action_type' => 'url', 'end_redirect_link' => array( 'url' => 'https://destino.test/' ) );
+	$doc   = doc( array( box( 'container', array( w( 'bdt-countdown', $ep, 'cd1' ), w( 'bdt-countdown', $loop, 'cd2' ) ), 'cc1' ) ), array( 'post_title' => 'Cuenta' ) );
+	$orig  = (string) get_metadata( 'post', $doc, '_elementor_data', true );
+	$state = migrate();
+	$one   = find( tree( $doc ), 'cd1' );
+	$two   = find( tree( $doc ), 'cd2' );
+	$codes = doc_codes( $doc );
+	$check( 'digitalisimo-countdown' === ( $one['widgetType'] ?? '' ) && 'digitalisimo-countdown' === ( $two['widgetType'] ?? '' ) && 1 === (int) $state['counts']['pro'] && 2 === (int) $state['counts']['pro_elements'], 'Las dos cuentas de Element Pack llegan a la Cuenta regresiva propia: ' . wp_json_encode( array( $one['widgetType'] ?? null, $two['widgetType'] ?? null, $state['counts'] ) ) );
+	$s1 = (array) ( $one['settings'] ?? array() );
+	$s2 = (array) ( $two['settings'] ?? array() );
+	$check( 'due_date' === $s1['countdown_type'] && '2031-02-03 04:05' === $s1['due_date'] && '' === $s1['show_seconds'] && 'Jours' === $s1['label_days'] && array( 'message' ) === $s1['expire_actions'] && '¡Se acabó!' === $s1['message_after_expire'] && ! isset( $s1['columns'] ), 'Fecha, partes, etiquetas y mensaje al terminar pasan a la Cuenta regresiva; lo que sólo tenía Element Pack no llega: ' . wp_json_encode( $s1 ) );
+	$check( 'evergreen' === $s2['countdown_type'] && 5 === (int) $s2['evergreen_counter_hours'] && array( 'redirect' ) === $s2['expire_actions'] && 'https://destino.test/' === ( $s2['expire_redirect_url']['url'] ?? '' ), 'La cuenta en bucle pasa a temporizador perpetuo de 5 h que redirige al terminar: ' . wp_json_encode( $s2 ) );
+	// F8 deja el CSS personalizado tal cual (las `classes` de sus mapas no lo reescriben); la etapa pro pasa las clases de PRO.
+	$check( "selector .bdt-countdown-number{color:red}\nselector .digi-countdown__digits{color:blue}" === (string) ( $s1['custom_css'] ?? '' ), 'El CSS personalizado llega con las clases de PRO pasadas a las propias (las de Element Pack, tal cual): ' . wp_json_encode( $s1['custom_css'] ?? null ) );
+	$check( array( 'pro.converted:countdown:', 'pro.css:countdown:custom_css' ) === array_values( preg_grep( '/^pro\./', $codes ) ), 'Informe: la conversión y el CSS convertido, ningún pro.unmapped: ' . wp_json_encode( preg_grep( '/^pro\./', $codes ) ) );
+	Runner::revert( true );
+	$check( $orig === get_metadata( 'post', $doc, '_elementor_data', true ), '--revert devuelve las cuentas de Element Pack originales.' );
+	manager( null );
+	Registry::reset();
+	$check( $chained + count( $pending ) === 10, 'Cadena F8 → C2 → propio comprobada en ' . $chained . ' orígenes' . ( $pending ? '; sin mapa de C2 todavía: ' . implode( ', ', $pending ) : '' ) . '.' );
+
+	/* ================================================================ 8. La cadena F8 → bucles de PRO → bucles propios (C5, frente J) */
 	// F8 lleva el Dynamic Grid de Element Pack al Loop Grid de PRO (con una copia Loop Item de su plantilla) y el Blog de
 	// Prime Slider al Loop Carousel de PRO (con su Loop Item generado); la etapa `pro` los lleva a los propios en la
 	// misma pasada con los mapas de C5 (aquí fijados listos: el coordinador los publica tras el A/B).
@@ -619,7 +781,7 @@ namespace {
 		Registry::reset();
 	}
 
-	/* ================================================================ 8. La cadena F8 → Entradas de PRO → Entradas propias (C5, frente I) */
+	/* ================================================================ 9. La cadena F8 → Entradas de PRO → Entradas propias (C5, frente I) */
 	// F8 lleva las rejillas, listas, tarjetas y portafolios de entradas de Element Pack al widget Posts de PRO (con sus
 	// categorías y etiquetas en `digitalisimo_post_terms`); la etapa `pro` los lleva a Entradas propias en la misma pasada.
 	// En un sitio real F8 sólo guarda los controles que el widget de PRO tiene (`Native::target_controls()`): aquí el gestor
