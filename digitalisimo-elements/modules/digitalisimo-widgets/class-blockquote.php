@@ -10,16 +10,21 @@ defined( 'ABSPATH' ) || exit;
  * de aquél, con los mismos valores por defecto visibles, y su hoja reproduce el mismo diseño (pieles borde, comillas,
  * caja y limpia; botón clásico, burbuja o enlace). Sin JavaScript; el icono es un SVG en línea.
  *
- * Lo convertido desde PRO se ve como en PRO: conserva su icono, el pájaro de Font Awesome que pintaba el widget de PRO
- * (`share_icon` oculto, que fija el mapa; o, sin él, la marca `_digitalisimo_pro` de lo convertido antes de existir), en
- * el mismo sitio (en la vista «Icono», arriba a la izquierda del botón cuando el sitio pinta los iconos como SVG en línea,
- * como PRO; centrado con los iconos de fuente, y en el editor, donde PRO usaba la fuente), y su alineación: PRO pintaba a la vez, en todos los anchos, la clase de la alineación de cada dispositivo y se veía lo que
- * resultaba de la cascada; el mapa calcula ese resultado y lo fija en «Alineación heredada» (`pro_align`), que sólo
- * aparece en lo convertido. Una Cita nueva usa su icono propio y la alineación de cada dispositivo sólo en él.
+ * Lo convertido desde PRO se ve como en PRO:
+ * - Icono: el pájaro de Font Awesome que pintaba el widget de PRO. Lo decide `share_icon` (oculto, lo fija el mapa) o,
+ *   sin él, la marca `_digitalisimo_pro` de lo convertido antes de existir. Queda en el mismo sitio: en la vista
+ *   «Icono», arriba a la izquierda del botón cuando el sitio pinta los iconos como SVG en línea, como PRO; centrado con
+ *   los iconos de fuente y en el editor, donde PRO usaba la fuente.
+ * - Alineación: PRO pintaba a la vez, en todos los anchos, la clase de la alineación de cada dispositivo, y se veía lo
+ *   que resultaba de la cascada. El mapa calcula ese resultado y lo fija en «Alineación heredada» (`pro_align`), que
+ *   sólo aparece en lo convertido. Lo convertido antes de existir conserva la alineación por dispositivo.
+ * Una Cita nueva usa su icono propio y la alineación de cada dispositivo sólo en él.
  *
- * Diferencias declaradas con PRO: en una Cita nueva, el icono de la vista «Icono» queda centrado también con iconos
- * SVG; el enlace de la página actual se construye con el origen del sitio más la ruta pedida (PRO duplicaba la subcarpeta) y los textos del
- * enlace para compartir van codificados por completo.
+ * Diferencias declaradas con PRO (`docs/pro/c0.md`):
+ * - En una Cita nueva, el icono de la vista «Icono» queda centrado también con iconos SVG.
+ * - El enlace de la página actual se construye con el origen del sitio más la ruta pedida (PRO duplicaba la subcarpeta),
+ *   y los textos del enlace para compartir van codificados por completo.
+ * - En RTL no se reproducen los dos defectos del pico de la burbuja de PRO.
  */
 class Blockquote_Widget extends \Elementor\Widget_Base {
 	/** Intención de publicación del servicio (la misma que usaba PRO). */
