@@ -141,8 +141,9 @@ síncronos, como el botón de la pantalla, hasta que la cola de «Trabajos» los
   carpeta que hay que corregir. Un archivo se busca sólo dentro del almacén: un nombre con ruta o un enlace simbólico
   que salga de él responde 404.
 - **Errores.** Responden con el mensaje del motor: 400 (alcance, destino o confirmación), 404 (archivo o automatización),
-  409 (otra operación en curso o automatización desactivada), 422 (instalación no respaldable o paquete que no supera
-  la verificación) y 500 (fallo del motor). WP-CLI termina con código 1.
+  409 (otra operación en curso o automatización desactivada), 422 (instalación no respaldable, también al restaurar,
+  porque la copia previa es un respaldo completo, o paquete que no supera `verify`) y 500 (fallo del motor; una
+  restauración que se detiene al comprobar el paquete, antes de tocar el sitio, también). WP-CLI termina con código 1.
 - **Almacén.** Sin `DOCUMENT_ROOT` (WP-CLI y cron), la carpeta privada sale de `DIGITALISIMO_BACKUPS_STORAGE_DIR` o de la
   ruta que registró la pantalla (ver «Almacenamiento local»).
 
