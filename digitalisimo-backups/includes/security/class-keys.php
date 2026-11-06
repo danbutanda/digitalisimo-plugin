@@ -192,7 +192,7 @@ final class Digitalisimo_Backups_Keys {
 		$ring = self::keyring();
 		if ( ! $ring['active'] ) return null;
 		$root = self::unwrap( $ring['active'], $ring['keys'][ $ring['active'] ] );
-		if ( false === $root ) throw new Exception( 'La frase de los respaldos (clave ' . self::short( $ring['active'] ) . ') no se puede abrir: las claves de wp-config.php cambiaron. Vuelve a escribirla en Backups → Seguridad.' );
+		if ( false === $root ) throw new Exception( 'La frase de los respaldos (clave ' . self::short( $ring['active'] ) . ') no se puede abrir: las claves de wp-config.php cambiaron o se interrumpió una restauración. Vuelve a escribirla en Backups → Seguridad.' );
 		return array( $root, self::descriptor( $ring['active'], 'passphrase', $ring['keys'][ $ring['active'] ]['kdf'] ) );
 	}
 	/** Una clave que este sitio conoce por su huella (constante o llavero), o false. */
@@ -224,6 +224,38 @@ final class Digitalisimo_Backups_Keys {
 		return false !== $root && hash_equals( $descriptor['id'], self::key_id( $root ) ) ? $root : false;
 	}
 
+	/** Lo que el diario de una restauración guarda en disco: huellas, parámetros de cada frase y la seguridad. Nunca una clave ni su envoltura. */
+	public static function public_snapshot() {
+		$ring = self::keyring();
+		$keys = array();
+		foreach ( $ring['keys'] as $key_id => $entry ) $keys[ $key_id ] = array( 'source' => 'passphrase', 'kdf' => $entry['kdf'], 'created' => (int) ( $entry['created'] ?? 0 ), 'retired' => (int) ( $entry['retired'] ?? 0 ) );
+		$security = self::get( Digitalisimo_Backups_Security::OPTION, array() );
+		$security = is_array( $security ) ? $security : array();
+		return array( 'keys' => $keys, 'active' => $ring['active'], 'security' => array( 'encrypt' => ! empty( $security['encrypt'] ), 'require_signed' => ! empty( $security['require_signed'] ) ) );
+	}
+	/**
+	 * Tras una restauración interrumpida: añade al llavero las claves que faltan, sin envoltura (piden la frase, que
+	 * vuelve a abrir la misma clave porque sus parámetros están aquí), y nunca deja la seguridad más débil que antes.
+	 * Una clave que el llavero ya tiene se conserva con su envoltura.
+	 */
+	public static function recover_public( $journal ) {
+		$current = self::get( self::KEYRING, null );
+		$ring = is_array( $current ) ? $current : array( 'version' => 1, 'active' => '', 'keys' => array() );
+		$ring['keys'] = is_array( $ring['keys'] ?? null ) ? $ring['keys'] : array();
+		$changed = ! is_array( $current );
+		foreach ( (array) ( $journal['keys'] ?? array() ) as $key_id => $entry ) {
+			if ( ! is_string( $key_id ) || ! preg_match( '/^[0-9a-f]{32}$/D', $key_id ) || isset( $ring['keys'][ $key_id ] ) || ! is_array( $entry ) || ! self::valid_kdf( $entry['kdf'] ?? null ) ) continue;
+			$ring['keys'][ $key_id ] = array( 'source' => 'passphrase', 'kdf' => $entry['kdf'], 'created' => (int) ( $entry['created'] ?? 0 ), 'retired' => (int) ( $entry['retired'] ?? 0 ) );
+			$changed = true;
+		}
+		$active = (string) ( $journal['active'] ?? '' );
+		if ( empty( $ring['active'] ) && '' !== $active && isset( $ring['keys'][ $active ] ) ) { $ring['active'] = $active; $changed = true; }
+		if ( $changed && $ring['keys'] ) self::put( self::KEYRING, $ring );
+		$old = is_array( $journal['security'] ?? null ) ? $journal['security'] : array();
+		$new = self::get( Digitalisimo_Backups_Security::OPTION, array() );
+		$new = is_array( $new ) ? $new : array();
+		if ( $old || $new ) self::put( Digitalisimo_Backups_Security::OPTION, array( 'encrypt' => ! empty( $old['encrypt'] ) || ! empty( $new['encrypt'] ), 'require_signed' => ! empty( $old['require_signed'] ) || ! empty( $new['require_signed'] ) ) );
+	}
 	/** Lo que una restauración no puede llevarse: el SQL restaurado reemplaza options y sitemeta. */
 	public static function snapshot() { return array( 'keyring' => self::get( self::KEYRING, null ), 'security' => self::get( Digitalisimo_Backups_Security::OPTION, null ) ); }
 	/** Une los llaveros por huella y nunca deja la protección más débil que antes de restaurar. */

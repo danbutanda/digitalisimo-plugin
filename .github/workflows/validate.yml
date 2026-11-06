@@ -247,6 +247,7 @@ jobs:
           php tests/backups-manifest-auth.php
           php tests/backups-encryption.php
           php tests/backups-compat-legacy.php
+          php tests/backups-interrupted-restore.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

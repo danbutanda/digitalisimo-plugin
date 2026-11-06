@@ -28,6 +28,8 @@ class Bk_Test_DB {
 	public $last_error = '';
 	public $queries = array();
 	public $fail_on = '';
+	/** Simula que el proceso muere en esta sentencia: exit() no ejecuta ningún finally. */
+	public $exit_on = '';
 	public $posts = array();
 	public $extra_tables = array();
 	public function __construct() { $this->posts = array( array( 'ID' => '1', 'post_content' => "Texto con 'comillas', \"dobles\", ; punto y coma, \\ barra, salto\nde línea y \0 nulo" ), array( 'ID' => '2', 'post_content' => null ) ); }
@@ -62,6 +64,7 @@ class Bk_Test_DB {
 		$this->queries[] = $sql;
 		$this->last_error = '';
 		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->last_error = 'Fallo simulado'; return false; }
+		if ( '' !== $this->exit_on && false !== strpos( $sql, $this->exit_on ) ) { $this->exit_on = ''; exit; }
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) $GLOBALS['bk_options'] = array();
 		if ( 0 === strpos( $sql, 'INSERT INTO `wp_options`' ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
 			$value = bk_sql_unescape( $m[1][2] );

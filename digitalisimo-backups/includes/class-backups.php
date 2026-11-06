@@ -19,6 +19,8 @@ final class Digitalisimo_Backups {
 	const ACTION_MANUAL_STATUS = 'digitalisimo_backups_manual_status';
 	private static $manual_job = null;
 	private static $manual_last_write = 0;
+	/** Diario de una restauración en curso, en el almacén y fuera de la base de datos que el SQL reemplaza. */
+	const RESTORE_JOURNAL = '.restore-journal.json';
 	/** Tope del avance de la verificación: con cifrado, la verificación deja sitio a la fase de cifrado. */
 	private static $verify_top = 98;
 	const ACTION_OAUTH = 'digitalisimo_backups_oauth';
@@ -90,7 +92,37 @@ final class Digitalisimo_Backups {
 		// Con el bloqueo tomado, lo que quede en .staging/ (un ZIP en claro o descifrado) y los *.part son de una
 		// operación interrumpida: se borran en cualquier operación, no sólo en la siguiente que cifre.
 		Digitalisimo_Backups_Security::clean_staging( self::local_directory() );
+		self::recover_interrupted_restore();
 		return $handle;
+	}
+	/**
+	 * Antes del SQL de una restauración: el historial (con la copia previa), la seguridad y la parte pública del llavero
+	 * (huellas y parámetros de cada frase, nunca una clave ni su envoltura). Si el proceso muere mientras corre el SQL,
+	 * la siguiente operación lo aplica: la protección no queda más débil, el cifrado falla cerrado hasta volver a
+	 * escribir la frase y la frase vuelve a abrir la misma clave. Sin diario no se restaura.
+	 */
+	private static function write_restore_journal() {
+		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'history' => (array) get_option( self::HISTORY, array() ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$temp = $path . '.tmp';
+		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
+			@unlink( $temp );
+			throw new Exception( 'No se pudo escribir el diario de la restauración en el almacén. No se cambió nada del sitio.' );
+		}
+	}
+	private static function remove_restore_journal() { @unlink( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ); }
+	/** Aplica el diario de una restauración interrumpida (con el bloqueo tomado, nada más la está usando). */
+	private static function recover_interrupted_restore() {
+		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
+		if ( is_link( $path ) ) { @unlink( $path ); return; }
+		if ( ! is_file( $path ) ) return;
+		$data = json_decode( (string) @file_get_contents( $path ), true );
+		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
+			wp_cache_flush();
+			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
+			Digitalisimo_Backups_Keys::recover_public( $data );
+		}
+		@unlink( $path );
 	}
 	private static function release_operation_lock( $handle ) {
 		if ( is_resource( $handle ) ) {
@@ -231,6 +263,8 @@ final class Digitalisimo_Backups {
 	private static function render( $network ) {
 		try { self::local_directory(); }
 		catch ( Throwable $e ) { echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><div class="notice notice-error"><p>' . esc_html( $e->getMessage() ) . '</p></div></div>'; return; }
+		// Una restauración interrumpida: al tomar el bloqueo se aplica su diario (si otra operación lo tiene, espera).
+		if ( is_file( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ) ) { try { self::release_operation_lock( self::acquire_operation_lock() ); } catch ( Exception $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$s = self::settings(); $history = array_slice( (array) get_option( self::HISTORY, array() ), 0, 10 );
 		echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><p>Genera un ZIP integral: archivos de WordPress, plugins, temas, medios y base de datos. El respaldo se crea primero en el hosting y después se copia al destino elegido.</p>';
 		if ( isset( $_GET['backup'] ) ) echo '<div class="notice notice-' . ( 'ok' === $_GET['backup'] ? 'success' : 'error' ) . '"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['message'] ?? '' ) ) ) . '</p></div>';
@@ -1071,6 +1105,7 @@ final class Digitalisimo_Backups {
 			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
+			self::write_restore_journal();
 			$created_files = array();
 			try {
 				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
@@ -1089,6 +1124,7 @@ final class Digitalisimo_Backups {
 				}
 			} finally {
 				self::after_restore_sql( $history_before, $vault_before, $safety, $policy );
+				self::remove_restore_journal();
 			}
 		} finally {
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
@@ -1231,12 +1267,14 @@ final class Digitalisimo_Backups {
 			// Su SQL reemplaza wp_options como el propio: el historial, el llavero y la seguridad no se pierden.
 			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
+			self::write_restore_journal();
 			try {
 				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
 				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
 			} finally {
 				self::after_restore_sql( $history_before, $vault_before );
+				self::remove_restore_journal();
 			}
 		} finally {
 			foreach ( $pieces as $piece ) self::close_quietly( $piece[0] );

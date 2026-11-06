@@ -128,6 +128,7 @@ $GLOBALS['wpdb']->queries = array();
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'updraft' => '1', 'updraft_set' => $set, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
 if ( ! $ok || ! preg_grep( '/contenido de UpdraftPlus/', $GLOBALS['wpdb']->queries ) || ! is_file( WP_PLUGIN_DIR . '/de-updraft/de-updraft.php' ) || 'Sitio de UpdraftPlus' !== ( $GLOBALS['bk_options']['blogname'] ?? '' ) ) throw new RuntimeException( 'No se restauró el conjunto de UpdraftPlus: ' . $message );
 if ( ( $GLOBALS['bk_options'][ $K::KEYRING ] ?? null ) !== $ring_before || empty( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ]['encrypt'] ) || ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] ?? null ) !== $history_before ) throw new RuntimeException( 'La restauración de UpdraftPlus perdió el llavero, la seguridad o el historial.' );
+if ( file_exists( bk_storage() . '/' . Digitalisimo_Backups::RESTORE_JOURNAL ) ) throw new RuntimeException( 'La restauración de UpdraftPlus dejó su diario.' );
 bk_remove_tree( $updraft );
 bk_remove_tree( WP_PLUGIN_DIR . '/de-updraft' );
 unset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] );
