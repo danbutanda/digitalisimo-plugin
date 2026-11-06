@@ -163,10 +163,7 @@ class Logos_Widget extends \Elementor\Widget_Base {
 			$shown_name   = $show['name'] && '' !== $name && $item['caption'];
 			$caption      = $item['caption'] && ( $shown_name || '' !== $description ) || $text_link;
 			$alt          = Image_Markup::alt( $item['image'], $name, true );
-			// Junto al nombre visible, el logotipo es decorativo (ALT vacío) para no anunciar la marca dos veces. «Al
-			// abrir» es otra cosa: el nombre va dentro del <details> cerrado y el logotipo es lo único que se ve, así que
-			// conserva su ALT (el de Medios o el nombre); el aria-label del summary manda en su nombre accesible.
-			if ( $shown_name && ! $image_linked && 'click' !== $details ) { $alt = ''; }
+			if ( $shown_name && ! $image_linked && 'click' !== $details ) { $alt = ''; } // Junto al nombre visible, ALT vacío (la marca no se anuncia dos veces); «Al abrir» deja el nombre dentro del <details> cerrado y el logotipo, lo único visible, conserva su ALT (el aria-label del summary manda en su nombre accesible).
 			$image = $this->image_html( $item['image'], $alt, $size, $columns );
 			if ( '' === $image && '' === $name ) { continue; }
 			$item_mods = $linked ? array( 'linked' ) : array();
