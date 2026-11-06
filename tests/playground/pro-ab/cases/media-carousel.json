@@ -1274,7 +1274,8 @@
    ]
   },
   "mc-slideshow-centered-loop": {
-   "title": "«Slideshow» con miniaturas centradas y el bucle por defecto: la última miniatura asoma a la izquierda de la primera",
+   "title": "«Slideshow» con miniaturas centradas y el bucle por defecto: la última miniatura asoma a la izquierda de la primera. Se mide cargando la página en cada ancho (`fresh`): en PRO, la principal y las miniaturas se controlan mutuamente y Swiper desincroniza la principal en bucle al cruzar un punto de corte (al pasar de 1 280 a 375 px queda entre dos imágenes y «Flecha siguiente» salta tres), cosa que un visitante no ve al cargar la página",
+   "fresh": true,
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",

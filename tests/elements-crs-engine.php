@@ -144,6 +144,11 @@ namespace {
 	check_ce( false !== strpos( $css, 'width:calc(var(--_d) + 2*var(--digi-crs-dot-gap,6px))' ) && false === strpos( $css, 'max(24px,var(--_d) + 2*' ) && false !== strpos( $css, '.digi-crs__dot:after{content:"";position:absolute;inset:calc(50% - 12px) 0}' ), 'Puntos con el paso de PRO (tamaño + 2 × separación) y área táctil vertical de 24 px.' );
 	check_ce( (bool) preg_match( '/\.digi-crs>button\.digi-crs__pause\{[^}]*clip-path:inset\(50%\)[^}]*\}\.digi-crs>button:focus-visible,\.digi-crs__dot:focus-visible\{[^}]*clip-path:none\}/', $css ), 'Pausa recortada a la vista (0,2,1: gana al :hover del tema) y visible con :focus-visible, que va después.' );
 	check_ce( false !== strpos( $css, '.digi-crs--locked>:not(.digi-crs__track,.digi-crs__arrow){display:none}' ) && false !== strpos( $css, '[data-digi-grab]:not(.digi-crs--locked){cursor:grab}' ) && false !== strpos( $css, '[data-digi-grab].digi-crs--drag{cursor:grabbing}' ), 'Bloqueado: flechas atenuadas a la vista; cursor de agarre como grabCursor.' );
+	// La única diapositiva del carrusel anidado y del de bucle (a todo el ancho, como PRO sin Swiper) gana a la regla del
+	// motor (especificidad de id), aunque esos dos no acoten las visibles al número de diapositivas.
+	$nested_css = (string) file_get_contents( $module . 'assets/css/nested-carousel.css' );
+	$loop_css   = (string) file_get_contents( $root . '/digitalisimo-elements/modules/digitalisimo-loop/assets/css/loop-carousel.css' );
+	check_ce( false !== strpos( $nested_css, '.digi-ncarousel>.digi-crs__track>.e-con:only-child:not(#_){flex-basis:100%}' ) && false !== strpos( $loop_css, '.digi-loop-carousel>.digi-crs__track>.e-loop-item:only-child:not(#_){flex-basis:100%}' ), 'La única diapositiva del anidado y del de bucle, a todo el ancho aunque no se acoten las visibles.' );
 	check_ce( false !== strpos( $js, "C+'clone','slick-cloned'" ) && false !== strpos( $js, 'runReadyTrigger' ) && false !== strpos( $js, 'setPointerCapture' ) && false !== strpos( $js, "attr('click')" ) && false !== strpos( $js, "attr('long')" ) && false === strpos( $js, "cl.toggle(R+'--locked',n<2)" ), 'Script: bucle con copias (excluidas del lightbox del núcleo, con sus manejadores), arrastre con el ratón, clic en una diapositiva y sin bloqueo con bucle.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
 	foreach ( array_merge( glob( $module . '*.php' ), glob( $module . 'assets/*/carousel.*' ), array( $root . '/digitalisimo-elements/modules/digitalisimo-convert/maps/_carousel-classes.php' ) ) as $file ) {
@@ -359,6 +364,9 @@ namespace {
 		$inner .= '<div ' . Engine::slide_attributes( $i, 3 ) . '>' . Engine::open( array( 'count' => 2, 'loop' => true, 'arrows' => true, 'speed' => 0, 'label' => 'Interior ' . ( $i + 1 ) ) ) . '<div ' . Engine::slide_attributes( 0, 2 ) . '><div class="s">A' . ( $i + 1 ) . '</div></div><div ' . Engine::slide_attributes( 1, 2 ) . '><div class="s">B' . ( $i + 1 ) . '</div></div>' . Engine::close() . '</div>';
 	}
 	$fixture .= '<div class="elementor-element elementor-widget" data-id="w22" style="--digi-crs-view:3;--digi-crs-gap:10px">' . Engine::open( array( 'count' => 3, 'loop' => true, 'arrows' => true, 'speed' => 0, 'label' => 'Carrusel w22' ) ) . $inner . Engine::close() . "</div>\n";
+	// w24: carrusel anidado con un solo elemento, a todo el ancho como PRO sin Swiper (la regla de la única diapositiva
+	// tiene que ganar a la del motor, ahora que el anidado no acota las visibles).
+	$fixture .= '<div class="elementor-element elementor-widget" data-id="w24" style="--digi-crs-view:3;--digi-crs-gap:10px">' . Engine::open( array( 'count' => 1, 'loop' => true, 'arrows' => true, 'classes' => 'digi-ncarousel', 'speed' => 0, 'label' => 'Carrusel w24' ) ) . '<div ' . Engine::slide_attributes( 0, 1, 'e-con' ) . '><div class="s">Única</div></div>' . Engine::close() . "</div>\n";
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";

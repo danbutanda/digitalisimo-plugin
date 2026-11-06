@@ -94,6 +94,14 @@
    "widget": "reviews",
    "settings": {
     "autoplay": ""
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-stars": {
@@ -210,7 +218,13 @@
    ],
    "pixels": {
     "max": 0.05,
-    "reason": "Las estrellas de PRO son caracteres de la fuente eicons, que un sitio con iconos SVG (el de este arnés, recién instalado) no carga: en A no se ven; B pinta sus estrellas SVG. El resto coincide."
+    "reason": "Las estrellas de PRO son caracteres de la fuente eicons, que un sitio con iconos SVG (el de este arnés, recién instalado) no carga: en A no se ven; B pinta sus estrellas SVG. El resto coincide.",
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-outline": {
@@ -291,6 +305,14 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-unicode": {
@@ -362,6 +384,14 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-style": {
@@ -458,6 +488,14 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-separator": {
@@ -553,6 +591,14 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-fraction": {
@@ -624,6 +670,14 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
    }
   },
   "rv-autoplay": {
@@ -644,7 +698,15 @@
      "match": ".",
      "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
+   }
   },
   "rv-autoplay-default": {
    "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 10 min), bucle y pausa al pasar el puntero",
@@ -663,7 +725,15 @@
      "match": ".",
      "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
+   }
   },
   "rv-loop-end": {
    "title": "Bucle por defecto con las tres reseñas de muestra: pasa del final (siguiente ×3) y vuelve (anterior)",
@@ -692,7 +762,15 @@
      "a": ".elementor-swiper-button-prev",
      "b": ".digi-crs__prev"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
+   }
   }
  }
 }

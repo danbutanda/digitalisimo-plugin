@@ -71,7 +71,11 @@
 # Fidelidad de los carruseles: en `actions`, `drag` (píxeles, negativo hacia la izquierda) arrastra con el ratón desde el
 # centro del selector en un gesto lento de 600 ms (el arrastre con el ratón de Swiper y del motor `digi-crs`). Las
 # capturas sólo salen de la ventana cuando el widget no cabe en ella: al capturar fuera de la ventana Chrome maqueta la
-# página un instante a 1 px de ancho y una pista desplazada con `scrollLeft` podía salir recortada.
+# página un instante a 1 px de ancho y una pista desplazada con `scrollLeft` podía salir recortada. `fresh` (caso):
+# carga la página de nuevo en cada ancho en lugar de cambiar el tamaño de la ventana (en PRO, Swiper con controladores
+# cruzados y bucle desincroniza la principal al cruzar un punto de corte, y un visitante no lo ve al cargar). La firma
+# no cuenta el texto de las copias del bucle (`swiper-slide-duplicate`, `digi-crs__clone`): el estilo de cada palabra sale
+# de su diapositiva original, no de la primera copia, cuyo orden depende de cuántas copia cada motor.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

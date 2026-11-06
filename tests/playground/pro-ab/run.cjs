@@ -52,7 +52,10 @@ function pageSignature(sel, slug) {
     v = v.split(location.origin).join('').split(encodeURIComponent(location.origin)).join('__SITE__');
     return v.replace(new RegExp(`pro-ab-${slug}-[ab]`, 'g'), `pro-ab-${slug}-X`);
   };
-  const skip = (node) => node.parentElement && node.parentElement.closest('script,style,svg,noscript,template');
+  // Las copias del bucle (`swiper-slide-duplicate` de Swiper, `digi-crs__clone` del motor propio) repiten el texto de las
+  // originales: no cuentan, para que el estilo de una palabra salga de su diapositiva original en A y en B y no de la
+  // primera copia, cuyo orden depende de cuántas copia cada motor (lo que se ve lo comparan los píxeles).
+  const skip = (node) => node.parentElement && node.parentElement.closest('script,style,svg,noscript,template,.swiper-slide-duplicate,.digi-crs__clone');
   const visible = (el) => (el.checkVisibility ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true);
   // Texto sólo para lectores de pantalla (recorte de 1 px): no se ve; cuenta en el nombre accesible, no en las palabras.
   const srOnly = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return (r.width <= 1 && r.height <= 1) || /rect\(0(px)?,? 0(px)?,? 0(px)?,? 0(px)?\)/.test(cs.clip) || cs.clipPath === 'inset(50%)'; };
@@ -218,6 +221,14 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
     }
     for (const width of WIDTHS) {
       await page.setViewport({ width, height: 900 });
+      // `fresh` (caso, con su motivo): la página se carga de nuevo en cada ancho, como en un dispositivo de ese ancho, en
+      // lugar de medirla tras cambiar el tamaño de la ventana (Swiper con controladores cruzados y bucle se desincroniza
+      // al cruzar un punto de corte, cosa que un visitante no ve al cargar la página).
+      if (c.fresh) {
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
+        await sleep(800);
+        await settle(page, sel, readySel);
+      }
       await page.mouse.move(0, 0);
       await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
       await sleep(700);

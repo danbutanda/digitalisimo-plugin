@@ -54,7 +54,7 @@ async function open({ width = 1280, js = true, reduce = false, editor = false, f
     if (editor || frontend) document.addEventListener('readystatechange', () => { if (document.readyState === 'interactive') for (const e of document.querySelectorAll('[data-id="w21"] .digi-crs__track > *')) { e.classList.add('elementor-element'); e.innerHTML += '<div class="elementor-element">x</div>'; } });
   }, editor, frontend);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('body > [data-id] > .digi-crs').length === 21 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('body > [data-id] > .digi-crs').length === 22 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
@@ -467,6 +467,9 @@ try {
     ok(live === '0→1', `${width}: el carrusel de una copia a la vista responde a su flecha: ${live}`);
     await page.setViewport({ width, height: 900 });
     await settle(page);
+    // Carrusel anidado con un solo elemento (w24): a todo el ancho, como PRO sin Swiper, aunque se vean 3.
+    const one = await page.$eval('[data-id="w24"] .digi-crs__track', t => [t.clientWidth, t.children[0].getBoundingClientRect().width, t.children.length]);
+    ok(Math.abs(one[0] - one[1]) < 0.5 && one[2] === 1, `${width}: carrusel anidado con un solo elemento, a todo el ancho: ${one}`);
     await page.close();
   }
 
