@@ -241,6 +241,14 @@ jobs:
           php tests/backups-operation-lock.php
           php tests/backups-manual-progress.php
           php tests/backups-cloud-verification.php
+          php tests/backups-job-store.php
+          php tests/backups-job-states.php
+          php tests/backups-job-heartbeat.php
+          php tests/backups-job-resume.php
+          php tests/backups-job-cancel.php
+          php tests/backups-job-compat.php
+          php tests/backups-job-kill.php
+          node tests/backups-jobs-ui.mjs
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

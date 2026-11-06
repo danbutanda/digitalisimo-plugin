@@ -174,6 +174,14 @@ unlink( $incomplete );
 unlink( $linked );
 unlink( $failed_restore );
 foreach ( $history as $record ) unlink( dirname( $file ) . '/' . $record['file'] );
+// Las copias previas corren como trabajos del mismo motor: terminados y sin área de trabajo ni ZIP intermedio.
+foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) {
+	if ( empty( $job['spec']['inline'] ) || ! in_array( $job['status'], array( 'success', 'failed' ), true ) ) throw new RuntimeException( 'Una copia previa quedó como trabajo sin terminar.' );
+	if ( is_dir( dirname( $file ) . '/jobs/' . $job['id'] . '/staging' ) ) throw new RuntimeException( 'Una copia previa dejó su área de trabajo.' );
+}
+if ( glob( dirname( $file ) . '/digitalisimo-*.zip.*' ) || glob( sys_get_temp_dir() . '/digitalisimo-sql-*' ) ) throw new RuntimeException( 'Quedaron temporales de libzip o un SQL fuera del almacén.' );
+Digitalisimo_Backups_Job_Store::remove_tree( dirname( $file ) . '/jobs' );
+@unlink( dirname( $file ) . '/.jobs.lock' );
 unlink( dirname( $file ) . '/index.php' );
 unlink( dirname( $file ) . '/.htaccess' );
 rmdir( dirname( $file ) );
