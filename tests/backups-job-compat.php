@@ -134,5 +134,19 @@ $jobs = count( Digitalisimo_Backups_Jobs::all() );
 Digitalisimo_Backups_Jobs::deactivate();
 bk_assert( ! $GLOBALS['bk_cron'] && count( Digitalisimo_Backups_Jobs::all() ) === $jobs, 'Desactivar no retiró los disparadores o borró trabajos.' );
 
+// «Bloquear» y «Eliminar» del historial (filas antiguas y nuevas) leen la base de datos y no pisan lo que otra petición
+// registró mientras tanto.
+$_POST = array( '_wpnonce' => 'ok', 'file' => basename( $old_file ), 'locked' => '1' );
+bk_history();
+$external = bk_options_load()[ Digitalisimo_Backups::HISTORY ];
+array_unshift( $external, array( 'date' => '2026-11-06 00:00:00', 'file' => 'digitalisimo-backup-otra-peticion.zip', 'size' => 1, 'sha256' => str_repeat( 'a', 64 ), 'destination' => 'local', 'scope' => 'installation' ) );
+bk_external_update_option( Digitalisimo_Backups::HISTORY, $external );
+bk_assert( false !== strpos( respond( array( 'Digitalisimo_Backups', 'toggle_lock' ) ), 'backup=ok' ), 'Bloquear no respondió.' );
+bk_assert( ! empty( rows_for( basename( $old_file ) )[0]['locked'] ) && rows_for( 'digitalisimo-backup-otra-peticion.zip' ), 'Bloquear no guardó el bloqueo o borró una fila registrada por otra petición.' );
+$_POST = array( '_wpnonce' => 'ok', 'file' => basename( $new_file ) );
+// (La redirección de la prueba es una excepción que delete_backup() vuelve a envolver: se busca su mensaje dentro.)
+$deleted = rawurldecode( rawurldecode( rawurldecode( rawurldecode( respond( array( 'Digitalisimo_Backups', 'delete_backup' ) ) ) ) ) );
+bk_assert( false !== strpos( $deleted, 'Respaldo eliminado' ) && ! is_file( $new_file ) && ! rows_for( basename( $new_file ) ) && rows_for( basename( $old_file ) ), 'Eliminar no retiró el respaldo y sólo su fila.' );
+
 bk_cleanup();
 echo "DIGITALÍSIMO Backups: compatibilidad con 1.0.58 en los dos sentidos, AJAX y cron anteriores, y restos antiguos verificados.\n";

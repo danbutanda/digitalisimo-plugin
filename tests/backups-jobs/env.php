@@ -113,6 +113,7 @@ function is_main_site() { return 1 === get_current_blog_id(); }
 function is_network_admin() { return false; }
 function switch_to_blog( $id ) { $GLOBALS['bk_blog_stack'][] = get_current_blog_id(); $GLOBALS['bk_blog_id'] = (int) $id; return true; }
 function restore_current_blog() { $GLOBALS['bk_blog_id'] = array_pop( $GLOBALS['bk_blog_stack'] ) ?? 1; return true; }
+function wp_delete_file( $file ) { return @unlink( $file ); }
 function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
 function trailingslashit( $path ) { return rtrim( $path, '/\\' ) . '/'; }
