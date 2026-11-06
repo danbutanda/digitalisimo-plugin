@@ -173,6 +173,7 @@ namespace {
 	$woo_count = 0;
 	foreach ( $woo_entries as $m ) {
 		if ( ! preg_match( "/'file'\s*=>\s*'([^']+)'/", $m[2], $f ) ) { continue; }
+		if ( preg_match( '#^(single|store)/#', $f[1] ) ) { continue; } // C7: abajo, con sus reglas.
 		$name   = $m[1];
 		$source = (string) file_get_contents( $woo_dir . $f[1] );
 		$woo_count++;
@@ -214,6 +215,59 @@ namespace {
 	}
 	check_budget( 7 === $woo_count, 'Deben revisarse los siete widgets de F4-Woo (' . $woo_count . ').' );
 	$count += $woo_count;
+	// C7 (programa «sin widgets de PRO», docs/pro/c7.md): los widgets de WooCommerce propios que sustituyen a los de PRO
+	// (`single/` y `store/`). Sus recursos están en su carpeta y los registra `Registry::register_assets()` con el nombre
+	// del widget (con defer); pueden heredar el Encabezado, el Botón o la Imagen del núcleo (con su plantilla del editor).
+	// Excepción declarada (decisión del coordinador de C7): carrito, pago, cuenta, resumen y carrito del menú llevan una
+	// segunda hoja (`<widget>-2.css`, registrada por `Store\Base`), cada una en su tope de 4 KB, porque las de PRO pesan de
+	// 11 a 36 KB. Además de Assets::FOREIGN, sólo pueden pedir los handles de WooCommerce que ya pedía el widget de PRO.
+	$c7_foreign = array_merge( $foreign, array( 'wc-cart', 'wc-checkout', 'wc-password-strength-meter', 'selectWoo', 'select2' ) );
+	$c7_count   = 0;
+	$c7_second  = array();
+	foreach ( $woo_entries as $m ) {
+		if ( ! preg_match( "#'file'\s*=>\s*'((?:single|store)/[^']+)'#", $m[2], $f ) || ! preg_match( "/'css'\s*=>\s*'([^']+)'/", $m[2], $c ) || ! preg_match( "/'js'\s*=>\s*'([^']+)'/", $m[2], $j ) ) { continue; }
+		$name   = $m[1];
+		$source = (string) file_get_contents( $woo_dir . $f[1] );
+		$c7_count++;
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		check_budget( ! preg_match( '/loading="(lazy|eager)"|\'loading\'\s*=>|fetchpriority/', $source ), $name . ': ninguna imagen fuerza su carga; lo decide WordPress (o WooCommerce).' );
+		check_budget( 0 === strpos( $c[1], 'modules/digitalisimo-woo/' ) && 0 === strpos( $j[1], 'modules/digitalisimo-woo/' ), $name . ': recursos en su carpeta del módulo.' );
+		check_budget( ! preg_match( '/pro-elements-handlers|elementor-pro-frontend|\bswiper\b|\'jquery\'/i', budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' ) ), $name . ': sin paquetes de PRO, Swiper ni jQuery.' );
+		// Handles literales que declara (también los de constantes `WC_SCRIPTS`/`WC_STYLES`): propios, del núcleo o admitidos.
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( '/const WC_[A-Z]+\s*=\s*array\(([^()]*)\)/', $source, $consts );
+		preg_match_all( '/(?:array\(|\[)([^()\[\]]*)(?:\)|\])/', $declared, $lists );
+		preg_match_all( "/'([a-zA-Z][a-zA-Z0-9_-]*)'/", implode( ',', array_merge( $lists[1], $consts[1] ) ), $handles );
+		foreach ( array_unique( $handles[1] ) as $handle ) {
+			check_budget( in_array( $handle, $c7_foreign, true ) || 0 === strpos( $handle, 'digitalisimo-woo-' ), $name . ': recurso ajeno no admitido (' . $handle . ').' );
+		}
+		$sheets = array( $c[1] );
+		$second = preg_replace( '/\.css$/', '-2.css', $c[1] );
+		if ( is_file( $root . '/' . $second ) ) {
+			$sheets[]    = $second;
+			$c7_second[] = $name;
+		}
+		// La regla de movimiento reducido puede vivir en la primera hoja: la segunda depende de ella y siempre van juntas.
+		$pair = '';
+		foreach ( $sheets as $file ) { $pair .= is_file( $root . '/' . $file ) ? (string) file_get_contents( $root . '/' . $file ) : ''; }
+		foreach ( $sheets as $file ) {
+			if ( ! is_file( $root . '/' . $file ) ) { continue; }
+			$sheet = (string) file_get_contents( $root . '/' . $file );
+			check_budget( strlen( $sheet ) <= $css_cap, $name . ': la hoja ' . basename( $file ) . ' pesa ' . strlen( $sheet ) . ' bytes, más de ' . $css_cap . '.' );
+			check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $sheet ), $name . ': sin url() en la hoja ' . basename( $file ) . '.' );
+			check_budget( ! str_contains( $sheet, '--e-global-' ), $name . ': la hoja ' . basename( $file ) . ' no usa la paleta del kit como valor propio.' );
+			if ( preg_match( '/@keyframes|animation:|transition:/', $sheet ) ) { check_budget( str_contains( $pair, 'prefers-reduced-motion' ), $name . ': la hoja ' . basename( $file ) . ' anima sin respetar prefers-reduced-motion.' ); }
+		}
+		if ( is_file( $root . '/' . $j[1] ) ) {
+			$script = (string) file_get_contents( $root . '/' . $j[1] );
+			check_budget( strlen( $script ) <= $js_cap, $name . ': el script pesa ' . strlen( $script ) . ' bytes, más de ' . $js_cap . '.' );
+			check_budget( ! preg_match( '/\bjQuery\s*\(|\$\(\s*[\'"]/', $script ), $name . ': el script no usa jQuery.' );
+		}
+	}
+	check_budget( 30 === $c7_count, 'Deben revisarse los 30 widgets de WooCommerce de C7 (' . $c7_count . ').' );
+	sort( $c7_second );
+	check_budget( array( 'digitalisimo-woo-cart', 'digitalisimo-woo-checkout', 'digitalisimo-woo-menu-cart', 'digitalisimo-woo-my-account', 'digitalisimo-woo-purchase-summary' ) === $c7_second, 'Sólo carrito, pago, cuenta, resumen y carrito del menú llevan segunda hoja (excepción declarada): ' . implode( ', ', $c7_second ) . '.' );
+	$count += $c7_count;
 	// F7b (frente F): el slider anidado ligero de modules/digitalisimo-f7b/nested/ con las mismas reglas; sus recursos los
 	// registra Nested\Module (`digitalisimo-nested-slider`, con defer y sin dependencias) y el widget sólo declara los suyos.
 	$f7b_dir      = $root . '/modules/digitalisimo-f7b/';
@@ -571,7 +625,7 @@ namespace {
 	}
 	check_budget( 2 === $fm_count && 1 === $fm_scripts, 'Deben revisarse los dos formularios propios, con un solo script del sitio (' . $fm_count . ', ' . $fm_scripts . ').' );
 	$count += $fm_count;
-	check_budget( $count >= 104, 'Deben revisarse los 104 widgets propios (' . $count . ').' );
+	check_budget( $count >= 134, 'Deben revisarse los 134 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

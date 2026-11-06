@@ -6859,7 +6859,7 @@
   "loop-own": {"title": "Entradas y bucles propios (programa sin widgets de PRO, C5): Entradas (clásica con números), Portafolio con filtro y una Cuadrícula de bucle propia con el buscador de F7b, sin los paquetes ni las hojas de PRO (widget-posts, widget-loop-*); el buscador refresca la cuadrícula propia pidiendo la misma página con la URL filtrada (sin el REST de PRO)", "since": "4.3.0.177", "widgets": [{"type": "digitalisimo-posts", "id": "fbpo001", "settings": {"_skin": "classic", "classic_posts_per_page": 3, "pagination_type": "numbers"}}, {"type": "digitalisimo-portfolio", "id": "fbpf001", "settings": {"posts_per_page": 4, "show_filter_bar": "yes", "taxonomy": "category"}}, {"type": "digitalisimo-loop-search", "id": "fbos001", "settings": {"destination": "loop", "selected_element": "fbog001", "label": "Buscar"}}, {"type": "digitalisimo-loop-grid", "id": "fbog001", "settings": {"template_id": "__LOOP__", "posts_per_page": 6}}], "extra": [{"key": "loop", "type": "loop-item", "widgets": [{"type": "heading", "settings": {"title": "Entrada", "__dynamic__": {"title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"}}}]}], "assets": {"pro-posts-css": "/widget-posts(\\.min)?\\.css", "pro-loop-css": "/widget-loop-[a-z-]+(\\.min)?\\.css", "filters-js": "/digitalisimo-elements/assets/js/filters\\.js", "loop-css": "/digitalisimo-loop/assets/css/", "loop-js": "/digitalisimo-loop/assets/js/"}, "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "postsItems": ".digi-posts__item", "portfolioFilter": ".elementor-widget-digitalisimo-portfolio button[aria-pressed]", "pagination": "nav.digi-loop__pagination a"}, "actions": [{"do": "mark", "selector": ".e-loop-item"}, {"do": "fill", "selector": ".elementor-element-fbos001 input[type=\"search\"]", "value": "medición 2"}, {"do": "click", "selector": ".elementor-element-fbos001 button[type=\"submit\"]"}, {"do": "waitChange", "selector": ".e-loop-item", "ms": 20000}, {"do": "wait", "ms": 500}], "modes": ["normal", "cache"], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "asset:pro-posts-css": 0, "asset:pro-loop-css": 0, "asset:filters-js": "<=10240", "asset:loop-css": "<=16384", "asset:loop-js": "<=16384", "count:own": 4, "count:postsItems": 3, "count:portfolioFilter": ">=2", "count:pagination": ">=1", "after": {"changed": ["loopSig"], "errors": 0}}}},
  "forms": {
   "title": "Formularios propios (programa sin widgets de PRO, C6): el Formulario (con pasos, barra de progreso y las acciones guardar, correo y webhook) y el Inicio de sesión, sin los paquetes de PRO: un solo script propio con defer y sin peticiones hasta enviar",
-  "since": "@NEXT_ELEMENTS@",
+  "since": "4.3.0.178",
   "widgets": [
    { "type": "heading", "settings": { "title": "Contacto", "header_size": "h2" } },
    {
@@ -6899,6 +6899,330 @@
     "count:fields": ">=5",
     "count:progress": 1,
     "count:steps": 2
+   }
+  }
+ },
+ "woo-pro-product": {
+  "title": "Plantilla de producto del Theme Builder con los quince widgets propios de la ficha (programa sin widgets de PRO, C7), medida en la ficha del producto simple. La hoja de Swiper es del núcleo: la pide su caja de luz por el enlace a la imagen completa de la galería de WooCommerce (igual con el widget de PRO)",
+  "since": "4.3.0.178",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "product",
+    "type": "product",
+    "conditions": [
+     "include/singular/product/__WC_SIMPLE__"
+    ],
+    "widgets": [
+     {
+      "type": "digitalisimo-woo-product-title",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-images",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-price",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-breadcrumb",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-rating",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-stock",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-short-description",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-add-to-cart",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-meta",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-data-tabs",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-additional-information",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-content",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-related",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-product-upsell",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-single-elements",
+      "settings": {
+       "element": "woocommerce_output_product_data_tabs"
+      }
+     },
+     {
+      "type": "digitalisimo-woo-add-to-cart",
+      "settings": {
+       "product_id": "__WC_SIMPLE__",
+       "show_quantity": "yes"
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/product/digi-fb-producto-1/"
+  ],
+  "assets": {
+   "atc-css": "/digitalisimo-elements/modules/digitalisimo-woo/single/assets/product-add-to-cart\\.css",
+   "tabs-css": "/digitalisimo-elements/modules/digitalisimo-woo/single/assets/product-data-tabs\\.css",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "title": "h1.product_title",
+   "atc": ".digi-atc form.cart",
+   "tabs": ".woocommerce-tabs",
+   "gallery": ".woocommerce-product-gallery"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "count:title": 1,
+    "count:tabs": 2,
+    "count:gallery": 1,
+    "asset:atc-css": "<=4096",
+    "asset:tabs-css": "<=4096",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-shop": {
+  "title": "Plantilla de archivo de productos del Theme Builder con los widgets propios de la tienda (C7: migas, avisos, descripción, categorías, productos del archivo y productos), medida en la tienda",
+  "since": "4.3.0.178",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "shop",
+    "type": "product-archive",
+    "conditions": [
+     "include/product_archive"
+    ],
+    "widgets": [
+     {
+      "type": "digitalisimo-woo-breadcrumb",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-notices",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-archive-description",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-categories",
+      "settings": {
+       "columns": 3
+      }
+     },
+     {
+      "type": "digitalisimo-woo-archive-products",
+      "settings": {}
+     },
+     {
+      "type": "digitalisimo-woo-products",
+      "settings": {
+       "columns": 3,
+       "rows": 1,
+       "paginate": ""
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/?post_type=product"
+  ],
+  "assets": {
+   "products-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/products\\.css",
+   "archive-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/archive-products\\.css",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "products": ".digi-products-grid ul.products li.product",
+   "grids": ".digi-products-grid"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:grids": 2,
+    "asset:products-css": "<=4096",
+    "asset:archive-css": "<=4096",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-cart": {
+  "title": "Carrito propio (C7) con un producto en el carrito: dos hojas de 4 KB y sin los paquetes de PRO (sin el widget de avisos, que mueve a su caja el aviso «añadido al carrito», como el de PRO, y se mide aparte)",
+  "since": "4.3.0.178",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-cart",
+    "id": "fbc7ct1",
+    "settings": {}
+   }
+  ],
+  "assets": {
+   "cart-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.css",
+   "cart2-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart-2\\.css",
+   "cart-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/cart\\.js",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "cart": ".digi-cart",
+   "items": ".digi-cart .cart_item"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-cart .cart_item",
+    "min": 1,
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:cart": 1,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:items": 1
+    },
+    "asset:cart-css": "<=4096",
+    "asset:cart2-css": "<=4096",
+    "asset:cart-js": "<=8192",
+    "asset:pro-woo-css": "<=0"
+   }
+  }
+ },
+ "woo-pro-menu-cart": {
+  "title": "Carrito del menú propio (C7) con un producto en el carrito: conmutador <button>, panel con los fragmentos de WooCommerce, dos hojas de 4 KB y sin los paquetes de PRO",
+  "since": "4.3.0.178",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-menu-cart",
+    "id": "fbc7mc1",
+    "settings": {}
+   }
+  ],
+  "assets": {
+   "mc-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.css",
+   "mc2-css": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart-2\\.css",
+   "mc-js": "/digitalisimo-elements/modules/digitalisimo-woo/store/assets/menu-cart\\.js",
+   "pro-woo-css": "/widget-woocommerce-[a-z-]+(\\.min)?\\.css"
+  },
+  "counts": {
+   "toggle": ".digi-mc button[aria-expanded]",
+   "items": ".digi-mc .digi-mc__item"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-mc .digi-mc__item",
+    "min": 1,
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "count:toggle": 1,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:items": 1
+    },
+    "asset:mc-css": "<=4096",
+    "asset:mc2-css": "<=4096",
+    "asset:mc-js": "<=8192",
+    "asset:pro-woo-css": "<=0"
    }
   }
  }

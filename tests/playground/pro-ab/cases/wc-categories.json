@@ -1,0 +1,225 @@
+{
+ "_doc": [
+  "Casos A/B de Categorías de productos (C7, frente N, fork S): A con `wc-categories` de PRO, B con `digitalisimo-woo-categories`. Tienda de prueba de pro-ab.sh (N-woo.md): categoría con imagen, subcategoría, otra categoría con imagen y «Uncategorized» de WooCommerce, vacía."
+ ],
+ "declared": [
+  {
+   "widget": "wc-categories",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces de las categorías (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wcc-defaults": {
+   "title": "Valores por defecto: todas, 4 columnas, por nombre descendente",
+   "widget": "wc-categories",
+   "woo": true,
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-categories.min.css de PRO",
+     "id": "widget-woocommerce-categories-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-categories(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcc-by-id": {
+   "title": "Selección manual de dos categorías en dos columnas",
+   "widget": "wc-categories",
+   "woo": true,
+   "settings": {
+    "source": "by_id",
+    "categories": {
+     "$woo-ids": [
+      "category",
+      "other_category"
+     ]
+    },
+    "columns": "2",
+    "columns_tablet": "2",
+    "columns_mobile": "1"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-categories.min.css de PRO",
+     "id": "widget-woocommerce-categories-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-categories(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcc-parent": {
+   "title": "Por categoría superior (la de prueba) y ocultar vacías",
+   "widget": "wc-categories",
+   "woo": true,
+   "settings": {
+    "source": "by_parent",
+    "parent": "$woo:category",
+    "hide_empty": "yes"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-categories.min.css de PRO",
+     "id": "widget-woocommerce-categories-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-categories(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcc-current": {
+   "title": "Subcategorías de la actual, en el archivo de la categoría de prueba",
+   "widget": "wc-categories",
+   "context": {
+    "archive": "product_cat"
+   },
+   "settings": {
+    "source": "current_subcategories"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-categories.min.css de PRO",
+     "id": "widget-woocommerce-categories-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-categories(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcc-styled": {
+   "title": "Estilos: separaciones, centrado, borde y radio de la imagen, colores y tipografías, por número ascendente en 3 columnas",
+   "widget": "wc-categories",
+   "woo": true,
+   "settings": {
+    "columns": "3",
+    "columns_mobile": "1",
+    "hide_empty": "yes",
+    "orderby": "count",
+    "order": "asc",
+    "column_gap": {
+     "unit": "px",
+     "size": 32
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 24
+    },
+    "align": "center",
+    "align_mobile": "left",
+    "image_border_border": "solid",
+    "image_border_width": {
+     "unit": "px",
+     "top": "3",
+     "right": "3",
+     "bottom": "3",
+     "left": "3",
+     "isLinked": true
+    },
+    "image_border_color": "#2a9d8f",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "image_spacing": {
+     "unit": "px",
+     "size": 14
+    },
+    "title_color": "#7a1f5c",
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+     "unit": "px",
+     "size": 19
+    },
+    "title_typography_font_weight": "700",
+    "count_color": "#e76f51",
+    "count_typography_typography": "custom",
+    "count_typography_font_size": {
+     "unit": "px",
+     "size": 13
+    }
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-categories.min.css de PRO",
+     "id": "widget-woocommerce-categories-css",
+     "url": "/digitalisimo-elements/assets/css/widget-woocommerce-categories(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

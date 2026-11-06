@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3 y C5 del programa «sin widgets de PRO»: carruseles, contenido, navegación, entradas y bucles; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3, C4, C5 y C7 del programa «sin widgets de PRO»: carruseles, contenido, navegación, elementos de tema, entradas y bucles y los treinta de WooCommerce, éstos con «woo»; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "media": {
     "imagen-a": {
       "png": [
@@ -2806,6 +2806,36 @@
         ]
       }
     },
+    "digitalisimo-woo-product-title": {"woo": true, "settings": {"header_size": "h2", "title_color": "#1f2937"}},
+    "digitalisimo-woo-product-price": {"woo": true, "settings": {"price_color": "#245eff", "text_align": "center"}},
+    "digitalisimo-woo-product-rating": {"woo": true, "settings": {"star_color": "#f5a623", "show_review_text": "yes"}},
+    "digitalisimo-woo-product-stock": {"woo": true, "settings": {"text_color": "#0a7d33"}},
+    "digitalisimo-woo-product-meta": {"woo": true, "settings": {"view": "table", "sku_caption": "Referencia", "category_caption_single": "Categoría del kit"}},
+    "digitalisimo-woo-product-short-description": {"woo": true, "settings": {"text_color": "#333333"}},
+    "digitalisimo-woo-product-content": {"woo": true, "settings": {"align": "left"}},
+    "digitalisimo-woo-product-additional-information": {"woo": true, "settings": {"show_heading": "yes"}},
+    "digitalisimo-woo-product-data-tabs": {"woo": true, "settings": {"tab_text_color": "#1f2937"}},
+    "digitalisimo-woo-product-images": {"woo": true, "settings": {"sale_flash": "yes"}},
+    "digitalisimo-woo-product-add-to-cart": {"woo": true, "settings": {"show_quantity": "yes", "layout": "stacked"}},
+    "digitalisimo-woo-product-related": {"woo": true, "settings": {"posts_per_page": 4, "columns": 4, "orderby": "date"}},
+    "digitalisimo-woo-product-upsell": {"woo": true, "settings": {"limit": 4, "columns": 4}},
+    "digitalisimo-woo-single-elements": {"woo": true, "settings": {"element": "woocommerce_output_product_data_tabs"}},
+    "digitalisimo-woo-add-to-cart": {"woo": true, "settings": {"product_id": "@post:product:digi-k-camiseta", "text": "Comprar del kit", "show_quantity": "yes", "quantity": 2}},
+    "digitalisimo-woo-products": {"woo": true, "settings": {"query_post_type": "by_id", "query_posts_ids": ["@post:product:digi-k-camiseta", "@post:product:digi-k-sudadera"], "columns": 2, "rows": 1, "paginate": ""}},
+    "digitalisimo-woo-products-classic": {"woo": true, "settings": {"_skin": "classic", "classic_columns": 3}},
+    "digitalisimo-woo-archive-products": {"woo": true, "settings": {"paginate": "yes", "allow_order": "yes", "nothing_found_message": "Nada en el kit."}},
+    "digitalisimo-woo-archive-products-classic": {"woo": true, "settings": {"_skin": "classic"}},
+    "digitalisimo-woo-categories": {"woo": true, "settings": {"source": "by_id", "categories": ["@term:product_cat:ropa"], "columns": 3}},
+    "digitalisimo-woo-archive-description": {"woo": true, "settings": {"text_color": "#333333"}},
+    "digitalisimo-woo-category-image": {"woo": true, "settings": {"image_size": "medium", "align": "center"}},
+    "digitalisimo-woo-breadcrumb": {"woo": true, "settings": {"link_color": "#245eff"}},
+    "digitalisimo-woo-notices": {"woo": true, "settings": {"where": ["cart", "checkout"]}},
+    "digitalisimo-woo-cart": {"woo": true, "settings": {"cart_layout": "one-column", "update_cart_button_text": "Actualizar el carrito del kit"}},
+    "digitalisimo-woo-checkout": {"woo": true, "settings": {"checkout_layout": "one-column", "purchase_button_text": "Pagar en el kit"}},
+    "digitalisimo-woo-my-account": {"woo": true, "settings": {"customize_dashboard_check": "yes", "customize_dashboard_select": "@template:digi-k-seccion"}},
+    "digitalisimo-woo-purchase-summary": {"woo": true, "settings": {"confirmation_message_text": "Gracias por comprar en el kit."}},
+    "digitalisimo-woo-menu-cart": {"woo": true, "settings": {"cart_type": "side-cart", "open_cart": "click", "items_indicator": "bubble"}},
+    "digitalisimo-woo-pages": {"woo": true, "settings": {"element": "woocommerce_cart"}},
     "digitalisimo-animated-headline": {"settings": {"headline_style": "rotate", "animation_type": "typing", "before_text": "Este sitio es", "rotating_text": "rápido\nclaro\naccesible", "after_text": "para todos", "link": {"url": "@url:/"}, "tag": "h2"}},
     "digitalisimo-code-highlight": {"settings": {"language": "php", "code": "<?php echo 'Hola del kit'; ?>", "line_numbers": "yes", "highlight_lines": "1", "theme": "okaidia"}},
     "digitalisimo-table-of-contents": {"settings": {"title": "Índice del kit", "headings_by_tags": ["h2", "h3"], "marker_view": "bullets", "icon": {"value": "fas fa-circle", "library": "fa-solid"}, "minimize_box": "yes"}},

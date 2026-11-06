@@ -109,36 +109,36 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C5 | `posts` | `posts` | Posts | **Sustituido** | Entradas (`digitalisimo-posts`), C5 |
 | C6 | `forms` | `form` | Form | **Sustituido** | Formulario (`digitalisimo-form`), C6; envía por la misma tubería del constructor |
 | C6 | `forms` | `login` | Login | **Sustituido** | Inicio de sesión (`digitalisimo-login`), C6 |
-| C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | Nuevo |  |
-| C7 | `woocommerce` | `wc-archive-products` | Archive Products | Nuevo |  |
-| C7 | `woocommerce` | `wc-categories` | Product Categories | Nuevo |  |
-| C7 | `woocommerce` | `wc-elements` | WooCommerce Pages | Nuevo |  |
-| C7 | `woocommerce` | `wc-products` | Woo - Products- | Parcial | Cuadrícula de productos y partes de F4-Woo |
-| C7 | `woocommerce` | `wc-single-elements` | Woo - Single Elements | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-archive-description` | Archive Description | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-archive-products` | Archive Products (deprecated) | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-breadcrumb` | WooCommerce Breadcrumbs | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-cart` | Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-category-image` | Category Image | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-checkout-page` | Checkout | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-menu-cart` | Menu Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-my-account` | My Account | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-notices` | WooCommerce Notices | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-add-to-cart` | Add To Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-additional-information` | Additional Information | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-content` | Product Content | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-data-tabs` | Product Data Tabs | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-images` | Product Images | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-meta` | Product Meta | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-price` | Product Price | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-rating` | Product Rating | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-related` | Product Related | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-short-description` | Short Description | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-stock` | Product Stock | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-title` | Product Title | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-products` | Products | Parcial | Cuadrícula de productos y partes de F4-Woo |
-| C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | Nuevo |  |
+| C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | **Sustituido** | Añadir al carrito personalizado (`digitalisimo-woo-add-to-cart`), C7 |
+| C7 | `woocommerce` | `wc-archive-products` | Archive Products | **Sustituido** | Productos del archivo (`digitalisimo-woo-archive-products`), C7 |
+| C7 | `woocommerce` | `wc-categories` | Product Categories | **Sustituido** | Categorías de productos (`digitalisimo-woo-categories`), C7 |
+| C7 | `woocommerce` | `wc-elements` | WooCommerce Pages | **Sustituido** | Páginas de la tienda (`digitalisimo-woo-pages`), C7 |
+| C7 | `woocommerce` | `wc-products` | Woo - Products- | **Sustituido** | Productos (clásico) (`digitalisimo-woo-products-classic`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `wc-single-elements` | Woo - Single Elements | **Sustituido** | Elementos del producto (`digitalisimo-woo-single-elements`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `woocommerce-archive-description` | Archive Description | **Sustituido** | Descripción del archivo de la tienda (`digitalisimo-woo-archive-description`), C7 |
+| C7 | `woocommerce` | `woocommerce-archive-products` | Archive Products (deprecated) | **Sustituido** | Productos del archivo (clásico) (`digitalisimo-woo-archive-products-classic`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `woocommerce-breadcrumb` | WooCommerce Breadcrumbs | **Sustituido** | Migas de la tienda (`digitalisimo-woo-breadcrumb`), C7 |
+| C7 | `woocommerce` | `woocommerce-cart` | Cart | **Sustituido** | Carrito (`digitalisimo-woo-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-category-image` | Category Image | **Sustituido** | Imagen de la categoría (`digitalisimo-woo-category-image`), C7 |
+| C7 | `woocommerce` | `woocommerce-checkout-page` | Checkout | **Sustituido** | Finalizar compra (`digitalisimo-woo-checkout`), C7 |
+| C7 | `woocommerce` | `woocommerce-menu-cart` | Menu Cart | **Sustituido** | Carrito del menú (`digitalisimo-woo-menu-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-my-account` | My Account | **Sustituido** | Mi cuenta (`digitalisimo-woo-my-account`), C7 |
+| C7 | `woocommerce` | `woocommerce-notices` | WooCommerce Notices | **Sustituido** | Avisos de la tienda (`digitalisimo-woo-notices`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-add-to-cart` | Add To Cart | **Sustituido** | Añadir al carrito (`digitalisimo-woo-product-add-to-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-additional-information` | Additional Information | **Sustituido** | Información adicional del producto (`digitalisimo-woo-product-additional-information`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-content` | Product Content | **Sustituido** | Contenido del producto (`digitalisimo-woo-product-content`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-data-tabs` | Product Data Tabs | **Sustituido** | Pestañas de datos del producto (`digitalisimo-woo-product-data-tabs`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-images` | Product Images | **Sustituido** | Imágenes del producto (`digitalisimo-woo-product-images`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-meta` | Product Meta | **Sustituido** | Metadatos del producto (`digitalisimo-woo-product-meta`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-price` | Product Price | **Sustituido** | Precio del producto (`digitalisimo-woo-product-price`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-rating` | Product Rating | **Sustituido** | Valoración del producto (`digitalisimo-woo-product-rating`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-related` | Product Related | **Sustituido** | Productos relacionados (`digitalisimo-woo-product-related`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-short-description` | Short Description | **Sustituido** | Descripción corta del producto (`digitalisimo-woo-product-short-description`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-stock` | Product Stock | **Sustituido** | Existencias del producto (`digitalisimo-woo-product-stock`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-title` | Product Title | **Sustituido** | Título del producto (`digitalisimo-woo-product-title`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | **Sustituido** | Ventas dirigidas (`digitalisimo-woo-product-upsell`), C7 |
+| C7 | `woocommerce` | `woocommerce-products` | Products | **Sustituido** | Productos (`digitalisimo-woo-products`), con las partes de F4-Woo, C7 |
+| C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | **Sustituido** | Resumen de la compra (`digitalisimo-woo-purchase-summary`), C7 |
 | C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | Nuevo |  |
 | C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | Nuevo |  |
 | C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | Nuevo |  |
@@ -176,5 +176,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
 | C5 | **Publicado** · Elements 4.3.0.177 · `v2026.11.06.454` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 lleva a Posts, Loop Grid y Loop Carousel). Seis widgets de entradas y bucles propios en `modules/digitalisimo-loop/` (Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías) con sus mapas listos y fuera del panel, la misma consulta, las mismas plantillas de Elemento de bucle y las consultas guardadas y los filtros de F7b sobre los propios; con ellos, la familia C5 queda sustituida entera (y, de C4, Entradas del archivo). Detalle en `docs/pro/c5.md` |
 | C6 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C6_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
-| C7–C9 | Pendientes |
+| C7 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C7_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 trae de Element Pack a los de WooCommerce de PRO). Treinta widgets de WooCommerce propios en `modules/digitalisimo-woo/single/` (los quince de la ficha de producto) y `store/` (los quince de listados, archivo, carrito, pago y cuenta), con sus mapas listos y fuera del panel: WooCommerce pinta lo suyo con las mismas plantillas, ganchos y filtros que PRO, sin jQuery propio, Swiper ni los paquetes de PRO. Con ellos, la familia C7 queda sustituida entera. Detalle en `docs/pro/c7.md` |
+| C8–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

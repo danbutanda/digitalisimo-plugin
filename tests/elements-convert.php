@@ -33,7 +33,24 @@ namespace {
 		if ( preg_match( '/\buse\s+Base_Carousel_Trait\s*;/', $php ) ) {
 			$files[] = $elements . 'base/base-carousel-trait.php';
 		}
-		return $files;
+		// C7: los padres de los widgets de WooCommerce (columnas de `Base_Widget`, cuadrícula de `Products_Base` y los de
+		// archivo que heredan de `Products`). La presentación clásica de `wc-products` prefija sus controles con su id
+		// (`classic_columns`): la cubre `tests/elements-pro-woo-products.php`.
+		if ( preg_match( '/namespace ElementorPro\\\\Modules\\\\Woocommerce\\\\Widgets;/', $php ) ) {
+			$woo = $elements . 'modules/woocommerce/';
+			if ( preg_match( '/\bextends\s+(Products_Base|Products)\b/', $php ) ) {
+				$files[] = $woo . 'widgets/products-base.php';
+			}
+			if ( preg_match( '/\bextends\s+Products\b/', $php ) ) {
+				$files[] = $woo . 'widgets/products.php';
+			}
+			$all = '';
+			foreach ( $files as $source ) { $all .= (string) file_get_contents( $source ); }
+			if ( preg_match( '/->add_columns_responsive_control\(\)/', $all ) ) {
+				$files[] = $woo . 'widgets/base-widget.php';
+			}
+		}
+		return array_values( array_unique( $files ) );
 	}
 
 	/** Valor de una concatenación PHP de literales y variables (`'a_' . $x . '_b'`) para cada combinación de valores. */
@@ -75,6 +92,21 @@ namespace {
 			preg_match_all( "/'([a-z0-9_-]+)'/", $loop[1], $lits );
 			$values[ $loop[2] ] = array_merge( $values[ $loop[2] ] ?? array(), $lits[1] );
 		}
+		// `foreach ( $lista as $clave => $valor )` sobre un arreglo literal con claves (`$query_type_strings` de
+		// `modules/woocommerce/widgets/products.php`, C7): la variable toma las claves del arreglo.
+		preg_match_all( "/\\$([a-z_]+)\s*=\s*\[(.*?)\];/s", $php, $assoc, PREG_SET_ORDER );
+		$lists = array();
+		foreach ( $assoc as $list ) {
+			if ( preg_match_all( "/^\s*'([a-z0-9_-]+)'\s*=>/m", $list[2], $keys ) ) {
+				$lists[ $list[1] ] = $keys[1];
+			}
+		}
+		preg_match_all( "/foreach\s*\(\s*\\$([a-z_]+)\s+as\s+\\$([a-z_]+)\s*=>/", $php, $keyed, PREG_SET_ORDER );
+		foreach ( $keyed as $loop ) {
+			if ( isset( $lists[ $loop[1] ] ) ) {
+				$values[ $loop[2] ] = array_merge( $values[ $loop[2] ] ?? array(), $lists[ $loop[1] ] );
+			}
+		}
 		preg_match_all( '/function\s+([a-z_]+)\s*\(([^)]*)\)/', $php, $functions, PREG_SET_ORDER );
 		foreach ( $functions as $function ) {
 			preg_match_all( '/\$([a-z_]+)/', $function[2], $params );
@@ -106,6 +138,10 @@ namespace {
 		foreach ( array_merge( $controls[1], $grouped[1] ) as $expr ) {
 			$names = array_merge( $names, pro_concat( $expr, $values ) );
 		}
+		// Lo que el propio widget quita de lo heredado (`remove_control`, `remove_responsive_control`: los de archivo de
+		// WooCommerce quitan `columns`, `rows`, `orderby`… de `Products`, C7) no es un control suyo.
+		preg_match_all( "/->remove_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", (string) file_get_contents( $file ), $removed );
+		$names = array_diff( $names, $removed[1] );
 		return array_values( array_unique( $names ) );
 	}
 
@@ -202,13 +238,14 @@ namespace {
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array( 'tag' => 'h3' ) ),
 		array( 'id' => 'c2', 'elType' => 'container', 'elements' => array( array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array() ), array( 'id' => 'w3', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array() ) ) ),
-		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'woocommerce-cart', 'settings' => array() ),
+		// 'global' nunca tiene mapa: el ejemplo de lo que queda sin convertir no cambia al llegar las etapas.
+		array( 'id' => 'w4', 'elType' => 'widget', 'widgetType' => 'global', 'settings' => array() ),
 	) ) );
 	check_cv( $tree === Converter::tree( $tree ), 'Un mapa en borrador no convierte nada fuera de las pruebas.' );
 	$converted = Converter::tree( $tree, $log, true );
-	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'woocommerce-cart' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
+	check_cv( 'digitalisimo-prueba' === $converted[0]['elements'][0]['widgetType'] && 'w1' === $converted[0]['elements'][0]['id'] && 'h3' === $converted[0]['elements'][0]['settings']['html_tag'] && 'digitalisimo-prueba' === $converted[0]['elements'][1]['elements'][0]['widgetType'] && 'heading' === $converted[0]['elements'][1]['elements'][1]['widgetType'] && 'global' === $converted[0]['elements'][2]['widgetType'], 'tree() convierte a cualquier profundidad, conserva ids y deja lo que no tiene mapa.' );
 	check_cv( 2 === count( $log ) && 'w2' === $log[1]['element'] && 'blockquote' === $log[0]['source'], 'El registro dice qué elemento cambió y de qué a qué.' );
-	check_cv( array( 'blockquote' => 2, 'woocommerce-cart' => 1 ) === Converter::count( $tree ) && array( 'woocommerce-cart' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
+	check_cv( array( 'blockquote' => 2, 'global' => 1 ) === Converter::count( $tree ) && array( 'global' => 1 ) === Converter::count( $converted ), 'count() cuenta los widgets de PRO a cualquier profundidad.' );
 
 	// 4. Panel.
 	Registry::set( 'blockquote', $map + array( 'status' => 'ready', 'panel' => 'hide' ) );

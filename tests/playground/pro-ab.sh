@@ -72,6 +72,26 @@
 # el navegador (`ready.a`) y el propio los pinta el servidor; el Inicio de sesión se mide sin sesión iniciada. Los envíos
 # (ninguno se pierde ni se duplica, con las acciones guardar, correo y webhook) no se miden aquí, sino de punta a punta
 # con tests/playground/pro-form-e2e.sh.
+# C7 (WooCommerce) añade, también opcional y sin efecto en los casos que no lo usan (detalle en setup.php,
+# `digi_ab_woo_fixtures()` y `digi_ab_woo_context()`):
+#   - tienda: si algún caso de la corrida trae `woo`, un contexto de tienda o es un widget de tienda de PRO
+#     (`woocommerce-*`, `wc-*`), o con WOO=1, se monta WooCommerce fijado (woocommerce-pin.sh: 11.2.1 de reference/, con su
+#     sha256; sin la copia, la corrida se detiene), activate.php lo activa antes que el constructor y setup.php crea la
+#     tienda de prueba (productos simple, variable, en oferta, agotado y con reseñas; categorías con imagen; clienta con
+#     su pedido; tarifa plana y contra reembolso). Los ID quedan en conversion.json (`woo`) y en `"$woo:clave"` y
+#     `{"$woo-ids": [...]}` de los ajustes;
+#   - `context` de tienda: `{"product": "simple"|"variable"|"sale"|"outofstock"|"reviews"}`, `"shop"`,
+#     `{"archive": "product_cat"|"product_subcat"|"product_tag"}`, `"cart"` y `"checkout"` (la página del caso hace de
+#     carrito o de pago, con artículos), `"account"` (de «Mi cuenta», con la clienta dentro) y `{"order": "received"}`
+#     (pedido recibido de la clienta);
+#   - `woo` (objeto): `cart` (`items`|`empty`), `user` (`customer`|`guest`), `endpoint` (`orders`, `view-order`,
+#     `downloads`, `edit-address`, `edit-account`…; también en `$wp_query->query`, como una petición real) y `notices`
+#     (`true`: avisos de éxito, información y error). En las páginas del A/B, los fragmentos del carrito esperan 30 s
+#     (`request_timeout` de `wc-cart-fragments`, igual en A y B);
+#   - `container` (objeto): ajustes que se suman a los del contenedor común del caso (p. ej. `_css_classes: woocommerce`,
+#     la clase de la página de un producto, que usan los selectores `.woocommerce {{WRAPPER}} …`);
+#   - `register_pro` (`{"file", "class"}`): registra en el sitio del A/B un widget de PRO que PRO no registra (la Imagen de
+#     la categoría no figura en el mapa de widgets de su módulo de WooCommerce, así que A no pintaría nada).
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos
@@ -90,6 +110,7 @@
 #   MAP              mapa de prueba (archivo PHP que devuelve un mapa): setup.php lo fija con `Registry::set()` antes de
 #                    convertir, sin tocar maps/ (sólo para depurar la mecánica del arnés)
 #   LIVE=1           monta las carpetas tal cual; por defecto se mide una copia fija tomada al empezar ($OUT/src)
+#   WOO=1            monta y activa WooCommerce aunque ningún caso lo pida (WOO_ZIP: otro ZIP anotado; ver woocommerce-pin.sh)
 # Resultado: $OUT/pro-ab.json; sale con 1 si hay alguna falla.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -147,6 +168,25 @@ fs.writeFileSync(out, JSON.stringify(all, null, 1));
 ' "$ROOT/tests/playground/pro-ab" "$PROBE/cases.json"
 [ -n "${MAP:-}" ] && cp "$MAP" "$PROBE/map-override.php"
 printf '%s\n' "${CASES:-}" > "$PROBE/only.txt"
+# Tienda (C7): ¿algún caso elegido pide WooCommerce? (`woo`, un contexto de tienda o un widget de tienda de PRO).
+NEED_WOO="$(node -e '
+const fs = require("fs");
+const [file, only] = process.argv.slice(1);
+const all = JSON.parse(fs.readFileSync(file, "utf8")).cases || {};
+const list = fs.readFileSync(only, "utf8").split(",").map((x) => x.trim()).filter(Boolean);
+const shop = (c) => { const x = c.context; if (typeof x === "string") return ["shop", "cart", "checkout", "account"].includes(x); if (!x || typeof x !== "object") return false; const k = Object.keys(x)[0]; return ["product", "shop", "cart", "checkout", "account", "order"].includes(k) || (k === "archive" && /^product_/.test(String(x[k]))); };
+const need = Object.entries(all).some(([slug, c]) => (list.length ? list.includes(slug) : !c.pending) && (c.woo || shop(c) || /^(woocommerce-|wc-)/.test(String(c.widget || ""))));
+process.stdout.write(need ? "1" : "");
+' "$PROBE/cases.json" "$PROBE/only.txt")"
+[ "${WOO:-}" = 1 ] && NEED_WOO=1
+WOO_MOUNT=()
+rm -f "$OUT/woocommerce.json"
+if [ -n "$NEED_WOO" ]; then
+  . "$ROOT/tests/playground/woocommerce-pin.sh"
+  WOO_REQUIRE=1 woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+  cp "$OUT/woocommerce.json" "$PROBE/woo.json"
+  WOO_MOUNT=("$(woo_mount)")
+fi
 
 # Copia fija de lo que se mide: un cambio a mitad de corrida (otro agente editando) no mezcla versiones.
 if [ "${LIVE:-0}" = 1 ]; then
@@ -168,7 +208,7 @@ JSON
 
 echo "pro-ab · Elements $ELEMENTS_VERSION · puerto $PORT · $OUT"
 $CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT" --blueprint="$PROBE/blueprint.json" \
-  --mount="$SRC_ELEMENTS:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$PROBE:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
+  --mount="$SRC_ELEMENTS:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$PROBE:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT

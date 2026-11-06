@@ -539,6 +539,39 @@ checks['f7b-form-conditions'] = async (page) => {
         // C6 (formularios, docs/pro/c6.md).
         { pro: 'form', own: 'digitalisimo-form', title: 'Formulario', query: 'formulario' },
         { pro: 'login', own: 'digitalisimo-login', title: 'Inicio de sesión', query: 'inicio de sesión' },
+        // C7 (WooCommerce, docs/pro/c7.md). Los de la ficha sólo existen en una plantilla de producto y los de archivo, en
+        // una de archivo de productos (sus categorías); los obsoletos de PRO y «Elementos del producto» quedan ocultos
+        // como en PRO; PRO no registra la Imagen de la categoría.
+        { pro: 'woocommerce-product-title', own: 'digitalisimo-woo-product-title', title: 'Título del producto', query: 'título del producto', doc: 'product' },
+        { pro: 'woocommerce-product-price', own: 'digitalisimo-woo-product-price', title: 'Precio del producto', query: 'precio del producto', doc: 'product' },
+        { pro: 'woocommerce-product-rating', own: 'digitalisimo-woo-product-rating', title: 'Valoración del producto', query: 'valoración', doc: 'product' },
+        { pro: 'woocommerce-product-stock', own: 'digitalisimo-woo-product-stock', title: 'Existencias del producto', query: 'existencias', doc: 'product' },
+        { pro: 'woocommerce-product-meta', own: 'digitalisimo-woo-product-meta', title: 'Metadatos del producto', query: 'metadatos', doc: 'product' },
+        { pro: 'woocommerce-product-short-description', own: 'digitalisimo-woo-product-short-description', title: 'Descripción corta del producto', query: 'descripción corta', doc: 'product' },
+        { pro: 'woocommerce-product-content', own: 'digitalisimo-woo-product-content', title: 'Contenido del producto', query: 'contenido del producto', doc: 'product' },
+        { pro: 'woocommerce-product-additional-information', own: 'digitalisimo-woo-product-additional-information', title: 'Información adicional del producto', query: 'información adicional', doc: 'product' },
+        { pro: 'woocommerce-product-data-tabs', own: 'digitalisimo-woo-product-data-tabs', title: 'Pestañas de datos del producto', query: 'pestañas de datos', doc: 'product' },
+        { pro: 'woocommerce-product-images', own: 'digitalisimo-woo-product-images', title: 'Imágenes del producto', query: 'imágenes del producto', doc: 'product' },
+        { pro: 'woocommerce-product-add-to-cart', own: 'digitalisimo-woo-product-add-to-cart', title: 'Añadir al carrito', query: 'añadir al carrito', doc: 'product' },
+        { pro: 'woocommerce-product-related', own: 'digitalisimo-woo-product-related', title: 'Productos relacionados', query: 'relacionados', doc: 'product' },
+        { pro: 'woocommerce-product-upsell', own: 'digitalisimo-woo-product-upsell', title: 'Ventas dirigidas', query: 'ventas dirigidas', doc: 'product' },
+        { pro: 'wc-single-elements', own: 'digitalisimo-woo-single-elements', title: 'Elementos del producto', query: 'elementos del producto', doc: 'product', ownHidden: true },
+        { pro: 'wc-add-to-cart', own: 'digitalisimo-woo-add-to-cart', title: 'Añadir al carrito personalizado', query: 'carrito personalizado' },
+        { pro: 'woocommerce-products', own: 'digitalisimo-woo-products', title: 'Productos', query: 'productos' },
+        { pro: 'wc-products', own: 'digitalisimo-woo-products-classic', title: 'Productos (clásico)', query: 'clásico', ownHidden: true },
+        { pro: 'wc-archive-products', own: 'digitalisimo-woo-archive-products', title: 'Productos del archivo', query: 'productos del archivo', doc: 'product-archive' },
+        { pro: 'woocommerce-archive-products', own: 'digitalisimo-woo-archive-products-classic', title: 'Productos del archivo (clásico)', query: 'archivo (clásico)', doc: 'product-archive', ownHidden: true },
+        { pro: 'woocommerce-archive-description', own: 'digitalisimo-woo-archive-description', title: 'Descripción del archivo de la tienda', query: 'descripción del archivo', doc: 'product-archive' },
+        { pro: 'wc-categories', own: 'digitalisimo-woo-categories', title: 'Categorías de productos', query: 'categorías de productos' },
+        { pro: 'woocommerce-category-image', own: 'digitalisimo-woo-category-image', title: 'Imagen de la categoría', query: 'imagen de la categoría', proOptional: true },
+        { pro: 'woocommerce-breadcrumb', own: 'digitalisimo-woo-breadcrumb', title: 'Migas de la tienda', query: 'migas de la tienda' },
+        { pro: 'woocommerce-notices', own: 'digitalisimo-woo-notices', title: 'Avisos de la tienda', query: 'avisos' },
+        { pro: 'woocommerce-cart', own: 'digitalisimo-woo-cart', title: 'Carrito', query: 'carrito' },
+        { pro: 'woocommerce-checkout-page', own: 'digitalisimo-woo-checkout', title: 'Finalizar compra', query: 'finalizar compra' },
+        { pro: 'woocommerce-my-account', own: 'digitalisimo-woo-my-account', title: 'Mi cuenta', query: 'mi cuenta' },
+        { pro: 'woocommerce-purchase-summary', own: 'digitalisimo-woo-purchase-summary', title: 'Resumen de la compra', query: 'resumen de la compra' },
+        { pro: 'woocommerce-menu-cart', own: 'digitalisimo-woo-menu-cart', title: 'Carrito del menú', query: 'carrito del menú' },
+        { pro: 'wc-elements', own: 'digitalisimo-woo-pages', title: 'Páginas de la tienda', query: 'páginas de la tienda' },
       ];
       const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

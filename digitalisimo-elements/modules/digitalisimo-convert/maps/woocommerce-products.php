@@ -1,0 +1,123 @@
+<?php
+/**
+ * Products de PRO (`woocommerce-products`) → Productos (`digitalisimo-woo-products`, modules/digitalisimo-woo/store/class-products.php).
+ *
+ * El widget propio repite los controles del de PRO y los que hereda (`products-base.php`, `base-widget.php`, el trait de
+ * consulta) con el mismo nombre, valor por defecto, opciones y condiciones: el mapa es `keep` y
+ * `groups` (el grupo de consulta incluido). Los textos por defecto que PRO pintaba sin guardarlos se completan con los
+ * de PRO, así lo convertido dice lo mismo. Los controles de las «partes» de Productos (`digitalisimo_*`, `Products_Parts`) pasan tal cual: el
+ * propio las lleva igual. Formato: cabecera de `class-translator.php`.
+ */
+defined( 'ABSPATH' ) || exit;
+
+$digi_wp_t = static function ( $text ) {
+	return function_exists( 'esc_html__' ) ? esc_html__( $text, 'elementor-pro' ) : $text; // phpcs:ignore WordPress.WP.I18n -- mismo texto que PRO.
+};
+
+return array(
+	'source'   => 'woocommerce-products',
+	'target'   => 'digitalisimo-woo-products',
+	'status'   => 'ready',
+	'panel'    => 'hide',
+	'defaults' => array(
+		'products_related_products_title_text' => $digi_wp_t( 'Related Products' ),
+		'products_upsells_title_text'          => $digi_wp_t( 'You may also like...' ),
+		'products_cross_sells_title_text'      => $digi_wp_t( 'You may be interested in...' ),
+	),
+	'keep'     => array(
+		'columns',
+		'rows',
+		'paginate',
+		'allow_order',
+		'show_result_count',
+		'products_title_show',
+		'products_related_products_title_text',
+		'products_upsells_title_text',
+		'products_cross_sells_title_text',
+		'products_title_alignment',
+		'products_class',
+		'column_gap',
+		'row_gap',
+		'align',
+		'image_border_radius',
+		'image_spacing',
+		'title_color',
+		'title_spacing',
+		'star_color',
+		'empty_star_color',
+		'star_size',
+		'rating_spacing',
+		'price_color',
+		'old_price_color',
+		'button_text_color',
+		'button_background_color',
+		'button_border_color',
+		'button_hover_color',
+		'button_hover_background_color',
+		'button_hover_border_color',
+		'button_border_radius',
+		'button_text_padding',
+		'button_spacing',
+		'automatically_align_buttons',
+		'view_cart_color',
+		'view_cart_spacing',
+		'box_border_width',
+		'box_border_radius',
+		'box_padding',
+		'box_bg_color',
+		'box_border_color',
+		'box_bg_color_hover',
+		'box_border_color_hover',
+		'pagination_spacing',
+		'show_pagination_border',
+		'pagination_border_color',
+		'pagination_padding',
+		'pagination_link_color',
+		'pagination_link_bg_color',
+		'pagination_link_color_hover',
+		'pagination_link_bg_color_hover',
+		'pagination_link_color_active',
+		'pagination_link_bg_color_active',
+		'show_onsale_flash',
+		'onsale_text_color',
+		'onsale_text_background_color',
+		'onsale_border_radius',
+		'onsale_width',
+		'onsale_height',
+		'onsale_horizontal_position',
+		'onsale_distance',
+		'products_title_color',
+		'products_title_spacing',
+	),
+	'groups'   => array(
+		'query' => 'query',
+		'image_border' => 'image_border',
+		'title_typography' => 'title_typography',
+		'price_typography' => 'price_typography',
+		'old_price_typography' => 'old_price_typography',
+		'button_typography' => 'button_typography',
+		'button_border' => 'button_border',
+		'view_cart_typography' => 'view_cart_typography',
+		'box_shadow' => 'box_shadow',
+		'box_shadow_hover' => 'box_shadow_hover',
+		'pagination_typography' => 'pagination_typography',
+		'onsale_typography' => 'onsale_typography',
+		'products_title_typography' => 'products_title_typography',
+	),
+	// Avisos y encabezados del panel, sin valor.
+	'ui'       => array(
+		'wc_notice_frontpage',
+		'related_products_note',
+		'upsells_products_note',
+		'cross_sells_products_note',
+		'wc_style_warning',
+		'heading_image_style',
+		'heading_title_style',
+		'heading_rating_style',
+		'heading_price_style',
+		'heading_old_price_style',
+		'heading_button_style',
+		'heading_view_cart_style',
+	),
+	'classes'  => is_file( __DIR__ . '/_woo-products-classes.php' ) ? (array) require __DIR__ . '/_woo-products-classes.php' : array(),
+);

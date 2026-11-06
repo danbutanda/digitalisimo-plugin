@@ -1,0 +1,6 @@
+/* Avisos de la tienda (digitalisimo-woo-notices): fuera del widget, los avisos de WooCommerce no se ven (el script los
+   trae aquí), como el estilo en línea del widget de PRO; dentro, sí. */
+body:not(.elementor-editor-active) :is(.woocommerce-notices-wrapper,.woocommerce-message,.woocommerce-error,.woocommerce-info){display:none}
+.elementor-widget-digitalisimo-woo-notices :is(.woocommerce .is-error,.woocommerce .is-info,.woocommerce .is-success,.woocommerce-error,.woocommerce-info,.woocommerce-message,.woocommerce-notices-wrapper){display:block}
+.e-preview--show-hidden-elements:not(.elementor-editor-active) .elementor-widget-digitalisimo-woo-notices .digi-woo-notices__demo{display:none}
+.elementor-widget-digitalisimo-woo-notices :is(a,button):focus-visible{outline:2px solid;outline-offset:2px}
