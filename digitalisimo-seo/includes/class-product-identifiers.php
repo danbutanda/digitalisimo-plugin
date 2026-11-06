@@ -36,7 +36,9 @@ class Digitalisimo_Integrations_Product_Identifiers {
 		if ( ! is_object( $product_object ) || ! function_exists( 'woocommerce_wp_text_input' ) ) return;
 		$id = $product_object->get_id();
 		woocommerce_wp_text_input( array( 'id' => self::MPN, 'value' => (string) get_post_meta( $id, self::MPN, true ), 'label' => '<abbr title="Manufacturer Part Number">MPN</abbr>', 'desc_tip' => true, 'description' => 'Código del fabricante, tal como lo da (hasta 70 caracteres). Se publica en el schema del producto.', 'custom_attributes' => array( 'maxlength' => Digitalisimo_Integrations_Schema_Graph::MPN_MAX ) ) );
-		woocommerce_wp_text_input( array( 'id' => self::ISBN, 'value' => (string) get_post_meta( $id, self::ISBN, true ), 'label' => '<abbr title="International Standard Book Number">ISBN</abbr>', 'desc_tip' => true, 'description' => 'Sólo para libros: ISBN-10 o ISBN-13, con o sin guiones. Se comprueba el dígito de control y un ISBN equivocado no se guarda. El producto se publica también como Book.', 'custom_attributes' => array( 'pattern' => '[0-9Xx\\- ]{10,17}', 'inputmode' => 'text' ) ) );
+		// Sin `pattern`: en un panel oculto de Datos del producto, un valor que no lo cumple bloquea en silencio el guardado
+		// de todo el producto. El ISBN se comprueba al guardar y un error se avisa.
+		woocommerce_wp_text_input( array( 'id' => self::ISBN, 'value' => (string) get_post_meta( $id, self::ISBN, true ), 'label' => '<abbr title="International Standard Book Number">ISBN</abbr>', 'desc_tip' => true, 'description' => 'Sólo para libros: ISBN-10 o ISBN-13, con o sin guiones. Se comprueba el dígito de control y un ISBN equivocado no se guarda. El producto se publica también como Book.', 'custom_attributes' => array( 'maxlength' => 30 ) ) );
 		woocommerce_wp_select( array( 'id' => self::CONDITION, 'value' => (string) get_post_meta( $id, self::CONDITION, true ), 'label' => 'Estado', 'desc_tip' => true, 'description' => 'Estado del artículo (itemCondition) en el schema. El del sitio se elige en SEO → Schema.', 'options' => self::condition_choices() ) );
 	}
 
@@ -45,7 +47,7 @@ class Digitalisimo_Integrations_Product_Identifiers {
 		$loop = (int) $loop;
 		echo '<div class="digitalisimo-seo-variation-ids">';
 		woocommerce_wp_text_input( array( 'id' => self::MPN . '_variation' . $loop, 'name' => self::MPN . '_variation[' . $loop . ']', 'value' => (string) get_post_meta( $variation->ID, self::MPN, true ), 'label' => 'MPN', 'wrapper_class' => 'form-row form-row-first', 'desc_tip' => true, 'description' => 'Código del fabricante de esta variación. Vacío: la variación no publica ninguno (nunca el del producto).', 'custom_attributes' => array( 'maxlength' => Digitalisimo_Integrations_Schema_Graph::MPN_MAX ) ) );
-		woocommerce_wp_text_input( array( 'id' => self::ISBN . '_variation' . $loop, 'name' => self::ISBN . '_variation[' . $loop . ']', 'value' => (string) get_post_meta( $variation->ID, self::ISBN, true ), 'label' => 'ISBN', 'wrapper_class' => 'form-row form-row-last', 'desc_tip' => true, 'description' => 'ISBN-10 o ISBN-13 de esta variación (por ejemplo, otra edición).', 'custom_attributes' => array( 'pattern' => '[0-9Xx\\- ]{10,17}' ) ) );
+		woocommerce_wp_text_input( array( 'id' => self::ISBN . '_variation' . $loop, 'name' => self::ISBN . '_variation[' . $loop . ']', 'value' => (string) get_post_meta( $variation->ID, self::ISBN, true ), 'label' => 'ISBN', 'wrapper_class' => 'form-row form-row-last', 'desc_tip' => true, 'description' => 'ISBN-10 o ISBN-13 de esta variación (por ejemplo, otra edición).', 'custom_attributes' => array( 'maxlength' => 30 ) ) );
 		echo '</div>';
 	}
 

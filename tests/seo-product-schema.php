@@ -40,6 +40,8 @@ require __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-vocabulary.
 require __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-rules.php';
 require __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-graph.php';
 function check( $ok, $message ) { if ( ! $ok ) { fwrite( STDERR, "FALLO: $message\n" ); exit( 1 ); } }
+// Un aviso de PHP (también Deprecated) es un fallo: php-wasm sale con 0 aunque lo imprima.
+set_error_handler( function( $level, $message, $file, $line ) { fwrite( STDERR, "FALLO: aviso de PHP «{$message}» en {$file}:{$line}\n" ); exit( 1 ); } );
 $G = 'Digitalisimo_Integrations_Schema_Graph';
 $R = 'Digitalisimo_Integrations_Schema_Rules';
 
@@ -50,6 +52,7 @@ check( 'AB-123/4 x' === $G::sanitize_mpn( "  <b>AB-123/4</b>\t x " ) && '' === $
 check( '4006381333931' === $G::sanitize_gtin( '4006-3813-3393-1' ) && '' === $G::sanitize_gtin( '0123' ) && '' === $G::sanitize_gtin( '12345678901' ), 'El GTIN se valida como WooCommerce: 8, 12, 13 o 14 cifras.' );
 check( 'UsedCondition' === $G::sanitize_condition( 'https://schema.org/UsedCondition' ) && '' === $G::sanitize_condition( 'MintCondition' ) && '' === $G::sanitize_condition( '' ), 'Sólo los estados de OfferItemCondition de la lista.' );
 foreach ( array_keys( $G::CONDITIONS ) as $condition ) check( 'official' === Digitalisimo_Integrations_Schema_Vocabulary::status( $condition ), "$condition está en el vocabulario oficial" );
+check( '' === $G::sanitize_mpn( "AB\xC3" ) && '' === $G::sanitize_brand_name( "Ac\xC3" ), 'UTF-8 inválido no se acepta (y sin avisos de PHP).' );
 check( 'Acme' === $G::sanitize_brand_name( " <i>Acme</i>\n " ) && 100 === mb_strlen( $G::sanitize_brand_name( str_repeat( 'ñ', 150 ) ) ), 'La marca fija es una línea de texto de hasta 100 caracteres.' );
 
 // --- Nodo propio ---
@@ -89,9 +92,13 @@ $GLOBALS['products'] = array(
 	14 => new Fake_Product( array( 'id' => 14, 'type' => 'variation', 'sku' => 'L-1-N', 'price' => '', 'attributes' => array( 'attribute_pa_color' => 'negro', 'attribute_tapa' => 'dura' ) ) ),
 	15 => new Fake_Product( array( 'id' => 15, 'type' => 'variation', 'sku' => 'L-1-A', 'price' => '9', 'attributes' => array( 'attribute_pa_color' => 'azul', 'attribute_tapa' => 'blanda' ) ) ),
 );
-$parent = new Fake_Product( array( 'id' => 10, 'type' => 'variable', 'sku' => 'L-1', 'gtin' => '4006381333931', 'attributes' => array( 'pa_color' => array(), 'Tapa' => array() ), 'children' => array( 11, 12, 13, 14, 15 ) ) );
+$parent = new Fake_Product( array( 'id' => 10, 'type' => 'variable', 'sku' => 'L-1', 'gtin' => '4006381333931', 'price' => '9', 'attributes' => array( 'pa_color' => array(), 'Tapa' => array() ), 'children' => array( 11, 12, 13, 14, 15 ) ) );
 $GLOBALS['meta'] = array( 10 => array( 'digitalisimo_seo_mpn' => 'PADRE-1', 'digitalisimo_seo_isbn' => '9780306406157', 'digitalisimo_seo_condition' => 'UsedCondition' ), 11 => array( 'digitalisimo_seo_mpn' => 'ROJO-1' ) );
 $_GET = array( 'attribute_pa_color' => 'rojo', 'attribute_tapa' => 'dura' );
+check( ! $G::woo_selects_variation() && null === $G::selected_variation( $parent ), 'Un WooCommerce que no elige variación en su marcado: el nodo propio tampoco (la unificación mezclaría los dos).' );
+// Sin elevar la declaración: la clase sólo existe desde aquí, como en un WooCommerce que ya elige la variación.
+if ( ! class_exists( 'WC_Structured_Data' ) ) { class WC_Structured_Data { private function get_selected_variation( $product ) { return null; } } }
+check( $G::woo_selects_variation(), 'WooCommerce con get_selected_variation() elige la variación.' );
 check( 11 === $G::selected_variation( $parent )->id, 'Todos los atributos y una sola coincidencia: esa variación.' );
 $_GET = array( 'attribute_pa_color' => 'rojo' );
 check( null === $G::selected_variation( $parent ), 'Falta un atributo: ninguna variación.' );
@@ -104,6 +111,9 @@ check( null === $G::selected_variation( $parent ), 'Una variación sin precio no
 $_GET = array( 'attribute_pa_color' => array( 'rojo' ), 'attribute_tapa' => 'dura' );
 check( null === $G::selected_variation( $parent ), 'Un arreglo en la consulta no se acepta.' );
 check( null === $G::selected_variation( $GLOBALS['products'][11] ), 'Un producto que no es variable no tiene variación elegida.' );
+$_GET = array( 'attribute_pa_color' => 'rojo', 'attribute_tapa' => 'dura' );
+$no_price = clone $parent; $no_price->price = '';
+check( null === $G::selected_variation( $no_price ), 'Sin precio del producto, WooCommerce no elige variación (no publica oferta): aquí tampoco.' );
 
 $_GET = array();
 $data = $G::product_data( $parent );
@@ -122,6 +132,12 @@ $GLOBALS['settings']['seo_product_condition'] = 'Inventado';
 check( '' === $G::product_condition( 22 ), 'Un estado del sitio desconocido no se publica.' );
 
 // Marcado de WooCommerce: lo que el sitio declaró, sólo si este plugin publica su schema.
+// Antes de 11.2.0, set_data() de WooCommerce rompe con un `@type` múltiple: el ISBN (y Book) no van a su marcado.
+check( ! $G::woo_accepts_types() && ! $G::woo_accepts_types( '11.1.9' ) && ! $G::woo_accepts_types( '' ) && $G::woo_accepts_types( '11.2.0' ) && $G::woo_accepts_types( '12.0.1' ), 'Varios tipos en el marcado de WooCommerce sólo desde 11.2.0 (sin versión conocida, nunca).' );
+$_GET = array();
+$old_woo = $G::woo_markup( array( '@type' => 'Product' ), $parent );
+check( 'Product' === $old_woo['@type'] && ! isset( $old_woo['isbn'] ) && 'PADRE-1' === $old_woo['mpn'], 'Con WooCommerce anterior a 11.2.0 el marcado conserva un solo tipo y no lleva ISBN; el MPN sí.' );
+define( 'WC_VERSION', '11.2.1' );
 $_GET = array( 'attribute_pa_color' => 'rojo', 'attribute_tapa' => 'dura' );
 $woo_variation = $G::woo_markup( array( '@type' => 'Product', 'sku' => 'L-1-R', 'inProductGroupWithID' => 'L-1', 'offers' => array( array( '@type' => 'Offer', 'price' => '9' ) ) ), $parent );
 check( 'ROJO-1' === $woo_variation['mpn'] && ! isset( $woo_variation['isbn'] ) && 'Product' === $woo_variation['@type'] && 'https://schema.org/UsedCondition' === $woo_variation['offers'][0]['itemCondition'], 'WooCommerce con variación elegida recibe el MPN de la variación y el estado.' );
@@ -163,5 +179,6 @@ check( false !== strpos( $suite, '$brands[ Digitalisimo_Integrations_Schema_Grap
 check( 1 === preg_match( "/add_filter\\( 'woocommerce_structured_data_product', array\\( __CLASS__, 'woo_markup' \\)/", file_get_contents( __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-graph.php' ) ), 'El marcado de WooCommerce se completa con un filtro, no con una acción.' );
 $editor = file_get_contents( __DIR__ . '/../digitalisimo-seo/includes/class-product-identifiers.php' );
 check( false !== strpos( $editor, "'woocommerce_admin_process_product_object'" ) && false !== strpos( $editor, "'woocommerce_admin_process_variation_object'" ) && false === strpos( $editor, 'update_post_meta' ), 'El editor guarda en el objeto de WooCommerce, dentro de su guardado (nonce y permisos de WooCommerce).' );
+check( false === strpos( $editor, "'pattern'" ) && false === strpos( $editor, "'required'" ), 'Ningún campo del editor lleva validación HTML: en un panel oculto bloquearía en silencio el guardado del producto.' );
 
 echo "Producto en el schema: MPN, ISBN, estado, variaciones, marca y paridad correctos.\n";

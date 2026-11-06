@@ -633,6 +633,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 	const CONDITIONS = array( 'NewCondition' => 'Nuevo', 'UsedCondition' => 'Usado', 'RefurbishedCondition' => 'Reacondicionado', 'DamagedCondition' => 'Dañado' );
 	/** Google Merchant Center admite MPN de hasta 70 caracteres. */
 	const MPN_MAX = 70;
+	/**
+	 * Primera versión de WooCommerce cuyo set_data() acepta varios tipos en `@type`. Antes, un arreglo rompe la
+	 * página del producto (TypeError de preg_match() en PHP 8) o, en PHP 7, descarta todo su marcado.
+	 */
+	const WOO_TYPES_SINCE = '11.2.0';
 
 	/** Marca de un producto: la fija del sitio o la primera asignada en la taxonomía elegida. '' si no hay. */
 	public static function product_brand( $post_id ) {
@@ -644,7 +649,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	/** Texto de la marca fija: una línea, sin etiquetas, como mucho 100 caracteres. */
 	public static function sanitize_brand_name( $value ) {
-		$value = trim( preg_replace( '/\s+/u', ' ', strip_tags( (string) $value ) ) );
+		// UTF-8 inválido: preg_replace() devuelve null y la marca queda vacía.
+		$value = trim( (string) preg_replace( '/\s+/u', ' ', strip_tags( (string) $value ) ) );
 		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 100 ) : substr( $value, 0, 100 );
 	}
 
@@ -663,7 +669,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	/** MPN: el código del fabricante tal como lo escribe, en una línea y con como mucho 70 caracteres. */
 	public static function sanitize_mpn( $value ) {
-		$value = trim( preg_replace( '/[\s\x00-\x1F\x7F]+/u', ' ', strip_tags( (string) $value ) ) );
+		// UTF-8 inválido: preg_replace() devuelve null y el MPN no se acepta.
+		$value = trim( (string) preg_replace( '/[\s\x00-\x1F\x7F]+/u', ' ', strip_tags( (string) $value ) ) );
 		if ( '' === $value ) return '';
 		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
 		return $length <= self::MPN_MAX ? $value : '';
@@ -722,11 +729,16 @@ class Digitalisimo_Integrations_Schema_Graph {
 	}
 
 	/**
-	 * Variación elegida en la URL con las reglas de WooCommerce: todos sus atributos en la consulta,
-	 * una sola variación publicada que coincide y con precio. Null en cualquier otro caso.
+	 * Variación elegida en la URL con las reglas de WooCommerce: producto con precio, todos sus atributos en la
+	 * consulta, una sola variación publicada que coincide y con precio. Null en cualquier otro caso.
 	 */
 	public static function selected_variation( $product ) {
 		if ( ! is_object( $product ) || ! is_callable( array( $product, 'is_type' ) ) || ! $product->is_type( 'variable' ) || ! function_exists( 'wc_variation_attribute_name' ) ) return null;
+		// WooCommerce sólo elige variación dentro de la oferta, que no publica sin precio del producto; si aquí se
+		// eligiera, el nodo propio describiría la variación y la unificación le añadiría los identificadores del padre.
+		if ( '' === (string) $product->get_price() ) return null;
+		// Con un WooCommerce que no elige variación, su marcado describe el producto y la unificación mezclaría los dos.
+		if ( ! self::woo_selects_variation() ) return null;
 		$match = array();
 		foreach ( array_keys( (array) $product->get_variation_attributes() ) as $attribute ) {
 			$key = wc_variation_attribute_name( $attribute );
@@ -776,7 +788,20 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$data      = self::product_data( $product, $variation );
 		// WooCommerce eligió una variación que aquí no se reconoce: sin identificadores, nunca los del padre.
 		if ( isset( $markup['inProductGroupWithID'] ) && ! $variation ) $data['mpn'] = $data['isbn'] = '';
+		// El ISBN exige el tipo Product+Book, que WooCommerce anterior a 11.2.0 no admite: ahí sólo va en el nodo propio.
+		if ( ! self::woo_accepts_types() ) $data['isbn'] = '';
 		return self::product_extras( $markup, $data );
+	}
+
+	/** ¿El WooCommerce cargado describe en su marcado la variación elegida en la URL (y no sólo el producto)? */
+	public static function woo_selects_variation() {
+		return class_exists( 'WC_Structured_Data' ) && method_exists( 'WC_Structured_Data', 'get_selected_variation' );
+	}
+
+	/** ¿El WooCommerce cargado (o la versión dada) acepta varios tipos en `@type`? Sin versión conocida, no. */
+	public static function woo_accepts_types( $version = null ) {
+		$version = (string) ( null === $version ? ( defined( 'WC_VERSION' ) ? WC_VERSION : '' ) : $version );
+		return '' !== $version && version_compare( $version, self::WOO_TYPES_SINCE, '>=' );
 	}
 
 	/**
