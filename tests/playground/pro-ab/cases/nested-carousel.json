@@ -2332,11 +2332,6 @@
      "kind": "nombre",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
-    },
-    {
-     "kind": "palabra",
-     "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
     }
    ]
   },
@@ -2521,11 +2516,6 @@
      "kind": "nombre",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
-    },
-    {
-     "kind": "palabra",
-     "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
     }
    ]
   },

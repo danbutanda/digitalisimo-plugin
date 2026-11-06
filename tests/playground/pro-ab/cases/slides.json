@@ -767,11 +767,6 @@
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     },
     {
-     "kind": "palabra",
-     "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado."
-    },
-    {
      "kind": "hover",
      "match": ".",
      "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
@@ -903,11 +898,6 @@
      "kind": "nombre",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
-    },
-    {
-     "kind": "palabra",
-     "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado."
     },
     {
      "kind": "hover",
