@@ -90,7 +90,8 @@ defined( 'ABSPATH' ) || exit;
  * carrusel anidado y el de bucle. En el editor, el carrusel anidado no copia ni da la vuelta (PRO lo apagaba ahí). Con
  * bucle nunca hay `--locked`. Las visibles se acotan a `--digi-crs-n` (como el `Math.min` de PRO en los carruseles de
  * `carousel/widgets/base.php`); el anidado y el de bucle la fijan a 99 en su hoja, porque el `CarouselBase` del núcleo
- * no acotaba. El desplazamiento lo anima el script con la duración de `--digi-crs-speed` y el imán apagado mientras
+ * no acotaba (con una sola diapositiva, PRO no arrancaba Swiper y la pintaba a todo el ancho: lo repite su regla
+ * `:only-child`, con especificidad de id). El desplazamiento lo anima el script con la duración de `--digi-crs-speed` y el imán apagado mientras
  * dura (con la página oculta, sin fotogramas, salta directamente); un desplazamiento sin toque, rueda ni tecla del
  * usuario (un reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática.
  * **Arrastre con el ratón** (como `simulateTouch` de Swiper, fuera del editor): la pista sigue al puntero y, al soltar,
