@@ -2447,7 +2447,7 @@
    "ok": 38,
    "editor_pro": "65 widgets de PRO registrados y ocultos (C0, C1, C2, C4 y C7), también en una plantilla de producto y una de archivo de productos; la búsqueda ofrece los propios; Elementos del producto y los clásicos fuera del panel, como en PRO"
   },
-  "tras_fusionar": "pendiente"
+  "tras_fusionar": "int2 e int3: 35 comprobaciones de front en verde; el paso del editor agotó los 180 s mientras el guardián tenía congelada la unidad. int4 (EDITOR_MS=900000) la detuvo el coordinador por la carga; se repite una vez tras fusionar C5."
  },
  "pro_ab_nota": "abm, abn1 y abd antes de fusionar C3 (Elements 4.3.0.175); abn2, abr y abr2 después (4.3.0.176). wpg-product falló en abn1 y abr por el orden al azar de WooCommerce (ventas dirigidas y relacionados de la plantilla de la ficha) y pasa en abr2 con el arnés que los ordena por título; cuenta como caso de abr2."
 }
