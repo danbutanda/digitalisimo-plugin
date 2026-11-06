@@ -3204,6 +3204,37 @@
         "digitalisimo_badge_float": "yes"
       }
     },
+    "shortcode-guard": {
+      "widget": "shortcode",
+      "settings": {
+        "shortcode": "[digi_k_sin_plugin id=\"7\"]",
+        "digitalisimo_shortcode_if_registered": "yes"
+      }
+    },
+    "text-relief": {
+      "widget": "heading",
+      "settings": {
+        "title": "Con relieve",
+        "digitalisimo_relief": "yes",
+        "digitalisimo_relief_depth": {
+          "unit": "px",
+          "size": 24
+        },
+        "digitalisimo_relief_layers": 6,
+        "digitalisimo_relief_color": "#245EFF",
+        "digitalisimo_relief_perspective": {
+          "unit": "px",
+          "size": 400
+        },
+        "digitalisimo_relief_fade": "yes",
+        "digitalisimo_relief_event": "pointer",
+        "digitalisimo_relief_rotation": {
+          "unit": "deg",
+          "size": 20
+        },
+        "digitalisimo_relief_direction": "reverse"
+      }
+    },
     "export-skip": {
       "widget": "heading",
       "settings": {

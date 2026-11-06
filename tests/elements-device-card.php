@@ -83,5 +83,17 @@ namespace {
 	check_device( str_contains( $html, 'href="https://www.linkedin.com/in/ana" target="_blank" class="digi-fancy-card__social-link elementor-repeater-item-a1" rel="noopener noreferrer" aria-label="LinkedIn"><i aria-hidden="true"></i></a>' ), 'Un perfil con icono usa el nombre como aria-label.' );
 	check_device( str_contains( $html, 'elementor-repeater-item-a2">Sitio</a>' ) && ! str_contains( $html, 'aria-label="Sitio"' ), 'Un perfil sin icono muestra su nombre como texto.' );
 	check_device( isset( $card->controls['social_links']['fields']['social_icon'], $card->controls['social_links']['fields']['social_label'], $card->controls['social_links']['fields']['social_link'] ) && array() === $card->controls['social_links']['default'], 'El repetidor de redes empieza vacío para no cambiar tarjetas existentes.' );
+	// Proporción de la imagen (opcional, F8): vacío deja la hoja tal cual (4:3 recortada); «Original» la muestra entera.
+	$ratio = $card->controls['image_ratio'] ?? array();
+	check_device( 'select' === ( $ratio['type'] ?? '' ) && '' === ( $ratio['default'] ?? null ) && 'image' === ( $ratio['condition']['icon_type'] ?? '' ), 'La proporción es un desplegable opcional, vacío por defecto y sólo con imagen.' );
+	check_device( array( '', 'auto', '1/1', '3/2', '16/9', '2/3' ) === array_keys( $ratio['options'] ?? array() ) && array( '{{WRAPPER}} .digi-fancy-card__image' => 'aspect-ratio:{{VALUE}};' ) === ( $ratio['selectors'] ?? null ), 'Las proporciones se escriben como aspect-ratio sobre la imagen de la propia tarjeta.' );
+	foreach ( array_keys( $ratio['options'] ) as $value ) { check_device( (bool) preg_match( '#^(|auto|[1-9][0-9]?/[1-9][0-9]?)$#', $value ), 'Cada proporción es un valor CSS válido: ' . $value ); }
+	$order = array_keys( $card->controls );
+	check_device( array_search( 'image_ratio', $order, true ) === array_search( 'image', $order, true ) + 1, 'La proporción va justo después de la imagen.' );
+	$sheet = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/fancy-card.css' );
+	check_device( str_contains( $sheet, '.digi-fancy-card__image{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}' ), 'Sin elegir proporción, la tarjeta sigue recortando la imagen a 4:3 (ningún widget existente cambia).' );
+	$card->settings = array( 'icon_type' => 'image', 'image' => array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ), 'title_text' => 'T', 'image_ratio' => 'auto' );
+	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
+	check_device( str_contains( $html, '<div class="digi-fancy-card__visual"><img class="digi-fancy-card__image" ' ) && ! str_contains( $html, 'auto' ), 'La proporción sólo cambia el CSS generado: el marcado es el mismo.' );
 	echo "DIGITALÍSIMO Elements: Slider de dispositivos y Tarjeta destacada validados.\n";
 }

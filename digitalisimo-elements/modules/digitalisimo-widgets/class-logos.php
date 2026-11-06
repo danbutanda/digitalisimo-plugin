@@ -163,7 +163,7 @@ class Logos_Widget extends \Elementor\Widget_Base {
 			$shown_name   = $show['name'] && '' !== $name && $item['caption'];
 			$caption      = $item['caption'] && ( $shown_name || '' !== $description ) || $text_link;
 			$alt          = Image_Markup::alt( $item['image'], $name, true );
-			if ( $shown_name && ! $image_linked ) { $alt = ''; }
+			if ( $shown_name && ! $image_linked && 'click' !== $details ) { $alt = ''; } // Junto al nombre visible, ALT vacío (la marca no se anuncia dos veces); «Al abrir» deja el nombre dentro del <details> cerrado y el logotipo, lo único visible, conserva su ALT (el aria-label del summary manda en su nombre accesible).
 			$image = $this->image_html( $item['image'], $alt, $size, $columns );
 			if ( '' === $image && '' === $name ) { continue; }
 			$item_mods = $linked ? array( 'linked' ) : array();
@@ -254,7 +254,7 @@ class Logos_Widget extends \Elementor\Widget_Base {
 			var shownName = show.name && item.name && item.caption;
 			var caption = item.caption && ( shownName || description ) || textLink;
 			var alt = item.image.alt || item.name || '';
-			if ( shownName && ! imageLinked ) { alt = ''; }
+			if ( shownName && ! imageLinked && details !== 'click' ) { alt = ''; }
 			var image = img( item, alt );
 			if ( ! image && ! item.name ) { return; }
 		#>

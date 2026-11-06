@@ -67,9 +67,16 @@ for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
     for (const [blog, entryA] of Object.entries(blogs)) {
       const entryB = b.widgets?.[widget]?.[name]?.[blog];
       const problems = [];
-      if (!entryA.registered) problems.push('Element Pack no registró el widget en la fase A');
-      if (!entryB?.registered) problems.push('el adaptador no registró el widget en la fase B');
       const notes = [];
+      // Element Pack sólo registra sus widgets de integración con su plugin activo: sin él, la página no muestra nada.
+      // Si tras migrar tampoco se pinta nada (el widget Shortcode con «Ocultar si falta el shortcode»), es lo mismo.
+      const silent = (entry) => !!entry && ['text', 'links', 'images'].every((key) => !(entry.signature?.[key] ?? []).length);
+      const later = [entryB, c?.widgets?.[widget]?.[name]?.[blog], e?.widgets?.[widget]?.[name]?.[blog]].filter(Boolean);
+      if (!entryA.registered) {
+        if (silent(entryA) && entryB?.registered && later.every(silent)) notes.push('Element Pack no lo registra sin su plugin; tampoco se muestra tras migrar');
+        else problems.push('Element Pack no registró el widget en la fase A');
+      }
+      if (!entryB?.registered) problems.push('el adaptador no registró el widget en la fase B');
       for (const key of ['text', 'links', 'images']) {
         const ta = norm(entryA.signature[key]); const tb = norm(entryB?.signature?.[key] ?? []);
         const missing = ta.filter((x) => !tb.includes(x)); const extra = tb.filter((x) => !ta.includes(x));
