@@ -148,7 +148,8 @@ síncronos, como el botón de la pantalla, hasta que la cola de «Trabajos» los
   ruta que registró la pantalla (ver «Almacenamiento local»).
 
 Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`): WordPress 7.1.4, PHP 8.5 y SQLite, en un sitio
-individual y en una red con un subsitio, todo por HTTP real. Pasaron 58 comprobaciones en 284 s.
+individual y en una red con un subsitio, todo por HTTP real. Pasaron 61 comprobaciones (26 en el sitio individual y 35
+en la red, unos 290 s).
 
 | Qué | Resultado |
 | --- | --- |
@@ -157,6 +158,7 @@ individual y en una red con un subsitio, todo por HTTP real. Pasaron 58 comproba
 | Respaldo y restauración por REST | ZIP de 39 MB y 3803 entradas en 17 s, verificado. Un cambio posterior vuelve atrás al restaurar (25 s), con su copia previa. |
 | Red por REST | Sin `network=true`, 400. El subsitio responde 400 y su estado explica por qué. |
 | WP-CLI real | Sinopsis tomadas del PHPDoc. `restore` sin `--confirm` no corre. `create --porcelain` (18 s) aparece primero en el historial de REST. En la red, sin `--network` o desde el subsitio, falla con el motivo. |
+| Medios de un subsitio | Con `upload_path` fuera de `ABSPATH`, el estado nombra el sitio, el ajuste y la carpeta que calcula WordPress, y `POST /backups` responde 422 sin exportar. Con su valor original, la red vuelve a estar lista. |
 
 ## Almacenamiento local
 
