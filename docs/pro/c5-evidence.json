@@ -1004,6 +1004,12 @@
    }
   },
   "chrome": "tests/elements-pro-posts-chrome.mjs: 210 comprobaciones («Cargar más» conserva el foco del teclado mientras carga; paginación de PRO y propia con letra de 12 y 16 px y separación de 0 y 10 px: misma geometría, mismos píxeles y clic en el centro de cada número; cascada con reset.css de Hello, frontend.min.css, un kit con botones y el CSS del documento en siete escenarios, también con un término de una letra: reposo, cursor, clic y teclado; mampostería en px, 0 sin valor, sin subir con una expresión, sin heredar y desde el borde exterior). Fallan con el código anterior.",
-  "php": "elements-pro-posts.php 11 936, elements-pro-loop.php 147 (con la separación de «Cargar más» de PRO descartada al convertir: sus hojas leen otra variable, también en PRO Elements 4.3.2 oficial), elements-pro-theme-titles-media.php 375, elements-f7b-actions.php 272 y elements-f7b-actions.mjs 83, sin Fatal, Uncaught ni FALLA."
+  "php": "elements-pro-posts.php 11 936, elements-pro-loop.php 147 (con la separación de «Cargar más» de PRO descartada al convertir: sus hojas leen otra variable, también en PRO Elements 4.3.2 oficial), elements-pro-theme-titles-media.php 375, elements-f7b-actions.php 272 y elements-f7b-actions.mjs 83, sin Fatal, Uncaught ni FALLA.",
+  "separacion_cargar_mas": {
+   "descarga": "https://github.com/proelements/proelements/releases/download/v4.3.2/pro-elements.zip (sha256 8e4f32b32de828e64317e56747d363df695b7ee48300b505949392567fe8a6a4), sólo leída fuera del repositorio",
+   "control": "modules/posts/widgets/posts-base.php: «--load-more—spacing: {{SIZE}}{{UNIT}};» (raya larga, UTF-8 e2 80 94)",
+   "hojas": "assets/css/widget-posts.min.css y widget-loop-grid.min.css: «var(--load-moreвЂ”spacing,30px)» (la raya codificada dos veces, d0 b2 d0 82 e2 80 9d) en el botón, el cargador y el mensaje; igual en la copia derivada de Elements",
+   "resultado": "PRO deja siempre 30 px; lo convertido descarta load_more_spacing (pro.dropped) y el propio, sin valor, deja 30 px"
+  }
  }
 }
