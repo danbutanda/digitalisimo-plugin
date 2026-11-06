@@ -551,21 +551,21 @@
   "problemas": 0
  },
  "validate_yml": {
-  "comandos": 335,
-  "detalle": "335 de la lista de validate.yml (tras fusionar C3) más node --check del servidor MCP y validate-suite con los ZIP: 332 en verde en la tanda; elements-pro-table-of-contents-chrome, elements-pro-gallery-chrome y elements-pro-search-form-chrome (C2/C4) fallaron con la máquina cargada y pasan solas; elements-pro-floating-chrome en verde en las dos pasadas"
+  "comandos": 338,
+  "detalle": "Lista de validate.yml tras fusionar C5 y 6316eec3, con ci-run.sh (busca ^FALL[AO]) por el semáforo y con nice: 334 en verde y ningún FALLO; elements-pro-animated-headline-chrome, -table-of-contents-chrome, -gallery-chrome y -search-form-chrome (C2/C4, no tocadas) fallaron con la máquina cargada y pasan las cuatro solas en la rama con nice 19 (en main, en las mismas condiciones, falló una de ellas); node --check del servidor MCP en verde"
  },
  "pruebas_c8": {
   "elements-pro-floating.php": 10087,
   "elements-pro-link-in-bio.php": 7101,
   "elements-pro-floating-chrome.mjs": 52,
-  "elements-convert.php": "catálogo de 102, 56 mapas",
+  "elements-convert.php": "catálogo de 102, 62 mapas",
   "migration-pro.php": 206,
-  "elements-front-budget.php": "99 widgets propios",
-  "elements-front-cases.php": 1448
+  "elements-front-budget.php": "105 widgets propios",
+  "elements-front-cases.php": 1464
  },
  "pro_migrate": {
-  "ok": 37,
-  "c8": "documento de botones flotantes (Multi Chat con CSS), documento de barra (Coupon), página Link in Bio (Classic y Business Card con CSS) y cabecera (Interactive): 5 variantes en 4 documentos, con su presentación y el CSS traducido; 52 widgets en 11 documentos en la primera pasada; --revert devuelve las variantes de PRO"
+  "ok": 44,
+  "c8": "tras fusionar C5: 66 widgets en 13 documentos en la primera pasada (C0–C5 y 5 variantes de C8 en dos documentos de botones flotantes, una página Link in Bio y una cabecera), con su presentación y el CSS traducido; segunda pasada vacía; --revert devuelve las variantes de PRO"
  },
  "front_budget": {
   "caso": "floating",
@@ -601,8 +601,8 @@
   }
  },
  "interaction": {
-  "estado": "pendiente: se repite una vez tras fusionar C5",
-  "detalle": "35 comprobaciones de front en verde en tres corridas; el paso del editor (editor-pro) se cortó por congelaciones del guardián (Navigation timeout de 180 s)",
-  "substituted": "17 variantes de C8 (Botones y Barra con ownHidden)"
+  "ok": 38,
+  "editor_pro": "62 widgets de PRO registrados y ocultos (C0–C5 y las 17 variantes de C8, también en plantillas individual y de archivo); Botones de contacto y Barra flotante propios fuera del panel, como PRO; «link in bio» → Link in Bio",
+  "nota": "tras fusionar C5, con EDITOR_MS=900000; los tres intentos anteriores se cortaron por congelaciones de la máquina"
  }
 }
