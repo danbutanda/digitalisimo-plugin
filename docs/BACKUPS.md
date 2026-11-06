@@ -47,6 +47,8 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | Bloqueo exclusivo del almacén durante respaldos, cron, políticas y restauraciones. | 1.0.46 | `backups-operation-lock.php` |
 | Avance del respaldo manual por base de datos, archivos y verificación; comprobación de alcance y archivos esenciales antes de iniciar; `wp-config.php` en la carpeta superior incluido. | 1.0.49 | `backups-manual-progress.php` |
 | Actualizador propio por el índice de la Release, en la carpeta real del plugin y conservándola al actualizar. | 1.0.48–1.0.55 | `backups-updater.php`, `backups-updater-manifest.php`, `updater-real-folder.php` |
+| REST (`digitalisimo-backups/v1`) y WP-CLI (`wp digitalisimo-backups`) usan los casos de uso de la pantalla (`Digitalisimo_Backups_Service`): estado, historial, crear, verificar, restaurar y automatizaciones; «Crear respaldo completo» y «Restaurar» de la pantalla pasan por ellos. REST pide la capability de la pantalla con la autenticación de WordPress (401 sin sesión, 403 sin permiso). En una red sólo responde el sitio principal, y crear, restaurar o ejecutar exigen el alcance de red explícito. Otra operación en curso responde 409, y ninguna respuesta lleva rutas del servidor ni identificadores remotos (ver «REST y WP-CLI»). Ensayado en Playground: WordPress 7.1.4, sitio individual y red (`tests/playground/backups-coverage.sh`). | @NEXT_BACKUPS@ | `backups-service.php`, `backups-rest.php`, `backups-cli.php` |
+| Rutas externas. `wp-config.php` en la carpeta superior o enlazado (archivos compartidos de un despliegue) se respalda; la restauración nunca lo escribe ni crea otro en `ABSPATH`. Fuera de `ABSPATH` o tras un enlace simbólico, wp-content, plugins, mu-plugins, medios o un directorio de temas se rechazan antes de exportar nada, con la carpeta, quién la define y qué hacer, en la pantalla, REST y WP-CLI; antes, plugins, medios y temas externos se omitían sin aviso. La restauración se detiene antes de tocar el sitio, un `ABSPATH` que es enlace de despliegue (`current → releases/N`) funciona y otro enlace dentro de `ABSPATH` detiene el respaldo con su destino, sin dejar ZIP. | @NEXT_BACKUPS@ | `backups-layout.php`, `backups-external-config.php` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -62,7 +64,7 @@ migración a otro servidor ni destinos remotos reales.
 | Seguridad | Cifrado autenticado, credenciales seguras, firma del manifiesto y validación de archivos no confiables. |
 | Automatización | Respaldo previo a actualizaciones, incrementales con borrados y cadena íntegra, retención que preserve dependencias y varios destinos por trabajo. |
 | Escala | Bases y archivos grandes reales, BLOBs, objetos SQL especiales y consistencia entre archivos y base de datos (WooCommerce). |
-| Cobertura | REST y WP-CLI sobre el mismo motor; rutas externas (`wp-config.php` o `wp-content` fuera de `ABSPATH`, enlaces simbólicos) siguen fallando de forma explícita. |
+| Cobertura | Hecho en @NEXT_BACKUPS@: REST y WP-CLI sobre los casos de uso de la pantalla, y rutas externas que funcionan (`wp-config.php`) o fallan antes de exportar con un mensaje claro (carpetas). Falta respaldar de verdad wp-content, plugins, medios o temas fuera de `ABSPATH`, que necesita una raíz nueva del ZIP aceptada por el validador estricto de «Seguridad» y por el empaquetador de «Trabajos»: va después de fusionar ambos. Al fusionar «Trabajos», `service_create()` y `service_run_automation()` encolan: REST responde 202 con el trabajo, WP-CLI hace avanzar la cola hasta terminar y llega `wp digitalisimo-backups jobs cancel`; `service_restore()` se niega con un trabajo activo. Al fusionar «Seguridad», `service_restore()` abre el paquete con su nivel de confianza (`RESTAURAR SIN FIRMA`; la frase por `--secret-file` o STDIN, nunca en la línea de órdenes) y `service_verify()` acepta `.dgbk`. Faltan en REST y WP-CLI bloquear, eliminar y descargar; también que la pantalla avise al abrirse de una estructura no respaldable y repetir en un hosting con MySQL el ensayo de REST y WP-CLI que ya pasa en Playground. |
 | Ensayos reales | MySQL, Multisite convencional, almacén privado en hosting real, servidor SFTP real y cuentas reales de Google Drive y OneDrive. |
 
 Siguiente bloque: cerrar seguridad y restauración en entornos reales (MySQL, Multisite, almacén privado y SFTP en un
@@ -76,6 +78,10 @@ hosting real) y preparar la restauración transaccional; después, rutas externa
 | `includes/class-backups.php` | Interfaz, ajustes, cron, ZIP/SQL, destinos, historial, retención y restauración (aún sin servicios separados ni motor de trabajos). |
 | `includes/class-digitalisimo-core.php` | Integra el menú DIGITALÍSIMO sin exigir otro plugin. |
 | `includes/class-digitalisimo-updater.php` | Actualizador por `Update URI` e índice de la Release, independiente de los demás plugins. |
+| `includes/trait-backups-service.php` | `Digitalisimo_Backups_Service`: casos de uso compartidos por la pantalla, REST y WP-CLI (estado, historial, crear, verificar, restaurar y automatizaciones), con el alcance de sitio o red y el bloqueo del almacén. |
+| `includes/class-backups-rest.php` | `Digitalisimo_Backups_Rest`: rutas `digitalisimo-backups/v1` con la capability de la pantalla. |
+| `includes/class-backups-cli.php` | `wp digitalisimo-backups` y `wp digitalisimo-backups automation`. |
+| `includes/class-backups-layout.php` | `Digitalisimo_Backups_Layout`: carpetas de WordPress que un respaldo completo debe contener; rechaza las externas o enlazadas antes de exportar. |
 | `assets/backups-admin.css` | Presentación propia sobre el diseño compartido `digitalisimo-ui/`. |
 
 La configuración y el historial viven en opciones del sitio o de la red. Hay acciones `admin-post`, eventos WP-Cron,
@@ -101,6 +107,46 @@ trabajo guarda recibos y hashes de cada uno; la retención trata cada cadena inc
 restauración descarga y verifica en staging, respalda el destino, activa mantenimiento y aplica los cambios con
 rollback, y nunca importa SQL de un archivo no verificado. Interfaz, REST y WP-CLI invocan el mismo motor, con
 capability, nonce o autenticación, sin tareas largas durante el guardado.
+
+## REST y WP-CLI
+
+Las dos superficies llaman a los mismos casos de uso que la pantalla, sin repetir pasos del motor: alcance, bloqueo del
+almacén, ZIP verificado, copia al destino, historial, rotación y restauración con copia previa. Crear y restaurar son
+síncronos, como el botón de la pantalla, hasta que la cola de «Trabajos» los encole.
+
+| REST (`/wp-json/digitalisimo-backups/v1`) | WP-CLI | Qué hace |
+| --- | --- | --- |
+| `GET /status` | `wp digitalisimo-backups status [--format=json]` | Si la instalación puede respaldarse completa (y por qué no), operación en curso, ubicación de `wp-config.php`, destinos, último respaldo y automatizaciones. |
+| `GET /backups` | `wp digitalisimo-backups list [--fields=…] [--format=…]` | Historial, del más reciente al más antiguo: tamaño, SHA-256, destino, alcance, bloqueo y si es restaurable aquí. |
+| `POST /backups` (`destination`, `network`) | `wp digitalisimo-backups create [--destination=…] [--network] [--porcelain]` | Respaldo completo de la instalación o de la red, verificado antes de registrarlo (201). |
+| `GET /backups/<archivo>/verify` | `wp digitalisimo-backups verify <archivo>` | Estructura, CRC y SHA-256 de cada entrada contra el manifiesto, y del archivo contra el historial, sin tocar el sitio. |
+| `POST /backups/<archivo>/restore` (`confirm=RESTAURAR`, `network`) | `wp digitalisimo-backups restore <archivo> --confirm=RESTAURAR [--network]` | Restauración con la copia previa bloqueada y la recuperación del motor. |
+| `GET /automations` | `wp digitalisimo-backups automation list` | Automatizaciones y su próxima ejecución. |
+| `POST /automations/<id>/run` (`network`) | `wp digitalisimo-backups automation run <id> [--network]` | «Ejecutar ahora» (201). |
+
+- **Autorización.** REST usa la autenticación de WordPress: con cookie exige el nonce `wp_rest` en `X-WP-Nonce`, y
+  también sirven las contraseñas de aplicación. Cada ruta pide la capability de la pantalla (`manage_network_options`
+  en una red, `manage_options` en un sitio individual): sin sesión responde 401 y sin permiso, 403. WP-CLI corre con la
+  cuenta del sistema, que ya controla los archivos y `wp-config.php`.
+- **Contexto.** En una red, el historial y las automatizaciones son del sitio principal: un subsitio (otra URL de REST o
+  `--url`) responde 400 y su `status` lo explica. Crear, restaurar y ejecutar abarcan todos los sitios y piden
+  `network=true` o `--network`; en un sitio individual ese alcance se rechaza.
+- **Errores.** Responden con el mensaje del motor: 400 (alcance, destino o confirmación), 404 (archivo o automatización),
+  409 (otra operación en curso o automatización desactivada), 422 (instalación no respaldable o paquete que no supera
+  la verificación) y 500 (fallo del motor). WP-CLI termina con código 1.
+- **Almacén.** Sin `DOCUMENT_ROOT` (WP-CLI y cron), la carpeta privada sale de `DIGITALISIMO_BACKUPS_STORAGE_DIR` o de la
+  ruta que registró la pantalla (ver «Almacenamiento local»).
+
+Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`): WordPress 7.1.4, PHP 8.5 y SQLite, en un sitio
+individual y en una red con un subsitio, todo por HTTP real. Pasaron 58 comprobaciones en 284 s.
+
+| Qué | Resultado |
+| --- | --- |
+| Autenticación | Sin sesión, 401. Cookie sin nonce, 401 (WordPress la trata como anónima). Nonce falso, 403. Cookie con nonce, 200. |
+| Contraseñas de aplicación | De admin, 200. De una editora, 403. En la red, de un administrador del sitio principal que no administra la red, 403. |
+| Respaldo y restauración por REST | ZIP de 39 MB y 3803 entradas en 17 s, verificado. Un cambio posterior vuelve atrás al restaurar (25 s), con su copia previa. |
+| Red por REST | Sin `network=true`, 400. El subsitio responde 400 y su estado explica por qué. |
+| WP-CLI real | Sinopsis tomadas del PHPDoc. `restore` sin `--confirm` no corre. `create --porcelain` (18 s) aparece primero en el historial de REST. En la red, sin `--network` o desde el subsitio, falla con el motivo. |
 
 ## Almacenamiento local
 
