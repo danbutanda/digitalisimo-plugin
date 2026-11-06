@@ -492,7 +492,7 @@ namespace {
 	sort( $codes );
 	// `skin` se informa en toda presentación distinta de «Carrusel» (el traductor no distingue valores): el motivo dice
 	// que sólo «Coverflow» se aproxima.
-	$expected = array( 'coverflow:pro.approx:skin', 'css:pro.css:custom_css', 'slideshow:pro.approx:effect', 'slideshow:pro.approx:lazyload', 'slideshow:pro.approx:loop', 'slideshow:pro.approx:skin', 'video:pro.approx:effect' );
+	$expected = array( 'coverflow:pro.approx:skin', 'css:pro.css:custom_css', 'slideshow:pro.approx:effect', 'slideshow:pro.approx:lazyload', 'slideshow:pro.approx:skin', 'video:pro.approx:effect' );
 	check_mc( $expected === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_mc( 5 === count( $d['slides'] ) && str_ends_with( (string) $d['slides'][0]['image']['url'], 'placeholder.png' ) && 'image' === $d['slides'][0]['type'] && 'carousel' === $d['skin'] && 'Slides' === $d['slides_name'] && 'media-carousel' === $d['_digitalisimo_pro'], 'Un Media Carousel sin cambios llega con las cinco imágenes de muestra y el nombre de PRO.' );

@@ -9,7 +9,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * ```
  * section.digi-crs[.mods] aria-roledescription="carrusel" aria-label data-digi-* style="--digi-crs-speed:500ms"
- *   button.digi-crs__pause (sólo con autoplay; `hidden` hasta que el script arranca)
+ *   button.digi-crs__pause (sólo con autoplay; `hidden` hasta que el script arranca, y oculto a la vista salvo con el
+ *     foco del teclado: PRO no tenía botón, y así se ve igual sin perder el mecanismo de WCAG 2.2.2)
  *   button.digi-crs__arrow.digi-crs__prev (sólo con flechas)
  *   div.digi-crs__pagination data-digi-dot (sólo con paginación) > button.digi-crs__dot × N | span.digi-crs__fraction
  *     > span.digi-crs__now + span.digi-crs__total | div.digi-crs__bar > div.digi-crs__fill
@@ -26,14 +27,17 @@ defined( 'ABSPATH' ) || exit;
  * reproducción automática), `data-digi-loop`, `data-digi-hover` (pausa con el puntero encima), `data-digi-interaction`
  * (se para tras una acción del usuario), `data-digi-effect` (`slide`|`fade`), `data-digi-center`,
  * `data-digi-pagination` (`bullets`|`fraction`|`progressbar`), `data-digi-sync` (`#id` del carrusel principal, en el de
- * miniaturas). `--digi-crs-speed` y `--digi-crs-n` (número de diapositivas) van en el `style` de la raíz; la hoja acota
+ * miniaturas), `data-digi-grab` (cursor de agarre, `grabCursor` de Swiper en PRO) y `data-digi-click` (un clic en una
+ * diapositiva la lleva a la vista, `slideToClickedSlide`). `--digi-crs-speed` y `--digi-crs-n` (número de diapositivas) van en el `style` de la raíz; la hoja acota
  * las visibles a `min( --digi-crs-view, --digi-crs-n )`, como el `Math.min` de Swiper en PRO.
  *
  * **Clases de estado que pone el script:** `digi-crs--ready` en la raíz cuando el carrusel quedó iniciado (el arnés A/B
- * espera a que no quede ningún `.digi-crs:not(.digi-crs--ready)`), `--paused`, `--locked` (todo cabe en una página: se
- * ocultan flechas, paginación y pausa, como `watchOverflow`), `--anim` (fundido tras el primer cambio). En las
- * diapositivas: `digi-crs__current` (la primera visible, o la centrada), `digi-crs__synced` (en las miniaturas, la de la
- * diapositiva actual del carrusel principal) e `inert` (fuera de la ventana visible).
+ * espera a que no quede ningún `.digi-crs:not(.digi-crs--ready)`), `--paused`, `--locked` (sin bucle, todo cabe en una
+ * página: se ocultan paginación y pausa y las flechas quedan atenuadas con `aria-disabled`, como `watchOverflow` con la
+ * hoja del núcleo en PRO; con bucle nunca se bloquea), `--anim` (fundido tras el primer cambio), `--drag` (arrastre con
+ * el ratón en curso). En las diapositivas: `digi-crs__current` (la primera visible, o la centrada), `digi-crs__synced` (en
+ * las miniaturas, la de la diapositiva actual del carrusel principal), `inert` (fuera de la ventana visible) y, en las
+ * copias del bucle, `digi-crs__clone` y `slick-cloned` (la clase que el lightbox del núcleo ya excluye de sus galerías).
  *
  * **Modificadores** (args o `classes`): `digi-crs--fade`, `digi-crs--center` (la actual centrada, con espacio a los
  * lados), `digi-crs--arrows-out` (30 px a cada lado para las flechas, en el borde; `arrows_position = outside`),
@@ -59,11 +63,12 @@ defined( 'ABSPATH' ) || exit;
  * - Paginación: `--digi-crs-pag-space` (30px, reserva con `--pag-out`); posición `--digi-crs-pag-x`
  *   (`inset-inline-start`; 50%), `--digi-crs-pag-y` (`top`; calc(100% - 5px)) y `--digi-crs-pag-t` (`translate`;
  *   -50% -100%, con `--direction-multiplier` del núcleo en RTL). Con `progressbar`, arriba y a todo el ancho.
- * - Puntos (botones de 24 × 24 px como mínimo, sin solaparse: WCAG 2.5.8; el punto, en `::before`, a 7 px del pie de su
- *   botón, con el centro a 15 px del borde como PRO): `--digi-crs-dot-size` (6px), `--digi-crs-dot-gap` (6px a cada lado:
- *   entre centros, máx(24px, tamaño + 2 × separación); PRO, 18 px: diferencia declarada), `--digi-crs-dot-color`
- *   (#000) con `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal), `--digi-crs-dot-active` (#000,
- *   opacidad 1).
+ * - Puntos (cada uno un botón transparente con el punto en `::before`, a 7 px del pie de un botón de 24 px de alto como
+ *   mínimo, con el centro a 15 px del borde como PRO; en el carrusel anidado y en el de bucle el botón mide lo que el
+ *   punto y queda pegado al borde de la paginación): `--digi-crs-dot-size` (6px), `--digi-crs-dot-gap` (6px a cada lado:
+ *   el ancho del botón y el paso entre centros son tamaño + 2 × separación, 18 px, como Swiper; el área táctil crece
+ *   sólo en vertical, a 24 px, con un `::after` que no cambia el paso), `--digi-crs-dot-color` (#000) con
+ *   `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal), `--digi-crs-dot-active` (#000, opacidad 1).
  * - Fracción: hereda el color y la tipografía (los controles la pintan con un selector directo).
  * - Barra: `--digi-crs-bar-size` (4px), fondo #00000040, `--digi-crs-bar-color` (`--digi-crs-dot-active`).
  *
@@ -75,11 +80,22 @@ defined( 'ABSPATH' ) || exit;
  * motor no la lee.
  *
  * **Páginas** (como Swiper): sin bucle, 0, paso, 2 × paso… y la última en `count − view` (o `count − 1` centrado); con
- * bucle, una por cada `paso` diapositivas (`ceil(count / paso)`, también en puntos y fracción), y las que no caben se ven
- * desde la última posición posible (no hay clones). El desplazamiento lo anima el script con la duración de
- * `--digi-crs-speed` y el imán apagado mientras dura (con la página oculta, sin fotogramas, salta directamente); un desplazamiento sin toque, rueda ni tecla del usuario (un
- * reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática. La regla de las
- * diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
+ * bucle, una por cada `paso` diapositivas (`ceil(count / paso)`, también en puntos y fracción). **Bucle** (`slide`, más
+ * de una diapositiva; como `loopCreate`/`loopFix` de Swiper 8): el script copia visibles + paso diapositivas a cada
+ * lado de la pista (`digi-crs__clone`, repitiendo si hay pocas), «siguiente» y la reproducción automática avanzan
+ * siempre hacia delante y «anterior» hacia atrás, y antes de cada paso la actual vuelve a su original sin que cambie lo
+ * que se ve. Las copias llevan el mismo `inert` por ventana que las originales (una copia a la vista se puede pulsar,
+ * como en PRO), y los manejadores del núcleo corren sobre los elementos de las copias en el primer cambio, como PRO en el
+ * carrusel anidado y el de bucle. En el editor, el carrusel anidado no copia ni da la vuelta (PRO lo apagaba ahí). Con
+ * bucle nunca hay `--locked`. Las visibles se acotan a `--digi-crs-n` (como el `Math.min` de PRO en los carruseles de
+ * `carousel/widgets/base.php`); el anidado y el de bucle la fijan a 99 en su hoja, porque el `CarouselBase` del núcleo
+ * no acotaba. El desplazamiento lo anima el script con la duración de `--digi-crs-speed` y el imán apagado mientras
+ * dura (con la página oculta, sin fotogramas, salta directamente); un desplazamiento sin toque, rueda ni tecla del
+ * usuario (un reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática.
+ * **Arrastre con el ratón** (como `simulateTouch` de Swiper, fuera del editor): la pista sigue al puntero y, al soltar,
+ * va a la diapositiva más cercana, o a la siguiente o la anterior con un gesto de menos de 300 ms; el clic que sigue a
+ * un arrastre no llega a los enlaces ni al lightbox; empezar sobre un campo, un botón o un vídeo no arrastra. La regla
+ * de las diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
  *
  * Foco visible: contorno de 2 px con 2 px de separación en el color del botón. Selectores: `scope()` devuelve el de la
  * raíz del propio widget (sin alcanzar un carrusel anidado en una diapositiva), para las reglas que no son variables.
@@ -122,6 +138,8 @@ final class Engine {
 		'attributes'          => array(),
 		'id'                  => '',
 		'sync'                => '',
+		'grab'                => false,
+		'click'               => false,
 	);
 
 	/**
@@ -132,7 +150,8 @@ final class Engine {
 	 *                    `fraction`|`progressbar`), `pagination_position` (`inside`|`outside`), `arrows`,
 	 *                    `arrows_position` (`inside`|`outside`), `prev` y `next` (HTML del icono, ya seguro, o `null` para
 	 *                    el propio), `dir` (''|`ltr`|`rtl`, en la pista), `classes` (array|string, en la raíz),
-	 *                    `attributes` (nombre => valor, en la raíz; nunca `on*` ni los propios), `id`, `sync` (`#id` del carrusel principal).
+	 *                    `attributes` (nombre => valor, en la raíz; nunca `on*` ni los propios), `id`, `sync` (`#id` del carrusel principal),
+	 *                    `grab` (cursor de agarre) y `click` (un clic en una diapositiva la lleva a la vista).
 	 */
 	public static function open( array $args ): string {
 		$a     = array_merge( self::DEFAULTS, $args );
@@ -189,6 +208,12 @@ final class Engine {
 		}
 		if ( '' !== (string) $a['sync'] ) {
 			$attrs['data-digi-sync'] = (string) $a['sync'];
+		}
+		if ( $a['grab'] ) {
+			$attrs['data-digi-grab'] = '1';
+		}
+		if ( $a['click'] ) {
+			$attrs['data-digi-click'] = '1';
 		}
 		$attrs['style'] = '--digi-crs-speed:' . max( 0, (int) $a['speed'] ) . 'ms;--digi-crs-n:' . $count;
 		foreach ( (array) $a['attributes'] as $name => $value ) {

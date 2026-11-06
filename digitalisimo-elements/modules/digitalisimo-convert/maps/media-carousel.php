@@ -116,7 +116,6 @@ return array(
 	'approx'    => array(
 		'skin'     => 'Sólo «Coverflow» se aproxima: se pinta con la diapositiva actual centrada y sin el giro ni la profundidad 3D de Swiper («Carrusel» y «Slideshow» no cambian).',
 		'effect'   => 'El efecto «Cubo» se pinta como un deslizamiento de una diapositiva: el motor propio no tiene el giro 3D de Swiper.',
-		'loop'     => 'El bucle infinito rebobina al principio y al final en lugar de clonar diapositivas.',
 		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
 	'repeaters' => array(

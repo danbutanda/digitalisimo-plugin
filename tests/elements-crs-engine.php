@@ -9,7 +9,7 @@
  *   en el mismo orden, con el mismo tipo, valor por defecto (también por dispositivo), opciones, unidades y condiciones,
  *   en LTR y en RTL; y que lo propio no usa selectores ni clases de PRO o de Swiper;
  * - `Base_Widget::print_slider()` y `Nested_Controls::carousel_args()` traducen los ajustes al motor;
- * - `Module`: autocarga, registro tolerante, recursos (≤ 4 KB de hoja y ≤ 6 KB de script, `defer`, sin dependencias) y el
+ * - `Module`: autocarga, registro tolerante, recursos (≤ 4,5 KB de hoja y ≤ 8 KB de script, `defer`, sin dependencias) y el
  *   formato de `WIDGETS` que leen las pruebas de presupuesto;
  * - la guarda de `scripts/build-packages.sh` (ninguna mención del proveedor retirado) en los archivos del motor;
  * - `tests/fixtures/crs-engine.html` (la que usa tests/elements-crs-engine-chrome.mjs) es el marcado de `Engine`
@@ -132,10 +132,19 @@ namespace {
 	// 2. Recursos: tamaños y contenido.
 	$css = (string) file_get_contents( $module . 'assets/css/carousel.css' );
 	$js  = (string) file_get_contents( $module . 'assets/js/carousel.js' );
-	check_ce( strlen( $css ) <= 4096 && strlen( $js ) <= 6144, 'carousel.css ≤ 4 KB (' . strlen( $css ) . ' B) y carousel.js ≤ 6 KB (' . strlen( $js ) . ' B).' );
+	// Topes de la corrección de fidelidad (bucle real, arrastre, pausa oculta, puntos de PRO): la hoja la comparten los seis
+	// carruseles (4,5 KB, excepción declarada en docs/pro/c1.md §1.3) y el script cumple el criterio 7 (8 KB).
+	check_ce( strlen( $css ) <= 4608 && strlen( $js ) <= 8192, 'carousel.css ≤ 4,5 KB (' . strlen( $css ) . ' B) y carousel.js ≤ 8 KB (' . strlen( $js ) . ' B).' );
 	check_ce( ! preg_match( '/jquery|swiper|elementor-pro-frontend|pro-elements-handlers|\$\(/i', $js ) && ! preg_match( '/swiper|--e-global|url\(/i', $css ), 'Sin jQuery, sin Swiper, sin paquetes de PRO, sin paleta de Elementor ni url().' );
 	check_ce( false !== strpos( $js, "'--ready'" ) && false !== strpos( $js, 'frontend/element_ready/global' ) && false !== strpos( $js, "'go'" ) && false !== strpos( $js, "'change'" ) && false !== strpos( $js, 'digiCrs' ) && false !== strpos( $js, 'inert' ), 'El script marca --ready, se reinicia en el editor y expone digiCrs, digi-crs-go y digi-crs-change.' );
-	check_ce( false !== strpos( $css, 'prefers-reduced-motion' ) && false !== strpos( $css, 'outline:2px solid;outline-offset:2px' ) && 2 <= substr_count( $css, 'min-width:24px' ) + substr_count( $css, 'max(24px' ), 'Movimiento reducido, foco visible (2 px a 2 px) y botones de 24 × 24 px como mínimo.' );
+	check_ce( false !== strpos( $css, 'prefers-reduced-motion' ) && false !== strpos( $css, 'outline:2px solid;outline-offset:2px' ) && false !== strpos( $css, 'min-width:24px;min-height:24px' ) && false !== strpos( $css, 'height:max(24px,var(--_d) + 7px)' ), 'Movimiento reducido, foco visible (2 px a 2 px), flechas de 24 × 24 px como mínimo y puntos de 24 px de alto.' );
+	// Fidelidad con PRO (docs/pro/c1.md, «Diferencias declaradas»): el paso de los puntos es el de Swiper (tamaño + 2 ×
+	// separación) con el área táctil sólo en vertical; la pausa, oculta a la vista salvo con el foco del teclado y a salvo
+	// del :hover del tema; sin bucle y todo a la vista, las flechas quedan atenuadas; cursor de agarre.
+	check_ce( false !== strpos( $css, 'width:calc(var(--_d) + 2*var(--digi-crs-dot-gap,6px))' ) && false === strpos( $css, 'max(24px,var(--_d) + 2*' ) && false !== strpos( $css, '.digi-crs__dot:after{content:"";position:absolute;inset:calc(50% - 12px) 0}' ), 'Puntos con el paso de PRO (tamaño + 2 × separación) y área táctil vertical de 24 px.' );
+	check_ce( (bool) preg_match( '/\.digi-crs>button\.digi-crs__pause\{[^}]*clip-path:inset\(50%\)[^}]*\}\.digi-crs>button:focus-visible,\.digi-crs__dot:focus-visible\{[^}]*clip-path:none\}/', $css ), 'Pausa recortada a la vista (0,2,1: gana al :hover del tema) y visible con :focus-visible, que va después.' );
+	check_ce( false !== strpos( $css, '.digi-crs--locked>:not(.digi-crs__track,.digi-crs__arrow){display:none}' ) && false !== strpos( $css, '[data-digi-grab]:not(.digi-crs--locked){cursor:grab}' ) && false !== strpos( $css, '[data-digi-grab].digi-crs--drag{cursor:grabbing}' ), 'Bloqueado: flechas atenuadas a la vista; cursor de agarre como grabCursor.' );
+	check_ce( false !== strpos( $js, "C+'clone','slick-cloned'" ) && false !== strpos( $js, 'runReadyTrigger' ) && false !== strpos( $js, 'setPointerCapture' ) && false !== strpos( $js, "attr('click')" ) && false === strpos( $js, "cl.toggle(R+'--locked',n<2)" ), 'Script: bucle con copias (excluidas del lightbox del núcleo, con sus manejadores), arrastre con el ratón, clic en una diapositiva y sin bloqueo con bucle.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
 	foreach ( array_merge( glob( $module . '*.php' ), glob( $module . 'assets/*/carousel.*' ), array( $root . '/digitalisimo-elements/modules/digitalisimo-convert/maps/_carousel-classes.php' ) ) as $file ) {
 		check_ce( ! preg_match( $guard, (string) file_get_contents( $file ) ), basename( $file ) . ': la guarda del empaquetado no encuentra menciones prohibidas.' );
@@ -293,7 +302,9 @@ namespace {
 
 	// 5. Traducción de los ajustes al motor.
 	$out = $own->slider( array( 'slides' => array( array( 'x' => 'a' ), array( 'x' => 'b' ), array( 'x' => 'c' ) ), 'effect' => 'cube', 'pagination' => 'fraction', 'container_class' => 'digi-mc', 'slide_class' => 'digi-mc__s', 'engine' => array( 'id' => 'p1' ) ) + $own->get_settings_for_display() );
-	check_ce( false !== strpos( $out, 'class="digi-crs digi-crs--pag-out digi-mc"' ) && false !== strpos( $out, 'aria-label="Diapositivas" id="p1" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="fraction" style="--digi-crs-speed:500ms;--digi-crs-n:3"' ), 'print_slider(): valores por defecto de PRO al motor (autoplay 5 s con sus pausas, bucle, cubo como slide, paginación fuera) y los extra: ' . substr( $out, 0, 500 ) );
+	check_ce( false !== strpos( $out, 'class="digi-crs digi-crs--pag-out digi-mc"' ) && false !== strpos( $out, 'aria-label="Diapositivas" id="p1" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="fraction" data-digi-grab="1" data-digi-click="1" style="--digi-crs-speed:500ms;--digi-crs-n:3"' ), 'print_slider(): valores por defecto de PRO al motor (autoplay 5 s con sus pausas, bucle, cubo como slide, paginación fuera, grabCursor y slideToClickedSlide) y los extra: ' . substr( $out, 0, 500 ) );
+	$grab = Engine::open( array( 'count' => 2, 'grab' => true ) );
+	check_ce( false !== strpos( $grab, 'data-digi-effect="slide" data-digi-grab="1" style=' ) && false === strpos( $grab, 'data-digi-click' ) && false === strpos( Engine::open( array( 'count' => 2 ) ), 'data-digi-grab' ), 'Engine: data-digi-grab y data-digi-click sólo si se piden.' );
 	check_ce( 3 === substr_count( $out, 'class="digi-crs__slide digi-mc__s" role="group"' ) && false !== strpos( $out, '<p>b|slide-1-2</p>' ) && '</div></section>' === substr( $out, -16 ) && 2 === substr_count( $out, 'digi-crs__arrow' ), 'print_slider(): una diapositiva por fila con la clave de PRO, flechas por defecto.' );
 	$off = $own->slider( array( 'slides' => array( array(), array() ), 'autoplay' => '', 'loop' => '', 'show_arrows' => '', 'pagination' => '', 'effect' => 'fade' ) + $own->get_settings_for_display() );
 	check_ce( false === strpos( $off, 'data-digi-autoplay' ) && false === strpos( $off, 'data-digi-loop' ) && false === strpos( $off, '<button' ) && false !== strpos( $off, 'digi-crs--fade' ), 'Sin autoplay, bucle, flechas ni paginación; fundido.' );
@@ -318,7 +329,7 @@ namespace {
 	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>digi-crs</title>\n";
 	$fixture .= "<!-- Generada por tests/elements-crs-engine.php (--write); la usa tests/elements-crs-engine-chrome.mjs. -->\n";
 	$fixture .= "<style>:root{--direction-multiplier:1}html[dir=rtl],[dir=rtl]{--direction-multiplier:-1}body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 0 40px;padding:0 20px}.s{background:#ddd;box-sizing:border-box;padding:8px}.spacer{height:1600px}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}[type=button]:hover,[type=button]:focus{background-color:#c36;color:#fff}</style>\n";
-	$fixture .= "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/carousel.css\">\n</head><body>\n";
+	$fixture .= "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/carousel.css\">\n<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/nested-carousel.css\">\n</head><body>\n";
 	$fixture .= $carousel( 'w1', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside' ), 6, '--digi-crs-view:3;--digi-crs-scroll:2;--digi-crs-gap:10px' );
 	$fixture .= $carousel( 'w2', array( 'autoplay' => 1000, 'loop' => true, 'hover' => true, 'effect' => 'fade', 'pagination' => 'fraction', 'arrows' => true, 'speed' => 200 ), 4 );
 	$fixture .= $carousel( 'w3', array( 'loop' => true, 'arrows' => true, 'pagination' => 'progressbar' ), 5, '', ' dir="rtl"' );
@@ -331,6 +342,16 @@ namespace {
 	$fixture .= $carousel( 'w13', array( 'loop' => true, 'arrows' => true, 'pagination' => 'fraction', 'speed' => 0 ), 4, '--digi-crs-view:2;--digi-crs-gap:10px' );
 	$fixture .= $carousel( 'w14', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside' ), 6 );
 	$fixture .= $carousel( 'w11', array( 'autoplay' => 700, 'loop' => true, 'hover' => true, 'interaction' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 300 ), 4 );
+	// Fidelidad con PRO: bucle con todo a la vista (w15), miniaturas centradas en bucle (w16), autoplay en bucle que siempre
+	// avanza (w17), bucle con copias repetidas (w18, 4 diapositivas, 3 visibles, paso 2), arrastre y clic (w19), puntos del
+	// carrusel anidado pegados al borde (w20) y sin acotar las visibles (w21).
+	$fixture .= $carousel( 'w15', array( 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 0 ), 3, '--digi-crs-view:3;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w16', array( 'loop' => true, 'center' => true, 'speed' => 0 ), 7, '--digi-crs-view:4;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w17', array( 'autoplay' => 900, 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 300 ), 5, '--digi-crs-view:3;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w18', array( 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 0 ), 4, '--digi-crs-view:3;--digi-crs-scroll:2;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w19', array( 'arrows' => true, 'pagination' => 'bullets', 'grab' => true, 'click' => true, 'speed' => 200 ), 6, '--digi-crs-view:3;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w20', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside', 'classes' => 'digi-ncarousel', 'speed' => 0 ), 5, '--digi-crs-view:3;--digi-crs-gap:10px;--digi-crs-pag-y:100%;--digi-crs-pag-space:16px' );
+	$fixture .= $carousel( 'w21', array( 'loop' => true, 'arrows' => true, 'classes' => 'digi-ncarousel', 'speed' => 0 ), 2, '--digi-crs-view:3;--digi-crs-gap:10px' );
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";

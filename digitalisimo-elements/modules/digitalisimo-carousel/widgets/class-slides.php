@@ -331,6 +331,7 @@ class Slides extends \Elementor\Widget_Base {
 				'dir'         => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '',
 				'classes'     => array( 'digi-slides' ),
 				'attributes'  => $attributes,
+				'grab'        => true, // `grabCursor` de PRO (sin `slideToClickedSlide`).
 			)
 		);
 		$title_tag = self::tag( $s['slides_title_tag'] ?? 'div' );

@@ -440,7 +440,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_nc( array( 'layout:pro.approx:infinite', 'autoplay:pro.approx:offset_sides', 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
+	check_nc( array( 'autoplay:pro.approx:offset_sides', 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_nc( 'Carousel' === $d['carousel_name'] && 'yes' === $d['autoplay'] && 'yes' === $d['infinite'] && array( 'Slide #1', 'Slide #2', 'Slide #3' ) === array_column( $d['carousel_items'], 'slide_title' ) && 'nested-carousel' === $d['_digitalisimo_pro'], 'Un carrusel sin cambios llega con los valores visibles de PRO y sus tres filas.' );
 	$l = $out['layout'];

@@ -126,7 +126,6 @@ return array(
 		'pagination_position' => 'PRO quita la posición de la paginación de este widget (va siempre debajo): un valor guardado no tenía efecto.',
 	),
 	'approx'    => array(
-		'loop'     => 'El bucle infinito rebobina al principio y al final en lugar de clonar diapositivas.',
 		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
 	'repeaters' => array(

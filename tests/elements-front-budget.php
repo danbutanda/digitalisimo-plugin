@@ -277,16 +277,19 @@ namespace {
 	$count += $filters_count;
 	// Carruseles propios (programa «sin widgets de PRO», C1, docs/pro/c1.md): los cinco widgets de
 	// modules/digitalisimo-carousel/ sobre el motor `digi-crs`. Sus recursos los registra Carousel\Module (con defer y sin
-	// dependencias): el motor (hoja ≤ 4 KB, script ≤ 6 KB) y la hoja de cada widget (≤ 4 KB), con script sólo donde hace
-	// falta. Nada de Swiper ni de jQuery. Excepción documentada: la «Carga diferida» de los carruseles de PRO
-	// (`lazyload`) es una opción que el usuario elige, y la base la respeta con `loading="lazy"`.
+	// dependencias): el motor (hoja ≤ 4,5 KB, script ≤ 8 KB) y la hoja de cada widget (≤ 4 KB), con script sólo donde hace
+	// falta. Nada de Swiper ni de jQuery. Excepciones documentadas: la «Carga diferida» de los carruseles de PRO
+	// (`lazyload`) es una opción que el usuario elige, y la base la respeta con `loading="lazy"`; y la hoja del motor, que
+	// comparten los seis carruseles, sube de 4 KB a 4,5 KB con la fidelidad con PRO (bucle real, flechas atenuadas sin
+	// bucle, pausa oculta salvo con el teclado, paso de los puntos de Swiper con área táctil vertical y cursor de agarre;
+	// docs/pro/c1.md §1.3). El script, con el bucle real y el arrastre con el ratón, cumple el criterio 7 (8 KB).
 	$crs_dir    = $root . '/modules/digitalisimo-carousel/';
 	$crs_module = (string) file_get_contents( $crs_dir . 'class-module.php' );
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $crs_module, $crs_entries, PREG_SET_ORDER );
 	check_budget( 5 === count( $crs_entries ), 'Carousel\\Module::WIDGETS declara los cinco carruseles (' . count( $crs_entries ) . ').' );
 	preg_match_all( '/wp_register_script\(.*?\);/s', $crs_module, $crs_scripts );
 	foreach ( $crs_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Carousel\\Module: script sin defer o con jQuery.' ); }
-	foreach ( array( 'modules/digitalisimo-carousel/assets/css/carousel.css' => 4096, 'modules/digitalisimo-carousel/assets/js/carousel.js' => 6144 ) as $file => $cap ) {
+	foreach ( array( 'modules/digitalisimo-carousel/assets/css/carousel.css' => 4608, 'modules/digitalisimo-carousel/assets/js/carousel.js' => 8192 ) as $file => $cap ) {
 		$path = $root . '/' . $file;
 		check_budget( is_file( $path ) && filesize( $path ) <= $cap, $file . ' pesa ' . ( is_file( $path ) ? filesize( $path ) : 0 ) . ' B, más de ' . $cap . '.' );
 	}

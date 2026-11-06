@@ -4,3 +4,5 @@
 .digi-ncarousel>.digi-crs__track>.e-con:only-child{flex-basis:100%}
 .digi-ncarousel>.digi-crs__pagination{font-size:var(--digi-crs-fraction-size,16px);line-height:var(--digi-crs-fraction-size,16px);text-align:center;color:#000}
 .digi-ncarousel>.digi-crs__pagination>.digi-crs__dot:hover:before{opacity:1}
+.digi-ncarousel{--digi-crs-n:99!important}
+.digi-ncarousel>.digi-crs__pagination>.digi-crs__dot{height:auto;padding:0}

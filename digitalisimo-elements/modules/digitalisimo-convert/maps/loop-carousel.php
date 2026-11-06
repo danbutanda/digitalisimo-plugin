@@ -103,7 +103,6 @@ return array(
 		'product_taxonomy'          => 'product_taxonomy',
 	),
 	'approx'  => array(
-		'infinite'     => 'El bucle rebobina al llegar al final o al principio, sin clonar diapositivas como hacía PRO.',
 		'offset_sides' => 'El asomo lateral reserva el ancho indicado a cada lado de la pista; PRO, además, dejaba asomar una milésima de la diapositiva siguiente en la última.',
 	),
 	// Encabezados y avisos del panel: no guardan valor. Los de la paginación de Entradas están en la base del bucle de

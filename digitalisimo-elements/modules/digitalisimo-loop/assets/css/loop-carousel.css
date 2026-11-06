@@ -6,4 +6,6 @@
 .elementor-widget-digitalisimo-loop-carousel :is(.elementor-page-title,.product_title.entry-title){display:initial}
 .digi-loop-carousel>.digi-crs__pagination{font-size:var(--digi-crs-fraction-size,16px);line-height:var(--digi-crs-fraction-size,16px);text-align:center;color:#000}
 .digi-loop-carousel>.digi-crs__pagination>.digi-crs__dot:hover:before{opacity:1}
+.digi-loop-carousel{--digi-crs-n:99!important}
+.digi-loop-carousel>.digi-crs__pagination>.digi-crs__dot{height:auto;padding:0}
 .digi-loop-carousel .digi-crs__track a.e-con{display:var(--display)}

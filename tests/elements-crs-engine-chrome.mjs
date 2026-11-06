@@ -4,11 +4,19 @@
 // - con JavaScript (1280 y 375 px): --ready en todos; páginas con varias diapositivas visibles y paso de 2 (puntos que
 //   sobran ocultos, aria-current, inert fuera de la ventana, flechas aria-disabled en los extremos sin bucle), flechas,
 //   puntos y teclado (flechas, Inicio y Fin; foco en el punto), API digiCrs y eventos digi-crs-go / digi-crs-change;
-//   deslizamiento del usuario; botones de 24 × 24 px como mínimo y flechas en su sitio (10 px, centradas en la pista);
+//   deslizamiento del usuario; flechas de 24 × 24 px como mínimo y en su sitio (10 px, centradas en la pista); puntos con
+//   el paso de PRO (18 px) y 24 px de área táctil en vertical;
 // - fundido con fracción y reproducción automática (avanza; región viva off; pausa con el puntero encima, con el foco
-//   dentro, con el botón Pausar/Reanudar y fuera de la pantalla), detención tras una interacción, movimiento reducido;
-// - RTL con barra de progreso y bucle (rebobina); miniaturas centradas sincronizadas con el carrusel principal; una sola
-//   diapositiva y todo en una página (--locked); el editor (sin autoplay y reinicio con frontend/element_ready/global).
+//   dentro, con el botón Pausar/Reanudar —oculto a la vista salvo con el foco del teclado— y fuera de la pantalla),
+//   detención tras una interacción, movimiento reducido;
+// - RTL con barra de progreso y bucle; miniaturas centradas sincronizadas con el carrusel principal; una sola diapositiva y
+//   todo en una página sin bucle (--locked: flechas atenuadas, sin paginación); el editor (sin autoplay, reinicio con
+//   frontend/element_ready/global y, en el carrusel anidado, sin copias);
+// - bucle real como Swiper (docs/pro/c1.md): copias a los lados, siguiente y reproducción automática siempre hacia delante,
+//   todo a la vista sin bloqueo, miniaturas centradas con la última a la izquierda, copias repetidas con pocas
+//   diapositivas, manejadores del núcleo sobre las copias; arrastre con el ratón (cursor de agarre, gesto rápido, clic
+//   anulado tras arrastrar, sin seleccionar texto) y clic en una diapositiva; puntos del carrusel anidado pegados al borde
+//   y visibles sin acotar al número de diapositivas.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-crs-engine-chrome.mjs
 import assert from 'node:assert/strict';
@@ -29,29 +37,41 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ width = 1280, js = true, reduce = false, editor = false } = {}) {
+async function open({ width = 1280, js = true, reduce = false, editor = false, frontend = false } = {}) {
   const page = await browser.newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.setJavaScriptEnabled(js);
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]);
   await page.setViewport({ width, height: 900 });
-  await page.evaluateOnNewDocument(editor => {
+  await page.evaluateOnNewDocument((editor, frontend) => {
     window.__changes = [];
     document.addEventListener('digi-crs-change', e => window.__changes.push([e.target.closest('[data-id]').dataset.id, e.detail.index]));
     if (editor) window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hook = [n, f]; } } };
-  }, editor);
+    // Front con el núcleo: los manejadores que corren sobre las copias del bucle (w21 hace de carrusel anidado, con sus
+    // diapositivas como elementos del núcleo, también en el editor).
+    if (frontend) { window.__ready = []; window.elementorFrontend = { isEditMode: () => false, hooks: { addAction: () => {} }, elementsHandler: { runReadyTrigger: e => window.__ready.push(e) } }; }
+    if (editor || frontend) document.addEventListener('readystatechange', () => { if (document.readyState === 'interactive') for (const e of document.querySelectorAll('[data-id="w21"] .digi-crs__track > *')) { e.classList.add('elementor-element'); e.innerHTML += '<div class="elementor-element">x</div>'; } });
+  }, editor, frontend);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 13 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 20 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
 const state = (page, id) => page.evaluate(id => {
   const r = document.querySelector(`[data-id="${id}"] .digi-crs`), t = r.querySelector(':scope>.digi-crs__track'), q = s => r.querySelector(':scope>' + s);
   const dots = [...r.querySelectorAll(':scope>.digi-crs__pagination>.digi-crs__dot')];
+  // Con bucle la pista lleva copias: `inert` y `current` miran sólo las originales; `cur` es la diapositiva actual (también
+  // si es una copia), `vis` las no inertes y `seen` las que se ven (su centro dentro de la pista), en orden visual.
+  const kids = [...t.children], orig = kids.filter(s => !s.classList.contains('digi-crs__clone')), T = t.getBoundingClientRect(), num = s => parseInt(s.getAttribute('aria-label'), 10);
+  const cur = t.querySelector(':scope>.digi-crs__current');
   return {
-    inert: [...t.children].map(s => (s.inert ? '-' : 'X')).join(''),
-    current: [...t.children].findIndex(s => s.classList.contains('digi-crs__current')),
+    inert: orig.map(s => (s.inert ? '-' : 'X')).join(''),
+    current: orig.findIndex(s => s.classList.contains('digi-crs__current')),
+    cur: cur ? num(cur) - 1 : -1,
+    vis: kids.filter(s => !s.inert).map(num).join(','),
+    seen: kids.map(s => [s.getBoundingClientRect(), num(s)]).filter(([b]) => b.left + b.width / 2 > T.left + 1 && b.left + b.width / 2 < T.right - 1).sort((a, b) => a[0].left - b[0].left).map(x => x[1]).join(','),
+    clones: kids.length - orig.length,
     dots: dots.map(d => (d.hidden ? '_' : d.getAttribute('aria-current') === 'true' ? 'X' : '-')).join(''),
     labels: dots.filter(d => !d.hidden).map(d => d.getAttribute('aria-label')),
     prev: q('.digi-crs__prev')?.getAttribute('aria-disabled') ?? null,
@@ -101,16 +121,19 @@ try {
       const r = document.querySelector('[data-id="w1"] .digi-crs'), t = r.querySelector('.digi-crs__track').getBoundingClientRect().toJSON(), b = sel => r.querySelector(sel).getBoundingClientRect().toJSON(), icon = b('.digi-crs__prev svg');
       return { prev: b('.digi-crs__prev'), dot: b('.digi-crs__dot'), root: r.getBoundingClientRect().toJSON(), track: t, icon, pag: b('.digi-crs__pagination'), color: getComputedStyle(r.querySelector('.digi-crs__prev')).color, bg: getComputedStyle(r.querySelector('.digi-crs__prev')).backgroundColor };
     });
-    ok(geo.prev.width >= 24 && geo.prev.height >= 24 && geo.dot.width >= 24 && geo.dot.height >= 24, `${width}: flechas y puntos de 24 × 24 px como mínimo: ${JSON.stringify([geo.prev, geo.dot])}`);
+    ok(geo.prev.width >= 24 && geo.prev.height >= 24 && geo.dot.height >= 24, `${width}: flechas de 24 × 24 px como mínimo y puntos de 24 px de alto: ${JSON.stringify([geo.prev, geo.dot])}`);
     ok(Math.abs(geo.icon.left - geo.root.left - 10) <= 1 && Math.abs(geo.icon.top + geo.icon.height / 2 - (geo.track.top + geo.track.height / 2)) <= 1.5 && Math.abs(geo.icon.width - 25) <= 1, `${width}: icono de 25 px a 10 px del borde y centrado en la pista (paginación fuera): ${JSON.stringify([geo.icon, geo.track])}`);
     ok(Math.abs(geo.root.bottom - geo.track.bottom - 30) <= 1 && geo.pag.bottom <= geo.root.bottom - 4 && geo.pag.top >= geo.track.bottom - 1, `${width}: paginación fuera: 30 px bajo la pista y los puntos a 5 px del borde.`);
     ok(geo.color === 'rgba(237, 237, 237, 0.9)' && geo.bg === 'rgba(0, 0, 0, 0)', `${width}: flechas del color de PRO sin el fondo del tema: ${geo.color} ${geo.bg}`);
     const dg = await page.evaluate(() => {
-      const r = document.querySelector('[data-id="w1"] .digi-crs'), R = r.getBoundingClientRect();
-      const ds = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')].map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height }; });
-      return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h };
+      const r = document.querySelector('[data-id="w1"] .digi-crs'), R = r.getBoundingClientRect(), el = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')];
+      const ds = el.map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height, l: b.left, r: b.right }; });
+      // Área táctil: el botón de 24 px de alto (el punto, a 7 px de su pie): 9 px por debajo y 13 px por encima del centro
+      // del punto responde ese punto.
+      const hit = el.every((d, k) => [-13, 9].every(dy => document.elementFromPoint(ds[k].x, ds[k].y + dy) === d));
+      return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h, overlap: ds[1].l < ds[0].r - 0.5, hit };
     });
-    ok(Math.abs(dg.gap - 24) < 0.6 && dg.gap >= dg.w && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.w >= 24 && dg.h >= 24, `${width}: puntos sin solaparse (botones de 24 px, 24 px entre centros: WCAG 2.5.8), centro a 15 px del borde inferior como PRO y centrados: ${JSON.stringify(dg)}`);
+    ok(Math.abs(dg.gap - 18) < 0.6 && Math.abs(dg.w - 18) < 0.6 && !dg.overlap && dg.hit && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.h >= 24, `${width}: puntos con el paso de PRO (6 + 2 × 6 = 18 px entre centros, sin solaparse), 24 px de área táctil en vertical, centro a 15 px del borde inferior como PRO y centrados: ${JSON.stringify(dg)}`);
 
     await click(page, 'w1', '.digi-crs__next');
     await settle(page);
@@ -182,6 +205,23 @@ try {
     // 3. Fundido con fracción y autoplay de 1 s, bucle y pausa con el puntero.
     s = w2start;
     ok(s.now === '1' && s.total === '4' && s.live === 'off' && s.pause && !s.pause.hidden && s.pause.label === 'Pausar' && s.opacity[0] === '1' && s.opacity[1] === '0', `${width}: fundido en marcha: ${JSON.stringify(s)}`);
+    // El botón Pausar/Reanudar no se ve ni lo alcanza el puntero (PRO no lo tenía); con el teclado aparece, con su fondo
+    // aunque el tema pinte [type=button]:focus, y funciona.
+    const pz = () => page.$eval('[data-id="w2"] .digi-crs__pause', b => { const r = b.getBoundingClientRect(), c = getComputedStyle(b); return { clip: c.clipPath, hit: b.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)), fv: b.matches(':focus-visible'), w: Math.round(r.width), h: Math.round(r.height), bg: c.backgroundColor, label: b.getAttribute('aria-label') }; });
+    await page.$eval('[data-id="w2"]', e => e.scrollIntoView({ block: 'center' }));
+    let pzs = await pz();
+    ok(pzs.clip === 'inset(50%)' && !pzs.hit, `${width}: botón de pausa oculto a la vista y fuera del puntero: ${JSON.stringify(pzs)}`);
+    await page.$eval('[data-id="w2"]', e => { e.tabIndex = -1; e.focus(); });
+    await page.keyboard.press('Tab');
+    pzs = await pz();
+    ok(pzs.fv && pzs.clip === 'none' && pzs.hit && pzs.w === 28 && pzs.h === 28 && pzs.bg === 'rgba(0, 0, 0, 0.6)', `${width}: con el teclado, la pausa se ve (28 × 28, su fondo y no el del tema): ${JSON.stringify(pzs)}`);
+    await page.keyboard.press('Enter');
+    ok((await pz()).label === 'Reanudar', `${width}: Intro en la pausa → Reanudar.`);
+    await page.keyboard.press('Enter');
+    ok((await pz()).label === 'Pausar', `${width}: Intro otra vez → Pausar.`);
+    await page.$eval('[data-id="w2"]', e => { e.blur(); e.removeAttribute('tabindex'); });
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await page.mouse.move(1, 899);
     const before = (await state(page, 'w2')).current;
     await page.waitForFunction(b => document.querySelector('[data-id="w2"] .digi-crs__current') !== document.querySelector('[data-id="w2"] .digi-crs__track').children[b], { timeout: 3000 }, before);
     await sleep(350);
@@ -197,13 +237,13 @@ try {
     await page.mouse.move(1, 899);
     await page.waitForFunction(at => document.querySelector('[data-id="w2"] .digi-crs__now').textContent !== at, { timeout: 3000 }, at);
     ok(true, `${width}: al salir el puntero sigue.`);
-    await click(page, 'w2', '.digi-crs__pause');
+    await page.$eval('[data-id="w2"] .digi-crs__pause', b => b.click());
     s = await state(page, 'w2');
     ok(s.paused && s.pause.label === 'Reanudar' && s.pause.d === 'M8 5v14l11-7z' && s.live === 'polite', `${width}: Pausar → Reanudar, con su icono: ${JSON.stringify(s.pause)}`);
     const held = s.now;
     await sleep(1300);
     ok((await state(page, 'w2')).now === held, `${width}: pausado no avanza.`);
-    await click(page, 'w2', '.digi-crs__pause');
+    await page.$eval('[data-id="w2"] .digi-crs__pause', b => b.click());
     await page.focus('[data-id="w2"] .digi-crs__next');
     s = await state(page, 'w2');
     ok(!s.paused && s.live === 'polite', `${width}: reanudado, pero con el foco dentro no avanza.`);
@@ -211,11 +251,11 @@ try {
     await page.evaluate(() => document.activeElement.blur());
     await page.waitForFunction(() => document.querySelector('[data-id="w2"] .digi-crs__track').getAttribute('aria-live') === 'off');
     ok(true, `${width}: sin foco ni puntero, vuelve a reproducir (región viva off).`);
-    // Bucle por rebobinado: desde la última, siguiente → la primera.
+    // Fundido en bucle (sin copias, como el fadeEffect de Swiper): desde la última, siguiente → la primera.
     await page.evaluate(() => document.querySelector('[data-id="w2"] .digi-crs').digiCrs.go(3));
     await click(page, 'w2', '.digi-crs__next');
     s = await state(page, 'w2');
-    ok(s.now === '1' && s.next === 'false' && s.prev === 'false', `${width}: con bucle, rebobina y ninguna flecha se desactiva.`);
+    ok(s.now === '1' && s.next === 'false' && s.prev === 'false' && s.clones === 0, `${width}: fundido con bucle: de la última a la primera, sin copias, y ninguna flecha se desactiva.`);
     // Detención tras una interacción (w7).
     await click(page, 'w7', '.digi-crs__next');
     s = await state(page, 'w7');
@@ -231,12 +271,20 @@ try {
 
     // 4. RTL con barra y bucle.
     s = await state(page, 'w3');
-    ok(s.fill === '20%' && s.inert === 'X----', `${width}: barra de progreso al 20 % en la primera de cinco.`);
+    const rtl0 = s.scroll;
+    ok(s.fill === '20%' && s.inert === 'X----' && s.seen === '1' && s.clones === 4, `${width}: barra de progreso al 20 % en la primera de cinco (bucle con dos copias a cada lado): ${JSON.stringify(s)}`);
     await page.focus('[data-id="w3"] .digi-crs__next');
     await page.keyboard.press('ArrowLeft');
     await settle(page);
     s = await state(page, 'w3');
-    ok(s.current === 1 && s.fill === '40%' && s.scroll < 0 && Math.abs(s.scroll - s.off[1]) <= 1, `${width}: en RTL la flecha izquierda avanza y la pista se desplaza hacia la izquierda: ${JSON.stringify(s)}`);
+    ok(s.cur === 1 && s.fill === '40%' && s.seen === '2' && s.scroll < rtl0, `${width}: en RTL la flecha izquierda avanza y la pista se desplaza hacia la izquierda: ${JSON.stringify(s)}`);
+    await page.evaluate(() => document.querySelector('[data-id="w3"] .digi-crs').digiCrs.go(4));
+    await settle(page);
+    const rtl4 = (await state(page, 'w3')).scroll;
+    await page.keyboard.press('ArrowLeft');
+    await settle(page);
+    s = await state(page, 'w3');
+    ok(s.cur === 0 && s.fill === '20%' && s.seen === '1' && s.scroll < rtl4, `${width}: en RTL, de la última a la primera sigue hacia la izquierda (bucle real): ${JSON.stringify(s)}`);
     const rtl = await page.evaluate(() => { const r = document.querySelector('[data-id="w3"] .digi-crs'), b = s => r.querySelector(s).getBoundingClientRect(), x = r.getBoundingClientRect(); return { next: b('.digi-crs__next').left - x.left, prev: x.right - b('.digi-crs__prev').right, bar: b('.digi-crs__bar').top - x.top }; });
     ok(rtl.next < 40 && rtl.prev < 40 && rtl.bar === 0, `${width}: en RTL la siguiente va a la izquierda y la barra arriba: ${JSON.stringify(rtl)}`);
 
@@ -257,15 +305,15 @@ try {
     s = await state(page, 'w6');
     ok(s.locked && s.inert === 'X' && s.prev === null, `${width}: una diapositiva: sin controles.`);
     s = await state(page, 'w8');
-    const hiddenCtl = await page.evaluate(() => [...document.querySelectorAll('[data-id="w8"] .digi-crs > :not(.digi-crs__track)')].every(e => getComputedStyle(e).display === 'none'));
-    ok(s.locked && s.inert === 'XXX' && hiddenCtl, `${width}: tres diapositivas con cuatro visibles: todo a la vista y controles ocultos.`);
+    const lockedCtl = await page.evaluate(() => [...document.querySelectorAll('[data-id="w8"] .digi-crs > :not(.digi-crs__track)')].map(e => `${e.className.replace('digi-crs__arrow ', '')}:${getComputedStyle(e).display}:${getComputedStyle(e).opacity}:${e.getAttribute('aria-disabled')}`).join(' '));
+    ok(s.locked && s.inert === 'XXX' && lockedCtl === 'digi-crs__prev:grid:0.3:true digi-crs__pagination:none:1:null digi-crs__next:grid:0.3:true', `${width}: sin bucle y todo a la vista: flechas atenuadas y deshabilitadas, sin paginación (como PRO con la hoja del núcleo): ${lockedCtl}`);
     const fill = await page.evaluate(() => { const t = document.querySelector('[data-id="w8"] .digi-crs__track'); return [t.clientWidth, [...t.children].reduce((a, c) => a + c.getBoundingClientRect().width, 0)]; });
     ok(Math.abs(fill[0] - fill[1]) <= 1, `${width}: las visibles se acotan al número de diapositivas (--digi-crs-n, como el Math.min de PRO): ${fill}`);
 
     // Bucle con 2 visibles de 4: como Swiper, puntos y fracción cuentan diapositivas (4), no páginas; la última se ve con
-    // la anterior (sin clones) y la siguiente rebobina.
+    // la copia de la primera y la siguiente sigue hacia delante.
     s = await state(page, 'w12');
-    ok(s.dots === 'X---' && s.inert === 'XX--', `${width}: bucle: un punto por diapositiva: ${JSON.stringify(s)}`);
+    ok(s.dots === 'X---' && s.inert === 'XX--' && s.seen === '1,2' && s.clones === 6, `${width}: bucle: un punto por diapositiva y tres copias a cada lado: ${JSON.stringify(s)}`);
     let f = await state(page, 'w13');
     ok(f.total === '4' && f.now === '1', `${width}: bucle: fracción «1 / 4»: ${f.now} / ${f.total}`);
     const fr = await page.evaluate(() => { const r = document.querySelector('[data-id="w13"] .digi-crs'), e = r.querySelector('.digi-crs__fraction'), b = e.getBoundingClientRect(), R = r.getBoundingClientRect(); return { align: getComputedStyle(e).textAlign, center: b.left + b.width / 2 - (R.left + R.width / 2) }; });
@@ -273,15 +321,27 @@ try {
     for (let k = 0; k < 3; k++) await click(page, 'w13', '.digi-crs__next');
     await settle(page);
     f = await state(page, 'w13');
-    ok(f.now === '4' && f.current === 3 && f.inert === '--XX' && Math.abs(f.scroll - f.off[2]) <= 1, `${width}: bucle: «4 / 4» muestra la última con la anterior: ${JSON.stringify(f)}`);
+    const w13at = f.scroll;
+    ok(f.now === '4' && f.cur === 3 && f.seen === '4,1' && f.vis === '4,1', `${width}: bucle: «4 / 4» muestra la última con la copia de la primera, como Swiper: ${JSON.stringify(f)}`);
     await click(page, 'w13', '.digi-crs__next');
     await settle(page);
     f = await state(page, 'w13');
-    ok(f.now === '1' && f.inert === 'XX--' && Math.abs(f.scroll) <= 1, `${width}: bucle: desde la última, rebobina.`);
+    ok(f.now === '1' && f.cur === 0 && f.seen === '1,2' && f.scroll > w13at, `${width}: bucle: desde la última, siguiente sigue hacia delante (no rebobina): ${JSON.stringify(f)}`);
+    await click(page, 'w13', '.digi-crs__next');
+    await settle(page);
+    f = await state(page, 'w13');
+    ok(f.now === '2' && f.seen === '2,3' && f.current === 1, `${width}: bucle: antes del paso siguiente vuelve a la original sin que se note: ${JSON.stringify(f)}`);
+    await page.evaluate(() => document.querySelector('[data-id="w13"] .digi-crs').digiCrs.go(0));
+    await settle(page);
+    const w13first = (await state(page, 'w13')).scroll;
+    await click(page, 'w13', '.digi-crs__prev');
+    await settle(page);
+    f = await state(page, 'w13');
+    ok(f.now === '4' && f.seen === '4,1' && f.scroll < w13first, `${width}: bucle: anterior desde la primera va hacia atrás hasta la última: ${JSON.stringify(f)}`);
     await page.click('[data-id="w12"] .digi-crs__dot:nth-child(4)');
     await settle(page);
     s = await state(page, 'w12');
-    ok(s.dots === '---X' && s.current === 3 && JSON.stringify(s.api) === '[3,4]', `${width}: bucle: el cuarto punto lleva a la cuarta: ${JSON.stringify(s)}`);
+    ok(s.dots === '---X' && s.cur === 3 && s.seen === '4,1' && JSON.stringify(s.api) === '[3,4]', `${width}: bucle: el cuarto punto lleva a la cuarta: ${JSON.stringify(s)}`);
     const flex = await page.evaluate(() => { const t = document.querySelector('[data-id="w12"] .digi-crs__track'), c = t.children[0]; c.classList.add('e-con', 'e-flex'); const st = document.createElement('style'); st.textContent = '.e-con.e-flex{--flex-basis:auto;--flex-grow:0;--flex-shrink:1;flex:var(--flex-grow) var(--flex-shrink) var(--flex-basis)}'; document.head.append(st); const w = [c.getBoundingClientRect().width, t.children[1].getBoundingClientRect().width]; st.remove(); c.classList.remove('e-con', 'e-flex'); return w; });
     ok(Math.abs(flex[0] - flex[1]) < 0.5, `${width}: el ancho de la diapositiva gana a la regla .e-con.e-flex del núcleo: ${flex}`);
 
@@ -291,7 +351,7 @@ try {
     await page.$eval('[data-id="w11"]', e => e.scrollIntoView({ block: 'center' }));
     s = await state(page, 'w11');
     ok(!s.paused && s.pause.label === 'Pausar', `${width}: autoplay en marcha al cargar: ${JSON.stringify(s.pause)}`);
-    const visited = new Set([s.current]);
+    const visited = new Set([s.cur]);
     for (let round = 0; round < 4; round++) {
       if (round === 2) {
         await page.setViewport({ width: width === 1280 ? 900 : 420, height: 900 });
@@ -299,12 +359,148 @@ try {
       }
       await sleep(1050);
       s = await state(page, 'w11');
-      visited.add(s.current);
+      visited.add(s.cur);
       ok(!s.paused && s.pause.label === 'Pausar', `${width}: el autoplay no se detiene solo (vuelta ${round}): ${JSON.stringify(s)}`);
     }
     await page.waitForFunction(() => { const t = document.querySelector('[data-id="w11"] .digi-crs__track'), c = t.querySelector('.digi-crs__current'); return Math.abs(t.scrollLeft - (c.offsetLeft - t.children[0].offsetLeft)) <= 1; }, { timeout: 2000 });
     s = await state(page, 'w11');
-    ok(visited.size >= 3 && s.dots.indexOf('X') === s.current, `${width}: avanza y la pista acompaña al estado: ${[...visited]} ${JSON.stringify(s)}`);
+    ok(visited.size >= 3 && s.dots.indexOf('X') === s.cur, `${width}: avanza y la pista acompaña al estado: ${[...visited]} ${JSON.stringify(s)}`);
+    await page.mouse.move(1, 1);
+
+    // 9. Bucle con todo a la vista (3 de 3, como el Carrusel anidado por defecto): sin --locked, flechas y puntos a la vista
+    // y funcionando (Swiper no bloquea en bucle). Las reproducciones automáticas cercanas, en pausa mientras tanto (las
+    // pistas en movimiento no dejarían «asentarse» a las demás).
+    for (const id of ['w11', 'w17']) await page.$eval(`[data-id="${id}"] .digi-crs__pause`, b => b.click());
+    s = await state(page, 'w15');
+    const shown = await page.evaluate(() => [...document.querySelectorAll('[data-id="w15"] .digi-crs > :not(.digi-crs__track)')].every(e => getComputedStyle(e).display !== 'none' && getComputedStyle(e).opacity === '1'));
+    ok(!s.locked && shown && s.dots === 'X--' && s.seen === '1,2,3' && s.prev === 'false' && s.next === 'false', `${width}: bucle con todo a la vista: sin bloqueo, flechas y tres puntos: ${JSON.stringify(s)}`);
+    await click(page, 'w15', '.digi-crs__next');
+    await settle(page);
+    s = await state(page, 'w15');
+    ok(s.seen === '2,3,1' && s.cur === 1 && s.dots === '-X-' && s.vis === '2,3,1', `${width}: siguiente → 2, 3 y la copia de 1: ${JSON.stringify(s)}`);
+    await page.evaluate(() => document.querySelector('[data-id="w15"] .digi-crs').digiCrs.go(0));
+    await settle(page);
+    await click(page, 'w15', '.digi-crs__prev');
+    await settle(page);
+    s = await state(page, 'w15');
+    ok(s.seen === '3,1,2' && s.cur === 2 && s.dots === '--X', `${width}: anterior desde la primera → 3, 1, 2: ${JSON.stringify(s)}`);
+    // Miniaturas centradas en bucle (7, 4 visibles): la última asoma a la izquierda de la primera, sin hueco; en la última,
+    // la primera a la derecha.
+    const edge = await page.evaluate(() => {
+      const t = document.querySelector('[data-id="w16"] .digi-crs__track'), c = t.querySelector('.digi-crs__current'), l = c.previousElementSibling, T = t.getBoundingClientRect(), a = c.getBoundingClientRect(), b = l.getBoundingClientRect();
+      return { left: parseInt(l.getAttribute('aria-label'), 10), gap: Math.round(a.left - b.right), inside: b.right > T.left, centered: Math.abs(a.left + a.width / 2 - (T.left + T.width / 2)) };
+    });
+    ok(edge.left === 7 && edge.gap === 10 && edge.inside && edge.centered <= 1.5, `${width}: miniaturas centradas en bucle: la 7 a la izquierda de la 1, sin hueco: ${JSON.stringify(edge)}`);
+    await page.evaluate(() => document.querySelector('[data-id="w16"] .digi-crs').digiCrs.go(6));
+    await settle(page);
+    const edge2 = await page.evaluate(() => { const c = document.querySelector('[data-id="w16"] .digi-crs__current'), r = c.nextElementSibling; return [parseInt(c.getAttribute('aria-label'), 10), parseInt(r.getAttribute('aria-label'), 10), Math.round(r.getBoundingClientRect().left - c.getBoundingClientRect().right)]; });
+    ok(edge2.join() === '7,1,10', `${width}: en la última, la 1 a la derecha: ${edge2}`);
+    // Copias repetidas (4 diapositivas, 3 visibles, paso 2): siguiente → 3, 4, 1; otra vez → 1, 2, 3 (como Swiper).
+    s = await state(page, 'w18');
+    ok(s.clones === 10 && s.dots === 'X-__' && s.seen === '1,2,3', `${width}: cinco copias a cada lado (visibles + paso), repetidas: ${JSON.stringify(s)}`);
+    await click(page, 'w18', '.digi-crs__next');
+    await settle(page);
+    s = await state(page, 'w18');
+    ok(s.seen === '3,4,1' && s.dots === '-X__', `${width}: paso de 2 en bucle → 3, 4, 1: ${JSON.stringify(s)}`);
+    await click(page, 'w18', '.digi-crs__next');
+    await settle(page);
+    s = await state(page, 'w18');
+    ok(s.seen === '1,2,3' && s.dots === 'X-__', `${width}: y otra vez → 1, 2, 3: ${JSON.stringify(s)}`);
+    const cloneInfo = await page.evaluate(() => [...document.querySelectorAll('[data-id="w18"] .digi-crs__clone')].every(c => c.classList.contains('slick-cloned') && !c.hasAttribute('aria-hidden')));
+    ok(cloneInfo, `${width}: las copias llevan slick-cloned (el lightbox del núcleo no las repite) y su inert sigue a la ventana, sin aria-hidden.`);
+    // Reproducción automática en bucle (5, 3 visibles): cada intervalo avanza una, también de la última a la primera, y la
+    // pista se desplaza siempre hacia delante.
+    await page.$eval('[data-id="w17"]', e => e.scrollIntoView({ block: 'center' }));
+    await page.$eval('[data-id="w17"] .digi-crs__pause', b => b.click());
+    const trail = [];
+    let back = 0, last = (await state(page, 'w17')).scroll;
+    for (let k = 0; k < 60 && trail.length < 7; k++) {
+      await sleep(100);
+      const w17 = await state(page, 'w17');
+      if (w17.scroll < last - 1) back++;
+      last = w17.scroll;
+      if (trail[trail.length - 1] !== w17.cur) trail.push(w17.cur);
+      if (w17.paused) break;
+    }
+    ok(trail.join() === '0,1,2,3,4,0,1' && back <= 1, `${width}: la reproducción automática en bucle avanza sin rebobinar (${trail}; retrocesos de la pista: ${back}, la vuelta a la original entre pasos).`);
+    await page.$eval('[data-id="w17"] .digi-crs__pause', b => b.click());
+    // Carrusel anidado (w20): puntos pegados al borde inferior de la raíz, con la paginación de la altura del punto; arriba
+    // con su posición personalizada.
+    const nd = () => page.evaluate(() => { const r = document.querySelector('[data-id="w20"] .digi-crs'), R = r.getBoundingClientRect(), p = r.querySelector('.digi-crs__pagination').getBoundingClientRect(), d = r.querySelector('.digi-crs__dot'), b = d.getBoundingClientRect(), y = b.top + b.height / 2; return { ph: p.height, h: b.height, bottom: R.bottom - b.bottom, top: b.top - R.top, hit: [-10, 10].every(dy => document.elementFromPoint(b.left + b.width / 2, y + dy) === d), w: b.width }; });
+    await page.$eval('[data-id="w20"]', e => e.scrollIntoView({ block: 'center' }));
+    let n1 = await nd();
+    ok(Math.abs(n1.ph - 6) < 0.5 && Math.abs(n1.h - 6) < 0.5 && Math.abs(n1.bottom) < 0.5 && n1.hit && Math.abs(n1.w - 18) < 0.5, `${width}: carrusel anidado: el punto mide 6 px y queda pegado al borde inferior, con 24 px de área táctil: ${JSON.stringify(n1)}`);
+    await page.$eval('[data-id="w20"]', e => e.style.cssText += ';--digi-crs-pag-y:0%;--digi-crs-pag-t:-50% 0%');
+    n1 = await nd();
+    ok(Math.abs(n1.top) < 0.5, `${width}: carrusel anidado con los puntos arriba: el punto toca el borde superior: ${JSON.stringify(n1)}`);
+    // Carrusel anidado con 2 de 3 visibles (w21): como el CarouselBase del núcleo, cada diapositiva mide un tercio, y en
+    // bucle el tercer hueco es la copia de la primera.
+    s = await state(page, 'w21');
+    const thirds = await page.evaluate(() => { const t = document.querySelector('[data-id="w21"] .digi-crs__track'); return [t.clientWidth, t.children[0].getBoundingClientRect().width]; });
+    ok(Math.abs((thirds[0] - 20) / 3 - thirds[1]) < 1 && s.seen === '1,2,1' && !s.locked, `${width}: anidado con menos diapositivas que visibles: un tercio cada una y la copia en el tercer hueco: ${thirds} ${JSON.stringify(s)}`);
+    await page.close();
+  }
+
+  // 10. Arrastre con el ratón y clic en una diapositiva (w19: grabCursor y slideToClickedSlide de PRO) y en bucle (w12).
+  {
+    const page = await open();
+    for (const id of ['w11', 'w17']) await page.$eval(`[data-id="${id}"] .digi-crs__pause`, b => b.click());
+    await page.$eval('[data-id="w19"]', e => e.scrollIntoView({ block: 'center' }));
+    const tb = await page.$eval('[data-id="w19"] .digi-crs__track', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+    const cursor = () => page.$eval('[data-id="w19"] .digi-crs', e => getComputedStyle(e).cursor);
+    ok(await cursor() === 'grab', 'Cursor de agarre sobre el carrusel.');
+    // Arrastre lento de 270 px (más de medio paso de 2 diapositivas no: 417 px por diapositiva): va a la más cercana.
+    const dragBy = async (dx, ms, y = 40) => { await page.mouse.move(tb.x + tb.w * 0.6, tb.y + y); await page.mouse.down(); const k = 10; for (let i = 1; i <= k; i++) { await page.mouse.move(tb.x + tb.w * 0.6 + (dx * i) / k, tb.y + y); await sleep(ms / k); } return true; };
+    await dragBy(-270, 600);
+    const during = await page.evaluate(() => ({ c: getComputedStyle(document.querySelector('[data-id="w19"] .digi-crs')).cursor, sel: String(getSelection()) }));
+    await page.mouse.up();
+    await settle(page);
+    let s = await state(page, 'w19');
+    ok(during.c === 'grabbing' && during.sel === '' && s.cur === 1 && s.seen === '2,3,4' && (await page.evaluate(() => location.hash)) === '', `Arrastre lento: la pista sigue al puntero (cursor de agarre cerrado, sin seleccionar texto), va a la diapositiva más cercana y el clic de después no sigue el enlace: ${JSON.stringify([during, s])}`);
+    // Gesto rápido y corto (40 px en 100 ms): la siguiente página.
+    await dragBy(-40, 80);
+    await page.mouse.up();
+    await settle(page);
+    s = await state(page, 'w19');
+    ok(s.cur === 2 && s.seen === '3,4,5', `Gesto rápido: la siguiente: ${JSON.stringify(s)}`);
+    // Arrastre corto y lento (60 px en 600 ms): vuelve a su sitio.
+    await dragBy(60, 600);
+    await page.mouse.up();
+    await settle(page);
+    s = await state(page, 'w19');
+    ok(s.cur === 2 && s.seen === '3,4,5', `Arrastre corto y lento: vuelve: ${JSON.stringify(s)}`);
+    // Clic (sin arrastre) en el enlace de la tercera visible: la lleva a la vista y el enlace funciona.
+    const link = await page.$eval('[data-id="w19"] .digi-crs__track', t => { const a = [...t.children].filter(k => !k.inert)[2].querySelector('a').getBoundingClientRect(); return { x: a.left + 5, y: a.top + 5 }; });
+    await page.mouse.click(link.x, link.y);
+    await settle(page);
+    s = await state(page, 'w19');
+    ok(s.cur === 3 && s.seen === '4,5,6' && (await page.evaluate(() => location.hash)) === '#e4', `Clic en una diapositiva: se pone la primera (slideToClickedSlide) y el enlace funciona: ${JSON.stringify(s)}`);
+    // Bucle (w12, 2 de 4): arrastrar hacia atrás desde la primera trae la última (copia) y deja la cuarta como actual.
+    await page.evaluate(() => document.querySelector('[data-id="w12"] .digi-crs').digiCrs.go(0));
+    await page.$eval('[data-id="w12"]', e => e.scrollIntoView({ block: 'center' }));
+    const t12 = await page.$eval('[data-id="w12"] .digi-crs__track', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+    await page.mouse.move(t12.x + t12.w * 0.3, t12.y + 40);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) { await page.mouse.move(t12.x + t12.w * 0.3 + i * 40, t12.y + 40); await sleep(60); }
+    await page.mouse.up();
+    await settle(page);
+    s = await state(page, 'w12');
+    ok(s.cur === 3 && s.seen === '4,1' && s.dots === '---X', `Bucle: arrastrar hacia atrás desde la primera trae la última: ${JSON.stringify(s)}`);
+    ok(await page.$eval('[data-id="w1"] .digi-crs', e => getComputedStyle(e).cursor) === 'auto', 'Sin data-digi-grab (carrusel anidado y de bucle de PRO), sin cursor de agarre.');
+    await page.close();
+  }
+
+  // 11. Front con el núcleo: en el primer cambio, los manejadores del núcleo corren sobre los elementos de las copias (como
+  // PRO en el carrusel anidado y el de bucle).
+  {
+    const page = await open({ frontend: true });
+    const before = await page.evaluate(() => window.__ready.length);
+    await page.$eval('[data-id="w21"] .digi-crs__next', b => b.click());
+    await sleep(100);
+    const after = await page.evaluate(() => window.__ready.map(e => !!e.closest('.digi-crs__clone')));
+    ok(before === 0 && after.length === 16 && after.every(Boolean), `Manejadores del núcleo sobre las copias en el primer cambio (${before} → ${after.length}).`);
+    await page.$eval('[data-id="w21"] .digi-crs__next', b => b.click());
+    ok((await page.evaluate(() => window.__ready.length)) === 16, 'Y sólo una vez.');
     await page.close();
   }
 
@@ -314,7 +510,7 @@ try {
     const s = await state(page, 'w2');
     await sleep(1300);
     ok(s.paused && s.pause.label === 'Reanudar' && s.live === 'polite' && (await state(page, 'w2')).now === '1', 'Movimiento reducido: no arranca solo.');
-    await click(page, 'w2', '.digi-crs__pause');
+    await page.$eval('[data-id="w2"] .digi-crs__pause', b => b.click());
     await page.mouse.move(1, 899);
     await page.waitForFunction(() => document.querySelector('[data-id="w2"] .digi-crs__now').textContent === '2', { timeout: 3000 });
     ok(true, 'Movimiento reducido: al pedirlo, reproduce.');
@@ -346,7 +542,9 @@ try {
     const hook = await page.evaluate(() => window.__hook?.[0]);
     const s = await state(page, 'w2');
     await sleep(1300);
-    ok(hook === 'frontend/element_ready/global' && (await state(page, 'w2')).now === '1' && s.live === 'polite', 'Editor: sin reproducción automática y con el gancho global.');
+    ok(hook === 'frontend/element_ready/global' && (await state(page, 'w2')).now === '1' && s.live === 'polite' && s.pause.hidden, 'Editor: sin reproducción automática (ni botón de pausa) y con el gancho global.');
+    const nested = await state(page, 'w21'), plain = await state(page, 'w15');
+    ok(nested.clones === 0 && nested.next === 'true' && plain.clones === 8, `Editor: el carrusel anidado (diapositivas que son elementos) no copia ni da la vuelta, como PRO; los demás sí: ${JSON.stringify([nested, plain.clones])}`);
     const again = await page.evaluate(() => {
       const w = document.querySelector('[data-id="w1"]'), copy = w.cloneNode(true);
       copy.dataset.id = 'w10';
