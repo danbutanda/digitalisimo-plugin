@@ -159,9 +159,6 @@ return array(
 			),
 		),
 	),
-	'approx'    => array(
-		'horizontal_scroll' => 'Con «Desplazamiento horizontal», la fila de elementos se desplaza con la rueda, el teclado o el dedo; el arrastre con el ratón de PRO no se repite.',
-	),
 	// Encabezados y descripciones del panel: no guardan valor.
 	'ui'        => array(
 		'submenu_indicator_title',

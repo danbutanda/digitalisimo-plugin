@@ -3,13 +3,14 @@
  * Menú con submenús de contenido (`digitalisimo-mega-menu`), el widget propio que sustituye al «Menu» anidado de PRO
  * (C3 de docs/PRO_WIDGETS_OBJECTIVE.md, contrato docs/pro/c3.md, frente E), y su mapa
  * `modules/digitalisimo-convert/maps/mega-menu.php`:
- * - registro y recursos (tres hojas ≤ 4 KB, sin `--e-global-*`, `url()` ni clases de PRO; script ≤ 6 KB sin jQuery y
- *   script del editor sobre `nested-elements`);
+ * - registro y recursos (tres hojas ≤ 4 KB, sin `--e-global-*`, `url()` ni clases de PRO; script ≤ 6 KB sin jQuery que
+ *   abre con `mouseenter` como PRO, script del «Desplazamiento horizontal» ≤ 2,5 KB sólo si algún dispositivo lo activa o
+ *   en el editor, registrado con `defer`, y script del editor sobre `nested-elements`);
  * - controles: se cargan a la vez el widget de PRO y el propio, y cada control de PRO (también los del repetidor) tiene
  *   uno propio con el mismo nombre, tipo (salvo «Animación», un selector con los mismos valores), valor por defecto
  *   (salvo los textos, que se traducen), opciones, condiciones, dispositivos, sección y pestaña, y selectores con las
  *   mismas propiedades sobre el marcado propio; los grupos, igual;
- * - cobertura del mapa: cada control de PRO está declarado una sola vez;
+ * - cobertura del mapa: cada control de PRO está declarado una sola vez, sin aproximaciones;
  * - marcado del servidor: hamburguesa, elementos con enlace o sin él, icono, botón de submenú con `aria-expanded`,
  *   `aria-controls` y nombre «Submenú de …», contenido con el contenedor hijo (id, número, `aria-labelledby`; sólo el hijo
  *   directo), elemento actual y ancla, clic, animación, ajuste al contenido, puntos de corte propios y escape;
@@ -51,10 +52,12 @@ namespace Elementor {
 		public $order    = array();
 		public $children = array();
 		public $attrs    = array();
+		public $type     = false;
 		protected $section = '';
 		protected $tab = '';
 		public function get_settings_for_display( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
 		public function get_settings( $key = null ) { return $this->get_settings_for_display( $key ); }
+		public function is_type_instance() { return $this->type; }
 		public function get_children() { return $this->children; }
 		public function get_id() { return 'abc1234'; }
 		public function get_widget_number(): string { return '123'; }
@@ -138,6 +141,8 @@ namespace {
 	function plugins_url( $p, $f ) { return 'https://ejemplo.test/wp-content/plugins/digitalisimo-elements/' . $p; }
 	function wp_style_is( $h, $s ) { return isset( $GLOBALS['mm']['styles'][ $h ] ); }
 	function wp_register_style( $h, $src, $deps = array(), $ver = false ) { $GLOBALS['mm']['styles'][ $h ] = $src; return true; }
+	function wp_script_is( $h, $s ) { return isset( $GLOBALS['mm']['scripts'][ $h ] ); }
+	function wp_register_script( $h, $src, $deps = array(), $ver = false, $args = array() ) { $GLOBALS['mm']['scripts'][ $h ] = array( $src, $deps, $args ); return true; }
 	function is_front_page() { return false; }
 	function is_home() { return false; }
 	function is_year() { return false; }
@@ -270,6 +275,32 @@ namespace {
 	$js        = (string) file_get_contents( $root . Module::WIDGETS['digitalisimo-mega-menu']['js'] );
 	$editor_js = (string) file_get_contents( $root . 'modules/digitalisimo-navigation/assets/js/mega-menu-editor.js' );
 	check_mm( strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|elementorProFrontend|swiper/i', $js ) && str_contains( $js, "'aria-expanded'" ) && str_contains( $js, 'Escape' ) && str_contains( $js, 'frontend/element_ready/digitalisimo-mega-menu.default' ) && str_contains( $js, 'digi-mm-go' ), 'Script ≤ 6 KB sin jQuery: aria-expanded, Escape, reinicio en el editor y apertura desde el panel (' . strlen( $js ) . ' B).' );
+	// «Abrir con: ratón» con los eventos de ratón que PRO escucha (mouseenter/mouseleave): también los que el navegador emula
+	// tras un toque, así que en una pantalla táctil por encima del punto de corte de tableta el toque en el título abre.
+	check_mm( str_contains( $js, "it.li.addEventListener('mouseenter', () => hover() && show(it));" ) && str_contains( $js, "it.li.addEventListener('mouseleave'," ) && ! str_contains( $js, 'pointerType' ), '«Abrir con: ratón» escucha mouseenter/mouseleave, como PRO (el toque emulado también abre).' );
+	// «Desplazamiento horizontal» (posición inicial y arrastre de PRO): script aparte, sólo cuando algún dispositivo lo activa.
+	$scroll_js = (string) file_get_contents( $root . Mega_Menu::SCRIPTS['digitalisimo-mega-menu-scroll'] );
+	check_mm( strlen( $scroll_js ) > 0 && strlen( $scroll_js ) <= 2560 && ! preg_match( '/jQuery|\$\(|elementorProFrontend/i', $scroll_js ) && str_contains( $scroll_js, "'mousedown'" ) && str_contains( $scroll_js, "'mousemove'" ) && str_contains( $scroll_js, 'scrollLeft' ) && str_contains( $scroll_js, "'--dmm-heading-justify-content'" ) && str_contains( $scroll_js, "'start'" ) && str_contains( $scroll_js, 'frontend/element_ready/digitalisimo-mega-menu.default' ), 'Script del desplazamiento horizontal ≤ 2,5 KB sin jQuery: arrastre, posición inicial y reinicio en el editor (' . strlen( $scroll_js ) . ' B).' );
+	check_mm( str_contains( $css_all, '.digi-mm__heading:active{cursor:grabbing}' ) && ! str_contains( $css_all, '.digi-mm__scroll{' ) && str_contains( $css_all, '.digi-mm__scroll-active:before{content:"";inset:0 -1000vw;position:absolute;z-index:2}' ), 'Arrastre: cursor de agarre al pulsar sobre la fila de cualquier menú (lo pone la hoja: PRO lo hace en todos) y velo que evita abrir un enlace al soltar, como PRO.' );
+	$scripts = static function ( array $s, $type = false ) {
+		$w           = new Mega_Menu();
+		$w->settings = $s;
+		$w->type     = $type;
+		return implode( ',', $w->get_script_depends() );
+	};
+	$GLOBALS['mm']['scripts'] = array();
+	check_mm( 'digitalisimo-mega-menu' === $scripts( array() ) && 'digitalisimo-mega-menu' === $scripts( array( 'horizontal_scroll' => 'disable', 'horizontal_scroll_mobile' => 'disable' ) ) && 'digitalisimo-mega-menu' === $scripts( array( 'item_layout' => 'dropdown', 'horizontal_scroll' => 'enable' ) ), 'Sin «Desplazamiento horizontal» (o sólo desplegable): sólo el script propio.' );
+	check_mm( 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array( 'horizontal_scroll' => 'enable' ) ) && 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array( 'horizontal_scroll_mobile' => 'enable' ) ) && 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array(), true ), 'Activado en cualquier dispositivo, o en el editor: también el del desplazamiento.' );
+	$reg = $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'] ?? null;
+	check_mm( is_array( $reg ) && str_ends_with( $reg[0], 'modules/digitalisimo-navigation/assets/js/mega-menu-scroll.js' ) && array() === $reg[1] && array( 'in_footer' => true, 'strategy' => 'defer' ) === $reg[2], 'El script del desplazamiento se registra con defer, en el pie y sin dependencias.' );
+	// Recursos de página del núcleo (`_elementor_page_assets`) y caché de elementos: el núcleo encola por su handle lo que
+	// guardó, sin instanciar el widget, y un handle sin registrar no se imprime. Las hojas y el script adicionales se
+	// registran también con los del módulo (`Module::register_assets()`, en `elementor/frontend/after_register_*`).
+	$GLOBALS['mm']['features'] = array( 'container' => true, 'nested-elements' => true );
+	$GLOBALS['mm']['styles']   = array();
+	$GLOBALS['mm']['scripts']  = array();
+	Module::register_assets();
+	check_mm( array( 'digitalisimo-mega-menu', 'digitalisimo-mega-menu-items', 'digitalisimo-mega-menu-dropdown' ) === array_values( array_intersect( array_keys( $GLOBALS['mm']['styles'] ), array( 'digitalisimo-mega-menu', 'digitalisimo-mega-menu-items', 'digitalisimo-mega-menu-dropdown' ) ) ) && isset( $GLOBALS['mm']['scripts']['digitalisimo-mega-menu'], $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'] ) && array( 'in_footer' => true, 'strategy' => 'defer' ) === $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'][2], 'Las hojas y el script adicionales se registran antes de pintar, sin instanciar el widget (recursos de página y caché de elementos del núcleo): ' . implode( ',', array_keys( $GLOBALS['mm']['styles'] + $GLOBALS['mm']['scripts'] ) ) );
 	check_mm( strlen( $editor_js ) <= 6144 && ! preg_match( '/jQuery|elementorPro/i', $editor_js ) && str_contains( $editor_js, "'digitalisimo-mega-menu'" ) && str_contains( $editor_js, 'attachBuffer' ) && str_contains( $editor_js, 'elementor/nested-container/atomic-repeater' ) && str_contains( $editor_js, 'digi-mm-go' ), 'Script del editor: registra el tipo, entrelaza los hijos, abre el elemento que se edita y repinta tras el repetidor.' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-navigation/widgets/class-mega-menu.php' );
 	foreach ( array( $source, $css_all, $js, $editor_js, (string) file_get_contents( $root . 'modules/digitalisimo-convert/maps/mega-menu.php' ) ) as $text ) {
@@ -459,7 +490,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_mm( array( 'layout:pro.approx:horizontal_scroll', 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo la aproximación declarada y el CSS: ' . implode( ', ', $codes ) );
+	check_mm( array( 'css:pro.css:custom_css' ) === $codes && ! isset( $map['approx'] ), 'Ningún pro.unmapped, pro.dropped ni pro.approx («Desplazamiento horizontal» se repite entero: posición inicial y arrastre); sólo el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_mm( 'Menu' === $d['menu_name'] && 'full_width' === $d['content_width'] && 'hover' === $d['open_on'] && 'tablet' === $d['breakpoint_selector'] && array( 'Item #1', 'Item #2', 'Item #3' ) === array_column( $d['menu_items'], 'item_title' ) && 'mega-menu' === $d['_digitalisimo_pro'], 'Un menú sin cambios llega con los valores visibles de PRO y sus tres filas.' );
 	$l = $out['layout'];
@@ -477,6 +508,15 @@ namespace {
 		'm1' => array( 'settings' => array(), 'wrapper' => 'digi-mm--full_width digi-mm--layout-horizontal digi-mm--bp-tablet' ),
 		'm2' => array( 'settings' => array( 'open_on' => 'click', 'content_width' => 'fit_to_content', 'content_horizontal_position' => 'center', 'open_animation' => 'fadeIn' ), 'wrapper' => 'digi-mm--fit_to_content digi-mm--layout-horizontal digi-mm--bp-mobile' ),
 		'm3' => array( 'settings' => array( 'item_layout' => 'dropdown' ), 'wrapper' => 'digi-mm--full_width digi-mm--layout-dropdown digi-mm--bp-tablet' ),
+		// «Desplazamiento horizontal» con ocho elementos que no caben a 375 px (sí a 1 280): la variable de cada ajuste en
+		// el contenedor, como la escribe el CSS del elemento.
+		'm4' => array( 'settings' => array( 'horizontal_scroll' => 'enable', 'item_position_horizontal' => 'end', 'breakpoint_selector' => 'none' ), 'rows' => 'scroll', 'wrapper' => 'digi-mm--full_width digi-mm--layout-horizontal digi-mm--bp-none" style="--dmm-heading-wrap:nowrap;--dmm-heading-overflow-x:scroll;--dmm-heading-justify-content:flex-end' ),
+		'm5' => array( 'settings' => array( 'horizontal_scroll' => 'enable', 'item_position_horizontal' => 'center', 'breakpoint_selector' => 'none' ), 'rows' => 'scroll', 'wrapper' => 'digi-mm--full_width digi-mm--layout-horizontal digi-mm--bp-none" style="--dmm-heading-wrap:nowrap;--dmm-heading-overflow-x:scroll;--dmm-heading-justify-content:center' ),
+		'm6' => array( 'settings' => array( 'horizontal_scroll' => 'enable', 'item_position_horizontal' => 'end', 'breakpoint_selector' => 'none' ), 'rows' => 'scroll', 'wrapper' => 'digi-mm--full_width digi-mm--layout-horizontal digi-mm--bp-none" dir="rtl" style="--dmm-heading-wrap:nowrap;--dmm-heading-overflow-x:scroll;--dmm-heading-justify-content:flex-end' ),
+	);
+	$scroll_rows = $rows(
+		array( 'Inicio', 'Servicios', 'Equipo', 'Blog', 'Tienda', 'Recursos', 'Ayuda', 'Contacto' ),
+		array_map( static function ( $n ) { return array( 'item_link' => array( 'url' => '#fila-' . $n ) ); }, range( 1, 8 ) )
 	);
 	$fixture_rows = $rows(
 		array( 'Servicios', 'Equipo', 'Blog', 'Contacto' ),
@@ -493,8 +533,8 @@ namespace {
 	$body = '';
 	foreach ( $fixture_cases as $fid => $fc ) {
 		$w           = new Mega_Menu();
-		$w->settings = $fc['settings'] + array( 'menu_items' => $fixture_rows ) + $defaults( $own );
-		$w->children = $fixture_kids();
+		$w->settings = $fc['settings'] + array( 'menu_items' => isset( $fc['rows'] ) ? $scroll_rows : $fixture_rows ) + $defaults( $own );
+		$w->children = isset( $fc['rows'] ) ? array() : $fixture_kids();
 		ob_start();
 		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
 		$body .= '<div class="elementor-element elementor-widget elementor-widget-digi-mega-menu ' . $fc['wrapper'] . '" data-id="' . $fid . '">' . str_replace( '123', substr( $fid, 1 ) . '00', (string) ob_get_clean() ) . "</div>\n<div class=\"spacer\"></div>\n";
@@ -503,7 +543,7 @@ namespace {
 	foreach ( array( 'mega-menu' => Module::WIDGETS['digitalisimo-mega-menu']['css'] ) + Mega_Menu::SHEETS as $file ) {
 		$links .= '<link rel="stylesheet" href="../../digitalisimo-elements/' . $file . "\">\n";
 	}
-	$fixture = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>digi-mm</title>\n<!-- Generada por tests/elements-pro-mega-menu.php (--write); la usa tests/elements-pro-mega-menu-chrome.mjs. -->\n<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 20px 40px}.e-con{--width:100%;width:var(--width);box-sizing:border-box;position:relative;display:flex;flex-direction:column;gap:8px;padding:16px}.spacer{height:420px}i[class*=fa-],i[class*=eicon-]{display:inline-block;width:1em;height:1em;background:currentColor}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}#equipo,#contacto{height:400px}</style>\n" . $links . "</head><body class=\"elementor\">\n" . $body . "<div id=\"equipo\"></div><div id=\"contacto\"></div>\n<script src=\"../../digitalisimo-elements/modules/digitalisimo-navigation/assets/js/mega-menu.js\"></script>\n</body></html>\n";
+	$fixture = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>digi-mm</title>\n<!-- Generada por tests/elements-pro-mega-menu.php (--write); la usa tests/elements-pro-mega-menu-chrome.mjs. -->\n<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 20px 40px}.e-con{--width:100%;width:var(--width);box-sizing:border-box;position:relative;display:flex;flex-direction:column;gap:8px;padding:16px}.spacer{height:420px}i[class*=fa-],i[class*=eicon-]{display:inline-block;width:1em;height:1em;background:currentColor}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}#equipo,#contacto{height:400px}</style>\n" . $links . "</head><body class=\"elementor\">\n" . $body . "<div id=\"equipo\"></div><div id=\"contacto\"></div>\n<script src=\"../../digitalisimo-elements/modules/digitalisimo-navigation/assets/js/mega-menu.js\"></script>\n<script src=\"../../digitalisimo-elements/modules/digitalisimo-navigation/assets/js/mega-menu-scroll.js\"></script>\n</body></html>\n";
 	$path    = __DIR__ . '/fixtures/mega-menu.html';
 	if ( in_array( '--write', $argv ?? array(), true ) ) {
 		file_put_contents( $path, $fixture );

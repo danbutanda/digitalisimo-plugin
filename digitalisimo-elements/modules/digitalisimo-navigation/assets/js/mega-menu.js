@@ -73,8 +73,8 @@ it.title.addEventListener('click', e => {
 edit() && e.preventDefault();
 if (!(e.target.closest('a[href]') && !edit() || hover())) isOn(it) ? set(it, false) : show(it);
 });
-it.li.addEventListener('pointerenter', e => e.pointerType == 'mouse' && hover() && show(it));
-it.li.addEventListener('pointerleave', e => { if (e.pointerType == 'mouse' && hover() && isOn(it)) timer = setTimeout(() => set(it, false), 120); });
+it.li.addEventListener('mouseenter', () => hover() && show(it));
+it.li.addEventListener('mouseleave', () => { if (hover() && isOn(it)) timer = setTimeout(() => set(it, false), 120); });
 it.li.addEventListener('focusout', e => { const to = e.relatedTarget; to && !it.li.contains(to) && !dd() && set(it, false); });
 });
 D.addEventListener('click', e => root.contains(e.target) || close());

@@ -10,7 +10,15 @@
 //   anclas activas al desplazarse;
 // - sólo desplegable (m3) y móvil (375 px): hamburguesa (aria-expanded, el envoltorio aparece a todo el ancho bajo el
 //   botón), los contenidos se abren en su sitio, Escape cierra el contenido y luego el desplegable y devuelve el foco;
-// - el evento digi-mm-go (panel del editor) abre el elemento pedido; reinicio con frontend/element_ready del widget.
+// - el evento digi-mm-go (panel del editor) abre el elemento pedido; reinicio con frontend/element_ready del widget;
+// - «Abrir con: ratón» en una pantalla táctil por encima del punto de corte de tableta (1 280 y 1 180 px, m1): como en
+//   PRO, el toque en el título abre (el navegador emula mouseenter), en un título con enlace abre y navega, tocar fuera
+//   cierra y el botón indicador sigue abriendo;
+// - «Desplazamiento horizontal» (m4 «Final», m5 «Centro», m6 «Final» en RTL; mega-menu-scroll.js): si los elementos no
+//   caben, la fila empieza por el primero o, con «Final», por el último, todos alcanzables; si caben, conserva su
+//   alineación (también al redimensionar); arrastre con el ratón con los pasos de PRO (67,5 px con 150 px en 12 pasos),
+//   cursor de agarre y velo, sin abrir el enlace donde empezó, y sin efecto en un menú sin desplazamiento; el cursor de
+//   agarre al pulsar sobre la fila, como PRO en todos sus menús, también sin el script.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-pro-mega-menu-chrome.mjs
 import assert from 'node:assert/strict';
@@ -33,15 +41,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ width = 1280, reduce = false, editor = false } = {}) {
+async function open({ width = 1280, reduce = false, editor = false, touch = false, noScroll = false } = {}) {
   const page = await browser.newPage();
+  // `noScroll`: la página de un menú sin «Desplazamiento horizontal», que no carga mega-menu-scroll.js.
+  if (noScroll) { await page.setRequestInterception(true); page.on('request', r => (r.url().endsWith('/mega-menu-scroll.js') ? r.respond({ status: 200, contentType: 'text/javascript', body: '' }) : r.continue())); }
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]);
-  await page.setViewport({ width, height: 900 });
-  if (editor) await page.evaluateOnNewDocument(() => { window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hook = [n, f]; } } }; });
+  await page.setViewport({ width, height: 900, hasTouch: touch });
+  if (editor) await page.evaluateOnNewDocument(() => { window.__hooks = []; window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hooks.push([n, f]); } } }; });
   await page.goto(fixture, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('.digi-mm--ready').length === 3);
+  await page.waitForFunction(() => document.querySelectorAll('.digi-mm--ready').length === 6);
   return page;
 }
 // Estado de un elemento (1, 2, 3, 4) de un menú.
@@ -169,19 +179,106 @@ const sel = (id, n, s) => `[data-id="${id}"] .digi-mm__heading > li:nth-child(${
   ok((await item(page, 'm2', 1)).anim === 'none', 'Movimiento reducido: sin fundido.');
   await page.close();
   const ed = await open({ editor: true });
-  ok(await ed.evaluate(() => window.__hook && window.__hook[0] === 'frontend/element_ready/digitalisimo-mega-menu.default'), 'Editor: se engancha a frontend/element_ready del widget.');
+  ok(await ed.evaluate(() => window.__hooks.length === 2 && window.__hooks.every(h => h[0] === 'frontend/element_ready/digitalisimo-mega-menu.default')), 'Editor: los dos scripts (menú y desplazamiento) se enganchan a frontend/element_ready del widget.');
   ok(await ed.evaluate(() => {
     const w = document.querySelector('[data-id="m1"]');
     w.innerHTML = w.innerHTML.replace(/ digi-mm--ready/g, '');
-    window.__hook[1]([w]);
-    return w.querySelector('.digi-mm').classList.contains('digi-mm--ready');
-  }), 'Editor: el widget repintado se vuelve a iniciar.');
+    window.__hooks.forEach(h => h[1]([w]));
+    return w.querySelector('.digi-mm').classList.contains('digi-mm--ready') && w.querySelector('.digi-mm__heading').digiMmScroll === 1;
+  }), 'Editor: el widget repintado se vuelve a iniciar (también el desplazamiento).');
   await ed.hover(sel('m1', 1, '.digi-mm__title-text'));
   await sleep(150);
   ok(!(await item(ed, 'm1', 1)).visible, 'Editor: el ratón no abre (se edita con clic).');
   await ed.click(sel('m1', 1, '.digi-mm__title-text'));
   ok((await item(ed, 'm1', 1)).visible, 'Editor: el clic en el título abre.');
   await ed.close();
+}
+
+// 6. «Abrir con: ratón» en una pantalla táctil por encima del punto de corte de tableta (m1).
+for (const width of [1280, 1180]) {
+  const page = await open({ width, touch: true });
+  const tapText = async (n) => { const r = await page.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, sel('m1', n, '.digi-mm__title-text')); await page.touchscreen.tap(r.x, r.y); await sleep(200); };
+  await tapText(1);
+  let s = await item(page, 'm1', 1);
+  ok(s.expanded === 'true' && s.visible, `${width} px táctil: el toque en un título sin enlace abre su contenido, como PRO.`);
+  if (width === 1280) {
+    await tapText(2);
+    ok((await item(page, 'm1', 2)).visible && !(await item(page, 'm1', 1)).visible && (await page.evaluate(() => location.hash)) === '#equipo', 'Táctil: el toque en un título con enlace abre el suyo, cierra el otro y navega (Chrome, como PRO).');
+    await page.touchscreen.tap(5, 880);
+    await sleep(200);
+    ok(!(await item(page, 'm1', 2)).visible, 'Táctil: tocar fuera cierra.');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await sleep(100);
+    const b = await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel('m1', 1, '.digi-mm__dropdown-icon'));
+    await page.touchscreen.tap(b.x, b.y);
+    await sleep(200);
+    ok((await item(page, 'm1', 1)).visible, 'Táctil: el botón indicador sigue abriendo.');
+  }
+  await page.close();
+}
+
+// 7. «Desplazamiento horizontal» (m4 «Final», m5 «Centro», m6 «Final» en RTL).
+{
+  const page = await open({ width: 375 });
+  const row = id => page.evaluate(id => {
+    const h = document.querySelector(`[data-id="${id}"] .digi-mm__heading`), r = h.getBoundingClientRect(), li = [...h.children].map(x => x.getBoundingClientRect());
+    return { inline: h.style.getPropertyValue('--dmm-heading-justify-content'), justify: getComputedStyle(h).justifyContent, left: h.scrollLeft, max: h.scrollWidth - h.clientWidth, first: li[0].left - r.left, firstRight: r.right - li[0].right, last: r.right - li[li.length - 1].right, lastLeft: li[li.length - 1].left - r.left };
+  }, id);
+  let e = await row('m4'), c = await row('m5'), rtl = await row('m6');
+  ok(e.max > 100 && e.inline === 'start' && e.justify === 'start' && Math.abs(e.left - e.max) <= 1 && e.last >= -1, '«Final» sin sitio: la fila pasa a start y empieza por el final, con el último elemento a la vista: ' + JSON.stringify(e));
+  await page.evaluate(() => { document.querySelector('[data-id="m4"] .digi-mm__heading').scrollLeft = 0; });
+  e = await row('m4');
+  ok(e.left === 0 && e.first >= -1, '«Final»: el primer elemento es alcanzable con el desplazamiento: ' + JSON.stringify(e));
+  ok(c.inline === 'start' && c.left === 0 && c.first >= -1 && c.first <= 1, '«Centro» sin sitio: la fila empieza por el primer elemento, a la vista: ' + JSON.stringify(c));
+  ok(rtl.inline === 'start' && Math.abs(rtl.left + rtl.max) <= 1 && rtl.lastLeft >= -1, '«Final» en RTL: desplazamiento negativo hasta el último elemento: ' + JSON.stringify(rtl));
+  // Si caben, conservan su alineación; al volver a estrechar, se aplica otra vez.
+  await page.setViewport({ width: 1280, height: 900 });
+  await sleep(300);
+  e = await row('m4');
+  c = await row('m5');
+  ok(e.inline === '' && e.justify === 'flex-end' && e.max === 0 && c.inline === '' && c.justify === 'center', 'Con sitio: sin cambio en línea, «Final» y «Centro» como los pinta el CSS: ' + JSON.stringify({ e, c }));
+  await page.setViewport({ width: 375, height: 900 });
+  await sleep(300);
+  e = await row('m4');
+  ok(e.inline === 'start' && Math.abs(e.left - e.max) <= 1, 'Al volver a estrechar, otra vez desde el final: ' + JSON.stringify(e));
+  // Arrastre con el ratón en m5, empezando sobre el enlace «Equipo».
+  await page.evaluate(() => { window.__clicks = 0; document.querySelectorAll('[data-id="m5"] a').forEach(a => a.addEventListener('click', ev => { window.__clicks++; ev.preventDefault(); })); });
+  const start = await page.evaluate(s => { document.querySelector('[data-id="m5"]').scrollIntoView({ block: 'center' }); const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel('m5', 3, 'a'));
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x - 150, start.y, { steps: 12 });
+  const during = await page.evaluate(() => { const h = document.querySelector('[data-id="m5"] .digi-mm__heading'); return { cursor: getComputedStyle(h).cursor, active: h.classList.contains('digi-mm__scroll-active'), veil: getComputedStyle(h, '::before').position }; });
+  await page.mouse.up();
+  await sleep(100);
+  c = await row('m5');
+  const after = await page.evaluate(() => { const h = document.querySelector('[data-id="m5"] .digi-mm__heading'); return { classes: h.className, hash: location.hash, clicks: window.__clicks }; });
+  ok(during.cursor === 'grabbing' && during.active && during.veil === 'absolute', 'Arrastre: cursor de agarre y velo mientras se arrastra: ' + JSON.stringify(during));
+  ok(Math.abs(c.left - 67.5) <= 1, 'Arrastre de 150 px en 12 pasos: 67,5 px, con los pasos de PRO (sigue al puntero hasta 20 px y luego de 5 en 5): ' + c.left);
+  ok(after.classes === 'digi-mm__heading' && after.hash === '' && after.clicks === 0, 'Al soltar: sin clases de arrastre y sin abrir el enlace donde empezó: ' + JSON.stringify(after));
+  await page.close();
+  // Sin «Desplazamiento horizontal» (m2 a 1 280 px), el arrastre no desplaza ni pone el velo.
+  const wide = await open();
+  const p2 = await wide.evaluate(s => { document.querySelector('[data-id="m2"]').scrollIntoView({ block: 'center' }); const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel('m2', 3, '.digi-mm__title-text'));
+  await wide.mouse.move(p2.x, p2.y);
+  await wide.mouse.down();
+  await wide.mouse.move(p2.x - 150, p2.y, { steps: 12 });
+  const off = await wide.evaluate(() => { const h = document.querySelector('[data-id="m2"] .digi-mm__heading'); return { left: h.scrollLeft, active: h.classList.contains('digi-mm__scroll-active') }; });
+  await wide.mouse.up();
+  ok(off.left === 0 && !off.active, 'Sin «Desplazamiento horizontal»: el arrastre no hace nada: ' + JSON.stringify(off));
+  await wide.close();
+  // Cursor de agarre al pulsar sobre la fila, como PRO en todos sus menús, también en una página que no carga el script
+  // del desplazamiento (ningún menú lo activa): lo pone la hoja, no el script.
+  const bare = await open({ noScroll: true });
+  const gap = await bare.evaluate(() => { const h = document.querySelector('[data-id="m2"] .digi-mm__heading'); h.scrollIntoView({ block: 'center' }); const r = h.getBoundingClientRect(), l = h.lastElementChild.getBoundingClientRect(); return { x: (l.right + r.right) / 2, y: (r.top + r.bottom) / 2, loaded: !!document.querySelector('[data-id="m2"] .digi-mm__heading').digiMmScroll, free: r.right - l.right }; });
+  ok(!gap.loaded && gap.free > 20, 'Prueba válida: sin el script del desplazamiento y con espacio libre en la fila: ' + JSON.stringify(gap));
+  await bare.mouse.move(gap.x, gap.y);
+  const idle = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  await bare.mouse.down();
+  const held = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  await bare.mouse.up();
+  const released = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  ok(idle !== 'grabbing' && held === 'grabbing' && released !== 'grabbing', 'Sin el script, el cursor de agarre aparece al pulsar sobre la fila y se va al soltar, como PRO: ' + JSON.stringify({ idle, held, released }));
+  await bare.close();
 }
 
 await browser.close();
