@@ -1004,6 +1004,6 @@
    }
   },
   "chrome": "tests/elements-pro-posts-chrome.mjs: 181 comprobaciones (paginación de PRO y propia con letra de 12 y 16 px y separación de 0 y 10 px: misma geometría, mismos píxeles y clic en el centro de cada número; cascada con reset.css de Hello, frontend.min.css, un kit con botones y el CSS del documento en siete escenarios: reposo, cursor, clic y teclado; mampostería en px, 0 sin valor, sin subir con una expresión, sin heredar y desde el borde exterior). Fallan con el código anterior.",
-  "php": "elements-pro-posts.php 11 930, elements-pro-loop.php 139, elements-pro-theme-titles-media.php 373, elements-f7b-actions.php 272 y elements-f7b-actions.mjs 83, sin Fatal, Uncaught ni FALLA."
+  "php": "elements-pro-posts.php 11 936, elements-pro-loop.php 139, elements-pro-theme-titles-media.php 375, elements-f7b-actions.php 272 y elements-f7b-actions.mjs 83, sin Fatal, Uncaught ni FALLA."
  }
 }

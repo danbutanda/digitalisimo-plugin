@@ -492,30 +492,38 @@ namespace {
 	check_g( '![Entrada de prueba](https://sitio.test/wp-content/uploads/a-7.png)' === $make( Widgets\Featured_Image::class, array( 'image' => array( 'id' => '', 'url' => '' ) ) )->render_markdown(), 'Imagen destacada: Markdown de la imagen destacada si el widget no tiene imagen, como PRO.' );
 
 	// 4. Contenido de la entrada: las mismas ramas que PRO.
-	$content = static function ( $class, $post_id ) use ( $render, $state ) {
+	$content = static function ( $class, $post_id, array $settings = array() ) use ( $render, $state ) {
 		$GLOBALS['tt']['post'] = $GLOBALS['tt']['posts'][ $post_id ];
 		$state->calls          = array();
-		return $render( $class, array() );
+		return $render( $class, $settings );
 	};
 	$pro_content = $pairs['theme-post-content']['pro'];
+	// Lo convertido de PRO lleva la marca del traductor (`Translator::MARKER`, la dejan «Migrar» y los kits): con ella, el
+	// título de las páginas de la entrada es el de PRO; sin ella (contenido nuevo), «Páginas:», como desde C4.
+	$converted = array( \Digitalisimo\Elements\Convert\Translator::MARKER => 'theme-post-content' );
 	// a) Entrada sin constructor: `the_content` de WordPress y paginación (PRO se queda la entrada para toda la petición).
 	make_post( 200, array( 'post_content' => '<p>Hola</p>' ) );
 	make_post( 201, array( 'post_content' => '<p>Hola</p>' ) );
 	$a = $content( $pro_content, 200 );
 	$calls_a = $state->calls;
-	$b = $content( Widgets\Post_Content::class, 201 );
+	$b = $content( Widgets\Post_Content::class, 201, $converted );
 	check_g( '<div class="contenido"><p>Hola</p></div><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">Pages:</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a, "Contenido (PRO): the_content y paginación: $a" );
 	check_g( $a === $b && str_replace( '200', '201', implode( ',', $calls_a ) ) === implode( ',', $state->calls ), "Contenido: the_content y paginación como PRO (y las mismas llamadas al núcleo).\n $b\n " . implode( ',', $state->calls ) );
 	check_g( array( 'edit:0', 'builder:201:0', 'remove_content_filter', 'add_content_filter', 'edit:0' ) === $state->calls, 'Contenido: sin el CSS del contenido, sin modo de edición y con el filtro del constructor devuelto: ' . implode( ',', $state->calls ) );
-	check_g( '' === $content( $pro_content, 200 ) && $b === $content( Widgets\Post_Content::class, 201 ), 'Contenido: diferencia declarada, PRO no vuelve a pintar la misma entrada en la petición; el propio sí.' );
+	check_g( '' === $content( $pro_content, 200 ) && $b === $content( Widgets\Post_Content::class, 201, $converted ), 'Contenido: diferencia declarada, PRO no vuelve a pintar la misma entrada en la petición; el propio sí.' );
+	make_post( 292, array( 'post_content' => '<p>Hola</p>' ) );
+	check_g( str_replace( 'Pages:', 'Páginas:', $a ) === $content( Widgets\Post_Content::class, 292 ), 'Contenido nuevo (sin la marca de la conversión): «Páginas:», como desde C4.' );
 	// El título de la paginación es el texto de PRO con su dominio: con el paquete de idioma de PRO, la misma traducción.
 	make_post( 290, array( 'post_content' => '<p>Hallo</p>' ) );
 	make_post( 291, array( 'post_content' => '<p>Hallo</p>' ) );
 	$GLOBALS['tt']['l10n'] = array( 'elementor-pro' => array( 'Pages:' => 'Seiten:' ) );
 	$a = $content( $pro_content, 290 );
-	$b = $content( Widgets\Post_Content::class, 291 );
+	$b = $content( Widgets\Post_Content::class, 291, $converted );
+	make_post( 293, array( 'post_content' => '<p>Hallo</p>' ) );
+	$c = $content( Widgets\Post_Content::class, 293 );
 	unset( $GLOBALS['tt']['l10n'] );
-	check_g( str_contains( $a, '<span class="page-links-title elementor-page-links-title">Seiten:</span>' ) && $a === $b, "Contenido: el título de la paginación con el msgid y el dominio de PRO («Pages:» traducido igual).\n $a\n $b" );
+	check_g( str_contains( $a, '<span class="page-links-title elementor-page-links-title">Seiten:</span>' ) && $a === $b, "Contenido convertido: el título de la paginación con el msgid y el dominio de PRO («Pages:» traducido igual).\n $a\n $b" );
+	check_g( str_replace( 'Seiten:', 'Páginas:', $a ) === $c, "Contenido nuevo: «Páginas:» (dominio propio), sin la traducción de PRO.\n $c" );
 	// b) Contenido del constructor.
 	make_post( 202 );
 	make_post( 203 );
@@ -536,7 +544,7 @@ namespace {
 			$widget = $make( $class );
 			( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
 		};
-		$out[ $id ] = $content( $class, $id );
+		$out[ $id ] = $content( $class, $id, $pro_content === $class ? array() : $converted );
 	}
 	$GLOBALS['tt']['nest'] = null;
 	check_g( str_contains( $out[206], '<div class="anidado"></div>' ) && $out[205] === $out[206], "Contenido: la entrada no se pinta dentro de sí misma (guarda de PRO): {$out[206]}" );
@@ -558,12 +566,12 @@ namespace {
 	$state->docs[208] = new \ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document( array( 'preview_type' => 'single/post', 'preview_id' => 210 ) );
 	$state->docs[209] = new \ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document( array( 'preview_type' => 'single/post', 'preview_id' => 211 ) );
 	$a = $content( $pro_content, 208 );
-	$b = $content( Widgets\Post_Content::class, 209 );
+	$b = $content( Widgets\Post_Content::class, 209, $converted );
 	check_g( str_contains( $b, '<p>Vista previa</p>' ) && $a === $b, "Contenido: en la plantilla, el de su vista previa, como PRO: $b" );
 	$state->docs[212] = new \ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document( array( 'preview_type' => 'single/post', 'preview_id' => 999 ) );
 	make_post( 212 );
 	check_g( '' === $content( Widgets\Post_Content::class, 212 ) && '' === $content( $pro_content, 212 ), 'Contenido: sin entrada de vista previa, nada (como PRO).' );
-	$checks += 12;
+	$checks += 14;
 
 	// 5. Mapas: cobertura (los controles de PRO, también los del núcleo) y conversión.
 	foreach ( $pairs as $pro => $p ) {

@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
  * y condiciones; la consulta es la del constructor (grupo `posts_`, como PRO). Marcado propio:
  *
  *     <ul class="digi-portfolio__filters" aria-label="Filtrar">                      ← con «Mostrar la barra de filtro»
- *       <li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">All</button></li> …
+ *       <li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todos</button></li> …
  *     </ul>
  *     <div class="digi-portfolio elementor-grid" role="list" data-digi-items [data-digi-masonry]>
  *       <article class="digi-portfolio__item {post_class()}" role="listitem" data-digi-terms="12 15">
@@ -28,9 +28,10 @@ defined( 'ABSPATH' ) || exit;
  * El filtro son botones con `aria-pressed` (PRO: elementos de lista con `tabindex` que el teclado no activaba) y su
  * script (`portfolio.js`, sin jQuery ni la librería de PRO) oculta los elementos de otros términos; la mampostería la
  * hace `loop.js`. Los botones se ven como los elementos de lista de PRO también con los estilos de botón del tema
- * (el `reset.css` de Hello) o del kit: `portfolio.css` los anula con más especificidad. El primer botón dice «All» con
- * el msgid y el dominio de PRO, así que un sitio migrado conserva el texto (o la traducción del paquete de idioma de
- * PRO). La proporción de la imagen se aplica con CSS.
+ * (el `reset.css` de Hello) o del kit: `portfolio.css` los anula con más especificidad. El primer botón dice «Todos»;
+ * en lo convertido de PRO (marca `_digitalisimo_pro` del traductor), el «All» de PRO con su msgid y su dominio, así que
+ * un sitio migrado conserva el texto (o la traducción del paquete de idioma de PRO). La proporción de la imagen se
+ * aplica con CSS.
  *
  * Derivado de PRO Elements (GPL): `modules/posts/widgets/portfolio.php`.
  */
@@ -532,7 +533,7 @@ class Portfolio extends \Elementor\Widget_Base {
 		wp_reset_postdata();
 	}
 
-	/** Barra de filtro: el «All» de PRO (su msgid y su dominio) y los términos de las entradas listadas, por nombre (como PRO). */
+	/** Barra de filtro: «Todos» (en lo convertido, el «All» de PRO) y los términos de las entradas listadas, por nombre (como PRO). */
 	protected function render_filter_menu() {
 		if ( ! $this->get_settings( 'taxonomy' ) ) {
 			return;
@@ -554,8 +555,15 @@ class Portfolio extends \Elementor\Widget_Base {
 			}
 		);
 
+		// El primer botón no es un ajuste: en lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan
+		// «Migrar» y los kits) dice el «All» de PRO con su msgid y su dominio (o la traducción del paquete de idioma de
+		// PRO); en lo nuevo, «Todos», como desde C5.
+		$all = '' !== (string) $this->get_settings( '_digitalisimo_pro' )
+			? esc_html__( 'All', 'elementor-pro' ) // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- mismo texto y dominio que PRO en lo convertido.
+			: esc_html__( 'Todos', 'pro-elements' );
+
 		printf( '<ul class="digi-portfolio__filters" aria-label="%s">', esc_attr__( 'Filtrar', 'pro-elements' ) );
-		printf( '<li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">%s</button></li>', esc_html__( 'All', 'elementor-pro' ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- mismo texto y dominio que PRO: el sitio migrado conserva «All» o la traducción del paquete de idioma de PRO.
+		printf( '<li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">%s</button></li>', $all ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 		foreach ( $terms as $term ) {
 			printf( '<li><button type="button" class="digi-portfolio__filter" data-filter="%1$s" aria-pressed="false">%2$s</button></li>', esc_attr( (string) $term->term_id ), esc_html( $term->name ) );
 		}

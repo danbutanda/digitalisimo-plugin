@@ -347,9 +347,9 @@ $GLOBALS['pe']['elementor'] = (object) array( 'editor' => $pe_core, 'preview' =>
 foreach ( array( 'editor', 'preview', 'frontend' ) as $prop ) {
 	\Elementor\Plugin::$instance->$prop = $pe_core;
 }
-$pe_pages = static function ( $class, $skin, $id ) {
+$pe_pages = static function ( $class, $skin, $id, array $settings = array() ) {
 	$GLOBALS['pe']['post'] = (object) array( 'ID' => $id, 'post_content' => '<p>Primera página</p>', 'post_status' => 'publish', 'post_title' => "Entrada $id" );
-	$w = pe_widget( $class, array( '_skin' => $skin ) );
+	$w = pe_widget( $class, array( '_skin' => $skin ) + $settings );
 	$s = $w->get_skin( $skin );
 	$s->set_parent( $w );
 	ob_start();
@@ -357,13 +357,17 @@ $pe_pages = static function ( $class, $skin, $id ) {
 	return (string) ob_get_clean();
 };
 $pe_id = 400;
+// «Pages:» no es un ajuste: lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan «Migrar» y los
+// kits) usa el texto de PRO; lo nuevo, «Páginas:», como desde C5 (y nunca la traducción de PRO).
 foreach ( array( array(), array( 'elementor-pro' => array( 'Pages:' => 'Seiten:' ) ) ) as $l10n ) {
 	$GLOBALS['pe']['l10n'] = $l10n;
 	$title = $l10n ? 'Seiten:' : 'Pages:';
-	foreach ( array( array( 'ElementorPro\Modules\Posts\Widgets\Posts', $P, 'full_content' ), array( 'ElementorPro\Modules\ThemeBuilder\Widgets\Archive_Posts', 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts', 'archive_full_content' ) ) as list( $pro_class, $own_class, $skin ) ) {
+	foreach ( array( array( 'ElementorPro\Modules\Posts\Widgets\Posts', $P, 'full_content', 'posts' ), array( 'ElementorPro\Modules\ThemeBuilder\Widgets\Archive_Posts', 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts', 'archive_full_content', 'archive-posts' ) ) as list( $pro_class, $own_class, $skin, $source ) ) {
 		$a = $pe_pages( $pro_class, $skin, ++$pe_id );
-		$b = $pe_pages( $own_class, $skin, ++$pe_id );
-		$check( '<p>Primera página</p><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . $title . '</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a && $a === $b, "$skin: las páginas de la entrada con el título de PRO ($title), igual que PRO.\n PRO:    $a\n propio: $b" );
+		$b = $pe_pages( $own_class, $skin, ++$pe_id, array( \Digitalisimo\Elements\Convert\Translator::MARKER => $source ) );
+		$c = $pe_pages( $own_class, $skin, ++$pe_id );
+		$check( '<p>Primera página</p><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . $title . '</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a && $a === $b, "$skin convertido: las páginas de la entrada con el título de PRO ($title), igual que PRO.\n PRO:    $a\n propio: $b" );
+		$check( str_replace( $title, 'Páginas:', $a ) === $c, "$skin nuevo (sin la marca de la conversión): «Páginas:», sin la traducción de PRO.\n propio: $c" );
 	}
 }
 unset( $GLOBALS['pe']['l10n'], $GLOBALS['pe']['elementor'] );
@@ -386,11 +390,13 @@ $check( $aw->get_query() !== $GLOBALS['wp_query'] && 1 === $aw->get_query()->que
 $F = 'Digitalisimo\Elements\Loop\Widgets\Portfolio';
 $GLOBALS['pe']['query'] = pe_query( 3 );
 $html = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ) );
-$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">All</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio: filtro con botones y aria-pressed, «All» de PRO y los términos por nombre.' );
-$pf_label = static function ( $translations ) use ( $render, $F ) {
+$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todos</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio nuevo: filtro con botones y aria-pressed, «Todos» (como desde C5) y los términos por nombre.' );
+// Lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan «Migrar» y los kits) dice lo mismo que PRO:
+// su «All» con su msgid y su dominio, también con el paquete de idioma de PRO; lo nuevo, «Todos», sin la traducción de PRO.
+$pf_label = static function ( $translations, array $marker = array( \Digitalisimo\Elements\Convert\Translator::MARKER => 'portfolio' ) ) use ( $render, $F ) {
 	$GLOBALS['pe']['l10n'] = $translations;
 	$GLOBALS['pe']['query'] = pe_query( 3 );
-	$own = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ) );
+	$own = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) + $marker ) );
 	$pro = pe_widget( 'ElementorPro\Modules\Posts\Widgets\Portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) );
 	$q   = new ReflectionProperty( $pro, '_query' );
 	$q->setValue( $pro, (object) array( 'posts' => array( (object) array( 'tags' => array( 6 => (object) array( 'term_id' => 6, 'name' => 'Guías' ) ) ) ) ) );
@@ -404,8 +410,10 @@ $pf_label = static function ( $translations ) use ( $render, $F ) {
 };
 list( $pro_all, $own_all ) = $pf_label( array() );
 $check( 'All' === $pro_all && $pro_all === $own_all, "Portafolio: el primer botón del filtro dice lo mismo que el de PRO (PRO «{$pro_all}», propio «{$own_all}»)." );
-list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Todos' ) ) );
-$check( 'Todos' === $pro_all && $pro_all === $own_all, "Portafolio: con el paquete de idioma de PRO, la misma traducción (PRO «{$pro_all}», propio «{$own_all}»)." );
+list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Alle' ) ) );
+$check( 'Alle' === $pro_all && $pro_all === $own_all, "Portafolio: con el paquete de idioma de PRO, la misma traducción (PRO «{$pro_all}», propio «{$own_all}»)." );
+list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Alle' ) ), array() );
+$check( 'Alle' === $pro_all && 'Todos' === $own_all, "Portafolio nuevo (sin la marca de la conversión): «Todos», sin la traducción de PRO (propio «{$own_all}»)." );
 $GLOBALS['pe']['query'] = pe_query( 3 );
 $check( str_contains( $html, '<div class="digi-portfolio elementor-grid" role="list" data-digi-items="">' ) && str_contains( $html, 'role="listitem" data-digi-terms="6 5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-101/"><div class="digi-portfolio__img"></div>' ) && str_contains( $html, 'role="listitem" data-digi-terms="5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-102/"><div class="digi-portfolio__img"><img' ) && str_contains( $html, '<div class="digi-portfolio__overlay"><h3 class="digi-portfolio__title">Entrada 1</h3></div></a></article>' ), 'Portafolio: elementos con sus términos, enlace, imagen y capa con el título.' );
 $html = $render( pe_widget( $F, array() ) );
@@ -470,6 +478,10 @@ $check( 'selector .digi-portfolio__filter[aria-pressed="true"]{color:red}' === $
 // PRO marca también con `elementor-active` los elementos que el filtro deja a la vista: pasan a los visibles del propio.
 $out = Converter::tree( $tree( 'portfolio', array( 'custom_css' => 'selector .elementor-portfolio-item.elementor-active .elementor-portfolio-item__title{color:red} selector .elementor-post.elementor-active{opacity:.9} selector .elementor-portfolio__filter.elementor-active{color:blue}' ) ), $log, true )[0]['elements'][0]['settings'];
 $check( 'selector .digi-portfolio__item:not([hidden]) .digi-portfolio__title{color:red} selector .digi-portfolio__item:not([hidden]){opacity:.9} selector .digi-portfolio__filter[aria-pressed="true"]{color:blue}' === $out['custom_css'], 'Portafolio: los elementos activos de PRO pasan a los visibles; el filtro activo, a aria-pressed: ' . $out['custom_css'] );
+// La conversión (la de «Migrar» y la de los kits) deja la marca que hace decir al filtro el «All» de PRO.
+$out = Converter::tree( $tree( 'portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ), $log, true )[0]['elements'][0]['settings'];
+$GLOBALS['pe']['query'] = pe_query( 3 );
+$check( 'portfolio' === ( $out[ \Digitalisimo\Elements\Convert\Translator::MARKER ] ?? null ) && str_contains( $render( pe_widget( $F, $out ) ), 'data-filter="__all" aria-pressed="true">All</button>' ), 'Portafolio convertido: la marca de la conversión da el «All» de PRO.' );
 // Sin piel guardada: la que el widget de PRO pinta hoy (su primera piel registrada); sin el constructor, la de PRO.
 $check( 'classic' === Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'] && 'archive_classic' === Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'], 'Sin piel guardada y sin el constructor cargado: la de por defecto de PRO.' );
 \Elementor\Plugin::$instance->widgets_manager = new class() { public function get_widget_types( $name = null ) { return 'posts' === $name ? new class() { public function get_skins() { return array( 'cards' => 1, 'full_content' => 1, 'classic' => 1 ); } } : null; } };
