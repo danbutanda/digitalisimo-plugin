@@ -17,12 +17,6 @@
    "reason": "Foco visible propio de flechas, puntos, botón y diapositiva enlazada (contorno de 2 px)."
   },
   {
-   "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
-   "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
-   "widget": "slides"
-  },
-  {
    "kind": "hover",
    "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
    "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
@@ -37,19 +31,19 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8 y estándar del front); en PRO el punto era el propio elemento. Se ven en el mismo lugar con el mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
    "widget": "slides"
   },
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control pause 1 sólo en B",
-   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2).",
+   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado: no cambia lo que se ve (píxeles).",
    "widget": "slides"
   },
   {
    "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en A",
-   "reason": "Bucle (approx de loop): Swiper clonaba diapositivas y sus enlaces; el motor rebobina sin clones. El HTML de A y B tiene los mismos enlaces.",
+   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en (A|B)",
+   "reason": "Copias del bucle (bucle real, como Swiper): Swiper copiaba las visibles (o todas) a cada lado y el motor copia visibles + paso, así que el número de enlaces copiados puede no coincidir; las copias fuera de la vista no se ven (píxeles) y el HTML original de A y B tiene los mismos enlaces.",
    "widget": "slides"
   }
  ],
@@ -510,12 +504,12 @@
     {
      "kind": "hover",
      "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
-     "reason": "El primer control es un punto: en el motor, un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO el punto era el propio elemento."
+     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px de área táctil en vertical); en PRO el punto era el propio elemento."
     },
     {
      "kind": "foco",
      "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
-     "reason": "El primer control es un punto: en el motor, un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO el punto era el propio elemento."
+     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px de área táctil en vertical); en PRO el punto era el propio elemento."
     }
    ]
   },
@@ -766,30 +760,26 @@
      }
     ]
    },
-   "pixels": {
-    "max": 0.03,
-    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
-   },
    "declared": [
     {
      "kind": "nombre",
      "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     },
     {
      "kind": "palabra",
      "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado."
     },
     {
      "kind": "hover",
      "match": ".",
-     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     },
     {
      "kind": "foco",
      "match": ".",
-     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     }
    ]
   },
@@ -878,6 +868,114 @@
      }
     ]
    }
+  },
+  "sl-autoplay-default": {
+   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 60 s), bucle y pausa al pasar el puntero",
+   "widget": "slides",
+   "settings": {
+    "autoplay_speed": 60000,
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
+    },
+    {
+     "kind": "palabra",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado."
+    },
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    }
+   ]
+  },
+  "sl-loop-end": {
+   "title": "Bucle por defecto con tres diapositivas: pasa del final (siguiente ×3, de vuelta a la primera hacia delante) y vuelve (anterior)",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente (1)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha siguiente (2)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha siguiente (3)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha anterior",
+     "a": ".elementor-swiper-button-prev",
+     "b": ".digi-crs__prev",
+     "wait": 2200
+    }
+   ]
   }
  }
 }

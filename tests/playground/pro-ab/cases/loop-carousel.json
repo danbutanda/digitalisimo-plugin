@@ -34,12 +34,6 @@
    "reason": "Foco visible propio de flechas y puntos (contorno de 2 px con separación de 2 px)."
   },
   {
-   "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
-   "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
-   "widget": "loop-carousel"
-  },
-  {
    "kind": "hover",
    "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
    "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
@@ -54,19 +48,19 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8 y estándar del front); en PRO el punto era el propio elemento. Se ven en el mismo lugar con el mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
    "widget": "loop-carousel"
   },
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control pause 1 sólo en B",
-   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2).",
+   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado: no cambia lo que se ve (píxeles).",
    "widget": "loop-carousel"
   },
   {
    "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en A",
-   "reason": "Bucle (approx de loop): Swiper clonaba diapositivas y sus enlaces; el motor rebobina sin clones. El HTML de A y B tiene los mismos enlaces.",
+   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en (A|B)",
+   "reason": "Copias del bucle (bucle real, como Swiper): Swiper copiaba las visibles (o todas) a cada lado y el motor copia visibles + paso, así que el número de enlaces copiados puede no coincidir; las copias fuera de la vista no se ven (píxeles) y el HTML original de A y B tiene los mismos enlaces.",
    "widget": "loop-carousel"
   },
   {
@@ -166,6 +160,111 @@
      "label": "flecha siguiente",
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "lc-autoplay": {
+   "title": "Reproducción automática (cada 60 s, para que la captura no dependa del momento) con pausa al pasar el puntero",
+   "widget": "loop-carousel",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "autoplay": "yes",
+    "autoplay_speed": 60000
+   },
+   "declared": [
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    }
+   ]
+  },
+  "lc-autoplay-default": {
+   "title": "Estado por defecto real: reproducción automática e infinito en su valor por defecto (sí; cada 60 s)",
+   "widget": "loop-carousel",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "autoplay_speed": 60000
+   },
+   "declared": [
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    }
+   ]
+  },
+  "lc-loop-end": {
+   "title": "Bucle por defecto (6 entradas, 3 visibles): pasa del final (siguiente ×4) y vuelve (anterior)",
+   "widget": "loop-carousel",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "autoplay": ""
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente (1)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (2)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (3)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (4)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha anterior",
+     "a": ".elementor-swiper-button-prev",
+     "b": ".digi-crs__prev"
+    }
+   ]
+  },
+  "lc-drag": {
+   "title": "Arrastre con el ratón (simulateTouch de Swiper): 300 px hacia la izquierda en un gesto lento llevan a la siguiente",
+   "widget": "loop-carousel",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "autoplay": ""
+   },
+   "actions": [
+    {
+     "label": "Arrastre con el ratón de 300 px hacia la izquierda",
+     "a": ".swiper-slide-active",
+     "b": ".digi-crs__current",
+     "drag": -300,
+     "wait": 1200
     }
    ]
   }

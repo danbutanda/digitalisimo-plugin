@@ -68,6 +68,8 @@
 # de archivo, con la página `/N/` como `paged`) y, en los hermanos `before`/`after`, `"$self"` (el ID del widget medido:
 # un filtro que apunta al bucle del caso). En `actions`, `page: true` (el selector es relativo a la página, no al widget:
 # el filtro hermano) y `scroll: true` (lleva el selector a la vista en lugar de pulsarlo: desplazamiento infinito).
+# Fidelidad de los carruseles: en `actions`, `drag` (píxeles, negativo hacia la izquierda) arrastra con el ratón desde el
+# centro del selector en un gesto lento de 600 ms (el arrastre con el ratón de Swiper y del motor `digi-crs`).
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

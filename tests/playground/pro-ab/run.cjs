@@ -263,7 +263,7 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel, ctl) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
-      // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, stay, scroll, page, focus, wait, widths }`):
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, drag, stay, scroll, page, focus, wait, widths }`):
       // pulsar el selector del lado (`a`/`b`, o `selector` común, relativo al widget), con `key` enfocarlo y teclear, con
       // `type` escribir un texto, con `hover` pasar el puntero por encima o, con `scroll` (C2: píxeles o `end`), desplazar la
       // página; con `scroll: true` (C5), llevar el selector a la vista. Tras
@@ -283,7 +283,17 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
             if (act.scroll === true) await el.evaluate((n) => n.scrollIntoView({ block: 'center' }));
             // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
             else if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
-            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
+            // `drag` (píxeles, negativo hacia la izquierda): arrastre con el ratón desde el centro del selector, en 12 pasos
+            // durante 600 ms (un gesto lento: Swiper lo resuelve por la mitad de la diapositiva, no como gesto rápido).
+            else if (act.drag !== undefined) {
+              const bb = await el.boundingBox();
+              if (!bb) throw new Error(`«${target}» sin caja`);
+              const x0 = bb.x + bb.width / 2, y0 = bb.y + Math.min(bb.height / 2, 40);
+              await page.mouse.move(x0, y0);
+              await page.mouse.down();
+              for (let i = 1; i <= 12; i++) { await page.mouse.move(x0 + (Number(act.drag) * i) / 12, y0); await sleep(50); }
+              await page.mouse.up();
+            } else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
               // Dos movimientos cortos tras llegar: un ratón real (SmartMenus de PRO sólo abre con el ratón si lo detecta).
               await el.hover();
               const bb = await el.boundingBox();
