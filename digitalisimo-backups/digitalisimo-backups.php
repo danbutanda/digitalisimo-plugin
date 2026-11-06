@@ -13,9 +13,13 @@ define( 'DIGITALISIMO_BACKUPS_FILE', __FILE__ );
 require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-digitalisimo-updater.php';
+require_once __DIR__ . '/includes/class-backups-rest.php';
+require_once __DIR__ . '/includes/class-backups-cli.php';
 require_once __DIR__ . '/includes/class-backups.php';
 add_action( 'plugins_loaded', function() {
 	Digitalisimo_Backups_Core::boot();
 	Digitalisimo_Backups_Updater::register();
 	Digitalisimo_Backups::init();
+	Digitalisimo_Backups_Rest::register();
+	Digitalisimo_Backups_Cli::register();
 } );

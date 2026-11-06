@@ -1,8 +1,11 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-backups-layout.php';
+require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
+	use Digitalisimo_Backups_Service; // Casos de uso que comparten la pantalla, REST y WP-CLI.
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
@@ -327,30 +330,14 @@ final class Digitalisimo_Backups {
 	public static function run() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_RUN );
-		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Inicia el respaldo completo desde el sitio principal o la administración de red.' );
-		@set_time_limit( 0 );
-		ignore_user_abort( true );
 		$context = self::network_context();
+		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Inicia el respaldo completo desde el sitio principal o la administración de red.', $context );
 		$scope = sanitize_key( wp_unslash( $_POST['digitalisimo_backup_scope'] ?? 'installation' ) );
 		if ( ! in_array( $scope, array( 'installation', 'network' ), true ) ) self::redirect( false, 'La exportación de un subsitio no constituye un respaldo completo de WordPress.', $context );
-		$settings = self::settings();
-		$available = self::manual_destinations( $settings );
-		$destination = sanitize_key( wp_unslash( $_POST['digitalisimo_backup_destination'] ?? $settings['destination'] ) );
-		if ( ! isset( $available[ $destination ] ) ) self::redirect( false, 'El destino seleccionado no está conectado o no es válido.', $context );
-		$settings['destination'] = $destination;
-		try {
-			$operation_lock = self::acquire_operation_lock();
-			try {
-				$file = self::create_network();
-				$remote = 'local' === $destination ? array() : self::transfer( $file, $settings );
-				self::remember( $file, $destination, is_multisite() ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ), $remote );
-				self::prune( dirname( $file ), (int) $settings['retention'] );
-				$message = 'Respaldo completo creado: ' . wp_basename( $file ) . ' en ' . self::destination_label( $destination ) . '.';
-			} finally { self::release_operation_lock( $operation_lock ); }
-			self::redirect( true, $message, $context );
-		} catch ( Exception $e ) {
-			self::redirect( false, $e->getMessage(), $context );
-		}
+		// En una red, el botón anuncia «de la red» y sólo lo ve quien la administra: ese es el alcance que autoriza.
+		$result = self::service_create( array( 'destination' => wp_unslash( $_POST['digitalisimo_backup_destination'] ?? '' ), 'network' => is_multisite() ) );
+		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message(), $context );
+		self::redirect( true, 'Respaldo completo creado: ' . $result['file'] . ' en ' . self::destination_label( $result['destination'] ) . '.', $context );
 	}
 
 	private static function manual_job_key() { return 'digitalisimo_backups_manual_job_' . get_current_user_id(); }
@@ -428,11 +415,9 @@ final class Digitalisimo_Backups {
 		}
 		wp_send_json_success( array( 'status' => self::$manual_job['status'] ) );
 	}
+	/** wp-content, plugins, medios y temas dentro de ABSPATH y sin enlaces; wp-config.php legible donde WordPress lo carga. */
 	private static function assert_full_files_ready() {
-		$root = realpath( ABSPATH );
-		$content = realpath( WP_CONTENT_DIR );
-		if ( false === $root || false === $content ) throw new Exception( 'No se pudo resolver la ruta de WordPress o wp-content.' );
-		if ( ! self::path_within( $content, $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; esta instalación requiere configurar su inclusión antes de respaldarla.' );
+		Digitalisimo_Backups_Layout::assert_complete();
 		self::wordpress_config_file();
 	}
 	private static function wordpress_config_file() {
@@ -522,7 +507,11 @@ final class Digitalisimo_Backups {
 			$path = wp_normalize_path( $entry->getPathname() );
 			if ( 0 === strpos( $path, $backup_dir ) ) continue;
 			if ( isset( $active_database_files[ $path ] ) ) continue; // database.sql es la copia lógica consistente.
-			if ( $entry->isLink() ) throw new Exception( 'El respaldo completo no puede omitir el enlace simbólico ' . $path . '.' );
+			if ( $entry->isLink() ) {
+				// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido abajo y nunca se restaura encima.
+				if ( $root . 'wp-config.php' === $path ) continue;
+				throw new Exception( 'El respaldo completo no puede omitir el enlace simbólico ' . $path . ' (apunta a ' . ( realpath( $path ) ?: (string) @readlink( $path ) ) . '). Sustitúyelo por el archivo o la carpeta real para respaldar la instalación completa.' );
+			}
 			if ( ! $entry->isFile() ) continue;
 			$relative = substr( $path, strlen( $root ) );
 			$name = 'wordpress/' . $relative;
@@ -932,16 +921,16 @@ final class Digitalisimo_Backups {
 		check_admin_referer( self::ACTION_RESTORE );
 		@set_time_limit( 0 );
 		if ( 'RESTAURAR' !== strtoupper( trim( (string) ( $_POST['confirmation'] ?? '' ) ) ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' );
+		if ( empty( $_POST['updraft'] ) ) {
+			// Mismo caso de uso que REST y WP-CLI. En una red, esta pantalla restaura la red entera.
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => wp_unslash( $_POST['confirmation'] ?? '' ), 'network' => is_multisite() ) );
+			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
+			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
+		}
 		try {
 			$operation_lock = self::acquire_operation_lock();
 			try {
-				if ( ! empty( $_POST['updraft'] ) ) self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
-				else {
-					$file = sanitize_file_name( wp_unslash( $_POST['backup_file'] ?? '' ) );
-					$path = self::local_path( $file );
-					if ( ! $path ) throw new Exception( 'El respaldo local solicitado no está disponible.' );
-					self::restore_digitalisimo_zip( $path );
-				}
+				self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
 			} finally { self::release_operation_lock( $operation_lock ); }
 			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
 		} catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); }
