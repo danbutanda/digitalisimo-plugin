@@ -2252,16 +2252,16 @@
   }
  },
  "validate_yml": {
-  "comandos": 348,
-  "pruebas_en_workflows": 342,
-  "detalle": "Lista de validate.yml tras fusionar C3 (Elements 4.3.0.176), en 4 lotes por el semáforo: 345 en verde; 3 de Chrome de C2/C4 (elements-pro-table-of-contents-chrome, elements-pro-gallery-chrome, elements-pro-search-form-chrome) fallan sólo bajo carga (> 9) y pasan solas (corrida de las 10:46). validate-suite.mjs y verify-release.mjs en verde con paquetes construidos fuera de dist/ (ZIP de Elements con los 84 archivos de single/ y store/, LEGACY MENTION CHECK: PASS). Antes de la fusión, la misma lista (341 comandos) dio el mismo resultado."
+  "comandos": 351,
+  "pruebas_en_workflows": 345,
+  "detalle": "Tras fusionar C5 y 6316eec3, con /var/tmp/digi-wt/ci-run.sh corregido (^FALL[AO]) por el semáforo y con nice: sin FALLA ni FALLO salvo cinco pruebas de Chrome de otras etapas (elements-pro-table-of-contents-chrome, -gallery-chrome, -search-form-chrome, -nav-menu-chrome, elements-f7b-actions-chrome), que fallan con nice -n 15 y el tope de CPU de la unidad y pasan solas (34, 109, 22, 45 y 43 comprobaciones). validate-suite.mjs y verify-release.mjs en verde con paquetes fuera de dist/ (Elements 4.3.0.177, 84 archivos de single/ y store/, LEGACY MENTION CHECK: PASS)."
  },
  "pro_migrate": {
   "problemas": [],
-  "comprobaciones": 42,
-  "c7": "con WooCommerce 11.2.1 fijado: plantilla de producto (15 de la ficha + bdt-wc-add-to-cart), archivo de productos (9 + bdt-wc-products), página (6 de carrito, pago y cuenta) y cabecera (carrito del menú + bdt-wc-mini-cart): 81 widgets en 11 documentos con C0–C4, CSS personalizado traducido, segunda pasada sin cambios y --revert"
+  "comprobaciones": 49,
+  "c7": "tras fusionar C3 y C5, con WooCommerce 11.2.1 fijado: plantilla de producto (15 + bdt-wc-add-to-cart), archivo de productos (9 + bdt-wc-products), página (6) y cabecera (carrito del menú + bdt-wc-mini-cart): 95 widgets en 13 documentos, CSS personalizado traducido, segunda pasada sin cambios y --revert"
  },
- "migration_pro_php": 230,
+ "migration_pro_php": 246,
  "front_budget": {
   "modo": "woo",
   "antes_de_fusionar": {
@@ -2447,7 +2447,7 @@
    "ok": 38,
    "editor_pro": "65 widgets de PRO registrados y ocultos (C0, C1, C2, C4 y C7), también en una plantilla de producto y una de archivo de productos; la búsqueda ofrece los propios; Elementos del producto y los clásicos fuera del panel, como en PRO"
   },
-  "tras_fusionar": "int2 e int3: 35 comprobaciones de front en verde; el paso del editor agotó los 180 s mientras el guardián tenía congelada la unidad. int4 (EDITOR_MS=900000) la detuvo el coordinador por la carga; se repite una vez tras fusionar C5."
+  "tras_fusionar": "Tras fusionar C3 y C5, con EDITOR_MS=900000 (int5): 37 OK, editor, editor-pro (75 widgets de PRO registrados y ocultos, C0-C5 y C7, también en plantillas product y product-archive) y editor-f7b en verde; digitalisimo-fancy-tabs (F4, no C7) agotó 90 s mientras el guardián tenía congelada la unidad (19:56-19:59) y pasó en las tres corridas anteriores. Antes, int2 e int3 agotaron los 180 s del editor con la unidad congelada."
  },
  "pro_ab_nota": "abm, abn1 y abd antes de fusionar C3 (Elements 4.3.0.175); abn2, abr y abr2 después (4.3.0.176). wpg-product falló en abn1 y abr por el orden al azar de WooCommerce (ventas dirigidas y relacionados de la plantilla de la ficha) y pasa en abr2 con el arnés que los ordena por título; cuenta como caso de abr2."
 }
