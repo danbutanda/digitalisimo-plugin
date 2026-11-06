@@ -211,7 +211,14 @@ async function probe(page, blog) {
         }
         // Los carruseles de Element Pack clonan diapositivas para el bucle: se comparan las imágenes distintas.
         const set = (list) => JSON.stringify([...new Set(list)].sort());
-        known(set(sig.images) === set(was.images), `${key}: mismas imágenes que con Element Pack`, { before: was.images, after: sig.images }, why.images);
+        if (why.alt && !why.images) {
+          // `_known.alt`: sólo cambia el texto alternativo (deliberado); el archivo de cada imagen se sigue comparando.
+          const files = (list) => list.map((image) => image.replace(/ \| alt=[\s\S]*$/, ''));
+          ok(set(files(sig.images)) === set(files(was.images)), `${key}: los mismos archivos de imagen que con Element Pack`, { before: was.images, after: sig.images });
+          known(set(sig.images) === set(was.images), `${key}: el mismo texto alternativo que con Element Pack`, { before: was.images, after: sig.images }, why.alt);
+        } else {
+          known(set(sig.images) === set(was.images), `${key}: mismas imágenes que con Element Pack`, { before: was.images, after: sig.images }, why.images);
+        }
       }
     }
   } catch (e) {

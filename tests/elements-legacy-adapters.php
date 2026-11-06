@@ -225,6 +225,23 @@ namespace {
 	check_adapter( '[download_history]' === $sc( 'bdt-easy-digital-download-history', array() ) && '[edd_register redirect="https://s.test/ok"]' === $sc( 'bdt-edd-register', array( 'form_register_redirect_url' => array( 'url' => 'https://s.test/ok' ) ) ), 'EDD usa sus shortcodes fijos o con redirección.' );
 	check_adapter( '[weforms id="2" data-x="1"]' === $sc( 'bdt-we-form', array( 'we_form' => '2', 'custom_attributes' => "data-x|1\nonclick|x\nstyle|y\n9bad|z" ) ), 'weForms descarta atributos de evento, estilo y clase.' );
 	check_adapter( '[gravityform id="8" title="true" description="false" ajax="true" tabindex="0"]' === $sc( 'bdt-gravity-form', array( 'gravity_form' => '8', 'title_hide' => 'yes', 'description_hide' => '', 'form_ajax' => 'yes' ) ), 'Gravity Forms usa los mismos argumentos que gravity_form().' );
+	// Element Pack sólo registraba estos widgets con su plugin activo; sin él no se veía nada. El shortcode armado lleva
+	// el ajuste opt-in del widget Shortcode que no pinta una etiqueta sin registrar (nunca como texto).
+	$guard = static function ( $id, $settings ) { return Translator::translate( $id, $settings )[ Translator::SHORTCODE_GUARD ] ?? null; };
+	foreach ( array( 'bdt-contact-form-7' => 'contact_form', 'bdt-fluent-forms' => 'fluent_form', 'bdt-formidable-forms' => 'formidable_form', 'bdt-forminator-forms' => 'forminator_form', 'bdt-ninja-form' => 'ninja_form', 'bdt-we-form' => 'we_form' ) as $form_id => $form_key ) {
+		check_adapter( 'digitalisimo_shortcode_if_registered' === Translator::SHORTCODE_GUARD && 'yes' === $guard( $form_id, array( $form_key => '12' ) ) && '' !== $sc( $form_id, array( $form_key => '12' ) ), $form_id . ': con formulario elegido, el shortcode sólo se pinta si su plugin lo registra.' );
+	}
+	check_adapter( '' === $sc( 'bdt-contact-form-7', array() ) && null === $guard( 'bdt-contact-form-7', array() ), 'Sin shortcode no hay nada que vigilar.' );
+	$shortcode_maps = 0;
+	foreach ( Translator::ids() as $legacy_id ) {
+		if ( 'shortcode' !== Translator::target( $legacy_id ) ) {
+			continue;
+		}
+		++$shortcode_maps;
+		$out = Translator::translate( $legacy_id, array() );
+		check_adapter( ( '' !== trim( (string) ( $out['shortcode'] ?? '' ) ) ) === ( 'yes' === ( $out[ Translator::SHORTCODE_GUARD ] ?? '' ) ), $legacy_id . ': el ajuste acompaña a todo shortcode armado, y sólo a él.' );
+	}
+	check_adapter( $shortcode_maps >= 50, 'Todos los widgets de integración van al widget Shortcode con el ajuste: ' . $shortcode_maps );
 	$foo = Translator::translate( 'fooevents-calendar', array( 'fooevents_calendar_list' => 'month', 'fooevents_calendar_startday' => '1', 'fooevents_calendar_num' => '5' ) );
 	check_adapter( Translator::is_legacy_id( 'fooevents-calendar' ) && ! Translator::is_legacy_id( 'shortcode' ) && 0 === strpos( $foo['shortcode'], '[fooevents_calendar defaultView="month" firstDay="1" num="5"' ) && ! isset( $foo['fooevents_calendar_list'] ), 'El calendario de FooEvents también se traduce aunque su ID no lleve prefijo.' );
 

@@ -2,7 +2,9 @@
 """Genera el esqueleto de maps/bdt-*.php para un widget de Element Pack.
 
 Incluye todos los valores por defecto de la referencia (también de repetidores y filas por
-defecto), resuelve las imágenes de ejemplo con la de Elementor y lista como comentario las
+defecto), deja las imágenes de ejemplo de Element Pack como `{{ep_assets}}images/…` (la conversión
+las copia a la biblioteca de medios: Demo_Media, F8-D17), usa la de Elementor donde Element Pack
+usaba la suya o armaba la ruta con una variable, y lista como comentario las
 claves sin control equivalente en el widget propio y las clases CSS a mapear. El resultado se
 revisa a mano: renombres, valores, descartes y filtros dependen del render de ambos widgets.
 
@@ -31,6 +33,8 @@ def value(raw):
     if raw is None:
         return None, False
     raw = re.sub(r'(?:\\?Elementor\\)?Utils::get_placeholder_image_src\(\)', "'%s'" % PLACEHOLDER, raw)
+    # Ruta fija de Element Pack: su imagen, que la conversión copia a Medios. Armada con una variable: la de Elementor.
+    raw = re.sub(r"BDTEP_ASSETS_URL\s*\.\s*'/?(images/[A-Za-z0-9._/-]+)'(?!\s*\.)", lambda m: "'{{ep_assets}}%s'" % m.group(1), raw)
     raw = re.sub(r"BDTEP_ASSETS_URL\s*\.\s*'[^']*'(?:\s*\.\s*[^,\]\)]+?\s*\.\s*'[^']*')?", "'%s'" % PLACEHOLDER, raw)
     try:
         return styles.literal(raw), True

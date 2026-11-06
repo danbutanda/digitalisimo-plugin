@@ -226,6 +226,7 @@ jobs:
           php tests/migration-platform.php
           php tests/migration-theme-builder.php
           php tests/migration-prime-slider.php
+          php tests/migration-ep-demo.php
           php tests/migration-prime-slider-decisions.php
           php tests/migration-prime-slider-dynamic.php
           php tests/migration-markers.php

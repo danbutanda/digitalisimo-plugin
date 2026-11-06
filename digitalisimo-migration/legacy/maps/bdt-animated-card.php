@@ -17,8 +17,10 @@ return array(
 		'.bdt-ep-animated-card'           => '.digi-fancy-card',
 	),
 	'defaults'  => array(
+		// La lata de ejemplo de Element Pack (animated-card.php: `BDTEP_ASSETS_URL . 'images/coco-can.svg'`), que la
+		// conversión copia a la biblioteca de medios (Demo_Media); nunca la imagen de ejemplo del constructor.
 		'image' => array(
-			'url' => $placeholder_url,
+			'url' => '{{ep_assets}}images/coco-can.svg',
 		),
 		'title_text' => 'Animated Card Title',
 		'sub_title_text' => 'This is a Label',

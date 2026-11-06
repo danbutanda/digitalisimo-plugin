@@ -32,8 +32,35 @@ namespace {
 		return false;
 	}
 
+	/**
+	 * Correcciones de fidelidad frente a Element Pack (2026-11-06, `ep-verdicts`): cada una escribe una clave opt-in del
+	 * widget de destino; sin ella, la conversión debe ser exactamente la de 1.0.20 (nada más cambia).
+	 */
+	const FIDELITY = array(
+		'digitalisimo_shortcode_if_registered' => 'el shortcode de un plugin que no está activo ya no se pinta como texto (Element Pack no registraba el widget)',
+		'image_ratio'                          => 'Interactive Card muestra su imagen entera, a su proporción, como Element Pack',
+	);
+
+	/** Notas `_known` de la instantánea en los casos cuya nota se corrigió después (2026-11-06: sólo el ALT es distinto). */
+	const SNAPSHOT_KNOWN = array(
+		'bdt-animated-card'    => array( 'images' => 'Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor' ),
+		'bdt-interactive-card' => array( 'images' => 'Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor' ),
+	);
+
+	/** Motivo declarado si el caso sólo difiere de la instantánea en claves de FIDELITY; null si no. */
+	function fidelity_case( array $converted, $changes, string $expected ) {
+		$settings = (array) ( $converted['settings'] ?? array() );
+		$found    = array_intersect_key( FIDELITY, $settings );
+		if ( ! $found ) {
+			return null;
+		}
+		$converted['settings'] = array_diff_key( $settings, FIDELITY );
+		return hash( 'sha256', json_encode( array( $converted, $changes ) ) ) === $expected ? implode( '; ', $found ) : null;
+	}
+
 	$by_file  = array();
 	$declared = array();
+	$fidelity = array();
 	foreach ( $baseline['cases'] as $case => $expected ) {
 		list( $name, $variant ) = explode( '/', $case, 2 );
 		$by_file[ $name ][ $variant ] = $expected;
@@ -67,11 +94,21 @@ namespace {
 					$element['widgetType'] = $type;
 				}
 			} else {
+				// `_known` es una nota del arnés (pasa intacta por la conversión): se usa la que tenía el caso al generar la
+				// instantánea, así una nota corregida no esconde ni inventa un cambio de la conversión.
+				if ( isset( SNAPSHOT_KNOWN[ $name ], $settings['_known'] ) ) {
+					$settings['_known'] = SNAPSHOT_KNOWN[ $name ];
+				}
 				$element = array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => $name, 'settings' => $settings, 'elements' => array() );
 			}
 			list( $converted, $changes ) = Native::element( $element, 1 );
 			$actual = hash( 'sha256', json_encode( array( $converted, $changes ) ) );
 			if ( $actual === $expected ) {
+				continue;
+			}
+			$why = fidelity_case( $converted, $changes, $expected );
+			if ( null !== $why ) {
+				$fidelity[ $why ][] = $name . '/' . $variant;
 				continue;
 			}
 			if ( declared_case( $settings ) ) {
@@ -87,5 +124,10 @@ namespace {
 	if ( $declared ) {
 		echo 'Diferencias declaradas (claves de extensiones convertidas por F8): ' . implode( ', ', $declared ) . "\n";
 	}
+	foreach ( $fidelity as $why => $cases ) {
+		echo 'Corrección de fidelidad declarada (' . $why . '): ' . count( $cases ) . ' casos (' . implode( ', ', $cases ) . ")\n";
+	}
+	f8_check( isset( $fidelity[ FIDELITY['image_ratio'] ] ) && in_array( 'bdt-interactive-card/defaults', $fidelity[ FIDELITY['image_ratio'] ], true ), 'Interactive Card sólo cambia en la proporción de la imagen.' );
+	f8_check( isset( $fidelity[ FIDELITY['digitalisimo_shortcode_if_registered'] ] ) && in_array( 'bdt-contact-form-7/chosen', $fidelity[ FIDELITY['digitalisimo_shortcode_if_registered'] ], true ), 'Los formularios con shortcode sólo cambian en la clave que lo oculta sin su plugin.' );
 	f8_done( 'DIGITALÍSIMO Migración: línea base de 1.0.20', 193 );
 }

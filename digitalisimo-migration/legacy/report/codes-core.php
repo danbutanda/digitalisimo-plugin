@@ -14,6 +14,11 @@ return array(
 	'core.residual'            => array( 'section' => 'review', 'label' => __( 'Documento migrado con una versión anterior: quedan efectos o ajustes de página heredados que esta versión no convierte para no cambiar lo editado. Revísalo en el editor.', 'digitalisimo-migration' ) ),
 	'core.addon_missing'       => array( 'section' => 'dropped', 'label' => __( 'Widgets del Element Pack Addon sin el Addon instalado: ya no se ven con Element Pack 10; se verán al migrar.', 'digitalisimo-migration' ) ),
 	'core.document_failed'     => array( 'section' => 'review', 'label' => __( 'No se pudo convertir este documento (la conversión se cortó dos veces): se sigue viendo como antes.', 'digitalisimo-migration' ) ),
+	// Imágenes de ejemplo de Element Pack (F8-D17, Demo_Media).
+	'core.demo.copied'         => array( 'section' => 'created', 'label' => __( 'Imágenes de ejemplo de Element Pack copiadas a la biblioteca de medios (la carpeta del plugin no se usa)', 'digitalisimo-migration' ) ),
+	'core.demo.skipped'        => array( 'section' => 'dropped', 'review_if_published' => true, 'label' => __( 'Imágenes de ejemplo de Element Pack que no se pudieron copiar (plugin borrado, archivo que falta o SVG sin la subida sin filtrar): la imagen queda vacía', 'digitalisimo-migration' ) ),
+	'core.demo.reverted'       => array( 'section' => 'converted', 'label' => __( 'Imagen de ejemplo de Element Pack copiada, enviada a la papelera de medios al revertir', 'digitalisimo-migration' ) ),
+	'core.demo.revert_kept'    => array( 'section' => 'review', 'label' => __( 'Imagen de ejemplo de Element Pack copiada que se conserva en la biblioteca (cambió o no hay papelera de medios)', 'digitalisimo-migration' ) ),
 	// Tarea y etapas.
 	'core.elements_old'        => array( 'section' => 'review', 'label' => __( 'DIGITALÍSIMO Elements es anterior a 4.3.0.170: la migración está en pausa hasta actualizarlo.', 'digitalisimo-migration' ) ),
 	'core.stage_skipped'       => array( 'section' => 'review', 'label' => __( 'Una etapa no pudo completarse (la petición se cortó dos veces) y se saltó sin desactivar Element Pack.', 'digitalisimo-migration' ) ),

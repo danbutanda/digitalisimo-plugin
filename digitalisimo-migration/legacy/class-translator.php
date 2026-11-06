@@ -3,6 +3,8 @@ namespace Digitalisimo\Elements\Legacy;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-demo-media.php';
+
 /**
  * Traduce los ajustes que Element Pack guardó para un widget `bdt-*` a los del widget propio.
  *
@@ -325,15 +327,26 @@ final class Translator {
 		return '[' . $tag . ' ' . implode( ' ', $parts ) . ']';
 	}
 
+	/** Ajuste opt-in del widget Shortcode (DIGITALÍSIMO Elements): no pinta nada si su etiqueta no está registrada. */
+	const SHORTCODE_GUARD = 'digitalisimo_shortcode_if_registered';
+
 	/**
 	 * Un widget de Element Pack que sólo imprimía el shortcode de otro plugin pasa al widget
 	 * Shortcode de Elementor: se quitan sus ajustes de contenido y se guarda el shortcode armado.
+	 *
+	 * Element Pack sólo registraba esos widgets con su plugin activo: sin él, la página no mostraba nada. El widget
+	 * Shortcode, en cambio, imprime como texto un shortcode que no existe («[contact-form-7 id="21"]»). Por eso el
+	 * shortcode armado lleva siempre el ajuste `SHORTCODE_GUARD`: se ve sólo mientras su plugin esté activo en el sitio
+	 * (en una red, cada sitio con sus plugins), como con Element Pack. Una versión de Elements sin ese control lo ignora.
 	 */
 	public static function as_shortcode( array $out, $shortcode, array $content_keys ) {
 		foreach ( $content_keys as $key ) {
 			unset( $out[ $key ] );
 		}
 		$out['shortcode'] = (string) $shortcode;
+		if ( '' !== trim( (string) $shortcode ) ) {
+			$out[ self::SHORTCODE_GUARD ] = 'yes';
+		}
 		return $out;
 	}
 
@@ -382,6 +395,9 @@ final class Translator {
 	/** Defaults, renombres, valores y fijos de un nivel (widget o fila de repetidor). */
 	private static function apply( array $settings, array $spec ) {
 		foreach ( $spec['defaults'] ?? array() as $key => $value ) {
+			// Imagen de ejemplo de Element Pack (`{{ep_assets}}…`): la URL de su carpeta instalada, que la conversión copia
+			// a la biblioteca de medios (Demo_Media, F8-D17); sin Element Pack instalado, vacía.
+			$value = Demo_Media::expand( $value );
 			if ( ! array_key_exists( $key, $settings ) ) {
 				$settings[ $key ] = $value;
 			} elseif ( is_array( $value ) && is_array( $settings[ $key ] ) && $value && array_keys( $value ) !== range( 0, count( $value ) - 1 ) ) {

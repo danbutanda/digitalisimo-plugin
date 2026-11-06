@@ -69,6 +69,9 @@ foreach ( array( 1, 2 ) as $blog ) {
 	foreach ( array( 'element_pack_active_modules', 'element_pack_elementor_extend', 'element_pack_third_party_widget' ) as $option ) {
 		update_option( $option, $modules );
 	}
+	// Subida de SVG sin filtrar encendida (como en f8/p0.php): la migración copia a Medios las imágenes de ejemplo de
+	// Element Pack, que son SVG (la lata de Animated Card); apagada se vacían y se informan (K-D15).
+	update_option( 'elementor_unfiltered_files_upload', 1 );
 	// Menú de WordPress con un submenú para los widgets de navegación.
 	if ( ! wp_get_nav_menu_object( 'principal' ) ) {
 		$menu = wp_create_nav_menu( 'Principal' );
