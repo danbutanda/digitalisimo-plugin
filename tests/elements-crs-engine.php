@@ -367,6 +367,10 @@ namespace {
 	// w24: carrusel anidado con un solo elemento, a todo el ancho como PRO sin Swiper (la regla de la única diapositiva
 	// tiene que ganar a la del motor, ahora que el anidado no acota las visibles).
 	$fixture .= '<div class="elementor-element elementor-widget" data-id="w24" style="--digi-crs-view:3;--digi-crs-gap:10px">' . Engine::open( array( 'count' => 1, 'loop' => true, 'arrows' => true, 'classes' => 'digi-ncarousel', 'speed' => 0, 'label' => 'Carrusel w24' ) ) . '<div ' . Engine::slide_attributes( 0, 1, 'e-con' ) . '><div class="s">Única</div></div>' . Engine::close() . "</div>\n";
+	// w25: bucle con paso 2 y un número impar de diapositivas (5, 2 visibles), arrastre y clic: el bucle avanza por páginas
+	// (1-2, 3-4, 5-1, 1-2), como Swiper con las visibles múltiplo del paso, y la posición, el punto y la diapositiva actual
+	// coinciden siempre (sin anclas del imán fuera de las páginas).
+	$fixture .= $carousel( 'w25', array( 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'grab' => true, 'click' => true, 'speed' => 0 ), 5, '--digi-crs-view:2;--digi-crs-scroll:2;--digi-crs-gap:10px' );
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";

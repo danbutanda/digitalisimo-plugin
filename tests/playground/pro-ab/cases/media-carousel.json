@@ -1353,6 +1353,74 @@
      "wait": 1200
     }
    ]
+  },
+  "mc-loop-group": {
+   "title": "Bucle por defecto con paso 2 y 5 imágenes, 2 visibles en el escritorio: avanza por páginas (1-2, 3-4, 5-1 y otra vez 1-2, siempre hacia delante), un punto y anterior; el punto marcado es el de lo que se ve",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides_per_view": "2",
+    "slides_to_scroll": "2",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente (1)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (2)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (3)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Segundo punto",
+     "a": ".swiper-pagination-bullet:nth-child(2)",
+     "b": ".digi-crs__dot:nth-child(2)"
+    },
+    {
+     "label": "Flecha anterior",
+     "a": ".elementor-swiper-button-prev",
+     "b": ".digi-crs__prev"
+    }
+   ]
   }
  }
 }

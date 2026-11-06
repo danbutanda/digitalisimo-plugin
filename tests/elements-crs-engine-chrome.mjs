@@ -54,7 +54,7 @@ async function open({ width = 1280, js = true, reduce = false, editor = false, f
     if (editor || frontend) document.addEventListener('readystatechange', () => { if (document.readyState === 'interactive') for (const e of document.querySelectorAll('[data-id="w21"] .digi-crs__track > *')) { e.classList.add('elementor-element'); e.innerHTML += '<div class="elementor-element">x</div>'; } });
   }, editor, frontend);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('body > [data-id] > .digi-crs').length === 22 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('body > [data-id] > .digi-crs').length === 23 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
@@ -542,6 +542,52 @@ try {
     ok(before === 0 && after.length === 16 && after.every(Boolean), `Manejadores del núcleo sobre las copias en el primer cambio (${before} → ${after.length}).`);
     await page.$eval('[data-id="w21"] .digi-crs__next', b => b.click());
     ok((await page.evaluate(() => window.__ready.length)) === 16, 'Y sólo una vez.');
+    await page.close();
+  }
+
+  // 12. Bucle con paso 2 y número impar de diapositivas (w25: 5, 2 visibles; arrastre y clic): avanza por páginas como
+  // Swiper (1-2, 3-4, 5-1 y otra vez 1-2, siempre hacia delante), y la diapositiva actual, el punto y lo que se ve
+  // coinciden después de las flechas, de un arrastre, de un clic en una diapositiva y de la API (las anclas del imán son
+  // las de las páginas: una posición fuera de ellas la recolocaba el navegador y el estado quedaba desfasado).
+  {
+    const page = await open();
+    for (const id of ['w11', 'w17']) await page.$eval(`[data-id="${id}"] .digi-crs__pause`, b => b.click());
+    await page.$eval('[data-id="w25"]', e => e.scrollIntoView({ block: 'center' }));
+    const look = async () => { await settle(page); const s = await state(page, 'w25'); return { cur: s.cur, seen: s.seen, dots: s.dots, scroll: s.scroll, api: s.api }; };
+    const same = (s, seen, dots) => s.seen === seen && s.dots === dots && s.cur + 1 === +seen.split(',')[0] && s.api[0] === s.cur;
+    let s = await look();
+    ok(same(s, '1,2', 'X--__'), `Bucle con paso 2: tres páginas para cinco diapositivas: ${JSON.stringify(s)}`);
+    const seq = [['3,4', '-X-__'], ['5,1', '--X__'], ['1,2', 'X--__']];
+    for (const [seen, dots] of seq) {
+      const at = s.scroll;
+      await click(page, 'w25', '.digi-crs__next');
+      s = await look();
+      ok(same(s, seen, dots) && s.scroll > at, `Bucle con paso 2: siguiente → ${seen}, hacia delante y con el punto de lo que se ve: ${JSON.stringify(s)}`);
+    }
+    await click(page, 'w25', '.digi-crs__prev');
+    s = await look();
+    ok(same(s, '5,1', '--X__'), `Bucle con paso 2: anterior desde la primera página → 5, 1: ${JSON.stringify(s)}`);
+    await click(page, 'w25', '.digi-crs__next');
+    s = await look();
+    const tb = await page.$eval('[data-id="w25"] .digi-crs__track', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, slide: e.children[0].getBoundingClientRect().width }; });
+    const drag = async dx => { const x0 = tb.x + tb.w * 0.8; await page.mouse.move(x0, tb.y + 30); await page.mouse.down(); for (let i = 1; i <= 10; i++) { await page.mouse.move(x0 + (dx * i) / 10, tb.y + 30); await sleep(50); } await page.mouse.up(); return look(); };
+    s = await drag(-0.6 * tb.slide);
+    ok(same(s, '1,2', 'X--__'), `Bucle con paso 2: un arrastre lento de 0,6 diapositivas vuelve a la página: ${JSON.stringify(s)}`);
+    s = await drag(-1.2 * tb.slide);
+    ok(same(s, '3,4', '-X-__'), `Bucle con paso 2: uno de 1,2 diapositivas pasa a la página siguiente, no a la diapositiva siguiente: ${JSON.stringify(s)}`);
+    const visible = k => page.$eval('[data-id="w25"] .digi-crs__track', (t, k) => { const T = t.getBoundingClientRect(), b = [...t.children].filter(c => { const r = c.getBoundingClientRect(); return r.left >= T.left - 1 && r.right <= T.right + 1; })[k].getBoundingClientRect(); return { x: b.left + 20, y: b.top + 20 }; }, k);
+    let p = await visible(1);
+    await page.mouse.click(p.x, p.y);
+    s = await look();
+    ok(same(s, '3,4', '-X-__'), `Bucle con paso 2: un clic en la segunda visible deja la página (slideToClickedSlide va al inicio de su grupo): ${JSON.stringify(s)}`);
+    await click(page, 'w25', '.digi-crs__next');
+    p = await visible(1);
+    await page.mouse.click(p.x, p.y);
+    s = await look();
+    ok(same(s, '1,2', 'X--__'), `Bucle con paso 2: un clic en la copia de la 1 (5, 1) lleva a la página de la 1: ${JSON.stringify(s)}`);
+    await page.evaluate(() => document.querySelector('[data-id="w25"] .digi-crs').digiCrs.go(3));
+    s = await look();
+    ok(same(s, '3,4', '-X-__'), `Bucle con paso 2: la API lleva a la página de la diapositiva pedida: ${JSON.stringify(s)}`);
     await page.close();
   }
 

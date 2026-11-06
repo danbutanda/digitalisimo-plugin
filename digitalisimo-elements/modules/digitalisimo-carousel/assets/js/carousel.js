@@ -39,10 +39,10 @@ fade?jump||cl.add(R+'--anim'):glide(jump);
 real(cur)!=old&&emit('change',{index:real(cur)});
 lc&&!ran++&&each(T.querySelectorAll(`.${C}clone.elementor-element,.${C}clone .elementor-element`),e=>F()?.elementsHandler?.runReadyTrigger(e));
 };
-const near=()=>{const x=A(T.scrollLeft),d=k=>A(A(off(k))-x);let b=cur;if(!fade)for(let k=0,N=lc?all.length:pages();k<N;k++){const t=lc?k:pos(k);d(t)<d(b)&&(b=t)}return b};
-const mv=(d,auto)=>{const N=pages(),p=pg()+d;fix();to(lc?cur+d*step:pos(loop||auto?(p%N+N)%N:p<0?0:p<N?p:N-1))},
+const near=()=>{const x=A(T.scrollLeft),d=k=>A(A(off(k))-x);let b=cur;if(!fade)for(let k=0,N=lc?all.length:pages();k<N;k++){const t=lc?k:pos(k);lc&&real(k)%step||d(t)<d(b)&&(b=t)}return b};
+const mv=(d,auto)=>{const N=pages(),p=pg()+d,t=pos(loop||auto?(p%N+N)%N:p<0?0:p<N?p:N-1);fix();to(lc?cur+(t-real(cur)+d*n())%n():t)},
 pa=p=>{fix();to(lc+pos(p))},
-sl=k=>{const c=cur;fix();k+=cur-c;to(lc?k:pos(k>=max()?pages()-1:M.floor(k/step)))};
+sl=k=>{const c=cur;fix();k+=cur-c;to(lc?k-real(k)%step:pos(k>=max()?pages()-1:M.floor(k/step)))};
 const run=()=>{
 clearTimeout(timer);
 timer=delay&&!stop&&!held&&!focus&&!drag&&seen&&!D.hidden&&pages()>1?setTimeout(()=>{mv(1,1);run()},delay):0;
@@ -62,7 +62,7 @@ slides=L?[...all]:all;
 lc=L;tpl=tpl||L&&slides.map(s=>s.cloneNode(true));for(let j=0;j<L;j++)for(const b of [0,1]){const c=tpl[b?n()-1-j%n():j%n()].cloneNode(true);c.$c=1;c.classList.add(C+'clone','slick-cloned');T[b?'prepend':'append'](c);scan(c)}
 cur=lc+r;lw=-1;
 }
-lc||(cur=pos(cur>=max()?pages()-1:M.floor(cur/step)));
+cur=lc?cur-real(cur)%step:pos(cur>=max()?pages()-1:M.floor(cur/step));
 each(all,(s,k)=>{s.style.scrollSnapAlign=(lc?real(k)%step:k>max()||k%step&&k!=max())?'none':''});
 paint();
 if(T.clientWidth!=lw){lw=T.clientWidth;fade||glide(1)}
