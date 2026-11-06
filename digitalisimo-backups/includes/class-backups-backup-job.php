@@ -162,7 +162,7 @@ final class Digitalisimo_Backups_Backup_Job {
 	/** Al reintentar o volver a una fase, retira lo que esa fase y las siguientes dejaron a medias. */
 	public static function discard( array $job, $phase ) {
 		$staging = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING;
-		if ( ! is_dir( $staging ) ) return;
+		if ( is_link( $staging ) || ! is_dir( $staging ) ) return;
 		$index = array_search( $phase, Digitalisimo_Backups_Jobs::PHASES, true );
 		if ( false === $index ) return;
 		if ( $index <= 1 ) self::remove_matching( $staging, '/^database\./' );

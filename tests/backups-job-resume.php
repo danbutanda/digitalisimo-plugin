@@ -197,6 +197,44 @@ $after = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( ar
 bk_run_until_done( $after['id'] );
 bk_assert( ! is_file( bk_storage() . '/' . $waiting['spec']['file'] ) && is_file( bk_storage() . '/' . $after['spec']['file'] ), 'La retención dejó de rotar un ZIP cuyo trabajo ya terminó.' );
 
+// I. Puntos de control del registro y del empaquetado.
+// Un ZIP que cambia entre la verificación y el registro vuelve al empaquetado: nunca llega al nombre final.
+$changed = bk_manual( 'local', 'cambio-tras-verificar' );
+$job = until_phase( $changed['id'], 'publish' );
+file_put_contents( bk_storage() . '/jobs/' . $changed['id'] . '/staging/' . $job['checkpoint']['pack']['file'], 'X', FILE_APPEND );
+Digitalisimo_Backups_Jobs::tick( 0 );
+$job = bk_job( $changed['id'] );
+bk_assert( 'pack' === $job['phase'] && 1 === $job['attempts']['publish'] && ! isset( $job['checkpoint']['verify'] ) && ! is_file( bk_storage() . '/' . $changed['spec']['file'] ) && ! rows_for( $changed['spec']['file'] ), 'Un ZIP alterado después de verificarse llegó al nombre final o al historial.' );
+bk_run_until_done( $changed['id'] );
+bk_assert( 'success' === bk_job( $changed['id'] )['status'] && 1 === count( rows_for( $changed['spec']['file'] ) ), 'El ZIP rehecho tras el cambio no terminó.' );
+// Un archivo que ya ocupa el nombre final (otro respaldo) nunca se sobrescribe.
+$taken = bk_manual( 'local', 'nombre-ocupado' );
+until_phase( $taken['id'], 'publish' );
+file_put_contents( bk_storage() . '/' . $taken['spec']['file'], 'otro respaldo con el mismo nombre' );
+bk_run_until_done( $taken['id'] );
+$job = bk_job( $taken['id'] );
+bk_assert( 'failed' === $job['status'] && $job['error']['permanent'] && 'otro respaldo con el mismo nombre' === file_get_contents( bk_storage() . '/' . $taken['spec']['file'] ) && ! rows_for( $taken['spec']['file'] ), 'El registro sobrescribió un archivo que ya tenía el nombre final.' );
+unlink( bk_storage() . '/' . $taken['spec']['file'] );
+// Muerte después de registrar y antes de guardar el avance: al repetir el registro queda una sola fila.
+$twice = bk_manual( 'local', 'registro-doble' );
+$job = until_phase( $twice['id'], 'publish' );
+$final = bk_storage() . '/' . $twice['spec']['file'];
+rename( bk_storage() . '/jobs/' . $twice['id'] . '/staging/' . $job['checkpoint']['pack']['file'], $final );
+Digitalisimo_Backups::job_register( $final, $twice['spec'], $twice['id'] );
+bk_kill_in( $twice['id'], 'publish' );
+bk_run_until_done( $twice['id'] );
+bk_assert( 'success' === bk_job( $twice['id'] )['status'] && 1 === count( rows_for( $twice['spec']['file'] ) ), 'El registro repetido tras una muerte duplicó la fila del historial.' );
+// Un SQL que cambia en el área de trabajo después de exportarse se exporta otra vez antes de empaquetar.
+$sql_changed = bk_manual( 'local', 'sql-alterado' );
+$job = until_phase( $sql_changed['id'], 'pack' );
+$exports = $db->exports;
+file_put_contents( bk_storage() . '/jobs/' . $sql_changed['id'] . '/staging/' . $job['checkpoint']['database']['file'], "-- añadido\n", FILE_APPEND );
+Digitalisimo_Backups_Jobs::tick( 0 );
+$job = bk_job( $sql_changed['id'] );
+bk_assert( 'database' === $job['phase'] && 1 === $job['attempts']['pack'] && ! isset( $job['checkpoint']['database'] ), 'Un SQL alterado tras exportarse no volvió a la exportación.' );
+bk_run_until_done( $sql_changed['id'] );
+bk_assert( 'success' === bk_job( $sql_changed['id'] )['status'] && $exports + 1 === $db->exports && $expected === bk_zip_entries( bk_storage() . '/' . $sql_changed['spec']['file'] )['entries'], 'El paquete tras exportar otra vez el SQL alterado no coincide.' );
+
 // H. Una copia remota que sube completa pero no supera la verificación se retira del destino en cada intento: los
 // reintentos no dejan allí copias sin verificar con el nombre del respaldo, y el ZIP local verificado se conserva.
 $cloud = array();

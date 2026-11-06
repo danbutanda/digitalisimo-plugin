@@ -79,6 +79,12 @@ $result = Digitalisimo_Backups_Jobs::cancel( $late['id'] );
 bk_assert( empty( $result['ok'] ) && 'verified' === $result['code'] && false !== strpos( $result['message'], 'historial' ), 'Se aceptó cancelar un respaldo ya verificado.' );
 bk_run_until_done( $late['id'] );
 bk_assert( 'success' === bk_job( $late['id'] )['status'] && 1 === count( rows_for( $late['spec']['file'] ) ), 'El rechazo de la cancelación alteró el respaldo verificado.' );
+// La copia previa de una restauración (trabajo en línea) no se cancela: la restauración la necesita entera.
+$inline = bk_manual( 'local', 'copia-previa' );
+Digitalisimo_Backups_Job_Store::with_lock( function() use ( $inline ) { $job = Digitalisimo_Backups_Job_Store::read( $inline['id'] ); $job['spec']['inline'] = true; $job['status'] = 'running'; Digitalisimo_Backups_Job_Store::write( $job ); } );
+$result = Digitalisimo_Backups_Jobs::cancel( $inline['id'] );
+bk_assert( empty( $result['ok'] ) && 'inline' === $result['code'] && ! Digitalisimo_Backups_Job_Store::cancel_requested( $inline['id'] ) && ! Digitalisimo_Backups_Jobs::view( bk_job( $inline['id'] ) )['can_cancel'], 'Se aceptó cancelar la copia previa de una restauración.' );
+Digitalisimo_Backups_Job_Store::with_lock( function() use ( $inline ) { $job = Digitalisimo_Backups_Job_Store::read( $inline['id'] ); $job['status'] = 'failed'; Digitalisimo_Backups_Job_Store::write( $job ); } );
 
 // AJAX: capability, nonce, contexto e identificador.
 $target = bk_manual( 'local', 'ajax' );

@@ -99,5 +99,17 @@ bk_assert( 20 === $failed_kept, 'La poda no dejó los 20 terminados más recient
 bk_assert( ! is_dir( $orphan ), 'La poda no retiró una carpeta sin estado de más de una hora.' );
 bk_assert( 1 === count( array_filter( glob( $root . '/*', GLOB_ONLYDIR ), function( $path ) { return ! is_file( $path . '/job.json' ); } ) ), 'La poda retiró una carpeta reciente sin estado (creación en curso).' );
 
+// Un área de trabajo que es un enlace simbólico (por ejemplo, hacia la raíz pública) nunca recibe el SQL ni el ZIP:
+// el trabajo falla sin escribir en el destino del enlace.
+$linked = bk_manual( 'local', 'enlace' );
+$outside = $GLOBALS['bk_root'] . '/public/expuesto';
+mkdir( $outside, 0700 );
+symlink( $outside, bk_storage() . '/jobs/' . $linked['id'] . '/staging' );
+for ( $i = 0; $i < 10 && ! Digitalisimo_Backups_Job_Store::is_terminal( bk_job( $linked['id'] ) ); $i++ ) Digitalisimo_Backups_Jobs::tick( 0 );
+$job = bk_job( $linked['id'] );
+bk_assert( 'failed' === $job['status'] && $job['error']['permanent'] && array( '.', '..' ) === scandir( $outside ) && ! glob( bk_storage() . '/digitalisimo-*.zip' ), 'Un área de trabajo enlazada recibió el respaldo o el trabajo no falló: ' . json_encode( $job['error'] ) );
+@unlink( bk_storage() . '/jobs/' . $linked['id'] . '/staging' );
+rmdir( $outside );
+
 bk_cleanup();
 echo "DIGITALÍSIMO Backups: almacén de trabajos atómico, validado, podado y sin datos internos en la vista pública.\n";

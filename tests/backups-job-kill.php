@@ -2,9 +2,10 @@
 /**
  * Proceso real muerto con SIGKILL a mitad de la exportación: mientras vive, su cerrojo impide tocar su trabajo; al
  * morir, el kernel libera el cerrojo, el detector lo reconoce, descarta el SQL parcial y el trabajo termina sin
- * repetir nada más. Necesita proc_open y un PHP del sistema (la CI); en php-wasm se omite y la cubre
- * backups-job-resume.php con muertes simuladas. Las fases se pueden correr por separado con --fase=… para ensayarla
- * con procesos de php-wasm desde la consola.
+ * repetir nada más. Después, un error fatal real (memoria agotada) dentro de la instantánea: el apagado de PHP lo anota
+ * y devuelve el trabajo a la cola sin esperar al detector. Necesita proc_open y un PHP del sistema (la CI); en php-wasm
+ * se omite y la cubre backups-job-resume.php con muertes simuladas. Las fases se pueden correr por separado con
+ * --fase=… (preparar, vivo, tras-matar; preparar-fatal, tras-fatal) para ensayarla con procesos de php-wasm.
  */
 $phase = '';
 $root = '';
@@ -49,7 +50,22 @@ function kill_after() {
 	Digitalisimo_Backups::job_verify_package( bk_storage() . '/' . $job['spec']['file'] );
 }
 
+/**
+ * Tras un error fatal dentro del paso (memoria agotada): el apagado de PHP ya lo anotó y devolvió el trabajo a la cola
+ * antes de que nadie pase por el detector; el SQL parcial no queda y el trabajo termina después.
+ */
+function kill_after_fatal( $id ) {
+	$job = bk_job( $id );
+	bk_assert( 'queued' === $job['status'] && null === $job['lease'] && 'fatal' === ( $job['error']['code'] ?? '' ) && false !== strpos( (string) $job['error']['message'], 'PHP se detuvo durante «Base de datos»: Allowed memory size' ) && 1 === $job['attempts']['database'], 'El apagado de PHP no anotó el error fatal del paso: ' . json_encode( array( $job['status'], $job['error'], $job['lease'] ) ) );
+	bk_assert( ! glob( bk_storage() . '/jobs/' . $id . '/staging/database.*' ), 'Quedó el SQL parcial del paso con error fatal.' );
+	bk_ready( $id ); // El trabajador programó su espera de reintento sin el filtro de la prueba.
+	bk_run_until_done( $id );
+	bk_assert( 'success' === bk_job( $id )['status'], 'El trabajo no terminó tras el error fatal.' );
+}
+
 if ( 'preparar' === $phase ) { kill_prepare(); echo $GLOBALS['bk_root'], "\n"; exit; }
+if ( 'preparar-fatal' === $phase ) { echo bk_manual( 'local', 'fatal' )['id'], "\n"; exit; }
+if ( 'tras-fatal' === $phase ) { foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'fatal' === $job['spec']['policy'] ) kill_after_fatal( $job['id'] ); bk_cleanup(); echo "fatal: ok\n"; exit; }
 if ( 'vivo' === $phase ) { kill_check_alive(); echo "vivo: ok\n"; exit; }
 if ( 'tras-matar' === $phase ) { kill_after(); bk_cleanup(); echo "DIGITALÍSIMO Backups: proceso muerto con SIGKILL reconocido y trabajo terminado sin repetir lo confirmado.\n"; exit; }
 
@@ -86,5 +102,14 @@ fclose( $pipes[1] );
 fclose( $pipes[2] );
 proc_close( $process );
 kill_after();
+// Error fatal dentro de la instantánea: lo anota el apagado de PHP, sin esperar al detector.
+$fatal = bk_manual( 'local', 'fatal' );
+$process = proc_open( array( PHP_BINARY, __DIR__ . '/backups-jobs/worker.php', $GLOBALS['bk_root'], 'fatal-db' ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+bk_assert( is_resource( $process ), 'No se pudo lanzar el trabajador del error fatal.' );
+$output = stream_get_contents( $pipes[1] ) . stream_get_contents( $pipes[2] );
+fclose( $pipes[1] );
+fclose( $pipes[2] );
+bk_assert( 255 === proc_close( $process ), 'El trabajador no terminó con un error fatal: ' . $output );
+kill_after_fatal( $fatal['id'] );
 bk_cleanup();
-echo "DIGITALÍSIMO Backups: proceso muerto con SIGKILL reconocido y trabajo terminado sin repetir lo confirmado.\n";
+echo "DIGITALÍSIMO Backups: proceso muerto con SIGKILL y error fatal reconocidos, y trabajos terminados sin repetir lo confirmado.\n";
