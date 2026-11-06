@@ -1,0 +1,13 @@
+/* DIGITALÍSIMO Elements · Cuadrícula de bucle (C5). Valores por defecto del Loop Grid de PRO; el pie es de la hoja compartida. */
+.elementor-widget-digitalisimo-loop-grid{scroll-margin-top:var(--digi-loop-scroll-offset,initial)}
+.digi-loop-grid__items{display:grid;grid-template-columns:repeat(var(--grid-columns,3),minmax(0,1fr));column-gap:var(--grid-column-gap,30px);row-gap:var(--grid-row-gap,30px);align-items:stretch}
+.digi-loop-grid__items[data-digi-masonry]{align-items:flex-start}
+.digi-loop-grid__items .e-loop-item *{word-break:break-word}
+.elementor-widget-digitalisimo-loop-grid :is(.elementor-page-title,.product_title.entry-title){display:initial}
+.elementor-widget-digitalisimo-loop-grid .digi-loop__more{text-align:var(--digi-loop-more-align,center)}
+.elementor-widget-digitalisimo-loop-grid .digi-loop__more .elementor-button{width:var(--digi-loop-more-width,auto)}
+.digi-loop-grid__nothing{color:var(--digi-loop-nothing-color,#1f2124);padding-block:var(--digi-loop-nothing-top,30px) var(--digi-loop-nothing-bottom,30px);text-align:var(--digi-loop-nothing-align,center)}
+.digi-loop__empty{padding:24px;text-align:center;border:1px dashed currentColor;opacity:.7}
+.elementor-widget-digitalisimo-loop-grid[data-digi-loading]{animation:digi-loop-pulse 1s infinite alternate}
+@keyframes digi-loop-pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-loop-grid[data-digi-loading]{animation:none;opacity:.6}}

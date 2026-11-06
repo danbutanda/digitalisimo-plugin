@@ -58,4 +58,4 @@ for i in $(seq 1 200); do
 done
 curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/digi-ix-bdt-accordion/" | grep -q '^200$' || { echo 'El servidor no sirvió las páginas de prueba'; tail -20 "$OUT/server.log"; exit 1; }
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
-OUT="$OUT" CORE="${CORE:-}" FACADES="${FACADES:-}" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"
+OUT="$OUT" CORE="${CORE:-}" FACADES="${FACADES:-}" EDITOR_MS="${EDITOR_MS:-}" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"

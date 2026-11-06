@@ -43,12 +43,19 @@ defined( 'ABSPATH' ) || exit;
  * salvo con paginación o plantillas alternas; la precarga de metas y términos sólo si la plantilla del bucle los usa.
  */
 final class Runtime {
-	/** Widgets con el grupo de consulta de PRO => nombre de su grupo (`get_query_name()`). */
+	/**
+	 * Widgets con el grupo de consulta de PRO => nombre de su grupo (`get_query_name()`). Los propios de C5
+	 * (`modules/digitalisimo-loop/`) usan el mismo grupo y la misma consulta que el de PRO al que sustituyen.
+	 */
 	const WIDGETS = array(
-		'posts'         => 'posts',
-		'portfolio'     => 'posts',
-		'loop-grid'     => 'post_query',
-		'loop-carousel' => 'post_query',
+		'posts'                      => 'posts',
+		'portfolio'                  => 'posts',
+		'loop-grid'                  => 'post_query',
+		'loop-carousel'              => 'post_query',
+		'digitalisimo-posts'         => 'posts',
+		'digitalisimo-portfolio'     => 'posts',
+		'digitalisimo-loop-grid'     => 'post_query',
+		'digitalisimo-loop-carousel' => 'post_query',
 	);
 
 	/** Variable de consulta que marca un `WP_Query` construido con una consulta guardada (su ID). */
@@ -521,7 +528,7 @@ final class Runtime {
 	 */
 	public static function template_loads( $widget ): array {
 		$all = array( 'meta' => true, 'terms' => true );
-		if ( ! in_array( $widget->get_name(), array( 'loop-grid', 'loop-carousel' ), true ) || 'yes' === $widget->get_settings_for_display( 'alternate_template' ) ) {
+		if ( ! in_array( $widget->get_name(), array( 'loop-grid', 'loop-carousel', 'digitalisimo-loop-grid', 'digitalisimo-loop-carousel' ), true ) || 'yes' === $widget->get_settings_for_display( 'alternate_template' ) ) {
 			return $all;
 		}
 		$template = (int) $widget->get_settings_for_display( 'template_id' );

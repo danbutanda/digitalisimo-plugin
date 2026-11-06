@@ -289,7 +289,9 @@ const response = (n) => ({ data: `<div class="elementor-widget-container"><div c
 // ---------------------------------------------------------------------------------------------------------------
 // Tamaños y lo que el coordinador nunca llama.
 for (const name of ['filters.js', 'filters-form.js', 'filters-editor.js']) {
-  assert.ok(statSync(JS(name)).size <= 8192, `${name} pesa ${statSync(JS(name)).size} B, más de 8 KB`);
+  // El coordinador sube a 10 KB en C5 (programa «sin widgets de PRO»): refresca también la Cuadrícula de bucle propia.
+  const cap = name === 'filters.js' ? 10240 : 8192;
+  assert.ok(statSync(JS(name)).size <= cap, `${name} pesa ${statSync(JS(name)).size} B, más de ${cap / 1024} KB`);
 }
 for (const name of ['prepareLoopUpdateRequestData', 'getFetchArgumentsForLoopUpdate', 'fetchUpdatedLoopWidgetMarkup', 'getFilterHelperAttributes', 'loopWidgetsStore', 'AjaxHelper', 'jQuery']) {
   assert.ok(!source.coordinator.includes(name) && !source.form.includes(name), `El coordinador no usa ${name}`);

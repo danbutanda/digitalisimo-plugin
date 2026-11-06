@@ -3,8 +3,10 @@
 // página con los cinco carruseles de PRO (C1), otra con los catorce widgets de contenido de PRO y una cuenta regresiva
 // de Element Pack (C2), otra con los cuatro widgets de navegación de PRO y el Navbar y el Mega Menu de Element Pack,
 // más una plantilla de cabecera con el Menú y la Búsqueda de PRO (C3), y una plantilla de entrada con los elementos de
-// tema (C4); y documentos de botones flotantes, una página Link in Bio y una cabecera con las variantes de PRO de
-// C8.
+// tema (C4).
+// C5: otra página con los seis de entradas y bucles de PRO (con una plantilla de Elemento de bucle) y lo que F8 lleva
+// hacia ellos desde Element Pack y Prime Slider; la cabecera de citas lleva además unas Entradas de PRO.
+// C8: documentos de botones flotantes, una página Link in Bio y una cabecera con las variantes de PRO de C8.
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 // Sin actualizaciones automáticas: con una Release más nueva en GitHub, WordPress actualizaría DIGITALÍSIMO Elements
@@ -34,7 +36,7 @@ if ( $rev ) {
 $header = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Cabecera con cita', 'post_name' => 'pm-cabecera' ) );
 update_post_meta( $header, '_elementor_template_type', 'header' );
 update_post_meta( $header, '_elementor_edit_mode', 'builder' );
-update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ) ) ) ) ) ) );
+update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ), array( 'id' => 'hp1', 'elType' => 'widget', 'widgetType' => 'posts', 'settings' => array( 'classic_posts_per_page' => 3 ), 'elements' => array() ) ) ) ) ) ) );
 // C1: página con los cinco carruseles de PRO (el anidado, con dos contenedores hijos que se conservan).
 $w = static function ( $id, $type, array $settings, array $children = array() ) {
 	return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $type, 'settings' => $settings, 'elements' => $children );
@@ -123,6 +125,34 @@ update_post_meta( $single, '_elementor_template_type', 'single-post' );
 update_post_meta( $single, '_elementor_edit_mode', 'builder' );
 update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
 wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
+// C5: plantilla de Elemento de bucle, plantilla de sección (la del Dynamic Grid de Element Pack, que F8 copia como Loop
+// Item) y una página con los seis widgets de entradas y bucles de PRO (el filtro apunta a la cuadrícula; tres con CSS
+// personalizado) más una rejilla de entradas y un Dynamic Grid de Element Pack y un Blog de Prime Slider, que F8 lleva a
+// Posts, Loop Grid y Loop Carousel de PRO y la etapa `pro` a los propios en la misma pasada.
+$template = static function ( $slug, $type, array $meta = array() ) {
+	$id = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+	foreach ( array( '_elementor_template_type' => $type, '_elementor_edit_mode' => 'builder' ) + $meta as $key => $value ) {
+		update_post_meta( $id, $key, $value );
+	}
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'l' . substr( md5( $slug ), 0, 6 ), 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'h' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Elemento' ), 'elements' => array() ) ) ) ) ) ) );
+	return $id;
+};
+$loop_item = $template( 'pm-elemento-de-bucle', 'loop-item', array( '_elementor_source' => 'post' ) );
+$card      = $template( 'pm-tarjeta', 'section' );
+$loops_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'p1', 'posts', array( '_skin' => 'cards', 'cards_posts_per_page' => 3, 'custom_css' => 'selector .elementor-post__title{letter-spacing:1px}' ) ),
+	$w( 'p2', 'archive-posts', array() ),
+	$w( 'p3', 'portfolio', array( 'show_filter_bar' => 'yes' ) ),
+	$w( 'p4', 'taxonomy-filter', array( 'selected_element' => 'p5', 'taxonomy' => 'category', 'custom_css' => 'selector .e-filter-item{letter-spacing:1px}' ) ),
+	$w( 'p5', 'loop-grid', array( 'template_id' => (string) $loop_item, 'posts_per_page' => 3, 'custom_css' => 'selector .elementor-loop-container{outline:1px solid}' ) ),
+	$w( 'p6', 'loop-carousel', array( 'template_id' => (string) $loop_item, 'posts_per_page' => 3 ) ),
+	$w( 'ep2', 'bdt-post-grid', array( 'show_pagination' => 'yes' ) ),
+	$w( 'ep3', 'bdt-dynamic-grid', array( 'template_id' => (string) $card, 'posts_per_page' => 4, 'columns' => 2 ) ),
+	$w( 'ps1', 'prime-slider-blog', array() ),
+) ) );
+$loops = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con bucles', 'post_name' => 'pm-bucles' ) );
+update_post_meta( $loops, '_elementor_edit_mode', 'builder' );
+update_post_meta( $loops, '_elementor_data', wp_slash( wp_json_encode( $loops_data ) ) );
 // C8: un documento de botones flotantes (tipo de entrada del constructor `e-floating-buttons`) con los Botones de
 // contacto de PRO (Multi Chat, con CSS personalizado), otro de barra flotante (Coupon), una página Link in Bio con dos
 // variantes de PRO (Classic y Business Card) y una plantilla de cabecera con la variante Interactive. F8 no lleva ningún
@@ -153,5 +183,5 @@ update_post_meta( $header2, '_elementor_template_type', 'header' );
 update_post_meta( $header2, '_elementor_edit_mode', 'builder' );
 update_post_meta( $header2, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( $w( 'k10', 'contact-buttons-var-10', array() ) ) ) ) ) ) );
 wp_set_object_terms( $header2, 'header', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2 ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2 ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );
