@@ -624,8 +624,8 @@
   }
  },
  "validate_yml": {
-  "pruebas": 342,
-  "detalle": "Lista completa de validate.yml tras fusionar C3 (335 líneas; 341 ejecuciones con los 7 módulos de update-enqueue) y validate-suite con los ZIP construidos: todas en verde, en cuatro lotes por el semáforo. Antes de fusionar C3, la misma lista de entonces (328 líneas) también en verde. El recorrido extra de todos los tests/elements-*.mjs sólo marca elements-pro-nested-carousel-editor.mjs, que necesita PHP_BIN=php-wasm (en la lista, con PHP_BIN, pasa).",
+  "pruebas": 338,
+  "detalle": "Lista de validate.yml tras fusionar C5 y 6316eec3 (338 líneas, con los 7 módulos de update-enqueue en una) con /var/tmp/digi-wt/ci-run.sh corregido (busca ^FALL[AO] además de Fatal/Uncaught y el código de salida), por el semáforo y con nice: ninguna falla, tampoco en el recorrido de todos los tests/elements-*.mjs; validate-suite en verde con los ZIP construidos (Elements 4.3.0.177). Corridas anteriores (328 líneas antes de C3; 335 tras C3) también sin fallas, con el ci-run que sólo buscaba FALLA.",
   "nuevas": [
    "elements-pro-form.php",
    "elements-pro-login.php",
@@ -634,15 +634,16 @@
  },
  "pro_migrate": {
   "problemas": [],
-  "comprobaciones": 41,
-  "c6": "página con form (guardar, correo, webhook y redirección, CSS personalizado) y login de PRO más bdt-contact-form, bdt-mailchimp, bdt-webhook-form y bdt-user-login (F8 → PRO → propio), y un login de PRO en la cabecera: 54 widgets en 8 documentos con C0–C4; mismo id, campos, acciones y destinatarios; --revert devuelve PRO y Element Pack"
+  "comprobaciones": 48,
+  "c6": "página con form (guardar, correo, webhook y redirección, CSS personalizado) y login de PRO más bdt-contact-form, bdt-mailchimp, bdt-webhook-form y bdt-user-login (F8 → PRO → propio), y un login de PRO en la cabecera: 68 widgets en 10 documentos con C0–C5 (tras fusionar C5); mismo id, campos, acciones y destinatarios; --revert devuelve PRO y Element Pack"
  },
- "migration_pro_php": 235,
+ "migration_pro_php": 251,
  "pro_form_e2e": {
   "comprobaciones": 66,
   "fallos": 0,
   "segundos": 51,
-  "nota": "A (Form de PRO) y B (convertido) con guardar envío, correo (pre_wp_mail) y webhook (receptor local): rechazo sin efectos, un envío correcto = 1 envío + 1 correo + 1 llamada, doble envío = uno solo, campo condicional de F7b oculto fuera del envío, del correo y del webhook; A y B iguales salvo página de origen y hora; B sin paquetes de PRO."
+  "nota": "A (Form de PRO) y B (convertido) con guardar envío, correo (pre_wp_mail) y webhook (receptor local): rechazo sin efectos, un envío correcto = 1 envío + 1 correo + 1 llamada, doble envío = uno solo, campo condicional de F7b oculto fuera del envío, del correo y del webhook; A y B iguales salvo página de origen y hora; B sin paquetes de PRO.",
+  "corridas": "tres en verde: antes y después de fusionar C3 y tras fusionar C5"
  },
  "chrome": {
   "elements-pro-form-chrome.mjs": 32
