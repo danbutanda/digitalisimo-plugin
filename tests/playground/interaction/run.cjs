@@ -435,6 +435,14 @@ checks['f7b-form-conditions'] = async (page) => {
     const failedRequests = [];
     page.on('pageerror', (e) => errors.push(String(e.message || e)));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    // En una máquina lenta (`EDITOR_MS`), las peticiones REST del núcleo pueden pasar su tope de 40 s (axios,
+    // ECONNABORTED): se anotan aparte y no cuentan como error de JavaScript. Cualquier otro rechazo sí cuenta.
+    const slowRest = [];
+    let slowUsed = 0;
+    if (process.env.EDITOR_MS) {
+      await page.evaluateOnNewDocument(() => window.addEventListener('unhandledrejection', (e) => { const r = e.reason || {}; if (r.name === 'AxiosError' && r.code === 'ECONNABORTED') console.log(`digi-slow-rest ${r.config && r.config.url}`); }));
+      page.on('console', (m) => { if (m.type() === 'log' && m.text().startsWith('digi-slow-rest ')) slowRest.push(m.text().slice(15)); });
+    }
     const bodies = [];
     page.on('response', (r) => {
       if (r.status() >= 400 && r.url().startsWith(base)) {
@@ -459,6 +467,9 @@ checks['f7b-form-conditions'] = async (page) => {
       await frame.waitForSelector('.elementor-widget', { timeout: EDITOR_MS });
       const core = await page.evaluate(() => (window.elementorCommon && window.elementorCommon.config && window.elementorCommon.config.version) || (window.ElementorConfig && window.ElementorConfig.version) || '');
       if (failedRequests.length) throw new Error('recursos no encontrados: ' + failedRequests.join(' | '));
+      // Cada rechazo por tiempo de una petición REST anotado deja un «AxiosError» en `pageerror`: sólo esos se descuentan.
+      for (let k; slowUsed < slowRest.length && (k = errors.indexOf('AxiosError')) >= 0; slowUsed++) errors.splice(k, 1);
+      if (slowRest.length) console.log(`NOTA   editor · peticiones REST del núcleo por encima de 40 s (máquina lenta): ${slowRest.join(', ')}`);
       if (errors.length) throw new Error('errores de JavaScript: ' + errors.join(' | '));
       // F7b: en el panel, «diapositivas» encuentra el slider anidado ligero y no el Carrusel de PRO (palabras clave propias).
       const found = await page.evaluate(async () => {
@@ -556,6 +567,7 @@ checks['f7b-form-conditions'] = async (page) => {
         return !(w.found || []).includes(w.title);
       });
       if (bad.length) throw new Error(`cada widget de PRO sustituido debe seguir registrado y fuera del panel, con el propio en su lugar: ${JSON.stringify(bad)}`);
+      for (let k; slowUsed < slowRest.length && (k = errors.indexOf('AxiosError')) >= 0; slowUsed++) errors.splice(k, 1);
       if (errors.length) throw new Error('errores de JavaScript en el editor de las plantillas: ' + errors.join(' | '));
       if (failedRequests.length) throw new Error('recursos no encontrados en el editor de las plantillas: ' + failedRequests.join(' | '));
       results.editorPro = { ok: true, note: `${pro.filter((w) => w.registered).length} widgets de PRO registrados y ocultos${pro.some((w) => !w.registered) ? ` (sin registrar: ${pro.filter((w) => !w.registered).map((w) => w.pro).join(', ')})` : ''}; ${pro.map((w) => `«${w.query}»${w.doc ? ` (${w.doc})` : ''} → ${w.ownHidden ? `${w.title} fuera del panel, como PRO` : w.title}`).join('; ')}` };
