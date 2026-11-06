@@ -81,6 +81,14 @@ try {
 	digi_assert( 1 === $code && false !== strpos( end( $out ), 'alcance de red' ), 'En una red, restore corrió sin --network.' );
 	list( $code, $out ) = digi_wp( $cmd, 'create', array(), array( 'network' => true, 'porcelain' => true ) );
 	digi_assert( 0 === $code && 'network' === get_option( Digitalisimo_Backups::HISTORY )[0]['scope'], 'create --network no respaldó la red.' );
+	$network_file = $out[0];
+	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado en la red\n" );
+	list( $code, $out ) = digi_wp( $cmd, 'restore', array( $network_file ), array( 'confirm' => 'RESTAURAR', 'network' => true ) );
+	digi_assert( 0 === $code && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'restore --network no restauró la red: ' . implode( "\n", $out ) );
+	list( $code, $out ) = digi_wp( $cmd . ' automation', 'run', array( 'monthly-full' ) );
+	digi_assert( 1 === $code && false !== strpos( end( $out ), 'alcance de red' ), 'En una red, automation run corrió sin --network.' );
+	list( $code, $out ) = digi_wp( $cmd . ' automation', 'run', array( 'monthly-full' ), array( 'network' => true ) );
+	digi_assert( 0 === $code && 'network' === get_option( Digitalisimo_Backups::HISTORY )[0]['scope'] && 'monthly-full' === get_option( Digitalisimo_Backups::HISTORY )[0]['policy'], 'automation run --network no respaldó la red: ' . implode( "\n", $out ) );
 	$GLOBALS['digi']['main'] = false;
 	list( $code, $out ) = digi_wp( $cmd, 'create', array(), array( 'network' => true ) );
 	digi_assert( 1 === $code && false !== strpos( end( $out ), 'sitio principal' ), 'WP-CLI respaldó la red desde un subsitio.' );

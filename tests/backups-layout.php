@@ -64,6 +64,12 @@ try {
 	$problems = digi_layout( $lab . '/no-existe/', $inside );
 	digi_assert( 1 === count( $problems ) && false !== strpos( $problems[0], 'No se pudo resolver la carpeta de WordPress' ), 'Un ABSPATH inexistente no se informó.' );
 
+	// folders() toma los directorios de temas registrados con register_theme_directory(), además de los de WordPress.
+	$GLOBALS['wp_theme_directories'] = array( WP_CONTENT_DIR . '/themes', $lab . '/themes-extra' );
+	$folders = Digitalisimo_Backups_Layout::folders();
+	digi_assert( isset( $folders['wp-content'], $folders['plugins'], $folders['mu-plugins'], $folders['uploads'], $folders['themes-1'] ) && $lab . '/themes-extra' === $folders['themes-1'][0], 'folders() no reúne las carpetas que WordPress carga: ' . json_encode( array_keys( $folders ) ) );
+	digi_assert( (bool) preg_grep( '#^Un directorio de temas \(register_theme_directory\(\)\) está en ' . preg_quote( $lab, '#' ) . '/themes-extra, fuera#', Digitalisimo_Backups_Layout::problems() ), 'Un directorio de temas registrado fuera de ABSPATH no llegó a la comprobación del respaldo.' );
+
 	// 2. Bedrock de verdad: wp-content fuera de ABSPATH se rechaza en cada superficie, antes de exportar nada.
 	$GLOBALS['wp_theme_directories'] = array( WP_CONTENT_DIR . '/themes' );
 	$expected = 'wp-content (WP_CONTENT_DIR) está en ' . $root . '/web/app, fuera de la carpeta de WordPress (' . $root . '/web/wp). El respaldo completo sólo recorre esa carpeta y todavía no incluye carpetas externas, así que quedaría incompleto y no se crea. Para respaldar esta instalación, mueve la carpeta dentro de ' . $root . '/web/wp y ajusta WP_CONTENT_DIR.';

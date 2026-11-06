@@ -5,13 +5,18 @@ defined( 'ABSPATH' ) || exit;
  * Casos de uso del motor que comparten la pantalla Backups, la API REST y WP-CLI.
  *
  * Cada superficie autoriza a su manera y después llama aquí, así que ninguna repite los pasos del motor:
- * - pantalla: capability y nonce de admin-post;
+ * - pantalla: capability y nonce de admin-post («Crear respaldo completo» hacia un destino remoto o sin JavaScript, y
+ *   «Restaurar»);
  * - REST: autenticación de WordPress (con cookie exige el nonce `wp_rest`) y la misma capability;
  * - WP-CLI: la cuenta del sistema, que ya controla los archivos y wp-config.php.
+ * La vista con avance del respaldo local (AJAX) todavía da los mismos pasos por su cuenta, con las mismas comprobaciones
+ * previas (assert_full_files_ready()), hasta que pase por la cola de «Trabajos».
  *
  * Aquí se decide el alcance. En una red, crear, restaurar o ejecutar una automatización abarca todos los sitios: se
- * pide desde el sitio principal y con el alcance de red explícito (`network`). En una instalación individual, ese
- * alcance se rechaza. Las respuestas nunca incluyen rutas del servidor ni identificadores remotos.
+ * pide desde el sitio principal (de la red principal, si hay varias) y con el alcance de red explícito (`network`). En
+ * una instalación individual, ese alcance se rechaza. Los resúmenes (estado, historial, verificación y automatizaciones)
+ * nunca incluyen la ruta del almacén ni identificadores remotos; un aviso que impide respaldar nombra la carpeta que
+ * hay que corregir.
  *
  * Con la cola de «Trabajos», crear y ejecutar una automatización encolan aquí; con «Seguridad», restaurar abre el
  * paquete y pide la confirmación de su nivel de confianza aquí. Ver «Cobertura» en docs/BACKUPS.md.
@@ -27,13 +32,26 @@ trait Digitalisimo_Backups_Service {
 	private static function service_error( $code, $message, $status ) {
 		return new WP_Error( 'digitalisimo_backups_' . $code, $message, array( 'status' => $status ) );
 	}
+	/**
+	 * Por qué este sitio no gestiona respaldos completos ('' si puede). El respaldo exporta todas las tablas de la
+	 * instalación: en una red se gestiona desde el sitio principal y, con varias redes (todas comparten la base de
+	 * datos), desde el de la red principal, porque administrar una red secundaria no autoriza a copiar ni a reemplazar
+	 * las demás.
+	 */
+	private static function service_main_site_problem() {
+		if ( ! is_multisite() ) return '';
+		if ( ! is_main_site() ) return 'En una red, los respaldos se crean, consultan y restauran desde el sitio principal o la administración de red.';
+		if ( function_exists( 'is_main_network' ) && ! is_main_network() ) return 'Esta instalación tiene varias redes y el respaldo completo las abarca todas: se crea, consulta y restaura desde el sitio principal de la red principal.';
+		return '';
+	}
 	/** Las operaciones que escriben exigen, en una red, el sitio principal y el alcance de red explícito. */
 	private static function service_scope( $network, $write ) {
 		if ( ! self::service_authorized() ) return self::service_error( 'forbidden', 'No autorizado para gestionar respaldos.', 403 );
 		if ( ! is_multisite() ) {
 			return $network ? self::service_error( 'scope', 'Esta instalación no es una red: omite el alcance de red.', 400 ) : true;
 		}
-		if ( ! is_main_site() ) return self::service_error( 'main_site', 'En una red, los respaldos se crean, consultan y restauran desde el sitio principal o la administración de red.', 400 );
+		$elsewhere = self::service_main_site_problem();
+		if ( '' !== $elsewhere ) return self::service_error( 'main_site', $elsewhere, 400 );
 		if ( $write && ! $network ) return self::service_error( 'scope', 'En una red, el respaldo y la restauración abarcan todos los sitios: confirma el alcance de red.', 400 );
 		return true;
 	}
@@ -99,10 +117,11 @@ trait Digitalisimo_Backups_Service {
 	/** Estado real: requisitos, operación en curso, destinos, último respaldo y automatizaciones. */
 	public static function service_status() {
 		if ( ! self::service_authorized() ) return self::service_error( 'forbidden', 'No autorizado para gestionar respaldos.', 403 );
-		$main = ! is_multisite() || is_main_site();
+		$elsewhere = self::service_main_site_problem();
+		$main = '' === $elsewhere;
 		$settings = self::settings();
 		$problems = array();
-		if ( ! $main ) $problems[] = 'En una red, los respaldos se crean, consultan y restauran desde el sitio principal o la administración de red.';
+		if ( ! $main ) $problems[] = $elsewhere;
 		$storage = true;
 		try { self::local_directory(); } catch ( Exception $e ) { $storage = false; $problems[] = $e->getMessage(); }
 		if ( ! class_exists( 'ZipArchive' ) ) $problems[] = 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.';

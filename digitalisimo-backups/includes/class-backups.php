@@ -417,6 +417,8 @@ final class Digitalisimo_Backups {
 	}
 	/** wp-content, plugins, medios y temas dentro de ABSPATH y sin enlaces; wp-config.php legible donde WordPress lo carga. */
 	private static function assert_full_files_ready() {
+		// Con varias redes el respaldo exporta todas: nunca desde una red secundaria (vista con avance, cron y automatizaciones incluidos).
+		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) throw new Exception( self::service_main_site_problem() );
 		Digitalisimo_Backups_Layout::assert_complete();
 		self::wordpress_config_file();
 	}

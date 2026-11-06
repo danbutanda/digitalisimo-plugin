@@ -17,6 +17,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 $GLOBALS['digi'] = array(
 	'multisite' => false,
 	'main' => true,
+	'main_network' => true,
 	'blog' => 1,
 	'network_admin' => false,
 	'caps' => array( 'manage_options' => true ),
@@ -117,6 +118,8 @@ $GLOBALS['wpdb'] = new Digi_Test_DB();
 
 function is_multisite() { return $GLOBALS['digi']['multisite']; }
 function is_main_site() { return ! $GLOBALS['digi']['multisite'] || $GLOBALS['digi']['main']; }
+/** Con varias redes (WP Multi Network), cada una tiene su sitio principal y sus superadministradores. */
+function is_main_network() { return ! $GLOBALS['digi']['multisite'] || $GLOBALS['digi']['main_network']; }
 function get_main_site_id() { return 1; }
 function get_current_blog_id() { return $GLOBALS['digi']['multisite'] && ! $GLOBALS['digi']['main'] ? 2 : 1; }
 function get_current_user_id() { return 7; }

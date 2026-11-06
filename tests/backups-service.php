@@ -24,7 +24,7 @@ try {
 
 	// Sin la capability de la pantalla nada se crea ni se consulta.
 	$GLOBALS['digi']['caps'] = array( 'edit_posts' => true );
-	foreach ( array( Digitalisimo_Backups::service_status(), Digitalisimo_Backups::service_create(), Digitalisimo_Backups::service_backups(), Digitalisimo_Backups::service_restore( 'x.zip', array( 'confirm' => 'RESTAURAR' ) ) ) as $denied ) {
+	foreach ( array( Digitalisimo_Backups::service_status(), Digitalisimo_Backups::service_create(), Digitalisimo_Backups::service_backups(), Digitalisimo_Backups::service_restore( 'x.zip', array( 'confirm' => 'RESTAURAR' ) ), Digitalisimo_Backups::service_verify( 'x.zip' ), Digitalisimo_Backups::service_automations(), Digitalisimo_Backups::service_run_automation( 'monthly-full' ) ) as $denied ) {
 		digi_assert( is_wp_error( $denied ) && 403 === $denied->get_error_data()['status'], 'Un usuario sin capability usó el motor.' );
 	}
 	digi_assert( array() === digi_stored( $store ), 'Se creó un ZIP sin autorización.' );
@@ -76,6 +76,15 @@ try {
 	$backups = Digitalisimo_Backups::service_backups();
 	digi_assert( 2 === count( $backups ) && $history[0]['file'] === $backups[0]['file'] && $created['file'] === $backups[1]['file'], 'El historial no va del más reciente al más antiguo.' );
 	digi_assert( false === strpos( json_encode( $backups ), $root ) && false === strpos( json_encode( Digitalisimo_Backups::service_status() ), $root ), 'Una respuesta pública incluyó rutas del servidor.' );
+	// Una copia remota sólo nombra su proveedor: ni la ruta SFTP ni el identificador de Google Drive salen en el historial ni en el estado.
+	$remote_rows = array(
+		array_merge( $history[0], array( 'file' => 'digitalisimo-backup-sftp.zip', 'destination' => 'sftp', 'remote' => array( 'provider' => 'sftp', 'path' => '/srv/respaldos-secretos/digitalisimo-backup-sftp.zip', 'sha256' => $history[0]['sha256'] ) ) ),
+		array_merge( $history[0], array( 'file' => 'digitalisimo-backup-google.zip', 'destination' => 'google', 'remote' => array( 'provider' => 'google', 'id' => 'id-remoto-de-google-drive', 'sha256' => $history[0]['sha256'] ) ) ),
+	);
+	update_option( Digitalisimo_Backups::HISTORY, array_merge( $remote_rows, $history ) );
+	$public = json_encode( Digitalisimo_Backups::service_backups() ) . json_encode( Digitalisimo_Backups::service_status() );
+	digi_assert( false !== strpos( $public, '"remote":"google"' ) && false !== strpos( $public, '"remote":"sftp"' ) && false === strpos( $public, 'respaldos-secretos' ) && false === strpos( $public, 'id-remoto-de-google-drive' ), 'El historial público expuso la ruta o el identificador de una copia remota.' );
+	update_option( Digitalisimo_Backups::HISTORY, $history );
 
 	// Verificación sin tocar el sitio.
 	$report = Digitalisimo_Backups::service_verify( $created['file'] );
@@ -93,6 +102,18 @@ try {
 	$error = Digitalisimo_Backups::service_verify( $tampered );
 	digi_assert( is_wp_error( $error ) && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'SHA-256' ), 'Se aceptó una entrada alterada.' );
 	unlink( $store . '/' . $tampered );
+	// Un enlace simbólico dentro del almacén que apunta a un ZIP de fuera no es un respaldo del almacén: ni se verifica ni se restaura.
+	$outside = $root . '/fuera-del-almacen.zip';
+	copy( $store . '/' . $created['file'], $outside );
+	symlink( $outside, $store . '/digitalisimo-backup-enlazado.zip' );
+	try {
+		foreach ( array( Digitalisimo_Backups::service_verify( 'digitalisimo-backup-enlazado.zip' ), Digitalisimo_Backups::service_restore( 'digitalisimo-backup-enlazado.zip', array( 'confirm' => 'RESTAURAR' ) ) ) as $error ) {
+			digi_assert( is_wp_error( $error ) && 404 === $error->get_error_data()['status'], 'Se usó un ZIP de fuera del almacén a través de un enlace simbólico.' );
+		}
+	} finally {
+		unlink( $store . '/digitalisimo-backup-enlazado.zip' );
+		unlink( $outside );
+	}
 	$history = get_option( Digitalisimo_Backups::HISTORY );
 	$original = $history[1]['sha256'];
 	$history[1]['sha256'] = str_repeat( '0', 64 );
@@ -146,14 +167,45 @@ try {
 	digi_assert( ! is_wp_error( $network ) && 'network' === $network['scope'], 'La red no creó su respaldo completo: ' . ( is_wp_error( $network ) ? $network->get_error_message() : '' ) );
 	$query = digi_admin_post( 'run', Digitalisimo_Backups::ACTION_RUN, array( 'digitalisimo_backups_network' => '1' ) );
 	digi_assert( 'ok' === $query['backup'] && 'network' === get_option( Digitalisimo_Backups::HISTORY )[0]['scope'], 'El botón de la red no creó el respaldo de la red.' );
+	// «Restaurar» de la pantalla de la red restaura la red entera: confirma el alcance de red por su cuenta.
+	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado en la red\n" );
+	$query = digi_admin_post( 'restore_request', Digitalisimo_Backups::ACTION_RESTORE, array( 'backup_file' => $network['file'], 'confirmation' => 'RESTAURAR', 'digitalisimo_backups_network' => '1' ) );
+	digi_assert( 'ok' === $query['backup'] && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'En una red, «Restaurar» de la pantalla no restauró la red: ' . json_encode( $query ) );
+	$ran = Digitalisimo_Backups::service_run_automation( 'monthly-full', array( 'network' => true ) );
+	digi_assert( ! is_wp_error( $ran ) && 'network' === $ran['scope'] && 'monthly-full' === $ran['policy'], 'En una red, la automatización no respaldó la red con el alcance confirmado.' );
 	$GLOBALS['digi']['main'] = false;
-	foreach ( array( Digitalisimo_Backups::service_create( array( 'network' => true ) ), Digitalisimo_Backups::service_backups(), Digitalisimo_Backups::service_verify( $network['file'] ), Digitalisimo_Backups::service_restore( $network['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) ) ) as $error ) {
+	foreach ( array( Digitalisimo_Backups::service_create( array( 'network' => true ) ), Digitalisimo_Backups::service_backups(), Digitalisimo_Backups::service_verify( $network['file'] ), Digitalisimo_Backups::service_restore( $network['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) ), Digitalisimo_Backups::service_automations(), Digitalisimo_Backups::service_run_automation( 'monthly-full', array( 'network' => true ) ) ) as $error ) {
 		digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_main_site' === $error->get_error_code(), 'Un subsitio operó sobre los respaldos de la red.' );
 	}
 	$status = Digitalisimo_Backups::service_status();
 	digi_assert( false === $status['main_site'] && false === $status['ready'] && 0 === $status['backups'] && false !== strpos( implode( ' ', $status['problems'] ), 'sitio principal' ), 'El estado de un subsitio no explica dónde gestionar los respaldos.' );
 	$query = digi_admin_post( 'run', Digitalisimo_Backups::ACTION_RUN, array() );
 	digi_assert( 'error' === $query['backup'] && false !== strpos( $query['message'], 'sitio principal' ), 'La pantalla de un subsitio inició un respaldo.' );
+
+	// Varias redes en la misma base de datos: el superadministrador de una red secundaria, en su sitio principal, no
+	// copia ni reemplaza las demás por ninguna superficie, y el motor tampoco exporta desde ahí (vista con avance y cron).
+	$GLOBALS['digi']['main'] = true;
+	$GLOBALS['digi']['main_network'] = false;
+	$stored = digi_stored( $store );
+	$history = get_option( Digitalisimo_Backups::HISTORY );
+	foreach ( array( Digitalisimo_Backups::service_create( array( 'network' => true ) ), Digitalisimo_Backups::service_backups(), Digitalisimo_Backups::service_verify( $network['file'] ), Digitalisimo_Backups::service_restore( $network['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) ), Digitalisimo_Backups::service_automations(), Digitalisimo_Backups::service_run_automation( 'monthly-full', array( 'network' => true ) ) ) as $error ) {
+		digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_main_site' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'varias redes' ), 'Una red secundaria operó sobre los respaldos de toda la instalación.' );
+	}
+	$status = Digitalisimo_Backups::service_status();
+	digi_assert( false === $status['main_site'] && false === $status['ready'] && false !== strpos( implode( ' ', $status['problems'] ), 'red principal' ), 'El estado de una red secundaria no explica dónde gestionar los respaldos.' );
+	foreach ( array( array( 'run', Digitalisimo_Backups::ACTION_RUN, array( 'digitalisimo_backups_network' => '1' ) ), array( 'restore_request', Digitalisimo_Backups::ACTION_RESTORE, array( 'backup_file' => $network['file'], 'confirmation' => 'RESTAURAR' ) ) ) as $call ) {
+		$query = digi_admin_post( $call[0], $call[1], $call[2] );
+		digi_assert( 'error' === $query['backup'] && false !== strpos( $query['message'], 'varias redes' ), 'La pantalla de una red secundaria operó sobre toda la instalación: ' . $call[0] );
+	}
+	$create = new ReflectionMethod( 'Digitalisimo_Backups', 'create_network' );
+	if ( PHP_VERSION_ID < 80100 ) $create->setAccessible( true );
+	try {
+		$create->invoke( null );
+		throw new RuntimeException( 'FALLA: el motor exportó la instalación desde una red secundaria.' );
+	} catch ( Exception $e ) {
+		digi_assert( false !== strpos( $e->getMessage(), 'varias redes' ), 'El motor no explicó por qué no respalda desde una red secundaria: ' . $e->getMessage() );
+	}
+	digi_assert( $stored === digi_stored( $store ) && $history === get_option( Digitalisimo_Backups::HISTORY ), 'Una red secundaria dejó un ZIP o cambió el historial.' );
 } finally {
 	digi_rmtree( $root );
 }

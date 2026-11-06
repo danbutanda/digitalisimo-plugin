@@ -6,8 +6,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Autenticación de WordPress: con cookie exige el nonce `wp_rest` (cabecera X-WP-Nonce); también sirven las contraseñas
  * de aplicación. Cada ruta pide la capability de la pantalla: administrar la red en Multisite, `manage_options` en una
- * instalación individual. En una red, las rutas responden en el sitio principal; crear, restaurar y ejecutar piden
- * además `network=true`. Las respuestas nunca incluyen rutas del servidor ni identificadores remotos.
+ * instalación individual. En una red, las rutas responden en el sitio principal (el de la red principal, si hay
+ * varias); crear, restaurar y ejecutar piden además `network=true`. Los resúmenes nunca incluyen la ruta del almacén ni
+ * identificadores remotos; un aviso que impide respaldar nombra la carpeta que hay que corregir.
  *
  * - GET  /status                            requisitos, operación en curso, destinos y último respaldo
  * - GET  /backups                           historial

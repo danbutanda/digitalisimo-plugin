@@ -96,6 +96,20 @@ try {
 	digi_assert( 400 === $code && 'digitalisimo_backups_scope' === $error['code'], 'En una red, una automatización corrió sin network=true.' );
 	list( $code, $network ) = digi_rest( 'POST', $ns . '/backups', array( 'network' => true ) );
 	digi_assert( 201 === $code && 'network' === $network['scope'], 'La red no creó su respaldo por la API.' );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $network['file'] . '/restore', array( 'confirm' => 'RESTAURAR' ) );
+	digi_assert( 400 === $code && 'digitalisimo_backups_scope' === $error['code'], 'En una red, la API restauró sin network=true.' );
+	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado en la red\n" );
+	list( $code, $restored ) = digi_rest( 'POST', $ns . '/backups/' . $network['file'] . '/restore', array( 'confirm' => 'RESTAURAR', 'network' => true ) );
+	digi_assert( 200 === $code && true === $restored['restored'] && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'La red no se restauró por la API con network=true: ' . json_encode( $restored ) );
+	list( $code, $ran ) = digi_rest( 'POST', $ns . '/automations/monthly-full/run', array( 'network' => true ) );
+	digi_assert( 201 === $code && 'network' === $ran['scope'], 'En una red, la automatización no corrió con network=true: ' . json_encode( $ran ) );
+	// Otra red de la misma instalación: su superadministrador no gestiona los respaldos de todas.
+	$GLOBALS['digi']['main_network'] = false;
+	list( $code, $error ) = digi_rest( 'GET', $ns . '/backups' );
+	digi_assert( 400 === $code && 'digitalisimo_backups_main_site' === $error['code'], 'Una red secundaria consultó los respaldos de toda la instalación.' );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $network['file'] . '/restore', array( 'confirm' => 'RESTAURAR', 'network' => true ) );
+	digi_assert( 400 === $code && 'digitalisimo_backups_main_site' === $error['code'], 'Una red secundaria restauró toda la instalación.' );
+	$GLOBALS['digi']['main_network'] = true;
 	$GLOBALS['digi']['main'] = false;
 	list( $code, $status ) = digi_rest( 'GET', $ns . '/status' );
 	digi_assert( 200 === $code && false === $status['main_site'] && false === $status['ready'], 'El estado de un subsitio no lo identifica.' );
