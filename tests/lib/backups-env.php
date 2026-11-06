@@ -86,6 +86,17 @@ $GLOBALS['bk_filters'] = array();
 $GLOBALS['bk_post'] = array();
 
 class Bk_Redirect extends Error { public $url; public function __construct( $url ) { parent::__construct( 'redirect' ); $this->url = $url; } }
+/** Los casos de uso compartidos con REST y WP-CLI (Digitalisimo_Backups_Service) responden con WP_Error. */
+class WP_Error {
+	private $code;
+	private $message;
+	private $data;
+	public function __construct( $code = '', $message = '', $data = '' ) { $this->code = $code; $this->message = $message; $this->data = $data; }
+	public function get_error_code() { return $this->code; }
+	public function get_error_message() { return $this->message; }
+	public function get_error_data() { return $this->data; }
+}
+function is_wp_error( $value ) { return $value instanceof WP_Error; }
 class Bk_Die extends Error {}
 /** $GLOBALS['bk_on_mkdir'] observa cada carpeta que se prepara (la extracción prepara una por archivo). */
 function wp_mkdir_p( $path ) { if ( isset( $GLOBALS['bk_on_mkdir'] ) ) call_user_func( $GLOBALS['bk_on_mkdir'], $path ); return is_dir( $path ) || @mkdir( $path, 0700, true ); }

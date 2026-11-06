@@ -6,7 +6,8 @@ defined( 'ABSPATH' ) || exit;
  * caducidad y cancelación. Un trabajo avanza por pasos que caben en una petición o en una ejecución de cron; el
  * estado vive en el almacén privado (`Digitalisimo_Backups_Job_Store`) y WP-Cron sólo dispara.
  *
- * API estable para la interfaz, el cron y la futura WP-CLI: enqueue(), tick(), cancel(), get(), all(), views().
+ * API estable para la interfaz, el cron, REST y WP-CLI (por Digitalisimo_Backups_Service): enqueue(), tick(), cancel(), get(),
+ * all(), views().
  */
 final class Digitalisimo_Backups_Jobs {
 	const HOOK_TICK = 'digitalisimo_backups_job_tick';
@@ -516,7 +517,7 @@ final class Digitalisimo_Backups_Jobs {
 
 	/* ------------------------------------------------------------------ Cancelación */
 
-	/** Cancela desde la interfaz (o la futura WP-CLI). Un paso en curso se detiene en su siguiente punto de control. */
+	/** Cancela desde la interfaz, REST o WP-CLI. Un paso en curso se detiene en su siguiente punto de control. */
 	public static function cancel( $id ) {
 		if ( ! Digitalisimo_Backups_Job_Store::valid_id( $id ) ) return array( 'ok' => false, 'code' => 'invalid', 'message' => 'El identificador del trabajo no es válido.' );
 		if ( self::off_main_site() ) return array( 'ok' => false, 'code' => 'site', 'message' => self::MAIN_SITE_ONLY );
