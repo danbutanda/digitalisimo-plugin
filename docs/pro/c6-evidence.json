@@ -690,8 +690,9 @@
    "A13": "falla",
    "A14": "ok"
   },
-  "nota": "La primera R4 marcó A1 por los seis *_fields_map.local_id del Formulario propio (no-reference.json los declara ahora, como los del Form de PRO); la segunda, A1 ok. A13 (tiempo por petición) falla por el runner de importación del núcleo (35,3 y 29,3 s) con la máquina llena de corridas (unidades limitadas a 2 núcleos); el paso con la versión 4.3.0.163, ajena a C6, también pasa de 25 s, como en C2 y C3. R1 (≈76 min) no se corrió: known.json lleva las tres entradas del Form de PRO de «Inicio del kit», que ahora llega convertido al importar (§17).",
-  "a13": "diferencia declarada de tiempo (docs/pro/c6.md, diferencias declaradas, punto 5): también falla en el paso con 4.3.0.163, sin nada de C6"
+  "nota": "La primera R4 marcó A1 por los seis *_fields_map.local_id del Formulario propio (no-reference.json los declara ahora, como los del Form de PRO); la segunda, A1 ok. A13 (tiempo por petición) falla por el runner de importación del núcleo (35,3 y 29,3 s) con la máquina llena de corridas (unidades limitadas a 2 núcleos); el paso con la versión 4.3.0.163, ajena a C6, también pasa de 25 s, como en C2 y C3. R1 no se corre por etapa (decisión del coordinador: una R1 conjunta al final sobre main); known.json lleva las tres entradas del Form de PRO de «Inicio del kit», que ahora llega convertido al importar (§17).",
+  "a13": "diferencia declarada de tiempo (docs/pro/c6.md, diferencias declaradas, punto 5): también falla en el paso con 4.3.0.163, sin nada de C6",
+  "r1_parcial": "detenida por el coordinador (congelada, carga 55); la vía «pantalla» mostró conversiones de C4 sin entrada en known.json (Título del archivo, Título de la entrada en dos elementos de bucle y en la plantilla de entrada, Contenido de la entrada); no llegó a «Inicio del kit»"
  },
  "build_packages": "BUNDLED CORE, REFERENCE LEAK, LEGACY MENTION y THEME en PASS; 13 entradas de modules/digitalisimo-forms/ en el ZIP; validate-suite en verde con los ZIP construidos; Migración idéntica a la 1.0.24 publicada"
 }
