@@ -47,11 +47,28 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | Bloqueo exclusivo del almacén durante respaldos, cron, políticas y restauraciones. | 1.0.46 | `backups-operation-lock.php` |
 | Avance del respaldo manual por base de datos, archivos y verificación; comprobación de alcance y archivos esenciales antes de iniciar; `wp-config.php` en la carpeta superior incluido. | 1.0.49 | `backups-manual-progress.php` |
 | Actualizador propio por el índice de la Release, en la carpeta real del plugin y conservándola al actualizar. | 1.0.48–1.0.55 | `backups-updater.php`, `backups-updater-manifest.php`, `updater-real-folder.php` |
+| Validación de archivos no confiables antes de la copia previa y de cualquier consulta o escritura: rutas (`..`, absolutas, unidades, NUL, `\` sin firma, raíces desconocidas), enlaces y archivos especiales, entradas cifradas, métodos de compresión, duplicados, colisiones de mayúsculas, número de entradas, esquema estricto del manifiesto v3 y espacio en disco. La extracción nunca escribe más de lo declarado. UpdraftPlus pasa por la misma validación y el mismo escritor seguro. | @NEXT_BACKUPS@ | `backups-untrusted-archive.php` |
+| Guardián SQL: un solo divisor por fragmentos (idéntico al anterior) y una lista blanca de sentencias, en seco antes de la copia previa y por sentencia al importar. Acepta todo lo que escribió cualquier versión del exportador; en un archivo no confiable rechaza GRANT, LOAD DATA, INTO OUTFILE, funciones o SELECT en INSERT, DATA/INDEX DIRECTORY, CONNECTION, motores remotos, tablas fuera del manifiesto y comentarios ejecutables ajenos. UpdraftPlus usa el dialecto mysqldump, por fragmentos y sin cargar el SQL en memoria. | @NEXT_BACKUPS@ | `backups-sql-guard.php` |
+| Firma HMAC-SHA512/256 de los bytes exactos del manifiesto con la clave del sitio, verificada al crear y al restaurar. Tres niveles de confianza: firmado, registrado en este sitio (fila del historial con el mismo SHA-256) y sin firma, que pide `RESTAURAR SIN FIRMA` o se bloquea con «Restaurar sólo respaldos firmados». | @NEXT_BACKUPS@ | `backups-manifest-auth.php` |
+| Clave de los respaldos: constante `DIGITALISIMO_BACKUPS_KEY` o frase del administrador (PBKDF2-SHA256, 600 000 iteraciones) guardada envuelta con AUTH_KEY y SECURE_AUTH_KEY; ni la frase ni la clave vuelven al navegador ni entran en ningún respaldo. Llavero con claves retiradas que siguen sirviendo para restaurar; una restauración nunca lo pierde ni debilita la protección. Pestaña «Seguridad». | @NEXT_BACKUPS@ | `backups-keys.php` |
+| Cifrado autenticado opcional (contenedor DGBK v1, `crypto_secretstream_xchacha20poly1305`, libsodium o el sodium_compat de WordPress): el ZIP verificado se cifra en `.staging/`, se descifra completo para comprobarlo y sólo entonces llega al almacén. Se restaura con la clave del sitio o escribiendo la frase en otro servidor. Falla cerrado: nunca sale en claro un respaldo que debía cifrarse. Sin la clave no se puede restaurar, y la interfaz lo dice antes de intentarlo: la columna «Seguridad» del historial marca «falta la clave» y la lista de Restaurar pide «escribe su frase o su clave», también para un `.dgbk` suelto o renombrado. | @NEXT_BACKUPS@ | `backups-encryption.php` |
+| Compatibilidad: los respaldos de todas las versiones con manifiesto v3 que conserva el repositorio (19, de 1.0.38 a 1.0.58; 1.0.37 todavía escribía v2) se siguen restaurando, con su fila como propios y sin ella como no confiables, y dejan el mismo estado que antes; 1.0.58 restaura un respaldo nuevo firmado sin cifrar y su rotación no borra los `.dgbk`. | @NEXT_BACKUPS@ | `backups-compat-legacy.php` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
 conservó el ZIP original y la copia previa. No sustituyen ensayos con MySQL, Multisite en un servidor convencional,
 migración a otro servidor ni destinos remotos reales.
+
+Ensayo de seguridad (@NEXT_BACKUPS@, `tests/playground/backups-security.sh`) en WordPress 7.1.4 sobre Playground (SQLite,
+PHP 8.5 sin libsodium nativo, así que con el sodium_compat de WordPress), por los handlers `admin-post` reales con
+nonce y capacidad. En un sitio individual, la frase (con comillas, barra, `<` y `&`) se guardó sin alterarse, un nonce
+falso no cambió nada y ni la pestaña ni la redirección la devolvieron; un respaldo firmado de 36 MB se restauró y
+revirtió un cambio con el llavero conservado y fuera de `database.sql`; una copia con un byte del manifiesto cambiado
+se rechazó sin copia previa; un archivo suelto sin firma pidió `RESTAURAR SIN FIRMA` y «sólo firmados» lo bloqueó; con
+la envoltura del llavero de otras claves de `wp-config.php`, el respaldo cifrado falló cerrado sin dejar archivos hasta
+volver a escribir la frase. Un respaldo cifrado de 36 MB tardó unos 11 minutos en crearse, cifrarse y comprobarse, sin ZIP en claro ni restos y sin nombres de archivo legibles; en «otro servidor» (llavero vacío) la restauración sin frase y con una frase equivocada se rechazó sin cambios, y con la frase restauró el sitio en unos 6 minutos. En una red, el llavero quedó en `sitemeta`, la restauración lo conservó y un subsitio
+no pudo cambiar la seguridad. Con `DIGITALISIMO_BACKUPS_KEY`, el cifrado fue obligatorio, la pestaña mostró la huella
+y nunca el valor, rechazó una frase y la copia previa quedó en claro y firmada con la constante.
 
 **Pendiente:**
 
@@ -59,21 +76,30 @@ migración a otro servidor ni destinos remotos reales.
 | --- | --- |
 | Trabajos | Cola persistente, estados por trabajo, heartbeat, cancelación, reintentos y reanudación tras una interrupción (el bloqueo del almacén no la sustituye). |
 | Restauración | Preflight completo, espacio libre, staging de toda la instalación, mantenimiento, rollback atómico y migración extremo a extremo a otro servidor o dominio con datos serializados. |
-| Seguridad | Cifrado autenticado, credenciales seguras, firma del manifiesto y validación de archivos no confiables. |
+| Seguridad | Credenciales en reposo: los secretos de SFTP, Google Drive y OneDrive siguen en claro en `digitalisimo_backups_settings` y, por tanto, en el SQL de cada respaldo (etapa S4: envolverlos con la clave del llavero). Argon2id opcional para la frase. Botón «Inspeccionar» con el informe de un archivo antes de restaurarlo (hoy la inspección completa ocurre al restaurar, antes de la copia previa). Ensayo del cifrado en un hosting real con libsodium nativo y MySQL. Sin la extensión, sodium_compat es lento: en php-wasm, unos 11 s por MiB (36 MB tardaron unos 11 minutos en cifrarse y comprobarse y unos 6 en descifrarse y restaurarse); la pestaña mide la velocidad del servidor y estima el tiempo del último respaldo. |
+| Restauración (UpdraftPlus) | La ruta de UpdraftPlus ya valida todo antes de cambiar nada, pero aún no crea copia previa ni revierte si falla a medias. |
 | Automatización | Respaldo previo a actualizaciones, incrementales con borrados y cadena íntegra, retención que preserve dependencias y varios destinos por trabajo. |
 | Escala | Bases y archivos grandes reales, BLOBs, objetos SQL especiales y consistencia entre archivos y base de datos (WooCommerce). |
 | Cobertura | REST y WP-CLI sobre el mismo motor; rutas externas (`wp-config.php` o `wp-content` fuera de `ABSPATH`, enlaces simbólicos) siguen fallando de forma explícita. |
 | Ensayos reales | MySQL, Multisite convencional, almacén privado en hosting real, servidor SFTP real y cuentas reales de Google Drive y OneDrive. |
 
-Siguiente bloque: cerrar seguridad y restauración en entornos reales (MySQL, Multisite, almacén privado y SFTP en un
-hosting real) y preparar la restauración transaccional; después, rutas externas y destinos remotos.
+Siguiente bloque: credenciales en reposo (S4) y cerrar seguridad y restauración en entornos reales (MySQL, Multisite,
+almacén privado y SFTP en un hosting real) y preparar la restauración transaccional; después, rutas externas y
+destinos remotos.
 
 ## Arquitectura
 
 | Componente | Función |
 | --- | --- |
 | `digitalisimo-backups.php` | Registra el módulo, el menú compartido y el actualizador propio. |
-| `includes/class-backups.php` | Interfaz, ajustes, cron, ZIP/SQL, destinos, historial, retención y restauración (aún sin servicios separados ni motor de trabajos). |
+| `includes/class-backups.php` | Interfaz, ajustes, cron, ZIP/SQL, destinos, historial, retención y restauración (aún sin servicios separados ni motor de trabajos). Carga las clases de `includes/security/`. |
+| `includes/security/class-sodium.php` | libsodium nativo o el `sodium_compat` de `wp-includes`; qué funciones faltan. |
+| `includes/security/class-keys.php` | Constante, PBKDF2, huella y subclaves (BLAKE2b con separación de dominio), llavero envuelto, unión tras restaurar. |
+| `includes/security/class-manifest-auth.php` | Bloque `auth` del manifiesto, comentario `DIGITALISIMO-AUTH/1` y estados de la firma. |
+| `includes/security/class-encrypted-file.php` | Contenedor DGBK v1: cabecera, cifrado y descifrado por bloques con memoria constante. |
+| `includes/security/class-archive-inspector.php` | Reglas de entradas, esquema estricto del manifiesto v3 y espacio en disco. |
+| `includes/security/class-sql-guard.php` | Divisor de sentencias por fragmentos y lista blanca de los dialectos `exporter` y `mysqldump`. |
+| `includes/security/class-security.php` | Costuras `seal()` y `open()`, nivel de confianza y confirmación, pestaña «Seguridad» y sus acciones `admin-post`. |
 | `includes/class-digitalisimo-core.php` | Integra el menú DIGITALÍSIMO sin exigir otro plugin. |
 | `includes/class-digitalisimo-updater.php` | Actualizador por `Update URI` e índice de la Release, independiente de los demás plugins. |
 | `assets/backups-admin.css` | Presentación propia sobre el diseño compartido `digitalisimo-ui/`. |
@@ -125,3 +151,129 @@ define la constante.
 Después de actualizar, comprueba en Backups que aparecen los archivos históricos y descarga uno con la acción
 autenticada. Si una migración no termina, los originales permanecen en su ubicación anterior y el plugin muestra el
 error: corrige permisos o configura otra carpeta privada antes de reintentar.
+
+## Cifrado, firma y archivos no confiables
+
+Desde @NEXT_BACKUPS@. Qué se promete y qué no:
+
+- El cifrado protege las copias **fuera del servidor** (SFTP, Google Drive, OneDrive y descargas). No protege de quien
+  ya controla el servidor: quien lee `wp-config.php` y la base de datos también lee la clave.
+- La firma detecta cualquier cambio en un respaldo hecho con una clave que el sitio o el administrador conocen. La
+  validación garantiza que un archivo no salga de la raíz de WordPress ni de sus tablas, que no agote el disco y que
+  no traiga entradas ocultas. **No** garantiza que su contenido sea benigno: restaurarlo instala su código y sus datos.
+- Sin la clave, un respaldo cifrado no se puede restaurar. Nadie puede recuperarlo, tampoco DIGITALÍSIMO.
+
+### La clave
+
+Hay dos formas, y la constante manda si existen las dos (las claves del llavero siguen sirviendo para restaurar):
+
+1. **Frase** en Backups → Seguridad (de 16 a 1024 caracteres). La frase no se guarda: se deriva la clave con
+   PBKDF2-SHA256 (600 000 iteraciones y un salt de 16 bytes) y se guarda envuelta (secretbox) con una clave que sale de
+   `AUTH_KEY` y `SECURE_AUTH_KEY`. Sin esas dos constantes propias en `wp-config.php` no se puede guardar una frase.
+2. **Constante** en `wp-config.php`, base64 de 32 bytes. Con ella el cifrado es obligatorio, porque cada respaldo
+   lleva el propio `wp-config.php`:
+
+   ```bash
+   php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
+   ```
+
+   ```php
+   define( 'DIGITALISIMO_BACKUPS_KEY', 'pega-aquí-el-resultado' );
+   ```
+
+   Una constante mal formada no se muestra nunca: la pestaña dice «inválida» y los respaldos fallan hasta corregirla.
+
+Guarda la frase o la constante **fuera del sitio**. Cambiar la frase retira la clave anterior sin borrarla; «Quitar del
+llavero» (con la confirmación `QUITAR`) es aparte y muestra cuántos respaldos del historial dependen de cada clave. Si
+cambian `AUTH_KEY` o `SECURE_AUTH_KEY`, la entrada queda en «Vuelve a escribir la frase» y, mientras tanto, los
+respaldos con cifrado activo fallan: nunca salen en claro. El llavero vive en `digitalisimo_backups_vault_keyring` (de
+red en Multisite) y las opciones `digitalisimo_backups_vault_*` no entran en ningún respaldo; una restauración une los
+llaveros por huella y nunca deja la configuración más débil que antes. Límite declarado: si vuelves a 1.0.58 desde
+`rollback/` y restauras con ella, esa versión no conoce el llavero y lo pierde; los respaldos cifrados se siguen
+abriendo escribiendo la frase.
+
+### Restaurar en otro servidor
+
+En Restaurar, elige el archivo (también los que copies a la carpeta privada del almacén, que aparecen como «sin
+registro»), escribe la frase o la clave y confirma. La lista dice si un archivo está cifrado (por sus bytes, no por su
+extensión), con qué clave y si este sitio la tiene; si no la tiene, pide «escribe su frase o su clave». El salt viaja en cada respaldo, así que basta con la frase. La
+casilla «Usar esta frase para los respaldos nuevos» la guarda en el llavero de ese servidor.
+
+| Archivo | Confianza | Confirmación |
+| --- | --- | --- |
+| Firmado con una clave del sitio o con la frase escrita | Firmado | `RESTAURAR` |
+| Fila del historial creada aquí con el mismo SHA-256 (todos los respaldos desde 1.0.39) | Registrado en este sitio | `RESTAURAR` |
+| Sin firma válida y sin fila (otro servidor, versiones anteriores sin registro, UpdraftPlus) | Sin firma | `RESTAURAR SIN FIRMA`, o bloqueado con «Restaurar sólo respaldos firmados» |
+| Firma que no coincide, comentario sin bloque de firma o frase de otra clave | — | Se rechaza siempre |
+
+La copia `safety-before-restore-*` nunca se cifra (es local y se recupera sin depender de una clave que el SQL
+restaurado podría no traer), pero se firma si hay clave.
+
+### Firma del manifiesto
+
+Con clave, el manifiesto v3 añade `"auth":{"version":1,"alg":"hmac-sha512256","key":<descriptor>,"encrypted":bool}` y
+el ZIP lleva el comentario `DIGITALISIMO-AUTH/1 <key_id> <mac>`, con
+`mac = HMAC-SHA512/256(K_mac, "DIGITALISIMO-AUTH/1\n" ‖ key_id ‖ "\n" ‖ bytes exactos de manifest.json)` en base64url
+sin relleno. El manifiesto fija tamaño y SHA-256 de todas las entradas y la verificación rechaza entradas sobrantes o
+ausentes, así que la firma cubre todo el respaldo. El formato sigue siendo `digitalisimo-backup/v3`: 1.0.58 ignora el
+bloque y el comentario. Quien borra a la vez el bloque y el comentario deja un archivo sin firma, que pide
+`RESTAURAR SIN FIRMA`.
+
+### Formato DGBK v1
+
+Archivo `digitalisimo-backup-<host>-<fecha>-<rand>.dgbk`, descargado como `application/octet-stream`. Se abre con
+cualquier libsodium:
+
+```text
+"DGBK" | 0x01 | 0x00 0x00 0x00 | u32be len(H) | H (JSON UTF-8, ≤ 16 KiB) | cabecera secretstream (24 B) | C_1 … C_n
+H = {"format":"digitalisimo-encrypted-backup/v1","backup_id","created_at","plugin_version","scope":"installation",
+     "multisite","inner_size","inner_sha256","cipher":"secretstream-xchacha20poly1305","chunk_size":1048576,
+     "file_salt":"<base64url de 32 B>","key":{"id","source":"passphrase|wp-config","kdf":{…}|null}}
+```
+
+- Claves, con `H(m, k, n) = BLAKE2b-n(m, clave k)`: `key_id = hex(H("DGBK1/key-id", K_root, 16))` (la interfaz muestra
+  8 caracteres), `K_mac = H("DGBK1/manifest-mac", K_root, 32)` y `K_file = H("DGBK1/file|" ‖ file_salt, K_root, 32)`.
+  Con frase, `K_root = PBKDF2-HMAC-SHA256(frase, salt, iteraciones, 32)` con los parámetros de `key.kdf`, que se
+  validan antes de derivar (100 000 a 5 000 000 iteraciones y salt de 16 bytes).
+- `C_i = crypto_secretstream_xchacha20poly1305_push(P_i)` con bloques de `chunk_size` bytes (potencia de 2 entre 4 KiB
+  y 8 MiB; el último, de 1 a `chunk_size`). El dato adicional de `C_1` es todo el prefijo, desde `"DGBK"` hasta el
+  final de `H`; los demás no llevan. Etiqueta `MESSAGE` (0) en los intermedios y `FINAL` (3) en el último, y tras
+  `FINAL` debe llegar el fin del archivo.
+- Tamaño exacto: `prefijo + 24 + inner_size + ceil(inner_size / chunk_size) · 17`; compararlo detecta truncamientos
+  antes de descifrar. El texto descifrado es el ZIP v3 firmado (`auth.encrypted = true`), cuyo `backup_id` y huella
+  deben coincidir con `H`, y cuyo SHA-256 es `inner_sha256`.
+- `tests/fixtures/backups/kat-v1.dgbk` es el vector conocido: clave base64 de 32 bytes `0x42`
+  (`QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=`), huella `c0748d5b…`. `backups-encryption.php` lo abre y lo
+  restaura en cada ejecución; los vectores de PBKDF2, de las subclaves y del MAC se contrastaron con `hashlib` y `hmac`
+  de Python.
+- Detalle de libsodium que una implementación propia debe respetar: tras el texto cifrado, Poly1305 se rellena con
+  `(0x10 − 64 + mlen) & 0xf` bytes nulos (no hasta el múltiplo de 16 de `64 + mlen`).
+- **Recuperación sin WordPress:** `scripts/dgbk-decrypt.py` es una implementación independiente en Python (HChaCha20
+  propio y ChaCha20-IETF y Poly1305 de `cryptography`) que descifra y verifica un `.dgbk` con la frase o la clave y
+  deja el ZIP interior: `python3 -I scripts/dgbk-decrypt.py respaldo.dgbk respaldo.zip` (pide el secreto por la
+  terminal, o `--secret-file`; nunca en la línea de órdenes). Se comprobó con el vector conocido, con un archivo de
+  varios bloques y con una frase con espacios, `<` y `&`.
+
+Rendimiento: con libsodium nativo el cifrado no es el cuello de botella. Sin él, `sodium_compat` es PHP puro; la
+pestaña mide la velocidad de este servidor y estima cuánto tardaría el último respaldo.
+
+### Archivos no confiables
+
+Antes de la copia previa y antes de cualquier consulta o escritura, en el respaldo propio, en un archivo suelto del
+almacén, en un ZIP descifrado y en UpdraftPlus:
+
+- **Archivo.** El tipo sale de los bytes mágicos (`PK` o `DGBK`), nunca de la extensión; debe ser un archivo normal
+  de la raíz del almacén, no un enlace. Si tiene fila en el historial, su SHA-256 debe coincidir.
+- **Entradas.** Hasta `DIGITALISIMO_BACKUPS_MAX_ENTRIES` (2 000 000); nombres de hasta 4096 bytes con segmentos de
+  hasta 255; sin NUL, rutas absolutas, unidades ni segmentos `.`, `..` o vacíos; sólo las raíces `manifest.json`,
+  `database.sql`, `migration.json`, `MIGRAR-A-WORDPRESS-UNICO.txt` y `wordpress/`; sin enlaces ni archivos especiales
+  (atributos Unix), sin cifrado ZIP y sólo los métodos guardado y deflate; sin duplicados, y sin nombres que sólo se
+  distinguen por mayúsculas si el disco de destino no las distingue. La barra invertida se convierte en un respaldo
+  confiable, como siempre, y se rechaza en uno sin firma.
+- **Manifiesto v3.** Hasta 256 MiB, con identificador UUID, prefijo `[A-Za-z0-9_]`, lista de tablas, URL http(s),
+  tamaños enteros y SHA-256 hexadecimales; los totales deben coincidir con lo observado.
+- **Espacio.** Lo que crecen los archivos sobrescritos o nuevos, más el temporal del mayor y 64 MiB, debe caber junto a
+  WordPress; descifrar necesita `inner_size · 1,05 + 256 MiB` en el almacén. Si el servidor deshabilita
+  `disk_free_space()`, se sigue: la restaurabilidad manda.
+- **SQL.** El guardián recorre todo el SQL antes de la copia previa y vuelve a comprobar cada sentencia al importar.
+  Error con el número de sentencia, su tipo y sus primeros caracteres, sin valores de filas.

@@ -241,6 +241,12 @@ jobs:
           php tests/backups-operation-lock.php
           php tests/backups-manual-progress.php
           php tests/backups-cloud-verification.php
+          php tests/backups-untrusted-archive.php
+          php tests/backups-sql-guard.php
+          php tests/backups-keys.php
+          php tests/backups-manifest-auth.php
+          php tests/backups-encryption.php
+          php tests/backups-compat-legacy.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
