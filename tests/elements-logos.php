@@ -61,6 +61,9 @@ namespace {
 	$widget->settings['details'] = 'click';
 	$click = render_logos( $widget );
 	check_logos( 3 === substr_count( $click, '<details class="digi-logos__details">' ) && 2 === substr_count( $click, 'aria-label="Mostrar logotipo"' ) && str_contains( $click, '<summary class="digi-logos__summary" aria-label="mal">' ) && str_contains( $click, 'digi-logos__link' ) && ! str_contains( $click, 'a class="digi-logos__card"' ), 'Al abrir, los detalles se despliegan sin JavaScript y el enlace va en el contenido.' );
+	// Al abrir, el nombre queda dentro del <details> cerrado y el logotipo es lo único visible: conserva su ALT (Medios o nombre).
+	check_logos( str_contains( $click, '<summary class="digi-logos__summary" aria-label="mal"><span class="digi-logos__card"><img class="digi-logos__image" alt="mal" decoding="async" src="https://example.test/tercero.webp"></span></summary>' ) && str_contains( $click, 'alt="Marca &amp; Compañía"' ) && str_contains( $click, 'alt="Manual"' ), 'Al abrir, el logotipo conserva su ALT aunque se muestre el nombre: el nombre está dentro de los detalles cerrados.' );
+	check_logos( 0 === substr_count( $click, 'alt=""' ), 'Al abrir, ningún logotipo queda con el ALT vacío.' );
 
 	// Carrusel: motor compartido, nombre y texto del enlace dentro de la tarjeta.
 	$widget->settings = array( 'layout' => 'carousel', 'label' => 'Clientes', 'navigation' => 'arrows', 'show_link_text' => 'yes', 'items' => array( array( 'image' => array( 'id' => 12 ), 'name' => 'Primera', 'link' => array( 'url' => 'https://example.test/a' ), 'link_text' => 'Visitar' ), array( 'image' => array( 'url' => 'https://example.test/b.png' ), 'name' => 'Segunda' ) ) );
@@ -111,6 +114,9 @@ namespace {
 	$grid->settings['details'] = 'click';
 	$html = render_logos( $grid );
 	check_logos( 2 === substr_count( $html, '<details class="digi-logos__details digi-brand-grid__details">' ) && str_contains( $html, '<summary class="digi-logos__summary digi-brand-grid__summary" aria-label="Marca &amp; Co">' ), 'Al abrir, los detalles conservan las clases de antes.' );
+	check_logos( str_contains( $html, '<img class="digi-logos__image digi-brand-grid__logo" alt="Marca &amp; Compañía"' ) && str_contains( $html, '<img class="digi-logos__image digi-brand-grid__logo" alt="Cuatro"' ) && ! str_contains( $html, 'alt=""' ), 'Al abrir, la cuadrícula de marcas conserva el ALT de Medios y, sin él, el nombre de la marca (como antes de la fusión).' );
+	$grid->settings['details'] = 'overlay';
+	check_logos( 2 === substr_count( render_logos( $grid ), 'alt=""' ), 'Con el nombre visible junto al logotipo (al apuntar), el ALT sigue vacío.' );
 
 	// Alias: Cuadrícula de logotipos (tarjetas, pie como globo sólo con enlace, cubrir).
 	$lgrid = new \Digitalisimo\Elements\Logo_Grid_Widget();
