@@ -1355,7 +1355,8 @@
    ]
   },
   "mc-loop-group": {
-   "title": "Bucle por defecto con paso 2 y 5 imágenes, 2 visibles en el escritorio: avanza por páginas (1-2, 3-4, 5-1 y otra vez 1-2, siempre hacia delante), un punto y anterior; el punto marcado es el de lo que se ve",
+   "title": "Bucle por defecto con paso 2 y 5 imágenes, 2 visibles en el escritorio: avanza por páginas (1-2, 3-4, 5-1 y otra vez 1-2, siempre hacia delante), un punto y anterior; el punto marcado es el de lo que se ve. Se mide cargando la página en cada ancho (`fresh`): con el ancho cambiado en la misma página, Swiper 8 en bucle no vuelve a pintar la paginación al pasar del paso 1 de la tableta al 2 del escritorio (sólo lo hace cuando cambia el número de diapositivas), y PRO conserva a 1 280 px los cinco puntos de la tableta; recién cargada, PRO pinta tres, como el propio",
+   "fresh": true,
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
