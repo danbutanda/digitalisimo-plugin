@@ -231,6 +231,11 @@ namespace {
 	$GLOBALS['wp']['plugins'] = $backup;
 	update_option( 'elementor_unfiltered_files_upload', '' );
 
+	// Fuera del escritorio (WP-Cron, la petición del arnés) no hay archivos de wp-admin cargados: cada uno se carga por su
+	// propia función, también image.php, que media_handle_sideload() necesita (wp_read_image_metadata()).
+	$source = (string) file_get_contents( dirname( __DIR__ ) . '/digitalisimo-migration/legacy/class-demo-media.php' );
+	$check( false !== strpos( $source, "array( 'file' => 'wp_tempnam', 'media' => 'media_handle_sideload', 'image' => 'wp_read_image_metadata' )" ) && false === strpos( $source, "if ( ! function_exists( 'media_handle_sideload' ) && defined( 'ABSPATH' )" ), 'file.php, media.php e image.php se cargan cada uno por su función (antes, image.php nunca tras media.php)' );
+
 	/* ---------------------------------------------------------------- Informe y reversión */
 
 	$catalog = Report::catalog();
@@ -245,5 +250,5 @@ namespace {
 	$check( BDTEP_ASSETS_URL === Demo_Media::ep_assets_url() && BDTEP_ASSETS_URL . 'images/coco-can.svg' === Translator::translate( 'bdt-animated-card', array() )['image']['url'], 'con Element Pack cargado, su BDTEP_ASSETS_URL' );
 
 	ep_rm( sys_get_temp_dir() . '/ep-demo-tmp' );
-	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 27 );
+	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 28 );
 }

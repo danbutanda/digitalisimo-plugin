@@ -300,8 +300,10 @@ class Demo_Media {
 				return 0;
 			}
 		}
-		foreach ( array( 'file', 'media', 'image' ) as $include ) {
-			if ( ! function_exists( 'media_handle_sideload' ) && defined( 'ABSPATH' ) && is_file( ABSPATH . 'wp-admin/includes/' . $include . '.php' ) ) {
+		// Cada archivo de wp-admin por su propia función: fuera del escritorio (WP-Cron, una petición del front) no hay
+		// ninguno cargado, y `media_handle_sideload()` (media.php) llama a `wp_read_image_metadata()` (image.php).
+		foreach ( array( 'file' => 'wp_tempnam', 'media' => 'media_handle_sideload', 'image' => 'wp_read_image_metadata' ) as $include => $function ) {
+			if ( ! function_exists( $function ) && defined( 'ABSPATH' ) && is_file( ABSPATH . 'wp-admin/includes/' . $include . '.php' ) ) {
 				require_once ABSPATH . 'wp-admin/includes/' . $include . '.php';
 			}
 		}
