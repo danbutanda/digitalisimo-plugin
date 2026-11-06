@@ -6,6 +6,12 @@
  * del botón, que dejan de nombrar al servicio (`tweet_button*` → `share_*`). Las clases de las pieles, la vista y la
  * piel del botón van en el envoltorio como en PRO, así que el CSS personalizado del elemento sigue apuntando al mismo
  * nodo. Formato: cabecera de `class-translator.php`.
+ *
+ * Fidelidad (2026-11-06):
+ * - Icono: `share_icon` = `legacy` pinta el pájaro que pintaba PRO; una Cita nueva, el icono propio.
+ * - Alineación: PRO pintaba en el envoltorio, en todos los anchos, la clase `elementor-blockquote--align-<valor>` de
+ *   la alineación de escritorio y de cada dispositivo (su `prefix_class` no lleva `%s`), y se veía lo que resultaba de
+ *   la cascada de su hoja. `filter` calcula ese resultado y lo fija en `pro_align`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -83,11 +89,104 @@ return array(
 		'box_box_shadow'       => 'box_box_shadow',
 		'box_box_shadow_hover' => 'box_box_shadow_hover',
 	),
-	// La alineación pasa tal cual (`keep`); sólo se informa la de un dispositivo distinto del escritorio.
-	'approx'   => array_fill_keys(
-		array( 'alignment_widescreen', 'alignment_laptop', 'alignment_tablet_extra', 'alignment_tablet', 'alignment_mobile_extra', 'alignment_mobile' ),
-		'En PRO la alineación de cada dispositivo se pintaba como clase en todos los tamaños a la vez; la Cita la aplica sólo en su dispositivo.'
-	),
+	// El icono que pintaba PRO (el pájaro) en lo convertido; una Cita nueva conserva el propio.
+	'set'      => array( 'share_icon' => 'legacy' ),
+	// La alineación que se veía en el Blockquote de PRO, en los ajustes de la Cita.
+	//
+	// PRO pintaba a la vez la clase de la alineación de escritorio y la de cada dispositivo activo (un dispositivo
+	// inactivo no tiene control ni clase). Con su hoja, de la unión U de esas clases resultaba:
+	// - contenido: a la derecha con `right` en U; si no, a la izquierda con `left`; si no, hereda (centrado con `center`);
+	// - pie: con `center` en U, en bloque, con el autor y el botón centrados; si no, en fila invertida con `right` y en
+	//   fila con `left`;
+	// - pico de la burbuja: a la derecha con `right`; si no, a la izquierda con `left`; si no, el de por defecto.
+	// La Cita aplica cada alineación sólo en su dispositivo, así que se quitan las de los dispositivos, la de escritorio
+	// se conserva (de ella depende la separación del autor) y `pro_align` fija el resultado en todos los anchos.
+	//
+	// La separación del autor (`author_gap`) sólo se pintaba en PRO, por dispositivo, donde la alineación de ese
+	// dispositivo (o la del más próximo que la tuviera, como en `Controls_Stack::is_control_visible()`) era `center`. Sin
+	// alineaciones por dispositivo, en la Cita depende sólo de la de escritorio: se quita la de los dispositivos donde PRO
+	// no la pintaba y, si PRO la pintaba en un dispositivo sin tener `center` en escritorio, la de escritorio pasa a
+	// `center` con su separación vacía (PRO no la pintaba) para que la de ese dispositivo siga apareciendo.
+	//
+	// El CSS personalizado del elemento que nombraba la clase de un valor de U (siempre presente en PRO) pasa a nombrar la
+	// clase del envoltorio, con la misma especificidad, salvo la del valor que queda en escritorio.
+	'filter'   => static function ( array $out, array $src ): array {
+		$active  = array( '_tablet', '_mobile' );
+		$plugin  = class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		$manager = is_object( $plugin ) && isset( $plugin->breakpoints ) && is_object( $plugin->breakpoints ) && method_exists( $plugin->breakpoints, 'get_active_breakpoints' ) ? $plugin->breakpoints : null;
+		if ( $manager ) {
+			$active = array();
+			foreach ( array_keys( (array) $manager->get_active_breakpoints() ) as $name ) {
+				$active[] = '_' . $name;
+			}
+		}
+		$valid = array( 'left', 'center', 'right' );
+		$value = static function ( string $device ) use ( $src ): string {
+			$raw = $src[ 'alignment' . $device ] ?? '';
+			return is_scalar( $raw ) ? (string) $raw : '';
+		};
+		// Dispositivos activos de mayor a menor, como los crea `add_responsive_control()`; cada uno hereda del anterior,
+		// salvo el panorámico, que hereda de escritorio.
+		$devices = array( '' );
+		$cascade = array( '' => $value( '' ) );
+		$parent  = '';
+		foreach ( array( '_widescreen', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' ) as $device ) {
+			if ( ! in_array( $device, $active, true ) ) {
+				continue;
+			}
+			$devices[]          = $device;
+			$own                = $value( $device );
+			$cascade[ $device ] = '' !== $own ? $own : $cascade[ '_widescreen' === $device ? '' : $parent ];
+			if ( '_widescreen' !== $device ) {
+				$parent = $device;
+			}
+		}
+		$union = array();
+		foreach ( $devices as $device ) {
+			if ( in_array( $value( $device ), $valid, true ) ) {
+				$union[ $value( $device ) ] = true;
+			}
+		}
+		foreach ( \Digitalisimo\Elements\Convert\Translator::DEVICES as $device ) {
+			if ( '' !== $device ) {
+				unset( $out[ 'alignment' . $device ] );
+			}
+		}
+		$desktop = (string) ( $out['alignment'] ?? '' );
+		if ( 'center' !== $desktop ) {
+			foreach ( $devices as $device ) {
+				if ( '' !== $device && 'center' === $cascade[ $device ] && '' !== (string) ( $out[ 'author_gap' . $device ]['size'] ?? '' ) ) {
+					$desktop           = 'center';
+					$out['alignment']  = 'center';
+					$out['author_gap'] = array( 'unit' => is_array( $out['author_gap'] ?? null ) ? (string) ( $out['author_gap']['unit'] ?? 'px' ) : 'px', 'size' => '', 'sizes' => array() );
+					break;
+				}
+			}
+		}
+		if ( 'center' === $desktop ) {
+			foreach ( $devices as $device ) {
+				if ( '' !== $device && 'center' !== $cascade[ $device ] ) {
+					unset( $out[ 'author_gap' . $device ] );
+				}
+			}
+		}
+		if ( isset( $union['center'] ) ) {
+			$effective = isset( $union['right'] ) ? 'center-right' : ( isset( $union['left'] ) ? 'center-left' : 'center' );
+		} else {
+			$effective = isset( $union['right'] ) ? 'right' : ( isset( $union['left'] ) ? 'left' : '' );
+		}
+		if ( '' !== $effective && $effective !== $desktop ) {
+			$out['pro_align'] = $effective;
+		}
+		if ( isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) ) {
+			foreach ( array_keys( $union ) as $align ) {
+				if ( $align !== $desktop ) {
+					$out['custom_css'] = (string) preg_replace( '/\.digi-blockquote--align-' . $align . '(?![\w-])/', '.elementor-widget-digitalisimo-blockquote', $out['custom_css'] );
+				}
+			}
+		}
+		return $out;
+	},
 	// Encabezados del panel: no guardan valor.
 	'ui'       => array( 'heading_content_style', 'heading_author_style' ),
 	'classes'  => array(

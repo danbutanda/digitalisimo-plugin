@@ -8,10 +8,15 @@ defined( 'ABSPATH' ) || exit;
  * del servicio de microblogs con la cita, el autor y el enlace. Sustituye al widget Blockquote de PRO
  * (`modules/blockquote/`, mapa `modules/digitalisimo-convert/maps/blockquote.php`): tiene un control por cada control
  * de aquél, con los mismos valores por defecto visibles, y su hoja reproduce el mismo diseño (pieles borde, comillas,
- * caja y limpia; botón clásico, burbuja o enlace). Sin JavaScript; el icono es un SVG propio en línea.
+ * caja y limpia; botón clásico, burbuja o enlace). Sin JavaScript; el icono es un SVG en línea.
  *
- * Diferencias declaradas con PRO: la alineación por dispositivo se aplica sólo en su dispositivo (PRO pintaba a la vez
- * la clase de cada dispositivo), el icono de la vista «Icono» queda centrado también con iconos SVG, el enlace de la
+ * Lo convertido desde PRO se ve como en PRO: conserva su icono, el pájaro de Font Awesome que pintaba el widget de PRO
+ * (`share_icon` oculto, que fija el mapa; o, sin él, la marca `_digitalisimo_pro` de lo convertido antes de existir), y
+ * su alineación: PRO pintaba a la vez, en todos los anchos, la clase de la alineación de cada dispositivo y se veía lo que
+ * resultaba de la cascada; el mapa calcula ese resultado y lo fija en «Alineación heredada» (`pro_align`), que sólo
+ * aparece en lo convertido. Una Cita nueva usa su icono propio y la alineación de cada dispositivo sólo en él.
+ *
+ * Diferencias declaradas con PRO: el icono de la vista «Icono» queda centrado también con iconos SVG, el enlace de la
  * página actual se construye con el origen del sitio más la ruta pedida (PRO duplicaba la subcarpeta) y los textos del
  * enlace para compartir van codificados por completo.
  */
@@ -21,6 +26,21 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 
 	/** Icono propio (24×24), dibujado para este widget. */
 	const ICON = '<svg class="digi-blockquote__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3h5.6L21 21h-5.6zM19.4 3h2.1l-7.44 7.93-.89-1.3zM9.94 13.07l.89 1.3L4.6 21H2.5z"/></svg>';
+
+	/**
+	 * Icono de lo convertido desde PRO: el pájaro (`twitter`, 512×512) de Font Awesome Free 5 (iconos CC BY 4.0), el mismo
+	 * trazo que PRO pinta, tomado de la copia del núcleo (`elementor/assets/lib/font-awesome/json/brands.json`).
+	 */
+	const ICON_LEGACY = '<svg class="digi-blockquote__icon" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z"/></svg>';
+
+	/** Paquetes de variables de cada alineación (también los de la alineación heredada de PRO). */
+	const ALIGN = array(
+		'left'         => 'text-align:inherit;--digi-bq-ta:left;--digi-bq-fd:row;--digi-bq-as:flex-end;--digi-bq-s:1',
+		'center'       => 'text-align:center;--digi-bq-ta:center;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:initial',
+		'right'        => 'text-align:inherit;--digi-bq-ta:right;--digi-bq-fd:row-reverse;--digi-bq-as:flex-end;--digi-bq-s:-1',
+		'center-left'  => 'text-align:center;--digi-bq-ta:left;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:1',
+		'center-right' => 'text-align:center;--digi-bq-ta:right;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:-1',
+	);
 
 	const VIEWS = array( 'icon-text', 'icon', 'text' );
 
@@ -44,6 +64,8 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'share_button', array( 'label' => 'Botón para compartir', 'type' => $c::SWITCHER, 'label_on' => 'Sí', 'label_off' => 'No', 'default' => 'yes' ) );
 		$this->add_control( 'share_view', array( 'label' => 'Vista', 'type' => $c::SELECT, 'options' => array( 'icon-text' => 'Icono y texto', 'icon' => 'Icono', 'text' => 'Texto' ), 'prefix_class' => 'digi-blockquote--view-', 'default' => 'icon-text', 'render_type' => 'template', 'condition' => array( 'share_button' => 'yes' ) ) );
 		$this->add_control( 'share_skin', array( 'label' => 'Piel del botón', 'type' => $c::SELECT, 'options' => array( 'classic' => 'Clásica', 'bubble' => 'Burbuja', 'link' => 'Enlace' ), 'default' => 'classic', 'prefix_class' => 'digi-blockquote--button-', 'condition' => array( 'share_button' => 'yes' ) ) );
+		// Icono de lo convertido desde PRO (`legacy`: el pájaro); vacío, el propio. Lo fija el mapa: no se elige en el panel.
+		$this->add_control( 'share_icon', array( 'type' => $c::HIDDEN, 'default' => '' ) );
 		$this->add_control( 'share_label', array( 'label' => 'Texto del botón', 'type' => $c::TEXT, 'default' => 'Compartir', 'condition' => array( 'share_button' => 'yes', 'share_view!' => 'icon' ), 'dynamic' => array( 'active' => true ), 'ai' => array( 'active' => false ) ) );
 		$this->add_control( 'user_name', array( 'label' => 'Usuario', 'type' => $c::TEXT, 'placeholder' => '@usuario', 'condition' => array( 'share_button' => 'yes' ), 'dynamic' => array( 'active' => true ), 'ai' => array( 'active' => false ) ) );
 		$this->add_control( 'url_type', array( 'label' => 'Enlace que se comparte', 'type' => $c::SELECT, 'options' => array( 'current_page' => 'Página actual', 'none' => 'Ninguno', 'custom' => 'Personalizado' ), 'default' => 'current_page', 'condition' => array( 'share_button' => 'yes' ) ) );
@@ -51,7 +73,7 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'section_content_style', array( 'label' => 'Contenido', 'tab' => $c::TAB_STYLE ) );
-		// Por variables: cada dispositivo aplica la suya (PRO pintaba a la vez la clase de todos los dispositivos).
+		// Por variables: cada dispositivo aplica la suya.
 		$this->add_responsive_control(
 			'alignment',
 			array(
@@ -63,13 +85,32 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 					'right'  => array( 'title' => 'Derecha', 'icon' => 'eicon-text-align-right' ),
 				),
 				'prefix_class'         => 'digi-blockquote%s--align-',
-				'selectors_dictionary' => array(
-					'left'   => 'text-align:inherit;--digi-bq-ta:left;--digi-bq-fd:row;--digi-bq-as:flex-end;--digi-bq-s:1',
-					'center' => 'text-align:center;--digi-bq-ta:center;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:initial',
-					'right'  => 'text-align:inherit;--digi-bq-ta:right;--digi-bq-fd:row-reverse;--digi-bq-as:flex-end;--digi-bq-s:-1',
-				),
+				'selectors_dictionary' => array_intersect_key( self::ALIGN, array_flip( array( 'left', 'center', 'right' ) ) ),
 				'selectors'            => array( '{{WRAPPER}} .digi-blockquote' => '{{VALUE}}' ),
 				'separator'            => 'after',
+			)
+		);
+		// Sólo en lo convertido desde PRO, que pintaba a la vez la clase de la alineación de cada dispositivo: el mapa fija
+		// aquí el resultado de esa cascada, en todos los anchos. Va después de «Alineación», así que en la hoja del
+		// documento sus variables sustituyen a las de ella; «Por dispositivo» la quita y vuelve a mandar «Alineación».
+		$this->add_control(
+			'pro_align',
+			array(
+				'label'                => 'Alineación heredada',
+				'description'          => 'El widget original aplicaba a la vez la alineación de todos los dispositivos, y esta es la que resultaba. «Por dispositivo» vuelve a la de arriba.',
+				'type'                 => $c::SELECT,
+				'options'              => array(
+					''             => 'Por dispositivo',
+					'left'         => 'Izquierda',
+					'center'       => 'Centro',
+					'right'        => 'Derecha',
+					'center-left'  => 'Centro, texto a la izquierda',
+					'center-right' => 'Centro, texto a la derecha',
+				),
+				'default'              => '',
+				'selectors_dictionary' => self::ALIGN,
+				'selectors'            => array( '{{WRAPPER}} .digi-blockquote' => '{{VALUE}}' ),
+				'condition'            => array( 'pro_align!' => '' ),
 			)
 		);
 		$this->add_control( 'heading_content_style', array( 'type' => $c::HEADING, 'label' => 'Contenido', 'separator' => 'before' ) );
@@ -155,6 +196,15 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		return $origin . ( '' === $path || '/' !== $path[0] ? '/' . $path : $path );
 	}
 
+	/**
+	 * ¿Pinta el icono de PRO? Sí si el mapa lo fijó (`share_icon` = `legacy`) o, sin valor, si la Cita se convirtió desde
+	 * el Blockquote de PRO antes de existir ese control (marca `_digitalisimo_pro`, que el traductor ya no vuelve a tocar).
+	 */
+	private static function legacy_icon( array $s ): bool {
+		$icon = (string) ( $s['share_icon'] ?? '' );
+		return 'legacy' === $icon || ( '' === $icon && 'blockquote' === (string) ( $s['_digitalisimo_pro'] ?? '' ) );
+	}
+
 	/** Enlace a la intención de publicación con la cita, el autor, el enlace y el usuario, todo codificado. */
 	public static function share_url( array $s ): string {
 		$text   = self::plain( $s['blockquote_content'] ?? '' );
@@ -199,7 +249,7 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 				$name = '' !== $label ? $label : self::plain( (string) ( $this->get_settings( 'share_label' ) ?? '' ) );
 				echo '<a class="digi-blockquote__button" href="' . esc_url( self::share_url( $s ) ) . '" target="_blank" rel="noopener noreferrer"' . ( $named ? '' : ' aria-label="' . esc_attr( '' !== $name ? $name : 'Compartir en X' ) . '"' ) . '>';
 				if ( 'text' !== $view ) {
-					echo self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constante propia.
+					echo self::legacy_icon( $s ) ? self::ICON_LEGACY : self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constantes propias.
 				}
 				if ( 'icon' !== $view ) {
 					echo '<span class="digi-blockquote__label">' . esc_html( $label ) . '</span>';
@@ -241,7 +291,7 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		<# if ( settings.author_name || share ) { #><footer class="digi-blockquote__footer">
 		<# if ( settings.author_name ) { #><cite {{{ view.getRenderAttributeString( 'author_name' ) }}}>{{ settings.author_name }}</cite><# } #>
 		<# if ( share ) { #><a class="digi-blockquote__button" href="#" target="_blank" rel="noopener noreferrer"<# if ( 'icon' === mode || ! label ) { #> aria-label="{{ label || 'Compartir en X' }}"<# } #>>
-		<# if ( 'text' !== mode ) { #><?php echo self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constante propia. ?><# } #>
+		<# if ( 'text' !== mode ) { if ( 'legacy' === settings.share_icon || ( ! settings.share_icon && 'blockquote' === settings._digitalisimo_pro ) ) { #><?php echo self::ICON_LEGACY; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constante propia. ?><# } else { #><?php echo self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constante propia. ?><# } } #>
 		<# if ( 'icon' !== mode ) { #><span class="digi-blockquote__label">{{ label }}</span><# } #></a><# } #>
 		</footer><# } #></blockquote>
 		<# } #>
