@@ -6,6 +6,9 @@ require_once __DIR__ . '/class-image-markup.php';
 
 /** Tarjeta visual con enlace explícito, redes sociales opcionales y contenido siempre visible. */
 class Fancy_Card_Widget extends \Elementor\Widget_Base {
+	/** Proporciones de la imagen: `''` es la de la hoja (4:3, recortada); `auto`, la de la propia imagen. */
+	const RATIOS = array( '' => '4:3 recortada', 'auto' => 'Original', '1/1' => '1:1', '3/2' => '3:2', '16/9' => '16:9', '2/3' => '2:3 vertical' );
+
 	public function get_name() { return 'digitalisimo-fancy-card'; }
 	public function get_title() { return 'Tarjeta destacada'; }
 	public function get_icon() { return 'eicon-icon-box'; }
@@ -19,6 +22,8 @@ class Fancy_Card_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_section( 'section_card', array( 'label' => 'Contenido' ) );
 		$this->add_control( 'icon_type', array( 'label' => 'Elemento visual', 'type' => $c::SELECT, 'default' => 'image', 'options' => array( 'image' => 'Imagen', 'icon' => 'Icono', 'none' => 'Sin elemento visual' ) ) );
 		$this->add_control( 'image', array( 'label' => 'Imagen', 'type' => $c::MEDIA, 'dynamic' => array( 'active' => true ), 'condition' => array( 'icon_type' => 'image' ) ) );
+		// Opcional: vacío deja la hoja tal cual (4:3 recortada), así que ninguna tarjeta guardada cambia.
+		$this->add_control( 'image_ratio', array( 'label' => 'Proporción de la imagen', 'type' => $c::SELECT, 'default' => '', 'options' => self::RATIOS, 'description' => 'Original muestra la imagen entera, sin recortarla.', 'condition' => array( 'icon_type' => 'image' ), 'selectors' => array( '{{WRAPPER}} .digi-fancy-card__image' => 'aspect-ratio:{{VALUE}};' ) ) );
 		$this->add_control( 'selected_icon', array( 'label' => 'Icono', 'type' => $c::ICONS, 'condition' => array( 'icon_type' => 'icon' ) ) );
 		$this->add_control( 'badge_text', array( 'label' => 'Distintivo', 'type' => $c::TEXT ) );
 		$this->add_control( 'title_text', array( 'label' => 'Título', 'type' => $c::TEXT, 'dynamic' => array( 'active' => true ), 'default' => 'Tarjeta destacada' ) );
