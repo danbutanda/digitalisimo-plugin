@@ -2147,7 +2147,7 @@
    ],
    "pixels": {
     "max": 0.05,
-    "reason": "A 1 280 px PRO separa las diapositivas con la separación de tableta (12 px) en lugar de la de escritorio (20 px): la configuración de puntos de ruptura que PRO pasa a Swiper; el propio aplica la de escritorio, como el CSS del editor."
+    "reason": "Sólo a 1 280 px y sólo por el arnés: mide los tres anchos en la misma página, y al volver al escritorio desde la tableta Swiper conserva la separación de la tableta (12 px) en lugar de la del escritorio (20 px), porque la configuración de puntos de ruptura que PRO le pasa no repite la separación en la entrada del escritorio. Recién cargada a 1 280 px, PRO aplica la del escritorio, como el propio: con `fresh` (la página cargada en cada ancho) A y B coinciden en los tres anchos (0,00 %), pero ese modo no se usa aquí porque, con la página recargada, el teclado no llega a los puntos de PRO en A."
    }
   },
   "nc-autoplay": {

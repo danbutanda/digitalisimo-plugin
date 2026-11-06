@@ -618,7 +618,8 @@
    ]
   },
   "mc-style": {
-   "title": "Fracción dentro, flechas de 32 px en color, diapositivas con fondo, borde, radio y relleno, separación 20 px",
+   "title": "Fracción dentro, flechas de 32 px en color, diapositivas con fondo, borde, radio y relleno, separación 20 px. Se mide cargando la página en cada ancho (`fresh`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta, porque la configuración de puntos de ruptura que PRO le pasa no la repite en la entrada del escritorio; recién cargada, PRO aplica la de cada dispositivo, como el propio",
+   "fresh": true,
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -700,11 +701,7 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
     }
-   ],
-   "pixels": {
-    "max": 0.06,
-    "reason": "Al volver al escritorio desde la tableta (el arnés cambia el ancho sin recargar), Swiper conserva la separación de la tableta (10 px por defecto) en lugar de la del escritorio (20 px); recién cargado a 1 280 px, A y B miden lo mismo."
-   }
+   ]
   },
   "mc-progress": {
    "title": "Barra de progreso de 6 px con colores, sin bucle, 2 por paso",

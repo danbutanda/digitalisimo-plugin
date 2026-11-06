@@ -79,7 +79,8 @@
    }
   },
   "tc-images": {
-   "title": "Cuatro testimonios con imágenes del sitio, dos visibles en escritorio y uno en móvil, con navegación",
+   "title": "Cuatro testimonios con imágenes del sitio, dos visibles en escritorio y uno en móvil, con navegación. Se mide cargando la página en cada ancho (`fresh`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta, porque la configuración de puntos de ruptura que PRO le pasa no la repite en la entrada del escritorio; recién cargada, PRO aplica la de cada dispositivo, como el propio",
+   "fresh": true,
    "widget": "testimonial-carousel",
    "settings": {
     "autoplay": "",
@@ -146,11 +147,7 @@
      "b": ".digi-crs__next",
      "key": "Enter"
     }
-   ],
-   "pixels": {
-    "max": 0.07,
-    "reason": "PRO aplicaba en escritorio la separación de tableta y en tableta la de móvil (los puntos de corte de Swiper son de mínimo, 10 px por defecto): con 20 px en escritorio, sus diapositivas quedan 5 px más juntas. El propio aplica la separación de cada dispositivo. Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
-   }
+   ]
   },
   "tc-stacked-left": {
    "title": "Imagen apilada, alineada a la izquierda, con borde y radio de la imagen y colores del texto",
