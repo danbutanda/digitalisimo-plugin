@@ -153,8 +153,10 @@ file_put_contents( "$staging/inner.zip", 'x' );
 file_put_contents( "$storage/digitalisimo-c.dgbk.part", 'x' );
 bk_call( 'Digitalisimo_Backups', 'prune', $storage, 1 );
 if ( ! file_exists( $sealed ) || file_exists( "$storage/digitalisimo-a.dgbk" ) || file_exists( "$storage/digitalisimo-b.zip" ) || ! file_exists( "$staging/inner.zip" ) || ! file_exists( "$storage/digitalisimo-c.dgbk.part" ) ) throw new RuntimeException( 'La rotación no trató bien .dgbk, .staging o .part.' );
-// Con el bloqueo tomado, la operación siguiente borra los huérfanos.
-$S::clean_staging( $storage );
+// Al tomar el bloqueo, cualquier operación siguiente (también una que no cifra) borra los huérfanos: un ZIP en claro
+// o descifrado que dejó un proceso interrumpido no espera al próximo respaldo cifrado.
+$lock = bk_call( 'Digitalisimo_Backups', 'acquire_operation_lock' );
+bk_call( 'Digitalisimo_Backups', 'release_operation_lock', $lock );
 if ( glob( $storage . '/.staging/*' ) || file_exists( "$storage/digitalisimo-c.dgbk.part" ) || ! file_exists( $sealed ) ) throw new RuntimeException( 'La limpieza de huérfanos falló o tocó un respaldo.' );
 
 // 6. Vector conocido: un DGBK v1 de referencia se abre siempre con su clave (base64 de 32 bytes «B»).

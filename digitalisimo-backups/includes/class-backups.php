@@ -87,6 +87,9 @@ final class Digitalisimo_Backups {
 			fclose( $handle );
 			throw new Exception( 'Ya hay un respaldo o una restauración en curso. Espera a que termine antes de iniciar otra operación.' );
 		}
+		// Con el bloqueo tomado, lo que quede en .staging/ (un ZIP en claro o descifrado) y los *.part son de una
+		// operación interrumpida: se borran en cualquier operación, no sólo en la siguiente que cifre.
+		Digitalisimo_Backups_Security::clean_staging( self::local_directory() );
 		return $handle;
 	}
 	private static function release_operation_lock( $handle ) {
@@ -1071,6 +1074,9 @@ final class Digitalisimo_Backups {
 			$created_files = array();
 			try {
 				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
+				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
+				// llavero y la seguridad ya están en su sitio. El finally lo repite y es quien avisa si falla.
+				try { self::after_restore_sql( $history_before, $vault_before, $safety, $policy ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				self::extract_digitalisimo_files( $zip, $created_files );
 			} catch ( Throwable $failure ) {
 				try {
@@ -1082,15 +1088,21 @@ final class Digitalisimo_Backups {
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
 				}
 			} finally {
-				// El SQL reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse.
-				wp_cache_flush();
-				update_option( self::HISTORY, $history_before, false );
-				Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
-				self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
+				self::after_restore_sql( $history_before, $vault_before, $safety, $policy );
 			}
 		} finally {
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
+	}
+	/**
+	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse.
+	 * Idempotente; con $safety vuelve a registrar la copia previa.
+	 */
+	private static function after_restore_sql( $history_before, $vault_before, $safety = '', $policy = array() ) {
+		wp_cache_flush();
+		update_option( self::HISTORY, $history_before, false );
+		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
+		if ( $safety ) self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 	}
 	/** Sólo borra archivos creados por este intento y que no cambiaron desde que se escribieron. */
 	private static function remove_new_restore_files( $created_files ) {
@@ -1216,8 +1228,16 @@ final class Digitalisimo_Backups {
 			}
 			$prefix = (string) $wpdb->base_prefix;
 			self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), false );
-			self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
-			foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
+			// Su SQL reemplaza wp_options como el propio: el historial, el llavero y la seguridad no se pierden.
+			$history_before = (array) get_option( self::HISTORY, array() );
+			$vault_before = Digitalisimo_Backups_Keys::snapshot();
+			try {
+				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
+				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
+			} finally {
+				self::after_restore_sql( $history_before, $vault_before );
+			}
 		} finally {
 			foreach ( $pieces as $piece ) self::close_quietly( $piece[0] );
 		}

@@ -2,7 +2,8 @@
 /**
  * Claves y llavero: vectores fijos (contrastados con hashlib de Python), frase sin alterar, límites de la KDF, llavero
  * envuelto, fallo cerrado cuando cambian AUTH_KEY/SECURE_AUTH_KEY, filas del llavero fuera de database.sql, unión del
- * llavero tras restaurar, pestaña y redirects sin secretos, nonce y capacidad. Al final, la clave en wp-config.php.
+ * llavero tras restaurar (ya antes de extraer los archivos, y también desde UpdraftPlus), pestaña y redirects sin
+ * secretos, nonce y capacidad. Al final, la clave en wp-config.php.
  */
 require __DIR__ . '/lib/backups-env.php';
 $K = 'Digitalisimo_Backups_Keys';
@@ -92,6 +93,43 @@ if ( empty( $security['encrypt'] ) || empty( $security['require_signed'] ) ) thr
 // Unión por huella: lo que trae el sitio restaurado se añade y lo de antes nunca se descarta.
 $K::restore_snapshot( array( 'keyring' => array( 'version' => 1, 'active' => $second, 'keys' => array( $second => $ring_before['keys'][ $second ] ) ), 'security' => array( 'encrypt' => false, 'require_signed' => false ) ) );
 if ( ! isset( $GLOBALS['bk_options'][ $K::KEYRING ]['keys'][ $first ], $GLOBALS['bk_options'][ $K::KEYRING ]['keys'][ $second ] ) || empty( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ]['encrypt'] ) ) throw new RuntimeException( 'La unión del llavero descartó una clave o debilitó la protección.' );
+unset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] );
+// Si el proceso muere mientras se extraen los archivos (la parte larga), el llavero, la seguridad y el historial ya
+// volvieron: se observa el estado en la primera carpeta que prepara la extracción, después del SQL.
+$GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] = array( 'encrypt' => true, 'require_signed' => true );
+$GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] = array( array( 'file' => 'marca-del-historial.zip', 'scope' => 'installation', 'destination' => 'local' ) );
+$ring_before = $GLOBALS['bk_options'][ $K::KEYRING ];
+$GLOBALS['wpdb']->queries = array();
+$seen = null;
+$GLOBALS['bk_on_mkdir'] = function() use ( &$seen ) {
+	if ( null !== $seen || ! preg_grep( '/^INSERT INTO `wp_posts`/', $GLOBALS['wpdb']->queries ) ) return;
+	$seen = array( 'keyring' => $GLOBALS['bk_options'][ Digitalisimo_Backups_Keys::KEYRING ] ?? null, 'security' => $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] ?? array(), 'history' => array_column( (array) ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] ?? array() ), 'file' ) );
+};
+$report = Digitalisimo_Backups_Security::open( $signed, array(), '' );
+try { bk_call( 'Digitalisimo_Backups', 'restore_digitalisimo_zip', $report['path'], $report ); } finally { Digitalisimo_Backups_Security::close( $report ); unset( $GLOBALS['bk_on_mkdir'] ); }
+if ( null === $seen ) throw new RuntimeException( 'La extracción no preparó ninguna carpeta después del SQL.' );
+if ( $seen['keyring'] !== $ring_before || empty( $seen['security']['encrypt'] ) || empty( $seen['security']['require_signed'] ) || ! in_array( 'marca-del-historial.zip', $seen['history'], true ) || ! preg_grep( '/^safety-before-restore-/', $seen['history'] ) ) throw new RuntimeException( 'Al empezar la extracción el llavero, la seguridad o el historial seguían como los dejó el SQL restaurado.' );
+// UpdraftPlus: su SQL también reemplaza wp_options; el llavero, la seguridad y el historial se conservan.
+$updraft = WP_CONTENT_DIR . '/updraft';
+mkdir( $updraft, 0700, true );
+$set = 'backup_2026-11-06-1200_Sitio_0123456789ab';
+$dump = "# WordPress MySQL database backup\n# Created by UpdraftPlus version 1.24\n\n/*!40101 SET NAMES utf8mb4 */;\nSET FOREIGN_KEY_CHECKS = 0;\n"
+	. "DROP TABLE IF EXISTS `wp_options`;\nCREATE TABLE `wp_options` (\n  `option_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `option_name` varchar(191) NOT NULL DEFAULT '',\n  `option_value` longtext NOT NULL,\n  PRIMARY KEY (`option_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n"
+	. "INSERT INTO `wp_options` VALUES ('1','siteurl','https://example.test');\nINSERT INTO `wp_options` VALUES ('2','blogname','Sitio de UpdraftPlus');\n"
+	. "DROP TABLE IF EXISTS `wp_posts`;\nCREATE TABLE `wp_posts` (`ID` bigint(20) unsigned NOT NULL, `post_content` longtext, PRIMARY KEY (`ID`)) ENGINE=InnoDB;\nINSERT INTO `wp_posts` VALUES (1,'contenido de UpdraftPlus');\nSET FOREIGN_KEY_CHECKS = 1;\n";
+file_put_contents( "$updraft/$set-db.gz", gzencode( $dump ) );
+$piece = new ZipArchive();
+$piece->open( "$updraft/$set-plugins.zip", ZipArchive::CREATE );
+$piece->addFromString( 'plugins/de-updraft/de-updraft.php', "<?php // de UpdraftPlus\n" );
+$piece->close();
+$GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] = array( 'encrypt' => true, 'require_signed' => false );
+$history_before = $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ];
+$GLOBALS['wpdb']->queries = array();
+list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'updraft' => '1', 'updraft_set' => $set, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
+if ( ! $ok || ! preg_grep( '/contenido de UpdraftPlus/', $GLOBALS['wpdb']->queries ) || ! is_file( WP_PLUGIN_DIR . '/de-updraft/de-updraft.php' ) || 'Sitio de UpdraftPlus' !== ( $GLOBALS['bk_options']['blogname'] ?? '' ) ) throw new RuntimeException( 'No se restauró el conjunto de UpdraftPlus: ' . $message );
+if ( ( $GLOBALS['bk_options'][ $K::KEYRING ] ?? null ) !== $ring_before || empty( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ]['encrypt'] ) || ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] ?? null ) !== $history_before ) throw new RuntimeException( 'La restauración de UpdraftPlus perdió el llavero, la seguridad o el historial.' );
+bk_remove_tree( $updraft );
+bk_remove_tree( WP_PLUGIN_DIR . '/de-updraft' );
 unset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] );
 
 // 7. La pestaña y los redirects no devuelven secretos; un campo vacío conserva la frase; nonce y capacidad.

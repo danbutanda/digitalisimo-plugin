@@ -84,7 +84,9 @@ $GLOBALS['bk_post'] = array();
 
 class Bk_Redirect extends Error { public $url; public function __construct( $url ) { parent::__construct( 'redirect' ); $this->url = $url; } }
 class Bk_Die extends Error {}
-function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
+/** $GLOBALS['bk_on_mkdir'] observa cada carpeta que se prepara (la extracción prepara una por archivo). */
+function wp_mkdir_p( $path ) { if ( isset( $GLOBALS['bk_on_mkdir'] ) ) call_user_func( $GLOBALS['bk_on_mkdir'], $path ); return is_dir( $path ) || @mkdir( $path, 0700, true ); }
+function absint( $value ) { return abs( (int) $value ); }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
 function trailingslashit( $path ) { return rtrim( $path, '/\\' ) . '/'; }
 function untrailingslashit( $path ) { return rtrim( $path, '/\\' ); }
