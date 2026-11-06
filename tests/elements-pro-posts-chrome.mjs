@@ -3,8 +3,8 @@
 // las pieles (lo comprueba tests/elements-pro-posts.php), servidas por la interceptación de peticiones desde un origen
 // de prueba (`https://listados.test/`), con las hojas reales del módulo y la rejilla del núcleo:
 // - «Cargar más»: pide la página siguiente del ancla, añade los elementos del mismo widget, anuncia lo cargado en la región
-//   viva, lleva el foco al primer elemento nuevo, desactiva el botón mientras carga y, en la última, oculta el botón y
-//   muestra el mensaje; sin peticiones repetidas;
+//   viva, lleva el foco al primer elemento nuevo, desactiva el botón mientras carga (sin quitarle el foco del teclado) y,
+//   en la última, oculta el botón y muestra el mensaje; sin peticiones repetidas;
 // - infinita: carga al llegar al ancla, hasta la última página;
 // - mampostería: cada elemento sube a su columna (como PRO) con 3 columnas; con 1 columna no hay mampostería; se recoloca
 //   al cambiar el ancho;
@@ -208,6 +208,18 @@ const count = (page, sel) => page.$$eval(sel, (l) => l.length);
   await page.waitForFunction(() => document.querySelectorAll('.digi-posts__item').length === 9);
   await sleep(100);
   ok(await page.evaluate((y) => scrollY === y && document.activeElement.textContent === 'Entrada 7', y), 'Intro y Espacio cargan la página siguiente (Espacio no desplaza la página) y el foco pasa al primer elemento nuevo.');
+  await page.close();
+}
+// Mientras carga, el foco del teclado sigue en el botón: se ocultan los hijos de su contenido (lo que se ve es lo mismo que
+// en PRO, que oculta el contenido entero), no el elemento enfocado, que el navegador dejaría sin foco (y con elementos sin
+// enlaces, el foco acabaría en <body>).
+{
+  const page = await open('/click/1/', { delay: 400 });
+  await page.focus('.digi-loop__more [role="button"]');
+  await page.keyboard.press('Enter');
+  await sleep(100);
+  ok(await page.evaluate(() => document.querySelector('[data-id="w1"]').classList.contains('digi-loop--loading') && document.activeElement.matches('.digi-loop__more [role="button"]') && [...document.activeElement.children].every((e) => getComputedStyle(e).visibility === 'hidden')), 'Mientras carga, el foco sigue en el botón de «Cargar más» y su texto no se ve (como PRO).');
+  await page.waitForFunction(() => document.querySelectorAll('.digi-posts__item').length === 6);
   await page.close();
 }
 // 2. Desplazamiento infinito.
