@@ -196,6 +196,22 @@ namespace {
 	$check( $id === (int) $s['image']['id'] && 1 === count( $GLOBALS['ep_sideloads'] ) && ! isset( $codes['core.demo.copied'] ), 'deduplicada: otra tarjeta reutiliza la copia' );
 	list( $s ) = $convert( $card(), 'editor' );
 	$check( $id === (int) $s['image']['id'] && 1 === count( $GLOBALS['ep_sideloads'] ), 'editor (puro): reutiliza lo ya copiado' );
+	// Otro sitio de la red en la misma petición (legacy-ab, una tarea de WP-CLI): su propia copia, nunca el adjunto del
+	// primero, que en este sitio no existe (antes la caché por petición lo devolvía y la imagen se vaciaba).
+	switch_to_blog( 2 );
+	update_option( 'elementor_unfiltered_files_upload', '1' );
+	$post2 = f8_post( array( 'post_type' => 'page', 'post_title' => 'Tarjetas del sitio 2' ) );
+	Report::begin( 'run' );
+	Context::begin( $post2, 'run' );
+	list( $out2 ) = Native::element( $card( array(), 'c5' ), $post2 );
+	Context::end();
+	Report::take();
+	$id2 = (int) ( $out2['settings']['image']['id'] ?? 0 );
+	$check( $id2 > 0 && 'coco-can.svg' === basename( (string) $out2['settings']['image']['url'] ) && 2 === count( $GLOBALS['ep_sideloads'] ) && 'attachment' === ( get_post( $id2 )->post_type ?? '' ), 'otro sitio en la misma petición: su propia copia en su biblioteca' );
+	restore_current_blog();
+	list( $s ) = $convert( $card( array(), 'c6' ), 'editor' );
+	$check( $id === (int) $s['image']['id'] && 2 === count( $GLOBALS['ep_sideloads'] ), 'de vuelta en el primer sitio: su copia de siempre' );
+	array_pop( $GLOBALS['ep_sideloads'] );
 	// Un convertidor que envuelve el widget (Prime Slider) lee sus propios recuentos después: la conversión no los toca.
 	Demo_Media::$copied  = 3;
 	Demo_Media::$skipped = 2;
@@ -250,5 +266,5 @@ namespace {
 	$check( BDTEP_ASSETS_URL === Demo_Media::ep_assets_url() && BDTEP_ASSETS_URL . 'images/coco-can.svg' === Translator::translate( 'bdt-animated-card', array() )['image']['url'], 'con Element Pack cargado, su BDTEP_ASSETS_URL' );
 
 	ep_rm( sys_get_temp_dir() . '/ep-demo-tmp' );
-	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 28 );
+	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 30 );
 }

@@ -15,7 +15,6 @@ const path = require('path');
 // `widget` (regex del caso), `problem` (regex de la línea) y `motivo`.
 const DECLARED = [
   { widget: /^ext-tooltip$/, problem: /(tras la migración|convertido y sin capa heredada) cambia text/, motivo: 'V.10.5: el globo de la información emergente está en el DOM (y en el árbol de accesibilidad), no en un atributo: su texto aparece en la firma' },
-  { widget: /^ext-threed-text$/, problem: /(tras la migración|convertido y sin capa heredada) cambia text/, motivo: '§3.C.2: el origen repite el texto en capas para el relieve; la conversión lo pinta una vez con sombras de texto en capas' },
   // Element Pack 10.x (Lite y Pro, traits/global-controls-functions.php:698 y :704) pone el nombre de la marca como
   // `alt` del logotipo; 9.9.1 no lo hacía (el fixture es de 9.9.1). La Cuadrícula de marcas de Elements deja `alt` vacío
   // porque el nombre ya se lee como texto del elemento, y ningún widget existente cambia su HTML (regla de Elements).

@@ -69,7 +69,10 @@ class Demo_Media {
 	 */
 	public static $planned = 0;
 
-	/** @var array<string, int> sha256 → adjunto, en esta petición. */
+	/**
+	 * @var array<string, int> «sitio:sha256» → adjunto, en esta petición. Por sitio: una petición puede convertir varios
+	 * sitios de una red (`switch_to_blog`) y el adjunto de uno no existe en otro.
+	 */
 	private static $done = array();
 
 	/** Ajustes con cada URL de la carpeta del plugin sustituida por su copia (o vacía). */
@@ -268,13 +271,14 @@ class Demo_Media {
 		if ( ! is_string( $sha ) || '' === $sha ) {
 			return 0;
 		}
-		if ( isset( self::$done[ $sha ] ) ) {
+		$key = self::site() . ':' . $sha;
+		if ( isset( self::$done[ $key ] ) ) {
 			++self::$reused;
-			return self::$done[ $sha ];
+			return self::$done[ $key ];
 		}
 		$existing = self::existing( $sha );
 		if ( $existing ) {
-			self::$done[ $sha ] = $existing;
+			self::$done[ $key ] = $existing;
 			++self::$reused;
 			return $existing;
 		}
@@ -345,7 +349,7 @@ class Demo_Media {
 			$stored = function_exists( 'get_attached_file' ) ? (string) get_attached_file( $id ) : '';
 			$hash   = '' !== $stored && is_file( $stored ) ? (string) hash_file( 'sha256', $stored ) : '';
 			self::registry( 'put', $sha, array( 'dest' => $id, 'hash' => $hash, 'state' => 'done', 'extra' => array( 'name' => $name, 'family' => $family ) ) );
-			self::$done[ $sha ] = $id;
+			self::$done[ $key ] = $id;
 			++self::$copied;
 		} finally {
 			if ( '' !== $tmp && file_exists( $tmp ) ) {
@@ -427,6 +431,11 @@ class Demo_Media {
 		);
 		$id = is_array( $ids ) && $ids ? (int) reset( $ids ) : 0;
 		return $id && self::is_attachment( $id ) ? $id : 0;
+	}
+
+	/** Sitio en curso (1 fuera de una red). */
+	private static function site(): int {
+		return function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
 	}
 
 	private static function is_attachment( int $id ): bool {

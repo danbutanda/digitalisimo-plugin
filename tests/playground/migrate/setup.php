@@ -137,7 +137,7 @@ if ( $lite ) {
 	// Diferencias declaradas de la conversión de F8 (spec §3.C.2 y V.10.5).
 	$ext_known = array(
 		'tooltip'     => array( 'text' => 'el globo de la información emergente está ahora en el DOM (accesible), no en un atributo' ),
-		'threed-text' => array( 'text' => 'el origen repite el texto en capas para el relieve; la conversión lo pinta una vez con sombras de texto en capas' ),
+		'threed-text' => array( 'text' => 'ztext repite el texto en cada capa y en una copia oculta; el rasgo «Relieve 3D» sólo en sus capas (las copias, con aria-hidden): se ve igual' ),
 	);
 	foreach ( array( 'tooltip', 'transform-effects', 'background-overlay', 'equal-height', 'grid-line', 'image-hover-effects', 'threed-text', 'animated-gradient-background' ) as $ext ) {
 		$case = $ext_case( 'ext-' . $ext );
