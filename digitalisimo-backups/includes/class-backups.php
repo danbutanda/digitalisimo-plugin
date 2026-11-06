@@ -580,14 +580,14 @@ final class Digitalisimo_Backups {
 	}
 	/** Actualiza claves de una fila del historial; una fila antigua sin ellas se sigue leyendo igual. */
 	public static function history_update( $file, array $changes ) {
-		$history = (array) get_option( self::HISTORY, array() );
-		$found = false;
-		foreach ( $history as &$row ) {
-			if ( hash_equals( (string) ( $row['file'] ?? '' ), (string) $file ) ) { $row = array_merge( (array) $row, $changes ); $found = true; }
-		}
-		unset( $row );
-		if ( $found ) update_option( self::HISTORY, $history, false );
-		return $found;
+		return self::change_history( function( &$history ) use ( $file, $changes ) {
+			$found = false;
+			foreach ( $history as &$row ) {
+				if ( hash_equals( (string) ( $row['file'] ?? '' ), (string) $file ) ) { $row = array_merge( (array) $row, $changes ); $found = true; }
+			}
+			unset( $row );
+			return $found;
+		} );
 	}
 	private static function bytes_label( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
@@ -1009,10 +1009,49 @@ final class Digitalisimo_Backups {
 		}
 		return $response;
 	}
-	private static function remember( $file, $destination, $scope = 'site', $policy = array(), $remote = array(), $site_id = 0, $locked = false, $extra = array() ) { $checksum = hash_file( 'sha256', $file ); if ( false === $checksum ) throw new Exception( 'No se pudo calcular el SHA-256 del respaldo terminado.' ); /* El historial se lee después de calcular el SHA-256 de todo el ZIP: un «Bloquear» o «Eliminar» hecho mientras tanto no se pierde. */ $history = (array) get_option( self::HISTORY, array() ); $history = array_values( array_filter( $history, function( $entry ) use ( $file ) { return ( $entry['file'] ?? '' ) !== wp_basename( $file ); } ) ); array_unshift( $history, array( 'date' => current_time( 'mysql' ), 'file' => wp_basename( $file ), 'size' => filesize( $file ), 'sha256' => $checksum, 'destination' => $destination, 'scope' => $scope, 'site_id' => $site_id ?: get_current_blog_id(), 'policy' => $policy['id'] ?? 'manual', 'backup_type' => $policy['type'] ?? ( false !== strpos( wp_basename( $file ), '-db-' ) ? 'database' : 'full' ), 'remote' => (array) $remote, 'locked' => $locked ) + (array) $extra ); update_option( self::HISTORY, array_merge( array_slice( $history, 0, 100 ), array_values( array_filter( array_slice( $history, 100 ), function( $entry ) { return ! empty( $entry['locked'] ); } ) ) ), false ); }
-	public static function toggle_lock() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_LOCK ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $history = (array) get_option( self::HISTORY, array() ); foreach ( $history as &$item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) $item['locked'] = ! empty( $_POST['locked'] ); unset( $item ); update_option( self::HISTORY, $history, false ); self::redirect( true, ! empty( $_POST['locked'] ) ? 'Respaldo bloqueado: no se eliminará durante la rotación.' : 'Respaldo desbloqueado.' ); }
-	private static function prune( $dir, $keep ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = (array) get_option( self::HISTORY, array() ); $locked = array_filter( array_column( array_filter( $history, function( $item ) { return ! empty( $item['locked'] ); } ), 'file' ) ); $files = glob( trailingslashit( $dir ) . 'digitalisimo-*.zip' ) ?: array(); usort( $files, function( $a, $b ) { return filemtime( $b ) <=> filemtime( $a ); } ); $rotating = array_values( array_filter( $files, function( $file ) use ( $locked ) { return ! in_array( wp_basename( $file ), $locked, true ); } ) ); foreach ( array_slice( $rotating, $keep ) as $file ) if ( ! isset( $busy[ wp_basename( $file ) ] ) ) @unlink( $file ); }
-	private static function prune_policy( $policy ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = (array) get_option( self::HISTORY, array() ); $matching = array_values( array_filter( $history, function( $item ) use ( $policy ) { return ( $item['policy'] ?? '' ) === $policy['id'] && empty( $item['locked'] ); } ) ); foreach ( array_slice( $matching, (int) $policy['retain'] ) as $item ) { $name = sanitize_file_name( $item['file'] ?? '' ); if ( isset( $busy[ $name ] ) ) continue; $path = trailingslashit( self::local_directory() ) . $name; if ( is_file( $path ) ) @unlink( $path ); } }
+	private static function remember( $file, $destination, $scope = 'site', $policy = array(), $remote = array(), $site_id = 0, $locked = false, $extra = array() ) {
+		// El SHA-256 de todo el ZIP se calcula antes de leer el historial, así que lo que cambie otra petición mientras tanto cuenta.
+		$checksum = hash_file( 'sha256', $file );
+		if ( false === $checksum ) throw new Exception( 'No se pudo calcular el SHA-256 del respaldo terminado.' );
+		$name = wp_basename( $file );
+		$row = array( 'date' => current_time( 'mysql' ), 'file' => $name, 'size' => filesize( $file ), 'sha256' => $checksum, 'destination' => $destination, 'scope' => $scope, 'site_id' => $site_id ?: get_current_blog_id(), 'policy' => $policy['id'] ?? 'manual', 'backup_type' => $policy['type'] ?? ( false !== strpos( $name, '-db-' ) ? 'database' : 'full' ), 'remote' => (array) $remote, 'locked' => $locked ) + (array) $extra;
+		self::change_history( function( &$history ) use ( $name, $row ) {
+			// Registrar otra vez el mismo ZIP (un paso repetido tras una muerte) deja una sola fila y conserva su bloqueo.
+			foreach ( $history as $entry ) if ( ( $entry['file'] ?? '' ) === $name && ! empty( $entry['locked'] ) ) $row['locked'] = true;
+			$history = array_values( array_filter( $history, function( $entry ) use ( $name ) { return ( $entry['file'] ?? '' ) !== $name; } ) );
+			array_unshift( $history, $row );
+			$history = array_merge( array_slice( $history, 0, 100 ), array_values( array_filter( array_slice( $history, 100 ), function( $entry ) { return ! empty( $entry['locked'] ); } ) ) );
+		} );
+	}
+	/**
+	 * Lee el historial de la base de datos, nunca de la caché de esta petición, lo cambia y lo guarda con el cerrojo corto
+	 * del almacén. Un proceso largo (WP-CLI o varios trabajos seguidos) guardaría en su caché una copia anterior, y dos
+	 * peticiones a la vez escribirían una sobre la otra: un «Bloquear» o un «Eliminar» se perderían y la retención podría
+	 * borrar un respaldo bloqueado. Si `$change` devuelve false no se escribe nada.
+	 */
+	private static function change_history( callable $change ) {
+		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $change ) {
+			$history = self::fresh_history();
+			$result = $change( $history );
+			if ( false !== $result ) update_option( self::HISTORY, array_values( (array) $history ), false );
+			return $result;
+		} );
+	}
+	private static function fresh_history() {
+		if ( function_exists( 'wp_cache_delete' ) && function_exists( 'wp_cache_get' ) && function_exists( 'wp_cache_set' ) ) {
+			wp_cache_delete( self::HISTORY, 'options' );
+			$missing = wp_cache_get( 'notoptions', 'options' );
+			if ( is_array( $missing ) && isset( $missing[ self::HISTORY ] ) ) { unset( $missing[ self::HISTORY ] ); wp_cache_set( 'notoptions', $missing, 'options' ); }
+			if ( function_exists( 'wp_load_alloptions' ) && array_key_exists( self::HISTORY, (array) wp_load_alloptions() ) ) wp_cache_delete( 'alloptions', 'options' );
+		}
+		return (array) get_option( self::HISTORY, array() );
+	}
+	public static function toggle_lock() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_LOCK ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $locked = ! empty( $_POST['locked'] ); try { self::change_history( function( &$history ) use ( $file, $locked ) { foreach ( $history as &$item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) $item['locked'] = $locked; unset( $item ); } ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ! empty( $_POST['locked'] ) ? 'Respaldo bloqueado: no se eliminará durante la rotación.' : 'Respaldo desbloqueado.' ); }
+	private static function prune( $dir, $keep ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $dir, $keep ) { self::prune_locked( $dir, $keep ); } ); }
+	private static function prune_policy( $policy ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $policy ) { self::prune_policy_locked( $policy ); } ); }
+	/** Con el cerrojo del historial: un «Bloquear» llega antes de la retención o después, nunca en medio. */
+	private static function prune_locked( $dir, $keep ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $locked = array_filter( array_column( array_filter( $history, function( $item ) { return ! empty( $item['locked'] ); } ), 'file' ) ); $files = glob( trailingslashit( $dir ) . 'digitalisimo-*.zip' ) ?: array(); usort( $files, function( $a, $b ) { return filemtime( $b ) <=> filemtime( $a ); } ); $rotating = array_values( array_filter( $files, function( $file ) use ( $locked ) { return ! in_array( wp_basename( $file ), $locked, true ); } ) ); foreach ( array_slice( $rotating, $keep ) as $file ) if ( ! isset( $busy[ wp_basename( $file ) ] ) ) @unlink( $file ); }
+	private static function prune_policy_locked( $policy ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $matching = array_values( array_filter( $history, function( $item ) use ( $policy ) { return ( $item['policy'] ?? '' ) === $policy['id'] && empty( $item['locked'] ); } ) ); foreach ( array_slice( $matching, (int) $policy['retain'] ) as $item ) { $name = sanitize_file_name( $item['file'] ?? '' ); if ( isset( $busy[ $name ] ) ) continue; $path = trailingslashit( self::local_directory() ) . $name; if ( is_file( $path ) ) @unlink( $path ); } }
 	/**
 	 * ZIP que un trabajo sin terminar todavía necesita (el verificado que espera su copia remota, con la transferencia en
 	 * espera de reintento): la retención de otro trabajo nunca los borra; cuentan para el tope y se retiran en una poda
@@ -1269,7 +1308,7 @@ final class Digitalisimo_Backups {
 	private static function restore_updraft_set( $id ) { $sets = self::detect_updraft_sets(); if ( empty( $sets[ $id ] ) || true !== self::validate_backup_set( $sets[ $id ] ) ) throw new Exception( 'El conjunto UpdraftPlus no está completo, es cifrado o no se puede leer.' ); $set = $sets[ $id ]; $database = $set['files']['db'][0]['path']; $sql = 'gz' === strtolower( pathinfo( $database, PATHINFO_EXTENSION ) ) ? @gzdecode( (string) file_get_contents( $database ) ) : @file_get_contents( $database ); if ( ! $sql ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' ); self::import_sql( $sql ); foreach ( array( 'plugins' => WP_PLUGIN_DIR, 'themes' => get_theme_root(), 'uploads' => wp_upload_dir()['basedir'], 'others' => WP_CONTENT_DIR ) as $component => $root ) foreach ( (array) ( $set['files'][ $component ] ?? array() ) as $part ) self::extract_updraft_zip( $part['path'], $root, $component ); }
 	private static function extract_updraft_zip( $path, $root, $component ) { if ( 'zip' !== strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) throw new Exception( 'El archivo UpdraftPlus de ' . $component . ' no es ZIP.' ); $zip = new ZipArchive(); if ( true !== $zip->open( $path ) ) throw new Exception( 'No se pudo abrir una pieza UpdraftPlus.' ); self::validate_zip_entries( $zip ); for ( $i = 0; $i < $zip->numFiles; $i++ ) { $name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) ); if ( substr( $name, -1 ) === '/' ) continue; $relative = preg_replace( '#^(wp-content/)?' . preg_quote( $component, '#' ) . '/#', '', $name ); if ( ! $relative || 0 === strpos( $relative, 'wp-config.php' ) ) continue; $destination = trailingslashit( $root ) . $relative; if ( ! wp_mkdir_p( dirname( $destination ) ) ) { $zip->close(); throw new Exception( 'No se pudo crear una carpeta para UpdraftPlus.' ); } $input = $zip->getStream( $name ); $output = @fopen( $destination, 'wb' ); if ( ! $input || ! $output ) { $zip->close(); throw new Exception( 'No se pudo restaurar un archivo UpdraftPlus.' ); } stream_copy_to_stream( $input, $output ); fclose( $input ); fclose( $output ); } $zip->close(); }
 	private static function history_item( $file ) { foreach ( (array) get_option( self::HISTORY, array() ) as $item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) return $item; return array(); }
-	private static function remove_history( $file ) { $history = array_values( array_filter( (array) get_option( self::HISTORY, array() ), function( $row ) use ( $file ) { return ! hash_equals( (string) ( $row['file'] ?? '' ), $file ); } ) ); update_option( self::HISTORY, $history, false ); }
+	private static function remove_history( $file ) { self::change_history( function( &$history ) use ( $file ) { $history = array_values( array_filter( $history, function( $row ) use ( $file ) { return ! hash_equals( (string) ( $row['file'] ?? '' ), $file ); } ) ); } ); }
 	private static function download_remote( $item ) { $remote = (array) ( $item['remote'] ?? array() ); $provider = $remote['provider'] ?? ''; $settings = self::settings(); if ( ! $provider ) wp_die( 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.' ); if ( 'sftp' === $provider ) { $connection = self::sftp_connection( $settings ); $sftp = ssh2_sftp( $connection ); $stream = @fopen( 'ssh2.sftp://' . intval( $sftp ) . (string) $remote['path'], 'rb' ); if ( ! $stream ) wp_die( 'No se pudo leer el respaldo SFTP.' ); nocache_headers(); header( 'Content-Type: application/zip' ); header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' ); fpassthru( $stream ); fclose( $stream ); return; } $token = self::token( 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token', $settings, $provider ); $url = 'google' === $provider ? 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $remote['id'] ) . '?alt=media' : 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode( $remote['id'] ) . '/content'; $response = wp_remote_get( $url, array( 'timeout' => 120, 'redirection' => 5, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ); if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) wp_die( 'No se pudo descargar el respaldo remoto.' ); nocache_headers(); header( 'Content-Type: application/zip' ); header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' ); echo wp_remote_retrieve_body( $response ); }
 	private static function delete_remote( $item ) { $remote = (array) ( $item['remote'] ?? array() ); $provider = $remote['provider'] ?? ''; $settings = self::settings(); if ( ! $provider ) throw new Exception( 'Este respaldo remoto no tiene identificador para eliminarse desde WordPress.' ); if ( 'sftp' === $provider ) { $connection = self::sftp_connection( $settings ); $sftp = ssh2_sftp( $connection ); if ( ! @ssh2_sftp_unlink( $sftp, (string) $remote['path'] ) ) throw new Exception( 'No se pudo eliminar el archivo SFTP.' ); return; } $token = self::token( 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token', $settings, $provider ); $url = 'google' === $provider ? 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $remote['id'] ) : 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode( $remote['id'] ); $response = wp_remote_request( $url, array( 'method' => 'DELETE', 'timeout' => 60, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ); if ( is_wp_error( $response ) || ! in_array( wp_remote_retrieve_response_code( $response ), array( 200, 204 ), true ) ) throw new Exception( 'El proveedor remoto no confirmó la eliminación.' ); }
 	private static function sftp_connection( $s ) {

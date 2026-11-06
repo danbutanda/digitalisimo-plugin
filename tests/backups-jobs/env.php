@@ -53,7 +53,10 @@ foreach ( bk_tree() as $name => $content ) {
 	if ( ! is_file( $path ) ) file_put_contents( $path, $content );
 }
 
-/* ---- Opciones persistidas ---- */
+/* ---- Opciones persistidas, con la caché de cada petición de WordPress ---- */
+// get_option() guarda lo leído en la caché de la petición (también lo que no existe, como `notoptions`), y otro proceso
+// escribe en la base de datos sin tocar esa caché: bk_external_update_option() simula ese otro proceso.
+$GLOBALS['bk_option_cache'] = array();
 function bk_options_path() { return $GLOBALS['bk_root'] . '/options.json'; }
 function bk_options_load() { $raw = @file_get_contents( bk_options_path() ); $data = $raw ? json_decode( $raw, true ) : array(); return is_array( $data ) ? $data : array(); }
 function bk_options_save( $options ) { file_put_contents( bk_options_path(), json_encode( $options ) ); }
@@ -61,10 +64,29 @@ function bk_db_access( $what, $key ) {
 	$GLOBALS['bk_option_log'][] = array( $what, $key, ! empty( $GLOBALS['wpdb']->in_snapshot ) );
 	if ( ! empty( $GLOBALS['wpdb']->in_snapshot ) ) $GLOBALS['wpdb']->snapshot_violations[] = $what . ':' . $key;
 }
-function get_option( $key, $default = false ) { bk_db_access( 'get', $key ); $options = bk_options_load(); return array_key_exists( $key, $options ) ? $options[ $key ] : $default; }
-function update_option( $key, $value, $autoload = null ) { bk_db_access( 'update', $key ); $options = bk_options_load(); $options[ $key ] = $value; bk_options_save( $options ); return true; }
+function get_option( $key, $default = false ) {
+	bk_db_access( 'get', $key );
+	if ( ! array_key_exists( $key, $GLOBALS['bk_option_cache'] ) ) {
+		$options = bk_options_load();
+		$GLOBALS['bk_option_cache'][ $key ] = array_key_exists( $key, $options ) ? array( $options[ $key ] ) : null;
+	}
+	return null === $GLOBALS['bk_option_cache'][ $key ] ? $default : $GLOBALS['bk_option_cache'][ $key ][0];
+}
+function update_option( $key, $value, $autoload = null ) { bk_db_access( 'update', $key ); $options = bk_options_load(); $options[ $key ] = $value; bk_options_save( $options ); $GLOBALS['bk_option_cache'][ $key ] = array( $value ); return true; }
 function add_option( $key, $value = '', $deprecated = '', $autoload = 'yes' ) { $options = bk_options_load(); if ( array_key_exists( $key, $options ) ) return false; return update_option( $key, $value ); }
-function delete_option( $key ) { bk_db_access( 'delete', $key ); $options = bk_options_load(); unset( $options[ $key ] ); bk_options_save( $options ); return true; }
+function delete_option( $key ) { bk_db_access( 'delete', $key ); $options = bk_options_load(); unset( $options[ $key ] ); bk_options_save( $options ); $GLOBALS['bk_option_cache'][ $key ] = null; return true; }
+function bk_external_update_option( $key, $value ) { $options = bk_options_load(); $options[ $key ] = $value; bk_options_save( $options ); }
+function wp_cache_get( $key, $group = '' ) {
+	if ( 'options' !== $group ) return false;
+	if ( 'notoptions' === $key ) return array_fill_keys( array_keys( array_filter( $GLOBALS['bk_option_cache'], 'is_null' ) ), true );
+	return isset( $GLOBALS['bk_option_cache'][ $key ] ) ? $GLOBALS['bk_option_cache'][ $key ][0] : false;
+}
+function wp_cache_set( $key, $value, $group = '' ) {
+	if ( 'options' === $group && 'notoptions' === $key ) foreach ( array_keys( array_filter( $GLOBALS['bk_option_cache'], 'is_null' ) ) as $name ) if ( ! isset( $value[ $name ] ) ) unset( $GLOBALS['bk_option_cache'][ $name ] );
+	return true;
+}
+function wp_cache_delete( $key, $group = '' ) { if ( 'options' === $group ) unset( $GLOBALS['bk_option_cache'][ $key ] ); return true; }
+function wp_load_alloptions() { return array(); }
 function get_site_option( $key, $default = false ) { return get_option( $key, $default ); }
 function update_site_option( $key, $value ) { return update_option( $key, $value ); }
 
@@ -118,7 +140,7 @@ function wp_schedule_event( $timestamp, $recurrence, $hook, $args = array() ) { 
 function wp_unschedule_event( $timestamp, $hook, $args = array() ) { unset( $GLOBALS['bk_cron'][ (string) $timestamp ] ); return true; }
 function wp_clear_scheduled_hook( $hook, $args = array() ) { $GLOBALS['bk_cron'] = array_filter( $GLOBALS['bk_cron'], function( $event ) use ( $hook ) { return $event !== $hook; } ); return 0; }
 function spawn_cron() { $GLOBALS['bk_spawned']++; return true; }
-function wp_cache_flush() { return true; }
+function wp_cache_flush() { $GLOBALS['bk_option_cache'] = array(); return true; }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_url( $value ) { return (string) $value; }

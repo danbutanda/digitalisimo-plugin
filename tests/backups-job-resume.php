@@ -221,9 +221,12 @@ $job = until_phase( $twice['id'], 'publish' );
 $final = bk_storage() . '/' . $twice['spec']['file'];
 rename( bk_storage() . '/jobs/' . $twice['id'] . '/staging/' . $job['checkpoint']['pack']['file'], $final );
 Digitalisimo_Backups::job_register( $final, $twice['spec'], $twice['id'] );
+// Mientras tanto, el administrador lo bloquea desde otra petición.
+bk_external_update_option( Digitalisimo_Backups::HISTORY, array_map( function( $row ) use ( $twice ) { if ( $twice['spec']['file'] === $row['file'] ) $row['locked'] = true; return $row; }, bk_options_load()[ Digitalisimo_Backups::HISTORY ] ) );
 bk_kill_in( $twice['id'], 'publish' );
 bk_run_until_done( $twice['id'] );
 bk_assert( 'success' === bk_job( $twice['id'] )['status'] && 1 === count( rows_for( $twice['spec']['file'] ) ), 'El registro repetido tras una muerte duplicó la fila del historial.' );
+bk_assert( ! empty( rows_for( $twice['spec']['file'] )[0]['locked'] ), 'El registro repetido tras una muerte quitó el bloqueo del respaldo.' );
 // Un SQL que cambia en el área de trabajo después de exportarse se exporta otra vez antes de empaquetar.
 $sql_changed = bk_manual( 'local', 'sql-alterado' );
 $job = until_phase( $sql_changed['id'], 'pack' );
@@ -253,6 +256,23 @@ $job = bk_job( $mismatch['id'] );
 $row = rows_for( $mismatch['spec']['file'] )[0];
 bk_assert( 'failed' === $job['status'] && 'transfer' === $job['phase'] && 'local' === $row['destination'] && 'failed' === $row['transfer'] && is_file( bk_storage() . '/' . $mismatch['spec']['file'] ), 'La copia remota distinta no dejó el respaldo local registrado.' );
 bk_assert( ! $cloud && false !== strpos( $job['error']['message'], 'Se retiró del destino la copia sin verificar' ), 'Quedaron en el destino ' . count( $cloud ) . ' copias sin verificar.' );
+
+// J. Un proceso largo (WP-CLI o varios trabajos seguidos en la misma petición) lee el historial de la base de datos, no
+// de su caché: un «Bloquear» pulsado mientras tanto en otra petición no se pierde y la retención no borra ese respaldo.
+$long_spec = function( $policy ) { return Digitalisimo_Backups_Jobs::spec( array( 'policy' => $policy, 'destination' => 'local', 'retain' => 1, 'retention' => 'global', 'via' => 'test' ) ); };
+$kept = Digitalisimo_Backups_Jobs::enqueue( $long_spec( 'largo-1' ) )['job'];
+bk_run_until_done( $kept['id'] );
+bk_assert( rows_for( $kept['spec']['file'] ) && is_file( bk_storage() . '/' . $kept['spec']['file'] ), 'El primer respaldo del proceso largo no terminó.' );
+$stored = bk_options_load()[ Digitalisimo_Backups::HISTORY ];
+foreach ( $stored as &$stored_row ) if ( $kept['spec']['file'] === $stored_row['file'] ) $stored_row['locked'] = true;
+unset( $stored_row );
+bk_external_update_option( Digitalisimo_Backups::HISTORY, $stored );
+touch( bk_storage() . '/' . $kept['spec']['file'], time() - 600 );
+$next = Digitalisimo_Backups_Jobs::enqueue( $long_spec( 'largo-2' ) )['job'];
+bk_run_until_done( $next['id'] );
+$stored = array_values( array_filter( bk_options_load()[ Digitalisimo_Backups::HISTORY ], function( $row ) use ( $kept ) { return $kept['spec']['file'] === $row['file']; } ) );
+bk_assert( 'success' === bk_job( $next['id'] )['status'] && 1 === count( $stored ) && ! empty( $stored[0]['locked'] ), 'El proceso largo escribió sobre el bloqueo hecho en otra petición.' );
+bk_assert( is_file( bk_storage() . '/' . $kept['spec']['file'] ), 'La retención del proceso largo borró un respaldo bloqueado en otra petición.' );
 
 bk_cleanup();
 echo "DIGITALÍSIMO Backups: reanudación tras una muerte en exportación, empaquetado, verificación, registro y transferencia sin rehacer lo confirmado.\n";
