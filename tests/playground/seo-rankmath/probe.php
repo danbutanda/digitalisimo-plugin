@@ -280,6 +280,27 @@ if ( 'schema' === $step ) {
 		WC()->structured_data->generate_product_data( wc_get_product( $ids['product'] ) );
 		$woo = WC()->structured_data->get_data();
 		digi_check( false !== strpos( wp_json_encode( $woo ), '4006381333931' ), 'WooCommerce publica el GTIN importado' );
+		// RM8: MPN, ISBN y estado desde el editor de producto, en el nodo propio y en el marcado de WooCommerce.
+		$item  = wc_get_product( $ids['product'] );
+		$_POST = array( 'digitalisimo_seo_mpn' => ' TA-1200 ', 'digitalisimo_seo_isbn' => '978-0-306-40615-8', 'digitalisimo_seo_condition' => 'UsedCondition' );
+		Digitalisimo_Integrations_Product_Identifiers::save( $item ); $item->save();
+		digi_check( 'TA-1200' === get_post_meta( $ids['product'], 'digitalisimo_seo_mpn', true ) && '' === get_post_meta( $ids['product'], 'digitalisimo_seo_isbn', true ) && 'UsedCondition' === get_post_meta( $ids['product'], 'digitalisimo_seo_condition', true ), 'El editor guarda MPN y estado y rechaza un ISBN con el dígito de control equivocado' );
+		$_POST['digitalisimo_seo_isbn'] = '978-0-306-40615-7';
+		$item = wc_get_product( $ids['product'] ); Digitalisimo_Integrations_Product_Identifiers::save( $item ); $item->save(); $_POST = array();
+		$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'product', 'p' => $ids['product'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+		ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+		digi_check( false !== strpos( $graph, '"@type":["Product","Book"]' ) && false !== strpos( $graph, '"mpn":"TA-1200"' ) && false !== strpos( $graph, '"isbn":"9780306406157"' ) && false !== strpos( $graph, '"gtin":"4006381333931"' ) && 2 === substr_count( $graph, '"itemCondition":"https://schema.org/UsedCondition"' ), 'El nodo propio publica GTIN, MPN, ISBN (como Book) y el estado en el producto y su oferta: ' . substr( $graph, 0, 200 ) );
+		WC()->structured_data->set_data( array( '@type' => 'WebSite' ), true );
+		WC()->structured_data->generate_product_data( wc_get_product( $ids['product'] ) );
+		$markup = wp_json_encode( WC()->structured_data->get_data() );
+		digi_check( false !== strpos( $markup, '"mpn":"TA-1200"' ) && false !== strpos( $markup, '"itemCondition":"https:\/\/schema.org\/UsedCondition"' ) && false !== strpos( $markup, '"Book"' ), 'WooCommerce recibe MPN, ISBN y estado por su filtro: ' . substr( $markup, 0, 300 ) );
+		$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+		update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_product_brand' => Digitalisimo_Integrations_Schema_Graph::BRAND_FIXED, 'seo_product_brand_name' => 'Marca Propia' ) ) );
+		ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+		digi_check( false !== strpos( $graph, '"brand":{"@type":"Brand","name":"Marca Propia"}' ), 'La marca fija sustituye a la de la taxonomía' );
+		update_option( Digitalisimo_Integrations_Settings::OPTION, $o );
+		$clean = Digitalisimo_Integrations_Settings::sanitize( array( 'seo_product_condition' => 'MintCondition', 'seo_product_brand_name' => '<b>Acme</b>' ) );
+		digi_check( '' === $clean['seo_product_condition'] && 'Acme' === $clean['seo_product_brand_name'], 'El formulario del sitio sanea el estado y la marca fija' );
 	}
 	return;
 }

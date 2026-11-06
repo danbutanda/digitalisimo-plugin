@@ -1,0 +1,163 @@
+{
+ "_doc": [
+  "Casos A/B de la Plantilla (C9, frente R): A con `template` de PRO, B con `digitalisimo-template`. La plantilla se crea en setup.php (`\"$template:<clave>\"` con `templates.<clave>` del caso): una plantilla de la biblioteca publicada, de tipo sección."
+ ],
+ "declared": [],
+ "cases": {
+  "tpl-defaults": {
+   "title": "Plantilla con encabezado, texto y botón",
+   "widget": "template",
+   "settings": {
+    "template_id": "$template:basica"
+   },
+   "templates": {
+    "basica": [
+     {
+      "elType": "container",
+      "settings": {
+       "flex_direction": "column"
+      },
+      "elements": [
+       {
+        "elType": "widget",
+        "widgetType": "heading",
+        "settings": {
+         "title": "Título de la plantilla",
+         "header_size": "h2"
+        }
+       },
+       {
+        "elType": "widget",
+        "widgetType": "text-editor",
+        "settings": {
+         "editor": "<p>Texto reutilizable de la plantilla, con un <a href=\"https://example.com/\">enlace</a>.</p>"
+        }
+       },
+       {
+        "elType": "widget",
+        "widgetType": "button",
+        "settings": {
+         "text": "Más información",
+         "link": {
+          "url": "https://example.com/info",
+          "is_external": "",
+          "nofollow": ""
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "tpl-image": {
+   "title": "Plantilla con imagen y fondo",
+   "widget": "template",
+   "settings": {
+    "template_id": "$template:imagen",
+    "_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    }
+   },
+   "templates": {
+    "imagen": [
+     {
+      "elType": "container",
+      "settings": {
+       "background_background": "classic",
+       "background_color": "#F3F1EC",
+       "padding": {
+        "unit": "px",
+        "top": "20",
+        "right": "20",
+        "bottom": "20",
+        "left": "20",
+        "isLinked": true
+       }
+      },
+      "elements": [
+       {
+        "elType": "widget",
+        "widgetType": "image",
+        "settings": {
+         "image": {
+          "$image": 3
+         },
+         "image_size": "medium"
+        }
+       },
+       {
+        "elType": "widget",
+        "widgetType": "heading",
+        "settings": {
+         "title": "Con imagen",
+         "header_size": "h3",
+         "title_color": "#245EFF"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "tpl-overrides": {
+   "title": "Sobrescrituras de F7b: texto del encabezado y enlace del botón",
+   "widget": "template",
+   "settings": {
+    "template_id": "$template:claves",
+    "digitalisimo_overrides": [
+     {
+      "_id": "ov1",
+      "slot": "titulo",
+      "kind": "text",
+      "text": "Título sobrescrito"
+     },
+     {
+      "_id": "ov2",
+      "slot": "boton",
+      "kind": "link",
+      "link": {
+       "url": "https://example.com/otra",
+       "is_external": "",
+       "nofollow": ""
+      }
+     }
+    ]
+   },
+   "templates": {
+    "claves": [
+     {
+      "elType": "container",
+      "settings": {},
+      "elements": [
+       {
+        "elType": "widget",
+        "widgetType": "heading",
+        "settings": {
+         "title": "Título original",
+         "_digitalisimo_slot": "titulo"
+        }
+       },
+       {
+        "elType": "widget",
+        "widgetType": "button",
+        "settings": {
+         "text": "Ir",
+         "link": {
+          "url": "https://example.com/original"
+         },
+         "_digitalisimo_slot": "boton"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

@@ -133,5 +133,6 @@
   if (window.elementorFrontend && window.elementorFrontend.hooks) {
     window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-table.default', function ($scope) { init($scope[0] || document); });
     window.elementorFrontend.hooks.addAction('frontend/element_ready/woocommerce-products.default', function ($scope) { init($scope[0] || document); });
+    window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-woo-products.default', function ($scope) { init($scope[0] || document); });
   }
 })();

@@ -413,7 +413,7 @@ namespace {
 	}
 	$manager = new WT_Widgets();
 	$names   = Inert::register( $manager );
-	check_wt( Registry::names() === $names && 7 === count( $manager->types ) && Inert::active(), 'Inert registra los siete widgets.' );
+	check_wt( Registry::names() === $names && count( Registry::names() ) === count( $manager->types ) && Inert::active(), 'Inert registra los widgets del registro.' );
 	foreach ( $manager->types as $name => $widget ) {
 		check_wt( 0 === strpos( $name, 'digitalisimo-woo-' ) && false === $widget->show_in_panel(), "{$name}: nombre digitalisimo-woo-* y oculto del panel." );
 	}
@@ -467,7 +467,7 @@ namespace {
 	}
 	$source = file_get_contents( $real . '/class-registry.php' );
 	preg_match_all( "/'(digitalisimo-woo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $source, $entries, PREG_SET_ORDER );
-	check_wt( 7 === count( $entries ), 'WIDGETS: siete entradas con el formato de Widget_Registry (sin paréntesis anidados).' );
+	check_wt( count( Registry::WIDGETS ) === count( $entries ), 'WIDGETS: cada entrada con el formato de Widget_Registry (sin paréntesis anidados).' );
 	foreach ( $entries as $entry ) {
 		foreach ( array( 'file', 'class', 'css', 'js' ) as $key ) {
 			check_wt( false !== strpos( $entry[2], "'{$key}'" ), "{$entry[1]}: lleva «{$key}»." );

@@ -121,6 +121,19 @@ final class Documents {
 					continue;
 				}
 			}
+			// Widget global de PRO (C9): su `on_export()` exporta la instancia como el contenido de su plantilla (otro
+			// tipo de widget). Se repone el id de la instancia, el mismo que le da `Convert\Globals` al sustituirla, y
+			// los hijos del contenido, si los hay, reciben ids estables derivados de él (los del núcleo son aleatorios).
+			if ( 'global' === self::type_of( $orig ) && isset( $node['elType'] ) && 'widget' === $node['elType'] && 'global' !== self::type_of( $node ) ) {
+				if ( isset( $orig['id'] ) && is_string( $orig['id'] ) && 1 === preg_match( '/^[A-Za-z0-9]{1,64}$/', $orig['id'] ) ) {
+					$node['id'] = $orig['id'];
+					if ( ! empty( $node['elements'] ) && is_array( $node['elements'] ) ) {
+						$node['elements'] = self::stable_ids( $node['elements'], $orig['id'] );
+					}
+				}
+				$exported[ $key ] = $node;
+				continue;
+			}
 			if ( ! self::same_kind( $node, $orig ) ) {
 				return null;
 			}
@@ -281,6 +294,21 @@ final class Documents {
 			}
 		}
 		return $items;
+	}
+
+	/** Ids estables (7 caracteres) de los hijos del contenido de una instancia global exportada, por su posición. */
+	private static function stable_ids( array $elements, string $parent ): array {
+		foreach ( $elements as $index => $child ) {
+			if ( ! is_array( $child ) ) {
+				continue;
+			}
+			$child['id'] = substr( md5( 'digitalisimo-global:' . $parent . ':' . $index ), 0, 7 );
+			if ( ! empty( $child['elements'] ) && is_array( $child['elements'] ) ) {
+				$child['elements'] = self::stable_ids( $child['elements'], $child['id'] );
+			}
+			$elements[ $index ] = $child;
+		}
+		return $elements;
 	}
 
 	private static function same_kind( array $a, array $b ): bool {

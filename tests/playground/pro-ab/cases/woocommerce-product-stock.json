@@ -1,0 +1,74 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-stock (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Existencias del producto: `wc_get_stock_html()` de WooCommerce."
+ ],
+ "declared": [],
+ "cases": {
+  "wsm-stock-instock": {
+   "title": "Producto con existencias",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-stock",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-stock.min.css de PRO",
+     "id": "widget-woocommerce-product-stock-css",
+     "url": "widget-woocommerce-product-stock(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-stock-out": {
+   "title": "Producto agotado, con color y tipografía",
+   "context": {
+    "product": "outofstock"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "text_color": "#b3261e",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "text_typography_font_weight": "700"
+   },
+   "widget": "woocommerce-product-stock",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-stock.min.css de PRO",
+     "id": "widget-woocommerce-product-stock-css",
+     "url": "widget-woocommerce-product-stock(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

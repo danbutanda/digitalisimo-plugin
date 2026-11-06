@@ -15,6 +15,9 @@ class Digitalisimo_Test_DB {
 	}
 }
 $GLOBALS['wpdb'] = new Digitalisimo_Test_DB();
+// La restauración consulta el historial (SHA-256 registrado) antes que la metadata del paquete.
+function wp_basename( $path ) { return basename( $path ); }
+function get_option( $key, $default = false ) { return $default; }
 require __DIR__ . '/../digitalisimo-backups/includes/class-backups.php';
 $sql_method = new ReflectionMethod( 'Digitalisimo_Backups', 'database_sql' );
 if ( PHP_VERSION_ID < 80100 ) $sql_method->setAccessible( true );

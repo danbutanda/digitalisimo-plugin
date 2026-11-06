@@ -1,0 +1,5 @@
+/* Inicio de sesión (digitalisimo-login): lo que PRO añadía a frontend.min.css del núcleo (widget-login y widget-form), más foco visible y objetivos de 24 px. */
+.elementor-login .elementor-lost-password,.elementor-login .elementor-remember-me{font-size:.85em}
+.elementor-login .elementor-button .elementor-button-text{white-space:normal}
+.elementor-login .elementor-lost-password,.elementor-login .elementor-register,.elementor-login .elementor-remember-me label{display:inline-block;min-height:24px}
+.elementor-widget-digitalisimo-login .elementor-login a:focus-visible,.elementor-widget-digitalisimo-login .elementor-login button:focus-visible,.elementor-widget-digitalisimo-login .elementor-login input:focus-visible{outline:2px solid;outline-offset:2px}

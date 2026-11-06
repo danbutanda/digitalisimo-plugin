@@ -1,0 +1,1024 @@
+{
+ "fecha": "2026-11-05",
+ "etapa": "C9",
+ "pro_ab": {
+  "resumen": {
+   "casos": 63,
+   "c9": 30,
+   "muestra_c0_c4": 33,
+   "con_problemas": 1,
+   "sin_motivo": 0,
+   "duracion_s": 2903,
+   "elements": "4.3.0.175",
+   "nota": "Corrida completa (63 casos: los 30 de C9 y los 33 *-defaults de C0, C1, C2 y C4) en Elements 4.3.0.175 antes de fusionar C3: 62 en verde; nc-defaults falló sólo en los píxeles tras la acción 2 a 768 px (5,83 %, el paso del carrusel capturado a mitad con la máquina cargada; C9 no toca el motor digi-crs ni su mapa) y se repitió en la muestra posterior. Muestra tras fusionar C3 (4.3.0.176): ver muestra_tras_c3.",
+   "nota_muestra": "7/7 en verde tras fusionar C3 (nc-defaults incluido)"
+  },
+  "casos": {
+   "bq-defaults": {
+    "widget": "blockquote",
+    "destino": "digitalisimo-blockquote",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.13,
+     "768": 0.09,
+     "1280": 0.06
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ah-defaults": {
+    "widget": "animated-headline",
+    "destino": "digitalisimo-animated-headline",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.01,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ab-defaults": {
+    "widget": "author-box",
+    "destino": "digitalisimo-author-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "bc-defaults": {
+    "widget": "breadcrumbs",
+    "destino": "digitalisimo-yoast-breadcrumbs",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 4,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cta-defaults": {
+    "widget": "call-to-action",
+    "destino": "digitalisimo-call-to-action",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.02,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ch-defaults": {
+    "widget": "code-highlight",
+    "destino": "digitalisimo-code-highlight",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cd-defaults": {
+    "widget": "countdown",
+    "destino": "digitalisimo-countdown",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 17.94,
+     "768": 0.78,
+     "1280": 0.46
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbb-defaults": {
+    "widget": "facebook-button",
+    "destino": "digitalisimo-facebook-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 47.49,
+     "768": 17.93,
+     "1280": 10.27
+    },
+    "declaradas": 66,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbb-recommend": {
+    "widget": "facebook-button",
+    "destino": "digitalisimo-facebook-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 47.46,
+     "768": 15.85,
+     "1280": 9.39
+    },
+    "declaradas": 63,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbb-custom": {
+    "widget": "facebook-button",
+    "destino": "digitalisimo-facebook-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 47.49,
+     "768": 17.93,
+     "1280": 10.27
+    },
+    "declaradas": 66,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbc-defaults": {
+    "widget": "facebook-comments",
+    "destino": "digitalisimo-facebook-comments",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 16.25,
+     "768": 7.71,
+     "1280": 4.57
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbc-custom": {
+    "widget": "facebook-comments",
+    "destino": "digitalisimo-facebook-comments",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 16.25,
+     "768": 7.71,
+     "1280": 4.57
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbc-invalid": {
+    "widget": "facebook-comments",
+    "destino": "digitalisimo-facebook-comments",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 8.91,
+     "768": 7.02,
+     "1280": 5.07
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbe-empty": {
+    "widget": "facebook-embed",
+    "destino": "digitalisimo-facebook-embed",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 6.37,
+     "768": 3.44,
+     "1280": 2.44
+    },
+    "declaradas": 21,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbe-post": {
+    "widget": "facebook-embed",
+    "destino": "digitalisimo-facebook-embed",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 15.37,
+     "768": 7.25,
+     "1280": 4.29
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbe-video": {
+    "widget": "facebook-embed",
+    "destino": "digitalisimo-facebook-embed",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 17.63,
+     "768": 3.11,
+     "1280": 1.1
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbe-comment": {
+    "widget": "facebook-embed",
+    "destino": "digitalisimo-facebook-embed",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 15.39,
+     "768": 7.24,
+     "1280": 4.29
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbp-empty": {
+    "widget": "facebook-page",
+    "destino": "digitalisimo-facebook-page",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 7.91,
+     "768": 6.37,
+     "1280": 4.43
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbp-defaults": {
+    "widget": "facebook-page",
+    "destino": "digitalisimo-facebook-page",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 5.72,
+     "768": 2.69,
+     "1280": 1.6
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fbp-small": {
+    "widget": "facebook-page",
+    "destino": "digitalisimo-facebook-page",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 9.25,
+     "768": 4.36,
+     "1280": 2.58
+    },
+    "declaradas": 75,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "flipbox-defaults": {
+    "widget": "flip-box",
+    "destino": "digitalisimo-flip-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "gal-defaults": {
+    "widget": "gallery",
+    "destino": "digitalisimo-gallery",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.02,
+     "1280": 0.02
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "gw-heading": {
+    "widget": "global",
+    "destino": "heading",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     {
+      "code": "pro.global",
+      "key": "templateID",
+      "reason": "Instancia del widget global sustituida por el elemento guardado en su plantilla 60 (heading), con sus mismos ajustes; la plantilla se conserva.",
+      "section": "converted"
+     }
+    ]
+   },
+   "gw-button": {
+    "widget": "global",
+    "destino": "button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     {
+      "code": "pro.global",
+      "key": "templateID",
+      "reason": "Instancia del widget global sustituida por el elemento guardado en su plantilla 63 (button), con sus mismos ajustes; la plantilla se conserva.",
+      "section": "converted"
+     }
+    ]
+   },
+   "gw-image-box": {
+    "widget": "global",
+    "destino": "image-box",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": [
+     {
+      "code": "pro.global",
+      "key": "templateID",
+      "reason": "Instancia del widget global sustituida por el elemento guardado en su plantilla 66 (image-box), con sus mismos ajustes; la plantilla se conserva.",
+      "section": "converted"
+     }
+    ]
+   },
+   "hs-defaults": {
+    "widget": "hotspot",
+    "destino": "digitalisimo-hotspot",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0.06,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lt-defaults": {
+    "widget": "lottie",
+    "destino": "digitalisimo-lottie",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 9.44,
+     "768": 20.12,
+     "1280": 7.43
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "mc-defaults": {
+    "widget": "media-carousel",
+    "destino": "digitalisimo-media-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.18,
+     "768": 0.08,
+     "1280": 0.05
+    },
+    "declaradas": 125,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "nc-defaults": {
+    "widget": "nested-carousel",
+    "destino": "digitalisimo-nested-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.23,
+     "768": 0.11,
+     "1280": 0.06
+    },
+    "declaradas": 132,
+    "sin_motivo": 0,
+    "problemas": 1,
+    "codigos": []
+   },
+   "pp-defaults": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-checkout": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-donation": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-subscription": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-sandbox": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-styled": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pp-messages": {
+    "widget": "paypal-button",
+    "destino": "digitalisimo-paypal-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pc-defaults": {
+    "widget": "post-comments",
+    "destino": "digitalisimo-post-comments",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pi-defaults": {
+    "widget": "post-info",
+    "destino": "digitalisimo-post-info",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pn-defaults": {
+    "widget": "post-navigation",
+    "destino": "digitalisimo-post-navigation",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 22,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "plist-defaults": {
+    "widget": "price-list",
+    "destino": "digitalisimo-price-list",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "ptab-defaults": {
+    "widget": "price-table",
+    "destino": "digitalisimo-price-table",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.86,
+     "768": 0.37,
+     "1280": 0.22
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "pt-defaults": {
+    "widget": "progress-tracker",
+    "destino": "digitalisimo-progress-tracker",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "rv-defaults": {
+    "widget": "reviews",
+    "destino": "digitalisimo-reviews",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 1.9,
+     "768": 0.07,
+     "1280": 0.75
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sb-defaults": {
+    "widget": "share-buttons",
+    "destino": "digitalisimo-share-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 47,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sm-defaults": {
+    "widget": "sitemap",
+    "destino": "digitalisimo-sitemap",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "sl-defaults": {
+    "widget": "slides",
+    "destino": "digitalisimo-slides",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.04,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 78,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "st-defaults": {
+    "widget": "stripe-button",
+    "destino": "digitalisimo-stripe-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "st-product": {
+    "widget": "stripe-button",
+    "destino": "digitalisimo-stripe-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "st-custom": {
+    "widget": "stripe-button",
+    "destino": "digitalisimo-stripe-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "st-styled": {
+    "widget": "stripe-button",
+    "destino": "digitalisimo-stripe-button",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "toc-defaults": {
+    "widget": "table-of-contents",
+    "destino": "digitalisimo-table-of-contents",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tpl-defaults": {
+    "widget": "template",
+    "destino": "digitalisimo-template",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tpl-image": {
+    "widget": "template",
+    "destino": "digitalisimo-template",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tpl-overrides": {
+    "widget": "template",
+    "destino": "digitalisimo-template",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tc-defaults": {
+    "widget": "testimonial-carousel",
+    "destino": "digitalisimo-testimonial-carousel",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.07,
+     "768": 0.04,
+     "1280": 0.03
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-pagetitle-defaults": {
+    "widget": "theme-page-title",
+    "destino": "digitalisimo-page-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-content-defaults": {
+    "widget": "theme-post-content",
+    "destino": "digitalisimo-post-content",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-excerpt-defaults": {
+    "widget": "theme-post-excerpt",
+    "destino": "digitalisimo-post-excerpt",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-featured-defaults": {
+    "widget": "theme-post-featured-image",
+    "destino": "digitalisimo-featured-image",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-posttitle-defaults": {
+    "widget": "theme-post-title",
+    "destino": "digitalisimo-post-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-logo-defaults": {
+    "widget": "theme-site-logo",
+    "destino": "digitalisimo-site-logo",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "tl-sitetitle-defaults": {
+    "widget": "theme-site-title",
+    "destino": "digitalisimo-site-title",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "vpl-defaults": {
+    "widget": "video-playlist",
+    "destino": "digitalisimo-video-playlist",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 45.23,
+     "768": 0.43,
+     "1280": 0.25
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   }
+  },
+  "muestra_tras_c3": {
+   "elements": "4.3.0.176",
+   "casos": [
+    "fbb-defaults",
+    "fbp-defaults",
+    "gw-heading",
+    "nc-defaults",
+    "pp-defaults",
+    "st-defaults",
+    "tpl-overrides"
+   ],
+   "problemas": 0,
+   "duracion_s": 514
+  }
+ },
+ "front_budget": {
+  "caso": "services",
+  "elements": "4.3.0.176",
+  "peticiones": 27,
+  "delta": {
+   "requests": 3,
+   "bytes": 16396,
+   "css": 4286,
+   "js": 5470,
+   "img": -3241,
+   "third": 0,
+   "nodes": 73,
+   "cls": 0
+  },
+  "terceros": [
+   "fonts.googleapis.com",
+   "fonts.gstatic.com"
+  ],
+  "errores": 0,
+  "cls": 0,
+  "proHandlers": false,
+  "proFrontend": false,
+  "swiper": false,
+  "iframes": 0,
+  "llamadas_facebook": 0,
+  "llamadas_pagos": 0,
+  "fachadas": 4,
+  "plugins_vivos": 0,
+  "formularios_pago": 2,
+  "bytes_recursos": {
+   "fb-css": 1976,
+   "fb-js": 1989,
+   "pay-css": 621,
+   "pay-js": 3481
+  },
+  "problemas": 0,
+  "nota": "Terceros: las fuentes de Google del kit, igual que la página vacía. Sin regresiones en empty y blockquote. Tras fusionar C5, elements-front-budget.php revisa 109 widgets propios."
+ },
+ "validate_yml": {
+  "pruebas": 350,
+  "detalle": "Tras fusionar C5 (4.3.0.177) y 6316eec3, con ci-run.sh corregido (^FALL[AO]): las 342 líneas de la lista de validate.yml (341 pruebas y el bucle de update-enqueue de 7 módulos: 348 comandos) y el barrido de tests/elements-*.mjs; dos fallas por tiempo con la máquina cargada, en verde al repetirlas dos veces (elements-design-presets.php, elements-f7b-nested-slider-chrome.mjs), sin código de C9; build-packages.sh fuera de dist/ (guardas en PASS), validate-suite.mjs y verify-release.mjs (8 ZIP) en verde.",
+  "nuevas": [
+   "elements-pro-facebook.php (1 223)",
+   "elements-pro-facebook-chrome.mjs (22)",
+   "elements-pro-payments.php (362)",
+   "elements-pro-payments-chrome.mjs (23)",
+   "elements-pro-template.php (32)",
+   "migration-pro-global.php (24)",
+   "elements-kit-pro-global.php (13)"
+  ]
+ },
+ "migration_pro_php": 224,
+ "pro_migrate": {
+  "problemas": [],
+  "comprobaciones": 48,
+  "elements": "4.3.0.177 (con C3 y C5)",
+  "c9": "página de servicios (3 instancias globales: Encabezado, Blockquote de PRO → Cita en la misma pasada y una sin plantilla que se queda con pro.global_missing; Plantilla con sobrescritura de F7b y CSS; 4 de Facebook; PayPal; Stripe) y una cabecera con otra instancia global: 72 widgets en 12 documentos (con C5) en la primera pasada (11 de C9), nada en la segunda, pro.global 3 y pro.global_missing 1, --revert devuelve todo",
+  "f8": "ningún widget de Element Pack acaba en los de PRO de C9"
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce",
+  "duracion_s": {
+   "R4": 492
+  },
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A13": "diferencia declarada de tiempo (runners del núcleo 35,4 s con la máquina cargada; 4.3.0.163 sin C9, 36,8 s)",
+   "A14": "ok",
+   "A2": "no medido",
+   "A3": "no medido",
+   "A8": "no medido",
+   "A9": "no medido",
+   "A10": "no medido",
+   "A11": "no medido",
+   "A12": "no medido"
+  },
+  "nota": "Primera corrida (445 s): A1 falló por dos hallazgos reales, corregidos: la Plantilla propia (template_id, consulta) no figuraba entre lo que traduce el núcleo en compare.mjs (CORE_COVERED), y la página con una instancia del widget global salía con ids aleatorios distintos por REST y por WP-CLI (PRO exporta la instancia como su contenido y Export\\Documents::restore_ids() no casaba el árbol; ahora repone el id de la instancia y da ids estables a los hijos). Segunda corrida (492 s): A1, A4–A7 y A14 ok. A13 falla por tiempo de los runners de importación del núcleo (elementor-content 35,4 s y digitalisimo 26,9 s), igual con la versión 4.3.0.163 del paso antiguo (36,8 s), sin código de C9: la misma falla por carga que en C2, C3 y C6. R1 se correrá una sola vez sobre main con todas las etapas publicadas; las 4 entradas de C9 de known.json quedan declaradas y sin verificar hasta entonces."
+ },
+ "interaction": {
+  "ok": 38,
+  "elements": "4.3.0.177 (con C5)",
+  "editor_pro": "52 widgets de PRO registrados y ocultos (C0–C5 y C9); «facebook» → los cuatro de Facebook, «paypal» → Botón de PayPal, «stripe» → Botón de Stripe, «plantilla» → Plantilla",
+  "nota": "EDITOR_MS=900000; las cuatro corridas anteriores no pasaron de la apertura del editor por la congelación de la unidad (tope de memoria de 4 GB, subido a 5,5 GB); nota del arnés: elementor/v1/variables/list tardó más de 40 s (máquina lenta)"
+ }
+}

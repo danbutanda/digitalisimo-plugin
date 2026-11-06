@@ -1,0 +1,26 @@
+/* Formulario (digitalisimo-form): lo que la hoja de PRO añadía al núcleo, pasos propios, foco y movimiento reducido. */
+.e-form__step{width:100%}.e-form__step:not([hidden]){display:flex;flex-wrap:wrap}.e-form__buttons{flex-wrap:wrap}.e-form__buttons,.e-form__buttons__wrapper{display:flex}
+.digi-steps{align-items:center;display:flex;font-size:13px;justify-content:space-between;margin-bottom:var(--dfs-gap)}.digi-steps--badge{align-items:flex-start}
+.digi-step{align-items:center;display:flex;flex-basis:0;flex-direction:column;justify-content:center;padding:0 var(--dfs-dg)}.digi-step:first-child{padding-left:0}.digi-step:last-child{padding-right:0}
+.digi-steps__bar{background-color:var(--dfs-pb);border-radius:var(--dfs-pr);overflow:hidden;position:relative;width:100%}
+.digi-steps__meter{background-color:var(--dfs-p);border-radius:var(--dfs-pr);color:var(--dfs-pm);height:var(--dfs-ph);line-height:var(--dfs-ph);padding-right:15px;text-align:right;transition:width .1s linear;width:var(--dfs-pw,0)}
+.digi-step--off{color:var(--dfs-i1,#c2cbd2)}.digi-step--off svg{fill:var(--dfs-i1,#c2cbd2)}.digi-step--off .digi-step__badge{background-color:var(--dfs-i2,#fff)}
+.digi-step--on{border-color:var(--dfs-a2,#fff);color:var(--dfs-a1,#39b54a)}.digi-step--on svg{fill:var(--dfs-a1,#39b54a)}.digi-step--on .digi-step__badge{background-color:var(--dfs-a2,#fff)}
+.digi-step--done{color:var(--dfs-c2,#fff)}.digi-step--done svg{fill:var(--dfs-c2,#fff)}.digi-step--done .digi-step__badge{background-color:var(--dfs-c1,#39b54a)}
+.digi-step--done .digi-step__label,.digi-step--done .digi-step__badge--none{background-color:initial;color:var(--dfs-c1,#39b54a)}
+.digi-steps .digi-step__badge--none{background-color:initial}
+.digi-step__badge{align-items:center;border:1px solid;display:flex;height:var(--dfs-pad,30px);justify-content:center;margin-bottom:10px;width:var(--dfs-pad,30px)}
+.digi-step__icon{font-size:var(--dfs-icon);overflow:hidden}.digi-step__icon img,.digi-step__icon svg{height:auto;width:var(--dfs-icon)}.digi-step__icon .e-font-icon-svg{height:1em}
+.digi-step__badge--circle{border-radius:50%}.digi-step__badge--rounded{border-radius:5px}.digi-step__badge--none{border:0}.digi-step__label{text-align:center}
+.digi-step-sep{background-color:#babfc5;height:var(--dfs-dw);width:100%}.digi-steps--badge .digi-step-sep{margin-top:calc(var(--dfs-pad, 30px)/2 - var(--dfs-dw, 1px)/2)}
+.elementor-field-type-hidden{display:none}.elementor-field-type-html{display:inline-block}.elementor-field-type-tel input{direction:inherit}
+.elementor-field-type-recaptcha_v3 .elementor-field-label{display:none}.elementor-field-type-recaptcha_v3 .grecaptcha-badge{z-index:1}
+.elementor-form .elementor-button .elementor-button-content-wrapper{align-items:center}.elementor-form .elementor-button .elementor-button-text{white-space:normal}
+.elementor-form .elementor-button svg{height:auto}.elementor-form .elementor-button .e-font-icon-svg{height:1em}
+.elementor-form .elementor-button :is(.elementor-button-icon,.elementor-button-text){flex-grow:unset;order:unset}
+.select-caret-down-wrapper{font-size:11px;inset-inline-end:10px;pointer-events:none;position:absolute;top:50%;transform:translateY(-50%)}
+.select-caret-down-wrapper svg{aspect-ratio:unset;display:unset;fill:currentColor;overflow:visible;width:1em}.select-caret-down-wrapper i{font-size:19px;line-height:2}
+.elementor-select-wrapper.remove-before:before{content:""!important}
+.elementor-widget-digitalisimo-form .elementor-form [hidden]{display:none!important}.elementor-widget-digitalisimo-form .elementor-form-waiting{opacity:.45;transition:opacity .5s}
+.elementor-widget-digitalisimo-form.elementor-widget .elementor-form :focus-visible{outline:2px solid;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-form *{transition:none!important}}

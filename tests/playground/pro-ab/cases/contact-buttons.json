@@ -1,0 +1,1509 @@
+{
+ "_doc": [
+  "Botones de contacto (C8, frente P): las nueve variantes de PRO contact-buttons-var-<n> frente a digitalisimo-contact-buttons (presentación n), en documentos de botones flotantes (`doc`) vistos en su dirección; se captura el bloque fijo a la ventana (`capture`).",
+  "Diferencias comunes declaradas: foco visible propio, la fuente del kit, nombres accesibles en español y el aspa de cierre en SVG.",
+  "`container` encuadrado: el script de PRO añade una clase al `.e-con-inner` del contenedor y falla sin él (en los documentos de botones flotantes el contenedor es encuadrado)."
+ ],
+ "declared": [
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja del núcleo toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) (link|button) «",
+   "reason": "Nombres accesibles propios en español con el nombre legible del servicio («Abrir WhatsApp: …», «Mostrar u ocultar …», «Cerrar …»), donde PRO usaba textos en inglés o la clave interna («Telephone»)."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "interacción",
+   "match": "eicon|close",
+   "reason": "Aspa de cierre: la de PRO es un glifo de la fuente eicons, que este sitio (iconos SVG) no carga y queda invisible; la propia es un SVG."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-1",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-3",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-4",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-5",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-6",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-7",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-8",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-9",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "control",
+   "match": "control div 1 sólo en A",
+   "reason": "Al abrir el panel, PRO lo hace enfocable (`tabindex=0`) y le lleva el foco; el propio lleva el foco al primer enlace del panel (el panel no es un control)."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "no llega al control en A ni en B",
+   "reason": "El teclado no llega al botón flotante a 768 y 1 280 px ni en A ni en B: el documento de botones flotantes visto en su dirección deja el bloque fijo fuera del recorrido del arnés en esos anchos (a 375 px sí llega y se compara). Igual en los dos lados."
+  },
+  {
+   "widget": "contact-buttons-var-10",
+   "kind": "foco",
+   "match": "transform:",
+   "reason": "Interactive (10): con el foco del teclado el enlace se despliega y muestra su título, como con el cursor encima (WCAG 1.4.13 y 2.4.7); PRO lo dejaba replegado, casi fuera de la pantalla, al recibir el foco."
+  }
+ ],
+ "cases": {
+  "cb-1-defaults": {
+   "title": "Botones de contacto 1: valores por defecto",
+   "widget": "contact-buttons-var-1",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-1.min.css del núcleo",
+     "id": "widget-contact-buttons-var-1-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-1(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-1-links": {
+   "title": "Botones de contacto 1: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-1",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-1.min.css del núcleo",
+     "id": "widget-contact-buttons-var-1-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-1(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-3-defaults": {
+   "title": "Botones de contacto 3: valores por defecto",
+   "widget": "contact-buttons-var-3",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-3.min.css del núcleo",
+     "id": "widget-contact-buttons-var-3-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-3-links": {
+   "title": "Botones de contacto 3: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-3",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-3.min.css del núcleo",
+     "id": "widget-contact-buttons-var-3-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-4-defaults": {
+   "title": "Botones de contacto 4: valores por defecto",
+   "widget": "contact-buttons-var-4",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-4.min.css del núcleo",
+     "id": "widget-contact-buttons-var-4-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-4-links": {
+   "title": "Botones de contacto 4: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-4",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-4.min.css del núcleo",
+     "id": "widget-contact-buttons-var-4-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-5-defaults": {
+   "title": "Botones de contacto 5: valores por defecto",
+   "widget": "contact-buttons-var-5",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-5.min.css del núcleo",
+     "id": "widget-contact-buttons-var-5-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-5-links": {
+   "title": "Botones de contacto 5: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-5",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-5.min.css del núcleo",
+     "id": "widget-contact-buttons-var-5-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-6-defaults": {
+   "title": "Botones de contacto 6: valores por defecto",
+   "widget": "contact-buttons-var-6",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-6.min.css del núcleo",
+     "id": "widget-contact-buttons-var-6-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-6-links": {
+   "title": "Botones de contacto 6: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-6",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-6.min.css del núcleo",
+     "id": "widget-contact-buttons-var-6-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-7-defaults": {
+   "title": "Botones de contacto 7: valores por defecto",
+   "widget": "contact-buttons-var-7",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-7.min.css del núcleo",
+     "id": "widget-contact-buttons-var-7-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-7-links": {
+   "title": "Botones de contacto 7: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-7",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-7.min.css del núcleo",
+     "id": "widget-contact-buttons-var-7-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-8-defaults": {
+   "title": "Botones de contacto 8: valores por defecto",
+   "widget": "contact-buttons-var-8",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-8.min.css del núcleo",
+     "id": "widget-contact-buttons-var-8-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-8(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "key": "Escape",
+     "wait": 900,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-8-links": {
+   "title": "Botones de contacto 8: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-8",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-8.min.css del núcleo",
+     "id": "widget-contact-buttons-var-8-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-8(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "ready": {
+    "a": ".e-contact-buttons__chat-button[aria-expanded]",
+    "b": ".digi-cb__chat-button[aria-expanded]"
+   },
+   "actions": [
+    {
+     "label": "abrir el panel",
+     "a": ".e-contact-buttons__chat-button",
+     "b": ".digi-cb__chat-button",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.06,
+      "reason": "La fuente: PRO toma la del texto del kit (`--e-global-typography-text-font-family`) y el widget propio hereda la de la página (los widgets propios no usan variables del kit); en el panel abierto, con mucho texto, el ancho de las letras mueve unos píxeles los textos y las cajas (se ve igual en las capturas)."
+     }
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-9-defaults": {
+   "title": "Botones de contacto 9: valores por defecto",
+   "widget": "contact-buttons-var-9",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-9.min.css del núcleo",
+     "id": "widget-contact-buttons-var-9-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-9(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-9-links": {
+   "title": "Botones de contacto 9: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-9",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-9.min.css del núcleo",
+     "id": "widget-contact-buttons-var-9-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-9(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "style_chat_button_size": "large",
+    "chat_button_platform": "WhatsApp",
+    "chat_button_number": "+525512345678"
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-10-defaults": {
+   "title": "Botones de contacto 10: valores por defecto",
+   "widget": "contact-buttons-var-10",
+   "doc": "floating-buttons",
+   "settings": {},
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-10.min.css del núcleo",
+     "id": "widget-contact-buttons-var-10-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-10(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  },
+  "cb-10-links": {
+   "title": "Botones de contacto 10: enlaces con destino y estilos",
+   "widget": "contact-buttons-var-10",
+   "doc": "floating-buttons",
+   "capture": {
+    "a": ".e-contact-buttons",
+    "b": ".digi-cb"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-contact-buttons-var-10.min.css del núcleo",
+     "id": "widget-contact-buttons-var-10-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-var-10(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-contact-buttons-base.min.css del núcleo",
+     "id": "widget-contact-buttons-base-css",
+     "url": "/elementor/assets/css/widget-contact-buttons-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "settings": {
+    "advanced_horizontal_position": "start",
+    "contact_repeater": [
+     {
+      "_id": "r0",
+      "contact_icon_platform": "WhatsApp",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r1",
+      "contact_icon_platform": "Email",
+      "contact_icon_mail": "hola@ejemplo.test",
+      "contact_icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "r2",
+      "contact_icon_platform": "Telephone",
+      "contact_icon_number": "+525512345678"
+     },
+     {
+      "_id": "r3",
+      "contact_icon_platform": "Url",
+      "contact_icon_url": {
+       "url": "https://ejemplo.test/ayuda",
+       "is_external": "on"
+      }
+     }
+    ]
+   },
+   "container": {
+    "content_width": "boxed"
+   },
+   "shape": "El botón flotante sólo pinta su icono hasta que se abre el panel; los textos llegan con la acción.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.12,
+      "reason": "Foco visible propio (2 px con 2 px de separación) donde PRO dejaba el contorno del navegador: con un botón o una barra pequeños, el contorno pesa más en la captura."
+     }
+    }
+   },
+   "clock": "2026-11-05T10:30:00Z"
+  }
+ }
+}

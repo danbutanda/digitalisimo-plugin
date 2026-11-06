@@ -1,0 +1,130 @@
+{
+ "cases": {
+  "co-defaults": {
+   "title": "Finalizar compra · por defecto (invitado)",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout"
+  },
+  "co-customer": {
+   "title": "Finalizar compra · con la clienta dentro",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "woo": {
+    "user": "customer"
+   }
+  },
+  "co-one-column": {
+   "title": "Finalizar compra · una columna",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "settings": {
+    "checkout_layout": "one-column"
+   }
+  },
+  "co-no-coupon": {
+   "title": "Finalizar compra · sin cupón",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "settings": {
+    "coupon_section_display": ""
+   }
+  },
+  "co-styled": {
+   "title": "Finalizar compra · estilos más usados",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "settings": {
+    "sections_background_color": "#f4f6ff",
+    "sections_border_color": "#245eff",
+    "sections_border_radius": {
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "unit": "px",
+     "isLinked": true
+    },
+    "sections_padding": {
+     "top": "20",
+     "right": "20",
+     "bottom": "20",
+     "left": "20",
+     "unit": "px",
+     "isLinked": true
+    },
+    "sections_title_color": "#1a1a2e",
+    "sections_secondary_title_color": "#444444",
+    "links_normal_color": "#c2185b",
+    "forms_label_color": "#333333",
+    "forms_fields_normal_color": "#111111",
+    "forms_fields_border_radius": {
+     "top": "4",
+     "right": "4",
+     "bottom": "4",
+     "left": "4",
+     "unit": "px",
+     "isLinked": true
+    },
+    "order_summary_items_color": "#222222",
+    "order_summary_totals_color": "#555555",
+    "order_summary_totals_divider_weight": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "order_summary_totals_divider_color": "#245eff",
+    "purchase_button_normal_text_color": "#ffffff",
+    "purchase_button_normal_background_background": "classic",
+    "purchase_button_normal_background_color": "#245eff",
+    "purchase_button_border_radius": {
+     "top": "30",
+     "right": "30",
+     "bottom": "30",
+     "left": "30",
+     "unit": "px",
+     "isLinked": true
+    },
+    "purchase_button_alignment": "justify"
+   }
+  },
+  "co-coupon-open": {
+   "title": "Finalizar compra · abrir el cupón",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "actions": [
+    {
+     "label": "abrir el cupón",
+     "a": ".e-show-coupon-form",
+     "b": ".digi-co__show-coupon",
+     "wait": 1200
+    }
+   ]
+  }
+ },
+ "declared": [
+  {
+   "widget": "woocommerce-checkout-page",
+   "kind": "nombre",
+   "match": "(^|\\] )(perdido link|nuevo button) «(Click here to enter your coupon code|Click here to login)»$",
+   "reason": "Conmutador del cupón y del acceso con papel de botón, aria-expanded y aria-controls (PRO: enlace a «#» sin estado): mismo enlace y mismo aspecto, otro rol accesible."
+  },
+  {
+   "widget": "woocommerce-checkout-page",
+   "kind": "enlace",
+   "match": "(^|\\] )(perdido «#»|nuevo «#digi-co-(coupon|login)-[0-9a-f]+»)$",
+   "reason": "El conmutador apunta a su panel (#digi-co-coupon-<id>) en lugar de a «#»."
+  },
+  {
+   "widget": "woocommerce-checkout-page",
+   "kind": "palabra",
+   "match": "^\\[acción 1 abrir el cupón\\] (perdida «(if|you|have|a|coupon|code|please|apply|it|below)»|nueva «(si|tienes|un|código|de|cupón|aplícalo|abajo|aplicar)»)$",
+   "reason": "Textos fijos del formulario de cupón (no son controles) en español con el dominio pro-elements; PRO los pinta con su dominio (en inglés en el Playground)."
+  },
+  {
+   "widget": "woocommerce-checkout-page",
+   "kind": "nombre",
+   "match": "^\\[acción 1 abrir el cupón\\] (perdido button «Apply»|nuevo button «Aplicar»)$",
+   "reason": "Texto fijo del botón del cupón en español (no es un control)."
+  }
+ ]
+}

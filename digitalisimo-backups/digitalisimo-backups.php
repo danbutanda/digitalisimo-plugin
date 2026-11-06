@@ -2,18 +2,20 @@
 /**
  * Plugin Name: DIGITALÍSIMO Backups
  * Description: Respaldos completos de WordPress hacia almacenamiento local, SFTP, Google Drive u OneDrive.
- * Version: 1.0.58
+ * Version: 1.0.59
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-backups
  * Requires at least: 6.0
  * Requires PHP: 7.4
  */
 defined( 'ABSPATH' ) || exit;
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.58' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.59' );
 define( 'DIGITALISIMO_BACKUPS_FILE', __FILE__ );
 require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-digitalisimo-updater.php';
 require_once __DIR__ . '/includes/class-backups.php';
+// Al desactivar se retiran los disparadores de la cola; los trabajos se quedan en el almacén y se retoman o caducan.
+register_deactivation_hook( __FILE__, array( 'Digitalisimo_Backups_Jobs', 'deactivate' ) );
 add_action( 'plugins_loaded', function() {
 	Digitalisimo_Backups_Core::boot();
 	Digitalisimo_Backups_Updater::register();

@@ -1,0 +1,4 @@
+/* Imagen de la categoría (digitalisimo-woo-category-image): foco visible del enlace y efecto al pasar el cursor sin
+   transición con movimiento reducido (la imagen y su hoja son las de la Imagen del núcleo). */
+.elementor-widget-digitalisimo-woo-category-image a:focus-visible{outline:2px solid;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-woo-category-image img{transition:none!important;animation:none!important}}

@@ -1,0 +1,289 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-add-to-cart (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Añadir al carrito: el formulario de WooCommerce (`woocommerce_template_single_add_to_cart()`) con la envoltura y los estilos de PRO (clases propias)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-add-to-cart",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (botón, cantidad y selectores: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-atc-simple": {
+   "title": "Producto simple por defecto (en línea, con cantidad)",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-variable": {
+   "title": "Producto variable (tabla de variaciones)",
+   "context": {
+    "product": "variable"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-stacked": {
+   "title": "Apilado y justificado, con estilos del botón y la cantidad",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "layout": "stacked",
+    "alignment": "justify",
+    "button_text_color": "#ffffff",
+    "button_bg_color": "#7a1f5c",
+    "button_border_border": "solid",
+    "button_border_width": {
+     "unit": "px",
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "isLinked": true
+    },
+    "button_border_color": "#5a1744",
+    "button_border_radius": {
+     "unit": "px",
+     "top": "6",
+     "right": "6",
+     "bottom": "6",
+     "left": "6",
+     "isLinked": true
+    },
+    "button_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "24",
+     "bottom": "12",
+     "left": "24",
+     "isLinked": false
+    },
+    "spacing": {
+     "unit": "px",
+     "size": 14,
+     "sizes": []
+    },
+    "quantity_border_border": "solid",
+    "quantity_border_color": "#999999",
+    "quantity_bg_color": "#f7f7f7"
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-auto-center": {
+   "title": "Automático y centrado, sin cantidad en el móvil",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "layout": "auto",
+    "alignment": "center",
+    "alignment_mobile": "justify",
+    "button_typography_typography": "custom",
+    "button_typography_font_size": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-noqty-right": {
+   "title": "Sin cantidad, alineado a la derecha",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "show_quantity": "",
+    "alignment": "right"
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-variations": {
+   "title": "Variaciones con ancho, separación y estilos del selector",
+   "context": {
+    "product": "variable"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "variations_width": {
+     "unit": "%",
+     "size": 80,
+     "sizes": []
+    },
+    "variations_spacing": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "variations_space_between": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "variations_label_color_focus": "#333333",
+    "variations_select_color": "#111111",
+    "variations_select_bg_color": "#ffffff",
+    "variations_select_border_color": "#999999",
+    "variations_select_border_radius": {
+     "unit": "px",
+     "size": 4,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-outofstock": {
+   "title": "Producto agotado (WooCommerce sólo pinta el aviso de existencias)",
+   "context": {
+    "product": "outofstock"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

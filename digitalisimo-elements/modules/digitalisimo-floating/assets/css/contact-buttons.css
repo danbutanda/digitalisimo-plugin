@@ -1,0 +1,6 @@
+/* Botones de contacto (digitalisimo-contact-buttons, C8): lo común a todas las presentaciones; cada una tiene su hoja. */
+.digi-cb__close-icon{display:inline-block;line-height:1}.digi-cb__close-icon svg{display:block}
+.digi-cb a:focus-visible,.digi-cb button:focus-visible{outline:2px solid;outline-offset:2px}
+.digi-cb [inert]{pointer-events:none}
+.e-con:has(>.e-con-inner>.elementor-widget-digitalisimo-contact-buttons)>.e-con-inner,.e-con:has(>.elementor-widget-digitalisimo-contact-buttons){max-width:unset;padding:0}
+@media (prefers-reduced-motion:reduce){.digi-cb,.digi-cb *{animation:none!important;transition:none!important}}

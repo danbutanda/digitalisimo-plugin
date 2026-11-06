@@ -50,6 +50,8 @@ La base de conocimiento es RAG, no entrenamiento de modelos: sólo indexa conten
 
 Su API editorial (`digitalisimo-publisher/v1`, `digitalisimo-mcp/v1`) es la que usa el servidor MCP local de `mcp/digitalisimo-wordpress/`, que sólo crea borradores.
 
+Toda salida de un modelo o de un proveedor es dato no confiable, aunque el prompt sea propio: en el navegador se pinta con nodos y `textContent` (nunca `innerHTML`, `insertAdjacentHTML` ni `document.write`), la ruta pública del chatbot la devuelve como texto plano (`Digitalisimo_AI::plain_text()`), los campos de texto se sanean con `sanitize_text_field()` y lo que va a `post_content` pasa por `wp_kses_post()`. Lo protegido con contraseña, privado, en borrador o de un tipo de contenido no público nunca entra en el contexto del chatbot ni en la base de conocimiento, y el chat de un artículo con contraseña no se pinta antes de escribirla. Lo comprueban `tests/ia-chat-xss.mjs` y `tests/ia-chat-server.php`.
+
 ### DIGITALÍSIMO Hosting
 
 Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo de compra de dominio y hosting en WooCommerce. Incluye productos, carrito y checkout de hosting; conserva una migración única desde las opciones históricas de Ecommerce sin borrar ese respaldo.

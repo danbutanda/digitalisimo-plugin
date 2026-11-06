@@ -23,6 +23,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	public static function init() {
 		add_action( 'template_redirect', array( __CLASS__, 'start_buffer' ), 4 );
+		add_filter( 'woocommerce_structured_data_product', array( __CLASS__, 'woo_markup' ), 20, 2 );
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -161,12 +162,14 @@ class Digitalisimo_Integrations_Schema_Graph {
 				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'provider' => array( '@id' => $ids['identity'] ), 'areaServed' => $page['spatial'] ?? array(), 'image' => $page['image'] ?? '' ) );
 				if ( isset( $e['offers']['price'], $e['offers']['priceCurrency'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) $entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 			} elseif ( 'Product' === $e['type'] ) {
-				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'sku' => $e['sku'] ?? '' ) );
+				// Identificadores del producto o de la variación elegida en la URL, como los decide WooCommerce (RM8).
+				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'sku' => $e['sku'] ?? '', 'gtin' => self::sanitize_gtin( $e['gtin'] ?? '' ), 'inProductGroupWithID' => (string) ( $e['group'] ?? '' ) ) );
 				if ( ! empty( $e['brand'] ) ) $entity['brand'] = array( '@type' => 'Brand', 'name' => $e['brand'] );
 				if ( isset( $e['offers']['priceCurrency'], $e['offers']['price'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) {
 					$entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 					if ( ! empty( $e['offers']['availability'] ) ) $entity['offers']['availability'] = $e['offers']['availability'];
 				}
+				$entity = self::product_extras( $entity, $e );
 			} else {
 				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '' ) );
 			}
@@ -285,7 +288,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 			if ( count( $valid ) < count( $types ) ) { $node['@type'] = 1 === count( $valid ) ? $valid[0] : $valid; $log[] = 'Se quitaron de «' . $label . '» los tipos que no existen en Schema.org.'; }
 			if ( $id && null !== ( $i = self::index_of( $graph, $id ) ) ) {
 				if ( Digitalisimo_Integrations_Schema_Vocabulary::is_a( $types, 'Product' ) && ! empty( $node['offers'] ) ) $graph[ $i ]['offers'] = $node['offers'];
-				$graph[ $i ] = self::fill( $graph[ $i ], $node ); $log[] = 'Fusionado «' . $label . '» con la entidad del mismo @id.'; continue;
+				// El estado declarado por el sitio pasa a las ofertas que llegan sin él.
+				$graph[ $i ] = self::offers_condition( self::fill( $graph[ $i ], $node ) ); $log[] = 'Fusionado «' . $label . '» con la entidad del mismo @id.'; continue;
 			}
 			$is = function( $family ) use ( $valid ) { return Digitalisimo_Integrations_Schema_Vocabulary::is_a( $valid, $family ); };
 			$node_url = rtrim( (string) ( is_string( $node['url'] ?? null ) ? $node['url'] : '' ), '/' );
@@ -327,7 +331,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			if ( null !== $same ) {
 				// WooCommerce conoce ofertas, variantes e impuestos mejor que el nodo mínimo propio.
 				if ( $is( 'Product' ) && ! empty( $node['offers'] ) ) $graph[ $same ]['offers'] = $node['offers'];
-				$graph[ $same ] = self::fill( $graph[ $same ], $node );
+				$graph[ $same ] = self::offers_condition( self::fill( $graph[ $same ], $node ) );
 				if ( $id ) $map[ $id ] = $graph[ $same ]['@id'];
 				$log[] = 'Fusionado «' . $label . '» con la entidad del mismo tipo.';
 				continue;
@@ -611,11 +615,193 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return array_column( Digitalisimo_Integrations_Schema_Rules::nodes( array( array( 'data' => $node ) ) ), 'node' );
 	}
 
-	/** Taxonomía de marcas de los productos: la elegida o, si existe, la de WooCommerce. */
+	/** Taxonomía de marcas de los productos: la elegida o, si existe, la de WooCommerce. Con marca fija, ninguna. */
 	public static function brand_taxonomy() {
 		$chosen = sanitize_key( (string) self::o( 'seo_product_brand', '' ) );
+		if ( self::BRAND_FIXED === $chosen ) return '';
 		if ( '' !== $chosen ) return taxonomy_exists( $chosen ) ? $chosen : '';
 		return taxonomy_exists( 'product_brand' ) ? 'product_brand' : '';
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Producto: marca, identificadores y estado (RM8).                     */
+	/* ------------------------------------------------------------------ */
+
+	/** Valor de `seo_product_brand` que publica la marca escrita en `seo_product_brand_name` en todos los productos. */
+	const BRAND_FIXED = '_fixed';
+	/** Estados de OfferItemCondition que el sitio puede declarar. */
+	const CONDITIONS = array( 'NewCondition' => 'Nuevo', 'UsedCondition' => 'Usado', 'RefurbishedCondition' => 'Reacondicionado', 'DamagedCondition' => 'Dañado' );
+	/** Google Merchant Center admite MPN de hasta 70 caracteres. */
+	const MPN_MAX = 70;
+	/**
+	 * Primera versión de WooCommerce cuyo set_data() acepta varios tipos en `@type`. Antes, un arreglo rompe la
+	 * página del producto (TypeError de preg_match() en PHP 8) o, en PHP 7, descarta todo su marcado.
+	 */
+	const WOO_TYPES_SINCE = '11.2.0';
+
+	/** Marca de un producto: la fija del sitio o la primera asignada en la taxonomía elegida. '' si no hay. */
+	public static function product_brand( $post_id ) {
+		if ( self::BRAND_FIXED === sanitize_key( (string) self::o( 'seo_product_brand', '' ) ) ) return self::sanitize_brand_name( self::o( 'seo_product_brand_name', '' ) );
+		$taxonomy = self::brand_taxonomy();
+		$brands   = $taxonomy ? get_the_terms( $post_id, $taxonomy ) : array();
+		return is_array( $brands ) && $brands ? wp_strip_all_tags( $brands[0]->name ) : '';
+	}
+
+	/** Texto de la marca fija: una línea, sin etiquetas, como mucho 100 caracteres. */
+	public static function sanitize_brand_name( $value ) {
+		// UTF-8 inválido: preg_replace() devuelve null y la marca queda vacía.
+		$value = trim( (string) preg_replace( '/\s+/u', ' ', strip_tags( (string) $value ) ) );
+		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 100 ) : substr( $value, 0, 100 );
+	}
+
+	/** Estado por defecto del sitio: uno de CONDITIONS o '' (no se publica). */
+	public static function sanitize_condition( $value ) {
+		$value = Digitalisimo_Integrations_Schema_Vocabulary::short( (string) $value );
+		return array_key_exists( $value, self::CONDITIONS ) ? $value : '';
+	}
+	public static function condition_choices() { return array( '' => 'No publicar' ) + self::CONDITIONS; }
+
+	/** GTIN como lo valida WooCommerce: sólo cifras, de 8, 12, 13 o 14. */
+	public static function sanitize_gtin( $value ) {
+		$value = preg_replace( '/[^0-9]/', '', (string) $value );
+		return preg_match( '/^(\d{8}|\d{12,14})$/', $value ) ? $value : '';
+	}
+
+	/** MPN: el código del fabricante tal como lo escribe, en una línea y con como mucho 70 caracteres. */
+	public static function sanitize_mpn( $value ) {
+		// UTF-8 inválido: preg_replace() devuelve null y el MPN no se acepta.
+		$value = trim( (string) preg_replace( '/[\s\x00-\x1F\x7F]+/u', ' ', strip_tags( (string) $value ) ) );
+		if ( '' === $value ) return '';
+		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
+		return $length <= self::MPN_MAX ? $value : '';
+	}
+
+	/**
+	 * ISBN-10 o ISBN-13 con su dígito de control; se guarda sin guiones ni espacios. '' si no es válido:
+	 * un número equivocado nunca se publica.
+	 */
+	public static function sanitize_isbn( $value ) {
+		$isbn = strtoupper( preg_replace( '/[\s\-]+/', '', (string) $value ) );
+		if ( preg_match( '/^\d{9}[\dX]$/', $isbn ) ) {
+			$sum = 0;
+			for ( $i = 0; $i < 10; $i++ ) $sum += ( 10 - $i ) * ( 'X' === $isbn[ $i ] ? 10 : (int) $isbn[ $i ] );
+			return 0 === $sum % 11 ? $isbn : '';
+		}
+		if ( preg_match( '/^97[89]\d{10}$/', $isbn ) ) {
+			$sum = 0;
+			for ( $i = 0; $i < 13; $i++ ) $sum += ( $i % 2 ? 3 : 1 ) * (int) $isbn[ $i ];
+			return 0 === $sum % 10 ? $isbn : '';
+		}
+		return '';
+	}
+
+	/** Estado de un producto: el suyo, «none» (no publicar) o, si no eligió, el del sitio. */
+	public static function product_condition( $product_id ) {
+		$own = (string) get_post_meta( $product_id, Digitalisimo_Integrations_SEO_Suite::P . 'condition', true );
+		if ( 'none' === $own ) return '';
+		$own = self::sanitize_condition( $own );
+		return '' !== $own ? $own : self::sanitize_condition( self::o( 'seo_product_condition', '' ) );
+	}
+
+	/**
+	 * Añade a un nodo Product lo que el sitio declaró: MPN, ISBN (con el tipo Book, que es el que tiene
+	 * esa propiedad) y el estado, en el producto y en cada oferta. Nunca pisa lo que el nodo ya trae. Pura.
+	 *
+	 * @param array $node Nodo Product (propio o de WooCommerce).
+	 * @param array $data mpn, isbn y condition ya saneados.
+	 */
+	public static function product_extras( array $node, array $data ) {
+		foreach ( array( 'mpn' => self::sanitize_mpn( $data['mpn'] ?? '' ), 'isbn' => self::sanitize_isbn( $data['isbn'] ?? '' ) ) as $key => $value ) if ( '' !== $value && empty( $node[ $key ] ) ) $node[ $key ] = $value;
+		if ( ! empty( $node['isbn'] ) ) $node = self::add_type( $node, 'Book' );
+		$condition = self::sanitize_condition( $data['condition'] ?? '' );
+		if ( '' !== $condition && empty( $node['itemCondition'] ) ) $node['itemCondition'] = 'https://schema.org/' . $condition;
+		return self::offers_condition( $node );
+	}
+
+	/** El estado del producto pasa a cada oferta que no declara el suyo. Pura. */
+	public static function offers_condition( $node ) {
+		if ( empty( $node['itemCondition'] ) || ! is_string( $node['itemCondition'] ) || empty( $node['offers'] ) || ! is_array( $node['offers'] ) ) return $node;
+		$list = Digitalisimo_Integrations_Schema_Rules::is_list( $node['offers'] );
+		$offers = $list ? $node['offers'] : array( $node['offers'] );
+		foreach ( $offers as $i => $offer ) if ( is_array( $offer ) && empty( $offer['itemCondition'] ) ) $offers[ $i ]['itemCondition'] = $node['itemCondition'];
+		$node['offers'] = $list ? $offers : $offers[0];
+		return $node;
+	}
+
+	/**
+	 * Variación elegida en la URL con las reglas de WooCommerce: producto con precio, todos sus atributos en la
+	 * consulta, una sola variación publicada que coincide y con precio. Null en cualquier otro caso.
+	 */
+	public static function selected_variation( $product ) {
+		if ( ! is_object( $product ) || ! is_callable( array( $product, 'is_type' ) ) || ! $product->is_type( 'variable' ) || ! function_exists( 'wc_variation_attribute_name' ) ) return null;
+		// WooCommerce sólo elige variación dentro de la oferta, que no publica sin precio del producto; si aquí se
+		// eligiera, el nodo propio describiría la variación y la unificación le añadiría los identificadores del padre.
+		if ( '' === (string) $product->get_price() ) return null;
+		// Con un WooCommerce que no elige variación, su marcado describe el producto y la unificación mezclaría los dos.
+		if ( ! self::woo_selects_variation() ) return null;
+		$match = array();
+		foreach ( array_keys( (array) $product->get_variation_attributes() ) as $attribute ) {
+			$key = wc_variation_attribute_name( $attribute );
+			if ( ! isset( $_GET[ $key ] ) || '' === $_GET[ $key ] || ! is_string( $_GET[ $key ] ) ) return null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$match[ $key ] = wc_clean( wp_unslash( $_GET[ $key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		}
+		if ( ! $match ) return null;
+		$found = null;
+		foreach ( (array) $product->get_children() as $child_id ) {
+			$variation = wc_get_product( $child_id );
+			if ( ! is_object( $variation ) || ! is_callable( array( $variation, 'get_variation_attributes' ) ) || 'publish' !== $variation->get_status() ) continue;
+			foreach ( $variation->get_variation_attributes() as $key => $value ) if ( '' !== $value && ( ! isset( $match[ $key ] ) || $match[ $key ] !== $value ) ) continue 2;
+			// Dos variaciones que coinciden: el precio es ambiguo y WooCommerce mantiene la oferta del producto.
+			if ( $found ) return null;
+			$found = $variation;
+		}
+		return $found && '' !== $found->get_price() ? $found : null;
+	}
+
+	/** Datos del nodo Product: los del producto o, con una variación elegida, los suyos (sin heredar los del padre). */
+	public static function product_data( $product, $variation = null ) {
+		$source = $variation ? $variation : $product;
+		$meta   = function( $key ) use ( $source ) { return (string) get_post_meta( $source->get_id(), Digitalisimo_Integrations_SEO_Suite::P . $key, true ); };
+		$data   = array(
+			'sku'       => (string) $source->get_sku(),
+			'gtin'      => is_callable( array( $source, 'get_global_unique_id' ) ) ? self::sanitize_gtin( $source->get_global_unique_id() ) : '',
+			'mpn'       => self::sanitize_mpn( $meta( 'mpn' ) ),
+			'isbn'      => self::sanitize_isbn( $meta( 'isbn' ) ),
+			'condition' => self::product_condition( $product->get_id() ),
+		);
+		if ( $variation ) $data['group'] = $product->get_sku() ? (string) $product->get_sku() : (string) $product->get_id();
+		return $data;
+	}
+
+	/** ¿Este sitio publica su schema? Lo mismo que decide start_buffer(): sin SEO ajeno. */
+	public static function publishes() {
+		return self::o( 'enable_seo' ) && self::o( 'seo_schema_enabled' ) && '' === Digitalisimo_Integrations_SEO_Resolver::foreign_seo();
+	}
+
+	/**
+	 * `woocommerce_structured_data_product`: WooCommerce describe el producto (y decide la variación elegida, con
+	 * `inProductGroupWithID`); aquí sólo se añade lo que el sitio declaró. Así llega también con la unificación apagada.
+	 */
+	public static function woo_markup( $markup, $product = null ) {
+		if ( ! is_array( $markup ) || ! is_object( $product ) || ! is_callable( array( $product, 'get_id' ) ) || ! self::publishes() ) return $markup;
+		$variation = isset( $markup['inProductGroupWithID'] ) ? self::selected_variation( $product ) : null;
+		$data      = self::product_data( $product, $variation );
+		// WooCommerce eligió una variación que aquí no se reconoce: sin identificadores, nunca los del padre.
+		if ( isset( $markup['inProductGroupWithID'] ) && ! $variation ) $data['mpn'] = $data['isbn'] = '';
+		// El ISBN exige el tipo Product+Book, que WooCommerce anterior a 11.2.0 no admite: ahí sólo va en el nodo propio.
+		if ( ! self::woo_accepts_types() ) $data['isbn'] = '';
+		return self::product_extras( $markup, $data );
+	}
+
+	/** ¿El WooCommerce cargado describe en su marcado la variación elegida en la URL (y no sólo el producto)? */
+	public static function woo_selects_variation() {
+		return class_exists( 'WC_Structured_Data' ) && method_exists( 'WC_Structured_Data', 'get_selected_variation' );
+	}
+
+	/** ¿El WooCommerce cargado (o la versión dada) acepta varios tipos en `@type`? Sin versión conocida, no. */
+	public static function woo_accepts_types( $version = null ) {
+		$version = (string) ( null === $version ? ( defined( 'WC_VERSION' ) ? WC_VERSION : '' ) : $version );
+		return '' !== $version && version_compare( $version, self::WOO_TYPES_SINCE, '>=' );
 	}
 
 	/**
@@ -704,10 +890,9 @@ class Digitalisimo_Integrations_Schema_Graph {
 			if ( '' !== $keywords ) $entity['keywords'] = $keywords;
 		}
 		if ( 'Product' === $type && function_exists( 'wc_get_product' ) && ( $product = wc_get_product( $post->ID ) ) ) {
-			$entity['sku'] = $product->get_sku();
-			$brand_taxonomy = self::brand_taxonomy();
-			$brands = $brand_taxonomy ? get_the_terms( $post->ID, $brand_taxonomy ) : array();
-			if ( is_array( $brands ) && $brands ) $entity['brand'] = wp_strip_all_tags( $brands[0]->name );
+			$entity += self::product_data( $product, self::selected_variation( $product ) );
+			$brand = self::product_brand( $post->ID );
+			if ( '' !== $brand ) $entity['brand'] = $brand;
 			$price = function_exists( 'wc_get_price_to_display' ) ? wc_get_price_to_display( $product ) : $product->get_price();
 			if ( ! $product->is_type( 'variable' ) && is_numeric( $price ) && function_exists( 'get_woocommerce_currency' ) ) {
 				$entity['offers'] = array( 'price' => $price, 'priceCurrency' => get_woocommerce_currency(), 'availability' => $product->is_in_stock() ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' );

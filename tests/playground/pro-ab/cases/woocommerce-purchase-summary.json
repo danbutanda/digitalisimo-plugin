@@ -1,0 +1,69 @@
+{
+ "cases": {
+  "ps-defaults": {
+   "title": "Resumen de la compra: por defecto",
+   "widget": "woocommerce-purchase-summary",
+   "context": {
+    "order": "received"
+   }
+  },
+  "ps-no-message": {
+   "title": "Resumen de la compra: sin mensaje y textos propios",
+   "widget": "woocommerce-purchase-summary",
+   "context": {
+    "order": "received"
+   },
+   "settings": {
+    "confirmation_message_active": "",
+    "payment_details_number": "Pedido nº:",
+    "order_summary_text": "Tu pedido",
+    "billing_details_text": "Facturación"
+   }
+  },
+  "ps-styled": {
+   "title": "Resumen de la compra: estilos",
+   "widget": "woocommerce-purchase-summary",
+   "context": {
+    "order": "received"
+   },
+   "settings": {
+    "confirmation_message_text": "¡Gracias por tu compra!",
+    "confirmation_message_alignment": "center",
+    "confirmation_message_color": "#2a9d8f",
+    "sections_background_color": "#f4f1de",
+    "sections_border_type": "dashed",
+    "sections_border_color": "#264653",
+    "sections_border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "titles_color": "#e76f51",
+    "titles_typography_typography": "custom",
+    "titles_typography_font_size": {
+     "unit": "px",
+     "size": 22
+    },
+    "general_text_color": "#3d405b",
+    "payment_details_titles_color": "#073b4c",
+    "payment_details_items_color": "#6d597a",
+    "payment_details_border_color": "#e9c46a",
+    "order_details_titles_totals_color": "#264653",
+    "order_details_items_color": "#118ab2",
+    "order_details_product_links_normal_color": "#e63946",
+    "order_details_border_color": "#2a9d8f"
+   }
+  }
+ },
+ "declared": [
+  {
+   "widget": "woocommerce-purchase-summary",
+   "kind": "foco",
+   "match": "^outline",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px) donde PRO dejaba el del navegador (WCAG 2.4.7; diferencia declarada común de C7)."
+  }
+ ]
+}
