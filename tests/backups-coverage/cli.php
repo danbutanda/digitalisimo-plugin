@@ -31,6 +31,13 @@ namespace {
 		}
 	}
 }
+namespace cli {
+	/** php-cli-tools: oculta y vuelve a mostrar el eco de la terminal (`stty -echo`); aquí sólo anota cada llamada. */
+	class Shell {
+		public static $calls = array();
+		public static function hide( $hidden = true ) { self::$calls[] = (bool) $hidden; }
+	}
+}
 namespace WP_CLI\Utils {
 	function format_items( $format, $items, $fields ) {
 		if ( is_string( $fields ) ) $fields = explode( ',', $fields );

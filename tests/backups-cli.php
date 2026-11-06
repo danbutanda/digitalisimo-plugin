@@ -150,6 +150,25 @@ try {
 	list( $code, $out ) = digi_wp( $cmd, 'restore', array( $sealed ), array( 'confirm' => 'RESTAURAR', 'secret-stdin' => true, 'adopt-secret' => true ) );
 	digi_assert( 0 === $code && false !== strpos( end( $out ), 'La frase escrita firma ahora los respaldos nuevos (clave ' . Digitalisimo_Backups_Keys::short( $key ) . ')' ) && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'restore --secret-stdin --adopt-secret no restauró el .dgbk: ' . implode( "\n", $out ) );
 	digi_assert( false === strpos( implode( "\n", $out ), 'comillas' ) && false === strpos( implode( "\n", $out ), $key ), 'WP-CLI imprimió la frase o la huella completa.' );
+	// En una terminal, --secret-stdin oculta el eco y lee la línea tal cual, como por una tubería: la pantalla guarda la
+	// frase sin recortar, y \cli\prompt() la recortaría (trim), así que una frase con espacios en los extremos no se abriría.
+	file_put_contents( $root . '/terminal.txt', "  frase con espacios en los extremos \t\n" );
+	Digitalisimo_Backups_Cli::$stdin = $root . '/terminal.txt';
+	Digitalisimo_Backups_Cli::$tty = true;
+	\cli\Shell::$calls = array();
+	try {
+		digi_assert( "  frase con espacios en los extremos \t" === Digitalisimo_Backups_Cli::secret( array( 'secret-stdin' => true ) ) && array( true, false ) === \cli\Shell::$calls, 'En una terminal, --secret-stdin recortó la frase o no ocultó el eco: ' . json_encode( \cli\Shell::$calls ) );
+		file_put_contents( $root . '/terminal.txt', "\n" );
+		\cli\Shell::$calls = array();
+		try {
+			Digitalisimo_Backups_Cli::secret( array( 'secret-stdin' => true ) );
+			throw new RuntimeException( 'FALLA: una frase vacía en la terminal se aceptó.' );
+		} catch ( Digi_Cli_Exit $exit ) {
+			digi_assert( 'La frase o clave del respaldo está vacía.' === $exit->getMessage() && array( true, false ) === \cli\Shell::$calls, 'Una frase vacía en la terminal no dio un error claro o dejó el eco oculto.' );
+		}
+	} finally {
+		Digitalisimo_Backups_Cli::$tty = null;
+	}
 	digi_assert( Digitalisimo_Backups_Keys::can_open( $key ), '--adopt-secret no guardó la frase en el llavero.' );
 	list( $code, $out ) = digi_wp( $cmd, 'list', array(), array( 'format' => 'json' ) );
 	digi_assert( false === strpos( $out[0], 'comillas' ) && false === strpos( $out[0], '"wrap"' ), 'list expuso la frase o su envoltura.' );

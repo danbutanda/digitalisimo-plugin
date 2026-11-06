@@ -21,6 +21,8 @@ final class Digitalisimo_Backups_Cli {
 	public static $sleep = 'sleep';
 	/** Entrada estándar de `--secret-stdin` (sustituible en las pruebas). */
 	public static $stdin = 'php://stdin';
+	/** Si esa entrada es una terminal; null la detecta (sustituible en las pruebas). */
+	public static $tty = null;
 
 	public static function register() {
 		if ( ! defined( 'WP_CLI' ) || ! WP_CLI || ! class_exists( 'WP_CLI' ) ) return;
@@ -58,13 +60,19 @@ final class Digitalisimo_Backups_Cli {
 			$secret = @file_get_contents( $path, false, null, 0, 65537 );
 			if ( false === $secret || strlen( $secret ) > 65536 ) WP_CLI::error( 'El archivo de --secret-file no se puede leer o es demasiado grande para una frase o clave.' );
 		} elseif ( ! empty( $assoc_args['secret-stdin'] ) ) {
-			// En una terminal se pide sin eco; por una tubería se lee la primera línea.
-			$tty = 'php://stdin' === self::$stdin && defined( 'STDIN' ) && function_exists( 'posix_isatty' ) && @posix_isatty( STDIN ) && function_exists( 'cli\\prompt' );
-			if ( $tty ) {
-				$secret = (string) \cli\prompt( 'Frase o clave del respaldo', false, ': ', true );
-			} else {
-				$handle = @fopen( self::$stdin, 'rb' );
+			// En una terminal se pide sin eco; por una tubería se lee la primera línea. En los dos casos, la línea tal cual:
+			// \cli\prompt() la recorta (trim), y la pantalla guarda la frase sin recortar, así que una frase con espacios
+			// en los extremos no abriría su clave.
+			$tty = null === self::$tty ? 'php://stdin' === self::$stdin && defined( 'STDIN' ) && function_exists( 'posix_isatty' ) && @posix_isatty( STDIN ) : (bool) self::$tty;
+			$hide = $tty && is_callable( array( 'cli\\Shell', 'hide' ) );
+			$handle = @fopen( self::$stdin, 'rb' );
+			if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, 'Frase o clave del respaldo: ' );
+			if ( $hide ) \cli\Shell::hide();
+			try {
 				$secret = $handle ? fgets( $handle, 65537 ) : false;
+			} finally {
+				if ( $hide ) \cli\Shell::hide( false );
+				if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, "\n" );
 				if ( $handle ) fclose( $handle );
 			}
 			if ( false === $secret ) WP_CLI::error( 'No llegó ninguna frase o clave por la entrada estándar.' );
