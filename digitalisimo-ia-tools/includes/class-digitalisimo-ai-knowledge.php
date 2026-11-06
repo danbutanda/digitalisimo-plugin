@@ -18,9 +18,10 @@ class Digitalisimo_AI_Knowledge {
 	private static function enabled() { return (bool) Digitalisimo_AI::get( 'knowledge_enabled' ); }
 	private static function index() { return (array) get_option( self::OPTION, array() ); }
 	private static function save( $index ) { update_option( self::OPTION, $index, false ); }
-	/** Sólo contenido público: publicado, sin contraseña y sin noindex. Lo protegido nunca llega al chatbot. */
+	/** Sólo contenido público: de un tipo público (como en rebuild()), publicado, sin contraseña y sin noindex. Lo protegido nunca llega al chatbot. */
 	private static function allowed( $post ) {
 		if ( ! $post instanceof WP_Post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) return false;
+		$type = get_post_type_object( $post->post_type ); if ( ! $type || empty( $type->public ) ) return false;
 		$robots = (array) get_post_meta( $post->ID, 'digitalisimo_seo_robots', true );
 		return post_type_supports( $post->post_type, 'editor' ) && ! in_array( 'noindex', $robots, true );
 	}

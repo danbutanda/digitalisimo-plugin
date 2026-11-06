@@ -2,8 +2,10 @@
 /**
  * IA Tools · lo que el servidor entrega del modelo: la ruta pública del chatbot devuelve texto plano (sin etiquetas ni
  * caracteres de control, con sus saltos de línea) y un error genérico; el contexto y la base de conocimiento nunca usan
- * contenido con contraseña; la importación de imágenes sólo toca contenidos editables; y el borrador generado sólo lleva
- * los campos pedidos, saneados. Sin WordPress: funciones mínimas con el mismo contrato.
+ * contenido con contraseña ni de un tipo no público; la importación de imágenes sólo toca contenidos editables; el
+ * borrador generado sólo lleva los campos pedidos, saneados; los clusters MCP sólo muestran lo que el usuario puede leer;
+ * y el chat de un artículo con contraseña no se pinta antes de escribirla. Sin WordPress: funciones mínimas con el mismo
+ * contrato.
  */
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MINUTE_IN_SECONDS', 60 );
@@ -61,10 +63,15 @@ function remove_accents( $text ) { return $text; }
 function strip_shortcodes( $text ) { return $text; }
 function wp_is_post_revision( $id ) { return false; }
 function post_type_supports( $type, $feature ) { return true; }
+// Tipos públicos como en WordPress: post y page lo son; un tipo de $GLOBALS['private_types'] no.
+function get_post_type_object( $type ) { return (object) array( 'name' => $type, 'public' => ! in_array( $type, $GLOBALS['private_types'] ?? array(), true ) ); }
+function get_permalink( $post ) { return 'https://sitio.test/?p=' . ( is_object( $post ) ? $post->ID : (int) $post ); }
+function get_post_modified_time( $format = 'U', $gmt = false, $post = null ) { return '2026-11-05T00:00:00+00:00'; }
+function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; return true; }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
 function get_post( $id ) { return $GLOBALS['posts'][ (int) $id ] ?? null; }
 function get_the_title( $id ) { return get_post( $id )->post_title ?? ''; }
-function current_user_can( $cap, $id = 0 ) { return 'edit_post' === $cap && in_array( (int) $id, $GLOBALS['editable'], true ); }
+function current_user_can( $cap, $id = 0 ) { return ( 'edit_post' === $cap && in_array( (int) $id, $GLOBALS['editable'], true ) ) || ( 'read_post' === $cap && in_array( (int) $id, $GLOBALS['readable'] ?? array(), true ) ); }
 function get_current_user_id() { return 5; }
 function esc_url_raw( $url ) { $GLOBALS['after_permission']++; return (string) $url; }
 function wp_strip_all_tags( $text, $remove_breaks = false ) {
@@ -81,6 +88,7 @@ function wp_kses_post( $html ) { $GLOBALS['kses_calls'] = ( $GLOBALS['kses_calls
 function wp_trim_words( $text, $num = 55, $more = null ) { return implode( ' ', array_slice( preg_split( '/\s+/', trim( (string) $text ) ), 0, $num ) ); }
 function get_posts( $args ) {
 	$GLOBALS['get_posts_args'][] = $args;
+	if ( isset( $GLOBALS['get_posts_result'] ) ) return ( $GLOBALS['get_posts_result'] )( $args );
 	return array_values( array_filter( $GLOBALS['posts'], function( $post ) use ( $args ) {
 		return 'publish' === $post->post_status && ! ( array_key_exists( 'has_password', $args ) && false === $args['has_password'] && '' !== $post->post_password );
 	} ) );
@@ -95,6 +103,8 @@ require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai.php'
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-knowledge.php';
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-content-playbook.php';
 require __DIR__ . '/../digitalisimo-ia-tools/includes/class-content-automation.php';
+require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-mcp-articles.php';
+require __DIR__ . '/../digitalisimo-ia-tools/includes/class-digitalisimo-ai-article-chat.php';
 
 $GLOBALS['options']['digitalisimo_ai_options'] = array(
 	'chat_enabled' => 1, 'knowledge_enabled' => 1, 'mcp_featured_image_enabled' => 1,
@@ -181,4 +191,52 @@ check( is_wp_error( Digitalisimo_AI_Content_Playbook::generate( 'x' ) ), 'Un cue
 $GLOBALS['remote'] = openai( json_encode( array( 'title' => 'T', 'meta_description' => 'D', 'secondary_keywords' => 'uno, dos', 'content' => '<p>x</p>' ) ) );
 check( array( 'uno', 'dos' ) === Digitalisimo_AI_Content_Playbook::generate( 'x' )['secondary_keywords'], 'Unas keywords en una sola cadena se separan por comas.' );
 
-echo "IA Tools · servidor del chatbot: $checks comprobaciones (texto plano, error genérico, sin contenido con contraseña, imágenes sólo en contenido editable y borrador saneado).\n";
+// 7. Un tipo de contenido no público (notas internas, bloques, plantillas) no entra en el índice al guardarse ni se
+// recupera de un índice anterior: index_post() aplica el mismo criterio que rebuild(), que sólo recorre tipos públicos.
+$GLOBALS['private_types'] = array( 'nota_interna' );
+$GLOBALS['posts'][9] = new WP_Post( array( 'ID' => 9, 'post_title' => 'Nota interna', 'post_content' => 'Margen interno del 40 %.', 'post_type' => 'nota_interna' ) );
+$GLOBALS['options']['digitalisimo_ai_knowledge'][9] = array( 'id' => 9, 'title' => 'Nota interna', 'url' => '', 'content' => 'Margen interno del 40 %.', 'tokens' => array( 'margen', 'interno' ) );
+check( array() === wp_list_ids( Digitalisimo_AI_Knowledge::search( 'margen interno', 4 ) ), 'Un índice anterior no entrega contenido de un tipo no público.' );
+Digitalisimo_AI_Knowledge::index_post( 9, $GLOBALS['posts'][9], true );
+check( ! isset( $GLOBALS['options']['digitalisimo_ai_knowledge'][9] ), 'Guardar contenido de un tipo no público lo quita del índice.' );
+
+// 8. Clusters MCP (edit_posts): sólo pilares e hijas que el usuario puede leer; con permiso de lectura, todo como antes.
+$GLOBALS['posts'][20] = $post( 20, 'Pilar público', 'x' );
+$GLOBALS['posts'][21] = $post( 21, 'Pilar privado ajeno', 'x', '', 'private' );
+$GLOBALS['posts'][22] = $post( 22, 'Hija publicada', 'x' );
+$GLOBALS['posts'][23] = $post( 23, 'Hija en borrador ajeno', 'x', '', 'draft' );
+$GLOBALS['get_posts_result'] = function( $args ) {
+	if ( 'digitalisimo_seo_pillar' === ( $args['meta_key'] ?? '' ) ) return array( get_post( 20 ), get_post( 21 ) );
+	return '_related_pillar' === ( $args['meta_key'] ?? '' ) && 20 === (int) $args['meta_value'] ? array( 22, 23 ) : array();
+};
+$GLOBALS['readable'] = array( 20, 22 );
+$clusters = Digitalisimo_MCP_Articles::clusters();
+check( array( 20 ) === array_column( $clusters['pillars'], 'id' ) && false === strpos( wp_json_encode( $clusters ), 'privado' ), 'Un pilar privado ajeno no aparece: ' . wp_json_encode( $clusters ) );
+check( array( 22 ) === array_column( $clusters['pillars'][0]['children'], 'id' ) && false === strpos( wp_json_encode( $clusters ), 'borrador' ), 'Una hija en borrador ajeno no aparece.' );
+$GLOBALS['readable'] = array( 20, 21, 22, 23 );
+$clusters = Digitalisimo_MCP_Articles::clusters();
+check( array( 20, 21 ) === array_column( $clusters['pillars'], 'id' ) && array( 22, 23 ) === array_column( $clusters['pillars'][0]['children'], 'id' ), 'Quien puede leerlo todo sigue viendo todos los pilares y sus hijas.' );
+unset( $GLOBALS['get_posts_result'] );
+
+// 9. [digitalisimo_article_chat] en una plantilla: el chat de un artículo con contraseña no se pinta hasta escribirla.
+function get_queried_object_id() { return $GLOBALS['queried'] ?? 0; }
+function get_the_ID() { return 0; }
+function get_post_type( $id ) { return get_post( $id )->post_type ?? false; }
+function get_post_types( $args = array(), $output = 'names' ) { return array( 'post' => 'post', 'page' => 'page' ); }
+function post_password_required( $id = null ) { $item = get_post( $id ); return $item && '' !== $item->post_password && empty( $GLOBALS['password_entered'] ); }
+function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
+function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' ); }
+function wp_get_attachment_image() { return ''; }
+$dialogue = wp_json_encode( array( 'speakers' => array( array( 'id' => 'ana', 'name' => 'Ana', 'icon' => '💬', 'align' => 'start' ) ), 'messages' => array( array( 'speaker' => 'ana', 'text' => 'Dato sólo para quien tiene la clave' ) ) ) );
+$GLOBALS['posts'][30] = $post( 30, 'Protegida', 'x', 'clave' ); $GLOBALS['meta'][30]['digitalisimo_article_chat'] = $dialogue;
+$GLOBALS['posts'][31] = $post( 31, 'Abierta', 'x' ); $GLOBALS['meta'][31]['digitalisimo_article_chat'] = $dialogue;
+unset( $post ); // current_content_id() lee el global $post de WordPress.
+$GLOBALS['queried'] = 30;
+check( '' === Digitalisimo_AI_Article_Chat::shortcode(), 'El chat de un artículo con contraseña no se pinta sin ella.' );
+$GLOBALS['password_entered'] = true;
+check( false !== strpos( Digitalisimo_AI_Article_Chat::shortcode(), 'Dato sólo para quien tiene la clave' ), 'Con la contraseña escrita el chat se pinta.' );
+unset( $GLOBALS['password_entered'] );
+$GLOBALS['queried'] = 31;
+check( false !== strpos( Digitalisimo_AI_Article_Chat::shortcode(), '<strong>Ana</strong>' ), 'Un artículo sin contraseña pinta su chat como antes.' );
+
+echo "IA Tools · servidor del chatbot: $checks comprobaciones (texto plano, error genérico, sin contenido con contraseña ni de tipos no públicos, imágenes sólo en contenido editable, borrador saneado, clusters legibles y chat de artículo protegido).\n";
