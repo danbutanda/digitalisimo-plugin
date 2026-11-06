@@ -20,6 +20,7 @@
  *       cambia nada; con la frase restaura.
  * Modo «multisite» (red):
  *   S5  S1 desde la red (llavero en sitemeta) y un subsitio que no puede gestionar la seguridad.
+ *   S8  como en el sitio individual, con el respaldo de toda la red que crea y registra la clase anterior.
  * Modo «constant» (DIGITALISIMO_BACKUPS_KEY en wp-config.php):
  *   S6  cifrado obligatorio, huella sin el valor, frase rechazada y copia previa firmada con la constante.
  *
@@ -157,6 +158,33 @@ try {
 	$check( $K::keyring()['active'] === $key_id && $K::can_open( $key_id ) && ( ! $network || is_array( get_site_option( $K::KEYRING ) ) ), 'S1 llavero conservado tras restaurar' );
 	$storage = dirname( $file );
 
+	// S8: un respaldo del código anterior, creado y registrado por su propia clase, se restaura con el código actual.
+	// Se ensaya en los dos modos: en el sitio individual tras S7 y en la red tras S5.
+	$s8 = function() use ( $dir, $log, $check, $S, $K, $key_id, $network, $restore, $elapsed ) {
+		$legacy_code = (string) @file_get_contents( $dir . '/legacy-class-backups.php' );
+		$legacy_version = trim( (string) @file_get_contents( $dir . '/legacy-version' ) );
+		if ( '' === $legacy_code ) {
+			$log( 'S8 OMITIDO: falta la clase de la versión anterior (dist/ o rollback/)' );
+		} else {
+			$legacy_code = str_replace( "defined( 'ABSPATH' ) || exit;", '', preg_replace( '/^<\?php\s*/', '', $legacy_code ) );
+			$legacy_code = preg_replace( '/\bfinal class Digitalisimo_Backups\b/', 'final class Digitalisimo_Backups_Probe_Legacy', $legacy_code, 1, $renamed );
+			if ( 1 !== $renamed ) throw new RuntimeException( 'S8 no se encontró la clase en la versión ' . $legacy_version );
+			eval( $legacy_code ); // phpcs:ignore Squiz.PHP.Eval
+			$legacy = function( $method, ...$args ) { $r = new ReflectionMethod( 'Digitalisimo_Backups_Probe_Legacy', $method ); if ( PHP_VERSION_ID < 80100 ) $r->setAccessible( true ); return $r->invokeArgs( null, $args ); };
+			$encrypt_before = get_option( $S::OPTION );
+			update_option( 'blogname', 'Antes del respaldo de ' . $legacy_version );
+			$old = $legacy( 'create_network' );
+			$legacy( 'remember', $old, 'local', $network ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
+			$manifest = ( function( $path ) { $z = new ZipArchive(); $z->open( $path ); $m = json_decode( (string) $z->getFromName( 'manifest.json' ), true ); $z->close(); return $m; } )( $old );
+			$check( $legacy_version === ( $manifest['plugin_version'] ?? '' ) && ! isset( $manifest['auth'] ) && ! isset( $manifest['job_id'] ), 'S8 respaldo ' . basename( $old ) . ' creado por ' . $legacy_version . ' (sin firma ni trabajo) · ' . $elapsed() );
+			update_option( 'blogname', 'Cambiado tras el respaldo de ' . $legacy_version );
+			list( $ok, $message ) = $restore( basename( $old ), 'RESTAURAR' );
+			wp_cache_flush();
+			$check( $ok && 'Antes del respaldo de ' . $legacy_version === get_option( 'blogname' ) && $K::can_open( $key_id ), 'S8 el código actual restaura el respaldo de ' . $legacy_version . ' (registrado en este sitio) y conserva el llavero: ' . $message . ' · ' . $elapsed() );
+			if ( false === $encrypt_before ) delete_option( $S::OPTION ); else update_option( $S::OPTION, $encrypt_before, false );
+		}
+	};
+
 	if ( $network ) {
 		// S5: un subsitio no gestiona la seguridad de la red.
 		$sub = wpmu_create_blog( get_network()->domain, get_network()->path . 'sub/', 'Subsitio', 1 );
@@ -171,6 +199,7 @@ try {
 			restore_current_blog();
 		}
 		$check( ! $ok && false !== strpos( $message, 'administración de red' ) && ! $S::settings()['require_signed'] && false === strpos( $panel, '<form' ) && false !== strpos( $panel, 'son de toda la red' ), 'S5 un subsitio ve el aviso y no puede cambiar la seguridad de la red' );
+		$s8();
 		$log( 'TERMINADO · ' . $elapsed() );
 		return;
 	}
@@ -217,29 +246,7 @@ try {
 	$check( $ok && false !== strpos( $message, 'de nuevo' ) && $K::can_open( $key_id ) && $key_id === $K::keyring()['active'], 'S7 volver a escribir la frase la envuelve otra vez con la misma huella' );
 	if ( ! file_exists( $dir . '/encrypt' ) ) delete_option( $S::OPTION );
 	$log( 'S1, S3, S4 y S7 terminados · ' . $elapsed() );
-	// S8: un respaldo del código anterior, creado y registrado por su propia clase, se restaura con el código actual.
-	$legacy_code = (string) @file_get_contents( $dir . '/legacy-class-backups.php' );
-	$legacy_version = trim( (string) @file_get_contents( $dir . '/legacy-version' ) );
-	if ( '' === $legacy_code ) {
-		$log( 'S8 OMITIDO: falta la clase de la versión anterior (dist/ o rollback/)' );
-	} else {
-		$legacy_code = str_replace( "defined( 'ABSPATH' ) || exit;", '', preg_replace( '/^<\?php\s*/', '', $legacy_code ) );
-		$legacy_code = preg_replace( '/\bfinal class Digitalisimo_Backups\b/', 'final class Digitalisimo_Backups_Probe_Legacy', $legacy_code, 1, $renamed );
-		if ( 1 !== $renamed ) throw new RuntimeException( 'S8 no se encontró la clase en la versión ' . $legacy_version );
-		eval( $legacy_code ); // phpcs:ignore Squiz.PHP.Eval
-		$legacy = function( $method, ...$args ) { $r = new ReflectionMethod( 'Digitalisimo_Backups_Probe_Legacy', $method ); if ( PHP_VERSION_ID < 80100 ) $r->setAccessible( true ); return $r->invokeArgs( null, $args ); };
-		$encrypt_before = get_option( $S::OPTION );
-		update_option( 'blogname', 'Antes del respaldo de ' . $legacy_version );
-		$old = $legacy( 'create_network' );
-		$legacy( 'remember', $old, 'local', $network ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
-		$manifest = ( function( $path ) { $z = new ZipArchive(); $z->open( $path ); $m = json_decode( (string) $z->getFromName( 'manifest.json' ), true ); $z->close(); return $m; } )( $old );
-		$check( $legacy_version === ( $manifest['plugin_version'] ?? '' ) && ! isset( $manifest['auth'] ) && ! isset( $manifest['job_id'] ), 'S8 respaldo ' . basename( $old ) . ' creado por ' . $legacy_version . ' (sin firma ni trabajo) · ' . $elapsed() );
-		update_option( 'blogname', 'Cambiado tras el respaldo de ' . $legacy_version );
-		list( $ok, $message ) = $restore( basename( $old ), 'RESTAURAR' );
-		wp_cache_flush();
-		$check( $ok && 'Antes del respaldo de ' . $legacy_version === get_option( 'blogname' ) && $K::can_open( $key_id ), 'S8 el código actual restaura el respaldo de ' . $legacy_version . ' (registrado en este sitio) y conserva el llavero: ' . $message . ' · ' . $elapsed() );
-		if ( false === $encrypt_before ) delete_option( $S::OPTION ); else update_option( $S::OPTION, $encrypt_before, false );
-	}
+	$s8();
 	// S2
 	if ( file_exists( $dir . '/encrypt' ) ) {
 		update_option( 'blogname', 'Antes del cifrado' );
