@@ -201,7 +201,7 @@ namespace {
 		$by[ $spec['treatment'] ][] = $slug;
 	}
 	f8_check( 10 === count( $by['dropped'] ) && array( 'background-image-parallax', 'particles', 'cursor-effects', 'ripple-effects', 'tile-scroll', 'hash-link', 'confetti-effects', 'sound-effects', 'content-protector', 'adblock-detector' ) == $by['dropped'], 'Los 10 descartes aprobados por el propietario: ' . implode( ', ', $by['dropped'] ) );
-	f8_check( 3 === count( $by['exact'] ) && 2 === count( $by['trait'] ) && 12 === count( $by['approx'] ) && array( 'custom-js' ) === $by['draft'], '3 exactas, 12 aproximadas, 2 rasgos y custom-js a borrador.' );
+	f8_check( 3 === count( $by['exact'] ) && 3 === count( $by['trait'] ) && 11 === count( $by['approx'] ) && array( 'custom-js' ) === $by['draft'], '3 exactas, 11 aproximadas, 3 rasgos y custom-js a borrador.' );
 	$all_prefixes = array();
 	foreach ( $keys as $slug => $spec ) {
 		f8_check( '' !== $spec['label'] && ! preg_match( '/element pack|bdthemes|prime slider/i', $spec['label'] ) && $spec['switch'], 'Nombre visible propio y claves de uso: ' . $slug );
@@ -601,14 +601,61 @@ namespace {
 	list( , $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_scroll_box_enable' => 'yes' ) ) );
 	f8_check( array( 'ext.inert' ) === $codes, 'En un widget que no es el editor de texto no actuaba.' );
 
-	/* ======================================================================== Texto en 3D */
+	/* ======================================================================== Texto en 3D → «Relieve 3D» */
 
 	fx_reset();
+	$relief = static function ( array $el ) {
+		$out = array();
+		foreach ( (array) $el['settings'] as $key => $value ) {
+			if ( 0 === strpos( (string) $key, 'digitalisimo_relief' ) ) {
+				$out[ $key ] = $value;
+			}
+		}
+		return $out;
+	};
+	// Sólo encendido: los valores por defecto de Element Pack (30 px, 8 capas, 500 px y desvanecido), sin giro.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'title' => 'Tres de', 'ep_threed_text_active' => 'yes' ) ) );
+	f8_check( array( 'digitalisimo_relief' => 'yes', 'digitalisimo_relief_depth' => array( 'unit' => 'px', 'size' => 30.0 ), 'digitalisimo_relief_layers' => 8, 'digitalisimo_relief_perspective' => array( 'unit' => 'px', 'size' => 500.0 ), 'digitalisimo_relief_fade' => 'yes' ) === $relief( $el ), 'Por defecto: el rasgo con 30 px, 8 capas, 500 px de perspectiva y desvanecido: ' . fx_json( $relief( $el ) ) );
+	f8_check( array( 'ext.converted.threed_text' ) === $codes && '' === fx_css( $el ) && array() === fx_left( array( $el ) ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Sin pérdidas, sin CSS personalizado (ni sombras de texto) ni efectos de movimiento, y sin claves de Element Pack.' );
+	// Capas, unidad, sin desvanecido, color inyectado y giro al desplazar en vertical.
 	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_layers' => 4, 'ep_threed_text_depth' => array( 'unit' => 'em', 'size' => 1 ), 'ep_threed_text_fade' => '', 'ep_threed_text_depth_color' => 'red;}x{', 'ep_threed_text_event' => 'scrollY' ) ) );
-	f8_check( 'selector .elementor-heading-title{text-shadow:0 0.25em 0 currentColor,0 0.5em 0 currentColor,0 0.75em 0 currentColor,0 1em 0 currentColor}' === fx_css( $el ), 'Capas sin desvanecer, en em, y el color inyectado cae en currentColor: ' . fx_css( $el ) );
-	f8_check( 2 === count( array_keys( $codes, 'ext.loss.threed_text', true ) ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Giro al desplazar: pérdida.' );
-	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 50 ), 'ep_threed_text_layers' => 1 ) ) );
-	f8_check( 'selector .elementor-heading-title{text-shadow:0 0.5em 0 currentColor}' === fx_css( $el ), 'El porcentaje se aproxima en em.' );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'em', 'size' => 1.0 ) === $r['digitalisimo_relief_depth'] && 4 === $r['digitalisimo_relief_layers'] && ! isset( $r['digitalisimo_relief_fade'] ) && ! isset( $r['digitalisimo_relief_color'] ), 'Capas y profundidad en em; sin desvanecido; el color inyectado no llega (las copias toman el del texto).' );
+	f8_check( 'scroll-y' === $r['digitalisimo_relief_event'] && array( 'unit' => 'deg', 'size' => 35.0 ) === $r['digitalisimo_relief_rotation'] && ! isset( $r['digitalisimo_relief_direction'] ) && array( 'ext.converted.threed_text' ) === $codes, 'Giro al desplazar en vertical con los 35° por defecto: ya no es una pérdida.' );
+	foreach ( array( 'pointer' => 'pointer', 'scroll' => 'scroll', 'scrollX' => 'scroll-x', 'none' => null, 'otro' => null ) as $event => $expected ) {
+		list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => $event ) ) );
+		f8_check( $expected === ( $el['settings']['digitalisimo_relief_event'] ?? null ), 'Evento ' . $event . ' → ' . var_export( $expected, true ) );
+	}
+	// Puntero, sentido inverso, giro guardado y color con su global.
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer', 'ep_threed_text_event_direction' => 'reverse', 'ep_threed_text_event_rotation' => array( 'unit' => 'px', 'size' => -50 ), 'ep_threed_text_depth_color' => '#333333', '__globals__' => array( 'ep_threed_text_depth_color' => 'globals/colors?id=accent' ) ) ) );
+	$r = $relief( $el );
+	f8_check( 'pointer' === $r['digitalisimo_relief_event'] && 'reverse' === $r['digitalisimo_relief_direction'] && array( 'unit' => 'deg', 'size' => -50.0 ) === $r['digitalisimo_relief_rotation'] && '#333333' === $r['digitalisimo_relief_color'] && 'globals/colors?id=accent' === ( $el['settings']['__globals__']['digitalisimo_relief_color'] ?? '' ), 'Puntero, sentido inverso, giro de −50° y color de la profundidad con su global.' );
+	// Un giro sin número no giraba (ztext recibía «deg»): sin evento. Topes de 360°.
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer', 'ep_threed_text_event_rotation' => array( 'unit' => 'px', 'size' => '' ), 'ep_threed_text_event_direction' => 'reverse' ) ) );
+	f8_check( ! isset( $el['settings']['digitalisimo_relief_event'] ) && ! isset( $el['settings']['digitalisimo_relief_direction'] ) && 'yes' === $el['settings']['digitalisimo_relief'], 'Giro sin número: relieve sin giro.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'scroll', 'ep_threed_text_event_rotation' => array( 'size' => 900 ) ) ) );
+	f8_check( array( 'unit' => 'deg', 'size' => 360.0 ) === $el['settings']['digitalisimo_relief_rotation'], 'Giro acotado a 360°.' );
+	// Tamaños a 0 o vacíos: los de ep-threed-text.js (30 px, 8 capas, 500 px), también con la unidad %.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 0 ), 'ep_threed_text_layers' => 0, 'ep_threed_text_perspective' => array( 'unit' => 'px', 'size' => '' ) ) ) );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'px', 'size' => 30.0 ) === $r['digitalisimo_relief_depth'] && 8 === $r['digitalisimo_relief_layers'] && array( 'unit' => 'px', 'size' => 500.0 ) === $r['digitalisimo_relief_perspective'] && array( 'ext.converted.threed_text' ) === $codes, 'Profundidad 0 (aun en %), 0 capas y perspectiva vacía: 30 px, 8 capas y 500 px.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => 'rem', 'size' => 400 ), 'ep_threed_text_layers' => 8.5, 'ep_threed_text_perspective' => array( 'unit' => 'px', 'size' => 800 ) ) ) );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'rem', 'size' => 100.0 ) === $r['digitalisimo_relief_depth'] && 9 === $r['digitalisimo_relief_layers'] && array( 'unit' => 'px', 'size' => 800.0 ) === $r['digitalisimo_relief_perspective'], 'rem acotado a 100; 8,5 capas son 9 (ztext pintaba 9); perspectiva guardada.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_layers' => 250 ) ) );
+	f8_check( 100 === $el['settings']['digitalisimo_relief_layers'], 'Capas acotadas a 100.' );
+	// En % ztext fallaba y el título se veía plano: no se enciende el rasgo; se informa.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 50 ), 'ep_threed_text_layers' => 1 ) ) );
+	f8_check( array() === $relief( $el ) && '' === fx_css( $el ) && array() === fx_left( array( $el ) ) && in_array( 'ext.loss.threed_text', $codes, true ), 'Profundidad en %: plano como se veía, sin rasgo ni CSS, informado.' );
+	// Profundidad negativa: su valor absoluto, informado.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => 'px', 'size' => -20 ) ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 20.0 ) === $el['settings']['digitalisimo_relief_depth'] && in_array( 'ext.loss.threed_text', $codes, true ), 'Profundidad negativa: 20 px, informado.' );
+	// Encabezado avanzado: Element Pack 10 no encontraba su título, así que no pintaba nada.
+	list( $el, $codes ) = fx_convert( fx_widget( 'digitalisimo-advanced-heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer' ) ) );
+	f8_check( array() === $relief( $el ) && array() === fx_left( array( $el ) ) && in_array( 'ext.loss.threed_text', $codes, true ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Encabezado avanzado: plano como se veía, claves retiradas e informado.' );
+	// No pisar: un relieve propio ya guardado.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'digitalisimo_relief_layers' => 3 ) ) );
+	f8_check( in_array( 'ext.conflict', $codes, true ) && 3 === $el['settings']['digitalisimo_relief_layers'] && ! isset( $el['settings']['digitalisimo_relief'] ), 'No pisar: con capas propias ya guardadas no se escribe nada (conflicto declarado).' );
 
 	/* ======================================================================== Distintivo (global-badge) */
 

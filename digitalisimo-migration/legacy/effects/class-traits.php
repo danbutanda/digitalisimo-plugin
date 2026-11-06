@@ -4,8 +4,9 @@ namespace Digitalisimo\Elements\Legacy\Effects;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * tooltip y global-badge → rasgos «Información emergente» (`digitalisimo_tooltip*`) y «Distintivo»
- * (`digitalisimo_badge*`) de DIGITALÍSIMO Elements (F8, §3.C.2; claves fijas en V.14 C10 y C11).
+ * tooltip, global-badge y threed-text → rasgos «Información emergente» (`digitalisimo_tooltip*`), «Distintivo»
+ * (`digitalisimo_badge*`) y «Relieve 3D» (`digitalisimo_relief*`) de DIGITALÍSIMO Elements (F8, §3.C.2; claves fijas en
+ * V.14 C10 y C11, y en §19 las del relieve).
  *
  * Los estilos pasan 1:1 a los controles del rasgo, cada valor validado por tipo (un color de Element Pack con
  * `red;}…` no llega a ningún control): grupos Fondo, Borde, Sombra de caja, Sombra de texto y Tipografía, medidas y
@@ -379,6 +380,95 @@ final class Traits {
 		}
 		$class = (string) ( $value['value'] ?? '' );
 		return preg_match( '/^[a-z0-9_ -]{1,80}$/i', $class ) && preg_match( '/^[a-z0-9_-]{1,40}$/i', $library ) ? array( 'value' => $class, 'library' => $library ) : null;
+	}
+
+	/* ---------------------------------------------------------------- Relieve 3D */
+
+	/** Unidades de la profundidad del rasgo «Relieve 3D» y su tope (`Text_Relief::DEPTH_UNITS` de Elements). */
+	const RELIEF_DEPTH = array(
+		'px'  => 1000,
+		'em'  => 100,
+		'rem' => 100,
+	);
+
+	/** Evento de Element Pack (ztext.js) → giro del rasgo. */
+	const RELIEF_EVENTS = array(
+		'pointer' => 'pointer',
+		'scroll'  => 'scroll',
+		'scrollX' => 'scroll-x',
+		'scrollY' => 'scroll-y',
+	);
+
+	/**
+	 * threed-text → rasgo «Relieve 3D» (`digitalisimo_relief*`) de DIGITALÍSIMO Elements, con la geometría de ztext.js que
+	 * pintaba Element Pack: N capas (la del texto incluida) desplazadas `profundidad/2 − i·profundidad/N` en Z, la
+	 * perspectiva en el título y, con el desvanecido, la copia i a `(1 − i/N)/2`. Los valores son los que el gestor de
+	 * Element Pack (ep-threed-text.js) pasaba a ztext:
+	 *
+	 * - Profundidad, capas y perspectiva sólo con un tamaño distinto de 0; si no, 30 px, 8 capas y 500 px.
+	 * - Una profundidad en % rompía ztext (sólo lee unidades de letras) y el título se veía plano: no se enciende.
+	 * - El color de la profundidad sólo pintaba las copias (su global se traslada); sin él, el del texto.
+	 * - El giro (en grados) y su sentido, sólo con un evento; un giro sin número no giraba.
+	 * - Sólo en el Encabezado del núcleo: el script buscaba `.elementor-heading-title` o `.bdt-main-heading-inner`, y el
+	 *   Encabezado avanzado de Element Pack 10 no pinta ninguno de los dos, así que allí el título se veía plano.
+	 *
+	 * El rasgo no gira con el movimiento reducido del sistema (Element Pack sí giraba).
+	 */
+	public static function threed( Out $out ): bool {
+		$s = $out->orig;
+		if ( 'heading' !== (string) ( $out->element['widgetType'] ?? '' ) ) {
+			$out->loss( __( 'en el Encabezado avanzado, Element Pack 10 no pintaba el texto en 3D (su script no encontraba el título): queda plano, como se veía', 'digitalisimo-migration' ) );
+			return true;
+		}
+		$depth = $out->get( 'ep_threed_text_depth' );
+		$size  = is_array( $depth ) ? Css_Value::number( $depth['size'] ?? null ) : null;
+		$size  = null === $size ? 0.0 : (float) $size;
+		$unit  = 'px';
+		if ( 0.0 === $size ) {
+			$size = 30.0;
+		} else {
+			$unit = is_array( $depth ) && isset( $depth['unit'] ) && is_scalar( $depth['unit'] ) && '' !== (string) $depth['unit'] ? (string) $depth['unit'] : 'px';
+			if ( ! isset( self::RELIEF_DEPTH[ $unit ] ) ) {
+				$out->loss( __( 'profundidad en %, que el texto en 3D de Element Pack no pintaba: el título queda plano, como se veía', 'digitalisimo-migration' ) );
+				return true;
+			}
+			if ( $size < 0 ) {
+				$out->loss( __( 'profundidad negativa (las copias iban delante del texto): se usa su valor absoluto', 'digitalisimo-migration' ) );
+				$size = abs( $size );
+			}
+			$size = min( $size, (float) self::RELIEF_DEPTH[ $unit ] );
+		}
+		$layers      = Css_Value::number( $out->get( 'ep_threed_text_layers' ) );
+		$layers      = null === $layers || (float) $layers <= 0 ? 8 : (int) min( 100, ceil( (float) $layers ) );
+		$perspective = $out->get( 'ep_threed_text_perspective' );
+		$perspective = Css_Value::number( is_array( $perspective ) ? ( $perspective['size'] ?? null ) : $perspective );
+		$set         = array(
+			'digitalisimo_relief'             => 'yes',
+			'digitalisimo_relief_depth'       => array( 'unit' => $unit, 'size' => round( $size, 4 ) ),
+			'digitalisimo_relief_layers'      => $layers,
+			'digitalisimo_relief_perspective' => array( 'unit' => 'px', 'size' => null === $perspective || (float) $perspective <= 0 ? 500.0 : (float) $perspective ),
+		);
+		if ( 'yes' === $out->get( 'ep_threed_text_fade' ) ) {
+			$set['digitalisimo_relief_fade'] = 'yes';
+		}
+		$set  += self::colors( $s, array( 'ep_threed_text_depth_color' => 'digitalisimo_relief_color' ) );
+		$event = $out->get( 'ep_threed_text_event' );
+		if ( is_string( $event ) && isset( self::RELIEF_EVENTS[ $event ] ) ) {
+			$rotation = $out->get( 'ep_threed_text_event_rotation' );
+			$rotation = Css_Value::number( is_array( $rotation ) ? ( $rotation['size'] ?? null ) : $rotation );
+			if ( null !== $rotation ) {
+				$set['digitalisimo_relief_event']    = self::RELIEF_EVENTS[ $event ];
+				$set['digitalisimo_relief_rotation'] = array( 'unit' => 'deg', 'size' => max( -360.0, min( 360.0, (float) $rotation ) ) );
+				if ( 'reverse' === $out->get( 'ep_threed_text_event_direction' ) ) {
+					$set['digitalisimo_relief_direction'] = 'reverse';
+				}
+			}
+		}
+		if ( ! $out->set_all( $set ) ) {
+			return false;
+		}
+		self::carry_all( $out, array( 'ep_threed_text_depth_color' => 'digitalisimo_relief_color' ) );
+		return true;
 	}
 
 	/* ---------------------------------------------------------------- Copia validada */

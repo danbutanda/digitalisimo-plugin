@@ -26,7 +26,7 @@ return array(
 	'ext.converted.reveal_effects'               => array( 'section' => 'approx', 'label' => __( 'Efecto de revelado: pasa a la animación de entrada del constructor.', 'digitalisimo-migration' ) ),
 	'ext.converted.scroll_fill_effect'           => array( 'section' => 'approx', 'label' => __( 'Relleno del texto al desplazar: pasa al CSS personalizado (animación ligada al desplazamiento) o a los efectos de movimiento.', 'digitalisimo-migration' ) ),
 	'ext.converted.scroll_box'                   => array( 'section' => 'converted', 'label' => __( 'Caja con desplazamiento propio: pasa al CSS personalizado del elemento, igual que antes.', 'digitalisimo-migration' ) ),
-	'ext.converted.threed_text'                  => array( 'section' => 'approx', 'label' => __( 'Texto en 3D: pasa a sombras de texto en capas e inclinación con el ratón.', 'digitalisimo-migration' ) ),
+	'ext.converted.threed_text'                  => array( 'section' => 'converted', 'label' => __( 'Texto en 3D: pasa al rasgo «Relieve 3D» de DIGITALÍSIMO Elements, con sus capas, su perspectiva y su giro.', 'digitalisimo-migration' ) ),
 	'ext.converted.grid_line'                    => array( 'section' => 'converted', 'label' => __( 'Líneas de cuadrícula: pasan al CSS personalizado de la página, igual que antes.', 'digitalisimo-migration' ) ),
 	'ext.converted.global_badge'                 => array( 'section' => 'converted', 'label' => __( 'Insignia: pasa al rasgo «Distintivo» de DIGITALÍSIMO Elements, con su texto.', 'digitalisimo-migration' ) ),
 	'ext.converted.image_hover_effects'          => array( 'section' => 'converted', 'label' => __( 'Efectos de la imagen al pasar el cursor: pasan al CSS personalizado del widget, igual que antes.', 'digitalisimo-migration' ) ),

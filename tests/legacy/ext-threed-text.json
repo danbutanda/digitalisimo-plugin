@@ -4,11 +4,14 @@
     "title": "Tres de",
     "ep_threed_text_active": "yes",
     "_expect_json": [
-      "text-shadow:0 3.75px 0 currentColor"
+      "\"digitalisimo_relief\":\"yes\"",
+      "\"digitalisimo_relief_depth\":{\"unit\":\"px\",\"size\":30",
+      "\"digitalisimo_relief_layers\":8",
+      "\"digitalisimo_relief_perspective\":{\"unit\":\"px\",\"size\":500",
+      "\"digitalisimo_relief_fade\":\"yes\""
     ],
     "_expect_codes": [
-      "ext.converted.threed_text",
-      "ext.loss.threed_text"
+      "ext.converted.threed_text"
     ]
   },
   "puntero": {
@@ -19,9 +22,11 @@
     "ep_threed_text_event_direction": "reverse",
     "ep_threed_text_depth_color": "#333333",
     "_expect_json": [
-      "\"motion_fx_tilt_effect\":\"yes\"",
-      "\"motion_fx_tilt_direction\":\"negative\"",
-      "color-mix(in srgb,#333333"
+      "\"digitalisimo_relief\":\"yes\"",
+      "\"digitalisimo_relief_event\":\"pointer\"",
+      "\"digitalisimo_relief_direction\":\"reverse\"",
+      "\"digitalisimo_relief_rotation\":{\"unit\":\"deg\",\"size\":35",
+      "\"digitalisimo_relief_color\":\"#333333\""
     ],
     "_expect_codes": [
       "ext.converted.threed_text"

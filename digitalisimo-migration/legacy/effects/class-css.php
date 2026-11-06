@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Extensiones que pasan al CSS personalizado del elemento (`custom_css`, con `selector`): background-overlay,
- * equal-height, scroll-fill-effect, scroll-box, threed-text, image-hover-effects y animated-gradient-background
+ * equal-height, scroll-fill-effect, scroll-box, image-hover-effects y animated-gradient-background
  * (F8, §3.C.2). Todo valor interpolado pasa por `Css_Value` (V.7) y cada bloque por `Css_Value::block()`.
  *
  * El CSS de image-hover-effects reproduce `EP/assets/css/ep-image-hover-effects.css` de Element Pack (GPL; atribución
@@ -187,7 +187,7 @@ final class Css {
 		return false;
 	}
 
-	/* ---------------------------------------------------------------- scroll-fill-effect y threed-text */
+	/* ---------------------------------------------------------------- scroll-fill-effect */
 
 	/** Selector del texto: título del núcleo, título avanzado propio o párrafos del editor de texto. */
 	private static function text_target( Out $out ): string {
@@ -263,47 +263,6 @@ final class Css {
 			. '@keyframes digi-sfx-fill{to{background-size:100% 100%}}'
 		);
 		$out->loss( __( 'sin animation-timeline (Firefox), el texto se ve ya relleno', 'digitalisimo-migration' ) );
-		return true;
-	}
-
-	public static function threed( Out $out ): bool {
-		$s      = $out->orig;
-		$depth  = $out->get( 'ep_threed_text_depth' );
-		$unit   = is_array( $depth ) && in_array( $depth['unit'] ?? 'px', array( 'px', 'em', 'rem', '%' ), true ) ? ( $depth['unit'] ?? 'px' ) : 'px';
-		$size   = is_array( $depth ) && is_numeric( $depth['size'] ?? null ) ? (float) $depth['size'] : 30.0;
-		if ( '%' === $unit ) {
-			// Sin referencia de tamaño: el porcentaje del texto se aproxima en em.
-			$unit = 'em';
-			$size = $size / 100;
-		}
-		$layers = (int) max( 1, min( 100, (int) ( Css_Value::number( $out->get( 'ep_threed_text_layers' ), 0, 100 ) ?? 8 ) ) );
-		$color  = Values::color( $s, 'ep_threed_text_depth_color' ) ?? 'currentColor';
-		$fade   = 'yes' === $out->get( 'ep_threed_text_fade' );
-		$step   = $size / $layers;
-		$shadow = array();
-		for ( $i = 1; $i <= $layers; $i++ ) {
-			$pct      = $fade ? (int) round( 100 - ( 90 * ( $i - 1 ) / max( 1, $layers ) ) ) : 100;
-			$paint    = 100 === $pct ? $color : 'color-mix(in srgb,' . $color . ' ' . $pct . '%,transparent)';
-			$shadow[] = '0 ' . Css_Value::format( $step * $i ) . $unit . ' 0 ' . $paint;
-		}
-		$selector = 'heading' === $out->widget() ? 'selector .elementor-heading-title' : 'selector .digi-advanced-heading__main';
-		$out->css( Out::rule( $selector, array( 'text-shadow:' . implode( ',', $shadow ) ) ) );
-		$event = (string) $out->get( 'ep_threed_text_event' );
-		if ( 'pointer' === $event ) {
-			$rotation = Values::size_of( $s, 'ep_threed_text_event_rotation', array( 'size' => 35 ) ) ?? 35;
-			$set      = array(
-				'motion_fx_motion_fx_mouse' => 'yes',
-				'motion_fx_tilt_effect'     => 'yes',
-				'motion_fx_tilt_direction'  => 'reverse' === $out->get( 'ep_threed_text_event_direction' ) ? 'negative' : '',
-				'motion_fx_tilt_speed'      => array( 'unit' => 'px', 'size' => max( 0.1, min( 10, round( abs( $rotation ) / 10, 1 ) ) ) ),
-			);
-			if ( ! $out->set_all( $set ) ) {
-				return false;
-			}
-		} elseif ( in_array( $event, array( 'scroll', 'scrollX', 'scrollY' ), true ) ) {
-			$out->loss( __( 'giro al desplazar', 'digitalisimo-migration' ) );
-		}
-		$out->loss( __( '3D real con perspectiva (se aproxima con sombras de texto)', 'digitalisimo-migration' ) );
 		return true;
 	}
 
