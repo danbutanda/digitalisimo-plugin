@@ -145,6 +145,12 @@ list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request
 if ( $ok || false === strpos( $message, 'RESTAURAR SIN FIRMA' ) || count( $GLOBALS['wpdb']->queries ) || bk_tree() !== $tree ) throw new RuntimeException( 'Un archivo sin registro se restauró con RESTAURAR: ' . $message );
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => '.operation.lock', 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
 if ( $ok ) throw new RuntimeException( 'Se aceptó restaurar un archivo interno del almacén.' );
+// Un enlace del almacén no es un respaldo, aunque apunte a otro respaldo del mismo almacén o a un archivo de fuera.
+symlink( $valid, $storage . '/digitalisimo-enlace-interno.zip' );
+symlink( ABSPATH . 'wp-config.php', $storage . '/digitalisimo-enlace-externo.zip' );
+foreach ( array( 'digitalisimo-enlace-interno.zip', 'digitalisimo-enlace-externo.zip' ) as $link ) if ( '' !== bk_call( 'Digitalisimo_Backups', 'local_path', $link ) ) throw new RuntimeException( 'Se aceptó un enlace del almacén como respaldo: ' . $link );
+unlink( $storage . '/digitalisimo-enlace-interno.zip' );
+unlink( $storage . '/digitalisimo-enlace-externo.zip' );
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después del respaldo';
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $loose, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
 if ( ! $ok ) throw new RuntimeException( 'El respaldo válido sin registro no se restauró con RESTAURAR SIN FIRMA: ' . $message );
