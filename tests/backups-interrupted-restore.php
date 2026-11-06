@@ -61,6 +61,12 @@ register_shutdown_function( function() use ( $K, $S, $B, $passphrase, $key_id, $
 	$check( 'rewrapped' === $K::set_passphrase( $passphrase )['result'] && $K::resolve_by_id( $key_id ) === $root, 'Volver a escribir la frase no devolvió la misma clave.' );
 	$sealed = bk_call( $B, 'create_network' );
 	$check( $key_id === Digitalisimo_Backups_Encrypted_File::read_header( $sealed )['header']['key']['id'], 'Lo nuevo no se cifró con la misma clave.' );
+	// El diario de otra instalación que comparte el almacén no se aplica ni se borra.
+	file_put_contents( $journal, json_encode( array( 'version' => 1, 'wordpress_root' => '/otra/instalacion', 'history' => array(), 'keys' => array(), 'active' => '', 'security' => array( 'encrypt' => false, 'require_signed' => false ) ) ) );
+	$history_now = $GLOBALS['bk_options'][ $B::HISTORY ];
+	$lock = bk_call( $B, 'acquire_operation_lock' );
+	bk_call( $B, 'release_operation_lock', $lock );
+	$check( file_exists( $journal ) && $GLOBALS['bk_options'][ $B::HISTORY ] === $history_now, 'Se aplicó o se borró el diario de otra instalación.' );
 	// Un diario dañado se descarta sin tocar nada.
 	file_put_contents( $journal, '{no es json' );
 	$lock = bk_call( $B, 'acquire_operation_lock' );

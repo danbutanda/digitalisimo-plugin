@@ -103,7 +103,7 @@ final class Digitalisimo_Backups {
 	 */
 	private static function write_restore_journal() {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'history' => (array) get_option( self::HISTORY, array() ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -111,12 +111,15 @@ final class Digitalisimo_Backups {
 		}
 	}
 	private static function remove_restore_journal() { @unlink( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ); }
+	/** La instalación dueña del diario: un almacén compartido por DIGITALISIMO_BACKUPS_STORAGE_DIR no mezcla llaveros. */
+	private static function journal_owner() { $root = realpath( ABSPATH ); return wp_normalize_path( false === $root ? ABSPATH : $root ); }
 	/** Aplica el diario de una restauración interrumpida (con el bloqueo tomado, nada más la está usando). */
 	private static function recover_interrupted_restore() {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		if ( is_link( $path ) ) { @unlink( $path ); return; }
 		if ( ! is_file( $path ) ) return;
 		$data = json_decode( (string) @file_get_contents( $path ), true );
+		if ( is_array( $data ) && is_string( $data['wordpress_root'] ?? null ) && $data['wordpress_root'] !== self::journal_owner() ) return; // De otra instalación: es suyo.
 		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
 			wp_cache_flush();
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
