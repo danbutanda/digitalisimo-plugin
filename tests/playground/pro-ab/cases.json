@@ -57,7 +57,11 @@
     "bq-defaults": {
       "title": "Blockquote con todos sus valores por defecto",
       "widget": "blockquote",
-      "settings": {}
+      "settings": {},
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
+      }
     },
     "bq-border": {
       "title": "Piel «border» con color, ancho, separación y relleno vertical, y color al pasar el ratón",
@@ -175,6 +179,10 @@
         "button_text_color": "#FFFFFF",
         "button_background_color_hover": "#084C37",
         "button_text_color_hover": "#FFEEAA"
+      },
+      "pixels": {
+        "max": 0.0005,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-text-link": {
@@ -204,6 +212,10 @@
         "tweet_button_view": "icon",
         "tweet_button_skin": "link",
         "url_type": "none"
+      },
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-text-classic": {
@@ -243,6 +255,10 @@
           "sizes": []
         },
         "button_typography_font_weight": "700"
+      },
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-off": {
