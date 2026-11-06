@@ -239,7 +239,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           : await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
-        await page.screenshot({ path: file, clip, captureBeyondViewport: true });
+        // Fuera de la ventana sólo si el recorte no cabe en ella: con `captureBeyondViewport`, Chrome maqueta la página un
+        // instante a 1 px de ancho, y una pista que se desplaza con `scrollLeft` (el motor `digi-crs`) puede quedar recortada
+        // en la captura aunque en la página no cambie nada (Swiper usa `transform` y no lo nota).
+        const fits = await page.evaluate((r) => r.x >= scrollX && r.y >= scrollY && r.x + r.width <= scrollX + document.documentElement.clientWidth && r.y + r.height <= scrollY + innerHeight, clip);
+        await page.screenshot({ path: file, clip, captureBeyondViewport: !fits });
         return file;
       };
       w.shot = await shot('');

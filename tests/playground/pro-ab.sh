@@ -69,7 +69,9 @@
 # un filtro que apunta al bucle del caso). En `actions`, `page: true` (el selector es relativo a la página, no al widget:
 # el filtro hermano) y `scroll: true` (lleva el selector a la vista en lugar de pulsarlo: desplazamiento infinito).
 # Fidelidad de los carruseles: en `actions`, `drag` (píxeles, negativo hacia la izquierda) arrastra con el ratón desde el
-# centro del selector en un gesto lento de 600 ms (el arrastre con el ratón de Swiper y del motor `digi-crs`).
+# centro del selector en un gesto lento de 600 ms (el arrastre con el ratón de Swiper y del motor `digi-crs`). Las
+# capturas sólo salen de la ventana cuando el widget no cabe en ella: al capturar fuera de la ventana Chrome maqueta la
+# página un instante a 1 px de ancho y una pista desplazada con `scrollLeft` podía salir recortada.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos
