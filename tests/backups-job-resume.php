@@ -197,5 +197,24 @@ $after = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( ar
 bk_run_until_done( $after['id'] );
 bk_assert( ! is_file( bk_storage() . '/' . $waiting['spec']['file'] ) && is_file( bk_storage() . '/' . $after['spec']['file'] ), 'La retención dejó de rotar un ZIP cuyo trabajo ya terminó.' );
 
+// H. Una copia remota que sube completa pero no supera la verificación se retira del destino en cada intento: los
+// reintentos no dejan allí copias sin verificar con el nombre del respaldo, y el ZIP local verificado se conserva.
+$cloud = array();
+$GLOBALS['bk_remote'] = function( $method, $url, $args ) use ( &$cloud ) {
+	if ( 'POST' === $method && false !== strpos( $url, 'oauth2' ) ) return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array( 'access_token' => 'token-de-prueba' ) ) );
+	if ( 'POST' === $method ) return array( 'response' => array( 'code' => 200 ), 'headers' => array( 'location' => 'https://upload.test/session/' . count( $cloud ) ), 'body' => '' );
+	if ( 'PUT' === $method ) { $id = 'copia-' . count( $cloud ); $cloud[ $id ] = true; return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array( 'id' => $id ) ) ); }
+	if ( 'GET' === $method ) { file_put_contents( $args['filename'], 'otra cosa' ); return array( 'response' => array( 'code' => 200 ) ); }
+	if ( 'DELETE' === $method && preg_match( '#/drive/v3/files/([^/?]+)$#', $url, $m ) && 'Bearer token-de-prueba' === ( $args['headers']['Authorization'] ?? '' ) ) unset( $cloud[ $m[1] ] );
+	return array( 'response' => array( 'code' => 204 ), 'body' => '' );
+};
+update_option( 'digitalisimo_backups_settings', array( 'google_client_id' => 'cliente', 'google_client_secret' => 'secreto', 'google_refresh_token' => 'renovar', 'google_folder_id' => '' ) );
+$mismatch = bk_manual( 'google', 'copia-distinta' );
+for ( $i = 0; $i < 40 && ! Digitalisimo_Backups_Job_Store::is_terminal( bk_job( $mismatch['id'] ) ); $i++ ) { bk_ready( $mismatch['id'] ); Digitalisimo_Backups_Jobs::tick( 0 ); }
+$job = bk_job( $mismatch['id'] );
+$row = rows_for( $mismatch['spec']['file'] )[0];
+bk_assert( 'failed' === $job['status'] && 'transfer' === $job['phase'] && 'local' === $row['destination'] && 'failed' === $row['transfer'] && is_file( bk_storage() . '/' . $mismatch['spec']['file'] ), 'La copia remota distinta no dejó el respaldo local registrado.' );
+bk_assert( ! $cloud && false !== strpos( $job['error']['message'], 'Se retiró del destino la copia sin verificar' ), 'Quedaron en el destino ' . count( $cloud ) . ' copias sin verificar.' );
+
 bk_cleanup();
 echo "DIGITALÍSIMO Backups: reanudación tras una muerte en exportación, empaquetado, verificación, registro y transferencia sin rehacer lo confirmado.\n";
