@@ -172,6 +172,8 @@ class Digitalisimo_Integrations_Settings {
 			'seo_schema_type_defaults'    => array(),
 			'seo_schema_templates'        => array(),
 			'seo_product_brand'           => '',
+			'seo_product_brand_name'      => '',
+			'seo_product_condition'       => '',
 			'seo_sitemap_news_enabled'    => 0,
 			'seo_links_counter'           => 1,
 			'seo_links_check'             => 0,
@@ -314,6 +316,8 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['seo_sitemap_news_name'] ) ) $output['seo_sitemap_news_name'] = sanitize_text_field( $input['seo_sitemap_news_name'] );
 		if ( isset( $input['seo_sitemap_news_exclude_terms'] ) ) $output['seo_sitemap_news_exclude_terms'] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $input['seo_sitemap_news_exclude_terms'] );
 		if ( isset( $input['seo_product_brand'] ) ) $output['seo_product_brand'] = sanitize_key( $input['seo_product_brand'] );
+		if ( isset( $input['seo_product_brand_name'] ) ) $output['seo_product_brand_name'] = Digitalisimo_Integrations_Schema_Graph::sanitize_brand_name( $input['seo_product_brand_name'] );
+		if ( isset( $input['seo_product_condition'] ) ) $output['seo_product_condition'] = Digitalisimo_Integrations_Schema_Graph::sanitize_condition( $input['seo_product_condition'] );
 		if ( isset( $input['seo_tax_templates'] ) ) $output['seo_tax_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_tax_templates( $input['seo_tax_templates'] );
 		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
