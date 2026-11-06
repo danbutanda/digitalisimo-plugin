@@ -33,11 +33,14 @@ final class Digitalisimo_Backups_Layout {
 	 * En una red, la carpeta de medios de cada sitio con `upload_path` propio (Red → Sitios → Editar → Ajustes), que
 	 * puede llevarla fuera de ABSPATH. Lee la opción con una consulta por sitio, sin cargar sus opciones, y calcula la
 	 * carpeta como _wp_upload_dir(): relativa a ABSPATH y, sin `ms_files_rewriting`, con `/sites/<id>` salvo en el sitio
-	 * principal de la red principal. Un sitio sin tabla de opciones no puede tener `upload_path`.
+	 * principal de la red principal. Un sitio sin tabla de opciones no puede tener `upload_path`. Con la constante
+	 * UPLOADS, _wp_upload_dir() ignora `upload_path` en las peticiones de cada sitio (ABSPATH . UPLOADS, con /sites/<id>
+	 * o sin él): sus medios quedan bajo la carpeta de medios que ya se comprueba, y un `upload_path` antiguo no impide
+	 * respaldar.
 	 */
 	private static function site_upload_folders() {
 		global $wpdb;
-		if ( ! is_multisite() || ! function_exists( 'get_sites' ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_blog_prefix' ) ) return array();
+		if ( ! is_multisite() || defined( 'UPLOADS' ) || ! function_exists( 'get_sites' ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_blog_prefix' ) ) return array();
 		$main = (int) get_main_site_id( function_exists( 'get_main_network_id' ) ? get_main_network_id() : null );
 		$rewriting = (bool) get_site_option( 'ms_files_rewriting' );
 		$folders = array();

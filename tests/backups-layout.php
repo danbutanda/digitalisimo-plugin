@@ -87,6 +87,14 @@ try {
 	$GLOBALS['digi']['site_options']['ms_files_rewriting'] = 1;
 	$folders = Digitalisimo_Backups_Layout::folders();
 	digi_assert( ABSPATH . 'wp-content/blogs.dir/2/files' === ( $folders['uploads-2'][0] ?? '' ) && ! preg_grep( '#del sitio#', Digitalisimo_Backups_Layout::problems() ), 'Una carpeta de medios relativa a ABSPATH se rechazó o no se resolvió como en WordPress.' );
+	// Con la constante UPLOADS, _wp_upload_dir() ignora el upload_path de cada sitio (sus medios van a ABSPATH . UPLOADS
+	// /sites/<id>): un valor antiguo que apunta fuera de ABSPATH no es una carpeta que el respaldo omita y no lo impide.
+	unset( $GLOBALS['digi']['site_options']['ms_files_rewriting'] );
+	$GLOBALS['wpdb']->upload_paths = array( 2 => $lab . '/medios-red' );
+	digi_assert( (bool) preg_grep( '#^La carpeta de medios del sitio 2 #', Digitalisimo_Backups_Layout::problems() ), 'Sin UPLOADS, el upload_path externo de un sitio de la red debía rechazarse.' );
+	define( 'UPLOADS', 'wp-content/uploads' );
+	$folders = Digitalisimo_Backups_Layout::folders();
+	digi_assert( ! isset( $folders['uploads-2'] ) && ! preg_grep( '#del sitio#', Digitalisimo_Backups_Layout::problems() ), 'Con UPLOADS, un upload_path que WordPress ignora impidió respaldar la red: ' . json_encode( Digitalisimo_Backups_Layout::problems(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 	$GLOBALS['digi']['multisite'] = false;
 	$GLOBALS['wpdb']->upload_paths = array();
 	unset( $GLOBALS['digi']['site_options']['ms_files_rewriting'] );

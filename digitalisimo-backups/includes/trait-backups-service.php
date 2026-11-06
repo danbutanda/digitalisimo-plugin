@@ -241,7 +241,8 @@ trait Digitalisimo_Backups_Service {
 		try {
 			self::ensure_ready();
 			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => 'network' === ( $args['context'] ?? ( is_multisite() ? 'network' : 'site' ) ) ) ) );
-		} catch ( Exception $e ) {
+		} catch ( Throwable $e ) {
+			// Throwable, como hacía el respaldo con avance (AJAX): un fallo del almacén de trabajos es un error claro, no un fatal.
 			return self::service_error( 'not_ready', $e->getMessage(), 422 );
 		}
 		return self::service_enqueued( $queued, 'Ya hay un respaldo manual pendiente o en curso; su avance está en «Trabajos».', $args['spawn'] ?? true );
@@ -252,7 +253,7 @@ trait Digitalisimo_Backups_Service {
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		$id = sanitize_key( (string) $id );
 		if ( '' === $id || ! self::policy( $id ) ) return self::service_error( 'automation', 'La automatización no existe.', 404 );
-		try { self::ensure_ready(); } catch ( Exception $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
+		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
 		$result = self::run_policy( $id, 0, (string) ( $args['via'] ?? 'rest' ) );
 		if ( is_wp_error( $result ) ) {
 			$status = array( 'digitalisimo_backup_policy' => 409, 'digitalisimo_backup_partial' => 400, 'digitalisimo_backup_scope' => 400, 'digitalisimo_backup_policy_failed' => 422 );
@@ -331,9 +332,11 @@ trait Digitalisimo_Backups_Service {
 		$needs = self::service_secret_problem( $path, $secret );
 		if ( $needs ) return $needs;
 		// La copia previa es un respaldo completo: sin él no se restaura (422, como al crear), y nada se toca.
-		try { self::ensure_ready(); } catch ( Exception $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
-		@set_time_limit( 0 );
-		ignore_user_abort( true );
+		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
+		// Un hosting puede deshabilitar estas funciones (disable_functions): en PHP 8 llamarlas sería un fatal en mitad
+		// de la restauración, también desde la pantalla, que antes no llamaba a ignore_user_abort().
+		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
+		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		$report = null;
