@@ -105,10 +105,15 @@ class Demo_Media {
 		return null !== self::parts( $url );
 	}
 
-	/** Carpeta del plugin, ruta relativa y familia de una URL de la carpeta de un plugin de demostración. */
+	/**
+	 * Carpeta del plugin, ruta relativa y familia de una URL de la carpeta de un plugin de demostración. Sólo un valor que
+	 * es entero una URL (empieza por `http(s)://`, `//` o `/` y no tiene espacios, comillas ni `<>`): un texto, un HTML o
+	 * un CSS que nombra esa carpeta en medio no es una imagen de demostración y nunca se vacía. Una URL con caracteres
+	 * hostiles sí lo es, y `locate()` la rechaza (se vacía).
+	 */
 	private static function parts( string $url ): ?array {
 		$path = (string) strtok( trim( $url ), '?#' );
-		if ( 1 !== preg_match( '#/plugins/([A-Za-z0-9._-]+)/(.+)$#', $path, $m ) ) {
+		if ( 1 !== preg_match( '#^(?:https?:)?/[^\s"\'<>]*$#i', $path ) || 1 !== preg_match( '#/plugins/([A-Za-z0-9._-]+)/(.+)$#', $path, $m ) ) {
 			return null;
 		}
 		foreach ( self::FAMILIES as $family => $spec ) {

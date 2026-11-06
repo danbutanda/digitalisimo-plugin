@@ -212,6 +212,12 @@ namespace {
 	$check( (int) $s['image']['id'] > 0 && $id !== (int) $s['image']['id'] && 'item-1.png' === basename( $s['image']['url'] ) && 2 === count( $GLOBALS['ep_sideloads'] ), 'una URL guardada de la carpeta de Element Pack también se copia' );
 	$r = Demo_Media::resolve( 'bdt-x', array( 'rows' => array( array( 'image' => array( 'url' => $assets . 'images/gallery/item-1.png' ) ) ), 'js' => array( 'url' => $assets . 'js/fuera.png' ), 'ph' => array( 'url' => $placeholder ) ) );
 	$check( (int) $r['rows'][0]['image']['id'] > 0 && '' === $r['js']['url'] && $placeholder === $r['ph']['url'], 'filas: copiadas; fuera de assets/images: vacía; la imagen del constructor no se toca' );
+	// Un texto que nombra la carpeta en medio (HTML del editor, CSS) no es una URL de demostración: nunca se vacía.
+	$html = '<p>Lata: <img src="' . $assets . 'images/coco-can.svg" alt=""></p>';
+	$css  = 'selector{background:url(' . $assets . 'images/gallery/item-1.png)}';
+	$link = array( 'url' => $assets . 'images/gallery/item-1.png extra' );
+	$r    = Demo_Media::resolve( 'bdt-x', array( 'description' => $html, 'custom_css' => $css, 'link' => $link ) );
+	$check( $html === $r['description'] && $css === $r['custom_css'] && $link === $r['link'] && ! Demo_Media::is_plugin_url( $html ) && Demo_Media::is_plugin_url( '//s1.test' . parse_url( $assets, PHP_URL_PATH ) . 'images/x.png' ), 'un HTML, un CSS o un texto con la carpeta en medio quedan intactos; una URL sin esquema sí se reconoce' );
 	// Restringido (documento migrado con 1.0.20): conserva su conversión.
 	Native::$restricted = true;
 	list( $s, $codes ) = $convert( $card( array(), 'c3' ) );
@@ -239,5 +245,5 @@ namespace {
 	$check( BDTEP_ASSETS_URL === Demo_Media::ep_assets_url() && BDTEP_ASSETS_URL . 'images/coco-can.svg' === Translator::translate( 'bdt-animated-card', array() )['image']['url'], 'con Element Pack cargado, su BDTEP_ASSETS_URL' );
 
 	ep_rm( sys_get_temp_dir() . '/ep-demo-tmp' );
-	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 26 );
+	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 27 );
 }
