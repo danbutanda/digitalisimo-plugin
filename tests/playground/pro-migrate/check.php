@@ -37,7 +37,7 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'loops', 'forms', 'product', 'shop', 'cart', 'shop_header' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'loops', 'forms', 'product', 'shop', 'cart', 'shop_header', 'float', 'bar', 'bio', 'header2' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
 	}
 	// C6: lo que importa de cada formulario de la página de formularios (acciones, destinatarios y origen de PRO).
@@ -45,6 +45,19 @@ try {
 	foreach ( (array) ( $fdata[0]['elements'] ?? array() ) as $e ) {
 		$s = (array) ( $e['settings'] ?? array() );
 		$out['forms'][ $e['id'] ] = array_intersect_key( $s, array_flip( array( 'form_name', 'submit_actions', 'email_to', 'webhooks', 'redirect_to', 'mailchimp_list', 'button_text', 'user_label', '_digitalisimo_pro' ) ) ) + array( 'fields' => array_column( (array) ( $s['form_fields'] ?? array() ), 'custom_id' ) );
+	}
+	// C8: presentación de cada widget propio (la de la variante de PRO que sustituye).
+	$out['presentations'] = array();
+	foreach ( array( 'float', 'bar', 'bio', 'header2' ) as $key ) {
+		$walk = static function ( $els ) use ( &$walk, &$out ) {
+			foreach ( (array) $els as $e ) {
+				if ( isset( $e['settings']['presentation'] ) ) {
+					$out['presentations'][ $e['id'] ] = (string) $e['settings']['presentation'];
+				}
+				$walk( $e['elements'] ?? array() );
+			}
+		};
+		$walk( json_decode( (string) get_post_meta( (int) ( $ids[ $key ] ?? 0 ), '_elementor_data', true ), true ) );
 	}
 	$out['backup'] = (bool) get_post_meta( (int) $ids['page'], '_digitalisimo_ep_backup', true );
 	// C5: plantillas de los bucles convertidos (la de PRO se conserva; la del Dynamic Grid, la copia Loop Item de F8).

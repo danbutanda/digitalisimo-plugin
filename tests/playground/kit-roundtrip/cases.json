@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3, C4, C5 y C7 del programa «sin widgets de PRO»: carruseles, contenido, navegación, elementos de tema, entradas y bucles y los treinta de WooCommerce, éstos con «woo»; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3, C4, C5, C6, C7 y C8 del programa «sin widgets de PRO»: carruseles, contenido, navegación, elementos de tema, entradas y bucles, formularios, botones flotantes y Link in Bio y los treinta de WooCommerce, éstos con «woo»; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "media": {
     "imagen-a": {
       "png": [
@@ -2892,7 +2892,31 @@
     "digitalisimo-loop-carousel": {"settings": {"template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post", "slides_to_show": "2"}},
     "digitalisimo-taxonomy-filter": {"settings": {"taxonomy": "category", "first_item_title": "Todo el kit"}},
     "digitalisimo-form": { "settings": { "form_name": "Formulario del kit", "form_fields": [{ "_id": "kf0001", "custom_id": "name", "field_type": "text", "field_label": "Nombre", "required": "true" }, { "_id": "kf0002", "custom_id": "email", "field_type": "email", "field_label": "Correo" }], "button_text": "Enviar", "submit_actions": ["save-to-database"] } },
-    "digitalisimo-login": { "settings": { "button_text": "Entrar del kit", "show_lost_password": "yes", "custom_labels": "yes", "user_label": "Usuario del kit" } }
+    "digitalisimo-login": { "settings": { "button_text": "Entrar del kit", "show_lost_password": "yes", "custom_labels": "yes", "user_label": "Usuario del kit" } },
+    "digitalisimo-contact-buttons": {
+      "settings": {
+        "presentation": "1",
+        "top_bar_title": "Equipo del kit",
+        "top_bar_image": "@media:imagen-a",
+        "contact_repeater": [
+          { "_id": "cb0001", "contact_icon_platform": "Email", "contact_icon_mail": "hola@example.com" },
+          { "_id": "cb0002", "contact_icon_platform": "Url", "contact_icon_url": { "url": "{{home}}/contacto/", "is_external": "", "nofollow": "" } }
+        ]
+      }
+    },
+    "digitalisimo-floating-bar": { "settings": { "presentation": "3", "coupon_code": "KIT2026", "coupon_success_message": "Copiado" } },
+    "digitalisimo-link-in-bio": {
+      "settings": {
+        "presentation": "7",
+        "identity_image": "@media:imagen-a",
+        "identity_image_cover": "@media:imagen-b",
+        "bio_title": "Tarjeta del kit",
+        "icon": [
+          { "_id": "lb0001", "icon_platform": "Telephone", "icon_text": "Llamar", "icon_number": "5550000000" },
+          { "_id": "lb0002", "icon_platform": "Url", "icon_text": "Sitio", "icon_url": { "url": "{{home}}/", "is_external": "", "nofollow": "" } }
+        ]
+      }
+    }
   },
   "traits": {
     "backdrop-filter": {

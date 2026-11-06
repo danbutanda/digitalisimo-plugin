@@ -92,6 +92,16 @@
 #     la clase de la página de un producto, que usan los selectores `.woocommerce {{WRAPPER}} …`);
 #   - `register_pro` (`{"file", "class"}`): registra en el sitio del A/B un widget de PRO que PRO no registra (la Imagen de
 #     la categoría no figura en el mapa de widgets de su módulo de WooCommerce, así que A no pintaría nada).
+# C8 (botones flotantes y Link in Bio) añade, también opcionales:
+#   - `doc`: `"floating-buttons"` o `"floating-bars"` crea A y B como documentos de botones flotantes del constructor
+#     (tipo de entrada `e-floating-buttons`, `_elementor_floating_elements_type` con ese valor) en lugar de páginas; cada
+#     uno se mide en su propia dirección (`urls` de conversion.json) con la plantilla «Lienzo» (el mu-plugin
+#     `digi-ab-floating-canvas.php`, sólo para ese tipo de entrada);
+#   - `container`: el mismo campo de C7 (se suma al contenedor común de cases.json y gana en sus claves); los casos de C8
+#     lo usan para `content_width: boxed` (los scripts de PRO de los botones flotantes buscan el `.e-con-inner` de un
+#     contenedor encuadrado);
+#   - `capture` (`{a, b}`): selector dentro del widget que se captura, para un bloque fijo a la ventana cuyo envoltorio
+#     queda sin alto; con `shape`, basta la captura.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

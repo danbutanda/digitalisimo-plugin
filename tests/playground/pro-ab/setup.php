@@ -41,17 +41,25 @@ function digi_ab_objects( array $elements ) {
 	return $elements;
 }
 
-/** Guarda el árbol de una página (crea la página si no existe) y genera su CSS. Devuelve [ID, estado del CSS]. */
-function digi_ab_page( $slug, array $tree ) {
-	$existing = get_page_by_path( $slug );
-	$id       = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+/**
+ * Guarda el árbol de una página (crea la página si no existe) y genera su CSS. Devuelve [ID, estado del CSS].
+ * Con `$doc` (C8: `floating-buttons` o `floating-bars`, el `doc` del caso) es un documento de botones flotantes del
+ * constructor (tipo de entrada `e-floating-buttons`, plantilla `floating-buttons`) que se ve en su propia dirección.
+ */
+function digi_ab_page( $slug, array $tree, $doc = '' ) {
+	$type     = '' !== $doc ? 'e-floating-buttons' : 'page';
+	$existing = get_page_by_path( $slug, OBJECT, $type );
+	$id       = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => $type, 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
 	if ( ! $id ) {
 		digi_ab_fail( "No se pudo crear la página $slug" );
 		return array( 0, '' );
 	}
 	update_post_meta( $id, '_wp_page_template', 'elementor_canvas' );
 	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
-	update_post_meta( $id, '_elementor_template_type', 'wp-page' );
+	update_post_meta( $id, '_elementor_template_type', '' !== $doc ? 'floating-buttons' : 'wp-page' );
+	if ( '' !== $doc ) {
+		update_post_meta( $id, '_elementor_floating_elements_type', $doc );
+	}
 	update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
 	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( digi_ab_objects( $tree ) ) ) );
 	$css = \Elementor\Core\Files\CSS\Post::create( $id );
@@ -1106,6 +1114,13 @@ if ( is_file( DIGI_AB_DIR . '/map-override.php' ) ) {
 	$override = (string) $map['source'];
 }
 
+// C8: los documentos de botones flotantes no admiten plantilla de página (el tema pintaría su entrada, comentarios y
+// navegación detrás del bloque fijo, distinta en A y en B): se ven con la plantilla «Lienzo» del constructor.
+if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
+	mkdir( WPMU_PLUGIN_DIR, 0777, true );
+}
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-floating-canvas.php', "<?php\nadd_filter( 'template_include', static function ( \$t ) { return is_singular( 'e-floating-buttons' ) && defined( 'ELEMENTOR_PATH' ) && is_file( ELEMENTOR_PATH . 'modules/page-templates/templates/canvas.php' ) ? ELEMENTOR_PATH . 'modules/page-templates/templates/canvas.php' : \$t; }, 99 );\n" );
+
 $widgets = \Elementor\Plugin::$instance->widgets_manager;
 // Widgets de PRO que PRO no registra (C7: `woocommerce-category-image`, clase en `modules/woocommerce/widgets/` fuera de
 // `WIDGET_NAME_CLASS_NAME_MAP`): un caso con `"register_pro": {"file": "<ruta en el plugin>", "class": "<clase>"}` lo
@@ -1152,7 +1167,8 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			'id'       => digi_ab_eid( $slug . '-c' ),
 			'elType'   => 'container',
 			'isInner'  => false,
-			// C7 (frente M): `container` del caso se suma al común (p. ej. la clase `woocommerce` de la ficha).
+			// `container` del caso se suma al común y gana en sus claves: C7 (frente M) añade la clase `woocommerce` de la ficha y
+			// C8, `content_width: boxed` (los botones flotantes de PRO buscan el `.e-con-inner` de un contenedor encuadrado).
 			'settings' => array_merge( (array) ( $cases['container'] ?? array() ), (array) ( $case['container'] ?? array() ) ),
 			'elements' => array_merge(
 				digi_ab_before( (array) ( $case['before'] ?? array() ), $slug, $id ),
@@ -1196,8 +1212,16 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	} elseif ( count( wp_list_filter( $log, array( 'element' => $id ) ) ) !== 1 ) {
 		$entry['error'] = 'La conversión no dejó un registro por el widget del caso (' . count( $log ) . ')';
 	}
-	list( $entry['a'], $entry['css_a'] ) = digi_ab_page( "pro-ab-$slug-a", $tree );
-	list( $entry['b'], $entry['css_b'] ) = digi_ab_page( "pro-ab-$slug-b", $b_tree );
+	$doc = in_array( (string) ( $case['doc'] ?? '' ), array( 'floating-buttons', 'floating-bars' ), true ) ? (string) $case['doc'] : '';
+	list( $entry['a'], $entry['css_a'] ) = digi_ab_page( "pro-ab-$slug-a", $tree, $doc );
+	list( $entry['b'], $entry['css_b'] ) = digi_ab_page( "pro-ab-$slug-b", $b_tree, $doc );
+	if ( '' !== $doc ) {
+		// Ruta de cada documento (run.cjs la usa en lugar de /pro-ab-<caso>-<lado>/).
+		$entry['urls'] = array(
+			'a' => (string) wp_make_link_relative( get_permalink( $entry['a'] ) ),
+			'b' => (string) wp_make_link_relative( get_permalink( $entry['b'] ) ),
+		);
+	}
 	// Contexto (C4) y tienda (C7): la consulta de la página y, con WooCommerce, su estado (`woo`). Un widget de tienda
 	// de PRO (`woocommerce-*`, `wc-*`) siempre mide con la tienda de prueba.
 	$woo_used = $woo_used || (bool) preg_match( '/^(woocommerce-|wc-)/', $source );

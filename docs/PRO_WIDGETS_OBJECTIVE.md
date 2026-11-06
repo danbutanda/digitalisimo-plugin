@@ -50,7 +50,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items. Archive Posts (catálogo C4) se hizo aquí, sobre la misma base que Posts. Contrato y resultado en `docs/pro/c5.md`.
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
-- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
+- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en tres widgets propios con presentaciones (Botones de contacto, Barra flotante y Link in Bio).
 - **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
@@ -139,23 +139,23 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | **Sustituido** | Ventas dirigidas (`digitalisimo-woo-product-upsell`), C7 |
 | C7 | `woocommerce` | `woocommerce-products` | Products | **Sustituido** | Productos (`digitalisimo-woo-products`), con las partes de F4-Woo, C7 |
 | C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | **Sustituido** | Resumen de la compra (`digitalisimo-woo-purchase-summary`), C7 |
-| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 1, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 10, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 3, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 4, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 5, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 6, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 7, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 8, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 9, C8 |
+| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 2, C8 |
+| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 2, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 4, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 5, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 6, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 7, C8 |
 | C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
 | C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
 | C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
@@ -177,5 +177,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C5 | **Publicado** · Elements 4.3.0.177 · `v2026.11.06.454` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 lleva a Posts, Loop Grid y Loop Carousel). Seis widgets de entradas y bucles propios en `modules/digitalisimo-loop/` (Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías) con sus mapas listos y fuera del panel, la misma consulta, las mismas plantillas de Elemento de bucle y las consultas guardadas y los filtros de F7b sobre los propios; con ellos, la familia C5 queda sustituida entera (y, de C4, Entradas del archivo). Detalle en `docs/pro/c5.md` |
 | C6 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C6_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
 | C7 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C7_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 trae de Element Pack a los de WooCommerce de PRO). Treinta widgets de WooCommerce propios en `modules/digitalisimo-woo/single/` (los quince de la ficha de producto) y `store/` (los quince de listados, archivo, carrito, pago y cuenta), con sus mapas listos y fuera del panel: WooCommerce pinta lo suyo con las mismas plantillas, ganchos y filtros que PRO, sin jQuery propio, Swiper ni los paquetes de PRO. Con ellos, la familia C7 queda sustituida entera. Detalle en `docs/pro/c7.md` |
-| C8–C9 | Pendientes |
+| C8 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C8_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también en los documentos de botones flotantes). Tres widgets propios con una presentación por variante de PRO en `modules/digitalisimo-floating/`: Botones de contacto (9), Barra flotante (2) y Link in Bio (6), que heredan las bases del núcleo; los 17 mapas listos y fuera del panel. Detalle en `docs/pro/c8.md` |
+| C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

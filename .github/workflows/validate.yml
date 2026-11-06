@@ -107,6 +107,9 @@ jobs:
           php tests/elements-pro-woo-menu-cart.php
           node tests/elements-pro-woo-menu-cart-chrome.mjs
           node tests/sources/woo-css/build.mjs
+          php tests/elements-pro-floating.php
+          node tests/elements-pro-floating-chrome.mjs
+          php tests/elements-pro-link-in-bio.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php

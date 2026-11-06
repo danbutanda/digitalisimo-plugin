@@ -480,7 +480,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1, C2, C4, C5, C6): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0–C8): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -572,6 +572,26 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'woocommerce-purchase-summary', own: 'digitalisimo-woo-purchase-summary', title: 'Resumen de la compra', query: 'resumen de la compra' },
         { pro: 'woocommerce-menu-cart', own: 'digitalisimo-woo-menu-cart', title: 'Carrito del menú', query: 'carrito del menú' },
         { pro: 'wc-elements', own: 'digitalisimo-woo-pages', title: 'Páginas de la tienda', query: 'páginas de la tienda' },
+        // C8 (botones flotantes y Link in Bio, docs/pro/c8.md): una fila por variante de PRO. Los Botones de contacto y la
+        // Barra flotante heredan la base del núcleo, que no va al panel (viven en documentos de botones flotantes, como las
+        // variantes de PRO): `ownHidden`. Link in Bio sí sale.
+        { pro: 'contact-buttons-var-1', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-3', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-4', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-5', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-6', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-7', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-8', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-9', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-10', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'floating-bars-var-2', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },
+        { pro: 'floating-bars-var-3', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },
+        { pro: 'link-in-bio-var-2', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-3', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-4', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-5', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-6', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-7', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
       ];
       const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};
