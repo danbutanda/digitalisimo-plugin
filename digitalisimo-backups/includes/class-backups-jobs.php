@@ -20,6 +20,7 @@ final class Digitalisimo_Backups_Jobs {
 	const TAKEOVER_AFTER = 1800;
 	const EXPIRES_AFTER = 86400;
 	const BACKOFF = array( 60, 300, 900 );
+	const MAIN_SITE_ONLY = 'Los respaldos completos de la red se gestionan desde el sitio principal o la administración de red.';
 	/** Sustituye la ejecución de una fase (sólo pruebas): callable( $phase, $job ) que devuelve el resultado de la fase. */
 	public static $phase_runner = null;
 	private static $current = null;
@@ -124,6 +125,7 @@ final class Digitalisimo_Backups_Jobs {
 	 * proceso murió, elige el primer trabajo listo y ejecuta pasos hasta agotar el presupuesto.
 	 */
 	public static function tick( $budget = null ) {
+		if ( self::off_main_site() ) return array( 'result' => 'error', 'message' => self::MAIN_SITE_ONLY );
 		try {
 			$lock = Digitalisimo_Backups::try_operation_lock();
 		} catch ( Throwable $e ) {
@@ -442,6 +444,7 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	/** Pasa por el detector sólo si nadie trabaja en este momento (para consultas de estado). */
 	public static function recover_if_idle() {
+		if ( self::off_main_site() ) return false;
 		try {
 			$lock = Digitalisimo_Backups::try_operation_lock();
 		} catch ( Throwable $e ) {
@@ -508,6 +511,7 @@ final class Digitalisimo_Backups_Jobs {
 	/** Cancela desde la interfaz (o la futura WP-CLI). Un paso en curso se detiene en su siguiente punto de control. */
 	public static function cancel( $id ) {
 		if ( ! Digitalisimo_Backups_Job_Store::valid_id( $id ) ) return array( 'ok' => false, 'code' => 'invalid', 'message' => 'El identificador del trabajo no es válido.' );
+		if ( self::off_main_site() ) return array( 'ok' => false, 'code' => 'site', 'message' => self::MAIN_SITE_ONLY );
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $id ) {
 			$job = Digitalisimo_Backups_Job_Store::read( $id );
 			if ( ! $job ) return array( 'ok' => false, 'code' => 'missing', 'message' => 'El trabajo ya no existe.' );
@@ -562,6 +566,7 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	/** Cada hora: trabajos colgados, tick perdido (p. ej. tras restaurar la base de datos), huérfanos y poda. */
 	public static function watchdog() {
+		if ( self::off_main_site() ) return;
 		try {
 			$lock = Digitalisimo_Backups::try_operation_lock();
 		} catch ( Throwable $e ) {
@@ -629,7 +634,7 @@ final class Digitalisimo_Backups_Jobs {
 		check_ajax_referer( self::NONCE, 'nonce' );
 		$context = sanitize_key( wp_unslash( $_POST['context'] ?? 'site' ) );
 		if ( ! in_array( $context, array( 'site', 'network' ), true ) || ( 'network' === $context && ! is_multisite() ) ) wp_send_json_error( array( 'message' => 'Contexto de administración inválido.' ), 400 );
-		if ( is_multisite() && ! is_main_site() ) wp_send_json_error( array( 'message' => 'Los respaldos completos de la red se gestionan desde el sitio principal o la administración de red.' ), 400 );
+		if ( self::off_main_site() ) wp_send_json_error( array( 'message' => self::MAIN_SITE_ONLY ), 400 );
 	}
 
 	/** Vista pública: lo único que llega al navegador. Sin rutas, arrendamiento, sesiones remotas ni usuarios. */
@@ -753,6 +758,11 @@ final class Digitalisimo_Backups_Jobs {
 		return function_exists( 'wp_date' ) ? (string) wp_date( $format, $timestamp ) : gmdate( $format, $timestamp );
 	}
 	private static function filter( $hook, $value, ...$args ) { return function_exists( 'apply_filters' ) ? apply_filters( $hook, $value, ...$args ) : $value; }
+	/**
+	 * En una red, la cola es de toda la instalación y su historial vive en el sitio principal: un paso, el detector o una
+	 * cancelación que llegan desde un subsitio no corren (registrarían el respaldo o su copia remota en ese subsitio).
+	 */
+	public static function off_main_site() { return is_multisite() && ! is_main_site(); }
 	private static function on_main_site( callable $callback ) {
 		$switch = is_multisite() && function_exists( 'get_main_site_id' ) && (int) get_current_blog_id() !== (int) get_main_site_id();
 		if ( $switch ) switch_to_blog( get_main_site_id() );

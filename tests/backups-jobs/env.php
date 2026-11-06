@@ -29,6 +29,8 @@ $GLOBALS['bk_filters'] = array();
 $GLOBALS['bk_option_log'] = array();
 $GLOBALS['bk_remote'] = null;
 $GLOBALS['bk_remote_log'] = array();
+$GLOBALS['bk_blog_id'] = 1;
+$GLOBALS['bk_blog_stack'] = array();
 
 /* ---- WordPress sintético ---- */
 function bk_tree() {
@@ -82,12 +84,13 @@ function home_url() { return 'https://ejemplo.test'; }
 function site_url() { return 'https://ejemplo.test'; }
 function get_bloginfo( $key ) { return '6.8'; }
 function is_multisite() { return (bool) $GLOBALS['bk_multisite']; }
-function get_current_blog_id() { return 1; }
+/** Sitio en curso: 1 es el principal; una prueba fija $GLOBALS['bk_blog_id'] para simular un subsitio de la red. */
+function get_current_blog_id() { return (int) ( $GLOBALS['bk_blog_id'] ?? 1 ); }
 function get_main_site_id() { return 1; }
-function is_main_site() { return true; }
+function is_main_site() { return 1 === get_current_blog_id(); }
 function is_network_admin() { return false; }
-function switch_to_blog( $id ) { return true; }
-function restore_current_blog() { return true; }
+function switch_to_blog( $id ) { $GLOBALS['bk_blog_stack'][] = get_current_blog_id(); $GLOBALS['bk_blog_id'] = (int) $id; return true; }
+function restore_current_blog() { $GLOBALS['bk_blog_id'] = array_pop( $GLOBALS['bk_blog_stack'] ) ?? 1; return true; }
 function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
 function trailingslashit( $path ) { return rtrim( $path, '/\\' ) . '/'; }

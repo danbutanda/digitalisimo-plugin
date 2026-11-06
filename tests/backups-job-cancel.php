@@ -128,6 +128,21 @@ $panel->invoke( null, true );
 $html = ob_get_clean();
 bk_assert( false !== strpos( $html, 'name="job" value="' . $shown['id'] . '"' ) && false !== strpos( $html, 'nonce-' . Digitalisimo_Backups_Jobs::ACTION_CANCEL ) && false !== strpos( $html, 'name="digitalisimo_backups_network" value="1"' ) && false !== strpos( $html, 'data-active="1"' ), 'La tarjeta no ofrece cancelar con nonce y contexto de red.' );
 bk_assert( false === strpos( $html, bk_storage() ), 'La tarjeta expone rutas del almacén.' );
+// Desde un subsitio de la red nada avanza, recupera ni cancela la cola (es de toda la instalación y su historial vive en
+// el sitio principal): ni el AJAX de 1.0.58, ni admin-post, ni el tick, y la tarjeta sólo informa.
+$GLOBALS['bk_blog_id'] = 3;
+$rev = bk_job( $shown['id'] )['rev'];
+$_POST = array( 'nonce' => 'ok', 'token' => $shown['id'], 'context' => 'site' );
+bk_assert( 0 === strpos( respond( array( 'Digitalisimo_Backups', 'manual_work' ) ), 'ERROR:400:' ) && 0 === strpos( respond( array( 'Digitalisimo_Backups', 'manual_status' ) ), 'ERROR:400:' ), 'El AJAX anterior aceptó trabajar desde un subsitio.' );
+bk_assert( 'error' === Digitalisimo_Backups_Jobs::tick()['result'] && ! Digitalisimo_Backups_Jobs::recover_if_idle(), 'El tick o el detector corrieron desde un subsitio.' );
+$_POST = array( '_wpnonce' => 'ok', 'job' => $shown['id'] );
+$redirect = respond( array( 'Digitalisimo_Backups_Jobs', 'admin_cancel' ) );
+bk_assert( false !== strpos( $redirect, 'backup=error' ) && 'queued' === bk_job( $shown['id'] )['status'] && $rev === bk_job( $shown['id'] )['rev'], 'Se tocó un trabajo de la red desde un subsitio.' );
+ob_start();
+$panel->invoke( null, false );
+$html = ob_get_clean();
+bk_assert( false !== strpos( $html, 'data-active="0"' ) && false === strpos( $html, 'data-cancel=' ) && false !== strpos( $html, $shown['id'] ), 'La tarjeta de un subsitio ofrece avanzar o cancelar la cola de la red.' );
+$GLOBALS['bk_blog_id'] = 1;
 $GLOBALS['bk_multisite'] = false;
 Digitalisimo_Backups_Jobs::cancel( $shown['id'] );
 
