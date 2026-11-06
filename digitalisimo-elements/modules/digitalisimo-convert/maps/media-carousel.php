@@ -5,9 +5,9 @@
  *
  * El Carrusel multimedia repite los controles del de PRO y los de su base (`modules/carousel/widgets/base.php`) con el
  * mismo nombre, los mismos valores y las mismas condiciones, así que todo pasa con `keep`; el marcado y las clases son
- * propios (motor `digi-crs`, sin Swiper). Las aproximaciones son las del motor (bucle que rebobina, efecto cubo como
- * deslizamiento, carga diferida nativa) y la presentación «Coverflow», que se pinta con la diapositiva actual centrada y sin
- * el giro 3D. Formato: cabecera de `class-translator.php`.
+ * propios (motor `digi-crs`, sin Swiper). Las aproximaciones son las del motor (efecto cubo como deslizamiento, carga
+ * diferida nativa; el bucle es real desde la corrección de fidelidad) y la presentación «Coverflow», que se pinta con
+ * la diapositiva actual centrada y sin el giro 3D. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
