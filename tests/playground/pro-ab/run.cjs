@@ -265,7 +265,8 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       }
       // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, stay, scroll, page, focus, wait, widths }`):
       // pulsar el selector del lado (`a`/`b`, o `selector` común, relativo al widget), con `key` enfocarlo y teclear, con
-      // `type` escribir un texto, con `hover` pasar el puntero por encima o, con `scroll` (C2), desplazar la página. Tras
+      // `type` escribir un texto, con `hover` pasar el puntero por encima o, con `scroll` (C2: píxeles o `end`), desplazar la
+      // página; con `scroll: true` (C5), llevar el selector a la vista. Tras
       // cada una, sin foco ni puntero encima (salvo con `stay`), firma y captura. Son acumulativas dentro de un ancho;
       // después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
@@ -278,8 +279,10 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
             // `page`: el selector es de la página, no del widget (un disparador fuera de él, C3 · frente F).
             const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
+            // `scroll: true` (C5, desplazamiento infinito): lleva el selector a la vista en lugar de pulsarlo.
+            if (act.scroll === true) await el.evaluate((n) => n.scrollIntoView({ block: 'center' }));
             // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
-            if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
+            else if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
             else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
               // Dos movimientos cortos tras llegar: un ratón real (SmartMenus de PRO sólo abre con el ratón si lo detecta).
               await el.hover();

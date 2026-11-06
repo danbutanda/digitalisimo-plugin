@@ -226,7 +226,7 @@ ok(seenNames.has('counter'), 'Se revisó el control del contador del slider anid
 // ── 4. Scripts y topes ───────────────────────────────────────────────────────────────────────────────────────────
 const CAPS = {
   'actions.js': 6144, 'nested-slider.css': 4096, 'nested-slider.js': 6144, 'forms-conditions.js': 3072,
-  'nested-presentation.css': 4096, 'f7b-filters.css': 2048, 'filters-form.js': 6144, 'filters.js': 8192,
+  'nested-presentation.css': 4096, 'f7b-filters.css': 2048, 'filters-form.js': 6144, 'filters.js': 10240, // C5: también la Cuadrícula de bucle propia.
   // F8 (§5): el contador del slider anidado.
   'nested-slider-counter.css': 256, 'nested-slider-counter.js': 512,
 };

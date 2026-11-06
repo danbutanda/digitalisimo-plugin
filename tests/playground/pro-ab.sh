@@ -30,8 +30,9 @@
 # (`{a, b}`: selectores que deben existir dentro del widget antes de medir; por defecto se espera a que Swiper y el motor
 # `digi-crs` hayan arrancado) y `actions` (pulsar o teclear tras medir cada ancho, con firma y píxeles después de cada
 # una; ver run.cjs).
-# C2: `before`/`after` (elementos hermanos del widget en su contenedor, sin convertir: los encabezados de una tabla de
-# contenido) y `reducedMotion` (A y B con «reducir movimiento», para comparar el estado final de una animación).
+# C2: `before`/`after` (elementos hermanos del widget en su contenedor: los encabezados de una tabla de contenido; se
+# convierten en B como el resto del árbol, así que un hermano de PRO también pasa al propio) y `reducedMotion` (A y B con
+# «reducir movimiento», para comparar el estado final de una animación).
 # También `clock` (fecha ISO: el reloj del navegador fijado, para una cuenta regresiva) y, en `actions`, `scroll` (píxeles o
 # `end`: desplaza la página en lugar de pulsar, para un indicador de progreso) y `shape` (motivo: el widget sólo dibuja una forma
 # al cargar; basta con que su caja tenga alto).
@@ -60,6 +61,13 @@
 #     acepta si A tiene controles enfocables;
 #   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
 #     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
+# C5: entradas de prueba (`"posts": n` en el caso o `{"$posts": n}` en los ajustes, que da sus IDs: 9 entradas
+# deterministas con categorías «Noticias», «Guías» y «Casos», etiquetas «par»/«impar», extracto e imagen destacada),
+# plantilla de Elemento de bucle (`{"$loop_item": "card"|"alt"|"title"|"term"}`, publicada una vez y con su ID como
+# cadena), consulta de archivo (`"archive": {variables de WP_Query}`: las páginas A y B listan esa consulta en el widget
+# de archivo, con la página `/N/` como `paged`) y, en los hermanos `before`/`after`, `"$self"` (el ID del widget medido:
+# un filtro que apunta al bucle del caso). En `actions`, `page: true` (el selector es relativo a la página, no al widget:
+# el filtro hermano) y `scroll: true` (lleva el selector a la vista en lugar de pulsarlo: desplazamiento infinito).
 # C6 (formularios: `cases/form.json` y `cases/login.json`) no añade opciones: los pasos del Formulario de PRO se arman en
 # el navegador (`ready.a`) y el propio los pinta el servidor; el Inicio de sesión se mide sin sesión iniciada. Los envíos
 # (ninguno se pierde ni se duplica, con las acciones guardar, correo y webhook) no se miden aquí, sino de punta a punta

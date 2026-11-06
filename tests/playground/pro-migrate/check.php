@@ -37,7 +37,7 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'forms' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'loops', 'forms' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
 	}
 	// C6: lo que importa de cada formulario de la página de formularios (acciones, destinatarios y origen de PRO).
@@ -47,6 +47,12 @@ try {
 		$out['forms'][ $e['id'] ] = array_intersect_key( $s, array_flip( array( 'form_name', 'submit_actions', 'email_to', 'webhooks', 'redirect_to', 'mailchimp_list', 'button_text', 'user_label', '_digitalisimo_pro' ) ) ) + array( 'fields' => array_column( (array) ( $s['form_fields'] ?? array() ), 'custom_id' ) );
 	}
 	$out['backup'] = (bool) get_post_meta( (int) $ids['page'], '_digitalisimo_ep_backup', true );
+	// C5: plantillas de los bucles convertidos (la de PRO se conserva; la del Dynamic Grid, la copia Loop Item de F8).
+	$ldata = json_decode( (string) get_post_meta( (int) ( $ids['loops'] ?? 0 ), '_elementor_data', true ), true );
+	$out['loops'] = array( 'loop_item' => (int) ( $ids['loop_item'] ?? 0 ), 'card_copy' => (int) get_post_meta( (int) ( $ids['card'] ?? 0 ), '_digitalisimo_loop_item', true ) );
+	foreach ( (array) ( $ldata[0]['elements'] ?? array() ) as $e ) {
+		$out['loops']['settings'][ $e['id'] ] = array_intersect_key( (array) ( $e['settings'] ?? array() ), array_flip( array( 'template_id', 'selected_element', '_skin', '_digitalisimo_pro', 'posts_per_page', 'columns' ) ) );
+	}
 	// Hijos del carrusel anidado (C1): sus contenedores deben conservarse con su id.
 	$cdata = json_decode( (string) get_post_meta( (int) ( $ids['carousels'] ?? 0 ), '_elementor_data', true ), true );
 	$out['nested_children'] = array_map( static function ( $e ) { return $e['id'] . ':' . $e['elType']; }, (array) ( $cdata[0]['elements'][0]['elements'] ?? array() ) );

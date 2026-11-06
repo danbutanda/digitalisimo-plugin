@@ -17,6 +17,12 @@ require '/wordpress/wp-load.php';
 
 const DIGI_E2E_DIR = '/wordpress/wp-content/probe';
 
+// Sin actualizaciones automáticas (como en los demás arneses): con una Release más nueva en GitHub, WordPress
+// actualizaría DIGITALÍSIMO Elements (su actualizador las activa) y borraría la carpeta montada.
+wp_mkdir_p( WPMU_PLUGIN_DIR );
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-no-autoupdate.php', "<?php\n// Arnés de pruebas: sin actualizaciones automáticas (borrarían el plugin montado).\nadd_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );\nadd_filter( 'auto_update_plugin', '__return_false', PHP_INT_MAX );\nadd_filter( 'auto_update_theme', '__return_false', PHP_INT_MAX );\n" );
+add_filter( 'automatic_updater_disabled', '__return_true', PHP_INT_MAX );
+
 function digi_e2e_fail( $message ) {
 	file_put_contents( DIGI_E2E_DIR . '/setup-error.txt', $message . "\n", FILE_APPEND );
 }

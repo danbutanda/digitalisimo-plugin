@@ -192,11 +192,40 @@ trait Filter_Form {
 		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $text, 'UTF-8' ) : strtolower( $text );
 	}
 
-	/** Con destino Loop Grid, los paquetes de PRO (el coordinador los necesita para el filtro de PRO del bucle). */
+	/**
+	 * Con destino Loop Grid, los paquetes de PRO (el coordinador los necesita para el filtro de PRO del bucle). Con la
+	 * Cuadrícula de bucle propia (C5), no: el coordinador la refresca pidiendo la misma página, sin el módulo de PRO.
+	 */
 	protected function require_pro(): void {
 		$gate = '\Digitalisimo\Elements\Front\Pro_Gate';
-		if ( 'loop' === $this->destination() && class_exists( $gate ) && method_exists( $gate, 'require' ) ) {
+		if ( 'loop' === $this->destination() && ! $this->loop_is_own() && class_exists( $gate ) && method_exists( $gate, 'require' ) ) {
 			$gate::require( $this->gate_reason() );
 		}
+	}
+
+	/** ¿Es el bucle elegido una Cuadrícula de bucle propia (C5) del documento que se pinta? Ante la duda, no. */
+	protected function loop_is_own(): bool {
+		$loop     = $this->loop_id();
+		$plugin   = '' !== $loop && class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		$document = is_object( $plugin ) && isset( $plugin->documents ) && is_object( $plugin->documents ) && method_exists( $plugin->documents, 'get_current' ) ? $plugin->documents->get_current() : null;
+		if ( ! is_object( $document ) || ! method_exists( $document, 'get_elements_data' ) ) {
+			return false;
+		}
+		$stack = array( (array) $document->get_elements_data() );
+		$seen  = 0;
+		while ( $stack ) {
+			foreach ( array_pop( $stack ) as $element ) {
+				if ( ! is_array( $element ) || ++$seen > 2000 ) {
+					continue;
+				}
+				if ( $loop === ( $element['id'] ?? '' ) ) {
+					return 'digitalisimo-loop-grid' === ( $element['widgetType'] ?? '' );
+				}
+				if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+					$stack[] = $element['elements'];
+				}
+			}
+		}
+		return false;
 	}
 }
