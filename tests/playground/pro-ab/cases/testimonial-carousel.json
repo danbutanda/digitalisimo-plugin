@@ -670,13 +670,6 @@
     ]
    },
    "interact": false,
-   "declared": [
-    {
-     "kind": "interacción",
-     "match": "Pausar|Reanudar|digi-crs__pause",
-     "reason": "Botón Pausar/Reanudar siempre que hay reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
-    }
-   ],
    "pixels": {
     "max": 0.04,
     "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). El botón Pausar ya no se ve (sólo con el foco del teclado)."
@@ -718,13 +711,6 @@
     ]
    },
    "interact": false,
-   "declared": [
-    {
-     "kind": "interacción",
-     "match": "Pausar|Reanudar|digi-crs__pause",
-     "reason": "Botón Pausar/Reanudar siempre que hay reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
-    }
-   ],
    "pixels": {
     "max": 0.04,
     "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). El botón Pausar ya no se ve (sólo con el foco del teclado)."
