@@ -7,8 +7,11 @@ require_once __DIR__ . '/class-backups-backup-job.php';
 foreach ( array( 'sodium', 'keys', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
 unset( $digitalisimo_backups_part );
 
+require_once __DIR__ . '/class-backups-layout.php';
+require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
+	use Digitalisimo_Backups_Service; // Casos de uso que comparten la pantalla, REST y WP-CLI.
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
@@ -300,7 +303,7 @@ final class Digitalisimo_Backups {
 			$states = array( 'pending' => ' · copia a ' . $target . ' pendiente', 'failed' => ' · la copia a ' . $target . ' falló', 'cancelled' => ' · copia a ' . $target . ' cancelada' );
 			return $label . ( $states[ $item['transfer'] ?? '' ] ?? '' );
 		}
-		/** Tarjeta «Trabajos»: el mismo estado que consultan el navegador, el cron y la futura WP-CLI. */
+		/** Tarjeta «Trabajos»: el mismo estado que consultan el navegador, el cron, REST y WP-CLI. */
 		private static function jobs_panel( $network ) {
 			$views = Digitalisimo_Backups_Jobs::views();
 			// En un subsitio la tarjeta sólo informa: los trabajos de la red avanzan y se cancelan desde el sitio principal.
@@ -405,10 +408,9 @@ final class Digitalisimo_Backups {
 	public static function run_policy_request() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_RUN_POLICY );
-		$id = sanitize_key( $_POST['digitalisimo_backup_policy'] ?? '' ); $result = self::run_policy( $id, 0, 'admin-post' );
+		// Mismo caso de uso que REST y WP-CLI; en una red, la automatización completa abarca la red entera.
+		$result = self::service_run_automation( sanitize_key( $_POST['digitalisimo_backup_policy'] ?? '' ), array( 'network' => is_multisite(), 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
-		if ( ! empty( $result['duplicate'] ) ) self::redirect( false, 'Esta automatización ya tiene un respaldo pendiente o en curso; su avance está en «Trabajos».' );
-		Digitalisimo_Backups_Jobs::schedule( true );
 		self::redirect( true, 'Automatización en cola. Su avance aparece en «Trabajos»; si cierras esta página, WP-Cron la continuará.' );
 	}
 	public static function run() {
@@ -418,19 +420,10 @@ final class Digitalisimo_Backups {
 		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Inicia el respaldo completo desde el sitio principal o la administración de red.', $context );
 		$scope = sanitize_key( wp_unslash( $_POST['digitalisimo_backup_scope'] ?? 'installation' ) );
 		if ( ! in_array( $scope, array( 'installation', 'network' ), true ) ) self::redirect( false, 'La exportación de un subsitio no constituye un respaldo completo de WordPress.', $context );
-		$settings = self::settings();
-		$available = self::manual_destinations( $settings );
-		$destination = sanitize_key( wp_unslash( $_POST['digitalisimo_backup_destination'] ?? $settings['destination'] ) );
-		if ( ! isset( $available[ $destination ] ) ) self::redirect( false, 'El destino seleccionado no está conectado o no es válido.', $context );
-		try {
-			self::ensure_ready();
-			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'via' => 'admin-post', 'network' => $context ) ) );
-		} catch ( Exception $e ) {
-			self::redirect( false, $e->getMessage(), $context );
-		}
-		if ( ! empty( $queued['duplicate'] ) ) self::redirect( false, 'Ya hay un respaldo manual pendiente o en curso; su avance está en «Trabajos».', $context );
-		Digitalisimo_Backups_Jobs::schedule( true );
-		self::redirect( true, 'Respaldo completo en cola hacia ' . self::destination_label( $destination ) . '. Su avance aparece en «Trabajos»; si cierras esta página, WP-Cron lo continuará.', $context );
+		// En una red, el botón anuncia «de la red» y sólo lo ve quien la administra: ese es el alcance que autoriza.
+		$result = self::service_create( array( 'destination' => wp_unslash( $_POST['digitalisimo_backup_destination'] ?? '' ), 'network' => is_multisite(), 'via' => 'admin-post', 'context' => $context ? 'network' : 'site' ) );
+		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message(), $context );
+		self::redirect( true, 'Respaldo completo en cola hacia ' . self::destination_label( $result['destination'] ) . '. Su avance aparece en «Trabajos»; si cierras esta página, WP-Cron lo continuará.', $context );
 	}
 
 	/** Opción del avance manual de 1.0.58 y anteriores: ya no bloquea nada y se retira al abrir la pantalla. */
@@ -459,16 +452,18 @@ final class Digitalisimo_Backups {
 		if ( is_multisite() && ! is_main_site() ) wp_send_json_error( array( 'message' => 'Inicia el respaldo completo desde el sitio principal o la administración de red.' ), 400 );
 		$context = sanitize_key( wp_unslash( $_POST['context'] ?? 'site' ) );
 		if ( ! in_array( $context, array( 'site', 'network' ), true ) || ( 'network' === $context && ! is_multisite() ) ) wp_send_json_error( array( 'message' => 'Contexto de administración inválido.' ), 400 );
-		$settings = self::settings();
+		// El destino vacío no toma el de los ajustes: esta vista siempre envía el elegido.
 		$destination = sanitize_key( wp_unslash( $_POST['destination'] ?? '' ) );
-		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) ) wp_send_json_error( array( 'message' => 'El destino seleccionado no está conectado o no es válido.' ), 400 );
-		try {
-			self::ensure_ready();
-			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'via' => 'ajax', 'network' => 'network' === $context ) ) );
-		} catch ( Throwable $error ) { wp_send_json_error( array( 'message' => $error->getMessage() ), 400 ); }
-		if ( ! empty( $queued['duplicate'] ) ) wp_send_json_error( array( 'message' => 'Ya hay un respaldo manual pendiente o en curso; su avance está en «Trabajos».', 'id' => $queued['job']['id'] ), 409 );
-		Digitalisimo_Backups_Jobs::schedule();
-		$job = $queued['job'];
+		if ( '' === $destination ) wp_send_json_error( array( 'message' => 'El destino seleccionado no está conectado o no es válido.' ), 400 );
+		// Mismo caso de uso que el formulario, REST y WP-CLI; en una red, el botón anuncia «de la red». Aquí el navegador da los ticks.
+		$result = self::service_create( array( 'destination' => $destination, 'network' => is_multisite(), 'via' => 'ajax', 'context' => $context, 'spawn' => false ) );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			if ( ! empty( $data['job'] ) ) wp_send_json_error( array( 'message' => $result->get_error_message(), 'id' => $data['job'] ), 409 );
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+		$job = Digitalisimo_Backups_Jobs::get( $result['id'] );
+		if ( ! $job ) wp_send_json_error( array( 'message' => 'La sesión de respaldo no existe o expiró.' ), 404 );
 		wp_send_json_success( array( 'token' => $job['id'], 'id' => $job['id'], 'job' => self::manual_view( $job ), 'view' => Digitalisimo_Backups_Jobs::view( $job ) ) );
 	}
 	public static function manual_status() {
@@ -497,11 +492,11 @@ final class Digitalisimo_Backups {
 		if ( ! is_writable( $dir ) ) throw new Digitalisimo_Backups_Permanent_Error( 'No se puede escribir en la carpeta protegida de DIGITALÍSIMO Backups.' );
 		self::assert_full_files_ready();
 	}
+	/** wp-content, plugins, medios y temas dentro de ABSPATH y sin enlaces; wp-config.php legible donde WordPress lo carga. */
 	private static function assert_full_files_ready() {
-		$root = realpath( ABSPATH );
-		$content = realpath( WP_CONTENT_DIR );
-		if ( false === $root || false === $content ) throw new Exception( 'No se pudo resolver la ruta de WordPress o wp-content.' );
-		if ( ! self::path_within( $content, $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; esta instalación requiere configurar su inclusión antes de respaldarla.' );
+		// Con varias redes el respaldo exporta todas: nunca desde una red secundaria (vista con avance, cron y automatizaciones incluidos).
+		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) throw new Exception( self::service_main_site_problem() );
+		Digitalisimo_Backups_Layout::assert_complete();
 		self::wordpress_config_file();
 	}
 	private static function wordpress_config_file() {
@@ -714,7 +709,12 @@ final class Digitalisimo_Backups {
 			$path = wp_normalize_path( $entry->getPathname() );
 			if ( 0 === strpos( $path, $backup_dir ) ) continue;
 			if ( isset( $active_database_files[ $path ] ) ) continue; // database.sql es la copia lógica consistente.
-			if ( $entry->isLink() ) throw new Exception( 'El respaldo completo no puede omitir el enlace simbólico ' . $path . '.' );
+			if ( $entry->isLink() ) {
+				// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido abajo y nunca se restaura encima.
+				if ( $root . 'wp-config.php' === $path ) continue;
+				// Permanente: repetir la fase no lo arregla; el trabajo falla al momento con la ruta y qué hacer.
+				throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo completo no puede omitir el enlace simbólico ' . $path . ' (apunta a ' . ( realpath( $path ) ?: (string) @readlink( $path ) ) . '). Sustitúyelo por el archivo o la carpeta real para respaldar la instalación completa.' );
+			}
 			if ( ! $entry->isFile() ) continue;
 			$relative = substr( $path, strlen( $root ) );
 			$name = 'wordpress/' . $relative;
@@ -1252,38 +1252,29 @@ final class Digitalisimo_Backups {
 		@set_time_limit( 0 );
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) wp_unslash( $_POST['confirmation'] ?? '' ) ) ) );
 		if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' );
-		// La frase se usa tal cual: sanitize_text_field() la alteraría.
-		$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
-		$notice = '';
+		if ( empty( $_POST['updraft'] ) ) {
+			// Mismo caso de uso que REST y WP-CLI. En una red, esta pantalla restaura la red entera. La frase se usa tal
+			// cual: sanitize_text_field() la alteraría.
+			$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ) ) );
+			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
+			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
+		}
+		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
+		$allowed = self::service_scope( is_multisite(), true );
+		if ( is_wp_error( $allowed ) ) self::redirect( false, 'La restauración se detuvo: ' . $allowed->get_error_message() );
 		try {
 			$operation_lock = self::acquire_operation_lock();
 			try {
 				if ( Digitalisimo_Backups_Jobs::has_active() ) throw new Exception( 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
-				if ( ! empty( $_POST['updraft'] ) ) {
-					Digitalisimo_Backups_Security::require_confirmation( array( 'trust' => 'untrusted', 'auth' => 'unsigned' ), $confirmation );
-					self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
-				} else {
-					$file = sanitize_file_name( wp_unslash( $_POST['backup_file'] ?? '' ) );
-					$path = self::local_path( $file );
-					if ( ! $path ) throw new Exception( 'El respaldo local solicitado no está disponible.' );
-					$report = Digitalisimo_Backups_Security::open( $path, self::history_item( $file ), $secret );
-					try {
-						Digitalisimo_Backups_Security::require_confirmation( $report, $confirmation );
-						self::restore_digitalisimo_zip( $report['path'], $report );
-						if ( ! empty( $_POST['backup_secret_adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
-							try { Digitalisimo_Backups_Keys::adopt( $report['root'], $report['key'] ); $notice = ' La frase escrita firma ahora los respaldos nuevos (clave ' . Digitalisimo_Backups_Keys::short( $report['key']['id'] ) . ').'; }
-							catch ( Exception $adopt_error ) { $notice = ' No se guardó la frase: ' . $adopt_error->getMessage(); }
-						}
-					} finally {
-						Digitalisimo_Backups_Security::close( $report );
-					}
-				}
+				Digitalisimo_Backups_Security::require_confirmation( array( 'trust' => 'untrusted', 'auth' => 'unsigned' ), $confirmation );
+				self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
 			} finally {
 				self::release_operation_lock( $operation_lock );
 				// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
 				try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 			}
-			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . $notice );
+			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
 		} catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); }
 	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); if ( '' === $file || '.' === $file[0] ) return ''; $root = realpath( self::local_directory() ); if ( ! $root || is_link( trailingslashit( $root ) . $file ) ) return ''; $path = realpath( trailingslashit( $root ) . $file ); return $path && dirname( wp_normalize_path( $path ) ) === wp_normalize_path( $root ) && is_file( $path ) ? $path : ''; }
@@ -1299,24 +1290,7 @@ final class Digitalisimo_Backups {
 		$zip = $report['zip'];
 		try {
 			$trusted = 'untrusted' !== $report['trust'];
-			Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
-			self::verify_zip_contents( $zip );
-			$manifest = $zip->getFromName( 'manifest.json' );
-			$migration = $zip->getFromName( 'migration.json' );
-			$metadata = false !== $manifest ? $manifest : $migration;
-			$data = json_decode( $metadata, true );
-			if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'La metadata del respaldo no es válida.' );
-			if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
-			if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
-			if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
-			if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) throw new Exception( 'No se puede restaurar directamente entre WordPress individual y Multisite.' );
-			if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) throw new Exception( 'La red completa sólo puede restaurarse desde su sitio principal.' );
-			if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) throw new Exception( 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.' );
-			if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
-			$sql_stat = $zip->statName( 'database.sql' );
-			if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
-			Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
-			Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->scan_zip( $zip );
+			$data = self::inspect_package( $zip, $trusted, true );
 			// Copia previa con el motor de trabajos: nunca se cifra, se firma si hay clave y nace con su nombre protegido.
 			$safety = self::create_network( 'safety-before-restore-' );
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
@@ -1348,6 +1322,40 @@ final class Digitalisimo_Backups {
 		} finally {
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
+	}
+	/**
+	 * Todo lo que puede rechazar un paquete antes de la copia previa y de cualquier consulta o escritura: entradas,
+	 * contenido contra el manifiesto, alcance completo, manifiesto v3 estricto, base de datos y guardián SQL en seco.
+	 * Con $installation, también las condiciones de esta instalación (red o sitio, sitio principal, prefijo de tablas y
+	 * espacio libre), en el mismo orden de siempre. La restauración y `verify` (REST y WP-CLI) usan esta misma función.
+	 * Devuelve el manifiesto (el estricto si es v3).
+	 */
+	private static function inspect_package( $zip, $trusted, $installation ) {
+		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
+		self::verify_zip_contents( $zip );
+		$manifest = $zip->getFromName( 'manifest.json' );
+		$migration = $zip->getFromName( 'migration.json' );
+		$metadata = false !== $manifest ? $manifest : $migration;
+		$data = json_decode( (string) $metadata, true );
+		if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'La metadata del respaldo no es válida.' );
+		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
+		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
+		if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		if ( $installation ) foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
+		if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
+		$sql_stat = $zip->statName( 'database.sql' );
+		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
+		if ( $installation ) Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
+		Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->scan_zip( $zip );
+		return $data;
+	}
+	/** Por qué un paquete íntegro no puede restaurarse en esta instalación (vacío si puede). */
+	private static function package_installation_problems( array $data ) {
+		$problems = array();
+		if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite.';
+		if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) $problems[] = 'La red completa sólo puede restaurarse desde su sitio principal.';
+		if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) $problems[] = 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.';
+		return $problems;
 	}
 	/** El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse. Idempotente. */
 	private static function after_restore_sql( $history_before, $vault_before ) {
