@@ -269,6 +269,14 @@ jobs:
           php tests/backups-job-compat.php
           php tests/backups-job-kill.php
           node tests/backups-jobs-ui.mjs
+          php tests/backups-untrusted-archive.php
+          php tests/backups-sql-guard.php
+          php tests/backups-keys.php
+          php tests/backups-manifest-auth.php
+          php tests/backups-encryption.php
+          php tests/backups-compat-legacy.php
+          php tests/backups-interrupted-restore.php
+          php tests/backups-job-security.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

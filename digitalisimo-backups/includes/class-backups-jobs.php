@@ -43,10 +43,17 @@ final class Digitalisimo_Backups_Jobs {
 
 	/* ------------------------------------------------------------------ Cola */
 
-	/** Especificación inmutable: destino, retención y nombre final se fijan al encolar; las credenciales nunca. */
+	/**
+	 * Especificación inmutable: destino, retención, nombre final, cifrado y huella de la clave se fijan al encolar; las
+	 * credenciales y las claves nunca. Con el cifrado activo y sin clave lanza la excepción de plan(): no se encola un
+	 * respaldo que saldría en claro. La copia previa a una restauración nunca se cifra.
+	 */
 	public static function spec( array $args ) {
 		$destination = (string) ( $args['destination'] ?? 'local' );
 		$retention = (string) ( $args['retention'] ?? 'global' );
+		$security = Digitalisimo_Backups_Security::job_settings( ! empty( $args['inline'] ) );
+		$file = (string) ( $args['file'] ?? Digitalisimo_Backups::backup_file_name() );
+		if ( $security['encrypt'] && '.zip' === substr( $file, -4 ) ) $file = substr( $file, 0, -4 ) . '.dgbk';
 		return array(
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'type' => 'full',
@@ -55,8 +62,9 @@ final class Digitalisimo_Backups_Jobs {
 			'retain' => max( 1, min( 100, (int) ( $args['retain'] ?? 5 ) ) ),
 			'retention' => in_array( $retention, array( 'global', 'policy', 'none' ), true ) ? $retention : 'global',
 			'site_id' => (int) ( $args['site_id'] ?? 0 ) ?: (int) get_current_blog_id(),
-			'file' => (string) ( $args['file'] ?? Digitalisimo_Backups::backup_file_name() ),
+			'file' => $file,
 			'inline' => ! empty( $args['inline'] ),
+			'security' => $security,
 			'origin' => array(
 				'via' => (string) ( $args['via'] ?? 'admin-post' ),
 				'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
@@ -651,7 +659,7 @@ final class Digitalisimo_Backups_Jobs {
 		$error = is_array( $job['error'] ?? null ) ? (string) ( $job['error']['message'] ?? '' ) : '';
 		$message = (string) ( $job['progress']['message'] ?? '' );
 		$detail = array();
-		if ( 'success' === $status ) $detail[] = 'ZIP verificado: ' . basename( (string) ( $spec['file'] ?? '' ) );
+		if ( 'success' === $status ) $detail[] = ( '.dgbk' === substr( (string) ( $spec['file'] ?? '' ), -5 ) ? 'Respaldo cifrado y verificado: ' : 'ZIP verificado: ' ) . basename( (string) ( $spec['file'] ?? '' ) );
 		elseif ( 'failed' === $status ) $detail[] = $error ?: $message;
 		elseif ( 'cancelled' === $status ) $detail[] = $message;
 		else {

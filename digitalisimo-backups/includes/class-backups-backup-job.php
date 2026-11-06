@@ -7,7 +7,9 @@ defined( 'ABSPATH' ) || exit;
  * vez si el empaquetado se interrumpe; un ZIP verificado no se reconstruye si falla la transferencia).
  *
  * Todo lo intermedio vive en `jobs/<id>/staging/`, que no coincide con los nombres de respaldo, no figura en el
- * historial y no se puede descargar. El nombre final sólo nace de un `rename()` después de verificar el ZIP.
+ * historial y no se puede descargar. El nombre final sólo nace de un `rename()` después de verificar el ZIP. Con la
+ * clave que el trabajo fijó al encolarse, `pack` firma el manifiesto, `verify` comprueba la firma y, si el trabajo
+ * cifra, termina sellando el ZIP verificado en un DGBK que también se descifra completo antes de publicarse.
  */
 final class Digitalisimo_Backups_Backup_Job {
 	public static function run_phase( $phase, array $job ) {
@@ -72,35 +74,53 @@ final class Digitalisimo_Backups_Backup_Job {
 		self::remove_matching( $staging, '/^package\./' );
 		$target = $staging . '/package.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.zip';
 		try {
-			$build = Digitalisimo_Backups::job_build_package( $target, $sql, $database, array( 'job_id' => $job['id'] ) );
+			$build = Digitalisimo_Backups::job_build_package( $target, $sql, $database, array( 'job_id' => $job['id'], 'spec' => $job['spec'] ) );
 		} catch ( Throwable $e ) {
 			self::remove_matching( $staging, '/^package\./' );
 			throw $e;
 		}
 		return array(
 			'next' => 'verify',
-			'checkpoint' => array( 'file' => basename( $target ), 'fp' => self::fingerprint( $target ), 'file_count' => (int) $build['file_count'], 'files_started_at' => $build['files_started_at'], 'files_completed_at' => $build['files_completed_at'] ),
+			'checkpoint' => array( 'file' => basename( $target ), 'fp' => self::fingerprint( $target ), 'file_count' => (int) $build['file_count'], 'files_started_at' => $build['files_started_at'], 'files_completed_at' => $build['files_completed_at'], 'backup_id' => (string) ( $build['backup_id'] ?? '' ), 'created_at' => (string) ( $build['created_at'] ?? '' ), 'signed' => ! empty( $build['signed'] ) ),
 			'message' => 'ZIP escrito; verificando cada entrada…',
 		);
 	}
 
-	/** Relee cada entrada contra el manifiesto. Si falla, el ZIP se rehace (un archivo pudo cambiar mientras se leía). */
+	/**
+	 * Relee cada entrada contra el manifiesto y comprueba la firma. Si falla, el ZIP se rehace (un archivo pudo cambiar
+	 * mientras se leía). Un trabajo cifrado sella después el ZIP verificado: si el sellado falla, se repite esta fase.
+	 */
 	private static function verify( array $job ) {
 		$pack = $job['checkpoint']['pack'] ?? null;
-		$path = is_array( $pack ) ? Digitalisimo_Backups_Job_Store::staging( $job['id'] ) . '/' . basename( (string) ( $pack['file'] ?? '' ) ) : '';
+		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
+		$path = is_array( $pack ) ? $staging . '/' . basename( (string) ( $pack['file'] ?? '' ) ) : '';
 		if ( ! $path || ! is_file( $path ) || ! self::same_fingerprint( self::fingerprint( $path ), $pack['fp'] ?? array() ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP del área de trabajo cambió o desapareció antes de verificarse; se empaquetará otra vez.', 'pack' );
 		try {
-			Digitalisimo_Backups::job_verify_package( $path );
+			Digitalisimo_Backups::job_verify_package( $path, $job['spec'] );
 		} catch ( Digitalisimo_Backups_Job_Cancelled $e ) {
 			throw $e;
 		} catch ( Digitalisimo_Backups_Job_Lease_Lost $e ) {
+			throw $e;
+		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
 			throw $e;
 		} catch ( Exception $e ) {
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La verificación del ZIP falló: ' . $e->getMessage(), 'pack' );
 		}
 		$fingerprint = self::fingerprint( $path );
 		if ( ! self::same_fingerprint( $fingerprint, $pack['fp'] ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se verificaba; se empaquetará otra vez.', 'pack' );
-		return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…' );
+		if ( ! Digitalisimo_Backups::job_encrypts( $job['spec'] ) ) return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…' );
+		$sealed = $staging . '/' . preg_replace( '/\.zip$/', '', basename( $path ) ) . '.dgbk';
+		try {
+			Digitalisimo_Backups::job_seal_package( $path, $sealed, $job['spec'], array( 'backup_id' => (string) ( $pack['backup_id'] ?? '' ), 'created_at' => (string) ( $pack['created_at'] ?? '' ) ) );
+		} catch ( Throwable $e ) {
+			@unlink( $sealed );
+			throw $e;
+		}
+		if ( ! self::same_fingerprint( self::fingerprint( $path ), $pack['fp'] ) ) {
+			@unlink( $sealed );
+			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se cifraba; se empaquetará otra vez.', 'pack' );
+		}
+		return array( 'next' => 'publish', 'checkpoint' => array( 'file' => basename( $sealed ), 'fp' => self::fingerprint( $sealed ), 'zip_fp' => $fingerprint, 'at' => time() ), 'message' => 'Respaldo verificado y cifrado; registrándolo…' );
 	}
 
 	/**
@@ -113,8 +133,12 @@ final class Digitalisimo_Backups_Backup_Job {
 		$verified = (array) ( $job['checkpoint']['verify']['fp'] ?? array() );
 		if ( ! $verified ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta la verificación del ZIP; se repetirá.', 'verify' );
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
-		$staged = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/' . basename( (string) ( $pack['file'] ?? '' ) );
-		$has_staged = ! empty( $pack['file'] ) && is_file( $staged );
+		// Un trabajo cifrado publica el DGBK que selló la verificación; el ZIP en claro nunca sale del área de trabajo.
+		$encrypted = Digitalisimo_Backups::job_encrypts( $spec );
+		$staged_name = $encrypted ? (string) ( $job['checkpoint']['verify']['file'] ?? '' ) : (string) ( $pack['file'] ?? '' );
+		if ( $encrypted && '.dgbk' !== substr( $staged_name, -5 ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta el respaldo cifrado de la verificación; se repetirá.', 'verify' );
+		$staged = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/' . basename( $staged_name );
+		$has_staged = '' !== $staged_name && is_file( $staged );
 		$has_final = is_file( $final );
 		if ( $has_staged && $has_final ) throw new Digitalisimo_Backups_Permanent_Error( 'Ya existe un archivo con el nombre final del respaldo; no se sobrescribe.' );
 		if ( $has_staged ) {
@@ -124,6 +148,7 @@ final class Digitalisimo_Backups_Backup_Job {
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP verificado ya no está en el área de trabajo; se empaquetará otra vez.', 'pack' );
 		}
 		if ( ! self::same_fingerprint( self::fingerprint( $final ), $verified ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo con el nombre final no es el ZIP que se verificó; revisa el almacén privado.' );
+		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\..*\.zip$/' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
 		$remote = 'local' !== $spec['destination'];

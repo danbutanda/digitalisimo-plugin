@@ -23,6 +23,14 @@ Desde la etapa F-front (Fase 2 del front, [ELEMENTS_FRONT_OBJECTIVE.md](ELEMENTS
 
 Prism 1.23.0 tiene avisos de seguridad publicados (al menos CVE-2024-53382, corregido en 1.30.0). Servirlo desde el plugin no aumenta la exposición frente a pedirlo a cdnjs, que daba los mismos bytes; la subida de versión queda como etapa propia. Un lenguaje que un tercero añada con el filtro `elementor_pro/code_highlight/languages` y que no esté en el subconjunto queda sin resaltar.
 
+## Copias de terceros sólo para pruebas
+
+No se distribuyen en ningún plugin ni en ningún ZIP: sólo las cargan pruebas de `tests/`.
+
+| Componente | Versión | Autor | Origen | Licencia | Ruta | Aviso |
+| --- | --- | --- | --- | --- | --- | --- |
+| sodium_compat | `polyfill-1.0.8`, la copia que trae WordPress 7.1.4 en `wp-includes/sodium_compat/` | Paragon Initiative Enterprises y Frank Denis | `https://wordpress.org/wordpress-7.1.4.zip` (SHA-1 oficial `b552c39cd95d89895b4e7a55af53a03687aff4f6`; `SOURCE.txt` anota también el SHA-256 de cada archivo) | ISC | `tests/lib/sodium_compat/`: las pruebas de DIGITALÍSIMO Backups la cargan sólo si PHP no tiene libsodium nativo (php-wasm); en un sitio, Backups usa la extensión sodium o el sodium_compat del propio WordPress | `tests/lib/sodium_compat/LICENSE` |
+
 ## Primer componente reconstruido: Animated Link
 
 `digitalisimo-elements/modules/digitalisimo-widgets/class-animated-link.php` reconstruye controles y salida con clases de Elementor. Hasta 4.3.0.129 sus tres trazos SVG y `assets/css/animated-link.css` se habían adaptado del módulo Animated Link de Element Pack Pro 9.9.1 (GPLv3). Desde 4.3.0.130 ambos son implementación propia escrita desde cero: hoja con variables CSS y keyframes propios, y trazos (onda, arco y garabato) dibujados con coordenadas propias. Se conservan sólo los valores guardados de las quince variantes (`metis`, `io`, `leda`…) para que los documentos existentes sigan mostrando el mismo efecto; una comparación de capturas en Chrome, en reposo y al pasar el cursor, confirmó el mismo efecto en las quince salvo el dibujo de los tres trazos. Ya no se distribuye código de Element Pack.
