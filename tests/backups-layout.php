@@ -141,7 +141,7 @@ try {
 	$verified = Digitalisimo_Backups::service_verify( 'digitalisimo-backup-otro.zip' );
 	digi_assert( ! is_wp_error( $verified ) && true === $verified['verified'], 'El paquete de prueba no es un respaldo íntegro.' );
 	$error = Digitalisimo_Backups::service_restore( 'digitalisimo-backup-otro.zip', array( 'confirm' => 'RESTAURAR' ) );
-	digi_assert( is_wp_error( $error ) && $expected === $error->get_error_message(), 'La restauración no se detuvo con el mismo motivo: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
+	digi_assert( is_wp_error( $error ) && 422 === $error->get_error_data()['status'] && 'digitalisimo_backups_not_ready' === $error->get_error_code() && $expected === $error->get_error_message(), 'La restauración no se detuvo con el mismo motivo (422): ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
 	digi_assert( 'Contenido de wp-includes/version.php' === file_get_contents( ABSPATH . 'wp-includes/version.php' ) && 'Sitio de prueba' === $GLOBALS['wpdb']->value( 'blogname' ) && array() === $GLOBALS['wpdb']->queries, 'La restauración rechazada tocó archivos o la base de datos.' );
 	digi_assert( array( 'digitalisimo-backup-otro.zip' ) === digi_stored( $root . '/private' ) && array() === get_option( Digitalisimo_Backups::HISTORY, array() ), 'La restauración rechazada dejó una copia previa incompleta.' );
 } finally {

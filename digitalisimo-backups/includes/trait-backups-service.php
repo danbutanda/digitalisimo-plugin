@@ -234,6 +234,8 @@ trait Digitalisimo_Backups_Service {
 		if ( 'RESTAURAR' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe RESTAURAR para confirmar una operación destructiva.', 400 );
 		$path = self::service_local_file( $file );
 		if ( is_wp_error( $path ) ) return $path;
+		// La copia previa es un respaldo completo: sin él no se restaura (422, como al crear), y nada se toca.
+		try { self::service_preflight(); } catch ( Exception $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
 		@set_time_limit( 0 );
 		ignore_user_abort( true );
 		$lock = self::service_lock();
