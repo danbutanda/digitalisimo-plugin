@@ -1105,16 +1105,17 @@ final class Digitalisimo_Backups {
 			if ( ! @rename( $safety, $protected ) ) throw new Exception( 'No se pudo proteger el respaldo previo a la restauración.' );
 			$safety = $protected;
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
-			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
+			// El historial que debe quedar, ya con la copia previa: reconstruirlo no vuelve a leer la copia entera.
+			$history_before = (array) get_option( self::HISTORY, array() );
 			self::write_restore_journal();
 			$created_files = array();
 			try {
 				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
 				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
 				// llavero y la seguridad ya están en su sitio. El finally lo repite y es quien avisa si falla.
-				try { self::after_restore_sql( $history_before, $vault_before, $safety, $policy ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				self::extract_digitalisimo_files( $zip, $created_files );
 			} catch ( Throwable $failure ) {
 				try {
@@ -1126,22 +1127,18 @@ final class Digitalisimo_Backups {
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
 				}
 			} finally {
-				self::after_restore_sql( $history_before, $vault_before, $safety, $policy );
+				self::after_restore_sql( $history_before, $vault_before );
 				self::remove_restore_journal();
 			}
 		} finally {
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
 	}
-	/**
-	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse.
-	 * Idempotente; con $safety vuelve a registrar la copia previa.
-	 */
-	private static function after_restore_sql( $history_before, $vault_before, $safety = '', $policy = array() ) {
+	/** El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse. Idempotente. */
+	private static function after_restore_sql( $history_before, $vault_before ) {
 		wp_cache_flush();
 		update_option( self::HISTORY, $history_before, false );
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
-		if ( $safety ) self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 	}
 	/** Sólo borra archivos creados por este intento y que no cambiaron desde que se escribieron. */
 	private static function remove_new_restore_files( $created_files ) {
