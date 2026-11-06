@@ -129,7 +129,12 @@ final class Digitalisimo_Backups_Jobs {
 		} catch ( Throwable $e ) {
 			return array( 'result' => 'error', 'message' => $e->getMessage() );
 		}
-		if ( ! $lock ) return array( 'result' => 'busy' );
+		if ( ! $lock ) {
+			// WP-Cron ya retiró el evento que disparó este tick: sin otro programado, un trabajo encolado mientras otra
+			// operación (una restauración, un paso largo) tenía el cerrojo esperaría al watchdog horario.
+			self::schedule( false, time() + 60 );
+			return array( 'result' => 'busy' );
+		}
 		$result = 'idle';
 		$finished = false;
 		try {
@@ -450,6 +455,8 @@ final class Digitalisimo_Backups_Jobs {
 		} finally {
 			Digitalisimo_Backups::release_operation_lock( $lock );
 		}
+		// El detector pudo devolver a la cola un trabajo cuyo proceso murió: necesita su tick.
+		self::schedule();
 		return true;
 	}
 	/** Un paso interrumpido descarta lo que dejó a medias, cuenta un intento y espera para repetir desde su punto de control. */
@@ -522,8 +529,11 @@ final class Digitalisimo_Backups_Jobs {
 
 	/* ------------------------------------------------------------------ Disparadores */
 
-	/** Mientras quede trabajo hay un tick único programado; con `spawn` se lanza ya el cron si toca ahora. */
-	public static function schedule( $spawn = false ) {
+	/**
+	 * Mientras quede trabajo hay un tick único programado; con `spawn` se lanza ya el cron si toca ahora. `$not_before`
+	 * evita que un tick que encontró el cerrojo ocupado se reprograme para ya mismo en cada carga de página.
+	 */
+	public static function schedule( $spawn = false, $not_before = 0 ) {
 		if ( ! function_exists( 'wp_schedule_single_event' ) ) return;
 		try {
 			$next = null;
@@ -534,6 +544,7 @@ final class Digitalisimo_Backups_Jobs {
 		} catch ( Throwable $e ) {
 			return;
 		}
+		if ( null !== $next ) $next = max( $next, (int) $not_before );
 		self::on_main_site( function() use ( $next, $spawn ) {
 			$scheduled = wp_next_scheduled( self::HOOK_TICK );
 			if ( null === $next ) return;

@@ -97,6 +97,34 @@ $job = bk_job( $f['id'] );
 bk_assert( 'pack' === $job['phase'] && 1 === $job['attempts']['verify'] && ! isset( $job['checkpoint']['pack'] ), 'Un ZIP alterado tras empaquetarse no volvió al empaquetado.' );
 bk_run_until_done( $f['id'] );
 bk_assert( 'success' === bk_job( $f['id'] )['status'], 'El ZIP rehecho no terminó.' );
+// La fase de verificación lee de verdad cada entrada: un ZIP dañado por dentro con la misma huella (tamaño y fecha)
+// vuelve al empaquetado y nunca llega al nombre final ni al historial.
+$v = bk_manual( 'local', 'zip-danado' );
+$job = until_phase( $v['id'], 'verify' );
+$staged = bk_storage() . '/jobs/' . $v['id'] . '/staging/' . $job['checkpoint']['pack']['file'];
+$entry = 'wordpress/wp-content/uploads/2026/11/foto.jpg';
+$probe = new ZipArchive();
+bk_assert( true === $probe->open( $staged ), 'La prueba no pudo abrir el ZIP del área de trabajo.' );
+$compressed = (int) $probe->statName( $entry )['comp_size'];
+$probe->close();
+$raw = file_get_contents( $staged );
+$header = strpos( $raw, $entry ) - 30;
+bk_assert( $header >= 0 && "PK\x03\x04" === substr( $raw, $header, 4 ) && $compressed > 2, 'La prueba no encontró la cabecera local de la entrada.' );
+$data = $header + 30 + unpack( 'v', substr( $raw, $header + 26, 2 ) )[1] + unpack( 'v', substr( $raw, $header + 28, 2 ) )[1];
+$offset = $data + intdiv( $compressed, 2 );
+$raw[ $offset ] = chr( ord( $raw[ $offset ] ) ^ 0xff );
+$mtime = filemtime( $staged );
+file_put_contents( $staged, $raw );
+touch( $staged, $mtime );
+clearstatcache();
+bk_assert( Digitalisimo_Backups_Backup_Job::same_fingerprint( Digitalisimo_Backups_Backup_Job::fingerprint( $staged ), $job['checkpoint']['pack']['fp'] ), 'La prueba no conservó la huella del ZIP dañado.' );
+Digitalisimo_Backups_Jobs::tick( 0 );
+$job = bk_job( $v['id'] );
+bk_assert( 'pack' === $job['phase'] && 1 === $job['attempts']['verify'] && false !== strpos( (string) $job['error']['message'], 'verificación del ZIP falló' ), 'Un ZIP dañado por dentro superó la verificación.' );
+bk_assert( ! is_file( bk_storage() . '/' . $v['spec']['file'] ) && ! rows_for( $v['spec']['file'] ), 'Un ZIP dañado llegó al nombre final o al historial.' );
+bk_run_until_done( $v['id'] );
+bk_assert( 'success' === bk_job( $v['id'] )['status'] && 1 === count( rows_for( $v['spec']['file'] ) ), 'El ZIP rehecho tras el daño no terminó.' );
+Digitalisimo_Backups::job_verify_package( bk_storage() . '/' . $v['spec']['file'] );
 
 // E. Muerte durante la transferencia: el ZIP local ya está registrado y verificado; sólo se repite la copia.
 update_option( 'digitalisimo_backups_settings', array( 'google_client_id' => 'cliente', 'google_client_secret' => 'secreto', 'google_refresh_token' => 'renovar', 'google_folder_id' => '' ) );
@@ -139,6 +167,35 @@ bk_assert( 'failed' === bk_job( $inline['id'] )['status'] && ! is_dir( bk_storag
 bk_assert( ! glob( bk_storage() . '/digitalisimo-*.zip.*' ) && ! glob( sys_get_temp_dir() . '/digitalisimo-sql-*' ), 'Quedaron temporales de libzip o SQL fuera del área de trabajo.' );
 assert_history_verified();
 bk_assert( ! Digitalisimo_Backups_Jobs::has_active(), 'Quedaron trabajos activos.' );
+
+// G. La retención de otro trabajo nunca borra el ZIP verificado que espera su copia remota (reintento en espera).
+$fails = 1;
+$google = bk_google_ok();
+$GLOBALS['bk_remote'] = function( $method, $url, $args ) use ( &$fails, $google ) {
+	if ( 'PUT' === $method && $fails > 0 ) { $fails--; return array( 'response' => array( 'code' => 503 ), 'body' => '' ); }
+	return $google( $method, $url, $args );
+};
+update_option( 'digitalisimo_backups_settings', array( 'google_client_id' => 'cliente', 'google_client_secret' => 'secreto', 'google_refresh_token' => 'renovar', 'google_folder_id' => '' ) );
+$waiting = bk_manual( 'google', 'copia-en-espera' );
+for ( $i = 0; $i < 20 && ! ( 'transfer' === bk_job( $waiting['id'] )['phase'] && 'queued' === bk_job( $waiting['id'] )['status'] ); $i++ ) Digitalisimo_Backups_Jobs::tick( 0 );
+Digitalisimo_Backups_Job_Store::with_lock( function() use ( $waiting ) { $job = Digitalisimo_Backups_Job_Store::read( $waiting['id'] ); $job['retry_at'] = time() + 3600; Digitalisimo_Backups_Job_Store::write( $job ); } );
+bk_assert( 'pending' === rows_for( $waiting['spec']['file'] )[0]['transfer'] && 1 === bk_job( $waiting['id'] )['attempts']['transfer'], 'La copia remota no quedó en espera de reintento.' );
+foreach ( (array) glob( bk_storage() . '/digitalisimo-*.zip' ) as $older ) touch( $older, time() - 120 );
+touch( bk_storage() . '/' . $waiting['spec']['file'], time() - 60 );
+$keep_one = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'local', 'retain' => 1, 'retention' => 'global', 'via' => 'test' ) ) )['job'];
+bk_run_until_done( $keep_one['id'] );
+bk_assert( 'success' === bk_job( $keep_one['id'] )['status'] && is_file( bk_storage() . '/' . $keep_one['spec']['file'] ), 'El respaldo con retención 1 no terminó.' );
+bk_assert( is_file( bk_storage() . '/' . $waiting['spec']['file'] ), 'La retención de otro trabajo borró el ZIP que esperaba su copia remota.' );
+$GLOBALS['bk_uploaded'] = '';
+bk_ready( $waiting['id'] );
+bk_run_until_done( $waiting['id'] );
+$row = rows_for( $waiting['spec']['file'] )[0];
+bk_assert( 'success' === bk_job( $waiting['id'] )['status'] && 'ok' === $row['transfer'] && 'google' === $row['remote']['provider'], 'La copia remota en espera no se completó.' );
+// Ya sin trabajo que lo necesite, la siguiente poda lo rota como cualquier otro.
+touch( bk_storage() . '/' . $keep_one['spec']['file'], time() - 30 );
+$after = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'local', 'retain' => 1, 'retention' => 'global', 'via' => 'test' ) ) )['job'];
+bk_run_until_done( $after['id'] );
+bk_assert( ! is_file( bk_storage() . '/' . $waiting['spec']['file'] ) && is_file( bk_storage() . '/' . $after['spec']['file'] ), 'La retención dejó de rotar un ZIP cuyo trabajo ya terminó.' );
 
 bk_cleanup();
 echo "DIGITALÍSIMO Backups: reanudación tras una muerte en exportación, empaquetado, verificación, registro y transferencia sin rehacer lo confirmado.\n";

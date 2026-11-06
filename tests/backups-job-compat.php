@@ -103,8 +103,10 @@ bk_assert( 1 === count( $policy_jobs ) && 'success' === $policy_jobs[0]['status'
 // Una restauración se niega mientras haya un respaldo pendiente.
 $pending = bk_manual( 'local', 'pendiente' );
 $_POST = array( '_wpnonce' => 'ok', 'confirmation' => 'RESTAURAR', 'backup_file' => basename( $new_file ) );
+$GLOBALS['bk_cron'] = array(); // Lo que deja una restauración: la opción `cron` del SQL restaurado, sin el tick.
 $refused = respond( array( 'Digitalisimo_Backups', 'restore_request' ) );
 bk_assert( false !== strpos( $refused, 'backup=error' ) && false !== strpos( rawurldecode( urldecode( $refused ) ), 'Hay un respaldo pendiente o en curso' ), 'Se restauró con un respaldo pendiente.' );
+bk_assert( false !== wp_next_scheduled( Digitalisimo_Backups_Jobs::HOOK_TICK ), 'Tras la restauración, el trabajo en cola quedó sin tick programado.' );
 Digitalisimo_Backups_Jobs::cancel( $pending['id'] );
 
 // Restos de 1.0.58 tras una muerte: el watchdog sólo retira los temporales de más de 24 h; nunca un ZIP con nombre final.

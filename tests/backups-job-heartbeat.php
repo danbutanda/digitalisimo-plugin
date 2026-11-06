@@ -54,14 +54,21 @@ Digitalisimo_Backups_Job_Store::with_lock( function() use ( $alive ) { $job = Di
 $holder = fopen( bk_storage() . '/.operation.lock', 'c' );
 bk_assert( flock( $holder, LOCK_EX | LOCK_NB ), 'La prueba no pudo simular el proceso vivo.' );
 $rev = bk_job( $alive['id'] )['rev'];
+$GLOBALS['bk_cron'] = array(); // WP-Cron retira el evento antes de llamar al tick.
 $busy = Digitalisimo_Backups_Jobs::tick();
 bk_assert( 'busy' === $busy['result'] && ! Digitalisimo_Backups_Jobs::recover_if_idle() && $rev === bk_job( $alive['id'] )['rev'], 'Se tocó el trabajo de un proceso vivo.' );
+// El tick que encontró el cerrojo ocupado deja otro programado, no para ya mismo: si el dueño muere, alguien lo reconoce.
+$next_tick = wp_next_scheduled( Digitalisimo_Backups_Jobs::HOOK_TICK );
+bk_assert( false !== $next_tick && $next_tick >= time() + 55, 'Un tick con el cerrojo ocupado no dejó otro programado.' );
 $view = Digitalisimo_Backups_Jobs::view( bk_job( $alive['id'] ) );
 bk_assert( $view['stalled'] && $view['running'] && false !== strpos( $view['detail'], 'Sin señal desde' ), 'Un latido de hace más de 10 min no se anunció como «sin señal».' );
 flock( $holder, LOCK_UN );
 fclose( $holder );
+$GLOBALS['bk_cron'] = array();
 Digitalisimo_Backups_Jobs::recover_if_idle();
 bk_assert( 'interrupted' === bk_job( $alive['id'] )['error']['code'], 'Al liberarse el cerrojo, el trabajo no se reconoció como interrumpido.' );
+$next_tick = wp_next_scheduled( Digitalisimo_Backups_Jobs::HOOK_TICK );
+bk_assert( false !== $next_tick && $next_tick <= time() + 1, 'El trabajo devuelto a la cola por el detector quedó sin tick programado.' );
 bk_ready( $dead['id'] );
 bk_run_until_done( $dead['id'] );
 bk_run_until_done( $alive['id'] );
