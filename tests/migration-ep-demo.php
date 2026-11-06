@@ -234,11 +234,15 @@ namespace {
 	$link = array( 'url' => $assets . 'images/gallery/item-1.png extra' );
 	$r    = Demo_Media::resolve( 'bdt-x', array( 'description' => $html, 'custom_css' => $css, 'link' => $link ) );
 	$check( $html === $r['description'] && $css === $r['custom_css'] && $link === $r['link'] && ! Demo_Media::is_plugin_url( $html ) && Demo_Media::is_plugin_url( '//s1.test' . parse_url( $assets, PHP_URL_PATH ) . 'images/x.png' ), 'un HTML, un CSS o un texto con la carpeta en medio quedan intactos; una URL sin esquema sí se reconoce' );
-	// Restringido (documento migrado con 1.0.20): conserva su conversión.
+	// Restringido (documento migrado con 1.0.20): conserva su conversión, la de 1.0.20, cuyo mapa ponía la imagen de ejemplo
+	// del constructor (`$placeholder_url`); nunca la URL de la carpeta del plugin, que da 404 en cuanto se borra.
+	$sideloads          = count( $GLOBALS['ep_sideloads'] );
 	Native::$restricted = true;
 	list( $s, $codes ) = $convert( $card( array(), 'c3' ) );
+	$t                  = Translator::translate( 'bdt-animated-card', array() );
 	Native::$restricted = false;
-	$check( $assets . 'images/coco-can.svg' === $s['image']['url'] && ! isset( $codes['core.demo.copied'] ) && ! isset( $codes['core.demo.skipped'] ), 'modo restringido: sin copias (la conversión de 1.0.20)' );
+	$legacy_placeholder = class_exists( '\Elementor\Utils' ) ? (string) \Elementor\Utils::get_placeholder_image_src() : '';
+	$check( $legacy_placeholder === $s['image']['url'] && $legacy_placeholder === $t['image']['url'] && false === strpos( json_encode( $s ), 'bdthemes-element-pack' ) && $sideloads === count( $GLOBALS['ep_sideloads'] ) && ! isset( $codes['core.demo.copied'] ) && ! isset( $codes['core.demo.skipped'] ), 'modo restringido: la conversión de 1.0.20 (imagen de ejemplo del constructor), sin copias ni la carpeta del plugin' );
 	// Plugin borrado: la carpeta conocida sigue reconociéndose y se vacía.
 	$GLOBALS['wp']['plugins'] = array();
 	$check( Demo_Media::is_plugin_url( 'https://s1.test/wp-content/plugins/bdthemes-element-pack/assets/images/x.png' ) && Demo_Media::is_plugin_url( $assets . 'images/x.png' ) && ! Demo_Media::is_plugin_url( 'https://s1.test/wp-content/plugins/element-pack-otro/assets/images/x.png' ), 'carpetas de Element Pack (Lite y Pro) reconocidas aunque no estén instaladas' );

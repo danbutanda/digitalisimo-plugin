@@ -182,13 +182,22 @@ class Demo_Media {
 		return '';
 	}
 
-	/** Valor por defecto con `{{ep_assets}}` resuelto ('' si no hay Element Pack instalado: nunca una URL a medias). */
+	/**
+	 * Valor por defecto con `{{ep_assets}}` resuelto ('' si no hay Element Pack instalado: nunca una URL a medias).
+	 *
+	 * En un documento migrado con 1.0.20 (modo restringido, `Native::$restricted`) la conversión no copia nada a Medios
+	 * y debe ser la de 1.0.20: allí estos valores eran la imagen de ejemplo del constructor, así que se devuelve ésa y
+	 * nunca la URL de la carpeta del plugin, que daría 404 en cuanto se borre (F8-D17).
+	 */
 	public static function expand( $value ) {
 		if ( is_array( $value ) ) {
 			return array_map( array( __CLASS__, 'expand' ), $value );
 		}
 		if ( ! is_string( $value ) || false === strpos( $value, self::EP_ASSETS ) ) {
 			return $value;
+		}
+		if ( class_exists( Native::class, false ) && Native::$restricted ) {
+			return class_exists( '\Elementor\Utils' ) ? (string) \Elementor\Utils::get_placeholder_image_src() : '';
 		}
 		$assets = self::ep_assets_url();
 		return '' === $assets ? '' : str_replace( self::EP_ASSETS, $assets, $value );

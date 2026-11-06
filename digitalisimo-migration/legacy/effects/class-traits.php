@@ -468,7 +468,25 @@ final class Traits {
 			return false;
 		}
 		self::carry_all( $out, array( 'ep_threed_text_depth_color' => 'digitalisimo_relief_color' ) );
+		if ( ! self::relief_ready() ) {
+			// Las claves quedan guardadas y se encienden solas al actualizar Elements; hasta entonces, el informe lo dice.
+			$out->loss( __( 'este sitio tiene un DIGITALÍSIMO Elements sin el rasgo «Relieve 3D»: el título se ve plano hasta actualizarlo (la conversión ya queda guardada)', 'digitalisimo-migration' ) );
+		}
 		return true;
+	}
+
+	/** @var bool|null Pruebas: fuerza la detección del rasgo «Relieve 3D» (null: se detecta). */
+	public static $relief = null;
+
+	/**
+	 * ¿Tiene el DIGITALÍSIMO Elements cargado el rasgo «Relieve 3D» (F8 §19)? Sin Elements cargado (las pruebas unitarias)
+	 * se da por hecho, como `Runner::requirements()`.
+	 */
+	private static function relief_ready(): bool {
+		if ( null !== self::$relief ) {
+			return (bool) self::$relief;
+		}
+		return ! defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) || class_exists( '\\Digitalisimo\\Elements\\Text_Relief', false );
 	}
 
 	/* ---------------------------------------------------------------- Copia validada */

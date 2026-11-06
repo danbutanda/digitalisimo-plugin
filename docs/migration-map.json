@@ -4824,7 +4824,7 @@
         ],
         "bare": []
       },
-      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Goes to the «Relieve 3D» trait of DIGITALÍSIMO Elements (F8 §19) with ztext.js geometry (layers, perspective, fade, depth colour, pointer or scroll rotation), only on the core heading (the advanced heading of Element Pack 10 never painted it); an Elements without the trait ignores the keys and the title stays flat. Never overwrites an own value (ext.conflict)."
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Goes to the «Relieve 3D» trait of DIGITALÍSIMO Elements (F8 §19) with ztext.js geometry (layers, perspective, fade, depth colour, pointer or scroll rotation), only on the core heading (the advanced heading of Element Pack 10 never painted it); an Elements without the trait keeps the keys (they switch on when it is updated) and the title stays flat until then, reported as ext.loss.threed_text. Never overwrites an own value (ext.conflict)."
     },
     "grid-line": {
       "decision": "MIGRAR",

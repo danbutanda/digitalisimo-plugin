@@ -656,6 +656,15 @@ namespace {
 	// No pisar: un relieve propio ya guardado.
 	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'digitalisimo_relief_layers' => 3 ) ) );
 	f8_check( in_array( 'ext.conflict', $codes, true ) && 3 === $el['settings']['digitalisimo_relief_layers'] && ! isset( $el['settings']['digitalisimo_relief'] ), 'No pisar: con capas propias ya guardadas no se escribe nada (conflicto declarado).' );
+	// Un DIGITALÍSIMO Elements sin el rasgo (anterior a §19): las claves se guardan igual (se encienden al actualizarlo),
+	// pero hasta entonces el título se ve plano, y el informe lo dice en vez de darlo por convertido sin más.
+	$traits             = '\\Digitalisimo\\Elements\\Legacy\\Effects\\Traits';
+	$traits::$relief    = false;
+	list( $el, $codes, $report ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes' ) ) );
+	$traits::$relief    = null;
+	f8_check( 'yes' === ( $el['settings']['digitalisimo_relief'] ?? '' ) && 8 === ( $el['settings']['digitalisimo_relief_layers'] ?? null ) && '' === fx_css( $el ) && array( 'ext.converted.threed_text', 'ext.loss.threed_text' ) === $codes && false !== strpos( (string) json_encode( $report ), 'Relieve 3D' ), 'Elements sin el rasgo: claves guardadas, sin sombras de texto, y la pérdida temporal informada: ' . fx_json( $codes ) );
+	list( , $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes' ) ) );
+	f8_check( array( 'ext.converted.threed_text' ) === $codes, 'Con el rasgo (o sin Elements cargado, en las pruebas): sin esa nota.' );
 
 	/* ======================================================================== Distintivo (global-badge) */
 
