@@ -58,7 +58,7 @@ namespace {
 				$type    = (string) ( $settings['_widget'] ?? 'heading' );
 				$el_type = in_array( $type, array( 'container', 'section', 'column' ), true ) ? $type : 'widget';
 				foreach ( array_keys( $settings ) as $key ) {
-					if ( 0 === strpos( $key, '_expect' ) || '_widget' === $key ) {
+					if ( 0 === strpos( $key, '_expect' ) || '_widget' === $key || '_known' === $key ) {
 						unset( $settings[ $key ] );
 					}
 				}

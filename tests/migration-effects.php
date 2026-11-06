@@ -233,6 +233,11 @@ namespace {
 	$s = $el['settings'];
 	f8_check( 'yes' === $s['digitalisimo_tooltip'] && 'This is Tooltip' === $s['digitalisimo_tooltip_text'] && 'center' === $s['digitalisimo_tooltip_align'] && ! isset( $s['digitalisimo_tooltip_placement'] ) && ! isset( $s['digitalisimo_tooltip_arrow'] ), 'Valores por defecto de Element Pack: texto «This is Tooltip», arriba, sin flecha, centrado.' );
 	f8_check( array( 'ext.converted.tooltip' ) === $codes && array() === fx_left( array( $el ) ), 'Convertida y sin claves heredadas.' );
+	// Sin estilo guardado, el globo de Element Pack era el de tippy.js: fondo #333, texto blanco, 14 px con interlineado
+	// 1,4, relleno 5/9 px, 350 px de ancho máximo y 10 px de distancia (y no el aspecto propio del rasgo).
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && '#333333' === $s['digitalisimo_tooltip_bg_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'], 'Aspecto de tippy: fondo #333 y texto blanco.' );
+	f8_check( array( 'top' => '5', 'right' => '9', 'bottom' => '5', 'left' => '9', 'unit' => 'px', 'isLinked' => false ) === $s['digitalisimo_tooltip_padding'] && array( 'unit' => 'px', 'size' => 350.0 ) === $s['digitalisimo_tooltip_width'] && array( 'unit' => 'px', 'size' => 10.0 ) === $s['digitalisimo_tooltip_offset'], 'Aspecto de tippy: relleno 5/9 px, ancho máximo 350 px y distancia 10 px.' );
+	f8_check( 'custom' === $s['digitalisimo_tooltip_typography_typography'] && array( 'unit' => 'px', 'size' => 14.0 ) === $s['digitalisimo_tooltip_typography_font_size'] && array( 'unit' => 'em', 'size' => 1.4 ) === $s['digitalisimo_tooltip_typography_line_height'] && ! isset( $s['digitalisimo_tooltip_arrow_color'] ), 'Aspecto de tippy: 14 px con interlineado 1,4; sin flecha, sin color de flecha.' );
 	$tooltip = array(
 		'element_pack_widget_tooltip'             => 'yes',
 		'element_pack_widget_tooltip_text'        => 'Hola <b class="x" onclick="evil()">fuerte</b><br/><a href="https://x.test">enlace</a><script>alert(1)</script>',
@@ -255,6 +260,7 @@ namespace {
 		'element_pack_widget_tooltip_typography_font_family' => 'Open Sans',
 		'element_pack_widget_tooltip_typography_font_size_mobile' => array( 'unit' => 'px', 'size' => 13 ),
 		'element_pack_widget_tooltip_typography_font_weight' => '700;}x{',
+		'element_pack_widget_tooltip_background_background' => 'classic',
 		'__globals__'                             => array( 'element_pack_widget_tooltip_background_color' => 'globals/colors?id=secondary' ),
 		'__dynamic__'                             => array( 'element_pack_widget_tooltip_text' => '[elementor-tag id="1" name="post-title" settings="%7B%7D"]' ),
 	);
@@ -263,13 +269,75 @@ namespace {
 	f8_check( 'Hola <b>fuerte</b><br>enlacealert(1)' === str_replace( '<br/>', '<br>', $s['digitalisimo_tooltip_text'] ) || 'Hola <b>fuerte</b><br />enlacealert(1)' === $s['digitalisimo_tooltip_text'] || 0 === strpos( $s['digitalisimo_tooltip_text'], 'Hola <b>fuerte</b><br' ), 'El texto sólo conserva strong, em, b, i y br, sin atributos: ' . $s['digitalisimo_tooltip_text'] );
 	f8_check( false === strpos( fx_json( $s ), 'onclick' ) && false === strpos( fx_json( $s ), '<script' ) && false === strpos( fx_json( $s ), '<a ' ), 'Ni atributos, ni scripts, ni enlaces.' );
 	f8_check( 'left' === $s['digitalisimo_tooltip_placement'] && ! isset( $s['digitalisimo_tooltip_trigger'] ) && array( 'unit' => 'px', 'size' => 12.0 ) == $s['digitalisimo_tooltip_offset'], 'Lado, disparador manual al de por defecto y distancia = la Y de tippy.js.' );
-	f8_check( array( 'unit' => 'em', 'size' => 10.0 ) == $s['digitalisimo_tooltip_width_tablet'] && '#123456' === $s['digitalisimo_tooltip_arrow_color'] && ! isset( $s['digitalisimo_tooltip_color'] ), 'Ancho responsivo y colores válidos; el color con inyección no llega a ningún control.' );
+	f8_check( array( 'unit' => 'em', 'size' => 9.2857 ) == $s['digitalisimo_tooltip_width_tablet'] && array( 'unit' => 'px', 'size' => 350.0 ) == $s['digitalisimo_tooltip_width'] && '#123456' === $s['digitalisimo_tooltip_arrow_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'], 'Ancho responsivo (calc(10em - 10px) a 14 px = 9,2857em; escritorio, el de tippy) y colores válidos; el color con inyección no llega a ningún control (queda el blanco de tippy).' );
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && ! isset( $s['digitalisimo_tooltip_bg_color'] ), 'Fondo clásico con color global: no se le añade el #333 de tippy (manda el global).' );
 	f8_check( 'dashed' === $s['digitalisimo_tooltip_border_border'] && '2' === $s['digitalisimo_tooltip_border_width']['top'] && '4' === $s['digitalisimo_tooltip_radius']['left'] && ! isset( $s['digitalisimo_tooltip_border_radius'] ), 'Grupo Borde y radio aparte.' );
 	f8_check( 'yes' === $s['digitalisimo_tooltip_shadow_box_shadow_type'] && 4.0 === $s['digitalisimo_tooltip_shadow_box_shadow']['vertical'] && 'Open Sans' === $s['digitalisimo_tooltip_typography_font_family'] && isset( $s['digitalisimo_tooltip_typography_font_size_mobile'] ) && ! isset( $s['digitalisimo_tooltip_typography_font_weight'] ), 'Sombra y tipografía 1:1, cada subclave validada (el peso con inyección se descarta).' );
 	f8_check( 'globals/colors?id=secondary' === ( $s['__globals__']['digitalisimo_tooltip_bg_color'] ?? '' ) && 0 === strpos( (string) ( $s['__dynamic__']['digitalisimo_tooltip_text'] ?? '' ), '[elementor-tag' ), 'Globales y dinámicos pasan a la clave de destino.' );
 	f8_check( ! isset( $s['__globals__']['element_pack_widget_tooltip_background_color'] ) && ! isset( $s['__dynamic__']['element_pack_widget_tooltip_text'] ) && array() === fx_left( array( $el ) ), 'Y salen de las bolsas con las claves heredadas.' );
 	f8_check( 5 <= count( array_keys( $codes, 'ext.loss.tooltip', true ) ), 'Pérdidas declaradas: seguir el cursor, animación, disparador por selector, alineación, HTML, desplazamiento lateral: ' . count( array_keys( $codes, 'ext.loss.tooltip', true ) ) );
 	f8_check( 'Hola <strong>a</strong>' === Traits::tooltip_text( 'Hola <strong style="color:red">a</strong>' ) && 'x' === Traits::tooltip_text( '<span>x</span>' ), 'Saneado del texto sin WordPress.' );
+
+	// Fidelidad del globo (2026-11-06): ancho `calc(ANCHO - 10px)`, aspecto de tippy donde no se guardó otro, distancia.
+	$tt = static function ( array $extra, string $widget = 'button' ) {
+		list( $el, $codes ) = fx_convert( fx_widget( $widget, array( 'element_pack_widget_tooltip' => 'yes' ) + $extra ) );
+		return array( $el['settings'], $codes );
+	};
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'        => array( 'unit' => 'px', 'size' => 240 ),
+		'element_pack_widget_tooltip_width_mobile' => array( 'unit' => 'px', 'size' => 6 ),
+		'element_pack_widget_tooltip_arrow'        => 'yes',
+		'element_pack_widget_tooltip_y_offset'     => array( 'unit' => 'px', 'size' => 14 ),
+		'element_pack_widget_tooltip_color'        => '#ffffff',
+		'element_pack_widget_tooltip_background_background' => 'classic',
+		'element_pack_widget_tooltip_background_color'      => '#222222',
+		'element_pack_widget_tooltip_padding'      => array( 'top' => '6', 'right' => '10', 'bottom' => '6', 'left' => '10', 'unit' => 'px', 'isLinked' => false ),
+	) );
+	f8_check( array( 'unit' => 'px', 'size' => 230.0 ) === $s['digitalisimo_tooltip_width'] && array( 'unit' => 'px', 'size' => 0.0 ) === $s['digitalisimo_tooltip_width_mobile'], 'Ancho en px: Element Pack pintaba calc(ANCHO - 10px) (240 → 230; nunca negativo).' );
+	f8_check( '#222222' === $s['digitalisimo_tooltip_bg_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'] && '6' === $s['digitalisimo_tooltip_padding']['top'] && array( 'unit' => 'px', 'size' => 14.0 ) == $s['digitalisimo_tooltip_offset'], 'Lo guardado manda sobre el aspecto de tippy (fondo, color, relleno y distancia).' );
+	f8_check( '#333333' === $s['digitalisimo_tooltip_arrow_color'], 'Flecha sin color propio: la de tippy (#333) aunque el fondo cambie.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_x_offset' => array( 'unit' => 'px', 'size' => 0 ), 'element_pack_widget_tooltip_y_offset' => array( 'unit' => 'px', 'size' => 0 ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 10.0 ) == $s['digitalisimo_tooltip_offset'], 'X e Y a 0: ep-tooltip.js no pasaba `offset` y tippy usaba sus 10 px.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_x_offset' => array( 'unit' => 'px', 'size' => 6 ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 0.0 ) == $s['digitalisimo_tooltip_offset'], 'Sólo X: tippy recibía [x, 0] y la distancia era 0.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'                       => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_width_mobile'                => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_typography_typography'       => 'custom',
+		'element_pack_widget_tooltip_typography_font_size'        => array( 'unit' => 'px', 'size' => 20 ),
+		'element_pack_widget_tooltip_typography_font_size_tablet' => array( 'unit' => 'px', 'size' => 16 ),
+		'element_pack_widget_tooltip_typography_line_height'      => array( 'unit' => 'px', 'size' => 30 ),
+	) );
+	f8_check( array( 'unit' => 'em', 'size' => 9.5 ) == $s['digitalisimo_tooltip_width'] && array( 'unit' => 'em', 'size' => 9.375 ) == $s['digitalisimo_tooltip_width_mobile'], 'Ancho en em: se restan 10 px en em del tamaño de letra del dispositivo (20 px en escritorio; el móvil hereda los 16 px de la tableta).' );
+	f8_check( array( 'unit' => 'px', 'size' => 20.0 ) == $s['digitalisimo_tooltip_typography_font_size'] && array( 'unit' => 'px', 'size' => 30.0 ) == $s['digitalisimo_tooltip_typography_line_height'] && ! in_array( 'ext.loss.tooltip', $codes, true ), 'La tipografía guardada manda; sin aproximación que declarar.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'                  => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_typography_typography'  => 'custom',
+		'element_pack_widget_tooltip_typography_font_size'   => array( 'unit' => 'em', 'size' => 1.2 ),
+	) );
+	f8_check( array( 'unit' => 'em', 'size' => 9.2857 ) == $s['digitalisimo_tooltip_width'] && in_array( 'ext.loss.tooltip', $codes, true ), 'Letra en em: el ancho se aproxima con los 14 px de tippy y se declara.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'  => array( 'unit' => 'em', 'size' => 10 ),
+		'__globals__' => array( 'element_pack_widget_tooltip_typography_typography' => 'globals/typography?id=accent', 'element_pack_widget_tooltip_color' => 'globals/colors?id=text' ),
+	) );
+	f8_check( ! isset( $s['digitalisimo_tooltip_typography_font_size'] ) && ! isset( $s['digitalisimo_tooltip_typography_typography'] ) && 'globals/typography?id=accent' === ( $s['__globals__']['digitalisimo_tooltip_typography_typography'] ?? '' ) && in_array( 'ext.loss.tooltip', $codes, true ), 'Tipografía global: manda entera (sin los 14 px de tippy) y el ancho en em se declara aproximado.' );
+	f8_check( ! isset( $s['digitalisimo_tooltip_color'] ) && 'globals/colors?id=text' === ( $s['__globals__']['digitalisimo_tooltip_color'] ?? '' ), 'Color global del texto: sin el blanco de tippy.' );
+	list( $s ) = $tt( array(
+		'element_pack_widget_tooltip_background_color' => '#00ff00',
+		'__globals__' => array( 'element_pack_widget_tooltip_background_color' => 'globals/colors?id=primary' ),
+	) );
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && '#333333' === $s['digitalisimo_tooltip_bg_color'] && ! isset( $s['__globals__']['digitalisimo_tooltip_bg_color'] ), 'Color de fondo sin tipo de fondo: el núcleo no lo imprimía (tampoco su global); queda el #333 de tippy.' );
+	list( $s ) = $tt( array(
+		'element_pack_widget_tooltip_background_background' => 'classic',
+		'element_pack_widget_tooltip_background_image'      => array( 'id' => 3, 'url' => 'https://s.test/f.png' ),
+		'element_pack_widget_tooltip_padding'               => array( 'top' => '', 'right' => '', 'bottom' => '', 'left' => '', 'unit' => 'px', 'isLinked' => true ),
+	) );
+	f8_check( '#333333' === $s['digitalisimo_tooltip_bg_color'] && 'https://s.test/f.png' === $s['digitalisimo_tooltip_bg_image']['url'] && '5' === $s['digitalisimo_tooltip_padding']['top'], 'Fondo clásico sólo con imagen: debajo, el #333 de tippy; relleno vacío: el de tippy.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_background_background' => 'gradient', 'element_pack_widget_tooltip_background_color' => '#111111', 'element_pack_widget_tooltip_background_color_b' => '#999999' ) );
+	f8_check( 'gradient' === $s['digitalisimo_tooltip_bg_background'] && '#111111' === $s['digitalisimo_tooltip_bg_color'] && '#999999' === $s['digitalisimo_tooltip_bg_color_b'], 'Degradado guardado: intacto.' );
+	$already = fx_widget( 'button', array( 'element_pack_widget_tooltip' => 'yes', 'digitalisimo_tooltip_width' => array( 'unit' => 'px', 'size' => 120 ) ) );
+	list( $el, $codes ) = fx_convert( $already );
+	f8_check( in_array( 'ext.conflict', $codes, true ) && array( 'unit' => 'px', 'size' => 120 ) === $el['settings']['digitalisimo_tooltip_width'], 'No pisar: un ancho propio ya guardado no se cambia por el de tippy (conflicto declarado).' );
 
 	/* ======================================================================== Efectos de transformación */
 
@@ -813,7 +881,7 @@ namespace {
 			$json     = (array) ( $spec['_expect_json'] ?? array() );
 			$expected = (array) ( $spec['_expect_codes'] ?? array() );
 			foreach ( array_keys( $spec ) as $key ) {
-				if ( '_' === $key[0] && in_array( $key, array( '_widget', '_section', '_page', '_expect_json', '_expect_codes', '_expect_css', '_expect_css_converted', '_options' ), true ) ) {
+				if ( '_' === $key[0] && in_array( $key, array( '_widget', '_section', '_page', '_expect_json', '_expect_codes', '_expect_css', '_expect_css_converted', '_options', '_known' ), true ) ) {
 					unset( $spec[ $key ] );
 				}
 			}
