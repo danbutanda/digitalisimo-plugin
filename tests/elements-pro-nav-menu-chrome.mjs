@@ -33,7 +33,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ width = 1280, js = true, reduce = false, editor = false } = {}) {
+async function open({ width = 1280, js = true, reduce = false, editor = false, touch = false, track = false } = {}) {
   const page = await browser.newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -41,8 +41,11 @@ async function open({ width = 1280, js = true, reduce = false, editor = false } 
   page.on('request', r => (r.url().startsWith('file:') ? r.continue() : r.abort()));
   await page.setJavaScriptEnabled(js);
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]);
-  await page.setViewport({ width, height: 900 });
+  await page.setViewport({ width, height: 900, hasTouch: touch });
   if (editor) await page.evaluateOnNewDocument(() => { window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hook = [n, f]; } } }; });
+  // `track`: anota cada clic en un enlace que el menú deja navegar (el último oyente, en window, ve si el menú lo canceló) y
+  // lo cancela, para que la página siga en su sitio.
+  if (track) await page.evaluateOnNewDocument(() => { window.__navs = []; window.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[href]'); if (!a) return; if (!e.defaultPrevented) window.__navs.push(a.getAttribute('href')); e.preventDefault(); }); });
   await page.goto(fixture, { waitUntil: 'load' });
   if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-nav--ready').length === 3);
   return page;
@@ -222,6 +225,120 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
     return w.querySelector('.digi-nav').classList.contains('digi-nav--ready');
   }), 'Editor: el widget repintado se vuelve a iniciar.');
   await ed.close();
+}
+
+// 6. Clic, toque o Intro en el texto de un padre con submenú: como SmartMenus en PRO, el primero abre el submenú sin
+// navegar y el segundo, con el submenú abierto, navega (en el desplegable móvil, con el dedo en el menú horizontal y con
+// el teclado). Con el ratón, el paso por encima abre a los 250 ms y el clic posterior navega.
+const textAt = (page, id, copy, text) => page.evaluate((id, copy, text) => {
+  const scope = document.querySelector(`[data-id="${id}"] ${copy === 'main' ? '.digi-nav__main' : '.digi-nav__container.digi-nav__dropdown'}`);
+  const a = [...scope.querySelectorAll('a')].find(x => x.textContent.trim() === text), range = document.createRange();
+  range.selectNodeContents(a.firstChild);
+  const r = range.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const b = a.parentNode.querySelector(':scope>.digi-nav__sub-toggle').getBoundingClientRect();
+  return { x, y, onText: document.elementFromPoint(x, y) === a && !(x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) };
+}, id, copy, text);
+const navs = page => page.evaluate(() => window.__navs.slice());
+{
+  // a) 375 px, desplegable, ratón.
+  let page = await open({ width: 375, track: true });
+  await page.click('[data-id="n1"] .digi-nav__toggle');
+  await sleep(400);
+  let p = await textAt(page, 'n1', 'dd', 'Servicios');
+  ok(p.onText, 'El punto pulsado es el texto de «Servicios», fuera de la zona del indicador: ' + JSON.stringify(p));
+  await page.mouse.click(p.x, p.y);
+  let s = await item(page, 'n1', 'dd', 'Servicios');
+  ok(s.open && s.expanded === 'true' && s.visible && (await navs(page)).length === 0, 'Desplegable: el clic en el texto de un padre cerrado abre su submenú sin navegar: ' + JSON.stringify(s));
+  await page.mouse.click(p.x, p.y);
+  ok((await navs(page)).join() === 'https://ejemplo.test/servicios/' && (await item(page, 'n1', 'dd', 'Servicios')).open, 'Desplegable: el segundo clic, con el submenú abierto, navega.');
+  await page.close();
+  // b) 375 px, desplegable, dedo.
+  page = await open({ width: 375, touch: true, track: true });
+  await page.tap('[data-id="n1"] .digi-nav__toggle');
+  await sleep(400);
+  p = await textAt(page, 'n1', 'dd', 'Servicios');
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(100);
+  s = await item(page, 'n1', 'dd', 'Servicios');
+  ok(s.open && s.visible && (await navs(page)).length === 0, 'Desplegable: el toque en el texto de un padre cerrado abre su submenú sin navegar.');
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(100);
+  ok((await navs(page)).join() === 'https://ejemplo.test/servicios/', 'Desplegable: el segundo toque navega.');
+  await page.close();
+  // c) 1280 px, menú horizontal, dedo.
+  page = await open({ touch: true, track: true });
+  p = await textAt(page, 'n1', 'main', 'Servicios');
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(350);
+  s = await item(page, 'n1', 'main', 'Servicios');
+  ok(s.open && s.expanded === 'true' && s.visible && (await navs(page)).length === 0, 'Menú horizontal con el dedo: el primer toque abre sin navegar.');
+  await page.touchscreen.tap(5, 880);
+  await sleep(100);
+  ok(!(await item(page, 'n1', 'main', 'Servicios')).open, 'Menú horizontal con el dedo: tocar fuera cierra.');
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(100);
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(100);
+  ok((await navs(page)).join() === 'https://ejemplo.test/servicios/', 'Menú horizontal con el dedo: dos toques navegan.');
+  await page.close();
+  // d) 1280 px, ratón: tras el paso por encima, el clic navega; un clic sin esperar los 250 ms abre.
+  page = await open({ track: true });
+  p = await textAt(page, 'n1', 'main', 'Servicios');
+  await page.mouse.move(p.x, p.y);
+  await sleep(400);
+  ok((await item(page, 'n1', 'main', 'Servicios')).open, 'Ratón: el paso por encima abre.');
+  await page.mouse.click(p.x, p.y);
+  ok((await navs(page)).join() === 'https://ejemplo.test/servicios/', 'Ratón: el clic con el submenú ya abierto navega.');
+  await page.mouse.move(5, 880);
+  await sleep(700);
+  await page.mouse.click(p.x, p.y);
+  s = await item(page, 'n1', 'main', 'Servicios');
+  ok(s.open && (await navs(page)).length === 1, 'Ratón: un clic inmediato en un padre cerrado lo abre sin navegar.');
+  await page.mouse.move(5, 880);
+  await sleep(700);
+  // e) Teclado: Intro en el enlace del padre cerrado abre; con el submenú abierto, navega.
+  await page.focus(`[data-id="n1"] .digi-nav__main a${SERV}`);
+  await page.keyboard.press('Enter');
+  s = await item(page, 'n1', 'main', 'Servicios');
+  ok(s.open && s.expanded === 'true' && (await navs(page)).length === 1, 'Intro en el enlace de un padre cerrado: abre su submenú.');
+  await page.keyboard.press('Enter');
+  ok((await navs(page)).length === 2, 'Intro otra vez, con el submenú abierto: navega.');
+  // Un enlace sin hijos navega al primer clic.
+  await page.click('[data-id="n1"] .digi-nav__main a[href="https://ejemplo.test/#contacto"]');
+  ok((await navs(page)).pop() === 'https://ejemplo.test/#contacto', 'Un enlace sin submenú navega al primer clic.');
+  await page.close();
+}
+
+// 7. Indicador como PRO: relleno heredado del enlace (sin currentColor) salvo en los submenús del menú principal, que
+// además lo giran, sea SVG o icono de fuente.
+{
+  const svgs = page => page.evaluate(() => document.querySelectorAll('[data-id="n1"] .digi-nav__arrow').forEach(s => { s.innerHTML = '<svg class="e-font-icon-svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"></path></svg>'; }));
+  const arrow = (page, copy, text) => page.evaluate((copy, text) => {
+    const scope = document.querySelector(`[data-id="n1"] ${copy === 'main' ? '.digi-nav__main' : '.digi-nav__container.digi-nav__dropdown'}`);
+    const a = [...scope.querySelectorAll('a')].find(x => x.textContent.trim() === text), i = a.querySelector('.digi-nav__arrow > *'), c = getComputedStyle(i), l = getComputedStyle(a);
+    return { fill: c.fill, color: c.color, linkFill: l.fill, linkColor: l.color, rotated: c.transform !== 'none' };
+  }, copy, text);
+  let page = await open();
+  await page.click(btn('n1', 'main', SERV));
+  let top = await arrow(page, 'main', 'Servicios'), sub = await arrow(page, 'main', 'Desarrollo web');
+  ok(!top.rotated && sub.rotated, 'Icono de fuente: sólo gira el indicador de los submenús del menú principal: ' + JSON.stringify({ top, sub }));
+  await svgs(page);
+  top = await arrow(page, 'main', 'Servicios');
+  sub = await arrow(page, 'main', 'Desarrollo web');
+  ok(top.linkFill !== top.linkColor, 'Prueba válida: el enlace hereda un relleno distinto de su color: ' + JSON.stringify(top));
+  ok(top.fill === top.linkFill && !top.rotated, 'SVG en el nivel superior: hereda el relleno del enlace (no currentColor): ' + JSON.stringify(top));
+  ok(sub.fill === sub.color && sub.rotated, 'SVG en un submenú del menú principal: currentColor y girado: ' + JSON.stringify(sub));
+  await page.close();
+  page = await open({ width: 375 });
+  await page.click('[data-id="n1"] .digi-nav__toggle');
+  await sleep(400);
+  await page.click(btn('n1', 'dd', SERV));
+  await svgs(page);
+  for (const text of ['Servicios', 'Desarrollo web']) {
+    const d = await arrow(page, 'dd', text);
+    ok(d.fill === d.linkFill && d.fill !== d.color && !d.rotated, `SVG en el desplegable (${text}): relleno heredado (negro por defecto, como PRO), sin girar: ` + JSON.stringify(d));
+  }
+  await page.close();
 }
 
 await browser.close();

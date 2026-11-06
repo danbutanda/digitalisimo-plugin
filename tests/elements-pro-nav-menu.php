@@ -298,7 +298,13 @@ namespace {
 		$css_all .= $css;
 	}
 	check_nm( str_contains( $css_all, ':focus-visible{outline:2px solid currentColor;outline-offset:2px}' ), 'Foco visible propio de enlaces y botones (2 px con separación de 2 px).' );
+	// Indicador como PRO (widget-nav-menu.min.css): el relleno se hereda del enlace (negro por defecto en el desplegable, el
+	// del puntero sobre el puntero de fondo) y sólo los submenús del menú principal lo ponen en currentColor y lo giran, sea
+	// SVG o icono de fuente.
+	check_nm( str_contains( $css_all, '.digi-nav__arrow svg{width:1em;height:1em}' ) && str_contains( $css_all, '.digi-nav__main .digi-nav__dropdown .digi-nav__arrow>*{fill:currentColor;transform:rotate(' ) && 1 === substr_count( $css_all, 'fill:currentColor' ), 'Indicador como PRO: relleno heredado del enlace; currentColor y giro sólo en los submenús del menú principal.' );
 	$js = (string) file_get_contents( $root . Module::WIDGETS['digitalisimo-nav-menu']['js'] );
+	// Como SmartMenus en PRO: el primer clic, toque o Intro en un padre con el submenú cerrado lo abre sin navegar.
+	check_nm( str_contains( $js, "if (t && (!isOpen(a.parentNode) || a.getAttribute('href') == '#' ||" ), 'El primer clic en un padre cerrado abre su submenú (el segundo navega), como PRO.' );
 	check_nm( strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|smartmenus|elementorProFrontend/i', $js ) && str_contains( $js, "'aria-expanded'" ) && str_contains( $js, 'Escape' ) && str_contains( $js, 'frontend/element_ready/digitalisimo-nav-menu.default' ), 'Script ≤ 6 KB sin jQuery ni SmartMenus: aria-expanded, Escape y reinicio en el editor (' . strlen( $js ) . ' B).' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-navigation/widgets/class-nav-menu.php' );
 	$map    = require $root . 'modules/digitalisimo-convert/maps/nav-menu.php';

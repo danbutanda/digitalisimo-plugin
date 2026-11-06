@@ -58,10 +58,10 @@
      ]
     },
     {
-     "label": "Intro en Servicios",
+     "label": "Intro en el enlace de Servicios",
      "key": "Enter",
      "a": ".elementor-nav-menu--main li.menu-item-has-children > a",
-     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "b": ".digi-nav__main li.menu-item-has-children > a",
      "stay": true,
      "widths": [
       1280
@@ -77,9 +77,9 @@
      ]
     },
     {
-     "label": "submenú en el desplegable",
+     "label": "clic en el enlace de Servicios en el desplegable",
      "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
-     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle",
+     "b": ".digi-nav__container.digi-nav__dropdown li.menu-item-has-children > a",
      "widths": [
       375,
       768
@@ -380,9 +380,9 @@
      "b": ".digi-nav__toggle"
     },
     {
-     "label": "submenú en el desplegable",
+     "label": "clic en el enlace de Servicios en el desplegable",
      "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
-     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle"
+     "b": ".digi-nav__container.digi-nav__dropdown li.menu-item-has-children > a"
     }
    ]
   },
@@ -548,12 +548,6 @@
    "kind": "nombre",
    "match": "^(\\[acción [^\\]]*\\] )?perdido none «»$",
    "reason": "Los enlaces del desplegable cerrado (o del que no se usa en ese ancho): PRO los pinta con aria-hidden y tabindex=-1 y el árbol de accesibilidad de Chrome los da como «none» sin nombre; el propio los deja fuera con inert (o no los pinta sin punto de corte)."
-  },
-  {
-   "widget": "nav-menu",
-   "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ icon-fill: ",
-   "reason": "El indicador de submenú sigue el color del texto de su enlace (currentColor). PRO lo dejaba con el relleno heredado: negro en el desplegable (también sobre el fondo oscuro del elemento abierto) y del color del puntero sobre el puntero de fondo, sin contraste."
   }
  ]
 }

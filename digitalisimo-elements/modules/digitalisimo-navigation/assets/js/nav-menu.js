@@ -45,7 +45,7 @@ root.addEventListener('click', e => {
 const b = e.target.closest(C('sub-toggle')), a = e.target.closest('a');
 if (b) return set(b.parentNode, !isOpen(b.parentNode));
 const t = a && btnOf(a.parentNode), r = t && box(t);
-if (t && (a.getAttribute('href') == '#' || e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom)) { e.preventDefault(); return set(a.parentNode, !isOpen(a.parentNode)); }
+if (t && (!isOpen(a.parentNode) || a.getAttribute('href') == '#' || e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom)) { e.preventDefault(); return set(a.parentNode, !isOpen(a.parentNode)); }
 if (a && dd && dd.contains(a) && wrap.classList.contains(R + '--stretch') && !btnOf(a.parentNode)) menu(false);
 });
 if (main) {

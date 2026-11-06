@@ -27,7 +27,8 @@ defined( 'ABSPATH' ) || exit;
  *   (el menú desplegable bajo el punto de corte). Cada elemento con hijos lleva el indicador dentro del enlace
  *   (`span.digi-nav__arrow`, decorativo, como el de PRO) y, después del enlace, `button.digi-nav__sub-toggle` con
  *   `aria-expanded`, `aria-controls` y nombre «Submenú de …»: el script lo coloca sobre el indicador, así el aspecto es el
- *   de PRO y el enlace sigue llevando a su página. Los submenús son `ul.digi-nav__dropdown`.
+ *   de PRO. Como SmartMenus en PRO, el primer clic, toque o Intro en el enlace de un padre cerrado abre su submenú y el
+ *   segundo, con el submenú abierto, lleva a su página. Los submenús son `ul.digi-nav__dropdown`.
  * - **Recursos**: `assets/css/nav-menu.css` (diseño, menú principal y submenús), sólo lo que el menú usa de
  *   las de `SHEETS` (desplegable y familia del puntero, ≤ 4 KB cada una); `assets/js/nav-menu.js` (`defer`, sin
  *   dependencias).

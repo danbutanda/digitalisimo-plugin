@@ -10,7 +10,7 @@
 .digi-nav__list ul ul ul a{border-left:24px solid transparent}
 .digi-nav__list ul ul ul ul a{border-left:32px solid transparent}
 .digi-nav__arrow{display:flex;align-items:center;line-height:1;margin-block:-10px;padding:10px;padding-inline-end:0}
-.digi-nav__arrow svg{width:1em;height:1em;fill:currentColor}
+.digi-nav__arrow svg{width:1em;height:1em}
 .digi-nav__arrow :is(.fa-chevron-down,.fa-svg-chevron-down){font-size:.7em}
 .digi-nav__sub-toggle{position:absolute;top:0;left:0;width:24px;height:24px;margin:0;padding:0;border:0;background:none;box-shadow:none;pointer-events:none}
 .digi-nav :is(a,button):focus-visible{outline:2px solid currentColor;outline-offset:2px}
@@ -19,7 +19,7 @@
 .digi-nav__main .digi-nav__list ul ul,.digi-nav--layout-vertical .digi-nav__list ul{inset-inline-start:100%}
 .digi-nav__main ul.digi-nav__flip{inset-inline:auto 0}
 .digi-nav__main ul ul.digi-nav__flip{inset-inline:auto 100%}
-.digi-nav__main .digi-nav__dropdown .digi-nav__arrow svg{transform:rotate(calc(-90deg * var(--direction-multiplier,1)))}
+.digi-nav__main .digi-nav__dropdown .digi-nav__arrow>*{fill:currentColor;transform:rotate(calc(-90deg * var(--direction-multiplier,1)))}
 .digi-nav--layout-horizontal{display:flex}
 .digi-nav--layout-horizontal .digi-nav__list{display:flex;flex-wrap:wrap}
 .digi-nav--layout-horizontal .digi-nav__list a{flex-grow:1;white-space:nowrap}
