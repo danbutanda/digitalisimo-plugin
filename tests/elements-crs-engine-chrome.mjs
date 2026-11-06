@@ -591,6 +591,27 @@ try {
     ok(same(s, '3,4', '-X-__'), `Bucle con paso 2: la API lleva a la página de la diapositiva pedida: ${JSON.stringify(s)}`);
     await page.close();
   }
+  // El mismo w25 con 20 diapositivas, 1 visible y paso 4: la API lleva a la copia más cercana, y si el principio de su
+  // página cae antes de la primera copia, a la misma página una vuelta después (nunca a un índice negativo).
+  {
+    const page = await browser.newPage();
+    page.on('pageerror', e => errors.push(e.message));
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.evaluateOnNewDocument(() => document.addEventListener('readystatechange', () => {
+      if (document.readyState !== 'interactive') return;
+      const w = document.querySelector('[data-id="w25"]'), r = w.querySelector('.digi-crs'), t = r.querySelector('.digi-crs__track'), first = t.children[0];
+      w.style.cssText = '--digi-crs-view:1;--digi-crs-scroll:4';
+      r.style.setProperty('--digi-crs-n', '20');
+      t.replaceChildren(...Array.from({ length: 20 }, (_, i) => { const c = first.cloneNode(true); c.setAttribute('aria-label', `${i + 1} de 20`); return c; }));
+    }));
+    await page.goto(fixture, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('[data-id="w25"] .digi-crs__track').children.length > 20 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+    await page.evaluate(() => document.querySelector('[data-id="w25"] .digi-crs').digiCrs.go(15));
+    await settle(page);
+    const s = await state(page, 'w25');
+    ok(s.cur === 12 && s.seen === '13' && s.api[0] === 12 && s.dots === '---X-', `Bucle con paso 4: la API desde la primera página a la 16 deja la página de la 13, sin índice negativo: ${JSON.stringify({ cur: s.cur, seen: s.seen, dots: s.dots, api: s.api })}`);
+    await page.close();
+  }
 
   // 7. Movimiento reducido: sin reproducción automática; el botón ofrece Reanudar.
   {
