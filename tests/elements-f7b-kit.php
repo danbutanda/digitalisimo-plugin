@@ -770,8 +770,10 @@ namespace F7b_Kit_Test {
 				$k_code .= (string) file_get_contents( (string) $file );
 			}
 		}
+		// Los widgets de F7b por nombre: la Cuadrícula y el Carrusel de bucle propios (C5) comparten el prefijo
+		// `digitalisimo-loop-`, pero son widgets del programa sin PRO y K declara sus referencias como las de los demás propios.
 		$named = array_filter(
-			array( 'Elements\\F7b', 'digitalisimo-f7b', 'digitalisimo_saved_query', 'digitalisimo_query', '_digitalisimo_actions', 'digitalisimo_overrides', 'digitalisimo-loop-', '_digitalisimo_uses' ),
+			array( 'Elements\\F7b', 'digitalisimo-f7b', 'digitalisimo_saved_query', 'digitalisimo_query', '_digitalisimo_actions', 'digitalisimo_overrides', 'digitalisimo-loop-search', 'digitalisimo-loop-orderby', 'digitalisimo-loop-per-page', 'digitalisimo-loop-meta-filter', '_digitalisimo_uses' ),
 			function ( $needle ) use ( $k_code ) {
 				return false !== strpos( $k_code, $needle );
 			}
