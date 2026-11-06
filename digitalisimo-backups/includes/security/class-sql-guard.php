@@ -141,7 +141,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( 'end' === $token[0] ) return false;
 		if ( 'exec' === $token[0] ) {
 			if ( self::MYSQLDUMP !== $this->dialect ) $this->reject( 'comentario ejecutable fuera de lo que escribe el exportador' );
-			if ( $token[2] >= 900000 ) return $this->statement(); // Versión inalcanzable: es un comentario.
+			if ( self::unreachable( $token ) ) return $this->statement(); // Versión inalcanzable: es un comentario.
 			$this->sub( $token[1], 'executable' );
 			$this->end();
 			return true;
@@ -159,6 +159,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 		}
 		return true;
 	}
+	/**
+	 * Un comentario ejecutable que ningún servidor ejecuta. /*M! sólo lo lee MariaDB, que entiende seis dígitos: desde
+	 * 900000 es inalcanzable. /*! también lo lee MySQL, que puede tomar sólo los cinco primeros dígitos (900000 sería
+	 * 9.0.0 seguido de «0 …»): sólo es inalcanzable si también lo son esos cinco (999990 a 999999).
+	 */
+	private static function unreachable( $token ) { return ! empty( $token[3] ) ? $token[2] >= 900000 : $token[2] >= 999990; }
 	/** Contenido de un /*!NNNNN … *\/ del volcado: sólo SET o ALTER TABLE … KEYS. */
 	private function sub( $content, $mode ) {
 		$saved = array( $this->s, $this->i, $this->n );
@@ -263,7 +269,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 			if ( 'end' === $token[0] ) return;
 			if ( 'exec' === $token[0] ) {
 				if ( $inside_comment ) $this->reject( 'comentario ejecutable anidado' );
-				if ( $token[2] >= 900000 ) continue;
+				if ( self::unreachable( $token ) ) continue;
 				if ( ! preg_match( '/^\s*(?:PARTITION\s+BY\b|INVISIBLE\s*$|DEFAULT\s+ENCRYPTION\b)/i', $token[1] ) ) $this->reject( 'comentario ejecutable no permitido en CREATE TABLE' );
 				$saved = array( $this->s, $this->i, $this->n );
 				$this->s = $token[1];
@@ -274,6 +280,11 @@ final class Digitalisimo_Backups_Sql_Guard {
 				continue;
 			}
 			if ( 'var' === $token[0] ) $this->reject( 'variables en CREATE TABLE' );
+			// ENGINE admite un nombre o un texto: ENGINE='CONNECT' y ENGINE=`SPIDER` también eligen el motor.
+			if ( in_array( $previous, array( 'ENGINE', 'TYPE' ), true ) && in_array( $token[0], array( 'str', 'ident' ), true ) ) {
+				$engine = strtoupper( 'ident' === $token[0] ? $token[1] : substr( $this->s, $token[2], $token[3] - $token[2] ) );
+				if ( ! preg_match( '/^[A-Z0-9_]+$/D', $engine ) || in_array( $engine, self::REMOTE_ENGINES, true ) ) $this->reject( 'motor ' . ( preg_match( '/^[A-Z0-9_]+$/D', $engine ) ? $engine : 'no reconocido' ) . ' no permitido en un archivo sin firma' );
+			}
 			if ( 'word' !== $token[0] ) { if ( 'punct' !== $token[0] || '=' !== $token[1] ) $previous = ''; continue; }
 			if ( in_array( $token[1], self::CREATE_DENIED, true ) ) $this->reject( 'opción ' . $token[1] . ' no permitida en un archivo sin firma' );
 			if ( in_array( $previous, array( 'ENGINE', 'TYPE' ), true ) && in_array( $token[1], self::REMOTE_ENGINES, true ) ) $this->reject( 'motor ' . $token[1] . ' no permitido en un archivo sin firma' );
@@ -341,7 +352,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$this->i += strspn( $s, " \t\r\n\f\v", $this->i );
 			if ( $this->i >= $n ) return array( 'end', '' );
 			$c = $s[ $this->i ];
-			if ( '#' === $c || ( '-' === $c && '-' === ( $s[ $this->i + 1 ] ?? '' ) && ( $this->i + 2 >= $n || ord( $s[ $this->i + 2 ] ) <= 32 ) ) ) {
+			if ( '#' === $c || ( '-' === $c && '-' === ( $s[ $this->i + 1 ] ?? '' ) && ( $this->i + 2 >= $n || ord( $s[ $this->i + 2 ] ) <= 32 || 127 === ord( $s[ $this->i + 2 ] ) ) ) ) {
 				$end = strpos( $s, "\n", $this->i );
 				$this->i = false === $end ? $n : $end + 1;
 				continue;
@@ -351,7 +362,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 				if ( false === $end ) $this->reject( 'comentario sin cerrar' );
 				$body = substr( $s, $this->i + 2, $end - $this->i - 2 );
 				$this->i = $end + 2;
-				if ( preg_match( '/^(M?)!([0-9]{5,6})?/', $body, $match ) ) return array( 'exec', substr( $body, strlen( $match[0] ) ), isset( $match[2] ) ? (int) $match[2] : 0 );
+				if ( preg_match( '/^(M?)!([0-9]{5,6})?/', $body, $match ) ) return array( 'exec', substr( $body, strlen( $match[0] ) ), isset( $match[2] ) ? (int) $match[2] : 0, 'M' === $match[1] );
 				if ( '' !== $body && '+' === $body[0] ) $this->reject( 'indicaciones del optimizador no permitidas' );
 				continue;
 			}

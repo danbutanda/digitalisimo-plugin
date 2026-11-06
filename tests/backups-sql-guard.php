@@ -75,6 +75,15 @@ $rejected = array(
 	"INSERT INTO `wp_posts` (`ID`) VALUES ('1)" => 'cadena sin cerrar',
 	"INSERT /*+ SET_VAR(sql_mode='') */ INTO `wp_posts` (`ID`) VALUES ('1')" => 'optimizador',
 	'INSERT INTO `wp_posts` (`ID`) VALUES ("1")' => 'valores literales',
+	// MySQL toma «--» seguido de DEL (0x7F) como comentario: el guardián no puede ver aquí una cadena que esconda la opción.
+	"CREATE TABLE `wp_posts` (`a` int) --\x7f'\n DATA DIRECTORY='/var/www' #'" => 'DIRECTORY',
+	// ENGINE también admite un texto o un identificador entre comillas invertidas.
+	"CREATE TABLE `wp_posts` (`a` int) ENGINE='CONNECT' table_type=CSV file_name='/etc/passwd'" => 'CONNECT',
+	'CREATE TABLE `wp_posts` (`a` int) ENGINE = "Federated"' => 'FEDERATED',
+	'CREATE TABLE `wp_posts` (`a` int) ENGINE=`SPIDER`' => 'SPIDER',
+	"CREATE TABLE `wp_posts` (`a` int) ENGINE='CONN\\ECT'" => 'motor no reconocido',
+	// MySQL puede leer sólo cinco dígitos: /*!900000 sería 9.0.0 y ejecutaría «0 DATA DIRECTORY=…».
+	"CREATE TABLE `wp_posts` (`a` int) AUTO_INCREMENT=/*!900000 DATA DIRECTORY='/var/www' */" => 'comentario ejecutable',
 );
 foreach ( $rejected as $sql => $needle ) bk_expect_failure( 'no confiable: ' . substr( $sql, 0, 40 ), function() use ( $guard, $sql ) { $guard( false )->check( $sql ); }, $needle );
 // El mensaje nombra la sentencia y su tipo y nunca muestra valores de filas.
@@ -113,8 +122,13 @@ $dump_rejected = array(
 	"INSERT INTO `wp_posts` VALUES (now())" => 'valores literales',
 	"INSERT INTO `wp_posts` VALUES (@a)" => 'valores literales',
 	"GRANT SELECT ON *.* TO 'a'" => 'GRANT',
+	"/*!900000 GRANT ALL ON *.* TO 'a' */ SET NAMES utf8mb4" => 'comentario ejecutable',
+	"CREATE TABLE `wp_posts` (`a` int) ENGINE='MRG_MyISAM'" => 'MRG_MYISAM',
 );
 foreach ( $dump_rejected as $sql => $needle ) bk_expect_failure( 'mysqldump: ' . substr( $sql, 0, 40 ), function() use ( $dump, $sql ) { $dump()->check( $sql ); }, $needle );
+// Lo inalcanzable para MySQL y MariaDB sigue siendo un comentario; «-- » seguido de DEL, también.
+if ( true !== $dump()->check( "/*!999999 GRANT ALL ON *.* TO 'a' */ SET NAMES utf8mb4" ) || true !== $dump()->check( "/*M!900000 GRANT ALL */ SET NAMES utf8mb4" ) ) throw new RuntimeException( 'Un comentario de versión inalcanzable dejó de ser comentario.' );
+$guard( false )->check( "CREATE TABLE `wp_posts` (`a` int) ENGINE='InnoDB' --\x7f nada\n" );
 // Una variable de usuario cargada con un texto no puede cambiar después el modo SQL ni el juego de caracteres.
 bk_expect_failure( 'variable con texto', function() use ( $dump ) { $g = $dump(); $g->check( "SET @m = 'NO_BACKSLASH_ESCAPES'" ); $g->check( 'SET SQL_MODE = @m' ); }, 'valor no permitido para SQL_MODE' );
 bk_expect_failure( 'variable sin asignar', function() use ( $dump ) { $dump()->check( 'SET character_set_client = @cs' ); }, 'valor no permitido para CHARACTER_SET_CLIENT' );
