@@ -1016,8 +1016,9 @@
   "nota": "Primera corrida (445 s): A1 falló por dos hallazgos reales, corregidos: la Plantilla propia (template_id, consulta) no figuraba entre lo que traduce el núcleo en compare.mjs (CORE_COVERED), y la página con una instancia del widget global salía con ids aleatorios distintos por REST y por WP-CLI (PRO exporta la instancia como su contenido y Export\\Documents::restore_ids() no casaba el árbol; ahora repone el id de la instancia y da ids estables a los hijos). Segunda corrida (492 s): A1, A4–A7 y A14 ok. A13 falla por tiempo de los runners de importación del núcleo (elementor-content 35,4 s y digitalisimo 26,9 s), igual con la versión 4.3.0.163 del paso antiguo (36,8 s), sin código de C9: la misma falla por carga que en C2, C3 y C6. R1 se correrá una sola vez sobre main con todas las etapas publicadas; las 4 entradas de C9 de known.json quedan declaradas y sin verificar hasta entonces."
  },
  "interaction": {
-  "ok_front": 35,
-  "editor": "no medido: congelado por el guardián (presión de memoria) en las cuatro corridas (intp, intp2, intp3 con 180 s; intp4 con EDITOR_MS=900000); la corrida de C5 de esas horas falla igual",
-  "editor_pro": "pendiente; cubierto en PHP por elements-convert.php (panel y mapas)"
+  "ok": 38,
+  "elements": "4.3.0.177 (con C5)",
+  "editor_pro": "52 widgets de PRO registrados y ocultos (C0–C5 y C9); «facebook» → los cuatro de Facebook, «paypal» → Botón de PayPal, «stripe» → Botón de Stripe, «plantilla» → Plantilla",
+  "nota": "EDITOR_MS=900000; las cuatro corridas anteriores no pasaron de la apertura del editor por la congelación de la unidad (tope de memoria de 4 GB, subido a 5,5 GB); nota del arnés: elementor/v1/variables/list tardó más de 40 s (máquina lenta)"
  }
 }
