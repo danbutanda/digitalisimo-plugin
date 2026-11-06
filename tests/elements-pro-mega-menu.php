@@ -281,7 +281,7 @@ namespace {
 	// «Desplazamiento horizontal» (posición inicial y arrastre de PRO): script aparte, sólo cuando algún dispositivo lo activa.
 	$scroll_js = (string) file_get_contents( $root . Mega_Menu::SCRIPTS['digitalisimo-mega-menu-scroll'] );
 	check_mm( strlen( $scroll_js ) > 0 && strlen( $scroll_js ) <= 2560 && ! preg_match( '/jQuery|\$\(|elementorProFrontend/i', $scroll_js ) && str_contains( $scroll_js, "'mousedown'" ) && str_contains( $scroll_js, "'mousemove'" ) && str_contains( $scroll_js, 'scrollLeft' ) && str_contains( $scroll_js, "'--dmm-heading-justify-content'" ) && str_contains( $scroll_js, "'start'" ) && str_contains( $scroll_js, 'frontend/element_ready/digitalisimo-mega-menu.default' ), 'Script del desplazamiento horizontal ≤ 2,5 KB sin jQuery: arrastre, posición inicial y reinicio en el editor (' . strlen( $scroll_js ) . ' B).' );
-	check_mm( str_contains( $css_all, '.digi-mm__scroll{cursor:grabbing}' ) && str_contains( $css_all, '.digi-mm__scroll-active:before{content:"";inset:0 -1000vw;position:absolute;z-index:2}' ), 'Arrastre: cursor de agarre y velo que evita abrir un enlace al soltar, como PRO.' );
+	check_mm( str_contains( $css_all, '.digi-mm__heading:active{cursor:grabbing}' ) && ! str_contains( $css_all, '.digi-mm__scroll{' ) && str_contains( $css_all, '.digi-mm__scroll-active:before{content:"";inset:0 -1000vw;position:absolute;z-index:2}' ), 'Arrastre: cursor de agarre al pulsar sobre la fila de cualquier menú (lo pone la hoja: PRO lo hace en todos) y velo que evita abrir un enlace al soltar, como PRO.' );
 	$scripts = static function ( array $s, $type = false ) {
 		$w           = new Mega_Menu();
 		$w->settings = $s;
@@ -293,6 +293,14 @@ namespace {
 	check_mm( 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array( 'horizontal_scroll' => 'enable' ) ) && 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array( 'horizontal_scroll_mobile' => 'enable' ) ) && 'digitalisimo-mega-menu,digitalisimo-mega-menu-scroll' === $scripts( array(), true ), 'Activado en cualquier dispositivo, o en el editor: también el del desplazamiento.' );
 	$reg = $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'] ?? null;
 	check_mm( is_array( $reg ) && str_ends_with( $reg[0], 'modules/digitalisimo-navigation/assets/js/mega-menu-scroll.js' ) && array() === $reg[1] && array( 'in_footer' => true, 'strategy' => 'defer' ) === $reg[2], 'El script del desplazamiento se registra con defer, en el pie y sin dependencias.' );
+	// Recursos de página del núcleo (`_elementor_page_assets`) y caché de elementos: el núcleo encola por su handle lo que
+	// guardó, sin instanciar el widget, y un handle sin registrar no se imprime. Las hojas y el script adicionales se
+	// registran también con los del módulo (`Module::register_assets()`, en `elementor/frontend/after_register_*`).
+	$GLOBALS['mm']['features'] = array( 'container' => true, 'nested-elements' => true );
+	$GLOBALS['mm']['styles']   = array();
+	$GLOBALS['mm']['scripts']  = array();
+	Module::register_assets();
+	check_mm( array( 'digitalisimo-mega-menu', 'digitalisimo-mega-menu-items', 'digitalisimo-mega-menu-dropdown' ) === array_values( array_intersect( array_keys( $GLOBALS['mm']['styles'] ), array( 'digitalisimo-mega-menu', 'digitalisimo-mega-menu-items', 'digitalisimo-mega-menu-dropdown' ) ) ) && isset( $GLOBALS['mm']['scripts']['digitalisimo-mega-menu'], $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'] ) && array( 'in_footer' => true, 'strategy' => 'defer' ) === $GLOBALS['mm']['scripts']['digitalisimo-mega-menu-scroll'][2], 'Las hojas y el script adicionales se registran antes de pintar, sin instanciar el widget (recursos de página y caché de elementos del núcleo): ' . implode( ',', array_keys( $GLOBALS['mm']['styles'] + $GLOBALS['mm']['scripts'] ) ) );
 	check_mm( strlen( $editor_js ) <= 6144 && ! preg_match( '/jQuery|elementorPro/i', $editor_js ) && str_contains( $editor_js, "'digitalisimo-mega-menu'" ) && str_contains( $editor_js, 'attachBuffer' ) && str_contains( $editor_js, 'elementor/nested-container/atomic-repeater' ) && str_contains( $editor_js, 'digi-mm-go' ), 'Script del editor: registra el tipo, entrelaza los hijos, abre el elemento que se edita y repinta tras el repetidor.' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-navigation/widgets/class-mega-menu.php' );
 	foreach ( array( $source, $css_all, $js, $editor_js, (string) file_get_contents( $root . 'modules/digitalisimo-convert/maps/mega-menu.php' ) ) as $text ) {

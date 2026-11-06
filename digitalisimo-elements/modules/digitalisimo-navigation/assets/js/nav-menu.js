@@ -25,7 +25,7 @@ const set = (li, open) => {
 const b = btnOf(li), a = kid(li, 'a'), ul = kid(li, 'ul');
 if (!ul || isOpen(li) == open) return;
 li.classList.toggle(OPEN, open);
-a && a.classList.toggle(R + '__open', open);
+a && (a.classList.toggle(R + '__open', open), a.setAttribute(E, open));
 b && b.setAttribute(E, open);
 if (!open) return each(li.querySelectorAll('.' + OPEN), x => set(x, false));
 if (main && main.contains(li)) {
@@ -38,8 +38,8 @@ place(ul);
 };
 const closeAll = scope => each(scope.querySelectorAll('.' + OPEN), li => set(li, false));
 each(root.querySelectorAll(C('sub-toggle')), b => {
-const ul = kid(b.parentNode, 'ul');
-if (ul) { ul.id = ul.id || R + '-sub-' + ++n; b.setAttribute('aria-controls', ul.id); }
+const ul = kid(b.parentNode, 'ul'), a = kid(b.parentNode, 'a');
+if (ul) { ul.id = ul.id || R + '-sub-' + ++n; b.setAttribute('aria-controls', ul.id); a && a.setAttribute(E, false); }
 });
 root.addEventListener('click', e => {
 const b = e.target.closest(C('sub-toggle')), a = e.target.closest('a');

@@ -17,7 +17,8 @@
 // - «Desplazamiento horizontal» (m4 «Final», m5 «Centro», m6 «Final» en RTL; mega-menu-scroll.js): si los elementos no
 //   caben, la fila empieza por el primero o, con «Final», por el último, todos alcanzables; si caben, conserva su
 //   alineación (también al redimensionar); arrastre con el ratón con los pasos de PRO (67,5 px con 150 px en 12 pasos),
-//   cursor de agarre y velo, sin abrir el enlace donde empezó, y sin efecto en un menú sin desplazamiento.
+//   cursor de agarre y velo, sin abrir el enlace donde empezó, y sin efecto en un menú sin desplazamiento; el cursor de
+//   agarre al pulsar sobre la fila, como PRO en todos sus menús, también sin el script.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-pro-mega-menu-chrome.mjs
 import assert from 'node:assert/strict';
@@ -40,8 +41,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ width = 1280, reduce = false, editor = false, touch = false } = {}) {
+async function open({ width = 1280, reduce = false, editor = false, touch = false, noScroll = false } = {}) {
   const page = await browser.newPage();
+  // `noScroll`: la página de un menú sin «Desplazamiento horizontal», que no carga mega-menu-scroll.js.
+  if (noScroll) { await page.setRequestInterception(true); page.on('request', r => (r.url().endsWith('/mega-menu-scroll.js') ? r.respond({ status: 200, contentType: 'text/javascript', body: '' }) : r.continue())); }
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]);
@@ -263,6 +266,19 @@ for (const width of [1280, 1180]) {
   await wide.mouse.up();
   ok(off.left === 0 && !off.active, 'Sin «Desplazamiento horizontal»: el arrastre no hace nada: ' + JSON.stringify(off));
   await wide.close();
+  // Cursor de agarre al pulsar sobre la fila, como PRO en todos sus menús, también en una página que no carga el script
+  // del desplazamiento (ningún menú lo activa): lo pone la hoja, no el script.
+  const bare = await open({ noScroll: true });
+  const gap = await bare.evaluate(() => { const h = document.querySelector('[data-id="m2"] .digi-mm__heading'); h.scrollIntoView({ block: 'center' }); const r = h.getBoundingClientRect(), l = h.lastElementChild.getBoundingClientRect(); return { x: (l.right + r.right) / 2, y: (r.top + r.bottom) / 2, loaded: !!document.querySelector('[data-id="m2"] .digi-mm__heading').digiMmScroll, free: r.right - l.right }; });
+  ok(!gap.loaded && gap.free > 20, 'Prueba válida: sin el script del desplazamiento y con espacio libre en la fila: ' + JSON.stringify(gap));
+  await bare.mouse.move(gap.x, gap.y);
+  const idle = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  await bare.mouse.down();
+  const held = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  await bare.mouse.up();
+  const released = await bare.evaluate(() => getComputedStyle(document.querySelector('[data-id="m2"] .digi-mm__heading')).cursor);
+  ok(idle !== 'grabbing' && held === 'grabbing' && released !== 'grabbing', 'Sin el script, el cursor de agarre aparece al pulsar sobre la fila y se va al soltar, como PRO: ' + JSON.stringify({ idle, held, released }));
+  await bare.close();
 }
 
 await browser.close();

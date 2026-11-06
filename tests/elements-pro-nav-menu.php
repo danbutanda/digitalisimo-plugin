@@ -116,6 +116,8 @@ namespace {
 	function plugins_url( $p, $f ) { return 'https://ejemplo.test/wp-content/plugins/digitalisimo-elements/' . $p; }
 	function wp_style_is( $h, $s ) { return isset( $GLOBALS['nm']['styles'][ $h ] ); }
 	function wp_register_style( $h, $src, $deps = array(), $ver = false ) { $GLOBALS['nm']['styles'][ $h ] = $src; return true; }
+	function wp_script_is( $h, $s ) { return isset( $GLOBALS['nm']['scripts'][ $h ] ); }
+	function wp_register_script( $h, $src, $deps = array(), $ver = false, $args = array() ) { $GLOBALS['nm']['scripts'][ $h ] = $src; return true; }
 	function wp_get_nav_menus() {
 		$out = array();
 		foreach ( $GLOBALS['nm']['menus'] as $slug => $name ) {
@@ -277,6 +279,14 @@ namespace {
 	foreach ( array_keys( Nav_Menu::SHEETS ) as $handle ) {
 		check_nm( isset( $GLOBALS['nm']['styles'][ $handle ] ), "$handle: registrada (sin encolar)." );
 	}
+	// Recursos de página del núcleo (`_elementor_page_assets`) y caché de elementos: el núcleo encola por su handle lo que
+	// guardó, sin instanciar el widget, y un handle sin registrar no se imprime. Las hojas adicionales se registran también
+	// con las del módulo (`Module::register_assets()`, en `elementor/frontend/after_register_*`).
+	$GLOBALS['nm']['styles'] = array();
+	Module::register_assets();
+	foreach ( array_merge( array( 'digitalisimo-nav-menu' ), array_keys( Nav_Menu::SHEETS ) ) as $handle ) {
+		check_nm( isset( $GLOBALS['nm']['styles'][ $handle ] ), "$handle: registrada antes de pintar, sin instanciar el widget." );
+	}
 	check_nm( array( 'digitalisimo-nav-menu' ) === $own->get_script_depends(), 'Un solo script, el propio.' );
 	$sheets = static function ( array $s ) use ( $own, $defaults ) {
 		$w           = new Nav_Menu();
@@ -305,6 +315,8 @@ namespace {
 	$js = (string) file_get_contents( $root . Module::WIDGETS['digitalisimo-nav-menu']['js'] );
 	// Como SmartMenus en PRO: el primer clic, toque o Intro en un padre con el submenú cerrado lo abre sin navegar.
 	check_nm( str_contains( $js, "if (t && (!isOpen(a.parentNode) || a.getAttribute('href') == '#' ||" ), 'El primer clic en un padre cerrado abre su submenú (el segundo navega), como PRO.' );
+	// Y, como SmartMenus, el enlace del padre anuncia el estado del submenú (aria-expanded), que el script pone y cambia.
+	check_nm( str_contains( $js, 'a && a.setAttribute(E, false);' ) && str_contains( $js, 'a.setAttribute(E, open)' ), 'El enlace de un padre lleva aria-expanded con el estado de su submenú, como SmartMenus en PRO.' );
 	check_nm( strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|smartmenus|elementorProFrontend/i', $js ) && str_contains( $js, "'aria-expanded'" ) && str_contains( $js, 'Escape' ) && str_contains( $js, 'frontend/element_ready/digitalisimo-nav-menu.default' ), 'Script ≤ 6 KB sin jQuery ni SmartMenus: aria-expanded, Escape y reinicio en el editor (' . strlen( $js ) . ' B).' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-navigation/widgets/class-nav-menu.php' );
 	$map    = require $root . 'modules/digitalisimo-convert/maps/nav-menu.php';

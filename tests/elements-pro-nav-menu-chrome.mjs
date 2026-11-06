@@ -13,7 +13,8 @@
 // - movimiento reducido y reinicio en el editor (frontend/element_ready/digitalisimo-nav-menu.default);
 // - clic, toque o Intro en el texto de un padre con submenú, como SmartMenus en PRO: el primero abre sin navegar y el
 //   segundo navega (desplegable a 375 px con el ratón y con el dedo, menú horizontal con el dedo a 1 280 px, teclado);
-//   con el ratón, tras el paso por encima el clic navega y un clic inmediato abre;
+//   con el ratón, tras el paso por encima el clic navega y un clic inmediato abre; con JavaScript, el enlace del padre
+//   anuncia su estado con aria-expanded, como SmartMenus en PRO (sin JavaScript, sólo navega y no lo lleva);
 // - indicador como PRO: relleno heredado del enlace (no currentColor) salvo en los submenús del menú principal, que lo
 //   giran también con iconos de fuente.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
@@ -60,7 +61,7 @@ const item = (page, id, copy, text) => page.evaluate((id, copy, text) => {
   const scope = document.querySelector(`[data-id="${id}"] ${copy === 'main' ? '.digi-nav__main' : '.digi-nav__container.digi-nav__dropdown'}`);
   const a = [...scope.querySelectorAll('a')].find(x => x.textContent.trim() === text);
   const li = a.parentNode, b = li.querySelector(':scope>.digi-nav__sub-toggle'), ul = li.querySelector(':scope>ul');
-  return { open: li.classList.contains('digi-nav__item--open'), expanded: b && b.getAttribute('aria-expanded'), visible: !!(ul && ul.offsetParent), hl: a.classList.contains('digi-nav__open'), controls: b && b.getAttribute('aria-controls'), ulId: ul && ul.id, focused: document.activeElement === b };
+  return { open: li.classList.contains('digi-nav__item--open'), expanded: b && b.getAttribute('aria-expanded'), visible: !!(ul && ul.offsetParent), hl: a.classList.contains('digi-nav__open'), link: a.getAttribute('aria-expanded'), controls: b && b.getAttribute('aria-controls'), ulId: ul && ul.id, focused: document.activeElement === b };
 }, id, copy, text);
 const btn = (id, copy, text) => `[data-id="${id}"] ${copy === 'main' ? '.digi-nav__main' : '.digi-nav__container.digi-nav__dropdown'} li:has(> a[href]:is(${text})) > .digi-nav__sub-toggle`;
 const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[href="#"]';
@@ -76,6 +77,7 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
   await page.mouse.move(0, 800);
   await page.focus(`[data-id="n1"] .digi-nav__main a${SERV}`);
   ok((await item(page, 'n1', 'main', 'Servicios')).visible, 'Sin JS: se abre con el foco dentro.');
+  ok(await page.evaluate(() => !document.querySelector('.digi-nav a[aria-expanded]')), 'Sin JS: ningún enlace anuncia un estado (el padre sólo navega).');
   await page.close();
 }
 
@@ -92,9 +94,10 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
   await page.click(btn('n1', 'main', SERV));
   let s = await item(page, 'n1', 'main', 'Servicios');
   ok(s.open && s.expanded === 'true' && s.visible && s.hl, 'Clic: abre (aria-expanded, visible, enlace resaltado).');
+  ok(s.link === 'true', 'El enlace del padre también anuncia el submenú abierto (aria-expanded, como SmartMenus en PRO): ' + JSON.stringify(s));
   await page.click(btn('n1', 'main', SERV));
   s = await item(page, 'n1', 'main', 'Servicios');
-  ok(!s.open && s.expanded === 'false' && !s.visible && !s.hl, 'Segundo clic: cierra.');
+  ok(!s.open && s.expanded === 'false' && !s.visible && !s.hl && s.link === 'false', 'Segundo clic: cierra (también el aria-expanded del enlace).');
   // Ratón: 250 ms para abrir y 500 ms para cerrar.
   await page.mouse.move(0, 800);
   await sleep(700);
@@ -250,6 +253,7 @@ const navs = page => page.evaluate(() => window.__navs.slice());
   await page.click('[data-id="n1"] .digi-nav__toggle');
   await sleep(400);
   let p = await textAt(page, 'n1', 'dd', 'Servicios');
+  ok((await item(page, 'n1', 'dd', 'Servicios')).link === 'false' && (await page.evaluate(() => [...document.querySelectorAll('.digi-nav__sub-toggle')].every(b => b.parentNode.querySelector(':scope>a').getAttribute('aria-expanded') === 'false'))), 'Con JS, cada enlace con submenú anuncia su estado (aria-expanded=false, como SmartMenus en PRO): el primer clic lo abre.');
   ok(p.onText, 'El punto pulsado es el texto de «Servicios», fuera de la zona del indicador: ' + JSON.stringify(p));
   await page.mouse.click(p.x, p.y);
   let s = await item(page, 'n1', 'dd', 'Servicios');
@@ -305,7 +309,7 @@ const navs = page => page.evaluate(() => window.__navs.slice());
   await page.focus(`[data-id="n1"] .digi-nav__main a${SERV}`);
   await page.keyboard.press('Enter');
   s = await item(page, 'n1', 'main', 'Servicios');
-  ok(s.open && s.expanded === 'true' && (await navs(page)).length === 1, 'Intro en el enlace de un padre cerrado: abre su submenú.');
+  ok(s.open && s.expanded === 'true' && s.link === 'true' && (await navs(page)).length === 1, 'Intro en el enlace de un padre cerrado: abre su submenú y el enlace lo anuncia (aria-expanded).');
   await page.keyboard.press('Enter');
   ok((await navs(page)).length === 2, 'Intro otra vez, con el submenú abierto: navega.');
   // Un enlace sin hijos navega al primer clic.

@@ -103,7 +103,14 @@ final class Module {
 		return dirname( dirname( __DIR__ ) ) . '/' . ltrim( $relative, '/' );
 	}
 
-	/** Registra la hoja y el script de cada widget cuyo archivo existe (sin encolarlos). Idempotente. */
+	/**
+	 * Registra la hoja y el script de cada widget cuyo archivo existe (sin encolarlos), y las hojas y scripts adicionales
+	 * de los que los tienen (`SHEETS`/`SCRIPTS` de su clase). Idempotente.
+	 *
+	 * Los adicionales se registran aquí, antes de pintar, y no sólo en `get_style_depends()`/`get_script_depends()`: en
+	 * una visita con los recursos de página del núcleo (`_elementor_page_assets`) o con la caché de elementos, el núcleo
+	 * encola por su handle lo que guardó sin instanciar el widget, y un handle sin registrar no se imprime.
+	 */
 	public static function register_assets(): void {
 		if ( ! function_exists( 'wp_register_style' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
 			return;
@@ -115,6 +122,14 @@ final class Module {
 			}
 			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
 				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+			}
+		}
+		foreach ( array( 'digitalisimo-nav-menu', 'digitalisimo-mega-menu' ) as $name ) {
+			$class = self::load( $name );
+			foreach ( array( 'register_sheets', 'register_scripts' ) as $method ) {
+				if ( '' !== $class && method_exists( $class, $method ) ) {
+					$class::$method();
+				}
 			}
 		}
 	}
