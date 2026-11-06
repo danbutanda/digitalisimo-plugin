@@ -187,7 +187,8 @@ for (const path of php) {
   }
 }
 for (const name of ASSETS) {
-  for (const [ext, max] of [['js', 8192], ['css', 4096]]) {
+  // El coordinador (`filters.js`) sube a 10 KB en C5: refresca también la Cuadrícula de bucle propia.
+  for (const [ext, max] of [['js', name === 'filters' ? 10240 : 8192], ['css', 4096]]) {
     const path = join(BASE, 'assets', ext, `${name}.${ext}`);
     if (!existsSync(path)) continue;
     const bytes = statSync(path).size;

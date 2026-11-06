@@ -111,6 +111,9 @@ jobs:
           php tests/elements-pro-off-canvas.php
           php tests/elements-pro-search.php
           node tests/elements-pro-off-canvas-search-chrome.mjs
+          php tests/elements-pro-posts.php
+          node tests/elements-pro-posts-chrome.mjs
+          php tests/elements-pro-loop.php
           php tests/elements-pro-facebook.php
           node tests/elements-pro-facebook-chrome.mjs
           php tests/elements-pro-payments.php

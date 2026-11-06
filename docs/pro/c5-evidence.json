@@ -1,0 +1,652 @@
+{
+ "fecha": "2026-11-05",
+ "etapa": "C5",
+ "pro_ab": {
+  "casos": {
+   "bq-defaults": {
+    "destino": "digitalisimo-blockquote",
+    "pixeles_normal": {
+     "375": 0.13,
+     "768": 0.09,
+     "1280": 0.06
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ah-defaults": {
+    "destino": "digitalisimo-animated-headline",
+    "pixeles_normal": {
+     "375": 0.01,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ap-defaults": {
+    "destino": "digitalisimo-archive-posts",
+    "pixeles_normal": {
+     "375": 19.94,
+     "768": 1.03,
+     "1280": 0.76
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ap-cards": {
+    "destino": "digitalisimo-archive-posts",
+    "pixeles_normal": {
+     "375": 14.56,
+     "768": 0.66,
+     "1280": 1.17
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ap-nothing": {
+    "destino": "digitalisimo-archive-posts",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "cta-defaults": {
+    "destino": "digitalisimo-call-to-action",
+    "pixeles_normal": {
+     "375": 0.02,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 1,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ch-defaults": {
+    "destino": "digitalisimo-code-highlight",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "cd-defaults": {
+    "destino": "digitalisimo-countdown",
+    "pixeles_normal": {
+     "375": 17.94,
+     "768": 0.78,
+     "1280": 0.46
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "flipbox-defaults": {
+    "destino": "digitalisimo-flip-box",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "gal-defaults": {
+    "destino": "digitalisimo-gallery",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.02,
+     "1280": 0.02
+    },
+    "declaradas": 21,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "hs-defaults": {
+    "destino": "digitalisimo-hotspot",
+    "pixeles_normal": {
+     "375": 0.09,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lc-defaults": {
+    "destino": "digitalisimo-loop-carousel",
+    "pixeles_normal": {
+     "375": 0.18,
+     "768": 0.08,
+     "1280": 0.05
+    },
+    "declaradas": 501,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lc-fraction": {
+    "destino": "digitalisimo-loop-carousel",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 58,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lc-progress": {
+    "destino": "digitalisimo-loop-carousel",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 60,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-defaults": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-columns": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-numbers": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.3,
+     "768": 0.22,
+     "1280": 0.28
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-ajax": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.06,
+     "768": 0.04,
+     "1280": 0.06
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-alternate": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-nothing": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-terms": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-filter": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-more": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lg-masonry": {
+    "destino": "digitalisimo-loop-grid",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 10.1,
+     "1280": 6.86
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "lt-defaults": {
+    "destino": "digitalisimo-lottie",
+    "pixeles_normal": {
+     "375": 9.44,
+     "768": 20.12,
+     "1280": 7.42
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "mc-defaults": {
+    "destino": "digitalisimo-media-carousel",
+    "pixeles_normal": {
+     "375": 0.18,
+     "768": 0.08,
+     "1280": 0.05
+    },
+    "declaradas": 125,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "nc-defaults": {
+    "destino": "digitalisimo-nested-carousel",
+    "pixeles_normal": {
+     "375": 0.23,
+     "768": 0.11,
+     "1280": 0.06
+    },
+    "declaradas": 366,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "pf-defaults": {
+    "destino": "digitalisimo-portfolio",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.31
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "pf-styled": {
+    "destino": "digitalisimo-portfolio",
+    "pixeles_normal": {
+     "375": 0.56,
+     "768": 1.0,
+     "1280": 1.42
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "pf-filter": {
+    "destino": "digitalisimo-portfolio",
+    "pixeles_normal": {
+     "375": 1.62,
+     "768": 0.2,
+     "1280": 1.71
+    },
+    "declaradas": 93,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-defaults": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 14.93,
+     "768": 0.61,
+     "1280": 0.78
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-classic-left": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 14.49,
+     "768": 0.8,
+     "1280": 1.57
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-classic-none": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 2,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-cards": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 14.93,
+     "768": 0.61,
+     "1280": 0.78
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-cards-styled": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 15.12,
+     "768": 1.06,
+     "1280": 1.57
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-cards-none": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-masonry": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-full": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 0.26,
+     "768": 1.77,
+     "1280": 1.88
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-numbers": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 21.28,
+     "768": 0.97,
+     "1280": 0.39
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-prevnext": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 22.39,
+     "768": 0.99,
+     "1280": 0.74
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-load-more": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.48,
+     "1280": 0.74
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "po-infinite": {
+    "destino": "digitalisimo-posts",
+    "pixeles_normal": {
+     "375": 7.63,
+     "768": 0.01,
+     "1280": 0.1
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "plist-defaults": {
+    "destino": "digitalisimo-price-list",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 8,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "ptab-defaults": {
+    "destino": "digitalisimo-price-table",
+    "pixeles_normal": {
+     "375": 0.86,
+     "768": 0.37,
+     "1280": 0.22
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "pt-defaults": {
+    "destino": "digitalisimo-progress-tracker",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "rv-defaults": {
+    "destino": "digitalisimo-reviews",
+    "pixeles_normal": {
+     "375": 1.9,
+     "768": 0.07,
+     "1280": 0.75
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "sb-defaults": {
+    "destino": "digitalisimo-share-buttons",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 47,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "sl-defaults": {
+    "destino": "digitalisimo-slides",
+    "pixeles_normal": {
+     "375": 0.04,
+     "768": 0.02,
+     "1280": 0.01
+    },
+    "declaradas": 150,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "toc-defaults": {
+    "destino": "digitalisimo-table-of-contents",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "tf-defaults": {
+    "destino": "digitalisimo-taxonomy-filter",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "tf-multiple": {
+    "destino": "digitalisimo-taxonomy-filter",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 30,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "tf-vertical": {
+    "destino": "digitalisimo-taxonomy-filter",
+    "pixeles_normal": {
+     "375": 0.0,
+     "768": 0.0,
+     "1280": 0.0
+    },
+    "declaradas": 99,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "tc-defaults": {
+    "destino": "digitalisimo-testimonial-carousel",
+    "pixeles_normal": {
+     "375": 0.07,
+     "768": 0.04,
+     "1280": 0.03
+    },
+    "declaradas": 83,
+    "sin_motivo": 0,
+    "estado": "OK"
+   },
+   "vpl-defaults": {
+    "destino": "digitalisimo-video-playlist",
+    "pixeles_normal": {
+     "375": 45.23,
+     "768": 0.43,
+     "1280": 0.25
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "estado": "OK"
+   }
+  },
+  "resumen": {
+   "casos": 54,
+   "con_problemas": 0,
+   "duracion_s": 3410,
+   "nota": "34 casos de C5 y los 20 *-defaults de C0, C1 y C2, antes de fusionar C4 y C3 (registro de la corrida; su pro-ab.json no se conservó). Tras fusionar C4: 11 casos de muestra en verde (/var/tmp/digi-pro-ab-c5int2). Tras fusionar C3: ver «tras_c3»."
+  }
+ },
+ "tras_c3": {
+  "pro_ab": "16 casos de muestra (C5, C3 y C0) tras fusionar C3: 15 en verde; lg-filter falló sólo con cuatro corridas de Playground a la vez (la página filtrada tardó más de 8 s) y quedó en verde repetido aparte con lg-ajax y tf-defaults (/var/tmp/digi-pro-ab-c5int7)",
+  "suite": "335 comandos de validate.yml en verde",
+  "paquetes": "build-packages.sh sin abortar; validate-suite.mjs y verify-release.mjs en verde; 41 entradas de modules/digitalisimo-loop/ en el ZIP de Elements 4.3.0.176 local"
+ },
+ "pro_loop": {
+  "comprobaciones": 42,
+  "nota": "en verde antes y después de fusionar C3 y C4"
+ },
+ "pro_migrate": {
+  "comprobaciones": 39,
+  "problemas": [],
+  "nota": "Tras fusionar C3 y C4: página pm-bucles con los seis de PRO, Entradas de PRO en la cabecera y bdt-post-grid, bdt-dynamic-grid y prime-slider-blog; «Migrar» convierte 61 widgets en 9 documentos en la misma pasada y --revert los devuelve"
+ },
+ "front_budget": {
+  "caso": "loop-own",
+  "peticiones": 8,
+  "kb": 81.1,
+  "cls": 0.004,
+  "proHandlers": false,
+  "proFrontend": false,
+  "errores": 0,
+  "problemas": 0,
+  "nota": "Frente a la página vacía; el buscador de F7b refresca la Cuadrícula propia sin recargar ni el REST de PRO. Sin regresiones en pro-loop, pro-loop-filter y f7b-filters."
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce, tras fusionar C3",
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A13": "falla",
+   "A14": "ok"
+  },
+  "nota": "A13 por el tiempo del importador (25–32 s) con cuatro corridas a la vez, como en C2. Firmas comparadas como R1 con compare.mjs: sólo las conversiones de §17 declaradas en known.json. R1 no se corrió."
+ },
+ "interaction": {
+  "ok": 38,
+  "editor_pro": "45 widgets de PRO sustituidos (6 de C5) registrados y ocultos; la búsqueda ofrece los propios",
+  "nota": "Con EDITOR_MS=900000: el editor tarda ~240 s en abrir en la máquina cargada y dos REST del núcleo pasan su tope de 40 s (descontados y anotados); origin/main falla igual sin la espera ampliada. Una corrida anterior encontró el fallo de la vista previa de la Cuadrícula propia, ya corregido."
+ },
+ "suite": "335 comandos de validate.yml en verde con todos los cambios (tras fusionar C3 y C4), más validate-suite.mjs y verify-release.mjs"
+}

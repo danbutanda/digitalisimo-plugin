@@ -194,6 +194,12 @@ final class References {
 			array( 'element', 'loop-carousel', 'template_id', 'template' ),
 			// Filtro de taxonomías: ID del Loop Grid del mismo documento (E:modules/loop-filter/widgets/taxonomy-filter.php:73-80).
 			array( 'element', 'taxonomy-filter', 'selected_element', 'element' ),
+			// Cuadrícula de bucle propia (C5): `template_id` lo traduce su `on_import_update_dynamic_content()` (como el Loop Grid de PRO); las plantillas alternas no (E:modules/digitalisimo-loop/widgets/class-loop-grid.php).
+			array( 'element', 'digitalisimo-loop-grid', 'alternate_templates.*.template_id', 'template' ),
+			// Carrusel de bucle propio (C5): como el de PRO, sin método propio de importación (E:modules/digitalisimo-loop/class-loop-base.php).
+			array( 'element', 'digitalisimo-loop-carousel', 'template_id', 'template' ),
+			// Filtro de taxonomías propio (C5): ID del Loop Grid (propio o de PRO) del mismo documento (E:modules/digitalisimo-loop/widgets/class-taxonomy-filter.php).
+			array( 'element', 'digitalisimo-taxonomy-filter', 'selected_element', 'element' ),
 			// Widgets de WordPress: `wp` guarda la instancia del widget (N:includes/widgets/wordpress.php:53,179,224).
 			array( 'element', 'wp-widget-nav_menu', 'wp.nav_menu', 'menu' ),
 			array( 'element', 'wp-widget-media_image', 'wp.attachment_id', 'attachment' ),

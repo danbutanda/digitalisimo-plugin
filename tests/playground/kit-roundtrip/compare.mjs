@@ -201,8 +201,9 @@ const LOOKS_LIKE = /(_id|_ids|template|menu|navbar|user|_value)$/;
 // (Loop Grid, template_id: E:modules/loop-builder/widgets/loop-grid.php:596-602; Plantilla; Nav Menu), y los que
 // usan el rasgo On_Import de PRO, los controles Query con post_ids o term_ids en el nombre, o post_id, template_id y
 // popup (E:base/on-import-trait.php:86-108). Un widget sin el rasgo (`import` de controls.json) no tiene nada cubierto.
+// La Cuadrícula de bucle propia (C5) repite el método del Loop Grid (E:modules/digitalisimo-loop/widgets/class-loop-grid.php).
 // La Plantilla propia (C9) traduce su `template_id` igual que la de PRO, con su `on_import_update_dynamic_content()`.
-const CORE_COVERED = new Set(['loop-grid|template_id', 'template|template_id', 'digitalisimo-template|template_id', 'nav-menu|menu']);
+const CORE_COVERED = new Set(['loop-grid|template_id', 'digitalisimo-loop-grid|template_id', 'template|template_id', 'digitalisimo-template|template_id', 'nav-menu|menu']);
 const coreCovered = (type, path, control, widget = {}) => CORE_COVERED.has(`${type}|${path}`)
   || ((widget.import === undefined || widget.import === 'rasgo') && control.type === 'query' && !path.includes('.') && (/post_ids|term_ids/.test(path) || ['post_id', 'template_id', 'popup'].includes(path)));
 export function checkInventory(controls, references, noReference) {

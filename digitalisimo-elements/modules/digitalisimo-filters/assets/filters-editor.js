@@ -12,11 +12,11 @@ m.set('options',opts);
 const c=p.children&&p.children.findByModelCid(m.cid);
 if(c)c.render();
 };
-// Sólo los Loop Grid de este documento: los de una plantilla incrustada son de otro y el servidor los descartaría.
+// Sólo los Loop Grid de este documento (de PRO y la Cuadrícula de bucle propia de C5): los de una plantilla incrustada son de otro y el servidor los descartaría.
 const loops=()=>{
 const e=w.elementor,doc=e.$previewContents&&e.$previewContents[0],id=String(e.config.document.id),o={'':'Elige un Loop Grid'};
 let n=0;
-if(doc)[...doc.querySelectorAll('.elementor-widget-loop-grid')].forEach(el=>{const d=el.closest('[data-elementor-id]');if(d&&d.getAttribute('data-elementor-id')===id)o[el.getAttribute('data-id')]='Loop Grid '+(++n)});
+if(doc)[...doc.querySelectorAll('.elementor-widget-loop-grid,.elementor-widget-digitalisimo-loop-grid')].forEach(el=>{const d=el.closest('[data-elementor-id]');if(d&&d.getAttribute('data-elementor-id')===id)o[el.getAttribute('data-id')]='Loop Grid '+(++n)});
 return o;
 };
 // Tipo de contenido de las claves: el del bucle elegido o, con «Archivo», el del control.

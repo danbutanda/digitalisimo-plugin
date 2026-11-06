@@ -3568,7 +3568,7 @@
     "count:forms": 4,
     "count:search": 1,
     "asset:f7b-filters-css": "<=2048",
-    "asset:filters-js": "<=8192",
+    "asset:filters-js": "<=10240",
     "asset:filters-form-js": "<=6144",
     "after": {
      "changed": [
@@ -5246,7 +5246,7 @@
     "errors": 0,
     "delta.cls": "<=0.01",
     "asset:filters-css": "<=4096",
-    "asset:filters-js": "<=8192",
+    "asset:filters-js": "<=10240",
     "count:forms": 1,
     "count:price": 1,
     "asset:filters-form-js": "<=8192"
@@ -5318,7 +5318,7 @@
     "errors": 0,
     "delta.cls": "<=0.01",
     "asset:filters-css": "<=4096",
-    "asset:filters-js": "<=8192",
+    "asset:filters-js": "<=10240",
     "count:forms": 1,
     "count:terms": 3,
     "after": {
@@ -5555,7 +5555,7 @@
     "errors": 0,
     "delta.cls": "<=0.01",
     "asset:filters-css": "<=4096",
-    "asset:filters-js": "<=8192",
+    "asset:filters-js": "<=10240",
     "count:forms": 2,
     "count:terms": 3,
     "after": {
@@ -6855,6 +6855,7 @@
   }
  },
   "navigation": {"title": "Navegación y búsqueda propias (programa sin widgets de PRO, C3): Menú de WordPress, Menú con submenús de contenido (dos contenedores hijos), Panel fuera de lienzo abierto por un botón con la acción off_canvas del núcleo y Búsqueda con resultados en vivo (REST del propio sitio), sin los paquetes de PRO, sin SmartMenus y sin Swiper, tampoco después de abrir un submenú, escribir en la búsqueda y abrir el panel", "since": "4.3.0.176", "widgets": [{"type": "digitalisimo-nav-menu", "settings": {"menu": "__MENU__"}}, {"type": "digitalisimo-mega-menu", "id": "fbmm001", "settings": {"menu_items": [{"_id": "fbmm01a", "item_title": "Servicios", "item_dropdown_content": "yes"}, {"_id": "fbmm01b", "item_title": "Equipo", "item_dropdown_content": "yes"}]}, "elements": [{"elType": "container", "settings": {"content_width": "full"}, "elements": [{"type": "heading", "settings": {"title": "Contenido de servicios"}}]}, {"elType": "container", "settings": {"content_width": "full"}, "elements": [{"type": "heading", "settings": {"title": "Contenido del equipo"}}]}]}, {"type": "digitalisimo-search", "settings": {"live_results": "yes", "template_id": "__LOOP__", "minimum_search_characters": 2}}, {"type": "button", "settings": {"text": "Abrir el panel", "link": {"url": "#elementor-action%3Aaction%3Doff_canvas%3Aopen%26settings%3DeyJpZCI6ImZibm9jMDEiLCJkaXNwbGF5TW9kZSI6Im9wZW4ifQ%3D%3D"}}}, {"type": "digitalisimo-nested-off-canvas", "id": "fbnoc01", "settings": {"off_canvas_name": "Panel de medición"}, "elements": [{"elType": "container", "settings": {"content_width": "full"}, "elements": [{"type": "heading", "settings": {"title": "Contenido del panel"}}]}]}], "extra": [{"key": "loop", "type": "loop-item", "widgets": [{"type": "heading", "settings": {"title": "Entrada", "__dynamic__": {"title": "[elementor-tag id=\"l00p003\" name=\"post-title\" settings=\"%7B%7D\"]"}}}]}], "assets": {"smartmenus": "smartmenus", "nav-js": "/digitalisimo-navigation/assets/js/nav-menu\\.js", "search-js": "/digitalisimo-navigation/assets/js/search\\.js", "noc-js": "/digitalisimo-navigation/assets/js/nested-off-canvas\\.js"}, "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "subToggles": ".digi-nav__sub-toggle", "megaItems": ".digi-mm__item", "nocOpen": ".digi-noc[aria-hidden=\"false\"]", "search": "search[role=\"search\"] .digi-search__input"}, "actions": [{"do": "press", "selector": ".digi-nav__main .digi-nav__sub-toggle", "key": "Enter"}, {"do": "wait", "ms": 400}, {"do": "press", "selector": ".digi-mm__item [aria-expanded]", "key": "Enter"}, {"do": "wait", "ms": 400}, {"do": "fill", "selector": ".digi-search__input", "value": "digi"}, {"do": "wait", "ms": 2500}, {"do": "click", "selector": "a.elementor-button", "js": true}, {"do": "wait", "ms": 1200}], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "asset:smartmenus": 0, "asset:nav-js": "<=6144", "asset:search-js": "<=6144", "asset:noc-js": "<=6144", "count:own": 4, "count:subToggles": ">=1", "count:megaItems": 2, "count:nocOpen": 0, "count:search": 1, "after": {"errors": 0, "proHandlers": false, "proFrontend": false, "asset:smartmenus": 0, "count:nocOpen": 1}}}},
+  "loop-own": {"title": "Entradas y bucles propios (programa sin widgets de PRO, C5): Entradas (clásica con números), Portafolio con filtro y una Cuadrícula de bucle propia con el buscador de F7b, sin los paquetes ni las hojas de PRO (widget-posts, widget-loop-*); el buscador refresca la cuadrícula propia pidiendo la misma página con la URL filtrada (sin el REST de PRO)", "since": "4.3.0.177", "widgets": [{"type": "digitalisimo-posts", "id": "fbpo001", "settings": {"_skin": "classic", "classic_posts_per_page": 3, "pagination_type": "numbers"}}, {"type": "digitalisimo-portfolio", "id": "fbpf001", "settings": {"posts_per_page": 4, "show_filter_bar": "yes", "taxonomy": "category"}}, {"type": "digitalisimo-loop-search", "id": "fbos001", "settings": {"destination": "loop", "selected_element": "fbog001", "label": "Buscar"}}, {"type": "digitalisimo-loop-grid", "id": "fbog001", "settings": {"template_id": "__LOOP__", "posts_per_page": 6}}], "extra": [{"key": "loop", "type": "loop-item", "widgets": [{"type": "heading", "settings": {"title": "Entrada", "__dynamic__": {"title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"}}}]}], "assets": {"pro-posts-css": "/widget-posts(\\.min)?\\.css", "pro-loop-css": "/widget-loop-[a-z-]+(\\.min)?\\.css", "filters-js": "/digitalisimo-elements/assets/js/filters\\.js", "loop-css": "/digitalisimo-loop/assets/css/", "loop-js": "/digitalisimo-loop/assets/js/"}, "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "postsItems": ".digi-posts__item", "portfolioFilter": ".elementor-widget-digitalisimo-portfolio button[aria-pressed]", "pagination": "nav.digi-loop__pagination a"}, "actions": [{"do": "mark", "selector": ".e-loop-item"}, {"do": "fill", "selector": ".elementor-element-fbos001 input[type=\"search\"]", "value": "medición 2"}, {"do": "click", "selector": ".elementor-element-fbos001 button[type=\"submit\"]"}, {"do": "waitChange", "selector": ".e-loop-item", "ms": 20000}, {"do": "wait", "ms": 500}], "modes": ["normal", "cache"], "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "asset:pro-posts-css": 0, "asset:pro-loop-css": 0, "asset:filters-js": "<=10240", "asset:loop-css": "<=16384", "asset:loop-js": "<=16384", "count:own": 4, "count:postsItems": 3, "count:portfolioFilter": ">=2", "count:pagination": ">=1", "after": {"changed": ["loopSig"], "errors": 0}}}},
  "services": {
   "title": "Servicios propios (programa sin widgets de PRO, C9): los cuatro widgets de Facebook con fachada (ninguna petición a Facebook ni a su SDK antes del clic, que comprueba elements-pro-facebook-chrome.mjs), los botones de PayPal y Stripe (sin ninguna petición a los servicios hasta enviar) y la Plantilla, sin los paquetes de PRO; una sola hoja y un solo script por familia",
   "since": "@NEXT_ELEMENTS@",

@@ -9,10 +9,15 @@
 # navegación de PRO en una página (Mega Menu y Off-Canvas con sus contenedores hijos) y en una cabecera (Menú y
 # Búsqueda), y el Navbar y el Mega Menu de Element Pack, que F8 lleva al Menú de PRO y la etapa `pro` al propio. C4: una
 # plantilla de entrada del Theme Builder con los quince elementos de tema de PRO y un `bdt-post-info` de Element Pack
-# (F8 → PRO → propio en la misma pasada). C9: una página con tres instancias del widget global (una con un Blockquote de
-# PRO, que llega a la Cita en la misma pasada, y una sin plantilla, que se queda y se informa), la Plantilla de PRO con una
-# sobrescritura de F7b, los cuatro de Facebook, PayPal y Stripe, y una cabecera con otra instancia global; F8 no lleva
-# ningún widget de Element Pack a estos de PRO.
+# (F8 → PRO → propio en la misma pasada).
+# C5: los seis widgets de entradas y bucles de PRO (con una plantilla de Elemento de bucle y el filtro apuntando a la
+# cuadrícula), unas Entradas de PRO en la cabecera y una rejilla de entradas y un Dynamic Grid de Element Pack y un Blog
+# de Prime Slider que F8 lleva a Posts, Loop Grid y Loop Carousel de PRO y la etapa `pro` a los propios en la misma
+# pasada; --revert los devuelve.
+# C9: una página con tres instancias del widget global (una con un Blockquote de PRO, que llega a la Cita en la misma
+# pasada, y una sin plantilla, que se queda y se informa), la Plantilla de PRO con una sobrescritura de F7b, los cuatro de
+# Facebook, PayPal y Stripe, y una cabecera con otra instancia global; F8 no lleva ningún widget de Element Pack a estos
+# de PRO.
 # Uso: bash tests/playground/pro-migrate.sh   (OUT, TMPDIR como los demás arneses)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -41,7 +46,7 @@ const ok = (c, m) => { console.log(`${c ? 'OK   ' : 'FALLA'}  ${m}`); if (!c) pr
 for (const s of steps) if (s.error) problems.push(`${s.step}: ${s.error}`);
 const inv = (by('inventory')[0] || {}).inventory || {};
 const row = (inv.widgets || []).find((w) => w.widget === 'blockquote') || {};
-ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 4 && row.documents === 3 && row.revisions === 1 && inv.where && inv.where.page === 5 && inv.where.header === 3 && inv.where.widget === 1, `inventario: 4 Blockquote en 3 documentos (página, cabecera y la plantilla de widget global de C9), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 5 páginas (citas, carruseles, contenido, navegación y servicios), 3 cabeceras y una plantilla de widget global (${JSON.stringify(row).slice(0, 200)} · ${JSON.stringify(inv.where)})`);
+ok(row.family === 'C2' && row.target === 'digitalisimo-blockquote' && row.elements === 4 && row.documents === 3 && row.revisions === 1 && inv.where && inv.where.page === 6 && inv.where.header === 3 && inv.where.widget === 1, `inventario: 4 Blockquote en 3 documentos (página, cabecera y la plantilla de widget global de C9), familia C2, destino la Cita y la revisión aparte; widgets de PRO en 6 páginas (citas, carruseles, contenido, navegación, bucles y servicios), 3 cabeceras y una plantilla de widget global (${JSON.stringify(row).slice(0, 200)} ${JSON.stringify(inv.where)})`);
 const c1 = ['nested-carousel', 'slides', 'media-carousel', 'testimonial-carousel', 'reviews'].map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c1.every((r) => r.family === 'C1' && r.elements === 1 && r.documents === 1 && r.target === `digitalisimo-${r.widget}`), `inventario: los cinco carruseles de PRO, familia C1, cada uno con su widget propio de destino (${JSON.stringify(c1.map((r) => [r.widget, r.family, r.target, r.elements]))})`);
 const C2 = { e1: 'animated-headline', e2: 'code-highlight', e3: 'table-of-contents', e4: 'share-buttons', e5: 'call-to-action', e6: 'flip-box', e7: 'price-list', e8: 'price-table', e9: 'gallery', e10: 'hotspot', e11: 'lottie', e12: 'video-playlist', e13: 'countdown', e14: 'progress-tracker' };
@@ -50,6 +55,9 @@ ok(c2.every((r) => r.family === 'C2' && r.elements === 1 && r.documents === 1 &&
 const C3 = { 'nav-menu': ['digitalisimo-nav-menu', 2, 2], 'mega-menu': ['digitalisimo-mega-menu', 1, 1], 'off-canvas': ['digitalisimo-nested-off-canvas', 1, 1], search: ['digitalisimo-search', 2, 2] };
 const c3 = Object.keys(C3).map((w) => (inv.widgets || []).find((x) => x.widget === w) || { widget: w });
 ok(c3.every((r) => r.family === 'C3' && r.target === C3[r.widget][0] && r.elements === C3[r.widget][1] && r.documents === C3[r.widget][2]), `inventario: los cuatro widgets de navegación de PRO, familia C3, con su widget propio de destino; el Menú y la Búsqueda también en la cabecera (${JSON.stringify(c3.map((r) => [r.widget, r.family, r.target, r.elements, r.documents]))})`);
+const C5 = { p1: ['posts', 'C5'], p2: ['archive-posts', 'C4'], p3: ['portfolio', 'C5'], p4: ['taxonomy-filter', 'C5'], p5: ['loop-grid', 'C5'], p6: ['loop-carousel', 'C5'] };
+const c5 = Object.values(C5).map(([w, fam]) => ({ fam, ...((inv.widgets || []).find((x) => x.widget === w) || { widget: w }) }));
+ok(c5.every((r) => r.family === r.fam && r.elements === (r.widget === 'posts' ? 2 : 1) && r.documents === (r.widget === 'posts' ? 2 : 1) && r.target === `digitalisimo-${r.widget}`), `inventario: los seis de entradas y bucles de PRO (Entradas del archivo, en la familia C4 del catálogo; las Entradas, también en la cabecera), cada uno con su widget propio de destino (${JSON.stringify(c5.map((r) => [r.widget, r.family, r.target, r.elements, r.documents]))})`);
 const runs = by('run');
 const last = runs[runs.length - 1] || {};
 ok(runs.some((r) => r.state && r.state.done), `Migrar termina (${runs.map((r) => JSON.stringify(r.state)).join(' | ').slice(0, 300)})`);
@@ -60,7 +68,7 @@ ok(t.header && t.header.q9 === 'digitalisimo-blockquote', 'la plantilla de cabec
 ok(t.revision && t.revision.q1 && t.revision.q1.startsWith('blockquote') && t.revision.q2 === 'blockquote', 'la revisión se queda con el Blockquote de PRO');
 ok(last.backup === true, 'queda la copia original de la página');
 const first = runs.find((r) => r.state && r.state.counts && r.state.counts.pro) || {};
-ok(first.state && first.state.counts.pro === 10 && first.state.counts.pro_elements === 58 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 58 widgets en 10 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, los 6 de C3 de la página —con el Navbar y el Mega Menu de Element Pack— y los 2 de la cabecera de navegación, los 15 de C4 y la información de la entrada que F8 trae de Element Pack, y 11 de C9: tres instancias globales, la Plantilla, los cuatro de Facebook, PayPal, Stripe y el Blockquote de la plantilla de widget global) y lo informa (${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
+ok(first.state && first.state.counts.pro === 12 && first.state.counts.pro_elements === 72 && /digitalisimo-blockquote/.test(first.report || '') && !/No había nada que migrar/.test(first.report || ''), `la primera pasada convierte 72 widgets en 12 documentos (8 de C0 y C1, los 14 de C2 y la cuenta regresiva que F8 trae de Element Pack, los 6 de C3 de la página —con el Navbar y el Mega Menu de Element Pack— y los 2 de la cabecera de navegación, los 15 de C4 y la información de la entrada que F8 trae de Element Pack, los 7 de C5 más los 3 que F8 trae de Element Pack y Prime Slider, y los 4 elementos de tema de PRO del Elemento de bucle que F8 genera para el Blog de Prime Slider, y 11 de C9: tres instancias globales, la Plantilla, los cuatro de Facebook, PayPal, Stripe y el Blockquote de la plantilla de widget global) y lo informa (${JSON.stringify(first.state && first.state.counts)} ${(first.report || '').replace(/\s+/g, ' ').slice(0, 300)})`);
 ok(runs.length < 2 || /No había nada que migrar/.test(last.report || '') || (last.state && last.state.counts && !last.state.counts.pro), 'una segunda pasada no vuelve a convertir nada');
 const own = { n1: 'digitalisimo-nested-carousel', s1: 'digitalisimo-slides', m1: 'digitalisimo-media-carousel', t1: 'digitalisimo-testimonial-carousel', r1: 'digitalisimo-reviews' };
 ok(t.carousels && Object.entries(own).every(([id, type]) => (t.carousels[id] || '').startsWith(type)) && t.carousels.n1ah === 'heading' && t.carousels.n1bh === 'heading', `C1: los cinco carruseles pasan a los propios y el contenido de las diapositivas anidadas no cambia (${JSON.stringify(t.carousels)})`);
@@ -82,6 +90,14 @@ ok(c4inv.every((r, i) => r.family === 'C4' && r.elements === 1 && r.documents ==
 ok(t.single && Object.entries(C4).every(([id, [, own]]) => (t.single[id] || '').split(' ')[0] === own), `C4: la plantilla de entrada pasa a los quince elementos de tema propios (${JSON.stringify(t.single)})`);
 ok(t.single && (t.single.e1 || '') === 'digitalisimo-post-info', `C4: el bdt-post-info de Element Pack acaba en la Información de la entrada propia en la misma pasada (${t.single && t.single.e1})`);
 ok(t.single && /selector \.digi-post-info__item\{/.test(t.single.h1 || '') && /elementor-widget-digitalisimo-post-title/.test(t.single.g4 || ''), 'C4: el CSS personalizado pasa a las clases propias (Información de la entrada y Título de la entrada)');
+const L = last.loops || {};
+const ls = L.settings || {};
+const own5 = { p1: 'digitalisimo-posts', p2: 'digitalisimo-archive-posts', p3: 'digitalisimo-portfolio', p4: 'digitalisimo-taxonomy-filter', p5: 'digitalisimo-loop-grid', p6: 'digitalisimo-loop-carousel', ep2: 'digitalisimo-posts', ep3: 'digitalisimo-loop-grid', ps1: 'digitalisimo-loop-carousel' };
+ok(t.loops && Object.entries(own5).every(([id, type]) => (t.loops[id] || '').split(' ')[0] === type), `C5: los seis de PRO y lo que F8 trae de Element Pack y Prime Slider pasan a los propios en la misma pasada (${JSON.stringify(t.loops)})`);
+ok(t.header && (t.header.hp1 || '').split(' ')[0] === 'digitalisimo-posts', `C5: las Entradas de la plantilla de cabecera también (${JSON.stringify(t.header)})`);
+ok(String((ls.p5 || {}).template_id) === String(L.loop_item) && String((ls.p6 || {}).template_id) === String(L.loop_item) && (ls.p4 || {}).selected_element === 'p5', `C5: la cuadrícula y el carrusel conservan su plantilla de Elemento de bucle y el filtro sigue apuntando a la cuadrícula (${JSON.stringify(ls)})`);
+ok(L.card_copy > 0 && String((ls.ep3 || {}).template_id) === String(L.card_copy) && (ls.ep3 || {})._skin === 'post', `C5: el Dynamic Grid de Element Pack llega a la Cuadrícula propia con la copia Loop Item de F8 (${JSON.stringify(ls.ep3)} copia ${L.card_copy})`);
+ok(t.loops && /digi-posts__title/.test(t.loops.p1 || '') && /digi-tfilter__item/.test(t.loops.p4 || '') && /digi-loop-grid__items/.test(t.loops.p5 || '') && !/elementor-post__title|e-filter-item|elementor-loop-container/.test([t.loops.p1, t.loops.p4, t.loops.p5].join(' ')), 'C5: el CSS personalizado de Entradas, del filtro y de la cuadrícula usa las clases propias');
 // C9: la página de servicios (tres instancias globales, una sin plantilla; la Plantilla con una sobrescritura; los
 // cuatro de Facebook, PayPal y Stripe) y una cabecera con otra instancia global.
 const C9 = { t1: ['template', 'digitalisimo-template'], f1: ['facebook-button', 'digitalisimo-facebook-button'], f2: ['facebook-comments', 'digitalisimo-facebook-comments'], f3: ['facebook-embed', 'digitalisimo-facebook-embed'], f4: ['facebook-page', 'digitalisimo-facebook-page'], p1: ['paypal-button', 'digitalisimo-paypal-button'], p2: ['stripe-button', 'digitalisimo-stripe-button'] };
@@ -98,6 +114,7 @@ ok(t.header_global && t.header_global.x9 === 'heading', `C9: la cabecera con una
 ok(t.gw_heading && t.gw_heading.gwh === 'heading', 'C9: la plantilla de widget global se conserva sin cambios');
 const rv = (by('revert')[0] || {}).types || {};
 ok(rv.navigation && Object.entries({ v1: 'nav-menu', v2: 'mega-menu', v3: 'off-canvas', v4: 'search', ep2: 'bdt-navbar', ep3: 'bdt-mega-menu' }).every(([id, type]) => (rv.navigation[id] || '').split(' ')[0] === type) && rv.nav_header && (rv.nav_header.v9 || '').split(' ')[0] === 'nav-menu' && (rv.nav_header.v8 || '').split(' ')[0] === 'search', `C3: --revert devuelve los de PRO y los de Element Pack (${JSON.stringify([rv.navigation, rv.nav_header])})`);
+ok(rv.loops && Object.entries({ p1: 'posts', p2: 'archive-posts', p3: 'portfolio', p4: 'taxonomy-filter', p5: 'loop-grid', p6: 'loop-carousel', ep2: 'bdt-post-grid', ep3: 'bdt-dynamic-grid', ps1: 'prime-slider-blog' }).every(([id, type]) => (rv.loops[id] || '').split(' ')[0] === type) && rv.header && (rv.header.hp1 || '').split(' ')[0] === 'posts', `C5: --revert devuelve los de PRO y los de Element Pack y Prime Slider (${JSON.stringify(rv.loops)})`);
 ok(rv.services && Object.entries(C9).every(([id, [pro]]) => (rv.services[id] || '').split(' ')[0] === pro) && ['x1', 'x2', 'x3'].every((id) => rv.services[id] === 'global') && rv.header_global && rv.header_global.x9 === 'global' && rv.gw_quote && rv.gw_quote.gwq === 'blockquote', `C9: --revert devuelve los widgets de PRO, las instancias globales y el Blockquote de la plantilla de widget (${JSON.stringify(rv.services)} · ${JSON.stringify(rv.header_global)})`);
 ok(rv.content && Object.entries(C2).every(([id, w]) => (rv.content[id] || '').split(' ')[0] === w), `C2: --revert devuelve los catorce widgets de PRO (${JSON.stringify(rv.content)})`);
 ok(rv.content && (rv.content.ep1 || '').split(' ')[0] === 'bdt-countdown', `C2: --revert devuelve la cuenta regresiva de Element Pack (${rv.content && rv.content.ep1})`);

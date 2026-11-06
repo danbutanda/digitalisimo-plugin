@@ -41,7 +41,7 @@ final class Assets {
 	const FOREIGN = array( 'wc-cart-fragments', 'wc-add-to-cart-variation', 'elementor-frontend' );
 
 	/** Widgets de bucle cuyas plantillas se revisan. */
-	const LOOP_WIDGETS = array( 'loop-grid', 'loop-carousel' );
+	const LOOP_WIDGETS = array( 'loop-grid', 'loop-carousel', 'digitalisimo-loop-grid', 'digitalisimo-loop-carousel' );
 
 	/** Patrón de un widget F4-Woo en el JSON crudo de un documento. */
 	const PATTERN = '/"widgetType":"(digitalisimo-woo-[a-z0-9-]+)"/';
