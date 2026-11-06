@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.177
+ * Version: 4.3.0.178
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.177' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.178' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -152,6 +152,18 @@ function pro_elements_load_plugin_func() {
 	// Entradas y bucles propios (C5): widgets que sustituyen a los de PRO de la etapa.
 	require_once __DIR__ . '/modules/digitalisimo-loop/class-module.php';
 	\Digitalisimo\Elements\Loop\Module::init();
+
+	// Formularios propios (C6): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-forms/class-module.php';
+	\Digitalisimo\Elements\Forms\Module::init();
+
+	// Botones flotantes y Link in Bio propios (C8): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-floating/class-module.php';
+	\Digitalisimo\Elements\Floating\Module::init();
+
+	// Servicios y plantillas propios (C9): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-services/class-module.php';
+	\Digitalisimo\Elements\Services\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

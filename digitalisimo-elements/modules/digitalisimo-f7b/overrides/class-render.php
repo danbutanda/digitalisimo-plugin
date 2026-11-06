@@ -35,6 +35,9 @@ defined( 'ABSPATH' ) || exit;
 final class Render {
 	const WIDGET = 'template';
 
+	/** Widgets Plantilla con sobrescrituras: el de PRO y el propio (`digitalisimo-template`, C9 de «sin widgets de PRO»). */
+	const WIDGETS = array( 'template', 'digitalisimo-template' );
+
 	const HOOK_DATA    = 'elementor/frontend/builder_content_data';
 	const HOOK_CACHE   = 'pre_option_elementor_element_cache_ttl';
 	const HOOK_AFTER   = 'elementor/frontend/widget/after_render';
@@ -185,7 +188,7 @@ final class Render {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	private static function is_template( $widget ): bool {
-		return is_object( $widget ) && method_exists( $widget, 'get_name' ) && self::WIDGET === $widget->get_name();
+		return is_object( $widget ) && method_exists( $widget, 'get_name' ) && in_array( $widget->get_name(), self::WIDGETS, true );
 	}
 
 	/** Plantilla de la instancia si se va a pintar: publicada y de la biblioteca. */

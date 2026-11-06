@@ -23,6 +23,25 @@ file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-fatal-log.php', '<?php register_s
 // lazo hacía que Playground sirviera alguna hoja `post-N.css` como redirección a una página de WordPress.
 file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-no-cron.php', "<?php\nif ( ! defined( 'DISABLE_WP_CRON' ) ) {\n\tdefine( 'DISABLE_WP_CRON', true );\n}\n" );
 
+// Tienda (C7): pro-ab.sh deja woo.json y monta WooCommerce fijado si algún caso de la corrida lo pide (`woo`, un
+// contexto de tienda o un widget de tienda de PRO). Se activa antes que el constructor, como en front-budget.sh, y la
+// tienda queda abierta (sin «Próximamente») y sin asistente.
+if ( is_file( DIGI_AB_PROBE . '/woo.json' ) ) {
+	if ( ! file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' ) ) {
+		file_put_contents( DIGI_AB_PROBE . '/setup-error.txt', "WooCommerce no está montado\n", FILE_APPEND );
+	} else {
+		$digi_ab_woo = activate_plugin( 'woocommerce/woocommerce.php' );
+		if ( is_wp_error( $digi_ab_woo ) ) {
+			file_put_contents( DIGI_AB_PROBE . '/setup-error.txt', 'No se pudo activar WooCommerce: ' . $digi_ab_woo->get_error_message() . "\n", FILE_APPEND );
+		}
+		update_option( 'woocommerce_coming_soon', 'no' );
+		update_option( 'woocommerce_store_pages_only', 'no' );
+		update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );
+		update_option( 'woocommerce_show_marketplace_suggestions', 'no' );
+		update_option( 'woocommerce_allow_tracking', 'no' );
+	}
+}
+
 $result = activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 if ( is_wp_error( $result ) ) {
 	file_put_contents( DIGI_AB_PROBE . '/setup-error.txt', 'No se pudo activar DIGITALÍSIMO Elements: ' . $result->get_error_message() . "\n", FILE_APPEND );

@@ -1,0 +1,110 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-additional-information (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Información adicional: la plantilla `single-product/tabs/additional-information.php` de WooCommerce."
+ ],
+ "declared": [],
+ "cases": {
+  "wsm-addinfo-defaults": {
+   "title": "Peso y medidas con su encabezado",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-additional-information",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-additional-information.min.css de PRO",
+     "id": "widget-woocommerce-product-additional-information-css",
+     "url": "widget-woocommerce-product-additional-information(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-addinfo-styled": {
+   "title": "Sin encabezado, con color y tipografía de la tabla",
+   "context": {
+    "product": "variable"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "show_heading": "",
+    "content_color": "#1f2937",
+    "content_typography_typography": "custom",
+    "content_typography_font_size": {
+     "unit": "px",
+     "size": 15,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-additional-information",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-additional-information.min.css de PRO",
+     "id": "widget-woocommerce-product-additional-information-css",
+     "url": "widget-woocommerce-product-additional-information(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-addinfo-heading": {
+   "title": "Encabezado con color y tipografía",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "heading_color": "#7a1f5c",
+    "heading_typography_typography": "custom",
+    "heading_typography_font_size": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-additional-information",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-additional-information.min.css de PRO",
+     "id": "widget-woocommerce-product-additional-information-css",
+     "url": "widget-woocommerce-product-additional-information(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

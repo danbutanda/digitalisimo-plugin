@@ -6,7 +6,7 @@
  *
  * `pro.dropped`, `pro.approx`, `pro.unmapped` y `pro.css` los da el traductor de Elements (`Convert\Translator`, con la
  * misma sección) y llevan `widget`, `target`, `name` (la clave del ajuste), `note` (el motivo declarado en el mapa) y
- * `count`; `pro.converted` y `pro.target_missing` los escribe Pro. Los escriben la tarea y el análisis previo.
+ * `count`; `pro.converted`, `pro.target_missing`, `pro.global` y `pro.global_missing` (widget global, C9) los escribe Pro. Los escriben la tarea y el análisis previo.
  */
 namespace Digitalisimo\Elements\Legacy;
 
@@ -18,5 +18,7 @@ return array(
 	'pro.approx'         => array( 'section' => 'approx', 'label' => __( 'Ajuste del widget de PRO traducido de forma aproximada en el widget propio: revisa que se vea como esperas.', 'digitalisimo-migration' ) ),
 	'pro.dropped'        => array( 'section' => 'dropped', 'label' => __( 'Ajuste del widget de PRO sin equivalente en el widget propio: se descartó por el motivo indicado.', 'digitalisimo-migration' ) ),
 	'pro.unmapped'       => array( 'section' => 'review', 'label' => __( 'Ajuste guardado del widget de PRO que la conversión no reconoce: no pasó al widget propio. Revisa el elemento en el editor.', 'digitalisimo-migration' ) ),
+	'pro.global'         => array( 'section' => 'converted', 'label' => __( 'Instancia del widget global sustituida por el elemento guardado en su plantilla, con los mismos ajustes. La plantilla se conserva en la biblioteca.', 'digitalisimo-migration' ) ),
+	'pro.global_missing' => array( 'section' => 'review', 'label' => __( 'Instancia del widget global cuya plantilla no existe, está en la papelera o no guarda un widget: se quedó como estaba (tampoco se pintaba). Bórrala o elige otra plantilla en el editor.', 'digitalisimo-migration' ) ),
 	'pro.target_missing' => array( 'section' => 'review', 'label' => __( 'El widget propio que sustituye a este widget de PRO no está registrado en este sitio: el documento no se convirtió y se sigue viendo igual. Actualiza DIGITALÍSIMO Elements y vuelve a pulsar Migrar.', 'digitalisimo-migration' ) ),
 );

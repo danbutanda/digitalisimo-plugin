@@ -1,0 +1,3 @@
+/* Link in Bio (digitalisimo-link-in-bio, C8): lo común a todas las presentaciones; cada una tiene su hoja. */
+.digi-lib a:focus-visible{outline:2px solid;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.digi-lib,.digi-lib *{animation:none!important;transition:none!important}}

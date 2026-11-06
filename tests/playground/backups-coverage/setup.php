@@ -2,7 +2,8 @@
 /**
  * Preparación del ensayo de cobertura de DIGITALÍSIMO Backups (paso runPHP del blueprint de backups-coverage.sh).
  * Activa el plugin (en toda la red si es Multisite), crea una editora sin la capability, en la red un administrador de
- * sitio que no administra la red y el subsitio «uno», y una contraseña de aplicación para cada cuenta. Deja todo en
+ * sitio que no administra la red y el subsitio «uno», y una contraseña de aplicación para cada cuenta. Corta el
+ * loopback de WP-Cron (mu-plugin), para que la cola sólo avance cuando el ensayo lo pide. Deja todo en
  * /digi-probe/setup.json; un fallo queda en setup-error.txt.
  */
 require '/wordpress/wp-load.php';
@@ -13,6 +14,11 @@ try {
 	$network = is_multisite();
 	$activated = activate_plugin( 'digitalisimo-backups/digitalisimo-backups.php', '', $network );
 	if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó Backups: ' . $activated->get_error_message() );
+	// La cola sólo avanza por POST /jobs/tick y WP-CLI: el arranque de WP-Cron por loopback queda cortado (en el sitio
+	// individual sí llega al servidor y terminaría un trabajo antes de que el ensayo lo cancele en cola).
+	wp_mkdir_p( WPMU_PLUGIN_DIR );
+	$cut = "<?php\n// Ensayo de cobertura de DIGITALÍSIMO Backups: sin loopback de WP-Cron.\nadd_filter( 'pre_http_request', static function ( \$pre, \$args, \$url ) { return false !== strpos( (string) \$url, 'wp-cron.php' ) ? new WP_Error( 'digi_coverage_no_cron', 'WP-Cron por loopback cortado en el ensayo.' ) : \$pre; }, 10, 3 );\n";
+	if ( false === file_put_contents( WPMU_PLUGIN_DIR . '/digi-coverage-no-cron.php', $cut ) ) throw new RuntimeException( 'No se escribió el mu-plugin que corta WP-Cron.' );
 	$admin = get_user_by( 'login', 'admin' );
 	if ( ! $admin ) throw new RuntimeException( 'Falta el usuario admin de Playground.' );
 	$users = array( 'admin' => $admin->ID );

@@ -48,6 +48,8 @@ final class Controls {
 			add_action( "elementor/element/{$widget}/{$section}/before_section_end", array( __CLASS__, 'slot' ), 10, 2 );
 		}
 		add_action( 'elementor/element/template/section_template/before_section_end', array( __CLASS__, 'overrides' ), 10, 2 );
+		// La Plantilla propia (C9) repite la sección `section_template` del widget de PRO.
+		add_action( 'elementor/element/digitalisimo-template/section_template/before_section_end', array( __CLASS__, 'overrides' ), 10, 2 );
 	}
 
 	/** Etiqueta visible de cada `kind`. */

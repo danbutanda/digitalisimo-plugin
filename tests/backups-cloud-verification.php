@@ -26,6 +26,8 @@ function wp_remote_get( $url, $args ) {
 	file_put_contents( $args['filename'], $contents );
 	return array( 'response' => array( 'code' => 'http-error' === $GLOBALS['cloud_mode'] ? 500 : 200 ) );
 }
+$GLOBALS['cloud_deleted'] = array();
+function wp_remote_request( $url, $args ) { if ( 'DELETE' === ( $args['method'] ?? '' ) ) $GLOBALS['cloud_deleted'][] = array( $url, $args['headers']['Authorization'] ?? '' ); return array( 'response' => array( 'code' => 204 ) ); }
 require __DIR__ . '/../digitalisimo-backups/includes/class-backups.php';
 $verify = new ReflectionMethod( 'Digitalisimo_Backups', 'verify_cloud_copy' );
 if ( PHP_VERSION_ID < 80100 ) $verify->setAccessible( true );
@@ -37,6 +39,19 @@ foreach ( array( 'google', 'onedrive' ) as $provider ) {
 		try { $verify->invoke( null, $provider, 'remote-id', $source, 'token' ); throw new RuntimeException( 'Se aceptó una copia remota inválida: ' . $provider . '/' . $mode ); }
 		catch ( Exception $e ) { if ( false === strpos( $e->getMessage(), 'copia remota' ) && false === strpos( $e->getMessage(), 'descargar la copia' ) ) throw $e; }
 	}
+}
+// Una copia que no supera la verificación se retira del destino (cada reintento subiría otra); una íntegra se queda.
+$keep = new ReflectionMethod( 'Digitalisimo_Backups', 'keep_verified_cloud_copy' );
+if ( PHP_VERSION_ID < 80100 ) $keep->setAccessible( true );
+foreach ( array( 'google' => 'https://www.googleapis.com/drive/v3/files/id%2Fremoto', 'onedrive' => 'https://graph.microsoft.com/v1.0/me/drive/items/id%2Fremoto' ) as $provider => $item ) {
+	$GLOBALS['cloud_deleted'] = array();
+	$GLOBALS['cloud_mode'] = 'correct';
+	$keep->invoke( null, $provider, 'id/remoto', $source, 'token' );
+	if ( $GLOBALS['cloud_deleted'] ) throw new RuntimeException( 'Se retiró una copia remota íntegra de ' . $provider . '.' );
+	$GLOBALS['cloud_mode'] = 'corrupt';
+	try { $keep->invoke( null, $provider, 'id/remoto', $source, 'token' ); throw new RuntimeException( 'Se aceptó una copia remota distinta de ' . $provider . '.' ); }
+	catch ( Exception $e ) { if ( false === strpos( $e->getMessage(), 'Se retiró del destino la copia sin verificar' ) ) throw $e; }
+	if ( array( array( $item, 'Bearer token' ) ) !== $GLOBALS['cloud_deleted'] ) throw new RuntimeException( 'La copia sin verificar de ' . $provider . ' no se retiró del destino: ' . json_encode( $GLOBALS['cloud_deleted'] ) );
 }
 if ( glob( $root . '/private/.cloud-check-*' ) ) throw new RuntimeException( 'La verificación dejó archivos temporales.' );
 unlink( $source );

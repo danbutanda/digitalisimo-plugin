@@ -4,10 +4,14 @@
 #   - la API REST con la autenticación de WordPress: sin sesión (401), cookie sin nonce (anónima, 401), nonce falso
 #     (403), cookie con nonce `wp_rest` (200), contraseñas de aplicación de una editora (403) y de admin (200) y, en la
 #     red, de un administrador del sitio principal que no administra la red (403);
-#   - respaldo, verificación y restauración reales por REST (un cambio posterior vuelve atrás);
+#   - respaldo en la cola de «Trabajos» (202, 409 duplicado, POST /jobs/tick, cancelar), verificación y restauración
+#     reales por REST (un cambio posterior vuelve atrás) y la frase rechazada en la URL;
+#     la cola sólo avanza por POST /jobs/tick y WP-CLI (setup.php corta el loopback de WP-Cron), así que el trabajo
+#     que se cancela sigue en cola;
 #   - en la red, los medios de un subsitio con upload_path fuera de ABSPATH: el estado lo explica y crear responde 422;
-#   - WP-CLI real (wp-cli.phar dentro de Playground): ayuda generada del PHPDoc, --confirm obligatorio, status, list,
-#     verify, automation list y create; en la red, --network y el sitio principal.
+#   - WP-CLI real (wp-cli.phar dentro de Playground): ayuda generada del PHPDoc, --confirm obligatorio, sin --secret en
+#     la línea de órdenes, status, list, verify, automation list, create (hasta terminar y --async) y jobs list y
+#     cancel; en la red, --network y el sitio principal.
 # Modos: single (sitio individual) y multisite (red con el subsitio «uno»). La copia del plugin, la carpeta de WP-CLI y
 # el almacén privado se montan desde la carpeta de resultados: una restauración nunca escribe en el repositorio.
 # Uso: bash tests/playground/backups-coverage.sh (en el servidor de desarrollo, por el semáforo de corridas pesadas y

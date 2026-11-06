@@ -1,0 +1,463 @@
+{
+ "_doc": [
+  "Casos A/B de Productos (frente N de C7, fork P): A con `woocommerce-products` de PRO, B con `digitalisimo-woo-products`. Tienda de prueba de setup.php (N-woo.md)."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de enlaces, botones y selectores de la cuadrícula (contorno de 2 px con separación de 2 px) donde PRO dejaba el del navegador.",
+   "widget": "woocommerce-products"
+  }
+ ],
+ "cases": {
+  "wcp-defaults": {
+   "title": "Valores por defecto: los más recientes en 4 × 4",
+   "widget": "woocommerce-products",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcp-category": {
+   "title": "Productos de una categoría, por precio ascendente, 3 columnas",
+   "widget": "woocommerce-products",
+   "settings": {
+    "columns": "3",
+    "query_include": [
+     "terms"
+    ],
+    "query_include_term_ids": [
+     "$woo:category"
+    ],
+    "query_orderby": "price",
+    "query_order": "asc"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcp-ids": {
+   "title": "Selección manual de dos productos en 2 columnas",
+   "widget": "woocommerce-products",
+   "settings": {
+    "columns": "2",
+    "rows": "1",
+    "query_post_type": "by_id",
+    "query_posts_ids": {
+     "$woo-ids": [
+      "sale",
+      "reviews"
+     ]
+    }
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcp-sale": {
+   "title": "En oferta, sin insignia de oferta",
+   "widget": "woocommerce-products",
+   "settings": {
+    "query_post_type": "sale",
+    "show_onsale_flash": ""
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcp-paginate": {
+   "title": "Paginación con orden y número de resultados, 3 × 1",
+   "widget": "woocommerce-products",
+   "settings": {
+    "columns": "3",
+    "rows": "1",
+    "paginate": "yes",
+    "allow_order": "yes",
+    "show_result_count": "yes"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcp-shop-current": {
+   "title": "Consulta actual en la tienda, paginada",
+   "widget": "woocommerce-products",
+   "settings": {
+    "query_post_type": "current_query",
+    "paginate": "yes"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "context": "shop"
+  },
+  "wcp-related": {
+   "title": "Relacionados de la ficha del producto simple, con título",
+   "widget": "woocommerce-products",
+   "settings": {
+    "query_post_type": "related_products",
+    "products_title_show": "show",
+    "products_title_alignment": "center",
+    "products_title_color": "#245eff"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "context": {
+    "product": "simple"
+   }
+  },
+  "wcp-upsells": {
+   "title": "Ventas dirigidas del producto simple, con título propio",
+   "widget": "woocommerce-products",
+   "settings": {
+    "query_post_type": "upsells",
+    "products_title_show": "show",
+    "products_upsells_title_text": "Te puede gustar"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "context": {
+    "product": "simple"
+   }
+  },
+  "wcp-cross-sells": {
+   "title": "Ventas cruzadas del carrito de prueba",
+   "widget": "woocommerce-products",
+   "settings": {
+    "query_post_type": "cross_sells",
+    "products_title_show": "show"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "woo": {
+    "cart": "items"
+   }
+  },
+  "wcp-styled": {
+   "title": "Estilos más usados: rejilla, imagen, título, valoración, precio, botón, caja e insignia",
+   "widget": "woocommerce-products",
+   "settings": {
+    "columns": "3",
+    "columns_tablet": "2",
+    "columns_mobile": "1",
+    "rows": "1",
+    "column_gap": {
+     "unit": "px",
+     "size": 30,
+     "sizes": []
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "align": "center",
+    "image_border_border": "solid",
+    "image_border_width": {
+     "unit": "px",
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "isLinked": true
+    },
+    "image_border_color": "#245eff",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "image_spacing": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "title_color": "#1d2327",
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "title_typography_font_weight": "700",
+    "star_color": "#e6a700",
+    "empty_star_color": "#cccccc",
+    "price_color": "#0a7a3c",
+    "price_typography_typography": "custom",
+    "price_typography_font_size": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "old_price_color": "#888888",
+    "button_text_color": "#ffffff",
+    "button_background_color": "#245eff",
+    "button_border_border": "solid",
+    "button_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "button_border_color": "#123a9e",
+    "button_hover_background_color": "#123a9e",
+    "button_border_radius": {
+     "unit": "px",
+     "top": "20",
+     "right": "20",
+     "bottom": "20",
+     "left": "20",
+     "isLinked": true
+    },
+    "button_text_padding": {
+     "unit": "px",
+     "top": "10",
+     "right": "18",
+     "bottom": "10",
+     "left": "18",
+     "isLinked": false
+    },
+    "automatically_align_buttons": "yes",
+    "box_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "box_border_color": "#dddddd",
+    "box_border_radius": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "box_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "box_bg_color": "#fafafa",
+    "show_onsale_flash": "yes",
+    "onsale_text_color": "#ffffff",
+    "onsale_text_background_color": "#d63638",
+    "onsale_border_radius": {
+     "unit": "px",
+     "size": 4,
+     "sizes": []
+    },
+    "onsale_horizontal_position": "right",
+    "onsale_distance": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    }
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

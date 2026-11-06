@@ -7,6 +7,11 @@
  * bloqueo del almacén, historial y restauración; sólo la base de datos es una tabla en memoria cuyo SQL exportado se
  * vuelve a importar.
  */
+// El cifrado usa libsodium o, sin la extensión (php-wasm), la copia de sodium_compat de WordPress (tests/lib/sodium_compat).
+if ( ! extension_loaded( 'sodium' ) || getenv( 'DIGI_FORCE_SODIUM_COMPAT' ) ) require_once __DIR__ . '/../lib/sodium_compat/autoload.php';
+// Claves propias de wp-config.php: la frase de los respaldos se guarda envuelta con ellas.
+if ( ! defined( 'AUTH_KEY' ) ) define( 'AUTH_KEY', 'cobertura-auth-0123456789abcdef0123456789abcdef0123' );
+if ( ! defined( 'SECURE_AUTH_KEY' ) ) define( 'SECURE_AUTH_KEY', 'cobertura-secure-0123456789abcdef0123456789abcdef' );
 if ( ! defined( 'DB_NAME' ) ) define( 'DB_NAME', 'wordpress_test' );
 if ( ! defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ) define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.58' );
 if ( ! defined( 'ARRAY_A' ) ) define( 'ARRAY_A', 'ARRAY_A' );
@@ -139,6 +144,7 @@ function wp_get_referer() { return ''; }
 function get_option( $key, $default = false ) { return array_key_exists( $key, $GLOBALS['digi']['options'] ) ? $GLOBALS['digi']['options'][ $key ] : $default; }
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['digi']['options'][ $key ] = $value; return true; }
 function add_option( $key, $value = '', $deprecated = '', $autoload = null ) { if ( ! array_key_exists( $key, $GLOBALS['digi']['options'] ) ) $GLOBALS['digi']['options'][ $key ] = $value; return true; }
+function delete_option( $key ) { unset( $GLOBALS['digi']['options'][ $key ] ); return true; }
 function get_site_option( $key, $default = false ) { return $GLOBALS['digi']['site_options'][ $key ] ?? $default; }
 function update_site_option( $key, $value ) { $GLOBALS['digi']['site_options'][ $key ] = $value; return true; }
 function wp_parse_args( $args, $defaults = array() ) { return array_merge( (array) $defaults, (array) $args ); }
@@ -181,9 +187,15 @@ class WP_REST_Response {
 	public function get_data() { return $this->data; }
 }
 function rest_ensure_response( $value ) { return $value instanceof WP_REST_Response ? $value : new WP_REST_Response( $value ); }
+/** Petición REST: la cadena de consulta y el cuerpo (JSON) por separado, y todo junto en $request['…'], como WordPress. */
 class WP_REST_Request implements ArrayAccess {
 	private $params;
-	public function __construct( array $params = array() ) { $this->params = $params; }
+	private $query;
+	private $body;
+	public function __construct( array $params = array(), array $query = array(), array $body = array() ) { $this->params = $params; $this->query = $query; $this->body = $body; }
+	public function get_query_params() { return $this->query; }
+	public function get_json_params() { return $this->body; }
+	public function get_body_params() { return array(); }
 	#[\ReturnTypeWillChange]
 	public function offsetExists( $key ) { return isset( $this->params[ $key ] ); }
 	#[\ReturnTypeWillChange]
@@ -196,9 +208,12 @@ class WP_REST_Request implements ArrayAccess {
 /**
  * Despacho de una ruta registrada: busca método y patrón, aplica los valores por defecto de sus argumentos, exige los
  * obligatorios y pregunta a permission_callback antes del callback, como WP_REST_Server. Sin permiso: 401 sin sesión,
- * 403 con sesión. Devuelve array( estado, datos ).
+ * 403 con sesión. $params es el cuerpo JSON y $query la cadena de consulta (WordPress los une en $request['…']).
+ * Devuelve array( estado, datos ).
  */
-function digi_rest( $method, $path, array $params = array(), $logged_in = true ) {
+function digi_rest( $method, $path, array $params = array(), $logged_in = true, array $query = array() ) {
+	$body = $params;
+	$params = array_merge( $query, $params );
 	foreach ( $GLOBALS['digi']['routes'] as $pattern => $handlers ) {
 		if ( ! preg_match( '@^' . $pattern . '$@', $path, $matches ) ) continue;
 		foreach ( $handlers as $handler ) {
@@ -209,9 +224,10 @@ function digi_rest( $method, $path, array $params = array(), $logged_in = true )
 			}
 			foreach ( $matches as $key => $value ) if ( is_string( $key ) ) $params[ $key ] = $value;
 			if ( empty( $handler['permission_callback'] ) ) throw new RuntimeException( 'FALLA: la ruta ' . $pattern . ' no declara permission_callback.' );
-			if ( true !== call_user_func( $handler['permission_callback'], new WP_REST_Request( $params ) ) ) return array( $logged_in ? 403 : 401, array( 'code' => 'rest_forbidden' ) );
-			$result = call_user_func( $handler['callback'], new WP_REST_Request( $params ) );
-			if ( is_wp_error( $result ) ) return array( (int) ( $result->get_error_data()['status'] ?? 500 ), array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) );
+			$request = new WP_REST_Request( $params, $query, $body );
+			if ( true !== call_user_func( $handler['permission_callback'], $request ) ) return array( $logged_in ? 403 : 401, array( 'code' => 'rest_forbidden' ) );
+			$result = call_user_func( $handler['callback'], $request );
+			if ( is_wp_error( $result ) ) return array( (int) ( $result->get_error_data()['status'] ?? 500 ), array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message(), 'data' => $result->get_error_data() ) );
 			return array( $result->get_status(), $result->get_data() );
 		}
 		return array( 404, array( 'code' => 'rest_no_route' ) );
@@ -223,6 +239,32 @@ require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups.php';
 require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups-rest.php';
 require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups-cli.php';
 
+/**
+ * Hace avanzar la cola como WP-Cron hasta que el trabajo termina (en php-wasm, PHP_SAPI es «cli»: cada tick corre sin
+ * límite de tiempo). Devuelve la vista pública del trabajo terminado.
+ */
+function digi_drive( $id ) {
+	for ( $i = 0; $i < 20; $i++ ) {
+		$view = Digitalisimo_Backups::service_job( $id );
+		digi_assert( ! is_wp_error( $view ), 'El trabajo ' . $id . ' no se pudo consultar: ' . ( is_wp_error( $view ) ? $view->get_error_message() : '' ) );
+		if ( $view['terminal'] ) return $view;
+		$tick = Digitalisimo_Backups::service_tick();
+		digi_assert( ! is_wp_error( $tick ) && 'error' !== $tick['result'], 'La cola no avanzó: ' . json_encode( is_wp_error( $tick ) ? $tick->get_error_message() : $tick ) );
+	}
+	throw new RuntimeException( 'FALLA: el trabajo ' . $id . ' no terminó.' );
+}
+/**
+ * Respaldo completo por el caso de uso compartido, de principio a fin: lo encola y hace avanzar la cola. Devuelve la
+ * fila pública del historial, o un WP_Error con el motivo si no se encoló (422, 400…) o si el trabajo falló.
+ */
+function digi_backup( array $args = array() ) {
+	$queued = Digitalisimo_Backups::service_create( $args );
+	if ( is_wp_error( $queued ) ) return $queued;
+	$done = digi_drive( $queued['id'] );
+	if ( 'success' !== $done['status'] ) return new WP_Error( 'digitalisimo_backups_job_' . $done['status'], $done['error'], array( 'status' => 500, 'job' => $done ) );
+	foreach ( Digitalisimo_Backups::service_backups() as $row ) if ( $row['file'] === $done['file'] ) return $row;
+	throw new RuntimeException( 'FALLA: el trabajo terminó sin fila en el historial.' );
+}
 /** Bloqueo del almacén tomado por «otra petición». */
 function digi_hold_lock() {
 	$acquire = new ReflectionMethod( 'Digitalisimo_Backups', 'acquire_operation_lock' );

@@ -31,7 +31,7 @@ try {
 	// 1. En la carpeta superior.
 	$status = Digitalisimo_Backups::service_status();
 	digi_assert( true === $status['ready'] && 'parent' === $status['wp_config'], 'Una instalación con wp-config.php en la carpeta superior no quedó lista.' );
-	$backup = Digitalisimo_Backups::service_create();
+	$backup = digi_backup();
 	digi_assert( ! is_wp_error( $backup ), 'El respaldo con wp-config.php en la carpeta superior falló: ' . ( is_wp_error( $backup ) ? $backup->get_error_message() : '' ) );
 	digi_assert( "<?php // configuración en la carpeta superior\n" === digi_zip_entry( $store . '/' . $backup['file'], 'wordpress/wp-config.php' ), 'El respaldo no guardó wp-config.php de la carpeta superior.' );
 	file_put_contents( $parent, "<?php // configuración editada después del respaldo\n" );
@@ -47,7 +47,7 @@ try {
 	symlink( $root . '/shared/wp-config.php', ABSPATH . 'wp-config.php' );
 	$status = Digitalisimo_Backups::service_status();
 	digi_assert( true === $status['ready'] && 'abspath' === $status['wp_config'], 'Un wp-config.php enlazado no dejó la instalación lista.' );
-	$linked = Digitalisimo_Backups::service_create();
+	$linked = digi_backup();
 	digi_assert( ! is_wp_error( $linked ), 'Un wp-config.php enlazado detuvo el respaldo: ' . ( is_wp_error( $linked ) ? $linked->get_error_message() : '' ) );
 	digi_assert( "<?php // configuración compartida\n" === digi_zip_entry( $store . '/' . $linked['file'], 'wordpress/wp-config.php' ), 'El respaldo no guardó el contenido del wp-config.php enlazado.' );
 	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado otra vez\n" );
@@ -61,8 +61,10 @@ try {
 	symlink( $root . '/vendor-plugin', WP_PLUGIN_DIR . '/enlazado' );
 	$before = digi_stored( $store );
 	$history = get_option( Digitalisimo_Backups::HISTORY );
-	$error = Digitalisimo_Backups::service_create();
-	digi_assert( is_wp_error( $error ) && 'El respaldo completo no puede omitir el enlace simbólico ' . WP_PLUGIN_DIR . '/enlazado (apunta a ' . $root . '/vendor-plugin). Sustitúyelo por el archivo o la carpeta real para respaldar la instalación completa.' === $error->get_error_message(), 'Un enlace simbólico no se explicó: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'el respaldo terminó' ) );
+	// El enlace aparece al recorrer el árbol: el trabajo falla al momento (permanente, sin reintentos) con el motivo.
+	$error = digi_backup();
+	digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_job_failed' === $error->get_error_code() && 'El respaldo completo no puede omitir el enlace simbólico ' . WP_PLUGIN_DIR . '/enlazado (apunta a ' . $root . '/vendor-plugin). Sustitúyelo por el archivo o la carpeta real para respaldar la instalación completa.' === $error->get_error_message(), 'Un enlace simbólico no se explicó: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'el respaldo terminó' ) );
+	digi_assert( 1 === $error->get_error_data()['job']['attempt'] && 0 === $error->get_error_data()['job']['retry_in'], 'Un enlace simbólico se reintentó como un fallo transitorio.' );
 	digi_assert( $before === digi_stored( $store ) && $history === get_option( Digitalisimo_Backups::HISTORY ), 'El respaldo detenido dejó un ZIP incompleto o cambió el historial.' );
 	unlink( WP_PLUGIN_DIR . '/enlazado' );
 

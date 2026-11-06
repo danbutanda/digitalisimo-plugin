@@ -58,6 +58,17 @@ const wp = async (...args) => {
   return out;
 };
 const siteName = async () => (await request('GET', '/?rest_route=%2F')).json?.name;
+// Hace avanzar la cola como el navegador con la pantalla abierta (POST /jobs/tick) hasta que el trabajo termina.
+const drive = async (id) => {
+  for (let i = 0; i < 200; i++) {
+    const job = await api('GET', `/jobs/${id}`, { headers: basic('admin') });
+    if (job.status !== 200 || job.json?.terminal) return job;
+    const tick = await api('POST', '/jobs/tick', { headers: basic('admin'), body: {} });
+    if (tick.status !== 200 || tick.json?.result === 'error') return tick;
+    if (tick.json?.result !== 'worked') await new Promise((done) => setTimeout(done, 3000));
+  }
+  return { status: 0, text: 'el trabajo no terminó', json: null };
+};
 
 try {
   if (setup.versions) log(`· ${mode}: ${setup.versions}`);
@@ -99,11 +110,22 @@ try {
   }
   let started = Date.now();
   res = await api('POST', '/backups', { headers: basic('admin'), body: network ? { network: true } : {} });
-  const backup = res.json || {};
-  check(res.status === 201 && /^digitalisimo-backup-.+\.zip$/.test(backup.file || '') && backup.restorable === true && backup.scope === (network ? 'network' : 'installation'), `POST /backups creó y verificó el respaldo (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text}`);
+  const queued = res.json || {};
+  check(res.status === 202 && queued.status === 'queued' && /^[0-9a-f-]{36}$/.test(queued.id || ''), 'POST /backups encola el respaldo (202)', `${res.status} ${res.text}`);
+  res = await api('POST', '/backups', { headers: basic('admin'), body: network ? { network: true } : {} });
+  check(res.status === 409 && res.json?.code === 'digitalisimo_backups_duplicate' && res.json?.data?.job === queued.id, 'un segundo respaldo manual pendiente: 409 con su trabajo', `${res.status} ${res.text}`);
+  res = await api('GET', '/jobs', { headers: basic('admin') });
+  check(res.status === 200 && res.json?.[0]?.id === queued.id, 'GET /jobs lista el trabajo', res.text);
+  res = await drive(queued.id);
+  check(res.status === 200 && res.json?.status === 'success' && /^digitalisimo-backup-.+\.zip$/.test(res.json?.file || ''), `POST /jobs/tick termina el trabajo (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text}`);
+  res = await api('GET', '/backups', { headers: basic('admin') });
+  const backup = res.json?.[0] || {};
+  check(backup.restorable === true && backup.scope === (network ? 'network' : 'installation') && backup.container === 'zip', 'el respaldo del trabajo está en el historial y es restaurable', res.text);
   res = await api('GET', `/backups/${backup.file}/verify`, { headers: basic('admin') });
   check(res.status === 200 && res.json?.verified === true && res.json?.sha256 === backup.sha256 && res.json?.registered === true, 'GET verify: íntegro y registrado', res.text);
   check(!res.text.includes('/digi-store') && !res.text.includes('/wordpress/'), 'la verificación no expone rutas del servidor');
+  res = await request('POST', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/backups/${backup.file}/verify`)}&secret=frase-en-la-url`, { headers: { ...basic('admin'), 'Content-Type': 'application/json' }, body: {} });
+  check(res.status === 400 && res.json?.code === 'digitalisimo_backups_secret_in_url' && !res.text.includes('frase-en-la-url'), 'la frase en la URL se rechaza sin repetirla (400)', `${res.status} ${res.text}`);
   res = await request('POST', '/?rest_route=%2Fwp%2Fv2%2Fsettings', { headers: { ...basic('admin'), 'Content-Type': 'application/json' }, body: { title: 'Cambiado después del respaldo' } });
   check(res.status === 200 && (await siteName()) === 'Cambiado después del respaldo', 'cambio posterior al respaldo', `${res.status}`);
   res = await api('POST', `/backups/${backup.file}/restore`, { headers: basic('admin'), body: network ? { network: true } : {} });
@@ -112,6 +134,13 @@ try {
   res = await api('POST', `/backups/${backup.file}/restore`, { headers: basic('admin'), body: { confirm: 'RESTAURAR', ...(network ? { network: true } : {}) } });
   check(res.status === 200 && res.json?.restored === true && /^safety-before-restore-/.test(res.json?.safety_backup || ''), `POST restore con RESTAURAR (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text}`);
   check((await siteName()) === original, 'la restauración devolvió el nombre del sitio', await siteName());
+  // Cancelar por REST un trabajo en cola.
+  res = await api('POST', '/backups', { headers: basic('admin'), body: network ? { network: true } : {} });
+  const pending = res.json?.id || '';
+  res = await api('POST', `/jobs/${pending}/cancel`, { headers: basic('admin'), body: {} });
+  check(res.status === 200 && res.json?.result === 'cancelled' && res.json?.job?.status === 'cancelled', 'POST /jobs/<id>/cancel cancela un trabajo en cola', `${res.status} ${res.text}`);
+  res = await api('POST', `/jobs/${pending}/cancel`, { headers: basic('admin'), body: {} });
+  check(res.status === 409 && res.json?.code === 'digitalisimo_backups_job_terminal', 'cancelar otra vez: 409', `${res.status} ${res.text}`);
 
   if (network) {
     res = await api('GET', '/backups', { sub: 'uno/', headers: basic('admin') });
@@ -124,10 +153,14 @@ try {
   // que entendió.
   let out = await wp('digitalisimo-backups');
   const usage = out.stdout + out.stderr;
-  check(['status', 'list', 'verify <file>', 'automation <command>'].every((name) => usage.includes(`wp digitalisimo-backups ${name}`)) && !out.fatal, 'WP-CLI registra status, list, create, verify, restore y automation', usage + out.fatal);
-  check(usage.includes('wp digitalisimo-backups restore <file> --confirm=<confirm> [--network]') && usage.includes('wp digitalisimo-backups create [--destination=<destination>] [--network] [--porcelain]'), 'la sinopsis de restore y create sale del PHPDoc', usage);
+  check(['status', 'list', 'verify <file>', 'automation <command>', 'jobs <command>'].every((name) => usage.includes(`wp digitalisimo-backups ${name}`)) && !out.fatal, 'WP-CLI registra status, list, create, verify, restore, automation y jobs', usage + out.fatal);
+  check(usage.includes('wp digitalisimo-backups restore <file> --confirm=<confirm> [--network] [--secret-file=<path>] [--secret-stdin] [--adopt-secret]') && usage.includes('wp digitalisimo-backups create [--destination=<destination>] [--network] [--async] [--porcelain]'), 'la sinopsis de restore y create sale del PHPDoc', usage);
   out = await wp('digitalisimo-backups', 'automation');
-  check(/wp digitalisimo-backups automation list/.test(out.stdout + out.stderr) && /wp digitalisimo-backups automation run <id> \[--network\]/.test(out.stdout + out.stderr), 'WP-CLI registra automation list y run', out.stdout + out.stderr);
+  check(/wp digitalisimo-backups automation list/.test(out.stdout + out.stderr) && /wp digitalisimo-backups automation run <id> \[--network\] \[--async\] \[--porcelain\]/.test(out.stdout + out.stderr), 'WP-CLI registra automation list y run', out.stdout + out.stderr);
+  out = await wp('digitalisimo-backups', 'jobs');
+  check(/wp digitalisimo-backups jobs list/.test(out.stdout + out.stderr) && /wp digitalisimo-backups jobs cancel <id>/.test(out.stdout + out.stderr) && /wp digitalisimo-backups jobs run/.test(out.stdout + out.stderr), 'WP-CLI registra jobs list, cancel y run', out.stdout + out.stderr);
+  out = await wp('digitalisimo-backups', 'verify', backup.file, '--secret=frase-en-la-linea');
+  check(!/Success/.test(out.stdout) && !(out.stdout + out.stderr).includes('frase-en-la-linea'), 'WP-CLI no acepta la frase en la línea de órdenes ni la repite', out.stdout + out.stderr);
   let parsed = null;
   out = await wp('digitalisimo-backups', 'status', '--format=json');
   try { parsed = JSON.parse(out.stdout.trim()); } catch { /* no JSON */ }
@@ -153,6 +186,16 @@ try {
   check(/^digitalisimo-backup-.+\.zip$/.test(created) && !out.fatal, `wp digitalisimo-backups create --porcelain (${Math.round((Date.now() - started) / 1000)} s)`, out.stdout + out.stderr + out.fatal);
   res = await api('GET', '/backups', { headers: basic('admin') });
   check(res.json?.[0]?.file === created && res.json?.[0]?.policy === 'manual', 'el respaldo de WP-CLI aparece primero en el historial de REST', res.text);
+  // --async sólo encola; jobs list y jobs cancel operan sobre la misma cola que REST.
+  out = await wp('digitalisimo-backups', 'create', '--async', '--porcelain', ...(network ? ['--network'] : []));
+  const job = out.stdout.trim();
+  res = await api('GET', `/jobs/${job}`, { headers: basic('admin') });
+  check(/^[0-9a-f-]{36}$/.test(job) && res.status === 200 && res.json?.status === 'queued', 'wp digitalisimo-backups create --async deja el trabajo en cola', out.stdout + out.stderr + res.text);
+  out = await wp('digitalisimo-backups', 'jobs', 'list', '--format=json');
+  try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
+  check(Array.isArray(parsed) && parsed[0]?.id === job, 'wp digitalisimo-backups jobs list', out.stdout + out.stderr);
+  out = await wp('digitalisimo-backups', 'jobs', 'cancel', job);
+  check(out.stdout.includes('Success: Trabajo cancelado.'), 'wp digitalisimo-backups jobs cancel', out.stdout + out.stderr);
   if (network) {
     // Un subsitio con upload_path propio fuera de ABSPATH (Red → Sitios → Editar → Ajustes): sus medios quedarían fuera
     // del ZIP, así que el estado y la creación lo rechazan con el sitio y el ajuste. Después vuelve su valor.

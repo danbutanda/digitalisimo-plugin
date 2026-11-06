@@ -1,0 +1,21 @@
+div.digi-atc--custom.digi-atc.digi-atc .quantity{
+	vertical-align:middle
+}
+div.digi-atc--custom.digi-atc.digi-atc .quantity .qty{
+	margin-inline-end:0;
+	text-align:center;
+	vertical-align:top;
+	width:3.631em
+}
+div.digi-atc--custom.digi-atc.digi-atc.elementor-button-info button.button.alt.elementor-button{
+	background-color:#5bc0de
+}
+div.digi-atc--custom.digi-atc.digi-atc.elementor-button-success button.button.alt.elementor-button{
+	background-color:#5cb85c
+}
+div.digi-atc--custom.digi-atc.digi-atc.elementor-button-warning button.button.alt.elementor-button{
+	background-color:#f0ad4e
+}
+div.digi-atc--custom.digi-atc.digi-atc.elementor-button-danger button.button.alt.elementor-button{
+	background-color:#d9534f
+}

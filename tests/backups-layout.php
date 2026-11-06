@@ -132,15 +132,16 @@ try {
 	);
 	$entries = array();
 	foreach ( $content as $name => $bytes ) $entries[ $name ] = array( 'size' => strlen( $bytes ), 'sha256' => hash( 'sha256', $bytes ) );
-	$manifest = array( 'format' => 'digitalisimo-backup/v3', 'backup_format_version' => 3, 'scope' => 'installation', 'type' => 'full', 'multisite' => false, 'table_prefix' => 'wp_', 'file_count' => count( $entries ) - 1, 'uncompressed_size' => array_sum( array_column( $entries, 'size' ) ), 'entries' => $entries );
+	// Manifiesto v3 con el esquema estricto que aplican la restauración y `verify`.
+	$manifest = array( 'format' => 'digitalisimo-backup/v3', 'backup_format_version' => 3, 'backup_id' => '6f1c2a4e-8b3d-4e5f-9a7b-1c2d3e4f5a6b', 'scope' => 'installation', 'type' => 'full', 'home_url' => 'https://example.test/', 'multisite' => false, 'table_prefix' => 'wp_', 'database_tables' => array( 'wp_options' ), 'file_count' => count( $entries ) - 1, 'uncompressed_size' => array_sum( array_column( $entries, 'size' ) ), 'entries' => $entries );
 	$zip = new ZipArchive();
 	$zip->open( $root . '/private/digitalisimo-backup-otro.zip', ZipArchive::CREATE );
 	foreach ( $content as $name => $bytes ) $zip->addFromString( $name, $bytes );
 	$zip->addFromString( 'manifest.json', json_encode( $manifest ) );
 	$zip->close();
 	$verified = Digitalisimo_Backups::service_verify( 'digitalisimo-backup-otro.zip' );
-	digi_assert( ! is_wp_error( $verified ) && true === $verified['verified'], 'El paquete de prueba no es un respaldo íntegro.' );
-	$error = Digitalisimo_Backups::service_restore( 'digitalisimo-backup-otro.zip', array( 'confirm' => 'RESTAURAR' ) );
+	digi_assert( ! is_wp_error( $verified ) && true === $verified['verified'], 'El paquete de prueba no es un respaldo íntegro: ' . ( is_wp_error( $verified ) ? $verified->get_error_message() : '' ) );
+	$error = Digitalisimo_Backups::service_restore( 'digitalisimo-backup-otro.zip', array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
 	digi_assert( is_wp_error( $error ) && 422 === $error->get_error_data()['status'] && 'digitalisimo_backups_not_ready' === $error->get_error_code() && $expected === $error->get_error_message(), 'La restauración no se detuvo con el mismo motivo (422): ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
 	digi_assert( 'Contenido de wp-includes/version.php' === file_get_contents( ABSPATH . 'wp-includes/version.php' ) && 'Sitio de prueba' === $GLOBALS['wpdb']->value( 'blogname' ) && array() === $GLOBALS['wpdb']->queries, 'La restauración rechazada tocó archivos o la base de datos.' );
 	digi_assert( array( 'digitalisimo-backup-otro.zip' ) === digi_stored( $root . '/private' ) && array() === get_option( Digitalisimo_Backups::HISTORY, array() ), 'La restauración rechazada dejó una copia previa incompleta.' );

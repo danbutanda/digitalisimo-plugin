@@ -37,11 +37,15 @@ final class Mini_Cart_Extras {
 		add_action( 'elementor/element/after_section_end', array( __CLASS__, 'after_section_end' ), 10, 2 );
 		// Después de Cart_Title (10): su título queda delante de la barra y del cupón.
 		add_filter( 'elementor/widget/render_content', array( __CLASS__, 'render_content' ), 11, 2 );
+		// C7: fragmentos del Carrito del menú propio (`digitalisimo-woo-menu-cart`), también en las peticiones `?wc-ajax=`.
+		if ( class_exists( '\\Digitalisimo\\Elements\\Woo\\Store\\Menu_Cart_Markup' ) ) {
+			\Digitalisimo\Elements\Woo\Store\Menu_Cart_Markup::init();
+		}
 	}
 
-	/** Se reconoce por su clase, también cuando se registra con otro nombre sobre la misma clase. */
+	/** Se reconoce por su clase, también cuando se registra con otro nombre sobre la misma clase, y el propio de C7. */
 	public static function applies( $widget ): bool {
-		return $widget instanceof \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart || ( is_object( $widget ) && method_exists( $widget, 'get_name' ) && 'woocommerce-menu-cart' === $widget->get_name() );
+		return $widget instanceof \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart || ( is_object( $widget ) && method_exists( $widget, 'get_name' ) && in_array( $widget->get_name(), array( 'woocommerce-menu-cart', 'digitalisimo-woo-menu-cart' ), true ) );
 	}
 
 	/** Recursos de la capacidad, sólo si el interruptor está en `yes`. */
@@ -101,7 +105,8 @@ final class Mini_Cart_Extras {
 		$content = (string) $content;
 		$bar     = 'yes' === ( $settings[ self::BAR ] ?? '' );
 		$coupon  = 'yes' === ( $settings[ self::COUPON ] ?? '' );
-		if ( ( ! $bar && ! $coupon ) || false === strpos( $content, 'elementor-menu-cart__main' ) ) {
+		$own = false !== strpos( $content, '<!-- /digi-mc__main -->' );
+		if ( ( ! $bar && ! $coupon ) || ( ! $own && false === strpos( $content, 'elementor-menu-cart__main' ) ) ) {
 			return $content;
 		}
 		$extras = '<div class="digi-cart-extras">';
@@ -114,6 +119,12 @@ final class Mini_Cart_Extras {
 		$extras  .= '</div>';
 		$safe     = str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), $extras );
 		$position = 'bottom' === ( $settings[ self::POSITION ] ?? '' ) ? 'bottom' : 'top';
+		if ( $own ) {
+			// Carrito del menú propio: «Abajo», antes del cierre de .digi-mc__main; «Arriba», delante de .digi-mc__ct.
+			return 'bottom' === $position
+				? (string) preg_replace( '#</div><!-- /digi-mc__main -->#', $safe . '$0', $content, 1 )
+				: (string) preg_replace( '#<div class="digi-mc__ct">#', $safe . '$0', $content, 1 );
+		}
 		if ( 'bottom' === $position ) {
 			// La primera </div> cierra .elementor-menu-cart__main; la segunda, su contenedor; después va el botón.
 			return (string) preg_replace( '#</div>(\s*</div>\s*<div class="elementor-menu-cart__toggle elementor-button-wrapper">)#', $safe . '</div>$1', $content, 1 );
