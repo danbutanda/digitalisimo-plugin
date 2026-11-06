@@ -74,6 +74,7 @@ return array(
 		),
 		(array) ( $digi_lg_pagination['groups'] ?? array() )
 	),
+	'drop'      => (array) ( $digi_lg_pagination['drop'] ?? array() ),
 	'repeaters' => array(
 		'alternate_templates' => array(
 			'target' => 'alternate_templates',

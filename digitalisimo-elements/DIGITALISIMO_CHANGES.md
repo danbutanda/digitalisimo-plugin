@@ -8,6 +8,7 @@
   5. **Contenido completo** (Entradas y Entradas del archivo, `class-skin-content-base.php`) y **Contenido de la entrada** (C4, `modules/digitalisimo-theme-elements/widgets/class-post-content.php`): en lo convertido de PRO (la misma marca), el título de las páginas de una entrada con `<!--nextpage-->` dice «Pages:» con el msgid y el dominio de PRO (antes «Páginas:»); en lo nuevo sigue diciendo «Páginas:».
   6. **CSS personalizado del Portafolio** (`modules/digitalisimo-convert/maps/portfolio.php`): los elementos activos de PRO (`.elementor-portfolio-item.elementor-active`) pasan a los visibles del propio (`:not([hidden])`) y no a `aria-pressed`, que sólo vale para el filtro.
   7. **Acción «Cargar más en un Loop Grid» de F7b** (`modules/digitalisimo-f7b/assets/js/actions.js`, 6 014 B): pulsa también el «Cargar más» de una Cuadrícula de bucle propia. Antes sólo buscaba el marcado de PRO, así que la acción dejaba de funcionar cuando «Migrar» convertía su destino.
+  8. **«Separación» de «Cargar más»** (`modules/digitalisimo-convert/maps/_loop-pagination.php`): «Migrar» y los kits la descartan con su motivo en el informe. PRO no la aplicaba: su control escribe `--load-more—spacing`, pero sus hojas leen la variable con la raya codificada dos veces (también en PRO Elements 4.3.2 oficial), así que el botón, el cargador y el mensaje quedaban siempre a 30 px, como el propio sin valor. En lo nuevo, el control propio sigue funcionando.
 
   Volver a la versión anterior no rompe nada: sólo vuelven el aspecto y los textos anteriores.
 

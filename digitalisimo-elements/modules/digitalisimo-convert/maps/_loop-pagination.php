@@ -2,8 +2,8 @@
 /**
  * Lo común de los mapas de los listados de C5 con la paginación de Entradas de PRO (`posts/widgets/posts-base.php` con
  * `Button_Widget_Trait`), que la base propia (`modules/digitalisimo-loop/class-posts-base.php`) repite con los mismos
- * nombres: claves que se conservan, grupos, controles sin valor y clases del pie. Lo suman los mapas que lo usan (los
- * bucles y, por `_posts.php`, Entradas y Entradas del archivo);
+ * nombres: claves que se conservan, grupos, controles sin valor, pérdidas declaradas y clases del pie. Lo suman los
+ * mapas que lo usan (los bucles y, por `_posts.php`, Entradas y Entradas del archivo);
  * `Registry` ignora los archivos de `maps/` que empiezan por `_`.
  */
 defined( 'ABSPATH' ) || exit;
@@ -28,7 +28,6 @@ return array(
 		'pagination_spacing_top',
 		'load_more_no_posts_message_color',
 		'load_more_spinner_color',
-		'load_more_spacing',
 		// Botón «Cargar más».
 		'text',
 		'selected_icon',
@@ -55,6 +54,13 @@ return array(
 		'button_background_hover'    => 'button_background_hover',
 		'button_hover_box_shadow'    => 'button_hover_box_shadow',
 		'border'                     => 'border',
+	),
+	// «Separación» de «Cargar más»: el control de PRO escribe `--load-more—spacing` (raya larga), pero sus hojas
+	// (`widget-posts.min.css`, `widget-loop-grid.min.css`; igual en PRO Elements 4.3.2 oficial) leen la variable con la
+	// raya codificada dos veces (`--load-moreвЂ”spacing`), así que el botón, el cargador y el mensaje quedan siempre a
+	// 30 px. El propio sí la aplica: lo convertido la descarta para verse igual (sin valor, el propio deja 30 px).
+	'drop'    => array(
+		'load_more_spacing' => 'PRO no aplicaba la separación de «Cargar más»: su hoja lee otra variable (la raya mal codificada), así que el botón, el cargador y el mensaje quedaban siempre a 30 px; el propio deja los mismos 30 px.',
 	),
 	'ui'      => array(
 		'pagination_individual_divider',

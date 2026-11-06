@@ -136,6 +136,7 @@ return array(
 		),
 		(array) ( $digi_lc_paging['ui'] ?? array() ),
 		(array) ( $digi_lc_paging['keep'] ?? array() ),
+		array_keys( (array) ( $digi_lc_paging['drop'] ?? array() ) ),
 		array_keys( (array) ( $digi_lc_paging['groups'] ?? array() ) )
 	),
 	'classes' => array_merge(

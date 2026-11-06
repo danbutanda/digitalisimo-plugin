@@ -472,6 +472,13 @@ foreach ( $cases as $type => $list ) {
 $log = array();
 $out = Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings'];
 $check( '&laquo; Previous' === $out['pagination_prev_label'] && 'Load More' === $out['text'] && 'Read More »' === $out['classic_read_more_text'] && 'Read More »' === $out['cards_read_more_text'] && 'No more posts to show' === $out['load_more_no_posts_custom_message'], 'Los textos por defecto de PRO viajan explícitos al widget propio (sus valores por defecto están en español).' );
+// «Separación» de «Cargar más»: PRO no la aplicaba (su hoja lee otra variable; ver tests/elements-pro-loop.php) y dejaba
+// siempre 30 px. Lo convertido la descarta como pérdida declarada (también por dispositivo), así que el propio deja los
+// mismos 30 px; lo nuevo conserva el control.
+$log = array();
+$out = Converter::tree( $tree( 'posts', $cases['posts'][2] + array( 'load_more_spacing_mobile' => array( 'size' => 4, 'unit' => 'px' ) ) ), $log, true )[0]['elements'][0]['settings'];
+$dropped = array_column( array_filter( array_merge( ...array_map( static function ( $l ) { return $l['codes'] ?? array(); }, $log ) ), static function ( $c ) { return 'pro.dropped' === $c['code']; } ), 'key' );
+$check( ! preg_grep( '/^load_more_spacing/', array_keys( $out ) ) && in_array( 'load_more_spacing', $dropped, true ) && isset( $built['posts']->controls['load_more_spacing'] ), 'Entradas: la separación de «Cargar más» de PRO se descarta al convertir (PRO dejaba siempre 30 px; el control propio sigue para lo nuevo).' );
 $out = Converter::tree( $tree( 'posts', $cases['posts'][3] ), $log, true )[0]['elements'][0]['settings'];
 $check( 'selector .digi-posts__title a{color:red} selector .digi-posts .digi-posts__thumb-link{margin:0} selector .digi-loop__pagination .page-numbers{gap:1px}' === $out['custom_css'], 'El CSS personalizado pasa a las clases propias: ' . $out['custom_css'] );
 $out = Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elements'][0]['settings'];
