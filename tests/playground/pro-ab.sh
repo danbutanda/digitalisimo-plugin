@@ -102,6 +102,15 @@
 #     contenedor encuadrado);
 #   - `capture` (`{a, b}`): selector dentro del widget que se captura, para un bloque fijo a la ventana cuyo envoltorio
 #     queda sin alto; con `shape`, basta la captura.
+# C9 (servicios y plantillas) añade, también opcionales y sin efecto en los demás casos:
+#   - `"$template:<clave>"` en los ajustes: crea (una vez) la plantilla `pro-ab-tpl-<clave>` de la biblioteca (tipo
+#     `section`, publicada y con su CSS) con los elementos de `templates.<clave>` del caso, y da su ID (la Plantilla y
+#     sus sobrescrituras de F7b);
+#   - `"widget": "global"` con `global: { widgetType, settings }`: crea la plantilla de widget global, A con la instancia
+#     (`templateID` y la copia de los ajustes, como la guarda PRO) y B con `Globals::tree()` + `Converter::tree()` (lo
+#     que hacen «Migrar» y los kits);
+#   - los widgets de Facebook: el arnés corta `connect.facebook.net` como todo otro origen, así que A pinta el plugin
+#     vacío y B la fachada; sus diferencias van declaradas en cada caso.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

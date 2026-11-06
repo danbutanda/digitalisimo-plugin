@@ -160,6 +160,10 @@ function pro_elements_load_plugin_func() {
 	// Botones flotantes y Link in Bio propios (C8): widgets que sustituyen a los de PRO de la etapa.
 	require_once __DIR__ . '/modules/digitalisimo-floating/class-module.php';
 	\Digitalisimo\Elements\Floating\Module::init();
+
+	// Servicios y plantillas propios (C9): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-services/class-module.php';
+	\Digitalisimo\Elements\Services\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

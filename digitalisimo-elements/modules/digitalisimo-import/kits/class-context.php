@@ -661,7 +661,18 @@ final class Context {
 		}
 		try {
 			$result = $class::apply( $data, self::$import, $id );
-			return is_array( $result ) ? $result : $data;
+			$result = is_array( $result ) ? $result : $data;
+			// Widget global de PRO (C9, §17): cada instancia, ya con su plantilla remapeada, pasa a ser el elemento guardado
+			// en esa plantilla (convertido si es un widget de PRO con mapa listo). Sin plantilla, se queda como está.
+			$convert = __NAMESPACE__ . '\\Pro_Convert';
+			if ( class_exists( $convert ) && method_exists( $convert, 'globals_available' ) && $convert::globals_available() ) {
+				try {
+					$result = $convert::on_remapped_data( $result, $id, array( __CLASS__, 'global_template' ) );
+				} catch ( \Throwable $error ) {
+					self::report( 'pro.error', array( 'post' => $id, 'message' => $error->getMessage() ), Part_Context::ERROR );
+				}
+			}
+			return $result;
 		} catch ( \Throwable $error ) {
 			self::$import->report(
 				'remap.error',
@@ -673,6 +684,27 @@ final class Context {
 			);
 			return $data;
 		}
+	}
+
+	/**
+	 * `_elementor_data` de una plantilla de widget global de este sitio (biblioteca, tipo `widget`, fuera de la papelera),
+	 * o null. Si la creó esta importación y aún no se remapeó en la petición, se devuelve remapeada (sin escribirla), para
+	 * que la instancia que la sustituye lleve las referencias del sitio.
+	 */
+	public static function global_template( int $template_id ): ?array {
+		$post = $template_id > 0 && function_exists( 'get_post' ) ? get_post( $template_id ) : null;
+		if ( ! $post || 'elementor_library' !== $post->post_type || in_array( $post->post_status, array( 'trash', 'auto-draft' ), true ) || 'widget' !== (string) get_post_meta( $template_id, '_elementor_template_type', true ) ) {
+			return null;
+		}
+		$data = get_post_meta( $template_id, '_elementor_data', true );
+		$data = is_string( $data ) ? json_decode( $data, true ) : $data;
+		if ( ! is_array( $data ) ) {
+			return null;
+		}
+		if ( null !== self::$import && ! isset( self::$remapped[ $template_id ] ) && (string) get_post_meta( $template_id, '_elementor_import_session_id', true ) === self::$session && class_exists( __NAMESPACE__ . '\\Remapper' ) ) {
+			$data = Remapper::for_context( self::$import )->apply_elements( $data, 0 );
+		}
+		return $data;
 	}
 
 	/** ¿Ya se remapeó este documento en la petición? */

@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3, C4, C5, C6, C7 y C8 del programa «sin widgets de PRO»: carruseles, contenido, navegación, elementos de tema, entradas y bucles, formularios, botones flotantes y Link in Bio y los treinta de WooCommerce, éstos con «woo»; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» los 5 de F7b: cuatro filtros ampliados y el slider anidado, y los widgets propios de C1, C2, C3, C4, C5, C6, C7, C8 y C9 del programa «sin widgets de PRO»: carruseles, contenido, navegación, elementos de tema, entradas y bucles, formularios, botones flotantes y Link in Bio, servicios y los treinta de WooCommerce, éstos con «woo»; los tres bucles de C5 también juntos al final de la portada, con el filtro apuntando a la cuadrícula) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO. Una instancia del widget global de PRO (C9) nombra su plantilla en «templateID», fuera de los ajustes, con la misma ficha («@template-int:»).",
   "media": {
     "imagen-a": {
       "png": [
@@ -732,6 +732,24 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-global",
+      "type": "widget",
+      "title": "Widget global del kit",
+      "elements": [
+        {
+          "id": "e9g0001",
+          "elType": "widget",
+          "widgetType": "heading",
+          "settings": {
+            "title": "Titular global del kit",
+            "header_size": "h3",
+            "title_color": "#1D3A6E"
+          },
+          "elements": []
         }
       ]
     },
@@ -2269,6 +2287,31 @@
       ]
     },
     {
+      "slug": "digi-k-pro-global",
+      "title": "Widget global de PRO",
+      "elements": [
+        {
+          "id": "c9g1001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e9g1001",
+              "elType": "widget",
+              "widgetType": "global",
+              "templateID": "@template-int:digi-k-global",
+              "settings": {
+                "title": "Titular global del kit",
+                "header_size": "h3",
+                "title_color": "#1D3A6E"
+              },
+              "elements": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "slug": "digi-k-pro-cita",
       "title": "Cita de PRO",
       "elements": [
@@ -2916,7 +2959,14 @@
           { "_id": "lb0002", "icon_platform": "Url", "icon_text": "Sitio", "icon_url": { "url": "{{home}}/", "is_external": "", "nofollow": "" } }
         ]
       }
-    }
+    },
+    "digitalisimo-facebook-button": {"settings": {"type": "recommend", "layout": "button_count", "url_type": "custom", "url": "{{home}}/digi-k-padre/"}},
+    "digitalisimo-facebook-comments": {"settings": {"comments_number": 5, "order_by": "time", "url_type": "custom", "url": "{{home}}/digi-k-hija/"}},
+    "digitalisimo-facebook-embed": {"settings": {"type": "video", "video_url": "https://www.facebook.com/digitalisimo.kit/videos/1234567890/", "show_text": "yes"}},
+    "digitalisimo-facebook-page": {"settings": {"url": "https://www.facebook.com/digitalisimo.kit/", "tabs": ["timeline", "events"], "small_header": "yes"}},
+    "digitalisimo-paypal-button": {"settings": {"type": "donation", "product_name": "Donativo del kit", "donation_type": "fixed", "donation_amount": 15, "currency": "MXN", "redirect_after_success": {"url": "{{home}}/digi-k-padre/"}}},
+    "digitalisimo-stripe-button": {"settings": {"product_name": "Producto del kit", "stripe_product_price": 25.5, "stripe_currency": "MXN", "text": "Pagar con tarjeta"}},
+    "digitalisimo-template": {"settings": {"template_id": "@template:digi-k-seccion"}}
   },
   "traits": {
     "backdrop-filter": {

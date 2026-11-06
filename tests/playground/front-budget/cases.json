@@ -7226,5 +7226,63 @@
    }
   }
  },
- "floating": {"title": "Botones de contacto (presentación 1), Barra flotante (3) y Link in Bio (7) propios (programa sin widgets de PRO, C8) en una página: sin los paquetes de PRO, sin las hojas del núcleo de las variantes y sólo la hoja común y la de su presentación por widget; scripts con defer y el recuento de clics compartido", "since": "4.3.0.178", "widgets": [{"type": "digitalisimo-link-in-bio", "settings": {"presentation": "7", "identity_image": "__IMAGE__"}}, {"type": "digitalisimo-contact-buttons", "settings": {"presentation": "1", "top_bar_title": "Equipo"}}, {"type": "digitalisimo-floating-bar", "settings": {"presentation": "3", "coupon_code": "MEDICION"}}], "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "ownSheets": "link[rel=\"stylesheet\"][id^=\"digitalisimo-contact-buttons\"], link[rel=\"stylesheet\"][id^=\"digitalisimo-floating-bar\"], link[rel=\"stylesheet\"][id^=\"digitalisimo-link-in-bio\"]", "presentationSheets": "#digitalisimo-contact-buttons-1-css, #digitalisimo-floating-bar-3-css, #digitalisimo-link-in-bio-7-css"}, "assets": {"coreVariants": "widget-(contact-buttons|floating-bars|link-in-bio)-"}, "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "count:own": 3, "count:ownSheets": 6, "count:presentationSheets": 3, "asset:coreVariants": 0, "deferred": {"digitalisimo-contact-buttons": true, "digitalisimo-floating-bar": true, "digitalisimo-floating-track": true}}}}
+ "floating": {"title": "Botones de contacto (presentación 1), Barra flotante (3) y Link in Bio (7) propios (programa sin widgets de PRO, C8) en una página: sin los paquetes de PRO, sin las hojas del núcleo de las variantes y sólo la hoja común y la de su presentación por widget; scripts con defer y el recuento de clics compartido", "since": "4.3.0.178", "widgets": [{"type": "digitalisimo-link-in-bio", "settings": {"presentation": "7", "identity_image": "__IMAGE__"}}, {"type": "digitalisimo-contact-buttons", "settings": {"presentation": "1", "top_bar_title": "Equipo"}}, {"type": "digitalisimo-floating-bar", "settings": {"presentation": "3", "coupon_code": "MEDICION"}}], "counts": {"own": "[data-widget_type^=\"digitalisimo-\"]", "ownSheets": "link[rel=\"stylesheet\"][id^=\"digitalisimo-contact-buttons\"], link[rel=\"stylesheet\"][id^=\"digitalisimo-floating-bar\"], link[rel=\"stylesheet\"][id^=\"digitalisimo-link-in-bio\"]", "presentationSheets": "#digitalisimo-contact-buttons-1-css, #digitalisimo-floating-bar-3-css, #digitalisimo-link-in-bio-7-css"}, "assets": {"coreVariants": "widget-(contact-buttons|floating-bars|link-in-bio)-"}, "expect": {"*": {"errors": 0, "proHandlers": false, "proFrontend": false, "swiper": false, "count:own": 3, "count:ownSheets": 6, "count:presentationSheets": 3, "asset:coreVariants": 0, "deferred": {"digitalisimo-contact-buttons": true, "digitalisimo-floating-bar": true, "digitalisimo-floating-track": true}}}},
+ "services": {
+  "title": "Servicios propios (programa sin widgets de PRO, C9): los cuatro widgets de Facebook con fachada (ninguna petición a Facebook ni a su SDK antes del clic, que comprueba elements-pro-facebook-chrome.mjs), los botones de PayPal y Stripe (sin ninguna petición a los servicios hasta enviar) y la Plantilla, sin los paquetes de PRO; una sola hoja y un solo script por familia",
+  "since": "4.3.0.178",
+  "widgets": [
+   { "type": "digitalisimo-facebook-button", "settings": { "url_type": "custom", "url": "__SITE__/" } },
+   { "type": "digitalisimo-facebook-comments", "settings": { "url_type": "custom", "url": "__SITE__/" } },
+   { "type": "digitalisimo-facebook-embed", "settings": { "type": "video", "video_url": "https://www.facebook.com/digitalisimo.medicion/videos/1234567890/" } },
+   { "type": "digitalisimo-facebook-page", "settings": { "url": "https://www.facebook.com/digitalisimo.medicion/" } },
+   { "type": "digitalisimo-paypal-button", "settings": { "product_name": "Producto de medición", "product_price": "10.00" } },
+   { "type": "digitalisimo-stripe-button", "settings": { "product_name": "Producto de medición", "stripe_product_price": 10 } },
+   { "type": "digitalisimo-template", "settings": { "template_id": "__TEMPLATE__" } }
+  ],
+  "extra": [
+   {
+    "key": "seccion",
+    "type": "section",
+    "widgets": [ { "type": "heading", "settings": { "title": "Sección de la Plantilla", "header_size": "h3" } } ]
+   }
+  ],
+  "assets": {
+   "fb-css": "/digitalisimo-services/assets/css/facebook\\.css",
+   "fb-js": "/digitalisimo-services/assets/js/facebook\\.js",
+   "pay-css": "/digitalisimo-services/assets/css/payment-button\\.css",
+   "pay-js": "/digitalisimo-services/assets/js/payment-button\\.js"
+  },
+  "calls": {
+   "facebook": "^https?://([a-z0-9-]+\\.)*(facebook\\.(com|net)|fbcdn\\.net)/",
+   "payments": "^https?://([a-z0-9-]+\\.)*(paypal(objects)?\\.com|stripe\\.(com|network))/"
+  },
+  "counts": {
+   "own": "[data-widget_type^=\"digitalisimo-\"]",
+   "fbFacade": ".digi-fb[data-digi-fb] > button.digi-fb__load[type=\"button\"]",
+   "fbLive": ".digi-fb .fb-like, .digi-fb .fb-comments, .digi-fb .fb-video, .digi-fb .fb-post, .digi-fb .fb-page, .digi-fb iframe",
+   "payForms": "form.digi-pay button[type=\"submit\"]",
+   "template": ".digi-template h3"
+  },
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "cdnjs": false,
+    "iframes": 0,
+    "call:facebook": "<=0",
+    "call:payments": "<=0",
+    "count:own": 7,
+    "count:fbFacade": 4,
+    "count:fbLive": 0,
+    "count:payForms": 2,
+    "count:template": 1,
+    "asset:fb-css": "<=2048",
+    "asset:fb-js": "<=2048",
+    "asset:pay-css": "<=1024",
+    "asset:pay-js": "<=3584"
+   }
+  }
+ }
 }

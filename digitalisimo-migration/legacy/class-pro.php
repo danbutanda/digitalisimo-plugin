@@ -19,11 +19,18 @@ defined( 'ABSPATH' ) || exit;
  *   autoguardados se cuentan aparte. En memoria sólo quedan los recuentos.
  * - La conversión toma sólo documentos que no son revisiones: los widgets de PRO siguen registrados, así que una
  *   revisión antigua se sigue viendo y, si se restaura, Migrar la convierte la próxima vez.
+ * - Widget global (C9, `Convert\Globals` de Elements): antes de convertir, cada instancia se sustituye por el elemento
+ *   guardado en su plantilla de la biblioteca (`template_content()` la lee del sitio); lo que queda dentro se convierte
+ *   con los mapas en la misma pasada. La plantilla no se borra y `--revert` devuelve la instancia (copia original). Una
+ *   instancia sin plantilla se queda como está y el informe lo dice (`pro.global_missing`).
  */
 final class Pro {
 	const CONVERTER = '\\Digitalisimo\\Elements\\Convert\\Converter';
 	const CATALOG   = '\\Digitalisimo\\Elements\\Convert\\Catalog';
 	const REGISTRY  = '\\Digitalisimo\\Elements\\Convert\\Registry';
+	const GLOBALS   = '\\Digitalisimo\\Elements\\Convert\\Globals';
+	/** Ajuste que deja en el elemento la sustitución de un widget global (su plantilla de origen). */
+	const GLOBAL_KEY = '_digitalisimo_global';
 	/** Marca que el traductor de Elements deja en los ajustes de un widget convertido. */
 	const MARKER = '_digitalisimo_pro';
 	/** Filas de `_elementor_data` por consulta del inventario y documentos por vuelta del análisis. */
@@ -34,6 +41,9 @@ final class Pro {
 	/** @var array<string,string>|null widget de PRO => widget propio, de los mapas listos con destino registrado. */
 	private static $ready = null;
 
+	/** @var array<int,array|null> Contenido de las plantillas de widget global leídas en esta petición. */
+	private static $templates = array();
+
 	/** ¿Está el núcleo de conversión de DIGITALÍSIMO Elements? */
 	public static function available(): bool {
 		return class_exists( self::CONVERTER ) && class_exists( self::CATALOG ) && class_exists( self::REGISTRY );
@@ -41,7 +51,32 @@ final class Pro {
 
 	/** Olvida los mapas leídos (pruebas, y tras cambiar los mapas de Elements). */
 	public static function reset(): void {
-		self::$ready = null;
+		self::$ready     = null;
+		self::$templates = array();
+	}
+
+	/** ¿Sustituye esta versión de Elements los widgets globales por su contenido? */
+	public static function globals(): bool {
+		return self::available() && class_exists( self::GLOBALS );
+	}
+
+	/**
+	 * `_elementor_data` de una plantilla de widget global del sitio (la biblioteca, tipo `widget`, fuera de la papelera),
+	 * o null. Una vez por plantilla y petición.
+	 */
+	public static function template_content( $template_id ): ?array {
+		$template_id = (int) $template_id;
+		if ( array_key_exists( $template_id, self::$templates ) ) {
+			return self::$templates[ $template_id ];
+		}
+		$data = null;
+		$post = $template_id > 0 ? get_post( $template_id ) : null;
+		if ( $post && 'elementor_library' === $post->post_type && ! in_array( $post->post_status, array( 'trash', 'auto-draft' ), true ) && 'widget' === (string) get_metadata( 'post', $template_id, '_elementor_template_type', true ) ) {
+			$raw  = get_metadata( 'post', $template_id, '_elementor_data', true );
+			$raw  = is_string( $raw ) ? json_decode( $raw, true ) : $raw;
+			$data = is_array( $raw ) ? $raw : null;
+		}
+		return self::$templates[ $template_id ] = $data;
 	}
 
 	/**
@@ -119,6 +154,9 @@ final class Pro {
 	public static function documents( $after = 0, $limit = 0 ): array {
 		global $wpdb;
 		$names = array_keys( self::ready() );
+		if ( self::globals() ) {
+			$names[] = 'global';
+		}
 		if ( ! $names ) {
 			return array();
 		}
@@ -135,17 +173,31 @@ final class Pro {
 	/**
 	 * Convierte en memoria los widgets de PRO con mapa listo de un árbol (sin escribir nada).
 	 *
-	 * @return array{0:array, 1:array, 2:string[]} elementos, registro de Converter::tree() y widgets de PRO que no se
-	 *         convirtieron porque su widget propio no está registrado.
+	 * @return array{0:array, 1:array, 2:string[], 3:array} elementos, registro de Converter::tree() (con una fila
+	 *         `source => global` por instancia de widget global sustituida), widgets de PRO que no se convirtieron porque
+	 *         su widget propio no está registrado e instancias de widget global sin plantilla (filas de `Globals::tree()`).
 	 */
 	public static function convert_data( array $data ): array {
 		if ( ! self::available() ) {
-			return array( $data, array(), array() );
+			return array( $data, array(), array(), array() );
 		}
 		$converter = self::CONVERTER;
-		$log       = array();
-		$out       = $converter::tree( $data, $log );
-		$blocked   = array();
+		$globals   = array();
+		$missing   = array();
+		$out       = $data;
+		if ( self::globals() ) {
+			$class = self::GLOBALS;
+			$out   = $class::tree( $data, array( __CLASS__, 'template_content' ), $globals );
+			foreach ( $globals as $i => $row ) {
+				if ( empty( $row['expanded'] ) ) {
+					$missing[] = $row;
+					unset( $globals[ $i ] );
+				}
+			}
+		}
+		$log     = array();
+		$out     = $converter::tree( $out, $log );
+		$blocked = array();
 		foreach ( $log as $row ) {
 			if ( ! isset( self::ready()[ (string) ( $row['source'] ?? '' ) ] ) ) {
 				$blocked[] = (string) $row['source'];
@@ -153,9 +205,21 @@ final class Pro {
 		}
 		if ( $blocked ) {
 			// Un destino sin registrar: el documento entero queda como está (nunca a medias).
-			return array( $data, array(), array_values( array_unique( $blocked ) ) );
+			return array( $data, array(), array_values( array_unique( $blocked ) ), $missing );
 		}
-		return array( $out, $log, array() );
+		return array( $out, array_merge( array_values( $globals ), $log ), array(), $missing );
+	}
+
+	/** Lleva al informe las instancias de widget global sin plantilla de un documento (una fila por plantilla). */
+	private static function report_missing( int $post_id, array $missing ): void {
+		$by = array();
+		foreach ( $missing as $row ) {
+			$template          = (int) ( $row['template'] ?? 0 );
+			$by[ $template ]   = (int) ( $by[ $template ] ?? 0 ) + 1;
+		}
+		foreach ( $by as $template => $count ) {
+			Report::add( $post_id, 'pro.global_missing', array( 'widget' => 'global', 'name' => (string) $template, 'count' => $count ) );
+		}
 	}
 
 	/**
@@ -178,7 +242,8 @@ final class Pro {
 		if ( ! is_array( $data ) ) {
 			return $none;
 		}
-		list( $data, $log, $blocked ) = self::convert_data( $data );
+		list( $data, $log, $blocked, $missing ) = self::convert_data( $data );
+		self::report_missing( $post_id, $missing );
 		if ( $blocked ) {
 			foreach ( $blocked as $type ) {
 				Report::add( $post_id, 'pro.target_missing', array( 'widget' => $type, 'target' => (string) ( self::missing_targets()[ $type ] ?? '' ) ) );
@@ -263,7 +328,7 @@ final class Pro {
 			return;
 		}
 		$current = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
-		if ( false === strpos( $current, '"' . self::MARKER . '"' ) ) {
+		if ( false === strpos( $current, '"' . self::MARKER . '"' ) && false === strpos( $current, '"' . self::GLOBAL_KEY . '"' ) ) {
 			return;
 		}
 		list( , $log ) = self::convert_data( $original );
@@ -310,7 +375,7 @@ final class Pro {
 		$total   = is_object( $row ) ? (int) $row->n : 0;
 		$backups = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s", Migration::BACKUP ) );
 		$report  = class_exists( __NAMESPACE__ . '\\Runner', false ) ? get_option( Runner::REPORT, null ) : null;
-		$parts   = array( self::VERSION, $total, is_object( $row ) ? (string) $row->last_id : '', is_object( $row ) ? (string) $row->modified : '', $backups, is_array( $report ) ? (int) ( $report['finished'] ?? 0 ) : 0, implode( ',', array_keys( self::ready() ) ) );
+		$parts   = array( self::VERSION, $total, is_object( $row ) ? (string) $row->last_id : '', is_object( $row ) ? (string) $row->modified : '', $backups, is_array( $report ) ? (int) ( $report['finished'] ?? 0 ) : 0, implode( ',', array_keys( self::ready() ) ) . ( self::globals() ? ',global' : '' ) );
 		return array( md5( implode( '|', $parts ) ), $total );
 	}
 
@@ -423,10 +488,11 @@ final class Pro {
 		$where                     = 'elementor_library' === $post_type && '' !== $template_type ? $template_type : $post_type;
 		$where                     = '' !== $where ? $where : 'post';
 		$state['where'][ $where ]  = (int) ( $state['where'][ $where ] ?? 0 ) + 1;
-		if ( array_intersect_key( $counts, self::ready() ) ) {
+		if ( array_intersect_key( $counts, self::ready() ) || ( isset( $counts['global'] ) && self::globals() ) ) {
 			Context::begin( $post_id, 'analysis' );
 			try {
-				list( , $log, $blocked ) = self::convert_data( $data );
+				list( , $log, $blocked, $missing ) = self::convert_data( $data );
+				self::report_missing( $post_id, $missing );
 				foreach ( self::codes( $log ) as $item ) {
 					Report::add( $post_id, $item[0], $item[1] );
 				}
@@ -467,7 +533,7 @@ final class Pro {
 		foreach ( (array) ( $state['widgets'] ?? array() ) as $type => $row ) {
 			$type     = (string) $type;
 			$family   = self::family( $type );
-			$target   = (string) ( $ready[ $type ] ?? '' );
+			$target   = 'global' === $type && self::globals() ? 'su contenido' : (string) ( $ready[ $type ] ?? '' );
 			$widgets[] = array(
 				'widget'            => $type,
 				'family'            => $family,
@@ -574,7 +640,7 @@ final class Pro {
 			$ready    = self::ready();
 			foreach ( (array) $state['widgets'] as $type => $row ) {
 				$elements += (int) $row['elements'];
-				$waiting  += isset( $ready[ (string) $type ] ) ? 0 : (int) $row['elements'];
+				$waiting  += isset( $ready[ (string) $type ] ) || ( 'global' === (string) $type && self::globals() ) ? 0 : (int) $row['elements'];
 			}
 			$parts[] = sprintf( 'en uso: %d elementos de %d widgets (%d pendientes de su familia)', $elements, count( (array) $state['widgets'] ), $waiting );
 		}

@@ -1,0 +1,198 @@
+{
+ "_doc": [
+  "Casos A/B del Botón de Facebook (C9, frente R): A con `facebook-button` de PRO, B con `digitalisimo-facebook-button` (fachada: nada se pide a Facebook antes de pulsar). Meta retiró este plugin; los dos pintan el mismo contenedor `fb-like` tras «cargar»."
+ ],
+ "declared": [
+  {
+   "widget": "facebook-button",
+   "kind": "palabra",
+   "match": "^nueva «",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar)."
+  },
+  {
+   "widget": "facebook-button",
+   "kind": "nombre",
+   "match": "^nuevo button «(Mostrar|Ver) .+ de Facebook»$",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Nombre accesible: lo que carga el botón."
+  },
+  {
+   "widget": "facebook-button",
+   "kind": "control",
+   "match": "^control button 1 sólo en B \\(button\\)$",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar)."
+  },
+  {
+   "widget": "facebook-button",
+   "kind": "caja",
+   "match": ".",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). La caja del widget es la de la fachada (fondo, borde, radio y relleno propios)."
+  },
+  {
+   "widget": "facebook-button",
+   "kind": "hover",
+   "match": ".",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Sólo B tiene un control al que llevar el puntero."
+  },
+  {
+   "widget": "facebook-button",
+   "kind": "foco",
+   "match": "^el teclado no llega al control en A$",
+   "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Sólo B tiene un control enfocable (el botón de la fachada)."
+  }
+ ],
+ "cases": {
+  "fbb-defaults": {
+   "title": "Valores por defecto: Me gusta, estándar, pequeño, página actual",
+   "widget": "facebook-button",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-social.min.css de PRO",
+     "id": "widget-social-css",
+     "url": "/digitalisimo-elements/assets/css/widget-social(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "shape": "PRO sólo pinta el contenedor vacío del plugin: el arnés corta el SDK de Facebook, que es quien lo llenaría. Basta con que su caja tenga alto; el contenido real se compara tras la acción «cargar».",
+   "actions": [
+    {
+     "label": "cargar",
+     "b": ".digi-fb__load",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.02
+     }
+    }
+   ],
+   "pixels": {
+    "max": 1,
+    "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Antes del clic A es un contenedor vacío y B la fachada; tras «cargar» los dos pintan el mismo contenedor vacío y se comparan con el umbral normal.",
+    "states": {
+     "hover": {
+      "skip": true,
+      "reason": "Sólo B tiene un control: en A el puntero queda sobre el contenedor vacío."
+     },
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo que enfocar (el botón de la fachada); A no tiene captura con foco."
+     }
+    }
+   }
+  },
+  "fbb-recommend": {
+   "title": "Recomendar, caja con contador, grande, oscuro, con Compartir y caras",
+   "widget": "facebook-button",
+   "settings": {
+    "type": "recommend",
+    "layout": "box_count",
+    "size": "large",
+    "color_scheme": "dark",
+    "show_share": "yes",
+    "show_faces": "yes",
+    "url_type": "current_page",
+    "url_format": "pretty"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-social.min.css de PRO",
+     "id": "widget-social-css",
+     "url": "/digitalisimo-elements/assets/css/widget-social(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "shape": "PRO sólo pinta el contenedor vacío del plugin: el arnés corta el SDK de Facebook, que es quien lo llenaría. Basta con que su caja tenga alto; el contenido real se compara tras la acción «cargar».",
+   "actions": [
+    {
+     "label": "cargar",
+     "b": ".digi-fb__load",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.02
+     }
+    }
+   ],
+   "pixels": {
+    "max": 1,
+    "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Antes del clic A es un contenedor vacío y B la fachada; tras «cargar» los dos pintan el mismo contenedor vacío y se comparan con el umbral normal.",
+    "states": {
+     "hover": {
+      "skip": true,
+      "reason": "Sólo B tiene un control: en A el puntero queda sobre el contenedor vacío."
+     },
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo que enfocar (el botón de la fachada); A no tiene captura con foco."
+     }
+    }
+   }
+  },
+  "fbb-custom": {
+   "title": "URL personalizada",
+   "widget": "facebook-button",
+   "settings": {
+    "url_type": "custom",
+    "url": "https://ejemplo.test/oferta/"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-social.min.css de PRO",
+     "id": "widget-social-css",
+     "url": "/digitalisimo-elements/assets/css/widget-social(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "shape": "PRO sólo pinta el contenedor vacío del plugin: el arnés corta el SDK de Facebook, que es quien lo llenaría. Basta con que su caja tenga alto; el contenido real se compara tras la acción «cargar».",
+   "actions": [
+    {
+     "label": "cargar",
+     "b": ".digi-fb__load",
+     "wait": 1200,
+     "pixels": {
+      "max": 0.02
+     }
+    }
+   ],
+   "pixels": {
+    "max": 1,
+    "reason": "Contrato C9 (fachada, como las de vídeo de la Fase 3): antes del clic B pinta un marcador propio con el nombre del servicio y un botón en español; PRO pinta el plugin del servicio, que en Playground queda vacío porque el arnés corta el SDK de Facebook (en un sitio real lo llenaría el SDK, que B sólo pide al pulsar). Antes del clic A es un contenedor vacío y B la fachada; tras «cargar» los dos pintan el mismo contenedor vacío y se comparan con el umbral normal.",
+    "states": {
+     "hover": {
+      "skip": true,
+      "reason": "Sólo B tiene un control: en A el puntero queda sobre el contenedor vacío."
+     },
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo que enfocar (el botón de la fachada); A no tiene captura con foco."
+     }
+    }
+   }
+  }
+ }
+}

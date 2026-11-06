@@ -1,0 +1,165 @@
+{
+ "_doc": [
+  "Casos A/B del Botón de Stripe (C9, frente R): A con `stripe-button` de PRO, B con `digitalisimo-stripe-button`. Los dos heredan del Botón del núcleo con los mismos controles y pintan un `<button type=\"submit\">` en su formulario; los mensajes de error se muestran al pulsar (acción `clic`).",
+  "Con nombre y precio, el clic pide la sesión al punto de PRO del servidor (`submit_stripe_form`) con el id del elemento: sin claves en el Playground, A y B reciben el mismo 401 y pintan el mismo mensaje (o el personalizado)."
+ ],
+ "declared": [
+  {
+   "widget": "stripe-button",
+   "kind": "foco",
+   "match": "^(outline(-offset)?|box-shadow):",
+   "reason": "Foco visible propio (estándar del front): contorno de 2 px a 2 px con un anillo claro de separación, visible sobre cualquier fondo; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "stripe-button",
+   "kind": "palabra",
+   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(an|occurred|se|produjo|un|gateway|connected|contact|seller|la|pasarela|está|conectada|contacta|con|el|vendedor)»$",
+   "reason": "Mensaje de error por defecto (sin «Mensajes personalizados»): el propio está en español; PRO pintaba el texto fijo de su código en inglés. El mapa no puede completarlo porque, con esa opción apagada, el núcleo no da al widget los textos del panel (los usa sólo con ella encendida, y entonces el mapa sí completa los de PRO)."
+  }
+ ],
+ "cases": {
+  "st-defaults": {
+   "title": "Valores por defecto: sin producto, «Buy Now», violeta de Stripe, icono; clic muestra el mensaje",
+   "widget": "stripe-button",
+   "settings": {},
+   "actions": [
+    {
+     "label": "clic sin producto",
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "st-product": {
+   "title": "Producto con precio: el clic pide la sesión al servidor (401 sin claves)",
+   "widget": "stripe-button",
+   "settings": {
+    "product_name": "Curso",
+    "stripe_product_price": "49",
+    "stripe_currency": "EUR",
+    "stripe_quantity": "1",
+    "sandbox_mode": "no",
+    "stripe_live_env_tax_rates_list": "",
+    "stripe_test_env_tax_rates_list": "",
+    "shipping_amount": "0",
+    "text": "Comprar el curso"
+   },
+   "actions": [
+    {
+     "label": "clic: sesión sin claves",
+     "selector": "button",
+     "wait": 3000,
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "st-custom": {
+   "title": "Entorno de prueba con mensajes personalizados: el 401 muestra el de «no conectado»",
+   "widget": "stripe-button",
+   "settings": {
+    "product_name": "Curso",
+    "stripe_product_price": "49",
+    "stripe_currency": "USD",
+    "stripe_quantity": "1",
+    "sandbox_mode": "yes",
+    "stripe_live_env_tax_rates_list": "",
+    "stripe_test_env_tax_rates_list": "",
+    "shipping_amount": "0",
+    "open_in_new_window": "",
+    "custom_messages": "yes",
+    "error_message_global": "Algo falló",
+    "error_message_payment": "Pasarela sin conectar",
+    "message_typography_typography": "custom",
+    "message_typography_font_weight": "700"
+   },
+   "actions": [
+    {
+     "label": "clic: mensaje personalizado",
+     "selector": "button",
+     "wait": 3000,
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "st-styled": {
+   "title": "Estilos más usados: a todo el ancho, tipografía, colores, radio y relleno, icono al final",
+   "widget": "stripe-button",
+   "settings": {
+    "product_name": "Curso",
+    "stripe_product_price": "49",
+    "text": "Pagar con tarjeta",
+    "align": "justify",
+    "icon_align": "row-reverse",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 17
+    },
+    "typography_font_weight": "600",
+    "button_text_color": "#FFFFFF",
+    "background_background": "classic",
+    "background_color": "#0A2540",
+    "hover_color": "#0A2540",
+    "button_background_hover_background": "classic",
+    "button_background_hover_color": "#00D4FF",
+    "border_radius": {
+     "unit": "px",
+     "top": "6",
+     "right": "6",
+     "bottom": "6",
+     "left": "6",
+     "isLinked": true
+    },
+    "text_padding": {
+     "unit": "px",
+     "top": "14",
+     "right": "24",
+     "bottom": "14",
+     "left": "24",
+     "isLinked": false
+    }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.14,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  }
+ }
+}

@@ -51,7 +51,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
 - **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en tres widgets propios con presentaciones (Botones de contacto, Barra flotante y Link in Bio).
-- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
+- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b). Siete widgets propios en `modules/digitalisimo-services/` y, para el widget global, la sustitución por su contenido en «Migrar» y en los kits. Contrato y resultado en `docs/pro/c9.md`.
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
@@ -156,14 +156,14 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C8 | `link-in-bio` | `link-in-bio-var-5` | Services | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 5, C8 |
 | C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 6, C8 |
 | C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 7, C8 |
-| C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
-| C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
-| C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
-| C9 | `payments` | `stripe-button` | Stripe Button | Nuevo |  |
-| C9 | `social` | `facebook-button` | Facebook Button | Nuevo |  |
-| C9 | `social` | `facebook-comments` | Facebook Comments | Nuevo |  |
-| C9 | `social` | `facebook-embed` | Facebook Embed | Nuevo |  |
-| C9 | `social` | `facebook-page` | Facebook Page | Nuevo |  |
+| C9 | `global-widget` | `global` | Global | **Sustituido** | su contenido: «Migrar» y los kits ponen en su lugar el elemento guardado en la plantilla de widget, con el id de la instancia (`Convert\Globals`), C9 |
+| C9 | `library` | `template` | Template | **Sustituido** | Plantilla (`digitalisimo-template`, con las sobrescrituras de F7b y sin bucles), C9 |
+| C9 | `payments` | `paypal-button` | PayPal Button | **Sustituido** | Botón de PayPal (`digitalisimo-paypal-button`), C9 |
+| C9 | `payments` | `stripe-button` | Stripe Button | **Sustituido** | Botón de Stripe (`digitalisimo-stripe-button`, la sesión la sigue creando el punto de PRO en el servidor), C9 |
+| C9 | `social` | `facebook-button` | Facebook Button | **Sustituido** | Botón de Facebook (`digitalisimo-facebook-button`, con fachada), C9 |
+| C9 | `social` | `facebook-comments` | Facebook Comments | **Sustituido** | Comentarios de Facebook (`digitalisimo-facebook-comments`, con fachada), C9 |
+| C9 | `social` | `facebook-embed` | Facebook Embed | **Sustituido** | Publicación de Facebook (`digitalisimo-facebook-embed`, con fachada), C9 |
+| C9 | `social` | `facebook-page` | Facebook Page | **Sustituido** | Página de Facebook (`digitalisimo-facebook-page`, con fachada), C9 |
 
 ## Estado
 
@@ -178,5 +178,5 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C6 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C6_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
 | C7 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C7_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 trae de Element Pack a los de WooCommerce de PRO). Treinta widgets de WooCommerce propios en `modules/digitalisimo-woo/single/` (los quince de la ficha de producto) y `store/` (los quince de listados, archivo, carrito, pago y cuenta), con sus mapas listos y fuera del panel: WooCommerce pinta lo suyo con las mismas plantillas, ganchos y filtros que PRO, sin jQuery propio, Swiper ni los paquetes de PRO. Con ellos, la familia C7 queda sustituida entera. Detalle en `docs/pro/c7.md` |
 | C8 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C8_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también en los documentos de botones flotantes). Tres widgets propios con una presentación por variante de PRO en `modules/digitalisimo-floating/`: Botones de contacto (9), Barra flotante (2) y Link in Bio (6), que heredan las bases del núcleo; los 17 mapas listos y fuera del panel. Detalle en `docs/pro/c8.md` |
-| C9 | Pendientes |
+| C9 | **Publicado** · Elements @NEXT_ELEMENTS@ y Migración @NEXT_MIGRATION@ · `@C9_TAG@`. Siete widgets propios en `modules/digitalisimo-services/`: Botón, Comentarios, Publicación y Página de Facebook (con fachada: ninguna petición a Facebook ni su SDK antes del clic), Botón de PayPal y Botón de Stripe (mismo flujo que PRO, ningún secreto en el navegador) y Plantilla (sobrescrituras de F7b, sin bucles), con sus mapas listos y fuera del panel; el widget global se sustituye por su contenido en «Migrar» y en los kits (§17 de `docs/fusion/k-kits.md`). Con C9, la familia queda sustituida entera. Detalle en `docs/pro/c9.md` |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

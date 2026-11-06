@@ -480,7 +480,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0–C8): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0–C9): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -592,6 +592,15 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'link-in-bio-var-5', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
         { pro: 'link-in-bio-var-6', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
         { pro: 'link-in-bio-var-7', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        // C9 (servicios y plantillas, docs/pro/c9.md). El widget global no es un widget del panel: «Migrar» y los kits
+        // lo sustituyen por su contenido.
+        { pro: 'facebook-button', own: 'digitalisimo-facebook-button', title: 'Botón de Facebook', query: 'facebook' },
+        { pro: 'facebook-comments', own: 'digitalisimo-facebook-comments', title: 'Comentarios de Facebook', query: 'facebook' },
+        { pro: 'facebook-embed', own: 'digitalisimo-facebook-embed', title: 'Publicación de Facebook', query: 'facebook' },
+        { pro: 'facebook-page', own: 'digitalisimo-facebook-page', title: 'Página de Facebook', query: 'facebook' },
+        { pro: 'paypal-button', own: 'digitalisimo-paypal-button', title: 'Botón de PayPal', query: 'paypal' },
+        { pro: 'stripe-button', own: 'digitalisimo-stripe-button', title: 'Botón de Stripe', query: 'stripe' },
+        { pro: 'template', own: 'digitalisimo-template', title: 'Plantilla', query: 'plantilla' },
       ];
       const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

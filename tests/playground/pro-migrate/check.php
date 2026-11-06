@@ -37,7 +37,7 @@ try {
 		\Digitalisimo\Elements\Legacy\Runner::load();
 		$out['revert'] = \Digitalisimo\Elements\Legacy\Runner::revert( false );
 	}
-	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'loops', 'forms', 'product', 'shop', 'cart', 'shop_header', 'float', 'bar', 'bio', 'header2' ) as $key ) {
+	foreach ( array( 'page', 'header', 'revision', 'carousels', 'content', 'navigation', 'nav_header', 'single', 'loops', 'forms', 'product', 'shop', 'cart', 'shop_header', 'float', 'bar', 'bio', 'header2', 'services', 'header_global', 'gw_heading', 'gw_quote' ) as $key ) {
 		$out['types'][ $key ] = $types( (int) ( $ids[ $key ] ?? 0 ) );
 	}
 	// C6: lo que importa de cada formulario de la página de formularios (acciones, destinatarios y origen de PRO).
@@ -76,6 +76,14 @@ try {
 			$out['nav_children'][ $e['id'] ] = array_map( static function ( $c ) { return $c['id'] . ':' . $c['elType']; }, (array) ( $e['elements'] ?? array() ) );
 		}
 	}
+	// C9: el elemento que sustituye a cada instancia global (ajustes de la plantilla, plantilla de origen y clase de PRO).
+	$sdata = json_decode( (string) get_post_meta( (int) ( $ids['services'] ?? 0 ), '_elementor_data', true ), true );
+	foreach ( (array) ( $sdata[0]['elements'] ?? array() ) as $e ) {
+		$out['services'][ $e['id'] ] = array( 'type' => $e['widgetType'] ?? '', 'templateID' => $e['templateID'] ?? null, 'global' => $e['settings']['_digitalisimo_global'] ?? null, 'classes' => $e['settings']['_css_classes'] ?? '', 'title' => $e['settings']['title'] ?? ( $e['settings']['blockquote_content'] ?? '' ), 'overrides' => isset( $e['settings']['digitalisimo_overrides'] ) ? count( (array) $e['settings']['digitalisimo_overrides'] ) : null, 'template_id' => $e['settings']['template_id'] ?? null );
+	}
+	// Informe guardado por la tarea: instancias globales sustituidas y sin plantilla.
+	$stored = \Digitalisimo\Elements\Legacy\Report::stored();
+	$out['codes'] = array( 'global' => \Digitalisimo\Elements\Legacy\Report::count_code( $stored, 'pro.global' ), 'global_missing' => \Digitalisimo\Elements\Legacy\Report::count_code( $stored, 'pro.global_missing' ) );
 } catch ( \Throwable $e ) {
 	$out['error'] = get_class( $e ) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine();
 }

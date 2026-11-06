@@ -255,6 +255,41 @@
     "R1c"
    ],
    "motivo": "§17 (C6): el Formulario de PRO de la página cuenta en B como Formulario propio; ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:(inicio-del-kit\\.data\\.2\\.elements\\.4|sobrescrituras-de-plantilla\\.data\\.0\\.elements\\.[01])\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"template\"$",
+   "valor_b": "^\"digitalisimo-template\"$",
+   "motivo": "§17 (C9): al importar, la Plantilla de PRO con mapa listo llega como Plantilla propia (Convert\\Converter), con el mismo id; template_id se remapea igual y las sobrescrituras de F7b (digitalisimo_overrides) pasan sin cambios"
+  },
+  {
+   "ruta": "^documents\\.page:(inicio-del-kit\\.data\\.2\\.elements\\.4|sobrescrituras-de-plantilla\\.data\\.0\\.elements\\.[01])\\.settings\\._digitalisimo_pro$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\\(no existe\\)$",
+   "motivo": "§17 (C9): el mapa de la Plantilla (digitalisimo-convert/maps/template.php) es todo keep y sólo deja la marca _digitalisimo_pro"
+  },
+  {
+   "ruta": "^documents\\.page:widget-global-de-pro\\.data\\.0\\.elements\\.0\\.(widgetType|templateID)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "C9: el widget global de PRO exporta cada instancia como el contenido de su plantilla (on_export de modules/global-widget/widgets/global-widget.php), así que el kit ya lleva un Encabezado sin templateID; K le repone el id de la instancia al exportar (Export\\Documents::restore_ids()). La plantilla de widget viaja y no cambia"
+  },
+  {
+   "ruta": "^(documents\\.page:(inicio-del-kit|sobrescrituras-de-plantilla|widget-global-de-pro)\\.counts|counts\\.elements)\\.(template|digitalisimo-template|global|heading)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C9): las Plantillas de PRO cuentan en B como Plantillas propias y la instancia global como su contenido (un Encabezado); ningún elemento se pierde"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",

@@ -89,7 +89,7 @@ final class Usages {
 				continue;
 			}
 			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
-			if ( isset( $element['widgetType'] ) && 'template' === $element['widgetType'] ) {
+			if ( isset( $element['widgetType'] ) && in_array( $element['widgetType'], array( 'template', 'digitalisimo-template' ), true ) ) {
 				$id = self::id( isset( $settings['template_id'] ) ? $settings['template_id'] : 0 );
 				if ( $id > 0 ) {
 					$found[ self::KIND_TEMPLATE . ':' . $id ] = true;

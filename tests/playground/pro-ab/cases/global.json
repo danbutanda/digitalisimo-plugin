@@ -1,0 +1,66 @@
+{
+ "_doc": [
+  "Casos A/B del widget global (C9, frente R): A con una instancia del widget global de PRO (`widgetType: global` con `templateID` de una plantilla de widget que setup.php crea con `global`), B con la instancia sustituida por el elemento guardado (`Convert\\Globals`, el mismo id de la instancia) y convertida si es un widget de PRO con mapa listo."
+ ],
+ "declared": [],
+ "cases": {
+  "gw-heading": {
+   "title": "Encabezado guardado como widget global",
+   "widget": "global",
+   "global": {
+    "widgetType": "heading",
+    "settings": {
+     "title": "Encabezado global",
+     "header_size": "h2",
+     "title_color": "#7A2E8E",
+     "align": "center",
+     "typography_typography": "custom",
+     "typography_font_size": {
+      "unit": "px",
+      "size": 34
+     }
+    }
+   }
+  },
+  "gw-button": {
+   "title": "Botón guardado como widget global",
+   "widget": "global",
+   "global": {
+    "widgetType": "button",
+    "settings": {
+     "text": "Comprar ahora",
+     "link": {
+      "url": "https://example.com/comprar"
+     },
+     "background_color": "#0B6E4F",
+     "border_radius": {
+      "unit": "px",
+      "top": "8",
+      "right": "8",
+      "bottom": "8",
+      "left": "8",
+      "isLinked": true
+     },
+     "align": "center"
+    }
+   }
+  },
+  "gw-image-box": {
+   "title": "Caja de imagen guardada como widget global",
+   "widget": "global",
+   "global": {
+    "widgetType": "image-box",
+    "settings": {
+     "image": {
+      "$image": 5
+     },
+     "title_text": "Caja global",
+     "description_text": "Descripción guardada en la plantilla.",
+     "link": {
+      "url": "https://example.com/caja"
+     }
+    }
+   }
+  }
+ }
+}

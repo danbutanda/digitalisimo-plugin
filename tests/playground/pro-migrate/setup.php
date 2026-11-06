@@ -10,6 +10,7 @@
 // C6: una página con el Formulario y el Inicio de sesión de PRO y los formularios de Element Pack que F8 lleva a ellos;
 // la cabecera de citas lleva además un Inicio de sesión de PRO.
 // C8: documentos de botones flotantes, una página Link in Bio y una cabecera con las variantes de PRO de C8.
+// C9: los servicios y plantillas (widget global, Plantilla, Facebook, PayPal y Stripe).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 // Sin actualizaciones automáticas: con una Release más nueva en GitHub, WordPress actualizaría DIGITALÍSIMO Elements
@@ -272,5 +273,39 @@ update_post_meta( $header2, '_elementor_template_type', 'header' );
 update_post_meta( $header2, '_elementor_edit_mode', 'builder' );
 update_post_meta( $header2, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( $w( 'k10', 'contact-buttons-var-10', array() ) ) ) ) ) ) );
 wp_set_object_terms( $header2, 'header', 'elementor_library_type' );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card, 'forms' => $forms, 'product' => $product, 'shop' => $shop, 'cart' => $cart, 'shop_header' => $shop_header, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2 ) );
+// C9: dos plantillas de widget global (un Encabezado y un Blockquote de PRO, que llega a la Cita en la misma pasada),
+// una sección para la Plantilla, una página con tres instancias globales (una sin plantilla, que se queda y se informa),
+// la Plantilla de PRO con una sobrescritura de F7b, los cuatro widgets de Facebook y los botones de PayPal y Stripe, y
+// una cabecera con otra instancia global. F8 no lleva ningún widget de Element Pack a estos de PRO.
+$library = static function ( $title, $slug, $type, array $data ) {
+	$id = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_template_type', $type );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+	wp_set_object_terms( $id, $type, 'elementor_library_type' );
+	return $id;
+};
+$gw_heading = $library( 'Global: encabezado', 'pm-global-encabezado', 'widget', array( $w( 'gwh', 'heading', array( 'title' => 'Encabezado global', 'title_color' => '#1D3A6E' ) ) ) );
+$gw_quote   = $library( 'Global: cita', 'pm-global-cita', 'widget', array( $quote( 'gwq', array( 'blockquote_content' => 'Cita global', 'author_name' => 'Eva' ) ) ) );
+$section    = $library( 'Sección de la Plantilla', 'pm-seccion', 'section', array( array( 'id' => 'sc1', 'elType' => 'container', 'settings' => array(), 'elements' => array( $w( 'sch', 'heading', array( 'title' => 'Título de la sección', '_digitalisimo_slot' => 'titulo' ) ) ) ) ) );
+$global = static function ( $id, $template, array $settings ) {
+	return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => 'global', 'templateID' => $template, 'settings' => $settings, 'elements' => array() );
+};
+$services_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$global( 'x1', $gw_heading, array( 'title' => 'Encabezado global', 'title_color' => '#1D3A6E' ) ),
+	$global( 'x2', $gw_quote, array( 'blockquote_content' => 'Cita global' ) ),
+	$global( 'x3', 999999, array( 'title' => 'Sin plantilla' ) ),
+	$w( 't1', 'template', array( 'template_id' => (string) $section, 'digitalisimo_overrides' => array( array( '_id' => 'ov1', 'slot' => 'titulo', 'kind' => 'text', 'text' => 'Título sobrescrito' ) ), 'custom_css' => 'selector .elementor-template{outline:1px solid}' ) ),
+	$w( 'f1', 'facebook-button', array( 'type' => 'recommend' ) ),
+	$w( 'f2', 'facebook-comments', array( 'comments_number' => 5 ) ),
+	$w( 'f3', 'facebook-embed', array( 'type' => 'video', 'video_url' => 'https://www.facebook.com/pm/videos/1/' ) ),
+	$w( 'f4', 'facebook-page', array( 'url' => 'https://www.facebook.com/pm/', 'custom_css' => 'selector .elementor-facebook-widget{min-height:70px}' ) ),
+	$w( 'p1', 'paypal-button', array( 'product_name' => 'Producto', 'product_price' => '10.00' ) ),
+	$w( 'p2', 'stripe-button', array( 'product_name' => 'Producto', 'stripe_product_price' => 10 ) ),
+) ) );
+$services = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con servicios', 'post_name' => 'pm-servicios' ) );
+update_post_meta( $services, '_elementor_edit_mode', 'builder' );
+update_post_meta( $services, '_elementor_data', wp_slash( wp_json_encode( $services_data ) ) );
+$header_global = $library( 'Cabecera con global', 'pm-cabecera-global', 'header', array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array(), 'elements' => array( $global( 'x9', $gw_heading, array() ) ) ) ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card, 'forms' => $forms, 'product' => $product, 'shop' => $shop, 'cart' => $cart, 'shop_header' => $shop_header, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2, 'services' => $services, 'header_global' => $header_global, 'gw_heading' => $gw_heading, 'gw_quote' => $gw_quote, 'section' => $section ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );
