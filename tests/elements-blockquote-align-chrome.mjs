@@ -11,7 +11,8 @@
 //   va a BUTTON px (como «Tamaño» 3 de su control) para que el pico tenga área suficiente frente a ese suavizado.
 // - Icono: lo convertido pinta `Blockquote_Widget::ICON_LEGACY`, que coincide con el SVG que pinta PRO (`fab fa-twitter`
 //   de Font Awesome del núcleo, `elementor/assets/lib/font-awesome/json/brands.json`); una Cita nueva conserva el propio
-//   (`Blockquote_Widget::ICON`), que no coincide.
+//   (`Blockquote_Widget::ICON`), que no coincide. En la vista «Icono», con SVG en línea, la hoja de PRO no centraba el
+//   icono: lo convertido lleva `digi-blockquote__button--icon-start` y queda en el mismo sitio; sin ella, no.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 180 node tests/elements-blockquote-align-chrome.mjs
 import assert from 'node:assert/strict';
@@ -68,17 +69,17 @@ const TEXT = 'Una cita con dos alineaciones a la vez también es un diseño que 
 
 // PRO: su marcado (render() de modules/blockquote/widgets/blockquote.php) y, con color propio, las reglas de su control
 // `button_background_color`, que también colorean el pico.
-const proWidget = (id, union, s) => {
-  const classes = [...union.map((v) => `elementor-blockquote--align-${v}`), 'elementor-blockquote--skin-border', 'elementor-blockquote--button-view-icon-text', `elementor-blockquote--button-skin-${s.skin}`, 'elementor-widget', 'elementor-widget-blockquote'];
+const proWidget = (id, union, s, view = 'icon-text') => {
+  const classes = [...union.map((v) => `elementor-blockquote--align-${v}`), 'elementor-blockquote--skin-border', `elementor-blockquote--button-view-${view}`, `elementor-blockquote--button-skin-${s.skin}`, 'elementor-widget', 'elementor-widget-blockquote'];
   const css = s.color ? `#${id} .elementor-blockquote__tweet-button{background-color:${s.color}}body:not(.rtl) #${id} .elementor-blockquote__tweet-button:before, body #${id}.elementor-blockquote--align-left .elementor-blockquote__tweet-button:before{border-right-color:${s.color};border-left-color:transparent}body.rtl #${id} .elementor-blockquote__tweet-button:before, body #${id}.elementor-blockquote--align-right .elementor-blockquote__tweet-button:before{border-left-color:${s.color};border-right-color:transparent}` : '';
-  return `<style>${css}</style><div id="${id}" class="${classes.join(' ')}"><blockquote class="elementor-blockquote"><p class="elementor-blockquote__content">${TEXT}</p><div class="e-q-footer"><cite class="elementor-blockquote__author">Ana Rivera</cite><a href="#" class="elementor-blockquote__tweet-button" target="_blank">${PRO_ICON}<span class="elementor-blockquote__tweet-label">Tweet</span></a></div></blockquote></div>`;
+  return `<style>${css}</style><div id="${id}" class="${classes.join(' ')}"><blockquote class="elementor-blockquote"><p class="elementor-blockquote__content">${TEXT}</p><div class="e-q-footer"><cite class="elementor-blockquote__author">Ana Rivera</cite><a href="#" class="elementor-blockquote__tweet-button" target="_blank">${PRO_ICON}${'icon' === view ? '<span class="elementor-screen-only">Tweet</span>' : '<span class="elementor-blockquote__tweet-label">Tweet</span>'}</a></div></blockquote></div>`;
 };
 // La Cita convertida: su marcado (render() de class-blockquote.php) y la regla que la hoja del documento deja para
 // `.digi-blockquote` (las variables de `alignment` sustituidas por las de `pro_align`, que va después).
-const ownWidget = (id, align, s, icon = ICON_LEGACY, rules = null) => {
-  const classes = ['elementor-widget', 'elementor-widget-digitalisimo-blockquote', 'digi-blockquote--skin-border', 'digi-blockquote--view-icon-text', `digi-blockquote--button-${s.skin}`];
+const ownWidget = (id, align, s, icon = ICON_LEGACY, rules = null, view = 'icon-text', start = true) => {
+  const classes = ['elementor-widget', 'elementor-widget-digitalisimo-blockquote', 'digi-blockquote--skin-border', `digi-blockquote--view-${view}`, `digi-blockquote--button-${s.skin}`];
   const css = (align || rules ? `#${id} .digi-blockquote{${rules || ALIGN[align]}}` : '') + (s.color ? `#${id} .digi-blockquote__button{background-color:${s.color}}` : '');
-  return `<style>${css}</style><div id="${id}" class="${classes.join(' ')}"><blockquote class="digi-blockquote"><p class="digi-blockquote__content">${TEXT}</p><footer class="digi-blockquote__footer"><cite class="digi-blockquote__author">Ana Rivera</cite><a class="digi-blockquote__button" href="#" target="_blank" rel="noopener noreferrer">${icon}<span class="digi-blockquote__label">Tweet</span></a></footer></blockquote></div>`;
+  return `<style>${css}</style><div id="${id}" class="${classes.join(' ')}"><blockquote class="digi-blockquote"><p class="digi-blockquote__content">${TEXT}</p><footer class="digi-blockquote__footer"><cite class="digi-blockquote__author">Ana Rivera</cite><a class="digi-blockquote__button${start && icon === ICON_LEGACY ? ' digi-blockquote__button--icon-start' : ''}" href="#" target="_blank" rel="noopener noreferrer"${'icon' === view ? ' aria-label="Tweet">' + icon : '>' + icon + '<span class="digi-blockquote__label">Tweet</span>'}</a></footer></blockquote></div>`;
 };
 
 const { default: puppeteer } = await import(pathToFileURL(pptrDir + '/lib/puppeteer/puppeteer-core.js').href);
@@ -106,7 +107,7 @@ try {
     }, sa, sb);
   };
   const render = async (width, a, b) => {
-    await page.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${proCss}</style><style>${ownCss}</style><style>body{margin:0;font:16px/1.5 sans-serif;background:#fff}.box{width:${width}px;padding:12px}.box .elementor-blockquote__tweet-button,.box .digi-blockquote__button{font-size:${BUTTON}px}</style></head><body><div class="box">${a}</div><div class="box">${b}</div></body></html>`, { waitUntil: 'load' });
+    await page.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${proCss}</style><style>${ownCss}</style><style>body{margin:0;font:16px/1.5 sans-serif;background:#fff}.box{width:${width}px;padding:12px}.elementor-screen-only{position:absolute;top:-10000em;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0}.box .elementor-blockquote__tweet-button,.box .digi-blockquote__button{font-size:${BUTTON}px}</style></head><body><div class="box">${a}</div><div class="box">${b}</div></body></html>`, { waitUntil: 'load' });
     return [await page.$('#a'), await page.$('#b')];
   };
 
@@ -119,6 +120,20 @@ try {
         ok(d.count >= 0 && d.count <= max, `${width}px · ${s.name} · PRO con [${union.join(', ') || 'sin clases'}] y la Cita con «${align || 'sin alineación'}»: ${d.count < 0 ? 'distinto tamaño ' + d.size : d.count + ' píxeles distintos de ' + d.size}.`);
       }
     }
+  }
+  // Vista «Icono»: el icono de PRO, sin centrar (SVG en línea), en el mismo sitio.
+  for (const s of SKINS) {
+    for (const [union, align] of [UNION[0], UNION[2], UNION[3], UNION[5]]) {
+      const [a, b] = await render(600, proWidget('a', union, s, 'icon'), ownWidget('b', align, s, ICON_LEGACY, null, 'icon'));
+      const d = await diff(a, b);
+      const max = 'bubble' === s.skin ? BUBBLE : 0;
+      ok(d.count >= 0 && d.count <= max, `Vista «Icono» · ${s.name} · PRO con [${union.join(', ') || 'sin clases'}] y la Cita con «${align || 'sin alineación'}»: ${d.count < 0 ? 'distinto tamaño ' + d.size : d.count + ' píxeles distintos de ' + d.size}.`);
+    }
+  }
+  {
+    const [a, b] = await render(600, proWidget('a', [], SKINS[1], 'icon'), ownWidget('b', '', SKINS[1], ICON_LEGACY, null, 'icon', false));
+    const d = await diff(a, b);
+    ok(d.count > 2 * BUBBLE, `Vista «Icono» sin digi-blockquote__button--icon-start: el icono centrado no es el de PRO (${d.count} píxeles distintos).`);
   }
   // Prueba del arnés: con la alineación de escritorio en lugar de la unión, la Cita no coincide (centro en tableta y
   // derecha en móvil, el caso bq-responsive del A/B).
@@ -141,7 +156,7 @@ try {
   }
   ok(errors.length === 0, 'Sin errores de JavaScript: ' + errors.join(' | '));
   ok(outside.length === 0, 'Ninguna petición fuera de la página: ' + outside.join(', '));
-  console.log(`DIGITALÍSIMO Elements: la Cita convertida se pinta como el Blockquote de PRO en Chrome (${UNION.length} uniones de alineación, ${SKINS.length} pieles del botón, 2 anchos, icono de PRO): ${checks} comprobaciones.`);
+  console.log(`DIGITALÍSIMO Elements: la Cita convertida se pinta como el Blockquote de PRO en Chrome (${UNION.length} uniones de alineación, ${SKINS.length} pieles del botón, 2 anchos, icono de PRO y su lugar en la vista «Icono»): ${checks} comprobaciones.`);
 } finally {
   await browser.close();
 }

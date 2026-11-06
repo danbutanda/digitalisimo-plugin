@@ -12,7 +12,8 @@
  *   también lo convertido antes de existir `share_icon` (marca `_digitalisimo_pro`), y una Cita nueva el propio; la
  *   alineación de cada dispositivo pasa a la que se veía en PRO, que pintaba a la vez la clase de todos los dispositivos
  *   (`pro_align`: unión, cascada de su hoja, separación del autor por dispositivo, puntos de corte activos y CSS
- *   personalizado con las clases de alineación).
+ *   personalizado con las clases de alineación); con iconos SVG en línea, el icono de PRO queda donde lo dejaba PRO en
+ *   la vista «Icono» (sin centrar).
  */
 namespace Elementor {
 	class Widget_Base {
@@ -48,6 +49,8 @@ namespace {
 	function wp_parse_url( $url ) { return parse_url( $url ); }
 	function wp_unslash( $v ) { return stripslashes( $v ); }
 	function home_url( $path = '' ) { return rtrim( $GLOBALS['bq_home'], '/' ) . '/' . ltrim( $path, '/' ); }
+	function get_option( $key, $default = false ) { return array_key_exists( $key, $GLOBALS['bq_options'] ?? array() ) ? $GLOBALS['bq_options'][ $key ] : $default; }
+	function apply_filters( $hook, $value ) { return $GLOBALS['bq_filters'][ $hook ] ?? $value; }
 	function check_bq( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	$root = __DIR__ . '/../digitalisimo-elements/';
@@ -79,7 +82,8 @@ namespace {
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_bq( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#3f444b', '#1da1f2', '#0967a0', '#fff', '#f9fafa' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-widgets/class-blockquote.php' );
-	check_bq( ! preg_match( '/jquery|wp_enqueue_script|wp_register_script|Icons_Manager|fa-twitter|eicon-(?!blockquote|text-align)/i', $source ), 'Sin jQuery, scripts ni iconos del proveedor.' );
+	// El gestor de iconos del núcleo no pinta nada (sólo se lee su filtro de migración, como él mismo).
+	check_bq( ! preg_match( '/jquery|wp_enqueue_script|wp_register_script|Icons_Manager::|fa-twitter|eicon-(?!blockquote|text-align)/i', $source ), 'Sin jQuery, scripts ni iconos del proveedor.' );
 
 	// 2. Un control propio por cada control de PRO, con los mismos valores por defecto visibles.
 	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
@@ -333,7 +337,7 @@ namespace {
 	check_bq( 'selector.elementor-widget-digitalisimo-blockquote .digi-blockquote{padding:1px}' === $css_b['custom_css'] && 'center' === $css_b['alignment'], 'CSS personalizado: si la de escritorio pasa al centro, la clase de la original también va al envoltorio: ' . $css_b['custom_css'] );
 
 	// Con el núcleo cargado cuentan sus puntos de corte activos: con el portátil activo, su clase también se pintaba.
-	eval( 'namespace Elementor; class Plugin { public static $instance; public $breakpoints; }' );
+	eval( 'namespace Elementor; class Plugin { public static $instance; public $breakpoints; public $experiments; }' );
 	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
 	\Elementor\Plugin::$instance->breakpoints = new class() {
 		public $active = array( 'mobile' => 1, 'tablet' => 1, 'laptop' => 1 );
@@ -345,6 +349,24 @@ namespace {
 	check_bq( array( 'alignment' => 'left', 'author_gap' => 20, 'author_gap_tablet' => 5, 'pro_align' => 'center-left' ) === $pick( $align( array( 'alignment' => 'left', 'alignment_widescreen' => 'center', 'author_gap_tablet' => array( 'unit' => 'px', 'size' => 5 ) ) )[0] ), 'Panorámico activo: entra en la unión, pero la tableta hereda de escritorio, no de él: su separación no se pintaba en PRO ni se pinta en la Cita (escritorio no está centrado), así que no se fuerza el centro.' );
 	\Elementor\Plugin::$instance->breakpoints->active = array( 'mobile' => 1 );
 	check_bq( array( 'alignment' => 'left', 'author_gap' => 20 ) === $pick( $align( array( 'alignment' => 'left', 'alignment_tablet' => 'right' ) )[0] ), 'Tableta inactiva: su alineación no se pintaba en PRO y se descarta.' );
+
+	// 6. Dónde queda el icono de PRO. Con los iconos de fuente como SVG en línea (`e_font_icon_svg` y Font Awesome 5), PRO
+	// pintaba un `<svg>` que su hoja no centraba en la vista «Icono»; con la fuente, un `<i>` centrado.
+	$start = 'class="digi-blockquote__button digi-blockquote__button--icon-start"';
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Sin experimentos del núcleo (iconos de fuente): el icono de PRO queda centrado, como el `<i>` de PRO.' );
+	\Elementor\Plugin::$instance->experiments = new class() {
+		public $on = true;
+		public function is_feature_active( $feature ) { return $this->on && 'e_font_icon_svg' === $feature; }
+	};
+	check_bq( str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), $start ) && str_contains( $with( array( '_digitalisimo_pro' => 'blockquote' ) ), $start ), 'Con SVG en línea, lo convertido lleva el icono donde lo dejaba PRO.' );
+	check_bq( ! str_contains( $with( array( 'share_view' => 'icon' ) ), 'icon-start' ) && ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'text' ) ), 'icon-start' ), 'Una Cita nueva conserva su icono centrado; la vista «Texto» no lleva icono.' );
+	$GLOBALS['bq_options']['elementor_icon_manager_needs_update'] = 'yes';
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Sin migrar a Font Awesome 5, PRO pintaba la fuente (centrada).' );
+	$GLOBALS['bq_filters']['elementor/icons_manager/migration_allowed'] = true;
+	check_bq( str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), $start ), 'El filtro del núcleo que permite la migración también cuenta.' );
+	\Elementor\Plugin::$instance->experiments->on = false;
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Con el experimento inactivo, la fuente (centrada).' );
+	check_bq( (bool) preg_match( '/view-icon \.digi-blockquote__button\{align-items:center;[^}]*\}.*\.digi-blockquote--view-icon \.digi-blockquote__button\.digi-blockquote__button--icon-start\{align-items:normal;justify-content:normal\}/', $css ), 'La hoja deja el icono de PRO al principio del botón, después (y con la misma especificidad) que la regla que lo centra.' );
 
 	echo 'DIGITALÍSIMO Elements: Cita (' . count( $widget->controls ) . ' controles, ' . count( $widget->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B) y su mapa desde el Blockquote de PRO (' . count( $cases ) . ' casos y ' . count( $table ) . " alineaciones) validados.\n";
 }

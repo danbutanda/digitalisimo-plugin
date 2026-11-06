@@ -11,13 +11,14 @@ defined( 'ABSPATH' ) || exit;
  * caja y limpia; botón clásico, burbuja o enlace). Sin JavaScript; el icono es un SVG en línea.
  *
  * Lo convertido desde PRO se ve como en PRO: conserva su icono, el pájaro de Font Awesome que pintaba el widget de PRO
- * (`share_icon` oculto, que fija el mapa; o, sin él, la marca `_digitalisimo_pro` de lo convertido antes de existir), y
- * su alineación: PRO pintaba a la vez, en todos los anchos, la clase de la alineación de cada dispositivo y se veía lo que
+ * (`share_icon` oculto, que fija el mapa; o, sin él, la marca `_digitalisimo_pro` de lo convertido antes de existir), en
+ * el mismo sitio (en la vista «Icono», arriba a la izquierda del botón cuando el sitio pinta los iconos como SVG en línea,
+ * como PRO; centrado con los iconos de fuente, y en el editor, donde PRO usaba la fuente), y su alineación: PRO pintaba a la vez, en todos los anchos, la clase de la alineación de cada dispositivo y se veía lo que
  * resultaba de la cascada; el mapa calcula ese resultado y lo fija en «Alineación heredada» (`pro_align`), que sólo
  * aparece en lo convertido. Una Cita nueva usa su icono propio y la alineación de cada dispositivo sólo en él.
  *
- * Diferencias declaradas con PRO: el icono de la vista «Icono» queda centrado también con iconos SVG, el enlace de la
- * página actual se construye con el origen del sitio más la ruta pedida (PRO duplicaba la subcarpeta) y los textos del
+ * Diferencias declaradas con PRO: en una Cita nueva, el icono de la vista «Icono» queda centrado también con iconos
+ * SVG; el enlace de la página actual se construye con el origen del sitio más la ruta pedida (PRO duplicaba la subcarpeta) y los textos del
  * enlace para compartir van codificados por completo.
  */
 class Blockquote_Widget extends \Elementor\Widget_Base {
@@ -205,6 +206,19 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		return 'legacy' === $icon || ( '' === $icon && 'blockquote' === (string) ( $s['_digitalisimo_pro'] ?? '' ) );
 	}
 
+	/**
+	 * ¿Pinta el núcleo los iconos de fuente como SVG en línea? Así pintaba PRO su icono (`e_font_icon_svg` activo y los
+	 * iconos ya migrados a Font Awesome 5, como `is_migration_allowed()` del gestor de iconos del núcleo); si no, con la
+	 * fuente, y la hoja de PRO centraba ese `<i>` en la vista «Icono», pero no el SVG.
+	 */
+	private static function inline_svg_icons(): bool {
+		$plugin = class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		if ( ! is_object( $plugin ) || ! isset( $plugin->experiments ) || ! is_object( $plugin->experiments ) || ! method_exists( $plugin->experiments, 'is_feature_active' ) || ! $plugin->experiments->is_feature_active( 'e_font_icon_svg' ) ) {
+			return false;
+		}
+		return (bool) apply_filters( 'elementor/icons_manager/migration_allowed', null === get_option( 'elementor_icon_manager_needs_update', null ) );
+	}
+
 	/** Enlace a la intención de publicación con la cita, el autor, el enlace y el usuario, todo codificado. */
 	public static function share_url( array $s ): string {
 		$text   = self::plain( $s['blockquote_content'] ?? '' );
@@ -246,10 +260,12 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 				$named = 'icon' !== $view && '' !== $label;
 				// En la vista «Icono» el texto no se muestra (su control está oculto y llega vacío), pero sigue siendo el
 				// nombre del enlace: el guardado («Tweet» en lo convertido desde PRO) o, sin él, uno descriptivo.
-				$name = '' !== $label ? $label : self::plain( (string) ( $this->get_settings( 'share_label' ) ?? '' ) );
-				echo '<a class="digi-blockquote__button" href="' . esc_url( self::share_url( $s ) ) . '" target="_blank" rel="noopener noreferrer"' . ( $named ? '' : ' aria-label="' . esc_attr( '' !== $name ? $name : 'Compartir en X' ) . '"' ) . '>';
+				$name   = '' !== $label ? $label : self::plain( (string) ( $this->get_settings( 'share_label' ) ?? '' ) );
+				$legacy = 'text' !== $view && self::legacy_icon( $s );
+				// El icono de PRO, donde lo dejaba PRO: con SVG en línea, su hoja no lo centraba en la vista «Icono».
+				echo '<a class="digi-blockquote__button' . ( $legacy && self::inline_svg_icons() ? ' digi-blockquote__button--icon-start' : '' ) . '" href="' . esc_url( self::share_url( $s ) ) . '" target="_blank" rel="noopener noreferrer"' . ( $named ? '' : ' aria-label="' . esc_attr( '' !== $name ? $name : 'Compartir en X' ) . '"' ) . '>';
 				if ( 'text' !== $view ) {
-					echo self::legacy_icon( $s ) ? self::ICON_LEGACY : self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constantes propias.
+					echo $legacy ? self::ICON_LEGACY : self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constantes propias.
 				}
 				if ( 'icon' !== $view ) {
 					echo '<span class="digi-blockquote__label">' . esc_html( $label ) . '</span>';
