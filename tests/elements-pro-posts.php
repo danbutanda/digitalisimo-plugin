@@ -386,6 +386,16 @@ $check( 'classic' === Converter::tree( $tree( 'posts', array() ), $log, true )[0
 \Elementor\Plugin::$instance->widgets_manager = new class() { public function get_widget_types( $name = null ) { return 'posts' === $name ? new class() { public function get_skins() { return array( 'cards' => 1, 'full_content' => 1, 'classic' => 1 ); } } : null; } };
 $check( 'cards' === Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'] && 'full_content' === Converter::tree( $tree( 'posts', array( '_skin' => 'full_content' ) ), $log, true )[0]['elements'][0]['settings']['_skin'], 'Sin piel guardada: la primera que el widget de PRO registra en el sitio (la que pinta); una piel guardada no cambia.' );
 \Elementor\Plugin::$instance->widgets_manager = null;
+// Posts_Terms (Elements) sustituye la piel «classic» del Posts de PRO sin moverla: debe seguir siendo la primera, la de
+// por defecto, la que se pinta cuando `_skin` no está guardado. Del 2026-10-12 a 4.3.0.177 quedaba al final y un Posts creado
+// con PRO se veía en «Tarjetas»; un sitio migrado debe verse exactamente como con PRO.
+require_once $root . 'modules/digitalisimo-widgets/class-posts-terms.php';
+$pt = new \ElementorPro\Modules\Posts\Widgets\Posts( array(), array() );
+$pt_before = array_keys( $pt->get_skins() );
+\Digitalisimo\Elements\Posts_Terms::replace_skin( $pt );
+( new ReflectionMethod( $pt, 'register_controls' ) )->invoke( $pt );
+$check( 'classic' === $pt_before[0] && $pt_before === array_keys( $pt->get_skins() ) && $pt->get_skin( 'classic' ) instanceof \Digitalisimo\Elements\Posts_Terms_Skin && 'classic' === ( $pt->controls['_skin']['default'] ?? '' ), 'Posts_Terms: la piel clásica sigue primera y es la de por defecto (' . implode( ', ', array_keys( $pt->get_skins() ) ) . ').' );
+$check( 'classic' === $pt->get_current_skin_id(), 'Posts_Terms: un Posts sin `_skin` guardado se pinta con la piel clásica, como en PRO.' );
 foreach ( array( 'posts', 'archive-posts', 'portfolio' ) as $type ) {
 	$map = Registry::map( $type );
 	$check( null !== $map && 'ready' === $map['status'] && 'hide' === $map['panel'], "$type: mapa listo y oculto en el panel." );

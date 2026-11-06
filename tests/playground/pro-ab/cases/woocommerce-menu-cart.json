@@ -1,0 +1,290 @@
+{
+ "_doc": [
+  "Casos A/B del Carrito del menú (C7, fila O, fork MC del frente N): A con `woocommerce-menu-cart` de PRO, B con `digitalisimo-woo-menu-cart`. Con la tienda de prueba (`woo.cart`: artículos o vacío). Cada caso se mide cerrado y, con las acciones, abierto (clic o Intro en el conmutador) y cerrado otra vez con Escape. El panel lateral y el desplegable salen fuera de la caja del widget: se comparan por la firma (textos, estilos, enlaces y controles)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Cart|Carrito",
+   "reason": "El conmutador es un <button> (PRO: <a href=\"#\">) y su texto oculto para lectores de pantalla está en español («Carrito»; PRO: «Cart»)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Remove this item|Quitar «",
+   "reason": "Quitar un artículo nombra el producto en español («Quitar «Producto…» del carrito»; PRO: «Remove this item»)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "Cerrar el carrito",
+   "reason": "El aspa es un <button> con nombre (PRO: un <div> sin nombre ni foco)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "control",
+   "match": "control (a|button) \\d",
+   "reason": "Conmutador <button> en lugar de <a href=\"#\"> (WCAG 4.1.2); con el panel cerrado, sus enlaces no son enfocables (inert) y no cuentan como controles visibles."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "enlace",
+   "match": "remove_item=",
+   "reason": "Los enlaces de quitar llevan el nonce de la sesión de WooCommerce de cada página (A y B son sesiones distintas): el destino es el mismo artículo."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "foco",
+   "match": ".",
+   "reason": "Orden del foco: el conmutador va antes del panel y el panel cerrado es inerte; en PRO el tabulador entraba primero en los enlaces invisibles del panel cerrado. Foco visible propio (2 px con separación de 2 px)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "enlace",
+   "match": "«#»",
+   "reason": "El conmutador es un <button>; PRO usaba un enlace a «#»."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "nombre",
+   "match": "^nuevo none «»$",
+   "reason": "Lo que hay dentro del panel cerrado es inerte (sin rol ni nombre para el árbol de accesibilidad hasta que se abre)."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "estilo",
+   "match": "^\\[acción \\d+ [^\\]]*\\] «(€|[0-9][0-9.,]*)» ",
+   "reason": "Con el panel abierto, el mismo importe sale en el conmutador y en el panel; la firma toma el estilo del primero en el marcado: en PRO el del panel (va antes del conmutador), en el propio el del conmutador (orden del foco). Los dos importes tienen el mismo estilo que en PRO."
+  },
+  {
+   "widget": "woocommerce-menu-cart",
+   "kind": "hover",
+   "match": ".",
+   "reason": "El arnés pasa el cursor por el primer enlace o botón del widget: en PRO es un enlace del panel cerrado (va antes del conmutador en el marcado); en el propio, el conmutador (el panel va después y está inerte), que cambia sus colores al pasar el cursor."
+  }
+ ],
+ "cases": {
+  "wmc-defaults": {
+   "title": "Valores por defecto: carrito lateral al hacer clic, con artículos",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {},
+   "pixels": {
+    "max": 0.05,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    },
+    {
+     "label": "abrir con Intro",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Enter",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-empty": {
+   "title": "Carrito vacío con el indicador oculto si está vacío",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "empty"
+   },
+   "settings": {
+    "hide_empty_indicator": "hide"
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-mini": {
+   "title": "Mini carrito desplegable, alineado al final",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "cart_type": "mini-cart",
+    "mini_cart_alignment": "end",
+    "mini_cart_spacing": {
+     "unit": "px",
+     "size": 10
+    }
+   },
+   "pixels": {
+    "max": 0.05,
+    "reason": "Foco visible propio en el conmutador (2 px con separación de 2 px) y hover del conmutador, que en PRO no recibe el cursor del arnés (va primero un enlace invisible del panel)."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  },
+  "wmc-hover": {
+   "title": "Abrir al pasar el cursor y burbuja oculta",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "open_cart": "mouseover",
+    "items_indicator": "none"
+   },
+   "pixels": {
+    "max": 0.8,
+    "reason": "«Al pasar el cursor»: el arnés pasa el cursor por el primer control; en el propio es el conmutador, que abre el panel y su capa oscurece la página; en PRO, un enlace invisible del panel cerrado (no abre nada). Lo mismo con el foco (el tabulador llega al conmutador y el cursor sigue encima). Sin cursor, 0 %."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    }
+   ],
+   "declared": [
+    {
+     "match": "^\\[acción 1 abrir con clic\\] ",
+     "reason": "«Al pasar el cursor»: el cursor abre el panel y su capa tapa el botón, así que el clic del arnés cae en la capa; PRO lo tomaba por un clic fuera y cerraba el panel en el mismo gesto. El propio deja abierto el panel que la persona acaba de abrir (el clic sobre el botón abre también con el teclado, como PRO)."
+    }
+   ]
+  },
+  "wmc-styled": {
+   "title": "Estilos más usados: conmutador, panel, productos y botones",
+   "widget": "woocommerce-menu-cart",
+   "woo": {
+    "cart": "items"
+   },
+   "settings": {
+    "icon": "basket-solid",
+    "items_indicator": "plain",
+    "show_subtotal": "yes",
+    "alignment": "center",
+    "toggle_button_text_color": "#ffffff",
+    "toggle_button_icon_color": "#ffffff",
+    "toggle_button_background_color": "#0047ab",
+    "toggle_button_border_color": "#002b6b",
+    "toggle_button_border_width": {
+     "unit": "px",
+     "size": 2
+    },
+    "toggle_button_border_radius": {
+     "unit": "px",
+     "size": 8
+    },
+    "toggle_button_padding": {
+     "unit": "px",
+     "top": "10",
+     "right": "18",
+     "bottom": "10",
+     "left": "18",
+     "isLinked": false
+    },
+    "toggle_icon_size": {
+     "unit": "px",
+     "size": 22
+    },
+    "toggle_icon_spacing": {
+     "unit": "px",
+     "size": 10
+    },
+    "toggle_button_typography_typography": "custom",
+    "toggle_button_typography_font_size": {
+     "unit": "px",
+     "size": 16
+    },
+    "toggle_button_typography_font_weight": "700",
+    "background_color": "#fafafa",
+    "cart_padding": {
+     "unit": "px",
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "isLinked": true
+    },
+    "close_cart_icon_color": "#333333",
+    "show_remove_icon": "",
+    "divider_style": "dashed",
+    "divider_color": "#999999",
+    "buttons_layout": "stacked",
+    "view_cart_button_background_color": "#222222",
+    "checkout_button_background_color": "#0047ab",
+    "button_border_radius": {
+     "unit": "px",
+     "size": 6
+    },
+    "product_title_color": "#0047ab",
+    "subtotal_color": "#222222"
+   },
+   "pixels": {
+    "max": 0.3,
+    "reason": "Al pasar el cursor, el propio resalta el conmutador (el primer control del widget) con sus colores de hover; en PRO el arnés pasa el cursor por un enlace invisible del panel cerrado, que no cambia nada. Sin cursor y con las acciones, 0 %."
+   },
+   "actions": [
+    {
+     "label": "abrir con clic",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "wait": 1200
+    },
+    {
+     "label": "cerrar con Escape",
+     "a": ".elementor-menu-cart__toggle_button",
+     "b": ".digi-mc__btn",
+     "key": "Escape",
+     "wait": 1000
+    }
+   ]
+  }
+ }
+}

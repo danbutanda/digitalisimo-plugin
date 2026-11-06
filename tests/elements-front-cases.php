@@ -104,7 +104,7 @@ namespace {
 	$sources     = array(
 		'pro'      => array( glob( $elements . '/modules/*/widgets/*.php' ), $get_name ),
 		'pro-sub'  => array( glob( $elements . '/modules/*/widgets/*/*.php' ), $get_name ),
-		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/*/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-filters/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-f7b/*/class-*widget*.php' ) ), $get_name ),
+		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/*/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-filters/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-f7b/*/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/single/class-*.php' ), glob( $elements . '/modules/digitalisimo-woo/store/class-*.php' ) ), $get_name ),
 		// Núcleo: los widgets de `includes/widgets/` y los de sus módulos (pestañas y acordeón anidados, F7b).
 		'core'     => array( array_merge( glob( $elements . '/elementor/includes/widgets/*.php' ), glob( $elements . '/elementor/modules/*/widgets/*.php' ) ), $get_name ),
 		'atomic'   => array( glob( $elements . '/elementor/modules/atomic-widgets/elements/*/*.php' ), $get_type ),
@@ -229,7 +229,7 @@ namespace {
 	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'guard+old' ), $combos, $modes );
 	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload', 'visit', 'press', 'cron' );
 	// `product`: plantilla de «Producto individual» (la vista rápida de F4-Woo en «Plantilla de producto»).
-	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product', 'single-post' );
+	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product', 'single-post', 'product-archive' );
 	foreach ( $cases as $slug => $case ) {
 		check_cases( preg_match( '/^[a-z0-9-]+$/', (string) $slug ) && is_array( $case ) && isset( $case['title'] ), "$slug: nombre o título inválidos" );
 		check_cases( isset( $case['widgets'] ) || isset( $case['elements'] ) || ! empty( $case['classic'] ), "$slug: necesita widgets, elements o classic" );

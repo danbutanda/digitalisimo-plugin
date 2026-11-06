@@ -1,0 +1,99 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-upsell (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Ventas dirigidas: `woocommerce_upsell_display()` de WooCommerce con la cuadrícula de productos (la base propia de N)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-upsell",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces y botones de la cuadrícula: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-upsell-defaults": {
+   "title": "Ventas dirigidas por defecto (oferta y reseñas, al azar en PRO: se ordenan por título para el A/B)",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "orderby": "title",
+    "order": "asc"
+   },
+   "widget": "woocommerce-product-upsell",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-upsell-styled": {
+   "title": "Dos columnas con encabezado coloreado y bordes de caja",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "orderby": "price",
+    "order": "desc",
+    "columns": "2",
+    "heading_color": "#1d4ed8",
+    "heading_spacing": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "box_border_width": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "box_border_color": "#dddddd",
+    "box_padding": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    }
+   },
+   "widget": "woocommerce-product-upsell",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

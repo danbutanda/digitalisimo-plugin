@@ -577,7 +577,7 @@ final class Normalizer {
 					if ( 'e-component' === $type ) {
 						++$analysis['components'];
 					}
-					if ( 'form' === $type ) {
+					if ( 'form' === $type || 'digitalisimo-form' === $type ) {
 						++$analysis['forms'];
 					}
 					$feature = 'container' === $type ? 'container' : ( 0 === strpos( $type, 'nested-' ) || 0 === strpos( $type, 'n-' ) ? 'nested-elements' : ( 0 === strpos( $type, 'e-' ) ? 'e_atomic_elements' : '' ) );

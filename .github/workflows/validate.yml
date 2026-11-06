@@ -94,6 +94,27 @@ jobs:
           php tests/elements-pro-posts.php
           node tests/elements-pro-posts-chrome.mjs
           php tests/elements-pro-loop.php
+          php tests/elements-pro-form.php
+          php tests/elements-pro-login.php
+          node tests/elements-pro-form-chrome.mjs
+          php tests/elements-pro-woo-single.php
+          node tests/elements-pro-woo-atc-chrome.mjs
+          php tests/elements-pro-woo-products.php
+          php tests/elements-pro-woo-archive.php
+          php tests/elements-pro-woo-cart.php
+          php tests/elements-pro-woo-checkout.php
+          php tests/elements-pro-woo-account.php
+          php tests/elements-pro-woo-menu-cart.php
+          node tests/elements-pro-woo-menu-cart-chrome.mjs
+          node tests/sources/woo-css/build.mjs
+          php tests/elements-pro-floating.php
+          node tests/elements-pro-floating-chrome.mjs
+          php tests/elements-pro-link-in-bio.php
+          php tests/elements-pro-facebook.php
+          node tests/elements-pro-facebook-chrome.mjs
+          php tests/elements-pro-payments.php
+          node tests/elements-pro-payments-chrome.mjs
+          php tests/elements-pro-template.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
@@ -176,6 +197,7 @@ jobs:
           php tests/migration-scale.php
           php tests/migration-network.php
           php tests/migration-pro.php
+          php tests/migration-pro-global.php
           node tests/migration-static.mjs
           node tests/migration-drive.mjs
           node tests/migration-legacy-styles.mjs
@@ -241,6 +263,22 @@ jobs:
           php tests/backups-operation-lock.php
           php tests/backups-manual-progress.php
           php tests/backups-cloud-verification.php
+          php tests/backups-job-store.php
+          php tests/backups-job-states.php
+          php tests/backups-job-heartbeat.php
+          php tests/backups-job-resume.php
+          php tests/backups-job-cancel.php
+          php tests/backups-job-compat.php
+          php tests/backups-job-kill.php
+          node tests/backups-jobs-ui.mjs
+          php tests/backups-untrusted-archive.php
+          php tests/backups-sql-guard.php
+          php tests/backups-keys.php
+          php tests/backups-manifest-auth.php
+          php tests/backups-encryption.php
+          php tests/backups-compat-legacy.php
+          php tests/backups-interrupted-restore.php
+          php tests/backups-job-security.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
@@ -300,6 +338,7 @@ jobs:
           php tests/elements-kit-global-widget.php
           php tests/elements-kit-integration.php
           php tests/elements-kit-pro-convert.php
+          php tests/elements-kit-pro-global.php
           node tests/elements-kit-static.mjs
           node tests/elements-kit-inventory.mjs
           node tests/elements-kit-app-guard.mjs

@@ -1,0 +1,108 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-data-tabs (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Pestañas de datos: la plantilla `single-product/tabs/tabs.php` de WooCommerce (sin su script de la ficha, que sólo se carga en un producto: igual en A y en B)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-data-tabs",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces de las pestañas: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-tabs-defaults": {
+   "title": "Pestañas de un producto con descripción, información adicional y reseñas",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-data-tabs",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-data-tabs.min.css de PRO",
+     "id": "widget-woocommerce-product-data-tabs-css",
+     "url": "widget-woocommerce-product-data-tabs(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-tabs-styled": {
+   "title": "Pestañas con colores, tipografía, radio y panel con borde",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "tab_text_color": "#333333",
+    "tab_bg_color": "#f3f3f3",
+    "tabs_border_color": "#cccccc",
+    "active_tab_text_color": "#000000",
+    "active_tab_bg_color": "#ffffff",
+    "active_tabs_border_color": "#999999",
+    "tab_typography_typography": "custom",
+    "tab_typography_font_size": {
+     "unit": "px",
+     "size": 15,
+     "sizes": []
+    },
+    "tab_border_radius": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "text_color": "#222222",
+    "heading_color": "#7a1f5c",
+    "panel_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "panel_border_radius": {
+     "unit": "px",
+     "top": "0",
+     "right": "6",
+     "bottom": "6",
+     "left": "6",
+     "isLinked": false
+    }
+   },
+   "widget": "woocommerce-product-data-tabs",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-data-tabs.min.css de PRO",
+     "id": "widget-woocommerce-product-data-tabs-css",
+     "url": "widget-woocommerce-product-data-tabs(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

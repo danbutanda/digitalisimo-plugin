@@ -242,19 +242,24 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         if (n) names.push(`${n.role} «${String(n.name || '').replace(/\s+/g, ' ').trim()}»`);
       }
       w.signature.names = names;
+      // `capture` del caso (C8): `{a, b}`, selector dentro del widget que se captura (un widget fijo a la ventana, como
+      // los botones flotantes, deja su envoltorio sin alto); por defecto, el widget.
+      const capSel = (c.capture || {})[side] ? `${sel} ${c.capture[side]}` : sel;
       const shot = async (state) => {
         // `shot: "viewport"` (caso): la ventana entera, para lo que el widget pinta fuera de su caja (un panel fijo o un
-        // desplegable de resultados, C3 · frente F).
+        // desplegable de resultados, C3 · frente F). `capture` (C8): el selector recortado dentro del widget.
         const clip = c.shot === 'viewport'
           ? await page.evaluate(() => ({ x: scrollX, y: scrollY, width: document.documentElement.clientWidth, height: innerHeight }))
-          : await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
+          : await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
-        // Fuera de la ventana sólo si el recorte no cabe en ella: con `captureBeyondViewport`, Chrome maqueta la página un
-        // instante a 1 px de ancho, y una pista que se desplaza con `scrollLeft` (el motor `digi-crs`) puede quedar recortada
-        // en la captura aunque en la página no cambie nada (Swiper usa `transform` y no lo nota).
-        const fits = await page.evaluate((r) => r.x >= scrollX && r.y >= scrollY && r.x + r.width <= scrollX + document.documentElement.clientWidth && r.y + r.height <= scrollY + innerHeight, clip);
-        await page.screenshot({ path: file, clip, captureBeyondViewport: !fits });
+        // Fuera de la ventana sólo si el recorte no cabe en ella. Con `captureBeyondViewport`, Chrome vuelve a emular la
+        // ventana durante la captura: maqueta la página un instante a 1 px de ancho, y una pista que se desplaza con
+        // `scrollLeft` (el motor `digi-crs`) puede quedar recortada en la captura aunque en la página no cambie nada (Swiper
+        // usa `transform` y no lo nota); y reinicia una transición en curso (p. ej. el despliegue de 0,3 s del botón 9 de
+        // contacto con el cursor encima), que sale en un cuadro al azar, distinto entre corridas en A y en B.
+        const inside = await page.evaluate((c) => c.x >= scrollX && c.y >= scrollY && c.x + c.width <= scrollX + document.documentElement.clientWidth && c.y + c.height <= scrollY + innerHeight, clip);
+        await page.screenshot({ path: file, clip, captureBeyondViewport: !inside });
         return file;
       };
       w.shot = await shot('');
@@ -463,17 +468,19 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const codes = [].concat(...(e.log || []).map((l) => l.codes || []));
     const own = [];
     const fail = (m) => { own.push(m); problems.push(`${slug} · ${m}`); };
-    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, context: e.context ? e.context.label : '', widths: {}, problems: own };
+    // `urls` (C8): las páginas que no son de tipo página (un documento de botones flotantes) traen su ruta de setup.php.
+    const page = (side) => (e.urls && e.urls[side]) || `/pro-ab-${slug}-${side}/`;
+    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: page('a'), b: page('b') }, context: e.context ? e.context.label : '', widths: {}, problems: own };
     summary.cases[slug] = res;
     if (e.error) fail(e.error);
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
     for (const code of codes.filter((x) => x.section === 'review')) fail(`${code.code} ${code.key}: ${code.reason}`);
     const forbid = (c.forbid || CONFIG.forbid_b || []).map((f) => ({ name: f.name.split('{widget}').join(e.widget), id: f.id.split('{widget}').join(e.widget), url: f.url.split('{widget}').join(e.widget) }));
     const once = async (side) => {
-      let r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
+      let r = await measure(browser, `${BASE}${page(side)}`, sel, slug, side, forbid, c);
       for (let i = 0; i < 2 && r.transient.length; i++) {
         notes.push(`${slug}-${side}: recursos servidos con redirección o como HTML (${r.transient[0]}); se repite la medición`);
-        r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
+        r = await measure(browser, `${BASE}${page(side)}`, sel, slug, side, forbid, c);
       }
       if (r.unsettled) fail(`${side.toUpperCase()}: el carrusel no arrancó en 8 s (Swiper, digi-crs o ready.${side})`);
       if (r.transient.length) fail(`${side.toUpperCase()}: recursos del sitio servidos con redirección o como HTML: ${r.transient.slice(0, 3).join(' | ')}`);
@@ -515,10 +522,11 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const sb = wb.signature;
       // `empty` (caso, con su motivo): el widget no pinta nada a la vista hasta una acción (un panel cerrado, C3 · frente F).
       // `shape` del caso (C2, con su motivo): un widget que al cargar sólo dibuja una forma (un indicador de progreso a
-      // cero) vale si su caja tiene alto; el texto llega con las acciones.
+      // cero) vale si su caja tiene alto; el texto llega con las acciones. Con `capture` (C8: un bloque fijo a la ventana,
+      // cuyo envoltorio no tiene alto) basta la captura.
       // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
       // basta con que A tenga controles (`focusables`), que se comparan igual.
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !c.empty && !(c.shape && sa.height > 0) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !c.empty && !(c.shape && (sa.height > 0 || c.capture)) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

@@ -1,0 +1,1035 @@
+{
+ "_doc": [
+  "Link in Bio (C8, frente Q): las seis variantes de PRO link-in-bio-var-<n> frente al widget propio digitalisimo-link-in-bio (presentación n), en páginas normales con la plantilla «Lienzo» (Link in Bio no tiene tipo de documento propio en el núcleo). B no puede cargar las hojas del núcleo de la variante ni su base (`forbid`).",
+  "Diferencias comunes declaradas: foco visible propio, la fuente del kit que PRO tomaba de `--e-global-*` y el nombre legible de los iconos."
+ ],
+ "declared": [
+  {
+   "widget": "link-in-bio-var-2",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-2",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-2",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  },
+  {
+   "widget": "link-in-bio-var-3",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-3",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-3",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  },
+  {
+   "widget": "link-in-bio-var-4",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-4",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-4",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  },
+  {
+   "widget": "link-in-bio-var-5",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-5",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-5",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  },
+  {
+   "widget": "link-in-bio-var-6",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-6",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-6",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  },
+  {
+   "widget": "link-in-bio-var-7",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
+  {
+   "widget": "link-in-bio-var-7",
+   "kind": "estilo",
+   "match": "» family: ",
+   "reason": "La hoja de PRO toma la fuente del texto del kit (`--e-global-typography-text-font-family`, o Poppins); el widget propio no usa variables del kit (regla de los widgets propios) y hereda la de la página."
+  },
+  {
+   "widget": "link-in-bio-var-7",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "Nombre accesible de cada icono: el texto del icono o el nombre legible del servicio (PRO usaba la clave interna, «Telephone», «Url»…)."
+  }
+ ],
+ "cases": {
+  "lib-2-defaults": {
+   "title": "Classic (presentación 2): valores por defecto",
+   "widget": "link-in-bio-var-2",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-2.min.css del núcleo",
+     "id": "widget-link-in-bio-var-2-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-2(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-2-content": {
+   "title": "Classic (presentación 2): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-2",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      }
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678"
+     }
+    ],
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test"
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678"
+     }
+    ],
+    "identity_image_cover": {
+     "$image": 5
+    }
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-2.min.css del núcleo",
+     "id": "widget-link-in-bio-var-2-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-2(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-3-defaults": {
+   "title": "Showcase (presentación 3): valores por defecto",
+   "widget": "link-in-bio-var-3",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-3.min.css del núcleo",
+     "id": "widget-link-in-bio-var-3-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-3-content": {
+   "title": "Showcase (presentación 3): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-3",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      }
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678"
+     }
+    ],
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      },
+      "cta_link_image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test",
+      "cta_link_image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678",
+      "cta_link_image": {
+       "$image": 4
+      }
+     }
+    ]
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-3.min.css del núcleo",
+     "id": "widget-link-in-bio-var-3-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-3(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-4-defaults": {
+   "title": "Links (presentación 4): valores por defecto",
+   "widget": "link-in-bio-var-4",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-4.min.css del núcleo",
+     "id": "widget-link-in-bio-var-4-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-4-content": {
+   "title": "Links (presentación 4): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-4",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      }
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678"
+     }
+    ],
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test"
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678"
+     }
+    ]
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-4.min.css del núcleo",
+     "id": "widget-link-in-bio-var-4-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-5-defaults": {
+   "title": "Services (presentación 5): valores por defecto",
+   "widget": "link-in-bio-var-5",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-5.min.css del núcleo",
+     "id": "widget-link-in-bio-var-5-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-5-content": {
+   "title": "Services (presentación 5): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-5",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      }
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678"
+     }
+    ],
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      },
+      "cta_link_image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test",
+      "cta_link_image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678",
+      "cta_link_image": {
+       "$image": 4
+      }
+     }
+    ],
+    "identity_image_style": "cover"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-5.min.css del núcleo",
+     "id": "widget-link-in-bio-var-5-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-5(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-6-defaults": {
+   "title": "Portfolio Bio (presentación 6): valores por defecto",
+   "widget": "link-in-bio-var-6",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-6.min.css del núcleo",
+     "id": "widget-link-in-bio-var-6-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-6-content": {
+   "title": "Portfolio Bio (presentación 6): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-6",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      }
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678"
+     }
+    ],
+    "image_links": [
+     {
+      "_id": "il00",
+      "image_links_image": {
+       "$image": 2
+      },
+      "image_links_url": {
+       "url": "https://ejemplo.test/trabajo-0"
+      }
+     },
+     {
+      "_id": "il01",
+      "image_links_image": {
+       "$image": 3
+      },
+      "image_links_url": {
+       "url": "https://ejemplo.test/trabajo-1"
+      }
+     },
+     {
+      "_id": "il02",
+      "image_links_image": {
+       "$image": 4
+      },
+      "image_links_url": {
+       "url": "https://ejemplo.test/trabajo-2"
+      }
+     },
+     {
+      "_id": "il03",
+      "image_links_image": {
+       "$image": 5
+      },
+      "image_links_url": {
+       "url": "https://ejemplo.test/trabajo-3"
+      }
+     }
+    ]
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-6.min.css del núcleo",
+     "id": "widget-link-in-bio-var-6-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-6(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-7-defaults": {
+   "title": "Business Card (presentación 7): valores por defecto",
+   "widget": "link-in-bio-var-7",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-7.min.css del núcleo",
+     "id": "widget-link-in-bio-var-7-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-7-content": {
+   "title": "Business Card (presentación 7): imágenes, enlaces de cada tipo e iconos con destino",
+   "widget": "link-in-bio-var-7",
+   "settings": {
+    "identity_image": {
+     "$image": 1
+    },
+    "bio_heading": "Ana Torres",
+    "bio_title": "Cocina de casa",
+    "bio_description": "Recetas sencillas para todos los días.",
+    "icon": [
+     {
+      "_id": "ic00",
+      "icon_platform": "Facebook",
+      "icon_url": {
+       "url": "https://www.facebook.com/ejemplo",
+       "is_external": "on"
+      },
+      "icon_text": "Facebook"
+     },
+     {
+      "_id": "ic01",
+      "icon_platform": "Email",
+      "icon_mail": "hola@ejemplo.test",
+      "icon_mail_subject": "Hola",
+      "icon_text": "Correo"
+     },
+     {
+      "_id": "ic02",
+      "icon_platform": "Telephone",
+      "icon_number": "+525512345678",
+      "icon_text": "Llamar"
+     }
+    ],
+    "identity_image_cover": {
+     "$image": 5
+    },
+    "cta_section_button_text": "Descargar",
+    "cta_link_type": "Url",
+    "cta_link_url": {
+     "url": "https://ejemplo.test/cv.pdf"
+    },
+    "bio_about": "Sobre mí"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-7.min.css del núcleo",
+     "id": "widget-link-in-bio-var-7-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-2-style": {
+   "title": "Classic: colores, esquinas redondas, borde, enlaces como texto subrayado",
+   "widget": "link-in-bio-var-2",
+   "settings": {
+    "cta_links_corners": "round",
+    "cta_links_show_border": "yes",
+    "cta_links_border_color": "#E63946",
+    "cta_links_background_color": "#2A9D8F",
+    "cta_links_text_color": "#FFFFFF",
+    "bio_heading_text_color": "#264653",
+    "bio_title_text_color": "#E76F51",
+    "icons_color": "#E63946",
+    "icons_size": "large",
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test"
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678"
+     }
+    ]
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-2.min.css del núcleo",
+     "id": "widget-link-in-bio-var-2-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-2(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-4-links-type": {
+   "title": "Links: enlaces de tipo texto con separadores",
+   "widget": "link-in-bio-var-4",
+   "settings": {
+    "cta_links_divider_color": "#E63946",
+    "cta_link": [
+     {
+      "_id": "ct00",
+      "cta_link_text": "Recetas",
+      "cta_link_type": "Url",
+      "cta_link_url": {
+       "url": "https://ejemplo.test/recetas"
+      }
+     },
+     {
+      "_id": "ct01",
+      "cta_link_text": "Escríbeme",
+      "cta_link_type": "Email",
+      "cta_link_mail": "hola@ejemplo.test"
+     },
+     {
+      "_id": "ct02",
+      "cta_link_text": "Llámame",
+      "cta_link_type": "Telephone",
+      "cta_link_number": "+525512345678"
+     }
+    ]
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-4.min.css del núcleo",
+     "id": "widget-link-in-bio-var-4-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-4(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  },
+  "lib-7-style": {
+   "title": "Business Card: iconos con fondo y borde, esquinas rectas, color del texto de los iconos",
+   "widget": "link-in-bio-var-7",
+   "settings": {
+    "icons_color_background": "#F3F5F8",
+    "icons_border_show_border": "yes",
+    "icons_border_border_color": "#245EFF",
+    "icons_color_text": "#1C2448",
+    "cta_links_corners": "sharp",
+    "cta_links_background_color": "#E63946",
+    "icons_per_row": "2"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-link-in-bio-var-7.min.css del núcleo",
+     "id": "widget-link-in-bio-var-7-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-var-7(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-link-in-bio-base.min.css del núcleo",
+     "id": "widget-link-in-bio-base-css",
+     "url": "/elementor/assets/css/widget-link-in-bio-base(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.04,
+      "reason": "Fuente: la hoja del núcleo toma la del texto del kit (`--e-global-typography-text-font-family`) y la propia hereda la de la página; a 375 px los textos largos cortan la línea en otro sitio (diferencia de estilo «family» ya declarada)."
+     }
+    }
+   }
+  }
+ }
+}

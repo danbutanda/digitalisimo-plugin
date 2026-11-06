@@ -59,6 +59,7 @@ namespace Elementor {
 		public function get_id() { return 'w1d9e0a'; }
 		public function add_skin( Skin_Base $skin ) { $this->skins[ $skin->get_id() ] = $skin; }
 		public function get_skins() { return $this->skins; }
+		public function remove_skin( $id ) { unset( $this->skins[ $id ] ); return true; }
 		public function get_skin( $id ) { return $this->skins[ $id ] ?? false; }
 		public function get_current_skin_id() { return $this->settings['_skin'] ?? array_key_first( $this->skins ); }
 		public function get_current_skin() { return $this->get_skin( $this->get_current_skin_id() ); }

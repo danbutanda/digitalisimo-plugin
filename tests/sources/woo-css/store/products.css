@@ -1,0 +1,66 @@
+.digi-products-grid ul.products.elementor-grid{
+	display:grid;
+	margin:0;
+	grid-column-gap:20px;
+	grid-row-gap:40px
+}
+.digi-products-grid ul.products.elementor-grid:after,.digi-products-grid ul.products.elementor-grid:before{
+	content:none;
+	display:none
+}
+.digi-products-grid ul.products.elementor-grid li.product{
+	display:var(--button-align-display);
+	flex-direction:var(--button-align-direction);
+	float:none;
+	justify-content:var(--button-align-justify);
+	margin:0;
+	padding:0;
+	width:auto
+}
+.digi-products-grid ul.products.elementor-grid li.product .onsale{
+	display:none;
+	padding:0
+}
+.digi-products-grid ul.products.elementor-grid li.product a.woocommerce-loop-product__link{
+	display:block;
+	position:relative
+}
+.digi-products-grid:not(.show-heading-yes) .products>h2{
+	display:none
+}
+.digi-products-grid nav.woocommerce-pagination{
+	margin-top:40px
+}
+.digi-products-grid:not(.digi-products--pagination-border-yes) nav.woocommerce-pagination ul{
+	border:0
+}
+.digi-products-grid:not(.digi-products--pagination-border-yes) nav.woocommerce-pagination ul li{
+	border-left:0;
+	border-right:0
+}
+.elementor-widget-digitalisimo-woo-products:not(.digi-products--heading-show) .cross-sells>h2,.elementor-widget-digitalisimo-woo-products:not(.digi-products--heading-show) .related>h2,.elementor-widget-digitalisimo-woo-products:not(.digi-products--heading-show) .upsells>h2{
+	display:none
+}
+.elementor-widget-digitalisimo-woo-products.digi-products--heading-show .cross-sells>h2,.elementor-widget-digitalisimo-woo-products.digi-products--heading-show .related>h2,.elementor-widget-digitalisimo-woo-products.digi-products--heading-show .upsells>h2{
+	color:var(--products-title-color);
+	display:block;
+	margin-bottom:var(--products-title-spacing,1rem);
+	text-align:var(--products-title-alignment,start)
+}
+.digi-products--align-left ul.products li.product .star-rating{
+	margin-right:auto
+}
+.digi-products--align-right ul.products li.product .star-rating{
+	margin-left:auto
+}
+.digi-products--align-center ul.products li.product .star-rating{
+	margin-left:auto;
+	margin-right:auto
+}
+.woocommerce .elementor-element.digi-products-grid ul.products li.product,.woocommerce div.product .elementor-element.digi-products-grid .related.products ul.products li.product,.woocommerce div.product .elementor-element.digi-products-grid .upsells.products ul.products li.product{
+	width:auto
+}
+.digi-products-grid a:focus-visible,.digi-products-grid button:focus-visible,.digi-products-grid select:focus-visible{
+	outline:2px solid currentColor;
+	outline-offset:2px
+}

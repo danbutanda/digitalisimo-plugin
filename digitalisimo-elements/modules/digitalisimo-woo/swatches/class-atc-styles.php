@@ -23,6 +23,9 @@ final class Atc_Styles {
 	const TARGETS = array(
 		'woocommerce-product-add-to-cart' => 'section_atc_variations_style',
 		'wc-add-to-cart'                  => 'section_style',
+		// C7: los «Añadir al carrito» propios que los sustituyen (mismas secciones).
+		'digitalisimo-woo-product-add-to-cart' => 'section_atc_variations_style',
+		'digitalisimo-woo-add-to-cart'         => 'section_style',
 	);
 
 	public static function init(): void {

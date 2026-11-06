@@ -38,6 +38,12 @@ final class Module {
 		'Cart\\Module',
 		'Filters\\Module',
 		'Kit\\Module',
+		// C7, frente M: panel de los bucles de productos y vista previa de la ficha.
+		'Single\\Module',
+		// C7, frente N: fragmentos de relacionados y ventas de los Productos propios al cambiar el carrito.
+		'Store\\Products_Fragments',
+		// C7, frente N (carrito): textos del widget al cambiar el envío y plantilla del carrito vacío por AJAX.
+		'Store\\Cart_Ajax',
 	);
 
 	/** @var bool */

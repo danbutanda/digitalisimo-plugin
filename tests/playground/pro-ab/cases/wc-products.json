@@ -1,0 +1,78 @@
+{
+ "_doc": [
+  "Casos A/B de Productos (clásico) (frente N de C7, fork P): A con `wc-products` de PRO (obsoleto), B con `digitalisimo-woo-products-classic`."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de enlaces, botones y selectores de la cuadrícula (contorno de 2 px con separación de 2 px) donde PRO dejaba el del navegador.",
+   "widget": "wc-products"
+  }
+ ],
+ "cases": {
+  "wcpc-defaults": {
+   "title": "Valores por defecto: presentación clásica, 4 productos en 4 columnas",
+   "widget": "wc-products",
+   "settings": {},
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wcpc-sale": {
+   "title": "En oferta, por precio, 2 columnas y estilos",
+   "widget": "wc-products",
+   "settings": {
+    "filter_by": "sale",
+    "orderby": "price",
+    "order": "asc",
+    "classic_columns": "2",
+    "posts_per_page": "2",
+    "title_color": "#245eff",
+    "button_background_color": "#1d2327",
+    "button_text_color": "#ffffff"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "widget-woocommerce-products-archive.min.css de PRO",
+     "id": "widget-woocommerce-products-archive-css",
+     "url": "widget-woocommerce-products-archive(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

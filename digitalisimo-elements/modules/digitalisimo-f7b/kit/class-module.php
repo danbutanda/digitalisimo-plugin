@@ -114,6 +114,10 @@ final class Module {
 			array( 'element', 'template', 'digitalisimo_overrides.*.image', 'media' ),
 			array( 'element', 'template', 'digitalisimo_overrides.*.link.url', 'url' ),
 			array( 'element', 'template', 'digitalisimo_overrides.*.html', 'html' ),
+			// Las mismas en la Plantilla propia (C9 de «sin widgets de PRO»).
+			array( 'element', 'digitalisimo-template', 'digitalisimo_overrides.*.image', 'media' ),
+			array( 'element', 'digitalisimo-template', 'digitalisimo_overrides.*.link.url', 'url' ),
+			array( 'element', 'digitalisimo-template', 'digitalisimo_overrides.*.html', 'html' ),
 		);
 		// Filtros ampliados (frente D): el Loop Grid del mismo documento.
 		foreach ( self::FILTER_WIDGETS as $widget ) {

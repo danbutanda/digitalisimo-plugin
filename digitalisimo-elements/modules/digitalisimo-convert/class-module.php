@@ -21,7 +21,9 @@ final class Module {
 		self::$initialized = true;
 		spl_autoload_register( array( __CLASS__, 'autoload' ) );
 		if ( function_exists( 'add_filter' ) ) {
-			add_filter( 'elementor/document/config', array( __NAMESPACE__ . '\\Panel', 'document_config' ), 10, 2 );
+			// 20: después de PRO (11), que vuelve a poner sus widgets de la ficha de producto en «Recomendados» de las
+			// plantillas de bucle de productos, y de `Woo\Single\Module` (12), que pone allí los propios (C7).
+			add_filter( 'elementor/document/config', array( __NAMESPACE__ . '\\Panel', 'document_config' ), 20, 2 );
 		}
 	}
 

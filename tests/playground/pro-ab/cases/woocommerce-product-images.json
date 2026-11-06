@@ -1,0 +1,132 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-images (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Imágenes del producto: el distintivo de oferta y la galería de WooCommerce (`single-product/product-image.php`)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-images",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlace de la imagen: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-images-simple": {
+   "title": "Galería de un producto con imagen y dos más",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-images",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-images.min.css de PRO",
+     "id": "widget-woocommerce-product-images-css",
+     "url": "widget-woocommerce-product-images(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-images-sale": {
+   "title": "Producto en oferta con su distintivo",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-images",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-images.min.css de PRO",
+     "id": "widget-woocommerce-product-images-css",
+     "url": "widget-woocommerce-product-images(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-images-styled": {
+   "title": "Sin distintivo, con borde, radio y separación de miniaturas",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "sale_flash": "",
+    "image_border_border": "solid",
+    "image_border_width": {
+     "unit": "px",
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "isLinked": true
+    },
+    "image_border_color": "#dddddd",
+    "image_border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "spacing": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "thumbs_border_border": "solid",
+    "thumbs_border_color": "#cccccc",
+    "spacing_thumbs": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-images",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-images.min.css de PRO",
+     "id": "widget-woocommerce-product-images-css",
+     "url": "widget-woocommerce-product-images(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

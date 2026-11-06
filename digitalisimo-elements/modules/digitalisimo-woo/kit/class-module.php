@@ -48,6 +48,9 @@ final class Module {
 
 	const FILTER_PARTS        = 'digitalisimo_elements_kit_parts';
 	const FILTER_REFERENCES   = 'digitalisimo_elements_kit_references';
+
+	/** Productos clásicos con la consulta antigua `posts` (C7): el propio y el de PRO que convierte. */
+	const CLASSIC_PRODUCTS = array( 'digitalisimo-woo-products-classic', 'wc-products' );
 	const FILTER_NOT_EXPORTED = 'digitalisimo_elements_kit_not_exported';
 	const FILTER_LABELS       = 'digitalisimo_elements_kit_report_labels';
 	const FILTER_NEEDS        = 'digitalisimo_elements_kit_needs';
@@ -205,7 +208,7 @@ final class Module {
 	 * @return array[]
 	 */
 	public static function references_list( int $never = self::NEVER_ID ): array {
-		return array(
+		$refs = array(
 			array( 'element', 'digitalisimo-woo-wishlist-button', 'product_id', 'post', false, $never ),
 			array( 'element', 'digitalisimo-woo-wishlist-button', 'wishlist_page', 'post' ),
 			array( 'element', 'digitalisimo-woo-quick-view', 'product_id', 'post', false, $never ),
@@ -215,6 +218,24 @@ final class Module {
 			// Imagen de una muestra (meta `image` de WooCommerce): sólo en los términos de atributos (V.6.6, V.11.4).
 			array( 'term_meta', 'image', '', 'attachment', 'taxonomies' => array( 'pa_*' ) ),
 		);
+		// C7 (programa «sin widgets de PRO», docs/pro/c7.md): plantilla del escritorio de Mi cuenta
+		// (store/class-my-account.php, `customize_dashboard_select`) y categorías elegidas y padre de las Categorías de
+		// productos (store/class-categories.php, `categories` y `parent`).
+		$refs[] = array( 'element', 'digitalisimo-woo-my-account', 'customize_dashboard_select', 'template' );
+		$refs[] = array( 'element', 'digitalisimo-woo-categories', 'categories.*', 'term' );
+		$refs[] = array( 'element', 'digitalisimo-woo-categories', 'parent', 'term' );
+		// Productos clásicos (el propio y `wc-products` de PRO, que un kit trae y K convierte al importar): su consulta es
+		// el grupo antiguo `posts` (`Group_Control_Posts`), cuyos nombres (`posts_posts_ids`, `posts_<taxonomía>_ids`) no
+		// traduce el rasgo de importación de PRO (sólo mira `post_ids` y `term_ids`). Taxonomías: las de producto de
+		// WooCommerce y, en `references()`, los atributos del sitio.
+		foreach ( self::CLASSIC_PRODUCTS as $type ) {
+			$refs[] = array( 'element', $type, 'posts_posts_ids.*', 'post' );
+			$refs[] = array( 'element', $type, 'posts_authors.*', 'user' );
+			foreach ( array( 'product_cat', 'product_tag', 'product_brand' ) as $taxonomy ) {
+				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term' );
+			}
+		}
+		return $refs;
 	}
 
 	/**
@@ -229,6 +250,16 @@ final class Module {
 		$never = class_exists( $class ) && defined( $class . '::NEVER_ID' ) ? (int) constant( $class . '::NEVER_ID' ) : self::NEVER_ID;
 		foreach ( self::references_list( $never ) as $ref ) {
 			$refs[] = $ref;
+		}
+		// C7: los atributos globales del sitio (`pa_*`) en la consulta de los Productos clásicos.
+		$attributes = function_exists( 'wc_get_attribute_taxonomy_names' ) ? (array) wc_get_attribute_taxonomy_names() : array();
+		foreach ( $attributes as $taxonomy ) {
+			if ( ! is_string( $taxonomy ) || 1 !== preg_match( '/^pa_[a-z0-9_-]{1,28}$/', $taxonomy ) ) {
+				continue;
+			}
+			foreach ( self::CLASSIC_PRODUCTS as $type ) {
+				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term' );
+			}
 		}
 		return $refs;
 	}

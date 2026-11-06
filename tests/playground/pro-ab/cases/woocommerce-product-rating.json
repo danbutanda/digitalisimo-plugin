@@ -1,0 +1,136 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-rating (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Valoración del producto: la plantilla `single-product/rating.php` de WooCommerce."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-rating",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlace a las reseñas: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-rating-defaults": {
+   "title": "Valoración de un producto con tres reseñas",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-rating",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-rating.min.css de PRO",
+     "id": "widget-woocommerce-product-rating-css",
+     "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
+  },
+  "wsm-rating-styled": {
+   "title": "Estrellas grandes, colores y enlace justificado",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "star_color": "#e0a100",
+    "empty_star_color": "#cccccc",
+    "link_color": "#1d4ed8",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 15,
+     "sizes": []
+    },
+    "star_size": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    },
+    "space_between": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "alignment": "justify"
+   },
+   "widget": "woocommerce-product-rating",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-rating.min.css de PRO",
+     "id": "widget-woocommerce-product-rating-css",
+     "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
+  },
+  "wsm-rating-center": {
+   "title": "Valoración centrada",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "alignment": "center",
+    "alignment_mobile": "right"
+   },
+   "widget": "woocommerce-product-rating",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-rating.min.css de PRO",
+     "id": "widget-woocommerce-product-rating-css",
+     "url": "widget-woocommerce-product-rating(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
+  }
+ }
+}

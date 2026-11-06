@@ -480,7 +480,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1, C2, C4, C5): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0–C9): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -536,6 +536,71 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'loop-grid', own: 'digitalisimo-loop-grid', title: 'Cuadrícula de bucle', query: 'bucle' },
         { pro: 'loop-carousel', own: 'digitalisimo-loop-carousel', title: 'Carrusel de bucle', query: 'carrusel de bucle' },
         { pro: 'taxonomy-filter', own: 'digitalisimo-taxonomy-filter', title: 'Filtro de taxonomías', query: 'filtro' },
+        // C6 (formularios, docs/pro/c6.md).
+        { pro: 'form', own: 'digitalisimo-form', title: 'Formulario', query: 'formulario' },
+        { pro: 'login', own: 'digitalisimo-login', title: 'Inicio de sesión', query: 'inicio de sesión' },
+        // C7 (WooCommerce, docs/pro/c7.md). Los de la ficha sólo existen en una plantilla de producto y los de archivo, en
+        // una de archivo de productos (sus categorías); los obsoletos de PRO y «Elementos del producto» quedan ocultos
+        // como en PRO; PRO no registra la Imagen de la categoría.
+        { pro: 'woocommerce-product-title', own: 'digitalisimo-woo-product-title', title: 'Título del producto', query: 'título del producto', doc: 'product' },
+        { pro: 'woocommerce-product-price', own: 'digitalisimo-woo-product-price', title: 'Precio del producto', query: 'precio del producto', doc: 'product' },
+        { pro: 'woocommerce-product-rating', own: 'digitalisimo-woo-product-rating', title: 'Valoración del producto', query: 'valoración', doc: 'product' },
+        { pro: 'woocommerce-product-stock', own: 'digitalisimo-woo-product-stock', title: 'Existencias del producto', query: 'existencias', doc: 'product' },
+        { pro: 'woocommerce-product-meta', own: 'digitalisimo-woo-product-meta', title: 'Metadatos del producto', query: 'metadatos', doc: 'product' },
+        { pro: 'woocommerce-product-short-description', own: 'digitalisimo-woo-product-short-description', title: 'Descripción corta del producto', query: 'descripción corta', doc: 'product' },
+        { pro: 'woocommerce-product-content', own: 'digitalisimo-woo-product-content', title: 'Contenido del producto', query: 'contenido del producto', doc: 'product' },
+        { pro: 'woocommerce-product-additional-information', own: 'digitalisimo-woo-product-additional-information', title: 'Información adicional del producto', query: 'información adicional', doc: 'product' },
+        { pro: 'woocommerce-product-data-tabs', own: 'digitalisimo-woo-product-data-tabs', title: 'Pestañas de datos del producto', query: 'pestañas de datos', doc: 'product' },
+        { pro: 'woocommerce-product-images', own: 'digitalisimo-woo-product-images', title: 'Imágenes del producto', query: 'imágenes del producto', doc: 'product' },
+        { pro: 'woocommerce-product-add-to-cart', own: 'digitalisimo-woo-product-add-to-cart', title: 'Añadir al carrito', query: 'añadir al carrito', doc: 'product' },
+        { pro: 'woocommerce-product-related', own: 'digitalisimo-woo-product-related', title: 'Productos relacionados', query: 'relacionados', doc: 'product' },
+        { pro: 'woocommerce-product-upsell', own: 'digitalisimo-woo-product-upsell', title: 'Ventas dirigidas', query: 'ventas dirigidas', doc: 'product' },
+        { pro: 'wc-single-elements', own: 'digitalisimo-woo-single-elements', title: 'Elementos del producto', query: 'elementos del producto', doc: 'product', ownHidden: true },
+        { pro: 'wc-add-to-cart', own: 'digitalisimo-woo-add-to-cart', title: 'Añadir al carrito personalizado', query: 'carrito personalizado' },
+        { pro: 'woocommerce-products', own: 'digitalisimo-woo-products', title: 'Productos', query: 'productos' },
+        { pro: 'wc-products', own: 'digitalisimo-woo-products-classic', title: 'Productos (clásico)', query: 'clásico', ownHidden: true },
+        { pro: 'wc-archive-products', own: 'digitalisimo-woo-archive-products', title: 'Productos del archivo', query: 'productos del archivo', doc: 'product-archive' },
+        { pro: 'woocommerce-archive-products', own: 'digitalisimo-woo-archive-products-classic', title: 'Productos del archivo (clásico)', query: 'archivo (clásico)', doc: 'product-archive', ownHidden: true },
+        { pro: 'woocommerce-archive-description', own: 'digitalisimo-woo-archive-description', title: 'Descripción del archivo de la tienda', query: 'descripción del archivo', doc: 'product-archive' },
+        { pro: 'wc-categories', own: 'digitalisimo-woo-categories', title: 'Categorías de productos', query: 'categorías de productos' },
+        { pro: 'woocommerce-category-image', own: 'digitalisimo-woo-category-image', title: 'Imagen de la categoría', query: 'imagen de la categoría', proOptional: true },
+        { pro: 'woocommerce-breadcrumb', own: 'digitalisimo-woo-breadcrumb', title: 'Migas de la tienda', query: 'migas de la tienda' },
+        { pro: 'woocommerce-notices', own: 'digitalisimo-woo-notices', title: 'Avisos de la tienda', query: 'avisos' },
+        { pro: 'woocommerce-cart', own: 'digitalisimo-woo-cart', title: 'Carrito', query: 'carrito' },
+        { pro: 'woocommerce-checkout-page', own: 'digitalisimo-woo-checkout', title: 'Finalizar compra', query: 'finalizar compra' },
+        { pro: 'woocommerce-my-account', own: 'digitalisimo-woo-my-account', title: 'Mi cuenta', query: 'mi cuenta' },
+        { pro: 'woocommerce-purchase-summary', own: 'digitalisimo-woo-purchase-summary', title: 'Resumen de la compra', query: 'resumen de la compra' },
+        { pro: 'woocommerce-menu-cart', own: 'digitalisimo-woo-menu-cart', title: 'Carrito del menú', query: 'carrito del menú' },
+        { pro: 'wc-elements', own: 'digitalisimo-woo-pages', title: 'Páginas de la tienda', query: 'páginas de la tienda' },
+        // C8 (botones flotantes y Link in Bio, docs/pro/c8.md): una fila por variante de PRO. Los Botones de contacto y la
+        // Barra flotante heredan la base del núcleo, que no va al panel (viven en documentos de botones flotantes, como las
+        // variantes de PRO): `ownHidden`. Link in Bio sí sale.
+        { pro: 'contact-buttons-var-1', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-3', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-4', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-5', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-6', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-7', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-8', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-9', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'contact-buttons-var-10', own: 'digitalisimo-contact-buttons', title: 'Botones de contacto', query: 'botones de contacto', ownHidden: true },
+        { pro: 'floating-bars-var-2', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },
+        { pro: 'floating-bars-var-3', own: 'digitalisimo-floating-bar', title: 'Barra flotante', query: 'barra flotante', ownHidden: true },
+        { pro: 'link-in-bio-var-2', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-3', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-4', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-5', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-6', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        { pro: 'link-in-bio-var-7', own: 'digitalisimo-link-in-bio', title: 'Link in Bio', query: 'link in bio' },
+        // C9 (servicios y plantillas, docs/pro/c9.md). El widget global no es un widget del panel: «Migrar» y los kits
+        // lo sustituyen por su contenido.
+        { pro: 'facebook-button', own: 'digitalisimo-facebook-button', title: 'Botón de Facebook', query: 'facebook' },
+        { pro: 'facebook-comments', own: 'digitalisimo-facebook-comments', title: 'Comentarios de Facebook', query: 'facebook' },
+        { pro: 'facebook-embed', own: 'digitalisimo-facebook-embed', title: 'Publicación de Facebook', query: 'facebook' },
+        { pro: 'facebook-page', own: 'digitalisimo-facebook-page', title: 'Página de Facebook', query: 'facebook' },
+        { pro: 'paypal-button', own: 'digitalisimo-paypal-button', title: 'Botón de PayPal', query: 'paypal' },
+        { pro: 'stripe-button', own: 'digitalisimo-stripe-button', title: 'Botón de Stripe', query: 'stripe' },
+        { pro: 'template', own: 'digitalisimo-template', title: 'Plantilla', query: 'plantilla' },
       ];
       const inspect = (list) => page.evaluate(async (items) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};

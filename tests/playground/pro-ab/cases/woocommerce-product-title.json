@@ -1,0 +1,123 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-title (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Título del producto: hereda el Encabezado del núcleo, como el de PRO."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-title",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlace del título: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-title-defaults": {
+   "title": "Título del producto por defecto (etiqueta dinámica, h1)",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"m1a2b3c\" name=\"woocommerce-product-title-tag\" settings=\"%7B%7D\"]"
+    }
+   },
+   "widget": "woocommerce-product-title",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-title.min.css de PRO",
+     "id": "widget-woocommerce-product-title-css",
+     "url": "widget-woocommerce-product-title(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-title-styled": {
+   "title": "Título h3 centrado, con color y tipografía",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"m1a2b3c\" name=\"woocommerce-product-title-tag\" settings=\"%7B%7D\"]"
+    },
+    "header_size": "h3",
+    "align": "center",
+    "title_color": "#7a1f5c",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 28,
+     "sizes": []
+    },
+    "typography_font_weight": "700"
+   },
+   "widget": "woocommerce-product-title",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-title.min.css de PRO",
+     "id": "widget-woocommerce-product-title-css",
+     "url": "widget-woocommerce-product-title(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-title-link": {
+   "title": "Título enlazado (foco con teclado)",
+   "pixels": {
+    "max": 0.15,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px rodea el título enlazado de una línea (59 px de alto a 375 px: 13,9 %); PRO dejaba el del navegador. Sin foco, 0,00 %."
+   },
+   "context": {
+    "product": "simple"
+   },
+   "settings": {
+    "title": "Producto enlazado",
+    "link": {
+     "url": "#producto",
+     "is_external": "",
+     "nofollow": ""
+    }
+   },
+   "widget": "woocommerce-product-title",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-title.min.css de PRO",
+     "id": "widget-woocommerce-product-title-css",
+     "url": "widget-woocommerce-product-title(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

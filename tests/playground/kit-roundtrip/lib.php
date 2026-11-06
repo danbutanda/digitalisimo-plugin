@@ -291,6 +291,12 @@ final class Digi_K_Refs {
 		foreach ( $elements as $element ) {
 			$this->element      = (string) ( $element['id'] ?? '' );
 			$element['settings'] = $this->resolve( (array) ( $element['settings'] ?? array() ) );
+			// La instancia de un widget global de PRO nombra su plantilla fuera de los ajustes (C9). Sin anotarla: la firma
+			// ya la lee del elemento (Digi_K_Signature::elements(), «templateID»).
+			$global = isset( $element['templateID'] ) ? $this->token( $element['templateID'] ) : null;
+			if ( null !== $global ) {
+				$element['templateID'] = $global[0];
+			}
 			$element['elements'] = $this->elements( (array) ( $element['elements'] ?? array() ) );
 			$out[]              = $element;
 		}

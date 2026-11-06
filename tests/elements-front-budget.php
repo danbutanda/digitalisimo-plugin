@@ -173,6 +173,7 @@ namespace {
 	$woo_count = 0;
 	foreach ( $woo_entries as $m ) {
 		if ( ! preg_match( "/'file'\s*=>\s*'([^']+)'/", $m[2], $f ) ) { continue; }
+		if ( preg_match( '#^(single|store)/#', $f[1] ) ) { continue; } // C7: abajo, con sus reglas.
 		$name   = $m[1];
 		$source = (string) file_get_contents( $woo_dir . $f[1] );
 		$woo_count++;
@@ -214,6 +215,59 @@ namespace {
 	}
 	check_budget( 7 === $woo_count, 'Deben revisarse los siete widgets de F4-Woo (' . $woo_count . ').' );
 	$count += $woo_count;
+	// C7 (programa «sin widgets de PRO», docs/pro/c7.md): los widgets de WooCommerce propios que sustituyen a los de PRO
+	// (`single/` y `store/`). Sus recursos están en su carpeta y los registra `Registry::register_assets()` con el nombre
+	// del widget (con defer); pueden heredar el Encabezado, el Botón o la Imagen del núcleo (con su plantilla del editor).
+	// Excepción declarada (decisión del coordinador de C7): carrito, pago, cuenta, resumen y carrito del menú llevan una
+	// segunda hoja (`<widget>-2.css`, registrada por `Store\Base`), cada una en su tope de 4 KB, porque las de PRO pesan de
+	// 11 a 36 KB. Además de Assets::FOREIGN, sólo pueden pedir los handles de WooCommerce que ya pedía el widget de PRO.
+	$c7_foreign = array_merge( $foreign, array( 'wc-cart', 'wc-checkout', 'wc-password-strength-meter', 'selectWoo', 'select2' ) );
+	$c7_count   = 0;
+	$c7_second  = array();
+	foreach ( $woo_entries as $m ) {
+		if ( ! preg_match( "#'file'\s*=>\s*'((?:single|store)/[^']+)'#", $m[2], $f ) || ! preg_match( "/'css'\s*=>\s*'([^']+)'/", $m[2], $c ) || ! preg_match( "/'js'\s*=>\s*'([^']+)'/", $m[2], $j ) ) { continue; }
+		$name   = $m[1];
+		$source = (string) file_get_contents( $woo_dir . $f[1] );
+		$c7_count++;
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		check_budget( ! preg_match( '/loading="(lazy|eager)"|\'loading\'\s*=>|fetchpriority/', $source ), $name . ': ninguna imagen fuerza su carga; lo decide WordPress (o WooCommerce).' );
+		check_budget( 0 === strpos( $c[1], 'modules/digitalisimo-woo/' ) && 0 === strpos( $j[1], 'modules/digitalisimo-woo/' ), $name . ': recursos en su carpeta del módulo.' );
+		check_budget( ! preg_match( '/pro-elements-handlers|elementor-pro-frontend|\bswiper\b|\'jquery\'/i', budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' ) ), $name . ': sin paquetes de PRO, Swiper ni jQuery.' );
+		// Handles literales que declara (también los de constantes `WC_SCRIPTS`/`WC_STYLES`): propios, del núcleo o admitidos.
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( '/const WC_[A-Z]+\s*=\s*array\(([^()]*)\)/', $source, $consts );
+		preg_match_all( '/(?:array\(|\[)([^()\[\]]*)(?:\)|\])/', $declared, $lists );
+		preg_match_all( "/'([a-zA-Z][a-zA-Z0-9_-]*)'/", implode( ',', array_merge( $lists[1], $consts[1] ) ), $handles );
+		foreach ( array_unique( $handles[1] ) as $handle ) {
+			check_budget( in_array( $handle, $c7_foreign, true ) || 0 === strpos( $handle, 'digitalisimo-woo-' ), $name . ': recurso ajeno no admitido (' . $handle . ').' );
+		}
+		$sheets = array( $c[1] );
+		$second = preg_replace( '/\.css$/', '-2.css', $c[1] );
+		if ( is_file( $root . '/' . $second ) ) {
+			$sheets[]    = $second;
+			$c7_second[] = $name;
+		}
+		// La regla de movimiento reducido puede vivir en la primera hoja: la segunda depende de ella y siempre van juntas.
+		$pair = '';
+		foreach ( $sheets as $file ) { $pair .= is_file( $root . '/' . $file ) ? (string) file_get_contents( $root . '/' . $file ) : ''; }
+		foreach ( $sheets as $file ) {
+			if ( ! is_file( $root . '/' . $file ) ) { continue; }
+			$sheet = (string) file_get_contents( $root . '/' . $file );
+			check_budget( strlen( $sheet ) <= $css_cap, $name . ': la hoja ' . basename( $file ) . ' pesa ' . strlen( $sheet ) . ' bytes, más de ' . $css_cap . '.' );
+			check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $sheet ), $name . ': sin url() en la hoja ' . basename( $file ) . '.' );
+			check_budget( ! str_contains( $sheet, '--e-global-' ), $name . ': la hoja ' . basename( $file ) . ' no usa la paleta del kit como valor propio.' );
+			if ( preg_match( '/@keyframes|animation:|transition:/', $sheet ) ) { check_budget( str_contains( $pair, 'prefers-reduced-motion' ), $name . ': la hoja ' . basename( $file ) . ' anima sin respetar prefers-reduced-motion.' ); }
+		}
+		if ( is_file( $root . '/' . $j[1] ) ) {
+			$script = (string) file_get_contents( $root . '/' . $j[1] );
+			check_budget( strlen( $script ) <= $js_cap, $name . ': el script pesa ' . strlen( $script ) . ' bytes, más de ' . $js_cap . '.' );
+			check_budget( ! preg_match( '/\bjQuery\s*\(|\$\(\s*[\'"]/', $script ), $name . ': el script no usa jQuery.' );
+		}
+	}
+	check_budget( 30 === $c7_count, 'Deben revisarse los 30 widgets de WooCommerce de C7 (' . $c7_count . ').' );
+	sort( $c7_second );
+	check_budget( array( 'digitalisimo-woo-cart', 'digitalisimo-woo-checkout', 'digitalisimo-woo-menu-cart', 'digitalisimo-woo-my-account', 'digitalisimo-woo-purchase-summary' ) === $c7_second, 'Sólo carrito, pago, cuenta, resumen y carrito del menú llevan segunda hoja (excepción declarada): ' . implode( ', ', $c7_second ) . '.' );
+	$count += $c7_count;
 	// F7b (frente F): el slider anidado ligero de modules/digitalisimo-f7b/nested/ con las mismas reglas; sus recursos los
 	// registra Nested\Module (`digitalisimo-nested-slider`, con defer y sin dependencias) y el widget sólo declara los suyos.
 	$f7b_dir      = $root . '/modules/digitalisimo-f7b/';
@@ -528,7 +582,178 @@ namespace {
 	}
 	check_budget( 6 === $loop_count, 'Deben revisarse los seis widgets de entradas y bucles propios (' . $loop_count . ').' );
 	$count += $loop_count;
-	check_budget( $count >= 102, 'Deben revisarse los 102 widgets propios (' . $count . ').' );
+	// Formularios propios (programa «sin widgets de PRO», C6, docs/pro/c6.md): el Formulario y el Inicio de sesión de
+	// modules/digitalisimo-forms/ con las mismas reglas. Forms\Module registra la hoja (≤ 4 KB) y, sólo si existe, el
+	// script (≤ 6 KB, defer, sin dependencias) de cada uno: el Formulario envía con fetch y FormData a la misma tubería del
+	// constructor que PRO; el Inicio de sesión no tiene script. El script del editor (`form-editor.js`, ≤ 6 KB, sin jQuery)
+	// sólo se encola en el editor.
+	$fm_dir    = $root . '/modules/digitalisimo-forms/';
+	$fm_module = (string) file_get_contents( $fm_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $fm_module, $fm_entries, PREG_SET_ORDER );
+	check_budget( 2 === count( $fm_entries ), 'Forms\\Module::WIDGETS declara los dos formularios de C6 (' . count( $fm_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $fm_module, $fm_scripts );
+	check_budget( count( $fm_scripts[0] ) >= 2, 'Forms\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $fm_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Forms\\Module: script sin defer o con jQuery.' ); }
+	$fm_count   = 0;
+	$fm_scripts = 0;
+	foreach ( $fm_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $fm_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$fm_count++;
+		$code = preg_replace( '/^\s*(\*|\/\/|\/\*).*$/m', '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/<iframe|<img[\s>]/i', $code ), $name . ': sin JSON-LD, <script>, <iframe> ni <img> propios en la salida.' );
+		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 4 === $i, $name . ': falta su hoja ' . $m[ $i ] ); continue; }
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$fm_scripts++;
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\$\(|jQuery\.(ajax|fn)|\.ajax\(|\bSwiper\b|elementorProFrontend\.config/', $js ), $m[ $i ] . ': sin jQuery, Swiper ni la configuración de PRO.' );
+				check_budget( ! preg_match( '#https?://(?!www\.w3\.org/)#', $js ), $m[ $i ] . ': ninguna dirección de terceros en el script.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	foreach ( glob( $fm_dir . 'assets/js/*-editor.js' ) as $editor ) {
+		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\b|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );
+	}
+	check_budget( 2 === $fm_count && 1 === $fm_scripts, 'Deben revisarse los dos formularios propios, con un solo script del sitio (' . $fm_count . ', ' . $fm_scripts . ').' );
+	$count += $fm_count;
+	// Botones flotantes y Link in Bio propios (programa «sin widgets de PRO», C8, docs/pro/c8.md): los tres widgets de
+	// modules/digitalisimo-floating/ con las mismas reglas. Floating\Module registra la hoja común (≤ 4 KB), una hoja por
+	// presentación (`<nombre sin digitalisimo->-<n>.css`) y, sólo si existe, el script (≤ 8 KB, defer, sin dependencias) más
+	// el recuento de clics compartido (`floating-track.js`, ≤ 2 KB). Excepciones documentadas (docs/ELEMENTS_FRONT_OBJECTIVE.md):
+	// cada hoja de presentación hasta 12 KB (12 288 B), porque repite la base del núcleo de su familia (sus ~50 variables por
+	// defecto y sus reglas de alineación, tamaños y animaciones; PRO cargaba 12–32 KB por variante) y la página sólo carga la de
+	// su presentación; `get_style_depends()` declara las hojas Font Awesome del núcleo (`elementor-icons-fa-*`, como PRO, sólo
+	// sin el experimento `e_font_icon_svg`); los renders viven en `class-*-render.php` del módulo y pintan con `<img>` escapado
+	// la imagen que sólo es una URL (sin adjunto), como el núcleo.
+	$fl_dir    = $root . '/modules/digitalisimo-floating/';
+	$fl_module = (string) file_get_contents( $fl_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $fl_module, $fl_entries, PREG_SET_ORDER );
+	check_budget( 3 === count( $fl_entries ), 'Floating\\Module::WIDGETS declara los tres widgets de C8 (' . count( $fl_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $fl_module, $fl_scripts );
+	check_budget( count( $fl_scripts[0] ) >= 2, 'Floating\\Module registra los scripts de los widgets y el del recuento de clics.' );
+	foreach ( $fl_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Floating\\Module: script sin defer o con jQuery.' ); }
+	preg_match( "/const PRESENTATIONS = array\((.*?)\n\t\);/s", $fl_module, $fl_pres_block );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^)]*)\)/", $fl_pres_block[1] ?? '', $fl_pres, PREG_SET_ORDER );
+	$fl_presentations = array();
+	foreach ( $fl_pres as $p ) { preg_match_all( "/'(\d+)'/", $p[2], $nums ); $fl_presentations[ $p[1] ] = $nums[1]; }
+	check_budget( 17 === array_sum( array_map( 'count', $fl_presentations ) ), 'Floating\\Module::PRESENTATIONS declara las 17 presentaciones (' . array_sum( array_map( 'count', $fl_presentations ) ) . ').' );
+	$fl_track = $root . '/modules/digitalisimo-floating/assets/js/floating-track.js';
+	check_budget( is_file( $fl_track ) && filesize( $fl_track ) <= 2048, 'floating-track.js: recuento de clics ≤ 2 KB.' );
+	$fl_count  = 0;
+	$fl_sheets = 0;
+	// `$common`: la hoja común, de la que depende la de cada presentación (se carga siempre con ella); su regla de
+	// movimiento reducido cubre las animaciones de la de presentación.
+	$fl_css_check = static function ( string $path, int $cap, string $common = '' ) {
+		check_budget( is_file( $path ), 'Falta la hoja ' . basename( $path ) );
+		check_budget( filesize( $path ) <= $cap, basename( $path ) . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+		$text = (string) file_get_contents( $path );
+		check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), basename( $path ) . ': sin url() ni la paleta del kit.' );
+		check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text . $common, 'prefers-reduced-motion' ), basename( $path ) . ': anima sin respetar el movimiento reducido.' );
+	};
+	foreach ( $fl_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $fl_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$fl_count++;
+		$family = substr( basename( $m[2], '.php' ), 6 );
+		$renders = glob( $fl_dir . 'class-' . ( 'floating-bar' === $family ? 'bar' : ( 'contact-buttons' === $family ? 'contact' : 'bio' ) ) . '-*.php' );
+		foreach ( array_merge( array( $fl_dir . $m[2] ), $renders ) as $file ) {
+			$text = (string) file_get_contents( $file );
+			$code = preg_replace( '/^\s*(\*|\/\/|\/\*).*$/m', '', $text );
+			check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), basename( $file ) . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+			check_budget( ! str_contains( $text, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $text ) && ! preg_match( '/<iframe/i', $code ), basename( $file ) . ': sin JSON-LD, <script> ni <iframe> propios en la salida.' );
+			check_budget( ! preg_match( '/<img[\s>]/', $code ) || ( str_contains( $code, 'wp_get_attachment_image(' ) && str_contains( $code, 'esc_url(' ) ), basename( $file ) . ': <img> a mano sólo para la imagen sin adjunto (escapada), y con wp_get_attachment_image() si hay adjunto.' );
+		}
+		$fl_css_check( $root . '/' . $m[3], 4096 );
+		$fl_common = (string) file_get_contents( $root . '/' . $m[3] );
+		foreach ( $fl_presentations[ $name ] ?? array() as $n ) {
+			$fl_css_check( $root . '/' . substr( $m[3], 0, -4 ) . '-' . $n . '.css', 12288, $fl_common );
+			$fl_sheets++;
+		}
+		if ( is_file( $root . '/' . $m[4] ) ) {
+			check_budget( filesize( $root . '/' . $m[4] ) <= 8192, $m[4] . ' pesa ' . filesize( $root . '/' . $m[4] ) . ' B, más de 8192.' );
+			$js = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( $root . '/' . $m[4] ) );
+			check_budget( ! preg_match( '/\bjQuery\s*[(.]|\$\(|\bSwiper\b|elementorProFrontend/', $js ), $m[4] . ': sin jQuery, Swiper ni PRO.' );
+			check_budget( ! preg_match( '#https?://(?!www\.w3\.org/)#', $js ), $m[4] . ': ninguna dirección de terceros en el script.' );
+		} else {
+			check_budget( 'digitalisimo-link-in-bio' === $name, $name . ': falta su script ' . $m[4] );
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ) || in_array( $handle, array( 'elementor-icons-fa-solid', 'elementor-icons-fa-brands', 'elementor-icons-fa-regular' ), true ), $name . ': sólo recursos propios o del núcleo (' . $handle . ').' ); }
+	}
+	check_budget( 3 === $fl_count && 17 === $fl_sheets, 'Deben revisarse los tres widgets de C8 y sus 17 hojas de presentación (' . $fl_count . ', ' . $fl_sheets . ').' );
+	$count += $fl_count;
+	// Servicios y plantillas propios (programa «sin widgets de PRO», C9, docs/pro/c9.md): los siete widgets de
+	// modules/digitalisimo-services/ con las mismas reglas. Services\Module registra los recursos por archivo: el handle
+	// es `Module::handle()` (`digitalisimo-<archivo>`), así que los cuatro de Facebook comparten `digitalisimo-facebook` y
+	// los dos de pago `digitalisimo-payment-button` (una página con varios los carga una vez); la Plantilla no tiene hoja
+	// ni script. Excepciones documentadas: el script de Facebook nombra el SDK del servicio (`connect.facebook.net`), que
+	// sólo pide tras el clic en la fachada (lo comprueba `elements-pro-facebook-chrome.mjs`); el botón de PayPal envía su
+	// formulario a la dirección de PayPal (el `action`, en PHP, como PRO). Que ningún secreto llega al navegador lo
+	// comprueba `elements-pro-payments.php`.
+	$sv_dir    = $root . '/modules/digitalisimo-services/';
+	$sv_module = (string) file_get_contents( $sv_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $sv_module, $sv_entries, PREG_SET_ORDER );
+	check_budget( 7 === count( $sv_entries ), 'Services\\Module::WIDGETS declara los siete widgets de C9 (' . count( $sv_entries ) . ').' );
+	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $sv_module, $sv_registrations );
+	check_budget( count( $sv_registrations[0] ) >= 2, 'Services\\Module registra los scripts del sitio y del editor.' );
+	foreach ( $sv_registrations[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Services\\Module: script sin defer o con jQuery.' ); }
+	check_budget( str_contains( $sv_module, "return 'digitalisimo-' . preg_replace(" ), 'Services\\Module::handle() deriva el handle propio del archivo.' );
+	$sv_count   = 0;
+	$sv_handles = array();
+	$sv_checked = array();
+	foreach ( $sv_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $sv_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$sv_count++;
+		// El widget y la base común que hereda (Facebook, botón de pago), sin comentarios.
+		foreach ( array( 'Facebook' => 'class-facebook.php', 'Payment_Button' => 'class-payment-button.php' ) as $base => $file ) {
+			if ( preg_match( '/\b' . $base . '\b/', $source ) ) { $source .= (string) file_get_contents( $sv_dir . $file ); }
+		}
+		$code = preg_replace( array( '#/\*.*?\*/#s', '/^\s*(\*|\/\/).*$/m' ), '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $code ) && ! preg_match( '/<iframe|<img[\s>]/i', $code ), $name . ': sin JSON-LD, <script>, <iframe> ni <img> propios en la salida.' );
+		$sv_handles[ $name ] = array( 'css' => 'digitalisimo-' . basename( $m[3], '.css' ), 'js' => 'digitalisimo-' . basename( $m[4], '.js' ) );
+		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 'digitalisimo-template' === $name, $name . ': falta su recurso ' . $m[ $i ] ); continue; }
+			if ( isset( $sv_checked[ $m[ $i ] ] ) ) { continue; }
+			$sv_checked[ $m[ $i ] ] = true;
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta global.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$js = preg_replace( '#/\*.*?\*/#s', '', $text );
+				check_budget( ! preg_match( '/\bjQuery\s*[(.]|\$\(|\bSwiper\b|elementorProFrontend|DOMPurify/', $js ), $m[ $i ] . ': sin jQuery, Swiper, DOMPurify ni PRO.' );
+				preg_match_all( '#https?://([a-z0-9.-]+)#i', $js, $hosts );
+				foreach ( $hosts[1] as $host ) { check_budget( 'www.w3.org' === $host || ( 'connect.facebook.net' === $host && str_ends_with( $m[ $i ], '/facebook.js' ) ), $m[ $i ] . ': dirección de terceros no declarada (' . $host . ').' ); }
+			}
+		}
+		check_budget( str_contains( $source, 'Module::style_depends( $this->get_name() )' ) && str_contains( $source, 'Module::script_depends( $this->get_name() )' ), $name . ': recursos sólo por Module::style_depends()/script_depends().' );
+	}
+	check_budget( array( 'digitalisimo-facebook' ) === array_values( array_unique( array_column( array_intersect_key( $sv_handles, array_flip( array( 'digitalisimo-facebook-button', 'digitalisimo-facebook-comments', 'digitalisimo-facebook-embed', 'digitalisimo-facebook-page' ) ) ), 'css' ) ) ), 'Los cuatro de Facebook comparten la hoja digitalisimo-facebook.' );
+	check_budget( array( 'digitalisimo-payment-button' ) === array_values( array_unique( array_column( array_intersect_key( $sv_handles, array_flip( array( 'digitalisimo-paypal-button', 'digitalisimo-stripe-button' ) ) ), 'js' ) ) ), 'Los dos de pago comparten el script digitalisimo-payment-button.' );
+	$fb_js = (string) file_get_contents( $sv_dir . 'assets/js/facebook.js' );
+	check_budget( str_contains( $fb_js, "'click'" ) && str_contains( $fb_js, 'XFBML.parse' ), 'facebook.js: el SDK sólo tras el clic en la fachada.' );
+	check_budget( 7 === $sv_count, 'Deben revisarse los siete widgets de servicios propios (' . $sv_count . ').' );
+	$count += $sv_count;
+	check_budget( $count >= 144, 'Deben revisarse los 144 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );
