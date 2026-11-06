@@ -8,6 +8,10 @@
 #     reales por REST (un cambio posterior vuelve atrás) y la frase rechazada en la URL;
 #     la cola sólo avanza por POST /jobs/tick y WP-CLI (setup.php corta el loopback de WP-Cron), así que el trabajo
 #     que se cancela sigue en cola;
+#   - «Seguridad» en REST y WP-CLI con un .dgbk pequeño cifrado con una frase que el sitio no tiene: sin ella, error
+#     claro con la huella corta (400 secret_required; WP-CLI con --secret-file o --secret-stdin), frase equivocada 422
+#     sin repetirla y, con la buena (en el cuerpo o en --secret-file), lo descifrado no supera la validación de archivos
+#     no confiables y no queda en claro; ninguna respuesta lleva la frase ni la huella completa;
 #   - en la red, los medios de un subsitio con upload_path fuera de ABSPATH: el estado lo explica y crear responde 422;
 #   - WP-CLI real (wp-cli.phar dentro de Playground): ayuda generada del PHPDoc, --confirm obligatorio, sin --secret en
 #     la línea de órdenes, status, list, verify, automation list, create (hasta terminar y --async) y jobs list y

@@ -3,7 +3,7 @@
 // resultado en <dir>/result.txt («ok · …» o «FALLA · …») y termina con TERMINADO.
 // Uso: node check.mjs <modo single|multisite> <puerto> <host> <dir>
 import http from 'node:http';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 
 const [mode, port, host, dir] = process.argv.slice(2);
 const setup = JSON.parse(readFileSync(`${dir}/probe/setup.json`, 'utf8'));
@@ -170,6 +170,36 @@ try {
   check(Array.isArray(parsed) && parsed.some((row) => row.file === backup.file), 'wp digitalisimo-backups list --format=json', out.stdout + out.stderr);
   out = await wp('digitalisimo-backups', 'verify', backup.file);
   check(out.stdout.includes(`Success: Respaldo íntegro: ${backup.file}`), 'wp digitalisimo-backups verify', out.stdout + out.stderr);
+  // «Seguridad» en las dos superficies, con un .dgbk pequeño (sodium_compat cifra unos 11 s por MiB en php-wasm) cifrado
+  // con una frase que este sitio no tiene. Sin ella, REST y WP-CLI dan un error claro con la huella corta y dónde va la
+  // frase; una frase equivocada se rechaza sin repetirla; con la buena, lo descifrado pasa por la validación de archivos
+  // no confiables, que lo rechaza porque no es un respaldo, sin dejar el contenido en claro. Ninguna respuesta lleva la
+  // frase ni la huella completa.
+  const sealed = 'digitalisimo-backup-ajeno-20261106-000000-0a0b0c0d.dgbk';
+  const phrase = 'frase del ensayo que este sitio no conoce';
+  out = await wp('eval', `Digitalisimo_Backups_Sodium::available(); $kdf = Digitalisimo_Backups_Keys::new_kdf(); $root = Digitalisimo_Backups_Keys::derive( '${phrase}', $kdf ); $id = Digitalisimo_Backups_Keys::key_id( $root ); $src = '/digi-probe/ajeno.bin'; file_put_contents( $src, str_repeat( 'no es un respaldo ', 256 ) ); Digitalisimo_Backups_Encrypted_File::encrypt( $src, DIGITALISIMO_BACKUPS_STORAGE_DIR . '/${sealed}', $root, Digitalisimo_Backups_Keys::descriptor( $id, 'passphrase', $kdf ), array( 'backup_id' => wp_generate_uuid4(), 'created_at' => gmdate( 'c' ), 'plugin_version' => DIGITALISIMO_BACKUPS_VERSION, 'multisite' => is_multisite() ) ); unlink( $src ); echo $id;`);
+  const keyId = out.stdout.trim();
+  const short = keyId.slice(0, 8);
+  const leaks = (text) => text.includes(phrase) || text.includes(keyId);
+  if (check(/^[0-9a-f]{32}$/.test(keyId) && !out.fatal, '.dgbk cifrado con una frase que el sitio no tiene', out.stdout + out.stderr + out.fatal)) {
+    res = await api('GET', `/backups/${sealed}/verify`, { headers: basic('admin') });
+    check(res.status === 400 && res.json?.code === 'digitalisimo_backups_secret_required' && res.json?.data?.key === short && res.json?.message?.includes(`cifrado con la clave ${short}`) && res.json?.message?.includes('en el cuerpo de la petición') && !leaks(res.text), 'REST: un .dgbk sin su clave da un error claro (400 secret_required, huella corta)', `${res.status} ${res.text}`);
+    res = await api('POST', `/backups/${sealed}/restore`, { headers: basic('admin'), body: { confirm: 'RESTAURAR', ...(network ? { network: true } : {}) } });
+    check(res.status === 400 && res.json?.code === 'digitalisimo_backups_secret_required' && !leaks(res.text), 'REST: restaurar un .dgbk sin la frase no empieza (400)', `${res.status} ${res.text}`);
+    res = await api('POST', `/backups/${sealed}/verify`, { headers: basic('admin'), body: { secret: 'otra frase equivocada pero larga' } });
+    check(res.status === 422 && res.json?.code === 'digitalisimo_backups_invalid' && /no corresponde a la clave/.test(res.json?.message || '') && !res.text.includes('equivocada') && !leaks(res.text), 'REST: una frase equivocada responde 422 sin repetirla', `${res.status} ${res.text}`);
+    res = await api('POST', `/backups/${sealed}/verify`, { headers: basic('admin'), body: { secret: phrase } });
+    let staging = [];
+    try { staging = readdirSync(`${dir}/store/.staging`); } catch { /* sin carpeta de trabajo */ }
+    check(res.status === 422 && res.json?.code === 'digitalisimo_backups_invalid' && res.json?.message === 'El contenido descifrado no es un ZIP válido.' && !leaks(res.text) && staging.length === 0, 'REST: con la frase en el cuerpo, lo descifrado no supera la validación y no queda en claro (422)', `${res.status} ${res.text} · .staging: ${staging.join(', ')}`);
+    out = await wp('digitalisimo-backups', 'verify', sealed);
+    check(out.stderr.includes(`Error: Este respaldo está cifrado con la clave ${short}.`) && out.stderr.includes('--secret-file=<ruta> o --secret-stdin') && !leaks(out.stdout + out.stderr), 'WP-CLI: un .dgbk sin su clave da un error claro con --secret-file o --secret-stdin', out.stdout + out.stderr);
+    writeFileSync(`${dir}/probe/frase.txt`, `${phrase}\n`, { mode: 0o600 });
+    out = await wp('digitalisimo-backups', 'verify', sealed, '--secret-file=/digi-probe/frase.txt');
+    check(out.stderr.includes('Error: El contenido descifrado no es un ZIP válido.') && !leaks(out.stdout + out.stderr), 'WP-CLI: con --secret-file, lo descifrado no supera la validación', out.stdout + out.stderr);
+    rmSync(`${dir}/probe/frase.txt`, { force: true });
+    await wp('eval', `unlink( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/${sealed}' );`);
+  }
   out = await wp('digitalisimo-backups', 'restore', backup.file);
   check(/missing --confirm parameter/i.test(out.stderr + out.stdout) && !/Restauración terminada/.test(out.stdout), 'wp digitalisimo-backups restore sin --confirm no corre', out.stdout + out.stderr);
   out = await wp('digitalisimo-backups', 'automation', 'list', '--format=json');
