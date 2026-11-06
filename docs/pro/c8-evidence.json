@@ -1,0 +1,608 @@
+{
+ "fecha": "2026-11-05",
+ "etapa": "C8",
+ "pro_ab": {
+  "casos": {
+   "cb-1-defaults": {
+    "widget": "contact-buttons-var-1",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 27,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-1-links": {
+    "widget": "contact-buttons-var-1",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 27,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-3-defaults": {
+    "widget": "contact-buttons-var-3",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 18,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-3-links": {
+    "widget": "contact-buttons-var-3",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 18,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-4-defaults": {
+    "widget": "contact-buttons-var-4",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 18,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-4-links": {
+    "widget": "contact-buttons-var-4",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-5-defaults": {
+    "widget": "contact-buttons-var-5",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-5-links": {
+    "widget": "contact-buttons-var-5",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-6-defaults": {
+    "widget": "contact-buttons-var-6",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 26,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-6-links": {
+    "widget": "contact-buttons-var-6",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 26,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-7-defaults": {
+    "widget": "contact-buttons-var-7",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-7-links": {
+    "widget": "contact-buttons-var-7",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 12,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-8-defaults": {
+    "widget": "contact-buttons-var-8",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 36,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-8-links": {
+    "widget": "contact-buttons-var-8",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 21,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-9-defaults": {
+    "widget": "contact-buttons-var-9",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-9-links": {
+    "widget": "contact-buttons-var-9",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-10-defaults": {
+    "widget": "contact-buttons-var-10",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 9,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "cb-10-links": {
+    "widget": "contact-buttons-var-10",
+    "destino": "digitalisimo-contact-buttons",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 3,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fb-2-defaults": {
+    "widget": "floating-bars-var-2",
+    "destino": "digitalisimo-floating-bar",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fb-3-defaults": {
+    "widget": "floating-bars-var-3",
+    "destino": "digitalisimo-floating-bar",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0011,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 19,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fb-2-links": {
+    "widget": "floating-bars-var-2",
+    "destino": "digitalisimo-floating-bar",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0.0264
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fb-3-copy": {
+    "widget": "floating-bars-var-3",
+    "destino": "digitalisimo-floating-bar",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0011,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 24,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "fb-3-text": {
+    "widget": "floating-bars-var-3",
+    "destino": "digitalisimo-floating-bar",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 15,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-2-defaults": {
+    "widget": "link-in-bio-var-2",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0193,
+     "768": 0.0093,
+     "1280": 0.0055
+    },
+    "declaradas": 17,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-2-content": {
+    "widget": "link-in-bio-var-2",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0185,
+     "768": 0.0091,
+     "1280": 0.0054
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-3-defaults": {
+    "widget": "link-in-bio-var-3",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0274,
+     "768": 0.0119,
+     "1280": 0.007
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-3-content": {
+    "widget": "link-in-bio-var-3",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0206,
+     "768": 0.0096,
+     "1280": 0.0057
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-4-defaults": {
+    "widget": "link-in-bio-var-4",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0301,
+     "768": 0.0146,
+     "1280": 0.0087
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-4-content": {
+    "widget": "link-in-bio-var-4",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0242,
+     "768": 0.012,
+     "1280": 0.0071
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-5-defaults": {
+    "widget": "link-in-bio-var-5",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0184,
+     "768": 0.0089,
+     "1280": 0.0053
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-5-content": {
+    "widget": "link-in-bio-var-5",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0176,
+     "768": 0.0087,
+     "1280": 0.0052
+    },
+    "declaradas": 20,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-6-defaults": {
+    "widget": "link-in-bio-var-6",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0203,
+     "768": 0.0092,
+     "1280": 0.0054
+    },
+    "declaradas": 11,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-6-content": {
+    "widget": "link-in-bio-var-6",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0162,
+     "768": 0.0076,
+     "1280": 0.0045
+    },
+    "declaradas": 11,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-7-defaults": {
+    "widget": "link-in-bio-var-7",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0307,
+     "768": 0.0147,
+     "1280": 0.0087
+    },
+    "declaradas": 41,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-7-content": {
+    "widget": "link-in-bio-var-7",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0236,
+     "768": 0.011,
+     "1280": 0.0065
+    },
+    "declaradas": 38,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-2-style": {
+    "widget": "link-in-bio-var-2",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0169,
+     "768": 0.0081,
+     "1280": 0.0048
+    },
+    "declaradas": 17,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-4-links-type": {
+    "widget": "link-in-bio-var-4",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.0251,
+     "768": 0.0116,
+     "1280": 0.0069
+    },
+    "declaradas": 17,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   },
+   "lib-7-style": {
+    "widget": "link-in-bio-var-7",
+    "destino": "digitalisimo-link-in-bio",
+    "mapa": "ready",
+    "pixeles_normal": {
+     "375": 0.027,
+     "768": 0.0129,
+     "1280": 0.0077
+    },
+    "declaradas": 41,
+    "sin_motivo": 0,
+    "problemas": 0,
+    "codigos": []
+   }
+  },
+  "resumen": {
+   "casos": 38,
+   "con_problemas": 0,
+   "problemas_globales": 0,
+   "nota": "Los 32 problemas de la corrida abc8 eran de cb-8-links y fb-2-links (navegación agotada con la unidad congelada); repetidos en abr, en verde. Los casos de este archivo son los de la última medición de cada uno."
+  }
+ },
+ "corridas": "/data/digi-tmp/c8int/ (tras fusionar C4 y C3; Playground desde una copia fija del árbol y con el guard de actualizaciones)",
+ "nota_pro_ab": "38 casos de C8 con el arnés corregido (captura sin captureBeyondViewport cuando el recorte cabe en la ventana): 36 en la corrida abc8 (2 518 s) y cb-8-links y fb-2-links repetidos en abr (navegación agotada mientras el guardián tenía la unidad congelada). Regresión: 37 casos *-defaults de C0–C4 en abd (1 715 s), en verde.",
+ "regresion_c0_c4": {
+  "casos": 37,
+  "sin_motivo": 0,
+  "problemas": 0
+ },
+ "validate_yml": {
+  "comandos": 335,
+  "detalle": "335 de la lista de validate.yml (tras fusionar C3) más node --check del servidor MCP y validate-suite con los ZIP: 332 en verde en la tanda; elements-pro-table-of-contents-chrome, elements-pro-gallery-chrome y elements-pro-search-form-chrome (C2/C4) fallaron con la máquina cargada y pasan solas; elements-pro-floating-chrome en verde en las dos pasadas"
+ },
+ "pruebas_c8": {
+  "elements-pro-floating.php": 10087,
+  "elements-pro-link-in-bio.php": 7101,
+  "elements-pro-floating-chrome.mjs": 52,
+  "elements-convert.php": "catálogo de 102, 56 mapas",
+  "migration-pro.php": 206,
+  "elements-front-budget.php": "99 widgets propios",
+  "elements-front-cases.php": 1448
+ },
+ "pro_migrate": {
+  "ok": 37,
+  "c8": "documento de botones flotantes (Multi Chat con CSS), documento de barra (Coupon), página Link in Bio (Classic y Business Card con CSS) y cabecera (Interactive): 5 variantes en 4 documentos, con su presentación y el CSS traducido; 52 widgets en 11 documentos en la primera pasada; --revert devuelve las variantes de PRO"
+ },
+ "front_budget": {
+  "caso": "floating",
+  "peticiones": 34,
+  "peticiones_vacia": 24,
+  "widgets": 3,
+  "hojas_propias": 6,
+  "bytes_hojas_variante_nucleo": 0,
+  "proHandlers": false,
+  "proFrontend": false,
+  "swiper": false,
+  "errores": 0,
+  "cls": 0.046,
+  "problemas": 0
+ },
+ "empaquetado": {
+  "build_packages": "BUNDLED CORE, REFERENCE LEAK, LEGACY MENTION y THEME en PASS; 41 entradas de modules/digitalisimo-floating/ en el ZIP",
+  "validate_suite": "rc=0",
+  "verify_release": "rc=0",
+  "migracion": "ZIP idéntico al 1.0.24 publicado (598 archivos)"
+ },
+ "kit_roundtrip": {
+  "escenarios": "R4, núcleo incluido, sin WooCommerce",
+  "duracion_s": 840,
+  "aceptacion": {
+   "A1": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A14": "ok",
+   "A13": "falla por tiempo: import-runner 25,7–30,7 s por petición, también con la versión de referencia 4.3.0.163 (máquina cargada, unidad limitada por el guardián)"
+  }
+ },
+ "interaction": {
+  "estado": "pendiente: se repite una vez tras fusionar C5",
+  "detalle": "35 comprobaciones de front en verde en tres corridas; el paso del editor (editor-pro) se cortó por congelaciones del guardián (Navigation timeout de 180 s)",
+  "substituted": "17 variantes de C8 (Botones y Barra con ownHidden)"
+ }
+}
