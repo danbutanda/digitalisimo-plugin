@@ -511,7 +511,10 @@ namespace {
 	$frontend = (string) file_get_contents( $root . '/elementor/includes/frontend.php' );
 	check_actions( false !== strpos( $frontend, "apply_filters( 'elementor/frontend/builder_content_data', \$data, \$post_id )" ), 'builder_content_data corre en cada documento impreso.' );
 	$skin = (string) file_get_contents( $root . '/modules/posts/skins/skin-base.php' ) . file_get_contents( $root . '/modules/posts/traits/button-widget-trait.php' );
-	check_actions( false !== strpos( $skin, '<div class="e-load-more-anchor"' ) && false !== strpos( $skin, "'wrapper', 'class', 'elementor-button-wrapper'" ) && false !== strpos( $js, "'.e-load-more-anchor+.elementor-button-wrapper .elementor-button'" ), '«Cargar más» pulsa el botón que sigue al ancla de PRO.' );
+	check_actions( false !== strpos( $skin, '<div class="e-load-more-anchor"' ) && false !== strpos( $skin, "'wrapper', 'class', 'elementor-button-wrapper'" ) && false !== strpos( $js, "'.e-load-more-anchor+.elementor-button-wrapper .elementor-button,.digi-loop__anchor+.digi-loop__more .elementor-button'" ), '«Cargar más» pulsa el botón que sigue al ancla de PRO.' );
+	// Y el de las Cuadrículas propias de C5: el ancla y, justo después, «Cargar más» (`Posts_Base::render_pagination()`).
+	$own_loop = (string) file_get_contents( $root . '/modules/digitalisimo-loop/class-posts-base.php' );
+	check_actions( (bool) preg_match( '/<div class="digi-loop__anchor"[^;]*;\s*if \( self::LOAD_MORE_ON_CLICK === \$type \) \{\s*\$this->render_button\(\);/', $own_loop ) && false !== strpos( $own_loop, '<div class="digi-loop__more elementor-button-wrapper"><a class="' ), '«Cargar más» también en las Cuadrículas propias: el botón sigue al ancla propia.' );
 
 	echo 'DIGITALÍSIMO Elements F7b: acciones con destino validadas (' . $GLOBALS['checks'] . " comprobaciones).\n";
 }

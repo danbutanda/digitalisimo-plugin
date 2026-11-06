@@ -34,7 +34,8 @@ defined( 'ABSPATH' ) || exit;
  *
  *     <span class="digi-loop__spinner">{icono}</span>                       ← sólo con «Cargar más» o infinita y cargador
  *     <div class="digi-loop__anchor" data-page="1" data-max-page="3" data-next-page="URL" data-digi-more="click|infinite"></div>
- *     <div class="digi-loop__more"><button type="button" class="elementor-button elementor-size-sm">…</button></div>
+ *     <div class="digi-loop__more elementor-button-wrapper"><a class="elementor-button elementor-size-sm">
+ *       <span class="elementor-button-content-wrapper" role="button" tabindex="0">…</span></a></div>
  *     <div class="digi-loop__message">…</div><span class="digi-loop__status elementor-screen-only" aria-live="polite"></span>
  *     <nav class="digi-loop__pagination" aria-label="Paginación">… .page-numbers …</nav>   ← números y anterior/siguiente
  *
@@ -1620,8 +1621,12 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 	}
 
 	/**
-	 * Botón «Cargar más»: un `<button>` (PRO pintaba un enlace a `#`), con las clases del botón del núcleo, su icono y su
-	 * texto, dentro de `.digi-loop__more`.
+	 * Botón «Cargar más», dentro de `.digi-loop__more`: el mismo elemento que PRO (`<a class="elementor-button …">` sin
+	 * `href` ni `tabindex`, con las clases del botón del núcleo, su icono y su texto), para que los estilos del tema y del
+	 * kit le lleguen igual (con Hello, `a:not([href]):not([tabindex])` hereda el color, como en PRO; un `<button>` recibía
+	 * en cambio los estilos de botón del tema y del kit). El control para el teclado y los lectores de pantalla es su
+	 * contenido (`role="button"`, `tabindex="0"`), que `loop.js` activa con Intro y Espacio: PRO no lo ofrecía y no
+	 * cambia lo que se ve.
 	 */
 	public function render_button() {
 		$settings = $this->get_settings_for_display();
@@ -1639,7 +1644,7 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 		}
 		$id = ! empty( $settings['button_css_id'] ) ? ' id="' . esc_attr( (string) $settings['button_css_id'] ) . '"' : '';
 
-		echo '<div class="digi-loop__more elementor-button-wrapper"><button type="button" class="' . esc_attr( implode( ' ', $classes ) ) . '"' . $id . '><span class="elementor-button-content-wrapper">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $id escapado.
+		echo '<div class="digi-loop__more elementor-button-wrapper"><a class="' . esc_attr( implode( ' ', $classes ) ) . '"' . $id . '><span class="elementor-button-content-wrapper" role="button" tabindex="0">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $id escapado.
 		if ( ! empty( $icon['value'] ) || '' !== $legacy ) {
 			echo '<span class="elementor-button-icon">';
 			if ( ! empty( $icon['value'] ) && class_exists( '\Elementor\Icons_Manager' ) ) {
@@ -1652,6 +1657,6 @@ abstract class Posts_Base extends \Elementor\Widget_Base {
 		if ( '' !== $text ) {
 			echo '<span class="elementor-button-text">' . wp_kses_post( $text ) . '</span>';
 		}
-		echo '</span></button></div>';
+		echo '</span></a></div>';
 	}
 }

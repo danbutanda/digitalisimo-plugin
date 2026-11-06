@@ -648,5 +648,719 @@
   "editor_pro": "45 widgets de PRO sustituidos (6 de C5) registrados y ocultos; la búsqueda ofrece los propios",
   "nota": "Con EDITOR_MS=900000: el editor tarda ~240 s en abrir en la máquina cargada y dos REST del núcleo pasan su tope de 40 s (descontados y anotados); origin/main falla igual sin la espera ampliada. Una corrida anterior encontró el fallo de la vista previa de la Cuadrícula propia, ya corregido."
  },
- "suite": "335 comandos de validate.yml en verde con todos los cambios (tras fusionar C3 y C4), más validate-suite.mjs y verify-release.mjs"
+ "suite": "335 comandos de validate.yml en verde con todos los cambios (tras fusionar C3 y C4), más validate-suite.mjs y verify-release.mjs",
+ "correcciones_fidelidad": {
+  "fecha": "2026-11-06",
+  "rama": "fix/fidelity-loops",
+  "pro_ab": {
+   "casos": {
+    "ap-defaults": {
+     "destino": "digitalisimo-archive-posts",
+     "pixeles_normal": {
+      "375": 19.89,
+      "768": 0.99,
+      "1280": 0.74
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "ap-cards": {
+     "destino": "digitalisimo-archive-posts",
+     "pixeles_normal": {
+      "375": 14.56,
+      "768": 0.66,
+      "1280": 1.17
+     },
+     "declaradas": 24,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "ap-nothing": {
+     "destino": "digitalisimo-archive-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-defaults": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-columns": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-numbers": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 12,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-ajax": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 12,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-alternate": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-nothing": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-terms": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-filter": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-more": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 12,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-masonry": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-masonry-em": {
+     "destino": "digitalisimo-loop-grid",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-defaults": {
+     "destino": "digitalisimo-portfolio",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0.31
+     },
+     "declaradas": 2,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-styled": {
+     "destino": "digitalisimo-portfolio",
+     "pixeles_normal": {
+      "375": 0.56,
+      "768": 1.0,
+      "1280": 1.42
+     },
+     "declaradas": 2,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-filter": {
+     "destino": "digitalisimo-portfolio",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0.26
+     },
+     "declaradas": 66,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-masonry-gap": {
+     "destino": "digitalisimo-portfolio",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 2,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-defaults": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 14.93,
+      "768": 0.61,
+      "1280": 0.78
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-classic-left": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 14.49,
+      "768": 0.8,
+      "1280": 1.57
+     },
+     "declaradas": 24,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-classic-none": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 2,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 14.93,
+      "768": 0.61,
+      "1280": 0.78
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards-styled": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0.3,
+      "768": 1.06,
+      "1280": 1.57
+     },
+     "declaradas": 24,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards-none": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 20,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-masonry": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-masonry-em": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-full": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0.26,
+      "768": 1.77,
+      "1280": 1.88
+     },
+     "declaradas": 0,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-numbers": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0.28,
+      "768": 0,
+      "1280": 0.12
+     },
+     "declaradas": 30,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-prevnext": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0.3,
+      "768": 0.99,
+      "1280": 0.74
+     },
+     "declaradas": 24,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-load-more": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 0,
+      "768": 0.09,
+      "1280": 0.08
+     },
+     "declaradas": 30,
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-infinite": {
+     "destino": "digitalisimo-posts",
+     "pixeles_normal": {
+      "375": 7.63,
+      "768": 0,
+      "1280": 0.09
+     },
+     "declaradas": 36,
+     "sin_motivo": 0,
+     "estado": "OK"
+    }
+   },
+   "resumen": {
+    "casos": 31,
+    "con_problemas": 0,
+    "duracion_s": 2023,
+    "nota": "Casos de Entradas, Entradas del archivo, Portafolio y Cuadrícula de bucle tras las correcciones de fidelidad (paginación, mampostería, «Cargar más», filtro del Portafolio, «All» y «Pages:»), con los casos nuevos po-masonry-em, lg-masonry-em y pf-masonry-gap. lg-masonry pasa de 10,1 % y 6,86 % (768 y 1 280 px, con pixels.max 0,12) a 0 %; lg-ajax, de 0,06 % a 0 %; po-numbers a 1 280 px, de 1,29 % a 0,12 % (sólo la franja de la imagen, diferencia 6); pf-filter, de 1,71 % a 0,26 % a 1 280 px, sin las declaraciones de «All»/«Todos» ni de cursor y foco sobre otro control. Salida: /var/tmp/digi-run/fid-loops-ab1-out/pro-ab.json."
+   }
+  },
+  "chrome": "tests/elements-pro-posts-chrome.mjs: 210 comprobaciones («Cargar más» conserva el foco del teclado mientras carga; paginación de PRO y propia con letra de 12 y 16 px y separación de 0 y 10 px: misma geometría, mismos píxeles y clic en el centro de cada número; cascada con reset.css de Hello, frontend.min.css, un kit con botones y el CSS del documento en siete escenarios, también con un término de una letra: reposo, cursor, clic y teclado; mampostería en px, 0 sin valor, sin subir con una expresión, sin heredar y desde el borde exterior). Fallan con el código anterior.",
+  "php": "elements-pro-posts.php 11 936, elements-pro-loop.php 147 (con la separación de «Cargar más» de PRO descartada al convertir: sus hojas leen otra variable, también en PRO Elements 4.3.2 oficial), elements-pro-theme-titles-media.php 375, elements-f7b-actions.php 272 y elements-f7b-actions.mjs 83, sin Fatal, Uncaught ni FALLA.",
+  "separacion_cargar_mas": {
+   "descarga": "https://github.com/proelements/proelements/releases/download/v4.3.2/pro-elements.zip (sha256 8e4f32b32de828e64317e56747d363df695b7ee48300b505949392567fe8a6a4), sólo leída fuera del repositorio",
+   "control": "modules/posts/widgets/posts-base.php: «--load-more—spacing: {{SIZE}}{{UNIT}};» (raya larga, UTF-8 e2 80 94)",
+   "hojas": "assets/css/widget-posts.min.css y widget-loop-grid.min.css: «var(--load-moreвЂ”spacing,30px)» (la raya codificada dos veces, d0 b2 d0 82 e2 80 9d) en el botón, el cargador y el mensaje; igual en la copia derivada de Elements",
+   "resultado": "PRO deja siempre 30 px; lo convertido descarta load_more_spacing (pro.dropped) y el propio, sin valor, deja 30 px"
+  },
+  "revision": {
+   "fecha": "2026-11-06",
+   "copia": "mk-copy de fix/fidelity-loops (2727a00a, antes de la revisión) y de 99a7b5db para el caso nuevo",
+   "casos": {
+    "ap-defaults": {
+     "px": {
+      "375": 19.89,
+      "768": 0.99,
+      "1280": 0.74
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "ap-cards": {
+     "px": {
+      "375": 14.56,
+      "768": 0.66,
+      "1280": 1.17
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "ap-nothing": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-defaults": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-columns": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-numbers": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-ajax": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-alternate": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-nothing": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-terms": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-filter": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-more": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-masonry": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "lg-masonry-em": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-defaults": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0.31
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-styled": {
+     "px": {
+      "375": 0.56,
+      "768": 1,
+      "1280": 1.42
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-filter": {
+     "px": {
+      "375": 1.39,
+      "768": 0,
+      "1280": 0.26
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "pf-masonry-gap": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-defaults": {
+     "px": {
+      "375": 14.93,
+      "768": 0.61,
+      "1280": 0.78
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-classic-left": {
+     "px": {
+      "375": 14.49,
+      "768": 0.8,
+      "1280": 1.57
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-classic-none": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards": {
+     "px": {
+      "375": 14.93,
+      "768": 0.61,
+      "1280": 0.78
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards-styled": {
+     "px": {
+      "375": 0.3,
+      "768": 1.06,
+      "1280": 1.57
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-cards-none": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-masonry": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-masonry-em": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-full": {
+     "px": {
+      "375": 0.26,
+      "768": 1.77,
+      "1280": 1.88
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-numbers": {
+     "px": {
+      "375": 20.82,
+      "768": 0.74,
+      "1280": 1.02
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-prevnext": {
+     "px": {
+      "375": 22.39,
+      "768": 0.99,
+      "1280": 0.74
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-load-more": {
+     "px": {
+      "375": 0,
+      "768": 0.09,
+      "1280": 0.08
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "po-infinite": {
+     "px": {
+      "375": 7.72,
+      "768": 0,
+      "1280": 0.09
+     },
+     "sin_motivo": 36,
+     "estado": "FALLA"
+    },
+    "tf-defaults": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "tf-multiple": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "tf-vertical": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "FALLA"
+    },
+    "tl-content-defaults": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "tl-content-styled": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    },
+    "tl-content-global": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    }
+   },
+   "caso_nuevo": {
+    "po-load-more-spacing": {
+     "px": {
+      "375": 0,
+      "768": 0,
+      "1280": 0
+     },
+     "sin_motivo": 0,
+     "estado": "OK"
+    }
+   },
+   "no_son_de_la_rama": "tf-vertical (cursor a 375 px, 7,69 %) y po-infinite fallan igual sobre origin/main con los datos de contexto de C4 en la misma corrida; tf-vertical sin ellos da 0 %, y po-infinite carga 2 o 3 páginas tras un desplazamiento según la corrida, también en A (PRO)."
+  }
+ }
 }

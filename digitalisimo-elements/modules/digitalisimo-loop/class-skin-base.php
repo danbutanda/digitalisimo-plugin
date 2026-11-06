@@ -433,7 +433,8 @@ abstract class Skin_Base extends \Elementor\Skin_Base {
 					'rem' => array( 'max' => 10 ),
 				),
 				'frontend_available' => true,
-				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}' ),
+				// `--digi-masonry-gap`: la separación de la mampostería, el número del ajuste en px como en PRO (`loop.js`).
+				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px' ),
 			)
 		);
 

@@ -217,9 +217,16 @@ class Post_Content extends \Elementor\Widget_Base {
 
 				echo apply_filters( 'the_content', get_the_content() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- filtro de WordPress.
 
+				// Texto visible que no es un ajuste: en lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que
+				// dejan «Migrar» y los kits), el «Pages:» de PRO con su msgid y su dominio (o la traducción del paquete de
+				// idioma de PRO); en lo nuevo, «Páginas:», como desde C4.
+				$pages_title = '' !== (string) $this->get_settings( '_digitalisimo_pro' )
+					? esc_html__( 'Pages:', 'elementor-pro' ) // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- mismo texto que PRO (posts/skins/skin-content-base.php) en lo convertido.
+					: esc_html__( 'Páginas:', 'pro-elements' );
+
 				wp_link_pages(
 					array(
-						'before'      => '<div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . esc_html__( 'Páginas:', 'pro-elements' ) . '</span>',
+						'before'      => '<div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . $pages_title . '</span>',
 						'after'       => '</div>',
 						'link_before' => '<span>',
 						'link_after'  => '</span>',

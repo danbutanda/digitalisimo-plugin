@@ -327,12 +327,14 @@ const FINE = {};
   ok(t.$('.elementor-button').getAttribute('data-clicked') === null, 'Cargar más…');
   let more = 0;
   t.$('.elementor-button').addEventListener('click', () => more++);
-  const sel = '.e-load-more-anchor+.elementor-button-wrapper .elementor-button';
+  // El de PRO y el de las Cuadrículas propias de C5 (el ancla y, justo después, «Cargar más»): tras «Migrar», la acción
+  // sigue cargando más en la cuadrícula convertida.
+  const sel = '.e-load-more-anchor+.elementor-button-wrapper .elementor-button,.digi-loop__anchor+.digi-loop__more .elementor-button';
   const grid = t.$('[data-id="grd0001"]');
   const native = grid.querySelector.bind(grid);
   grid.querySelector = (s) => (s === sel ? t.$('.elementor-button') : native(s));
   t.ev(btn, 'click');
-  ok(more === 1, '…pulsa el botón de PRO que sigue al ancla.');
+  ok(more === 1, '…pulsa el botón de PRO o el propio que sigue al ancla.');
   const reduced = boot({ html, media: { '(prefers-reduced-motion:reduce)': true } });
   reduced.calls.observers[0].fire(reduced.$('[data-id="btn0001"]'));
   ok(reduced.$('[data-id="tgt0001"]').classList.contains('visto') && !reduced.$('[data-id="tgt0001"]').classList.contains('animated'), 'Con movimiento reducido: la clase sin animación.');

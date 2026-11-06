@@ -1,8 +1,10 @@
 /* DIGITALÍSIMO Elements · listados (Entradas, Entradas del archivo, Portafolio y bucles): mampostería como la de PRO
-   (cada elemento sube lo que le sobra a su columna; columnas leídas de la rejilla calculada), «Cargar más» con un botón y
-   desplazamiento infinito, sin bibliotecas: piden la página siguiente (`data-next-page`, del mismo sitio), añaden los
-   elementos del mismo widget y lo anuncian en la región viva. API: `window.digiLoop = { masonry(box), scan(root) }`;
-   evento `digi-loop-loaded` (con burbuja, `detail.items`) en el widget tras añadir elementos. */
+   (cada elemento sube lo que le sobra a su columna, con la separación de `--digi-masonry-gap` en px como el número del
+   ajuste en PRO; columnas leídas de la rejilla calculada), «Cargar más» (el enlace de PRO, con su contenido como botón
+   para el teclado: Intro y Espacio) y desplazamiento infinito, sin bibliotecas: piden la página siguiente
+   (`data-next-page`, del mismo sitio), añaden los elementos del mismo widget y lo anuncian en la región viva.
+   API: `window.digiLoop = { masonry(box), scan(root) }`; evento `digi-loop-loaded` (con burbuja, `detail.items`) en el
+   widget tras añadir elementos. */
 ((W, D) => {
 	'use strict';
 	if (W.digiLoop) return;
@@ -15,8 +17,12 @@
 		const cols = cs.gridTemplateColumns.split(' ').filter(Boolean).length;
 		box.classList.toggle(C + 'masonry', cols > 1);
 		if (cols < 2) return;
-		const gap = parseFloat(cs.rowGap) || 0;
-		const top = box.getBoundingClientRect().top + (parseFloat(cs.borderTopWidth) || 0);
+		// Como PRO: el número del ajuste en px (0 sin valor); con una expresión (unidad «custom») no sube nada. Se mide
+		// desde el borde exterior del contenedor, como `Masonry` del núcleo.
+		const raw = cs.getPropertyValue('--digi-masonry-gap').trim();
+		const gap = raw === '' ? 0 : /^-?(\d+\.?\d*|\.\d+)px$/.test(raw) ? parseFloat(raw) : NaN;
+		if (gap !== gap) return;
+		const top = box.getBoundingClientRect().top;
 		const heights = [];
 		each(items, (it, n) => {
 			const col = n % cols;
@@ -40,6 +46,7 @@
 		if (!box) return;
 		const id = root.getAttribute('data-id');
 		const btn = root.querySelector('.digi-loop__more .elementor-button');
+		const ctl = btn && (btn.querySelector('[role=button]') || btn);
 		const spin = root.querySelector('.digi-loop__spinner');
 		const status = root.querySelector('.digi-loop__status');
 		const infinite = anchor.getAttribute('data-digi-more') === 'infinite';
@@ -53,7 +60,7 @@
 			if (busy || page >= max) return Promise.resolve();
 			busy = true;
 			root.classList.add(C + 'loading');
-			if (btn) btn.setAttribute('aria-disabled', 'true');
+			if (ctl) ctl.setAttribute('aria-disabled', 'true');
 			return fetch(anchor.getAttribute('data-next-page'), { credentials: 'same-origin' }).then((r) => (r.ok ? r.text() : Promise.reject(r))).then((html) => {
 				const doc = new DOMParser().parseFromString(html, 'text/html');
 				const other = doc.querySelector('[data-id="' + id + '"]');
@@ -73,7 +80,7 @@
 			}).catch(() => {}).finally(() => {
 				busy = false;
 				root.classList.remove(C + 'loading');
-				if (btn) btn.removeAttribute('aria-disabled');
+				if (ctl) ctl.removeAttribute('aria-disabled');
 			});
 		};
 		if (infinite) {
@@ -87,6 +94,7 @@
 			io.observe(anchor);
 		} else if (btn) {
 			btn.addEventListener('click', (e) => { e.preventDefault(); load(true); });
+			ctl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); load(true); } });
 		}
 	};
 	const scan = (root) => {

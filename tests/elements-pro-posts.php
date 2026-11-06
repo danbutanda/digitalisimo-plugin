@@ -93,6 +93,11 @@ function paginate_links( $args ) {
 	return $out;
 }
 function post_password_required( $id ) { return false; }
+function get_the_password_form( $id ) { return '<form class="post-password-form"></form>'; }
+function setup_postdata( $post ) { return true; }
+function get_the_content() { return (string) ( $GLOBALS['pe']['post']->post_content ?? '' ); }
+/** Las páginas de una entrada con `<!--nextpage-->`: lo que pinta WordPress con los argumentos de la piel (sin `pagelink`, que sólo leen los lectores de pantalla). */
+function wp_link_pages( $args ) { echo $args['before'] . '<a href="https://sitio.test/x/2/">' . $args['link_before'] . '2' . $args['link_after'] . '</a>' . $args['after']; }
 function balanceTags( $s, $f = false ) { return $s; } // phpcs:ignore
 $GLOBALS['wp_rewrite'] = new class() { public $pagination_base = 'page'; public function using_permalinks() { return true; } };
 $GLOBALS['pe']['options'] = array( 'permalink_structure' => '/%postname%/', 'date_format' => 'j \d\e F \d\e Y' );
@@ -143,11 +148,24 @@ foreach ( $colors_ok as $file => $colors ) {
 	$check( array() === array_diff( array_unique( array_map( 'strtolower', $m[0] ) ), $colors ), "$file: sólo los colores que PRO usaba por defecto: " . implode( ', ', $m[0] ) );
 	$check( ! preg_match( $vetoed, $css ), "$file: nombra algo que el empaquetado veta." );
 }
-foreach ( array( 'posts.css' => array( 'prefers-reduced-motion' ), 'loop.css' => array( 'outline:2px solid;outline-offset:2px', 'prefers-reduced-motion', 'min-height:24px;min-width:24px', '.digi-loop--end .digi-loop__more{display:none}' ), 'portfolio.css' => array( 'outline:2px solid;outline-offset:2px', 'prefers-reduced-motion', 'min-height:24px;min-width:24px', '.digi-portfolio__item[hidden]{display:none}' ) ) as $file => $needles ) {
+foreach ( array( 'posts.css' => array( 'prefers-reduced-motion', '.elementor-widget-digitalisimo-posts,.elementor-widget-digitalisimo-archive-posts{--digi-masonry-gap:0px}' ), 'loop.css' => array( 'outline:2px solid;outline-offset:2px', 'prefers-reduced-motion', '.digi-loop--end .digi-loop__more{display:none}', '.digi-loop__more [tabindex]:focus-visible', '.digi-loop__more .elementor-button{cursor:pointer;position:relative;' ), 'portfolio.css' => array( 'outline:2px solid;outline-offset:2px', 'prefers-reduced-motion', '.digi-portfolio__item[hidden]{display:none}', '.elementor-widget-digitalisimo-portfolio{--digi-masonry-gap:0px}', '.elementor-widget-digitalisimo-portfolio .digi-portfolio__filter{background:none;border:0;border-radius:0;color:inherit;', '.elementor-widget-digitalisimo-portfolio .digi-portfolio__filter:is(:hover,:focus){background:none;border:0;border-radius:0;color:inherit;', '.elementor-widget-digitalisimo-portfolio .digi-portfolio__filter:not(:focus-visible){box-shadow:none}' ), 'loop-grid.css' => array( '--digi-masonry-gap:0px}' ) ) as $file => $needles ) {
 	foreach ( $needles as $needle ) {
-		$check( str_contains( (string) file_get_contents( $mod . 'assets/css/' . $file ), $needle ), "$file: contiene $needle (foco visible, movimiento reducido, objetivos de 24 px)." );
+		$check( str_contains( (string) file_get_contents( $mod . 'assets/css/' . $file ), $needle ), "$file: contiene $needle (foco visible, movimiento reducido, estilos del tema y del kit anulados, separación de la mampostería)." );
 	}
 }
+// Los números de la paginación conservan la medida y la separación de PRO (sin `display`, relleno ni mínimo de 24 px: con
+// la maqueta de PRO no caben sin solapar el número vecino), y «Cargar más» no anula el borde, la fuente ni el espaciado
+// que el kit da a `.elementor-button` (era para un `<button>`).
+$loop_css = (string) file_get_contents( $mod . 'assets/css/loop.css' );
+$check( ! preg_match( '/\.page-numbers[^{]*\{[^}]*(min-(width|height)|display:inline-block|padding)/', $loop_css ) && ! preg_match( '/\.digi-loop__pagination[^{]*\{[^}]*(min-(width|height)|padding)/', $loop_css ), 'loop.css: los números de la paginación conservan la medida de PRO (sin mínimo de 24 px).' );
+$check( ! preg_match( '/\.digi-loop__more \.elementor-button\{[^}]*(border|font-family|letter-spacing)/', $loop_css ), 'loop.css: «Cargar más» no pisa el borde, la fuente ni el espaciado de los botones del kit.' );
+// Los botones del filtro tampoco llevan un mínimo de 24 px: el relleno de 8 px de PRO ya lo da con letra normal, y donde
+// no (un término de una letra con letra pequeña) un mínimo los ensancharía y movería la barra.
+$check( ! preg_match( '/\.digi-portfolio__filter[^{]*\{[^}]*min-(width|height)/', (string) file_get_contents( $mod . 'assets/css/portfolio.css' ) ), 'portfolio.css: los botones del filtro conservan la medida de PRO (sin mínimo de 24 px).' );
+// Mampostería: la separación de PRO (el número del ajuste en px, 0 sin valor) viaja en `--digi-masonry-gap`, en la misma
+// regla que `--grid-row-gap`, en las pieles con mampostería y en el Portafolio.
+$loop_js = (string) file_get_contents( $mod . 'assets/js/loop.js' );
+$check( str_contains( $loop_js, "getPropertyValue('--digi-masonry-gap')" ) && ! str_contains( $loop_js, 'cs.rowGap' ), 'loop.js: la mampostería lee --digi-masonry-gap, no el row-gap calculado.' );
 foreach ( array( 'loop.js', 'portfolio.js' ) as $file ) {
 	$js = (string) file_get_contents( $mod . 'assets/js/' . $file );
 	$check( strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|swiper|elementorProFrontend|pro-elements-handlers|https?:\/\//i', $js ) && ! preg_match( $vetoed, $js ), "$file: ≤ 6 KB (" . strlen( $js ) . ' B), sin jQuery, Swiper, PRO ni direcciones externas.' );
@@ -287,12 +305,15 @@ $check( str_contains( $html, '<span class="page-numbers next">Siguiente &raquo;<
 $GLOBALS['pe']['qv'] = array();
 $html = $render( pe_widget( $P, array( 'pagination_type' => 'load_more_on_click', 'load_more_no_posts_message_switcher' => 'yes', 'load_more_no_posts_custom_message' => 'No hay más' ) ) );
 $check( str_contains( $html, '<span class="digi-loop__spinner"><i aria-hidden="true" class="fas fa-spinner"></i></span><div class="digi-loop__anchor" data-page="1" data-max-page="3" data-next-page="https://sitio.test/entrada-0/2/" data-digi-more="click"></div>' ), '«Cargar más»: cargador y ancla con la página siguiente (la misma URL que PRO).' );
-$check( str_contains( $html, '<div class="digi-loop__more elementor-button-wrapper"><button type="button" class="elementor-button elementor-size-sm"><span class="elementor-button-content-wrapper"><span class="elementor-button-text">Cargar más</span></span></button></div><div class="digi-loop__message">No hay más</div><span class="digi-loop__status elementor-screen-only" aria-live="polite"' ), '«Cargar más» es un botón; el mensaje del final y la región viva.' );
+$check( str_contains( $html, '<div class="digi-loop__more elementor-button-wrapper"><a class="elementor-button elementor-size-sm"><span class="elementor-button-content-wrapper" role="button" tabindex="0"><span class="elementor-button-text">Cargar más</span></span></a></div><div class="digi-loop__message">No hay más</div><span class="digi-loop__status elementor-screen-only" aria-live="polite"' ), '«Cargar más» es el enlace de PRO (sin href ni tabindex: los estilos del tema y del kit le llegan igual) con su contenido como botón para el teclado; el mensaje del final y la región viva.' );
+$check( ! preg_match( '/<button|<a [^>]*class="elementor-button[^"]*"[^>]*(href|tabindex)=/', $html ), '«Cargar más»: ni <button> ni href o tabindex en el enlace.' );
+$html = $render( pe_widget( $P, array( 'pagination_type' => 'load_more_on_click', 'button_css_id' => 'mas', 'hover_animation' => 'grow', 'size' => 'md' ) ) );
+$check( str_contains( $html, '<a class="elementor-button elementor-size-md elementor-animation-grow" id="mas"><span class="elementor-button-content-wrapper" role="button" tabindex="0">' ), '«Cargar más»: el tamaño, la animación y el ID en el enlace, como PRO.' );
 $html = $render( pe_widget( $P, array( 'pagination_type' => 'load_more_infinite_scroll', 'load_more_spinner' => array( 'value' => '', 'library' => '' ), 'load_more_no_posts_custom_message' => null ) /* Con el interruptor apagado, get_settings_for_display() lo deja en null. */ ) );
-$check( str_contains( $html, 'data-digi-more="infinite"' ) && ! str_contains( $html, '<button' ) && ! str_contains( $html, 'digi-loop__spinner' ) && str_contains( $html, '<div class="digi-loop__message"></div>' ), 'Infinita: ancla sin botón; sin cargador si no se elige; sin mensaje personalizado, vacío (como PRO).' );
+$check( str_contains( $html, 'data-digi-more="infinite"' ) && ! str_contains( $html, 'digi-loop__more' ) && ! str_contains( $html, 'digi-loop__spinner' ) && str_contains( $html, '<div class="digi-loop__message"></div>' ), 'Infinita: ancla sin botón; sin cargador si no se elige; sin mensaje personalizado, vacío (como PRO).' );
 $GLOBALS['pe']['query'] = pe_query( 2, 1 );
 $html = $render( pe_widget( $P, array( 'pagination_type' => 'load_more_on_click' ) ) );
-$check( ! str_contains( $html, 'digi-loop__anchor' ) && ! str_contains( $html, '<button' ), 'Con una sola página no hay ancla ni botón.' );
+$check( ! str_contains( $html, 'digi-loop__anchor' ) && ! str_contains( $html, 'digi-loop__more' ), 'Con una sola página no hay ancla ni botón.' );
 $GLOBALS['pe']['query'] = pe_query( 2 );
 $html = $render( pe_widget( $P, array( 'classic_masonry' => 'yes' ) ) );
 $check( str_contains( $html, 'data-digi-items="" data-digi-masonry=""' ), 'La mampostería marca el contenedor para loop.js.' );
@@ -301,6 +322,58 @@ $check( '' === $render( pe_widget( $P, array() ) ), 'Entradas sin entradas no pi
 // Contenido completo: la piel se registra y pinta título y metadatos (el contenido lo da el constructor).
 $fc = pe_widget( $P, array( '_skin' => 'full_content' ) );
 $check( 'Contenido completo' === $fc->get_skin( 'full_content' )->get_title() && isset( $fc->controls['full_content_row_gap']['selectors']['{{WRAPPER}} .digi-posts > .digi-posts__item'] ), 'Contenido completo: su piel y la separación entre filas sobre los elementos propios.' );
+$masonry_gap = static function ( $widget, $name ) {
+	return (string) ( $widget->controls[ $name ]['selectors']['{{WRAPPER}}'] ?? '' );
+};
+foreach ( array( 'classic_row_gap', 'cards_row_gap' ) as $name ) {
+	$check( '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px' === $masonry_gap( $fc, $name ), "Entradas.$name: la separación de la mampostería en px (como el número del ajuste en PRO) en la misma regla." );
+}
+$aw_gap = pe_widget( 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts' );
+foreach ( array( 'archive_classic_row_gap', 'archive_cards_row_gap' ) as $name ) {
+	$check( '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px' === $masonry_gap( $aw_gap, $name ), "Entradas del archivo.$name: la separación de la mampostería en px." );
+}
+$pf_gap = pe_widget( 'Digitalisimo\Elements\Loop\Widgets\Portfolio' );
+$check( '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px' === $masonry_gap( $pf_gap, 'row_gap' ) && '--grid-row-gap: {{SIZE}}{{UNIT}}; --grid-column-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px;' === $masonry_gap( $pf_gap, 'item_gap' ) && array_search( 'item_gap', array_keys( $pf_gap->controls ), true ) < array_search( 'row_gap', array_keys( $pf_gap->controls ), true ), 'Portafolio: row_gap e item_gap llevan la separación de la mampostería; row_gap va después y gana (PRO: item_gap sólo sin row_gap).' );
+$check( ! str_contains( $masonry_gap( $fc, 'full_content_row_gap' ), 'digi-masonry-gap' ) && '' === $masonry_gap( $fc, 'full_content_row_gap' ), 'Contenido completo no tiene mampostería: sin la variable.' );
+// Contenido completo de una entrada sin el constructor: `the_content` y sus páginas, con el título de PRO («Pages:», su
+// msgid y su dominio) en Entradas y en Entradas del archivo; con el paquete de idioma de PRO, la misma traducción.
+$pe_core = new class() {
+	public function is_edit_mode() { return false; }
+	public function set_edit_mode( $v ) {}
+	public function is_preview_mode( $id = 0 ) { return false; }
+	public function get_builder_content( $id, $css = false ) { return ''; }
+	public function remove_content_filter() {}
+	public function add_content_filter() {}
+	public function get_current() { return null; }
+};
+$GLOBALS['pe']['elementor'] = (object) array( 'editor' => $pe_core, 'preview' => $pe_core, 'frontend' => $pe_core, 'documents' => $pe_core );
+foreach ( array( 'editor', 'preview', 'frontend' ) as $prop ) {
+	\Elementor\Plugin::$instance->$prop = $pe_core;
+}
+$pe_pages = static function ( $class, $skin, $id, array $settings = array() ) {
+	$GLOBALS['pe']['post'] = (object) array( 'ID' => $id, 'post_content' => '<p>Primera página</p>', 'post_status' => 'publish', 'post_title' => "Entrada $id" );
+	$w = pe_widget( $class, array( '_skin' => $skin ) + $settings );
+	$s = $w->get_skin( $skin );
+	$s->set_parent( $w );
+	ob_start();
+	$s->render_post_content();
+	return (string) ob_get_clean();
+};
+$pe_id = 400;
+// «Pages:» no es un ajuste: lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan «Migrar» y los
+// kits) usa el texto de PRO; lo nuevo, «Páginas:», como desde C5 (y nunca la traducción de PRO).
+foreach ( array( array(), array( 'elementor-pro' => array( 'Pages:' => 'Seiten:' ) ) ) as $l10n ) {
+	$GLOBALS['pe']['l10n'] = $l10n;
+	$title = $l10n ? 'Seiten:' : 'Pages:';
+	foreach ( array( array( 'ElementorPro\Modules\Posts\Widgets\Posts', $P, 'full_content', 'posts' ), array( 'ElementorPro\Modules\ThemeBuilder\Widgets\Archive_Posts', 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts', 'archive_full_content', 'archive-posts' ) ) as list( $pro_class, $own_class, $skin, $source ) ) {
+		$a = $pe_pages( $pro_class, $skin, ++$pe_id );
+		$b = $pe_pages( $own_class, $skin, ++$pe_id, array( \Digitalisimo\Elements\Convert\Translator::MARKER => $source ) );
+		$c = $pe_pages( $own_class, $skin, ++$pe_id );
+		$check( '<p>Primera página</p><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . $title . '</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a && $a === $b, "$skin convertido: las páginas de la entrada con el título de PRO ($title), igual que PRO.\n PRO:    $a\n propio: $b" );
+		$check( str_replace( $title, 'Páginas:', $a ) === $c, "$skin nuevo (sin la marca de la conversión): «Páginas:», sin la traducción de PRO.\n propio: $c" );
+	}
+}
+unset( $GLOBALS['pe']['l10n'], $GLOBALS['pe']['elementor'] );
 // Entradas del archivo.
 $A = 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts';
 $GLOBALS['wp_query']    = pe_query( 0 );
@@ -320,7 +393,31 @@ $check( $aw->get_query() !== $GLOBALS['wp_query'] && 1 === $aw->get_query()->que
 $F = 'Digitalisimo\Elements\Loop\Widgets\Portfolio';
 $GLOBALS['pe']['query'] = pe_query( 3 );
 $html = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ) );
-$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todos</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio: filtro con botones y aria-pressed, «Todos» y los términos por nombre.' );
+$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todos</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio nuevo: filtro con botones y aria-pressed, «Todos» (como desde C5) y los términos por nombre.' );
+// Lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan «Migrar» y los kits) dice lo mismo que PRO:
+// su «All» con su msgid y su dominio, también con el paquete de idioma de PRO; lo nuevo, «Todos», sin la traducción de PRO.
+$pf_label = static function ( $translations, array $marker = array( \Digitalisimo\Elements\Convert\Translator::MARKER => 'portfolio' ) ) use ( $render, $F ) {
+	$GLOBALS['pe']['l10n'] = $translations;
+	$GLOBALS['pe']['query'] = pe_query( 3 );
+	$own = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) + $marker ) );
+	$pro = pe_widget( 'ElementorPro\Modules\Posts\Widgets\Portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) );
+	$q   = new ReflectionProperty( $pro, '_query' );
+	$q->setValue( $pro, (object) array( 'posts' => array( (object) array( 'tags' => array( 6 => (object) array( 'term_id' => 6, 'name' => 'Guías' ) ) ) ) ) );
+	ob_start();
+	( new ReflectionMethod( $pro, 'render_filter_menu' ) )->invoke( $pro );
+	$pro_html = (string) ob_get_clean();
+	unset( $GLOBALS['pe']['l10n'] );
+	preg_match( '~data-filter="__all">([^<]*)</li>~', $pro_html, $a );
+	preg_match( '~data-filter="__all" aria-pressed="true">([^<]*)</button>~', $own, $b );
+	return array( $a[1] ?? null, $b[1] ?? null );
+};
+list( $pro_all, $own_all ) = $pf_label( array() );
+$check( 'All' === $pro_all && $pro_all === $own_all, "Portafolio: el primer botón del filtro dice lo mismo que el de PRO (PRO «{$pro_all}», propio «{$own_all}»)." );
+list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Alle' ) ) );
+$check( 'Alle' === $pro_all && $pro_all === $own_all, "Portafolio: con el paquete de idioma de PRO, la misma traducción (PRO «{$pro_all}», propio «{$own_all}»)." );
+list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Alle' ) ), array() );
+$check( 'Alle' === $pro_all && 'Todos' === $own_all, "Portafolio nuevo (sin la marca de la conversión): «Todos», sin la traducción de PRO (propio «{$own_all}»)." );
+$GLOBALS['pe']['query'] = pe_query( 3 );
 $check( str_contains( $html, '<div class="digi-portfolio elementor-grid" role="list" data-digi-items="">' ) && str_contains( $html, 'role="listitem" data-digi-terms="6 5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-101/"><div class="digi-portfolio__img"></div>' ) && str_contains( $html, 'role="listitem" data-digi-terms="5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-102/"><div class="digi-portfolio__img"><img' ) && str_contains( $html, '<div class="digi-portfolio__overlay"><h3 class="digi-portfolio__title">Entrada 1</h3></div></a></article>' ), 'Portafolio: elementos con sus términos, enlace, imagen y capa con el título.' );
 $html = $render( pe_widget( $F, array() ) );
 $check( ! str_contains( $html, 'digi-portfolio__filters' ) && str_contains( $html, 'data-digi-terms=""' ), 'Sin la barra de filtro, sin botones (y sin términos si no hay taxonomía).' );
@@ -375,12 +472,26 @@ foreach ( $cases as $type => $list ) {
 $log = array();
 $out = Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings'];
 $check( '&laquo; Previous' === $out['pagination_prev_label'] && 'Load More' === $out['text'] && 'Read More »' === $out['classic_read_more_text'] && 'Read More »' === $out['cards_read_more_text'] && 'No more posts to show' === $out['load_more_no_posts_custom_message'], 'Los textos por defecto de PRO viajan explícitos al widget propio (sus valores por defecto están en español).' );
+// «Separación» de «Cargar más»: PRO no la aplicaba (su hoja lee otra variable; ver tests/elements-pro-loop.php) y dejaba
+// siempre 30 px. Lo convertido la descarta como pérdida declarada (también por dispositivo), así que el propio deja los
+// mismos 30 px; lo nuevo conserva el control.
+$log = array();
+$out = Converter::tree( $tree( 'posts', $cases['posts'][2] + array( 'load_more_spacing_mobile' => array( 'size' => 4, 'unit' => 'px' ) ) ), $log, true )[0]['elements'][0]['settings'];
+$dropped = array_column( array_filter( array_merge( ...array_map( static function ( $l ) { return $l['codes'] ?? array(); }, $log ) ), static function ( $c ) { return 'pro.dropped' === $c['code']; } ), 'key' );
+$check( ! preg_grep( '/^load_more_spacing/', array_keys( $out ) ) && in_array( 'load_more_spacing', $dropped, true ) && isset( $built['posts']->controls['load_more_spacing'] ), 'Entradas: la separación de «Cargar más» de PRO se descarta al convertir (PRO dejaba siempre 30 px; el control propio sigue para lo nuevo).' );
 $out = Converter::tree( $tree( 'posts', $cases['posts'][3] ), $log, true )[0]['elements'][0]['settings'];
 $check( 'selector .digi-posts__title a{color:red} selector .digi-posts .digi-posts__thumb-link{margin:0} selector .digi-loop__pagination .page-numbers{gap:1px}' === $out['custom_css'], 'El CSS personalizado pasa a las clases propias: ' . $out['custom_css'] );
 $out = Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elements'][0]['settings'];
 $check( 'numbers' === $out['pagination_type'] && 'It seems we can’t find what you’re looking for.' === $out['nothing_found_message'], 'Archivo: la paginación por defecto (números) y el mensaje de PRO viajan explícitos.' );
 $out = Converter::tree( $tree( 'portfolio', $cases['portfolio'][1] ), $log, true )[0]['elements'][0]['settings'];
 $check( 'selector .digi-portfolio__filter[aria-pressed="true"]{color:red}' === $out['custom_css'] && array( '5' ) === $out['posts_include_term_ids'], 'Portafolio: el filtro activo pasa a aria-pressed; la consulta, tal cual.' );
+// PRO marca también con `elementor-active` los elementos que el filtro deja a la vista: pasan a los visibles del propio.
+$out = Converter::tree( $tree( 'portfolio', array( 'custom_css' => 'selector .elementor-portfolio-item.elementor-active .elementor-portfolio-item__title{color:red} selector .elementor-post.elementor-active{opacity:.9} selector .elementor-portfolio__filter.elementor-active{color:blue}' ) ), $log, true )[0]['elements'][0]['settings'];
+$check( 'selector .digi-portfolio__item:not([hidden]) .digi-portfolio__title{color:red} selector .digi-portfolio__item:not([hidden]){opacity:.9} selector .digi-portfolio__filter[aria-pressed="true"]{color:blue}' === $out['custom_css'], 'Portafolio: los elementos activos de PRO pasan a los visibles; el filtro activo, a aria-pressed: ' . $out['custom_css'] );
+// La conversión (la de «Migrar» y la de los kits) deja la marca que hace decir al filtro el «All» de PRO.
+$out = Converter::tree( $tree( 'portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ), $log, true )[0]['elements'][0]['settings'];
+$GLOBALS['pe']['query'] = pe_query( 3 );
+$check( 'portfolio' === ( $out[ \Digitalisimo\Elements\Convert\Translator::MARKER ] ?? null ) && str_contains( $render( pe_widget( $F, $out ) ), 'data-filter="__all" aria-pressed="true">All</button>' ), 'Portafolio convertido: la marca de la conversión da el «All» de PRO.' );
 // Sin piel guardada: la que el widget de PRO pinta hoy (su primera piel registrada); sin el constructor, la de PRO.
 $check( 'classic' === Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'] && 'archive_classic' === Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'], 'Sin piel guardada y sin el constructor cargado: la de por defecto de PRO.' );
 \Elementor\Plugin::$instance->widgets_manager = new class() { public function get_widget_types( $name = null ) { return 'posts' === $name ? new class() { public function get_skins() { return array( 'cards' => 1, 'full_content' => 1, 'classic' => 1 ); } } : null; } };

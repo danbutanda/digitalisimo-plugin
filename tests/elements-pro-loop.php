@@ -180,6 +180,30 @@ lp_check( 'selector .digi-crs__slide{opacity:1} selector .digi-crs__next{left:0}
 list( $flt ) = Translator::translate( $samples['taxonomy-filter'], Registry::map( 'taxonomy-filter', true ) );
 lp_check( 'selector .digi-tfilter .digi-tfilter__item[aria-pressed=true]{font-weight:700}' === $flt['custom_css'] && 'abc1234' === $flt['selected_element'], 'taxonomy-filter: CSS en clases propias y el mismo bucle enlazado: ' . $flt['custom_css'] );
 
+// «Separación» de «Cargar más»: el control de PRO escribe `--load-more—spacing`, pero sus hojas leen la variable con la
+// raya codificada dos veces (igual en PRO Elements 4.3.2 oficial): el botón, el cargador y el mensaje quedan siempre a
+// 30 px. Lo convertido la descarta (pérdida declarada), y el propio, sin valor, deja 30 px en los tres.
+$pro_base = (string) file_get_contents( $pro . 'posts/widgets/posts-base.php' );
+lp_check( str_contains( $pro_base, "'{{WRAPPER}}' => '--load-more—spacing: {{SIZE}}{{UNIT}};'," ), 'PRO: la separación de «Cargar más» escribe --load-more—spacing' );
+foreach ( array( 'widget-posts.min.css', 'widget-loop-grid.min.css' ) as $sheet ) {
+	$css = (string) file_get_contents( $elements . 'assets/css/' . $sheet );
+	lp_check( ! str_contains( $css, '--load-more—spacing' ) && 3 <= substr_count( $css, 'margin-top:var(--load-more' ) && 3 <= substr_count( $css, 'spacing,30px)' ), "PRO ($sheet): ninguna regla lee la variable del control; el botón, el cargador y el mensaje usan 30 px (si esto cambia, la separación debe volver a conservarse al convertir)" );
+}
+lp_check( 3 === substr_count( (string) file_get_contents( $own . 'assets/css/loop.css' ), 'margin-top:var(--digi-loop-more-spacing,30px)' ), 'loop.css: sin valor, el botón, el cargador y el mensaje quedan a 30 px, como PRO' );
+foreach ( array( 'loop-grid', 'posts', 'archive-posts' ) as $source ) {
+	list( $out, $codes ) = Translator::translate( array( 'pagination_type' => 'load_more_on_click', 'load_more_spacing' => array( 'unit' => 'px', 'size' => 50 ), 'load_more_spacing_tablet' => array( 'unit' => 'px', 'size' => 10 ) ), Registry::map( $source, true ) );
+	lp_check( ! preg_grep( '/^load_more_spacing/', array_keys( $out ) ) && in_array( 'load_more_spacing', array_column( array_filter( $codes, static function ( $c ) { return 'pro.dropped' === $c['code']; } ), 'key' ), true ), "$source: la separación de «Cargar más» de PRO se descarta al convertir, con su motivo en el informe" );
+}
+lp_check( in_array( 'load_more_spacing', (array) Registry::map( 'loop-carousel', true )['ui'], true ), 'loop-carousel: la separación de «Cargar más» sigue declarada (control sin valor en el carrusel)' );
+
+// Mampostería: la separación de PRO (el número de «Separación entre filas» en px; 0 sin valor) viaja en
+// `--digi-masonry-gap` junto a `--grid-row-gap`, y el envoltorio la reinicia (una cuadrícula anidada no hereda la de
+// fuera). El mapa ya no la declara como aproximación.
+$grid_php = (string) file_get_contents( $own . 'widgets/class-loop-grid.php' );
+lp_check( false !== strpos( $grid_php, "'{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px'," ), 'loop-grid: row_gap lleva la separación de la mampostería en px, en la misma regla' );
+lp_check( false !== strpos( (string) file_get_contents( $own . 'assets/css/loop-grid.css' ), '.elementor-widget-digitalisimo-loop-grid{scroll-margin-top:var(--digi-loop-scroll-offset,initial);--digi-masonry-gap:0px}' ), 'loop-grid.css: sin valor, la mampostería no deja separación (como PRO)' );
+lp_check( ! isset( Registry::map( 'loop-grid', true )['approx']['masonry'] ) && in_array( 'masonry', (array) Registry::map( 'loop-grid', true )['keep'], true ), 'loop-grid: la mampostería se conserva sin aproximación' );
+
 // 3. Widgets propios: nombres, títulos y registro del módulo.
 $module = (string) file_get_contents( $own . 'class-module.php' );
 foreach ( array( 'digitalisimo-loop-grid' => array( 'Loop_Grid', 'Cuadrícula de bucle' ), 'digitalisimo-loop-carousel' => array( 'Loop_Carousel', 'Carrusel de bucle' ), 'digitalisimo-taxonomy-filter' => array( 'Taxonomy_Filter', 'Filtro de taxonomías' ) ) as $name => list( $class, $title ) ) {

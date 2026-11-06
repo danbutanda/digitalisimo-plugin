@@ -154,6 +154,22 @@
     "classic_excerpt_length": 12
    }
   },
+  "po-masonry-em": {
+   "title": "Clásica en mampostería con «Separación entre filas» de 2 em (PRO sube cada elemento con el número del ajuste en px: 2 px)",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "classic",
+    "classic_masonry": "yes",
+    "classic_posts_per_page": 6,
+    "classic_excerpt_length": 12,
+    "classic_row_gap": {
+     "unit": "em",
+     "size": 2,
+     "sizes": []
+    }
+   }
+  },
   "po-full": {
    "title": "Contenido completo con imagen, 2 entradas",
    "widget": "posts",
@@ -237,14 +253,51 @@
    "declared": [
     {
      "kind": "control",
-     "match": "control (a \\d+ sólo en A \\(a\\)|button 1 sólo en B \\(button\\))",
-     "reason": "«Cargar más» es un `<button>` (PRO: un enlace a «#»): accesible por teclado con su rol correcto."
+     "match": "control (a \\d+ sólo en A \\(a\\)|span 1 sólo en B \\(span\\))",
+     "reason": "«Cargar más» es el mismo enlace que en PRO (sin href ni tabindex, así que el tema y el kit lo pintan igual); el control para el teclado es su contenido (`role=\"button\"`, `tabindex=\"0\"`, Intro y Espacio), que PRO no ofrecía: el arnés lo cuenta como otro control."
     }
    ],
    "pixels": {
     "max": 0.25,
     "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
+  },
+  "po-load-more-spacing": {
+   "title": "«Cargar más» con «Separación» de 50 px (PRO no la aplica: su hoja lee otra variable y deja 30 px; la conversión la descarta)",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "classic",
+    "classic_thumbnail": "none",
+    "classic_posts_per_page": 5,
+    "pagination_type": "load_more_on_click",
+    "load_more_no_posts_message_switcher": "yes",
+    "load_more_spacing": {
+     "unit": "px",
+     "size": 50,
+     "sizes": []
+    },
+    "load_more_spacing_mobile": {
+     "unit": "px",
+     "size": 5,
+     "sizes": []
+    }
+   },
+   "actions": [
+    {
+     "label": "cargar más (última: el mensaje del final)",
+     "a": ".e-load-more-anchor ~ .elementor-button-wrapper .elementor-button",
+     "b": ".digi-loop__more .elementor-button",
+     "wait": 15000
+    }
+   ],
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control (a \\d+ sólo en A \\(a\\)|span 1 sólo en B \\(span\\))",
+     "reason": "«Cargar más» es el mismo enlace que en PRO (sin href ni tabindex, así que el tema y el kit lo pintan igual); el control para el teclado es su contenido (`role=\"button\"`, `tabindex=\"0\"`, Intro y Espacio), que PRO no ofrecía: el arnés lo cuenta como otro control."
+    }
+   ]
   },
   "po-infinite": {
    "title": "Desplazamiento infinito, 3 por página",

@@ -18,8 +18,8 @@
   {
    "widget": "loop-grid",
    "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control (a \\d+ sólo en A|button 1 sólo en B)",
-   "reason": "«Cargar más» es un <button> (base común de C5, como en Entradas); PRO pintaba un enlace a «#»."
+   "match": "^(\\[acción [^\\]]*\\] )?control (a \\d+ sólo en A|span 1 sólo en B)",
+   "reason": "«Cargar más» es el mismo enlace que en PRO (sin href ni tabindex; base común de C5, como en Entradas); el control para el teclado es su contenido (`role=\"button\"`, `tabindex=\"0\"`), que PRO no ofrecía."
   }
  ],
  "cases": {
@@ -213,10 +213,33 @@
       "show_once": ""
      }
     ]
-   },
-   "pixels": {
-    "max": 0.12,
-    "reason": "Mampostería (approx de masonry en el mapa): la separación vertical entre los elementos de una columna es la de «Separación entre filas» (30 px por defecto, como en la rejilla); la de PRO usaba 0 px cuando el control no tenía valor propio (getVerticalSpaceBetween). La cuadrícula mide una separación más por columna."
+   }
+  },
+  "lg-masonry-em": {
+   "title": "Mampostería con «Separación entre filas» de 2 em (PRO usa el número del ajuste en px: 2 px)",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "masonry": "yes",
+    "row_gap": {
+     "unit": "em",
+     "size": 2,
+     "sizes": []
+    },
+    "alternate_template": "yes",
+    "alternate_templates": [
+     {
+      "_id": "alt0003",
+      "template_id": {
+       "$loop_item": "title"
+      },
+      "repeat_template": 2,
+      "show_once": ""
+     }
+    ]
    }
   }
  }

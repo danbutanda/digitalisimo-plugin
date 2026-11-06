@@ -32,9 +32,9 @@ return static function ( array $skins ): array {
 			'load_more_no_posts_custom_message' => $t( 'No more posts to show' ),
 		),
 		// PRO los quita del botón «Cargar más» (`remove_control()`): no se pintan ni se guardan desde el editor.
-		'drop'     => array(
+		'drop'     => (array) ( $paging['drop'] ?? array() ) + array(
 			'button_type' => 'PRO quita el tipo del botón «Cargar más»: no tenía efecto.',
-			'link'        => 'PRO quita el enlace del botón «Cargar más» (pinta «#»): el propio es un botón sin enlace.',
+			'link'        => 'PRO quita el enlace del botón «Cargar más» (lo pinta sin destino): el propio, también.',
 			'size'        => 'PRO quita el tamaño del botón «Cargar más»: siempre pequeño.',
 		),
 	);

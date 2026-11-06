@@ -147,6 +147,8 @@ namespace Elementor {
 		public $editor;
 		public $documents;
 		public $widgets_manager;
+		public $preview;
+		public $frontend;
 	}
 }
 namespace ElementorPro\Base {
@@ -163,9 +165,17 @@ namespace ElementorPro\Core {
 }
 namespace ElementorPro {
 	class Plugin {
+		/** El núcleo de la prueba: el que fije `$GLOBALS['pe']['elementor']` (editor, vista previa y front) o uno mínimo. */
 		public static function elementor() {
-			return (object) array( 'documents' => new class() { public function get_current() { return null; } }, 'editor' => new class() { public function is_edit_mode() { return false; } } );
+			return $GLOBALS['pe']['elementor'] ?? (object) array( 'documents' => new class() { public function get_current() { return null; } }, 'editor' => new class() { public function is_edit_mode() { return false; } } );
 		}
+	}
+}
+namespace ElementorPro\Modules\ThemeBuilder {
+	/** Constructor de temas de PRO: ninguna entrada de la prueba es una plantilla. */
+	class Module {
+		public static function instance() { return new self(); }
+		public function get_document( $id ) { return null; }
 	}
 }
 namespace ElementorPro\Modules\LoopBuilder {
@@ -189,7 +199,7 @@ namespace ElementorPro\Modules\QueryControl {
 namespace {
 	$GLOBALS['pe'] = array( 'actions' => array(), 'filters' => array(), 'query' => null, 'rtl' => false );
 	function __( $v, $d = '' ) { return $v; }
-	function esc_html__( $v, $d = '' ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
+	function esc_html__( $v, $d = '' ) { $v = $GLOBALS['pe']['l10n'][ $d ][ $v ] ?? $v; return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
 	function esc_attr__( $v, $d = '' ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
