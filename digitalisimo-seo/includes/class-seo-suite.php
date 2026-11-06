@@ -229,6 +229,8 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( 'seo_schema_type_defaults' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $value ); continue; }
 			if ( 'seo_schema_templates' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_templates( $value ); continue; }
 			if ( 'seo_product_brand' === $key ) { $current[ $key ] = sanitize_key( $value ); continue; }
+			if ( 'seo_product_brand_name' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_brand_name( $value ); continue; }
+			if ( 'seo_product_condition' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_condition( $value ); continue; }
 			if ( in_array( $key, self::breadcrumb_text_keys(), true ) ) { $current[ $key ] = sanitize_text_field( $value ); continue; }
 			// Redirecciones, 404, verificación y robots avanzados: las mismas reglas que el formulario del sitio.
 			if ( 'seo_redirect_default_code' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Redirections::sanitize_code( $value ); continue; }
@@ -711,7 +713,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		if ( ! $network && is_multisite() ) echo '<p><input type="hidden" name="' . esc_attr( $option ) . '[network_inherit][seo_schema_templates]" value="0"><label><input class="digitalisimo-network-inherit" data-group="#' . esc_attr( $group ) . '" type="checkbox" name="' . esc_attr( $option ) . '[network_inherit][seo_schema_templates]" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label></p>';
 		echo '</td></tr>';
 	}
-	/** Entidad por defecto de cada tipo de contenido y taxonomía de marcas de los productos (RM8). */
+	/** Entidad por defecto de cada tipo de contenido y marca y estado de los productos (RM8). */
 	private static function schema_defaults_fields( $network ) {
 		$types   = array( 'post' => 'Entradas' ) + self::template_types();
 		$option  = $network ? 'digitalisimo_network' : Digitalisimo_Integrations_Settings::OPTION;
@@ -729,7 +731,10 @@ class Digitalisimo_Integrations_SEO_Suite {
 		echo '</td></tr>';
 		$brands = array( '' => 'Automática (Marcas de WooCommerce, si existe)' );
 		if ( post_type_exists( 'product' ) ) foreach ( get_object_taxonomies( 'product', 'objects' ) as $name => $taxonomy ) if ( ! in_array( $name, array( 'product_type', 'product_visibility', 'product_shipping_class' ), true ) ) $brands[ $name ] = $taxonomy->labels->name ?? $name;
+		$brands[ Digitalisimo_Integrations_Schema_Graph::BRAND_FIXED ] = 'La misma en todos los productos (marca fija)';
 		self::field( $network, 'seo_product_brand', 'Marca de los productos', 'select', 'Taxonomía o atributo del que sale la marca (Brand) del producto. Sin marca asignada no se publica.', $brands );
+		self::field( $network, 'seo_product_brand_name', 'Marca fija', 'text', 'Sólo con «La misma en todos los productos»: el nombre de la marca, por ejemplo la tuya si sólo vendes productos propios. Vacía no publica ninguna.' );
+		self::field( $network, 'seo_product_condition', 'Estado de los productos', 'select', 'itemCondition del schema de cada producto y de sus ofertas. «No publicar» no declara nada; cada producto puede elegir otro en Datos del producto → Inventario.', Digitalisimo_Integrations_Schema_Graph::condition_choices() );
 	}
 	/** Sitemap de noticias y mapa del sitio en HTML (RM4). */
 	private static function news_sitemap_fields( $network ) {

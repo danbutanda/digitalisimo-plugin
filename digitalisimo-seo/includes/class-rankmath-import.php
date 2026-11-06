@@ -37,7 +37,11 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'image_preview'     => 'Contenidos con max-image-preview distinto de «large»: WordPress publica «large» y no se cambió.',
 			'schema_other'      => 'Schemas sin equivalente directo en el selector de tipo (quedan sin importar; revisa su JSON-LD).',
 			'schema_legacy'     => 'Contenidos con el formato antiguo de rich snippet de Rank Math (no se importan).',
-			'gtin'              => 'GTIN de Rank Math que no pasó al campo GTIN de WooCommerce: no es un GTIN válido, el producto ya tenía uno, otro producto lo usa o WooCommerce no está activo.',
+			'gtin'              => 'Identificadores de Rank Math (GTIN, ISBN o MPN) que no se importaron: no son válidos (un GTIN de 8, 12, 13 o 14 cifras, un ISBN con su dígito de control, un MPN de hasta 70 caracteres), el producto ya tenía otro, otro producto usa ese GTIN o WooCommerce no está activo.',
+			'gtin_native'       => 'Rank Math publicaba el campo GTIN de WooCommerce como ISBN o MPN (ajuste «Global Identifier»): WooCommerce lo publica ahora como GTIN si tiene 8, 12, 13 o 14 cifras. Pasa esos códigos a los campos MPN o ISBN de cada producto (Datos del producto → Inventario) y vacía el GTIN.',
+			'gtin_display'      => 'Rank Math mostraba el GTIN en la ficha del producto: DIGITALÍSIMO SEO no cambia lo que se ve en la tienda, sólo el schema.',
+			'shop_snippet'      => 'Rank Math publicaba la lista de productos (ItemList) en los archivos de la tienda: DIGITALÍSIMO SEO no la publica, porque Google no muestra carruseles de productos a partir de ese marcado.',
+			'item_condition'    => 'Rank Math declaraba todos los productos como nuevos (itemCondition NewCondition): se importó como estado de los productos. Cámbialo en SEO → Schema si vendes artículos usados o reacondicionados.',
 			'html_sitemap'      => 'Rank Math publicaba un mapa del sitio en HTML: pon el shortcode [digitalisimo_sitemap] en la página donde estaba.',
 			'url_base'          => 'Rank Math quitaba las categorías superiores de las URL de categorías de producto (/hija/ en vez de /madre/hija/). DIGITALÍSIMO SEO conserva la ruta completa, así que esas URL cambian: revisa el monitor 404 de las próximas semanas y crea redirecciones desde ahí (un clic) para las que reciban visitas.',
 			'base_collision'    => 'URL sin base que ya pertenecen a otra página o entrada: no se redirigen (revísalas en Redirecciones).',
@@ -165,10 +169,19 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( self::filled( $rm['rank_math_rich_snippet'] ?? null ) ) $notes[] = 'schema_legacy';
 		if ( self::filled( $rm['rank_math_exclude_sitemap'] ?? null ) && $empty( 'sitemap_exclude' ) ) $set['sitemap_exclude'] = '1';
 		if ( 'noindex' === ( $rm['rank_math_news_sitemap_robots'] ?? '' ) && $empty( 'news_exclude' ) ) $set['news_exclude'] = '1';
-		// El GTIN pasa al campo nativo de WooCommerce, que ya lo publica; sólo si es un GTIN válido.
+		// El código de Rank Math es lo que diga su ajuste «Global Identifier» (general.gtin): un ISBN o un MPN van a
+		// sus campos propios; cualquier otro (gtin, gtin8…gtin14 o sin ajuste) es un GTIN y pasa al campo nativo de
+		// WooCommerce, que ya lo publica. Sólo valores válidos y nunca sobre uno ya guardado.
 		if ( self::filled( $rm['_rank_math_gtin_code'] ?? null ) ) {
-			$gtin = preg_replace( '/[^0-9]/', '', (string) $rm['_rank_math_gtin_code'] );
-			if ( preg_match( '/^(\d{8}|\d{12,14})$/', $gtin ) ) $set['_gtin'] = $gtin; else $notes[] = 'gtin';
+			$kind = strtolower( (string) ( $ctx['gtin_type'] ?? '' ) );
+			if ( in_array( $kind, array( 'isbn', 'mpn' ), true ) ) {
+				$code = 'isbn' === $kind ? Digitalisimo_Integrations_Schema_Graph::sanitize_isbn( $rm['_rank_math_gtin_code'] ) : Digitalisimo_Integrations_Schema_Graph::sanitize_mpn( $rm['_rank_math_gtin_code'] );
+				if ( '' === $code || ( ! $empty( $kind ) && (string) $current[ $kind ] !== $code ) ) $notes[] = 'gtin';
+				elseif ( $empty( $kind ) ) $set[ $kind ] = $code;
+			} else {
+				$gtin = Digitalisimo_Integrations_Schema_Graph::sanitize_gtin( $rm['_rank_math_gtin_code'] );
+				if ( '' !== $gtin ) $set['_gtin'] = $gtin; else $notes[] = 'gtin';
+			}
 		}
 		return array( 'set' => $set, 'notes' => array_values( array_unique( $notes ) ) );
 	}
@@ -269,7 +282,16 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		if ( $types ) $want['_type_templates'] = $types;
 		if ( $taxes ) $want['_tax_templates'] = $taxes;
-		if ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
+		// Marca fija de Rank Math PRO: «custom» con su texto. Sin texto tampoco publicaba marca (falla cerrada igual).
+		if ( 'custom' === ( $g['product_brand'] ?? '' ) ) {
+			$want['seo_product_brand'] = Digitalisimo_Integrations_Schema_Graph::BRAND_FIXED;
+			if ( '' !== trim( (string) ( $g['custom_product_brand'] ?? '' ) ) ) $want['seo_product_brand_name'] = trim( (string) $g['custom_product_brand'] );
+		} elseif ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
+		// Rank Math (módulo de schema, con WooCommerce) declaraba NewCondition en todos los productos.
+		if ( in_array( 'rich-snippet', $modules, true ) && ! empty( $ctx['woocommerce'] ) ) $want['seo_product_condition'] = 'NewCondition';
+		if ( in_array( strtolower( (string) ( $g['gtin'] ?? '' ) ), array( 'isbn', 'mpn' ), true ) ) $notes[] = 'gtin_native';
+		if ( self::on( $g['show_gtin'] ?? '' ) ) $notes[] = 'gtin_display';
+		if ( isset( $g['remove_shop_snippet_data'] ) && ! self::on( $g['remove_shop_snippet_data'] ) ) $notes[] = 'shop_snippet';
 		if ( isset( $g['noindex_hidden_products'] ) ) $want['seo_noindex_hidden_products'] = self::on( $g['noindex_hidden_products'] ) ? 1 : 0;
 		if ( isset( $g['add_avatar_alt'] ) ) $want['seo_avatar_alt'] = self::on( $g['add_avatar_alt'] ) ? 1 : 0;
 		foreach ( array( 'rss_before_content' => 'seo_rss_before', 'rss_after_content' => 'seo_rss_after' ) as $from => $to ) {
@@ -331,6 +353,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 			if ( $edited ) { $notes[] = 'option_kept'; continue; }
 			$set[ $key ] = $value;
 		}
+		// Sólo se avisa del estado si de verdad se importó (no si el sitio ya tenía uno elegido).
+		if ( isset( $set['seo_product_condition'] ) ) $notes[] = 'item_condition';
 		return array( 'set' => $set, 'notes' => array_values( array_unique( $notes ) ), 'robots_txt' => $robots_txt );
 	}
 
@@ -381,6 +405,9 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'sitedesc'    => get_bloginfo( 'description' ),
 			'org_name'    => (string) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_organization_name', '' ) ?: get_bloginfo( 'name' ),
 			'keyword_max' => (int) Digitalisimo_Integrations_SEO_Resolver::option( 'keyword_max_count', 5 ),
+			// Qué es `_rank_math_gtin_code` (RM8) y si hay tienda a la que aplicar el estado de los productos.
+			'gtin_type'   => (string) ( ( (array) get_option( 'rank-math-options-general', array() ) )['gtin'] ?? '' ),
+			'woocommerce' => class_exists( 'WooCommerce' ),
 		);
 	}
 
@@ -529,6 +556,12 @@ class Digitalisimo_Integrations_RankMath_Import {
 				case 'seo_product_brand':
 					$out[ $key ] = sanitize_key( $value );
 					break;
+				case 'seo_product_brand_name':
+					$out[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_brand_name( $value );
+					break;
+				case 'seo_product_condition':
+					$out[ $key ] = Digitalisimo_Integrations_Schema_Graph::sanitize_condition( $value );
+					break;
 				case 'seo_separator':
 					if ( array_key_exists( $value, Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $out[ $key ] = $value;
 					break;
@@ -594,6 +627,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 				else self::count( $job, 'gtin' );
 				unset( $result['set']['_gtin'] );
 			}
+			foreach ( array( 'isbn', 'mpn' ) as $kind ) if ( isset( $result['set'][ $kind ] ) ) self::count( $job, 'identifiers' );
 			foreach ( $result['set'] as $key => $value ) {
 				$value = in_array( $key, array( 'canonical', 'social_image' ), true ) ? esc_url_raw( $value ) : sanitize_textarea_field( $value );
 				if ( '' === $value ) continue;
@@ -788,7 +822,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		} else echo '<p class="description">No hay datos de Rank Math en este sitio.</p>';
 		if ( ! $job ) return;
 		$done = (array) ( $job['done'] ?? array() );
-		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li><li>GTIN pasados a WooCommerce: ' . esc_html( (int) ( $done['gtin'] ?? 0 ) ) . '</li><li>Redirecciones de URL sin base: ' . esc_html( (int) ( $done['bases'] ?? 0 ) ) . '</li></ul>';
+		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li><li>GTIN pasados a WooCommerce: ' . esc_html( (int) ( $done['gtin'] ?? 0 ) ) . '</li><li>ISBN y MPN importados: ' . esc_html( (int) ( $done['identifiers'] ?? 0 ) ) . '</li><li>Redirecciones de URL sin base: ' . esc_html( (int) ( $done['bases'] ?? 0 ) ) . '</li></ul>';
 		$labels = self::note_labels();
 		if ( ! empty( $job['notes'] ) ) {
 			echo '<h3>Revisar</h3><table class="widefat striped"><thead><tr><th>Qué</th><th>Cuántos</th><th>Ejemplos</th></tr></thead><tbody>';

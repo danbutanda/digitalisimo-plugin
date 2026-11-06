@@ -47,6 +47,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-feed.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-video.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-repair.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-url-bases.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-product-identifiers.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-robots.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-crawler-tools.php';
@@ -131,6 +132,7 @@ function digitalisimo_integrations_boot() {
 		Digitalisimo_Integrations_SEO_Feed::init();
 		Digitalisimo_Integrations_Video::init();
 		Digitalisimo_Integrations_URL_Bases::init();
+		Digitalisimo_Integrations_Product_Identifiers::init();
 		Digitalisimo_Integrations_SEO_Abilities::init();
 		Digitalisimo_Integrations_SEO_Abilities_Write::init();
 	}

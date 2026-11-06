@@ -8,6 +8,8 @@ function add_action() {}
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-rankmath-import.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-feed.php';
+require __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-vocabulary.php';
+require __DIR__ . '/../digitalisimo-seo/includes/schema/class-schema-graph.php';
 function wp_kses_post( $value ) { return preg_replace( '#<script\b[^>]*>.*?</script>#is', '', (string) $value ); }
 class Digitalisimo_Integrations_SEO_Suite { public static function sanitize_type_templates( $v ) { return $v; } }
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
@@ -61,6 +63,21 @@ check( isset( $empty['set']['title'] ), 'Un título vacío sí se rellena.' );
 
 $gtin = $i::map_post( array( '_rank_math_gtin_code' => '4006-3813-3393-1' ), array(), $ctx );
 check( '4006381333931' === $gtin['set']['_gtin'] && ! in_array( 'gtin', $gtin['notes'], true ), 'Un GTIN válido pasa a WooCommerce sin guiones.' );
+$as_gtin8 = $i::map_post( array( '_rank_math_gtin_code' => '96385074' ), array(), array( 'gtin_type' => 'gtin8' ) + $ctx );
+check( array( '_gtin' => '96385074' ) === $as_gtin8['set'], 'gtin8…gtin14 de Rank Math son GTIN y van a WooCommerce.' );
+// El ajuste «Global Identifier» de Rank Math decide qué es el código (RM8).
+$isbn = $i::map_post( array( '_rank_math_gtin_code' => '978-0-306-40615-7' ), array(), array( 'gtin_type' => 'isbn' ) + $ctx );
+check( array( 'isbn' => '9780306406157' ) === $isbn['set'] && ! $isbn['notes'], 'Con «ISBN», el código va al ISBN propio y no al GTIN de WooCommerce.' );
+$bad_isbn = $i::map_post( array( '_rank_math_gtin_code' => '978-0-306-40615-8' ), array(), array( 'gtin_type' => 'isbn' ) + $ctx );
+check( array() === $bad_isbn['set'] && in_array( 'gtin', $bad_isbn['notes'], true ), 'Un ISBN con el dígito de control equivocado no se importa y se informa.' );
+$mpn = $i::map_post( array( '_rank_math_gtin_code' => 'ABC-12/x' ), array(), array( 'gtin_type' => 'MPN' ) + $ctx );
+check( array( 'mpn' => 'ABC-12/x' ) === $mpn['set'], 'Con «MPN», un código alfanumérico ya no se pierde.' );
+$mpn_num = $i::map_post( array( '_rank_math_gtin_code' => '012345678905' ), array(), array( 'gtin_type' => 'mpn' ) + $ctx );
+check( array( 'mpn' => '012345678905' ) === $mpn_num['set'], 'Un MPN de 12 cifras nunca se guarda como GTIN de WooCommerce.' );
+$mpn_kept = $i::map_post( array( '_rank_math_gtin_code' => 'ABC' ), array( 'mpn' => 'XYZ' ), array( 'gtin_type' => 'mpn' ) + $ctx );
+$mpn_same = $i::map_post( array( '_rank_math_gtin_code' => 'ABC' ), array( 'mpn' => 'ABC' ), array( 'gtin_type' => 'mpn' ) + $ctx );
+check( array() === $mpn_kept['set'] && in_array( 'gtin', $mpn_kept['notes'], true ) && array() === $mpn_same['set'] && ! $mpn_same['notes'], 'Nunca se pisa un MPN guardado; uno distinto se informa.' );
+check( in_array( 'gtin', $i::map_post( array( '_rank_math_gtin_code' => str_repeat( 'x', 71 ) ), array(), array( 'gtin_type' => 'mpn' ) + $ctx )['notes'], true ), 'Un MPN de más de 70 caracteres se informa.' );
 
 // Términos.
 $term = $i::map_term( array( 'rank_math_title' => '%term% %sep% %sitename%', 'rank_math_robots' => array( 'noindex' ), 'rank_math_canonical_url' => 'https://x.test/' ), array(), $ctx );
@@ -102,6 +119,15 @@ check( array( 'product' => array( 'title' => 'Mío', 'archive_title' => 'Nuevo' 
 check( array( 'post' => 'NewsArticle', 'servicio' => 'Service', 'curso' => 'none' ) === $set['_schema_defaults'] && in_array( 'schema_default', $opt['notes'], true ), 'Schema por defecto por tipo: ' . json_encode( $set['_schema_defaults'] ) );
 check( 1 === $set['seo_sitemap_news_enabled'] && 'post,noticia' === $set['seo_sitemap_news_types'] && 'Diario Acme' === $set['seo_sitemap_news_name'] && '7,9' === $set['seo_sitemap_news_exclude_terms'] && in_array( 'html_sitemap', $opt['notes'], true ), 'Google News y el mapa HTML se importan o se informan.' );
 check( 'pa_marca' === $set['seo_product_brand'], 'La taxonomía de marca se importa.' );
+check( ! isset( $set['seo_product_condition'] ) && ! in_array( 'item_condition', $opt['notes'], true ), 'Sin el módulo de schema de Rank Math no se importa ningún estado.' );
+$woo = $i::map_options( array( 'general' => array( 'product_brand' => 'custom', 'custom_product_brand' => ' Acme ', 'gtin' => 'mpn', 'show_gtin' => 'on', 'remove_shop_snippet_data' => 'off' ), 'modules' => array( 'rich-snippet', 'woocommerce' ) ), array(), array(), array( 'woocommerce' => true ) + $ctx );
+check( '_fixed' === $woo['set']['seo_product_brand'] && 'Acme' === $woo['set']['seo_product_brand_name'], 'La marca fija de Rank Math PRO pasa a la marca fija.' );
+check( 'NewCondition' === $woo['set']['seo_product_condition'] && in_array( 'item_condition', $woo['notes'], true ), 'Rank Math declaraba nuevos todos los productos: se importa y se informa.' );
+foreach ( array( 'gtin_native', 'gtin_display', 'shop_snippet' ) as $note ) check( in_array( $note, $woo['notes'], true ), 'Falta la nota ' . $note );
+$no_woo = $i::map_options( array( 'general' => array( 'product_brand' => 'custom', 'remove_shop_snippet_data' => 'on' ), 'modules' => array( 'rich-snippet' ) ), array(), array(), $ctx );
+check( '_fixed' === $no_woo['set']['seo_product_brand'] && ! isset( $no_woo['set']['seo_product_brand_name'] ) && ! isset( $no_woo['set']['seo_product_condition'] ) && ! in_array( 'shop_snippet', $no_woo['notes'], true ), 'Marca fija sin texto: ninguna marca, como en Rank Math; sin WooCommerce no hay estado.' );
+$condition_kept = $i::map_options( array( 'modules' => array( 'rich-snippet' ) ), array( 'seo_product_condition' => 'UsedCondition' ), array( 'seo_product_condition' => '' ), array( 'woocommerce' => true ) + $ctx );
+check( ! isset( $condition_kept['set']['seo_product_condition'] ) && in_array( 'option_kept', $condition_kept['notes'], true ) && ! in_array( 'item_condition', $condition_kept['notes'], true ), 'Un estado elegido en el sitio no se pisa ni se anuncia como importado.' );
 foreach ( array( 'local_hours', 'local_review' ) as $note ) check( in_array( $note, $opt['notes'], true ), 'Falta la nota ' . $note );
 $author = $i::map_options( array( 'titles' => array( 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ) ) ), array(), $defaults, $ctx );
 check( 1 === $author['set']['noindex_authors'], 'Con robots propios de autor, manda su noindex.' );
