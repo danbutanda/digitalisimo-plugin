@@ -236,17 +236,21 @@ restaurar y verificar trabajan en la misma petición.
 - **Almacén.** Sin `DOCUMENT_ROOT` (WP-CLI y cron), la carpeta privada sale de `DIGITALISIMO_BACKUPS_STORAGE_DIR` o de la
   ruta que registró la pantalla (ver «Almacenamiento local»).
 
-Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`): WordPress 7.1.4, PHP 8.5 y SQLite, en un sitio
-individual y en una red con un subsitio, todo por HTTP real. Pasaron 61 comprobaciones (26 en el sitio individual y 35
-en la red, unos 290 s).
+Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`), sobre el motor de 1.0.59: WordPress 7.1.4,
+PHP 8.5 y SQLite, en un sitio individual y en una red con un subsitio, todo por HTTP real. Pasaron 99 comprobaciones
+(45 en el sitio individual y 54 en la red, 395 s). El ensayo corta el loopback de WP-Cron (un mu-plugin de `setup.php`)
+para que la cola sólo avance cuando él lo pide; sin ese corte, en el sitio individual WP-Cron terminó por su cuenta el
+trabajo encolado por REST y el de `create --async` antes de que el ensayo los cancelara.
 
 | Qué | Resultado |
 | --- | --- |
 | Autenticación | Sin sesión, 401. Cookie sin nonce, 401 (WordPress la trata como anónima). Nonce falso, 403. Cookie con nonce, 200. |
 | Contraseñas de aplicación | De admin, 200. De una editora, 403. En la red, de un administrador del sitio principal que no administra la red, 403. |
-| Respaldo y restauración por REST | ZIP de 39 MB y 3803 entradas en 17 s, verificado. Un cambio posterior vuelve atrás al restaurar (25 s), con su copia previa. |
+| Cola por REST | `POST /backups` responde 202 con el trabajo y un segundo, 409 con el identificador del primero. `GET /jobs` lo lista y `POST /jobs/tick` lo termina (ZIP de 39 MB en 21 a 25 s). `POST /jobs/<id>/cancel` cancela uno en cola, y repetirlo responde 409. |
+| Respaldo y restauración por REST | El respaldo del trabajo queda en el historial, restaurable, y `verify` lo da por íntegro y registrado sin nombrar rutas del servidor. La frase en la URL se rechaza (400) sin repetirla. Un cambio posterior vuelve atrás al restaurar (25 a 28 s), con su copia previa. |
+| «Seguridad» | Con un `.dgbk` pequeño cifrado con una frase que el sitio no tiene: `verify` y `restore` sin ella responden 400 `secret_required` con la huella corta y dónde va la frase, y WP-CLI nombra `--secret-file` y `--secret-stdin`. Una frase equivocada da 422 sin repetirla. Con la buena, en el cuerpo o en `--secret-file`, lo descifrado no es un ZIP: la validación lo rechaza (422) y `.staging` queda vacía. Ninguna respuesta lleva la frase ni la huella completa. |
 | Red por REST | Sin `network=true`, 400. El subsitio responde 400 y su estado explica por qué. |
-| WP-CLI real | Sinopsis tomadas del PHPDoc. `restore` sin `--confirm` no corre. `create --porcelain` (18 s) aparece primero en el historial de REST. En la red, sin `--network` o desde el subsitio, falla con el motivo. |
+| WP-CLI real | Sinopsis tomadas del PHPDoc. `restore` sin `--confirm` no corre. `create --porcelain` hace avanzar la cola hasta terminar (19 a 20 s) y su respaldo aparece primero en el historial de REST. `create --async` deja el trabajo en cola, `jobs list` lo muestra primero y `jobs cancel` lo cancela. En la red, sin `--network` o desde el subsitio, falla con el motivo. |
 | Medios de un subsitio | Con `upload_path` fuera de `ABSPATH`, el estado nombra el sitio, el ajuste y la carpeta que calcula WordPress, y `POST /backups` responde 422 sin exportar. Con su valor original, la red vuelve a estar lista. |
 
 ## Almacenamiento local
