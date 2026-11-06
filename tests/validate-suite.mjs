@@ -11,8 +11,8 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.58.zip', version: '1.0.58' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.37.zip', version: '1.0.37' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.177.zip', version: '4.3.0.177' };
-const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.24.zip', version: '1.0.24' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.178.zip', version: '4.3.0.178' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.25.zip', version: '1.0.25' };
 const themeModule = { dir: 'digitalisimo-theme', file: 'style.css', zip: 'digitalisimo-theme-1.0.0.zip', version: '1.0.0' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
