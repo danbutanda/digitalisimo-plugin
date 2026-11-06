@@ -196,6 +196,7 @@ const count = (page, sel) => page.$$eval(sel, (l) => l.length);
 {
   const page = await open('/click/1/');
   ok(await page.$eval('.digi-loop__more .elementor-button', (e) => e.tagName === 'A' && !e.hasAttribute('href') && !e.hasAttribute('tabindex') && !e.hasAttribute('role')), '«Cargar más» es el enlace de PRO, sin href ni tabindex.');
+  ok(await page.$eval('[data-id="w1"]', (w) => w.querySelector('.e-load-more-anchor+.elementor-button-wrapper .elementor-button,.digi-loop__anchor+.digi-loop__more .elementor-button') === w.querySelector('.digi-loop__more .elementor-button')), 'La acción «Cargar más» de F7b (assets/js/actions.js) encuentra el botón propio tras su ancla.');
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
   ok(await page.evaluate(() => document.activeElement.matches('.digi-loop__more [role="button"][tabindex="0"]')), 'Tab llega al botón de «Cargar más» después de los tres títulos.');
   await page.keyboard.press('Enter');

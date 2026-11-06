@@ -30,7 +30,7 @@ else if(x=='toggle_class')t.classList.toggle(a.c);
 else if(x=='set_attribute'){if(!u){a.v0=ga(t,a.n);sa(t,a.n,a.v)}else a.v0==null?t.removeAttribute(a.n):sa(t,a.n,a.v0)}
 else if(u)return;
 else if(x=='scroll_to'){a.t=='click'&&fo(t,{preventScroll:true});t.scrollIntoView({behavior:mq(RM)?'auto':'smooth',block:'start'})}
-else if(x=='load_more'){const b=t.querySelector('.e-load-more-anchor+.elementor-button-wrapper .elementor-button');b&&b.click()}
+else if(x=='load_more'){const b=t.querySelector('.e-load-more-anchor+.elementor-button-wrapper .elementor-button,.digi-loop__anchor+.digi-loop__more .elementor-button');b&&b.click()}
 else if(x=='offcanvas_toggle')go('off_canvas:toggle',{id:a.g,displayMode:'toggle'});
 else go('popup:'+(x=='popup_open'?'open':'close'),x=='popup_open'?{id:''+a.p,toggle:false}:{});
 a.m&&t&&!u&&!t.hidden&&x!='hide'&&pl(t,a.m)},
