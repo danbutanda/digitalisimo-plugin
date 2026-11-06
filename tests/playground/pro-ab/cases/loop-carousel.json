@@ -164,7 +164,8 @@
    ]
   },
   "lc-autoplay": {
-   "title": "Reproducción automática (cada 10 min, para que la captura no dependa del momento) con pausa al pasar el puntero",
+   "title": "Reproducción automática (cada 10 min, para que la captura no dependa del momento) con pausa al pasar el puntero. Se carga de nuevo en cada ancho (`fresh`): sin acciones no hay recarga, y el desplazamiento que el foco provoca en PRO pasaba al ancho siguiente",
+   "fresh": true,
    "widget": "loop-carousel",
    "posts": 9,
    "settings": {
@@ -190,10 +191,19 @@
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "El primer destino del teclado en B es el botón Pausar/Reanudar, que PRO no tenía (aparece al enfocarlo); en A, el teclado llega al enlace de una diapositiva y Swiper (a11y, handleFocus) desplaza la pista para ponerla primera si no es la activa: se comparan dos estados distintos, no el mismo control."
+     }
+    }
+   }
   },
   "lc-autoplay-default": {
-   "title": "Estado por defecto real: reproducción automática e infinito en su valor por defecto (sí; cada 10 min)",
+   "title": "Estado por defecto real: reproducción automática e infinito en su valor por defecto (sí; cada 10 min). Se carga de nuevo en cada ancho (`fresh`): sin acciones no hay recarga, y el desplazamiento que el foco provoca en PRO pasaba al ancho siguiente",
+   "fresh": true,
    "widget": "loop-carousel",
    "posts": 9,
    "settings": {
@@ -218,7 +228,15 @@
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "El primer destino del teclado en B es el botón Pausar/Reanudar, que PRO no tenía (aparece al enfocarlo); en A, el teclado llega al enlace de una diapositiva y Swiper (a11y, handleFocus) desplaza la pista para ponerla primera si no es la activa: se comparan dos estados distintos, no el mismo control."
+     }
+    }
+   }
   },
   "lc-loop-end": {
    "title": "Bucle por defecto (6 entradas, 3 visibles): pasa del final (siguiente ×4) y vuelve (anterior)",
