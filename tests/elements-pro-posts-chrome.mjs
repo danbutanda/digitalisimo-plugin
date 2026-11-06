@@ -101,7 +101,8 @@ const baseCss = 'body{margin:0}.elementor-10 .elementor-element.elementor-elemen
 const typoCss = '.elementor-10 .elementor-element.elementor-element-pf .elementor-portfolio__filter,.elementor-10 .elementor-element.elementor-element-of .digi-portfolio__filter{font-size:12px;text-decoration:underline}'
   + '.elementor-10 .elementor-element.elementor-element-pm .elementor-button,.elementor-10 .elementor-element.elementor-element-om .digi-loop__more .elementor-button{font-size:22px;line-height:1.1}';
 function cascadePage() {
-  const terms = ['All', 'Noticias', 'Guías con un nombre de término bastante largo para partirse', 'Casos'];
+  // «I»: un término de una letra, más estrecho que 24 px con el relleno de PRO (un mínimo de 24 px lo ensancharía).
+  const terms = ['All', 'Noticias', 'Guías con un nombre de término bastante largo para partirse', 'Casos', 'I'];
   const pro = terms.map((t, i) => `<li id="pro-f${i}" class="elementor-portfolio__filter${i ? '' : ' elementor-active'}" tabindex="0" data-filter="${i ? i : '__all'}">${t}</li>`).join('');
   const own = terms.map((t, i) => `<li><button id="own-f${i}" type="button" class="digi-portfolio__filter" data-filter="${i ? i : '__all'}" aria-pressed="${i ? 'false' : 'true'}">${t}</button></li>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><link id="reset" rel="stylesheet" href="/x/reset.css"><link id="core" rel="stylesheet" href="/x/frontend.css"><style id="kit">${kitCss}</style><link id="pro" rel="stylesheet" href="/x/pro-posts.css"><link id="loop" rel="stylesheet" href="/a/loop.css"><link id="portfolio" rel="stylesheet" href="/a/portfolio.css"><style id="base">${baseCss}</style><style id="doc">${docCss}</style><style id="typo">${typoCss}</style><style id="still">*,*::before,*::after{transition:none!important}</style></head>`
@@ -256,7 +257,7 @@ for (const reduce of [false, true]) {
   ok(await visible() === 'XXXXXX', '«All» devuelve todos.');
   ok((await count(page, '.digi-portfolio--in')) === (reduce ? 0 : 3), reduce ? 'Con movimiento reducido no hay animación de entrada.' : 'Los que vuelven entran con su animación.');
   const box = await page.$eval('.digi-portfolio__filter', (e) => { const r = e.getBoundingClientRect(); return r.width >= 24 && r.height >= 24; });
-  ok(box, 'Botones del filtro de 24 × 24 px como mínimo.');
+  ok(box, 'Con el relleno de PRO (8 px), el botón «All» mide 24 × 24 px o más (sin un mínimo propio: la cascada compara la caja con la de PRO).');
   await page.focus('[data-filter="__all"]');
   await page.keyboard.press('Tab');
   ok(await page.evaluate(() => document.activeElement.dataset.filter === '5' && getComputedStyle(document.activeElement).outlineStyle === 'solid' && getComputedStyle(document.activeElement).outlineOffset === '2px'), 'Foco visible en el filtro con el teclado (2 px con separación de 2 px).');
@@ -325,7 +326,7 @@ for (const size of [12, 16]) {
     for (const p of props) if (!skip.includes(p)) out[p] = cs[p];
     return out;
   }), ids, props, skip);
-  const pairs = [['pro-more', 'own-more'], ['pro-f0', 'own-f0'], ['pro-f1', 'own-f1'], ['pro-f2', 'own-f2']];
+  const pairs = [['pro-more', 'own-more'], ['pro-f0', 'own-f0'], ['pro-f1', 'own-f1'], ['pro-f2', 'own-f2'], ['pro-f4', 'own-f4']];
   const compare = async (label, skip = []) => {
     const a = await read(pairs.map((p) => p[0]), skip);
     const b = await read(pairs.map((p) => p[1]), skip);
