@@ -3,8 +3,10 @@
  * Compatibilidad: respaldos creados con el código publicado de cada versión con manifiesto v3 anterior a la seguridad
  * (de 1.0.38 a 1.0.58, todas las que haya en rollback/ o dist/; 1.0.38, 1.0.45 y 1.0.58 son obligatorias), cargado con
  * otro nombre de clase, se restauran con el código nuevo: con su fila del historial (procedencia, RESTAURAR) y sin ella
- * (no confiable, RESTAURAR SIN FIRMA). Y hacia delante: 1.0.58 restaura un ZIP nuevo firmado, no abre un .dgbk sin
- * tocar el sitio y su rotación no lo borra.
+ * (no confiable, RESTAURAR SIN FIRMA). Los respaldos de red anteriores a v3 (de 1.0.1 a 1.0.37, manifiesto sin
+ * formato y sin SHA-256 en su fila; 1.0.1, 1.0.24 y 1.0.37 son obligatorias), que 1.0.58 también restauraba, se
+ * restauran como no confiables. Y hacia delante: 1.0.58 restaura un ZIP nuevo firmado, no abre un .dgbk sin tocar el
+ * sitio y su rotación no lo borra.
  */
 require __DIR__ . '/lib/backups-env.php';
 $S = 'Digitalisimo_Backups_Security';
@@ -91,6 +93,35 @@ foreach ( $versions as $version ) {
 	$checked[] = $version;
 }
 
+// Respaldos de red anteriores a v3: sin formato ni SHA-256 por entrada, y su fila del historial sin SHA-256.
+$older = array();
+foreach ( glob( $repo . '/rollback/digitalisimo-backups-1.0.*.zip' ) ?: array() as $package ) {
+	if ( preg_match( '/-(1\.0\.[0-9]+)\.zip$/', $package, $match ) && version_compare( $match[1], '1.0.1', '>=' ) && version_compare( $match[1], '1.0.38', '<' ) ) $older[ $match[1] ] = true;
+}
+foreach ( array( '1.0.1', '1.0.24', '1.0.37' ) as $required ) if ( ! isset( $older[ $required ] ) ) throw new RuntimeException( 'Falta el paquete publicado de Backups ' . $required . ' en rollback/.' );
+$older = array_keys( $older );
+usort( $older, 'version_compare' );
+foreach ( $older as $version ) {
+	$class = bk_legacy_class( $repo, $version );
+	$GLOBALS['wpdb']->posts[0]['post_content'] = 'contenido original ' . $version;
+	$created = bk_call( $class, 'create_network' );
+	$zip = new ZipArchive();
+	$zip->open( $created );
+	$manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+	$zip->close();
+	if ( 'network' !== ( $manifest['scope'] ?? '' ) || isset( $manifest['format'] ) ) throw new RuntimeException( $version . ' no creó un respaldo de red anterior a v3.' );
+	$path = $storage . '/digitalisimo-legacy-' . $version . '.zip';
+	copy( $created, $path );
+	@unlink( $created );
+	$GLOBALS['wpdb']->queries = array();
+	bk_expect_failure( $version . ' sin firma', function() use ( $path ) { bk_restore_with( $path, array( 'file' => basename( $path ), 'scope' => 'network', 'destination' => 'local' ), 'RESTAURAR' ); }, 'RESTAURAR SIN FIRMA' );
+	if ( $GLOBALS['wpdb']->queries ) throw new RuntimeException( $version . ': el rechazo tocó la base de datos.' );
+	$GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después';
+	if ( 'untrusted' !== bk_restore_with( $path, array( 'file' => basename( $path ), 'scope' => 'network', 'destination' => 'local' ), 'RESTAURAR SIN FIRMA' ) ) throw new RuntimeException( $version . ': debía ser no confiable.' );
+	if ( ! preg_grep( '/^INSERT INTO `wp_posts`.*contenido original ' . preg_quote( $version, '/' ) . '/s', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( $version . ': la restauración no dejó el mismo estado.' );
+	$checked[] = $version;
+}
+
 // Hacia delante: 1.0.58 restaura un ZIP nuevo firmado, no abre un .dgbk y su rotación no lo borra.
 $legacy = bk_legacy_class( $repo, '1.0.58' );
 Digitalisimo_Backups_Keys::set_passphrase( 'frase hacia delante bastante larga' );
@@ -115,4 +146,4 @@ bk_call( $legacy, 'prune', $storage, 0 );
 if ( ! file_exists( $sealed ) ) throw new RuntimeException( 'La rotación de 1.0.58 borró un respaldo cifrado.' );
 
 bk_cleanup();
-echo 'DIGITALÍSIMO Backups: respaldos de ' . implode( ', ', $checked ) . " se restauran con y sin fila; 1.0.58 restaura uno nuevo firmado y respeta los .dgbk.\n";
+echo 'DIGITALÍSIMO Backups: respaldos de ' . implode( ', ', $checked ) . " se restauran (v3 con y sin fila, anteriores a v3 como no confiables); 1.0.58 restaura uno nuevo firmado y respeta los .dgbk.\n";
