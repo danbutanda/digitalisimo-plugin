@@ -58,7 +58,11 @@
     "bq-defaults": {
       "title": "Blockquote con todos sus valores por defecto",
       "widget": "blockquote",
-      "settings": {}
+      "settings": {},
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
+      }
     },
     "bq-border": {
       "title": "Piel «border» con color, ancho, separación y relleno vertical, y color al pasar el ratón",
@@ -176,6 +180,10 @@
         "button_text_color": "#FFFFFF",
         "button_background_color_hover": "#084C37",
         "button_text_color_hover": "#FFEEAA"
+      },
+      "pixels": {
+        "max": 0.0005,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-text-link": {
@@ -205,6 +213,10 @@
         "tweet_button_view": "icon",
         "tweet_button_skin": "link",
         "url_type": "none"
+      },
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-text-classic": {
@@ -244,6 +256,10 @@
           "sizes": []
         },
         "button_typography_font_weight": "700"
+      },
+      "pixels": {
+        "max": 0.0003,
+        "reason": "Umbral estricto (fidelidad del icono): lo convertido pinta el icono de PRO (el pájaro de Font Awesome) en su sitio; el icono propio, o centrado en la vista «Icono», lo supera en los tres anchos."
       }
     },
     "bq-tweet-off": {
@@ -350,7 +366,7 @@
       }
     },
     "bq-responsive": {
-      "title": "Valores por dispositivo: alineación, tamaño de letra, separaciones, relleno y ancho del borde",
+      "title": "Valores por dispositivo: alineación (tableta al centro y móvil a la derecha, que PRO pintaba a la vez en todos los anchos), tamaño de letra, separaciones, relleno y ancho del borde",
       "widget": "blockquote",
       "settings": {
         "blockquote_content": "Lo que se lee bien en un teléfono se lee bien en todas partes.",
@@ -403,28 +419,66 @@
           "size": 4,
           "sizes": []
         }
-      },
-      "declared": [
-        {
-          "kind": "estilo",
-          "width": 768,
-          "match": " align: ",
-          "code": "alignment_tablet"
+      }
+    },
+    "bq-align-mixed": {
+      "title": "Izquierda en escritorio y centro en móvil, botón burbuja con color propio y CSS personalizado con la clase del centro: PRO pintaba las dos clases en todos los anchos (contenido a la izquierda, pie centrado, pico a la izquierda y la regla del centro siempre activa)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "Dos alineaciones a la vez también son un diseño.",
+        "author_name": "Inés Robles",
+        "alignment": "left",
+        "alignment_mobile": "center",
+        "tweet_button_skin": "bubble",
+        "button_background_color": "#0B6E4F",
+        "custom_css": "selector.elementor-blockquote--align-center .elementor-blockquote__author {\n  color: #C0392B;\n}"
+      }
+    },
+    "bq-align-device-gap": {
+      "title": "Derecha en escritorio, centro en tableta y separación del autor en tableta: PRO la pintaba en tableta y móvil (heredan el centro), no en escritorio; con CSS personalizado de la clase de la derecha",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "boxed",
+        "blockquote_content": "Cada dispositivo suma su clase.",
+        "author_name": "Carla Vidal",
+        "alignment": "right",
+        "alignment_tablet": "center",
+        "author_gap_tablet": {
+          "unit": "px",
+          "size": 30,
+          "sizes": []
         },
-        {
-          "kind": "estilo",
-          "match": " align: ",
-          "code": "alignment_mobile"
+        "custom_css": "selector.elementor-blockquote--align-right .elementor-blockquote__content {\n  color: #7A1FA2;\n}"
+      }
+    },
+    "bq-align-device-center": {
+      "title": "Sin alineación de escritorio y centro en móvil: centrado en todos los anchos, sin la separación del autor (su condición mira sólo escritorio)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "El centro de un teléfono también se ve en la pantalla grande.",
+        "author_name": "Óscar Lema",
+        "alignment_mobile": "center"
+      }
+    },
+    "bq-align-center-mobile-left": {
+      "title": "Centro en escritorio, izquierda en móvil y separación del autor en escritorio y en móvil: la de móvil no se pintaba en PRO (la alineación de móvil no era el centro)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "quotation",
+        "blockquote_content": "La separación sigue al centro, no al dispositivo.",
+        "author_name": "Rocío Pardo",
+        "alignment": "center",
+        "alignment_mobile": "left",
+        "author_gap": {
+          "unit": "px",
+          "size": 32,
+          "sizes": []
         },
-        {
-          "kind": "caja",
-          "match": "^text-align: ",
-          "code": "alignment_mobile"
+        "author_gap_mobile": {
+          "unit": "px",
+          "size": 8,
+          "sizes": []
         }
-      ],
-      "pixels": {
-        "max": 0.16,
-        "reason": "Alineación por dispositivo (approx de alignment_tablet y alignment_mobile en el mapa): PRO pintaba las clases de tablet y móvil en todos los tamaños a la vez (el pie se apila en columna y el texto cambia de lado); la Cita aplica cada una sólo en su dispositivo, así que cambian la alineación y el alto del widget en los tres anchos."
       }
     }
   }

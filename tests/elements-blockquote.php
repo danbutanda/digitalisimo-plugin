@@ -7,7 +7,13 @@
  * - marcado semántico de cada piel y vista, enlace para compartir bien formado y codificado, nombre accesible y escape;
  * - conversión con `Converter::tree()` de varios Blockquote de PRO (por defecto, cada piel, globales, dinámicos, CSS
  *   personalizado con clases de PRO, responsivos): ningún `pro.unmapped`, cada clave cae en un control propio y lo
- *   convertido se pinta con los mismos textos.
+ *   convertido se pinta con los mismos textos;
+ * - fidelidad (2026-11-06): lo convertido pinta el icono de PRO (el pájaro de Font Awesome del núcleo, el mismo trazo),
+ *   también lo convertido antes de existir `share_icon` (marca `_digitalisimo_pro`), y una Cita nueva el propio; la
+ *   alineación de cada dispositivo pasa a la que se veía en PRO, que pintaba a la vez la clase de todos los dispositivos
+ *   (`pro_align`: unión, cascada de su hoja, separación del autor por dispositivo, puntos de corte activos y CSS
+ *   personalizado con las clases de alineación); con iconos SVG en línea, el icono de PRO queda donde lo dejaba PRO en
+ *   la vista «Icono» (sin centrar).
  */
 namespace Elementor {
 	class Widget_Base {
@@ -27,7 +33,7 @@ namespace Elementor {
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args + array( 'responsive' => true ); }
 		public function add_group_control( $type, $args ) { $this->groups[ $args['name'] ] = array( 'type' => $type ) + $args; }
 	}
-	class Controls_Manager { const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose'; const HEADING = 'heading'; const COLOR = 'color'; const SLIDER = 'slider'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose'; const HIDDEN = 'hidden'; const HEADING = 'heading'; const COLOR = 'color'; const SLIDER = 'slider'; const TAB_STYLE = 'style'; }
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 	class Group_Control_Border { public static function get_type() { return 'border'; } }
 	class Group_Control_Box_Shadow { public static function get_type() { return 'box-shadow'; } }
@@ -43,6 +49,8 @@ namespace {
 	function wp_parse_url( $url ) { return parse_url( $url ); }
 	function wp_unslash( $v ) { return stripslashes( $v ); }
 	function home_url( $path = '' ) { return rtrim( $GLOBALS['bq_home'], '/' ) . '/' . ltrim( $path, '/' ); }
+	function get_option( $key, $default = false ) { return array_key_exists( $key, $GLOBALS['bq_options'] ?? array() ) ? $GLOBALS['bq_options'][ $key ] : $default; }
+	function apply_filters( $hook, $value ) { return $GLOBALS['bq_filters'][ $hook ] ?? $value; }
 	function check_bq( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	$root = __DIR__ . '/../digitalisimo-elements/';
@@ -74,7 +82,8 @@ namespace {
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_bq( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#3f444b', '#1da1f2', '#0967a0', '#fff', '#f9fafa' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-widgets/class-blockquote.php' );
-	check_bq( ! preg_match( '/jquery|wp_enqueue_script|wp_register_script|Icons_Manager|fa-twitter|eicon-(?!blockquote|text-align)/i', $source ), 'Sin jQuery, scripts ni iconos del proveedor.' );
+	// El gestor de iconos del núcleo no pinta nada (sólo se lee su filtro de migración, como él mismo).
+	check_bq( ! preg_match( '/jquery|wp_enqueue_script|wp_register_script|Icons_Manager::|fa-twitter|eicon-(?!blockquote|text-align)/i', $source ), 'Sin jQuery, scripts ni iconos del proveedor.' );
 
 	// 2. Un control propio por cada control de PRO, con los mismos valores por defecto visibles.
 	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
@@ -93,7 +102,19 @@ namespace {
 	foreach ( $pro_groups[1] as $name ) {
 		check_bq( isset( $map['groups'][ $name ], $widget->groups[ $map['groups'][ $name ] ] ), "$name: sin grupo propio." );
 	}
-	check_bq( count( $pro_controls[1] ) + count( $pro_groups[1] ) === count( $widget->controls ) + count( $widget->groups ), 'La Cita tiene exactamente un control por cada control de PRO.' );
+	// Más dos propios de lo convertido: el icono de PRO (oculto) y la alineación que se veía en PRO.
+	check_bq( count( $pro_controls[1] ) + count( $pro_groups[1] ) + 2 === count( $widget->controls ) + count( $widget->groups ), 'La Cita tiene exactamente un control por cada control de PRO, más share_icon y pro_align.' );
+	check_bq( 'hidden' === $widget->controls['share_icon']['type'] && '' === $widget->controls['share_icon']['default'] && ! isset( $widget->controls['share_icon']['label'] ), 'share_icon: oculto y vacío por defecto (una Cita nueva conserva su icono).' );
+	$names = array_keys( $widget->controls );
+	$pa    = $widget->controls['pro_align'];
+	check_bq( array_search( 'pro_align', $names, true ) === array_search( 'alignment', $names, true ) + 1 && empty( $pa['responsive'] ) && 'select' === $pa['type'] && '' === $pa['default'] && array( 'pro_align!' => '' ) === $pa['condition'] && array( '{{WRAPPER}} .digi-blockquote' => '{{VALUE}}' ) === $pa['selectors'] && $widget->controls['alignment']['selectors'] === $pa['selectors'], 'pro_align: justo después de «Alineación», no responsivo, vacío por defecto, sólo visible con valor y sobre el mismo selector (en la hoja del documento sustituye sus propiedades).' );
+	check_bq( array( '', 'left', 'center', 'right', 'center-left', 'center-right' ) === array_keys( $pa['options'] ) && array( 'left', 'center', 'right', 'center-left', 'center-right' ) === array_keys( $pa['selectors_dictionary'] ), 'pro_align: «Por dispositivo» más las cinco alineaciones que podían verse en PRO.' );
+	foreach ( array( 'left', 'center', 'right' ) as $value ) {
+		check_bq( $pa['selectors_dictionary'][ $value ] === $widget->controls['alignment']['selectors_dictionary'][ $value ], "pro_align $value: el mismo paquete que «Alineación»." );
+	}
+	// Lo que pintaba PRO con dos clases: el bloque centrado y el pie en bloque (columna centrada), el contenido del lado de
+	// la otra clase y el pico de la burbuja de ese mismo lado.
+	check_bq( 'text-align:center;--digi-bq-ta:left;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:1' === $pa['selectors_dictionary']['center-left'] && 'text-align:center;--digi-bq-ta:right;--digi-bq-fd:column;--digi-bq-as:center;--digi-bq-s:-1' === $pa['selectors_dictionary']['center-right'], 'pro_align: centro con el texto a un lado.' );
 	$own_default = static function ( $name ) use ( $widget ) { return $widget->controls[ $name ]['default'] ?? null; };
 	foreach ( array( 'blockquote_skin' => 'border', 'share_button' => 'yes', 'share_view' => 'icon-text', 'share_skin' => 'classic', 'url_type' => 'current_page' ) as $name => $value ) {
 		check_bq( $value === $own_default( $name ), "$name: el valor por defecto visible es el de PRO." );
@@ -104,7 +125,7 @@ namespace {
 	check_bq( array( 'alignment' => 'center', 'share_button' => 'yes' ) === $widget->controls['author_gap']['condition'] && array( 'share_button' => 'yes', 'share_view!' => 'icon' ) === $widget->controls['share_label']['condition'] && array( 'share_skin!' => 'link' ) === $widget->controls['button_background_color']['condition'] && array( 'blockquote_skin' => 'border' ) === $widget->sections['section_border_style']['condition'] && array( 'blockquote_skin!' => 'border' ) === $widget->sections['section_box_style']['condition'] && array( 'blockquote_skin' => 'quotation' ) === $widget->sections['section_quote_style']['condition'], 'Las mismas condiciones que PRO.' );
 	check_bq( array( 'box_shadow_position' ) === $widget->groups['box_box_shadow']['exclude'] && 'border' === $widget->groups['box_border_hover']['type'], 'Bordes y sombras de la caja como en PRO.' );
 	// Cada valor de la alineación fija todas las variables: un dispositivo nunca hereda las de otro.
-	foreach ( $widget->controls['alignment']['selectors_dictionary'] as $value => $rules ) {
+	foreach ( $widget->controls['alignment']['selectors_dictionary'] + $widget->controls['pro_align']['selectors_dictionary'] as $value => $rules ) {
 		foreach ( array( 'text-align:', '--digi-bq-ta:', '--digi-bq-fd:', '--digi-bq-as:', '--digi-bq-s:' ) as $rule ) {
 			check_bq( str_contains( $rules, $rule ), "Alineación $value: falta $rule" );
 		}
@@ -153,6 +174,19 @@ namespace {
 	( new ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget );
 	$editor = (string) ob_get_clean();
 	check_bq( str_contains( $editor, '<blockquote class="digi-blockquote">' ) && str_contains( $editor, '<footer class="digi-blockquote__footer">' ) && str_contains( $editor, 'rel="noopener noreferrer"' ) && str_contains( $editor, "aria-label=\"{{ label || 'Compartir en X' }}\"" ) && str_contains( $editor, Blockquote_Widget::ICON ) && ! preg_match( '/var[^;#]*[\s,]view\s*=/', $editor ) && ! str_contains( $editor, '{{{ settings.' ), 'La vista previa repite el marcado, escapa los textos y no tapa el objeto view.' );
+	check_bq( str_contains( $editor, "if ( 'legacy' === settings.share_icon || ( ! settings.share_icon && 'blockquote' === settings._digitalisimo_pro ) ) { #>" . Blockquote_Widget::ICON_LEGACY ) && str_contains( $editor, '<# } else { #>' . Blockquote_Widget::ICON ), 'La vista previa elige el icono como el servidor.' );
+
+	// 3b. Icono de PRO en lo convertido: el mismo glifo que PRO pinta (`fab fa-twitter` de la copia del núcleo).
+	$brands = json_decode( (string) file_get_contents( $root . 'elementor/assets/lib/font-awesome/json/brands.json' ), true );
+	$bird   = $brands['icons']['twitter'] ?? array();
+	check_bq( 5 === count( $bird ) && str_contains( Blockquote_Widget::ICON_LEGACY, 'viewBox="0 0 ' . $bird[0] . ' ' . $bird[1] . '"' ) && str_contains( Blockquote_Widget::ICON_LEGACY, '<path d="' . $bird[4] . '"/>' ) && str_contains( Blockquote_Widget::ICON_LEGACY, '<svg class="digi-blockquote__icon"' ) && str_contains( Blockquote_Widget::ICON_LEGACY, 'aria-hidden="true" focusable="false"' ), 'ICON_LEGACY es el trazo y la caja del icono `twitter` de Font Awesome del núcleo, con la clase y la ocultación del propio.' );
+	check_bq( 2 === substr_count( $pro, "'value' => 'fab fa-twitter'," ) + substr_count( $pro, '<i class="fab fa-twitter"' ), 'PRO pinta `fab fa-twitter` en el servidor y en el editor (su Blockquote no cambió).' );
+	$base = array( 'blockquote_content' => 'Hola', 'share_button' => 'yes', 'share_view' => 'icon-text', 'share_label' => 'Tweet', 'url_type' => 'none' );
+	$with = static function ( array $extra ) use ( $render, $base ) { return $render( $extra + $base ); };
+	check_bq( str_contains( $with( array( 'share_icon' => 'legacy' ) ), Blockquote_Widget::ICON_LEGACY ) && ! str_contains( $with( array( 'share_icon' => 'legacy' ) ), Blockquote_Widget::ICON ), 'share_icon = legacy pinta el icono de PRO.' );
+	check_bq( str_contains( $with( array( '_digitalisimo_pro' => 'blockquote' ) ), Blockquote_Widget::ICON_LEGACY ), 'Lo convertido antes de existir share_icon (marca _digitalisimo_pro) pinta el icono de PRO.' );
+	check_bq( str_contains( $with( array() ), Blockquote_Widget::ICON ) && str_contains( $with( array( '_digitalisimo_pro' => 'otra' ) ), Blockquote_Widget::ICON ) && str_contains( $with( array( 'share_icon' => 'own', '_digitalisimo_pro' => 'blockquote' ) ), Blockquote_Widget::ICON ), 'Una Cita nueva (o de otro origen, o con otro valor) conserva el icono propio.' );
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'text' ) ), '<svg' ), 'La vista «Texto» no pinta ningún icono.' );
 
 	// 4. Conversión de Blockquote de PRO con el mapa (borrador: sólo pruebas).
 	Registry::reset();
@@ -207,16 +241,19 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_bq( array( 'css:pro.css:custom_css', 'responsive:pro.approx:alignment_mobile' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y la alineación por dispositivo: ' . implode( ', ', $codes ) );
+	check_bq( array( 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni pro.approx; sólo el CSS convertido: ' . implode( ', ', $codes ) );
+	check_bq( ! isset( $map['approx'] ) && array( 'share_icon' => 'legacy' ) === $map['set'] && is_callable( $map['filter'] ), 'El mapa ya no aproxima la alineación: fija el icono de PRO y la calcula con su filter.' );
 	$d = $out['defaults'];
 	check_bq( 'border' === $d['blockquote_skin'] && 'John Doe' === $d['author_name'] && 0 === strpos( $d['blockquote_content'], 'Lorem ipsum dolor sit amet, consectetur' ) && 'yes' === $d['share_button'] && 'icon-text' === $d['share_view'] && 'classic' === $d['share_skin'] && 'Tweet' === $d['share_label'] && 'current_page' === $d['url_type'] && 20 === $d['author_gap']['size'] && 1 === $d['quote_size']['size'] && 'blockquote' === $d['_digitalisimo_pro'], 'Un Blockquote sin cambios llega con los valores por defecto visibles de PRO.' );
 	check_bq( ! array_intersect( array( 'tweet_button', 'tweet_button_view', 'tweet_button_skin', 'tweet_button_label' ), array_keys( $d ) ), 'Las claves del botón ya no nombran al servicio.' );
+	check_bq( 'legacy' === $d['share_icon'] && ! isset( $d['pro_align'] ) && ! isset( $d['alignment'] ), 'Un Blockquote por defecto llega con el icono de PRO y sin alineación.' );
 	$_SERVER['REQUEST_URI'] = '/hola/';
 	$GLOBALS['bq_home']     = 'https://sitio.test';
 	$painted                = $render( $d );
+	check_bq( str_contains( $painted, Blockquote_Widget::ICON_LEGACY ) && ! str_contains( $painted, Blockquote_Widget::ICON ), 'Lo convertido pinta el icono de PRO.' );
 	check_bq( str_contains( $painted, '>' . $d['blockquote_content'] . '</p>' ) && str_contains( $painted, '<cite class="digi-blockquote__author">John Doe</cite>' ) && str_contains( $painted, '<span class="digi-blockquote__label">Tweet</span>' ) && str_contains( $painted, 'href="https://twitter.com/intent/tweet?text=Lorem%20ipsum%20dolor%20sit%20amet%2C%20consectetur' ) && str_contains( $painted, '%20%E2%80%94%20John%20Doe&amp;url=https%3A%2F%2Fsitio.test%2Fhola%2F"' ), 'Lo convertido se pinta con los mismos textos y el mismo enlace que PRO.' );
 	check_bq( '#ff0000' === $out['border']['border_color'] && 2 === $out['border']['border_width_tablet']['size'] && 500 === $out['border']['border_transition_duration']['size'] && 10 === $out['border']['border_vertical_padding']['size'] && 40 === $out['border']['border_gap_hover']['size'], 'Piel borde: colores, anchos por dispositivo, separación, hover y transición.' );
-	check_bq( 'quotation' === $out['quotation']['blockquote_skin'] && '#cccccc' === $out['quotation']['quote_text_color'] && 1.5 === $out['quotation']['quote_size']['size'] && 5 === $out['quotation']['quote_gap']['size'] && 'bubble' === $out['quotation']['share_skin'] && 'right' === $out['quotation']['alignment'], 'Piel comillas, botón burbuja y alineación.' );
+	check_bq( 'quotation' === $out['quotation']['blockquote_skin'] && '#cccccc' === $out['quotation']['quote_text_color'] && 1.5 === $out['quotation']['quote_size']['size'] && 5 === $out['quotation']['quote_gap']['size'] && 'bubble' === $out['quotation']['share_skin'] && 'right' === $out['quotation']['alignment'] && ! isset( $out['quotation']['pro_align'] ), 'Piel comillas, botón burbuja y alineación (sólo de escritorio: sin pro_align).' );
 	check_bq( 'solid' === $out['boxed']['box_border_border'] && '1' === $out['boxed']['box_border_width']['top'] && 'yes' === $out['boxed']['box_box_shadow_box_shadow_type'] && 10 === $out['boxed']['box_box_shadow_box_shadow']['blur'] && 'dashed' === $out['boxed']['box_border_hover_border'] && 'yes' === $out['boxed']['box_box_shadow_hover_box_shadow_type'] && 12 === $out['boxed']['box_border_radius_hover']['size'] && 's' === $out['boxed']['box_transition_duration']['unit'], 'Piel caja: borde, sombra, radio y hover pasan con sus grupos.' );
 	check_bq( 'clean' === $out['clean']['blockquote_skin'] && '' === $out['clean']['share_button'] && '' === $out['clean']['author_name'], 'Piel limpia sin botón ni autor.' );
 	check_bq( '<blockquote class="digi-blockquote"><p class="digi-blockquote__content">' . $out['clean']['blockquote_content'] . '</p></blockquote>' === $render( $out['clean'] ), 'Sin autor ni botón, sólo la cita.' );
@@ -227,8 +264,109 @@ namespace {
 	check_bq( array( 'blockquote_content', 'author_name', 'share_label', 'url' ) === array_keys( $out['dynamic']['__dynamic__'] ) && '[elementor-tag id="a3" name="site-title" settings="%7B%7D"]' === $out['dynamic']['__dynamic__']['share_label'], 'Las etiquetas dinámicas siguen a su control (también la del texto del botón).' );
 	check_bq( "selector .digi-blockquote__content{color:red}\nselector.digi-blockquote--skin-boxed .digi-blockquote{padding:0}\nselector .digi-blockquote__footer .digi-blockquote__button:hover .digi-blockquote__label{color:#000}\n.elementor-widget-digitalisimo-blockquote .digi-blockquote__author{font-size:9px}" === $out['css']['custom_css'] && 'mi-cita' === $out['css']['_css_classes'] && '10' === $out['css']['_margin']['top'], 'CSS personalizado con las clases propias; Avanzado intacto.' );
 	$r = $out['responsive'];
-	check_bq( 'center' === $r['alignment'] && 'left' === $r['alignment_mobile'] && 12 === $r['content_gap_tablet']['size'] && 8 === $r['author_gap_mobile']['size'] && 10 === $r['box_padding_mobile']['size'] && 16 === $r['content_typography_font_size_mobile']['size'] && 0.8 === $r['quote_size_tablet']['size'] && 0.9 === $r['button_size_mobile']['size'], 'Los valores por dispositivo pasan a su control.' );
+	check_bq( 12 === $r['content_gap_tablet']['size'] && 10 === $r['box_padding_mobile']['size'] && 16 === $r['content_typography_font_size_mobile']['size'] && 0.8 === $r['quote_size_tablet']['size'] && 0.9 === $r['button_size_mobile']['size'], 'Los valores por dispositivo pasan a su control.' );
+	// PRO: centro en escritorio y la clase de móvil (izquierda) en todos los anchos; su separación del autor en móvil no se
+	// pintaba (la alineación de móvil no era el centro), la de escritorio sí, en todos los anchos.
+	check_bq( 'center' === $r['alignment'] && ! isset( $r['alignment_mobile'] ) && 'center-left' === $r['pro_align'] && 20 === $r['author_gap']['size'] && ! isset( $r['author_gap_mobile'] ), 'Centro + móvil a la izquierda: alineación de escritorio conservada, ninguna por dispositivo, pro_align center-left y sin la separación de móvil que PRO no pintaba: ' . json_encode( array_intersect_key( $r, array_flip( array( 'alignment', 'alignment_mobile', 'pro_align', 'author_gap', 'author_gap_mobile' ) ) ) ) );
 	check_bq( $converted === Converter::tree( $converted, $again, true ) && array() === $again, 'Lo convertido no se convierte otra vez.' );
 
-	echo 'DIGITALÍSIMO Elements: Cita (' . count( $widget->controls ) . ' controles, ' . count( $widget->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B) y su mapa desde el Blockquote de PRO (' . count( $cases ) . " casos) validados.\n";
+	// 5. Alineación por dispositivo: PRO pintaba en el envoltorio, en todos los anchos, la clase de cada una
+	// (`elementor-blockquote--align-` sin `%s`), y su hoja resolvía la unión. Sin `\Elementor\Plugin`, los dispositivos
+	// activos son los de serie (tableta y móvil).
+	$align = static function ( array $settings ) {
+		$tree = array( array( 'id' => 'a1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => $settings, 'elements' => array() ) );
+		$conv = Converter::tree( $tree, $alog, true );
+		$codes = array();
+		foreach ( $alog as $entry ) {
+			foreach ( $entry['codes'] as $code ) {
+				$codes[] = $code['code'] . ':' . $code['key'];
+			}
+		}
+		return array( $conv[0]['settings'], $codes );
+	};
+	$pick = static function ( array $s ) {
+		$keys = array();
+		foreach ( $s as $key => $value ) {
+			if ( 0 === strpos( (string) $key, 'alignment' ) || 0 === strpos( (string) $key, 'author_gap' ) || 'pro_align' === $key ) {
+				$keys[ $key ] = is_array( $value ) ? ( $value['size'] ?? null ) : $value;
+			}
+		}
+		ksort( $keys );
+		return $keys;
+	};
+	$gap20 = array( 'author_gap' => 20 );
+	$table = array(
+		// [ ajustes de PRO, lo que debe quedar (alineaciones, pro_align y separaciones del autor por su tamaño) ].
+		'sin alineación'                 => array( array(), $gap20 ),
+		'sólo escritorio'                => array( array( 'alignment' => 'right' ), array( 'alignment' => 'right' ) + $gap20 ),
+		'escritorio = dispositivo'       => array( array( 'alignment' => 'left', 'alignment_mobile' => 'left' ), array( 'alignment' => 'left' ) + $gap20 ),
+		'right + tableta left'           => array( array( 'alignment' => 'right', 'alignment_tablet' => 'left' ), array( 'alignment' => 'right' ) + $gap20 ),
+		'left + móvil right'             => array( array( 'alignment' => 'left', 'alignment_mobile' => 'right' ), array( 'alignment' => 'left', 'pro_align' => 'right' ) + $gap20 ),
+		'vacío + móvil center'           => array( array( 'alignment_mobile' => 'center' ), array( 'pro_align' => 'center' ) + $gap20 ),
+		'tableta center + móvil right'   => array( array( 'alignment_tablet' => 'center', 'alignment_mobile' => 'right' ), array( 'pro_align' => 'center-right' ) + $gap20 ),
+		'left/center/right'              => array( array( 'alignment' => 'left', 'alignment_tablet' => 'center', 'alignment_mobile' => 'right' ), array( 'alignment' => 'left', 'pro_align' => 'center-right' ) + $gap20 ),
+		'center + tableta right'         => array( array( 'alignment' => 'center', 'alignment_tablet' => 'right' ), array( 'alignment' => 'center', 'pro_align' => 'center-right' ) + $gap20 ),
+		'portátil inactivo'              => array( array( 'alignment' => 'left', 'alignment_laptop' => 'right', 'alignment_widescreen' => 'center' ), array( 'alignment' => 'left' ) + $gap20 ),
+		'valor desconocido'              => array( array( 'alignment_mobile' => 'justify' ), $gap20 ),
+		// Separación del autor por dispositivo: PRO la pintaba donde la alineación de ese dispositivo (o la del más
+		// próximo que la tuviera) era el centro.
+		'center: separaciones'           => array( array( 'alignment' => 'center', 'alignment_mobile' => 'left', 'author_gap' => array( 'unit' => 'px', 'size' => 30 ), 'author_gap_tablet' => array( 'unit' => 'px', 'size' => 12 ), 'author_gap_mobile' => array( 'unit' => 'px', 'size' => 8 ) ), array( 'alignment' => 'center', 'pro_align' => 'center-left', 'author_gap' => 30, 'author_gap_tablet' => 12 ) ),
+		'left + móvil center + sep.'     => array( array( 'alignment' => 'left', 'alignment_mobile' => 'center', 'author_gap_mobile' => array( 'unit' => 'px', 'size' => 30 ), 'author_gap_tablet' => array( 'unit' => 'px', 'size' => 9 ) ), array( 'alignment' => 'center', 'pro_align' => 'center-left', 'author_gap' => '', 'author_gap_mobile' => 30 ) ),
+		'tableta center: hereda móvil'   => array( array( 'alignment_tablet' => 'center', 'author_gap_mobile' => array( 'unit' => 'px', 'size' => 6 ) ), array( 'alignment' => 'center', 'author_gap' => '', 'author_gap_mobile' => 6 ) ),
+		'móvil center sin separación'    => array( array( 'alignment' => 'right', 'alignment_mobile' => 'center', 'author_gap_mobile' => array( 'unit' => 'px', 'size' => '' ) ), array( 'alignment' => 'right', 'pro_align' => 'center-right', 'author_gap' => 20, 'author_gap_mobile' => '' ) ),
+	);
+	foreach ( $table as $label => $row ) {
+		list( $got, $codes_a ) = $align( $row[0] );
+		$expect = $row[1];
+		ksort( $expect );
+		check_bq( $expect === $pick( $got ) && array() === $codes_a, "Alineación ($label): " . json_encode( $pick( $got ) ) . ' ' . implode( ', ', $codes_a ) );
+	}
+	// El resultado de la cascada de PRO se ve en todos los anchos: pro_align no es responsivo y sólo lleva lo que pintaba
+	// PRO; «Alineación» sigue mandando en una Cita nueva (ningún pro_align, la clase por dispositivo).
+	check_bq( ! isset( $align( array( 'alignment' => 'center' ) )[0]['pro_align'] ), 'Centro sólo en escritorio: igual que la Cita nueva.' );
+	// CSS personalizado: la clase de un valor de la unión estaba siempre en PRO; la Cita la tiene sólo si es el de escritorio.
+	list( $css_a ) = $align(
+		array(
+			'alignment'        => 'center',
+			'alignment_mobile' => 'right',
+			'custom_css'       => "selector.elementor-blockquote--align-right .elementor-blockquote__content{color:red}\nselector.elementor-blockquote--align-center .elementor-blockquote__author{color:blue}\nselector.elementor-blockquote--align-left .elementor-blockquote__author{color:green}\nselector.elementor-blockquote--align-right-x{}",
+		)
+	);
+	check_bq( "selector.elementor-widget-digitalisimo-blockquote .digi-blockquote__content{color:red}\nselector.digi-blockquote--align-center .digi-blockquote__author{color:blue}\nselector.digi-blockquote--align-left .digi-blockquote__author{color:green}\nselector.elementor-blockquote--align-right-x{}" === $css_a['custom_css'] && 'center-right' === $css_a['pro_align'], 'CSS personalizado: la clase de la alineación de móvil pasa a la del envoltorio (siempre presente, como en PRO); la de escritorio y la que no estaba en PRO no cambian: ' . $css_a['custom_css'] );
+	list( $css_b ) = $align( array( 'alignment' => 'left', 'alignment_mobile' => 'center', 'author_gap_mobile' => array( 'unit' => 'px', 'size' => 4 ), 'custom_css' => 'selector.elementor-blockquote--align-left .elementor-blockquote{padding:1px}' ) );
+	check_bq( 'selector.elementor-widget-digitalisimo-blockquote .digi-blockquote{padding:1px}' === $css_b['custom_css'] && 'center' === $css_b['alignment'], 'CSS personalizado: si la de escritorio pasa al centro, la clase de la original también va al envoltorio: ' . $css_b['custom_css'] );
+
+	// Con el núcleo cargado cuentan sus puntos de corte activos: con el portátil activo, su clase también se pintaba.
+	eval( 'namespace Elementor; class Plugin { public static $instance; public $breakpoints; public $experiments; }' );
+	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
+	\Elementor\Plugin::$instance->breakpoints = new class() {
+		public $active = array( 'mobile' => 1, 'tablet' => 1, 'laptop' => 1 );
+		public function get_active_breakpoints() { return $this->active; }
+	};
+	check_bq( array( 'alignment' => 'left', 'author_gap' => 20, 'pro_align' => 'right' ) === $pick( $align( array( 'alignment' => 'left', 'alignment_laptop' => 'right' ) )[0] ), 'Portátil activo: su alineación entra en la unión.' );
+	check_bq( array( 'alignment' => 'center', 'author_gap' => '', 'author_gap_tablet' => 7, 'pro_align' => 'center-right' ) === $pick( $align( array( 'alignment' => 'right', 'alignment_laptop' => 'center', 'author_gap_tablet' => array( 'unit' => 'px', 'size' => 7 ) ) )[0] ), 'Portátil activo: la tableta hereda su centro (la separación de tableta se pintaba en PRO).' );
+	\Elementor\Plugin::$instance->breakpoints->active = array( 'mobile' => 1, 'tablet' => 1, 'widescreen' => 1 );
+	check_bq( array( 'alignment' => 'left', 'author_gap' => 20, 'author_gap_tablet' => 5, 'pro_align' => 'center-left' ) === $pick( $align( array( 'alignment' => 'left', 'alignment_widescreen' => 'center', 'author_gap_tablet' => array( 'unit' => 'px', 'size' => 5 ) ) )[0] ), 'Panorámico activo: entra en la unión, pero la tableta hereda de escritorio, no de él: su separación no se pintaba en PRO ni se pinta en la Cita (escritorio no está centrado), así que no se fuerza el centro.' );
+	\Elementor\Plugin::$instance->breakpoints->active = array( 'mobile' => 1 );
+	check_bq( array( 'alignment' => 'left', 'author_gap' => 20 ) === $pick( $align( array( 'alignment' => 'left', 'alignment_tablet' => 'right' ) )[0] ), 'Tableta inactiva: su alineación no se pintaba en PRO y se descarta.' );
+
+	// 6. Dónde queda el icono de PRO. Con los iconos de fuente como SVG en línea (`e_font_icon_svg` y Font Awesome 5), PRO
+	// pintaba un `<svg>` que su hoja no centraba en la vista «Icono»; con la fuente, un `<i>` centrado.
+	$start = 'class="digi-blockquote__button digi-blockquote__button--icon-start"';
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Sin experimentos del núcleo (iconos de fuente): el icono de PRO queda centrado, como el `<i>` de PRO.' );
+	\Elementor\Plugin::$instance->experiments = new class() {
+		public $on = true;
+		public function is_feature_active( $feature ) { return $this->on && 'e_font_icon_svg' === $feature; }
+	};
+	check_bq( str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), $start ) && str_contains( $with( array( '_digitalisimo_pro' => 'blockquote' ) ), $start ), 'Con SVG en línea, lo convertido lleva el icono donde lo dejaba PRO.' );
+	check_bq( ! str_contains( $with( array( 'share_view' => 'icon' ) ), 'icon-start' ) && ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'text' ) ), 'icon-start' ), 'Una Cita nueva conserva su icono centrado; la vista «Texto» no lleva icono.' );
+	$GLOBALS['bq_options']['elementor_icon_manager_needs_update'] = 'yes';
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Sin migrar a Font Awesome 5, PRO pintaba la fuente (centrada).' );
+	$GLOBALS['bq_filters']['elementor/icons_manager/migration_allowed'] = true;
+	check_bq( str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), $start ), 'El filtro del núcleo que permite la migración también cuenta.' );
+	\Elementor\Plugin::$instance->experiments->on = false;
+	check_bq( ! str_contains( $with( array( 'share_icon' => 'legacy', 'share_view' => 'icon' ) ), 'icon-start' ), 'Con el experimento inactivo, la fuente (centrada).' );
+	check_bq( (bool) preg_match( '/view-icon \.digi-blockquote__button\{align-items:center;[^}]*\}.*\.digi-blockquote--view-icon \.digi-blockquote__button\.digi-blockquote__button--icon-start\{align-items:normal;justify-content:normal\}/', $css ), 'La hoja deja el icono de PRO al principio del botón, después (y con la misma especificidad) que la regla que lo centra.' );
+
+	echo 'DIGITALÍSIMO Elements: Cita (' . count( $widget->controls ) . ' controles, ' . count( $widget->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B) y su mapa desde el Blockquote de PRO (' . count( $cases ) . ' casos y ' . count( $table ) . " alineaciones) validados.\n";
 }

@@ -165,7 +165,7 @@
     "R1",
     "R1c"
    ],
-   "motivo": "§17: los ajustes los traduce el mapa de la Cita (digitalisimo-convert/maps/blockquote.php): completa los valores por defecto del Blockquote, renombra tweet_button* a share_*, pasa las clases del CSS personalizado a las propias y deja la marca _digitalisimo_pro"
+   "motivo": "§17: los ajustes los traduce el mapa de la Cita (digitalisimo-convert/maps/blockquote.php): completa los valores por defecto del Blockquote, renombra tweet_button* a share_*, pasa las clases del CSS personalizado a las propias, fija el icono de PRO (share_icon), calcula la alineación que se veía en PRO (pro_align) y deja la marca _digitalisimo_pro"
   },
   {
    "ruta": "^(documents\\.page:cita-de-pro\\.counts|counts\\.elements)\\.(blockquote|digitalisimo-blockquote)$",
