@@ -205,6 +205,8 @@ jobs:
           php tests/updater-manifest.php seo
           php tests/updater-manifest.php hosting
           php tests/updater-manifest.php ia
+          php tests/ia-chat-server.php
+          node tests/ia-chat-xss.mjs
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php

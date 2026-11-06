@@ -14,8 +14,11 @@ class Digitalisimo_MCP_Articles {
 	public static function clusters() {
 		$pillars = get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => array( 'publish', 'draft', 'pending', 'private' ), 'posts_per_page' => -1, 'meta_key' => 'digitalisimo_seo_pillar', 'meta_value' => 'on', 'orderby' => 'title', 'order' => 'ASC' ) );
 		$rows = array();
+		// Sólo lo que este usuario puede leer: un borrador ajeno o un contenido privado no asoman su título a quien sólo tiene edit_posts.
+		$readable = function( $id ) { return current_user_can( 'read_post', (int) $id ); };
 		foreach ( $pillars as $pillar ) {
-			$children = get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'any', 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => $pillar->ID, 'fields' => 'ids' ) );
+			if ( ! $readable( $pillar->ID ) ) continue;
+			$children = array_values( array_filter( get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'any', 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => $pillar->ID, 'fields' => 'ids' ) ), $readable ) );
 			$rows[] = array( 'id' => (int) $pillar->ID, 'title' => $pillar->post_title, 'url' => get_permalink( $pillar ), 'keyword' => self::primary_keyword( $pillar->ID ), 'children' => array_map( function( $id ) { return array( 'id' => (int) $id, 'title' => get_the_title( $id ), 'keyword' => self::primary_keyword( $id ) ); }, $children ) );
 		}
 		return rest_ensure_response( array( 'pillars' => $rows ) );
