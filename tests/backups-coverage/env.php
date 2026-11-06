@@ -101,6 +101,14 @@ class Digi_Test_DB {
 		return $this->rows;
 	}
 	public function db_version() { return '8.0'; }
+	/** `upload_path` de cada sitio de la red (id => valor), leído por Digitalisimo_Backups_Layout. */
+	public $upload_paths = array();
+	public function get_blog_prefix( $blog_id = null ) { return 1 === (int) $blog_id ? 'wp_' : 'wp_' . (int) $blog_id . '_'; }
+	public function suppress_errors( $suppress = true ) { return false; }
+	public function get_var( $query ) {
+		if ( ! preg_match( "/^SELECT option_value FROM `wp_(?:(\\d+)_)?options` WHERE option_name = 'upload_path' LIMIT 1$/", $query, $match ) ) throw new RuntimeException( 'FALLA: consulta inesperada: ' . $query );
+		return $this->upload_paths[ empty( $match[1] ) ? 1 : (int) $match[1] ] ?? null;
+	}
 	public function query( $sql ) {
 		$this->queries[] = $sql;
 		$this->last_error = '';
@@ -121,6 +129,8 @@ function is_main_site() { return ! $GLOBALS['digi']['multisite'] || $GLOBALS['di
 /** Con varias redes (WP Multi Network), cada una tiene su sitio principal y sus superadministradores. */
 function is_main_network() { return ! $GLOBALS['digi']['multisite'] || $GLOBALS['digi']['main_network']; }
 function get_main_site_id() { return 1; }
+/** Sitios de la red: el principal (1) y un subsitio (2). */
+function get_sites( $args = array() ) { return $GLOBALS['digi']['multisite'] ? array( 1, 2 ) : array(); }
 function get_current_blog_id() { return $GLOBALS['digi']['multisite'] && ! $GLOBALS['digi']['main'] ? 2 : 1; }
 function get_current_user_id() { return 7; }
 function current_user_can( $capability ) { return ! empty( $GLOBALS['digi']['caps'][ $capability ] ); }

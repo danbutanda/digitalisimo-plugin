@@ -70,6 +70,28 @@ try {
 	digi_assert( isset( $folders['wp-content'], $folders['plugins'], $folders['mu-plugins'], $folders['uploads'], $folders['themes-1'] ) && $lab . '/themes-extra' === $folders['themes-1'][0], 'folders() no reúne las carpetas que WordPress carga: ' . json_encode( array_keys( $folders ) ) );
 	digi_assert( (bool) preg_grep( '#^Un directorio de temas \(register_theme_directory\(\)\) está en ' . preg_quote( $lab, '#' ) . '/themes-extra, fuera#', Digitalisimo_Backups_Layout::problems() ), 'Un directorio de temas registrado fuera de ABSPATH no llegó a la comprobación del respaldo.' );
 
+	// En una red, la carpeta de medios de cada sitio con upload_path propio (Red → Sitios → Editar → Ajustes): fuera de
+	// ABSPATH se rechaza, con /sites/<id> salvo en el sitio principal, como la calcula _wp_upload_dir().
+	$GLOBALS['digi']['multisite'] = true;
+	$GLOBALS['wp_theme_directories'] = array( WP_CONTENT_DIR . '/themes' );
+	mkdir( $lab . '/medios-red/sites/2', 0700, true );
+	mkdir( $lab . '/medios-principal', 0700, true );
+	$GLOBALS['wpdb']->upload_paths = array( 1 => $lab . '/medios-principal', 2 => $lab . '/medios-red' );
+	$folders = Digitalisimo_Backups_Layout::folders();
+	digi_assert( $lab . '/medios-principal' === ( $folders['uploads-1'][0] ?? '' ) && $lab . '/medios-red/sites/2' === ( $folders['uploads-2'][0] ?? '' ), 'folders() no calculó la carpeta de medios de cada sitio de la red: ' . json_encode( $folders, JSON_UNESCAPED_SLASHES ) );
+	$problems = Digitalisimo_Backups_Layout::problems();
+	digi_assert( (bool) preg_grep( '#^La carpeta de medios del sitio 2 \(la opción upload_path de ese sitio\) está en ' . preg_quote( $lab, '#' ) . '/medios-red/sites/2, fuera#', $problems ) && (bool) preg_grep( '#^La carpeta de medios del sitio 1 .* está en ' . preg_quote( $lab, '#' ) . '/medios-principal, fuera#', $problems ), 'Los medios de un sitio de la red fuera de ABSPATH, que el respaldo omitiría, no se rechazaron: ' . json_encode( $problems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+	// Relativa a ABSPATH (blogs.dir de las redes antiguas, con ms_files_rewriting y sin /sites/<id>) queda dentro.
+	mkdir( ABSPATH . 'wp-content/blogs.dir/2/files', 0700, true );
+	$GLOBALS['wpdb']->upload_paths = array( 2 => 'wp-content/blogs.dir/2/files' );
+	$GLOBALS['digi']['site_options']['ms_files_rewriting'] = 1;
+	$folders = Digitalisimo_Backups_Layout::folders();
+	digi_assert( ABSPATH . 'wp-content/blogs.dir/2/files' === ( $folders['uploads-2'][0] ?? '' ) && ! preg_grep( '#del sitio#', Digitalisimo_Backups_Layout::problems() ), 'Una carpeta de medios relativa a ABSPATH se rechazó o no se resolvió como en WordPress.' );
+	$GLOBALS['digi']['multisite'] = false;
+	$GLOBALS['wpdb']->upload_paths = array();
+	unset( $GLOBALS['digi']['site_options']['ms_files_rewriting'] );
+	digi_rmtree( ABSPATH . 'wp-content' );
+
 	// 2. Bedrock de verdad: wp-content fuera de ABSPATH se rechaza en cada superficie, antes de exportar nada.
 	$GLOBALS['wp_theme_directories'] = array( WP_CONTENT_DIR . '/themes' );
 	$expected = 'wp-content (WP_CONTENT_DIR) está en ' . $root . '/web/app, fuera de la carpeta de WordPress (' . $root . '/web/wp). El respaldo completo sólo recorre esa carpeta y todavía no incluye carpetas externas, así que quedaría incompleto y no se crea. Para respaldar esta instalación, mueve la carpeta dentro de ' . $root . '/web/wp y ajusta WP_CONTENT_DIR.';
