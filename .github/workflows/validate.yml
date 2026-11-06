@@ -407,6 +407,9 @@ jobs:
           node tests/elements-tooltip-chrome.mjs
           php tests/elements-badge.php
           node tests/elements-badge-chrome.mjs
+          php tests/elements-shortcode-guard.php
+          php tests/elements-text-relief.php
+          node tests/elements-text-relief-chrome.mjs
           php tests/elements-export-skip.php
       - name: Construir paquetes limpios
         run: |

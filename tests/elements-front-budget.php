@@ -62,12 +62,13 @@ namespace {
 		check_budget( str_contains( $class, 'wp_register_style(' ) && str_contains( $class, "'assets'" ) && str_contains( $class, "'styles'" ) && ! str_contains( $class, 'wp_enqueue_style(' ), $handle . ': sólo se registra y se declara en `assets` del control.' );
 		check_budget( ! str_contains( $class, 'wp_register_script(' ) && ! str_contains( $class, 'wp_enqueue_script(' ), $handle . ': 0 JS.' );
 	}
-	// Rasgos de F8 (§5): la información emergente, el distintivo y el contador del slider anidado, cada uno en su tope, sin
+	// Rasgos de F8 (§5): la información emergente, el distintivo, el relieve 3D y el contador del slider anidado, cada uno en su tope, sin
 	// url() ni jQuery, con movimiento reducido si anima, y sólo registrados: los encola el cargador del núcleo por la
 	// declaración `assets` de su control, en las páginas que los usan (la vista previa del editor encola el contador).
 	$f8_assets = array(
 		'digitalisimo-tooltip'               => array( 'class' => 'modules/digitalisimo-widgets/class-tooltip.php', 'css' => array( 'modules/digitalisimo-widgets/assets/css/tooltip.css', 1536 ), 'js' => array( 'modules/digitalisimo-widgets/assets/js/tooltip.js', 1024 ) ),
 		'digitalisimo-badge'                 => array( 'class' => 'modules/digitalisimo-widgets/class-badge.php', 'css' => array( 'modules/digitalisimo-widgets/assets/css/badge.css', 1024 ), 'js' => null ),
+		'digitalisimo-text-relief'           => array( 'class' => 'modules/digitalisimo-widgets/class-text-relief.php', 'css' => array( 'modules/digitalisimo-widgets/assets/css/text-relief.css', 512 ), 'js' => array( 'modules/digitalisimo-widgets/assets/js/text-relief.js', 1536 ) ),
 		'digitalisimo-nested-slider-counter' => array( 'class' => 'modules/digitalisimo-f7b/nested/class-slider-widget.php', 'register' => 'modules/digitalisimo-f7b/nested/class-module.php', 'css' => array( 'modules/digitalisimo-f7b/assets/css/nested-slider-counter.css', 256 ), 'js' => array( 'modules/digitalisimo-f7b/assets/js/nested-slider-counter.js', 512 ) ),
 	);
 	foreach ( $f8_assets as $handle => $asset ) {
