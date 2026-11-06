@@ -1131,10 +1131,10 @@
    ]
   },
   "mc-autoplay-default": {
-   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 60 s para que la captura no dependa del momento), bucle, pausa al pasar el puntero",
+   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 10 min para que la captura no dependa del momento), bucle, pausa al pasar el puntero",
    "widget": "media-carousel",
    "settings": {
-    "autoplay_speed": 60000
+    "autoplay_speed": 600000
    },
    "declared": [
     {

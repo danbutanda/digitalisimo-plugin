@@ -10,7 +10,7 @@ now=one('now'),total=one('total'),fill=one('fill'),icon=pause?.querySelector('pa
 ed=F()?.isEditMode?.(),fade=attr('effect')=='fade',center=attr('center'),loop=attr('loop')&&!(ed&&all[0]?.matches('.elementor-element')),quit=attr('interaction'),
 delay=ed?0:+attr('autoplay')||0,
 css=n=>cs(root).getPropertyValue('--'+E+n),rtl=()=>cs(track).direction=='rtl';
-let slides=all,view=1,step=1,cur=0,page=0,lc=0,timer=0,wait=0,anim=0,touch=0,lw=-1,stop=!delay||!moves(),held=0,focus=0,seen=1,g=0,drag=0,moved=0,ran=0,main;
+let slides=all,view=1,step=1,cur=0,page=0,lc=0,timer=0,wait=0,anim=0,touch=0,lw=-1,stop=!delay||!moves(),held=0,focus=0,seen=1,g=0,drag=0,moved=0,ran=0,tpl,main;
 const n=()=>slides.length,max=()=>M.max(0,n()-(center?1:view)),pages=()=>lc?M.ceil(n()/step):max()?M.ceil(max()/step)+1:1,pos=p=>M.min(p*step,loop?n()-1:max()),
 real=k=>((k-lc)%n()+n())%n(),pg=()=>lc?M.ceil(real(cur)/step)%pages():cur>=max()?pages()-1:M.round(cur/step),
 off=k=>(k=all[k])?k.offsetLeft-all[0].offsetLeft:0,
@@ -59,7 +59,7 @@ const L=loop&&!fade&&n()>1?view+step:0,r=real(cur);
 if(L!=lc){
 [...all].map(s=>s.$c&&s.remove());
 slides=L?[...all]:all;
-lc=L;for(let j=0;j<L;j++)for(const b of [0,1]){const c=slides[b?n()-1-j%n():j%n()].cloneNode(true);c.$c=1;c.classList.add(C+'clone','slick-cloned');track[b?'prepend':'append'](c);scan(c)}
+lc=L;tpl=tpl||L&&slides.map(s=>s.cloneNode(true));for(let j=0;j<L;j++)for(const b of [0,1]){const c=tpl[b?n()-1-j%n():j%n()].cloneNode(true);c.$c=1;c.classList.add(C+'clone','slick-cloned');track[b?'prepend':'append'](c);scan(c)}
 cur=lc+r;lw=-1;
 }
 lc||(cur=pos(cur>=max()?pages()-1:M.floor(cur/step)));
@@ -124,9 +124,9 @@ on('click',e=>{const k=[].indexOf.call(all,e.target.closest?.('.'+C+'track>*'));
 try{main=D.querySelector(attr('sync'))}catch(x){}
 if(delay){
 on('visibilitychange',run,D);
-if(W.IntersectionObserver)(io=io||new IntersectionObserver(l=>l.forEach(en=>en.target.digiCrs?.see(en.isIntersecting)))).observe(root);
+(io=io||new IntersectionObserver(l=>l.forEach(en=>en.target.digiCrs?.see(en.isIntersecting)))).observe(root);
 }
-if(W.ResizeObserver)(ro=ro||new ResizeObserver(l=>l.forEach(en=>en.target.parentNode.digiCrs?.fit()))).observe(track);
+(ro=ro||new ResizeObserver(l=>l.forEach(en=>en.target.parentNode.digiCrs?.fit()))).observe(track);
 delay&&pause&&(pause.hidden=!1);
 fit();
 if(main){

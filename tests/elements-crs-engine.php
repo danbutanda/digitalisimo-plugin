@@ -328,7 +328,7 @@ namespace {
 	};
 	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>digi-crs</title>\n";
 	$fixture .= "<!-- Generada por tests/elements-crs-engine.php (--write); la usa tests/elements-crs-engine-chrome.mjs. -->\n";
-	$fixture .= "<style>:root{--direction-multiplier:1}html[dir=rtl],[dir=rtl]{--direction-multiplier:-1}body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 0 40px;padding:0 20px}.s{background:#ddd;box-sizing:border-box;padding:8px}.spacer{height:1600px}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}[type=button]:hover,[type=button]:focus{background-color:#c36;color:#fff}</style>\n";
+	$fixture .= "<style>:root{--direction-multiplier:1}html[dir=rtl],[dir=rtl]{--direction-multiplier:-1}body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 0 40px;padding:0 20px}.s{background:#ddd;box-sizing:border-box;padding:8px}.spacer{height:1600px}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}[type=button]:hover,[type=button]:focus{background-color:#c36;color:#fff}@media (max-width:767px){[data-id=w22]{--digi-crs-view:1!important}}</style>\n";
 	$fixture .= "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/carousel.css\">\n<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/nested-carousel.css\">\n</head><body>\n";
 	$fixture .= $carousel( 'w1', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside' ), 6, '--digi-crs-view:3;--digi-crs-scroll:2;--digi-crs-gap:10px' );
 	$fixture .= $carousel( 'w2', array( 'autoplay' => 1000, 'loop' => true, 'hover' => true, 'effect' => 'fade', 'pagination' => 'fraction', 'arrows' => true, 'speed' => 200 ), 4 );
@@ -352,6 +352,13 @@ namespace {
 	$fixture .= $carousel( 'w19', array( 'arrows' => true, 'pagination' => 'bullets', 'grab' => true, 'click' => true, 'speed' => 200 ), 6, '--digi-crs-view:3;--digi-crs-gap:10px' );
 	$fixture .= $carousel( 'w20', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside', 'classes' => 'digi-ncarousel', 'long' => true, 'speed' => 0 ), 5, '--digi-crs-view:3;--digi-crs-gap:10px;--digi-crs-pag-y:100%;--digi-crs-pag-space:16px' );
 	$fixture .= $carousel( 'w21', array( 'loop' => true, 'arrows' => true, 'classes' => 'digi-ncarousel', 'speed' => 0 ), 2, '--digi-crs-view:3;--digi-crs-gap:10px' );
+	// w22: carrusel en bucle con un carrusel en bucle dentro de cada diapositiva (3 visibles; 1 en móvil, por media query):
+	// al cambiar de punto de corte las copias se rehacen, y las de los carruseles interiores deben quedar vivas.
+	$inner = '';
+	for ( $i = 0; $i < 3; $i++ ) {
+		$inner .= '<div ' . Engine::slide_attributes( $i, 3 ) . '>' . Engine::open( array( 'count' => 2, 'loop' => true, 'arrows' => true, 'speed' => 0, 'label' => 'Interior ' . ( $i + 1 ) ) ) . '<div ' . Engine::slide_attributes( 0, 2 ) . '><div class="s">A' . ( $i + 1 ) . '</div></div><div ' . Engine::slide_attributes( 1, 2 ) . '><div class="s">B' . ( $i + 1 ) . '</div></div>' . Engine::close() . '</div>';
+	}
+	$fixture .= '<div class="elementor-element elementor-widget" data-id="w22" style="--digi-crs-view:3;--digi-crs-gap:10px">' . Engine::open( array( 'count' => 3, 'loop' => true, 'arrows' => true, 'speed' => 0, 'label' => 'Carrusel w22' ) ) . $inner . Engine::close() . "</div>\n";
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";

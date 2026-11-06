@@ -164,7 +164,7 @@
    ]
   },
   "lc-autoplay": {
-   "title": "Reproducción automática (cada 60 s, para que la captura no dependa del momento) con pausa al pasar el puntero",
+   "title": "Reproducción automática (cada 10 min, para que la captura no dependa del momento) con pausa al pasar el puntero",
    "widget": "loop-carousel",
    "posts": 9,
    "settings": {
@@ -172,7 +172,7 @@
      "$loop_item": "card"
     },
     "autoplay": "yes",
-    "autoplay_speed": 60000
+    "autoplay_speed": 600000
    },
    "declared": [
     {
@@ -184,18 +184,23 @@
      "kind": "foco",
      "match": ".",
      "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     }
    ]
   },
   "lc-autoplay-default": {
-   "title": "Estado por defecto real: reproducción automática e infinito en su valor por defecto (sí; cada 60 s)",
+   "title": "Estado por defecto real: reproducción automática e infinito en su valor por defecto (sí; cada 10 min)",
    "widget": "loop-carousel",
    "posts": 9,
    "settings": {
     "template_id": {
      "$loop_item": "card"
     },
-    "autoplay_speed": 60000
+    "autoplay_speed": 600000
    },
    "declared": [
     {
@@ -207,6 +212,11 @@
      "kind": "foco",
      "match": ".",
      "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado; PRO no lo tenía."
     }
    ]
   },

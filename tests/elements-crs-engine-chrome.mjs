@@ -54,7 +54,7 @@ async function open({ width = 1280, js = true, reduce = false, editor = false, f
     if (editor || frontend) document.addEventListener('readystatechange', () => { if (document.readyState === 'interactive') for (const e of document.querySelectorAll('[data-id="w21"] .digi-crs__track > *')) { e.classList.add('elementor-element'); e.innerHTML += '<div class="elementor-element">x</div>'; } });
   }, editor, frontend);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 20 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('body > [data-id] > .digi-crs').length === 21 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
@@ -91,7 +91,8 @@ const state = (page, id) => page.evaluate(id => {
   };
 }, id);
 // Pistas quietas: sin desplazamiento propio en curso (lo marca el imán apagado en línea) y sin cambios entre dos lecturas.
-const settle = async page => { await sleep(60); await page.waitForFunction(() => [...document.querySelectorAll('.digi-crs__track')].every(t => { const v = t.scrollLeft; const same = t.__last === v && t.style.scrollSnapType !== 'none'; t.__last = v; return same; }), { polling: 200, timeout: 5000 }); };
+// Cada lectura anota todas las pistas (`map` y después `every`: con `every` solo, una pista nueva por lectura).
+const settle = async page => { await sleep(60); await page.waitForFunction(() => [...document.querySelectorAll('.digi-crs__track')].map(t => { const v = t.scrollLeft; const same = t.__last === v && t.style.scrollSnapType !== 'none'; t.__last = v; return same; }).every(Boolean), { polling: 200, timeout: 5000 }); };
 const click = async (page, id, sel) => { await page.click(`[data-id="${id}"] .digi-crs > ${sel}`); await sleep(50); };
 
 try {
@@ -438,6 +439,34 @@ try {
     s = await state(page, 'w21');
     const thirds = await page.evaluate(() => { const t = document.querySelector('[data-id="w21"] .digi-crs__track'); return [t.clientWidth, t.children[0].getBoundingClientRect().width]; });
     ok(Math.abs((thirds[0] - 20) / 3 - thirds[1]) < 1 && s.seen === '1,2,1' && !s.locked, `${width}: anidado con menos diapositivas que visibles: un tercio cada una y la copia en el tercer hueco: ${thirds} ${JSON.stringify(s)}`);
+    // Carruseles dentro de las copias del bucle (w22): todos iniciados, también tras rehacer las copias al cambiar de
+    // punto de corte (3 → 1 visibles), y los de una copia a la vista responden a sus flechas.
+    const inner = async () => page.evaluate(() => {
+      const outer = document.querySelector('[data-id="w22"] > .digi-crs'), all = [...outer.querySelectorAll('.digi-crs')];
+      return { n: all.length, dead: all.filter(r => !r.digiCrs || !r.classList.contains('digi-crs--ready')).length, inClones: all.filter(r => r.closest('.digi-crs__clone')).length };
+    });
+    let w22 = await inner();
+    const lc0 = width === 1280 ? 8 : 4;
+    ok(w22.dead === 0 && w22.inClones === lc0 && w22.n === 3 + lc0, `${width}: carruseles interiores vivos, también en las copias del exterior: ${JSON.stringify(w22)}`);
+    await page.setViewport({ width: width === 1280 ? 600 : 1280, height: 900 });
+    await settle(page);
+    w22 = await inner();
+    const lc = width === 1280 ? 4 : 8;
+    ok(w22.dead === 0 && w22.inClones === lc, `${width}: tras rehacer las copias al cambiar de ancho, ningún carrusel interior queda muerto: ${JSON.stringify(w22)}`);
+    await page.$eval('[data-id="w22"]', e => e.scrollIntoView({ block: 'center' }));
+    await page.evaluate(() => document.querySelector('[data-id="w22"] > .digi-crs').digiCrs.go(2));
+    await settle(page);
+    const live = await page.evaluate(() => {
+      const t = document.querySelector('[data-id="w22"] > .digi-crs > .digi-crs__track'), T = t.getBoundingClientRect();
+      const copy = [...t.children].find(k => k.classList.contains('digi-crs__clone') && !k.inert && k.getBoundingClientRect().left < T.right - 5);
+      if (!copy) return 'sin copia a la vista';
+      const r = copy.querySelector('.digi-crs'), before = r.digiCrs.index();
+      r.querySelector(':scope > .digi-crs__next').click();
+      return `${before}→${r.digiCrs.index()}`;
+    });
+    ok(live === '0→1', `${width}: el carrusel de una copia a la vista responde a su flecha: ${live}`);
+    await page.setViewport({ width, height: 900 });
+    await settle(page);
     await page.close();
   }
 

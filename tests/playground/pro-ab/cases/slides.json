@@ -870,10 +870,10 @@
    }
   },
   "sl-autoplay-default": {
-   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 60 s), bucle y pausa al pasar el puntero",
+   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 10 min), bucle y pausa al pasar el puntero",
    "widget": "slides",
    "settings": {
-    "autoplay_speed": 60000,
+    "autoplay_speed": 600000,
     "slides": [
      {
       "_id": "sl01",
