@@ -9,9 +9,9 @@
  * Swiper): las clases de presentación de PRO (`elementor-testimonial--skin-*`, `--layout-*`, `--align-*` con su
  * dispositivo) pasan a sus equivalentes `digi-testimonial--*`, en el mismo nodo (el envoltorio del widget).
  *
- * Aproximaciones: las del motor (el bucle rebobina; la carga diferida es la nativa). Diferencia sin clave propia: con la
- * piel «Burbuja» y la alineación a la derecha, el pico apunta a la imagen (PRO lo dejaba a la izquierda salvo que se fijara
- * el tamaño de la imagen). Formato: cabecera de `class-translator.php`.
+ * Aproximaciones: las del motor (la carga diferida es la nativa; el bucle es real desde la corrección de fidelidad).
+ * Diferencia sin clave propia: con la piel «Burbuja» y la alineación a la derecha, el pico apunta a la imagen (PRO lo
+ * dejaba a la izquierda salvo que se fijara el tamaño de la imagen). Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -126,7 +126,6 @@ return array(
 		'pagination_position' => 'PRO quita la posición de la paginación de este widget (va siempre debajo): un valor guardado no tenía efecto.',
 	),
 	'approx'    => array(
-		'loop'     => 'El bucle infinito rebobina al principio y al final en lugar de clonar diapositivas.',
 		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
 	'repeaters' => array(

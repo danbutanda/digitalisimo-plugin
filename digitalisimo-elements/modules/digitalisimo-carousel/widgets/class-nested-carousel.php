@@ -313,6 +313,8 @@ class Nested_Carousel extends Widget_Nested_Base {
 		$this->num_of_carousel_items = $count;
 		$args                        = $this->carousel_args( $settings );
 		$args['classes']             = array( 'digi-ncarousel' );
+		// PRO (`applySwipeOptions()`): sin pantalla táctil, `shortSwipes` desactivado; un gesto rápido del ratón no avanza.
+		$args['long'] = true;
 		return $args;
 	}
 
@@ -395,6 +397,7 @@ class Nested_Carousel extends Widget_Nested_Base {
 			'next'                => '@NEXT@',
 			'dir'                 => 'rtl',
 			'classes'             => array( 'digi-ncarousel' ),
+			'long'                => true,
 		);
 		$all = Engine::open( $base );
 		$own = Engine::open( array( 'prev' => null, 'next' => null ) + $base );

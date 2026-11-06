@@ -266,7 +266,7 @@ namespace {
 	);
 	$GLOBALS['sl_loading'] = 0;
 	$html = $render( $base );
-	check_sl( 0 === strpos( $html, '<section class="digi-crs digi-slides" aria-roledescription="carrusel" aria-label="Portada" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:500ms;--digi-crs-n:3" data-digi-animation="fadeInUp">' ), 'Raíz del motor con el nombre, el bucle, la paginación y la animación: ' . substr( $html, 0, 300 ) );
+	check_sl( 0 === strpos( $html, '<section class="digi-crs digi-slides" aria-roledescription="carrusel" aria-label="Portada" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" data-digi-grab="1" style="--digi-crs-speed:500ms;--digi-crs-n:3" data-digi-animation="fadeInUp">' ), 'Raíz del motor con el nombre, el bucle, la paginación, la animación y el cursor de agarre de PRO (sin clic en la diapositiva): ' . substr( $html, 0, 300 ) );
 	check_sl( 1 === substr_count( $html, ' digi-crs__prev"' ) && 1 === substr_count( $html, ' digi-crs__next"' ) && 3 === substr_count( $html, 'class="digi-crs__dot"' ) && ! str_contains( $html, 'digi-crs__pause' ) && str_contains( $html, '<div class="digi-crs__track" aria-live="polite">' ), 'Flechas, tres puntos y sin pausa (sin reproducción automática).' );
 	check_sl( str_ends_with( $html, '</div></section>' ) && 3 === substr_count( $html, 'role="group" aria-roledescription="diapositiva"' ) && str_contains( $html, 'aria-label="2 de 3"' ), 'Tres diapositivas con su nombre accesible.' );
 	$one = substr( $html, strpos( $html, '<div class="digi-crs__slide digi-slides__slide elementor-repeater-item-a1"' ) );
@@ -391,7 +391,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_sl( array( 'full:pro.approx:infinite', 'full:pro.approx:content_animation', 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y las aproximaciones declaradas: ' . implode( ', ', $codes ) );
+	check_sl( array( 'full:pro.approx:content_animation', 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y las aproximaciones declaradas: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_sl( 'Slides' === $d['slides_name'] && 400 === $d['slides_height']['size'] && 'both' === $d['navigation'] && 'yes' === $d['autoplay'] && 5000 === $d['autoplay_speed'] && 'yes' === $d['infinite'] && 'fadeInUp' === $d['content_animation'] && 66 === $d['content_max_width']['size'] && 'sm' === $d['button_size'] && 'slides' === $d['_digitalisimo_pro'], 'Unas Slides sin cambios llegan con los valores por defecto visibles de PRO.' );
 	check_sl( 3 === count( $d['slides'] ) && 'Slide 1 Heading' === $d['slides'][0]['heading'] && '#833ca3' === $d['slides'][0]['background_color'] && '#1abc9c' === $d['slides'][2]['background_color'] && 'cover' === $d['slides'][1]['background_size'] && 'slide' === $d['slides'][0]['link_click'], 'Sin repetidor guardado, las tres diapositivas por defecto de PRO.' );

@@ -22,8 +22,8 @@ defined( 'ABSPATH' ) || exit;
  *   `digitalisimo-reviews` → `Widgets\Reviews` (`widgets/class-reviews.php`),
  *   `digitalisimo-slides` → `Widgets\Slides` (`widgets/class-slides.php`).
  *
- * **Recursos.** `Engine::HANDLE` (`digitalisimo-carousel`): `assets/css/carousel.css` (≤ 4 KB) y `assets/js/carousel.js`
- * (≤ 6 KB, `defer`, sin dependencias). Cada widget tiene su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si
+ * **Recursos.** `Engine::HANDLE` (`digitalisimo-carousel`): `assets/css/carousel.css` (≤ 4,5 KB, excepción declarada en
+ * `docs/pro/c1.md` §1.3) y `assets/js/carousel.js` (≤ 8 KB, `defer`, sin dependencias). Cada widget tiene su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si
  * existe, su script `assets/js/<nombre sin digitalisimo->.js`, registrados con el nombre del widget como handle (p. ej.
  * `digitalisimo-media-carousel`), y su script del editor `assets/js/<nombre sin digitalisimo->-editor.js` si existe (se
  * encola en el editor; el del carrusel anidado depende de `nested-elements`). Todo sólo se **registra** cuando el núcleo

@@ -190,6 +190,7 @@ class Media_Carousel extends Base_Widget {
 			$args['effect']   = 'slide';
 			$args['center']   = 'yes' === ( $settings['centered_slides'] ?? '' );
 			$args['sync']     = '#' . $id;
+			$args['grab']     = false; // Las miniaturas de PRO no llevaban `grabCursor` (sí `slideToClickedSlide`).
 		}
 		return $args;
 	}

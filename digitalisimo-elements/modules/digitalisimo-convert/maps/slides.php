@@ -155,7 +155,6 @@ return array(
 		),
 	),
 	'approx'    => array(
-		'infinite'          => 'El bucle rebobina al llegar al final o al principio, sin clonar diapositivas como hacía PRO.',
 		'content_animation' => 'La animación del contenido es una transición CSS al terminar el cambio de diapositiva (la de «Zoom», sin su fase intermedia), y una diapositiva única no se anima al cargar.',
 	),
 	// Encabezados del panel: no guardan valor.

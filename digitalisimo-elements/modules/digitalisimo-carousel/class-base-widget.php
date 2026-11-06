@@ -635,6 +635,9 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 			'pagination_position' => 'inside' === ( $settings['pagination_position'] ?? '' ) ? 'inside' : 'outside',
 			'arrows'              => ! empty( $settings['show_arrows'] ),
 			'classes'             => (string) ( $settings['container_class'] ?? '' ),
+			// `grabCursor` y `slideToClickedSlide` de `getSwiperOptions()` en PRO.
+			'grab'                => true,
+			'click'               => true,
 		);
 		return array_merge( $args, (array) ( $settings['engine'] ?? array() ) );
 	}

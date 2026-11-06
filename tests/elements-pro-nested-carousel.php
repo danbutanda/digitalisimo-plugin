@@ -309,7 +309,7 @@ namespace {
 
 	// 4. Marcado del servidor.
 	$html = $render( array( 'carousel_items' => $items( 3 ) ), $children( 3 ) );
-	check_nc( 0 === strpos( $html, '<section class="digi-crs digi-crs--pag-out digi-ncarousel" aria-roledescription="carrusel" aria-label="Carrusel" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:500ms;--digi-crs-n:3">' ), 'Raíz del motor con los valores por defecto de PRO: ' . substr( $html, 0, 400 ) );
+	check_nc( 0 === strpos( $html, '<section class="digi-crs digi-crs--pag-out digi-ncarousel" aria-roledescription="carrusel" aria-label="Carrusel" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" data-digi-long="1" style="--digi-crs-speed:500ms;--digi-crs-n:3">' ), 'Raíz del motor con los valores por defecto de PRO (y sólo arrastres largos con el ratón, como su applySwipeOptions()): ' . substr( $html, 0, 400 ) );
 	check_nc( 1 === substr_count( $html, 'class="digi-crs__pause"' ) && 1 === preg_match_all( '/class="[^"]*digi-crs__prev[^"]*"/', $html ) && 1 === preg_match_all( '/class="[^"]*digi-crs__next[^"]*"/', $html ) && 3 === substr_count( $html, 'class="digi-crs__dot"' ) && str_contains( $html, Engine::ICON_PREV ) && str_contains( $html, Engine::ICON_NEXT ), 'Pausa (autoplay por defecto), flechas con el chevron propio y un punto por diapositiva.' );
 	check_nc( strpos( $html, 'digi-crs__pause' ) < strpos( $html, 'digi-crs__prev' ) && strpos( $html, 'digi-crs__prev' ) < strpos( $html, 'digi-crs__pagination' ) && strpos( $html, 'digi-crs__pagination' ) < strpos( $html, 'digi-crs__next' ) && strpos( $html, 'digi-crs__next' ) < strpos( $html, 'digi-crs__track' ), 'Controles antes de la pista.' );
 	check_nc( str_contains( $html, '<div class="digi-crs__track" aria-live="off" dir="ltr"><div class="e-con digi-crs__slide" role="group" aria-roledescription="diapositiva" aria-label="1 de 3"><h3>Diapositiva 1</h3></div><div class="e-con digi-crs__slide" role="group" aria-roledescription="diapositiva" aria-label="2 de 3">' ) && str_ends_with( $html, 'aria-label="3 de 3"><h3>Diapositiva 3</h3></div></div></section>' ), 'Los contenedores hijos son las diapositivas, directamente en la pista: ' . $html );
@@ -440,7 +440,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_nc( array( 'layout:pro.approx:infinite', 'autoplay:pro.approx:offset_sides', 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
+	check_nc( array( 'autoplay:pro.approx:offset_sides', 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_nc( 'Carousel' === $d['carousel_name'] && 'yes' === $d['autoplay'] && 'yes' === $d['infinite'] && array( 'Slide #1', 'Slide #2', 'Slide #3' ) === array_column( $d['carousel_items'], 'slide_title' ) && 'nested-carousel' === $d['_digitalisimo_pro'], 'Un carrusel sin cambios llega con los valores visibles de PRO y sus tres filas.' );
 	$l = $out['layout'];

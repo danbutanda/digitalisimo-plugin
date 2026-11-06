@@ -35,12 +35,6 @@
    "reason": "Foco visible propio de flechas y puntos (contorno de 2 px con separación de 2 px)."
   },
   {
-   "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
-   "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
-   "widget": "nested-carousel"
-  },
-  {
    "kind": "hover",
    "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
    "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
@@ -55,19 +49,19 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8 y estándar del front); en PRO el punto era el propio elemento. Se ven en el mismo lugar con el mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
    "widget": "nested-carousel"
   },
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control pause 1 sólo en B",
-   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2).",
+   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), oculto a la vista salvo con el foco del teclado: no cambia lo que se ve (píxeles).",
    "widget": "nested-carousel"
   },
   {
    "kind": "control",
-   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en A",
-   "reason": "Bucle (approx de loop): Swiper clonaba diapositivas y sus enlaces; el motor rebobina sin clones. El HTML de A y B tiene los mismos enlaces.",
+   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en (A|B)",
+   "reason": "Copias del bucle (bucle real, como Swiper): Swiper copiaba las visibles (o todas) a cada lado y el motor copia visibles + paso, así que el número de enlaces copiados puede no coincidir; las copias fuera de la vista no se ven (píxeles) y el HTML original de A y B tiene los mismos enlaces.",
    "widget": "nested-carousel"
   }
  ],
@@ -2143,17 +2137,17 @@
     {
      "kind": "hover",
      "match": "^(color|background|border-color|outline): ",
-     "reason": "Puntos: cada uno es un botón de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO, el span del punto."
+     "reason": "Puntos: cada uno es un botón transparente con el punto dibujado en ::before, con el paso de PRO y 24 px de área táctil en vertical; en PRO, el span del punto."
     },
     {
      "kind": "foco",
      "match": "^(color|background|border-color|outline): ",
-     "reason": "Puntos: cada uno es un botón de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO, el span del punto."
+     "reason": "Puntos: cada uno es un botón transparente con el punto dibujado en ::before, con el paso de PRO y 24 px de área táctil en vertical; en PRO, el span del punto."
     }
    ],
    "pixels": {
     "max": 0.05,
-    "reason": "A 1 280 px PRO separa las diapositivas con la separación de tableta (12 px) en lugar de la de escritorio (20 px): la configuración de puntos de ruptura que PRO pasa a Swiper; el propio aplica la de escritorio, como el CSS del editor."
+    "reason": "Sólo a 1 280 px y sólo por el arnés: mide los tres anchos en la misma página, y al volver al escritorio desde la tableta Swiper conserva la separación de la tableta (12 px) en lugar de la del escritorio (20 px), porque la configuración de puntos de ruptura que PRO le pasa no repite la separación en la entrada del escritorio. Recién cargada a 1 280 px, PRO aplica la del escritorio, como el propio: con `fresh` (la página cargada en cada ancho) A y B coinciden en los tres anchos (0,00 %), pero ese modo no se usa aquí porque, con la página recargada, el teclado no llega a los puntos de PRO en A."
    }
   },
   "nc-autoplay": {
@@ -2327,28 +2321,1105 @@
     {
      "kind": "hover",
      "match": ".",
-     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior."
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     },
     {
      "kind": "foco",
      "match": ".",
-     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior."
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     },
     {
      "kind": "nombre",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+    }
+   ]
+  },
+  "nc-autoplay-default": {
+   "title": "Estado por defecto real: reproducción automática en su valor por defecto (sí; cada 10 min), bucle y pausa al pasar el puntero",
+   "widget": "nested-carousel",
+   "settings": {
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "autoplay_speed": 600000
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
     },
     {
-     "kind": "palabra",
-     "match": "Pausar|Reanudar",
-     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
     }
    ],
-   "pixels": {
-    "max": 0.03,
-    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
-   }
+   "declared": [
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (oculto a la vista salvo con el foco del teclado, WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+    }
+   ]
+  },
+  "nc-three": {
+   "title": "Tres elementos (los de PRO por defecto) con 3 visibles y bucle: flechas y puntos a la vista y funcionando, con la copia de la primera en el tercer hueco tras «siguiente»",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Punto 3",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)"
+    }
+   ]
+  },
+  "nc-two": {
+   "title": "Dos elementos con 3 visibles: como el CarouselBase del núcleo, cada uno mide un tercio y, en bucle, el tercer hueco es la copia del primero",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "nc-loop-end": {
+   "title": "Bucle con 5 elementos y 3 visibles: pasa del final (siguiente ×3) y vuelve (anterior), siempre por las copias como Swiper",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "Flecha siguiente (1)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (2)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha siguiente (3)",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha anterior",
+     "a": ".elementor-swiper-button-prev",
+     "b": ".digi-crs__prev"
+    }
+   ]
+  },
+  "nc-dots-tight": {
+   "title": "Puntos de 6 px sin separación (paso de 6 px en PRO)",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ],
+    "dots_gap": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    },
+    "dots_size": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    }
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "Punto 3",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)"
+    }
+   ]
+  },
+  "nc-drag": {
+   "title": "Arrastre con el ratón (simulateTouch de Swiper, sin cursor de agarre): 300 px hacia la izquierda en un gesto lento llevan al siguiente",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "Arrastre con el ratón de 300 px hacia la izquierda",
+     "a": ".swiper-slide-active",
+     "b": ".digi-crs__current",
+     "drag": -300,
+     "wait": 1200
+    }
+   ]
   }
  }
 }

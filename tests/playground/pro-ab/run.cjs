@@ -52,7 +52,10 @@ function pageSignature(sel, slug) {
     v = v.split(location.origin).join('').split(encodeURIComponent(location.origin)).join('__SITE__');
     return v.replace(new RegExp(`pro-ab-${slug}-[ab]`, 'g'), `pro-ab-${slug}-X`);
   };
-  const skip = (node) => node.parentElement && node.parentElement.closest('script,style,svg,noscript,template');
+  // Las copias del bucle (`swiper-slide-duplicate` de Swiper, `digi-crs__clone` del motor propio) repiten el texto de las
+  // originales: no cuentan, para que el estilo de una palabra salga de su diapositiva original en A y en B y no de la
+  // primera copia, cuyo orden depende de cuántas copia cada motor (lo que se ve lo comparan los píxeles).
+  const skip = (node) => node.parentElement && node.parentElement.closest('script,style,svg,noscript,template,.swiper-slide-duplicate,.digi-crs__clone');
   const visible = (el) => (el.checkVisibility ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true);
   // Texto sólo para lectores de pantalla (recorte de 1 px): no se ve; cuenta en el nombre accesible, no en las palabras.
   const srOnly = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return (r.width <= 1 && r.height <= 1) || /rect\(0(px)?,? 0(px)?,? 0(px)?,? 0(px)?\)/.test(cs.clip) || cs.clipPath === 'inset(50%)'; };
@@ -218,6 +221,14 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
     }
     for (const width of WIDTHS) {
       await page.setViewport({ width, height: 900 });
+      // `fresh` (caso, con su motivo): la página se carga de nuevo en cada ancho, como en un dispositivo de ese ancho, en
+      // lugar de medirla tras cambiar el tamaño de la ventana (Swiper con controladores cruzados y bucle se desincroniza
+      // al cruzar un punto de corte, cosa que un visitante no ve al cargar la página).
+      if (c.fresh) {
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
+        await sleep(800);
+        await settle(page, sel, readySel);
+      }
       await page.mouse.move(0, 0);
       await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
       await sleep(700);
@@ -242,9 +253,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           : await page.evaluate((s, m) => { const el = document.querySelector(s); if (!el) return { x: 0, y: 0, width: 0, height: 0 }; const r = el.getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, capSel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
-        // Con el recorte dentro de la ventana, sin `captureBeyondViewport`: esa opción vuelve a emular la ventana durante
-        // la captura y reinicia una transición en curso (p. ej. el despliegue de 0,3 s del botón 9 de contacto con el
-        // cursor encima), que sale en un cuadro al azar, distinto entre corridas en A y en B.
+        // Fuera de la ventana sólo si el recorte no cabe en ella. Con `captureBeyondViewport`, Chrome vuelve a emular la
+        // ventana durante la captura: maqueta la página un instante a 1 px de ancho, y una pista que se desplaza con
+        // `scrollLeft` (el motor `digi-crs`) puede quedar recortada en la captura aunque en la página no cambie nada (Swiper
+        // usa `transform` y no lo nota); y reinicia una transición en curso (p. ej. el despliegue de 0,3 s del botón 9 de
+        // contacto con el cursor encima), que sale en un cuadro al azar, distinto entre corridas en A y en B.
         const inside = await page.evaluate((c) => c.x >= scrollX && c.y >= scrollY && c.x + c.width <= scrollX + document.documentElement.clientWidth && c.y + c.height <= scrollY + innerHeight, clip);
         await page.screenshot({ path: file, clip, captureBeyondViewport: !inside });
         return file;
@@ -270,7 +283,7 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel, ctl) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
-      // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, stay, scroll, page, focus, wait, widths }`):
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, type, hover, drag, stay, scroll, page, focus, wait, widths }`):
       // pulsar el selector del lado (`a`/`b`, o `selector` común, relativo al widget), con `key` enfocarlo y teclear, con
       // `type` escribir un texto, con `hover` pasar el puntero por encima o, con `scroll` (C2: píxeles o `end`), desplazar la
       // página; con `scroll: true` (C5), llevar el selector a la vista. Tras
@@ -290,7 +303,17 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
             if (act.scroll === true) await el.evaluate((n) => n.scrollIntoView({ block: 'center' }));
             // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
             else if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
-            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
+            // `drag` (píxeles, negativo hacia la izquierda): arrastre con el ratón desde el centro del selector, en 12 pasos
+            // durante 600 ms (un gesto lento: Swiper lo resuelve por la mitad de la diapositiva, no como gesto rápido).
+            else if (act.drag !== undefined) {
+              const bb = await el.boundingBox();
+              if (!bb) throw new Error(`«${target}» sin caja`);
+              const x0 = bb.x + bb.width / 2, y0 = bb.y + Math.min(bb.height / 2, 40);
+              await page.mouse.move(x0, y0);
+              await page.mouse.down();
+              for (let i = 1; i <= 12; i++) { await page.mouse.move(x0 + (Number(act.drag) * i) / 12, y0); await sleep(50); }
+              await page.mouse.up();
+            } else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
               // Dos movimientos cortos tras llegar: un ratón real (SmartMenus de PRO sólo abre con el ratón si lo detecta).
               await el.hover();
               const bb = await el.boundingBox();
