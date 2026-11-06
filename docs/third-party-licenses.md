@@ -201,7 +201,7 @@ DIGITALÍSIMO Elements no contiene nada de Element Pack ni de Prime Slider: los 
 
 ## Programa «sin widgets de PRO»: Cita (`digitalisimo-blockquote`)
 
-`class-blockquote.php` y `assets/css/blockquote.css` sustituyen al widget Blockquote derivado de PRO Elements (`modules/blockquote/widgets/blockquote.php` y `widget-blockquote.min.css`, GPLv3), que ya forma parte de DIGITALÍSIMO Elements. Parten de su lista de controles, valores por defecto y reglas de estilo para que el contenido convertido se vea igual (`docs/PRO_WIDGETS_OBJECTIVE.md`), con nombre, clases, marcado e icono propios. El widget de PRO sigue incluido y registrado para el contenido que no se haya convertido.
+`class-blockquote.php` y `assets/css/blockquote.css` sustituyen al widget Blockquote derivado de PRO Elements (`modules/blockquote/widgets/blockquote.php` y `widget-blockquote.min.css`, GPLv3), que ya forma parte de DIGITALÍSIMO Elements. Parten de su lista de controles, valores por defecto y reglas de estilo para que el contenido convertido se vea igual (`docs/PRO_WIDGETS_OBJECTIVE.md`), con nombre, clases, marcado e icono propios. El widget de PRO sigue incluido y registrado para el contenido que no se haya convertido. Lo convertido conserva el icono que pintaba PRO: `Blockquote_Widget::ICON_LEGACY` es el icono `twitter` de **Font Awesome Free 5** (iconos CC BY 4.0), en SVG en línea, con el trazo y la caja de la copia que trae el núcleo (`elementor/assets/lib/font-awesome/json/brands.json`).
 
 ## Programa «sin widgets de PRO»: carruseles (C1)
 

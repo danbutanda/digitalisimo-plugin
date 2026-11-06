@@ -1,4 +1,16 @@
-# DIGITALÍSIMO Elements 4.3.0.177
+# DIGITALÍSIMO Elements @NEXT_ELEMENTS@
+
+- @NEXT_ELEMENTS@ (corrección de fidelidad, pedida por el propietario: un sitio migrado se ve igual que con PRO): la Cita (`digitalisimo-blockquote`) convertida desde el Blockquote de PRO se ve como en PRO en dos puntos que cambiaban su diseño. Las Citas nuevas no cambian.
+  1. **Icono del botón para compartir.** Lo convertido pinta el pájaro que pintaba PRO (`fab fa-twitter`), en lugar del icono propio. Es el mismo trazo, tomado de la copia de Font Awesome Free del núcleo (`Blockquote_Widget::ICON_LEGACY`). Lo decide un control oculto nuevo, `share_icon`, que el mapa fija en `legacy`. Si falta, decide la marca `_digitalisimo_pro`, que cubre las Citas convertidas antes de esta versión (el traductor no vuelve a convertir lo ya convertido). Lo hacen igual el servidor y la vista previa del editor.
+  2. **Alineación por dispositivo.** PRO pintaba en todos los anchos, a la vez, la clase de la alineación de escritorio y la de cada dispositivo activo, y se veía lo que resultaba de su hoja. La Cita aplicaba cada valor sólo en su dispositivo (diferencia que antes se declaraba como aproximación). Ahora el mapa (`maps/blockquote.php`, `filter`) calcula ese resultado:
+     - lo fija en un control nuevo, «Alineación heredada» (`pro_align`, no responsivo), que sólo aparece en lo convertido;
+     - conserva la alineación de escritorio y quita las de los dispositivos;
+     - deja la separación del autor sólo donde PRO la pintaba (su condición mira la alineación de cada dispositivo);
+     - el CSS personalizado del elemento que nombraba la clase de una de esas alineaciones pasa a la clase del envoltorio, que siempre está, como la de PRO.
+
+     «Alineación heredada» tiene dos valores que no existían, centro con el texto a la izquierda o a la derecha, y la opción «Por dispositivo», que la quita y devuelve el mando a «Alineación». La hoja `blockquote.css` no cambia (3 064 B). `tests/elements-blockquote.php` lo comprueba y falla con el código anterior; el A/B de `tests/playground/pro-ab.sh` suma cuatro casos de alineación y deja de declarar la diferencia de `bq-responsive`.
+
+  Volver a 4.3.0.177 no rompe nada: lo convertido con esta versión vuelve a pintar el icono propio y la alineación de escritorio.
 
 - 4.3.0.177 (etapa C5 de `docs/PRO_WIDGETS_OBJECTIVE.md`, entradas y bucles; contrato y resultado en `docs/pro/c5.md`): seis widgets propios que sustituyen a los listados de PRO, sin jQuery, Swiper ni los paquetes de PRO. `plugin.php`, el PHP derivado de PRO, sus paquetes compilados y `elementor/` no cambian, y ningún widget existente cambia de clase, nombre ni comportamiento por defecto.
   1. Módulo `modules/digitalisimo-loop/` (nuevo): `class-module.php` registra los widgets y sus recursos (hoja ≤ 4 KB por widget, script sólo si hace falta, con `defer` y sin dependencias) y los compartidos (`loop.css`/`loop.js`: paginación, «Cargar más», infinita y mampostería; `posts-cards.css`: la piel «Tarjetas»), que sólo cargan las páginas que los usan. `class-posts-base.php` repite `Posts_Base` de PRO (controles, página actual, enlaces de paginación, varios listados en una página y las páginas `/N/` de un singular con un listado propio); `class-loop-base.php` y las pieles `class-loop-skin*.php` repiten la base y las pieles del constructor de bucles.
