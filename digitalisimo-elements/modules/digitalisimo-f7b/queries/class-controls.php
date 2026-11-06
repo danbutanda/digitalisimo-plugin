@@ -104,7 +104,7 @@ final class Controls {
 		if ( ! $element->get_controls( $first ) || $element->get_controls( self::CONTROL ) ) {
 			return;
 		}
-		$loop      = 0 === strpos( $element->get_name(), 'loop-' );
+		$loop      = 'post_query' === Runtime::WIDGETS[ $element->get_name() ];
 		$condition = $loop ? array( '_skin' => 'post' ) : array();
 		$linked    = $condition + array( self::CONTROL . '!' => '' );
 

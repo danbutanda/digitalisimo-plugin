@@ -61,7 +61,7 @@ const init=form=>{
 if(at(form,'data-digi-ready'))return;
 form.setAttribute('data-digi-ready','1');
 const ds=form.dataset,price=R(ds),loop=ds.target==='loop'&&ds.loop?ds.loop:'',pre='e-filter-'+loop+'-';
-const ajax=()=>!!loop&&C.active(),go=t=>{if(ajax())C.refresh(loop,form,t)};
+const ajax=()=>!!loop&&C.active(loop),go=t=>{if(ajax())C.refresh(loop,form,t)};
 if(loop)C.register(loop,form,{type:ds.type||(price?'digitalisimo_price':'digitalisimo_attribute'),keys:price?[ds.keyMin,ds.keyMax]:[ds.key],read:()=>read(form),write:p=>write(form,pre,p)});
 if(ajax()?!price||ds.apply==='change':!loop&&price&&ds.apply==='change')form.classList.add('digi-filter--live');
 form.addEventListener('submit',ev=>{

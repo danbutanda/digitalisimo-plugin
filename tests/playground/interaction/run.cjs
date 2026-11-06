@@ -435,6 +435,14 @@ checks['f7b-form-conditions'] = async (page) => {
     const failedRequests = [];
     page.on('pageerror', (e) => errors.push(String(e.message || e)));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    // En una máquina lenta (`EDITOR_MS`), las peticiones REST del núcleo pueden pasar su tope de 40 s (axios,
+    // ECONNABORTED): se anotan aparte y no cuentan como error de JavaScript. Cualquier otro rechazo sí cuenta.
+    const slowRest = [];
+    let slowUsed = 0;
+    if (process.env.EDITOR_MS) {
+      await page.evaluateOnNewDocument(() => window.addEventListener('unhandledrejection', (e) => { const r = e.reason || {}; if (r.name === 'AxiosError' && r.code === 'ECONNABORTED') console.log(`digi-slow-rest ${r.config && r.config.url}`); }));
+      page.on('console', (m) => { if (m.type() === 'log' && m.text().startsWith('digi-slow-rest ')) slowRest.push(m.text().slice(15)); });
+    }
     const bodies = [];
     page.on('response', (r) => {
       if (r.status() >= 400 && r.url().startsWith(base)) {
@@ -459,6 +467,9 @@ checks['f7b-form-conditions'] = async (page) => {
       await frame.waitForSelector('.elementor-widget', { timeout: EDITOR_MS });
       const core = await page.evaluate(() => (window.elementorCommon && window.elementorCommon.config && window.elementorCommon.config.version) || (window.ElementorConfig && window.ElementorConfig.version) || '');
       if (failedRequests.length) throw new Error('recursos no encontrados: ' + failedRequests.join(' | '));
+      // Cada rechazo por tiempo de una petición REST anotado deja un «AxiosError» en `pageerror`: sólo esos se descuentan.
+      for (let k; slowUsed < slowRest.length && (k = errors.indexOf('AxiosError')) >= 0; slowUsed++) errors.splice(k, 1);
+      if (slowRest.length) console.log(`NOTA   editor · peticiones REST del núcleo por encima de 40 s (máquina lenta): ${slowRest.join(', ')}`);
       if (errors.length) throw new Error('errores de JavaScript: ' + errors.join(' | '));
       // F7b: en el panel, «diapositivas» encuentra el slider anidado ligero y no el Carrusel de PRO (palabras clave propias).
       const found = await page.evaluate(async () => {
@@ -469,7 +480,7 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0, C1, C2, C4): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // Programa «sin widgets de PRO» (C0, C1, C2, C4, C5): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
       // Builder de setup.php, donde existen las categorías «Individual» y «Archivo»); `ownHidden`, que el propio
@@ -518,6 +529,13 @@ checks['f7b-form-conditions'] = async (page) => {
         { pro: 'mega-menu', own: 'digitalisimo-mega-menu', title: 'Menú con submenús de contenido', query: 'submenús de contenido' },
         { pro: 'off-canvas', own: 'digitalisimo-nested-off-canvas', title: 'Panel fuera de lienzo', query: 'fuera de lienzo' },
         { pro: 'search', own: 'digitalisimo-search', title: 'Búsqueda', query: 'búsqueda' },
+        // C5 (entradas y bucles, docs/pro/c5.md).
+        { pro: 'posts', own: 'digitalisimo-posts', title: 'Entradas', query: 'entradas' },
+        { pro: 'archive-posts', own: 'digitalisimo-archive-posts', title: 'Entradas del archivo', query: 'entradas del archivo', doc: 'archive' },
+        { pro: 'portfolio', own: 'digitalisimo-portfolio', title: 'Portafolio', query: 'portafolio' },
+        { pro: 'loop-grid', own: 'digitalisimo-loop-grid', title: 'Cuadrícula de bucle', query: 'bucle' },
+        { pro: 'loop-carousel', own: 'digitalisimo-loop-carousel', title: 'Carrusel de bucle', query: 'carrusel de bucle' },
+        { pro: 'taxonomy-filter', own: 'digitalisimo-taxonomy-filter', title: 'Filtro de taxonomías', query: 'filtro' },
         // C7 (WooCommerce, docs/pro/c7.md). Los de la ficha sólo existen en una plantilla de producto y los de archivo, en
         // una de archivo de productos (sus categorías); los obsoletos de PRO y «Elementos del producto» quedan ocultos
         // como en PRO; PRO no registra la Imagen de la categoría.
@@ -582,6 +600,7 @@ checks['f7b-form-conditions'] = async (page) => {
         return !(w.found || []).includes(w.title);
       });
       if (bad.length) throw new Error(`cada widget de PRO sustituido debe seguir registrado y fuera del panel, con el propio en su lugar: ${JSON.stringify(bad)}`);
+      for (let k; slowUsed < slowRest.length && (k = errors.indexOf('AxiosError')) >= 0; slowUsed++) errors.splice(k, 1);
       if (errors.length) throw new Error('errores de JavaScript en el editor de las plantillas: ' + errors.join(' | '));
       if (failedRequests.length) throw new Error('recursos no encontrados en el editor de las plantillas: ' + failedRequests.join(' | '));
       results.editorPro = { ok: true, note: `${pro.filter((w) => w.registered).length} widgets de PRO registrados y ocultos${pro.some((w) => !w.registered) ? ` (sin registrar: ${pro.filter((w) => !w.registered).map((w) => w.pro).join(', ')})` : ''}; ${pro.map((w) => `«${w.query}»${w.doc ? ` (${w.doc})` : ''} → ${w.ownHidden ? `${w.title} fuera del panel, como PRO` : w.title}`).join('; ')}` };

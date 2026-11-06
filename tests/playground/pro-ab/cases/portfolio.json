@@ -1,0 +1,167 @@
+{
+ "_doc": [
+  "Casos A/B del Portafolio (frente I de C5): A con `portfolio` de PRO, B con `digitalisimo-portfolio`. Acción: filtrar por un término (segundo botón de la barra)."
+ ],
+ "declared": [
+  {
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front): PRO dejaba el del navegador.",
+   "widget": "portfolio"
+  },
+  {
+   "kind": "palabra",
+   "match": "«(all|todos)»",
+   "reason": "Texto propio en español del filtro «Todos» (PRO: «All»).",
+   "widget": "portfolio"
+  },
+  {
+   "kind": "nombre",
+   "match": "All|Todos",
+   "reason": "Texto propio en español del filtro «Todos».",
+   "widget": "portfolio"
+  },
+  {
+   "widget": "portfolio",
+   "kind": "control",
+   "match": "control (li|button) \\d+ sólo en [AB] \\((li|button)\\)",
+   "reason": "El filtro son botones (`<button aria-pressed>`, activables con el teclado); PRO usaba elementos de lista con tabindex que el teclado no activaba."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "nombre",
+   "match": "nuevo button «",
+   "reason": "Los botones del filtro tienen rol y nombre accesible; en PRO eran elementos de lista sin rol."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "hover",
+   "reason": "El primer control del widget es otro: en B, el botón «Todos» del filtro (en A los elementos de lista no cuentan como controles y el arnés toma el primer enlace)."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "foco",
+   "match": "^(color|border-color|outline):",
+   "reason": "El foco con teclado llega primero al botón «Todos» del filtro (en A, al primer enlace: los elementos de lista de PRO no son controles)."
+  }
+ ],
+ "cases": {
+  "pf-defaults": {
+   "title": "Portafolio por defecto: 3 columnas, 6 entradas",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {}
+  },
+  "pf-styled": {
+   "title": "4 columnas, proporción 1, separaciones, capa y radio",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "columns": "4",
+    "item_ratio": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    },
+    "column_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "row_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "color_background": "#245EFFCC",
+    "posts_per_page": 8
+   }
+  },
+  "pf-filter": {
+   "title": "Barra de filtro por categoría",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "show_filter_bar": "yes",
+    "taxonomy": "category",
+    "posts_per_page": 9,
+    "color_filter_active": "#245EFF"
+   },
+   "actions": [
+    {
+     "label": "filtrar por el segundo término",
+     "a": ".elementor-portfolio__filter:nth-child(2)",
+     "b": ".digi-portfolio__filters > li:nth-child(2) .digi-portfolio__filter",
+     "wait": 2000,
+     "pixels": {
+      "max": 0.04,
+      "reason": "«Todos» (B) y «All» (A) tienen otro ancho y desplazan los demás botones de la barra; la rejilla filtrada es la misma."
+     }
+    }
+   ],
+   "pixels": {
+    "max": 0.12,
+    "reason": "El cursor se pone sobre el primer control de cada widget: en B, el botón «Todos» del filtro; en A (cuyos filtros no son controles), el primer elemento del portafolio, que muestra su capa. Sin cursor y tras filtrar, por debajo del 2 %."
+   }
+  }
+ }
+}

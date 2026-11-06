@@ -47,7 +47,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`. Los catorce que quedaban tras la Cita de C0 tienen widget propio nuevo; los equivalentes parciales que ya existían (Encabezado animado, Llamada a la acción, Tarjeta destacada, Galería personalizada, Progreso de lectura y Reproductor de video) no cambian. Contrato y resultado en `docs/pro/c2.md`.
 - **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
 - **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo. Quince widgets propios que repiten los controles de PRO (los títulos, el logotipo y la imagen destacada heredan, como en PRO, los widgets Encabezado e Imagen del núcleo); «entradas del archivo» (`archive-posts`) hereda de Posts y pasa a C5. Contrato y resultado en `docs/pro/c4.md`.
-- **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items.
+- **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items. Archive Posts (catálogo C4) se hizo aquí, sobre la misma base que Posts. Contrato y resultado en `docs/pro/c5.md`.
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
 - **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
@@ -86,7 +86,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C3 | `nav-menu` | `nav-menu` | WordPress Menu | **Sustituido** | Menú de WordPress (`digitalisimo-nav-menu`), C3; el Menú vertical no cambia |
 | C3 | `off-canvas` | `off-canvas` | Off-Canvas | **Sustituido** | Panel fuera de lienzo (`digitalisimo-nested-off-canvas`), C3; el Panel lateral no cambia |
 | C3 | `search` | `search` | Search | **Sustituido** | Búsqueda (`digitalisimo-search`), C3; el Buscador del Loop Grid no cambia |
-| C4 | `theme-builder` | `archive-posts` | Archive Posts | Nuevo | hereda de Posts: va con C5 |
+| C4 | `theme-builder` | `archive-posts` | Archive Posts | **Sustituido** | Entradas del archivo (`digitalisimo-archive-posts`), en C5 con Entradas |
 | C4 | `theme-builder` | `theme-archive-title` | Archive Title | **Sustituido** | Título del archivo (`digitalisimo-archive-title`), C4 |
 | C4 | `theme-builder` | `theme-page-title` | Page Title | **Sustituido** | Título de la página (`digitalisimo-page-title`), C4 |
 | C4 | `theme-builder` | `theme-post-content` | Post Content | **Sustituido** | Contenido de la entrada (`digitalisimo-post-content`), C4 |
@@ -102,11 +102,11 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C4 | `theme-elements` | `post-navigation` | Post Navigation | **Sustituido** | Navegación entre entradas (`digitalisimo-post-navigation`), C4 |
 | C4 | `theme-elements` | `search-form` | Search Form | **Sustituido** | Formulario de búsqueda (`digitalisimo-search-form`, fuera del panel, como en PRO), C4 |
 | C4 | `theme-elements` | `sitemap` | Sitemap | **Sustituido** | Mapa del sitio (`digitalisimo-sitemap`), C4 |
-| C5 | `loop-builder` | `loop-carousel` | Loop Carousel | Nuevo |  |
-| C5 | `loop-builder` | `loop-grid` | Loop Grid | Nuevo |  |
-| C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | Nuevo |  |
-| C5 | `posts` | `portfolio` | Portfolio | Nuevo |  |
-| C5 | `posts` | `posts` | Posts | Nuevo |  |
+| C5 | `loop-builder` | `loop-carousel` | Loop Carousel | **Sustituido** | Carrusel de bucle (`digitalisimo-loop-carousel`), C5, sobre el motor `digi-crs` de C1 |
+| C5 | `loop-builder` | `loop-grid` | Loop Grid | **Sustituido** | Cuadrícula de bucle (`digitalisimo-loop-grid`), C5 |
+| C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | **Sustituido** | Filtro de taxonomías (`digitalisimo-taxonomy-filter`), C5 |
+| C5 | `posts` | `portfolio` | Portfolio | **Sustituido** | Portafolio (`digitalisimo-portfolio`), C5 |
+| C5 | `posts` | `posts` | Posts | **Sustituido** | Entradas (`digitalisimo-posts`), C5 |
 | C6 | `forms` | `form` | Form | Nuevo |  |
 | C6 | `forms` | `login` | Login | Nuevo |  |
 | C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | **Sustituido** | Añadir al carrito personalizado (`digitalisimo-woo-add-to-cart`), C7 |
@@ -174,6 +174,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C2 | **Publicado** · Elements 4.3.0.174 y Migración 1.0.24 · `v2026.11.05.450`. Catorce widgets de contenido propios en `modules/digitalisimo-content/` (Titular animado, Código resaltado, Tabla de contenido, Botones para compartir, Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios, Tabla de precios, Galería avanzada, Puntos de interés, Animación Lottie, Lista de videos, Cuenta regresiva e Indicador de progreso) con sus mapas listos y fuera del panel; con la Cita de C0, la familia C2 queda sustituida entera. Detalle en `docs/pro/c2.md` |
 | C3 | **Publicado** · Elements 4.3.0.176 · `v2026.11.05.452` (Migración sin cambios: la 1.0.24 convierte con los mapas de Elements). Cuatro widgets de navegación propios en `modules/digitalisimo-navigation/` (Menú de WordPress, Menú con submenús de contenido, Panel fuera de lienzo y Búsqueda) sin jQuery, SmartMenus ni los paquetes de PRO, con sus mapas listos y fuera del panel; el Navbar y el Mega Menu de Element Pack llegan al Menú propio en la misma pasada de «Migrar». La familia C3 queda sustituida entera. Detalle en `docs/pro/c3.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
+| C5 | **Publicado** · Elements 4.3.0.177 · `@C5_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 lleva a Posts, Loop Grid y Loop Carousel). Seis widgets de entradas y bucles propios en `modules/digitalisimo-loop/` (Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías) con sus mapas listos y fuera del panel, la misma consulta, las mismas plantillas de Elemento de bucle y las consultas guardadas y los filtros de F7b sobre los propios; con ellos, la familia C5 queda sustituida entera (y, de C4, Entradas del archivo). Detalle en `docs/pro/c5.md` |
 | C7 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C7_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 trae de Element Pack a los de WooCommerce de PRO). Treinta widgets de WooCommerce propios en `modules/digitalisimo-woo/single/` (los quince de la ficha de producto) y `store/` (los quince de listados, archivo, carrito, pago y cuenta), con sus mapas listos y fuera del panel: WooCommerce pinta lo suyo con las mismas plantillas, ganchos y filtros que PRO, sin jQuery propio, Swiper ni los paquetes de PRO. Con ellos, la familia C7 queda sustituida entera. Detalle en `docs/pro/c7.md` |
-| C5, C6, C8, C9 | Pendientes |
+| C6, C8, C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

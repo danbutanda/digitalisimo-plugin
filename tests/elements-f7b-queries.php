@@ -917,7 +917,7 @@ namespace {
 	function t_widget( string $name, string $id, array $settings = array() ): Fake_Widget {
 		$widget = new Fake_Widget( $name, $id, $settings );
 		$prefix = \Digitalisimo\Elements\F7b\Queries\Runtime::WIDGETS[ $name ] . '_';
-		$skin   = 0 === strpos( $name, 'loop-' ) ? array( '_skin' => 'post' ) : array();
+		$skin   = 'post_query' === \Digitalisimo\Elements\F7b\Queries\Runtime::WIDGETS[ $name ] ? array( '_skin' => 'post' ) : array();
 		if ( $skin ) {
 			$widget->controls['_skin'] = array( 'type' => 'select', 'default' => 'post', 'name' => '_skin' );
 		}
@@ -1157,6 +1157,12 @@ namespace {
 	check( array( 'posts_post_type' => 'post' ) === $w->controls['posts_ignore_sticky_posts']['condition'] && array() === $w->controls['posts_query_id']['condition'], 'ignore_sticky_posts y query_id siguen siendo del widget (C1-5).' );
 	$loop = t_widget( 'loop-grid', 'bbbbbbb' );
 	check( array( '_skin' => 'post' ) === $loop->controls[ Controls::CONTROL ]['condition'] && Controls::CONTROL === array_keys( $loop->controls )[1], 'Loop Grid: sólo con el skin de entradas, delante de post_query_post_type.' );
+	// C5: los bucles propios (`digitalisimo-loop-grid`, `digitalisimo-loop-carousel`) con la misma condición de skin, y
+	// Entradas y Portafolio propios sin ella, como los de PRO a los que sustituyen.
+	foreach ( array( 'digitalisimo-loop-grid' => array( '_skin' => 'post' ), 'digitalisimo-loop-carousel' => array( '_skin' => 'post' ), 'digitalisimo-posts' => array(), 'digitalisimo-portfolio' => array() ) as $own => $cond ) {
+		$own_widget = t_widget( $own, 'c5' . substr( md5( $own ), 0, 5 ) );
+		check( isset( $own_widget->controls[ Controls::CONTROL ] ) && $cond === $own_widget->controls[ Controls::CONTROL ]['condition'], "C5: $own con «Consulta guardada» (condición " . wp_json_encode( $cond ) . ').' );
+	}
 	$before = count( $loop->controls );
 	Controls::register( $loop );
 	check( count( $loop->controls ) === $before, 'Registrar dos veces no duplica nada.' );
@@ -1628,7 +1634,7 @@ namespace {
 	do_action( 'elementor/editor/after_enqueue_scripts' );
 	check( isset( $GLOBALS['t']['scripts']['digitalisimo-f7b-queries-editor'] ) && array( 'elementor-editor' ) === $GLOBALS['t']['scripts']['digitalisimo-f7b-queries-editor'][1] && false !== strpos( $GLOBALS['t']['scripts']['digitalisimo-f7b-queries-editor'][0], 'assets/js/queries-editor.js' ), 'queries-editor.js se encola en el editor.' );
 	$config = Controls::config();
-	check( array( 'posts' => 'posts_', 'portfolio' => 'posts_', 'loop-grid' => 'post_query_', 'loop-carousel' => 'post_query_' ) === $config['prefixes'] && array_keys( Store::DEFAULTS ) === $config['fields'], 'Configuración: prefijos de los cuatro widgets y campos del grupo.' );
+	check( array( 'posts' => 'posts_', 'portfolio' => 'posts_', 'loop-grid' => 'post_query_', 'loop-carousel' => 'post_query_', 'digitalisimo-posts' => 'posts_', 'digitalisimo-portfolio' => 'posts_', 'digitalisimo-loop-grid' => 'post_query_', 'digitalisimo-loop-carousel' => 'post_query_' ) === $config['prefixes'] && array_keys( Store::DEFAULTS ) === $config['fields'], 'Configuración: prefijos de los cuatro widgets de PRO y de los cuatro propios de C5, y campos del grupo.' );
 
 	// =================================================================================================================
 	// 12. Pantalla «Consultas»: guardar, borrar, probar y buscar.
