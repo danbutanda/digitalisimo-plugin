@@ -6,7 +6,8 @@
 //   sin puntero ni selección; desplazamiento en Z de profundidad/2 − i·profundidad/N, opacidad (1 − i/N)/2 con el
 //   desvanecido, color de la profundidad sólo en las copias, perspectiva propia, la capa frontal crece P/(P − d/2);
 //   el nombre accesible y el orden de tabulación no cambian; giro con el puntero (y al revés) y al desplazar; sin giro
-//   con movimiento reducido; popups que llegan después; sin errores ni desplazamiento horizontal.
+//   con movimiento reducido; popups y elementos de la cuadrícula de bucle que llegan después; sin errores ni
+//   desplazamiento horizontal.
 // Sin Chrome o sin puppeteer-core (CI), se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-text-relief-chrome.mjs
 import assert from 'node:assert/strict';
@@ -147,6 +148,23 @@ await page.evaluate(() => {
 const popup = await state(page, 'popup');
 ok(popup.layers === 8 && popup.front.text === 'Emergente', 'Un encabezado que llega en un popup se apila al mostrarse.');
 ok((await state(page, 'r1base')).layers === 8, 'Volver a recorrer la página no apila dos veces.');
+
+// Elementos que añade la cuadrícula de bucle sin recargar: «Cargar más» (`digi-loop-loaded`) y filtros o paginación
+// (`digi-loop-updated`), los dos con burbuja desde el widget, como en modules/digitalisimo-loop.
+for (const [id, event] of [['loopmore', 'digi-loop-loaded'], ['loopfilter', 'digi-loop-updated']]) {
+  await page.evaluate((id, event) => {
+    const grid = document.createElement('div');
+    const w = document.querySelector('[data-id="r1base"]').cloneNode(true);
+    w.dataset.id = id;
+    w.querySelector('h2').textContent = 'Del bucle';
+    grid.append(w);
+    document.body.append(grid);
+    grid.dispatchEvent(new CustomEvent(event, { bubbles: true, detail: { items: [w] } }));
+  }, id, event);
+  const loop = await state(page, id);
+  ok(loop.layers === 8 && loop.front.text === 'Del bucle' && loop.copies.every(c => c.hidden === 'true' && c.inert), `Un encabezado que añade la cuadrícula de bucle (${event}) se apila.`);
+}
+ok((await state(page, 'popup')).layers === 8 && (await state(page, 'r1base')).layers === 8, 'Los eventos del bucle no vuelven a apilar lo ya apilado.');
 await page.close();
 
 // 3. Movimiento reducido: capas sí, giro no.
