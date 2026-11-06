@@ -16,7 +16,8 @@
 //   todo a la vista sin bloqueo, miniaturas centradas con la última a la izquierda, copias repetidas con pocas
 //   diapositivas, manejadores del núcleo sobre las copias; arrastre con el ratón (cursor de agarre, gesto rápido, clic
 //   anulado tras arrastrar, sin seleccionar texto) y clic en una diapositiva; puntos del carrusel anidado pegados al borde
-//   y visibles sin acotar al número de diapositivas.
+//   y visibles sin acotar al número de diapositivas; bucle con paso 2 y un número impar de diapositivas (w25): de página en
+//   página, con la actual, el punto y lo que se ve de acuerdo tras flechas, arrastre, clic y API.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-crs-engine-chrome.mjs
 import assert from 'node:assert/strict';

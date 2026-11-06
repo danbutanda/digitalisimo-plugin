@@ -85,7 +85,8 @@ defined( 'ABSPATH' ) || exit;
  * de una diapositiva; como `loopCreate`/`loopFix` de Swiper 8): el script copia visibles + paso diapositivas a cada
  * lado de la pista (`digi-crs__clone`, repitiendo si hay pocas), «siguiente» y la reproducción automática avanzan
  * siempre hacia delante y «anterior» hacia atrás, y antes de cada paso la actual vuelve a su original sin que cambie lo
- * que se ve. Las copias llevan el mismo `inert` por ventana que las originales (una copia a la vista se puede pulsar,
+ * que se ve. Con un paso mayor que 1 va de página en página (las anclas del imán son los principios de página, también
+ * al arrastrar, al pulsar una diapositiva o con la API), como Swiper con las visibles múltiplo del paso. Las copias llevan el mismo `inert` por ventana que las originales (una copia a la vista se puede pulsar,
  * como en PRO), y los manejadores del núcleo corren sobre los elementos de las copias en el primer cambio, como PRO en el
  * carrusel anidado y el de bucle. En el editor, el carrusel anidado no copia ni da la vuelta (PRO lo apagaba ahí). Con
  * bucle nunca hay `--locked`. Las visibles se acotan a `--digi-crs-n` (como el `Math.min` de PRO en los carruseles de
