@@ -1,0 +1,140 @@
+{
+ "_doc": [
+  "Casos A/B de wc-add-to-cart (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Añadir al carrito personalizado: el Botón del núcleo con los datos de WooCommerce o, con cantidad, el formulario de la ficha."
+ ],
+ "declared": [
+  {
+   "widget": "wc-add-to-cart",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (botón y cantidad: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-catc-defaults": {
+   "title": "Botón por defecto para el producto simple",
+   "settings": {
+    "product_id": "$woo:simple"
+   },
+   "woo": true,
+   "widget": "wc-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-catc-styled": {
+   "title": "Botón grande, de éxito, justificado y con estilos",
+   "settings": {
+    "product_id": "$woo:sale",
+    "text": "Comprar ahora",
+    "size": "lg",
+    "button_type": "success",
+    "align": "justify",
+    "button_text_color": "#ffffff",
+    "background_background": "classic",
+    "background_color": "#1f6f43",
+    "border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    }
+   },
+   "woo": true,
+   "widget": "wc-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ],
+   "pixels": {
+    "max": 0.08,
+    "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget bajo, de una o dos líneas; sin foco, 0,00 %."
+   }
+  },
+  "wsm-catc-quantity": {
+   "title": "Con cantidad: el formulario de WooCommerce, apilado y centrado",
+   "settings": {
+    "product_id": "$woo:simple",
+    "show_quantity": "yes",
+    "layout": "stacked",
+    "align": "center"
+   },
+   "woo": true,
+   "widget": "wc-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-catc-quantity-auto": {
+   "title": "Con cantidad, automático, producto variable",
+   "settings": {
+    "product_id": "$woo:variable",
+    "show_quantity": "yes",
+    "layout": "auto"
+   },
+   "woo": true,
+   "widget": "wc-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

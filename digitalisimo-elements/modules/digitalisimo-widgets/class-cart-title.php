@@ -13,9 +13,9 @@ final class Cart_Title {
 		add_filter( 'elementor/widget/render_content', array( __CLASS__, 'render_content' ), 10, 2 );
 	}
 
-	/** Se reconoce por su clase, también cuando se registra con otro nombre sobre la misma clase. */
+	/** Se reconoce por su clase, también cuando se registra con otro nombre sobre la misma clase, y el propio de C7. */
 	private static function applies( $widget ) {
-		return $widget instanceof \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart || ( is_object( $widget ) && method_exists( $widget, 'get_name' ) && 'woocommerce-menu-cart' === $widget->get_name() );
+		return $widget instanceof \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart || ( is_object( $widget ) && method_exists( $widget, 'get_name' ) && in_array( $widget->get_name(), array( 'woocommerce-menu-cart', 'digitalisimo-woo-menu-cart' ), true ) );
 	}
 
 	public static function before_section_end( $element, $section_id ) {
@@ -30,7 +30,7 @@ final class Cart_Title {
 		if ( '' === $title ) {
 			return $content;
 		}
-		return (string) preg_replace( '#<div class="widget_shopping_cart_content">#', '<p class="digi-cart-title">' . str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), esc_html( $title ) ) . '</p>$0', (string) $content, 1 );
+		return (string) preg_replace( '#<div class="(?:widget_shopping_cart_content|digi-mc__ct)">#', '<p class="digi-cart-title">' . str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), esc_html( $title ) ) . '</p>$0', (string) $content, 1 );
 	}
 
 	public static function render_content( $content, $widget ) {

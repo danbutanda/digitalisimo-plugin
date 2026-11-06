@@ -115,6 +115,7 @@
     var ef = w.elementorFrontend;
     if (ef && ef.hooks) {
       ef.hooks.addAction('frontend/element_ready/woocommerce-menu-cart.default', function ($s) { init($s && $s[0]); });
+      ef.hooks.addAction('frontend/element_ready/digitalisimo-woo-menu-cart.default', function ($s) { init($s && $s[0]); });
       ef.hooks.addAction('frontend/element_ready/digitalisimo-woo-shipping-bar.default', function ($s) { init($s && $s[0]); });
     }
   }

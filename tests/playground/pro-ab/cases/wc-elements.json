@@ -1,0 +1,62 @@
+{
+ "_doc": [
+  "Casos A/B de Páginas de la tienda (C7, fila O): A con `wc-elements` de PRO, B con `digitalisimo-woo-pages`. Los dos pintan el mismo shortcode de WooCommerce."
+ ],
+ "cases": {
+  "wpg-cart": {
+   "title": "Página del carrito (la página del caso hace de carrito, con artículos)",
+   "widget": "wc-elements",
+   "context": "cart",
+   "settings": {
+    "element": "woocommerce_cart"
+   }
+  },
+  "wpg-checkout": {
+   "title": "Página de pago con artículos",
+   "widget": "wc-elements",
+   "context": "checkout",
+   "settings": {
+    "element": "woocommerce_checkout"
+   }
+  },
+  "wpg-account": {
+   "title": "Mi cuenta con la clienta dentro",
+   "widget": "wc-elements",
+   "context": "account",
+   "settings": {
+    "element": "woocommerce_my_account"
+   }
+  },
+  "wpg-tracking": {
+   "title": "Formulario de seguimiento del pedido",
+   "widget": "wc-elements",
+   "woo": true,
+   "settings": {
+    "element": "woocommerce_order_tracking"
+   }
+  },
+  "wpg-product": {
+   "title": "Página de un producto (el simple)",
+   "widget": "wc-elements",
+   "woo": true,
+   "settings": {
+    "element": "product_page",
+    "product_id": "$woo:simple"
+   }
+  }
+ },
+ "declared": [
+  {
+   "widget": "wc-elements",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px) en lo que pinta WooCommerce; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "wc-elements",
+   "kind": "enlace",
+   "match": "remove_item=",
+   "reason": "Los enlaces de quitar del carrito llevan el nonce de la sesión de WooCommerce de cada página (A y B son sesiones distintas): el destino es el mismo artículo."
+  }
+ ]
+}

@@ -1,0 +1,126 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-related (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Productos relacionados: la plantilla `single-product/related.php` de WooCommerce con la cuadrícula de productos (la base propia de N)."
+ ],
+ "declared": [
+  {
+   "widget": "woocommerce-product-related",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (enlaces y botones de la cuadrícula: contorno de 2 px con separación de 2 px, criterio del estándar del front) donde PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "wsm-related-defaults": {
+   "title": "Relacionados por defecto (4 × 4)",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-related",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-related-styled": {
+   "title": "Tres columnas por precio, encabezado centrado y botones alineados",
+   "context": {
+    "product": "reviews"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "posts_per_page": 3,
+    "columns": "3",
+    "orderby": "price",
+    "order": "asc",
+    "heading_color": "#7a1f5c",
+    "heading_text_align": "center",
+    "heading_spacing": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "automatically_align_buttons": "yes",
+    "column_gap": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "title_color": "#222222",
+    "price_color": "#1f6f43",
+    "button_background_color": "#7a1f5c",
+    "button_text_color": "#ffffff"
+   },
+   "widget": "woocommerce-product-related",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-related-noheading": {
+   "title": "Sin encabezado, dos columnas y alineación centrada",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "show_heading": "",
+    "columns": "2",
+    "align": "center"
+   },
+   "widget": "woocommerce-product-related",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-products.min.css de PRO",
+     "id": "widget-woocommerce-products-css",
+     "url": "widget-woocommerce-products(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

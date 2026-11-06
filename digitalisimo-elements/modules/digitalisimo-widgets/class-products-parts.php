@@ -50,6 +50,8 @@ final class Products_Parts {
 
 	public static function init() {
 		add_action( 'elementor/element/woocommerce-products/section_content/after_section_end', array( __CLASS__, 'register_controls' ) );
+		// C7: los Productos propios (`digitalisimo-woo-products`) llevan las mismas partes; lo convertido conserva sus ajustes.
+		add_action( 'elementor/element/digitalisimo-woo-products/section_content/after_section_end', array( __CLASS__, 'register_controls' ) );
 		add_action( 'elementor/frontend/widget/before_render', array( __CLASS__, 'before_render' ) );
 		add_action( 'elementor/frontend/widget/after_render', array( __CLASS__, 'after_render' ) );
 		add_filter( 'elementor/widget/render_content', array( __CLASS__, 'render_content' ), 10, 2 );
@@ -80,7 +82,7 @@ final class Products_Parts {
 	}
 
 	private static function applies( $element ) {
-		return $element instanceof \ElementorPro\Modules\Woocommerce\Widgets\Products;
+		return $element instanceof \ElementorPro\Modules\Woocommerce\Widgets\Products || $element instanceof \Digitalisimo\Elements\Woo\Store\Products;
 	}
 
 	public static function before_render( $element ) {

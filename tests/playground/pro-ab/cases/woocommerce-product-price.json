@@ -1,0 +1,145 @@
+{
+ "_doc": [
+  "Casos A/B de woocommerce-product-price (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Precio del producto: la plantilla `single-product/price.php` de WooCommerce."
+ ],
+ "declared": [],
+ "cases": {
+  "wsm-price-simple": {
+   "title": "Precio de un producto simple",
+   "context": {
+    "product": "simple"
+   },
+   "settings": {},
+   "widget": "woocommerce-product-price",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-price.min.css de PRO",
+     "id": "widget-woocommerce-product-price-css",
+     "url": "widget-woocommerce-product-price(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-price-sale": {
+   "title": "Precio rebajado con estilos (en la página del producto)",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "price_color": "#1f6f43",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 26,
+     "sizes": []
+    },
+    "sale_price_color": "#b3261e",
+    "sale_price_typography_typography": "custom",
+    "sale_price_typography_font_weight": "700",
+    "sale_price_spacing": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-price",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-price.min.css de PRO",
+     "id": "widget-woocommerce-product-price-css",
+     "url": "widget-woocommerce-product-price(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-price-stacked": {
+   "title": "Precio rebajado apilado y centrado",
+   "context": {
+    "product": "sale"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "price_block": "yes",
+    "text_align": "center",
+    "sale_price_spacing": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    }
+   },
+   "widget": "woocommerce-product-price",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-price.min.css de PRO",
+     "id": "widget-woocommerce-product-price-css",
+     "url": "widget-woocommerce-product-price(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-price-variable": {
+   "title": "Rango de precios de un producto variable, alineado al final",
+   "context": {
+    "product": "variable"
+   },
+   "container": {
+    "_css_classes": "woocommerce"
+   },
+   "settings": {
+    "text_align": "end",
+    "price_color": "#222222"
+   },
+   "widget": "woocommerce-product-price",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-price.min.css de PRO",
+     "id": "widget-woocommerce-product-price-css",
+     "url": "widget-woocommerce-product-price(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  }
+ }
+}

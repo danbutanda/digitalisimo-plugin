@@ -1,0 +1,33 @@
+{
+ "_doc": [
+  "Casos A/B de Descripción del archivo de la tienda (C7, frente N, fork S): A con `woocommerce-archive-description`, B con `digitalisimo-woo-archive-description`, en el archivo de la categoría de prueba (descripción del término) y de la etiqueta."
+ ],
+ "cases": {
+  "wad-category": {
+   "title": "Archivo de la categoría de prueba, por defecto",
+   "widget": "woocommerce-archive-description",
+   "context": {
+    "archive": "product_cat"
+   },
+   "settings": {}
+  },
+  "wad-styled": {
+   "title": "Archivo de la etiqueta: centrado (a la izquierda en móvil), color y tipografía",
+   "widget": "woocommerce-archive-description",
+   "context": {
+    "archive": "product_tag"
+   },
+   "settings": {
+    "text_align": "center",
+    "text_align_mobile": "start",
+    "text_color": "#264653",
+    "text_typography_typography": "custom",
+    "text_typography_font_size": {
+     "unit": "px",
+     "size": 20
+    },
+    "text_typography_font_style": "italic"
+   }
+  }
+ }
+}

@@ -404,6 +404,14 @@ namespace Woo_Kit_Test {
 		$all_gates[] = $norm['gate'];
 	}
 	$check( array( false ) === array_values( array_unique( $all_gates ) ), '2: ninguna referencia de F4-Woo decide quién ve algo (gate falso).' );
+	// C7: Mi cuenta, Categorías de productos y la consulta antigua `posts` de los Productos clásicos (propio y de PRO).
+	$account = $by_path( 'digitalisimo-woo-my-account' );
+	$cats    = $by_path( 'digitalisimo-woo-categories' );
+	$check( 'template' === ( $account['customize_dashboard_select']['kind'] ?? '' ) && 'term' === ( $cats['categories.*']['kind'] ?? '' ) && 'term' === ( $cats['parent']['kind'] ?? '' ), '2: C7: plantilla del escritorio de Mi cuenta y categorías y padre de las Categorías de productos.' );
+	foreach ( array( 'digitalisimo-woo-products-classic', 'wc-products' ) as $type ) {
+		$classic = $by_path( $type );
+		$check( 'post' === ( $classic['posts_posts_ids.*']['kind'] ?? '' ) && 'user' === ( $classic['posts_authors.*']['kind'] ?? '' ) && 'term' === ( $classic['posts_product_cat_ids.*']['kind'] ?? '' ) && 'term' === ( $classic['posts_product_tag_ids.*']['kind'] ?? '' ) && 'term' === ( $classic['posts_product_brand_ids.*']['kind'] ?? '' ), "2: C7: {$type}: entradas, autores y términos de la consulta antigua `posts`." );
+	}
 	$check( array() === References::matching( 'term_meta', 'image' ), '2: `image` no se aplica fuera de un término…' );
 	$in_pa  = References::within_taxonomy( 'pa_color', function () { return References::matching( 'term_meta', 'image' ); } );
 	$in_cat = References::within_taxonomy( 'product_cat', function () { return References::matching( 'term_meta', 'image' ); } );

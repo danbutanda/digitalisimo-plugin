@@ -50,8 +50,8 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items. Archive Posts (catálogo C4) se hizo aquí, sobre la misma base que Posts. Contrato y resultado en `docs/pro/c5.md`.
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
-- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
-- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
+- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en tres widgets propios con presentaciones (Botones de contacto, Barra flotante y Link in Bio).
+- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b). Siete widgets propios en `modules/digitalisimo-services/` y, para el widget global, la sustitución por su contenido en «Migrar» y en los kits. Contrato y resultado en `docs/pro/c9.md`.
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
@@ -107,63 +107,63 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | **Sustituido** | Filtro de taxonomías (`digitalisimo-taxonomy-filter`), C5 |
 | C5 | `posts` | `portfolio` | Portfolio | **Sustituido** | Portafolio (`digitalisimo-portfolio`), C5 |
 | C5 | `posts` | `posts` | Posts | **Sustituido** | Entradas (`digitalisimo-posts`), C5 |
-| C6 | `forms` | `form` | Form | Nuevo |  |
-| C6 | `forms` | `login` | Login | Nuevo |  |
-| C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | Nuevo |  |
-| C7 | `woocommerce` | `wc-archive-products` | Archive Products | Nuevo |  |
-| C7 | `woocommerce` | `wc-categories` | Product Categories | Nuevo |  |
-| C7 | `woocommerce` | `wc-elements` | WooCommerce Pages | Nuevo |  |
-| C7 | `woocommerce` | `wc-products` | Woo - Products- | Parcial | Cuadrícula de productos y partes de F4-Woo |
-| C7 | `woocommerce` | `wc-single-elements` | Woo - Single Elements | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-archive-description` | Archive Description | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-archive-products` | Archive Products (deprecated) | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-breadcrumb` | WooCommerce Breadcrumbs | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-cart` | Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-category-image` | Category Image | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-checkout-page` | Checkout | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-menu-cart` | Menu Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-my-account` | My Account | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-notices` | WooCommerce Notices | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-add-to-cart` | Add To Cart | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-additional-information` | Additional Information | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-content` | Product Content | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-data-tabs` | Product Data Tabs | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-images` | Product Images | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-meta` | Product Meta | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-price` | Product Price | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-rating` | Product Rating | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-related` | Product Related | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-short-description` | Short Description | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-stock` | Product Stock | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-title` | Product Title | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | Nuevo |  |
-| C7 | `woocommerce` | `woocommerce-products` | Products | Parcial | Cuadrícula de productos y partes de F4-Woo |
-| C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | Nuevo |  |
-| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | Nuevo |  |
-| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | Nuevo |  |
-| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | Nuevo |  |
-| C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
-| C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
-| C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
-| C9 | `payments` | `stripe-button` | Stripe Button | Nuevo |  |
-| C9 | `social` | `facebook-button` | Facebook Button | Nuevo |  |
-| C9 | `social` | `facebook-comments` | Facebook Comments | Nuevo |  |
-| C9 | `social` | `facebook-embed` | Facebook Embed | Nuevo |  |
-| C9 | `social` | `facebook-page` | Facebook Page | Nuevo |  |
+| C6 | `forms` | `form` | Form | **Sustituido** | Formulario (`digitalisimo-form`), C6; envía por la misma tubería del constructor |
+| C6 | `forms` | `login` | Login | **Sustituido** | Inicio de sesión (`digitalisimo-login`), C6 |
+| C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | **Sustituido** | Añadir al carrito personalizado (`digitalisimo-woo-add-to-cart`), C7 |
+| C7 | `woocommerce` | `wc-archive-products` | Archive Products | **Sustituido** | Productos del archivo (`digitalisimo-woo-archive-products`), C7 |
+| C7 | `woocommerce` | `wc-categories` | Product Categories | **Sustituido** | Categorías de productos (`digitalisimo-woo-categories`), C7 |
+| C7 | `woocommerce` | `wc-elements` | WooCommerce Pages | **Sustituido** | Páginas de la tienda (`digitalisimo-woo-pages`), C7 |
+| C7 | `woocommerce` | `wc-products` | Woo - Products- | **Sustituido** | Productos (clásico) (`digitalisimo-woo-products-classic`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `wc-single-elements` | Woo - Single Elements | **Sustituido** | Elementos del producto (`digitalisimo-woo-single-elements`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `woocommerce-archive-description` | Archive Description | **Sustituido** | Descripción del archivo de la tienda (`digitalisimo-woo-archive-description`), C7 |
+| C7 | `woocommerce` | `woocommerce-archive-products` | Archive Products (deprecated) | **Sustituido** | Productos del archivo (clásico) (`digitalisimo-woo-archive-products-classic`), oculto como el de PRO, C7 |
+| C7 | `woocommerce` | `woocommerce-breadcrumb` | WooCommerce Breadcrumbs | **Sustituido** | Migas de la tienda (`digitalisimo-woo-breadcrumb`), C7 |
+| C7 | `woocommerce` | `woocommerce-cart` | Cart | **Sustituido** | Carrito (`digitalisimo-woo-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-category-image` | Category Image | **Sustituido** | Imagen de la categoría (`digitalisimo-woo-category-image`), C7 |
+| C7 | `woocommerce` | `woocommerce-checkout-page` | Checkout | **Sustituido** | Finalizar compra (`digitalisimo-woo-checkout`), C7 |
+| C7 | `woocommerce` | `woocommerce-menu-cart` | Menu Cart | **Sustituido** | Carrito del menú (`digitalisimo-woo-menu-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-my-account` | My Account | **Sustituido** | Mi cuenta (`digitalisimo-woo-my-account`), C7 |
+| C7 | `woocommerce` | `woocommerce-notices` | WooCommerce Notices | **Sustituido** | Avisos de la tienda (`digitalisimo-woo-notices`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-add-to-cart` | Add To Cart | **Sustituido** | Añadir al carrito (`digitalisimo-woo-product-add-to-cart`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-additional-information` | Additional Information | **Sustituido** | Información adicional del producto (`digitalisimo-woo-product-additional-information`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-content` | Product Content | **Sustituido** | Contenido del producto (`digitalisimo-woo-product-content`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-data-tabs` | Product Data Tabs | **Sustituido** | Pestañas de datos del producto (`digitalisimo-woo-product-data-tabs`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-images` | Product Images | **Sustituido** | Imágenes del producto (`digitalisimo-woo-product-images`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-meta` | Product Meta | **Sustituido** | Metadatos del producto (`digitalisimo-woo-product-meta`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-price` | Product Price | **Sustituido** | Precio del producto (`digitalisimo-woo-product-price`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-rating` | Product Rating | **Sustituido** | Valoración del producto (`digitalisimo-woo-product-rating`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-related` | Product Related | **Sustituido** | Productos relacionados (`digitalisimo-woo-product-related`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-short-description` | Short Description | **Sustituido** | Descripción corta del producto (`digitalisimo-woo-product-short-description`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-stock` | Product Stock | **Sustituido** | Existencias del producto (`digitalisimo-woo-product-stock`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-title` | Product Title | **Sustituido** | Título del producto (`digitalisimo-woo-product-title`), C7 |
+| C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | **Sustituido** | Ventas dirigidas (`digitalisimo-woo-product-upsell`), C7 |
+| C7 | `woocommerce` | `woocommerce-products` | Products | **Sustituido** | Productos (`digitalisimo-woo-products`), con las partes de F4-Woo, C7 |
+| C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | **Sustituido** | Resumen de la compra (`digitalisimo-woo-purchase-summary`), C7 |
+| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 1, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 10, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 3, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 4, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 5, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 6, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 7, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 8, C8 |
+| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | **Sustituido** | Botones de contacto (`digitalisimo-contact-buttons`), presentación 9, C8 |
+| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 2, C8 |
+| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | **Sustituido** | Barra flotante (`digitalisimo-floating-bar`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 2, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 3, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 4, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 5, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 6, C8 |
+| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 7, C8 |
+| C9 | `global-widget` | `global` | Global | **Sustituido** | su contenido: «Migrar» y los kits ponen en su lugar el elemento guardado en la plantilla de widget, con el id de la instancia (`Convert\Globals`), C9 |
+| C9 | `library` | `template` | Template | **Sustituido** | Plantilla (`digitalisimo-template`, con las sobrescrituras de F7b y sin bucles), C9 |
+| C9 | `payments` | `paypal-button` | PayPal Button | **Sustituido** | Botón de PayPal (`digitalisimo-paypal-button`), C9 |
+| C9 | `payments` | `stripe-button` | Stripe Button | **Sustituido** | Botón de Stripe (`digitalisimo-stripe-button`, la sesión la sigue creando el punto de PRO en el servidor), C9 |
+| C9 | `social` | `facebook-button` | Facebook Button | **Sustituido** | Botón de Facebook (`digitalisimo-facebook-button`, con fachada), C9 |
+| C9 | `social` | `facebook-comments` | Facebook Comments | **Sustituido** | Comentarios de Facebook (`digitalisimo-facebook-comments`, con fachada), C9 |
+| C9 | `social` | `facebook-embed` | Facebook Embed | **Sustituido** | Publicación de Facebook (`digitalisimo-facebook-embed`, con fachada), C9 |
+| C9 | `social` | `facebook-page` | Facebook Page | **Sustituido** | Página de Facebook (`digitalisimo-facebook-page`, con fachada), C9 |
 
 ## Estado
 
@@ -175,5 +175,8 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C3 | **Publicado** · Elements 4.3.0.176 · `v2026.11.05.452` (Migración sin cambios: la 1.0.24 convierte con los mapas de Elements). Cuatro widgets de navegación propios en `modules/digitalisimo-navigation/` (Menú de WordPress, Menú con submenús de contenido, Panel fuera de lienzo y Búsqueda) sin jQuery, SmartMenus ni los paquetes de PRO, con sus mapas listos y fuera del panel; el Navbar y el Mega Menu de Element Pack llegan al Menú propio en la misma pasada de «Migrar». La familia C3 queda sustituida entera. Detalle en `docs/pro/c3.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
 | C5 | **Publicado** · Elements 4.3.0.177 · `v2026.11.06.454` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 lleva a Posts, Loop Grid y Loop Carousel). Seis widgets de entradas y bucles propios en `modules/digitalisimo-loop/` (Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías) con sus mapas listos y fuera del panel, la misma consulta, las mismas plantillas de Elemento de bucle y las consultas guardadas y los filtros de F7b sobre los propios; con ellos, la familia C5 queda sustituida entera (y, de C4, Entradas del archivo). Detalle en `docs/pro/c5.md` |
-| C6–C9 | Pendientes |
+| C6 | **Publicado** · Elements 4.3.0.178 · `v2026.11.06.457` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
+| C7 | **Publicado** · Elements 4.3.0.178 · `v2026.11.06.457` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 trae de Element Pack a los de WooCommerce de PRO). Treinta widgets de WooCommerce propios en `modules/digitalisimo-woo/single/` (los quince de la ficha de producto) y `store/` (los quince de listados, archivo, carrito, pago y cuenta), con sus mapas listos y fuera del panel: WooCommerce pinta lo suyo con las mismas plantillas, ganchos y filtros que PRO, sin jQuery propio, Swiper ni los paquetes de PRO. Con ellos, la familia C7 queda sustituida entera. Detalle en `docs/pro/c7.md` |
+| C8 | **Publicado** · Elements 4.3.0.178 · `v2026.11.06.457` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también en los documentos de botones flotantes). Tres widgets propios con una presentación por variante de PRO en `modules/digitalisimo-floating/`: Botones de contacto (9), Barra flotante (2) y Link in Bio (6), que heredan las bases del núcleo; los 17 mapas listos y fuera del panel. Detalle en `docs/pro/c8.md` |
+| C9 | **Publicado** · Elements 4.3.0.178 y Migración 1.0.25 · `v2026.11.06.457`. Siete widgets propios en `modules/digitalisimo-services/`: Botón, Comentarios, Publicación y Página de Facebook (con fachada: ninguna petición a Facebook ni su SDK antes del clic), Botón de PayPal y Botón de Stripe (mismo flujo que PRO, ningún secreto en el navegador) y Plantilla (sobrescrituras de F7b, sin bucles), con sus mapas listos y fuera del panel; el widget global se sustituye por su contenido en «Migrar» y en los kits (§17 de `docs/fusion/k-kits.md`). Con C9, la familia queda sustituida entera. Detalle en `docs/pro/c9.md` |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

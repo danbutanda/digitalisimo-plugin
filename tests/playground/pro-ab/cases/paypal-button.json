@@ -1,0 +1,253 @@
+{
+ "_doc": [
+  "Casos A/B del Botón de PayPal (C9, frente R): A con `paypal-button` de PRO, B con `digitalisimo-paypal-button`. Los dos heredan del Botón del núcleo con los mismos controles y pintan un `<button type=\"submit\">` en su formulario; los mensajes de error se muestran al pulsar (acción `clic`).",
+  "El formulario se envía a PayPal sólo con todos los datos: los casos con datos pulsan sólo los que muestran mensajes (un envío real saldría del Playground y el arnés lo cortaría)."
+ ],
+ "declared": [
+  {
+   "widget": "paypal-button",
+   "kind": "foco",
+   "match": "^(outline(-offset)?|box-shadow):",
+   "reason": "Foco visible propio (estándar del front): contorno de 2 px a 2 px con un anillo claro de separación, visible sobre cualquier fondo; PRO dejaba el del navegador."
+  },
+  {
+   "widget": "paypal-button",
+   "kind": "palabra",
+   "match": "^\\[acción \\d+ [^\\]]+\\] (perdida|nueva) «(payment|method|connected|contact|seller|an|occurred|hay|ningún|método|pago|conectado|contacta|con|de|el|vendedor|se|produjo|un)»$",
+   "reason": "Mensaje de error por defecto (sin «Mensajes personalizados»): el propio está en español; PRO pintaba el texto fijo de su código en inglés. El mapa no puede completarlo porque, con esa opción apagada, el núcleo no da al widget los textos del panel (los usa sólo con ella encendida, y entonces el mapa sí completa los de PRO)."
+  }
+ ],
+ "cases": {
+  "pp-defaults": {
+   "title": "Valores por defecto: sin cuenta, «Buy Now», azul de PayPal, icono; clic muestra el mensaje",
+   "widget": "paypal-button",
+   "settings": {},
+   "actions": [
+    {
+     "label": "clic sin cuenta",
+     "selector": "button",
+     "pixels": {
+      "max": 0.1,
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-checkout": {
+   "title": "Pago con cuenta, nombre, SKU, precio, envío e impuesto",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "ventas@ejemplo.test",
+    "product_name": "Camiseta",
+    "product_sku": "CAM-1",
+    "product_price": "25.50",
+    "shipping_price": "4",
+    "tax_type": "percentage",
+    "tax_rate": "16",
+    "quantity": "2",
+    "currency": "MXN",
+    "text": "Comprar camiseta"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-donation": {
+   "title": "Donación de importe fijo, icono al final con separación",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "ventas@ejemplo.test",
+    "type": "donation",
+    "donation_amount": "20",
+    "text": "Donar",
+    "icon_align": "row-reverse",
+    "icon_indent": {
+     "unit": "px",
+     "size": 12
+    }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-subscription": {
+   "title": "Suscripción anual sin renovación automática, alineado al centro",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "ventas@ejemplo.test",
+    "type": "subscription",
+    "product_price": "99",
+    "billing_cycle": "years",
+    "auto_renewal": "",
+    "text": "Suscribirme",
+    "align": "center"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-sandbox": {
+   "title": "Modo de prueba sin cuenta de pruebas: clic muestra el mensaje",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "ventas@ejemplo.test",
+    "sandbox_mode": "yes",
+    "product_price": "5",
+    "open_in_new_window": "",
+    "redirect_after_success": {
+     "url": "https://ejemplo.test/gracias",
+     "is_external": "",
+     "nofollow": ""
+    }
+   },
+   "actions": [
+    {
+     "label": "clic sin cuenta de pruebas",
+     "selector": "button",
+     "pixels": {
+      "max": 0.1,
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-styled": {
+   "title": "Estilos más usados: tipografía, colores, borde, radio, relleno, sombra, a todo el ancho en móvil, sin icono",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "ventas@ejemplo.test",
+    "product_price": "10",
+    "text": "Pagar ahora",
+    "selected_icon": {
+     "value": "",
+     "library": ""
+    },
+    "align": "left",
+    "align_mobile": "justify",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 20
+    },
+    "typography_font_weight": "700",
+    "typography_text_transform": "uppercase",
+    "button_text_color": "#111111",
+    "background_background": "classic",
+    "background_color": "#FFC439",
+    "hover_color": "#FFFFFF",
+    "button_background_hover_background": "classic",
+    "button_background_hover_color": "#003087",
+    "border_border": "solid",
+    "border_width": {
+     "unit": "px",
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "isLinked": true
+    },
+    "border_color": "#111111",
+    "border_radius": {
+     "unit": "px",
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "isLinked": true
+    },
+    "text_padding": {
+     "unit": "px",
+     "top": "16",
+     "right": "40",
+     "bottom": "16",
+     "left": "40",
+     "isLinked": false
+    },
+    "button_box_shadow_box_shadow_type": "yes",
+    "button_box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 4,
+     "blur": 12,
+     "spread": 0,
+     "color": "rgba(0,0,0,0.3)"
+    }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  },
+  "pp-messages": {
+   "title": "Mensajes personalizados con su tipografía y color; dos errores se reducen al global",
+   "widget": "paypal-button",
+   "settings": {
+    "email": "",
+    "product_price": "",
+    "custom_messages": "yes",
+    "error_message_global": "Falta información para el pago",
+    "error_message_payment": "Cuenta sin conectar",
+    "message_color_global": "#CC3300",
+    "message_color_payment": "#0066CC",
+    "message_typography_typography": "custom",
+    "message_typography_font_size": {
+     "unit": "px",
+     "size": 18
+    },
+    "message_typography_font_style": "italic"
+   },
+   "actions": [
+    {
+     "label": "clic con dos errores",
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+     }
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.1,
+      "reason": "Foco visible propio (contorno de 2 px a 2 px con anillo claro de separación) alrededor del botón; PRO dejaba el anillo fino del navegador. Cuanto más ancho el botón (a todo el ancho o en 375 px), más píxeles cambia el contorno."
+     }
+    }
+   }
+  }
+ }
+}

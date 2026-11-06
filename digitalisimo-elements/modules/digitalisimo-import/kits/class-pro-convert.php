@@ -42,7 +42,12 @@ final class Pro_Convert {
 		'pro.dropped'        => Part_Context::WARNING,
 		'pro.unmapped'       => Part_Context::WARNING,
 		'pro.target_missing' => Part_Context::WARNING,
+		'pro.global'         => Part_Context::INFO,
+		'pro.global_missing' => Part_Context::WARNING,
 	);
+
+	/** Sustitución del widget global por su contenido (C9), en el núcleo de conversión de Elements. */
+	const GLOBALS = '\\Digitalisimo\\Elements\\Convert\\Globals';
 
 	/** Profundidad máxima que se recorre (la misma que el marcador). */
 	const MAX_DEPTH = 256;
@@ -103,6 +108,62 @@ final class Pro_Convert {
 			self::$targets[ $widget ] = Preserve::is_registered( 'widget', $widget );
 		}
 		return self::$targets[ $widget ];
+	}
+
+	/** ¿Está la sustitución del widget global en el núcleo de conversión? */
+	public static function globals_available(): bool {
+		return self::available() && class_exists( self::GLOBALS );
+	}
+
+	/**
+	 * Widget global (C9 del programa «sin widgets de PRO»): después del remapeo (`Context::remap()`, prioridad 20, petición
+	 * final), cada instancia (`widgetType: global` con `templateID` ya del sitio) pasa a ser el elemento guardado en su
+	 * plantilla, con el id de la instancia (`Convert\Globals`). El contenido de cada plantilla se convierte antes con los
+	 * mapas listos, una vez por plantilla y documento. Sin plantilla (no viajó en el kit, o falla cerrado el remapeo) la
+	 * instancia se queda como está y no pinta nada, como antes, y se informa `pro.global_missing`. La plantilla nunca se
+	 * borra ni se cambia.
+	 *
+	 * @param array         $data     `{ elements, settings }` ya remapeados.
+	 * @param int           $post     Documento.
+	 * @param callable      $resolve  `( int $plantilla ): ?array` (`Context::global_template()`).
+	 * @param callable|null $report   `( string $code, array $data, string $level )`; por defecto, `Context::report()`.
+	 */
+	public static function on_remapped_data( array $data, int $post, callable $resolve, ?callable $report = null ): array {
+		if ( empty( $data['elements'] ) || ! is_array( $data['elements'] ) || ! self::globals_available() ) {
+			return $data;
+		}
+		$globals = self::GLOBALS;
+		if ( false === strpos( (string) json_encode( $data['elements'] ), '"widgetType":"global"' ) ) {
+			return $data;
+		}
+		$log      = array();
+		$contents = array();
+		$resolver = static function ( int $template ) use ( $resolve, &$contents, &$log ) {
+			if ( ! array_key_exists( $template, $contents ) ) {
+				$content = call_user_func( $resolve, $template );
+				if ( is_array( $content ) ) {
+					list( $content, $converted ) = self::tree( $content );
+					$log = array_merge( $log, $converted );
+				}
+				$contents[ $template ] = is_array( $content ) ? $content : null;
+			}
+			return $contents[ $template ];
+		};
+		$rows             = array();
+		$data['elements'] = $globals::tree( $data['elements'], $resolver, $rows );
+		foreach ( $rows as $row ) {
+			$entry = array( 'widget' => 'global', 'plantilla' => (int) $row['template'], 'elemento' => (string) $row['element'] );
+			if ( ! empty( $row['expanded'] ) ) {
+				$log[] = self::entry( 'pro.global', $entry + array( 'destino' => (string) $row['target'] ) );
+			} else {
+				$log[] = self::entry( 'pro.global_missing', $entry );
+			}
+		}
+		$report = null !== $report ? $report : array( __NAMESPACE__ . '\\Context', 'report' );
+		foreach ( $log as $item ) {
+			call_user_func( $report, $item['code'], ( $post > 0 ? array( 'post' => $post ) : array() ) + $item['data'], $item['level'] );
+		}
+		return $data;
 	}
 
 	/** @internal Para pruebas. */

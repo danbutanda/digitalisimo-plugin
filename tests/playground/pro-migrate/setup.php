@@ -2,10 +2,15 @@
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; una
 // página con los cinco carruseles de PRO (C1), otra con los catorce widgets de contenido de PRO y una cuenta regresiva
 // de Element Pack (C2), otra con los cuatro widgets de navegación de PRO y el Navbar y el Mega Menu de Element Pack,
-// más una plantilla de cabecera con el Menú y la Búsqueda de PRO (C3), y una plantilla de entrada con los elementos de
-// tema (C4).
+// más una plantilla de cabecera con el Menú y la Búsqueda de PRO (C3), una plantilla de entrada con los elementos de
+// tema (C4) y los treinta widgets de WooCommerce de PRO en una plantilla de producto, una de archivo de productos, una
+// página y una cabecera (C7).
 // C5: otra página con los seis de entradas y bucles de PRO (con una plantilla de Elemento de bucle) y lo que F8 lleva
 // hacia ellos desde Element Pack y Prime Slider; la cabecera de citas lleva además unas Entradas de PRO.
+// C6: una página con el Formulario y el Inicio de sesión de PRO y los formularios de Element Pack que F8 lleva a ellos;
+// la cabecera de citas lleva además un Inicio de sesión de PRO.
+// C8: documentos de botones flotantes, una página Link in Bio y una cabecera con las variantes de PRO de C8.
+// C9: los servicios y plantillas (widget global, Plantilla, Facebook, PayPal y Stripe).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 // Sin actualizaciones automáticas: con una Release más nueva en GitHub, WordPress actualizaría DIGITALÍSIMO Elements
@@ -35,7 +40,7 @@ if ( $rev ) {
 $header = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Cabecera con cita', 'post_name' => 'pm-cabecera' ) );
 update_post_meta( $header, '_elementor_template_type', 'header' );
 update_post_meta( $header, '_elementor_edit_mode', 'builder' );
-update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ), array( 'id' => 'hp1', 'elType' => 'widget', 'widgetType' => 'posts', 'settings' => array( 'classic_posts_per_page' => 3 ), 'elements' => array() ) ) ) ) ) ) );
+update_post_meta( $header, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array(), 'elements' => array( $quote( 'q9', array( 'blockquote_content' => 'Cita de la cabecera' ) ), array( 'id' => 'hp1', 'elType' => 'widget', 'widgetType' => 'posts', 'settings' => array( 'classic_posts_per_page' => 3 ), 'elements' => array() ), array( 'id' => 'k9', 'elType' => 'widget', 'widgetType' => 'login', 'settings' => array( 'button_text' => 'Entrar', 'show_lost_password' => 'yes' ), 'elements' => array() ) ) ) ) ) ) );
 // C1: página con los cinco carruseles de PRO (el anidado, con dos contenedores hijos que se conservan).
 $w = static function ( $id, $type, array $settings, array $children = array() ) {
 	return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $type, 'settings' => $settings, 'elements' => $children );
@@ -152,5 +157,155 @@ $loops_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' =
 $loops = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con bucles', 'post_name' => 'pm-bucles' ) );
 update_post_meta( $loops, '_elementor_edit_mode', 'builder' );
 update_post_meta( $loops, '_elementor_data', wp_slash( wp_json_encode( $loops_data ) ) );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card ) );
+// C6: página con el Formulario de PRO (correo, webhook y redirección, con CSS personalizado) y el Inicio de sesión de
+// PRO, y los formularios de Element Pack que F8 lleva a ellos (contacto, Mailchimp, webhook y acceso de usuario): la
+// etapa `pro` los lleva a los propios en la misma pasada, con el mismo id de elemento (el form_id de los envíos).
+update_option( 'element_pack_api_settings', array( 'mailchimp_api_key' => 'abc-us1', 'mailchimp_list_id' => 'L1', 'contact_form_email' => 'ventas@sitio.test' ) );
+$forms_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'k1', 'form', array(
+		'form_name'      => 'Contacto',
+		'form_fields'    => array(
+			array( '_id' => 'fa', 'custom_id' => 'name', 'field_type' => 'text', 'field_label' => 'Nombre', 'required' => 'true' ),
+			array( '_id' => 'fb', 'custom_id' => 'email', 'field_type' => 'email', 'field_label' => 'Correo', 'required' => 'true' ),
+			array( '_id' => 'fc', 'custom_id' => 'message', 'field_type' => 'textarea', 'field_label' => 'Mensaje' ),
+		),
+		'submit_actions' => array( 'save-to-database', 'email', 'webhook', 'redirect' ),
+		'email_to'       => 'equipo@sitio.test',
+		'email_subject'  => 'Nuevo mensaje',
+		'webhooks'       => 'https://receptor.test/hook',
+		'redirect_to'    => 'https://sitio.test/gracias/',
+		'custom_css'     => 'selector.elementor-widget-form{margin:0}',
+	) ),
+	$w( 'k2', 'login', array( 'button_text' => 'Acceder', 'custom_labels' => 'yes', 'user_label' => 'Usuario' ) ),
+	$w( 'b1', 'bdt-contact-form', array( 'show_subject' => 'yes', 'show_message' => 'yes', 'redirect_after_submit' => 'yes', 'redirect_url' => array( 'url' => 'https://sitio.test/gracias/' ) ) ),
+	$w( 'b2', 'bdt-mailchimp', array() ),
+	$w( 'b3', 'bdt-webhook-form', array( 'webhook_url' => 'https://receptor.test/hook' ) ),
+	$w( 'b4', 'bdt-user-login', array() ),
+) ) );
+$forms = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con formularios', 'post_name' => 'pm-formularios' ) );
+update_post_meta( $forms, '_elementor_edit_mode', 'builder' );
+update_post_meta( $forms, '_elementor_data', wp_slash( wp_json_encode( $forms_data ) ) );
+// C7 (WooCommerce, con el WooCommerce fijado que monta pro-migrate.sh): una plantilla de producto con los quince widgets
+// de la ficha de PRO y el «Añadir al carrito» de Element Pack (`bdt-wc-add-to-cart` → `wc-add-to-cart` → propio); una de
+// archivo de productos con los nueve de listados y archivo y la rejilla de Element Pack (`bdt-wc-products` →
+// `woocommerce-products` → propio); una página con los seis de carrito, pago y cuenta; y una cabecera con el carrito del
+// menú de PRO y el de Element Pack (`bdt-wc-mini-cart` → `woocommerce-menu-cart` → propio). F8 y la etapa `pro`, en la
+// misma pasada.
+$c7_doc = static function ( $slug, $title, $type, array $elements ) {
+	$id = wp_insert_post( array( 'post_type' => $type ? 'elementor_library' : 'page', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'container', 'settings' => array(), 'elements' => $elements ) ) ) ) );
+	if ( $type ) {
+		update_post_meta( $id, '_elementor_template_type', $type );
+		wp_set_object_terms( $id, $type, 'elementor_library_type' );
+	}
+	return $id;
+};
+$product = $c7_doc( 'pm-producto', 'Producto individual', 'product', array(
+	$w( 'w1', 'woocommerce-product-title', array( 'header_size' => 'h2', 'custom_css' => 'selector .product_title{margin:0}' ) ),
+	$w( 'w2', 'woocommerce-product-price', array( 'price_color' => '#123456' ) ),
+	$w( 'w3', 'woocommerce-product-rating', array() ),
+	$w( 'w4', 'woocommerce-product-stock', array() ),
+	$w( 'w5', 'woocommerce-product-meta', array( 'view' => 'table' ) ),
+	$w( 'w6', 'woocommerce-product-short-description', array() ),
+	$w( 'w7', 'woocommerce-product-content', array() ),
+	$w( 'w8', 'woocommerce-product-additional-information', array() ),
+	$w( 'w9', 'woocommerce-product-data-tabs', array() ),
+	$w( 'w10', 'woocommerce-product-images', array() ),
+	$w( 'w11', 'woocommerce-product-add-to-cart', array( 'show_quantity' => 'yes', 'custom_css' => 'selector .e-atc-qty-button-holder{gap:4px}' ) ),
+	$w( 'w12', 'woocommerce-product-related', array( 'posts_per_page' => 4 ) ),
+	$w( 'w13', 'woocommerce-product-upsell', array() ),
+	$w( 'w14', 'wc-single-elements', array( 'element' => 'woocommerce_output_product_data_tabs' ) ),
+	$w( 'w15', 'wc-add-to-cart', array( 'text' => 'Comprar' ) ),
+	$w( 'ew1', 'bdt-wc-add-to-cart', array( 'text' => 'Comprar ya' ) ),
+) );
+$shop = $c7_doc( 'pm-tienda', 'Archivo de productos', 'product-archive', array(
+	$w( 'x1', 'wc-archive-products', array( 'paginate' => 'yes' ) ),
+	$w( 'x2', 'woocommerce-archive-products', array() ),
+	$w( 'x3', 'woocommerce-archive-description', array() ),
+	$w( 'x4', 'woocommerce-breadcrumb', array() ),
+	$w( 'x5', 'woocommerce-notices', array() ),
+	$w( 'x6', 'wc-categories', array( 'columns' => 3 ) ),
+	$w( 'x7', 'woocommerce-category-image', array() ),
+	$w( 'x8', 'woocommerce-products', array( 'columns' => 3, 'rows' => 1, 'custom_css' => 'selector .elementor-products-grid ul.products{gap:8px}' ) ),
+	$w( 'x9', 'wc-products', array() ),
+	$w( 'ew2', 'bdt-wc-products', array() ),
+) );
+$cart = $c7_doc( 'pm-carrito', 'Página de carrito', '', array(
+	$w( 'k1', 'woocommerce-cart', array( 'cart_layout' => 'one-column' ) ),
+	$w( 'k2', 'woocommerce-checkout-page', array() ),
+	$w( 'k3', 'woocommerce-my-account', array() ),
+	$w( 'k4', 'woocommerce-purchase-summary', array() ),
+	$w( 'k5', 'woocommerce-menu-cart', array() ),
+	$w( 'k6', 'wc-elements', array( 'element' => 'woocommerce_cart' ) ),
+) );
+$shop_header = $c7_doc( 'pm-cabecera-tienda', 'Cabecera de la tienda', 'header', array(
+	$w( 'm1', 'woocommerce-menu-cart', array( 'custom_css' => 'selector .elementor-menu-cart__toggle .elementor-button{gap:4px}' ) ),
+	$w( 'em1', 'bdt-wc-mini-cart', array() ),
+) );
+// C8: un documento de botones flotantes (tipo de entrada del constructor `e-floating-buttons`) con los Botones de
+// contacto de PRO (Multi Chat, con CSS personalizado), otro de barra flotante (Coupon), una página Link in Bio con dos
+// variantes de PRO (Classic y Business Card) y una plantilla de cabecera con la variante Interactive. F8 no lleva ningún
+// widget de Element Pack a estas variantes (no hay cadena que convertir).
+$floating_doc = static function ( $slug, $title, $kind, array $elements ) {
+	$id = wp_insert_post( array( 'post_type' => 'e-floating-buttons', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_template_type', 'floating-buttons' );
+	update_post_meta( $id, '_elementor_floating_elements_type', $kind );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c' . $slug, 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => $elements ) ) ) ) );
+	return $id;
+};
+$float = $floating_doc( 'pm-flotantes', 'Botones flotantes', 'floating-buttons', array(
+	$w( 'k1', 'contact-buttons-var-1', array( 'top_bar_title' => 'Equipo', 'custom_css' => 'selector .e-contact-buttons__chat-button{outline:1px solid}' ) ),
+) );
+$bar = $floating_doc( 'pm-barra', 'Barra flotante', 'floating-bars', array(
+	$w( 'k2', 'floating-bars-var-3', array( 'coupon_code' => 'PM2026' ) ),
+) );
+$bio_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'l2', 'link-in-bio-var-2', array( 'bio_heading' => 'Hola' ) ),
+	$w( 'l7', 'link-in-bio-var-7', array( 'bio_title' => 'Tarjeta', 'custom_css' => 'selector .e-link-in-bio__title{letter-spacing:1px}' ) ),
+) ) );
+$bio = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Link in Bio', 'post_name' => 'pm-bio' ) );
+update_post_meta( $bio, '_elementor_edit_mode', 'builder' );
+update_post_meta( $bio, '_elementor_data', wp_slash( wp_json_encode( $bio_data ) ) );
+$header2 = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Cabecera con botones', 'post_name' => 'pm-cabecera-botones' ) );
+update_post_meta( $header2, '_elementor_template_type', 'header' );
+update_post_meta( $header2, '_elementor_edit_mode', 'builder' );
+update_post_meta( $header2, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array( 'content_width' => 'boxed' ), 'elements' => array( $w( 'k10', 'contact-buttons-var-10', array() ) ) ) ) ) ) );
+wp_set_object_terms( $header2, 'header', 'elementor_library_type' );
+// C9: dos plantillas de widget global (un Encabezado y un Blockquote de PRO, que llega a la Cita en la misma pasada),
+// una sección para la Plantilla, una página con tres instancias globales (una sin plantilla, que se queda y se informa),
+// la Plantilla de PRO con una sobrescritura de F7b, los cuatro widgets de Facebook y los botones de PayPal y Stripe, y
+// una cabecera con otra instancia global. F8 no lleva ningún widget de Element Pack a estos de PRO.
+$library = static function ( $title, $slug, $type, array $data ) {
+	$id = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug ) );
+	update_post_meta( $id, '_elementor_template_type', $type );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+	wp_set_object_terms( $id, $type, 'elementor_library_type' );
+	return $id;
+};
+$gw_heading = $library( 'Global: encabezado', 'pm-global-encabezado', 'widget', array( $w( 'gwh', 'heading', array( 'title' => 'Encabezado global', 'title_color' => '#1D3A6E' ) ) ) );
+$gw_quote   = $library( 'Global: cita', 'pm-global-cita', 'widget', array( $quote( 'gwq', array( 'blockquote_content' => 'Cita global', 'author_name' => 'Eva' ) ) ) );
+$section    = $library( 'Sección de la Plantilla', 'pm-seccion', 'section', array( array( 'id' => 'sc1', 'elType' => 'container', 'settings' => array(), 'elements' => array( $w( 'sch', 'heading', array( 'title' => 'Título de la sección', '_digitalisimo_slot' => 'titulo' ) ) ) ) ) );
+$global = static function ( $id, $template, array $settings ) {
+	return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => 'global', 'templateID' => $template, 'settings' => $settings, 'elements' => array() );
+};
+$services_data = array( array( 'id' => 'c10', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$global( 'x1', $gw_heading, array( 'title' => 'Encabezado global', 'title_color' => '#1D3A6E' ) ),
+	$global( 'x2', $gw_quote, array( 'blockquote_content' => 'Cita global' ) ),
+	$global( 'x3', 999999, array( 'title' => 'Sin plantilla' ) ),
+	$w( 't1', 'template', array( 'template_id' => (string) $section, 'digitalisimo_overrides' => array( array( '_id' => 'ov1', 'slot' => 'titulo', 'kind' => 'text', 'text' => 'Título sobrescrito' ) ), 'custom_css' => 'selector .elementor-template{outline:1px solid}' ) ),
+	$w( 'f1', 'facebook-button', array( 'type' => 'recommend' ) ),
+	$w( 'f2', 'facebook-comments', array( 'comments_number' => 5 ) ),
+	$w( 'f3', 'facebook-embed', array( 'type' => 'video', 'video_url' => 'https://www.facebook.com/pm/videos/1/' ) ),
+	$w( 'f4', 'facebook-page', array( 'url' => 'https://www.facebook.com/pm/', 'custom_css' => 'selector .elementor-facebook-widget{min-height:70px}' ) ),
+	$w( 'p1', 'paypal-button', array( 'product_name' => 'Producto', 'product_price' => '10.00' ) ),
+	$w( 'p2', 'stripe-button', array( 'product_name' => 'Producto', 'stripe_product_price' => 10 ) ),
+) ) );
+$services = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con servicios', 'post_name' => 'pm-servicios' ) );
+update_post_meta( $services, '_elementor_edit_mode', 'builder' );
+update_post_meta( $services, '_elementor_data', wp_slash( wp_json_encode( $services_data ) ) );
+$header_global = $library( 'Cabecera con global', 'pm-cabecera-global', 'header', array( array( 'id' => 'c11', 'elType' => 'container', 'settings' => array(), 'elements' => array( $global( 'x9', $gw_heading, array() ) ) ) ) );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'content' => $content, 'navigation' => $navigation, 'nav_header' => $nav_header, 'single' => $single, 'loops' => $loops, 'loop_item' => $loop_item, 'card' => $card, 'forms' => $forms, 'product' => $product, 'shop' => $shop, 'cart' => $cart, 'shop_header' => $shop_header, 'float' => $float, 'bar' => $bar, 'bio' => $bio, 'header2' => $header2, 'services' => $services, 'header_global' => $header_global, 'gw_heading' => $gw_heading, 'gw_quote' => $gw_quote, 'section' => $section ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );
