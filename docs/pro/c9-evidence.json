@@ -969,11 +969,11 @@
    "pay-js": 3481
   },
   "problemas": 0,
-  "nota": "Terceros: las fuentes de Google del kit, igual que la página vacía. Sin regresiones en empty y blockquote."
+  "nota": "Terceros: las fuentes de Google del kit, igual que la página vacía. Sin regresiones en empty y blockquote. Tras fusionar C5, elements-front-budget.php revisa 109 widgets propios."
  },
  "validate_yml": {
-  "pruebas": 347,
-  "detalle": "Las 339 líneas de la lista de validate.yml (338 pruebas y el bucle de update-enqueue de los 7 módulos: 345 comandos), en 4 lotes por el semáforo (229, 76, 85 y 99 s), 0 fallas; build-packages.sh fuera de dist/ (BUNDLED CORE, REFERENCE LEAK, LEGACY MENTION y THEME en PASS; 19 entradas de digitalisimo-services/ y class-globals.php en el ZIP; unzip -t sin errores), validate-suite.mjs y verify-release.mjs en verde (8 ZIP): 347 en verde",
+  "pruebas": 350,
+  "detalle": "Tras fusionar C5 (4.3.0.177) y 6316eec3, con ci-run.sh corregido (^FALL[AO]): las 342 líneas de la lista de validate.yml (341 pruebas y el bucle de update-enqueue de 7 módulos: 348 comandos) y el barrido de tests/elements-*.mjs; dos fallas por tiempo con la máquina cargada, en verde al repetirlas dos veces (elements-design-presets.php, elements-f7b-nested-slider-chrome.mjs), sin código de C9; build-packages.sh fuera de dist/ (guardas en PASS), validate-suite.mjs y verify-release.mjs (8 ZIP) en verde.",
   "nuevas": [
    "elements-pro-facebook.php (1 223)",
    "elements-pro-facebook-chrome.mjs (22)",
@@ -984,12 +984,12 @@
    "elements-kit-pro-global.php (13)"
   ]
  },
- "migration_pro_php": 208,
+ "migration_pro_php": 224,
  "pro_migrate": {
   "problemas": [],
-  "comprobaciones": 41,
-  "elements": "4.3.0.176 (con C3)",
-  "c9": "página de servicios (3 instancias globales: Encabezado, Blockquote de PRO → Cita en la misma pasada y una sin plantilla que se queda con pro.global_missing; Plantilla con sobrescritura de F7b y CSS; 4 de Facebook; PayPal; Stripe) y una cabecera con otra instancia global: 58 widgets en 10 documentos en la primera pasada (11 de C9), nada en la segunda, pro.global 3 y pro.global_missing 1, --revert devuelve todo",
+  "comprobaciones": 48,
+  "elements": "4.3.0.177 (con C3 y C5)",
+  "c9": "página de servicios (3 instancias globales: Encabezado, Blockquote de PRO → Cita en la misma pasada y una sin plantilla que se queda con pro.global_missing; Plantilla con sobrescritura de F7b y CSS; 4 de Facebook; PayPal; Stripe) y una cabecera con otra instancia global: 72 widgets en 12 documentos (con C5) en la primera pasada (11 de C9), nada en la segunda, pro.global 3 y pro.global_missing 1, --revert devuelve todo",
   "f8": "ningún widget de Element Pack acaba en los de PRO de C9"
  },
  "kit_roundtrip": {
