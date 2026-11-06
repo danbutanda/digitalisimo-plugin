@@ -25,8 +25,19 @@ final class Posts_Terms {
 			return;
 		}
 		require_once __DIR__ . '/class-posts-terms-skin.php';
-		$widget->remove_skin( 'classic' );
+		// La primera piel registrada es la de por defecto: la que se pinta cuando `_skin` no está guardado (Elementor no
+		// guarda el valor por defecto). En PRO es «classic»; si se quitara y se volviera a añadir al final, un Posts creado
+		// con PRO se vería en «Tarjetas». Se vuelven a añadir todas, con la clásica primero, para conservar el orden.
+		$skins = $widget->get_skins();
+		foreach ( array_keys( $skins ) as $id ) {
+			$widget->remove_skin( $id );
+		}
 		$widget->add_skin( new Posts_Terms_Skin( $widget ) );
+		foreach ( $skins as $id => $skin ) {
+			if ( 'classic' !== $id ) {
+				$widget->add_skin( $skin );
+			}
+		}
 	}
 
 	public static function register_controls( $widget ) {
