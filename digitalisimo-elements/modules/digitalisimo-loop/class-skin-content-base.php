@@ -242,7 +242,8 @@ trait Skin_Content_Base {
 
 				wp_link_pages(
 					array(
-						'before'      => '<div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . esc_html__( 'Páginas:', 'pro-elements' ) . '</span>',
+						// Texto visible: el msgid y el dominio de PRO («Pages:» o la traducción del paquete de idioma de PRO).
+						'before'      => '<div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . esc_html__( 'Pages:', 'elementor-pro' ) . '</span>', // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- mismo texto que PRO (posts/skins/skin-content-base.php).
 						'after'       => '</div>',
 						'link_before' => '<span>',
 						'link_after'  => '</span>',

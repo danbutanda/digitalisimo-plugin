@@ -226,7 +226,7 @@ namespace {
 	define( 'ELEMENTOR_ASSETS_URL', 'https://sitio.test/a/' );
 	$GLOBALS['tt'] = array( 'posts' => array(), 'post' => null, 'password' => array(), 'meta' => array(), 'captions' => array(), 'actions' => array(), 'blog' => 'Sitio de prueba', 'rtl' => false );
 	function __( $v, $d = '' ) { return $v; }
-	function esc_html__( $v, $d = '' ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
+	function esc_html__( $v, $d = '' ) { $v = $GLOBALS['tt']['l10n'][ $d ][ $v ] ?? $v; return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr__( $v, $d = '' ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
@@ -505,9 +505,17 @@ namespace {
 	$calls_a = $state->calls;
 	$b = $content( Widgets\Post_Content::class, 201 );
 	check_g( '<div class="contenido"><p>Hola</p></div><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">Pages:</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a, "Contenido (PRO): the_content y paginación: $a" );
-	check_g( str_replace( 'Pages:', 'Páginas:', $a ) === $b && str_replace( '200', '201', implode( ',', $calls_a ) ) === implode( ',', $state->calls ), "Contenido: the_content y paginación como PRO (y las mismas llamadas al núcleo).\n $b\n " . implode( ',', $state->calls ) );
+	check_g( $a === $b && str_replace( '200', '201', implode( ',', $calls_a ) ) === implode( ',', $state->calls ), "Contenido: the_content y paginación como PRO (y las mismas llamadas al núcleo).\n $b\n " . implode( ',', $state->calls ) );
 	check_g( array( 'edit:0', 'builder:201:0', 'remove_content_filter', 'add_content_filter', 'edit:0' ) === $state->calls, 'Contenido: sin el CSS del contenido, sin modo de edición y con el filtro del constructor devuelto: ' . implode( ',', $state->calls ) );
 	check_g( '' === $content( $pro_content, 200 ) && $b === $content( Widgets\Post_Content::class, 201 ), 'Contenido: diferencia declarada, PRO no vuelve a pintar la misma entrada en la petición; el propio sí.' );
+	// El título de la paginación es el texto de PRO con su dominio: con el paquete de idioma de PRO, la misma traducción.
+	make_post( 290, array( 'post_content' => '<p>Hallo</p>' ) );
+	make_post( 291, array( 'post_content' => '<p>Hallo</p>' ) );
+	$GLOBALS['tt']['l10n'] = array( 'elementor-pro' => array( 'Pages:' => 'Seiten:' ) );
+	$a = $content( $pro_content, 290 );
+	$b = $content( Widgets\Post_Content::class, 291 );
+	unset( $GLOBALS['tt']['l10n'] );
+	check_g( str_contains( $a, '<span class="page-links-title elementor-page-links-title">Seiten:</span>' ) && $a === $b, "Contenido: el título de la paginación con el msgid y el dominio de PRO («Pages:» traducido igual).\n $a\n $b" );
 	// b) Contenido del constructor.
 	make_post( 202 );
 	make_post( 203 );
@@ -531,7 +539,7 @@ namespace {
 		$out[ $id ] = $content( $class, $id );
 	}
 	$GLOBALS['tt']['nest'] = null;
-	check_g( str_contains( $out[206], '<div class="anidado"></div>' ) && str_replace( 'Pages:', 'Páginas:', $out[205] ) === $out[206], "Contenido: la entrada no se pinta dentro de sí misma (guarda de PRO): {$out[206]}" );
+	check_g( str_contains( $out[206], '<div class="anidado"></div>' ) && $out[205] === $out[206], "Contenido: la entrada no se pinta dentro de sí misma (guarda de PRO): {$out[206]}" );
 	check_g( '' !== $content( Widgets\Post_Content::class, 206 ), 'Contenido: tras la recursión, la guarda se libera.' );
 	// e) Vista previa del editor: la envoltura del constructor y, una vez, el gancho que quita el aviso de la plantilla.
 	make_post( 207 );
@@ -551,7 +559,7 @@ namespace {
 	$state->docs[209] = new \ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document( array( 'preview_type' => 'single/post', 'preview_id' => 211 ) );
 	$a = $content( $pro_content, 208 );
 	$b = $content( Widgets\Post_Content::class, 209 );
-	check_g( str_contains( $b, '<p>Vista previa</p>' ) && str_replace( 'Pages:', 'Páginas:', $a ) === $b, "Contenido: en la plantilla, el de su vista previa, como PRO: $b" );
+	check_g( str_contains( $b, '<p>Vista previa</p>' ) && $a === $b, "Contenido: en la plantilla, el de su vista previa, como PRO: $b" );
 	$state->docs[212] = new \ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document( array( 'preview_type' => 'single/post', 'preview_id' => 999 ) );
 	make_post( 212 );
 	check_g( '' === $content( Widgets\Post_Content::class, 212 ) && '' === $content( $pro_content, 212 ), 'Contenido: sin entrada de vista previa, nada (como PRO).' );

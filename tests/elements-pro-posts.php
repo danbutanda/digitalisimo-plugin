@@ -93,6 +93,11 @@ function paginate_links( $args ) {
 	return $out;
 }
 function post_password_required( $id ) { return false; }
+function get_the_password_form( $id ) { return '<form class="post-password-form"></form>'; }
+function setup_postdata( $post ) { return true; }
+function get_the_content() { return (string) ( $GLOBALS['pe']['post']->post_content ?? '' ); }
+/** Las páginas de una entrada con `<!--nextpage-->`: lo que pinta WordPress con los argumentos de la piel (sin `pagelink`, que sólo leen los lectores de pantalla). */
+function wp_link_pages( $args ) { echo $args['before'] . '<a href="https://sitio.test/x/2/">' . $args['link_before'] . '2' . $args['link_after'] . '</a>' . $args['after']; }
 function balanceTags( $s, $f = false ) { return $s; } // phpcs:ignore
 $GLOBALS['wp_rewrite'] = new class() { public $pagination_base = 'page'; public function using_permalinks() { return true; } };
 $GLOBALS['pe']['options'] = array( 'permalink_structure' => '/%postname%/', 'date_format' => 'j \d\e F \d\e Y' );
@@ -301,6 +306,41 @@ $check( '' === $render( pe_widget( $P, array() ) ), 'Entradas sin entradas no pi
 // Contenido completo: la piel se registra y pinta título y metadatos (el contenido lo da el constructor).
 $fc = pe_widget( $P, array( '_skin' => 'full_content' ) );
 $check( 'Contenido completo' === $fc->get_skin( 'full_content' )->get_title() && isset( $fc->controls['full_content_row_gap']['selectors']['{{WRAPPER}} .digi-posts > .digi-posts__item'] ), 'Contenido completo: su piel y la separación entre filas sobre los elementos propios.' );
+// Contenido completo de una entrada sin el constructor: `the_content` y sus páginas, con el título de PRO («Pages:», su
+// msgid y su dominio) en Entradas y en Entradas del archivo; con el paquete de idioma de PRO, la misma traducción.
+$pe_core = new class() {
+	public function is_edit_mode() { return false; }
+	public function set_edit_mode( $v ) {}
+	public function is_preview_mode( $id = 0 ) { return false; }
+	public function get_builder_content( $id, $css = false ) { return ''; }
+	public function remove_content_filter() {}
+	public function add_content_filter() {}
+	public function get_current() { return null; }
+};
+$GLOBALS['pe']['elementor'] = (object) array( 'editor' => $pe_core, 'preview' => $pe_core, 'frontend' => $pe_core, 'documents' => $pe_core );
+foreach ( array( 'editor', 'preview', 'frontend' ) as $prop ) {
+	\Elementor\Plugin::$instance->$prop = $pe_core;
+}
+$pe_pages = static function ( $class, $skin, $id ) {
+	$GLOBALS['pe']['post'] = (object) array( 'ID' => $id, 'post_content' => '<p>Primera página</p>', 'post_status' => 'publish', 'post_title' => "Entrada $id" );
+	$w = pe_widget( $class, array( '_skin' => $skin ) );
+	$s = $w->get_skin( $skin );
+	$s->set_parent( $w );
+	ob_start();
+	$s->render_post_content();
+	return (string) ob_get_clean();
+};
+$pe_id = 400;
+foreach ( array( array(), array( 'elementor-pro' => array( 'Pages:' => 'Seiten:' ) ) ) as $l10n ) {
+	$GLOBALS['pe']['l10n'] = $l10n;
+	$title = $l10n ? 'Seiten:' : 'Pages:';
+	foreach ( array( array( 'ElementorPro\Modules\Posts\Widgets\Posts', $P, 'full_content' ), array( 'ElementorPro\Modules\ThemeBuilder\Widgets\Archive_Posts', 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts', 'archive_full_content' ) ) as list( $pro_class, $own_class, $skin ) ) {
+		$a = $pe_pages( $pro_class, $skin, ++$pe_id );
+		$b = $pe_pages( $own_class, $skin, ++$pe_id );
+		$check( '<p>Primera página</p><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">' . $title . '</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a && $a === $b, "$skin: las páginas de la entrada con el título de PRO ($title), igual que PRO.\n PRO:    $a\n propio: $b" );
+	}
+}
+unset( $GLOBALS['pe']['l10n'], $GLOBALS['pe']['elementor'] );
 // Entradas del archivo.
 $A = 'Digitalisimo\Elements\Loop\Widgets\Archive_Posts';
 $GLOBALS['wp_query']    = pe_query( 0 );
@@ -320,7 +360,27 @@ $check( $aw->get_query() !== $GLOBALS['wp_query'] && 1 === $aw->get_query()->que
 $F = 'Digitalisimo\Elements\Loop\Widgets\Portfolio';
 $GLOBALS['pe']['query'] = pe_query( 3 );
 $html = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ) );
-$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">Todos</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio: filtro con botones y aria-pressed, «Todos» y los términos por nombre.' );
+$check( str_contains( $html, '<ul class="digi-portfolio__filters" aria-label="Filtrar"><li><button type="button" class="digi-portfolio__filter" data-filter="__all" aria-pressed="true">All</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="6" aria-pressed="false">Guías</button></li><li><button type="button" class="digi-portfolio__filter" data-filter="5" aria-pressed="false">Noticias</button></li></ul>' ), 'Portafolio: filtro con botones y aria-pressed, «All» de PRO y los términos por nombre.' );
+$pf_label = static function ( $translations ) use ( $render, $F ) {
+	$GLOBALS['pe']['l10n'] = $translations;
+	$GLOBALS['pe']['query'] = pe_query( 3 );
+	$own = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) ) );
+	$pro = pe_widget( 'ElementorPro\Modules\Posts\Widgets\Portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) );
+	$q   = new ReflectionProperty( $pro, '_query' );
+	$q->setValue( $pro, (object) array( 'posts' => array( (object) array( 'tags' => array( 6 => (object) array( 'term_id' => 6, 'name' => 'Guías' ) ) ) ) ) );
+	ob_start();
+	( new ReflectionMethod( $pro, 'render_filter_menu' ) )->invoke( $pro );
+	$pro_html = (string) ob_get_clean();
+	unset( $GLOBALS['pe']['l10n'] );
+	preg_match( '~data-filter="__all">([^<]*)</li>~', $pro_html, $a );
+	preg_match( '~data-filter="__all" aria-pressed="true">([^<]*)</button>~', $own, $b );
+	return array( $a[1] ?? null, $b[1] ?? null );
+};
+list( $pro_all, $own_all ) = $pf_label( array() );
+$check( 'All' === $pro_all && $pro_all === $own_all, "Portafolio: el primer botón del filtro dice lo mismo que el de PRO (PRO «{$pro_all}», propio «{$own_all}»)." );
+list( $pro_all, $own_all ) = $pf_label( array( 'elementor-pro' => array( 'All' => 'Todos' ) ) );
+$check( 'Todos' === $pro_all && $pro_all === $own_all, "Portafolio: con el paquete de idioma de PRO, la misma traducción (PRO «{$pro_all}», propio «{$own_all}»)." );
+$GLOBALS['pe']['query'] = pe_query( 3 );
 $check( str_contains( $html, '<div class="digi-portfolio elementor-grid" role="list" data-digi-items="">' ) && str_contains( $html, 'role="listitem" data-digi-terms="6 5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-101/"><div class="digi-portfolio__img"></div>' ) && str_contains( $html, 'role="listitem" data-digi-terms="5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-102/"><div class="digi-portfolio__img"><img' ) && str_contains( $html, '<div class="digi-portfolio__overlay"><h3 class="digi-portfolio__title">Entrada 1</h3></div></a></article>' ), 'Portafolio: elementos con sus términos, enlace, imagen y capa con el título.' );
 $html = $render( pe_widget( $F, array() ) );
 $check( ! str_contains( $html, 'digi-portfolio__filters' ) && str_contains( $html, 'data-digi-terms=""' ), 'Sin la barra de filtro, sin botones (y sin términos si no hay taxonomía).' );
