@@ -27,8 +27,9 @@ defined( 'ABSPATH' ) || exit;
  * reproducción automática), `data-digi-loop`, `data-digi-hover` (pausa con el puntero encima), `data-digi-interaction`
  * (se para tras una acción del usuario), `data-digi-effect` (`slide`|`fade`), `data-digi-center`,
  * `data-digi-pagination` (`bullets`|`fraction`|`progressbar`), `data-digi-sync` (`#id` del carrusel principal, en el de
- * miniaturas), `data-digi-grab` (cursor de agarre, `grabCursor` de Swiper en PRO) y `data-digi-click` (un clic en una
- * diapositiva la lleva a la vista, `slideToClickedSlide`). `--digi-crs-speed` y `--digi-crs-n` (número de diapositivas) van en el `style` de la raíz; la hoja acota
+ * miniaturas), `data-digi-grab` (cursor de agarre, `grabCursor` de Swiper en PRO), `data-digi-click` (un clic en una
+ * diapositiva la lleva a la vista, `slideToClickedSlide`) y `data-digi-long` (con el ratón, un gesto rápido no cambia de
+ * diapositiva: `shortSwipes` desactivado del Carrusel anidado de PRO fuera de las pantallas táctiles). `--digi-crs-speed` y `--digi-crs-n` (número de diapositivas) van en el `style` de la raíz; la hoja acota
  * las visibles a `min( --digi-crs-view, --digi-crs-n )`, como el `Math.min` de Swiper en PRO.
  *
  * **Clases de estado que pone el script:** `digi-crs--ready` en la raíz cuando el carrusel quedó iniciado (el arnés A/B
@@ -93,7 +94,8 @@ defined( 'ABSPATH' ) || exit;
  * dura (con la página oculta, sin fotogramas, salta directamente); un desplazamiento sin toque, rueda ni tecla del
  * usuario (un reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática.
  * **Arrastre con el ratón** (como `simulateTouch` de Swiper, fuera del editor): la pista sigue al puntero y, al soltar,
- * va a la diapositiva más cercana, o a la siguiente o la anterior con un gesto de menos de 300 ms; el clic que sigue a
+ * va a la diapositiva más cercana, o a la siguiente o la anterior con un gesto de menos de 300 ms (con `data-digi-long`,
+ * un gesto así vuelve a la actual); el clic que sigue a
  * un arrastre no llega a los enlaces ni al lightbox; empezar sobre un campo, un botón o un vídeo no arrastra. La regla
  * de las diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
  *
@@ -140,6 +142,7 @@ final class Engine {
 		'sync'                => '',
 		'grab'                => false,
 		'click'               => false,
+		'long'                => false,
 	);
 
 	/**
@@ -151,7 +154,8 @@ final class Engine {
 	 *                    `arrows_position` (`inside`|`outside`), `prev` y `next` (HTML del icono, ya seguro, o `null` para
 	 *                    el propio), `dir` (''|`ltr`|`rtl`, en la pista), `classes` (array|string, en la raíz),
 	 *                    `attributes` (nombre => valor, en la raíz; nunca `on*` ni los propios), `id`, `sync` (`#id` del carrusel principal),
-	 *                    `grab` (cursor de agarre) y `click` (un clic en una diapositiva la lleva a la vista).
+	 *                    `grab` (cursor de agarre), `click` (un clic en una diapositiva la lleva a la vista) y `long` (con el
+	 *                    ratón sólo cuentan los arrastres largos, como `shortSwipes` desactivado).
 	 */
 	public static function open( array $args ): string {
 		$a     = array_merge( self::DEFAULTS, $args );
@@ -214,6 +218,9 @@ final class Engine {
 		}
 		if ( $a['click'] ) {
 			$attrs['data-digi-click'] = '1';
+		}
+		if ( $a['long'] ) {
+			$attrs['data-digi-long'] = '1';
 		}
 		$attrs['style'] = '--digi-crs-speed:' . max( 0, (int) $a['speed'] ) . 'ms;--digi-crs-n:' . $count;
 		foreach ( (array) $a['attributes'] as $name => $value ) {

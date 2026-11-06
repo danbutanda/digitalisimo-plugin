@@ -1,13 +1,13 @@
 /* DIGITALÍSIMO Elements · motor de carrusel digi-crs (C1); ver class-engine.php. */
 (()=>{
-const W=window,D=document,M=Math,A=M.abs,R='digi-crs',E=R+'-',C=R+'__',cs=getComputedStyle,moves=()=>!W.matchMedia?.('(prefers-reduced-motion:reduce)').matches,each=(l,f)=>[].forEach.call(l,f),sa=(e,a,v)=>e?.setAttribute(a,v);
+const W=window,D=document,M=Math,A=M.abs,R='digi-crs',E=R+'-',C=R+'__',cs=getComputedStyle,moves=()=>!W.matchMedia?.('(prefers-reduced-motion:reduce)').matches,each=(l,f)=>[].forEach.call(l,f),sa=(e,a,v)=>e?.setAttribute(a,v),F=()=>W.elementorFrontend;
 let io,ro;
 const init=root=>{
 const cl=root?.classList,kid=n=>root.querySelector(':scope>.'+C+n),attr=n=>root.getAttribute('data-digi-'+n),track=kid('track');
 if(!track||cl.contains(R+'--ready'))return;
 const all=track.children,box=kid('pagination'),one=n=>box?.querySelector('.'+C+n),dots=box?box.getElementsByClassName(C+'dot'):[],pause=kid('pause'),prev=kid('prev'),next=kid('next'),
 now=one('now'),total=one('total'),fill=one('fill'),icon=pause?.querySelector('path'),pd=icon?.getAttribute('d'),
-ed=W.elementorFrontend?.isEditMode?.(),fade=attr('effect')=='fade',center=attr('center'),loop=attr('loop')&&!(ed&&all[0]?.matches('.elementor-element')),quit=attr('interaction'),
+ed=F()?.isEditMode?.(),fade=attr('effect')=='fade',center=attr('center'),loop=attr('loop')&&!(ed&&all[0]?.matches('.elementor-element')),quit=attr('interaction'),
 delay=ed?0:+attr('autoplay')||0,
 css=n=>cs(root).getPropertyValue('--'+E+n),rtl=()=>cs(track).direction=='rtl';
 let slides=all,view=1,step=1,cur=0,page=0,lc=0,timer=0,wait=0,anim=0,touch=0,lw=-1,stop=!delay||!moves(),held=0,focus=0,seen=1,g=0,drag=0,moved=0,ran=0,main;
@@ -37,7 +37,7 @@ const to=(k,jump)=>{
 const old=real(cur);paint(cur=k);
 fade?jump||cl.add(R+'--anim'):glide(jump);
 real(cur)!=old&&emit('change',{index:real(cur)});
-lc&&!ran++&&each(track.querySelectorAll(`.${C}clone.elementor-element,.${C}clone .elementor-element`),e=>W.elementorFrontend?.elementsHandler?.runReadyTrigger(e));
+lc&&!ran++&&each(track.querySelectorAll(`.${C}clone.elementor-element,.${C}clone .elementor-element`),e=>F()?.elementsHandler?.runReadyTrigger(e));
 };
 const near=()=>{const x=A(track.scrollLeft),d=k=>A(A(off(k))-x);let b=cur;if(!fade)for(let k=0,N=lc?all.length:pages();k<N;k++){const t=lc?k:pos(k);d(t)<d(b)&&(b=t)}return b};
 const mv=(d,auto)=>{const N=pages(),p=pg()+d;fix();to(lc?cur+d*step:pos(loop||auto?(p%N+N)%N:p<0?0:p<N?p:N-1))},
@@ -97,7 +97,8 @@ fade||(ss('none'),track.scrollLeft=g.s-e.clientX+g.x);
 on('pointerup',e=>{
 const s=g;g=0;if(!drag)return;
 const best=near();drag=touch=0;cl.remove(R+'--drag');setTimeout(()=>moved=0);user();
-best!=cur?to(best):fade||e.timeStamp-s.t<300?mv(fade?(e.clientX<s.x)!=rtl()?1:-1:A(track.scrollLeft)>A(s.s)?1:-1):to(cur);
+const q=e.timeStamp-s.t<300;
+q&&attr('long')?to(cur):best!=cur?to(best):fade||q?mv(fade?(e.clientX<s.x)!=rtl()?1:-1:A(track.scrollLeft)>A(s.s)?1:-1):to(cur);
 run();
 },D);
 ed||on('dragstart',e=>e.preventDefault(),track);
@@ -137,7 +138,7 @@ run();
 cl.add(R+'--ready');
 };
 const scan=s=>each((s?.querySelectorAll?s:D).querySelectorAll('.'+R),init);
-const hook=()=>W.elementorFrontend.hooks.addAction('frontend/element_ready/global',s=>scan(s?.[0]));
-W.elementorFrontend?.hooks?hook():W.addEventListener('elementor/frontend/init',hook);
+const hook=()=>F().hooks.addAction('frontend/element_ready/global',s=>scan(s?.[0]));
+F()?.hooks?hook():W.addEventListener('elementor/frontend/init',hook);
 D.readyState=='loading'?D.addEventListener('DOMContentLoaded',()=>scan()):scan();
 })();

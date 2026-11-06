@@ -487,6 +487,15 @@ try {
     s = await state(page, 'w12');
     ok(s.cur === 3 && s.seen === '4,1' && s.dots === '---X', `Bucle: arrastrar hacia atrás desde la primera trae la última: ${JSON.stringify(s)}`);
     ok(await page.$eval('[data-id="w1"] .digi-crs', e => getComputedStyle(e).cursor) === 'auto', 'Sin data-digi-grab (carrusel anidado y de bucle de PRO), sin cursor de agarre.');
+    // Carrusel anidado (w20, data-digi-long: shortSwipes desactivado de PRO sin pantalla táctil): un gesto rápido vuelve a
+    // la actual aunque pase de la mitad; uno lento, a la más cercana.
+    await page.$eval('[data-id="w20"]', e => e.scrollIntoView({ block: 'center' }));
+    const t20 = await page.$eval('[data-id="w20"] .digi-crs__track', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+    const drag20 = async (dx, ms) => { await page.mouse.move(t20.x + t20.w * 0.6, t20.y + 40); await page.mouse.down(); for (let i = 1; i <= 8; i++) { await page.mouse.move(t20.x + t20.w * 0.6 + (dx * i) / 8, t20.y + 40); await sleep(ms / 8); } await page.mouse.up(); await settle(page); return state(page, 'w20'); };
+    s = await drag20(-300, 80);
+    ok(s.cur === 0 && s.seen === '1,2,3', `Anidado: un gesto rápido de 300 px vuelve a la actual (como PRO en escritorio): ${JSON.stringify(s)}`);
+    s = await drag20(-300, 600);
+    ok(s.cur === 1 && s.seen === '2,3,4', `Anidado: el mismo arrastre, lento, pasa a la siguiente: ${JSON.stringify(s)}`);
     await page.close();
   }
 
