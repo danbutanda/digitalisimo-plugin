@@ -417,7 +417,9 @@ namespace {
 	// modules/digitalisimo-navigation/. Navigation\Module registra la hoja (≤ 4 KB) y, sólo si existe, el script (≤ 6 KB,
 	// defer, sin dependencias) de cada uno; el script del editor (`<nombre>-editor.js`) sólo en el editor. El Menú de
 	// WordPress y el Menú con submenús de contenido reparten su estilo en más hojas (`SHEETS` de su clase: desplegable,
-	// elementos y familia del puntero), cada una ≤ 4 KB y sólo encolada si los ajustes la usan. Sin jQuery ni SmartMenus.
+	// elementos y familia del puntero), cada una ≤ 4 KB y sólo encolada si los ajustes la usan; los scripts adicionales
+	// (`SCRIPTS` de su clase: el «Desplazamiento horizontal» del Menú con submenús de contenido), ≤ 6 KB, con `defer` y sólo
+	// si los ajustes lo activan. Sin jQuery ni SmartMenus.
 	$nav_dir    = $root . '/modules/digitalisimo-navigation/';
 	$nav_module = (string) file_get_contents( $nav_dir . 'class-module.php' );
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $nav_module, $nav_entries, PREG_SET_ORDER );
@@ -425,8 +427,9 @@ namespace {
 	preg_match_all( '/wp_(?:register|enqueue)_script\(.*?\);/s', $nav_module, $nav_scripts );
 	check_budget( count( $nav_scripts[0] ) >= 2, 'Navigation\\Module registra los scripts del sitio y del editor.' );
 	foreach ( $nav_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Navigation\\Module: script sin defer o con jQuery.' ); }
-	$nav_count  = 0;
-	$nav_sheets = 0;
+	$nav_count   = 0;
+	$nav_sheets  = 0;
+	$nav_scripts = 0;
 	foreach ( $nav_entries as $m ) {
 		$name   = $m[1];
 		$source = (string) file_get_contents( $nav_dir . $m[2] );
@@ -443,7 +446,18 @@ namespace {
 			$css         = array_merge( $css, $extra[1] );
 			$nav_sheets += count( $extra[1] );
 		}
-		foreach ( array_merge( array_fill_keys( $css, 4096 ), array( $m[4] => 6144 ) ) as $file => $cap ) {
+		// Los scripts de `SCRIPTS` de la clase, con el del widget: ≤ 6 KB, registrados con defer y sin jQuery.
+		$nav_js = array( $m[4] );
+		if ( preg_match( '/const\s+SCRIPTS\s*=\s*array\((.*?)\);/s', $source, $scripts ) ) {
+			preg_match_all( "/'digitalisimo-[a-z0-9-]+'\s*=>\s*'([^']+\.js)'/", $scripts[1], $extra_js );
+			$nav_js       = array_merge( $nav_js, $extra_js[1] );
+			$nav_scripts += count( $extra_js[1] );
+			foreach ( $extra_js[1] as $file ) { check_budget( is_file( $root . '/' . $file ), $name . ': falta su script ' . $file ); }
+			preg_match_all( '/wp_register_script\(.*?\);/s', $source, $own_registrations );
+			check_budget( count( $own_registrations[0] ) > 0, $name . ': registra sus scripts adicionales.' );
+			foreach ( $own_registrations[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), $name . ': script adicional sin defer o con jQuery.' ); }
+		}
+		foreach ( array_merge( array_fill_keys( $css, 4096 ), array_fill_keys( $nav_js, 6144 ) ) as $file => $cap ) {
 			$path = $root . '/' . $file;
 			if ( ! is_file( $path ) ) { check_budget( $file === $m[4], $name . ': falta su hoja ' . $file ); continue; }
 			check_budget( filesize( $path ) <= $cap, $file . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
@@ -462,6 +476,7 @@ namespace {
 		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ), $name . ': sólo recursos propios (' . $handle . ').' ); }
 	}
 	check_budget( 7 === $nav_sheets, 'Las hojas adicionales del Menú de WordPress (5) y del Menú con submenús de contenido (2) entran en el presupuesto (' . $nav_sheets . ').' );
+	check_budget( 1 === $nav_scripts, 'El script adicional del Menú con submenús de contenido (desplazamiento horizontal) entra en el presupuesto (' . $nav_scripts . ').' );
 	foreach ( glob( $nav_dir . 'assets/js/*-editor.js' ) as $editor ) {
 		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\s*[(.]|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );
 	}

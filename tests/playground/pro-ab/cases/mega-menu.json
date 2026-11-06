@@ -1142,6 +1142,378 @@
      ]
     }
    ]
+  },
+  "mm-scroll-end": {
+   "title": "«Desplazamiento horizontal» con «Final» y ocho elementos que no caben a 375 ni a 768 px (sí a 1 280): la fila empieza por el último, como PRO (posición inicial de su script)",
+   "widget": "mega-menu",
+   "settings": {
+    "menu_items": [
+     {
+      "_id": "ms1",
+      "item_title": "Inicio web",
+      "item_link": {
+       "url": "/pro-ab-inicio/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms2",
+      "item_title": "Servicios",
+      "item_link": {
+       "url": "/pro-ab-servicios/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms3",
+      "item_title": "El equipo",
+      "item_link": {
+       "url": "/pro-ab-equipo/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms4",
+      "item_title": "Blog diario",
+      "item_link": {
+       "url": "/pro-ab-blog/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms5",
+      "item_title": "Tienda online",
+      "item_link": {
+       "url": "/pro-ab-tienda/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms6",
+      "item_title": "Recursos",
+      "item_link": {
+       "url": "/pro-ab-recursos/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms7",
+      "item_title": "Centro de ayuda",
+      "item_link": {
+       "url": "/pro-ab-ayuda/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms8",
+      "item_title": "Contacto",
+      "item_link": {
+       "url": "/pro-ab-contacto/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    ],
+    "breakpoint_selector": "none",
+    "horizontal_scroll": "enable",
+    "item_position_horizontal": "end"
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    }
+   ],
+   "ready": {
+    "a": ".e-n-menu[data-layout]",
+    "b": ".digi-mm--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "mm-scroll-center": {
+   "title": "«Desplazamiento horizontal» con «Centro» y ocho elementos que no caben a 375 ni a 768 px: la fila empieza por el primero, como PRO",
+   "widget": "mega-menu",
+   "settings": {
+    "menu_items": [
+     {
+      "_id": "ms1",
+      "item_title": "Inicio web",
+      "item_link": {
+       "url": "/pro-ab-inicio/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms2",
+      "item_title": "Servicios",
+      "item_link": {
+       "url": "/pro-ab-servicios/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms3",
+      "item_title": "El equipo",
+      "item_link": {
+       "url": "/pro-ab-equipo/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms4",
+      "item_title": "Blog diario",
+      "item_link": {
+       "url": "/pro-ab-blog/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms5",
+      "item_title": "Tienda online",
+      "item_link": {
+       "url": "/pro-ab-tienda/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms6",
+      "item_title": "Recursos",
+      "item_link": {
+       "url": "/pro-ab-recursos/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms7",
+      "item_title": "Centro de ayuda",
+      "item_link": {
+       "url": "/pro-ab-ayuda/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "ms8",
+      "item_title": "Contacto",
+      "item_link": {
+       "url": "/pro-ab-contacto/",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     }
+    ],
+    "breakpoint_selector": "none",
+    "horizontal_scroll": "enable",
+    "item_position_horizontal": "center"
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "content_width": "full",
+      "flex_direction": "column"
+     },
+     "elements": []
+    }
+   ],
+   "ready": {
+    "a": ".e-n-menu[data-layout]",
+    "b": ".digi-mm--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    }
+   ]
   }
  },
  "declared": [

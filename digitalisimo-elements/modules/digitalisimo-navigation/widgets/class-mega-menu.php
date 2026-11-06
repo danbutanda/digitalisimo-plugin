@@ -32,9 +32,13 @@ defined( 'ABSPATH' ) || exit;
  *   `aria-expanded`, `aria-controls` y nombre «Submenú de …») y `div.digi-mm__content` con el contenedor hijo (con su id
  *   `digi-mm-content-<n><i>`). Mismo orden y estructura que PRO, así sus estilos se repiten con los mismos selectores.
  * - **Script** (`assets/js/mega-menu.js`, `defer`, sin dependencias): abre con el ratón o con clic según «Abrir con» (en
- *   móvil y tableta, siempre con clic, como PRO), Escape cierra y devuelve el foco, Inicio y Fin entre los elementos,
- *   hamburguesa, contenido a todo el ancho del contenedor de secciones estiradas o ajustado y colocado bajo su elemento,
- *   y anclas activas. Editor: `assets/js/mega-menu-editor.js` coloca cada contenedor hijo en su elemento.
+ *   móvil y tableta, siempre con clic, como PRO; «ratón» escucha `mouseenter`/`mouseleave`, como PRO, así que en una
+ *   pantalla táctil de escritorio el toque en el título abre), Escape cierra y devuelve el foco, Inicio y Fin entre los
+ *   elementos, hamburguesa, contenido a todo el ancho del contenedor de secciones estiradas o ajustado y colocado bajo su
+ *   elemento, y anclas activas. Editor: `assets/js/mega-menu-editor.js` coloca cada contenedor hijo en su elemento.
+ * - **«Desplazamiento horizontal»** (`assets/js/mega-menu-scroll.js`, `SCRIPTS`, sólo si algún dispositivo lo activa, y
+ *   siempre en el editor): como PRO, si los elementos no caben, la fila empieza por el primero (o por el último con
+ *   «Final») y se arrastra con el ratón.
  * - **Recursos**: `mega-menu.css`, `mega-menu-items.css` y `mega-menu-dropdown.css` (≤ 4 KB cada una).
  */
 class Mega_Menu extends Widget_Nested_Base {
@@ -45,6 +49,11 @@ class Mega_Menu extends Widget_Nested_Base {
 	const SHEETS = array(
 		'digitalisimo-mega-menu-items'    => 'modules/digitalisimo-navigation/assets/css/mega-menu-items.css',
 		'digitalisimo-mega-menu-dropdown' => 'modules/digitalisimo-navigation/assets/css/mega-menu-dropdown.css',
+	);
+
+	/** Scripts además del propio: «Desplazamiento horizontal» (posición inicial y arrastre con el ratón, como PRO). */
+	const SCRIPTS = array(
+		'digitalisimo-mega-menu-scroll' => 'modules/digitalisimo-navigation/assets/js/mega-menu-scroll.js',
 	);
 
 	/** Puntos de corte que la hoja ya cubre. */
@@ -91,8 +100,40 @@ class Mega_Menu extends Widget_Nested_Base {
 		return array_merge( Module::style_depends( self::NAME ), array_keys( self::SHEETS ) );
 	}
 
+	/** El script del desplazamiento horizontal, sólo si los ajustes lo activan (el tipo del editor, siempre). */
 	public function get_script_depends(): array {
-		return Module::script_depends( self::NAME );
+		self::register_scripts();
+		$own = Module::script_depends( self::NAME );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) || self::scrolls( (array) $this->get_settings() ) ) {
+			return array_merge( $own, array_keys( self::SCRIPTS ) );
+		}
+		return $own;
+	}
+
+	/** ¿Activan unos ajustes «Desplazamiento horizontal» en algún dispositivo? (Sólo existe en la disposición horizontal.) */
+	public static function scrolls( array $s ): bool {
+		if ( 'horizontal' !== (string) ( $s['item_layout'] ?? 'horizontal' ) ) {
+			return false;
+		}
+		foreach ( $s as $key => $value ) {
+			if ( 'enable' === $value && preg_match( '/^horizontal_scroll(_[a-z_]+)?$/', (string) $key ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Registra los scripts adicionales (`defer`, en el pie, sin dependencias; idempotente, sin encolarlos). */
+	public static function register_scripts(): void {
+		if ( ! function_exists( 'wp_register_script' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
+			return;
+		}
+		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
+		foreach ( self::SCRIPTS as $handle => $file ) {
+			if ( ! wp_script_is( $handle, 'registered' ) && is_file( Module::path( $file ) ) ) {
+				wp_register_script( $handle, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+			}
+		}
 	}
 
 	/** Registra las hojas adicionales (idempotente, sin encolarlas). */
