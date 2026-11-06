@@ -1170,7 +1170,7 @@
    "evidence": [
     {
      "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-posts-terms.php",
-     "line": 66,
+     "line": 77,
      "contains": "elementor-post__terms--' . esc_attr( $taxonomy )"
     },
     {
