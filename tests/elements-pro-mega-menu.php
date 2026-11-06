@@ -3,13 +3,14 @@
  * Menú con submenús de contenido (`digitalisimo-mega-menu`), el widget propio que sustituye al «Menu» anidado de PRO
  * (C3 de docs/PRO_WIDGETS_OBJECTIVE.md, contrato docs/pro/c3.md, frente E), y su mapa
  * `modules/digitalisimo-convert/maps/mega-menu.php`:
- * - registro y recursos (tres hojas ≤ 4 KB, sin `--e-global-*`, `url()` ni clases de PRO; script ≤ 6 KB sin jQuery y
- *   script del editor sobre `nested-elements`);
+ * - registro y recursos (tres hojas ≤ 4 KB, sin `--e-global-*`, `url()` ni clases de PRO; script ≤ 6 KB sin jQuery que
+ *   abre con `mouseenter` como PRO, script del «Desplazamiento horizontal» ≤ 2,5 KB sólo si algún dispositivo lo activa o
+ *   en el editor, registrado con `defer`, y script del editor sobre `nested-elements`);
  * - controles: se cargan a la vez el widget de PRO y el propio, y cada control de PRO (también los del repetidor) tiene
  *   uno propio con el mismo nombre, tipo (salvo «Animación», un selector con los mismos valores), valor por defecto
  *   (salvo los textos, que se traducen), opciones, condiciones, dispositivos, sección y pestaña, y selectores con las
  *   mismas propiedades sobre el marcado propio; los grupos, igual;
- * - cobertura del mapa: cada control de PRO está declarado una sola vez;
+ * - cobertura del mapa: cada control de PRO está declarado una sola vez, sin aproximaciones;
  * - marcado del servidor: hamburguesa, elementos con enlace o sin él, icono, botón de submenú con `aria-expanded`,
  *   `aria-controls` y nombre «Submenú de …», contenido con el contenedor hijo (id, número, `aria-labelledby`; sólo el hijo
  *   directo), elemento actual y ancla, clic, animación, ajuste al contenido, puntos de corte propios y escape;

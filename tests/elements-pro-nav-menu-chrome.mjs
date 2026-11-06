@@ -10,7 +10,12 @@
 // - a 375 px: el menú principal se oculta, la hamburguesa abre y cierra el desplegable (aria-expanded, visibilidad),
 //   los submenús del desplegable se abren en acordeón, Escape cierra el desplegable y devuelve el foco, «Ancho completo»
 //   estira el desplegable a la ventana y sin punto de corte el menú principal sigue;
-// - movimiento reducido y reinicio en el editor (frontend/element_ready/digitalisimo-nav-menu.default).
+// - movimiento reducido y reinicio en el editor (frontend/element_ready/digitalisimo-nav-menu.default);
+// - clic, toque o Intro en el texto de un padre con submenú, como SmartMenus en PRO: el primero abre sin navegar y el
+//   segundo navega (desplegable a 375 px con el ratón y con el dedo, menú horizontal con el dedo a 1 280 px, teclado);
+//   con el ratón, tras el paso por encima el clic navega y un clic inmediato abre;
+// - indicador como PRO: relleno heredado del enlace (no currentColor) salvo en los submenús del menú principal, que lo
+//   giran también con iconos de fuente.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-pro-nav-menu-chrome.mjs
 import assert from 'node:assert/strict';
