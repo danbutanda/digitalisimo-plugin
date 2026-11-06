@@ -1,7 +1,7 @@
 {
   "defaults": {
     "_known": {
-      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+      "alt": "La tarjeta propia deja decorativa (alt=\"\") la imagen que acompaña al título visible; Element Pack repetía el título como ALT. La imagen de ejemplo es la misma del constructor"
     }
   }
 }

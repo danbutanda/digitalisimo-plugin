@@ -7,6 +7,7 @@ require_once __DIR__ . '/class-translator.php';
 require_once __DIR__ . '/class-masks.php';
 require_once __DIR__ . '/class-context.php';
 require_once __DIR__ . '/class-report.php';
+require_once __DIR__ . '/class-demo-media.php';
 
 /**
  * Conversión completa de un documento de Element Pack al formato propio.
@@ -399,6 +400,7 @@ final class Native {
 		$map      = Translator::map( $type );
 		$target   = (string) $map['target'];
 		$settings = Translator::translate( $type, is_array( $element['settings'] ?? null ) ? $element['settings'] : array() );
+		$settings = self::demo_media( $type, $settings, (int) $post_id );
 		$css      = self::legacy_style_css( $element, $settings, $post_id );
 		// La máscara de imagen del widget, sobre la imagen del widget de destino.
 		$original = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
@@ -432,6 +434,37 @@ final class Native {
 		$element['widgetType'] = $target;
 		$element['settings']   = $out;
 		return $element;
+	}
+
+	/**
+	 * Imágenes de ejemplo de Element Pack (F8-D17, como las de Prime Slider): cada URL de su carpeta, guardada o rellenada
+	 * por los valores por defecto (`{{ep_assets}}`), pasa a una copia en la biblioteca de medios del sitio, nunca a la
+	 * carpeta del plugin. En el editor y en el análisis sólo se reutiliza lo ya copiado; el análisis informa como copia lo
+	 * que la tarea copiaría. Un valor por defecto que no se copia (un SVG con la subida sin filtrar apagada) se queda con
+	 * la imagen de ejemplo del constructor, la de la conversión anterior (`core.demo.placeholder`). Un documento migrado
+	 * con 1.0.20 (modo restringido) conserva su conversión. Los recuentos de Demo_Media vuelven a los de antes: un
+	 * convertidor que envuelva este widget (Prime Slider) lee los suyos.
+	 */
+	private static function demo_media( string $type, array $settings, int $post_id ): array {
+		if ( self::$restricted ) {
+			return $settings;
+		}
+		$before      = array( Demo_Media::$copied, Demo_Media::$reused, Demo_Media::$skipped, Demo_Media::$planned, Demo_Media::$placeholder );
+		$settings    = Demo_Media::resolve( $type, $settings );
+		$copied      = Demo_Media::$copied + Demo_Media::$planned;
+		$skipped     = max( 0, Demo_Media::$skipped - Demo_Media::$planned );
+		$placeholder = Demo_Media::$placeholder;
+		list( Demo_Media::$copied, Demo_Media::$reused, Demo_Media::$skipped, Demo_Media::$planned, Demo_Media::$placeholder ) = $before;
+		if ( $copied ) {
+			Report::add( $post_id, 'core.demo.copied', array( 'widget' => $type, 'count' => $copied ) );
+		}
+		if ( $skipped ) {
+			Report::add( $post_id, 'core.demo.skipped', array( 'widget' => $type, 'count' => $skipped ) );
+		}
+		if ( $placeholder ) {
+			Report::add( $post_id, 'core.demo.placeholder', array( 'widget' => $type, 'count' => $placeholder ) );
+		}
+		return $settings;
 	}
 
 	/**

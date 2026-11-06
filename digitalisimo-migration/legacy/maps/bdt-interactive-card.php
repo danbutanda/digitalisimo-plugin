@@ -89,6 +89,9 @@ return array(
 			'description_text' => trim( wp_strip_all_tags( (string) ( $out['description_text'] ?? '' ) ) ),
 			'button_text'      => 'yes' === ( $out['readmore'] ?? '' ) ? trim( wp_strip_all_tags( (string) ( $out['readmore_text'] ?? '' ) ) ) : '',
 			'link'             => 'yes' === ( $out['global_link'] ?? '' ) && is_array( $out['global_link_url'] ?? null ) ? $out['global_link_url'] : ( is_array( $out['readmore_link'] ?? null ) ? $out['readmore_link'] : array( 'url' => '' ) ),
+			// Element Pack muestra la imagen entera, a su proporción (`.bdt-interactive-card-image img{inline-size:100%}`);
+			// la tarjeta propia la recorta a 4:3 salvo con esta opción (opt-in de DIGITALÍSIMO Elements).
+			'image_ratio'      => 'auto',
 		);
 		foreach ( array_keys( $out ) as $key ) {
 			if ( preg_match( '/^(image|image_mask_shape|title_link|title_link_url|show_sub_title|sub_title_text|description_text|readmore|badge|content_position|show_wavify_effect|wave_.*|global_link|global_link_url|readmore_text|readmore_link|button_css_id|badge_text|badge_position|image_hover_effect|readmore_attention|readmore_hover_animation)$/', $key ) ) {

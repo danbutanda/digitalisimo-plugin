@@ -349,4 +349,14 @@ for (const script of ['legacy-styles.py', 'legacy-defaults.py', 'legacy-map-skel
   ok(!/ROOT \/ inventory\[|ROOT \/ next\(w\['source_file'\]|'reference' \/ 'bdthemes|subprocess\.run\(\['php'|\/tmp\//.test(text), `${script}: no lee la carpeta extraída ni ejecuta PHP ni usa /tmp`);
 }
 
+// --- legacy-compare.mjs: `_known.alt` sólo excusa el texto alternativo, nunca el archivo de la imagen -----------------
+{
+  const { comparable, altNote } = await import('./playground/legacy-compare.mjs');
+  const a = { known: { alt: 'decorativa junto al título' }, signature: { images: ['coco-can.svg | alt=Servicio'] } };
+  ok(JSON.stringify(comparable(a, 'images', a.signature.images)) === JSON.stringify(['coco-can.svg']) && JSON.stringify(comparable(a, 'images', ['placeholder.png | alt='])) === JSON.stringify(['placeholder.png']), 'legacy-compare: con _known.alt se compara el archivo de cada imagen (otra imagen sigue siendo diferencia)');
+  ok(/texto alternativo distinto/.test(altNote(a, { signature: { images: ['coco-can.svg | alt='] } }, 'C') || '') && null === altNote(a, { signature: { images: ['coco-can.svg | alt=Servicio'] } }, 'C'), 'legacy-compare: el ALT distinto queda como nota declarada');
+  const both = { known: { alt: 'x', images: 'y' }, signature: { images: ['a.svg | alt=A'] } };
+  ok(comparable(both, 'images', both.signature.images)[0] === 'a.svg | alt=A' && comparable(a, 'text', ['T | alt=x'])[0] === 'T | alt=x', 'legacy-compare: sin efecto con _known.images ni en textos');
+}
+
 console.log(`Migración: ${checks} comprobaciones de los mapas de estilo heredados (${total} controles en ${Object.keys(styles).length} mapas, 0 selectores muertos).`);

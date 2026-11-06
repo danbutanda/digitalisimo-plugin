@@ -227,6 +227,7 @@ jobs:
           php tests/migration-platform.php
           php tests/migration-theme-builder.php
           php tests/migration-prime-slider.php
+          php tests/migration-ep-demo.php
           php tests/migration-prime-slider-decisions.php
           php tests/migration-prime-slider-dynamic.php
           php tests/migration-markers.php
@@ -281,6 +282,11 @@ jobs:
           php tests/backups-policies.php
           php tests/backups-streaming.php
           php tests/backups-storage.php
+          php tests/backups-service.php
+          php tests/backups-rest.php
+          php tests/backups-cli.php
+          php tests/backups-layout.php
+          php tests/backups-external-config.php
           php tests/backups-operation-lock.php
           php tests/backups-manual-progress.php
           php tests/backups-cloud-verification.php

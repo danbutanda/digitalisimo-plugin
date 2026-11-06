@@ -3,10 +3,18 @@
     "_widget": "heading",
     "title": "Con ayuda",
     "element_pack_widget_tooltip": "yes",
+    "_known": {
+      "text": "El globo de la información emergente está ahora en el DOM (oculto y accesible), no en un atributo: su texto aparece en la firma"
+    },
     "_expect_json": [
       "\"digitalisimo_tooltip\":\"yes\"",
       "\"digitalisimo_tooltip_text\":\"This is Tooltip\"",
-      "\"digitalisimo_tooltip_align\":\"center\""
+      "\"digitalisimo_tooltip_align\":\"center\"",
+      "\"digitalisimo_tooltip_bg_color\":\"#333333\"",
+      "\"digitalisimo_tooltip_color\":\"#ffffff\"",
+      "\"digitalisimo_tooltip_offset\":{\"unit\":\"px\",\"size\":10",
+      "\"digitalisimo_tooltip_width\":{\"unit\":\"px\",\"size\":350",
+      "\"digitalisimo_tooltip_typography_font_size\":{\"unit\":\"px\",\"size\":14"
     ],
     "_expect_codes": [
       "ext.converted.tooltip"
@@ -39,11 +47,14 @@
       "unit": "px",
       "isLinked": false
     },
+    "_known": {
+      "text": "El globo de la información emergente está ahora en el DOM (oculto y accesible), no en un atributo: su texto aparece en la firma"
+    },
     "_expect_css": [
       "max-width:calc(240px-10px)!important"
     ],
     "_expect_css_converted": [
-      "max-width:240px",
+      "max-width:230px",
       "--digi-tt-gap:14px"
     ],
     "_expect_json": [
@@ -52,7 +63,9 @@
       "\"digitalisimo_tooltip_arrow\":\"yes\"",
       "\"digitalisimo_tooltip_offset\":{\"unit\":\"px\",\"size\":14",
       "\"digitalisimo_tooltip_bg_color\":\"#222222\"",
-      "Texto <strong>importante</strong>"
+      "Texto <strong>importante</strong>",
+      "\"digitalisimo_tooltip_width\":{\"unit\":\"px\",\"size\":230",
+      "\"digitalisimo_tooltip_arrow_color\":\"#333333\""
     ],
     "_expect_codes": [
       "ext.converted.tooltip",

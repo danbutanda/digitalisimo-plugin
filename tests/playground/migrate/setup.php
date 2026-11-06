@@ -137,7 +137,7 @@ if ( $lite ) {
 	// Diferencias declaradas de la conversión de F8 (spec §3.C.2 y V.10.5).
 	$ext_known = array(
 		'tooltip'     => array( 'text' => 'el globo de la información emergente está ahora en el DOM (accesible), no en un atributo' ),
-		'threed-text' => array( 'text' => 'el origen repite el texto en capas para el relieve; la conversión lo pinta una vez con sombras de texto en capas' ),
+		'threed-text' => array( 'text' => 'ztext repite el texto en cada capa y en una copia oculta; el rasgo «Relieve 3D» sólo en sus capas (las copias, con aria-hidden): se ve igual' ),
 	);
 	foreach ( array( 'tooltip', 'transform-effects', 'background-overlay', 'equal-height', 'grid-line', 'image-hover-effects', 'threed-text', 'animated-gradient-background' ) as $ext ) {
 		$case = $ext_case( 'ext-' . $ext );
@@ -164,6 +164,10 @@ foreach ( array( 1, 2 ) as $blog ) {
 	}
 	update_option( 'elementor_element_cache_ttl', 'disable' );
 	update_option( 'elementor_onboarded', true );
+	// Subida de SVG sin filtrar encendida (como en f8/p0.php): la migración copia a Medios las imágenes de ejemplo de
+	// Element Pack, que son SVG (la lata de Animated Card); apagada no se copian (K-D15) y la lata vuelve a la imagen
+	// de ejemplo del constructor (`core.demo.placeholder`), lo que prueba migration-ep-demo.php.
+	update_option( 'elementor_unfiltered_files_upload', 1 );
 	foreach ( $pages as $slug => $page ) {
 		if ( get_page_by_path( $slug ) || ( ! empty( $page['blogs'] ) && ! in_array( $blog, $page['blogs'], true ) ) ) {
 			continue;

@@ -4,8 +4,9 @@ namespace Digitalisimo\Elements\Legacy\Effects;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * tooltip y global-badge → rasgos «Información emergente» (`digitalisimo_tooltip*`) y «Distintivo»
- * (`digitalisimo_badge*`) de DIGITALÍSIMO Elements (F8, §3.C.2; claves fijas en V.14 C10 y C11).
+ * tooltip, global-badge y threed-text → rasgos «Información emergente» (`digitalisimo_tooltip*`), «Distintivo»
+ * (`digitalisimo_badge*`) y «Relieve 3D» (`digitalisimo_relief*`) de DIGITALÍSIMO Elements (F8, §3.C.2; claves fijas en
+ * V.14 C10 y C11, y en §19 las del relieve).
  *
  * Los estilos pasan 1:1 a los controles del rasgo, cada valor validado por tipo (un color de Element Pack con
  * `red;}…` no llega a ningún control): grupos Fondo, Borde, Sombra de caja, Sombra de texto y Tipografía, medidas y
@@ -19,6 +20,23 @@ final class Traits {
 		'box_shadow' => array( 'box_shadow_type' => 'enum:yes', 'box_shadow' => 'shadow', 'box_shadow_position' => 'enum:,inset' ),
 		'text_shadow' => array( 'text_shadow_type' => 'enum:yes', 'text_shadow' => 'shadow' ),
 		'typography' => array( 'typography' => 'enum:custom', 'font_family' => 'font', 'font_size' => 'slider', 'font_weight' => 'enum:,100,200,300,400,500,600,700,800,900,normal,bold', 'text_transform' => 'enum:,uppercase,lowercase,capitalize,none', 'font_style' => 'enum:,normal,italic,oblique', 'text_decoration' => 'enum:,underline,overline,line-through,none', 'line_height' => 'slider', 'letter_spacing' => 'slider', 'word_spacing' => 'slider' ),
+	);
+
+	/**
+	 * Aspecto del globo de tippy.js 6 que Element Pack pintaba sin estilo guardado (tippy.all.min.js: `.tippy-box`,
+	 * `.tippy-content`, `.tippy-arrow` y las opciones `maxWidth` y `offset`).
+	 */
+	const TIPPY = array(
+		'background'  => '#333333',
+		'color'       => '#ffffff',
+		'arrow'       => '#333333',
+		'padding'     => array( 'top' => '5', 'right' => '9', 'bottom' => '5', 'left' => '9', 'unit' => 'px', 'isLinked' => false ),
+		'font_size'   => 14,
+		'line_height' => 1.4,
+		'max_width'   => 350,
+		'offset'      => 10,
+		// Element Pack restaba 10 px al ancho guardado: `max-width: calc({{SIZE}}{{UNIT}} - 10px) !important`.
+		'width_minus' => 10,
 	);
 
 	/* ---------------------------------------------------------------- Información emergente */
@@ -50,13 +68,16 @@ final class Traits {
 		} elseif ( 'manual' === $trigger || '' !== trim( (string) Values::get( $s, 'element_pack_widget_tooltip_custom_trigger', '' ) ) ) {
 			$out->loss( __( 'disparador por selector', 'digitalisimo-migration' ) );
 		}
-		if ( 'yes' === Values::get( $s, 'element_pack_widget_tooltip_arrow' ) ) {
+		$arrow = 'yes' === Values::get( $s, 'element_pack_widget_tooltip_arrow' );
+		if ( $arrow ) {
 			$set['digitalisimo_tooltip_arrow'] = 'yes';
 		}
-		// tippy.js recibía `offset: [x, y]` = [desplazamiento lateral, distancia]: la distancia es la Y.
+		// tippy.js recibía `offset: [x, y]` = [desplazamiento lateral, distancia] sólo si alguno de los dos tenía un tamaño
+		// distinto de 0 (ep-tooltip.js: `(x.size || y.size) && (offset = [x || 0, y || 0])`); si no, su distancia por
+		// defecto, 10 px. La distancia es la Y.
 		$x = Values::size_of( $s, 'element_pack_widget_tooltip_x_offset' );
 		$y = Values::size_of( $s, 'element_pack_widget_tooltip_y_offset' );
-		if ( null !== $x || null !== $y ) {
+		if ( ( null !== $x && 0.0 !== $x ) || ( null !== $y && 0.0 !== $y ) ) {
 			$distance = Css_Value::number( (float) $y, -1000, 1000 );
 			if ( null !== $distance ) {
 				$set['digitalisimo_tooltip_offset'] = array( 'unit' => 'px', 'size' => (float) $distance );
@@ -64,8 +85,9 @@ final class Traits {
 			if ( null !== $x && abs( $x ) >= 0.5 ) {
 				$out->loss( __( 'desplazamiento lateral del globo', 'digitalisimo-migration' ) );
 			}
+		} else {
+			$set['digitalisimo_tooltip_offset'] = array( 'unit' => 'px', 'size' => (float) self::TIPPY['offset'] );
 		}
-		$set += self::sliders( $s, 'element_pack_widget_tooltip_width', 'digitalisimo_tooltip_width', array( 'px', 'em' ) );
 		$set += self::colors( $s, array( 'element_pack_widget_tooltip_color' => 'digitalisimo_tooltip_color', 'element_pack_widget_tooltip_arrow_color' => 'digitalisimo_tooltip_arrow_color' ) );
 		$set += self::dims( $s, 'element_pack_widget_tooltip_padding', 'digitalisimo_tooltip_padding' );
 		$set += self::dims( $s, 'element_pack_widget_tooltip_border_radius', 'digitalisimo_tooltip_radius' );
@@ -77,10 +99,7 @@ final class Traits {
 		$set += self::group( $s, 'element_pack_widget_tooltip_border', 'digitalisimo_tooltip_border', 'border' );
 		$set += self::group( $s, 'element_pack_widget_tooltip_box_shadow', 'digitalisimo_tooltip_shadow', 'box_shadow' );
 		$set += self::group( $s, 'element_pack_widget_tooltip_typography', 'digitalisimo_tooltip_typography', 'typography' );
-		if ( ! $out->set_all( $set ) ) {
-			return false;
-		}
-		self::carry_all( $out, array(
+		$carry = array(
 			'element_pack_widget_tooltip_text'                      => 'digitalisimo_tooltip_text',
 			'element_pack_widget_tooltip_color'                     => 'digitalisimo_tooltip_color',
 			'element_pack_widget_tooltip_arrow_color'               => 'digitalisimo_tooltip_arrow_color',
@@ -88,7 +107,16 @@ final class Traits {
 			'element_pack_widget_tooltip_background_color_b'        => 'digitalisimo_tooltip_bg_color_b',
 			'element_pack_widget_tooltip_border_color'              => 'digitalisimo_tooltip_border_color',
 			'element_pack_widget_tooltip_typography_typography'     => 'digitalisimo_tooltip_typography_typography',
-		) );
+		);
+		// Aspecto por defecto de tippy.js donde Element Pack no guardó otro (como el distintivo con ep-global-badge.css):
+		// sin él, el globo tomaría el aspecto propio del rasgo (colores del sistema, 256 px, 8 px de distancia).
+		self::tooltip_look( $s, $set, $arrow, $carry );
+		// El ancho va después de la tipografía: en em depende del tamaño de letra del globo.
+		$set += self::tooltip_width( $out, $s, $set );
+		if ( ! $out->set_all( $set ) ) {
+			return false;
+		}
+		self::carry_all( $out, $carry );
 		if ( 'yes' === Values::get( $s, 'element_pack_widget_tooltip_follow_cursor' ) ) {
 			$out->loss( __( 'seguir el cursor', 'digitalisimo-migration' ) );
 		}
@@ -97,6 +125,117 @@ final class Traits {
 			$out->loss( __( 'animaciones que no son fundido', 'digitalisimo-migration' ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Completa `$set` con el aspecto de tippy.js donde Element Pack no guardó otro (o lo que guardó no es válido): fondo,
+	 * color del texto y de la flecha, relleno y tipografía (14 px con interlineado 1,4). Nunca pisa un valor convertido ni
+	 * una referencia global. Sin tipo de fondo, el núcleo no imprimía su color ni su global: el globo conservaba el #333
+	 * de tippy, así que esas claves no se trasladan (`$carry` pierde las del fondo).
+	 */
+	private static function tooltip_look( array $s, array &$set, bool $arrow, array &$carry ): void {
+		$type = (string) ( $set['digitalisimo_tooltip_bg_background'] ?? '' );
+		if ( 'classic' !== $type && 'gradient' !== $type ) {
+			foreach ( array_keys( $set ) as $key ) {
+				if ( 0 === strpos( (string) $key, 'digitalisimo_tooltip_bg_' ) ) {
+					unset( $set[ $key ] );
+				}
+			}
+			$set['digitalisimo_tooltip_bg_background'] = 'classic';
+			$set['digitalisimo_tooltip_bg_color']      = self::TIPPY['background'];
+			unset( $carry['element_pack_widget_tooltip_background_color'], $carry['element_pack_widget_tooltip_background_color_b'] );
+		} elseif ( 'classic' === $type && ! isset( $set['digitalisimo_tooltip_bg_color'] ) && ! Values::global_ref( $s, 'element_pack_widget_tooltip_background_color' ) ) {
+			// Fondo clásico sin color (sólo una imagen): debajo seguía el #333 de tippy.
+			$set['digitalisimo_tooltip_bg_color'] = self::TIPPY['background'];
+		}
+		if ( ! isset( $set['digitalisimo_tooltip_color'] ) && ! Values::global_ref( $s, 'element_pack_widget_tooltip_color' ) ) {
+			$set['digitalisimo_tooltip_color'] = self::TIPPY['color'];
+		}
+		// La flecha de tippy es #333 aunque cambie el fondo (`.tippy-arrow{color:#333}`); la del rasgo toma el fondo.
+		if ( $arrow && ! isset( $set['digitalisimo_tooltip_arrow_color'] ) && ! Values::global_ref( $s, 'element_pack_widget_tooltip_arrow_color' ) ) {
+			$set['digitalisimo_tooltip_arrow_color'] = self::TIPPY['arrow'];
+		}
+		$padding = $set['digitalisimo_tooltip_padding'] ?? null;
+		if ( ! is_array( $padding ) || '' === implode( '', array( $padding['top'] ?? '', $padding['right'] ?? '', $padding['bottom'] ?? '', $padding['left'] ?? '' ) ) ) {
+			$set['digitalisimo_tooltip_padding'] = self::TIPPY['padding'];
+		}
+		// Una tipografía global manda entera, como en el distintivo; si no, sólo se completan las claves que faltan.
+		if ( ! Values::global_ref( $s, 'element_pack_widget_tooltip_typography_typography' ) ) {
+			$set += array(
+				'digitalisimo_tooltip_typography_typography'  => 'custom',
+				'digitalisimo_tooltip_typography_font_size'   => array( 'unit' => 'px', 'size' => (float) self::TIPPY['font_size'] ),
+				'digitalisimo_tooltip_typography_line_height' => array( 'unit' => 'em', 'size' => (float) self::TIPPY['line_height'] ),
+			);
+		}
+	}
+
+	/**
+	 * Ancho máximo del globo en cada dispositivo. Element Pack pintaba `calc(ANCHO - 10px)`: en px se restan 10; en em,
+	 * 10 px en em del tamaño de letra del globo en ese dispositivo (si no es en px, se toma el de tippy, 14 px, y se
+	 * declara la aproximación). Sin ancho de escritorio, el `maxWidth` de tippy.js (350 px).
+	 *
+	 * @param array $set Lo ya calculado del rasgo (con la tipografía de destino).
+	 */
+	private static function tooltip_width( Out $out, array $s, array $set ): array {
+		$width  = array();
+		$approx = false;
+		foreach ( Values::responsive( $s, 'element_pack_widget_tooltip_width' ) as $device => $value ) {
+			$clean = self::slider( $value, array( 'px', 'em' ) );
+			if ( null === $clean ) {
+				continue;
+			}
+			if ( 'px' === $clean['unit'] ) {
+				$size = $clean['size'] - self::TIPPY['width_minus'];
+			} else {
+				$font = self::tooltip_font_px( $s, $set, $device );
+				if ( null === $font ) {
+					$font   = (float) self::TIPPY['font_size'];
+					$approx = true;
+				}
+				$size = $clean['size'] - self::TIPPY['width_minus'] / $font;
+			}
+			$width[ Values::device_key( 'digitalisimo_tooltip_width', $device ) ] = array( 'unit' => $clean['unit'], 'size' => round( max( 0.0, $size ), 4 ) );
+		}
+		if ( ! isset( $width['digitalisimo_tooltip_width'] ) ) {
+			$width['digitalisimo_tooltip_width'] = array( 'unit' => 'px', 'size' => (float) self::TIPPY['max_width'] );
+		}
+		if ( $approx ) {
+			$out->loss( __( 'ancho máximo en em aproximado (el tamaño de letra del globo no es en px)', 'digitalisimo-migration' ) );
+		}
+		return $width;
+	}
+
+	/**
+	 * Tamaño de letra en px del globo convertido en un dispositivo (heredado del más ancho, como en el núcleo), o null si
+	 * no se conoce (tipografía global o en otra unidad).
+	 */
+	private static function tooltip_font_px( array $s, array $set, string $device ): ?float {
+		if ( Values::global_ref( $s, 'element_pack_widget_tooltip_typography_typography' ) ) {
+			return null;
+		}
+		$breakpoints = Values::breakpoints();
+		$chain       = array( $device );
+		if ( '' !== $device && 'max' === ( $breakpoints[ $device ][1] ?? 'max' ) ) {
+			// Un dispositivo «max» hereda del más ancho que tenga valor (del más cercano al escritorio).
+			$wider = array();
+			foreach ( $breakpoints as $name => $spec ) {
+				if ( $name === $device ) {
+					break;
+				}
+				if ( 'max' === $spec[1] ) {
+					$wider[] = $name;
+				}
+			}
+			$chain = array_merge( $chain, array_reverse( $wider ) );
+		}
+		$chain[] = '';
+		foreach ( array_unique( $chain ) as $name ) {
+			$size = $set[ Values::device_key( 'digitalisimo_tooltip_typography_font_size', $name ) ] ?? null;
+			if ( is_array( $size ) ) {
+				return 'px' === ( $size['unit'] ?? '' ) && (float) ( $size['size'] ?? 0 ) > 0 ? (float) $size['size'] : null;
+			}
+		}
+		return null;
 	}
 
 	/** Texto del globo con el HTML que admite el rasgo (`strong`, `em`, `b`, `i`, `br`), sin atributos. */
@@ -241,6 +380,113 @@ final class Traits {
 		}
 		$class = (string) ( $value['value'] ?? '' );
 		return preg_match( '/^[a-z0-9_ -]{1,80}$/i', $class ) && preg_match( '/^[a-z0-9_-]{1,40}$/i', $library ) ? array( 'value' => $class, 'library' => $library ) : null;
+	}
+
+	/* ---------------------------------------------------------------- Relieve 3D */
+
+	/** Unidades de la profundidad del rasgo «Relieve 3D» y su tope (`Text_Relief::DEPTH_UNITS` de Elements). */
+	const RELIEF_DEPTH = array(
+		'px'  => 1000,
+		'em'  => 100,
+		'rem' => 100,
+	);
+
+	/** Evento de Element Pack (ztext.js) → giro del rasgo. */
+	const RELIEF_EVENTS = array(
+		'pointer' => 'pointer',
+		'scroll'  => 'scroll',
+		'scrollX' => 'scroll-x',
+		'scrollY' => 'scroll-y',
+	);
+
+	/**
+	 * threed-text → rasgo «Relieve 3D» (`digitalisimo_relief*`) de DIGITALÍSIMO Elements, con la geometría de ztext.js que
+	 * pintaba Element Pack: N capas (la del texto incluida) desplazadas `profundidad/2 − i·profundidad/N` en Z, la
+	 * perspectiva en el título y, con el desvanecido, la copia i a `(1 − i/N)/2`. Los valores son los que el gestor de
+	 * Element Pack (ep-threed-text.js) pasaba a ztext:
+	 *
+	 * - Profundidad, capas y perspectiva sólo con un tamaño distinto de 0; si no, 30 px, 8 capas y 500 px.
+	 * - Una profundidad en % rompía ztext (sólo lee unidades de letras) y el título se veía plano: no se enciende.
+	 * - El color de la profundidad sólo pintaba las copias (su global se traslada); sin él, el del texto.
+	 * - El giro (en grados) y su sentido, sólo con un evento; un giro sin número no giraba.
+	 * - Sólo en el Encabezado del núcleo: el script buscaba `.elementor-heading-title` o `.bdt-main-heading-inner`, y el
+	 *   Encabezado avanzado de Element Pack 10 no pinta ninguno de los dos, así que allí el título se veía plano.
+	 *
+	 * El rasgo no gira con el movimiento reducido del sistema (Element Pack sí giraba).
+	 */
+	public static function threed( Out $out ): bool {
+		$s = $out->orig;
+		if ( 'heading' !== (string) ( $out->element['widgetType'] ?? '' ) ) {
+			$out->loss( __( 'en el Encabezado avanzado, Element Pack 10 no pintaba el texto en 3D (su script no encontraba el título): queda plano, como se veía', 'digitalisimo-migration' ) );
+			return true;
+		}
+		$depth = $out->get( 'ep_threed_text_depth' );
+		$size  = is_array( $depth ) ? Css_Value::number( $depth['size'] ?? null ) : null;
+		$size  = null === $size ? 0.0 : (float) $size;
+		$unit  = 'px';
+		if ( 0.0 === $size ) {
+			$size = 30.0;
+		} else {
+			$unit = is_array( $depth ) && isset( $depth['unit'] ) && is_scalar( $depth['unit'] ) && '' !== (string) $depth['unit'] ? (string) $depth['unit'] : 'px';
+			if ( ! isset( self::RELIEF_DEPTH[ $unit ] ) ) {
+				$out->loss( __( 'profundidad en %, que el texto en 3D de Element Pack no pintaba: el título queda plano, como se veía', 'digitalisimo-migration' ) );
+				return true;
+			}
+			if ( $size < 0 ) {
+				$out->loss( __( 'profundidad negativa (las copias iban delante del texto): se usa su valor absoluto', 'digitalisimo-migration' ) );
+				$size = abs( $size );
+			}
+			$size = min( $size, (float) self::RELIEF_DEPTH[ $unit ] );
+		}
+		$layers      = Css_Value::number( $out->get( 'ep_threed_text_layers' ) );
+		$layers      = null === $layers || (float) $layers <= 0 ? 8 : (int) min( 100, ceil( (float) $layers ) );
+		$perspective = $out->get( 'ep_threed_text_perspective' );
+		$perspective = Css_Value::number( is_array( $perspective ) ? ( $perspective['size'] ?? null ) : $perspective );
+		$set         = array(
+			'digitalisimo_relief'             => 'yes',
+			'digitalisimo_relief_depth'       => array( 'unit' => $unit, 'size' => round( $size, 4 ) ),
+			'digitalisimo_relief_layers'      => $layers,
+			'digitalisimo_relief_perspective' => array( 'unit' => 'px', 'size' => null === $perspective || (float) $perspective <= 0 ? 500.0 : (float) $perspective ),
+		);
+		if ( 'yes' === $out->get( 'ep_threed_text_fade' ) ) {
+			$set['digitalisimo_relief_fade'] = 'yes';
+		}
+		$set  += self::colors( $s, array( 'ep_threed_text_depth_color' => 'digitalisimo_relief_color' ) );
+		$event = $out->get( 'ep_threed_text_event' );
+		if ( is_string( $event ) && isset( self::RELIEF_EVENTS[ $event ] ) ) {
+			$rotation = $out->get( 'ep_threed_text_event_rotation' );
+			$rotation = Css_Value::number( is_array( $rotation ) ? ( $rotation['size'] ?? null ) : $rotation );
+			if ( null !== $rotation ) {
+				$set['digitalisimo_relief_event']    = self::RELIEF_EVENTS[ $event ];
+				$set['digitalisimo_relief_rotation'] = array( 'unit' => 'deg', 'size' => max( -360.0, min( 360.0, (float) $rotation ) ) );
+				if ( 'reverse' === $out->get( 'ep_threed_text_event_direction' ) ) {
+					$set['digitalisimo_relief_direction'] = 'reverse';
+				}
+			}
+		}
+		if ( ! $out->set_all( $set ) ) {
+			return false;
+		}
+		self::carry_all( $out, array( 'ep_threed_text_depth_color' => 'digitalisimo_relief_color' ) );
+		if ( ! self::relief_ready() ) {
+			// Las claves quedan guardadas y se encienden solas al actualizar Elements; hasta entonces, el informe lo dice.
+			$out->loss( __( 'este sitio tiene un DIGITALÍSIMO Elements sin el rasgo «Relieve 3D»: el título se ve plano hasta actualizarlo (la conversión ya queda guardada)', 'digitalisimo-migration' ) );
+		}
+		return true;
+	}
+
+	/** @var bool|null Pruebas: fuerza la detección del rasgo «Relieve 3D» (null: se detecta). */
+	public static $relief = null;
+
+	/**
+	 * ¿Tiene el DIGITALÍSIMO Elements cargado el rasgo «Relieve 3D» (F8 §19)? Sin Elements cargado (las pruebas unitarias)
+	 * se da por hecho, como `Runner::requirements()`.
+	 */
+	private static function relief_ready(): bool {
+		if ( null !== self::$relief ) {
+			return (bool) self::$relief;
+		}
+		return ! defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) || class_exists( '\\Digitalisimo\\Elements\\Text_Relief', false );
 	}
 
 	/* ---------------------------------------------------------------- Copia validada */

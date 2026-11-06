@@ -201,7 +201,7 @@ namespace {
 		$by[ $spec['treatment'] ][] = $slug;
 	}
 	f8_check( 10 === count( $by['dropped'] ) && array( 'background-image-parallax', 'particles', 'cursor-effects', 'ripple-effects', 'tile-scroll', 'hash-link', 'confetti-effects', 'sound-effects', 'content-protector', 'adblock-detector' ) == $by['dropped'], 'Los 10 descartes aprobados por el propietario: ' . implode( ', ', $by['dropped'] ) );
-	f8_check( 3 === count( $by['exact'] ) && 2 === count( $by['trait'] ) && 12 === count( $by['approx'] ) && array( 'custom-js' ) === $by['draft'], '3 exactas, 12 aproximadas, 2 rasgos y custom-js a borrador.' );
+	f8_check( 3 === count( $by['exact'] ) && 3 === count( $by['trait'] ) && 11 === count( $by['approx'] ) && array( 'custom-js' ) === $by['draft'], '3 exactas, 11 aproximadas, 3 rasgos y custom-js a borrador.' );
 	$all_prefixes = array();
 	foreach ( $keys as $slug => $spec ) {
 		f8_check( '' !== $spec['label'] && ! preg_match( '/element pack|bdthemes|prime slider/i', $spec['label'] ) && $spec['switch'], 'Nombre visible propio y claves de uso: ' . $slug );
@@ -233,6 +233,11 @@ namespace {
 	$s = $el['settings'];
 	f8_check( 'yes' === $s['digitalisimo_tooltip'] && 'This is Tooltip' === $s['digitalisimo_tooltip_text'] && 'center' === $s['digitalisimo_tooltip_align'] && ! isset( $s['digitalisimo_tooltip_placement'] ) && ! isset( $s['digitalisimo_tooltip_arrow'] ), 'Valores por defecto de Element Pack: texto «This is Tooltip», arriba, sin flecha, centrado.' );
 	f8_check( array( 'ext.converted.tooltip' ) === $codes && array() === fx_left( array( $el ) ), 'Convertida y sin claves heredadas.' );
+	// Sin estilo guardado, el globo de Element Pack era el de tippy.js: fondo #333, texto blanco, 14 px con interlineado
+	// 1,4, relleno 5/9 px, 350 px de ancho máximo y 10 px de distancia (y no el aspecto propio del rasgo).
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && '#333333' === $s['digitalisimo_tooltip_bg_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'], 'Aspecto de tippy: fondo #333 y texto blanco.' );
+	f8_check( array( 'top' => '5', 'right' => '9', 'bottom' => '5', 'left' => '9', 'unit' => 'px', 'isLinked' => false ) === $s['digitalisimo_tooltip_padding'] && array( 'unit' => 'px', 'size' => 350.0 ) === $s['digitalisimo_tooltip_width'] && array( 'unit' => 'px', 'size' => 10.0 ) === $s['digitalisimo_tooltip_offset'], 'Aspecto de tippy: relleno 5/9 px, ancho máximo 350 px y distancia 10 px.' );
+	f8_check( 'custom' === $s['digitalisimo_tooltip_typography_typography'] && array( 'unit' => 'px', 'size' => 14.0 ) === $s['digitalisimo_tooltip_typography_font_size'] && array( 'unit' => 'em', 'size' => 1.4 ) === $s['digitalisimo_tooltip_typography_line_height'] && ! isset( $s['digitalisimo_tooltip_arrow_color'] ), 'Aspecto de tippy: 14 px con interlineado 1,4; sin flecha, sin color de flecha.' );
 	$tooltip = array(
 		'element_pack_widget_tooltip'             => 'yes',
 		'element_pack_widget_tooltip_text'        => 'Hola <b class="x" onclick="evil()">fuerte</b><br/><a href="https://x.test">enlace</a><script>alert(1)</script>',
@@ -255,6 +260,7 @@ namespace {
 		'element_pack_widget_tooltip_typography_font_family' => 'Open Sans',
 		'element_pack_widget_tooltip_typography_font_size_mobile' => array( 'unit' => 'px', 'size' => 13 ),
 		'element_pack_widget_tooltip_typography_font_weight' => '700;}x{',
+		'element_pack_widget_tooltip_background_background' => 'classic',
 		'__globals__'                             => array( 'element_pack_widget_tooltip_background_color' => 'globals/colors?id=secondary' ),
 		'__dynamic__'                             => array( 'element_pack_widget_tooltip_text' => '[elementor-tag id="1" name="post-title" settings="%7B%7D"]' ),
 	);
@@ -263,13 +269,75 @@ namespace {
 	f8_check( 'Hola <b>fuerte</b><br>enlacealert(1)' === str_replace( '<br/>', '<br>', $s['digitalisimo_tooltip_text'] ) || 'Hola <b>fuerte</b><br />enlacealert(1)' === $s['digitalisimo_tooltip_text'] || 0 === strpos( $s['digitalisimo_tooltip_text'], 'Hola <b>fuerte</b><br' ), 'El texto sólo conserva strong, em, b, i y br, sin atributos: ' . $s['digitalisimo_tooltip_text'] );
 	f8_check( false === strpos( fx_json( $s ), 'onclick' ) && false === strpos( fx_json( $s ), '<script' ) && false === strpos( fx_json( $s ), '<a ' ), 'Ni atributos, ni scripts, ni enlaces.' );
 	f8_check( 'left' === $s['digitalisimo_tooltip_placement'] && ! isset( $s['digitalisimo_tooltip_trigger'] ) && array( 'unit' => 'px', 'size' => 12.0 ) == $s['digitalisimo_tooltip_offset'], 'Lado, disparador manual al de por defecto y distancia = la Y de tippy.js.' );
-	f8_check( array( 'unit' => 'em', 'size' => 10.0 ) == $s['digitalisimo_tooltip_width_tablet'] && '#123456' === $s['digitalisimo_tooltip_arrow_color'] && ! isset( $s['digitalisimo_tooltip_color'] ), 'Ancho responsivo y colores válidos; el color con inyección no llega a ningún control.' );
+	f8_check( array( 'unit' => 'em', 'size' => 9.2857 ) == $s['digitalisimo_tooltip_width_tablet'] && array( 'unit' => 'px', 'size' => 350.0 ) == $s['digitalisimo_tooltip_width'] && '#123456' === $s['digitalisimo_tooltip_arrow_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'], 'Ancho responsivo (calc(10em - 10px) a 14 px = 9,2857em; escritorio, el de tippy) y colores válidos; el color con inyección no llega a ningún control (queda el blanco de tippy).' );
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && ! isset( $s['digitalisimo_tooltip_bg_color'] ), 'Fondo clásico con color global: no se le añade el #333 de tippy (manda el global).' );
 	f8_check( 'dashed' === $s['digitalisimo_tooltip_border_border'] && '2' === $s['digitalisimo_tooltip_border_width']['top'] && '4' === $s['digitalisimo_tooltip_radius']['left'] && ! isset( $s['digitalisimo_tooltip_border_radius'] ), 'Grupo Borde y radio aparte.' );
 	f8_check( 'yes' === $s['digitalisimo_tooltip_shadow_box_shadow_type'] && 4.0 === $s['digitalisimo_tooltip_shadow_box_shadow']['vertical'] && 'Open Sans' === $s['digitalisimo_tooltip_typography_font_family'] && isset( $s['digitalisimo_tooltip_typography_font_size_mobile'] ) && ! isset( $s['digitalisimo_tooltip_typography_font_weight'] ), 'Sombra y tipografía 1:1, cada subclave validada (el peso con inyección se descarta).' );
 	f8_check( 'globals/colors?id=secondary' === ( $s['__globals__']['digitalisimo_tooltip_bg_color'] ?? '' ) && 0 === strpos( (string) ( $s['__dynamic__']['digitalisimo_tooltip_text'] ?? '' ), '[elementor-tag' ), 'Globales y dinámicos pasan a la clave de destino.' );
 	f8_check( ! isset( $s['__globals__']['element_pack_widget_tooltip_background_color'] ) && ! isset( $s['__dynamic__']['element_pack_widget_tooltip_text'] ) && array() === fx_left( array( $el ) ), 'Y salen de las bolsas con las claves heredadas.' );
 	f8_check( 5 <= count( array_keys( $codes, 'ext.loss.tooltip', true ) ), 'Pérdidas declaradas: seguir el cursor, animación, disparador por selector, alineación, HTML, desplazamiento lateral: ' . count( array_keys( $codes, 'ext.loss.tooltip', true ) ) );
 	f8_check( 'Hola <strong>a</strong>' === Traits::tooltip_text( 'Hola <strong style="color:red">a</strong>' ) && 'x' === Traits::tooltip_text( '<span>x</span>' ), 'Saneado del texto sin WordPress.' );
+
+	// Fidelidad del globo (2026-11-06): ancho `calc(ANCHO - 10px)`, aspecto de tippy donde no se guardó otro, distancia.
+	$tt = static function ( array $extra, string $widget = 'button' ) {
+		list( $el, $codes ) = fx_convert( fx_widget( $widget, array( 'element_pack_widget_tooltip' => 'yes' ) + $extra ) );
+		return array( $el['settings'], $codes );
+	};
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'        => array( 'unit' => 'px', 'size' => 240 ),
+		'element_pack_widget_tooltip_width_mobile' => array( 'unit' => 'px', 'size' => 6 ),
+		'element_pack_widget_tooltip_arrow'        => 'yes',
+		'element_pack_widget_tooltip_y_offset'     => array( 'unit' => 'px', 'size' => 14 ),
+		'element_pack_widget_tooltip_color'        => '#ffffff',
+		'element_pack_widget_tooltip_background_background' => 'classic',
+		'element_pack_widget_tooltip_background_color'      => '#222222',
+		'element_pack_widget_tooltip_padding'      => array( 'top' => '6', 'right' => '10', 'bottom' => '6', 'left' => '10', 'unit' => 'px', 'isLinked' => false ),
+	) );
+	f8_check( array( 'unit' => 'px', 'size' => 230.0 ) === $s['digitalisimo_tooltip_width'] && array( 'unit' => 'px', 'size' => 0.0 ) === $s['digitalisimo_tooltip_width_mobile'], 'Ancho en px: Element Pack pintaba calc(ANCHO - 10px) (240 → 230; nunca negativo).' );
+	f8_check( '#222222' === $s['digitalisimo_tooltip_bg_color'] && '#ffffff' === $s['digitalisimo_tooltip_color'] && '6' === $s['digitalisimo_tooltip_padding']['top'] && array( 'unit' => 'px', 'size' => 14.0 ) == $s['digitalisimo_tooltip_offset'], 'Lo guardado manda sobre el aspecto de tippy (fondo, color, relleno y distancia).' );
+	f8_check( '#333333' === $s['digitalisimo_tooltip_arrow_color'], 'Flecha sin color propio: la de tippy (#333) aunque el fondo cambie.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_x_offset' => array( 'unit' => 'px', 'size' => 0 ), 'element_pack_widget_tooltip_y_offset' => array( 'unit' => 'px', 'size' => 0 ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 10.0 ) == $s['digitalisimo_tooltip_offset'], 'X e Y a 0: ep-tooltip.js no pasaba `offset` y tippy usaba sus 10 px.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_x_offset' => array( 'unit' => 'px', 'size' => 6 ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 0.0 ) == $s['digitalisimo_tooltip_offset'], 'Sólo X: tippy recibía [x, 0] y la distancia era 0.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'                       => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_width_mobile'                => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_typography_typography'       => 'custom',
+		'element_pack_widget_tooltip_typography_font_size'        => array( 'unit' => 'px', 'size' => 20 ),
+		'element_pack_widget_tooltip_typography_font_size_tablet' => array( 'unit' => 'px', 'size' => 16 ),
+		'element_pack_widget_tooltip_typography_line_height'      => array( 'unit' => 'px', 'size' => 30 ),
+	) );
+	f8_check( array( 'unit' => 'em', 'size' => 9.5 ) == $s['digitalisimo_tooltip_width'] && array( 'unit' => 'em', 'size' => 9.375 ) == $s['digitalisimo_tooltip_width_mobile'], 'Ancho en em: se restan 10 px en em del tamaño de letra del dispositivo (20 px en escritorio; el móvil hereda los 16 px de la tableta).' );
+	f8_check( array( 'unit' => 'px', 'size' => 20.0 ) == $s['digitalisimo_tooltip_typography_font_size'] && array( 'unit' => 'px', 'size' => 30.0 ) == $s['digitalisimo_tooltip_typography_line_height'] && ! in_array( 'ext.loss.tooltip', $codes, true ), 'La tipografía guardada manda; sin aproximación que declarar.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'                  => array( 'unit' => 'em', 'size' => 10 ),
+		'element_pack_widget_tooltip_typography_typography'  => 'custom',
+		'element_pack_widget_tooltip_typography_font_size'   => array( 'unit' => 'em', 'size' => 1.2 ),
+	) );
+	f8_check( array( 'unit' => 'em', 'size' => 9.2857 ) == $s['digitalisimo_tooltip_width'] && in_array( 'ext.loss.tooltip', $codes, true ), 'Letra en em: el ancho se aproxima con los 14 px de tippy y se declara.' );
+	list( $s, $codes ) = $tt( array(
+		'element_pack_widget_tooltip_width'  => array( 'unit' => 'em', 'size' => 10 ),
+		'__globals__' => array( 'element_pack_widget_tooltip_typography_typography' => 'globals/typography?id=accent', 'element_pack_widget_tooltip_color' => 'globals/colors?id=text' ),
+	) );
+	f8_check( ! isset( $s['digitalisimo_tooltip_typography_font_size'] ) && ! isset( $s['digitalisimo_tooltip_typography_typography'] ) && 'globals/typography?id=accent' === ( $s['__globals__']['digitalisimo_tooltip_typography_typography'] ?? '' ) && in_array( 'ext.loss.tooltip', $codes, true ), 'Tipografía global: manda entera (sin los 14 px de tippy) y el ancho en em se declara aproximado.' );
+	f8_check( ! isset( $s['digitalisimo_tooltip_color'] ) && 'globals/colors?id=text' === ( $s['__globals__']['digitalisimo_tooltip_color'] ?? '' ), 'Color global del texto: sin el blanco de tippy.' );
+	list( $s ) = $tt( array(
+		'element_pack_widget_tooltip_background_color' => '#00ff00',
+		'__globals__' => array( 'element_pack_widget_tooltip_background_color' => 'globals/colors?id=primary' ),
+	) );
+	f8_check( 'classic' === $s['digitalisimo_tooltip_bg_background'] && '#333333' === $s['digitalisimo_tooltip_bg_color'] && ! isset( $s['__globals__']['digitalisimo_tooltip_bg_color'] ), 'Color de fondo sin tipo de fondo: el núcleo no lo imprimía (tampoco su global); queda el #333 de tippy.' );
+	list( $s ) = $tt( array(
+		'element_pack_widget_tooltip_background_background' => 'classic',
+		'element_pack_widget_tooltip_background_image'      => array( 'id' => 3, 'url' => 'https://s.test/f.png' ),
+		'element_pack_widget_tooltip_padding'               => array( 'top' => '', 'right' => '', 'bottom' => '', 'left' => '', 'unit' => 'px', 'isLinked' => true ),
+	) );
+	f8_check( '#333333' === $s['digitalisimo_tooltip_bg_color'] && 'https://s.test/f.png' === $s['digitalisimo_tooltip_bg_image']['url'] && '5' === $s['digitalisimo_tooltip_padding']['top'], 'Fondo clásico sólo con imagen: debajo, el #333 de tippy; relleno vacío: el de tippy.' );
+	list( $s ) = $tt( array( 'element_pack_widget_tooltip_background_background' => 'gradient', 'element_pack_widget_tooltip_background_color' => '#111111', 'element_pack_widget_tooltip_background_color_b' => '#999999' ) );
+	f8_check( 'gradient' === $s['digitalisimo_tooltip_bg_background'] && '#111111' === $s['digitalisimo_tooltip_bg_color'] && '#999999' === $s['digitalisimo_tooltip_bg_color_b'], 'Degradado guardado: intacto.' );
+	$already = fx_widget( 'button', array( 'element_pack_widget_tooltip' => 'yes', 'digitalisimo_tooltip_width' => array( 'unit' => 'px', 'size' => 120 ) ) );
+	list( $el, $codes ) = fx_convert( $already );
+	f8_check( in_array( 'ext.conflict', $codes, true ) && array( 'unit' => 'px', 'size' => 120 ) === $el['settings']['digitalisimo_tooltip_width'], 'No pisar: un ancho propio ya guardado no se cambia por el de tippy (conflicto declarado).' );
 
 	/* ======================================================================== Efectos de transformación */
 
@@ -533,14 +601,70 @@ namespace {
 	list( , $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_scroll_box_enable' => 'yes' ) ) );
 	f8_check( array( 'ext.inert' ) === $codes, 'En un widget que no es el editor de texto no actuaba.' );
 
-	/* ======================================================================== Texto en 3D */
+	/* ======================================================================== Texto en 3D → «Relieve 3D» */
 
 	fx_reset();
+	$relief = static function ( array $el ) {
+		$out = array();
+		foreach ( (array) $el['settings'] as $key => $value ) {
+			if ( 0 === strpos( (string) $key, 'digitalisimo_relief' ) ) {
+				$out[ $key ] = $value;
+			}
+		}
+		return $out;
+	};
+	// Sólo encendido: los valores por defecto de Element Pack (30 px, 8 capas, 500 px y desvanecido), sin giro.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'title' => 'Tres de', 'ep_threed_text_active' => 'yes' ) ) );
+	f8_check( array( 'digitalisimo_relief' => 'yes', 'digitalisimo_relief_depth' => array( 'unit' => 'px', 'size' => 30.0 ), 'digitalisimo_relief_layers' => 8, 'digitalisimo_relief_perspective' => array( 'unit' => 'px', 'size' => 500.0 ), 'digitalisimo_relief_fade' => 'yes' ) === $relief( $el ), 'Por defecto: el rasgo con 30 px, 8 capas, 500 px de perspectiva y desvanecido: ' . fx_json( $relief( $el ) ) );
+	f8_check( array( 'ext.converted.threed_text' ) === $codes && '' === fx_css( $el ) && array() === fx_left( array( $el ) ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Sin pérdidas, sin CSS personalizado (ni sombras de texto) ni efectos de movimiento, y sin claves de Element Pack.' );
+	// Capas, unidad, sin desvanecido, color inyectado y giro al desplazar en vertical.
 	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_layers' => 4, 'ep_threed_text_depth' => array( 'unit' => 'em', 'size' => 1 ), 'ep_threed_text_fade' => '', 'ep_threed_text_depth_color' => 'red;}x{', 'ep_threed_text_event' => 'scrollY' ) ) );
-	f8_check( 'selector .elementor-heading-title{text-shadow:0 0.25em 0 currentColor,0 0.5em 0 currentColor,0 0.75em 0 currentColor,0 1em 0 currentColor}' === fx_css( $el ), 'Capas sin desvanecer, en em, y el color inyectado cae en currentColor: ' . fx_css( $el ) );
-	f8_check( 2 === count( array_keys( $codes, 'ext.loss.threed_text', true ) ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Giro al desplazar: pérdida.' );
-	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 50 ), 'ep_threed_text_layers' => 1 ) ) );
-	f8_check( 'selector .elementor-heading-title{text-shadow:0 0.5em 0 currentColor}' === fx_css( $el ), 'El porcentaje se aproxima en em.' );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'em', 'size' => 1.0 ) === $r['digitalisimo_relief_depth'] && 4 === $r['digitalisimo_relief_layers'] && ! isset( $r['digitalisimo_relief_fade'] ) && ! isset( $r['digitalisimo_relief_color'] ), 'Capas y profundidad en em; sin desvanecido; el color inyectado no llega (las copias toman el del texto).' );
+	f8_check( 'scroll-y' === $r['digitalisimo_relief_event'] && array( 'unit' => 'deg', 'size' => 35.0 ) === $r['digitalisimo_relief_rotation'] && ! isset( $r['digitalisimo_relief_direction'] ) && array( 'ext.converted.threed_text' ) === $codes, 'Giro al desplazar en vertical con los 35° por defecto: ya no es una pérdida.' );
+	foreach ( array( 'pointer' => 'pointer', 'scroll' => 'scroll', 'scrollX' => 'scroll-x', 'none' => null, 'otro' => null ) as $event => $expected ) {
+		list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => $event ) ) );
+		f8_check( $expected === ( $el['settings']['digitalisimo_relief_event'] ?? null ), 'Evento ' . $event . ' → ' . var_export( $expected, true ) );
+	}
+	// Puntero, sentido inverso, giro guardado y color con su global.
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer', 'ep_threed_text_event_direction' => 'reverse', 'ep_threed_text_event_rotation' => array( 'unit' => 'px', 'size' => -50 ), 'ep_threed_text_depth_color' => '#333333', '__globals__' => array( 'ep_threed_text_depth_color' => 'globals/colors?id=accent' ) ) ) );
+	$r = $relief( $el );
+	f8_check( 'pointer' === $r['digitalisimo_relief_event'] && 'reverse' === $r['digitalisimo_relief_direction'] && array( 'unit' => 'deg', 'size' => -50.0 ) === $r['digitalisimo_relief_rotation'] && '#333333' === $r['digitalisimo_relief_color'] && 'globals/colors?id=accent' === ( $el['settings']['__globals__']['digitalisimo_relief_color'] ?? '' ), 'Puntero, sentido inverso, giro de −50° y color de la profundidad con su global.' );
+	// Un giro sin número no giraba (ztext recibía «deg»): sin evento. Topes de 360°.
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer', 'ep_threed_text_event_rotation' => array( 'unit' => 'px', 'size' => '' ), 'ep_threed_text_event_direction' => 'reverse' ) ) );
+	f8_check( ! isset( $el['settings']['digitalisimo_relief_event'] ) && ! isset( $el['settings']['digitalisimo_relief_direction'] ) && 'yes' === $el['settings']['digitalisimo_relief'], 'Giro sin número: relieve sin giro.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'scroll', 'ep_threed_text_event_rotation' => array( 'size' => 900 ) ) ) );
+	f8_check( array( 'unit' => 'deg', 'size' => 360.0 ) === $el['settings']['digitalisimo_relief_rotation'], 'Giro acotado a 360°.' );
+	// Tamaños a 0 o vacíos: los de ep-threed-text.js (30 px, 8 capas, 500 px), también con la unidad %.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 0 ), 'ep_threed_text_layers' => 0, 'ep_threed_text_perspective' => array( 'unit' => 'px', 'size' => '' ) ) ) );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'px', 'size' => 30.0 ) === $r['digitalisimo_relief_depth'] && 8 === $r['digitalisimo_relief_layers'] && array( 'unit' => 'px', 'size' => 500.0 ) === $r['digitalisimo_relief_perspective'] && array( 'ext.converted.threed_text' ) === $codes, 'Profundidad 0 (aun en %), 0 capas y perspectiva vacía: 30 px, 8 capas y 500 px.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => 'rem', 'size' => 400 ), 'ep_threed_text_layers' => 8.5, 'ep_threed_text_perspective' => array( 'unit' => 'px', 'size' => 800 ) ) ) );
+	$r = $relief( $el );
+	f8_check( array( 'unit' => 'rem', 'size' => 100.0 ) === $r['digitalisimo_relief_depth'] && 9 === $r['digitalisimo_relief_layers'] && array( 'unit' => 'px', 'size' => 800.0 ) === $r['digitalisimo_relief_perspective'], 'rem acotado a 100; 8,5 capas son 9 (ztext pintaba 9); perspectiva guardada.' );
+	list( $el ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_layers' => 250 ) ) );
+	f8_check( 100 === $el['settings']['digitalisimo_relief_layers'], 'Capas acotadas a 100.' );
+	// En % ztext fallaba y el título se veía plano: no se enciende el rasgo; se informa.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => '%', 'size' => 50 ), 'ep_threed_text_layers' => 1 ) ) );
+	f8_check( array() === $relief( $el ) && '' === fx_css( $el ) && array() === fx_left( array( $el ) ) && in_array( 'ext.loss.threed_text', $codes, true ), 'Profundidad en %: plano como se veía, sin rasgo ni CSS, informado.' );
+	// Profundidad negativa: su valor absoluto, informado.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_depth' => array( 'unit' => 'px', 'size' => -20 ) ) ) );
+	f8_check( array( 'unit' => 'px', 'size' => 20.0 ) === $el['settings']['digitalisimo_relief_depth'] && in_array( 'ext.loss.threed_text', $codes, true ), 'Profundidad negativa: 20 px, informado.' );
+	// Encabezado avanzado: Element Pack 10 no encontraba su título, así que no pintaba nada.
+	list( $el, $codes ) = fx_convert( fx_widget( 'digitalisimo-advanced-heading', array( 'ep_threed_text_active' => 'yes', 'ep_threed_text_event' => 'pointer' ) ) );
+	f8_check( array() === $relief( $el ) && array() === fx_left( array( $el ) ) && in_array( 'ext.loss.threed_text', $codes, true ) && ! isset( $el['settings']['motion_fx_tilt_effect'] ), 'Encabezado avanzado: plano como se veía, claves retiradas e informado.' );
+	// No pisar: un relieve propio ya guardado.
+	list( $el, $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes', 'digitalisimo_relief_layers' => 3 ) ) );
+	f8_check( in_array( 'ext.conflict', $codes, true ) && 3 === $el['settings']['digitalisimo_relief_layers'] && ! isset( $el['settings']['digitalisimo_relief'] ), 'No pisar: con capas propias ya guardadas no se escribe nada (conflicto declarado).' );
+	// Un DIGITALÍSIMO Elements sin el rasgo (anterior a §19): las claves se guardan igual (se encienden al actualizarlo),
+	// pero hasta entonces el título se ve plano, y el informe lo dice en vez de darlo por convertido sin más.
+	$traits             = '\\Digitalisimo\\Elements\\Legacy\\Effects\\Traits';
+	$traits::$relief    = false;
+	list( $el, $codes, $report ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes' ) ) );
+	$traits::$relief    = null;
+	f8_check( 'yes' === ( $el['settings']['digitalisimo_relief'] ?? '' ) && 8 === ( $el['settings']['digitalisimo_relief_layers'] ?? null ) && '' === fx_css( $el ) && array( 'ext.converted.threed_text', 'ext.loss.threed_text' ) === $codes && false !== strpos( (string) json_encode( $report ), 'Relieve 3D' ), 'Elements sin el rasgo: claves guardadas, sin sombras de texto, y la pérdida temporal informada: ' . fx_json( $codes ) );
+	list( , $codes ) = fx_convert( fx_widget( 'heading', array( 'ep_threed_text_active' => 'yes' ) ) );
+	f8_check( array( 'ext.converted.threed_text' ) === $codes, 'Con el rasgo (o sin Elements cargado, en las pruebas): sin esa nota.' );
 
 	/* ======================================================================== Distintivo (global-badge) */
 
@@ -813,7 +937,7 @@ namespace {
 			$json     = (array) ( $spec['_expect_json'] ?? array() );
 			$expected = (array) ( $spec['_expect_codes'] ?? array() );
 			foreach ( array_keys( $spec ) as $key ) {
-				if ( '_' === $key[0] && in_array( $key, array( '_widget', '_section', '_page', '_expect_json', '_expect_codes', '_expect_css', '_expect_css_converted', '_options' ), true ) ) {
+				if ( '_' === $key[0] && in_array( $key, array( '_widget', '_section', '_page', '_expect_json', '_expect_codes', '_expect_css', '_expect_css_converted', '_options', '_known' ), true ) ) {
 					unset( $spec[ $key ] );
 				}
 			}

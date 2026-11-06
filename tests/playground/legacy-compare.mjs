@@ -62,6 +62,13 @@ const main = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1
 const [a, b, c, d, e] = main ? process.argv.slice(2).map((f) => JSON.parse(readFileSync(f, 'utf8'))) : [];
 let failed = 0;
 const norm = (list) => list.map((s) => s.normalize('NFC'));
+// `_known.alt` (sin `_known.images`): sólo cambia el texto alternativo, una diferencia deliberada que se ve igual (una
+// imagen decorativa junto a su título visible); el archivo de cada imagen se sigue comparando.
+const altOnly = (entry) => Boolean(entry?.known?.alt) && !entry?.known?.images;
+// Firma de un tipo (`text`, `links`, `images`) tal como se compara: con `_known.alt`, las imágenes sin su ALT.
+export const comparable = (entryA, key, list) => (key === 'images' && altOnly(entryA) ? list.map((image) => image.replace(/ \| alt=[\s\S]*$/, '')) : list);
+// Nota de una fase cuyo ALT difiere con `_known.alt` declarado (null si no hay nada que anotar).
+export const altNote = (entryA, other, phase) => (altOnly(entryA) && JSON.stringify(norm(entryA.signature.images)) !== JSON.stringify(norm(other?.signature?.images ?? [])) ? `${phase}: texto alternativo distinto (conocido: ${entryA.known.alt})` : null);
 for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
   for (const [name, blogs] of Object.entries(cases)) {
     for (const [blog, entryA] of Object.entries(blogs)) {
@@ -78,12 +85,16 @@ for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
       }
       if (!entryB?.registered) problems.push('el adaptador no registró el widget en la fase B');
       for (const key of ['text', 'links', 'images']) {
-        const ta = norm(entryA.signature[key]); const tb = norm(entryB?.signature?.[key] ?? []);
+        const ta = norm(comparable(entryA, key, entryA.signature[key])); const tb = norm(comparable(entryA, key, entryB?.signature?.[key] ?? []));
         const missing = ta.filter((x) => !tb.includes(x)); const extra = tb.filter((x) => !ta.includes(x));
         const target = entryA.known?.[key] ? notes : problems;
         const why = entryA.known?.[key] ? ` (conocido: ${entryA.known[key]})` : '';
         if (missing.length) target.push(`${key} ausente: ${JSON.stringify(missing)}${why}`);
         if (extra.length) target.push(`${key} adicional: ${JSON.stringify(extra)}${why}`);
+      }
+      for (const [phase, entry] of [['B', entryB], ['C', c?.widgets?.[widget]?.[name]?.[blog]], ['E', e?.widgets?.[widget]?.[name]?.[blog]]]) {
+        const note = entry ? altNote(entryA, entry, phase) : null;
+        if (note) notes.push(note);
       }
       if (entryB?.editor_resave && !entryB.editor_resave.ok) problems.push(`tras guardar desde el editor: ${JSON.stringify(entryB.editor_resave)}`);
       // Firma de estilos de las partes mapeadas: A (Element Pack) frente a B (adaptador) y, si la hay, C (convertido).
@@ -99,7 +110,7 @@ for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
       const entryD = d?.widgets?.[widget]?.[name]?.[blog];
       if (entryC) {
         for (const key of ['text', 'links', 'images']) {
-          const ta = norm(entryA.signature[key]); const tc = norm(entryC.signature[key]);
+          const ta = norm(comparable(entryA, key, entryA.signature[key])); const tc = norm(comparable(entryA, key, entryC.signature[key]));
           if (!entryA.known?.[key] && (ta.length !== tc.length || ta.some((x) => !tc.includes(x)))) problems.push(`tras la migración cambia ${key}: ${JSON.stringify(tc)}`);
         }
         notes.push(`migración: ${JSON.stringify(entryC.migration)} → editor ${entryC.editor_widget}`);
@@ -108,7 +119,7 @@ for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
       if (entryE) {
         // Fase E: el documento convertido se pinta sólo con el núcleo, sin capa heredada.
         for (const key of ['text', 'links', 'images']) {
-          const ta = norm(entryA.signature[key]); const te = norm(entryE.signature[key]);
+          const ta = norm(comparable(entryA, key, entryA.signature[key])); const te = norm(comparable(entryA, key, entryE.signature[key]));
           if (!entryA.known?.[key] && (ta.length !== te.length || ta.some((x) => !te.includes(x)))) problems.push(`convertido y sin capa heredada cambia ${key}: ${JSON.stringify(te)}`);
         }
         if (entryE.legacy_left?.length) problems.push(`quedan identificadores heredados: ${JSON.stringify(entryE.legacy_left)}`);

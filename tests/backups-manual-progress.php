@@ -30,6 +30,17 @@ function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, tr
 function trailingslashit( $path ) { return rtrim( $path, '/\\' ) . '/'; }
 function wp_send_json_error( $data, $status = 200 ) { throw new RuntimeException( 'ERROR:' . $status . ':' . $data['message'] ); }
 function wp_send_json_success( $data ) { throw new RuntimeException( 'OK:' . json_encode( $data ) ); }
+// manual_start() encola por el caso de uso compartido con REST y WP-CLI, que responde con WP_Error.
+class WP_Error {
+	private $code;
+	private $message;
+	private $data;
+	public function __construct( $code = '', $message = '', $data = '' ) { $this->code = $code; $this->message = $message; $this->data = $data; }
+	public function get_error_code() { return $this->code; }
+	public function get_error_message() { return $this->message; }
+	public function get_error_data() { return $this->data; }
+}
+function is_wp_error( $value ) { return $value instanceof WP_Error; }
 
 require __DIR__ . '/../digitalisimo-backups/includes/class-backups.php';
 // La opción del avance manual de 1.0.58 ya no bloquea un respaldo nuevo aunque diga «running».
