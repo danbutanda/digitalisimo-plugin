@@ -70,7 +70,8 @@ foreach ( array( 1, 2 ) as $blog ) {
 		update_option( $option, $modules );
 	}
 	// Subida de SVG sin filtrar encendida (como en f8/p0.php): la migración copia a Medios las imágenes de ejemplo de
-	// Element Pack, que son SVG (la lata de Animated Card); apagada se vacían y se informan (K-D15).
+	// Element Pack, que son SVG (la lata de Animated Card); apagada no se copian (K-D15) y la lata vuelve a la imagen
+	// de ejemplo del constructor (`core.demo.placeholder`), lo que prueba migration-ep-demo.php.
 	update_option( 'elementor_unfiltered_files_upload', 1 );
 	// Menú de WordPress con un submenú para los widgets de navegación.
 	if ( ! wp_get_nav_menu_object( 'principal' ) ) {

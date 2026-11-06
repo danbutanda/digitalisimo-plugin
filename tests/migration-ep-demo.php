@@ -7,7 +7,9 @@
  * defecto de los mapas la piden con `{{ep_assets}}` (Animated Card: la lata `coco-can.svg`, no la imagen de ejemplo del
  * constructor). Cubre: la URL de los valores por defecto (instalado, cargado y ausente), la conversión con la subida sin
  * filtrar apagada y encendida (SVG saneado), deduplicación, modo puro (análisis y editor), URL guardadas en repetidores,
- * rutas fuera de `assets/images/`, plugin borrado, el modo restringido de 1.0.20, el informe y la reversión.
+ * rutas fuera de `assets/images/`, plugin borrado, el modo restringido de 1.0.20, el informe y la reversión. Un valor por
+ * defecto que no se copia (SVG con la subida sin filtrar apagada, que es lo habitual, o sin Element Pack instalado) se
+ * queda con la imagen de ejemplo del constructor, la de la conversión anterior, nunca vacío (`core.demo.placeholder`).
  *
  * Con php-wasm sale con 0 aunque falle: se juzga por la línea final (y por «Fatal error», «Uncaught» o «FALLA»).
  */
@@ -19,6 +21,17 @@ namespace Elementor\Core\Utils\Svg {
 			public function sanitize( $content ) {
 				$content = preg_replace( '#<script\b[^>]*>.*?</script>#is', '', (string) $content );
 				return preg_replace( '#\son[a-z]+\s*=\s*"[^"]*"#i', '', (string) $content );
+			}
+		}
+	}
+}
+
+namespace Elementor {
+	if ( ! class_exists( Utils::class, false ) ) {
+		/** Imagen de ejemplo del constructor (el núcleo no se carga en la prueba). */
+		final class Utils {
+			public static function get_placeholder_image_src() {
+				return 'https://s1.test/wp-content/plugins/elementor/assets/images/placeholder.png';
 			}
 		}
 	}
@@ -163,7 +176,8 @@ namespace {
 	$backup = $GLOBALS['wp']['plugins'];
 	$GLOBALS['wp']['plugins'] = array();
 	$none = Translator::translate( 'bdt-animated-card', array() );
-	$check( '' === Demo_Media::ep_assets_url() && '' === $none['image']['url'], 'sin Element Pack instalado: vacía (nunca «images/coco-can.svg» suelto)' );
+	$placeholder = \Elementor\Utils::get_placeholder_image_src();
+	$check( '' === Demo_Media::ep_assets_url() && $placeholder === $none['image']['url'], 'sin Element Pack instalado: la imagen de ejemplo del constructor, como antes (nunca vacía ni «images/coco-can.svg» suelto)' );
 	$GLOBALS['wp']['plugins'] = $backup;
 	$check( 'x' === Demo_Media::expand( 'x' ) && array( 'a' => array( 'url' => $assets . 'i.png' ) ) === Demo_Media::expand( array( 'a' => array( 'url' => '{{ep_assets}}i.png' ) ) ), 'expand(): sólo el marcador, también anidado' );
 
@@ -171,10 +185,16 @@ namespace {
 
 	// Análisis (puro): nada se copia y la imagen queda vacía, informada.
 	list( $s, $codes ) = $convert( $card(), 'analysis' );
-	$check( '' === $s['image']['url'] && array() === $GLOBALS['ep_sideloads'] && isset( $codes['core.demo.skipped'] ), 'análisis: sin copias; vacía e informada' );
-	// Subida sin filtrar apagada: un SVG no se copia (K-D15).
+	$check( $placeholder === $s['image']['url'] && array() === $GLOBALS['ep_sideloads'] && isset( $codes['core.demo.placeholder'] ) && ! isset( $codes['core.demo.skipped'] ), 'análisis: sin copias; la imagen de ejemplo del constructor, informada' );
+	// Subida sin filtrar apagada (lo habitual): un SVG no se copia (K-D15). La tarjeta no se queda sin imagen, que es lo
+	// que hacía antes la conversión de esta rama: vuelve a la imagen de ejemplo del constructor, la de Migración 1.0.25.
 	list( $s, $codes ) = $convert( $card() );
-	$check( '' === $s['image']['url'] && array() === $GLOBALS['ep_sideloads'] && 1 === (int) ( $codes['core.demo.skipped']['count'] ?? 0 ) && 'bdt-animated-card' === ( $codes['core.demo.skipped']['widget'] ?? '' ), 'SVG sin la subida sin filtrar → vacía, sin copiar, core.demo.skipped' );
+	$check( $placeholder === $s['image']['url'] && '' === $s['image']['id'] && array() === $GLOBALS['ep_sideloads'] && 1 === (int) ( $codes['core.demo.placeholder']['count'] ?? 0 ) && 'bdt-animated-card' === ( $codes['core.demo.placeholder']['widget'] ?? '' ) && ! isset( $codes['core.demo.skipped'] ), 'SVG sin la subida sin filtrar → la imagen de ejemplo del constructor (nunca vacía), sin copiar, core.demo.placeholder' );
+	list( $s ) = $convert( $card( array(), 'c7' ), 'editor' );
+	$check( $placeholder === $s['image']['url'] && array() === $GLOBALS['ep_sideloads'], 'editor (puro) sin copia: la imagen de ejemplo del constructor' );
+	// Una URL guardada que no se copia no es un valor por defecto: se vacía (F8-D17), como las de Prime Slider.
+	list( $s, $codes ) = $convert( $card( array( 'image' => array( 'url' => $assets . 'images/coco-can.svg?v=1', 'id' => '' ) ) ) );
+	$check( '' === $s['image']['url'] && 1 === (int) ( $codes['core.demo.skipped']['count'] ?? 0 ) && ! isset( $codes['core.demo.placeholder'] ), 'URL guardada sin copia: vacía e informada (core.demo.skipped)' );
 	// Encendida: el análisis (antes del clic) no copia, pero informa la copia prevista, nunca una imagen perdida.
 	update_option( 'elementor_unfiltered_files_upload', '1' );
 	list( $s, $codes ) = $convert( $card(), 'analysis' );
@@ -259,7 +279,7 @@ namespace {
 	/* ---------------------------------------------------------------- Informe y reversión */
 
 	$catalog = Report::catalog();
-	$check( isset( $catalog['core.demo.copied'], $catalog['core.demo.skipped'], $catalog['core.demo.reverted'], $catalog['core.demo.revert_kept'] ) && ! empty( $catalog['core.demo.skipped']['review_if_published'] ), 'códigos core.demo.* en el catálogo; vaciada revisable si está publicada' );
+	$check( isset( $catalog['core.demo.copied'], $catalog['core.demo.skipped'], $catalog['core.demo.placeholder'], $catalog['core.demo.reverted'], $catalog['core.demo.revert_kept'] ) && ! empty( $catalog['core.demo.skipped']['review_if_published'] ) && ! empty( $catalog['core.demo.placeholder']['review_if_published'] ), 'códigos core.demo.* en el catálogo; vaciada o con la imagen de ejemplo, revisable si está publicada' );
 	if ( class_exists( $registry ) ) {
 		$codes = Demo_Media::revert();
 		$check( array() === (array) $registry::all( 'demo' ) && count( $codes ) >= 2 && array( 'core.demo.revert_kept' ) === array_values( array_unique( array_column( $codes, 0 ) ) ), 'revert(): sin papelera de medios las copias de Element Pack se quedan (core.demo.revert_kept) y el registro se olvida' );
@@ -270,5 +290,5 @@ namespace {
 	$check( BDTEP_ASSETS_URL === Demo_Media::ep_assets_url() && BDTEP_ASSETS_URL . 'images/coco-can.svg' === Translator::translate( 'bdt-animated-card', array() )['image']['url'], 'con Element Pack cargado, su BDTEP_ASSETS_URL' );
 
 	ep_rm( sys_get_temp_dir() . '/ep-demo-tmp' );
-	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 30 );
+	f8_done( 'DIGITALÍSIMO Migración: imágenes de ejemplo de Element Pack en Medios', 32 );
 }

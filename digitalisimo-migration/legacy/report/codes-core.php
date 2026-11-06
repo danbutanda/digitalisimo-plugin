@@ -17,6 +17,7 @@ return array(
 	// Imágenes de ejemplo de Element Pack (F8-D17, Demo_Media).
 	'core.demo.copied'         => array( 'section' => 'created', 'label' => __( 'Imágenes de ejemplo de Element Pack copiadas a la biblioteca de medios (la carpeta del plugin no se usa)', 'digitalisimo-migration' ) ),
 	'core.demo.skipped'        => array( 'section' => 'dropped', 'review_if_published' => true, 'label' => __( 'Imágenes de ejemplo de Element Pack que no se pudieron copiar (plugin borrado, archivo que falta o SVG sin la subida sin filtrar): la imagen queda vacía', 'digitalisimo-migration' ) ),
+	'core.demo.placeholder'    => array( 'section' => 'approx', 'review_if_published' => true, 'label' => __( 'Imágenes de ejemplo de Element Pack que no se pudieron copiar a la biblioteca de medios (SVG sin la subida sin filtrar, o plugin borrado): se usa la imagen de ejemplo del constructor, como en las versiones anteriores', 'digitalisimo-migration' ) ),
 	'core.demo.reverted'       => array( 'section' => 'converted', 'label' => __( 'Imagen de ejemplo de Element Pack copiada, enviada a la papelera de medios al revertir', 'digitalisimo-migration' ) ),
 	'core.demo.revert_kept'    => array( 'section' => 'review', 'label' => __( 'Imagen de ejemplo de Element Pack copiada que se conserva en la biblioteca (cambió o no hay papelera de medios)', 'digitalisimo-migration' ) ),
 	// Tarea y etapas.

@@ -165,7 +165,8 @@ foreach ( array( 1, 2 ) as $blog ) {
 	update_option( 'elementor_element_cache_ttl', 'disable' );
 	update_option( 'elementor_onboarded', true );
 	// Subida de SVG sin filtrar encendida (como en f8/p0.php): la migración copia a Medios las imágenes de ejemplo de
-	// Element Pack, que son SVG (la lata de Animated Card); apagada se vacían y se informan (K-D15).
+	// Element Pack, que son SVG (la lata de Animated Card); apagada no se copian (K-D15) y la lata vuelve a la imagen
+	// de ejemplo del constructor (`core.demo.placeholder`), lo que prueba migration-ep-demo.php.
 	update_option( 'elementor_unfiltered_files_upload', 1 );
 	foreach ( $pages as $slug => $page ) {
 		if ( get_page_by_path( $slug ) || ( ! empty( $page['blogs'] ) && ! in_array( $blog, $page['blogs'], true ) ) ) {

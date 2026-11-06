@@ -27,6 +27,9 @@ defined( 'ABSPATH' ) || exit;
  * - **Pureza:** con `Context::pure()` (editor y análisis) nunca copia: reutiliza lo ya copiado (sólo lectura) y deja
  *   vacío lo demás. El análisis cuenta además en `$planned` lo que la tarea sí copiaría.
  * - **Ausente:** plugin borrado, archivo que falta o rechazado → vacío (`ps.demo.skipped` / `core.demo.skipped`).
+ * - **Valor por defecto de un mapa de Element Pack** (`{{ep_assets}}`) que no se copia (SVG con la subida sin filtrar
+ *   apagada, que es lo habitual, o Element Pack ya borrado): la imagen de ejemplo del constructor, la de la conversión
+ *   anterior (Migración ≤ 1.0.25), nunca una imagen vacía donde antes había una (`core.demo.placeholder`).
  *
  * `Prime_Slider\Demo_Media` (su nombre de siempre) la extiende sin cambios.
  */
@@ -68,6 +71,17 @@ class Demo_Media {
 	 * cuenta como copias previstas, no como imágenes perdidas.
 	 */
 	public static $planned = 0;
+	/**
+	 * @var int Valores por defecto de Element Pack que no se copiaron y quedan con la imagen de ejemplo del constructor
+	 * (no cuentan como vaciadas).
+	 */
+	public static $placeholder = 0;
+
+	/**
+	 * @var array<string, true> URL de Element Pack que `expand()` puso desde un valor por defecto de un mapa (no guardada
+	 * por el usuario), en esta petición.
+	 */
+	private static $defaults = array();
 
 	/**
 	 * @var array<string, int> «sitio:sha256» → adjunto, en esta petición. Por sitio: una petición puede convertir varios
@@ -79,8 +93,9 @@ class Demo_Media {
 	public static function resolve( string $id, array $settings ): array {
 		self::$copied  = 0;
 		self::$reused  = 0;
-		self::$skipped = 0;
-		self::$planned = 0;
+		self::$skipped     = 0;
+		self::$planned     = 0;
+		self::$placeholder = 0;
 		return self::walk( $settings );
 	}
 
@@ -88,19 +103,42 @@ class Demo_Media {
 		foreach ( $values as $key => $value ) {
 			if ( is_array( $value ) && isset( $value['url'] ) && is_string( $value['url'] ) ) {
 				if ( self::is_plugin_url( $value['url'] ) ) {
-					$media          = self::media( $value['url'] );
-					$values[ $key ] = $media ? array_merge( $value, $media ) : array_merge( $value, array( 'url' => '', 'id' => '' ) );
+					$values[ $key ] = array_merge( $value, self::replace( $value['url'] ) );
 				}
 				continue;
 			}
 			if ( is_array( $value ) ) {
 				$values[ $key ] = self::walk( $value );
 			} elseif ( is_string( $value ) && self::is_plugin_url( $value ) ) {
-				$media          = self::media( $value );
-				$values[ $key ] = $media ? $media['url'] : '';
+				$values[ $key ] = self::replace( $value )['url'];
 			}
 		}
 		return $values;
+	}
+
+	/**
+	 * `{id, url}` que sustituye a una URL de la carpeta del plugin: su copia en Medios o, si no se copia, vacía. Un valor
+	 * por defecto de un mapa de Element Pack (`expand()`) que no se copia vuelve a la imagen de ejemplo del constructor,
+	 * la de la conversión anterior, y se cuenta aparte (`$placeholder`), no como vaciado. En el análisis, lo que la tarea
+	 * sí copiaría (`$planned`) sigue vacío y contado como copia prevista.
+	 */
+	private static function replace( string $url ): array {
+		$planned = self::$planned;
+		$media   = self::media( $url );
+		if ( $media ) {
+			return $media;
+		}
+		$fallback = isset( self::$defaults[ $url ] ) && self::$planned === $planned ? self::placeholder() : '';
+		if ( '' !== $fallback ) {
+			--self::$skipped;
+			++self::$placeholder;
+		}
+		return array( 'id' => '', 'url' => $fallback );
+	}
+
+	/** Imagen de ejemplo del constructor ('' sin el núcleo cargado). */
+	private static function placeholder(): string {
+		return class_exists( '\Elementor\Utils' ) && method_exists( '\Elementor\Utils', 'get_placeholder_image_src' ) ? (string) \Elementor\Utils::get_placeholder_image_src() : '';
 	}
 
 	/** ¿URL bajo la carpeta de una familia (por su nombre conocido o por la de un plugin suyo instalado)? */
@@ -183,7 +221,9 @@ class Demo_Media {
 	}
 
 	/**
-	 * Valor por defecto con `{{ep_assets}}` resuelto ('' si no hay Element Pack instalado: nunca una URL a medias).
+	 * Valor por defecto con `{{ep_assets}}` resuelto. Sin Element Pack instalado, la imagen de ejemplo del constructor (la
+	 * conversión anterior), nunca una URL a medias. La URL resuelta se anota como valor por defecto: si no se puede copiar,
+	 * `replace()` vuelve a esa misma imagen de ejemplo.
 	 *
 	 * En un documento migrado con 1.0.20 (modo restringido, `Native::$restricted`) la conversión no copia nada a Medios
 	 * y debe ser la de 1.0.20: allí estos valores eran la imagen de ejemplo del constructor, así que se devuelve ésa y
@@ -197,10 +237,15 @@ class Demo_Media {
 			return $value;
 		}
 		if ( class_exists( Native::class, false ) && Native::$restricted ) {
-			return class_exists( '\Elementor\Utils' ) ? (string) \Elementor\Utils::get_placeholder_image_src() : '';
+			return self::placeholder();
 		}
 		$assets = self::ep_assets_url();
-		return '' === $assets ? '' : str_replace( self::EP_ASSETS, $assets, $value );
+		if ( '' === $assets ) {
+			return self::placeholder();
+		}
+		$url                    = str_replace( self::EP_ASSETS, $assets, $value );
+		self::$defaults[ $url ] = true;
+		return $url;
 	}
 
 	/** Adjunto (`{id, url}`) de la imagen de una URL de demostración, o null si no se copia. */
@@ -508,10 +553,12 @@ class Demo_Media {
 
 	/** Olvida lo copiado en esta petición (pruebas). */
 	public static function reset(): void {
-		self::$done    = array();
-		self::$copied  = 0;
-		self::$reused  = 0;
-		self::$skipped = 0;
-		self::$planned = 0;
+		self::$done        = array();
+		self::$defaults    = array();
+		self::$copied      = 0;
+		self::$reused      = 0;
+		self::$skipped     = 0;
+		self::$planned     = 0;
+		self::$placeholder = 0;
 	}
 }
