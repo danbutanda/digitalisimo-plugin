@@ -1,0 +1,181 @@
+{
+ "_doc": [
+  "Casos A/B del Inicio de sesión (C6, docs/pro/c6.md): A con `login` de PRO, B con `digitalisimo-login`. El visitante del arnés no tiene sesión iniciada, así que se mide el formulario; el sitio de prueba no admite registros, así que el enlace «Registrarse» no aparece en ninguno de los dos (el marcado con registro lo comprueba tests/elements-pro-login.php).",
+  "Los textos fijos del widget (no son ajustes: «Recordarme», «¿Olvidaste tu contraseña?») son los propios en español; los textos por defecto que sí son ajustes (botón, etiquetas y textos de ejemplo) llegan con los de PRO porque el mapa los completa."
+ ],
+ "declared": [
+  {
+   "widget": "login",
+   "kind": "foco",
+   "match": "^outline(-offset|-color|-style|-width)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  },
+  {
+   "widget": "login",
+   "kind": "palabra",
+   "match": "^(perdida «(remember|me|lost|your|password)»|nueva «(recordarme|olvidaste|tu|contraseña)»)$",
+   "reason": "Textos fijos del widget (no son ajustes de PRO): los del widget propio, en español y traducibles con el dominio pro-elements; los de PRO salen de su traducción al idioma del sitio (el de prueba está en inglés)."
+  },
+  {
+   "widget": "login",
+   "kind": "nombre",
+   "match": "^(perdido link «Lost your password\\?»|nuevo link «¿Olvidaste tu contraseña\\?»)$",
+   "reason": "El enlace de contraseña perdida lleva el texto propio en español (mismo destino, wp_lostpassword_url() con la redirección)."
+  },
+  {
+   "widget": "login",
+   "kind": "estilo",
+   "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
+   "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible."
+  }
+ ],
+ "cases": {
+  "login-defaults": {
+   "title": "Valores por defecto (etiquetas, Recordarme y contraseña perdida)",
+   "widget": "login",
+   "settings": {},
+   "pixels": {
+    "max": 0.08,
+    "reason": "«Recordarme» y «¿Olvidaste tu contraseña?» son textos propios en español (otra longitud), y el enlace y la casilla tienen un objetivo de 24 px de alto (WCAG 2.5.8), que baja unos píxeles lo que sigue."
+   }
+  },
+  "login-bare": {
+   "title": "Sin etiquetas visibles, sin Recordarme ni enlaces, textos de ejemplo propios",
+   "widget": "login",
+   "settings": {
+    "show_labels": "",
+    "show_lost_password": "",
+    "show_remember_me": "",
+    "custom_labels": "yes",
+    "user_placeholder": "Tu correo",
+    "password_placeholder": "Tu clave",
+    "button_text": "Entrar"
+   }
+  },
+  "login-labels": {
+   "title": "Etiquetas personalizadas con color, tipografía y espaciado; enlaces con color",
+   "widget": "login",
+   "settings": {
+    "custom_labels": "yes",
+    "user_label": "Correo electrónico",
+    "password_label": "Clave de acceso",
+    "user_placeholder": "nombre@dominio.mx",
+    "password_placeholder": "Mínimo 8 caracteres",
+    "show_remember_me": "",
+    "label_spacing": {
+     "unit": "px",
+     "size": 8
+    },
+    "label_color": "#1b3a57",
+    "label_typography_typography": "custom",
+    "label_typography_font_weight": "700",
+    "label_typography_font_size": {
+     "unit": "px",
+     "size": 15
+    },
+    "links_color": "#c0392b",
+    "links_hover_color": "#7b241c",
+    "row_gap": {
+     "unit": "px",
+     "size": 18
+    }
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "«¿Olvidaste tu contraseña?» es el texto propio en español, con un objetivo de 24 px de alto (WCAG 2.5.8)."
+   }
+  },
+  "login-sizes": {
+   "title": "Campos grandes y botón mediano, colores y bordes de los campos",
+   "widget": "login",
+   "settings": {
+    "input_size": "lg",
+    "button_size": "md",
+    "show_remember_me": "",
+    "show_lost_password": "",
+    "field_text_color": "#222222",
+    "field_background_color": "#f4f6f8",
+    "field_border_color": "#8a99a8",
+    "field_border_width": {
+     "top": "0",
+     "right": "0",
+     "bottom": "2",
+     "left": "0",
+     "unit": "px",
+     "isLinked": false
+    },
+    "field_border_radius": {
+     "top": "0",
+     "right": "0",
+     "bottom": "0",
+     "left": "0",
+     "unit": "px",
+     "isLinked": true
+    },
+    "field_typography_typography": "custom",
+    "field_typography_font_size": {
+     "unit": "px",
+     "size": 17
+    }
+   }
+  },
+  "login-align": {
+   "title": "Botón centrado en escritorio, al final en tableta y estirado en móvil",
+   "widget": "login",
+   "settings": {
+    "align": "center",
+    "align_tablet": "end",
+    "align_mobile": "stretch",
+    "button_text": "Acceder a mi cuenta",
+    "show_remember_me": "",
+    "show_lost_password": ""
+   }
+  },
+  "login-button": {
+   "title": "Botón con degradado, borde, radio, relleno y colores al pasar el cursor",
+   "widget": "login",
+   "settings": {
+    "align": "stretch",
+    "show_remember_me": "",
+    "show_lost_password": "",
+    "button_text_color": "#ffffff",
+    "button_typography_typography": "custom",
+    "button_typography_text_transform": "uppercase",
+    "button_typography_font_weight": "600",
+    "button_background_background": "gradient",
+    "button_background_color": "#1e88e5",
+    "button_background_color_b": "#8e24aa",
+    "button_border_border": "solid",
+    "button_border_width": {
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "unit": "px",
+     "isLinked": true
+    },
+    "button_border_color": "#0d47a1",
+    "button_border_radius": {
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "unit": "px",
+     "isLinked": true
+    },
+    "button_text_padding": {
+     "top": "14",
+     "right": "28",
+     "bottom": "14",
+     "left": "28",
+     "unit": "px",
+     "isLinked": false
+    },
+    "button_hover_color": "#ffeb3b",
+    "button_background_hover_background": "classic",
+    "button_background_hover_color": "#311b92",
+    "button_hover_border_color": "#ffeb3b"
+   }
+  }
+ }
+}

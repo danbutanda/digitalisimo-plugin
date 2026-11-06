@@ -2860,7 +2860,9 @@
     "digitalisimo-portfolio": {"settings": {"columns": "3", "posts_per_page": 6, "posts_post_type": "post", "show_filter_bar": "yes", "taxonomy": "category"}},
     "digitalisimo-loop-grid": {"settings": {"template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post", "alternate_template": "yes", "alternate_templates": [{"_id": "d3e0001", "template_id": "@template:digi-k-loop-alterna", "repeat_template": 2, "show_once": ""}]}},
     "digitalisimo-loop-carousel": {"settings": {"template_id": "@template:digi-k-loop", "posts_per_page": 3, "post_query_post_type": "post", "slides_to_show": "2"}},
-    "digitalisimo-taxonomy-filter": {"settings": {"taxonomy": "category", "first_item_title": "Todo el kit"}}
+    "digitalisimo-taxonomy-filter": {"settings": {"taxonomy": "category", "first_item_title": "Todo el kit"}},
+    "digitalisimo-form": { "settings": { "form_name": "Formulario del kit", "form_fields": [{ "_id": "kf0001", "custom_id": "name", "field_type": "text", "field_label": "Nombre", "required": "true" }, { "_id": "kf0002", "custom_id": "email", "field_type": "email", "field_label": "Correo" }], "button_text": "Enviar", "submit_actions": ["save-to-database"] } },
+    "digitalisimo-login": { "settings": { "button_text": "Entrar del kit", "show_lost_password": "yes", "custom_labels": "yes", "user_label": "Usuario del kit" } }
   },
   "traits": {
     "backdrop-filter": {

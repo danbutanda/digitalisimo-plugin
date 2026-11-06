@@ -94,6 +94,9 @@ jobs:
           php tests/elements-pro-posts.php
           node tests/elements-pro-posts-chrome.mjs
           php tests/elements-pro-loop.php
+          php tests/elements-pro-form.php
+          php tests/elements-pro-login.php
+          node tests/elements-pro-form-chrome.mjs
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php

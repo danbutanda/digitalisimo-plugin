@@ -68,6 +68,10 @@
 # de archivo, con la página `/N/` como `paged`) y, en los hermanos `before`/`after`, `"$self"` (el ID del widget medido:
 # un filtro que apunta al bucle del caso). En `actions`, `page: true` (el selector es relativo a la página, no al widget:
 # el filtro hermano) y `scroll: true` (lleva el selector a la vista en lugar de pulsarlo: desplazamiento infinito).
+# C6 (formularios: `cases/form.json` y `cases/login.json`) no añade opciones: los pasos del Formulario de PRO se arman en
+# el navegador (`ready.a`) y el propio los pinta el servidor; el Inicio de sesión se mide sin sesión iniciada. Los envíos
+# (ninguno se pierde ni se duplica, con las acciones guardar, correo y webhook) no se miden aquí, sino de punta a punta
+# con tests/playground/pro-form-e2e.sh.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

@@ -107,8 +107,8 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | **Sustituido** | Filtro de taxonomías (`digitalisimo-taxonomy-filter`), C5 |
 | C5 | `posts` | `portfolio` | Portfolio | **Sustituido** | Portafolio (`digitalisimo-portfolio`), C5 |
 | C5 | `posts` | `posts` | Posts | **Sustituido** | Entradas (`digitalisimo-posts`), C5 |
-| C6 | `forms` | `form` | Form | Nuevo |  |
-| C6 | `forms` | `login` | Login | Nuevo |  |
+| C6 | `forms` | `form` | Form | **Sustituido** | Formulario (`digitalisimo-form`), C6; envía por la misma tubería del constructor |
+| C6 | `forms` | `login` | Login | **Sustituido** | Inicio de sesión (`digitalisimo-login`), C6 |
 | C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | Nuevo |  |
 | C7 | `woocommerce` | `wc-archive-products` | Archive Products | Nuevo |  |
 | C7 | `woocommerce` | `wc-categories` | Product Categories | Nuevo |  |
@@ -175,5 +175,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C3 | **Publicado** · Elements 4.3.0.176 · `v2026.11.05.452` (Migración sin cambios: la 1.0.24 convierte con los mapas de Elements). Cuatro widgets de navegación propios en `modules/digitalisimo-navigation/` (Menú de WordPress, Menú con submenús de contenido, Panel fuera de lienzo y Búsqueda) sin jQuery, SmartMenus ni los paquetes de PRO, con sus mapas listos y fuera del panel; el Navbar y el Mega Menu de Element Pack llegan al Menú propio en la misma pasada de «Migrar». La familia C3 queda sustituida entera. Detalle en `docs/pro/c3.md` |
 | C4 | **Publicado** · Elements 4.3.0.175 · `v2026.11.05.451` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
 | C5 | **Publicado** · Elements 4.3.0.177 · `v2026.11.06.454` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo, también lo que F8 lleva a Posts, Loop Grid y Loop Carousel). Seis widgets de entradas y bucles propios en `modules/digitalisimo-loop/` (Entradas, Entradas del archivo, Portafolio, Cuadrícula de bucle, Carrusel de bucle y Filtro de taxonomías) con sus mapas listos y fuera del panel, la misma consulta, las mismas plantillas de Elemento de bucle y las consultas guardadas y los filtros de F7b sobre los propios; con ellos, la familia C5 queda sustituida entera (y, de C4, Entradas del archivo). Detalle en `docs/pro/c5.md` |
-| C6–C9 | Pendientes |
+| C6 | **Publicado** · Elements @NEXT_ELEMENTS@ · `@C6_TAG@` (Migración no cambia: su etapa `pro` ya convierte todo widget con mapa listo). Formulario e Inicio de sesión propios (`modules/digitalisimo-forms/`) con todos los controles de PRO, también los de cada acción registrada, que envían por la misma tubería del constructor (misma acción AJAX, mismos parámetros, mismo `form_id`): envíos guardados, acciones, integraciones y campos condicionales de F7b sin cambios, y ningún envío se pierde ni se duplica (`pro-form-e2e.sh`). Sus mapas están listos y los de PRO salen del panel; con ellos la familia C6 queda sustituida entera. Detalle en `docs/pro/c6.md` |
+| C7–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |
