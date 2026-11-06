@@ -158,9 +158,18 @@ class Digitalisimo_AI {
 	public static function chat( $request ) {
 		if ( ! self::get( 'chat_enabled' ) ) return new WP_Error( 'disabled', 'Chatbot desactivado', array( 'status' => 403 ) ); $message = trim( (string) $request['message'] ); if ( strlen( $message ) > 1200 ) return new WP_Error( 'message_length', 'El mensaje es demasiado largo.', array( 'status' => 400 ) );
 		$key = 'digitalisimo_ai_rate_' . md5( $_SERVER['REMOTE_ADDR'] ?? '' ); $count = (int) get_transient( $key ); if ( $count >= 12 ) return new WP_Error( 'rate', 'Intenta más tarde.', array( 'status' => 429 ) ); set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
-		$posts = get_posts( array( 'post_status' => 'publish', 'posts_per_page' => max( 1, min( 10, (int) self::get( 'context_posts' ) ) ) ) ); $context = 'Contexto público del sitio:'; foreach ( $posts as $post ) $context .= "\n" . $post->post_title . ': ' . wp_trim_words( wp_strip_all_tags( $post->post_content ), 70 ); $context = apply_filters( 'digitalisimo_ai_context', $context, 'chatbot', $request );
-		$answer = self::complete( 'chatbot', $message, $context ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) );
+		$posts = get_posts( array( 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => max( 1, min( 10, (int) self::get( 'context_posts' ) ) ) ) ); $context = 'Contexto público del sitio:'; foreach ( $posts as $post ) $context .= "\n" . $post->post_title . ': ' . wp_trim_words( wp_strip_all_tags( $post->post_content ), 70 ); $context = apply_filters( 'digitalisimo_ai_context', $context, 'chatbot', $request );
+		// El visitante sólo recibe un aviso genérico: el código del proveedor queda en el registro de uso, no en el front.
+		$answer = self::complete( 'chatbot', $message, $context ); $answer = is_wp_error( $answer ) ? '' : self::plain_text( $answer );
+		if ( '' === $answer ) return new WP_Error( 'provider', 'No fue posible responder en este momento.', array( 'status' => 502 ) );
+		return rest_ensure_response( array( 'answer' => $answer, 'format' => 'text' ) );
 	}
+	/**
+	 * La respuesta del modelo es texto, nunca HTML confiable: puede traer etiquetas copiadas del contenido o inducidas por
+	 * prompt injection. Se quitan etiquetas (con el contenido de script y style) y caracteres de control, y se conservan los
+	 * saltos de línea; el navegador la pinta con nodos de texto.
+	 */
+	public static function plain_text( $text ) { $text = wp_strip_all_tags( str_replace( array( "\r\n", "\r" ), "\n", (string) $text ) ); return trim( (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text ) ); }
 	public static function complete_api( $request ) { $profile = sanitize_key( $request->get_param( 'profile' ) ?: 'content' ); $prompt = sanitize_textarea_field( $request->get_param( 'prompt' ) ); if ( ! $prompt ) return new WP_Error( 'prompt', 'Escribe una instrucción.', array( 'status' => 400 ) ); $context = class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::context( $prompt, (int) self::get( 'knowledge_results' ) ?: 4 ) : ''; $answer = self::complete( $profile, $prompt, $context ); return is_wp_error( $answer ) ? $answer : rest_ensure_response( array( 'answer' => $answer ) ); }
 	public static function knowledge_search_api( $request ) { if ( ! class_exists( 'Digitalisimo_AI_Knowledge' ) ) return new WP_Error( 'knowledge', 'Base de conocimiento no disponible.', array( 'status' => 404 ) ); return rest_ensure_response( Digitalisimo_AI_Knowledge::search( $request->get_param( 'q' ), (int) self::get( 'knowledge_results' ) ?: 4 ) ); }
 	public static function knowledge_sources_api() { return rest_ensure_response( class_exists( 'Digitalisimo_AI_Knowledge' ) ? Digitalisimo_AI_Knowledge::sources() : array() ); }

@@ -18,9 +18,12 @@ class Digitalisimo_AI_Knowledge {
 	private static function enabled() { return (bool) Digitalisimo_AI::get( 'knowledge_enabled' ); }
 	private static function index() { return (array) get_option( self::OPTION, array() ); }
 	private static function save( $index ) { update_option( self::OPTION, $index, false ); }
+	/** Sólo contenido público: de un tipo público (como en rebuild()), publicado, sin contraseña y sin noindex. Lo protegido nunca llega al chatbot. */
 	private static function allowed( $post ) {
+		if ( ! $post instanceof WP_Post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) return false;
+		$type = get_post_type_object( $post->post_type ); if ( ! $type || empty( $type->public ) ) return false;
 		$robots = (array) get_post_meta( $post->ID, 'digitalisimo_seo_robots', true );
-		return $post instanceof WP_Post && 'publish' === $post->post_status && post_type_supports( $post->post_type, 'editor' ) && ! in_array( 'noindex', $robots, true );
+		return post_type_supports( $post->post_type, 'editor' ) && ! in_array( 'noindex', $robots, true );
 	}
 	private static function tokens( $text ) {
 		$text = remove_accents( strtolower( wp_strip_all_tags( (string) $text ) ) );
@@ -106,7 +109,10 @@ class Digitalisimo_AI_Knowledge {
 		$matches = array();
 		foreach ( self::index() as $record ) { $lexical = self::score( $query_tokens, $record ); $semantic = $query_embedding && ! empty( $record['embedding'] ) ? self::cosine( $query_embedding, $record['embedding'] ) : 0.0; $score = $lexical + ( 8 * $semantic ); if ( $score > 0 ) { $record['score'] = $score; $record['semantic_score'] = $semantic; $matches[] = $record; } }
 		usort( $matches, function( $a, $b ) { return $b['score'] <=> $a['score']; } );
-		return array_slice( $matches, 0, max( 1, min( 8, absint( $limit ) ) ) );
+		// Un índice anterior puede conservar contenido que después pasó a privado o recibió contraseña: se comprueba al usarlo.
+		$limit = max( 1, min( 8, absint( $limit ) ) ); $results = array();
+		foreach ( $matches as $record ) { if ( count( $results ) >= $limit ) break; if ( self::allowed( get_post( absint( $record['id'] ?? 0 ) ) ) ) $results[] = $record; }
+		return $results;
 	}
 	public static function context( $query, $limit = 4 ) {
 		if ( ! self::enabled() ) return '';

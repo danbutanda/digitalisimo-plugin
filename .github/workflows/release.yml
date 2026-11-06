@@ -247,6 +247,8 @@ jobs:
           php tests/updater-manifest.php seo
           php tests/updater-manifest.php hosting
           php tests/updater-manifest.php ia
+          php tests/ia-chat-server.php
+          node tests/ia-chat-xss.mjs
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
@@ -312,6 +314,7 @@ jobs:
           php tests/seo-video.php
           php tests/seo-filter-hooks.php
           php tests/seo-url-bases.php
+          php tests/seo-product-schema.php
           php tests/robots.php
           php tests/seo-ai-robots.php
           # Tema DIGITALÍSIMO: estructura, actualizador, paso desde el tema anterior, índice de la Release y módulos que lo atienden.
