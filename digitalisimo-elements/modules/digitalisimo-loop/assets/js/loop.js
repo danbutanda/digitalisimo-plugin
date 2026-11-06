@@ -2,8 +2,9 @@
    (cada elemento sube lo que le sobra a su columna, con la separación de `--digi-masonry-gap` en px como el número del
    ajuste en PRO; columnas leídas de la rejilla calculada), «Cargar más» (el enlace de PRO, con su contenido como botón
    para el teclado: Intro y Espacio) y desplazamiento infinito, sin bibliotecas: piden la página siguiente
-   (`data-next-page`, del mismo sitio), añaden los elementos del mismo widget y lo anuncian en la región viva. API: `window.digiLoop = { masonry(box), scan(root) }`;
-   evento `digi-loop-loaded` (con burbuja, `detail.items`) en el widget tras añadir elementos. */
+   (`data-next-page`, del mismo sitio), añaden los elementos del mismo widget y lo anuncian en la región viva.
+   API: `window.digiLoop = { masonry(box), scan(root) }`; evento `digi-loop-loaded` (con burbuja, `detail.items`) en el
+   widget tras añadir elementos. */
 ((W, D) => {
 	'use strict';
 	if (W.digiLoop) return;
