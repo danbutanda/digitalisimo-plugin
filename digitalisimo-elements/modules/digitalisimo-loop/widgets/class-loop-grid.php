@@ -441,8 +441,9 @@ class Loop_Grid extends Loop_Base {
 				'size_units'         => array( 'px', 'em', 'rem', 'custom' ),
 				'range'              => $range,
 				'frontend_available' => true,
+				// `--digi-masonry-gap`: la separación de la mampostería, el número del ajuste en px como en PRO (`loop.js`).
 				'selectors'          => array(
-					'{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}',
+					'{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px',
 				),
 			)
 		);

@@ -80,9 +80,6 @@ return array(
 			'keep'   => array( 'template_id', 'repeat_template', 'show_once', 'column_span', 'static_position' ),
 		),
 	),
-	'approx'    => array(
-		'masonry' => 'Mampostería: la separación vertical entre los elementos de una columna es la de «Separación entre filas» (30 px por defecto, como la rejilla); PRO usaba 0 px cuando ese control no tenía valor propio.',
-	),
 	// Avisos, encabezados y controles que PRO registra y quita: no guardan valor.
 	'ui'        => array_merge(
 		array(

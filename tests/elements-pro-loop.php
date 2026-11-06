@@ -180,6 +180,14 @@ lp_check( 'selector .digi-crs__slide{opacity:1} selector .digi-crs__next{left:0}
 list( $flt ) = Translator::translate( $samples['taxonomy-filter'], Registry::map( 'taxonomy-filter', true ) );
 lp_check( 'selector .digi-tfilter .digi-tfilter__item[aria-pressed=true]{font-weight:700}' === $flt['custom_css'] && 'abc1234' === $flt['selected_element'], 'taxonomy-filter: CSS en clases propias y el mismo bucle enlazado: ' . $flt['custom_css'] );
 
+// Mampostería: la separación de PRO (el número de «Separación entre filas» en px; 0 sin valor) viaja en
+// `--digi-masonry-gap` junto a `--grid-row-gap`, y el envoltorio la reinicia (una cuadrícula anidada no hereda la de
+// fuera). El mapa ya no la declara como aproximación.
+$grid_php = (string) file_get_contents( $own . 'widgets/class-loop-grid.php' );
+lp_check( false !== strpos( $grid_php, "'{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px'," ), 'loop-grid: row_gap lleva la separación de la mampostería en px, en la misma regla' );
+lp_check( false !== strpos( (string) file_get_contents( $own . 'assets/css/loop-grid.css' ), '.elementor-widget-digitalisimo-loop-grid{scroll-margin-top:var(--digi-loop-scroll-offset,initial);--digi-masonry-gap:0px}' ), 'loop-grid.css: sin valor, la mampostería no deja separación (como PRO)' );
+lp_check( ! isset( Registry::map( 'loop-grid', true )['approx']['masonry'] ) && in_array( 'masonry', (array) Registry::map( 'loop-grid', true )['keep'], true ), 'loop-grid: la mampostería se conserva sin aproximación' );
+
 // 3. Widgets propios: nombres, títulos y registro del módulo.
 $module = (string) file_get_contents( $own . 'class-module.php' );
 foreach ( array( 'digitalisimo-loop-grid' => array( 'Loop_Grid', 'Cuadrícula de bucle' ), 'digitalisimo-loop-carousel' => array( 'Loop_Carousel', 'Carrusel de bucle' ), 'digitalisimo-taxonomy-filter' => array( 'Taxonomy_Filter', 'Filtro de taxonomías' ) ) as $name => list( $class, $title ) ) {

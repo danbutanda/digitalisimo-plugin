@@ -10,18 +10,6 @@
    "widget": "portfolio"
   },
   {
-   "kind": "palabra",
-   "match": "«(all|todos)»",
-   "reason": "Texto propio en español del filtro «Todos» (PRO: «All»).",
-   "widget": "portfolio"
-  },
-  {
-   "kind": "nombre",
-   "match": "All|Todos",
-   "reason": "Texto propio en español del filtro «Todos».",
-   "widget": "portfolio"
-  },
-  {
    "widget": "portfolio",
    "kind": "control",
    "match": "control (li|button) \\d+ sólo en [AB] \\((li|button)\\)",
@@ -32,17 +20,6 @@
    "kind": "nombre",
    "match": "nuevo button «",
    "reason": "Los botones del filtro tienen rol y nombre accesible; en PRO eran elementos de lista sin rol."
-  },
-  {
-   "widget": "portfolio",
-   "kind": "hover",
-   "reason": "El primer control del widget es otro: en B, el botón «Todos» del filtro (en A los elementos de lista no cuentan como controles y el arnés toma el primer enlace)."
-  },
-  {
-   "widget": "portfolio",
-   "kind": "foco",
-   "match": "^(color|border-color|outline):",
-   "reason": "El foco con teclado llega primero al botón «Todos» del filtro (en A, al primer enlace: los elementos de lista de PRO no son controles)."
   }
  ],
  "cases": {
@@ -120,7 +97,7 @@
    }
   },
   "pf-filter": {
-   "title": "Barra de filtro por categoría",
+   "title": "Barra de filtro por categoría (cursor y foco sobre el primer botón del filtro en A y en B)",
    "widget": "portfolio",
    "posts": 9,
    "forbid": [
@@ -151,16 +128,43 @@
      "label": "filtrar por el segundo término",
      "a": ".elementor-portfolio__filter:nth-child(2)",
      "b": ".digi-portfolio__filters > li:nth-child(2) .digi-portfolio__filter",
-     "wait": 2000,
-     "pixels": {
-      "max": 0.04,
-      "reason": "«Todos» (B) y «All» (A) tienen otro ancho y desplazan los demás botones de la barra; la rejilla filtrada es la misma."
-     }
+     "wait": 2000
     }
    ],
-   "pixels": {
-    "max": 0.12,
-    "reason": "El cursor se pone sobre el primer control de cada widget: en B, el botón «Todos» del filtro; en A (cuyos filtros no son controles), el primer elemento del portafolio, que muestra su capa. Sin cursor y tras filtrar, por debajo del 2 %."
+   "control": {
+    "a": ".elementor-portfolio__filter",
+    "b": ".digi-portfolio__filter"
+   }
+  },
+  "pf-masonry-gap": {
+   "title": "Mampostería con sólo «Separación» (item_gap, oculto) de 12 px: PRO la usa sin «Separación entre filas»",
+   "widget": "portfolio",
+   "posts": 9,
+   "forbid": [
+    {
+     "name": "widget-posts.min.css de PRO",
+     "id": "widget-posts-css",
+     "url": "/digitalisimo-elements/assets/css/widget-posts(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    }
+   ],
+   "settings": {
+    "masonry": "yes",
+    "item_gap": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "posts_per_page": 6
    }
   }
  }

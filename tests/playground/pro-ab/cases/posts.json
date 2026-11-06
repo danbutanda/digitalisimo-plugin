@@ -154,6 +154,22 @@
     "classic_excerpt_length": 12
    }
   },
+  "po-masonry-em": {
+   "title": "Clásica en mampostería con «Separación entre filas» de 2 em (PRO sube cada elemento con el número del ajuste en px: 2 px)",
+   "widget": "posts",
+   "posts": 9,
+   "settings": {
+    "_skin": "classic",
+    "classic_masonry": "yes",
+    "classic_posts_per_page": 6,
+    "classic_excerpt_length": 12,
+    "classic_row_gap": {
+     "unit": "em",
+     "size": 2,
+     "sizes": []
+    }
+   }
+  },
   "po-full": {
    "title": "Contenido completo con imagen, 2 entradas",
    "widget": "posts",
@@ -237,8 +253,8 @@
    "declared": [
     {
      "kind": "control",
-     "match": "control (a \\d+ sólo en A \\(a\\)|button 1 sólo en B \\(button\\))",
-     "reason": "«Cargar más» es un `<button>` (PRO: un enlace a «#»): accesible por teclado con su rol correcto."
+     "match": "control (a \\d+ sólo en A \\(a\\)|span 1 sólo en B \\(span\\))",
+     "reason": "«Cargar más» es el mismo enlace que en PRO (sin href ni tabindex, así que el tema y el kit lo pintan igual); el control para el teclado es su contenido (`role=\"button\"`, `tabindex=\"0\"`, Intro y Espacio), que PRO no ofrecía: el arnés lo cuenta como otro control."
     }
    ],
    "pixels": {

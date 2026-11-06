@@ -287,7 +287,7 @@ class Portfolio extends \Elementor\Widget_Base {
 				'label'              => esc_html__( 'Separación', 'pro-elements' ),
 				'type'               => Controls_Manager::SLIDER,
 				'size_units'         => array( 'px', 'em', 'rem', 'custom' ),
-				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --grid-column-gap: {{SIZE}}{{UNIT}};' ),
+				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --grid-column-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px;' ),
 				'frontend_available' => true,
 				'classes'            => 'elementor-hidden',
 			)
@@ -320,7 +320,9 @@ class Portfolio extends \Elementor\Widget_Base {
 					'rem' => array( 'max' => 10 ),
 				),
 				'frontend_available' => true,
-				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}' ),
+				// `--digi-masonry-gap` (mampostería, en px como en PRO): `row_gap` se registra después de `item_gap` y gana, como
+				// en PRO, donde `item_gap` sólo cuenta si `row_gap` está vacío.
+				'selectors'          => array( '{{WRAPPER}}' => '--grid-row-gap: {{SIZE}}{{UNIT}}; --digi-masonry-gap: {{SIZE}}px' ),
 			)
 		);
 

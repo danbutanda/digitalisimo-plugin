@@ -167,7 +167,7 @@ $html = digi_loop_render( array( digi_loop_widget( 'g000003', 'digitalisimo-loop
 digi_loop_ok( false !== strpos( $html, 'data-digi-ajax="scroll"' ) && (bool) preg_match( '/href="[^"]*e-page-g000003=2/', $html ), 'Cuadrícula: paginación sin recargar marcada para loop-grid.js, con e-page-<id> como PRO' );
 
 $html = digi_loop_render( array( digi_loop_widget( 'g000004', 'digitalisimo-loop-grid', array( 'template_id' => $card, 'posts_per_page' => 4, 'pagination_type' => 'load_more_on_click' ) ) ), 'grid-more' );
-digi_loop_ok( (bool) preg_match( '/class="digi-loop__anchor" data-page="1" data-max-page="3" data-next-page="[^"]+"/', $html ) && false !== strpos( $html, '<button type="button" class="elementor-button' ), 'Cuadrícula: «Cargar más» con ancla y botón de la base común' );
+digi_loop_ok( (bool) preg_match( '/class="digi-loop__anchor" data-page="1" data-max-page="3" data-next-page="[^"]+"/', $html ) && (bool) preg_match( '/<div class="digi-loop__more elementor-button-wrapper"><a class="elementor-button[^"]*"><span class="elementor-button-content-wrapper" role="button" tabindex="0">/', $html ), 'Cuadrícula: «Cargar más» con ancla y el enlace de PRO de la base común (su contenido es el botón del teclado)' );
 
 $html = digi_loop_render(
 	array(
