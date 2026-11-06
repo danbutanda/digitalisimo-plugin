@@ -153,6 +153,24 @@ try {
   check(/^digitalisimo-backup-.+\.zip$/.test(created) && !out.fatal, `wp digitalisimo-backups create --porcelain (${Math.round((Date.now() - started) / 1000)} s)`, out.stdout + out.stderr + out.fatal);
   res = await api('GET', '/backups', { headers: basic('admin') });
   check(res.json?.[0]?.file === created && res.json?.[0]?.policy === 'manual', 'el respaldo de WP-CLI aparece primero en el historial de REST', res.text);
+  if (network) {
+    // Un subsitio con upload_path propio fuera de ABSPATH (Red → Sitios → Editar → Ajustes): sus medios quedarían fuera
+    // del ZIP, así que el estado y la creación lo rechazan con el sitio y el ajuste. Después vuelve su valor.
+    const sub = `--url=http://${host}/uno/`;
+    const previous = (await wp(sub, 'option', 'get', 'upload_path')).stdout.trim();
+    out = await wp(sub, 'eval', "wp_mkdir_p( '/digi-probe/medios-uno/sites/' . get_current_blog_id() ); update_option( 'upload_path', '/digi-probe/medios-uno' ); echo wp_upload_dir( null, false )['basedir'];");
+    const basedir = out.stdout.trim();
+    out = await wp('digitalisimo-backups', 'status', '--format=json');
+    try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
+    const problem = (parsed?.problems || []).find((text) => /^La carpeta de medios del sitio \d+ \(la opción upload_path de ese sitio\) está en /.test(text)) || '';
+    check(parsed?.ready === false && /^\/digi-probe\/medios-uno\/sites\/\d+$/.test(basedir) && problem.includes(`está en ${basedir}, fuera`), 'red: los medios de un subsitio fuera de ABSPATH se rechazan donde WordPress los guarda', `${basedir} · ${out.stdout}${out.stderr}`);
+    res = await api('POST', '/backups', { headers: basic('admin'), body: { network: true } });
+    check(res.status === 422 && res.json?.code === 'digitalisimo_backups_not_ready' && res.json?.message === problem, 'red: POST /backups con esos medios responde 422 sin exportar', `${res.status} ${res.text}`);
+    await wp(sub, 'option', 'update', 'upload_path', previous);
+    out = await wp('digitalisimo-backups', 'status', '--format=json');
+    try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
+    check(parsed?.ready === true, 'red: con el upload_path original la red vuelve a estar lista', out.stdout + out.stderr);
+  }
 } catch (error) {
   failures++;
   log(`FALLA · excepción · ${error.stack || error}`);
