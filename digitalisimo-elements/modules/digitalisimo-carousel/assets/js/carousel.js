@@ -1,6 +1,6 @@
 /* DIGITALÍSIMO Elements · motor de carrusel digi-crs (C1); ver class-engine.php. */
 (()=>{
-const W=window,D=document,M=Math,A=M.abs,R='digi-crs',E=R+'-',C=R+'__',cs=getComputedStyle,moves=()=>!W.matchMedia?.('(prefers-reduced-motion:reduce)').matches,each=(l,f)=>[].forEach.call(l,f),sa=(e,a,v)=>e?.setAttribute(a,v),F=()=>W.elementorFrontend;
+const W=window,D=document,M=Math,A=M.abs,R='digi-crs',E=R+'-',C=R+'__',cs=getComputedStyle,moves=()=>!W.matchMedia?.('(prefers-reduced-motion:reduce)').matches,each=(l,f)=>[].forEach.call(l,f),sa=(e,a,v)=>e?.setAttribute(a,v),F=()=>W.elementorFrontend,X='.swiper-no-swiping';
 let io,ro;
 const init=root=>{
 const cl=root?.classList,kid=n=>root.querySelector(':scope>.'+C+n),attr=n=>root.getAttribute('data-digi-'+n),T=kid('track');
@@ -23,24 +23,24 @@ each(dots,(d,k)=>{d.hidden=k>=N;k==p?sa(d,'aria-current','true'):d.removeAttribu
 if(now){now.textContent=p+1;total.textContent=N}
 if(fill)fill.style.width=(p+1)/N*100+'%';
 sa(prev,'aria-disabled',!loop&&p<1);sa(next,'aria-disabled',!loop&&p>=N-1);
-};
-const ss=v=>T.style.scrollSnapType=v,halt=()=>{cancelAnimationFrame(anim);anim=0;ss('')},glide=jump=>{
+},
+ss=v=>T.style.scrollSnapType=v,halt=()=>{cancelAnimationFrame(anim);anim=0;ss('')},glide=jump=>{
 const x=off(cur),from=T.scrollLeft,sp=css('speed'),ms=jump||D.hidden||!moves()?0:parseFloat(sp)*(/ms/.test(sp)?1:1e3)||0,t0=performance.now(),
 end=()=>{halt();T.scrollLeft=x},go=()=>anim=requestAnimationFrame(f),f=t=>{const k=M.min(1,(t-t0)/ms);T.scrollLeft=from+(x-from)*(k<.5?2*k*k:1-(2-2*k)**2/2);k<1?go():end()};
 halt();
 if(!ms||A(x-from)<1)return end();
 ss('none');
 go();
-};
-const fix=()=>{const k=lc+real(cur),x=off(k)-off(cur);if(x){anim&&(halt(),ss('none'));T.scrollLeft+=x;cur=k}return x};
-const to=(k,jump)=>{
+},
+fix=()=>{const k=lc+real(cur),x=off(k)-off(cur);if(x){anim&&(halt(),ss('none'));T.scrollLeft+=x;cur=k}return x},
+to=(k,jump)=>{
 const old=real(cur);paint(cur=k);
 fade?jump||cl.add(R+'--anim'):glide(jump);
 real(cur)!=old&&emit('change',{index:real(cur)});
 lc&&!ran++&&each(T.querySelectorAll(`.${C}clone.elementor-element,.${C}clone .elementor-element`),e=>F()?.elementsHandler?.runReadyTrigger(e));
-};
-const near=()=>{const x=A(T.scrollLeft),d=k=>A(A(off(k))-x);let b=cur;if(!fade)for(let k=0,N=lc?all.length:pages();k<N;k++){const t=lc?k:pos(k);lc&&real(k)%step||d(t)<d(b)&&(b=t)}return b};
-const mv=(d,auto)=>{const N=pages(),p=pg()+d,t=pos(loop||auto?(p%N+N)%N:p<0?0:p<N?p:N-1);fix();to(lc?cur+(t-real(cur)+d*n())%n():t)},
+},
+near=()=>{const x=A(T.scrollLeft),d=k=>A(A(off(k))-x);let b=cur;if(!fade)for(let k=0,N=lc?all.length:pages();k<N;k++){const t=lc?k:pos(k);lc&&real(k)%step||d(t)<d(b)&&(b=t)}return b},
+mv=(d,auto)=>{const N=pages(),p=pg()+d,t=pos(loop||auto?(p%N+N)%N:p<0?0:p<N?p:N-1);fix();to(lc?cur+(t-real(cur)+d*n())%n():t)},
 pa=p=>{fix();to(lc+pos(p))},
 sl=k=>{const c=cur;fix();k+=cur-c;lc&&(k-=real(k)%step)<0&&(k+=n());to(lc?k:pos(k>=max()?pages()-1:M.floor(k/step)))};
 const run=()=>{
@@ -88,7 +88,7 @@ on('focusin',e=>{focus=e.target!=pause;run()});
 on('focusout',e=>{if(!root.contains(e.relatedTarget)){focus=0;run()}});
 if(attr('hover'))for(const [t,v] of [['pointerenter',1],['pointerleave',0]])on(t,e=>{if(e.pointerType=='mouse'){held=v;run()}});
 for(const t of ['pointerdown','wheel','touchstart','keydown'])on(t,()=>{touch=1;halt()},T);
-on('pointerdown',e=>{if(e.pointerType=='mouse'&&!e.button&&!ed&&!e.target.closest('input,select,textarea,button,video,label')){e.preventDefault();g={x:e.clientX,t:e.timeStamp}}},T);
+on('pointerdown',e=>{if(e.pointerType=='mouse'&&!e.button&&!ed&&!e.target.closest('input,select,textarea,button,video,label,'+X)){e.preventDefault();g={x:e.clientX,t:e.timeStamp}}},T);
 on('pointermove',e=>{
 if(!g)return;
 if(!drag){if(A(e.clientX-g.x)<5)return;drag=moved=1;fix()&&paint();g.x=e.clientX;g.s=T.scrollLeft;T.setPointerCapture(e.pointerId);cl.add(R+'--drag');run()}
@@ -120,8 +120,8 @@ lost&&(dots[page]&&!dots[page].hidden?dots[page]:next)?.focus({preventScroll:tru
 },T);
 const api=root.digiCrs={go:i=>{i=+i||0;fix();let t=lc+i;lc&&(t+=n()*M.round((cur-t)/n()),t<0||t>all.length-view)&&(t=lc+i);sl(t);run()},index:()=>real(cur),count:()=>n(),fit,see:v=>{seen=v;run()}};
 on(E+'go',e=>e.target==root&&api.go(e.detail));
-on('click',e=>{const k=[].indexOf.call(all,e.target.closest?.('.'+C+'track>*'));if(k<0)return;main&&emit('go',real(k),main);if(attr('click')&&k!=cur){user();sl(k);run()}},T);
-try{main=D.querySelector(attr('sync'))}catch(x){}
+on('click',e=>{const k=[].indexOf.call(all,e.target.closest?.('.'+C+'track>*'));if(k<0||e.target.closest(X))return;main&&emit('go',real(k),main);if(attr('click')&&k!=cur){user();sl(k);run()}},T);
+try{main=D.querySelector(attr('sync'))}catch{}
 if(delay){
 on('visibilitychange',run,D);
 (io=io||new IntersectionObserver(l=>l.forEach(en=>en.target.digiCrs?.see(en.isIntersecting)))).observe(root);

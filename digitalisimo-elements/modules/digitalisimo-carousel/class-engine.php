@@ -98,7 +98,10 @@ defined( 'ABSPATH' ) || exit;
  * **Arrastre con el ratón** (como `simulateTouch` de Swiper, fuera del editor): la pista sigue al puntero y, al soltar,
  * va a la diapositiva más cercana, o a la siguiente o la anterior con un gesto de menos de 300 ms (con `data-digi-long`,
  * un gesto así vuelve a la actual); el clic que sigue a
- * un arrastre no llega a los enlaces ni al lightbox; empezar sobre un campo, un botón o un vídeo no arrastra. La regla
+ * un arrastre no llega a los enlaces ni al lightbox; empezar sobre un campo, un botón o un vídeo no arrastra. Como el
+ * `noSwiping` de Swiper en PRO, la clase `swiper-no-swiping` (en el elemento o en un antecesor, también el widget) impide
+ * arrastrar con el ratón, llevar la diapositiva a la vista con un clic y deslizar la pista con el dedo
+ * (`touch-action: pan-y pinch-zoom`). La regla
  * de las diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
  *
  * Foco visible: contorno de 2 px con 2 px de separación en el color del botón. Selectores: `scope()` devuelve el de la

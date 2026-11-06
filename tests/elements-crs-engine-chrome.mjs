@@ -17,7 +17,8 @@
 //   diapositivas, manejadores del núcleo sobre las copias; arrastre con el ratón (cursor de agarre, gesto rápido, clic
 //   anulado tras arrastrar, sin seleccionar texto) y clic en una diapositiva; puntos del carrusel anidado pegados al borde
 //   y visibles sin acotar al número de diapositivas; bucle con paso 2 y un número impar de diapositivas (w25): de página en
-//   página, con la actual, el punto y lo que se ve de acuerdo tras flechas, arrastre, clic y API.
+//   página, con la actual, el punto y lo que se ve de acuerdo tras flechas, arrastre, clic y API; `swiper-no-swiping` en un
+//   elemento o en el widget (sin arrastre con el ratón, sin clic que mueva y, con el dedo, sin deslizar la pista).
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-crs-engine-chrome.mjs
 import assert from 'node:assert/strict';
@@ -38,13 +39,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ width = 1280, js = true, reduce = false, editor = false, frontend = false } = {}) {
+async function open({ width = 1280, js = true, reduce = false, editor = false, frontend = false, touch = false } = {}) {
   const page = await browser.newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.setJavaScriptEnabled(js);
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: reduce ? 'reduce' : 'no-preference' }]);
-  await page.setViewport({ width, height: 900 });
+  await page.setViewport({ width, height: 900, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
   await page.evaluateOnNewDocument((editor, frontend) => {
     window.__changes = [];
     document.addEventListener('digi-crs-change', e => window.__changes.push([e.target.closest('[data-id]').dataset.id, e.detail.index]));
@@ -508,6 +509,28 @@ try {
     await settle(page);
     s = await state(page, 'w19');
     ok(s.cur === 3 && s.seen === '4,5,6' && (await page.evaluate(() => location.hash)) === '#e4', `Clic en una diapositiva: se pone la primera (slideToClickedSlide) y el enlace funciona: ${JSON.stringify(s)}`);
+    // `swiper-no-swiping` (noSwiping de Swiper, activo por defecto en PRO; Swiper lo busca con `closest`, también en los
+    // antecesores): arrastrar desde un elemento con la clase no mueve la pista, con la clase en el widget un clic no lleva la
+    // diapositiva a la vista, y en las dos la pista no se desliza con el dedo (`touch-action`). Sin la clase, lo de siempre.
+    const w19 = (fn, arg) => page.evaluate((fn, arg) => { const r = document.querySelector('[data-id="w19"]'); return new Function('r', 'arg', fn)(r, arg); }, fn, arg);
+    const thirdVisible = async () => { const p = await page.$eval('[data-id="w19"] .digi-crs__track', t => { const b = [...t.children].filter(k => !k.inert)[2].querySelector('.s').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.bottom - 10 }; }); await page.mouse.click(p.x, p.y); await settle(page); return state(page, 'w19'); };
+    await w19("r.querySelector('.digi-crs').digiCrs.go(0)");
+    await settle(page);
+    const touchOf = sel => w19("return getComputedStyle(r.querySelector(arg)).touchAction", sel);
+    ok(await touchOf('.digi-crs__track') === 'auto' && await touchOf('.digi-crs__slide .s') === 'auto', 'Sin swiper-no-swiping, la pista se desliza con el dedo.');
+    await w19("r.querySelector('.digi-crs__track').children[1].querySelector('.s').classList.add('swiper-no-swiping')");
+    await dragBy(-270, 600);
+    const held19 = await page.evaluate(() => document.querySelector('[data-id="w19"] .digi-crs').classList.contains('digi-crs--drag'));
+    await page.mouse.up();
+    await settle(page);
+    s = await state(page, 'w19');
+    ok(!held19 && s.cur === 0 && s.seen === '1,2,3' && await touchOf('.swiper-no-swiping') === 'pan-y pinch-zoom', `swiper-no-swiping en un elemento de la diapositiva: arrastrar desde él no mueve la pista y con el dedo sólo desplaza la página: ${JSON.stringify([held19, s])}`);
+    await w19("r.querySelector('.swiper-no-swiping').classList.remove('swiper-no-swiping'); r.classList.add('swiper-no-swiping')");
+    s = await thirdVisible();
+    ok(s.cur === 0 && s.seen === '1,2,3' && await touchOf('.digi-crs__track') === 'pan-y pinch-zoom', `swiper-no-swiping en el widget: un clic en una diapositiva no la lleva a la vista y la pista no se desliza con el dedo: ${JSON.stringify(s)}`);
+    await w19("r.classList.remove('swiper-no-swiping')");
+    s = await thirdVisible();
+    ok(s.cur === 2 && s.seen === '3,4,5', `Sin swiper-no-swiping, el mismo clic la lleva a la vista: ${JSON.stringify(s)}`);
     // Bucle (w12, 2 de 4): arrastrar hacia atrás desde la primera trae la última (copia) y deja la cuarta como actual.
     await page.evaluate(() => document.querySelector('[data-id="w12"] .digi-crs').digiCrs.go(0));
     await page.$eval('[data-id="w12"]', e => e.scrollIntoView({ block: 'center' }));
@@ -529,6 +552,32 @@ try {
     ok(s.cur === 0 && s.seen === '1,2,3', `Anidado: un gesto rápido de 300 px vuelve a la actual (como PRO en escritorio): ${JSON.stringify(s)}`);
     s = await drag20(-300, 600);
     ok(s.cur === 1 && s.seen === '2,3,4', `Anidado: el mismo arrastre, lento, pasa a la siguiente: ${JSON.stringify(s)}`);
+    await page.close();
+  }
+
+  // 10b. Con el dedo (pantalla táctil, 375 px): la pista se desliza de forma nativa, salvo desde un elemento con
+  // `swiper-no-swiping` o con la clase en el widget (`touch-action`), como Swiper en PRO.
+  {
+    const page = await open({ width: 375, touch: true });
+    const swipe = async mode => {
+      await page.evaluate(mode => { const r = document.querySelector('[data-id="w19"]'); r.scrollIntoView({ block: 'center' }); r.querySelector('.digi-crs').digiCrs.go(0); if (mode === 'inner') r.querySelector('.digi-crs__track').children[0].querySelector('.s').classList.add('swiper-no-swiping'); if (mode === 'widget') r.classList.add('swiper-no-swiping'); }, mode);
+      await settle(page);
+      const b = await page.$eval('[data-id="w19"] .digi-crs__track > :first-child .s', e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width * 0.8, y: r.top + r.height / 2 }; });
+      await page.touchscreen.touchStart(b.x, b.y);
+      for (let i = 1; i <= 12; i++) { await page.touchscreen.touchMove(b.x - i * 20, b.y); await sleep(16); }
+      await page.touchscreen.touchEnd();
+      await sleep(400);
+      await settle(page);
+      const s = await state(page, 'w19');
+      await page.evaluate(() => { const r = document.querySelector('[data-id="w19"]'); r.classList.remove('swiper-no-swiping'); r.querySelectorAll('.swiper-no-swiping').forEach(e => e.classList.remove('swiper-no-swiping')); });
+      return s;
+    };
+    let s = await swipe('none');
+    ok(s.cur > 0 && s.scroll > 0, `Con el dedo, la pista se desliza: ${JSON.stringify(s)}`);
+    s = await swipe('inner');
+    ok(s.cur === 0 && s.scroll === 0, `Con el dedo, desde un elemento con swiper-no-swiping no se desliza: ${JSON.stringify(s)}`);
+    s = await swipe('widget');
+    ok(s.cur === 0 && s.scroll === 0, `Con el dedo, con swiper-no-swiping en el widget no se desliza: ${JSON.stringify(s)}`);
     await page.close();
   }
 
