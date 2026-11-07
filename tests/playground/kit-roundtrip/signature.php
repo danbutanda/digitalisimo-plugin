@@ -36,6 +36,13 @@ function digi_k_reference_keys() {
 		'thumbnail_id'             => 'attachment',
 		'users'                    => 'user',
 		'items'                    => 'post',
+		// Páginas de la tienda en los ajustes del kit (pestaña WooCommerce; k-kits.md §18).
+		'woocommerce_shop_page_id'             => 'post',
+		'woocommerce_cart_page_id'             => 'post',
+		'woocommerce_checkout_page_id'         => 'post',
+		'woocommerce_myaccount_page_id'        => 'post',
+		'woocommerce_terms_page_id'            => 'post',
+		'woocommerce_purchase_summary_page_id' => 'post',
 	);
 }
 
