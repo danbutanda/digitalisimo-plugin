@@ -207,10 +207,21 @@ final class Site_Css {
 			}
 			foreach ( $scoped ? $scoped : array_keys( $maps ) as $source ) {
 				$classes = array();
+				$plain   = array();
 				foreach ( $maps[ $source ] as $from => $to ) {
 					if ( '.' === ( (string) $from )[0] ) {
 						$classes[ $from ] = $to;
+						if ( 1 === preg_match( '/^\.[A-Za-z0-9_-]+$/', (string) $to ) ) {
+							$plain[ $from ] = $to;
+						}
 					}
+				}
+				// Sin el envoltorio del widget, el mapa sólo traduce si alguna clase pasa a otra clase propia: un estado
+				// que el propio expresa con un atributo o una pseudoclase (`.swiper-button-disabled` →
+				// `[aria-disabled=true]`, `.elementor-active` → `[aria-expanded=true]`, `.e-focus` → `:has(…)`), solo y
+				// sin nada que lo ate al widget, alcanzaría a todo el sitio.
+				if ( ! $scoped && Translator::rewrite_classes( $selector, $plain ) === $selector ) {
+					continue;
 				}
 				$done = Translator::rewrite_classes( $selector, $classes );
 				if ( $done === $selector || isset( $seen[ $done ] ) ) {

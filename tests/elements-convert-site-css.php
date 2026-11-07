@@ -52,6 +52,12 @@ check_sc( 1 === preg_match( '#\.elementor-widget-woocommerce-menu-cart\{--cart-b
 check_sc( 1 === preg_match( '#/\* nota \*/ \.elementor-pagination \.page-numbers\{gap:2px\}/\*digitalisimo-pro\*/([^{]+)\{gap:2px\}#', $out, $m ) && count( explode( ',', $m[1] ) ) >= 2 && str_contains( $m[1], '.digi-loop__pagination .page-numbers' ), 'Sin envoltorio y en varios widgets de PRO: una traducción por cada uno: ' . ( $m[1] ?? '' ) );
 check_sc( Site_Css::rewrite( $out ) === $out, 'Idempotente: una segunda pasada no duplica nada.' );
 check_sc( Site_Css::strip( $out ) === $css && Site_Css::marked( $out ) && ! Site_Css::marked( $css ), 'strip() devuelve el CSS original exacto (para --revert).' );
+// Sin envoltorio, un estado que el propio expresa con un atributo o una pseudoclase no se traduce solo: alcanzaría a todo
+// el sitio (`[aria-disabled=true]{opacity:0}` ocultaría cualquier control desactivado). Atado a una clase del widget, sí.
+$states = ".swiper-button-disabled{opacity:0}\n.elementor-active{background:red}\n.e-gallery-item--hidden{opacity:.5}\n.e-focus{outline:1px solid}\n.elementor-nav-menu .elementor-active{color:blue}\n.elementor-widget-nav-menu .elementor-active{color:red}";
+$states_out = Site_Css::rewrite( $states );
+check_sc( ! preg_match( '#\*/(\[aria-disabled=true\]|\[aria-expanded=true\]|\[aria-pressed="true"\]|\[hidden\]|:has\()#', $states_out ) && ! str_contains( $states_out, '.elementor-nav-menu [aria-pressed' ), 'Sin envoltorio, ningún atributo ni pseudoclase suelto alcanza a todo el sitio: ' . $states_out );
+check_sc( 1 === preg_match( '#\.elementor-nav-menu \.elementor-active\{color:blue\}/\*digitalisimo-pro\*/\.digi-nav[\w-]* \[aria-expanded=true\]\{color:blue\}#', $states_out ) && str_contains( $states_out, '/*digitalisimo-pro*/.elementor-widget-digitalisimo-nav-menu [aria-expanded=true]{color:red}' ), 'Atado a una clase del widget (o con su envoltorio), el estado sí se traduce: ' . $states_out );
 $plain = ".a{color:red}\n@media print{.b{display:none}}\n/* .elementor-post__title en un comentario */ .c{}";
 check_sc( Site_Css::rewrite( $plain ) === $plain, 'CSS sin clases de PRO en sus selectores: ni un byte cambia.' );
 // Lo editado después de la pasada se conserva al quitar las reglas añadidas.
