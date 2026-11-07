@@ -163,6 +163,29 @@ try {
     await page.close();
   }
 
+  // 4b. Movimiento reducido en lo convertido de PRO (digi-ah--motion, corrección de fidelidad de C2): rota como PRO, que no
+  // consulta la preferencia en la rotación (el servidor sólo pone la clase en el texto que rota: el resaltado sigue
+  // dibujado de golpe, como en PRO).
+  {
+    const page = await open({ reduce: true, editor: true });
+    await page.evaluate(() => {
+      for (const id of ['h5']) {
+        const copy = document.querySelector(`[data-id="${id}"]`).cloneNode(true);
+        copy.dataset.id = id + 'm';
+        copy.querySelector('.digi-ah').classList.add('digi-ah--motion');
+        document.body.prepend(copy);
+        window.__hook[1]([copy]);
+      }
+    });
+    await sleep(3500);
+    const m = await state(page, 'h5m');
+    ok(m.on === 2 && m.onAll === '--X' && m.visible.join() === 'tres', `Con digi-ah--motion el giro sin bucle rota hasta la última palabra con movimiento reducido, como PRO (${m.onAll}).`);
+    ok((await state(page, 'h5')).on === 0, 'Sin la clase, el mismo titular no rota con movimiento reducido.');
+    const anim = await page.$eval('[data-id="h5m"] .digi-ah__word--on', w => getComputedStyle(w).animationName);
+    ok(anim === 'digi-ah-in', `Con digi-ah--motion la palabra entra con su animación (${anim}).`);
+    await page.close();
+  }
+
   // 5. Editor: se engancha a frontend/element_ready/global y arranca lo que se pinta de nuevo.
   {
     const page = await open({ editor: true });

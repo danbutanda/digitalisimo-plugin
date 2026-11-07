@@ -21,6 +21,7 @@ namespace Elementor {
 		public $sections = array();
 		public $attrs    = array();
 		public function get_settings_for_display( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
+		public function get_settings( $key = null ) { return $this->get_settings_for_display( $key ); }
 		public function start_controls_section( $name, $args ) { $this->sections[ $name ] = $args; }
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
@@ -109,6 +110,12 @@ namespace {
 	};
 	$checks = 0;
 	$ok     = static function ( $value, $message ) use ( &$checks ) { check_ah( $value, $message ); $checks++; };
+	// Movimiento reducido (corrección de fidelidad, docs/pro/c2.md): lo convertido de PRO rota también con «reducir
+	// movimiento», como PRO, que sólo consulta la preferencia en el resaltado; lo nuevo, no.
+	$motion_widget = new Animated_Headline();
+	( new ReflectionMethod( $motion_widget, 'register_controls' ) )->invoke( $motion_widget );
+	$ok( str_contains( $render( $motion_widget, array( 'headline_style' => 'rotate', 'rotating_text' => "a\nb", '_digitalisimo_pro' => 'animated-headline' ) ), 'digi-ah--motion' ), 'Lo convertido de PRO que rota lleva digi-ah--motion.' );
+	$ok( ! str_contains( $render( $motion_widget, array( 'headline_style' => 'rotate', 'rotating_text' => "a\nb" ) ), 'digi-ah--motion' ) && ! str_contains( $render( $motion_widget, array( 'headline_style' => 'highlight', 'highlighted_text' => 'x', '_digitalisimo_pro' => 'animated-headline' ) ), 'digi-ah--motion' ), 'Lo nuevo, y el resaltado aunque venga de PRO, respetan el movimiento reducido.' );
 
 	// 1. Registro y recursos.
 	$widget = new Animated_Headline();
@@ -124,13 +131,14 @@ namespace {
 	preg_match_all( '/#[0-9a-f]{3,6}\b|\bred\b/i', $css, $colors );
 	$ok( array( '#aebcb9', 'red', '#0d0d0d' ) === array_values( array_unique( array_map( 'strtolower', $colors[0] ) ) ), 'Sólo los colores por defecto de PRO: ' . implode( ', ', array_unique( $colors[0] ) ) );
 	$ok( str_contains( $css, '.digi-ah-link:focus-visible{outline:2px solid;outline-offset:2px}' ), 'Foco visible propio del enlace.' );
-	$ok( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-ah *,.digi-ah :after{animation:none!important;transition:none!important}.digi-ah--drawn svg path{opacity:1;stroke-dasharray:1500 1500}}' ), 'Sin animaciones ni transiciones con movimiento reducido: el trazo, en su estado final.' );
+	$ok( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-ah:not(.digi-ah--motion) *,.digi-ah:not(.digi-ah--motion) :after{animation:none!important}.digi-ah *{transition:none!important}.digi-ah--drawn svg path{opacity:1;stroke-dasharray:1500 1500}}' ), 'Sin animaciones ni transiciones con movimiento reducido (salvo la rotación de lo convertido de PRO, digi-ah--motion): el trazo, en su estado final.' );
 	$ok( str_contains( $css, '@keyframes digi-ah-in{' ) && str_contains( $css, '@keyframes digi-ah-out{' ) && 1 === substr_count( $css, '@keyframes digi-ah-in' ), 'Dos fotogramas comunes para las animaciones de palabras y letras.' );
 	foreach ( array( '--t', '--a', '--b', '--c', '--o0', '--o6', '--d', '--e', '--f', '--p6', '--p1' ) as $var ) {
 		$ok( str_contains( $css, 'var(' . $var . ')' ), "La hoja usa la variable $var del tipo." );
 	}
 	$ok( ! preg_match( '/jQuery|\$\(|fetch\(|XMLHttpRequest|https?:|innerHTML|elementorProFrontend/i', $js ), 'Script sin jQuery, sin peticiones, sin URL absolutas ni innerHTML.' );
 	$ok( str_contains( $js, "rootMargin:'0px 0px -100px 0px'" ) && str_contains( $js, "matchMedia('(prefers-reduced-motion: reduce)')" ) && str_contains( $js, 'frontend/element_ready/global' ), 'Arranca al entrar en la pantalla (como PRO), respeta el movimiento reducido y se reinicia en el editor.' );
+	$ok( str_contains( $js, "R&&R.matches&&!h.classList.contains('digi-ah--motion')" ), 'Con digi-ah--motion el texto rota también con movimiento reducido.' );
 	$ok( str_contains( $js, 'anim:del||2500,letters:.02*del||50,typeL:.06*del||150,sel:.2*del||500,reveal:.24*del||600,revealWait:.6*del||1500' ) && str_contains( $js, 's.typeAnim=s.sel+800' ) && str_contains( $js, 'dur+.8*wait' ), 'Los mismos tiempos que el script de PRO.' );
 	$source = '';
 	foreach ( token_get_all( (string) file_get_contents( $root . 'modules/digitalisimo-content/' . $entry['file'] ) ) as $token ) {
@@ -338,7 +346,7 @@ namespace {
 	$ok( $full['__dynamic__'] === $el['settings']['__dynamic__'] && $full['__globals__'] === $el['settings']['__globals__'] && $full['_margin'] === $el['settings']['_margin'], 'Etiquetas dinámicas, globales del kit y la pestaña Avanzado pasan tal cual.' );
 	$ok( 'selector .digi-ah__word.digi-ah__word--on{color:red} selector .digi-ah--swirl .digi-ah__letter{x:y} selector.digi-ah--style-rotate .digi-ah{z:1}' === $el['settings']['custom_css'], 'El CSS personalizado apunta a las clases propias: ' . $el['settings']['custom_css'] );
 	$b = $render( $widget, $el['settings'] + $widget_defaults );
-	$ok( str_starts_with( $b, '<a href="https://sitio.test/" class="digi-ah-link"><h2 class="digi-ah digi-ah--swirl digi-ah--letters digi-ah--fx" data-digi-ah-style="rotate" data-digi-ah-loop="0" data-digi-ah-type="swirl" data-digi-ah-delay="3000" style="--t:.4s;' ) && 'Somos Rápido Seguro siempre' === $visible( $b ), 'Lo convertido se pinta con sus textos, su enlace, su etiqueta y su animación.' );
+	$ok( str_starts_with( $b, '<a href="https://sitio.test/" class="digi-ah-link"><h2 class="digi-ah digi-ah--swirl digi-ah--motion digi-ah--letters digi-ah--fx" data-digi-ah-style="rotate" data-digi-ah-loop="0" data-digi-ah-type="swirl" data-digi-ah-delay="3000" style="--t:.4s;' ) && 'Somos Rápido Seguro siempre' === $visible( $b ), 'Lo convertido se pinta con sus textos, su enlace, su etiqueta y su animación (y rota con movimiento reducido, como PRO).' );
 	list( $el2 ) = $convert( $el['settings'] );
 	$ok( $el2['settings'] === $el['settings'], 'Una segunda pasada no cambia nada.' );
 

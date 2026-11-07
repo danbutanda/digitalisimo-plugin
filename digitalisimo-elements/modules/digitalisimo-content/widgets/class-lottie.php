@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * - **Accesibilidad.** La animación es decorativa (`aria-hidden`); el enlace sin leyenda lleva el nombre del adjunto o
  *   «Animación»; con «Al pulsar» y sin enlace, la animación es un botón para el teclado (Intro y Espacio). Con
  *   `prefers-reduced-motion`, se muestra fija en su estado final (el último fotograma del tramo, o el primero si se
- *   invierte).
+ *   invierte), salvo lo convertido de PRO, que se anima como en PRO (`motion` en la configuración).
  *
  * Deriva de PRO Elements (GPL): `modules/lottie/widgets/lottie.php` y `classes/caption-helper.php` (controles, textos y
  * leyenda), `modules/lottie/assets/js/frontend/handler.js` (disparadores, bucle, tramos, inversión y desplazamiento; con
@@ -461,6 +461,14 @@ class Lottie extends \Elementor\Widget_Base {
 		return is_numeric( $value ) ? (float) $value : $fallback;
 	}
 
+	/**
+	 * Lo convertido de PRO (la marca del traductor, `Translator::MARKER`) se anima también con «reducir movimiento», como
+	 * PRO: `motion` en la configuración. Lo nuevo queda fijo en su estado final.
+	 */
+	public static function motion( string $marker ): array {
+		return 'lottie' === $marker ? array( 'motion' => true ) : array();
+	}
+
 	/** Configuración del script (`data-digi-lottie`). */
 	public static function config( array $settings, string $id = '' ): array {
 		$trigger = (string) ( $settings['trigger'] ?? 'arriving_to_viewport' );
@@ -502,7 +510,7 @@ class Lottie extends \Elementor\Widget_Base {
 		$link     = 'custom' === ( $settings['link_to'] ?? 'none' ) && ! empty( $settings['custom_link']['url'] );
 		$attrs    = array(
 			'class'           => 'digi-lottie__container',
-			'data-digi-lottie' => wp_json_encode( self::config( $settings, (string) $this->get_id() ) ),
+			'data-digi-lottie' => wp_json_encode( self::config( $settings, (string) $this->get_id() ) + self::motion( (string) $this->get_settings( '_digitalisimo_pro' ) ) ),
 		);
 		if ( ! $link && 'on_click' === ( $settings['trigger'] ?? '' ) ) {
 			$attrs['role']       = 'button';

@@ -30,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
  *   el fondo CSS de PRO; su texto alternativo es el de Medios (PRO lo ponía en un `div` con `role="img"`).
  * - Efectos al pasar el ratón (animación del contenido, de la imagen, superposición y colores) también con el foco del
  *   teclado dentro de la caja (`:focus-within`); con `prefers-reduced-motion` no hay movimiento y el contenido que
- *   entra se muestra desde el principio.
+ *   entra se muestra desde el principio. En lo convertido de PRO (`digi-cta--motion`), como en PRO: sólo las
+ *   transiciones son instantáneas (la hoja del núcleo las deja en 0 s).
  * - Enlace en toda la caja (`a` raíz, el botón es un `span`) o sólo en el botón; sin enlace, el botón es un `span`.
  * - La cinta es la común de las tarjetas (`Cards::ribbon()`), con su hoja en la del widget.
  * - Sin plantilla JS del editor: el editor pinta lo mismo que el servidor.
@@ -1775,7 +1776,10 @@ class Call_To_Action extends \Elementor\Widget_Base {
 		$print_content = '' !== $title || '' !== $desc || '' !== $button || 'none' !== $graphic;
 
 		$transform = (string) ( $settings['transformation'] ?? '' );
-		$root      = array( 'class' => 'digi-cta', 'style' => self::TRANSFORMS[ $transform ] ?? null );
+		// Lo convertido de PRO (la marca del traductor) conserva con «reducir movimiento» los estados de PRO: el contenido que
+		// entra sigue oculto hasta pasar el cursor y la imagen se transforma; sólo las transiciones son instantáneas.
+		$motion    = 'call-to-action' === (string) $this->get_settings( '_digitalisimo_pro' ) ? ' digi-cta--motion' : '';
+		$root      = array( 'class' => 'digi-cta' . $motion, 'style' => self::TRANSFORMS[ $transform ] ?? null );
 		if ( $box ) {
 			$root += $link;
 		}

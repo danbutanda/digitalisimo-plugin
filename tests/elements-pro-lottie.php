@@ -28,6 +28,7 @@ namespace Elementor {
 		private $attrs   = array();
 		private $section = '';
 		public function get_id() { return $this->id; }
+		public function get_settings( $key = null ) { $all = $this->get_settings_for_display(); return null === $key ? $all : ( $all[ $key ] ?? null ); }
 		public function get_settings_for_display() {
 			$defaults = array();
 			foreach ( $this->controls as $name => $control ) {
@@ -252,6 +253,7 @@ namespace {
 	check_lt( str_starts_with( $html, '<div class="digi-lottie__container" data-digi-lottie="' ) && str_contains( $html, '<div class="digi-lottie__animation" aria-hidden="true"></div></div>' ) && ! str_contains( $html, '<a ' ) && ! str_contains( $html, 'caption' ) && ! str_contains( $html, 'role=' ), 'Por defecto: contenedor y animación decorativa, sin enlace, leyenda ni botón.' );
 	check_lt( 'https://sitio.test/wp-content/plugins/digitalisimo-elements/assets/lib/lottie/lottie.min.js?ver=5.6.8' === $c['lib'] && 'https://sitio.test/wp-content/plugins/digitalisimo-elements/modules/digitalisimo-content/assets/lottie/default.json' === $c['path'] && 'digi-lottie-abc1234' === $c['name'], 'Librería local con su versión y animación de muestra propia.' );
 	check_lt( array( 'lib', 'path', 'name', 'renderer', 'trigger', 'viewport', 'relative', 'loop', 'times', 'hoverOut', 'area', 'speed', 'start', 'end', 'reverse', 'lazy' ) === array_keys( $c ) && 'svg' === $c['renderer'] && 'arriving_to_viewport' === $c['trigger'] && array( 0, 100 ) === $c['viewport'] && false === $c['loop'] && 1 === $c['speed'] && 0 === $c['start'] && 100 === $c['end'] && false === $c['lazy'], 'Configuración con los valores por defecto de PRO: ' . json_encode( $c ) );
+	check_lt( ! isset( $c['motion'] ) && true === $config( $render( array( '_digitalisimo_pro' => 'lottie' ) ) )['motion'] && array() === Lottie::motion( 'gallery' ), 'Movimiento reducido: lo convertido de PRO se anima como en PRO (motion); lo nuevo queda fijo.' );
 	$c = $config( $render( array( 'source_json' => $json, 'renderer' => 'canvas', 'trigger' => 'bind_to_scroll', 'viewport' => array( 'sizes' => array( 'start' => 20, 'end' => 80 ), 'unit' => '%' ), 'effects_relative_to' => 'page', 'loop' => 'yes', 'number_of_times' => '3', 'play_speed' => array( 'size' => 2.5 ), 'start_point' => array( 'size' => 10, 'unit' => '%' ), 'end_point' => array( 'size' => '', 'unit' => '%' ), 'reverse_animation' => 'yes', 'lazyload' => 'yes', 'trigger_x' => 'x' ) ) );
 	check_lt( $json['url'] === $c['path'] && 'canvas' === $c['renderer'] && 'bind_to_scroll' === $c['trigger'] && array( 20, 80 ) === $c['viewport'] && 'page' === $c['relative'] && true === $c['loop'] && 3 === $c['times'] && 2.5 === $c['speed'] && 10 === $c['start'] && 0 === $c['end'] && true === $c['reverse'] && true === $c['lazy'], 'Configuración de un adjunto con todos los ajustes: ' . json_encode( $c ) );
 	check_lt( 'https://cdn.test/anim.json' === $config( $render( array( 'source' => 'external_url', 'source_external_url' => array( 'url' => 'https://cdn.test/anim.json' ) ) ) )['path'], 'URL externa.' );

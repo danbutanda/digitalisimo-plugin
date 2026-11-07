@@ -1,6 +1,7 @@
 /* Titular animado (digitalisimo-animated-headline): resaltado con trazo SVG o texto que rota (escritura, recorte,
    giro, remolino, persianas, caída, ola, deslizamiento). Mismos tiempos que el widget de PRO, sin dependencias. Arranca al
-   entrar en la pantalla; con «reducir movimiento» el trazo aparece ya dibujado y el texto no rota. */
+   entrar en la pantalla; con «reducir movimiento» el trazo aparece ya dibujado y el texto no rota (salvo lo convertido de
+   PRO, `digi-ah--motion`, que rota como en PRO). */
 (()=>{'use strict';
 const W=window,D=document,on=new WeakSet(),R=W.matchMedia&&W.matchMedia('(prefers-reduced-motion: reduce)');
 const C='digi-ah__',ON=C+'word--on',OFF=C+'word--off',IN=C+'letter--in',T=(f,ms)=>setTimeout(f,ms);
@@ -23,7 +24,7 @@ b.setAttribute('aria-hidden','true');sr.className='elementor-screen-only';sr.tex
 [...text].forEach(ch=>{const l=D.createElement('span');l.className=C+'letter'+(act?' '+IN:'');l.textContent=ch;b.append(l);});
 w.replaceChildren(sr,b);w.style.opacity=1;});
 ready();
-if(!words.length||R&&R.matches)return;
+if(!words.length||R&&R.matches&&!h.classList.contains('digi-ah--motion'))return;
 const fit=w=>{if('clip'!==type&&'typing'!==type)dyn.style.width=width(w)+'px';};
 const box=w=>w.querySelector('[aria-hidden]');
 const first=w=>{const b=box(w);return b?b.firstElementChild:null;};

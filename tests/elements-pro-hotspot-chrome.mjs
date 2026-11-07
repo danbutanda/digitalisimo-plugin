@@ -170,6 +170,13 @@ ok(anims === 0, 'Con movimiento reducido no hay animaciones ni transiciones: ' +
 await page.click(sel('click', 1));
 await sleep(50);
 ok((await state(page, 'click'))[0].visible, 'Con movimiento reducido se abre al instante.');
+// Lo convertido de PRO (digi-hotspots--motion, corrección de fidelidad de C2) sigue animado, como PRO; sin transiciones.
+const moving = await page.evaluate(() => {
+  document.querySelectorAll('.digi-hotspots').forEach((r) => r.classList.add('digi-hotspots--motion'));
+  const all = [...document.querySelectorAll('.digi-hotspots *')];
+  return [all.filter(e => getComputedStyle(e).animationName !== 'none').length, all.filter(e => parseFloat(getComputedStyle(e).transitionDuration) > 0).length];
+});
+ok(moving[0] > 0 && moving[1] === 0, 'Con digi-hotspots--motion, las animaciones siguen con movimiento reducido y las transiciones no: ' + moving.join('/'));
 await page.close();
 
 // 5. Editor: se vuelve a iniciar con frontend/element_ready.
