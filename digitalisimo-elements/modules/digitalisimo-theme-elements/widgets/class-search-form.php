@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Marcado: `<search role="search">` con un formulario GET a `home_url()` (campo `s`, valor `get_search_query()`), una
  * etiqueta «Buscar» para lectores de pantalla y, según la piel:
- * - Clásica: botón de envío (`<button type="submit">`) con icono SVG propio (lupa o flecha, que se invierte en RTL) o
- *   texto, y nombre accesible «Buscar».
+ * - Clásica: botón de envío (`<button type="submit">`) con la lupa o la flecha de PRO (a la izquierda en RTL) o texto, y
+ *   nombre accesible «Buscar».
  * - Mínima: la lupa es la propia etiqueta del campo (`<label for>`), así que pulsarla lo enfoca sin JavaScript.
  * - Pantalla completa: un botón que abre un `<dialog>` modal (`showModal()`: capa superior, foco dentro, Escape lo
  *   cierra y el foco vuelve al botón), con el campo y un botón «Cerrar la búsqueda». Es la única piel con script
@@ -30,19 +30,15 @@ defined( 'ABSPATH' ) || exit;
  * Estado «Foco» de los colores: PRO lo aplicaba con una clase que ponía su script; aquí es
  * `:has(.digi-search-form__input:focus)`, sin script. Variables propias (`--digi-sf-*`) en lugar de las de PRO.
  *
- * Diferencias declaradas con PRO: foco visible propio (el campo y los botones tienen contorno; PRO lo quitaba); el
- * conmutador y el cierre de pantalla completa son `<button>` (PRO usaba `div role="button"`); iconos SVG propios en
- * lugar de los de la fuente de iconos; textos de la interfaz en español; el widget aparece en el panel (PRO lo
- * ocultaba en favor de su widget «Search»).
+ * Iconos: los mismos que PRO, del núcleo (`Icons_Manager`): Font Awesome (`fas fa-search`, `fas fa-arrow-right` o
+ * `-left` en RTL) y `eicon-close`; con iconos en línea (`e_font_icon_svg`), el SVG en una caja centrada como la de PRO;
+ * si no, la fuente de iconos, con su hoja en `get_style_depends()`.
+ *
+ * Diferencias declaradas con PRO: foco visible propio en los botones (el campo, como PRO, no lleva contorno); el
+ * conmutador y el cierre de pantalla completa son `<button>` (PRO usaba `div role="button"`); textos de la interfaz en
+ * español; el widget aparece en el panel (PRO lo ocultaba en favor de su widget «Search»).
  */
 class Search_Form extends \Elementor\Widget_Base {
-
-	/** Lupa, flecha y aspa, dibujadas para este widget en una caja de 24 × 24 (`currentColor`). */
-	const ICONS = array(
-		'search' => '<svg class="digi-search-form__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.41 1.4-5.4-5.38A8 8 0 1 1 10 2zm0 3a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg>',
-		'arrow'  => '<svg class="digi-search-form__svg digi-search-form__svg--arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.3 3.3 22 12l-8.7 8.7-2.1-2.1 5.1-5.1H2v-3h14.3l-5.1-5.1z"/></svg>',
-		'close'  => '<svg class="digi-search-form__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5.6 3.5 6.4 6.4 6.4-6.4 2.1 2.1-6.4 6.4 6.4 6.4-2.1 2.1-6.4-6.4-6.4 6.4-2.1-2.1 6.4-6.4-6.4-6.4z"/></svg>',
-	);
 
 	public function get_name() {
 		return 'digitalisimo-search-form';
@@ -76,8 +72,13 @@ class Search_Form extends \Elementor\Widget_Base {
 		return false;
 	}
 
+	/** Su hoja y, si los iconos se pintan con la fuente de Font Awesome (sin `e_font_icon_svg`), la de la familia, como PRO. */
 	public function get_style_depends(): array {
-		return Module::style_depends( $this->get_name() );
+		$out = Module::style_depends( $this->get_name() );
+		if ( ! Module::feature( 'e_font_icon_svg' ) && class_exists( '\Elementor\Icons_Manager' ) && \Elementor\Icons_Manager::is_migration_allowed() ) {
+			$out[] = 'elementor-icons-fa-solid';
+		}
+		return $out;
 	}
 
 	/** El script sólo abre y cierra la pantalla completa: las demás pieles no lo cargan (el tipo del editor, siempre). */
@@ -776,13 +777,30 @@ class Search_Form extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 	}
 
-	/** Icono SVG propio; la flecha apunta al final de la línea (se invierte en RTL, como la de PRO). */
-	private static function icon( string $name ): string {
-		$svg = self::ICONS[ $name ] ?? self::ICONS['search'];
-		if ( 'arrow' === $name && is_rtl() ) {
-			$svg = str_replace( 'digi-search-form__svg--arrow', 'digi-search-form__svg--arrow digi-search-form__svg--rtl', $svg );
+	/**
+	 * Icono del núcleo como lo pinta PRO (`render_search_icon()` de su Search Form): con iconos en línea
+	 * (`e_font_icon_svg`), el SVG en una caja centrada (`digi-search-form__glyph`); si no, la fuente de iconos (`<i>`), o
+	 * la clase de Font Awesome 4 si el sitio no migró sus iconos. `eicon-close` va sin caja, como en PRO.
+	 */
+	private static function glyph( string $value, string $library = 'fa-solid', array $attributes = array() ): string {
+		if ( ! class_exists( '\Elementor\Icons_Manager' ) ) {
+			return '';
 		}
-		return $svg;
+		$attributes += array( 'aria-hidden' => 'true' );
+		$icon         = array(
+			'value'   => $value,
+			'library' => $library,
+		);
+		if ( 'eicons' === $library ) {
+			return (string) \Elementor\Icons_Manager::try_get_icon_html( $icon, array( 'aria-hidden' => 'true' ) );
+		}
+		if ( Module::feature( 'e_font_icon_svg' ) ) {
+			return '<span class="digi-search-form__glyph">' . \Elementor\Icons_Manager::try_get_icon_html( $icon, $attributes ) . '</span>';
+		}
+		if ( \Elementor\Icons_Manager::is_migration_allowed() ) {
+			return (string) \Elementor\Icons_Manager::try_get_icon_html( $icon, array( 'aria-hidden' => 'true' ) );
+		}
+		return '<i class="' . esc_attr( 'fa ' . substr( $value, strpos( $value, ' ' ) + 1 ) ) . '" aria-hidden="true"></i>';
 	}
 
 	protected function render() {
@@ -813,13 +831,13 @@ class Search_Form extends \Elementor\Widget_Base {
 		echo '<search role="search"><form ' . $this->get_render_attribute_string( 'form' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos escapados.
 		do_action( 'elementor_pro/search_form/before_input', $this );
 		if ( 'full_screen' === $skin ) {
-			echo '<button type="button" class="digi-search-form__toggle" aria-label="' . esc_attr( $label ) . '" aria-haspopup="dialog" aria-expanded="false" aria-controls="' . esc_attr( $id ) . '-dialog">' . self::icon( 'search' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG propio.
+			echo '<button type="button" class="digi-search-form__toggle" aria-label="' . esc_attr( $label ) . '" aria-haspopup="dialog" aria-expanded="false" aria-controls="' . esc_attr( $id ) . '-dialog">' . self::glyph( 'fas fa-search' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo.
 			echo '<dialog class="digi-search-form__container" id="' . esc_attr( $id ) . '-dialog" aria-label="' . esc_attr( $label ) . '">';
 		} else {
 			echo '<div class="digi-search-form__container">';
 		}
 		if ( 'minimal' === $skin ) {
-			echo '<label class="digi-search-form__icon" for="' . esc_attr( $id ) . '">' . self::icon( 'search' ) . '<span class="digi-search-form__label">' . $label . '</span></label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG propio y texto escapado.
+			echo '<label class="digi-search-form__icon" for="' . esc_attr( $id ) . '">' . self::glyph( 'fas fa-search' ) . '<span class="digi-search-form__label">' . $label . '</span></label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo y texto escapado.
 		} else {
 			echo '<label class="digi-search-form__label" for="' . esc_attr( $id ) . '">' . $label . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado.
 		}
@@ -828,13 +846,15 @@ class Search_Form extends \Elementor\Widget_Base {
 		if ( 'classic' === $skin ) {
 			$is_icon = 'icon' === ( $settings['button_type'] ?? 'icon' );
 			$text    = $is_icon ? '' : trim( wp_kses_post( (string) ( $settings['button_text'] ?? '' ) ) );
-			$inner   = $is_icon ? self::icon( 'arrow' === ( $settings['icon'] ?? 'search' ) ? 'arrow' : 'search' ) : $text;
+			// Como PRO: la flecha apunta al final de la línea (`arrow-left` en RTL) y el SVG lleva la clase de su icono.
+			$glyph   = 'arrow' === ( $settings['icon'] ?? 'search' ) ? ( is_rtl() ? 'arrow-left' : 'arrow-right' ) : 'search';
+			$inner   = $is_icon ? self::glyph( 'fas fa-' . $glyph, 'fa-solid', array( 'class' => 'fa fa-' . $glyph ) ) : $text;
 			// Con texto visible, el texto es el nombre accesible; con icono (o sin texto), «Buscar».
 			$named   = '' === trim( wp_strip_all_tags( $text ) ) ? ' aria-label="' . esc_attr( $label ) . '"' : '';
-			echo '<button class="digi-search-form__submit" type="submit"' . $named . '>' . $inner . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG propio o HTML permitido.
+			echo '<button class="digi-search-form__submit" type="submit"' . $named . '>' . $inner . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo o HTML permitido.
 		}
 		if ( 'full_screen' === $skin ) {
-			echo '<button type="button" class="digi-search-form__close" aria-label="' . esc_attr__( 'Cerrar la búsqueda', 'pro-elements' ) . '">' . self::icon( 'close' ) . '</button></dialog>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG propio.
+			echo '<button type="button" class="digi-search-form__close" aria-label="' . esc_attr__( 'Cerrar la búsqueda', 'pro-elements' ) . '">' . self::glyph( 'eicon-close', 'eicons' ) . '</button></dialog>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo.
 		} else {
 			echo '</div>';
 		}

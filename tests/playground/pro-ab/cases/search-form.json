@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B del Formulario de búsqueda (frente H de C4): A con `search-form` de PRO, B con `digitalisimo-search-form`. La pantalla completa se mide cerrada y, con la acción, abierta."
+  "Casos A/B del Formulario de búsqueda (frente H de C4): A con `search-form` de PRO, B con `digitalisimo-search-form`. La pantalla completa se mide cerrada y, con la acción, abierta.",
+  "Correcciones de fidelidad: los iconos son los de PRO (Font Awesome y eicons del núcleo), así que el estado normal se compara sin margen; el campo enfocado no lleva contorno ni lo lleva su contenedor y toma el color heredado (`sf-click`, clic con el ratón); la pantalla completa abre y cierra con la transición de PRO."
  ],
  "declared": [
   {
@@ -13,7 +14,7 @@
    "widget": "search-form",
    "kind": "foco",
    "match": "^outline(-offset)?:",
-   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px en el contenedor del campo, el conmutador y el aspa): PRO quitaba el contorno (outline:0)."
+   "reason": "Foco visible propio en el conmutador y el aspa de la pantalla completa (contorno de 2 px con separación de 2 px; PRO los dejaba sin contorno). El campo y su contenedor, como PRO, no llevan contorno."
   },
   {
    "widget": "search-form",
@@ -27,10 +28,6 @@
    "title": "Valores por defecto: piel clásica con botón de lupa",
    "widget": "search-form",
    "settings": {},
-   "pixels": {
-    "max": 0.09,
-    "reason": "Foco visible propio: el contenedor del campo muestra un contorno de 2 px con separación de 2 px cuando el teclado llega al campo (PRO quitaba el contorno). Sin foco, la diferencia queda por debajo del 1 %."
-   },
    "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles."
   },
   "sf-text": {
@@ -51,10 +48,6 @@
      "unit": "px",
      "size": 2.5
     }
-   },
-   "pixels": {
-    "max": 0.09,
-    "reason": "Foco visible propio: el contenedor del campo muestra un contorno de 2 px con separación de 2 px cuando el teclado llega al campo (PRO quitaba el contorno). Sin foco, la diferencia queda por debajo del 1 %."
    }
   },
   "sf-arrow": {
@@ -86,10 +79,6 @@
     "input_background_color": "#fff8e1",
     "input_text_color": "#1b5e20",
     "placeholder": "Escribe y pulsa la flecha"
-   },
-   "pixels": {
-    "max": 0.09,
-    "reason": "Foco visible propio: el contenedor del campo muestra un contorno de 2 px con separación de 2 px cuando el teclado llega al campo (PRO quitaba el contorno). Sin foco, la diferencia queda por debajo del 1 %."
    },
    "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles."
   },
@@ -157,6 +146,21 @@
      "kind": "foco",
      "match": "^background:",
      "reason": "El fondo del conmutador está en el propio botón (en PRO, en su elemento interior)."
+    }
+   ]
+  },
+  "sf-click": {
+   "title": "Piel clásica: clic con el ratón en el campo (sin contorno y con el color heredado, como PRO; corrección de fidelidad)",
+   "widget": "search-form",
+   "settings": {},
+   "blank": "Buscador con botón de icono.",
+   "actions": [
+    {
+     "label": "clic en el campo",
+     "a": ".elementor-search-form__input",
+     "b": ".digi-search-form__input",
+     "stay": true,
+     "wait": 600
     }
    ]
   }

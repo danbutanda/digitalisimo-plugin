@@ -27,13 +27,25 @@ namespace {
 	$own = h_widget( Search_Form::class );
 	$map = require h_path( 'modules/digitalisimo-convert/maps/search-form.php' );
 
+	// Los experimentos del núcleo (`e_font_icon_svg` decide cómo se pintan los iconos), los mismos que lee PRO.
+	if ( ! class_exists( '\\Elementor\\Plugin' ) ) {
+		class H_Core_Plugin { public static $instance; }
+		class_alias( 'H_Core_Plugin', 'Elementor\\Plugin' );
+	}
+	\Elementor\Plugin::$instance = (object) array( 'experiments' => new \ElementorPro\H_Experiments() );
+
 	// 1. Registro y recursos.
 	$css = h_assets( $own, 'Formulario de búsqueda', 'search-form', array( '#f1f2f3', '#3f444b', '#69727d', '#fff', '#33373d' ), true );
-	foreach ( array( '.digi-search-form--skin-classic .digi-search-form__container:has(:focus-visible)', '.digi-search-form--skin-minimal:focus-within{outline:2px solid}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible' ) as $rule ) {
+	foreach ( array( '.digi-search-form--skin-minimal:focus-within{outline:2px solid}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible{outline:2px solid;outline-offset:2px}' ) as $rule ) {
 		h_check( str_contains( $css, $rule ), "Foco visible: falta $rule" );
 	}
+	// Como PRO: el campo con el foco (también con el ratón) no lleva contorno ni lo lleva su contenedor, y toma el color
+	// heredado (`input[type=search]:focus{color:inherit;outline:0}`).
+	h_check( str_contains( $css, '.digi-search-form input[type=search]:focus{color:inherit;outline:0}' ) && ! str_contains( $css, ':has(:focus-visible)' ) && ! str_contains( $css, '.digi-search-form__input:focus-visible' ), 'El campo y su contenedor sin contorno con el foco, y el texto con el color heredado, como PRO.' );
+	// Pantalla completa: crece desde un punto y se encoge al cerrar, en 0,3 s (la transición de PRO), sin script.
+	h_check( str_contains( $css, 'opacity:0;transform:scale(0);transition:opacity .3s,transform .3s,overlay .3s allow-discrete,display .3s allow-discrete}' ) && str_contains( $css, 'dialog.digi-search-form__container[open]{display:flex;opacity:1;transform:none}' ) && str_contains( $css, '@starting-style{dialog.digi-search-form__container[open]{opacity:0;transform:scale(0)}}' ) && ! str_contains( $css, '@keyframes' ), 'La pantalla completa abre y cierra con la transición de PRO (scale 0 → 1 y vuelta, 0,3 s).' );
 	h_check( str_contains( $css, 'min-height:24px;min-width:24px' ) && str_contains( $css, '--digi-sf-toggle-size,33px' ) && str_contains( $css, 'min-height:50px' ), 'El aspa mide 24 × 24 px como mínimo; el conmutador, 33 px; el campo, 50 px, como PRO.' );
-	h_check( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*transition:none\}dialog\.digi-search-form__container\[open\]\{animation:none\}\}/', $css ), 'Sin transiciones ni animación de apertura con movimiento reducido.' );
+	h_check( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*,dialog\.digi-search-form__container\{transition:none\}\}/', $css ), 'Sin transiciones (tampoco la de la pantalla completa) con movimiento reducido.' );
 	$js = (string) file_get_contents( h_path( Module::WIDGETS['digitalisimo-search-form']['js'] ) );
 	h_check( strlen( $js ) > 0 && strlen( $js ) <= 2048 && ! preg_match( '/jquery|\$\(|elementorFrontend|swiper/i', $js ), 'Script ≤ 2 KB, sin jQuery ni dependencias: ' . strlen( $js ) . ' B.' );
 	h_check( str_contains( $js, 'showModal()' ) && str_contains( $js, "addEventListener('close'" ) && str_contains( $js, '}, true);' ) && str_contains( $js, 'toggle.focus()' ) && str_contains( $js, "setAttribute('aria-expanded'" ), 'El script abre el diálogo modal, escucha su cierre (Escape incluido) y devuelve el foco al botón.' );
@@ -68,30 +80,34 @@ namespace {
 		h_check( str_replace( 'elementor-search-form', 'digi-search-form', $pro->controls[ $name ]['prefix_class'] ) === $own->controls[ $name ]['prefix_class'], "$name: el mismo prefijo de clase que PRO con el nombre propio." );
 	}
 
-	// 3. Marcado.
+	// 3. Marcado. Los iconos son los de PRO, del núcleo: con `e_font_icon_svg`, el SVG en una caja centrada.
+	$glyph = static function ( $value ) { return '<span class="digi-search-form__glyph"><svg class="e-font-icon-svg" data-icon="fas fa-' . $value . '" aria-hidden="true"></svg></span>'; };
 	$GLOBALS['h_wp']['actions'] = array();
 	$classic = h_render( $own );
-	h_check( '<search role="search"><form class="digi-search-form" action="https://sitio.test/" method="get"><div class="digi-search-form__container"><label class="digi-search-form__label" for="digi-search-form-abc1234">Buscar</label><input id="digi-search-form-abc1234" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button class="digi-search-form__submit" type="submit" aria-label="Buscar">' . Search_Form::ICONS['search'] . '</button></div></form></search>' === $classic, 'Clásica: búsqueda, formulario a la portada, etiqueta, campo y botón con nombre: ' . $classic );
+	h_check( '<search role="search"><form class="digi-search-form" action="https://sitio.test/" method="get"><div class="digi-search-form__container"><label class="digi-search-form__label" for="digi-search-form-abc1234">Buscar</label><input id="digi-search-form-abc1234" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button class="digi-search-form__submit" type="submit" aria-label="Buscar">' . $glyph( 'search' ) . '</button></div></form></search>' === $classic, 'Clásica: búsqueda, formulario a la portada, etiqueta, campo y botón con nombre y la lupa de PRO: ' . $classic );
+	h_check( array( 'digitalisimo-search-form' ) === $own->get_style_depends(), 'Con iconos en línea, sólo su hoja.' );
 	h_check( array( 'elementor_pro/search_form/before_input', 'elementor_pro/search_form/after_input' ) === $GLOBALS['h_wp']['actions'], 'Se disparan los ganchos de PRO para los complementos que añaden campos.' );
 	$text = h_render( $own, array( 'button_type' => 'text', 'button_text' => 'Ir <script>x()</script><b onclick="y()">ya</b>' ) );
 	h_check( str_contains( $text, '<button class="digi-search-form__submit" type="submit">Ir <b>ya</b></button>' ), 'Botón de texto: el texto (HTML permitido) es su nombre accesible: ' . $text );
 	h_check( str_contains( h_render( $own, array( 'button_type' => 'text', 'button_text' => '' ) ), '<button class="digi-search-form__submit" type="submit" aria-label="Buscar"></button>' ), 'Botón de texto vacío: conserva el nombre «Buscar».' );
-	h_check( str_contains( h_render( $own, array( 'icon' => 'arrow' ) ), Search_Form::ICONS['arrow'] ), 'Flecha en el botón.' );
+	h_check( str_contains( h_render( $own, array( 'icon' => 'arrow' ) ), $glyph( 'arrow-right' ) ), 'Flecha de PRO en el botón (`fas fa-arrow-right`).' );
 	$GLOBALS['h_wp']['rtl'] = true;
-	h_check( str_contains( h_render( $own, array( 'icon' => 'arrow' ) ), 'digi-search-form__svg--arrow digi-search-form__svg--rtl' ) && str_contains( $css, '.digi-search-form__svg--rtl{transform:scaleX(-1)}' ), 'En RTL la flecha apunta a la izquierda, como la de PRO.' );
+	h_check( str_contains( h_render( $own, array( 'icon' => 'arrow' ) ), $glyph( 'arrow-left' ) ), 'En RTL, `fas fa-arrow-left`, como PRO.' );
 	$GLOBALS['h_wp']['rtl'] = false;
 	$minimal = h_render( $own, array( 'skin' => 'minimal' ) );
-	h_check( str_contains( $minimal, '<div class="digi-search-form__container"><label class="digi-search-form__icon" for="digi-search-form-abc1234">' . Search_Form::ICONS['search'] . '<span class="digi-search-form__label">Buscar</span></label><input ' ) && 1 === substr_count( $minimal, '<label' ) && ! str_contains( $minimal, '<button' ), 'Mínima: la lupa es la etiqueta del campo (una sola), sin botón: ' . $minimal );
+	h_check( str_contains( $minimal, '<div class="digi-search-form__container"><label class="digi-search-form__icon" for="digi-search-form-abc1234">' . $glyph( 'search' ) . '<span class="digi-search-form__label">Buscar</span></label><input ' ) && 1 === substr_count( $minimal, '<label' ) && ! str_contains( $minimal, '<button' ), 'Mínima: la lupa es la etiqueta del campo (una sola), sin botón: ' . $minimal );
 	$full = h_render( $own, array( 'skin' => 'full_screen' ) );
-	h_check( str_contains( $full, '<form class="digi-search-form" action="https://sitio.test/" method="get"><button type="button" class="digi-search-form__toggle" aria-label="Buscar" aria-haspopup="dialog" aria-expanded="false" aria-controls="digi-search-form-abc1234-dialog">' . Search_Form::ICONS['search'] . '</button><dialog class="digi-search-form__container" id="digi-search-form-abc1234-dialog" aria-label="Buscar"><label class="digi-search-form__label" for="digi-search-form-abc1234">Buscar</label><input ' ) && str_contains( $full, '<button type="button" class="digi-search-form__close" aria-label="Cerrar la búsqueda">' . Search_Form::ICONS['close'] . '</button></dialog></form></search>' ) && ! str_contains( $full, 'digi-search-form__submit' ), 'Pantalla completa: botón que abre un diálogo con nombre, el campo y el botón de cierre: ' . $full );
+	h_check( str_contains( $full, '<form class="digi-search-form" action="https://sitio.test/" method="get"><button type="button" class="digi-search-form__toggle" aria-label="Buscar" aria-haspopup="dialog" aria-expanded="false" aria-controls="digi-search-form-abc1234-dialog">' . $glyph( 'search' ) . '</button><dialog class="digi-search-form__container" id="digi-search-form-abc1234-dialog" aria-label="Buscar"><label class="digi-search-form__label" for="digi-search-form-abc1234">Buscar</label><input ' ) && str_contains( $full, '<button type="button" class="digi-search-form__close" aria-label="Cerrar la búsqueda"><svg class="e-font-icon-svg" data-icon="eicon-close" aria-hidden="true"></svg></button></dialog></form></search>' ) && ! str_contains( $full, 'digi-search-form__submit' ), 'Pantalla completa: botón que abre un diálogo con nombre, el campo y el botón de cierre con el aspa de PRO (`eicon-close`): ' . $full );
+	// Sin iconos en línea: la fuente de iconos, sin caja, y la hoja de Font Awesome, como PRO.
+	$GLOBALS['h_wp']['features'] = array( 'e_optimized_markup' );
+	h_check( str_contains( h_render( $own ), '<button class="digi-search-form__submit" type="submit" aria-label="Buscar"><svg class="e-font-icon-svg" data-icon="fas fa-search" aria-hidden="true"></svg></button>' ) && array( 'digitalisimo-search-form', 'elementor-icons-fa-solid' ) === $own->get_style_depends(), 'Sin iconos en línea, el icono sin caja y la hoja de Font Awesome en las dependencias.' );
+	$GLOBALS['h_wp']['features'] = array( 'e_optimized_markup', 'e_font_icon_svg' );
 	h_check( ! preg_match( '/role="button"|tabindex/', $classic . $minimal . $full ), 'Sin div con role="button" ni tabindex: botones reales.' );
 	$GLOBALS['h_wp']['search'] = 'a"b<c>';
 	$evil = h_render( $own, array( 'placeholder' => '"><script>x</script>' ) );
 	h_check( str_contains( $evil, 'placeholder="&quot;&gt;&lt;script&gt;x&lt;/script&gt;"' ) && str_contains( $evil, 'value="a&quot;b&lt;c&gt;"' ) && ! str_contains( $evil, '<script' ), 'Texto de ejemplo y búsqueda escapados.' );
 	$GLOBALS['h_wp']['search'] = '';
-	foreach ( array( 'search', 'arrow', 'close' ) as $icon ) {
-		h_check( str_contains( Search_Form::ICONS[ $icon ], 'aria-hidden="true" focusable="false"' ), "Icono $icon decorativo." );
-	}
+	h_check( 3 === substr_count( $classic . $minimal . h_render( $own, array( 'skin' => 'full_screen' ) ), 'aria-hidden="true"></svg></span>' ), 'Iconos decorativos (aria-hidden).' );
 
 	// 4. Conversión con el mapa.
 	h_check( 'search-form' === $map['source'] && 'digitalisimo-search-form' === $map['target'] && in_array( $map['status'], array( 'draft', 'ready' ), true ) && 'hide' === $map['panel'], 'Mapa del Search Form hacia el Formulario de búsqueda, oculto del panel al estar listo.' );
@@ -105,7 +121,7 @@ namespace {
 		'focus'      => array( 'input_text_color_focus' => '#000000', 'input_background_color_focus' => '#fafafa', 'input_border_color_focus' => '#333333', 'input_box_shadow_focus_box_shadow_type' => 'yes', 'input_typography_typography' => 'custom', 'input_typography_font_size' => array( 'unit' => 'px', 'size' => 18 ), 'input_typography_font_size_tablet' => array( 'unit' => 'px', 'size' => 16 ) ),
 		'globals'    => array( 'input_text_color' => '', 'button_background_color' => '', '__globals__' => array( 'input_text_color' => 'globals/colors?id=accent', 'button_background_color' => 'globals/colors?id=primary', 'input_typography_typography' => 'globals/typography?id=secondary', 'button_typography_typography' => 'globals/typography?id=accent', '_background_color' => 'globals/colors?id=text' ) ),
 		'dynamic'    => array( '__dynamic__' => array( 'placeholder' => '[elementor-tag id="a1" name="site-title" settings="%7B%7D"]' ) ),
-		'css'        => array( 'custom_css' => "selector .elementor-search-form__container{border:1px solid red}\nselector.elementor-search-form--skin-classic .elementor-search-form__submit:hover{opacity:.8}\nselector .elementor-search-form__input::placeholder{color:#000}\n.elementor-widget-search-form .elementor-search-form__icon{opacity:1}\nselector .elementor-search-form__toggle .dialog-lightbox-close-button{color:red}\nselector.elementor-search-form--button-type-text.elementor-search-form--icon-arrow{x:y}", '_css_classes' => 'mi-busqueda', '_margin' => array( 'top' => '10', 'right' => '0', 'bottom' => '0', 'left' => '0', 'unit' => 'px', 'isLinked' => false ) ),
+		'css'        => array( 'custom_css' => "selector .elementor-search-form__container{border:1px solid red}\nselector.elementor-search-form--skin-classic .elementor-search-form__submit:hover{opacity:.8}\nselector .elementor-search-form__input::placeholder{color:#000}\n.elementor-widget-search-form .elementor-search-form__icon{opacity:1}\nselector .elementor-search-form__toggle .dialog-lightbox-close-button{color:red}\nselector.elementor-search-form--button-type-text.elementor-search-form--icon-arrow{x:y}\nselector .elementor-search-form--focus .elementor-search-form__input{color:red}\nselector .elementor-search-form__container.elementor-search-form--full-screen{opacity:.9}", '_css_classes' => 'mi-busqueda', '_margin' => array( 'top' => '10', 'right' => '0', 'bottom' => '0', 'left' => '0', 'unit' => 'px', 'isLinked' => false ) ),
 		'responsive' => array( 'border_radius_tablet' => array( 'unit' => 'px', 'size' => 0 ), 'button_width_mobile' => array( 'unit' => 'px', 'size' => 1 ), 'icon_size_minimal_mobile' => array( 'unit' => 'px', 'size' => 12 ) ),
 	);
 	list( $out, $codes ) = h_convert( 'search-form', $own, $cases );
@@ -121,7 +137,7 @@ namespace {
 	h_check( '#333333' === $out['focus']['input_border_color_focus'] && 'yes' === $out['focus']['input_box_shadow_focus_box_shadow_type'] && 16 === $out['focus']['input_typography_font_size_tablet']['size'], 'Estado «Foco» y tipografía por dispositivo.' );
 	h_check( array( 'input_text_color' => 'globals/colors?id=accent', 'button_background_color' => 'globals/colors?id=primary', 'input_typography_typography' => 'globals/typography?id=secondary', 'button_typography_typography' => 'globals/typography?id=accent', '_background_color' => 'globals/colors?id=text' ) === $out['globals']['__globals__'], 'Colores y tipografías globales siguen a su control.' );
 	h_check( array( 'placeholder' ) === array_keys( $out['dynamic']['__dynamic__'] ), 'La etiqueta dinámica del texto de ejemplo sigue a su control.' );
-	h_check( "selector .digi-search-form__container{border:1px solid red}\nselector.digi-search-form--skin-classic .digi-search-form__submit:hover{opacity:.8}\nselector .digi-search-form__input::placeholder{color:#000}\n.elementor-widget-digitalisimo-search-form .digi-search-form__icon{opacity:1}\nselector .digi-search-form__toggle .digi-search-form__close{color:red}\nselector.digi-search-form--button-type-text.digi-search-form--icon-arrow{x:y}" === $out['css']['custom_css'] && 'mi-busqueda' === $out['css']['_css_classes'], 'CSS personalizado con las clases propias: ' . $out['css']['custom_css'] );
+	h_check( "selector .digi-search-form__container{border:1px solid red}\nselector.digi-search-form--skin-classic .digi-search-form__submit:hover{opacity:.8}\nselector .digi-search-form__input::placeholder{color:#000}\n.elementor-widget-digitalisimo-search-form .digi-search-form__icon{opacity:1}\nselector .digi-search-form__toggle .digi-search-form__close{color:red}\nselector.digi-search-form--button-type-text.digi-search-form--icon-arrow{x:y}\nselector .digi-search-form:has(.digi-search-form__input:focus) .digi-search-form__input{color:red}\nselector .digi-search-form__container.digi-search-form__container[open]{opacity:.9}" === $out['css']['custom_css'] && 'mi-busqueda' === $out['css']['_css_classes'], 'CSS personalizado con las clases propias, también los estados de PRO (foco y pantalla completa abierta): ' . $out['css']['custom_css'] );
 	h_check( 0 === $out['responsive']['border_radius_tablet']['size'] && 1 === $out['responsive']['button_width_mobile']['size'] && 12 === $out['responsive']['icon_size_minimal_mobile']['size'], 'Valores por dispositivo.' );
 	h_classes_exist( $map, $own, $classic . $minimal . $full );
 

@@ -6,7 +6,8 @@
  * El widget propio repite los controles del de PRO con el mismo nombre, valores por defecto, opciones y condiciones, así
  * que el mapa es `keep` y `groups`. Marcado y clases propios: la pantalla completa es un `<dialog>` modal con botones
  * reales, el estado «Foco» de los colores sale de `:has(…:focus)` (PRO lo ponía con una clase desde su script) y los
- * iconos son SVG propios. Los textos que PRO pintaba por defecto en el idioma del sitio («Search...», «Search») se
+ * iconos son los de PRO, del núcleo. En el CSS personalizado, las clases de estado de PRO (`--focus`, `--full-screen`)
+ * pasan a esos selectores. Los textos que PRO pintaba por defecto en el idioma del sitio («Search...», «Search») se
  * completan antes de traducir, para que lo convertido diga lo mismo. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
@@ -32,6 +33,10 @@ $digi_sf_classes = array(
 	'.elementor-search-form--button-type-text' => '.digi-search-form--button-type-text',
 	'.elementor-search-form--icon-search'    => '.digi-search-form--icon-search',
 	'.elementor-search-form--icon-arrow'     => '.digi-search-form--icon-arrow',
+	// Estados que PRO ponía con su script: el foco del campo, en el formulario (clásica y mínima), y la pantalla completa
+	// abierta, en el contenedor (el `<dialog>` propio, `[open]`).
+	'.elementor-search-form--focus'          => '.digi-search-form:has(.digi-search-form__input:focus)',
+	'.elementor-search-form--full-screen'    => '.digi-search-form__container[open]',
 );
 
 return array(

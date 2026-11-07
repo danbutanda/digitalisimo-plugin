@@ -3,9 +3,11 @@
 // marcado contra el servidor):
 // - pantalla completa: el botón abre el <dialog> modal (capa superior, aria-expanded, foco en el campo); Tab no sale del
 //   diálogo; Escape, el aspa y un clic en la superposición lo cierran y el foco vuelve al botón; un widget que el
-//   editor vuelve a pintar sigue funcionando (delegación); movimiento reducido sin animación;
-// - foco visible (contorno de 2 px con separación de 2 px) en el conmutador, el aspa y el campo de la clásica, y
-//   botones de 24 × 24 px como mínimo; la mínima enfoca el campo al pulsar la lupa sin script;
+//   editor vuelve a pintar sigue funcionando (delegación); abre y cierra con la transición de PRO (scale 0 ↔ 1, 0,3 s)
+//   y, con movimiento reducido, sin ella;
+// - foco visible (contorno de 2 px con separación de 2 px) en el conmutador y el aspa, y botones de 24 × 24 px como
+//   mínimo; el campo, como PRO, sin contorno y con el color heredado al enfocarlo (ratón o teclado); la lupa de PRO a
+//   16 px; la mínima enfoca el campo al pulsar la lupa sin script;
 // - sin errores en la consola.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-search-form-chrome.mjs
@@ -27,10 +29,12 @@ let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const svg = '<svg class="digi-search-form__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 2h20v20H2z"/></svg>';
-const full = id => `<div class="elementor-element digi-search-form--skin-full_screen" data-id="${id}"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><button type="button" class="digi-search-form__toggle" aria-label="Buscar" aria-haspopup="dialog" aria-expanded="false" aria-controls="digi-search-form-${id}-dialog">${svg}</button><dialog class="digi-search-form__container" id="digi-search-form-${id}-dialog" aria-label="Buscar"><label class="digi-search-form__label" for="digi-search-form-${id}">Buscar</label><input id="digi-search-form-${id}" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button type="button" class="digi-search-form__close" aria-label="Cerrar la búsqueda">${svg}</button></dialog></form></search></div>`;
-const classic = `<div class="elementor-element digi-search-form--skin-classic digi-search-form--button-type-icon" data-id="c"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><div class="digi-search-form__container"><label class="digi-search-form__label" for="digi-search-form-c">Buscar</label><input id="digi-search-form-c" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button class="digi-search-form__submit" type="submit" aria-label="Buscar">${svg}</button></div></form></search></div>`;
-const minimal = `<div class="elementor-element digi-search-form--skin-minimal" data-id="m"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><div class="digi-search-form__container"><label class="digi-search-form__icon" for="digi-search-form-m">${svg}<span class="digi-search-form__label">Buscar</span></label><input id="digi-search-form-m" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""></div></form></search></div>`;
+// Los iconos del núcleo, como los pinta el servidor con `e_font_icon_svg`: el SVG de Font Awesome en su caja; el aspa, sin caja.
+const glyph = '<span class="digi-search-form__glyph"><svg aria-hidden="true" class="e-font-icon-svg e-fas-search" viewBox="0 0 512 512"><path d="M0 0h512v512H0z"></path></svg></span>';
+const svg = '<svg aria-hidden="true" class="e-font-icon-svg e-eicon-close" viewBox="0 0 1000 1000"><path d="M0 0h1000v1000H0z"></path></svg>';
+const full = id => `<div class="elementor-element digi-search-form--skin-full_screen" data-id="${id}"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><button type="button" class="digi-search-form__toggle" aria-label="Buscar" aria-haspopup="dialog" aria-expanded="false" aria-controls="digi-search-form-${id}-dialog">${glyph}</button><dialog class="digi-search-form__container" id="digi-search-form-${id}-dialog" aria-label="Buscar"><label class="digi-search-form__label" for="digi-search-form-${id}">Buscar</label><input id="digi-search-form-${id}" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button type="button" class="digi-search-form__close" aria-label="Cerrar la búsqueda">${svg}</button></dialog></form></search></div>`;
+const classic = `<div class="elementor-element digi-search-form--skin-classic digi-search-form--button-type-icon" data-id="c"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><div class="digi-search-form__container"><label class="digi-search-form__label" for="digi-search-form-c">Buscar</label><input id="digi-search-form-c" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""><button class="digi-search-form__submit" type="submit" aria-label="Buscar">${glyph}</button></div></form></search></div>`;
+const minimal = `<div class="elementor-element digi-search-form--skin-minimal" data-id="m"><search role="search"><form class="digi-search-form" action="about:blank" method="get"><div class="digi-search-form__container"><label class="digi-search-form__icon" for="digi-search-form-m">${glyph}<span class="digi-search-form__label">Buscar</span></label><input id="digi-search-form-m" placeholder="Buscar..." class="digi-search-form__input" type="search" name="s" value=""></div></form></search></div>`;
 const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${css}</style></head><body><a href="#" id="before">antes</a>${classic}${minimal}${full('f')}<div id="slot">${full('g')}</div><a href="#" id="after">después</a><script>${js}</script></body></html>`;
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu'] });
@@ -80,7 +84,7 @@ ok(s.open && s.modal && s.visible && s.expanded === 'true' && s.focus === 'input
 const overlay = await page.$eval('[data-id="f"] dialog', d => { const r = d.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(d).backgroundColor]; });
 ok(overlay[0] === 1280 && overlay[1] === 800 && overlay[2] === 'rgba(0, 0, 0, 0.8)', 'Superposición a pantalla completa con el color de PRO: ' + overlay);
 const input = await page.$eval('[data-id="f"] .digi-search-form__input', i => [getComputedStyle(i).fontSize, getComputedStyle(i).color, getComputedStyle(i).borderBottomWidth, getComputedStyle(i).textAlign, getComputedStyle(i).outlineStyle]);
-ok(input.join() === '50px,rgb(255, 255, 255),1px,center,solid', 'Campo de pantalla completa como PRO (50 px, blanco, línea inferior, centrado) y con foco visible: ' + input);
+ok(input.join() === '50px,rgb(255, 255, 255),1px,center,none', 'Campo de pantalla completa como PRO (50 px, blanco, línea inferior, centrado y sin contorno con el foco): ' + input);
 // Tab no sale del diálogo.
 await page.keyboard.press('Tab');
 s = await state(page, 'f');
@@ -126,15 +130,23 @@ ok(s.open && s.focus === 'input' && !(await state(page, 'f')).open, 'El widget v
 await page.keyboard.press('Escape');
 await sleep(200);
 ok((await state(page, 'g')).focus === 'toggle', 'Y devuelve el foco a su botón.');
-// Clásica: foco visible en el contenedor al llegar al campo con el teclado; botón de 50 px.
+// Clásica: como PRO, ni el campo ni su contenedor llevan contorno con el foco (ratón o teclado), y el texto toma el color
+// heredado (`color:inherit`); botón de 50 px.
+const cring = () => page.evaluate(() => {
+  const c = document.querySelector('[data-id="c"] .digi-search-form__container'), i = document.querySelector('#digi-search-form-c');
+  return [document.activeElement.id, getComputedStyle(c).outlineStyle, getComputedStyle(i).outlineStyle, getComputedStyle(i).color];
+});
+await page.evaluate(() => document.activeElement && document.activeElement.blur());
+ok((await cring()).slice(1).join() === 'none,none,rgb(63, 68, 75)', 'Clásica sin foco: el texto con el gris de PRO: ' + await cring());
+await page.click('#digi-search-form-c');
+await sleep(300);
+ok((await cring()).join() === 'digi-search-form-c,none,none,rgb(0, 0, 0)', 'Clásica, clic en el campo: sin contorno y con el color heredado, como PRO: ' + await cring());
 await page.focus('#before');
 await page.keyboard.press('Tab');
 await sleep(300);
-const cring = await page.evaluate(() => {
-  const c = document.querySelector('[data-id="c"] .digi-search-form__container');
-  return [document.activeElement.id, getComputedStyle(c).outlineStyle, getComputedStyle(c).outlineWidth, getComputedStyle(c).outlineOffset];
-});
-ok(cring.join() === 'digi-search-form-c,solid,2px,2px', 'Clásica: el contenedor muestra el foco del campo: ' + cring);
+ok((await cring()).join() === 'digi-search-form-c,none,none,rgb(0, 0, 0)', 'Clásica, con el teclado: igual: ' + await cring());
+const icon = await page.$eval('[data-id="c"] .digi-search-form__submit svg', i => { const r = i.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(i).fill]; });
+ok(icon.join() === '16,16,rgb(255, 255, 255)', 'La lupa de PRO en el botón: 16 × 16 px, en blanco: ' + icon);
 const submit = await page.$eval('[data-id="c"] .digi-search-form__submit', b => { const r = b.getBoundingClientRect(); return [Math.round(r.height), getComputedStyle(b).backgroundColor, getComputedStyle(b).color]; });
 ok(submit[0] === 50 && submit[1] === 'rgb(105, 114, 125)' && submit[2] === 'rgb(255, 255, 255)', 'Botón de envío de 50 px con los colores de PRO: ' + submit);
 // Mínima: la lupa es la etiqueta, enfoca el campo sin script.
@@ -144,11 +156,31 @@ const name = await page.evaluate(() => { const i = document.querySelector('#digi
 ok(name === 'Buscar', 'Mínima: una sola etiqueta, «Buscar»: ' + name);
 await page.close();
 
-// Movimiento reducido: sin animación de apertura.
+// La transición de PRO (0,3 s): abre creciendo desde un punto y cierra encogiéndose, también con Escape.
+const motion = await open();
+const look = p => p.$eval('[data-id="f"] dialog', d => { const cs = getComputedStyle(d), m = new DOMMatrix(cs.transform); return { open: d.open, scale: Math.round(m.a * 100) / 100, opacity: Math.round(Number(cs.opacity) * 100) / 100, shown: d.getBoundingClientRect().width > 0 }; });
+await motion.click('[data-id="f"] .digi-search-form__toggle');
+await sleep(60);
+let m1 = await look(motion);
+ok(m1.open && m1.shown && m1.scale > 0 && m1.scale < 0.9 && m1.opacity < 0.9, 'Al abrir, el diálogo crece desde scale(0): ' + JSON.stringify(m1));
+await sleep(450);
+m1 = await look(motion);
+ok(m1.scale === 1 && m1.opacity === 1, 'Y termina a tamaño completo: ' + JSON.stringify(m1));
+await motion.keyboard.press('Escape');
+await sleep(100);
+m1 = await look(motion);
+ok(!m1.open && m1.shown && m1.scale < 1 && m1.opacity < 1, 'Al cerrar con Escape se encoge (sigue a la vista mientras dura): ' + JSON.stringify(m1));
+await sleep(450);
+m1 = await look(motion);
+ok(!m1.shown, 'Y al terminar ya no se ve: ' + JSON.stringify(m1));
+await motion.close();
+// Movimiento reducido: sin transición.
 const quiet = await open({ reduce: true });
 await quiet.click('[data-id="f"] .digi-search-form__toggle');
-const anim = await quiet.$eval('[data-id="f"] dialog', d => getComputedStyle(d).animationName);
-ok(anim === 'none', 'Con movimiento reducido el diálogo se abre sin animación: ' + anim);
+const anim = await look(quiet);
+ok(anim.scale === 1 && anim.opacity === 1, 'Con movimiento reducido el diálogo se abre sin transición: ' + JSON.stringify(anim));
+await quiet.keyboard.press('Escape');
+ok(!(await look(quiet)).shown, 'Y se cierra al momento.');
 await quiet.close();
 
 await browser.close();
