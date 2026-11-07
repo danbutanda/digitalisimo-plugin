@@ -109,8 +109,16 @@ class Site_Settings extends Import_Runner_Base {
 			if ( $this->summary['not_applied'] > 0 ) {
 				Context::report( 'settings.not_applied', array( 'count' => $this->summary['not_applied'] ), Part_Context::INFO );
 			}
-			if ( $deferred ) {
-				Context::report( 'settings.reference_kept', array( 'keys' => array_keys( $deferred ) ), Part_Context::INFO );
+			// Sólo lo que el kit elige: una página vacía (o `false`, como guarda la pestaña WooCommerce lo no elegido) no
+			// es una elección que el sitio «conserve».
+			$kept = array_filter(
+				$deferred,
+				function ( $value ) {
+					return ! ( null === $value || false === $value || '' === $value || 0 === $value || '0' === $value || array() === $value );
+				}
+			);
+			if ( $kept ) {
+				Context::report( 'settings.reference_kept', array( 'keys' => array_keys( $kept ) ), Part_Context::INFO );
 			}
 		}
 		Session::update(

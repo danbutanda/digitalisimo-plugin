@@ -29,7 +29,8 @@ defined( 'ABSPATH' ) || exit;
  * existe: la meta se trata como hoy una clave sin referencia. Sin la clave, nada cambia. La parte `term-meta`
  * traduce cada término dentro de `within_taxonomy()`; fuera, una referencia acotada nunca se aplica.
  *
- * Sólo en `scope = element`, con un tipo concreto y un `kind` de ID (`EXPORT_KINDS`), la clave opcional `export`
+ * Sólo en `scope = element`, con un tipo concreto, un `kind` de ID (`EXPORT_KINDS`) y un ajuste de primer nivel (`x` o
+ * `x.*`, `EXPORT_PATH_PATTERN`), la clave opcional `export`
  * (verdadera) hace que el valor viaje en el kit aunque el elemento lo quite al exportarse (su `on_export()`, como el
  * «Add to Cart» de PRO con `product_id`, o un control con `export => false`, como la selección manual del grupo de
  * consulta de PRO): `Export\Documents::restore_ids()` lo repone desde lo guardado y la importación lo traduce con esta
@@ -65,6 +66,13 @@ final class References {
 
 	/** `kind` que admite `export`: IDs con destino (un usuario nunca viaja; un elemento no se quita al exportar). */
 	const EXPORT_KINDS = array( 'post', 'template', 'term', 'menu', 'menu_slug', 'attachment' );
+
+	/**
+	 * Ruta que admite `export`: un ajuste de primer nivel (`x`) o su lista (`x.*`). `exported()` repone la clave de primer
+	 * nivel entera; con una ruta más honda (`items.*.product`) repondría todo el repetidor, también lo que el elemento quitó
+	 * a propósito.
+	 */
+	const EXPORT_PATH_PATTERN = '/^[^.*]+(?:\.\*)?$/';
 
 	/** Tipo de documento de los ajustes del kit (`scope = document`). */
 	const KIT_DOCUMENT = 'kit';
@@ -450,6 +458,9 @@ final class References {
 			}
 			if ( $ref['export'] && ( 'element' !== $scope || '*' === $type || ! in_array( $kind, self::EXPORT_KINDS, true ) ) ) {
 				return self::invalid( 'export sólo vale en un elemento concreto con un ID', $ref );
+			}
+			if ( $ref['export'] && 1 !== preg_match( self::EXPORT_PATH_PATTERN, $path ) ) {
+				return self::invalid( 'export sólo vale en un ajuste de primer nivel (x o x.*)', $ref );
 			}
 			$export = $ref['export'];
 		}

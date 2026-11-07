@@ -129,6 +129,8 @@ namespace {
 			'con un usuario'         => array( 'element', 'x-widget', 'user_id', 'user', 'export' => true ),
 			'con una URL'            => array( 'element', 'x-widget', 'link.url', 'url', 'export' => true ),
 			'con un ID de elemento'  => array( 'element', 'x-widget', 'selected_element', 'element', 'export' => true ),
+			'dentro de un repetidor' => array( 'element', 'x-widget', 'items.*.product_id', 'post', 'export' => true ),
+			'en un subcampo'         => array( 'element', 'x-widget', 'product.id', 'post', 'export' => true ),
 			'que no es un booleano'  => array( 'element', 'x-widget', 'product_id', 'post', 'export' => 'yes' ),
 		) as $why => $bad
 	) {
@@ -315,7 +317,7 @@ namespace {
 	$record = Session::get( $session );
 	kt_check( array() === array_intersect_key( $record['backup']['kit_settings'], array_flip( $pages ) ) && isset( $record['backup']['kit_settings']['custom_css'] ) && array() === $record['kit_deferred'], '4: «agregar»: las páginas no quedan para «Aplicar los ajustes del kit» (el resto sí).' );
 	$kept = $codes( Context::notes()['report']['entries'] ?? array(), 'settings.reference_kept' );
-	kt_check( 1 === count( $kept ) && array_keys( array_intersect_key( $kit_settings, array_flip( $pages ) ) ) === $kept[0]['data']['keys'] && 'settings' === \Digitalisimo\Elements\Import\Kits\Report::section_for( 'settings.reference_kept' ), '4: «agregar»: se informa `settings.reference_kept` con las claves, en «Ajustes del kit».' );
+	kt_check( 1 === count( $kept ) && array( 'woocommerce_shop_page_id', 'woocommerce_cart_page_id', 'woocommerce_checkout_page_id', 'woocommerce_myaccount_page_id' ) === $kept[0]['data']['keys'] && 'settings' === \Digitalisimo\Elements\Import\Kits\Report::section_for( 'settings.reference_kept' ), '4: «agregar»: se informa `settings.reference_kept` con las páginas que el kit elige (no las vacías ni `false`), en «Ajustes del kit»: ' . json_encode( $kept[0]['data']['keys'] ?? null ) );
 	kt_check( 'Ajustes del kit' !== \Digitalisimo\Elements\Import\Kits\Report::code_label( 'settings.reference_kept' ), '4: con su propio texto.' );
 	// «Aplicar los ajustes del kit», también con el respaldo de una sesión anterior que aún guardaba las páginas.
 	$record['backup']['kit_settings'] += array_intersect_key( $kit_settings, array_flip( $pages ) );
@@ -324,6 +326,11 @@ namespace {
 	Context::deactivate();
 	kt_check( true === $applied && '/* kit */' === $kit->get_settings()['custom_css'], '4: «Aplicar los ajustes del kit» aplica el resto.' );
 	kt_check( '3' === get_option( 'woocommerce_cart_page_id' ) && '' === get_option( 'woocommerce_shop_page_id' ) && '3' === $kit->get_settings()['woocommerce_cart_page_id'], '4: …pero nunca las páginas del kit: el sitio conserva las suyas.' );
+	// Un kit de una tienda sin páginas elegidas (todas vacías): nada que conservar, ninguna entrada en el informe.
+	$kit = $site();
+	$bind( Module::MODE_ADD );
+	$run( array_replace( $kit_settings, array_fill_keys( $pages, '' ), array( 'woocommerce_purchase_summary_page_id' => false ) ) );
+	kt_check( array() === $codes( Context::notes()['report']['entries'] ?? array(), 'settings.reference_kept' ), '4: «agregar» con todas las páginas del kit vacías: no se informa `settings.reference_kept`.' );
 
 	// ── 5. Parte `kit-settings` (petición final) ────────────────────────────────────────────────────────────────────
 	$kit = $site( array( 'woocommerce_cart_page_id' => '' ) );

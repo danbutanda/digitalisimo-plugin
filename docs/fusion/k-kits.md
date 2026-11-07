@@ -397,8 +397,9 @@ traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de W
 
 - **`export` en una referencia de elemento.** Una referencia de `scope = element`, para un tipo concreto (nunca `*`) y de
   un `kind` con destino (`post`, `template`, `term`, `menu`, `menu_slug` o `attachment`: nunca `user`, que no viaja, ni
-  `element`), puede llevar por nombre `'export' => true`. `References::normalize()` la valida (cualquier otro uso, o un
-  valor que no es booleano, se rechaza con `_doing_it_wrong()`) y sólo añade la clave cuando es verdadera, así que sin
+  `element`) y sobre un ajuste de primer nivel (`x` o `x.*`), puede llevar por nombre `'export' => true`.
+  `References::normalize()` la valida (cualquier otro uso, una ruta más honda, como `items.*.product_id`, que repondría
+  el repetidor entero, o un valor que no es booleano, se rechaza con `_doing_it_wrong()`) y sólo añade la clave cuando es verdadera, así que sin
   ella el índice tiene la forma de siempre. `References::exported( $type )` da sus claves de primer nivel y
   `Export\Documents::restore_ids()`, que ya recorría en paralelo el árbol exportado y el guardado para reponer los IDs
   de elemento, repone en cada nodo lo que su exportación quitó: el `on_export()` del elemento (el «Add to Cart» de PRO y
@@ -415,7 +416,8 @@ traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de W
     los IDs del destino. Sin destino quedan vacías y se informa `unresolved`; nunca queda un ID del origen. Si el kit
     activo cambió entre peticiones no se aplica nada (`kit-settings.kit_changed`);
   - en «agregar» no se aplican nunca, ni con «Aplicar los ajustes del kit» (no quedan en `backup.kit_settings`), y se
-    informa `settings.reference_kept`: el sitio conserva su elección. El runner `woocommerce-settings` de K informa la
+    informa `settings.reference_kept` con las páginas que el kit elige (las vacías o `false` no cuentan): el sitio
+    conserva su elección. El runner `woocommerce-settings` de K informa la
     página que trae el kit buscándola en todo lo importado (`Finish::post_map()`, también el WXR, por donde llegan las
     páginas de WooCommerce), no sólo en las del constructor.
 - **Una lista no se traduce dos veces.** `References::matching()` no añade la referencia que deriva de un control de
@@ -432,11 +434,12 @@ traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de W
   (`digitalisimo-woo-products` y `woocommerce-products`), con `never`: vacío sería el producto de la página o todos los
   productos. El widget de PRO se declara porque un kit exportado desde Elements puede llevarlo aún sin migrar y K lo
   convierte al importar (§17).
-- **Límites.** `export` repone sólo claves de primer nivel (no un campo dentro de un repetidor). La reversión de «nuevo»
+- **Límites.** `export` repone sólo claves de primer nivel (no un campo dentro de un repetidor: esa ruta se rechaza). La reversión de «nuevo»
   devuelve los ajustes del kit con su guardado, así que las páginas que el kit del sitio tenía antes vuelven a las
   opciones; una página que el kit del sitio no tenía (la tienda, que el sitio no sincroniza al kit) queda como la dejó la
-  importación. Los demás controles del grupo de consulta con `export => false` (términos, autores y exclusiones) siguen
-  sin viajar, como en PRO, salvo que una etapa los declare.
+  importación. Los demás controles del grupo de consulta con `export => false` (los autores incluidos y las exclusiones:
+  entradas, términos y autores) siguen sin viajar, como en PRO, salvo que una etapa los declare; los términos
+  incluidos (`include_term_ids`) sí viajan y los traduce el núcleo.
 - **Prueba.** `tests/elements-kit-woo-refs.php` (en `validate.yml` y `release.yml`), que falla con el código anterior de
   cada pieza: validación de `export`, la exportación con y sin las declaraciones, la traducción con el valor que nunca
   coincide, `site-settings` en los dos modos con el `on_save()` real de la pestaña, la parte `kit-settings` en la
