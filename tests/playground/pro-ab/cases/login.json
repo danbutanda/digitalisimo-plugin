@@ -1,26 +1,14 @@
 {
  "_doc": [
   "Casos A/B del Inicio de sesión (C6, docs/pro/c6.md): A con `login` de PRO, B con `digitalisimo-login`. El visitante del arnés no tiene sesión iniciada, así que se mide el formulario; el sitio de prueba no admite registros, así que el enlace «Registrarse» no aparece en ninguno de los dos (el marcado con registro lo comprueba tests/elements-pro-login.php).",
-  "Los textos fijos del widget (no son ajustes: «Recordarme», «¿Olvidaste tu contraseña?») son los propios en español; los textos por defecto que sí son ajustes (botón, etiquetas y textos de ejemplo) llegan con los de PRO porque el mapa los completa."
+  "Los textos fijos del widget que no son ajustes («Remember Me», «Lost your password?», «Register», el aviso con la sesión iniciada y el nombre del formulario) son, en lo convertido (B lo es: lleva la marca `_digitalisimo_pro`), los de PRO con su msgid y su dominio; en lo nuevo, los propios en español (corrección de fidelidad, docs/pro/c6.md). Los textos por defecto que sí son ajustes (botón, etiquetas y textos de ejemplo) llegan con los de PRO porque el mapa los completa."
  ],
  "declared": [
   {
    "widget": "login",
    "kind": "foco",
    "match": "^outline(-offset|-color|-style|-width)?:",
-   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
-  },
-  {
-   "widget": "login",
-   "kind": "palabra",
-   "match": "^(perdida «(remember|me|lost|your|password)»|nueva «(recordarme|olvidaste|tu|contraseña)»)$",
-   "reason": "Textos fijos del widget (no son ajustes de PRO): los del widget propio, en español y traducibles con el dominio pro-elements; los de PRO salen de su traducción al idioma del sitio (el de prueba está en inglés)."
-  },
-  {
-   "widget": "login",
-   "kind": "nombre",
-   "match": "^(perdido link «Lost your password\\?»|nuevo link «¿Olvidaste tu contraseña\\?»)$",
-   "reason": "El enlace de contraseña perdida lleva el texto propio en español (mismo destino, wp_lostpassword_url() con la redirección)."
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px) sólo con el teclado en el botón, la casilla y los enlaces; PRO dejaba el del navegador. Los campos de texto conservan el del núcleo, como PRO (corrección de fidelidad)."
   },
   {
    "widget": "login",
@@ -31,13 +19,12 @@
  ],
  "cases": {
   "login-defaults": {
-   "title": "Valores por defecto (etiquetas, Recordarme y contraseña perdida)",
+   "title": "Valores por defecto (etiquetas, Remember Me y contraseña perdida); el usuario pulsado con el ratón (foco del núcleo)",
    "widget": "login",
    "settings": {},
-   "pixels": {
-    "max": 0.08,
-    "reason": "«Recordarme» y «¿Olvidaste tu contraseña?» son textos propios en español (otra longitud), y el enlace y la casilla tienen un objetivo de 24 px de alto (WCAG 2.5.8), que baja unos píxeles lo que sigue."
-   }
+   "actions": [
+    {"label": "pulsar el usuario con el ratón", "selector": "input[name=log]", "stay": true}
+   ]
   },
   "login-bare": {
    "title": "Sin etiquetas visibles, sin Recordarme ni enlaces, textos de ejemplo propios",
@@ -79,10 +66,6 @@
      "unit": "px",
      "size": 18
     }
-   },
-   "pixels": {
-    "max": 0.06,
-    "reason": "«¿Olvidaste tu contraseña?» es el texto propio en español, con un objetivo de 24 px de alto (WCAG 2.5.8)."
    }
   },
   "login-sizes": {

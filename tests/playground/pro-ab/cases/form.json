@@ -7,7 +7,7 @@
    "widget": "form",
    "kind": "foco",
    "match": "^outline(-offset)?:",
-   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador o lo quitaba en los campos (outline:0 del núcleo)."
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px) sólo con el teclado en botones, casillas, radios, archivos y enlaces; PRO dejaba el del navegador. Los campos de texto conservan el del núcleo (outline:0 y su sombra), como PRO, también al pulsarlos con el ratón (corrección de fidelidad)."
   },
   {
    "widget": "form",
@@ -153,6 +153,24 @@
    },
    "actions": [
     {"label": "siguiente", "a": ".e-form__step:not(.elementor-hidden) .e-form__buttons__wrapper__button-next", "b": ".e-form__step:not([hidden]) .e-form__buttons__wrapper__button-next"}
+   ]
+  },
+  "form-one-step": {
+   "title": "Un solo paso, como PRO: «siguiente» y el envío; el nombre pulsado con el ratón (foco del núcleo) y «siguiente», que oculta el paso",
+   "widget": "form",
+   "ready": {"a": ".e-form__indicators", "b": ".digi-steps"},
+   "settings": {
+    "form_fields": [
+     {"_id": "o01", "custom_id": "p1", "field_type": "step", "field_label": "Datos"},
+     {"_id": "o02", "custom_id": "name", "field_type": "text", "field_label": "Nombre", "placeholder": "Nombre", "width": "100"},
+     {"_id": "o03", "custom_id": "email", "field_type": "email", "field_label": "Correo", "placeholder": "Correo", "width": "100"}
+    ],
+    "step_type": "number_text",
+    "step_icon_shape": "circle"
+   },
+   "actions": [
+    {"label": "pulsar el nombre con el ratón", "selector": "#form-field-name", "stay": true},
+    {"label": "siguiente (oculta el único paso)", "a": ".e-form__step:not(.elementor-hidden) .e-form__buttons__wrapper__button-next", "b": ".e-form__step:not([hidden]) .e-form__buttons__wrapper__button-next"}
    ]
   }
  }
