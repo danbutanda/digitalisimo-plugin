@@ -236,16 +236,38 @@ const lazy = await page.evaluate(async (px) => {
   await new Promise((r) => (b.complete ? r() : b.addEventListener('load', r)));
   window.__hooks[0][1]([w]);
   const st = (el) => [getComputedStyle(el).transform, getComputedStyle(el).filter, el.classList.contains('is-loaded')].join('|');
-  const out = { cls: w.querySelector('.digi-gallery__container').className, before: st(a), loaded: st(b) };
+  // El observador de la vista responde en el siguiente fotograma.
+  const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 50))));
+  const out = { cls: w.querySelector('.digi-gallery__container').className, before: st(a), sync: st(b) };
+  await frames();
+  out.loaded = st(b);
   a.src = px;
-  await new Promise((r) => a.addEventListener('load', () => setTimeout(r, 50)));
+  await new Promise((r) => (a.complete ? r() : a.addEventListener('load', r)));
+  await frames();
   out.after = st(a);
   out.others = document.querySelectorAll('.digi-gallery__container--lazy').length;
+  // Como `lazyLoadImages()` de PRO (sólo las imágenes en la vista): una ya cargada pero fuera de la vista espera oculta
+  // y entra al verse, no al cargarse (la carga diferida nativa la pide mucho antes).
+  const far = document.createElement('div');
+  far.className = 'w';
+  far.innerHTML = '<div style="height:3000px"></div><div class="digi-gallery digi-gallery--grid"><div id="digi-gallery-lz2" class="digi-gallery__container" data-digi-lazy><a class="digi-gallery__item" data-w="3" data-h="2"><img class="digi-gallery__image" alt="c" width="30" height="20" src="' + px + '"></a></div></div>';
+  document.body.append(far);
+  const c = far.querySelector('img');
+  await new Promise((r) => (c.complete ? r() : c.addEventListener('load', r)));
+  window.__hooks[0][1]([far]);
+  await frames();
+  out.away = st(c);
+  c.scrollIntoView();
+  await frames();
+  out.seen = st(c);
+  window.scrollTo(0, 0);
+  far.remove();
   return out;
 }, PX);
 ok(lazy.cls === 'digi-gallery__container digi-gallery__container--lazy' && lazy.others === 1, 'Con «Carga diferida» el script marca el contenedor (sólo ese): ' + JSON.stringify(lazy));
-ok(lazy.before === 'matrix(0.5, 0, 0, 0.5, 0, 0)|opacity(0)|false', 'La imagen que aún no carga espera a la mitad de su tamaño y sin opacidad, como la de PRO: ' + lazy.before);
-ok(lazy.loaded === 'none|none|true' && lazy.after === 'none|none|true', 'La ya cargada se ve al instante; la otra entra al cargarse: ' + lazy.loaded + ' / ' + lazy.after);
+ok(lazy.before === 'matrix(0.5, 0, 0, 0.5, 0, 0)|opacity(0)|false' && lazy.sync === lazy.before, 'La imagen espera a la mitad de su tamaño y sin opacidad, como la de PRO, hasta verse: ' + lazy.before + ' / ' + lazy.sync);
+ok(lazy.loaded === 'none|none|true' && lazy.after === 'none|none|true', 'En la vista, la ya cargada entra enseguida y la otra al cargarse: ' + lazy.loaded + ' / ' + lazy.after);
+ok(lazy.away === 'matrix(0.5, 0, 0, 0.5, 0, 0)|opacity(0)|false' && lazy.seen === 'none|none|true', 'Fuera de la vista, la ya cargada espera oculta y entra al desplazarse hasta ella, como PRO: ' + lazy.away + ' / ' + lazy.seen);
 ok(errors.length === 0, 'Sin errores de JavaScript: ' + errors.join(' | '));
 await page.close();
 

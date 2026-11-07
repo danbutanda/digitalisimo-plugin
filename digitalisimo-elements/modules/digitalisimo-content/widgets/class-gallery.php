@@ -24,8 +24,8 @@ defined( 'ABSPATH' ) || exit;
  *   calculadas del dispositivo. Sin JavaScript, las dos se ven como una cuadrícula sin recorte.
  * - **Imágenes** con `wp_get_attachment_image()` y el tamaño de «Tamaño de la imagen» (`srcset`, `sizes`, `decoding`;
  *   «Carga diferida», `loading="lazy"`), un `<img>` con su texto alternativo en lugar del fondo CSS de PRO. Con
- *   «Carga diferida», cada imagen entra al cargarse desde la mitad de su tamaño y sin opacidad, como con la librería de
- *   PRO (`data-digi-lazy`; lo pone el script, así que sin él se ven). Con «Personalizado», el recorte exacto de PRO
+ *   «Carga diferida», cada imagen entra al verse y cargarse desde la mitad de su tamaño y sin opacidad, como con la
+ *   librería de PRO, que sólo carga las que están en la vista (`data-digi-lazy`; lo pone el script, así que sin él se ven). Con «Personalizado», el recorte exacto de PRO
  *   (`Group_Control_Image_Size::get_attachment_image_src()` del núcleo) sin `srcset`.
  * - **Enlaces y lightbox** del núcleo (`add_lightbox_data_attributes()`, grupo por galería filtrada como PRO); el
  *   núcleo no carga nada hasta que se abre.

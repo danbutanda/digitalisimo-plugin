@@ -119,15 +119,16 @@
 		if (!box || root.digiGallery) return;
 		root.digiGallery = true;
 		root.querySelectorAll('.digi-gallery__filter').forEach((b) => b.addEventListener('click', () => filter(root, box, b)));
-		// «Carga diferida», como la librería de PRO: cada imagen entra al cargarse, desde la mitad de su tamaño y sin
-		// opacidad (la hoja); la que ya está cargada, al instante. Lo pone el script: sin él, las imágenes se ven.
+		// «Carga diferida», como la librería de PRO: cada imagen entra al verse y cargarse, desde la mitad de su tamaño y
+		// sin opacidad (la hoja); sin el script, se ven.
 		if (box.hasAttribute('data-digi-lazy')) {
 			box.classList.add('digi-gallery__container--lazy');
-			box.querySelectorAll('.digi-gallery__image').forEach((img) => {
+			const show = (img) => {
 				const done = () => img.classList.add('is-loaded');
-				if (img.complete && img.naturalWidth) done();
-				else img.addEventListener('load', done, { once: true });
-			});
+				img.complete && img.naturalWidth ? done() : img.addEventListener('load', done, { once: true });
+			};
+			const io = window.IntersectionObserver && new IntersectionObserver((en) => en.forEach((e) => e.isIntersecting && (io.unobserve(e.target), show(e.target))));
+			box.querySelectorAll('.digi-gallery__image').forEach((img) => (io ? io.observe(img) : show(img)));
 		}
 		if (box.dataset.digiLayout) {
 			let last = -1;
