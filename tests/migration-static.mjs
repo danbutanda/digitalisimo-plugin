@@ -110,7 +110,8 @@ for (const stage of stages) {
 	check(new RegExp("private static function stage_" + stage + '\\(').test(runner) && new RegExp("'" + stage + "'\\s*=>\\s*'").test(runner), 'La etapa ' + stage + ' tiene método y rótulo.');
 }
 check(runner.includes("const PREPARE_STEPS  = array( 'Theme_Builder', 'Fonts', 'Icons', 'Snippets', 'Sidebar' );") && runner.includes("const PLATFORM_STEPS = array( 'Theme_Builder', 'Mega_Menu', 'Kit', 'Snippets', 'Swatches', 'Inventory' );"), 'Pasos de plataforma de V.14 C5.');
-check(runner.includes("const REVERT_EXTRA = array( 'Prime_Slider\\\\Loop_Item', 'Prime_Slider\\\\Demo_Media' );"), 'REVERT_EXTRA de V.8.');
+// V.8, más `Pro` (corrección de fidelidad de C5 y C6): `--revert` quita del CSS del sitio las reglas traducidas.
+check(runner.includes("const REVERT_EXTRA = array( 'Prime_Slider\\\\Loop_Item', 'Prime_Slider\\\\Demo_Media', 'Pro' );"), 'REVERT_EXTRA de V.8 y el CSS del sitio de la etapa pro.');
 check(/const NETWORK_TICK = 'digitalisimo_migration_network_tick'/.test(runner) && /add_action\(\s*self::NETWORK_TICK/.test(runner), 'El evento de red de WP-Cron se registra.');
 const order = [...retire.matchAll(/^\s*'([a-z0-9-]+\.php)'\s*=>\s*array\(/gm)].map((m) => m[1]);
 check(order.join(',') === 'bdthemes-element-pack-addon.php,bdthemes-element-pack.php,bdthemes-element-pack-lite.php,elementor-pro.php,pro-elements.php,elementor.php,bdthemes-prime-slider.php', 'Retire::PLUGINS en el orden de retirada: ' + order.join(','));
