@@ -51,6 +51,12 @@ final class Module {
 
 	/** Productos clásicos con la consulta antigua `posts` (C7): el propio y el de PRO que convierte. */
 	const CLASSIC_PRODUCTS = array( 'digitalisimo-woo-products-classic', 'wc-products' );
+
+	/** «Añadir al carrito personalizado» (C7): el propio y el de PRO que convierte. */
+	const ADD_TO_CART = array( 'digitalisimo-woo-add-to-cart', 'wc-add-to-cart' );
+
+	/** Productos con el grupo de consulta (C7): el propio y el de PRO que convierte. */
+	const PRODUCTS = array( 'digitalisimo-woo-products', 'woocommerce-products' );
 	const FILTER_NOT_EXPORTED = 'digitalisimo_elements_kit_not_exported';
 	const FILTER_LABELS       = 'digitalisimo_elements_kit_report_labels';
 	const FILTER_NEEDS        = 'digitalisimo_elements_kit_needs';
@@ -234,6 +240,17 @@ final class Module {
 			foreach ( array( 'product_cat', 'product_tag', 'product_brand' ) as $taxonomy ) {
 				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term' );
 			}
+		}
+		// Fidelidad (kits con WooCommerce, docs/pro/c7.md): el producto del «Añadir al carrito personalizado» y la selección
+		// manual de los Productos (el propio y el de PRO, que un kit trae y K convierte al importar) viajan en el kit
+		// aunque su exportación los quite (`on_export()` y `export => false` del grupo de consulta, como PRO): `export`
+		// los repone (k-kits.md §18). Sin destino, el valor que nunca coincide: vacío sería el producto de la página o
+		// todos los productos.
+		foreach ( self::ADD_TO_CART as $type ) {
+			$refs[] = array( 'element', $type, 'product_id', 'post', false, $never, 'export' => true );
+		}
+		foreach ( self::PRODUCTS as $type ) {
+			$refs[] = array( 'element', $type, 'query_posts_ids.*', 'post', false, $never, 'export' => true );
 		}
 		return $refs;
 	}
