@@ -21,7 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * - `groups`: prefijo de un control de grupo (tipografía, borde, sombra, fondo) `de => a`; con todas sus subclaves.
  * - `values`: `clave de destino => [antes => después]` o `callable( $valor, array $origen )`, también por dispositivo.
  * - `set`: valores fijos en el destino. `filter`: `callable( array $destino, array $origen ): array`, al final.
- * - `drop`: `clave => motivo`, pérdida declarada; se informa en «Descartado» si el sitio la cambió del default.
+ * - `drop`: `clave => motivo`, pérdida declarada; se informa en «Descartado» si el sitio la cambió del default. Con el
+ *   sufijo de un dispositivo (`align_tablet`), descarta sólo ese dispositivo aunque `keep` o `rename` conserven la clave.
  * - `approx`: `clave => motivo`, traducción aproximada (la hacen `rename`, `values` o `filter`); se informa en
  *   «Aproximado» si el sitio la cambió del default.
  * - `repeaters`: `clave => submapa` con `target`, `defaults`, `default_rows`, `keep`, `rename`, `values`, `drop` y
@@ -110,6 +111,9 @@ final class Translator {
 		$handled = array();
 		foreach ( $rename as $from => $to ) {
 			foreach ( self::DEVICES as $device ) {
+				if ( '' !== $device && isset( $drop[ $from . $device ] ) ) {
+					continue; // Descartada sólo en este dispositivo: se informa abajo.
+				}
 				if ( array_key_exists( $from . $device, $settings ) ) {
 					$out[ $to . $device ]          = $settings[ $from . $device ];
 					$handled[ $from . $device ] = true;
@@ -130,8 +134,12 @@ final class Translator {
 			}
 			$moved = array();
 			foreach ( $settings[ $bag ] as $key => $value ) {
-				$target = self::target_key( (string) $key, $rename, $groups );
-				if ( null !== $target ) {
+				// Una clave descartada sólo en su dispositivo (`drop` con sufijo) no sigue a la conservada.
+				$only   = ! isset( $drop[ self::base( (string) $key ) ] ) && isset( $drop[ (string) $key ] ) && self::base( (string) $key ) !== (string) $key;
+				$target = $only ? null : self::target_key( (string) $key, $rename, $groups );
+				if ( $only ) {
+					$codes[] = self::code( 'pro.dropped', $prefix . $key, (string) $drop[ (string) $key ], 'dropped' );
+				} elseif ( null !== $target ) {
 					$moved[ $target ] = $value;
 				} elseif ( self::common( (string) $key ) ) {
 					$moved[ $key ] = $value;
@@ -152,9 +160,10 @@ final class Translator {
 				continue;
 			}
 			$base = self::base( $key );
-			if ( isset( $drop[ $base ] ) ) {
+			if ( isset( $drop[ $base ] ) || isset( $drop[ $key ] ) ) {
 				if ( $changed( $key ) ) {
-					$codes[] = self::code( 'pro.dropped', $prefix . $base, (string) $drop[ $base ], 'dropped' );
+					$why     = isset( $drop[ $base ] ) ? $base : $key;
+					$codes[] = self::code( 'pro.dropped', $prefix . $why, (string) $drop[ $why ], 'dropped' );
 				}
 				continue;
 			}

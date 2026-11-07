@@ -380,7 +380,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_pt( array( 'cd-full:pro.css:custom_css', 'pt-full:pro.approx:align_tablet', 'pt-full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y la alineación por dispositivo: ' . implode( ', ', $codes ) );
+	check_pt( array( 'cd-full:pro.css:custom_css', 'pt-full:pro.dropped:align_tablet', 'pt-full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni aproximación; sólo el CSS convertido y la alineación de tableta descartada (PRO no la aplicaba): ' . implode( ', ', $codes ) );
 	$d = $out['cd-defaults'];
 	check_pt( 'due_date' === $d['countdown_type'] && ! isset( $d['due_date'] ) && 'yes' === $d['show_seconds'] && 'Days' === $d['label_days'] && 'block' === $d['label_display'] && 100 === $d['container_width']['size'] && 10 === $d['box_spacing']['size'] && 'countdown' === $d['_digitalisimo_pro'], 'Una cuenta sin cambios llega con los valores por defecto de PRO (la fecha sigue siendo «dentro de un mes»).' );
 	check_pt( 4 === substr_count( $render( $cd, $d ), 'digi-countdown__item' ), 'Lo convertido por defecto pinta las cuatro cajas.' );
@@ -395,8 +395,18 @@ namespace {
 	$p = $out['pt-defaults'];
 	check_pt( 'horizontal' === $p['type'] && 'entire_page' === $p['relative_to'] && 'no' === $p['percentage'] && 'none' === $p['horizontal_border_style'] && 'progress-tracker' === $p['_digitalisimo_pro'], 'Un indicador sin cambios llega con los valores por defecto de PRO.' );
 	$q = $out['pt-full'];
-	check_pt( 'circular' === $q['type'] && '#articulo' === $q['selector'] && 'rtl' === $q['direction'] && 80 === $q['circular_size_mobile']['size'] && 'right' === $q['align_tablet'] && 6 === $q['circular_background_width']['size'] && 18 === $q['percentage_typography_font_size']['size'], 'El círculo conserva tamaño, colores, grosores, alineación y porcentaje.' );
+	check_pt( 'circular' === $q['type'] && '#articulo' === $q['selector'] && 'rtl' === $q['direction'] && 80 === $q['circular_size_mobile']['size'] && 'center' === $q['align'] && ! array_key_exists( 'align_tablet', $q ) && 6 === $q['circular_background_width']['size'] && 18 === $q['percentage_typography_font_size']['size'], 'El círculo conserva tamaño, colores, grosores, la alineación de escritorio (la de tableta se descarta: PRO no la aplicaba) y porcentaje.' );
 	check_pt( "selector .digi-progress-tracker--circular .digi-progress-tracker__progress{stroke-linecap:round}\nselector .digi-progress-tracker__track{opacity:.5}\nselector .digi-progress-tracker__percentage{font-weight:700}" === $q['custom_css'], 'CSS personalizado con las clases propias: ' . $q['custom_css'] );
+	// Alineación por dispositivo: PRO sólo pintaba la de escritorio (como clase, en todos los tamaños), así que la de los
+	// demás dispositivos se descarta (con su motivo) y la de escritorio manda en todos, como en PRO.
+	$pt_map = require $root . 'modules/digitalisimo-convert/maps/progress-tracker.php';
+	list( $al, $al_codes ) = Translator::translate( array( 'type' => 'circular', 'align' => 'left', 'align_mobile' => 'center', 'align_tablet' => 'right', 'align_laptop' => 'center' ), $pt_map );
+	check_pt( 'left' === $al['align'] && ! array_intersect( array( 'align_mobile', 'align_tablet', 'align_laptop' ), array_keys( $al ) ), 'La alineación de escritorio se conserva y las de los dispositivos se descartan: ' . json_encode( $al ) );
+	check_pt( array( 'pro.dropped:align_mobile', 'pro.dropped:align_tablet', 'pro.dropped:align_laptop' ) === array_map( static function ( $c ) { return $c['code'] . ':' . $c['key']; }, $al_codes ) && 'dropped' === $al_codes[0]['section'] && str_contains( $al_codes[0]['reason'], 'PRO no los aplicaba' ), 'Cada una, en «Descartado» con su motivo: ' . json_encode( $al_codes, JSON_UNESCAPED_UNICODE ) );
+	list( $al ) = Translator::translate( array( 'type' => 'circular', 'align_tablet' => 'right' ), $pt_map );
+	check_pt( ! isset( $al['align'] ) && ! isset( $al['align_tablet'] ), 'Sin alineación de escritorio, ninguna (como PRO, que sólo leía la de escritorio).' );
+	$align_html = $render( $pt, $al + array( 'relative_to' => 'entire_page' ) );
+	check_pt( str_contains( $align_html, 'digi-progress-tracker--circular' ), 'Lo convertido se pinta.' );
 	$r = $out['pt-bar'];
 	check_pt( 'post_content' === $r['relative_to'] && 'ltr' === $r['percentage_position_mobile'] && 'gradient' === $r['horizontal_color_background'] && '#0000aa' === $r['horizontal_color_color_b'] && 'dashed' === $r['horizontal_tracker_border_style'] && 6 === $r['horizontal_height_mobile']['size'] && 'fixed' === $r['_position'] && 'top' === $r['sticky'] && array( 'horizontal_color_color' => 'globals/colors?id=accent', 'percentage_color' => 'globals/colors?id=secondary', 'percentage_typography_typography' => 'globals/typography?id=accent' ) === $r['__globals__'], 'La barra conserva fondos, bordes, alto por dispositivo, globales, posición fija y fijado.' );
 	check_pt( $converted === Converter::tree( $converted, $again, false ) && array() === $again, 'Lo convertido no se convierte otra vez.' );
