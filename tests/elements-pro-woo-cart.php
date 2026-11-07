@@ -361,15 +361,19 @@ namespace {
 	// 4. Recursos.
 	$dir = $el . 'modules/digitalisimo-woo/store/assets/';
 	$css = '';
-	foreach ( array( 'cart.css', 'cart-2.css' ) as $file ) {
+	foreach ( array( 'cart.css', 'cart-2.css', 'cart-3.css' ) as $file ) {
 		$sheet = (string) file_get_contents( $dir . $file );
-		c_check( strlen( $sheet ) > 1000 && strlen( $sheet ) <= 4096, "$file: " . strlen( $sheet ) . ' B (tope 4 096).' );
+		c_check( strlen( $sheet ) > ( 'cart-3.css' === $file ? 200 : 1000 ) && strlen( $sheet ) <= 4096, "$file: " . strlen( $sheet ) . ' B (tope 4 096).' );
 		c_check( ! preg_match( '/url\(|--e-global|elementor-widget-woocommerce|\.e-cart|e-shop-table/', $sheet ), "$file: sin url(), sin la paleta del kit y sin clases de PRO." );
 		c_check( substr_count( $sheet, '{' ) === substr_count( $sheet, '}' ), "$file: llaves equilibradas." );
 		$css .= $sheet;
 	}
 	c_check( str_contains( $css, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, 'prefers-reduced-motion' ), 'Foco visible y movimiento reducido.' );
-	c_check( ! file_exists( $dir . 'cart-3.css' ), 'Dos hojas como mucho.' );
+	c_check( ! file_exists( $dir . 'cart-4.css' ), 'Tres hojas como mucho (la tercera, excepción declarada en docs/pro/c7.md).' );
+	// Tercera hoja: el selector de país como PRO (opciones en Roboto, foco del selector cerrado y marcador de posición).
+	foreach ( array( '.digi-cart-select2 .select2-results__option{font-family:Roboto,sans-serif}', '& .select2-container--default .select2-selection--single:focus{background-color:#f9fafa;border-color:var(--cff-fbc,initial);color:var(--cff-fc,#69727d)', '& .select2-container--default .select2-selection--single .select2-selection__placeholder{color:var(--cff-n,#69727d)}' ) as $rule ) {
+		c_check( str_contains( $css, $rule ), "cart-3.css: $rule" );
+	}
 	foreach ( array( '--cs-bg', '--cos-idc', '--ccb-ntc', '--cuca-d', 'digi-cart__sticky--active', 'digi-cart-layout-one-column .digi-cart .digi-cart__container' ) as $needle ) {
 		c_check( str_contains( $css, $needle ), "La hoja usa $needle." );
 	}
@@ -382,7 +386,11 @@ namespace {
 	$GLOBALS['c_wp']['scripts'] = array();
 	$GLOBALS['c_wp']['styles']  = array();
 	c_check( array( 'wc-cart', 'selectWoo', 'digitalisimo-woo-cart' ) === $own->get_script_depends(), 'Scripts: los de WooCommerce que pide PRO y el propio.' );
-	c_check( array( 'select2', 'digitalisimo-woo-cart', 'digitalisimo-woo-cart-2' ) === $own->get_style_depends() && isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'] ), 'Hojas: select2 de WooCommerce y las dos propias (la segunda, registrada por la base).' );
+	c_check( array( 'select2', 'digitalisimo-woo-cart', 'digitalisimo-woo-cart-2', 'digitalisimo-woo-cart-3' ) === $own->get_style_depends() && array( 'digitalisimo-woo-cart' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'][2] && array( 'digitalisimo-woo-cart-2' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'][2], 'Hojas: select2 de WooCommerce y las tres propias (la segunda y la tercera, registradas por la base, cada una tras la anterior).' );
+	// El registro también las registra (el núcleo encola por su handle los recursos que guardó de la página).
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-my-account-3'] ) && ! isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-checkout-3'] ) && array( 'digitalisimo-woo-cart-2' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'][2], 'Registry::register_assets() registra también la segunda y la tercera hoja que existen.' );
 	c_check( 'digitalisimo-woo-cart' === $own->get_name() && 'Carrito' === $own->get_title() && array( 'woocommerce-elements' ) === $own->get_categories(), 'Nombre, título y categoría.' );
 
 	// 5. Nombres prohibidos y marcas ajenas.

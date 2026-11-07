@@ -242,7 +242,7 @@ namespace {
 	$var_maps = array();
 	foreach ( array( 'my-account', 'purchase-summary' ) as $slug ) {
 		$var_maps[ $slug ] = array();
-		foreach ( array( '', '-2' ) as $part ) {
+		foreach ( array( '', '-2', '-3' ) as $part ) {
 			$file = $root . "modules/digitalisimo-woo/store/assets/$slug$part.css";
 			if ( is_file( $file ) ) {
 				preg_match_all( '/(?<![a-z0-9_-])--d[ap]-[a-z0-9]+/', (string) file_get_contents( $file ), $found );
@@ -251,7 +251,7 @@ namespace {
 		}
 	}
 	$classes = array(
-		'my-account'       => array( 'e-my-account-tab__dashboard--custom' => 'digi-acc--custom', 'e-my-account-tabs-' => 'digi-acc-tabs-', 'e-my-account-tab__' => 'digi-acc--', 'e-my-account-tab' => 'digi-acc', 'e-wc-account-tabs-nav' => 'digi-acc__nav', 'woocommerce-MyAccount-content-wrapper' => 'digi-acc__c' ),
+		'my-account'       => array( 'e-my-account-tab__dashboard--custom' => 'digi-acc--custom', 'e-my-account-tabs-' => 'digi-acc-tabs-', 'e-my-account-tab__' => 'digi-acc--', 'e-my-account-tab' => 'digi-acc', 'e-wc-account-tabs-nav' => 'digi-acc__nav', 'woocommerce-MyAccount-content-wrapper' => 'digi-acc__c', 'e-woo-select2-wrapper' => 'digi-acc-select2' ),
 		'purchase-summary' => array(),
 	);
 	/** Quita los textos (etiquetas, títulos, descripciones) y traduce clases; las variables se comparan por su uso. */
@@ -320,7 +320,7 @@ namespace {
 
 		// Recursos.
 		$css_total = 0;
-		foreach ( array( '', '-2' ) as $part ) {
+		foreach ( array( '', '-2', '-3' ) as $part ) {
 			$file = $root . "modules/digitalisimo-woo/store/assets/$slug$part.css";
 			if ( ! is_file( $file ) ) {
 				continue;
@@ -330,7 +330,7 @@ namespace {
 			$check( strlen( $css ) <= 4096, "$slug$part.css pesa " . strlen( $css ) . ' B (tope 4 096).' );
 			$check( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( $css, '.e-my-account' ) && ! str_contains( $css, 'elementor-widget-woocommerce' ), "$slug$part.css: sin el kit, url() ni clases de PRO." );
 			preg_match_all( '/#[0-9a-f]{3,8}\b/i', $css, $hex );
-			$check( ! array_diff( array_map( 'strtolower', $hex[0] ), array( '#69727d', '#000', '#fff', '#5bc0de', '#d5d8dc', '#f9fafa', '#f1f2f3' ) ), "$slug$part.css: sólo colores que PRO usaba por defecto." );
+			$check( ! array_diff( array_map( 'strtolower', $hex[0] ), array( '#69727d', '#000', '#fff', '#5bc0de', '#d5d8dc', '#d4d4d4', '#f9fafa', '#f1f2f3' ) ), "$slug$part.css: sólo colores que PRO usaba por defecto." );
 		}
 		$all_css = (string) file_get_contents( $root . "modules/digitalisimo-woo/store/assets/$slug.css" ) . (string) @file_get_contents( $root . "modules/digitalisimo-woo/store/assets/$slug-2.css" );
 		$check( str_contains( $all_css, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $all_css, 'prefers-reduced-motion' ), "$name: foco visible de 2 px con separación de 2 px y movimiento reducido." );
@@ -344,7 +344,17 @@ namespace {
 		$code = (string) file_get_contents( $root . 'modules/digitalisimo-woo/' . $entry['file'] );
 		$check( ! preg_match( '/<script|wp_register_script|pro-elements-handlers|elementor-pro-frontend|ElementorPro\\\\Modules\\\\Woocommerce|\bPlugin::elementor/', $code ), "$name: sin <script>, sin paquetes ni clases del módulo de PRO." );
 	}
-	$check( 8192 >= filesize( $root . 'modules/digitalisimo-woo/store/assets/my-account.css' ) + filesize( $root . 'modules/digitalisimo-woo/store/assets/my-account-2.css' ), 'Mi cuenta: dos hojas como mucho.' );
+	// Tres hojas de ≤ 4 KB (excepción declarada en docs/pro/c7.md): la tercera lleva el desplegable de países abierto, el
+	// selector cerrado como PRO, la paginación de los pedidos y «Métodos de pago» / «Añadir método de pago».
+	$acc3 = (string) file_get_contents( $root . 'modules/digitalisimo-woo/store/assets/my-account-3.css' );
+	$check( ! is_file( $root . 'modules/digitalisimo-woo/store/assets/my-account-4.css' ) && 12288 >= filesize( $root . 'modules/digitalisimo-woo/store/assets/my-account.css' ) + filesize( $root . 'modules/digitalisimo-woo/store/assets/my-account-2.css' ) + strlen( $acc3 ), 'Mi cuenta: tres hojas como mucho.' );
+	foreach ( array( '.digi-acc-select2 .select2-results__option{color:#69727d;font-family:Roboto,sans-serif;font-size:14px}', '& .select2-container--default .select2-selection--single .select2-selection__rendered{color:var(--da-ffnc,#69727d);line-height:45px;padding-left:1rem;padding-right:1rem}', '& .woocommerce-pagination{padding:16px 0}', '.digi-acc--payment-methods .woocommerce{& .digi-acc__c .button{background:transparent;border:2px var(--da-tbbt,solid) var(--da-tbbc,#5bc0de)', '.digi-acc--add-payment-method #add_payment_method #payment{background-color:var(--da-sbc,#fff)', '& #place_order{background:#5bc0de;border:none' ) as $rule ) {
+		$check( str_contains( $acc3, $rule ), "my-account-3.css: $rule" );
+	}
+	$acc2 = (string) file_get_contents( $root . 'modules/digitalisimo-woo/store/assets/my-account-2.css' );
+	$check( ! str_contains( $acc2, '!important' ) || ! preg_match( '/select2[^{}]*\{[^}]*!important/', $acc2 ), 'my-account-2.css: el selector cerrado ya no fuerza su altura ni su relleno (las reglas de PRO, en la tercera hoja).' );
+	$acc_js = (string) file_get_contents( $root . 'modules/digitalisimo-woo/store/assets/my-account.js' );
+	$check( str_contains( $acc_js, "c.classList.add('digi-acc-select2')" ), 'my-account.js marca el desplegable de países abierto (digi-acc-select2).' );
 
 	// 2. Render de Mi cuenta: envoltura, ganchos de PRO y ninguno colgado al terminar.
 	list( $pro, $own ) = $widgets['my-account'];

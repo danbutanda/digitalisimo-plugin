@@ -85,7 +85,8 @@
 #     carrito o de pago, con artículos), `"account"` (de «Mi cuenta», con la clienta dentro) y `{"order": "received"}`
 #     (pedido recibido de la clienta);
 #   - `woo` (objeto): `cart` (`items`|`empty`), `user` (`customer`|`guest`), `endpoint` (`orders`, `view-order`,
-#     `downloads`, `edit-address`, `edit-account`…; también en `$wp_query->query`, como una petición real) y `notices`
+#     `downloads`, `edit-address`, `edit-account`…; también en `$wp_query->query`, como una petición real),
+#     `endpoint_value` (`billing` o `shipping` con `edit-address`: el formulario de esa dirección) y `notices`
 #     (`true`: avisos de éxito, información y error). En las páginas del A/B, los fragmentos del carrito esperan 30 s
 #     (`request_timeout` de `wc-cart-fragments`, igual en A y B);
 #   - `container` (objeto): ajustes que se suman a los del contenedor común del caso (p. ej. `_css_classes: woocommerce`,

@@ -209,6 +209,7 @@ return array(
 		'coupon_button_alignment_note',
 	),
 	'classes'  => array(
+		'.e-woo-select2-wrapper' => '.digi-cart-select2',
 		'.elementor-widget-woocommerce-cart' => '.elementor-widget-digitalisimo-woo-cart',
 		'.e-cart-layout-one-column'          => '.digi-cart-layout-one-column',
 		'.e-cart-layout-two-column'          => '.digi-cart-layout-two-column',

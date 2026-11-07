@@ -168,6 +168,7 @@ return array(
 		),
 	),
 	'classes'   => array(
+		'.e-woo-select2-wrapper' => '.digi-acc-select2',
 		'.elementor-widget-woocommerce-my-account' => '.elementor-widget-digitalisimo-woo-my-account',
 		'.e-my-account-tab__dashboard--custom' => '.digi-acc--custom',
 		'.e-my-account-tab' => '.digi-acc',

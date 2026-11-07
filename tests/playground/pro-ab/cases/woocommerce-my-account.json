@@ -191,6 +191,25 @@
      "isLinked": true
     }
    }
+  },
+  "ma-billing-select2": {
+   "title": "Mi cuenta: dirección de facturación con el desplegable de países abierto (opciones en Roboto y gris, como PRO) y el selector cerrado como PRO",
+   "widget": "woocommerce-my-account",
+   "context": "account",
+   "woo": {
+    "endpoint": "edit-address",
+    "endpoint_value": "billing"
+   },
+   "shot": "viewport",
+   "actions": [
+    {
+     "label": "abrir el desplegable de países",
+     "a": "#billing_country_field .select2-selection",
+     "b": "#billing_country_field .select2-selection",
+     "wait": 1200,
+     "stay": true
+    }
+   ]
   }
  },
  "declared": [

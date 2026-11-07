@@ -968,12 +968,13 @@ function digi_ab_woo_context( $context ) {
 /**
  * Estado de tienda de una página del A/B: el del contexto más el campo `woo` del caso (objeto, opcional): `cart`
  * (`items` o `empty`), `user` (`customer` o `guest`), `endpoint` (un punto de «Mi cuenta»: `orders`, `view-order`,
- * `downloads`, `edit-address`, `edit-account`, `payment-methods`; `view-order` muestra el pedido de prueba) y `notices`
+ * `downloads`, `edit-address`, `edit-account`, `payment-methods`; `view-order` muestra el pedido de prueba),
+ * `endpoint_value` (el valor del punto: `billing` o `shipping` en `edit-address` abre su formulario) y `notices`
  * (`true`: un aviso de éxito, uno de información y uno de error en cada petición). `user` se traduce al ID.
  */
 function digi_ab_woo_state( array $state, $woo ) {
 	if ( is_array( $woo ) ) {
-		foreach ( array( 'cart', 'user', 'endpoint', 'notices' ) as $key ) {
+		foreach ( array( 'cart', 'user', 'endpoint', 'endpoint_value', 'notices' ) as $key ) {
 			if ( array_key_exists( $key, $woo ) ) {
 				$state[ $key ] = $woo[ $key ];
 			}

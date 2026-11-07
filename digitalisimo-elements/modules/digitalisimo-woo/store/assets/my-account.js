@@ -1,6 +1,7 @@
 /* Mi cuenta (digitalisimo-woo-my-account): lo que hacía el script del widget de PRO, sin dependencias. Iguala la altura
    de las direcciones y de los formularios de acceso, junta la nota de compra con su producto y pone la animación de los
-   botones; en el editor alterna las páginas de la cuenta (todas pintadas) y el botón «Editar plantilla» del panel. */
+   botones, marca el desplegable de países abierto; en el editor alterna las páginas de la cuenta (todas pintadas) y el
+   botón «Editar plantilla» del panel. */
 (function () {
 	'use strict';
 	var W = '.elementor-widget-digitalisimo-woo-my-account';
@@ -45,6 +46,16 @@
 		});
 		heights(el);
 		el.addEventListener('input', function (e) { if (e.target && 'reg_password' === e.target.id) heights(el); });
+		// Desplegable de países abierto (selectWoo, en el cuerpo del documento): la clase de sus opciones, como PRO
+		// (`e-woo-select2-wrapper` en `select2:open`).
+		var mark = function (e) {
+			if (!e.target.closest || !e.target.closest('.select2-selection')) return;
+			setTimeout(function () {
+				document.querySelectorAll('body > .select2-container--open').forEach(function (c) { c.classList.add('digi-acc-select2'); });
+			}, 0);
+		};
+		el.addEventListener('mousedown', mark);
+		el.addEventListener('keydown', mark);
 		if (!editing()) return;
 		el.addEventListener('click', function (e) {
 			var link = e.target.closest('a');

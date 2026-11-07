@@ -10,26 +10,13 @@
 		color:var(--da-flc,#69727d);
 		margin-bottom:var(--da-fls,0)
 	}
-	& .form-row :is(.input-text,select),& .select2-selection--single{
+	& .form-row :is(.input-text,select){
 		background:var(--da-ffnbc,#f9fafa);
 		border:none;
 		border-radius:var(--da-ffbr,0);
 		color:var(--da-ffnc,#69727d);
 		font-size:14px;
 		padding:var(--da-ffp,16px)
-	}
-	& .select2-container--default .select2-selection--single{
-		height:45px;
-		margin:0;
-		padding:0
-	}
-	& .select2-selection__rendered{
-		color:var(--da-ffnc,#69727d);
-		line-height:45px!important;
-		padding:0 1rem!important
-	}
-	& .select2-selection__arrow{
-		height:45px!important
 	}
 	& .form-row :is(.input-text,select):focus{
 		color:var(--da-fffc,#69727d);
