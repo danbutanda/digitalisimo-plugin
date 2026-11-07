@@ -373,6 +373,20 @@
     "R1c"
    ],
    "motivo": "§17 (C6): el Formulario de PRO del rasgo cuenta en B como Formulario propio; el recuento global (counts.elements) ya lo declara la entrada del Formulario de «Inicio del kit»; ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:widget-digitalisimo-author-box\\.data\\.0\\.elements\\.0\\.settings\\.digitalisimo_author_user$",
+   "escenarios": ["R1", "R1c"],
+   "valor_a": "^\"user:autora\"$",
+   "valor_b": "^\"\"$",
+   "motivo": "la autora elegida en la Caja de autor propia (caso de C4) es un usuario: no viaja (§9.2, kind user), como en rasgo-author-box-extras"
+  },
+  {
+   "ruta": "^documents\\.page:widget-digitalisimo-(post|site)-title\\.data\\.0\\.elements\\.0\\.settings\\.__dynamic__\\.title\\.settings\\.(before|after|fallback)$",
+   "escenarios": ["R1", "R1c"],
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^\"\"$",
+   "motivo": "al importar, el núcleo vuelve a escribir cada etiqueta dinámica con los valores por defecto de sus controles (E:elementor/includes/base/element-base.php on_import_update_dynamic_content → manager.php tag_to_text con get_settings()); las de texto (post-title, site-title) tienen before, after y fallback vacíos (E:elementor/core/dynamic-tags/tag.php:84-120): mismo comportamiento, como la etiqueta de popup"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
