@@ -139,19 +139,29 @@ namespace {
 	check_sl( array( Engine::HANDLE, 'digitalisimo-slides' ) === $widget->get_style_depends() && array( Engine::HANDLE, 'digitalisimo-slides' ) === $widget->get_script_depends(), 'La hoja y el script del motor y los propios.' );
 	check_sl( 'Diapositivas' === Carousel::TITLES['digitalisimo-slides'] && 'widgets/class-slides.php' === Carousel::WIDGETS['digitalisimo-slides']['file'] && Slides::class === Carousel::WIDGETS['digitalisimo-slides']['class'], 'El módulo lo declara con su archivo, su clase y su título.' );
 	$js = (string) file_get_contents( $root . Carousel::WIDGETS['digitalisimo-slides']['js'] );
-	check_sl( strlen( $js ) > 0 && strlen( $js ) <= 1024 && ! preg_match( '/jQuery|\$\(|swiper|fetch\(|XMLHttpRequest/i', $js ) && str_contains( $js, "addEventListener('digi-crs-change'" ) && str_contains( $js, 'prefers-reduced-motion: reduce' ) && str_contains( $js, "'--digi-crs-speed'" ), 'Script propio de ' . strlen( $js ) . ' B (tope 1 KB), sin jQuery ni Swiper: oculta el contenido con cada cambio y lo deja entrar al terminar la transición; nada con movimiento reducido.' );
+	check_sl( strlen( $js ) > 0 && strlen( $js ) <= 1024 && ! preg_match( '/jQuery|\$\(|swiper|fetch\(|XMLHttpRequest/i', $js ) && str_contains( $js, "addEventListener('digi-crs-change'" ) && str_contains( $js, 'prefers-reduced-motion: reduce' ) && str_contains( $js, "'--digi-crs-speed'" ) && str_contains( $js, "c.add('digi-slides--out','digi-slides--anim')" ) && str_contains( $js, "children.length==1&&r.classList.add('digi-slides--anim')" ) && str_contains( $js, "'frontend/element_ready/global'" ), 'Script propio de ' . strlen( $js ) . ' B (tope 1 KB), sin jQuery ni Swiper: como PRO, anima al cargar el contenido de una diapositiva única y, con varias, oculta el contenido con cada cambio y lo deja entrar con su animación al terminar la transición; nada con movimiento reducido; también en el editor.' );
 	$css = (string) file_get_contents( $root . Carousel::WIDGETS['digitalisimo-slides']['css'] );
 	check_sl( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_sl( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-digitalisimo-slides{', '', $css ), 'elementor' ) && ! str_contains( $css, 'swiper' ), 'La hoja no usa el kit, url(), clases del proveedor ni de Swiper.' );
 	check_sl( 0 === strpos( $css, '.elementor-widget-digitalisimo-slides{--digi-crs-view:1;--digi-crs-scroll:1;--digi-crs-gap:0px}' ), 'Las variables de maquetación del motor se declaran en el widget: un carrusel dentro de una diapositiva no hereda las de fuera.' );
-	check_sl( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-slides__bg--kb,.digi-slides__contents{transition:none!important}.digi-slides__bg--kb{transform:none!important}}' ), 'Ken Burns y la animación del contenido se apagan con movimiento reducido.' );
+	check_sl( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-slides__bg--kb{transition:none!important;transform:none!important}.digi-slides__contents{animation:none!important}}' ), 'Ken Burns y la animación del contenido se apagan con movimiento reducido.' );
+	// Ken Burns como PRO (corrección de fidelidad): la diapositiva no recorta su fondo en horizontal (lo hace la pista), así
+	// que el fondo ampliado de la siguiente («alejar») asoma sobre el borde de la actual; en vertical sí, para que la pista
+	// no pueda desplazarse hacia abajo.
+	check_sl( str_contains( $css, '.digi-slides__slide{position:relative;overflow:hidden;overflow:visible clip}' ), 'La diapositiva sólo recorta su fondo en vertical (con `hidden` de respaldo).' );
 	check_sl( str_contains( $css, '.digi-slides .digi-slides__button:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, '.digi-slides .digi-slides__inner:focus-visible{outline:2px solid;' ), 'Foco visible propio en el botón y en la diapositiva enlazada.' );
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_sl( array( '#fff' ) === array_values( array_unique( array_map( 'strtolower', $colors[0] ) ) ), 'Sólo el blanco que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
+	// Animación del contenido como PRO (corrección de fidelidad): los fotogramas de animate.css del núcleo, con el prefijo
+	// propio, durante 1,25 s (`.animated`), en lugar de una transición; «Zoom» llega opaco a la mitad.
+	$core_fx = $root . 'elementor/assets/lib/animations/styles/';
 	foreach ( Slides::ANIMATIONS as $animation ) {
-		check_sl( str_contains( $css, '.digi-slides--out[data-digi-animation=' . $animation . ']{--digi-slides-t:' ), "La animación $animation tiene su estado de entrada." );
+		check_sl( str_contains( $css, '[data-digi-animation=' . $animation . ']{--digi-slides-a:digi-slides-' . $animation . '}' ), "La animación $animation tiene sus fotogramas." );
+		preg_match( '/@keyframes ' . $animation . '(\{(?:[^{}]|\{[^{}]*\})*\})/', (string) file_get_contents( $core_fx . $animation . '.min.css' ), $frames );
+		check_sl( isset( $frames[1] ) && str_contains( $css, '@keyframes digi-slides-' . $animation . $frames[1] ), "Los fotogramas de $animation son los del núcleo." );
 	}
-	check_sl( str_contains( $css, '.digi-slides{--digi-slides-o:1;--digi-slides-t:none;--digi-slides-d:1.25s}' ) && str_contains( $css, '.digi-slides.digi-slides--out{--digi-slides-o:0;--digi-slides-d:0s}' ), 'El contenido se oculta al instante y entra en 1,25 s (como `.animated`); cada raíz restablece sus variables para un carrusel anidado.' );
+	check_sl( str_contains( $css, '@keyframes digi-slides-zoomIn{from{opacity:0;transform:scale3d(.3,.3,.3)}50%{opacity:1}}' ), '«Zoom» llega opaco a la mitad, como zoomIn de animate.css.' );
+	check_sl( str_contains( $css, '.digi-slides{--digi-slides-a:none}.digi-slides--out .digi-slides__contents{display:none}.digi-slides--anim .digi-slides__contents{animation:var(--digi-slides-a) 1.25s}' ) && ! str_contains( $css, 'transition:opacity' ), 'El contenido se oculta durante el cambio (como `hide()` de PRO) y entra con su animación de 1,25 s (como `.animated`); cada raíz restablece la suya para un carrusel anidado.' );
 	$source = '';
 	foreach ( token_get_all( (string) file_get_contents( $root . 'modules/digitalisimo-carousel/widgets/class-slides.php' ) ) as $token ) {
 		$source .= is_array( $token ) ? ( in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ? '' : $token[1] ) : $token;
@@ -232,7 +242,7 @@ namespace {
 		}
 	}
 	// Cobertura del mapa: cada control de PRO, del widget y del repetidor, declarado.
-	$declared = array_merge( $map['keep'], array_keys( $map['groups'] ), array_keys( $map['approx'] ), $map['ui'], array_keys( $map['repeaters'] ) );
+	$declared = array_merge( $map['keep'], array_keys( $map['groups'] ), array_keys( (array) ( $map['approx'] ?? array() ) ), $map['ui'], array_keys( $map['repeaters'] ) );
 	foreach ( array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ) ) as $name ) {
 		check_sl( in_array( $name, $declared, true ), "$name: el mapa no lo declara." );
 	}
@@ -391,7 +401,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_sl( array( 'full:pro.approx:content_animation', 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y las aproximaciones declaradas: ' . implode( ', ', $codes ) );
+	check_sl( array( 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni pro.approx (la animación del contenido ya es la de PRO); sólo el CSS convertido: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_sl( 'Slides' === $d['slides_name'] && 400 === $d['slides_height']['size'] && 'both' === $d['navigation'] && 'yes' === $d['autoplay'] && 5000 === $d['autoplay_speed'] && 'yes' === $d['infinite'] && 'fadeInUp' === $d['content_animation'] && 66 === $d['content_max_width']['size'] && 'sm' === $d['button_size'] && 'slides' === $d['_digitalisimo_pro'], 'Unas Slides sin cambios llegan con los valores por defecto visibles de PRO.' );
 	check_sl( 3 === count( $d['slides'] ) && 'Slide 1 Heading' === $d['slides'][0]['heading'] && '#833ca3' === $d['slides'][0]['background_color'] && '#1abc9c' === $d['slides'][2]['background_color'] && 'cover' === $d['slides'][1]['background_size'] && 'slide' === $d['slides'][0]['link_click'], 'Sin repetidor guardado, las tres diapositivas por defecto de PRO.' );

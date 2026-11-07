@@ -15,11 +15,14 @@ defined( 'ABSPATH' ) || exit;
  * - Fondo por diapositiva: color, imagen (una etiqueta `img` de `Image_Markup`, con las decisiones de carga de WordPress, así la
  *   imagen de la primera diapositiva es descubrible y no retrasa el LCP como un fondo CSS), su ajuste (`object-fit`),
  *   Ken Burns con su dirección y superposición con color y mezcla.
- * - Ken Burns va sólo con CSS sobre la diapositiva actual que marca el motor (`digi-crs__current`). La animación del
- *   contenido la da `assets/js/slides.js` (748 B, sin dependencias): con cada `digi-crs-change` oculta el contenido
- *   (`digi-slides--out`) y, al terminar la transición (`--digi-crs-speed`), lo deja entrar con la animación elegida, que
- *   es una transición CSS. Como en PRO, la diapositiva inicial no se anima (y no retrasa el LCP) y el contenido de las
- *   demás queda pintado fuera de la vista; con movimiento reducido no se oculta nada.
+ * - Ken Burns va sólo con CSS sobre la diapositiva actual que marca el motor (`digi-crs__current`). Como en PRO, la
+ *   diapositiva no recorta su fondo en horizontal (lo recorta la pista): el fondo ampliado de la siguiente («alejar»)
+ *   asoma sobre el borde de la actual. La animación del contenido la da `assets/js/slides.js` (sin dependencias), como
+ *   los manejadores de PRO: con una sola diapositiva entra al cargar; con varias, cada `digi-crs-change` oculta el
+ *   contenido (`digi-slides--out`, `display:none` como el `hide()` de PRO) y, al terminar la transición
+ *   (`--digi-crs-speed`), lo deja entrar con los fotogramas de animate.css del núcleo (copiados con el prefijo
+ *   `digi-slides-` en la hoja: «Zoom» llega opaco a la mitad). La diapositiva inicial no se anima (y no retrasa el LCP);
+ *   con movimiento reducido no se oculta ni se anima nada.
  * - Los botones usan las clases del núcleo `elementor-button` y `elementor-size-*` (no son de PRO): así reciben los
  *   estilos de botón del kit del sitio, como en PRO.
  * - El rasgo «Plantilla en lugar del texto» (`Slides_Templates`, campo `digitalisimo_template_id`) con las mismas reglas
