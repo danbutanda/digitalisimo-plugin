@@ -12,7 +12,7 @@
 	W.digiPortfolio = 1;
 	const T = 450, FIT = 'digi-portfolio__img--fit-height', SMALL = 'scale3d(.2,.2,1)';
 	const still = () => W.matchMedia && W.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	// Con la caja sin redondear, como `outerHeight()`/`outerWidth()` de jQuery en PRO.
+	// Con la caja sin redondear, como `outerHeight()`/`outerWidth()` en PRO.
 	const fit = (img) => {
 		const p = img.parentNode, r = p && p.getBoundingClientRect();
 		if (r && img.naturalWidth && r.width) p.classList.toggle(FIT, img.naturalHeight / img.naturalWidth < r.height / r.width);
