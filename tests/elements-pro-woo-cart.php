@@ -385,6 +385,9 @@ namespace {
 	c_check( array() === array_diff( array_unique( $set[0] ), $used[1] ), 'Toda variable que fija un control la lee una hoja: ' . implode( ', ', array_diff( array_unique( $set[0] ), $used[1] ) ) );
 	$js = (string) file_get_contents( $dir . 'cart.js' );
 	c_check( strlen( $js ) <= 8192 && ! preg_match( '/jQuery|\$\(/', $js ) && str_contains( $js, "'yes' === s.update_cart_automatically" ) && str_contains( $js, 'digi-cart__sticky--active' ), 'cart.js ≤ 8 KB, sin jQuery, con la actualización automática y la columna fija.' );
+	// Desplegable de países: la clase propia también al abrirlo con el teclado, como PRO en `select2:open` (antes sólo con
+	// el clic, así que con el teclado las opciones no tomaban los colores de los controles ni la fuente de PRO).
+	c_check( str_contains( $js, "el.addEventListener('mousedown', mark);" ) && str_contains( $js, "el.addEventListener('keydown', mark);" ) && str_contains( $js, "d.classList.add('digi-cart-select2')" ), 'cart.js marca el desplegable de países abierto con el ratón y con el teclado.' );
 	$GLOBALS['c_wp']['scripts'] = array();
 	$GLOBALS['c_wp']['styles']  = array();
 	c_check( array( 'wc-cart', 'selectWoo', 'digitalisimo-woo-cart' ) === $own->get_script_depends(), 'Scripts: los de WooCommerce que pide PRO y el propio.' );
