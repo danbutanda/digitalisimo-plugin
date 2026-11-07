@@ -23,13 +23,14 @@ defined( 'ABSPATH' ) || exit;
  *   que PRO (`<id del elemento>-evergreen_due_date` y `-evergreen_interval`), así un visitante conserva su plazo al
  *   convertir el widget (el `id` no cambia).
  * - Acciones al terminar (`data-digi-actions`, sólo fuera del editor, como PRO): ocultar la cuenta, redirigir (sólo a
- *   `http`/`https`) y mostrar el mensaje, que se pinta oculto (`hidden`). El elemento emite `digi-countdown-expire`.
+ *   `http`/`https`) y mostrar el mensaje, que se pinta oculto (`hidden`). El elemento emite `digi-countdown-expire` y,
+ *   si la página tiene jQuery, el `countdown_expire` de jQuery que emitía PRO, para el código propio del sitio.
  * - Los dígitos se pintan ya en el servidor (sin cajas vacías ni salto de diseño); el script los pone al día cada segundo.
  *   La cuenta tiene `role="timer"` (región viva apagada: no se anuncia cada segundo).
  *
  * Diferencias declaradas con PRO: los dígitos iniciales los pinta el servidor (PRO los dejaba vacíos hasta su script), el
  * mensaje oculto usa `hidden` y con la cuenta ya vencida al cargar las acciones corren una sola vez (PRO las repetía cada
- * segundo); las etiquetas por defecto son textos propios en español.
+ * segundo); las etiquetas por defecto de lo nuevo son textos propios en español (en lo convertido de PRO, las de PRO).
  */
 class Countdown extends \Elementor\Widget_Base {
 
@@ -658,6 +659,20 @@ class Countdown extends \Elementor\Widget_Base {
 		);
 	}
 
+	/**
+	 * Etiquetas por defecto de lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan «Migrar» y los
+	 * kits, también en lo ya migrado): los textos de PRO con su msgid y su dominio, o la traducción del paquete de idioma
+	 * de PRO, en el idioma del front, como `get_default_countdown_labels()`. Lo nuevo sigue con las propias.
+	 */
+	public static function pro_labels(): array {
+		return array(
+			'label_days'    => esc_html__( 'Days', 'elementor-pro' ), // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- mismo texto y dominio que PRO en lo convertido.
+			'label_hours'   => esc_html__( 'Hours', 'elementor-pro' ), // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- ídem.
+			'label_minutes' => esc_html__( 'Minutes', 'elementor-pro' ), // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- ídem.
+			'label_seconds' => esc_html__( 'Seconds', 'elementor-pro' ), // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- ídem.
+		);
+	}
+
 	/** Segundos del temporizador perpetuo (horas y minutos), como PRO. */
 	public static function evergreen_interval( array $s ): int {
 		$hours   = empty( $s['evergreen_counter_hours'] ) ? 0 : (int) $s['evergreen_counter_hours'] * HOUR_IN_SECONDS;
@@ -740,7 +755,7 @@ class Countdown extends \Elementor\Widget_Base {
 			$attrs['data-digi-actions'] = (string) wp_json_encode( $actions );
 		}
 		$parts  = self::parts( $remaining );
-		$labels = self::default_labels();
+		$labels = '' !== (string) $this->get_settings( '_digitalisimo_pro' ) ? self::pro_labels() : self::default_labels();
 		$items  = '';
 		foreach ( array( 'days', 'hours', 'minutes', 'seconds' ) as $part ) {
 			if ( empty( $s[ 'show_' . $part ] ) ) {

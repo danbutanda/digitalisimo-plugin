@@ -1,6 +1,8 @@
 /* DIGITALÍSIMO Elements · Cuenta regresiva: pone al día días, horas, minutos y segundos cada segundo y, al terminar, corre
    las acciones del servidor (ocultar, redirigir a http/https, mostrar el mensaje) una sola vez y emite
-   `digi-countdown-expire`. El temporizador perpetuo guarda su vencimiento en el navegador con las claves de siempre. */
+   `digi-countdown-expire` y, antes de las acciones y sólo si la página ya tiene jQuery (no lo pide ni lo carga), el
+   `countdown_expire` de jQuery que emitía PRO sobre el envoltorio, para el código del sitio que lo escucha. El
+   temporizador perpetuo guarda su vencimiento en el navegador con las claves de siempre. */
 (() => {
 	const W = window, D = document, K = 'digi-countdown', P = ['days', 'hours', 'minutes', 'seconds'];
 	const store = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch (e) { return null; } };
@@ -27,7 +29,9 @@
 			if (t > 0) return;
 			clearInterval(el.digiCd);
 			el.digiCd = -1;
-			(host || el).dispatchEvent(new CustomEvent(K + '-expire', { bubbles: true }));
+			const J = W.jQuery, h = host || el;
+			h.dispatchEvent(new CustomEvent(K + '-expire', { bubbles: true }));
+			if (J) J(h).trigger('countdown_expire', J(h));
 			actions.forEach(a => {
 				if (a.type === 'hide') el.hidden = true;
 				else if (a.type === 'message') { const m = el.parentNode && el.parentNode.querySelector('.' + K + '__message'); if (m) m.hidden = false; }

@@ -2,14 +2,6 @@
  "_doc": [
   "Casos A/B de la Cuenta regresiva (frente D de C2): A con `countdown` de PRO, B con `digitalisimo-countdown`. El reloj del navegador está fijado (`clock`: 2030-01-01 00:00 UTC; el sitio de prueba está en UTC), así que A y B marcan los mismos dígitos en cada medición: la fecha límite de los casos es 2030-01-04 10:05:06 (3 días, 10 h, 5 min, 6 s) y las vencidas, de 2029. `ready.a` espera a que el script de PRO haya escrito los días."
  ],
- "declared": [
-  {
-   "widget": "countdown",
-   "kind": "palabra",
-   "match": "^(perdida «(days|hours|minutes|seconds)»|nueva «(días|horas|minutos|segundos)»)$",
-   "reason": "Sin «Etiquetas personalizadas» las etiquetas son las del widget propio, en español (las de PRO salen de su traducción al idioma del sitio; el sitio de prueba está en inglés)."
-  }
- ],
  "cases": {
   "cd-defaults": {
    "title": "Valores por defecto: fecha límite, cuatro cajas en bloque con etiquetas",
@@ -20,10 +12,6 @@
    },
    "ready": {
     "a": ".elementor-countdown-days:not(:empty)"
-   },
-   "pixels": {
-    "max": 0.2,
-    "reason": "Las etiquetas por defecto son otras palabras (en español, declaradas): «Segundos» es más ancha que «Seconds» y, a 375 px, las cajas flexibles se reparten el ancho de otra forma. Con las mismas palabras (cd-labels, cd-styled, cd-message) la diferencia es 0,00 %."
    }
   },
   "cd-labels": {
