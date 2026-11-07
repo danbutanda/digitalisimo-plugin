@@ -57,9 +57,9 @@ final class Runner {
 	const IDS_CHUNK  = 5000;
 	/** DIGITALÍSIMO Elements mínimo (V.3.3). */
 	const ELEMENTS_MIN = '4.3.0.170';
-	const STAGES      = array( 'prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'pro', 'retire_late', 'report', 'finish' );
+	const STAGES      = array( 'prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'pro', 'pro_css', 'retire_late', 'report', 'finish' );
 	/** Etapas que recorren documentos (o avanzan con cursor): sus intentos se cuentan por documento. */
-	const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'pro', 'retire_late', 'report' );
+	const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'pro', 'pro_css', 'retire_late', 'report' );
 	/** Pasos de plataforma (clases de `Legacy\Platform`, V.14 C5): con Element Pack cargado y tras convertir el contenido. */
 	const PREPARE_STEPS  = array( 'Theme_Builder', 'Fonts', 'Icons', 'Snippets', 'Sidebar' );
 	const PLATFORM_STEPS = array( 'Theme_Builder', 'Mega_Menu', 'Kit', 'Snippets', 'Swatches', 'Inventory' );
@@ -79,6 +79,7 @@ final class Runner {
 		'references'       => 'Buscando CSS que nombre widgets fusionados',
 		'aliases'          => 'Actualizando widgets fusionados',
 		'pro'              => 'Convirtiendo los widgets de PRO a widgets propios',
+		'pro_css'          => 'Llevando a los widgets propios el CSS que nombra los de PRO',
 		'retire_late'      => 'Retirando Prime Slider',
 		'report'           => 'Preparando el informe',
 		'finish'           => 'Vaciando cachés y preparando el informe',
@@ -346,7 +347,7 @@ final class Runner {
 			'capable'         => null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'activate_plugins' ) ) : (bool) $capable,
 			// Quien pulsó (o quien lanzó la red): Snippets lo revalida al publicar CSS (V.7). 0 en WP-CLI sin --user.
 			'user'            => null === $user ? ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) : (int) $user,
-			'counts'          => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'pro' => 0, 'pro_elements' => 0, 'pages' => 0, 'copies' => 0, 'markers' => 0, 'failed' => array() ),
+			'counts'          => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'pro' => 0, 'pro_elements' => 0, 'pro_css' => 0, 'pages' => 0, 'copies' => 0, 'markers' => 0, 'failed' => array() ),
 			'warnings'        => array(),
 			'review'          => array(),
 			'keep_revisions'  => array(),
@@ -1132,8 +1133,36 @@ final class Runner {
 				$state['counts']['pro']          = (int) ( $state['counts']['pro'] ?? 0 ) + 1;
 				$state['counts']['pro_elements'] = (int) ( $state['counts']['pro_elements'] ?? 0 ) + (int) $result['converted'];
 			}
+			if ( ! empty( $result['css'] ) ) {
+				$state['counts']['pro_css'] = (int) ( $state['counts']['pro_css'] ?? 0 ) + 1;
+			}
 		} );
-		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'retire_late' ) : $state;
+		if ( ! $complete || count( $batch ) >= self::BATCH ) {
+			return $state;
+		}
+		return self::has( 'Pro', 'css_documents' ) ? self::next( $state, 'pro_css', count( Pro::css_documents() ) ) : self::next( $state, 'retire_late' );
+	}
+
+	/**
+	 * CSS que nombra los widgets de PRO desde fuera (contenedores, página, kit y Personalizador; Pro): en los documentos
+	 * que no tenían widgets de PRO por convertir (o que se convirtieron con una versión anterior) y, al final, el kit
+	 * activo y el CSS adicional. Cada regla gana su copia con las clases del widget propio; `--revert` lo deshace.
+	 */
+	private static function stage_pro_css( array $state, $deadline ) {
+		if ( ! self::pro_ready() || ! self::has( 'Pro', 'css_documents' ) ) {
+			return self::next( $state, 'retire_late' );
+		}
+		$batch = Pro::css_documents( (int) $state['cursor'], self::BATCH );
+		list( $state, $complete ) = self::loop( $state, $batch, $deadline, static function ( $post_id, array &$state ) {
+			if ( Pro::convert_css_document( $post_id ) ) {
+				$state['counts']['pro_css'] = (int) ( $state['counts']['pro_css'] ?? 0 ) + 1;
+			}
+		} );
+		if ( ! $complete || count( $batch ) >= self::BATCH ) {
+			return $state;
+		}
+		$state['counts']['pro_css'] = (int) ( $state['counts']['pro_css'] ?? 0 ) + Pro::convert_site_css();
+		return self::next( $state, 'retire_late' );
 	}
 
 	/** Documentos (no revisiones) con widgets de Prime Slider, para la retirada tardía. */
@@ -2024,6 +2053,13 @@ final class Runner {
 				}
 			}
 		}
+		// El CSS de la página, del kit y del Personalizador con copias de reglas de PRO: antes que los documentos, cuya
+		// copia de los ajustes de la página (si la hay) es anterior a todo.
+		if ( self::has( 'Pro', 'revert_css' ) ) {
+			foreach ( Pro::revert_css( $force ) as $code ) {
+				$out['codes'][] = $code;
+			}
+		}
 		$touched = array();
 		foreach ( array_unique( array_merge( Migration::backups(), Migration::page_backups() ) ) as $post_id ) {
 			$post_id = (int) $post_id;
@@ -2236,6 +2272,9 @@ final class Runner {
 		}
 		if ( ! empty( $c['pro'] ) ) {
 			$rows[] = sprintf( 'Documentos con widgets de PRO convertidos a widgets propios: %d (%d widgets).', (int) $c['pro'], (int) ( $c['pro_elements'] ?? 0 ) );
+		}
+		if ( ! empty( $c['pro_css'] ) ) {
+			$rows[] = sprintf( 'Documentos, kit o CSS adicional cuyo CSS nombra widgets de PRO, con la copia de esas reglas para los widgets propios: %d.', (int) $c['pro_css'] );
 		}
 		if ( ! empty( $c['recovered'] ) ) {
 			$rows[] = sprintf( 'Páginas sobrescritas recuperadas: %d.', (int) $c['recovered'] );

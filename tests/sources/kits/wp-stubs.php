@@ -493,7 +493,7 @@ function get_post_types( $args = array(), $output = 'names' ) {
 		if ( isset( $args['public'] ) && (bool) $args['public'] !== (bool) $type['public'] ) {
 			continue;
 		}
-		$out[ $name ] = $name;
+		$out[ $name ] = 'objects' === $output ? (object) array( 'name' => $name, 'label' => ucfirst( $name ) ) : $name;
 	}
 	return $out;
 }

@@ -152,9 +152,10 @@ namespace {
 	h_check( $cases['dynamic']['__dynamic__'] === $out['dynamic']['__dynamic__'], 'Las etiquetas dinámicas siguen a su control.' );
 	h_check( "selector .digi-post-navigation__link a{gap:4px}\nselector.digi-post-navigation--borders-yes .digi-post-navigation__separator{width:3px}\nselector span.digi-post-navigation__label--prev, selector .digi-post-navigation__arrow.digi-post-navigation__arrow--next{color:red}\nselector .digi-post-navigation__text--next .digi-post-navigation__title--next{color:blue}\n.elementor-widget-digitalisimo-post-navigation .digi-post-navigation__title--prev{color:#000}" === $out['css']['custom_css'] && 'mi-nav' === $out['css']['_css_classes'], 'CSS personalizado con las clases propias; Avanzado intacto: ' . $out['css']['custom_css'] );
 	h_classes_exist( $map, $own, h_render( $own ) );
-	// Una taxonomía de un tipo que el sitio ya no tiene: pendiente de revisar (tampoco tenía efecto).
-	list( , $gone ) = \Digitalisimo\Elements\Convert\Translator::translate( array( 'viejo_taxonomy' => 'category' ), \Digitalisimo\Elements\Convert\Registry::map( 'post-navigation', true ) );
-	h_check( 1 === count( $gone ) && 'pro.unmapped' === $gone[0]['code'] && 'viejo_taxonomy' === $gone[0]['key'], 'La taxonomía de un tipo desaparecido queda en «Pendiente de revisar».' );
+	// La taxonomía de un tipo que no está registrado al convertir (su plugin inactivo durante «Migrar» o al importar un
+	// kit) se conserva: al volver el tipo, «En el mismo término» sigue con ella, como en PRO.
+	list( $kept, $gone ) = \Digitalisimo\Elements\Convert\Translator::translate( array( 'in_same_term' => array( 'portfolio' ), 'portfolio_taxonomy' => 'portfolio_cat' ), \Digitalisimo\Elements\Convert\Registry::map( 'post-navigation', true ) );
+	h_check( array() === $gone && 'portfolio_cat' === $kept['portfolio_taxonomy'] && array( 'portfolio' ) === $kept['in_same_term'], 'La taxonomía de un tipo que hoy no existe pasa tal cual, sin «Pendiente de revisar»: ' . json_encode( $gone ) );
 
 	echo 'DIGITALÍSIMO Elements: Navegación entre entradas (' . count( $own->controls ) . ' controles, ' . count( $own->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B) y su mapa desde el Post Navigation de PRO (' . count( $cases ) . " casos) validados.\n";
 }

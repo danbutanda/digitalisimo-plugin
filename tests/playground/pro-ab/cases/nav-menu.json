@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Menú de WordPress de PRO (`nav-menu`) frente al propio (`digitalisimo-nav-menu`), C3 frente E (docs/pro/c3.md). El menú de prueba lo crea setup.php (`{\"$menu\": \"principal\"}`). A espera a SmartMenus (`data-smartmenus-id`) y B al script propio (`digi-nav--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): los dos menús cierran sus submenús cuando el ratón sale."
+  "Menú de WordPress de PRO (`nav-menu`) frente al propio (`digitalisimo-nav-menu`), C3 frente E (docs/pro/c3.md). El menú de prueba lo crea setup.php (`{\"$menu\": \"principal\"}`). A espera a SmartMenus (`data-smartmenus-id`) y B al script propio (`digi-nav--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): los dos menús cierran sus submenús cuando el ratón sale.",
+  "Corrección de fidelidad: `nm-container-css` mide el CSS de un contenedor que nombra clases del menú de PRO (color de los enlaces y el centrado del pie generado desde Hello); en B, como hace «Migrar», cada regla lleva su copia con las clases propias."
  ],
  "cases": {
   "nm-defaults": {
@@ -516,6 +517,23 @@
      "stay": true
     }
    ]
+  },
+  "nm-container-css": {
+   "title": "Menú en un contenedor cuyo CSS personalizado nombra clases de PRO (cabecera con estilo y pie generado desde Hello): B con la copia de cada regla que deja «Migrar» (corrección de fidelidad)",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "dropdown": "none"
+   },
+   "container": {
+    "custom_css": "selector .elementor-nav-menu--main .elementor-item{color:#dd0000}@media(max-width:576px){selector .elementor-nav-menu{justify-content:center;margin-inline:auto}}"
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   }
   }
  },
  "declared": [

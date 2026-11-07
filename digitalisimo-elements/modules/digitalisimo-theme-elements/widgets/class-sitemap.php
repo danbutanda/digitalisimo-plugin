@@ -24,16 +24,19 @@ defined( 'ABSPATH' ) || exit;
  * Las clases propias (`digi-sitemap__item digi-sitemap__item--<tipo>`) se anteponen a las de WordPress (`page_item`,
  * `cat-item`, `children`), y «Añadir nofollow» pone `rel="nofollow"` en cada enlace, como PRO.
  *
+ * Como PRO, cada lista pide todas las entradas de su tipo (`posts_per_page` -1); el filtro
+ * `digitalisimo_elements_sitemap_limit` pone un tope si el sitio lo quiere. No se cuentan filas ni se precargan
+ * metadatos ni términos.
+ *
  * Diferencias declaradas con PRO:
- * - Sin consultas sin límite: PRO pedía todas las entradas (`posts_per_page` -1); aquí el tope es
- *   `digitalisimo_elements_sitemap_limit` (1 000 por defecto, filtrable) y no se cuentan filas ni se precargan términos.
- * - «Excluir → Entrada actual» excluye la entrada en curso (PRO mostraba la opción pero la ignoraba).
+ * - «Excluir → Entrada actual» excluye la entrada en curso (PRO mostraba la opción pero la ignoraba; lo convertido de
+ *   PRO llega sin esa opción, para verse igual).
  * - El texto de una lista vacía está en español («Ninguno»).
  */
 class Sitemap extends \Elementor\Widget_Base {
 
-	/** Tope de entradas por lista (filtro `digitalisimo_elements_sitemap_limit`). */
-	const LIMIT = 1000;
+	/** Entradas por lista: todas, como PRO (`-1`); el filtro `digitalisimo_elements_sitemap_limit` pone un tope. */
+	const LIMIT = -1;
 
 	public function get_name() {
 		return 'digitalisimo-sitemap';
@@ -634,14 +637,14 @@ class Sitemap extends \Elementor\Widget_Base {
 		return (string) wp_list_categories( $query_args );
 	}
 
-	/** Entradas de un tipo de contenido con los argumentos de PRO, con tope, en la lista de `Walker_Page`. */
+	/** Entradas de un tipo de contenido con los argumentos de PRO (todas, salvo tope del filtro), en la lista de `Walker_Page`. */
 	private static function post_type_items( string $post_type, bool $hierarchical, int $depth, array $query_args ): string {
 		$limit = (int) apply_filters( 'digitalisimo_elements_sitemap_limit', self::LIMIT, $post_type );
 		$query = new \WP_Query(
 			array_merge(
 				$query_args,
 				array(
-					'posts_per_page'         => $limit > 0 ? $limit : self::LIMIT,
+					'posts_per_page'         => $limit > 0 ? $limit : -1,
 					'no_found_rows'          => true,
 					'update_post_meta_cache' => false,
 					'update_post_term_cache' => false,

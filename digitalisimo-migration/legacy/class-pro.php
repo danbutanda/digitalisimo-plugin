@@ -23,6 +23,14 @@ defined( 'ABSPATH' ) || exit;
  *   guardado en su plantilla de la biblioteca (`template_content()` la lee del sitio); lo que queda dentro se convierte
  *   con los mapas en la misma pasada. La plantilla no se borra y `--revert` devuelve la instancia (copia original). Una
  *   instancia sin plantilla se queda como está y el informe lo dice (`pro.global_missing`).
+ * - CSS que nombra los widgets de PRO desde fuera de ellos (contenedores y secciones, la página, el kit activo y el CSS
+ *   adicional del Personalizador): el traductor sólo traduce el CSS del propio widget, así que, tras cada regla que
+ *   nombra las clases de un widget de PRO con mapa listo, se añade su copia con las clases del widget propio
+ *   (`Convert\Converter::external_css()`/`tree_css()` de Elements). La regla original se queda. Lo hace la conversión de
+ *   cada documento y la etapa `pro_css` (documentos ya convertidos o sin widgets de PRO cuyo CSS los nombra, el kit y el
+ *   Personalizador). El CSS del árbol va en la copia del documento (Migration::BACKUP); el de la página, del kit y del
+ *   Personalizador, en CSS_BACKUP, que `--revert` devuelve si nadie lo cambió después (`revert_css()`). Lo que nombre
+ *   esas clases en archivos del tema no se toca.
  */
 final class Pro {
 	const CONVERTER = '\\Digitalisimo\\Elements\\Convert\\Converter';
@@ -37,6 +45,8 @@ final class Pro {
 	const INVENTORY_BATCH = 100;
 	const ANALYSIS_MAX    = 500;
 	const VERSION         = 1;
+	/** Copia del CSS de la página, del kit o del Personalizador antes de añadirle las copias: `{time, where, before, hash}`. */
+	const CSS_BACKUP = '_digitalisimo_pro_css_backup';
 
 	/** @var array<string,string>|null widget de PRO => widget propio, de los mapas listos con destino registrado. */
 	private static $ready = null;
@@ -250,9 +260,210 @@ final class Pro {
 			}
 			return array( 'converted' => 0, 'blocked' => $blocked );
 		}
-		if ( ! $log ) {
+		list( $data, $tree, $page ) = self::document_css( $post_id, $data );
+		$css                        = $tree + $page;
+		if ( ! $log && ! $css ) {
 			return $none;
 		}
+		if ( $log || $tree ) {
+			self::save( $post_id, $raw, $data );
+		}
+		Migration::clear_css( $post_id );
+		foreach ( self::codes( $log ) as $item ) {
+			Report::add( $post_id, $item[0], $item[1] );
+		}
+		if ( $css ) {
+			Report::add( $post_id, 'pro.css_external', array( 'count' => $css ) );
+		}
+		return array( 'converted' => count( $log ), 'blocked' => array(), 'css' => $css );
+	}
+
+	/**
+	 * Etapa `pro_css`: sólo el CSS que nombra widgets de PRO desde fuera (árbol y página) de un documento que no tiene
+	 * widgets de PRO por convertir. Devuelve cuántos CSS cambiaron.
+	 */
+	public static function convert_css_document( $post_id ): int {
+		$post_id = (int) $post_id;
+		if ( ! self::available() || $post_id <= 0 || ( function_exists( 'wp_is_post_revision' ) && wp_is_post_revision( $post_id ) ) ) {
+			return 0;
+		}
+		$raw  = get_metadata( 'post', $post_id, '_elementor_data', true );
+		$data = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : array();
+		$data = is_array( $data ) ? $data : array();
+		list( $data, $tree, $page ) = self::document_css( $post_id, $data );
+		if ( $tree && is_string( $raw ) && '' !== $raw ) {
+			self::save( $post_id, $raw, $data );
+		}
+		$css = $tree + $page;
+		if ( $css ) {
+			Migration::clear_css( $post_id );
+			Report::add( $post_id, 'pro.css_external', array( 'count' => $css ) );
+		}
+		return $css;
+	}
+
+	/**
+	 * CSS del árbol (lo que no es un widget convertido) y de la página de un documento, con las copias de las reglas que
+	 * nombran widgets de PRO. La página se escribe aquí (con CSS_BACKUP); el árbol lo escribe quien llama (`save()`, con
+	 * la copia y la marca del documento).
+	 *
+	 * @return array{0: array, 1: int, 2: int} árbol, CSS del árbol que cambiaron y si cambió el de la página.
+	 */
+	private static function document_css( int $post_id, array $data ): array {
+		$sets = self::class_sets();
+		if ( ! $sets ) {
+			return array( $data, 0, 0 );
+		}
+		$converter = self::CONVERTER;
+		$tree      = 0;
+		$data      = $converter::tree_css( $data, $sets, $tree );
+		$changed   = 0;
+		$page      = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+		if ( is_array( $page ) && isset( $page['custom_css'] ) && is_string( $page['custom_css'] ) && '' !== $page['custom_css'] ) {
+			$css = (string) $converter::external_css( $page['custom_css'], $sets );
+			if ( $css !== $page['custom_css'] ) {
+				self::backup_css( $post_id, 'page', $page['custom_css'], $css );
+				$page['custom_css'] = $css;
+				update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $page ) );
+				$changed = 1;
+			}
+		}
+		return array( $data, (int) $tree, $changed );
+	}
+
+	/**
+	 * Juegos de clases de los mapas listos con destino registrado (`Convert\Converter::class_sets()`), o vacío con una
+	 * versión de Elements sin la traducción del CSS desde fuera.
+	 */
+	public static function class_sets(): array {
+		$converter = self::CONVERTER;
+		if ( ! self::available() || ! method_exists( $converter, 'class_sets' ) || ! method_exists( $converter, 'tree_css' ) || ! method_exists( $converter, 'external_css' ) || ! self::ready() ) {
+			return array();
+		}
+		return (array) $converter::class_sets( array_keys( self::ready() ) );
+	}
+
+	/** Guarda (la primera vez) el CSS anterior de un documento, el kit o el Personalizador, y la huella de lo escrito. */
+	private static function backup_css( int $post_id, string $where, string $before, string $after ): void {
+		$stored = json_decode( (string) get_metadata( 'post', $post_id, self::CSS_BACKUP, true ), true );
+		$entry  = is_array( $stored ) && isset( $stored['before'] ) ? $stored : array( 'time' => time(), 'where' => $where, 'before' => $before );
+		$entry['hash'] = md5( $after );
+		if ( is_array( $stored ) ) {
+			update_metadata( 'post', $post_id, self::CSS_BACKUP, wp_slash( (string) wp_json_encode( $entry ) ) );
+		} else {
+			add_metadata( 'post', $post_id, self::CSS_BACKUP, wp_slash( (string) wp_json_encode( $entry ) ), true );
+		}
+	}
+
+	/**
+	 * Documentos (no revisiones) desde el id $after cuyo CSS personalizado (del árbol o de la página) podría nombrar
+	 * clases de PRO, hasta $limit (0: todos). Los widgets de PRO ya convertidos los cubre `documents()`.
+	 *
+	 * @return int[]
+	 */
+	public static function css_documents( $after = 0, $limit = 0 ): array {
+		global $wpdb;
+		if ( ! self::class_sets() ) {
+			return array();
+		}
+		$sql = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_type <> 'revision' AND m.post_id > %d AND ( ( m.meta_key = '_elementor_data' AND m.meta_value LIKE %s ) OR ( m.meta_key = '_elementor_page_settings' AND m.meta_value LIKE %s ) ) AND ( m.meta_value LIKE %s OR m.meta_value LIKE %s ) ORDER BY m.post_id" . ( $limit ? ' LIMIT ' . max( 1, (int) $limit ) : '' );
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, (int) $after, '%' . $wpdb->esc_like( '"custom_css":"' ) . '%', '%' . $wpdb->esc_like( 's:10:"custom_css"' ) . '%', '%' . $wpdb->esc_like( '.elementor-' ) . '%', '%' . $wpdb->esc_like( '.e-' ) . '%' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * Final de la etapa `pro_css`: el CSS del kit activo y el CSS adicional del Personalizador del tema activo, con las
+	 * copias de las reglas que nombran widgets de PRO. Devuelve cuántos cambiaron.
+	 */
+	public static function convert_site_css(): int {
+		$sets = self::class_sets();
+		if ( ! $sets ) {
+			return 0;
+		}
+		$converter = self::CONVERTER;
+		$changed   = 0;
+		$kit       = (int) get_option( 'elementor_active_kit', 0 );
+		if ( $kit > 0 ) {
+			$settings = get_metadata( 'post', $kit, '_elementor_page_settings', true );
+			if ( is_array( $settings ) && isset( $settings['custom_css'] ) && is_string( $settings['custom_css'] ) && '' !== $settings['custom_css'] ) {
+				$css = (string) $converter::external_css( $settings['custom_css'], $sets );
+				if ( $css !== $settings['custom_css'] ) {
+					self::backup_css( $kit, 'page', $settings['custom_css'], $css );
+					$settings['custom_css'] = $css;
+					update_metadata( 'post', $kit, '_elementor_page_settings', wp_slash( $settings ) );
+					Migration::clear_css( $kit );
+					Report::site( 'pro.css_external', array( 'name' => 'kit', 'id' => $kit ) );
+					++$changed;
+				}
+			}
+		}
+		$post = function_exists( 'wp_get_custom_css_post' ) ? wp_get_custom_css_post() : null;
+		if ( $post && isset( $post->ID, $post->post_content ) && '' !== (string) $post->post_content ) {
+			$css = (string) $converter::external_css( (string) $post->post_content, $sets );
+			if ( $css !== (string) $post->post_content ) {
+				self::backup_css( (int) $post->ID, 'content', (string) $post->post_content, $css );
+				self::write_content( (int) $post->ID, $css );
+				Report::site( 'pro.css_external', array( 'name' => 'customizer', 'id' => (int) $post->ID ) );
+				++$changed;
+			}
+		}
+		return $changed;
+	}
+
+	/** Contenido de la entrada del CSS adicional (sin revisión nueva de quien migra: es la misma hoja con copias). */
+	private static function write_content( int $post_id, string $css ): void {
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_content' => $css ), array( 'ID' => $post_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( function_exists( 'clean_post_cache' ) ) {
+			clean_post_cache( $post_id );
+		}
+	}
+
+	/**
+	 * `--revert`: devuelve el CSS anterior de la página, del kit y del Personalizador si nadie lo cambió después (con
+	 * $force, siempre). El CSS del árbol vuelve con la copia del documento.
+	 *
+	 * @return array<int, array{0:string, 1:array}> códigos.
+	 */
+	public static function revert_css( bool $force = false ): array {
+		global $wpdb;
+		$out = array();
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY post_id", self::CSS_BACKUP ) ) );
+		foreach ( $ids as $post_id ) {
+			$entry = json_decode( (string) get_metadata( 'post', $post_id, self::CSS_BACKUP, true ), true );
+			if ( ! is_array( $entry ) || ! isset( $entry['before'] ) || ! is_string( $entry['before'] ) ) {
+				delete_metadata( 'post', $post_id, self::CSS_BACKUP );
+				continue;
+			}
+			if ( 'content' === ( $entry['where'] ?? '' ) ) {
+				$post    = get_post( $post_id );
+				$current = $post ? (string) $post->post_content : null;
+			} else {
+				$page    = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+				$current = is_array( $page ) && isset( $page['custom_css'] ) && is_string( $page['custom_css'] ) ? $page['custom_css'] : null;
+			}
+			if ( null === $current ) {
+				delete_metadata( 'post', $post_id, self::CSS_BACKUP );
+				continue;
+			}
+			if ( ! $force && md5( $current ) !== (string) ( $entry['hash'] ?? '' ) ) {
+				$out[] = array( 'core.revert_skipped', array( 'id' => $post_id ) );
+				continue;
+			}
+			if ( 'content' === ( $entry['where'] ?? '' ) ) {
+				self::write_content( $post_id, $entry['before'] );
+			} else {
+				$page['custom_css'] = $entry['before'];
+				update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $page ) );
+				Migration::clear_css( $post_id );
+			}
+			delete_metadata( 'post', $post_id, self::CSS_BACKUP );
+			$out[] = array( 'pro.css_reverted', array( 'id' => $post_id ) );
+		}
+		return $out;
+	}
+
+	/** Escribe el árbol de un documento con la copia del original (la primera vez) y la marca F8 al día. */
+	private static function save( int $post_id, string $raw, array $data ): void {
 		$json   = (string) wp_json_encode( $data );
 		$backup = (string) get_metadata( 'post', $post_id, Migration::BACKUP, true );
 		$mark   = Migration::f8_mark( $post_id );
@@ -268,11 +479,6 @@ final class Pro {
 			$mark['hash'] = md5( $json );
 			update_metadata( 'post', $post_id, Migration::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
 		}
-		Migration::clear_css( $post_id );
-		foreach ( self::codes( $log ) as $item ) {
-			Report::add( $post_id, $item[0], $item[1] );
-		}
-		return array( 'converted' => count( $log ), 'blocked' => array() );
 	}
 
 	/** Marca F8 de un documento que la migración toca por primera vez (mismo formato que Migration::mark_data()). */

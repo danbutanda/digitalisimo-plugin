@@ -18,6 +18,8 @@ defined( 'ABSPATH' ) || exit;
  *   que se completan antes de traducir (en un control de valor múltiple, sólo las partes que faltan).
  * - `keep`: claves con el mismo nombre en el widget propio. `rename`: `de => a`. Las dos alcanzan las variantes por
  *   dispositivo (`_tablet`, `_mobile`…) y las de `__dynamic__` y `__globals__`.
+ * - `keep_match`: expresión regular; toda clave (sin su dispositivo) que la cumpla pasa con el mismo nombre, como `keep`.
+ *   Para los controles que PRO arma con datos del sitio (`<tipo>_taxonomy`), que pueden no existir al convertir.
  * - `groups`: prefijo de un control de grupo (tipografía, borde, sombra, fondo) `de => a`; con todas sus subclaves.
  * - `values`: `clave de destino => [antes => después]` o `callable( $valor, array $origen )`, también por dispositivo.
  * - `set`: valores fijos en el destino. `filter`: `callable( array $destino, array $origen, callable $informe ): array`,
@@ -29,10 +31,15 @@ defined( 'ABSPATH' ) || exit;
  *   «Aproximado» si el sitio la cambió del default.
  * - `repeaters`: `clave => submapa` con `target`, `defaults`, `default_rows`, `keep`, `rename`, `values`, `drop` y
  *   `approx`; el `_id` de cada fila se conserva.
- * - `classes`: `.clase de PRO => .clase propia`, para el CSS personalizado del propio elemento.
+ * - `classes`: `.clase de PRO => .clase propia`, para el CSS personalizado del propio elemento. `class_patterns`:
+ *   `expresión regular => reemplazo`, para las clases que PRO arma con un dato (`.elementor-sitemap-item-<tipo>`); se
+ *   aplican antes que `classes` y cuentan para el mismo código `pro.css`.
  * - `img_classes`: `.clase propia => sufijo` de las clases que en PRO eran un fondo CSS y en el widget propio son (sufijo
  *   '') o contienen (p. ej. ` img`) un `<img>`: `background-size` y `background-position` del CSS personalizado pasan a
  *   `object-fit` y `object-position` del `<img>` (`background_to_object()`).
+ *
+ * `rewrite_external_css()` lleva esas clases al CSS que nombra el widget desde fuera (un contenedor, la página, el kit,
+ * el Personalizador): no lo cambia, añade tras cada regla que las nombra su copia con las clases propias.
  *
  * Los ajustes comunes de Elementor y de DIGITALÍSIMO (pestaña Avanzado, visibilidad, movimiento, fijado, atributos,
  * condiciones, rasgos `digitalisimo_*`) pasan sin cambios.
@@ -71,8 +78,8 @@ final class Translator {
 			}
 			$out[ (string) ( $spec['target'] ?? $key ) ] = $items;
 		}
-		if ( ! empty( $map['classes'] ) && isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) && '' !== $out['custom_css'] ) {
-			$css = self::rewrite_classes( $out['custom_css'], (array) $map['classes'] );
+		if ( ( ! empty( $map['classes'] ) || ! empty( $map['class_patterns'] ) ) && isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) && '' !== $out['custom_css'] ) {
+			$css = self::rewrite_classes( $out['custom_css'], (array) ( $map['classes'] ?? array() ), (array) ( $map['class_patterns'] ?? array() ) );
 			if ( $css !== $out['custom_css'] ) {
 				$out['custom_css'] = $css;
 				$codes[]           = self::code( 'pro.css', 'custom_css', 'Clases del widget de PRO en el CSS personalizado del elemento, pasadas a las del widget propio.', 'converted' );
@@ -133,6 +140,23 @@ final class Translator {
 			$rename[ $key ] = $key;
 		}
 		$groups  = (array) ( $spec['groups'] ?? array() );
+		$match   = isset( $spec['keep_match'] ) && is_string( $spec['keep_match'] ) && '' !== $spec['keep_match'] ? $spec['keep_match'] : '';
+		if ( '' !== $match ) {
+			foreach ( array_keys( $settings ) as $key ) {
+				$base = self::base( (string) $key );
+				if ( ! isset( $rename[ $base ] ) && 1 === preg_match( $match, $base ) ) {
+					$rename[ $base ] = $base;
+				}
+			}
+			foreach ( array( '__dynamic__', '__globals__' ) as $bag ) {
+				foreach ( is_array( $settings[ $bag ] ?? null ) ? array_keys( $settings[ $bag ] ) : array() as $key ) {
+					$base = self::base( (string) $key );
+					if ( ! isset( $rename[ $base ] ) && 1 === preg_match( $match, $base ) ) {
+						$rename[ $base ] = $base;
+					}
+				}
+			}
+		}
 		$drop    = (array) ( $spec['drop'] ?? array() );
 		$approx  = (array) ( $spec['approx'] ?? array() );
 		$nested  = array_keys( (array) ( $spec['repeaters'] ?? array() ) );
@@ -274,10 +298,14 @@ final class Translator {
 	}
 
 	/**
-	 * Clases del widget de PRO en un CSS, por las del widget propio: sólo nombres de clase completos (no `-a` dentro
-	 * de `.x-ab`), de los más largos a los más cortos.
+	 * Clases del widget de PRO en un CSS, por las del widget propio: primero los patrones (`class_patterns`) y después
+	 * sólo nombres de clase completos (no `-a` dentro de `.x-ab`), de los más largos a los más cortos.
 	 */
-	public static function rewrite_classes( string $css, array $classes ): string {
+	public static function rewrite_classes( string $css, array $classes, array $patterns = array() ): string {
+		foreach ( $patterns as $pattern => $replacement ) {
+			$result = @preg_replace( (string) $pattern, (string) $replacement, $css ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+			$css    = is_string( $result ) ? $result : $css;
+		}
 		uksort(
 			$classes,
 			static function ( $a, $b ) {
@@ -393,6 +421,197 @@ final class Translator {
 		}
 		$out[] = $cur;
 		return $out;
+	}
+
+	/**
+	 * CSS que nombra las clases de PRO desde fuera del widget (un contenedor, la página, el kit, el Personalizador): tras
+	 * cada regla de estilo que las nombra se añade su copia con las clases propias, una por juego de clases que la
+	 * cambie (sin repetir copias iguales); también dentro de `@media`, `@supports`, `@container`, `@layer` y `@scope`.
+	 * La regla original se queda (sigue valiendo para los widgets de PRO que queden) y el orden de la cascada no cambia.
+	 *
+	 * Un juego sólo se aplica a una regla cuyo selector nombra alguna clase suya que pasa a una clase propia (`.digi-…`,
+	 * `.elementor-widget-digitalisimo-…`): así una regla que sólo nombra un estado genérico de PRO (`.elementor-active`
+	 * → `[aria-expanded=true]`) no se copia sobre todo el sitio. Idempotente: una copia que ya está en el CSS no se
+	 * vuelve a añadir. Sin cambios devuelve el CSS tal cual.
+	 *
+	 * @param string  $css  CSS.
+	 * @param array[] $sets Juegos `{ classes, class_patterns }` (los de los mapas: `Converter::class_sets()`).
+	 */
+	public static function rewrite_external_css( string $css, array $sets ): string {
+		if ( '' === trim( $css ) || ! $sets ) {
+			return $css;
+		}
+		// Cada juego con su ancla en una sola expresión; sólo siguen los que podrían aplicarse a este CSS.
+		$ready = array();
+		foreach ( $sets as $set ) {
+			$classes  = (array) ( $set['classes'] ?? array() );
+			$patterns = (array) ( $set['class_patterns'] ?? array() );
+			$anchors  = array();
+			foreach ( $classes as $from => $to ) {
+				if ( 1 === preg_match( '/^\.(?:digi-|elementor-widget-digitalisimo-)/', (string) $to ) ) {
+					$anchors[] = preg_quote( (string) $from, '/' );
+				}
+			}
+			$anchor = $anchors ? '/(?:' . implode( '|', $anchors ) . ')(?![\w-])/' : '';
+			$hit    = '' !== $anchor && 1 === preg_match( $anchor, $css );
+			foreach ( $hit ? array() : $patterns as $pattern => $replacement ) {
+				$hit = $hit || 1 === @preg_match( (string) $pattern, $css ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+			}
+			if ( $hit ) {
+				$ready[] = array( 'classes' => $classes, 'class_patterns' => $patterns, 'anchor' => $anchor );
+			}
+		}
+		if ( ! $ready ) {
+			return $css;
+		}
+		$out = self::external_block( $css, $ready, $css );
+		return null === $out ? $css : $out;
+	}
+
+	/** Un bloque de reglas; null si no cambia nada. */
+	private static function external_block( string $css, array $sets, string $whole ): ?string {
+		$out     = '';
+		$changed = false;
+		$len     = strlen( $css );
+		$pos     = 0;
+		while ( $pos < $len ) {
+			$open = self::css_find( $css, $pos, '{' );
+			if ( null === $open ) {
+				$out .= substr( $css, $pos );
+				break;
+			}
+			$close = self::css_close( $css, $open );
+			if ( null === $close ) {
+				$out .= substr( $css, $pos );
+				break;
+			}
+			// Sentencias sin bloque (`@import …;`, `@charset …;`) antes del preludio: pasan tal cual.
+			$prelude_start = $pos;
+			$semi          = self::css_find( $css, $pos, ';', $open );
+			while ( null !== $semi ) {
+				$prelude_start = $semi + 1;
+				$semi          = self::css_find( $css, $prelude_start, ';', $open );
+			}
+			$out    .= substr( $css, $pos, $prelude_start - $pos );
+			$prelude = substr( $css, $prelude_start, $open - $prelude_start );
+			$body    = substr( $css, $open + 1, $close - $open - 1 );
+			$rule    = substr( $css, $prelude_start, $close + 1 - $prelude_start );
+			$name    = strtolower( (string) ( preg_match( '/^\s*(?:\/\*.*?\*\/\s*)*@([a-z-]+)/s', $prelude, $m ) ? $m[1] : '' ) );
+			if ( in_array( $name, array( 'media', 'supports', 'container', 'layer', 'scope', 'document' ), true ) ) {
+				$inner = self::external_block( $body, $sets, $whole );
+				if ( null !== $inner ) {
+					$rule    = $prelude . '{' . $inner . '}';
+					$changed = true;
+				}
+				$out .= $rule;
+			} elseif ( '' === $name ) {
+				$out .= $rule;
+				foreach ( self::external_copies( $prelude, $rule, $sets ) as $copy ) {
+					if ( false === strpos( $whole, $copy ) ) {
+						$out    .= $copy;
+						$changed = true;
+					}
+				}
+			} else {
+				$out .= $rule; // `@keyframes`, `@font-face`, `@page`…: no nombran elementos.
+			}
+			$pos = $close + 1;
+		}
+		return $changed ? $out : null;
+	}
+
+	/**
+	 * Copias traducidas de una regla de estilo (sin repetir), con los juegos que se le aplican. Una copia que todavía nombra
+	 * clases de otro juego (una lista de selectores con el menú y el buscador de PRO) gana a su vez su copia, en la misma
+	 * pasada: así la segunda pasada no añade nada (idempotente).
+	 */
+	private static function external_copies( string $prelude, string $rule, array $sets ): array {
+		$copies = array();
+		$queue  = array( array( $prelude, $rule ) );
+		for ( $i = 0; $i < count( $queue ) && $i < 32; $i++ ) {
+			list( $selector, $text ) = $queue[ $i ];
+			// El selector sin comentarios ni cadenas: una clase dentro de `[data-x=".clase"]` no ancla.
+			$plain = (string) preg_replace( array( '#/\*.*?\*/#s', '/"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'/s' ), array( '', '""' ), $selector );
+			foreach ( $sets as $set ) {
+				$classes  = $set['classes'];
+				$patterns = $set['class_patterns'];
+				$anchored = '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain );
+				if ( ! $anchored ) {
+					foreach ( $patterns as $pattern => $replacement ) {
+						if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+							$anchored = true;
+							break;
+						}
+					}
+				}
+				if ( ! $anchored ) {
+					continue;
+				}
+				$copy = self::rewrite_classes( $text, $classes, $patterns );
+				if ( $copy !== $text && $copy !== $rule && ! in_array( $copy, $copies, true ) ) {
+					$copies[] = $copy;
+					$queue[]  = array( self::rewrite_classes( $selector, $classes, $patterns ), $copy );
+				}
+			}
+		}
+		return $copies;
+	}
+
+	/** Posición del siguiente `$char` fuera de comentarios y cadenas, desde `$from` y antes de `$until`, o null. */
+	private static function css_find( string $css, int $from, string $char, ?int $until = null ): ?int {
+		$len = null === $until ? strlen( $css ) : $until;
+		for ( $i = $from; $i < $len; $i++ ) {
+			$c = $css[ $i ];
+			if ( '/' === $c && '*' === ( $css[ $i + 1 ] ?? '' ) ) {
+				$end = strpos( $css, '*/', $i + 2 );
+				if ( false === $end ) {
+					return null;
+				}
+				$i = $end + 1;
+			} elseif ( '"' === $c || "'" === $c ) {
+				$i = self::css_string_end( $css, $i );
+			} elseif ( $char === $c ) {
+				return $i;
+			}
+		}
+		return null;
+	}
+
+	/** Posición de la `}` que cierra la `{` de `$open`, o null si el CSS no la cierra. */
+	private static function css_close( string $css, int $open ): ?int {
+		$depth = 0;
+		$len   = strlen( $css );
+		for ( $i = $open; $i < $len; $i++ ) {
+			$c = $css[ $i ];
+			if ( '/' === $c && '*' === ( $css[ $i + 1 ] ?? '' ) ) {
+				$end = strpos( $css, '*/', $i + 2 );
+				if ( false === $end ) {
+					return null;
+				}
+				$i = $end + 1;
+			} elseif ( '"' === $c || "'" === $c ) {
+				$i = self::css_string_end( $css, $i );
+			} elseif ( '{' === $c ) {
+				++$depth;
+			} elseif ( '}' === $c && 0 === --$depth ) {
+				return $i;
+			}
+		}
+		return null;
+	}
+
+	/** Fin de la cadena que empieza en `$start` (con sus escapes). */
+	private static function css_string_end( string $css, int $start ): int {
+		$quote = $css[ $start ];
+		$len   = strlen( $css );
+		for ( $i = $start + 1; $i < $len; $i++ ) {
+			if ( '\\' === $css[ $i ] ) {
+				++$i;
+			} elseif ( $quote === $css[ $i ] ) {
+				return $i;
+			}
+		}
+		return $len;
 	}
 
 	private static function code( string $code, string $key, string $reason, string $section ): array {

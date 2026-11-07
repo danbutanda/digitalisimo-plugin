@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B de theme-post-content → digitalisimo-post-content (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+  "Casos A/B de theme-post-content → digitalisimo-post-content (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba.",
+  "Corrección de fidelidad: `pc-second-same-post` pone dos Contenidos de la misma entrada sin constructor en la misma página; como PRO, el segundo no pinta nada."
  ],
  "declared": [],
  "cases": {
@@ -48,6 +49,20 @@
      "typography_typography": "globals/typography?id=accent"
     }
    }
+  },
+  "pc-second-same-post": {
+   "title": "Segundo Contenido de la entrada de la misma entrada en la misma petición (entrada sin constructor) (corrección de fidelidad: el segundo no pinta nada, como PRO)",
+   "widget": "theme-post-content",
+   "context": "post",
+   "before": [
+    {
+     "id": "fpc0001",
+     "widgetType": "theme-post-content",
+     "settings": {}
+    }
+   ],
+   "settings": {},
+   "absent": "Como PRO: el segundo Contenido de la misma entrada (sin constructor) no se imprime, ni su envoltorio, en la misma petición."
   }
  }
 }

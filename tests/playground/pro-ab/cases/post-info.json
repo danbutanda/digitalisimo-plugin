@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B de Información de la entrada (frente H de C4): A con `post-info` de PRO, B con `digitalisimo-post-info`. Contexto `post` (frente G): la entrada de prueba de «Ana Autora» (15 de marzo de 2024, 10:00) con categoría, etiqueta y tres comentarios; `bare`, la entrada sin extras con los comentarios cerrados."
+  "Casos A/B de Información de la entrada (frente H de C4): A con `post-info` de PRO, B con `digitalisimo-post-info`. Contexto `post` (frente G): la entrada de prueba de «Ana Autora» (15 de marzo de 2024, 10:00) con categoría, etiqueta y tres comentarios; `bare`, la entrada sin extras con los comentarios cerrados.",
+  "Corrección de fidelidad: `pi-center-mobile-left` y `pi-center-tablet-right-trad` miden «Centro» en escritorio con «Inicio» o «Fin» en un dispositivo menor; en PRO la clase de escritorio sigue centrando, y el mapa lo traduce así."
  ],
  "declared": [
   {
@@ -193,6 +194,59 @@
      "size": 12
     },
     "text_color": "#0047ab"
+   }
+  },
+  "pi-center-mobile-left": {
+   "title": "Información de la entrada en línea: escritorio Centro, móvil Inicio (corrección de fidelidad: en el móvil los elementos siguen centrados y el texto a la izquierda, como PRO)",
+   "widget": "post-info",
+   "context": "post",
+   "settings": {
+    "icon_list": [
+     {
+      "_id": "fa1",
+      "type": "author",
+      "show_icon": "none"
+     },
+     {
+      "_id": "fa2",
+      "type": "date",
+      "date_format": "1",
+      "show_icon": "none"
+     }
+    ],
+    "icon_align": "center",
+    "icon_align_mobile": "left"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.06,
+      "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget de 50 px de alto a 375 px (5,6 %). El estado normal, que mide la alineación corregida, conserva el umbral común (0,00 % en la corrida)."
+     }
+    }
+   }
+  },
+  "pi-center-tablet-right-trad": {
+   "title": "Información de la entrada tradicional: escritorio Centro, tableta Fin (corrección de fidelidad)",
+   "widget": "post-info",
+   "context": "post",
+   "settings": {
+    "view": "traditional",
+    "icon_list": [
+     {
+      "_id": "fb1",
+      "type": "author",
+      "show_icon": "none"
+     },
+     {
+      "_id": "fb2",
+      "type": "date",
+      "date_format": "1",
+      "show_icon": "none"
+     }
+    ],
+    "icon_align": "center",
+    "icon_align_tablet": "right"
    }
   }
  }

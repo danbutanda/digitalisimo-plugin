@@ -535,7 +535,10 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       // `blank` (motivo): un widget que por diseño no pinta texto ni imágenes (un buscador con botón de icono); entonces
       // basta con que A tenga controles (`focusables`), que se comparan igual.
       if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !c.empty && !(c.shape && (sa.height > 0 || c.capture)) && !(c.blank && sa.focusables)) fail('A no pinta texto ni imágenes en el widget');
-      let diffs = diffSignatures(sa, sb, width);
+      // `absent` (caso, con su motivo): el widget no se imprime, ni su envoltorio, en A ni en B (un segundo Contenido de la
+      // misma entrada, que PRO no vuelve a pintar). Sólo vale si falta en los dos: si uno lo imprime, es una falla.
+      if (c.absent && (sa || sb)) fail(`absent: el widget se imprime en ${sa ? 'A' : ''}${sa && sb ? ' y en ' : ''}${sb ? 'B' : ''} a ${width} px`);
+      let diffs = c.absent && !sa && !sb ? [] : diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));
         if (sa.focusables || sb.focusables) {

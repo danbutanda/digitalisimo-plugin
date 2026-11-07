@@ -103,9 +103,9 @@ check(/add_action\(\s*'wp_ajax_'\s*\.\s*self::ANALYZE/.test(migration) && /check
 check(!/<button/.test(js) && !/createElement\('button'\)/.test(js), 'migrate.js no crea botones.');
 
 /* ---------------------------------------------------------------- Etapas, pasos y grupos de V */
-const stages = ['prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'pro', 'retire_late', 'report', 'finish'];
+const stages = ['prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'pro', 'pro_css', 'retire_late', 'report', 'finish'];
 check(runner.includes("const STAGES      = array( '" + stages.join("', '") + "' );"), 'STAGES como V.3.1.');
-check(runner.includes("const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'pro', 'retire_late', 'report' );"), 'LOOP_STAGES como V.3.1 (con la etapa pro de los widgets de PRO).');
+check(runner.includes("const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'pro', 'pro_css', 'retire_late', 'report' );"), 'LOOP_STAGES como V.3.1 (con las etapas pro y pro_css de los widgets de PRO).');
 for (const stage of stages) {
 	check(new RegExp("private static function stage_" + stage + '\\(').test(runner) && new RegExp("'" + stage + "'\\s*=>\\s*'").test(runner), 'La etapa ' + stage + ' tiene método y rótulo.');
 }

@@ -229,6 +229,8 @@ namespace {
 	check_hf( 'site-header dynamic-header header-stacked header-full-width menu-dropdown-tablet menu-layout-dropdown' === $tree[0]['settings']['css_classes'], 'Clases de la cabecera: ' . $tree[0]['settings']['css_classes'] );
 	$tree = HF::build( 'footer', array( 'hello_footer_layout' => 'inverted' ), $ctx );
 	check_hf( 'site-footer dynamic-footer footer-inverted footer-has-copyright' === $tree[0]['settings']['css_classes'] && false !== strpos( $tree[0]['settings']['custom_css'], '@media(max-width:576px)' ), 'Clases del pie y su disposición móvil de Hello: ' . $tree[0]['settings']['css_classes'] );
+	// El menú del pie se centra también después de que «Migrar» lo convierta al Menú de WordPress propio.
+	check_hf( false !== strpos( $tree[0]['settings']['custom_css'], 'selector :is(.elementor-nav-menu,.digi-nav__list){justify-content:center;margin-inline:auto}' ), 'El CSS del pie centra la lista del menú de PRO y la del propio: ' . $tree[0]['settings']['custom_css'] );
 
 	// 5. Ajustes del kit: sufijos _tablet y _mobile, globales, colores y copyright filtrado.
 	$kit = array(

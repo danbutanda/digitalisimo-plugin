@@ -1,20 +1,27 @@
 {
  "_doc": [
   "Casos A/B del Panel fuera de lienzo (frente F de C3): A con `off-canvas` de PRO, B con `digitalisimo-nested-off-canvas`. Cada caso trae su contenedor hijo (`elements`: título y dos enlaces) y, antes del widget (`before`), dos disparadores: un botón con la etiqueta dinámica «Off-Canvas» de PRO (`ocb0001`, abrir) y otro con un enlace de acción escrito a mano (`ocb0002`, `#elementor-action:action=off_canvas:toggle&settings=…`). `shot: viewport`: el panel es fijo y se mide la ventana entera.",
-  "Acciones: abrir con el ratón, Escape, abrir con el teclado (Intro en el disparador), Tab dentro del panel (foco atrapado: del último vuelve al primero), Escape (el foco vuelve al disparador), abrir con el enlace de acción y cerrar con la capa. `focus` compara dónde queda el foco; `stay` lo deja donde está para la acción siguiente."
+  "Acciones: abrir con el ratón, Escape, abrir con el teclado (Intro en el disparador), Tab dentro del panel (foco atrapado: del último vuelve al primero), Escape (el foco vuelve al disparador), abrir con el enlace de acción y cerrar con la capa. `focus` compara dónde queda el foco; `stay` lo deja donde está para la acción siguiente.",
+  "Correcciones de fidelidad: `oc-input-first` (un campo de texto como primer control no se enfoca al abrir con el ratón: en A el foco se queda en el disparador y en B pasa al contenido, sin anillo) y `oc-fit-end` (con «Alto: ajustado al contenido» el contenido mide su ancho mínimo aunque supere la ventana, como PRO: sin `max-width:100%`)."
  ],
  "declared": [
   {
    "widget": "off-canvas",
    "kind": "foco",
-   "match": "^\\[acción \\d+ abrir con el (ratón|enlace de acción)\\] foco en (página a «[^»]*»|cuerpo) → widget a «[^»]*»$",
-   "reason": "Al abrirse, el diálogo propio lleva el foco a su primer control también cuando se abre con el ratón (patrón de diálogo modal); PRO sólo lo hacía al abrirlo con el teclado. Con el teclado los dos hacen lo mismo (acción 3)."
+   "match": "^\\[acción \\d+ abrir con el (ratón|enlace de acción)\\] foco en (página a «[^»]*»|cuerpo) → widget div «[^»]*»$",
+   "reason": "Al abrirse con el ratón, el diálogo propio lleva el foco a su contenido (`tabindex=-1`, sin anillo: no enfoca el primer control, así que un campo de texto no abre el teclado virtual) y lo atrapa (patrón de diálogo modal); PRO no movía el foco al abrir con el ratón. Con el teclado los dos lo llevan al primer control (acción 3)."
   },
   {
    "widget": "off-canvas",
    "kind": "foco",
    "match": "^\\[acción \\d+ cerrar con la capa\\] foco en página a «[^»]*» → cuerpo$",
    "reason": "Al cerrarse con un clic en la capa, PRO devuelve el foco al disparador de una apertura anterior con el teclado (su gestor de teclado guarda el primero y no lo olvida); el propio sólo devuelve el foco si estaba dentro del panel, y aquí no lo estaba (abierto con el ratón)."
+  },
+  {
+   "widget": "off-canvas",
+   "kind": "foco",
+   "match": "^\\[acción \\d+ cerrar con la capa\\] foco en cuerpo → widget div «[^»]*»$",
+   "reason": "Abierto con el ratón, el foco del diálogo propio está en su contenido (`tabindex=-1`, sin anillo). Si el clic «en la capa» cae dentro del panel (a 768 px el centro de la ventana queda sobre el panel de 400 px, así que ninguno de los dos se cierra), el contenido conserva el foco; en PRO, sin foco dentro, pasa al cuerpo. No cambia nada a la vista."
   }
  ],
  "cases": {
@@ -382,6 +389,121 @@
     }
    ],
    "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
+  },
+  "oc-input-first": {
+   "title": "Panel con un campo de texto como primer control: abrir con el ratón no lo enfoca (corrección de fidelidad)",
+   "widget": "off-canvas",
+   "shot": "viewport",
+   "settings": {},
+   "before": [
+    {
+     "id": "ocb0001",
+     "widgetType": "button",
+     "settings": {
+      "text": "Abrir menú",
+      "__dynamic__": {
+       "link": "[elementor-tag id=\"oct0001\" name=\"off-canvas\" settings=\"%7B%22off_canvas%22%3A%22{id}%22%7D\"]"
+      }
+     }
+    }
+   ],
+   "elements": [
+    {
+     "id": "fcc0001",
+     "elType": "container",
+     "settings": {
+      "content_width": "full"
+     },
+     "elements": [
+      {
+       "id": "fch0001",
+       "elType": "widget",
+       "widgetType": "html",
+       "settings": {
+        "html": "<input type=\"search\" name=\"q\" placeholder=\"Buscar\" aria-label=\"Buscar\" style=\"width:200px;height:36px\">"
+       },
+       "elements": []
+      },
+      {
+       "id": "fch0002",
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Menú"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "abrir con el ratón",
+     "page": true,
+     "selector": ".elementor-element-ocb0001 a",
+     "focus": true,
+     "stay": true,
+     "wait": 1500,
+     "widths": [
+      375,
+      1280
+     ]
+    }
+   ],
+   "empty": "Panel cerrado al cargar."
+  },
+  "oc-fit-end": {
+   "title": "Panel ajustado al contenido, a la derecha, con un bloque de 390 px a 375 px: el contenido no se acota a la ventana (corrección de fidelidad)",
+   "widget": "off-canvas",
+   "shot": "viewport",
+   "settings": {
+    "horizontal_position": "flex-end",
+    "height": "fit-content"
+   },
+   "before": [
+    {
+     "id": "ocb0001",
+     "widgetType": "button",
+     "settings": {
+      "text": "Abrir menú",
+      "__dynamic__": {
+       "link": "[elementor-tag id=\"oct0001\" name=\"off-canvas\" settings=\"%7B%22off_canvas%22%3A%22{id}%22%7D\"]"
+      }
+     }
+    }
+   ],
+   "elements": [
+    {
+     "id": "fcc0003",
+     "elType": "container",
+     "settings": {
+      "content_width": "full"
+     },
+     "elements": [
+      {
+       "id": "fch0005",
+       "elType": "widget",
+       "widgetType": "html",
+       "settings": {
+        "html": "<div style=\"width:390px;height:48px;background:#245eff\"></div>"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "label": "abrir con el ratón",
+     "page": true,
+     "selector": ".elementor-element-ocb0001 a",
+     "wait": 1500,
+     "widths": [
+      375
+     ]
+    }
+   ],
+   "empty": "Panel cerrado al cargar."
   }
  }
 }

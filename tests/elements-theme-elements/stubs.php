@@ -512,7 +512,8 @@ namespace {
 			}
 		}
 		foreach ( (array) ( $map['classes'] ?? array() ) as $from => $to ) {
-			$class = substr( $to, 1 );
+			// Un estado se traduce a la clase propia con su condición (`.x:has(…)`, `.x[open]`): cuenta la clase.
+			$class = preg_match( '/^\.([\w-]+)/', $to, $first ) ? $first[1] : substr( $to, 1 );
 			h_check( in_array( $to, $prefixed, true ) || preg_match( '/class="([^"]* )?' . preg_quote( $class, '/' ) . '( [^"]*)?"/', $html ), "La clase $to (de $from) no existe en el widget propio." );
 		}
 	}

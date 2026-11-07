@@ -68,12 +68,6 @@ return array(
 	'groups'    => array(
 		'icon_typography' => 'icon_typography',
 	),
-	// En PRO la alineación de cada dispositivo es una clase que la hoja del núcleo sólo atiende con «Centro», y la clase
-	// «Centro» de un tamaño mayor sigue centrando en los menores; la propia aplica cada valor sólo en su dispositivo.
-	'approx'    => array_fill_keys(
-		array( 'icon_align_widescreen', 'icon_align_laptop', 'icon_align_tablet_extra', 'icon_align_tablet', 'icon_align_mobile_extra', 'icon_align_mobile' ),
-		'En PRO la alineación «Centro» de un tamaño mayor seguía centrando en los menores aunque estos eligieran «Inicio» o «Fin»; el widget propio aplica cada valor sólo en su dispositivo.'
-	),
 	// Claves que DIGITALÍSIMO Migración (F8) deja al convertir la información de la entrada de origen y que el widget de
 	// PRO no tiene: en un sitio con el widget de PRO registrado F8 ya las quitó y pasó su CSS al CSS personalizado.
 	'drop'      => array(
@@ -87,8 +81,26 @@ return array(
 			'keep'         => array( 'type', 'date_format', 'custom_date_format', 'time_format', 'custom_time_format', 'taxonomy', 'text_prefix', 'show_avatar', 'avatar_size', 'comments_custom_strings', 'string_no_comments', 'string_one_comment', 'string_comments', 'custom_text', 'link', 'custom_url', 'show_icon', 'selected_icon', 'icon' ),
 		),
 	),
-	// Textos de los comentarios de PRO en las filas que no los fijaban (ver la cabecera).
+	// Textos de los comentarios de PRO en las filas que no los fijaban (ver la cabecera), y la alineación por dispositivo
+	// como se veía en PRO: su alineación es una clase por dispositivo que la hoja del núcleo sólo mueve con «Centro»
+	// (`.elementor-align-center`, sin consulta de medios; las de tableta y móvil, con `max-width`), así que «Centro» en un
+	// tamaño mayor seguía centrando los elementos en los menores aunque estos eligieran «Inicio» o «Fin», mientras el texto
+	// tomaba la alineación de cada dispositivo (`text-align`, de la hoja del núcleo). El widget propio aplica cada valor en
+	// su dispositivo: lo convertido lleva en esos dispositivos menores (y en pantalla ancha, si el escritorio es «Centro»)
+	// `center-left` o `center-right`, que centran los elementos con el texto a un lado. Tiene que ir aquí y no en
+	// `values`, que no recibe el dispositivo.
 	'filter'    => static function ( array $out, array $source ): array {
+		$center = false;
+		foreach ( array( '', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' ) as $device ) {
+			$value = $out[ 'icon_align' . $device ] ?? null;
+			if ( $center && in_array( $value, array( 'left', 'right' ), true ) ) {
+				$out[ 'icon_align' . $device ] = 'center-' . $value;
+			}
+			$center = $center || 'center' === $value;
+		}
+		if ( 'center' === ( $out['icon_align'] ?? null ) && in_array( $out['icon_align_widescreen'] ?? null, array( 'left', 'right' ), true ) ) {
+			$out['icon_align_widescreen'] = 'center-' . $out['icon_align_widescreen'];
+		}
 		$pro = array(
 			'string_no_comments' => function_exists( 'esc_html__' ) ? esc_html__( 'No Comments', 'elementor-pro' ) : 'No Comments', // phpcs:ignore WordPress.WP.I18n -- mismo texto que PRO.
 			'string_one_comment' => function_exists( 'esc_html__' ) ? esc_html__( 'One Comment', 'elementor-pro' ) : 'One Comment', // phpcs:ignore WordPress.WP.I18n -- mismo texto que PRO.

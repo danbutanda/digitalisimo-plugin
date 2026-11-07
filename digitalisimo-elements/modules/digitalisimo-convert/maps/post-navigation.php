@@ -6,9 +6,10 @@
  * El widget propio repite los controles del de PRO con el mismo nombre, los mismos valores y las mismas condiciones, así
  * que el mapa es `keep` y `groups`. La taxonomía de «En el mismo término» es un control por tipo de entrada
  * (`<tipo>_taxonomy`) que los dos widgets arman con los mismos tipos públicos del sitio: el mapa declara los de este
- * sitio (y `post`, siempre); la clave de un tipo que el sitio ya no tiene queda en «Pendiente de revisar», donde
- * tampoco tenía efecto. Los textos por defecto de PRO («Previous», «Next», en el idioma del sitio) se completan antes de
- * traducir, porque el widget propio tiene los suyos en español. Formato: cabecera de `class-translator.php`.
+ * sitio (y `post`, siempre) y, con `keep_match`, conserva también la de un tipo que no está registrado al convertir (el
+ * plugin del tipo inactivo durante «Migrar» o al importar un kit): al volver el tipo, «En el mismo término» sigue con su
+ * taxonomía, como en PRO. Los textos por defecto de PRO («Previous», «Next», en el idioma del sitio) se completan antes
+ * de traducir, porque el widget propio tiene los suyos en español. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -39,6 +40,8 @@ return array(
 		'prev_label' => $digi_pn_t( 'Previous' ),
 		'next_label' => $digi_pn_t( 'Next' ),
 	),
+	// `<tipo>_taxonomy` de cualquier tipo, también uno que hoy no está registrado.
+	'keep_match' => '/^[a-z0-9_-]+_taxonomy$/',
 	'keep'     => array_merge(
 		array(
 			'show_label',

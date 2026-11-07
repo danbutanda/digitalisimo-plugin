@@ -5,6 +5,7 @@ use Digitalisimo\Elements\Import\Module;
 use Digitalisimo\Elements\Import\Kits\Context;
 use Digitalisimo\Elements\Import\Kits\Normalizer;
 use Digitalisimo\Elements\Import\Kits\Part_Context;
+use Digitalisimo\Elements\Import\Kits\Pro_Convert;
 use Digitalisimo\Elements\Import\Kits\Session;
 use Elementor\App\Modules\ImportExportCustomization\Runners\Import\Import_Runner_Base;
 use Elementor\Plugin;
@@ -70,7 +71,11 @@ class Site_Settings extends Import_Runner_Base {
 			'global_typography' => array(),
 		);
 		if ( Module::MODE_FRESH === $this->mode ) {
-			$new   = self::import_media( $kit, $new );
+			$new = self::import_media( $kit, $new );
+			if ( isset( $new['custom_css'] ) && is_string( $new['custom_css'] ) && class_exists( Pro_Convert::class ) ) {
+				// El CSS del kit que nombra widgets de PRO: copia de cada regla con las clases de los widgets propios.
+				$new['custom_css'] = Pro_Convert::kit_css( $new['custom_css'] );
+			}
 			$final = array_replace( $old, $new );
 			self::save_kit( $kit, $final );
 			$this->summary = array( 'replaced' => count( $new ) );

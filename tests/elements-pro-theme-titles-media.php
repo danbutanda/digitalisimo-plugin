@@ -510,7 +510,7 @@ namespace {
 	check_g( '<div class="contenido"><p>Hola</p></div><div class="page-links elementor-page-links"><span class="page-links-title elementor-page-links-title">Pages:</span><a href="https://sitio.test/x/2/"><span>2</span></a></div>' === $a, "Contenido (PRO): the_content y paginación: $a" );
 	check_g( $a === $b && str_replace( '200', '201', implode( ',', $calls_a ) ) === implode( ',', $state->calls ), "Contenido: the_content y paginación como PRO (y las mismas llamadas al núcleo).\n $b\n " . implode( ',', $state->calls ) );
 	check_g( array( 'edit:0', 'builder:201:0', 'remove_content_filter', 'add_content_filter', 'edit:0' ) === $state->calls, 'Contenido: sin el CSS del contenido, sin modo de edición y con el filtro del constructor devuelto: ' . implode( ',', $state->calls ) );
-	check_g( '' === $content( $pro_content, 200 ) && $b === $content( Widgets\Post_Content::class, 201, $converted ), 'Contenido: diferencia declarada, PRO no vuelve a pintar la misma entrada en la petición; el propio sí.' );
+	check_g( '' === $content( $pro_content, 200 ) && '' === $content( Widgets\Post_Content::class, 201, $converted ) && '' === $content( Widgets\Post_Content::class, 201 ), 'Contenido: como PRO, la misma entrada sin el constructor no se vuelve a pintar en la petición (convertido o nuevo).' );
 	make_post( 292, array( 'post_content' => '<p>Hola</p>' ) );
 	check_g( str_replace( 'Pages:', 'Páginas:', $a ) === $content( Widgets\Post_Content::class, 292 ), 'Contenido nuevo (sin la marca de la conversión): «Páginas:», como desde C4.' );
 	// El título de la paginación es el texto de PRO con su dominio: con el paquete de idioma de PRO, la misma traducción.
@@ -548,7 +548,12 @@ namespace {
 	}
 	$GLOBALS['tt']['nest'] = null;
 	check_g( str_contains( $out[206], '<div class="anidado"></div>' ) && $out[205] === $out[206], "Contenido: la entrada no se pinta dentro de sí misma (guarda de PRO): {$out[206]}" );
-	check_g( '' !== $content( Widgets\Post_Content::class, 206 ), 'Contenido: tras la recursión, la guarda se libera.' );
+	// Como PRO, la guarda de una entrada sin el constructor no se libera: un segundo Contenido de la misma entrada en la
+	// misma petición no pinta nada (en PRO, ni su envoltorio).
+	check_g( '' === $content( Widgets\Post_Content::class, 206 ) && '' === $content( $pro_content, 205 ), 'Contenido: tras pintar una entrada sin el constructor, la misma entrada no se vuelve a pintar en la petición, como PRO.' );
+	make_post( 208 );
+	$state->builder[208] = '<div class="elementor elementor-y">Constructor</div>';
+	check_g( '' !== $content( Widgets\Post_Content::class, 208 ) && '' !== $content( Widgets\Post_Content::class, 208 ), 'Contenido del constructor: la guarda se libera al terminar, como PRO.' );
 	// e) Vista previa del editor: la envoltura del constructor y, una vez, el gancho que quita el aviso de la plantilla.
 	make_post( 207 );
 	$state->preview = 207;
