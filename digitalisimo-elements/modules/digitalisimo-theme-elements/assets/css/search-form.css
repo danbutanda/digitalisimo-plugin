@@ -2,6 +2,7 @@
 .digi-search-form__input,.digi-search-form__submit{-webkit-appearance:none;appearance:none;background:none;border:0;display:inline-block;font-size:15px;line-height:1;margin:0;min-width:0;padding:0;vertical-align:middle;white-space:normal}
 .digi-search-form input[type=search]:focus{color:inherit;outline:0}
 .digi-search-form__container{background:#f1f2f3;border:0 solid transparent;display:flex;min-height:50px;overflow:hidden;transition:.2s}
+.digi-search-form--skin-classic .digi-search-form__container:has(.digi-search-form__submit:focus-visible){outline:2px solid;outline-offset:2px}
 .digi-search-form--skin-minimal:focus-within{outline:2px solid}
 .digi-search-form__input{color:#3f444b;flex-basis:100%;transition:color .2s}
 .digi-search-form__input::placeholder{color:inherit;font-family:inherit;opacity:.6}

@@ -5,7 +5,8 @@
 //   diálogo; Escape, el aspa y un clic en la superposición lo cierran y el foco vuelve al botón; un widget que el
 //   editor vuelve a pintar sigue funcionando (delegación); abre y cierra con la transición de PRO (scale 0 ↔ 1, 0,3 s)
 //   y, con movimiento reducido, sin ella;
-// - foco visible (contorno de 2 px con separación de 2 px) en el conmutador y el aspa, y botones de 24 × 24 px como
+// - foco visible (contorno de 2 px con separación de 2 px) en el conmutador, el aspa y, en su contenedor, el botón de
+//   envío de la clásica con el teclado, y botones de 24 × 24 px como
 //   mínimo; el campo, como PRO, sin contorno y con el color heredado al enfocarlo (ratón o teclado); la lupa de PRO a
 //   16 px; la mínima enfoca el campo al pulsar la lupa sin script;
 // - sin errores en la consola.
@@ -145,6 +146,14 @@ await page.focus('#before');
 await page.keyboard.press('Tab');
 await sleep(300);
 ok((await cring()).join() === 'digi-search-form-c,none,none,rgb(0, 0, 0)', 'Clásica, con el teclado: igual: ' + await cring());
+// El botón de envío, con el teclado: el contenedor muestra el foco propio (2 px, separación de 2 px), porque su
+// `overflow:hidden` recorta el contorno del botón.
+await page.keyboard.press('Tab');
+await sleep(300);
+const sring = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('[data-id="c"] .digi-search-form__container')); return [document.activeElement.className, c.outlineStyle, c.outlineWidth, c.outlineOffset]; });
+ok(sring.join() === 'digi-search-form__submit,solid,2px,2px', 'Clásica, Tab al botón de envío: foco visible propio en su contenedor: ' + sring);
+await page.click('#digi-search-form-c');
+await sleep(300);
 const icon = await page.$eval('[data-id="c"] .digi-search-form__submit svg', i => { const r = i.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(i).fill]; });
 ok(icon.join() === '16,16,rgb(255, 255, 255)', 'La lupa de PRO en el botón: 16 × 16 px, en blanco: ' + icon);
 const submit = await page.$eval('[data-id="c"] .digi-search-form__submit', b => { const r = b.getBoundingClientRect(); return [Math.round(r.height), getComputedStyle(b).backgroundColor, getComputedStyle(b).color]; });

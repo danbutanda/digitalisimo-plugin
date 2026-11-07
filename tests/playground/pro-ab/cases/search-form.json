@@ -14,7 +14,7 @@
    "widget": "search-form",
    "kind": "foco",
    "match": "^outline(-offset)?:",
-   "reason": "Foco visible propio en el conmutador y el aspa de la pantalla completa (contorno de 2 px con separación de 2 px; PRO los dejaba sin contorno). El campo y su contenedor, como PRO, no llevan contorno."
+   "reason": "Foco visible propio en el conmutador y el aspa de la pantalla completa y, en el contenedor, en el botón de envío de la clásica con el teclado (contorno de 2 px con separación de 2 px; PRO los dejaba sin contorno). El campo, como PRO, no lleva contorno ni lo lleva su contenedor."
   },
   {
    "widget": "search-form",

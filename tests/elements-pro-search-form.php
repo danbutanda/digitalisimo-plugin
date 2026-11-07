@@ -36,7 +36,9 @@ namespace {
 
 	// 1. Registro y recursos.
 	$css = h_assets( $own, 'Formulario de búsqueda', 'search-form', array( '#f1f2f3', '#3f444b', '#69727d', '#fff', '#33373d' ), true );
-	foreach ( array( '.digi-search-form--skin-minimal:focus-within{outline:2px solid}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible{outline:2px solid;outline-offset:2px}' ) as $rule ) {
+	// El botón de envío de la clásica muestra el foco del teclado en su contenedor, que recorta (`overflow:hidden`) el
+	// contorno del propio botón; el campo no.
+	foreach ( array( '.digi-search-form--skin-minimal:focus-within{outline:2px solid}', '.digi-search-form__toggle:focus-visible,.digi-search-form__close:focus-visible{outline:2px solid;outline-offset:2px}', '.digi-search-form--skin-classic .digi-search-form__container:has(.digi-search-form__submit:focus-visible){outline:2px solid;outline-offset:2px}' ) as $rule ) {
 		h_check( str_contains( $css, $rule ), "Foco visible: falta $rule" );
 	}
 	// Como PRO: el campo con el foco (también con el ratón) no lleva contorno ni lo lleva su contenedor, y toma el color
