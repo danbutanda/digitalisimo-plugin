@@ -2312,7 +2312,7 @@ final class Runner {
 		$c    = (array) $state['counts'];
 		$html = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . ( ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '' ) . '.</p></div>';
 		$html .= self::render_counts( $c );
-		if ( empty( $c['deactivated'] ) && empty( $c['converted'] ) && empty( $c['revisions'] ) && empty( $c['aliases'] ) && empty( $c['pro'] ) && empty( $c['recovered'] ) && empty( $c['repaired'] ) ) {
+		if ( empty( $c['deactivated'] ) && empty( $c['converted'] ) && empty( $c['revisions'] ) && empty( $c['aliases'] ) && empty( $c['pro'] ) && empty( $c['pro_css'] ) && empty( $c['recovered'] ) && empty( $c['repaired'] ) ) {
 			$html .= '<p>No había nada que migrar en este sitio.</p>';
 		}
 		$still     = array();
