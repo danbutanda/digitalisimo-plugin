@@ -372,6 +372,10 @@ namespace {
 	}
 	c_check( str_contains( $css, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, 'prefers-reduced-motion' ), 'Foco visible y movimiento reducido.' );
 	c_check( ! file_exists( $dir . 'cart-4.css' ), 'Tres hojas como mucho (la tercera, excepción declarada en docs/pro/c7.md).' );
+	// Campos: `.input-text` y `select` por separado, como PRO (A/B cart-shipping-country). Su `select` (0-2-1) cede ante
+	// `.woocommerce form .form-row select` de WooCommerce 11.2.1 (0-2-2), así que el país y la provincia de la calculadora
+	// de envío llevan fondo blanco, texto negro y radio de 4 px; agrupado en `:is(.input-text,select)` pesaba 0-3-0 y ganaba.
+	c_check( str_contains( $css, '.digi-cart .woocommerce{' ) && str_contains( $css, '& .input-text,& select{background-color:#f9fafa;border:none;border-radius:var(--cff-br,3px)' ) && str_contains( $css, '& .input-text:focus,& select:focus{' ) && ! str_contains( $css, ':is(.input-text,select)' ), 'cart.css: el select de los campos pesa como el de PRO (0-2-1), por debajo del de WooCommerce.' );
 	// Tercera hoja: el selector de país como PRO (opciones en Roboto, foco del selector cerrado y marcador de posición).
 	foreach ( array( '.digi-cart-select2 .select2-results__option{font-family:Roboto,sans-serif}', '& .select2-container--default .select2-selection--single:focus{background-color:#f9fafa;border-color:var(--cff-fbc,initial);color:var(--cff-fc,#69727d)', '& .select2-container--default .select2-selection--single .select2-selection__placeholder{color:var(--cff-n,#69727d)}' ) as $rule ) {
 		c_check( str_contains( $css, $rule ), "cart-3.css: $rule" );
