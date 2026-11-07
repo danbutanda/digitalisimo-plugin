@@ -406,7 +406,8 @@ class Site_Settings extends Import_Runner_Base {
 		}
 		$current  = $kit->get_meta( '_elementor_page_settings' );
 		$current  = is_array( $current ) ? $current : array();
-		$settings = $record['backup']['kit_settings'];
+		// Los ajustes con referencia del kit nunca se aplican en «agregar» (§18), tampoco los de una sesión anterior.
+		$settings = array_diff_key( $record['backup']['kit_settings'], array_flip( References::kit_settings_keys() ) );
 		Context::activate( $session );
 		try {
 			$settings = self::import_media( $kit, $settings );

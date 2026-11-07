@@ -297,6 +297,13 @@ namespace {
 	$kept = $codes( Context::notes()['report']['entries'] ?? array(), 'settings.reference_kept' );
 	kt_check( 1 === count( $kept ) && array_keys( array_intersect_key( $kit_settings, array_flip( $pages ) ) ) === $kept[0]['data']['keys'] && 'settings' === \Digitalisimo\Elements\Import\Kits\Report::section_for( 'settings.reference_kept' ), '4: «agregar»: se informa `settings.reference_kept` con las claves, en «Ajustes del kit».' );
 	kt_check( 'Ajustes del kit' !== \Digitalisimo\Elements\Import\Kits\Report::code_label( 'settings.reference_kept' ), '4: con su propio texto.' );
+	// «Aplicar los ajustes del kit», también con el respaldo de una sesión anterior que aún guardaba las páginas.
+	$record['backup']['kit_settings'] += array_intersect_key( $kit_settings, array_flip( $pages ) );
+	Session::update( $session, array( 'backup' => $record['backup'] ) );
+	$applied = Site_Settings::apply( $session );
+	Context::deactivate();
+	kt_check( true === $applied && '/* kit */' === $kit->get_settings()['custom_css'], '4: «Aplicar los ajustes del kit» aplica el resto.' );
+	kt_check( '3' === get_option( 'woocommerce_cart_page_id' ) && '' === get_option( 'woocommerce_shop_page_id' ) && '3' === $kit->get_settings()['woocommerce_cart_page_id'], '4: …pero nunca las páginas del kit: el sitio conserva las suyas.' );
 
 	// ── 5. Parte `kit-settings` (petición final) ────────────────────────────────────────────────────────────────────
 	$kit = $site( array( 'woocommerce_cart_page_id' => '' ) );
