@@ -23,6 +23,11 @@
 
 namespace {
 	require __DIR__ . '/sources/kits/wp-stubs.php';
+	// Algunos mapas leen la imagen de reserva del núcleo al cargarse; `class_sets()` los carga todos.
+	defined( 'ELEMENTOR_ASSETS_URL' ) || define( 'ELEMENTOR_ASSETS_URL', 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' );
+	if ( ! function_exists( 'wp_parse_args' ) ) {
+		function wp_parse_args( $args, $defaults = array() ) { return array_merge( (array) $defaults, (array) $args ); }
+	}
 	$E = dirname( __DIR__ ) . '/digitalisimo-elements';
 	$M = $E . '/modules/digitalisimo-import';
 	require $M . '/class-module.php';
@@ -177,6 +182,18 @@ namespace {
 	$check( 'blockquote' === kpc_find( $out['elements'], 'q1' )['widgetType'] && in_array( 'pro.error::', kpc_codes( $before ), true ), '5: un error en la conversión se informa (pro.error) y el documento llega como estaba.' );
 	$registry::set( 'blockquote', $real );
 
+	/* 5b. CSS que nombra el widget de PRO desde fuera (contenedor y página): copia con las clases propias */
+	$before = kpc_entries();
+	$css    = 'selector .elementor-blockquote__content{color:red}';
+	$doc    = array( 'elements' => array( kpc_box( 'container', array( kpc_w( 'blockquote', array( 'blockquote_content' => 'Uno' ), 'q9' ) ), 'k9', array( 'custom_css' => $css ) ) ), 'settings' => array( 'custom_css' => '.page .elementor-blockquote__content{x:y}' ) );
+	$saved  = Context::preserve( $doc, new Kit_Pro_Document( 44 ) );
+	$check( $css . 'selector .digi-blockquote__content{color:red}' === kpc_find( $saved['elements'], 'k9' )['settings']['custom_css'], '5b: el CSS del contenedor gana la copia con la clase de la Cita propia: ' . kpc_find( $saved['elements'], 'k9' )['settings']['custom_css'] );
+	$check( '.page .elementor-blockquote__content{x:y}.page .digi-blockquote__content{x:y}' === $saved['settings']['custom_css'], '5b: y el de la página: ' . $saved['settings']['custom_css'] );
+	$check( in_array( 'pro.css_external::', kpc_codes( $before ), true ) || (bool) array_filter( kpc_codes( $before ), static function ( $c ) { return 0 === strpos( $c, 'pro.css_external' ); } ), '5b: se informa pro.css_external: ' . implode( ', ', kpc_codes( $before ) ) );
+	$before = kpc_entries();
+	$check( $saved === Context::preserve( $saved, new Kit_Pro_Document( 44 ) ) && kpc_entries() === $before, '5b: el segundo guardado no añade otra copia ni informa.' );
+	$check( 'a{b:c}.x .elementor-blockquote__content{d:e}.x .digi-blockquote__content{d:e}' === Pro_Convert::kit_css( 'a{b:c}.x .elementor-blockquote__content{d:e}', static function () {} ), '5b: el CSS del kit importado en «nuevo» también (`kit_css()`).' );
+
 	/* 6. Informe */
 	$check( isset( Report::SECTIONS['converted'] ) && array( 'pro' ) === Report::SECTION_PREFIXES['converted'], '6: sección propia en Report::SECTIONS y SECTION_PREFIXES.' );
 	foreach ( array_merge( array_keys( Pro_Convert::LEVELS ), array( 'pro.error' ) ) as $code ) {
@@ -195,7 +212,8 @@ namespace {
 			$hits[] = basename( $file );
 		}
 	}
-	$check( array( 'class-context.php' ) === $hits, '7: sólo Context llama a Pro_Convert: ' . implode( ', ', $hits ) );
+	sort( $hits );
+	$check( array( 'class-context.php', 'class-site-settings.php' ) === $hits, '7: sólo Context (documentos) y el runner `site-settings` (CSS del kit en «nuevo») llaman a Pro_Convert: ' . implode( ', ', $hits ) );
 	$context = $read( $M . '/kits/class-context.php' );
 	$preserve_body = substr( $context, (int) strpos( $context, 'public static function preserve(' ), 1400 );
 	$check( false !== strpos( $preserve_body, 'Pro_Convert' ) && strpos( $preserve_body, 'Pro_Convert' ) < strpos( $preserve_body, "'\\\\Preserve'" ), '7: la conversión corre en Context::preserve(), antes del marcador.' );

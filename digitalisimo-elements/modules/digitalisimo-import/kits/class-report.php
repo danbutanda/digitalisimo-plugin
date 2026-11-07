@@ -167,6 +167,8 @@ final class Report {
 		'pro.converted'                => 'Widget convertido a su widget propio',
 		'pro.approx'                   => 'Ajuste traducido de forma aproximada',
 		'pro.css'                      => 'CSS personalizado del elemento con las clases del widget propio',
+		'pro.css_external'             => 'CSS de contenedores, página o kit que nombra widgets convertidos: cada regla lleva también su copia con las clases del widget propio',
+		'pro.css_external_error'       => 'No se pudo revisar el CSS que nombra widgets convertidos desde fuera: los widgets sí se convirtieron',
 		'pro.dropped'                  => 'Ajuste que el widget propio no tiene: se descartó',
 		'pro.unmapped'                 => 'Ajuste sin traducción declarada: revísalo en el widget propio',
 		'pro.target_missing'           => 'El widget propio no está disponible en este sitio: se conservó el original',

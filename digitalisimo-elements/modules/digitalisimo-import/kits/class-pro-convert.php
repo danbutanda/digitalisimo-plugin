@@ -21,8 +21,12 @@ defined( 'ABSPATH' ) || exit;
  *   registrado y se ve igual) y el informe lo dice (`pro.target_missing`).
  * - **Idempotente.** Un widget ya traducido lleva la marca del traductor y no se vuelve a traducir; el segundo guardado
  *   del núcleo (`save_elements_of_imported_posts()`) no repite códigos.
+ * - **CSS desde fuera.** El CSS personalizado de los contenedores y de la página que nombra clases de un widget de PRO
+ *   con mapa listo gana, tras cada regla, su copia con las clases del widget propio (`Converter::tree_css()`); el CSS
+ *   del kit, en «nuevo», lo mismo desde el runner `site-settings` (`kit_css()`). La regla original se queda.
  * - **Informe.** `pro.converted` por elemento y los códigos del traductor (`pro.unmapped`, `pro.dropped`,
- *   `pro.approx`, `pro.css`), todos en la sección «Widgets convertidos a widgets propios» (`Report::SECTION_PREFIXES`).
+ *   `pro.approx`, `pro.css`), y `pro.css_external`, todos en la sección «Widgets convertidos a widgets propios»
+ *   (`Report::SECTION_PREFIXES`).
  *
  * Las plantillas sueltas de la biblioteca, las revisiones y los valores por defecto de elementos del kit no se
  * convierten: siguen con el widget de PRO, que queda registrado, y «Migrar» los convierte.
@@ -39,6 +43,8 @@ final class Pro_Convert {
 		'pro.converted'      => Part_Context::INFO,
 		'pro.approx'         => Part_Context::INFO,
 		'pro.css'            => Part_Context::INFO,
+		'pro.css_external'   => Part_Context::INFO,
+		'pro.css_external_error' => Part_Context::WARNING,
 		'pro.dropped'        => Part_Context::WARNING,
 		'pro.unmapped'       => Part_Context::WARNING,
 		'pro.target_missing' => Part_Context::WARNING,
@@ -96,6 +102,29 @@ final class Pro_Convert {
 			return $data;
 		}
 		list( $elements, $log ) = self::tree( $data['elements'] );
+		// El CSS que nombra widgets de PRO desde fuera (contenedores y la página): copia con las clases propias. Un fallo aquí
+		// no impide la conversión de los widgets.
+		$changed = 0;
+		try {
+			$sets = self::class_sets();
+		} catch ( \Throwable $error ) {
+			$sets = array();
+			$log[] = self::entry( 'pro.css_external_error', array( 'mensaje' => $error->getMessage() ) );
+		}
+		if ( $sets ) {
+			$converter = self::CONVERTER;
+			$elements  = $converter::tree_css( $elements, $sets, $changed );
+			if ( isset( $data['settings']['custom_css'] ) && is_string( $data['settings']['custom_css'] ) ) {
+				$css = $converter::external_css( $data['settings']['custom_css'], $sets );
+				if ( $css !== $data['settings']['custom_css'] ) {
+					$data['settings']['custom_css'] = $css;
+					++$changed;
+				}
+			}
+		}
+		if ( $changed ) {
+			$log[] = self::entry( 'pro.css_external', array( 'elementos' => $changed ) );
+		}
 		if ( ! $log ) {
 			return $data;
 		}
@@ -106,6 +135,33 @@ final class Pro_Convert {
 			call_user_func( $report, $item['code'], ( $post > 0 ? array( 'post' => $post ) : array() ) + $item['data'], $item['level'] );
 		}
 		return $data;
+	}
+
+	/**
+	 * Juegos de clases de los mapas listos (`Convert\Converter::class_sets()`), o vacío sin un núcleo de conversión que
+	 * traduzca el CSS que nombra los widgets desde fuera (versiones anteriores).
+	 */
+	public static function class_sets(): array {
+		$converter = self::CONVERTER;
+		return self::available() && method_exists( $converter, 'class_sets' ) && method_exists( $converter, 'tree_css' ) ? (array) $converter::class_sets() : array();
+	}
+
+	/**
+	 * CSS del kit importado en «nuevo» (runner `site-settings`): cada regla que nombra clases de widgets de PRO lleva
+	 * también su copia con las clases de los widgets propios, como el CSS de los documentos. Informa `pro.css_external`.
+	 */
+	public static function kit_css( string $css, ?callable $report = null ): string {
+		$sets = '' !== $css ? self::class_sets() : array();
+		if ( ! $sets ) {
+			return $css;
+		}
+		$converter = self::CONVERTER;
+		$new       = (string) $converter::external_css( $css, $sets );
+		if ( $new !== $css ) {
+			$report = null !== $report ? $report : array( __NAMESPACE__ . '\Context', 'report' );
+			call_user_func( $report, 'pro.css_external', array( 'kit' => 1 ), self::LEVELS['pro.css_external'] );
+		}
+		return $new;
 	}
 
 	/** ¿Está registrado el widget propio en este sitio? Sin núcleo cargado se responde que sí (lo decide `Preserve`). */
