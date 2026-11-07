@@ -23,8 +23,9 @@ defined( 'ABSPATH' ) || exit;
  *   `classes`…) y `slide_class` (clases de cada diapositiva). `slider_args( array $settings )` traduce los ajustes a
  *   `Engine::open()` (redefinible).
  * - Imágenes: `get_slide_image_url()` y `get_slide_image_alt_attribute()` como PRO, y `get_slide_image()`, la etiqueta
- *   `<img>` con `wp_get_attachment_image()` (tamaño de `image_size`, `srcset`, `decoding`, `loading`).
- * - El efecto «Cubo» de PRO no existe en el motor: se pinta como `slide` (el mapa lo declara aproximado).
+ *   `<img>` con `wp_get_attachment_image()` (tamaño de `image_size`, `srcset`, `decoding`, `loading`), y `preloader()`,
+ *   el indicador de la «Carga diferida» que va junto a ella.
+ * - El efecto «Cubo» de PRO (sólo en el Carrusel multimedia) lo pintan `carousel-3d.css|js` sobre `slide`.
  */
 abstract class Base_Widget extends \Elementor\Widget_Base {
 
@@ -36,11 +37,25 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 	}
 
 	public function get_style_depends(): array {
-		return Module::style_depends( $this->get_name() );
+		return array_merge( Module::style_depends( $this->get_name() ), $this->extra_depends() );
 	}
 
 	public function get_script_depends(): array {
-		return Module::script_depends( $this->get_name() );
+		return array_merge( Module::script_depends( $this->get_name() ), $this->extra_depends() );
+	}
+
+	/** Recursos opcionales del motor que usan los ajustes (`Module::extra_depends()`); en el editor, todos. */
+	protected function extra_depends(): array {
+		$all = method_exists( $this, 'is_type_instance' ) && $this->is_type_instance();
+		return Module::extra_depends( $all ? array() : (array) $this->get_settings(), $all );
+	}
+
+	/**
+	 * Indicador de la «Carga diferida» junto a la imagen, como el `swiper-lazy-preloader` que PRO pintaba con la opción:
+	 * el aro girando de Swiper (`carousel-lazy.css`), que `carousel-lazy.js` retira al cargar la imagen. Decorativo.
+	 */
+	protected static function preloader( array $settings ): string {
+		return 'yes' === ( $settings['lazyload'] ?? '' ) ? '<span class="digi-crs__preloader" aria-hidden="true"></span>' : '';
 	}
 
 	protected function is_dynamic_content(): bool {

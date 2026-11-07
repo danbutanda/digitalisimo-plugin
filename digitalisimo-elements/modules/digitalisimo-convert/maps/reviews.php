@@ -5,10 +5,11 @@
  * El widget propio repite los controles del de PRO y los de su base (`modules/carousel/widgets/base.php`) con el mismo
  * nombre, los mismos valores y las mismas condiciones, y quita los mismos que PRO (efecto, altura y posición de la
  * paginación), así que el mapa es `keep` y `groups` (también el icono FA4 heredado de cada fila, `social_icon`). El
- * marcado y las clases son propios (motor `digi-crs`, sin Swiper ni la fuente de iconos de las estrellas): la opción
- * `star_fontawesome` de PRO pinta ahora la estrella propia en SVG, con las mismas medidas y colores.
+ * marcado y las clases son propios (motor `digi-crs`, sin Swiper): con la opción `star_fontawesome` de PRO, lo
+ * convertido pinta los mismos caracteres de la fuente de iconos del núcleo (`filter`, `star_icon` = `legacy`), que sólo
+ * se ven donde el sitio la carga, como en PRO.
  *
- * Aproximaciones: las del motor (la carga diferida es la nativa; el bucle es real desde la corrección de fidelidad).
+ * Aproximaciones: ninguna desde la corrección de fidelidad (bucle real, indicador de la carga diferida).
  * Diferencias sin clave propia: el icono social es decorativo (PRO le ponía `aria-label="Read More"`), la valoración
  * tiene nombre accesible y una valoración con más de un decimal se recorta a la décima (PRO pintaba la estrella
  * entera). Formato: cabecera de `class-translator.php`.
@@ -128,9 +129,6 @@ return array(
 		'height'              => 'PRO quita la altura de este widget: un valor guardado no tenía efecto.',
 		'pagination_position' => 'PRO quita la posición de la paginación de este widget (va siempre debajo): un valor guardado no tenía efecto.',
 	),
-	'approx'    => array(
-		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
-	),
 	'repeaters' => array(
 		'slides' => array(
 			'target'       => 'slides',
@@ -146,6 +144,15 @@ return array(
 			'keep'         => array( 'image', 'name', 'title', 'rating', 'selected_social_icon', 'social_icon', 'link', 'content' ),
 		),
 	),
+	// Estrellas: con «Font Awesome» (`star_fontawesome`, el valor por defecto) PRO pintaba los caracteres de la fuente de
+	// iconos del núcleo sin encolarla, así que sólo se veían donde el sitio cargaba eicons. Lo convertido los pinta igual
+	// (`star_icon` = `legacy`, `Reviews::GLYPH`); unas Reseñas nuevas, la estrella propia en SVG.
+	'filter'    => static function ( array $out, array $src ): array {
+		if ( 'star_unicode' !== (string) ( $src['star_style'] ?? 'star_fontawesome' ) ) {
+			$out['star_icon'] = 'legacy';
+		}
+		return $out;
+	},
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'heading_header', 'name_title_style', 'heading_title_style', 'heading_review_style' ),
 	'classes'   => array_merge( $digi_rv_common, $digi_rv_classes ),

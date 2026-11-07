@@ -66,7 +66,7 @@ namespace Elementor {
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
 		const HEADING = 'heading'; const COLOR = 'color'; const SLIDER = 'slider'; const DIMENSIONS = 'dimensions'; const NUMBER = 'number';
-		const MEDIA = 'media'; const URL = 'url'; const ICONS = 'icons'; const REPEATER = 'repeater'; const TAB_STYLE = 'style'; const TAB_CONTENT = 'content';
+		const MEDIA = 'media'; const URL = 'url'; const ICONS = 'icons'; const REPEATER = 'repeater'; const TAB_STYLE = 'style'; const TAB_CONTENT = 'content'; const HIDDEN = 'hidden';
 	}
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 	class Group_Control_Text_Stroke { public static function get_type() { return 'text-stroke'; } }
@@ -196,11 +196,17 @@ namespace {
 		$built[ $pro ] = $widget;
 		$fields_own = array_keys( $widget->controls['slides']['fields'] );
 		check_t( $fields[1] === $fields_own, "$pro: el repetidor tiene los mismos campos, en el mismo orden: " . implode( ', ', $fields_own ) );
-		$expected = array_diff( array_unique( array_merge( $base_controls[1], array_diff( $own_controls[1], $fields[1] ) ) ), $removed[1] );
+		// Más los controles que sólo usa lo convertido (los fija el mapa; corrección de fidelidad): el pico de la burbuja de
+		// PRO y sus estrellas de eicons.
+		$legacy   = array( 'testimonial-carousel' => array( 'pro_bubble' ), 'reviews' => array( 'star_icon' ) );
+		$expected = array_merge( array_diff( array_unique( array_merge( $base_controls[1], array_diff( $own_controls[1], $fields[1] ) ) ), $removed[1] ), $legacy[ $pro ] );
 		$mine     = array_keys( $widget->controls );
 		sort( $expected );
 		sort( $mine );
 		check_t( $expected === $mine, "$pro: los mismos controles que PRO. Faltan: " . implode( ', ', array_diff( $expected, $mine ) ) . '; sobran: ' . implode( ', ', array_diff( $mine, $expected ) ) );
+		foreach ( $legacy[ $pro ] as $name ) {
+			check_t( '' === $widget->controls[ $name ]['default'] && ( 'hidden' === $widget->controls[ $name ]['type'] || array( $name . '!' => '' ) === ( $widget->controls[ $name ]['condition'] ?? null ) ), "$pro: $name no cambia nada por defecto y sólo aparece en lo convertido." );
+		}
 		$groups_expected = array_unique( array_merge( $base_groups[1], $own_groups[1] ) );
 		$groups_mine     = array_keys( $widget->groups );
 		sort( $groups_expected );
@@ -277,7 +283,7 @@ namespace {
 		$php = (string) file_get_contents( $root . 'modules/carousel/widgets/' . $pro . '.php' ) . $base_php;
 		preg_match_all( "/->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $controls );
 		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $grouped );
-		$declared = array_merge( (array) $map['keep'], array_keys( (array) $map['groups'] ), array_keys( (array) $map['drop'] ), array_keys( (array) $map['approx'] ), array_keys( (array) $map['repeaters'] ), (array) $map['ui'], (array) $map['repeaters']['slides']['keep'] );
+		$declared = array_merge( (array) $map['keep'], array_keys( (array) $map['groups'] ), array_keys( (array) $map['drop'] ), array_keys( (array) ( $map['approx'] ?? array() ) ), array_keys( (array) $map['repeaters'] ), (array) $map['ui'], (array) $map['repeaters']['slides']['keep'] );
 		$missing  = array_diff( array_unique( array_merge( $controls[1], $grouped[1] ) ), $declared );
 		check_t( ! $missing, "$pro: el mapa no declara " . implode( ', ', $missing ) );
 		foreach ( (array) $map['keep'] as $key ) {
@@ -313,7 +319,12 @@ namespace {
 	check_t( str_contains( $stacked, '<img src="https://sitio.test/a.jpg" alt="Ana" decoding="async"></div><cite class="digi-testimonial__cite">' ), 'Imagen apilada: nombre junto a la imagen.' );
 	$plain = $render( Testimonial_Carousel::class, array( 'show_arrows' => '', 'pagination' => 'progressbar', 'lazyload' => 'yes', 'slides' => array( $row( 'b1', array( 'content' => '', 'image' => array( 'url' => '', 'id' => '' ) ) ), $row( 'b2', array( 'name' => '', 'title' => '', 'image' => array( 'url' => 'https://sitio.test/b.jpg', 'id' => '7', 'alt' => 'Retrato' ) ) ) ) ) + $tset );
 	check_t( str_contains( $plain, '<section class="digi-crs digi-testimonials" ' ) && str_contains( $plain, 'data-digi-pagination="progressbar"' ) && ! str_contains( $plain, 'digi-crs__prev' ), 'Sin flechas la pista no se estrecha; la barra de progreso no reserva espacio debajo.' );
-	check_t( str_contains( $plain, '<div class="digi-testimonial elementor-repeater-item-b1"><div class="digi-testimonial__footer"><cite class="digi-testimonial__cite">' ) && str_contains( $plain, '<div class="digi-testimonial elementor-repeater-item-b2"><div class="digi-testimonial__content"><div class="digi-testimonial__text">Muy <em>bueno</em></div></div><div class="digi-testimonial__footer"><div class="digi-testimonial__image"><img width="150" height="150" src="https://sitio.test/wp-content/uploads/a-7-full.jpg" srcset="https://sitio.test/wp-content/uploads/a-7-300.jpg 300w" alt="Retrato" decoding="async" loading="lazy" /></div></div></div>' ), 'Sin texto no hay contenido; sin nombre ni cargo no hay cite; la imagen del adjunto con srcset, su texto alternativo y carga diferida: ' . $plain );
+	check_t( str_contains( $plain, '<div class="digi-testimonial elementor-repeater-item-b1"><div class="digi-testimonial__footer"><cite class="digi-testimonial__cite">' ) && str_contains( $plain, '<div class="digi-testimonial elementor-repeater-item-b2"><div class="digi-testimonial__content"><div class="digi-testimonial__text">Muy <em>bueno</em></div></div><div class="digi-testimonial__footer"><div class="digi-testimonial__image"><img width="150" height="150" src="https://sitio.test/wp-content/uploads/a-7-full.jpg" srcset="https://sitio.test/wp-content/uploads/a-7-300.jpg 300w" alt="Retrato" decoding="async" loading="lazy" /><span class="digi-crs__preloader" aria-hidden="true"></span></div></div></div>' ), 'Sin texto no hay contenido; sin nombre ni cargo no hay cite; la imagen del adjunto con srcset, su texto alternativo y carga diferida: ' . $plain );
+	// Corrección de fidelidad: con «Carga diferida», el indicador de PRO junto a la imagen (sólo si hay imagen) y sus
+	// recursos opcionales; sin ella, nada.
+	check_t( 1 === substr_count( $plain, 'digi-crs__preloader' ) && ! str_contains( $html, 'digi-crs__preloader' ), 'Testimonios: un indicador por imagen con «Carga diferida», ninguno sin ella.' );
+	$lazy = $make( Testimonial_Carousel::class, array( 'lazyload' => 'yes' ) + $tset );
+	check_t( array( Engine::HANDLE, 'digitalisimo-testimonial-carousel', Module::LAZY ) === $lazy->get_style_depends() && array( Engine::HANDLE, Module::LAZY ) === $lazy->get_script_depends(), 'Con «Carga diferida», la hoja y el script del indicador (y nada más).' );
 	$evil = $render( Testimonial_Carousel::class, array( 'slides' => array( $row( 'x"><script>', array( 'content' => 'Hola<script>alert(1)</script><b onclick="x()">!</b>', 'name' => '<img src=x onerror=alert(1)>Ana', 'image' => array( 'url' => 'javascript:alert(1)', 'id' => '' ) ) ) ) ) + $tset );
 	check_t( ! str_contains( $evil, '<script' ) && ! str_contains( $evil, 'onclick' ) && ! str_contains( $evil, 'onerror' ) && ! str_contains( $evil, 'javascript:' ) && ! str_contains( $evil, 'elementor-repeater-item-x' ) && str_contains( $evil, '<b>!</b>' ), 'Testimonios: texto y nombre con el HTML permitido, sin URL peligrosas ni identificadores de fila inválidos.' );
 	check_t( ! str_contains( $render( Testimonial_Carousel::class, array( 'slides' => array( $row( 'c1' ) ) ) + $tset ), 'digi-crs__prev' ), 'Con una sola diapositiva no hay flechas ni paginación (como PRO).' );
@@ -379,6 +390,11 @@ namespace {
 			'tc-dynamic'    => array( 'slides' => array( array( '_id' => 'd1', 'content' => '', 'name' => '', 'title' => 'Cliente', 'image' => array( 'url' => '', 'id' => '' ), '__dynamic__' => array( 'content' => '[elementor-tag id="t1" name="post-excerpt" settings="%7B%7D"]', 'name' => '[elementor-tag id="t2" name="author-name" settings="%7B%7D"]', 'image' => '[elementor-tag id="t3" name="author-profile-picture" settings="%7B%7D"]' ) ) ), '__dynamic__' => array( 'slides_name' => '[elementor-tag id="t4" name="site-title" settings="%7B%7D"]' ) ),
 			'tc-css'        => array( 'custom_css' => "selector .elementor-testimonial__text{color:red}\nselector.elementor-testimonial--skin-bubble .elementor-testimonial__content{border-radius:0}\nselector.elementor-testimonial--layout-image_above .elementor-testimonial__name{font-size:9px}\n.elementor-widget-testimonial-carousel.elementor-testimonial--tablet-align-left .elementor-testimonial__cite{margin:0}", '_css_classes' => 'mis-testimonios', '_margin' => array( 'top' => '10', 'right' => '0', 'bottom' => '0', 'left' => '0', 'unit' => 'px', 'isLinked' => false ) ),
 			'tc-legacy'     => array( 'effect' => 'cube', 'height' => array( 'unit' => 'px', 'size' => 300 ), 'pagination_position' => 'inside', 'loop' => '' ),
+			// Pico de la burbuja (corrección de fidelidad): «Derecha», centro por defecto, vacía y a los lados.
+			'tc-bubble-right'  => array( 'skin' => 'bubble', 'alignment' => 'right', 'alignment_tablet' => 'left' ),
+			'tc-bubble-center' => array( 'skin' => 'bubble' ),
+			'tc-bubble-empty'  => array( 'skin' => 'bubble', 'alignment' => '', 'layout' => 'image_stacked' ),
+			'tc-bubble-side'   => array( 'skin' => 'bubble', 'alignment' => 'right', 'layout' => 'image_right' ),
 		),
 		'reviews'              => array(
 			'rv-defaults'   => array(),
@@ -424,7 +440,7 @@ namespace {
 			}
 		}
 		$expected = 'testimonial-carousel' === $pro
-			? array( 'tc-layout:pro.approx:lazyload', 'tc-css:pro.css:custom_css', 'tc-legacy:pro.dropped:effect', 'tc-legacy:pro.dropped:height', 'tc-legacy:pro.dropped:pagination_position' )
+			? array( 'tc-css:pro.css:custom_css', 'tc-legacy:pro.dropped:effect', 'tc-legacy:pro.dropped:height', 'tc-legacy:pro.dropped:pagination_position' )
 			: array( 'rv-css:pro.css:custom_css' );
 		sort( $codes );
 		sort( $expected );
@@ -459,6 +475,20 @@ namespace {
 		}
 	}
 
+	// Pico de la burbuja como PRO: `pro_bubble` con la alineación de escritorio en toda burbuja con el pico debajo o encima
+	// (también con «Centro», que en RTL PRO no centraba), y nada en la piel predeterminada ni con el pico a un lado.
+	check_t( 'left' === $tc['tc-bubble']['pro_bubble'] && 'right' === $tc['tc-bubble-right']['pro_bubble'] && 'center' === $tc['tc-bubble-center']['pro_bubble'] && 'start' === $tc['tc-bubble-empty']['pro_bubble'], 'pro_bubble: la alineación de escritorio (vacía: start).' );
+	check_t( ! isset( $tc['tc-defaults']['pro_bubble'] ) && ! isset( $tc['tc-bubble-side']['pro_bubble'] ) && 'left' === $tc['tc-bubble-right']['alignment_tablet'], 'pro_bubble: nada sin la burbuja ni con el pico a un lado; la alineación de cada dispositivo se conserva (el texto sigue alineándose por dispositivo).' );
+	$bubble = $t->controls['pro_bubble'];
+	check_t( array( '', 'start', 'left', 'center', 'right' ) === array_keys( $bubble['options'] ) && Testimonial_Carousel::PRO_BUBBLE === $bubble['selectors_dictionary'] && '{{VALUE}}' === $bubble['selectors']['{{WRAPPER}} .digi-testimonial__content'] && '--digi-t-l:var(--digi-t-rl);--digi-t-r:var(--digi-t-rr)' === $bubble['selectors']['body.rtl {{WRAPPER}} .digi-testimonial__content'], 'pro_bubble: fija las variables del pico en el contenido, con las de RTL en una segunda regla.' );
+	foreach ( Testimonial_Carousel::PRO_BUBBLE as $value => $rules ) {
+		foreach ( array( '--digi-t-l:', '--digi-t-r:', '--digi-t-x:', '--digi-t-rl:', '--digi-t-rr:' ) as $rule ) {
+			check_t( str_contains( $rules, $rule ), "PRO_BUBBLE[$value]: falta $rule." );
+		}
+	}
+	check_t( str_contains( Testimonial_Carousel::PRO_BUBBLE['right'], '--digi-t-l:var(--digi-t-ia,calc(20px + 50px / 2));--digi-t-r:var(--digi-t-ar,auto)' ) && str_contains( $t->controls['image_size']['selectors']['{{WRAPPER}}'], '--digi-t-ia: auto;' ), 'Con «Derecha», el pico queda a la izquierda salvo donde «Tamaño» escribe --digi-t-ia (como la regla de inicio de PRO, que gana a la de `right`).' );
+	check_t( str_contains( $render( Testimonial_Carousel::class, $tc['tc-bubble-right'] ), 'digi-testimonial__content' ) && ! str_contains( $tcss, 'digi-t-rl' ), 'La hoja no cambia: el pico de PRO va en el CSS que genera el control.' );
+
 	$rc = $cases['reviews'];
 	$d  = $rc['rv-defaults'];
 	check_t( 3 === count( $d['slides'] ) && 'John Doe' === $d['slides'][0]['name'] && '@username' === $d['slides'][0]['title'] && 'Slides' === $d['slides_name'] && 'reviews' === $d['_digitalisimo_pro'], 'Un Reviews sin cambios llega con las tres reseñas que pintaba PRO.' );
@@ -474,6 +504,22 @@ namespace {
 	check_t( array( 'name', 'rating', 'link', 'content', 'image' ) === array_keys( $rc['rv-dynamic']['slides'][0]['__dynamic__'] ), 'Reseñas: etiquetas dinámicas de nombre, valoración, enlace, texto e imagen siguen a su campo.' );
 	$fa4 = $rc['rv-fa4']['slides'][0];
 	check_t( 'fa fa-facebook' === $fa4['social_icon'] && str_contains( $render( Reviews::class, $rc['rv-fa4'] ), '<div class="digi-review__icon digi-review__icon--facebook" style="--digi-review-icon:#3b5998" aria-hidden="true"><i class="fa fa-facebook" aria-hidden="true"></i></div>' ), 'Reseñas: el icono FA4 heredado pasa y se pinta con su color oficial.' );
+	// Estrellas de lo convertido (corrección de fidelidad): los caracteres de eicons de PRO, sin encolar la fuente.
+	check_t( 'legacy' === $d['star_icon'] && ! isset( $sr['star_icon'] ), 'star_icon: legacy con «Font Awesome» (el valor por defecto de PRO); nada con «Unicode».' );
+	$rated = $d;
+	foreach ( $rated['slides'] as $i => $row ) {
+		$rated['slides'][ $i ]['rating'] = 5;
+	}
+	$painted = $render( Reviews::class, $rated );
+	check_t( 3 === substr_count( $painted, '<div class="digi-review__stars digi-review__stars--eicons" role="img" aria-label="Valoración: 5 de 5"><i class="digi-review__star digi-review__star--full">&#xE934;<span class="digi-review__fill">&#xE934;</span></i>' ) && ! str_contains( $painted, Reviews::STAR ), 'Reseñas convertidas: las estrellas de PRO (U+E934 con la fuente eicons), no las propias.' );
+	check_t( str_contains( $render( Reviews::class, array( 'slides' => array( array( '_id' => 'n', 'name' => 'Eva', 'rating' => 5, 'image' => array( 'url' => '' ) ) ) ) ), Reviews::STAR ), 'Unas Reseñas nuevas conservan la estrella propia.' );
+	check_t( Reviews::legacy_stars( array( '_digitalisimo_pro' => 'reviews' ) ) && ! Reviews::legacy_stars( array() ) && Reviews::legacy_stars( array( 'star_icon' => 'legacy' ) ) && ! Reviews::legacy_stars( array( 'star_icon' => 'own', '_digitalisimo_pro' => 'reviews' ) ), 'Las convertidas antes de existir star_icon (marca _digitalisimo_pro) también; unas Reseñas nuevas, no.' );
+	$g45 = Reviews::stars( 4.5, false, false, true );
+	check_t( '<div class="digi-review__stars digi-review__stars--eicons" role="img" aria-label="Valoración: 4,5 de 5">' . str_repeat( '<i class="digi-review__star digi-review__star--full">&#xE934;<span class="digi-review__fill">&#xE934;</span></i>', 4 ) . '<i class="digi-review__star digi-review__star--5">&#xE934;<span class="digi-review__fill" style="width:50%">&#xE934;</span></i></div>' === $g45, '4,5 con las estrellas de PRO: el marcado que compara tests/elements-carousel-fidelity-chrome.mjs: ' . $g45 );
+	check_t( 5 === substr_count( Reviews::stars( '4', false, false, true ), '--full' ) && 4 === substr_count( Reviews::stars( 4, false, false, true ), '--full' ) && 5 === substr_count( Reviews::stars( 4.25, false, false, true ), '--full' ) && str_contains( Reviews::stars( 2.3, false, true, true ), '&#xE933;<span class="digi-review__fill" style="width:30%">&#xE934;</span>' ), 'Como render_stars() de PRO: un entero guardado como texto y una valoración con más de un decimal pintan entera la estrella siguiente; el contorno es U+E933.' );
+	check_t( str_contains( Reviews::stars( 3.5, true, true, true ), '&#9734;' ) && ! str_contains( Reviews::stars( 3.5, true, true, true ), '--eicons' ), 'Con «Unicode» siguen ★/☆ (también en lo convertido).' );
+	check_t( str_contains( $rcss, '.digi-review__stars--eicons{font-family:eicons}' ) && ! in_array( 'elementor-icons', $r->get_style_depends(), true ), 'La hoja pide la fuente eicons sin encolarla, como PRO.' );
+	check_t( str_contains( $render( Reviews::class, array( 'lazyload' => 'yes' ) + $rset ), '<div class="digi-review__image"><img src="https://sitio.test/a.jpg" alt="Ana" decoding="async" loading="lazy"><span class="digi-crs__preloader" aria-hidden="true"></span></div>' ), 'Reseñas: el indicador de la carga diferida junto a la imagen.' );
 	check_t( "selector .digi-review__stars i{color:#000}\nselector .digi-review__header .digi-review__icon--twitter{opacity:.5}\nselector.digi-review--has-separator .digi-review__header{border-width:3px}\n.elementor-widget-digitalisimo-reviews .digi-review__star--full{x:y}" === $rc['rv-css']['custom_css'], 'Reseñas: CSS personalizado con las clases propias (estrellas, iconos, separador).' );
 
 	echo 'DIGITALÍSIMO Elements: Carrusel de testimonios (' . count( $t->controls ) . ' controles, ' . count( $t->groups ) . ' grupos, hoja de ' . strlen( $tcss ) . ' B) y Reseñas (' . count( $r->controls ) . ' controles, ' . count( $r->groups ) . ' grupos, hoja de ' . strlen( $rcss ) . " B), sus mapas y $total conversiones validados.\n";

@@ -205,7 +205,82 @@
    ],
    "pixels": {
     "max": 0.65,
-    "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página; además, en PRO el fondo ampliado de la diapositiva siguiente («alejar», escala 1,3) asoma sobre la actual porque la diapositiva no recorta su fondo, y la propia lo recorta."
+    "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página (el fondo ampliado de la siguiente asoma sobre la actual en los dos desde la corrección de fidelidad; lo mide sin depender del instante sl-kb-out-next)."
+   },
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "reason": "El fondo es un <img> de Medios con su texto alternativo, no un <div role=\"img\"> con fondo CSS."
+    }
+   ]
+  },
+  "sl-kb-out-next": {
+   "title": "Ken Burns «alejar» en la segunda: su fondo ampliado asoma sobre el borde de la primera, como en PRO (corrección de fidelidad)",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Sin efecto",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#222222",
+      "background_image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "sl02",
+      "heading": "Alejar",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#333333",
+      "background_image": {
+       "$image": 5
+      },
+      "background_ken_burns": "yes",
+      "zoom_direction": "out"
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "reason": "El fondo es un <img> de Medios con su texto alternativo, no un <div role=\"img\"> con fondo CSS."
+    }
+   ]
+  },
+  "sl-css-bg": {
+   "title": "CSS personalizado con la posición del fondo de PRO (.swiper-slide-bg): pasa al <img> (corrección de fidelidad)",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "custom_css": "selector .swiper-slide-bg{background-position:left top}",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Arriba a la izquierda",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#222222",
+      "background_image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#333333",
+      "background_image": {
+       "$image": 5
+      }
+     }
+    ]
    },
    "declared": [
     {

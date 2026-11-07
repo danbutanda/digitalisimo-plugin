@@ -335,5 +335,37 @@ namespace {
 		$missing = array_diff( $pro_controls, $declared );
 		check_cv( ! $missing, "$type: el mapa no declara los controles " . implode( ', ', $missing ) );
 	}
+	// Corrección de fidelidad de C1 (docs/pro/c1.md): las clases que en PRO eran un fondo CSS y en el widget propio son o
+	// contienen un `<img>` (`img_classes`): `background-size`/`background-position` del CSS personalizado pasan a
+	// `object-fit`/`object-position` del `<img>` en los cuatro mapas (antes no tenían efecto).
+	$bg_cases = array(
+		'media-carousel' => array( '.elementor-carousel-image', 'selector .digi-media-carousel__image img' ),
+		'slides'         => array( '.swiper-slide-bg', 'selector .digi-slides__bg img' ),
+		'call-to-action' => array( '.elementor-cta__bg', 'selector .digi-cta__bg img' ),
+		'gallery'        => array( '.e-gallery-image', 'selector .digi-gallery__image:is(img)' ),
+	);
+	foreach ( $bg_cases as $type => list( $pro_class, $target ) ) {
+		check_cv( isset( $maps[ $type ]['img_classes'] ), "$type: declara sus clases de imagen (img_classes)." );
+		list( $bg_out, $bg_codes ) = Translator::translate( array( 'custom_css' => "selector {$pro_class}{background-size:cover;background-position:30% 0}\nselector .x{background-size:contain}" ), $maps[ $type ] );
+		check_cv( str_contains( $bg_out['custom_css'], "\n{$target}{object-fit:cover;object-position:30% 0}" ) && ! str_contains( $bg_out['custom_css'], 'selector .x img' ), "$type: el fondo de {$pro_class} pasa al <img> ({$target}): " . $bg_out['custom_css'] );
+		check_cv( array( 'pro.css' ) === array_column( $bg_codes, 'code' ), "$type: un solo código pro.css." );
+	}
+	$lost = false;
+	$kept = Translator::background_to_object( "selector .a{background-size:50% auto;background-position-x:left}\nselector .a::before{background-size:cover}\n@font-face{font-family:x}\nselector .b,selector .a .c{background-position:center}", array( '.a' => ' img', '.c' => '' ), $lost );
+	check_cv( $lost && "selector .a{background-size:50% auto;background-position-x:left}\nselector .a::before{background-size:cover}\n@font-face{font-family:x}\nselector .b,selector .a .c{background-position:center}\nselector .a .c{object-position:center}" === $kept, 'Lo que no tiene equivalente (medidas, -x/-y) se informa y no se traduce; un pseudoelemento no es la imagen; sólo los selectores que terminan en la clase: ' . $kept );
+	// El atajo `background` en PRO también fijaba el tamaño y la posición: se informa. Los comentarios (también uno con
+	// llaves abierto antes de la regla) no pasan a la regla nueva, que de otro modo empezaría por un `*/` suelto.
+	$lost = false;
+	$short = Translator::background_to_object( 'selector .a{background:center/contain no-repeat}', array( '.a' => ' img' ), $lost );
+	check_cv( $lost && 'selector .a{background:center/contain no-repeat}' === $short, 'El atajo background se informa como aproximación: ' . $short );
+	$lost = false;
+	$commented = Translator::background_to_object( "/* a{b} */ selector .a{/* c */ background-size:contain}", array( '.a' => ' img' ), $lost );
+	check_cv( ! $lost && "/* a{b} */ selector .a{/* c */ background-size:contain}\nselector .a img{object-fit:contain}" === $commented, 'Los comentarios no pasan a la regla del <img>: ' . $commented );
+	list( , $lost_codes ) = Translator::translate( array( 'custom_css' => 'selector .elementor-carousel-image{background-size:100px}' ), $maps['media-carousel'] );
+	check_cv( array( 'pro.css', 'pro.approx' ) === array_column( $lost_codes, 'code' ), 'Un tamaño de fondo con medidas queda como aproximación en el informe.' );
+	// `filter` recibe un tercer argumento para dejar códigos en el informe.
+	list( $f_out, $f_codes ) = Translator::translate( array( 'a' => 1 ), array( 'source' => 'x', 'target' => 'digitalisimo-x', 'keep' => array( 'a' ), 'filter' => static function ( array $out, array $src, callable $report ): array { $report( 'pro.dropped', 'a', 'Motivo.', 'dropped' ); unset( $out['a'] ); return $out; } ) );
+	check_cv( ! isset( $f_out['a'] ) && array( array( 'code' => 'pro.dropped', 'key' => 'a', 'reason' => 'Motivo.', 'section' => 'dropped' ) ) === $f_codes, 'filter deja sus códigos en el informe.' );
+
 	echo 'DIGITALÍSIMO Elements: sustitución de los widgets de PRO (catálogo de ' . count( Catalog::WIDGETS ) . ', traductor, árboles, panel y ' . count( $maps ) . " mapas) validada.\n";
 }

@@ -105,7 +105,8 @@
    }
   },
   "rv-stars": {
-   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera",
+   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera. Se mide cargando la página en cada ancho (`fresh`, como `tc-images`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta. Las acciones empiezan por un punto: con los enlaces de la cabecera, el Tab del estado de foco llega en PRO al de una copia del bucle (Swiper no las aparta del teclado) y su accesibilidad lleva esa diapositiva al principio (`handleFocus`, pendiente declarado en docs/pro/c1.md), así que una flecha pulsada justo después partía de otra diapositiva",
+   "fresh": true,
    "widget": "reviews",
    "settings": {
     "autoplay": "",
@@ -200,14 +201,14 @@
    },
    "actions": [
     {
-     "label": "Flecha siguiente",
-     "a": ".elementor-swiper-button-next",
-     "b": ".digi-crs__next"
-    },
-    {
      "label": "Segundo punto",
      "a": ".swiper-pagination-bullet:nth-child(2)",
      "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
      "label": "Intro en la flecha siguiente",
@@ -217,8 +218,8 @@
     }
    ],
    "pixels": {
-    "max": 0.05,
-    "reason": "Las estrellas de PRO son caracteres de la fuente eicons, que un sitio con iconos SVG (el de este arnés, recién instalado) no carga: en A no se ven; B pinta sus estrellas SVG. El resto coincide.",
+    "max": 0.02,
+    "reason": "Umbral general: las estrellas de lo convertido son los caracteres de eicons de PRO (corrección de fidelidad), que este sitio con iconos SVG no carga, así que no se ven en ninguno de los dos.",
     "widths": {
      "375": {
       "max": 0.06,
@@ -226,6 +227,137 @@
      }
     }
    }
+  },
+  "rv-stars-eicons": {
+   "title": "Las mismas reseñas con la hoja de eicons cargada en la página (un widget HTML hermano): las estrellas de PRO y las convertidas, iguales (corrección de fidelidad). Con `fresh` y las acciones empezando por un punto, como `rv-stars`",
+   "fresh": true,
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "slides_per_view": "2",
+    "slides_per_view_mobile": "1",
+    "space_between": {
+     "unit": "px",
+     "size": 16
+    },
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv04",
+      "image": {
+       "$image": 4
+      },
+      "name": "Cliente 4",
+      "title": "@cliente4",
+      "rating": "4",
+      "selected_social_icon": {
+       "value": "fab fa-linkedin",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 4: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Segundo punto",
+     "a": ".swiper-pagination-bullet:nth-child(2)",
+     "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Intro en la flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "Enter"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.06,
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+     }
+    }
+   },
+   "before": [
+    {
+     "id": "rvh0001",
+     "widgetType": "html",
+     "settings": {
+      "html": "<link rel=\"stylesheet\" href=\"/wp-content/plugins/digitalisimo-elements/elementor/assets/lib/eicons/css/elementor-icons.min.css\">"
+     }
+    }
+   ]
   },
   "rv-outline": {
    "title": "Estrellas sin marcar con contorno, tamaño, espaciado y colores propios",

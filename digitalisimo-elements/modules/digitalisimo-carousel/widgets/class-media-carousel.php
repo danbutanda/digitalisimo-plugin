@@ -14,8 +14,9 @@ defined( 'ABSPATH' ) || exit;
  * repite sus controles y los de su base con el mismo nombre, valores por defecto y condiciones.
  *
  * - **Presentaciones.** «Carrusel»; «Slideshow», un carrusel principal de una diapositiva y otro de miniaturas que lo
- *   sigue (`data-digi-sync`, eventos `digi-crs-go` y `digi-crs-change` del motor); «Coverflow», aproximada con la
- *   diapositiva actual centrada (sin el giro 3D de Swiper).
+ *   sigue (`data-digi-sync`, eventos `digi-crs-go` y `digi-crs-change` del motor); «Coverflow», con el giro, la
+ *   profundidad y las sombras del de Swiper (`data-digi-fx`, `carousel-3d.css|js`, que sólo cargan las páginas que lo
+ *   usan). El efecto «Cubo», igual: una cara por diapositiva, el giro entre caras y la sombra bajo el cubo.
  * - **Imágenes** con `wp_get_attachment_image()` y el tamaño de `image_size` (`srcset`, `decoding`, `loading`; con
  *   «Carga diferida», `loading="lazy"` siempre). Un `<img>` con su `alt` en lugar del fondo CSS de PRO.
  * - **Enlaces y lightbox** con los atributos del lightbox del núcleo (`data-elementor-open-lightbox`,
@@ -29,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
  * Diferencias declaradas con PRO: «Diapositivas visibles» y «por paso» llevan como valor por defecto de cada
  * dispositivo lo que PRO aplicaba con «Predeterminado» (3/2/1, 5/4/3 en las miniaturas, paso 1 fuera del escritorio),
  * así un valor del escritorio no se hereda en la tableta ni en el móvil; el tamaño y la sombra del icono de reproducir
- * alcanzan al SVG (en PRO sólo a la fuente de iconos); la superposición aparece también con el foco; las miniaturas
+ * alcanzan al SVG (en PRO sólo a la fuente de iconos; el mapa los descarta al convertir en un sitio con los iconos como
+ * SVG en línea, donde PRO no los aplicaba); la superposición aparece también con el foco; las miniaturas
  * siguen al principal por índice (PRO, por el progreso del desplazamiento); los enlaces externos llevan
  * `rel="noopener noreferrer"`; YouTube se abre en el lightbox con el dominio sin cookies.
  *
@@ -159,9 +161,10 @@ class Media_Carousel extends Base_Widget {
 
 	/**
 	 * Argumentos de `Engine::open()` propios de cada presentación, que se suman a los de la base (`slider_args()`), como
-	 * las opciones de Swiper que calculaba PRO: «Coverflow» centrado; «Slideshow» sin paginación en el principal, y
-	 * las miniaturas sin flechas, paginación ni reproducción automática, centradas con «Diapositivas centradas» y
-	 * siguiendo al principal (`sync`).
+	 * las opciones de Swiper que calculaba PRO: «Coverflow» y el efecto «Cubo» en el principal (`data-digi-fx`, que
+	 * dibujan `carousel-3d.css|js`; PRO no centraba el coverflow); «Slideshow» sin paginación en el principal, y las
+	 * miniaturas sin flechas, paginación ni reproducción automática, centradas con «Diapositivas centradas» y siguiendo al
+	 * principal (`sync`).
 	 *
 	 * @param bool   $thumbs Carrusel de miniaturas.
 	 * @param string $id     En «Slideshow», id del principal.
@@ -169,12 +172,13 @@ class Media_Carousel extends Base_Widget {
 	public static function engine_args( array $settings, bool $thumbs, string $id ): array {
 		$skin = (string) ( $settings['skin'] ?? 'carousel' );
 		$args = array(
-			'center'     => 'coverflow' === $skin,
-			'dir'        => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '',
+			'dir' => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '',
 			// Con menos diapositivas que las visibles, el motor las ensancha (`--digi-crs-n`, como el `Math.min` de PRO).
 		);
-		if ( 'coverflow' === $skin ) {
-			$args['effect'] = 'slide';
+		$fx = self::fx( $settings );
+		if ( '' !== $fx && ! $thumbs ) {
+			$args['effect']     = 'slide';
+			$args['attributes'] = array( 'data-digi-fx' => $fx );
 		}
 		if ( 'slideshow' === $skin ) {
 			$args['pagination'] = '';
@@ -196,6 +200,17 @@ class Media_Carousel extends Base_Widget {
 	}
 
 	/**
+	 * Efecto 3D del carrusel principal, como `getEffect()` de PRO: `coverflow` con esa presentación (el efecto no cuenta),
+	 * `cube` con el efecto «Cubo»; '' si no hay.
+	 */
+	public static function fx( array $settings ): string {
+		if ( 'coverflow' === ( $settings['skin'] ?? 'carousel' ) ) {
+			return 'coverflow';
+		}
+		return 'cube' === ( $settings['effect'] ?? '' ) ? 'cube' : '';
+	}
+
+	/**
 	 * Una diapositiva: el enlace (lightbox del núcleo o URL personalizada) con la imagen, el icono de reproducir de un
 	 * vídeo y la superposición. Las miniaturas no llevan enlace, icono ni superposición: pulsarlas mueve el principal.
 	 */
@@ -205,7 +220,7 @@ class Media_Carousel extends Base_Widget {
 		$video   = 'video' === $type ? trim( (string) ( $slide['video']['url'] ?? '' ) ) : '';
 		$link_to = $thumbs ? '' : $this->link_to( $slide, $type );
 		$image   = $this->media_image( $slide, $settings, $type, $video );
-		$inner   = '<div class="digi-media-carousel__image">' . $image;
+		$inner   = '<div class="digi-media-carousel__image">' . $image . ( '' !== $image ? self::preloader( $settings ) : '' );
 		if ( 'video' === $type && ! $thumbs ) {
 			$inner .= '<span class="digi-media-carousel__play">' . self::PLAY . '<span class="elementor-screen-only">' . esc_html__( 'Reproducir el vídeo', 'pro-elements' ) . '</span></span>';
 		}

@@ -131,8 +131,10 @@ namespace Elementor {
 	class Plugin {
 		public static $instance;
 		public $breakpoints;
+		public $experiments;
 	}
 	class Breakpoints_Stub { public function get_active_breakpoints() { return array( 'mobile' => 767, 'tablet' => 1024 ); } }
+	class Experiments_Stub { public function is_feature_active( $name ) { return 'e_font_icon_svg' === $name && ! empty( $GLOBALS['mc_svg_icons'] ); } }
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 	class Utils { public static function get_placeholder_image_src() { return 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png'; } }
 	class Control_Media {
@@ -199,6 +201,7 @@ namespace {
 
 	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
 	\Elementor\Plugin::$instance->breakpoints = new \Elementor\Breakpoints_Stub();
+	\Elementor\Plugin::$instance->experiments = new \Elementor\Experiments_Stub();
 	$root = __DIR__ . '/../digitalisimo-elements/';
 	require $root . 'modules/digitalisimo-carousel/class-engine.php';
 	require $root . 'modules/digitalisimo-carousel/class-module.php';
@@ -355,6 +358,8 @@ namespace {
 	check_mc( ! str_contains( $html, 'data-digi-autoplay' ) && ! str_contains( $html, 'digi-crs__pause' ) && str_contains( $html, 'aria-live="polite"' ), 'Sin autoplay no hay pausa y la región viva es cortés.' );
 	$medium = $render( array( 'lazyload' => 'yes', 'image_size_size' => 'medium', 'slides' => array( $img( 11 ), $img( 12 ) ) ) );
 	check_mc( str_contains( $medium, 'img-11-medium.png' ) && 2 === $count( 'loading="lazy"', $medium ), 'Tamaño de image_size y carga diferida nativa.' );
+	check_mc( 2 === $count( '1200px"><span class="digi-crs__preloader" aria-hidden="true"></span></div>', $medium ), 'Con «Carga diferida», el indicador de Swiper junto a cada imagen (corrección de fidelidad).' );
+	check_mc( 0 === $count( 'digi-crs__preloader', $render( array( 'slides' => array( $img( 11 ), $img( 12 ) ) ) ) ), 'Sin «Carga diferida», ningún indicador.' );
 	$custom = $render( array( 'image_size_size' => 'custom', 'image_size_custom_dimension' => array( 'width' => '300', 'height' => '200' ), 'lazyload' => 'yes', 'slides' => array( $img( 11 ) ) ) );
 	check_mc( str_contains( $custom, 'src="https://sitio.test/wp-content/uploads/custom-11.png"' ) && str_contains( $custom, 'width="300"' ) && 0 === $count( 'loading=', $custom ), 'Tamaño personalizado: la imagen recortada con sus medidas, sin `loading` propio (con medidas lo pone la optimización de carga del núcleo o WordPress, y uno propio saldría duplicado).' );
 	$nodims = $render( array( 'lazyload' => 'yes', 'slides' => array( array( 'image' => array( 'url' => 'https://sitio.test/x.png' ) ) ) ) );
@@ -381,9 +386,18 @@ namespace {
 	check_mc( str_contains( $render( array( 'skin' => 'slideshow', 'centered_slides' => 'yes', 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'digi-media-carousel__thumbs" aria-roledescription="carrusel" aria-label="Miniaturas: Diapositivas" data-digi-loop="1" data-digi-effect="slide" data-digi-center="1" data-digi-sync=' ), 'Miniaturas centradas con «Diapositivas centradas».' );
 	check_mc( 1 === $count( '<section ', $render( array( 'skin' => 'slideshow', 'slides' => array( $img( 11 ) ) ) ) ), 'Slideshow de una diapositiva: sin miniaturas, como PRO.' );
 
-	// Coverflow (aproximado: centrado).
+	// Coverflow y cubo en 3D (corrección de fidelidad): `data-digi-fx` en el principal, sin centrar (como PRO), y la hoja y
+	// el script 3D sólo con esos ajustes. La geometría frente a Swiper la comprueba tests/elements-carousel-fidelity-chrome.mjs.
 	$html = $render( array( 'skin' => 'coverflow', 'effect' => 'fade', 'slides' => array( $img( 11 ), $img( 12 ), $img( 11 ) ) ) );
-	check_mc( str_contains( $html, 'digi-crs--center' ) && str_contains( $html, 'data-digi-center="1"' ) && str_contains( $html, 'data-digi-effect="slide"' ) && str_contains( $html, 'data-digi-pagination="bullets"' ), 'Coverflow: centrado, desliza (el efecto no aplica) y con paginación.' );
+	check_mc( str_contains( $html, 'data-digi-effect="slide" data-digi-pagination="bullets" data-digi-grab="1" data-digi-click="1" style="--digi-crs-speed:500ms;--digi-crs-n:3" data-digi-fx="coverflow">' ) && ! str_contains( $html, 'digi-crs--center' ) && ! str_contains( $html, 'data-digi-center' ), 'Coverflow: data-digi-fx, desliza (el efecto no aplica), con paginación y sin centrar, como PRO.' );
+	$cube = $render( array( 'skin' => 'slideshow', 'effect' => 'cube', 'slides' => array( $img( 11 ), $img( 12 ) ) ) );
+	check_mc( 1 === substr_count( $cube, 'data-digi-fx="cube"' ) && str_contains( explode( '</section>', $cube )[0], 'data-digi-fx="cube"' ) && 'cube' === Media_Carousel::fx( array( 'effect' => 'cube' ) ) && 'coverflow' === Media_Carousel::fx( array( 'skin' => 'coverflow', 'effect' => 'cube' ) ) && '' === Media_Carousel::fx( array( 'effect' => 'fade' ) ), 'Cubo: data-digi-fx="cube" sólo en el principal (no en las miniaturas); «Coverflow» manda sobre el efecto, como getEffect() de PRO.' );
+	check_mc( array( 'digitalisimo-carousel', 'digitalisimo-media-carousel', Carousel_Module::FX ) === $widget( array( 'skin' => 'coverflow' ) )->get_style_depends() && array( 'digitalisimo-carousel', Carousel_Module::FX ) === $widget( array( 'effect' => 'cube' ) )->get_script_depends() && array( 'digitalisimo-carousel', Carousel_Module::LAZY ) === $widget( array( 'lazyload' => 'yes' ) )->get_script_depends(), 'Los recursos 3D y los del indicador de carga sólo con los ajustes que los usan.' );
+	$fx_css = (string) file_get_contents( $root . Carousel_Module::EXTRA[ Carousel_Module::FX ]['css'] );
+	foreach ( array( '[data-digi-fx]>.digi-crs__track{position:relative;perspective:1200px;scroll-snap-type:none}', 'rotateY(calc(50deg*var(--_k)))', 'translateZ(calc(-100px*max(var(--_k),-1*var(--_k))))', 'linear-gradient(to left,#00000080,#0000)', 'linear-gradient(to right,#00000080,#0000)', '[data-digi-fx=cube]{--digi-crs-view:1;--digi-crs-gap:0px;', 'rotateY(calc(-90deg*var(--_k)))', 'backface-visibility:hidden', 'opacity:.6;filter:blur(50px)', 'rotateX(90deg)', 'scale(.94)' ) as $rule ) {
+		check_mc( str_contains( $fx_css, $rule ), "La hoja 3D repite el efecto de Swiper ($rule)." );
+	}
+	check_mc( str_contains( $fx_css, '[data-digi-fx]{--digi-crs-scroll:1}' ), 'Con coverflow y cubo el paso es 1, como getSlidesToScroll() de PRO fuera de «Deslizar».' );
 
 	// Vídeo: imagen del sitio, icono, reproductor sólo en el atributo del lightbox.
 	$html = $render( array( 'autoplay' => '', 'slides' => array( $img( 11, array( 'type' => 'video', 'video' => array( 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' ) ) ), array( '_id' => 'v2', 'type' => 'video', 'image' => array( 'url' => '', 'id' => '' ), 'video' => array( 'url' => 'https://vimeo.com/76979871' ) ), array( '_id' => 'v3', 'type' => 'video', 'image' => array( 'url' => '', 'id' => '' ), 'video' => array( 'url' => 'https://youtu.be/aqz-KE-bpKQ' ) ) ) ) );
@@ -455,6 +469,8 @@ namespace {
 		),
 		'globals'   => array( 'slides' => $rows, 'overlay' => 'text', '__globals__' => array( 'caption_typography_typography' => 'globals/typography?id=secondary', 'overlay_background_color' => 'globals/colors?id=primary', 'overlay_color' => 'globals/colors?id=accent', 'pagination_color' => 'globals/colors?id=accent', 'pagination_color_inactive' => 'globals/colors?id=text', 'arrows_color' => 'globals/colors?id=secondary', 'slide_background_color' => 'globals/colors?id=text', 'play_icon_color' => 'globals/colors?id=primary', 'lightbox_color' => 'globals/colors?id=secondary', '_background_color' => 'globals/colors?id=text' ) ),
 		'css'       => array( 'slides' => $rows, 'custom_css' => "selector .swiper-slide{border-radius:16px}\nselector .elementor-carousel-image{filter:grayscale(1)}\nselector.elementor-skin-carousel .elementor-main-swiper{height:260px}\nselector .elementor-carousel-image-overlay.e-overlay-animation-fade{opacity:.5}\nselector .elementor-custom-embed-play svg{fill:red}\n.elementor-widget-media-carousel .elementor-thumbnails-swiper{margin:0}", '_css_classes' => 'mi-galeria', '_margin' => array( 'top' => '10', 'right' => '0', 'bottom' => '0', 'left' => '0', 'unit' => 'px', 'isLinked' => false ) ),
+		// Corrección de fidelidad: el fondo de la imagen de PRO en el CSS personalizado pasa al `<img>`.
+		'css-bg'    => array( 'slides' => $rows, 'custom_css' => "selector .elementor-carousel-image{background-size:contain;background-position:left top}\n@media (max-width:767px){selector .elementor-carousel-image:hover{background-size:auto!important}}" ),
 	);
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array() ) );
 	foreach ( $cases as $id => $settings ) {
@@ -492,8 +508,8 @@ namespace {
 	sort( $codes );
 	// `skin` se informa en toda presentación distinta de «Carrusel» (el traductor no distingue valores): el motivo dice
 	// que sólo «Coverflow» se aproxima.
-	$expected = array( 'coverflow:pro.approx:skin', 'css:pro.css:custom_css', 'slideshow:pro.approx:effect', 'slideshow:pro.approx:lazyload', 'slideshow:pro.approx:skin', 'video:pro.approx:effect' );
-	check_mc( $expected === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
+	$expected = array( 'css-bg:pro.css:custom_css', 'css:pro.css:custom_css' );
+	check_mc( $expected === $codes, 'Ningún pro.unmapped, pro.dropped ni pro.approx (coverflow, cubo y carga diferida ya son los de PRO); sólo el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_mc( 5 === count( $d['slides'] ) && str_ends_with( (string) $d['slides'][0]['image']['url'], 'placeholder.png' ) && 'image' === $d['slides'][0]['type'] && 'carousel' === $d['skin'] && 'Slides' === $d['slides_name'] && 'media-carousel' === $d['_digitalisimo_pro'], 'Un Media Carousel sin cambios llega con las cinco imágenes de muestra y el nombre de PRO.' );
 	$painted = $render( $d );
@@ -518,7 +534,24 @@ namespace {
 	check_mc( array( 'slides_name' => '[elementor-tag id="a4" name="post-title" settings="%7B%7D"]' ) === $dy['__dynamic__'] && array( 'image', 'image_link_to' ) === array_keys( $dy['slides'][0]['__dynamic__'] ) && array( 'video' ) === array_keys( $dy['slides'][1]['__dynamic__'] ) && 'video' === $dy['slides'][1]['type'] && 'image' === $dy['slides'][0]['type'], 'Las etiquetas dinámicas siguen a su control, también en las filas.' );
 	check_mc( array( 'caption_typography_typography' => 'globals/typography?id=secondary', 'overlay_background_color' => 'globals/colors?id=primary', 'overlay_color' => 'globals/colors?id=accent', 'pagination_color' => 'globals/colors?id=accent', 'pagination_color_inactive' => 'globals/colors?id=text', 'arrows_color' => 'globals/colors?id=secondary', 'slide_background_color' => 'globals/colors?id=text', 'play_icon_color' => 'globals/colors?id=primary', 'lightbox_color' => 'globals/colors?id=secondary', '_background_color' => 'globals/colors?id=text' ) === $out['globals']['__globals__'], 'Colores y tipografías globales del kit siguen a su control.' );
 	check_mc( "selector .digi-crs__slide{border-radius:16px}\nselector .digi-media-carousel__image{filter:grayscale(1)}\nselector.digi-media-carousel--skin-carousel .digi-media-carousel__main{height:260px}\nselector .digi-media-carousel__overlay.digi-media-carousel__overlay--fade{opacity:.5}\nselector .digi-media-carousel__play svg{fill:red}\n.elementor-widget-digitalisimo-media-carousel .digi-media-carousel__thumbs{margin:0}" === $out['css']['custom_css'] && 'mi-galeria' === $out['css']['_css_classes'] && '10' === $out['css']['_margin']['top'], 'CSS personalizado con las clases propias; Avanzado intacto: ' . $out['css']['custom_css'] );
+	check_mc( "selector .digi-media-carousel__image{background-size:contain;background-position:left top}\nselector .digi-media-carousel__image img{object-fit:contain;object-position:left top}\n@media (max-width:767px){selector .digi-media-carousel__image:hover{background-size:auto!important}\nselector .digi-media-carousel__image:hover img{object-fit:none!important}}" === $out['css-bg']['custom_css'], 'CSS personalizado: el tamaño y la posición del fondo de PRO pasan a object-fit y object-position del <img> (también en @media, con !important y «auto» → none): ' . $out['css-bg']['custom_css'] );
+	foreach ( $log as $entry ) {
+		if ( 'css-bg' === $entry['element'] ) {
+			check_mc( 1 === count( $entry['codes'] ) && str_contains( $entry['codes'][0]['reason'], '`object-fit`' ), 'Un solo código pro.css, con el motivo del fondo.' );
+		}
+	}
 	check_mc( $converted === Converter::tree( $converted, $again, true ) && array() === $again, 'Lo convertido no se convierte otra vez.' );
+	// Icono de reproducir (corrección de fidelidad): con los iconos como SVG en línea (`e_font_icon_svg`), PRO no aplicaba
+	// su tamaño ni su sombra (sólo alcanzaban a la fuente), así que el mapa los descarta con su código; sin el
+	// experimento, pasan.
+	$GLOBALS['mc_svg_icons'] = true;
+	$svg = Converter::tree( array( array( 'id' => 'v', 'elType' => 'widget', 'widgetType' => 'media-carousel', 'settings' => $cases['video'], 'elements' => array() ) ), $svg_log, true );
+	$GLOBALS['mc_svg_icons'] = false;
+	$vs  = $svg[0]['settings'];
+	$left = array_filter( array_keys( $vs ), static function ( $k ) { return 0 === strpos( (string) $k, 'play_icon_size' ) || 0 === strpos( (string) $k, 'play_icon_text_shadow' ); } );
+	check_mc( array() === $left && '#ffd166' === $vs['play_icon_color'], 'Con los iconos SVG, el tamaño (de cada dispositivo) y la sombra del icono no pasan; el color sí: ' . implode( ', ', $left ) );
+	check_mc( array( 'pro.dropped:play_icon_size', 'pro.dropped:play_icon_text_shadow' ) === array_map( static function ( $c ) { return $c['code'] . ':' . $c['key']; }, $svg_log[0]['codes'] ) && 'dropped' === $svg_log[0]['codes'][0]['section'], 'Y quedan en el informe como descartados: ' . json_encode( $svg_log[0]['codes'] ) );
+	check_mc( isset( $v['play_icon_size'], $v['play_icon_size_mobile'], $v['play_icon_text_shadow_text_shadow_type'] ), 'Sin el experimento (iconos de fuente), PRO los aplicaba y pasan.' );
 
 	echo 'DIGITALÍSIMO Elements: Carrusel multimedia (' . count( $w->controls ) . ' controles, ' . count( $repeater_fields ) . ' campos del repetidor, ' . count( $w->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B, sin script propio) y su mapa desde el Media Carousel de PRO (' . count( $cases ) . " casos) validados.\n";
 }

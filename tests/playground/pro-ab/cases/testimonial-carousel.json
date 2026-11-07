@@ -439,7 +439,7 @@
    }
   },
   "tc-bubble-right": {
-   "title": "Piel burbuja alineada a la derecha (diferencia declarada: el pico apunta a la imagen)",
+   "title": "Piel burbuja alineada a la derecha: el pico, a la izquierda como en PRO (corrección de fidelidad, pro_bubble)",
    "widget": "testimonial-carousel",
    "settings": {
     "autoplay": "",
@@ -475,16 +475,103 @@
      }
     ]
    },
-   "declared": [
-    {
-     "kind": "caja",
-     "match": "left|right|inset",
-     "reason": "Con la burbuja alineada a la derecha, el pico apunta a la imagen; PRO lo dejaba a la izquierda salvo que se fijara el tamaño de la imagen."
-    }
-   ],
    "pixels": {
     "max": 0.04,
-    "reason": "Pico de la burbuja (14 px) bajo la imagen, a la derecha, en lugar de a la izquierda como PRO. Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
+   }
+  },
+  "tc-bubble-right-dark": {
+   "title": "Burbuja oscura alineada a la derecha, a la izquierda en la tableta: el pico (visible sobre el blanco) donde lo deja PRO, sólo con la alineación de escritorio",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "alignment": "right",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ],
+    "background_color": "#333333",
+    "content_color": "#ffffff",
+    "alignment_tablet": "left"
+   },
+   "pixels": {
+    "max": 0.04,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
+   }
+  },
+  "tc-bubble-right-size": {
+   "title": "Burbuja oscura a la derecha con «Tamaño» de la imagen (80 px): el pico, a la derecha bajo la imagen, como en PRO",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "alignment": "right",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ],
+    "background_color": "#333333",
+    "content_color": "#ffffff",
+    "image_size": {
+     "unit": "px",
+     "size": 80,
+     "sizes": []
+    }
+   },
+   "pixels": {
+    "max": 0.04,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-bubble-image-left": {

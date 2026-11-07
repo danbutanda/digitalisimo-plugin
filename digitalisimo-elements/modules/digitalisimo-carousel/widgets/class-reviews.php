@@ -17,19 +17,29 @@ defined( 'ABSPATH' ) || exit;
  * Cada reseña: cabecera (enlace si la fila lo tiene) con imagen, nombre, valoración y cargo, y el icono social con su
  * color oficial (variable `--digi-review-icon` en línea; «Personalizado» la sustituye), y el texto debajo.
  *
- * Valoración: cinco estrellas propias (SVG dibujado para este widget, o los caracteres ★/☆ con «Unicode»), sin la fuente
- * de iconos del núcleo; la estrella parcial se recorta a la décima, como PRO. El conjunto tiene `role="img"` y el nombre
- * «Valoración: 4,5 de 5»; las estrellas son decorativas.
+ * Valoración: en unas Reseñas nuevas, cinco estrellas propias (SVG dibujado para este widget, o los caracteres ★/☆ con
+ * «Unicode»), sin la fuente de iconos del núcleo, con la parcial recortada a la décima. En lo convertido de PRO
+ * (`legacy_stars()`), los caracteres de eicons que pintaba PRO (`GLYPH`), recortados como su `render_stars()`. El conjunto
+ * tiene `role="img"` y el nombre «Valoración: 4,5 de 5»; las estrellas son decorativas.
  *
  * Diferencias declaradas con PRO: el icono social es decorativo (PRO le ponía `aria-label="Read More"` a un `div`), la
- * valoración tiene nombre accesible (PRO leía los caracteres de la fuente de iconos), una valoración con más de un decimal
- * se redondea a la décima (PRO pintaba la estrella entera) y la imagen se pinta con `wp_get_attachment_image()`.
+ * valoración tiene nombre accesible (PRO leía los caracteres de la fuente de iconos), en unas Reseñas nuevas las estrellas
+ * son SVG (las de PRO sólo se veían donde cargaba eicons) y una valoración con más de un decimal se redondea a la décima
+ * (PRO pintaba la estrella entera, y lo convertido también), y la imagen se pinta con `wp_get_attachment_image()`.
  */
 class Reviews extends Base_Widget {
 
 	/** Estrella llena y vacía (contorno), dibujadas para este widget en una caja de 24 × 24. */
 	const STAR         = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 .7l2.9 8 8.5.3-6.7 5.2 2.4 8.2-7.1-4.8-7.1 4.8 2.4-8.2L.6 9l8.5-.3z"/></svg>';
 	const STAR_OUTLINE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M12 .7l2.9 8 8.5.3-6.7 5.2 2.4 8.2-7.1-4.8-7.1 4.8 2.4-8.2L.6 9l8.5-.3zm0 4.4l-1.8 5.1-5.4.2 4.3 3.3-1.6 5.1 4.5-3 4.5 3-1.6-5.1 4.3-3.3-5.4-.2z"/></svg>';
+
+	/**
+	 * Estrella llena y vacía de lo convertido de PRO: los caracteres de la fuente de iconos del núcleo (eicons) que pintaba
+	 * PRO con «Font Awesome», con `font-family: eicons` y sin encolar la fuente (como PRO): se ven donde el sitio carga
+	 * eicons y no se ven donde no la carga (los iconos como SVG en línea, valor por defecto desde 3.17), igual que antes.
+	 */
+	const GLYPH         = '&#xE934;';
+	const GLYPH_OUTLINE = '&#xE933;';
 
 	/** Colores oficiales del icono social (los mismos que PRO), por nombre del icono. */
 	const SOCIAL_COLORS = array(
@@ -456,6 +466,15 @@ class Reviews extends Base_Widget {
 			)
 		);
 
+		// Sólo en lo convertido de PRO (lo fija el mapa): las estrellas de la fuente de iconos del núcleo (`GLYPH`).
+		$this->add_control(
+			'star_icon',
+			array(
+				'type'    => Controls_Manager::HIDDEN,
+				'default' => '',
+			)
+		);
+
 		$this->add_control(
 			'unmarked_star_style',
 			array(
@@ -695,19 +714,39 @@ class Reviews extends Base_Widget {
 	}
 
 	/**
-	 * Cinco estrellas de una valoración (0–5, a la décima). `$unicode` usa ★/☆; si no, la estrella propia. Devuelve ''
-	 * sin valoración (como PRO, 0 no pinta estrellas).
+	 * Cinco estrellas de una valoración (0–5, a la décima). `$unicode` usa ★/☆; `$glyph`, los caracteres de eicons de PRO
+	 * (`GLYPH`, lo convertido); si no, la estrella propia. Devuelve '' sin valoración (como PRO, 0 no pinta estrellas).
 	 */
-	public static function stars( $rating, bool $unicode = false, bool $outline = false ): string {
+	public static function stars( $rating, bool $unicode = false, bool $outline = false, bool $glyph = false ): string {
 		if ( ! is_numeric( $rating ) || (float) $rating <= 0 ) {
 			return '';
 		}
+		$glyph  = $glyph && ! $unicode;
 		$tenths = (int) round( min( 5, (float) $rating ) * 10 );
-		$base   = $unicode ? ( $outline ? '&#9734;' : '&#9733;' ) : ( $outline ? self::STAR_OUTLINE : self::STAR );
-		$fill   = $unicode ? '&#9733;' : self::STAR;
+		$base   = $unicode ? ( $outline ? '&#9734;' : '&#9733;' ) : ( $glyph ? ( $outline ? self::GLYPH_OUTLINE : self::GLYPH ) : ( $outline ? self::STAR_OUTLINE : self::STAR ) );
+		$fill   = $unicode ? '&#9733;' : ( $glyph ? self::GLYPH : self::STAR );
 		/* translators: %s: valoración con un decimal, p. ej. 4,5. */
 		$label = sprintf( __( 'Valoración: %s de 5', 'pro-elements' ), function_exists( 'number_format_i18n' ) ? number_format_i18n( $tenths / 10, 0 === $tenths % 10 ? 0 : 1 ) : (string) ( $tenths / 10 ) );
-		$html  = '<div class="digi-review__stars" role="img" aria-label="' . esc_attr( $label ) . '">';
+		$html  = '<div class="digi-review__stars' . ( $glyph ? ' digi-review__stars--eicons' : '' ) . '" role="img" aria-label="' . esc_attr( $label ) . '">';
+		if ( $glyph ) {
+			// Como `render_stars()` de PRO, con el valor tal como se guardó: la parcial es la fracción × 10 y sólo recorta si es
+			// una décima entera (con más decimales, o con un entero guardado como texto, que su comparación estricta no
+			// reconoce, la clase de PRO no tenía regla y la estrella salía entera).
+			$value = (float) $rating > 5 ? 5 : $rating;
+			$whole = (int) $value;
+			$part  = (string) ( ( $value - $whole ) * 10 );
+			for ( $star = 1; $star <= 5; $star++ ) {
+				if ( $star <= $whole ) {
+					$html .= '<i class="digi-review__star digi-review__star--full">' . $base . '<span class="digi-review__fill">' . $fill . '</span></i>';
+				} elseif ( $whole + 1 === $star && $value !== $whole ) {
+					$cut   = in_array( $part, array( '1', '2', '3', '4', '5', '6', '7', '8', '9' ), true );
+					$html .= '<i class="digi-review__star digi-review__star--' . ( $cut ? $part : 'full' ) . '">' . $base . '<span class="digi-review__fill"' . ( $cut ? ' style="width:' . ( (int) $part * 10 ) . '%"' : '' ) . '>' . $fill . '</span></i>';
+				} else {
+					$html .= '<i class="digi-review__star digi-review__star--empty">' . $base . '</i>';
+				}
+			}
+			return $html . '</div>';
+		}
 		for ( $star = 1; $star <= 5; $star++ ) {
 			$part = max( 0, min( 10, $tenths - ( $star - 1 ) * 10 ) );
 			if ( 0 === $part ) {
@@ -719,6 +758,16 @@ class Reviews extends Base_Widget {
 			}
 		}
 		return $html . '</div>';
+	}
+
+	/**
+	 * ¿Estrellas de PRO (`GLYPH`)? Las fija el mapa en lo convertido (`star_icon` = `legacy`); sin el control, lo
+	 * convertido antes de existir (marca `_digitalisimo_pro`, que el traductor ya no vuelve a tocar). Unas Reseñas nuevas,
+	 * la estrella propia.
+	 */
+	public static function legacy_stars( array $s ): bool {
+		$icon = (string) ( $s['star_icon'] ?? '' );
+		return 'legacy' === $icon || ( '' === $icon && 'reviews' === (string) ( $s['_digitalisimo_pro'] ?? '' ) );
 	}
 
 	/** Nombre del icono social (para su color oficial), como lo deduce PRO de la clase del icono. */
@@ -773,14 +822,14 @@ class Reviews extends Base_Widget {
 			echo '<' . $tag . ' ' . $this->get_render_attribute_string( $key ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Etiqueta fija y atributos escapados por el núcleo.
 			$image = $has_img ? $this->get_slide_image( $slide, $settings ) : '';
 			if ( '' !== $image ) {
-				echo '<div class="digi-review__image">' . $image . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
+				echo '<div class="digi-review__image">' . $image . self::preloader( $settings ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
 			}
 			if ( '' !== $name || '' !== $title ) {
 				echo '<cite class="digi-review__cite">';
 				if ( '' !== $name ) {
 					echo '<span class="digi-review__name">' . wp_kses_post( $name ) . '</span>';
 				}
-				echo self::stars( $slide['rating'] ?? '', 'star_unicode' === ( $settings['star_style'] ?? '' ), 'outline' === ( $settings['unmarked_star_style'] ?? '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Marcado propio.
+				echo self::stars( $slide['rating'] ?? '', 'star_unicode' === ( $settings['star_style'] ?? '' ), 'outline' === ( $settings['unmarked_star_style'] ?? '' ), self::legacy_stars( $settings ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Marcado propio.
 				if ( '' !== $title ) {
 					echo '<span class="digi-review__title">' . wp_kses_post( $title ) . '</span>';
 				}

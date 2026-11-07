@@ -111,6 +111,9 @@ return array(
 	),
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_title', 'heading_description' ),
+	// PRO pintaba cada imagen como fondo de `.e-gallery-image`; la propia es el `<img>` con esa clase (`:is(img)` suma
+	// la especificidad de un elemento para ganar, como el CSS de PRO, a la regla de la hoja con la misma clase).
+	'img_classes' => array( '.digi-gallery__image' => ':is(img)' ),
 	'classes'   => array(
 		'.elementor-widget-gallery'                => '.elementor-widget-digitalisimo-gallery',
 		'.elementor-gallery__container'            => '.digi-gallery__container',

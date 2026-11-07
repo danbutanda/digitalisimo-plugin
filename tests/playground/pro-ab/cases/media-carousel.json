@@ -363,7 +363,7 @@
    ]
   },
   "mc-coverflow": {
-   "title": "Presentación «Coverflow» (aproximada: diapositiva actual centrada, sin giro 3D)",
+   "title": "Presentación «Coverflow»: giro de 50°, profundidad y sombras de Swiper, sin centrar (corrección de fidelidad)",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -402,30 +402,58 @@
      }
     ]
    },
-   "pixels": {
-    "max": 0.6,
-    "reason": "«Coverflow» se aproxima con la diapositiva actual centrada y sin el giro ni la profundidad 3D de Swiper (approx de skin)."
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "mc-coverflow-loop": {
+   "title": "«Coverflow» con el bucle por defecto (corrección de fidelidad)",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "coverflow",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
    },
-   "declared": [
+   "actions": [
     {
-     "kind": "estilo",
-     "match": ".*",
-     "code": "skin"
-    },
-    {
-     "kind": "caja",
-     "match": ".*",
-     "code": "skin"
-    },
-    {
-     "kind": "imagen",
-     "match": ".*",
-     "code": "skin"
-    },
-    {
-     "kind": "control",
-     "match": "control dot \\d+ sólo en B",
-     "code": "skin"
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -470,7 +498,7 @@
   },
   "mc-play-icon": {
    "interact": false,
-   "title": "Icono de reproducir de 64 px con sombra propia (PRO no los aplicaba al icono SVG)",
+   "title": "Icono de reproducir de 64 px con sombra propia: con los iconos SVG del núcleo PRO no los aplicaba, y el mapa los descarta (corrección de fidelidad)",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -510,10 +538,6 @@
      }
     ]
    },
-   "pixels": {
-    "max": 0.06,
-    "reason": "El tamaño y la sombra del icono de reproducir se aplican al icono SVG; PRO los fijaba en la etiqueta <i> de la fuente de iconos, que con los iconos en SVG del núcleo no existe, así que su icono quedaba en 100 px con la sombra por defecto."
-   },
    "declared": [
     {
      "kind": "nombre",
@@ -521,6 +545,47 @@
      "reason": "El texto oculto del icono de reproducir está en español («Reproducir el vídeo»)."
     }
    ]
+  },
+  "mc-css-bg": {
+   "title": "CSS personalizado con el fondo de la imagen de PRO (background-size y background-position): pasa al <img> (corrección de fidelidad)",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "loop": "",
+    "custom_css": "selector .elementor-carousel-image{background-size:contain;background-position:left top}",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   }
   },
   "mc-overlay-icon": {
    "interact": false,
@@ -867,7 +932,7 @@
    ]
   },
   "mc-cube": {
-   "title": "Efecto cubo, aproximado como deslizamiento",
+   "title": "Efecto «Cubo»: una cara, el giro entre caras y la sombra bajo el cubo (corrección de fidelidad)",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -894,20 +959,11 @@
      }
     ]
    },
-   "pixels": {
-    "max": 0.6,
-    "reason": "El efecto cubo de Swiper se pinta como deslizamiento (approx de effect): la sombra y el giro 3D de la diapositiva no existen."
-   },
-   "declared": [
+   "actions": [
     {
-     "kind": "caja",
-     "match": ".*",
-     "code": "effect"
-    },
-    {
-     "kind": "estilo",
-     "match": ".*",
-     "code": "effect"
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -1037,7 +1093,7 @@
     {
      "kind": "imagen",
      "match": ".*",
-     "code": "lazyload"
+     "reason": "Con «Carga diferida» PRO pinta la imagen como fondo que carga Swiper (data-background) y el propio, un <img> con su carga nativa; el indicador de carga (el aro de Swiper) es el mismo y se retira al cargar, antes de medir."
     }
    ]
   },

@@ -349,6 +349,16 @@ namespace {
 		check_budget( is_file( $path ) && filesize( $path ) <= $cap, $file . ' pesa ' . ( is_file( $path ) ? filesize( $path ) : 0 ) . ' B, más de ' . $cap . '.' );
 	}
 	check_budget( str_contains( (string) file_get_contents( $root . '/modules/digitalisimo-carousel/assets/css/carousel.css' ), 'prefers-reduced-motion' ) || str_contains( (string) file_get_contents( $root . '/modules/digitalisimo-carousel/assets/js/carousel.js' ), 'prefers-reduced-motion' ), 'El motor respeta el movimiento reducido.' );
+	// Recursos opcionales del motor (corrección de fidelidad, `Module::EXTRA`): sólo los cargan los widgets cuyos ajustes los
+	// usan (`Module::extra_depends()`): el indicador de la «Carga diferida» (hoja y script ≤ 1 KB) y el «Coverflow» y el
+	// «Cubo» del Carrusel multimedia (hoja ≤ 2 KB, script ≤ 3 KB), con `defer` y detrás del script del motor.
+	foreach ( array( 'carousel-lazy.css' => 1024, 'carousel-lazy.js' => 1024, 'carousel-3d.css' => 2048, 'carousel-3d.js' => 3072 ) as $file => $cap ) {
+		$path = $crs_dir . 'assets/' . ( str_ends_with( $file, '.js' ) ? 'js/' : 'css/' ) . $file;
+		check_budget( is_file( $path ) && filesize( $path ) <= $cap && str_contains( $crs_module, $file ), $file . ' pesa ' . ( is_file( $path ) ? filesize( $path ) : 0 ) . ' B (tope ' . $cap . ') o Carousel\\Module::EXTRA no lo registra.' );
+		$text = (string) preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( $path ) );
+		check_budget( ! preg_match( '/url\((?!\s*["\']?data:)|--e-global-|jQuery|\$\(|\bSwiper\b/', $text ) && ( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ) ), $file . ': sin url(), paleta global, jQuery ni Swiper, y con movimiento reducido si anima.' );
+	}
+	check_budget( str_contains( $crs_module, '$deps = isset( self::EXTRA[ $handle ] ) ? array( Engine::HANDLE ) : array();' ), 'Los scripts opcionales van detrás del motor.' );
 	$crs_count = 0;
 	foreach ( $crs_entries as $m ) {
 		$name   = $m[1];

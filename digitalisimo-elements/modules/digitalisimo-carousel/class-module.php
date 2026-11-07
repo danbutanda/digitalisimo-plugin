@@ -23,7 +23,9 @@ defined( 'ABSPATH' ) || exit;
  *   `digitalisimo-slides` → `Widgets\Slides` (`widgets/class-slides.php`).
  *
  * **Recursos.** `Engine::HANDLE` (`digitalisimo-carousel`): `assets/css/carousel.css` (≤ 4,5 KB, excepción declarada en
- * `docs/pro/c1.md` §1.3) y `assets/js/carousel.js` (≤ 8 KB, `defer`, sin dependencias). Cada widget tiene su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si
+ * `docs/pro/c1.md` §1.3) y `assets/js/carousel.js` (≤ 8 KB, `defer`, sin dependencias). Opcionales (`EXTRA`, sólo con los
+ * ajustes que los usan, `extra_depends()`): `carousel-lazy.css|js` (indicador de la carga diferida) y
+ * `carousel-3d.css|js` (coverflow y cubo del Carrusel multimedia). Cada widget tiene su hoja `assets/css/<nombre sin digitalisimo->.css` y, sólo si
  * existe, su script `assets/js/<nombre sin digitalisimo->.js`, registrados con el nombre del widget como handle (p. ej.
  * `digitalisimo-media-carousel`), y su script del editor `assets/js/<nombre sin digitalisimo->-editor.js` si existe (se
  * encola en el editor; el del carrusel anidado depende de `nested-elements`). Todo sólo se **registra** cuando el núcleo
@@ -68,6 +70,19 @@ final class Module {
 	/** Hoja y script del motor (relativos a la raíz del plugin). */
 	const ENGINE_CSS = 'modules/digitalisimo-carousel/assets/css/carousel.css';
 	const ENGINE_JS  = 'modules/digitalisimo-carousel/assets/js/carousel.js';
+
+	/**
+	 * Recursos opcionales del motor, que sólo piden los widgets cuyos ajustes los usan (y el editor): `LAZY`, el indicador
+	 * de la «Carga diferida» (el aro de Swiper en PRO, retirado al cargar la imagen), y `FX`, los efectos 3D del Carrusel
+	 * multimedia («Coverflow» y el efecto «Cubo»). Se registran con los del motor (`register_assets()`), también para
+	 * los recursos de página del núcleo y la caché de elementos, que los encolan por su handle sin instanciar el widget.
+	 */
+	const LAZY = 'digitalisimo-carousel-lazy';
+	const FX   = 'digitalisimo-carousel-3d';
+	const EXTRA = array(
+		self::LAZY => array( 'css' => 'modules/digitalisimo-carousel/assets/css/carousel-lazy.css', 'js' => 'modules/digitalisimo-carousel/assets/js/carousel-lazy.js' ),
+		self::FX   => array( 'css' => 'modules/digitalisimo-carousel/assets/css/carousel-3d.css', 'js' => 'modules/digitalisimo-carousel/assets/js/carousel-3d.js' ),
+	);
 
 	/** Prioridad en `elementor/widgets/register`, la de `Widget_Registry`, `Woo\Registry` y F7b. */
 	const PRIORITY = 20;
@@ -130,15 +145,34 @@ final class Module {
 			return;
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
-		$assets  = array( Engine::HANDLE => array( 'css' => self::ENGINE_CSS, 'js' => self::ENGINE_JS ) ) + self::WIDGETS;
+		$assets  = array( Engine::HANDLE => array( 'css' => self::ENGINE_CSS, 'js' => self::ENGINE_JS ) ) + self::EXTRA + self::WIDGETS;
 		foreach ( $assets as $handle => $asset ) {
 			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
 				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 			}
 			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
-				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+				// Los opcionales actúan sobre el marcado que inicia el motor: van detrás de su script.
+				$deps = isset( self::EXTRA[ $handle ] ) ? array( Engine::HANDLE ) : array();
+				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), $deps, $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}
 		}
+	}
+
+	/**
+	 * Los recursos opcionales (`EXTRA`) que necesitan unos ajustes: `LAZY` con «Carga diferida» y `FX` con «Coverflow» o
+	 * el efecto «Cubo» (sólo el Carrusel multimedia los tiene). `$all`: el tipo del editor, que los pide todos.
+	 *
+	 * @return string[] Handles.
+	 */
+	public static function extra_depends( array $settings, bool $all = false ): array {
+		$out = array();
+		if ( $all || 'yes' === ( $settings['lazyload'] ?? '' ) ) {
+			$out[] = self::LAZY;
+		}
+		if ( $all || 'coverflow' === ( $settings['skin'] ?? '' ) || 'cube' === ( $settings['effect'] ?? '' ) ) {
+			$out[] = self::FX;
+		}
+		return $out;
 	}
 
 	/** Hojas de un widget del módulo: la del motor y la suya si existe (para `get_style_depends()`). */

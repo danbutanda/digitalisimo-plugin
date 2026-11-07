@@ -101,4 +101,6 @@ return array(
 	// Encabezados del panel: no guardan valor.
 	'ui'       => array( 'heading_bg_image_style', 'heading_style_title', 'heading_style_description', 'heading_content_colors', 'content_hover_heading', 'background_hover_heading' ),
 	'classes'  => $digi_cta_classes,
+	// PRO pintaba la imagen como fondo de `.elementor-cta__bg`; la propia es un `<img>` dentro de su equivalente.
+	'img_classes' => array( '.digi-cta__bg' => ' img' ),
 );
