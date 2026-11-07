@@ -5,18 +5,6 @@
  "declared": [
   {
    "widget": "code-highlight",
-   "kind": "nombre",
-   "match": "Copy|Copiar",
-   "reason": "Botón Copiar propio con el texto en español («Copiar»); PRO usaba el de la barra de Prism («Copy»)."
-  },
-  {
-   "widget": "code-highlight",
-   "kind": "palabra",
-   "match": "Copy|Copiar",
-   "reason": "Botón Copiar propio con el texto en español («Copiar»); PRO usaba el de la barra de Prism («Copy»)."
-  },
-  {
-   "widget": "code-highlight",
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio del botón Copiar (criterio del estándar del front): contorno de 2 px con separación de 2 px."

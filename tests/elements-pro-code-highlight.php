@@ -20,6 +20,7 @@ namespace Elementor {
 		public $groups   = array();
 		public $sections = array();
 		public function get_settings_for_display( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
+		public function get_settings( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
 		public function start_controls_section( $name, $args ) { $this->sections[ $name ] = $args; }
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
@@ -165,6 +166,13 @@ namespace {
 	check_ch( str_starts_with( $html, '<div class="digi-code digi-code--default digi-code--copy digi-code--sel" style="--dc-0:#000;--dc-bg:#f5f2f0;--dc-ts:0 1px #fff;' ) && str_contains( $html, ' data-digi-prism="https://sitio.test/wp-content/plugins/digitalisimo-elements/assets/lib/prism/">' ), 'Raíz con el tema, la paleta en línea y la carpeta de Prism del plugin: ' . substr( $html, 0, 200 ) );
 	check_ch( str_contains( $html, '<pre class="digi-code__pre language-javascript line-numbers"><code class="language-javascript">console.log( &#039;Code is Poetry&#039; );</code></pre>' ), 'Bloque con el idioma y los números de línea, el código escapado sin espacios añadidos.' );
 	check_ch( str_contains( $html, '<button type="button" class="digi-code__copy" aria-live="polite" data-digi-done="Copiado" data-digi-fail="Pulsa Ctrl+C para copiar" hidden>Copiar</button></div>' ), 'Botón Copiar propio, oculto hasta que el script lo active.' );
+	// En lo convertido de PRO (marca del traductor), los textos del botón de la barra de Prism que pintaba PRO (sin
+	// data-prismjs-copy* propios: los de copy-to-clipboard de assets/lib/prism, que no se traducen).
+	$prism_copy = (string) file_get_contents( $root . 'assets/lib/prism/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js' );
+	check_ch( str_contains( $prism_copy, '"Copy"' ) && str_contains( $prism_copy, '"Copied!"' ) && str_contains( $prism_copy, '"Press Ctrl+C to copy"' ), 'Premisa: los textos de la barra de Prism que usaba PRO.' );
+	$converted = $render( $defaults + array( \Digitalisimo\Elements\Convert\Translator::MARKER => 'code-highlight' ) );
+	check_ch( str_contains( $converted, '<button type="button" class="digi-code__copy" aria-live="polite" data-digi-done="Copied!" data-digi-fail="Press Ctrl+C to copy" hidden>Copy</button></div>' ), 'Lo convertido de PRO: «Copy», «Copied!» y «Press Ctrl+C to copy», como la barra de Prism de PRO.' );
+	check_ch( str_replace( array( '>Copy<', '"Copied!"', '"Press Ctrl+C to copy"' ), array( '>Copiar<', '"Copiado"', '"Pulsa Ctrl+C para copiar"' ), $converted ) === $render( $defaults ), 'Sólo cambian los textos del botón.' );
 	$evil = "<?php echo '&amp; <b>'; ?>\n</xmp><script>alert(1)</script>";
 	$html = $render( array( 'code' => $evil, 'language' => 'php"><img', 'theme' => 'nada', 'line_numbers' => '', 'copy_to_clipboard' => '', 'highlight_lines' => ' 1, 3-4" onload="x', 'word_wrap' => 'word-wrap' ) );
 	check_ch( str_contains( $html, '<code class="language-phpimg">&lt;?php echo &#039;&amp;amp; &lt;b&gt;&#039;; ?&gt;' . "\n" . '&lt;/xmp&gt;&lt;script&gt;alert(1)&lt;/script&gt;</code>' ), 'El código se escapa entero, también las entidades que ya trae; el idioma, saneado: ' . $html );
@@ -238,7 +246,7 @@ namespace {
 	check_ch( array( 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni aproximación; sólo el CSS convertido: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_ch( 'javascript' === $d['language'] && 'line-numbers' === $d['line_numbers'] && 'copy-to-clipboard' === $d['copy_to_clipboard'] && 'default' === $d['theme'] && '' === $d['word_wrap'] && "console.log( 'Code is Poetry' );" === $d['code'] && 'code-highlight' === $d['_digitalisimo_pro'], 'Un Code Highlight sin cambios llega con los valores por defecto visibles de PRO.' );
-	check_ch( $render( $d ) === $render( $map['defaults'] ), 'Lo convertido se pinta igual que los valores por defecto del widget propio.' );
+	check_ch( $render( $d ) === $render( $map['defaults'] + array( '_digitalisimo_pro' => 'code-highlight' ) ) && str_contains( $render( $d ), '>Copy</button>' ), 'Lo convertido se pinta igual que los valores por defecto del widget propio, con el botón «Copy» de PRO.' );
 	$f = $out['full'];
 	check_ch( 'php' === $f['language'] && '' === $f['line_numbers'] && '' === $f['copy_to_clipboard'] && '2' === $f['highlight_lines'] && 'word-wrap' === $f['word_wrap'] && 'okaidia' === $f['theme'] && 300 === $f['height']['size'] && 'vh' === $f['height_mobile']['unit'] && 15 === $f['font_size']['size'] && 0.9 === $f['font_size_tablet']['size'] && 'mi-codigo' === $f['_css_classes'], 'Ajustes y dispositivos pasan a su control.' );
 	check_ch( "selector .digi-code--okaidia .digi-code__pre{max-width:100%}\n.elementor-widget-digitalisimo-code-highlight .digi-code--copy .digi-code{margin:0}\nselector .digi-code--wrap code{color:red}" === $f['custom_css'], 'CSS personalizado con las clases propias: ' . $f['custom_css'] );
