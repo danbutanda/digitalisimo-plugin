@@ -96,7 +96,9 @@ try {
     await page.keyboard.press('Tab');
     const focus = await page.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return { cls: a.className, style: cs.outlineStyle, w: cs.outlineWidth, off: cs.outlineOffset, color: cs.outlineColor }; });
     ok(focus.cls.includes('digi-share__btn--facebook') && focus.style === 'solid' && focus.w === '2px' && focus.off === '2px' && focus.color === 'rgb(59, 89, 152)', `Foco visible de 2 px a 2 px en el color de la red (${JSON.stringify(focus)}).`);
-    // 4. Imprimir: sin navegar ni pedir nada.
+    // 4. Imprimir: sin navegar ni pedir nada. Como el `div` de PRO, hereda la alineación del texto (la hoja del navegador
+    // centra la de un <button>).
+    ok(await page.evaluate(() => { const b = document.querySelector('[data-id="s1"] [data-digi-share-print]'); return getComputedStyle(b).textAlign === getComputedStyle(b.parentElement).textAlign && getComputedStyle(b).textAlign !== 'center'; }), 'El botón de imprimir hereda la alineación del texto, como el div de PRO.');
     const before = page.url();
     await page.click('[data-id="s1"] [data-digi-share-print]');
     await sleep(100);
