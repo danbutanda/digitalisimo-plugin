@@ -20,8 +20,18 @@ final class Registry {
 			return null;
 		}
 		if ( ! array_key_exists( $type, self::$maps ) ) {
-			$file                 = __DIR__ . '/maps/' . $type . '.php';
-			$map                  = is_file( $file ) ? require $file : null;
+			$file = __DIR__ . '/maps/' . $type . '.php';
+			// Los textos por defecto de PRO que un mapa completa (`esc_html__( …, 'elementor-pro' )`) se guardan traducidos:
+			// en el idioma del sitio, el que veían sus visitantes con PRO, y no en el de quien convierte (en el
+			// administrador, `determine_locale()` da el idioma de la persona).
+			$switched = function_exists( 'switch_to_locale' ) && function_exists( 'get_locale' ) && switch_to_locale( get_locale() );
+			try {
+				$map = is_file( $file ) ? require $file : null;
+			} finally {
+				if ( $switched && function_exists( 'restore_previous_locale' ) ) {
+					restore_previous_locale();
+				}
+			}
 			self::$maps[ $type ] = is_array( $map ) && ( $map['source'] ?? '' ) === $type && '' !== (string) ( $map['target'] ?? '' ) ? $map : null;
 		}
 		$map = self::$maps[ $type ];

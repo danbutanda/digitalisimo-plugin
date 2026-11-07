@@ -144,9 +144,19 @@ namespace {
 		$ok( ! preg_match( H_VETOED, $source ) && ! preg_match( $host_re, $source ), basename( $file ) . ': nada vetado por el empaquetado ni dominios de proveedores.' );
 	}
 	$code = h_code( h_path( 'modules/digitalisimo-woo/store/class-checkout.php' ) );
-	$ok( ! preg_match( '/ElementorPro\\\\|wp_enqueue_script|<img|<script|<style|ld\+json|elementor-pro\'/', $code ), 'Sin clases de PRO, scripts encolados a mano, <img>, <script>, <style> ni JSON-LD.' );
+	$ok( ! preg_match( '/ElementorPro\\\\|wp_enqueue_script|<img|<script|<style|ld\+json/', $code ), 'Sin clases de PRO, scripts encolados a mano, <img>, <script>, <style> ni JSON-LD.' );
+	// El dominio de PRO sólo en los textos fijos de lo convertido: `$pro ? esc_*__( msgid, 'elementor-pro' ) : esc_*__( propio, 'pro-elements' )`.
+	foreach ( preg_split( '/\R/', $code ) as $line ) {
+		if ( str_contains( $line, "'elementor-pro'" ) ) {
+			$ok( (bool) preg_match( '/\$pro \? esc_(html|attr)__\( \'[^\']+\', \'elementor-pro\' \) : esc_(html|attr)__\( \'[^\']+\', \'pro-elements\' \)/', $line ), 'El dominio de PRO sólo en lo convertido: ' . trim( $line ) );
+		}
+	}
 	preg_match_all( "/(?:esc_html__|esc_attr__|__)\( '((?:[^'\\\\]|\\\\.)*)', '([a-z-]+)' \)/", $code, $strings );
-	$ok( count( $strings[2] ) > 300 && array( 'pro-elements' ) === array_values( array_unique( $strings[2] ) ), 'Textos traducibles con el dominio pro-elements (' . count( $strings[2] ) . ').' );
+	$pro_texts = array_keys( $strings[2], 'elementor-pro', true );
+	$ok( 14 === count( $pro_texts ) && count( $strings[2] ) > 300 && array( 'pro-elements' ) === array_values( array_unique( array_diff( $strings[2], array( 'elementor-pro' ) ) ) ), 'Textos traducibles con el dominio pro-elements (' . count( $strings[2] ) . '), salvo los 14 fijos de PRO en lo convertido (' . count( $pro_texts ) . ').' );
+	foreach ( $pro_texts as $i ) {
+		unset( $strings[1][ $i ] );
+	}
 	$ok( ! preg_grep( '/^(Typography|Alignment|Section Title|Your Order|Billing Details|Payment|Coupon)$/', $strings[1] ), 'Textos del panel en español.' );
 
 	// 2. Controles, en cada combinación de funciones de WooCommerce.
@@ -293,6 +303,9 @@ namespace {
 		$ca = array_values( array_filter( $ca, static function ( $c ) { return '.digi-co__sticky--active' !== $c; } ) );
 		$ok( $ca === $cb, "Salida ($label): las mismas clases, en el mismo orden:\nPRO " . implode( ' ', $ca ) . "\npropio " . implode( ' ', $cb ) );
 		$ok( $text( $a, true ) === $text( $b ), "Salida ($label): los mismos textos:\nPRO " . $text( $a ) . "\npropio " . $text( $b ) );
+		// Lo convertido de PRO (la marca del traductor): también los textos fijos de acceso y cupón son los de PRO.
+		list( $c ) = $render( h_widget( Checkout::class ), $settings + array( '_digitalisimo_pro' => 'woocommerce-checkout-page' ) + $pro_defaults, $env );
+		$ok( $text( $a ) === $text( $c ), "Salida ($label), convertido de PRO: los mismos textos que PRO, también los fijos:\nPRO " . $text( $a ) . "\npropio " . $text( $c ) );
 	}
 	// Columna fija resuelta en el servidor, sólo en dos columnas.
 	list( $b ) = $render( $own, array( 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40 ) + $pro_defaults );
@@ -395,6 +408,16 @@ namespace {
 	$ok( 'one-column' === $out['d2']['checkout_layout'] && 'Datos' === $out['d2']['billing_details_section_title'] && 'r1' === $out['d2']['billing_details_form_fields'][0]['_id'] && 'Nombre' === $out['d2']['billing_details_form_fields'][0]['label'] && '#fafafa' === $out['d2']['sections_background_color'] && array( 'size' => 13, 'unit' => 'px' ) === $out['d2']['forms_field_typography_font_size_tablet'], 'Ajustes, filas, grupos y dispositivos pasan tal cual.' );
 	$ok( 'selector .digi-co__review{padding:0} selector .digi-co__coupon .digi-co__apply{color:red}' === $out['d2']['custom_css'] && in_array( 'd2:pro.css:custom_css', $codes, true ), 'CSS personalizado con las clases propias.' );
 	$ok( isset( $out['d2']['__globals__']['sections_title_color'], $out['d2']['__dynamic__']['order_summary_section_title'] ), 'Globales y dinámicos siguen a su control.' );
+	// Los títulos y enlaces de «¿Ya eres cliente?» y «¿Tienes un cupón?»: PRO pintaba siempre su texto (su filtro de textos
+	// no miraba su dominio), así que lo convertido lleva el de PRO aunque el sitio guardara otro, y el informe lo anota.
+	list( $out7, $codes7 ) = $ck_convert(
+		'woocommerce-checkout-page',
+		$own,
+		array( 'd7' => array( 'coupon_section_title_text' => '¿Cupón?', 'coupon_section_title_link_text' => 'Ábrelo aquí', 'returning_customer_section_title' => '¿Vuelves?', 'returning_customer_link_text' => 'Entra', 'order_summary_section_title' => 'Tu compra', '__dynamic__' => array( 'coupon_section_title_text' => '[elementor-tag id="2" name="post-title" settings="%7B%7D"]' ) ) )
+	);
+	$ok( 'Have a coupon?' === $out7['d7']['coupon_section_title_text'] && 'Click here to enter your coupon code' === $out7['d7']['coupon_section_title_link_text'] && 'Returning customer?' === $out7['d7']['returning_customer_section_title'] && 'Click here to login' === $out7['d7']['returning_customer_link_text'] && 'Tu compra' === $out7['d7']['order_summary_section_title'] && ! isset( $out7['d7']['__dynamic__'] ), 'Los cuatro textos que PRO no aplicaba pasan al de PRO (también sin el dinámico); los demás se conservan.' );
+	$ok( 4 === count( preg_grep( '/^d7:pro\.approx:(coupon_section_title|returning_customer)/', $codes7 ) ), 'El informe los anota en «Aproximado»: ' . implode( ', ', $codes7 ) );
+	$ok( ! preg_grep( '/^d1:pro\.approx:/', $codes ), 'Sin textos guardados, nada que anotar.' );
 	list( $b ) = $render( $own, array( 'checkout_layout' => 'two-column' ) + $out['d1'] );
 	h_classes_exist( array( 'classes' => array_diff_key( $map['classes'], array_flip( array( '.e-login-actions-wrap-start', '.e-login-actions-wrap-end', '.e-login-actions-wrap', '.e-login-wrap-start', '.e-login-wrap-end', '.e-login-wrap', '.e-login-label', '.e-woocommerce-login-section', '.e-woocommerce-login-anchor', '.e-woocommerce-login-nudge', '.e-woocommerce-form-login-submit', '.elementor-woocommerce-login-messages', '.e-show-login', '.e-description', '.e-checkout-message', '.e-woo-select2-wrapper', '.e-sticky-right-column--active' ) ) ) ), $own, $b );
 	$checks++;

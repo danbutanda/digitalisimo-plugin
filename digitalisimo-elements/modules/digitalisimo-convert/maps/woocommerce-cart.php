@@ -126,6 +126,19 @@ return array(
 		'apply_coupon_button_text',
 		'apply_coupon_button_alignment',
 	),
+	'approx'   => array(
+		'apply_coupon_button_text' => 'PRO ofrecía el texto de «Aplicar cupón», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
+	),
+	// PRO pintaba «Apply coupon» con su propio dominio y su filtro de textos sólo miraba otros, así que lo guardado (también
+	// un valor dinámico) nunca se veía: lo convertido lleva el texto que PRO pintaba. `approx` lo informa.
+	'filter'   => static function ( array $out ) use ( $digi_cart_t ) {
+		$out['apply_coupon_button_text'] = $digi_cart_t( 'Apply coupon' );
+		unset( $out['__dynamic__']['apply_coupon_button_text'] );
+		if ( isset( $out['__dynamic__'] ) && array() === $out['__dynamic__'] ) {
+			unset( $out['__dynamic__'] );
+		}
+		return $out;
+	},
 	'groups'   => array(
 		'section_normal_box_shadow' => 'section_normal_box_shadow',
 		'sections_titles_typography' => 'sections_titles_typography',

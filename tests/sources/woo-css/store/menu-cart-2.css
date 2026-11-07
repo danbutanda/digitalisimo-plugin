@@ -7,6 +7,14 @@
 	color:var(--mc-emc,inherit);
 	text-align:var(--mc-ema,start)
 }
+/* Carrito vacío: el texto de WooCommerce en lo nuevo y el de PRO en lo convertido (`digi-mc--pro`), cuando sus
+   traducciones difieren (Menu_Cart_Markup::mini_cart()). */
+.digi-mc--pro .digi-mc__em,.digi-mc__em--pro{
+	display:none
+}
+.digi-mc--pro .digi-mc__em--pro{
+	display:inline
+}
 .digi-mc__list{
 	max-height:calc(100vh - 250px);
 	overflow:hidden auto

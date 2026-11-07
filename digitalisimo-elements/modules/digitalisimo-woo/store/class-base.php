@@ -72,6 +72,15 @@ abstract class Base extends Widget {
 		return is_object( $experiments ) && method_exists( $experiments, 'is_feature_active' ) && (bool) $experiments->is_feature_active( 'e_optimized_markup' );
 	}
 
+	/**
+	 * ¿Es lo convertido de un widget de PRO? Lo dice la marca del traductor (`Convert\Translator::MARKER`), que dejan
+	 * «Migrar» y los kits, también en lo ya migrado. Los textos fijos que no son controles usan entonces los de PRO, con su
+	 * msgid y su dominio (o la traducción del paquete de idioma de PRO); en lo nuevo, los propios.
+	 */
+	protected function from_pro(): bool {
+		return '' !== (string) $this->get_settings( '_digitalisimo_pro' );
+	}
+
 	/** ¿Se está editando o previsualizando en el editor? */
 	public static function is_editor(): bool {
 		if ( ! class_exists( '\Elementor\Plugin' ) || ! isset( \Elementor\Plugin::$instance ) ) {

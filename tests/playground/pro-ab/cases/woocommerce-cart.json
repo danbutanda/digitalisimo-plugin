@@ -117,6 +117,14 @@
     "update_cart_button_alignment": "end",
     "checkout_button_alignment": "center"
    }
+  },
+  "cart-apply-text": {
+   "title": "Texto propio de «Aplicar cupón»: PRO pinta siempre el suyo y lo convertido también",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "apply_coupon_button_text": "Canjear"
+   }
   }
  }
 }

@@ -4019,8 +4019,10 @@ class Checkout extends Base {
 				'type'  => 'submit',
 			)
 		);
-		$title = isset( $settings['returning_customer_section_title'] ) ? $settings['returning_customer_section_title'] : esc_html__( '¿Ya eres cliente?', 'pro-elements' );
-		$link  = isset( $settings['returning_customer_link_text'] ) ? $settings['returning_customer_link_text'] : esc_html__( 'Haz clic aquí para acceder', 'pro-elements' );
+		// Textos fijos: en lo convertido, los de PRO con su msgid y su dominio (`from_pro()`); en lo nuevo, los propios.
+		$pro   = $this->from_pro();
+		$title = isset( $settings['returning_customer_section_title'] ) ? $settings['returning_customer_section_title'] : ( $pro ? esc_html__( 'Returning customer?', 'elementor-pro' ) : esc_html__( '¿Ya eres cliente?', 'pro-elements' ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido.
+		$link  = isset( $settings['returning_customer_link_text'] ) ? $settings['returning_customer_link_text'] : ( $pro ? esc_html__( 'Click here to login', 'elementor-pro' ) : esc_html__( 'Haz clic aquí para acceder', 'pro-elements' ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido.
 		?>
 		<div class="digi-co__login">
 			<div class="digi-co__login-messages"></div>
@@ -4028,15 +4030,15 @@ class Checkout extends Base {
 				<?php echo esc_html( $title ); ?> <a href="#<?php echo esc_attr( $panel ); ?>" role="button" class="digi-co__show-login" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></a>
 			</div>
 			<div class="digi-co__login-form" id="<?php echo esc_attr( $panel ); ?>"<?php echo $editor ? '' : ' hidden'; ?>>
-				<p class="digi-co__login-nudge digi-co__desc"><?php echo esc_html__( 'Si ya has comprado con nosotros, introduce tus datos abajo. Si eres un cliente nuevo, continúa en la sección de facturación.', 'pro-elements' ); ?></p>
+				<p class="digi-co__login-nudge digi-co__desc"><?php echo $pro ? esc_html__( 'If you have shopped with us before, please enter your details below. If you are a new customer, please proceed to the Billing section.', 'elementor-pro' ) : esc_html__( 'Si ya has comprado con nosotros, introduce tus datos abajo. Si eres un cliente nuevo, continúa en la sección de facturación.', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></p>
 				<div class="digi-co__login-wrap">
 					<div class="digi-co__login-wrap-start">
 						<p class="form-row form-row-first">
-							<label for="username"><?php echo esc_html__( 'Correo electrónico', 'pro-elements' ); ?> <span class="required">*</span></label>
+							<label for="username"><?php echo $pro ? esc_html__( 'Email', 'elementor-pro' ) : esc_html__( 'Correo electrónico', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?> <span class="required">*</span></label>
 							<input type="text" class="input-text" name="username" id="username" autocomplete="username" />
 						</p>
 						<p class="form-row form-row-last">
-							<label for="password"><?php echo esc_html__( 'Contraseña', 'pro-elements' ); ?> <span class="required">*</span></label>
+							<label for="password"><?php echo $pro ? esc_html__( 'Password', 'elementor-pro' ) : esc_html__( 'Contraseña', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?> <span class="required">*</span></label>
 							<input class="input-text" type="password" name="password" id="password" autocomplete="current-password" />
 						</p>
 						<div class="clear"></div>
@@ -4046,7 +4048,7 @@ class Checkout extends Base {
 							<label for="login" class="digi-co__login-label">&nbsp;</label>
 							<?php wp_nonce_field( 'woocommerce-login', 'woocommerce-login-nonce' ); ?>
 							<input type="hidden" name="redirect" value="<?php echo esc_url( get_permalink() ); ?>" />
-							<button <?php $this->print_render_attribute_string( 'button_login' ); ?> value="<?php echo esc_attr__( 'Acceder', 'pro-elements' ); ?>"><?php echo esc_html__( 'Acceder', 'pro-elements' ); ?></button>
+							<button <?php $this->print_render_attribute_string( 'button_login' ); ?> value="<?php echo $pro ? esc_attr__( 'Login', 'elementor-pro' ) : esc_attr__( 'Acceder', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?>"><?php echo $pro ? esc_html__( 'Login', 'elementor-pro' ) : esc_html__( 'Acceder', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></button>
 						</p>
 						<div class="clear"></div>
 					</div>
@@ -4054,12 +4056,12 @@ class Checkout extends Base {
 				<div class="digi-co__login-actions">
 					<div class="digi-co__login-actions-start">
 						<label class="woocommerce-form__label woocommerce-form__label-for-checkbox woocommerce-form-login__rememberme">
-							<input class="woocommerce-form__input woocommerce-form__input-checkbox" name="rememberme" type="checkbox" id="rememberme" value="forever" /> <span class="digi-co__remember"><?php echo esc_html__( 'Recordarme', 'pro-elements' ); ?></span>
+							<input class="woocommerce-form__input woocommerce-form__input-checkbox" name="rememberme" type="checkbox" id="rememberme" value="forever" /> <span class="digi-co__remember"><?php echo $pro ? esc_html__( 'Remember me', 'elementor-pro' ) : esc_html__( 'Recordarme', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></span>
 						</label>
 					</div>
 					<div class="digi-co__login-actions-end">
 						<p class="lost_password">
-							<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>"><?php echo esc_html__( '¿Has olvidado tu contraseña?', 'pro-elements' ); ?></a>
+							<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>"><?php echo $pro ? esc_html__( 'Lost your password?', 'elementor-pro' ) : esc_html__( '¿Has olvidado tu contraseña?', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></a>
 						</p>
 					</div>
 				</div>
@@ -4085,20 +4087,22 @@ class Checkout extends Base {
 				'type'  => 'submit',
 			)
 		);
-		$title = isset( $settings['coupon_section_title_text'] ) ? $settings['coupon_section_title_text'] : esc_html__( '¿Tienes un cupón?', 'pro-elements' );
-		$link  = isset( $settings['coupon_section_title_link_text'] ) ? $settings['coupon_section_title_link_text'] : esc_html__( 'Haz clic aquí para introducir tu código de cupón', 'pro-elements' );
+		// Textos fijos: en lo convertido, los de PRO con su msgid y su dominio (`from_pro()`); en lo nuevo, los propios.
+		$pro   = $this->from_pro();
+		$title = isset( $settings['coupon_section_title_text'] ) ? $settings['coupon_section_title_text'] : ( $pro ? esc_html__( 'Have a coupon?', 'elementor-pro' ) : esc_html__( '¿Tienes un cupón?', 'pro-elements' ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido.
+		$link  = isset( $settings['coupon_section_title_link_text'] ) ? $settings['coupon_section_title_link_text'] : ( $pro ? esc_html__( 'Click here to enter your coupon code', 'elementor-pro' ) : esc_html__( 'Haz clic aquí para introducir tu código de cupón', 'pro-elements' ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido.
 		?>
 		<div class="digi-co__coupon">
 			<p class="digi-co__coupon-nudge digi-co__secondary"><?php echo esc_html( $title ); ?> <a href="#<?php echo esc_attr( $panel ); ?>" role="button" class="digi-co__show-coupon" aria-controls="<?php echo esc_attr( $panel ); ?>" aria-expanded="<?php echo $editor ? 'true' : 'false'; ?>"><?php echo esc_html( $link ); ?></a></p>
 			<div class="digi-co__coupon-form" id="<?php echo esc_attr( $panel ); ?>"<?php echo $editor ? '' : ' hidden'; ?>>
-				<label class="digi-co__coupon-desc" for="coupon_code"><?php echo esc_html__( 'Si tienes un código de cupón, aplícalo abajo.', 'pro-elements' ); ?></label>
+				<label class="digi-co__coupon-desc" for="coupon_code"><?php echo $pro ? esc_html__( 'If you have a coupon code, please apply it below.', 'elementor-pro' ) : esc_html__( 'Si tienes un código de cupón, aplícalo abajo.', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></label>
 				<div class="form-row">
 					<div class="coupon-container-grid">
 						<div class="col coupon-col-1 ">
-							<input type="text" name="coupon_code" class="input-text" placeholder="<?php echo esc_attr__( 'Código de cupón', 'pro-elements' ); ?>" id="coupon_code" value="" />
+							<input type="text" name="coupon_code" class="input-text" placeholder="<?php echo $pro ? esc_attr__( 'Coupon code', 'elementor-pro' ) : esc_attr__( 'Código de cupón', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?>" id="coupon_code" value="" />
 						</div>
 						<div class="col coupon-col-2">
-							<button <?php $this->print_render_attribute_string( 'button_coupon' ); ?>><?php echo esc_html__( 'Aplicar', 'pro-elements' ); ?></button>
+							<button <?php $this->print_render_attribute_string( 'button_coupon' ); ?>><?php echo $pro ? esc_html__( 'Apply', 'elementor-pro' ) : esc_html__( 'Aplicar', 'pro-elements' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (checkout.php) en lo convertido. ?></button>
 						</div>
 					</div>
 				</div>

@@ -120,7 +120,9 @@ class Pages extends Base {
 		add_filter( 'post_class', array( __CLASS__, 'product_post_class' ) );
 		$html = do_shortcode( $shortcode );
 		if ( 'woocommerce_checkout' === $this->get_settings( 'element' ) && '<div class="woocommerce"></div>' === $html ) {
-			$html = '<div class="woocommerce">' . esc_html__( 'Your cart is currently empty.', 'woocommerce' ) . '</div>'; // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de WooCommerce.
+			// En lo convertido, el texto de PRO con su dominio (`from_pro()`); en lo nuevo, el de WooCommerce.
+			$empty = $this->from_pro() ? esc_html__( 'Your cart is currently empty.', 'elementor-pro' ) : esc_html__( 'Your cart is currently empty.', 'woocommerce' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (elements.php) o de WooCommerce.
+			$html  = '<div class="woocommerce">' . $empty . '</div>';
 		}
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- salida de WooCommerce.
 		remove_filter( 'post_class', array( __CLASS__, 'product_post_class' ) );

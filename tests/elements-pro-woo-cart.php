@@ -17,7 +17,7 @@
 namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', dirname( __DIR__ ) . '/digitalisimo-elements/pro-elements.php' );
-	$GLOBALS['c_wp'] = array( 'hooks' => array(), 'coupons' => true, 'count' => 2, 'edit' => false );
+	$GLOBALS['c_wp'] = array( 'hooks' => array(), 'coupons' => true, 'count' => 2, 'edit' => false, 'locale' => 'es_ES', 'stack' => array(), 'tr' => array() );
 	function c_check( $ok, $message ) {
 		if ( ! $ok ) {
 			echo "FALLA: $message\n";
@@ -25,9 +25,21 @@ namespace {
 		}
 		$GLOBALS['c_wp']['checks'] = ( $GLOBALS['c_wp']['checks'] ?? 0 ) + 1;
 	}
-	function esc_html__( $t, $d = '' ) { return $t; }
-	function esc_attr__( $t, $d = '' ) { return $t; }
-	function __( $t, $d = '' ) { return $t; }
+	// Traducciones de prueba por idioma y dominio (`c_wp['tr'][ idioma ][ dominio ][ texto ]`); sin ellas, el texto tal cual.
+	function c_tr( $t, $d ) { return $GLOBALS['c_wp']['tr'][ $GLOBALS['c_wp']['locale'] ][ $d ][ $t ] ?? $t; }
+	function esc_html__( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function esc_attr__( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function __( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function get_locale() { return 'es_ES'; }
+	function switch_to_locale( $l ) {
+		if ( $l === $GLOBALS['c_wp']['locale'] ) {
+			return false;
+		}
+		$GLOBALS['c_wp']['stack'][] = $GLOBALS['c_wp']['locale'];
+		$GLOBALS['c_wp']['locale']  = $l;
+		return true;
+	}
+	function restore_previous_locale() { $GLOBALS['c_wp']['locale'] = array_pop( $GLOBALS['c_wp']['stack'] ); return $GLOBALS['c_wp']['locale']; }
 	function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 	function esc_url( $t ) { return (string) $t; }
@@ -380,6 +392,16 @@ namespace {
 		c_check( ! preg_match( "/'[^'\\n]*\\s[^'\\n]*\\b(Elementor|Divi|Bricks|YITH)\\b[^'\\n]*'/", $source ), "$file: ninguna frase visible con marcas ajenas." );
 	}
 
+	// Textos fijos que no son controles (c7#6): en lo convertido de PRO (la marca del traductor), el marcador de posición y la
+	// reserva de «Apply coupon» con el dominio de PRO; en lo nuevo, con el de WooCommerce. Con una traducción de WooCommerce
+	// y ninguna de PRO, como en un sitio en español que venía de PRO: PRO pintaba «Coupon code» y el nuevo, la de WooCommerce.
+	$GLOBALS['c_wp']['tr'] = array( 'es_ES' => array( 'woocommerce' => array( 'Coupon code' => 'Código de cupón', 'Apply coupon' => 'Aplicar cupón' ) ) );
+	$fresh = $render( $own, array( 'apply_coupon_button_text' => '' ) + $defaults( $own ) );
+	$moved = $render( $own, array( 'apply_coupon_button_text' => '', '_digitalisimo_pro' => 'woocommerce-cart' ) + $defaults( $own ) );
+	c_check( str_contains( $fresh, 'placeholder="Código de cupón"' ) && str_contains( $fresh, '>Aplicar cupón<' ), 'Carrito nuevo: el marcador del cupón y la reserva del botón, de WooCommerce.' );
+	c_check( str_contains( $moved, 'placeholder="Coupon code"' ) && str_contains( $moved, '>Apply coupon<' ) && ! str_contains( $moved, 'Código de cupón' ), 'Carrito convertido de PRO: el marcador del cupón y la reserva del botón, de PRO (su dominio).' );
+	$GLOBALS['c_wp']['tr'] = array();
+
 	// 6. Conversión de ajustes reales.
 	require $el . 'modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
@@ -420,6 +442,26 @@ namespace {
 	c_check( count( $legend['store/cart.css'] ) > 60 && ! $missing, 'Mapa del carrito: traduce las variables de PRO a las cortas; faltan ' . json_encode( $missing ) . '.' );
 	c_check( 'Proceed to Checkout' === ( $tree[0]['elements'][0]['settings']['checkout_button_text'] ?? '' ) || isset( $out['settings']['__dynamic__']['checkout_button_text'] ), 'Los textos y los dinámicos siguen en su clave.' );
 	c_check( array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ) === $out['settings']['__globals__'], 'Los globales siguen en su clave.' );
+
+	// «Apply coupon» (c7#7): PRO lo pintaba siempre con su texto (su filtro de textos no miraba su dominio), así que lo
+	// convertido lleva ese texto aunque el sitio guardara otro (también un valor dinámico), y el informe lo anota.
+	list( $out7, $codes7 ) = \Digitalisimo\Elements\Convert\Translator::translate( array( 'apply_coupon_button_text' => 'Canjear', 'update_cart_button_text' => 'Recalcular', '__dynamic__' => array( 'apply_coupon_button_text' => '[elementor-tag id="y" name="site-title"]' ) ), $map );
+	c_check( 'Apply coupon' === $out7['apply_coupon_button_text'] && 'Recalcular' === $out7['update_cart_button_text'] && ! isset( $out7['__dynamic__'] ), 'El texto de «Aplicar cupón» que PRO no aplicaba pasa al de PRO (también sin el dinámico); los demás textos se conservan.' );
+	c_check( in_array( 'pro.approx apply_coupon_button_text', array_map( static function ( $c ) { return $c['code'] . ' ' . $c['key']; }, $codes7 ), true ), 'El informe anota el texto de «Aplicar cupón» en «Aproximado».' );
+	list( , $codes7 ) = \Digitalisimo\Elements\Convert\Translator::translate( array(), $map );
+	c_check( ! $codes7, 'Sin texto guardado, nada que anotar.' );
+
+	// Idioma de los textos que completa el mapa (c7#8): se cargan en el del sitio (el que veían sus visitantes con PRO),
+	// no en el de quien convierte; después vuelve el de esa persona.
+	$GLOBALS['c_wp']['locale'] = 'en_US';
+	$GLOBALS['c_wp']['tr']     = array( 'es_ES' => array( 'elementor-pro' => array( 'Apply coupon' => 'Aplicar cupón (PRO)' ) ) );
+	\Digitalisimo\Elements\Convert\Registry::reset();
+	$loaded = \Digitalisimo\Elements\Convert\Registry::map( 'woocommerce-cart' );
+	c_check( null !== $loaded && 'Aplicar cupón (PRO)' === $loaded['defaults']['apply_coupon_button_text'], 'Los textos de PRO del mapa, en el idioma del sitio aunque la persona use otro: ' . ( $loaded['defaults']['apply_coupon_button_text'] ?? '' ) );
+	c_check( 'en_US' === $GLOBALS['c_wp']['locale'] && array() === $GLOBALS['c_wp']['stack'], 'Tras cargar el mapa vuelve el idioma de la persona.' );
+	$GLOBALS['c_wp']['locale'] = 'es_ES';
+	$GLOBALS['c_wp']['tr']     = array();
+	\Digitalisimo\Elements\Convert\Registry::reset();
 
 	// Estado del sistema de WooCommerce (`Store\Shop_Pages`, como `WC_STATUS_PAGES_MAPPED_TO_WIDGETS` del módulo de PRO): una
 	// página del carrito, del pago o de Mi cuenta hecha con el widget propio cuenta como página con su shortcode, en
