@@ -179,9 +179,13 @@
     "open_cart": "mouseover",
     "items_indicator": "none"
    },
+   "control": {
+    "a": ".elementor-menu-cart__toggle_button",
+    "b": ".digi-mc__btn"
+   },
    "pixels": {
     "max": 0.8,
-    "reason": "«Al pasar el cursor»: el arnés pasa el cursor por el primer control; en el propio es el conmutador, que abre el panel y su capa oscurece la página; en PRO, un enlace invisible del panel cerrado (no abre nada). Lo mismo con el foco (el tabulador llega al conmutador y el cursor sigue encima). Sin cursor, 0 %."
+    "reason": "«Al pasar el cursor»: el arnés pasa el cursor por el conmutador en los dos (`control`), que abre el panel y su capa oscurece la página; después lleva el puntero a la esquina, que la capa también cubre, así que el panel sigue abierto en A y en B y el clic de la acción cae en la capa (768 y 1 280 px: los dos cierran) o en el panel, que a 375 px tapa el conmutador (los dos siguen abiertos). Lo mismo con el foco (el tabulador llega al conmutador)."
    },
    "actions": [
     {
