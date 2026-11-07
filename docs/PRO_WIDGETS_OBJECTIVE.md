@@ -51,7 +51,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
 - **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en tres widgets propios con presentaciones (Botones de contacto, Barra flotante y Link in Bio).
-- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b). Siete widgets propios en `modules/digitalisimo-services/` y, para el widget global, la sustitución por su contenido en «Migrar» y en los kits. Contrato y resultado en `docs/pro/c9.md`.
+- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (pasa al widget global propio, vinculado a su plantilla; hasta 4.3.0.179 se convertía en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b). Siete widgets propios en `modules/digitalisimo-services/` y, para el widget global, el widget global propio (`digitalisimo-global`, oculto del panel) al que lo pasan «Migrar» y los kits. Contrato y resultado en `docs/pro/c9.md`.
 - **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
@@ -156,7 +156,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C8 | `link-in-bio` | `link-in-bio-var-5` | Services | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 5, C8 |
 | C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 6, C8 |
 | C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | **Sustituido** | Link in Bio (`digitalisimo-link-in-bio`), presentación 7, C8 |
-| C9 | `global-widget` | `global` | Global | **Sustituido** | su contenido: «Migrar» y los kits ponen en su lugar el elemento guardado en la plantilla de widget, con el id de la instancia (`Convert\Globals`), C9 |
+| C9 | `global-widget` | `global` | Global | **Sustituido** | Widget global propio (`digitalisimo-global`, vinculado a su plantilla como el de PRO: `Convert\Globals::link()`; hasta 4.3.0.179, su contenido), C9 |
 | C9 | `library` | `template` | Template | **Sustituido** | Plantilla (`digitalisimo-template`, con las sobrescrituras de F7b y sin bucles), C9 |
 | C9 | `payments` | `paypal-button` | PayPal Button | **Sustituido** | Botón de PayPal (`digitalisimo-paypal-button`), C9 |
 | C9 | `payments` | `stripe-button` | Stripe Button | **Sustituido** | Botón de Stripe (`digitalisimo-stripe-button`, la sesión la sigue creando el punto de PRO en el servidor), C9 |
