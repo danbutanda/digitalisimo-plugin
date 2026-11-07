@@ -1,8 +1,8 @@
-/* Botones para compartir, como PRO (su manejador y `share-link.js` del núcleo): al pulsar un botón, la página actual que
-   se comparte es la dirección del navegador, sin un parámetro `u` de otro dominio (cambia la del servidor,
-   `data-digi-share-url`, sólo entera: no el comienzo de la imagen en la portada), y un enlace http(s) se abre en una
-   ventana emergente centrada de 640 × 480, sin acceso a esta página; el correo, en la misma ventana. «Imprimir» abre el
-   diálogo de impresión. Sin JavaScript queda el enlace del servidor. Sin dependencias ni peticiones. */
+/* Botones para compartir, como PRO (su manejador y `share-link.js`), salvo en el editor (`isActive()` de PRO): al pulsar,
+   se comparte la dirección del navegador sin un parámetro `u` de otro dominio (sustituye la URL entera del servidor,
+   `data-digi-share-url`, no el comienzo de la imagen en la portada) y un enlace http(s) se abre en una ventana emergente
+   centrada de 640 × 480 sin acceso a esta página; el correo, en la misma ventana. «Imprimir» abre el diálogo de
+   impresión. Sin JavaScript queda el enlace del servidor. Sin dependencias ni peticiones. */
 (() => {
 	const W = window, D = document;
 	const here = () => {
@@ -12,13 +12,13 @@
 		return u.toString();
 	};
 	const go = (e, type) => {
-		const a = e.target && e.target.closest && e.target.closest('.digi-share__btn');
-		if (!a || e.defaultPrevented) return;
+		const a = e.target && e.target.closest && e.target.closest('.digi-share__btn'), F = W.elementorFrontend;
+		if (!a || e.defaultPrevented || (F && F.isEditMode && F.isEditMode())) return;
 		if (a.hasAttribute('data-digi-share-print')) { if (type === 'click') { e.preventDefault(); W.print(); } return; }
 		if (!a.hasAttribute('href')) return;
 		const box = a.closest('[data-digi-share-url]'), from = box && box.getAttribute('data-digi-share-url');
 		if (a.digiHref === undefined) a.digiHref = a.getAttribute('href');
-		const href = from ? a.digiHref.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=&|$)', 'g'), () => encodeURIComponent(here())) : a.digiHref;
+		const href = from ? a.digiHref.replace(new RegExp(from.replace(/\./g, '\\.') + '(?=&|$)', 'g'), () => encodeURIComponent(here())) : a.digiHref;
 		a.setAttribute('href', href);
 		if (type !== 'click' || e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || !/^https?:\/\//i.test(href)) return;
 		e.preventDefault();

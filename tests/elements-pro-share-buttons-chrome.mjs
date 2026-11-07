@@ -160,6 +160,19 @@ try {
     await sleep(50);
     r = await page.evaluate(() => window.__opened.map(o => o.url));
     ok(r.length === 6 && r[5] === 'https://www.pinterest.com/pin/create/button/?url=' + here + '&media=' + media, 'Portada: la URL del navegador en `url` y la imagen intacta en `media`: ' + r[5]);
+    // En el editor (modo edición del núcleo, también en su vista previa), como `isActive()` de PRO: pulsar un botón sólo
+    // selecciona el widget; ni ventana emergente ni diálogo de impresión.
+    await page.evaluate(() => { window.elementorFrontend = { isEditMode: () => true }; });
+    const prints = await page.evaluate(() => window.__prints);
+    await page.click('[data-id="s1"] .digi-share__btn--facebook');
+    await page.click('[data-id="s1"] [data-digi-share-print]');
+    await sleep(50);
+    r = await page.evaluate(() => ({ opened: window.__opened.length, prints: window.__prints }));
+    ok(r.opened === 6 && r.prints === prints, 'En el editor, ni ventana emergente ni impresión: ' + JSON.stringify(r));
+    await page.evaluate(() => { window.elementorFrontend = { isEditMode: () => false }; });
+    await page.click('[data-id="s1"] .digi-share__btn--facebook');
+    await sleep(50);
+    ok((await page.evaluate(() => window.__opened.length)) === 7, 'Fuera del modo edición (front con el núcleo), la ventana emergente.');
     await page.close();
   }
   {
