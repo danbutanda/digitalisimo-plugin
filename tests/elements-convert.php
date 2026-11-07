@@ -353,6 +353,14 @@ namespace {
 	$lost = false;
 	$kept = Translator::background_to_object( "selector .a{background-size:50% auto;background-position-x:left}\nselector .a::before{background-size:cover}\n@font-face{font-family:x}\nselector .b,selector .a .c{background-position:center}", array( '.a' => ' img', '.c' => '' ), $lost );
 	check_cv( $lost && "selector .a{background-size:50% auto;background-position-x:left}\nselector .a::before{background-size:cover}\n@font-face{font-family:x}\nselector .b,selector .a .c{background-position:center}\nselector .a .c{object-position:center}" === $kept, 'Lo que no tiene equivalente (medidas, -x/-y) se informa y no se traduce; un pseudoelemento no es la imagen; sólo los selectores que terminan en la clase: ' . $kept );
+	// El atajo `background` en PRO también fijaba el tamaño y la posición: se informa. Los comentarios (también uno con
+	// llaves abierto antes de la regla) no pasan a la regla nueva, que de otro modo empezaría por un `*/` suelto.
+	$lost = false;
+	$short = Translator::background_to_object( 'selector .a{background:center/contain no-repeat}', array( '.a' => ' img' ), $lost );
+	check_cv( $lost && 'selector .a{background:center/contain no-repeat}' === $short, 'El atajo background se informa como aproximación: ' . $short );
+	$lost = false;
+	$commented = Translator::background_to_object( "/* a{b} */ selector .a{/* c */ background-size:contain}", array( '.a' => ' img' ), $lost );
+	check_cv( ! $lost && "/* a{b} */ selector .a{/* c */ background-size:contain}\nselector .a img{object-fit:contain}" === $commented, 'Los comentarios no pasan a la regla del <img>: ' . $commented );
 	list( , $lost_codes ) = Translator::translate( array( 'custom_css' => 'selector .elementor-carousel-image{background-size:100px}' ), $maps['media-carousel'] );
 	check_cv( array( 'pro.css', 'pro.approx' ) === array_column( $lost_codes, 'code' ), 'Un tamaño de fondo con medidas queda como aproximación en el informe.' );
 	// `filter` recibe un tercer argumento para dejar códigos en el informe.

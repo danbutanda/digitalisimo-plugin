@@ -95,7 +95,7 @@ final class Translator {
 				}
 			}
 			if ( $lost ) {
-				$codes[] = self::code( 'pro.approx', 'custom_css', 'Un tamaño de fondo con medidas (`background-size` con longitudes o porcentajes), `background-position-x`/`-y` o varios fondos no tienen equivalente en el `<img>` del widget propio: quedan sobre su envoltorio, sin efecto.', 'approx' );
+				$codes[] = self::code( 'pro.approx', 'custom_css', 'Un tamaño de fondo con medidas (`background-size` con longitudes o porcentajes), `background-position-x`/`-y`, varios fondos o el atajo `background` no tienen equivalente en el `<img>` del widget propio: quedan sobre su envoltorio, sin efecto.', 'approx' );
 			}
 		}
 		if ( isset( $map['filter'] ) && is_callable( $map['filter'] ) ) {
@@ -287,7 +287,9 @@ final class Translator {
 	 * sufijo del selector, '' si la clase está en el propio `<img>`) con `background-size` → `object-fit` (`cover`,
 	 * `contain`; `auto` → `none`, como «Ajuste de la imagen») y `background-position` → `object-position` (misma
 	 * sintaxis). La regla original queda intacta (en el envoltorio no tiene efecto). Lo que no tiene equivalente
-	 * (medidas en el tamaño, `background-position-x`/`-y`, varios fondos) se marca en `$lost` y no se traduce.
+	 * (medidas en el tamaño, `background-position-x`/`-y`, varios fondos, el atajo `background`, que en PRO devolvía el
+	 * tamaño y la posición a sus valores iniciales) se marca en `$lost` y no se traduce. Los comentarios no pasan a la
+	 * regla nueva.
 	 *
 	 * @param bool $lost Recibe `true` si alguna declaración no tiene equivalente.
 	 */
@@ -310,7 +312,8 @@ final class Translator {
 				}
 				$targets = array();
 				foreach ( self::split_selectors( $m[1] ) as $selector ) {
-					$selector = trim( $selector );
+					// Sin comentarios: los completos y el final de uno abierto antes de la regla (`/* a{b} */ selector …`).
+					$selector = trim( (string) preg_replace( array( '#/\*.*?\*/#s', '#^.*\*/#s' ), '', $selector ) );
 					// El último compuesto (tras el último combinador): con la clase entera y sin pseudoelemento.
 					$last = (string) preg_replace( '/^.*[\s>+~]/s', '', $selector );
 					if ( false !== strpos( $last, '::' ) || preg_match( '/:(?:before|after)\b/i', $last ) ) {
@@ -327,7 +330,11 @@ final class Translator {
 					return $rule;
 				}
 				$decls = array();
-				foreach ( explode( ';', $m[2] ) as $declaration ) {
+				foreach ( explode( ';', (string) preg_replace( '#/\*.*?\*/#s', '', $m[2] ) ) as $declaration ) {
+					if ( preg_match( '/^\s*background\s*:/i', $declaration ) ) {
+						$lost = true; // El atajo: en PRO también fijaba el tamaño y la posición (a sus valores iniciales si no los nombra).
+						continue;
+					}
 					if ( ! preg_match( '/^\s*(background-(?:size|position(?:-x|-y)?))\s*:\s*(.+?)\s*$/is', $declaration, $d ) ) {
 						continue;
 					}
