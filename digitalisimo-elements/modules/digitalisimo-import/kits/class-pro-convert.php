@@ -160,11 +160,12 @@ final class Pro_Convert {
 
 	/**
 	 * Widget global (C9 del programa «sin widgets de PRO»): después del remapeo (`Context::remap()`, prioridad 20, petición
-	 * final), cada instancia (`widgetType: global` con `templateID` ya del sitio) pasa a ser el elemento guardado en su
-	 * plantilla, con el id de la instancia (`Convert\Globals`). El contenido de cada plantilla se convierte antes con los
-	 * mapas listos, una vez por plantilla y documento. Sin plantilla (no viajó en el kit, o falla cerrado el remapeo) la
-	 * instancia se queda como está y no pinta nada, como antes, y se informa `pro.global_missing`. La plantilla nunca se
-	 * borra ni se cambia.
+	 * final), cada instancia (`widgetType: global` con `templateID` ya del sitio) pasa al widget global propio
+	 * (`digitalisimo-global`, `Convert\Globals::link()`), que sigue leyendo su plantilla al pintar (el vínculo de PRO se
+	 * conserva; la plantilla, un documento más del kit, se convierte al guardarse). Con una versión del núcleo de
+	 * conversión sin `link()`, la instancia pasa a ser el elemento guardado en su plantilla (convertido con los mapas
+	 * listos). Sin plantilla (no viajó en el kit, o falla cerrado el remapeo) la instancia se queda como está y no pinta
+	 * nada, como antes, y se informa `pro.global_missing`. La plantilla nunca se borra ni se cambia.
 	 *
 	 * @param array         $data     `{ elements, settings }` ya remapeados.
 	 * @param int           $post     Documento.
@@ -192,8 +193,19 @@ final class Pro_Convert {
 			}
 			return $contents[ $template ];
 		};
-		$rows             = array();
-		$data['elements'] = $globals::tree( $data['elements'], $resolver, $rows );
+		$rows = array();
+		if ( method_exists( $globals, 'link' ) && self::target_registered( 'digitalisimo-global' ) ) {
+			$read             = array();
+			$lookup           = static function ( int $template ) use ( $resolve, &$read ) {
+				if ( ! array_key_exists( $template, $read ) ) {
+					$read[ $template ] = call_user_func( $resolve, $template );
+				}
+				return $read[ $template ];
+			};
+			$data['elements'] = $globals::link( $data['elements'], $lookup, $rows );
+		} else {
+			$data['elements'] = $globals::tree( $data['elements'], $resolver, $rows );
+		}
 		foreach ( $rows as $row ) {
 			$entry = array( 'widget' => 'global', 'plantilla' => (int) $row['template'], 'elemento' => (string) $row['element'] );
 			if ( ! empty( $row['expanded'] ) ) {

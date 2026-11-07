@@ -19,10 +19,12 @@ defined( 'ABSPATH' ) || exit;
  *   autoguardados se cuentan aparte. En memoria sólo quedan los recuentos.
  * - La conversión toma sólo documentos que no son revisiones: los widgets de PRO siguen registrados, así que una
  *   revisión antigua se sigue viendo y, si se restaura, Migrar la convierte la próxima vez.
- * - Widget global (C9, `Convert\Globals` de Elements): antes de convertir, cada instancia se sustituye por el elemento
- *   guardado en su plantilla de la biblioteca (`template_content()` la lee del sitio); lo que queda dentro se convierte
- *   con los mapas en la misma pasada. La plantilla no se borra y `--revert` devuelve la instancia (copia original). Una
- *   instancia sin plantilla se queda como está y el informe lo dice (`pro.global_missing`).
+ * - Widget global (C9, `Convert\Globals` de Elements): cada instancia con plantilla válida pasa al widget global propio
+ *   (`digitalisimo-global`, `Globals::link()`), que sigue leyendo la plantilla al pintar: editarla cambia todas las
+ *   páginas que la usan, como en PRO. La plantilla, que es un documento de la biblioteca, la convierte la misma etapa;
+ *   nunca se borra, y `--revert` devuelve la instancia (copia original). Con una versión de Elements sin el widget global
+ *   propio, la instancia se sustituye por su contenido (`Globals::tree()`, como hasta 4.3.0.179). Una instancia sin
+ *   plantilla se queda como está y el informe lo dice (`pro.global_missing`).
  * - CSS del sitio que nombra clases de PRO (`Convert\Site_Css` de Elements; corrección de fidelidad de C5 y C6): en cada
  *   documento convertido, el CSS personalizado de la página y de los demás elementos; al terminar la etapa, el del kit
  *   activo y el CSS adicional del Personalizador (`site_css()`). Detrás de cada regla que nombra clases de PRO va su
@@ -60,6 +62,11 @@ final class Pro {
 	public static function reset(): void {
 		self::$ready     = null;
 		self::$templates = array();
+	}
+
+	/** Destino del widget global de PRO: el widget global propio (vinculado a su plantilla) o, sin él, su contenido. */
+	public static function global_target(): string {
+		return self::globals() && method_exists( self::GLOBALS, 'link' ) && false !== self::registered( 'digitalisimo-global' ) ? 'digitalisimo-global' : 'su contenido';
 	}
 
 	/** ¿Sustituye esta versión de Elements los widgets globales por su contenido? */
@@ -194,7 +201,10 @@ final class Pro {
 		$out       = $data;
 		if ( self::globals() ) {
 			$class = self::GLOBALS;
-			$out   = $class::tree( $data, array( __CLASS__, 'template_content' ), $globals );
+			// El widget global propio (si está registrado) conserva el vínculo con la plantilla; si no, su contenido.
+			$out   = 'digitalisimo-global' === self::global_target()
+				? $class::link( $data, array( __CLASS__, 'template_content' ), $globals )
+				: $class::tree( $data, array( __CLASS__, 'template_content' ), $globals );
 			foreach ( $globals as $i => $row ) {
 				if ( empty( $row['expanded'] ) ) {
 					$missing[] = $row;
@@ -647,7 +657,7 @@ final class Pro {
 		foreach ( (array) ( $state['widgets'] ?? array() ) as $type => $row ) {
 			$type     = (string) $type;
 			$family   = self::family( $type );
-			$target   = 'global' === $type && self::globals() ? 'su contenido' : (string) ( $ready[ $type ] ?? '' );
+			$target   = 'global' === $type && self::globals() ? self::global_target() : (string) ( $ready[ $type ] ?? '' );
 			$widgets[] = array(
 				'widget'            => $type,
 				'family'            => $family,

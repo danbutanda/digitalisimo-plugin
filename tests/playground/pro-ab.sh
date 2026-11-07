@@ -107,8 +107,8 @@
 #     `section`, publicada y con su CSS) con los elementos de `templates.<clave>` del caso, y da su ID (la Plantilla y
 #     sus sobrescrituras de F7b);
 #   - `"widget": "global"` con `global: { widgetType, settings }`: crea la plantilla de widget global, A con la instancia
-#     (`templateID` y la copia de los ajustes, como la guarda PRO) y B con `Globals::tree()` + `Converter::tree()` (lo
-#     que hacen «Migrar» y los kits);
+#     (`templateID` y la copia de los ajustes, como la guarda PRO) y B con `Globals::link()` (el widget global propio,
+#     vinculado a una copia de la plantilla con su contenido convertido: lo que hacen «Migrar» y los kits);
 #   - los widgets de Facebook: el arnés corta `connect.facebook.net` como todo otro origen, así que A pinta el plugin
 #     vacío y B la fachada; sus diferencias van declaradas en cada caso.
 # Fidelidad de los carruseles: en `actions`, `drag` (píxeles, negativo hacia la izquierda) arrastra con el ratón desde el

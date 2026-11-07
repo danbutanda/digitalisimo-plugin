@@ -171,7 +171,7 @@ final class Report {
 		'pro.unmapped'                 => 'Ajuste sin traducción declarada: revísalo en el widget propio',
 		'pro.target_missing'           => 'El widget propio no está disponible en este sitio: se conservó el original',
 		'pro.site_css'                 => 'CSS de la página, del kit o de un elemento que nombra clases de PRO: se añadió la misma regla con las clases de los widgets propios',
-		'pro.global'                   => 'Instancia del widget global sustituida por el elemento de su plantilla (la plantilla se conserva)',
+		'pro.global'                   => 'Instancia del widget global pasada al widget global propio, vinculada a su plantilla (la plantilla se conserva)',
 		'pro.global_missing'           => 'Instancia del widget global sin plantilla en este sitio: se conservó y no pinta nada',
 		'pro.error'                    => 'La conversión de un documento falló: se conservó tal como llegó',
 		'pro'                          => 'Widgets convertidos a widgets propios',

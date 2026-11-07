@@ -11,6 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Global_Widget extends Base_Widget {
+	/** DIGITALÍSIMO: los dos tipos de instancia global (el de PRO y el propio, `Digitalisimo_Global`). */
+	const GLOBAL_TYPES = [ 'global', 'digitalisimo-global' ];
+
 	/**
 	 * @var Widget_Base
 	 */
@@ -60,7 +63,7 @@ class Global_Widget extends Base_Widget {
 
 		// DIGITALÍSIMO: el original nunca es otro widget global (una plantilla cuyo contenido es una instancia
 		// global): se instanciaría a sí mismo sin fin y agotaría la memoria (etapa K, kits de terceros).
-		if ( ! is_string( $template_widget_type ) || '' === $template_widget_type || $this->get_name() === $template_widget_type ) {
+		if ( ! is_string( $template_widget_type ) || '' === $template_widget_type || in_array( $template_widget_type, self::GLOBAL_TYPES, true ) ) {
 			$this->template_data = null;
 
 			return false;
@@ -95,11 +98,11 @@ class Global_Widget extends Base_Widget {
 
 		// DIGITALÍSIMO: `originalWidgetType = global` (lo dejaba el guardado al recibir una instancia ya global)
 		// haría que el original fuera este mismo widget, y `get_controls()` se llamaría a sí mismo sin fin.
-		if ( $this->get_name() === $widget_type_name ) {
+		if ( in_array( $widget_type_name, self::GLOBAL_TYPES, true ) ) {
 			$widget_type_name = null;
 		}
 
-		if ( ! $widget_type_name && ! empty( $data['widgetType'] ) && $this->get_name() !== $data['widgetType'] ) {
+		if ( ! $widget_type_name && ! empty( $data['widgetType'] ) && ! in_array( $data['widgetType'], self::GLOBAL_TYPES, true ) ) {
 			$widget_type_name = $data['widgetType'];
 		}
 
@@ -261,7 +264,7 @@ class Global_Widget extends Base_Widget {
 
 	private function init_original_element_instance() {
 		// DIGITALÍSIMO: nunca se instancia a sí mismo como original (ver `resolve_original_widget_type_from_data()`).
-		if ( ! $this->original_widget_type || $this->get_name() === $this->original_widget_type->get_name() ) {
+		if ( ! $this->original_widget_type || in_array( $this->original_widget_type->get_name(), self::GLOBAL_TYPES, true ) ) {
 			return;
 		}
 

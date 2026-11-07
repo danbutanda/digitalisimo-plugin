@@ -1,6 +1,6 @@
 {
  "_doc": [
-  "Casos A/B del widget global (C9, frente R): A con una instancia del widget global de PRO (`widgetType: global` con `templateID` de una plantilla de widget que setup.php crea con `global`), B con la instancia sustituida por el elemento guardado (`Convert\\Globals`, el mismo id de la instancia) y convertida si es un widget de PRO con mapa listo."
+  "Casos A/B del widget global (C9, frente R): A con una instancia del widget global de PRO (`widgetType: global` con `templateID` de una plantilla de widget que setup.php crea con `global`), B con la instancia pasada al widget global propio (`digitalisimo-global`, `Convert\\Globals::link()`: el mismo id, vinculada a su plantilla, con su contenido convertido si es un widget de PRO con mapa listo; corrección de fidelidad, docs/pro/c9.md)."
  ],
  "declared": [],
  "cases": {

@@ -25,7 +25,11 @@
    "actions": [
     {
      "label": "clic sin producto",
-     "selector": "button"
+     "selector": "button",
+     "pixels": {
+      "max": 0.06,
+      "reason": "Mensaje de error por defecto en español («Algo salió mal.»), de otra longitud que el texto fijo en inglés de PRO (diferencia declarada 3). Mismo color y tipografía; el texto empieza donde en PRO, tras el aspa del núcleo y un espacio (corrección de fidelidad: el blanco antes del texto de la plantilla de PRO)."
+     }
     }
    ],
    "pixels": {

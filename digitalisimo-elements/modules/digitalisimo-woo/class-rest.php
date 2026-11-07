@@ -261,11 +261,11 @@ final class Rest {
 		if ( null === $element ) {
 			return null;
 		}
-		if ( 'widget' === ( isset( $element['elType'] ) ? $element['elType'] : '' ) && 'global' === ( isset( $element['widgetType'] ) ? $element['widgetType'] : '' ) ) {
+		if ( 'widget' === ( isset( $element['elType'] ) ? $element['elType'] : '' ) && in_array( isset( $element['widgetType'] ) ? $element['widgetType'] : '', array( 'global', 'digitalisimo-global' ), true ) ) {
 			$template = isset( $element['templateID'] ) ? (int) $element['templateID'] : 0;
 			$inner    = $template > 0 ? self::document_data( $template ) : null;
 			$first    = is_array( $inner ) ? reset( $inner ) : null;
-			if ( ! is_array( $first ) || 'widget' !== ( isset( $first['elType'] ) ? $first['elType'] : '' ) || 'global' === ( isset( $first['widgetType'] ) ? $first['widgetType'] : '' ) ) {
+			if ( ! is_array( $first ) || 'widget' !== ( isset( $first['elType'] ) ? $first['elType'] : '' ) || in_array( isset( $first['widgetType'] ) ? $first['widgetType'] : '', array( 'global', 'digitalisimo-global' ), true ) ) {
 				return null;
 			}
 			$first['digitalisimo_global'] = array(
