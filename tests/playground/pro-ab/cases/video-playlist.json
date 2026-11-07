@@ -409,6 +409,16 @@
      "kind": "palabra",
      "match": "^(\\[acción [^\\]]*\\] )?perdida «(sorry|your|browser|doesn|t|support|embedded)»$",
      "reason": "PRO escribe dentro de cada <video> que crea el texto en inglés «Sorry, your browser doesn't support embedded videos.» (el navegador no lo pinta; el arnés lo lee como texto)."
+    },
+    {
+     "kind": "nombre",
+     "match": "^nuevo button «Tab #\\d+»$",
+     "reason": "En el móvil, el título de cada panel interno es un botón (aria-expanded) que abre su panel; el título móvil de PRO (.e-tab-mobile-title) era un div sin rol que no alcanzaba el teclado. Mismo texto y mismo aspecto."
+    },
+    {
+     "kind": "nombre",
+     "match": "^nuevo none «»$",
+     "reason": "En el móvil la fila de pestañas internas se oculta (display:none, como .e-inner-tabs-wrapper de PRO): Chrome devuelve sus botones role=tab sin rol ni nombre, y en PRO eran enlaces sin destino que el arnés no recoge."
     }
    ]
   },

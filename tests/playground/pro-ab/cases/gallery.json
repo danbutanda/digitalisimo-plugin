@@ -1138,15 +1138,14 @@
    ]
   },
   "gal-custom-grid": {
-   "title": "Cuadrícula con «Personalizado» de 300 × 300 y proporción 3:2: el recorte cuadrado exacto del núcleo (uploads/elementor/thumbs/), como PRO, no el archivo de 1 200 × 800 con srcset",
+   "title": "Cuadrícula con «Personalizado» de 300 × 300 y proporción 3:2: el recorte cuadrado exacto del núcleo (uploads/elementor/thumbs/), como PRO, no el archivo de 1 200 × 800 con srcset (3 imágenes, como gal-defaults: a 375 px el widget cabe en la pantalla y la captura no cambia el alto de la ventana, que hace que la librería de PRO vuelva a colocar las imágenes bajo el puntero)",
    "widget": "gallery",
    "settings": {
     "gallery": {
      "$gallery": [
       1,
       2,
-      3,
-      4
+      3
      ]
     },
     "lazyload": "",
