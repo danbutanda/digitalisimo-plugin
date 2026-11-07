@@ -76,7 +76,8 @@ try {
 			$out['nav_children'][ $e['id'] ] = array_map( static function ( $c ) { return $c['id'] . ':' . $c['elType']; }, (array) ( $e['elements'] ?? array() ) );
 		}
 	}
-	// C9: el elemento que sustituye a cada instancia global (ajustes de la plantilla, plantilla de origen y clase de PRO).
+	// C9: cada instancia global (el widget global propio con su `templateID`; `_digitalisimo_global` y la clase, sólo con la
+	// sustitución por el contenido de un Elements anterior).
 	$sdata = json_decode( (string) get_post_meta( (int) ( $ids['services'] ?? 0 ), '_elementor_data', true ), true );
 	foreach ( (array) ( $sdata[0]['elements'] ?? array() ) as $e ) {
 		$out['services'][ $e['id'] ] = array( 'type' => $e['widgetType'] ?? '', 'templateID' => $e['templateID'] ?? null, 'global' => $e['settings']['_digitalisimo_global'] ?? null, 'classes' => $e['settings']['_css_classes'] ?? '', 'title' => $e['settings']['title'] ?? ( $e['settings']['blockquote_content'] ?? '' ), 'overrides' => isset( $e['settings']['digitalisimo_overrides'] ) ? count( (array) $e['settings']['digitalisimo_overrides'] ) : null, 'template_id' => $e['settings']['template_id'] ?? null );
