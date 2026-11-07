@@ -4,7 +4,7 @@
 // - Carrusel multimedia, «Coverflow»: cada diapositiva del motor `digi-crs` con `carousel-3d.css|js` queda donde la pinta
 //   el `coverflowEffect` de Swiper (rectángulo proyectado, orden de pintado y opacidad de sus dos sombras), sin centrar,
 //   al cargar y tras avanzar, con y sin bucle; el efecto «Cubo», la cara visible y la sombra bajo el cubo (píxeles), y las
-//   caras a mitad del giro.
+//   caras a mitad del giro; los dos también en RTL.
 // - «Carga diferida»: el aro de `swiper-lazy-preloader` (42 px, borde de 4 px #007aff con el superior transparente, girando
 //   1 s) en el centro de la diapositiva mientras la imagen carga; se retira al cargar o al fallar, también si ya había
 //   cargado antes del script (`carousel-lazy.css|js`).
@@ -15,8 +15,9 @@
 //   y las reglas de «Tamaño» de la imagen) con `pro_bubble`, en LTR y RTL; sin él, apunta a la imagen.
 // - Reseñas convertidas: los caracteres de eicons con la hoja de recorte de PRO (`widget-star-rating.min.css`), con la
 //   fuente cargada y sin ella.
-// Cada comparación falla con el código anterior (sin `data-digi-fx`, sin indicador, con la transición, recortando el
-// fondo, con el pico hacia la imagen o con la estrella SVG). Sin Chrome o sin puppeteer-core, se salta con un aviso.
+// Cada comparación falla con el código anterior (sin `data-digi-fx`, con las sombras del cubo al revés en RTL, sin
+// indicador, con la transición, recortando el fondo, con el pico hacia la imagen o con la estrella SVG). Sin Chrome o
+// sin puppeteer-core, se salta con un aviso.
 // CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 240 node tests/elements-carousel-fidelity-chrome.mjs
 import assert from 'node:assert/strict';
@@ -173,6 +174,37 @@ const show = (g) => g.map((s) => `[${Math.round(s.x)},${Math.round(s.y)} ${Math.
       await page.evaluate((t, W) => { window.sw.setTranslate(-t * W); document.querySelector('#b>.digi-crs__track').scrollLeft = t * W; }, t, W);
       await frames(page);
       await cube(`Cubo a ${t * 100} % del giro`, 0.01, 0.005, 32);
+    }
+    await page.close();
+  }
+  // RTL (`dir="rtl"` en la página, como un sitio en árabe o hebreo; el motor pone además `dir` en la pista): el
+  // coverflow, con y sin bucle, queda donde lo pinta Swiper; en el cubo la siguiente cara entra por la izquierda y las
+  // sombras de las caras siguen el `progress` de Swiper, que no cambia de signo en RTL (la distancia al centro sí).
+  for (const loop of [false, true]) {
+    const page = await open(fxPage(swiperBox('a', 5) + ownBox('b', 5, 'coverflow', { loop })) + `<script>window.sw=new Swiper('#a',{slidesPerView:3,slidesPerGroup:1,spaceBetween:10,loop:${loop},speed:0,effect:'coverflow',grabCursor:true});</script>`, { rtl: true });
+    await page.waitForFunction(() => document.querySelector('.digi-crs--ready'));
+    await frames(page);
+    for (const step of [0, 1, 2]) {
+      if (step) { await page.evaluate((s) => { window.sw.slideNext(0); document.getElementById('b').digiCrs.go(s); }, step); await frames(page); }
+      const [a, b] = [await geometry(page, '#a', false), await geometry(page, '#b', true)];
+      ok(a.length >= 3 && near(a, b), `RTL · Coverflow${loop ? ' con bucle' : ''}, diapositiva ${step + 1}: como Swiper.\n  PRO  ${show(a)}\n  propio ${show(b)}`);
+    }
+    await page.close();
+  }
+  {
+    const page = await open(`<style>${CSS.swiper}${CSS.engine}${CSS.media}${CSS.fx}</style>` + swiperBox('a', 4) + ownBox('b', 4, 'cube') + `<script>${JS.swiper}</script><script>${JS.fx}</script><script>window.sw=new Swiper('#a',{slidesPerView:1,spaceBetween:10,loop:false,speed:0,effect:'cube'});</script>`, { rtl: true });
+    await frames(page);
+    const rect = (sel) => page.evaluate((sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top) }; }, sel);
+    const [ra, rb] = [await rect('#a'), await rect('#b')];
+    const zone = (r, top, height) => ({ x: r.x, y: r.y + top, width: W, height });
+    for (const t of [0, 0.25, 0.5, 0.8]) {
+      // Swiper en RTL: `setTranslate(−x)` deja `translate = x` (hacia la izquierda); la pista propia, `scrollLeft` negativo.
+      await page.evaluate((t, W) => { window.sw.setTranslate(-t * W); document.querySelector('#b>.digi-crs__track').scrollLeft = -t * W; }, t, W);
+      await frames(page);
+      const f = await diff(page, zone(ra, 0, H), zone(rb, 0, H));
+      ok(f.count <= f.total * (t ? 0.01 : 0.001), `RTL · Cubo a ${t * 100} % del giro: las caras y sus sombras, como Swiper (${f.count} píxeles distintos de ${f.total}).`);
+      const d = await diff(page, zone(ra, H + 32, 108), zone(rb, H + 32, 108));
+      ok(d.count <= d.total * 0.005, `RTL · Cubo a ${t * 100} % del giro: la sombra bajo el cubo, como Swiper (${d.count} píxeles distintos de ${d.total}).`);
     }
     await page.close();
   }
