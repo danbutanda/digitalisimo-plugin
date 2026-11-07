@@ -102,9 +102,9 @@ if(price)money(form);
 };
 const scan=root=>Q(root,'form.digi-filter').forEach(init);
 // Con el núcleo, en element_ready (sus `hooks` existen desde init(), que avisa con elementor/frontend/init) y, por si
-// algún widget no lo recibe, al cargar la página; sin el núcleo, al estar el DOM.
+// algún widget no lo recibe, al cargar la página (tras init(): `load` puede llegar antes); sin el núcleo, al estar el DOM.
 let bound=0;
 const bind=()=>{if(bound||!fe.hooks)return;bound=1;['woo-price-filter','woo-attribute-filter','loop-search','loop-meta-filter','loop-orderby','loop-per-page'].forEach(n=>fe.hooks.addAction(`frontend/element_ready/digitalisimo-${n}.default`,$s=>scan($s[0]||$s)))};
-if(fe){bind();if(!bound)w.addEventListener('elementor/frontend/init',bind);w.addEventListener('load',()=>scan(d))}
+if(fe){bind();if(!bound)w.addEventListener('elementor/frontend/init',bind);w.addEventListener('load',()=>fe.hooks?scan(d):w.addEventListener('elementor/frontend/init',()=>setTimeout(()=>scan(d))))}
 else if(d.readyState==='loading')d.addEventListener('DOMContentLoaded',()=>scan(d));else scan(d);
 })(window,document);

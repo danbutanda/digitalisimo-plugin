@@ -209,7 +209,7 @@ const PAGE = `<div data-elementor-id="10" class="elementor elementor-10">${loopH
 
 // ---------------------------------------------------------------------------------------------------------------
 // Entorno: relojes falsos, fetch controlable, historia, núcleo y módulo de PRO.
-function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false, lateHooks = false, proLate = false } = {}) {
+function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false, lateHooks = false, proLate = false, loadFirst = false, noReady = false, oursFirst = false } = {}) {
   const doc = makeDocument(html);
   let now = 0; const timers = [];
   const setTimeout = (fn, ms = 0) => { const t = { fn, at: now + ms, id: timers.length + 1 }; timers.push(t); return t.id; };
@@ -266,19 +266,26 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '', ignor
       ctx.elementorProFrontend = proFrontend;
       doc.listeners.filter((l) => l.type === 'DOMContentLoaded').forEach((l) => l.fn(new Ev('DOMContentLoaded')));
     }
+    // `loadFirst`: Chrome despacha `load` antes que el `jQuery(fn)` del núcleo (que llama a init() en un temporizador)
+    // cuando la página no tiene nada pendiente.
+    if (loadFirst) (winListeners.load || []).forEach((fn) => fn(new Ev('load')));
     // init(): crea `hooks` y despacha elementor/frontend/init. En Chrome, el oyente de PRO (jQuery, registrado antes)
     // corre primero y crea los módulos; los oyentes nativos de los nuestros, después.
+    // `oursFirst`: los oyentes nativos de los nuestros corren antes que el de PRO (si un script nuestro se evaluara
+    // antes que el de PRO); nada debe depender de ese orden.
     elementorFrontend.hooks = hooks;
+    const ours = () => (winListeners['elementor/frontend/init'] || []).forEach((fn) => fn(new Ev('elementor/frontend/init')));
+    if (oursFirst) ours();
     proFrontend.trigger('elementor-pro/modules/init/before');
     proFrontend.modules.taxonomyFilter = new (hooks.applyFilters('elementor-pro/frontend/handlers', {}).taxonomyFilter)();
-    (winListeners['elementor/frontend/init'] || []).forEach((fn) => fn(new Ev('elementor/frontend/init')));
+    if (!oursFirst) ours();
   } else {
     hooks.addFilter('elementor-pro/frontend/handlers', extend, 10);
     const handlers = hooks.applyFilters('elementor-pro/frontend/handlers', {});
     ctx.elementorProFrontend = { modules: { taxonomyFilter: new handlers.taxonomyFilter() } };
   }
-  // El núcleo inicia cada widget con su element_ready.
-  doc.querySelectorAll('[data-widget_type]').forEach((el) => hooks.doAction('frontend/element_ready/' + el.getAttribute('data-widget_type'), [el]));
+  // El núcleo inicia cada widget con su element_ready (`noReady`: ninguno lo recibe, como medido en Chrome con WooCommerce).
+  if (!noReady) doc.querySelectorAll('[data-widget_type]').forEach((el) => hooks.doAction('frontend/element_ready/' + el.getAttribute('data-widget_type'), [el]));
   const popstate = () => (winListeners.popstate || []).forEach((fn) => fn(new Ev('popstate')));
   return { doc, ctx, tick, fetches, pushes, location, proCalls, mod: ctx.elementorProFrontend.modules.taxonomyFilter, filters, ready, popstate, LoopFilter };
 }
@@ -347,6 +354,31 @@ for (const proLate of [false, true]) {
   box.dispatchEvent(new Ev('change'));
   await e.tick(300);
   assert.equal(e.fetches.length, 1, 'La casilla refresca el bucle por AJAX.');
+}
+
+// 1c · `load` antes que init() (corrección de fidelidad, kit de R1 con WooCommerce): el repaso de `load` espera a que
+// init() termine. Antes iniciaba los formularios con el Loop Grid de PRO aún sin coordinar, así que el de atributo
+// mostraba «Aplicar» y, tras convertir la cuadrícula a la propia (que se coordina sin PRO), no. Ahora los dos son «en
+// vivo», con element_ready o sin él (el repaso tardío), y también si nuestro oyente de init() corre antes que el de PRO
+// (por eso el repaso espera un turno: init() termina antes).
+for (const [own, noReady, oursFirst] of [[false, false, false], [false, true, false], [true, false, false], [true, true, false], [false, true, true]]) {
+  const html = own ? PAGE.split('elementor-widget-loop-grid').join('elementor-widget-digitalisimo-loop-grid') : PAGE;
+  const e = env({ html, lateHooks: true, loadFirst: true, noReady, oursFirst });
+  const attr = e.doc.querySelector('.elementor-element-f000002 form');
+  const tag = `(${own ? 'Cuadrícula propia' : 'Loop Grid de PRO'}, ${noReady ? 'sin' : 'con'} element_ready${oursFirst ? ', nuestro oyente antes que el de PRO' : ''})`;
+  assert.ok(attr.getAttribute('data-digi-ready') === (noReady ? null : '1'), `Con \`load\` antes que init(), el formulario no se inicia antes de init() ${tag}.`);
+  await e.tick(0);
+  assert.ok(attr.getAttribute('data-digi-ready') === '1', `El repaso de \`load\` inicia el formulario tras init() ${tag}.`);
+  assert.ok(attr.classList.contains('digi-filter--live'), `El filtro de atributo es «en vivo» y oculta «Aplicar» ${tag}.`);
+  const price = e.doc.querySelector('.elementor-element-f000001 form');
+  assert.ok(!price.classList.contains('digi-filter--live'), `El de precio con «Aplicar» conserva su botón ${tag}.`);
+  if (!own) {
+    const box = attr.querySelector('input[value="rojo"]');
+    box.checked = true;
+    box.dispatchEvent(new Ev('change'));
+    await e.tick(300);
+    assert.ok(e.fetches.length === 1, `La casilla refresca el bucle por AJAX ${tag}.`);
+  }
 }
 
 // 2 · Precio: submit, aria-busy, inserción, región viva, foco; respuesta vieja descartada; abort.
