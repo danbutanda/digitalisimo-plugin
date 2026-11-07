@@ -8,7 +8,7 @@
  * marcado y las clases son propios (motor `digi-crs`, sin Swiper ni la fuente de iconos de las estrellas): la opción
  * `star_fontawesome` de PRO pinta ahora la estrella propia en SVG, con las mismas medidas y colores.
  *
- * Aproximaciones: las del motor (la carga diferida es la nativa; el bucle es real desde la corrección de fidelidad).
+ * Aproximaciones: ninguna desde la corrección de fidelidad (bucle real, indicador de la carga diferida).
  * Diferencias sin clave propia: el icono social es decorativo (PRO le ponía `aria-label="Read More"`), la valoración
  * tiene nombre accesible y una valoración con más de un decimal se recorta a la décima (PRO pintaba la estrella
  * entera). Formato: cabecera de `class-translator.php`.
@@ -127,9 +127,6 @@ return array(
 		'effect'              => 'PRO quita el efecto de este widget (siempre desliza): un valor guardado no tenía efecto.',
 		'height'              => 'PRO quita la altura de este widget: un valor guardado no tenía efecto.',
 		'pagination_position' => 'PRO quita la posición de la paginación de este widget (va siempre debajo): un valor guardado no tenía efecto.',
-	),
-	'approx'    => array(
-		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
 	'repeaters' => array(
 		'slides' => array(

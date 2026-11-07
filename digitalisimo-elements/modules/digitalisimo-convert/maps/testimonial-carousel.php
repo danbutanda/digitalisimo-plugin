@@ -124,9 +124,6 @@ return array(
 		'height'              => 'PRO quita la altura de este widget: un valor guardado no tenía efecto.',
 		'pagination_position' => 'PRO quita la posición de la paginación de este widget (va siempre debajo): un valor guardado no tenía efecto.',
 	),
-	'approx'    => array(
-		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
-	),
 	'repeaters' => array(
 		'slides' => array(
 			'target'       => 'slides',

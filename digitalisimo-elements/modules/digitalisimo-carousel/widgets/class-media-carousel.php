@@ -205,7 +205,7 @@ class Media_Carousel extends Base_Widget {
 		$video   = 'video' === $type ? trim( (string) ( $slide['video']['url'] ?? '' ) ) : '';
 		$link_to = $thumbs ? '' : $this->link_to( $slide, $type );
 		$image   = $this->media_image( $slide, $settings, $type, $video );
-		$inner   = '<div class="digi-media-carousel__image">' . $image;
+		$inner   = '<div class="digi-media-carousel__image">' . $image . ( '' !== $image ? self::preloader( $settings ) : '' );
 		if ( 'video' === $type && ! $thumbs ) {
 			$inner .= '<span class="digi-media-carousel__play">' . self::PLAY . '<span class="elementor-screen-only">' . esc_html__( 'Reproducir el vídeo', 'pro-elements' ) . '</span></span>';
 		}

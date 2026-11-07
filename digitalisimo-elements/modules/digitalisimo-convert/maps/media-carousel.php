@@ -116,7 +116,6 @@ return array(
 	'approx'    => array(
 		'skin'     => 'Sólo «Coverflow» se aproxima: se pinta con la diapositiva actual centrada y sin el giro ni la profundidad 3D de Swiper («Carrusel» y «Slideshow» no cambian).',
 		'effect'   => 'El efecto «Cubo» se pinta como un deslizamiento de una diapositiva: el motor propio no tiene el giro 3D de Swiper.',
-		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
 	// Icono de reproducir: PRO pintaba `eicon-play` con `Icons_Manager`, y su tamaño y su sombra sólo apuntaban a la fuente
 	// (`.elementor-custom-embed-play i`). Con los iconos como SVG en línea (`e_font_icon_svg`, activo por defecto desde

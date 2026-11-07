@@ -773,7 +773,7 @@ class Reviews extends Base_Widget {
 			echo '<' . $tag . ' ' . $this->get_render_attribute_string( $key ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Etiqueta fija y atributos escapados por el núcleo.
 			$image = $has_img ? $this->get_slide_image( $slide, $settings ) : '';
 			if ( '' !== $image ) {
-				echo '<div class="digi-review__image">' . $image . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
+				echo '<div class="digi-review__image">' . $image . self::preloader( $settings ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
 			}
 			if ( '' !== $name || '' !== $title ) {
 				echo '<cite class="digi-review__cite">';

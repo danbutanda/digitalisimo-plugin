@@ -692,7 +692,7 @@ class Testimonial_Carousel extends Base_Widget {
 		}
 		echo '<div class="digi-testimonial__footer">';
 		if ( '' !== $image ) {
-			echo '<div class="digi-testimonial__image">' . $image . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
+			echo '<div class="digi-testimonial__image">' . $image . self::preloader( $settings ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_slide_image() escapa.
 		}
 		echo $outside ? '' : $cite; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cite() escapa.
 		echo '</div></div>';
