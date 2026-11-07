@@ -151,13 +151,13 @@ En «agregar» se saltan además los runners v4 (`global-variables`, `global-cla
 
 | Nombre | Qué cambia |
 |---|---|
-| `site-settings` | Escribe en el kit activo con `$kit->save()` (kses y ganchos de guardado), sin identidad, sin tema y sin experimentos. En «nuevo» importa antes los medios de los ajustes del kit; en «agregar» sólo añade colores y tipografías |
+| `site-settings` | Escribe en el kit activo con `$kit->save()` (kses y ganchos de guardado), sin identidad, sin tema y sin experimentos. En «nuevo» importa antes los medios de los ajustes del kit; en «agregar» sólo añade colores y tipografías. Los ajustes con referencia del kit (las páginas de WooCommerce) nunca se guardan aquí: en «nuevo» los aplica traducidos la parte `kit-settings` en la petición final y en «agregar» se informan (§18) |
 | `plugins` | Sólo informa. Ejecuta `Early_Part::import_early()` (§10) |
 | `templates` | Procedencia antes de crear. Un tipo de documento no registrado entra como plantilla `section` con `_digitalisimo_original_type` |
 | `elementor-content` | Procedencia. El contenido de tipos de entrada que el sitio no tiene entra como plantilla `section` en borrador |
 | `taxonomies` | Menús del mismo kit sin crear `-duplicate`; taxonomías inexistentes informadas |
 | `floating-elements` | En «agregar», condiciones sólo en los importados (el nativo borra las de todos) |
-| `woocommerce-settings` | En «agregar», informa sin cambiar las páginas de WooCommerce |
+| `woocommerce-settings` | En «agregar», informa sin cambiar las páginas de WooCommerce; la página del kit se busca en todo lo importado (`Finish::post_map()`, también el WXR) |
 | `elements-default-values` | Parte `element-defaults`: reemplaza en «nuevo» y fusiona por tipo en «agregar» |
 
 El runner final `digitalisimo` (prioridad `PHP_INT_MAX`) importa las partes en la petición final, antes de guardar los documentos, anota el tipo original que traiga `manifest.templates[*].original_type` en lo que haya creado cualquier runner, y en `after-run` escribe la procedencia, aplica las condiciones cerradas del Theme Builder y de Custom Code, deja en borrador lo que debe revisarse, limpia la caché de archivos, recalcula los marcadores, cierra el informe y dispara `digitalisimo_elements_kit_imported`.
@@ -209,6 +209,9 @@ El runner final `digitalisimo` (prioridad `PHP_INT_MAX`) importa las partes en l
 | element · `digitalisimo-woo-my-account` (C7, por el filtro, en `Woo\Kit\Module`) | `customize_dashboard_select` | template |
 | element · `digitalisimo-woo-categories` (C7, ídem) | `categories.*`; `parent` | term |
 | element · `digitalisimo-woo-products-classic` y `wc-products` (C7, ídem) | consulta antigua `posts`: `posts_posts_ids.*`; `posts_authors.*`; `posts_<taxonomía>_ids.*` (categorías, etiquetas, marcas y los atributos `pa_*` del sitio) | post; user; term |
+| element · `digitalisimo-woo-add-to-cart` y `wc-add-to-cart` (C7, ídem) | `product_id`, con `export` (su `on_export()` lo quita, como PRO) | post, con `never` |
+| element · `digitalisimo-woo-products` y `woocommerce-products` (C7, ídem) | `query_posts_ids.*`, con `export` (el grupo de consulta lo marca `export => false`, como PRO) | post, con `never` |
+| document · `kit` | `woocommerce_shop_page_id`, `_cart_`, `_checkout_`, `_myaccount_`, `_terms_` y `_purchase_summary_page_id` (pestaña WooCommerce de los ajustes del sitio, que su `on_save()` copia a las opciones) | post, aplicadas en la petición final de «nuevo» (§18) |
 | element · `digitalisimo-google-reviews` | `google_place_id` | `note:google_places` |
 | element · `*` | reglas de visibilidad (`digitalisimo_visibility_rules.*`: entradas, página, usuario, términos) | post, user o term, con `gate` |
 | element · `*` | `e_display_conditions` | `conditions`: cada condición se resuelve con `scope = condition` |
@@ -281,7 +284,7 @@ interface Early_Part extends Part {          // corre en el runner `plugins`, an
 ```
 
 - **Partes** (`Parts`, filtro `digitalisimo_elements_kit_parts`). Las de K van primero, en este orden: `origin`, `element-defaults`, `kit-settings`, `files`, `media`, `theme-builder` y `term-meta`; después, las del filtro, por clave. El filtro recibe las de K indexadas por clave y devuelve instancias de `Part` o nombres de clase con constructor sin argumentos. Una clave inválida, repetida o reservada (`urls`), una versión menor que 1 o una meta de kit con nombre inválido se rechazan con `_doing_it_wrong()`. Se instancian una vez por petición: hay que engancharse en `init` o antes.
-- **Referencias** (`References`, filtro `digitalisimo_elements_kit_references`). Cada entrada, con claves o posicional, es `scope`, `type`, `path`, `kind` y, opcionales, `gate` y `never`:
+- **Referencias** (`References`, filtro `digitalisimo_elements_kit_references`). Cada entrada, con claves o posicional, es `scope`, `type`, `path`, `kind` y, opcionales, `gate` y `never` (y, sólo por nombre, `taxonomies` en `term_meta`, §16, y `export` en un elemento, §18):
   - `scope`: `element`, `document`, `condition`, `post_meta` o `term_meta` (en las dos últimas, `type` es la clave de la meta);
   - `kind`: `post`, `template`, `term`, `menu`, `menu_slug`, `user` (nunca tiene destino), `attachment`, `url`, `media-url`, `css`, `html` (enlaces e imágenes de un texto enriquecido), `media` (`{ id, url }` de un control de medios o una galería), `file`, `element` (ID de elemento del mismo documento), `conditions` (un JSON de condiciones de visualización, como `e_display_conditions`, que se resuelve con las referencias de `scope = condition`), `note:<código>` o `map:<nombre>`;
   - `gate`: la referencia decide quién ve algo o dónde se aplica; por defecto es verdadero en `scope = condition` y en `kind = conditions`;
@@ -383,3 +386,54 @@ El programa «sin widgets de PRO» ([PRO_WIDGETS_OBJECTIVE.md](../PRO_WIDGETS_OB
 - **Prueba.** `tests/elements-kit-pro-convert.php`: sin el núcleo, documento idéntico; con el mapa real de la Cita, conversión a cualquier profundidad con el mismo `id`, códigos con su sección y su texto, idempotencia, borradores ignorados, `pro.target_missing`, `Context::preserve()` con el informe de la sesión y `pro.error`; sólo `Context` llama a la conversión y exportar no la usa; la referencia de `digitalisimo-slides`. En `kit-roundtrip.sh`, la página «Cita de PRO» de `cases.json` (dos Blockquote de PRO, uno anidado, con CSS personalizado) llega a B como Cita; `known.json` declara esas diferencias de la firma en R1 y R1c.
 - **Widget global (C9).** En `Context::remap()`, después del remapeo de la petición final (prioridad 20, sólo documentos de la sesión), cada instancia del widget global de PRO (`widgetType: global`, `templateID` ya del sitio) pasa al widget global propio (`digitalisimo-global`, `Convert\Globals::link()`; corrección de fidelidad de C9, `docs/pro/c9.md`): conserva su id, su `templateID` y sus ajustes y sigue leyendo su plantilla al pintar, como el de PRO; la plantilla, un documento más del kit, se convierte al guardarse. Con un núcleo de conversión sin `link()` o sin el widget propio registrado, la instancia pasa a ser el elemento guardado en su plantilla de widget (`Globals::tree()`, con el id de la instancia; el contenido, convertido con los mapas listos, una vez por plantilla y documento), como hasta 4.3.0.179. `Context::global_template()` lee la plantilla local y, si es de la sesión y aún no se remapeó en la petición, la remapea en memoria sin escribirla. Sin plantilla (no viajó o su remapeo falló cerrado), la instancia se queda y se informa `pro.global_missing` (aviso). Como el resto de §17, sólo los documentos de la sesión: ni plantillas sueltas ni revisiones. **Al exportar**, el widget global de PRO ya sale como una copia del contenido de su plantilla (`on_export()` de `E:modules/global-widget/widgets/global-widget.php`), así que un kit exportado por Elements no lleva instancias (tampoco las del widget global propio, que hereda `on_export()`): el paso de K actúa en los kits que las conservan. Como esa copia es de otro tipo de widget, `Export\Documents::restore_ids()` no casaba el árbol y el documento entero salía con ids aleatorios (REST ≠ WP-CLI en A1): ahora repone el id de la instancia, el mismo que le da `Convert\Globals`, y da ids estables a los hijos del contenido. Prueba: `tests/elements-kit-pro-global.php` (§5, la exportación); en `kit-roundtrip.sh`, la página «Widget global de PRO» con su plantilla de widget en `cases.json`.
 - **Plantilla (C9).** El widget Plantilla de PRO llega como Plantilla propia (`digitalisimo-template`) por el mapa listo; su `template_id` lo traduce el núcleo como antes (`on_import_update_dynamic_content()`) y las referencias de las sobrescrituras de F7b (`digitalisimo_overrides.*.{image,link.url,html}`) valen para los dos tipos, sin otra línea en K.
+
+## 18. Corrección de K de la ronda de fidelidad: valores que la exportación quita y ajustes del kit con referencias
+
+La prueba de kits R1 con WooCommerce (`WOO=1`, sobre `main@10739985`) encontró tres pérdidas que no eran conversiones
+de PRO: el producto del «Añadir al carrito personalizado», la selección manual de los Productos y las páginas de la tienda
+de los ajustes del kit. Las dos primeras las quita la exportación antes de que K vea el árbol; la tercera llegaba sin
+traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de WooCommerce se declara con el registro
+(§10): K no nombra un widget ni una opción de WooCommerce fuera de sus referencias integradas.
+
+- **`export` en una referencia de elemento.** Una referencia de `scope = element`, para un tipo concreto (nunca `*`) y de
+  un `kind` con destino (`post`, `template`, `term`, `menu`, `menu_slug` o `attachment`: nunca `user`, que no viaja, ni
+  `element`), puede llevar por nombre `'export' => true`. `References::normalize()` la valida (cualquier otro uso, o un
+  valor que no es booleano, se rechaza con `_doing_it_wrong()`) y sólo añade la clave cuando es verdadera, así que sin
+  ella el índice tiene la forma de siempre. `References::exported( $type )` da sus claves de primer nivel y
+  `Export\Documents::restore_ids()`, que ya recorría en paralelo el árbol exportado y el guardado para reponer los IDs
+  de elemento, repone en cada nodo lo que su exportación quitó: el `on_export()` del elemento (el «Add to Cart» de PRO y
+  el propio quitan `product_id`) o un control con `export => false` (la selección manual `*_posts_ids` del grupo de
+  consulta de PRO). Sólo lo que falta en lo exportado y existe en lo guardado; lo demás no cambia, y lo que otro
+  elemento quita por seguridad (los webhooks de un formulario) sigue fuera porque nadie lo declara. Fuera de un kit (una
+  plantilla suelta de la biblioteca) la exportación es la de PRO.
+- **Ajustes del kit con referencias (`scope = document`, `type = kit`).** El runner `site-settings` corre en la primera
+  petición, sin mapas, y guardaba los ajustes del kit con `$kit->save()`: el `on_save()` de la pestaña WooCommerce
+  copiaba a `woocommerce_*_page_id` los IDs del origen. Ahora aparta las claves que tienen una referencia declarada para
+  el kit (`References::kit_settings_keys()`):
+  - en «nuevo» quedan en la sesión (`kit_deferred`) y la parte `kit-settings`, en la petición final, las traduce con el
+    remapeo y las guarda con el guardado del kit (`Site_Settings::save_kit()`), así que el `on_save()` copia al sitio
+    los IDs del destino. Sin destino quedan vacías y se informa `unresolved`; nunca queda un ID del origen. Si el kit
+    activo cambió entre peticiones no se aplica nada (`kit-settings.kit_changed`);
+  - en «agregar» no se aplican nunca, ni con «Aplicar los ajustes del kit» (no quedan en `backup.kit_settings`), y se
+    informa `settings.reference_kept`: el sitio conserva su elección. El runner `woocommerce-settings` de K informa la
+    página que trae el kit buscándola en todo lo importado (`Finish::post_map()`, también el WXR, por donde llegan las
+    páginas de WooCommerce), no sólo en las del constructor.
+- **Referencias integradas nuevas:** las seis páginas de la pestaña WooCommerce (`woocommerce_shop_page_id`, `_cart_`,
+  `_checkout_`, `_myaccount_`, `_terms_` y `_purchase_summary_page_id`) como `document · kit · post`, sin `never`
+  (vacía, WooCommerce no tiene esa página). Viven en K porque la pestaña es de Elements y se aplican también sin
+  WooCommerce activo.
+- **Quién usa `export`:** F4-Woo/C7 (`Woo\Kit\Module`, por el filtro): `product_id` del «Añadir al carrito
+  personalizado» (`digitalisimo-woo-add-to-cart` y `wc-add-to-cart`) y `query_posts_ids.*` de los Productos
+  (`digitalisimo-woo-products` y `woocommerce-products`), con `never`: vacío sería el producto de la página o todos los
+  productos. El widget de PRO se declara porque un kit exportado desde Elements puede llevarlo aún sin migrar y K lo
+  convierte al importar (§17).
+- **Límites.** `export` repone sólo claves de primer nivel (no un campo dentro de un repetidor). La reversión de «nuevo»
+  devuelve los ajustes del kit con su guardado, así que las páginas que el kit del sitio tenía antes vuelven a las
+  opciones; una página que el kit del sitio no tenía (la tienda, que el sitio no sincroniza al kit) queda como la dejó la
+  importación. Los demás controles del grupo de consulta con `export => false` (términos, autores y exclusiones) siguen
+  sin viajar, como en PRO, salvo que una etapa los declare.
+- **Prueba.** `tests/elements-kit-woo-refs.php` (en `validate.yml` y `release.yml`), que falla con el código anterior de
+  cada pieza: validación de `export`, la exportación con y sin las declaraciones, la traducción con el valor que nunca
+  coincide, `site-settings` en los dos modos con el `on_save()` real de la pestaña, la parte `kit-settings` en la
+  petición final y el informe de «agregar». En `kit-roundtrip.sh`, `cases.json` («woo.kit_pages») pone las páginas de la
+  tienda en los ajustes del kit de A y la firma las nombra (`signature.php`).
