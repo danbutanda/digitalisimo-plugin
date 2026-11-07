@@ -7,7 +7,11 @@
      queda donde lo deja PRO;
    - la paginación de los pedidos;
    - «Métodos de pago»: el botón «Añadir método de pago», fuera de la tabla, como botón de tabla, y sus campos;
-   - «Añadir método de pago»: la caja del pago, su lista y su botón. */
+   - «Añadir método de pago»: la caja del pago, su lista y su botón;
+   - las tablas de 768 px o menos: `woocommerce-smallscreen.css` pinta franjas en las filas pares y quita el borde
+     superior a la primera celda con más peso que las reglas de tabla de la segunda hoja; PRO las vence con su prefijo
+     (`.e-my-account-tab:not(…) .woocommerce`), así que aquí van dos reglas que pesan más sólo en esos dos casos;
+   - las acciones de «Métodos de pago» al final de su celda, como PRO. */
 .digi-acc-select2 .select2-results__option{
 	color:#69727d;
 	font-family:Roboto,sans-serif;
@@ -105,4 +109,13 @@
 		color:var(--da-fbhtc,#fff);
 		transition-duration:var(--da-fbhtd,.3s)
 	}
+}
+.digi-acc-s .woocommerce .shop_table_responsive tbody tr:nth-child(2n) :is(td,th){
+	background-color:transparent
+}
+.digi-acc-s .woocommerce .shop_table_responsive tbody tr:first-child :is(td,th):first-child{
+	border-top:var(--da-tdbw,1px) var(--da-tdbt,solid) var(--da-tdbc,#d5d8dc)
+}
+.digi-acc .woocommerce-MyAccount-paymentMethods .woocommerce-PaymentMethod--actions{
+	text-align:end
 }

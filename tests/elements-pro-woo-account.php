@@ -353,6 +353,27 @@ namespace {
 	}
 	$acc2 = (string) file_get_contents( $root . 'modules/digitalisimo-woo/store/assets/my-account-2.css' );
 	$check( ! str_contains( $acc2, '!important' ) || ! preg_match( '/select2[^{}]*\{[^}]*!important/', $acc2 ), 'my-account-2.css: el selector cerrado ya no fuerza su altura ni su relleno (las reglas de PRO, en la tercera hoja).' );
+	// Tablas de 768 px o menos (A/B ma-orders y ma-payment-methods): `woocommerce-smallscreen.css` de WooCommerce 11.2.1
+	// pinta franjas en las filas pares y quita el borde superior a la primera celda con más peso que las reglas de tabla
+	// de la segunda hoja (`.digi-acc-s .woocommerce tbody>tr>:is(td,th)`, 0-2-3, y `… .shop_table :is(td,th)`, 0-3-1).
+	// PRO las vence con su prefijo (0-5-3 y 0-5-1); la tercera hoja, con dos reglas que pesan más sólo ahí. Y las acciones
+	// de «Métodos de pago», al final de su celda como PRO.
+	$specificity = static function ( string $selector ): array {
+		$selector = str_replace( ':is(td,th)', 'td', $selector );
+		$pseudo   = preg_match_all( '/:[a-z-]+(\([^)]*\))?/', $selector );
+		$classes  = preg_match_all( '/\.[a-z0-9_-]+/i', $selector );
+		$types    = preg_match_all( '/(^|[\s>+~])[a-z][a-z0-9]*/', $selector );
+		return array( 0, $classes + $pseudo, $types );
+	};
+	foreach ( array(
+		'.digi-acc-s .woocommerce .shop_table_responsive tbody tr:nth-child(2n) :is(td,th){background-color:transparent}' => '.woocommerce table.shop_table_responsive tr:nth-child(2n) td',
+		'.digi-acc-s .woocommerce .shop_table_responsive tbody tr:first-child :is(td,th):first-child{border-top:var(--da-tdbw,1px) var(--da-tdbt,solid) var(--da-tdbc,#d5d8dc)}' => '.woocommerce table.shop_table_responsive tbody tr:first-child td:first-child',
+	) as $rule => $woo ) {
+		$own_selector = strstr( $rule, '{', true );
+		$check( str_contains( $acc3, $rule ), "my-account-3.css: $rule" );
+		$check( $specificity( $own_selector ) > $specificity( $woo ), "my-account-3.css: «{$own_selector}» pesa más que «{$woo}» de woocommerce-smallscreen.css, como la regla de PRO." );
+	}
+	$check( str_contains( $acc3, '.digi-acc .woocommerce-MyAccount-paymentMethods .woocommerce-PaymentMethod--actions{text-align:end}' ), 'my-account-3.css: acciones de «Métodos de pago» al final de la celda, como PRO.' );
 	$acc_js = (string) file_get_contents( $root . 'modules/digitalisimo-woo/store/assets/my-account.js' );
 	$check( str_contains( $acc_js, "c.classList.add('digi-acc-select2')" ), 'my-account.js marca el desplegable de países abierto (digi-acc-select2).' );
 

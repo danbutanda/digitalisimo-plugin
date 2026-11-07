@@ -1,8 +1,8 @@
 # DIGITALÍSIMO Elements @NEXT_ELEMENTS@
 
 - @NEXT_ELEMENTS@ (corrección de fidelidad de los widgets de WooCommerce de C7, pedida por el propietario: un sitio migrado se ve y se comporta igual que con PRO; detalle en `docs/pro/c7.md`, «Correcciones de fidelidad»). Ningún widget cambia de nombre, clase ni controles.
-  1. **Tercera hoja del Carrito y de Mi cuenta** (`modules/digitalisimo-woo/store/assets/cart-3.css`, 534 B, y `my-account-3.css`, 2 480 B, nuevas): los estados de PRO que no cabían en dos hojas.
-     - Mi cuenta: el desplegable de países abierto (`my-account.js` le pone `digi-acc-select2`, como PRO al abrirlo, y los controles de color lo nombran), el selector cerrado con las reglas de PRO y sin `!important`, la paginación de los pedidos, el botón «Añadir método de pago» de «Métodos de pago» y la caja de «Añadir método de pago».
+  1. **Tercera hoja del Carrito y de Mi cuenta** (`modules/digitalisimo-woo/store/assets/cart-3.css`, 534 B, y `my-account-3.css`, 2 856 B, nuevas): los estados de PRO que no cabían en dos hojas.
+     - Mi cuenta: el desplegable de países abierto (`my-account.js` le pone `digi-acc-select2`, como PRO al abrirlo, y los controles de color lo nombran), el selector cerrado con las reglas de PRO y sin `!important`, la paginación de los pedidos, el botón «Añadir método de pago» y las acciones de la tabla de «Métodos de pago», la caja de «Añadir método de pago» y, en las tablas de 768 px o menos, la segunda fila sin la franja gris de WooCommerce y la primera celda con su borde superior (las reglas de `woocommerce-smallscreen.css` pesaban más que las propias; PRO las vence con su prefijo).
      - Carrito: las opciones del desplegable en Roboto, el foco del selector cerrado y su marcador de posición.
      - `Store\Base::get_style_depends()` y `Woo\Registry::register_assets()` registran la segunda y la tercera hoja, cada una tras la anterior. Con el registro, el núcleo también las encuentra cuando encola los recursos guardados de la página.
      - Los mapas traducen la clase del desplegable de PRO a la propia.
