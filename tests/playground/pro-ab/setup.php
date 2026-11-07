@@ -911,6 +911,32 @@ function digi_ab_woo_fixtures() {
 		$ids['order']     = (int) $order->save();
 		$ids['order_key'] = (string) $order->get_order_key();
 	}
+	// Un segundo pedido, anterior y cancelado (sin tocar existencias ni ventas), para la paginación de «Pedidos»
+	// (`woo.orders_per_page`).
+	$older = wc_create_order( array( 'customer_id' => $uid ) );
+	if ( ! is_wp_error( $older ) ) {
+		$older->add_product( wc_get_product( $ids['sale'] ), 1 );
+		$older->set_address( $address + array( 'email' => 'cliente-ab@example.org', 'phone' => '600000000' ), 'billing' );
+		$older->set_payment_method( 'cod' );
+		$older->set_payment_method_title( 'Contra reembolso' );
+		$older->calculate_totals( false );
+		$older->set_date_created( '2024-01-15 10:00:00' );
+		$older->set_status( 'cancelled' );
+		$ids['older_order'] = (int) $older->save();
+	}
+	// Una tarjeta guardada de la pasarela de prueba con tokenización (`woo.tokens`): la tabla de «Métodos de pago».
+	if ( class_exists( 'WC_Payment_Token_CC' ) && ! WC_Payment_Tokens::get_customer_tokens( $uid ) ) {
+		$card = new WC_Payment_Token_CC();
+		$card->set_token( 'digi-ab-card' );
+		$card->set_gateway_id( 'digi_ab_tokens' );
+		$card->set_card_type( 'visa' );
+		$card->set_last4( '4242' );
+		$card->set_expiry_month( '12' );
+		$card->set_expiry_year( '2030' );
+		$card->set_user_id( $uid );
+		$card->set_default( true );
+		$ids['card'] = (int) $card->save();
+	}
 	update_option( 'digi_ab_woo_fixtures', $ids, false );
 	return $ids;
 }
@@ -969,12 +995,15 @@ function digi_ab_woo_context( $context ) {
  * Estado de tienda de una página del A/B: el del contexto más el campo `woo` del caso (objeto, opcional): `cart`
  * (`items` o `empty`), `user` (`customer` o `guest`), `endpoint` (un punto de «Mi cuenta»: `orders`, `view-order`,
  * `downloads`, `edit-address`, `edit-account`, `payment-methods`; `view-order` muestra el pedido de prueba),
- * `endpoint_value` (el valor del punto: `billing` o `shipping` en `edit-address` abre su formulario) y `notices`
- * (`true`: un aviso de éxito, uno de información y uno de error en cada petición). `user` se traduce al ID.
+ * `endpoint_value` (el valor del punto: `billing` o `shipping` en `edit-address` abre su formulario), `notices`
+ * (`true`: un aviso de éxito, uno de información y uno de error en cada petición), `orders_per_page` (pedidos por página
+ * de «Pedidos»: con 1, la clienta tiene dos y sale la paginación) y `tokens` (`true`: la pasarela de prueba con
+ * tokenización está disponible en la página, así que «Métodos de pago» lista la tarjeta guardada y ofrece «Añadir
+ * método de pago», y ese punto pinta su formulario). `user` se traduce al ID.
  */
 function digi_ab_woo_state( array $state, $woo ) {
 	if ( is_array( $woo ) ) {
-		foreach ( array( 'cart', 'user', 'endpoint', 'endpoint_value', 'notices' ) as $key ) {
+		foreach ( array( 'cart', 'user', 'endpoint', 'endpoint_value', 'notices', 'orders_per_page', 'tokens' ) as $key ) {
 			if ( array_key_exists( $key, $woo ) ) {
 				$state[ $key ] = $woo[ $key ];
 			}
@@ -1085,6 +1114,16 @@ add_action( 'wp', static function () {
 		wc_add_notice( 'Aviso informativo de prueba.', 'notice' );
 		wc_add_notice( 'Aviso de error de prueba.', 'error' );
 	}
+	if ( ! empty( $woo['orders_per_page'] ) ) {
+		$per_page = max( 1, (int) $woo['orders_per_page'] );
+		add_filter( 'woocommerce_my_account_my_orders_query', static function ( $args ) use ( $per_page ) {
+			$args['limit'] = $per_page;
+			return $args;
+		} );
+	}
+	if ( ! empty( $woo['tokens'] ) ) {
+		$GLOBALS['digi_ab_woo_tokens'] = true;
+	}
 	global $wp;
 	if ( ! empty( $woo['order'] ) ) {
 		$wp->query_vars['order-received'] = (string) $woo['order'];
@@ -1099,6 +1138,36 @@ add_action( 'wp', static function () {
 		$GLOBALS['wp_query']->query[ $endpoint_var ]      = $wp->query_vars[ $endpoint_var ];
 		$GLOBALS['wp_query']->query_vars[ $endpoint_var ] = $wp->query_vars[ $endpoint_var ];
 	}
+} );
+// Pasarela de prueba con tokenización (`woo.tokens` de un caso): sólo está disponible en las páginas que la piden, así que
+// el pago y el resto de «Mi cuenta» siguen con «Contra reembolso» sola. No cobra ni guarda nada.
+add_filter( 'woocommerce_payment_gateways', static function ( $gateways ) {
+	if ( class_exists( 'WC_Payment_Gateway' ) && ! class_exists( 'Digi_AB_Token_Gateway', false ) ) {
+		class Digi_AB_Token_Gateway extends WC_Payment_Gateway {
+			public function __construct() {
+				$this->id           = 'digi_ab_tokens';
+				$this->method_title = 'Tarjeta de prueba';
+				$this->title        = 'Tarjeta de prueba';
+				$this->description  = '';
+				$this->has_fields   = false;
+				$this->enabled      = 'yes';
+				$this->supports     = array( 'products', 'tokenization', 'add_payment_method' );
+			}
+			public function is_available() {
+				return ! empty( $GLOBALS['digi_ab_woo_tokens'] );
+			}
+			public function process_payment( $order_id ) {
+				return array( 'result' => 'failure' );
+			}
+			public function add_payment_method() {
+				return array( 'result' => 'failure' );
+			}
+		}
+	}
+	if ( class_exists( 'Digi_AB_Token_Gateway', false ) ) {
+		$gateways[] = 'Digi_AB_Token_Gateway';
+	}
+	return $gateways;
 } );
 add_filter( 'determine_current_user', static function ( $user ) {
 	$users = get_option( 'digi_ab_woo_users' );
