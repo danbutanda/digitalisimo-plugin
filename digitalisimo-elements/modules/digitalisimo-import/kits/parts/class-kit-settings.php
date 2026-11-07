@@ -7,7 +7,9 @@ use Digitalisimo\Elements\Import\Kits\Remapper;
 use Digitalisimo\Elements\Import\Kits\Export_Context;
 use Digitalisimo\Elements\Import\Kits\Import_Context;
 use Digitalisimo\Elements\Import\Kits\Revert_Context;
+use Digitalisimo\Elements\Import\Kits\Session;
 use Digitalisimo\Elements\Import\Kits\Export\Documents;
+use Digitalisimo\Elements\Import\Kits\Runners\Site_Settings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -21,7 +23,11 @@ defined( 'ABSPATH' ) || exit;
  * - al exportar, qué colores y tipografías usa de verdad el contenido exportado (`used`), también los del
  *   sistema: en «agregar» sólo esos entran como personalizados (D11);
  * - al importar en «nuevo», los `url(…)` del CSS del kit pasan a los medios importados (§9.3): el runner
- *   `site-settings` aplica los ajustes en la primera petición, cuando aún no hay medios.
+ *   `site-settings` aplica los ajustes en la primera petición, cuando aún no hay medios;
+ * - al importar en «nuevo», los ajustes con referencia declarada para el kit que el runner `site-settings` apartó
+ *   (`kit_deferred`, §18), como las páginas de WooCommerce, se guardan traducidos con el guardado del kit, para que su
+ *   `on_save()` copie al sitio los IDs del destino. Sin destino quedan vacíos (regla de cierre) y se informa
+ *   `unresolved`; nunca queda un ID del origen.
  */
 final class Kit_Settings implements Part {
 	const KEY     = 'kit-settings';
@@ -85,8 +91,35 @@ final class Kit_Settings implements Part {
 			$summary[ $group ] = count( $ids );
 			$summary[ $group . '_mapped' ] = count( array_intersect( $ids, array_map( 'strval', array_keys( $context->map( $map_name ) ) ) ) );
 		}
+		$references = $context->is_fresh() ? $this->apply_deferred( $context ) : 0;
+		if ( $references > 0 ) {
+			$summary['references'] = $references;
+		}
 		$summary['css'] = $context->is_fresh() ? $this->remap_css( $context ) : 0;
 		return $summary;
+	}
+
+	/**
+	 * «Nuevo»: guarda en el kit activo, traducidos, los ajustes que `site-settings` apartó (§18). Devuelve cuántos.
+	 * El guardado es el del kit (`Site_Settings::save_kit()`), con sus `on_save()`: la pestaña WooCommerce copia así
+	 * las páginas del destino a las opciones de WooCommerce.
+	 */
+	private function apply_deferred( Import_Context $context ): int {
+		$record   = Session::get( $context->session() );
+		$deferred = isset( $record['kit_deferred'] ) && is_array( $record['kit_deferred'] ) ? $record['kit_deferred'] : array();
+		$kit_id   = $context->kit_id();
+		if ( ! $deferred || $kit_id <= 0 ) {
+			return 0;
+		}
+		$kit = class_exists( '\Elementor\Plugin', false ) && isset( \Elementor\Plugin::$instance->kits_manager ) ? \Elementor\Plugin::$instance->kits_manager->get_active_kit() : null;
+		if ( ! is_object( $kit ) || ! method_exists( $kit, 'get_id' ) || (int) $kit->get_id() !== $kit_id ) {
+			$context->report( 'kit-settings.kit_changed', array( 'keys' => array_keys( $deferred ) ), Part_Context::WARNING );
+			return 0;
+		}
+		$translated = ( new Remapper( $context ) )->apply_settings( $deferred, 'kit' );
+		$current    = get_post_meta( $kit_id, self::SETTINGS_META, true );
+		Site_Settings::save_kit( $kit, array_replace( is_array( $current ) ? $current : array(), array_intersect_key( $translated, $deferred ) ) );
+		return count( $deferred );
 	}
 
 	/** Deshace el remapeo del CSS si nadie cambió los ajustes después (lo demás lo revierte `site-settings`). */

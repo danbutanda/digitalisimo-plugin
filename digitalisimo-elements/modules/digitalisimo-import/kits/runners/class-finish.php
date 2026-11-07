@@ -160,12 +160,18 @@ class Finish extends Import_Runner_Base {
 		);
 	}
 
-	/** Mapas nativos (§9.1): entradas, plantillas, términos, menús, globales, URL y adjuntos. */
-	public static function maps( array $record, array $imported_data ): array {
+	/** Entradas viejo → nuevo (§9.1): las de los runners del núcleo más los pares de la deduplicación del WXR. */
+	public static function post_map( array $record, array $imported_data ): array {
 		$post = ImportExportUtils::map_old_new_post_ids( $imported_data );
 		if ( isset( $record['wxr']['pairs'] ) && is_array( $record['wxr']['pairs'] ) ) {
 			$post += array_map( 'intval', $record['wxr']['pairs'] );
 		}
+		return $post;
+	}
+
+	/** Mapas nativos (§9.1): entradas, plantillas, términos, menús, globales, URL y adjuntos. */
+	public static function maps( array $record, array $imported_data ): array {
+		$post = self::post_map( $record, $imported_data );
 		$template = array();
 		foreach ( $post as $old => $new ) {
 			if ( 'elementor_library' === get_post_type( (int) $new ) ) {

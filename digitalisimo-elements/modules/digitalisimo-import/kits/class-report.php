@@ -141,6 +141,8 @@ final class Report {
 		'element-defaults.unconverted' => 'Valores por defecto de elementos que este sitio no tiene, conservados',
 		'element-defaults.kept'        => 'Valores por defecto que el sitio ya tenía: se conservaron los suyos',
 		'term-meta.kept'               => 'Metas de término que el sitio ya tenía: se conservaron las suyas',
+		'settings.reference_kept'      => 'Ajustes del kit que eligen contenido (como las páginas de la tienda): en «Sólo agregar» el sitio conserva los suyos, también al aplicar los ajustes del kit',
+		'kit-settings.kit_changed'     => 'El kit activo cambió durante la importación: los ajustes que eligen contenido (como las páginas de la tienda) no se aplicaron',
 		'front'                        => 'El kit traía una portada: la del sitio no cambió',
 		'custom_code.skipped'          => 'Custom Code no se importó: hace falta el permiso unfiltered_html',
 		'theme-builder.closed'         => 'Plantilla del Theme Builder sin condiciones: una quedó sin destino y queda para revisar',
