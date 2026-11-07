@@ -23,14 +23,12 @@ final class Registry {
 			$file = __DIR__ . '/maps/' . $type . '.php';
 			// Los textos por defecto de PRO que un mapa completa (`esc_html__( …, 'elementor-pro' )`) se guardan traducidos:
 			// en el idioma del sitio, el que veían sus visitantes con PRO, y no en el de quien convierte (en el
-			// administrador, `determine_locale()` da el idioma de la persona).
-			$switched = function_exists( 'switch_to_locale' ) && function_exists( 'get_locale' ) && switch_to_locale( get_locale() );
+			// administrador, `determine_locale()` da el idioma de la persona). Dentro de `all()` ya está en él y no cambia.
+			$switched = self::site_locale();
 			try {
 				$map = is_file( $file ) ? require $file : null;
 			} finally {
-				if ( $switched && function_exists( 'restore_previous_locale' ) ) {
-					restore_previous_locale();
-				}
+				self::restore_locale( $switched );
 			}
 			self::$maps[ $type ] = is_array( $map ) && ( $map['source'] ?? '' ) === $type && '' !== (string) ( $map['target'] ?? '' ) ? $map : null;
 		}
@@ -48,14 +46,35 @@ final class Registry {
 				$names[] = basename( $file, '.php' );
 			}
 		}
-		foreach ( array_unique( $names ) as $name ) {
-			$map = self::map( $name, $drafts );
-			if ( null !== $map ) {
-				$out[ (string) $map['source'] ] = $map;
+		$names = array_unique( $names );
+		// Un solo cambio al idioma del sitio para todos los mapas que faltan, no uno por mapa: cada cambio recarga todas
+		// las traducciones cargadas, y el panel del editor (`Panel::hidden()`) lee los ~100 mapas en cada documento.
+		$pending  = array_filter( array_diff( $names, array_keys( self::$maps ) ), array( Catalog::class, 'is_pro' ) );
+		$switched = $pending ? self::site_locale() : false;
+		try {
+			foreach ( $names as $name ) {
+				$map = self::map( $name, $drafts );
+				if ( null !== $map ) {
+					$out[ (string) $map['source'] ] = $map;
+				}
 			}
+		} finally {
+			self::restore_locale( $switched );
 		}
 		ksort( $out );
 		return $out;
+	}
+
+	/** Pasa al idioma del sitio si quien convierte usa otro (`switch_to_locale()` no hace nada si ya está en él). */
+	private static function site_locale(): bool {
+		return function_exists( 'switch_to_locale' ) && function_exists( 'get_locale' ) && switch_to_locale( get_locale() );
+	}
+
+	/** Vuelve al idioma anterior si `site_locale()` cambió. */
+	private static function restore_locale( bool $switched ): void {
+		if ( $switched && function_exists( 'restore_previous_locale' ) ) {
+			restore_previous_locale();
+		}
 	}
 
 	/** Widget propio de un widget de PRO con mapa listo, o ''. */

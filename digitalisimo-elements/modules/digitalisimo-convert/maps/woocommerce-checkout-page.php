@@ -339,10 +339,10 @@ return array(
 		'terms_conditions_heading',
 	),
 	'approx'    => array(
-		'returning_customer_section_title' => 'PRO ofrecía el título de «¿Ya eres cliente?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
-		'returning_customer_link_text'     => 'PRO ofrecía el texto del enlace de acceso, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
-		'coupon_section_title_text'        => 'PRO ofrecía el título de «¿Tienes un cupón?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
-		'coupon_section_title_link_text'   => 'PRO ofrecía el texto del enlace del cupón, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
+		'returning_customer_section_title' => 'PRO ofrecía el título de «¿Ya eres cliente?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'returning_customer_link_text'     => 'PRO ofrecía el texto del enlace de acceso, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'coupon_section_title_text'        => 'PRO ofrecía el título de «¿Tienes un cupón?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'coupon_section_title_link_text'   => 'PRO ofrecía el texto del enlace del cupón, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
 	),
 	// PRO pintaba estos cuatro textos con su propio dominio y su filtro de textos sólo miraba otros, así que lo guardado
 	// (también un valor dinámico) nunca se veía: lo convertido lleva el texto que PRO pintaba. `approx` lo informa.

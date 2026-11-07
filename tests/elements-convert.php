@@ -18,7 +18,20 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
-	$GLOBALS['cv'] = array( 'filters' => array() );
+	$GLOBALS['cv'] = array( 'filters' => array(), 'locale' => array( 'current' => 'en_US', 'stack' => array(), 'switches' => 0 ) );
+	// Idioma (c7#8 de docs/pro/c7.md): el sitio en es_ES y quien convierte en en_US. Como el de WordPress (que filtra
+	// también `determine_locale()`), `switch_to_locale()` no hace nada si ya se está en ese idioma.
+	function get_locale() { return 'es_ES'; }
+	function switch_to_locale( $locale ) {
+		if ( $locale === $GLOBALS['cv']['locale']['current'] ) {
+			return false;
+		}
+		$GLOBALS['cv']['locale']['stack'][] = $GLOBALS['cv']['locale']['current'];
+		$GLOBALS['cv']['locale']['current'] = $locale;
+		++$GLOBALS['cv']['locale']['switches'];
+		return true;
+	}
+	function restore_previous_locale() { $GLOBALS['cv']['locale']['current'] = array_pop( $GLOBALS['cv']['locale']['stack'] ); return $GLOBALS['cv']['locale']['current']; }
 	function add_filter( $hook, $cb, $priority = 10, $args = 1 ) { $GLOBALS['cv']['filters'][ $hook ][] = $cb; }
 	function check_cv( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 	function get_post_meta( $id, $key = "", $single = false ) { return $GLOBALS['cv']['meta'][ (int) $id ][ $key ] ?? ""; }
@@ -292,6 +305,19 @@ namespace {
 	check_cv( false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-grid']['show_in_panel'] ?? null ) && false === ( $loop_cfg['panel']['widgets_settings']['digitalisimo-loop-carousel']['show_in_panel'] ?? null ), 'Plantilla de Elemento de bucle: la Cuadrícula y el Carrusel de bucle propios no se ofrecen dentro (como los de PRO): ' . json_encode( $loop_cfg['panel'] ?? null ) );
 	$other_cfg = Panel::document_config( array(), 1 );
 	check_cv( ! isset( $other_cfg['panel']['widgets_settings']['digitalisimo-loop-grid'] ) && ! isset( $other_cfg['panel']['widgets_settings']['digitalisimo-loop-carousel'] ), 'En otro documento, los bucles propios siguen en el panel.' );
+	Registry::reset();
+
+	// Idioma de los mapas (c7#8): `all()` (el panel del editor, en cada documento) pasa una sola vez al idioma del sitio
+	// para todos los mapas que faltan, no una por mapa (cada cambio recarga todas las traducciones), y ninguna si ya
+	// están leídos; un mapa suelto también se lee en el idioma del sitio. Siempre vuelve al de la persona.
+	$GLOBALS['cv']['locale']['switches'] = 0;
+	$loaded = count( Registry::all( true ) );
+	check_cv( $loaded > 90 && 1 === $GLOBALS['cv']['locale']['switches'] && 'en_US' === $GLOBALS['cv']['locale']['current'] && array() === $GLOBALS['cv']['locale']['stack'], "Registry::all(): un solo cambio al idioma del sitio para los $loaded mapas ({$GLOBALS['cv']['locale']['switches']}) y vuelta al de la persona." );
+	Registry::all();
+	Registry::map( 'blockquote' );
+	check_cv( 1 === $GLOBALS['cv']['locale']['switches'], 'Con los mapas ya leídos, ningún cambio de idioma más.' );
+	Registry::reset();
+	check_cv( null !== Registry::map( 'blockquote', true ) && 2 === $GLOBALS['cv']['locale']['switches'] && 'en_US' === $GLOBALS['cv']['locale']['current'] && array() === $GLOBALS['cv']['locale']['stack'], 'Un mapa suelto también se lee en el idioma del sitio, y vuelve el de la persona.' );
 	Registry::reset();
 
 	// 5. Cada mapa real: declara todos los controles de PRO y apunta a un widget propio. Los controles de un widget de PRO

@@ -17,7 +17,7 @@
 
      Lo nuevo conserva los textos propios.
   6. **Textos que PRO no aplicaba** (mapas del pago y del Carrito, `filter`): «Returning customer?», «Click here to login», «Have a coupon?», «Click here to enter your coupon code» y «Apply coupon» pasan al texto que PRO pintaba, también en lugar de un valor dinámico, y el informe lo deja en «Aproximado».
-  7. **Idioma de los mapas** (`Convert\Registry::map()`): los textos de PRO que completan se cargan en el idioma del sitio (`switch_to_locale( get_locale() )`), no en el de quien convierte.
+  7. **Idioma de los mapas** (`Convert\Registry::map()`): los textos de PRO que completan se cargan en el idioma del sitio (`switch_to_locale( get_locale() )`), no en el de quien convierte. `Convert\Registry::all()` (el panel del editor, en cada documento) cambia de idioma una sola vez para todos los mapas que faltan, no una por mapa.
   8. **«Añadir al carrito» con alineación sólo en tableta o móvil** (`single/assets/product-add-to-cart.css`, 4 024 B): en la ficha, la cantidad conserva en escritorio el margen de 4 px de WooCommerce, como PRO. Los selectores de atributo van sin comillas para caber.
   9. **Páginas de la tienda** (`Store\Shop_Pages`, nueva, y `store/assets/shop-pages-editor.js`): el estado del sistema de WooCommerce reconoce el Carrito, Finalizar compra y Mi cuenta propios como páginas con su shortcode, en cualquier idioma del administrador. En el editor, los cuatro widgets propios muestran el aviso «¿Guardar esto como página…?» y el botón «Editar plantilla» del carrito vacío recibe su enlace (si el módulo de WooCommerce del editor llega después del script, espera a `elementor/init`).
 

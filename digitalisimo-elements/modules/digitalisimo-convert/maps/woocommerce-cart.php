@@ -127,7 +127,7 @@ return array(
 		'apply_coupon_button_alignment',
 	),
 	'approx'   => array(
-		'apply_coupon_button_text' => 'PRO ofrecía el texto de «Aplicar cupón», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. El texto guardado sigue en la revisión anterior; para usarlo, escríbelo otra vez en el control.',
+		'apply_coupon_button_text' => 'PRO ofrecía el texto de «Aplicar cupón», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
 	),
 	// PRO pintaba «Apply coupon» con su propio dominio y su filtro de textos sólo miraba otros, así que lo guardado (también
 	// un valor dinámico) nunca se veía: lo convertido lleva el texto que PRO pintaba. `approx` lo informa.
