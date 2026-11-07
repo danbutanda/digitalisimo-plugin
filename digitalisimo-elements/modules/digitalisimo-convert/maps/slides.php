@@ -156,10 +156,10 @@ return array(
 	),
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_style_arrows', 'heading_style_dots' ),
-	// Clases de PRO en el CSS personalizado del elemento: las comunes de los carruseles más las de las diapositivas.
 	// PRO pintaba la imagen como fondo de `.swiper-slide-bg`; la propia es un `<img>` dentro de su equivalente (` img`:
 	// como en PRO, el «Tamaño» de cada diapositiva sigue ganando al CSS personalizado).
 	'img_classes' => array( '.digi-slides__bg' => ' img' ),
+	// Clases de PRO en el CSS personalizado del elemento: las comunes de los carruseles más las de las diapositivas.
 	'classes'   => array_merge(
 		$digi_sl_classes,
 		array(

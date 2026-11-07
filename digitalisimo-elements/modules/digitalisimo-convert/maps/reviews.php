@@ -144,7 +144,6 @@ return array(
 			'keep'         => array( 'image', 'name', 'title', 'rating', 'selected_social_icon', 'social_icon', 'link', 'content' ),
 		),
 	),
-	// Encabezados del panel: no guardan valor.
 	// Estrellas: con «Font Awesome» (`star_fontawesome`, el valor por defecto) PRO pintaba los caracteres de la fuente de
 	// iconos del núcleo sin encolarla, así que sólo se veían donde el sitio cargaba eicons. Lo convertido los pinta igual
 	// (`star_icon` = `legacy`, `Reviews::GLYPH`); unas Reseñas nuevas, la estrella propia en SVG.
@@ -154,6 +153,7 @@ return array(
 		}
 		return $out;
 	},
+	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'heading_header', 'name_title_style', 'heading_title_style', 'heading_review_style' ),
 	'classes'   => array_merge( $digi_rv_common, $digi_rv_classes ),
 );

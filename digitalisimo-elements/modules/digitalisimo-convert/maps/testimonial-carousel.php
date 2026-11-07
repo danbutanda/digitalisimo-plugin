@@ -132,7 +132,6 @@ return array(
 			'keep'         => array( 'content', 'image', 'name', 'title' ),
 		),
 	),
-	// Encabezados del panel: no guardan valor.
 	// Pico de la burbuja: PRO lo colocaba sólo con la alineación de escritorio; con «Derecha» lo dejaba a la izquierda salvo
 	// donde se fijara «Tamaño» de la imagen, y en RTL con «Centro», cerca de la derecha (`PRO_BUBBLE` del widget). El
 	// widget propio lo coloca junto a la imagen en cada dispositivo, así que, con la piel burbuja y el pico debajo o encima
@@ -147,6 +146,7 @@ return array(
 		$out['pro_bubble'] = in_array( $desktop, array( 'left', 'center', 'right' ), true ) ? $desktop : 'start';
 		return $out;
 	},
+	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'name_title_style', 'heading_title_style' ),
 	'classes'   => array_merge( $digi_tc_common, $digi_tc_classes ),
 );
