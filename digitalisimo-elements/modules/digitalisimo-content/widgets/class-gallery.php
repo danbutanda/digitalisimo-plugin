@@ -23,11 +23,16 @@ defined( 'ABSPATH' ) || exit;
  *   con 5 px de margen), leyendo las medidas del adjunto que imprime el servidor (`data-w`, `data-h`) y las variables
  *   calculadas del dispositivo. Sin JavaScript, las dos se ven como una cuadrícula sin recorte.
  * - **Imágenes** con `wp_get_attachment_image()` y el tamaño de «Tamaño de la imagen» (`srcset`, `sizes`, `decoding`;
- *   «Carga diferida», `loading="lazy"`), un `<img>` con su texto alternativo en lugar del fondo CSS de PRO.
+ *   «Carga diferida», `loading="lazy"`), un `<img>` con su texto alternativo en lugar del fondo CSS de PRO. Con
+ *   «Carga diferida», cada imagen entra al cargarse desde la mitad de su tamaño y sin opacidad, como con la librería de
+ *   PRO (`data-digi-lazy`; lo pone el script, así que sin él se ven). Con «Personalizado», el recorte exacto de PRO
+ *   (`Group_Control_Image_Size::get_attachment_image_src()` del núcleo) sin `srcset`.
  * - **Enlaces y lightbox** del núcleo (`add_lightbox_data_attributes()`, grupo por galería filtrada como PRO); el
  *   núcleo no carga nada hasta que se abre.
  * - **Filtros**: botones (`aria-pressed`, `aria-controls`) en un grupo con nombre; el estado inicial (el primer filtro,
- *   como el clic que PRO simula al iniciar) lo pinta el servidor, así que sin JavaScript se ve lo mismo.
+ *   como el clic que PRO simula al iniciar) lo pinta el servidor, así que sin JavaScript se ve lo mismo. El indicador y
+ *   su animación (`data-digi-fx="<familia>-<animación>"`) reproducen las reglas `e--pointer-*`/`e--animation-*` que PRO
+ *   toma de la hoja de su Menú, en hojas propias que sólo se cargan con «Varias galerías» (`Module::STYLES`).
  * - **Superposición y animaciones** (imagen, fondo y contenido; también secuenciadas) con las clases propias del
  *   servidor, al pasar el cursor y con el foco del teclado; con `prefers-reduced-motion`, sin transiciones.
  *
@@ -76,7 +81,62 @@ class Gallery extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-gallery-justified'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'galería', 'gallery', 'imágenes', 'justificada', 'mampostería', 'masonry', 'filtro', 'lightbox' ); }
-	public function get_style_depends(): array { return Module::style_depends( $this->get_name() ); }
+	/** Familia de cada indicador y la animación que PRO toma de ella (la primera clave `animation*` activa). */
+	const POINTERS = array(
+		'underline'   => array( 'line', 'animation_line', 'fade' ),
+		'overline'    => array( 'line', 'animation_line', 'fade' ),
+		'double-line' => array( 'line', 'animation_line', 'fade' ),
+		'framed'      => array( 'framed', 'animation_framed', 'fade' ),
+		'background'  => array( 'background', 'animation_background', 'fade' ),
+		'text'        => array( 'text', 'animation_text', 'grow' ),
+	);
+
+	/**
+	 * Hojas además de la propia (`Module::STYLES`, registradas por el módulo): la barra de filtros con las líneas y el
+	 * texto, y las del marco y del fondo. Sólo con «Varias galerías» (la de la familia del indicador elegido); en el
+	 * editor, todas.
+	 */
+	public function get_style_depends(): array {
+		$all = array_merge( Module::style_depends( $this->get_name() ), array( 'digitalisimo-gallery-filters', 'digitalisimo-gallery-filters-framed', 'digitalisimo-gallery-filters-background' ) );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) {
+			return $all;
+		}
+		return self::styles_for( (array) $this->get_settings() );
+	}
+
+	/** Hojas que necesitan unos ajustes. */
+	public static function styles_for( array $settings ): array {
+		$out = Module::style_depends( 'digitalisimo-gallery' );
+		if ( 'multiple' !== ( $settings['gallery_type'] ?? 'single' ) ) {
+			return $out;
+		}
+		$out[]   = 'digitalisimo-gallery-filters';
+		$pointer = (string) ( $settings['pointer'] ?? 'underline' );
+		if ( in_array( $pointer, array( 'framed', 'background' ), true ) ) {
+			$out[] = 'digitalisimo-gallery-filters-' . $pointer;
+		}
+		return $out;
+	}
+
+	/**
+	 * Animación del indicador: `<familia>-<animación>` con el valor de la clave de su familia, o '' sin indicador. La que no
+	 * es una opción del control vuelve a la de por defecto.
+	 */
+	public static function pointer_fx( array $settings ): string {
+		$pointer = (string) ( $settings['pointer'] ?? 'underline' );
+		if ( ! isset( self::POINTERS[ $pointer ] ) ) {
+			return '';
+		}
+		list( $family, $key, $default ) = self::POINTERS[ $pointer ];
+		$options = array(
+			'line'       => array( 'fade', 'slide', 'grow', 'drop-in', 'drop-out', 'none' ),
+			'framed'     => array( 'fade', 'grow', 'shrink', 'draw', 'corners', 'none' ),
+			'background' => array( 'fade', 'grow', 'shrink', 'sweep-left', 'sweep-right', 'sweep-up', 'sweep-down', 'shutter-in-vertical', 'shutter-out-vertical', 'shutter-in-horizontal', 'shutter-out-horizontal', 'none' ),
+			'text'       => array( 'grow', 'shrink', 'sink', 'float', 'skew', 'rotate', 'none' ),
+		);
+		$value = (string) ( $settings[ $key ] ?? $default );
+		return $family . '-' . ( in_array( $value, $options[ $family ], true ) ? $value : $default );
+	}
 	public function get_script_depends(): array { return Module::script_depends( $this->get_name() ); }
 	protected function is_dynamic_content(): bool { return false; }
 
@@ -1020,11 +1080,17 @@ class Gallery extends \Elementor\Widget_Base {
 	 */
 	private static function image_data( int $id, array $settings ): ?array {
 		$size = (string) ( $settings['thumbnail_image_size'] ?? 'medium' );
+		$crop = '';
 		if ( 'custom' === $size ) {
 			$custom = (array) ( $settings['thumbnail_image_custom_dimension'] ?? array() );
 			$width  = (int) ( $custom['width'] ?? 0 );
 			$height = (int) ( $custom['height'] ?? 0 );
 			$size   = $width > 0 && $height > 0 ? array( $width, $height ) : 'full';
+			// Como `get_image_data()` de PRO: el recorte exacto del núcleo (BFI_Thumb en `uploads/elementor/thumbs/`), no el
+			// tamaño registrado más cercano que daría WordPress.
+			if ( ( $width > 0 || $height > 0 ) && class_exists( '\\Elementor\\Group_Control_Image_Size' ) && method_exists( '\\Elementor\\Group_Control_Image_Size', 'get_attachment_image_src' ) ) {
+				$crop = (string) Group_Control_Image_Size::get_attachment_image_src( $id, 'thumbnail_image', $settings );
+			}
 		}
 		$src = function_exists( 'wp_get_attachment_image_src' ) ? wp_get_attachment_image_src( $id, $size ) : false;
 		$post = function_exists( 'get_post' ) ? get_post( $id ) : null;
@@ -1034,6 +1100,7 @@ class Gallery extends \Elementor\Widget_Base {
 		$full = wp_get_attachment_image_src( $id, 'full' );
 		$data = array(
 			'size'        => $size,
+			'crop'        => $crop,
 			'alt'         => (string) get_post_meta( $id, '_wp_attachment_image_alt', true ),
 			'media'       => $full ? (string) $full[0] : (string) $src[0],
 			'width'       => (int) $src[1],
@@ -1048,6 +1115,22 @@ class Gallery extends \Elementor\Widget_Base {
 			$data['height'] = $size[1];
 		}
 		return $data;
+	}
+
+	/**
+	 * La imagen de un tamaño personalizado: `wp_get_attachment_image()` (los mismos atributos y decisiones de carga) con el
+	 * recorte del núcleo como archivo y sus medidas. El recorte no es un tamaño del adjunto, así que WordPress no le pone
+	 * `srcset`, que serviría otra proporción.
+	 */
+	private static function crop_image( int $image_id, array $data, array $attrs ): string {
+		$crop = array( $data['crop'], (int) $data['width'], (int) $data['height'], true );
+		$hook = static function ( $image, $attachment_id ) use ( $image_id, $crop ) {
+			return (int) $attachment_id === $image_id ? $crop : $image;
+		};
+		add_filter( 'wp_get_attachment_image_src', $hook, PHP_INT_MAX, 2 );
+		$html = (string) wp_get_attachment_image( $image_id, 'full', false, $attrs );
+		remove_filter( 'wp_get_attachment_image_src', $hook, PHP_INT_MAX );
+		return $html;
 	}
 
 	protected function render() {
@@ -1077,9 +1160,12 @@ class Gallery extends \Elementor\Widget_Base {
 		if ( 'grid' !== $layout ) {
 			$attrs['data-digi-layout'] = $layout;
 		}
+		if ( 'yes' === ( $settings['lazyload'] ?? 'yes' ) ) {
+			$attrs['data-digi-lazy'] = '';
+		}
 		echo '<div';
 		foreach ( $attrs as $name => $value ) {
-			echo ' ' . esc_attr( $name ) . '="' . esc_attr( $value ) . '"';
+			echo ' ' . esc_attr( $name ) . ( '' === $value ? '' : '="' . esc_attr( $value ) . '"' );
 		}
 		echo '>';
 		foreach ( self::items( $settings ) as $image_id => $tags ) {
@@ -1104,7 +1190,8 @@ class Gallery extends \Elementor\Widget_Base {
 			$filters[ (string) $index ] = wp_kses_post( (string) ( $rows[ $index ]['gallery_title'] ?? '' ) );
 		}
 		$active    = (string) array_key_first( $filters );
-		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . '" role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
+		$fx        = self::pointer_fx( $settings );
+		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . '"' . ( '' !== $fx ? ' data-digi-fx="' . esc_attr( $fx ) . '"' : '' ) . ' role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
 		foreach ( $filters as $index => $label ) {
 			$on = (string) $index === $active;
 			echo '<button type="button" class="digi-gallery__filter' . ( $on ? ' digi-gallery__filter--active' : '' ) . '" data-digi-filter="' . esc_attr( $index ) . '" aria-controls="' . esc_attr( $box_id ) . '" aria-pressed="' . ( $on ? 'true' : 'false' ) . '">' . $label . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto con wp_kses_post().
@@ -1166,7 +1253,7 @@ class Gallery extends \Elementor\Widget_Base {
 		if ( isset( self::FX[ $image_fx ] ) ) {
 			$attrs['style'] = self::FX[ $image_fx ];
 		}
-		$img = wp_get_attachment_image( $image_id, $data['size'], false, $attrs );
+		$img = '' !== $data['crop'] ? self::crop_image( $image_id, $data, $attrs ) : wp_get_attachment_image( $image_id, $data['size'], false, $attrs );
 		$html = (string) $img;
 		if ( ! empty( $settings['overlay_background'] ) ) {
 			$html .= '<div class="digi-gallery__overlay' . self::fx( $settings['background_overlay_hover_animation'] ?? '' ) . '"></div>';
