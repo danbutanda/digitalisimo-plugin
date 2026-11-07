@@ -382,7 +382,11 @@ namespace {
 	// más (Prism del Código resaltado, lottie-web de la Animación Lottie) no se declaran como dependencia: su script las pide
 	// al acercarse el widget a la pantalla, nunca en la carga inicial. Excepciones documentadas: los Botones para compartir
 	// declaran además las hojas Font Awesome del núcleo (`elementor-icons-fa-*`, como PRO), y la Lista de videos pinta con
-	// `<img>` escapado la miniatura o la portada que sólo es una URL local (sin adjunto) detrás de la fachada.
+	// `<img>` escapado la miniatura o la portada que sólo es una URL (sin adjunto). El script de la Lista de videos tiene
+	// el techo de 8 KB del criterio 7 (excepción declarada al de 6 KB de C2, corrección de fidelidad: degradados de la
+	// lista, pestañas internas en el móvil y el reproductor del primer vídeo al cargar, como PRO). Las hojas adicionales
+	// de `Content\Module::STYLES` (indicadores de los filtros de la Galería, pestañas internas de la Lista de videos), cada
+	// una ≤ 4 KB, sin url() y con movimiento reducido si anima, las pide su widget sólo cuando hacen falta.
 	$content_dir    = $root . '/modules/digitalisimo-content/';
 	$content_module = (string) file_get_contents( $content_dir . 'class-module.php' );
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $content_module, $content_entries, PREG_SET_ORDER );
@@ -400,7 +404,7 @@ namespace {
 		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
 		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/<iframe/i', $code ), $name . ': sin JSON-LD, <script> ni <iframe> propios en la salida.' );
 		check_budget( ! preg_match( '/<img[\s>]/', $code ) || 'digitalisimo-video-playlist' === $name, $name . ': sin <img> a mano (Image_Markup o wp_get_attachment_image()).' );
-		foreach ( array( 3 => 4096, 4 => 6144 ) as $i => $cap ) {
+		foreach ( array( 3 => 4096, 4 => 'digitalisimo-video-playlist' === $name ? 8192 : 6144 ) as $i => $cap ) {
 			$path = $root . '/' . $m[ $i ];
 			if ( ! is_file( $path ) ) { check_budget( 4 === $i, $name . ': falta su hoja ' . $m[ $i ] ); continue; }
 			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
@@ -418,6 +422,15 @@ namespace {
 		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
 		// Un handle siempre lleva guion; las demás cadenas del método son claves de ajustes.
 		foreach ( preg_grep( '/-/', $handles[1] ) as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ) || ( 'digitalisimo-share-buttons' === $name && str_starts_with( $handle, 'elementor-icons-fa-' ) ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	preg_match( '/const STYLES = array\((.*?)\);/s', $content_module, $content_styles );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*'([^']+\.css)'/", $content_styles[1] ?? '', $extra_sheets, PREG_SET_ORDER );
+	check_budget( 4 === count( $extra_sheets ), 'Content\\Module::STYLES declara las cuatro hojas adicionales (' . count( $extra_sheets ) . ').' );
+	foreach ( $extra_sheets as $sheet ) {
+		$text = (string) @file_get_contents( $root . '/' . $sheet[2] );
+		check_budget( '' !== $text && strlen( $text ) <= 4096, $sheet[1] . ': la hoja pesa ' . strlen( $text ) . ' B, más de 4096.' );
+		check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $sheet[1] . ': sin url() ni la paleta global.' );
+		check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $sheet[1] . ': anima sin respetar el movimiento reducido.' );
 	}
 	foreach ( glob( $content_dir . 'assets/js/*-editor.js' ) as $editor ) {
 		check_budget( filesize( $editor ) <= 6144 && ! preg_match( '/\bjQuery\s*[(.]|\$\(/', (string) file_get_contents( $editor ) ), basename( $editor ) . ': script del editor ≤ 6 KB y sin jQuery.' );

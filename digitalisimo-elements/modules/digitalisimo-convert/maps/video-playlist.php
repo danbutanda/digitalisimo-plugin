@@ -4,9 +4,12 @@
  * modules/digitalisimo-content/widgets/class-video-playlist.php).
  *
  * La Lista de videos repite los controles del de PRO con el mismo nombre, los mismos valores y las mismas condiciones,
- * así que todo pasa con `keep`; el marcado y las clases son propios (pestañas accesibles, fachadas y un script sin
- * jQuery). Los textos por defecto de PRO van en `defaults`, para que un widget que nunca los cambió conserve los suyos.
- * Formato: cabecera de `class-translator.php`.
+ * así que todo pasa con `keep`; el marcado y las clases son propios (pestañas accesibles y un script sin jQuery). Sin
+ * aproximaciones: sin las fachadas de vídeo del sitio, el reproductor del primer vídeo se crea al cargar o, con «Carga
+ * diferida», al acercarse, y «Al cargar» arranca también los de YouTube y Vimeo, silenciados, como PRO; con las fachadas,
+ * los de un servicio esperan al clic en lo nuevo y en lo convertido (es la elección del sitio). Los textos por defecto de
+ * PRO van en `defaults`, para que un widget que nunca los cambió conserve los suyos. Formato: cabecera de
+ * `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -25,7 +28,7 @@ return array(
 	'target'    => 'digitalisimo-video-playlist',
 	'status'    => 'ready',
 	'panel'     => 'hide',
-	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default) y los controles aproximados.
+	// Textos por defecto de PRO y de los interruptores (Elementor no guarda lo que coincide con el default).
 	'defaults'  => array(
 		'playlist_title'            => $digi_vpl_t( 'Playlist' ),
 		'inner_tab_title_1'         => $digi_vpl_t( 'Tab #1' ),
@@ -109,10 +112,6 @@ return array(
 		'inner_tab_title_typography'   => 'inner_tab_title_typography',
 		'inner_tab_content_typography' => 'inner_tab_content_typography',
 		'inner_tab_show_more_typography' => 'inner_tab_show_more_typography',
-	),
-	'approx'    => array(
-		'autoplay_on_load' => 'La reproducción automática al cargar sólo arranca los vídeos alojados en el sitio (silenciados, como PRO): los de YouTube y Vimeo esperan a que el visitante pulse, porque la página no pide nada al servicio antes del clic.',
-		'lazy_load'        => 'La carga diferida es siempre la de la fachada: ningún reproductor se carga hasta que se reproduce (PRO creaba el del primer vídeo al acercarse a la pantalla).',
 	),
 	'repeaters' => array(
 		'tabs' => array(

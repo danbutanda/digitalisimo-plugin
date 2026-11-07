@@ -20,16 +20,24 @@ defined( 'ABSPATH' ) || exit;
  *   foco; Intro y Espacio eligen, como la activación manual del patrón, porque elegir reproduce) y un `tabpanel` por
  *   vídeo con el reproductor. Las secciones son separadores visuales dentro de la lista. Las pestañas internas de cada
  *   vídeo («Contenido» y la segunda) son otro `tablist` con botones; «Mostrar más» es un botón con `aria-expanded`.
- * - **Sin peticiones a terceros antes del clic.** Un vídeo de YouTube o Vimeo es una fachada: la portada servida por el
- *   sitio (con las fachadas aplicadas, `Front\Facade_Images`) o el fondo negro, y un botón «Reproducir el vídeo: …»
- *   que cubre el reproductor. El iframe (YouTube con el dominio sin cookies) sólo se crea cuando el visitante pulsa el
- *   botón o elige el vídeo en la lista. Un vídeo alojado es un `<video controls preload="none">`: no se descarga nada
- *   hasta reproducirlo. Una miniatura guardada que apunta a otro dominio (la que rellenaba «Obtener datos del vídeo»)
- *   se sustituye por la portada del sitio o no se pinta.
+ * - **Reproductor del primer vídeo como PRO.** Sin las fachadas de vídeo del sitio (`Front\Facades::active()`, apagadas
+ *   por defecto), el reproductor del servicio del primer vídeo (YouTube con el dominio sin cookies) se crea al cargar la
+ *   página o, con «Carga diferida», al acercarse (`data-embed`, `data-lazy`), y una miniatura guardada en otro dominio
+ *   (la que rellena «Obtener datos del vídeo») se pinta tal cual. Con las fachadas aplicadas, **ninguna petición a
+ *   terceros antes del clic**: un vídeo de YouTube o Vimeo es la portada servida por el sitio (`Front\Facade_Images`) o
+ *   el fondo negro con un botón «Reproducir el vídeo: …», el iframe sólo se crea al pulsarlo o al elegir el vídeo, y la
+ *   miniatura de otro dominio se sustituye por la portada del sitio o no se pinta. Un vídeo alojado es un
+ *   `<video controls preload="none">`: no se descarga nada hasta reproducirlo.
  * - **Como PRO:** imagen superpuesta en el primer vídeo, siguiente vídeo al terminar, vídeos vistos (en el
  *   almacenamiento local del navegador), parámetros `?playlist=<id>&video=<id de la fila>` al elegir y al cargar,
- *   sombras de la lista al desplazarla, botón de la cabecera que pliega la lista en el móvil y contenido plegable.
- *   Reproducción automática al cargar: sólo los vídeos alojados (silenciados); los de un servicio esperan al clic.
+ *   degradados arriba y abajo de la lista cuando se puede desplazar (`digi-vpl__shadow`), botón de la cabecera que pliega
+ *   la lista en el móvil, contenido plegable y, en el móvil, pestañas internas apiladas con un título por panel
+ *   (`digi-vpl__in-mob`, hoja `digitalisimo-video-playlist-inner`, sólo con pestañas internas). El título de cada vídeo
+ *   va en un `<button>` dentro de su encabezado, como en PRO, así que toma del navegador y del tema la letra de los
+ *   botones. Reproducción automática al cargar: silenciada; los vídeos de un servicio, sólo sin las fachadas del sitio.
+ * - **«Obtener datos del vídeo»** (`vimeo_fetch_data`, el botón del editor de PRO): `assets/js/video-playlist-editor.js`
+ *   pide el título, la miniatura y la duración al proxy oEmbed de WordPress (la duración de YouTube, que oEmbed no da, a
+ *   su reproductor) sólo cuando el administrador lo pulsa.
  * - **Imágenes** con `wp_get_attachment_image()` (miniaturas e imagen superpuesta, con `srcset`, `loading`, `decoding`).
  * - Iconos de reproducir y visto: los de PRO por defecto en SVG en línea; uno elegido por el usuario, con
  *   `Icons_Manager` del núcleo.
@@ -56,7 +64,28 @@ class Video_Playlist extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-video-playlist'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'lista', 'videos', 'vídeo', 'playlist', 'pestañas', 'youtube', 'vimeo', 'reproductor' ); }
-	public function get_style_depends(): array { return Module::style_depends( $this->get_name() ); }
+	/**
+	 * Su hoja y, sólo si algún vídeo muestra pestañas internas, la de las pestañas (`Module::STYLES`); en el editor, las dos.
+	 */
+	public function get_style_depends(): array {
+		$all = array_merge( Module::style_depends( $this->get_name() ), array( 'digitalisimo-video-playlist-inner' ) );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) {
+			return $all;
+		}
+		return self::styles_for( (array) $this->get_settings() );
+	}
+
+	/** Hojas que necesitan unos ajustes. */
+	public static function styles_for( array $settings ): array {
+		$out = Module::style_depends( 'digitalisimo-video-playlist' );
+		foreach ( (array) ( $settings['tabs'] ?? array() ) as $item ) {
+			if ( is_array( $item ) && 'section' !== ( $item['type'] ?? 'youtube' ) && 'show' === ( $item['inner_tab_is_content_visible'] ?? '' ) ) {
+				$out[] = 'digitalisimo-video-playlist-inner';
+				break;
+			}
+		}
+		return $out;
+	}
 	public function get_script_depends(): array { return Module::script_depends( $this->get_name() ); }
 	protected function is_dynamic_content(): bool { return false; }
 
@@ -166,6 +195,16 @@ class Video_Playlist extends \Elementor\Widget_Base {
 				'default'     => '',
 				'label_block' => true,
 				'condition'   => array( 'type' => 'vimeo' ),
+			)
+		);
+		$repeater->add_control(
+			'vimeo_fetch_data',
+			array(
+				'type'        => Controls_Manager::BUTTON,
+				'label_block' => true,
+				'text'        => esc_html__( 'Obtener datos del vídeo', 'pro-elements' ),
+				'event'       => 'digitalisimoPlaylist:fetchVideoData',
+				'condition'   => array( 'type' => array( 'youtube', 'vimeo' ) ),
 			)
 		);
 		$repeater->add_control(
@@ -456,7 +495,7 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			'autoplay_on_load',
 			array(
 				'label'              => esc_html__( 'Al cargar', 'pro-elements' ),
-				'description'        => esc_html__( 'Sólo los vídeos alojados en el sitio, silenciados: los de YouTube y Vimeo esperan a que el visitante pulse.', 'pro-elements' ),
+				'description'        => esc_html__( 'Silenciado. Con las fachadas de vídeo del sitio, los de YouTube y Vimeo esperan a que el visitante pulse.', 'pro-elements' ),
 				'type'               => Controls_Manager::SWITCHER,
 				'label_on'           => esc_html__( 'Mostrar', 'pro-elements' ),
 				'label_off'          => esc_html__( 'Ocultar', 'pro-elements' ),
@@ -542,7 +581,7 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			'lazy_load',
 			array(
 				'label'              => esc_html__( 'Carga diferida', 'pro-elements' ),
-				'description'        => esc_html__( 'Los vídeos ya no se cargan hasta que se reproducen.', 'pro-elements' ),
+				'description'        => esc_html__( 'El reproductor del primer vídeo se crea al acercarse a la pantalla, no al cargar la página.', 'pro-elements' ),
 				'type'               => Controls_Manager::SWITCHER,
 				'separator'          => 'before',
 				'frontend_available' => true,
@@ -622,13 +661,15 @@ class Video_Playlist extends \Elementor\Widget_Base {
 				'label'     => esc_html__( 'Fondo', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
-					$tab . ':not(:where(.digi-vpl__tab--on))' => 'background-color: {{VALUE}};',
-					'{{WRAPPER}} .digi-vpl__list'                 => 'background-color: {{VALUE}};',
+					$tab . ':not(:where(.digi-vpl__tab--on))'           => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .digi-vpl__list'                           => 'background-color: {{VALUE}};',
+					'{{WRAPPER}} .digi-vpl__list .digi-vpl__shadow--bottom' => 'background: linear-gradient(180deg, transparent 0%, {{VALUE}} 100%)',
+					'{{WRAPPER}} .digi-vpl__list .digi-vpl__shadow--top'    => 'background: linear-gradient(0deg, transparent 0%, {{VALUE}} 100%);',
 				),
 			)
 		);
-		$this->add_control( 'normal_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'selectors' => array( $tab . ' .digi-vpl__title' => 'color: {{VALUE}};' ), 'global' => $text ) );
-		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'normal_typography', 'selector' => $tab . ' .digi-vpl__title', 'global' => $font ) );
+		$this->add_control( 'normal_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'selectors' => array( $tab . ' .digi-vpl__title' => 'color: {{VALUE}};', $tab . ' .digi-vpl__title button' => 'color: {{VALUE}};' ), 'global' => $text ) );
+		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'normal_typography', 'selector' => $tab . ' .digi-vpl__title button', 'global' => $font ) );
 		$this->add_control( 'heading_duration_normal', array( 'label' => esc_html__( 'Duración', 'pro-elements' ), 'type' => Controls_Manager::HEADING ) );
 		$this->add_control( 'normal_duration_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'selectors' => array( $tab . ' .digi-vpl__time' => 'color: {{VALUE}};' ), 'global' => $text ) );
 		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'normal_duration_typography', 'selector' => $tab . ' .digi-vpl__time' ) );
@@ -679,8 +720,8 @@ class Video_Playlist extends \Elementor\Widget_Base {
 		$this->start_controls_tab( 'playlist_tabs_active', array( 'label' => esc_html__( 'Activo', 'pro-elements' ) ) );
 		$this->add_control( 'heading_tab_active', array( 'label' => esc_html__( 'Elemento', 'pro-elements' ), 'type' => Controls_Manager::HEADING ) );
 		$this->add_control( 'active_background', array( 'label' => esc_html__( 'Fondo', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'selectors' => array( $on => 'background-color: {{VALUE}};' ) ) );
-		$this->add_control( 'active_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'default' => '#556068', 'selectors' => array( $on . ' .digi-vpl__title' => 'color: {{VALUE}};' ), 'global' => $text ) );
-		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'active_typography', 'selector' => $on . ' .digi-vpl__title', 'global' => $font ) );
+		$this->add_control( 'active_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'default' => '#556068', 'selectors' => array( $on . ' .digi-vpl__title' => 'color: {{VALUE}};', $on . ' .digi-vpl__title button' => 'color: {{VALUE}};' ), 'global' => $text ) );
+		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'active_typography', 'selector' => $on . ' .digi-vpl__title button', 'global' => $font ) );
 		$this->add_control( 'heading_duration_active', array( 'label' => esc_html__( 'Duración', 'pro-elements' ), 'type' => Controls_Manager::HEADING ) );
 		$this->add_control( 'active_duration_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'default' => '', 'selectors' => array( $on . ' .digi-vpl__time' => 'color: {{VALUE}};' ), 'global' => $text ) );
 		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'active_duration_typography', 'selector' => $on . ' .digi-vpl__time' ) );
@@ -766,6 +807,7 @@ class Video_Playlist extends \Elementor\Widget_Base {
 				'selectors' => array(
 					$inner . '-list .digi-vpl__in-tab--on' => 'background-color: {{VALUE}};',
 					$inner . '-panel'                             => 'background-color: {{VALUE}};',
+					$inner . '-panels .digi-vpl__in-mob'         => 'background-color: {{VALUE}};',
 				),
 			)
 		);
@@ -870,6 +912,11 @@ class Video_Playlist extends \Elementor\Widget_Base {
 		return (array) \Digitalisimo\Elements\Front\Facade_Images::video( (string) $embed['service'], (string) $embed['id'] );
 	}
 
+	/** ¿Están aplicadas las fachadas de vídeo del sitio (nada de terceros antes del clic)? Sin el módulo, no. */
+	private static function facades(): bool {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
 	/** Portada servida por el sitio de un vídeo de un servicio (sólo con las fachadas aplicadas), o ''. */
 	private static function facade_image( array $embed ): string {
 		$job = self::facade_job( $embed );
@@ -929,7 +976,9 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			}
 		}
 		$url = (string) ( $image['url'] ?? '' );
-		if ( '' === $url || ! self::local( $url ) ) {
+		// La miniatura de otro dominio (la que guarda «Obtener datos del vídeo») se pinta como en PRO, salvo con las
+		// fachadas del sitio, que no piden nada a terceros antes del clic: entonces, la portada servida por el sitio.
+		if ( '' === $url || ( ! self::local( $url ) && self::facades() ) ) {
 			$url = self::facade_image( $embed );
 		}
 		if ( '' === $url ) {
@@ -981,6 +1030,9 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			'data-next'     => 'yes' === ( $settings['autoplay_next'] ?? '' ),
 			'data-watched'  => ! empty( $settings['show_watched_indication'] ),
 			'data-onload'   => 'yes' === ( $settings['autoplay_on_load'] ?? '' ),
+			// Como PRO: el reproductor del servicio del primer vídeo se crea sin esperar al clic, salvo con las fachadas.
+			'data-embed'    => ! self::facades(),
+			'data-lazy'     => ! empty( $settings['lazy_load'] ),
 		);
 		echo '<div class="digi-vpl" role="region" aria-labelledby="' . esc_attr( $uid ) . '-name"';
 		foreach ( $data as $attr => $value ) {
@@ -1014,14 +1066,15 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			echo '<div class="digi-vpl__tab' . ( $active ? ' digi-vpl__tab--on' : '' ) . '" role="tab" id="' . esc_attr( $uid . '-tab-' . $n ) . '" aria-selected="' . ( $active ? 'true' : 'false' ) . '" aria-controls="' . esc_attr( $uid . '-panel-' . $n ) . '" tabindex="' . ( $active ? '0' : '-1' ) . '" data-tab="' . (int) $n . '" data-item="' . esc_attr( (string) ( $item['_id'] ?? '' ) ) . '">';
 			echo $thumbs ? '<span class="digi-vpl__thumb">' . $this->thumbnail( $item, $embed ) . $icons . '</span>' : $icons; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- imagen y SVG escapados.
 			$tag = self::tag( $item['video_html_tag'] ?? 'h4', 'h4' );
-			echo '<' . $tag . ' class="digi-vpl__title">' . wp_kses_post( $title ) . '</' . $tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista blanca.
+			// Como PRO, el texto en un botón (fuera del orden del teclado: la pestaña es el control).
+			echo '<' . $tag . ' class="digi-vpl__title"><button type="button" tabindex="-1">' . wp_kses_post( $title ) . '</button></' . $tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista blanca.
 			$duration = (string) ( $item['duration'] ?? '' );
 			if ( ! empty( $settings['show_duration'] ) && '' !== $duration ) {
 				echo '<span class="digi-vpl__time">' . esc_html( $duration ) . '</span>';
 			}
 			echo '</div>';
 		}
-		echo '</div></div></div>';
+		echo '</div><div class="digi-vpl__shadow digi-vpl__shadow--top" aria-hidden="true"></div><div class="digi-vpl__shadow digi-vpl__shadow--bottom" aria-hidden="true"></div></div></div>';
 
 		echo '<div class="digi-vpl__stage">';
 		foreach ( $videos as $index ) {
@@ -1080,6 +1133,8 @@ class Video_Playlist extends \Elementor\Widget_Base {
 				$key    = $uid . '-inner-' . $n . '-' . ( $i + 1 );
 				$on     = ! $selected;
 				$tabs  .= '<button type="button" class="digi-vpl__in-tab' . ( $on ? ' digi-vpl__in-tab--on' : '' ) . '" role="tab" id="' . esc_attr( $key ) . '-tab" aria-selected="' . ( $on ? 'true' : 'false' ) . '" aria-controls="' . esc_attr( $key ) . '"' . ( $on ? '' : ' tabindex="-1"' ) . '>' . wp_kses_post( $labels[ $i ] ) . '</button>';
+				// Título del panel en el móvil, donde la fila de pestañas se oculta (como el `e-tab-mobile-title` de PRO).
+				$panels .= '<button type="button" class="digi-vpl__in-mob" aria-expanded="' . ( $on ? 'true' : 'false' ) . '" aria-controls="' . esc_attr( $key ) . '">' . wp_kses_post( $labels[ $i ] ) . '</button>';
 				$panels .= '<div class="digi-vpl__in-panel' . ( $fold ? ' digi-vpl__in-panel--fold' : '' ) . '" role="tabpanel" id="' . esc_attr( $key ) . '" aria-labelledby="' . esc_attr( $key ) . '-tab"' . ( $on ? '' : ' hidden' ) . '>'
 					. '<div class="digi-vpl__in-text"><div>' . $this->parse_text( $content ) . '</div></div>'
 					. ( $fold ? '<button type="button" class="digi-vpl__more" aria-expanded="false" data-more="' . esc_attr( wp_strip_all_tags( $more ) ) . '" data-less="' . esc_attr( wp_strip_all_tags( $less ) ) . '" hidden>' . esc_html( wp_strip_all_tags( $more ) ) . '</button>' : '' )

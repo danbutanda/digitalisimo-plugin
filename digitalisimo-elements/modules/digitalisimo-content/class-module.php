@@ -52,6 +52,12 @@ final class Module {
 		'digitalisimo-gallery-filters'            => 'modules/digitalisimo-content/assets/css/gallery-filters.css',
 		'digitalisimo-gallery-filters-framed'     => 'modules/digitalisimo-content/assets/css/gallery-filters-framed.css',
 		'digitalisimo-gallery-filters-background' => 'modules/digitalisimo-content/assets/css/gallery-filters-background.css',
+		'digitalisimo-video-playlist-inner'       => 'modules/digitalisimo-content/assets/css/video-playlist-inner.css',
+	);
+
+	/** Dependencias del script del editor de un widget, además de las de los anidados: la Lista de videos pide sus datos al proxy oEmbed de WordPress. */
+	const EDITOR_DEPENDS = array(
+		'digitalisimo-video-playlist' => array( 'wp-api-fetch' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
@@ -254,7 +260,7 @@ final class Module {
 			if ( ! is_file( self::path( $file ) ) || ! self::available( $name ) ) {
 				continue;
 			}
-			$deps = in_array( $name, self::NESTED, true ) ? array( 'nested-elements' ) : array();
+			$deps = array_merge( in_array( $name, self::NESTED, true ) ? array( 'nested-elements' ) : array(), self::EDITOR_DEPENDS[ $name ] ?? array() );
 			wp_enqueue_script( $name . '-editor', plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), $deps, $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 	}
