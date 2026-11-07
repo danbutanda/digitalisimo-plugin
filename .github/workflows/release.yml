@@ -68,6 +68,7 @@ jobs:
           php tests/elements-lazy-videos.php
           php tests/elements-facades.php
           php tests/elements-convert.php
+          php tests/elements-convert-fidelity.php
           php tests/elements-blockquote.php
           node tests/elements-blockquote-align-chrome.mjs
           php tests/elements-crs-engine.php
