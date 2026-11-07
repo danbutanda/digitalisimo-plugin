@@ -1,4 +1,29 @@
-# DIGITALÍSIMO Elements 4.3.0.179
+# DIGITALÍSIMO Elements @NEXT_ELEMENTS@
+
+- @NEXT_ELEMENTS@ (corrección de fidelidad de los widgets de WooCommerce de C7, pedida por el propietario: un sitio migrado se ve y se comporta igual que con PRO; detalle en `docs/pro/c7.md`, «Correcciones de fidelidad»). Ningún widget cambia de nombre, clase ni controles.
+  1. **Tercera hoja del Carrito y de Mi cuenta** (`modules/digitalisimo-woo/store/assets/cart-3.css`, 534 B, y `my-account-3.css`, 2 480 B, nuevas): los estados de PRO que no cabían en dos hojas.
+     - Mi cuenta: el desplegable de países abierto (`my-account.js` le pone `digi-acc-select2`, como PRO al abrirlo, y los controles de color lo nombran), el selector cerrado con las reglas de PRO y sin `!important`, la paginación de los pedidos, el botón «Añadir método de pago» de «Métodos de pago» y la caja de «Añadir método de pago».
+     - Carrito: las opciones del desplegable en Roboto, el foco del selector cerrado y su marcador de posición.
+     - `Store\Base::get_style_depends()` y `Woo\Registry::register_assets()` registran la segunda y la tercera hoja, cada una tras la anterior. Con el registro, el núcleo también las encuentra cuando encola los recursos guardados de la página.
+     - Los mapas traducen la clase del desplegable de PRO a la propia.
+  2. **Puntos de corte del sitio** (`Woo\Assets::register_sheet()`; plantillas en `store/breakpoints/`, generadas por `tests/sources/woo-css/build.mjs`): las nueve hojas con anchos fijos tienen plantilla (carrito, pago, cuenta, resumen, carrito del menú y archivo de productos). Con puntos de corte personalizados, se sirve la copia que el núcleo regenera con los del kit, como PRO con las suyas, así que cambian de disposición en los mismos anchos. La versión va en el nombre de la copia.
+  3. **CSS personalizado con variables de PRO** (`modules/digitalisimo-convert/maps/woocommerce-cart.php`, `woocommerce-my-account.php` y `woocommerce-purchase-summary.php`): las 65, 70 y 49 variables de PRO pasan a las cortas de las hojas propias, como en el Carrito del menú.
+  4. **Carrito del menú:** «quitar artículo» mide 22 × 22 px por defecto, como PRO (`menu-cart-2.css`). Con «Al pasar el cursor», el clic que cae en la capa del lateral cierra el panel y el cursor no lo reabre hasta salir del widget (`menu-cart.js`, 4 576 B); antes quedaba abierto.
+  5. **Textos fijos de PRO en lo convertido** (con la marca del traductor, `_digitalisimo_pro`; `Store\Base::from_pro()`). Con el msgid y el dominio de PRO, como «Pages:» en 4.3.0.179:
+     - el acceso y el cupón de Finalizar compra;
+     - el marcador «Coupon code» y la reserva «Apply coupon» del Carrito;
+     - «Your cart is currently empty.» de Páginas de la tienda;
+     - «No products in the cart.» del Carrito del menú (con las dos traducciones en el panel y `digi-mc--pro` en lo convertido, porque el panel llega por los fragmentos).
+
+     Lo nuevo conserva los textos propios.
+  6. **Textos que PRO no aplicaba** (mapas del pago y del Carrito, `filter`): «Returning customer?», «Click here to login», «Have a coupon?», «Click here to enter your coupon code» y «Apply coupon» pasan al texto que PRO pintaba, también en lugar de un valor dinámico, y el informe lo deja en «Aproximado».
+  7. **Idioma de los mapas** (`Convert\Registry::map()`): los textos de PRO que completan se cargan en el idioma del sitio (`switch_to_locale( get_locale() )`), no en el de quien convierte.
+  8. **«Añadir al carrito» con alineación sólo en tableta o móvil** (`single/assets/product-add-to-cart.css`, 4 024 B): en la ficha, la cantidad conserva en escritorio el margen de 4 px de WooCommerce, como PRO. Los selectores de atributo van sin comillas para caber.
+  9. **Páginas de la tienda** (`Store\Shop_Pages`, nueva, y `store/assets/shop-pages-editor.js`): el estado del sistema de WooCommerce reconoce el Carrito, Finalizar compra y Mi cuenta propios como páginas con su shortcode, en cualquier idioma del administrador. En el editor, los cuatro widgets propios muestran el aviso «¿Guardar esto como página…?» y el botón «Editar plantilla» del carrito vacío recibe su enlace.
+
+  Pruebas: `tests/elements-pro-woo-cart.php`, `…-checkout.php`, `…-account.php`, `…-menu-cart.php`, `…-menu-cart-chrome.mjs`, `…-atc-chrome.mjs`, `tests/elements-front-budget.php` y la nueva `tests/elements-pro-woo-shop-pages-editor.mjs` (en `validate.yml` y `release.yml`) fallan con el código anterior. El A/B de `tests/playground/pro-ab.sh` suma casos de alineación por dispositivo, textos del cupón y desplegable de Mi cuenta, y deja de declarar los textos del cupón y el clic con cursor.
+
+  Volver a la versión anterior no rompe nada: vuelven las dos hojas, los textos propios y los anchos fijos; lo convertido con esta versión conserva el texto que PRO pintaba.
 
 - 4.3.0.179 (corrección de fidelidad del motor de carrusel `digi-crs`, pedida por el propietario: un sitio migrado se ve y se comporta igual que con PRO; afecta a los cinco carruseles de C1 y al Carrusel de bucle de C5; detalle en `docs/pro/c1.md` §1.3 y «Diferencias declaradas»). Ningún widget cambia de nombre, clase ni controles; los widgets propios ya repetían los de PRO, y ahora también su comportamiento por defecto.
   1. **Botón Pausar/Reanudar** (`modules/digitalisimo-carousel/assets/css/carousel.css`): recortado a la vista (`clip-path`) salvo con el foco del teclado (`:focus-visible`); PRO no tenía botón y la reproducción automática viene activada por defecto, así que cada carrusel migrado mostraba un círculo oscuro arriba a la derecha. Sigue siendo el primer control para el teclado (WCAG 2.2.2) y ya no toma el fondo del tema al pasar el cursor o con el foco (`[type=button]:hover` de Hello). En el editor, sin reproducción automática, ya no se muestra.
