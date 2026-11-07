@@ -387,6 +387,77 @@
    "valor_a": "^\\(no existe\\)$",
    "valor_b": "^\"\"$",
    "motivo": "al importar, el núcleo vuelve a escribir cada etiqueta dinámica con los valores por defecto de sus controles (E:elementor/includes/base/element-base.php on_import_update_dynamic_content → manager.php tag_to_text con get_settings()); las de texto (post-title, site-title) tienen before, after y fallback vacíos (E:elementor/core/dynamic-tags/tag.php:84-120): mismo comportamiento, como la etiqueta de popup"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:producto-del-kit|page:rasgo-(cart-title|products-parts))\\.data\\.0\\.elements\\.0\\.widgetType$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\"woocommerce-(product-title|products|menu-cart)\"$",
+   "valor_b": "^\"digitalisimo-woo-(product-title|products|menu-cart)\"$",
+   "motivo": "§17 (C7 del programa «sin widgets de PRO», docs/pro/c7.md): con WooCommerce (WOO=1), al importar, los widgets de WooCommerce de PRO con mapa listo llegan como los propios (Kits\\Pro_Convert con Convert\\Converter), con el mismo id: Título del producto (plantilla de producto), Productos (rasgo de partes de Productos) y Carrito del menú (rasgo de título del carrito)"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:producto-del-kit\\.data\\.0\\.elements\\.0\\.settings\\.(header_size|_digitalisimo_pro)|page:rasgo-(cart-title|products-parts)\\.data\\.0\\.elements\\.0\\.settings\\._digitalisimo_pro)$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^\"(h1|woocommerce-(product-title|products|menu-cart))\"$",
+   "motivo": "§17 (C7): los mapas de C7 (digitalisimo-convert/maps/woocommerce-product-title.php, woocommerce-products.php y woocommerce-menu-cart.php) conservan todos los ajustes de A, también las partes de Productos y el título del carrito propios; el del Título sólo materializa header_size h1, el valor por defecto que PRO cambia y Elementor no guarda, y los tres dejan la marca _digitalisimo_pro con el tipo original"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-products-parts\\.data\\.0\\.elements\\.0\\.settings\\.products_(related_products|upsells|cross_sells)_title_text$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^\"[^\"]+\"$",
+   "motivo": "§17 (C7): el mapa de Productos (digitalisimo-convert/maps/woocommerce-products.php) materializa los títulos por defecto de relacionados, ventas dirigidas y ventas cruzadas que PRO pintaba en el idioma del sitio y Elementor no guarda: lo convertido dice lo mismo"
+  },
+  {
+   "ruta": "^(documents\\.(elementor_library:producto-del-kit|page:rasgo-(cart-title|products-parts))\\.counts|counts\\.elements)\\.woocommerce-(product-title|products|menu-cart)$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^1$",
+   "valor_b": "^\\(no existe\\)$",
+   "motivo": "§17 (C7): ningún widget de WooCommerce de PRO queda en B; cada uno cuenta como su propio (entradas siguientes)"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:producto-del-kit|page:rasgo-(cart-title|products-parts))\\.counts\\.digitalisimo-woo-(product-title|products|menu-cart)$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^1$",
+   "motivo": "§17 (C7): en la plantilla de producto y en las dos páginas de rasgo, el widget de PRO convertido cuenta en B como su propio, uno por documento"
+  },
+  {
+   "ruta": "^counts\\.elements\\.digitalisimo-woo-(product-title|products|menu-cart)$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^1$",
+   "valor_b": "^2$",
+   "motivo": "§17 (C7): en B cada propio suma el de su página de widget propio que A ya tenía (widget-digitalisimo-woo-product-title, widget-digitalisimo-woo-products y widget-digitalisimo-woo-menu-cart) y el convertido de PRO; el total de elementos no cambia y cada elemento conserva su id: ninguno se duplica ni se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:filtros-de-productos\\.data\\.0\\.elements\\.2\\.widgetType$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\"loop-grid\"$",
+   "valor_b": "^\"digitalisimo-loop-grid\"$",
+   "motivo": "§17 (C5): el Loop Grid de PRO al que apuntan los filtros de precio y de atributos de la página «Filtros de productos», que sólo existe con WOO=1, llega como Cuadrícula propia (Convert\\Converter) con el mismo id, así que el selected_element de los dos filtros sigue apuntando a él; es la misma conversión que la entrada de C5 declara en las páginas sin WooCommerce"
+  },
+  {
+   "ruta": "^documents\\.page:filtros-de-productos\\.data\\.0\\.elements\\.2\\.settings\\.(nothing_found_message_text|pagination_(prev|next)_label|load_more_no_posts_custom_message|text|alternate_templates|_digitalisimo_pro)$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^\\(no existe\\)$",
+   "motivo": "§17 (C5): el mapa de la Cuadrícula (digitalisimo-convert/maps/loop-grid.php) conserva los ajustes de A, completa los textos por defecto de PRO (paginación, «cargar más» y sin resultados) y el repetidor vacío de plantillas alternas, y deja la marca _digitalisimo_pro"
+  },
+  {
+   "ruta": "^documents\\.page:filtros-de-productos\\.counts\\.(digitalisimo-)?loop-grid$",
+   "escenarios": ["R1", "R1c"],
+   "woo": true,
+   "valor_a": "^(1|\\(no existe\\))$",
+   "valor_b": "^(\\(no existe\\)|1)$",
+   "motivo": "§17 (C5): el Loop Grid de PRO de «Filtros de productos» cuenta en B como Cuadrícula propia; el recuento global (counts.elements) ya lo declara la entrada de C5 y ningún elemento se pierde"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
