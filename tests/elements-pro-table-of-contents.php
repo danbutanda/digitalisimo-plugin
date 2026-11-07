@@ -183,7 +183,11 @@ namespace {
 	$declared = array_merge( $map['keep'], array_keys( $map['groups'] ), array_keys( $map['approx'] ?? array() ), $map['ui'] );
 	// La sombra, en el mismo elemento que PRO (`{{WRAPPER}}`): el envoltorio con el marcado heredado (el radio de PRO va
 	// en `.elementor-widget-container`) y la caja con el optimizado (donde la caja propia es la del envoltorio de PRO).
-	check_toc( '{{WRAPPER}}' === $pro->groups['box_shadow']['selector'] && '{{WRAPPER}}:has(> .elementor-widget-container), {{WRAPPER}}:not(:has(> .elementor-widget-container)) .digi-toc' === $widget->groups['box_shadow']['selector'] && ! isset( $map['approx']['box_shadow_box_shadow_type'] ), 'La sombra va al envoltorio con el marcado heredado y a la caja con el optimizado, como PRO; ya no es una aproximación.' );
+	$optimized = new \Digitalisimo\Elements\Content\Widgets\Table_Of_Contents();
+	\Elementor\Plugin::$instance->experiments = new class() { public function is_feature_active( $f ) { return 'e_optimized_markup' === $f; } };
+	( new ReflectionMethod( $optimized, 'register_controls' ) )->invoke( $optimized );
+	\Elementor\Plugin::$instance->experiments = new class() { public function is_feature_active( $f ) { return false; } };
+	check_toc( '{{WRAPPER}}' === $pro->groups['box_shadow']['selector'] && '{{WRAPPER}}' === $widget->groups['box_shadow']['selector'] && '{{WRAPPER}} .digi-toc' === $optimized->groups['box_shadow']['selector'] && ! str_contains( (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-table-of-contents.php' ), 'function has_widget_inner_wrapper' ) && ! isset( $map['approx']['box_shadow_box_shadow_type'] ), 'La sombra va al envoltorio con el marcado heredado (como PRO) y a la caja con el optimizado (la caja propia es el envoltorio de PRO; el widget conserva su contenedor interior); ya no es una aproximación.' );
 	foreach ( array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ) ) as $control ) {
 		check_toc( in_array( $control, $declared, true ), "$control: el mapa no lo declara." );
 	}

@@ -427,14 +427,15 @@ class Table_Of_Contents extends \Elementor\Widget_Base {
 			)
 		);
 
-		// La sombra, donde la ponía PRO (`{{WRAPPER}}`): con el marcado heredado (con `.elementor-widget-container`), en el
-		// envoltorio, que no tiene el radio de la caja (PRO lo ponía en el contenedor interior), así que la sombra es recta
-		// bajo la caja redondeada; con el marcado optimizado, en la caja, que es el envoltorio de PRO.
+		// La sombra, donde la ponía PRO (`{{WRAPPER}}`): con el marcado heredado, en el envoltorio, que no tiene el radio de
+		// la caja (PRO lo ponía en `.elementor-widget-container`), así que la sombra es recta bajo la caja redondeada; con el
+		// marcado optimizado, el envoltorio de PRO era la caja, que aquí es `.digi-toc` (este widget conserva siempre su
+		// contenedor interior). El núcleo vacía la caché de CSS al cambiar el experimento.
 		$this->add_group_control(
 			Group_Control_Box_Shadow::get_type(),
 			array(
 				'name'     => 'box_shadow',
-				'selector' => '{{WRAPPER}}:has(> .elementor-widget-container), {{WRAPPER}}:not(:has(> .elementor-widget-container)) .digi-toc',
+				'selector' => Module::feature( 'e_optimized_markup' ) ? '{{WRAPPER}} .digi-toc' : '{{WRAPPER}}',
 			)
 		);
 
