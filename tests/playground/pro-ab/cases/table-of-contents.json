@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B de la Tabla de contenido (frente A de C2): A con `table-of-contents` de PRO, B con `digitalisimo-table-of-contents`. Los encabezados son widgets `heading` del núcleo hermanos del widget (`after`, sin convertir). La lista se construye en el navegador: `ready` espera a que exista en A y en B. Con la página corta, todos los encabezados están a la vista y todos los enlaces quedan activos en A y en B."
+  "Casos A/B de la Tabla de contenido (frente A de C2): A con `table-of-contents` de PRO, B con `digitalisimo-table-of-contents`. Los encabezados son widgets `heading` del núcleo hermanos del widget (`after`, sin convertir). La lista se construye en el navegador: `ready` espera a que exista en A y en B. Con la página corta, todos los encabezados están a la vista y todos los enlaces quedan activos en A y en B.",
+  "`toc-shadow-legacy` fija el marcado heredado (`experiments`, en todo el sitio): se mide en una corrida propia (CASES=toc-shadow-legacy)."
  ],
  "declared": [
   {
@@ -560,6 +561,169 @@
    "ready": {
     "a": ".elementor-toc__list-wrapper",
     "b": ".digi-toc__list"
+   }
+  },
+  "toc-shadow": {
+   "title": "La misma sombra dura y radio de 24 px con el marcado optimizado: PRO la pinta en el envoltorio, que es la caja redondeada",
+   "widget": "table-of-contents",
+   "settings": {
+    "border_radius": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "border_width": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "border_color": "#3355AA",
+    "box_shadow_box_shadow_type": "yes",
+    "box_shadow_box_shadow": {
+     "horizontal": 12,
+     "vertical": 12,
+     "blur": 0,
+     "spread": 0,
+     "color": "#000000"
+    }
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-shadow-legacy": {
+   "title": "Sombra dura y radio de 24 px con el marcado heredado (sin «marcado optimizado», como los sitios que se migran): PRO pinta la sombra en el envoltorio, recta bajo la caja redondeada",
+   "widget": "table-of-contents",
+   "settings": {
+    "border_radius": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "border_width": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "border_color": "#3355AA",
+    "box_shadow_box_shadow_type": "yes",
+    "box_shadow_box_shadow": {
+     "horizontal": 12,
+     "vertical": 12,
+     "blur": 0,
+     "spread": 0,
+     "color": "#000000"
+    }
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   },
+   "experiments": {
+    "e_optimized_markup": "inactive"
    }
   },
   "toc-empty": {

@@ -28,7 +28,8 @@ defined( 'ABSPATH' ) || exit;
  * `aria-expanded` y `aria-controls` (PRO pintaba dos `div` con `role="button"` que se alternaban), de 24 × 24 px como
  * mínimo sin mover el icono; foco visible propio; indicador de carga propio en CSS (PRO usaba la fuente de iconos del
  * núcleo) que se detiene con «reducir movimiento»; minimizar y plegar sin la animación de deslizamiento de jQuery;
- * enlace activo con `aria-current`; la sombra de la caja se aplica a la caja (redondeada con ella), no al envoltorio.
+ * enlace activo con `aria-current`. La sombra de la caja va donde la ponía PRO: con el marcado heredado, en el
+ * envoltorio (recta bajo la caja redondeada); con el optimizado, en la caja.
  */
 class Table_Of_Contents extends \Elementor\Widget_Base {
 
@@ -426,11 +427,14 @@ class Table_Of_Contents extends \Elementor\Widget_Base {
 			)
 		);
 
+		// La sombra, donde la ponía PRO (`{{WRAPPER}}`): con el marcado heredado (con `.elementor-widget-container`), en el
+		// envoltorio, que no tiene el radio de la caja (PRO lo ponía en el contenedor interior), así que la sombra es recta
+		// bajo la caja redondeada; con el marcado optimizado, en la caja, que es el envoltorio de PRO.
 		$this->add_group_control(
 			Group_Control_Box_Shadow::get_type(),
 			array(
 				'name'     => 'box_shadow',
-				'selector' => '{{WRAPPER}} .digi-toc',
+				'selector' => '{{WRAPPER}}:has(> .elementor-widget-container), {{WRAPPER}}:not(:has(> .elementor-widget-container)) .digi-toc',
 			)
 		);
 

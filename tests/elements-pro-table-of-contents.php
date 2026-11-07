@@ -180,7 +180,10 @@ namespace {
 		check_toc( ( $args['tab'] ?? null ) === ( $widget->sections[ $section ]['tab'] ?? null ), "$section: la sección está en la misma pestaña." );
 	}
 	// Cobertura del mapa.
-	$declared = array_merge( $map['keep'], array_keys( $map['groups'] ), array_keys( $map['approx'] ), $map['ui'] );
+	$declared = array_merge( $map['keep'], array_keys( $map['groups'] ), array_keys( $map['approx'] ?? array() ), $map['ui'] );
+	// La sombra, en el mismo elemento que PRO (`{{WRAPPER}}`): el envoltorio con el marcado heredado (el radio de PRO va
+	// en `.elementor-widget-container`) y la caja con el optimizado (donde la caja propia es la del envoltorio de PRO).
+	check_toc( '{{WRAPPER}}' === $pro->groups['box_shadow']['selector'] && '{{WRAPPER}}:has(> .elementor-widget-container), {{WRAPPER}}:not(:has(> .elementor-widget-container)) .digi-toc' === $widget->groups['box_shadow']['selector'] && ! isset( $map['approx']['box_shadow_box_shadow_type'] ), 'La sombra va al envoltorio con el marcado heredado y a la caja con el optimizado, como PRO; ya no es una aproximación.' );
 	foreach ( array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ) ) as $control ) {
 		check_toc( in_array( $control, $declared, true ), "$control: el mapa no lo declara." );
 	}
@@ -277,7 +280,7 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_toc( array( 'full:pro.approx:box_shadow_box_shadow_type', 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo la sombra aproximada y el CSS convertido: ' . implode( ', ', $codes ) );
+	check_toc( array( 'full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni aproximación; sólo el CSS convertido: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_toc( 'Table of Contents' === $d['title'] && 'No headings were found on this page.' === $d['no_headings_message'] && 'table-of-contents' === $d['_digitalisimo_pro'], 'Un Table of Contents sin cambios llega con los textos que PRO pintaba.' );
 	$painted = $render( $d + $defaults );

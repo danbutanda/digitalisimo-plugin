@@ -107,3 +107,16 @@ if ( ! function_exists( 'yoast_breadcrumb' ) ) {
 PHP
 	);
 }
+
+// Experimentos del núcleo (casos con `experiments`: `{"<nombre>": "active"|"inactive"}`): valen para todo el sitio, así
+// que esos casos se miden en una corrida propia (CASES=…). Así se compara el marcado heredado de los sitios que se migran
+// (`e_optimized_markup` inactivo: el núcleo lo activa sólo en instalaciones nuevas, como la de Playground). Sin esos
+// casos, la corrida no cambia.
+foreach ( (array) ( $digi_ab_cases['cases'] ?? array() ) as $digi_ab_slug => $digi_ab_case ) {
+	$digi_ab_chosen = $digi_ab_only ? in_array( (string) $digi_ab_slug, $digi_ab_only, true ) : empty( $digi_ab_case['pending'] );
+	foreach ( $digi_ab_chosen ? (array) ( $digi_ab_case['experiments'] ?? array() ) : array() as $digi_ab_name => $digi_ab_state ) {
+		if ( preg_match( '/^[a-z0-9_-]+$/', (string) $digi_ab_name ) && in_array( $digi_ab_state, array( 'active', 'inactive' ), true ) ) {
+			update_option( 'elementor_experiment-' . $digi_ab_name, $digi_ab_state );
+		}
+	}
+}
