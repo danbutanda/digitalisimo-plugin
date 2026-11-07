@@ -46,6 +46,7 @@ function get_post_class( $classes = array() ) { return array_merge( (array) $cla
 function get_post_thumbnail_id() { return 2 === ( get_the_ID() % 3 ) ? 0 : get_the_ID() + 1000; }
 function wp_attachment_is_image( $id ) { return $id > 0; }
 function get_intermediate_image_sizes() { return array( 'thumbnail', 'medium', 'medium_large', 'large' ); }
+function wp_get_attachment_image_src( $id, $size = 'thumbnail' ) { return array( 'https://sitio.test/wp-content/uploads/i-' . $id . '-' . $size . '.jpg', 300, 200, false ); }
 function wp_get_attachment_image( $id, $size, $icon = false, $attr = array() ) {
 	$attr = (array) $attr + array( 'loading' => 'lazy', 'decoding' => 'async', 'alt' => "Alt $id" );
 	$out  = '<img width="300" height="200" src="https://sitio.test/wp-content/uploads/i-' . $id . '-' . $size . '.jpg" srcset="https://sitio.test/wp-content/uploads/i-' . $id . '-768.jpg 768w"';
@@ -421,6 +422,18 @@ $GLOBALS['pe']['query'] = pe_query( 3 );
 $check( str_contains( $html, '<div class="digi-portfolio elementor-grid" role="list" data-digi-items="">' ) && str_contains( $html, 'role="listitem" data-digi-terms="6 5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-101/"><div class="digi-portfolio__img"></div>' ) && str_contains( $html, 'role="listitem" data-digi-terms="5"><a class="digi-portfolio__link" href="https://sitio.test/entrada-102/"><div class="digi-portfolio__img"><img' ) && str_contains( $html, '<div class="digi-portfolio__overlay"><h3 class="digi-portfolio__title">Entrada 1</h3></div></a></article>' ), 'Portafolio: elementos con sus términos, enlace, imagen y capa con el título.' );
 $html = $render( pe_widget( $F, array() ) );
 $check( ! str_contains( $html, 'digi-portfolio__filters' ) && str_contains( $html, 'data-digi-terms=""' ), 'Sin la barra de filtro, sin botones (y sin términos si no hay taxonomía).' );
+// Corrección de fidelidad (docs/pro/c5.md): la imagen con «Proporción del elemento» tiene la geometría de PRO (a todo el
+// ancho con su alto) y, si es más apaisada que la caja (alto / ancho < proporción, `fitImage()` de PRO), se ajusta al alto
+// (`--fit-height`, que pone el servidor y repite portfolio.js). Las imágenes de la prueba miden 300 × 200 (0,67).
+$fit = static function ( array $settings ) use ( $render, $F ) {
+	$GLOBALS['pe']['query'] = pe_query( 3 );
+	return substr_count( $render( pe_widget( $F, $settings ) ), 'digi-portfolio__img digi-portfolio__img--fit-height' );
+};
+$check( 2 === $fit( array( 'item_ratio' => array( 'size' => 1 ) ) ) && 0 === $fit( array( 'item_ratio' => array( 'size' => 0.5 ) ) ) && 0 === $fit( array( 'item_ratio' => array( 'size' => 1 ), 'masonry' => 'yes' ) ) && 0 === $fit( array() ), 'Portafolio: ajuste al alto sólo con una imagen más apaisada que la caja y sin mampostería (dos de tres entradas tienen imagen).' );
+$pf_widget = pe_widget( $F, array() );
+( new ReflectionMethod( $pf_widget, 'register_controls' ) )->invoke( $pf_widget );
+$pf_sel = $pf_widget->controls['item_ratio']['selectors'] ?? array();
+$check( str_contains( $pf_sel['{{WRAPPER}} .digi-portfolio__img img'] ?? '', 'height: auto;' ) && ! str_contains( implode( ' ', $pf_sel ), 'object-fit' ) && 'height: 100%; width: auto;' === ( $pf_sel['{{WRAPPER}} .digi-portfolio__img--fit-height img'] ?? '' ) && array_search( '{{WRAPPER}} .digi-portfolio__img--fit-height img', array_keys( $pf_sel ), true ) > array_search( '{{WRAPPER}} .digi-portfolio__img img', array_keys( $pf_sel ), true ), 'Portafolio: la imagen con su alto (sin object-fit) y, ajustada al alto, a todo el alto con su ancho, después.' );
 
 // 5. Conversión de ajustes reales.
 $tree = static function ( $type, array $settings ) {

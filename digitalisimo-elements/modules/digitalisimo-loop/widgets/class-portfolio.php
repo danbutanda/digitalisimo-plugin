@@ -20,18 +20,19 @@ defined( 'ABSPATH' ) || exit;
  *     </ul>
  *     <div class="digi-portfolio elementor-grid" role="list" data-digi-items [data-digi-masonry]>
  *       <article class="digi-portfolio__item {post_class()}" role="listitem" data-digi-terms="12 15">
- *         <a class="digi-portfolio__link" href><div class="digi-portfolio__img"><img></div>
+ *         <a class="digi-portfolio__link" href><div class="digi-portfolio__img [digi-portfolio__img--fit-height]"><img></div>
  *           <div class="digi-portfolio__overlay"><h3 class="digi-portfolio__title">…</h3></div></a>
  *       </article>
  *     </div>
  *
  * El filtro son botones con `aria-pressed` (PRO: elementos de lista con `tabindex` que el teclado no activaba) y su
- * script (`portfolio.js`, sin jQuery ni la librería de PRO) oculta los elementos de otros términos; la mampostería la
- * hace `loop.js`. Los botones se ven como los elementos de lista de PRO también con los estilos de botón del tema
+ * script (`portfolio.js`, sin jQuery ni la librería de PRO) oculta los elementos de otros términos con la animación de
+ * PRO (los que salen encogen y se desvanecen, los demás se deslizan a su sitio); la mampostería la hace `loop.js`. Los botones se ven como los elementos de lista de PRO también con los estilos de botón del tema
  * (el `reset.css` de Hello) o del kit: `portfolio.css` los anula con más especificidad. El primer botón dice «Todos»;
  * en lo convertido de PRO (marca `_digitalisimo_pro` del traductor), el «All» de PRO con su msgid y su dominio, así que
  * un sitio migrado conserva el texto (o la traducción del paquete de idioma de PRO). La proporción de la imagen se
- * aplica con CSS.
+ * aplica con la geometría de PRO: a todo el ancho o, si la imagen es más apaisada que la caja, a todo el alto
+ * (`--fit-height`, que pone el servidor y repite el script, como `fitImage()` de PRO).
  *
  * Derivado de PRO Elements (GPL): `modules/posts/widgets/portfolio.php`.
  */
@@ -176,7 +177,10 @@ class Portfolio extends \Elementor\Widget_Base {
 				'selectors'          => array(
 					'{{WRAPPER}} .digi-portfolio__link'     => 'padding-bottom: calc( {{SIZE}} * 100% )',
 					'{{WRAPPER}} .digi-portfolio__img'      => 'position: absolute; inset: 0; background-color: rgba(0,0,0,.1);',
-					'{{WRAPPER}} .digi-portfolio__img img' => 'position: absolute; top: calc(50% + 1px); left: calc(50% + 1px); height: 100%; object-fit: cover; transform: scale(1.01) translate(-50%, -50%);',
+					// La geometría de PRO: la imagen a todo el ancho con su alto, o, si es más apaisada que la caja
+					// (`fitImage()` de PRO: `--fit-height`), a todo el alto con su ancho; centrada y escalada 1,01.
+					'{{WRAPPER}} .digi-portfolio__img img' => 'position: absolute; top: calc(50% + 1px); left: calc(50% + 1px); height: auto; transform: scale(1.01) translate(-50%, -50%);',
+					'{{WRAPPER}} .digi-portfolio__img--fit-height img' => 'height: 100%; width: auto;',
 				),
 				'condition'          => array( 'masonry' => '' ),
 				'frontend_available' => true,
@@ -570,18 +574,37 @@ class Portfolio extends \Elementor\Widget_Base {
 		echo '</ul>';
 	}
 
+	/** Tamaño de imagen elegido, si existe en el sitio (si no, `full`). */
+	protected function thumbnail_size(): string {
+		$size  = (string) $this->get_settings( 'thumbnail_size_size' );
+		$sizes = array_merge( get_intermediate_image_sizes(), array( 'full' ) );
+		return '' === $size || ! in_array( $size, $sizes, true ) ? 'full' : $size;
+	}
+
 	/** Etiqueta `<img>` de la imagen destacada con `wp_get_attachment_image()` y el tamaño elegido. */
 	protected function get_thumbnail_html(): string {
 		$id = (int) get_post_thumbnail_id();
 		if ( ! $id || ! wp_attachment_is_image( $id ) ) {
 			return '';
 		}
-		$size  = (string) $this->get_settings( 'thumbnail_size_size' );
-		$sizes = array_merge( get_intermediate_image_sizes(), array( 'full' ) );
-		if ( '' === $size || ! in_array( $size, $sizes, true ) ) {
-			$size = 'full';
-		}
+		$size = $this->thumbnail_size();
 		return (string) wp_get_attachment_image( $id, $size, false, array( 'class' => "attachment-$size size-$size wp-image-$id" ) );
+	}
+
+	/**
+	 * ¿La imagen se ajusta al alto de su caja? Como `fitImage()` de PRO: con «Proporción del elemento» (sin mampostería),
+	 * cuando la imagen es más apaisada que la caja (alto / ancho menor que la proporción). `portfolio.js` lo repite en el
+	 * navegador al cargar la imagen y al cambiar la caja (también en el editor).
+	 */
+	protected function fits_height(): bool {
+		$ratio = $this->get_settings( 'item_ratio' );
+		$ratio = is_array( $ratio ) && is_numeric( $ratio['size'] ?? null ) ? (float) $ratio['size'] : 0.0;
+		$id    = (int) get_post_thumbnail_id();
+		if ( $ratio <= 0 || 'yes' === $this->get_settings( 'masonry' ) || ! $id || ! function_exists( 'wp_get_attachment_image_src' ) ) {
+			return false;
+		}
+		$src = wp_get_attachment_image_src( $id, $this->thumbnail_size() );
+		return is_array( $src ) && ! empty( $src[1] ) && ! empty( $src[2] ) && $src[2] / $src[1] < $ratio;
 	}
 
 	protected function render_post() {
@@ -589,11 +612,12 @@ class Portfolio extends \Elementor\Widget_Base {
 		$terms = array_keys( $this->terms[ $id ] ?? array() );
 
 		printf(
-			'<article class="%1$s" role="listitem" data-digi-terms="%2$s"><a class="digi-portfolio__link" href="%3$s"><div class="digi-portfolio__img">%4$s</div><div class="digi-portfolio__overlay">',
+			'<article class="%1$s" role="listitem" data-digi-terms="%2$s"><a class="digi-portfolio__link" href="%3$s"><div class="digi-portfolio__img%5$s">%4$s</div><div class="digi-portfolio__overlay">',
 			esc_attr( implode( ' ', get_post_class( array( 'digi-portfolio__item' ) ) ) ),
 			esc_attr( implode( ' ', $terms ) ),
 			esc_url( get_permalink() ),
-			$this->get_thumbnail_html() // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- `wp_get_attachment_image()`.
+			$this->get_thumbnail_html(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- `wp_get_attachment_image()`.
+			$this->fits_height() ? ' digi-portfolio__img--fit-height' : ''
 		);
 
 		if ( $this->get_settings( 'show_title' ) ) {
