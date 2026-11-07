@@ -207,8 +207,11 @@ abstract class Loop_Skin extends \Elementor\Skin_Base {
 		$widget->deferred_css .= (string) ob_get_clean();
 	}
 
-	/** Sin plantilla, en el editor: cómo empezar (PRO pintaba una llamada a la acción con su script del editor). */
+	/**
+	 * Sin plantilla, en el editor: el mismo contenedor que PRO, que `assets/js/loop-preview.js` llena con la llamada de
+	 * PRO para crear la plantilla (`elementorPro.modules.loopBuilder`, en un shadow root).
+	 */
 	protected function render_empty_view() {
-		echo '<div class="digi-loop__empty">' . esc_html__( 'Elige o crea una plantilla de Elemento de bucle en «Disposición».', 'pro-elements' ) . '</div>';
+		echo '<div class="e-loop-empty-view__wrapper"></div>';
 	}
 }

@@ -82,6 +82,7 @@ final class Module {
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_scripts' ) );
+		add_action( 'elementor/preview/enqueue_scripts', array( __CLASS__, 'preview_scripts' ) );
 		// Páginas `/2/` de un singular con un listado propio paginado (PRO sólo reconoce sus widgets).
 		add_filter( 'pre_handle_404', array( __NAMESPACE__ . '\\Posts_Base', 'allow_pagination' ), 10, 2 );
 	}
@@ -236,6 +237,19 @@ final class Module {
 			$deps = in_array( $name, self::NESTED, true ) ? array( 'nested-elements' ) : array();
 			wp_enqueue_script( $name . '-editor', plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), $deps, $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
+	}
+
+	/**
+	 * `elementor/preview/enqueue_scripts`: en la vista previa del editor, el asa «Editar plantilla» y la llamada para crear
+	 * la plantilla de la Cuadrícula y el Carrusel de bucle propios (`assets/js/loop-preview.js`), como el manejador de PRO
+	 * en modo edición. Nunca en el sitio.
+	 */
+	public static function preview_scripts(): void {
+		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || ! function_exists( 'wp_enqueue_script' ) || ( ! self::available( 'digitalisimo-loop-grid' ) && ! self::available( 'digitalisimo-loop-carousel' ) ) ) {
+			return;
+		}
+		$file = 'modules/digitalisimo-loop/assets/js/loop-preview.js';
+		wp_enqueue_script( 'digitalisimo-loop-preview', plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
 
 	/** Para las pruebas: olvida el arranque y las clases cargadas. */
