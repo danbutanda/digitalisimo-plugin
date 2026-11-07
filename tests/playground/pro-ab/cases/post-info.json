@@ -218,10 +218,10 @@
     "icon_align_mobile": "left"
    },
    "pixels": {
-    "widths": {
-     "375": {
+    "states": {
+     "focus": {
       "max": 0.06,
-      "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget de 50 px de alto a 375 px (5,6 %); sin foco, 0,00 %."
+      "reason": "Sólo el estado con foco: el contorno propio de 2 px con separación de 2 px (PRO dejaba el del navegador) sobre un widget de 50 px de alto a 375 px (5,6 %). El estado normal, que mide la alineación corregida, conserva el umbral común (0,00 % en la corrida)."
      }
     }
    }
