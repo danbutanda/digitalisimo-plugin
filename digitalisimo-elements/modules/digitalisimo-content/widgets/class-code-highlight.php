@@ -21,7 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * páginas con el widget y cuando el bloque se acerca a la pantalla: núcleo, cargador de gramáticas (`components/`),
  * espacios en blanco y, sólo si el bloque los usa, números de línea y líneas resaltadas. Ninguna petición a terceros.
  *
- * Diferencias declaradas con PRO: botón «Copiar» propio de 24 × 24 px como mínimo, con foco visible, sin clipboard.js
+ * Diferencias declaradas con PRO: botón «Copiar» propio (en lo convertido de PRO, con los textos de la barra de Prism:
+ * «Copy», «Copied!» y «Press Ctrl+C to copy») de 24 × 24 px como mínimo, con foco visible, sin clipboard.js
  * ni la barra de Prism (copia el código sin las líneas resaltadas); el código se escapa en `<code>` (PRO usaba `<xmp>`,
  * que un `</xmp>` en el código rompía); el color de la selección de texto es el del tema sólo donde PRO lo fijaba.
  */
@@ -346,7 +347,12 @@ class Code_Highlight extends \Elementor\Widget_Base {
 		// o sin JavaScript.
 		echo '<code class="language-' . esc_attr( $language ) . '">' . htmlspecialchars( self::normalize( $code ), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', true ) . '</code></pre>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado con htmlspecialchars().
 		if ( $copy ) {
-			echo '<button type="button" class="digi-code__copy" aria-live="polite" data-digi-done="' . esc_attr__( 'Copiado', 'pro-elements' ) . '" data-digi-fail="' . esc_attr__( 'Pulsa Ctrl+C para copiar', 'pro-elements' ) . '" hidden>' . esc_html__( 'Copiar', 'pro-elements' ) . '</button>';
+			// En lo convertido de PRO (marca del traductor, también en lo ya migrado), los textos del botón de la barra de
+			// Prism que pintaba PRO, que no se traducen; en lo nuevo, los propios.
+			$texts = '' !== (string) $this->get_settings( '_digitalisimo_pro' )
+				? array( 'Copy', 'Copied!', 'Press Ctrl+C to copy' )
+				: array( esc_html__( 'Copiar', 'pro-elements' ), esc_attr__( 'Copiado', 'pro-elements' ), esc_attr__( 'Pulsa Ctrl+C para copiar', 'pro-elements' ) );
+			echo '<button type="button" class="digi-code__copy" aria-live="polite" data-digi-done="' . esc_attr( $texts[1] ) . '" data-digi-fail="' . esc_attr( $texts[2] ) . '" hidden>' . esc_html( $texts[0] ) . '</button>';
 		}
 		echo '</div>';
 	}

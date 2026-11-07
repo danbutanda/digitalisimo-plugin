@@ -589,7 +589,7 @@ class Price_List extends \Elementor\Widget_Base {
 		$separator = 'none' !== ( $settings['separator_style'] ?? 'dotted' );
 		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos con Cards::attributes(), textos con wp_kses_post() e imagen de Image_Markup.
 		echo '<ul class="digi-price-list">';
-		foreach ( $items as $item ) {
+		foreach ( $items as $index => $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
@@ -617,7 +617,8 @@ class Price_List extends \Elementor\Widget_Base {
 			if ( '' !== $title || '' !== $price ) {
 				echo '<div class="digi-price-list__header">';
 				if ( '' !== $title ) {
-					echo '<' . $title_tag . ' class="digi-price-list__title">' . wp_kses_post( $title ) . '</' . $title_tag . '>';
+					// Título y descripción se editan en el lienzo, como en PRO (clave del repetidor `price_list.<índice>.<campo>`).
+					echo '<' . $title_tag . Cards::inline_attributes( array( 'class' => 'digi-price-list__title' ), 'price_list.' . $index . '.title' ) . '>' . wp_kses_post( $title ) . '</' . $title_tag . '>';
 				}
 				if ( $separator ) {
 					echo '<span class="digi-price-list__separator"></span>';
@@ -628,7 +629,7 @@ class Price_List extends \Elementor\Widget_Base {
 				echo '</div>';
 			}
 			if ( '' !== $desc ) {
-				echo '<' . $desc_tag . ' class="digi-price-list__description">' . wp_kses_post( $desc ) . '</' . $desc_tag . '>';
+				echo '<' . $desc_tag . Cards::inline_attributes( array( 'class' => 'digi-price-list__description' ), 'price_list.' . $index . '.item_description' ) . '>' . wp_kses_post( $desc ) . '</' . $desc_tag . '>';
 			}
 			echo '</div>';
 			echo $link ? '</a></li>' : '</li>';

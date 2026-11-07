@@ -6,7 +6,8 @@
  * Los Puntos de interés repiten los controles del Hotspot y los que éste hereda del widget Imagen del núcleo (los que
  * PRO no quita) con el mismo nombre, los mismos valores (también los de las animaciones, que PRO guarda como nombres de
  * clase) y las mismas condiciones, así que todo pasa con `keep`; el marcado y las clases son propios. Formato: cabecera
- * de `class-translator.php`.
+ * de `class-translator.php`. Excepciones: el ancho, el ancho máximo y el alto de los dispositivos (`filter`) y las
+ * variables CSS de PRO en el CSS personalizado del elemento (`classes`).
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -37,6 +38,14 @@ $digi_hs_classes = array(
 	'.e-hotspot--tooltip-position' => '.digi-hs--tip-pos',
 	'.e-hotspot--show-tooltip'    => '.digi-hs--show-tip',
 );
+// Variables CSS de los controles de PRO, con su nombre completo (la búsqueda anticipada de `rewrite_classes()` impide
+// cambiar sólo el prefijo): un CSS personalizado del elemento que las fije a mano sigue teniendo efecto.
+foreach ( array( 'min-width', 'min-height', 'translate-x', 'translate-y', 'color', 'size', 'box-color', 'padding', 'border-radius' ) as $digi_hs_var ) {
+	$digi_hs_classes[ '--hotspot-' . $digi_hs_var ] = '--hs-' . $digi_hs_var;
+}
+foreach ( array( 'transition-duration', 'text-color', 'align', 'min-width', 'max-width', 'padding', 'color', 'border-radius' ) as $digi_hs_var ) {
+	$digi_hs_classes[ '--tooltip-' . $digi_hs_var ] = '--tip-' . $digi_hs_var;
+}
 foreach ( array( 'left', 'right', 'top', 'bottom' ) as $digi_hs_side ) {
 	$digi_hs_classes[ '.e-hotspot--position-' . $digi_hs_side ]                      = '.digi-hs--pos-' . $digi_hs_side;
 	$digi_hs_classes[ '.e-hotspot--tooltip-animation-from-' . $digi_hs_side ]          = '.digi-hs--from-' . $digi_hs_side;
@@ -133,6 +142,28 @@ return array(
 			),
 		),
 	),
+	// Ancho, ancho máximo y alto de los dispositivos (no los de escritorio): PRO sólo cambiaba los selectores de
+	// escritorio (`update_control()`), así que los demás seguían aplicando los del widget Imagen a la imagen, dentro del
+	// contenedor del escritorio. Pasan a los controles ocultos `pro_img_*` con el CSS de la medida; el contenedor
+	// conserva la de escritorio en todos los tamaños, como en PRO.
+	'filter'    => static function ( array $out ): array {
+		foreach ( array( 'width', 'space', 'height' ) as $key ) {
+			foreach ( \Digitalisimo\Elements\Convert\Translator::DEVICES as $device ) {
+				if ( '' === $device || ! array_key_exists( $key . $device, $out ) ) {
+					continue;
+				}
+				$value = $out[ $key . $device ];
+				unset( $out[ $key . $device ] );
+				$size = is_array( $value ) && isset( $value['size'] ) && is_scalar( $value['size'] ) ? trim( (string) $value['size'] ) : '';
+				if ( '' === $size ) {
+					continue;
+				}
+				$unit = is_scalar( $value['unit'] ?? null ) ? (string) $value['unit'] : 'px';
+				$out[ 'pro_img_' . $key . $device ] = $size . ( 'custom' === $unit ? '' : $unit );
+			}
+		}
+		return $out;
+	},
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'hotspot_heading', 'style_tooltip_heading' ),
 	'classes'   => $digi_hs_classes,

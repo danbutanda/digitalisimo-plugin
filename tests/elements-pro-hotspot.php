@@ -27,7 +27,7 @@ namespace Elementor {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
 		const HEADING = 'heading'; const COLOR = 'color'; const SLIDER = 'slider'; const NUMBER = 'number'; const DIMENSIONS = 'dimensions';
 		const MEDIA = 'media'; const URL = 'url'; const REPEATER = 'repeater'; const ICONS = 'icons'; const WYSIWYG = 'wysiwyg';
-		const DIVIDER = 'divider'; const HOVER_ANIMATION = 'hover_animation'; const TAB_CONTENT = 'content'; const TAB_STYLE = 'style';
+		const DIVIDER = 'divider'; const HOVER_ANIMATION = 'hover_animation'; const TAB_CONTENT = 'content'; const TAB_STYLE = 'style'; const HIDDEN = 'hidden';
 	}
 	trait Stub_Controls {
 		public $controls = array();
@@ -269,7 +269,18 @@ namespace {
 	check_hs( $extras->groups['digitalisimo_hotspot_caption_typography'] === $w->groups['digitalisimo_hotspot_caption_typography'], 'Leyenda: la misma tipografía.' );
 	$w = $widget();
 	$pro_main = $pro->controls;
-	$own_main = array_diff_key( $w->controls, $extras->controls );
+	// Controles ocultos de lo convertido (`pro_img_*`): los selectores de los dispositivos que PRO dejaba al widget Imagen
+	// del núcleo (`{{WRAPPER}} img`, sobre la imagen dentro del contenedor del escritorio), sin valor por defecto.
+	$hidden = array( 'pro_img_width' => 'width', 'pro_img_space' => 'max-width', 'pro_img_height' => 'height' );
+	foreach ( $hidden as $name => $property ) {
+		check_hs( array( 'type' => 'hidden', 'selectors' => array( '{{WRAPPER}} .digi-hotspots>img' => $property . ': {{VALUE}};' ), 'responsive' => true ) === $w->controls[ $name ], "$name: oculto, por dispositivo y sin valor por defecto, con el selector del widget Imagen (" . json_encode( $w->controls[ $name ] ) . ').' );
+	}
+	$image_widget = (string) file_get_contents( $root . 'elementor/includes/widgets/image.php' );
+	foreach ( array( 'width' => 'width', 'space' => 'max-width', 'height' => 'height' ) as $name => $property ) {
+		check_hs( 1 === preg_match( "/'" . $name . "',\s*\[.*?'selectors' => \[\s*'\{\{WRAPPER\}\} img' => '" . $property . ": \{\{SIZE\}\}\{\{UNIT\}\};',/s", $image_widget ), "Premisa: el $name del widget Imagen del núcleo se aplica a la imagen ($property)." );
+		check_hs( isset( $pro->controls[ $name ]['selectors']['{{WRAPPER}}'] ), "Premisa: PRO cambia el selector de escritorio de $name con update_control() (no los de los dispositivos)." );
+	}
+	$own_main = array_diff_key( $w->controls, $extras->controls, $hidden );
 	$pro_rows = $pro_main['hotspot']['fields'];
 	$own_rows = $own_main['hotspot']['fields'];
 	unset( $pro_main['hotspot']['fields'], $own_main['hotspot']['fields'] );
@@ -416,6 +427,8 @@ namespace {
 		'dynamic'  => array( 'hotspot' => array( array( '_id' => 'd1', '__dynamic__' => array( 'hotspot_label' => '[elementor-tag id="t1" name="post-title" settings="%7B%7D"]', 'hotspot_link' => '[elementor-tag id="t2" name="post-url" settings="%7B%7D"]' ) ) ), '__dynamic__' => array( 'image' => '[elementor-tag id="t3" name="post-featured-image" settings="%7B%7D"]' ) ),
 		'globals'  => array( '__globals__' => array( 'style_hotspot_color' => 'globals/colors?id=accent', 'style_hotspot_box_color' => 'globals/colors?id=text', 'style_tooltip_color' => 'globals/colors?id=primary', 'style_typography_typography' => 'globals/typography?id=accent', 'style_tooltip_typography_typography' => 'globals/typography?id=text', '_background_color' => 'globals/colors?id=text' ) ),
 		'caption'  => array( 'digitalisimo_hotspot_caption' => 'Planta baja', 'digitalisimo_hotspot_caption_align' => 'center', 'digitalisimo_hotspot_caption_color' => '#333333', 'digitalisimo_hotspot_caption_typography_typography' => 'custom', 'digitalisimo_hotspot_caption_typography_font_size' => $size( 14 ), 'digitalisimo_hotspot_caption_space_mobile' => $size( 6 ) ),
+		'devices'  => array( 'width' => $size( 60, '%' ), 'width_tablet' => $size( 80, '%' ), 'width_mobile' => $size( 100, '%' ), 'space_mobile' => $size( 300 ), 'height_tablet' => $size( 'calc(10vh + 20px)', 'custom' ), 'height_mobile' => $size( '' ), 'height' => $size( 400 ) ),
+		'vars'     => array( 'custom_css' => "selector{--hotspot-color:red;--hotspot-size:30px;--tooltip-text-color:#000;--tooltip-max-width:200px}\nselector .e-hotspot--tooltip-position{--tooltip-padding:2px;--hotspot-border-radius:0}" ),
 		'css'      => array( 'custom_css' => "selector .e-hotspot__button{border-radius:50%}\nselector .e-hotspot--active .e-hotspot__tooltip{color:red}\nselector .e-hotspot__outer-circle,selector .e-hotspot--tooltip-animation-from-top{opacity:.5}\nselector .elementor-widget-container>img{filter:none}\n.elementor-widget-hotspot .e-hotspot--circle{z-index:3}", '_css_classes' => 'mi-plano' ),
 	);
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array() ) );
@@ -452,7 +465,13 @@ namespace {
 		}
 	}
 	sort( $codes );
-	check_hs( array( 'css:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni aproximación; sólo el CSS: ' . implode( ', ', $codes ) );
+	check_hs( array( 'css:pro.css:custom_css', 'vars:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped, pro.dropped ni aproximación; sólo el CSS: ' . implode( ', ', $codes ) );
+	// Ancho, ancho máximo y alto de los dispositivos: el contenedor conserva los de escritorio y la imagen recibe los del
+	// dispositivo, como PRO.
+	$dv = $out['devices'];
+	check_hs( 60 === $dv['width']['size'] && 400 === $dv['height']['size'] && ! array_intersect( array( 'width_tablet', 'width_mobile', 'space_mobile', 'height_tablet', 'height_mobile' ), array_keys( $dv ) ), 'El contenedor conserva las medidas de escritorio en todos los tamaños: ' . json_encode( $dv ) );
+	check_hs( '80%' === $dv['pro_img_width_tablet'] && '100%' === $dv['pro_img_width_mobile'] && '300px' === $dv['pro_img_space_mobile'] && 'calc(10vh + 20px)' === $dv['pro_img_height_tablet'] && ! isset( $dv['pro_img_height_mobile'], $dv['pro_img_width'], $dv['pro_img_space'], $dv['pro_img_height'] ), 'Las de los dispositivos pasan a la imagen (controles ocultos), sin las vacías ni las de escritorio.' );
+	check_hs( "selector{--hs-color:red;--hs-size:30px;--tip-text-color:#000;--tip-max-width:200px}\nselector .digi-hs--tip-pos{--tip-padding:2px;--hs-border-radius:0}" === $out['vars']['custom_css'], 'Las variables CSS de PRO en el CSS personalizado pasan a las propias: ' . $out['vars']['custom_css'] );
 	$d = $out['defaults'];
 	check_hs( 1 === count( $d['hotspot'] ) && 'Add Your Tooltip Text Here' === $d['hotspot'][0]['hotspot_tooltip_content'] && 'e-hotspot--expand' === $d['hotspot_animation'] && 'click' === $d['tooltip_trigger'] && 'hotspot' === $d['_digitalisimo_pro'], 'Un Hotspot sin cambios llega con su punto de muestra y el texto de PRO.' );
 	$painted = $render( $d );

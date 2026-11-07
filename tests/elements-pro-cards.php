@@ -348,10 +348,63 @@ namespace {
 	check_cards( str_contains( $html, '<span class="elementor-screen-only">$39.99 Al mes</span><div class="digi-price-table__price" aria-hidden="true"><span class="digi-price-table__currency">$</span><span class="digi-price-table__integer-part">39</span><div class="digi-price-table__after-price"><span class="digi-price-table__fractional-part">99</span></div><span class="digi-price-table__period digi-price-table__plain">Al mes</span></div>' ) && str_ends_with( $html, '</div><div class="digi-ribbon"><div class="digi-ribbon__inner">Popular</div></div>' ) && str_contains( $html, '<a class="digi-price-table__button elementor-button elementor-size-md" href="#">' ), 'Tabla por defecto: precio completo para lectores, partes visibles ocultas a ellos, periodo debajo, botón enlazado y cinta: ' . $html );
 	$sale = $render( $pt, array( 'sale' => 'yes', 'currency_symbol' => 'euro', 'currency_position' => 'after', 'price' => '1.234,5', 'currency_format' => ',', 'period_position' => 'beside', 'show_ribbon' => '', 'link' => array( 'url' => '' ), 'button_hover_animation' => 'grow', 'features_list' => array( array( '_id' => 'f1', 'item_text' => 'Uno', 'item_icon' => 'fa fa-check' ), array( '_id' => 'f2', 'item_text' => '', 'selected_item_icon' => array( 'value' => '' ) ) ) ) + $d );
 	check_cards( str_contains( $sale, '<span class="elementor-screen-only">Antes 59€, ahora 1.234,5€ Al mes</span>' ) && str_contains( $sale, '<del class="digi-price-table__original-price digi-price-table__plain">59<span class="digi-price-table__currency">€</span></del><span class="digi-price-table__integer-part">1.234</span><div class="digi-price-table__after-price"><span class="digi-price-table__fractional-part">5</span><span class="digi-price-table__period digi-price-table__plain">Al mes</span></div><span class="digi-price-table__currency">€</span></div>' ), 'Oferta: precio original tachado, símbolo después, formato con coma y periodo al lado: ' . $sale );
-	check_cards( str_contains( $sale, '<li class="elementor-repeater-item-f1"><div class="digi-price-table__feature-inner"><i class="fa fa-check" aria-hidden="true"></i><span>Uno</span></div></li><li class="elementor-repeater-item-f2"><div class="digi-price-table__feature-inner">&nbsp;</div></li>' ) && str_contains( $sale, '<span class="digi-price-table__button elementor-button elementor-size-md elementor-animation-grow">' ) && ! str_contains( $sale, 'digi-ribbon' ), 'Icono FA4 heredado, fila vacía, botón sin enlace con la animación del núcleo y sin cinta.' );
+	check_cards( str_contains( $sale, '<li class="elementor-repeater-item-f1"><div class="digi-price-table__feature-inner"><i class="fa fa-check" aria-hidden="true"></i> <span>Uno</span></div></li><li class="elementor-repeater-item-f2"><div class="digi-price-table__feature-inner">&nbsp;</div></li>' ) && str_contains( $sale, '<span class="digi-price-table__button elementor-button elementor-size-md elementor-animation-grow">' ) && ! str_contains( $sale, 'digi-ribbon' ), 'Icono FA4 heredado (con un espacio antes del texto, como el salto de línea de la plantilla de PRO), fila vacía sin espacio, botón sin enlace con la animación del núcleo y sin cinta.' );
+	check_cards( str_contains( $render( $pt, array( 'features_list' => array( array( '_id' => 'f3', 'item_text' => '', 'item_icon' => 'fa fa-star' ) ) ) + $d ), '<i class="fa fa-star" aria-hidden="true"></i> &nbsp;</div>' ), 'Icono sin texto: el espacio y el &nbsp; de PRO.' );
 	check_cards( str_contains( $render( $pt, array( 'currency_symbol' => 'custom', 'currency_symbol_custom' => '<b>MX$</b>', 'heading_tag' => 'h1' ) + $d ), '<span class="digi-price-table__currency">&lt;b&gt;MX$&lt;/b&gt;</span>' ) && str_contains( $render( $pt, array( 'heading_tag' => 'h1' ) + $d ), '<h3 class="digi-price-table__heading">' ), 'Símbolo personalizado escapado; etiqueta del título sólo h2–h6 (como PRO).' );
 	$pt->settings = array( 'heading' => 'Plan', 'sub_heading' => '', 'price' => '9', 'currency_symbol' => 'dollar', 'period' => 'al mes', 'features_list' => array( array( 'item_text' => 'A' ) ), 'footer_additional_info' => '', 'button_text' => 'Comprar', 'link' => array( 'url' => '/c/' ) );
 	check_cards( "## Plan\n\n**\$9 al mes**\n\n- A\n\n[**Comprar**](/c/)" === $pt->render_markdown(), 'Markdown de la tabla como en PRO: ' . $pt->render_markdown() );
+
+	// 2b. Edición en línea del lienzo, como PRO: las mismas claves (en los repetidores, `<repetidor>.<índice>.<campo>`) y
+	// las mismas barras que sus `add_inline_editing_attributes()`, en el elemento que contiene sólo ese texto; sólo en el
+	// editor (también en el pintado remoto), así que el front no cambia.
+	$pro_src = array(
+		'call-to-action' => (string) file_get_contents( $root . 'modules/call-to-action/widgets/call-to-action.php' ),
+		'price-list'     => (string) file_get_contents( $root . 'modules/pricing/widgets/price-list.php' ),
+		'price-table'    => (string) file_get_contents( $root . 'modules/pricing/widgets/price-table.php' ),
+	);
+	$inline_pro = array(
+		'call-to-action' => array( "'title' )", "'description' )", "'button' )", "'ribbon_title' )" ),
+		'price-list'     => array( '$title_repeater_setting_key )', '$description_repeater_setting_key )' ),
+		'price-table'    => array( "'heading', 'none' )", "'sub_heading', 'none' )", "'period', 'none' )", "'footer_additional_info' )", "'button_text' )", '$repeater_setting_key )', "'ribbon_title' )" ),
+	);
+	foreach ( $inline_pro as $type => $calls ) {
+		preg_match_all( '/add_inline_editing_attributes\(\s*([^;]*?)\s*;/', $pro_src[ $type ], $found );
+		$found = array_map( static function ( $c ) { return preg_replace( '/\s+/', ' ', $c ); }, $found[1] );
+		check_cards( $calls === $found, "Premisa: $type de PRO edita en el lienzo " . implode( ' · ', $found ) );
+	}
+	check_cards( str_contains( $pro_src['price-list'], "get_repeater_setting_key( 'title', 'price_list', \$index )" ) && str_contains( $pro_src['price-list'], "get_repeater_setting_key( 'item_description', 'price_list', \$index )" ) && str_contains( $pro_src['price-table'], "get_repeater_setting_key( 'item_text', 'features_list', \$index )" ), 'Premisa: las claves de los repetidores de PRO.' );
+	$inline = static function ( string $html ): array {
+		preg_match_all( '#<(\w+)\s[^>]*class="[^"]*\belementor-inline-editing\b[^"]*"[^>]*data-elementor-setting-key="([^"]+)"([^>]*)>(.*?)</\1>#s', $html, $m, PREG_SET_ORDER );
+		$out = array();
+		foreach ( $m as $one ) {
+			$out[ $one[2] ] = array( preg_match( '/data-elementor-inline-editing-toolbar="(\w+)"/', $one[3], $t ) ? $t[1] : 'basic', $one[4] );
+		}
+		return $out;
+	};
+	\Elementor\Plugin::$instance->editor = new class() { public function is_edit_mode() { return ! empty( $GLOBALS['cards_edit'] ); } };
+	$texts = array(
+		'call-to-action' => array( 'title' => 'Título <em>CTA</em>', 'description' => 'Descripción', 'button' => 'Pulsa', 'ribbon_title' => 'Nuevo', 'link' => array( 'url' => '/x/' ) ),
+		'price-list'     => array( 'price_list' => array( array( '_id' => 'a', 'title' => 'Café', 'price' => '$2', 'item_description' => 'Rico' ), array( '_id' => 'b', 'title' => '', 'price' => '', 'item_description' => '' ), array( '_id' => 'c', 'title' => 'Té', 'price' => '$1', 'item_description' => 'Verde' ) ) ),
+		'price-table'    => array( 'heading' => 'Plan', 'sub_heading' => 'Para ti', 'period' => 'al mes', 'footer_additional_info' => 'Sin permanencia', 'button_text' => 'Comprar', 'show_ribbon' => 'yes', 'ribbon_title' => 'Popular', 'features_list' => array( array( '_id' => 'f1', 'item_text' => 'Uno' ), array( '_id' => 'f2', 'item_text' => '' ), array( '_id' => 'f3', 'item_text' => 'Tres' ) ) ),
+	);
+	$expected = array(
+		'call-to-action' => array( 'title' => array( 'basic', 'Título <em>CTA</em>' ), 'description' => array( 'basic', 'Descripción' ), 'button' => array( 'basic', 'Pulsa' ), 'ribbon_title' => array( 'basic', 'Nuevo' ) ),
+		'price-list'     => array( 'price_list.0.title' => array( 'basic', 'Café' ), 'price_list.0.item_description' => array( 'basic', 'Rico' ), 'price_list.2.title' => array( 'basic', 'Té' ), 'price_list.2.item_description' => array( 'basic', 'Verde' ) ),
+		'price-table'    => array( 'heading' => array( 'none', 'Plan' ), 'sub_heading' => array( 'none', 'Para ti' ), 'period' => array( 'none', 'al mes' ), 'features_list.0.item_text' => array( 'basic', 'Uno' ), 'features_list.2.item_text' => array( 'basic', 'Tres' ), 'button_text' => array( 'basic', 'Comprar' ), 'footer_additional_info' => array( 'basic', 'Sin permanencia' ), 'ribbon_title' => array( 'basic', 'Popular' ) ),
+	);
+	foreach ( $texts as $type => $settings ) {
+		$GLOBALS['cards_edit'] = false;
+		$front                 = $render( $own[ $type ], $settings + $defaults( $own[ $type ] ) );
+		$GLOBALS['cards_edit'] = true;
+		$edit                  = $render( $own[ $type ], $settings + $defaults( $own[ $type ] ) );
+		$GLOBALS['cards_edit'] = false;
+		$got                   = $inline( $edit );
+		ksort( $got );
+		$want = $expected[ $type ];
+		ksort( $want );
+		check_cards( $want === $got, "$type: en el editor, los textos se editan en el lienzo como en PRO: " . json_encode( $got, JSON_UNESCAPED_UNICODE ) );
+		check_cards( ! str_contains( $front, 'elementor-inline-editing' ) && ! str_contains( $front, 'data-elementor-' ) && $front === preg_replace( array( '/ elementor-inline-editing(?=")/', '/ class="elementor-inline-editing"/', '/ data-elementor-(setting-key|inline-editing-toolbar)="[^"]*"/' ), '', $edit ), "$type: fuera del editor, el mismo marcado sin la edición en línea." );
+	}
 
 	// 3. Conversión de los widgets de PRO con sus mapas.
 	$lands = static function ( $key, $widget ) {
@@ -503,7 +556,7 @@ namespace {
 	check_cards( 'Enter your title' === $c['defaults']['heading'] && 'Monthly' === $c['defaults']['period'] && 'Popular' === $c['defaults']['ribbon_title'] && 'List Item #2' === $c['defaults']['features_list'][1]['item_text'], 'Tabla sin cambios: textos y filas de PRO.' );
 	check_cards( 'fa fa-star' === $c['full']['features_list'][1]['item_icon'] && '#00aa00' === $c['full']['features_list'][0]['item_icon_color'] && 30 === $c['full']['fractional-part_size']['size'] && 'grow' === $c['full']['button_hover_animation'] && "selector{--digi-pt-header-bg:#000}\nselector .digi-price-table__price .digi-price-table__plain{font-size:12px}\nselector .digi-ribbon__inner{letter-spacing:1px}" === $c['full']['custom_css'], 'Icono FA4 de la fila, nombre con guion, animación y CSS (también las variables) con lo propio: ' . $c['full']['custom_css'] );
 	$pt_html = $render( $pt, $c['full'] + $defaults( $pt ) );
-	check_cards( str_contains( $pt_html, '<span class="elementor-screen-only">Antes 249MX$, ahora 199,90MX$ al mes</span>' ) && str_contains( $pt_html, '<i class="fa fa-star" aria-hidden="true"></i><span>Antiguo</span>' ) && str_contains( $pt_html, '<div class="digi-ribbon digi-ribbon--left"><div class="digi-ribbon__inner">Mejor</div></div>' ), 'Lo convertido se pinta con su precio, sus características y su cinta: ' . $pt_html );
+	check_cards( str_contains( $pt_html, '<span class="elementor-screen-only">Antes 249MX$, ahora 199,90MX$ al mes</span>' ) && str_contains( $pt_html, '<i class="fa fa-star" aria-hidden="true"></i> <span>Antiguo</span>' ) && str_contains( $pt_html, '<div class="digi-ribbon digi-ribbon--left"><div class="digi-ribbon__inner">Mejor</div></div>' ), 'Lo convertido se pinta con su precio, sus características y su cinta: ' . $pt_html );
 	check_cards( array( 'item_icon_color' => 'globals/colors?id=accent' ) === $c['globals']['features_list'][0]['__globals__'] && array( 'price', 'heading' ) === array_keys( $c['dynamic']['__dynamic__'] ), 'Globales de las filas y dinámicos siguen a su control.' );
 
 	echo 'DIGITALÍSIMO Elements: tarjetas de C2 (Llamada a la acción con imagen, Tarjeta giratoria, Lista de precios y Tabla de precios: ' . $total['controls'] . ' controles y ' . $total['groups'] . ' grupos; hojas de ' . implode( ', ', array_map( static function ( $t, $b ) { return "$t $b B"; }, array_keys( $total['css'] ), $total['css'] ) ) . ') y sus mapas (' . array_sum( array_map( 'count', $cases ) ) . " casos de conversión) validados.\n";

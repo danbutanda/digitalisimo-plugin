@@ -6,8 +6,8 @@
  * El widget propio repite los controles del de PRO con el mismo nombre, los mismos valores y las mismas condiciones
  * (también las opciones de «Minimizada en», que salen de los puntos de corte activos), así que el mapa es `keep` y
  * `groups`. El marcado, las clases, las variables y el script son propios; la lista se construye en el navegador con los
- * mismos selectores, exclusiones e ids de ancla que PRO. Aproximación: la sombra de la caja se aplica a la caja (con su
- * radio) y no al envoltorio del widget. Diferencias sin clave propia: `<nav>` con nombre, un solo botón real para
+ * mismos selectores, exclusiones e ids de ancla que PRO (la sombra, en el mismo elemento que PRO con cada marcado).
+ * Diferencias sin clave propia: `<nav>` con nombre, un solo botón real para
  * minimizar, indicador de carga propio y sin la animación de deslizamiento. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
@@ -98,9 +98,6 @@ return array(
 		'box_shadow'        => 'box_shadow',
 		'header_typography' => 'header_typography',
 		'list_typography'   => 'list_typography',
-	),
-	'approx'   => array(
-		'box_shadow_box_shadow_type' => 'La sombra se aplica a la caja de la tabla (redondeada con su radio); PRO la aplicaba al envoltorio del widget.',
 	),
 	// Encabezados del panel: no guardan valor.
 	'ui'       => array( 'heading_marker' ),

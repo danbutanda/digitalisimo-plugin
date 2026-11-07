@@ -58,10 +58,12 @@ return array(
 		'percentage_typography'       => 'percentage_typography',
 		'percentage_text_shadow'      => 'percentage_text_shadow',
 	),
-	// La alineación pasa tal cual (`keep`); sólo se informa la de un dispositivo distinto del escritorio.
-	'approx'   => array_fill_keys(
+	// La alineación del escritorio pasa tal cual (`keep`); la de los demás dispositivos se descarta: PRO sólo pintaba la
+	// del escritorio, como clase, en todos los tamaños (el control propio la aplica por dispositivo, así que conservarla
+	// cambiaba el diseño). Sin ellas, la del escritorio manda en todos los tamaños, como en PRO.
+	'drop'     => array_fill_keys(
 		array( 'align_widescreen', 'align_laptop', 'align_tablet_extra', 'align_tablet', 'align_mobile_extra', 'align_mobile' ),
-		'En PRO sólo contaba la alineación del escritorio (como clase, en todos los tamaños); el indicador propio aplica la de cada dispositivo.'
+		'PRO no los aplicaba: sólo pintaba la alineación del escritorio, como clase, en todos los tamaños. Se descarta para que la del escritorio mande en todos, como en PRO.'
 	),
 	// Encabezados y nota del panel: no guardan valor.
 	'ui'       => array( 'relative_to_description', 'heading_progress_style', 'heading_tracker_background_style', 'heading_percentage_style' ),

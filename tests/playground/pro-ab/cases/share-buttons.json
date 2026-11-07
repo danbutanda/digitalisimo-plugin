@@ -23,12 +23,6 @@
   },
   {
    "widget": "share-buttons",
-   "kind": "palabra",
-   "match": "^(perdida «(email|print)»|nueva «(correo|imprimir)»)$",
-   "reason": "Los títulos de Correo e Imprimir, en español; PRO pintaba «Email» y «Print» sin traducir (las demás son marcas)."
-  },
-  {
-   "widget": "share-buttons",
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio (contorno de 2 px a 2 px en el color del botón, estándar del front); PRO dejaba el anillo del navegador."
@@ -440,10 +434,6 @@
       "button": "threads"
      }
     ]
-   },
-   "pixels": {
-    "max": 0.14,
-    "reason": "Los títulos de Correo e Imprimir están en español («Correo», «Imprimir»; PRO pintaba «Email» y «Print» sin traducir): los dos botones cambian de ancho. Colores, iconos y alturas iguales."
    }
   }
  }

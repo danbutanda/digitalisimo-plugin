@@ -313,6 +313,37 @@
     }
    ],
    "shape": "Arriba del todo el avance es 0 y el indicador sólo dibuja la pista (sin texto); el porcentaje aparece con las acciones de desplazamiento."
+  },
+  "pt-align-devices": {
+   "title": "Círculo alineado a la izquierda en escritorio, a la derecha en tableta y centrado en el móvil (PRO sólo aplica la de escritorio)",
+   "widget": "progress-tracker",
+   "settings": {
+    "type": "circular",
+    "percentage": "yes",
+    "align": "left",
+    "align_tablet": "right",
+    "align_mobile": "center"
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "spacer",
+     "settings": {
+      "space": {
+       "unit": "px",
+       "size": 2000
+      }
+     }
+    }
+   ],
+   "actions": [
+    {
+     "label": "A 600 px",
+     "scroll": 600,
+     "wait": 600
+    }
+   ],
+   "shape": "Arriba del todo el avance es 0 y el indicador sólo dibuja la pista; la acción de desplazamiento muestra el porcentaje."
   }
  }
 }

@@ -30,9 +30,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Diferencias declaradas con PRO: los puntos son botones o enlaces que se alcanzan con el teclado (PRO los pintaba como
  * `<div>`); la información emergente se abre también con el foco y se cierra con Escape; cerrada queda oculta
- * (`visibility`) además de transparente, así que sus enlaces no reciben el foco; el ancho, el ancho máximo y el alto de
- * la tableta y el móvil se aplican al contenedor como los del escritorio (PRO sólo cambiaba los del escritorio y dejaba
- * los demás dispositivos con los selectores del widget Imagen, sobre la imagen); los estilos de la imagen no alcanzan a las imágenes de la información
+ * (`visibility`) además de transparente, así que sus enlaces no reciben el foco; en lo nuevo, el ancho, el ancho máximo
+ * y el alto de la tableta y el móvil se aplican al contenedor como los del escritorio (PRO sólo cambiaba los del
+ * escritorio y dejaba los demás dispositivos con los selectores del widget Imagen, sobre la imagen; lo convertido lo
+ * repite con los controles ocultos `pro_img_*`, que fija el mapa); los estilos de la imagen no alcanzan a las imágenes de la información
  * emergente; la animación en secuencia aparece aunque la página no cargue la animación de entrada `fadeIn` del núcleo;
  * el texto y la información emergente pasan por `wp_kses_post()`.
  *
@@ -469,6 +470,19 @@ class Hotspot extends \Elementor\Widget_Base {
 				'selectors'  => array( '{{WRAPPER}}' => '--container-height: {{SIZE}}{{UNIT}};' ),
 			)
 		);
+		// Ocultos, sólo para lo convertido de PRO (los fija el mapa en tableta, móvil y los demás dispositivos, nunca en
+		// escritorio): PRO cambiaba sólo los selectores de escritorio del ancho, el ancho máximo y el alto, y los de los
+		// demás dispositivos seguían siendo los del widget Imagen, sobre la imagen dentro del contenedor del escritorio
+		// (60 % en escritorio y 100 % en el móvil dan un 60 %). El valor es el CSS de la medida («100%», «calc(…)»).
+		foreach ( array( 'width' => 'width', 'space' => 'max-width', 'height' => 'height' ) as $name => $property ) {
+			$this->add_responsive_control(
+				'pro_img_' . $name,
+				array(
+					'type'      => Controls_Manager::HIDDEN,
+					'selectors' => array( '{{WRAPPER}} .digi-hotspots>img' => $property . ': {{VALUE}};' ),
+				)
+			);
+		}
 		$this->add_responsive_control(
 			'object-fit',
 			array(

@@ -77,7 +77,8 @@ namespace {
 	date_default_timezone_set( 'UTC' );
 	$GLOBALS['pt_edit'] = false;
 	function __( $v ) { return $v; }
-	function esc_html__( $v ) { return $v; }
+	$GLOBALS['pt_l10n'] = array();
+	function esc_html__( $v, $domain = 'default' ) { return $GLOBALS['pt_l10n'][ $domain ][ $v ] ?? $v; }
 	function esc_attr__( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function is_rtl() { return false; }
 	function get_option( $name ) { return 'gmt_offset' === $name ? -6 : false; }
@@ -137,7 +138,12 @@ namespace {
 		$js  = (string) file_get_contents( $root . Content::WIDGETS[ $name ]['js'] );
 		$sizes[ $name ] = array( strlen( $css ), strlen( $js ) );
 		check_pt( strlen( $css ) > 0 && strlen( $css ) <= 4096, "$name: la hoja pesa " . strlen( $css ) . ' B (tope 4 096).' );
-		check_pt( strlen( $js ) > 0 && strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|swiper|fetch\(|XMLHttpRequest|sendBeacon|import\(/i', $js ), "$name: script propio de " . strlen( $js ) . ' B (tope 6 KB), sin jQuery, Swiper ni peticiones.' );
+		// Excepción declarada (docs/pro/c2.md, «Correcciones de fidelidad»): la Cuenta regresiva repite el `countdown_expire`
+		// de jQuery de PRO sólo si la página ya tiene jQuery; no lo pide ni lo carga.
+		$compat = "\t\t\tconst J = W.jQuery, h = host || el;\n\t\t\th.dispatchEvent(new CustomEvent(K + '-expire', { bubbles: true }));\n\t\t\tif (J) J(h).trigger('countdown_expire', J(h));\n";
+		check_pt( 'digitalisimo-countdown' !== $name || 1 === substr_count( $js, $compat ), "$name: emite el countdown_expire de jQuery de PRO sólo si la página tiene jQuery, junto al evento propio." );
+		$own_js = preg_replace( '#/\*.*?\*/#s', '', str_replace( $compat, '', $js ) );
+		check_pt( strlen( $js ) > 0 && strlen( $js ) <= 6144 && ! preg_match( '/jQuery|\$\(|swiper|fetch\(|XMLHttpRequest|sendBeacon|import\(/i', $own_js ), "$name: script propio de " . strlen( $js ) . ' B (tope 6 KB), sin jQuery, Swiper ni peticiones.' );
 		check_pt( str_contains( $js, "frontend/element_ready/$name.default" ) && str_contains( $js, 'DOMContentLoaded' ), "$name: el script arranca al cargar y en el editor (frontend/element_ready)." );
 		check_pt( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! preg_match( '/elementor-(countdown|scrolling|widget-countdown|widget-progress-tracker)|current-progress/', $css ), "$name: la hoja no usa el kit, url() ni clases de PRO." );
 		preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $m );
@@ -260,6 +266,22 @@ namespace {
 	check_pt( 0 === Countdown::evergreen_interval( array( 'evergreen_counter_hours' => '', 'evergreen_counter_minutes' => '' ) ) && 172740 === Countdown::evergreen_interval( array( 'evergreen_counter_hours' => 47, 'evergreen_counter_minutes' => 59 ) ), 'El intervalo perpetuo con los valores por defecto de PRO (47 h 59 min).' );
 	$custom = $render( $cd, array( 'due_date' => '2020-01-01 10:00', 'show_days' => '', 'show_seconds' => '', 'custom_labels' => 'yes', 'label_hours' => 'Hrs<script>x()</script>', 'label_minutes' => 'Min' ) + $base );
 	check_pt( 2 === substr_count( $custom, 'digi-countdown__item' ) && str_contains( $custom, 'digi-countdown__label">Hrs</span>' ) && str_contains( $custom, '>Min</span>' ) && ! str_contains( $custom, 'days' ) && ! str_contains( $custom, 'script' ), 'Partes ocultas fuera, etiquetas personalizadas filtradas.' );
+	// Etiquetas por defecto de lo convertido de PRO (marca del traductor): las de PRO con su msgid y su dominio, o su
+	// traducción, como `get_default_countdown_labels()` de PRO ejecutado aquí; lo nuevo sigue con las propias.
+	$pro_cd = new \ElementorPro\Modules\Countdown\Widgets\Countdown();
+	foreach ( array( array(), array( 'elementor-pro' => array( 'Days' => 'Tage', 'Hours' => 'Stunden', 'Minutes' => 'Minuten', 'Seconds' => 'Sekunden' ) ) ) as $l10n ) {
+		$GLOBALS['pt_l10n'] = $l10n;
+		$pro_labels         = array_intersect_key( $pro_cd->get_default_countdown_labels(), Countdown::default_labels() );
+		( new ReflectionProperty( $pro_cd, '_default_countdown_labels' ) )->setValue( $pro_cd, null );
+		$converted = $render( $cd, array( 'due_date' => '2020-01-01 10:00', Translator::MARKER => 'countdown' ) + $base );
+		preg_match_all( '#<span class="digi-countdown__label">([^<]*)</span>#', $converted, $got );
+		check_pt( array_values( $pro_labels ) === $got[1] && $pro_labels === Countdown::pro_labels(), 'Lo convertido de PRO sin «Etiquetas personalizadas» pinta las etiquetas de PRO (' . implode( ' ', $got[1] ) . '), como PRO: ' . implode( ' ', $pro_labels ) );
+		$own = $render( $cd, array( 'due_date' => '2020-01-01 10:00' ) + $base );
+		check_pt( str_contains( $own, '>Días</span>' ) && str_contains( $own, '>Segundos</span>' ) && ! str_contains( $own, '>Days<' ) && ! str_contains( $own, '>Tage<' ), 'Lo nuevo sigue con las etiquetas propias en español.' );
+		$custom_pro = $render( $cd, array( 'due_date' => '2020-01-01 10:00', 'custom_labels' => 'yes', 'label_days' => 'Jours', Translator::MARKER => 'countdown' ) + $base );
+		check_pt( str_contains( $custom_pro, '>Jours</span>' ) && str_contains( $custom_pro, '>Hours</span>' ) && ! str_contains( $custom_pro, '>Tage<' ), 'Con «Etiquetas personalizadas», las del control, también en lo convertido.' );
+	}
+	$GLOBALS['pt_l10n'] = array();
 	$bare = $render( $cd, array( 'due_date' => '2020-01-01 10:00', 'show_labels' => '' ) + $base );
 	check_pt( ! str_contains( $bare, 'digi-countdown__label' ) && 4 === substr_count( $bare, 'digi-countdown__digits' ), 'Sin etiquetas, sólo los dígitos.' );
 	check_pt( array( 'days' => 1, 'hours' => 1, 'minutes' => 1, 'seconds' => 1 ) === Countdown::parts( 90061 ) && array( 'days' => 0, 'hours' => 0, 'minutes' => 0, 'seconds' => 0 ) === Countdown::parts( -5 ), 'Partes de la cuenta, y cero al vencer.' );
@@ -358,10 +380,11 @@ namespace {
 			$codes[] = $entry['element'] . ':' . $code['code'] . ':' . $code['key'];
 		}
 	}
-	check_pt( array( 'cd-full:pro.css:custom_css', 'pt-full:pro.approx:align_tablet', 'pt-full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo el CSS convertido y la alineación por dispositivo: ' . implode( ', ', $codes ) );
+	check_pt( array( 'cd-full:pro.css:custom_css', 'pt-full:pro.dropped:align_tablet', 'pt-full:pro.css:custom_css' ) === $codes, 'Ningún pro.unmapped ni aproximación; sólo el CSS convertido y la alineación de tableta descartada (PRO no la aplicaba): ' . implode( ', ', $codes ) );
 	$d = $out['cd-defaults'];
 	check_pt( 'due_date' === $d['countdown_type'] && ! isset( $d['due_date'] ) && 'yes' === $d['show_seconds'] && 'Days' === $d['label_days'] && 'block' === $d['label_display'] && 100 === $d['container_width']['size'] && 10 === $d['box_spacing']['size'] && 'countdown' === $d['_digitalisimo_pro'], 'Una cuenta sin cambios llega con los valores por defecto de PRO (la fecha sigue siendo «dentro de un mes»).' );
 	check_pt( 4 === substr_count( $render( $cd, $d ), 'digi-countdown__item' ), 'Lo convertido por defecto pinta las cuatro cajas.' );
+	check_pt( 1 === preg_match( '#>Days</span>.*>Hours</span>.*>Minutes</span>.*>Seconds</span>#s', $render( $cd, $d ) ), 'Lo convertido por defecto (Converter::tree()) pinta las etiquetas de PRO, no las propias.' );
 	$f = $out['cd-full'];
 	check_pt( '2031-05-01 12:00' === $f['due_date'] && '' === $f['show_seconds'] && 'Jours' === $f['label_days'] && array( 'message', 'redirect' ) === $f['expire_actions'] && 'https://a.test/' === $f['expire_redirect_url']['url'] && 'inline' === $f['label_display'] && 'end' === $f['boxes_alignment'] && 600 === $f['container_width_tablet']['size'] && 8 === $f['box_spacing_mobile']['size'] && 'solid' === $f['box_border_border'] && 'rgba(0,0,0,.3)' === $f['box_shadow_box_shadow']['color'] && 24 === $f['digits_typography_font_size_mobile']['size'] && 'yes' === $f['text_stroke_text_stroke_type'] && 'center' === $f['align_mobile'] && '700' === $f['typography_font_weight'] && 'cuenta' === $f['_element_id'], 'Ajustes, grupos, dispositivos y Avanzado pasan a su control.' );
 	check_pt( "selector .digi-countdown .digi-countdown__item:first-child{border-radius:0}\nselector.digi-countdown--label-inline .digi-countdown__digits{opacity:.9}\nselector .digi-countdown__message{margin-top:1em}" === $f['custom_css'], 'CSS personalizado con las clases propias: ' . $f['custom_css'] );
@@ -372,8 +395,18 @@ namespace {
 	$p = $out['pt-defaults'];
 	check_pt( 'horizontal' === $p['type'] && 'entire_page' === $p['relative_to'] && 'no' === $p['percentage'] && 'none' === $p['horizontal_border_style'] && 'progress-tracker' === $p['_digitalisimo_pro'], 'Un indicador sin cambios llega con los valores por defecto de PRO.' );
 	$q = $out['pt-full'];
-	check_pt( 'circular' === $q['type'] && '#articulo' === $q['selector'] && 'rtl' === $q['direction'] && 80 === $q['circular_size_mobile']['size'] && 'right' === $q['align_tablet'] && 6 === $q['circular_background_width']['size'] && 18 === $q['percentage_typography_font_size']['size'], 'El círculo conserva tamaño, colores, grosores, alineación y porcentaje.' );
+	check_pt( 'circular' === $q['type'] && '#articulo' === $q['selector'] && 'rtl' === $q['direction'] && 80 === $q['circular_size_mobile']['size'] && 'center' === $q['align'] && ! array_key_exists( 'align_tablet', $q ) && 6 === $q['circular_background_width']['size'] && 18 === $q['percentage_typography_font_size']['size'], 'El círculo conserva tamaño, colores, grosores, la alineación de escritorio (la de tableta se descarta: PRO no la aplicaba) y porcentaje.' );
 	check_pt( "selector .digi-progress-tracker--circular .digi-progress-tracker__progress{stroke-linecap:round}\nselector .digi-progress-tracker__track{opacity:.5}\nselector .digi-progress-tracker__percentage{font-weight:700}" === $q['custom_css'], 'CSS personalizado con las clases propias: ' . $q['custom_css'] );
+	// Alineación por dispositivo: PRO sólo pintaba la de escritorio (como clase, en todos los tamaños), así que la de los
+	// demás dispositivos se descarta (con su motivo) y la de escritorio manda en todos, como en PRO.
+	$pt_map = require $root . 'modules/digitalisimo-convert/maps/progress-tracker.php';
+	list( $al, $al_codes ) = Translator::translate( array( 'type' => 'circular', 'align' => 'left', 'align_mobile' => 'center', 'align_tablet' => 'right', 'align_laptop' => 'center' ), $pt_map );
+	check_pt( 'left' === $al['align'] && ! array_intersect( array( 'align_mobile', 'align_tablet', 'align_laptop' ), array_keys( $al ) ), 'La alineación de escritorio se conserva y las de los dispositivos se descartan: ' . json_encode( $al ) );
+	check_pt( array( 'pro.dropped:align_mobile', 'pro.dropped:align_tablet', 'pro.dropped:align_laptop' ) === array_map( static function ( $c ) { return $c['code'] . ':' . $c['key']; }, $al_codes ) && 'dropped' === $al_codes[0]['section'] && str_contains( $al_codes[0]['reason'], 'PRO no los aplicaba' ), 'Cada una, en «Descartado» con su motivo: ' . json_encode( $al_codes, JSON_UNESCAPED_UNICODE ) );
+	list( $al ) = Translator::translate( array( 'type' => 'circular', 'align_tablet' => 'right' ), $pt_map );
+	check_pt( ! isset( $al['align'] ) && ! isset( $al['align_tablet'] ), 'Sin alineación de escritorio, ninguna (como PRO, que sólo leía la de escritorio).' );
+	$align_html = $render( $pt, $al + array( 'relative_to' => 'entire_page' ) );
+	check_pt( str_contains( $align_html, 'digi-progress-tracker--circular' ), 'Lo convertido se pinta.' );
 	$r = $out['pt-bar'];
 	check_pt( 'post_content' === $r['relative_to'] && 'ltr' === $r['percentage_position_mobile'] && 'gradient' === $r['horizontal_color_background'] && '#0000aa' === $r['horizontal_color_color_b'] && 'dashed' === $r['horizontal_tracker_border_style'] && 6 === $r['horizontal_height_mobile']['size'] && 'fixed' === $r['_position'] && 'top' === $r['sticky'] && array( 'horizontal_color_color' => 'globals/colors?id=accent', 'percentage_color' => 'globals/colors?id=secondary', 'percentage_typography_typography' => 'globals/typography?id=accent' ) === $r['__globals__'], 'La barra conserva fondos, bordes, alto por dispositivo, globales, posición fija y fijado.' );
 	check_pt( $converted === Converter::tree( $converted, $again, false ) && array() === $again, 'Lo convertido no se convierte otra vez.' );

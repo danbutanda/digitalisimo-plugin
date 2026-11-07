@@ -2,7 +2,8 @@
 // tests/fixtures/pro-time.html, que es el marcado del servidor (lo comprueba tests/elements-pro-time.php), con el reloj
 // del navegador fijado (Date y Date.now):
 // - cuenta regresiva: dígitos al día con dos cifras, avance segundo a segundo, cero al vencer; acciones al terminar
-//   (ocultar y mostrar el mensaje) una sola vez con el evento `digi-countdown-expire`; redirección sólo a http/https;
+//   (ocultar y mostrar el mensaje) una sola vez con el evento `digi-countdown-expire` y, si la página tiene jQuery, el
+//   `countdown_expire` de PRO antes de las acciones; redirección sólo a http/https;
 //   temporizador perpetuo con las claves de PRO en el navegador (se conserva al recargar, se reinicia si cambia el
 //   intervalo); un elemento quitado deja de contar; reinicio en el editor (frontend/element_ready);
 // - indicador de progreso: barra y círculo según la página (con «Scroll Snap» en el body), un selector y el contenido
@@ -29,12 +30,12 @@ const T0 = Date.UTC(2030, 0, 1); // 1893456000 s
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu'] });
 const errors = [];
-async function open({ query = '', now = T0, editor = false, context = null } = {}) {
+async function open({ query = '', now = T0, editor = false, context = null, jq = false } = {}) {
   const page = await (context || browser).newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_|net::/.test(m.text())) errors.push(m.text()); });
   await page.setViewport({ width: 1280, height: 900 });
-  await page.evaluateOnNewDocument((now, editor) => {
+  await page.evaluateOnNewDocument((now, editor, jq) => {
     window.__now = now;
     const D = Date;
     class F extends D { constructor(...a) { super(...(a.length ? a : [window.__now])); } static now() { return window.__now; } }
@@ -42,7 +43,9 @@ async function open({ query = '', now = T0, editor = false, context = null } = {
     window.__expired = [];
     document.addEventListener('digi-countdown-expire', e => window.__expired.push(e.target.getAttribute('data-id')));
     if (editor) window.elementorFrontend = { hooks: { addAction: (n, f) => { (window.__hooks = window.__hooks || {})[n] = f; } } };
-  }, now, editor);
+    // jQuery mínimo de la página: anota cada trigger (nombre, elemento, datos y estado en ese momento).
+    if (jq) { window.__jq = []; window.jQuery = n => ({ 0: n, length: 1, trigger: (name, data) => window.__jq.push({ name, id: n.getAttribute('data-id'), data: !!data && data[0] === n && data.length === 1, own: window.__expired.slice(), hidden: n.querySelector('.digi-countdown').hidden }) }); }
+  }, now, editor, jq);
   await page.goto(fixture + query, { waitUntil: 'load' });
   await sleep(150);
   return page;
@@ -63,6 +66,15 @@ ok(await page.evaluate(() => { const r = document.querySelector('[data-id="cd2"]
 await page.evaluate(() => { window.__now += 5000; });
 await sleep(2100);
 ok(JSON.stringify(await page.evaluate(() => window.__expired)) === '["cd2"]', 'Las acciones y el evento digi-countdown-expire, una sola vez (PRO las repetía cada segundo): ' + JSON.stringify(await page.evaluate(() => window.__expired)));
+ok(await page.evaluate(() => typeof window.jQuery === 'undefined'), 'Sin jQuery en la página, la cuenta funciona igual (no lo pide ni lo carga).');
+// Con jQuery en la página, también el `countdown_expire` de PRO sobre el envoltorio, con el envoltorio como dato, una
+// sola vez, después del evento propio y antes de las acciones (como `runActions` de PRO).
+const pj = await open({ jq: true });
+await pj.evaluate(() => { window.__now += 5000; });
+await sleep(2100);
+const jqEvents = await pj.evaluate(() => window.__jq);
+ok(JSON.stringify(jqEvents) === JSON.stringify([{ name: 'countdown_expire', id: 'cd2', data: true, own: ['cd2'], hidden: false }]), 'Con jQuery, el countdown_expire de PRO sobre el envoltorio una vez, antes de las acciones: ' + JSON.stringify(jqEvents));
+await pj.close();
 // Temporizador perpetuo: claves de PRO, se conserva al recargar y se reinicia al cambiar el intervalo.
 ok(await digits(page, 'ev1') === '00:02:29:54', 'Perpetuo de 2 h 30 min, seis segundos después: ' + await digits(page, 'ev1'));
 const stored = await page.evaluate(() => [localStorage.getItem('ev1-evergreen_due_date'), localStorage.getItem('ev1-evergreen_interval')]);

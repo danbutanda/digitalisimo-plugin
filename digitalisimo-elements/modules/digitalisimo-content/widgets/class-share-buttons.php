@@ -15,9 +15,12 @@ defined( 'ABSPATH' ) || exit;
  * - Cada botón es un **enlace normal** a la URL de compartir de su red, construido en el servidor con todo codificado
  *   (las plantillas de `elementor/assets/lib/share-link/share-link.js`, del núcleo): la URL de la página actual (la del
  *   objeto consultado, sin la consulta de la petición) o la personalizada, y como PRO el título del documento, el extracto
- *   y la imagen destacada (sólo con la página actual). Se abre en otra pestaña (`noopener noreferrer`); sin scripts de
- *   las redes, sin contadores y sin ninguna petición antes del clic. El correo es un `mailto:`; imprimir, un `<button>`
- *   con un script mínimo (`assets/js/share-buttons.js`, `defer`, sólo en las páginas con ese botón).
+ *   y la imagen destacada (sólo con la página actual). Sin JavaScript se abre en otra pestaña (`noopener noreferrer`).
+ *   Con él (`assets/js/share-buttons.js`, `defer`, sin dependencias), al pulsar, como PRO: la página actual es la
+ *   dirección del navegador (`location.href` sin un parámetro `u` de otro dominio, así se comparten la búsqueda, la
+ *   página 2, los filtros y el idioma; el servidor deja la suya en `data-digi-share-url`) y los enlaces http(s) se abren
+ *   en una ventana emergente centrada de 640 × 480 sin acceso a esta página. Sin scripts de las redes, sin contadores y
+ *   sin ninguna petición antes del clic. El correo es un `mailto:` en la misma ventana; imprimir, un `<button>`.
  * - Iconos de Font Awesome del núcleo (`Icons_Manager`, con los mismos datos que PRO; SVG en línea con el experimento de
  *   iconos SVG): ninguna fuente ni petición de terceros.
  * - Colores oficiales de cada red como variable en línea (`--digi-share-o`), en lugar de una regla por red y piel: la
@@ -26,7 +29,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Diferencias declaradas con PRO: enlaces con destino (PRO pintaba `div role="button"` y abría una ventana emergente con
  * su script al hacer clic), nombre accesible en español con el nombre de la red («Compartir en Facebook»; PRO usaba el
- * identificador en inglés), los títulos «Email» y «Print» se traducen («Correo», «Imprimir»), «Mix» (servicio cerrado,
+ * identificador en inglés), los títulos «Email» y «Print» se traducen («Correo», «Imprimir»; en lo convertido de PRO,
+ * con la marca del traductor, «Email» y «Print», como PRO), «Mix» (servicio cerrado,
  * sin URL de compartir en PRO) se pinta sin enlace, objetivos de 24 × 24 px como mínimo y foco visible propio, y el
  * relleno del texto (`text_padding`) se aplica al texto (en PRO apuntaba a un selector que su marcado no tiene).
  */
@@ -89,15 +93,18 @@ class Share_Buttons extends \Elementor\Widget_Base {
 		return $out;
 	}
 
-	/** El script de imprimir, sólo con un botón de imprimir (y en la instancia de registro, para el editor). */
+	/**
+	 * El script (la URL del navegador y la ventana emergente al pulsar, como PRO, e imprimir), con algún botón que no sea
+	 * Mix (y en la instancia de registro, para el editor).
+	 */
 	public function get_script_depends() {
 		$type = method_exists( $this, 'is_type_instance' ) && $this->is_type_instance();
 		if ( ! $type ) {
-			$print = false;
+			$any = false;
 			foreach ( (array) $this->get_settings( 'share_buttons' ) as $button ) {
-				$print = $print || ( is_array( $button ) && 'print' === ( $button['button'] ?? '' ) );
+				$any = $any || ( is_array( $button ) && isset( self::NETWORKS[ (string) ( $button['button'] ?? '' ) ] ) && 'mix' !== $button['button'] );
 			}
-			if ( ! $print ) {
+			if ( ! $any ) {
 				return array();
 			}
 		}
@@ -542,6 +549,9 @@ class Share_Buttons extends \Elementor\Widget_Base {
 		$show_icon = 'icon' === $view || 'icon-text' === $view;
 		$list      = count( $buttons ) > 1;
 		$data      = self::share_data( $settings );
+		$custom    = 'custom' === ( $settings['share_url_type'] ?? '' ) && ! empty( $settings['share_url']['url'] );
+		// En lo convertido de PRO (marca del traductor, también en lo ya migrado), los títulos de PRO, que no los traduce.
+		$pro       = '' !== (string) $this->get_settings( '_digitalisimo_pro' );
 		$html      = '';
 		foreach ( $buttons as $button ) {
 			$network = is_array( $button ) ? (string) ( $button['button'] ?? '' ) : '';
@@ -550,13 +560,14 @@ class Share_Buttons extends \Elementor\Widget_Base {
 				continue;
 			}
 			$title  = 'email' === $network ? esc_html__( 'Correo', 'pro-elements' ) : ( 'print' === $network ? esc_html__( 'Imprimir', 'pro-elements' ) : self::NETWORKS[ $network ][0] );
-			$custom = isset( $button['text'] ) && '' !== trim( wp_strip_all_tags( (string) $button['text'] ) );
+			$shown  = $pro && in_array( $network, array( 'email', 'print' ), true ) ? ( 'email' === $network ? 'Email' : 'Print' ) : $title;
+			$own    = isset( $button['text'] ) && '' !== trim( wp_strip_all_tags( (string) $button['text'] ) );
 			$inner  = '';
 			if ( $show_icon ) {
 				$inner .= '<span class="digi-share__icon">' . self::icon( $network ) . '</span>';
 			}
 			if ( $show_text ) {
-				$inner .= '<span class="digi-share__text"><span class="digi-share__title">' . ( $custom ? wp_kses_post( (string) $button['text'] ) : esc_html( $title ) ) . '</span></span>';
+				$inner .= '<span class="digi-share__text"><span class="digi-share__title">' . ( $own ? wp_kses_post( (string) $button['text'] ) : esc_html( $shown ) ) . '</span></span>';
 			}
 			// Nombre accesible: el texto que el autor eligió, si se ve; si no, «Compartir en <red>».
 			if ( 'print' === $network ) {
@@ -568,7 +579,7 @@ class Share_Buttons extends \Elementor\Widget_Base {
 				$label = sprintf( esc_html__( 'Compartir en %s', 'pro-elements' ), $title );
 			}
 			$attrs = 'class="digi-share__btn digi-share__btn--' . esc_attr( $network ) . '" style="--digi-share-o:' . esc_attr( self::NETWORKS[ $network ][1] ) . '"';
-			if ( ! ( $show_text && $custom ) ) {
+			if ( ! ( $show_text && $own ) ) {
 				$attrs .= ' aria-label="' . esc_attr( $label ) . '"';
 			}
 			$link = self::link( $network, $data );
@@ -584,6 +595,8 @@ class Share_Buttons extends \Elementor\Widget_Base {
 			// `word-spacing` (como el marcado de PRO, con saltos de línea entre ellos).
 			$html .= '<div class="elementor-grid-item"' . ( $list ? ' role="listitem"' : '' ) . '>' . $tag . "</div>\n";
 		}
-		echo '<div class="elementor-grid digi-share"' . ( $list ? ' role="list"' : '' ) . '>' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
+		// Con la página actual, la URL codificada que llevan los enlaces: el script la cambia al pulsar por la del navegador.
+		$url = $custom || '' === $data['url'] ? '' : ' data-digi-share-url="' . esc_attr( rawurlencode( $data['url'] ) ) . '"';
+		echo '<div class="elementor-grid digi-share"' . ( $list ? ' role="list"' : '' ) . $url . '>' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 	}
 }

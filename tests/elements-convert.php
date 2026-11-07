@@ -254,7 +254,25 @@ namespace {
 	list( , $quiet ) = Translator::translate( array( 'gone' => 'x', 'near' => 'a' ), $map );
 	check_cv( array() === $quiet, 'Un descarte o una aproximación con el valor por defecto no se informan.' );
 
-	// 3. Árboles y recuento.
+	// `drop` con el sufijo de un dispositivo: descarta sólo ese dispositivo aunque `keep` o `rename` conserven la clave
+	// (también en `__dynamic__`), con su código en «Descartado» sólo si cambió del valor por defecto.
+	$device_map = array(
+		'source'   => 'blockquote',
+		'target'   => 'digitalisimo-prueba',
+		'defaults' => array( 'align_mobile' => '' ),
+		'keep'     => array( 'align' ),
+		'rename'   => array( 'gap' => 'spacing' ),
+		'drop'     => array( 'align_tablet' => 'PRO no la aplicaba.', 'align_mobile' => 'PRO no la aplicaba.', 'gap_mobile' => 'Sin equivalente en el móvil.' ),
+	);
+	list( $dv, $dv_codes ) = Translator::translate( array( 'align' => 'left', 'align_tablet' => 'right', 'align_laptop' => 'center', 'gap' => 3, 'gap_tablet' => 2, 'gap_mobile' => 1, '__dynamic__' => array( 'gap_mobile' => '[t]', 'gap_tablet' => '[u]' ) ), $device_map );
+	check_cv( 'left' === $dv['align'] && 'center' === $dv['align_laptop'] && ! array_key_exists( 'align_tablet', $dv ) && ! array_key_exists( 'align_mobile', $dv ) && 3 === $dv['spacing'] && 2 === $dv['spacing_tablet'] && ! array_key_exists( 'spacing_mobile', $dv ) && ! array_key_exists( 'gap_mobile', $dv ) && array( 'spacing_tablet' => '[u]' ) === $dv['__dynamic__'], 'drop por dispositivo: sólo ese dispositivo se descarta; los demás siguen a keep y rename: ' . json_encode( $dv ) );
+	$dv_keys = array_map( static function ( $c ) { return $c['code'] . ':' . $c['key']; }, $dv_codes );
+	sort( $dv_keys );
+	check_cv( array( 'pro.dropped:align_tablet', 'pro.dropped:gap_mobile', 'pro.dropped:gap_mobile' ) === $dv_keys, 'Cada descarte por dispositivo con su clave completa (el del móvil también por su valor dinámico): ' . implode( ', ', $dv_keys ) );
+	list( , $dv_quiet ) = Translator::translate( array( 'align' => 'left', 'align_mobile' => '' ), $device_map );
+	check_cv( array() === $dv_quiet, 'Un dispositivo descartado con el valor por defecto no se informa.' );
+
+	// 3. Árboles y recuento.	// 3. Árboles y recuento.
 	Registry::set( 'blockquote', $map + array( 'status' => 'draft' ) );
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array( 'tag' => 'h3' ) ),

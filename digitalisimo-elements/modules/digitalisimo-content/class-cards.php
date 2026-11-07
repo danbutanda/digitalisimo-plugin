@@ -20,6 +20,8 @@ if ( ! class_exists( '\\Digitalisimo\\Elements\\Image_Markup', false ) && is_fil
  *   su hoja va en la de cada widget.
  * - `tag()`: etiqueta HTML de la lista permitida o la de respaldo; `link()`: atributos de un control URL con
  *   `esc_url()` (un protocolo no permitido no enlaza), `target` y `rel`.
+ * - `inline()`: la edición en línea del lienzo del editor, como `add_inline_editing_attributes()` del núcleo, con las
+ *   mismas claves y barras que el widget de PRO (también lo usa la Lista de videos).
  */
 final class Cards {
 	const TAGS = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'p' );
@@ -127,7 +129,7 @@ final class Cards {
 		return (string) ob_get_clean();
 	}
 
-	/** Cinta (`ribbon_title`, `ribbon_horizontal_position`); '' sin título. */
+	/** Cinta (`ribbon_title`, `ribbon_horizontal_position`); '' sin título. Su texto se edita en el lienzo, como en PRO. */
 	public static function ribbon( array $settings ): string {
 		$title = (string) ( $settings['ribbon_title'] ?? '' );
 		if ( '' === trim( $title ) ) {
@@ -135,7 +137,39 @@ final class Cards {
 		}
 		$position = (string) ( $settings['ribbon_horizontal_position'] ?? '' );
 		$class    = 'digi-ribbon' . ( in_array( $position, array( 'left', 'right' ), true ) ? ' digi-ribbon--' . $position : '' );
-		return '<div class="' . $class . '"><div class="digi-ribbon__inner">' . wp_kses_post( $title ) . '</div></div>';
+		return '<div class="' . $class . '"><div ' . self::attributes( self::inline( array( 'class' => 'digi-ribbon__inner' ), 'ribbon_title' ) ) . '>' . wp_kses_post( $title ) . '</div></div>';
+	}
+
+	/** ¿Se pinta para el lienzo del editor? (`is_edit_mode()` del núcleo: también en el pintado remoto del editor). */
+	public static function edit_mode(): bool {
+		$plugin = class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		return is_object( $plugin ) && isset( $plugin->editor ) && is_object( $plugin->editor ) && method_exists( $plugin->editor, 'is_edit_mode' ) && $plugin->editor->is_edit_mode();
+	}
+
+	/**
+	 * Atributos de un texto con la edición en línea del lienzo, como `add_inline_editing_attributes()` del núcleo: sólo en
+	 * el editor, la clase `elementor-inline-editing`, `data-elementor-setting-key` (en un repetidor,
+	 * `<repetidor>.<índice>.<campo>`) y, salvo con la barra básica, `data-elementor-inline-editing-toolbar` (`none`,
+	 * `advanced`). El comportamiento del núcleo (`InlineEditing`) actúa sobre ellos también con el pintado remoto. Fuera
+	 * del editor devuelve los atributos tal cual: el front no cambia.
+	 */
+	public static function inline( array $attrs, string $key, string $toolbar = 'basic' ): array {
+		if ( ! self::edit_mode() ) {
+			return $attrs;
+		}
+		$class          = $attrs['class'] ?? '';
+		$attrs['class'] = trim( ( is_array( $class ) ? implode( ' ', $class ) : (string) $class ) . ' elementor-inline-editing' );
+		$attrs['data-elementor-setting-key'] = $key;
+		if ( 'basic' !== $toolbar ) {
+			$attrs['data-elementor-inline-editing-toolbar'] = $toolbar;
+		}
+		return $attrs;
+	}
+
+	/** `inline()` como cadena de atributos con un espacio delante ('' sin atributos), para el marcado que se concatena. */
+	public static function inline_attributes( array $attrs, string $key, string $toolbar = 'basic' ): string {
+		$out = self::attributes( self::inline( $attrs, $key, $toolbar ) );
+		return '' === $out ? '' : ' ' . $out;
 	}
 
 	/** Tamaños del botón del núcleo (`elementor-size-*`). */

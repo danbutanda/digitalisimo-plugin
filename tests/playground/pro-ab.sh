@@ -72,6 +72,8 @@
 # el navegador (`ready.a`) y el propio los pinta el servidor; el Inicio de sesión se mide sin sesión iniciada. Los envíos
 # (ninguno se pierde ni se duplica, con las acciones guardar, correo y webhook) no se miden aquí, sino de punta a punta
 # con tests/playground/pro-form-e2e.sh.
+# `experiments` (`{"<experimento del núcleo>": "active"|"inactive"}`, activate.php): fija experimentos en todo el sitio
+# (p. ej. el marcado heredado, `e_optimized_markup` inactivo); un caso que lo trae se mide en una corrida propia.
 # C7 (WooCommerce) añade, también opcional y sin efecto en los casos que no lo usan (detalle en setup.php,
 # `digi_ab_woo_fixtures()` y `digi_ab_woo_context()`):
 #   - tienda: si algún caso de la corrida trae `woo`, un contexto de tienda o es un widget de tienda de PRO
