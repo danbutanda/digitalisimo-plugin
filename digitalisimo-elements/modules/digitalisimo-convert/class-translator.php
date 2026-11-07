@@ -377,29 +377,38 @@ final class Translator {
 		return $changed ? $out : null;
 	}
 
-	/** Copias traducidas de una regla de estilo (sin repetir), con los juegos que se le aplican. */
+	/**
+	 * Copias traducidas de una regla de estilo (sin repetir), con los juegos que se le aplican. Una copia que todavía nombra
+	 * clases de otro juego (una lista de selectores con el menú y el buscador de PRO) gana a su vez su copia, en la misma
+	 * pasada: así la segunda pasada no añade nada (idempotente).
+	 */
 	private static function external_copies( string $prelude, string $rule, array $sets ): array {
 		$copies = array();
-		// El selector sin comentarios ni cadenas: una clase dentro de `[data-x=".clase"]` no ancla.
-		$plain  = (string) preg_replace( array( '#/\*.*?\*/#s', '/"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'/s' ), array( '', '""' ), $prelude );
-		foreach ( $sets as $set ) {
-			$classes  = $set['classes'];
-			$patterns = $set['class_patterns'];
-			$anchored = '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain );
-			if ( ! $anchored ) {
-				foreach ( $patterns as $pattern => $replacement ) {
-					if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
-						$anchored = true;
-						break;
+		$queue  = array( array( $prelude, $rule ) );
+		for ( $i = 0; $i < count( $queue ) && $i < 32; $i++ ) {
+			list( $selector, $text ) = $queue[ $i ];
+			// El selector sin comentarios ni cadenas: una clase dentro de `[data-x=".clase"]` no ancla.
+			$plain = (string) preg_replace( array( '#/\*.*?\*/#s', '/"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'/s' ), array( '', '""' ), $selector );
+			foreach ( $sets as $set ) {
+				$classes  = $set['classes'];
+				$patterns = $set['class_patterns'];
+				$anchored = '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain );
+				if ( ! $anchored ) {
+					foreach ( $patterns as $pattern => $replacement ) {
+						if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+							$anchored = true;
+							break;
+						}
 					}
 				}
-			}
-			if ( ! $anchored ) {
-				continue;
-			}
-			$copy = self::rewrite_classes( $rule, $classes, $patterns );
-			if ( $copy !== $rule && ! in_array( $copy, $copies, true ) ) {
-				$copies[] = $copy;
+				if ( ! $anchored ) {
+					continue;
+				}
+				$copy = self::rewrite_classes( $text, $classes, $patterns );
+				if ( $copy !== $text && $copy !== $rule && ! in_array( $copy, $copies, true ) ) {
+					$copies[] = $copy;
+					$queue[]  = array( self::rewrite_classes( $selector, $classes, $patterns ), $copy );
+				}
 			}
 		}
 		return $copies;

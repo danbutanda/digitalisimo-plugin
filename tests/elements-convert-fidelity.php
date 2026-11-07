@@ -120,7 +120,13 @@ namespace {
 	$ok( '.a{b:c}' === $translator::rewrite_external_css( '.a{b:c}', array( 'nav-menu' => $nav ) ) && '' === $translator::rewrite_external_css( '', array( 'nav-menu' => $nav ) ) && '.x{' === $translator::rewrite_external_css( '.x{', array( 'nav-menu' => $nav ) ), '4: sin clases de PRO, vacío o sin cerrar, el CSS queda igual.' );
 	$two = $translator::rewrite_external_css( '.elementor-pagination a{x:y}', array( 'a' => array( 'classes' => array( '.elementor-pagination' => '.digi-a__pages' ) ), 'b' => array( 'classes' => array( '.elementor-pagination' => '.digi-b__pages' ) ), 'c' => array( 'classes' => array( '.elementor-pagination' => '.digi-a__pages' ) ) ) );
 	$ok( '.elementor-pagination a{x:y}.digi-a__pages a{x:y}.digi-b__pages a{x:y}' === $two, '4: una clase que traducen dos mapas da una copia por destino, sin repetir: ' . $two );
-	$sm  = array( 'class_patterns' => array( '/\.elementor-sitemap-item-([a-z0-9_-]+)(?![\w-])/' => '.digi-sitemap__item--$1' ) );
+	// Una lista de selectores con dos widgets de PRO (menú y buscador): en la misma pasada, la copia de cada uno y la que
+	// traduce los dos; la segunda pasada (la etapa `pro_css` sobre lo que ya tocó `pro`, o el segundo guardado de un kit)
+	// no añade nada.
+	$pair = array( 'nav-menu' => array( 'classes' => array( '.elementor-nav-menu' => '.digi-nav__list' ) ), 'search-form' => array( 'classes' => array( '.elementor-search-form' => '.digi-search-form' ) ) );
+	$both = $translator::rewrite_external_css( '.elementor-nav-menu a, .elementor-search-form input{color:red}', $pair );
+	$ok( '.elementor-nav-menu a, .elementor-search-form input{color:red}.digi-nav__list a, .elementor-search-form input{color:red}.elementor-nav-menu a, .digi-search-form input{color:red}.digi-nav__list a, .digi-search-form input{color:red}' === $both && $both === $translator::rewrite_external_css( $both, $pair ), '4: una regla con dos widgets de PRO gana también la copia con los dos traducidos, y la segunda pasada no cambia nada: ' . $both );
+	$sm  = array( 'class_patterns' =>array( '/\.elementor-sitemap-item-([a-z0-9_-]+)(?![\w-])/' => '.digi-sitemap__item--$1' ) );
 	$ok( '.elementor-sitemap-item-product{x:y}.digi-sitemap__item--product{x:y}' === $translator::rewrite_external_css( '.elementor-sitemap-item-product{x:y}', array( 'sitemap' => $sm ) ), '4: los patrones de clase también anclan y traducen.' );
 	$registry::reset();
 	$real = $converter::external_css( 'selector .elementor-nav-menu--main .elementor-item{color:#d00}' );
