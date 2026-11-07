@@ -254,6 +254,7 @@ final class References {
 	/**
 	 * Referencias que se aplican a un ámbito y un tipo: las del tipo, las de `*` y, en `element`, las derivadas
 	 * de sus controles URL. Si dos cubren la misma ruta, gana la del tipo, luego la de `*` y por último la derivada.
+	 * Para una derivada, `x` y `x.*` son la misma ruta (una lista de IDs declarada con `.*` y derivada sin él).
 	 *
 	 * En `term_meta`, una referencia acotada con `taxonomies` sólo cuenta dentro de `within_taxonomy()` con una de
 	 * sus taxonomías (V.11.4); las demás, como siempre.
@@ -276,9 +277,13 @@ final class References {
 		}
 		if ( 'element' === $scope && '*' !== $type ) {
 			foreach ( self::for_type( $type ) as $ref ) {
-				if ( ! isset( $seen[ $ref['path'] ] ) ) {
-					$seen[ $ref['path'] ] = true;
-					$refs[]               = $ref;
+				// La misma lista declarada como `x.*` (o derivada como `x.*` y declarada como `x`) es la misma ruta: si no,
+				// cada ID se traduciría dos veces y el segundo paso, con el ID del destino, lo daría por perdido.
+				$path = $ref['path'];
+				$list = '.*' === substr( $path, -2 ) ? substr( $path, 0, -2 ) : $path . '.*';
+				if ( ! isset( $seen[ $path ] ) && ! isset( $seen[ $list ] ) ) {
+					$seen[ $path ] = true;
+					$refs[]        = $ref;
 				}
 			}
 		}

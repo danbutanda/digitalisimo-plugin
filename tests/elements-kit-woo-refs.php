@@ -10,8 +10,9 @@
  *  2. Exportar: `Export\Documents::restore_ids()` repone `product_id` y `query_posts_ids` que quitan `on_export()` y
  *     `export => false`, sólo para las referencias con `export` (los webhooks de un formulario siguen fuera), sin pisar
  *     lo que la exportación dejó; sin las declaraciones, el árbol es el de siempre.
- *  3. Importar: el remapeo traduce el producto y la selección; sin destino, el valor que nunca coincide (vacío sería el
- *     producto de la página o todos los productos) y `unresolved` en el informe.
+ *  3. Importar: el remapeo traduce el producto y la selección una sola vez (la referencia que K deriva del control de
+ *     consulta, `query_posts_ids`, no repite la declarada `query_posts_ids.*`); sin destino, el valor que nunca coincide
+ *     (vacío sería el producto de la página o todos los productos) y `unresolved` en el informe.
  *  4. `site-settings` en «nuevo»: las páginas de WooCommerce del kit no se guardan en la primera petición (su `on_save()`
  *     las copiaba sin traducir a las opciones) y quedan apartadas en la sesión; en «agregar», ni se aplican ni quedan
  *     para «Aplicar los ajustes del kit» y se informa `settings.reference_kept`.
@@ -29,6 +30,8 @@ namespace Elementor {
 		public $documents;
 		public $app;
 		public $experiments;
+		public $widgets_manager;
+		public $elements_manager;
 	}
 }
 
@@ -194,6 +197,23 @@ namespace {
 	// ── 3. Importar ─────────────────────────────────────────────────────────────────────────────────────────────────
 	kt_reset();
 	$woo();
+	// Los widgets registrados, con sus controles de consulta: K también deriva de ellos una referencia `post`
+	// (`query_posts_ids` sin `.*`), que no debe repetir la declarada (`query_posts_ids.*`).
+	\Elementor\Plugin::$instance                  = new \Elementor\Plugin();
+	\Elementor\Plugin::$instance->widgets_manager = new class() {
+		public function get_widget_types( $type ) {
+			return new class() {
+				public function get_controls() {
+					return array(
+						'product_id'      => array( 'name' => 'product_id', 'type' => 'query', 'autocomplete' => array( 'object' => 'post' ) ),
+						'query_posts_ids' => array( 'name' => 'query_posts_ids', 'type' => 'query', 'autocomplete' => array( 'object' => 'post' ) ),
+					);
+				}
+			};
+		}
+	};
+	$paths = array_column( References::matching( 'element', 'digitalisimo-woo-products' ), 'path' );
+	kt_check( in_array( 'query_posts_ids.*', $paths, true ) && ! in_array( 'query_posts_ids', $paths, true ), '3: la derivada `query_posts_ids` no repite la lista declarada `query_posts_ids.*`: ' . implode( ', ', $paths ) );
 	$context = new Import_Context( array( 'session' => 'kwr0000000001', 'mode' => 'fresh', 'maps' => array( 'post' => array( 11 => 111, 12 => 112 ) ) ) );
 	$tree    = array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'digitalisimo-woo-add-to-cart', 'settings' => array( 'product_id' => '11' ), 'elements' => array() ),
