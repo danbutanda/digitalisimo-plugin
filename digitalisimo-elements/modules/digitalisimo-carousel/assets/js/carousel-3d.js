@@ -1,4 +1,4 @@
-/* DIGITALÍSIMO Elements · «Coverflow» y efecto «Cubo» del Carrusel multimedia, como los de Swiper en PRO (ver class-media-carousel.php): el script fija en cada diapositiva su distancia al centro de la pista, en anchos de diapositiva (`--digi-k`), y la hoja (carousel-3d.css) la gira; con el cubo, además, la medida de la pista para la sombra. */
+/* DIGITALÍSIMO Elements · «Coverflow» y efecto «Cubo» del Carrusel multimedia, como los de Swiper en PRO (ver class-media-carousel.php): el script fija en cada diapositiva su distancia al centro de la pista, en anchos de diapositiva (`--digi-k`), y la hoja (carousel-3d.css) la gira; con el cubo, además, la medida de la pista para la sombra. El imán está apagado (Chrome lo calcula con la caja girada): un desplazamiento del usuario que queda a medias vuelve a la diapositiva actual. */
 (()=>{
 const W=window,D=document,A=Math.abs,F=()=>W.elementorFrontend,Q=new Set,S='[data-digi-fx]>.digi-crs__track';
 let raf=0,ro;
@@ -18,7 +18,8 @@ Q.clear();
 };
 const ask=T=>{Q.add(T);raf||(raf=requestAnimationFrame(draw))};
 const scan=s=>(s?.querySelectorAll?s:D).querySelectorAll(S).forEach(T=>{(ro=ro||new ResizeObserver(l=>l.forEach(e=>ask(e.target)))).observe(T);ask(T)});
-D.addEventListener('scroll',e=>e.target.matches?.(S)&&ask(e.target),!0);
+const settle=T=>{clearTimeout(T.$s);T.$s=setTimeout(()=>{const P=T.parentNode,c=T.querySelector(':scope>.digi-crs__current'),f=T.firstElementChild;P.digiCrs&&c&&!P.classList.contains('digi-crs--drag')&&A(T.scrollLeft-c.offsetLeft+f.offsetLeft)>1&&P.digiCrs.go(P.digiCrs.index())},200)};
+D.addEventListener('scroll',e=>{const T=e.target;T.matches?.(S)&&(ask(T),settle(T))},!0);
 const hook=()=>F().hooks.addAction('frontend/element_ready/global',s=>scan(s?.[0]));
 F()?.hooks?hook():W.addEventListener('elementor/frontend/init',hook);
 D.readyState=='loading'?D.addEventListener('DOMContentLoaded',()=>scan()):scan();
