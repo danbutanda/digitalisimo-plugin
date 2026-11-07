@@ -9,8 +9,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Comentarios de Facebook (`digitalisimo-facebook-comments`): sustituye al «Facebook Comments» de PRO
  * (`modules/social/widgets/facebook-comments.php`; mapa `maps/facebook-comments.php`). Mismos controles derivados de PRO
- * Elements (GPL); el plugin `fb-comments` y sus `data-*` son los de PRO, detrás de la fachada de `Services\Facebook`.
- * Meta retiró este plugin para sitios de terceros: como en PRO, el panel lo avisa.
+ * Elements (GPL); el plugin `fb-comments` y sus `data-*` son los de PRO. Meta retiró este plugin para sitios de
+ * terceros: como en PRO, el panel lo avisa y la página sólo lleva el `div` del plugin, vacío, sin fachada ni SDK.
  */
 class Facebook_Comments extends \Elementor\Widget_Base {
 
@@ -140,7 +140,8 @@ class Facebook_Comments extends \Elementor\Widget_Base {
 			'data-order-by' => (string) ( $settings['order_by'] ?? 'social' ),
 			'style'         => 'min-height: 1px',
 		);
-		echo Facebook::facade( (string) $this->get_id(), 'comments', $attrs, __( 'Ver los comentarios de Facebook', 'pro-elements' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en facade().
+		// Meta retiró el plugin (`Facebook::DISCONTINUED`): como PRO, sólo su `div`, que queda vacío (1 px); sin fachada ni SDK.
+		echo Facebook::plugin( $attrs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en plugin().
 	}
 
 	public function render_plain_content() {}

@@ -6,7 +6,8 @@
 //   aunque se pulsen varios widgets (la petición se intercepta y se responde con un `FB` simulado), `FB.init` recibe
 //   el App ID, la versión v2.10 y `xfbml: false`, `FB.XFBML.parse` se llama sobre cada widget pulsado (y no sobre los
 //   demás) y el foco pasa al contenido;
-// - foco visible: contorno de 2 px a 2 px en el botón.
+// - foco visible: contorno de 2 px a 2 px en el botón;
+// - el Botón y los Comentarios, que Meta retiró, sólo con el `div` del plugin de PRO (vacío, 1 px), sin fachada ni SDK.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-facebook-chrome.mjs
 import assert from 'node:assert/strict';
@@ -61,17 +62,20 @@ const before = await page.evaluate(() => ({
   scripts: [...document.scripts].map(s => s.src).filter(s => !s.startsWith('file:')),
   fb: typeof window.FB,
 }));
-ok(before.facades === 12 && before.plugins === 0 && before.iframes === 0 && before.scripts.length === 0 && before.fb === 'undefined', 'Sólo fachadas: ningún plugin fuera del <template>, ni iframes, ni scripts ajenos, ni FB: ' + JSON.stringify(before));
+ok(before.facades === 6 && before.plugins === 6 && before.iframes === 0 && before.scripts.length === 0 && before.fb === 'undefined', 'Fachadas en la Publicación y la Página; fuera del <template> sólo los seis div de los retirados; ni iframes, ni scripts ajenos, ni FB: ' + JSON.stringify(before));
+// Retirados por Meta (corrección de fidelidad): como PRO, el div del plugin con sus data-*, vacío y de 1 px, sin fachada.
+const retired = await page.evaluate(() => ['button', 'comments'].flatMap((k) => [0, 1, 2].map((i) => { const w = document.querySelector(`[data-id="digitalisimo-facebook-${k}-${i}"]`); const p = w.querySelector(':scope > .digi-fb__plugin'); return { k, facade: !!w.querySelector('.digi-fb'), h: p ? Math.round(p.getBoundingClientRect().height) : -1, href: p && p.getAttribute('data-href') }; })));
+ok(retired.every((r) => !r.facade && 1 === r.h && /^https?:/.test(r.href || '')), 'Botón y Comentarios: el div del plugin de PRO, vacío, de 1 px, sin fachada: ' + JSON.stringify(retired));
 const sizes = await page.evaluate(() => {
   const box = id => { const r = document.querySelector(`[data-id="${id}"] .digi-fb`).getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; };
   const btn = [...document.querySelectorAll('.digi-fb__load')].map(b => { const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); });
-  return { page0: box('digitalisimo-facebook-page-0'), page1: box('digitalisimo-facebook-page-1'), video: box('digitalisimo-facebook-embed-2'), post: box('digitalisimo-facebook-embed-0'), comments: box('digitalisimo-facebook-comments-0'), button: box('digitalisimo-facebook-button-0'), minButton: Math.min(...btn) };
+  return { page0: box('digitalisimo-facebook-page-0'), page1: box('digitalisimo-facebook-page-1'), video: box('digitalisimo-facebook-embed-2'), post: box('digitalisimo-facebook-embed-0'), minButton: Math.min(...btn) };
 });
 ok(sizes.page0[1] === 500 && sizes.page0[0] === 500, 'Página: la fachada reserva 500 × 500 px como el plugin: ' + JSON.stringify(sizes.page0));
 ok(sizes.page1[1] === 480, 'Página: alto en em (30em × 16 px): ' + JSON.stringify(sizes.page1));
 ok(Math.abs(sizes.video[0] / sizes.video[1] - 16 / 9) < 0.02, 'Vídeo: la fachada reserva 16:9: ' + JSON.stringify(sizes.video));
-ok(sizes.post[1] >= 200 && sizes.post[0] <= 500 && sizes.comments[1] >= 200, 'Publicación y comentarios: alto mínimo de 200 px: ' + JSON.stringify([sizes.post, sizes.comments]));
-ok(sizes.button[1] >= 32 && sizes.button[1] < 120 && sizes.minButton >= 24, 'Botón: fachada compacta y todos los botones de al menos 24 × 24 px: ' + JSON.stringify(sizes));
+ok(sizes.post[1] >= 200 && sizes.post[0] <= 500, 'Publicación: alto mínimo de 200 px: ' + JSON.stringify(sizes.post));
+ok(sizes.minButton >= 24, 'Todos los botones de al menos 24 × 24 px: ' + JSON.stringify(sizes));
 const names = await page.evaluate(() => [...document.querySelectorAll('.digi-fb__load')].map(b => b.textContent.trim()));
 ok(names.every(n => /^Facebook(Mostrar|Ver) /.test(n)), 'Cada botón dice qué carga: ' + names.slice(0, 3).join(' | '));
 const name = await page.$eval('[data-id="digitalisimo-facebook-page-0"] .digi-fb__load', b => b.closest('div'));
@@ -87,7 +91,7 @@ ok(focus.cls === 'digi-fb__load' && focus.outline === '2px solid' && focus.offse
 // ── Clic en una Página ───────────────────────────────────────────────────────────────────────────────────────────────
 await page.click('[data-id="digitalisimo-facebook-page-0"] .digi-fb__load');
 await sleep(400);
-let state = await page.evaluate(() => ({ fb: window.__fb, plugin: document.querySelector('[data-id="digitalisimo-facebook-page-0"] .digi-fb__plugin.fb-page')?.outerHTML || '', loaded: document.querySelector('[data-id="digitalisimo-facebook-page-0"] .digi-fb').className, active: document.activeElement.className, others: document.querySelectorAll('body .digi-fb__plugin').length }));
+let state = await page.evaluate(() => ({ fb: window.__fb, plugin: document.querySelector('[data-id="digitalisimo-facebook-page-0"] .digi-fb__plugin.fb-page')?.outerHTML || '', loaded: document.querySelector('[data-id="digitalisimo-facebook-page-0"] .digi-fb').className, active: document.activeElement.className, others: document.querySelectorAll('body .digi-fb:not(.digi-fb--loaded) > .digi-fb__plugin, body .digi-fb--loaded .digi-fb__plugin').length }));
 ok(external.length === 1 && external[0] === 'https://connect.facebook.net/es_MX/sdk.js', 'Al pulsar, se pide el SDK en el idioma del sitio una vez: ' + external.join(', '));
 ok(state.fb && state.fb.init.length === 1 && state.fb.init[0].appId === '1234567890' && state.fb.init[0].version === 'v2.10' && state.fb.init[0].xfbml === false, 'FB.init con el App ID, v2.10 y sin xfbml: ' + JSON.stringify(state.fb && state.fb.init));
 ok(state.fb.parse.length === 1 && state.fb.parse[0] === 'digitalisimo-facebook-page-0', 'FB.XFBML.parse sólo sobre el widget pulsado: ' + JSON.stringify(state.fb.parse));
@@ -100,12 +104,12 @@ ok(loadedSize === 500, 'El plugin cargado mantiene el alto (sin salto): ' + load
 await page.focus('[data-id="digitalisimo-facebook-embed-2"] .digi-fb__load');
 await page.keyboard.press('Enter');
 await sleep(200);
-await page.focus('[data-id="digitalisimo-facebook-comments-1"] .digi-fb__load');
+await page.focus('[data-id="digitalisimo-facebook-embed-0"] .digi-fb__load');
 await page.keyboard.press('Space');
 await sleep(300);
 state = await page.evaluate(() => ({ fb: window.__fb, video: document.querySelector('[data-id="digitalisimo-facebook-embed-2"] .fb-video')?.getAttribute('data-autoplay'), comments: document.querySelector('[data-id="digitalisimo-facebook-comments-1"] .fb-comments')?.getAttribute('data-order-by'), scripts: [...document.scripts].filter(s => /connect\.facebook\.net/.test(s.src)).length }));
 ok(external.length === 1 && state.scripts === 1 && state.fb.init.length === 1, 'Varios widgets, un solo SDK y un solo FB.init: ' + JSON.stringify({ external, scripts: state.scripts, init: state.fb.init.length }));
-ok(JSON.stringify(state.fb.parse) === JSON.stringify(['digitalisimo-facebook-page-0', 'digitalisimo-facebook-embed-2', 'digitalisimo-facebook-comments-1']), 'Intro y Espacio cargan cada uno su widget: ' + JSON.stringify(state.fb.parse));
+ok(JSON.stringify(state.fb.parse) === JSON.stringify(['digitalisimo-facebook-page-0', 'digitalisimo-facebook-embed-2', 'digitalisimo-facebook-embed-0']), 'Intro y Espacio cargan cada uno su widget: ' + JSON.stringify(state.fb.parse));
 ok(state.video === 'true' && state.comments === 'reverse_time', 'Vídeo y comentarios con los data-* de PRO.');
 // Un segundo clic en algo ya cargado no hace nada.
 await page.click('[data-id="digitalisimo-facebook-page-0"] .digi-fb');
@@ -116,8 +120,8 @@ await page.close();
 // ── Varios clics antes de que llegue el SDK: un solo pedido y una cola. ────────────────────────────────────────────
 ({ page, external } = await open());
 await page.evaluate(() => {
-  document.querySelector('[data-id="digitalisimo-facebook-button-0"] .digi-fb__load').click();
-  document.querySelector('[data-id="digitalisimo-facebook-button-1"] .digi-fb__load').click();
+  document.querySelector('[data-id="digitalisimo-facebook-embed-1"] .digi-fb__load').click();
+  document.querySelector('[data-id="digitalisimo-facebook-page-1"] .digi-fb__load').click();
 });
 await sleep(400);
 const queued = await page.evaluate(() => window.__fb);
