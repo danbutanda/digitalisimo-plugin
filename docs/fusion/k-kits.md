@@ -418,6 +418,11 @@ traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de W
     informa `settings.reference_kept`: el sitio conserva su elección. El runner `woocommerce-settings` de K informa la
     página que trae el kit buscándola en todo lo importado (`Finish::post_map()`, también el WXR, por donde llegan las
     páginas de WooCommerce), no sólo en las del constructor.
+- **Una lista no se traduce dos veces.** `References::matching()` no añade la referencia que deriva de un control de
+  consulta (`query_posts_ids`) cuando el tipo ya declara esa lista con `.*` (`query_posts_ids.*`), ni al revés: eran
+  dos rutas distintas, cada ID se traducía dos veces y el segundo paso, con el ID del destino, lo daba por perdido. Lo
+  encontró la corrida de R1 de esta corrección: la selección manual llegaba vacía. Afecta igual a toda lista declarada
+  con `.*` sobre un control `query` (las de los Productos clásicos, por ejemplo).
 - **Referencias integradas nuevas:** las seis páginas de la pestaña WooCommerce (`woocommerce_shop_page_id`, `_cart_`,
   `_checkout_`, `_myaccount_`, `_terms_` y `_purchase_summary_page_id`) como `document · kit · post`, sin `never`
   (vacía, WooCommerce no tiene esa página). Viven en K porque la pestaña es de Elements y se aplican también sin
