@@ -1720,7 +1720,10 @@ class Price_Table extends \Elementor\Widget_Base {
 				}
 				$text = (string) ( $item['item_text'] ?? '' );
 				echo '<li class="elementor-repeater-item-' . esc_attr( (string) ( $item['_id'] ?? '' ) ) . '"><div class="digi-price-table__feature-inner">';
-				echo Cards::icon( $item, 'selected_item_icon', 'item_icon' );
+				// Como PRO, un espacio entre el icono y el texto: su plantilla deja un salto de línea entre los dos, que en la
+				// caja en línea separa unos 4 px el icono del texto (centrado, 2 px a cada lado).
+				$icon = Cards::icon( $item, 'selected_item_icon', 'item_icon' );
+				echo '' !== $icon ? $icon . ' ' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo o clase escapada.
 				echo '' !== $text ? '<span>' . wp_kses_post( $text ) . '</span>' : '&nbsp;';
 				echo '</div></li>';
 			}
