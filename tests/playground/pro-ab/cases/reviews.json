@@ -105,7 +105,7 @@
    }
   },
   "rv-stars": {
-   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera. Se mide cargando la página en cada ancho (`fresh`, como `tc-images`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta",
+   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera. Se mide cargando la página en cada ancho (`fresh`, como `tc-images`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta. Las acciones empiezan por un punto: con los enlaces de la cabecera, el Tab del estado de foco llega en PRO al de una copia del bucle (Swiper no las aparta del teclado) y su accesibilidad lleva esa diapositiva al principio (`handleFocus`, pendiente declarado en docs/pro/c1.md), así que una flecha pulsada justo después partía de otra diapositiva",
    "fresh": true,
    "widget": "reviews",
    "settings": {
@@ -201,14 +201,14 @@
    },
    "actions": [
     {
-     "label": "Flecha siguiente",
-     "a": ".elementor-swiper-button-next",
-     "b": ".digi-crs__next"
-    },
-    {
      "label": "Segundo punto",
      "a": ".swiper-pagination-bullet:nth-child(2)",
      "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
      "label": "Intro en la flecha siguiente",
@@ -229,7 +229,7 @@
    }
   },
   "rv-stars-eicons": {
-   "title": "Las mismas reseñas con la hoja de eicons cargada en la página (un widget HTML hermano): las estrellas de PRO y las convertidas, iguales (corrección de fidelidad). Con `fresh`, como `rv-stars`",
+   "title": "Las mismas reseñas con la hoja de eicons cargada en la página (un widget HTML hermano): las estrellas de PRO y las convertidas, iguales (corrección de fidelidad). Con `fresh` y las acciones empezando por un punto, como `rv-stars`",
    "fresh": true,
    "widget": "reviews",
    "settings": {
@@ -325,14 +325,14 @@
    },
    "actions": [
     {
-     "label": "Flecha siguiente",
-     "a": ".elementor-swiper-button-next",
-     "b": ".digi-crs__next"
-    },
-    {
      "label": "Segundo punto",
      "a": ".swiper-pagination-bullet:nth-child(2)",
      "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
      "label": "Intro en la flecha siguiente",
