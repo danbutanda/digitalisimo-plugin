@@ -129,6 +129,19 @@ const show = (g) => g.map((s) => `[${Math.round(s.x)},${Math.round(s.y)} ${Math.
       // Sin centrar, como PRO: las tres primeras desde el borde izquierdo y tres puntos posibles (5 − 3 + 1 páginas).
       const first = await page.evaluate(() => document.getElementById('b').digiCrs.index());
       ok(2 === first, 'Coverflow sin bucle: la API sigue en la diapositiva 3 tras dos pasos.');
+      // Sin imán (Chrome lo calcularía con la caja girada): un desplazamiento del usuario que queda a medias vuelve a la
+      // diapositiva actual o pasa a la más cercana, siempre alineada.
+      for (const [part, expected] of [[-0.3, 2], [-0.7, 1]]) {
+        const at = await page.evaluate(async (part) => {
+          const T = document.querySelector('#b>.digi-crs__track'), w = T.children[1].offsetLeft - T.children[0].offsetLeft;
+          T.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+          T.scrollLeft += part * w;
+          await new Promise((r) => setTimeout(r, 700));
+          const i = document.getElementById('b').digiCrs.index();
+          return { i, aligned: Math.abs(T.scrollLeft - (T.children[i].offsetLeft - T.children[0].offsetLeft)) <= 1 };
+        }, part);
+        ok(expected === at.i && at.aligned, `Coverflow: un desplazamiento del usuario de ${part} diapositivas termina alineado en la ${expected + 1} (${at.i + 1}, ${at.aligned ? 'alineada' : 'a medias'}).`);
+      }
     }
     await page.close();
   }

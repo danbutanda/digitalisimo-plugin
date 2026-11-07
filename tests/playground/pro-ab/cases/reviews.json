@@ -105,7 +105,8 @@
    }
   },
   "rv-stars": {
-   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera",
+   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera. Se mide cargando la página en cada ancho (`fresh`, como `tc-images`): con el ancho cambiado en la misma página, Swiper conserva al volver al escritorio la separación de la tableta",
+   "fresh": true,
    "widget": "reviews",
    "settings": {
     "autoplay": "",
@@ -228,7 +229,8 @@
    }
   },
   "rv-stars-eicons": {
-   "title": "Las mismas reseñas con la hoja de eicons cargada en la página (un widget HTML hermano): las estrellas de PRO y las convertidas, iguales (corrección de fidelidad)",
+   "title": "Las mismas reseñas con la hoja de eicons cargada en la página (un widget HTML hermano): las estrellas de PRO y las convertidas, iguales (corrección de fidelidad). Con `fresh`, como `rv-stars`",
+   "fresh": true,
    "widget": "reviews",
    "settings": {
     "autoplay": "",
