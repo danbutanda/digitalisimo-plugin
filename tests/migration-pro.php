@@ -133,8 +133,8 @@ namespace {
 	function w( string $type, array $settings = array(), string $id = 'w1' ): array {
 		return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $type, 'settings' => $settings, 'elements' => array() );
 	}
-	function box( string $type, array $children, string $id ): array {
-		return array( 'id' => $id, 'elType' => $type, 'settings' => array(), 'elements' => $children, 'isInner' => false );
+	function box( string $type, array $children, string $id, array $settings = array() ): array {
+		return array( 'id' => $id, 'elType' => $type, 'settings' => $settings, 'elements' => $children, 'isInner' => false );
 	}
 	/** Un documento con esos elementos tal cual (raíz), del tipo indicado. */
 	function doc( array $elements, array $post = array(), array $meta = array() ): int {
@@ -196,16 +196,19 @@ namespace {
 		Context::reset();
 		manager( null );
 	}
-	/** La etapa `pro` del runner, como en una petición, hasta que pasa a la siguiente. */
+	/** Las etapas `pro` y `pro_css` del runner, como en una petición, hasta que pasan a la siguiente. */
 	function run_pro_stage( array $state = array() ): array {
 		$state          = $state + Runner::fresh( true, 0, 1 );
 		$state['stage'] = 'pro';
-		$stage          = new ReflectionMethod( Runner::class, 'stage_pro' );
-		if ( PHP_VERSION_ID < 80100 ) {
-			$stage->setAccessible( true );
-		}
-		for ( $i = 0; $i < 50 && 'pro' === $state['stage']; $i++ ) {
-			$state = $stage->invoke( null, $state, microtime( true ) + 30 );
+		// La etapa `pro` y la que la sigue, `pro_css` (el CSS que nombra los widgets de PRO desde fuera).
+		foreach ( array( 'pro', 'pro_css' ) as $name ) {
+			$stage = new ReflectionMethod( Runner::class, 'stage_' . $name );
+			if ( PHP_VERSION_ID < 80100 ) {
+				$stage->setAccessible( true );
+			}
+			for ( $i = 0; $i < 50 && $name === $state['stage']; $i++ ) {
+				$state = $stage->invoke( null, $state, microtime( true ) + 30 );
+			}
 		}
 		return $state;
 	}
@@ -424,7 +427,7 @@ namespace {
 
 	/* ================================================================ 4. La etapa pro y Migrar completo, y --revert */
 	$stages = Runner::STAGES;
-	$check( array_search( 'pro', $stages, true ) === array_search( 'aliases', $stages, true ) + 1 && array_search( 'retire_late', $stages, true ) === array_search( 'pro', $stages, true ) + 1 && in_array( 'pro', Runner::LOOP_STAGES, true ), 'La etapa pro va entre aliases y retire_late y recorre documentos.' );
+	$check( array_search( 'pro', $stages, true ) === array_search( 'aliases', $stages, true ) + 1 && array_search( 'pro_css', $stages, true ) === array_search( 'pro', $stages, true ) + 1 && array_search( 'retire_late', $stages, true ) === array_search( 'pro_css', $stages, true ) + 1 && in_array( 'pro', Runner::LOOP_STAGES, true ) && in_array( 'pro_css', Runner::LOOP_STAGES, true ), 'Las etapas pro y pro_css van entre aliases y retire_late y recorren documentos.' );
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
 	Registry::set( 'form', null ); // El formulario del popup es el ejemplo de widget sin mapa, aunque C6 ya tenga el suyo.
@@ -487,6 +490,50 @@ namespace {
 	Runner::revert( true );
 	$check( $edited_raw === get_metadata( 'post', $edited, '_elementor_data', true ), 'Con --force, también vuelve.' );
 
+	/* ======================================== 4b. CSS que nombra los widgets de PRO desde fuera (corrección de fidelidad) */
+	if ( ! function_exists( 'wp_get_custom_css_post' ) ) {
+		function wp_get_custom_css_post() {
+			foreach ( $GLOBALS['wp']['posts'][ $GLOBALS['wp']['blog'] ] ?? array() as $row ) {
+				if ( 'custom_css' === $row['post_type'] ) {
+					return (object) $row;
+				}
+			}
+			return null;
+		}
+	}
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	Registry::set( 'form', null );
+	$rule   = 'selector .elementor-blockquote__content{color:#d00}';
+	$copy   = 'selector .digi-blockquote__content{color:#d00}';
+	$cssdoc = doc( array( box( 'container', array( w( 'blockquote', array( 'blockquote_content' => 'Con CSS' ), 'qc' ) ), 'kc', array( 'custom_css' => $rule ) ) ), array( 'post_title' => 'Con CSS' ), array( '_elementor_page_settings' => array( 'custom_css' => '.page ' . $rule, 'hide_title' => 'yes' ) ) );
+	$plain  = doc( array( box( 'container', array( w( 'heading', array( 'title' => 'Sólo núcleo' ), 'hh' ) ), 'kp', array( 'custom_css' => $rule ) ) ), array( 'post_title' => 'Sin PRO' ), array( '_elementor_page_settings' => array( 'custom_css' => '.home ' . $rule ) ) );
+	$kit    = f8_post( array( 'post_type' => 'elementor_library', 'post_title' => 'Kit' ), array( '_elementor_template_type' => 'kit', '_elementor_data' => '[]', '_elementor_page_settings' => array( 'custom_css' => '.kit ' . $rule ) ) );
+	update_option( 'elementor_active_kit', $kit );
+	$cust   = f8_post( array( 'post_type' => 'custom_css', 'post_name' => 'tema', 'post_content' => 'body .elementor-blockquote__content{margin:0}' ) );
+	$plain_raw = (string) get_metadata( 'post', $plain, '_elementor_data', true );
+	$state  = run_pro_stage();
+	$k      = find( tree( $cssdoc ), 'kc' );
+	$check( 'retire_late' === $state['stage'] && $rule . $copy === $k['settings']['custom_css'], 'El CSS del contenedor de un documento convertido gana, tras la regla de PRO, su copia con la clase propia: ' . $k['settings']['custom_css'] );
+	$check( '.page ' . $rule . '.page ' . $copy === get_metadata( 'post', $cssdoc, '_elementor_page_settings', true )['custom_css'] && 'yes' === get_metadata( 'post', $cssdoc, '_elementor_page_settings', true )['hide_title'], 'Y el CSS de su página, sin tocar los demás ajustes.' );
+	$check( $rule . $copy === find( tree( $plain ), 'kp' )['settings']['custom_css'] && '.home ' . $rule . '.home ' . $copy === get_metadata( 'post', $plain, '_elementor_page_settings', true )['custom_css'], 'Un documento sin widgets de PRO cuyo CSS los nombra (la portada que da estilo a la cabecera) también (etapa pro_css).' );
+	$check( '.kit ' . $rule . '.kit ' . $copy === get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'], 'El CSS del kit activo también.' );
+	$check( 'body .elementor-blockquote__content{margin:0}body .digi-blockquote__content{margin:0}' === get_post( $cust )->post_content, 'Y el CSS adicional del Personalizador: ' . get_post( $cust )->post_content );
+	$check( 'digitalisimo-blockquote' === find( tree( $cssdoc ), 'qc' )['widgetType'] && 1 === (int) $state['counts']['pro'] && (int) $state['counts']['pro_css'] >= 4, 'La Cita se convierte en la misma pasada y el recuento lleva los CSS: ' . wp_json_encode( $state['counts'] ) );
+	$check( in_array( 'pro.css_external::', doc_codes( $plain ), true ) && 'converted' === Report::catalog()['pro.css_external']['section'], 'El informe lo dice (pro.css_external, en «Convertido»): ' . wp_json_encode( doc_codes( $plain ) ) );
+	$check( null !== f8_meta( $plain, Migration::BACKUP ) && null !== f8_meta( $plain, Pro::CSS_BACKUP ) && null !== f8_meta( $kit, Pro::CSS_BACKUP ) && null !== f8_meta( $cust, Pro::CSS_BACKUP ), 'Con copia del árbol y del CSS de la página, del kit y del Personalizador.' );
+	$again = run_pro_stage();
+	$check( $rule . $copy === find( tree( $cssdoc ), 'kc' )['settings']['custom_css'] && '.kit ' . $rule . '.kit ' . $copy === get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'] && 0 === (int) $again['counts']['pro_css'], 'Volver a pasar no añade otra copia: ' . wp_json_encode( $again['counts'] ) );
+	// --revert: el CSS vuelve; lo editado después de migrar (aquí, el kit) se conserva salvo con --force.
+	$edited_kit = get_metadata( 'post', $kit, '_elementor_page_settings', true );
+	$edited_kit['custom_css'] .= '.otra{x:y}';
+	update_metadata( 'post', $kit, '_elementor_page_settings', $edited_kit );
+	$rev = Runner::revert();
+	$check( $plain_raw === get_metadata( 'post', $plain, '_elementor_data', true ) && '.home ' . $rule === get_metadata( 'post', $plain, '_elementor_page_settings', true )['custom_css'] && 'body .elementor-blockquote__content{margin:0}' === get_post( $cust )->post_content, '--revert devuelve el CSS del árbol, de la página y del Personalizador.' );
+	$check( false !== strpos( get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'], '.otra{x:y}' ) && in_array( array( 'core.revert_skipped', array( 'id' => $kit ) ), $rev['codes'], true ), 'El CSS del kit editado después de migrar se conserva y se informa.' );
+	Runner::revert( true );
+	$check( '.kit ' . $rule === get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'] && null === f8_meta( $kit, Pro::CSS_BACKUP ), 'Con --force, también vuelve.' );
+
 	/* ================================================================ 5. Análisis, pantalla de red y catálogo */
 	fresh();
 	Registry::set( 'blockquote', pilot_map() );
@@ -522,7 +569,7 @@ namespace {
 	$check( 'pro.' === Report::CATALOGS['pro'], 'El informe declara el catálogo pro con su prefijo.' );
 	$mine = array_keys( $codes );
 	sort( $mine );
-	$check( array( 'pro.approx', 'pro.converted', 'pro.css', 'pro.dropped', 'pro.global', 'pro.global_missing', 'pro.target_missing', 'pro.unmapped' ) === $mine, 'Catálogo pro: ' . implode( ', ', $mine ) );
+	$check( array( 'pro.approx', 'pro.converted', 'pro.css', 'pro.css_external', 'pro.css_reverted', 'pro.dropped', 'pro.global', 'pro.global_missing', 'pro.target_missing', 'pro.unmapped' ) === $mine, 'Catálogo pro: ' . implode( ', ', $mine ) );
 	foreach ( $codes as $code => $spec ) {
 		$check( isset( $catalog[ $code ] ) && $catalog[ $code ]['section'] === $spec['section'], 'El informe carga ' . $code . ' con su sección.' );
 	}

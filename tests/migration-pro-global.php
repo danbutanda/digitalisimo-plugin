@@ -175,16 +175,19 @@ namespace {
 		Context::reset();
 		manager( null );
 	}
-	/** La etapa `pro` del runner, como en una petición, hasta que pasa a la siguiente. */
+	/** Las etapas `pro` y `pro_css` del runner, como en una petición, hasta que pasan a la siguiente. */
 	function run_pro_stage( array $state = array() ): array {
 		$state          = $state + Runner::fresh( true, 0, 1 );
 		$state['stage'] = 'pro';
-		$stage          = new ReflectionMethod( Runner::class, 'stage_pro' );
-		if ( PHP_VERSION_ID < 80100 ) {
-			$stage->setAccessible( true );
-		}
-		for ( $i = 0; $i < 50 && 'pro' === $state['stage']; $i++ ) {
-			$state = $stage->invoke( null, $state, microtime( true ) + 30 );
+		// La etapa `pro` y la que la sigue, `pro_css` (el CSS que nombra los widgets de PRO desde fuera).
+		foreach ( array( 'pro', 'pro_css' ) as $name ) {
+			$stage = new ReflectionMethod( Runner::class, 'stage_' . $name );
+			if ( PHP_VERSION_ID < 80100 ) {
+				$stage->setAccessible( true );
+			}
+			for ( $i = 0; $i < 50 && $name === $state['stage']; $i++ ) {
+				$state = $stage->invoke( null, $state, microtime( true ) + 30 );
+			}
 		}
 		return $state;
 	}

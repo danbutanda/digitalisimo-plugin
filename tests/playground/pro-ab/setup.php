@@ -1255,6 +1255,11 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	} else {
 		$b_tree = \Digitalisimo\Elements\Convert\Converter::tree( $tree, $log, true );
 	}
+	if ( method_exists( '\\Digitalisimo\\Elements\\Convert\\Converter', 'tree_css' ) ) {
+		// Como «Migrar» y los kits: el CSS que nombra el widget de PRO desde fuera (el `container` del caso) gana la copia de
+		// cada regla con las clases del widget propio.
+		$b_tree = \Digitalisimo\Elements\Convert\Converter::tree_css( $b_tree );
+	}
 	$entry  = array(
 		'widget'     => $source,
 		'element'    => $id,
