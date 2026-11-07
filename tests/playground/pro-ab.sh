@@ -59,6 +59,8 @@
 #     una imagen local. La consulta queda en conversion.json y pro-ab.json;
 #   - `blank` (con su motivo): un widget que por diseño no pinta texto ni imágenes (el buscador con botón de icono) se
 #     acepta si A tiene controles enfocables;
+#   - `absent` (con su motivo): el widget no se imprime, ni su envoltorio, en A ni en B (el segundo Contenido de la misma
+#     entrada, que PRO no vuelve a pintar); falla si uno de los dos lo imprime;
 #   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
 #     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
 # C5: entradas de prueba (`"posts": n` en el caso o `{"$posts": n}` en los ajustes, que da sus IDs: 9 entradas

@@ -62,7 +62,7 @@
     }
    ],
    "settings": {},
-   "empty": "Como PRO: el segundo Contenido de la misma entrada (sin constructor) no pinta nada en la misma petición."
+   "absent": "Como PRO: el segundo Contenido de la misma entrada (sin constructor) no se imprime, ni su envoltorio, en la misma petición."
   }
  }
 }
