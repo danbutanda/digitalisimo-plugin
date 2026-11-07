@@ -3,7 +3,8 @@
 // servidor; el fragmento del panel se simula sustituyendo `.digi-mc__ct` como hace `wc-cart-fragments`):
 // - clic: abre (aria-expanded, `inert` fuera, clase en el elemento), clic fuera o en la capa cierra, el aspa cierra y
 //   devuelve el foco al botón, Escape cierra y devuelve el foco si estaba dentro; con el panel cerrado nada es enfocable;
-// - Intro y Espacio en el botón abren; «Al pasar el cursor» abre al entrar y cierra al salir;
+// - Intro y Espacio en el botón abren; «Al pasar el cursor» abre al entrar y cierra al salir; en el lateral, el clic que
+//   cae en la capa lo cierra y el cursor no lo reabre hasta salir del widget (como PRO);
 // - «Abrir automáticamente»: abre cuando el contador sube tras una acción de la persona (no al cargar ni al recibir los
 //   fragmentos iniciales); con `added` (envío sin AJAX) abre al cargar;
 // - mini carrito: la lista se ajusta a la altura de la ventana; foco visible de 2 px con separación de 2 px; aspa y botón
@@ -122,6 +123,33 @@ await page.click('.digi-mc__btn');
 await page.click('.digi-mc__btn');
 await sleep(50);
 ok((await state(page, 'h')).shown, 'En modo cursor, el clic siempre abre (como PRO).');
+await page.close();
+// Lateral con «Al pasar el cursor», como PRO: el cursor abre el panel y su capa tapa el botón, así que el clic cae en la
+// capa y cierra el panel en el mismo gesto; no vuelve a abrirse por el cursor, que sigue sobre el botón, hasta que sale
+// del widget. Intro sigue abriendo.
+page = await open(page_html(widget('s', { open: 'mouseover', auto: false, type: 'side-cart', added: false })));
+await page.hover('.digi-mc__btn');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Lateral: al pasar el cursor abre.');
+const at = await page.$eval('.digi-mc__btn', b => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+ok(await page.evaluate(([x, y]) => document.elementFromPoint(x, y).classList.contains('digi-mc__box'), at), 'Lateral abierto: la capa tapa el botón.');
+await page.mouse.click(at[0], at[1]);
+await sleep(700);
+ok(!(await state(page, 's')).shown, 'Un clic sobre el botón tapado (en la capa) cierra el panel, como PRO.');
+await page.mouse.move(at[0] + 2, at[1] + 1);
+await sleep(100);
+ok(!(await state(page, 's')).shown, 'El cursor sobre el botón no lo reabre en el mismo gesto.');
+await page.mouse.move(1270, 790);
+await sleep(50);
+await page.hover('.digi-mc__btn');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Al salir del widget y volver, el cursor abre otra vez.');
+await page.mouse.click(at[0], at[1]);
+await sleep(700);
+await page.focus('.digi-mc__btn');
+await page.keyboard.press('Enter');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Intro en el botón abre aunque el cursor siga encima.');
 await page.close();
 
 // 3. Abrir automáticamente.

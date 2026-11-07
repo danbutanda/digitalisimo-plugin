@@ -185,16 +185,10 @@
    },
    "actions": [
     {
-     "label": "abrir con clic",
+     "label": "clic sobre el botón (cae en la capa y cierra)",
      "a": ".elementor-menu-cart__toggle_button",
      "b": ".digi-mc__btn",
      "wait": 1200
-    }
-   ],
-   "declared": [
-    {
-     "match": "^\\[acción 1 abrir con clic\\] ",
-     "reason": "«Al pasar el cursor»: el cursor abre el panel y su capa tapa el botón, así que el clic del arnés cae en la capa; PRO lo tomaba por un clic fuera y cerraba el panel en el mismo gesto. El propio deja abierto el panel que la persona acaba de abrir (el clic sobre el botón abre también con el teclado, como PRO)."
     }
    ]
   },
