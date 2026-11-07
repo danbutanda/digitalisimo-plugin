@@ -241,6 +241,43 @@
      }
     ]
    }
+  },
+  "lg-filter-form": {
+   "title": "Con filtros de F7b hermanos (orden en desplegable y cantidad en botones): sin «Aplicar» con JavaScript y refresco sin recargar",
+   "widget": "loop-grid",
+   "posts": 9,
+   "shot": "viewport",
+   "before": [
+    {
+     "id": "0rderby",
+     "widgetType": "digitalisimo-loop-orderby",
+     "settings": {
+      "selected_element": "$self"
+     }
+    },
+    {
+     "id": "perpag1",
+     "widgetType": "digitalisimo-loop-per-page",
+     "settings": {
+      "selected_element": "$self",
+      "values": "3, 6",
+      "display": "buttons"
+     }
+    }
+   ],
+   "settings": {
+    "template_id": {
+     "$loop_item": "title"
+    }
+   },
+   "actions": [
+    {
+     "label": "3 por página",
+     "page": true,
+     "selector": ".elementor-element-perpag1 [data-value=\"3\"]",
+     "wait": 8000
+    }
+   ]
   }
  }
 }
