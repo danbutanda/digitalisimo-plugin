@@ -1,0 +1,25 @@
+/* Tercera hoja del carrito: los estados del selector de país que PRO pinta y no cabían en las dos primeras (corrección de
+   fidelidad c7#1 de docs/pro/c7.md). Mismas reglas que widget-woocommerce-cart.min.css de PRO, con las clases y las
+   variables propias (leyenda en variables.json): las opciones del desplegable abierto (`digi-cart-select2`, que pone
+   cart.js al abrirlo, como PRO `e-woo-select2-wrapper`) en Roboto, el foco del selector cerrado, su marcador de posición
+   y el fondo del desplegable. */
+.digi-cart-select2 .select2-results__option{
+	font-family:Roboto,sans-serif
+}
+.digi-cart-select2 .select2-results__option:focus{
+	color:#69727d
+}
+.digi-cart{
+	& .select2-container--default .select2-selection--single:focus{
+		background-color:#f9fafa;
+		border-color:var(--cff-fbc,initial);
+		color:var(--cff-fc,#69727d);
+		transition-duration:var(--cff-ftd,.3s)
+	}
+	& .select2-container--default .select2-selection--single .select2-selection__placeholder{
+		color:var(--cff-n,#69727d)
+	}
+	& .select2-container--open .select2-dropdown--below{
+		background-color:#f9fafa
+	}
+}

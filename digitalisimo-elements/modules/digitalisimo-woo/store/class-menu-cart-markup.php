@@ -95,12 +95,13 @@ final class Menu_Cart_Markup {
 	 *
 	 * @param array  $settings Ajustes para mostrar.
 	 * @param string $id       ID del elemento.
+	 * @param bool   $pro      Lo convertido de PRO (`Base::from_pro()`): textos fijos de PRO (`digi-mc--pro`).
 	 */
-	public static function widget( array $settings, string $id, bool $editor = false, bool $added = false ): string {
+	public static function widget( array $settings, string $id, bool $editor = false, bool $added = false, bool $pro = false ): string {
 		if ( ! function_exists( 'WC' ) || null === WC()->cart ) {
 			return '';
 		}
-		$out = '<div class="digi-mc">';
+		$out = '<div class="digi-mc' . ( $pro ? ' digi-mc--pro' : '' ) . '">';
 		if ( ! apply_filters( 'woocommerce_widget_cart_is_hidden', false ) ) {
 			$panel = 'digi-menu-cart-' . preg_replace( '/[^a-z0-9_-]/i', '', $id );
 			$out  .= '<div class="digi-mc__tw" data-digi-menu-cart="' . esc_attr( wp_json_encode( array(
@@ -137,7 +138,12 @@ final class Menu_Cart_Markup {
 		}
 		$items = WC()->cart->get_cart();
 		if ( empty( $items ) ) {
-			echo '<div class="woocommerce-mini-cart__empty-message">' . esc_html__( 'No products in the cart.', 'woocommerce' ) . '</div>'; // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de WooCommerce, como en la plantilla de PRO.
+			// El texto de WooCommerce y, si su traducción es otra, el de PRO (su plantilla usa su dominio): el panel llega por
+			// los fragmentos, iguales para todos los carritos de la página, así que la hoja muestra el de PRO sólo en lo
+			// convertido (`digi-mc--pro`) y el de WooCommerce en lo nuevo.
+			$empty = esc_html__( 'No products in the cart.', 'woocommerce' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de WooCommerce.
+			$pro   = esc_html__( 'No products in the cart.', 'elementor-pro' ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO (wc-templates/cart/mini-cart.php) en lo convertido.
+			echo '<div class="woocommerce-mini-cart__empty-message">' . ( $pro === $empty ? $empty : '<span class="digi-mc__em">' . $empty . '</span><span class="digi-mc__em digi-mc__em--pro">' . $pro . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapados arriba.
 		} else {
 			echo '<div class="digi-mc__list woocommerce-mini-cart cart woocommerce-cart-form__contents">';
 			do_action( 'woocommerce_before_mini_cart_contents' );

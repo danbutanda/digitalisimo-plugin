@@ -7,6 +7,14 @@
 	color:var(--mc-emc,inherit);
 	text-align:var(--mc-ema,start)
 }
+/* Carrito vacío: el texto de WooCommerce en lo nuevo y el de PRO en lo convertido (`digi-mc--pro`), cuando sus
+   traducciones difieren (Menu_Cart_Markup::mini_cart()). */
+.digi-mc--pro .digi-mc__em,.digi-mc__em--pro{
+	display:none
+}
+.digi-mc--pro .digi-mc__em--pro{
+	display:inline
+}
 .digi-mc__list{
 	max-height:calc(100vh - 250px);
 	overflow:hidden auto
@@ -59,15 +67,15 @@
 }
 .digi-mc__rm{
 	border:1px solid var(--mc-ribc,#d5d8dc);
-	border-radius:var(--mc-ribs,24px);
+	border-radius:var(--mc-ribs,22px);
 	bottom:20px;
 	color:#69727d;
-	height:var(--mc-ribs,24px);
+	height:var(--mc-ribs,22px);
 	inset-inline-end:0;
 	overflow:hidden;
 	position:absolute;
 	transition:.3s;
-	width:var(--mc-ribs,24px)
+	width:var(--mc-ribs,22px)
 }
 .digi-mc__rm:hover{
 	border-color:var(--mc-ribhc,#d5d8dc)

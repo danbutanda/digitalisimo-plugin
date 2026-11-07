@@ -84,15 +84,18 @@
 #     (`woocommerce-*`, `wc-*`), o con WOO=1, se monta WooCommerce fijado (woocommerce-pin.sh: 11.2.1 de reference/, con su
 #     sha256; sin la copia, la corrida se detiene), activate.php lo activa antes que el constructor y setup.php crea la
 #     tienda de prueba (productos simple, variable, en oferta, agotado y con reseñas; categorías con imagen; clienta con
-#     su pedido; tarifa plana y contra reembolso). Los ID quedan en conversion.json (`woo`) y en `"$woo:clave"` y
+#     su pedido, otro anterior cancelado y una tarjeta guardada; tarifa plana y contra reembolso). Los ID quedan en conversion.json (`woo`) y en `"$woo:clave"` y
 #     `{"$woo-ids": [...]}` de los ajustes;
 #   - `context` de tienda: `{"product": "simple"|"variable"|"sale"|"outofstock"|"reviews"}`, `"shop"`,
 #     `{"archive": "product_cat"|"product_subcat"|"product_tag"}`, `"cart"` y `"checkout"` (la página del caso hace de
 #     carrito o de pago, con artículos), `"account"` (de «Mi cuenta», con la clienta dentro) y `{"order": "received"}`
 #     (pedido recibido de la clienta);
 #   - `woo` (objeto): `cart` (`items`|`empty`), `user` (`customer`|`guest`), `endpoint` (`orders`, `view-order`,
-#     `downloads`, `edit-address`, `edit-account`…; también en `$wp_query->query`, como una petición real) y `notices`
-#     (`true`: avisos de éxito, información y error). En las páginas del A/B, los fragmentos del carrito esperan 30 s
+#     `downloads`, `edit-address`, `edit-account`…; también en `$wp_query->query`, como una petición real),
+#     `endpoint_value` (`billing` o `shipping` con `edit-address`: el formulario de esa dirección), `notices`
+#     (`true`: avisos de éxito, información y error), `orders_per_page` (con 1, «Pedidos» pagina los dos pedidos) y
+#     `tokens` (`true`: una pasarela de prueba con tokenización disponible en esa página, para «Métodos de pago» y
+#     «Añadir método de pago»; el resto sigue sólo con contra reembolso). En las páginas del A/B, los fragmentos del carrito esperan 30 s
 #     (`request_timeout` de `wc-cart-fragments`, igual en A y B);
 #   - `container` (objeto): ajustes que se suman a los del contenedor común del caso (p. ej. `_css_classes: woocommerce`,
 #     la clase de la página de un producto, que usan los selectores `.woocommerce {{WRAPPER}} …`);

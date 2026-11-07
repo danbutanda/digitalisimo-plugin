@@ -225,6 +225,7 @@ namespace {
 	$c7_foreign = array_merge( $foreign, array( 'wc-cart', 'wc-checkout', 'wc-password-strength-meter', 'selectWoo', 'select2' ) );
 	$c7_count   = 0;
 	$c7_second  = array();
+	$c7_third   = array();
 	foreach ( $woo_entries as $m ) {
 		if ( ! preg_match( "#'file'\s*=>\s*'((?:single|store)/[^']+)'#", $m[2], $f ) || ! preg_match( "/'css'\s*=>\s*'([^']+)'/", $m[2], $c ) || ! preg_match( "/'js'\s*=>\s*'([^']+)'/", $m[2], $j ) ) { continue; }
 		$name   = $m[1];
@@ -248,6 +249,11 @@ namespace {
 			$sheets[]    = $second;
 			$c7_second[] = $name;
 		}
+		$third = preg_replace( '/\.css$/', '-3.css', $c[1] );
+		if ( is_file( $root . '/' . $third ) ) {
+			$sheets[]   = $third;
+			$c7_third[] = $name;
+		}
 		// La regla de movimiento reducido puede vivir en la primera hoja: la segunda depende de ella y siempre van juntas.
 		$pair = '';
 		foreach ( $sheets as $file ) { $pair .= is_file( $root . '/' . $file ) ? (string) file_get_contents( $root . '/' . $file ) : ''; }
@@ -268,6 +274,11 @@ namespace {
 	check_budget( 30 === $c7_count, 'Deben revisarse los 30 widgets de WooCommerce de C7 (' . $c7_count . ').' );
 	sort( $c7_second );
 	check_budget( array( 'digitalisimo-woo-cart', 'digitalisimo-woo-checkout', 'digitalisimo-woo-menu-cart', 'digitalisimo-woo-my-account', 'digitalisimo-woo-purchase-summary' ) === $c7_second, 'Sólo carrito, pago, cuenta, resumen y carrito del menú llevan segunda hoja (excepción declarada): ' . implode( ', ', $c7_second ) . '.' );
+	// Corrección de fidelidad c7#1 (docs/pro/c7.md): el carrito y la cuenta llevan además una tercera hoja de ≤ 4 KB con los
+	// estados de PRO que no cabían (desplegable de países abierto, foco y marcador del selector; paginación y métodos de
+	// pago de la cuenta). Excepción declarada: sólo estos dos.
+	sort( $c7_third );
+	check_budget( array( 'digitalisimo-woo-cart', 'digitalisimo-woo-my-account' ) === $c7_third, 'Sólo carrito y cuenta llevan tercera hoja (excepción declarada): ' . implode( ', ', $c7_third ) . '.' );
 	$count += $c7_count;
 	// F7b (frente F): el slider anidado ligero de modules/digitalisimo-f7b/nested/ con las mismas reglas; sus recursos los
 	// registra Nested\Module (`digitalisimo-nested-slider`, con defer y sin dependencias) y el widget sólo declara los suyos.

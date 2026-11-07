@@ -191,6 +191,52 @@
      "isLinked": true
     }
    }
+  },
+  "ma-billing-select2": {
+   "title": "Mi cuenta: dirección de facturación con el desplegable de países abierto (opciones en Roboto y gris, como PRO) y el selector cerrado como PRO",
+   "widget": "woocommerce-my-account",
+   "context": "account",
+   "woo": {
+    "endpoint": "edit-address",
+    "endpoint_value": "billing"
+   },
+   "shot": "viewport",
+   "actions": [
+    {
+     "label": "abrir el desplegable de países",
+     "a": "#billing_country_field .select2-selection",
+     "b": "#billing_country_field .select2-selection",
+     "wait": 1200,
+     "stay": true
+    }
+   ]
+  },
+  "ma-orders-paged": {
+   "title": "Mi cuenta: pedidos con paginación (un pedido por página; la clienta tiene dos)",
+   "widget": "woocommerce-my-account",
+   "context": "account",
+   "woo": {
+    "endpoint": "orders",
+    "orders_per_page": 1
+   }
+  },
+  "ma-payment-methods": {
+   "title": "Mi cuenta: métodos de pago con una tarjeta guardada y el botón «Añadir método de pago» (pasarela de prueba con tokenización)",
+   "widget": "woocommerce-my-account",
+   "context": "account",
+   "woo": {
+    "endpoint": "payment-methods",
+    "tokens": true
+   }
+  },
+  "ma-add-payment-method": {
+   "title": "Mi cuenta: formulario «Añadir método de pago» (caja del pago, lista y botón)",
+   "widget": "woocommerce-my-account",
+   "context": "account",
+   "woo": {
+    "endpoint": "add-payment-method",
+    "tokens": true
+   }
   }
  },
  "declared": [

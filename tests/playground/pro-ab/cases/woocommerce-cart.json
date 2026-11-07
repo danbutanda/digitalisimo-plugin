@@ -117,6 +117,35 @@
     "update_cart_button_alignment": "end",
     "checkout_button_alignment": "center"
    }
+  },
+  "cart-apply-text": {
+   "title": "Texto propio de «Aplicar cupón»: PRO pinta siempre el suyo y lo convertido también",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "settings": {
+    "apply_coupon_button_text": "Canjear"
+   }
+  },
+  "cart-shipping-country": {
+   "title": "Carrito: calculadora de envío abierta y el desplegable de países abierto (opciones en Roboto, como PRO)",
+   "widget": "woocommerce-cart",
+   "context": "cart",
+   "shot": "viewport",
+   "actions": [
+    {
+     "label": "abrir la calculadora de envío",
+     "a": ".shipping-calculator-button",
+     "b": ".shipping-calculator-button",
+     "wait": 1200
+    },
+    {
+     "label": "abrir el desplegable de países",
+     "a": "#calc_shipping_country_field .select2-selection",
+     "b": "#calc_shipping_country_field .select2-selection",
+     "wait": 1200,
+     "stay": true
+    }
+   ]
   }
  }
 }

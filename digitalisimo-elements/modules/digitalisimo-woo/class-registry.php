@@ -175,7 +175,20 @@ final class Registry {
 				continue;
 			}
 			if ( ! empty( $entry['css'] ) && ! wp_style_is( $name, 'registered' ) && is_file( Assets::path( $entry['css'] ) ) ) {
-				wp_register_style( $name, Assets::url( $entry['css'] ), array(), $version );
+				Assets::register_sheet( $name, (string) $entry['css'] );
+			}
+			// Hojas adicionales (`-2.css`, `-3.css`, como `Store\Base::get_style_depends()`): también registradas aquí, porque
+			// el núcleo encola por su handle los recursos que guardó de la página sin volver a pedírselos al widget.
+			$previous = $name;
+			foreach ( array( 2, 3 ) as $n ) {
+				$extra = ! empty( $entry['css'] ) ? (string) preg_replace( '/\.css$/', '-' . $n . '.css', (string) $entry['css'] ) : '';
+				if ( '' === $extra || ! is_file( Assets::path( $extra ) ) ) {
+					break;
+				}
+				if ( ! wp_style_is( $name . '-' . $n, 'registered' ) ) {
+					Assets::register_sheet( $name . '-' . $n, $extra, array( $previous ) );
+				}
+				$previous = $name . '-' . $n;
 			}
 			if ( ! empty( $entry['js'] ) && ! wp_script_is( $name, 'registered' ) && is_file( Assets::path( $entry['js'] ) ) ) {
 				wp_register_script( $name, Assets::url( $entry['js'] ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );

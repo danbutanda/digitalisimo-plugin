@@ -73,17 +73,24 @@ final class Registry {
 				$names[] = basename( $file, '.php' );
 			}
 		}
-		// Un solo cambio de idioma para todos los mapas que falten por leer.
-		self::in_site_locale(
-			static function () use ( $names, $drafts, &$out ) {
-				foreach ( array_unique( $names ) as $name ) {
-					$map = self::map( $name, $drafts );
-					if ( null !== $map ) {
-						$out[ (string) $map['source'] ] = $map;
-					}
+		$names = array_unique( $names );
+		// Un solo cambio al idioma del sitio para todos los mapas que faltan, no uno por mapa (`in_site_locale()` sólo
+		// cambia en la llamada exterior), y ninguno si ya están todos leídos: cada cambio recarga todas las traducciones
+		// cargadas, y el panel del editor (`Panel::hidden()`) lee los ~100 mapas en cada documento.
+		$pending = array_filter( array_diff( $names, array_keys( self::$maps ) ), array( Catalog::class, 'is_pro' ) );
+		$read    = static function () use ( $names, $drafts, &$out ) {
+			foreach ( $names as $name ) {
+				$map = self::map( $name, $drafts );
+				if ( null !== $map ) {
+					$out[ (string) $map['source'] ] = $map;
 				}
 			}
-		);
+		};
+		if ( $pending ) {
+			self::in_site_locale( $read );
+		} else {
+			$read();
+		}
 		ksort( $out );
 		return $out;
 	}

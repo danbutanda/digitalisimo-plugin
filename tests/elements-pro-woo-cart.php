@@ -17,7 +17,7 @@
 namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', dirname( __DIR__ ) . '/digitalisimo-elements/pro-elements.php' );
-	$GLOBALS['c_wp'] = array( 'hooks' => array(), 'coupons' => true, 'count' => 2, 'edit' => false );
+	$GLOBALS['c_wp'] = array( 'hooks' => array(), 'coupons' => true, 'count' => 2, 'edit' => false, 'locale' => 'es_ES', 'stack' => array(), 'tr' => array() );
 	function c_check( $ok, $message ) {
 		if ( ! $ok ) {
 			echo "FALLA: $message\n";
@@ -25,14 +25,29 @@ namespace {
 		}
 		$GLOBALS['c_wp']['checks'] = ( $GLOBALS['c_wp']['checks'] ?? 0 ) + 1;
 	}
-	function esc_html__( $t, $d = '' ) { return $t; }
-	function esc_attr__( $t, $d = '' ) { return $t; }
-	function __( $t, $d = '' ) { return $t; }
+	// Traducciones de prueba por idioma y dominio (`c_wp['tr'][ idioma ][ dominio ][ texto ]`); sin ellas, el texto tal cual.
+	function c_tr( $t, $d ) { return $GLOBALS['c_wp']['tr'][ $GLOBALS['c_wp']['locale'] ][ $d ][ $t ] ?? $t; }
+	function esc_html__( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function esc_attr__( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function __( $t, $d = '' ) { return c_tr( $t, $d ); }
+	function get_locale() { return 'es_ES'; }
+	function switch_to_locale( $l ) {
+		if ( $l === $GLOBALS['c_wp']['locale'] ) {
+			return false;
+		}
+		$GLOBALS['c_wp']['stack'][] = $GLOBALS['c_wp']['locale'];
+		$GLOBALS['c_wp']['locale']  = $l;
+		return true;
+	}
+	function restore_previous_locale() { $GLOBALS['c_wp']['locale'] = array_pop( $GLOBALS['c_wp']['stack'] ); return $GLOBALS['c_wp']['locale']; }
 	function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 	function esc_url( $t ) { return (string) $t; }
 	function admin_url( $p = '' ) { return 'https://sitio.test/wp-admin/' . $p; }
-	function get_option( $k, $d = false ) { return $d; }
+	function get_option( $k, $d = false ) { return $GLOBALS['c_wp']['options'][ $k ] ?? $d; }
+	function get_post_meta( $id, $k = '', $single = false ) { return $GLOBALS['c_wp']['meta'][ $id ][ $k ] ?? ''; }
+	function wp_json_encode( $v ) { return json_encode( $v ); }
+	function wp_enqueue_script( ...$a ) { $GLOBALS['c_wp']['enqueued'][ $a[0] ] = $a; }
 	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 	function plugins_url( $p, $f ) { return 'https://sitio.test/' . $p; }
 	function wp_style_is( $h, $l ) { return false; }
@@ -172,6 +187,8 @@ namespace Elementor {
 		public $editor;
 		public $preview;
 		public $documents;
+		public $breakpoints;
+		public $frontend;
 		public function __construct() { $this->editor = new C_Mode(); $this->preview = new C_Mode(); $this->documents = new C_Docs(); }
 	}
 	Plugin::$instance = new Plugin();
@@ -346,15 +363,23 @@ namespace {
 	// 4. Recursos.
 	$dir = $el . 'modules/digitalisimo-woo/store/assets/';
 	$css = '';
-	foreach ( array( 'cart.css', 'cart-2.css' ) as $file ) {
+	foreach ( array( 'cart.css', 'cart-2.css', 'cart-3.css' ) as $file ) {
 		$sheet = (string) file_get_contents( $dir . $file );
-		c_check( strlen( $sheet ) > 1000 && strlen( $sheet ) <= 4096, "$file: " . strlen( $sheet ) . ' B (tope 4 096).' );
+		c_check( strlen( $sheet ) > ( 'cart-3.css' === $file ? 200 : 1000 ) && strlen( $sheet ) <= 4096, "$file: " . strlen( $sheet ) . ' B (tope 4 096).' );
 		c_check( ! preg_match( '/url\(|--e-global|elementor-widget-woocommerce|\.e-cart|e-shop-table/', $sheet ), "$file: sin url(), sin la paleta del kit y sin clases de PRO." );
 		c_check( substr_count( $sheet, '{' ) === substr_count( $sheet, '}' ), "$file: llaves equilibradas." );
 		$css .= $sheet;
 	}
 	c_check( str_contains( $css, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, 'prefers-reduced-motion' ), 'Foco visible y movimiento reducido.' );
-	c_check( ! file_exists( $dir . 'cart-3.css' ), 'Dos hojas como mucho.' );
+	c_check( ! file_exists( $dir . 'cart-4.css' ), 'Tres hojas como mucho (la tercera, excepción declarada en docs/pro/c7.md).' );
+	// Campos: `.input-text` y `select` por separado, como PRO (A/B cart-shipping-country). Su `select` (0-2-1) cede ante
+	// `.woocommerce form .form-row select` de WooCommerce 11.2.1 (0-2-2), así que el país y la provincia de la calculadora
+	// de envío llevan fondo blanco, texto negro y radio de 4 px; agrupado en `:is(.input-text,select)` pesaba 0-3-0 y ganaba.
+	c_check( str_contains( $css, '.digi-cart .woocommerce{' ) && str_contains( $css, '& .input-text,& select{background-color:#f9fafa;border:none;border-radius:var(--cff-br,3px)' ) && str_contains( $css, '& .input-text:focus,& select:focus{' ) && ! str_contains( $css, ':is(.input-text,select)' ), 'cart.css: el select de los campos pesa como el de PRO (0-2-1), por debajo del de WooCommerce.' );
+	// Tercera hoja: el selector de país como PRO (opciones en Roboto, foco del selector cerrado y marcador de posición).
+	foreach ( array( '.digi-cart-select2 .select2-results__option{font-family:Roboto,sans-serif}', '& .select2-container--default .select2-selection--single:focus{background-color:#f9fafa;border-color:var(--cff-fbc,initial);color:var(--cff-fc,#69727d)', '& .select2-container--default .select2-selection--single .select2-selection__placeholder{color:var(--cff-n,#69727d)}' ) as $rule ) {
+		c_check( str_contains( $css, $rule ), "cart-3.css: $rule" );
+	}
 	foreach ( array( '--cs-bg', '--cos-idc', '--ccb-ntc', '--cuca-d', 'digi-cart__sticky--active', 'digi-cart-layout-one-column .digi-cart .digi-cart__container' ) as $needle ) {
 		c_check( str_contains( $css, $needle ), "La hoja usa $needle." );
 	}
@@ -364,10 +389,59 @@ namespace {
 	c_check( array() === array_diff( array_unique( $set[0] ), $used[1] ), 'Toda variable que fija un control la lee una hoja: ' . implode( ', ', array_diff( array_unique( $set[0] ), $used[1] ) ) );
 	$js = (string) file_get_contents( $dir . 'cart.js' );
 	c_check( strlen( $js ) <= 8192 && ! preg_match( '/jQuery|\$\(/', $js ) && str_contains( $js, "'yes' === s.update_cart_automatically" ) && str_contains( $js, 'digi-cart__sticky--active' ), 'cart.js ≤ 8 KB, sin jQuery, con la actualización automática y la columna fija.' );
+	// Desplegable de países: la clase propia también al abrirlo con el teclado, como PRO en `select2:open` (antes sólo con
+	// el clic, así que con el teclado las opciones no tomaban los colores de los controles ni la fuente de PRO).
+	c_check( str_contains( $js, "el.addEventListener('mousedown', mark);" ) && str_contains( $js, "el.addEventListener('keydown', mark);" ) && str_contains( $js, "d.classList.add('digi-cart-select2')" ), 'cart.js marca el desplegable de países abierto con el ratón y con el teclado.' );
 	$GLOBALS['c_wp']['scripts'] = array();
 	$GLOBALS['c_wp']['styles']  = array();
 	c_check( array( 'wc-cart', 'selectWoo', 'digitalisimo-woo-cart' ) === $own->get_script_depends(), 'Scripts: los de WooCommerce que pide PRO y el propio.' );
-	c_check( array( 'select2', 'digitalisimo-woo-cart', 'digitalisimo-woo-cart-2' ) === $own->get_style_depends() && isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'] ), 'Hojas: select2 de WooCommerce y las dos propias (la segunda, registrada por la base).' );
+	c_check( array( 'select2', 'digitalisimo-woo-cart', 'digitalisimo-woo-cart-2', 'digitalisimo-woo-cart-3' ) === $own->get_style_depends() && array( 'digitalisimo-woo-cart' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'][2] && array( 'digitalisimo-woo-cart-2' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'][2], 'Hojas: select2 de WooCommerce y las tres propias (la segunda y la tercera, registradas por la base, cada una tras la anterior).' );
+	// El registro también las registra (el núcleo encola por su handle los recursos que guardó de la página).
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-my-account-3'] ) && ! isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-checkout-3'] ) && array( 'digitalisimo-woo-cart-2' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'][2], 'Registry::register_assets() registra también la segunda y la tercera hoja que existen.' );
+
+	// Puntos de corte personalizados (c7#2): las hojas con anchos fijos tienen plantilla con los marcadores del núcleo
+	// (`store/breakpoints/`, generada por tests/sources/woo-css/build.mjs) y, con puntos de corte personalizados, se sirve la
+	// copia que el núcleo regenera con los del kit (como PRO con sus hojas WIDGET_HAS_CUSTOM_BREAKPOINTS), con su `?ver=`.
+	\Elementor\Plugin::$instance->breakpoints = new class() {
+		public $custom = true;
+		public function has_custom_breakpoints() { return $this->custom; }
+	};
+	\Elementor\Plugin::$instance->frontend = new class() {
+		public $calls = array();
+		public function get_frontend_file( $name, $prefix, $template ) {
+			$this->calls[] = array( $name, $prefix, $template );
+			return new class( $prefix . $name ) {
+				private $n;
+				public function __construct( $n ) { $this->n = $n; }
+				public function get_url() { return 'https://sitio.test/wp-content/uploads/elementor/css/' . $this->n . '?ver=7'; }
+			};
+		}
+	};
+	$prefix = 'custom-digi-woo-' . preg_replace( '/[^0-9a-z.]/i', '', defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? (string) DIGITALISIMO_ELEMENTS_VERSION : '' ) . '-';
+	$custom = static function ( $handle, $sheet ) use ( $prefix ) {
+		$style = $GLOBALS['c_wp']['styles'][ $handle ] ?? array();
+		return isset( $style[1] ) && 'https://sitio.test/wp-content/uploads/elementor/css/' . $prefix . $sheet . '?ver=7' === $style[1] && null === $style[3];
+	};
+	$plain = static function ( $handle, $sheet ) {
+		$style = $GLOBALS['c_wp']['styles'][ $handle ] ?? array();
+		return isset( $style[1] ) && str_ends_with( (string) $style[1], 'store/assets/' . $sheet ) && null !== $style[3];
+	};
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( $custom( 'digitalisimo-woo-cart', 'cart.css' ) && $custom( 'digitalisimo-woo-cart-2', 'cart-2.css' ) && $custom( 'digitalisimo-woo-checkout', 'checkout.css' ) && $custom( 'digitalisimo-woo-checkout-2', 'checkout-2.css' ) && $custom( 'digitalisimo-woo-my-account', 'my-account.css' ) && $custom( 'digitalisimo-woo-purchase-summary', 'purchase-summary.css' ) && $custom( 'digitalisimo-woo-purchase-summary-2', 'purchase-summary-2.css' ) && $custom( 'digitalisimo-woo-menu-cart-2', 'menu-cart-2.css' ) && $custom( 'digitalisimo-woo-archive-products', 'archive-products.css' ), 'Con puntos de corte personalizados, las nueve hojas con anchos fijos salen de la copia regenerada con los del kit: ' . json_encode( array_map( static function ( $s ) { return $s[1]; }, $GLOBALS['c_wp']['styles'] ) ) );
+	c_check( $plain( 'digitalisimo-woo-cart-3', 'cart-3.css' ) && $plain( 'digitalisimo-woo-my-account-2', 'my-account-2.css' ) && $plain( 'digitalisimo-woo-menu-cart', 'menu-cart.css' ) && $plain( 'digitalisimo-woo-breadcrumb', 'breadcrumb.css' ), 'Las hojas sin anchos fijos siguen siendo las publicadas.' );
+	$calls = \Elementor\Plugin::$instance->frontend->calls;
+	c_check( 9 === count( $calls ) && 'cart.css' === $calls[ array_search( 'cart.css', array_column( $calls, 0 ), true ) ][0] && str_ends_with( $calls[ array_search( 'cart.css', array_column( $calls, 0 ), true ) ][2], 'modules/digitalisimo-woo/store/breakpoints/cart.css' ), 'El núcleo genera cada copia desde la plantilla de su hoja.' );
+	$tpl = (string) file_get_contents( $el . 'modules/digitalisimo-woo/store/breakpoints/cart-2.css' );
+	c_check( str_contains( $tpl, '@media (max-width:ELEMENTOR_SCREEN_TABLET_MAX)' ) && str_contains( $tpl, '@media (max-width:ELEMENTOR_SCREEN_TABLET_MIN)' ) && str_contains( $tpl, '@media (min-width:ELEMENTOR_SCREEN_MOBILE_MAX)' ) && str_replace( array( 'ELEMENTOR_SCREEN_TABLET_MAX', 'ELEMENTOR_SCREEN_TABLET_MIN', 'ELEMENTOR_SCREEN_MOBILE_MAX' ), array( '1024px', '768px', '767px' ), $tpl ) === (string) file_get_contents( $dir . 'cart-2.css' ), 'La plantilla es la hoja con los marcadores del núcleo en lugar de los anchos por defecto.' );
+	\Elementor\Plugin::$instance->breakpoints->custom = false;
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( $plain( 'digitalisimo-woo-cart', 'cart.css' ) && $plain( 'digitalisimo-woo-cart-2', 'cart-2.css' ), 'Con los puntos de corte por defecto, las hojas publicadas.' );
+	\Elementor\Plugin::$instance->breakpoints = null;
+	\Elementor\Plugin::$instance->frontend    = null;
 	c_check( 'digitalisimo-woo-cart' === $own->get_name() && 'Carrito' === $own->get_title() && array( 'woocommerce-elements' ) === $own->get_categories(), 'Nombre, título y categoría.' );
 
 	// 5. Nombres prohibidos y marcas ajenas.
@@ -377,13 +451,23 @@ namespace {
 		c_check( ! preg_match( "/'[^'\\n]*\\s[^'\\n]*\\b(Elementor|Divi|Bricks|YITH)\\b[^'\\n]*'/", $source ), "$file: ninguna frase visible con marcas ajenas." );
 	}
 
+	// Textos fijos que no son controles (c7#6): en lo convertido de PRO (la marca del traductor), el marcador de posición y la
+	// reserva de «Apply coupon» con el dominio de PRO; en lo nuevo, con el de WooCommerce. Con una traducción de WooCommerce
+	// y ninguna de PRO, como en un sitio en español que venía de PRO: PRO pintaba «Coupon code» y el nuevo, la de WooCommerce.
+	$GLOBALS['c_wp']['tr'] = array( 'es_ES' => array( 'woocommerce' => array( 'Coupon code' => 'Código de cupón', 'Apply coupon' => 'Aplicar cupón' ) ) );
+	$fresh = $render( $own, array( 'apply_coupon_button_text' => '' ) + $defaults( $own ) );
+	$moved = $render( $own, array( 'apply_coupon_button_text' => '', '_digitalisimo_pro' => 'woocommerce-cart' ) + $defaults( $own ) );
+	c_check( str_contains( $fresh, 'placeholder="Código de cupón"' ) && str_contains( $fresh, '>Aplicar cupón<' ), 'Carrito nuevo: el marcador del cupón y la reserva del botón, de WooCommerce.' );
+	c_check( str_contains( $moved, 'placeholder="Coupon code"' ) && str_contains( $moved, '>Apply coupon<' ) && ! str_contains( $moved, 'Código de cupón' ), 'Carrito convertido de PRO: el marcador del cupón y la reserva del botón, de PRO (su dominio).' );
+	$GLOBALS['c_wp']['tr'] = array();
+
 	// 6. Conversión de ajustes reales.
 	require $el . 'modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
 	\Digitalisimo\Elements\Convert\Registry::set( 'woocommerce-cart', $map );
 	$samples = array(
 		array(),
-		array( 'cart_layout' => 'one-column', 'section_coupon_display' => '', 'update_cart_automatically' => 'yes', 'sections_background_color' => '#f0f0f0', 'sections_border_radius' => array( 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'unit' => 'px', 'isLinked' => true ), 'sections_padding_mobile' => array( 'top' => '5', 'right' => '5', 'bottom' => '5', 'left' => '5', 'unit' => 'px' ), 'checkout_button_typography_typography' => 'custom', 'checkout_button_typography_font_size' => array( 'size' => 18, 'unit' => 'px' ), 'checkout_button_normal_background_background' => 'classic', 'checkout_button_normal_background_color' => '#111', '__globals__' => array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ), '__dynamic__' => array( 'checkout_button_text' => '[elementor-tag id="x" name="site-title"]' ), 'custom_css' => 'selector .e-cart-totals{margin:0} selector .e-cart__column-end .e-sticky-right-column{top:1px}', 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40, 'section_cart_show_customize_elements' => array( 'customize_order_summary', 'customize_totals' ), 'order_summary_section_background_color' => '#eee', 'additional_template_switch' => 'active', 'additional_template_select' => '42', '_margin' => array( 'top' => '10' ) ),
+		array( 'cart_layout' => 'one-column', 'section_coupon_display' => '', 'update_cart_automatically' => 'yes', 'sections_background_color' => '#f0f0f0', 'sections_border_radius' => array( 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'unit' => 'px', 'isLinked' => true ), 'sections_padding_mobile' => array( 'top' => '5', 'right' => '5', 'bottom' => '5', 'left' => '5', 'unit' => 'px' ), 'checkout_button_typography_typography' => 'custom', 'checkout_button_typography_font_size' => array( 'size' => 18, 'unit' => 'px' ), 'checkout_button_normal_background_background' => 'classic', 'checkout_button_normal_background_color' => '#111', '__globals__' => array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ), '__dynamic__' => array( 'checkout_button_text' => '[elementor-tag id="x" name="site-title"]' ), 'custom_css' => 'selector .e-cart-totals{margin:0} selector .e-cart__column-end .e-sticky-right-column{top:1px} selector{--sections-border-color:#e63946;--sections-border-color-x:1px}', 'sticky_right_column' => 'yes', 'sticky_right_column_offset' => 40, 'section_cart_show_customize_elements' => array( 'customize_order_summary', 'customize_totals' ), 'order_summary_section_background_color' => '#eee', 'additional_template_switch' => 'active', 'additional_template_select' => '42', '_margin' => array( 'top' => '10' ) ),
 	);
 	foreach ( $samples as $i => $settings ) {
 		$log  = array();
@@ -409,9 +493,76 @@ namespace {
 			c_check( $ok, "Muestra $i: $key cae en un control propio." );
 		}
 	}
-	c_check( 'selector .digi-cart__totals{margin:0} selector .digi-cart__column--end .digi-cart__sticky{top:1px}' === $out['settings']['custom_css'], 'El CSS personalizado pasa a las clases propias.' );
+	c_check( 'selector .digi-cart__totals{margin:0} selector .digi-cart__column--end .digi-cart__sticky{top:1px} selector{--cs-bc:#e63946;--sections-border-color-x:1px}' === $out['settings']['custom_css'], 'El CSS personalizado pasa a las clases propias y a las variables cortas de la hoja (sólo nombres completos).' );
+	// Toda variable de PRO que la hoja propia lee con nombre corto (leyenda de tests/sources/woo-css/variables.json) se
+	// traduce en el CSS personalizado: un `selector{--sections-border-color:…}` escrito a mano sigue surtiendo efecto.
+	$legend  = json_decode( (string) file_get_contents( dirname( __DIR__ ) . '/tests/sources/woo-css/variables.json' ), true );
+	$missing = array_diff_assoc( (array) $legend['store/cart.css'], (array) $map['classes'] );
+	c_check( count( $legend['store/cart.css'] ) > 60 && ! $missing, 'Mapa del carrito: traduce las variables de PRO a las cortas; faltan ' . json_encode( $missing ) . '.' );
 	c_check( 'Proceed to Checkout' === ( $tree[0]['elements'][0]['settings']['checkout_button_text'] ?? '' ) || isset( $out['settings']['__dynamic__']['checkout_button_text'] ), 'Los textos y los dinámicos siguen en su clave.' );
 	c_check( array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ) === $out['settings']['__globals__'], 'Los globales siguen en su clave.' );
+
+	// «Apply coupon» (c7#7): PRO lo pintaba siempre con su texto (su filtro de textos no miraba su dominio), así que lo
+	// convertido lleva ese texto aunque el sitio guardara otro (también un valor dinámico), y el informe lo anota.
+	list( $out7, $codes7 ) = \Digitalisimo\Elements\Convert\Translator::translate( array( 'apply_coupon_button_text' => 'Canjear', 'update_cart_button_text' => 'Recalcular', '__dynamic__' => array( 'apply_coupon_button_text' => '[elementor-tag id="y" name="site-title"]' ) ), $map );
+	c_check( 'Apply coupon' === $out7['apply_coupon_button_text'] && 'Recalcular' === $out7['update_cart_button_text'] && ! isset( $out7['__dynamic__'] ), 'El texto de «Aplicar cupón» que PRO no aplicaba pasa al de PRO (también sin el dinámico); los demás textos se conservan.' );
+	c_check( in_array( 'pro.approx apply_coupon_button_text', array_map( static function ( $c ) { return $c['code'] . ' ' . $c['key']; }, $codes7 ), true ), 'El informe anota el texto de «Aplicar cupón» en «Aproximado».' );
+	list( , $codes7 ) = \Digitalisimo\Elements\Convert\Translator::translate( array(), $map );
+	c_check( ! $codes7, 'Sin texto guardado, nada que anotar.' );
+
+	// Idioma de los textos que completa el mapa (c7#8): se cargan en el del sitio (el que veían sus visitantes con PRO),
+	// no en el de quien convierte; después vuelve el de esa persona.
+	$GLOBALS['c_wp']['locale'] = 'en_US';
+	$GLOBALS['c_wp']['tr']     = array( 'es_ES' => array( 'elementor-pro' => array( 'Apply coupon' => 'Aplicar cupón (PRO)' ) ) );
+	\Digitalisimo\Elements\Convert\Registry::reset();
+	$loaded = \Digitalisimo\Elements\Convert\Registry::map( 'woocommerce-cart' );
+	c_check( null !== $loaded && 'Aplicar cupón (PRO)' === $loaded['defaults']['apply_coupon_button_text'], 'Los textos de PRO del mapa, en el idioma del sitio aunque la persona use otro: ' . ( $loaded['defaults']['apply_coupon_button_text'] ?? '' ) );
+	c_check( 'en_US' === $GLOBALS['c_wp']['locale'] && array() === $GLOBALS['c_wp']['stack'], 'Tras cargar el mapa vuelve el idioma de la persona.' );
+	$GLOBALS['c_wp']['locale'] = 'es_ES';
+	$GLOBALS['c_wp']['tr']     = array();
+	\Digitalisimo\Elements\Convert\Registry::reset();
+
+	// Estado del sistema de WooCommerce (`Store\Shop_Pages`, como `WC_STATUS_PAGES_MAPPED_TO_WIDGETS` del módulo de PRO): una
+	// página del carrito, del pago o de Mi cuenta hecha con el widget propio cuenta como página con su shortcode, en
+	// cualquier idioma del administrador (`page_name` sale traducido); sin el documento del constructor, no.
+	require $el . 'modules/digitalisimo-woo/store/class-shop-pages.php';
+	\Digitalisimo\Elements\Woo\Store\Shop_Pages::init();
+	c_check( isset( $GLOBALS['c_wp']['hooks']['woocommerce_rest_prepare_system_status'][11] ), 'Estado del sistema: filtro en la prioridad 11, después del de PRO.' );
+	$GLOBALS['c_wp']['options'] = array( 'woocommerce_cart_page_id' => '7', 'woocommerce_checkout_page_id' => '8', 'woocommerce_myaccount_page_id' => '9' );
+	$doc                        = static function ( $widget ) { return json_encode( array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array( array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => $widget ) ) ) ) ); };
+	$GLOBALS['c_wp']['meta']    = array(
+		5 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		7 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		8 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		9 => array( '_elementor_data' => $doc( 'digitalisimo-woo-my-account' ) ),
+	);
+	$status = (object) array(
+		'data' => array(
+			'pages' => array(
+				array( 'page_name' => 'Shop base', 'page_id' => '5', 'shortcode_present' => false ),
+				array( 'page_name' => 'Carrito', 'page_id' => '7', 'shortcode_present' => false, 'block_present' => false ),
+				array( 'page_name' => 'Checkout', 'page_id' => '8', 'shortcode_present' => false, 'block_present' => false ),
+				array( 'page_name' => 'My account', 'page_id' => '9', 'shortcode_present' => false ),
+			),
+		),
+	);
+	$status = apply_filters( 'woocommerce_rest_prepare_system_status', $status, null, null );
+	c_check( true === $status->data['pages'][1]['shortcode_present'], 'Estado del sistema: el carrito hecho con el Carrito propio tiene su shortcode, también con el nombre traducido.' );
+	c_check( false === $status->data['pages'][0]['shortcode_present'] && false === $status->data['pages'][2]['shortcode_present'], 'Estado del sistema: sólo cuenta el widget de esa página (el pago con un Carrito no; la tienda, nunca).' );
+	c_check( false === $status->data['pages'][3]['shortcode_present'], 'Estado del sistema: sin el documento del constructor, Mi cuenta sigue sin shortcode.' );
+	$GLOBALS['c_wp']['meta'][8]['_elementor_data'] = $doc( 'digitalisimo-woo-checkout' );
+	$GLOBALS['c_wp']['meta'][9]['_elementor_edit_mode'] = 'builder';
+	$status->data['pages'][2]['shortcode_present'] = false;
+	$status = apply_filters( 'woocommerce_rest_prepare_system_status', $status, null, null );
+	c_check( true === $status->data['pages'][2]['shortcode_present'] && true === $status->data['pages'][3]['shortcode_present'], 'Estado del sistema: el pago y Mi cuenta propios, también.' );
+	$editor = (string) file_get_contents( $el . 'modules/digitalisimo-woo/store/assets/shop-pages-editor.js' );
+	foreach ( array( "'digitalisimo-woo-cart': 'woocommerce-cart'", "'digitalisimo-woo-checkout': 'woocommerce-checkout-page'", "'digitalisimo-woo-my-account': 'woocommerce-my-account'", "'digitalisimo-woo-purchase-summary': 'woocommerce-purchase-summary'", "'editor:widget:digitalisimo-woo-cart:section_additional_options:activated'", "onTemplateIdChange('additional_template_select')" ) as $needle ) {
+		c_check( str_contains( $editor, $needle ), "Editor: shop-pages-editor.js atiende $needle." );
+	}
+	$GLOBALS['c_wp']['enqueued'] = array();
+	do_action( 'elementor/editor/after_enqueue_scripts' );
+	$queued = $GLOBALS['c_wp']['enqueued']['digitalisimo-woo-shop-pages-editor'] ?? array();
+	c_check( $queued && str_ends_with( (string) $queued[1], 'modules/digitalisimo-woo/store/assets/shop-pages-editor.js' ) && array() === $queued[2] && true === $queued[4], 'Editor: el script de las páginas de la tienda se encola en el editor, en el pie y sin dependencias.' );
 
 	echo 'DIGITALÍSIMO Elements: Carrito propio en verde (' . $GLOBALS['c_wp']['checks'] . " comprobaciones).\n";
 }

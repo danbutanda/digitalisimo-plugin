@@ -339,11 +339,31 @@ return array(
 		'terms_conditions_heading',
 	),
 	'approx'    => array(
-		'returning_customer_section_title' => 'El título de «¿Ya eres cliente?» se aplica: PRO lo ofrecía pero pintaba siempre el texto por defecto.',
-		'returning_customer_link_text'     => 'El enlace de acceso usa su texto: PRO lo ofrecía pero pintaba siempre el texto por defecto.',
-		'coupon_section_title_text'        => 'El título de «¿Tienes un cupón?» se aplica: PRO lo ofrecía pero pintaba siempre el texto por defecto.',
-		'coupon_section_title_link_text'   => 'El enlace del cupón usa su texto: PRO lo ofrecía pero pintaba siempre el texto por defecto.',
+		'returning_customer_section_title' => 'PRO ofrecía el título de «¿Ya eres cliente?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'returning_customer_link_text'     => 'PRO ofrecía el texto del enlace de acceso, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'coupon_section_title_text'        => 'PRO ofrecía el título de «¿Tienes un cupón?», pero pintaba siempre su texto por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
+		'coupon_section_title_link_text'   => 'PRO ofrecía el texto del enlace del cupón, pero pintaba siempre el suyo por defecto: lo convertido pinta ese texto, como PRO. Para usar el texto que tenía guardado, escríbelo otra vez en el control.',
 	),
+	// PRO pintaba estos cuatro textos con su propio dominio y su filtro de textos sólo miraba otros, así que lo guardado
+	// (también un valor dinámico) nunca se veía: lo convertido lleva el texto que PRO pintaba. `approx` lo informa.
+	'filter'    => static function ( array $out ) use ( $digi_co_t ) {
+		$texts = array(
+			'returning_customer_section_title' => 'Returning customer?',
+			'returning_customer_link_text'     => 'Click here to login',
+			'coupon_section_title_text'        => 'Have a coupon?',
+			'coupon_section_title_link_text'   => 'Click here to enter your coupon code',
+		);
+		foreach ( $texts as $key => $text ) {
+			if ( array_key_exists( $key, $out ) ) {
+				$out[ $key ] = $digi_co_t( $text );
+			}
+			unset( $out['__dynamic__'][ $key ] );
+		}
+		if ( isset( $out['__dynamic__'] ) && array() === $out['__dynamic__'] ) {
+			unset( $out['__dynamic__'] );
+		}
+		return $out;
+	},
 	'repeaters' => array(
 		'billing_details_form_fields'        => array( 'target' => 'billing_details_form_fields', 'default_rows' => $digi_co_billing ) + $digi_co_fields,
 		'shipping_details_form_fields'       => array( 'target' => 'shipping_details_form_fields', 'default_rows' => $digi_co_shipping ) + $digi_co_fields,

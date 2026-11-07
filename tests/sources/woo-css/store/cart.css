@@ -176,7 +176,10 @@
 		margin:0;
 		padding:3px 0
 	}
-	& :is(.input-text,select){
+	/* `.input-text` y `select` por separado, como PRO: su `select` (0-2-1) cede ante `.woocommerce form .form-row select` de
+	   WooCommerce (0-2-2), así que el país y la provincia de la calculadora de envío llevan el estilo de WooCommerce (con
+	   `:is()` pesaba como `.input-text` y ganaba). */
+	& .input-text,& select{
 		background-color:#f9fafa;
 		border:none;
 		border-radius:var(--cff-br,3px);
@@ -184,18 +187,18 @@
 		font-size:14px;
 		padding:var(--cff-p,16px)
 	}
-	& :is(.input-text,select)::placeholder{
+	& .input-text::placeholder,& select::placeholder{
 		color:var(--cff-n,inherit);
 		font-family:inherit;
 		opacity:.6
 	}
-	& :is(.input-text,select):focus{
+	& .input-text:focus,& select:focus{
 		background-color:#f9fafa;
 		border-color:var(--cff-fbc,transparent);
 		color:var(--cff-fc,#69727d);
 		transition-duration:var(--cff-ftd,.3s)
 	}
-	& :is(.input-text,select):focus::placeholder{
+	& .input-text:focus::placeholder,& select:focus::placeholder{
 		color:var(--cff-fc,#69727d)
 	}
 	& .input-text.qty{

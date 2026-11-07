@@ -1048,7 +1048,7 @@ class My_Account extends Base {
 				'type' => Controls_Manager::COLOR,
 				'selectors' => [
 					'{{WRAPPER}}' => '--da-ffnc: {{VALUE}};',
-					'.e-woo-select2-wrapper .select2-results__option' => 'color: {{VALUE}};',
+					'.digi-acc-select2 .select2-results__option' => 'color: {{VALUE}};',
 					// style select2 arrow
 					'{{WRAPPER}} .select2-container--default .select2-selection--single .select2-selection__arrow b' => 'border-color: {{VALUE}} transparent transparent transparent;',
 				],
@@ -1082,7 +1082,7 @@ class My_Account extends Base {
 				'type' => Controls_Manager::COLOR,
 				'selectors' => [
 					'{{WRAPPER}}' => '--da-fffc: {{VALUE}}',
-					'.e-woo-select2-wrapper .select2-results__option:focus' => 'color: {{VALUE}};',
+					'.digi-acc-select2 .select2-results__option:focus' => 'color: {{VALUE}};',
 				],
 			]
 		);

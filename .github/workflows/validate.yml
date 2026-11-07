@@ -110,6 +110,7 @@ jobs:
           php tests/elements-pro-woo-products.php
           php tests/elements-pro-woo-archive.php
           php tests/elements-pro-woo-cart.php
+          node tests/elements-pro-woo-shop-pages-editor.mjs
           php tests/elements-pro-woo-checkout.php
           php tests/elements-pro-woo-account.php
           php tests/elements-pro-woo-menu-cart.php

@@ -90,8 +90,9 @@
 				}, 1500);
 			});
 		}
-		// Desplegable del país (select2, colgado del body): la clase propia, para los colores de los campos.
-		el.addEventListener('click', function (e) {
+		// Desplegable del país (select2, colgado del body): la clase propia, para los colores de los campos. Como PRO en
+		// `select2:open`: también al abrirlo con el teclado (selectWoo abre con `mousedown` o con una tecla).
+		var mark = function (e) {
 			if (e.target.closest && e.target.closest('.select2-selection')) {
 				setTimeout(function () {
 					document.querySelectorAll('.select2-container--open .select2-dropdown').forEach(function (d) {
@@ -99,7 +100,9 @@
 					});
 				});
 			}
-		});
+		};
+		el.addEventListener('mousedown', mark);
+		el.addEventListener('keydown', mark);
 		decorate(el, s);
 		if (typeof MutationObserver === 'function') {
 			new MutationObserver(function () {

@@ -3,11 +3,13 @@
 // servidor; el fragmento del panel se simula sustituyendo `.digi-mc__ct` como hace `wc-cart-fragments`):
 // - clic: abre (aria-expanded, `inert` fuera, clase en el elemento), clic fuera o en la capa cierra, el aspa cierra y
 //   devuelve el foco al botón, Escape cierra y devuelve el foco si estaba dentro; con el panel cerrado nada es enfocable;
-// - Intro y Espacio en el botón abren; «Al pasar el cursor» abre al entrar y cierra al salir;
+// - Intro y Espacio en el botón abren; «Al pasar el cursor» abre al entrar y cierra al salir; en el lateral, el clic que
+//   cae en la capa lo cierra y el cursor no lo reabre hasta salir del widget (como PRO);
 // - «Abrir automáticamente»: abre cuando el contador sube tras una acción de la persona (no al cargar ni al recibir los
 //   fragmentos iniciales); con `added` (envío sin AJAX) abre al cargar;
-// - mini carrito: la lista se ajusta a la altura de la ventana; foco visible de 2 px con separación de 2 px; botones de
-//   24 × 24 px como mínimo; movimiento reducido sin transiciones; sin errores en la consola.
+// - mini carrito: la lista se ajusta a la altura de la ventana; foco visible de 2 px con separación de 2 px; aspa y botón
+//   de 24 × 24 px como mínimo y «quitar artículo» de 22 × 22, como PRO; movimiento reducido sin transiciones; sin errores
+//   en la consola.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-woo-menu-cart-chrome.mjs
 import assert from 'node:assert/strict';
@@ -95,8 +97,14 @@ ok(!s.shown && s.active.includes('digi-mc__btn') && s.inert, 'Escape cierra y de
 await page.keyboard.press(' ');
 await sleep(50);
 ok((await state(page, 'a')).shown, 'Espacio en el botón abre.');
-const sizes = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__x, .digi-mc__rm a.remove_from_cart_button, .digi-mc__btn')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
-ok(sizes.every(([w, h]) => w >= 24 && h >= 24), 'Aspa, quitar artículo y botón de 24 × 24 px como mínimo: ' + JSON.stringify(sizes));
+const sizes = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__x, .digi-mc__btn')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+ok(sizes.every(([w, h]) => w >= 24 && h >= 24), 'Aspa y botón de 24 × 24 px como mínimo: ' + JSON.stringify(sizes));
+// «Quitar artículo» mide 22 × 22 px por defecto, como el de PRO (`--remove-item-button-size`, 22px); está aislado en su
+// esquina, así que entra en la excepción de separación de WCAG 2.5.8, y el control de tamaño sigue mandando.
+// Se lee el ancho calculado: en la página real el núcleo pone `box-sizing:border-box` (`.elementor *`) y el aro, con su
+// borde, mide eso; aquí no hay esa regla.
+const rm = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__rm')].map(e => { const cs = getComputedStyle(e); return [parseFloat(cs.width), parseFloat(cs.height)]; }));
+ok(rm.length && rm.every(([w, h]) => w === 22 && h === 22), 'Quitar artículo de 22 × 22 px, como PRO: ' + JSON.stringify(rm));
 const ring = await page.evaluate(() => { const b = document.querySelector('.digi-mc__btn'); b.focus(); const cs = getComputedStyle(b); return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset]; });
 ok(ring[0] === 'solid' && ring[1] === '2px' && ring[2] === '2px', 'Foco visible de 2 px con separación de 2 px: ' + ring);
 const motion = await page.evaluate(() => getComputedStyle(document.querySelector('.digi-mc__main')).transitionDuration);
@@ -115,6 +123,33 @@ await page.click('.digi-mc__btn');
 await page.click('.digi-mc__btn');
 await sleep(50);
 ok((await state(page, 'h')).shown, 'En modo cursor, el clic siempre abre (como PRO).');
+await page.close();
+// Lateral con «Al pasar el cursor», como PRO: el cursor abre el panel y su capa tapa el botón, así que el clic cae en la
+// capa y cierra el panel en el mismo gesto; no vuelve a abrirse por el cursor, que sigue sobre el botón, hasta que sale
+// del widget. Intro sigue abriendo.
+page = await open(page_html(widget('s', { open: 'mouseover', auto: false, type: 'side-cart', added: false })));
+await page.hover('.digi-mc__btn');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Lateral: al pasar el cursor abre.');
+const at = await page.$eval('.digi-mc__btn', b => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+ok(await page.evaluate(([x, y]) => document.elementFromPoint(x, y).classList.contains('digi-mc__box'), at), 'Lateral abierto: la capa tapa el botón.');
+await page.mouse.click(at[0], at[1]);
+await sleep(700);
+ok(!(await state(page, 's')).shown, 'Un clic sobre el botón tapado (en la capa) cierra el panel, como PRO.');
+await page.mouse.move(at[0] + 2, at[1] + 1);
+await sleep(100);
+ok(!(await state(page, 's')).shown, 'El cursor sobre el botón no lo reabre en el mismo gesto.');
+await page.mouse.move(1270, 790);
+await sleep(50);
+await page.hover('.digi-mc__btn');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Al salir del widget y volver, el cursor abre otra vez.');
+await page.mouse.click(at[0], at[1]);
+await sleep(700);
+await page.focus('.digi-mc__btn');
+await page.keyboard.press('Enter');
+await sleep(50);
+ok((await state(page, 's')).shown, 'Intro en el botón abre aunque el cursor siga encima.');
 await page.close();
 
 // 3. Abrir automáticamente.

@@ -44,11 +44,13 @@
     };
     btn.addEventListener('click', function (e) {
       e.preventDefault();
-      if (c.open === 'mouseover') api.show(); else if (api.open) api.hide(); else api.show();
+      if (c.open === 'mouseover') { api.hold = false; api.show(); } else if (api.open) api.hide(); else api.show();
     });
     if (c.open === 'mouseover') {
-      tw.addEventListener('mouseover', api.show);
-      tw.addEventListener('mouseleave', function () { api.hide(); });
+      // Como PRO: el clic que cierra el panel (en su capa, que tapa el botón) no se deshace porque el cursor siga encima.
+      api.hover = true;
+      tw.addEventListener('mouseover', function () { if (!api.hold) api.show(); });
+      tw.addEventListener('mouseleave', function () { api.hold = false; api.hide(); });
     }
     tw.addEventListener('click', function (e) {
       if (e.target.closest('.digi-mc__x,.digi-mc__xc')) { e.preventDefault(); api.hide(true); }
@@ -70,7 +72,7 @@
   }
   function scan(root) { (root || d).querySelectorAll('[data-digi-menu-cart]').forEach(init); }
   d.addEventListener('click', function (e) {
-    all.forEach(function (a) { if (a.open && !a.main.contains(e.target) && !a.tg.contains(e.target)) a.hide(); });
+    all.forEach(function (a) { if (a.open && !a.main.contains(e.target) && !a.tg.contains(e.target)) { a.hold = a.hover && e.detail > 0; a.hide(); } });
   });
   d.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') all.forEach(function (a) { a.hide(); });

@@ -34,19 +34,23 @@ abstract class Base extends Widget {
 	}
 
 	/**
-	 * Hoja del widget y, si existe, su segunda hoja (`store/assets/<widget sin digitalisimo-woo->-2.css`, handle
-	 * `<widget>-2`): las páginas de WooCommerce de PRO (carrito, pago, cuenta, resumen y carrito del menú) traen de 11 a
-	 * 36 KB de estilos y no caben en una hoja de 4 KB. Cada hoja sigue en su tope de 4 KB; la segunda se registra aquí, la
-	 * primera vez que el núcleo pide los recursos del widget.
+	 * Hoja del widget y, si existen, su segunda y su tercera hoja (`store/assets/<widget sin digitalisimo-woo->-2.css` y
+	 * `-3.css`, handles `<widget>-2` y `<widget>-3`, cada una detrás de la anterior): las páginas de WooCommerce de PRO
+	 * (carrito, pago, cuenta, resumen y carrito del menú) traen de 11 a 36 KB de estilos y no caben en una hoja de 4 KB.
+	 * Cada hoja sigue en su tope de 4 KB; las adicionales se registran aquí, la primera vez que el núcleo pide los
+	 * recursos del widget. Sólo el carrito y la cuenta llevan tercera hoja (excepción declarada en docs/pro/c7.md).
 	 */
 	public function get_style_depends(): array {
 		$handles = Registry::style_depends( $this->get_name() );
 		$slug    = substr( $this->get_name(), strlen( 'digitalisimo-woo-' ) );
-		$extra   = 'modules/digitalisimo-woo/store/assets/' . $slug . '-2.css';
-		if ( $handles && is_file( \Digitalisimo\Elements\Woo\Assets::path( $extra ) ) && function_exists( 'wp_register_style' ) ) {
-			$handle = $this->get_name() . '-2';
+		foreach ( array( 2, 3 ) as $n ) {
+			$extra = 'modules/digitalisimo-woo/store/assets/' . $slug . '-' . $n . '.css';
+			if ( ! $handles || ! is_file( \Digitalisimo\Elements\Woo\Assets::path( $extra ) ) || ! function_exists( 'wp_register_style' ) ) {
+				break;
+			}
+			$handle = $this->get_name() . '-' . $n;
 			if ( ! wp_style_is( $handle, 'registered' ) ) {
-				wp_register_style( $handle, \Digitalisimo\Elements\Woo\Assets::url( $extra ), $handles, defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false );
+				\Digitalisimo\Elements\Woo\Assets::register_sheet( $handle, $extra, array( end( $handles ) ) );
 			}
 			$handles[] = $handle;
 		}
@@ -70,6 +74,15 @@ abstract class Base extends Widget {
 		}
 		$experiments = isset( \Elementor\Plugin::$instance->experiments ) ? \Elementor\Plugin::$instance->experiments : null;
 		return is_object( $experiments ) && method_exists( $experiments, 'is_feature_active' ) && (bool) $experiments->is_feature_active( 'e_optimized_markup' );
+	}
+
+	/**
+	 * ¿Es lo convertido de un widget de PRO? Lo dice la marca del traductor (`Convert\Translator::MARKER`), que dejan
+	 * «Migrar» y los kits, también en lo ya migrado. Los textos fijos que no son controles usan entonces los de PRO, con su
+	 * msgid y su dominio (o la traducción del paquete de idioma de PRO); en lo nuevo, los propios.
+	 */
+	protected function from_pro(): bool {
+		return '' !== (string) $this->get_settings( '_digitalisimo_pro' );
 	}
 
 	/** ¿Se está editando o previsualizando en el editor? */

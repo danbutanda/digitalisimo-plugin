@@ -79,6 +79,53 @@ final class Assets {
 		return dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/' . ltrim( $path, '/' );
 	}
 
+	/**
+	 * Registra una hoja de un widget de C7 (`store/assets/<hoja>.css`). Si el sitio tiene puntos de corte personalizados
+	 * y la hoja tiene plantilla (`store/breakpoints/<hoja>.css`, con los marcadores `ELEMENTOR_SCREEN_*`; la genera
+	 * `tests/sources/woo-css/build.mjs`), sirve la copia que el núcleo regenera con los puntos de corte del kit, como
+	 * PRO con sus hojas `WIDGET_HAS_CUSTOM_BREAKPOINTS` (`Plugin::get_frontend_file_url()`): carrito, pago, cuenta,
+	 * resumen, carrito del menú y archivo de productos cambian de disposición en los mismos anchos que con PRO. Si no,
+	 * la hoja publicada.
+	 */
+	public static function register_sheet( string $handle, string $css, array $deps = array() ): void {
+		$custom = self::breakpoint_sheet_url( $css );
+		$ver    = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
+		// La copia ya lleva su versión (`?ver=` con la hora en que se generó), como en PRO.
+		wp_register_style( $handle, '' !== $custom ? $custom : self::url( $css ), $deps, '' !== $custom ? null : $ver );
+	}
+
+	/** Plantilla con los puntos de corte del sitio de una hoja (`<frente>/breakpoints/<hoja>.css`), o ''. */
+	public static function breakpoint_template( string $css ): string {
+		$template = (string) preg_replace( '#/assets/([a-z0-9-]+\.css)$#', '/breakpoints/$1', $css );
+		return $template !== $css && is_file( self::path( $template ) ) ? $template : '';
+	}
+
+	/** URL de la copia de una hoja con los puntos de corte personalizados del sitio, o '' si no hacen falta o falla. */
+	public static function breakpoint_sheet_url( string $css ): string {
+		$template = self::breakpoint_template( $css );
+		if ( '' === $template || ! class_exists( '\Elementor\Plugin' ) || ! isset( \Elementor\Plugin::$instance ) ) {
+			return '';
+		}
+		$elementor   = \Elementor\Plugin::$instance;
+		$breakpoints = isset( $elementor->breakpoints ) ? $elementor->breakpoints : null;
+		$frontend    = isset( $elementor->frontend ) ? $elementor->frontend : null;
+		if ( ! is_object( $breakpoints ) || ! method_exists( $breakpoints, 'has_custom_breakpoints' ) || ! is_object( $frontend ) || ! method_exists( $frontend, 'get_frontend_file' ) ) {
+			return '';
+		}
+		try {
+			if ( ! $breakpoints->has_custom_breakpoints() ) {
+				return '';
+			}
+			// La versión va en el nombre: el núcleo sólo regenera la copia al cambiar los puntos de corte o vaciar su caché,
+			// y una versión nueva de la hoja debe llegar sin esperar a eso.
+			$prefix = 'custom-digi-woo-' . preg_replace( '/[^0-9a-z.]/i', '', defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? (string) DIGITALISIMO_ELEMENTS_VERSION : '' ) . '-';
+			$file   = $frontend->get_frontend_file( basename( $css ), $prefix, self::path( $template ) );
+			return is_object( $file ) && method_exists( $file, 'get_url' ) ? (string) $file->get_url() : '';
+		} catch ( \Throwable $error ) {
+			return '';
+		}
+	}
+
 	/** Registra la hoja y el script de cada capacidad cuyo archivo existe. Idempotente. */
 	public static function register(): void {
 		if ( ! function_exists( 'wp_register_style' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {

@@ -2260,6 +2260,6 @@ class Menu_Cart extends Base {
 		if ( 'yes' !== get_option( Menu_Cart_Markup::OPTION ) ) {
 			update_option( Menu_Cart_Markup::OPTION, 'yes', true );
 		}
-		echo Menu_Cart_Markup::widget( $settings, (string) $this->get_id(), self::is_editor(), (bool) did_action( 'woocommerce_add_to_cart' ) && ! wp_doing_ajax() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en Menu_Cart_Markup.
+		echo Menu_Cart_Markup::widget( $settings, (string) $this->get_id(), self::is_editor(), (bool) did_action( 'woocommerce_add_to_cart' ) && ! wp_doing_ajax(), $this->from_pro() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en Menu_Cart_Markup.
 	}
 }

@@ -1,6 +1,6 @@
 {
  "_doc": [
-  "Casos A/B de woocommerce-product-add-to-cart (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets.",
+  "Casos A/B de woocommerce-product-add-to-cart (frente M de C7, docs/pro/c7.md): A con el widget de PRO y B con el propio, en la tienda de prueba de setup.php (N-woo.md). `container` con la clase `woocommerce` (`css_classes`, la del contenedor; `_css_classes` es la de un widget y el contenedor no la pinta) reproduce la de la página de un producto, que es la que usan los selectores de los dos widgets; con `_css_classes: product` en el widget, también la regla de WooCommerce de la ficha (`.woocommerce div.product form.cart div.quantity`).",
   "Añadir al carrito: el formulario de WooCommerce (`woocommerce_template_single_add_to_cart()`) con la envoltura y los estilos de PRO (clases propias)."
  ],
  "declared": [
@@ -18,7 +18,7 @@
     "product": "simple"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {},
    "widget": "woocommerce-product-add-to-cart",
@@ -46,7 +46,7 @@
     "product": "variable"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {},
    "widget": "woocommerce-product-add-to-cart",
@@ -74,7 +74,7 @@
     "product": "simple"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {
     "layout": "stacked",
@@ -141,7 +141,7 @@
     "product": "simple"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {
     "layout": "auto",
@@ -179,7 +179,7 @@
     "product": "simple"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {
     "show_quantity": "",
@@ -210,7 +210,7 @@
     "product": "variable"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {
     "variations_width": {
@@ -263,9 +263,102 @@
     "product": "outofstock"
    },
    "container": {
-    "_css_classes": "woocommerce"
+    "css_classes": "woocommerce"
    },
    "settings": {},
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-tablet-only": {
+   "title": "Alineación sólo en tableta, en la ficha (`.woocommerce div.product`): en escritorio la cantidad conserva los 4 px de WooCommerce",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "css_classes": "woocommerce"
+   },
+   "settings": {
+    "_css_classes": "product",
+    "alignment_tablet": "center"
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-mobile-only": {
+   "title": "Alineación sólo en móvil, en la ficha: en escritorio y tableta la cantidad conserva los 4 px de WooCommerce",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "css_classes": "woocommerce"
+   },
+   "settings": {
+    "_css_classes": "product",
+    "alignment_mobile": "right"
+   },
+   "widget": "woocommerce-product-add-to-cart",
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-woocommerce-product-add-to-cart.min.css de PRO",
+     "id": "widget-woocommerce-product-add-to-cart-css",
+     "url": "widget-woocommerce-product-add-to-cart(-rtl)?(\\.min)?\\.css"
+    }
+   ]
+  },
+  "wsm-atc-desktop-left": {
+   "title": "Alineación a la izquierda en escritorio, en la ficha: la cantidad sin margen, como PRO",
+   "context": {
+    "product": "simple"
+   },
+   "container": {
+    "css_classes": "woocommerce"
+   },
+   "settings": {
+    "_css_classes": "product",
+    "alignment": "left"
+   },
    "widget": "woocommerce-product-add-to-cart",
    "forbid": [
     {

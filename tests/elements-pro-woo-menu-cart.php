@@ -45,7 +45,7 @@ namespace {
 	function woocommerce_mini_cart() { $GLOBALS['m_wp']['mini']++; echo '<ul class="woocommerce-mini-cart">TEMA</ul>'; }
 	function wc_setup_product_data( $post ) { return (object) array( 'id' => $post->ID ); }
 	function get_post( $id ) { return 7 === (int) $id ? (object) array( 'ID' => 7, 'post_type' => 'product' ) : ( 9 === (int) $id ? (object) array( 'ID' => 9, 'post_type' => 'page' ) : null ); }
-	function do_shortcode( $s ) { $GLOBALS['m_wp']['shortcodes'][] = $s; return '[checkout_empty]' === $s ? '<div class="woocommerce"></div>' : '<div class="woocommerce">' . $s . '</div>'; }
+	function do_shortcode( $s ) { $GLOBALS['m_wp']['shortcodes'][] = $s; return '[checkout_empty]' === $s || ( ! empty( $GLOBALS['m_wp']['checkout_empty'] ) && 0 === strpos( $s, '[woocommerce_checkout' ) ) ? '<div class="woocommerce"></div>' : '<div class="woocommerce">' . $s . '</div>'; }
 	class M_Product {
 		public $n, $id, $sku;
 		public function __construct( $n, $id, $sku ) { $this->n = $n; $this->id = $id; $this->sku = $sku; }
@@ -145,7 +145,7 @@ namespace {
 	}
 	$check( strlen( $js ) <= 8192 && ! preg_match( '/jQuery|\$\(|elementorProFrontend|ajax|fetch\(/i', preg_replace( '#/\*.*?\*/#s', '', $js ) ), 'Script ≤ 8 KB, sin jQuery ni peticiones propias.' );
 	$check( str_contains( $css1, 'prefers-reduced-motion' ) && str_contains( $css1, ':focus-visible{outline:2px solid currentColor;outline-offset:2px}' ) && str_contains( $pcss, 'outline-offset:2px' ), 'Movimiento reducido y foco visible de 2 px con separación de 2 px.' );
-	$check( str_contains( $css2, 'var(--mc-ribs,24px)' ), 'Quitar un artículo: objetivo de 24 × 24 px.' );
+	$check( str_contains( $css2, 'var(--mc-ribs,22px)' ) && ! str_contains( $css2, 'var(--mc-ribs,24px)' ), 'Quitar un artículo: 22 × 22 px por defecto, como PRO (--remove-item-button-size).' );
 	$vetoed = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
 	foreach ( array( 'modules/digitalisimo-woo/store/class-menu-cart.php', 'modules/digitalisimo-woo/store/class-menu-cart-markup.php', 'modules/digitalisimo-woo/store/class-pages.php', 'modules/digitalisimo-woo/store/assets/menu-cart.js', 'modules/digitalisimo-woo/store/assets/menu-cart.css', 'modules/digitalisimo-woo/store/assets/menu-cart-2.css', 'modules/digitalisimo-woo/store/assets/pages.css', 'modules/digitalisimo-convert/maps/woocommerce-menu-cart.php', 'modules/digitalisimo-convert/maps/wc-elements.php' ) as $file ) {
 		$source = (string) file_get_contents( h_path( $file ) );
@@ -201,6 +201,15 @@ namespace {
 	unset( $GLOBALS['h_wp']['filters']['woocommerce_cart_item_remove_link'] );
 	$GLOBALS['m_wp']['items'] = array();
 	$check( '<div class="woocommerce-mini-cart__empty-message">No products in the cart.</div>' === Menu_Cart_Markup::mini_cart(), 'Carrito vacío: el mensaje de WooCommerce.' );
+	// Con una traducción de WooCommerce y ninguna de PRO (un sitio en español que venía de PRO, que pintaba su texto con su
+	// dominio): los dos textos, y la hoja muestra el de PRO sólo en lo convertido (`digi-mc--pro`), porque el panel llega
+	// por los fragmentos, iguales para todos los carritos de la página.
+	$h_esc = $GLOBALS['h_wp_fns']['esc_html__'];
+	$GLOBALS['h_wp_fns']['esc_html__'] = static function ( $v, $d = '' ) use ( $h_esc ) { return 'woocommerce' === $d && 'No products in the cart.' === $v ? 'No hay productos en el carrito.' : $h_esc( $v, $d ); };
+	$check( '<div class="woocommerce-mini-cart__empty-message"><span class="digi-mc__em">No hay productos en el carrito.</span><span class="digi-mc__em digi-mc__em--pro">No products in the cart.</span></div>' === Menu_Cart_Markup::mini_cart(), 'Carrito vacío con traducciones distintas: el texto de WooCommerce y el de PRO.' );
+	$GLOBALS['h_wp_fns']['esc_html__'] = $h_esc;
+	$check( str_starts_with( h_render( $own, array( '_digitalisimo_pro' => 'woocommerce-menu-cart' ) ), '<div class="digi-mc digi-mc--pro">' ) && str_starts_with( h_render( $own ), '<div class="digi-mc">' ), 'Lo convertido de PRO lleva `digi-mc--pro`; lo nuevo, no.' );
+	$check( str_contains( $css2, '.digi-mc--pro .digi-mc__em,.digi-mc__em--pro{display:none}.digi-mc--pro .digi-mc__em--pro{display:inline}' ), 'La hoja muestra el texto de PRO sólo en lo convertido.' );
 	$GLOBALS['m_wp']['options']['elementor_use_mini_cart_template'] = 'no';
 	$check( '<ul class="woocommerce-mini-cart">TEMA</ul>' === Menu_Cart_Markup::mini_cart() && 1 === $GLOBALS['m_wp']['mini'], 'Con la plantilla del constructor desactivada, la del tema o de WooCommerce.' );
 	unset( $GLOBALS['m_wp']['options']['elementor_use_mini_cart_template'], $GLOBALS['m_wp']['options'][ Menu_Cart_Markup::OPTION ] );
@@ -227,6 +236,15 @@ namespace {
 	$GLOBALS['m_wp']['admin'] = true;
 	$m_out = h_render( $pown, array( 'element' => 'product_page', 'product_id' => '9' ) );
 	$check( '<div class="woocommerce">Elige un producto válido</div>' === $m_out, 'Producto que no lo es: aviso para quien administra, como PRO: ' . $m_out );
+	// Pago con el carrito vacío: el texto de PRO (su dominio) en lo convertido; el de WooCommerce en lo nuevo.
+	$GLOBALS['m_wp']['checkout_empty'] = true;
+	$h_esc = $GLOBALS['h_wp_fns']['esc_html__'];
+	$GLOBALS['h_wp_fns']['esc_html__'] = static function ( $v, $d = '' ) use ( $h_esc ) { return 'woocommerce' === $d && 'Your cart is currently empty.' === $v ? 'Tu carrito está vacío.' : $h_esc( $v, $d ); };
+	$empty_new = h_render( $pown, array( 'element' => 'woocommerce_checkout' ) );
+	$empty_pro = h_render( $pown, array( 'element' => 'woocommerce_checkout', '_digitalisimo_pro' => 'woocommerce-checkout-page' ) );
+	$GLOBALS['h_wp_fns']['esc_html__'] = $h_esc;
+	$GLOBALS['m_wp']['checkout_empty'] = false;
+	$check( '<div class="woocommerce">Tu carrito está vacío.</div>' === $empty_new && '<div class="woocommerce">Your cart is currently empty.</div>' === $empty_pro, 'Pago con el carrito vacío: el texto de WooCommerce en lo nuevo y el de PRO en lo convertido: ' . $empty_new . ' / ' . $empty_pro );
 	$GLOBALS['m_wp']['admin'] = false;
 	$check( array( 'id' => 'x', 'settings' => array( 'element' => 'product_page' ) ) === $pown->on_export( array( 'id' => 'x', 'settings' => array( 'element' => 'product_page', 'product_id' => '7' ) ) ), 'El producto elegido no viaja en una exportación (como PRO).' );
 

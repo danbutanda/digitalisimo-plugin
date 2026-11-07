@@ -99,6 +99,23 @@
      "wait": 1200
     }
    ]
+  },
+  "co-coupon-texts": {
+   "title": "Finalizar compra · textos propios del cupón: PRO pinta siempre los suyos y lo convertido también",
+   "widget": "woocommerce-checkout-page",
+   "context": "checkout",
+   "settings": {
+    "coupon_section_title_text": "¿Cupón?",
+    "coupon_section_title_link_text": "Ábrelo aquí"
+   },
+   "actions": [
+    {
+     "label": "abrir el cupón",
+     "a": ".e-show-coupon-form",
+     "b": ".digi-co__show-coupon",
+     "wait": 1200
+    }
+   ]
   }
  },
  "declared": [
@@ -113,18 +130,6 @@
    "kind": "enlace",
    "match": "(^|\\] )(perdido «#»|nuevo «#digi-co-(coupon|login)-[0-9a-f]+»)$",
    "reason": "El conmutador apunta a su panel (#digi-co-coupon-<id>) en lugar de a «#»."
-  },
-  {
-   "widget": "woocommerce-checkout-page",
-   "kind": "palabra",
-   "match": "^\\[acción 1 abrir el cupón\\] (perdida «(if|you|have|a|coupon|code|please|apply|it|below)»|nueva «(si|tienes|un|código|de|cupón|aplícalo|abajo|aplicar)»)$",
-   "reason": "Textos fijos del formulario de cupón (no son controles) en español con el dominio pro-elements; PRO los pinta con su dominio (en inglés en el Playground)."
-  },
-  {
-   "widget": "woocommerce-checkout-page",
-   "kind": "nombre",
-   "match": "^\\[acción 1 abrir el cupón\\] (perdido button «Apply»|nuevo button «Aplicar»)$",
-   "reason": "Texto fijo del botón del cupón en español (no es un control)."
   }
  ]
 }
