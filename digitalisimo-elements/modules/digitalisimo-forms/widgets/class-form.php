@@ -2743,6 +2743,12 @@ class Form extends \Elementor\Widget_Base {
 		if ( 'custom' === $instance['form_validation'] ) {
 			$this->add_render_attribute( 'form', 'novalidate' );
 		}
+		// Lo convertido de PRO (marca del traductor, `_digitalisimo_pro`, que dejan «Migrar» y los kits): `form.js` muestra,
+		// tras un error de red o una respuesta no válida, el texto de PRO (el `textStatus` de jQuery) y deja el botón en
+		// texto plano, como PRO; lo nuevo conserva el mensaje «error del servidor» del formulario.
+		if ( '' !== (string) $this->get_settings( '_digitalisimo_pro' ) ) {
+			$this->add_render_attribute( 'form', 'data-digi-pro', 'form' );
+		}
 		$referer_title = trim( wp_title( '', false ) );
 		if ( ! $referer_title && is_home() ) {
 			$referer_title = get_option( 'blogname' );
@@ -2804,7 +2810,11 @@ class Form extends \Elementor\Widget_Base {
 		echo '</form>';
 	}
 
-	/** Cierra un paso con sus botones: «anterior» desde el segundo, «siguiente» o, en el último, el de envío. */
+	/**
+	 * Cierra un paso con sus botones: «anterior» desde el segundo, «siguiente» o, en el último, el de envío. Con un solo
+	 * paso, como PRO (`injectButtonsToSteps()`: el primero siempre recibe «siguiente» y el envío queda fuera del paso),
+	 * «siguiente» y el envío fuera; `form.js` repite lo que hace PRO al pulsarlo.
+	 */
 	private function step_close( array $instance, array $steps, int $step, string $size, array $submit ): string {
 		$total = count( $steps );
 		$item  = array_values( $steps )[ $step ];
@@ -2812,7 +2822,7 @@ class Form extends \Elementor\Widget_Base {
 		if ( $step ) {
 			$html .= $this->step_button( $instance, $item, 'previous', $size );
 		}
-		if ( $step < $total - 1 ) {
+		if ( $step < $total - 1 || 1 === $total ) {
 			$html .= $this->step_button( $instance, $item, 'next', $size );
 		} elseif ( $total > 1 ) {
 			$wrapper = array_diff( $submit, array( 'elementor-column', 'e-form__buttons', 'elementor-col-' . ( empty( $instance['button_width'] ) ? '100' : $instance['button_width'] ) ) );

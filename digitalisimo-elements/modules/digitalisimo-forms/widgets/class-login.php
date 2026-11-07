@@ -896,12 +896,33 @@ class Login extends \Elementor\Widget_Base {
 		$redirect_url    = 'yes' === ( $settings['redirect_after_login'] ?? '' ) ? self::url( $settings['redirect_url'] ?? null, $current_url ) : $current_url;
 		$logout_redirect = 'yes' === ( $settings['redirect_after_logout'] ?? '' ) ? self::url( $settings['redirect_logout_url'] ?? null, $current_url ) : $current_url;
 
+		// Textos fijos que no son ajustes: en lo convertido de PRO (la marca del traductor, `Translator::MARKER`, que dejan
+		// «Migrar» y los kits, también en lo ya migrado) son los de PRO, con su msgid y su dominio (o la traducción del
+		// paquete de idioma de PRO); en lo nuevo, los propios en español.
+		$pro = '' !== (string) $this->get_settings( '_digitalisimo_pro' );
+		// phpcs:disable WordPress.WP.I18n.TextDomainMismatch -- mismos textos y dominio que PRO en lo convertido.
+		$text = $pro ? array(
+			/* translators: 1: User display name, 2: Link opening tag, 3: Link closing tag. */
+			'logged'   => esc_html__( 'You are Logged in as %1$s (%2$sLogout%3$s)', 'elementor-pro' ),
+			'form'     => esc_attr__( 'Login form', 'elementor-pro' ),
+			'remember' => esc_html__( 'Remember Me', 'elementor-pro' ),
+			'lost'     => esc_html__( 'Lost your password?', 'elementor-pro' ),
+			'register' => esc_html__( 'Register', 'elementor-pro' ),
+		) : array(
+			/* translators: 1: nombre público del usuario, 2: apertura del enlace, 3: cierre del enlace. */
+			'logged'   => esc_html__( 'Has iniciado sesión como %1$s (%2$sCerrar sesión%3$s)', 'pro-elements' ),
+			'form'     => esc_attr__( 'Formulario de acceso', 'pro-elements' ),
+			'remember' => esc_html__( 'Recordarme', 'pro-elements' ),
+			'lost'     => esc_html__( '¿Olvidaste tu contraseña?', 'pro-elements' ),
+			'register' => esc_html__( 'Registrarse', 'pro-elements' ),
+		);
+		// phpcs:enable WordPress.WP.I18n.TextDomainMismatch
+
 		if ( is_user_logged_in() && ! self::editing() ) {
 			if ( 'yes' === ( $settings['show_logged_in_message'] ?? '' ) ) {
 				$current_user = wp_get_current_user();
 				echo '<div class="elementor-login elementor-login__logged-in-message">' . sprintf(
-					/* translators: 1: nombre público del usuario, 2: apertura del enlace, 3: cierre del enlace. */
-					esc_html__( 'Has iniciado sesión como %1$s (%2$sCerrar sesión%3$s)', 'pro-elements' ),
+					$text['logged'], // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- escapado arriba.
 					wp_kses_post( $current_user->display_name ),
 					sprintf( '<a href="%s" target="_blank" rel="noopener">', esc_url( wp_logout_url( $logout_redirect ) ) ),
 					'</a>'
@@ -916,7 +937,7 @@ class Login extends \Elementor\Widget_Base {
 		$show_lost_password = 'yes' === ( $settings['show_lost_password'] ?? '' );
 		$show_register      = self::registration_enabled() && 'yes' === ( $settings['show_register'] ?? '' );
 		?>
-		<form class="elementor-login elementor-form" method="post" action="<?php echo esc_url( site_url( 'wp-login.php', 'login_post' ) ); ?>" aria-label="<?php echo esc_attr__( 'Formulario de acceso', 'pro-elements' ); ?>">
+		<form class="elementor-login elementor-form" method="post" action="<?php echo esc_url( site_url( 'wp-login.php', 'login_post' ) ); ?>" aria-label="<?php echo $text['form']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba. ?>">
 			<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_url ); ?>">
 			<div <?php $this->print_render_attribute_string( 'wrapper' ); ?>>
 				<div <?php $this->print_render_attribute_string( 'field-group' ); ?>>
@@ -929,7 +950,7 @@ class Login extends \Elementor\Widget_Base {
 				</div>
 				<?php if ( 'yes' === ( $settings['show_remember_me'] ?? '' ) ) : ?>
 				<div class="elementor-field-type-checkbox elementor-field-group elementor-column elementor-col-100 elementor-remember-me">
-					<label for="elementor-login-remember-me-<?php echo esc_attr( $id ); ?>"><input type="checkbox" id="elementor-login-remember-me-<?php echo esc_attr( $id ); ?>" name="rememberme" value="forever"> <?php echo esc_html__( 'Recordarme', 'pro-elements' ); ?></label>
+					<label for="elementor-login-remember-me-<?php echo esc_attr( $id ); ?>"><input type="checkbox" id="elementor-login-remember-me-<?php echo esc_attr( $id ); ?>" name="rememberme" value="forever"> <?php echo $text['remember']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba. ?></label>
 				</div>
 				<?php endif; ?>
 				<div <?php $this->print_render_attribute_string( 'submit-group' ); ?>>
@@ -944,13 +965,13 @@ class Login extends \Elementor\Widget_Base {
 				<?php if ( $show_lost_password || $show_register ) : ?>
 				<div class="elementor-field-group elementor-column elementor-col-100">
 					<?php if ( $show_lost_password ) : ?>
-					<a class="elementor-lost-password" href="<?php echo esc_url( wp_lostpassword_url( $redirect_url ) ); ?>"><?php echo esc_html__( '¿Olvidaste tu contraseña?', 'pro-elements' ); ?></a>
+					<a class="elementor-lost-password" href="<?php echo esc_url( wp_lostpassword_url( $redirect_url ) ); ?>"><?php echo $text['lost']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba. ?></a>
 					<?php endif; ?>
 					<?php if ( $show_register ) : ?>
 						<?php if ( $show_lost_password ) : ?>
 					<span class="elementor-login-separator" aria-hidden="true"> | </span>
 						<?php endif; ?>
-					<a class="elementor-register" href="<?php echo esc_url( wp_registration_url() ); ?>"><?php echo esc_html__( 'Registrarse', 'pro-elements' ); ?></a>
+					<a class="elementor-register" href="<?php echo esc_url( wp_registration_url() ); ?>"><?php echo $text['register']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba. ?></a>
 					<?php endif; ?>
 				</div>
 				<?php endif; ?>
@@ -967,7 +988,9 @@ class Login extends \Elementor\Widget_Base {
 		$plain    = static function ( $value ) {
 			return trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $value ) ) );
 		};
-		$parts  = array( '## ' . esc_html__( 'Formulario de acceso', 'pro-elements' ) );
+		// En lo convertido de PRO, sus textos (como en render()).
+		$pro    = '' !== (string) $this->get_settings( '_digitalisimo_pro' );
+		$parts  = array( '## ' . ( $pro ? esc_html__( 'Login Form', 'elementor-pro' ) : esc_html__( 'Formulario de acceso', 'pro-elements' ) ) ); // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO en lo convertido.
 		$fields = array();
 		if ( '' !== $plain( $settings['user_label'] ?? '' ) ) {
 			$fields[] = '- **' . $plain( $settings['user_label'] ) . '** (text)';
@@ -976,7 +999,7 @@ class Login extends \Elementor\Widget_Base {
 			$fields[] = '- **' . $plain( $settings['password_label'] ) . '** (password)';
 		}
 		if ( 'yes' === ( $settings['show_remember_me'] ?? '' ) ) {
-			$fields[] = '- **' . esc_html__( 'Recordarme', 'pro-elements' ) . '** (checkbox)';
+			$fields[] = '- **' . ( $pro ? esc_html__( 'Remember Me', 'elementor-pro' ) : esc_html__( 'Recordarme', 'pro-elements' ) ) . '** (checkbox)'; // phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- texto de PRO en lo convertido.
 		}
 		if ( $fields ) {
 			$parts[] = implode( "\n", $fields );

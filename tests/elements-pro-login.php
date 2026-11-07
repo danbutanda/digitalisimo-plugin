@@ -143,12 +143,17 @@ namespace {
 	$css = (string) file_get_contents( $root . Forms::WIDGETS[ $name ]['css'] );
 	check_lg( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_lg( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(|#[0-9a-f]{3,6}\b/i', $css ), 'La hoja no usa el kit, url() ni colores propios.' );
-	check_lg( str_contains( $css, 'outline:2px solid;outline-offset:2px' ) && str_contains( $css, 'min-height:24px' ) && str_contains( $css, '.elementor-login .elementor-lost-password,.elementor-login .elementor-remember-me{font-size:.85em}' ), 'Foco visible, objetivos de 24 px y el tamaño de los enlaces de PRO.' );
+	check_lg( str_contains( $css, 'outline:2px solid;outline-offset:2px' ) && str_contains( $css, '.elementor-login .elementor-lost-password,.elementor-login .elementor-remember-me{font-size:.85em}' ), 'Foco visible y el tamaño de los enlaces de PRO.' );
+	// Corrección de fidelidad (docs/pro/c6.md): como PRO, sin un alto mínimo en «Recordarme» y los enlaces (crecía 5 px a
+	// 375 px) y los campos de texto con el foco del núcleo (`outline:0` y su sombra), que Chrome activa también con el ratón.
+	check_lg( ! str_contains( $css, 'min-height' ) && ! preg_match( '/(^|[\s,])input:focus-visible|elementor-field-textual[^{]*:focus-visible|\s:focus-visible/', $css ) && str_contains( $css, '[type=checkbox]:focus-visible' ), 'Sin alto mínimo propio y sin contorno propio en los campos de texto: ' . $css );
 	$code = '';
 	foreach ( token_get_all( (string) file_get_contents( $root . 'modules/digitalisimo-forms/' . Forms::WIDGETS[ $name ]['file'] ) ) as $token ) {
 		$code .= is_array( $token ) ? ( in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ? '' : $token[1] ) : $token;
 	}
-	check_lg( ! preg_match( '/jquery|swiper|wp_enqueue_script|wp_register_script|elementor-pro-frontend|ElementorPro\\\\|\'elementor-pro\'/i', $code ), 'Sin jQuery, scripts ni clases o textos de PRO en el código.' );
+	// El dominio de PRO sólo en sus textos fijos para lo convertido (corrección de fidelidad, abajo): `esc_*__( '…', 'elementor-pro' )`.
+	$code_pro = preg_replace( "/esc_(html|attr)__\\( '[^']+', 'elementor-pro' \\)/", '', $code );
+	check_lg( ! preg_match( '/jquery|swiper|wp_enqueue_script|wp_register_script|elementor-pro-frontend|ElementorPro\\\\|\'elementor-pro\'/i', $code_pro ), 'Sin jQuery, scripts ni clases o textos de PRO en el código (salvo los textos fijos de lo convertido).' );
 	foreach ( array( 'modules/digitalisimo-forms/widgets/class-login.php', Forms::WIDGETS[ $name ]['css'], 'modules/digitalisimo-convert/maps/login.php' ) as $file ) {
 		check_lg( ! preg_match( $guard, (string) file_get_contents( $root . $file ) ), "$file pasa la guarda de build-packages.sh." );
 	}
@@ -259,6 +264,21 @@ namespace {
 	$GLOBALS['lg']['logged'] = false;
 	$widget->settings = $defaults;
 	check_lg( "## Formulario de acceso\n\n- **Nombre de usuario o correo electrónico** (text)\n- **Contraseña** (password)\n- **Recordarme** (checkbox)\n\n[Acceder]" === $widget->render_markdown(), 'Markdown del formulario: ' . $widget->render_markdown() );
+
+	// 4 bis. Lo convertido de PRO (marca `_digitalisimo_pro`): los textos fijos de PRO con su msgid y su dominio.
+	$pro_text = array( '_digitalisimo_pro' => 'login' ) + $defaults;
+	$converted_html = $render( $widget, $pro_text );
+	check_lg( str_contains( $converted_html, 'aria-label="Login form">' ) && str_contains( $converted_html, 'value="forever"> Remember Me</label>' ) && str_contains( $converted_html, '>Lost your password?</a>' ) && str_contains( $converted_html, '>Register</a>' ) && ! preg_match( '/Recordarme|Olvidaste|Registrarse|Formulario de acceso/', $converted_html ), 'Lo convertido dice los textos de PRO: ' . $converted_html );
+	$GLOBALS['lg']['logged'] = true;
+	check_lg( str_starts_with( $render( $widget, $pro_text ), '<div class="elementor-login elementor-login__logged-in-message">You are Logged in as Ana <b>López</b> (<a ' ) && str_contains( $render( $widget, $pro_text ), '>Logout</a>)</div>' ), 'Lo convertido, con la sesión iniciada: el aviso de PRO.' );
+	$GLOBALS['lg']['logged'] = false;
+	$widget->settings = $pro_text;
+	check_lg( str_starts_with( $widget->render_markdown(), "## Login Form\n" ) && str_contains( $widget->render_markdown(), '- **Remember Me** (checkbox)' ), 'Markdown de lo convertido con los textos de PRO.' );
+	$widget->settings = $defaults;
+	$code_login = (string) file_get_contents( $root . 'modules/digitalisimo-forms/' . Forms::WIDGETS[ $name ]['file'] );
+	foreach ( array( "'You are Logged in as %1\$s (%2\$sLogout%3\$s)', 'elementor-pro'", "'Login form', 'elementor-pro'", "'Remember Me', 'elementor-pro'", "'Lost your password?', 'elementor-pro'", "'Register', 'elementor-pro'", "'Login Form', 'elementor-pro'" ) as $msgid ) {
+		check_lg( str_contains( $code_login, $msgid ), 'El msgid y el dominio de PRO: ' . $msgid );
+	}
 
 	// 5. Conversión con el mapa.
 	Registry::reset();
