@@ -4,6 +4,7 @@ namespace Digitalisimo\Elements\Import\Kits\Export;
 use Digitalisimo\Elements\Import\Module;
 use Digitalisimo\Elements\Import\Kits\Export_Context;
 use Digitalisimo\Elements\Import\Kits\Part_Context;
+use Digitalisimo\Elements\Import\Kits\References;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -16,6 +17,11 @@ defined( 'ABSPATH' ) || exit;
  * `elementor/document/element/replace_id` no recibe el original: K repone el ID recorriendo en paralelo el árbol
  * exportado y el guardado. Si un nodo no coincide en `elType` o `widgetType`, el documento conserva los IDs nuevos
  * y se informa. La importación no los regenera (`N:core/base/document.php:1730-1738`).
+ *
+ * En el mismo recorrido repone los ajustes que un elemento quita al exportarse y que la importación sabe traducir: los
+ * de las referencias declaradas con `export` para su tipo (`References::exported()`, §18 de k-kits.md), como el producto
+ * del «Añadir al carrito personalizado» (`on_export()`) o la selección manual de los Productos (`export => false` del
+ * grupo de consulta). Sólo lo que falta en lo exportado y existe en lo guardado; nada más cambia.
  */
 final class Documents {
 	const META_DATA      = '_elementor_data';
@@ -140,6 +146,7 @@ final class Documents {
 			if ( isset( $orig['id'] ) && is_string( $orig['id'] ) && 1 === preg_match( '/^[A-Za-z0-9]{1,64}$/', $orig['id'] ) ) {
 				$node['id'] = $orig['id'];
 			}
+			$node = self::restore_references( $node, $orig );
 			$children = isset( $node['elements'] ) && is_array( $node['elements'] ) ? $node['elements'] : array();
 			$origins  = isset( $orig['elements'] ) && is_array( $orig['elements'] ) ? $orig['elements'] : array();
 			if ( $children || $origins ) {
@@ -152,6 +159,29 @@ final class Documents {
 			$exported[ $key ] = $node;
 		}
 		return $exported;
+	}
+
+	/**
+	 * Repone en un nodo exportado los ajustes con referencia `export` de su tipo que su exportación quitó (§18).
+	 *
+	 * @param array $node Nodo que devolvió `get_export_data()`.
+	 * @param array $orig El mismo nodo guardado.
+	 */
+	public static function restore_references( array $node, array $orig ): array {
+		$saved = isset( $orig['settings'] ) && is_array( $orig['settings'] ) ? $orig['settings'] : array();
+		if ( ! $saved ) {
+			return $node;
+		}
+		foreach ( References::exported( self::type_of( $orig ) ) as $key ) {
+			if ( ! array_key_exists( $key, $saved ) || ( isset( $node['settings'] ) && is_array( $node['settings'] ) && array_key_exists( $key, $node['settings'] ) ) ) {
+				continue;
+			}
+			if ( ! isset( $node['settings'] ) || ! is_array( $node['settings'] ) ) {
+				$node['settings'] = array();
+			}
+			$node['settings'][ $key ] = $saved[ $key ];
+		}
+		return $node;
 	}
 
 	/**

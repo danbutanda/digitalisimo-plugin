@@ -6,6 +6,7 @@ use Digitalisimo\Elements\Import\Kits\Context;
 use Digitalisimo\Elements\Import\Kits\Normalizer;
 use Digitalisimo\Elements\Import\Kits\Part_Context;
 use Digitalisimo\Elements\Import\Kits\Pro_Convert;
+use Digitalisimo\Elements\Import\Kits\References;
 use Digitalisimo\Elements\Import\Kits\Session;
 use Elementor\App\Modules\ImportExportCustomization\Runners\Import\Import_Runner_Base;
 use Elementor\Plugin;
@@ -22,6 +23,12 @@ defined( 'ABSPATH' ) || exit;
  * - «Agregar»: sólo añade colores y tipografías (§9.4) y deja el resto en el respaldo, para «Aplicar los ajustes del
  *   kit» (que se puede deshacer).
  * Su metadata nativa queda inerte (`active_kit_id = 0`): la reversión nativa aborta sin borrar nada (V-30).
+ *
+ * Los ajustes con una referencia declarada para el kit (`References::kit_settings_keys()`, §18), como las páginas de
+ * WooCommerce, guardan IDs del origen y en esta petición aún no hay mapas: nunca se guardan aquí, porque su `on_save()`
+ * los copiaría tal cual a las opciones del sitio. En «nuevo» quedan apartados en la sesión (`kit_deferred`) y
+ * `Parts\Kit_Settings` los guarda traducidos en la petición final; en «agregar» no se aplican nunca (tampoco con
+ * «Aplicar los ajustes del kit») y se informa `settings.reference_kept`.
  */
 class Site_Settings extends Import_Runner_Base {
 	/** Grupos de ajustes que respetan las casillas de la App (`customization.settings`) o el manifiesto. */
@@ -65,6 +72,9 @@ class Site_Settings extends Import_Runner_Base {
 		$old = $kit->get_meta( '_elementor_page_settings' );
 		$old = is_array( $old ) ? $old : array();
 
+		$deferred = array_intersect_key( $new, array_flip( References::kit_settings_keys() ) );
+		$new      = array_diff_key( $new, $deferred );
+
 		$backup = isset( $record['backup'] ) && is_array( $record['backup'] ) ? $record['backup'] : array();
 		$map    = array(
 			'global_color'      => array(),
@@ -79,6 +89,9 @@ class Site_Settings extends Import_Runner_Base {
 			$final = array_replace( $old, $new );
 			self::save_kit( $kit, $final );
 			$this->summary = array( 'replaced' => count( $new ) );
+			if ( $deferred ) {
+				$this->summary['deferred'] = count( $deferred );
+			}
 		} else {
 			$used   = self::used_globals( (string) ( $data['extracted_directory_path'] ?? '' ) );
 			$merged = self::merge_globals( $old, $new, (string) ( $record['origin']['kit'] ?? '' ), $used );
@@ -96,12 +109,24 @@ class Site_Settings extends Import_Runner_Base {
 			if ( $this->summary['not_applied'] > 0 ) {
 				Context::report( 'settings.not_applied', array( 'count' => $this->summary['not_applied'] ), Part_Context::INFO );
 			}
+			// Sólo lo que el kit elige: una página vacía (o `false`, como guarda la pestaña WooCommerce lo no elegido) no
+			// es una elección que el sitio «conserve».
+			$kept = array_filter(
+				$deferred,
+				function ( $value ) {
+					return ! ( null === $value || false === $value || '' === $value || 0 === $value || '0' === $value || array() === $value );
+				}
+			);
+			if ( $kept ) {
+				Context::report( 'settings.reference_kept', array( 'keys' => array_keys( $kept ) ), Part_Context::INFO );
+			}
 		}
 		Session::update(
 			$session,
 			array(
 				'settings_map' => $map,
 				'backup'       => $backup,
+				'kit_deferred' => Module::MODE_FRESH === $this->mode ? $deferred : array(),
 			)
 		);
 		Context::refresh();
@@ -389,7 +414,8 @@ class Site_Settings extends Import_Runner_Base {
 		}
 		$current  = $kit->get_meta( '_elementor_page_settings' );
 		$current  = is_array( $current ) ? $current : array();
-		$settings = $record['backup']['kit_settings'];
+		// Los ajustes con referencia del kit nunca se aplican en «agregar» (§18), tampoco los de una sesión anterior.
+		$settings = array_diff_key( $record['backup']['kit_settings'], array_flip( References::kit_settings_keys() ) );
 		Context::activate( $session );
 		try {
 			$settings = self::import_media( $kit, $settings );

@@ -468,6 +468,13 @@ $kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
 if ( $kit && $kit->get_id() ) {
 	$refs->doc    = 'kit';
 	$kit_settings = array_replace( (array) $kit->get_settings(), (array) $refs->resolve( (array) $cases['kit']['settings'], 'kit_settings' ) );
+	// WOO=1: las páginas de la tienda en los ajustes del kit, como las elige su pestaña WooCommerce (cases.json,
+	// «woo.kit_pages»). Viajan con los IDs de A; B debe recibirlas traducidas (k-kits.md §18).
+	if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
+		foreach ( (array) ( $cases['woo']['kit_pages'] ?? array() ) as $page ) {
+			$kit_settings[ 'woocommerce_' . $page . '_page_id' ] = (string) get_option( 'woocommerce_' . $page . '_page_id' );
+		}
+	}
 	$kit->save( array( 'settings' => $kit_settings ) );
 	$kit->update_json_meta( '_elementor_elements_default_values', (array) $refs->resolve( (array) $cases['kit']['defaults'], 'defaults' ) );
 	$ids['kit'] = (int) $kit->get_id();

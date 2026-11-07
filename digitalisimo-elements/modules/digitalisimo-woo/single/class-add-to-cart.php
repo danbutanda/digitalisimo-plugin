@@ -60,7 +60,10 @@ class Add_To_Cart extends \Elementor\Widget_Button {
 		return parent::get_html_wrapper_class() . ' digi-atc digi-atc--custom';
 	}
 
-	/** Un kit no lleva el producto elegido (como PRO). */
+	/**
+	 * Como PRO, la exportación quita el producto elegido (una plantilla suelta de la biblioteca no puede traducirlo). En
+	 * un kit lo repone K con la referencia `export` de `Woo\Kit\Module` y lo traduce al importar (k-kits.md §18).
+	 */
 	public function on_export( $element ) {
 		unset( $element['settings']['product_id'] );
 

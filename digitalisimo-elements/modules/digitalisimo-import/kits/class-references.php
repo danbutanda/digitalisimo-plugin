@@ -29,6 +29,18 @@ defined( 'ABSPATH' ) || exit;
  * existe: la meta se trata como hoy una clave sin referencia. Sin la clave, nada cambia. La parte `term-meta`
  * traduce cada término dentro de `within_taxonomy()`; fuera, una referencia acotada nunca se aplica.
  *
+ * Sólo en `scope = element`, con un tipo concreto, un `kind` de ID (`EXPORT_KINDS`) y un ajuste de primer nivel (`x` o
+ * `x.*`, `EXPORT_PATH_PATTERN`), la clave opcional `export`
+ * (verdadera) hace que el valor viaje en el kit aunque el elemento lo quite al exportarse (su `on_export()`, como el
+ * «Add to Cart» de PRO con `product_id`, o un control con `export => false`, como la selección manual del grupo de
+ * consulta de PRO): `Export\Documents::restore_ids()` lo repone desde lo guardado y la importación lo traduce con esta
+ * misma referencia (punto de extensión genérico de K, §18 de k-kits.md). Sin la clave, nada cambia.
+ *
+ * `scope = document` con `type = kit` son los ajustes del kit: `Runners\Site_Settings` aparta en «nuevo» las claves que
+ * tienen una referencia así (`kit_settings_keys()`), porque en esa petición todavía no hay mapas, y `Parts\Kit_Settings`
+ * las guarda traducidas en la petición final, con el guardado del kit (y así sus `on_save()`); en «agregar» nunca se
+ * aplican, ni con «Aplicar los ajustes del kit»: el sitio conserva su elección.
+ *
  * `kind = conditions` es un valor con condiciones de visualización en JSON (`e_display_conditions`): cada condición
  * se resuelve con las referencias de `scope = condition`.
  *
@@ -49,8 +61,21 @@ final class References {
 
 	const FIELDS = array( 'scope', 'type', 'path', 'kind', 'gate', 'never' );
 
-	/** Claves opcionales que sólo se declaran por nombre, también junto a una entrada posicional (V.11.4). */
-	const NAMED_FIELDS = array( 'taxonomies' );
+	/** Claves opcionales que sólo se declaran por nombre, también junto a una entrada posicional (V.11.4, §18). */
+	const NAMED_FIELDS = array( 'taxonomies', 'export' );
+
+	/** `kind` que admite `export`: IDs con destino (un usuario nunca viaja; un elemento no se quita al exportar). */
+	const EXPORT_KINDS = array( 'post', 'template', 'term', 'menu', 'menu_slug', 'attachment' );
+
+	/**
+	 * Ruta que admite `export`: un ajuste de primer nivel (`x`) o su lista (`x.*`). `exported()` repone la clave de primer
+	 * nivel entera; con una ruta más honda (`items.*.product`) repondría todo el repetidor, también lo que el elemento quitó
+	 * a propósito.
+	 */
+	const EXPORT_PATH_PATTERN = '/^[^.*]+(?:\.\*)?$/';
+
+	/** Tipo de documento de los ajustes del kit (`scope = document`). */
+	const KIT_DOCUMENT = 'kit';
 
 	/** Una taxonomía de `taxonomies`: nombre exacto (`pa_color`) o prefijo con `*` final (`pa_*`). */
 	const TAXONOMY_PATTERN = '/^(?:[a-z0-9_-]{1,32}|[a-z0-9_-]{1,31}\*)$/';
@@ -221,6 +246,15 @@ final class References {
 			array( 'element', '*', 'digitalisimo_acf_field', 'note:acf' ),
 			// Imagen de un término (categoría de producto): la parte `term-meta` la traduce y `media` la incrusta (B18).
 			array( 'term_meta', 'thumbnail_id', '', 'attachment' ),
+			// Páginas de WooCommerce de los ajustes del kit (E:modules/woocommerce/settings/settings-woocommerce.php,
+			// `on_save()`: las copia a `woocommerce_*_page_id` y `elementor_woocommerce_purchase_summary_page_id`). Viajan
+			// con los IDs del origen; se aplican traducidas en «nuevo» y, sin destino, vacías (§18, f4woo.md §7).
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_shop_page_id', 'post' ),
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_cart_page_id', 'post' ),
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_checkout_page_id', 'post' ),
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_myaccount_page_id', 'post' ),
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_terms_page_id', 'post' ),
+			array( 'document', self::KIT_DOCUMENT, 'woocommerce_purchase_summary_page_id', 'post' ),
 		);
 		return $refs;
 	}
@@ -228,6 +262,7 @@ final class References {
 	/**
 	 * Referencias que se aplican a un ámbito y un tipo: las del tipo, las de `*` y, en `element`, las derivadas
 	 * de sus controles URL. Si dos cubren la misma ruta, gana la del tipo, luego la de `*` y por último la derivada.
+	 * Para una derivada, `x` y `x.*` son la misma ruta (una lista de IDs declarada con `.*` y derivada sin él).
 	 *
 	 * En `term_meta`, una referencia acotada con `taxonomies` sólo cuenta dentro de `within_taxonomy()` con una de
 	 * sus taxonomías (V.11.4); las demás, como siempre.
@@ -250,9 +285,13 @@ final class References {
 		}
 		if ( 'element' === $scope && '*' !== $type ) {
 			foreach ( self::for_type( $type ) as $ref ) {
-				if ( ! isset( $seen[ $ref['path'] ] ) ) {
-					$seen[ $ref['path'] ] = true;
-					$refs[]               = $ref;
+				// La misma lista declarada como `x.*` (o derivada como `x.*` y declarada como `x`) es la misma ruta: si no,
+				// cada ID se traduciría dos veces y el segundo paso, con el ID del destino, lo daría por perdido.
+				$path = $ref['path'];
+				$list = '.*' === substr( $path, -2 ) ? substr( $path, 0, -2 ) : $path . '.*';
+				if ( ! isset( $seen[ $path ] ) && ! isset( $seen[ $list ] ) ) {
+					$seen[ $path ] = true;
+					$refs[]        = $ref;
 				}
 			}
 		}
@@ -360,7 +399,8 @@ final class References {
 	 *
 	 * @param mixed $ref Entrada con claves o posicional.
 	 *
-	 * @return array|null `{ scope, type, path, kind, gate, never }`, más `taxonomies` sólo si se declaró.
+	 * @return array|null `{ scope, type, path, kind, gate, never }`, más `taxonomies` sólo si se declaró y `export`
+	 *                    sólo si es verdadera.
 	 */
 	public static function normalize( $ref ): ?array {
 		if ( ! is_array( $ref ) ) {
@@ -411,6 +451,19 @@ final class References {
 				return self::invalid( 'taxonomías inválidas', $ref );
 			}
 		}
+		$export = false;
+		if ( array_key_exists( 'export', $ref ) && null !== $ref['export'] ) {
+			if ( ! is_bool( $ref['export'] ) ) {
+				return self::invalid( 'export no es un booleano', $ref );
+			}
+			if ( $ref['export'] && ( 'element' !== $scope || '*' === $type || ! in_array( $kind, self::EXPORT_KINDS, true ) ) ) {
+				return self::invalid( 'export sólo vale en un elemento concreto con un ID', $ref );
+			}
+			if ( $ref['export'] && 1 !== preg_match( self::EXPORT_PATH_PATTERN, $path ) ) {
+				return self::invalid( 'export sólo vale en un ajuste de primer nivel (x o x.*)', $ref );
+			}
+			$export = $ref['export'];
+		}
 		$out = array(
 			'scope' => $scope,
 			'type'  => $type,
@@ -422,7 +475,46 @@ final class References {
 		if ( null !== $taxonomies ) {
 			$out['taxonomies'] = $taxonomies;
 		}
+		if ( $export ) {
+			$out['export'] = true;
+		}
 		return $out;
+	}
+
+	/**
+	 * Ajustes de primer nivel que un elemento de ese tipo debe llevar en el kit aunque su exportación los quite: las
+	 * referencias declaradas para el tipo (nunca `*` ni derivadas) con `export` (§18). Vacío sin ninguna.
+	 *
+	 * @param string $type `widgetType` o `elType`.
+	 *
+	 * @return string[]
+	 */
+	public static function exported( string $type ): array {
+		$index = self::all();
+		$keys  = array();
+		foreach ( '' !== $type && '*' !== $type && isset( $index['element'][ $type ] ) ? $index['element'][ $type ] : array() as $ref ) {
+			if ( ! empty( $ref['export'] ) ) {
+				$segments             = self::split_path( (string) $ref['path'] );
+				$keys[ $segments[0] ] = true;
+			}
+		}
+		return array_keys( $keys );
+	}
+
+	/**
+	 * Ajustes de primer nivel del kit con una referencia declarada (`scope = document`, `type = kit`, §18): los aparta
+	 * `Runners\Site_Settings` y los aplica traducidos `Parts\Kit_Settings`. Vacío sin ninguna.
+	 *
+	 * @return string[]
+	 */
+	public static function kit_settings_keys(): array {
+		$index = self::all();
+		$keys  = array();
+		foreach ( isset( $index['document'][ self::KIT_DOCUMENT ] ) ? $index['document'][ self::KIT_DOCUMENT ] : array() as $ref ) {
+			$segments             = self::split_path( (string) $ref['path'] );
+			$keys[ $segments[0] ] = true;
+		}
+		return array_keys( $keys );
 	}
 
 	/**

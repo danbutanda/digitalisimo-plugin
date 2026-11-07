@@ -394,6 +394,7 @@ jobs:
           php tests/elements-woo-kit.php
           node tests/elements-woo-static.mjs
           php tests/elements-woo-kit-page-sync.php
+          php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php
           php tests/elements-f7b-usages.php
           php tests/elements-f7b-presentation.php
