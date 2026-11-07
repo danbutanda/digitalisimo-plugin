@@ -32,7 +32,10 @@ namespace {
 	function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 	function esc_url( $t ) { return (string) $t; }
 	function admin_url( $p = '' ) { return 'https://sitio.test/wp-admin/' . $p; }
-	function get_option( $k, $d = false ) { return $d; }
+	function get_option( $k, $d = false ) { return $GLOBALS['c_wp']['options'][ $k ] ?? $d; }
+	function get_post_meta( $id, $k = '', $single = false ) { return $GLOBALS['c_wp']['meta'][ $id ][ $k ] ?? ''; }
+	function wp_json_encode( $v ) { return json_encode( $v ); }
+	function wp_enqueue_script( ...$a ) { $GLOBALS['c_wp']['enqueued'][ $a[0] ] = $a; }
 	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 	function plugins_url( $p, $f ) { return 'https://sitio.test/' . $p; }
 	function wp_style_is( $h, $l ) { return false; }
@@ -417,6 +420,48 @@ namespace {
 	c_check( count( $legend['store/cart.css'] ) > 60 && ! $missing, 'Mapa del carrito: traduce las variables de PRO a las cortas; faltan ' . json_encode( $missing ) . '.' );
 	c_check( 'Proceed to Checkout' === ( $tree[0]['elements'][0]['settings']['checkout_button_text'] ?? '' ) || isset( $out['settings']['__dynamic__']['checkout_button_text'] ), 'Los textos y los dinámicos siguen en su clave.' );
 	c_check( array( 'sections_title_color' => 'globals/colors?id=primary', 'sections_titles_typography_typography' => 'globals/typography?id=primary' ) === $out['settings']['__globals__'], 'Los globales siguen en su clave.' );
+
+	// Estado del sistema de WooCommerce (`Store\Shop_Pages`, como `WC_STATUS_PAGES_MAPPED_TO_WIDGETS` del módulo de PRO): una
+	// página del carrito, del pago o de Mi cuenta hecha con el widget propio cuenta como página con su shortcode, en
+	// cualquier idioma del administrador (`page_name` sale traducido); sin el documento del constructor, no.
+	require $el . 'modules/digitalisimo-woo/store/class-shop-pages.php';
+	\Digitalisimo\Elements\Woo\Store\Shop_Pages::init();
+	c_check( isset( $GLOBALS['c_wp']['hooks']['woocommerce_rest_prepare_system_status'][11] ), 'Estado del sistema: filtro en la prioridad 11, después del de PRO.' );
+	$GLOBALS['c_wp']['options'] = array( 'woocommerce_cart_page_id' => '7', 'woocommerce_checkout_page_id' => '8', 'woocommerce_myaccount_page_id' => '9' );
+	$doc                        = static function ( $widget ) { return json_encode( array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array( array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => $widget ) ) ) ) ); };
+	$GLOBALS['c_wp']['meta']    = array(
+		5 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		7 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		8 => array( '_elementor_edit_mode' => 'builder', '_elementor_data' => $doc( 'digitalisimo-woo-cart' ) ),
+		9 => array( '_elementor_data' => $doc( 'digitalisimo-woo-my-account' ) ),
+	);
+	$status = (object) array(
+		'data' => array(
+			'pages' => array(
+				array( 'page_name' => 'Shop base', 'page_id' => '5', 'shortcode_present' => false ),
+				array( 'page_name' => 'Carrito', 'page_id' => '7', 'shortcode_present' => false, 'block_present' => false ),
+				array( 'page_name' => 'Checkout', 'page_id' => '8', 'shortcode_present' => false, 'block_present' => false ),
+				array( 'page_name' => 'My account', 'page_id' => '9', 'shortcode_present' => false ),
+			),
+		),
+	);
+	$status = apply_filters( 'woocommerce_rest_prepare_system_status', $status, null, null );
+	c_check( true === $status->data['pages'][1]['shortcode_present'], 'Estado del sistema: el carrito hecho con el Carrito propio tiene su shortcode, también con el nombre traducido.' );
+	c_check( false === $status->data['pages'][0]['shortcode_present'] && false === $status->data['pages'][2]['shortcode_present'], 'Estado del sistema: sólo cuenta el widget de esa página (el pago con un Carrito no; la tienda, nunca).' );
+	c_check( false === $status->data['pages'][3]['shortcode_present'], 'Estado del sistema: sin el documento del constructor, Mi cuenta sigue sin shortcode.' );
+	$GLOBALS['c_wp']['meta'][8]['_elementor_data'] = $doc( 'digitalisimo-woo-checkout' );
+	$GLOBALS['c_wp']['meta'][9]['_elementor_edit_mode'] = 'builder';
+	$status->data['pages'][2]['shortcode_present'] = false;
+	$status = apply_filters( 'woocommerce_rest_prepare_system_status', $status, null, null );
+	c_check( true === $status->data['pages'][2]['shortcode_present'] && true === $status->data['pages'][3]['shortcode_present'], 'Estado del sistema: el pago y Mi cuenta propios, también.' );
+	$editor = (string) file_get_contents( $el . 'modules/digitalisimo-woo/store/assets/shop-pages-editor.js' );
+	foreach ( array( "'digitalisimo-woo-cart': 'woocommerce-cart'", "'digitalisimo-woo-checkout': 'woocommerce-checkout-page'", "'digitalisimo-woo-my-account': 'woocommerce-my-account'", "'digitalisimo-woo-purchase-summary': 'woocommerce-purchase-summary'", "'editor:widget:digitalisimo-woo-cart:section_additional_options:activated'", "onTemplateIdChange('additional_template_select')" ) as $needle ) {
+		c_check( str_contains( $editor, $needle ), "Editor: shop-pages-editor.js atiende $needle." );
+	}
+	$GLOBALS['c_wp']['enqueued'] = array();
+	do_action( 'elementor/editor/after_enqueue_scripts' );
+	$queued = $GLOBALS['c_wp']['enqueued']['digitalisimo-woo-shop-pages-editor'] ?? array();
+	c_check( $queued && str_ends_with( (string) $queued[1], 'modules/digitalisimo-woo/store/assets/shop-pages-editor.js' ) && array() === $queued[2] && true === $queued[4], 'Editor: el script de las páginas de la tienda se encola en el editor, en el pie y sin dependencias.' );
 
 	echo 'DIGITALÍSIMO Elements: Carrito propio en verde (' . $GLOBALS['c_wp']['checks'] . " comprobaciones).\n";
 }

@@ -44,6 +44,8 @@ final class Module {
 		'Store\\Products_Fragments',
 		// C7, frente N (carrito): textos del widget al cambiar el envío y plantilla del carrito vacío por AJAX.
 		'Store\\Cart_Ajax',
+		// C7, fila O: páginas de la tienda con los widgets propios (estado del sistema y avisos del editor, como con PRO).
+		'Store\\Shop_Pages',
 	);
 
 	/** @var bool */
