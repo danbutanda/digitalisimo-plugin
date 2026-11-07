@@ -246,7 +246,11 @@ namespace {
 
 	// 4. El guardado de PRO no deja `originalWidgetType = global` (el cierre de `get_document_data()`).
 	$module = (string) file_get_contents( $E . '/modules/global-widget/module.php' );
-	$check( 1 === preg_match( "/'global'\s*!==\s*\\\$element\['widgetType'\]\s*\)\s*\{\s*\\\$element\['originalWidgetType'\]\s*=\s*\\\$element\['widgetType'\]/", $module ), '4: el guardado sólo copia el tipo original si no es ya «global».' );
+	// Desde la corrección de fidelidad de C9, «global» son los dos tipos de instancia (`Global_Widget::GLOBAL_TYPES`: el de
+	// PRO y el widget global propio, `digitalisimo-global`).
+	$check( 1 === preg_match( "/\\\$types\s*=\s*Widgets\\\\Global_Widget::GLOBAL_TYPES;\s*if\s*\(\s*isset\(\s*\\\$element\['widgetType'\]\s*\)\s*&&\s*!\s*in_array\(\s*\\\$element\['widgetType'\],\s*\\\$types,\s*true\s*\)\s*\)\s*\{\s*\\\$element\['originalWidgetType'\]\s*=\s*\\\$element\['widgetType'\]/", $module ), '4: el guardado sólo copia el tipo original si no es ya «global» (el de PRO o el propio).' );
+	$gw = (string) file_get_contents( $E . '/modules/global-widget/widgets/global-widget.php' );
+	$check( str_contains( $gw, "const GLOBAL_TYPES = [ 'global', 'digitalisimo-global' ];" ), '4: los tipos globales son el de PRO y el propio.' );
 	$check( false !== strpos( $module, "unset( \$element['originalWidgetType'] )" ), '4: un `originalWidgetType = global` previo se quita al guardar.' );
 
 	// 5. La importación del widget global conserva los IDs de origen como claves del resultado.

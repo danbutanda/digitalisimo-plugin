@@ -186,6 +186,11 @@ namespace {
 		if ( preg_match( '/abstract\s+class/', $php ) || ! preg_match( "/function get_name\(\)[^{]*\{(?:\s*\/\/[^\n]*)*\s*return\s+'([a-z0-9-]+)'/", $php, $m ) ) {
 			continue;
 		}
+		// Un widget propio que vive en un módulo derivado de PRO (el widget global propio, `digitalisimo-global`, en
+		// `modules/global-widget/`) no es de PRO.
+		if ( 0 === strpos( $m[1], 'digitalisimo-' ) ) {
+			continue;
+		}
 		$found[ $m[1] ] = basename( dirname( $file, 2 ) );
 		$files[ $m[1] ] = $file;
 	}
