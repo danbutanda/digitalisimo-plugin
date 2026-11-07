@@ -214,6 +214,12 @@ namespace {
 	$ed  = (string) file_get_contents( $root . 'modules/digitalisimo-forms/assets/js/form-editor.js' );
 	check_fm( strlen( $css ) <= 4096 && strlen( $js ) <= 6144, 'Hoja de ' . strlen( $css ) . ' B (tope 4 096) y script de ' . strlen( $js ) . ' B (tope 6 144).' );
 	check_fm( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && str_contains( $css, 'outline:2px solid;outline-offset:2px' ) && str_contains( $css, 'prefers-reduced-motion' ), 'La hoja: sin el kit ni url(), con foco visible y movimiento reducido.' );
+	// Correcciones de fidelidad (docs/pro/c6.md): los campos de texto conservan el foco del núcleo (`outline:0` y su
+	// sombra), que Chrome activa también al pulsarlos con el ratón; el contorno propio sólo en botones, casillas, radios,
+	// archivos y enlaces. La opacidad vuelve en 0,1 s, como PRO (`animate({opacity:1},100)`), y baja en 0,5 s.
+	check_fm( ! preg_match( '/\s:focus-visible/', $css ) && str_contains( $css, '.elementor-form :is(a,button,[type=checkbox],[type=radio],[type=file]):focus-visible{outline:2px solid;outline-offset:2px}' ), 'Contorno propio sólo fuera de los campos de texto.' );
+	check_fm( str_contains( $css, '.elementor-widget-digitalisimo-form .elementor-form{transition:opacity .1s}' ) && str_contains( $css, '.elementor-form-waiting{opacity:.45;transition-duration:.5s}' ), 'Opacidad al enviar: 0,5 s al bajar y 0,1 s al volver.' );
+	check_fm( str_contains( $js, '<span class="elementor-button-text \'+SP+\'"><i class="fa fa-spinner fa-spin"></i>&nbsp;</span>' ) && str_contains( $js, "SP='elementor-form-spinner'" ), 'El indicador de envío de PRO, con el mismo marcado.' );
 	check_fm( ! preg_match( '/\$\(|jQuery\.(ajax|fn)|\.ajax\(|swiper|elementorProFrontend\.config/i', $js ) && str_contains( $js, 'fetch(' ) && str_contains( $js, 'new FormData(f)' ) && str_contains( $js, "fd.append('action'" ) && str_contains( $js, "fd.append('referrer'" ), 'El script envía con fetch y FormData (acción y referrer como PRO), sin depender de jQuery.' );
 	check_fm( str_contains( $js, 'if(busy)return;busy=1' ), 'Un envío en curso bloquea otro.' );
 	foreach ( array( 'modules/digitalisimo-forms/widgets/class-form.php', 'modules/digitalisimo-forms/class-action-host.php', 'modules/digitalisimo-forms/class-module.php', Forms::WIDGETS[ $name ]['css'], Forms::WIDGETS[ $name ]['js'], 'modules/digitalisimo-forms/assets/js/form-editor.js', 'modules/digitalisimo-convert/maps/form.php' ) as $file ) {
@@ -421,10 +427,18 @@ namespace {
 	$bar = $render( $own, array( 'form_fields' => $steps, 'step_type' => 'progress_bar' ) + $defaults );
 	check_fm( str_contains( $bar, '<div class="digi-steps"><div class="digi-steps__bar" style="--dfs-pw:33%" role="progressbar" aria-label="Progreso del formulario" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33" aria-valuetext="Paso 1 de 3"><div class="digi-steps__meter">33%</div></div></div>' ), 'Barra de progreso con su valor anunciado.' );
 	check_fm( ! str_contains( $render( $own, array( 'form_fields' => $steps, 'step_type' => 'none' ) + $defaults ), 'class="digi-steps' ), 'Sin indicadores con el tipo «ninguno».' );
+	// Un solo paso, como PRO (`injectButtonsToSteps()`): «siguiente» dentro del paso y el envío fuera.
+	$one = $render( $own, array( 'form_fields' => array_slice( $steps, 0, 2 ) ) + $defaults );
+	check_fm( 1 === substr_count( $one, ' e-form__step"' ) && str_contains( $one, '<div class="e-form__buttons elementor-column elementor-col-100"><div class="elementor-field-group e-form__buttons__wrapper elementor-field-type-next"><button type="button" class="elementor-button elementor-size-sm e-form__buttons__wrapper__button e-form__buttons__wrapper__button-next" data-direction="next">Continuar</button></div></div></div><div class="elementor-field-group elementor-column elementor-field-type-submit elementor-col-100 e-form__buttons"><button class="elementor-button elementor-size-sm" type="submit">' ) && 1 === substr_count( $one, 'type="submit"' ) && ! str_contains( $one, 'data-direction="previous"' ), 'Un solo paso: «siguiente» en el paso y el envío fuera, como PRO: ' . $one );
+	// Lo convertido de PRO (marca del traductor) lleva `data-digi-pro`: form.js usa entonces el texto de error de PRO.
+	check_fm( str_contains( $render( $own, array( '_digitalisimo_pro' => 'form' ) + $defaults ), ' data-digi-pro="form"' ) && ! str_contains( $html, 'data-digi-pro' ), 'Sólo lo convertido lleva data-digi-pro.' );
 
 	// La página de la prueba en Chrome (tests/elements-pro-form-chrome.mjs) es este mismo marcado.
 	$fixture = (string) file_get_contents( __DIR__ . '/fixtures/pro-form.html' );
-	foreach ( array( array( 'form_validation' => 'custom', 'form_id' => 'basico' ), array( 'form_fields' => $steps, 'form_id' => 'pasos' ), array( 'form_fields' => $steps, 'step_type' => 'progress_bar', 'form_id' => 'barra' ) ) as $variant ) {
+	foreach ( array( array( 'form_validation' => 'custom', 'form_id' => 'basico' ), array( 'form_fields' => $steps, 'form_id' => 'pasos' ), array( 'form_fields' => $steps, 'step_type' => 'progress_bar', 'form_id' => 'barra' ), array( 'form_fields' => array_slice( $steps, 0, 2 ), 'form_id' => 'uno' ), array( 'form_validation' => 'custom', 'form_id' => 'convertido', '_digitalisimo_pro' => 'form' ) ) as $variant ) {
+		if ( getenv( 'FM_FIXTURE' ) === $variant['form_id'] ) {
+			echo $render( $own, $variant + $defaults ), "\n";
+		}
 		check_fm( str_contains( $fixture, $render( $own, $variant + $defaults ) ), 'tests/fixtures/pro-form.html tiene el marcado actual del formulario «' . $variant['form_id'] . '».' );
 	}
 

@@ -9,6 +9,8 @@
 //   redirección (`redirect_url`);
 // - pasos: «siguiente» valida el paso, indicadores y región viva al día, foco en el primer campo, Intro avanza, error
 //   del servidor vuelve al paso del campo; barra de progreso con su valor;
+// - correcciones de fidelidad: foco del núcleo en los campos de texto, opacidad, indicador de envío de PRO, vuelta al
+//   primer paso al enviar, un solo paso como PRO y, en lo convertido, el texto de error de jQuery;
 // - tamaño máximo de un archivo; reinicio en el editor (frontend/element_ready).
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-form-chrome.mjs
@@ -44,6 +46,8 @@ async function open({ editor = false } = {}) {
     const reply = replies.shift() || { success: true, data: { message: 'Listo.', data: {} } };
     await sleep(300);
     if ('network' === reply) return req.abort();
+    // Respuestas que jQuery da por erróneas: un estado fuera de 2xx («error») y un JSON no válido («parsererror»).
+    if ('http500' === reply || 'badjson' === reply) return req.respond({ status: 'http500' === reply ? 500 : 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: 'http500' === reply ? '{"success":false,"data":{"message":"Fallo"}}' : 'no es JSON' });
     req.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(reply) });
   });
   await page.evaluateOnNewDocument((editor) => {
@@ -143,6 +147,57 @@ await page.type('#barra #form-field-nombre', 'Ana');
 await page.click('#barra [data-digi-step="0"] [data-direction="next"]');
 b = await bar();
 ok('66' === b.now && 'Paso 2 de 3: Contacto' === b.text && '66%' === b.meter, 'Barra al 66 % con el paso anunciado: ' + JSON.stringify(b));
+
+// ── Correcciones de fidelidad (docs/pro/c6.md) ──────────────────────────────────────────────────────────────────────
+// Foco: un campo de texto pulsado con el ratón conserva el del núcleo (Chrome activa :focus-visible también así).
+await page.click('#basico #form-field-name');
+const focus = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { id: document.activeElement.id, outline: c.outlineStyle, shadow: c.boxShadow }; });
+ok('form-field-name' === focus.id && 'none' === focus.outline && /inset/.test(focus.shadow), 'Un campo de texto pulsado con el ratón muestra el foco del núcleo, sin el contorno propio: ' + JSON.stringify(focus));
+// Opacidad: 0,5 s al bajar y 0,1 s al volver, como PRO.
+ok(await page.evaluate(() => '0.1s' === getComputedStyle(document.getElementById('basico')).transitionDuration), 'La opacidad vuelve en 0,1 s.');
+// Indicador de envío de PRO en el botón mientras envía, y vuelta al primer paso al enviar (`submit` → `resetForm()`).
+await page.type('#pasos #form-field-nombre', 'Ana');
+await page.click('#pasos [data-digi-step="0"] [data-direction="next"]');
+await page.type('#pasos #form-field-correo', 'p@ejemplo.test');
+await page.click('#pasos [data-digi-step="1"] [data-direction="next"]');
+replies = [{ success: false, data: { message: 'Fallo general.', errors: [], data: [] } }];
+s = await stepState();
+ok('false,false,true' === s.visible.join(), 'En el último paso antes de enviar: ' + JSON.stringify(s));
+await page.evaluate(() => document.getElementById('pasos').requestSubmit());
+const sending = await page.evaluate(() => { const b = document.querySelector('#pasos [type=submit]'); const sp = b.querySelector(':scope > span > .elementor-form-spinner'); return { first: b.firstElementChild.firstElementChild === sp, html: sp && sp.outerHTML, wait: getComputedStyle(document.getElementById('pasos')).transitionDuration }; });
+s = await stepState();
+ok('<span class="elementor-button-text elementor-form-spinner"><i class="fa fa-spinner fa-spin"></i>&nbsp;</span>' === sending.html && sending.first && '0.5s' === sending.wait, 'Mientras envía: el indicador de PRO delante del texto del botón y la opacidad baja en 0,5 s: ' + JSON.stringify(sending));
+ok('true,false,false' === s.visible.join() && 'on,off,off' === s.ind.join(), 'Al enviar vuelve al primer paso, como PRO: ' + JSON.stringify(s));
+await sleep(700);
+s = await stepState();
+ok('true,false,false' === s.visible.join() && !(await page.evaluate(() => document.querySelector('#pasos .elementor-form-spinner'))), 'Tras un error sin campo sigue en el primer paso y el indicador desaparece: ' + JSON.stringify(s));
+// Un solo paso: «siguiente» valida y oculta el paso, el envío queda a la vista; al enviar vuelve el paso.
+const one = () => page.evaluate(() => ({ step: !document.querySelector('#uno [data-digi-step="0"]').hidden, next: !!document.querySelector('#uno [data-digi-step="0"] [data-direction="next"]'), submit: !!document.querySelector('#uno [type=submit]').offsetParent }));
+let u = await one();
+ok(u.step && u.next && u.submit, 'Un solo paso: «siguiente» y el envío a la vista: ' + JSON.stringify(u));
+await page.click('#uno [data-direction="next"]');
+ok((await one()).step, '«Siguiente» no avanza con el paso incompleto.');
+await page.type('#uno #form-field-nombre', 'Ana');
+await page.click('#uno [data-direction="next"]');
+u = await one();
+ok(!u.step && u.submit && 'done' === (await page.evaluate(() => document.querySelector('#uno .digi-step').className.replace('digi-step digi-step--', ''))), '«Siguiente» oculta el único paso y deja el envío, como PRO: ' + JSON.stringify(u));
+replies = [{ success: true, data: { message: 'Hecho.', data: {} } }];
+await page.click('#uno [type=submit]');
+await sleep(700);
+ok((await one()).step, 'Al enviar vuelve el paso.');
+// Lo convertido de PRO: tras un error de red o una respuesta no válida, el textStatus de jQuery y el botón en texto plano.
+for (const [reply, text] of [['network', 'error'], ['http500', 'error'], ['badjson', 'parsererror']]) {
+  await page.evaluate(() => { const b = document.querySelector('#convertido [type=submit]'); b.innerHTML = '<span class="elementor-button-content-wrapper"><span class="elementor-button-text">Enviar</span></span>'; });
+  replies = [reply];
+  await page.click('#convertido [type=submit]');
+  await sleep(800);
+  const r = await page.evaluate(() => { const f = document.getElementById('convertido'), b = f.querySelector('[type=submit]'); return { msg: [...f.querySelectorAll(':scope > .elementor-message-danger')].pop().textContent, button: b.textContent, nodes: b.children.length, disabled: b.disabled }; });
+  ok(text === r.msg && '\u00a0Enviar' === r.button && 0 === r.nodes && !r.disabled, `Convertido, respuesta «${reply}»: «${text}» y el botón en texto plano, como PRO: ` + JSON.stringify(r));
+}
+replies = ['http500'];
+await page.click('#basico [type=submit]');
+await sleep(800);
+ok(await page.evaluate(() => /error del servidor/.test([...document.querySelectorAll('#basico > .elementor-message-danger')].pop().textContent) && !!document.querySelector('#basico [type=submit] .elementor-button-text')), 'Lo nuevo, con un 500: el mensaje «error del servidor» y el botón intacto.');
 
 // ── Archivo demasiado grande y editor ─────────────────────────────────────────────────────────────────────────────
 await page.evaluate(() => {
