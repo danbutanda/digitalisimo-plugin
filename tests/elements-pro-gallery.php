@@ -387,6 +387,10 @@ namespace {
 		check_gl( str_contains( $render( $multi + $extra ), '<div class="digi-gallery__filters digi-gallery__filters--' . $pointer . '" data-digi-fx="' . $fx . '" role="group"' ), "Indicador $pointer: data-digi-fx=$fx (la animación de su familia, como la clase de PRO; un valor desconocido vuelve al de por defecto)." );
 	}
 	check_gl( str_contains( $render( $multi + array( 'pointer' => 'none' ) ), '<div class="digi-gallery__filters digi-gallery__filters--none" role="group"' ), 'Sin indicador, sin animación.' );
+	// Grosor de las líneas: en PRO miden siempre 3 px (la regla de «Grosor del indicador» de su galería no coincide con
+	// ellas). Lo convertido lo conserva; lo nuevo y el marco convertido aplican el grosor elegido.
+	$wide = $multi + array( 'pointer_width' => array( 'unit' => 'px', 'size' => 6, 'sizes' => array() ) );
+	check_gl( str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery' ) ), 'data-digi-fx="line-fade" style="--galleries-pointer-border-width:3px" role="group"' ) && str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery', 'pointer' => 'double-line', 'animation_line' => 'grow' ) ), 'data-digi-fx="line-grow" style="--galleries-pointer-border-width:3px" role="group"' ) && ! str_contains( $render( $wide ), '--galleries-pointer-border-width' ) && ! str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery', 'pointer' => 'framed' ) ), '--galleries-pointer-border-width' ), 'Lo convertido de PRO conserva las líneas de 3 px de PRO; lo nuevo y el marco convertido aplican «Grosor del indicador».' );
 	$html = $render( array( 'gallery_type' => 'multiple', 'galleries' => array( array( '_id' => 'g', 'gallery_title' => 'X', 'multiple_gallery' => array() ) ) ) );
 	check_gl( '' === $html, 'Sin imágenes, nada en el front.' );
 	$GLOBALS['gl_edit'] = true;

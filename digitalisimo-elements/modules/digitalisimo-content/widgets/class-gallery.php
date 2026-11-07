@@ -1193,7 +1193,10 @@ class Gallery extends \Elementor\Widget_Base {
 		}
 		$active    = (string) array_key_first( $filters );
 		$fx        = self::pointer_fx( $settings );
-		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . '"' . ( '' !== $fx ? ' data-digi-fx="' . esc_attr( $fx ) . '"' : '' ) . ' role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
+		// En PRO las líneas miden siempre 3 px (la hoja de su Menú): la regla de «Grosor del indicador» de su galería nunca
+		// coincide con ellas. Lo convertido de PRO (la marca del traductor) lo conserva; lo nuevo aplica el grosor.
+		$width     = 0 === strpos( $fx, 'line-' ) && 'gallery' === (string) $this->get_settings( '_digitalisimo_pro' ) ? ' style="--galleries-pointer-border-width:3px"' : '';
+		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . '"' . ( '' !== $fx ? ' data-digi-fx="' . esc_attr( $fx ) . '"' : '' ) . $width . ' role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- `$width` es un literal.
 		foreach ( $filters as $index => $label ) {
 			$on = (string) $index === $active;
 			echo '<button type="button" class="digi-gallery__filter' . ( $on ? ' digi-gallery__filter--active' : '' ) . '" data-digi-filter="' . esc_attr( $index ) . '" aria-controls="' . esc_attr( $box_id ) . '" aria-pressed="' . ( $on ? 'true' : 'false' ) . '">' . $label . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto con wp_kses_post().

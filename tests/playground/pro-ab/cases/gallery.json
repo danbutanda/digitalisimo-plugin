@@ -915,6 +915,84 @@
     }
    ]
   },
+  "gal-filters-nav-width": {
+   "title": "Con un Menú de PRO en la página y «Grosor del indicador» de 8 px: doble línea con fundido; en PRO las líneas miden 3 px (la regla del grosor de su galería no coincide con ellas) y lo convertido las conserva (sólo la barra de filtros)",
+   "widget": "gallery",
+   "before": [
+    {
+     "id": "galnav1",
+     "widgetType": "nav-menu",
+     "settings": {
+      "menu": {
+       "$menu": "principal"
+      }
+     }
+    }
+   ],
+   "settings": {
+    "gallery_type": "multiple",
+    "galleries": [
+     {
+      "_id": "ga1",
+      "gallery_title": "Faros",
+      "multiple_gallery": {
+       "$gallery": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     },
+     {
+      "_id": "ga2",
+      "gallery_title": "Playas",
+      "multiple_gallery": {
+       "$gallery": [
+        4,
+        5,
+        6
+       ]
+      }
+     }
+    ],
+    "lazyload": "",
+    "pointer": "double-line",
+    "pointer_width": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "capture": {
+    "a": ".elementor-gallery__titles-container",
+    "b": ".digi-gallery__filters"
+   },
+   "control": {
+    "a": ".elementor-gallery-title[data-gallery-index=\"0\"]",
+    "b": ".digi-gallery__filter[data-digi-filter=\"0\"]"
+   },
+   "pixels": {
+    "max": 0.001,
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "El foco del teclado llega primero a «All» con el foco visible propio (contorno de 2 px con separación de 2 px, diferencia común 1 de C2); el indicador y su animación se comparan en reposo y con el cursor."
+     }
+    }
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "^(\\[acción [^\\]]*\\] )?control (a|button) \\d+ ",
+     "reason": "Los filtros de PRO son <a role=\"button\"> y los propios <button>; el arnés empareja los controles por etiqueta, así que en los casos con filtros los filtros de A se emparejan con los enlaces de las imágenes de B. El aspecto de los filtros se compara en «estilo» (texto) y en los píxeles; el de los enlaces, en los casos sin filtros."
+    }
+   ]
+  },
   "gal-filters-nav-text": {
    "title": "Con un Menú de PRO en la página: indicador «Texto» con «Crecer»; con el cursor, «Faros» crece al 120 % (sólo la barra de filtros)",
    "widget": "gallery",
