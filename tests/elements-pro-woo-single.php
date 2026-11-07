@@ -195,8 +195,10 @@ $GLOBALS['ws']['product_id'] = 11;
 $evil = ws_render( $widgets['woocommerce-product-meta'][1], array( 'sku_caption' => '<img src=x onerror=y>', 'category_caption_single' => '<b>x</b>' ) );
 $check( ! str_contains( $evil, '<img' ) && ! str_contains( $evil, '<b>x' ), 'Metadatos: rótulos escapados.' );
 // Contenido del producto (el contenido de la consulta, con la misma guarda que el de C4).
-$same( 'woocommerce-product-content', array(), 'contenido' );
-$check( str_contains( ws_render( $widgets['woocommerce-product-content'][1] ), 'Contenido del producto' ), 'Contenido: el contenido de la consulta por the_content.' );
+$check( str_contains( $same( 'woocommerce-product-content', array(), 'contenido' ), 'Contenido del producto' ), 'Contenido: el contenido de la consulta por the_content.' );
+// Como PRO, la guarda de un producto sin el constructor no se libera: un segundo Contenido del mismo producto en la misma
+// petición no pinta nada.
+$check( '' === ws_render( $widgets['woocommerce-product-content'][0] ) && '' === ws_render( $widgets['woocommerce-product-content'][1] ), 'Contenido: el mismo producto no se vuelve a pintar en la petición, como PRO.' );
 // Elementos del producto: cada función de la lista; ninguna fuera de ella.
 foreach ( array_keys( $widgets['wc-single-elements'][1]->controls['element']['options'] ) as $element ) {
 	$same( 'wc-single-elements', array( 'element' => $element ), "elemento «{$element}»" );
