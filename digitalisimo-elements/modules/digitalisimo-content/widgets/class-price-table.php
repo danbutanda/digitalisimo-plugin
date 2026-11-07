@@ -1670,7 +1670,9 @@ class Price_Table extends \Elementor\Widget_Base {
 		$sub      = (string) ( $settings['sub_heading'] ?? '' );
 		$button   = (string) ( $settings['button_text'] ?? '' );
 		$info     = (string) ( $settings['footer_additional_info'] ?? '' );
-		$period_html = '<span class="digi-price-table__period digi-price-table__plain">' . wp_kses_post( $period ) . '</span>';
+		// Los textos se editan en el lienzo con las barras de PRO (título, subtítulo y periodo sin barra; las características,
+		// el botón, la información adicional y la cinta con la básica).
+		$period_html = '<span' . Cards::inline_attributes( array( 'class' => 'digi-price-table__period digi-price-table__plain' ), 'period', 'none' ) . '>' . wp_kses_post( $period ) . '</span>';
 
 		// Precio completo para los lectores de pantalla: sus partes visibles van en etiquetas separadas.
 		$amount = static function ( string $value ) use ( $symbol, $position ): string {
@@ -1688,10 +1690,10 @@ class Price_Table extends \Elementor\Widget_Base {
 			echo '<div class="digi-price-table__header">';
 			if ( '' !== $heading ) {
 				$tag = in_array( $settings['heading_tag'] ?? 'h3', array( 'h2', 'h3', 'h4', 'h5', 'h6' ), true ) ? $settings['heading_tag'] : 'h3';
-				echo '<' . $tag . ' class="digi-price-table__heading">' . wp_kses_post( $heading ) . '</' . $tag . '>';
+				echo '<' . $tag . Cards::inline_attributes( array( 'class' => 'digi-price-table__heading' ), 'heading', 'none' ) . '>' . wp_kses_post( $heading ) . '</' . $tag . '>';
 			}
 			if ( '' !== $sub ) {
-				echo '<span class="digi-price-table__subheading">' . wp_kses_post( $sub ) . '</span>';
+				echo '<span' . Cards::inline_attributes( array( 'class' => 'digi-price-table__subheading' ), 'sub_heading', 'none' ) . '>' . wp_kses_post( $sub ) . '</span>';
 			}
 			echo '</div>';
 		}
@@ -1714,7 +1716,7 @@ class Price_Table extends \Elementor\Widget_Base {
 		$features = is_array( $settings['features_list'] ?? null ) ? $settings['features_list'] : array();
 		if ( $features ) {
 			echo '<ul class="digi-price-table__features-list">';
-			foreach ( $features as $item ) {
+			foreach ( $features as $index => $item ) {
 				if ( ! is_array( $item ) ) {
 					continue;
 				}
@@ -1724,7 +1726,7 @@ class Price_Table extends \Elementor\Widget_Base {
 				// caja en línea separa unos 4 px el icono del texto (centrado, 2 px a cada lado).
 				$icon = Cards::icon( $item, 'selected_item_icon', 'item_icon' );
 				echo '' !== $icon ? $icon . ' ' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono del núcleo o clase escapada.
-				echo '' !== $text ? '<span>' . wp_kses_post( $text ) . '</span>' : '&nbsp;';
+				echo '' !== $text ? '<span' . Cards::inline_attributes( array(), 'features_list.' . $index . '.item_text' ) . '>' . wp_kses_post( $text ) . '</span>' : '&nbsp;';
 				echo '</div></li>';
 			}
 			echo '</ul>';
@@ -1738,10 +1740,10 @@ class Price_Table extends \Elementor\Widget_Base {
 				}
 				$link = Cards::link( $settings['link'] ?? array() );
 				$btag = $link ? 'a' : 'span';
-				echo '<' . $btag . ' ' . Cards::attributes( array( 'class' => $class ) + $link ) . '>' . wp_kses_post( $button ) . '</' . $btag . '>';
+				echo '<' . $btag . ' ' . Cards::attributes( Cards::inline( array( 'class' => $class ) + $link, 'button_text' ) ) . '>' . wp_kses_post( $button ) . '</' . $btag . '>';
 			}
 			if ( '' !== $info ) {
-				echo '<div class="digi-price-table__additional-info">' . wp_kses_post( $info ) . '</div>';
+				echo '<div' . Cards::inline_attributes( array( 'class' => 'digi-price-table__additional-info' ), 'footer_additional_info' ) . '>' . wp_kses_post( $info ) . '</div>';
 			}
 			echo '</div>';
 		}

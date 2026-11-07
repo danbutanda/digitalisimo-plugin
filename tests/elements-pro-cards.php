@@ -354,6 +354,58 @@ namespace {
 	$pt->settings = array( 'heading' => 'Plan', 'sub_heading' => '', 'price' => '9', 'currency_symbol' => 'dollar', 'period' => 'al mes', 'features_list' => array( array( 'item_text' => 'A' ) ), 'footer_additional_info' => '', 'button_text' => 'Comprar', 'link' => array( 'url' => '/c/' ) );
 	check_cards( "## Plan\n\n**\$9 al mes**\n\n- A\n\n[**Comprar**](/c/)" === $pt->render_markdown(), 'Markdown de la tabla como en PRO: ' . $pt->render_markdown() );
 
+	// 2b. Edición en línea del lienzo, como PRO: las mismas claves (en los repetidores, `<repetidor>.<índice>.<campo>`) y
+	// las mismas barras que sus `add_inline_editing_attributes()`, en el elemento que contiene sólo ese texto; sólo en el
+	// editor (también en el pintado remoto), así que el front no cambia.
+	$pro_src = array(
+		'call-to-action' => (string) file_get_contents( $root . 'modules/call-to-action/widgets/call-to-action.php' ),
+		'price-list'     => (string) file_get_contents( $root . 'modules/pricing/widgets/price-list.php' ),
+		'price-table'    => (string) file_get_contents( $root . 'modules/pricing/widgets/price-table.php' ),
+	);
+	$inline_pro = array(
+		'call-to-action' => array( "'title' )", "'description' )", "'button' )", "'ribbon_title' )" ),
+		'price-list'     => array( '$title_repeater_setting_key )', '$description_repeater_setting_key )' ),
+		'price-table'    => array( "'heading', 'none' )", "'sub_heading', 'none' )", "'period', 'none' )", "'footer_additional_info' )", "'button_text' )", '$repeater_setting_key )', "'ribbon_title' )" ),
+	);
+	foreach ( $inline_pro as $type => $calls ) {
+		preg_match_all( '/add_inline_editing_attributes\(\s*([^;]*?)\s*;/', $pro_src[ $type ], $found );
+		$found = array_map( static function ( $c ) { return preg_replace( '/\s+/', ' ', $c ); }, $found[1] );
+		check_cards( $calls === $found, "Premisa: $type de PRO edita en el lienzo " . implode( ' · ', $found ) );
+	}
+	check_cards( str_contains( $pro_src['price-list'], "get_repeater_setting_key( 'title', 'price_list', \$index )" ) && str_contains( $pro_src['price-list'], "get_repeater_setting_key( 'item_description', 'price_list', \$index )" ) && str_contains( $pro_src['price-table'], "get_repeater_setting_key( 'item_text', 'features_list', \$index )" ), 'Premisa: las claves de los repetidores de PRO.' );
+	$inline = static function ( string $html ): array {
+		preg_match_all( '#<(\w+)\s[^>]*class="[^"]*\belementor-inline-editing\b[^"]*"[^>]*data-elementor-setting-key="([^"]+)"([^>]*)>(.*?)</\1>#s', $html, $m, PREG_SET_ORDER );
+		$out = array();
+		foreach ( $m as $one ) {
+			$out[ $one[2] ] = array( preg_match( '/data-elementor-inline-editing-toolbar="(\w+)"/', $one[3], $t ) ? $t[1] : 'basic', $one[4] );
+		}
+		return $out;
+	};
+	\Elementor\Plugin::$instance->editor = new class() { public function is_edit_mode() { return ! empty( $GLOBALS['cards_edit'] ); } };
+	$texts = array(
+		'call-to-action' => array( 'title' => 'Título <em>CTA</em>', 'description' => 'Descripción', 'button' => 'Pulsa', 'ribbon_title' => 'Nuevo', 'link' => array( 'url' => '/x/' ) ),
+		'price-list'     => array( 'price_list' => array( array( '_id' => 'a', 'title' => 'Café', 'price' => '$2', 'item_description' => 'Rico' ), array( '_id' => 'b', 'title' => '', 'price' => '', 'item_description' => '' ), array( '_id' => 'c', 'title' => 'Té', 'price' => '$1', 'item_description' => 'Verde' ) ) ),
+		'price-table'    => array( 'heading' => 'Plan', 'sub_heading' => 'Para ti', 'period' => 'al mes', 'footer_additional_info' => 'Sin permanencia', 'button_text' => 'Comprar', 'show_ribbon' => 'yes', 'ribbon_title' => 'Popular', 'features_list' => array( array( '_id' => 'f1', 'item_text' => 'Uno' ), array( '_id' => 'f2', 'item_text' => '' ), array( '_id' => 'f3', 'item_text' => 'Tres' ) ) ),
+	);
+	$expected = array(
+		'call-to-action' => array( 'title' => array( 'basic', 'Título <em>CTA</em>' ), 'description' => array( 'basic', 'Descripción' ), 'button' => array( 'basic', 'Pulsa' ), 'ribbon_title' => array( 'basic', 'Nuevo' ) ),
+		'price-list'     => array( 'price_list.0.title' => array( 'basic', 'Café' ), 'price_list.0.item_description' => array( 'basic', 'Rico' ), 'price_list.2.title' => array( 'basic', 'Té' ), 'price_list.2.item_description' => array( 'basic', 'Verde' ) ),
+		'price-table'    => array( 'heading' => array( 'none', 'Plan' ), 'sub_heading' => array( 'none', 'Para ti' ), 'period' => array( 'none', 'al mes' ), 'features_list.0.item_text' => array( 'basic', 'Uno' ), 'features_list.2.item_text' => array( 'basic', 'Tres' ), 'button_text' => array( 'basic', 'Comprar' ), 'footer_additional_info' => array( 'basic', 'Sin permanencia' ), 'ribbon_title' => array( 'basic', 'Popular' ) ),
+	);
+	foreach ( $texts as $type => $settings ) {
+		$GLOBALS['cards_edit'] = false;
+		$front                 = $render( $own[ $type ], $settings + $defaults( $own[ $type ] ) );
+		$GLOBALS['cards_edit'] = true;
+		$edit                  = $render( $own[ $type ], $settings + $defaults( $own[ $type ] ) );
+		$GLOBALS['cards_edit'] = false;
+		$got                   = $inline( $edit );
+		ksort( $got );
+		$want = $expected[ $type ];
+		ksort( $want );
+		check_cards( $want === $got, "$type: en el editor, los textos se editan en el lienzo como en PRO: " . json_encode( $got, JSON_UNESCAPED_UNICODE ) );
+		check_cards( ! str_contains( $front, 'elementor-inline-editing' ) && ! str_contains( $front, 'data-elementor-' ) && $front === preg_replace( array( '/ elementor-inline-editing(?=")/', '/ class="elementor-inline-editing"/', '/ data-elementor-(setting-key|inline-editing-toolbar)="[^"]*"/' ), '', $edit ), "$type: fuera del editor, el mismo marcado sin la edición en línea." );
+	}
+
 	// 3. Conversión de los widgets de PRO con sus mapas.
 	$lands = static function ( $key, $widget ) {
 		$base = Translator::base( (string) $key );

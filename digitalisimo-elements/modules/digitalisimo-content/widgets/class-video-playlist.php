@@ -1,6 +1,7 @@
 <?php
 namespace Digitalisimo\Elements\Content\Widgets;
 
+use Digitalisimo\Elements\Content\Cards;
 use Digitalisimo\Elements\Content\Module;
 use Elementor\Controls_Manager;
 use Elementor\Group_Control_Image_Size;
@@ -1081,7 +1082,8 @@ class Video_Playlist extends \Elementor\Widget_Base {
 				$on     = ! $selected;
 				$tabs  .= '<button type="button" class="digi-vpl__in-tab' . ( $on ? ' digi-vpl__in-tab--on' : '' ) . '" role="tab" id="' . esc_attr( $key ) . '-tab" aria-selected="' . ( $on ? 'true' : 'false' ) . '" aria-controls="' . esc_attr( $key ) . '"' . ( $on ? '' : ' tabindex="-1"' ) . '>' . wp_kses_post( $labels[ $i ] ) . '</button>';
 				$panels .= '<div class="digi-vpl__in-panel' . ( $fold ? ' digi-vpl__in-panel--fold' : '' ) . '" role="tabpanel" id="' . esc_attr( $key ) . '" aria-labelledby="' . esc_attr( $key ) . '-tab"' . ( $on ? '' : ' hidden' ) . '>'
-					. '<div class="digi-vpl__in-text"><div>' . $this->parse_text( $content ) . '</div></div>'
+					// El contenido se edita en el lienzo con la barra avanzada, como en PRO (`tabs.<índice>.inner_tab_content_<n>`).
+					. '<div class="digi-vpl__in-text"><div' . Cards::inline_attributes( array(), 'tabs.' . $index . '.inner_tab_content_' . ( $i + 1 ), 'advanced' ) . '>' . $this->parse_text( $content ) . '</div></div>'
 					. ( $fold ? '<button type="button" class="digi-vpl__more" aria-expanded="false" data-more="' . esc_attr( wp_strip_all_tags( $more ) ) . '" data-less="' . esc_attr( wp_strip_all_tags( $less ) ) . '" hidden>' . esc_html( wp_strip_all_tags( $more ) ) . '</button>' : '' )
 					. '</div>';
 				$selected = true;

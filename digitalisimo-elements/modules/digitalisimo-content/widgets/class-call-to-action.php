@@ -1746,13 +1746,14 @@ class Call_To_Action extends \Elementor\Widget_Base {
 		$box      = $link && 'box' === ( $settings['link_click'] ?? 'button' );
 		$anim     = (string) ( $settings['content_animation'] ?? '' );
 		$anim     = 'cover' === $skin && isset( self::ANIMATIONS[ $anim ] ) ? $anim : '';
-		// Atributos de cada elemento del contenido: su clase propia más la común y, con animación, su clase y sus variables.
-		$item = static function ( string $class ) use ( $anim ): string {
+		// Atributos de cada elemento del contenido: su clase propia más la común y, con animación, su clase y sus variables;
+		// con `$key`, la edición en línea del lienzo de ese texto (como PRO: título, descripción y botón).
+		$item = static function ( string $class, string $key = '' ) use ( $anim ): string {
 			$attrs = array( 'class' => $class . ' digi-cta__content-item' . ( '' !== $anim ? ' digi-cta__item--' . $anim : '' ) );
 			if ( '' !== $anim ) {
 				$attrs['style'] = self::ANIMATIONS[ $anim ];
 			}
-			return Cards::attributes( $attrs );
+			return Cards::attributes( '' === $key ? $attrs : Cards::inline( $attrs, $key ) );
 		};
 
 		$graphic_html = '';
@@ -1790,11 +1791,11 @@ class Call_To_Action extends \Elementor\Widget_Base {
 			echo $graphic_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- imagen e icono generados arriba.
 			if ( '' !== $title ) {
 				$title_tag = Cards::tag( $settings['title_tag'] ?? 'h2', 'h2' );
-				echo '<' . $title_tag . ' ' . $item( 'digi-cta__title' ) . '>' . wp_kses_post( $title ) . '</' . $title_tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista permitida.
+				echo '<' . $title_tag . ' ' . $item( 'digi-cta__title', 'title' ) . '>' . wp_kses_post( $title ) . '</' . $title_tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista permitida.
 			}
 			if ( '' !== $desc ) {
 				$desc_tag = Cards::tag( $settings['description_tag'] ?? 'div', 'div' );
-				echo '<' . $desc_tag . ' ' . $item( 'digi-cta__description' ) . '>' . wp_kses_post( $desc ) . '</' . $desc_tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista permitida.
+				echo '<' . $desc_tag . ' ' . $item( 'digi-cta__description', 'description' ) . '>' . wp_kses_post( $desc ) . '</' . $desc_tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de la lista permitida.
 			}
 			if ( '' !== $button ) {
 				$attrs = array( 'class' => 'digi-cta__button elementor-button elementor-size-' . Cards::button_size( $settings['button_size'] ?? 'sm', 'sm' ) );
@@ -1802,7 +1803,7 @@ class Call_To_Action extends \Elementor\Widget_Base {
 				if ( 'a' === $btag ) {
 					$attrs += $link;
 				}
-				echo '<div ' . $item( 'digi-cta__button-wrapper' ) . '><' . $btag . ' ' . Cards::attributes( $attrs ) . '>' . wp_kses_post( $button ) . '</' . $btag . '></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos escapados.
+				echo '<div ' . $item( 'digi-cta__button-wrapper' ) . '><' . $btag . ' ' . Cards::attributes( Cards::inline( $attrs, 'button' ) ) . '>' . wp_kses_post( $button ) . '</' . $btag . '></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos escapados.
 			}
 			echo '</div>';
 		}

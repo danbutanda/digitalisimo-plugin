@@ -15,6 +15,7 @@
  *   personalizado con clases de PRO): ningún `pro.unmapped`, cada clave cae en un control propio y lo convertido se pinta.
  */
 namespace Elementor {
+	class Plugin { public static $instance; public $editor; }
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
 		const HEADING = 'heading'; const COLOR = 'color'; const SLIDER = 'slider'; const NUMBER = 'number'; const DIMENSIONS = 'dimensions';
@@ -133,6 +134,7 @@ namespace {
 
 	$root = __DIR__ . '/../digitalisimo-elements/';
 	require $root . 'modules/digitalisimo-content/class-module.php';
+	require $root . 'modules/digitalisimo-content/class-cards.php';
 	require $root . 'modules/digitalisimo-content/widgets/class-video-playlist.php';
 	require $root . 'modules/video-playlist/widgets/video-playlist.php';
 	require $root . 'modules/digitalisimo-convert/class-module.php';
@@ -303,6 +305,18 @@ namespace {
 	check_vpl( 1 === $count( 'class="digi-vpl__in" data-tab="5" hidden', $html ) && 1 === $count( 'role="tablist" aria-label="Contenido: Externo"', $html ) && 2 === $count( 'class="digi-vpl__in-tab', $html ), 'Pestañas internas del vídeo que las muestra, ocultas hasta elegirlo.' );
 	check_vpl( str_contains( $html, 'aria-selected="false" aria-controls="digi-vpl-abc1234-inner-5-2" tabindex="-1">Pestaña 2</button>' ) && 1 === $count( 'class="digi-vpl__in-panel digi-vpl__in-panel--fold" role="tabpanel" id="digi-vpl-abc1234-inner-5-2" aria-labelledby="digi-vpl-abc1234-inner-5-2-tab" hidden', $html ), 'Segunda pestaña interna oculta y plegable.' );
 	check_vpl( 2 === $count( 'class="digi-vpl__more" aria-expanded="false" data-more="Mostrar más" data-less="Mostrar menos" hidden>Mostrar más</button>', $html ) && str_contains( $html, '<!-- editor --><p>Uno</p>' ), '«Mostrar más» con aria-expanded; contenido como el editor de texto.' );
+	// Edición en línea del lienzo, como PRO (`add_inline_editing_attributes( 'tabs.<índice>.inner_tab_content_<n>',
+	// 'advanced' )` sobre el texto de cada pestaña interna): sólo en el editor; el front no cambia.
+	$pro_vpl = (string) file_get_contents( $root . 'modules/video-playlist/widgets/video-playlist.php' );
+	check_vpl( str_contains( $pro_vpl, "\$this->add_inline_editing_attributes( \$tab->tab_content_setting_key, 'advanced' );" ) && str_contains( $pro_vpl, "get_repeater_setting_key( 'inner_tab_content_' . \$tab_index, 'tabs', \$playlist_item_index )" ), 'Premisa: PRO edita el contenido de las pestañas internas en el lienzo con la barra avanzada.' );
+	\Elementor\Plugin::$instance         = new \Elementor\Plugin();
+	\Elementor\Plugin::$instance->editor = new class() { public function is_edit_mode() { return ! empty( $GLOBALS['vpl_edit'] ); } };
+	$GLOBALS['vpl_edit'] = true;
+	$edit                = $render( $all );
+	$GLOBALS['vpl_edit'] = false;
+	preg_match_all( '#<div class="digi-vpl__in-text"><div class="elementor-inline-editing" data-elementor-setting-key="([^"]+)" data-elementor-inline-editing-toolbar="advanced"><!-- editor -->(.*?)</div></div>#', $edit, $m );
+	check_vpl( array( 'tabs.4.inner_tab_content_1', 'tabs.4.inner_tab_content_2' ) === $m[1] && array( '<p>Uno</p>', '<p>Dos</p>' ) === $m[2], 'En el editor, el contenido de cada pestaña interna se edita en el lienzo con la barra avanzada, con la clave de PRO: ' . implode( ', ', $m[1] ) );
+	check_vpl( $html === $render( $all ) && ! str_contains( $html, 'elementor-inline-editing' ) && $html === str_replace( array( ' class="elementor-inline-editing" data-elementor-setting-key="tabs.4.inner_tab_content_1" data-elementor-inline-editing-toolbar="advanced"', ' class="elementor-inline-editing" data-elementor-setting-key="tabs.4.inner_tab_content_2" data-elementor-inline-editing-toolbar="advanced"' ), '', $edit ), 'Fuera del editor, el mismo marcado sin la edición en línea.' );
 	$GLOBALS['vpl_facades'] = true;
 	$html                   = $render( $all );
 	check_vpl( str_contains( $html, '<img class="digi-vpl__img" src="https://sitio.test/wp-content/uploads/digitalisimo-elements/facades/youtube-dQw4w9WgXcQ.webp"' ) && str_contains( $html, '<img class="digi-vpl__cover" src="https://sitio.test/wp-content/uploads/digitalisimo-elements/facades/vimeo-76979871.webp"' ), 'Con las fachadas, la portada del servicio la sirve el sitio (miniatura y panel).' );
