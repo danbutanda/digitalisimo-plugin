@@ -8,8 +8,10 @@
  * de su clase (`elementor-cta--sequenced-animation`) y en el propio es la clase propia. El marcado y las clases son propios
  * (`digi-cta*`, `digi-ribbon*`); las del icono y el botón son las del núcleo (`elementor-icon`, `elementor-button`), como en
  * PRO. Diferencias sin clave propia: la imagen de fondo es un `<img>` con `srcset` (PRO, un fondo CSS con `role="img"`), los
- * efectos al pasar el ratón también se ven con el foco del teclado dentro, el botón sin enlace es un `span` y, con
- * `prefers-reduced-motion`, no hay movimiento. Formato: cabecera de `class-translator.php`.
+ * efectos al pasar el ratón también se ven con el foco del teclado dentro y el botón sin enlace es un `span`. Con
+ * `prefers-reduced-motion`, lo convertido (la marca del traductor) conserva los estados de PRO: el contenido que entra
+ * sigue oculto hasta pasar el cursor y la imagen se transforma, sólo sin transiciones. Formato: cabecera de
+ * `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 

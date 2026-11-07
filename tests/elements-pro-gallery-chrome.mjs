@@ -222,6 +222,104 @@ const again = await page.evaluate(() => {
   return copy.querySelector('.digi-gallery').classList.contains('digi-gallery--ready');
 });
 ok(again, 'El gancho del editor inicia el widget que se vuelve a pintar.');
+
+// 6. Correcciones de fidelidad (docs/pro/c2.md): carga diferida con la entrada de la librería de PRO e indicadores de
+// los filtros con las animaciones de PRO (las reglas e--pointer-*/e--animation-* de la hoja de su Menú).
+const PX = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2230%22 height=%2220%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23245eff%22/%3E%3C/svg%3E';
+const lazy = await page.evaluate(async (px) => {
+  const w = document.createElement('div');
+  w.className = 'w';
+  w.dataset.id = 'lazy';
+  w.innerHTML = '<div class="digi-gallery digi-gallery--grid"><div id="digi-gallery-lz" class="digi-gallery__container" data-digi-lazy><a class="digi-gallery__item" data-w="3" data-h="2"><img class="digi-gallery__image" alt="a" width="30" height="20"></a><a class="digi-gallery__item" data-w="3" data-h="2"><img class="digi-gallery__image" alt="b" width="30" height="20" src="' + px + '"></a></div></div>';
+  document.body.prepend(w);
+  const [a, b] = w.querySelectorAll('img');
+  await new Promise((r) => (b.complete ? r() : b.addEventListener('load', r)));
+  window.__hooks[0][1]([w]);
+  const st = (el) => [getComputedStyle(el).transform, getComputedStyle(el).filter, el.classList.contains('is-loaded')].join('|');
+  // El observador de la vista responde en el siguiente fotograma.
+  const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 50))));
+  const out = { cls: w.querySelector('.digi-gallery__container').className, before: st(a), sync: st(b) };
+  await frames();
+  out.loaded = st(b);
+  a.src = px;
+  await new Promise((r) => (a.complete ? r() : a.addEventListener('load', r)));
+  await frames();
+  out.after = st(a);
+  out.others = document.querySelectorAll('.digi-gallery__container--lazy').length;
+  // Como `lazyLoadImages()` de PRO (sólo las imágenes en la vista): una ya cargada pero fuera de la vista espera oculta
+  // y entra al verse, no al cargarse (la carga diferida nativa la pide mucho antes).
+  const far = document.createElement('div');
+  far.className = 'w';
+  far.innerHTML = '<div style="height:3000px"></div><div class="digi-gallery digi-gallery--grid"><div id="digi-gallery-lz2" class="digi-gallery__container" data-digi-lazy><a class="digi-gallery__item" data-w="3" data-h="2"><img class="digi-gallery__image" alt="c" width="30" height="20" src="' + px + '"></a></div></div>';
+  document.body.append(far);
+  const c = far.querySelector('img');
+  await new Promise((r) => (c.complete ? r() : c.addEventListener('load', r)));
+  window.__hooks[0][1]([far]);
+  await frames();
+  out.away = st(c);
+  c.scrollIntoView();
+  await frames();
+  out.seen = st(c);
+  window.scrollTo(0, 0);
+  far.remove();
+  return out;
+}, PX);
+ok(lazy.cls === 'digi-gallery__container digi-gallery__container--lazy' && lazy.others === 1, 'Con «Carga diferida» el script marca el contenedor (sólo ese): ' + JSON.stringify(lazy));
+ok(lazy.before === 'matrix(0.5, 0, 0, 0.5, 0, 0)|opacity(0)|false' && lazy.sync === lazy.before, 'La imagen espera a la mitad de su tamaño y sin opacidad, como la de PRO, hasta verse: ' + lazy.before + ' / ' + lazy.sync);
+ok(lazy.loaded === 'none|none|true' && lazy.after === 'none|none|true', 'En la vista, la ya cargada entra enseguida y la otra al cargarse: ' + lazy.loaded + ' / ' + lazy.after);
+ok(lazy.away === 'matrix(0.5, 0, 0, 0.5, 0, 0)|opacity(0)|false' && lazy.seen === 'none|none|true', 'Fuera de la vista, la ya cargada espera oculta y entra al desplazarse hasta ella, como PRO: ' + lazy.away + ' / ' + lazy.seen);
 ok(errors.length === 0, 'Sin errores de JavaScript: ' + errors.join(' | '));
+await page.close();
+
+// Indicadores: una barra por animación, con el estado en reposo y con el cursor de cada una (sin transiciones).
+page = await open({ reduce: true });
+const pointers = await page.evaluate(() => {
+  const root = document.querySelector('[data-id="filters"]');
+  const out = {};
+  const probe = (pointer, anim) => {
+    const bar = root.querySelector('.digi-gallery__filters').cloneNode(true);
+    bar.className = 'digi-gallery__filters digi-gallery__filters--' + pointer;
+    bar.setAttribute('data-digi-fx', anim);
+    root.querySelector('.digi-gallery').prepend(bar);
+    const off = bar.querySelector('.digi-gallery__filter:not(.digi-gallery__filter--active)');
+    const on = bar.querySelector('.digi-gallery__filter--active');
+    const look = (el, p) => { const s = getComputedStyle(el, p); return [s.content, s.opacity, s.transform, s.width, s.height, s.left, s.top, s.bottom].join('|'); };
+    out[pointer + ':' + anim] = { offB: look(off, '::before'), offA: look(off, '::after'), onB: look(on, '::before'), onA: look(on, '::after'), self: getComputedStyle(on).transform, offSelf: getComputedStyle(off).transform };
+    bar.remove();
+  };
+  [['underline', 'line-grow'], ['overline', 'line-drop-in'], ['double-line', 'line-slide'], ['framed', 'framed-grow'], ['framed', 'framed-corners'], ['background', 'background-sweep-left'], ['background', 'background-shutter-in-horizontal'], ['text', 'text-grow'], ['underline', 'line-none']].forEach(([p, a]) => probe(p, a));
+  return out;
+});
+const W = (v) => v.split('|');
+let g = pointers['underline:line-grow'];
+ok(W(g.offA)[1] === '0' && W(g.offA)[3] === '0px' && W(g.offA)[4] === '0px' && W(g.onA)[1] === '1' && W(g.onA)[4] === '3px', 'Subrayado «Crecer»: en reposo sin ancho ni alto, activo de 3 px: ' + JSON.stringify(g));
+g = pointers['overline:line-drop-in'];
+ok(W(g.offB)[6] === '-10px' && W(g.onB)[6] === '0px' && W(g.onB)[0] === '""' && W(g.onA)[0] === 'none', 'Línea superior «Caer hacia dentro»: 10 px por encima en reposo y arriba activa: ' + JSON.stringify(g));
+g = pointers['double-line:line-slide'];
+ok(W(g.offB)[3] === '10px' && W(g.offB)[5] === '-20px' && W(g.onB)[3] !== '10px' && W(g.onA)[0] === '""', 'Doble línea «Deslizar»: entra desde fuera con 10 px de ancho: ' + JSON.stringify(g));
+g = pointers['framed:framed-grow'];
+ok(/^matrix\(0\.75, 0, 0, 0\.75/.test(W(g.offB)[2]) && /^matrix\(1, 0, 0, 1/.test(W(g.onB)[2]) && W(g.onB)[0] === '""', 'Marco «Crecer»: al 75 % en reposo y entero activo: ' + JSON.stringify(g));
+g = pointers['framed:framed-corners'];
+ok(W(g.offA)[0] === '""' && W(g.offA)[3] === '3px' && W(g.onA)[3] !== '3px', 'Marco «Esquinas»: las dos esquinas de 3 px que se abren al marco entero: ' + JSON.stringify(g));
+g = pointers['background:background-sweep-left'];
+ok(W(g.onB)[0] === '""' && W(g.onB)[1] === '1' && W(g.offB)[5] !== W(g.onB)[5], 'Fondo «Barrido a la izquierda»: entra desde la derecha: ' + JSON.stringify(g));
+g = pointers['background:background-shutter-in-horizontal'];
+ok(W(g.offA)[0] === '""' && W(g.onA)[0] === '""' && W(g.onA)[1] === '1', 'Fondo «Persiana horizontal hacia dentro»: dos mitades: ' + JSON.stringify(g));
+g = pointers['text:text-grow'];
+ok(g.self === 'none' && W(g.onB)[0] === 'none', 'Texto «Crecer»: sin indicador ni transformación sin el cursor (el activo, como PRO, tampoco): ' + JSON.stringify(g));
+const grown = await page.evaluate(() => {
+  const root = document.querySelector('[data-id="filters"] .digi-gallery__filters');
+  root.className = 'digi-gallery__filters digi-gallery__filters--text';
+  root.setAttribute('data-digi-fx', 'text-grow');
+  return true;
+});
+await page.hover('[data-id="filters"] [data-digi-filter="1"]');
+await sleep(100);
+const scaled = await page.$eval('[data-id="filters"] [data-digi-filter="1"]', (b) => getComputedStyle(b).transform);
+ok(grown && /^matrix\(1\.2, 0, 0, 1\.2/.test(scaled), 'Texto «Crecer»: el filtro crece al 120 % con el cursor, como PRO: ' + scaled);
+const none = await page.evaluate(() => { const b = document.querySelector('[data-id="filters"] .digi-gallery__filter'); return getComputedStyle(b).transitionDuration; });
+ok(none === '0s', 'Movimiento reducido en los filtros: sin transiciones.');
+ok(errors.length === 0, 'Sin errores de JavaScript: ' + errors.join(' | '));
+await page.close();
 await browser.close();
 console.log(`DIGITALÍSIMO Elements: Galería avanzada en Chrome (${checks} comprobaciones) validada.`);

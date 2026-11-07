@@ -72,8 +72,9 @@ function create(L,box,c){
 			ev.preventDefault();
 			if(!edit())setTimeout(()=>W.open(c.link.url,c.link.external?'_blank':'_self'),c.timeout);
 		});
-		// Movimiento reducido: el estado final, fijo (último fotograma del tramo, o el primero si se invierte).
-		if(reduced()){st.fresh=1;const r=frames();return stop(c.reverse?r.f:r.l)}
+		// Movimiento reducido: el estado final, fijo (último fotograma del tramo, o el primero si se invierte); lo convertido
+		// de PRO (c.motion) se anima como en PRO.
+		if(reduced()&&!c.motion){st.fresh=1;const r=frames();return stop(c.reverse?r.f:r.l)}
 		stop(frames().f);
 		const t=c.trigger;
 		if('none'===t)play();

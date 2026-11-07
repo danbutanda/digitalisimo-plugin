@@ -26,7 +26,8 @@ defined( 'ABSPATH' ) || exit;
  * - **Información emergente** al pulsar o al pasar el puntero (por dispositivo, como PRO) y también con el foco del
  *   teclado en el modo «al pasar»; Escape la cierra. Script propio `hotspot.js` (`defer`, sin dependencias).
  * - **Animaciones** (latido, expansión, superposición, secuencia y las de la información emergente) con CSS, apagadas
- *   con `prefers-reduced-motion`.
+ *   con `prefers-reduced-motion` salvo en lo convertido de PRO (`digi-hotspots--motion`), que sigue animado como en PRO
+ *   (sólo las transiciones son instantáneas).
  *
  * Diferencias declaradas con PRO: los puntos son botones o enlaces que se alcanzan con el teclado (PRO los pintaba como
  * `<div>`); la información emergente se abre también con el foco y se cierra con Escape; cerrada queda oculta
@@ -842,6 +843,10 @@ class Hotspot extends \Elementor\Widget_Base {
 		$prefix      = 'digi-hotspot-' . $this->get_id() . '-';
 
 		$this->add_render_attribute( 'root', 'class', 'digi-hotspots' );
+		// Lo convertido de PRO (la marca del traductor) sigue latiendo con «reducir movimiento», como PRO.
+		if ( 'hotspot' === (string) $this->get_settings( '_digitalisimo_pro' ) ) {
+			$this->add_render_attribute( 'root', 'class', 'digi-hotspots--motion' );
+		}
 		$this->add_render_attribute( 'root', 'data-digi-trigger', (string) wp_json_encode( $triggers ) );
 		if ( $sequenced ) {
 			$size = $settings['hotspot_sequenced_animation_duration']['size'] ?? '';

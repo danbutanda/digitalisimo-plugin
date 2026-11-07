@@ -32,7 +32,9 @@
 # una; ver run.cjs).
 # C2: `before`/`after` (elementos hermanos del widget en su contenedor: los encabezados de una tabla de contenido; se
 # convierten en B como el resto del árbol, así que un hermano de PRO también pasa al propio) y `reducedMotion` (A y B con
-# «reducir movimiento», para comparar el estado final de una animación).
+# «reducir movimiento», para comparar el estado final de una animación). `third` (`[{match, reason}]`, corrección de
+# fidelidad de C2): direcciones de terceros que B puede pedir aunque A no las pidiera (el reproductor del servicio que el
+# propio crea donde PRO pedía la API del servicio); se cortan igual y, si son un iframe, reciben una página negra vacía.
 # También `clock` (fecha ISO: el reloj del navegador fijado, para una cuenta regresiva) y, en `actions`, `scroll` (píxeles o
 # `end`: desplaza la página en lugar de pulsar, para un indicador de progreso) y `shape` (motivo: el widget sólo dibuja una forma
 # al cargar; basta con que su caja tenga alto).

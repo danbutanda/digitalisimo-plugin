@@ -23,7 +23,8 @@ defined( 'ABSPATH' ) || exit;
  * entrar el titular en la pantalla y, al partir las letras, deja la palabra entera para los lectores de pantalla.
  *
  * Diferencias declaradas con PRO: con «reducir movimiento» el texto no rota (se queda la primera palabra; PRO seguía
- * rotando) y el trazo aparece dibujado; el texto se lee también sin JavaScript (PRO dejaba invisibles las palabras de los
+ * rotando) y el trazo aparece dibujado. En lo convertido de PRO (la marca del traductor, `Translator::MARKER`) el texto
+ * sigue rotando como en PRO (clase `digi-ah--motion`), y sólo el trazo respeta la preferencia, como en PRO; el texto se lee también sin JavaScript (PRO dejaba invisibles las palabras de los
  * tipos por letras); el texto que rota pasa por `wp_kses_post()` (PRO lo imprimía sin filtrar); el enlace tiene foco
  * visible propio; las animaciones «giro» y «caída» reparten sus fotogramas en 0/60/100 % (PRO: 0/35/65/100 % y 0/100 %).
  */
@@ -646,6 +647,10 @@ class Animated_Headline extends \Elementor\Widget_Base {
 		);
 		if ( 'rotate' === $style ) {
 			$classes[] = 'digi-ah--' . $type;
+			// Lo convertido de PRO rota también con «reducir movimiento», como PRO (que sólo la consulta en el resaltado).
+			if ( 'animated-headline' === (string) $this->get_settings( '_digitalisimo_pro' ) ) {
+				$classes[] = 'digi-ah--motion';
+			}
 			if ( in_array( $type, self::LETTERS, true ) ) {
 				$classes[] = 'digi-ah--letters';
 			}

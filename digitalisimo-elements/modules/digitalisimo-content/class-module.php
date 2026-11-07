@@ -42,6 +42,24 @@ final class Module {
 		'digitalisimo-lottie' => array( 'file' => 'widgets/class-lottie.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Lottie', 'css' => 'modules/digitalisimo-content/assets/css/lottie.css', 'js' => 'modules/digitalisimo-content/assets/js/lottie.js' ),
 	);
 
+	/**
+	 * Hojas adicionales de un widget (`handle => archivo` relativo a la raíz del plugin), que su `get_style_depends()` pide
+	 * sólo cuando hacen falta: los indicadores de los filtros de la Galería avanzada y las pestañas internas de la Lista de
+	 * videos. Se registran con las demás, antes de pintar: con los recursos de página del núcleo (`_elementor_page_assets`)
+	 * o la caché de elementos, el núcleo encola por su handle lo que guardó sin instanciar el widget.
+	 */
+	const STYLES = array(
+		'digitalisimo-gallery-filters'            => 'modules/digitalisimo-content/assets/css/gallery-filters.css',
+		'digitalisimo-gallery-filters-framed'     => 'modules/digitalisimo-content/assets/css/gallery-filters-framed.css',
+		'digitalisimo-gallery-filters-background' => 'modules/digitalisimo-content/assets/css/gallery-filters-background.css',
+		'digitalisimo-video-playlist-inner'       => 'modules/digitalisimo-content/assets/css/video-playlist-inner.css',
+	);
+
+	/** Dependencias del script del editor de un widget, además de las de los anidados: la Lista de videos pide sus datos al proxy oEmbed de WordPress. */
+	const EDITOR_DEPENDS = array(
+		'digitalisimo-video-playlist' => array( 'wp-api-fetch' ),
+	);
+
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
 		'digitalisimo-animated-headline' => 'Titular animado',
@@ -119,7 +137,7 @@ final class Module {
 		return dirname( dirname( __DIR__ ) ) . '/' . ltrim( $relative, '/' );
 	}
 
-	/** Registra la hoja y el script de cada widget cuyo archivo existe (sin encolarlos). Idempotente. */
+	/** Registra la hoja y el script de cada widget cuyo archivo existe, y las hojas de `STYLES` (sin encolarlos). Idempotente. */
 	public static function register_assets(): void {
 		if ( ! function_exists( 'wp_register_style' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
 			return;
@@ -131,6 +149,11 @@ final class Module {
 			}
 			if ( ! wp_script_is( $handle, 'registered' ) && is_file( self::path( $asset['js'] ) ) ) {
 				wp_register_script( $handle, plugins_url( $asset['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+			}
+		}
+		foreach ( self::STYLES as $handle => $file ) {
+			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $file ) ) ) {
+				wp_register_style( $handle, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 			}
 		}
 	}
@@ -237,7 +260,7 @@ final class Module {
 			if ( ! is_file( self::path( $file ) ) || ! self::available( $name ) ) {
 				continue;
 			}
-			$deps = in_array( $name, self::NESTED, true ) ? array( 'nested-elements' ) : array();
+			$deps = array_merge( in_array( $name, self::NESTED, true ) ? array( 'nested-elements' ) : array(), self::EDITOR_DEPENDS[ $name ] ?? array() );
 			wp_enqueue_script( $name . '-editor', plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), $deps, $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 	}

@@ -48,6 +48,7 @@ namespace Elementor {
 		public $id       = 'abc1234';
 		private $attrs   = array();
 		public function get_id() { return $this->id; }
+		public function get_settings( $key = null ) { $all = $this->get_settings_for_display(); return null === $key ? $all : ( $all[ $key ] ?? null ); }
 		public function get_settings_for_display() {
 			$defaults = array();
 			foreach ( $this->controls as $name => $control ) {
@@ -197,7 +198,7 @@ namespace {
 	check_hs( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_hs( strlen( $js ) > 0 && strlen( $js ) <= 6144, 'El script pesa ' . strlen( $js ) . ' B (tope 6 144).' );
 	check_hs( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-digitalisimo-hotspot', '', $css ), 'elementor' ) && ! str_contains( $css, 'e-hotspot' ), 'La hoja no usa el kit, url(), ni clases del proveedor (sólo la del envoltorio del widget).' );
-	check_hs( str_contains( $css, '@media(prefers-reduced-motion:reduce){.digi-hotspots *{animation:none!important;transition:none!important}}' ) && str_contains( $css, '.digi-hs__button:focus-visible,a.digi-hs:focus-visible{outline:2px solid;outline-offset:2px}' ), 'Movimiento reducido (sin latido, expansión, secuencia ni transiciones) y foco visible de 2 px a 2 px.' );
+	check_hs( str_contains( $css, '@media(prefers-reduced-motion:reduce){.digi-hotspots:not(.digi-hotspots--motion) *{animation:none!important}.digi-hotspots *{transition:none!important}}' ) && str_contains( $css, '.digi-hs__button:focus-visible,a.digi-hs:focus-visible{outline:2px solid;outline-offset:2px}' ), 'Movimiento reducido (sin latido, expansión, secuencia ni transiciones) y foco visible de 2 px a 2 px.' );
 	check_hs( str_contains( $css, '.digi-hs__button:before{content:"";inset:-5px;' ), 'Área de pulsación de 5 px alrededor del punto, como PRO (26 + 10 px por defecto: más de 24 × 24).' );
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_hs( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#fff' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
@@ -328,6 +329,7 @@ namespace {
 	}
 
 	// 3. Marcado del servidor.
+	check_hs( str_starts_with( $render( array( '_digitalisimo_pro' => 'hotspot' ) ), '<div class="digi-hotspots digi-hotspots--motion" ' ), 'Lo convertido de PRO sigue animado con movimiento reducido, como PRO (digi-hotspots--motion).' );
 	$html = $render( array() );
 	check_hs( str_starts_with( $html, '<div class="digi-hotspots" data-digi-trigger="{&quot;desktop&quot;:&quot;click&quot;}">' ) && str_contains( $html, '<img src="https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png"' ), 'Por defecto: la imagen de muestra y el disparador «al pulsar».' );
 	check_hs( 1 === $count( '<div class="digi-hs ', $html ) && str_contains( $html, 'digi-hs--pos-left digi-hs--pos-top digi-hs--circle' ) && str_contains( $html, '<button class="digi-hs__button digi-hs--expand" type="button" aria-expanded="false" aria-controls="digi-hotspot-abc1234-0" aria-label="Punto de interés 1"><span class="digi-hs__outer"></span><span class="digi-hs__inner"></span></button>' ), 'Un punto circular: botón con estado, control y nombre, y la animación «Expansión».' );

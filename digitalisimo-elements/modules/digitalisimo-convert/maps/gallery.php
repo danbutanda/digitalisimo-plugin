@@ -4,8 +4,9 @@
  *
  * La Galería avanzada repite los controles de la de PRO con el mismo nombre, los mismos valores, las mismas condiciones
  * y las mismas variables CSS en el envoltorio, así que todo pasa con `keep`; el marcado, las clases y los recursos son
- * propios (sin la librería de galería del núcleo ni jQuery). Las aproximaciones: la carga diferida nativa y las
- * animaciones del indicador de los filtros, que se pintan como un fundido. Formato: cabecera de `class-translator.php`.
+ * propios (sin la librería de galería del núcleo ni jQuery). Sin aproximaciones: la carga diferida entra
+ * con el zoom y el fundido de la librería de PRO, y el indicador de los filtros tiene las animaciones de PRO (las de la
+ * hoja de su Menú, que la galería de PRO usa). Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -18,8 +19,8 @@ return array(
 	'target'    => 'digitalisimo-gallery',
 	'status'    => 'ready',
 	'panel'     => 'hide',
-	// Valores por defecto de PRO de los textos que PRO traduce al pintarlos y de los controles que se aproximan (para
-	// informar sólo lo que el sitio cambió).
+	// Valores por defecto de PRO de los textos que PRO traduce al pintarlos y de los controles con valor por defecto
+	// (Elementor no guarda lo que coincide con él).
 	'defaults'  => array(
 		'show_all_galleries_label' => $digi_gallery_tr( 'All' ),
 		'lazyload'                 => 'yes',
@@ -94,13 +95,6 @@ return array(
 		'description_typography'      => 'description_typography',
 		'galleries_titles_typography' => 'galleries_titles_typography',
 	),
-	'approx'    => array(
-		'lazyload'             => 'La carga diferida es la nativa del navegador (`loading="lazy"`), sin la aparición con zoom de la librería de galería.',
-		'animation_line'       => 'La animación del indicador de los filtros (subrayado, línea superior o doble), también «Ninguna», se pinta como un fundido.',
-		'animation_framed'     => 'La animación del marco de los filtros, también «Ninguna», se pinta como un fundido.',
-		'animation_background' => 'La animación del fondo de los filtros, también «Ninguna», se pinta como un fundido.',
-		'animation_text'       => 'El indicador «Texto» de los filtros sólo cambia el color, sin transformar el texto.',
-	),
 	'repeaters' => array(
 		'galleries' => array(
 			'target'       => 'galleries',
@@ -127,7 +121,8 @@ return array(
 		'.elementor-animated-content'              => '.digi-gallery__item',
 		'.e-gallery-image'                         => '.digi-gallery__image',
 		'.elementor-gallery-item__image'           => '.digi-gallery__image',
-		'.e-gallery-image-loaded'                  => '.digi-gallery__image',
+		'.e-gallery-image-loaded'                  => '.is-loaded',
+		'.e-gallery--lazyload'                     => '.digi-gallery__container--lazy',
 		'.elementor-gallery-item__overlay'         => '.digi-gallery__overlay',
 		'.elementor-gallery-item__content'         => '.digi-gallery__content',
 		'.elementor-gallery--sequenced-animation'  => '.digi-gallery__content--sequenced',

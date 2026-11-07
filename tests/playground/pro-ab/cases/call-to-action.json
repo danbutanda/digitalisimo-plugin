@@ -211,6 +211,49 @@
      "isLinked": false
     }
    }
+  },
+  "cta-rm": {
+   "title": "Cubierta con contenido que entra desde abajo y efecto «mover a la izquierda», con «reducir movimiento»: PRO conserva los estados (contenido oculto en reposo e imagen desplazada) y sólo quita las transiciones; lo convertido también",
+   "widget": "call-to-action",
+   "settings": {
+    "skin": "cover",
+    "bg_image": {
+     "$image": 3
+    },
+    "min-height": {
+     "unit": "px",
+     "size": 320
+    },
+    "title": "Descubre más",
+    "description": "Pasa el ratón o llega con el teclado.",
+    "button": "Entrar",
+    "link": {
+     "url": "https://example.com/descubre",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "link_click": "box",
+    "content_animation": "enter-from-bottom",
+    "content_animation_duration": {
+     "size": 0
+    },
+    "sequenced_animation": "elementor-cta--sequenced-animation",
+    "transformation": "move-left",
+    "effect_duration": {
+     "size": 0
+    },
+    "vertical_position": "bottom"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.9,
+      "reason": "Con el foco del teclado dentro de la caja, B muestra los efectos al pasar el ratón (superposición, imagen y contenido animado); PRO sólo los mostraba con el ratón."
+     }
+    }
+   },
+   "reducedMotion": true
   }
  }
 }

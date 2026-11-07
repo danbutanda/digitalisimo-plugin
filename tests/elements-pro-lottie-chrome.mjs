@@ -40,6 +40,12 @@ const server = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' }).end(page);
     return;
   }
+  if ('/motion' === path) {
+    // Lo convertido de PRO (`motion`, corrección de fidelidad de C2): «Al pulsar» con movimiento reducido espera al clic.
+    const page = readFileSync(join(root, 'tests/fixtures/pro-lottie.html'), 'utf8').replace(/(data-id="click"[^\n]*?&quot;trigger&quot;:&quot;on_click&quot;)/, '$1,&quot;motion&quot;:true');
+    res.writeHead(200, { 'content-type': 'text/html' }).end(page);
+    return;
+  }
   const file = normalize(join(root, path === '/' ? 'tests/fixtures/pro-lottie.html' : path));
   if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) {
     res.writeHead(404).end();
@@ -176,6 +182,22 @@ try {
   await sleep(200);
   ok((await state(calm, 'click')).paused, 'Movimiento reducido: el clic no reproduce.');
   await calm.close();
+
+  // 4. Movimiento reducido en lo convertido de PRO (`motion`): se anima como en PRO.
+  const moved = await browser.newPage();
+  await moved.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  await moved.setViewport({ width: 1000, height: 800 });
+  await moved.goto(base + '/motion', { waitUntil: 'load' });
+  await until(moved, async () => { const x = await state(moved, 'click'); return x && x.svg; });
+  await sleep(300);
+  let mx = await state(moved, 'click');
+  ok(mx.paused && mx.frame <= 1, `Con motion, «Al pulsar» espera al clic en su primer fotograma, como PRO (${mx.frame}/${mx.total}).`);
+  ok((await state(moved, 'none')).frame >= (await state(moved, 'none')).total - 1, 'Sin motion, lo demás sigue fijo en su estado final.');
+  await moved.click('[data-id="click"] .digi-lottie__container');
+  await sleep(250);
+  mx = await state(moved, 'click');
+  ok(!mx.paused || mx.frame > 1, `Con motion, el clic reproduce con movimiento reducido (${mx.frame}).`);
+  await moved.close();
 } finally {
   await browser.close();
   server.close();

@@ -102,7 +102,15 @@ namespace Elementor {
 			return $this->add_render_attribute( $element, $attrs );
 		}
 	}
-	class Group_Control_Image_Size { public static function get_type() { return 'image-size'; } }
+	class Group_Control_Image_Size {
+		public static function get_type() { return 'image-size'; }
+		// Como el núcleo con «Personalizado»: el recorte exacto de BFI_Thumb en uploads/elementor/thumbs/.
+		public static function get_attachment_image_src( $id, $key, array $settings ) {
+			$d = (array) ( $settings[ $key . '_custom_dimension' ] ?? array() );
+			$GLOBALS['gl_crops'][] = array( $id, $key );
+			return "https://sitio.test/wp-content/uploads/elementor/thumbs/img-$id-" . ( $d['width'] ?? '' ) . 'x' . ( $d['height'] ?? '' ) . '.png';
+		}
+	}
 	class Group_Control_Css_Filter { public static function get_type() { return 'css-filter'; } }
 	class Group_Control_Background { public static function get_type() { return 'background'; } }
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
@@ -146,7 +154,16 @@ namespace {
 	function wp_kses_post( $v ) { return preg_replace( '/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', preg_replace( '@<script[^>]*?>.*?</script>@si', '', (string) $v ) ); }
 	function get_post( $id ) { return $GLOBALS['gl_posts'][ $id ] ?? null; }
 	function get_post_meta( $id, $key, $single ) { return '_wp_attachment_image_alt' === $key && isset( $GLOBALS['gl_posts'][ $id ] ) ? $GLOBALS['gl_posts'][ $id ]->alt : ''; }
+	function add_filter( $hook, $fn, $priority = 10, $args = 1 ) { $GLOBALS['gl_filters'][ $hook ][] = $fn; return true; }
+	function remove_filter( $hook, $fn, $priority = 10 ) { $GLOBALS['gl_filters'][ $hook ] = array_values( array_filter( $GLOBALS['gl_filters'][ $hook ] ?? array(), static function ( $f ) use ( $fn ) { return $f !== $fn; } ) ); return true; }
 	function wp_get_attachment_image_src( $id, $size ) {
+		$image = gl_attachment_image_src( $id, $size );
+		foreach ( $GLOBALS['gl_filters']['wp_get_attachment_image_src'] ?? array() as $fn ) {
+			$image = $fn( $image, $id, $size, false );
+		}
+		return $image;
+	}
+	function gl_attachment_image_src( $id, $size ) {
 		$post = $GLOBALS['gl_posts'][ $id ] ?? null;
 		if ( ! $post || 'attachment' !== $post->post_type ) {
 			return false;
@@ -173,7 +190,8 @@ namespace {
 		foreach ( $attr as $k => $v ) {
 			$out .= ' ' . $k . '="' . esc_attr( $v ) . '"';
 		}
-		return $out . ' srcset="https://sitio.test/wp-content/uploads/img-' . $id . '-768.png 768w" sizes="(max-width: 300px) 100vw, 300px">';
+		// Como WordPress: sin `srcset` si el archivo no es un tamaño del adjunto (el recorte del núcleo).
+		return $out . ( str_contains( $src[0], '/elementor/thumbs/' ) ? '>' : ' srcset="https://sitio.test/wp-content/uploads/img-' . $id . '-768.png 768w" sizes="(max-width: 300px) 100vw, 300px">' );
 	}
 	function check_gl( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
@@ -213,19 +231,38 @@ namespace {
 	// 1. Registro y recursos.
 	$w = $widget();
 	check_gl( 'digitalisimo-gallery' === $w->get_name() && 'Galería avanzada' === $w->get_title() && array( 'digitalisimo' ) === $w->get_categories(), 'Nombre, título y categoría propios.' );
-	check_gl( array( 'digitalisimo-gallery' ) === $w->get_style_depends() && array( 'digitalisimo-gallery' ) === $w->get_script_depends(), 'Sólo su hoja y su script: ' . implode( ',', $w->get_style_depends() ) . ' / ' . implode( ',', $w->get_script_depends() ) );
+	$filter_sheets = array( 'digitalisimo-gallery-filters', 'digitalisimo-gallery-filters-framed', 'digitalisimo-gallery-filters-background' );
+	check_gl( array_merge( array( 'digitalisimo-gallery' ), $filter_sheets ) === $w->get_style_depends() && array( 'digitalisimo-gallery' ) === $w->get_script_depends(), 'En el editor (sin instancia), su hoja y las de los filtros, y su script: ' . implode( ',', $w->get_style_depends() ) . ' / ' . implode( ',', $w->get_script_depends() ) );
+	check_gl( array( 'digitalisimo-gallery' ) === Gallery::styles_for( array() ) && array( 'digitalisimo-gallery', 'digitalisimo-gallery-filters' ) === Gallery::styles_for( array( 'gallery_type' => 'multiple' ) ) && array( 'digitalisimo-gallery', 'digitalisimo-gallery-filters', 'digitalisimo-gallery-filters-framed' ) === Gallery::styles_for( array( 'gallery_type' => 'multiple', 'pointer' => 'framed' ) ) && array( 'digitalisimo-gallery', 'digitalisimo-gallery-filters', 'digitalisimo-gallery-filters-background' ) === Gallery::styles_for( array( 'gallery_type' => 'multiple', 'pointer' => 'background' ) ) && array( 'digitalisimo-gallery', 'digitalisimo-gallery-filters' ) === Gallery::styles_for( array( 'gallery_type' => 'multiple', 'pointer' => 'text' ) ), 'Las hojas de los filtros sólo con «Varias galerías», y la del marco o la del fondo sólo con ese indicador.' );
+	foreach ( $filter_sheets as $handle ) {
+		$file = Content_Module::STYLES[ $handle ] ?? '';
+		$text = (string) @file_get_contents( $root . $file );
+		check_gl( '' !== $text && strlen( $text ) <= 4096 && str_contains( $text, '@media (prefers-reduced-motion:reduce)' ) && ! preg_match( '/url\(|--e-global|elementor|e-gallery|e--pointer|e--animation/i', $text ), "$handle: registrada por el módulo, ≤ 4 KB (" . strlen( $text ) . ' B), con movimiento reducido y sin clases ni variables del proveedor.' );
+	}
 	check_gl( 'widgets/class-gallery.php' === Content_Module::WIDGETS['digitalisimo-gallery']['file'] && Gallery::class === Content_Module::WIDGETS['digitalisimo-gallery']['class'] && 'Galería avanzada' === Content_Module::TITLES['digitalisimo-gallery'], 'El módulo de contenido registra la clase y el título.' );
-	$css = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/gallery.css' );
+	$css     = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/gallery.css' );
+	$filters = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/gallery-filters.css' );
 	check_gl( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_gl( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-digitalisimo-gallery', '', $css ), 'elementor' ) && ! str_contains( $css, 'e-gallery' ), 'La hoja no usa el kit, url() ni clases del proveedor o de la librería de galería (sólo la del envoltorio del widget).' );
 	check_gl( str_starts_with( $css, ':is(.e-con,.e-con-inner)>.elementor-widget-digitalisimo-gallery{width:var(--container-widget-width);--flex-grow:var(--container-widget-flex-grow)}' ), 'En un contenedor flexible, el widget ocupa el ancho del contenedor como el de PRO (si no, su alto se calcula con el tamaño propio de las imágenes).' );
-	check_gl( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*\{transition:none!important\}\}/', $css ) && str_contains( $css, '.digi-gallery__item:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, '.digi-gallery__filter:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, 'min-height:24px' ), 'Movimiento reducido, foco visible propio y filtros de 24 px de alto como mínimo.' );
-	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
+	check_gl( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*\{transition:none!important\}\}/', $css ) && str_contains( $css, '.digi-gallery__item:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $filters, '.digi-gallery__filter:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $filters, 'min-height:24px' ), 'Movimiento reducido, foco visible propio y filtros de 24 px de alto como mínimo.' );
+	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css . $filters, $colors );
 	check_gl( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#fff', '#3f444b' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
 	foreach ( array( 'padding:7px 14px', 'font-weight:500', 'margin-bottom:20px', '--space-between:10px', 'transform-origin:center top', 'aspect-ratio:var(--digi-gallery-ratio,3/2)', 'repeat(var(--columns,4)', 'var(--title-text-color,#fff)', 'border:solid var(--image-border-width) var(--image-border-color)' ) as $look ) {
-		check_gl( str_contains( $css, $look ), "La hoja reproduce el aspecto de PRO ($look)." );
+		check_gl( str_contains( $css . $filters, $look ), "La hoja reproduce el aspecto de PRO ($look)." );
 	}
+	// Carga diferida como la librería de PRO (`.e-gallery--lazyload .e-gallery-image:not(.e-gallery-image-loaded)`): cada
+	// imagen entra desde la mitad y sin opacidad, con la transición de la imagen.
+	check_gl( str_contains( $css, '.digi-gallery__container--lazy .digi-gallery__image:not(.is-loaded){filter:opacity(0);transform:scale(.5)}' ) && str_contains( $css, 'transition-duration:var(--image-transition-duration);transition-property:filter,transform' ), 'Carga diferida: entrada con zoom y fundido de la librería de PRO.' );
+	// Indicadores de los filtros: las reglas e--pointer-*/e--animation-* de PRO (hoja de su Menú).
+	foreach ( array( '[data-digi-fx=line-grow]>:not(:hover,:focus,[aria-pressed=true]):before,[data-digi-fx=line-grow]>:not(:hover,:focus,[aria-pressed=true]):after{height:0;left:50%;width:0}', '[data-digi-fx=line-slide]>:not(:hover,:focus,[aria-pressed=true]):after{inset-inline-start:100%;width:10px}', '[data-digi-fx=line-drop-in]>:not(:hover,:focus,[aria-pressed=true]):before{top:-10px}', '[data-digi-fx=text-grow]>:is(:hover,:focus){transform:scale(1.2)}', '.digi-gallery [data-digi-fx$=-none]>*', 'transition:.3s cubic-bezier(.58,.3,.005,1)' ) as $rule ) {
+		check_gl( str_contains( $filters, $rule ), "Indicador de los filtros como PRO: $rule" );
+	}
+	$framed = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/gallery-filters-framed.css' );
+	$bg     = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/gallery-filters-background.css' );
+	check_gl( str_contains( $framed, '[data-digi-fx=framed-grow]>:not(:hover,:focus,[aria-pressed=true]):before{transform:scale(.75)}' ) && str_contains( $framed, '[data-digi-fx=framed-draw]>:is(:hover,:focus,[aria-pressed=true]):after{transition:opacity .02s .2s,height .1s .2s,width .1s .3s}' ) && str_contains( $bg, '[data-digi-fx=background-sweep-left]>:not(:hover,:focus,[aria-pressed=true]):before{left:100%}' ) && str_contains( $bg, '[data-digi-fx=background-shutter-in-horizontal]>:is(:hover,:focus,[aria-pressed=true]):after{right:50%}' ), 'Marco y fondo con las animaciones de PRO.' );
 	$js = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/js/gallery.js' );
+	check_gl( str_contains( $js, "box.hasAttribute('data-digi-lazy')" ) && str_contains( $js, "img.classList.add('is-loaded')" ) && str_contains( $js, "'digi-gallery__container--lazy'" ), 'El script marca la carga diferida y cada imagen al cargarse.' );
 	check_gl( strlen( $js ) <= 6144 && ! preg_match( '/\bjquery\s*\(|\bjquery\.[a-z]|\$\(|EGallery|elementsHandler|swiper/i', $js ) && str_contains( $js, 'ResizeObserver' ) && str_contains( $js, "'aria-pressed'" ) && str_contains( $js, 'data-elementor-lightbox-slideshow' ), 'El script pesa ' . strlen( $js ) . ' B (tope 6 144), sin jQuery, sin la librería de galería ni el gestor de handlers.' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-gallery.php' );
 	check_gl( ! preg_match( '/jquery\(|swiper|wp_enqueue_script|e-gallery|<iframe|ElementorPro/i', $source ), 'El widget no usa jQuery, Swiper, la librería de galería ni clases de PRO.' );
@@ -302,7 +339,8 @@ namespace {
 	foreach ( array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ), array_keys( $pro->controls['galleries']['fields'] ) ) as $name ) {
 		check_gl( in_array( $name, $declared, true ), "$name: el mapa no lo declara." );
 	}
-	foreach ( array_merge( $map['keep'], array_keys( $map['approx'] ) ) as $name ) {
+	check_gl( ! isset( $map['approx'] ), 'Sin aproximaciones: la carga diferida y los indicadores de los filtros son los de PRO.' );
+	foreach ( $map['keep'] as $name ) {
 		check_gl( isset( $w->controls[ $name ] ), "keep/approx $name: no es un control de la Galería avanzada." );
 	}
 	foreach ( $map['ui'] as $name ) {
@@ -314,13 +352,13 @@ namespace {
 
 	// 3. Marcado del servidor.
 	$html = $render( array( 'gallery' => $images( array( 11, 12, 13, 14 ) ) ) );
-	check_gl( str_starts_with( $html, '<div class="digi-gallery digi-gallery--grid"><div id="digi-gallery-abc1234" class="digi-gallery__container">' ) && ! str_contains( $html, 'data-digi-layout' ) && ! str_contains( $html, 'digi-gallery__filters' ), 'Cuadrícula por defecto: sin script de disposición ni filtros.' );
+	check_gl( str_starts_with( $html, '<div class="digi-gallery digi-gallery--grid"><div id="digi-gallery-abc1234" class="digi-gallery__container" data-digi-lazy>' ) && ! str_contains( $html, 'data-digi-layout' ) && ! str_contains( $html, 'digi-gallery__filters' ), 'Cuadrícula por defecto: sin script de disposición ni filtros.' );
 	check_gl( 3 === $count( '<a class="digi-gallery__item"', $html ) && ! str_contains( $html, 'img-14' ), 'Una entrada por imagen adjunta (lo que no es un adjunto se omite).' );
 	check_gl( str_contains( $html, 'href="https://sitio.test/wp-content/uploads/img-11.png"' ) && str_contains( $html, 'data-elementor-open-lightbox="default" data-elementor-lightbox-slideshow="abc1234" data-elementor-lightbox-title="Faro al amanecer"' ), 'Archivo multimedia: enlace al archivo completo con el lightbox del núcleo agrupado por el widget.' );
 	check_gl( str_contains( $html, 'data-w="300" data-h="200"' ) && str_contains( $html, 'data-w="200" data-h="300"' ) && str_contains( $html, 'src="https://sitio.test/wp-content/uploads/img-11-medium.png" class="digi-gallery__image" alt="Un faro" decoding="async" loading="lazy" srcset=' ), 'Imagen del tamaño elegido (medium) con wp_get_attachment_image(): alt del adjunto, decoding, loading y srcset; medidas para el diseño.' );
 	check_gl( 3 === $count( '<div class="digi-gallery__overlay"></div>', $html ) && ! str_contains( $html, 'digi-gallery__content' ) && ! str_contains( $html, 'tabindex' ) && ! str_contains( $html, 'digi-gallery__fx' ), 'Fondo de la superposición sin contenido ni animaciones por defecto.' );
 	$html = $render( array( 'gallery' => $images( array( 11, 12 ) ), 'gallery_layout' => 'justified', 'lazyload' => '', 'link_to' => '', 'overlay_background' => '', 'overlay_title' => 'title', 'overlay_description' => 'description', 'thumbnail_image_size' => 'large' ) );
-	check_gl( str_contains( $html, 'class="digi-gallery digi-gallery--justified"' ) && str_contains( $html, 'data-digi-layout="justified"' ) && 2 === $count( '<div class="digi-gallery__item" data-w=', $html ) && 2 === $count( 'tabindex="0"', $html ) && ! str_contains( $html, 'loading=' ) && ! str_contains( $html, 'overlay"' ) && str_contains( $html, 'img-11-large.png' ), 'Justificada sin enlace: div enfocable con título, sin carga diferida ni fondo.' );
+	check_gl( str_contains( $html, 'class="digi-gallery digi-gallery--justified"' ) && str_contains( $html, 'data-digi-layout="justified"' ) && 2 === $count( '<div class="digi-gallery__item" data-w=', $html ) && 2 === $count( 'tabindex="0"', $html ) && ! str_contains( $html, 'loading=' ) && ! str_contains( $html, 'data-digi-lazy' ) && ! str_contains( $html, 'overlay"' ) && str_contains( $html, 'img-11-large.png' ), 'Justificada sin enlace: div enfocable con título, sin carga diferida (ni su entrada animada) ni fondo.' );
 	check_gl( str_contains( $html, '<div class="digi-gallery__content"><div class="digi-gallery__title digi-gallery__fx" style="--_o0:0">Faro al amanecer</div><div class="digi-gallery__description digi-gallery__fx" style="--_o0:0">Descripción <em>larga</em></div></div>' ) && str_contains( $html, '<div class="digi-gallery__content"><div class="digi-gallery__title digi-gallery__fx" style="--_o0:0">Bosque</div></div>' ), 'Título y descripción del adjunto (sin script), con la animación por defecto (aparecer) en línea; lo vacío no se pinta.' );
 	$html = $render( array( 'gallery' => $images( array( 11 ) ), 'gallery_layout' => 'masonry', 'image_hover_animation' => 'move-contained-left', 'background_overlay_hover_animation' => 'exit-to-top', 'overlay_title' => 'caption', 'content_hover_animation' => 'grow', 'content_sequenced_animation' => 'yes', 'link_to' => 'custom', 'url' => array( 'url' => 'https://destino.test/x', 'is_external' => 'on', 'nofollow' => '' ) ) );
 	check_gl( str_contains( $html, 'data-digi-layout="masonry"' ) && str_contains( $html, '<a class="digi-gallery__item" data-w="300" data-h="200" href="https://destino.test/x" target="_blank" rel="noopener noreferrer">' ) && ! str_contains( $html, 'lightbox' ), 'URL personalizada externa con rel y sin lightbox.' );
@@ -339,11 +377,20 @@ namespace {
 		),
 	);
 	$html = $render( $multi + array( 'show_all_galleries_label' => 'Todas' ) );
-	check_gl( str_contains( $html, '<div class="digi-gallery__filters digi-gallery__filters--underline" role="group" aria-label="Filtro de la galería"><button type="button" class="digi-gallery__filter digi-gallery__filter--active" data-digi-filter="all" aria-controls="digi-gallery-abc1234" aria-pressed="true">Todas</button><button type="button" class="digi-gallery__filter" data-digi-filter="0" aria-controls="digi-gallery-abc1234" aria-pressed="false">Faros</button><button type="button" class="digi-gallery__filter" data-digi-filter="2" aria-controls="digi-gallery-abc1234" aria-pressed="false">Playas </button></div>' ), 'Filtros: «Todas» activo, una por galería no vacía con su índice de PRO y el título sin script.' );
+	check_gl( str_contains( $html, '<div class="digi-gallery__filters digi-gallery__filters--underline" data-digi-fx="line-fade" role="group" aria-label="Filtro de la galería"><button type="button" class="digi-gallery__filter digi-gallery__filter--active" data-digi-filter="all" aria-controls="digi-gallery-abc1234" aria-pressed="true">Todas</button><button type="button" class="digi-gallery__filter" data-digi-filter="0" aria-controls="digi-gallery-abc1234" aria-pressed="false">Faros</button><button type="button" class="digi-gallery__filter" data-digi-filter="2" aria-controls="digi-gallery-abc1234" aria-pressed="false">Playas </button></div>' ), 'Filtros: «Todas» activo, una por galería no vacía con su índice de PRO y el título sin script.' );
 	check_gl( 3 === $count( 'class="digi-gallery__item"', $html ) && str_contains( $html, 'data-digi-tags="0,2"' ) && 3 === $count( 'data-elementor-lightbox-slideshow="all_abc1234"', $html ) && ! str_contains( $html, 'hidden' ), 'Una imagen repetida en dos galerías se pinta una vez con sus dos etiquetas; todas visibles en el grupo «all».' );
 	$html = $render( $multi + array( 'show_all_galleries' => '', 'pointer' => 'framed', 'animation_framed' => 'none' ) );
-	check_gl( str_contains( $html, '<div class="digi-gallery__filters digi-gallery__filters--framed" role="group"' ) && ! str_contains( $html, 'data-digi-filter="all"' ) && str_contains( $html, 'data-digi-filter="0" aria-controls="digi-gallery-abc1234" aria-pressed="true"' ), 'Sin «Todas», el primer filtro activo; indicador de marco.' );
+	check_gl( str_contains( $html, '<div class="digi-gallery__filters digi-gallery__filters--framed" data-digi-fx="framed-none" role="group"' ) && ! str_contains( $html, 'data-digi-filter="all"' ) && str_contains( $html, 'data-digi-filter="0" aria-controls="digi-gallery-abc1234" aria-pressed="true"' ), 'Sin «Todas», el primer filtro activo; indicador de marco.' );
 	check_gl( 1 === $count( 'hidden="hidden"', $html ) && str_contains( $html, 'data-digi-tags="2" hidden="hidden" href="https://sitio.test/wp-content/uploads/img-13.png" data-elementor-open-lightbox="default" data-elementor-lightbox-slideshow="abc1234"' ) && 2 === $count( 'data-elementor-lightbox-slideshow="0_abc1234"', $html ), 'Lo que no está en el filtro activo empieza oculto; el grupo del lightbox sólo reúne lo visible.' );
+	foreach ( array( 'text|text-grow' => array( 'pointer' => 'text' ), 'text|text-rotate' => array( 'pointer' => 'text', 'animation_text' => 'rotate' ), 'double-line|line-drop-out' => array( 'pointer' => 'double-line', 'animation_line' => 'drop-out' ), 'background|background-shutter-in-vertical' => array( 'pointer' => 'background', 'animation_background' => 'shutter-in-vertical' ), 'overline|line-fade' => array( 'pointer' => 'overline', 'animation_line' => 'x"><script>' ) ) as $want => $extra ) {
+		list( $pointer, $fx ) = explode( '|', $want );
+		check_gl( str_contains( $render( $multi + $extra ), '<div class="digi-gallery__filters digi-gallery__filters--' . $pointer . '" data-digi-fx="' . $fx . '" role="group"' ), "Indicador $pointer: data-digi-fx=$fx (la animación de su familia, como la clase de PRO; un valor desconocido vuelve al de por defecto)." );
+	}
+	check_gl( str_contains( $render( $multi + array( 'pointer' => 'none' ) ), '<div class="digi-gallery__filters digi-gallery__filters--none" role="group"' ), 'Sin indicador, sin animación.' );
+	// Grosor de las líneas: en PRO miden siempre 3 px (la regla de «Grosor del indicador» de su galería no coincide con
+	// ellas). Lo convertido lo conserva; lo nuevo y el marco convertido aplican el grosor elegido.
+	$wide = $multi + array( 'pointer_width' => array( 'unit' => 'px', 'size' => 6, 'sizes' => array() ) );
+	check_gl( str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery' ) ), 'data-digi-fx="line-fade" style="--galleries-pointer-border-width:3px" role="group"' ) && str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery', 'pointer' => 'double-line', 'animation_line' => 'grow' ) ), 'data-digi-fx="line-grow" style="--galleries-pointer-border-width:3px" role="group"' ) && ! str_contains( $render( $wide ), '--galleries-pointer-border-width' ) && ! str_contains( $render( $wide + array( '_digitalisimo_pro' => 'gallery', 'pointer' => 'framed' ) ), '--galleries-pointer-border-width' ), 'Lo convertido de PRO conserva las líneas de 3 px de PRO; lo nuevo y el marco convertido aplican «Grosor del indicador».' );
 	$html = $render( array( 'gallery_type' => 'multiple', 'galleries' => array( array( '_id' => 'g', 'gallery_title' => 'X', 'multiple_gallery' => array() ) ) ) );
 	check_gl( '' === $html, 'Sin imágenes, nada en el front.' );
 	$GLOBALS['gl_edit'] = true;
@@ -356,7 +403,8 @@ namespace {
 	check_gl( 3 === $count( 'class="digi-gallery__item"', $html ), 'Orden aleatorio: las mismas imágenes.' );
 	$GLOBALS['gl_sizes'] = array();
 	$html = $render( array( 'gallery' => $images( array( 11 ) ), 'thumbnail_image_size' => 'custom', 'thumbnail_image_custom_dimension' => array( 'width' => '400', 'height' => '100' ) ) );
-	check_gl( str_contains( $html, 'data-w="400" data-h="100"' ) && array( array( 400, 100 ) ) === $GLOBALS['gl_sizes'], 'Tamaño personalizado: el diseño usa sus medidas, como PRO.' );
+	check_gl( str_contains( $html, 'data-w="400" data-h="100"' ) && array( 'full' ) === $GLOBALS['gl_sizes'], 'Tamaño personalizado: el diseño usa sus medidas, como PRO.' );
+	check_gl( str_contains( $html, '<img width="400" height="100" src="https://sitio.test/wp-content/uploads/elementor/thumbs/img-11-400x100.png" class="digi-gallery__image" alt="Un faro" decoding="async" loading="lazy">' ) && array( array( 11, 'thumbnail_image' ) ) === $GLOBALS['gl_crops'] && array() === ( $GLOBALS['gl_filters']['wp_get_attachment_image_src'] ?? array() ), 'Tamaño personalizado: el recorte exacto del núcleo (como PRO), con sus medidas y sin srcset; el filtro se quita al pintar.' );
 	$html = $render( array( 'gallery' => $images( array( 11 ) ), 'open_lightbox' => 'no' ) );
 	check_gl( str_contains( $html, 'data-elementor-open-lightbox="no"' ), 'Lightbox «No» como en PRO.' );
 
@@ -428,7 +476,7 @@ namespace {
 		}
 	}
 	sort( $codes );
-	$expected = array( 'css:pro.css:custom_css', 'justified:pro.approx:lazyload', 'multiple:pro.approx:animation_background' );
+	$expected = array( 'css:pro.css:custom_css' );
 	check_gl( $expected === $codes, 'Ningún pro.unmapped ni pro.dropped; sólo las aproximaciones declaradas y el CSS: ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	check_gl( 'gallery' === $d['_digitalisimo_pro'] && $gallery === $d['gallery'] && 'All' === $d['show_all_galleries_label'] && 'yes' === $d['lazyload'], 'Una Gallery sin cambios llega con sus imágenes y el texto «All» de PRO.' );

@@ -163,19 +163,35 @@ namespace {
 	// 1. Registro y recursos.
 	$w = $widget();
 	check_vpl( 'digitalisimo-video-playlist' === $w->get_name() && 'Lista de videos' === $w->get_title() && array( 'digitalisimo' ) === $w->get_categories(), 'Nombre, título y categoría propios.' );
-	check_vpl( array( 'digitalisimo-video-playlist' ) === $w->get_style_depends() && array( 'digitalisimo-video-playlist' ) === $w->get_script_depends(), 'Su hoja y su script, sin dependencias de PRO.' );
+	check_vpl( array( 'digitalisimo-video-playlist', 'digitalisimo-video-playlist-inner' ) === $w->get_style_depends() && array( 'digitalisimo-video-playlist' ) === $w->get_script_depends(), 'En el editor (sin instancia), su hoja, la de las pestañas internas y su script, sin dependencias de PRO.' );
+	check_vpl( array( 'digitalisimo-video-playlist' ) === Video_Playlist::styles_for( array( 'tabs' => array( array( 'type' => 'youtube' ), array( 'type' => 'section', 'inner_tab_is_content_visible' => 'show' ) ) ) ) && array( 'digitalisimo-video-playlist', 'digitalisimo-video-playlist-inner' ) === Video_Playlist::styles_for( array( 'tabs' => array( array( 'type' => 'hosted', 'inner_tab_is_content_visible' => 'show' ) ) ) ), 'La hoja de las pestañas internas, sólo si algún vídeo las muestra.' );
+	check_vpl( 'modules/digitalisimo-content/assets/css/video-playlist-inner.css' === Content_Module::STYLES['digitalisimo-video-playlist-inner'] && array( 'wp-api-fetch' ) === Content_Module::EDITOR_DEPENDS['digitalisimo-video-playlist'], 'El módulo registra la hoja de las pestañas internas y el script del editor depende de wp-api-fetch.' );
 	check_vpl( Video_Playlist::class === ltrim( Content_Module::WIDGETS['digitalisimo-video-playlist']['class'], '\\' ) && 'Lista de videos' === Content_Module::TITLES['digitalisimo-video-playlist'], 'El módulo de contenido registra la clase y el título.' );
 	$css = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/video-playlist.css' );
 	$js  = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/js/video-playlist.js' );
+	$in  = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/css/video-playlist-inner.css' );
+	$ed  = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/js/video-playlist-editor.js' );
 	check_vpl( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
-	check_vpl( strlen( $js ) > 0 && strlen( $js ) <= 6144, 'El script pesa ' . strlen( $js ) . ' B (tope 6 144).' );
+	check_vpl( strlen( $js ) > 0 && strlen( $js ) <= 8192, 'El script pesa ' . strlen( $js ) . ' B (tope 8 192, excepción declarada en elements-front-budget.php).' );
+	check_vpl( strlen( $in ) > 0 && strlen( $in ) <= 4096 && strlen( $ed ) <= 6144 && ! preg_match( '/jQuery|\$\(/', $ed ), 'Hoja de las pestañas internas ≤ 4 KB y script del editor ≤ 6 KB sin jQuery.' );
 	check_vpl( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! preg_match( '/\.(e-|elementor)/', $css ), 'La hoja no usa el kit, url() ni clases de PRO o del núcleo.' );
 	check_vpl( str_contains( $css, '@media (prefers-reduced-motion:reduce)' ) && str_contains( $css, ':focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, 'min-height:24px;min-width:24px' ), 'Movimiento reducido, foco visible de 2 px y botón de 24 × 24 px.' );
 	foreach ( array( 'height:434px', 'width:33%', '#d5d8dc', '#f1f2f3', 'height:55px', 'height:42px', 'width:75px', 'background:#000', '#3f444b', '#0c0d0e', '#1f2124', 'font-size:100px', 'max-width:767px' ) as $look ) {
-		check_vpl( str_contains( $css, $look ), "La hoja reproduce el aspecto de PRO ($look)." );
+		check_vpl( str_contains( $css . $in, $look ), "La hoja reproduce el aspecto de PRO ($look)." );
+	}
+	// Correcciones de fidelidad (docs/pro/c2.md): el título en un botón con el reinicio de PRO, los degradados de la lista y
+	// las pestañas internas apiladas en el móvil.
+	check_vpl( str_contains( $css, '.digi-vpl .digi-vpl__title button{background:none;border:none;border-radius:0;padding:0;text-align:start;transition-duration:unset;width:100%}' ) && str_contains( $css, ':where(.digi-vpl :not(.digi-vpl__title)>button){' ), 'El botón del título sólo con el reinicio de PRO (el común no lo toca).' );
+	check_vpl( str_contains( $css, '.digi-vpl__shadow{display:none;height:98px;pointer-events:none;position:absolute;width:100%}' ) && str_contains( $css, 'linear-gradient(180deg,transparent,#fff)' ) && str_contains( $css, '.digi-vpl__list--top .digi-vpl__shadow--top,.digi-vpl__list--bottom .digi-vpl__shadow--bottom{display:block}' ), 'Degradados de 98 px de PRO arriba y abajo de la lista.' );
+	check_vpl( str_contains( $in, '@media (max-width:767px){.digi-vpl__in:first-child{padding-top:24px}.digi-vpl__in-list{display:none}.digi-vpl__in-panels{border:solid #d5d8dc;border-width:1px 1px 0}' ) && str_contains( $in, 'font-size:16px;font-weight:700;height:38px' ) && str_contains( $in, '.digi-vpl__in-panels>.digi-vpl__in-mob{display:none}' ), 'Pestañas internas en el móvil como PRO: sin la fila, un título por panel y el contenido enmarcado.' );
+	foreach ( array( "'digi-vpl__list--bottom'", "c.toggle('digi-vpl__list--top',t>0)", "'&mute=1'", "'&muted=1'", "has('embed')", "has('lazy')", '.digi-vpl__in-mob', 'make(auto,muted)' ) as $code ) {
+		check_vpl( str_contains( $js, $code ), "El script lo hace como PRO ($code)." );
+	}
+	foreach ( array( "'digitalisimoPlaylist:fetchVideoData'", "'/oembed/1.0/proxy?url='", "'document/elements/settings'", "event: 'listening'", 'maxresdefault.jpg' ) as $code ) {
+		check_vpl( str_contains( $ed, $code ), "«Obtener datos del vídeo» en el editor ($code)." );
 	}
 	check_vpl( ! preg_match( '/jQuery|\$\(|elementorModules|youtube\.com\/iframe_api|player\.vimeo\.com\/api|img\.youtube|vimeo\.com\/api|fetch\(/', $js ), 'El script no usa jQuery, los módulos de PRO ni las API o miniaturas de los servicios.' );
-	check_vpl( str_contains( $js, "'&autoplay=1'" ) && str_contains( $js, 'replaceChildren(f)' ) && str_contains( $js, "aria-selected" ) && str_contains( $js, "'Home'" ) && str_contains( $js, "'End'" ), 'El iframe sólo se crea al reproducir; teclado del patrón de pestañas.' );
+	check_vpl( str_contains( $js, "'&autoplay=1'" ) && str_contains( $js, 'replaceChildren(f)' ) && str_contains( $js, "aria-selected" ) && str_contains( $js, "'Home'" ) && str_contains( $js, "'End'" ), 'El iframe lo crea el script (al reproducir o, sin las fachadas, el del primer vídeo al cargar); teclado del patrón de pestañas.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
 	foreach ( array( 'modules/digitalisimo-content/widgets/class-video-playlist.php', 'modules/digitalisimo-content/assets/css/video-playlist.css', 'modules/digitalisimo-content/assets/js/video-playlist.js', 'modules/digitalisimo-convert/maps/video-playlist.php' ) as $file ) {
 		check_vpl( ! preg_match( $guard, (string) file_get_contents( $root . $file ) ), "$file no nombra lo que la guarda del empaquetado prohíbe." );
@@ -185,9 +201,9 @@ namespace {
 	$map  = require $root . 'modules/digitalisimo-convert/maps/video-playlist.php';
 	$pro  = $controls( new \ElementorPro\Modules\VideoPlaylist\Widgets\Video_Playlist() );
 	$mine = $w;
-	// «Get Video Data» (`vimeo_fetch_data`) es un botón del editor de PRO que pedía los datos al servicio: no guarda valor y
-	// no se repite (el mapa lo declara en `ui`).
-	$pf   = array_diff_key( $pro->controls['tabs']['fields'], array( 'vimeo_fetch_data' => true ) );
+	// «Get Video Data» (`vimeo_fetch_data`) es un botón del editor: no guarda valor (el mapa lo declara en `ui`) y se repite
+	// con su nombre, su condición y su lugar, con el evento propio.
+	$pf   = $pro->controls['tabs']['fields'];
 	$mf   = $mine->controls['tabs']['fields'];
 	check_vpl( array_keys( $pro->controls ) === array_keys( $mine->controls ), 'Mismos controles y en el mismo orden: ' . implode( ', ', array_diff( array_keys( $pro->controls ), array_keys( $mine->controls ) ) ) . ' / ' . implode( ', ', array_diff( array_keys( $mine->controls ), array_keys( $pro->controls ) ) ) );
 	check_vpl( array_keys( $pro->groups ) === array_keys( $mine->groups ), 'Mismos grupos.' );
@@ -196,8 +212,8 @@ namespace {
 	$texts      = array( 'playlist_title', 'inner_tab_title_1', 'inner_tab_title_2', 'inner_tab_label_show_more', 'inner_tab_label_show_less' );
 	$row_texts  = array( 'title', 'inner_tab_content_1' );
 	$vars       = array( '--playlist-item-icon-size' => '--digi-vpl-icon', '--inner-tabs-border-height' => '--digi-vpl-in-border', '--inner-tabs-border-color' => '--digi-vpl-in-color' );
-	// PRO pinta además degradados de desplazamiento y un título móvil de las pestañas internas que el widget propio no tiene.
-	$extra_pro  = array( 'background: linear-gradient(180deg, transparent 0%, {{VALUE}} 100%)', 'background: linear-gradient(0deg, transparent 0%, {{VALUE}} 100%);' );
+	// Los degradados de desplazamiento y el título móvil de las pestañas internas también están en el propio.
+	$extra_pro  = array();
 	$decls      = static function ( array $control ) use ( $vars ) {
 		$out = array();
 		foreach ( (array) ( $control['selectors'] ?? array() ) as $value ) {
@@ -262,7 +278,7 @@ namespace {
 		$type = $pro->controls[ $name ]['type'] ?? ( $pro->controls['tabs']['fields'][ $name ]['type'] ?? '' );
 		check_vpl( in_array( $type, array( 'heading', 'button' ), true ), "$name: no guarda valor ($type)." );
 	}
-	check_vpl( ! isset( $mf['vimeo_fetch_data'] ), 'El botón que pedía los datos al servicio no se repite.' );
+	check_vpl( 'button' === $mf['vimeo_fetch_data']['type'] && 'digitalisimoPlaylist:fetchVideoData' === $mf['vimeo_fetch_data']['event'] && array( 'type' => array( 'youtube', 'vimeo' ) ) === $mf['vimeo_fetch_data']['condition'] && 'Obtener datos del vídeo' === $mf['vimeo_fetch_data']['text'], '«Obtener datos del vídeo», como «Get Video Data» de PRO, con su evento propio.' );
 	check_vpl( 'digitalisimo-video-playlist' === $map['target'] && 'ready' === $map['status'] && 'hide' === $map['panel'], 'Destino, estado listo (A/B en verde) y panel del mapa.' );
 	$markup = (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-video-playlist.php' );
 	foreach ( $map['classes'] as $from => $to ) {
@@ -277,10 +293,11 @@ namespace {
 	check_vpl( 1 === $count( 'aria-selected="true"', $html ) && 2 === $count( 'aria-selected="false"', $html ) && 1 === $count( 'tabindex="-1" data-tab="2"', $html ) && str_contains( $html, 'aria-selected="true" aria-controls="digi-vpl-abc1234-panel-1" tabindex="0" data-tab="1"' ), 'La primera pestaña, elegida y en el orden del tabulador; las demás, con tabindex -1.' );
 	check_vpl( 2 === $count( '" hidden>', $html ) && str_contains( $html, 'id="digi-vpl-abc1234-panel-1" aria-labelledby="digi-vpl-abc1234-tab-1"' ), 'Sólo el primer panel visible, rotulado por su pestaña.' );
 	check_vpl( str_contains( $html, '<span class="digi-vpl__count">3 videos</span>' ) && str_contains( $html, 'aria-expanded="true" aria-controls="digi-vpl-abc1234-list"' ), 'Número de vídeos y botón que pliega la lista.' );
-	check_vpl( 3 === $count( '<h4 class="digi-vpl__title">Video de muestra</h4>', $html ) && 3 === $count( 'class="digi-vpl__img" src="https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png" alt="" loading="lazy" decoding="async"', $html ), 'Títulos y miniaturas de muestra (decorativas: el título ya nombra la pestaña).' );
+	check_vpl( 3 === $count( '<h4 class="digi-vpl__title"><button type="button" tabindex="-1">Video de muestra</button></h4>', $html ) && 3 === $count( 'class="digi-vpl__img" src="https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png" alt="" loading="lazy" decoding="async"', $html ), 'Títulos y miniaturas de muestra (decorativas: el título ya nombra la pestaña).' );
 	check_vpl( 6 === $count( 'viewBox="0 0 512 512"', $html ) && ! str_contains( $html, 'icono-propio' ), 'Iconos de reproducir y de visto de PRO, en SVG en línea.' );
 	check_vpl( ! preg_match( '/<iframe|youtube\.|vimeo\.|data-src|digi-vpl__play"/', $html ), 'Sin dirección no hay reproductor ni botón de reproducir.' );
-	check_vpl( ! str_contains( $html, 'data-next' ) && ! str_contains( $html, 'data-watched' ) && ! str_contains( $html, 'data-onload' ) && str_contains( $html, 'data-digi-vpl="abc1234"' ), 'Opciones del script en atributos de datos.' );
+	check_vpl( ! str_contains( $html, 'data-next' ) && ! str_contains( $html, 'data-watched' ) && ! str_contains( $html, 'data-onload' ) && ! str_contains( $html, 'data-lazy' ) && str_contains( $html, 'data-digi-vpl="abc1234" data-embed>' ), 'Opciones del script en atributos de datos; sin las fachadas, el reproductor del primer vídeo se crea al cargar (data-embed).' );
+	check_vpl( str_contains( $html, '</div><div class="digi-vpl__shadow digi-vpl__shadow--top" aria-hidden="true"></div><div class="digi-vpl__shadow digi-vpl__shadow--bottom" aria-hidden="true"></div></div>' ), 'Degradados de la lista, decorativos.' );
 
 	// 4. Servicios con fachada, vídeo alojado, secciones, miniaturas e imagen superpuesta.
 	$items = array(
@@ -295,12 +312,13 @@ namespace {
 	check_vpl( str_contains( $html, '<h5 class="digi-vpl__sec" role="presentation">Primera parte</h5>' ) && 4 === $count( 'role="tab"', $html ) - $count( 'class="digi-vpl__in-tab', $html ) && str_contains( $html, '<span class="digi-vpl__count">4 videos</span>' ), 'La sección es un separador de la lista y no cuenta como vídeo.' );
 	check_vpl( str_contains( $html, 'id="digi-vpl-abc1234-tab-2" aria-selected="true"' ) && str_contains( $html, 'data-item="yt1"' ), 'Con una sección delante, la primera pestaña elegida es el primer vídeo.' );
 	check_vpl( str_contains( $html, 'data-src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&amp;enablejsapi=1"' ) && str_contains( $html, 'data-src="https://player.vimeo.com/video/76979871?dnt=1"' ), 'YouTube sin cookies y Vimeo sin seguimiento, sólo en data-src.' );
-	check_vpl( ! preg_match( '/<iframe|(?<![\w-])src="https?:\/\/(?!sitio\.test|cdn\.ejemplo\.test)|href="https?:\/\/(?!sitio\.test)|img\.youtube/', $html ), 'Ningún iframe ni recurso de terceros en el marcado (la miniatura del servicio se sustituye).' );
+	check_vpl( ! preg_match( '/<iframe|href="https?:\/\/(?!sitio\.test)/', $html ) && 1 === preg_match_all( '/(?<![\w-])src="https?:\/\/(?!sitio\.test|cdn\.ejemplo\.test)/', $html ) && str_contains( $html, '<img class="digi-vpl__img" src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" alt="" loading="lazy" decoding="async">' ), 'Sin las fachadas, la miniatura guardada del servicio se pinta como en PRO; ningún iframe en el marcado.' );
+	check_vpl( str_contains( $html, '<button type="button" class="digi-vpl__in-mob" aria-expanded="true" aria-controls="digi-vpl-abc1234-inner-5-1">Pestaña 1</button><div class="digi-vpl__in-panel digi-vpl__in-panel--fold" role="tabpanel" id="digi-vpl-abc1234-inner-5-1"' ) && str_contains( $html, '<button type="button" class="digi-vpl__in-mob" aria-expanded="false" aria-controls="digi-vpl-abc1234-inner-5-2">Pestaña 2</button>' ), 'Título móvil de cada panel interno, con su estado.' );
 	check_vpl( 2 === $count( 'aria-label="Reproducir el vídeo: Vídeo uno"', $html ) && 1 === $count( 'aria-label="Reproducir el vídeo: Vimeo"', $html ), 'Botón de la fachada y de la imagen superpuesta con nombre accesible.' );
 	check_vpl( str_contains( $html, '<video class="digi-vpl__video" src="https://sitio.test/wp-content/uploads/video.mp4" controls preload="none" playsinline' ) && str_contains( $html, 'src="https://cdn.ejemplo.test/v.webm" controls preload="none"' ) && ! str_contains( $html, 'autoplay' ), 'Vídeos alojados con preload="none" y sin reproducción automática.' );
 	check_vpl( str_contains( $html, '<img width="1200" height="800" src="https://sitio.test/wp-content/uploads/img-21-full.png" class="digi-vpl__img" alt="" loading="lazy" decoding="async" sizes="75px" srcset=' ), 'Miniatura del adjunto con wp_get_attachment_image() y srcset.' );
 	check_vpl( str_contains( $html, '<div class="digi-vpl__overlay"><img width="1200" height="800" src="https://sitio.test/wp-content/uploads/img-22-large.png" class="digi-vpl__cover" alt=""' ) && 1 === $count( 'digi-vpl__overlay', $html ), 'Imagen superpuesta sólo en el primer vídeo, con el tamaño elegido.' );
-	check_vpl( ! str_contains( $html, '<script' ) && str_contains( $html, '<h4 class="digi-vpl__title">Vídeo uno</h4>' ), 'Título sin scripts y etiqueta no permitida → la de PRO.' );
+	check_vpl( ! str_contains( $html, '<script' ) && str_contains( $html, '<h4 class="digi-vpl__title"><button type="button" tabindex="-1">Vídeo uno</button></h4>' ), 'Título sin scripts, en un botón fuera del orden del teclado como en PRO, y etiqueta no permitida → la de PRO.' );
 	check_vpl( str_contains( $html, ' data-next data-watched' ), 'Siguiente vídeo y vistos.' );
 	check_vpl( 1 === $count( 'class="digi-vpl__in" data-tab="5" hidden', $html ) && 1 === $count( 'role="tablist" aria-label="Contenido: Externo"', $html ) && 2 === $count( 'class="digi-vpl__in-tab', $html ), 'Pestañas internas del vídeo que las muestra, ocultas hasta elegirlo.' );
 	check_vpl( str_contains( $html, 'aria-selected="false" aria-controls="digi-vpl-abc1234-inner-5-2" tabindex="-1">Pestaña 2</button>' ) && 1 === $count( 'class="digi-vpl__in-panel digi-vpl__in-panel--fold" role="tabpanel" id="digi-vpl-abc1234-inner-5-2" aria-labelledby="digi-vpl-abc1234-inner-5-2-tab" hidden', $html ), 'Segunda pestaña interna oculta y plegable.' );
@@ -320,10 +338,11 @@ namespace {
 	$GLOBALS['vpl_facades'] = true;
 	$html                   = $render( $all );
 	check_vpl( str_contains( $html, '<img class="digi-vpl__img" src="https://sitio.test/wp-content/uploads/digitalisimo-elements/facades/youtube-dQw4w9WgXcQ.webp"' ) && str_contains( $html, '<img class="digi-vpl__cover" src="https://sitio.test/wp-content/uploads/digitalisimo-elements/facades/vimeo-76979871.webp"' ), 'Con las fachadas, la portada del servicio la sirve el sitio (miniatura y panel).' );
+	check_vpl( ! preg_match( '/<iframe|(?<![\w-])src="https?:\/\/(?!sitio\.test|cdn\.ejemplo\.test)|img\.youtube/', $html ) && ! str_contains( $html, 'data-embed' ), 'Con las fachadas, ningún recurso de terceros (la miniatura del servicio se sustituye) y el reproductor espera al clic.' );
 	check_vpl( array( array( 'kind' => 'video', 'service' => 'youtube', 'id' => 'dQw4w9WgXcQ' ), array( 'kind' => 'video', 'service' => 'vimeo', 'id' => '76979871' ) ) === Video_Playlist::facade_jobs( $all ), 'facade_jobs(): las portadas que pinta la lista.' );
 	$GLOBALS['vpl_facades'] = false;
 	$html = $render( array( 'tabs' => array( $items[3] ), 'autoplay_on_load' => 'yes', 'show_image_overlay' => 'yes', 'show_thumbnail' => '', 'show_duration' => '', 'show_video_count' => '', 'playlist_title' => '', 'play_icon' => array( 'value' => 'fas fa-star', 'library' => 'fa-solid' ) ) );
-	check_vpl( str_contains( $html, ' data-onload' ) && ! str_contains( $html, 'digi-vpl__overlay' ) && ! str_contains( $html, 'digi-vpl__thumb' ) && ! str_contains( $html, 'digi-vpl__time' ) && ! str_contains( $html, 'digi-vpl__count' ), 'Al cargar sin imagen superpuesta (como PRO); sin miniaturas, duración ni número.' );
+	check_vpl( str_contains( $html, ' data-onload' ) && str_contains( $render( array( 'lazy_load' => 'yes' ) ), ' data-embed data-lazy>' ) && ! str_contains( $html, 'digi-vpl__overlay' ) && ! str_contains( $html, 'digi-vpl__thumb' ) && ! str_contains( $html, 'digi-vpl__time' ) && ! str_contains( $html, 'digi-vpl__count' ), 'Al cargar sin imagen superpuesta (como PRO); sin miniaturas, duración ni número.' );
 	check_vpl( str_contains( $html, '<span class="digi-vpl__icon digi-vpl__icon--play"><svg class="icono-propio" data-icono="fas fa-star"' ), 'Un icono elegido por el usuario, con Icons_Manager.' );
 	check_vpl( ! str_contains( $render( array( 'tabs' => array( array( 'type' => 'youtube', 'youtube_url' => 'https://vimeo.com/1', 'title' => 'x' ) ) ) ), 'data-src' ), 'Una dirección de otro servicio no crea reproductor.' );
 
@@ -366,10 +385,10 @@ namespace {
 		check_vpl( str_contains( $html, 'class="digi-vpl"' ) && str_contains( $html, 'role="tablist"' ), "$label: lo convertido se pinta." );
 		if ( 'por defecto' === $label ) {
 			check_vpl( 'Playlist' === $out['settings']['playlist_title'] && 3 === count( $out['settings']['tabs'] ) && 'Sample Video' === $out['settings']['tabs'][0]['title'] && 'Tab #1' === $out['settings']['inner_tab_title_1'] && 'Show More' === $out['settings']['inner_tab_label_show_more'], 'Por defecto: los textos de PRO pasan al widget propio.' );
-			check_vpl( 3 === $count( '<h4 class="digi-vpl__title">Sample Video</h4>', $html ) && str_contains( $html, '>Playlist</h2>' ), 'Por defecto: se pintan con los textos de PRO.' );
+			check_vpl( 3 === $count( '<h4 class="digi-vpl__title"><button type="button" tabindex="-1">Sample Video</button></h4>', $html ) && str_contains( $html, '>Playlist</h2>' ), 'Por defecto: se pintan con los textos de PRO.' );
 		}
 		if ( 'con todo' === $label ) {
-			check_vpl( in_array( 'pro.approx', $codes, true ) && 'start' === $out['settings']['tabs_alignment'] && 300 === $out['settings']['layout_height_mobile']['size'], 'Con todo: aproximaciones informadas y ajustes por dispositivo.' );
+			check_vpl( ! in_array( 'pro.approx', $codes, true ) && 'yes' === $out['settings']['lazy_load'] && 'yes' === $out['settings']['autoplay_on_load'] && 'start' === $out['settings']['tabs_alignment'] && 300 === $out['settings']['layout_height_mobile']['size'], 'Con todo: sin aproximaciones (carga diferida y «Al cargar» como PRO) y ajustes por dispositivo.' );
 		}
 		if ( 'dinámicos' === $label ) {
 			check_vpl( isset( $out['settings']['__dynamic__']['playlist_title'], $out['settings']['tabs'][0]['__dynamic__']['youtube_url'], $out['settings']['__globals__']['active_color'], $out['settings']['__globals__']['normal_typography_typography'] ), 'Dinámicos y globales, también en las filas.' );
@@ -379,7 +398,10 @@ namespace {
 		}
 	}
 
-	// 6. Página de prueba del navegador (tests/elements-pro-video-playlist-chrome.mjs): el marcado de hoy.
+	// 6. Páginas de prueba del navegador (tests/elements-pro-video-playlist-chrome.mjs): el marcado de hoy. La primera, con
+	// las fachadas de vídeo del sitio aplicadas (nada de terceros antes del clic; sus portadas, servidas por el sitio, pasan
+	// a rutas locales); la segunda, sin ellas, como PRO (el reproductor del primer vídeo al cargar o al acercarse).
+	$GLOBALS['vpl_facades'] = true;
 	$mp4    = '/tests/playground/front-budget/digi-medicion.mp4';
 	$widget_html = static function ( string $id, array $settings ) use ( $widget ): string {
 		$w     = $widget( $settings );
@@ -391,8 +413,8 @@ namespace {
 	$long    = '<p>' . str_repeat( 'Texto largo de la transcripción. ', 30 ) . '</p>';
 	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Lista de videos</title>\n";
 	$fixture .= "<!-- Generada por tests/elements-pro-video-playlist.php (--write); la usa tests/elements-pro-video-playlist-chrome.mjs. -->\n";
-	$fixture .= "<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-element{margin:0 0 40px}.spacer{height:1800px}button{border:1px solid #c36;padding:.5rem 1rem;color:#c36}.elementor-element .digi-vpl__in-panel--fold:not(.digi-vpl__in-panel--open) .digi-vpl__in-text{height:54px}</style>\n";
-	$fixture .= "<link rel=\"stylesheet\" href=\"/digitalisimo-elements/modules/digitalisimo-content/assets/css/video-playlist.css\">\n</head><body>\n";
+	$fixture .= "<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-element{margin:0 0 40px}.spacer{height:1800px}button{border:1px solid #c36;padding:.5rem 1rem;color:#c36}[type=button]:hover{background-color:#c36;color:#fff}.elementor-element .digi-vpl__in-panel--fold:not(.digi-vpl__in-panel--open) .digi-vpl__in-text{height:54px}</style>\n";
+	$fixture .= "<link rel=\"stylesheet\" href=\"/digitalisimo-elements/modules/digitalisimo-content/assets/css/video-playlist.css\">\n<link rel=\"stylesheet\" href=\"/digitalisimo-elements/modules/digitalisimo-content/assets/css/video-playlist-inner.css\">\n</head><body>\n";
 	$fixture .= $widget_html(
 		'w1',
 		array(
@@ -423,11 +445,26 @@ namespace {
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $widget_html( 'w3', array( 'autoplay_on_load' => 'yes', 'tabs' => array( array( '_id' => 'z', 'type' => 'hosted', 'hosted_url' => array( 'url' => $mp4 ), 'title' => 'Al cargar', 'thumbnail' => array( 'url' => '' ) ) ) ) );
 	$fixture .= "<script src=\"/digitalisimo-elements/modules/digitalisimo-content/assets/js/video-playlist.js\" defer></script>\n</body></html>\n";
-	$path = __DIR__ . '/fixtures/video-playlist.html';
-	if ( in_array( '--write', $argv ?? array(), true ) ) {
-		file_put_contents( $path, $fixture );
+	$fixture  = str_replace( 'https://sitio.test/', '/', $fixture );
+	$GLOBALS['vpl_facades'] = false;
+	list( $head ) = explode( '<div class="elementor-element', $fixture, 2 );
+	$rows = array( array( '_id' => 'p1', 'type' => 'youtube', 'youtube_url' => 'https://youtu.be/aaaaaaaaaaa', 'title' => 'Primero', 'thumbnail' => array( 'url' => 'https://img.youtube.com/vi/aaaaaaaaaaa/maxresdefault.jpg' ) ), array( '_id' => 'p2', 'type' => 'vimeo', 'vimeo_url' => 'https://vimeo.com/76979871', 'title' => 'Segundo', 'thumbnail' => array( 'url' => '' ) ) );
+	for ( $n = 3; $n <= 10; $n++ ) {
+		$rows[] = array( '_id' => 'p' . $n, 'type' => 'hosted', 'hosted_url' => array( 'url' => $mp4 ), 'title' => 'Vídeo ' . $n, 'thumbnail' => array( 'url' => '' ) );
 	}
-	check_vpl( is_file( $path ) && file_get_contents( $path ) === $fixture, 'tests/fixtures/video-playlist.html es el marcado de hoy (regenerar con --write).' );
+	$pro  = str_replace( 'deo-playlist-chrome.mjs. -->', 'deo-playlist-chrome.mjs; sin las fachadas del sitio. -->', $head );
+	$pro .= $widget_html( 'p1', array( 'tabs' => $rows ) );
+	$pro .= $widget_html( 'p3', array( 'autoplay_on_load' => 'yes', 'tabs' => array( $rows[1], $rows[0] ) ) );
+	$pro .= "<div class=\"spacer\"></div>\n";
+	$pro .= $widget_html( 'p2', array( 'lazy_load' => 'yes', 'tabs' => array( $rows[0] ) ) );
+	$pro .= "<script src=\"/digitalisimo-elements/modules/digitalisimo-content/assets/js/video-playlist.js\" defer></script>\n</body></html>\n";
+	foreach ( array( 'video-playlist' => $fixture, 'video-playlist-pro' => $pro ) as $file => $page ) {
+		$path = __DIR__ . '/fixtures/' . $file . '.html';
+		if ( in_array( '--write', $argv ?? array(), true ) ) {
+			file_put_contents( $path, $page );
+		}
+		check_vpl( is_file( $path ) && file_get_contents( $path ) === $page, "tests/fixtures/$file.html es el marcado de hoy (regenerar con --write)." );
+	}
 
 	echo 'DIGITALÍSIMO Elements: Lista de videos (' . count( $mine->controls ) . ' controles, ' . count( $mf ) . ' campos del repetidor, ' . count( $mine->groups ) . ' grupos, hoja de ' . strlen( $css ) . ' B, script de ' . strlen( $js ) . ' B) y su mapa desde el Video Playlist de PRO (' . count( $cases ) . " casos) validados.\n";
 }
