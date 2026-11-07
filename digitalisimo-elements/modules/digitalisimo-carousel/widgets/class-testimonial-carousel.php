@@ -25,8 +25,10 @@ defined( 'ABSPATH' ) || exit;
  * Pico de la burbuja: en un testimonio nuevo apunta a la imagen en cada dispositivo. En lo convertido de PRO, el mapa
  * fija `pro_bubble` y el pico queda donde lo dejaba PRO (`PRO_BUBBLE`).
  *
- * Diferencias declaradas con PRO: la imagen se pinta con `wp_get_attachment_image()` (con `srcset`) y la carga diferida
- * es la nativa del navegador, con el indicador de carga de PRO.
+ * Diferencias declaradas con PRO: en un testimonio nuevo el pico apunta a la imagen también con «Derecha» y en cada
+ * dispositivo (PRO lo colocaba sólo con la alineación de escritorio y, con «Derecha», lo dejaba a la izquierda salvo con
+ * «Tamaño» de la imagen; lo convertido lo conserva con `pro_bubble`); la imagen se pinta con `wp_get_attachment_image()`
+ * (con `srcset`) y la carga diferida es la nativa del navegador, con el indicador de carga de PRO.
  */
 class Testimonial_Carousel extends Base_Widget {
 
