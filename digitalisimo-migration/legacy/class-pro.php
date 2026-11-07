@@ -105,6 +105,9 @@ final class Pro {
 		}
 		$out = array();
 		if ( self::available() ) {
+			// Los widgets registrados antes de leer los mapas: el del Formulario suma las claves de las acciones de envío
+			// de terceros, que sólo existen con los widgets registrados (en un tic que empieza en esta etapa, nada lo hizo).
+			self::registered( '' );
 			$registry = self::REGISTRY;
 			foreach ( (array) $registry::all() as $source => $map ) {
 				$target = (string) ( $map['target'] ?? '' );

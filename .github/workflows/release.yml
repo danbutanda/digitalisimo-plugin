@@ -372,6 +372,7 @@ jobs:
           php tests/elements-kit-integration.php
           php tests/elements-kit-pro-convert.php
           php tests/elements-kit-pro-global.php
+          php tests/elements-pro-global-link.php
           node tests/elements-kit-static.mjs
           node tests/elements-kit-inventory.mjs
           node tests/elements-kit-app-guard.mjs
