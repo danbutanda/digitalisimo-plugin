@@ -327,8 +327,10 @@ final class Hello_Header_Footer {
 			}
 		}
 		if ( 'footer' === $part && 'stacked' !== $layout ) {
-			// header-footer.css: en pantallas de 576 px o menos, cada parte del pie ocupa una fila centrada.
-			$css[] = '@media(max-width:576px){selector .elementor-element{max-width:none;text-align:center;width:100%}selector .e-con{display:block}selector .elementor-nav-menu{justify-content:center;margin-inline:auto}}';
+			// header-footer.css: en pantallas de 576 px o menos, cada parte del pie ocupa una fila centrada. La lista del menú se
+			// nombra con la clase de PRO y con la del Menú de WordPress propio (`.digi-nav__list`): este CSS es del contenedor,
+			// así que «Migrar» y los kits, que convierten el menú, no lo traducen.
+			$css[] = '@media(max-width:576px){selector .elementor-element{max-width:none;text-align:center;width:100%}selector .e-con{display:block}selector :is(.elementor-nav-menu,.digi-nav__list){justify-content:center;margin-inline:auto}}';
 		}
 		$settings['custom_css'] = implode( '', $css );
 
