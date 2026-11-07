@@ -179,7 +179,7 @@ namespace {
 	}
 	// Correcciones de fidelidad (docs/pro/c2.md): el título en un botón con el reinicio de PRO, los degradados de la lista y
 	// las pestañas internas apiladas en el móvil.
-	check_vpl( str_contains( $css, '.digi-vpl__title button{background:none;border:none;border-radius:0;padding:0;text-align:start;transition-duration:unset;width:100%}' ) && str_contains( $css, ':where(.digi-vpl :not(.digi-vpl__title)>button){' ), 'El botón del título sólo con el reinicio de PRO (el común no lo toca).' );
+	check_vpl( str_contains( $css, '.digi-vpl .digi-vpl__title button{background:none;border:none;border-radius:0;padding:0;text-align:start;transition-duration:unset;width:100%}' ) && str_contains( $css, ':where(.digi-vpl :not(.digi-vpl__title)>button){' ), 'El botón del título sólo con el reinicio de PRO (el común no lo toca).' );
 	check_vpl( str_contains( $css, '.digi-vpl__shadow{display:none;height:98px;pointer-events:none;position:absolute;width:100%}' ) && str_contains( $css, 'linear-gradient(180deg,transparent,#fff)' ) && str_contains( $css, '.digi-vpl__list--top .digi-vpl__shadow--top,.digi-vpl__list--bottom .digi-vpl__shadow--bottom{display:block}' ), 'Degradados de 98 px de PRO arriba y abajo de la lista.' );
 	check_vpl( str_contains( $in, '@media (max-width:767px){.digi-vpl__in:first-child{padding-top:24px}.digi-vpl__in-list{display:none}.digi-vpl__in-panels{border:solid #d5d8dc;border-width:1px 1px 0}' ) && str_contains( $in, 'font-size:16px;font-weight:700;height:38px' ) && str_contains( $in, '.digi-vpl__in-panels>.digi-vpl__in-mob{display:none}' ), 'Pestañas internas en el móvil como PRO: sin la fila, un título por panel y el contenido enmarcado.' );
 	foreach ( array( "'digi-vpl__list--bottom'", "c.toggle('digi-vpl__list--top',t>0)", "'&mute=1'", "'&muted=1'", "has('embed')", "has('lazy')", '.digi-vpl__in-mob', 'make(auto,muted)' ) as $code ) {
@@ -399,7 +399,7 @@ namespace {
 	$long    = '<p>' . str_repeat( 'Texto largo de la transcripción. ', 30 ) . '</p>';
 	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Lista de videos</title>\n";
 	$fixture .= "<!-- Generada por tests/elements-pro-video-playlist.php (--write); la usa tests/elements-pro-video-playlist-chrome.mjs. -->\n";
-	$fixture .= "<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-element{margin:0 0 40px}.spacer{height:1800px}button{border:1px solid #c36;padding:.5rem 1rem;color:#c36}.elementor-element .digi-vpl__in-panel--fold:not(.digi-vpl__in-panel--open) .digi-vpl__in-text{height:54px}</style>\n";
+	$fixture .= "<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-element{margin:0 0 40px}.spacer{height:1800px}button{border:1px solid #c36;padding:.5rem 1rem;color:#c36}[type=button]:hover{background-color:#c36;color:#fff}.elementor-element .digi-vpl__in-panel--fold:not(.digi-vpl__in-panel--open) .digi-vpl__in-text{height:54px}</style>\n";
 	$fixture .= "<link rel=\"stylesheet\" href=\"/digitalisimo-elements/modules/digitalisimo-content/assets/css/video-playlist.css\">\n<link rel=\"stylesheet\" href=\"/digitalisimo-elements/modules/digitalisimo-content/assets/css/video-playlist-inner.css\">\n</head><body>\n";
 	$fixture .= $widget_html(
 		'w1',

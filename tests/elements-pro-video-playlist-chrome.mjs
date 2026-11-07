@@ -198,6 +198,8 @@ ok(m.list === 'none' && m.titles[0] === 'block 38 16px 700 rgb(0, 0, 0) true' &&
 await page.click('[data-id="w1"] .digi-vpl__in-mob[aria-expanded="false"]');
 m = await mob();
 ok(m.panels === '-X' && /true$/.test(m.titles[1]) && /false$/.test(m.titles[0]), 'Móvil: el título del panel cerrado lo abre en lugar del otro: ' + JSON.stringify(m));
+await page.hover('[data-id="w1"] .digi-vpl__in-mob');
+ok(await page.$eval('[data-id="w1"] .digi-vpl__in-mob', b => getComputedStyle(b).backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(b).color === 'rgb(0, 0, 0)'), 'Móvil: con el cursor, el título no toma el fondo ni el color de los botones del tema.');
 await page.click('[data-id="w1"] .digi-vpl__fold');
 ok(await page.$eval('[data-id="w1"]', w => w.querySelector('.digi-vpl__fold').getAttribute('aria-expanded') === 'false' && getComputedStyle(w.querySelector('.digi-vpl__list')).display === 'none'), 'Plegada: aria-expanded="false" y la lista oculta.');
 const stage = await page.$eval('[data-id="w1"] .digi-vpl__stage', e => [e.getBoundingClientRect().width, e.getBoundingClientRect().height]);
@@ -234,6 +236,10 @@ ok(/^true\|false\|block\|none/.test(await shade()), 'Al final: sólo arriba: ' +
 // El título en un botón con la letra de los botones del navegador y del tema (fuera del orden del teclado).
 const title = await page.$eval('[data-id="p1"] .digi-vpl__title button', b => [b.tabIndex, getComputedStyle(b).fontSize, getComputedStyle(b).borderTopStyle, getComputedStyle(b).paddingLeft, getComputedStyle(b).color, b.textContent].join('|'));
 ok(title === '-1|13.3333px|none|0px|rgb(204, 51, 102)|Primero', 'El título en un botón, como PRO (13,33 px del navegador, el color de los botones del tema y sin su borde ni su relleno): ' + title);
+await page.hover('[data-id="p1"] #digi-vpl-p1-tab-2 .digi-vpl__title button');
+await sleep(100);
+const hovered = await page.$eval('[data-id="p1"] #digi-vpl-p1-tab-2 .digi-vpl__title button', b => getComputedStyle(b).backgroundColor);
+ok(hovered === 'rgba(0, 0, 0, 0)', 'Con el cursor, el botón del título no toma el fondo de los botones del tema (como PRO): ' + hovered);
 await page.click('[data-id="p1"] #digi-vpl-p1-tab-3 .digi-vpl__title button');
 await sleep(200);
 ok((await state(page, 'p1')).selected === '--X-------', 'Pulsar el título elige su pestaña.');
