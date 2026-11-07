@@ -290,6 +290,103 @@
     "R1c"
    ],
    "motivo": "§17 (C9): las Plantillas de PRO cuentan en B como Plantillas propias y la instancia global como su contenido (un Encabezado); ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:(archivo-del-kit|elemento-de-bucle(-alterno)?|entrada-del-kit|pagina-hija-del-kit)\\.data\\.0\\.elements\\.[01]|page:(controles-de-documento\\.data\\.0\\.elements\\.1|estado-al-fijarse\\.data\\.0\\.elements\\.2))\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"theme-(archive-title|post-title|post-content|post-featured-image|site-logo)\"$",
+   "valor_b": "^\"digitalisimo-(archive-title|post-title|post-content|featured-image|site-logo)\"$",
+   "motivo": "§17 (C4 del programa «sin widgets de PRO»): al importar, los widgets del Theme Builder de PRO con mapa listo llegan como los propios (Kits\\Pro_Convert con Convert\\Converter), con el mismo id: Título del archivo (plantilla de archivo), Título de la entrada (plantilla de entrada y los dos elementos de bucle), Contenido de la entrada (plantilla de entrada y de página hija), Imagen destacada (controles de documento) y Logotipo del sitio (estado al fijarse)"
+  },
+  {
+   "ruta": "^documents\\.(elementor_library:(archivo-del-kit|elemento-de-bucle(-alterno)?|entrada-del-kit|pagina-hija-del-kit)\\.data\\.0\\.elements\\.[01]|page:(controles-de-documento\\.data\\.0\\.elements\\.1|estado-al-fijarse\\.data\\.0\\.elements\\.2))\\.settings\\.(header_size|link_to|image_size|_digitalisimo_pro)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^\"(h1|site_url|full|theme-(archive-title|post-title|post-content|post-featured-image|site-logo))\"$",
+   "motivo": "§17 (C4): los mapas de C4 (digitalisimo-convert/maps/theme-archive-title.php, theme-post-title.php, theme-post-content.php, theme-post-featured-image.php y theme-site-logo.php) conservan todos los ajustes de A; sólo materializan el valor por defecto que PRO cambia y Elementor no guarda (header_size h1 en los títulos; image_size full y link_to site_url en el logotipo) y dejan la marca _digitalisimo_pro con el tipo original"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-author-box-extras\\.data\\.0\\.elements\\.0\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"author-box\"$",
+   "valor_b": "^\"digitalisimo-author-box\"$",
+   "motivo": "§17 (C4): al importar, la Caja de autor de PRO con mapa listo llega como Caja de autor propia (Convert\\Converter), con el mismo id; el Perfil ampliado vale para las dos y la autora elegida sigue sin viajar (ver la entrada de digitalisimo_author_user de esta página)"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-author-box-extras\\.data\\.0\\.elements\\.0\\.settings\\.(author_bio|link_text|_digitalisimo_pro)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\\(no existe\\)$",
+   "motivo": "§17 (C4): el mapa de la Caja de autor (digitalisimo-convert/maps/author-box.php) conserva los ajustes de A, materializa los textos por defecto que PRO pintaba en el idioma del sitio y Elementor no guarda (la biografía y el texto del enlace) y deja la marca _digitalisimo_pro"
+  },
+  {
+   "ruta": "^(documents\\.(elementor_library:(archivo-del-kit|elemento-de-bucle(-alterno)?|entrada-del-kit|pagina-hija-del-kit)|page:(controles-de-documento|estado-al-fijarse|rasgo-author-box-extras))\\.counts|counts\\.elements)\\.(theme-(archive-title|post-title|post-content|post-featured-image|site-logo)|author-box)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_b": "^\\(no existe\\)$",
+   "motivo": "§17 (C4): ningún widget de PRO de C4 queda en B; cada uno cuenta como su propio (entrada siguiente)"
+  },
+  {
+   "ruta": "^(documents\\.(elementor_library:(archivo-del-kit|elemento-de-bucle(-alterno)?|entrada-del-kit|pagina-hija-del-kit)|page:(controles-de-documento|estado-al-fijarse|rasgo-author-box-extras))\\.counts|counts\\.elements)\\.digitalisimo-(archive-title|post-title|post-content|featured-image|site-logo|author-box)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C4): los widgets de PRO de C4 de esas plantillas y páginas cuentan en B como los propios, que suman a las páginas de widget propio que A ya tenía; el total de elementos no cambia y ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-form-conditions\\.data\\.0\\.elements\\.0\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"form\"$",
+   "valor_b": "^\"digitalisimo-form\"$",
+   "motivo": "§17 (C6): al importar, el Formulario de PRO del rasgo de campos condicionales (F7b) llega como Formulario propio (Convert\\Converter), con el mismo id; sus campos y sus reglas condicionales no cambian"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-form-conditions\\.data\\.0\\.elements\\.0\\.settings\\.(button_text|step_next_label|step_previous_label|success_message|error_message|server_message|invalid_message|required_field_message|_digitalisimo_pro)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\\(no existe\\)$",
+   "motivo": "§17 (C6): el mapa del Formulario (digitalisimo-convert/maps/form.php) conserva los ajustes de A, materializa los textos por defecto que PRO pintaba en el idioma del sitio y Elementor no guarda (botón, pasos y mensajes) y deja la marca _digitalisimo_pro"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-form-conditions\\.counts\\.(form|digitalisimo-form)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17 (C6): el Formulario de PRO del rasgo cuenta en B como Formulario propio; el recuento global (counts.elements) ya lo declara la entrada del Formulario de «Inicio del kit»; ningún elemento se pierde"
+  },
+  {
+   "ruta": "^documents\\.page:widget-digitalisimo-author-box\\.data\\.0\\.elements\\.0\\.settings\\.digitalisimo_author_user$",
+   "escenarios": ["R1", "R1c"],
+   "valor_a": "^\"user:autora\"$",
+   "valor_b": "^\"\"$",
+   "motivo": "la autora elegida en la Caja de autor propia (caso de C4) es un usuario: no viaja (§9.2, kind user), como en rasgo-author-box-extras"
+  },
+  {
+   "ruta": "^documents\\.page:widget-digitalisimo-(post|site)-title\\.data\\.0\\.elements\\.0\\.settings\\.__dynamic__\\.title\\.settings\\.(before|after|fallback)$",
+   "escenarios": ["R1", "R1c"],
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^\"\"$",
+   "motivo": "al importar, el núcleo vuelve a escribir cada etiqueta dinámica con los valores por defecto de sus controles (E:elementor/includes/base/element-base.php on_import_update_dynamic_content → manager.php tag_to_text con get_settings()); las de texto (post-title, site-title) tienen before, after y fallback vacíos (E:elementor/core/dynamic-tags/tag.php:84-120): mismo comportamiento, como la etiqueta de popup"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
