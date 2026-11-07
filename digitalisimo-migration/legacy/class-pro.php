@@ -23,12 +23,19 @@ defined( 'ABSPATH' ) || exit;
  *   guardado en su plantilla de la biblioteca (`template_content()` la lee del sitio); lo que queda dentro se convierte
  *   con los mapas en la misma pasada. La plantilla no se borra y `--revert` devuelve la instancia (copia original). Una
  *   instancia sin plantilla se queda como está y el informe lo dice (`pro.global_missing`).
+ * - CSS del sitio que nombra clases de PRO (`Convert\Site_Css` de Elements; corrección de fidelidad de C5 y C6): en cada
+ *   documento convertido, el CSS personalizado de la página y de los demás elementos; al terminar la etapa, el del kit
+ *   activo y el CSS adicional del Personalizador (`site_css()`). Detrás de cada regla que nombra clases de PRO va su
+ *   traducción, marcada (`Site_Css::MARK`); la regla original no cambia. `revert()` (en `--revert`) quita sólo las
+ *   reglas marcadas, sin pisar lo editado después. Lo que no puede escribir (fragmentos de código, archivos del tema)
+ *   se queda como está.
  */
 final class Pro {
 	const CONVERTER = '\\Digitalisimo\\Elements\\Convert\\Converter';
 	const CATALOG   = '\\Digitalisimo\\Elements\\Convert\\Catalog';
 	const REGISTRY  = '\\Digitalisimo\\Elements\\Convert\\Registry';
 	const GLOBALS   = '\\Digitalisimo\\Elements\\Convert\\Globals';
+	const SITE_CSS  = '\\Digitalisimo\\Elements\\Convert\\Site_Css';
 	/** Ajuste que deja en el elemento la sustitución de un widget global (su plantilla de origen). */
 	const GLOBAL_KEY = '_digitalisimo_global';
 	/** Marca que el traductor de Elements deja en los ajustes de un widget convertido. */
@@ -253,6 +260,15 @@ final class Pro {
 		if ( ! $log ) {
 			return $none;
 		}
+		// CSS de los demás elementos del documento y de la página que nombra clases de PRO: su traducción detrás.
+		$css_places = array();
+		if ( self::site_css_available() ) {
+			$site_css               = self::SITE_CSS;
+			list( $data, $elements ) = $site_css::tree( $data );
+			if ( $elements ) {
+				$css_places[] = array( 'name' => 'custom_css', 'count' => $elements );
+			}
+		}
 		$json   = (string) wp_json_encode( $data );
 		$backup = (string) get_metadata( 'post', $post_id, Migration::BACKUP, true );
 		$mark   = Migration::f8_mark( $post_id );
@@ -268,11 +284,109 @@ final class Pro {
 			$mark['hash'] = md5( $json );
 			update_metadata( 'post', $post_id, Migration::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
 		}
+		if ( self::page_css( $post_id ) ) {
+			$css_places[] = array( 'name' => '_elementor_page_settings.custom_css', 'count' => 1 );
+		}
 		Migration::clear_css( $post_id );
 		foreach ( self::codes( $log ) as $item ) {
 			Report::add( $post_id, $item[0], $item[1] );
 		}
+		foreach ( $css_places as $place ) {
+			Report::add( $post_id, 'pro.site_css', $place );
+		}
 		return array( 'converted' => count( $log ), 'blocked' => array() );
+	}
+
+	/* ---------------------------------------------------------------- CSS del sitio */
+
+	/** ¿Traduce esta versión de Elements el CSS del sitio? */
+	public static function site_css_available(): bool {
+		return self::available() && class_exists( self::SITE_CSS );
+	}
+
+	/** CSS personalizado de la página (o del kit) con la traducción de las clases de PRO; true si cambió. */
+	private static function page_css( int $post_id ): bool {
+		if ( ! self::site_css_available() ) {
+			return false;
+		}
+		$settings = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+		if ( ! is_array( $settings ) || empty( $settings['custom_css'] ) || ! is_string( $settings['custom_css'] ) ) {
+			return false;
+		}
+		$site_css = self::SITE_CSS;
+		$css      = $site_css::rewrite( $settings['custom_css'] );
+		if ( $css === $settings['custom_css'] ) {
+			return false;
+		}
+		$settings['custom_css'] = $css;
+		update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $settings ) );
+		return true;
+	}
+
+	/**
+	 * Al terminar la etapa `pro`: el CSS personalizado del kit activo y el CSS adicional del Personalizador del tema
+	 * activo, con la traducción de las clases de PRO detrás de cada regla. Idempotente (las reglas marcadas de una pasada
+	 * anterior se rehacen). Devuelve los lugares que cambiaron.
+	 *
+	 * @return string[]
+	 */
+	public static function site_css(): array {
+		$done = array();
+		if ( ! self::site_css_available() ) {
+			return $done;
+		}
+		$kit = (int) get_option( 'elementor_active_kit', 0 );
+		if ( $kit > 0 && self::page_css( $kit ) ) {
+			Migration::clear_css( $kit );
+			Report::add( $kit, 'pro.site_css', array( 'name' => 'kit.custom_css', 'count' => 1 ) );
+			$done[] = 'kit';
+		}
+		if ( function_exists( 'wp_get_custom_css_post' ) && function_exists( 'wp_update_custom_css_post' ) ) {
+			$post = wp_get_custom_css_post();
+			if ( $post && is_string( $post->post_content ) && '' !== $post->post_content ) {
+				$site_css = self::SITE_CSS;
+				$css      = $site_css::rewrite( $post->post_content );
+				if ( $css !== $post->post_content ) {
+					$saved = wp_update_custom_css_post( $css );
+					if ( $saved && ! is_wp_error( $saved ) ) {
+						Report::add( (int) $post->ID, 'pro.site_css', array( 'name' => 'customizer.custom_css', 'count' => 1 ) );
+						$done[] = 'customizer';
+					}
+				}
+			}
+		}
+		return $done;
+	}
+
+	/**
+	 * `--revert` (Runner::REVERT_EXTRA, antes de restaurar los documentos): quita las reglas que añadió la traducción del
+	 * CSS del sitio (las marcadas) del CSS de la página de cada documento con copia, del kit activo y del CSS adicional del
+	 * tema activo; lo editado después se conserva. El CSS de los elementos vuelve con la copia de cada documento.
+	 *
+	 * @return array<int, array{0:string, 1:array}>
+	 */
+	public static function revert( bool $force = false ): array {
+		unset( $force );
+		if ( ! self::site_css_available() ) {
+			return array();
+		}
+		$site_css = self::SITE_CSS;
+		$ids      = array_merge( Migration::backups(), array( (int) get_option( 'elementor_active_kit', 0 ) ) );
+		foreach ( array_unique( array_filter( array_map( 'intval', $ids ) ) ) as $post_id ) {
+			$settings = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+			if ( is_array( $settings ) && isset( $settings['custom_css'] ) && is_string( $settings['custom_css'] ) && $site_css::marked( $settings['custom_css'] ) ) {
+				$settings['custom_css'] = $site_css::strip( $settings['custom_css'] );
+				update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $settings ) );
+				Migration::clear_css( $post_id );
+			}
+		}
+		if ( function_exists( 'wp_get_custom_css_post' ) && function_exists( 'wp_update_custom_css_post' ) ) {
+			$post = wp_get_custom_css_post();
+			if ( $post && is_string( $post->post_content ) && $site_css::marked( $post->post_content ) ) {
+				wp_update_custom_css_post( $site_css::strip( $post->post_content ) );
+			}
+		}
+		return array();
 	}
 
 	/** Marca F8 de un documento que la migración toca por primera vez (mismo formato que Migration::mark_data()). */

@@ -64,7 +64,7 @@ final class Runner {
 	const PREPARE_STEPS  = array( 'Theme_Builder', 'Fonts', 'Icons', 'Snippets', 'Sidebar' );
 	const PLATFORM_STEPS = array( 'Theme_Builder', 'Mega_Menu', 'Kit', 'Snippets', 'Swatches', 'Inventory' );
 	/** Lo que se revierte tras los pasos de plataforma y antes de los documentos (V.8). */
-	const REVERT_EXTRA = array( 'Prime_Slider\\Loop_Item', 'Prime_Slider\\Demo_Media' );
+	const REVERT_EXTRA = array( 'Prime_Slider\\Loop_Item', 'Prime_Slider\\Demo_Media', 'Pro' );
 	const LABELS      = array(
 		'prepare'          => 'Revisando el sitio',
 		'platform_prepare' => 'Preparando plantillas, fuentes e iconos',
@@ -1133,7 +1133,14 @@ final class Runner {
 				$state['counts']['pro_elements'] = (int) ( $state['counts']['pro_elements'] ?? 0 ) + (int) $result['converted'];
 			}
 		} );
-		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'retire_late' ) : $state;
+		if ( $complete && count( $batch ) < self::BATCH ) {
+			// Al terminar: el CSS del kit y el CSS adicional que nombran clases de PRO (Pro::site_css()).
+			if ( self::has( 'Pro', 'site_css' ) ) {
+				Pro::site_css();
+			}
+			return self::next( $state, 'retire_late' );
+		}
+		return $state;
 	}
 
 	/** Documentos (no revisiones) con widgets de Prime Slider, para la retirada tardía. */

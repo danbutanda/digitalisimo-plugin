@@ -26,10 +26,16 @@ defined( 'ABSPATH' ) || exit;
  *
  * Las plantillas sueltas de la biblioteca, las revisiones y los valores por defecto de elementos del kit no se
  * convierten: siguen con el widget de PRO, que queda registrado, y «Migrar» los convierte.
+ *
+ * **CSS que nombra clases de PRO** (corrección de fidelidad de C5 y C6): en cada documento que se guarda (también el kit,
+ * con su CSS personalizado de «Ajustes del sitio»), el CSS personalizado de la página y el de los elementos gana, detrás
+ * de cada regla que nombra clases de PRO, su traducción a las clases propias (`Convert\Site_Css` del núcleo de
+ * conversión; la regla original no cambia). Se informa `pro.site_css`.
  */
 final class Pro_Convert {
 	const CONVERTER = '\\Digitalisimo\\Elements\\Convert\\Converter';
 	const REGISTRY  = '\\Digitalisimo\\Elements\\Convert\\Registry';
+	const SITE_CSS  = '\\Digitalisimo\\Elements\\Convert\\Site_Css';
 
 	/** Prefijo de todos los códigos que esta pieza lleva al informe. */
 	const PREFIX = 'pro.';
@@ -42,6 +48,7 @@ final class Pro_Convert {
 		'pro.dropped'        => Part_Context::WARNING,
 		'pro.unmapped'       => Part_Context::WARNING,
 		'pro.target_missing' => Part_Context::WARNING,
+		'pro.site_css'       => Part_Context::INFO,
 		'pro.global'         => Part_Context::INFO,
 		'pro.global_missing' => Part_Context::WARNING,
 	);
@@ -86,20 +93,56 @@ final class Pro_Convert {
 	 * @param callable|null $report `( string $code, array $data, string $level )`; por defecto, `Context::report()`.
 	 */
 	public static function on_save_data( array $data, $document = null, ?callable $report = null ): array {
-		if ( empty( $data['elements'] ) || ! is_array( $data['elements'] ) || ! self::available() ) {
+		if ( ! self::available() ) {
 			return $data;
 		}
-		list( $elements, $log ) = self::tree( $data['elements'] );
+		$log = array();
+		if ( ! empty( $data['elements'] ) && is_array( $data['elements'] ) ) {
+			list( $elements, $log ) = self::tree( $data['elements'] );
+			if ( $log ) {
+				$data['elements'] = $elements;
+			}
+		}
+		list( $data, $css ) = self::site_css( $data );
+		$log                = array_merge( $log, $css );
 		if ( ! $log ) {
 			return $data;
 		}
-		$data['elements'] = $elements;
 		$post             = is_object( $document ) && method_exists( $document, 'get_main_id' ) ? (int) $document->get_main_id() : 0;
 		$report           = null !== $report ? $report : array( __NAMESPACE__ . '\\Context', 'report' );
 		foreach ( $log as $item ) {
 			call_user_func( $report, $item['code'], ( $post > 0 ? array( 'post' => $post ) : array() ) + $item['data'], $item['level'] );
 		}
 		return $data;
+	}
+
+	/**
+	 * CSS personalizado de la página (o del kit) y de los elementos que nombra clases de PRO: su traducción detrás de cada
+	 * regla (`Convert\Site_Css`). Pura.
+	 *
+	 * @return array{0: array, 1: array[]} Datos del guardado y lista de `{ code, level, data }`.
+	 */
+	public static function site_css( array $data ): array {
+		$log   = array();
+		$class = self::SITE_CSS;
+		if ( ! self::available() || ! class_exists( $class ) ) {
+			return array( $data, $log );
+		}
+		if ( ! empty( $data['elements'] ) && is_array( $data['elements'] ) ) {
+			list( $elements, $changed ) = $class::tree( $data['elements'] );
+			if ( $changed ) {
+				$data['elements'] = $elements;
+				$log[]            = self::entry( 'pro.site_css', array( 'lugar' => 'custom_css', 'elementos' => $changed ) );
+			}
+		}
+		if ( isset( $data['settings']['custom_css'] ) && is_string( $data['settings']['custom_css'] ) && '' !== $data['settings']['custom_css'] ) {
+			$css = $class::rewrite( $data['settings']['custom_css'] );
+			if ( $css !== $data['settings']['custom_css'] ) {
+				$data['settings']['custom_css'] = $css;
+				$log[]                          = self::entry( 'pro.site_css', array( 'lugar' => 'settings.custom_css' ) );
+			}
+		}
+		return array( $data, $log );
 	}
 
 	/** ¿Está registrado el widget propio en este sitio? Sin núcleo cargado se responde que sí (lo decide `Preserve`). */

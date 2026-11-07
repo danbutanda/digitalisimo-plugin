@@ -98,6 +98,7 @@ jobs:
           php tests/elements-pro-form.php
           php tests/elements-pro-login.php
           php tests/elements-convert-form-live.php
+          php tests/elements-convert-site-css.php
           node tests/elements-pro-form-chrome.mjs
           php tests/elements-loop-filter-refresh.php
           node tests/elements-taxonomy-filter-editor-chrome.mjs
@@ -203,6 +204,7 @@ jobs:
           php tests/migration-network.php
           php tests/migration-pro.php
           php tests/migration-pro-global.php
+          php tests/migration-pro-site-css.php
           node tests/migration-static.mjs
           node tests/migration-drive.mjs
           node tests/migration-legacy-styles.mjs

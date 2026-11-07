@@ -219,6 +219,25 @@ namespace {
 	};
 	$check( 'template' === ( $paths( 'digitalisimo-slides' )['slides.*.digitalisimo_template_id'] ?? '' ) && 'template' === ( $paths( 'slides' )['slides.*.digitalisimo_template_id'] ?? '' ), '8: slides.*.digitalisimo_template_id es una plantilla en slides y en digitalisimo-slides.' );
 
+	/* 9. CSS que nombra clases de PRO (corrección de fidelidad de C5 y C6): el de la página o del kit y el de los
+	   elementos gana la traducción detrás de cada regla; idempotente; se informa pro.site_css. */
+	if ( ! defined( 'ELEMENTOR_ASSETS_URL' ) ) {
+		define( 'ELEMENTOR_ASSETS_URL', 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' ); // Lo pide un mapa al cargarse todos.
+	}
+	$registry::reset();
+	$registry::set( 'nav-menu', null );
+	$kit_data = array( 'elements' => array(), 'settings' => array( 'custom_css' => '.elementor-widget-posts .elementor-post__title{color:red}', 'system_colors' => array() ) );
+	list( $kit_out, $kit_log ) = Pro_Convert::site_css( $kit_data );
+	$check( str_starts_with( $kit_out['settings']['custom_css'], $kit_data['settings']['custom_css'] . '/*digitalisimo-pro*/.elementor-widget-digitalisimo-posts .digi-posts__title{color:red}' ) && array( 'pro.site_css' ) === array_column( $kit_log, 'code' ) && $kit_data['settings']['system_colors'] === $kit_out['settings']['system_colors'], '9: el CSS del kit gana la regla traducida (la original no cambia): ' . $kit_out['settings']['custom_css'] );
+	$page_data = array( 'elements' => array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array( 'custom_css' => 'selector .elementor-widget-form{margin:0}' ), 'elements' => array() ) ), 'settings' => array() );
+	list( $page_out ) = Pro_Convert::site_css( $page_data );
+	$check( str_contains( $page_out['elements'][0]['settings']['custom_css'], '/*digitalisimo-pro*/selector .elementor-widget-digitalisimo-form{margin:0}' ), '9: y el de un elemento que no se convierte.' );
+	$before = kpc_entries();
+	$saved  = Context::preserve( $kit_data, new Kit_Pro_Document( 77 ) );
+	$check( $kit_out['settings'] === $saved['settings'] && in_array( 'pro.site_css::', kpc_codes( $before ), true ), '9: Context::preserve() lo hace al guardar el kit (sin elementos) y lo informa.' );
+	$before = kpc_entries();
+	$check( $saved === Context::preserve( $saved, new Kit_Pro_Document( 77 ) ) && kpc_entries() === $before, '9: el segundo guardado no duplica la regla ni informa otra vez.' );
+
 	if ( $failures ) {
 		echo "elements-kit-pro-convert: {$failures} de {$checks} comprobaciones fallaron.\n";
 		exit( 1 );
