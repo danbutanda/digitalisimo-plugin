@@ -309,6 +309,23 @@ const oc = (page, id) => page.evaluate(id => {
   ok(vars[0][0] === 'calc(20px + var(--dgs-gap,4px))' && vars[0][1] === 'calc(8px + var(--dgs-gap,4px))' && vars[0][2] === '8px' && vars[1][0] === '0px', 'El relleno del campo sigue al ancho medido de cada icono (con la separación), como PRO: ' + JSON.stringify(vars));
   const pad = await page.evaluate(() => { const cs = getComputedStyle(document.querySelector('#search-se00001')); return [cs.paddingLeft, cs.paddingRight]; });
   ok(pad[0] === '40px' && pad[1] === '28px', 'Relleno: 16 + 20 + 4 a la izquierda y 16 + 8 + 4 a la derecha: ' + pad);
+  // Foco: el campo no lleva contorno ni con el ratón ni con el teclado (PRO: `outline:none`); los botones, el propio.
+  const ring = sel => page.evaluate(s => { const e = document.querySelector(s), cs = getComputedStyle(e); return [document.activeElement === e, cs.outlineStyle, cs.outlineWidth]; }, sel);
+  await page.click('#search-se00001');
+  let rg = await ring('#search-se00001');
+  ok(rg[0] && rg[1] === 'none', 'Clic en el campo: enfocado y sin contorno, como PRO: ' + JSON.stringify(rg));
+  await page.keyboard.press('Tab');
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('Tab');
+  await page.keyboard.up('Shift');
+  rg = await ring('#search-se00001');
+  ok(rg[0] && rg[1] === 'none', 'Con el teclado, el campo tampoco lleva contorno: ' + JSON.stringify(rg));
+  await page.focus('[data-id="se00001"] .digi-search__submit');
+  await page.keyboard.press('Shift');
+  await sleep(400); // El botón anima todas sus propiedades (`transition: .3s`, como PRO).
+  rg = await ring('[data-id="se00001"] .digi-search__submit');
+  ok(rg[0] && rg[1] === 'solid' && rg[2] === '2px', 'El botón «Buscar» con el foco del teclado sí lleva el contorno propio: ' + JSON.stringify(rg));
+  await page.evaluate(() => document.activeElement.blur());
   const clear = () => page.evaluate(() => { const b = document.querySelector('[data-id="se00001"] .digi-search__clear'); const r = b.getBoundingClientRect(); return { off: b.classList.contains('digi-search__clear--off'), vis: getComputedStyle(b).visibility, w: r.width, h: r.height }; });
   let c = await clear();
   ok(c.off && c.vis === 'hidden' && c.w >= 24 && c.h >= 24, '«Borrar» oculto sin texto, de 24 × 24 px como mínimo: ' + JSON.stringify(c));

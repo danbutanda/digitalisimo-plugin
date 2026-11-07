@@ -167,4 +167,12 @@ return array(
 		'.hide-pagination-numbers'        => '.digi-search--prevnext',
 		'.no-results'                     => '.digi-search--none',
 	),
+	// El icono de borrar era hijo directo del envoltorio del campo en PRO; en el propio va dentro del botón «Borrar», así
+	// que `> svg`/`> i` (ya con la clase propia) pasa a apuntar a ese icono (search.js mide el icono que queda a la vista).
+	'filter'   => static function ( array $out ): array {
+		if ( isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) ) {
+			$out['custom_css'] = (string) preg_replace( '/(\.digi-search__field)\s*>\s*(svg|i)(?![\w-])/', '$1 > .digi-search__clear > $2', $out['custom_css'] );
+		}
+		return $out;
+	},
 );

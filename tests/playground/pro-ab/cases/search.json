@@ -1,7 +1,8 @@
 {
  "_doc": [
   "Casos A/B de la Búsqueda (frente F de C3): A con `search` de PRO, B con `digitalisimo-search`. `control` mide en hover y foco el botón de envío (en B el primer botón es «Borrar», oculto sin texto). Los casos con resultados en vivo usan una plantilla de bucle de prueba (`$loop:mesas`: tres entradas «Mesa …» con su título enlazado) y `shot: viewport`, porque el desplegable sale de la caja del widget.",
-  "Acciones: escribir (`type`), borrar, flechas entre resultados, Escape (el foco vuelve al campo), paginación sin recargar y búsqueda sin resultados. `focus` compara dónde queda el foco."
+  "Acciones: escribir (`type`), borrar, flechas entre resultados, Escape (el foco vuelve al campo), paginación sin recargar y búsqueda sin resultados. `focus` compara dónde queda el foco.",
+  "Correcciones de fidelidad: el campo ya no lleva contorno con el foco (PRO: `outline:none`), así que los casos no suben `pixels.max`; `se-click` lo mide con un clic y `se-clear-css`, el CSS personalizado de PRO que apuntaba al icono de borrar como hijo directo del envoltorio."
  ],
  "declared": [
   {
@@ -26,7 +27,7 @@
    "widget": "search",
    "kind": "foco",
    "match": "^outline(-offset)?:",
-   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, estándar del front); PRO quitaba el contorno del campo."
+   "reason": "Foco visible propio en los botones («Borrar», «Buscar»: contorno de 2 px con separación de 2 px, estándar del front); el campo, como PRO, no lleva contorno."
   },
   {
    "widget": "search",
@@ -59,11 +60,7 @@
      "focus": true,
      "wait": 900
     }
-   ],
-   "pixels": {
-    "max": 0.07,
-    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
-   }
+   ]
   },
   "se-styled": {
    "title": "Búsqueda con icono en el campo y en el botón, estilos de campo y botón, foco y radio",
@@ -166,11 +163,7 @@
      "type": "mesa",
      "wait": 900
     }
-   ],
-   "pixels": {
-    "max": 0.07,
-    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
-   }
+   ]
   },
   "se-enter": {
    "title": "Búsqueda que se envía con Intro: el botón sólo para lectores de pantalla",
@@ -181,10 +174,6 @@
      "value": "",
      "library": ""
     }
-   },
-   "pixels": {
-    "max": 0.07,
-    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
    },
    "empty": "Con «Tecla Intro» el botón es sólo para lectores de pantalla y el campo no tiene texto propio (el de ejemplo es un atributo): no hay texto a la vista, como en PRO.",
    "control": {
@@ -236,11 +225,7 @@
      "focus": true,
      "wait": 600
     }
-   ],
-   "pixels": {
-    "max": 0.07,
-    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
-   }
+   ]
   },
   "se-none": {
    "title": "Resultados en vivo sin resultados: mensaje de PRO",
@@ -263,11 +248,54 @@
      "type": "zzzz",
      "wait": 3500
     }
-   ],
-   "pixels": {
-    "max": 0.07,
-    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
-   }
+   ]
+  },
+  "se-click": {
+   "title": "Búsqueda: clic en el campo (sin contorno, como PRO; corrección de fidelidad)",
+   "widget": "search",
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
+   "settings": {},
+   "actions": [
+    {
+     "label": "clic en el campo",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "focus": true,
+     "stay": true,
+     "wait": 900,
+     "widths": [
+      375,
+      1280
+     ]
+    }
+   ]
+  },
+  "se-clear-css": {
+   "title": "Búsqueda: CSS personalizado que oculta el icono de borrar de PRO por estructura (corrección de fidelidad)",
+   "widget": "search",
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
+   "settings": {
+    "custom_css": "selector .e-search-input-wrapper > svg, selector .e-search-input-wrapper > i{display:none!important}"
+   },
+   "actions": [
+    {
+     "label": "escribir",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "type": "hola",
+     "wait": 900,
+     "widths": [
+      375,
+      1280
+     ]
+    }
+   ]
   }
  }
 }
