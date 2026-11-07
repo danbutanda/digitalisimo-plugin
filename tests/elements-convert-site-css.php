@@ -77,6 +77,17 @@ $states     = ".swiper-button-disabled{opacity:0}\n.elementor-active{background:
 $states_out = Converter::external_css( $states );
 check_sc( ! preg_match( '#(^|[}\n])\s*(\[aria-disabled=true\]|\[aria-expanded=true\]|\[aria-pressed="true"\]|\[hidden\]|:has\()#', $states_out ) && ! str_contains( $states_out, '.elementor-nav-menu [aria-pressed' ), 'Sin envoltorio, ningún atributo ni pseudoclase suelto alcanza a todo el sitio: ' . $states_out );
 check_sc( 1 === preg_match( '#\.elementor-nav-menu \.elementor-active\{color:blue\}\s*\.digi-nav[\w-]* \[aria-expanded=true\]\{color:blue\}#', $states_out ) && str_contains( $states_out, '.elementor-widget-digitalisimo-nav-menu [aria-expanded=true]{color:red}' ), 'Atado a una clase del widget (o con su envoltorio), el estado sí se copia: ' . $states_out );
+// En una lista con un selector anclado, el estado suelto se repite tal cual: tampoco pasa a un atributo de todo el sitio.
+$mixed     = ".elementor-nav-menu .x, .elementor-active{color:red}\n.elementor-widget-posts .elementor-post__title, .swiper-button-disabled{opacity:0}\n.elementor-search-form__input, .e-focus{outline:0}";
+$mixed_out = Converter::external_css( $mixed );
+check_sc( ! preg_match( '#(^|[},])\s*(\[aria-disabled=true\]|\[aria-expanded=true\]|\[aria-pressed="true"\]|\[hidden\]|:has\()#', $mixed_out ) && str_contains( $mixed_out, '.digi-nav__list .x, .elementor-active{color:red}' ) && str_contains( $mixed_out, '.elementor-widget-digitalisimo-posts .digi-posts__title, .swiper-button-disabled{opacity:0}' ) && str_contains( $mixed_out, '.digi-search-form__input, .e-focus{outline:0}' ), 'En una lista con un selector de PRO, el estado suelto no pasa a un atributo ni a una pseudoclase: ' . $mixed_out );
+check_sc( Converter::external_css( $mixed_out ) === $mixed_out, 'Idempotente también con listas.' );
+// `@-moz-document url-prefix()` (el truco para Firefox) se recorre por dentro, como `@media`.
+$moz = Converter::external_css( '@-moz-document url-prefix(){.elementor-post__title{color:red}}' );
+check_sc( '@-moz-document url-prefix(){.elementor-post__title{color:red}.digi-posts__title{color:red}}' === $moz, '@-moz-document se recorre por dentro: ' . $moz );
+// Un comentario con comas en el preludio no parte el selector ni ancla.
+$com = Converter::external_css( '/* .elementor-post__title, otra */ .c{x:y}' );
+check_sc( '/* .elementor-post__title, otra */ .c{x:y}' === $com, 'Una clase de PRO dentro de un comentario del preludio no ancla: ' . $com );
 $plain = ".a{color:red}\n@media print{.b{display:none}}\n/* .elementor-post__title en un comentario */ .c{}";
 check_sc( Converter::external_css( $plain ) === $plain, 'CSS sin clases de PRO en sus selectores: ni un byte cambia.' );
 
@@ -92,5 +103,11 @@ $new     = Converter::tree_css( $tree, null, $changed );
 check_sc( 2 === $changed && str_contains( $new[0]['settings']['custom_css'], 'selector .elementor-widget-digitalisimo-posts .digi-posts__title{color:red}' ) && 'selector{color:blue}' === $new[0]['elements'][0]['settings']['custom_css'] && '.elementor-widget-form{margin:0}.elementor-widget-digitalisimo-form{margin:0}' === $new[0]['elements'][1]['settings']['custom_css'], 'tree_css(): el CSS de los elementos, a cualquier profundidad; el que no nombra PRO, igual: ' . json_encode( $new ) );
 $again = 0;
 check_sc( $new === Converter::tree_css( $new, null, $again ) && 0 === $again, 'tree_css() idempotente.' );
+// Un widget convertido (con la marca) cuyo CSS nombra otro widget de PRO que lleva dentro (el Megamenú con unas Entradas):
+// su mapa ya tradujo sus propias clases, y las del otro ganan su copia.
+$nested  = array( array( 'id' => 'm1', 'elType' => 'widget', 'widgetType' => 'digitalisimo-mega-menu', 'settings' => array( '_digitalisimo_pro' => 'mega-menu', 'custom_css' => 'selector .elementor-widget-posts .elementor-post__title{color:red}' ), 'elements' => array() ) );
+$changed = 0;
+$nested  = Converter::tree_css( $nested, null, $changed );
+check_sc( 1 === $changed && str_contains( $nested[0]['settings']['custom_css'], 'selector .elementor-widget-digitalisimo-posts .digi-posts__title{color:red}' ), 'tree_css(): el CSS de un widget convertido que nombra otro widget de PRO también: ' . json_encode( $nested ) );
 
 echo "DIGITALÍSIMO Elements: CSS del sitio con las clases de PRO de listados y formularios copiado a las propias (aditivo e idempotente) validado.\n";

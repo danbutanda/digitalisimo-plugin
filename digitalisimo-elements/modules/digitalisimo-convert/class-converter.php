@@ -108,8 +108,9 @@ final class Converter {
 	}
 
 	/**
-	 * `external_css()` en el CSS personalizado de cada elemento de un árbol que no es un widget convertido (los
-	 * convertidos ya traducen el suyo con su mapa, `Translator::MARKER`), a cualquier profundidad.
+	 * `external_css()` en el CSS personalizado de cada elemento de un árbol, a cualquier profundidad. También en el de un
+	 * widget convertido (`Translator::MARKER`): su mapa ya pasó sus propias clases a las del widget propio, pero el
+	 * Carrusel anidado, el Megamenú o el Panel lateral pueden nombrar las de otro widget de PRO que llevan dentro.
 	 *
 	 * @param int $changed Recibe cuántos elementos cambiaron.
 	 */
@@ -128,7 +129,7 @@ final class Converter {
 				continue;
 			}
 			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
-			if ( ! isset( $settings[ Translator::MARKER ] ) && isset( $settings['custom_css'] ) && is_string( $settings['custom_css'] ) && '' !== $settings['custom_css'] ) {
+			if ( isset( $settings['custom_css'] ) && is_string( $settings['custom_css'] ) && '' !== $settings['custom_css'] ) {
 				$css = Translator::rewrite_external_css( $settings['custom_css'], $sets );
 				if ( $css !== $settings['custom_css'] ) {
 					$element['settings']['custom_css'] = $css;

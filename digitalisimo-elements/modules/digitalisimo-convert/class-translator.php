@@ -426,13 +426,15 @@ final class Translator {
 	/**
 	 * CSS que nombra las clases de PRO desde fuera del widget (un contenedor, la página, el kit, el Personalizador): tras
 	 * cada regla de estilo que las nombra se añade su copia con las clases propias, una por juego de clases que la
-	 * cambie (sin repetir copias iguales); también dentro de `@media`, `@supports`, `@container`, `@layer` y `@scope`.
-	 * La regla original se queda (sigue valiendo para los widgets de PRO que queden) y el orden de la cascada no cambia.
+	 * cambie (sin repetir copias iguales); también dentro de `@media`, `@supports`, `@container`, `@layer`, `@scope` y
+	 * `@-moz-document`. La regla original se queda (sigue valiendo para los widgets de PRO que queden) y el orden de la
+	 * cascada no cambia.
 	 *
-	 * Un juego sólo se aplica a una regla cuyo selector nombra alguna clase suya que pasa a una clase propia (`.digi-…`,
-	 * `.elementor-widget-digitalisimo-…`): así una regla que sólo nombra un estado genérico de PRO (`.elementor-active`
-	 * → `[aria-expanded=true]`) no se copia sobre todo el sitio. Idempotente: una copia que ya está en el CSS no se
-	 * vuelve a añadir. Sin cambios devuelve el CSS tal cual.
+	 * Un juego sólo traduce los selectores de la lista que nombran alguna clase suya que pasa a una clase propia
+	 * (`.digi-…`, `.elementor-widget-digitalisimo-…`); los demás se repiten tal cual en la copia. Así un selector que sólo
+	 * nombra un estado genérico de PRO (`.elementor-active` → `[aria-expanded=true]`) no se copia sobre todo el sitio,
+	 * ni solo ni en una lista. Idempotente: una copia que ya está en el CSS no se vuelve a añadir. Sin cambios devuelve el
+	 * CSS tal cual.
 	 *
 	 * @param string  $css  CSS.
 	 * @param array[] $sets Juegos `{ classes, class_patterns }` (los de los mapas: `Converter::class_sets()`).
@@ -497,7 +499,7 @@ final class Translator {
 			$body    = substr( $css, $open + 1, $close - $open - 1 );
 			$rule    = substr( $css, $prelude_start, $close + 1 - $prelude_start );
 			$name    = strtolower( (string) ( preg_match( '/^\s*(?:\/\*.*?\*\/\s*)*@([a-z-]+)/s', $prelude, $m ) ? $m[1] : '' ) );
-			if ( in_array( $name, array( 'media', 'supports', 'container', 'layer', 'scope', 'document' ), true ) ) {
+			if ( in_array( $name, array( 'media', 'supports', 'container', 'layer', 'scope', 'document', '-moz-document' ), true ) ) {
 				$inner = self::external_block( $body, $sets, $whole );
 				if ( null !== $inner ) {
 					$rule    = $prelude . '{' . $inner . '}';
@@ -506,7 +508,7 @@ final class Translator {
 				$out .= $rule;
 			} elseif ( '' === $name ) {
 				$out .= $rule;
-				foreach ( self::external_copies( $prelude, $rule, $sets ) as $copy ) {
+				foreach ( self::external_copies( $prelude, $body, $sets ) as $copy ) {
 					if ( false === strpos( $whole, $copy ) ) {
 						$out    .= $copy;
 						$changed = true;
@@ -524,37 +526,107 @@ final class Translator {
 	 * Copias traducidas de una regla de estilo (sin repetir), con los juegos que se le aplican. Una copia que todavía nombra
 	 * clases de otro juego (una lista de selectores con el menú y el buscador de PRO) gana a su vez su copia, en la misma
 	 * pasada: así la segunda pasada no añade nada (idempotente).
+	 *
+	 * El ancla se mira en cada selector de la lista: sólo se traducen los que nombran una clase del juego que pasa a una
+	 * clase propia, y los demás se repiten tal cual. Así un estado suelto en la misma lista (`.elementor-nav-menu a,
+	 * .elementor-active`) no pasa a un atributo que alcanzaría a todo el sitio (`[aria-expanded=true]`).
 	 */
-	private static function external_copies( string $prelude, string $rule, array $sets ): array {
+	private static function external_copies( string $prelude, string $body, array $sets ): array {
+		$rule   = $prelude . '{' . $body . '}';
 		$copies = array();
-		$queue  = array( array( $prelude, $rule ) );
+		$queue  = array( array( $prelude, $body ) );
 		for ( $i = 0; $i < count( $queue ) && $i < 32; $i++ ) {
-			list( $selector, $text ) = $queue[ $i ];
-			// El selector sin comentarios ni cadenas: una clase dentro de `[data-x=".clase"]` no ancla.
-			$plain = (string) preg_replace( array( '#/\*.*?\*/#s', '/"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'/s' ), array( '', '""' ), $selector );
+			list( $head, $decl ) = $queue[ $i ];
+			$text  = $head . '{' . $decl . '}';
+			$parts = self::selector_parts( $head );
 			foreach ( $sets as $set ) {
 				$classes  = $set['classes'];
 				$patterns = $set['class_patterns'];
-				$anchored = '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain );
-				if ( ! $anchored ) {
-					foreach ( $patterns as $pattern => $replacement ) {
-						if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
-							$anchored = true;
-							break;
-						}
+				$anchored = false;
+				$new      = array();
+				foreach ( $parts as $part ) {
+					if ( self::anchored( $part[1], $set ) ) {
+						$anchored = true;
+						$new[]    = self::rewrite_classes( $part[0], $classes, $patterns );
+					} else {
+						$new[] = $part[0];
 					}
 				}
 				if ( ! $anchored ) {
 					continue;
 				}
-				$copy = self::rewrite_classes( $text, $classes, $patterns );
+				$new_head = implode( ',', $new );
+				$new_decl = self::rewrite_classes( $decl, $classes, $patterns );
+				$copy     = $new_head . '{' . $new_decl . '}';
 				if ( $copy !== $text && $copy !== $rule && ! in_array( $copy, $copies, true ) ) {
 					$copies[] = $copy;
-					$queue[]  = array( self::rewrite_classes( $selector, $classes, $patterns ), $copy );
+					$queue[]  = array( $new_head, $new_decl );
 				}
 			}
 		}
 		return $copies;
+	}
+
+	/** ¿Nombra el selector (sin comentarios ni cadenas) una clase del juego que pasa a una clase propia, o un patrón suyo? */
+	private static function anchored( string $plain, array $set ): bool {
+		if ( '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain ) ) {
+			return true;
+		}
+		foreach ( $set['class_patterns'] as $pattern => $replacement ) {
+			if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Selectores de un preludio, partidos por las comas de primer nivel (fuera de comentarios, cadenas, escapes, paréntesis
+	 * y corchetes): cada uno, tal cual y en su versión para buscar anclas, con los comentarios en blanco y el interior de las
+	 * cadenas tapado (una clase dentro de `[data-x=".clase"]` no ancla). Unidos con comas, devuelven el preludio exacto.
+	 *
+	 * @return array<int, array{0: string, 1: string}>
+	 */
+	private static function selector_parts( string $prelude ): array {
+		$mask = $prelude;
+		$len  = strlen( $prelude );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$c = $prelude[ $i ];
+			if ( '\\' === $c ) {
+				$mask[ $i ] = 'x';
+				if ( $i + 1 < $len ) {
+					$mask[ ++$i ] = 'x';
+				}
+			} elseif ( '/' === $c && '*' === ( $prelude[ $i + 1 ] ?? '' ) ) {
+				$end = strpos( $prelude, '*/', $i + 2 );
+				$end = false === $end ? $len : $end + 2;
+				for ( ; $i < $end; $i++ ) {
+					$mask[ $i ] = ' ';
+				}
+				--$i;
+			} elseif ( '"' === $c || "'" === $c ) {
+				$end = self::css_string_end( $prelude, $i );
+				for ( ++$i; $i < $end && $i < $len; $i++ ) {
+					$mask[ $i ] = 'x';
+				}
+			}
+		}
+		$parts = array();
+		$depth = 0;
+		$start = 0;
+		for ( $i = 0; $i < $len; $i++ ) {
+			$c = $mask[ $i ];
+			if ( '(' === $c || '[' === $c ) {
+				++$depth;
+			} elseif ( ( ')' === $c || ']' === $c ) && $depth > 0 ) {
+				--$depth;
+			} elseif ( ',' === $c && 0 === $depth ) {
+				$parts[] = array( substr( $prelude, $start, $i - $start ), substr( $mask, $start, $i - $start ) );
+				$start   = $i + 1;
+			}
+		}
+		$parts[] = array( substr( $prelude, $start ), substr( $mask, $start ) );
+		return $parts;
 	}
 
 	/** Posición del siguiente `$char` fuera de comentarios y cadenas, desde `$from` y antes de `$until`, o null. */

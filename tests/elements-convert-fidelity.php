@@ -133,13 +133,15 @@ namespace {
 	$ok( false !== strpos( $real, 'selector .digi-nav__main .digi-nav__link{color:#d00}' ), '4: con los mapas listos reales, la regla de una cabecera llega al Menú de WordPress propio: ' . $real );
 	$tree = array(
 		array( 'id' => 'c1', 'elType' => 'container', 'settings' => array( 'custom_css' => 'selector .elementor-item{color:red}' ), 'elements' => array(
-			array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'digitalisimo-nav-menu', 'settings' => array( '_digitalisimo_pro' => 'nav-menu', 'custom_css' => 'selector .elementor-item{x:y}' ), 'elements' => array() ),
+			array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'digitalisimo-nav-menu', 'settings' => array( '_digitalisimo_pro' => 'nav-menu', 'custom_css' => 'selector .digi-nav__link{x:y}' ), 'elements' => array() ),
 			array( 'id' => 'h1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'custom_css' => 'selector{a:b}' ), 'elements' => array() ),
+			// Un widget convertido que lleva dentro otro de PRO (el Megamenú con un menú) y lo nombra en su CSS.
+			array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'digitalisimo-mega-menu', 'settings' => array( '_digitalisimo_pro' => 'mega-menu', 'custom_css' => 'selector .elementor-item{z:w}' ), 'elements' => array() ),
 		) ),
 	);
 	$changed = 0;
 	$new     = $converter::tree_css( $tree, array( 'nav-menu' => $nav ), $changed );
-	$ok( 'selector .elementor-item{color:red}selector .digi-nav__link{color:red}' === $new[0]['settings']['custom_css'] && 'selector .elementor-item{x:y}' === $new[0]['elements'][0]['settings']['custom_css'] && 'selector{a:b}' === $new[0]['elements'][1]['settings']['custom_css'] && 1 === $changed, '4: en un árbol, el CSS del contenedor gana la copia; el de un widget convertido (con la marca) y el que no nombra clases de PRO, no.' );
+	$ok( 'selector .elementor-item{color:red}selector .digi-nav__link{color:red}' === $new[0]['settings']['custom_css'] && 'selector .digi-nav__link{x:y}' === $new[0]['elements'][0]['settings']['custom_css'] && 'selector{a:b}' === $new[0]['elements'][1]['settings']['custom_css'] && 'selector .elementor-item{z:w}selector .digi-nav__link{z:w}' === $new[0]['elements'][2]['settings']['custom_css'] && 2 === $changed, '4: en un árbol, el CSS del contenedor y el de un widget convertido que nombra otro widget de PRO ganan la copia; el que ya tiene las clases propias y el que no nombra clases de PRO, no: ' . json_encode( $new ) );
 
 	echo "DIGITALÍSIMO Elements: correcciones de fidelidad del núcleo de conversión ({$checks} comprobaciones) validadas.\n";
 }
