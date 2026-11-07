@@ -28,7 +28,15 @@
    "title": "Valores por defecto: piel clásica con botón de lupa",
    "widget": "search-form",
    "settings": {},
-   "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles."
+   "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.09,
+      "reason": "Sólo cuando el foco del teclado llega al botón de envío (el arnés tabula desde el último punto de partida, que a veces es el campo): el contorno propio de 2 px con separación de 2 px en el contenedor, que recorta el del botón (PRO: `button:focus{outline:0}`). Con el foco en el campo, como PRO, sin contorno; el estado normal conserva el umbral común."
+     }
+    }
+   }
   },
   "sf-text": {
    "title": "Botón de texto con tipografía y colores propios",
@@ -47,6 +55,14 @@
     "button_width": {
      "unit": "px",
      "size": 2.5
+    }
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.09,
+      "reason": "Sólo cuando el foco del teclado llega al botón de envío (el arnés tabula desde el último punto de partida, que a veces es el campo): el contorno propio de 2 px con separación de 2 px en el contenedor, que recorta el del botón (PRO: `button:focus{outline:0}`). Con el foco en el campo, como PRO, sin contorno; el estado normal conserva el umbral común."
+     }
     }
    }
   },
@@ -80,7 +96,15 @@
     "input_text_color": "#1b5e20",
     "placeholder": "Escribe y pulsa la flecha"
    },
-   "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles."
+   "blank": "Buscador con botón de icono: no pinta texto (el texto de ejemplo es un atributo) ni imágenes; se comparan sus controles.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.09,
+      "reason": "Sólo cuando el foco del teclado llega al botón de envío (el arnés tabula desde el último punto de partida, que a veces es el campo): el contorno propio de 2 px con separación de 2 px en el contenedor, que recorta el del botón (PRO: `button:focus{outline:0}`). Con el foco en el campo, como PRO, sin contorno; el estado normal conserva el umbral común."
+     }
+    }
+   }
   },
   "sf-minimal": {
    "title": "Piel mínima con la lupa grande",
@@ -162,7 +186,15 @@
      "stay": true,
      "wait": 600
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.09,
+      "reason": "Sólo cuando el foco del teclado llega al botón de envío (el arnés tabula desde el último punto de partida, que a veces es el campo): el contorno propio de 2 px con separación de 2 px en el contenedor, que recorta el del botón (PRO: `button:focus{outline:0}`). Con el foco en el campo, como PRO, sin contorno; el estado normal conserva el umbral común."
+     }
+    }
+   }
   }
  }
 }
