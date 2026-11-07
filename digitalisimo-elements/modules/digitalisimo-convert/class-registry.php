@@ -19,12 +19,18 @@ final class Registry {
 		if ( ! Catalog::is_pro( $type ) ) {
 			return null;
 		}
-		if ( ! array_key_exists( $type, self::$maps ) ) {
-			$file                 = __DIR__ . '/maps/' . $type . '.php';
-			$map                  = is_file( $file ) ? require $file : null;
-			self::$maps[ $type ] = is_array( $map ) && ( $map['source'] ?? '' ) === $type && '' !== (string) ( $map['target'] ?? '' ) ? $map : null;
+		if ( array_key_exists( $type, self::$maps ) ) {
+			$map = self::$maps[ $type ];
+		} else {
+			$file = __DIR__ . '/maps/' . $type . '.php';
+			$map  = is_file( $file ) ? require $file : null;
+			$map  = is_array( $map ) && ( $map['source'] ?? '' ) === $type && '' !== (string) ( $map['target'] ?? '' ) ? $map : null;
+			// Un mapa leído antes de que el constructor estuviera listo (`retry`, el del Formulario sin las acciones de
+			// terceros) no se guarda: la siguiente lectura lo completa.
+			if ( null === $map || empty( $map['retry'] ) ) {
+				self::$maps[ $type ] = $map;
+			}
 		}
-		$map = self::$maps[ $type ];
 		return null !== $map && ( $drafts || 'ready' === ( $map['status'] ?? 'draft' ) ) ? $map : null;
 	}
 
