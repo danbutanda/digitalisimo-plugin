@@ -84,20 +84,22 @@ return array(
 	// Textos de los comentarios de PRO en las filas que no los fijaban (ver la cabecera), y la alineación por dispositivo
 	// como se veía en PRO: su alineación es una clase por dispositivo que la hoja del núcleo sólo mueve con «Centro»
 	// (`.elementor-align-center`, sin consulta de medios; las de tableta y móvil, con `max-width`), así que «Centro» en un
-	// tamaño mayor seguía centrando en los menores aunque estos eligieran «Inicio» o «Fin». El widget propio aplica cada
-	// valor en su dispositivo: lo convertido lleva «Centro» en esos dispositivos menores (y en pantalla ancha, si lo es el
-	// escritorio). Tiene que ir aquí y no en `values`, que no recibe el dispositivo.
+	// tamaño mayor seguía centrando los elementos en los menores aunque estos eligieran «Inicio» o «Fin», mientras el texto
+	// tomaba la alineación de cada dispositivo (`text-align`, de la hoja del núcleo). El widget propio aplica cada valor en
+	// su dispositivo: lo convertido lleva en esos dispositivos menores (y en pantalla ancha, si el escritorio es «Centro»)
+	// `center-left` o `center-right`, que centran los elementos con el texto a un lado. Tiene que ir aquí y no en
+	// `values`, que no recibe el dispositivo.
 	'filter'    => static function ( array $out, array $source ): array {
 		$center = false;
 		foreach ( array( '', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' ) as $device ) {
 			$value = $out[ 'icon_align' . $device ] ?? null;
-			if ( $center && is_string( $value ) && '' !== $value && 'center' !== $value ) {
-				$out[ 'icon_align' . $device ] = 'center';
+			if ( $center && in_array( $value, array( 'left', 'right' ), true ) ) {
+				$out[ 'icon_align' . $device ] = 'center-' . $value;
 			}
 			$center = $center || 'center' === $value;
 		}
-		if ( 'center' === ( $out['icon_align'] ?? null ) && is_string( $out['icon_align_widescreen'] ?? null ) && '' !== $out['icon_align_widescreen'] ) {
-			$out['icon_align_widescreen'] = 'center';
+		if ( 'center' === ( $out['icon_align'] ?? null ) && in_array( $out['icon_align_widescreen'] ?? null, array( 'left', 'right' ), true ) ) {
+			$out['icon_align_widescreen'] = 'center-' . $out['icon_align_widescreen'];
 		}
 		$pro = array(
 			'string_no_comments' => function_exists( 'esc_html__' ) ? esc_html__( 'No Comments', 'elementor-pro' ) : 'No Comments', // phpcs:ignore WordPress.WP.I18n -- mismo texto que PRO.

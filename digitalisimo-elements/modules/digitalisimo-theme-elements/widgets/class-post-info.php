@@ -485,11 +485,15 @@ class Post_Info extends \Elementor\Widget_Base {
 					),
 				),
 				'prefix_class'         => 'digi-post-info%s--align-',
-				// Cada valor fija las dos propiedades: un dispositivo nunca hereda las de otro.
+				// Cada valor fija las dos propiedades: un dispositivo nunca hereda las de otro. `center-left` y `center-right`
+				// no son opciones del panel: sólo los pone el mapa de PRO en lo convertido, donde «Centro» en un tamaño mayor
+				// seguía centrando los elementos de los menores y el texto tomaba la alineación de cada dispositivo.
 				'selectors_dictionary' => array(
-					'left'   => 'text-align: left; --digi-pi-justify: flex-start',
-					'center' => 'text-align: center; --digi-pi-justify: center',
-					'right'  => 'text-align: right; --digi-pi-justify: flex-start',
+					'left'         => 'text-align: left; --digi-pi-justify: flex-start',
+					'center'       => 'text-align: center; --digi-pi-justify: center',
+					'right'        => 'text-align: right; --digi-pi-justify: flex-start',
+					'center-left'  => 'text-align: left; --digi-pi-justify: center',
+					'center-right' => 'text-align: right; --digi-pi-justify: center',
 				),
 				'selectors'            => array(
 					'{{WRAPPER}}' => '{{VALUE}}',
