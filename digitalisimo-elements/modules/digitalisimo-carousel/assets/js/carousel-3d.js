@@ -1,4 +1,4 @@
-/* DIGITALÍSIMO Elements · «Coverflow» y efecto «Cubo» del Carrusel multimedia, como los de Swiper en PRO (ver class-media-carousel.php): el script fija en cada diapositiva su distancia al centro de la pista, en anchos de diapositiva (`--digi-k`), y la hoja (carousel-3d.css) la gira; con el cubo, además, la medida de la pista para la sombra. El imán está apagado (Chrome lo calcula con la caja girada): un desplazamiento del usuario que queda a medias vuelve a la diapositiva actual. */
+/* DIGITALÍSIMO Elements · «Coverflow» y «Cubo» del Carrusel multimedia como en PRO (ver class-media-carousel.php): `--digi-k` es la distancia de cada diapositiva al centro de la pista, en anchos de diapositiva; la hoja la gira. Sin imán (Chrome lo calcula con la caja girada): un desplazamiento que queda a medias vuelve a la actual. */
 (()=>{
 const W=window,D=document,A=Math.abs,F=()=>W.elementorFrontend,Q=new Set,S='[data-digi-fx]>.digi-crs__track';
 let raf=0,ro;

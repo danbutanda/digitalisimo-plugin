@@ -82,7 +82,17 @@ final class Translator {
 			$css  = self::background_to_object( $out['custom_css'], (array) $map['img_classes'], $lost );
 			if ( $css !== $out['custom_css'] ) {
 				$out['custom_css'] = $css;
-				$codes[]           = self::code( 'pro.css', 'custom_css', 'El fondo de la imagen de PRO (`background-size`, `background-position`) en el CSS personalizado del elemento pasa al `<img>` del widget propio (`object-fit`, `object-position`).', 'converted' );
+				$reason            = 'El fondo de la imagen de PRO (`background-size`, `background-position`) pasa al `<img>` del widget propio (`object-fit`, `object-position`).';
+				$found             = false;
+				foreach ( $codes as $i => $code ) {
+					if ( 'pro.css' === $code['code'] && 'custom_css' === $code['key'] ) {
+						$codes[ $i ]['reason'] .= ' ' . $reason;
+						$found                  = true;
+					}
+				}
+				if ( ! $found ) {
+					$codes[] = self::code( 'pro.css', 'custom_css', $reason, 'converted' );
+				}
 			}
 			if ( $lost ) {
 				$codes[] = self::code( 'pro.approx', 'custom_css', 'Un tamaño de fondo con medidas (`background-size` con longitudes o porcentajes), `background-position-x`/`-y` o varios fondos no tienen equivalente en el `<img>` del widget propio: quedan sobre su envoltorio, sin efecto.', 'approx' );

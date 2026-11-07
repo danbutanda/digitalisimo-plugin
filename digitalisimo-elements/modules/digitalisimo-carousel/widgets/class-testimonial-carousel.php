@@ -47,14 +47,15 @@ class Testimonial_Carousel extends Base_Widget {
 	 * colocaba sólo con la alineación de escritorio (las clases de los dispositivos no lo movían) y, con «Derecha», la
 	 * regla del inicio (`inset-inline-start`) ganaba a la de `right`, así que el pico quedaba a la izquierda (a la derecha
 	 * en RTL con «Izquierda») salvo en los dispositivos con «Tamaño» de la imagen, cuyas reglas lo llevaban al lado de la
-	 * alineación. `--digi-t-ia` (`auto`) la escribe «Tamaño»; `--digi-t-al`/`--digi-t-ar`, también. Cada valor fija las
+	 * alineación; en RTL, con «Centro», la regla del inicio (la derecha) ganaba a `left: 50%`. `--digi-t-ia` (`auto`) la
+	 * escribe «Tamaño»; `--digi-t-al`/`--digi-t-ar`, también. Cada valor fija las
 	 * variables del pico en el contenido (gana a las de cada dispositivo, que van en el envoltorio) y deja en
 	 * `--digi-t-rl`/`--digi-t-rr` las de RTL, que toma la segunda regla del control. `start` es la alineación vacía.
 	 */
 	const PRO_BUBBLE = array(
 		'start'  => '--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0;--digi-t-rl:auto;--digi-t-rr:var(--digi-t-ar,calc(20px + 50px / 2))',
 		'left'   => '--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0;--digi-t-rl:var(--digi-t-al,auto);--digi-t-rr:var(--digi-t-ia,calc(20px + 50px / 2))',
-		'center' => '--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%;--digi-t-rl:50%;--digi-t-rr:auto',
+		'center' => '--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%;--digi-t-rl:auto;--digi-t-rr:calc(20px + 50px / 2)',
 		'right'  => '--digi-t-l:var(--digi-t-ia,calc(20px + 50px / 2));--digi-t-r:var(--digi-t-ar,auto);--digi-t-x:0;--digi-t-rl:auto;--digi-t-rr:var(--digi-t-ar,calc(20px + 50px / 2))',
 	);
 

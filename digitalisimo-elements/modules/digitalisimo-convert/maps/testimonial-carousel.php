@@ -133,27 +133,18 @@ return array(
 		),
 	),
 	// Encabezados del panel: no guardan valor.
-	// Pico de la burbuja: PRO lo colocaba sólo con la alineación de escritorio y, con «Derecha», lo dejaba a la izquierda
-	// salvo donde se fijara «Tamaño» de la imagen (`PRO_BUBBLE` del widget). El widget propio lo coloca junto a la imagen
-	// en cada dispositivo, así que se fija `pro_bubble` con la de escritorio cuando el resultado difiere: piel burbuja, con
-	// el pico debajo o encima del texto (no a los lados) y una alineación que no sea «Centro» en todos los dispositivos.
+	// Pico de la burbuja: PRO lo colocaba sólo con la alineación de escritorio; con «Derecha» lo dejaba a la izquierda salvo
+	// donde se fijara «Tamaño» de la imagen, y en RTL con «Centro», cerca de la derecha (`PRO_BUBBLE` del widget). El
+	// widget propio lo coloca junto a la imagen en cada dispositivo, así que, con la piel burbuja y el pico debajo o encima
+	// del texto (no a los lados), se fija `pro_bubble` con la alineación de escritorio (vacía: `start`).
 	'filter'    => static function ( array $out, array $src ): array {
 		$skin   = (string) ( $src['skin'] ?? 'default' );
 		$layout = (string) ( $src['layout'] ?? 'image_inline' );
 		if ( 'bubble' !== $skin || in_array( $layout, array( 'image_left', 'image_right' ), true ) ) {
 			return $out;
 		}
-		$desktop = array_key_exists( 'alignment', $src ) && is_scalar( $src['alignment'] ) ? (string) $src['alignment'] : 'center';
-		$differs = 'center' !== $desktop;
-		foreach ( \Digitalisimo\Elements\Convert\Translator::DEVICES as $device ) {
-			$value = $src[ 'alignment' . $device ] ?? null;
-			if ( '' !== $device && is_scalar( $value ) && '' !== (string) $value && (string) $value !== $desktop ) {
-				$differs = true;
-			}
-		}
-		if ( $differs ) {
-			$out['pro_bubble'] = in_array( $desktop, array( 'left', 'center', 'right' ), true ) ? $desktop : 'start';
-		}
+		$desktop           = array_key_exists( 'alignment', $src ) && is_scalar( $src['alignment'] ) ? (string) $src['alignment'] : 'center';
+		$out['pro_bubble'] = in_array( $desktop, array( 'left', 'center', 'right' ), true ) ? $desktop : 'start';
 		return $out;
 	},
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'name_title_style', 'heading_title_style' ),

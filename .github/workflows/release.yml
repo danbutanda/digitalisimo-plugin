@@ -72,6 +72,7 @@ jobs:
           node tests/elements-blockquote-align-chrome.mjs
           php tests/elements-crs-engine.php
           node tests/elements-crs-engine-chrome.mjs
+          node tests/elements-carousel-fidelity-chrome.mjs
           php tests/elements-pro-nested-carousel.php
           node tests/elements-pro-nested-carousel-editor.mjs
           php tests/elements-pro-media-carousel.php
