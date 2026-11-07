@@ -298,7 +298,30 @@ final class Translator {
 		if ( '' === trim( $css ) || ! $sets ) {
 			return $css;
 		}
-		$out = self::external_block( $css, $sets, $css );
+		// Cada juego con su ancla en una sola expresión; sólo siguen los que podrían aplicarse a este CSS.
+		$ready = array();
+		foreach ( $sets as $set ) {
+			$classes  = (array) ( $set['classes'] ?? array() );
+			$patterns = (array) ( $set['class_patterns'] ?? array() );
+			$anchors  = array();
+			foreach ( $classes as $from => $to ) {
+				if ( 1 === preg_match( '/^\.(?:digi-|elementor-widget-digitalisimo-)/', (string) $to ) ) {
+					$anchors[] = preg_quote( (string) $from, '/' );
+				}
+			}
+			$anchor = $anchors ? '/(?:' . implode( '|', $anchors ) . ')(?![\w-])/' : '';
+			$hit    = '' !== $anchor && 1 === preg_match( $anchor, $css );
+			foreach ( $hit ? array() : $patterns as $pattern => $replacement ) {
+				$hit = $hit || 1 === @preg_match( (string) $pattern, $css ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
+			}
+			if ( $hit ) {
+				$ready[] = array( 'classes' => $classes, 'class_patterns' => $patterns, 'anchor' => $anchor );
+			}
+		}
+		if ( ! $ready ) {
+			return $css;
+		}
+		$out = self::external_block( $css, $ready, $css );
 		return null === $out ? $css : $out;
 	}
 
@@ -360,15 +383,9 @@ final class Translator {
 		// El selector sin comentarios ni cadenas: una clase dentro de `[data-x=".clase"]` no ancla.
 		$plain  = (string) preg_replace( array( '#/\*.*?\*/#s', '/"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'/s' ), array( '', '""' ), $prelude );
 		foreach ( $sets as $set ) {
-			$classes  = (array) ( $set['classes'] ?? array() );
-			$patterns = (array) ( $set['class_patterns'] ?? array() );
-			$anchored = false;
-			foreach ( $classes as $from => $to ) {
-				if ( 1 === preg_match( '/^\.(?:digi-|elementor-widget-digitalisimo-)/', (string) $to ) && 1 === preg_match( '/' . preg_quote( (string) $from, '/' ) . '(?![\w-])/', $plain ) ) {
-					$anchored = true;
-					break;
-				}
-			}
+			$classes  = $set['classes'];
+			$patterns = $set['class_patterns'];
+			$anchored = '' !== $set['anchor'] && 1 === preg_match( $set['anchor'], $plain );
 			if ( ! $anchored ) {
 				foreach ( $patterns as $pattern => $replacement ) {
 					if ( 1 === @preg_match( (string) $pattern, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- un patrón mal escrito en un mapa no rompe la conversión.
