@@ -11,7 +11,7 @@ body:not(.elementor-editor-active) .elementor-section .elementor-element:has(+.e
 .digi-noc__overlay{position:absolute;inset:0;background-color:rgba(0,0,0,.5);opacity:var(--digi-noc-overlay);pointer-events:all}
 .digi-noc__main{position:absolute;inset:0;display:flex;justify-content:var(--digi-noc-justify);align-items:var(--digi-noc-align)}
 .digi-noc__main.animated{animation-duration:max(.001s,var(--digi-noc-duration))}
-.digi-noc__content{width:var(--digi-noc-width);max-width:100%;height:var(--digi-noc-height);overflow:var(--digi-noc-overflow);background-color:#fff;box-shadow:2px 8px 23px 3px rgba(0,0,0,.2);pointer-events:all}
+.digi-noc__content{width:var(--digi-noc-width);height:var(--digi-noc-height);overflow:var(--digi-noc-overflow);background-color:#fff;box-shadow:2px 8px 23px 3px rgba(0,0,0,.2);pointer-events:all}
 .digi-noc__content:focus:not(:focus-visible){outline:0}
 @keyframes digi-noc-close{0%,99.99%{opacity:1;visibility:visible}to{opacity:0;visibility:hidden}}
 @media (prefers-reduced-motion:reduce){.digi-noc--closing{animation:none}}

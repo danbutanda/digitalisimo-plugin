@@ -3,8 +3,9 @@
 // servidor (lo comprueban tests/elements-pro-off-canvas.php y tests/elements-pro-search.php) y un `elementorFrontend` de
 // prueba que arranca como el del núcleo (`elementor/frontend/init`, `components:init`, acciones de URL en el clic):
 // - panel: cerrado e inerte al cargar, disparadores con aria-controls/aria-expanded; abre con el enlace de la etiqueta
-//   dinámica (codificado) y con un enlace de acción escrito a mano (alternar), lleva el foco al primer control, lo
-//   atrapa (Tab y Mayús+Tab), Escape y la capa cierran y el foco vuelve al disparador; «no cerrar» con Escape o con la
+//   dinámica (codificado) y con un enlace de acción escrito a mano (alternar), lleva el foco al contenido con el ratón
+//   y al primer control con el teclado (como PRO: un campo de texto no se enfoca con el ratón), lo atrapa (Tab y
+//   Mayús+Tab, también desde el contenido), el contenido no se acota a la ventana, Escape y la capa cierran y el foco vuelve al disparador; «no cerrar» con Escape o con la
 //   capa; bloqueo del desplazamiento; animaciones de entrada y salida del núcleo (y ninguna con movimiento reducido);
 //   manejadores de los hijos una sola vez; no pisa una acción `off_canvas:*` ya registrada; editor (sin foco atrapado);
 // - búsqueda: relleno del campo según los iconos, «Borrar» (aparece con texto, vacía, devuelve el foco), resultados en
@@ -172,7 +173,18 @@ const oc = (page, id) => page.evaluate(id => {
   await sleep(150);
   s = await oc(page, 'oc00001');
   ok(s.hidden === 'false' && !s.inert && !s.delay && s.visible === 'visible' && !s.lock, 'Abre con el enlace de la etiqueta dinámica: visible, sin inert, sin bloqueo (no pedido).');
-  ok('first' === await active(page), 'El foco va al primer control del panel.');
+  // Con el ratón, como PRO, el foco no va al primer control (en un teléfono abriría el teclado de un campo de texto):
+  // entra en el contenido, sin anillo, y el diálogo sigue atrapándolo.
+  ok(await page.evaluate(() => document.activeElement.classList.contains('digi-noc__content') && document.activeElement.getAttribute('tabindex') === '-1' && !document.activeElement.matches(':focus-visible')), 'Abrir con el ratón lleva el foco al contenido del panel, sin anillo: ' + await active(page));
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('Tab');
+  await page.keyboard.up('Shift');
+  ok('last' === await active(page), 'Mayús+Tab desde el contenido va al último control (no sale del panel).');
+  await page.keyboard.press('Tab');
+  ok('first' === await active(page), 'Tab desde el último vuelve al primero.');
+  await page.evaluate(() => document.querySelector('#off-canvas-oc00001 .digi-noc__content').focus());
+  await page.keyboard.press('Tab');
+  ok('first' === await active(page), 'Tab desde el contenido va al primer control.');
   ok(await page.evaluate(() => document.getElementById('t1').getAttribute('aria-expanded') === 'true' && document.getElementById('t2').getAttribute('aria-expanded') === 'true'), 'Los disparadores dicen que está abierto.');
   ok(JSON.stringify(await page.evaluate(() => window.__ready)) === JSON.stringify(['oc00001c', 'oc00001b']), 'Los manejadores de los hijos corren al abrir: ' + JSON.stringify(await page.evaluate(() => window.__ready)));
   // Foco atrapado.
@@ -201,7 +213,7 @@ const oc = (page, id) => page.evaluate(id => {
   await page.evaluate(() => { document.getElementById('t2').focus(); });
   await page.keyboard.press('Enter');
   await sleep(150);
-  ok((await oc(page, 'oc00001')).hidden === 'false' && 'first' === await active(page), 'Intro en el enlace de acción abre y lleva el foco dentro.');
+  ok((await oc(page, 'oc00001')).hidden === 'false' && 'first' === await active(page), 'Intro en el enlace de acción abre y lleva el foco al primer control (teclado, como PRO).');
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('elementor-pro/off-canvas/toggle-display-mode', { detail: { id: 'oc00001', displayMode: 'toggle' } })));
   await sleep(100);
   ok((await oc(page, 'oc00001')).hidden === 'true' && 't2' === await active(page), 'El evento de PRO (alternar) cierra y el foco vuelve a quien lo abrió.');
@@ -231,6 +243,29 @@ const oc = (page, id) => page.evaluate(id => {
   await page.keyboard.press('Tab');
   ok(await page.evaluate(() => document.activeElement.classList.contains('digi-noc__content')), 'Y Tab no sale del panel.');
   await page.keyboard.press('Escape');
+  await sleep(100);
+  // Un campo de texto como primer control: con el ratón no se enfoca (PRO no movía el foco); con Intro, sí.
+  await page.evaluate(() => { const a = document.querySelector('#off-canvas-oc00001 .first'); const i = document.createElement('input'); i.type = 'search'; i.id = 'campo'; i.setAttribute('aria-label', 'Buscar'); a.before(i); });
+  await page.click('#t1');
+  await sleep(150);
+  ok(await page.evaluate(() => document.activeElement.classList.contains('digi-noc__content')), 'Con un campo de texto primero, abrir con el ratón no lo enfoca: ' + await active(page));
+  await page.keyboard.press('Escape');
+  await sleep(100);
+  await page.evaluate(() => { document.getElementById('t2').focus(); });
+  await page.keyboard.press('Enter');
+  await sleep(150);
+  ok('campo' === await active(page), 'Con Intro, el foco va al campo de texto (primer control).');
+  await page.keyboard.press('Escape');
+  await page.close();
+}
+{
+  // Ancho: el contenido no se acota a la ventana (como PRO). Con «Alto: ajustado al contenido» (sin desplazamiento
+  // interno) y un bloque de 390 px en una ventana de 375 px, el panel de 400 px mide 390 px y desborda por el inicio.
+  const page = await open(OC_PAGE.replace('</style>', '#off-canvas-oc00003{--digi-noc-overflow:initial;--digi-noc-height:fit-content;--digi-noc-justify:flex-end}</style>').replace('<span>sin controles</span>', '<div style="width:390px;height:20px"></div>'), { width: 375 });
+  await page.click('#t4');
+  await sleep(150);
+  const w = await page.evaluate(() => { const c = document.querySelector('#off-canvas-oc00003 .digi-noc__content').getBoundingClientRect(), m = document.querySelector('#off-canvas-oc00003 .digi-noc__main').getBoundingClientRect(); return [Math.round(c.width), Math.round(c.left), Math.round(m.width)]; });
+  ok(w[2] < 390 && w[0] === 390 && w[1] === w[2] - 390, 'El contenido ajustado mide lo que su bloque (390 px), no el ancho de la ventana, y desborda por el inicio: ' + JSON.stringify(w));
   await page.close();
 }
 {
