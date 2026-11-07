@@ -152,6 +152,14 @@ try {
     await sleep(50);
     r = await page.evaluate(() => window.__opened.map(o => o.url));
     ok(r.length === 5 && r[4] === custom, 'Con la URL personalizada, la del enlace, en la ventana emergente.');
+    // En la portada, la URL del servidor es el comienzo de la de la imagen destacada: sólo cambia la URL entera (la de
+    // `url`), nunca la imagen (`media`), como PRO, que la tomaba aparte.
+    const home = 'https%3A%2F%2Fsitio.test%2F', media = home + 'wp-content%2Fuploads%2Ffoto.jpg';
+    await page.evaluate((h, m) => { const box = document.querySelector('[data-id="s3"] .digi-share'); box.setAttribute('data-digi-share-url', h); const a = box.querySelector('.digi-share__btn--pinterest'); a.digiHref = undefined; a.setAttribute('href', 'https://www.pinterest.com/pin/create/button/?url=' + h + '&media=' + m); }, home, media);
+    await page.click('[data-id="s3"] .digi-share__btn--pinterest');
+    await sleep(50);
+    r = await page.evaluate(() => window.__opened.map(o => o.url));
+    ok(r.length === 6 && r[5] === 'https://www.pinterest.com/pin/create/button/?url=' + here + '&media=' + media, 'Portada: la URL del navegador en `url` y la imagen intacta en `media`: ' + r[5]);
     await page.close();
   }
   {
