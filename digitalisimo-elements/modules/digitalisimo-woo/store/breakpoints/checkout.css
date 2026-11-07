@@ -1,0 +1,31 @@
+.digi-co{color:#69727d;font-family:Roboto,sans-serif;font-size:14px;line-height:21px}
+.digi-co ::placeholder{color:var(--forms-fields-normal-color,inherit);font-family:inherit;opacity:.6}
+.digi-co a{color:var(--links-normal-color,#5bc0de)}
+.digi-co a:hover{color:var(--links-hover-color,#5bc0de)}
+.digi-co__container{display:grid;grid-template-columns:56% auto;gap:var(--sections-margin,24px)}
+.digi-checkout-layout-one-column .digi-co__container{grid-template-columns:auto}
+.digi-co__sticky--active{position:sticky;top:var(--wp-admin--admin-bar--height,0)}
+.digi-co #customer_details .col-1,.digi-co .woocommerce-checkout #payment,.digi-co .woocommerce :is(.digi-co__review,.digi-co__coupon,.digi-co__login,.shipping_address,.woocommerce-additional-fields){background:var(--sections-background-color,#fff);border:1px var(--sections-border-type,solid) var(--sections-border-color,#d5d8dc);border-radius:var(--sections-border-radius,3px);display:block;margin:var(--sections-margin,0 0 24px);padding:var(--sections-padding,16px 30px)}
+.digi-co .woocommerce .woocommerce-additional-fields{display:var(--additional-information-display,none)}
+.digi-co .woocommerce h3{color:var(--sections-title-color,#000);font-size:14px;font-weight:700;margin:0 0 var(--sections-title-spacing,30px)}
+.digi-co .digi-co__secondary{color:var(--sections-secondary-title-color,#69727d);margin-bottom:0}
+.digi-co .digi-co__coupon-form{margin-top:var(--sections-secondary-title-spacing,24px)}
+.digi-co .digi-co__coupon-desc{color:var(--forms-labels-color,#69727d);margin-bottom:var(--forms-label-spacing,3px)}
+.digi-co .digi-co__apply{width:90%}
+.digi-co #customer_details .form-row,.digi-co .woocommerce :is(.digi-co__coupon,.digi-co__login-form) .form-row{margin-inline:var(--forms-columns-gap-margin,0);padding-inline:var(--forms-columns-gap-padding,0)}
+.digi-co #customer_details .form-row label,.digi-co .woocommerce :is(.digi-co__coupon,.digi-co__login-form) .form-row label{color:var(--forms-labels-color,#69727d);margin-bottom:var(--forms-label-spacing,3px)}
+.digi-co #customer_details .form-row :is(.input-text,select,textarea),.digi-co .woocommerce :is(.digi-co__coupon,.digi-co__login-form) .form-row :is(.input-text,select,textarea){background-color:#f9fafa;border:none;border-radius:var(--forms-fields-border-radius,0);color:var(--digi-co-f,var(--forms-fields-normal-color,#69727d));font-size:14px;font-weight:400;padding:var(--forms-fields-padding,16px)}
+.digi-co .form-row :focus,.digi-co .select2-selection:focus{--digi-co-f:var(--forms-fields-focus-color,#69727d)}
+.digi-co :is(.create-account,.digi-co__coupon .form-row){margin-bottom:0!important}
+.digi-co .woocommerce button.woocommerce-button{background:none;border:2px var(--forms-buttons-border-type,solid) var(--forms-buttons-border-color,#5bc0de);border-radius:var(--forms-buttons-border-radius,3px);color:var(--digi-co-b,var(--forms-buttons-normal-text-color,#6f6f6f));padding:1rem;transition-duration:var(--forms-buttons-hover-transition-duration,.3s)}
+.digi-co button:hover{--digi-co-b:var(--forms-buttons-hover-text-color,#6f6f6f)}
+.digi-co .woocommerce #coupon_code{margin-right:1%}
+.digi-co .woocommerce .coupon-container-grid{align-items:center;display:grid;grid-template-columns:auto auto}
+.digi-co .woocommerce .coupon-col-2{text-align:end}
+.digi-co :focus-visible{outline:2px solid;outline-offset:2px}
+.digi-co #ship-to-different-address{margin-top:13px;padding-inline-start:var(--shipping-heading-padding-start,30px)}
+.digi-co #ship-to-different-address span{font-weight:400}
+.digi-co .woocommerce-shipping-totals td{max-width:70px}
+.digi-co .woocommerce-checkout #payment .payment_methods li{line-height:21px}
+@media (max-width:ELEMENTOR_SCREEN_TABLET_MAX){.digi-co__container{grid-template-columns:1fr}.digi-co .digi-co__apply{width:var(--coupon-button-width,auto)}.digi-co .woocommerce #coupon_code{margin:0 0 15px;width:100%}.digi-co .woocommerce .coupon-container-grid{display:block}.digi-co .woocommerce .coupon-col-2{text-align:var(--coupon-button-alignment,start)}}
+@media (prefers-reduced-motion:reduce){.digi-co *{transition:none!important}}

@@ -187,6 +187,8 @@ namespace Elementor {
 		public $editor;
 		public $preview;
 		public $documents;
+		public $breakpoints;
+		public $frontend;
 		public function __construct() { $this->editor = new C_Mode(); $this->preview = new C_Mode(); $this->documents = new C_Docs(); }
 	}
 	Plugin::$instance = new Plugin();
@@ -391,6 +393,48 @@ namespace {
 	$GLOBALS['c_wp']['styles'] = array();
 	\Digitalisimo\Elements\Woo\Registry::register_assets();
 	c_check( isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-2'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'], $GLOBALS['c_wp']['styles']['digitalisimo-woo-my-account-3'] ) && ! isset( $GLOBALS['c_wp']['styles']['digitalisimo-woo-checkout-3'] ) && array( 'digitalisimo-woo-cart-2' ) === $GLOBALS['c_wp']['styles']['digitalisimo-woo-cart-3'][2], 'Registry::register_assets() registra también la segunda y la tercera hoja que existen.' );
+
+	// Puntos de corte personalizados (c7#2): las hojas con anchos fijos tienen plantilla con los marcadores del núcleo
+	// (`store/breakpoints/`, generada por tests/sources/woo-css/build.mjs) y, con puntos de corte personalizados, se sirve la
+	// copia que el núcleo regenera con los del kit (como PRO con sus hojas WIDGET_HAS_CUSTOM_BREAKPOINTS), con su `?ver=`.
+	\Elementor\Plugin::$instance->breakpoints = new class() {
+		public $custom = true;
+		public function has_custom_breakpoints() { return $this->custom; }
+	};
+	\Elementor\Plugin::$instance->frontend = new class() {
+		public $calls = array();
+		public function get_frontend_file( $name, $prefix, $template ) {
+			$this->calls[] = array( $name, $prefix, $template );
+			return new class( $prefix . $name ) {
+				private $n;
+				public function __construct( $n ) { $this->n = $n; }
+				public function get_url() { return 'https://sitio.test/wp-content/uploads/elementor/css/' . $this->n . '?ver=7'; }
+			};
+		}
+	};
+	$prefix = 'custom-digi-woo-' . preg_replace( '/[^0-9a-z.]/i', '', defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? (string) DIGITALISIMO_ELEMENTS_VERSION : '' ) . '-';
+	$custom = static function ( $handle, $sheet ) use ( $prefix ) {
+		$style = $GLOBALS['c_wp']['styles'][ $handle ] ?? array();
+		return isset( $style[1] ) && 'https://sitio.test/wp-content/uploads/elementor/css/' . $prefix . $sheet . '?ver=7' === $style[1] && null === $style[3];
+	};
+	$plain = static function ( $handle, $sheet ) {
+		$style = $GLOBALS['c_wp']['styles'][ $handle ] ?? array();
+		return isset( $style[1] ) && str_ends_with( (string) $style[1], 'store/assets/' . $sheet ) && null !== $style[3];
+	};
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( $custom( 'digitalisimo-woo-cart', 'cart.css' ) && $custom( 'digitalisimo-woo-cart-2', 'cart-2.css' ) && $custom( 'digitalisimo-woo-checkout', 'checkout.css' ) && $custom( 'digitalisimo-woo-checkout-2', 'checkout-2.css' ) && $custom( 'digitalisimo-woo-my-account', 'my-account.css' ) && $custom( 'digitalisimo-woo-purchase-summary', 'purchase-summary.css' ) && $custom( 'digitalisimo-woo-purchase-summary-2', 'purchase-summary-2.css' ) && $custom( 'digitalisimo-woo-menu-cart-2', 'menu-cart-2.css' ) && $custom( 'digitalisimo-woo-archive-products', 'archive-products.css' ), 'Con puntos de corte personalizados, las nueve hojas con anchos fijos salen de la copia regenerada con los del kit: ' . json_encode( array_map( static function ( $s ) { return $s[1]; }, $GLOBALS['c_wp']['styles'] ) ) );
+	c_check( $plain( 'digitalisimo-woo-cart-3', 'cart-3.css' ) && $plain( 'digitalisimo-woo-my-account-2', 'my-account-2.css' ) && $plain( 'digitalisimo-woo-menu-cart', 'menu-cart.css' ) && $plain( 'digitalisimo-woo-breadcrumb', 'breadcrumb.css' ), 'Las hojas sin anchos fijos siguen siendo las publicadas.' );
+	$calls = \Elementor\Plugin::$instance->frontend->calls;
+	c_check( 9 === count( $calls ) && 'cart.css' === $calls[ array_search( 'cart.css', array_column( $calls, 0 ), true ) ][0] && str_ends_with( $calls[ array_search( 'cart.css', array_column( $calls, 0 ), true ) ][2], 'modules/digitalisimo-woo/store/breakpoints/cart.css' ), 'El núcleo genera cada copia desde la plantilla de su hoja.' );
+	$tpl = (string) file_get_contents( $el . 'modules/digitalisimo-woo/store/breakpoints/cart-2.css' );
+	c_check( str_contains( $tpl, '@media (max-width:ELEMENTOR_SCREEN_TABLET_MAX)' ) && str_contains( $tpl, '@media (max-width:ELEMENTOR_SCREEN_TABLET_MIN)' ) && str_contains( $tpl, '@media (min-width:ELEMENTOR_SCREEN_MOBILE_MAX)' ) && str_replace( array( 'ELEMENTOR_SCREEN_TABLET_MAX', 'ELEMENTOR_SCREEN_TABLET_MIN', 'ELEMENTOR_SCREEN_MOBILE_MAX' ), array( '1024px', '768px', '767px' ), $tpl ) === (string) file_get_contents( $dir . 'cart-2.css' ), 'La plantilla es la hoja con los marcadores del núcleo en lugar de los anchos por defecto.' );
+	\Elementor\Plugin::$instance->breakpoints->custom = false;
+	$GLOBALS['c_wp']['styles'] = array();
+	\Digitalisimo\Elements\Woo\Registry::register_assets();
+	c_check( $plain( 'digitalisimo-woo-cart', 'cart.css' ) && $plain( 'digitalisimo-woo-cart-2', 'cart-2.css' ), 'Con los puntos de corte por defecto, las hojas publicadas.' );
+	\Elementor\Plugin::$instance->breakpoints = null;
+	\Elementor\Plugin::$instance->frontend    = null;
 	c_check( 'digitalisimo-woo-cart' === $own->get_name() && 'Carrito' === $own->get_title() && array( 'woocommerce-elements' ) === $own->get_categories(), 'Nombre, título y categoría.' );
 
 	// 5. Nombres prohibidos y marcas ajenas.

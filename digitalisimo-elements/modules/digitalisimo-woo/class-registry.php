@@ -175,7 +175,7 @@ final class Registry {
 				continue;
 			}
 			if ( ! empty( $entry['css'] ) && ! wp_style_is( $name, 'registered' ) && is_file( Assets::path( $entry['css'] ) ) ) {
-				wp_register_style( $name, Assets::url( $entry['css'] ), array(), $version );
+				Assets::register_sheet( $name, (string) $entry['css'] );
 			}
 			// Hojas adicionales (`-2.css`, `-3.css`, como `Store\Base::get_style_depends()`): también registradas aquí, porque
 			// el núcleo encola por su handle los recursos que guardó de la página sin volver a pedírselos al widget.
@@ -186,7 +186,7 @@ final class Registry {
 					break;
 				}
 				if ( ! wp_style_is( $name . '-' . $n, 'registered' ) ) {
-					wp_register_style( $name . '-' . $n, Assets::url( $extra ), array( $previous ), $version );
+					Assets::register_sheet( $name . '-' . $n, $extra, array( $previous ) );
 				}
 				$previous = $name . '-' . $n;
 			}

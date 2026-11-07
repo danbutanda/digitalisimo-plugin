@@ -50,7 +50,7 @@ abstract class Base extends Widget {
 			}
 			$handle = $this->get_name() . '-' . $n;
 			if ( ! wp_style_is( $handle, 'registered' ) ) {
-				wp_register_style( $handle, \Digitalisimo\Elements\Woo\Assets::url( $extra ), array( end( $handles ) ), defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false );
+				\Digitalisimo\Elements\Woo\Assets::register_sheet( $handle, $extra, array( end( $handles ) ) );
 			}
 			$handles[] = $handle;
 		}
