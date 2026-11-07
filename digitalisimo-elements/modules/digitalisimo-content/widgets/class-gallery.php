@@ -119,14 +119,16 @@ class Gallery extends \Elementor\Widget_Base {
 	}
 
 	/**
-	 * Animación del indicador: `<familia>-<animación>` con el valor de la clave de su familia, o '' sin indicador. La que no
-	 * es una opción del control vuelve a la de por defecto.
+	 * Animación del indicador: `<familia>-<animación>` con el valor de la clave de su familia, o '' sin indicador. Un
+	 * indicador desconocido es el subrayado (como la clase de la barra) y una animación que no es una opción del control,
+	 * la de por defecto.
 	 */
 	public static function pointer_fx( array $settings ): string {
 		$pointer = (string) ( $settings['pointer'] ?? 'underline' );
-		if ( ! isset( self::POINTERS[ $pointer ] ) ) {
+		if ( 'none' === $pointer ) {
 			return '';
 		}
+		$pointer = isset( self::POINTERS[ $pointer ] ) ? $pointer : 'underline';
 		list( $family, $key, $default ) = self::POINTERS[ $pointer ];
 		$options = array(
 			'line'       => array( 'fade', 'slide', 'grow', 'drop-in', 'drop-out', 'none' ),
