@@ -31,5 +31,5 @@
 		});
 	}
 	pages();
-	if (w.elementor && w.elementor.channels) boot(); else w.addEventListener('elementor/init', boot, { once: true });
+	if (wc() && w.elementor && w.elementor.channels) boot(); else w.addEventListener('elementor/init', boot, { once: true });
 }(window));

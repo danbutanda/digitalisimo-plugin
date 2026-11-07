@@ -67,4 +67,15 @@ ok(1 === (w.channel[event] || []).length, 'Con `elementor/init`, escucha el pane
 run(w);
 ok(!w.channel[event] && !w.digiShopPages, 'Sin el módulo de WooCommerce del editor, no hace nada.');
 
+// 4. El editor ya existe pero el módulo de PRO llega después: espera a `elementor/init` en lugar de rendirse.
+let late;
+({ w: late } = windowWith());
+const module = late.elementorPro;
+delete late.elementorPro;
+run(late);
+ok(1 === (late.listeners['elementor/init'] || []).length && !late.channel[event], 'Con el editor y sin el módulo de PRO todavía, espera a `elementor/init`.');
+late.elementorPro = module;
+late.listeners['elementor/init'][0]();
+ok(1 === (late.channel[event] || []).length && late.elementorPro.modules.woocommerce.pageSettingsWidgets['digitalisimo-woo-cart'] === late.elementorPro.modules.woocommerce.pageSettingsWidgets['woocommerce-cart'], 'Con `elementor/init`, copia las entradas y escucha el panel.');
+
 console.log(`DIGITALÍSIMO Elements: páginas de la tienda en el editor (${checks} comprobaciones) en verde.`);

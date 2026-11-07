@@ -480,6 +480,19 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
+      // C7, corrección de fidelidad c7#11 (`Woo\Store\Shop_Pages`): en el editor real, con WooCommerce, los cuatro widgets
+      // propios de las páginas de la tienda tienen el aviso «¿Guardar esto como página…?» de los de PRO y el Carrito
+      // propio escucha «Opciones adicionales» para el botón «Editar plantilla».
+      const shop = await page.evaluate(() => {
+        const m = window.elementorPro && elementorPro.modules && elementorPro.modules.woocommerce;
+        if (!m || !m.pageSettingsWidgets) return null;
+        const p = m.pageSettingsWidgets;
+        const pairs = { 'digitalisimo-woo-cart': 'woocommerce-cart', 'digitalisimo-woo-checkout': 'woocommerce-checkout-page', 'digitalisimo-woo-my-account': 'woocommerce-my-account', 'digitalisimo-woo-purchase-summary': 'woocommerce-purchase-summary' };
+        return { copied: Object.keys(pairs).filter((own) => p[own] && p[own] === p[pairs[own]]), hooked: true === window.digiShopPages, script: !!document.querySelector('script[src*="shop-pages-editor.js"]') };
+      });
+      if (!shop || 4 !== shop.copied.length || !shop.hooked || !shop.script) throw new Error(`páginas de la tienda en el editor (c7#11): ${JSON.stringify(shop)}`);
+      results.editorShopPages = { ok: true, note: `aviso «¿Guardar esto como página…?» en ${shop.copied.join(', ')}; «Editar plantilla» del Carrito enganchado` };
+      console.log(`OK     editor-shop-pages · ${results.editorShopPages.note}`);
       // Programa «sin widgets de PRO» (C0–C9): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
       // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
       // C4: `doc` dice en qué editor se busca (por defecto esta página; `single`/`archive`, las plantillas del Theme
