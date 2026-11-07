@@ -2865,7 +2865,7 @@
     "digitalisimo-woo-single-elements": {"woo": true, "settings": {"element": "woocommerce_output_product_data_tabs"}},
     "digitalisimo-woo-add-to-cart": {"woo": true, "settings": {"product_id": "@post:product:digi-k-camiseta", "text": "Comprar del kit", "show_quantity": "yes", "quantity": 2}},
     "digitalisimo-woo-products": {"woo": true, "settings": {"query_post_type": "by_id", "query_posts_ids": ["@post:product:digi-k-camiseta", "@post:product:digi-k-sudadera"], "columns": 2, "rows": 1, "paginate": ""}},
-    "digitalisimo-woo-products-classic": {"woo": true, "settings": {"_skin": "classic", "classic_columns": 3}},
+    "digitalisimo-woo-products-classic": {"woo": true, "settings": {"_skin": "classic", "classic_columns": 3, "posts_post_type": "by_id", "posts_posts_ids": ["@post:product:digi-k-camiseta", "@post:product:digi-k-zapato"], "posts_product_cat_ids": ["@term:product_cat:ropa"]}},
     "digitalisimo-woo-archive-products": {"woo": true, "settings": {"paginate": "yes", "allow_order": "yes", "nothing_found_message": "Nada en el kit."}},
     "digitalisimo-woo-archive-products-classic": {"woo": true, "settings": {"_skin": "classic"}},
     "digitalisimo-woo-categories": {"woo": true, "settings": {"source": "by_id", "categories": ["@term:product_cat:ropa"], "columns": 3}},

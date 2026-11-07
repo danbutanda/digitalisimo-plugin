@@ -154,6 +154,15 @@ namespace {
 	foreach ( Woo_Kit::PRODUCTS as $type ) {
 		kt_check( array( 'query_posts_ids' ) === References::exported( $type ), "1: {$type}: la selección manual viaja aunque el grupo de consulta la marque export => false." );
 	}
+	// Productos clásicos (el grupo antiguo `posts`: `export => false` y `on_export()` quitan la selección y los términos).
+	foreach ( Woo_Kit::CLASSIC_PRODUCTS as $type ) {
+		kt_check( array( 'posts_posts_ids', 'posts_product_cat_ids', 'posts_product_tag_ids', 'posts_product_brand_ids' ) === References::exported( $type ), "1: {$type}: la selección manual y los términos de la consulta antigua viajan; los autores no: " . implode( ', ', References::exported( $type ) ) );
+		foreach ( References::matching( 'element', $type ) as $ref ) {
+			if ( in_array( $ref['path'], array( 'posts_posts_ids.*', 'posts_product_cat_ids.*' ), true ) ) {
+				kt_check( $never === $ref['never'] && false === $ref['gate'], "1: {$type}: {$ref['path']} con el valor que nunca coincide (vacío serían todos los productos)." );
+			}
+		}
+	}
 	kt_check( array( 'digitalisimo-woo-add-to-cart', 'wc-add-to-cart' ) === Woo_Kit::ADD_TO_CART && array( 'digitalisimo-woo-products', 'woocommerce-products' ) === Woo_Kit::PRODUCTS, '1: el widget propio y el de PRO que K convierte al importar.' );
 	kt_check( array() === References::exported( 'form' ) && array() === References::exported( '*' ) && array() === References::exported( 'heading' ), '1: nada más se repone.' );
 
@@ -193,6 +202,17 @@ namespace {
 	kt_check( ! isset( $el[2]['settings']['webhooks'] ), '2: lo que otro elemento quita al exportar sin referencia `export` sigue fuera (webhooks).' );
 	kt_check( '12' === ( $el[3]['settings']['product_id'] ?? null ) && array( '12' ) === ( $el[4]['settings']['query_posts_ids'] ?? null ), '2: también en los widgets de PRO, que K convierte al importar.' );
 	kt_check( '77' === $el[5]['settings']['product_id'], '2: lo que la exportación dejó no se pisa.' );
+	$classic_saved = array(
+		array( 'id' => 'p000001', 'elType' => 'widget', 'widgetType' => 'digitalisimo-woo-products-classic', 'settings' => array( 'posts_post_type' => 'by_id', 'posts_posts_ids' => array( '11' ), 'posts_product_cat_ids' => array( '31' ), 'posts_authors' => array( '1' ), '_skin' => 'classic' ), 'elements' => array() ),
+		array( 'id' => 'p000002', 'elType' => 'widget', 'widgetType' => 'wc-products', 'settings' => array( 'posts_post_type' => 'product', 'posts_product_tag_ids' => array( '32' ) ), 'elements' => array() ),
+	);
+	$classic_exported = $classic_saved;
+	foreach ( $classic_exported as $i => $node ) {
+		$classic_exported[ $i ]['id'] = 'rnd2' . $i;
+		unset( $classic_exported[ $i ]['settings']['posts_posts_ids'], $classic_exported[ $i ]['settings']['posts_product_cat_ids'], $classic_exported[ $i ]['settings']['posts_product_tag_ids'], $classic_exported[ $i ]['settings']['posts_authors'] );
+	}
+	$classic = Documents::restore_ids( $classic_exported, $classic_saved );
+	kt_check( array( '11' ) === ( $classic[0]['settings']['posts_posts_ids'] ?? null ) && array( '31' ) === ( $classic[0]['settings']['posts_product_cat_ids'] ?? null ) && ! isset( $classic[0]['settings']['posts_authors'] ) && array( '32' ) === ( $classic[1]['settings']['posts_product_tag_ids'] ?? null ), '2: Productos clásicos (propio y de PRO): la selección y los términos viajan; los autores no: ' . json_encode( $classic ) );
 	$src = (string) file_get_contents( $E . '/modules/digitalisimo-woo/single/class-add-to-cart.php' );
 	kt_check( false !== strpos( $src, "unset( \$element['settings']['product_id'] );" ), '2: fuera de un kit (una plantilla suelta de la biblioteca), como PRO: on_export() quita el producto.' );
 
@@ -235,6 +255,16 @@ namespace {
 	kt_check( '112' === $out[5]['settings']['product_id'] && array( $never ) === $out[6]['settings']['query_posts_ids'], '3: igual en los widgets de PRO.' );
 	$unresolved = $codes( $context->get_report()['entries'], 'unresolved' );
 	kt_check( 4 === count( $unresolved ) && 'product_id' === $unresolved[0]['data']['path'] && array( '99' ) === $unresolved[0]['data']['values'], '3: cada referencia sin destino queda en el informe (`unresolved`): ' . json_encode( $unresolved ) );
+	// Productos clásicos: una sola traducción (la derivada no repite la lista declarada) y, sin destino, el valor que
+	// nunca coincide en la selección y en los términos (una categoría vacía mostraría todos los productos).
+	$classic_context = new Import_Context( array( 'session' => 'kwr0000000003', 'mode' => 'fresh', 'maps' => array( 'post' => array( 11 => 111 ), 'term' => array( 31 => 131 ) ) ) );
+	$classic_tree    = array(
+		array( 'id' => 'c1', 'elType' => 'widget', 'widgetType' => 'digitalisimo-woo-products-classic', 'settings' => array( 'posts_posts_ids' => array( '11' ), 'posts_product_cat_ids' => array( '31', '39' ) ), 'elements' => array() ),
+		array( 'id' => 'c2', 'elType' => 'widget', 'widgetType' => 'wc-products', 'settings' => array( 'posts_posts_ids' => array( '98' ), 'posts_product_tag_ids' => array( '38' ) ), 'elements' => array() ),
+	);
+	$classic_out = ( new Remapper( $classic_context ) )->apply_elements( $classic_tree, 0 );
+	kt_check( array( '111' ) === $classic_out[0]['settings']['posts_posts_ids'] && array( '131' ) === $classic_out[0]['settings']['posts_product_cat_ids'], '3: Productos clásicos: la selección y la categoría pasan a las importadas (lo que no llegó se quita): ' . json_encode( $classic_out[0]['settings'] ) );
+	kt_check( array( $never ) === $classic_out[1]['settings']['posts_posts_ids'] && array( $never ) === $classic_out[1]['settings']['posts_product_tag_ids'], '3: Productos clásicos sin destino: el valor que nunca coincide, nunca todos los productos: ' . json_encode( $classic_out[1]['settings'] ) );
 
 	// ── 4. `site-settings` ──────────────────────────────────────────────────────────────────────────────────────────
 	$session = 'kwr0000000002';

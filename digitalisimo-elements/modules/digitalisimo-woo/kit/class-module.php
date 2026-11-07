@@ -233,12 +233,15 @@ final class Module {
 		// Productos clásicos (el propio y `wc-products` de PRO, que un kit trae y K convierte al importar): su consulta es
 		// el grupo antiguo `posts` (`Group_Control_Posts`), cuyos nombres (`posts_posts_ids`, `posts_<taxonomía>_ids`) no
 		// traduce el rasgo de importación de PRO (sólo mira `post_ids` y `term_ids`). Taxonomías: las de producto de
-		// WooCommerce y, en `references()`, los atributos del sitio.
+		// WooCommerce y, en `references()`, los atributos del sitio. Fidelidad (kits con WooCommerce): el grupo antiguo
+		// marca esos controles `export => false` y su `on_export()` los quita, así que llevan `export` (k-kits.md §18) y,
+		// sin destino, el valor que nunca coincide: una categoría vacía mostraría todos los productos. Los autores no
+		// viajan (`user`).
 		foreach ( self::CLASSIC_PRODUCTS as $type ) {
-			$refs[] = array( 'element', $type, 'posts_posts_ids.*', 'post' );
+			$refs[] = array( 'element', $type, 'posts_posts_ids.*', 'post', false, $never, 'export' => true );
 			$refs[] = array( 'element', $type, 'posts_authors.*', 'user' );
 			foreach ( array( 'product_cat', 'product_tag', 'product_brand' ) as $taxonomy ) {
-				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term' );
+				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term', false, $never, 'export' => true );
 			}
 		}
 		// Fidelidad (kits con WooCommerce, docs/pro/c7.md): el producto del «Añadir al carrito personalizado» y la selección
@@ -275,7 +278,7 @@ final class Module {
 				continue;
 			}
 			foreach ( self::CLASSIC_PRODUCTS as $type ) {
-				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term' );
+				$refs[] = array( 'element', $type, 'posts_' . $taxonomy . '_ids.*', 'term', false, $never, 'export' => true );
 			}
 		}
 		return $refs;

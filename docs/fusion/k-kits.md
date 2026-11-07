@@ -208,7 +208,7 @@ El runner final `digitalisimo` (prioridad `PHP_INT_MAX`) importa las partes en l
 | element · `author-box` (rasgo) y `digitalisimo-author-box` (C4) | `digitalisimo_author_user` | user |
 | element · `digitalisimo-woo-my-account` (C7, por el filtro, en `Woo\Kit\Module`) | `customize_dashboard_select` | template |
 | element · `digitalisimo-woo-categories` (C7, ídem) | `categories.*`; `parent` | term |
-| element · `digitalisimo-woo-products-classic` y `wc-products` (C7, ídem) | consulta antigua `posts`: `posts_posts_ids.*`; `posts_authors.*`; `posts_<taxonomía>_ids.*` (categorías, etiquetas, marcas y los atributos `pa_*` del sitio) | post; user; term |
+| element · `digitalisimo-woo-products-classic` y `wc-products` (C7, ídem) | consulta antigua `posts`: `posts_posts_ids.*`; `posts_authors.*`; `posts_<taxonomía>_ids.*` (categorías, etiquetas, marcas y los atributos `pa_*` del sitio); la selección y los términos, con `export` (el grupo antiguo los marca `export => false` y su `on_export()` los quita, §18) | post y term, con `never`; user |
 | element · `digitalisimo-woo-add-to-cart` y `wc-add-to-cart` (C7, ídem) | `product_id`, con `export` (su `on_export()` lo quita, como PRO) | post, con `never` |
 | element · `digitalisimo-woo-products` y `woocommerce-products` (C7, ídem) | `query_posts_ids.*`, con `export` (el grupo de consulta lo marca `export => false`, como PRO) | post, con `never` |
 | document · `kit` | `woocommerce_shop_page_id`, `_cart_`, `_checkout_`, `_myaccount_`, `_terms_` y `_purchase_summary_page_id` (pestaña WooCommerce de los ajustes del sitio, que su `on_save()` copia a las opciones) | post, aplicadas en la petición final de «nuevo» (§18) |
@@ -432,7 +432,10 @@ traducir. La corrección cambia K en **dos puntos genéricos**, y lo que es de W
 - **Quién usa `export`:** F4-Woo/C7 (`Woo\Kit\Module`, por el filtro): `product_id` del «Añadir al carrito
   personalizado» (`digitalisimo-woo-add-to-cart` y `wc-add-to-cart`) y `query_posts_ids.*` de los Productos
   (`digitalisimo-woo-products` y `woocommerce-products`), con `never`: vacío sería el producto de la página o todos los
-  productos. El widget de PRO se declara porque un kit exportado desde Elements puede llevarlo aún sin migrar y K lo
+  productos. También la consulta antigua de los Productos clásicos (`digitalisimo-woo-products-classic` y `wc-products`):
+  `posts_posts_ids.*` y `posts_<taxonomía>_ids.*` (categorías, etiquetas, marcas y atributos `pa_*`), con `never`, porque
+  una categoría sin destino y vacía mostraría todos los productos; los autores (`posts_authors.*`) no viajan. Esta
+  ampliación salió de la revisión de la rama: el caso de R1 de los clásicos no usaba la selección manual. El widget de PRO se declara porque un kit exportado desde Elements puede llevarlo aún sin migrar y K lo
   convierte al importar (§17).
 - **Límites.** `export` repone sólo claves de primer nivel (no un campo dentro de un repetidor: esa ruta se rechaza). La reversión de «nuevo»
   devuelve los ajustes del kit con su guardado, así que las páginas que el kit del sitio tenía antes vuelven a las
