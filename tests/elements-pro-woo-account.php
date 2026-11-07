@@ -393,7 +393,13 @@ namespace {
 		$names = 'my-account' === $slug ? $names : array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ) );
 		$check( ! array_diff( $names, $declared ), "$source: el mapa no declara " . implode( ', ', array_diff( $names, $declared ) ) );
 		// Ajustes completos: un valor por control (y por dispositivo), grupos, globales, dinámicos y CSS personalizado.
-		$settings = array( 'custom_css' => 'selector .e-my-account-tab__orders .woocommerce-MyAccount-content-wrapper{color:red} selector .e-wc-account-tabs-nav{margin:0}' );
+		$settings = array( 'custom_css' => 'selector .e-my-account-tab__orders .woocommerce-MyAccount-content-wrapper{color:red} selector .e-wc-account-tabs-nav{margin:0}' . ( 'my-account' === $slug ? ' selector{--forms-fields-padding:9px;--sections-border-color:red}' : ' selector{--sections-border-color:red}' ) );
+		// Toda variable de PRO que la hoja propia lee con nombre corto (tests/sources/woo-css/variables.json) se traduce en
+		// el CSS personalizado del elemento.
+		$legend  = json_decode( (string) file_get_contents( dirname( __DIR__ ) . '/tests/sources/woo-css/variables.json' ), true );
+		$vars    = (array) $legend[ 'store/' . $slug . '.css' ];
+		$missing = array_diff_assoc( $vars, (array) $map['classes'] );
+		$check( count( $vars ) > 40 && ! $missing, "$source: el mapa traduce las variables de PRO a las cortas; faltan " . json_encode( $missing ) . '.' );
 		foreach ( $pro->controls as $key => $args ) {
 			if ( in_array( $args['type'], array( 'heading', 'raw_html', 'divider', 'alert' ), true ) ) {
 				continue;
@@ -422,12 +428,13 @@ namespace {
 			$check( $in, "$source: «{$key}» no es un control propio." );
 		}
 		if ( 'my-account' === $slug ) {
-			$check( 'selector .digi-acc--orders .digi-acc__c{color:red} selector .digi-acc__nav{margin:0}' === $out['custom_css'], 'Mi cuenta: el CSS personalizado pasa a las clases propias.' );
+			$check( 'selector .digi-acc--orders .digi-acc__c{color:red} selector .digi-acc__nav{margin:0} selector{' . $vars['--forms-fields-padding'] . ':9px;' . $vars['--sections-border-color'] . ':red}' === $out['custom_css'], 'Mi cuenta: el CSS personalizado pasa a las clases y a las variables propias: ' . $out['custom_css'] );
 			list( $bare ) = \Digitalisimo\Elements\Convert\Translator::translate( array(), $map );
 			$check( array( 'dashboard', 'orders', 'downloads', 'edit-address', 'edit-account', 'customer-logout' ) === array_column( $bare['tabs'], 'field_key' ) && 'Dashboard' === $bare['tabs'][0]['tab_name'], 'Mi cuenta: sin pestañas guardadas, llegan las de PRO con sus textos.' );
 		} else {
 			list( $bare ) = \Digitalisimo\Elements\Convert\Translator::translate( array(), $map );
 			$check( 'Thank You. Your order has been received.' === $bare['confirmation_message_text'] && 'Order Number:' === $bare['payment_details_number'], 'Resumen: sin textos guardados, llegan los de PRO.' );
+			$check( str_ends_with( $out['custom_css'], ' selector{' . $vars['--sections-border-color'] . ':red}' ), 'Resumen: el CSS personalizado que fija una variable de PRO pasa a la propia: ' . $out['custom_css'] );
 		}
 	}
 	echo "DIGITALÍSIMO Elements: Mi cuenta y Resumen de la compra propios frente a PRO ($checks comprobaciones) en verde.\n";
