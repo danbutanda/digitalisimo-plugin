@@ -3,9 +3,10 @@
  * Sitemap de PRO → Mapa del sitio (`digitalisimo-sitemap`, modules/digitalisimo-theme-elements/widgets/class-sitemap.php).
  *
  * El widget propio repite los controles del de PRO (también los campos del repetidor) con el mismo nombre, valores por
- * defecto, opciones y condiciones, así que el mapa es `keep` y `groups`. Mismas consultas que PRO, con un tope de
- * entradas por lista (PRO las pedía todas). Las clases que PRO armaba con el tipo de contenido o la taxonomía se
- * traducen para los tipos del núcleo (páginas, entradas, categorías y etiquetas). Formato: cabecera de
+ * defecto, opciones y condiciones, así que el mapa es `keep` y `groups`. Mismas consultas que PRO. Las clases que PRO
+ * armaba con el tipo de contenido o la taxonomía (`.elementor-sitemap-item-<tipo>`, `-<tipo>-list`, `-<tipo>-title`) se
+ * traducen para cualquier tipo, también los de un plugin (`class_patterns`). «Excluir → Entrada actual» no se aplicaba
+ * en PRO (su consulta no la leía): lo convertido llega sin ella, para listar lo mismo. Formato: cabecera de
  * `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
@@ -22,11 +23,13 @@ $digi_sm_classes = array(
 	'.elementor-sitemap-list'    => '.digi-sitemap__list',
 	'.elementor-sitemap-item'    => '.digi-sitemap__item',
 );
-foreach ( array( 'page', 'post', 'category', 'post_tag' ) as $digi_sm_type ) {
-	$digi_sm_classes[ '.elementor-sitemap-item-' . $digi_sm_type ]           = '.digi-sitemap__item--' . $digi_sm_type;
-	$digi_sm_classes[ '.elementor-sitemap-' . $digi_sm_type . '-list' ]      = '.digi-sitemap__list--' . $digi_sm_type;
-	$digi_sm_classes[ '.elementor-sitemap-' . $digi_sm_type . '-title' ]     = '.digi-sitemap__title--' . $digi_sm_type;
-}
+// Las clases con el tipo de contenido o la taxonomía, para cualquier tipo (el grupo exige al menos un carácter, así que
+// no tocan `.elementor-sitemap-list` ni `-title`, que traduce `classes`).
+$digi_sm_patterns = array(
+	'/\.elementor-sitemap-item-([a-z0-9_-]+)(?![\w-])/' => '.digi-sitemap__item--$1',
+	'/\.elementor-sitemap-([a-z0-9_-]+)-list(?![\w-])/' => '.digi-sitemap__list--$1',
+	'/\.elementor-sitemap-([a-z0-9_-]+)-title(?![\w-])/' => '.digi-sitemap__title--$1',
+);
 
 return array(
 	'source'    => 'sitemap',
@@ -51,8 +54,11 @@ return array(
 		'sitemap_title_typography'     => 'sitemap_title_typography',
 		'sitemap_list_item_typography' => 'sitemap_list_item_typography',
 	),
-	'approx'    => array(
-		'sitemap_exclude' => '«Entrada actual» excluye ahora la entrada en curso: PRO ofrecía la opción pero no la aplicaba.',
+	// «Entrada actual»: PRO la ofrecía pero no la aplicaba; el widget propio sí, así que lo convertido llega sin ella.
+	'values'    => array(
+		'sitemap_exclude' => static function ( $value ) {
+			return is_array( $value ) ? array_values( array_diff( $value, array( 'current_post' ) ) ) : $value;
+		},
 	),
 	'repeaters' => array(
 		'sitemap_items' => array(
@@ -85,5 +91,6 @@ return array(
 	),
 	// Separador y encabezados del panel: no guardan valor.
 	'ui'        => array( 'sitemap_layout_divider', 'sitemap_title_style', 'sitemap_list_style', 'sitemap_bullet_style' ),
-	'classes'   => $digi_sm_classes,
+	'classes'        => $digi_sm_classes,
+	'class_patterns' => $digi_sm_patterns,
 );

@@ -237,11 +237,9 @@ class Post_Content extends \Elementor\Widget_Base {
 
 				$elementor->frontend->add_content_filter();
 				$editor->set_edit_mode( $is_edit_mode );
-				// PRO no vacía aquí su guarda: la misma entrada ya no se volvía a pintar en toda la petición.
+				// Como PRO, aquí no se vacía la guarda: una entrada sin el constructor no se vuelve a pintar en la misma
+				// petición (un segundo Contenido de la misma entrada no pinta nada).
 				self::$level--;
-				if ( 0 === self::$level ) {
-					self::$did_posts = array();
-				}
 				return;
 			}
 

@@ -169,7 +169,7 @@ namespace {
 		h_check( count( $a_q ) === count( $b_q ), "$label: las mismas consultas que PRO." );
 		foreach ( $a_q as $i => $query ) {
 			$own_query = $b_q[ $i ];
-			h_check( 1000 === $own_query['posts_per_page'] && -1 === $query['posts_per_page'] && true === $own_query['no_found_rows'] && false === $own_query['update_post_term_cache'], "$label: tope de 1 000 entradas, sin contar filas (PRO pedía todas)." );
+			h_check( -1 === $own_query['posts_per_page'] && -1 === $query['posts_per_page'] && true === $own_query['no_found_rows'] && false === $own_query['update_post_term_cache'], "$label: todas las entradas, como PRO, sin contar filas." );
 			unset( $query['posts_per_page'], $query['filter'], $own_query['posts_per_page'], $own_query['no_found_rows'], $own_query['update_post_term_cache'] );
 			$query['post__not_in'] = array_values( (array) $query['post__not_in'] );
 			ksort( $query );
@@ -190,7 +190,11 @@ namespace {
 	$GLOBALS['h_wp']['singular'] = 0;
 	h_check( str_contains( h_render( $own, array( 'sitemap_exclude' => array( 'current_post' ) ) ), '>Inicio<' ), 'Fuera de una entrada no se excluye nada.' );
 	$GLOBALS['h_wp']['filters']['digitalisimo_elements_sitemap_limit'] = static function () { return 1; };
-	h_check( 1 === substr_count( h_render( $own, array( 'sitemap_items' => array( array( 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'P' ) ) ) ), '<li ' ), 'El tope se ajusta con el filtro digitalisimo_elements_sitemap_limit.' );
+	h_check( 1 === substr_count( h_render( $own, array( 'sitemap_items' => array( array( 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'P' ) ) ) ), '<li ' ), 'El filtro digitalisimo_elements_sitemap_limit pone un tope si el sitio lo quiere.' );
+	$GLOBALS['h_wp']['filters']['digitalisimo_elements_sitemap_limit'] = static function () { return -1; };
+	$GLOBALS['h_wp']['queries'] = array();
+	h_render( $own, array( 'sitemap_items' => array( array( 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'P' ) ) ) );
+	h_check( -1 === ( $GLOBALS['h_wp']['queries'][0]['posts_per_page'] ?? null ), 'Con el filtro en -1 (o en 0) tampoco hay tope.' );
 	unset( $GLOBALS['h_wp']['filters'] );
 	$evil = h_render( $own, array( 'sitemap_title_tag' => 'script', 'sitemap_items' => array( array( 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page"><x', 'sitemap_title' => '<img src=x onerror=alert(1)>Uno' ) ) ) );
 	h_check( ! str_contains( $evil, '<script' ) && ! str_contains( $evil, 'onerror' ) && ! str_contains( $evil, '"><x' ) && str_contains( $evil, '<div class="digi-sitemap__title' ), 'Etiqueta validada, título con el HTML permitido y tipo saneado: ' . $evil );
@@ -205,21 +209,24 @@ namespace {
 		'style'      => array( 'sitemap_list_indent' => array( 'unit' => 'px', 'size' => 20 ), 'sitemap_list_indent_mobile' => array( 'unit' => 'px', 'size' => 8 ), 'sitemap_section_padding' => array( 'top' => '10', 'right' => '10', 'bottom' => '10', 'left' => '10', 'unit' => 'px', 'isLinked' => true ), 'sitemap_title_color' => '#111111', 'sitemap_title_typography_typography' => 'custom', 'sitemap_title_typography_font_size' => array( 'unit' => 'px', 'size' => 22 ), 'sitemap_list_item_color' => '#222222', 'sitemap_list_item_typography_typography' => 'custom', 'sitemap_list_item_typography_font_weight' => '600', 'sitemap_bullet_color' => '#333333', 'sitemap_list_item_bullet_style' => 'square' ),
 		'globals'    => array( 'sitemap_title_color' => '', '__globals__' => array( 'sitemap_title_color' => 'globals/colors?id=accent', 'sitemap_list_item_typography_typography' => 'globals/typography?id=secondary', 'sitemap_bullet_color' => 'globals/colors?id=primary' ) ),
 		'dynamic'    => array( 'sitemap_items' => array( array( '_id' => 'd1', 'sitemap_type_selector' => 'post_type', '__dynamic__' => array( 'sitemap_title' => '[elementor-tag id="a1" name="site-title" settings="%7B%7D"]' ) ) ) ),
-		'css'        => array( 'custom_css' => "selector .elementor-sitemap-wrap{gap:10px}\nselector .elementor-sitemap-section .elementor-sitemap-title{margin:0}\nselector .elementor-sitemap-page-list .elementor-sitemap-item-page a{color:red}\n.elementor-widget-sitemap .elementor-sitemap-category-title,selector .elementor-sitemap-item-category{x:y}\nselector .elementor-sitemap-post-list,selector .elementor-sitemap-post_tag-title,selector .elementor-sitemap-item-post_tag{a:b}", '_css_classes' => 'mi-mapa' ),
+		'css'        => array( 'custom_css' => "selector .elementor-sitemap-wrap{gap:10px}\nselector .elementor-sitemap-section .elementor-sitemap-title{margin:0}\nselector .elementor-sitemap-page-list .elementor-sitemap-item-page a{color:red}\n.elementor-widget-sitemap .elementor-sitemap-category-title,selector .elementor-sitemap-item-category{x:y}\nselector .elementor-sitemap-post-list,selector .elementor-sitemap-post_tag-title,selector .elementor-sitemap-item-post_tag{a:b}\nselector .elementor-sitemap-product-list .elementor-sitemap-item-product,selector .elementor-sitemap-product_cat-title{c:d}", '_css_classes' => 'mi-mapa' ),
 		'responsive' => array( 'sitemap_columns_mobile' => '2', 'sitemap_section_padding_tablet' => array( 'top' => '4', 'right' => '4', 'bottom' => '4', 'left' => '4', 'unit' => 'px', 'isLinked' => true ) ),
 	);
 	list( $out, $codes ) = h_convert( 'sitemap', $own, $cases );
-	h_check( array( 'exclude:pro.approx:sitemap_exclude', 'css:pro.css:custom_css' ) === $codes, 'Sólo la exclusión de la entrada actual (aproximada) y el CSS convertido: ' . implode( ', ', $codes ) );
+	h_check( array( 'css:pro.css:custom_css' ) === $codes, 'Sólo el CSS convertido (la exclusión de la entrada actual ya no es aproximada): ' . implode( ', ', $codes ) );
 	$d = $out['defaults'];
 	h_check( 'Pages' === $d['sitemap_items'][0]['sitemap_title'] && 'Categories' === $d['sitemap_items'][1]['sitemap_title'] && 'taxonomy' === $d['sitemap_items'][1]['sitemap_type_selector'] && 'sitemap' === $d['_digitalisimo_pro'], 'Un Sitemap sin cambios llega con las filas y los títulos que PRO pintaba.' );
 	h_check( str_contains( h_render( $own, $d ), '>Pages</h2>' ) && str_contains( h_render( $own, $d ), '>Categories</h2>' ), 'Lo convertido se pinta con los mismos títulos.' );
 	$r = $out['rows'];
 	h_check( 'post_tag' === $r['sitemap_items'][0]['sitemap_source_taxonomy'] && 'r1' === $r['sitemap_items'][0]['_id'] && '2' === $r['sitemap_items'][0]['sitemap_depth'] && 'menu_order' === $r['sitemap_items'][1]['sitemap_orderby_post_type'] && 'post_type' === $r['sitemap_items'][1]['sitemap_type_selector'] && '1' === $r['sitemap_columns_tablet'] && 'h4' === $r['sitemap_title_tag'] && 'yes' === $r['sitemap_add_nofollow'], 'Filas con su id, columnas por dispositivo, etiqueta y nofollow.' );
-	h_check( array( 'current_post', 'manual_selection' ) === $out['exclude']['sitemap_exclude'] && array( '12', '15' ) === $out['exclude']['sitemap_exclude_ids'] && 'yes' === $out['exclude']['sitemap_password_protected'], 'Exclusiones y protegidas.' );
+	h_check( array( 'manual_selection' ) === $out['exclude']['sitemap_exclude'] && array( '12', '15' ) === $out['exclude']['sitemap_exclude_ids'] && 'yes' === $out['exclude']['sitemap_password_protected'], 'Exclusiones y protegidas; «Entrada actual», que PRO no aplicaba, no llega a lo convertido.' );
+	$GLOBALS['h_wp']['singular'] = 2;
+	h_check( str_contains( h_render( $own, $out['exclude'] + array( 'sitemap_items' => array( array( 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'P' ) ) ) ), '>Inicio<' ), 'Lo convertido sigue listando la entrada en curso, como PRO.' );
+	$GLOBALS['h_wp']['singular'] = 0;
 	h_check( 8 === $out['style']['sitemap_list_indent_mobile']['size'] && '600' === $out['style']['sitemap_list_item_typography_font_weight'] && 'square' === $out['style']['sitemap_list_item_bullet_style'] && 22 === $out['style']['sitemap_title_typography_font_size']['size'], 'Estilos de la lista, el título y las viñetas.' );
 	h_check( array( 'sitemap_title_color' => 'globals/colors?id=accent', 'sitemap_list_item_typography_typography' => 'globals/typography?id=secondary', 'sitemap_bullet_color' => 'globals/colors?id=primary' ) === $out['globals']['__globals__'], 'Globales del kit.' );
 	h_check( array( 'sitemap_title' ) === array_keys( $out['dynamic']['sitemap_items'][0]['__dynamic__'] ), 'La etiqueta dinámica del título de la fila sigue a su campo.' );
-	h_check( "selector .digi-sitemap{gap:10px}\nselector .digi-sitemap__section .digi-sitemap__title{margin:0}\nselector .digi-sitemap__list--page .digi-sitemap__item--page a{color:red}\n.elementor-widget-digitalisimo-sitemap .digi-sitemap__title--category,selector .digi-sitemap__item--category{x:y}\nselector .digi-sitemap__list--post,selector .digi-sitemap__title--post_tag,selector .digi-sitemap__item--post_tag{a:b}" === $out['css']['custom_css'], 'CSS personalizado con las clases propias: ' . $out['css']['custom_css'] );
+	h_check( "selector .digi-sitemap{gap:10px}\nselector .digi-sitemap__section .digi-sitemap__title{margin:0}\nselector .digi-sitemap__list--page .digi-sitemap__item--page a{color:red}\n.elementor-widget-digitalisimo-sitemap .digi-sitemap__title--category,selector .digi-sitemap__item--category{x:y}\nselector .digi-sitemap__list--post,selector .digi-sitemap__title--post_tag,selector .digi-sitemap__item--post_tag{a:b}\nselector .digi-sitemap__list--product .digi-sitemap__item--product,selector .digi-sitemap__title--product_cat{c:d}" === $out['css']['custom_css'], 'CSS personalizado con las clases propias, también las de un tipo de un plugin (producto, categoría de producto): ' . $out['css']['custom_css'] );
 	h_check( '2' === $out['responsive']['sitemap_columns_mobile'] && '4' === $out['responsive']['sitemap_section_padding_tablet']['top'], 'Valores por dispositivo.' );
 	$GLOBALS['h_wp']['posts']['post'][] = array( 'ID' => 11, 'post_title' => 'Otra', 'post_parent' => 0 );
 	$all = h_render(
