@@ -22,9 +22,11 @@ defined( 'ABSPATH' ) || exit;
  * como las clases con medios de PRO). Como en PRO, con la piel «Burbuja» el nombre y el cargo van siempre junto a la
  * imagen.
  *
- * Diferencias declaradas con PRO: con la alineación a la derecha, el pico de la burbuja apunta a la imagen (PRO lo
- * dejaba a la izquierda salvo que se fijara el tamaño de la imagen); la imagen se pinta con `wp_get_attachment_image()`
- * (con `srcset`) y la carga diferida es la nativa del navegador.
+ * Pico de la burbuja: en un testimonio nuevo apunta a la imagen en cada dispositivo. En lo convertido de PRO, el mapa
+ * fija `pro_bubble` y el pico queda donde lo dejaba PRO (`PRO_BUBBLE`).
+ *
+ * Diferencias declaradas con PRO: la imagen se pinta con `wp_get_attachment_image()` (con `srcset`) y la carga diferida
+ * es la nativa del navegador, con el indicador de carga de PRO.
  */
 class Testimonial_Carousel extends Base_Widget {
 
@@ -38,6 +40,22 @@ class Testimonial_Carousel extends Base_Widget {
 		'left'   => '--digi-t-ta:left;--digi-t-fd:row;--digi-t-jc:start;--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0',
 		'center' => '--digi-t-ta:center;--digi-t-fd:row;--digi-t-jc:center;--digi-t-cta:start;--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%',
 		'right'  => '--digi-t-ta:right;--digi-t-fd:row-reverse;--digi-t-jc:end;--digi-t-l:auto;--digi-t-r:var(--digi-t-ar,calc(20px + 50px / 2));--digi-t-x:0',
+	);
+
+	/**
+	 * Pico de la burbuja como lo pintaba PRO (control oculto `pro_bubble`, que fija el mapa en lo convertido): su hoja lo
+	 * colocaba sólo con la alineación de escritorio (las clases de los dispositivos no lo movían) y, con «Derecha», la
+	 * regla del inicio (`inset-inline-start`) ganaba a la de `right`, así que el pico quedaba a la izquierda (a la derecha
+	 * en RTL con «Izquierda») salvo en los dispositivos con «Tamaño» de la imagen, cuyas reglas lo llevaban al lado de la
+	 * alineación. `--digi-t-ia` (`auto`) la escribe «Tamaño»; `--digi-t-al`/`--digi-t-ar`, también. Cada valor fija las
+	 * variables del pico en el contenido (gana a las de cada dispositivo, que van en el envoltorio) y deja en
+	 * `--digi-t-rl`/`--digi-t-rr` las de RTL, que toma la segunda regla del control. `start` es la alineación vacía.
+	 */
+	const PRO_BUBBLE = array(
+		'start'  => '--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0;--digi-t-rl:auto;--digi-t-rr:var(--digi-t-ar,calc(20px + 50px / 2))',
+		'left'   => '--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0;--digi-t-rl:var(--digi-t-al,auto);--digi-t-rr:var(--digi-t-ia,calc(20px + 50px / 2))',
+		'center' => '--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%;--digi-t-rl:50%;--digi-t-rr:auto',
+		'right'  => '--digi-t-l:var(--digi-t-ia,calc(20px + 50px / 2));--digi-t-r:var(--digi-t-ar,auto);--digi-t-x:0;--digi-t-rl:auto;--digi-t-rr:var(--digi-t-ar,calc(20px + 50px / 2))',
 	);
 
 	const LAYOUTS = array( 'image_inline', 'image_stacked', 'image_above', 'image_left', 'image_right' );
@@ -152,6 +170,30 @@ class Testimonial_Carousel extends Base_Widget {
 				'selectors' => array(
 					'{{WRAPPER}} .digi-testimonial__content, {{WRAPPER}} .digi-testimonial__content:after' => 'background-color: {{VALUE}}',
 				),
+			)
+		);
+
+		// Sólo en lo convertido de PRO (lo fija el mapa); vacío, el pico apunta a la imagen en cada dispositivo.
+		$this->add_control(
+			'pro_bubble',
+			array(
+				'label'                => esc_html__( 'Pico heredado', 'pro-elements' ),
+				'description'          => esc_html__( 'El widget original colocaba el pico sólo con la alineación de escritorio. «Hacia la imagen» lo coloca junto a la imagen en cada dispositivo.', 'pro-elements' ),
+				'type'                 => Controls_Manager::SELECT,
+				'options'              => array(
+					''       => esc_html__( 'Hacia la imagen', 'pro-elements' ),
+					'start'  => esc_html__( 'Al inicio', 'pro-elements' ),
+					'left'   => esc_html__( 'Izquierda', 'pro-elements' ),
+					'center' => esc_html__( 'Centro', 'pro-elements' ),
+					'right'  => esc_html__( 'Derecha', 'pro-elements' ),
+				),
+				'default'              => '',
+				'selectors_dictionary' => self::PRO_BUBBLE,
+				'selectors'            => array(
+					'{{WRAPPER}} .digi-testimonial__content'          => '{{VALUE}}',
+					'body.rtl {{WRAPPER}} .digi-testimonial__content' => '--digi-t-l:var(--digi-t-rl);--digi-t-r:var(--digi-t-rr)',
+				),
+				'condition'            => array( 'pro_bubble!' => '' ),
 			)
 		);
 
@@ -407,7 +449,7 @@ class Testimonial_Carousel extends Base_Widget {
 				),
 				'selectors'  => array(
 					'{{WRAPPER}} .digi-testimonial__image img' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}}',
-					'{{WRAPPER}}' => '--digi-t-at: calc( {{text_padding.TOP}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px ); --digi-t-al: calc( {{text_padding.LEFT}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px ); --digi-t-ar: calc( {{text_padding.RIGHT}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px );',
+					'{{WRAPPER}}' => '--digi-t-at: calc( {{text_padding.TOP}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px ); --digi-t-al: calc( {{text_padding.LEFT}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px ); --digi-t-ar: calc( {{text_padding.RIGHT}}{{text_padding.UNIT}} + ({{SIZE}}{{UNIT}} / 2) - 8px ); --digi-t-ia: auto;',
 				),
 			)
 		);

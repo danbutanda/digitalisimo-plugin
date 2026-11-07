@@ -20,13 +20,18 @@ defined( 'ABSPATH' ) || exit;
  *   dispositivo (`_tablet`, `_mobile`…) y las de `__dynamic__` y `__globals__`.
  * - `groups`: prefijo de un control de grupo (tipografía, borde, sombra, fondo) `de => a`; con todas sus subclaves.
  * - `values`: `clave de destino => [antes => después]` o `callable( $valor, array $origen )`, también por dispositivo.
- * - `set`: valores fijos en el destino. `filter`: `callable( array $destino, array $origen ): array`, al final.
+ * - `set`: valores fijos en el destino. `filter`: `callable( array $destino, array $origen, callable $informe ): array`,
+ *   al final; `$informe( código, clave, motivo, sección )` deja un código en el informe (p. ej. `pro.dropped` en
+ *   `dropped` para lo que sólo se descarta con el estado del sitio que convierte).
  * - `drop`: `clave => motivo`, pérdida declarada; se informa en «Descartado» si el sitio la cambió del default.
  * - `approx`: `clave => motivo`, traducción aproximada (la hacen `rename`, `values` o `filter`); se informa en
  *   «Aproximado» si el sitio la cambió del default.
  * - `repeaters`: `clave => submapa` con `target`, `defaults`, `default_rows`, `keep`, `rename`, `values`, `drop` y
  *   `approx`; el `_id` de cada fila se conserva.
  * - `classes`: `.clase de PRO => .clase propia`, para el CSS personalizado del propio elemento.
+ * - `img_classes`: `.clase propia => sufijo` de las clases que en PRO eran un fondo CSS y en el widget propio son (sufijo
+ *   '') o contienen (p. ej. ` img`) un `<img>`: `background-size` y `background-position` del CSS personalizado pasan a
+ *   `object-fit` y `object-position` del `<img>` (`background_to_object()`).
  *
  * Los ajustes comunes de Elementor y de DIGITALÍSIMO (pestaña Avanzado, visibilidad, movimiento, fijado, atributos,
  * condiciones, rasgos `digitalisimo_*`) pasan sin cambios.
@@ -72,8 +77,22 @@ final class Translator {
 				$codes[]           = self::code( 'pro.css', 'custom_css', 'Clases del widget de PRO en el CSS personalizado del elemento, pasadas a las del widget propio.', 'converted' );
 			}
 		}
+		if ( ! empty( $map['img_classes'] ) && isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) && '' !== $out['custom_css'] ) {
+			$lost = false;
+			$css  = self::background_to_object( $out['custom_css'], (array) $map['img_classes'], $lost );
+			if ( $css !== $out['custom_css'] ) {
+				$out['custom_css'] = $css;
+				$codes[]           = self::code( 'pro.css', 'custom_css', 'El fondo de la imagen de PRO (`background-size`, `background-position`) en el CSS personalizado del elemento pasa al `<img>` del widget propio (`object-fit`, `object-position`).', 'converted' );
+			}
+			if ( $lost ) {
+				$codes[] = self::code( 'pro.approx', 'custom_css', 'Un tamaño de fondo con medidas (`background-size` con longitudes o porcentajes), `background-position-x`/`-y` o varios fondos no tienen equivalente en el `<img>` del widget propio: quedan sobre su envoltorio, sin efecto.', 'approx' );
+			}
+		}
 		if ( isset( $map['filter'] ) && is_callable( $map['filter'] ) ) {
-			$out = (array) call_user_func( $map['filter'], $out, $settings );
+			$report = static function ( string $code, string $key, string $reason, string $section ) use ( &$codes ): void {
+				$codes[] = self::code( $code, $key, $reason, $section );
+			};
+			$out = (array) call_user_func( $map['filter'], $out, $settings, $report );
 		}
 		$out[ self::MARKER ] = (string) ( $map['source'] ?? '' );
 		return array( $out, $codes );
@@ -250,6 +269,104 @@ final class Translator {
 			$css = (string) preg_replace( '/' . preg_quote( (string) $from, '/' ) . '(?![\w-])/', (string) $to, $css );
 		}
 		return $css;
+	}
+
+	/**
+	 * Reglas del CSS (ya con las clases propias) cuyo selector termina en una clase que en PRO era un fondo CSS y en el
+	 * widget propio es (o contiene) un `<img>`: tras cada una se añade la misma regla sobre el `<img>` (`$images`: clase =>
+	 * sufijo del selector, '' si la clase está en el propio `<img>`) con `background-size` → `object-fit` (`cover`,
+	 * `contain`; `auto` → `none`, como «Ajuste de la imagen») y `background-position` → `object-position` (misma
+	 * sintaxis). La regla original queda intacta (en el envoltorio no tiene efecto). Lo que no tiene equivalente
+	 * (medidas en el tamaño, `background-position-x`/`-y`, varios fondos) se marca en `$lost` y no se traduce.
+	 *
+	 * @param bool $lost Recibe `true` si alguna declaración no tiene equivalente.
+	 */
+	public static function background_to_object( string $css, array $images, bool &$lost = false ): string {
+		$classes = array();
+		foreach ( $images as $class => $suffix ) {
+			if ( preg_match( '/^\.[A-Za-z_][\w-]*$/', (string) $class ) ) {
+				$classes[ (string) $class ] = (string) $suffix;
+			}
+		}
+		if ( ! $classes || false === stripos( $css, 'background' ) ) {
+			return $css;
+		}
+		return (string) preg_replace_callback(
+			'/([^{};]*)\{([^{}]*)\}/',
+			static function ( array $m ) use ( $classes, &$lost ): string {
+				$rule = $m[0];
+				if ( false === stripos( $m[2], 'background' ) || '' === trim( $m[1] ) || '@' === ltrim( $m[1] )[0] ) {
+					return $rule;
+				}
+				$targets = array();
+				foreach ( self::split_selectors( $m[1] ) as $selector ) {
+					$selector = trim( $selector );
+					// El último compuesto (tras el último combinador): con la clase entera y sin pseudoelemento.
+					$last = (string) preg_replace( '/^.*[\s>+~]/s', '', $selector );
+					if ( false !== strpos( $last, '::' ) || preg_match( '/:(?:before|after)\b/i', $last ) ) {
+						continue;
+					}
+					foreach ( $classes as $class => $suffix ) {
+						if ( preg_match( '/' . preg_quote( $class, '/' ) . '(?![\w-])/', $last ) ) {
+							$targets[] = $selector . $suffix;
+							break;
+						}
+					}
+				}
+				if ( ! $targets ) {
+					return $rule;
+				}
+				$decls = array();
+				foreach ( explode( ';', $m[2] ) as $declaration ) {
+					if ( ! preg_match( '/^\s*(background-(?:size|position(?:-x|-y)?))\s*:\s*(.+?)\s*$/is', $declaration, $d ) ) {
+						continue;
+					}
+					$important = (bool) preg_match( '/\s*!\s*important$/i', $d[2] );
+					$value     = trim( (string) preg_replace( '/\s*!\s*important$/i', '', $d[2] ) );
+					$name      = strtolower( $d[1] );
+					if ( false !== strpos( $value, ',' ) || 'background-size' !== $name && 'background-position' !== $name ) {
+						$lost = true;
+						continue;
+					}
+					if ( 'background-size' === $name ) {
+						$fit = array( 'cover' => 'cover', 'contain' => 'contain', 'auto' => 'none', 'auto auto' => 'none' );
+						$key = strtolower( (string) preg_replace( '/\s+/', ' ', $value ) );
+						if ( ! isset( $fit[ $key ] ) ) {
+							$lost = true;
+							continue;
+						}
+						$decls[] = 'object-fit:' . $fit[ $key ] . ( $important ? '!important' : '' );
+					} else {
+						$decls[] = 'object-position:' . $value . ( $important ? '!important' : '' );
+					}
+				}
+				return $decls ? $rule . "\n" . implode( ',', $targets ) . '{' . implode( ';', $decls ) . '}' : $rule;
+			},
+			$css
+		);
+	}
+
+	/** Selectores de una lista separada por comas (sin partir dentro de paréntesis ni corchetes). */
+	private static function split_selectors( string $list ): array {
+		$out   = array();
+		$depth = 0;
+		$cur   = '';
+		$len   = strlen( $list );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$ch = $list[ $i ];
+			if ( '(' === $ch || '[' === $ch ) {
+				$depth++;
+			} elseif ( ( ')' === $ch || ']' === $ch ) && $depth > 0 ) {
+				$depth--;
+			} elseif ( ',' === $ch && 0 === $depth ) {
+				$out[] = $cur;
+				$cur   = '';
+				continue;
+			}
+			$cur .= $ch;
+		}
+		$out[] = $cur;
+		return $out;
 	}
 
 	private static function code( string $code, string $key, string $reason, string $section ): array {

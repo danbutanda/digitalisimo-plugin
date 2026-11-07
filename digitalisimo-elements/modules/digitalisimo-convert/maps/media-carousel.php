@@ -118,6 +118,50 @@ return array(
 		'effect'   => 'El efecto «Cubo» se pinta como un deslizamiento de una diapositiva: el motor propio no tiene el giro 3D de Swiper.',
 		'lazyload' => 'La carga diferida es la nativa del navegador (`loading="lazy"`) en lugar de la de Swiper, sin el indicador de carga.',
 	),
+	// Icono de reproducir: PRO pintaba `eicon-play` con `Icons_Manager`, y su tamaño y su sombra sólo apuntaban a la fuente
+	// (`.elementor-custom-embed-play i`). Con los iconos como SVG en línea (`e_font_icon_svg`, activo por defecto desde
+	// 3.17) el icono quedaba en 100 px con la sombra del núcleo, así que en un sitio con el experimento activo se descartan
+	// (con su código en el informe); sin él, PRO los aplicaba a la fuente y el propio los aplica igual al SVG. El color sí
+	// llegaba al SVG (`fill`).
+	'filter'    => static function ( array $out, array $src, ?callable $report = null ): array {
+		$plugin      = class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		$experiments = is_object( $plugin ) && isset( $plugin->experiments ) && is_object( $plugin->experiments ) ? $plugin->experiments : null;
+		if ( ! $experiments || ! method_exists( $experiments, 'is_feature_active' ) || ! $experiments->is_feature_active( 'e_font_icon_svg' ) ) {
+			return $out;
+		}
+		$found = array();
+		$base  = static function ( string $key ): string {
+			return 0 === strpos( $key, 'play_icon_text_shadow_' ) ? 'play_icon_text_shadow' : \Digitalisimo\Elements\Convert\Translator::base( $key );
+		};
+		foreach ( array( '', '__globals__', '__dynamic__' ) as $bag ) {
+			$keys = array_keys( '' === $bag ? $out : (array) ( $out[ $bag ] ?? array() ) );
+			foreach ( $keys as $key ) {
+				$name = $base( (string) $key );
+				if ( 'play_icon_size' !== $name && 'play_icon_text_shadow' !== $name ) {
+					continue;
+				}
+				$found[ $name ] = true;
+				if ( '' === $bag ) {
+					unset( $out[ $key ] );
+				} else {
+					unset( $out[ $bag ][ $key ] );
+				}
+			}
+			if ( '' !== $bag && isset( $out[ $bag ] ) && array() === $out[ $bag ] ) {
+				unset( $out[ $bag ] );
+			}
+		}
+		if ( $report ) {
+			$reasons = array(
+				'play_icon_size'        => 'PRO no aplicaba el tamaño del icono de reproducir con los iconos como SVG en línea (su control sólo alcanzaba a la fuente de iconos): el icono quedaba en 100 px, como en el propio sin el ajuste.',
+				'play_icon_text_shadow' => 'PRO no aplicaba la sombra del icono de reproducir con los iconos como SVG en línea (su control sólo alcanzaba a la fuente de iconos): quedaba la sombra del núcleo, como en el propio sin el ajuste.',
+			);
+			foreach ( array_keys( $found ) as $key ) {
+				$report( 'pro.dropped', $key, $reasons[ $key ], 'dropped' );
+			}
+		}
+		return $out;
+	},
 	'repeaters' => array(
 		'slides' => array(
 			'target'       => 'slides',
@@ -129,4 +173,6 @@ return array(
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'play_icon_title', 'thumbs_title' ),
 	'classes'   => array_merge( $digi_mc_common, $digi_mc_classes ),
+	// PRO pintaba la imagen como fondo de `.elementor-carousel-image`; la propia es un `<img>` dentro de su equivalente.
+	'img_classes' => array( '.digi-media-carousel__image' => ' img' ),
 );

@@ -9,9 +9,8 @@
  * Swiper): las clases de presentación de PRO (`elementor-testimonial--skin-*`, `--layout-*`, `--align-*` con su
  * dispositivo) pasan a sus equivalentes `digi-testimonial--*`, en el mismo nodo (el envoltorio del widget).
  *
- * Aproximaciones: las del motor (la carga diferida es la nativa; el bucle es real desde la corrección de fidelidad).
- * Diferencia sin clave propia: con la piel «Burbuja» y la alineación a la derecha, el pico apunta a la imagen (PRO lo
- * dejaba a la izquierda salvo que se fijara el tamaño de la imagen). Formato: cabecera de `class-translator.php`.
+ * Aproximaciones: ninguna desde la corrección de fidelidad (bucle real, indicador de la carga diferida). El pico de la
+ * burbuja lo fija `filter` en `pro_bubble`, donde lo dejaba PRO. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -137,6 +136,29 @@ return array(
 		),
 	),
 	// Encabezados del panel: no guardan valor.
+	// Pico de la burbuja: PRO lo colocaba sólo con la alineación de escritorio y, con «Derecha», lo dejaba a la izquierda
+	// salvo donde se fijara «Tamaño» de la imagen (`PRO_BUBBLE` del widget). El widget propio lo coloca junto a la imagen
+	// en cada dispositivo, así que se fija `pro_bubble` con la de escritorio cuando el resultado difiere: piel burbuja, con
+	// el pico debajo o encima del texto (no a los lados) y una alineación que no sea «Centro» en todos los dispositivos.
+	'filter'    => static function ( array $out, array $src ): array {
+		$skin   = (string) ( $src['skin'] ?? 'default' );
+		$layout = (string) ( $src['layout'] ?? 'image_inline' );
+		if ( 'bubble' !== $skin || in_array( $layout, array( 'image_left', 'image_right' ), true ) ) {
+			return $out;
+		}
+		$desktop = array_key_exists( 'alignment', $src ) && is_scalar( $src['alignment'] ) ? (string) $src['alignment'] : 'center';
+		$differs = 'center' !== $desktop;
+		foreach ( \Digitalisimo\Elements\Convert\Translator::DEVICES as $device ) {
+			$value = $src[ 'alignment' . $device ] ?? null;
+			if ( '' !== $device && is_scalar( $value ) && '' !== (string) $value && (string) $value !== $desktop ) {
+				$differs = true;
+			}
+		}
+		if ( $differs ) {
+			$out['pro_bubble'] = in_array( $desktop, array( 'left', 'center', 'right' ), true ) ? $desktop : 'start';
+		}
+		return $out;
+	},
 	'ui'        => array( 'heading_arrows', 'heading_pagination', 'name_title_style', 'heading_title_style' ),
 	'classes'   => array_merge( $digi_tc_common, $digi_tc_classes ),
 );
