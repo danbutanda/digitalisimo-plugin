@@ -277,7 +277,7 @@ namespace {
 	list( , $dv_quiet ) = Translator::translate( array( 'align' => 'left', 'align_mobile' => '' ), $device_map );
 	check_cv( array() === $dv_quiet, 'Un dispositivo descartado con el valor por defecto no se informa.' );
 
-	// 3. Árboles y recuento.	// 3. Árboles y recuento.
+	// 3. Árboles y recuento.
 	Registry::set( 'blockquote', $map + array( 'status' => 'draft' ) );
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'elements' => array(
 		array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'blockquote', 'settings' => array( 'tag' => 'h3' ) ),
