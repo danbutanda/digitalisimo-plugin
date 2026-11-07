@@ -74,8 +74,14 @@ final class Pro_Convert {
 		if ( ! self::available() || ! $elements ) {
 			return array( $elements, $log );
 		}
-		$known = isset( $env['known'] ) && is_callable( $env['known'] ) ? $env['known'] : array( __CLASS__, 'target_registered' );
-		return array( self::walk( $elements, $known, $log, 0 ), $log );
+		$known    = isset( $env['known'] ) && is_callable( $env['known'] ) ? $env['known'] : array( __CLASS__, 'target_registered' );
+		$registry = self::REGISTRY;
+		$walk     = static function () use ( $elements, $known, &$log ) {
+			return self::walk( $elements, $known, $log, 0 );
+		};
+		// Un solo cambio al idioma del sitio por árbol (los mapas completan textos de PRO), si el núcleo lo ofrece.
+		$tree = method_exists( $registry, 'in_site_locale' ) ? $registry::in_site_locale( $walk ) : $walk();
+		return array( $tree, $log );
 	}
 
 	/**

@@ -8,11 +8,36 @@ defined( 'ABSPATH' ) || exit;
  * `Translator`. El nombre del archivo es el del widget de PRO y sólo se aceptan los del catálogo, así que nada que
  * llegue de un documento decide una ruta. Sólo un mapa `ready` (validado con su A/B en Playground) lo usan Migración y
  * los kits; un `draft` sólo lo usan las pruebas (`all()` con `$drafts`). Los archivos `maps/_*.php` no son mapas: son
- * piezas comunes que los mapas incluyen (`_carousel-classes.php`), y nunca se cargan como mapa.
+ * piezas comunes que los mapas incluyen (`_carousel-classes.php`), y nunca se cargan como mapa. Los mapas se cargan en el
+ * idioma del sitio (`in_site_locale()`), como sus textos en el front de PRO.
  */
 final class Registry {
 	/** @var array<string, array|null> */
 	private static $maps = array();
+
+	/** @var int Profundidad de `in_site_locale()` (sólo la llamada exterior cambia de idioma). */
+	private static $locale_depth = 0;
+
+	/**
+	 * Ejecuta `$fn` en el idioma del sitio. Los mapas completan los textos que PRO pintaba en el front con el idioma del
+	 * sitio (`esc_html__( …, 'elementor-pro' )`), al cargarse y en sus `filter`/`values`; «Migrar» por admin-ajax y la
+	 * importación de un kit corren en la administración, donde WordPress usa el idioma del perfil de quien la lanza.
+	 * Sin cambio de idioma disponible (o si ya es el del sitio), `$fn` corre tal cual.
+	 *
+	 * @return mixed Lo que devuelva `$fn`.
+	 */
+	public static function in_site_locale( callable $fn ) {
+		$switched = 0 === self::$locale_depth && function_exists( 'switch_to_locale' ) && function_exists( 'restore_previous_locale' ) && function_exists( 'get_locale' ) && switch_to_locale( (string) get_locale() );
+		++self::$locale_depth;
+		try {
+			return $fn();
+		} finally {
+			--self::$locale_depth;
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
+	}
 
 	/** Mapa de un widget de PRO, o null si no hay (o, sin `$drafts`, si no está listo). */
 	public static function map( $type, bool $drafts = false ): ?array {
@@ -21,7 +46,11 @@ final class Registry {
 		}
 		if ( ! array_key_exists( $type, self::$maps ) ) {
 			$file                 = __DIR__ . '/maps/' . $type . '.php';
-			$map                  = is_file( $file ) ? require $file : null;
+			$map                  = is_file( $file ) ? self::in_site_locale(
+				static function () use ( $file ) {
+					return require $file;
+				}
+			) : null;
 			self::$maps[ $type ] = is_array( $map ) && ( $map['source'] ?? '' ) === $type && '' !== (string) ( $map['target'] ?? '' ) ? $map : null;
 		}
 		$map = self::$maps[ $type ];
@@ -38,12 +67,17 @@ final class Registry {
 				$names[] = basename( $file, '.php' );
 			}
 		}
-		foreach ( array_unique( $names ) as $name ) {
-			$map = self::map( $name, $drafts );
-			if ( null !== $map ) {
-				$out[ (string) $map['source'] ] = $map;
+		// Un solo cambio de idioma para todos los mapas que falten por leer.
+		self::in_site_locale(
+			static function () use ( $names, $drafts, &$out ) {
+				foreach ( array_unique( $names ) as $name ) {
+					$map = self::map( $name, $drafts );
+					if ( null !== $map ) {
+						$out[ (string) $map['source'] ] = $map;
+					}
+				}
 			}
-		}
+		);
 		ksort( $out );
 		return $out;
 	}
