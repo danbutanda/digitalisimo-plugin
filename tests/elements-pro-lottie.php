@@ -187,6 +187,11 @@ namespace {
 	$anim   = json_decode( $sample, true );
 	check_lt( strlen( $sample ) < 4096 && is_array( $anim ) && isset( $anim['v'], $anim['fr'], $anim['op'], $anim['layers'] ) && ! preg_match( '/logo|elementor|lottiefiles|"E-/i', $sample ), 'Animación de muestra propia, pequeña y sin logotipos ni marcas.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
+	// Otro dibujo (el de PRO es el logotipo de otra marca, AGENTS.md), pero la misma proporción: Lottie dimensiona el SVG con
+	// su `viewBox`, así que sin archivo la caja mide lo mismo que la de PRO.
+	$pro_sample = json_decode( (string) file_get_contents( $root . 'modules/lottie/assets/animations/default.json' ), true );
+	check_lt( 1920 === $pro_sample['w'] && 1080 === $pro_sample['h'] && $pro_sample['w'] === $anim['w'] && $pro_sample['h'] === $anim['h'], 'La animación de muestra mide como la de PRO (' . $anim['w'] . ' × ' . $anim['h'] . ', PRO ' . $pro_sample['w'] . ' × ' . $pro_sample['h'] . ').' );
+	check_lt( array() === $anim['assets'] && array( 4 ) === array_values( array_unique( array_column( $anim['layers'], 'ty' ) ) ) && array( array( 960, 540, 0 ) ) === array_values( array_unique( array_map( static function ( $l ) { return $l['ks']['p']['k']; }, $anim['layers'] ), SORT_REGULAR ) ), 'Sólo formas propias, sin imágenes ni textos, centradas en el lienzo.' );
 	foreach ( array( 'modules/digitalisimo-content/widgets/class-lottie.php', 'modules/digitalisimo-content/assets/css/lottie.css', 'modules/digitalisimo-content/assets/js/lottie.js', Lottie::SAMPLE, 'modules/digitalisimo-convert/maps/lottie.php' ) as $file ) {
 		check_lt( ! preg_match( $guard, (string) file_get_contents( $root . $file ) ), "$file no nombra lo que la guarda del empaquetado prohíbe." );
 	}

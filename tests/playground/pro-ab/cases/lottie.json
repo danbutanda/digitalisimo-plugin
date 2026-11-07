@@ -23,7 +23,7 @@
    "interact": false,
    "pixels": {
     "max": 1,
-    "reason": "Sin archivo elegido, cada widget pinta su animación de muestra: la de PRO es el logotipo animado de otra marca (la interfaz de DIGITALÍSIMO Elements no muestra marcas de terceros, AGENTS.md) y la propia, un anillo neutro. El resto (contenedor, alineación, tamaño) se compara en la firma."
+    "reason": "Sin archivo elegido, cada widget pinta su animación de muestra: la de PRO es el logotipo animado de otra marca (la interfaz de DIGITALÍSIMO Elements no muestra marcas de terceros, AGENTS.md) y la propia, un anillo neutro con la misma proporción (1920 × 1080), así que la caja mide lo mismo. El resto (contenedor, alineación, tamaño) se compara en la firma."
    },
    "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
   },
