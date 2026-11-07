@@ -25,11 +25,7 @@
    "actions": [
     {
      "label": "clic sin producto",
-     "selector": "button",
-     "pixels": {
-      "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
-     }
+     "selector": "button"
     }
    ],
    "pixels": {
@@ -62,7 +58,7 @@
      "wait": 3000,
      "pixels": {
       "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
+      "reason": "Mensaje del servicio creado por el script, sin blanco delante en A y en B (PRO lo crea igual). Margen de la medición tras la respuesta remota: el texto, el color y la tipografía son los mismos (la firma no tiene diferencias)."
      }
     }
    ],
@@ -98,11 +94,7 @@
     {
      "label": "clic: mensaje personalizado",
      "selector": "button",
-     "wait": 3000,
-     "pixels": {
-      "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
-     }
+     "wait": 3000
     }
    ],
    "pixels": {

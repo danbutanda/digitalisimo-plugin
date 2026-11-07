@@ -28,7 +28,7 @@
      "selector": "button",
      "pixels": {
       "max": 0.1,
-      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px). Mismo color y tipografía; el texto empieza donde en PRO, tras el aspa del núcleo y un espacio (corrección de fidelidad: el blanco antes del texto de la plantilla de PRO)."
      }
     }
    ],
@@ -129,7 +129,7 @@
      "selector": "button",
      "pixels": {
       "max": 0.1,
-      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px), y el icono de la fuente eicons que A carga con los paquetes de PRO y B no pide: el texto empieza unos 5 px antes. Mismo color y tipografía."
+      "reason": "Mensaje de error por defecto en español, más largo que el texto fijo en inglés de PRO (otro corte de línea a 375 px). Mismo color y tipografía; el texto empieza donde en PRO, tras el aspa del núcleo y un espacio (corrección de fidelidad: el blanco antes del texto de la plantilla de PRO)."
      }
     }
    ],
@@ -233,11 +233,7 @@
    "actions": [
     {
      "label": "clic con dos errores",
-     "selector": "button",
-     "pixels": {
-      "max": 0.06,
-      "reason": "El mensaje de error del núcleo (`elementor-message`, en A y en B) lleva delante el icono de la fuente eicons, sin dibujo visible en ninguno de los dos: A carga esa fuente con los paquetes de PRO y B no la pide, así que el texto empieza unos 5 px antes. Mismo texto, color y tipografía (la firma no tiene diferencias)."
-     }
+     "selector": "button"
     }
    ],
    "pixels": {
