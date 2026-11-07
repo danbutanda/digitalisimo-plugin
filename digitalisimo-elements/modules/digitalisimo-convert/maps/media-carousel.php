@@ -5,9 +5,9 @@
  *
  * El Carrusel multimedia repite los controles del de PRO y los de su base (`modules/carousel/widgets/base.php`) con el
  * mismo nombre, los mismos valores y las mismas condiciones, así que todo pasa con `keep`; el marcado y las clases son
- * propios (motor `digi-crs`, sin Swiper). Las aproximaciones son las del motor (efecto cubo como deslizamiento, carga
- * diferida nativa; el bucle es real desde la corrección de fidelidad) y la presentación «Coverflow», que se pinta con
- * la diapositiva actual centrada y sin el giro 3D. Formato: cabecera de `class-translator.php`.
+ * propios (motor `digi-crs`, sin Swiper). Sin aproximaciones desde la corrección de fidelidad (bucle real, «Coverflow» y
+ * «Cubo» en 3D, indicador de la carga diferida); `filter` descarta el tamaño y la sombra del icono de reproducir donde
+ * PRO no los aplicaba. Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -44,8 +44,8 @@ return array(
 	'target'    => 'digitalisimo-media-carousel',
 	'status'    => 'ready',
 	'panel'     => 'hide',
-	// Valores por defecto de PRO de los controles que se aproximan (para informar sólo lo que el sitio cambió) y de los
-	// textos que PRO traduce al pintarlos.
+	// Valores por defecto de PRO (Elementor no guarda lo que coincide con ellos) y de los textos que PRO traduce al
+	// pintarlos.
 	'defaults'  => array(
 		'skin'           => 'carousel',
 		'slides_name'    => function_exists( 'esc_html__' ) ? esc_html__( 'Slides', 'elementor-pro' ) : 'Slides',
@@ -112,10 +112,6 @@ return array(
 		'image_size'            => 'image_size',
 		'play_icon_text_shadow' => 'play_icon_text_shadow',
 		'caption_typography'    => 'caption_typography',
-	),
-	'approx'    => array(
-		'skin'     => 'Sólo «Coverflow» se aproxima: se pinta con la diapositiva actual centrada y sin el giro ni la profundidad 3D de Swiper («Carrusel» y «Slideshow» no cambian).',
-		'effect'   => 'El efecto «Cubo» se pinta como un deslizamiento de una diapositiva: el motor propio no tiene el giro 3D de Swiper.',
 	),
 	// Icono de reproducir: PRO pintaba `eicon-play` con `Icons_Manager`, y su tamaño y su sombra sólo apuntaban a la fuente
 	// (`.elementor-custom-embed-play i`). Con los iconos como SVG en línea (`e_font_icon_svg`, activo por defecto desde

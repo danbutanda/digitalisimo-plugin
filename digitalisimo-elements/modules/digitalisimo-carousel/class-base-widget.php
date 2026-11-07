@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * - Imágenes: `get_slide_image_url()` y `get_slide_image_alt_attribute()` como PRO, y `get_slide_image()`, la etiqueta
  *   `<img>` con `wp_get_attachment_image()` (tamaño de `image_size`, `srcset`, `decoding`, `loading`), y `preloader()`,
  *   el indicador de la «Carga diferida» que va junto a ella.
- * - El efecto «Cubo» de PRO no existe en el motor: se pinta como `slide` (el mapa lo declara aproximado).
+ * - El efecto «Cubo» de PRO (sólo en el Carrusel multimedia) lo pintan `carousel-3d.css|js` sobre `slide`.
  */
 abstract class Base_Widget extends \Elementor\Widget_Base {
 
