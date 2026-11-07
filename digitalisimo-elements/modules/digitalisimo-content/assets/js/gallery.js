@@ -125,7 +125,7 @@
 			box.classList.add('digi-gallery__container--lazy');
 			const show = (img) => {
 				const done = () => img.classList.add('is-loaded');
-				img.complete && img.naturalWidth ? done() : img.addEventListener('load', done, { once: true });
+				img.complete ? done() : img.addEventListener('load', done, { once: true });
 			};
 			const io = window.IntersectionObserver && new IntersectionObserver((en) => en.forEach((e) => e.isIntersecting && (io.unobserve(e.target), show(e.target))));
 			box.querySelectorAll('.digi-gallery__image').forEach((img) => (io ? io.observe(img) : show(img)));
