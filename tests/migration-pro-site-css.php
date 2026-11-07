@@ -206,10 +206,12 @@ namespace {
 
 	/** El CSS adicional del Personalizador del tema activo (un solo tema en la prueba). */
 	function wp_get_custom_css_post( $stylesheet = '' ) {
-		return isset( $GLOBALS['customizer_css'] ) ? (object) array( 'ID' => 900, 'post_content' => $GLOBALS['customizer_css'], 'post_name' => 'tema' ) : null;
+		return isset( $GLOBALS['customizer_css'] ) ? (object) array( 'ID' => 900, 'post_content' => $GLOBALS['customizer_css'], 'post_content_filtered' => $GLOBALS['customizer_src'] ?? '', 'post_name' => 'tema' ) : null;
 	}
+	// Como WordPress: sin `preprocessed`, la fuente preprocesada (Sass/LESS de un plugin) se vacía.
 	function wp_update_custom_css_post( $css, $args = array() ) {
 		$GLOBALS['customizer_css'] = (string) $css;
+		$GLOBALS['customizer_src'] = (string) ( $args['preprocessed'] ?? '' );
 		return wp_get_custom_css_post();
 	}
 
@@ -224,6 +226,7 @@ namespace {
 	$kit      = f8_post( array( 'post_type' => 'elementor_library', 'post_title' => 'Kit' ), array( '_elementor_template_type' => 'kit', '_elementor_page_settings' => array( 'custom_css' => $kit_css, 'body_background_color' => '#fff' ) ) );
 	update_option( 'elementor_active_kit', $kit );
 	$GLOBALS['customizer_css'] = $css_add;
+	$GLOBALS['customizer_src'] = '$gap: 0; ' . $css_add;
 	$original = (string) get_metadata( 'post', $page, '_elementor_data', true );
 
 	$st   = run_pro_stage();
@@ -236,6 +239,7 @@ namespace {
 	$ks = get_metadata( 'post', $kit, '_elementor_page_settings', true );
 	$check( str_contains( (string) $ks['custom_css'], '/*digitalisimo-pro*/.digi-posts__title a{color:blue}' ) && str_starts_with( (string) $ks['custom_css'], $kit_css ) && '#fff' === $ks['body_background_color'], 'Al terminar la etapa, el CSS del kit activo: ' . wp_json_encode( $ks ) );
 	$check( str_contains( $GLOBALS['customizer_css'], '@media (max-width:767px){.elementor-widget-posts .elementor-pagination{gap:0}/*digitalisimo-pro*/.elementor-widget-digitalisimo-posts .digi-loop__pagination{gap:0}}' ), 'Y el CSS adicional del Personalizador: ' . $GLOBALS['customizer_css'] );
+	$check( '$gap: 0; ' . $css_add === $GLOBALS['customizer_src'], 'La fuente preprocesada del CSS adicional (Sass/LESS de un plugin) no se vacía: ' . $GLOBALS['customizer_src'] );
 	$codes = doc_codes( $page );
 	$check( in_array( 'pro.site_css::custom_css', $codes, true ) && in_array( 'pro.site_css::_elementor_page_settings.custom_css', $codes, true ) && in_array( 'pro.site_css::kit.custom_css', doc_codes( $kit ), true ) && in_array( 'pro.site_css::customizer.custom_css', doc_codes( 900 ), true ), 'Informe: pro.site_css por cada lugar: ' . wp_json_encode( $codes ) );
 	$catalog = require dirname( __DIR__ ) . '/digitalisimo-migration/legacy/report/codes-pro.php';
@@ -254,7 +258,7 @@ namespace {
 	$rev = Runner::revert();
 	$check( empty( $rev['refused'] ) && $original === get_metadata( 'post', $page, '_elementor_data', true ), '--revert devuelve el documento con el CSS original de sus elementos: ' . wp_json_encode( $rev ) );
 	$check( $page_css === get_metadata( 'post', $page, '_elementor_page_settings', true )['custom_css'], '--revert quita la regla añadida al CSS de la página.' );
-	$check( $kit_css . "\n.mia{margin:0}" === get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'] && $css_add === $GLOBALS['customizer_css'], '--revert quita sólo las reglas añadidas del kit y del Personalizador; lo editado después se queda.' );
+	$check( $kit_css . "\n.mia{margin:0}" === get_metadata( 'post', $kit, '_elementor_page_settings', true )['custom_css'] && $css_add === $GLOBALS['customizer_css'] && '$gap: 0; ' . $css_add === $GLOBALS['customizer_src'], '--revert quita sólo las reglas añadidas del kit y del Personalizador (con su fuente preprocesada intacta); lo editado después se queda.' );
 
-	f8_done( 'CSS del sitio con clases de PRO en DIGITALÍSIMO Migración', 12 );
+	f8_done( 'CSS del sitio con clases de PRO en DIGITALÍSIMO Migración', 13 );
 }

@@ -360,7 +360,8 @@ final class Pro {
 				$site_css = self::SITE_CSS;
 				$css      = $site_css::rewrite( $post->post_content );
 				if ( $css !== $post->post_content ) {
-					$saved = wp_update_custom_css_post( $css );
+					// Con la fuente preprocesada (Sass/LESS de un plugin) intacta: sin ella, WordPress la vaciaría.
+					$saved = wp_update_custom_css_post( $css, self::custom_css_args( $post ) );
 					if ( $saved && ! is_wp_error( $saved ) ) {
 						Report::add( (int) $post->ID, 'pro.site_css', array( 'name' => 'customizer.custom_css', 'count' => 1 ) );
 						$done[] = 'customizer';
@@ -396,10 +397,15 @@ final class Pro {
 		if ( function_exists( 'wp_get_custom_css_post' ) && function_exists( 'wp_update_custom_css_post' ) ) {
 			$post = wp_get_custom_css_post();
 			if ( $post && is_string( $post->post_content ) && $site_css::marked( $post->post_content ) ) {
-				wp_update_custom_css_post( $site_css::strip( $post->post_content ) );
+				wp_update_custom_css_post( $site_css::strip( $post->post_content ), self::custom_css_args( $post ) );
 			}
 		}
 		return array();
+	}
+
+	/** Argumentos de `wp_update_custom_css_post()` que conservan la fuente preprocesada del CSS adicional. */
+	private static function custom_css_args( $post ): array {
+		return array( 'preprocessed' => isset( $post->post_content_filtered ) && is_string( $post->post_content_filtered ) ? $post->post_content_filtered : '' );
 	}
 
 	/** Marca F8 de un documento que la migración toca por primera vez (mismo formato que Migration::mark_data()). */
