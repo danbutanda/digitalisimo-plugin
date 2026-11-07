@@ -311,6 +311,12 @@ namespace {
 	run_pro_stage();
 	$check( array( tree( $pg2 ), tree( $pg3 ) ) === $before && 'Cita editada' === tree( $tq )[0]['settings']['blockquote_content'], 'Editar la plantilla después de Migrar no copia nada en las páginas: siguen vinculadas.' );
 	$check( ! in_array( $pg, Pro::documents(), true ) && ! in_array( $pg2, Pro::documents(), true ), 'Y los documentos ya no quedan por convertir.' );
+	// Otra pasada de Migrar (etapa `report`) describe la copia original de lo ya vinculado, aunque no lleve la marca del
+	// traductor ni `_digitalisimo_global`: el informe final sigue contando sus instancias globales.
+	Report::clear();
+	Report::begin( 'run' );
+	Runner::describe_backup( $pg );
+	$check( in_array( 'pro.global:global:templateID', doc_codes( $pg ), true ), 'La etapa report sigue informando de la instancia vinculada al widget global propio: ' . wp_json_encode( doc_codes( $pg ) ) );
 	$catalog = require dirname( __DIR__ ) . '/digitalisimo-migration/legacy/report/codes-pro.php';
 	$check( 'converted' === $catalog['pro.global']['section'] && 'review' === $catalog['pro.global_missing']['section'], 'Catálogo: pro.global en «convertido» y pro.global_missing en «por revisar».' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';

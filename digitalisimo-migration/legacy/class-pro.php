@@ -461,7 +461,9 @@ final class Pro {
 			return;
 		}
 		$current = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
-		if ( false === strpos( $current, '"' . self::MARKER . '"' ) && false === strpos( $current, '"' . self::GLOBAL_KEY . '"' ) ) {
+		// Lo convertido lleva la marca del traductor; la sustitución del widget global, su plantilla de origen; el vínculo
+		// (desde la corrección de fidelidad de C9), el widget global propio, sin ninguna de las dos.
+		if ( false === strpos( $current, '"' . self::MARKER . '"' ) && false === strpos( $current, '"' . self::GLOBAL_KEY . '"' ) && false === strpos( $current, '"digitalisimo-global"' ) ) {
 			return;
 		}
 		list( , $log ) = self::convert_data( $original );
