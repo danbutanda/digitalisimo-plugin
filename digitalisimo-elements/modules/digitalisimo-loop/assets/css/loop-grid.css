@@ -7,7 +7,6 @@
 .elementor-widget-digitalisimo-loop-grid .digi-loop__more{text-align:var(--digi-loop-more-align,center)}
 .elementor-widget-digitalisimo-loop-grid .digi-loop__more .elementor-button{width:var(--digi-loop-more-width,auto)}
 .digi-loop-grid__nothing{color:var(--digi-loop-nothing-color,#1f2124);padding-block:var(--digi-loop-nothing-top,30px) var(--digi-loop-nothing-bottom,30px);text-align:var(--digi-loop-nothing-align,center)}
-.digi-loop__empty{padding:24px;text-align:center;border:1px dashed currentColor;opacity:.7}
 .elementor-widget-digitalisimo-loop-grid[data-digi-loading]{animation:digi-loop-pulse 1s infinite alternate}
 @keyframes digi-loop-pulse{50%{opacity:.6}}
 @media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-loop-grid[data-digi-loading]{animation:none;opacity:.6}}

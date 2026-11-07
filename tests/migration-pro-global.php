@@ -3,12 +3,17 @@
  * Widget global de PRO en DIGITALÍSIMO Migración y en Elements (C9 de docs/PRO_WIDGETS_OBJECTIVE.md, contrato
  * docs/pro/c9.md): `Convert\Globals` (pura) y su uso en `legacy/class-pro.php`.
  *
+ * Desde la corrección de fidelidad de C9, «Migrar» pasa cada instancia con plantilla válida al widget global propio
+ * (`digitalisimo-global`, `Globals::link()`), que sigue leyendo su plantilla: editarla cambia todas las páginas, como en
+ * PRO. La sustitución por el contenido (`Globals::expand()`/`tree()`) queda para una conversión explícita y se sigue
+ * probando aquí (sección 1).
+ *
  * Cubre: la sustitución de cada instancia (`widgetType: global` con `templateID`) por el elemento guardado en su plantilla
  * de widget (mismo id de la instancia, ajustes de la plantilla, ids nuevos y estables para los hijos, clase
  * `elementor-global-<id>`, `_digitalisimo_global`); las guardas de PRO (contenido que no es un widget, otra instancia
  * global, plantilla en la papelera o de otro tipo) y el bucle; la cadena con los mapas listos (un Blockquote de PRO
  * guardado como widget global acaba en la Cita propia en la misma pasada); la etapa `pro` de Migrar (documentos con
- * widgets globales, informe `pro.global`/`pro.global_missing`, inventario «se convierte en su contenido»), la plantilla
+ * widgets globales, informe `pro.global`/`pro.global_missing`, inventario «se convierte a digitalisimo-global»), la plantilla
  * intacta, la idempotencia y `--revert`.
  *
  * Se ejecuta con php-wasm: sale con 0 aunque haya un error fatal, así que se juzga por la línea final.
@@ -275,15 +280,15 @@ namespace {
 	$check( in_array( $page, Pro::documents(), true ) && in_array( $orphan, Pro::documents(), true ), 'Los documentos con widgets globales están entre los que convierte la etapa pro.' );
 	$inventory = Pro::inventory();
 	$rows      = array_column( $inventory['widgets'], null, 'widget' );
-	$check( 7 === $rows['global']['elements'] && 'su contenido' === $rows['global']['target'] && str_contains( $rows['global']['status'], 'su contenido' ), 'Inventario: 7 instancias globales que se convierten en su contenido: ' . wp_json_encode( $rows['global'] ?? null ) );
+	$check( 7 === $rows['global']['elements'] && 'digitalisimo-global' === $rows['global']['target'] && str_contains( $rows['global']['status'], 'digitalisimo-global' ), 'Inventario: 7 instancias globales que pasan al widget global propio: ' . wp_json_encode( $rows['global'] ?? null ) );
 	$result = Pro::convert_document( $page );
 	$data   = tree( $page );
-	$check( 4 === $result['converted'] && 'heading' === find( $data, 'g1' )['widgetType'] && 'Título global' === find( $data, 'g1' )['settings']['title'] && 'heading' === find( $data, 'g3' )['widgetType'], 'Las dos instancias del encabezado global pasan a ser el encabezado guardado: ' . wp_json_encode( $result ) );
-	$check( 'digitalisimo-blockquote' === find( $data, 'g2' )['widgetType'] && 'Cita global' === find( $data, 'g2' )['settings']['blockquote_content'], 'La Cita global de PRO acaba en la Cita propia en la misma pasada.' );
+	$check( 3 === $result['converted'] && 'digitalisimo-global' === find( $data, 'g1' )['widgetType'] && $t_heading === find( $data, 'g1' )['templateID'] && array( 'title' => 'copia' ) === find( $data, 'g1' )['settings'] && 'digitalisimo-global' === find( $data, 'g3' )['widgetType'] && $t_heading === find( $data, 'g3' )['templateID'], 'Las dos instancias del encabezado global pasan al widget global propio, vinculadas a su plantilla (mismo id, templateID y ajustes): ' . wp_json_encode( $result ) );
+	$check( 'digitalisimo-global' === find( $data, 'g2' )['widgetType'] && $t_quote === find( $data, 'g2' )['templateID'], 'La instancia de la Cita global sigue vinculada a su plantilla (la plantilla la convierte la etapa, como cualquier documento de la biblioteca).' );
 	$check( 'global' === find( $data, 'g4' )['widgetType'] && 'global' === find( $data, 'g5' )['widgetType'] && 'global' === find( $data, 'g6' )['widgetType'], 'Sin plantilla válida (papelera, de sección, inexistente) las instancias se quedan como estaban.' );
 	$check( $tpl_raw === get_metadata( 'post', $t_quote, '_elementor_data', true ) && 'publish' === get_post( $t_quote )->post_status, 'La plantilla global no se borra ni cambia.' );
 	$codes = doc_codes( $page );
-	$check( in_array( 'pro.global:global:templateID', $codes, true ) && in_array( 'pro.converted:global:', $codes, true ) && in_array( 'pro.converted:blockquote:', $codes, true ) && 3 === count( array_filter( $codes, static function ( $c ) { return 0 === strpos( $c, 'pro.global_missing:global:' ); } ) ), 'Informe: pro.global, pro.converted y una fila pro.global_missing por plantilla que falta: ' . wp_json_encode( $codes ) );
+	$check( in_array( 'pro.global:global:templateID', $codes, true ) && in_array( 'pro.converted:global:', $codes, true ) && ! in_array( 'pro.converted:blockquote:', $codes, true ) && 3 === count( array_filter( $codes, static function ( $c ) { return 0 === strpos( $c, 'pro.global_missing:global:' ); } ) ), 'Informe: pro.global, pro.converted y una fila pro.global_missing por plantilla que falta: ' . wp_json_encode( $codes ) );
 	$again = Pro::convert_document( $page );
 	$check( 0 === $again['converted'] && wp_json_encode( $data ) === wp_json_encode( tree( $page ) ), 'Una segunda pasada no repite nada.' );
 	$check( array( 'converted' => 0, 'blocked' => array() ) === Pro::convert_document( $orphan ) && in_array( 'pro.global_missing:global:99998', doc_codes( $orphan ), true ), 'Un documento con una instancia sin plantilla no se escribe, pero el informe lo dice.' );
@@ -296,9 +301,25 @@ namespace {
 	Registry::set( 'blockquote', quote_map() );
 	$t   = global_template( w( 'heading', array( 'title' => 'Uno' ), 'th' ) );
 	$pg  = doc( array( box( 'container', array( instance( $t, 'm1' ) ), 'k' ) ), array( 'post_title' => 'Migrar' ) );
+	$tq  = global_template( w( 'blockquote', array( 'blockquote_content' => 'Cita global', 'author_name' => 'Ana' ), 'tq' ) );
+	$pg2 = doc( array( instance( $tq, 'm2' ) ), array( 'post_title' => 'Otra página' ) );
+	$pg3 = doc( array( instance( $tq, 'm3' ) ), array( 'post_title' => 'Y otra' ) );
 	$st  = run_pro_stage();
-	$check( 'retire_late' === $st['stage'] && 1 === (int) $st['counts']['pro'] && 'heading' === find( tree( $pg ), 'm1' )['widgetType'], 'La etapa pro de Migrar sustituye el widget global: ' . wp_json_encode( $st['counts'] ) );
-	$check( ! in_array( $pg, Pro::documents(), true ), 'Y el documento ya no queda por convertir.' );
+	$check( 'retire_late' === $st['stage'] && 4 === (int) $st['counts']['pro'] && 'digitalisimo-global' === find( tree( $pg ), 'm1' )['widgetType'] && $t === find( tree( $pg ), 'm1' )['templateID'], 'La etapa pro de Migrar pasa el widget global al propio, vinculado a su plantilla: ' . wp_json_encode( $st['counts'] ) );
+	$check( 'digitalisimo-blockquote' === tree( $tq )[0]['widgetType'] && 'Cita global' === tree( $tq )[0]['settings']['blockquote_content'] && 'digitalisimo-global' === find( tree( $pg2 ), 'm2' )['widgetType'] && $tq === find( tree( $pg3 ), 'm3' )['templateID'], 'La plantilla con una Cita de PRO se convierte en la misma pasada y las dos páginas siguen apuntando a ella.' );
+	// El vínculo: editar la plantilla después de Migrar no toca las páginas, que la leen al pintar (lo pinta
+	// Digitalisimo_Global, como el widget global de PRO: tests/elements-pro-global-link.php).
+	$before = array( tree( $pg2 ), tree( $pg3 ) );
+	update_metadata( 'post', $tq, '_elementor_data', wp_slash( wp_json_encode( array( w( 'digitalisimo-blockquote', array( 'blockquote_content' => 'Cita editada' ), 'tq' ) ) ) ) );
+	run_pro_stage();
+	$check( array( tree( $pg2 ), tree( $pg3 ) ) === $before && 'Cita editada' === tree( $tq )[0]['settings']['blockquote_content'], 'Editar la plantilla después de Migrar no copia nada en las páginas: siguen vinculadas.' );
+	$check( ! in_array( $pg, Pro::documents(), true ) && ! in_array( $pg2, Pro::documents(), true ), 'Y los documentos ya no quedan por convertir.' );
+	// Otra pasada de Migrar (etapa `report`) describe la copia original de lo ya vinculado, aunque no lleve la marca del
+	// traductor ni `_digitalisimo_global`: el informe final sigue contando sus instancias globales.
+	Report::clear();
+	Report::begin( 'run' );
+	Runner::describe_backup( $pg );
+	$check( in_array( 'pro.global:global:templateID', doc_codes( $pg ), true ), 'La etapa report sigue informando de la instancia vinculada al widget global propio: ' . wp_json_encode( doc_codes( $pg ) ) );
 	$catalog = require dirname( __DIR__ ) . '/digitalisimo-migration/legacy/report/codes-pro.php';
 	$check( 'converted' === $catalog['pro.global']['section'] && 'review' === $catalog['pro.global_missing']['section'], 'Catálogo: pro.global en «convertido» y pro.global_missing en «por revisar».' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';

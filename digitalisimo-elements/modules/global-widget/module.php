@@ -28,6 +28,9 @@ class Module extends Module_Base {
 
 	const WIDGET_NAME_CLASS_NAME_MAP = [
 		'global-widget' => 'Global_Widget',
+		// DIGITALÍSIMO (C9, corrección de fidelidad): el widget global propio, al que «Migrar» y los kits pasan las
+		// instancias del de PRO (`widgets/digitalisimo-global.php`).
+		'digitalisimo-global' => 'Digitalisimo_Global',
 	];
 
 	const LICENSE_FEATURE_NAME = 'global-widget';
@@ -243,16 +246,21 @@ class Module extends Module_Base {
 	private function get_document_data( $data, $document ) {
 		// If not a global widget template document or does not have elements.
 		if ( ! ( $document instanceof Widget ) && ! empty( $data['elements'] ) ) {
-			$data['elements'] = Plugin::elementor()->db->iterate_data( $data['elements'], function( $element ) {
+			// DIGITALÍSIMO (C9): las instancias que ya eran del widget global propio (las pasó «Migrar» o un kit) lo
+			// siguen siendo al guardar en el editor, que las envía con el tipo de su plantilla; las demás, como PRO.
+			$own = self::own_global_ids( $document );
+			$data['elements'] = Plugin::elementor()->db->iterate_data( $data['elements'], function( $element ) use ( $own ) {
 				if ( ! empty( $element['templateID'] ) ) {
 					// DIGITALÍSIMO: una instancia que ya es global (contenido importado de un kit) conserva su tipo
 					// original; `originalWidgetType = global` haría que el widget se instanciara a sí mismo sin fin.
-					if ( isset( $element['widgetType'] ) && 'global' !== $element['widgetType'] ) {
+					$types = Widgets\Global_Widget::GLOBAL_TYPES;
+					if ( isset( $element['widgetType'] ) && ! in_array( $element['widgetType'], $types, true ) ) {
 						$element['originalWidgetType'] = $element['widgetType'];
-					} elseif ( isset( $element['originalWidgetType'] ) && 'global' === $element['originalWidgetType'] ) {
+					} elseif ( isset( $element['originalWidgetType'] ) && in_array( $element['originalWidgetType'], $types, true ) ) {
 						unset( $element['originalWidgetType'] );
 					}
-					$element['widgetType'] = 'global';
+					$own_type              = 'digitalisimo-global' === ( $element['widgetType'] ?? '' ) || ( isset( $element['id'] ) && isset( $own[ (string) $element['id'] ] ) );
+					$element['widgetType'] = $own_type ? 'digitalisimo-global' : 'global';
 				}
 
 				return $element;
@@ -260,6 +268,36 @@ class Module extends Module_Base {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * DIGITALÍSIMO (C9): ids de las instancias del widget global propio guardadas en el documento (y en su entrada
+	 * principal, para un autoguardado), antes de este guardado.
+	 *
+	 * @return array<string, true>
+	 */
+	private static function own_global_ids( $document ): array {
+		$ids = [];
+		if ( ! is_object( $document ) || ! method_exists( $document, 'get_main_id' ) ) {
+			return $ids;
+		}
+		$posts = array_unique( array_filter( [ (int) $document->get_main_id(), method_exists( $document, 'get_post' ) && $document->get_post() ? (int) $document->get_post()->ID : 0 ] ) );
+		foreach ( $posts as $post_id ) {
+			$raw = get_post_meta( $post_id, '_elementor_data', true );
+			if ( ! is_string( $raw ) || false === strpos( $raw, '"digitalisimo-global"' ) ) {
+				continue;
+			}
+			$tree = json_decode( $raw, true );
+			if ( is_array( $tree ) ) {
+				Plugin::elementor()->db->iterate_data( $tree, function( $element ) use ( &$ids ) {
+					if ( 'digitalisimo-global' === ( $element['widgetType'] ?? '' ) && isset( $element['id'] ) ) {
+						$ids[ (string) $element['id'] ] = true;
+					}
+					return $element;
+				} );
+			}
+		}
+		return $ids;
 	}
 
 

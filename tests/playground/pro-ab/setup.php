@@ -21,7 +21,8 @@
  * C9: `"$template:<clave>"` en unos ajustes da el ID de una plantilla de la biblioteca (tipo `section`, publicada) creada
  * con los elementos de `templates.<clave>` del caso (el widget Plantilla). Un caso con `widget: global` y `global` (el
  * widget que guarda la plantilla: `widgetType` y `settings`) crea una plantilla de widget global: A tiene la instancia
- * (`widgetType: global`, `templateID`) y B, la instancia sustituida por su contenido (`Convert\Globals`) y convertida.
+ * (`widgetType: global`, `templateID`) y B, la instancia pasada al widget global propio (`Convert\Globals::link()`),
+ * vinculada a una copia de la plantilla con su contenido convertido (sin `link()`, sustituida por su contenido).
  */
 require '/wordpress/wp-load.php';
 
@@ -1234,14 +1235,21 @@ foreach ( $cases['cases'] as $slug => $case ) {
 		$tree[0]['elements'][0]['templateID'] = $template;
 		$tree[0]['elements'][0]['settings']   = digi_ab_tokens( (array) ( $content['settings'] ?? array() ) );
 		$globals  = array();
-		$expanded = \Digitalisimo\Elements\Convert\Globals::tree(
-			$tree,
-			static function ( $tid ) {
-				$raw = json_decode( (string) get_post_meta( (int) $tid, '_elementor_data', true ), true );
-				return is_array( $raw ) ? $raw : null;
-			},
-			$globals
-		);
+		$resolve  = static function ( $tid ) {
+			$raw = json_decode( (string) get_post_meta( (int) $tid, '_elementor_data', true ), true );
+			return is_array( $raw ) ? $raw : null;
+		};
+		if ( method_exists( '\Digitalisimo\Elements\Convert\Globals', 'link' ) ) {
+			// Desde la corrección de fidelidad de C9: B con el widget global propio, vinculado a una copia de la plantilla
+			// con su contenido convertido (como la deja «Migrar»); A sigue con la suya.
+			$b_content = \Digitalisimo\Elements\Convert\Converter::tree( (array) json_decode( (string) get_post_meta( $template, '_elementor_data', true ), true ), $tlog, true );
+			$b_tpl     = digi_ab_template( $slug . '-b', $b_content, 'widget' );
+			$b_in      = $tree;
+			$b_in[0]['elements'][0]['templateID'] = $b_tpl;
+			$expanded  = \Digitalisimo\Elements\Convert\Globals::link( $b_in, $resolve, $globals );
+		} else {
+			$expanded = \Digitalisimo\Elements\Convert\Globals::tree( $tree, $resolve, $globals );
+		}
 		$b_tree = \Digitalisimo\Elements\Convert\Converter::tree( $expanded, $log, true );
 		$log    = array_merge( $globals, $log );
 		$target = (string) ( $globals[0]['target'] ?? '' );

@@ -58,7 +58,8 @@ async function open({ editor = false } = {}) {
   return page;
 }
 const params = body => Object.fromEntries(new URLSearchParams(body));
-const messages = (page, id) => page.evaluate(id => [...document.querySelectorAll(`[data-id="${id}"] .digi-pay__message`)].filter(m => !m.hidden).map(m => ({ text: m.textContent, role: m.getAttribute('role'), html: m.innerHTML, cls: m.className })), id);
+// `lead`: el blanco antes del texto (los mensajes del servidor lo llevan, como la plantilla de PRO; los del servicio, no).
+const messages = (page, id) => page.evaluate(id => [...document.querySelectorAll(`[data-id="${id}"] .digi-pay__message`)].filter(m => !m.hidden).map(m => ({ text: m.textContent.trim(), lead: /^\s/.test(m.textContent), role: m.getAttribute('role'), html: m.innerHTML, cls: m.className })), id);
 
 // ── PayPal ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 let page = await open();
@@ -155,6 +156,7 @@ await page.click('[data-id="st3"] button');
 await sleep(300);
 shown = await messages(page, 'st3');
 ok(requests.length === 0 && shown.length === 1 && shown[0].text === 'Algo salió mal.', 'Stripe sin nombre de producto: ninguna petición y el mensaje global.');
+ok(shown[0].lead, 'El mensaje del servidor lleva un blanco antes del texto, como PRO (el mismo espacio tras el aspa del núcleo).');
 await page.close();
 
 page = await open({ editor: true });

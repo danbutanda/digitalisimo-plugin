@@ -139,10 +139,13 @@ final class Module {
 		return $out;
 	}
 
-	/** Scripts de un widget del módulo: el suyo si existe (para `get_script_depends()`). */
+	/**
+	 * Scripts de un widget del módulo: el suyo si existe (para `get_script_depends()`). Los de Facebook que Meta retiró
+	 * (`Facebook::DISCONTINUED`) no tienen fachada ni piden el SDK, así que no llevan script.
+	 */
 	public static function script_depends( string $name ): array {
 		$out = array();
-		if ( isset( self::WIDGETS[ $name ] ) && is_file( self::path( self::WIDGETS[ $name ]['js'] ) ) ) {
+		if ( isset( self::WIDGETS[ $name ] ) && ! in_array( $name, Facebook::DISCONTINUED, true ) && is_file( self::path( self::WIDGETS[ $name ]['js'] ) ) ) {
 			$out[] = self::handle( self::WIDGETS[ $name ]['js'] );
 		}
 		return $out;

@@ -8,8 +8,9 @@
 // - infinita: carga al llegar al ancla, hasta la última página;
 // - mampostería: cada elemento sube a su columna (como PRO) con 3 columnas; con 1 columna no hay mampostería; se recoloca
 //   al cambiar el ancho;
-// - Portafolio: el filtro marca `aria-pressed`, oculta los de otros términos y «All» los devuelve; con movimiento
-//   reducido no hay animación de entrada;
+// - Portafolio: el filtro marca `aria-pressed`, oculta los de otros términos y «All» los devuelve, con la animación de
+//   `arrangeGrid()` de PRO (los que salen encogen y se desvanecen, los demás se deslizan; ninguna con movimiento reducido),
+//   y la imagen con «Proporción del elemento» ocupa la misma caja que en PRO (ajustada al alto si es más apaisada);
 // - el editor: `frontend/element_ready/global` vuelve a iniciar lo que pinta;
 // - fidelidad con PRO (regla del propietario, 2026-11-05):
 //   - paginación: la barra de números de PRO y la propia, con letra de 12 y 16 px y separación de 0 y 10 px, tienen la
@@ -119,6 +120,22 @@ function portfolioPage() {
   const filters = [['__all', 'All'], ['5', 'Cinco'], ['6', 'Seis'], ['7', 'Siete']].map(([f, l], i) => `<li><button type="button" class="digi-portfolio__filter" data-filter="${f}" aria-pressed="${i ? 'false' : 'true'}">${l}</button></li>`).join('');
   return doc(`<div class="elementor-element elementor-widget elementor-widget-digitalisimo-portfolio elementor-grid-3" data-id="p1"><ul class="digi-portfolio__filters" aria-label="Filtrar">${filters}</ul><div class="digi-portfolio elementor-grid" role="list" data-digi-items="">${items}</div></div>`, ['portfolio.js']);
 }
+// Imagen del Portafolio con «Proporción del elemento» (0,66): la de PRO (su hoja real y su `fitImage()`, que pone
+// `elementor-fit-height` si la imagen es más apaisada que la caja) junto a la propia (portfolio.css y las reglas que genera
+// el control `item_ratio`), con una imagen apaisada (300 × 100) y una vertical (100 × 300) de tamaño natural conocido.
+const svg = (w, h) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#c33"/></svg>`)}`;
+function portfolioFitPage() {
+  const pro = [[300, 100, ' elementor-fit-height'], [100, 300, '']].map(([w, h, fit], i) => `<article class="elementor-portfolio-item elementor-post" id="pro${i}"><a class="elementor-post__thumbnail__link" href="#"><div class="elementor-portfolio-item__img elementor-post__thumbnail${fit}"><img src="${svg(w, h)}" width="${w}" height="${h}" alt=""></div></a></article>`).join('');
+  const own = [[300, 100], [100, 300]].map(([w, h], i) => `<article class="digi-portfolio__item" role="listitem" id="own${i}" data-digi-terms=""><a class="digi-portfolio__link" href="#"><div class="digi-portfolio__img"><img src="${svg(w, h)}" width="${w}" height="${h}" alt=""></div></a></article>`).join('');
+  // Las reglas del control con la especificidad del CSS del documento (`.elementor-N .elementor-element.elementor-element-ID …`).
+  const ratio = '.pf.elementor-element.elementor-widget .elementor-post__thumbnail__link{padding-bottom:calc(0.66 * 100%)}'
+    + '.of .digi-portfolio__link{padding-bottom:calc(0.66 * 100%)}.of .digi-portfolio__img{position:absolute;inset:0;background-color:rgba(0,0,0,.1)}.of .digi-portfolio__img img{position:absolute;top:calc(50% + 1px);left:calc(50% + 1px);height:auto;transform:scale(1.01) translate(-50%,-50%)}.of .digi-portfolio__img--fit-height img{height:100%;width:auto}'
+    + '.pf,.of{width:410px}';
+  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}${ratio}</style><link rel="stylesheet" href="/x/pro-posts.css"><link rel="stylesheet" href="/a/portfolio.css"></head><body>`
+    + `<div class="pf elementor-element elementor-widget elementor-widget-portfolio"><div class="elementor-portfolio elementor-grid elementor-posts-container elementor-has-item-ratio">${pro}</div></div>`
+    + `<div class="of elementor-element elementor-widget elementor-widget-digitalisimo-portfolio" data-id="p2"><div class="digi-portfolio elementor-grid" role="list" data-digi-items="">${own}</div></div>`
+    + '<script src="/a/portfolio.js" defer></script></body></html>';
+}
 function doc(body, scripts = ['loop.js']) {
   const grid = '.elementor-grid{display:grid;grid-column-gap:var(--grid-column-gap);grid-row-gap:var(--grid-row-gap)}.elementor-grid .elementor-grid-item{min-width:0}.elementor-grid-3 .elementor-grid{grid-template-columns:repeat(3,1fr)}@media(max-width:767px){.elementor-grid-mobile-1 .elementor-grid{grid-template-columns:repeat(1,1fr)}}.elementor-screen-only{position:absolute;top:-10000em;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}.elementor-element{--grid-column-gap:30px;--grid-row-gap:35px}body{margin:0;font:16px sans-serif}';
   return `<!doctype html><html><head><meta charset="utf-8"><style>${grid}</style><link rel="stylesheet" href="/a/posts.css"><link rel="stylesheet" href="/a/loop.css"><link rel="stylesheet" href="/a/portfolio.css"><link rel="stylesheet" href="/a/loop-grid.css"></head><body>${body}${scripts.map((s) => `<script src="/a/${s}" defer></script>`).join('')}</body></html>`;
@@ -148,6 +165,7 @@ async function open(path, { width = 1280, reduce = false, editor = false, delay 
     if (u.pathname === '/cascade/') return r.respond({ status: 200, contentType: 'text/html', body: cascadePage() });
     if ((m = u.pathname.match(/^\/x\/(reset|frontend|pro-posts)\.css$/))) return r.respond({ status: 200, contentType: 'text/css', body: readFileSync(new URL(sheets[m[1]], import.meta.url), 'utf8') });
     if (u.pathname === '/portfolio/') return r.respond({ status: 200, contentType: 'text/html', body: portfolioPage() });
+    if (u.pathname === '/portfolio-fit/') return r.respond({ status: 200, contentType: 'text/html', body: portfolioFitPage() });
     if (u.pathname === '/favicon.ico') return r.respond({ status: 204, body: '' });
     return r.respond({ status: 404, body: '' });
   });
@@ -260,22 +278,62 @@ for (const reduce of [false, true]) {
   const page = await open('/portfolio/', { reduce });
   const visible = () => page.$$eval('.digi-portfolio__item', (l) => l.map((e) => (e.hidden ? '-' : 'X')).join(''));
   ok(await visible() === 'XXXXXX', 'Portafolio: todo a la vista al principio.');
+  // Como `arrangeGrid()` de PRO (corrección de fidelidad): durante 450 ms los que salen encogen y se desvanecen en su sitio
+  // y los que se quedan se deslizan al suyo; al terminar, los que salen se ocultan. Con movimiento reducido, al instante.
+  const rects = () => page.$$eval('.digi-portfolio__item', (l) => l.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; }));
+  const before = await rects();
   await page.click('[data-filter="6"]');
-  await sleep(50);
+  await sleep(200);
+  if (!reduce) {
+    const mid = await page.$$eval('.digi-portfolio__item', (l) => l.map((e) => { const c = getComputedStyle(e); return { hidden: e.hidden, anim: e.getAnimations().length, opacity: +c.opacity, t: c.transform }; }));
+    ok(mid.every((m) => !m.hidden && 1 === m.anim) && [0, 4, 5].every((i) => mid[i].opacity < 1 && /matrix/.test(mid[i].t)) && [1, 2, 3].every((i) => 1 === mid[i].opacity && /matrix/.test(mid[i].t)), 'A mitad del filtro: los que salen encogen y se desvanecen sin dejar su sitio, los que se quedan se desplazan: ' + JSON.stringify(mid));
+    await sleep(450);
+  } else {
+    ok(await page.$$eval('.digi-portfolio__item', (l) => l.every((e) => !e.getAnimations().length)), 'Con movimiento reducido no hay animación.');
+  }
   ok(await visible() === '-XXX--', 'Filtrar por un término oculta los demás (también con varios términos por elemento).');
+  const after = await rects();
+  ok(JSON.stringify([after[1], after[2], after[3]]) === JSON.stringify([before[0], before[1], before[2]]) && await page.$$eval('.digi-portfolio__item', (l) => l.every((e) => !e.getAnimations().length && 'none' === getComputedStyle(e).transform)), 'Al terminar, los que quedan ocupan las primeras celdas, sin transformación ni animaciones: ' + JSON.stringify(after));
   ok(await page.$$eval('.digi-portfolio__filter', (l) => l.map((e) => e.getAttribute('aria-pressed')).join(',')) === 'false,false,true,false', 'aria-pressed marca el filtro elegido.');
   await page.click('[data-filter="__all"]');
-  await sleep(50);
-  ok(await visible() === 'XXXXXX', '«All» devuelve todos.');
-  ok((await count(page, '.digi-portfolio--in')) === (reduce ? 0 : 3), reduce ? 'Con movimiento reducido no hay animación de entrada.' : 'Los que vuelven entran con su animación.');
+  await sleep(100);
+  if (!reduce) ok(await page.$$eval('.digi-portfolio__item', (l) => [0, 4, 5].every((i) => { const c = getComputedStyle(l[i]); return !l[i].hidden && l[i].getAnimations().length && +c.opacity < 1; })), 'Los que vuelven aparecen en su sitio y crecen desde 0,2 mientras los demás vuelven al suyo.');
+  await sleep(reduce ? 50 : 500);
+  ok(await visible() === 'XXXXXX' && JSON.stringify(await rects()) === JSON.stringify(before), '«All» devuelve todos, cada uno en su sitio.');
+  // Un segundo filtro durante la animación termina el primero (sin elementos a medio animar).
+  await page.click('[data-filter="5"]');
+  await sleep(100);
+  await page.click('[data-filter="7"]');
+  await sleep(reduce ? 50 : 600);
+  ok(await visible() === '----X-' || await visible() === (await page.$$eval('.digi-portfolio__item', (l) => l.map((e) => ((e.getAttribute('data-digi-terms') || '').split(' ').includes('7') ? 'X' : '-')).join(''))), 'Dos filtros seguidos: queda el último.');
+  ok(await page.$$eval('.digi-portfolio__item', (l) => l.every((e) => !e.getAnimations().length && 'none' === getComputedStyle(e).transform && '1' === getComputedStyle(e).opacity)), 'Dos filtros seguidos: sin restos de la primera animación.');
+  await page.click('[data-filter="__all"]');
+  await sleep(reduce ? 50 : 600);
   const box = await page.$eval('.digi-portfolio__filter', (e) => { const r = e.getBoundingClientRect(); return r.width >= 24 && r.height >= 24; });
   ok(box, 'Con el relleno de PRO (8 px), el botón «All» mide 24 × 24 px o más (sin un mínimo propio: la cascada compara la caja con la de PRO).');
   await page.focus('[data-filter="__all"]');
   await page.keyboard.press('Tab');
   ok(await page.evaluate(() => document.activeElement.dataset.filter === '5' && getComputedStyle(document.activeElement).outlineStyle === 'solid' && getComputedStyle(document.activeElement).outlineOffset === '2px'), 'Foco visible en el filtro con el teclado (2 px con separación de 2 px).');
   await page.keyboard.press('Enter');
-  await sleep(50);
+  await sleep(reduce ? 50 : 600);
   ok(await visible() === 'X-X-X-', 'El teclado activa el filtro (Intro).');
+  await page.close();
+}
+// 4a. Imagen del Portafolio con la geometría de PRO (corrección de fidelidad): la misma caja de imagen que PRO, apaisada
+// (ajustada al alto, `--fit-height`, que pone el script como `fitImage()`) y vertical (a todo el ancho).
+{
+  const page = await open('/portfolio-fit/');
+  await page.waitForFunction(() => [...document.images].every((i) => i.complete && i.naturalWidth));
+  await sleep(200);
+  // Caja de la imagen respecto a su elemento (los dos widgets están uno debajo del otro).
+  const geo = await page.evaluate(() => [0, 1].map((i) => ['pro', 'own'].map((k) => { const a = document.getElementById(k + i).getBoundingClientRect(), r = document.querySelector(`#${k}${i} img`).getBoundingClientRect(); return [r.left - a.left, r.top - a.top, r.width, r.height].map((v) => Math.round(v * 100) / 100); })));
+  const fit = await page.$$eval('.of .digi-portfolio__img', (l) => l.map((e) => e.classList.contains('digi-portfolio__img--fit-height')));
+  ok(fit[0] && !fit[1], 'portfolio.js ajusta al alto la imagen apaisada y no la vertical (como fitImage() de PRO): ' + JSON.stringify(fit));
+  ok(geo.every(([a, b]) => a.every((v, j) => Math.abs(v - b[j]) <= 0.05)), 'La imagen ocupa la misma caja que en PRO (posición, ancho y alto): ' + JSON.stringify(geo));
+  // En el editor la proporción cambia sin repintar: la caja cambia y el script vuelve a decidir.
+  await page.evaluate(() => { document.querySelectorAll('.of .digi-portfolio__link').forEach((l) => { l.style.paddingBottom = '20%'; }); });
+  await sleep(200);
+  ok(JSON.stringify(await page.$$eval('.of .digi-portfolio__img', (l) => l.map((e) => e.classList.contains('digi-portfolio__img--fit-height')))) === '[false,false]', 'Con una caja más apaisada que la imagen, el script quita el ajuste al alto (ResizeObserver).');
   await page.close();
 }
 // 4b. Mampostería con la separación de PRO.

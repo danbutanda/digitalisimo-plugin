@@ -949,7 +949,7 @@ final class Pro_Gate {
 				return $reason;
 			}
 		}
-		if ( 'global' === $widget_type && isset( $element['templateID'] ) && is_numeric( $element['templateID'] ) && (int) $element['templateID'] > 0 ) {
+		if ( in_array( $widget_type, array( 'global', 'digitalisimo-global' ), true ) && isset( $element['templateID'] ) && is_numeric( $element['templateID'] ) && (int) $element['templateID'] > 0 ) {
 			$nested[ (int) $element['templateID'] ] = true;
 		}
 		return '';

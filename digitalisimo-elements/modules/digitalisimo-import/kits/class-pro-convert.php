@@ -23,7 +23,9 @@ defined( 'ABSPATH' ) || exit;
  *   del núcleo (`save_elements_of_imported_posts()`) no repite códigos.
  * - **CSS desde fuera.** El CSS personalizado de los contenedores y de la página que nombra clases de un widget de PRO
  *   con mapa listo gana, tras cada regla, su copia con las clases del widget propio (`Converter::tree_css()`); el CSS
- *   del kit, en «nuevo», lo mismo desde el runner `site-settings` (`kit_css()`). La regla original se queda.
+ *   del kit, en «nuevo», lo mismo desde el runner `site-settings` (`kit_css()`), y también cuando el kit se guarda como
+ *   documento (sin elementos, con su CSS personalizado de «Ajustes del sitio»; corrección de fidelidad de C5 y C6). La
+ *   regla original se queda.
  * - **Informe.** `pro.converted` por elemento y los códigos del traductor (`pro.unmapped`, `pro.dropped`,
  *   `pro.approx`, `pro.css`), y `pro.css_external`, todos en la sección «Widgets convertidos a widgets propios»
  *   (`Report::SECTION_PREFIXES`).
@@ -98,22 +100,29 @@ final class Pro_Convert {
 	 * @param callable|null $report `( string $code, array $data, string $level )`; por defecto, `Context::report()`.
 	 */
 	public static function on_save_data( array $data, $document = null, ?callable $report = null ): array {
-		if ( empty( $data['elements'] ) || ! is_array( $data['elements'] ) || ! self::available() ) {
+		if ( ! self::available() ) {
 			return $data;
 		}
-		list( $elements, $log ) = self::tree( $data['elements'] );
-		// El CSS que nombra widgets de PRO desde fuera (contenedores y la página): copia con las clases propias. Un fallo aquí
-		// no impide la conversión de los widgets.
+		// También sin elementos: el kit se guarda como documento con sólo sus ajustes (su CSS personalizado).
+		$log      = array();
+		$elements = ! empty( $data['elements'] ) && is_array( $data['elements'] ) ? $data['elements'] : array();
+		if ( $elements ) {
+			list( $elements, $log ) = self::tree( $elements );
+		}
+		// El CSS que nombra widgets de PRO desde fuera (contenedores, la página y el kit): copia con las clases propias. Un
+		// fallo aquí no impide la conversión de los widgets.
 		$changed = 0;
 		try {
 			$sets = self::class_sets();
 		} catch ( \Throwable $error ) {
-			$sets = array();
+			$sets  = array();
 			$log[] = self::entry( 'pro.css_external_error', array( 'mensaje' => $error->getMessage() ) );
 		}
 		if ( $sets ) {
 			$converter = self::CONVERTER;
-			$elements  = $converter::tree_css( $elements, $sets, $changed );
+			if ( $elements ) {
+				$elements = $converter::tree_css( $elements, $sets, $changed );
+			}
 			if ( isset( $data['settings']['custom_css'] ) && is_string( $data['settings']['custom_css'] ) ) {
 				$css = $converter::external_css( $data['settings']['custom_css'], $sets );
 				if ( $css !== $data['settings']['custom_css'] ) {
@@ -128,7 +137,9 @@ final class Pro_Convert {
 		if ( ! $log ) {
 			return $data;
 		}
-		$data['elements'] = $elements;
+		if ( $elements ) {
+			$data['elements'] = $elements;
+		}
 		$post             = is_object( $document ) && method_exists( $document, 'get_main_id' ) ? (int) $document->get_main_id() : 0;
 		$report           = null !== $report ? $report : array( __NAMESPACE__ . '\\Context', 'report' );
 		foreach ( $log as $item ) {
@@ -179,11 +190,12 @@ final class Pro_Convert {
 
 	/**
 	 * Widget global (C9 del programa «sin widgets de PRO»): después del remapeo (`Context::remap()`, prioridad 20, petición
-	 * final), cada instancia (`widgetType: global` con `templateID` ya del sitio) pasa a ser el elemento guardado en su
-	 * plantilla, con el id de la instancia (`Convert\Globals`). El contenido de cada plantilla se convierte antes con los
-	 * mapas listos, una vez por plantilla y documento. Sin plantilla (no viajó en el kit, o falla cerrado el remapeo) la
-	 * instancia se queda como está y no pinta nada, como antes, y se informa `pro.global_missing`. La plantilla nunca se
-	 * borra ni se cambia.
+	 * final), cada instancia (`widgetType: global` con `templateID` ya del sitio) pasa al widget global propio
+	 * (`digitalisimo-global`, `Convert\Globals::link()`), que sigue leyendo su plantilla al pintar (el vínculo de PRO se
+	 * conserva; la plantilla, un documento más del kit, se convierte al guardarse). Con una versión del núcleo de
+	 * conversión sin `link()`, la instancia pasa a ser el elemento guardado en su plantilla (convertido con los mapas
+	 * listos). Sin plantilla (no viajó en el kit, o falla cerrado el remapeo) la instancia se queda como está y no pinta
+	 * nada, como antes, y se informa `pro.global_missing`. La plantilla nunca se borra ni se cambia.
 	 *
 	 * @param array         $data     `{ elements, settings }` ya remapeados.
 	 * @param int           $post     Documento.
@@ -211,8 +223,19 @@ final class Pro_Convert {
 			}
 			return $contents[ $template ];
 		};
-		$rows             = array();
-		$data['elements'] = $globals::tree( $data['elements'], $resolver, $rows );
+		$rows = array();
+		if ( method_exists( $globals, 'link' ) && self::target_registered( 'digitalisimo-global' ) ) {
+			$read             = array();
+			$lookup           = static function ( int $template ) use ( $resolve, &$read ) {
+				if ( ! array_key_exists( $template, $read ) ) {
+					$read[ $template ] = call_user_func( $resolve, $template );
+				}
+				return $read[ $template ];
+			};
+			$data['elements'] = $globals::link( $data['elements'], $lookup, $rows );
+		} else {
+			$data['elements'] = $globals::tree( $data['elements'], $resolver, $rows );
+		}
 		foreach ( $rows as $row ) {
 			$entry = array( 'widget' => 'global', 'plantilla' => (int) $row['template'], 'elemento' => (string) $row['element'] );
 			if ( ! empty( $row['expanded'] ) ) {

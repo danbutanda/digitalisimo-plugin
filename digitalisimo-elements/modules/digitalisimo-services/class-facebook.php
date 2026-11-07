@@ -29,7 +29,11 @@ final class Facebook {
 	const URL_FORMAT_PLAIN      = 'plain';
 	const URL_FORMAT_PRETTY     = 'pretty';
 
-	/** Widgets que Meta retiró (como en PRO): un aviso en lugar del del App ID. */
+	/**
+	 * Widgets que Meta retiró (como en PRO): un aviso en lugar del del App ID y, en la página, sólo el `div` del plugin,
+	 * como PRO (`plugin()`), sin fachada ni SDK: el SDK ya no lo llena, así que queda vacío (1 px) en los dos y no se pide
+	 * nada a Facebook.
+	 */
 	const DISCONTINUED = array( 'digitalisimo-facebook-button', 'digitalisimo-facebook-comments' );
 
 	public static function app_id(): string {
@@ -139,15 +143,25 @@ final class Facebook {
 	 */
 	public static function facade( string $id, string $kind, array $attrs, string $label, string $style = '' ): string {
 		$note   = 'digi-fb-note-' . preg_replace( '/[^a-z0-9_-]/i', '', $id );
-		$plugin = '<div';
-		foreach ( $attrs as $name => $value ) {
-			$plugin .= ' ' . $name . '="' . esc_attr( (string) $value ) . '"';
-		}
-		$plugin .= '></div>';
+		$plugin = self::plugin( $attrs );
 		$out  = '<div class="digi-fb digi-fb--' . esc_attr( $kind ) . '" data-digi-fb data-digi-fb-lang="' . esc_attr( self::lang() ) . '" data-digi-fb-app="' . esc_attr( self::app_id() ) . '"' . ( '' !== $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . '>';
 		$out .= '<button type="button" class="digi-fb__load" aria-describedby="' . esc_attr( $note ) . '"><span class="digi-fb__service" aria-hidden="true">Facebook</span><span class="digi-fb__label">' . esc_html( $label ) . '</span></button>';
 		$out .= '<span class="digi-fb__note" id="' . esc_attr( $note ) . '">' . esc_html__( 'Al pulsar se carga contenido de Facebook.', 'pro-elements' ) . '</span>';
 		$out .= '<template class="digi-fb__embed">' . $plugin . '</template>';
 		return $out . '</div>';
+	}
+
+	/**
+	 * El `div` del plugin, con las mismas clases (la del servicio) y `data-*` que pintaba PRO. Va dentro del `<template>` de
+	 * la fachada o, en los widgets retirados (`DISCONTINUED`), directo en la página, como PRO.
+	 *
+	 * @param array $attrs Atributos del `div` (clase del servicio y `data-*`).
+	 */
+	public static function plugin( array $attrs ): string {
+		$plugin = '<div';
+		foreach ( $attrs as $name => $value ) {
+			$plugin .= ' ' . $name . '="' . esc_attr( (string) $value ) . '"';
+		}
+		return $plugin . '></div>';
 	}
 }

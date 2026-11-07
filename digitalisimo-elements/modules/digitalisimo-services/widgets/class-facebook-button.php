@@ -10,8 +10,8 @@ defined( 'ABSPATH' ) || exit;
  * Botón de Facebook (`digitalisimo-facebook-button`): sustituye al «Facebook Button» de PRO
  * (`modules/social/widgets/facebook-button.php`; mapa `modules/digitalisimo-convert/maps/facebook-button.php`). Mismos
  * controles (nombre, orden, tipo, valor por defecto, opciones y condiciones) derivados de PRO Elements (GPL); el plugin
- * `fb-like` y sus `data-*` son los de PRO, detrás de la fachada de `Services\Facebook` (ninguna petición antes del clic).
- * Meta retiró este plugin para sitios de terceros: como en PRO, el panel lo avisa.
+ * `fb-like` y sus `data-*` son los de PRO. Meta retiró este plugin para sitios de terceros: como en PRO, el panel lo avisa
+ * y la página sólo lleva el `div` del plugin, vacío, sin fachada ni SDK (ninguna petición a Facebook).
  */
 class Facebook_Button extends \Elementor\Widget_Base {
 
@@ -192,8 +192,8 @@ class Facebook_Button extends \Elementor\Widget_Base {
 			'data-share'       => ! empty( $settings['show_share'] ) ? 'true' : 'false',
 			'data-action'      => $type,
 		);
-		$label = 'recommend' === $type ? __( 'Mostrar el botón «Recomendar» de Facebook', 'pro-elements' ) : __( 'Mostrar el botón «Me gusta» de Facebook', 'pro-elements' );
-		echo Facebook::facade( (string) $this->get_id(), 'button digi-fb--' . ( 'large' === ( $settings['size'] ?? '' ) ? 'large' : 'small' ), $attrs, $label ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en facade().
+		// Meta retiró el plugin (`Facebook::DISCONTINUED`): como PRO, sólo su `div`, que queda vacío (1 px); sin fachada ni SDK.
+		echo Facebook::plugin( $attrs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en plugin().
 	}
 
 	public function render_plain_content() {}

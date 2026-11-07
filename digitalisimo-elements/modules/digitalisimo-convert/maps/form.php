@@ -12,7 +12,11 @@
  *
  * Acciones de terceros: además de las del constructor (lista fija de abajo), cuando WordPress y el constructor ya
  * cargaron se suman los controles que el Formulario propio tiene en ese sitio (`$digi_form_live`): una acción
- * registrada por otro plugin añade los mismos controles a los dos widgets, así que también pasan con `keep`.
+ * registrada por otro plugin añade los mismos controles a los dos widgets, así que también pasan con `keep`. Si los
+ * widgets aún no se registraron en la petición (un tic de Migrar por AJAX o WP-Cron que empieza en la etapa `pro`), el
+ * mapa los registra él mismo (`get_widget_types()`, lo mismo que hará la conversión al buscar el widget propio); antes
+ * de `elementor/init` no puede, y entonces el mapa lleva `retry` para que `Registry` no lo guarde en caché y vuelva a
+ * leerlo cuando el constructor esté listo (corrección de fidelidad, docs/pro/c6.md).
  * Formato: cabecera de `class-translator.php`.
  */
 defined( 'ABSPATH' ) || exit;
@@ -21,19 +25,34 @@ $digi_form_t = static function ( $text ) {
 	return function_exists( 'esc_html__' ) ? esc_html__( $text, 'elementor-pro' ) : $text; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- los textos de PRO, con su dominio.
 };
 
-/** Controles del Formulario propio en este sitio (con las acciones de terceros), o [] fuera de WordPress. */
+/**
+ * Controles del Formulario propio en este sitio (con las acciones de terceros), o [] fuera de WordPress; el tercer
+ * valor dice si hay que volver a leer el mapa (el constructor aún no estaba listo).
+ */
 $digi_form_live = static function (): array {
 	$class = 'Digitalisimo\\Elements\\Forms\\Widgets\\Form';
-	if ( ! function_exists( 'did_action' ) || ! did_action( 'elementor/widgets/register' ) || ! class_exists( '\\Digitalisimo\\Elements\\Forms\\Module' ) ) {
-		return array( array(), array() );
+	if ( ! function_exists( 'did_action' ) || ! class_exists( '\\Digitalisimo\\Elements\\Forms\\Module' ) ) {
+		return array( array(), array(), false );
+	}
+	// Las acciones de terceros sólo se conocen con los widgets registrados: si nada los registró aún en esta petición,
+	// se registran ahora, como hará la conversión.
+	if ( ! did_action( 'elementor/widgets/register' ) && did_action( 'elementor/init' ) && class_exists( '\\Elementor\\Plugin', false ) && isset( \Elementor\Plugin::$instance->widgets_manager ) && is_object( \Elementor\Plugin::$instance->widgets_manager ) && method_exists( \Elementor\Plugin::$instance->widgets_manager, 'get_widget_types' ) ) {
+		try {
+			\Elementor\Plugin::$instance->widgets_manager->get_widget_types();
+		} catch ( \Throwable $error ) {
+			return array( array(), array(), true );
+		}
+	}
+	if ( ! did_action( 'elementor/widgets/register' ) ) {
+		return array( array(), array(), true );
 	}
 	try {
 		if ( '' === \Digitalisimo\Elements\Forms\Module::load( 'digitalisimo-form' ) ) {
-			return array( array(), array() );
+			return array( array(), array(), false );
 		}
 		$controls = ( new $class() )->get_controls();
 	} catch ( \Throwable $error ) {
-		return array( array(), array() );
+		return array( array(), array(), false );
 	}
 	$top = array();
 	$row = array();
@@ -48,9 +67,9 @@ $digi_form_live = static function (): array {
 			}
 		}
 	}
-	return array( $top, $row );
+	return array( $top, $row, false );
 };
-list( $digi_form_live_top, $digi_form_live_row ) = $digi_form_live();
+list( $digi_form_live_top, $digi_form_live_row, $digi_form_retry ) = $digi_form_live();
 
 $digi_form_keep = array(
 	'form_name',
@@ -260,6 +279,8 @@ return array(
 	'target'    => 'digitalisimo-form',
 	'status'    => 'ready',
 	'panel'     => 'hide',
+	// Sin las acciones de terceros porque el constructor aún no estaba listo: `Registry` no lo guarda en caché.
+	'retry'     => $digi_form_retry,
 	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default).
 	'defaults'  => array(
 		'form_name'               => $digi_form_t( 'New Form' ),

@@ -10,7 +10,8 @@
  *   `dynamic`, unidades, rangos, límites, separador, `multiple`, tipo de aviso), con y sin App ID;
  * - marcado: fachada (botón con nombre en español, nota, `<template>` con el plugin) y, dentro, el mismo `div` del plugin
  *   que pinta PRO (mismos `data-*`; la clase propia en lugar de `elementor-facebook-widget`); ninguna URL de Facebook
- *   fuera de `data-href`, ni `<script>`, `<iframe>` ni `<img>`; mismas validaciones (avisos en español);
+ *   fuera de `data-href`, ni `<script>`, `<iframe>` ni `<img>`; mismas validaciones (avisos en español). El Botón y los
+ *   Comentarios, que Meta retiró, sólo el `div` del plugin, como PRO, sin fachada ni script (corrección de fidelidad);
  * - conversión con `Converter::tree()` de ajustes reales (por defecto, completos, `__dynamic__`, CSS personalizado con
  *   clases de PRO): ningún `pro.unmapped` y cada clave cae en un control propio.
  *
@@ -167,7 +168,9 @@ namespace {
 		$own = new $class();
 		$pro = new $pro_class();
 		$check( $name === $own->get_name() && $title === $own->get_title() && $title === Services::TITLES[ $name ] && array( 'digitalisimo' ) === $own->get_categories(), "$name: nombre, título y categoría propios." );
-		$check( array( 'digitalisimo-facebook' ) === $own->get_style_depends() && array( 'digitalisimo-facebook' ) === $own->get_script_depends(), "$name: sólo la hoja y el script compartidos." );
+		// Los que Meta retiró (Botón y Comentarios) no tienen fachada ni piden el SDK: sólo la hoja (corrección de fidelidad).
+		$retired = in_array( $name, \Digitalisimo\Elements\Services\Facebook::DISCONTINUED, true );
+		$check( array( 'digitalisimo-facebook' ) === $own->get_style_depends() && ( $retired ? array() : array( 'digitalisimo-facebook' ) ) === $own->get_script_depends(), "$name: sólo la hoja y el script compartidos (sin script, los retirados)." );
 		$file = $root . 'modules/digitalisimo-services/' . Services::WIDGETS[ $name ]['file'];
 		$check( ! preg_match( $guard, (string) file_get_contents( $file ) ) && ! preg_match( $guard, (string) file_get_contents( $root . 'modules/digitalisimo-convert/maps/' . $source . '.php' ) ), "$name: guarda de build-packages.sh (widget y mapa)." );
 
@@ -243,6 +246,12 @@ namespace {
 			ksort( $pa );
 			ksort( $pb );
 			$check( $pa === $pb, "$name #$i: mismos data-* que PRO: " . json_encode( array_diff_assoc( $pa, $pb ) + array_diff_assoc( $pb, $pa ), JSON_UNESCAPED_SLASHES ) );
+			// Retirados por Meta (Botón y Comentarios): como PRO, sólo el `div` del plugin, vacío, sin fachada ni SDK.
+			if ( in_array( $name, \Digitalisimo\Elements\Services\Facebook::DISCONTINUED, true ) ) {
+				$check( 1 === preg_match( '#^<div class="digi-fb__plugin fb-(like|comments)"[^>]*></div>$#', $b ) && ! str_contains( $b, 'digi-fb__load' ) && ! str_contains( $b, '<template' ), "$name #$i: sólo el div del plugin, como PRO: $b" );
+				$fixture[ $name . '-' . $i ] = $b;
+				continue;
+			}
 			// Fachada: el plugin sólo dentro del <template>; antes, el botón y la nota.
 			$check( 1 === preg_match( '#^<div class="digi-fb digi-fb--[a-z -]+" data-digi-fb data-digi-fb-lang="es_MX" data-digi-fb-app="1234567890"( style="[^"]*")?><button type="button" class="digi-fb__load" aria-describedby="digi-fb-note-(f[0-9a-f]{6})"><span class="digi-fb__service" aria-hidden="true">Facebook</span><span class="digi-fb__label">[^<]+</span></button><span class="digi-fb__note" id="digi-fb-note-\\2">Al pulsar se carga contenido de Facebook\.</span><template class="digi-fb__embed"><div [^>]+></div></template></div>$#', $b ), "$name #$i: fachada con botón, nota y <template>: $b" );
 			$outside = preg_replace( '#<template.*?</template>#s', '', $b );

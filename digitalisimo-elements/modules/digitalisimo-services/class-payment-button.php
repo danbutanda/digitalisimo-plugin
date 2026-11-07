@@ -470,11 +470,14 @@ abstract class Payment_Button extends \Elementor\Widget_Button {
 		echo '</button>';
 	}
 
-	/** Mensajes de error, ocultos hasta que se pulsa. */
+	/**
+	 * Mensajes de error, ocultos hasta que se pulsa. Como la plantilla de PRO, un salto antes del texto: tras el `::before`
+	 * del núcleo (el aspa de `.elementor-message-danger`, `inline-block`) queda el mismo espacio que en PRO, unos 5 px.
+	 */
 	protected function print_errors( array $errors ): void {
 		foreach ( $errors as $type => $message ) {
 			$type = preg_replace( '/[^a-z]/', '', (string) $type );
-			echo '<div class="elementor-message elementor-message-danger digi-pay__message digi-pay__message--' . esc_attr( $type ) . '" role="alert" hidden>' . esc_html( $message ) . '</div>';
+			echo '<div class="elementor-message elementor-message-danger digi-pay__message digi-pay__message--' . esc_attr( $type ) . '" role="alert" hidden>' . "\n" . esc_html( $message ) . '</div>';
 		}
 	}
 

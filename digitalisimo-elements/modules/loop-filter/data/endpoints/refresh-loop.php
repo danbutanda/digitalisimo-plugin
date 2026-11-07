@@ -111,7 +111,11 @@ class Refresh_Loop extends Refresh_Base {
 				'methods' => \WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'get_updated_loop_widget_markup' ],
 				'permission_callback' => function ( $request ) {
-					return $this->permission_callback( $request, 'loop-grid' );
+					// DIGITALÍSIMO (C5, corrección de fidelidad, docs/pro/c5.md): también la Cuadrícula de bucle propia, que
+					// consulta con el mismo grupo de PRO (`elementor/query/query_args`, así que `filter_loop_query()` la filtra)
+					// y pinta su `.elementor-widget-container`: un Filtro de taxonomías de PRO que la apunta (un kit importado
+					// con el Filtro propio desactivado en el Gestor de elementos) la refresca sin recargar, como a la de PRO.
+					return $this->permission_callback( $request, 'loop-grid' ) || $this->permission_callback( $request, 'digitalisimo-loop-grid' );
 				},
 			],
 		] );

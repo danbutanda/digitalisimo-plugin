@@ -177,7 +177,9 @@ namespace {
 		public function __construct( array $known ) {
 			$this->known = $known;
 		}
+		public $calls = array();
 		public function get_widget_types( $name = null ) {
+			$this->calls[] = $name;
 			return null === $name ? array() : ( in_array( $name, $this->known, true ) ? new stdClass() : null );
 		}
 	}
@@ -423,6 +425,9 @@ namespace {
 	$check( 'Pendiente: digitalisimo-blockquote no está registrado en este sitio' === Pro::status( 'blockquote', '', 'C2' ), 'El análisis dice que el destino no está registrado.' );
 	manager( array( 'heading', 'digitalisimo-blockquote' ) );
 	$check( array( 'blockquote' => 'digitalisimo-blockquote' ) === Pro::ready(), 'Con el widget propio registrado, vuelve a estar listo.' );
+	// Corrección de fidelidad de C6: Pro::ready() registra los widgets (get_widget_types()) antes de leer los mapas, para
+	// que el del Formulario sume las acciones de envío de terceros en un tic que empieza en la etapa `pro`.
+	$check( '' === ( \Elementor\Plugin::$instance->widgets_manager->calls[0] ?? null ), 'Pro::ready() registra los widgets antes de leer los mapas: ' . wp_json_encode( \Elementor\Plugin::$instance->widgets_manager->calls ) );
 	manager( null );
 
 	/* ================================================================ 4. La etapa pro y Migrar completo, y --revert */

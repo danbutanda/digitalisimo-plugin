@@ -19,18 +19,22 @@ defined( 'ABSPATH' ) || exit;
  *   autoguardados se cuentan aparte. En memoria sólo quedan los recuentos.
  * - La conversión toma sólo documentos que no son revisiones: los widgets de PRO siguen registrados, así que una
  *   revisión antigua se sigue viendo y, si se restaura, Migrar la convierte la próxima vez.
- * - Widget global (C9, `Convert\Globals` de Elements): antes de convertir, cada instancia se sustituye por el elemento
- *   guardado en su plantilla de la biblioteca (`template_content()` la lee del sitio); lo que queda dentro se convierte
- *   con los mapas en la misma pasada. La plantilla no se borra y `--revert` devuelve la instancia (copia original). Una
- *   instancia sin plantilla se queda como está y el informe lo dice (`pro.global_missing`).
+ * - Widget global (C9, `Convert\Globals` de Elements): cada instancia con plantilla válida pasa al widget global propio
+ *   (`digitalisimo-global`, `Globals::link()`), que sigue leyendo la plantilla al pintar: editarla cambia todas las
+ *   páginas que la usan, como en PRO. La plantilla, que es un documento de la biblioteca, la convierte la misma etapa;
+ *   nunca se borra, y `--revert` devuelve la instancia (copia original). Con una versión de Elements sin el widget global
+ *   propio, la instancia se sustituye por su contenido (`Globals::tree()`, como hasta 4.3.0.179). Una instancia sin
+ *   plantilla se queda como está y el informe lo dice (`pro.global_missing`).
  * - CSS que nombra los widgets de PRO desde fuera de ellos (contenedores y secciones, la página, el kit activo y el CSS
  *   adicional del Personalizador): el traductor sólo traduce el CSS del propio widget, así que, tras cada regla que
  *   nombra las clases de un widget de PRO con mapa listo, se añade su copia con las clases del widget propio
  *   (`Convert\Converter::external_css()`/`tree_css()` de Elements). La regla original se queda. Lo hace la conversión de
  *   cada documento y la etapa `pro_css` (documentos ya convertidos o sin widgets de PRO cuyo CSS los nombra, el kit y el
  *   Personalizador). El CSS del árbol va en la copia del documento (Migration::BACKUP); el de la página, del kit y del
- *   Personalizador, en CSS_BACKUP, que `--revert` devuelve si nadie lo cambió después (`revert_css()`). Lo que nombre
- *   esas clases en archivos del tema no se toca.
+ *   Personalizador, en CSS_BACKUP, que `--revert` devuelve si nadie lo cambió después (`revert_css()`). El CSS
+ *   adicional se escribe sin tocar su fuente preprocesada (Sass/LESS de un plugin). Cubre también el CSS del sitio que
+ *   nombraba clases de los listados y formularios de PRO (`.elementor-post__title`, `.elementor-widget-form`; corrección
+ *   de fidelidad de C5 y C6). Lo que nombre esas clases en archivos del tema o en fragmentos de código no se toca.
  */
 final class Pro {
 	const CONVERTER = '\\Digitalisimo\\Elements\\Convert\\Converter';
@@ -63,6 +67,11 @@ final class Pro {
 	public static function reset(): void {
 		self::$ready     = null;
 		self::$templates = array();
+	}
+
+	/** Destino del widget global de PRO: el widget global propio (vinculado a su plantilla) o, sin él, su contenido. */
+	public static function global_target(): string {
+		return self::globals() && method_exists( self::GLOBALS, 'link' ) && false !== self::registered( 'digitalisimo-global' ) ? 'digitalisimo-global' : 'su contenido';
 	}
 
 	/** ¿Sustituye esta versión de Elements los widgets globales por su contenido? */
@@ -101,6 +110,9 @@ final class Pro {
 		}
 		$out = array();
 		if ( self::available() ) {
+			// Los widgets registrados antes de leer los mapas: el del Formulario suma las claves de las acciones de envío
+			// de terceros, que sólo existen con los widgets registrados (en un tic que empieza en esta etapa, nada lo hizo).
+			self::registered( '' );
 			$registry = self::REGISTRY;
 			foreach ( (array) $registry::all() as $source => $map ) {
 				$target = (string) ( $map['target'] ?? '' );
@@ -197,7 +209,10 @@ final class Pro {
 		$out       = $data;
 		if ( self::globals() ) {
 			$class = self::GLOBALS;
-			$out   = $class::tree( $data, array( __CLASS__, 'template_content' ), $globals );
+			// El widget global propio (si está registrado) conserva el vínculo con la plantilla; si no, su contenido.
+			$out   = 'digitalisimo-global' === self::global_target()
+				? $class::link( $data, array( __CLASS__, 'template_content' ), $globals )
+				: $class::tree( $data, array( __CLASS__, 'template_content' ), $globals );
 			foreach ( $globals as $i => $row ) {
 				if ( empty( $row['expanded'] ) ) {
 					$missing[] = $row;
@@ -534,7 +549,9 @@ final class Pro {
 			return;
 		}
 		$current = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
-		if ( false === strpos( $current, '"' . self::MARKER . '"' ) && false === strpos( $current, '"' . self::GLOBAL_KEY . '"' ) ) {
+		// Lo convertido lleva la marca del traductor; la sustitución del widget global, su plantilla de origen; el vínculo
+		// (desde la corrección de fidelidad de C9), el widget global propio, sin ninguna de las dos.
+		if ( false === strpos( $current, '"' . self::MARKER . '"' ) && false === strpos( $current, '"' . self::GLOBAL_KEY . '"' ) && false === strpos( $current, '"digitalisimo-global"' ) ) {
 			return;
 		}
 		list( , $log ) = self::convert_data( $original );
@@ -739,7 +756,7 @@ final class Pro {
 		foreach ( (array) ( $state['widgets'] ?? array() ) as $type => $row ) {
 			$type     = (string) $type;
 			$family   = self::family( $type );
-			$target   = 'global' === $type && self::globals() ? 'su contenido' : (string) ( $ready[ $type ] ?? '' );
+			$target   = 'global' === $type && self::globals() ? self::global_target() : (string) ( $ready[ $type ] ?? '' );
 			$widgets[] = array(
 				'widget'            => $type,
 				'family'            => $family,

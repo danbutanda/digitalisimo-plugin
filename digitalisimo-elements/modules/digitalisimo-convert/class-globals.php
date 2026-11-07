@@ -4,7 +4,16 @@ namespace Digitalisimo\Elements\Convert;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Widget global de PRO (C9 de `docs/PRO_WIDGETS_OBJECTIVE.md`, contrato `docs/pro/c9.md`): cada instancia
+ * Widget global de PRO (C9 de `docs/PRO_WIDGETS_OBJECTIVE.md`, contrato `docs/pro/c9.md`).
+ *
+ * **Vínculo (`link()`, lo que usan «Migrar» y los kits desde la corrección de fidelidad de C9):** cada instancia con una
+ * plantilla válida pasa al widget global propio (`digitalisimo-global`,
+ * `modules/global-widget/widgets/digitalisimo-global.php`), que hereda del de PRO y sigue leyendo la plantilla al pintar:
+ * editar la plantilla cambia a la vez todas las páginas que la usan, como en PRO. Sólo cambia `widgetType`; el id, el
+ * `templateID` y los ajustes guardados quedan igual, y la plantilla (que «Migrar» convierte como cualquier documento de la
+ * biblioteca) nunca se toca. Falla cerrado igual que la sustitución.
+ *
+ * **Sustitución (`tree()`/`expand()`, la conversión de C9 hasta 4.3.0.179; queda para una conversión explícita):** cada instancia
  * (`widgetType: global` con `templateID`) se sustituye por el elemento guardado en su plantilla de la biblioteca (tipo
  * `widget`), que es lo que PRO pinta (`modules/global-widget/widgets/global-widget.php`: `try_load_from_template()` toma
  * el tipo y los ajustes del primer elemento de la plantilla y `init_original_element_instance()` lo pinta con el id de
@@ -26,6 +35,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Globals {
 	const TYPE = 'global';
+
+	/** Widget global propio, que conserva el vínculo con la plantilla. */
+	const OWN = 'digitalisimo-global';
 
 	/** Plantilla de origen en los ajustes del elemento sustituido. */
 	const KEY = '_digitalisimo_global';
@@ -53,7 +65,7 @@ final class Globals {
 			return null;
 		}
 		$type = $first['widgetType'] ?? '';
-		return is_string( $type ) && '' !== $type && self::TYPE !== $type ? $first : null;
+		return is_string( $type ) && '' !== $type && self::TYPE !== $type && self::OWN !== $type ? $first : null;
 	}
 
 	/** Id nuevo y estable (7 caracteres hexadecimales) de un hijo del contenido dentro de una instancia. */
@@ -111,6 +123,20 @@ final class Globals {
 	public static function tree( array $elements, callable $resolve, ?array &$log = null ): array {
 		$log = array();
 		return self::walk( $elements, $resolve, $log, array(), 0 );
+	}
+
+	/**
+	 * Pasa al widget global propio las instancias del de PRO cuya plantilla vale, a cualquier profundidad.
+	 *
+	 * @param array      $elements Árbol.
+	 * @param callable   $resolve  `( int $plantilla ): ?array`, el `_elementor_data` decodificado de la plantilla.
+	 * @param array|null $log      Un registro por instancia, como `tree()`: `source` (`global`), `target`
+	 *                             (`digitalisimo-global`, o '' si se quedó), `element`, `template`, `expanded` (si se
+	 *                             pasó) y `codes`.
+	 */
+	public static function link( array $elements, callable $resolve, ?array &$log = null ): array {
+		$log = array();
+		return self::walk_link( $elements, $resolve, $log, 0 );
 	}
 
 	/** Número de instancias de widget global en un árbol. */
@@ -174,6 +200,61 @@ final class Globals {
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
 				$element['elements'] = self::walk( $element['elements'], $resolve, $log, $branch, $depth + 1 );
+			}
+			$elements[ $index ] = $element;
+		}
+		return $elements;
+	}
+
+	private static function walk_link( array $elements, callable $resolve, array &$log, int $depth ): array {
+		if ( $depth > self::MAX_DEPTH ) {
+			return $elements;
+		}
+		foreach ( $elements as $index => $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			if ( self::is_instance( $element ) ) {
+				$template = self::template_id( $element );
+				$id       = isset( $element['id'] ) && is_scalar( $element['id'] ) ? (string) $element['id'] : '';
+				$content  = $template > 0 ? self::content( call_user_func( $resolve, $template ) ) : null;
+				if ( null === $content ) {
+					$log[] = array(
+						'source'   => self::TYPE,
+						'target'   => '',
+						'element'  => $id,
+						'template' => $template,
+						'expanded' => false,
+						'codes'    => array(
+							array(
+								'code'    => 'pro.global_missing',
+								'key'     => 'templateID',
+								'reason'  => sprintf( 'La plantilla %d del widget global no existe, está en la papelera o no guarda un widget: la instancia se queda como estaba (tampoco se pintaba).', $template ),
+								'section' => 'review',
+							),
+						),
+					);
+				} else {
+					$element['widgetType'] = self::OWN;
+					$log[]                 = array(
+						'source'   => self::TYPE,
+						'target'   => self::OWN,
+						'element'  => $id,
+						'template' => $template,
+						'expanded' => true,
+						'codes'    => array(
+							array(
+								'code'    => 'pro.global',
+								'key'     => 'templateID',
+								'reason'  => sprintf( 'Instancia de la plantilla %d pasada al widget global propio: sigue vinculada a su plantilla.', $template ),
+								'section' => 'converted',
+							),
+						),
+					);
+				}
+			}
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				$element['elements'] = self::walk_link( $element['elements'], $resolve, $log, $depth + 1 );
 			}
 			$elements[ $index ] = $element;
 		}

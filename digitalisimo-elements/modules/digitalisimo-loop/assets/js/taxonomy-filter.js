@@ -1,5 +1,6 @@
 /* DIGITALÍSIMO Elements · Filtro de taxonomías (C5): botones con aria-pressed; escribe en la URL los parámetros de PRO
-   (e-filter-<bucle>-<taxonomía>) y pide la misma página para sustituir el contenido del bucle. Sin bibliotecas ni REST. */
+   (e-filter-<bucle>-<taxonomía>) y pide la misma página para sustituir el contenido del bucle. Sin bibliotecas ni REST.
+   En el editor, como PRO, la Cuadrícula se repinta con su modelo del editor: lo hace taxonomy-filter-editor.js. */
 ((w, d) => {
 	'use strict';
 	if (w.digiTaxonomyFilter) return;
@@ -78,7 +79,7 @@
 			set(f, true);
 			if (f !== ALL) set(ALL, false);
 		}
-		if (edit()) return;
+		if (edit()) { try { w.top.digiTaxonomyFilterEdit(s); } catch (e) { /* sin el editor */ } return; }
 		refresh(s, url(s, pressed(s).filter((t) => t !== ALL)), true);
 	};
 	d.addEventListener('click', (e) => {

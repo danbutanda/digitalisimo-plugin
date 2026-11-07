@@ -5,10 +5,12 @@
  *
  * Sin WordPress: tests/sources/kits/wp-stubs.php y los archivos reales de digitalisimo-elements/.
  *  1. Sin el núcleo de conversión, nada cambia.
- *  2. Con el núcleo: cada instancia (`widgetType: global` con su `templateID` ya remapeado) pasa a ser el elemento de su
- *     plantilla con el id de la instancia; si el contenido es un widget de PRO con mapa listo (la Cita), llega convertido;
+ *  2. Con el núcleo: cada instancia (`widgetType: global` con su `templateID` ya remapeado) pasa al widget global propio
+ *     (`digitalisimo-global`, corrección de fidelidad de C9) con el mismo id, el mismo `templateID` y los mismos ajustes,
+ *     así que sigue leyendo su plantilla al pintar (la plantilla, un documento más del kit, se convierte al guardarse);
  *     sin plantilla (o con una plantilla de otro tipo o en la papelera), la instancia se queda y se informa
- *     `pro.global_missing`; una plantilla compartida se lee una sola vez; códigos con su nivel y su texto.
+ *     `pro.global_missing`; una plantilla compartida se lee una sola vez; códigos con su nivel y su texto. Con el núcleo
+ *     sin el widget global propio registrado, la instancia pasa a ser el elemento de su plantilla (como hasta 4.3.0.179).
  *  3. `Context::global_template()` sólo devuelve plantillas de widget de la biblioteca fuera de la papelera.
  *  4. Lo engancha `Context::remap()` después del remapeo, y nada más llama a la sustitución.
  *  5. Al exportar, `Export\Documents::restore_ids()` repone el id de una instancia exportada como su contenido.
@@ -80,12 +82,13 @@ namespace {
 	$out = Pro_Convert::on_remapped_data( $data, 7, $resolve, $report );
 	$g1  = kpg_find( $out['elements'], 'g1' );
 	$g2  = kpg_find( $out['elements'], 'g2' );
-	$check( 'heading' === $g1['widgetType'] && 'Global' === $g1['settings']['title'] && 501 === $g1['settings']['_digitalisimo_global'] && ! isset( $g1['templateID'] ), '2: la instancia pasa a ser el encabezado guardado, con el id de la instancia: ' . json_encode( $g1 ) );
-	$check( 'heading' === kpg_find( $out['elements'], 'g3' )['widgetType'] && array( 501, 502, 503 ) === $reads, '2: la plantilla compartida se lee una vez por documento: ' . json_encode( $reads ) );
-	$check( 'digitalisimo-blockquote' === $g2['widgetType'] && 'Cita global' === $g2['settings']['blockquote_content'] && 'g2' === $g2['id'], '2: una Cita de PRO guardada como widget global llega como Cita propia.' );
+	$g1_in = kpg_find( $data['elements'], 'g1' );
+	$check( 'digitalisimo-global' === $g1['widgetType'] && 501 === $g1['templateID'] && $g1_in['settings'] === $g1['settings'] && 'g1' === $g1['id'], '2: la instancia pasa al widget global propio, con su plantilla, su id y sus ajustes: ' . json_encode( $g1 ) );
+	$check( 'digitalisimo-global' === kpg_find( $out['elements'], 'g3' )['widgetType'] && array( 501, 502, 503 ) === $reads, '2: la plantilla compartida se lee una vez por documento: ' . json_encode( $reads ) );
+	$check( 'digitalisimo-global' === $g2['widgetType'] && 502 === $g2['templateID'] && 'g2' === $g2['id'], '2: una Cita de PRO guardada como widget global sigue vinculada a su plantilla (la convierte su propio guardado).' );
 	$check( 'global' === kpg_find( $out['elements'], 'g4' )['widgetType'] && 503 === kpg_find( $out['elements'], 'g4' )['templateID'], '2: sin plantilla, la instancia se queda tal cual (falla cerrado).' );
 	sort( $codes );
-	$check( array( 'pro.converted:blockquote:info:7', 'pro.global:global:info:7', 'pro.global:global:info:7', 'pro.global:global:info:7', 'pro.global_missing:global:warning:7' ) === $codes, '2: códigos con su nivel y el documento: ' . json_encode( $codes ) );
+	$check( array( 'pro.global:global:info:7', 'pro.global:global:info:7', 'pro.global:global:info:7', 'pro.global_missing:global:warning:7' ) === $codes, '2: códigos con su nivel y el documento: ' . json_encode( $codes ) );
 	$check( $out['elements'] === Pro_Convert::on_remapped_data( $out, 7, $resolve, $report )['elements'], '2: una segunda pasada no cambia nada.' );
 	$labels = Report::labels();
 	$check( isset( $labels['pro.global'], $labels['pro.global_missing'] ), '2: los dos códigos tienen texto en el informe.' );
@@ -133,5 +136,5 @@ namespace {
 		echo "elements-kit-pro-global: {$failures} de {$checks} comprobaciones fallaron.\n";
 		exit( 1 );
 	}
-	echo "elements-kit-pro-global: ok ({$checks} comprobaciones: widget global de PRO sustituido por su contenido al importar un kit, §17).\n";
+	echo "elements-kit-pro-global: ok ({$checks} comprobaciones: widget global de PRO pasado al widget global propio, vinculado a su plantilla, al importar un kit, §17).\n";
 }

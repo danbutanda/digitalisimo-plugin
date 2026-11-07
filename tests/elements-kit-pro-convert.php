@@ -237,6 +237,28 @@ namespace {
 	};
 	$check( 'template' === ( $paths( 'digitalisimo-slides' )['slides.*.digitalisimo_template_id'] ?? '' ) && 'template' === ( $paths( 'slides' )['slides.*.digitalisimo_template_id'] ?? '' ), '8: slides.*.digitalisimo_template_id es una plantilla en slides y en digitalisimo-slides.' );
 
+	/* 9. CSS que nombra clases de los listados y formularios de PRO (corrección de fidelidad de C5 y C6): el del kit, que
+	   se guarda como documento sin elementos, y el de un elemento que no se convierte ganan la copia con las clases
+	   propias (`Converter::external_css()`/`tree_css()`, como en 5b); idempotente; se informa pro.css_external. */
+	if ( ! defined( 'ELEMENTOR_ASSETS_URL' ) ) {
+		define( 'ELEMENTOR_ASSETS_URL', 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' ); // Lo pide un mapa al cargarse todos.
+	}
+	$registry::reset();
+	$registry::set( 'nav-menu', null );
+	$external = static function ( int $from ): bool {
+		return (bool) array_filter( kpc_codes( $from ), static function ( $c ) { return 0 === strpos( $c, 'pro.css_external' ); } );
+	};
+	$kit_data = array( 'elements' => array(), 'settings' => array( 'custom_css' => '.elementor-widget-posts .elementor-post__title{color:red}', 'system_colors' => array() ) );
+	$before   = kpc_entries();
+	$saved    = Context::preserve( $kit_data, new Kit_Pro_Document( 77 ) );
+	$check( str_starts_with( $saved['settings']['custom_css'], $kit_data['settings']['custom_css'] ) && str_contains( $saved['settings']['custom_css'], '.elementor-widget-digitalisimo-posts .digi-posts__title{color:red}' ) && $kit_data['settings']['system_colors'] === $saved['settings']['system_colors'] && array() === $saved['elements'], '9: el CSS del kit (sin elementos) gana la copia con las clases propias (la original no cambia): ' . $saved['settings']['custom_css'] );
+	$check( $external( $before ), '9: y se informa (pro.css_external): ' . implode( ', ', kpc_codes( $before ) ) );
+	$page_data = array( 'elements' => array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => array( 'custom_css' => 'selector .elementor-widget-form{margin:0}' ), 'elements' => array() ) ), 'settings' => array() );
+	$page_out  = Context::preserve( $page_data, new Kit_Pro_Document( 78 ) );
+	$check( 'selector .elementor-widget-form{margin:0}selector .elementor-widget-digitalisimo-form{margin:0}' === $page_out['elements'][0]['settings']['custom_css'], '9: y el de un elemento que no se convierte: ' . $page_out['elements'][0]['settings']['custom_css'] );
+	$before = kpc_entries();
+	$check( $saved === Context::preserve( $saved, new Kit_Pro_Document( 77 ) ) && kpc_entries() === $before, '9: el segundo guardado del kit no duplica la regla ni informa otra vez.' );
+
 	if ( $failures ) {
 		echo "elements-kit-pro-convert: {$failures} de {$checks} comprobaciones fallaron.\n";
 		exit( 1 );

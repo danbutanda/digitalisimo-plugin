@@ -1,4 +1,4 @@
-/* Formulario (digitalisimo-form): lo que la hoja de PRO añadía al núcleo, pasos propios, foco y movimiento reducido. */
+/* Formulario (digitalisimo-form): lo que la hoja de PRO añadía al núcleo, pasos propios, foco (los campos de texto, el del núcleo) y movimiento reducido. */
 .e-form__step{width:100%}.e-form__step:not([hidden]){display:flex;flex-wrap:wrap}.e-form__buttons{flex-wrap:wrap}.e-form__buttons,.e-form__buttons__wrapper{display:flex}
 .digi-steps{align-items:center;display:flex;font-size:13px;justify-content:space-between;margin-bottom:var(--dfs-gap)}.digi-steps--badge{align-items:flex-start}
 .digi-step{align-items:center;display:flex;flex-basis:0;flex-direction:column;justify-content:center;padding:0 var(--dfs-dg)}.digi-step:first-child{padding-left:0}.digi-step:last-child{padding-right:0}
@@ -21,6 +21,6 @@
 .select-caret-down-wrapper{font-size:11px;inset-inline-end:10px;pointer-events:none;position:absolute;top:50%;transform:translateY(-50%)}
 .select-caret-down-wrapper svg{aspect-ratio:unset;display:unset;fill:currentColor;overflow:visible;width:1em}.select-caret-down-wrapper i{font-size:19px;line-height:2}
 .elementor-select-wrapper.remove-before:before{content:""!important}
-.elementor-widget-digitalisimo-form .elementor-form [hidden]{display:none!important}.elementor-widget-digitalisimo-form .elementor-form-waiting{opacity:.45;transition:opacity .5s}
-.elementor-widget-digitalisimo-form.elementor-widget .elementor-form :focus-visible{outline:2px solid;outline-offset:2px}
+.elementor-widget-digitalisimo-form .elementor-form [hidden]{display:none!important}.elementor-widget-digitalisimo-form .elementor-form{transition:opacity .1s}.elementor-widget-digitalisimo-form .elementor-form-waiting{opacity:.45;transition-duration:.5s}
+.elementor-widget-digitalisimo-form.elementor-widget .elementor-form :is(a,button,[type=checkbox],[type=radio],[type=file]):focus-visible{outline:2px solid;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.elementor-widget-digitalisimo-form *{transition:none!important}}

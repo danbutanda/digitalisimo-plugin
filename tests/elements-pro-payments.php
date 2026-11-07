@@ -345,13 +345,16 @@ namespace {
 	$check( str_contains( $out, 'id="mi-boton"' ) && str_contains( $out, 'elementor-animation-grow' ), 'PayPal: id del botón y animación al pasar el cursor.' );
 	// Errores: ocultos, con role="alert"; reducidos a uno global si hay varios; ninguno en el editor.
 	$errs = $render( $pp, array_merge( $base, array( 'email' => '', 'text' => 'Pagar' ) ) );
-	$check( 1 === preg_match_all( '/class="elementor-message elementor-message-danger digi-pay__message digi-pay__message--payment" role="alert" hidden>No payment method connected\. Contact seller\.<\/div>/', $errs ) && ! str_contains( $errs, 'digi-pay__message--global' ), 'PayPal sin cuenta: mensaje de método de pago oculto (precio por defecto 0.00 no vacío).' );
+	$check( 1 === preg_match_all( '/class="elementor-message elementor-message-danger digi-pay__message digi-pay__message--payment" role="alert" hidden>\nNo payment method connected\. Contact seller\.<\/div>/', $errs ) && ! str_contains( $errs, 'digi-pay__message--global' ), 'PayPal sin cuenta: mensaje de método de pago oculto (precio por defecto 0.00 no vacío).' );
 	$errs = $render( $pp, array_merge( $base, array( 'email' => '', 'product_price' => '' ) ) );
 	$check( 1 === substr_count( $errs, 'role="alert"' ) && str_contains( $errs, 'digi-pay__message--global' ), 'PayPal: dos errores se reducen al global, como PRO.' );
 	$pro_errs = $render( $pp_pro, array_merge( $base, array( 'email' => '', 'product_price' => '' ) ) );
 	$check( str_contains( $pro_errs, 'elementor-error-message-global' ) && 1 === substr_count( $pro_errs, 'elementor-message-danger' ), 'PayPal de PRO: el mismo error global (referencia).' );
+	// Corrección de fidelidad (docs/pro/c9.md): como la plantilla de PRO, un blanco antes del texto del mensaje, que tras el
+	// `::before` del núcleo (el aspa, `inline-block`) deja el mismo espacio; sin él, el texto quedaba 5 px más a la izquierda.
+	$check( 1 === preg_match( '/elementor-message-danger[^>]*>\s+\S/', $pro_errs ) && 1 === preg_match( '/digi-pay__message--global" role="alert" hidden>\n[^\s<]/', $errs ), 'Mensaje de error con un blanco antes del texto, como PRO.' );
 	$errs = $render( $pp, array_merge( $base, array( 'email' => 'v@ejemplo.test', 'custom_messages' => 'yes', 'error_message_global' => 'Falta el precio', 'product_price' => '' ) ) );
-	$check( str_contains( $errs, '>Falta el precio</div>' ), 'PayPal: mensaje personalizado.' );
+	$check( str_contains( $errs, ">\nFalta el precio</div>" ), 'PayPal: mensaje personalizado.' );
 	$GLOBALS['pay_edit'] = true;
 	$check( ! str_contains( $render( $pp, array_merge( $base, array( 'email' => '' ) ) ), 'digi-pay__message' ), 'PayPal: ningún mensaje en el editor, como PRO.' );
 	$GLOBALS['pay_edit'] = false;
@@ -373,9 +376,9 @@ namespace {
 	$check( str_contains( $pro_s, 'name="action" value="submit_stripe_form"' ) && str_contains( $pro_s, 'name="stripe_form_submit_nonce" value="' . wp_create_nonce( 'stripe_form_submit' ) . '"' ), 'Stripe de PRO: la misma acción y el mismo nonce (referencia).' );
 	$check( ! str_contains( $sout, 'digi-pay__message' ) && str_contains( $sout, 'type="submit"' ) && ! str_contains( $sout, 'role="button"' ), 'Stripe con nombre y precio: sin errores, botón de envío real.' );
 	$serr = $render( $st, array_merge( $sbase, array( 'product_name' => '' ) ) );
-	$check( str_contains( $serr, 'digi-pay__message--global" role="alert" hidden>Something went wrong</div>' ), 'Stripe sin nombre: mensaje global oculto (con el texto de los ajustes).' );
+	$check( str_contains( $serr, 'digi-pay__message--global" role="alert" hidden>' . "\n" . 'Something went wrong</div>' ), 'Stripe sin nombre: mensaje global oculto (con el texto de los ajustes).' );
 	$own  = $defaults( $st ) + array( 'hover_animation' => '' );
-	$check( str_contains( $render( $st, array_merge( $own, array( 'product_name' => '' ) ) ), 'hidden>Algo salió mal.</div>' ), 'Stripe nuevo: mensaje por defecto propio en español.' );
+	$check( str_contains( $render( $st, array_merge( $own, array( 'product_name' => '' ) ) ), 'hidden>' . "\n" . 'Algo salió mal.</div>' ), 'Stripe nuevo: mensaje por defecto propio en español.' );
 	$scus = $render( $st, array_merge( $s_ok, array( 'custom_messages' => 'yes', 'error_message_global' => 'Error general', 'error_message_payment' => 'Sin pasarela', 'open_in_new_window' => '' ) ) );
 	$check( str_contains( $scus, 'data-digi-pay-target="_self" data-digi-pay-custom="yes" data-digi-pay-global="Error general" data-digi-pay-payment="Sin pasarela"' ), 'Stripe: misma ventana y mensajes personalizados para el script.' );
 	$snull = $render( $st, array_merge( $s_ok, array( 'custom_messages' => '', 'error_message_global' => null, 'error_message_payment' => null ) ) );
