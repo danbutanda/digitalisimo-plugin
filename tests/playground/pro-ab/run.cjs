@@ -175,6 +175,13 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
     if (sameOrigin(u)) { requested.push(u); r.continue().catch(() => {}); return; }
     // El navegador no sale del Playground: toda petición a otro origen se anota y se corta (A y B igual).
     third.push(u.split('?')[0]);
+    // `third` del caso (C2, corrección de fidelidad: `[{match, reason}]`): un iframe de esas direcciones (el reproductor
+    // del servicio que el propio crea donde PRO pedía la API del servicio, también cortada) recibe una página negra vacía
+    // en lugar de la página de error del navegador, como el reproductor de A sin su API.
+    if (r.resourceType() === 'document' && (c.third || []).some((t) => new RegExp(t.match).test(u))) {
+      r.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><title>-</title><body style="margin:0;background:#000">' }).catch(() => {});
+      return;
+    }
     r.abort().catch(() => {});
   });
   page.on('pageerror', (e) => errors.push(String(e.message || e)));
@@ -499,7 +506,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       if (r.failed.length) fail(`${side}: peticiones fallidas del sitio: ${r.failed.slice(0, 3).join(' | ')}`);
     }
     for (const [name, loaded] of Object.entries(B.assets)) if (loaded) fail(`B carga ${name}`);
-    const newThird = B.third.filter((u) => !A.third.includes(u));
+    for (const t of c.third || []) if (!t.match || !t.reason) fail('third sin «match» o sin «reason»');
+    const newThird = B.third.filter((u) => !A.third.includes(u) && !(c.third || []).some((t) => new RegExp(t.match).test(u)));
     if (newThird.length) fail(`B pide recursos de terceros que A no pedía: ${newThird.slice(0, 4).join(', ')}`);
     for (const u of A.third.concat(B.third)) thirdAll.add(u);
     const widgetCss = Object.keys(A.assets).find((n) => /^widget-/.test(n));

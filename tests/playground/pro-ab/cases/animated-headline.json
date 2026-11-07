@@ -289,6 +289,21 @@
     "b": ".digi-ah__letter"
    },
    "reducedMotion": true
+  },
+  "ah-rotate-rm": {
+   "title": "Texto que rota («Deslizar», sin bucle, 300 ms) con «reducir movimiento»: PRO sigue rotando hasta la última palabra; lo convertido también (el propio nuevo se queda en la primera)",
+   "widget": "animated-headline",
+   "settings": {
+    "headline_style": "rotate",
+    "animation_type": "slide",
+    "loop": "",
+    "rotate_iteration_delay": 300
+   },
+   "ready": {
+    "a": ".elementor-headline-dynamic-text:last-child.elementor-headline-text-active",
+    "b": ".digi-ah__word:last-child.digi-ah__word--on"
+   },
+   "reducedMotion": true
   }
  }
 }

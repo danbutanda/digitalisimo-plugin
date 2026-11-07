@@ -344,6 +344,47 @@
     "b": ".digi-lottie__animation svg"
    },
    "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo."
+  },
+  "lt-click-rm": {
+   "title": "«Al pulsar» con «reducir movimiento», sin pulsar: PRO espera al clic en el primer fotograma; lo convertido también (el propio nuevo queda en su estado final)",
+   "widget": "lottie",
+   "settings": {
+    "source_json": {
+     "$lottie": 1
+    },
+    "trigger": "on_click"
+   },
+   "ready": {
+    "a": ".e-lottie__animation svg",
+    "b": ".digi-lottie__animation svg"
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "button «Reproducir la animación»",
+     "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO sólo respondía al ratón."
+    },
+    {
+     "kind": "control",
+     "match": "sólo en B",
+     "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO sólo respondía al ratón."
+    },
+    {
+     "kind": "foco",
+     "match": "el teclado no llega al control en A",
+     "reason": "Con «Al pulsar» y sin enlace, la animación propia es un botón enfocable que responde a Intro y Espacio (WCAG 2.1.1); en PRO el teclado no llegaba a ella."
+    }
+   ],
+   "shape": "La animación es un SVG (o un canvas) que dibuja la librería: no es texto ni una imagen <img>; la firma compara la caja y los píxeles comparan el dibujo.",
+   "pixels": {
+    "states": {
+     "focus": {
+      "skip": true,
+      "reason": "Sólo B tiene algo enfocable: con «Al pulsar» y sin enlace, la animación propia es un botón de teclado (WCAG 2.1.1); A no tiene captura con el foco."
+     }
+    }
+   },
+   "reducedMotion": true
   }
  }
 }

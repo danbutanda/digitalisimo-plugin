@@ -37,18 +37,6 @@
   },
   {
    "widget": "video-playlist",
-   "kind": "estilo",
-   "match": "» size: 13\\.3333px → 14px$",
-   "reason": "El título del vídeo usa los 14 px que la hoja de PRO fija en su contenedor (.e-tab-title-text); en PRO el texto está en un <button> que no hereda la fuente y queda con los 13,33 px del navegador (o los que fije el tema)."
-  },
-  {
-   "widget": "video-playlist",
-   "kind": "estilo",
-   "match": "» spacing: normal → -?[\\d.]+px$",
-   "reason": "El título hereda el espaciado de letras del encabezado del tema (h4, la etiqueta elegida); el <button> de PRO lo reiniciaba."
-  },
-  {
-   "widget": "video-playlist",
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control (button|a) \\d+ ",
    "reason": "Controles distintos por accesibilidad: PRO tenía un <button> por título dentro de cada pestaña y enlaces sin destino (tabindex) en las pestañas internas; el propio tiene el botón que pliega la lista, los de reproducir y botones role=tab en las pestañas internas. El arnés los empareja por etiqueta y orden, así que se comparan controles que no hacen lo mismo."
@@ -133,7 +121,13 @@
       "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
      }
     }
-   }
+   },
+   "third": [
+    {
+     "match": "^https://(www\\.youtube-nocookie\\.com/embed/|player\\.vimeo\\.com/video/)",
+     "reason": "Sin las fachadas de vídeo del sitio (su valor por defecto), el propio crea al cargar el reproductor del primer vídeo, como PRO; PRO lo creaba con la API del servicio (www.youtube.com/iframe_api, player.vimeo.com/api) y el propio con el iframe del servicio (YouTube sin cookies, Vimeo sin seguimiento). El arnés corta las dos cosas."
+    }
+   ]
   },
   "vpl-sections": {
    "title": "Secciones entre los vídeos, sin miniaturas ni duración y vídeo a la izquierda",
@@ -295,7 +289,13 @@
       "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
      }
     }
-   }
+   },
+   "third": [
+    {
+     "match": "^https://(www\\.youtube-nocookie\\.com/embed/|player\\.vimeo\\.com/video/)",
+     "reason": "Sin las fachadas de vídeo del sitio (su valor por defecto), el propio crea al cargar el reproductor del primer vídeo, como PRO; PRO lo creaba con la API del servicio (www.youtube.com/iframe_api, player.vimeo.com/api) y el propio con el iframe del servicio (YouTube sin cookies, Vimeo sin seguimiento). El arnés corta las dos cosas."
+    }
+   ]
   },
   "vpl-actions": {
    "title": "Elegir otra pestaña con el ratón y con el teclado (filas sin dirección)",
@@ -357,7 +357,7 @@
    }
   },
   "vpl-inner": {
-   "title": "Pestañas internas plegables del primer vídeo (alojado), con la segunda pestaña elegida por clic en 768 y 1280 px (en el móvil PRO las apila)",
+   "title": "Pestañas internas plegables del primer vídeo (alojado), con la segunda pestaña elegida por clic en 768 y 1280 px; en el móvil, apiladas con un título por panel, como PRO",
    "widget": "video-playlist",
    "settings": {
     "inner_tab_is_content_collapsible": "collapsible",
@@ -409,14 +409,94 @@
      "kind": "palabra",
      "match": "^(\\[acción [^\\]]*\\] )?perdida «(sorry|your|browser|doesn|t|support|embedded)»$",
      "reason": "PRO escribe dentro de cada <video> que crea el texto en inglés «Sorry, your browser doesn't support embedded videos.» (el navegador no lo pinta; el arnés lo lee como texto)."
-    },
-    {
-     "kind": "estilo",
-     "width": 375,
-     "match": "^«Tab #\\d» ",
-     "reason": "En el móvil PRO pinta los títulos apilados con otro estilo (sin la tipografía de las pestañas); el propio conserva las pestañas."
     }
    ]
+  },
+  "vpl-scroll": {
+   "title": "Diez vídeos: la lista desborda y PRO pinta el degradado de abajo (98 px hacia el fondo de la lista) sobre las últimas filas visibles",
+   "widget": "video-playlist",
+   "settings": {
+    "tabs": [
+     {
+      "_id": "s1",
+      "type": "youtube",
+      "title": "Video 1",
+      "youtube_url": "",
+      "duration": "1:00"
+     },
+     {
+      "_id": "s2",
+      "type": "youtube",
+      "title": "Video 2",
+      "youtube_url": "",
+      "duration": "2:00"
+     },
+     {
+      "_id": "s3",
+      "type": "youtube",
+      "title": "Video 3",
+      "youtube_url": "",
+      "duration": "3:00"
+     },
+     {
+      "_id": "s4",
+      "type": "youtube",
+      "title": "Video 4",
+      "youtube_url": "",
+      "duration": "4:00"
+     },
+     {
+      "_id": "s5",
+      "type": "youtube",
+      "title": "Video 5",
+      "youtube_url": "",
+      "duration": "5:00"
+     },
+     {
+      "_id": "s6",
+      "type": "youtube",
+      "title": "Video 6",
+      "youtube_url": "",
+      "duration": "6:00"
+     },
+     {
+      "_id": "s7",
+      "type": "youtube",
+      "title": "Video 7",
+      "youtube_url": "",
+      "duration": "7:00"
+     },
+     {
+      "_id": "s8",
+      "type": "youtube",
+      "title": "Video 8",
+      "youtube_url": "",
+      "duration": "8:00"
+     },
+     {
+      "_id": "s9",
+      "type": "youtube",
+      "title": "Video 9",
+      "youtube_url": "",
+      "duration": "9:00"
+     },
+     {
+      "_id": "s10",
+      "type": "youtube",
+      "title": "Video 10",
+      "youtube_url": "",
+      "duration": "10:00"
+     }
+    ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
+   }
   }
  }
 }
