@@ -99,6 +99,8 @@ jobs:
           php tests/elements-pro-login.php
           php tests/elements-convert-form-live.php
           node tests/elements-pro-form-chrome.mjs
+          php tests/elements-loop-filter-refresh.php
+          node tests/elements-taxonomy-filter-editor-chrome.mjs
           php tests/elements-pro-woo-single.php
           node tests/elements-pro-woo-atc-chrome.mjs
           php tests/elements-pro-woo-products.php

@@ -1,6 +1,8 @@
 /* DIGITALÍSIMO Elements · Filtro de taxonomías (C5), editor: rellena «Loop Grid» con los Loop Grid de este documento
    (propios y de PRO) y «Taxonomía» con las del tipo de contenido del bucle elegido, como el editor de PRO. No cambia el
-   valor guardado. */
+   valor guardado. Al pulsar un término en la vista previa, como PRO (`prepareLoopUpdateRequestData()`), repinta la
+   Cuadrícula con su modelo del editor por la REST de PRO (`refresh-loop`): los términos de todos los filtros de ese
+   bucle, el nonce de la configuración del editor, y sustituye su `.elementor-widget-container`. */
 ((w) => {
 	'use strict';
 	const NAME = 'digitalisimo-taxonomy-filter', cache = {};
@@ -44,6 +46,33 @@
 		fetch(`${rest}elementor-pro/v1/get-post-type-taxonomies`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce }, body: JSON.stringify({ post_type: t }) })
 			.then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
 			.then((r) => { const data = (r && r.data) || r || {}; cache[t] = data; if (page() === p) done(data); });
+	};
+	const rest = () => { const c = w.elementorCommon && w.elementorCommon.config; return (c && c.urls && c.urls.rest) || ''; };
+	const nonce = () => ((((w.elementorPro || {}).config || {}).loopFilter) || {}).nonce || (w.wpApiSettings && w.wpApiSettings.nonce) || (w.elementorWebCliConfig && w.elementorWebCliConfig.nonce) || '';
+	w.digiTaxonomyFilterEdit = (s) => {
+		const id = s.dataset.loop, d = s.ownerDocument, pw = d.defaultView, doc = s.closest('[data-elementor-id]');
+		const live = (doc && doc.querySelector(`.elementor-element-${id}`)) || d.querySelector(`.elementor-element-${id}`);
+		const box = live && live.querySelector('.elementor-widget-container'), c = w.$e && w.$e.components.get('document').utils.findContainerById(id);
+		if (!box || !c || !rest()) return;
+		const taxonomy = {};
+		d.querySelectorAll(`.digi-tfilter[data-loop="${id}"]`).forEach((f) => {
+			const terms = [...f.querySelectorAll('.digi-tfilter__item[aria-pressed="true"]')].map((b) => b.dataset.filter).filter((t) => t !== '__all');
+			if (terms.length) taxonomy[f.dataset.taxonomy] = Object.assign({ terms }, f.dataset.join !== 'DISABLED' ? { logicalJoin: f.dataset.join } : {});
+		});
+		const body = { post_id: +(live.closest('[data-elementor-id]') || live).getAttribute('data-elementor-id') || w.elementor.config.document.id, widget_id: id, widget_filters: Object.keys(taxonomy).length ? { taxonomy } : {}, widget_model: c.model.toJSON({ remove: ['default', 'editSettings', 'defaultEditSettings'] }), is_edit_mode: true };
+		if (s.dataset.baseUrl) body.pagination_base_url = s.dataset.baseUrl;
+		live.classList.add('e-loading');
+		fetch(`${rest()}elementor-pro/v1/refresh-loop`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce() }, body: JSON.stringify(body) })
+			.then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
+			.then((r) => {
+				live.classList.remove('e-loading');
+				if (!r || typeof r.data !== 'string') return;
+				const t = d.createElement('div');
+				t.innerHTML = r.data.trim();
+				box.replaceWith(t.firstElementChild || Object.assign(d.createElement('div'), { className: 'elementor-widget-container' }));
+				const h = pw.elementorFrontend && pw.elementorFrontend.elementsHandler;
+				if (h) { live.querySelectorAll('.e-loop-item .elementor-element').forEach((el) => h.runReadyTrigger(el)); h.runReadyTrigger(live); }
+			});
 	};
 	const run = () => {
 		const p = page();
