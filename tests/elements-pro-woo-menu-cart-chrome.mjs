@@ -6,8 +6,9 @@
 // - Intro y Espacio en el botón abren; «Al pasar el cursor» abre al entrar y cierra al salir;
 // - «Abrir automáticamente»: abre cuando el contador sube tras una acción de la persona (no al cargar ni al recibir los
 //   fragmentos iniciales); con `added` (envío sin AJAX) abre al cargar;
-// - mini carrito: la lista se ajusta a la altura de la ventana; foco visible de 2 px con separación de 2 px; botones de
-//   24 × 24 px como mínimo; movimiento reducido sin transiciones; sin errores en la consola.
+// - mini carrito: la lista se ajusta a la altura de la ventana; foco visible de 2 px con separación de 2 px; aspa y botón
+//   de 24 × 24 px como mínimo y «quitar artículo» de 22 × 22, como PRO; movimiento reducido sin transiciones; sin errores
+//   en la consola.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-woo-menu-cart-chrome.mjs
 import assert from 'node:assert/strict';
@@ -95,8 +96,14 @@ ok(!s.shown && s.active.includes('digi-mc__btn') && s.inert, 'Escape cierra y de
 await page.keyboard.press(' ');
 await sleep(50);
 ok((await state(page, 'a')).shown, 'Espacio en el botón abre.');
-const sizes = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__x, .digi-mc__rm a.remove_from_cart_button, .digi-mc__btn')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
-ok(sizes.every(([w, h]) => w >= 24 && h >= 24), 'Aspa, quitar artículo y botón de 24 × 24 px como mínimo: ' + JSON.stringify(sizes));
+const sizes = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__x, .digi-mc__btn')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+ok(sizes.every(([w, h]) => w >= 24 && h >= 24), 'Aspa y botón de 24 × 24 px como mínimo: ' + JSON.stringify(sizes));
+// «Quitar artículo» mide 22 × 22 px por defecto, como el de PRO (`--remove-item-button-size`, 22px); está aislado en su
+// esquina, así que entra en la excepción de separación de WCAG 2.5.8, y el control de tamaño sigue mandando.
+// Se lee el ancho calculado: en la página real el núcleo pone `box-sizing:border-box` (`.elementor *`) y el aro, con su
+// borde, mide eso; aquí no hay esa regla.
+const rm = await page.evaluate(() => [...document.querySelectorAll('.digi-mc__rm')].map(e => { const cs = getComputedStyle(e); return [parseFloat(cs.width), parseFloat(cs.height)]; }));
+ok(rm.length && rm.every(([w, h]) => w === 22 && h === 22), 'Quitar artículo de 22 × 22 px, como PRO: ' + JSON.stringify(rm));
 const ring = await page.evaluate(() => { const b = document.querySelector('.digi-mc__btn'); b.focus(); const cs = getComputedStyle(b); return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset]; });
 ok(ring[0] === 'solid' && ring[1] === '2px' && ring[2] === '2px', 'Foco visible de 2 px con separación de 2 px: ' + ring);
 const motion = await page.evaluate(() => getComputedStyle(document.querySelector('.digi-mc__main')).transitionDuration);

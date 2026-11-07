@@ -59,15 +59,15 @@
 }
 .digi-mc__rm{
 	border:1px solid var(--mc-ribc,#d5d8dc);
-	border-radius:var(--mc-ribs,24px);
+	border-radius:var(--mc-ribs,22px);
 	bottom:20px;
 	color:#69727d;
-	height:var(--mc-ribs,24px);
+	height:var(--mc-ribs,22px);
 	inset-inline-end:0;
 	overflow:hidden;
 	position:absolute;
 	transition:.3s;
-	width:var(--mc-ribs,24px)
+	width:var(--mc-ribs,22px)
 }
 .digi-mc__rm:hover{
 	border-color:var(--mc-ribhc,#d5d8dc)

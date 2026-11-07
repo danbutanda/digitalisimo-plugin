@@ -30,68 +30,68 @@ div.digi-atc.digi-atc.digi-atc{
 	& .quantity input{
 		height:100%
 	}
-	&:is([class*="--layout-auto"],[class*="--layout-stacked"]) form.cart.variations_form .woocommerce-variation-add-to-cart,&:is([class*="--layout-auto"],[class*="--layout-stacked"]) form.cart:not(.grouped_form):not(.variations_form){
+	&:is([class*=--layout-auto],[class*=--layout-stacked]) form.cart.variations_form .woocommerce-variation-add-to-cart,&:is([class*=--layout-auto],[class*=--layout-stacked]) form.cart:not(.grouped_form):not(.variations_form){
 		display:block
 	}
-	&:is([class*="--layout-auto"],[class*="--layout-stacked"]) .digi-atc__holder{
+	&:is([class*=--layout-auto],[class*=--layout-stacked]) .digi-atc__holder{
 		display:flex
 	}
-	&[class*="--layout-stacked"] .digi-atc__loop{
+	&[class*=--layout-stacked] .digi-atc__loop{
 		flex-wrap:wrap
 	}
-	&[class*="--layout-stacked"] .digi-atc__loop>*{
+	&[class*=--layout-stacked] .digi-atc__loop>*{
 		flex-basis:100%
 	}
-	&[class*="--layout-stacked"] .digi-atc__holder{
+	&[class*=--layout-stacked] .digi-atc__holder{
 		flex-wrap:wrap
 	}
-	&[class*="--layout-stacked"] .digi-atc__holder>*{
+	&[class*=--layout-stacked] .digi-atc__holder>*{
 		flex-basis:100%
 	}
-	&[class*="--layout-stacked"] .digi-atc__holder .button,&[class*="--layout-stacked"] .digi-atc__holder button{
+	&[class*=--layout-stacked] .digi-atc__holder .button,&[class*=--layout-stacked] .digi-atc__holder button{
 		flex-basis:auto
 	}
-	&[class*="--layout-stacked"] .digi-atc__holder .button:where(:not(:first-child)),&[class*="--layout-stacked"] .digi-atc__holder button:where(:not(:first-child)){
+	&[class*=--layout-stacked] .digi-atc__holder .button:where(:not(:first-child)),&[class*=--layout-stacked] .digi-atc__holder button:where(:not(:first-child)){
 		margin-block-start:var(--button-spacing,10px);
 		margin-inline-start:0
 	}
-	&[class*="--layout-auto"] .digi-atc__holder{
+	&[class*=--layout-auto] .digi-atc__holder{
 		flex-wrap:nowrap
 	}
-	&[class*="--layout-auto"] .digi-atc__holder .quantity{
+	&[class*=--layout-auto] .digi-atc__holder .quantity{
 		margin-inline-end:0
 	}
-	&[class*="--layout-auto"] .digi-atc__holder .button,&[class*="--layout-auto"] .digi-atc__holder button{
+	&[class*=--layout-auto] .digi-atc__holder .button,&[class*=--layout-auto] .digi-atc__holder button{
 		vertical-align:middle
 	}
-	&[class*="--align-"]:not([class*="--layout-stacked"]):not([class*="--layout-auto"]):not(.digi-atc--product){
+	&[class*=--align-]:not([class*=--layout-stacked]):not([class*=--layout-auto]):not(.digi-atc--product){
 		text-align:var(--digi-atc-ta)
 	}
-	&[class*="--align-"]:not([class*="--layout-stacked"]):not([class*="--layout-auto"]) form.cart.variations_form .woocommerce-variation-add-to-cart,&[class*="--align-"]:not([class*="--layout-stacked"]):not([class*="--layout-auto"]) form.cart:not(.grouped_form):not(.variations_form),&[class*="--align-"]:is([class*="--layout-auto"],[class*="--layout-stacked"]) .digi-atc__holder,&[class*="--align-"] .digi-atc__loop{
+	&[class*=--align-]:not([class*=--layout-stacked]):not([class*=--layout-auto]) form.cart.variations_form .woocommerce-variation-add-to-cart,&[class*=--align-]:not([class*=--layout-stacked]):not([class*=--layout-auto]) form.cart:not(.grouped_form):not(.variations_form),&[class*=--align-]:is([class*=--layout-auto],[class*=--layout-stacked]) .digi-atc__holder,&[class*=--align-] .digi-atc__loop{
 		justify-content:var(--digi-atc-jc);
 		text-align:var(--digi-atc-ta)
 	}
-	&[class*="--align-"] form.cart div.quantity{
+	&[class*=--align-] form.cart div.quantity{
 		margin-inline-end:var(--digi-atc-qm)
 	}
-	&[class*="--align-"] form.cart .button,&[class*="--align-"] form.cart button{
+	&[class*=--align-] form.cart .button,&[class*=--align-] form.cart button{
 		flex-basis:var(--digi-atc-bb)
 	}
-	&[class*="--align-"]:not([class*="--layout-stacked"]):not([class*="--layout-auto"]):not(.digi-atc--product) .elementor-button{
+	&[class*=--align-]:not([class*=--layout-stacked]):not([class*=--layout-auto]):not(.digi-atc--product) .elementor-button{
 		width:var(--digi-atc-bw)
 	}
-	&[class*="--align-"]:not([class*="--layout-stacked"]) .digi-atc__loop>*{
+	&[class*=--align-]:not([class*=--layout-stacked]) .digi-atc__loop>*{
 		flex-basis:var(--digi-atc-lb);
 		justify-content:var(--digi-atc-lj)
 	}
-	&[class*="--align-"][class*="--layout-stacked"] .digi-atc__loop>*{
+	&[class*=--align-][class*=--layout-stacked] .digi-atc__loop>*{
 		flex-basis:var(--digi-atc-lb,100%);
 		justify-content:var(--digi-atc-lj)
 	}
-	&[class*="--align-"]:not([class*="--layout-stacked"]) .digi-atc__loop a.added_to_cart{
+	&[class*=--align-]:not([class*=--layout-stacked]) .digi-atc__loop a.added_to_cart{
 		flex-basis:var(--digi-atc-ab)
 	}
-	&[class*="--align-"][class*="--layout-stacked"] .digi-atc__loop a.added_to_cart{
+	&[class*=--align-][class*=--layout-stacked] .digi-atc__loop a.added_to_cart{
 		flex-basis:var(--digi-atc-ab,100%)
 	}
 }
@@ -102,7 +102,7 @@ div.digi-atc--product.digi-atc.digi-atc:not(.digi-atc--show-quantity-yes){
 	& form.cart .button:where(:not(:first-child)),& form.cart button:where(:not(:first-child)){
 		margin-inline-start:0
 	}
-	&[class*="--layout-stacked"] form.cart .button:where(:not(:first-child)),&[class*="--layout-stacked"] form.cart button:where(:not(:first-child)){
+	&[class*=--layout-stacked] form.cart .button:where(:not(:first-child)),&[class*=--layout-stacked] form.cart button:where(:not(:first-child)){
 		margin-block-start:0
 	}
 }
@@ -127,4 +127,12 @@ div.digi-atc--product.digi-atc.digi-atc:not(.digi-atc--show-quantity-yes){
 .digi-atc :is(a,button,input):focus-visible{
 	outline:2px solid;
 	outline-offset:2px
+}
+/* Sin alineación en este dispositivo (sólo en tableta o móvil), la cantidad conserva el margen de WooCommerce
+   (`.woocommerce div.product form.cart div.quantity{margin:0 4px 0 0}`) como en PRO, que sólo aplicaba sus clases de
+   alineación dentro de su @media: la variable se hereda de la ficha y la que fija `selectors` en el widget gana donde
+   la hay. Fuera de la ficha no existe y el margen queda en 0, como el de PRO sin la regla de WooCommerce. Los selectores
+   de atributo van sin comillas (identificadores válidos) para caber en 4 KB. */
+.woocommerce div.product{
+	--digi-atc-qm:4px
 }

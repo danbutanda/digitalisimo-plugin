@@ -145,7 +145,7 @@ namespace {
 	}
 	$check( strlen( $js ) <= 8192 && ! preg_match( '/jQuery|\$\(|elementorProFrontend|ajax|fetch\(/i', preg_replace( '#/\*.*?\*/#s', '', $js ) ), 'Script ≤ 8 KB, sin jQuery ni peticiones propias.' );
 	$check( str_contains( $css1, 'prefers-reduced-motion' ) && str_contains( $css1, ':focus-visible{outline:2px solid currentColor;outline-offset:2px}' ) && str_contains( $pcss, 'outline-offset:2px' ), 'Movimiento reducido y foco visible de 2 px con separación de 2 px.' );
-	$check( str_contains( $css2, 'var(--mc-ribs,24px)' ), 'Quitar un artículo: objetivo de 24 × 24 px.' );
+	$check( str_contains( $css2, 'var(--mc-ribs,22px)' ) && ! str_contains( $css2, 'var(--mc-ribs,24px)' ), 'Quitar un artículo: 22 × 22 px por defecto, como PRO (--remove-item-button-size).' );
 	$vetoed = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
 	foreach ( array( 'modules/digitalisimo-woo/store/class-menu-cart.php', 'modules/digitalisimo-woo/store/class-menu-cart-markup.php', 'modules/digitalisimo-woo/store/class-pages.php', 'modules/digitalisimo-woo/store/assets/menu-cart.js', 'modules/digitalisimo-woo/store/assets/menu-cart.css', 'modules/digitalisimo-woo/store/assets/menu-cart-2.css', 'modules/digitalisimo-woo/store/assets/pages.css', 'modules/digitalisimo-convert/maps/woocommerce-menu-cart.php', 'modules/digitalisimo-convert/maps/wc-elements.php' ) as $file ) {
 		$source = (string) file_get_contents( h_path( $file ) );

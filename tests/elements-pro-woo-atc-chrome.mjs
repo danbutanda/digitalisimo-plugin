@@ -4,8 +4,9 @@
 // - la cantidad elegida pasa al botón de WooCommerce (`data-quantity`) al cambiarla y al escribirla;
 // - «Ver carrito», que WooCommerce añade junto al botón dentro del formulario, pasa al contenedor del bucle sin repetirse
 //   (se simula lo que hace el script de WooCommerce tras añadir al carrito);
-// - la hoja: la envoltura apilada y en línea, la alineación por dispositivo (variables), la cantidad oculta sin
-//   «Mostrar la cantidad» y el foco visible (contorno de 2 px con separación de 2 px);
+// - la hoja: la envoltura apilada y en línea, la alineación por dispositivo (variables; sin valor en escritorio, la
+//   cantidad de la ficha conserva los 4 px de WooCommerce, como PRO), la cantidad oculta sin «Mostrar la cantidad» y el
+//   foco visible (contorno de 2 px con separación de 2 px);
 // - sin errores en la consola.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 120 node tests/elements-pro-woo-atc-chrome.mjs
@@ -32,12 +33,17 @@ const loop = (id, classes, vars = '') => `<div class="elementor-element elemento
 // Marcado del widget en una ficha (formulario de WooCommerce con la envoltura «apilado»).
 const single = (id, classes, vars = '') => `<div class="elementor-element elementor-widget digi-atc digi-atc--product ${classes}" data-id="${id}" style="${vars}"><div class="digi-atc__wrap digi-atc--type-simple"><form class="cart"><div class="digi-atc__holder"><div class="quantity"><input type="number" class="input-text qty text" value="1"></div><button type="submit" class="single_add_to_cart_button button alt">Añadir al carrito</button></div></form></div></div>`;
 const inline = (id, classes, vars = '') => `<div class="elementor-element elementor-widget digi-atc digi-atc--product ${classes}" data-id="${id}" style="width:600px;${vars}"><div class="digi-atc__wrap digi-atc--type-simple"><form class="cart"><div class="quantity"><input type="number" class="input-text qty text" value="1"></div><button type="submit" class="single_add_to_cart_button button alt">Añadir al carrito</button></form></div></div>`;
-const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>body{font:16px sans-serif}${css}</style></head><body>
+const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>body{font:16px sans-serif}.woocommerce div.product form.cart div.quantity{float:left;margin:0 4px 0 0}${css}</style></head><body>
 ${loop('a', 'digi-atc--show-quantity-yes')}
 ${loop('b', 'digi-atc--show-quantity-yes digi-atc--align-justify', '--digi-atc-qm:auto;--digi-atc-bb:100%;--digi-atc-bw:100%;--digi-atc-lb:100%;--digi-atc-lj:center;--digi-atc-ab:auto')}
 ${single('c', 'digi-atc--layout-stacked digi-atc--show-quantity-yes')}
 ${inline('d', 'digi-atc--show-quantity-yes digi-atc--align-right', '--digi-atc-ta:right;--digi-atc-jc:flex-end;--digi-atc-qm:0;--digi-atc-bb:auto')}
 ${inline('e', '')}
+<div class="woocommerce"><div class="product">
+${inline('f', 'digi-atc--show-quantity-yes digi-atc-tablet--align-center')}
+${inline('g', 'digi-atc--show-quantity-yes digi-atc--align-left', '--digi-atc-ta:left;--digi-atc-jc:flex-start;--digi-atc-qm:0;--digi-atc-bb:auto')}
+</div></div>
+${inline('h', 'digi-atc--show-quantity-yes digi-atc-tablet--align-center')}
 <script>${js}</script></body></html>`;
 
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-gpu'] });
@@ -93,6 +99,12 @@ try {
   ok(layout.right, 'Alineado a la derecha con la variable de su dispositivo.');
   ok('100%' === layout.bJustify, `Justificado en el bucle: cada parte a todo el ancho (${layout.bJustify}).`);
   ok('none' === layout.hidden && 'none' !== layout.shown, 'Sin «Mostrar la cantidad», la cantidad no se ve.');
+  // Alineación sólo en tableta (la variable la pone `selectors` dentro de su @media; aquí, a 1 024 px de ancho de
+  // escritorio, no hay valor): en la ficha, la cantidad conserva los 4 px de WooCommerce, como en PRO, que sólo aplicaba
+  // sus clases por dispositivo dentro de cada @media. Con valor en escritorio, 0; fuera de la ficha, 0 (sin la regla).
+  const qm = await page.evaluate(() => ['f', 'g', 'h'].map(id => getComputedStyle(document.querySelector(`[data-id="${id}"] .quantity`)).marginRight));
+  ok('4px' === qm[0], `Alineación sólo en tableta: en escritorio, la cantidad de la ficha conserva el margen de WooCommerce (4 px): ${qm[0]}.`);
+  ok('0px' === qm[1] && '0px' === qm[2], `Con alineación en escritorio, o fuera de la ficha, el margen es 0: ${qm[1]}, ${qm[2]}.`);
   await page.focus('#q-a');
   await page.keyboard.press('Tab');
   const ring = await page.evaluate(() => { const s = getComputedStyle(document.activeElement); return [document.activeElement.className, s.outlineStyle, s.outlineWidth, s.outlineOffset]; });
