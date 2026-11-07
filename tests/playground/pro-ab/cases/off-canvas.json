@@ -16,6 +16,12 @@
    "kind": "foco",
    "match": "^\\[acción \\d+ cerrar con la capa\\] foco en página a «[^»]*» → cuerpo$",
    "reason": "Al cerrarse con un clic en la capa, PRO devuelve el foco al disparador de una apertura anterior con el teclado (su gestor de teclado guarda el primero y no lo olvida); el propio sólo devuelve el foco si estaba dentro del panel, y aquí no lo estaba (abierto con el ratón)."
+  },
+  {
+   "widget": "off-canvas",
+   "kind": "foco",
+   "match": "^\\[acción \\d+ cerrar con la capa\\] foco en cuerpo → widget div «[^»]*»$",
+   "reason": "Abierto con el ratón, el foco del diálogo propio está en su contenido (`tabindex=-1`, sin anillo). Si el clic «en la capa» cae dentro del panel (a 768 px el centro de la ventana queda sobre el panel de 400 px, así que ninguno de los dos se cierra), el contenido conserva el foco; en PRO, sin foco dentro, pasa al cuerpo. No cambia nada a la vista."
   }
  ],
  "cases": {
