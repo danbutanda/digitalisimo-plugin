@@ -422,7 +422,8 @@ el mismo temporal verificado.
   destino listándolo sin temporales; con la copia local borrada, «Traer al almacén» la devolvió verificada por SHA-256,
   la descarga al navegador fue el mismo archivo y la restauración por admin-post devolvió el sitio al respaldo; «Eliminar»
   la borró también del destino (S3 91 s, FTPS 44 s, WebDAV 94 s). En una red, lo mismo con MinIO desde la
-  administración de red (84 s).
+  administración de red (84 s). Sobre el mismo código se repitió `tests/playground/backups-security.sh` (los tres
+  modos, S9 incluido) sin ningún fallo.
 
 Para probar con cuentas reales (Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, DigitalOcean, Akamai, Vultr, Dropbox,
 Google Drive, OneDrive y pCloud): crear la cuenta y la clave como indica «Cómo obtener…» en la pantalla, guardar la
