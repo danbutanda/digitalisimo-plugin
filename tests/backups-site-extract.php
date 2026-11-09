@@ -249,6 +249,9 @@ try {
 	digi_assert( array() === Digitalisimo_Backups_Jobs::all(), 'Un intento rechazado dejó un trabajo.' );
 
 	/* ---- Extraer el sitio 2 (por defecto: ningún superadministrador que no es miembro, sin las claves de la red) ---- */
+	// La red tiene su propia frase (abre todos sus respaldos): nunca firma ni cifra un sitio extraído (P1).
+	Digitalisimo_Backups_Keys::set_passphrase( 'frase de toda la red 0123456789' );
+	$network_key = Digitalisimo_Backups_Keys::active()[1]['id'];
 	$db->queries = array();
 	$queued = $S::service_extract( 2, array( 'network' => true, 'via' => 'rest' ) );
 	digi_assert( ! is_wp_error( $queued ) && 'queued' === $queued['status'] && 'extracted-site' === $queued['scope'] && 2 === $queued['site'] && false === $queued['encrypt'], 'La extracción no se encoló con su alcance: ' . json_encode( $queued ) );
@@ -390,6 +393,7 @@ try {
 	$sealed = digi_extract( 2, array( 'secret' => $phrase ) );
 	digi_assert( '.dgbk' === substr( $sealed['file'], -5 ), 'El sitio extraído con frase no salió cifrado: ' . $sealed['file'] );
 	$header = Digitalisimo_Backups_Encrypted_File::read_header( $store . '/' . $sealed['file'] )['header'];
+	digi_assert( $network_key !== $header['key']['id'] && $network_key === Digitalisimo_Backups_Keys::active()[1]['id'], 'El sitio extraído se cifró con la clave de la red o cambió la clave activa de la red.' );
 	digi_assert( 'extracted-site' === $header['scope'] && false === $header['multisite'] && 'passphrase' === $header['key']['source'], 'La cabecera del paquete cifrado no dice lo que es: ' . json_encode( array_intersect_key( $header, array_flip( array( 'scope', 'multisite', 'key' ) ) ) ) );
 	digi_assert( array() === ( glob( $store . '/.extract-key-*' ) ?: array() ), 'La clave del paquete se quedó en el almacén después de registrarlo.' );
 	digi_assert( false === Digitalisimo_Backups_Keys::resolve_by_id( $header['key']['id'] ) && false === strpos( (string) json_encode( get_site_option( Digitalisimo_Backups_Keys::KEYRING ) ), $header['key']['id'] ), 'La clave del paquete quedó en el llavero de la red.' );
