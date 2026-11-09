@@ -4,7 +4,7 @@ require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
-foreach ( array( 'sodium', 'keys', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
+foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
 unset( $digitalisimo_backups_part );
 
 require_once __DIR__ . '/class-backups-layout.php';
@@ -25,6 +25,12 @@ final class Digitalisimo_Backups {
 	const ACTION_MANUAL_STATUS = 'digitalisimo_backups_manual_status';
 	/** Diario de una restauración en curso, en el almacén y fuera de la base de datos que el SQL reemplaza. */
 	const RESTORE_JOURNAL = '.restore-journal.json';
+	/**
+	 * Marca (con autoload) de que los ajustes no guardan ningún secreto en claro: con ella, la comprobación al cargar el
+	 * escritorio o el cron no hace ninguna consulta. Viaja en el SQL como los ajustes, así que un respaldo anterior (sin
+	 * ella) se comprueba al restaurarlo.
+	 */
+	const CREDENTIALS_CLEAN = 'digitalisimo_backups_credentials_migrated';
 	/** Tope del avance de la verificación: con cifrado, la verificación deja sitio a la fase de cifrado. */
 	private static $verify_top = 98;
 	const ACTION_OAUTH = 'digitalisimo_backups_oauth';
@@ -37,7 +43,7 @@ final class Digitalisimo_Backups {
 	const ACTION_CREATE_AUTOMATION = 'digitalisimo_backups_create_automation';
 	const ACTION_UPDATE_AUTOMATION = 'digitalisimo_backups_update_automation';
 	const ACTION_DELETE_AUTOMATION = 'digitalisimo_backups_delete_automation';
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); }
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
 	private static function local_directory() {
@@ -111,9 +117,11 @@ final class Digitalisimo_Backups {
 	 * la siguiente operación lo aplica: la protección no queda más débil, el cifrado falla cerrado hasta volver a
 	 * escribir la frase y la frase vuelve a abrir la misma clave. Sin diario no se restaura.
 	 */
-	private static function write_restore_journal() {
+	private static function write_restore_journal( array $origin = array() ) {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
+		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -134,6 +142,11 @@ final class Digitalisimo_Backups {
 			wp_cache_flush();
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
 			Digitalisimo_Backups_Keys::recover_public( $data );
+			// Las credenciales que trajo el SQL: las del servidor de origen se cifran con las claves de éste y las que
+			// venían en claro se cifran.
+			$origin = Digitalisimo_Backups_Credentials::from_journal( $data['credentials'] ?? null );
+			self::restore_credentials( $origin );
+			Digitalisimo_Backups_Credentials::forget( $origin );
 		}
 		@unlink( $path );
 	}
@@ -222,7 +235,115 @@ final class Digitalisimo_Backups {
 	public static function detect_updraft_sets( $directory = '' ) { $directory = $directory ?: WP_CONTENT_DIR . '/updraft'; $sets = array(); foreach ( glob( trailingslashit( $directory ) . 'backup_*' ) ?: array() as $path ) { $name = wp_basename( $path ); if ( ! preg_match( '/^(backup_[0-9-]{15}_.+?_[0-9a-f]{12})-(db|plugins|themes|uploads|others)([0-9]+)?\.(zip|gz)(?:\.crypt)?$/i', $name, $m ) ) continue; $key = $m[1]; if ( ! isset( $sets[ $key ] ) ) $sets[ $key ] = array( 'id' => $key, 'files' => array(), 'complete' => false ); $sets[ $key ]['files'][ strtolower( $m[2] ) ][] = array( 'path' => $path, 'part' => absint( $m[3] ), 'encrypted' => false !== strpos( $name, '.crypt' ) ); } foreach ( $sets as &$set ) { foreach ( $set['files'] as &$parts ) usort( $parts, function( $a, $b ) { return $a['part'] <=> $b['part']; } ); $set['complete'] = ! empty( $set['files']['db'] ) && ! array_filter( $set['files'], function( $parts ) { return array_filter( $parts, function( $part ) { return $part['encrypted']; } ); } ); } return $sets; }
 	/** Rechaza piezas ausentes, cifradas o ilegibles antes de extraer cualquier archivo. */
 	public static function validate_backup_set( $set ) { if ( empty( $set['complete'] ) || empty( $set['files']['db'] ) ) return new WP_Error( 'digitalisimo_backup_incomplete', 'El conjunto no incluye una base de datos legible o tiene piezas cifradas.' ); foreach ( $set['files'] as $parts ) foreach ( $parts as $part ) if ( ! is_readable( $part['path'] ) ) return new WP_Error( 'digitalisimo_backup_unreadable', 'Una pieza del respaldo no se puede leer.' ); return true; }
-	private static function settings() { return wp_parse_args( (array) get_option( self::OPTION, array() ), self::defaults() ); }
+	/**
+	 * Ajustes con los secretos de los destinos descifrados en memoria, la única lectura de las credenciales. Un secreto
+	 * todavía en claro en los ajustes (sitios actualizados desde 1.0.60 o anteriores, o sin AUTH_KEY y SECURE_AUTH_KEY
+	 * propias) manda y, si ya se puede cifrar, se cifra aquí mismo; uno cifrado con otras claves de wp-config.php queda
+	 * vacío (el destino pide volver a escribirlo): nunca se cae al texto en claro.
+	 */
+	private static function settings() {
+		$saved = get_option( self::OPTION, array() );
+		$saved = is_array( $saved ) ? $saved : array();
+		if ( self::plain_secrets( $saved ) && Digitalisimo_Backups_Credentials::can_encrypt() ) {
+			try {
+				self::migrate_credentials();
+				$saved = get_option( self::OPTION, array() );
+				$saved = is_array( $saved ) ? $saved : array();
+			} catch ( Throwable $e ) {
+				error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
+			}
+		}
+		$secrets = Digitalisimo_Backups_Credentials::read();
+		foreach ( self::secret_fields() as $field ) {
+			if ( is_string( $saved[ $field ] ?? null ) && '' !== $saved[ $field ] ) continue;
+			unset( $saved[ $field ] );
+			if ( isset( $secrets[ $field ] ) ) $saved[ $field ] = $secrets[ $field ];
+		}
+		return wp_parse_args( $saved, self::defaults() );
+	}
+	/** Secretos que siguen en claro en unos ajustes guardados: campo => valor. */
+	private static function plain_secrets( array $saved ) {
+		$plain = array();
+		foreach ( self::secret_fields() as $field ) if ( is_string( $saved[ $field ] ?? null ) && '' !== $saved[ $field ] ) $plain[ $field ] = $saved[ $field ];
+		return $plain;
+	}
+	/**
+	 * Único camino para guardar los ajustes: los secretos van cifrados al almacén y nunca en claro a
+	 * digitalisimo_backups_settings. Un secreto vacío no cambia lo guardado. Sin AUTH_KEY y SECURE_AUTH_KEY propias se
+	 * guardan en claro, como hasta 1.0.60, con aviso en la pantalla y en `status` (sin ellas no hay con qué cifrar y no
+	 * guardar dejaría el sitio sin destino); se cifran solos en cuanto existan. Devuelve si quedaron cifrados.
+	 */
+	private static function store_settings( array $settings ) {
+		$secrets = array();
+		foreach ( self::secret_fields() as $field ) {
+			$value = is_string( $settings[ $field ] ?? null ) ? $settings[ $field ] : '';
+			unset( $settings[ $field ] );
+			if ( '' !== $value ) $secrets[ $field ] = $value;
+		}
+		if ( Digitalisimo_Backups_Credentials::put( $secrets ) ) {
+			update_option( self::OPTION, $settings, false );
+			self::mark_credentials( true );
+			return true;
+		}
+		update_option( self::OPTION, $settings + $secrets, false );
+		self::mark_credentials( ! $secrets );
+		return false;
+	}
+	private static function mark_credentials( $clean ) {
+		if ( ! $clean ) { delete_option( self::CREDENTIALS_CLEAN ); return; }
+		if ( '1' !== get_option( self::CREDENTIALS_CLEAN ) ) update_option( self::CREDENTIALS_CLEAN, '1', true );
+	}
+	/**
+	 * Migración idempotente de los secretos en claro de los ajustes al almacén cifrado: se cifran, se comprueba que
+	 * vuelven a abrirse y sólo entonces se retiran de los ajustes. Devuelve 'clean', 'migrated', 'unprotected' (no hay
+	 * con qué cifrar; siguen en claro) o 'skipped' (subsitio de una red: los ajustes que usa el motor son los del
+	 * principal).
+	 */
+	public static function migrate_credentials() {
+		if ( is_multisite() && ! is_main_site() ) return 'skipped';
+		$saved = get_option( self::OPTION, array() );
+		$saved = is_array( $saved ) ? $saved : array();
+		$plain = self::plain_secrets( $saved );
+		if ( ! $plain ) { self::mark_credentials( true ); return 'clean'; }
+		if ( ! Digitalisimo_Backups_Credentials::put( $plain ) ) { self::mark_credentials( false ); return 'unprotected'; }
+		update_option( self::OPTION, array_diff_key( $saved, $plain ), false );
+		self::mark_credentials( true );
+		return 'migrated';
+	}
+	/** Al cargar el escritorio: sin la marca, comprueba y migra; con ella (autoload) no hace ninguna consulta. */
+	public static function credentials_on_load() {
+		if ( '1' === get_option( self::CREDENTIALS_CLEAN ) ) return;
+		try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+	}
+	/** Lo mismo en una petición de WP-Cron o de WP-CLI, que no pasan por admin_init. */
+	public static function credentials_on_cron() {
+		if ( ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) self::credentials_on_load();
+	}
+	/** Estado público de las credenciales de los destinos (sin valores) para la pantalla, REST y WP-CLI. */
+	private static function credentials_status() {
+		self::settings();
+		$saved = get_option( self::OPTION, array() );
+		return Digitalisimo_Backups_Credentials::status( array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+	}
+	/** Mensaje de un destino remoto cuyas credenciales no se abren ('' si no es el caso). */
+	private static function credentials_problem( $destination ) {
+		$saved = get_option( self::OPTION, array() );
+		return Digitalisimo_Backups_Credentials::destination_problem( (string) $destination, array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+	}
+	/**
+	 * Tras el SQL de una restauración (también si se recuperó la copia previa o se aplica el diario): las credenciales del
+	 * respaldo mandan sobre las que tenía el servidor. Las cifradas con las claves del servidor de origen se vuelven a
+	 * cifrar con las de éste ($origin sale del wp-config.php del respaldo) y las que venían en claro (respaldos hasta
+	 * 1.0.60) se cifran. Nunca falla la restauración: lo que no se abre queda en «vuelve a escribirla» con su aviso.
+	 */
+	private static function restore_credentials( array $origin ) {
+		try {
+			Digitalisimo_Backups_Credentials::reseal( $origin );
+			self::migrate_credentials();
+		} catch ( Throwable $e ) {
+			error_log( 'DIGITALÍSIMO Backups: credenciales tras restaurar: ' . $e->getMessage() );
+		}
+	}
 	/** Catálogo persistente de conexiones; conserva la configuración previa como primer servidor. */
 	private static function servers() { self::migrate_servers(); return (array) get_option( self::SERVERS, array() ); }
 	private static function migrate_servers() { if ( false !== get_option( self::SERVERS, false ) ) return; $s = self::settings(); $servers = array(); if ( $s['sftp_host'] && $s['sftp_user'] ) $servers[] = array( 'id' => 'legacy-ftp', 'type' => 'sftp', 'name' => $s['sftp_name'] ?: 'SFTP', 'host' => $s['sftp_host'], 'port' => $s['sftp_port'], 'user' => $s['sftp_user'], 'path' => $s['sftp_path'], 'verified' => false ); add_option( self::SERVERS, $servers, '', false ); }
@@ -268,7 +389,8 @@ final class Digitalisimo_Backups {
 	private static function context_args() { return self::network_context() ? array( 'digitalisimo_backups_network' => '1' ) : array(); }
 	public static function page() { if ( ! self::can_manage() ) { echo '<div class="wrap"><h1>Backups · Digitalisimo</h1><p>El respaldo completo de esta red requiere permisos de administración de red.</p></div>'; return; } self::render( false ); }
 	public static function network_page() { if ( ! self::can_manage() ) return; self::render( true ); }
-	private static function secret_fields() { return array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' ); }
+	/** Secretos de los destinos: nunca vuelven al navegador y viven cifrados en Digitalisimo_Backups_Credentials. */
+	private static function secret_fields() { return Digitalisimo_Backups_Credentials::FIELDS; }
 	/** Sólo ofrece destinos remotos que ya cuentan con una conexión válida. */
 	private static function manual_destinations( $settings ) { $destinations = array( 'local' => self::destination_label( 'local' ) ); if ( ! empty( $settings['sftp_host'] ) && ! empty( $settings['sftp_user'] ) && ! empty( $settings['sftp_password'] ) && ! empty( $settings['sftp_fingerprint'] ) ) $destinations['sftp'] = $settings['sftp_name'] ?: self::destination_label( 'sftp' ); if ( ! empty( $settings['google_refresh_token'] ) ) $destinations['google'] = $settings['google_name'] ?: self::destination_label( 'google' ); if ( ! empty( $settings['onedrive_refresh_token'] ) ) $destinations['onedrive'] = $settings['onedrive_name'] ?: self::destination_label( 'onedrive' ); return $destinations; }
 	private static function manual_destination_select( $settings ) { $html = '<label>Destino<br><select name="digitalisimo_backup_destination">'; foreach ( self::manual_destinations( $settings ) as $value => $label ) $html .= '<option value="' . esc_attr( $value ) . '"' . selected( $settings['destination'], $value, false ) . '>' . esc_html( $label ) . '</option>'; return $html . '</select></label>'; }
@@ -281,8 +403,11 @@ final class Digitalisimo_Backups {
 		$s = self::settings(); $history = array_slice( (array) get_option( self::HISTORY, array() ), 0, 10 );
 		echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><p>Genera un ZIP integral: archivos de WordPress, plugins, temas, medios y base de datos. El respaldo se crea primero en el hosting y después se copia al destino elegido.</p>';
 		if ( isset( $_GET['backup'] ) ) echo '<div class="notice notice-' . ( 'ok' === $_GET['backup'] ? 'success' : 'error' ) . '"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['message'] ?? '' ) ) ) . '</p></div>';
+		// Credenciales de los destinos que no se abren o que siguen sin cifrar: qué hacer, sin ningún valor.
+		$credentials = self::credentials_status();
+		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
 		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a></nav>';
-		if ( 'servers' === $tab ) { self::servers_panel( $s ); self::server_list(); echo '</div>'; return; }
+		if ( 'servers' === $tab ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
 			echo '<div class="digitalisimo-backups-grid"><section class="digitalisimo-backups-card"><h2>Crear respaldo completo</h2><p>Incluye todos los sitios de la red cuando WordPress usa Multisite, o el sitio completo en una instalación individual.</p>';
 			if ( is_multisite() && ! is_main_site() ) echo '<p class="notice notice-warning inline">El respaldo completo de la red debe iniciarse desde el sitio principal o la administración de red. Este subsitio no generará una copia incompleta.</p>';
@@ -326,7 +451,7 @@ final class Digitalisimo_Backups {
 			}
 			echo '</div></section>';
 		}
-		private static function servers_panel( $s ) { echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Configura las conexiones disponibles para respaldos. En Backups sólo aparecerán Local y las conexiones que ya estén listas.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '"><table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination"><option value="local" ' . selected( $s['destination'], 'local', false ) . '>Hosting / almacenamiento local</option><option value="sftp" ' . selected( $s['destination'], 'sftp', false ) . '>SFTP</option><option value="google" ' . selected( $s['destination'], 'google', false ) . '>Google Drive</option><option value="onedrive" ' . selected( $s['destination'], 'onedrive', false ) . '>Microsoft OneDrive</option></select></td></tr><tr data-server="sftp"><th>Nombre SFTP</th><td><input name="digitalisimo_backups[sftp_name]" value="' . esc_attr( $s['sftp_name'] ) . '"></td></tr><tr data-server="google"><th>Nombre Google Drive</th><td><input name="digitalisimo_backups[google_name]" value="' . esc_attr( $s['google_name'] ) . '"></td></tr><tr data-server="onedrive"><th>Nombre OneDrive</th><td><input name="digitalisimo_backups[onedrive_name]" value="' . esc_attr( $s['onedrive_name'] ) . '"></td></tr></table>'; self::connection_fields( $s ); submit_button( 'Guardar conexiones' ); echo '</form></section>'; }
+		private static function servers_panel( $s, array $locked = array() ) { echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Configura las conexiones disponibles para respaldos. En Backups sólo aparecerán Local y las conexiones que ya estén listas.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '"><table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination"><option value="local" ' . selected( $s['destination'], 'local', false ) . '>Hosting / almacenamiento local</option><option value="sftp" ' . selected( $s['destination'], 'sftp', false ) . '>SFTP</option><option value="google" ' . selected( $s['destination'], 'google', false ) . '>Google Drive</option><option value="onedrive" ' . selected( $s['destination'], 'onedrive', false ) . '>Microsoft OneDrive</option></select></td></tr><tr data-server="sftp"><th>Nombre SFTP</th><td><input name="digitalisimo_backups[sftp_name]" value="' . esc_attr( $s['sftp_name'] ) . '"></td></tr><tr data-server="google"><th>Nombre Google Drive</th><td><input name="digitalisimo_backups[google_name]" value="' . esc_attr( $s['google_name'] ) . '"></td></tr><tr data-server="onedrive"><th>Nombre OneDrive</th><td><input name="digitalisimo_backups[onedrive_name]" value="' . esc_attr( $s['onedrive_name'] ) . '"></td></tr></table>'; self::connection_fields( $s, $locked ); submit_button( 'Guardar conexiones' ); echo '</form></section>'; }
 		private static function policy_types() { return array( 'full' => 'Respaldo completo' ); }
 		private static function policy_label( $policy ) { $types = self::policy_types(); $schedules = self::schedule_options(); return ( $types[ $policy['type'] ] ?? 'Respaldo' ) . ' · ' . ( $schedules[ $policy['schedule'] ] ?? 'Sin programación' ); }
 		/** Cada automatización tiene un formulario propio: no existe una configuración global compartida. */
@@ -340,13 +465,14 @@ final class Digitalisimo_Backups {
 		}
 		private static function updraft_panel() { $sets = self::detect_updraft_sets(); echo '<h2>Respaldos detectados de UpdraftPlus</h2><p>Se analizan los archivos estándar dentro de <code>wp-content/updraft</code>. Sólo los conjuntos completos y sin cifrado se pueden restaurar.</p>'; if ( ! $sets ) { echo '<p>No se detectaron respaldos de UpdraftPlus en el almacenamiento local.</p>'; return; } echo '<table class="widefat striped"><thead><tr><th>Conjunto</th><th>Componentes</th><th>Estado</th></tr></thead><tbody>'; foreach ( $sets as $set ) { $components = array_map( function( $name, $parts ) { return $name . ( count( $parts ) > 1 ? ' × ' . count( $parts ) : '' ); }, array_keys( $set['files'] ), $set['files'] ); echo '<tr><td>' . esc_html( $set['id'] ) . '</td><td>' . esc_html( implode( ', ', $components ) ) . '</td><td>' . ( $set['complete'] ? 'Listo para restaurar abajo' : 'Incompleto o cifrado' ) . '</td></tr>'; } echo '</tbody></table><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RESTORE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="updraft" value="1"><p><select name="updraft_set"><option value="">Elige un conjunto UpdraftPlus</option>'; foreach ( $sets as $set ) if ( $set['complete'] ) echo '<option value="' . esc_attr( $set['id'] ) . '">' . esc_html( $set['id'] ) . '</option>'; echo '</select> <input type="text" name="confirmation" placeholder="RESTAURAR SIN FIRMA" autocomplete="off"> <button class="button">Restaurar conjunto</button></p><p class="description">Un conjunto de UpdraftPlus no lleva firma de este sitio: su SQL se revisa entero antes de cambiar nada y se pide escribir RESTAURAR SIN FIRMA. Restaurarlo instala su código y sus datos.</p></form>'; }
 		private static function schedule_fields( $s ) { echo '<h2>Políticas automáticas</h2><p>Cada política tiene su propia frecuencia, destino y retención. Un incremental guarda la base de datos y sólo los archivos modificados desde su último punto base; al restaurar se aplica después de su respaldo completo base.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE_POLICIES ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_POLICIES ) . '"><table class="widefat striped"><thead><tr><th>Activa</th><th>Nombre</th><th>Tipo</th><th>Frecuencia</th><th>Destino</th><th>Conservar</th><th>Ejecutar</th></tr></thead><tbody>'; foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); echo '<tr><td><input type="checkbox" name="digitalisimo_backups_policies[' . $id . '][enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '></td><td><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][id]" value="' . $id . '"><input type="text" name="digitalisimo_backups_policies[' . $id . '][label]" value="' . esc_attr( $policy['label'] ) . '"></td><td><strong>' . esc_html( array( 'full' => 'Completo', 'incremental' => 'Incremental', 'database' => 'Base de datos' )[ $policy['type'] ] ) . '</strong><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][type]" value="' . esc_attr( $policy['type'] ) . '"></td><td><select name="digitalisimo_backups_policies[' . $id . '][schedule]">'; foreach ( self::schedule_options() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></td><td><select name="digitalisimo_backups_policies[' . $id . '][destination]">'; foreach ( array( 'local', 'sftp', 'google', 'onedrive' ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></td><td><input type="number" min="1" max="100" name="digitalisimo_backups_policies[' . $id . '][retain]" value="' . esc_attr( $policy['retain'] ) . '"></td><td><button class="button" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post">Ejecutar ahora<input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"></button></td></tr>'; } echo '</tbody></table><p><button class="button button-primary">Guardar políticas automáticas</button></p></form>'; }
-	private static function connection_fields( $s ) {
+	private static function connection_fields( $s, array $locked = array() ) {
 		echo '<h2>Conexiones externas</h2><p>Elige un tipo para ver únicamente sus campos. Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.</p><p><label for="digitalisimo-server-type"><strong>Tipo de servidor</strong><br><select id="digitalisimo-server-type"><option value="sftp">SFTP</option><option value="google">Google Drive</option><option value="onedrive">OneDrive</option></select></label></p><table class="form-table"><tr data-server="sftp"><th colspan="2"><h3>SFTP</h3></th></tr>';
-		self::field( 'sftp_host', 'Host o IP', $s ); self::field( 'sftp_port', 'Puerto', $s, 'number' ); self::field( 'sftp_user', 'Usuario', $s ); self::field( 'sftp_password', 'Contraseña', $s, 'password' ); self::field( 'sftp_path', 'Carpeta remota', $s ); self::field( 'sftp_fingerprint', 'Huella SHA-1 de la clave SSH del servidor', $s ); echo '<tr data-server="sftp"><th></th><td><p class="description">Confírmala con el administrador del servidor por un canal independiente. Se acepta una huella hexadecimal de 40 caracteres, con o sin dos puntos. Sin ella no se enviarán respaldos por SFTP.</p></td></tr>';
-		echo '<tr data-server="google"><th colspan="2"><h3>Google Drive</h3></th></tr>'; self::field( 'google_client_id', 'Client ID', $s ); self::field( 'google_client_secret', 'Client secret', $s, 'password' ); self::field( 'google_refresh_token', 'Refresh token', $s, 'password' ); self::field( 'google_folder_id', 'ID de carpeta', $s ); echo '<tr data-server="google"><th>Cómo obtener Google Drive</th><td><ol><li>Abre <strong>Google Cloud Console</strong> y crea o elige un proyecto.</li><li>Activa <strong>Google Drive API</strong> en APIs y servicios.</li><li>En Credenciales crea un cliente OAuth de tipo <strong>Aplicación web</strong>.</li><li>Agrega como URI de redirección autorizada: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret aquí, guarda y usa «Conectar Google Drive con mi sesión».</li></ol></td></tr>';
-		echo '<tr data-server="onedrive"><th colspan="2"><h3>Microsoft OneDrive</h3></th></tr>'; self::field( 'onedrive_client_id', 'Client ID', $s ); self::field( 'onedrive_client_secret', 'Client secret', $s, 'password' ); self::field( 'onedrive_refresh_token', 'Refresh token', $s, 'password' ); self::field( 'onedrive_folder', 'Carpeta remota', $s ); echo '<tr data-server="onedrive"><th>Cómo obtener OneDrive</th><td><ol><li>Abre <strong>Microsoft Entra</strong> → App registrations → New registration.</li><li>En Authentication agrega esta URL: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret, guarda y conecta la sesión.</li></ol></td></tr></table><p data-server="google"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'google' ) ) . '">Conectar Google Drive</a></p><p data-server="onedrive"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'onedrive' ) ) . '">Conectar OneDrive</a></p><script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-server-type");if(!s)return;function f(){document.querySelectorAll("[data-server]").forEach(function(e){e.style.display=e.dataset.server===s.value?"":"none"})}s.addEventListener("change",f);f()})</script>';
+		self::field( 'sftp_host', 'Host o IP', $s ); self::field( 'sftp_port', 'Puerto', $s, 'number' ); self::field( 'sftp_user', 'Usuario', $s ); self::field( 'sftp_password', 'Contraseña', $s, 'password', $locked ); self::field( 'sftp_path', 'Carpeta remota', $s ); self::field( 'sftp_fingerprint', 'Huella SHA-1 de la clave SSH del servidor', $s ); echo '<tr data-server="sftp"><th></th><td><p class="description">Confírmala con el administrador del servidor por un canal independiente. Se acepta una huella hexadecimal de 40 caracteres, con o sin dos puntos. Sin ella no se enviarán respaldos por SFTP.</p></td></tr>';
+		echo '<tr data-server="google"><th colspan="2"><h3>Google Drive</h3></th></tr>'; self::field( 'google_client_id', 'Client ID', $s ); self::field( 'google_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'google_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'google_folder_id', 'ID de carpeta', $s ); echo '<tr data-server="google"><th>Cómo obtener Google Drive</th><td><ol><li>Abre <strong>Google Cloud Console</strong> y crea o elige un proyecto.</li><li>Activa <strong>Google Drive API</strong> en APIs y servicios.</li><li>En Credenciales crea un cliente OAuth de tipo <strong>Aplicación web</strong>.</li><li>Agrega como URI de redirección autorizada: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret aquí, guarda y usa «Conectar Google Drive con mi sesión».</li></ol></td></tr>';
+		echo '<tr data-server="onedrive"><th colspan="2"><h3>Microsoft OneDrive</h3></th></tr>'; self::field( 'onedrive_client_id', 'Client ID', $s ); self::field( 'onedrive_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'onedrive_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'onedrive_folder', 'Carpeta remota', $s ); echo '<tr data-server="onedrive"><th>Cómo obtener OneDrive</th><td><ol><li>Abre <strong>Microsoft Entra</strong> → App registrations → New registration.</li><li>En Authentication agrega esta URL: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret, guarda y conecta la sesión.</li></ol></td></tr></table><p data-server="google"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'google' ) ) . '">Conectar Google Drive</a></p><p data-server="onedrive"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'onedrive' ) ) . '">Conectar OneDrive</a></p><script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-server-type");if(!s)return;function f(){document.querySelectorAll("[data-server]").forEach(function(e){e.style.display=e.dataset.server===s.value?"":"none"})}s.addEventListener("change",f);f()})</script>';
 		}
-	private static function field( $key, $label, $s, $type = 'text' ) { $secret = in_array( $key, self::secret_fields(), true ); $server = 0 === strpos( $key, 'sftp_' ) ? 'sftp' : ( 0 === strpos( $key, 'google_' ) ? 'google' : 'onedrive' ); echo '<tr data-server="' . esc_attr( $server ) . '"><th><label for="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td><input class="regular-text" type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="digitalisimo_backups[' . esc_attr( $key ) . ']" value="' . esc_attr( $secret ? '' : $s[ $key ] ) . '"' . ( $secret && $s[ $key ] ? ' placeholder="Guardado · escribe sólo para reemplazar"' : '' ) . '></td></tr>'; }
+	/** Un secreto guardado nunca vuelve al navegador: el campo va vacío y su estado se anuncia en el placeholder. */
+	private static function field( $key, $label, $s, $type = 'text', array $locked = array() ) { $secret = in_array( $key, self::secret_fields(), true ); $server = 0 === strpos( $key, 'sftp_' ) ? 'sftp' : ( 0 === strpos( $key, 'google_' ) ? 'google' : 'onedrive' ); $placeholder = ''; if ( $secret && $s[ $key ] ) $placeholder = 'Guardado · escribe sólo para reemplazar'; elseif ( $secret && in_array( $key, $locked, true ) ) $placeholder = 'Guardado con otras claves de wp-config.php · vuelve a escribirlo'; echo '<tr data-server="' . esc_attr( $server ) . '"><th><label for="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td><input class="regular-text" type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="digitalisimo_backups[' . esc_attr( $key ) . ']" value="' . esc_attr( $secret ? '' : $s[ $key ] ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . '></td></tr>'; }
 	private static function oauth_callback_url() { return add_query_arg( self::context_args(), admin_url( 'admin-post.php?action=' . self::ACTION_OAUTH ) ); }
 	private static function oauth_url( $provider ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_OAUTH, 'provider' => $provider ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_OAUTH ); }
 	private static function download_url( $file ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_DOWNLOAD, 'file' => rawurlencode( $file ) ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_DOWNLOAD ); }
@@ -354,7 +480,7 @@ final class Digitalisimo_Backups {
 	/** Un respaldo cifrado no es un ZIP para el navegador ni para los destinos remotos. */
 	private static function content_type( $file ) { return '.dgbk' === substr( (string) $file, -5 ) ? 'application/octet-stream' : 'application/zip'; }
 	public static function delete_backup() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $item = self::history_item( $file ); if ( ! $item ) self::redirect( false, 'El respaldo no está registrado.' ); try { if ( 'local' === ( $item['destination'] ?? 'local' ) ) { $path = self::local_path( $file ); if ( ! $path ) { self::remove_history( $file ); self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' ); } if ( ! is_writable( dirname( $path ) ) ) throw new Exception( 'El hosting no permite escribir en la carpeta de respaldos: ' . dirname( $path ) ); if ( ! @wp_delete_file( $path ) && file_exists( $path ) ) throw new Exception( 'El hosting rechazó eliminar el archivo local. Revisa permisos de la carpeta de respaldos.' ); } else self::delete_remote( $item ); self::remove_history( $file ); self::redirect( true, 'Respaldo eliminado.' ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } }
-	public static function oauth_callback() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); $provider = sanitize_key( $_REQUEST['provider'] ?? '' ); if ( ! in_array( $provider, array( 'google', 'onedrive' ), true ) ) self::redirect( false, 'Proveedor no válido.' ); $settings = self::settings(); if ( empty( $_GET['code'] ) ) { check_admin_referer( self::ACTION_OAUTH ); if ( empty( $settings[ $provider . '_client_id' ] ) || empty( $settings[ $provider . '_client_secret' ] ) ) self::redirect( false, 'Guarda antes el Client ID y Client secret del proveedor.' ); $state = wp_generate_password( 32, false, false ); set_transient( 'digitalisimo_backup_oauth_' . get_current_user_id(), array( 'state' => $state, 'provider' => $provider ), 15 * MINUTE_IN_SECONDS ); $redirect = self::oauth_callback_url(); if ( 'google' === $provider ) $url = add_query_arg( array( 'client_id' => $settings['google_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'access_type' => 'offline', 'prompt' => 'consent', 'scope' => 'https://www.googleapis.com/auth/drive.file', 'state' => $state ), 'https://accounts.google.com/o/oauth2/v2/auth' ); else $url = add_query_arg( array( 'client_id' => $settings['onedrive_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'response_mode' => 'query', 'scope' => 'offline_access Files.ReadWrite', 'state' => $state ), 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' ); wp_redirect( $url ); exit; } $saved = get_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); if ( empty( $saved['state'] ) || ! hash_equals( $saved['state'], (string) $_GET['state'] ) || $provider !== $saved['provider'] ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' ); delete_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); $endpoint = 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token'; $response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => sanitize_text_field( wp_unslash( $_GET['code'] ) ), 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' ); $settings[ $provider . '_refresh_token' ] = sanitize_text_field( $data['refresh_token'] ); update_option( self::OPTION, $settings, false ); self::redirect( true, ( 'google' === $provider ? 'Google Drive' : 'OneDrive' ) . ' conectado correctamente.' ); }
+	public static function oauth_callback() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); $provider = sanitize_key( $_REQUEST['provider'] ?? '' ); if ( ! in_array( $provider, array( 'google', 'onedrive' ), true ) ) self::redirect( false, 'Proveedor no válido.' ); $settings = self::settings(); if ( empty( $_GET['code'] ) ) { check_admin_referer( self::ACTION_OAUTH ); if ( empty( $settings[ $provider . '_client_id' ] ) || empty( $settings[ $provider . '_client_secret' ] ) ) self::redirect( false, 'Guarda antes el Client ID y Client secret del proveedor.' ); $state = wp_generate_password( 32, false, false ); set_transient( 'digitalisimo_backup_oauth_' . get_current_user_id(), array( 'state' => $state, 'provider' => $provider ), 15 * MINUTE_IN_SECONDS ); $redirect = self::oauth_callback_url(); if ( 'google' === $provider ) $url = add_query_arg( array( 'client_id' => $settings['google_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'access_type' => 'offline', 'prompt' => 'consent', 'scope' => 'https://www.googleapis.com/auth/drive.file', 'state' => $state ), 'https://accounts.google.com/o/oauth2/v2/auth' ); else $url = add_query_arg( array( 'client_id' => $settings['onedrive_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'response_mode' => 'query', 'scope' => 'offline_access Files.ReadWrite', 'state' => $state ), 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' ); wp_redirect( $url ); exit; } $saved = get_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); if ( empty( $saved['state'] ) || ! hash_equals( $saved['state'], (string) $_GET['state'] ) || $provider !== $saved['provider'] ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' ); delete_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); $endpoint = 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token'; $response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => sanitize_text_field( wp_unslash( $_GET['code'] ) ), 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' ); $settings[ $provider . '_refresh_token' ] = sanitize_text_field( $data['refresh_token'] ); try { self::store_settings( $settings ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ( 'google' === $provider ? 'Google Drive' : 'OneDrive' ) . ' conectado correctamente.' ); }
 	public static function save() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); $old = self::settings(); $input = (array) ( $_POST['digitalisimo_backups'] ?? array() ); $out = self::defaults();
 			$out['destination'] = in_array( $input['destination'] ?? '', array( 'local', 'sftp', 'google', 'onedrive' ), true ) ? $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
@@ -362,7 +488,11 @@ final class Digitalisimo_Backups {
 		$fingerprint = trim( (string) ( $input['sftp_fingerprint'] ?? '' ) );
 		if ( '' !== $fingerprint && ! preg_match( '/^(?:[a-f0-9]{40}|(?:[a-f0-9]{2}:){19}[a-f0-9]{2})$/i', $fingerprint ) ) self::redirect( false, 'La huella SFTP debe contener 40 caracteres hexadecimales SHA-1, con o sin dos puntos.' );
 		$out['sftp_fingerprint'] = strtoupper( str_replace( ':', '', $fingerprint ) );
-			foreach ( self::secret_fields() as $key ) $out[ $key ] = '' !== trim( (string) ( $input[ $key ] ?? '' ) ) ? sanitize_text_field( $input[ $key ] ) : $old[ $key ]; $out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled'; update_option( self::OPTION, $out, false ); self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' ) ), self::admin_url() ) ); exit;
+			foreach ( self::secret_fields() as $key ) $out[ $key ] = '' !== trim( (string) ( $input[ $key ] ?? '' ) ) ? sanitize_text_field( $input[ $key ] ) : $old[ $key ]; $out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled'; 
+		// Los secretos van cifrados al almacén, nunca en claro a los ajustes (sin AUTH_KEY y SECURE_AUTH_KEY propias, como hasta ahora y con aviso).
+		try { $encrypted = self::store_settings( $out ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
+		$unprotected = ! $encrypted && array_filter( array_intersect_key( $out, array_flip( self::secret_fields() ) ), function( $value ) { return is_string( $value ) && '' !== $value; } );
+		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
 	}
 	public static function save_policies() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
@@ -669,6 +799,9 @@ final class Digitalisimo_Backups {
 	/** @internal Fase «transfer»: credenciales leídas ahora, nunca guardadas en el trabajo. */
 	public static function job_transfer( $file, $destination ) {
 		$settings = self::settings();
+		// Credenciales cifradas con otras claves de wp-config.php: repetir no lo arregla, así que el fallo es permanente y dice qué hacer.
+		$problem = self::credentials_problem( $destination );
+		if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem . ' El respaldo local verificado se conserva.' );
 		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) || 'local' === $destination ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino ' . self::destination_label( $destination ) . ' ya no tiene una conexión completa; el respaldo local verificado se conserva.' );
 		$settings['destination'] = $destination;
 		$remote = self::transfer( $file, $settings );
@@ -1072,7 +1205,7 @@ final class Digitalisimo_Backups {
 		}
 		return array( 'provider' => 'sftp', 'path' => $remote, 'sha256' => $source_hash );
 	}
-	private static function token( $url, $s, $prefix ) { if ( ! $s[ $prefix . '_client_id' ] || ! $s[ $prefix . '_client_secret' ] || ! $s[ $prefix . '_refresh_token' ] ) throw new Digitalisimo_Backups_Permanent_Error( 'Completa Client ID, Client secret y Refresh token del destino.' ); $response = wp_remote_post( $url, array( 'timeout' => 30, 'body' => array( 'client_id' => $s[ $prefix . '_client_id' ], 'client_secret' => $s[ $prefix . '_client_secret' ], 'refresh_token' => $s[ $prefix . '_refresh_token' ], 'grant_type' => 'refresh_token' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['access_token'] ) ) throw new Exception( 'No se pudo renovar el acceso al almacenamiento remoto.' ); return $data['access_token']; }
+	private static function token( $url, $s, $prefix ) { if ( ! $s[ $prefix . '_client_id' ] || ! $s[ $prefix . '_client_secret' ] || ! $s[ $prefix . '_refresh_token' ] ) { $problem = self::credentials_problem( $prefix ); throw new Digitalisimo_Backups_Permanent_Error( '' !== $problem ? $problem : 'Completa Client ID, Client secret y Refresh token del destino.' ); } $response = wp_remote_post( $url, array( 'timeout' => 30, 'body' => array( 'client_id' => $s[ $prefix . '_client_id' ], 'client_secret' => $s[ $prefix . '_client_secret' ], 'refresh_token' => $s[ $prefix . '_refresh_token' ], 'grant_type' => 'refresh_token' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['access_token'] ) ) throw new Exception( 'No se pudo renovar el acceso al almacenamiento remoto.' ); return $data['access_token']; }
 	private static function google( $file, $s ) { $token = self::token( 'https://oauth2.googleapis.com/token', $s, 'google' ); $metadata = array( 'name' => wp_basename( $file ) ); if ( $s['google_folder_id'] ) $metadata['parents'] = array( $s['google_folder_id'] ); $response = wp_remote_post( 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json; charset=UTF-8', 'X-Upload-Content-Type' => self::content_type( $file ), 'X-Upload-Content-Length' => filesize( $file ) ), 'body' => wp_json_encode( $metadata ) ) ); $session = wp_remote_retrieve_header( $response, 'location' ); if ( is_wp_error( $response ) || ! $session ) throw new Exception( 'Google Drive no pudo iniciar la carga.' ); $result = json_decode( wp_remote_retrieve_body( self::resumable_upload( $session, $file, array( 'Content-Type' => self::content_type( $file ) ) ) ), true ); if ( empty( $result['id'] ) ) throw new Exception( 'Google Drive no confirmó el archivo cargado.' ); $id = sanitize_text_field( $result['id'] ); self::keep_verified_cloud_copy( 'google', $id, $file, $token ); return array( 'provider' => 'google', 'id' => $id, 'sha256' => hash_file( 'sha256', $file ) ); }
 	private static function onedrive( $file, $s ) { $token = self::token( 'https://login.microsoftonline.com/common/oauth2/v2.0/token', $s, 'onedrive' ); $folder = trim( $s['onedrive_folder'], '/' ); $path = implode( '/', array_map( 'rawurlencode', array_filter( explode( '/', $folder ) ) ) ); $url = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $path . '/' . rawurlencode( wp_basename( $file ) ) . ':/createUploadSession'; $response = wp_remote_post( $url, array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( array( 'item' => array( '@microsoft.graph.conflictBehavior' => 'rename' ) ) ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['uploadUrl'] ) ) throw new Exception( 'OneDrive no pudo iniciar la carga. Verifica que exista la carpeta remota.' ); $result = json_decode( wp_remote_retrieve_body( self::resumable_upload( $data['uploadUrl'], $file, array(), 3276800 ) ), true ); if ( empty( $result['id'] ) ) throw new Exception( 'OneDrive no confirmó el archivo cargado.' ); $id = sanitize_text_field( $result['id'] ); self::keep_verified_cloud_copy( 'onedrive', $id, $file, $token ); return array( 'provider' => 'onedrive', 'id' => $id, 'sha256' => hash_file( 'sha256', $file ) ); }
 	/**
@@ -1288,9 +1421,13 @@ final class Digitalisimo_Backups {
 		$owned = null === $report;
 		if ( $owned ) $report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
 		$zip = $report['zip'];
+		$origin = array();
 		try {
 			$trusted = 'untrusted' !== $report['trust'];
 			$data = self::inspect_package( $zip, $trusted, true );
+			// Claves de las credenciales del servidor de origen, del wp-config.php del propio respaldo (ya comprobado contra
+			// su manifiesto): sólo literales de cadena, nunca se ejecuta. Con ellas, las credenciales se vuelven a cifrar aquí.
+			$origin = Digitalisimo_Backups_Credentials::origin_keys( $zip );
 			// Copia previa con el motor de trabajos: nunca se cifra, se firma si hay clave y nace con su nombre protegido.
 			$safety = self::create_network( 'safety-before-restore-' );
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
@@ -1298,13 +1435,13 @@ final class Digitalisimo_Backups {
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 			// El historial que debe quedar, ya con la copia previa: reconstruirlo no vuelve a leer la copia entera.
 			$history_before = self::fresh_history();
-			self::write_restore_journal();
+			self::write_restore_journal( $origin );
 			$created_files = array();
 			try {
 				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
 				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
-				// llavero y la seguridad ya están en su sitio. El finally lo repite y es quien avisa si falla.
-				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				// llavero, la seguridad y las credenciales ya están en su sitio. El finally lo repite y es quien avisa si falla.
+				try { self::after_restore_sql( $history_before, $vault_before, $origin ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				self::extract_digitalisimo_files( $zip, $created_files );
 			} catch ( Throwable $failure ) {
 				try {
@@ -1316,10 +1453,11 @@ final class Digitalisimo_Backups {
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
 				}
 			} finally {
-				self::after_restore_sql( $history_before, $vault_before );
+				self::after_restore_sql( $history_before, $vault_before, $origin );
 				self::remove_restore_journal();
 			}
 		} finally {
+			Digitalisimo_Backups_Credentials::forget( $origin );
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
 	}
@@ -1357,11 +1495,15 @@ final class Digitalisimo_Backups {
 		if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) $problems[] = 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.';
 		return $problems;
 	}
-	/** El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse. Idempotente. */
-	private static function after_restore_sql( $history_before, $vault_before ) {
+	/**
+	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse, y
+	 * las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
+	 */
+	private static function after_restore_sql( $history_before, $vault_before, array $origin = array() ) {
 		wp_cache_flush();
 		update_option( self::HISTORY, $history_before, false );
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
+		self::restore_credentials( $origin );
 	}
 	/** Sólo borra archivos creados por este intento y que no cambiaron desde que se escribieron. */
 	private static function remove_new_restore_files( $created_files ) {
@@ -1538,6 +1680,7 @@ final class Digitalisimo_Backups {
 	private static function download_remote( $item ) { $remote = (array) ( $item['remote'] ?? array() ); $provider = $remote['provider'] ?? ''; $settings = self::settings(); if ( ! $provider ) wp_die( 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.' ); if ( 'sftp' === $provider ) { $connection = self::sftp_connection( $settings ); $sftp = ssh2_sftp( $connection ); $stream = @fopen( 'ssh2.sftp://' . intval( $sftp ) . (string) $remote['path'], 'rb' ); if ( ! $stream ) wp_die( 'No se pudo leer el respaldo SFTP.' ); nocache_headers(); header( 'Content-Type: ' . self::content_type( $item['file'] ) ); header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' ); fpassthru( $stream ); fclose( $stream ); return; } $token = self::token( 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token', $settings, $provider ); $url = 'google' === $provider ? 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $remote['id'] ) . '?alt=media' : 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode( $remote['id'] ) . '/content'; $response = wp_remote_get( $url, array( 'timeout' => 120, 'redirection' => 5, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ); if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) wp_die( 'No se pudo descargar el respaldo remoto.' ); nocache_headers(); header( 'Content-Type: ' . self::content_type( $item['file'] ) ); header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' ); echo wp_remote_retrieve_body( $response ); }
 	private static function delete_remote( $item ) { $remote = (array) ( $item['remote'] ?? array() ); $provider = $remote['provider'] ?? ''; $settings = self::settings(); if ( ! $provider ) throw new Exception( 'Este respaldo remoto no tiene identificador para eliminarse desde WordPress.' ); if ( 'sftp' === $provider ) { $connection = self::sftp_connection( $settings ); $sftp = ssh2_sftp( $connection ); if ( ! @ssh2_sftp_unlink( $sftp, (string) $remote['path'] ) ) throw new Exception( 'No se pudo eliminar el archivo SFTP.' ); return; } $token = self::token( 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token', $settings, $provider ); $url = 'google' === $provider ? 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $remote['id'] ) : 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode( $remote['id'] ); $response = wp_remote_request( $url, array( 'method' => 'DELETE', 'timeout' => 60, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ); if ( is_wp_error( $response ) || ! in_array( wp_remote_retrieve_response_code( $response ), array( 200, 204 ), true ) ) throw new Exception( 'El proveedor remoto no confirmó la eliminación.' ); }
 	private static function sftp_connection( $s ) {
+		if ( empty( $s['sftp_password'] ) && '' !== ( $problem = self::credentials_problem( 'sftp' ) ) ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
 		if ( ! function_exists( 'ssh2_connect' ) || ! function_exists( 'ssh2_fingerprint' ) || empty( $s['sftp_host'] ) || empty( $s['sftp_user'] ) || empty( $s['sftp_password'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Completa la conexión SFTP para gestionar este respaldo.' );
 		$expected = strtoupper( str_replace( ':', '', trim( (string) ( $s['sftp_fingerprint'] ?? '' ) ) ) );
 		if ( ! preg_match( '/^[A-F0-9]{40}$/', $expected ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' );

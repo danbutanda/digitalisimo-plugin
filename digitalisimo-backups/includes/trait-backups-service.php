@@ -172,6 +172,8 @@ trait Digitalisimo_Backups_Service {
 		try { Digitalisimo_Backups_Security::job_settings( false ); } catch ( Exception $e ) { $problems[] = $e->getMessage(); }
 		$constant = Digitalisimo_Backups_Keys::constant_state();
 		$ring = Digitalisimo_Backups_Keys::keyring();
+		// Credenciales de los destinos: sólo el estado y qué hacer, nunca un valor.
+		$credentials = $main ? self::credentials_status() : array( 'state' => 'none', 'notice' => '' );
 		$history = $main ? array_values( (array) get_option( self::HISTORY, array() ) ) : array();
 		$automations = $main ? array_filter( self::policies(), function( $policy ) { return ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? '' ); } ) : array();
 		$jobs = 0;
@@ -194,6 +196,8 @@ trait Digitalisimo_Backups_Service {
 			'encrypt' => ! empty( $security['encrypt'] ),
 			'require_signed' => ! empty( $security['require_signed'] ),
 			'key_source' => 'none' !== $constant ? 'wp-config' : ( $ring['active'] ? 'passphrase' : 'none' ),
+			'credentials' => (string) $credentials['state'],
+			'credentials_notice' => (string) $credentials['notice'],
 			'backups' => count( $history ),
 			'last_backup' => $history ? self::service_summary( $history[0] ) : null,
 			'automations' => count( $automations ),
@@ -237,7 +241,10 @@ trait Digitalisimo_Backups_Service {
 		$settings = self::settings();
 		$destination = sanitize_key( (string) ( $args['destination'] ?? '' ) );
 		if ( '' === $destination ) $destination = (string) $settings['destination'];
-		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) ) return self::service_error( 'destination', 'El destino seleccionado no está conectado o no es válido.', 400 );
+		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) ) {
+			$problem = 'local' === $destination ? '' : self::credentials_problem( $destination );
+			return self::service_error( 'destination', '' !== $problem ? $problem : 'El destino seleccionado no está conectado o no es válido.', 400 );
+		}
 		try {
 			self::ensure_ready();
 			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => 'network' === ( $args['context'] ?? ( is_multisite() ? 'network' : 'site' ) ) ) ) );
@@ -373,6 +380,9 @@ trait Digitalisimo_Backups_Service {
 					$notice = ' No se guardó la frase: ' . $adopt_error->getMessage();
 				}
 			}
+			// Las credenciales del respaldo mandan: si alguna no se pudo volver a cifrar aquí, se avisa ya.
+			$credentials = self::credentials_status();
+			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
