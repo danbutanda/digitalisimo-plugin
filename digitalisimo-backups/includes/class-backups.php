@@ -842,7 +842,8 @@ final class Digitalisimo_Backups {
 	 */
 	public static function job_record_notices( $file, array $job ) {
 		$notices = array();
-		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[] = array( 'code' => (string) $warning['notice'], 'text' => (string) ( $warning['text'] ?? '' ) );
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[ (string) $warning['notice'] ] = array( 'code' => (string) $warning['notice'], 'text' => (string) ( $warning['text'] ?? '' ) );
+		$notices = array_values( $notices );
 		$changes = array( 'consistency' => (string) ( $job['checkpoint']['database']['mode'] ?? '' ) );
 		if ( $notices ) $changes['notices'] = $notices;
 		self::history_update( $file, $changes );

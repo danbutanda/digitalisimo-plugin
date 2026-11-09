@@ -668,9 +668,11 @@ final class Digitalisimo_Backups_Jobs {
 		$heartbeat = $lease ? (int) ( $lease['heartbeat_at'] ?? 0 ) : 0;
 		$error = is_array( $job['error'] ?? null ) ? (string) ( $job['error']['message'] ?? '' ) : '';
 		$message = (string) ( $job['progress']['message'] ?? '' );
-		// Avisos que cambian lo que es el respaldo (T2): se muestran con su texto, no sólo se cuentan.
+		// Avisos que cambian lo que es el respaldo (T2): se muestran con su texto, no sólo se cuentan (el último de cada
+		// clase: una fase repetida tras volver atrás lo da otra vez).
 		$notices = array();
-		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[] = (string) ( $warning['text'] ?? '' );
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[ (string) $warning['notice'] ] = (string) ( $warning['text'] ?? '' );
+		$notices = array_values( $notices );
 		$detail = array();
 		if ( 'success' === $status ) $detail[] = ( '.dgbk' === substr( (string) ( $spec['file'] ?? '' ), -5 ) ? 'Respaldo cifrado y verificado: ' : 'ZIP verificado: ' ) . basename( (string) ( $spec['file'] ?? '' ) ) . ( $notices ? ' · Con avisos: ' . implode( ' ', $notices ) : '' );
 		elseif ( 'failed' === $status ) $detail[] = $error ?: $message;

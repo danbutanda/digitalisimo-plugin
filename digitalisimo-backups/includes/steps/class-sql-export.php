@@ -177,7 +177,9 @@ final class Digitalisimo_Backups_Sql_Export {
 				self::$buffer = '';
 				if ( false === $start || ! ftruncate( $out, $start ) || 0 !== fseek( $out, $start ) ) throw new Exception( 'No se pudo descartar la tabla ' . $table . ' a medio exportar.' );
 				$cursor['total'] -= (int) $cursor['rows'];
-				$fair = 0 === $units && ( $hard - $began ) >= Digitalisimo_Backups_Step_Budget::table_min_seconds();
+				// Sólo cuenta contra la tabla un corte con la petición entera: primera del tramo, a escala completa (tras una
+				// muerte el tramo trabaja menos y vuelve a 1 en pocos tramos) y sin un tick que empezó tarde.
+				$fair = 0 === $units && (float) $cursor['scale'] >= 1.0 && ( $hard - $began ) >= Digitalisimo_Backups_Step_Budget::table_min_seconds();
 				if ( $fair ) $cursor['abandons'][ $table ] = (int) ( $cursor['abandons'][ $table ] ?? 0 ) + 1;
 				if ( (int) ( $cursor['abandons'][ $table ] ?? 0 ) >= self::MAX_ABANDONS ) throw new Digitalisimo_Backups_Permanent_Error( 'La tabla ' . $table . ' no cabe en una petición de este servidor (se cortó ' . self::MAX_ABANDONS . ' veces, la última tras ' . number_format( (int) $cursor['rows'], 0, ',', '.' ) . ' filas): no se puede exportar sin partir su instantánea, y partida podría no importarse. Ejecuta el respaldo con WP-CLI o con el cron del sistema por PHP CLI, que no tienen plazo.' );
 				$cursor['rows'] = 0;

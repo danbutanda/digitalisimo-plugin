@@ -255,18 +255,41 @@ steps_done( $slow['id'] );
 steps_done( $late['id'] );
 steps_done( $legacy_ajax['id'] );
 // Una tabla que no cabe en una petición entera (con tiempo justo, no por empezar tarde) falla a la tercera vez,
-// diciendo cuál y que hay que respaldar con WP-CLI: partida entre instantáneas podría no importarse.
+// diciendo cuál y que hay que respaldar con WP-CLI: partida entre instantáneas podría no importarse. Cada tick es una
+// petición nueva con 2 s útiles, y la tabla necesita 4 s.
 $db->on_select = $select;
-$db->tables['wp_posts'] = 40;
-steps_filters( array( 'digitalisimo_backups_db_batch' => 1, 'digitalisimo_backups_step_min' => 0.05, 'digitalisimo_backups_request_limit' => 10, 'digitalisimo_backups_table_min_seconds' => 0.3 ) );
+$db->tables['wp_posts'] = 200;
+$cut = array( 'digitalisimo_backups_db_batch' => 10, 'digitalisimo_backups_step_min' => 0.05, 'digitalisimo_backups_request_limit' => 10, 'digitalisimo_backups_table_min_seconds' => 0.5 );
+$fresh_request = function() { $_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 5.0; }; // 10 - 3 (margen) - 5 = 2 s.
+steps_filters( $cut );
 $huge = bk_manual( 'local', 'tabla-que-no-cabe' );
 $job = bk_job( $huge['id'] );
 for ( $i = 0; $i < 20 && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ); $i++ ) {
-	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 6.5; // Cada tick, una petición nueva con 0,5 s útiles.
+	$fresh_request();
 	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 	$job = bk_job( $huge['id'] );
 }
 bk_assert( 'failed' === $job['status'] && 'database' === $job['phase'] && false !== strpos( (string) $job['error']['message'], 'wp_posts' ) && false !== strpos( (string) $job['error']['message'], 'WP-CLI' ) && ! empty( $job['error']['permanent'] ), 'Una tabla que no cabe en una petición no falló con su nombre y la salida por WP-CLI: ' . json_encode( $job['error'] ) );
+// Tras una muerte el tramo trabaja la mitad: sus cortes no cuentan contra la tabla hasta volver a la escala completa.
+$scaled = bk_manual( 'local', 'corte-tras-muerte' );
+$job = bk_job( $scaled['id'] );
+for ( $i = 0; $i < 10 && ! is_array( $job['checkpoint']['database']['resume'] ?? null ); $i++ ) {
+	$fresh_request();
+	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	$job = bk_job( $scaled['id'] );
+}
+steps_kill( $scaled['id'], 'database', array() );
+$cuts = array();
+for ( $i = 0; $i < 20 && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ); $i++ ) {
+	$fresh_request();
+	Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	$job = bk_job( $scaled['id'] );
+	$r = $job['checkpoint']['database']['resume'] ?? null;
+	if ( is_array( $r ) ) $cuts[] = array( round( (float) $r['scale'], 3 ), (int) ( $r['abandons']['wp_posts'] ?? 0 ) );
+}
+// Un tick encadena tramos mientras le queda presupuesto: el primero que se ve ya creció desde 0,5.
+bk_assert( $cuts && $cuts[0][0] < 1.0 && 0 === $cuts[0][1] && 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'wp_posts' ), 'Un corte a media escala contó contra la tabla, o la tabla no falló a escala completa: ' . json_encode( $cuts ) );
+foreach ( $cuts as $cut_seen ) bk_assert( $cut_seen[0] >= 1.0 || 0 === $cut_seen[1], 'Un corte a media escala contó contra la tabla: ' . json_encode( $cuts ) );
 $_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
 steps_filters( array() );
 $db->on_select = null;

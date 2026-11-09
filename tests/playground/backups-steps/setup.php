@@ -25,7 +25,14 @@ try {
 foreach ( array( 'admin_memory_limit', 'cron_memory_limit', 'image_memory_limit' ) as $digi_t2_filter ) add_filter( $digi_t2_filter, static function () { return '64M'; } );
 // php-wasm se identifica como CLI aunque sirva peticiones web: se le dan los valores que la web calcula con 30 s.
 if ( 'cli' === PHP_SAPI ) {
-	add_filter( 'digitalisimo_backups_job_budget', static function () { return 15; } );
+	// La base de datos de este sitio (29 MB de SQL) se exporta y se comprueba en menos de 1 s: con ticks de 0,1 s mientras
+	// se exporta (también el de las comprobaciones, que sigue con la exportación) sale en varias instantáneas, una por
+	// tabla o grupo de tablas, y la muerte de die-db cae a mitad de una tabla de un tramo retomado.
+	add_filter( 'digitalisimo_backups_job_budget', static function () {
+		$active = class_exists( 'Digitalisimo_Backups_Jobs', false ) ? Digitalisimo_Backups_Jobs::active() : array();
+		return $active && in_array( $active[0]['phase'] ?? '', array( 'preflight', 'database' ), true ) ? 0.1 : 15;
+	} );
+	add_filter( 'digitalisimo_backups_step_min', static function () { return 0.05; } );
 	add_filter( 'digitalisimo_backups_request_limit', static function () { return 30; } );
 }
 // En php-wasm la verificación de este sitio cabe en un tramo de 5 s: con tramos de 2 s (lo que se guarda el punto de

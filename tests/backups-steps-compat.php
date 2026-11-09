@@ -172,7 +172,33 @@ compat_restore( 'Digitalisimo_Backups', $sealed, 'contenido T2 cifrado' );
 foreach ( array( '1.0.61', '1.0.60' ) as $version ) compat_restore( compat_load( $repo, $version ), $sealed, 'contenido T2 cifrado' );
 $GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => false );
 
-// 7. Un manifiesto de más de 1 MB (miles de archivos) se registra sin decodificarlo entero y con los mismos datos.
+// 7. Un respaldo «con avisos» (un archivo de uploads que desaparece entre el inventario y su copia): el manifiesto lleva
+// `notices`, una clave nueva que el código actual, 1.0.61, 1.0.60 y 1.0.58 aceptan al restaurar.
+Digitalisimo_Backups_Keys::set_passphrase( 'frase de la prueba de formato de T2' );
+$GLOBALS['wpdb']->posts[0]['post_content'] = 'contenido T2 con avisos';
+$fleeting = ABSPATH . 'wp-content/uploads/efimero.txt';
+file_put_contents( $fleeting, "temporal\n" );
+$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
+$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'local', 'retention' => 'none', 'via' => 'test' ) ) );
+for ( $i = 0; $i < 400; $i++ ) {
+	$job = Digitalisimo_Backups_Jobs::get( $queued['job']['id'] );
+	if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+	// Ya en la escritura (inventario hecho): desaparece y el resto va sin tope de unidades.
+	if ( is_file( $fleeting ) && 'write' === ( $job['checkpoint']['pack']['resume']['stage'] ?? '' ) ) { unlink( $fleeting ); unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] ); }
+	Digitalisimo_Backups_Jobs::tick( 0 );
+}
+unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+if ( 'success' !== $job['status'] ) compat_fail( 'El respaldo con un archivo desaparecido no terminó: ' . json_encode( $job['error'] ) );
+$noticed = rtrim( bk_storage(), '/' ) . '/' . $job['spec']['file'];
+$zip = compat_open( $noticed );
+$manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+$zip->close();
+if ( ! preg_grep( '/efimero\.txt/', (array) ( $manifest['notices'] ?? array() ) ) || isset( $manifest['entries']['wordpress/wp-content/uploads/efimero.txt'] ) ) compat_fail( 'El manifiesto no lleva el aviso del archivo desaparecido.' );
+compat_restore( 'Digitalisimo_Backups', $noticed, 'contenido T2 con avisos' );
+foreach ( array( '1.0.61', '1.0.60', '1.0.58' ) as $version ) compat_restore( compat_load( $repo, $version ), $noticed, 'contenido T2 con avisos' );
+Digitalisimo_Backups_Keys::set_passphrase( 'frase de la prueba de formato de T2' );
+
+// 8. Un manifiesto de más de 1 MB (miles de archivos) se registra sin decodificarlo entero y con los mismos datos.
 $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 0;
 foreach ( range( 1, 60 ) as $d ) {
 	mkdir( ABSPATH . 'wp-content/uploads/muchos/carpeta-con-un-nombre-bastante-largo-' . $d, 0700, true );
@@ -188,4 +214,4 @@ if ( strlen( $bytes ) <= 1048576 ) compat_fail( 'La prueba no llegó a un manifi
 if ( $manifest['backup_id'] !== $row['backup_id'] || true !== $row['signed'] || $manifest['auth']['key']['id'] !== $row['key_id'] || 'zip' !== $row['container'] ) compat_fail( 'La fila de un respaldo con un manifiesto grande no lleva su identificador y su firma: ' . json_encode( array_intersect_key( $row, array_flip( array( 'backup_id', 'signed', 'key_id', 'container' ) ) ) ) );
 
 bk_cleanup();
-echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58, 1.0.60 y 1.0.61; un manifiesto grande se registra sin decodificarlo entero.\n";
+echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58, 1.0.60 y 1.0.61; un manifiesto con avisos también; un manifiesto grande se registra sin decodificarlo entero.\n";

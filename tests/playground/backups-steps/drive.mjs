@@ -105,8 +105,17 @@ check(summary.slices.pack > 2 && summary.slices.verify > 1, `el empaquetado y la
 const died = summary.deaths.map((d) => d.flag);
 const deaths = { db: died.includes('die-db'), pack: died.includes('die-pack'), verify: died.includes('die-verify') };
 check(deaths.pack && deaths.verify && events.filter((e) => ['interrupted', 'timeout', 'fatal'].includes(e.type)).length === died.length, `las ${died.length} peticiones muertas a mitad de un tramo retomado (${died.join(', ')}) se reconocieron y el trabajo siguió`, JSON.stringify(summary.deaths));
-// La base de datos: en varios tramos (cada uno coherente, declarado) o, si cupo en uno, la instantánea única de siempre.
-check(summary.checkpoint && (summary.checkpoint.segments > 1 ? summary.checkpoint.mode === 'transaction-steps' && deaths.db : summary.checkpoint.mode === 'transaction'), `base de datos en ${summary.checkpoint?.segments} tramo(s), modo ${summary.checkpoint?.mode}, ${summary.checkpoint?.rows} filas`);
+// La base de datos: en varias instantáneas (cada tabla entera en una, declarado) o, si cupo en una, la de siempre.
+check(summary.checkpoint && (summary.checkpoint.segments > 1 ? summary.checkpoint.mode === 'transaction-per-table' && deaths.db : summary.checkpoint.mode === 'transaction'), `base de datos en ${summary.checkpoint?.segments} instantánea(s), modo ${summary.checkpoint?.mode}, ${summary.checkpoint?.rows} filas, SQL comprobado: ${job.checkpoint?.database?.checked === true}`);
+check(job.checkpoint?.database?.checked === true, 'el SQL se comprobó (columnas, valores y claves) antes de empaquetarlo');
+// Lo que la pantalla muestra al terminar: «Completo con avisos» y el texto de cada aviso, si los hay.
+const final = await ajax('digitalisimo_backups_job_tick', config.jobsNonce);
+const view = (final.json?.data?.jobs || []).find((item) => item.id === id);
+summary.view = view ? { status_label: view.status_label, notices: view.notices, detail: view.detail } : null;
+const codes = (job.warnings || []).filter((w) => w && typeof w === 'object' && w.notice).map((w) => w.notice);
+summary.notices = codes;
+check(view && (codes.length ? view.status_label === 'Completo con avisos' && view.notices.length === codes.length : view.status_label === 'Completo'), `la pantalla muestra «${view?.status_label}» con ${view?.notices?.length ?? 0} aviso(s): ${codes.join(', ') || 'ninguno'}`, JSON.stringify(summary.view));
+check(summary.checkpoint?.segments > 1 ? codes.includes('database_per_table') : !codes.includes('database_per_table'), 'el aviso de varias instantáneas está si y sólo si la base salió en varias');
 check(Object.keys(job.attempts || {}).length === 0 || Object.values(job.attempts).every((n) => n <= 1), 'ninguna fase gastó más de un intento', JSON.stringify(job.attempts));
 
 // El ZIP final, con lectores ajenos al plugin.

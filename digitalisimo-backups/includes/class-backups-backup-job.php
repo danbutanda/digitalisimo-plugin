@@ -44,8 +44,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	}
 
 	/**
-	 * Por tramos (T2): cada tramo exporta dentro de su instantánea hasta su plazo y guarda la tabla y la última clave
-	 * escrita; tras una muerte sigue desde ahí. Ver Digitalisimo_Backups_Sql_Export.
+	 * Por tramos (T2): cada tramo exporta tablas enteras dentro de su instantánea hasta su plazo y guarda dónde empieza
+	 * la siguiente; tras una muerte, la tabla a medias se repite entera. Ver Digitalisimo_Backups_Sql_Export.
 	 */
 	private static function database( array $job ) {
 		return Digitalisimo_Backups_Sql_Export::phase( $job );

@@ -12,10 +12,13 @@ defined( 'ABSPATH' ) || exit;
  * 3. Cierre: `manifest.json` (manifiesto v3, escrito por partes desde la lista de entradas, con su firma calculada a la
  *    vez), directorio central y fin de archivo con la firma en el comentario.
  * Tras una muerte, cada lista y el ZIP se truncan a su último punto de control: nada escrito antes se reescribe.
+ * Si las carpetas de código cambian mientras tanto (una actualización), se empaqueta otra vez una vez y, si siguen
+ * cambiando, queda un aviso visible; una entrada cuyo archivo cambia en cada tramo se copia de corrido a la segunda vuelta.
  *
  * «verify» comprueba el archivo terminado por tramos: primero su estructura con ZipArchive (CHECKCONS: cada cabecera
- * local contra el directorio central), el número de entradas y la firma; después cada entrada, leída con ZipArchive
- * (o, si es enorme, por partes desde el archivo) contra su CRC, sus tamaños y su SHA-256.
+ * local contra el directorio central), el número de entradas, la firma y, si cabe en la memoria libre, el manifiesto
+ * como lo lee la restauración (si no, lo declara); después cada entrada, leída con ZipArchive (o, si es enorme, por
+ * partes desde el archivo) contra su CRC, sus tamaños y su SHA-256, y `database.sql` contra el SQL comprobado.
  */
 final class Digitalisimo_Backups_Packer {
 	const VERSION = 2;

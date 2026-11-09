@@ -17,6 +17,7 @@
  * P7  Un archivo sustituido por otro del mismo tamaño y fecha (otro inodo) vuelve a empezar su entrada.
  * P8  Con tablas no transaccionales, una tabla borrada entre tramos reinicia la exportación con la lista actual.
  * CHK La comprobación del SQL detecta, sentencia a sentencia, lo que no se importaría (H1 y H3).
+ * SQL El database.sql del ZIP es el SQL comprobado; uno cambiado después no se da por verificado.
  *
  * Con BK_REVIEW_ONLY=H1,H2… sólo corren esas secciones.
  */
@@ -135,7 +136,8 @@ function rv_options_db() {
 	$db->keys = array( 'wp_options' => 'option_id', 'wp_plugin_log' => 'id' );
 	$db->create['wp_options'] = "CREATE TABLE `wp_options` (\n  `option_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `option_name` varchar(191) NOT NULL DEFAULT '',\n  `option_value` longtext NOT NULL,\n  `autoload` varchar(20) NOT NULL DEFAULT 'yes',\n  PRIMARY KEY (`option_id`),\n  UNIQUE KEY `option_name` (`option_name`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 	$db->create['wp_plugin_log'] = "CREATE TABLE `wp_plugin_log` (\n  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `msg` text NOT NULL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-	foreach ( array( 'siteurl', '_transient_feed_abc', 'blogname', 'active_plugins', 'cron', 'theme_mods' ) as $i => $name ) $db->data['wp_options'][ $i + 1 ] = array( 'option_id' => (string) ( $i + 1 ), 'option_name' => $name, 'option_value' => 'v' . ( $i + 1 ), 'autoload' => 'yes' );
+	// Valores de 120 KB: lo leído antes del corte ya pasó del búfer al archivo, que hay que truncar al descartar la tabla.
+	foreach ( array( 'siteurl', '_transient_feed_abc', 'blogname', 'active_plugins', 'cron', 'theme_mods' ) as $i => $name ) $db->data['wp_options'][ $i + 1 ] = array( 'option_id' => (string) ( $i + 1 ), 'option_name' => $name, 'option_value' => 'v' . ( $i + 1 ) . str_repeat( 'x', 122880 ), 'autoload' => 'yes' );
 	for ( $i = 1; $i <= 6; $i++ ) $db->data['wp_plugin_log'][ $i ] = array( 'id' => (string) $i, 'msg' => 'linea ' . $i );
 	return $db;
 }
@@ -178,7 +180,7 @@ bk_assert( 'success' === $job['status'], 'El respaldo con el transitorio vuelto 
 $sql = rv_sql( $job );
 preg_match_all( "/^INSERT INTO `wp_options` \\(`option_id`,`option_name`,`option_value`,`autoload`\\) VALUES \\('(\\d+)','([^']*)'/m", $sql, $m );
 bk_assert( 6 === count( $m[2] ) && count( $m[2] ) === count( array_unique( $m[2] ) ) && array( '1', '3', '4', '5', '6', '7' ) === $m[1], 'Un option_name sale dos veces (el SQL no se importaría): ' . json_encode( array_count_values( $m[2] ) ) );
-bk_assert( 'transaction-per-table' === bk_zip_entries( rv_zip( $job ) )['database_consistency'], 'El manifiesto no declara la exportación por tablas.' );
+bk_assert( 'transaction-per-table' === bk_zip_entries( rv_zip( $job ) )['database_consistency'] && ! preg_grep( '/empieza de nuevo/', rv_warnings( $job ) ), 'El manifiesto no declara la exportación por tablas, o la tabla cortada no se descartó limpia y la exportación tuvo que empezar de nuevo.' );
 // La comprobación del SQL rechaza uno que no se importaría: un option_name repetido inyectado antes de comprobarlo.
 rv_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_db_batch' => 2 ) );
 $h1b = bk_manual( 'local', 'sql-inimportable' );
@@ -281,6 +283,10 @@ $job = rv_done( $h4['id'] );
 rv_filters( array() );
 $view = Digitalisimo_Backups_Jobs::view( $job );
 bk_assert( 'Completo con avisos' === $view['status_label'] && 1 === count( $view['notices'] ) && false !== strpos( $view['notices'][0], 'no hay una instantánea común a todas' ) && false !== strpos( $view['detail'], 'Con avisos: La base de datos se exportó en' ), 'La vista del trabajo no muestra que no hubo una instantánea única: ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
+// Una fase repetida tras volver atrás da otra vez su aviso: la vista muestra uno por clase.
+$twice = $job;
+$twice['warnings'] = array_merge( (array) $job['warnings'], (array) $job['warnings'] );
+bk_assert( $view['notices'] === Digitalisimo_Backups_Jobs::view( $twice )['notices'], 'Un aviso repetido se muestra dos veces.' );
 $service = Digitalisimo_Backups::service_job_view( $job );
 bk_assert( $service['notices'] === $view['notices'] && 'Completo con avisos' === $service['status_label'], 'REST no da el texto de los avisos del trabajo.' );
 $file = basename( rv_zip( $job ) );
@@ -431,6 +437,25 @@ for ( $i = 0; $i < 600 && ! Digitalisimo_Backups_Job_Store::is_terminal( $job );
 rv_filters( array() );
 bk_assert( 'failed' === $job['status'] && 'verify' === $job['phase'] && false !== strpos( (string) $job['error']['message'], 'se agotaron 3 intentos' ) && $cycles <= 3, 'El bucle verify → pack no agotó sus intentos (' . $job['status'] . ', ' . $cycles . ' vueltas): ' . json_encode( $job['error'], JSON_UNESCAPED_UNICODE ) );
 unlink( $root . 'wp-content/uploads/2026/11/tardio.txt' );
+}
+
+// SQL. El database.sql del ZIP es el SQL comprobado: uno cambiado después (mismo tamaño y fecha, así que su huella no
+// cambia) no se da por verificado; empaquetar otra vez no lo arregla y el trabajo falla con el motivo.
+if ( rv_section( 'SQL' ) ) {
+rv_filters( array( 'digitalisimo_backups_step_units' => 1 ) );
+$sq = bk_manual( 'local', 'sql-cambiado' );
+$job = rv_until( $sq['id'], function( $job ) { return 'pack' === $job['phase']; } );
+$path = rv_staging( $sq['id'] ) . '/' . $job['checkpoint']['database']['file'];
+$raw = file_get_contents( $path );
+$at = strpos( $raw, 'fila 1' );
+$raw[ $at ] = 'F';
+$mtime = filemtime( $path );
+file_put_contents( $path, $raw );
+touch( $path, $mtime );
+clearstatcache();
+$job = rv_until( $sq['id'], function( $job ) { return Digitalisimo_Backups_Job_Store::is_terminal( $job ); }, 800 );
+rv_filters( array() );
+bk_assert( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'no es el SQL que se exportó y se comprobó' ), 'Un SQL cambiado después de comprobarlo pasó la verificación: ' . $job['status'] . ' ' . json_encode( $job['error'], JSON_UNESCAPED_UNICODE ) );
 }
 
 // P1. Claves que no se comparan como se ordenan (ENUM, FLOAT): por desplazamiento dentro de la instantánea.
