@@ -679,10 +679,19 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 		if ( in_array( $this->prefix . 'comments', $this->tables, true ) ) $authors = array_merge( $authors, array_map( 'intval', (array) $wpdb->get_col( 'SELECT DISTINCT user_id FROM `' . $this->prefix . 'comments` WHERE user_id > 0' ) ) );
 		$admin_emails = array_filter( array( strtolower( (string) ( $this->site_values['admin_email'] ?? '' ) ) ), 'strlen' );
 		$this->users = Digitalisimo_Backups_Site_Extract::users( $members, $super, array_unique( $authors ), $admin_emails, (string) $this->options['super_admins'] );
-		// Metas por sitio que cada usuario ya tiene: la del sitio principal con el mismo nombre no viaja.
+		// Metas por sitio que cada usuario ya tiene: la del sitio principal con el mismo nombre no viaja. Primero los nombres
+		// distintos del principal que no son de núcleo (pocos, con el índice de meta_key) y sólo después quién tiene esos
+		// mismos en el sitio: la memoria no crece con el número de usuarios por cada meta del sitio.
 		if ( 1 !== (int) $this->site['id'] ) {
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT user_id, meta_key FROM `' . $usermeta . '` WHERE meta_key LIKE %s', $wpdb->esc_like( $this->prefix ) . '%' ), ARRAY_A ) as $row ) {
-				$this->own_suffixes[ (int) $row['user_id'] ][ substr( (string) $row['meta_key'], strlen( $this->prefix ) ) ] = true;
+			$suffixes = array();
+			foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT meta_key FROM `' . $usermeta . '` WHERE meta_key LIKE %s', $wpdb->esc_like( $this->base ) . '%' ) ) as $key ) {
+				$rest = substr( (string) $key, strlen( $this->base ) );
+				if ( '' !== $rest && ! preg_match( '/^[0-9]+_/', $rest ) && ! in_array( $rest, Digitalisimo_Backups_Site_Extract::SITE_USER_META, true ) ) $suffixes[] = $this->prefix . $rest;
+			}
+			foreach ( array_chunk( $suffixes, 200 ) as $chunk ) {
+				foreach ( (array) $wpdb->get_results( 'SELECT user_id, meta_key FROM `' . $usermeta . '` WHERE meta_key IN (' . self::in( $chunk ) . ')', ARRAY_A ) as $row ) {
+					$this->own_suffixes[ (int) $row['user_id'] ][ substr( (string) $row['meta_key'], strlen( $this->prefix ) ) ] = true;
+				}
 			}
 		}
 		$this->max_meta = (int) $wpdb->get_var( 'SELECT MAX(umeta_id) FROM `' . $usermeta . '`' );
