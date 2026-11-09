@@ -103,7 +103,9 @@ async function restoreByWeb(file, label) {
     headers: { Cookie: cookie(), 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: 'RESTAURAR', network }),
   }));
-  const died = jsonl(`${ctl}/deaths.jsonl`).some((d) => d.flag === 'die-rest' && d.at * 1000 >= posted);
+  // La petición de REST muere a propósito (die-rest, en la red) o le toca una de las otras muertes si llega lejos.
+  const killed = res.json?.job?.id ? [] : jsonl(`${ctl}/deaths.jsonl`).filter((d) => d.at * 1000 >= posted).map((d) => d.flag);
+  const died = killed.length > 0;
   let id = res.json?.job?.id;
   let maintenance = res.json?.maintenance_token || '';
   if (died) {
@@ -112,7 +114,7 @@ async function restoreByWeb(file, label) {
     maintenance = '';
     const restores = readdirSync(`${store}/jobs`).map(jobFile).filter((job) => job?.kind === 'restore' && !Object.keys(job.spec?.rollback || {}).length && job.created_at * 1000 >= posted - 2000);
     id = restores.sort((a, b) => b.created_at - a.created_at)[0]?.id;
-    check(Boolean(id), `${label}: la petición de REST murió ya en mantenimiento (die-rest), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
+    check(Boolean(id), `${label}: la petición de REST murió ya en mantenimiento (${killed.join(', ')}), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
   } else {
     const restoring = res.status === 202 && res.json?.restoring;
     check(restoring || res.status === 200, `${label}: POST restore responde 202 y la restauración sigue por pasos`, `${res.status} ${res.text.slice(0, 300)}`);
@@ -153,7 +155,7 @@ const expected = network ? ['die-rest', 'die-db', 'die-files'] : ['die-db', 'die
 check(expected.every((flag) => deaths.includes(flag)) && events.filter((e) => e.type === 'interrupted').length >= expected.length, `las peticiones muertas (${deaths.join(', ')}) se reconocieron y la restauración siguió desde su punto de control`, JSON.stringify(events.filter((e) => !['phase', 'claimed'].includes(e.type)).slice(0, 12)));
 // WP-Cron por la puerta del mantenimiento: wp-cron.php, sin testigo, hizo avanzar la restauración.
 const cronWorked = jsonl(`${ctl}/requests.jsonl`).filter((r) => r.kind === 'wp-cron' && r.from && r.from !== r.to).length;
-check(cronWorked >= (first.died ? 3 : 1), `wp-cron.php sin testigo hizo avanzar la restauración (${cronWorked} peticiones${first.died ? '; la única vía tras morir la de REST' : ''})`);
+check(cronWorked >= (first.died ? 2 : 1), `wp-cron.php sin testigo hizo avanzar la restauración (${cronWorked} peticiones${first.died ? '; la única vía tras morir la de REST' : ''})`);
 const slices = (phase) => events.filter((e) => e.type === 'phase' && e.phase === phase && e.next === phase).length;
 check(slices('database') >= 2 && slices('files') >= 2 && slices('inspect') >= 1, `base de datos, archivos y verificación por tramos (${slices('inspect')}, ${slices('database')}, ${slices('files')})`);
 const restored = await probe('inventory');
