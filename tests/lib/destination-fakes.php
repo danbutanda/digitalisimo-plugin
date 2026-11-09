@@ -138,7 +138,7 @@ final class Bk_Fake_Dropbox {
 	public $refresh = 'refresh-dropbox-0123';
 	/** lose_session (append número), drop_reply (append número: Dropbox guarda pero la respuesta se pierde), corrupt_store. */
 	public $faults = array();
-	private $appends = 0;
+	public $appends = 0;
 	public static function content_hash( $data ) {
 		$hashes = '';
 		foreach ( str_split( $data, 4194304 ) as $block ) if ( '' !== $block ) $hashes .= hash( 'sha256', $block, true );
@@ -384,12 +384,15 @@ final class Bk_Fake_Ftp {
 		if ( ! in_array( 'bkftp', stream_get_wrappers(), true ) ) stream_wrapper_register( 'bkftp', 'Bk_Fake_Ftp_Stream' );
 		Digitalisimo_Backups_Ftp_Client::$connector = function( $host, $port, $timeout ) {
 			self::$connected[] = $host . ':' . $port;
-			if ( 'data' === self::state() ) return fopen( 'bkftp://data/' . $port, 'r+' );
+			// Los puertos de datos los da EPSV/PASV (desde 50001); el de control es el configurado.
+			if ( $port > 50000 ) return fopen( 'bkftp://data/' . $port, 'r+' );
 			return fopen( 'bkftp://control', 'r+' );
 		};
 		Digitalisimo_Backups_Ftp_Client::$tls = function( $stream, $host ) {
 			$meta = stream_get_meta_data( $stream );
-			self::$tls[] = ( false !== strpos( $meta['uri'], 'data' ) ? 'data' : 'control' ) . '@' . $host;
+			$data = false !== strpos( (string) $meta['uri'], 'data' );
+			self::$tls[] = ( $data ? 'data' : 'control' ) . '@' . $host;
+			if ( ! $data && isset( $GLOBALS['bk_ftp_control'] ) ) $GLOBALS['bk_ftp_control']->enable_tls();
 			return true;
 		};
 	}
