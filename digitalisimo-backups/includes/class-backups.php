@@ -290,7 +290,8 @@ final class Digitalisimo_Backups {
 		return false;
 	}
 	private static function mark_credentials( $clean ) {
-		if ( ! $clean ) { delete_option( self::CREDENTIALS_CLEAN ); return; }
+		// Sin la marca, get_option() ya la dejó en la caché de opciones inexistentes: comprobarla no es otra consulta.
+		if ( ! $clean ) { if ( false !== get_option( self::CREDENTIALS_CLEAN ) ) delete_option( self::CREDENTIALS_CLEAN ); return; }
 		if ( '1' !== get_option( self::CREDENTIALS_CLEAN ) ) update_option( self::CREDENTIALS_CLEAN, '1', true );
 	}
 	/**
@@ -310,8 +311,12 @@ final class Digitalisimo_Backups {
 		self::mark_credentials( true );
 		return 'migrated';
 	}
-	/** Al cargar el escritorio: sin la marca, comprueba y migra; con ella (autoload) no hace ninguna consulta. */
+	/**
+	 * Al cargar el escritorio: sin la marca, comprueba y migra; con ella (autoload) no hace ninguna consulta. En un
+	 * subsitio de una red no hace nada: los ajustes que usa el motor son los del sitio principal.
+	 */
 	public static function credentials_on_load() {
+		if ( is_multisite() && ! is_main_site() ) return;
 		if ( '1' === get_option( self::CREDENTIALS_CLEAN ) ) return;
 		try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 	}
