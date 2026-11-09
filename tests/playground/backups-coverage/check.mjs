@@ -267,10 +267,11 @@ try {
   try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
   const monthly = (parsed || []).find((row) => row.id === 'monthly-full');
   check(monthly?.enabled === true && /^\d{4}-\d{2}-\d{2}T/.test(monthly?.next_run || '') && monthly?.time === '', 'H8: la mensual por defecto queda programada sin guardar la pantalla', out.stdout + out.stderr);
-  // H7: la ayuda de WP-CLI (su DocParser real) sin las marcas del comentario.
-  for (const sub of ['automation', 'jobs']) {
-    out = await wp('help', 'digitalisimo-backups', sub);
-    check(!/\/\*\*|\*\//.test(out.stdout) && /(Automatizaciones|Cola de trabajos)/.test(out.stdout), `H7: wp help digitalisimo-backups ${sub} sin marcas del comentario`, out.stdout.slice(0, 400) + out.stderr);
+  // H7: la ayuda de WP-CLI sin las marcas del comentario, con el DocParser real de wp-cli.phar (`wp help` usa un
+  // paginador que Playground no tiene y aquí no devuelve texto).
+  for (const [sub, cls] of [['automation', 'Digitalisimo_Backups_Cli_Automation'], ['jobs', 'Digitalisimo_Backups_Cli_Jobs']]) {
+    out = await wp('eval', `$doc = new WP_CLI\\DocParser( ( new ReflectionClass( '${cls}' ) )->getDocComment() ); echo $doc->get_shortdesc();`);
+    check(out.stdout.trim() !== '' && !/\/\*\*|\*\//.test(out.stdout) && /(Automatizaciones|Cola de trabajos)/.test(out.stdout) && !out.fatal, `H7: la ayuda de wp digitalisimo-backups ${sub} sin marcas del comentario`, out.stdout.slice(0, 400) + out.stderr + (out.fatal || ''));
   }
   // I8: tras la restauración el sitio no quedó en mantenimiento.
   res = await request('GET', '/');
