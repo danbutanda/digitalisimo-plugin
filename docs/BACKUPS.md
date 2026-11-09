@@ -448,6 +448,22 @@ usuario con el prefijo de la red y sin número que no es de WordPress viaja aunq
 distingue de una global de un plugin), salvo que el sitio tenga una con el mismo nombre. Una red antigua con
 `ms_files_rewriting` (medios en `blogs.dir` y URL `/files/`) sigue el mismo camino (la carpeta del sitio pasa a
 `uploads/` y su URL se añade al plan), pero no se ha ensayado.
+
+Ensayo en WordPress Playground 7.1.4 (SQLite, PHP 8.5; `tests/playground/backups-site-extract.sh`, 218 s, 56
+comprobaciones). Red por subdirectorios `red.test` con los sitios `/dos/` y `/tres/`, DIGITALÍSIMO Elements activo en ellos
+y Backups en la red; en el sitio 2, una dueña, una editora (también autora del sitio 3), un suscriptor sólo de él y un
+superadministrador que no es miembro pero escribió en él; otro superadministrador y una administradora sólo del sitio 3;
+una página de Elements con imagen, fondo (CSS generado con la URL del medio en la red) y enlaces, y contenido creado desde
+el principal y desde el propio sitio (las dos URL de los medios). La extracción por el handler `admin-post` real tardó
+37 s (paquete de 65 MB, con Elements). En un WordPress individual recién instalado en `127.0.0.1:9471` (prefijo `wp_`),
+el paquete copiado al almacén se restauró en 48 s (15 filas reescritas, 0 URL y 0 rutas del origen pendientes) y, por
+HTTP: el contenido es el mismo con las URL del destino; los cuatro usuarios del sitio entran por `wp-login.php` con su
+contraseña de la red y su rol (la editora edita páginas y no gestiona plugins, la dueña y el superadministrador son
+administradores, el suscriptor no edita) y los otros dos no existen; el medio está en `uploads/` (sin `sites/`) y se sirve
+igual; la página de Elements carga con el medio del destino y su CSS regenerado con el fondo del destino; Backups y
+Elements quedan activos, el ajuste de red de Tools materializado y la configuración de Backups del destino, conservada.
+De `red.test` sólo quedan lo declarado: el enlace a la portada de la red (comentario por defecto, un widget, la entrada de
+bienvenida) y correos.
 ## Almacenamiento local
 
 Desde 1.0.44 los ZIP se guardan en una carpeta privada fuera de la raíz pública del servidor y de WordPress. Al abrir la
