@@ -1483,9 +1483,29 @@ final class Digitalisimo_Backups {
 			if ( $index ) $index->close();
 		}
 	}
+	/**
+	 * @internal Flujo de lectura de una entrada del ZIP abierto. Hasta 1 MiB se lee del archivo ya abierto: `getStream()`
+	 * de PHP 7.4 a 8.1 vuelve a abrir el ZIP y relee su directorio central en cada llamada, así que recorrer decenas de
+	 * miles de entradas era cuadrático (40 008 entradas: más de 15 minutos en PHP 7.4 frente a 96 s en 8.5). Si esa
+	 * lectura no da exactamente el tamaño declarado (CRC erróneo, entrada truncada), se usa `getStream()` como siempre,
+	 * con sus mismos mensajes. Más grande, `getStream()` (son pocas).
+	 */
+	public static function zip_entry_reader( $zip, $name, $size ) {
+		$size = (int) $size;
+		if ( $size >= 0 && $size <= 1048576 ) {
+			$data = @$zip->getFromName( (string) $name );
+			if ( is_string( $data ) && strlen( $data ) === $size ) {
+				$stream = fopen( 'php://temp/maxmemory:2097152', 'w+b' );
+				if ( $stream && $size === (int) fwrite( $stream, $data ) && rewind( $stream ) ) return $stream;
+				if ( $stream ) fclose( $stream );
+			}
+		}
+		return $zip->getStream( (string) $name );
+	}
 	/** Tamaño, CRC32 y SHA-256 de una entrada del ZIP leída por fragmentos de 1 MiB. */
 	private static function hash_zip_entry( $zip, $i, $name, $on_entry = null ) {
-		$stream = $zip->getStream( $name );
+		$entry = $zip->statIndex( $i );
+		$stream = self::zip_entry_reader( $zip, $name, is_array( $entry ) && $entry['name'] === $name ? (int) $entry['size'] : -1 );
 		if ( ! $stream ) throw new Exception( 'No se pudo leer ' . $name . ' del ZIP.' );
 		$bytes = 0;
 		$crc = hash_init( 'crc32b' );
@@ -2186,7 +2206,7 @@ final class Digitalisimo_Backups {
 		// Si la reubicación ajusta el archivo ($transform), se compara el resultado ya ajustado, más abajo.
 		$adjusted = $transform && $stat && (int) $stat['size'] <= 1048576;
 		if ( ! $adjusted && $was_present && $stat && is_file( $destination ) && (int) @filesize( $destination ) === (int) $stat['size'] && self::same_content( $zip, (string) $stat['name'], $destination ) ) return null;
-		$input = $stat ? $zip->getStream( $stat['name'] ) : false;
+		$input = $stat ? self::zip_entry_reader( $zip, $stat['name'], (int) $stat['size'] ) : false;
 		$temp = $destination . '.digitalisimo-restore-' . wp_generate_uuid4();
 		$output = @fopen( $temp, 'xb' );
 		if ( ! $stat || ! $input || ! $output ) { if ( $input ) fclose( $input ); if ( $output ) fclose( $output ); @unlink( $temp ); throw new Exception( 'No se pudo preparar el archivo ' . $relative . ' para restaurarlo.' ); }
@@ -2211,7 +2231,8 @@ final class Digitalisimo_Backups {
 
 	/** Si una entrada del ZIP y un archivo tienen exactamente los mismos bytes. */
 	private static function same_content( $zip, $name, $path ) {
-		$entry = $zip->getStream( $name );
+		$stat = $zip->statName( $name );
+		$entry = self::zip_entry_reader( $zip, $name, $stat ? (int) $stat['size'] : -1 );
 		$file = @fopen( $path, 'rb' );
 		try {
 			if ( ! $entry || ! $file ) return false;

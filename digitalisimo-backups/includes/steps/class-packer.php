@@ -671,7 +671,8 @@ final class Digitalisimo_Backups_Packer {
 		$cursor['partial'] = null;
 		$by_parts = function_exists( 'apply_filters' ) ? (int) apply_filters( 'digitalisimo_backups_verify_parts_from', self::RAW_FROM ) : self::RAW_FROM;
 		if ( $partial || ( (int) $record['s'] >= $by_parts && Digitalisimo_Backups_Zip_Writer::hash_state_supported() ) ) return self::entry_by_parts( $path, $record, $cursor, $deadline, $partial );
-		$stream = $zip->getStream( $record['n'] );
+		// Hasta 1 MiB, del ZIP ya abierto (getStream() de PHP 7.4 a 8.1 lo reabre en cada entrada: cuadrático).
+		$stream = Digitalisimo_Backups::zip_entry_reader( $zip, $record['n'], (int) $record['s'] );
 		if ( ! $stream ) throw new Exception( 'No se pudo leer ' . self::shown( $record['n'] ) . ' del ZIP.' );
 		$bytes = 0;
 		$crc = hash_init( 'crc32b' );

@@ -1397,7 +1397,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static function restore_stage_entry( $zip, $index, array $stat, $base, $relative ) {
 		$target = $base . '/' . $relative;
 		if ( ! wp_mkdir_p( dirname( $target ) ) ) throw new Exception( 'No se pudo preparar una carpeta en el área de trabajo de los archivos.' );
-		$input = $zip->getStream( $stat['name'] );
+		$input = self::zip_entry_reader( $zip, $stat['name'], (int) $stat['size'] );
 		$temp = $target . '.part-' . bin2hex( random_bytes( 3 ) );
 		$output = @fopen( $temp, 'xb' );
 		if ( ! $input || ! $output ) { if ( $input ) fclose( $input ); if ( $output ) fclose( $output ); @unlink( $temp ); throw new Exception( 'No se pudo preparar el archivo ' . $relative . ' para restaurarlo.' ); }
@@ -1911,7 +1911,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$stat = $zip->statName( 'wordpress/' . $relative );
 			if ( ! $stat || (int) $stat['size'] !== (int) $size ) continue;
 			if ( null === $hash ) $hash = (string) @hash_file( 'sha256', $full );
-			$stream = $zip->getStream( 'wordpress/' . $relative );
+			$stream = self::zip_entry_reader( $zip, 'wordpress/' . $relative, (int) $stat['size'] );
 			if ( ! $stream ) continue;
 			$context = hash_init( 'sha256' );
 			while ( ! feof( $stream ) ) {
