@@ -61,8 +61,8 @@ try {
       check(view.css && view.css.status === 200 && view.css.text.includes(`${host}${info.image}`), `origen: su CSS generado lleva la imagen de fondo de ${host}`, view.cssUrl || view.html.slice(0, 300));
     }
     let res = await api('POST', '/backups', { headers: basic(setup.password), body: setup.network ? { network: true } : {} });
-    check(res.status === 202 && res.json?.job?.id, 'origen: POST /backups encola el respaldo (202)', `${res.status} ${res.text}`);
-    const id = res.json?.job?.id;
+    const id = res.json?.id || res.json?.job?.id;
+    check(res.status === 202 && id, 'origen: POST /backups encola el respaldo (202)', `${res.status} ${res.text}`);
     for (let i = 0; i < 300 && id; i++) {
       const job = await api('GET', `/jobs/${id}`, { headers: basic(setup.password) });
       if (job.status !== 200 || job.json?.terminal) { res = job; break; }
