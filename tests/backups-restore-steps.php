@@ -96,7 +96,7 @@ function rs_assert_restored( $root, array $expected ) {
 	// Revisión de E1, P1: el auto_prepend_file que aquí no existe se desactiva (si no, PHP daría 500 a todo).
 	$ini = (string) @file_get_contents( $root . '/.user.ini' );
 	rs_check( false !== strpos( $ini, '; Desactivado por DIGITALÍSIMO Backups' ) && ! preg_match( '/^auto_prepend_file/m', $ini ) && false !== strpos( $ini, 'memory_limit = 256M' ), 'El .user.ini con un auto_prepend_file inexistente no se desactivó: ' . $ini );
-	rs_check( ! glob( $root . '/.digitalisimo-restore-*' ), 'Quedó el área de trabajo de los archivos junto a WordPress.' );
+	rs_check( ! glob( $root . '/.digitalisimo-restore-*' ) && ! glob( $root . '/wp-content/{plugins,themes}/.digitalisimo-*', GLOB_BRACE ) && ! glob( $root . '/.digitalisimo-old-*' ), 'Quedó el área de trabajo o una carpeta apartada junto a WordPress.' );
 	rs_check( ! preg_grep( '/dgbk[ro]_/', array_keys( $GLOBALS['wpdb']->staged ) ), 'Quedaron tablas temporales o viejas: ' . implode( ', ', array_keys( $GLOBALS['wpdb']->staged ) ) );
 }
 /** Vuelve a dejar el sitio como tras el respaldo (para el caso siguiente). */
