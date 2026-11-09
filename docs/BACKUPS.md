@@ -320,7 +320,8 @@ Si no:
   `_elementor_assets_data`, `elementor-custom-breakpoints-files` y `_elementor_global_css`, los archivos de
   `uploads[/sites/N]/elementor/css/` (Elements los regenera) y la caché de objetos. El CSS de las fuentes locales de
   Google (`elementor/google-fonts/css/`) se reescribe. En un sitio individual cuya ruta cambia, el bloque de WordPress de
-  `.htaccess` se regenera como al guardar los enlaces permanentes.
+  `.htaccess` se regenera como al guardar los enlaces permanentes, como último paso: en algunos hostings escribir
+  `.htaccess` recarga el servidor web (OpenLiteSpeed de Webuzo) y corta la petición en curso.
 
 **Qué no se reescribe, y por qué.**
 
