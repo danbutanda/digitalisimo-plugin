@@ -405,6 +405,15 @@ $GLOBALS['wpdb']->gone = 'wp_plugin_extra';
 $job = steps_done( $j['id'] );
 $manifest = bk_zip_entries( steps_zip( $job ) );
 bk_assert( array( 'wp_options', 'wp_posts' ) === $manifest['database_tables'] && preg_grep( '/wp_plugin_extra cambió o desapareció/', $job['warnings'] ) && false === strpos( steps_sql( steps_zip( $job ) ), 'wp_plugin_extra' ), 'Una tabla desaparecida a mitad de la exportación no la reinició con la lista actual.' );
+// Si el punto de control queda inválido una y otra vez, la exportación no empieza de nuevo sin fin: a la tercera vez
+// cuenta como un fallo que gasta sus intentos.
+$k = bk_manual( 'local', 'reinicios' );
+$GLOBALS['wpdb']->tables['wp_plugin_extra'] = 4;
+$GLOBALS['wpdb']->gone = '';
+steps_until( $k['id'], function( $job ) { $r = $job['checkpoint']['database']['resume'] ?? null; return is_array( $r ) && 1 === (int) $r['table'] && (int) $r['rows'] > 0; } );
+$GLOBALS['wpdb']->gone = 'wp_plugin_extra'; // Sigue en SHOW TABLES, pero su definición ya no se puede leer al retomar.
+$job = steps_until( $k['id'], function( $job ) { return Digitalisimo_Backups_Job_Store::is_terminal( $job ); }, 800 );
+bk_assert( 'failed' === $job['status'] && 'database' === $job['phase'], 'Un punto de control inválido una y otra vez no terminó en fallo: ' . $job['status'] );
 $GLOBALS['wpdb'] = $db;
 }
 

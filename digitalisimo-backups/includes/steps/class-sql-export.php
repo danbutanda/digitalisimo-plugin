@@ -27,10 +27,14 @@ final class Digitalisimo_Backups_Sql_Export {
 	public static function phase( array $job ) {
 		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 		$warnings = array();
+		$restarts = (int) ( $job['checkpoint']['database']['resume']['restarts'] ?? $job['checkpoint']['database']['restarts'] ?? 0 );
 		$cursor = self::resumable( $job, $staging );
 		if ( ! $cursor ) {
-			if ( ! empty( $job['checkpoint']['database']['resume'] ) ) $warnings[] = 'La exportación de la base de datos no se pudo retomar desde su punto de control y empezó de nuevo.';
+			if ( ! empty( $job['checkpoint']['database']['resume'] ) ) { $warnings[] = 'La exportación de la base de datos no se pudo retomar desde su punto de control y empezó de nuevo.'; $restarts++; }
+			// Empezar de nuevo cuenta como avance (reinicia los intentos): a la tercera vez es un fallo que gasta intentos.
+			if ( $restarts >= 3 ) throw new Exception( 'La exportación de la base de datos empezó de nuevo tres veces sin poder terminar; revisa el registro del trabajo.' );
 			$cursor = self::fresh( $staging );
+			$cursor['restarts'] = $restarts;
 		}
 		// Antes de cada instantánea, lo que quedara en claro en los ajustes (lo que reescribe 1.0.60 tras volver desde
 		// rollback/) se cifra, como en el exportador de un paso: es barato si ya no queda nada en claro.
@@ -45,7 +49,7 @@ final class Digitalisimo_Backups_Sql_Export {
 			$complete = self::run( $staging, $cursor, $deadline, $units );
 		} catch ( Digitalisimo_Backups_Resume_Invalid $e ) {
 			self::remove( $staging );
-			return array( 'next' => 'database', 'checkpoint' => array(), 'message' => 'Exportando la base de datos otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' La exportación empieza de nuevo.' ) );
+			return array( 'next' => 'database', 'checkpoint' => array( 'restarts' => $restarts + 1 ), 'message' => 'Exportando la base de datos otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' La exportación empieza de nuevo.' ) );
 		}
 		$cursor['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] );
 		if ( ! $complete ) {

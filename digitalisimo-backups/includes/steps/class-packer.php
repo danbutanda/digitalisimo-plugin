@@ -31,10 +31,14 @@ final class Digitalisimo_Backups_Packer {
 
 	public static function pack( array $job, $staging, $sql, array $database ) {
 		$warnings = array();
+		$restarts = (int) ( $job['checkpoint']['pack']['resume']['restarts'] ?? $job['checkpoint']['pack']['restarts'] ?? 0 );
 		$cursor = self::resumable( $job, $staging );
 		if ( ! $cursor ) {
-			if ( ! empty( $job['checkpoint']['pack']['resume'] ) ) $warnings[] = 'El empaquetado no se pudo retomar desde su punto de control y empezó de nuevo.';
+			if ( ! empty( $job['checkpoint']['pack']['resume'] ) ) { $warnings[] = 'El empaquetado no se pudo retomar desde su punto de control y empezó de nuevo.'; $restarts++; }
+			// Empezar de nuevo cuenta como avance (reinicia los intentos): a la tercera vez es un fallo que gasta intentos.
+			if ( $restarts >= 3 ) throw new Exception( 'El empaquetado empezó de nuevo tres veces sin poder terminar; revisa el registro del trabajo.' );
 			$cursor = self::fresh( $staging );
+			$cursor['restarts'] = $restarts;
 		}
 		$started = microtime( true );
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'pack', $cursor );
@@ -50,7 +54,7 @@ final class Digitalisimo_Backups_Packer {
 			}
 		} catch ( Digitalisimo_Backups_Resume_Invalid $e ) {
 			self::remove( $staging );
-			return array( 'next' => 'pack', 'checkpoint' => array(), 'message' => 'Empaquetando otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' El empaquetado empieza de nuevo.' ) );
+			return array( 'next' => 'pack', 'checkpoint' => array( 'restarts' => $restarts + 1 ), 'message' => 'Empaquetando otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' El empaquetado empieza de nuevo.' ) );
 		}
 		$cursor['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] );
 		$message = 'inventory' === $cursor['stage'] ? 'Inventariando archivos: ' . number_format( (int) $cursor['files'], 0, ',', '.' ) . ' archivos en las carpetas recorridas…' : 'Archivos incluidos: ' . number_format( (int) $cursor['done'], 0, ',', '.' ) . ' de ' . number_format( (int) $cursor['files'], 0, ',', '.' ) . '…';
