@@ -31,6 +31,8 @@ final class Digitalisimo_Backups_Site_Extract {
 	const SUPER_ADMINS = array( 'managing', 'all', 'none' );
 	/** Tablas de la red que no son de ningún sitio. */
 	const GLOBAL_TABLES = array( 'users', 'usermeta', 'blogs', 'blogmeta', 'site', 'sitemeta', 'signups', 'registration_log', 'sitecategories', 'blog_versions' );
+	/** Tablas de núcleo de cada sitio. */
+	const CORE_SITE_TABLES = array( 'options', 'posts', 'postmeta', 'comments', 'commentmeta', 'terms', 'termmeta', 'term_taxonomy', 'term_relationships', 'links' );
 	/** Metas de usuario que WordPress guarda por sitio con el prefijo del sitio (`wp_` es el principal). */
 	const SITE_USER_META = array( 'capabilities', 'user_level', 'user-settings', 'user-settings-time', 'dashboard_quick_press_last_post_id', 'persisted_preferences', 'media_library_mode' );
 	/** Metas globales que sólo tienen sentido en una red (y nombran su dominio). */
@@ -174,18 +176,23 @@ final class Digitalisimo_Backups_Site_Extract {
 		sort( $tables );
 		return $tables;
 	}
-	/** Tablas de la instalación que no son de ningún sitio ni del núcleo de la red: tablas globales de plugins (no viajan). */
-	public static function global_plugin_tables() {
+	/**
+	 * Tablas con el prefijo de la red, sin número de sitio y que no son de WordPress, que no viajan: de plugins del sitio
+	 * principal o globales de un plugin (no se distinguen). Al extraer el principal, viajan todas.
+	 */
+	public static function global_plugin_tables( $site_id ) {
 		global $wpdb;
+		if ( 1 === (int) $site_id ) return array();
 		$base = (string) $wpdb->base_prefix;
 		$out = array();
 		foreach ( (array) $wpdb->get_col( 'SHOW TABLES' ) as $table ) {
 			$table = (string) $table;
 			if ( 0 !== strpos( $table, $base ) ) continue;
 			$rest = substr( $table, strlen( $base ) );
-			if ( in_array( $rest, self::GLOBAL_TABLES, true ) || preg_match( '/^[0-9]+_/', $rest ) ) continue;
+			if ( in_array( $rest, self::GLOBAL_TABLES, true ) || in_array( $rest, self::CORE_SITE_TABLES, true ) || preg_match( '/^[0-9]+_/', $rest ) ) continue;
 			$out[] = $table;
 		}
+		sort( $out );
 		return $out;
 	}
 	/** Carpeta y URL de los medios del sitio, como las calcula WordPress dentro del sitio. */
@@ -696,7 +703,7 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 			'themes' => array( 'stylesheet' => (string) ( $this->site_values['stylesheet'] ?? '' ), 'template' => (string) ( $this->site_values['template'] ?? '' ) ),
 			'settings' => array( 'materialized' => $this->materialized['report']['materialized'], 'secrets_withheld' => $this->materialized['report']['secrets'], 'network_secrets' => ! empty( $this->options['network_secrets'] ), 'reset' => array_values( array_intersect( array( 'upload_path', 'upload_url_path' ), array_keys( $this->materialized['set'] ) ) ) ),
 			'network_options' => array_slice( Digitalisimo_Backups_Site_Extract::other_network_options( $network_keys ), 0, Digitalisimo_Backups_Site_Extract::REPORT_LIMIT ),
-			'excluded_tables' => array_slice( Digitalisimo_Backups_Site_Extract::global_plugin_tables(), 0, Digitalisimo_Backups_Site_Extract::REPORT_LIMIT ),
+			'excluded_tables' => array_slice( Digitalisimo_Backups_Site_Extract::global_plugin_tables( $this->site['id'] ), 0, Digitalisimo_Backups_Site_Extract::REPORT_LIMIT ),
 		);
 	}
 	public function report() { return $this->report; }

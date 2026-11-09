@@ -120,13 +120,14 @@ class Digi_Extract_DB {
 	public function get_results( $query, $format = null ) {
 		$this->last_error = '';
 		if ( preg_match( '/^SHOW INDEX FROM `([^`]+)`$/', trim( $query ), $m ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => $this->tables[ $m[1] ]['columns'][0], 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
+		if ( preg_match( '/^SHOW COLUMNS FROM `([^`]+)`$/', trim( $query ), $m ) ) { if ( ! isset( $this->tables[ $m[1] ] ) ) return array(); $out = array(); foreach ( $this->tables[ $m[1] ]['columns'] as $index => $column ) $out[] = array( 'Field' => $column, 'Type' => 'longtext', 'Key' => 0 === $index ? 'PRI' : '' ); return $out; }
 		return $this->select( $query );
 	}
-	private static function like( $pattern ) {
+	private static function like( $pattern, $escape = '\\' ) {
 		$out = '';
 		for ( $i = 0; $i < strlen( $pattern ); $i++ ) {
 			$c = $pattern[ $i ];
-			if ( '\\' === $c && $i + 1 < strlen( $pattern ) ) { $out .= preg_quote( $pattern[ ++$i ], '/' ); continue; }
+			if ( $escape === $c && $i + 1 < strlen( $pattern ) ) { $out .= preg_quote( $pattern[ ++$i ], '/' ); continue; }
 			$out .= '%' === $c ? '.*' : ( '_' === $c ? '.' : preg_quote( $c, '/' ) );
 		}
 		return '/^' . $out . '$/s';
@@ -142,20 +143,11 @@ class Digi_Extract_DB {
 		if ( ! preg_match( '/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+`([^`]+)`(?:\s+WHERE\s+(.+?))?(?:\s+ORDER BY\s+(.+?))?(?:\s+LIMIT\s+(\d+)(?:\s*,\s*(\d+))?)?\s*$/s', trim( $query ), $m ) ) throw new RuntimeException( 'FALLA: consulta inesperada: ' . $query );
 		$table = $m[3];
 		if ( ! isset( $this->tables[ $table ] ) ) { $this->last_error = "Table '" . $table . "' doesn't exist"; return array(); }
-		$rows = $this->tables[ $table ]['rows'];
-		if ( ! empty( $m[4] ) ) {
-			foreach ( preg_split( '/\s+AND\s+/', $m[4] ) as $condition ) {
-				if ( preg_match( "/^`?(\\w+)`?\\s+IN\\s*\\((.*)\\)$/s", $condition, $c ) ) { $values = self::literals( $c[2] ); $rows = array_filter( $rows, function( $row ) use ( $c, $values ) { return in_array( (string) $row[ $c[1] ], $values, true ); } ); }
-				elseif ( preg_match( "/^`?(\\w+)`?\\s+LIKE\\s+'((?:[^'\\\\]|\\\\.)*)'$/s", $condition, $c ) ) { $pattern = self::like( stripslashes( $c[2] ) ); $rows = array_filter( $rows, function( $row ) use ( $c, $pattern ) { return preg_match( $pattern, (string) $row[ $c[1] ] ); } ); }
-				elseif ( preg_match( "/^`?(\\w+)`?\\s*=\\s*'((?:[^'\\\\]|\\\\.)*)'$/s", $condition, $c ) ) { $value = stripslashes( $c[2] ); $rows = array_filter( $rows, function( $row ) use ( $c, $value ) { return (string) $row[ $c[1] ] === $value; } ); }
-				elseif ( preg_match( '/^`?(\w+)`?\s*(=|>)\s*(-?\d+)$/', $condition, $c ) ) $rows = array_filter( $rows, function( $row ) use ( $c ) { return '=' === $c[2] ? (int) $row[ $c[1] ] === (int) $c[3] : (int) $row[ $c[1] ] > (int) $c[3]; } );
-				else throw new RuntimeException( 'FALLA: condición inesperada: ' . $condition );
-			}
-		}
-		$rows = array_values( $rows );
+		$rows = self::where( $this->tables[ $table ]['rows'], (string) ( $m[4] ?? '' ) );
 		if ( ! empty( $m[5] ) ) { $column = trim( explode( ',', $m[5] )[0], '` ' ); usort( $rows, function( $a, $b ) use ( $column ) { return (int) $a[ $column ] <=> (int) $b[ $column ]; } ); }
 		if ( isset( $m[6] ) && '' !== $m[6] ) $rows = isset( $m[7] ) && '' !== $m[7] ? array_slice( $rows, (int) $m[6], (int) $m[7] ) : array_slice( $rows, 0, (int) $m[6] );
 		$columns = trim( $m[2] );
+		if ( 'COUNT(*)' === strtoupper( $columns ) ) return array( array( 'COUNT(*)' => count( $rows ) ) );
 		if ( preg_match( '/^MAX\((\w+)\)$/i', $columns, $c ) ) { $max = null; foreach ( $rows as $row ) $max = null === $max ? (int) $row[ $c[1] ] : max( $max, (int) $row[ $c[1] ] ); return array( array( 'MAX' => $max ) ); }
 		if ( '*' !== $columns ) {
 			$wanted = array_map( function( $column ) { return trim( $column, '` ' ); }, explode( ',', $columns ) );
@@ -165,6 +157,27 @@ class Digi_Extract_DB {
 		return $rows;
 	}
 
+	/** Filas que cumplen un WHERE de condiciones unidas por AND dentro de grupos unidos por OR. */
+	private static function where( array $rows, $clause ) {
+		$clause = trim( $clause );
+		if ( '' === $clause ) return array_values( $rows );
+		$groups = preg_split( '/\s+OR\s+/', $clause );
+		return array_values( array_filter( $rows, function( $row ) use ( $groups ) {
+			foreach ( $groups as $group ) {
+				$all = true;
+				foreach ( preg_split( '/\s+AND\s+/', trim( $group ) ) as $condition ) if ( ! self::matches( $row, trim( $condition ) ) ) { $all = false; break; }
+				if ( $all ) return true;
+			}
+			return false;
+		} ) );
+	}
+	private static function matches( array $row, $condition ) {
+		if ( preg_match( "/^`?(\\w+)`?\\s+IN\\s*\\((.*)\\)$/s", $condition, $c ) ) return in_array( (string) $row[ $c[1] ], self::literals( $c[2] ), true );
+		if ( preg_match( "/^`?(\\w+)`?\\s+LIKE\\s+'((?:[^'\\\\]|\\\\.)*)'(?:\\s+ESCAPE\\s+'(.)')?$/s", $condition, $c ) ) return (bool) preg_match( self::like( stripslashes( $c[2] ), $c[3] ?? '\\' ), (string) $row[ $c[1] ] );
+		if ( preg_match( "/^`?(\\w+)`?\\s*=\\s*'((?:[^'\\\\]|\\\\.)*)'$/s", $condition, $c ) ) return (string) $row[ $c[1] ] === stripslashes( $c[2] );
+		if ( preg_match( '/^`?(\w+)`?\s*(=|>)\s*(-?\d+)$/', $condition, $c ) ) return '=' === $c[2] ? (int) $row[ $c[1] ] === (int) $c[3] : (int) $row[ $c[1] ] > (int) $c[3];
+		throw new RuntimeException( 'FALLA: condición inesperada: ' . $condition );
+	}
 	/* ---- Escritura ---- */
 	public function query( $sql ) {
 		$this->queries[] = $sql;
@@ -172,6 +185,25 @@ class Digi_Extract_DB {
 		$sql = trim( $sql );
 		if ( preg_match( '/^(SET |START TRANSACTION|COMMIT|ROLLBACK|UNLOCK TABLES|LOCK TABLES)/i', $sql ) ) return 1;
 		if ( preg_match( '/^DROP TABLE IF EXISTS `([^`]+)`$/', $sql, $m ) ) { unset( $this->tables[ $m[1] ] ); return 1; }
+		if ( preg_match( "/^DELETE FROM `([^`]+)` WHERE (.+)$/s", $sql, $m ) ) {
+			if ( ! isset( $this->tables[ $m[1] ] ) ) return 0;
+			$gone = array_map( 'serialize', self::where( $this->tables[ $m[1] ]['rows'], $m[2] ) );
+			$before = count( $this->tables[ $m[1] ]['rows'] );
+			$this->tables[ $m[1] ]['rows'] = array_values( array_filter( $this->tables[ $m[1] ]['rows'], function( $row ) use ( $gone ) { return ! in_array( serialize( $row ), $gone, true ); } ) );
+			return $before - count( $this->tables[ $m[1] ]['rows'] );
+		}
+		if ( preg_match( "/^UPDATE `([^`]+)` SET (.+?) WHERE (.+)$/s", $sql, $m ) ) {
+			if ( ! isset( $this->tables[ $m[1] ] ) ) { $this->last_error = "Table '" . $m[1] . "' doesn't exist"; return false; }
+			preg_match_all( "/`?(\\w+)`?\\s*=\\s*'((?:[^'\\\\]|\\\\.)*)'/s", $m[2], $sets, PREG_SET_ORDER );
+			$hit = array_map( 'serialize', self::where( $this->tables[ $m[1] ]['rows'], $m[3] ) );
+			$count = 0;
+			foreach ( $this->tables[ $m[1] ]['rows'] as $index => $row ) {
+				if ( ! in_array( serialize( $row ), $hit, true ) ) continue;
+				foreach ( $sets as $set ) $this->tables[ $m[1] ]['rows'][ $index ][ $set[1] ] = stripslashes( $set[2] );
+				$count++;
+			}
+			return $count;
+		}
 		if ( preg_match( '/^CREATE TABLE `([^`]+)` \((.*)\)$/s', $sql, $m ) ) {
 			preg_match_all( '/`(\w+)` longtext/', $m[2], $c );
 			preg_match( '/PRIMARY KEY \(`(\w+)`\)/', $m[2], $pk );
@@ -377,6 +409,7 @@ function digi_rest( $method, $path, array $params = array() ) {
 
 require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups.php';
 require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups-rest.php';
+Digitalisimo_Backups_Rest::routes();
 
 /** Hace avanzar la cola hasta que el trabajo termina; devuelve su vista pública. */
 function digi_drive( $id ) {
@@ -387,7 +420,7 @@ function digi_drive( $id ) {
 		$tick = Digitalisimo_Backups::service_tick();
 		digi_assert( ! is_wp_error( $tick ) && 'error' !== $tick['result'], 'La cola no avanzó: ' . json_encode( is_wp_error( $tick ) ? $tick->get_error_message() : $tick ) );
 	}
-	throw new RuntimeException( 'FALLA: el trabajo ' . $id . ' no terminó.' );
+	throw new RuntimeException( 'FALLA: el trabajo ' . $id . ' no terminó: ' . json_encode( Digitalisimo_Backups::service_job( $id ) ) );
 }
 function digi_admin_post( $callback, $action, array $post ) {
 	$_POST = $post;
