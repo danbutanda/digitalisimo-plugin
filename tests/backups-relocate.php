@@ -414,8 +414,20 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$error = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
 	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no se puede cambiar el prefijo de una vista' ), 'Una vista con otro prefijo no se rechazó antes de tocar nada: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'se restauró' ) );
 	e1_check( $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'El rechazo de la vista tocó la base de datos o creó una copia previa.' );
+	// verify da la misma respuesta: el paquete está íntegro, pero no se puede restaurar aquí, y dice lo mismo.
+	$verify = Digitalisimo_Backups::service_verify( $view );
+	e1_check( ! is_wp_error( $verify ) && false === $verify['compatible'] && $verify['problems'] && false !== strpos( $error->get_error_message(), $verify['problems'][0] ), 'verify y restore no coinciden ante una vista con otro prefijo: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['problems'] ) );
 	bk_call( 'Digitalisimo_Backups', 'remove_history', $view );
 	@unlink( bk_storage() . '/' . $view );
+	// Un valor que menciona el origen y no cabe en la memoria para reescribirlo: rechazo antes de la copia previa.
+	$GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] = 100;
+	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
+	$error = Digitalisimo_Backups::service_restore( $GLOBALS['e1_single'], array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no cabe en la memoria de PHP' ) && $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'Un valor demasiado grande no se rechazó antes de la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'se restauró' ) );
+	// Un nombre de tabla de más de 64 caracteres con el prefijo nuevo.
+	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'mi_sitio_de_pruebas_' ), array( 'tables' => array( 'wp_options', 'wp_woocommerce_downloadable_product_permissions_extra_log' ) ) );
+	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'MySQL admite 64' ), 'Un nombre de tabla de más de 64 caracteres no se detectó en el plan.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => null ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'no lista sus tablas' ), 'Formato sin lista de tablas con otro prefijo.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => array( 'wp_posts', 'x_posts' ) ) );
@@ -505,6 +517,10 @@ e1_case( 'E6 guardián: renombra por identificador y rechaza lo que no puede ren
 	$plain = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, true, array( 'wp_a' ) );
 	$sql = "INSERT INTO `wp_a` (`x`) VALUES ('a\\'b');";
 	e1_check( array( "INSERT INTO `wp_a` (`x`) VALUES ('a\\'b')" ) === $run( $plain, $sql ), 'Sin renombrado cambió la sentencia.' );
+	// Un valor que en la importación supera el presupuesto de memoria hace fallar la sentencia (y se revierte): nunca a medias.
+	$tight = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_', 'budget' => 16 ), array( 'home' => 'https://destino.mx', 'prefix' => 'wp_' ) );
+	$g = $tight->attach( new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false, array( 'wp_posts' ) ), array( 'wp_posts' ) );
+	bk_expect_failure( 'valor mayor que el presupuesto', function() use ( $run, $g ) { $run( $g, "INSERT INTO `wp_posts` (`ID`,`post_content`) VALUES ('1','un texto largo con https://origen.com/a');" ); }, 'no cabe en la memoria' );
 	// El literal reescrito vuelve con los escapes de MySQL y el resto de la sentencia no cambia.
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_' ), array( 'home' => 'https://destino.mx', 'prefix' => 'wp_' ) );
 	$g = $plan->attach( new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false, array( 'wp_posts' ) ), array( 'wp_posts' ) );
@@ -527,10 +543,16 @@ e1_case( 'E6 base ya importada: lotes por clave primaria, compuesta, sin clave y
 	$db->seed( 'n_binario', array( array( 'id' => 1, 'datos' => "\xff\xfe\x01" . str_repeat( 'B', 5 * 1048576 ) . 'https://origen.com/blob' ), array( 'id' => 2, 'datos' => 'https://origen.com/b2' ) ) );
 	$db->seed( 'n_posts', array( array( 'ID' => 1, 'guid' => 'https://origen.com/?p=1', 'post_content' => 'https://origen.com/p' ) ) );
 	$db->seed( 'n_usermeta', array( array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => 'a:0:{}' ) ) );
+	// Clave primaria de texto con aspecto numérico: en MySQL `codigo` = 123 también coincidiría con '123abc'.
+	$db->pdo->exec( 'CREATE TABLE `n_cupones` (`codigo` varchar(20) NOT NULL PRIMARY KEY, `url` text)' );
+	$db->seed( 'n_cupones', array( array( 'codigo' => '123', 'url' => 'https://origen.com/a' ), array( 'codigo' => '123abc', 'url' => 'https://origen.com/b' ) ) );
 	$GLOBALS['wpdb'] = $db;
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_' ), array( 'home' => 'https://destino.mx', 'prefix' => 'n_' ) );
-	$tables = array( 'n_postmeta', 'n_term_relationships', 'n_sinclave', 'n_binario', 'n_posts', 'n_usermeta' );
+	$tables = array( 'n_postmeta', 'n_term_relationships', 'n_sinclave', 'n_binario', 'n_posts', 'n_usermeta', 'n_cupones' );
+	$db->queries = array();
 	$report = $plan->rewrite_tables( $tables );
+	$updates = implode( "\n", preg_grep( '/^UPDATE `n_cupones`/', $db->queries ) );
+	e1_check( false !== strpos( $updates, "WHERE `codigo` = '123'" ) && false === strpos( $updates, '= 123' ) && 'https://destino.mx/a' === $db->value( 'n_cupones', 'url', "codigo = '123'" ) && 'https://destino.mx/b' === $db->value( 'n_cupones', 'url', "codigo = '123abc'" ), 'Clave primaria VARCHAR sin comillas: ' . $updates );
 	e1_check( 401 === $report['n_postmeta']['rows'] && 750 === $report['n_term_relationships']['rows'] && 1 === $report['n_sinclave']['no_primary_key'] && 2 === $report['n_binario']['rows'] && 1 === $report['n_usermeta']['keys'], 'Informe por tabla: ' . json_encode( $report ) );
 	$value = e1_unserializes( $db->value( 'n_postmeta', 'meta_value', 'meta_id = 1203' ), 'postmeta' );
 	e1_check( 'https://destino.mx/1203' === $value['u'] && 'nada 1202' === $db->value( 'n_postmeta', 'meta_value', 'meta_id = 1202' ), 'postmeta reescrita: ' . json_encode( $value ) );
