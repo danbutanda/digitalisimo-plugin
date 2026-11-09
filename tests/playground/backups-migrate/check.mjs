@@ -93,7 +93,6 @@ const hostOf = (site) => (network ? sites[site].host : `${sites[site].host}`);
 
 try {
   log(`· ${mode}: A ${sites.A.setup.versions} en ${sites.A.home} · B en ${sites.B.home}`);
-  const fingerprintA = await probe('A', 'fingerprint');
 
   // 1. A: «Generar clave de migración» por la pantalla, con la sesión y el nonce del administrador.
   check(await login('A', conf.A.password), 'A: inicio de sesión del administrador del origen');
@@ -110,6 +109,8 @@ try {
   } catch { check(false, 'A: la clave tiene el formato DGMIG1'); }
   res = await page('A');
   check(!res.text.includes(key), 'A: la pestaña no vuelve a mostrar la clave');
+  // Huella del origen después de su sesión y de la clave (lo que la migración no debe cambiar).
+  const fingerprintA = await probe('A', 'fingerprint');
 
   // 2. B: «Migrar desde otro sitio» con la clave pegada y un clic; la pestaña hace avanzar la migración.
   check(await login('B', conf.B.password), 'B: inicio de sesión del administrador del destino');

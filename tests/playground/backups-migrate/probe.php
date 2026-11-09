@@ -17,7 +17,7 @@ if ( 'fingerprint' === $what ) {
 	$skip = "option_name LIKE 'digitalisimo\\_backups\\_%' OR option_name LIKE '\\_transient%' OR option_name LIKE '\\_site\\_transient%' OR option_name IN ('cron','rewrite_rules','recently_activated')";
 	$tables = $wpdb->get_col( 'SHOW TABLES' );
 	foreach ( $tables as $table ) {
-		$where = preg_match( '/options$/', $table ) ? ' WHERE NOT (' . $skip . ')' : ( preg_match( '/sitemeta$/', $table ) ? " WHERE meta_key NOT LIKE 'digitalisimo\\_backups\\_%' AND meta_key NOT LIKE '\\_site\\_transient%'" : '' );
+		$where = preg_match( '/options$/', $table ) ? ' WHERE NOT (' . $skip . ')' : ( preg_match( '/sitemeta$/', $table ) ? " WHERE meta_key NOT LIKE 'digitalisimo\\_backups\\_%' AND meta_key NOT LIKE '\\_site\\_transient%'" : ( preg_match( '/usermeta$/', $table ) ? " WHERE meta_key <> 'session_tokens'" : '' ) );
 		$rows = $wpdb->get_results( 'SELECT * FROM `' . $table . '`' . $where, ARRAY_A );
 		$out['tables'][ $table ] = hash( 'sha256', wp_json_encode( $rows ) );
 	}
