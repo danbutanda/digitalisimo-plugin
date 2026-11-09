@@ -15,9 +15,12 @@
 //   y las reglas de «Tamaño» de la imagen) con `pro_bubble`, en LTR y RTL; sin él, apunta a la imagen.
 // - Reseñas convertidas: los caracteres de eicons con la hoja de recorte de PRO (`widget-star-rating.min.css`), con la
 //   fuente cargada y sin ella.
+// - Puntos de la paginación frente a los de Swiper con la hoja del núcleo (`e-swiper.min.css`): el paso de Swiper con un
+//   mínimo de 24 px (decisión del propietario del 2026-11-08, WCAG 2.5.8: 24 px donde Swiper deja 18 con los valores por
+//   defecto) y un objetivo de 24 × 24 px por punto; centrados, a la altura y del tamaño de Swiper, en LTR y RTL.
 // Cada comparación falla con el código anterior (sin `data-digi-fx`, con las sombras del cubo al revés en RTL, sin
-// indicador, con la transición, recortando el fondo, con el pico hacia la imagen o con la estrella SVG). Sin Chrome o
-// sin puppeteer-core, se salta con un aviso.
+// indicador, con la transición, recortando el fondo, con el pico hacia la imagen, con la estrella SVG o con los puntos
+// a 18 px). Sin Chrome o sin puppeteer-core, se salta con un aviso.
 // CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 240 node tests/elements-carousel-fidelity-chrome.mjs
 import assert from 'node:assert/strict';
@@ -44,6 +47,7 @@ const CSS = {
   tc: read(crs + 'css/testimonial-carousel.css'),
   rv: read(crs + 'css/reviews.css'),
   swiper: read('elementor/assets/lib/swiper/v8/css/swiper.css'),
+  eSwiper: read('elementor/assets/css/conditionals/e-swiper.min.css'),
   proTc: read('assets/css/widget-testimonial-carousel.min.css'),
   stars: read('elementor/assets/css/widget-star-rating.min.css'),
 };
@@ -407,6 +411,62 @@ const show = (g) => g.map((s) => `[${Math.round(s.x)},${Math.round(s.y)} ${Math.
       const d = await diff(page, a, { ...b, width: a.width, height: a.height });
       ok(0 === d.count, `${loaded ? 'Con' : 'Sin'} la fuente · ${JSON.stringify(list[i][0])}${list[i][1] ? ' contorno' : ''}: las estrellas de lo convertido son las de PRO (${d.count} píxeles distintos).`);
     }
+    await page.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 6. Puntos de la paginación frente a Swiper 8.4.5 con la hoja del núcleo que usaba PRO (`e-swiper.min.css`: punto de
+// 6 px y 6 px de separación a cada lado; «Tamaño» y «Separación entre puntos» con las reglas de los controles de PRO).
+// El paso de los puntos es el de Swiper (tamaño + 2 × separación) con un mínimo de 24 px: decisión del propietario del
+// 2026-11-08 (WCAG 2.5.8, objetivo táctil de 24 × 24 px), diferencia declarada en docs/pro/c1.md. Con los valores por
+// defecto (18 px en Swiper) o sin separación quedan a 24 px; con un paso de Swiper de 24 px o más, el mismo. Siempre
+// centrados donde los centra Swiper, a la misma altura, del mismo tamaño, en el mismo orden (también en RTL) y con un
+// objetivo de 24 × 24 px por punto, sin solaparse.
+{
+  const PW = 600;
+  const slide = (i) => `<div style="height:150px;background:${COLORS[i % COLORS.length]}"></div>`;
+  const page6 = (n, view, d, g, width) => {
+    const pro = `<div class="elementor-element elementor-pagination-position-outside" id="wa" style="width:${width}px;margin:20px auto"><style>#wa .swiper-pagination-bullet{--swiper-pagination-bullet-horizontal-gap:${g}px;width:${d}px;height:${d}px}</style><div class="elementor-swiper"><div class="elementor-main-swiper swiper" id="a"><div class="swiper-wrapper">${Array.from({ length: n }, (_, i) => `<div class="swiper-slide">${slide(i)}</div>`).join('')}</div><div class="swiper-pagination"></div></div></div></div>`;
+    const own = `<div class="elementor-element" style="width:${width}px;margin:20px auto;--digi-crs-view:${view};--digi-crs-gap:10px;--digi-crs-dot-size:${d}px;--digi-crs-dot-gap:${g}px"><section class="digi-crs digi-crs--pag-out" id="b" aria-roledescription="carrusel" aria-label="x" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:0ms;--digi-crs-n:${n}"><div class="digi-crs__pagination" data-digi-dot="Ir a la diapositiva %d">${Array.from({ length: n }, (_, i) => `<button type="button" class="digi-crs__dot" aria-label="Ir a la diapositiva ${i + 1}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div><div class="digi-crs__track" aria-live="polite">${Array.from({ length: n }, (_, i) => `<div class="digi-crs__slide" role="group" aria-roledescription="diapositiva" aria-label="${i + 1} de ${n}">${slide(i)}</div>`).join('')}</div></section></div>`;
+    return `<style>:root{--direction-multiplier:1}body.rtl,html[dir=rtl]{--direction-multiplier:-1}${CSS.swiper}${CSS.eSwiper}${CSS.engine}</style>${pro}${own}<script>${JS.swiper}</script><script>${JS.engine}</script><script>window.sw=new Swiper('#a',{slidesPerView:${view},slidesPerGroup:1,spaceBetween:10,speed:0,pagination:{el:'#a .swiper-pagination',type:'bullets',clickable:true}});</script>`;
+  };
+  // Centros de los puntos (en el orden del documento) relativos a la esquina inferior izquierda de su carrusel, su tamaño,
+  // las cajas de los botones y si los píxeles de las esquinas del cuadrado de 24 px centrado en cada botón responden ese
+  // punto (Chrome redondea las coordenadas al píxel).
+  const measure = (page) => page.evaluate(() => {
+    const at = (root, els, own) => { const R = root.getBoundingClientRect(); return els.map((e) => { const b = e.getBoundingClientRect(), a = own ? getComputedStyle(e, '::before') : null; return { x: b.left + b.width / 2 - R.left, y: R.bottom - (own ? b.bottom - parseFloat(getComputedStyle(e).paddingBottom) - parseFloat(a.height) / 2 : b.top + b.height / 2), d: own ? parseFloat(a.width) : b.width, l: b.left - R.left, r: b.right - R.left, t: b.top - R.top, bt: b.bottom - R.top, rw: R.width }; }); };
+    const a = document.getElementById('a'), b = document.getElementById('b'), dots = [...b.querySelectorAll('.digi-crs__dot:not([hidden])')];
+    const hit = dots.every((e) => { const r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return [[-12, -12], [11, -12], [-12, 11], [11, 11]].every(([dx, dy]) => document.elementFromPoint(x + dx, y + dy) === e); });
+    return { a: at(a, [...a.querySelectorAll('.swiper-pagination-bullet')], false), b: at(b, dots, true), hit, over: document.documentElement.scrollWidth - innerWidth };
+  });
+  const rows = (list) => new Set(list.map((p) => Math.round(p.y))).size;
+  const mean = (list) => list.reduce((s, p) => s + p.x, 0) / list.length;
+  for (const rtl of [false, true]) {
+    for (const [d, g] of [[6, 6], [6, 0], [10, 2], [6, 9], [6, 10], [14, 6]]) {
+      const page = await open(page6(5, 3, d, g, PW), { rtl });
+      await page.waitForFunction(() => document.querySelector('.digi-crs--ready'));
+      await frames(page);
+      const m = await measure(page), swiper = d + 2 * g, want = Math.max(24, swiper);
+      const step = (list) => Math.abs(list[1].x - list[0].x);
+      const label = `${rtl ? 'RTL' : 'LTR'} · puntos de ${d} px con ${g} px de separación`;
+      ok(3 === m.a.length && Math.abs(step(m.a) - swiper) < 0.6, `Prueba del arnés · ${label}: Swiper pinta 3 puntos a ${swiper} px (${m.a.length}, ${step(m.a)} px).`);
+      ok(3 === m.b.length && m.b.every((p, k) => !k || Math.abs(Math.abs(p.x - m.b[k - 1].x) - want) < 0.6), `${label}: el paso es ${want} px (Swiper, ${swiper} px; 24 px como mínimo por decisión del propietario del 2026-11-08, WCAG 2.5.8): ${m.b.map((p) => p.x.toFixed(1)).join(', ')}.`);
+      ok(m.b.every((p, k) => Math.abs(p.r - p.l - want) < 0.6 && (!k || (rtl ? p.r <= m.b[k - 1].l + 0.5 : p.l >= m.b[k - 1].r - 0.5))) && m.hit, `${label}: cada punto ofrece un objetivo de 24 × 24 px sin solaparse con el siguiente (botones de ${(m.b[0].r - m.b[0].l).toFixed(1)} px).`);
+      ok(Math.abs(mean(m.a) - mean(m.b)) < 1 && m.b.every((p, k) => Math.abs(p.y - m.a[k].y) < 1 && Math.abs(p.d - m.a[k].d) < 0.5), `${label}: centrados donde los centra Swiper (${mean(m.b).toFixed(1)} / ${mean(m.a).toFixed(1)} px), a la misma altura (${m.b[0].y.toFixed(1)} / ${m.a[0].y.toFixed(1)} px del borde inferior) y del mismo tamaño.`);
+      ok((rtl ? m.a[0].x > m.a[2].x && m.b[0].x > m.b[2].x : m.a[0].x < m.a[2].x && m.b[0].x < m.b[2].x), `${label}: el primer punto queda ${rtl ? 'a la derecha' : 'a la izquierda'}, como en Swiper.`);
+      await page.close();
+    }
+  }
+  // Un carrusel estrecho con muchas diapositivas (20, una visible, 375 px): Swiper las pone en una fila (20 × 18 =
+  // 360 px); a 24 px no caben (480 px) y pasan a otra fila, como hace Swiper cuando no le caben, sin salir del carrusel
+  // ni de la página y con el mismo objetivo de 24 × 24 px.
+  for (const rtl of [false, true]) {
+    const page = await open(page6(20, 1, 6, 6, 375), { rtl, width: 420 });
+    await page.waitForFunction(() => document.querySelector('.digi-crs--ready'));
+    await frames(page);
+    const m = await measure(page);
+    ok(20 === m.a.length && 1 === rows(m.a) && 20 === m.b.length && 2 === rows(m.b) && m.hit && m.over <= 0 && m.b.every((p) => p.l >= -0.5 && p.r <= p.rw + 0.5), `${rtl ? 'RTL' : 'LTR'} · 20 puntos en 375 px: Swiper, ${rows(m.a)} fila; el propio, ${rows(m.b)} filas dentro del carrusel con objetivos de 24 × 24 px (desborde de la página ${m.over} px).`);
     await page.close();
   }
 }
