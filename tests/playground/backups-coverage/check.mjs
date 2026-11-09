@@ -3,7 +3,7 @@
 // resultado en <dir>/result.txt («ok · …» o «FALLA · …») y termina con TERMINADO.
 // Uso: node check.mjs <modo single|multisite> <puerto> <host> <dir>
 import http from 'node:http';
-import { appendFileSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 
 const [mode, port, host, dir] = process.argv.slice(2);
 const setup = JSON.parse(readFileSync(`${dir}/probe/setup.json`, 'utf8'));
@@ -19,7 +19,7 @@ const check = (ok, what, detail = '') => {
 
 function request(method, path, { headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
-    const data = body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body));
+    const data = body === undefined ? undefined : (typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
     const all = { Host: host, ...headers };
     if (data !== undefined) all['Content-Length'] = Buffer.byteLength(data);
     const req = http.request({ host: '127.0.0.1', port: Number(port), method, path, headers: all, timeout: 1_800_000 }, (res) => {
@@ -254,6 +254,75 @@ try {
     try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
     check(parsed?.ready === true, 'red: con el upload_path original la red vuelve a estar lista', out.stdout + out.stderr);
   }
+  // Lote corto (B3, B7, I8, I10) y hallazgos del laboratorio (H5, H7, H8), en un WordPress real.
+  const modeOf = (path) => (existsSync(path) ? (statSync(path).mode & 0o777).toString(8) : 'no existe');
+  // H5: lo que hay en el almacén (montado desde el anfitrión) es 0600, también la copia previa de la restauración.
+  res = await api('GET', '/backups', { headers: basic('admin') });
+  const safety = (res.json || []).find((row) => row.policy === 'pre-restore')?.file || '';
+  const store = `${dir}/store`;
+  const modes = Object.fromEntries([backup.file, safety, '.operation.lock', '.jobs.lock', '.htaccess', 'index.php'].map((name) => [name, modeOf(`${store}/${name}`)]));
+  check(safety && Object.values(modes).every((value) => value === '600'), 'H5: respaldo, copia previa, cerrojos y protección del almacén en 0600', JSON.stringify(modes));
+  // H8: la automatización mensual por defecto tiene su próxima ejecución sin haber guardado la pantalla.
+  out = await wp('digitalisimo-backups', 'automation', 'list', '--format=json');
+  try { parsed = JSON.parse(out.stdout.trim()); } catch { parsed = null; }
+  const monthly = (parsed || []).find((row) => row.id === 'monthly-full');
+  check(monthly?.enabled === true && /^\d{4}-\d{2}-\d{2}T/.test(monthly?.next_run || '') && monthly?.time === '', 'H8: la mensual por defecto queda programada sin guardar la pantalla', out.stdout + out.stderr);
+  // H7: la ayuda de WP-CLI sin las marcas del comentario, con el DocParser real de wp-cli.phar (`wp help` usa un
+  // paginador que Playground no tiene y aquí no devuelve texto).
+  for (const [sub, cls] of [['automation', 'Digitalisimo_Backups_Cli_Automation'], ['jobs', 'Digitalisimo_Backups_Cli_Jobs']]) {
+    out = await wp('eval', `$doc = new WP_CLI\\DocParser( ( new ReflectionClass( '${cls}' ) )->getDocComment() ); echo $doc->get_shortdesc();`);
+    check(out.stdout.trim() !== '' && !/\/\*\*|\*\//.test(out.stdout) && /(Automatizaciones|Cola de trabajos)/.test(out.stdout) && !out.fatal, `H7: la ayuda de wp digitalisimo-backups ${sub} sin marcas del comentario`, out.stdout.slice(0, 400) + out.stderr + (out.fatal || ''));
+  }
+  // I8: tras la restauración el sitio no quedó en mantenimiento.
+  res = await request('GET', '/');
+  out = await wp('eval', "echo file_exists( ABSPATH . '.maintenance' ) ? 'si' : 'no';");
+  check(res.status === 200 && out.stdout.trim() === 'no', 'I8: tras restaurar, la portada responde 200 y no queda .maintenance', `${res.status} ${out.stdout}`);
+  // I10: verify trae el informe de wp-config.php (el mismo servidor: sin diferencias).
+  res = await api('GET', `/backups/${backup.file}/verify`, { headers: basic('admin') });
+  check(res.status === 200 && res.json?.wp_config?.available === true && Array.isArray(res.json?.wp_config?.differences) && res.json.wp_config.differences.length === 0, 'I10: verify trae el informe de wp-config.php', JSON.stringify(res.json?.wp_config));
+  // B3: subir por REST en fragmentos (cuerpo en bruto) el respaldo «de otro servidor», reanudar tras repetir un fragmento
+  // y terminar: entra como «sin registro» después de la validación de archivo no confiable.
+  const bytes = readFileSync(`${store}/${backup.file}`);
+  res = await api('POST', '/uploads', { headers: basic('admin'), body: { name: 'digitalisimo-subido-ensayo.zip', size: bytes.length } });
+  const upload = res.json || {};
+  check(res.status === 201 && /^[0-9a-f-]{36}$/.test(upload.id || '') && upload.chunk_size > 0 && upload.received === 0, 'B3: POST /uploads empieza la subida (201)', `${res.status} ${res.text}`);
+  const chunk = (offset) => request('PUT', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/uploads/${upload.id}/chunk`)}&offset=${offset}`, { headers: { ...basic('admin'), 'Content-Type': 'application/octet-stream' }, body: bytes.subarray(offset, offset + upload.chunk_size) });
+  let received = 0;
+  let chunkOk = true;
+  started = Date.now();
+  while (upload.id && received < bytes.length) {
+    res = await chunk(received);
+    if (res.status !== 200 || res.json?.received !== Math.min(bytes.length, received + upload.chunk_size)) { chunkOk = false; break; }
+    if (received === 0) {
+      check(modeOf(`${store}/incoming/${upload.id}/data.bin`) === '600', 'B3: la subida vive en el almacén privado en 0600', modeOf(`${store}/incoming/${upload.id}/data.bin`));
+      const again = await chunk(0);
+      check(again.status === 409 && again.json?.data?.received === res.json.received, 'B3: repetir un fragmento responde 409 con lo recibido', `${again.status} ${again.text.slice(0, 300)}`);
+    }
+    received = res.json.received;
+  }
+  check(chunkOk && received === bytes.length, `B3: ${Math.ceil(bytes.length / (upload.chunk_size || 1))} fragmentos de ${upload.chunk_size} bytes (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text.slice(0, 300)}`);
+  res = await api('POST', `/uploads/${upload.id}/finish`, { headers: basic('admin'), body: {} });
+  const uploaded = res.json || {};
+  check(res.status === 200 && uploaded.verified === true && uploaded.registered === false && uploaded.trust === 'untrusted' && uploaded.confirmation === 'RESTAURAR SIN FIRMA' && uploaded.wp_config?.available === true && modeOf(`${store}/${uploaded.file}`) === '600' && !existsSync(`${store}/incoming/${upload.id}/data.bin`), 'B3: al terminar se valida y entra en el almacén como «sin registro»', `${res.status} ${res.text.slice(0, 600)}`);
+  // P1: repetir el cierre (la respuesta se perdió tras un corte) devuelve lo mismo y no duplica nada; P3: se lista.
+  res = await api('POST', `/uploads/${upload.id}/finish`, { headers: basic('admin'), body: {} });
+  check(res.status === 200 && res.json?.file === uploaded.file && readdirSync(store).filter((name) => name.startsWith('digitalisimo-subido-ensayo')).length === 1, 'P1: repetir el cierre devuelve el mismo resultado sin duplicar la subida', `${res.status} ${res.text.slice(0, 300)}`);
+  res = await api('GET', '/uploads', { headers: basic('admin') });
+  check(res.status === 200 && (res.json || []).some((row) => row.id === upload.id && row.phase === 'done'), 'P3: GET /uploads lista la subida cerrada', `${res.status} ${res.text.slice(0, 300)}`);
+  check(!res.text.includes('/digi-store') && !res.text.includes('/wordpress/'), 'B3: la subida no expone rutas del servidor');
+  // B7 e I8: restaurar lo subido (RESTAURAR SIN FIRMA) con los avisos de éxito activos: un correo, sin rutas.
+  rmSync(`${dir}/probe/mails.jsonl`, { force: true });
+  out = await wp('eval', "Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Notify::OPTION, array( 'failure' => true, 'success' => true, 'email' => 'avisos@example.test' ) ); echo 'ok';");
+  res = await request('POST', '/?rest_route=%2Fwp%2Fv2%2Fsettings', { headers: { ...basic('admin'), 'Content-Type': 'application/json' }, body: { title: 'Cambiado antes de restaurar lo subido' } });
+  started = Date.now();
+  res = await api('POST', `/backups/${uploaded.file}/restore`, { headers: basic('admin'), body: { confirm: 'RESTAURAR SIN FIRMA', ...(network ? { network: true } : {}) } });
+  check(res.status === 200 && res.json?.restored === true && res.json?.trust === 'untrusted' && (await siteName()) === original, `B3: lo subido se restaura con RESTAURAR SIN FIRMA (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text.slice(0, 400)}`);
+  const mails = existsSync(`${dir}/probe/mails.jsonl`) ? readFileSync(`${dir}/probe/mails.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
+  const notice = mails.find((mail) => /Restauración terminada/.test(mail.subject));
+  check(notice && [].concat(notice.to).includes('avisos@example.test') && notice.message.includes(`Archivo: ${uploaded.file}`) && !/\/digi-store|\/wordpress\//.test(notice.message), 'B7: la restauración avisa por correo al destinatario configurado, sin rutas', JSON.stringify(mails).slice(0, 600));
+  res = await request('GET', '/');
+  check(res.status === 200, 'I8: tras restaurar lo subido, la portada responde 200', `${res.status}`);
+  await wp('eval', `unlink( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/${uploaded.file}' ); Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Notify::OPTION, array() );`);
 } catch (error) {
   failures++;
   log(`FALLA · excepción · ${error.stack || error}`);

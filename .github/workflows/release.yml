@@ -324,11 +324,26 @@ jobs:
           php tests/backups-relocate-interrupted.php
           php tests/backups-migrate.php
           php tests/backups-migrate-surfaces.php
+          php tests/backups-site-extract.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
           php tests/backups-destinations-screen.php
           php tests/backups-destinations-live.php
           node tests/backups-destinations-ui.mjs
+          php tests/backups-remote-copy.php
+          php tests/backups-notify.php
+          php tests/backups-upload.php
+          node tests/backups-upload-ui.mjs
+          php tests/backups-schedule-time.php
+          php tests/backups-default-schedule.php
+          php tests/backups-cli-help.php
+          php tests/backups-private-files.php
+          php tests/backups-no-rewrite.php
+          php tests/backups-maintenance.php
+          php tests/backups-config-diff.php
+          php tests/backups-cli-verify.php
+          php tests/backups-upload-retention.php
+          php tests/backups-upload-cli.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

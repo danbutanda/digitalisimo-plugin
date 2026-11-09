@@ -25,7 +25,7 @@ Digitalisimo_Backups_Cli::$sleep = function( $seconds ) use ( &$waits ) { $waits
 
 try {
 	Digitalisimo_Backups_Cli::register();
-	digi_assert( array( $cmd => 'Digitalisimo_Backups_Cli', $cmd . ' automation' => 'Digitalisimo_Backups_Cli_Automation', $cmd . ' jobs' => 'Digitalisimo_Backups_Cli_Jobs', $cmd . ' migration' => 'Digitalisimo_Backups_Cli_Migration', $cmd . ' destinations' => 'Digitalisimo_Backups_Cli_Destinations' ) === WP_CLI::$commands, 'Los comandos registrados no son los documentados.' );
+	digi_assert( array( $cmd => 'Digitalisimo_Backups_Cli', $cmd . ' automation' => 'Digitalisimo_Backups_Cli_Automation', $cmd . ' jobs' => 'Digitalisimo_Backups_Cli_Jobs', $cmd . ' destinations' => 'Digitalisimo_Backups_Cli_Destinations', $cmd . ' upload' => 'Digitalisimo_Backups_Cli_Upload', $cmd . ' migration' => 'Digitalisimo_Backups_Cli_Migration' ) === WP_CLI::$commands, 'Los comandos registrados no son los documentados.' );
 	// WP-CLI arma la ayuda y valida los argumentos con el PHPDoc de cada subcomando.
 	foreach ( array( 'Digitalisimo_Backups_Cli' => array( 'status', 'list_', 'create', 'verify', 'restore' ), 'Digitalisimo_Backups_Cli_Automation' => array( 'list_', 'run' ), 'Digitalisimo_Backups_Cli_Jobs' => array( 'list_', 'cancel' ) ) as $class => $methods ) {
 		foreach ( $methods as $method ) digi_assert( false !== strpos( (string) ( new ReflectionMethod( $class, $method ) )->getDocComment(), '## OPTIONS' ), 'Falta la ayuda de ' . $class . '::' . $method );

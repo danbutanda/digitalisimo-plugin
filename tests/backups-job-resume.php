@@ -138,7 +138,7 @@ bk_kill_in( $g['id'], 'transfer' );
 $GLOBALS['bk_uploaded'] = '';
 bk_run_until_done( $g['id'] );
 $rows = rows_for( $g['spec']['file'] );
-bk_assert( 'success' === bk_job( $g['id'] )['status'] && 1 === count( $rows ) && 'google' === $rows[0]['destination'] && 'ok' === $rows[0]['transfer'] && 'google' === $rows[0]['remote']['provider'] && 'archivo-remoto' === $rows[0]['remote']['id'], 'La transferencia reanudada no actualizó la fila única.' );
+bk_assert( 'success' === bk_job( $g['id'] )['status'] && 1 === count( $rows ) && 'local' === $rows[0]['destination'] && 'google' === $rows[0]['transfer_destination'] && 'ok' === $rows[0]['transfer'] && 'google' === $rows[0]['remote']['provider'] && 'archivo-remoto' === $rows[0]['remote']['id'], 'La transferencia reanudada no actualizó la fila única.' );
 bk_assert( $exports + 1 === $db->exports && 1 === bk_job( $g['id'] )['attempts']['transfer'] && is_file( bk_storage() . '/' . $g['spec']['file'] ), 'La transferencia reanudada rehizo el respaldo o perdió la copia local.' );
 bk_assert( $GLOBALS['bk_uploaded'] === file_get_contents( bk_storage() . '/' . $g['spec']['file'] ), 'La copia remota no es idéntica al ZIP local.' );
 // Credenciales retiradas durante la transferencia: fallo permanente y el ZIP local se queda registrado.

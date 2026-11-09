@@ -19,6 +19,9 @@ try {
 	wp_mkdir_p( WPMU_PLUGIN_DIR );
 	$cut = "<?php\n// Ensayo de cobertura de DIGITALÍSIMO Backups: sin loopback de WP-Cron.\nadd_filter( 'pre_http_request', static function ( \$pre, \$args, \$url ) { return false !== strpos( (string) \$url, 'wp-cron.php' ) ? new WP_Error( 'digi_coverage_no_cron', 'WP-Cron por loopback cortado en el ensayo.' ) : \$pre; }, 10, 3 );\n";
 	if ( false === file_put_contents( WPMU_PLUGIN_DIR . '/digi-coverage-no-cron.php', $cut ) ) throw new RuntimeException( 'No se escribió el mu-plugin que corta WP-Cron.' );
+	// Los avisos por correo de Backups no salen: quedan en /digi-probe/mails.jsonl para el ensayo (lote corto, B7).
+	$mail = "<?php\n// Ensayo de cobertura de DIGITALÍSIMO Backups: el correo se anota, no se envía.\nadd_filter( 'pre_wp_mail', static function ( \$pre, \$atts ) { file_put_contents( '/digi-probe/mails.jsonl', wp_json_encode( array( 'to' => \$atts['to'], 'subject' => \$atts['subject'], 'message' => \$atts['message'] ) ) . \"\\n\", FILE_APPEND ); return true; }, 10, 2 );\n";
+	if ( false === file_put_contents( WPMU_PLUGIN_DIR . '/digi-coverage-mail.php', $mail ) ) throw new RuntimeException( 'No se escribió el mu-plugin que anota el correo.' );
 	$admin = get_user_by( 'login', 'admin' );
 	if ( ! $admin ) throw new RuntimeException( 'Falta el usuario admin de Playground.' );
 	$users = array( 'admin' => $admin->ID );
