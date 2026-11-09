@@ -383,8 +383,10 @@ permisos: 384 s, todo correcto. El cambio de ruta del sitio y de carpeta del ser
 en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por cabecera) y se prueban en `backups-relocate.php`.
 
 ## Migración entre servidores y dominios
+
 Desde @NEXT_BACKUPS@. Sustituye a «respaldar, descargar, subir y restaurar a mano»: un clic en el destino, que **tira**
 del origen.
+
 1. **Origen** (el sitio que se lleva): Backups → Migrar → «Generar clave de migración». La página que la muestra no se
    guarda en caché ni pasa por una redirección, y no se vuelve a mostrar.
 2. **Destino** (un WordPress recién instalado con Backups, o un sitio existente que se reemplaza): Backups → Migrar →
@@ -397,6 +399,7 @@ del origen.
 3. El destino conserva **su** dirección: la restauración reescribe URL, rutas del servidor y prefijo de tablas con el
    motor de «Restaurar en otro dominio» (datos serializados, JSON y URL codificadas), vacía el CSS generado de Elements
    y las cachés, y fija `home`/`siteurl` (en una red, también `site`, `blogs` y `sitemeta`).
+
 **Qué se comprueba antes de tocar el destino.** Individual → individual y red → red del mismo tipo (subdominios o
 subdirectorios); si el origen es una red y el `wp-config.php` del destino no la declara, el mensaje dice qué definir
 (`WP_ALLOW_MULTISITE`, crear la red y `MULTISITE`, `SUBDOMAIN_INSTALL`, `DOMAIN_CURRENT_SITE` y `PATH_CURRENT_SITE`) y no
@@ -404,11 +407,13 @@ se descarga nada; que la clave no sea de este mismo sitio; que el destino pueda 
 completo); espacio para descargar y descifrar. Después, antes de la copia previa: tamaño y SHA-256 anunciados por el
 origen, cabecera DGBK con la clave de esta migración, descifrado autenticado completo, firma del manifiesto, la
 inspección de archivos no confiables y el guardián SQL, y el plan de reubicación (con el `wp-config.php` de la red).
+
 **Deshacer.** La copia previa que crea la restauración queda bloqueada y marcada con la migración (`migration` en su
 fila del historial: origen, fecha, trabajo y estado). «Deshacer la migración» (pantalla, `POST /migration/undo` con
 `DESHACER`, `wp digitalisimo-backups migration undo`) la restaura —con su propia copia previa del estado migrado— y la
 marca como deshecha; no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en su almacén
 privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
+
 **Staging.** Es la misma migración: para una copia de pruebas (otro dominio o subdominio), la clave se genera en
 producción y se migra desde el sitio de pruebas; para **publicarla**, la clave se genera en el sitio de pruebas y se
 migra desde producción, que guarda su copia previa y se deshace igual. **Fuera de alcance:** fusionar cambios entre dos
@@ -417,7 +422,9 @@ origen llegan con la migración: en una copia de pruebas hay que revisarlos para
 Si las dos copias viven en el mismo servidor, cada una necesita su propio almacén privado: con la misma
 `DIGITALISIMO_BACKUPS_STORAGE_DIR` en los dos `wp-config.php` compartirían la cola de «Trabajos» (sin la constante, cada
 instalación ya tiene su carpeta).
+
 ### Seguridad de la migración
+
 - **La clave.** `DGMIG1.` + base64url de `{"v":1,"u":<API del origen>,"i":<id>,"s":<32 bytes aleatorios>}`. Con
   `H(m, k) = BLAKE2b-256(m, clave k)`: la credencial `A = H("DGBK1/migrate-auth", s)` y la clave raíz del paquete
   `K = H("DGBK1/migrate-root", s)`. El origen guarda en `digitalisimo_backups_vault_migration` (de la red en Multisite;
@@ -447,6 +454,7 @@ instalación ya tiene su carpeta).
   generada, presentación, paquete pedido y listo, descarga, migración terminada, liberada, revocada, caducada,
   bloqueada, intentos fallidos y deshacer. Nada del flujo deja la clave, la credencial ni `K` en registros, respuestas,
   URL, trabajos ni el navegador (salvo la página que la muestra una vez).
+
 **Escala.** El paquete lo crea el motor de trabajos del origen (fases con punto de control y reintentos); mientras
 tanto el destino pregunta con una espera de hasta 10 minutos (`digitalisimo_backups_migration_step_timeout`) y, si se
 agota porque el origen sigue en un paso largo o atiende otra petición, vuelve a preguntar en 30 s sin gastar intento
@@ -456,10 +464,12 @@ está en disco: un corte de red, un fragmento incompleto o una muerte del proces
 fallos seguidos sin avanzar gastan intentos (5). La restauración es un paso largo, como «Restaurar»: en un hosting que
 corta las peticiones largas, usa WP-CLI o el cron del sistema; si muere a mitad, la migración falla diciendo que
 «Deshacer la migración» devuelve el estado anterior (no se repite sola sobre un sitio a medias).
+
 Límites declarados: un plugin de seguridad que cierre la API REST a visitantes anónimos impide migrar desde ese origen
 (la API del origen no usa la sesión); el estado de la migración del destino (sus propias claves y el registro) vuelve
 tras restaurar, pero si el proceso muere en mitad del SQL se pierde (las claves que generó quedan, en la práctica,
 revocadas); la sesión del navegador del destino termina al restaurar (los usuarios son los del origen).
+
 ## Almacenamiento local
 
 Desde 1.0.44 los ZIP se guardan en una carpeta privada fuera de la raíz pública del servidor y de WordPress. Al abrir la
