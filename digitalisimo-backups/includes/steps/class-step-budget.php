@@ -15,11 +15,12 @@ class Digitalisimo_Backups_Tree_Changed extends Digitalisimo_Backups_Resume_Inva
  */
 final class Digitalisimo_Backups_Step_Budget {
 	/**
-	 * Memoria que un tramo deja siempre libre: la octava parte de memory_limit y al menos 4 MB (8 MB con 64 MB). Es una
-	 * reserva y no un porcentaje de uso porque WordPress con sus plugins puede ocupar ya más del 75 % antes de respaldar
-	 * (unos 52 de 64 MB en Playground), y lo que un tramo añade es poco: trozos de 1 MB y lotes de filas a medida.
+	 * Memoria que un tramo deja siempre libre: la dieciseisava parte de memory_limit y al menos 4 MB (4 MB con 64 MB). Es
+	 * una reserva y no un porcentaje de uso porque WordPress con sus plugins puede ocupar ya casi todo antes de respaldar
+	 * (en Playground con 1.0.63, unos 54,5 de 64 MB en una petición ligera y 56 trabajando; con 1/8, 8 MB, cada tramo de
+	 * la verificación se cerraba tras una entrada), y lo que un tramo añade es poco: trozos de 1 MB y lotes a medida.
 	 */
-	const MEMORY_RESERVE_SHARE = 0.125;
+	const MEMORY_RESERVE_SHARE = 0.0625;
 	const MEMORY_RESERVE_MIN = 4194304;
 	/** Escala mínima del tramo tras varias muertes seguidas. */
 	const MIN_SCALE = 0.125;
