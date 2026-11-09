@@ -155,7 +155,7 @@ if ( '' !== $death ) {
 	if ( 'oom' !== $death ) register_shutdown_function( function() use ( $death, $root, $expected, $J ) {
 		rs_case( 'muerte a mitad de «' . $death . '» y reanudación', function() use ( $death, $root, $expected, $J ) {
 			rs_check( is_file( $GLOBALS['bk_root'] . '-muerte.json' ), 'El proceso no murió donde debía (' . $death . ').' );
-			unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_job_heartbeat'], $GLOBALS['bk_on_exit'] );
+			unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_job_heartbeat'], $GLOBALS['bk_on_exit'], $GLOBALS['bk_on_mkdir'] );
 			$job = rs_last_restore();
 			rs_check( $job && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && ! empty( $job['lease'] ), 'El trabajo de la restauración no quedó con el arrendamiento del proceso muerto.' );
 			$status = Digitalisimo_Backups::service_status();
@@ -230,7 +230,13 @@ if ( '' !== $death ) {
 		$GLOBALS['wpdb']->exit_after = 'RENAME TABLE ';
 		$GLOBALS['bk_on_exit'] = function() { rs_kill( 'rename' ); };
 	} elseif ( 'move' === $death ) {
-		rs_die_in( 'switch', 2, 'move' );
+		// A mitad del código, ya hecho el RENAME (desde la revisión, el código cambia en el mismo paso que las tablas): muere al
+		// preparar la carpeta de la segunda unidad, con la primera ya cambiada.
+		$moves = 0;
+		$GLOBALS['bk_on_mkdir'] = function( $path ) use ( &$moves ) {
+			$job = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() );
+			if ( $job && 'restore' === $job['kind'] && 'switch' === $job['phase'] && preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ) && ++$moves >= 2 ) rs_kill( 'move' );
+		};
 	} else {
 		// En la base de datos, la muerte cae en el segundo tramo, con filas de una tabla ya insertadas tras su punto de control.
 		rs_die_in( $death, 'database' === $death ? 7 : 2 );
@@ -266,8 +272,9 @@ rs_case( 'R1/R2/R6 restauración por tramos, tablas temporales con un RENAME y a
 	// Revisión de E1, H3: la tabla de otra aplicación del respaldo no se borra, no se recrea ni entra en el cambio.
 	rs_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $queries ) && false === strpos( $renames[0], '`otra_app`' ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ) && false !== strpos( $result['notice'], 'otra_app' ), 'Se tocó o no se informó la tabla de otra aplicación.' );
 	rs_check( isset( $result['config']['.user.ini'] ) && false !== strpos( $result['notice'], '.user.ini' ), 'El aviso no dice que se desactivó el auto_prepend_file.' );
-	// H6 del laboratorio: el .htaccess se escribe una sola vez, al final del cambio (después del plugin).
-	$switch = rs_last_restore()['checkpoint']['switch'];
+	// H6 del laboratorio: el .htaccess se escribe una sola vez, al final de todo (desde la revisión, en el último paso de la
+	// limpieza, con este plugin).
+	$switch = rs_last_restore()['checkpoint']['cleanup'];
 	rs_check( 1 === (int) ( $switch['htaccess'] ?? 0 ) && "# BEGIN WordPress\nRewriteEngine On\n# END WordPress\n" === file_get_contents( ABSPATH . '.htaccess' ), 'El .htaccess no se puso al final y una sola vez: ' . json_encode( $switch ) );
 	// Lo retirado está en el informe y en la copia previa.
 	$removed = (array) ( $result['removed']['sample'] ?? array() );
@@ -281,7 +288,8 @@ rs_case( 'R1/R2/R6 restauración por tramos, tablas temporales con un RENAME y a
 	$job = rs_last_restore();
 	$slices = array();
 	foreach ( Digitalisimo_Backups_Job_Store::events( $job['id'] ) as $event ) if ( 'phase' === $event['type'] && ( $event['phase'] ?? '' ) === ( $event['next'] ?? '' ) ) $slices[ $event['phase'] ] = ( $slices[ $event['phase'] ] ?? 0 ) + 1;
-	foreach ( array( 'inspect', 'safety', 'database', 'files', 'switch' ) as $phase ) rs_check( ( $slices[ $phase ] ?? 0 ) >= 2, 'La fase «' . $phase . '» no avanzó por tramos: ' . json_encode( $slices ) );
+	// El cambio pone las tablas y todo el código en un paso sin cortes (revisión, A3): al menos ése y el de los medios.
+	foreach ( array( 'inspect' => 2, 'safety' => 2, 'database' => 2, 'files' => 2, 'switch' => 1 ) as $phase => $least ) rs_check( ( $slices[ $phase ] ?? 0 ) >= $least, 'La fase «' . $phase . '» no avanzó por tramos: ' . json_encode( $slices ) );
 	rs_check( 'none' === Digitalisimo_Backups::service_status()['restore']['state'], 'Tras una restauración terminada, el estado sigue avisando.' );
 	unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
 } );
@@ -295,7 +303,8 @@ rs_case( 'R4 un fallo tras el cambio vuelve a la copia previa entera', function(
 	$GLOBALS['wpdb']->queries = array();
 	$GLOBALS['bk_on_mkdir'] = function( $path ) {
 		$job = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() );
-		if ( $job && 'restore' === $job['kind'] && empty( $job['spec']['rollback'] ) && 'switch' === $job['phase'] && 'move' === ( $job['checkpoint']['switch']['step'] ?? '' ) ) throw new RuntimeException( 'disco lleno simulado al mover' );
+		// Después del RENAME, al poner el código en su sitio (desde la revisión, en el mismo paso que las tablas).
+		if ( $job && 'restore' === $job['kind'] && empty( $job['spec']['rollback'] ) && 'switch' === $job['phase'] && preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( 'disco lleno simulado al mover' );
 	};
 	$result = rs_restore( $backup );
 	unset( $GLOBALS['bk_on_mkdir'] );

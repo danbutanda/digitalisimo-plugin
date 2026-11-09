@@ -446,7 +446,14 @@ final class Digitalisimo_Backups {
 		$restore = self::restore_status();
 		if ( 'none' !== $restore['state'] ) {
 			$titles = array( 'running' => 'Restauración en curso.', 'interrupted' => 'Restauración interrumpida: se reanudará sola.', 'rollback' => 'Volviendo a la copia previa.', 'failed' => 'La última restauración no se completó.', 'failed_midway' => 'La última restauración falló a mitad del cambio.', 'rolled_back' => 'La última restauración falló y el sitio volvió a la copia previa.', 'cancelled' => 'La última restauración se canceló.' );
-			echo '<div class="notice notice-' . ( in_array( $restore['state'], array( 'failed_midway', 'rollback', 'interrupted' ), true ) ? 'error' : 'warning' ) . ' digitalisimo-backups-restore-state" data-state="' . esc_attr( $restore['state'] ) . '"><p><strong>' . esc_html( $titles[ $restore['state'] ] ?? '' ) . '</strong> ' . esc_html( $restore['notice'] ) . '</p></div>';
+			echo '<div class="notice notice-' . ( in_array( $restore['state'], array( 'failed_midway', 'rollback', 'interrupted' ), true ) ? 'error' : 'warning' ) . ' digitalisimo-backups-restore-state" data-state="' . esc_attr( $restore['state'] ) . '"><p><strong>' . esc_html( $titles[ $restore['state'] ] ?? '' ) . '</strong> ' . esc_html( $restore['notice'] ) . '</p>';
+			// Un sitio a medio cambiar se recupera desde aquí: otra vuelta a la copia previa (revisión, C2).
+			if ( 'failed_midway' === $restore['state'] && '' !== (string) ( $restore['recover'] ?? '' ) && ! Digitalisimo_Backups_Jobs::restore_active() ) {
+				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+				wp_nonce_field( self::ACTION_RESTORE );
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="rollback_retry" value="1"><p><button class="button button-primary">Volver a la copia previa (' . esc_html( (string) $restore['recover'] ) . ')</button> <span class="description">Restaura la copia previa de esa restauración sin hacer otra; el sitio sigue en mantenimiento hasta que termine.</span></p></form>';
+			}
+			echo '</div>';
 			$active = Digitalisimo_Backups_Jobs::restore_active();
 			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
 			if ( $active && Digitalisimo_Backups_Restore_Maintenance::request_has( (string) $active['spec']['token'] ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'token' => (string) $active['spec']['token'], 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
@@ -1068,10 +1075,10 @@ final class Digitalisimo_Backups {
 		return array( 'size' => $bytes, 'crc' => hash_final( $crc ), 'sha256' => hash_final( $sha ) );
 	}
 
-	private static function site_tables( $prefix ) { global $wpdb; $like = $wpdb->esc_like( $prefix ) . '%'; $tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ); foreach ( array( $wpdb->base_prefix . 'users', $wpdb->base_prefix . 'usermeta' ) as $table ) if ( ! in_array( $table, $tables, true ) ) $tables[] = $table; return $tables; }
+	private static function site_tables( $prefix ) { global $wpdb; $like = $wpdb->esc_like( $prefix ) . '%'; $tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ); foreach ( array( $wpdb->base_prefix . 'users', $wpdb->base_prefix . 'usermeta' ) as $table ) if ( ! in_array( $table, $tables, true ) ) $tables[] = $table; return self::exportable_tables( $tables ); } // Nunca las tablas temporales o viejas de una restauración (revisión, P6): el sitio principal de una red tiene el prefijo de ellas.
 	private static function database_sql( $tables = null, $source_prefix = '', $target_prefix = '' ) {
 		global $wpdb;
-		if ( null === $tables ) $tables = $wpdb->get_col( 'SHOW TABLES' );
+		if ( null === $tables ) $tables = self::exportable_tables( $wpdb->get_col( 'SHOW TABLES' ) );
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		$sql = "-- Digitalisimo WordPress backup\n-- " . gmdate( 'c' ) . "\nSET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n";
 		foreach ( $tables as $table ) {
@@ -1424,6 +1431,16 @@ final class Digitalisimo_Backups {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_RESTORE );
 		@set_time_limit( 0 );
+		// Recuperar un sitio a medio cambiar: otra vuelta a la copia previa (revisión, C2).
+		if ( ! empty( $_POST['rollback_retry'] ) ) {
+			$result = self::service_restore_rollback( array( 'network' => is_multisite(), 'drive_cli' => false ) );
+			if ( is_wp_error( $result ) ) self::redirect( false, 'No se pudo volver a la copia previa: ' . $result->get_error_message() );
+			if ( ! empty( $result['restoring'] ) ) {
+				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
+				self::redirect( true, $result['notice'] );
+			}
+			self::redirect( true, (string) $result['message'] );
+		}
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) wp_unslash( $_POST['confirmation'] ?? '' ) ) ) );
 		if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' );
 		if ( empty( $_POST['updraft'] ) ) {
@@ -1437,7 +1454,7 @@ final class Digitalisimo_Backups {
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			if ( ! empty( $result['restoring'] ) ) {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
-				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». No hace falta dejarla abierta (WP-Cron la continúa); si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
+				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». Con la pantalla abierta avanza sin pausa; si la cierras, la siguen WP-Cron (las visitas al sitio en mantenimiento lo despiertan) o el cron del sistema; en un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run. Si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
 			}
 			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}

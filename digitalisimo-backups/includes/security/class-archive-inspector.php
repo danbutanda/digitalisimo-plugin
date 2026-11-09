@@ -26,11 +26,15 @@ final class Digitalisimo_Backups_Archive_Inspector {
 	public static function entries( $zip, $trusted, $layout = 'digitalisimo' ) {
 		$count = (int) $zip->numFiles;
 		if ( $count > self::max_entries() ) throw new Exception( 'El ZIP tiene ' . $count . ' entradas; el máximo permitido es ' . self::max_entries() . ' (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
-		// Memoria acotada (H1): los duplicados exactos los reconoce la tabla de nombres de libzip (fuera de memory_limit);
-		// sólo los nombres con «\\» se guardan, y para las colisiones de mayúsculas, un entero de 64 bits por nombre en
-		// minúsculas con el MD5 del nombre exacto.
+		// Memoria acotada (H1): los duplicados exactos los reconoce la tabla de nombres de libzip (fuera de memory_limit) y
+		// sólo se guardan los nombres con «\\». Las colisiones de mayúsculas sólo importan en un disco que no las distingue:
+		// con pocas entradas, un entero de 64 bits por nombre en minúsculas en memoria (como siempre, sin sondear el disco);
+		// con muchas, se sondea el disco primero y, si no distingue mayúsculas, la tabla va en un archivo temporal, así que
+		// 100 000 o 2 000 000 de entradas caben en 64 MB (revisión, M4).
 		$converted = array();
-		$folded = array();
+		$folded = $count <= self::FOLD_IN_MEMORY ? array() : null;
+		$table = null;
+		if ( null === $folded && self::case_insensitive( ABSPATH ) ) $table = self::fold_table( $count );
 		$collisions = false;
 		$declared = 0;
 		for ( $i = 0; $i < $count; $i++ ) {
@@ -60,14 +64,51 @@ final class Digitalisimo_Backups_Archive_Inspector {
 			} elseif ( isset( $converted[ $name ] ) ) {
 				throw new Exception( 'El ZIP contiene nombres de archivo duplicados: ' . self::shown( $raw ) );
 			}
-			$lower = self::key64( strtolower( $body ) );
-			$exact = md5( $body, true );
-			if ( isset( $folded[ $lower ] ) && $folded[ $lower ] !== $exact ) $collisions = true;
-			$folded[ $lower ] = $exact;
+			if ( null !== $folded ) {
+				$lower = self::key64( strtolower( $body ) );
+				$exact = md5( $body, true );
+				if ( isset( $folded[ $lower ] ) && $folded[ $lower ] !== $exact ) $collisions = true;
+				$folded[ $lower ] = $exact;
+			} elseif ( null !== $table && self::fold_collides( $table, $zip, $i, $body ) ) {
+				$collisions = true;
+			}
 			if ( ! $directory ) $declared += max( 0, (int) $stat['size'] );
 		}
-		if ( $collisions && self::case_insensitive( ABSPATH ) ) throw new Exception( 'El ZIP contiene archivos que sólo se distinguen por mayúsculas y el disco de destino no las distingue.' );
+		if ( $table ) fclose( $table['handle'] );
+		if ( $collisions && ( null === $folded || self::case_insensitive( ABSPATH ) ) ) throw new Exception( 'El ZIP contiene archivos que sólo se distinguen por mayúsculas y el disco de destino no las distingue.' );
 		return array( 'count' => $count, 'declared' => $declared );
+	}
+	/** Entradas hasta las que las colisiones de mayúsculas se buscan en memoria (unos 2 MB). */
+	const FOLD_IN_MEMORY = 20000;
+	/** Tabla hash en un archivo temporal: registros de 12 bytes (8 del MD5 del nombre en minúsculas y la posición + 1). */
+	private static function fold_table( $count ) {
+		$slots = 1;
+		while ( $slots < 2 * max( 1, (int) $count ) ) $slots <<= 1;
+		$handle = tmpfile();
+		if ( ! $handle || ! ftruncate( $handle, $slots * 12 ) ) throw new Exception( 'No se pudo preparar la comprobación de nombres del ZIP en un archivo temporal.' );
+		return array( 'handle' => $handle, 'slots' => $slots );
+	}
+	/** Anota la entrada $index en la tabla; true si otra entrada tiene el mismo nombre salvo mayúsculas. */
+	private static function fold_collides( array $table, $zip, $index, $body ) {
+		$lower = strtolower( $body );
+		$key = substr( md5( $lower, true ), 0, 8 );
+		$slot = unpack( 'N', $key )[1] & ( $table['slots'] - 1 );
+		for ( $probes = 0; $probes < $table['slots']; $probes++ ) {
+			fseek( $table['handle'], $slot * 12 );
+			$record = (string) fread( $table['handle'], 12 );
+			$other = 12 === strlen( $record ) ? unpack( 'N', substr( $record, 8, 4 ) )[1] : 0;
+			if ( 0 === $other ) {
+				fseek( $table['handle'], $slot * 12 );
+				fwrite( $table['handle'], $key . pack( 'N', $index + 1 ) );
+				return false;
+			}
+			if ( substr( $record, 0, 8 ) === $key ) {
+				$name = rtrim( str_replace( '\\', '/', (string) $zip->getNameIndex( $other - 1 ) ), '/' );
+				if ( strtolower( $name ) === $lower ) return $name !== $body;
+			}
+			$slot = ( $slot + 1 ) & ( $table['slots'] - 1 );
+		}
+		return false;
 	}
 	/** Entero de 64 bits de un nombre (clave compacta de un array; una colisión sólo puede rechazar de más). */
 	private static function key64( $text ) {

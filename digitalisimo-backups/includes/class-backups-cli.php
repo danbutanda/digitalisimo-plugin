@@ -397,6 +397,22 @@ final class Digitalisimo_Backups_Cli_Jobs {
 	}
 
 	/**
+	 * Recupera un sitio que quedó a medio cambiar (una restauración que falló después del cambio y cuya vuelta a la copia
+	 * previa no se pudo hacer o falló): vuelve a restaurar su copia previa, sin hacer otra, y espera a que termine.
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red (obligatorio en Multisite).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups jobs rollback
+	 */
+	public function rollback( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_restore_rollback( array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		WP_CLI::success( (string) ( $result['message'] ?? 'Se volvió a la copia previa.' ) . ( '' !== (string) ( $result['notice'] ?? '' ) ? ' ' . $result['notice'] : '' ) );
+	}
+
+	/**
 	 * Hace avanzar la cola en este proceso hasta que no queda trabajo listo. Sirve para el cron del sistema, por ejemplo
 	 * cada cinco minutos con `--quiet`, en un hosting que corta las peticiones largas.
 	 *

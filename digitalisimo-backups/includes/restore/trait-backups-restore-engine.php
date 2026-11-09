@@ -542,9 +542,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// reubicación que usará la importación. Si no caben, esta petición muere aquí (y la verificación falla tras sus
 		// intentos con el aviso de PHP), antes de la copia previa: nunca a mitad de la importación.
 		if ( ! $rollback && ! empty( $plan ) && $plan->needed() ) self::restore_dry_transform( $job, $data, $plan, $rows, (array) ( $cursor['largest'] ?? array() ) );
-		// Tablas temporales o viejas que dejó otra restauración que murió (nunca las de la que esta deshace).
+		// Tablas temporales que dejó otra restauración que se detuvo (nunca las de la que esta deshace). Las viejas
+		// (`dgbko_`) sólo si su restauración terminó bien: si no, pueden ser la única base de datos de antes de ella (C1).
 		$keep = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 		foreach ( self::restore_leftover_tables( $base, array( $tag, $keep ) ) as $leftover ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $leftover ) );
+		$olds = array_values( array_diff( self::restore_leftover_tables( $base, array( $tag, $keep ), true ), self::restore_leftover_tables( $base, array( $tag, $keep ) ) ) );
+		if ( $olds ) self::restore_write_json( $job, 'old-tables.json', $olds );
 		// Las claves de las credenciales del origen, cifradas con las de este servidor (nunca en claro), para tras el cambio.
 		$zip = self::restore_zip( $job );
 		$origin = array();
@@ -599,14 +602,28 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( '' !== $origin && '' !== $destination ) $prefixes[ $origin ] = $destination;
 		return $relocate->set_prefixes( $prefixes, $destination )->table_map( $tables );
 	}
-	/** Tablas de restauraciones anteriores (`<prefijo>dgbkr_…`, `<prefijo>dgbko_…`) salvo las de las marcas dadas. */
-	private static function restore_leftover_tables( $base, array $keep_tags ) {
+	/**
+	 * Tablas de restauraciones anteriores, salvo las de las marcas dadas, que se pueden borrar: las temporales
+	 * (`<prefijo>dgbkr_…`, nunca llegaron a cambiar nada) y las viejas (`<prefijo>dgbko_…`) sólo de una restauración que
+	 * terminó bien. Las viejas de una que no terminó (o de la que ya no queda registro) pueden ser la base de datos de
+	 * antes de ella y no se tocan (revisión, C1). Con $all, todas.
+	 */
+	private static function restore_leftover_tables( $base, array $keep_tags, $all = false ) {
 		global $wpdb;
+		$confirmed = array();
+		if ( ! $all ) {
+			try {
+				foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( Digitalisimo_Backups_Jobs::is_restore( $job ) && 'success' === $job['status'] ) $confirmed[ (string) ( $job['spec']['tag'] ?? '' ) ] = true;
+			} catch ( Throwable $e ) {
+				$confirmed = array();
+			}
+		}
 		$found = array();
 		foreach ( array( 'dgbkr_', 'dgbko_' ) as $kind ) {
 			foreach ( array( $base . $kind, $kind ) as $prefix ) {
 				foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', self::restore_like( $prefix ) . '%' ) ) as $table ) {
-					if ( ! preg_match( '/(?:^|_)dgbk[ro]_([0-9a-f]{6})_[0-9]{3,}$/D', (string) $table, $m ) || in_array( $m[1], array_filter( $keep_tags ), true ) ) continue;
+					if ( ! preg_match( '/(?:^|_)dgbk([ro])_([0-9a-f]{6})_[0-9]{3,}$/D', (string) $table, $m ) || in_array( $m[2], array_filter( $keep_tags ), true ) ) continue;
+					if ( ! $all && 'o' === $m[1] && empty( $confirmed[ $m[2] ] ) ) continue;
 					$found[ (string) $table ] = true;
 				}
 			}
@@ -1966,7 +1983,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				foreach ( array_unique( array_map( 'strval', $olds ) ) as $old ) {
 					if ( ( false === strpos( '/' . $old, '/.digitalisimo-old-' ) && false === strpos( '/' . $old, '/.digitalisimo-new-' ) ) || false !== strpos( $old, '..' ) || ! file_exists( $root . $old ) ) continue;
 					if ( self::restore_aside_unit( $old ) === $layout['self'] ) continue;
-					$done = false !== strpos( '/' . $old, '/.digitalisimo-new-' ) ? self::restore_remove_tree( $root . $old, $deadline, true ) : self::restore_retire_tree( $keeper, $root . $old, self::restore_aside_unit( $old ), $deadline );
+					$done = false !== strpos( '/' . $old, '/.digitalisimo-new-' ) ? self::restore_remove_tree( $root . $old, $deadline ) : self::restore_retire_tree( $keeper, $root . $old, self::restore_aside_unit( $old ), $deadline );
 					if ( ! $done ) {
 						$cursor['kept'] += (int) $keeper['kept'];
 						return self::restore_slice( 'cleanup', $cursor, 'Retirando los archivos anteriores…', $started, (int) $keeper['progress'], $job );
@@ -2024,12 +2041,17 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( method_exists( 'Digitalisimo_Backups_Relocate', 'purge_server_cache' ) ) { try { Digitalisimo_Backups_Relocate::purge_server_cache(); } catch ( Throwable $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$message = ! empty( $job['spec']['rollback'] ) ? 'Se volvió a la copia previa ' . basename( (string) $job['spec']['file'] ) . ': el sitio está como antes de la restauración que falló.' : 'Restauración terminada desde ' . basename( (string) $job['spec']['file'] ) . '.';
 		if ( $warnings ) $result['warnings'] = $warnings;
-		return array( 'next' => null, 'checkpoint' => array( 'done' => time(), 'warnings' => $warnings, 'kept' => (int) $cursor['kept'] ), 'result' => array( 'restore' => $result ), 'warnings' => $warnings, 'message' => $message );
+		return array( 'next' => null, 'checkpoint' => array( 'done' => time(), 'warnings' => $warnings, 'kept' => (int) $cursor['kept'], 'htaccess' => (int) ( $switch['htaccess'] ?? 0 ) ), 'result' => array( 'restore' => $result ), 'warnings' => $warnings, 'message' => $message );
 	}
-	/** Informe público: lo que vuelven la pantalla, REST y WP-CLI. Sin rutas del servidor ni secretos. */
-	private static function restore_result( array $job ) {
+	/**
+	 * Informe público: lo que vuelven la pantalla, REST y WP-CLI. Sin rutas del servidor ni secretos (revisión, B1): una
+	 * ruta dentro de WordPress va relativa y cualquier otra, abreviada a su nombre. Lo retirado, con la verdad sobre dónde
+	 * queda (M1); lo que se conservó porque lo carga un `.user.ini` (A5).
+	 */
+	private static function restore_result( array $job, array $cursor = array(), array $warnings = array() ) {
 		$spec = (array) $job['spec'];
 		$staging = self::restore_staging( $job );
+		$switch = (array) ( $job['checkpoint']['switch'] ?? array() );
 		$count = 0;
 		$sample = array();
 		$handle = is_file( $staging . '/removed.txt' ) ? @fopen( $staging . '/removed.txt', 'rb' ) : false;
@@ -2040,20 +2062,32 @@ trait Digitalisimo_Backups_Restore_Engine {
 			}
 			fclose( $handle );
 		}
+		$kept = (int) ( $cursor['kept'] ?? 0 ) + (int) ( $switch['kept'] ?? 0 );
+		$kept_sample = array();
+		$handle = is_file( $staging . '/kept.txt' ) ? @fopen( $staging . '/kept.txt', 'rb' ) : false;
+		if ( $handle ) {
+			while ( count( $kept_sample ) < 50 && false !== ( $line = fgets( $handle ) ) ) $kept_sample[] = self::restore_unline( $line );
+			fclose( $handle );
+		}
 		$relocation = self::restore_read_json( $job, 'relocation.json', false );
 		$notice = '';
 		$config = (array) ( self::restore_read_json( $job, 'config-notes.json', false ) ?? array() );
 		foreach ( $config as $relative => $notes ) $notice .= ' ' . $relative . ': ' . implode( '; ', (array) $notes ) . '.';
 		// Limpieza (revisión de E1, P1): un auto_prepend_file o auto_append_file que haya quedado apuntando a un archivo que
-		// no existe daría 500 a todo; se avisa con el archivo y la ruta.
+		// no existe daría error a todo; se avisa con el archivo.
 		foreach ( array( '.user.ini', 'php.ini', '.htaccess' ) as $name ) {
 			$text = is_file( ABSPATH . $name ) ? (string) @file_get_contents( ABSPATH . $name, false, null, 0, 1048576 ) : '';
 			if ( preg_match_all( '/^\s*(?:php_(?:admin_)?value\s+)?auto_(?:prepend|append)_file\s*=?\s*["\']?(\/[^"\'\r\n;]+)/mi', $text, $m ) ) foreach ( $m[1] as $target ) if ( ! file_exists( trim( $target ) ) ) $notice .= ' Atención: ' . $name . ' carga ' . trim( $target ) . ', que no existe en este servidor; corrígelo o quítalo (PHP respondería con error).';
 		}
+		$protected = (array) ( $switch['protected'] ?? array() );
+		foreach ( $protected as $relative => $name ) $notice .= ' Se conservó ' . $relative . ', que el respaldo no tiene, porque ' . $name . ' lo carga (auto_prepend_file o auto_append_file); retíralo junto con esa línea si ya no lo usas.';
 		$foreign = (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() );
 		if ( $foreign ) $notice .= ' No se restauraron ' . count( $foreign ) . ' tabla(s) de otra aplicación que traía el respaldo (sin el prefijo de este WordPress): ' . implode( ', ', array_slice( $foreign, 0, 10 ) ) . ( count( $foreign ) > 10 ? '…' : '' ) . '.';
-		$safety = self::restore_safety_file( $job );
-		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía (quedan en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . ').';
+		$safety = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : self::restore_safety_file( $job );
+		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía' . ( $kept ? '' : ': están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) ) . '.';
+		if ( $kept ) $notice .= ' ' . $kept . ' archivo(s) que cambiaron después de empezar la restauración y no están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . ' no se borraron: quedan apartados en el almacén privado de Backups, en restore-kept-' . self::restore_mark( $job ) . ' (por ejemplo, ' . implode( ', ', array_slice( $kept_sample, 0, 5 ) ) . '); lo demás está en la copia previa.';
+		$old_tables = (array) ( self::restore_read_json( $job, 'old-tables.json', false ) ?? array() );
+		if ( $old_tables ) $notice .= ' Quedan ' . count( $old_tables ) . ' tabla(s) de una restauración anterior que no terminó (' . implode( ', ', array_slice( $old_tables, 0, 5 ) ) . ( count( $old_tables ) > 5 ? '…' : '' ) . '): pueden ser la base de datos de antes de aquella restauración; bórralas sólo si no las necesitas.';
 		try {
 			$credentials = self::credentials_status();
 			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
@@ -2061,31 +2095,67 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$notice .= ' No se pudo comprobar el estado de las credenciales de los destinos: ' . $e->getMessage();
 		}
 		if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
+		foreach ( $warnings as $warning ) $notice .= ' ' . rtrim( (string) $warning, '.' ) . '.';
+		$public = function( $text ) use ( $job ) { return self::restore_public_text( (string) $text, $job ); };
+		$public_config = array();
+		foreach ( $config as $relative => $notes ) $public_config[ $relative ] = array_map( $public, (array) $notes );
 		return array(
 			'file' => basename( (string) $spec['file'] ),
 			'restored' => true,
 			'trust' => (string) ( $spec['source']['trust'] ?? '' ),
 			'key' => (string) ( $spec['source']['key'] ?? '' ),
 			'adopted' => ! empty( $spec['adopted'] ),
-			'notice' => ltrim( $notice ),
-			'safety_backup' => ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : $safety,
+			'notice' => $public( ltrim( $notice ) ),
+			'safety_backup' => $safety,
 			'relocation' => $relocation ? self::relocation_public( $relocation ) : null,
-			'removed' => array( 'count' => $count, 'sample' => $sample ),
-			'config' => $config,
+			'removed' => array( 'count' => $count, 'sample' => $sample, 'kept' => $kept, 'kept_sample' => $kept_sample, 'kept_in' => $kept ? 'restore-kept-' . self::restore_mark( $job ) : '' ),
+			'protected' => array_keys( $protected ),
+			'config' => $public_config,
 			'foreign_tables' => $foreign,
 			'rollback' => ! empty( $spec['rollback'] ),
 		);
 	}
-	/** Borra un árbol sin seguir enlaces; con plazo, devuelve false si no le dio tiempo (se sigue en el tramo siguiente). */
+	/**
+	 * Un texto para la pantalla, REST o WP-CLI sin rutas del servidor: lo de dentro de WordPress, relativo; el almacén, «el
+	 * almacén»; la raíz del servidor de origen, «(origen)»; cualquier otra ruta absoluta, sólo su nombre.
+	 */
+	private static function restore_public_text( $text, array $job = array() ) {
+		$roots = array();
+		foreach ( array( ABSPATH, (string) realpath( ABSPATH ) ) as $root ) if ( '' !== $root ) $roots[ rtrim( wp_normalize_path( $root ), '/' ) . '/' ] = '';
+		try {
+			$storage = (string) realpath( self::local_directory() );
+			if ( '' !== $storage ) $roots[ rtrim( wp_normalize_path( $storage ), '/' ) . '/' ] = '(almacén)/';
+		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		if ( $job ) {
+			$plan = self::restore_read_json( $job, 'plan.json', false );
+			foreach ( array( 'abspath', 'abspath_real' ) as $key ) {
+				$origin = (string) ( $plan['origin'][ $key ] ?? '' );
+				if ( '' !== $origin && ! isset( $roots[ rtrim( $origin, '/' ) . '/' ] ) ) $roots[ rtrim( $origin, '/' ) . '/' ] = '(origen)/';
+			}
+		}
+		uksort( $roots, function( $a, $b ) { return strlen( $b ) - strlen( $a ); } );
+		$text = str_replace( array_keys( $roots ), array_values( $roots ), $text );
+		foreach ( $roots as $root => $label ) $text = str_replace( rtrim( $root, '/' ), '' === $label ? '(WordPress)' : rtrim( $label, '/' ), $text );
+		return (string) preg_replace_callback( '#(?<![\w.:/-])/(?:[^\s/\'"<>]+/)+([^\s/\'"<>,;)]+)#u', function( $m ) { return '…/' . $m[1]; }, $text );
+	}
+	/**
+	 * Borra un árbol sin seguir enlaces; con plazo, devuelve false si no le dio tiempo (se sigue en el tramo siguiente).
+	 * Siempre borra algo antes de mirar el plazo: un tick que llega sin presupuesto también avanza (revisión, P11).
+	 */
 	private static function restore_remove_tree( $path, $deadline = INF ) {
-		if ( is_link( $path ) || is_file( $path ) ) { @unlink( $path ); return true; }
+		$count = 0;
+		return self::restore_remove_walk( $path, $deadline, $count );
+	}
+	private static function restore_remove_walk( $path, $deadline, &$count ) {
+		if ( is_link( $path ) || is_file( $path ) ) { @unlink( $path ); $count++; return true; }
 		if ( ! is_dir( $path ) ) return true;
 		foreach ( (array) @scandir( $path ) as $name ) {
 			if ( '.' === $name || '..' === $name || '' === $name ) continue;
-			if ( microtime( true ) >= $deadline ) return false;
-			if ( ! self::restore_remove_tree( $path . '/' . $name, $deadline ) ) return false;
+			if ( $count > 0 && microtime( true ) >= $deadline ) return false;
+			if ( ! self::restore_remove_walk( $path . '/' . $name, $deadline, $count ) ) return false;
 		}
 		@rmdir( $path );
+		$count++;
 		return true;
 	}
 
@@ -2118,8 +2188,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 					$message .= ' No se pudo encolar la vuelta a la copia previa: ' . $e->getMessage();
 				}
 			}
-			$copy = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : $safety;
-			return ( ! empty( $spec['rollback'] ) ? 'La vuelta a la copia previa también falló: ' : 'La restauración falló a mitad del cambio: ' ) . $message . ' El sitio sigue en mantenimiento para no servirse a medias. Restaura a mano ' . ( '' !== $copy ? $copy : 'la copia previa' ) . ' (WP-CLI: wp digitalisimo-backups restore ' . ( '' !== $copy ? $copy : '<archivo>' ) . ' --confirm=RESTAURAR' . ( is_multisite() ? ' --network' : '' ) . '); si hace falta, borra .maintenance de la raíz para entrar.';
+			// El sitio quedó a medio cambiar: nunca se sale del mantenimiento sin recuperarlo (revisión, C2).
+			return ( ! empty( $spec['rollback'] ) ? 'La vuelta a la copia previa también falló: ' : 'La restauración falló a mitad del cambio: ' ) . rtrim( (string) $message, '.' ) . '. ' . self::restore_recovery_text( $job );
 		}
 		// Antes del cambio: nada del sitio se tocó; se retira lo temporal (las tablas temporales nacen en la base de datos).
 		try {
@@ -2127,13 +2197,26 @@ trait Digitalisimo_Backups_Restore_Engine {
 			foreach ( (array) $tables as $row ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( (string) $row['temp'] ) );
 			$tree = self::restore_read_json( $job, 'tree.json', false );
 			if ( is_array( $tree ) && ! empty( $tree['root'] ) ) self::restore_remove_tree( (string) $tree['root'] );
+			// Las unidades copiadas junto a su sitio (en otro disco) para el cambio que no llegó.
+			$layout = self::restore_layout();
+			foreach ( self::restore_aside_dirs( array( self::restore_mark( $job ) ), $layout ) as $near ) if ( false !== strpos( '/' . $near, '/.digitalisimo-new-' ) ) self::restore_remove_tree( $layout['root'] . $near );
 		} catch ( Throwable $e ) {
-			// La operación siguiente retira lo que quede (tablas de otra marca y áreas de trabajo de trabajos terminados).
+			// La operación siguiente retira lo que quede (tablas temporales y áreas de trabajo de trabajos terminados).
 		}
 		try { Digitalisimo_Backups_Job_Store::remove_staging( $job['id'] ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		Digitalisimo_Backups_Restore_Maintenance::release();
 		if ( 'cancelled' === $status ) return (string) $message;
 		return rtrim( (string) $message, '.' ) . '. La restauración se detuvo antes de cambiar el sitio: la base de datos y los archivos siguen como estaban' . ( '' !== $safety && ! empty( $job['checkpoint']['safety']['file'] ) ? ' (la copia previa ' . $safety . ' queda en el historial)' : '' ) . '.';
+	}
+	/**
+	 * Qué pasó y cómo recuperar un sitio que quedó a medio cambiar (la vuelta a la copia previa no se pudo hacer o falló):
+	 * sigue en mantenimiento y se dice cómo volver a la copia previa desde la pantalla o WP-CLI (revisión, C2).
+	 */
+	private static function restore_recovery_text( array $job ) {
+		$spec = (array) $job['spec'];
+		$copy = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : self::restore_safety_file( $job );
+		$network = is_multisite() ? ' --network' : '';
+		return 'El sitio quedó a medio cambiar y sigue en mantenimiento para no servirse así (los visitantes ven el aviso de mantenimiento). Para recuperarlo: en Backups, desde el navegador que empezó la restauración, «Volver a la copia previa»; o por WP-CLI, wp digitalisimo-backups jobs rollback' . ( '' !== $copy ? ' (o wp digitalisimo-backups restore ' . $copy . ' --confirm=RESTAURAR' . $network . ')' : '' ) . '. Las tablas de antes siguen en la base de datos (las que terminan en _dgbko_<marca>_<número>) y las carpetas de antes, junto a las suyas (.digitalisimo-old-…); sólo como último recurso, borra .maintenance de la raíz para entrar.';
 	}
 	/** Encola la vuelta a la copia previa de una restauración que falló a mitad del cambio. */
 	private static function restore_rollback_job( array $job ) {
@@ -2158,6 +2241,50 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'engine' => $spec['engine'],
 		);
 		return Digitalisimo_Backups_Jobs::create_restore( $rollback );
+	}
+	/**
+	 * La restauración a medio cambiar se puede recuperar volviendo a su copia previa: la restauración original (la que
+	 * hizo el cambio) y el nombre de su copia previa, si sigue en el almacén; si no, null.
+	 */
+	private static function restore_recoverable( array $job ) {
+		$original = ! empty( $job['spec']['rollback']['of'] ) ? Digitalisimo_Backups_Jobs::get( (string) $job['spec']['rollback']['of'] ) : $job;
+		if ( ! $original ) return null;
+		$file = self::restore_safety_file( $original );
+		if ( '' === $file || ! is_file( rtrim( self::local_directory(), '/\\' ) . '/' . basename( $file ) ) ) return null;
+		return array( 'job' => $original, 'file' => basename( $file ) );
+	}
+	/**
+	 * Camino de recuperación de un sitio a medio cambiar (revisión, C2): encola otra vuelta a la copia previa de la última
+	 * restauración que no terminó (sin copia previa propia, con el mismo testigo del mantenimiento) y la hace avanzar como
+	 * una restauración: en la web hasta el límite de la petición, en WP-CLI hasta terminar. Para la pantalla, REST y WP-CLI.
+	 */
+	public static function service_restore_rollback( array $args = array() ) {
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
+		$lock = self::service_lock();
+		if ( is_wp_error( $lock ) ) return $lock;
+		try {
+			if ( Digitalisimo_Backups_Jobs::active() ) return self::service_error( 'busy', 'Hay una restauración o un respaldo en curso; espera a que termine.', 409 );
+			$status = self::restore_status();
+			if ( 'failed_midway' !== $status['state'] ) return self::service_error( 'nothing_to_recover', 'No hay ninguna restauración a medio cambiar que recuperar.', 409 );
+			$last = Digitalisimo_Backups_Jobs::get( (string) $status['job'] );
+			$recover = $last ? self::restore_recoverable( $last ) : null;
+			if ( ! $recover ) return self::service_error( 'safety_missing', 'La copia previa de esa restauración ya no está en el almacén: restaura a mano otro respaldo completo (sigue en mantenimiento).', 422 );
+			$rollback = self::restore_rollback_job( $recover['job'] );
+			self::restore_note_rollback( $recover['job']['id'], $rollback['id'], 'Vuelta a la copia previa pedida a mano tras una que no terminó.' );
+			Digitalisimo_Backups_Job_Store::event( $recover['job']['id'], 'rollback', array( 'job' => $rollback['id'], 'file' => $recover['file'], 'manual' => true ) );
+		} catch ( Throwable $e ) {
+			return self::service_error( 'rollback_failed', $e->getMessage(), 500 );
+		} finally {
+			self::release_operation_lock( $lock );
+			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
+		$job = self::restore_drive( $rollback['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
+		if ( ! $job ) return self::service_error( 'rollback_failed', 'El trabajo de la vuelta a la copia previa ya no existe.', 500 );
+		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return array( 'file' => $recover['file'], 'restored' => false, 'restoring' => true, 'rollback' => true, 'job' => self::service_job_view( $job ), 'notice' => 'Volviendo a la copia previa ' . $recover['file'] . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'] ) . '): la pantalla Backups, WP-Cron o WP-CLI la hacen avanzar.', 'maintenance_token' => (string) $job['spec']['token'] );
+		if ( 'success' === $job['status'] ) return array( 'file' => $recover['file'], 'restored' => true, 'rollback' => true, 'notice' => (string) ( $job['result']['restore']['notice'] ?? '' ), 'message' => 'Se volvió a la copia previa ' . $recover['file'] . ': el sitio está como antes de la restauración que falló.' );
+		return self::service_error( 'rollback_failed', is_array( $job['error'] ?? null ) ? (string) $job['error']['message'] : 'La vuelta a la copia previa no terminó.', 500 );
 	}
 	/** El trabajo que falló guarda el de su vuelta a la copia previa y la causa (lo siguen la pantalla, REST y WP-CLI). */
 	private static function restore_note_rollback( $id, $rollback, $cause ) {
@@ -2194,6 +2321,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$text .= $view['phase_label'] . ' (' . $view['percent'] . ' %). ';
 			if ( 'interrupted' === $state ) $text .= 'Se interrumpió y se reanudará desde su último punto de control' . ( $waiting ? ' a las ' . $view['retry_label'] : '' ) . '. ';
 			$text .= Digitalisimo_Backups_Restore_Job::cancellable( (string) $active['phase'] ) && ! $rollback ? 'El sitio sigue entero hasta el cambio.' : 'El sitio está en mantenimiento hasta que termine.';
+			// Lo que de verdad la hace avanzar (revisión, A1): esta pantalla abierta, WP-Cron (cada visita durante el
+			// mantenimiento lo despierta, como mucho una vez por minuto), el cron del sistema o WP-CLI.
+			$text .= ' Avanza con esta pantalla abierta, con las visitas al sitio (despiertan WP-Cron) o con el cron del sistema; en un sitio sin visitas, añade al cron del sistema «' . Digitalisimo_Backups_Restore_Maintenance::system_cron_line() . '» o ejecuta wp digitalisimo-backups jobs run.';
 			return array( 'state' => $state, 'job' => (string) $active['id'], 'phase' => (string) $active['phase'], 'phase_label' => $view['phase_label'], 'percent' => $view['percent'], 'file' => basename( (string) $active['spec']['file'] ), 'safety' => self::restore_safety_file( $active ), 'notice' => trim( $text ), 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
 		}
 		// La última fue la vuelta a la copia previa: el sitio está como antes, pero la restauración pedida no se hizo.
@@ -2204,8 +2334,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		if ( $last && 'success' !== $last['status'] && time() - (int) $last['finished_at'] < 7 * 86400 ) {
 			$message = is_array( $last['error'] ?? null ) ? (string) $last['error']['message'] : (string) ( $last['progress']['message'] ?? '' );
-			$state = 'cancelled' === $last['status'] ? 'cancelled' : ( self::restore_switched( $last ) ? 'failed_midway' : 'failed' );
-			return array( 'state' => $state, 'job' => (string) $last['id'], 'file' => basename( (string) $last['spec']['file'] ), 'safety' => self::restore_safety_file( $last ), 'notice' => $message, 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
+			// A medio cambiar: el cambio de tablas se hizo (o pudo hacerse), o era la vuelta a la copia previa (C1, C2).
+			$state = 'cancelled' === $last['status'] ? 'cancelled' : ( self::restore_changed( $last ) ? 'failed_midway' : 'failed' );
+			$recover = 'failed_midway' === $state ? self::restore_recoverable( $last ) : null;
+			return array( 'state' => $state, 'job' => (string) $last['id'], 'file' => basename( (string) $last['spec']['file'] ), 'safety' => self::restore_safety_file( $last ), 'notice' => $message, 'recover' => $recover ? basename( (string) $recover['file'] ) : '', 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
 		}
 		return array( 'state' => 'none', 'notice' => '' );
 	}
