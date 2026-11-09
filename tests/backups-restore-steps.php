@@ -364,6 +364,33 @@ rs_case( 'R7 con la memoria casi llena, cada tramo sigue haciendo muchas unidade
 	rs_check( ( $slices['inspect'] ?? 0 ) <= 4 && ( $slices['database'] ?? 0 ) <= 2 && ( $slices['files'] ?? 0 ) <= 3 && ( $slices['switch'] ?? 0 ) <= 2, 'Con la memoria casi llena, los tramos se partieron unidad a unidad: ' . json_encode( $slices ) );
 } );
 
+// R8 (Playground): un SQL de varios fragmentos de lectura (256 KB) por tramos. Cada tramo sigue justo después del «;» de
+// la última sentencia del anterior aunque ese tramo haya leído varios fragmentos (la posición contaba dos veces lo leído
+// antes del fragmento en curso: el guardián rechazaba media sentencia, «sentencia 1601, O…»).
+rs_case( 'R8 SQL de varios fragmentos por tramos: cada tramo sigue justo donde terminó el anterior', function() use ( $root, $backup, $expected ) {
+	rs_reset( $root, $backup );
+	$big = array();
+	for ( $i = 1; $i <= 6; $i++ ) $big[ 'opcion_grande_' . $i ] = str_repeat( chr( 96 + $i ), 150000 ) . '; fin ' . $i;
+	$GLOBALS['bk_options'] = $big + $GLOBALS['bk_options'];
+	$file = bk_backup( true );
+	foreach ( $big as $name => $value ) unset( $GLOBALS['bk_options'][ $name ] );
+	rs_mutate( $root );
+	// Dos sentencias por tramo: la segunda opción grande de cada tramo termina en el segundo fragmento que lee su lector.
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 2;
+	$GLOBALS['wpdb']->queries = array();
+	try {
+		$result = rs_restore( $file );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
+	rs_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'La restauración no terminó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
+	foreach ( $big as $name => $value ) rs_check( ( $GLOBALS['bk_options'][ $name ] ?? null ) === $value, 'No volvió entera la opción ' . $name . ': ' . json_encode( isset( $GLOBALS['bk_options'][ $name ] ) ? array( strlen( (string) $GLOBALS['bk_options'][ $name ] ), substr( (string) $GLOBALS['bk_options'][ $name ], -12 ) ) : null ) );
+	$inserts = array_filter( $GLOBALS['wpdb']->queries, function( $query ) { return 0 === strpos( $query, 'INSERT INTO `wp_dgbkr_' ) && false !== strpos( substr( $query, 0, 400 ), "'opcion_grande_" ); } );
+	rs_check( 6 === count( $inserts ), 'Las opciones grandes no se importaron una vez cada una: ' . count( $inserts ) );
+	rs_assert_restored( $root, $expected );
+	foreach ( $big as $name => $value ) unset( $GLOBALS['bk_options'][ $name ] );
+} );
+
 if ( ! $GLOBALS['failures'] && function_exists( 'proc_open' ) && '' !== PHP_BINARY && 'Unknown' !== PHP_OS_FAMILY ) {
 	// R3: cada muerte en su proceso (exit() no deja seguir en el mismo).
 	foreach ( array( 'inspect', 'safety', 'database', 'files', 'move', 'rename', 'oom' ) as $case ) {

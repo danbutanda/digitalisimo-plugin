@@ -666,7 +666,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		try {
 			if ( $offset > 0 && 0 !== fseek( $handle, $offset ) ) throw new Exception( 'No se pudo seguir la base de datos del respaldo donde se quedó.' );
 			$reader = new Digitalisimo_Backups_Sql_Reader();
-			$base = $offset;
+			// ends() cuenta desde el primer byte que lee este lector, que es el de esta posición (y no desde cada fragmento).
+			$origin = $offset;
 			$stop = false;
 			$size = (int) ( $expected['size'] ?? 0 );
 			while ( ! $stop ) {
@@ -675,10 +676,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$last = '' === $chunk;
 				// Al final, la última sentencia puede no llevar «;»: termina con el archivo.
 				$statements = $last ? $reader->finish() : $reader->feed( $chunk );
-				$ends = $last ? array_fill( 0, count( $statements ), $size - $base ) : $reader->ends();
+				$ends = $last ? array_fill( 0, count( $statements ), $size - $origin ) : $reader->ends();
 				foreach ( $statements as $k => $statement ) {
 					$start = $offset;
-					$end = $base + (int) ( $ends[ $k ] ?? 0 );
+					$end = $origin + (int) ( $ends[ $k ] ?? 0 );
 					if ( 'import' === $mode ) $cursor = self::restore_import_statement( $guard, $statement, $start, $cursor, $foreign );
 					else $cursor = self::restore_scan_statement( $guard, $statement, $cursor, $start, $end );
 					$offset = $end;
@@ -688,7 +689,6 @@ trait Digitalisimo_Backups_Restore_Engine {
 					if ( ! $last && self::restore_exhausted( $deadline, $units ) ) { $stop = true; break; }
 				}
 				if ( $last ) { $done = true; break; }
-				$base += strlen( $chunk );
 			}
 		} finally {
 			fclose( $handle );

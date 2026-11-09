@@ -81,7 +81,7 @@ class Bk_Test_DB {
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) $GLOBALS['bk_options'] = array();
 		elseif ( preg_match( '/^DROP TABLE(?: IF EXISTS)? `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) ) unset( $this->staged[ $t[1] ] );
 		if ( preg_match( '/^CREATE TABLE `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) && ! isset( $this->staged[ $t[1] ] ) ) $this->staged[ $t[1] ] = array();
-		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
+		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]++|\\\\.)*+)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
 			$values = array_map( 'bk_sql_unescape', $m[1] );
 			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ $values[1] ] = bk_maybe_unserialize( $values[2] );
 			elseif ( 'wp_posts' !== $t[1] ) {
