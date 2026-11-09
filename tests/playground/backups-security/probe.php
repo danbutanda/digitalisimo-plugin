@@ -193,7 +193,8 @@ try {
 		wp_cache_flush();
 		$check( $ok && ! $in_database( $secrets ) && is_string( $store_row() ) && ( ! $network || false === get_option( $C::OPTION ) ) && array( $current ) === $kws(), 'S9 conexiones guardadas por admin-post: ningún secreto en claro en la base de datos y el almacén cifrado en ' . ( $network ? 'sitemeta' : 'las opciones' ) );
 		$status = Digitalisimo_Backups::service_status();
-		$check( 'encrypted' === $status['credentials'] && isset( $status['destinations']['sftp'], $status['destinations']['google'], $status['destinations']['onedrive'] ) && false === strpos( wp_json_encode( $status ), 'playground-' ), 'S9 el estado dice «cifradas», con los tres destinos conectados y sin valores' );
+		$status_json = wp_json_encode( $status );
+		$check( 'encrypted' === $status['credentials'] && isset( $status['destinations']['sftp'], $status['destinations']['google'], $status['destinations']['onedrive'] ) && ! array_filter( $secrets, function( $value ) use ( $status_json ) { return false !== strpos( $status_json, $value ) || false !== strpos( $status_json, trim( wp_json_encode( $value ), '"' ) ); } ), 'S9 el estado dice «cifradas», con los tres destinos conectados y sin valores' );
 		$file = $backup( $context );
 		$zip = new ZipArchive();
 		$zip->open( $file );
