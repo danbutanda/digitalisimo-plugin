@@ -14,7 +14,7 @@ class Bk_Sqlite_DB {
 	public $num_rows = 0;
 	public $rows_affected = 0;
 	public $pdo;
-	/** Una sentencia que contiene este texto falla (simula un error de la base de datos). */
+	/** La primera sentencia que contiene este texto falla una vez (simula un error de la base de datos). */
 	public $fail_on = '';
 
 	public function __construct( $path, $prefix = 'wp_' ) {
@@ -42,7 +42,7 @@ class Bk_Sqlite_DB {
 		$this->queries[] = $sql;
 		$this->last_error = '';
 		$this->rows_affected = 0;
-		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->last_error = 'Fallo simulado'; return false; }
+		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->fail_on = ''; $this->last_error = 'Fallo simulado'; return false; }
 		try {
 			$rows = $this->run( $sql );
 		} catch ( Throwable $e ) {

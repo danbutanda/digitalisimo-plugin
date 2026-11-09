@@ -19,7 +19,9 @@
  *   E5  comprobaciones previas: red de otro tipo y wp-config.php que no declara la red, rechazadas antes de tocar nada
  *       con un mensaje que dice qué cambiar;
  *   E6  el reescritor y el guardián por separado (casos límite, claves de arrays, C:, profundidad, rutas) y la pasada
- *       sobre una base ya importada por lotes de clave primaria (compuesta, sin clave, BLOB).
+ *       sobre una base ya importada por lotes de clave primaria (compuesta, sin clave, BLOB);
+ *   E7  la pantalla de Restaurar: «Origen → este sitio» y qué se reescribirá antes de confirmar, la opción «conservar
+ *       las direcciones del respaldo» y el informe de la última restauración.
  * Deben fallar con el código anterior (S4): rechaza otro prefijo y deja las URL del origen.
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -239,6 +241,21 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_check( is_wp_error( $bad ) && 'digitalisimo_backups_addresses' === $bad->get_error_code() && 400 === $bad->get_error_data()['status'], 'Un valor de addresses inválido no se rechazó.' );
 } );
 
+e1_case( 'E2 un fallo a mitad de la reescritura vuelve a la copia previa', function() use ( $single ) {
+	$dest = e1_db( 'destino-falla', 'dst_' );
+	e1_tables( $dest, 'dst_' );
+	e1_options( $dest, 'dst_options', 'https://destino.mx', 'https://destino.mx', array( 'propia' => 'del destino' ) );
+	$dest->seed( 'dst_posts', array( array( 'ID' => 5, 'post_title' => 'Antes', 'post_content' => 'contenido del destino', 'guid' => 'g' ) ) );
+	e1_use( $dest, 'https://destino.mx' );
+	$before = array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) );
+	// La sentencia ya renombrada y reescrita falla: la importación se detiene y la copia previa vuelve a su sitio.
+	$dest->fail_on = 'INSERT INTO `dst_posts`';
+	$error = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'Se recuperaron la base de datos y los archivos anteriores' ), 'El fallo no se recuperó desde la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
+	e1_check( $before === array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) ), 'La copia previa no devolvió el destino tal como estaba.' );
+	e1_no_trap();
+} );
+
 /* ---------------------------------------------------------------------------------------- E3 y E4: redes */
 /** Red de origen con el sitio principal, un subsitio y, si se pide, un sitio con dominio propio. */
 function e1_network_origin( $name, $subdomain ) {
@@ -423,6 +440,28 @@ e1_case( 'E6 base ya importada: lotes por clave primaria, compuesta, sin clave y
 	e1_check( 'n_capabilities' === $db->value( 'n_usermeta', 'meta_key', 'user_id = 1' ), 'Clave de usermeta en la pasada sobre base importada.' );
 	$left = $plan->leftovers( $tables );
 	e1_check( 1 === $left['urls'] && 1 === $left['guid'] && array( 'n_sinclave', 'n_posts' ) === array_keys( $left['tables'] ) && 1 === $left['tables']['n_sinclave']['urls'], 'leftovers() (sólo queda la tabla sin clave primaria, que se informa): ' . json_encode( $left ) );
+} );
+
+/* ------------------------------------------------------------------------------ E7: la pantalla de Restaurar */
+e1_case( 'E7 pantalla: «Origen → este sitio» antes de confirmar y conservar las direcciones del respaldo', function() use ( $single ) {
+	$dest = e1_db( 'pantalla', 'pan_' );
+	e1_tables( $dest, 'pan_' );
+	e1_options( $dest, 'pan_options', 'https://destino.mx/pantalla', 'https://destino.mx/pantalla' );
+	e1_use( $dest, 'https://destino.mx/pantalla' );
+	ob_start();
+	bk_call( 'Digitalisimo_Backups', 'restore_panel', array() );
+	$html = ob_get_clean();
+	e1_check( false !== strpos( $html, esc_html( $single . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'La lista no dice «Origen → este sitio»: ' . substr( strip_tags( $html ), 0, 600 ) );
+	e1_check( false !== strpos( $html, esc_attr( 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx/pantalla (prefijo pan_). Se reescribirá: prefijo de tablas wp_ → pan_' ) ), 'El texto completo de lo que se reescribirá no está en la opción.' );
+	e1_check( false !== strpos( $html, 'name="addresses" value="current" checked' ) && false !== strpos( $html, 'name="addresses" value="backup"' ), 'Falta la opción de conservar las direcciones del respaldo.' );
+	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $single, 'confirmation' => 'RESTAURAR SIN FIRMA', 'addresses' => 'backup' ) );
+	e1_check( $ok && false !== strpos( $message, 'Origen → este sitio' ), 'La pantalla no restauró o no dijo qué reescribió: ' . $message );
+	e1_check( 'https://origen.com' === $dest->value( 'pan_options', 'option_value', "option_name = 'home'" ) && null !== $dest->value( 'pan_options', 'option_value', "option_name = 'pan_user_roles'" ), 'La pantalla no envió «conservar las direcciones del respaldo».' );
+	e1_use( $dest, 'https://origen.com' );
+	ob_start();
+	bk_call( 'Digitalisimo_Backups', 'restore_panel', array() );
+	$html = ob_get_clean();
+	e1_check( false !== strpos( $html, 'Última restauración en otro dominio' ) && false !== strpos( $html, '<code>pan_options</code>' ) && false !== strpos( $html, 'Comprobación final: 0 URL y 0 rutas del origen pendientes' ), 'Falta el informe de la última restauración: ' . substr( strip_tags( $html ), -900 ) );
 } );
 
 bk_cleanup();

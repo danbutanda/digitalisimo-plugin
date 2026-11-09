@@ -272,7 +272,8 @@ final class Digitalisimo_Backups_Cli {
 
 	/**
 	 * Verifica un respaldo local sin tocar el sitio: firma, descifrado de un `.dgbk`, estructura, CRC y SHA-256 de cada
-	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración.
+	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración. Si viene de otra
+	 * dirección, carpeta del servidor o prefijo, dice «Origen → este sitio» y qué se reescribiría al restaurarlo.
 	 *
 	 * ## OPTIONS
 	 *
@@ -285,6 +286,15 @@ final class Digitalisimo_Backups_Cli {
 	 * [--secret-stdin]
 	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
 	 *
+	 * [--addresses=<addresses>]
+	 * : Como en restore: current (conservar las direcciones de este sitio) o backup (las del respaldo).
+	 * ---
+	 * default: current
+	 * options:
+	 *   - current
+	 *   - backup
+	 * ---
+	 *
 	 * [--format=<format>]
 	 * : table o json.
 	 * ---
@@ -292,7 +302,7 @@ final class Digitalisimo_Backups_Cli {
 	 * ---
 	 */
 	public function verify( $args, $assoc_args ) {
-		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ) ) ) );
+		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) ) );
 		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
 			WP_CLI::line( wp_json_encode( $report ) );
 			return;
@@ -300,6 +310,7 @@ final class Digitalisimo_Backups_Cli {
 		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
+		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
 	}
 
 	/**
@@ -325,13 +336,22 @@ final class Digitalisimo_Backups_Cli {
 	 * [--adopt-secret]
 	 * : Usa la frase escrita para firmar y cifrar los respaldos nuevos.
 	 *
+	 * [--addresses=<addresses>]
+	 * : Si el respaldo viene de otra dirección: current conserva las de este sitio y backup las del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este sitio.
+	 * ---
+	 * default: current
+	 * options:
+	 *   - current
+	 *   - backup
+	 * ---
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 */
 	public function restore( $args, $assoc_args ) {
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ) ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ) ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 }

@@ -99,6 +99,9 @@ try {
 	digi_assert( 1 === $code && false !== strpos( end( $out ), 'nunca va en la línea de órdenes' ) && false === strpos( implode( "\n", $out ), 'frase en la línea' ), 'verify aceptó --secret en la línea de órdenes.' );
 
 	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado\n" );
+	foreach ( array( 'restore', 'verify' ) as $method ) digi_assert( false !== strpos( (string) ( new ReflectionMethod( 'Digitalisimo_Backups_Cli', $method ) )->getDocComment(), "[--addresses=<addresses>]\n\t * : " ), $method . ' debe declarar --addresses (E1).' );
+	list( $code, $out ) = digi_wp( $cmd, 'restore', array( $file ), array( 'confirm' => 'RESTAURAR', 'addresses' => 'otra' ) );
+	digi_assert( 1 === $code && false !== strpos( end( $out ), 'addresses debe ser current' ) && "<?php // cambiado\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'restore con un --addresses inválido no se detuvo: ' . implode( "\n", $out ) );
 	list( $code, $out ) = digi_wp( $cmd, 'restore', array( $file ), array( 'confirm' => 'restaurar no' ) );
 	digi_assert( 1 === $code && false !== strpos( end( $out ), 'RESTAURAR' ) && "<?php // cambiado\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'restore corrió sin la confirmación.' );
 	list( $code, $out ) = digi_wp( $cmd, 'restore', array( $file ), array( 'confirm' => 'RESTAURAR' ) );

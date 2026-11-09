@@ -528,7 +528,8 @@ final class Digitalisimo_Backups_Relocate {
 		// Rutas del servidor: siempre las del destino, de la más larga a la más corta.
 		foreach ( array( 'uploads_dir', 'content_dir', 'abspath' ) as $key ) {
 			if ( '' !== $o[ $key ] && '' !== $d[ $key ] ) $plan->add_path( $o[ $key ], $d[ $key ] );
-			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
+			// La ruta real de un despliegue con enlace (current → releases/N) también, salvo que sea la misma aquí.
+			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] && $o['abspath_real'] !== $d['abspath_real'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
 		}
 		if ( 'current' === $plan->mode ) {
 			if ( $o['multisite'] ) $plan->plan_network( (array) ( $args['sites'] ?? array() ) );
@@ -735,6 +736,7 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		if ( $this->needed() ) $report['caches'] = $this->flush_caches( $names, $report['warnings'] );
+		$this->rewrite_rules_file( $report );
 		try {
 			$report['check'] = $this->leftovers( $names );
 		} catch ( Throwable $e ) {
@@ -745,6 +747,31 @@ final class Digitalisimo_Backups_Relocate {
 		$this->report = $report + array( 'summary' => $this->summary(), 'tables' => $this->tables, 'stats' => $this->stats );
 		return $this->report;
 	}
+	/**
+	 * Si cambió la ruta del sitio (/a → /b), las reglas de reescritura del servidor que trajo el respaldo apuntan a la
+	 * anterior. En un sitio individual con Apache, el bloque de WordPress de .htaccess se regenera como al guardar los
+	 * enlaces permanentes; en una red o con otro servidor (nginx) se avisa.
+	 */
+	private function rewrite_rules_file( array &$report ) {
+		if ( 'current' !== $this->mode ) return;
+		$from = self::parse_url( $this->origin['home'] );
+		$to = self::parse_url( $this->destination['home'] );
+		$moved = $this->origin['multisite'] ? $this->origin['network']['path'] !== $this->destination['network']['path'] : ( $from && $to && $from['path'] !== $to['path'] );
+		if ( ! $moved ) return;
+		$report['caches']['htaccess'] = false;
+		// Sólo con las funciones que ya cargó esta petición (la pantalla de administración): incluir ahora
+		// wp-admin/includes/misc.php cargaría el que acaban de traer los archivos del respaldo.
+		if ( ! $this->origin['multisite'] && function_exists( 'save_mod_rewrite_rules' ) && function_exists( 'got_mod_rewrite' ) && function_exists( 'get_home_path' ) ) {
+			try {
+				if ( isset( $GLOBALS['wp_rewrite'] ) && is_object( $GLOBALS['wp_rewrite'] ) && method_exists( $GLOBALS['wp_rewrite'], 'init' ) ) $GLOBALS['wp_rewrite']->init();
+				if ( got_mod_rewrite() ) $report['caches']['htaccess'] = (bool) save_mod_rewrite_rules();
+			} catch ( Throwable $e ) {
+				$report['warnings'][] = 'No se pudo regenerar .htaccess: ' . $e->getMessage();
+			}
+		}
+		if ( ! $report['caches']['htaccess'] ) $report['warnings'][] = 'La ruta del sitio cambió: si el servidor usa reglas de reescritura propias (.htaccess de una red, nginx), actualízalas para la ruta nueva y guarda los enlaces permanentes.';
+	}
+
 	/** El informe de finish(): resumen, tablas, red, direcciones, cachés, comprobación y avisos. */
 	public function report() { return $this->report; }
 
