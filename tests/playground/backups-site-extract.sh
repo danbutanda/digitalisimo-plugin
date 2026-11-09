@@ -30,10 +30,13 @@ mkdir -p "$OUT" "$TMPDIR"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PORT="${PORT:-9471}"
 SERVER=''
+SERVER_PORT=''
+# Sólo libera el puerto si este ensayo arrancó ahí su servidor: nunca el de otra corrida.
 stop_server() {
   [ -n "$SERVER" ] && kill "$SERVER" 2>/dev/null || true
-  for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done
+  [ -n "$SERVER_PORT" ] && for i in 1 2 3; do fuser -k -n tcp "$SERVER_PORT" >/dev/null 2>&1 || break; sleep 1; done
   SERVER=''
+  SERVER_PORT=''
 }
 trap 'stop_server; playground_cleanup' EXIT
 trap 'exit 130' INT TERM
@@ -91,6 +94,7 @@ $CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT" --blu
   --mount="$OUT/destino/probe:/digi-probe" \
   --mount="$OUT/destino/store:/digi-store" > "$OUT/destino/server.log" 2>&1 &
 SERVER=$!
+SERVER_PORT="$PORT"
 ready=0
 for i in $(seq 1 600); do
   sleep 3
