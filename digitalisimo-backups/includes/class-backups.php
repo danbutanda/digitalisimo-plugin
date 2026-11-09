@@ -1061,7 +1061,7 @@ final class Digitalisimo_Backups {
 	}
 	/**
 	 * Copia remota de una fila del historial: destino, estado (ok, pending, failed, cancelled o legacy) y su referencia.
-	 * Desde el lote corto la fila es la del ZIP local y la copia remota va en `transfer_destination`; de 1.0.59 a 1.0.60
+	 * Desde el lote corto la fila es la del ZIP local y la copia remota va en `transfer_destination`; de 1.0.59 a 1.0.61
 	 * la transferencia cambiaba `destination` al proveedor, y antes de 1.0.59 no había `transfer` (legacy: sin
 	 * identificador si tampoco hay `remote`). null si la fila no tiene copia remota.
 	 */

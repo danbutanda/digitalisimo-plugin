@@ -107,7 +107,7 @@ try {
 	$row = $row_of( $file );
 	digi_assert( $row && 'ok' === $row['transfer'] && 'google' === $row['remote']['provider'], 'Tras restaurar, la fila perdió su copia remota.' );
 
-	// 3. Filas antiguas: el proveedor en `destination` (1.0.59 a 1.0.60, y antes sin `transfer`). Con el ZIP local, restaurables.
+	// 3. Filas antiguas: el proveedor en `destination` (1.0.59 a 1.0.61, y antes sin `transfer`). Con el ZIP local, restaurables.
 	$history = (array) get_option( $B::HISTORY, array() );
 	$legacy = array();
 	foreach ( array( 'digitalisimo-backup-s4.zip' => array( 'destination' => 'google', 'transfer' => 'ok', 'transfer_destination' => 'google' ), 'digitalisimo-backup-anterior.zip' => array( 'destination' => 'sftp', 'remote' => array( 'provider' => 'sftp', 'path' => '/srv/respaldos/x.zip' ) ) ) as $name => $changes ) {
