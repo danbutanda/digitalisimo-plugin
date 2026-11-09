@@ -99,7 +99,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -223,7 +223,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -345,7 +345,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    },
@@ -442,7 +442,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -521,7 +521,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -625,7 +625,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -728,7 +728,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -835,7 +835,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -862,7 +862,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
@@ -899,7 +899,7 @@
     "widths": {
      "375": {
       "max": 0.06,
-      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %."
+      "reason": "Sólo a 375 px, sólo el suavizado del texto: la pista de las Reseñas mide el 95 % del widget (310,64 px), así que el paso es fraccionario (320,64 px), y con el bucle real la diapositiva en reposo está tras dos copias; Chrome redondea scrollLeft a píxeles enteros y la deja 0,28 px a la derecha de donde Swiper la pinta con transform (los glifos caen en otra fracción de píxel). A 768 y 1 280 px el paso es entero y no hay diferencia; con la pista en 0 (antes del bucle real) era el 1,9 %. Con puntos, la paginación suma unos 0,13 puntos (los puntos a 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: 4,24 % frente a 4,11 % con el paso de Swiper en rv-defaults); el umbral no cambia."
      }
     }
    }
