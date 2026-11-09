@@ -154,6 +154,21 @@ $db->create( 'wp_3_posts', $posts, array( array( 'ID' => 1, 'post_author' => 4, 
 $db->create( 'wp_3_postmeta', array( 'meta_id', 'post_id', 'meta_key', 'meta_value' ) );
 $GLOBALS['digi']['sites'] = array( 1 => array( 'domain' => 'red.test', 'path' => '/' ), 2 => array( 'domain' => 'red.test', 'path' => '/sub2/' ), 3 => array( 'domain' => 'red.test', 'path' => '/sub3/' ) );
 
+/** WP-CLI mínimo, sin la constante WP_CLI (que haría pasar cualquier comprobación de permisos de esta prueba). */
+class Digi_Cli_Exit extends Exception {}
+class WP_CLI {
+	public static $output = array();
+	public static function success( $message ) { self::$output[] = 'Success: ' . $message; }
+	public static function line( $message = '' ) { self::$output[] = (string) $message; }
+	public static function log( $message ) { self::$output[] = (string) $message; }
+	public static function warning( $message ) { self::$output[] = 'Warning: ' . $message; }
+	public static function error( $message ) { self::$output[] = 'Error: ' . $message; throw new Digi_Cli_Exit( (string) $message ); }
+}
+require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-cli.php';
+function digi_wp_extract( array $args, array $assoc ) {
+	WP_CLI::$output = array();
+	try { ( new Digitalisimo_Backups_Cli() )->extract( $args, $assoc ); return array( 0, WP_CLI::$output ); } catch ( Digi_Cli_Exit $e ) { return array( 1, WP_CLI::$output ); }
+}
 /** Entradas del ZIP y su contenido. */
 function digi_zip( $path ) {
 	$zip = new ZipArchive();
@@ -185,6 +200,10 @@ function digi_extract( $site, array $args = array() ) {
 
 try {
 	/* ---- Quién puede extraer y con qué alcance ---- */
+	// Lo que ve quien administra la red: la ruta REST y la acción de la pantalla de red existen y exigen el alcance de red.
+	$rest = digi_rest( 'POST', 'digitalisimo-backups/v1/sites/2/extract', array() );
+	digi_assert( 400 === $rest[0] && 'digitalisimo_backups_scope' === ( $rest[1]['code'] ?? '' ), 'REST no ofrece extraer un sitio de la red con el alcance explícito: ' . json_encode( $rest ) );
+	digi_assert( ! empty( $GLOBALS['digi']['actions']['admin_post_digitalisimo_backups_extract'] ), 'La pantalla de red no tiene la acción «Extraer como WordPress individual».' );
 	$error = $S::service_extract( 2, array() );
 	digi_assert( is_wp_error( $error ) && 400 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'alcance de red' ), 'Se extrajo sin el alcance de red explícito.' );
 	$GLOBALS['digi']['blog'] = 2;
@@ -305,6 +324,10 @@ try {
 	$rest = digi_rest( 'POST', 'digitalisimo-backups/v1/sites/3/extract', array( 'network' => true, 'super_admins' => 'none' ) );
 	digi_assert( 202 === $rest[0] && 'extracted-site' === $rest[1]['scope'] && 3 === $rest[1]['site'], 'REST no encoló la extracción: ' . json_encode( $rest ) );
 	digi_assert( 'success' === digi_drive( $rest[1]['id'] )['status'], 'La extracción por REST no terminó.' );
+	list( $code, $out ) = digi_wp_extract( array( '3' ), array( 'super-admins' => 'none', 'porcelain' => true ) );
+	digi_assert( 1 === $code && false !== strpos( implode( ' ', $out ), 'alcance de red' ), 'WP-CLI extrajo sin --network: ' . json_encode( $out ) );
+	list( $code, $out ) = digi_wp_extract( array( '3' ), array( 'network' => true, 'super-admins' => 'none', 'porcelain' => true ) );
+	digi_assert( 0 === $code && 1 === preg_match( '/^extracted-site-red-test-sub3-\d{8}-\d{6}-[0-9a-f]{8}\.zip$/', (string) end( $out ) ), 'WP-CLI no terminó la extracción con su paquete: ' . json_encode( $out ) );
 	$query = digi_admin_post( array( $S, 'extract_request' ), $X::ACTION, array( 'site_id' => '2' ) );
 	digi_assert( 'error' === $query['backup'] && false !== strpos( $query['message'], 'administración de la red' ), 'La pantalla de un sitio pudo extraer: ' . json_encode( $query ) );
 	$query = digi_admin_post( array( $S, 'extract_request' ), $X::ACTION, array( 'site_id' => '2', 'digitalisimo_backups_network' => '1', 'super_admins' => 'managing' ) );

@@ -995,6 +995,12 @@ final class Digitalisimo_Backups {
 		return $files;
 	}
 
+	/**
+	 * Vía antigua (v2) de exportar un sitio de la red: tablas renombradas a `wp_` y MIGRAR-A-WORDPRESS-UNICO.txt con pasos
+	 * manuales. Sólo la llama una automatización incremental anterior a 1.0.38; su paquete (alcance `site`) nunca se
+	 * restaura. Se conserva por compatibilidad: la vía recomendada es «Extraer como WordPress individual»
+	 * (Digitalisimo_Backups_Site_Extract, alcance `extracted-site`), que pasa por el motor de trabajos y se restaura.
+	 */
 	private static function create_site( $site_id, $type = 'full' ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
 		$dir = self::local_directory();
