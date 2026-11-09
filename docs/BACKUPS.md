@@ -466,7 +466,8 @@ caché del servidor web (LSCache).
   un hosting que corta a los 30 s puede no terminarla (el sitio no cambia).
 - Un archivo muy grande se prepara entero en un tramo; mover entre discos distintos copia y comprueba (más lento). Si el
   proceso muere para siempre a mitad del cambio, quedan carpetas apartadas `.digitalisimo-old-*` junto a las vivas (ocultas:
-  WordPress no las carga); la vuelta a la copia previa no las usa y hay que borrarlas a mano.
+  WordPress no las carga) hasta que una restauración termina (también la vuelta a la copia previa, que retira las de la que
+  deshizo).
 - Una muerte justo después del `RENAME` deja el llavero sin su envoltura hasta volver a escribir la frase (el diario, como
   en 1.0.59); el resto se repone.
 - Si muere en el cambio y lo restaurado no deja cargar WordPress (un plugin a medio cambiar que da un error fatal), la
