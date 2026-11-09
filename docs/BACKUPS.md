@@ -269,7 +269,8 @@ restaurar y verificar trabajan en la misma petición.
 
 Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`), sobre el motor de 1.0.59: WordPress 7.1.4,
 PHP 8.5 y SQLite, en un sitio individual y en una red con un subsitio, todo por HTTP real. Pasaron 99 comprobaciones
-(45 en el sitio individual y 54 en la red, 395 s). El ensayo corta el loopback de WP-Cron (un mu-plugin de `setup.php`)
+(45 en el sitio individual y 54 en la red, 395 s). Con E1 (@NEXT_BACKUPS@) se repitió con `addresses` en `verify` y `restore` (REST con la validación de WordPress, WP-CLI
+con la suya): 109 comprobaciones, 320 s, todo correcto. El ensayo corta el loopback de WP-Cron (un mu-plugin de `setup.php`)
 para que la cola sólo avance cuando él lo pide; sin ese corte, en el sitio individual WP-Cron terminó por su cuenta el
 trabajo encolado por REST y el de `create --async` antes de que el ensayo los cancelara.
 
@@ -327,7 +328,8 @@ Si no:
   prefijo distinto ya no impide restaurar.
 - **Red**: con el dominio y la ruta de la red de este servidor, `site`, `sitemeta.siteurl`, `blogs` y `home`/`siteurl` de
   cada sitio. Por subdirectorios, `origen.com/uno/` pasa a `destino.com/<ruta de la red>uno/`; por subdominios,
-  `uno.origen.com` pasa a `uno.destino.com`. Un sitio con dominio propio (`cliente.com`) se queda como está.
+  `uno.origen.com` pasa a `uno.destino.com`; también la meta `source_domain` de cada usuario (el dominio, sin esquema,
+  del sitio donde se registró). Un sitio con dominio propio (`cliente.com`) se queda como está.
 - **Cachés**: transitorios (`options` y `sitemeta`), `rewrite_rules` de cada sitio (WordPress las regenera en la
   siguiente visita: es `flush_rewrite_rules` sin depender del `$wp_rewrite` de otro sitio, que `switch_to_blog()` no
   cambia), las metas `_elementor_css`, `_elementor_element_cache` y `_elementor_page_assets`, las opciones
@@ -372,6 +374,17 @@ durante la importación o después (la red, las direcciones), la restauración v
 restauración no es un trabajo reanudable: si el proceso muere a mitad, lo ya importado está reubicado fila por fila (los
 roles y permisos con el prefijo nuevo, así que se puede entrar), pero el sitio queda a medias y hay que restaurar la
 copia previa (límite declarado, igual que antes de E1).
+
+Ensayo en WordPress Playground (`tests/playground/backups-relocate.sh`): WordPress 7.1.4, PHP 8.5, SQLite y núcleo de
+Elements 4.3.5, todo por HTTP. Un sitio individual y una red por subdirectorios (con el subsitio `/uno/`), con páginas de
+Elements con imagen de fondo, se respaldan por REST en `http://origen.test` (prefijo `wp_`) y se restauran por REST como
+archivo suelto de otro servidor en `http://destino.test`, instalado con el prefijo `dst_` junto a otro WordPress con
+`wp_` en la misma base. `verify` dice «Origen → este sitio»; después de restaurar (41 a 43 s), las páginas y su CSS
+regenerado cargan sin `origen.test`, los enlaces internos van al dominio nuevo, ninguna tabla del sitio menciona el
+origen salvo `guid` (7 y 13, que la comprobación final encuentra y deja), el otro WordPress queda intacto, los sitios de
+la red tienen el dominio nuevo y se inicia sesión con la cuenta del respaldo, con el escritorio (de la red) y sus
+permisos: 384 s, todo correcto. El cambio de ruta del sitio y de carpeta del servidor y la red por subdominios no caben
+en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por cabecera) y se prueban en `backups-relocate.php`.
 
 ## Almacenamiento local
 
