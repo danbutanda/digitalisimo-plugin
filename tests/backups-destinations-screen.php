@@ -14,6 +14,8 @@
  *   (f) trabajos: una transferencia S3 interrumpida se reanuda en el siguiente intento subiendo sólo las partes
  *       pendientes, y cancelar un trabajo en «transfer» aborta su subida por partes en el destino;
  *   (g) «Traer al almacén», descarga y borrado de una copia remota del historial, verificada por SHA-256;
+ *   (i) el dato adicional ata cada secreto nuevo a su conexión: una escritura directa en la base que pasa FTP a «sin
+ *       cifrar» o cambia el endpoint de una conexión adicional deja el secreto sin abrir, con el aviso que la nombra;
  *   (h) red: los secretos nuevos viven en sitemeta y la pantalla conserva el contexto de red.
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -262,6 +264,33 @@ $case( 'g', function() use ( $B, $check, $compat ) {
 	// Borrar la copia remota por el contrato.
 	bk_call( $B, 'delete_remote', bk_call( $B, 'history_item', $file ) );
 	$check( ! isset( $compat->objects[ $key ] ), 'delete_remote no borró la copia del destino.' );
+} );
+
+$case( 'i', function() use ( $B, $check, $settings ) {
+	// Una escritura directa en la base que pasa FTP a «sin cifrar»: la contraseña ya no se abre (no viaja en claro).
+	$saved = get_option( $B::OPTION );
+	$check( 'Ftp-Clave-Unica-2' === $settings()['ftp_password'], 'La contraseña de FTP no estaba guardada para el caso.' );
+	update_option( $B::OPTION, array( 'ftp_security' => 'none' ) + $saved );
+	$check( '' === $settings()['ftp_password'], 'Con el cifrado FTP cambiado en la base, la contraseña se siguió abriendo.' );
+	$problem = $B::destination_problem( 'ftp' );
+	$check( false !== strpos( $problem, 'vuelve a escribir la contraseña de FTP' ), 'El destino FTP no pide volver a escribir la contraseña: ' . $problem );
+	try { $B::job_transfer( __FILE__, 'ftp' ); throw new LogicException( 'La transferencia FTP no falló.' ); }
+	catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'contraseña de FTP' ), 'El trabajo no falla de forma permanente con el motivo: ' . $e->getMessage() ); }
+	update_option( $B::OPTION, $saved );
+	$check( 'Ftp-Clave-Unica-2' === $settings()['ftp_password'], 'Al volver el cifrado, la contraseña no volvió a abrirse.' );
+	// Lo mismo con el servidor de una conexión adicional: el aviso nombra la conexión.
+	$id = $GLOBALS['bk_connection'];
+	$connections = get_option( Digitalisimo_Backups_Destinations::CONNECTIONS );
+	$moved = $connections;
+	$moved[ $id ]['settings']['s3compat_endpoint'] = 'https://atacante.example';
+	update_option( Digitalisimo_Backups_Destinations::CONNECTIONS, $moved );
+	$check( '' === bk_call( $B, 'connection_settings', $id )['s3compat_secret_key'], 'La Secret key de la conexión se abrió con otro endpoint.' );
+	$problem = $B::destination_problem( $id );
+	$check( false !== strpos( $problem, '«Segundo MinIO»' ) && false !== strpos( $problem, 'Secret key' ), 'El aviso no nombra la conexión adicional: ' . $problem );
+	$status = $B::service_status();
+	$check( 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'Segundo MinIO' ), 'status no avisa de la conexión adicional que hay que volver a escribir.' );
+	update_option( Digitalisimo_Backups_Destinations::CONNECTIONS, $connections );
+	$check( 'Segunda-Secreta-11' === bk_call( $B, 'connection_settings', $id )['s3compat_secret_key'], 'Al volver el endpoint, la Secret key no volvió a abrirse.' );
 } );
 
 $case( 'h', function() use ( $B, $C, $check, $fields, $secrets, $save ) {
