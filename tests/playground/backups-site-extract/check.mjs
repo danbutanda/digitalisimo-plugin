@@ -78,7 +78,8 @@ try {
   check(!info.users.solo3 && !info.users.otro, 'sin usuarios de otros sitios ni superadministradores que no lo administran', Object.keys(info.users).join(', '));
 
   // Contenido: el mismo, con las direcciones del destino.
-  const strip = (text) => String(text).split(state.media_url).join('MEDIO').replace(/http:\/\/red\.test\/dos/g, 'SITIO');
+  // Las dos URL del medio en la red (la del principal y la del propio sitio) pasan a la del destino.
+  const strip = (text) => String(text).split(state.media_url).join('MEDIO').split(state.media_url_site || '\u0000').join('MEDIO').replace(/http:\/\/red\.test\/dos/g, 'SITIO');
   for (const [id, post] of Object.entries(inventory.posts)) {
     const got = info.posts[id];
     if (!check(got && got.title === post.title && got.type === post.type && got.author === post.author, `contenido ${post.type} «${post.title}» con su autor`, JSON.stringify(got).slice(0, 200))) continue;

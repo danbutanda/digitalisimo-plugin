@@ -313,11 +313,16 @@ function is_network_admin() { return false; }
 function get_current_user_id() { return 1; }
 function home_url() { return untrailingslashit( (string) get_option( 'home' ) ); }
 function site_url() { return untrailingslashit( (string) get_option( 'siteurl' ) ); }
-/** Medios como _wp_upload_dir(): el principal en uploads/, cada sitio en uploads/sites/<id>, con la URL de su siteurl. */
+/**
+ * Medios como _wp_upload_dir(): el principal en uploads/, cada sitio en uploads/sites/<id>. La URL sale de
+ * WP_CONTENT_URL, que es la del sitio que atiende la petición (el principal en estas pruebas), aunque se haya cambiado
+ * de sitio con switch_to_blog(): así lo hace WordPress.
+ */
 function wp_upload_dir( $time = null, $create = true ) {
 	$blog = get_current_blog_id();
 	$suffix = is_multisite() && 1 !== $blog ? '/sites/' . $blog : '';
-	return array( 'basedir' => WP_CONTENT_DIR . '/uploads' . $suffix, 'baseurl' => untrailingslashit( (string) get_option( 'siteurl' ) ) . '/wp-content/uploads' . $suffix );
+	$siteurl = is_multisite() ? get_blog_option( 1, 'siteurl' ) : get_option( 'siteurl' );
+	return array( 'basedir' => WP_CONTENT_DIR . '/uploads' . $suffix, 'baseurl' => untrailingslashit( (string) $siteurl ) . '/wp-content/uploads' . $suffix );
 }
 function get_theme_root( $stylesheet = '' ) { return WP_CONTENT_DIR . '/themes'; }
 function plugin_basename( $file ) { return ltrim( substr( wp_normalize_path( $file ), strlen( wp_normalize_path( WP_PLUGIN_DIR ) ) ), '/' ); }

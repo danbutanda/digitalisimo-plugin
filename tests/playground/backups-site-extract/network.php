@@ -128,6 +128,12 @@ try {
 
 		case 'css':
 			$state = digi_state();
+			// Desde una petición del propio sitio, WordPress da la URL de los medios con su dirección (red.test/dos/…),
+			// no con la del principal: contenido con esa forma, que también debe pasar al destino.
+			$site_url = wp_get_attachment_url( (int) $state['media'] );
+			if ( false === strpos( $site_url, '/dos/wp-content/uploads/sites/2/' ) ) $problems[] = 'La URL del medio desde el sitio no es la esperada: ' . $site_url;
+			wp_insert_post( array( 'post_title' => 'Desde el sitio', 'post_type' => 'post', 'post_status' => 'publish', 'post_content' => '<img src="' . esc_url( $site_url ) . '">', 'post_author' => (int) $state['users']['editora'] ) );
+			digi_state( array( 'media_url_site' => $site_url ) );
 			$css = '';
 			if ( ! class_exists( '\Elementor\Core\Files\CSS\Post' ) ) $problems[] = 'Elements no está cargado en el sitio 2.';
 			else {

@@ -207,6 +207,27 @@ final class Digitalisimo_Backups_Site_Extract {
 		return array( 'basedir' => untrailingslashit( wp_normalize_path( (string) ( $uploads['basedir'] ?? '' ) ) ), 'baseurl' => untrailingslashit( (string) ( $uploads['baseurl'] ?? '' ) ) );
 	}
 	/**
+	 * Otras URL de la misma carpeta de medios. WordPress arma la URL de los medios con WP_CONTENT_URL, que sale del
+	 * `siteurl` del sitio que atiende la petición: lo subido desde el propio sitio lleva su dirección
+	 * (`red.test/dos/wp-content/uploads/sites/2`) y lo que se creó desde el principal (switch_to_blog(), como este mismo
+	 * trabajo), la del principal (`red.test/wp-content/uploads/sites/2`). Con `home` distinto de `siteurl`, también esa.
+	 */
+	public static function upload_aliases( $site_id, array $uploads ) {
+		$content = wp_normalize_path( (string) realpath( WP_CONTENT_DIR ) );
+		$basedir = wp_normalize_path( (string) $uploads['basedir'] );
+		$root = trailingslashit( wp_normalize_path( (string) realpath( ABSPATH ) ) );
+		if ( '' === $content || 0 !== strpos( $basedir . '/', $content . '/' ) || 0 !== strpos( $content . '/', $root ) ) return array();
+		$tail = '/' . trim( substr( $content, strlen( $root ) ), '/' ) . substr( $basedir, strlen( $content ) );
+		$out = array();
+		foreach ( array( get_blog_option( $site_id, 'siteurl' ), get_blog_option( $site_id, 'home' ), get_blog_option( get_main_site_id(), 'siteurl' ), get_blog_option( get_main_site_id(), 'home' ) ) as $base ) {
+			$base = untrailingslashit( (string) $base );
+			if ( '' === $base ) continue;
+			$url = $base . $tail;
+			if ( $url !== $uploads['baseurl'] && ! in_array( $url, $out, true ) ) $out[] = $url;
+		}
+		return $out;
+	}
+	/**
 	 * Exportador del sitio para `database_sql_to_file()`: sus tablas, y los usuarios y metas filtrados con el prefijo del
 	 * sitio. `report()` dice qué hizo, sin valores ni datos personales.
 	 */
@@ -218,11 +239,7 @@ final class Digitalisimo_Backups_Site_Extract {
 		$tables[] = $base . 'users';
 		$tables[] = $base . 'usermeta';
 		$uploads = self::uploads( $site['id'] );
-		// La misma carpeta servida desde el dominio de la red (subdirectorios, o contenido insertado desde el sitio principal).
-		$uploads['aliases'] = array();
-		$main = untrailingslashit( (string) get_blog_option( get_main_site_id(), 'siteurl' ) );
-		$own = untrailingslashit( (string) get_blog_option( $site['id'], 'siteurl' ) );
-		if ( '' !== $main && '' !== $own && $main !== $own && 0 === strpos( $uploads['baseurl'], $own . '/' ) ) $uploads['aliases'][] = $main . substr( $uploads['baseurl'], strlen( $own ) );
+		$uploads['aliases'] = self::upload_aliases( $site['id'], $uploads );
 		return new Digitalisimo_Backups_Site_Extract_Export( $site, $spec['extract'], $tables, $uploads );
 	}
 
