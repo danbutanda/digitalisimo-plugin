@@ -19,12 +19,14 @@
  *
  * Una muerte por proceso: sin argumentos, la prueba se lanza a sí misma (PHP del sistema con proc_open, como la CI) con
  * --muerte=<fase> para cada una; con php-wasm, que no lanza procesos, se corre así cada caso aparte:
- *   for m in inspect safety database files move rename; do php tests/backups-restore-steps.php --muerte=$m; done
+ *   for m in inspect safety database files move rename oom; do php tests/backups-restore-steps.php --muerte=$m; done
  * Deben fallar con el código anterior (E1): la restauración no era un trabajo, no retiraba lo ajeno y no se reanudaba.
  */
 $death = '';
 foreach ( array_slice( $argv ?? array(), 1 ) as $arg ) if ( 0 === strpos( $arg, '--muerte=' ) ) $death = substr( $arg, 9 );
 require __DIR__ . '/lib/backups-env.php';
+// Lo primero que corre al apagar (antes que el motor): suelta el lastre del caso de memoria agotada.
+register_shutdown_function( function() { unset( $GLOBALS['rs_ballast'] ); } );
 
 $failures = 0;
 function rs_check( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); }
@@ -52,6 +54,10 @@ foreach ( array(
 @mkdir( $root . '/wp-content/plugins/devplug/.git', 0700, true );
 file_put_contents( $root . '/wp-content/plugins/devplug/.git/config', "[core]\n" );
 $GLOBALS['bk_options']['blogname'] = 'Sitio original';
+// Una tabla de otra aplicación en la misma base, un .user.ini con el auto_prepend_file de otro servidor y un .htaccess.
+$GLOBALS['wpdb']->extra_tables['otra_app'] = "CREATE TABLE `otra_app` (\n  `ID` bigint(20) unsigned NOT NULL,\n  PRIMARY KEY (`ID`)\n) ENGINE=InnoDB";
+file_put_contents( $root . '/.user.ini', "auto_prepend_file = '/home/otro-servidor/public_html/wordfence-waf.php'\nmemory_limit = 256M\n" );
+file_put_contents( $root . '/.htaccess', "# BEGIN WordPress\nRewriteEngine On\n# END WordPress\n" );
 $backup = bk_backup( true );
 $expected = bk_tree();
 unset( $expected['/wp-content/plugins/devplug/.git'], $expected['/wp-content/plugins/devplug/.git/config'] );
@@ -73,19 +79,23 @@ function rs_mutate( $root ) {
 	file_put_contents( $root . '/wp-content/otra/notas.txt', "fuera de las raíces gestionadas\n" );
 	file_put_contents( $root . '/robots.txt', "User-agent: *\n" );
 	file_put_contents( $root . '/wp-config.php', "<?php define( 'DB_NAME', 'otra' ); // de este servidor\n" );
+	file_put_contents( $root . '/.htaccess', "# cambiado después del respaldo\n" );
 }
 /** Lo que debe quedar: el respaldo en las raíces gestionadas, lo de fuera intacto, wp-config.php de este servidor. */
 function rs_assert_restored( $root, array $expected ) {
 	rs_check( 'Sitio original' === ( $GLOBALS['bk_options']['blogname'] ?? '' ) && ! isset( $GLOBALS['bk_options']['opcion_intrusa'] ), 'La base de datos no volvió al respaldo.' );
 	$tree = bk_tree();
 	foreach ( $expected as $path => $hash ) {
-		if ( '/wp-config.php' === $path ) continue;
+		if ( '/wp-config.php' === $path || '/.user.ini' === $path ) continue;
 		rs_check( ( $tree[ $path ] ?? null ) === $hash, 'No volvió al respaldo: ' . $path );
 	}
 	foreach ( array( '/wp-content/uploads/2026/11/inyectado.php', '/wp-content/plugins/nuevo/nuevo.php', '/wp-content/plugins/devplug/extra.php' ) as $gone ) rs_check( ! isset( $tree[ $gone ] ), 'Sobrevivió lo que el respaldo no tenía: ' . $gone );
 	foreach ( array( '/otra-app/index.php', '/wp-content/otra/notas.txt', '/robots.txt', '/wp-content/plugins/devplug/.git/config' ) as $kept ) rs_check( isset( $tree[ $kept ] ), 'Se retiró algo fuera de las raíces gestionadas o excluido a propósito: ' . $kept );
 	rs_check( false !== strpos( file_get_contents( $root . '/wp-config.php' ), 'de este servidor' ), 'Se restauró wp-config.php.' );
 	rs_check( ! file_exists( $root . '/.maintenance' ), 'El sitio quedó en mantenimiento.' );
+	// Revisión de E1, P1: el auto_prepend_file que aquí no existe se desactiva (si no, PHP daría 500 a todo).
+	$ini = (string) @file_get_contents( $root . '/.user.ini' );
+	rs_check( false !== strpos( $ini, '; Desactivado por DIGITALÍSIMO Backups' ) && ! preg_match( '/^auto_prepend_file/m', $ini ) && false !== strpos( $ini, 'memory_limit = 256M' ), 'El .user.ini con un auto_prepend_file inexistente no se desactivó: ' . $ini );
 	rs_check( ! glob( $root . '/.digitalisimo-restore-*' ), 'Quedó el área de trabajo de los archivos junto a WordPress.' );
 	rs_check( ! preg_grep( '/dgbk[ro]_/', array_keys( $GLOBALS['wpdb']->staged ) ), 'Quedaron tablas temporales o viejas: ' . implode( ', ', array_keys( $GLOBALS['wpdb']->staged ) ) );
 }
@@ -142,7 +152,7 @@ if ( '' !== $death ) {
 	// Un caso de muerte: el proceso muere y la operación siguiente (otra petición) la reanuda.
 	rs_mutate( $root );
 	$GLOBALS['wpdb']->queries = array();
-	register_shutdown_function( function() use ( $death, $root, $expected, $J ) {
+	if ( 'oom' !== $death ) register_shutdown_function( function() use ( $death, $root, $expected, $J ) {
 		rs_case( 'muerte a mitad de «' . $death . '» y reanudación', function() use ( $death, $root, $expected, $J ) {
 			rs_check( is_file( $GLOBALS['bk_root'] . '-muerte.json' ), 'El proceso no murió donde debía (' . $death . ').' );
 			unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'], $GLOBALS['bk_filters']['digitalisimo_backups_job_heartbeat'], $GLOBALS['bk_on_exit'] );
@@ -169,6 +179,40 @@ if ( '' !== $death ) {
 		@unlink( $GLOBALS['bk_root'] . '-muerte.json' );
 		echo $GLOBALS['failures'] ? "FALLA: restauración con muerte en «{$death}».\n" : "DIGITALÍSIMO Backups: restauración muerta en «{$death}» reanudada desde su punto de control e idéntica al respaldo.\n";
 	} );
+	if ( 'oom' === $death ) {
+		// Revisión de E1, H4: una opción serializada enorme con direcciones que reescribir no cabe en la memoria: la
+		// petición muere en la verificación (la reubicación en seco de las sentencias más grandes), antes de la copia previa.
+		$GLOBALS['wpdb']->exit_on = '';
+		$GLOBALS['bk_options']['opcion_enorme'] = array_fill( 0, 200000, 'https://example.test/x' );
+		$GLOBALS['bk_options']['opcion_intrusa'] = 'no estaba en el respaldo';
+		$big = bk_backup( true );
+		unset( $GLOBALS['bk_options']['opcion_enorme'] );
+		$GLOBALS['bk_options']['home'] = $GLOBALS['bk_options']['siteurl'] = 'https://destino.test';
+		$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
+		$GLOBALS['rs_ballast'] = '';
+		register_shutdown_function( function() use ( $root ) {
+			unset( $GLOBALS['rs_ballast'] );
+			// Lo que dejó a medias la petición que murió sigue ocupando memoria hasta el final del proceso.
+			ini_set( 'memory_limit', '512M' );
+			rs_case( 'memoria agotada al reescribir: falla antes de la copia previa', function() use ( $root ) {
+				$error = error_get_last();
+				rs_check( $error && false !== strpos( (string) $error['message'], 'Allowed memory size' ), 'La prueba no agotó la memoria: ' . json_encode( $error ) );
+				$job = rs_last_restore();
+				rs_check( $job && 'inspect' === $job['phase'] && empty( $job['checkpoint']['safety'] ) && 'fatal' === ( $job['error']['code'] ?? '' ) && false !== strpos( (string) $job['error']['message'], 'Allowed memory size' ), 'La memoria no se agotó en la verificación o el motor no lo anotó: ' . json_encode( array( $job['phase'] ?? null, $job['status'] ?? null, $job['error'] ?? null ) ) );
+				rs_check( ! glob( bk_storage() . '/safety-before-restore-*' ) && 'no estaba en el respaldo' === ( $GLOBALS['bk_options']['opcion_intrusa'] ?? '' ) && ! preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ), 'Antes de agotar la memoria se creó la copia previa o se tocó el sitio.' );
+			} );
+			bk_cleanup();
+			echo $GLOBALS['failures'] ? "FALLA: memoria agotada al reescribir.\n" : "DIGITALÍSIMO Backups: una reubicación que no cabe en memoria muere en la verificación, antes de la copia previa y sin tocar el sitio.\n";
+		} );
+		$GLOBALS['wpdb']->queries = array();
+		// El error fatal es el esperado: no se muestra (error_get_last() lo conserva para la comprobación).
+		ini_set( 'display_errors', '0' );
+		ini_set( 'memory_limit', '96M' );
+		$GLOBALS['rs_ballast'] = str_repeat( 'b', max( 0, 60 * 1048576 - memory_get_usage( true ) ) );
+		rs_restore( $big );
+		echo "FALLA: la reubicación en seco cupo en memoria (no se probó la muerte).\n";
+		exit;
+	}
 	if ( 'rename' === $death ) {
 		// Muere justo después del RENAME TABLE, antes de reponer historial, llavero y credenciales: lo hace el diario.
 		$GLOBALS['bk_options'][ $B::HISTORY ][] = array( 'file' => 'dgbk-restore-test-history', 'scope' => 'installation', 'destination' => 'local' );
@@ -207,6 +251,12 @@ rs_case( 'R1/R2/R6 restauración por tramos, tablas temporales con un RENAME y a
 	$at = array_search( $renames[0], $queries, true );
 	foreach ( array_slice( $queries, 0, $at ) as $query ) rs_check( ! preg_match( '/^(INSERT INTO|DROP TABLE IF EXISTS|CREATE TABLE) `wp_(options|posts)`/', $query ), 'Antes del cambio se escribió en una tabla del sitio: ' . substr( $query, 0, 80 ) );
 	rs_check( preg_grep( '/^INSERT INTO `wp_dgbkr_/', $queries ), 'La base de datos no se importó a tablas temporales con el prefijo del sitio.' );
+	// Revisión de E1, H3: la tabla de otra aplicación del respaldo no se borra, no se recrea ni entra en el cambio.
+	rs_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $queries ) && false === strpos( $renames[0], '`otra_app`' ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ) && false !== strpos( $result['notice'], 'otra_app' ), 'Se tocó o no se informó la tabla de otra aplicación.' );
+	rs_check( isset( $result['config']['.user.ini'] ) && false !== strpos( $result['notice'], '.user.ini' ), 'El aviso no dice que se desactivó el auto_prepend_file.' );
+	// H6 del laboratorio: el .htaccess se escribe una sola vez, al final del cambio (después del plugin).
+	$switch = rs_last_restore()['checkpoint']['switch'];
+	rs_check( 1 === (int) ( $switch['htaccess'] ?? 0 ) && "# BEGIN WordPress\nRewriteEngine On\n# END WordPress\n" === file_get_contents( ABSPATH . '.htaccess' ), 'El .htaccess no se puso al final y una sola vez: ' . json_encode( $switch ) );
 	// Lo retirado está en el informe y en la copia previa.
 	$removed = (array) ( $result['removed']['sample'] ?? array() );
 	foreach ( array( 'wp-content/uploads/2026/11/inyectado.php', 'wp-content/plugins/nuevo/nuevo.php', 'wp-content/plugins/devplug/extra.php' ) as $path ) rs_check( in_array( $path, $removed, true ), 'El informe no nombra lo retirado: ' . $path . ' · ' . json_encode( $removed ) );
@@ -279,7 +329,7 @@ rs_case( 'R5 cancelar antes del cambio no toca el sitio', function() use ( $root
 
 if ( ! $GLOBALS['failures'] && function_exists( 'proc_open' ) && '' !== PHP_BINARY && 'Unknown' !== PHP_OS_FAMILY ) {
 	// R3: cada muerte en su proceso (exit() no deja seguir en el mismo).
-	foreach ( array( 'inspect', 'safety', 'database', 'files', 'move', 'rename' ) as $case ) {
+	foreach ( array( 'inspect', 'safety', 'database', 'files', 'move', 'rename', 'oom' ) as $case ) {
 		$process = @proc_open( array( PHP_BINARY, __FILE__, '--muerte=' . $case ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
 		if ( ! is_resource( $process ) ) { echo "R3 OMITIDA: no se pudo lanzar otro proceso de PHP.\n"; break; }
 		$output = stream_get_contents( $pipes[1] ) . stream_get_contents( $pipes[2] );
@@ -290,7 +340,7 @@ if ( ! $GLOBALS['failures'] && function_exists( 'proc_open' ) && '' !== PHP_BINA
 		if ( preg_match( '/FALLA|Fatal error|Uncaught/', $output ) ) $GLOBALS['failures']++;
 	}
 } elseif ( ! $GLOBALS['failures'] ) {
-	echo "R3 (muertes) se corre aparte con php-wasm: --muerte=inspect|safety|database|files|move|rename\n";
+	echo "R3 (muertes) se corre aparte con php-wasm: --muerte=inspect|safety|database|files|move|rename|oom\n";
 }
 bk_cleanup();
 if ( $GLOBALS['failures'] ) { echo 'FALLA: ' . $GLOBALS['failures'] . " caso(s) de la restauración robusta.\n"; exit( 1 ); }

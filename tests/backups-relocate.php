@@ -214,13 +214,18 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_tables( $dest, 'wp_' );
 	e1_options( $dest, 'wp_options', 'https://otro.test', 'https://otro.test', array( 'blogname_otro' => 'Otro WordPress' ) );
 	$dest->seed( 'wp_posts', array( array( 'ID' => 9, 'post_title' => 'Del otro', 'post_content' => 'https://origen.com/no-es-mio', 'guid' => 'x' ) ) );
-	$before = array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ) );
+	// Y una tabla de otra aplicación con el nombre de la ajena del origen: desde la restauración por pasos, una tabla sin el
+	// prefijo del WordPress que se restaura nunca se borra ni se recrea (revisión de E1, H3).
+	$dest->pdo->exec( "CREATE TABLE `otra_app` (`id` INTEGER PRIMARY KEY, `url` text)" );
+	$dest->seed( 'otra_app', array( array( 'id' => 42, 'url' => 'de la aplicación del destino' ) ) );
+	$before = array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) );
 	e1_use( $dest, 'https://destino.mx' );
 	$verify = Digitalisimo_Backups::service_verify( $single );
 	e1_check( ! is_wp_error( $verify ) && true === $verify['compatible'] && false !== strpos( $verify['relocation']['text'], 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx (prefijo dst_)' ), 'verify no anunció «Origen → este sitio»: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['relocation'] ) );
 	$result = e1_restore( $single );
 	e1_no_trap();
-	e1_check( $before === array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ) ), 'Cambiaron tablas del otro WordPress (prefijo wp_).' );
+	e1_check( $before === array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) ), 'Cambiaron tablas del otro WordPress (prefijo wp_) o la de otra aplicación.' );
+	e1_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $dest->queries ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ) && false !== strpos( $result['notice'], 'otra_app' ), 'La tabla de otra aplicación del respaldo se tocó o no se informó.' );
 	foreach ( array( 'dst_options', 'dst_posts', 'dst_postmeta', 'dst_users', 'dst_usermeta', 'dst_hijos', 'otra_app' ) as $table ) e1_check( in_array( $table, $dest->names(), true ), 'Falta la tabla ' . $table );
 	e1_check( ! in_array( 'wp_hijos', $dest->names(), true ), 'Se creó una tabla con el prefijo del origen.' );
 	// SQLite reescribe la referencia (con comillas dobles) al renombrar la tabla temporal a su nombre final.
@@ -231,7 +236,7 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	$keys = array_column( $dest->rows( 'dst_usermeta' ), 'meta_key' );
 	sort( $keys );
 	e1_check( array( 'dst_capabilities', 'dst_user_level', 'nickname' ) === $keys, 'Claves de usermeta: ' . implode( ', ', $keys ) );
-	e1_check( 'https://origen.com/otra-aplicacion' === $dest->value( 'otra_app', 'url', 'id = 1' ), 'Se reescribió una tabla ajena a esta instalación.' );
+	e1_check( null === $dest->value( 'otra_app', 'url', 'id = 1' ) && 'de la aplicación del destino' === $dest->value( 'otra_app', 'url', 'id = 42' ), 'Se restauró o se reescribió una tabla ajena a esta instalación.' );
 	e1_check( 'https://destino.mx/hijo' === $dest->value( 'dst_hijos', 'nota', 'id = 1' ), 'Una tabla de un plugin no se reescribió.' );
 	e1_check( 0 === $result['relocation']['check']['urls'] && ! empty( $result['relocation']['tables']['dst_usermeta']['keys'] ), 'Informe de prefijo: ' . json_encode( $result['relocation']['tables'] ) );
 	// Conservar las direcciones del respaldo: el prefijo y las rutas del servidor siguen al destino; las URL no cambian.
@@ -293,7 +298,13 @@ function e1_network_destination( $name, $prefix, array $network, $subdomain ) {
 e1_case( 'E3 red por subdirectorios a otro dominio, otra ruta y otro prefijo', function() {
 	$file = e1_network_origin( 'red-dir', false );
 	$dest = e1_network_destination( 'red-dir-destino', 'red_', array( 'domain' => 'destino.mx', 'path' => '/red/' ), false );
+	$dest->queries = array();
 	$result = e1_restore( $file );
+	// Revisión de E1, H1: la red y las direcciones se fijan en las tablas temporales antes del RENAME, así que las tablas
+	// llegan de una vez coherentes y ningún punto intermedio deja la red sin cargar.
+	$rename = array_keys( preg_grep( '/^RENAME TABLE /', $dest->queries ) );
+	$network = array_keys( preg_grep( "/^UPDATE `red_dgbkr_[0-9a-f]{6}_\d{3}` SET (domain|meta_value|option_value)/", $dest->queries ) );
+	e1_check( 1 === count( $rename ) && count( $network ) >= 4 && max( $network ) < $rename[0], 'La red no se fijó en las tablas temporales antes del cambio: ' . json_encode( array( count( $rename ), count( $network ) ) ) );
 	$blogs = $dest->rows( 'red_blogs' );
 	e1_check( array( array( '1', 'destino.mx', '/red/' ), array( '2', 'destino.mx', '/red/uno/' ) ) === array_map( function( $b ) { return array( (string) $b['blog_id'], $b['domain'], $b['path'] ); }, $blogs ), 'blogs: ' . json_encode( $blogs ) );
 	e1_check( 'destino.mx' === $dest->value( 'red_site', 'domain', 'id = 1' ) && '/red/' === $dest->value( 'red_site', 'path', 'id = 1' ), 'La tabla site no tomó el dominio y la ruta nuevos.' );

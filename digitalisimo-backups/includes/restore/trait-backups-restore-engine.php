@@ -469,8 +469,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( $plan->problems() ) throw new Digitalisimo_Backups_Permanent_Error( implode( ' ', $plan->problems() ) );
 		}
 		self::restore_write_json( $job, 'plan.json', array( 'origin' => $source, 'destination' => $destination, 'args' => $args, 'skip' => $rollback ) );
-		// Tablas: del respaldo → de este sitio (con el prefijo de la reubicación) → temporal → vieja.
+		// Tablas: del respaldo → de este sitio (con el prefijo de la reubicación) → temporal → vieja. Sólo las del WordPress
+		// que se restaura (las que llevan su prefijo): una tabla de otra aplicación que comparte la base de datos (otro
+		// WordPress, una tienda) nunca se borra ni se recrea; se informa (revisión de E1, H3).
 		$tables = is_array( $data['database_tables'] ?? null ) ? array_values( array_map( 'strval', $data['database_tables'] ) ) : array_values( (array) ( $cursor['tables'] ?? array() ) );
+		$own_prefix = (string) ( $data['table_prefix'] ?? '' );
+		$foreign = '' === $own_prefix ? array() : array_values( array_filter( $tables, function( $table ) use ( $own_prefix ) { return 0 !== strpos( $table, $own_prefix ); } ) );
+		$tables = array_values( array_diff( $tables, $foreign ) );
+		self::restore_write_json( $job, 'foreign.json', $foreign );
 		$map = $tables;
 		if ( ! $rollback && ! empty( $plan ) && $plan->needed() ) $map = array_values( self::restore_dest_names( $plan, $tables ) );
 		$base = (string) $wpdb->base_prefix;
@@ -483,6 +489,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$rows[] = array( 'backup' => $table, 'dest' => (string) $map[ $n ], 'temp' => $temp, 'old' => $old );
 		}
 		self::restore_write_json( $job, 'tables.json', $rows );
+		// Memoria (revisión de E1, H4): las sentencias más grandes pasan ahora, sin ejecutarse, por el guardián y la
+		// reubicación que usará la importación. Si no caben, esta petición muere aquí (y la verificación falla tras sus
+		// intentos con el aviso de PHP), antes de la copia previa: nunca a mitad de la importación.
+		if ( ! $rollback && ! empty( $plan ) && $plan->needed() ) self::restore_dry_transform( $job, $data, $plan, $rows, (array) ( $cursor['largest'] ?? array() ) );
 		// Tablas temporales o viejas que dejó otra restauración que murió (nunca las de la que esta deshace).
 		$keep = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 		foreach ( self::restore_leftover_tables( $base, array( $tag, $keep ) ) as $leftover ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $leftover ) );
@@ -508,6 +518,27 @@ trait Digitalisimo_Backups_Restore_Engine {
 		foreach ( (array) glob( rtrim( ABSPATH, '/\\' ) . '/.digitalisimo-restore-*', GLOB_ONLYDIR ) as $leftover ) {
 			if ( ! preg_match( '/\.digitalisimo-restore-([0-9a-f]{6})/', (string) $leftover, $m ) || in_array( $m[1], array( (string) $job['spec']['tag'], $keep ), true ) ) continue;
 			self::restore_remove_tree( (string) $leftover );
+		}
+	}
+	/** Pasa las sentencias anotadas por el guardián y la reubicación sin ejecutarlas, con la memoria de la importación. */
+	private static function restore_dry_transform( array $job, array $data, $plan, array $rows, array $largest ) {
+		if ( ! $largest ) return;
+		$handle = @fopen( self::restore_staging( $job ) . '/source.sql', 'rb' );
+		if ( ! $handle ) return;
+		try {
+			foreach ( $largest as $item ) {
+				$length = (int) ( $item[1] ?? 0 );
+				if ( $length <= 0 || 0 !== fseek( $handle, (int) $item[0] ) ) continue;
+				$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, self::restore_trusted( $job ) );
+				$plan->attach( $guard, array_column( $rows, 'backup' ) );
+				$reader = new Digitalisimo_Backups_Sql_Reader();
+				$statements = $reader->feed( (string) fread( $handle, $length ) );
+				$statements = array_merge( $statements, $reader->finish() );
+				foreach ( $statements as $statement ) if ( $guard->check( $statement ) ) $guard->rewritten();
+				unset( $guard, $reader, $statements );
+			}
+		} finally {
+			fclose( $handle );
 		}
 	}
 	/** Nombre en este sitio de cada tabla del respaldo (el prefijo de la reubicación). */
@@ -580,6 +611,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$probe = null;
 		$plan = null;
 		$temp = array();
+		$foreign = array();
 		if ( 'scan' === $mode ) {
 			$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
 			$guard->on_insert( $probe );
@@ -596,6 +628,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( $plan && $plan->needed() ) $plan->attach( $guard, array_column( $tables, 'backup' ) );
 			foreach ( $tables as $row ) $temp[ (string) $row['backup'] ] = (string) $row['temp'];
 			$guard->rename_tables( $temp );
+			$foreign = array_fill_keys( (array) self::restore_read_json( $job, 'foreign.json', false ), true );
 			// La sesión de cada petición es nueva: lo que el SQL fijó antes de este tramo se repite.
 			if ( ! empty( $cursor['names'] ) ) $wpdb->query( 'SET NAMES ' . ( 'utf8' === $cursor['names'] ? 'utf8' : 'utf8mb4' ) );
 			if ( isset( $cursor['fk'] ) ) $wpdb->query( 'SET foreign_key_checks = ' . ( (int) $cursor['fk'] ? 1 : 0 ) );
@@ -621,8 +654,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				foreach ( $statements as $k => $statement ) {
 					$start = $offset;
 					$end = $base + (int) ( $ends[ $k ] ?? 0 );
-					if ( 'import' === $mode ) $cursor = self::restore_import_statement( $guard, $statement, $start, $cursor );
-					else $cursor = self::restore_scan_statement( $guard, $statement, $cursor );
+					if ( 'import' === $mode ) $cursor = self::restore_import_statement( $guard, $statement, $start, $cursor, $foreign );
+					else $cursor = self::restore_scan_statement( $guard, $statement, $cursor, $start, $end );
 					$offset = $end;
 					$cursor['offset'] = $offset;
 					$units++;
@@ -645,9 +678,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		return $cursor;
 	}
 	private static function restore_inspect_sql( array $job ) { return (array) ( $job['checkpoint']['inspect']['sql'] ?? array() ); }
-	private static function restore_scan_statement( $guard, $statement, array $cursor ) {
+	private static function restore_scan_statement( $guard, $statement, array $cursor, $start = 0, $end = 0 ) {
 		if ( ! $guard->check( $statement ) ) return $cursor;
 		$cursor['statements'] = (int) ( $cursor['statements'] ?? 0 ) + 1;
+		// Las tres sentencias más grandes (posición y longitud): el plan las pasa por la reubicación antes de la copia previa.
+		if ( $end > $start ) {
+			$largest = (array) ( $cursor['largest'] ?? array() );
+			$largest[] = array( (int) $start, (int) ( $end - $start ) );
+			usort( $largest, function( $a, $b ) { return $b[1] <=> $a[1]; } );
+			$cursor['largest'] = array_slice( $largest, 0, 3 );
+		}
 		// Un respaldo sin lista de tablas (anterior al v3): las tablas salen de sus CREATE TABLE.
 		if ( preg_match( '/^CREATE\s+TABLE\s+`((?:[^`]|``)+)`/i', $statement, $m ) ) {
 			$table = str_replace( '``', '`', $m[1] );
@@ -659,9 +699,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * Ejecuta una sentencia en la tabla temporal. Cada tabla empieza con su DROP TABLE IF EXISTS: ahí se anota dónde
 	 * empieza, para repetirla entera si el tramo muere a mitad (lo ejecutado tras el último punto de control no consta).
 	 */
-	private static function restore_import_statement( $guard, $statement, $start, array $cursor ) {
+	private static function restore_import_statement( $guard, $statement, $start, array $cursor, array $foreign = array() ) {
 		global $wpdb;
 		if ( ! $guard->check( $statement ) ) return $cursor;
+		// La tabla de otra aplicación que traiga el respaldo: comprobada, nunca ejecutada (ni DROP, ni CREATE, ni INSERT).
+		if ( $foreign && preg_match( '/^(?:DROP\s+TABLE\s+IF\s+EXISTS|CREATE\s+TABLE|INSERT\s+INTO)\s+`((?:[^`]|``)+)`/i', $statement, $m ) && isset( $foreign[ str_replace( '``', '`', $m[1] ) ] ) ) {
+			$cursor['foreign_skipped'] = (int) ( $cursor['foreign_skipped'] ?? 0 ) + 1;
+			return $cursor;
+		}
 		if ( preg_match( '/^DROP\s+TABLE\s+IF\s+EXISTS\s+`((?:[^`]|``)+)`/i', $statement, $m ) ) {
 			$cursor['table'] = str_replace( '``', '`', $m[1] );
 			$cursor['table_start'] = (int) $start;
@@ -770,7 +815,49 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( 'done' !== ( $cursor['step'] ?? '' ) ) return self::restore_slice( 'database', $cursor, 'Importando la base de datos a tablas temporales (tabla ' . (int) ( $cursor['tables_done'] ?? 0 ) . ')…', $started, (int) $cursor['units'], $job );
 		// Todas las tablas temporales se crearon: el cambio las necesita completas.
 		foreach ( self::restore_read_json( $job, 'tables.json' ) as $row ) if ( empty( $cursor['created'][ (string) $row['backup'] ] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos del respaldo no crea la tabla ' . $row['backup'] . ' que lista su manifiesto.' );
+		// Red y direcciones en las tablas temporales, antes del cambio (revisión de E1, H1): las tablas pasan de una vez ya
+		// coherentes (blogs, site, sitemeta y home/siteurl de cada sitio), así que ningún punto intermedio deja la red sin cargar.
+		self::restore_preswap_addresses( $job );
 		return array( 'next' => 'files', 'checkpoint' => array( 'done' => time(), 'statements' => (int) $cursor['statements'], 'report' => (array) ( $cursor['report'] ?? array() ), 'names' => $cursor['names'] ?? '', 'restarted' => (int) ( $cursor['restarted'] ?? 0 ) ), 'message' => 'Base de datos lista en tablas temporales; preparando los archivos…' );
+	}
+	/**
+	 * Lo que finish() de la reubicación fija en la red y las direcciones, aplicado a las tablas temporales (su nombre en
+	 * este sitio → su temporal). Idempotente: finish() lo vuelve a comprobar después sobre las tablas ya cambiadas.
+	 */
+	private static function restore_preswap_addresses( array $job ) {
+		global $wpdb;
+		$plan = self::restore_plan( $job );
+		if ( ! $plan || 'current' !== $plan->mode() ) return;
+		$temp = array();
+		foreach ( self::restore_read_json( $job, 'tables.json' ) as $row ) $temp[ (string) $row['dest'] ] = (string) $row['temp'];
+		$o = $plan->origin();
+		$d = $plan->destination();
+		$prefix = (string) $d['prefix'];
+		$q = array( 'Digitalisimo_Backups_Relocate', 'quote_name' );
+		$run = function( $sql ) use ( $wpdb ) { if ( false === $wpdb->query( $sql ) ) throw new Exception( 'No se pudo fijar la red o las direcciones en las tablas temporales: ' . $wpdb->last_error ); };
+		$targets = array();
+		if ( ! empty( $o['multisite'] ) ) {
+			$from = (array) $o['network'];
+			$to = (array) $d['network'];
+			$scheme = (string) ( wp_parse_url( (string) $d['home'], PHP_URL_SCHEME ) ?: 'https' );
+			$ids = array();
+			foreach ( (array) ( $o['networks'] ?? array() ) as $id => $row ) if ( ( $row['domain'] ?? '' ) === ( $from['domain'] ?? null ) && ( $row['path'] ?? '' ) === ( $from['path'] ?? null ) ) $ids[] = (int) $id;
+			if ( ! $ids ) $ids = array( 1 );
+			foreach ( $ids as $id ) {
+				if ( isset( $temp[ $prefix . 'site' ] ) && $from !== $to ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $temp[ $prefix . 'site' ] ) . ' SET domain = %s, path = %s WHERE id = %d', $to['domain'], $to['path'], $id ) );
+				if ( isset( $temp[ $prefix . 'sitemeta' ] ) ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $temp[ $prefix . 'sitemeta' ] ) . " SET meta_value = %s WHERE meta_key = 'siteurl' AND site_id = %d", $scheme . '://' . $to['domain'] . $to['path'], $id ) );
+			}
+			foreach ( (array) $plan->sites() as $id => $site ) {
+				if ( isset( $temp[ $prefix . 'blogs' ] ) && $site['from'] !== $site['to'] ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $temp[ $prefix . 'blogs' ] ) . ' SET domain = %s, path = %s WHERE blog_id = %d', $site['to']['domain'], $site['to']['path'], $id ) );
+				if ( isset( $site['home'] ) ) $targets[ 1 === (int) $id ? $prefix . 'options' : $prefix . $id . '_options' ] = array( 'home' => $site['home'], 'siteurl' => $site['siteurl'] );
+			}
+		} elseif ( '' !== (string) $d['home'] && ( $plan->rewrites_values() || (string) $o['prefix'] !== $prefix ) ) {
+			$targets[ $prefix . 'options' ] = array( 'home' => $d['home'], 'siteurl' => '' !== (string) $d['siteurl'] ? $d['siteurl'] : $d['home'] );
+		}
+		foreach ( $targets as $table => $values ) {
+			if ( ! isset( $temp[ $table ] ) ) continue;
+			foreach ( $values as $name => $value ) if ( '' !== (string) $value ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $temp[ $table ] ) . ' SET option_value = %s WHERE option_name = %s', $value, $name ) );
+		}
 	}
 	private static function restore_table_exists( $table ) {
 		global $wpdb;
@@ -973,6 +1060,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$skip = self::restore_skip();
 		$root = $layout['root'];
 		$work = 0;
+		$config = array( 'plan' => self::restore_plan( $job ), 'zip' => $zip, 'root' => $root, 'notes' => array() );
 		$units_changed = false;
 		try {
 			for ( $i = (int) $cursor['i']; $i < $count; $i++ ) {
@@ -988,8 +1076,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 				if ( 'compare' === $cursor['step'] ) {
 					if ( $whole && ! empty( $units[ $unit ]['changed'] ) ) continue;
 					$live = $root . $relative;
-					$same = is_file( $live ) && ! is_link( $live ) && (int) @filesize( $live ) === (int) $stat['size'];
-					if ( $same && $index ) {
+					$fixed = self::restore_is_config( $relative ) ? self::restore_config_content( $zip, $i, $relative, $config ) : null;
+					$same = is_file( $live ) && ! is_link( $live ) && (int) @filesize( $live ) === ( null === $fixed ? (int) $stat['size'] : strlen( $fixed ) );
+					if ( $same && null !== $fixed ) {
+						$same = hash_equals( hash( 'sha256', $fixed ), (string) @hash_file( 'sha256', $live ) );
+					} elseif ( $same && $index ) {
 						$expected = $index->get( $i );
 						$same = is_array( $expected ) && hash_equals( $expected['sha256'], (string) @hash_file( 'sha256', $live ) );
 					} elseif ( $same ) {
@@ -1009,6 +1100,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 					if ( "\1" !== fread( $bitmap, 1 ) ) continue;
 				}
 				self::restore_stage_entry( $zip, $i, $stat, $tree . '/new', $relative );
+				if ( self::restore_is_config( $relative ) ) {
+					$fixed = self::restore_config_content( $zip, $i, $relative, $config );
+					if ( null !== $fixed && strlen( $fixed ) !== @file_put_contents( $tree . '/new/' . $relative, $fixed ) ) throw new Exception( 'No se pudo preparar ' . $relative . ' para este servidor.' );
+				}
 				$cursor['staged'] = (int) ( $cursor['staged'] ?? 0 ) + 1;
 			}
 		} finally {
@@ -1017,6 +1112,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 			self::close_quietly( $zip );
 		}
 		if ( $units_changed ) self::restore_write_json( $job, 'units.json', $units );
+		if ( $config['notes'] ) {
+			$notes = (array) ( self::restore_read_json( $job, 'config-notes.json', false ) ?? array() );
+			foreach ( $config['notes'] as $relative => $note ) $notes[ $relative ] = $note;
+			self::restore_write_json( $job, 'config-notes.json', $notes );
+		}
 		$cursor['units'] = $work;
 		if ( $i < $count ) { $cursor['i'] = $i; return $cursor; }
 		if ( 'compare' === $cursor['step'] ) {
@@ -1025,6 +1125,64 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$cursor['step'] = 'done';
 		return $cursor;
+	}
+	/** `.htaccess`, `.user.ini` y `php.ini`: pueden llevar rutas absolutas o el dominio del origen (revisión de E1, P1). */
+	private static function restore_is_config( $relative ) {
+		return in_array( strtolower( basename( (string) $relative ) ), array( '.htaccess', '.user.ini', 'php.ini' ), true );
+	}
+	/**
+	 * Contenido con el que se restaura un archivo de configuración del servidor, o null si se restaura tal cual. Las rutas
+	 * del origen pasan a las de este servidor; en un `.htaccess`, el dominio del origen en las reglas (un host canónico
+	 * fijo) pasa al de este sitio si el sitio conserva sus direcciones; y un `auto_prepend_file`/`auto_append_file` que
+	 * apunta a un archivo que aquí no existirá (ni en el sitio ni en el respaldo) se desactiva comentándolo, porque PHP
+	 * respondería 500 a todo, también al escritorio desde el que se revierte. Cada cambio queda en $config['notes'].
+	 */
+	private static function restore_config_content( $zip, $index, $relative, array &$config ) {
+		$stat = $zip->statIndex( $index );
+		if ( ! $stat || (int) $stat['size'] > 1048576 ) return null;
+		$original = $zip->getFromIndex( $index );
+		if ( ! is_string( $original ) ) return null;
+		$content = $original;
+		$notes = array();
+		$plan = $config['plan'];
+		$root = rtrim( (string) $config['root'], '/' );
+		if ( $plan ) {
+			$o = $plan->origin();
+			$d = $plan->destination();
+			$paths = array();
+			foreach ( array( 'abspath', 'abspath_real' ) as $key ) if ( '' !== (string) ( $o[ $key ] ?? '' ) && (string) $o[ $key ] !== (string) $d['abspath'] ) $paths[ rtrim( (string) $o[ $key ], '/' ) ] = rtrim( (string) $d['abspath'], '/' );
+			uksort( $paths, function( $a, $b ) { return strlen( $b ) - strlen( $a ); } );
+			foreach ( $paths as $from => $to ) {
+				$count = 0;
+				$content = preg_replace( '#' . preg_quote( $from, '#' ) . '(?=/|[\s"\'\]]|$)#m', str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), $to ), $content, -1, $count );
+				if ( $count ) $notes[] = 'ruta del servidor ' . $from . ' → ' . $to;
+			}
+			$from_host = (string) wp_parse_url( (string) $o['home'], PHP_URL_HOST );
+			$to_host = (string) wp_parse_url( (string) $d['home'], PHP_URL_HOST );
+			if ( '.htaccess' === strtolower( basename( $relative ) ) && 'current' === $plan->mode() && '' !== $from_host && '' !== $to_host && strtolower( $from_host ) !== strtolower( $to_host ) ) {
+				$count = 0;
+				$content = preg_replace_callback( '/^\s*(?:RewriteCond|RewriteRule|Redirect\w*)\b.*$/mi', function( $line ) use ( $from_host, $to_host, &$count ) {
+					$out = str_ireplace( array( preg_quote( $from_host, '/' ), $from_host ), array( preg_quote( $to_host, '/' ), $to_host ), $line[0], $n );
+					$count += $n;
+					return $out;
+				}, $content );
+				if ( $count ) $notes[] = 'dominio ' . $from_host . ' → ' . $to_host . ' en las reglas de reescritura';
+			}
+		}
+		// auto_prepend_file / auto_append_file que aquí no existirán: se desactivan.
+		$htaccess = '.htaccess' === strtolower( basename( $relative ) );
+		$pattern = $htaccess ? '/^(\s*php_(?:admin_)?value\s+auto_(?:prepend|append)_file\s+)(["\']?)([^"\'\r\n]+)\2(.*)$/mi' : '/^(\s*auto_(?:prepend|append)_file\s*=\s*)(["\']?)([^"\'\r\n;]*)\2(.*)$/mi';
+		$content = preg_replace_callback( $pattern, function( $m ) use ( $root, $config, $htaccess, &$notes ) {
+			$target = trim( $m[3] );
+			if ( '' === $target || 'none' === strtolower( $target ) || '/' !== $target[0] ) return $m[0];
+			$inside = 0 === strpos( wp_normalize_path( $target ), $root . '/' );
+			$present = file_exists( $target ) || ( $inside && false !== $config['zip']->locateName( 'wordpress/' . substr( wp_normalize_path( $target ), strlen( $root ) + 1 ) ) );
+			if ( $present ) return $m[0];
+			$notes[] = 'se desactivó ' . trim( $m[1] ) . ' ' . $target . ' (no existe en este servidor)';
+			return ( $htaccess ? '# ' : '; ' ) . 'Desactivado por DIGITALÍSIMO Backups al restaurar (no existe en este servidor): ' . trim( $m[0] );
+		}, $content );
+		if ( $notes ) $config['notes'][ $relative ] = $notes;
+		return $content === $original ? null : $content;
 	}
 	/** Escribe una entrada en el área de trabajo: temporal, sin pasar de lo declarado, CRC comprobado y `rename()`. */
 	private static function restore_stage_entry( $zip, $index, array $stat, $base, $relative ) {
@@ -1073,6 +1231,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( 'self' === $cursor['step'] ) {
 			// Este plugin, lo último y de una vez: los tramos anteriores lo necesitaban entero.
 			if ( '' !== $layout['self'] ) self::restore_move_unit( $layout['self'], $layout, $tree, $cursor );
+			// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo).
+			$cursor['htaccess'] = self::restore_place_htaccess( $tree, $layout );
 			$cursor['step'] = 'done';
 		}
 		return array( 'next' => 'finish', 'checkpoint' => $cursor, 'message' => 'Sitio cambiado; ajustando direcciones y cachés…' );
@@ -1192,6 +1352,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 					$stack[] = $relative;
 					continue;
 				}
+				// Los .htaccess, al final y una sola vez: escribirlos recarga OpenLiteSpeed en Webuzo (H6 del laboratorio).
+				if ( '.htaccess' === $name ) continue;
 				if ( $moved > 0 && self::restore_exhausted( $deadline, $moved ) ) { $cursor['units'] = $moved; $cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + $moved; return $cursor; }
 				self::restore_place( $full, $layout['root'] . $relative, $tree . '/old/' . $relative, $layout['root'] );
 				$moved++;
@@ -1202,6 +1364,25 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cursor['step'] = 'remove';
 		$cursor['line'] = 0;
 		return $cursor;
+	}
+	/** Mueve a su lugar los .htaccess preparados que no van dentro de una unidad (la raíz, wp-content, medios). */
+	private static function restore_place_htaccess( $tree, array $layout ) {
+		$placed = 0;
+		$stack = array( '' );
+		while ( $stack ) {
+			$dir = (string) array_pop( $stack );
+			$path = rtrim( $tree . '/new/' . $dir, '/' );
+			if ( is_link( $path ) || ! is_dir( $path ) ) continue;
+			foreach ( (array) @scandir( $path ) as $name ) {
+				if ( '.' === $name || '..' === $name ) continue;
+				$relative = '' === $dir ? $name : $dir . '/' . $name;
+				if ( is_dir( $path . '/' . $name ) && ! is_link( $path . '/' . $name ) ) { $stack[] = $relative; continue; }
+				if ( '.htaccess' !== $name ) continue;
+				self::restore_place( $path . '/' . $name, $layout['root'] . $relative, $tree . '/old/' . $relative, $layout['root'] );
+				$placed++;
+			}
+		}
+		return $placed;
 	}
 	/** Cambia una unidad de código de una vez; idempotente (si el proceso murió entre los dos `rename()`, sigue). */
 	private static function restore_move_unit( $unit, array $layout, $tree, array &$cursor ) {
@@ -1376,6 +1557,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$relocation = self::restore_read_json( $job, 'relocation.json', false );
 		$notice = '';
+		$config = (array) ( self::restore_read_json( $job, 'config-notes.json', false ) ?? array() );
+		foreach ( $config as $relative => $notes ) $notice .= ' ' . $relative . ': ' . implode( '; ', (array) $notes ) . '.';
+		// Limpieza (revisión de E1, P1): un auto_prepend_file o auto_append_file que haya quedado apuntando a un archivo que
+		// no existe daría 500 a todo; se avisa con el archivo y la ruta.
+		foreach ( array( '.user.ini', 'php.ini', '.htaccess' ) as $name ) {
+			$text = is_file( ABSPATH . $name ) ? (string) @file_get_contents( ABSPATH . $name, false, null, 0, 1048576 ) : '';
+			if ( preg_match_all( '/^\s*(?:php_(?:admin_)?value\s+)?auto_(?:prepend|append)_file\s*=?\s*["\']?(\/[^"\'\r\n;]+)/mi', $text, $m ) ) foreach ( $m[1] as $target ) if ( ! file_exists( trim( $target ) ) ) $notice .= ' Atención: ' . $name . ' carga ' . trim( $target ) . ', que no existe en este servidor; corrígelo o quítalo (PHP respondería con error).';
+		}
+		$foreign = (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() );
+		if ( $foreign ) $notice .= ' No se restauraron ' . count( $foreign ) . ' tabla(s) de otra aplicación que traía el respaldo (sin el prefijo de este WordPress): ' . implode( ', ', array_slice( $foreign, 0, 10 ) ) . ( count( $foreign ) > 10 ? '…' : '' ) . '.';
 		$safety = self::restore_safety_file( $job );
 		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía (quedan en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . ').';
 		try {
@@ -1395,6 +1586,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'safety_backup' => ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : $safety,
 			'relocation' => $relocation ? self::relocation_public( $relocation ) : null,
 			'removed' => array( 'count' => $count, 'sample' => $sample ),
+			'config' => $config,
+			'foreign_tables' => $foreign,
 			'rollback' => ! empty( $spec['rollback'] ),
 		);
 	}
