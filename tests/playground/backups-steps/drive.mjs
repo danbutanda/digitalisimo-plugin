@@ -103,7 +103,10 @@ const events = jsonl(`${store}/jobs/${id}/events.jsonl`);
 const slices = (phase) => events.filter((e) => e.type === 'phase' && e.data?.phase === phase).length;
 const summary = { seconds, requests: worked.length, ticks: ticks.length, slowest, heaviest, slices: { database: slices('database'), pack: slices('pack'), verify: slices('verify') }, deaths: jsonl(`${dir}/ctl/deaths.jsonl`), checkpoint: job.checkpoint?.database ? { mode: job.checkpoint.database.mode, segments: job.checkpoint.database.segments, rows: job.checkpoint.database.rows } : null, warnings: job.warnings, sapi: worked[0]?.sapi };
 check(summary.slices.pack > 2 && summary.slices.verify > 1, `el empaquetado y la verificación avanzaron por tramos (${summary.slices.pack} y ${summary.slices.verify})`);
-check(summary.deaths.length === 3 && events.filter((e) => ['interrupted', 'timeout', 'fatal'].includes(e.type)).length === 3, 'las tres peticiones muertas a mitad de tramo se reconocieron y el trabajo siguió', JSON.stringify(summary.deaths));
+const planted = Object.values(deaths).filter(Boolean).length;
+check(deaths.pack && deaths.verify && summary.deaths.length === planted && events.filter((e) => ['interrupted', 'timeout', 'fatal'].includes(e.type)).length === planted, `las ${planted} peticiones muertas a mitad de tramo (${Object.keys(deaths).filter((k) => deaths[k]).join(', ')}) se reconocieron y el trabajo siguió`, JSON.stringify(summary.deaths));
+// La base de datos: en varios tramos (cada uno coherente, declarado) o, si cupo en uno, la instantánea única de siempre.
+check(summary.checkpoint && (summary.checkpoint.segments > 1 ? summary.checkpoint.mode === 'transaction-steps' && deaths.db : summary.checkpoint.mode === 'transaction'), `base de datos en ${summary.checkpoint?.segments} tramo(s), modo ${summary.checkpoint?.mode}, ${summary.checkpoint?.rows} filas`);
 check(Object.keys(job.attempts || {}).length === 0 || Object.values(job.attempts).every((n) => n <= 1), 'ninguna fase gastó más de un intento', JSON.stringify(job.attempts));
 
 // El ZIP final, con lectores ajenos al plugin.
