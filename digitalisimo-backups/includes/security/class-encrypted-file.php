@@ -80,7 +80,7 @@ final class Digitalisimo_Backups_Encrypted_File {
 			&& is_string( $h['backup_id'] ?? null ) && preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iD', $h['backup_id'] )
 			&& is_string( $h['created_at'] ?? null ) && strlen( $h['created_at'] ) <= 64
 			&& is_string( $h['plugin_version'] ?? null ) && strlen( $h['plugin_version'] ) <= 32
-			&& 'installation' === ( $h['scope'] ?? '' ) && is_bool( $h['multisite'] ?? null )
+			&& in_array( $h['scope'] ?? '', array( 'installation', 'extracted-site' ), true ) && is_bool( $h['multisite'] ?? null )
 			&& is_int( $h['inner_size'] ?? null ) && $h['inner_size'] >= 1 && $h['inner_size'] <= PHP_INT_MAX / 2
 			&& is_string( $h['inner_sha256'] ?? null ) && preg_match( '/^[0-9a-f]{64}$/D', $h['inner_sha256'] )
 			&& self::CIPHER === ( $h['cipher'] ?? '' ) && self::valid_chunk( $h['chunk_size'] ?? null )
@@ -100,7 +100,7 @@ final class Digitalisimo_Backups_Encrypted_File {
 		$sha = @hash_file( 'sha256', $source );
 		if ( ! $size || false === $sha ) throw new Exception( 'No se pudo leer el ZIP verificado para cifrarlo.' );
 		$salt = random_bytes( 32 );
-		$header = array( 'format' => self::FORMAT, 'backup_id' => (string) $meta['backup_id'], 'created_at' => (string) $meta['created_at'], 'plugin_version' => (string) $meta['plugin_version'], 'scope' => 'installation', 'multisite' => (bool) $meta['multisite'], 'inner_size' => $size, 'inner_sha256' => $sha, 'cipher' => self::CIPHER, 'chunk_size' => $chunk, 'file_salt' => Digitalisimo_Backups_Keys::b64url_encode( $salt ), 'key' => $descriptor );
+		$header = array( 'format' => self::FORMAT, 'backup_id' => (string) $meta['backup_id'], 'created_at' => (string) $meta['created_at'], 'plugin_version' => (string) $meta['plugin_version'], 'scope' => 'extracted-site' === ( $meta['scope'] ?? '' ) ? 'extracted-site' : 'installation', 'multisite' => (bool) $meta['multisite'], 'inner_size' => $size, 'inner_sha256' => $sha, 'cipher' => self::CIPHER, 'chunk_size' => $chunk, 'file_salt' => Digitalisimo_Backups_Keys::b64url_encode( $salt ), 'key' => $descriptor );
 		if ( ! self::valid_header( $header ) ) throw new Exception( 'La cabecera del respaldo cifrado no es válida.' );
 		$json = json_encode( $header, JSON_UNESCAPED_SLASHES );
 		if ( ! is_string( $json ) || strlen( $json ) > self::MAX_HEADER ) throw new Exception( 'La cabecera del respaldo cifrado no es válida.' );

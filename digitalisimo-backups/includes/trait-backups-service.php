@@ -284,8 +284,14 @@ trait Digitalisimo_Backups_Service {
 		try {
 			self::ensure_ready();
 			foreach ( Digitalisimo_Backups_Site_Extract::problems( $site ) as $problem ) throw new Exception( $problem );
-			$spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => Digitalisimo_Backups_Site_Extract::policy_id( $site['id'] ), 'destination' => $destination, 'retain' => 1, 'retention' => 'none', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => true, 'site_id' => get_main_site_id(), 'file' => Digitalisimo_Backups_Site_Extract::file_name( $site ) ) );
-			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Site_Extract::job_spec( $spec, $site, $options ) );
+			// La seguridad del paquete es suya (own_key()), nunca la de la red: la especificación se pide sin el plan de la red
+			// (inline, que no abre ni exige su clave) y job_spec() fija la propia.
+			$spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => Digitalisimo_Backups_Site_Extract::policy_id( $site['id'] ), 'destination' => $destination, 'retain' => 1, 'retention' => 'none', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => true, 'site_id' => get_main_site_id(), 'file' => Digitalisimo_Backups_Site_Extract::file_name( $site ), 'inline' => true ) );
+			Digitalisimo_Backups_Site_Extract::forget_keys();
+			$own = Digitalisimo_Backups_Site_Extract::own_key( $args['secret'] ?? '' );
+			if ( is_wp_error( $own ) ) return $own;
+			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Site_Extract::job_spec( $spec, $site, $options, $own ) );
+			if ( ! empty( $queued['duplicate'] ) && '' !== $own['key_id'] ) Digitalisimo_Backups_Site_Extract::forget_keys( $own['key_id'] );
 		} catch ( Throwable $e ) {
 			return self::service_error( 'not_ready', $e->getMessage(), 422 );
 		}

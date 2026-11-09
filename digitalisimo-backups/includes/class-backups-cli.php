@@ -227,14 +227,20 @@ final class Digitalisimo_Backups_Cli {
 	 * : Confirma el alcance de red; obligatorio.
 	 *
 	 * [--super-admins=<mode>]
-	 * : Superadministradores que no son miembros del sitio: managing (sólo los que lo administran, como administradores), all o none.
+	 * : Superadministradores que no son miembros del sitio: none (ninguno viaja con su contraseña), managing (como administrador sólo quien tiene el correo de administración del sitio) o all.
 	 * ---
-	 * default: managing
+	 * default: none
 	 * options:
+	 *   - none
 	 *   - managing
 	 *   - all
-	 *   - none
 	 * ---
+	 *
+	 * [--secret-file=<path>]
+	 * : Archivo con la frase propia de este paquete (16 caracteres o más): lo cifra y lo firma. Nunca la clave de la red.
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase de la entrada estándar (en una terminal, sin mostrarla).
 	 *
 	 * [--network-secrets]
 	 * : Copia también las claves de API que el sitio hereda de la red (sin ella quedan vacías y el informe las nombra).
@@ -256,7 +262,7 @@ final class Digitalisimo_Backups_Cli {
 	public function extract( $args, $assoc_args ) {
 		$async = ! empty( $assoc_args['async'] );
 		$porcelain = ! empty( $assoc_args['porcelain'] );
-		$view = self::result( Digitalisimo_Backups::service_extract( (int) ( $args[0] ?? 0 ), array( 'network' => ! empty( $assoc_args['network'] ), 'super_admins' => (string) ( $assoc_args['super-admins'] ?? 'managing' ), 'network_secrets' => ! empty( $assoc_args['network-secrets'] ), 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$view = self::result( Digitalisimo_Backups::service_extract( (int) ( $args[0] ?? 0 ), array( 'network' => ! empty( $assoc_args['network'] ), 'super_admins' => (string) ( $assoc_args['super-admins'] ?? 'none' ), 'network_secrets' => ! empty( $assoc_args['network-secrets'] ), 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'secret' => self::secret( $assoc_args ), 'via' => 'cli', 'spawn' => $async ) ) );
 		if ( $async ) {
 			self::queued( $view, $porcelain );
 			return;

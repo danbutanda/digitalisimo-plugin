@@ -458,7 +458,11 @@ final class Digitalisimo_Backups {
 				foreach ( $sites as $site ) { $site = is_object( $site ) ? $site : get_site( $site ); if ( ! $site ) continue; echo '<option value="' . (int) $site->blog_id . '">' . esc_html( Digitalisimo_Backups_Site_Extract::label( $site->domain, $site->path ) . ' (ID ' . (int) $site->blog_id . ')' ) . '</option>'; }
 				echo '</select>';
 			} else echo '<input type="number" min="1" name="site_id" required placeholder="ID del sitio">';
-			echo '</label></p><p><label>Superadministradores que no son miembros del sitio<br><select name="super_admins"><option value="managing" selected>Sólo los que lo administran (su correo de administración o autores de su contenido), como administradores</option><option value="all">Todos, como administradores</option><option value="none">Ninguno (si escribieron contenido, quedan como autores sin acceso)</option></select></label></p>';
+			echo '</label></p><p><label>Superadministradores que no son miembros del sitio<br><select name="super_admins"><option value="none" selected>Ninguno viaja con su contraseña (si escribieron contenido, quedan como autores sin acceso)</option><option value="managing">Como administrador, sólo quien tiene el correo de administración del sitio</option><option value="all">Todos, como administradores</option></select></label></p>';
+			echo '<p><label>Frase propia de este paquete<br><input type="password" name="extract_secret" value="" autocomplete="new-password" minlength="16"></label><br><span class="description">Cifra y firma el paquete; quien lo restaura sólo necesita esta frase. Nunca se usa la clave de la red, que abre todos sus respaldos: no la entregues. Sin frase, el paquete sale sin cifrar ni firmar' . ( Digitalisimo_Backups_Security::settings()['encrypt'] ? ' (en esta red los respaldos se cifran: la frase es obligatoria)' : '' ) . '.</span></p>';
+			$server = Digitalisimo_Backups_Site_Extract::server_files();
+			if ( $server['mu_plugins'] ) echo '<p class="notice notice-warning inline">Viajan y se ejecutarán en el destino estos mu-plugins de la red (revísalos antes de entregar el sitio: pueden llevar personalizaciones de otros sitios o claves): ' . esc_html( implode( ', ', $server['mu_plugins'] ) ) . '.</p>';
+			if ( $server['drop_ins'] ) echo '<p class="notice notice-info inline">No viajan estos drop-ins del servidor de la red (en otro servidor lo dejarían sin servicio; el destino conserva los suyos): ' . esc_html( implode( ', ', $server['drop_ins'] ) ) . '.</p>';
 			echo '<p><label><input type="checkbox" name="network_secrets" value="1"> Copiar también las claves de API que el sitio hereda de la red (IA, Google Places, Namecheap, IPinfo)</label><br><span class="description">Sin marcar, esas claves quedan vacías y el informe del paquete dice cuáles volver a escribir: así un sitio entregado a otro dueño no se lleva las claves de la red.</span></p>';
 			echo '<p>' . self::manual_destination_select( $s ) . '</p><p><button class="button button-primary">Extraer como WordPress individual</button></p><p class="description">Su avance aparece en «Trabajos». El sitio sigue en la red: la extracción no lo cambia ni lo retira.</p></form></section>';
 		}
@@ -467,7 +471,9 @@ final class Digitalisimo_Backups {
 			if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 			check_admin_referer( Digitalisimo_Backups_Site_Extract::ACTION );
 			if ( ! is_multisite() || empty( $_POST['digitalisimo_backups_network'] ) ) self::redirect( false, 'Un sitio se extrae desde la administración de la red.', is_multisite() );
-			$result = self::service_extract( absint( $_POST['site_id'] ?? 0 ), array( 'network' => true, 'super_admins' => sanitize_key( wp_unslash( $_POST['super_admins'] ?? 'managing' ) ), 'network_secrets' => ! empty( $_POST['network_secrets'] ), 'destination' => sanitize_key( wp_unslash( $_POST['digitalisimo_backup_destination'] ?? 'local' ) ), 'via' => 'admin-post' ) );
+			// La frase se usa tal cual (sanitize_text_field() la alteraría).
+			$secret = isset( $_POST['extract_secret'] ) && is_string( $_POST['extract_secret'] ) ? (string) wp_unslash( $_POST['extract_secret'] ) : '';
+			$result = self::service_extract( absint( $_POST['site_id'] ?? 0 ), array( 'network' => true, 'secret' => $secret, 'super_admins' => sanitize_key( wp_unslash( $_POST['super_admins'] ?? 'none' ) ), 'network_secrets' => ! empty( $_POST['network_secrets'] ), 'destination' => sanitize_key( wp_unslash( $_POST['digitalisimo_backup_destination'] ?? 'local' ) ), 'via' => 'admin-post' ) );
 			if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message(), true );
 			self::redirect( true, 'Extracción en cola. Su avance aparece en «Trabajos»; el paquete quedará en el historial para descargarlo.', true );
 		}
@@ -732,6 +738,10 @@ final class Digitalisimo_Backups {
 	public static function job_encrypts( array $spec ) { return empty( $spec['inline'] ) && ! empty( $spec['security']['encrypt'] ); }
 	/** Clave del trabajo en esta fase: un fallo es permanente y nunca deja salir en claro un respaldo que debía cifrarse. */
 	private static function job_security_plan( array $spec ) {
+		// Un sitio extraído tiene su propia clave (la frase de la extracción) o ninguna; nunca la de la red.
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
+			try { return Digitalisimo_Backups_Site_Extract::job_plan( $spec ); } catch ( Exception $e ) { throw new Digitalisimo_Backups_Permanent_Error( $e->getMessage() ); }
+		}
 		try {
 			$plan = Digitalisimo_Backups_Security::job_plan( $spec );
 		} catch ( Exception $e ) {
@@ -824,7 +834,7 @@ final class Digitalisimo_Backups {
 				'files_started_at' => $files_started_at,
 				'files_completed_at' => $files_completed_at,
 			);
-			if ( is_array( $extract ) ) $manifest['extract'] = Digitalisimo_Backups_Site_Extract::manifest_block( $extract + array( 'files' => array( 'excluded' => $files['excluded'], 'excluded_count' => $files['excluded_count'] ) ) );
+			if ( is_array( $extract ) ) $manifest['extract'] = Digitalisimo_Backups_Site_Extract::manifest_block( $extract, $files );
 			if ( $plan['root'] ) $manifest['auth'] = Digitalisimo_Backups_Manifest_Auth::block( $plan['descriptor'], $plan['encrypt'] );
 			$manifest_json = wp_json_encode( $manifest, JSON_PRETTY_PRINT );
 			self::zip_add_string( $zip, 'manifest.json', $manifest_json );
@@ -875,7 +885,9 @@ final class Digitalisimo_Backups {
 		try {
 			if ( ! $plan['encrypt'] || ! $plan['root'] ) throw new Digitalisimo_Backups_Permanent_Error( 'Este trabajo no cifra; no hay nada que sellar.' );
 			if ( file_exists( $target ) || is_link( $target ) ) @unlink( $target );
-			return Digitalisimo_Backups_Security::seal( $zip_path, $target, $plan, array( 'backup_id' => (string) ( $meta['backup_id'] ?? '' ), 'created_at' => (string) ( $meta['created_at'] ?? '' ), 'plugin_version' => DIGITALISIMO_BACKUPS_VERSION, 'multisite' => is_multisite() ) );
+			// La cabecera dice lo que es el paquete: un sitio extraído es un WordPress individual.
+			$extracted = Digitalisimo_Backups_Site_Extract::is_extract( $spec );
+			return Digitalisimo_Backups_Security::seal( $zip_path, $target, $plan, array( 'backup_id' => (string) ( $meta['backup_id'] ?? '' ), 'created_at' => (string) ( $meta['created_at'] ?? '' ), 'plugin_version' => DIGITALISIMO_BACKUPS_VERSION, 'multisite' => $extracted ? false : is_multisite(), 'scope' => $extracted ? Digitalisimo_Backups_Site_Extract::SCOPE : 'installation' ) );
 		} finally {
 			if ( $plan['root'] ) Digitalisimo_Backups_Sodium::memzero( $plan['root'] );
 		}
@@ -886,7 +898,12 @@ final class Digitalisimo_Backups {
 		if ( 'local' !== ( $spec['destination'] ?? 'local' ) ) $extra += array( 'transfer' => 'pending', 'transfer_destination' => (string) $spec['destination'] );
 		// Un sitio extraído no es un respaldo de esta instalación: su fila lo dice y no aparece en «Restaurar» de la red.
 		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
-			self::remember( $final, 'local', Digitalisimo_Backups_Site_Extract::SCOPE, array( 'id' => (string) $spec['policy'], 'type' => Digitalisimo_Backups_Site_Extract::POLICY ), array(), (int) $spec['extract']['site_id'], false, $extra + array( 'extract' => array( 'site_id' => (int) $spec['extract']['site_id'], 'label' => (string) $spec['extract']['label'] ) ) );
+			// Lo que no viajó (nombres de la raíz, de plugins y temas de la red y de tablas de otros plugins) se queda aquí, en
+			// el historial de la red: el paquete sólo lleva los recuentos.
+			$detail = Digitalisimo_Backups_Site_Extract::network_detail( $job_id );
+			self::remember( $final, 'local', Digitalisimo_Backups_Site_Extract::SCOPE, array( 'id' => (string) $spec['policy'], 'type' => Digitalisimo_Backups_Site_Extract::POLICY ), array(), (int) $spec['extract']['site_id'], false, $extra + array( 'extract' => array( 'site_id' => (int) $spec['extract']['site_id'], 'label' => (string) $spec['extract']['label'] ) + $detail ) );
+			// La clave propia del paquete ya no hace falta: sólo la frase lo abre.
+			Digitalisimo_Backups_Site_Extract::forget_keys( (string) ( $spec['security']['key_id'] ?? '' ) );
 			return self::history_item( wp_basename( $final ) );
 		}
 		self::remember( $final, 'local', 'network' === ( $spec['scope'] ?? '' ) ? 'network' : 'installation', array( 'id' => (string) $spec['policy'], 'type' => 'full' ), array(), (int) ( $spec['site_id'] ?? 0 ), false, $extra );
@@ -988,6 +1005,8 @@ final class Digitalisimo_Backups {
 				if ( $entry->isLink() ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio extraído no puede omitir el enlace simbólico ' . $path . ' (apunta a ' . ( realpath( $path ) ?: (string) @readlink( $path ) ) . '). Sustitúyelo por el archivo o la carpeta real.' );
 				if ( ! $entry->isFile() ) continue;
 				$name = $path === $from ? $item['to'] : $item['to'] . substr( $path, strlen( $from ) );
+				// Ningún nombre del paquete sale de su raíz: sin segmentos «.» ni «..» (vendrían de datos del sitio, no del disco).
+				if ( preg_match( '#(?:^|/)\.{1,2}(?:/|$)#', $name ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Un nombre del sitio extraído sale de su carpeta: ' . $name . '.' );
 				if ( isset( $entries[ $name ] ) ) throw new Exception( 'Dos archivos del sitio irían al mismo lugar del paquete: ' . $name . '.' );
 				$size = @filesize( $path );
 				$hash = @hash_file( 'sha256', $path );
@@ -1141,6 +1160,8 @@ final class Digitalisimo_Backups {
 				$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $manifest['scope'] ?? '' );
 				if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || ( 'installation' !== ( $manifest['scope'] ?? '' ) && ! $extracted ) || 'full' !== ( $manifest['type'] ?? '' ) || ! is_array( $manifest['entries'] ?? null ) || count( $manifest['entries'] ) !== count( $observed ) ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
 				if ( $extracted && ( ! empty( $manifest['multisite'] ) || ! is_array( $manifest['extract'] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
+				// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
+				if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
 				foreach ( $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' ) as $required ) if ( ! isset( $observed[ $required ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el respaldo completo.' );
 				if ( (int) ( $manifest['file_count'] ?? -1 ) !== count( $observed ) - 1 || (int) ( $manifest['uncompressed_size'] ?? -1 ) !== array_sum( array_column( $observed, 'size' ) ) ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
 				foreach ( $observed as $name => $actual ) {
@@ -1200,6 +1221,9 @@ final class Digitalisimo_Backups {
 				if ( ! is_array( $create ) || empty( $create[1] ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudo exportar la definición de la tabla ' . $table . '.' );
 				self::write_sql( $output, "DROP TABLE IF EXISTS `" . str_replace( '`', '``', $transform ? $transform->name( $table ) : $table ) . "`;\n" . ( $transform ? $transform->create( $table, $create[1] ) : $create[1] ) . ";\n" );
 				$query = "SELECT * FROM `" . $escaped . "`";
+				// Un sitio extraído lee de usuarios y metas sólo las filas de sus usuarios.
+				$where = $transform ? $transform->where( $table ) : null;
+				if ( null !== $where ) $query .= ' WHERE ' . $where;
 				if ( class_exists( 'mysqli' ) && isset( $wpdb->dbh ) && $wpdb->dbh instanceof mysqli ) {
 					$result = @mysqli_query( $wpdb->dbh, $query, MYSQLI_USE_RESULT );
 					if ( false === $result ) throw new Exception( 'No se pudo leer la tabla ' . $table . ' en modo streaming.' );
@@ -1675,8 +1699,13 @@ final class Digitalisimo_Backups {
 			// Con esta instalación tal como está ahora: después del SQL sus direcciones serían las del respaldo.
 			$plan = self::relocation_plan( $data, $source, $options );
 			if ( $plan->problems() ) throw new Exception( implode( ' ', $plan->problems() ) );
-			// Un sitio extraído de una red no trae la configuración de Backups: la de este servidor se conserva.
-			$kept = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ? Digitalisimo_Backups_Site_Extract::destination_snapshot() : null;
+			// Un sitio extraído de una red no trae la configuración de Backups: la de este servidor se conserva. Antes de la
+			// foto, lo que siguiera en claro en los ajustes pasa al almacén cifrado: el diario nunca lo lleva en claro.
+			$kept = null;
+			if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ) {
+				try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+				$kept = Digitalisimo_Backups_Site_Extract::destination_snapshot();
+			}
 			// Claves de las credenciales del servidor de origen, del wp-config.php del propio respaldo (ya comprobado contra
 			// su manifiesto): sólo literales de cadena, nunca se ejecuta. Con ellas, las credenciales se vuelven a cifrar aquí.
 			$origin = Digitalisimo_Backups_Credentials::origin_keys( $zip );

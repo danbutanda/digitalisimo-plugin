@@ -22,7 +22,8 @@ defined( 'ABSPATH' ) || exit;
  * - POST /jobs/<id>/cancel                  cancela un trabajo
  * - POST /jobs/tick                         un paso de la cola, como el navegador con la pantalla abierta
  * - POST /sites/<id>/extract                extrae un sitio de la red como WordPress individual (`network`,
- *                                           `super_admins`, `network_secrets`, `destination`): 202 con el trabajo
+ *                                           `super_admins`, `network_secrets`, `destination` y, en el cuerpo, `secret`:
+ *                                           la frase propia del paquete): 202 con el trabajo
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
  * registros del servidor y del proxy, así que una petición que la lleve en la cadena de consulta se rechaza (400).
@@ -66,7 +67,8 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/sites/(?P<site>[0-9]+)/extract', array(
 			$route( 'POST', 'extract', array(
 				'network' => $network,
-				'super_admins' => array( 'type' => 'string', 'default' => 'managing', 'enum' => Digitalisimo_Backups_Site_Extract::SUPER_ADMINS, 'description' => 'Superadministradores que no son miembros del sitio: managing (sólo los que lo administran, como administradores), all o none.' ),
+				'super_admins' => array( 'type' => 'string', 'default' => 'none', 'enum' => Digitalisimo_Backups_Site_Extract::SUPER_ADMINS, 'description' => 'Superadministradores que no son miembros del sitio: none (ninguno viaja con su contraseña; por defecto), managing (como administrador sólo quien tiene el correo de administración del sitio) o all.' ),
+				'secret' => $secret,
 				'network_secrets' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Copiar también las claves de API que el sitio hereda de la red.' ),
 				'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, sftp, google u onedrive. Vacío es local.' ),
 			) ),
@@ -129,7 +131,10 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_cancel( (string) $request['id'] ) );
 	}
 	public static function extract( $request ) {
-		return self::respond( Digitalisimo_Backups::service_extract( (int) $request['site'], array( 'network' => (bool) $request['network'], 'super_admins' => (string) $request['super_admins'], 'network_secrets' => (bool) $request['network_secrets'], 'destination' => (string) $request['destination'], 'via' => 'rest' ) ), 202 );
+		// La frase propia del paquete, sólo del cuerpo de la petición (nunca de la URL).
+		$secret = self::secret( $request );
+		if ( is_wp_error( $secret ) ) return $secret;
+		return self::respond( Digitalisimo_Backups::service_extract( (int) $request['site'], array( 'network' => (bool) $request['network'], 'super_admins' => (string) $request['super_admins'], 'network_secrets' => (bool) $request['network_secrets'], 'destination' => (string) $request['destination'], 'secret' => $secret, 'via' => 'rest' ) ), 202 );
 	}
 	public static function tick( $request ) {
 		return self::respond( Digitalisimo_Backups::service_tick() );
