@@ -528,7 +528,8 @@ final class Digitalisimo_Backups_Relocate {
 		// Rutas del servidor: siempre las del destino, de la más larga a la más corta.
 		foreach ( array( 'uploads_dir', 'content_dir', 'abspath' ) as $key ) {
 			if ( '' !== $o[ $key ] && '' !== $d[ $key ] ) $plan->add_path( $o[ $key ], $d[ $key ] );
-			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
+			// La ruta real de un despliegue con enlace (current → releases/N) también, salvo que sea la misma aquí.
+			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] && $o['abspath_real'] !== $d['abspath_real'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
 		}
 		if ( 'current' === $plan->mode ) {
 			if ( $o['multisite'] ) $plan->plan_network( (array) ( $args['sites'] ?? array() ) );
