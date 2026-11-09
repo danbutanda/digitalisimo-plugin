@@ -105,7 +105,9 @@ try {
 			$job = Digitalisimo_Backups_Jobs::get( $job['id'] );
 			$statuses[ $job['status'] ] = true;
 		}
-		$check( 'success' === ( $job['status'] ?? '' ) && isset( $statuses['transferring'] ), 'D3 ' . $label . ' · trabajo «success» después de «transferring»: ' . ( $job['error']['message'] ?? '' ) );
+		// Las fases que recorrió (un tick con presupuesto ilimitado puede hacerlas todas de una vez).
+		$phases = array_values( array_filter( array_map( function( $event ) { return 'phase' === ( $event['type'] ?? '' ) ? (string) ( $event['phase'] ?? '' ) : ''; }, Digitalisimo_Backups_Job_Store::events( $job['id'] ) ) ) );
+		$check( 'success' === ( $job['status'] ?? '' ) && in_array( 'transfer', $phases, true ) && array_search( 'transfer', $phases, true ) > array_search( 'verify', $phases, true ), 'D3 ' . $label . ' · trabajo «success» con «transfer» después de «verify» (' . implode( ' → ', $phases ) . '): ' . ( $job['error']['message'] ?? '' ) );
 		$file = basename( $job['spec']['file'] );
 		$row = $call( 'history_item', $file );
 		$local = rtrim( Digitalisimo_Backups::storage_directory(), '/' ) . '/' . $file;
