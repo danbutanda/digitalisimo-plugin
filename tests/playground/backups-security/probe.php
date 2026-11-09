@@ -226,7 +226,7 @@ try {
 		file_put_contents( $config_path, $origin_config );
 		try { $foreign = $backup( $context ); } finally { file_put_contents( $config_path, $config ); }
 		$check( array( $C::key_id( $origin ) ) === $kws(), 'S9 respaldo de «otro servidor» creado con su almacén cifrado con sus salts · ' . $elapsed() );
-		Digitalisimo_Backups_Credentials::put( array( 'sftp_password' => 'la-que-tenia-este-servidor' ) );
+		Digitalisimo_Backups_Credentials::put( array( 'sftp_password' => 'la-que-tenia-este-servidor' ), $call( 'settings' ) );
 		list( $ok, $message ) = $restore( basename( $foreign ), 'RESTAURAR' );
 		wp_cache_flush();
 		$settings = $call( 'settings' );
