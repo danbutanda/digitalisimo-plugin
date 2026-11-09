@@ -46,7 +46,7 @@ bk_run_until_done( $a['id'] );
 $job = bk_job( $a['id'] );
 $manifest = bk_zip_entries( bk_storage() . '/' . $a['spec']['file'] );
 bk_assert( 'success' === $job['status'] && $exports + 1 === $db->exports && $database === $job['checkpoint']['database'], 'Tras la muerte en el empaquetado se volvió a exportar la base de datos.' );
-bk_assert( $expected === $manifest['entries'] && $database['sha256'] === $manifest['entries']['database.sql']['sha256'] && $a['id'] === $manifest['job_id'] && 'ziparchive' === $manifest['packer'], 'El manifiesto reanudado difiere del de una corrida sin cortes.' );
+bk_assert( $expected === $manifest['entries'] && $database['sha256'] === $manifest['entries']['database.sql']['sha256'] && $a['id'] === $manifest['job_id'] && Digitalisimo_Backups_Packer::PACKER === $manifest['packer'], 'El manifiesto reanudado difiere del de una corrida sin cortes.' );
 bk_assert( 1 === count( rows_for( $a['spec']['file'] ) ) && $a['id'] === rows_for( $a['spec']['file'] )[0]['job'], 'El respaldo reanudado no tiene una sola fila con su trabajo.' );
 
 // B. Muerte durante la exportación: el SQL parcial se descarta y la exportación se repite entera, una sola vez.

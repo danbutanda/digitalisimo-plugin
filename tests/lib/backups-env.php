@@ -21,6 +21,15 @@ defined( 'AUTH_KEY' ) || define( 'AUTH_KEY', 'clave-de-prueba-auth-0123456789abc
 defined( 'SECURE_AUTH_KEY' ) || define( 'SECURE_AUTH_KEY', 'clave-de-prueba-secure-0123456789abcdef0123456789abcd' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $GLOBALS['bk_root'] . '/' . $name, '<?php // ' . $name . "\n" );
 
+if ( ! function_exists( 'bk_page' ) ) {
+	/** Lote de filas como lo daría MySQL: paginación por clave («WHERE (`col` > N)») y LIMIT con o sin desplazamiento. */
+	function bk_page( array $rows, $query, $key ) {
+		if ( preg_match( '/ WHERE \(`' . preg_quote( $key, '/' ) . '` > \'?(-?[0-9]+)\'?\)/', $query, $after ) ) $rows = array_values( array_filter( $rows, function( $row ) use ( $key, $after ) { return (int) $row[ $key ] > (int) $after[1]; } ) );
+		if ( preg_match( '/ LIMIT ([0-9]+), ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, (int) $limit[1], (int) $limit[2] );
+		if ( preg_match( '/ LIMIT ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, 0, (int) $limit[1] );
+		return $rows;
+	}
+}
 /** Base de datos en memoria: wp_options refleja las opciones simuladas; wp_posts trae datos difíciles de escapar. */
 class Bk_Test_DB {
 	public $base_prefix = 'wp_';
@@ -54,9 +63,8 @@ class Bk_Test_DB {
 	public function get_results( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => false !== strpos( $query, 'wp_options' ) ? 'option_id' : 'ID', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
-		if ( false !== strpos( $query, 'LIMIT 500,' ) ) return array();
-		if ( false !== strpos( $query, '`wp_options`' ) ) return $this->option_rows();
-		if ( false !== strpos( $query, '`wp_posts`' ) ) return $this->posts;
+		if ( false !== strpos( $query, '`wp_options`' ) ) return bk_page( $this->option_rows(), $query, 'option_id' );
+		if ( false !== strpos( $query, '`wp_posts`' ) ) return bk_page( $this->posts, $query, 'ID' );
 		return array();
 	}
 	public function db_version() { return '8.0'; }

@@ -152,6 +152,8 @@ final class Digitalisimo_Backups_Jobs {
 			self::recover();
 			$start = microtime( true );
 			$budget = null === $budget ? self::budget() : (float) $budget;
+			// Nunca más allá del límite real de esta petición (T2): un tick que empieza tarde trabaja menos.
+			$budget = min( $budget, Digitalisimo_Backups_Step_Budget::request_remaining() );
 			do {
 				$job = self::claim();
 				if ( ! $job ) break;
@@ -198,7 +200,7 @@ final class Digitalisimo_Backups_Jobs {
 		} );
 	}
 	private static function run( array $job, $start, $budget ) {
-		self::$current = array( 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ) );
+		self::$current = array( 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ), 'deadline' => $start + $budget );
 		self::register_shutdown();
 		@set_time_limit( 0 );
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
@@ -250,6 +252,8 @@ final class Digitalisimo_Backups_Jobs {
 		$done = null === $next;
 		$job = self::mutate_current( function( $job ) use ( $phase, $outcome, $next, $done ) {
 			$job['checkpoint'][ $phase ] = isset( $outcome['checkpoint'] ) && is_array( $outcome['checkpoint'] ) ? $outcome['checkpoint'] : array( 'done' => time() );
+			// Un tramo que guardó su avance (T2): los intentos cuentan fallos seguidos sin avanzar, no tramos.
+			if ( $next === $phase ) unset( $job['attempts'][ $phase ] );
 			if ( ! empty( $outcome['result'] ) && is_array( $outcome['result'] ) ) $job['result'] = array_merge( (array) $job['result'], $outcome['result'] );
 			foreach ( (array) ( $outcome['warnings'] ?? array() ) as $warning ) if ( count( $job['warnings'] ) < 200 ) $job['warnings'][] = $warning;
 			$job['error'] = null;
@@ -350,7 +354,7 @@ final class Digitalisimo_Backups_Jobs {
 		$job['progress']['message'] = 'Creando la copia previa…';
 		$job = Digitalisimo_Backups_Job_Store::create( $job );
 		Digitalisimo_Backups_Job_Store::event( $job['id'], 'inline', array( 'policy' => $spec['policy'] ) );
-		self::$current = array( 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => false, 'inline' => true );
+		self::$current = array( 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => false, 'inline' => true, 'deadline' => INF );
 		self::register_shutdown();
 		@set_time_limit( 0 );
 		try {
@@ -412,6 +416,8 @@ final class Digitalisimo_Backups_Jobs {
 		if ( self::cancellable_phase( $current['phase'] ) && Digitalisimo_Backups_Job_Store::cancel_requested( $current['id'] ) ) throw new Digitalisimo_Backups_Job_Cancelled( 'Cancelado por el administrador.' );
 	}
 	public static function current_id() { return self::$current ? self::$current['id'] : ''; }
+	/** Fin del presupuesto del tick en curso (microtime); INF sin límite (WP-CLI, copia previa) o fuera de un paso. */
+	public static function step_deadline() { return self::$current && isset( self::$current['deadline'] ) ? (float) self::$current['deadline'] : INF; }
 	public static function current_owner_tag() { return self::$current ? substr( self::$current['owner'], 0, 8 ) : 'inline00'; }
 
 	/** Escribe el trabajo del paso en curso sólo si este proceso sigue siendo su dueño (fencing). */

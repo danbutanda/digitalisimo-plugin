@@ -3,6 +3,8 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
+// Exportación, empaquetado y verificación por tramos (T2).
+foreach ( array( 'step-budget', 'zip-writer', 'sql-export', 'packer' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/steps/class-' . $digitalisimo_backups_part . '.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
 foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
 unset( $digitalisimo_backups_part );
@@ -668,7 +670,7 @@ final class Digitalisimo_Backups {
 	/** El trabajo cifra si su especificación inmutable lo fijó al encolarse (la copia previa nunca). */
 	public static function job_encrypts( array $spec ) { return empty( $spec['inline'] ) && ! empty( $spec['security']['encrypt'] ); }
 	/** Clave del trabajo en esta fase: un fallo es permanente y nunca deja salir en claro un respaldo que debía cifrarse. */
-	private static function job_security_plan( array $spec ) {
+	public static function job_security_plan( array $spec ) {
 		try {
 			$plan = Digitalisimo_Backups_Security::job_plan( $spec );
 		} catch ( Exception $e ) {
@@ -830,6 +832,19 @@ final class Digitalisimo_Backups {
 		} );
 	}
 	private static function bytes_label( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
+	/**
+	 * @internal Raíz, wp-config.php, almacén y archivos SQLite activos para el inventario por carpetas de la fase «pack»
+	 * (T2); las mismas comprobaciones que add_full_files().
+	 */
+	public static function job_files_context() {
+		$root = realpath( ABSPATH );
+		$content = realpath( WP_CONTENT_DIR );
+		if ( false === $root || false === $content ) throw new Exception( 'No se pudo resolver la ruta de WordPress o wp-content.' );
+		$root = trailingslashit( wp_normalize_path( $root ) );
+		$content = wp_normalize_path( $content );
+		if ( 0 !== strpos( trailingslashit( $content ), $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; se necesita incluirlo explícitamente antes de crear un respaldo completo.' );
+		return array( 'root' => $root, 'config' => self::wordpress_config_file(), 'backup' => trailingslashit( wp_normalize_path( realpath( self::local_directory() ) ) ), 'sqlite' => self::active_sqlite_database_files() );
+	}
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
 	private static function add_full_files( $zip, $backup_dir, &$entries ) {
 		$root = realpath( ABSPATH );
@@ -1139,7 +1154,7 @@ final class Digitalisimo_Backups {
 		return array_values( $primary );
 	}
 	/** Ningún respaldo contiene la clave que lo protege: las filas digitalisimo_backups_vault_* no se exportan. */
-	private static function secret_row( $table, $row ) {
+	public static function secret_row( $table, $row ) {
 		global $wpdb;
 		$prefix = (string) ( $wpdb->base_prefix ?? '' );
 		if ( '' === $prefix || 0 !== strpos( $table, $prefix ) ) return false;
@@ -1165,7 +1180,7 @@ final class Digitalisimo_Backups {
 		}
 	}
 
-	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
+	public static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
 	private static function protect( $dir ) { if ( ! file_exists( trailingslashit( $dir ) . 'index.php' ) ) file_put_contents( trailingslashit( $dir ) . 'index.php', "<?php // Silence is golden.\n" ); if ( ! file_exists( trailingslashit( $dir ) . '.htaccess' ) ) file_put_contents( trailingslashit( $dir ) . '.htaccess', "Deny from all\n" ); }
 	private static function transfer( $file, $s ) { if ( 'sftp' === $s['destination'] ) return self::sftp( $file, $s ); if ( 'google' === $s['destination'] ) return self::google( $file, $s ); if ( 'onedrive' === $s['destination'] ) return self::onedrive( $file, $s ); }
 	private static function sftp( $file, $s ) {
