@@ -1891,6 +1891,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$target = $keeper['dir'] . '/' . $relative;
 		if ( ! is_dir( $keeper['dir'] ) && @mkdir( $keeper['dir'], 0700, true ) && DIRECTORY_SEPARATOR === '/' ) @chmod( $keeper['dir'], 0700 );
 		if ( ! wp_mkdir_p( dirname( $target ) ) || ! self::restore_rename_file( $full, $target ) ) return false;
+		// Como todo lo del almacén (H5 del laboratorio): sólo para la cuenta de PHP.
+		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $target, 0600 );
 		$keeper['kept']++;
 		@file_put_contents( $keeper['list'], self::restore_line( $relative ), FILE_APPEND );
 		return true;

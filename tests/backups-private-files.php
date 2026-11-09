@@ -21,7 +21,8 @@ $mode = function( $path ) { clearstatcache( true, $path ); return is_file( $path
 /** Permisos de lo que hay en el área de trabajo al terminar cada fase. */
 $GLOBALS['seen'] = array();
 Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( $mode ) {
-	$outcome = Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
+	// Desde la restauración por pasos, el motor también corre trabajos de restauración: cada uno con sus fases.
+	$outcome = 'restore' === ( $job['kind'] ?? 'backup' ) ? Digitalisimo_Backups_Restore_Job::run_phase( $phase, $job ) : Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
 	foreach ( (array) glob( Digitalisimo_Backups_Job_Store::staging( $job['id'] ) . '/*' ) as $path ) $GLOBALS['seen'][ $phase . ':' . preg_replace( '/\.[0-9a-f]{8}\./', '.', basename( $path ) ) ] = $mode( $path );
 	return $outcome;
 };
