@@ -442,6 +442,8 @@ final class Digitalisimo_Backups_Packer {
 				'database_size' => $totals['database'],
 				'database_consistency' => (string) $database['mode'],
 				'table_prefix' => $wpdb->base_prefix,
+				// Direcciones, rutas del servidor y red del origen (1.0.63): con ellas se restaura en otro dominio o servidor.
+				'origin' => Digitalisimo_Backups_Relocate::describe( false ),
 				'database_tables' => (array) $database['tables'],
 				'multisite' => is_multisite(),
 				'file_count' => $totals['count'] - 1,
