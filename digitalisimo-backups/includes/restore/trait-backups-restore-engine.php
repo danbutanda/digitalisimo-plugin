@@ -225,11 +225,30 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $path, 0600 );
 	}
 	private static function restore_trusted( array $job ) { return 'untrusted' !== ( $job['spec']['source']['trust'] ?? 'untrusted' ); }
-	/** Plazo del tramo: el del tick, con la escala adaptativa de T2 y como mucho el tope de un tramo. */
+	/** Plazo del tramo: el del tick, con la escala adaptativa de T2 y como mucho el tope de un tramo. Anota la memoria con la que empieza. */
 	private static function restore_deadline( array $job, $phase, array $cursor ) {
+		self::$restore_memory_start = memory_get_usage( true );
 		return Digitalisimo_Backups_Step_Budget::deadline( Digitalisimo_Backups_Step_Budget::scale( $job, $phase, $cursor ), max( Digitalisimo_Backups_Step_Budget::slice_cap(), 10.0 ) );
 	}
-	private static function restore_exhausted( $deadline, $units ) { return Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units, 4194304 ); }
+	/** @var int|null Memoria real (memory_get_usage( true )) al empezar el tramo en curso. */
+	private static $restore_memory_start = null;
+	/**
+	 * El tramo debe cerrar: su plazo o su tope de unidades (el medidor de T2), o la memoria. La memoria no se mide con la
+	 * reserva fija de T2 bajo memory_limit (un octavo, 8 MB con 64 MB): WordPress con sus plugins ya ocupa 52 a 56 de 64 MB
+	 * en Playground, así que la reserva cerraría cada tramo tras una sola unidad (miles de tramos, cada uno con su punto
+	 * de control y su evento). Lo que una fase de la restauración añade por unidad es poco y se libera (lecturas por
+	 * trozos, una sentencia), así que el tramo cierra si su memoria creció más de 4 MB desde que empezó (algo se acumula)
+	 * o si quedan menos de 2 MB hasta memory_limit. La primera unidad de cada tramo siempre se hace.
+	 */
+	private static function restore_exhausted( $deadline, $units ) {
+		$cap = Digitalisimo_Backups_Step_Budget::units();
+		if ( ( $cap && $units >= $cap ) || microtime( true ) >= $deadline ) return true;
+		$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
+		if ( ! $limit ) return false;
+		$used = memory_get_usage( true );
+		if ( $limit - $used < 2097152 ) return true;
+		return null !== self::$restore_memory_start && $used - self::$restore_memory_start > 4194304;
+	}
 	/** El tramo terminó sin acabar la fase: la misma fase sigue desde $cursor (los intentos vuelven a cero). */
 	private static function restore_slice( $phase, array $cursor, $message, $started, $units, array $job ) {
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, $phase, $cursor );

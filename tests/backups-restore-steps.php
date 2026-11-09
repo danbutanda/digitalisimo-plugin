@@ -339,6 +339,31 @@ rs_case( 'R5 cancelar antes del cambio no toca el sitio', function() use ( $root
 	rs_check( false !== strpos( Digitalisimo_Backups_Jobs::cancel( $job['id'] )['message'], 'ya terminó' ), 'Un trabajo cancelado se pudo cancelar otra vez.' );
 } );
 
+// R7 (Playground): WordPress con sus plugins ya ocupa 52 a 56 de 64 MB. Con poca memoria libre (menos que la reserva de
+// T2 más un margen, pero de sobra para una unidad), los tramos no se parten en una unidad cada uno (miles de tramos,
+// cada uno con su punto de control y su evento, y el registro del trabajo pierde lo anterior): la memoria de un tramo
+// se mide por lo que crece.
+rs_case( 'R7 con la memoria casi llena, cada tramo sigue haciendo muchas unidades', function() use ( $root, $backup, $expected ) {
+	rs_reset( $root, $backup );
+	rs_mutate( $root );
+	$limit = ini_get( 'memory_limit' );
+	gc_collect_cycles();
+	ini_set( 'memory_limit', (string) ( memory_get_usage( true ) + 7 * 1048576 ) );
+	try {
+		$result = rs_restore( $backup );
+	} finally {
+		ini_set( 'memory_limit', $limit );
+	}
+	rs_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'La restauración no terminó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
+	rs_assert_restored( $root, $expected );
+	$slices = array();
+	foreach ( Digitalisimo_Backups_Job_Store::events( rs_last_restore()['id'] ) as $event ) {
+		if ( 'phase' === ( $event['type'] ?? '' ) && ( $event['next'] ?? '' ) === ( $event['phase'] ?? '' ) ) $slices[ $event['phase'] ] = ( $slices[ $event['phase'] ] ?? 0 ) + 1;
+	}
+	// Con la reserva fija de T2 (y 4 MB más) fueron 33, 14, 42 y 6; ahora sólo los cortes entre los pasos de cada fase.
+	rs_check( ( $slices['inspect'] ?? 0 ) <= 4 && ( $slices['database'] ?? 0 ) <= 2 && ( $slices['files'] ?? 0 ) <= 3 && ( $slices['switch'] ?? 0 ) <= 2, 'Con la memoria casi llena, los tramos se partieron unidad a unidad: ' . json_encode( $slices ) );
+} );
+
 if ( ! $GLOBALS['failures'] && function_exists( 'proc_open' ) && '' !== PHP_BINARY && 'Unknown' !== PHP_OS_FAMILY ) {
 	// R3: cada muerte en su proceso (exit() no deja seguir en el mismo).
 	foreach ( array( 'inspect', 'safety', 'database', 'files', 'move', 'rename', 'oom' ) as $case ) {
