@@ -1637,6 +1637,20 @@ final class Digitalisimo_Backups {
 		return is_array( $saved ) ? $saved : null;
 	}
 	/** Tablas del respaldo que cambian de nombre en esta instalación (el mismo mapa que usa la importación). */
+	/**
+	 * Ajuste de los archivos de configuración del servidor al extraerlos (Digitalisimo_Backups_Relocate::server_file()):
+	 * una ruta existirá si ya está en el disco o si el propio respaldo la trae bajo la raíz de WordPress.
+	 */
+	private static function server_file_transform( Digitalisimo_Backups_Relocate $plan, $zip ) {
+		$roots = array_unique( array_filter( array( untrailingslashit( wp_normalize_path( ABSPATH ) ), false === realpath( ABSPATH ) ? '' : untrailingslashit( wp_normalize_path( realpath( ABSPATH ) ) ) ) ) );
+		$exists = function( $path ) use ( $zip, $roots ) {
+			$path = wp_normalize_path( (string) $path );
+			if ( file_exists( $path ) ) return true;
+			foreach ( $roots as $root ) if ( 0 === strpos( $path, $root . '/' ) && false !== $zip->locateName( 'wordpress/' . substr( $path, strlen( $root ) + 1 ) ) ) return true;
+			return false;
+		};
+		return function( $relative, $content, $current ) use ( $plan, $exists ) { return $plan->server_file( $relative, $content, $exists, $current ); };
+	}
 	private static function relocation_renames( array $data ) {
 		$from = (string) ( $data['table_prefix'] ?? '' );
 		$to = (string) ( $GLOBALS['wpdb']->base_prefix ?? '' );
@@ -1674,16 +1688,20 @@ final class Digitalisimo_Backups {
 		$sql_stat = $zip->statName( 'database.sql' );
 		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
 		if ( $installation ) Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
-		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
+		// La sonda lee el origen del SQL y mide los valores que lo mencionan y no cabrían en la memoria para reescribirlos.
+		$budget = Digitalisimo_Backups_Relocate::value_budget();
+		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ), array( 'budget' => $budget, 'needles' => Digitalisimo_Backups_Relocate::manifest_needles( $data ) ) );
 		$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe );
-		// Al restaurar con otro prefijo, la pasada en seco renombra igual que la importación: lo que no se puede renombrar
-		// (una vista, una tabla en un comentario ejecutable) o dos tablas que chocarían se rechazan antes de la copia previa.
-		if ( $installation ) {
-			$renames = self::relocation_renames( $data );
-			if ( $renames ) $guard->rename_tables( $renames );
-		}
+		// Con otro prefijo, la pasada en seco renombra igual que la importación, también en verify: lo que no se puede
+		// renombrar (una vista, una tabla en un comentario ejecutable) queda anotado y el plan lo rechaza antes de la copia
+		// previa, con la misma respuesta en verify y en restore. Dos tablas que chocarían, o un nombre de más de 64
+		// caracteres, se rechazan aquí mismo.
+		try { $renames = self::relocation_renames( $data ); } catch ( Exception $e ) { $renames = array(); } // El plan lo dice (problems()).
+		if ( $renames ) $guard->rename_tables( $renames, false );
 		$guard->scan_zip( $zip );
 		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
+		$source['rename_problems'] = $guard->rename_problems();
+		$source['budget'] = $budget;
 		return $data;
 	}
 	/**
@@ -1721,7 +1739,7 @@ final class Digitalisimo_Backups {
 		self::restore_credentials( $origin );
 	}
 	private static function validate_zip_entries( $zip ) { Digitalisimo_Backups_Archive_Inspector::entries( $zip, true ); }
-	private static function extract_digitalisimo_files( $zip, &$created_files = null ) {
+	private static function extract_digitalisimo_files( $zip, &$created_files = null, $transform = null ) {
 		$real_root = realpath( ABSPATH );
 		if ( false === $real_root ) throw new Exception( 'No se pudo resolver la instalación de destino.' );
 		$root = trailingslashit( wp_normalize_path( $real_root ) );
@@ -1732,15 +1750,16 @@ final class Digitalisimo_Backups {
 			$relative = substr( $name, strlen( 'wordpress/' ) );
 			if ( ! $relative || 0 === strpos( $relative, '.git/' ) ) continue;
 			if ( isset( $active_database_files[ $root . $relative ] ) ) continue;
-			$created_hash = self::write_entry( $zip, $i, $root, $relative, is_array( $created_files ) );
+			$created_hash = self::write_entry( $zip, $i, $root, $relative, is_array( $created_files ), $transform );
 			if ( null !== $created_hash ) $created_files[ $root . $relative ] = $created_hash;
 		}
 	}
 	/**
 	 * Escribe una entrada bajo $root mediante un temporal: sin seguir enlaces, sin salir de $root y sin escribir más
-	 * de lo declarado (un tamaño falso no llena el disco). Devuelve el SHA-256 de un archivo nuevo si $track.
+	 * de lo declarado (un tamaño falso no llena el disco). Devuelve el SHA-256 de un archivo nuevo si $track. Con
+	 * $transform( $relativo, $contenido, $actual ), un archivo pequeño (hasta 1 MiB) se ajusta antes de publicarlo.
 	 */
-	private static function write_entry( $zip, $index, $root, $relative, $track ) {
+	private static function write_entry( $zip, $index, $root, $relative, $track, $transform = null ) {
 		$destination = $root . $relative;
 		$current = rtrim( $root, '/' );
 		foreach ( explode( '/', dirname( $relative ) ) as $part ) {
@@ -1764,6 +1783,11 @@ final class Digitalisimo_Backups {
 		fclose( $input );
 		$crc = @hash_file( 'crc32b', $temp );
 		if ( false === $written || ! $closed || $written !== $declared || false === $crc || $crc !== sprintf( '%08x', $stat['crc'] ) ) { @unlink( $temp ); throw new Exception( 'El archivo restaurado ' . $relative . ' quedó incompleto.' ); }
+		if ( $transform && $declared <= 1048576 ) {
+			$content = (string) @file_get_contents( $temp );
+			$changed = call_user_func( $transform, $relative, $content, is_file( $destination ) ? (string) @file_get_contents( $destination ) : null );
+			if ( is_string( $changed ) && $changed !== $content && strlen( $changed ) !== @file_put_contents( $temp, $changed ) ) { @unlink( $temp ); throw new Exception( 'No se pudo ajustar el archivo ' . $relative . ' para este servidor.' ); }
+		}
 		$created_hash = ! $was_present && $track ? @hash_file( 'sha256', $temp ) : null;
 		if ( false === $created_hash ) { @unlink( $temp ); throw new Exception( 'No se pudo verificar el archivo nuevo ' . $relative . '.' ); }
 		if ( ! @rename( $temp, $destination ) ) { @unlink( $temp ); throw new Exception( 'No se pudo reemplazar el archivo ' . $relative . ' durante la restauración.' ); }

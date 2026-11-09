@@ -42,10 +42,16 @@ ini_set( 'memory_limit', '64M' );
 $ballast = str_repeat( "w", max( 0, 38 * 1048576 - memory_get_usage( true ) ) );
 if ( getenv( "BK_VERBOSE" ) ) printf( "uso %.1f MB, real %.1f MB\n", memory_get_usage() / 1048576, memory_get_usage( true ) / 1048576 );
 $base = memory_get_usage();
+// La memoria no depende del número de entradas: además de no agotar los 64 MB, el pico adicional queda acotado (un
+// json_decode() del manifiesto entero, de unos 20 MB con 40 000 entradas, lo pasaría). memory_reset_peak_usage() desde 8.2.
+$bound = 12 * 1048576;
+if ( function_exists( 'memory_reset_peak_usage' ) ) memory_reset_peak_usage();
 $verified = Digitalisimo_Backups::service_verify( basename( $file ) );
 if ( is_wp_error( $verified ) ) throw new RuntimeException( 'La verificación del respaldo grande falló: ' . $verified->get_error_message() );
 if ( empty( $verified['verified'] ) || $entries + 8 !== (int) $verified['entries'] || 'provenance' !== $verified['trust'] ) throw new RuntimeException( 'La verificación no comprobó todas las entradas: ' . json_encode( $verified ) );
 $verify_peak = memory_get_peak_usage() - $base;
+if ( function_exists( 'memory_reset_peak_usage' ) && $verify_peak > $bound ) throw new RuntimeException( sprintf( 'La verificación no tiene la memoria acotada: %.1f MB adicionales con %d entradas.', $verify_peak / 1048576, $entries + 8 ) );
+if ( function_exists( 'memory_reset_peak_usage' ) ) memory_reset_peak_usage();
 
 // La restauración por pasos entera, por tramos: verificación (índice en disco, CRC y SHA-256), copia previa, base de
 // datos a tablas temporales, cada archivo comparado y preparado, cambio y limpieza.
@@ -59,6 +65,7 @@ $job = null;
 foreach ( Digitalisimo_Backups_Jobs::all() as $candidate ) if ( 'restore' === $candidate['kind'] ) $job = $candidate;
 if ( (int) ( $job['checkpoint']['inspect']['entries'] ?? 0 ) !== $entries + 8 ) throw new RuntimeException( 'La verificación de la restauración no comprobó todas las entradas.' );
 $restore_peak = memory_get_peak_usage() - $base;
+if ( function_exists( 'memory_reset_peak_usage' ) && $restore_peak > $bound ) throw new RuntimeException( sprintf( 'La restauración no tiene la memoria acotada: %.1f MB adicionales con %d entradas.', $restore_peak / 1048576, $entries + 8 ) );
 if ( 'Sitio grande' !== ( $GLOBALS['bk_options']['blogname'] ?? '' ) || ! is_file( ABSPATH . sprintf( 'wp-content/uploads/2026/%02d/miniatura-%06d-150x150.jpg', ( $entries - 1 ) % 12 + 1, $entries - 1 ) ) ) throw new RuntimeException( 'La restauración no dejó la base de datos o los archivos del respaldo.' );
 unset( $ballast );
 bk_cleanup();

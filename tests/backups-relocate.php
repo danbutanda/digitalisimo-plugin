@@ -41,6 +41,9 @@ if ( ! function_exists( 'get_network' ) ) { function get_network() { return $GLO
 if ( ! function_exists( 'is_subdomain_install' ) ) { function is_subdomain_install() { return ! empty( $GLOBALS['e1_subdomain'] ); } }
 if ( ! function_exists( 'switch_to_blog' ) ) { function switch_to_blog( $id ) { return true; } }
 if ( ! function_exists( 'restore_current_blog' ) ) { function restore_current_blog() { return true; } }
+// La purga de la caché del servidor (LiteSpeed Cache) se pide con una acción: aquí se anota.
+$GLOBALS['e1_actions'] = array();
+if ( ! function_exists( 'do_action' ) ) { function do_action( $hook ) { $GLOBALS['e1_actions'][] = $hook; } }
 
 $failures = 0;
 function e1_check( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); }
@@ -127,6 +130,9 @@ e1_options( $origin, 'wp_options', 'https://origen.com', 'https://origen.com', a
 	'digi_codificada' => 'https://pago.test/?vuelta=https%3A%2F%2Forigen.com%2Fgracias&b=https%3a%2f%2forigen.com%2fb',
 	'digi_dañada' => $malformed,
 	'digi_parecidos' => 'https://origen.com.mx/ https://miorigen.com/ https://origen.com:8443/ ftp://origen.com/ https://cdn.origen.com/a.png',
+	'digi_puertos' => 'https://origen.com:443/a http%3A%2F%2Forigen.com%3A80%2Fb https%253A%252F%252Forigen.com%252Fc',
+	'digi_tutorial' => 'Configura <code>DocumentRoot /var/www/origen</code>; el registro va en /var/www/origen/wp-content/debug.log',
+	'digi_rutas' => serialize( array( 'log' => '/var/www/origen/wp-content/debug.log', 'base' => '/var/www/origen' ) ),
 	'digi_redirecciones' => serialize( array( 'https://origen.com/vieja' => 'https://origen.com/nueva', 'http://origen.com/vieja' => 'otra' ) ),
 	'admin_email' => 'admin@origen.com',
 	'_transient_feed_1' => 'https://origen.com/feed',
@@ -136,17 +142,25 @@ e1_options( $origin, 'wp_options', 'https://origen.com', 'https://origen.com', a
 $origin->seed( 'wp_posts', array(
 	array( 'ID' => 1, 'post_title' => 'Inicio', 'post_content' => "Texto con 'comillas', \"dobles\", \\ barra, \0 nulo; <a href=\"https://origen.com/blog/\">blog</a> <img src=\"//origen.com/wp-content/uploads/a.jpg\"> visita origen.com o escribe a hola@origen.com", 'guid' => 'https://origen.com/?p=1', 'post_type' => 'page' ),
 	array( 'ID' => 2, 'post_title' => 'Elementor', 'post_content' => '', 'guid' => 'https://origen.com/?page_id=2', 'post_type' => 'page' ),
+	array( 'ID' => 3, 'post_title' => 'Tutorial', 'post_content' => 'Apache: <code>DocumentRoot /var/www/origen</code> y sube a /var/www/origen/wp-content/uploads.', 'guid' => 'https://origen.com/?p=3', 'post_type' => 'post' ),
 ) );
 $origin->seed( 'wp_postmeta', array(
 	array( 'post_id' => 2, 'meta_key' => '_elementor_data', 'meta_value' => $elementor ),
 	array( 'post_id' => 2, 'meta_key' => '_elementor_css', 'meta_value' => serialize( array( 'status' => 'file' ) ) ),
 	array( 'post_id' => 2, 'meta_key' => '_wp_attached_file', 'meta_value' => '2026/11/foto.jpg' ),
 ) );
-$origin->seed( 'wp_users', array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'admin@origen.com', 'user_url' => 'https://origen.com' ) ) );
+$origin->seed( 'wp_users', array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'admin@origen.com', 'user_url' => 'https://origen.com' ), array( 'ID' => 2, 'user_login' => 'ana', 'user_email' => 'ana@origen.com', 'user_url' => '' ) ) );
+// Claves con el prefijo del destino (dst_) que el respaldo trae de OTRA instalación (tabla de usuarios compartida): un
+// administrador ajeno antes de las del propio sitio, otro sin rol aquí, y una preferencia que choca con la del sitio.
 $origin->seed( 'wp_usermeta', array(
+	array( 'user_id' => 1, 'meta_key' => 'dst_capabilities', 'meta_value' => serialize( array( 'administrator' => true ) ) ),
+	array( 'user_id' => 2, 'meta_key' => 'dst_capabilities', 'meta_value' => serialize( array( 'administrator' => true ) ) ),
+	array( 'user_id' => 2, 'meta_key' => 'dst_user-settings', 'meta_value' => 'ajena' ),
 	array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => serialize( array( 'administrator' => true ) ) ),
 	array( 'user_id' => 1, 'meta_key' => 'wp_user_level', 'meta_value' => '10' ),
 	array( 'user_id' => 1, 'meta_key' => 'nickname', 'meta_value' => 'admin' ),
+	array( 'user_id' => 2, 'meta_key' => 'wp_capabilities', 'meta_value' => serialize( array( 'subscriber' => true ) ) ),
+	array( 'user_id' => 2, 'meta_key' => 'wp_user-settings', 'meta_value' => 'propia' ),
 ) );
 $origin->seed( 'wp_hijos', array( array( 'id' => 1, 'padre' => 1, 'nota' => 'https://origen.com/hijo' ) ) );
 $origin->seed( 'otra_app', array( array( 'id' => 1, 'url' => 'https://origen.com/otra-aplicacion' ) ) );
@@ -155,6 +169,16 @@ $origin->seed( 'otra_app', array( array( 'id' => 1, 'url' => 'https://origen.com
 @mkdir( $abspath . '/wp-content/uploads/elementor/google-fonts/css', 0700, true );
 file_put_contents( $abspath . '/wp-content/uploads/elementor/css/post-2.css', '.e{background:url(https://origen.com/wp-content/uploads/fondo.jpg)}' );
 file_put_contents( $abspath . '/wp-content/uploads/elementor/google-fonts/css/roboto.css', '@font-face{src:url(https://origen.com/wp-content/uploads/elementor/google-fonts/fonts/r.woff2)}' );
+// Archivos de configuración del servidor del origen (/var/www/origen): el cortafuegos de Wordfence en .user.ini (su
+// archivo viaja en el respaldo), otro auto_prepend_file que no existe en el destino y el host canónico en .htaccess.
+file_put_contents( $abspath . '/.user.ini', "; Wordfence WAF\nauto_prepend_file = '/var/www/origen/wordfence-waf.php'\nmemory_limit = 256M\n" );
+file_put_contents( $abspath . '/wordfence-waf.php', "<?php\nif ( file_exists( '/var/www/origen/wp-content/plugins/wordfence/waf/bootstrap.php' ) ) { define( 'WFWAF_LOG_PATH', '/var/www/origen/wp-content/wflogs/' ); }\n" );
+file_put_contents( $abspath . '/.htaccess', "<IfModule mod_php.c>\nphp_value auto_prepend_file '/opt/no-existe/waf.php'\n</IfModule>\nRewriteEngine On\nRewriteCond %{HTTP_HOST} !^www\\.origen\\.com$ [NC]\nRewriteRule ^(.*)$ https://www.origen.com/$1 [R=301,L]\n" );
+// Cachés de página y de recursos optimizados con las direcciones del origen.
+@mkdir( $abspath . '/wp-content/cache/supercache/origen.com', 0700, true );
+@mkdir( $abspath . '/wp-content/litespeed/css', 0700, true );
+file_put_contents( $abspath . '/wp-content/cache/supercache/origen.com/index.html', '<a href="https://origen.com/">' );
+file_put_contents( $abspath . '/wp-content/litespeed/css/a.css', '.x{background:url(https://origen.com/a.png)}' );
 e1_use( $origin, 'https://origen.com' );
 $single = e1_backup();
 $GLOBALS['e1_single'] = $single;
@@ -192,6 +216,22 @@ e1_case( 'E1 sitio individual en otro dominio y otra ruta', function() use ( $si
 	e1_check( $malformed === $opt( 'digi_dañada' ), 'Un serializado dañado no quedó intacto.' );
 	e1_check( 'https://origen.com.mx/ https://miorigen.com/ https://origen.com:8443/ ftp://origen.com/ https://cdn.origen.com/a.png' === $opt( 'digi_parecidos' ), 'Falso positivo: ' . $opt( 'digi_parecidos' ) );
 	e1_check( $abspath . '/wp-content/uploads' === $opt( 'upload_path' ), 'La ruta del servidor no se reescribió: ' . $opt( 'upload_path' ) );
+	// Puertos por defecto explícitos y URL codificadas (también con puerto y dos veces).
+	e1_check( 'https://destino.mx/sitio/a https%3A%2F%2Fdestino.mx%2Fsitio%2Fb https%253A%252F%252Fdestino.mx%252Fsitio%252Fc' === $opt( 'digi_puertos' ), 'Puertos y doble codificación: ' . $opt( 'digi_puertos' ) );
+	// Rutas: en un ajuste, el valor que es una ruta y la ruta seguida de /wp-content; nunca un tutorial ni el contenido.
+	e1_check( 'Configura <code>DocumentRoot /var/www/origen</code>; el registro va en ' . $abspath . '/wp-content/debug.log' === $opt( 'digi_tutorial' ), 'Rutas en el texto de un ajuste: ' . $opt( 'digi_tutorial' ) );
+	e1_check( array( 'log' => $abspath . '/wp-content/debug.log', 'base' => $abspath ) === e1_unserializes( $opt( 'digi_rutas' ), 'rutas' ), 'Rutas en un serializado de ajustes: ' . $opt( 'digi_rutas' ) );
+	e1_check( 'Apache: <code>DocumentRoot /var/www/origen</code> y sube a /var/www/origen/wp-content/uploads.' === $dest->value( 'wp_posts', 'post_content', 'ID = 3' ), 'Se cambió una ruta en el contenido público: ' . $dest->value( 'wp_posts', 'post_content', 'ID = 3' ) );
+	// Archivos del servidor: el cortafuegos del respaldo apunta aquí; lo que aquí no existe queda comentado; el host canónico.
+	$ini = file_get_contents( $abspath . '/.user.ini' );
+	e1_check( false !== strpos( $ini, "auto_prepend_file = '" . $abspath . "/wordfence-waf.php'" ) && false === strpos( $ini, '/var/www/origen' ), '.user.ini: ' . $ini );
+	e1_check( false !== strpos( file_get_contents( $abspath . '/wordfence-waf.php' ), "'" . $abspath . "/wp-content/plugins/wordfence/waf/bootstrap.php'" ), 'wordfence-waf.php no apunta a este servidor.' );
+	$htaccess = file_get_contents( $abspath . '/.htaccess' );
+	e1_check( 1 === preg_match( "~^# php_value auto_prepend_file '/opt/no-existe/waf.php'$~m", $htaccess ) && 0 === preg_match( "~^php_value auto_prepend_file~m", $htaccess ) && false !== strpos( $htaccess, '!^destino\\.mx$' ) && false !== strpos( $htaccess, 'https://destino.mx/sitio/$1' ), '.htaccess: ' . $htaccess );
+	e1_check( false !== strpos( $result['notice'], '/opt/no-existe/waf.php' ), 'El aviso no dice qué se desactivó en .htaccess: ' . $result['notice'] );
+	// Cachés de página vaciadas y purga de la caché del servidor pedida.
+	e1_check( ! file_exists( $abspath . '/wp-content/cache/supercache/origen.com/index.html' ) && ! file_exists( $abspath . '/wp-content/litespeed/css/a.css' ) && is_dir( $abspath . '/wp-content/cache' ), 'No se vaciaron las cachés de página.' );
+	e1_check( in_array( 'litespeed_purge_all', $GLOBALS['e1_actions'], true ), 'No se pidió purgar la caché de LiteSpeed.' );
 	$redirects = e1_unserializes( $opt( 'digi_redirecciones' ), 'redirecciones' );
 	e1_check( array( 'https://destino.mx/sitio/vieja' => 'https://destino.mx/sitio/nueva', 'http://origen.com/vieja' => 'otra' ) === $redirects, 'Las claves del array: una URL cambia y la que chocaría se queda: ' . json_encode( $redirects ) );
 	e1_check( 'admin@origen.com' === $opt( 'admin_email' ) && 'admin@origen.com' === $dest->value( 'wp_users', 'user_email', 'ID = 1' ), 'Se cambió un correo.' );
@@ -200,7 +240,7 @@ e1_case( 'E1 sitio individual en otro dominio y otra ruta', function() use ( $si
 	e1_check( ! file_exists( $abspath . '/wp-content/uploads/elementor/css/post-2.css' ), 'El CSS generado de Elementor no se borró.' );
 	e1_check( false !== strpos( file_get_contents( $abspath . '/wp-content/uploads/elementor/google-fonts/css/roboto.css' ), 'url(https://destino.mx/sitio/wp-content/uploads/elementor/google-fonts/fonts/r.woff2)' ), 'El CSS de las fuentes locales no se reescribió.' );
 	$report = $result['relocation'];
-	e1_check( is_array( $report ) && 0 === $report['check']['urls'] && 0 === $report['check']['paths'] && 2 === $report['check']['guid'] && 2 === $report['check']['kept'] && $report['check']['emails'] >= 2 && ! empty( $report['tables']['wp_options']['rows'] ) && 1 === $report['tables']['wp_options']['malformed'], 'El informe o la comprobación final no son los esperados (0 restos; guid, el serializado dañado y la clave que chocaría, declarados): ' . json_encode( $report['check'] ?? $report ) );
+	e1_check( is_array( $report ) && 0 === $report['check']['urls'] && 0 === $report['check']['paths'] && 3 === $report['check']['guid'] && 5 === $report['check']['kept'] && $report['check']['emails'] >= 2 && ! empty( $report['tables']['wp_options']['rows'] ) && 1 === $report['tables']['wp_options']['malformed'], 'El informe o la comprobación final no son los esperados (0 restos; guid, el serializado dañado, la clave que chocaría y las rutas del contenido, declarados): ' . json_encode( $report['check'] ?? $report ) );
 	e1_check( false !== strpos( $result['notice'], 'Origen → este sitio' ) && false !== strpos( $result['notice'], '0 URL y 0 rutas del origen pendientes' ), 'El aviso no dice qué se reescribió: ' . $result['notice'] );
 	e1_check( $GLOBALS['bk_options'][ Digitalisimo_Backups::LAST_RELOCATION ]['file'] === $single, 'No quedó el informe para la pantalla.' );
 } );
@@ -214,19 +254,19 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_tables( $dest, 'wp_' );
 	e1_options( $dest, 'wp_options', 'https://otro.test', 'https://otro.test', array( 'blogname_otro' => 'Otro WordPress' ) );
 	$dest->seed( 'wp_posts', array( array( 'ID' => 9, 'post_title' => 'Del otro', 'post_content' => 'https://origen.com/no-es-mio', 'guid' => 'x' ) ) );
-	// Y una tabla de otra aplicación con el nombre de la ajena del origen: desde la restauración por pasos, una tabla sin el
-	// prefijo del WordPress que se restaura nunca se borra ni se recrea (revisión de E1, H3).
+	// Una tabla con el nombre de una tabla ajena del respaldo (otra aplicación de la base del origen): no se toca.
 	$dest->pdo->exec( "CREATE TABLE `otra_app` (`id` INTEGER PRIMARY KEY, `url` text)" );
-	$dest->seed( 'otra_app', array( array( 'id' => 42, 'url' => 'de la aplicación del destino' ) ) );
+	$dest->seed( 'otra_app', array( array( 'id' => 7, 'url' => 'del destino' ) ) );
 	$before = array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) );
 	e1_use( $dest, 'https://destino.mx' );
 	$verify = Digitalisimo_Backups::service_verify( $single );
-	e1_check( ! is_wp_error( $verify ) && true === $verify['compatible'] && false !== strpos( $verify['relocation']['text'], 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx (prefijo dst_)' ), 'verify no anunció «Origen → este sitio»: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['relocation'] ) );
+	e1_check( ! is_wp_error( $verify ) && true === $verify['compatible'] && false !== strpos( $verify['relocation']['text'], 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx (prefijo dst_)' ) && false !== strpos( $verify['relocation']['text'], 'No se restauran 1 tablas sin el prefijo del origen' ) && array( 'otra_app' ) === $verify['relocation']['foreign_tables'], 'verify no anunció «Origen → este sitio» ni las tablas ajenas: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['relocation'] ) );
 	$result = e1_restore( $single );
 	e1_no_trap();
-	e1_check( $before === array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) ), 'Cambiaron tablas del otro WordPress (prefijo wp_) o la de otra aplicación.' );
-	e1_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $dest->queries ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ) && false !== strpos( $result['notice'], 'otra_app' ), 'La tabla de otra aplicación del respaldo se tocó o no se informó.' );
-	foreach ( array( 'dst_options', 'dst_posts', 'dst_postmeta', 'dst_users', 'dst_usermeta', 'dst_hijos', 'otra_app' ) as $table ) e1_check( in_array( $table, $dest->names(), true ), 'Falta la tabla ' . $table );
+	e1_check( $before === array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) ), 'Cambiaron tablas del otro WordPress (prefijo wp_) o la tabla ajena del destino.' );
+	// Restauración por pasos: la tabla ajena ni se ejecuta ni entra en el cambio, y el resultado la nombra.
+	e1_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $dest->queries ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ), 'La tabla de otra aplicación del respaldo se tocó o no se informó.' );
+	foreach ( array( 'dst_options', 'dst_posts', 'dst_postmeta', 'dst_users', 'dst_usermeta', 'dst_hijos' ) as $table ) e1_check( in_array( $table, $dest->names(), true ), 'Falta la tabla ' . $table );
 	e1_check( ! in_array( 'wp_hijos', $dest->names(), true ), 'Se creó una tabla con el prefijo del origen.' );
 	// SQLite reescribe la referencia (con comillas dobles) al renombrar la tabla temporal a su nombre final.
 	e1_check( preg_match( '/REFERENCES [`"]dst_posts[`"]/', $dest->create_sql( 'dst_hijos' ) ), 'La clave foránea sigue apuntando al prefijo del origen: ' . $dest->create_sql( 'dst_hijos' ) );
@@ -235,8 +275,12 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_check( '3' === $dest->value( 'dst_options', 'option_value', "option_name = 'wp_page_for_privacy_policy'" ), 'Se renombró una opción del núcleo que empieza por wp_ sin ser del prefijo.' );
 	$keys = array_column( $dest->rows( 'dst_usermeta' ), 'meta_key' );
 	sort( $keys );
-	e1_check( array( 'dst_capabilities', 'dst_user_level', 'nickname' ) === $keys, 'Claves de usermeta: ' . implode( ', ', $keys ) );
-	e1_check( null === $dest->value( 'otra_app', 'url', 'id = 1' ) && 'de la aplicación del destino' === $dest->value( 'otra_app', 'url', 'id = 42' ), 'Se restauró o se reescribió una tabla ajena a esta instalación.' );
+	e1_check( array( 'dst_capabilities', 'dst_capabilities', 'dst_user-settings', 'dst_user_level', 'nickname' ) === $keys, 'Claves de usermeta: ' . implode( ', ', $keys ) );
+	// Los permisos que el respaldo traía con el prefijo de destino de OTRA instalación no se aplican: cada usuario tiene
+	// los del sitio restaurado (ana sigue siendo suscriptora) y de la preferencia repetida queda la del sitio.
+	e1_check( array( 'administrator' => true ) === e1_unserializes( $dest->value( 'dst_usermeta', 'meta_value', "user_id = 1 AND meta_key = 'dst_capabilities'" ), 'roles' ) && array( 'subscriber' => true ) === e1_unserializes( $dest->value( 'dst_usermeta', 'meta_value', "user_id = 2 AND meta_key = 'dst_capabilities'" ), 'roles' ), 'Un usuario quedó con los permisos de otra instalación.' );
+	e1_check( 'propia' === $dest->value( 'dst_usermeta', 'meta_value', "user_id = 2 AND meta_key = 'dst_user-settings'" ), 'De dos claves repetidas no quedó la del sitio restaurado.' );
+	e1_check( 2 === (int) ( $result['relocation']['tables']['dst_usermeta']['foreign_keys'] ?? 0 ) && 1 === (int) ( $result['relocation']['tables']['dst_usermeta']['collisions'] ?? 0 ), 'El informe no cuenta las claves ajenas: ' . json_encode( $result['relocation']['tables']['dst_usermeta'] ?? null ) );
 	e1_check( 'https://destino.mx/hijo' === $dest->value( 'dst_hijos', 'nota', 'id = 1' ), 'Una tabla de un plugin no se reescribió.' );
 	e1_check( 0 === $result['relocation']['check']['urls'] && ! empty( $result['relocation']['tables']['dst_usermeta']['keys'] ), 'Informe de prefijo: ' . json_encode( $result['relocation']['tables'] ) );
 	// Conservar las direcciones del respaldo: el prefijo y las rutas del servidor siguen al destino; las URL no cambian.
@@ -381,8 +425,20 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$error = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
 	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no se puede cambiar el prefijo de una vista' ), 'Una vista con otro prefijo no se rechazó antes de tocar nada: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'se restauró' ) );
 	e1_check( $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'El rechazo de la vista tocó la base de datos o creó una copia previa.' );
+	// verify da la misma respuesta: el paquete está íntegro, pero no se puede restaurar aquí, y dice lo mismo.
+	$verify = Digitalisimo_Backups::service_verify( $view );
+	e1_check( ! is_wp_error( $verify ) && false === $verify['compatible'] && $verify['problems'] && false !== strpos( $error->get_error_message(), $verify['problems'][0] ), 'verify y restore no coinciden ante una vista con otro prefijo: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['problems'] ) );
 	bk_call( 'Digitalisimo_Backups', 'remove_history', $view );
 	@unlink( bk_storage() . '/' . $view );
+	// Un valor que menciona el origen y no cabe en la memoria para reescribirlo: rechazo antes de la copia previa.
+	$GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] = 100;
+	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
+	$error = Digitalisimo_Backups::service_restore( $GLOBALS['e1_single'], array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no cabe en la memoria de PHP' ) && $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'Un valor demasiado grande no se rechazó antes de la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'se restauró' ) );
+	// Un nombre de tabla de más de 64 caracteres con el prefijo nuevo.
+	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'mi_sitio_de_pruebas_' ), array( 'tables' => array( 'wp_options', 'wp_woocommerce_downloadable_product_permissions_extra_log' ) ) );
+	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'MySQL admite 64' ), 'Un nombre de tabla de más de 64 caracteres no se detectó en el plan.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => null ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'no lista sus tablas' ), 'Formato sin lista de tablas con otro prefijo.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => array( 'wp_posts', 'x_posts' ) ) );
@@ -403,10 +459,34 @@ e1_case( 'E6 reescritor: límites, estilos, serializados y objetos', function() 
 		'Fin en https://origen.com/blog.' => 'Fin en https://destino.mx.',
 		'"https:\/\/origen.com\/blog\/a"' => '"https:\/\/destino.mx\/a"',
 		'x%3A%2F%2Forigen.com%2Fblog%2Fa https%3A%2F%2Forigen.com%2Fblog%2Fa' => 'x%3A%2F%2Forigen.com%2Fblog%2Fa https%3A%2F%2Fdestino.mx%2Fa',
-		'/var/www/origen/a /var/www/origen2 /x/var/www/origen /var/www/origen.bak \/var\/www\/origen\/b' => '/srv/destino/a /var/www/origen2 /x/var/www/origen /var/www/origen.bak \/srv\/destino\/b',
+		'/var/www/origen/a' => '/srv/destino/a',
+		'/var/www/origen/wp-content/a /var/www/origen2/wp-content /x/var/www/origen/wp-content /var/www/origen.bak/wp-content \/var\/www\/origen\/wp-includes\/b' => '/srv/destino/wp-content/a /var/www/origen2/wp-content /x/var/www/origen/wp-content /var/www/origen.bak/wp-content \/srv\/destino\/wp-includes\/b',
+		'DocumentRoot /var/www/origen y /var/www/origen/otra' => 'DocumentRoot /var/www/origen y /var/www/origen/otra',
+		'https://origen.com:443/blog/a http://origen.com:80/blog' => 'https://destino.mx/a https://destino.mx',
+		'https%253A%252F%252Forigen.com%252Fblog%252Fa' => 'https%253A%252F%252Fdestino.mx%252Fa',
 		'mailto:hola@origen.com' => 'mailto:hola@origen.com',
 	);
 	foreach ( $cases as $in => $out ) e1_check( $out === $r->rewrite( $in ), 'rewrite(' . $in . ') = ' . $r->rewrite( $in ) );
+	// Contextos de las rutas: el contenido sólo cambia el valor que es una ruta; la configuración del servidor, todo.
+	e1_check( '/var/www/origen/wp-content/x en un texto' === $r->rewrite( '/var/www/origen/wp-content/x en un texto', 'content' ) && '/srv/destino/wp-content/x' === $r->rewrite( '/var/www/origen/wp-content/x', 'content' ), 'Rutas en el contexto content.' );
+	e1_check( 'include /srv/destino/algo.php' === $r->rewrite( 'include /var/www/origen/algo.php', 'config' ), 'Rutas en el contexto config.' );
+	// Un origen de un solo segmento (/wordpress, Playground) nunca cambia dentro de un texto: es un enlace relativo.
+	$one = new Digitalisimo_Backups_Relocate();
+	$one->add_path( '/wordpress', '/var/www/html' );
+	$one->add_path( '/wordpress/wp-content', '/var/www/html/wp-content' );
+	e1_check( '<a href="/wordpress/wp-content/uploads/a.jpg">' === $one->rewrite( '<a href="/wordpress/wp-content/uploads/a.jpg">' ) && '/var/www/html/wp-content/uploads' === $one->rewrite( '/wordpress/wp-content/uploads' ), 'Origen de un segmento: ' . $one->rewrite( '<a href="/wordpress/wp-content/uploads/a.jpg">' ) );
+	// URL codificada de un origen con puerto (sola en el valor) y la comprobación final la cuenta mientras no cambie.
+	$port = new Digitalisimo_Backups_Relocate();
+	$port->add_url( 'http://localhost:8080', 'https://destino.mx' );
+	e1_check( 'redirect_to=https%3A%2F%2Fdestino.mx%2Fwp-admin%2F' === $port->rewrite( 'redirect_to=http%3A%2F%2Flocalhost%3A8080%2Fwp-admin%2F' ) && 1 === $port->classify( 'redirect_to=http%3A%2F%2Flocalhost%3A8080%2Fwp-admin%2F' )['urls'] && 1 === $port->classify( 'a=http%253A%252F%252Flocalhost%253A8080%252Fx' )['urls'], 'URL codificada con puerto: ' . $port->rewrite( 'redirect_to=http%3A%2F%2Flocalhost%3A8080%2Fwp-admin%2F' ) );
+	// Un par igual («este sitio se queda») protege su ruta del par más corto del mismo host.
+	$stay = new Digitalisimo_Backups_Relocate();
+	$stay->add_url( 'https://origen.com', 'https://destino.mx' );
+	$stay->add_url( 'https://origen.com/tienda', 'https://origen.com/tienda' );
+	e1_check( 'https://origen.com/tienda/producto https://destino.mx/blog' === $stay->rewrite( 'https://origen.com/tienda/producto https://origen.com/blog' ) && 0 === $stay->classify( 'https://origen.com/tienda/x' )['urls'], 'Par igual: ' . $stay->rewrite( 'https://origen.com/tienda/producto https://origen.com/blog' ) );
+	$same = new Digitalisimo_Backups_Relocate();
+	$same->add_url( 'https://a.test', 'https://a.test' );
+	e1_check( ! $same->rewrites_values(), 'Sólo pares iguales no es «hay algo que reescribir».' );
 	$long = serialize( array( 'k' => str_repeat( 'ñ', 3 ) . 'https://origen.com/blog/€' ) );
 	$expected = 'ñññhttps://destino.mx/€';
 	e1_check( 'a:1:{s:1:"k";s:' . strlen( $expected ) . ':"' . $expected . '";}' === $r->rewrite( $long ) && 28 === strlen( $expected ), 'Longitud en bytes con multibyte: ' . $r->rewrite( $long ) );
@@ -448,6 +528,10 @@ e1_case( 'E6 guardián: renombra por identificador y rechaza lo que no puede ren
 	$plain = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, true, array( 'wp_a' ) );
 	$sql = "INSERT INTO `wp_a` (`x`) VALUES ('a\\'b');";
 	e1_check( array( "INSERT INTO `wp_a` (`x`) VALUES ('a\\'b')" ) === $run( $plain, $sql ), 'Sin renombrado cambió la sentencia.' );
+	// Un valor que en la importación supera el presupuesto de memoria hace fallar la sentencia (y se revierte): nunca a medias.
+	$tight = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_', 'budget' => 16 ), array( 'home' => 'https://destino.mx', 'prefix' => 'wp_' ) );
+	$g = $tight->attach( new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false, array( 'wp_posts' ) ), array( 'wp_posts' ) );
+	bk_expect_failure( 'valor mayor que el presupuesto', function() use ( $run, $g ) { $run( $g, "INSERT INTO `wp_posts` (`ID`,`post_content`) VALUES ('1','un texto largo con https://origen.com/a');" ); }, 'no cabe en la memoria' );
 	// El literal reescrito vuelve con los escapes de MySQL y el resto de la sentencia no cambia.
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_' ), array( 'home' => 'https://destino.mx', 'prefix' => 'wp_' ) );
 	$g = $plan->attach( new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false, array( 'wp_posts' ) ), array( 'wp_posts' ) );
@@ -470,10 +554,16 @@ e1_case( 'E6 base ya importada: lotes por clave primaria, compuesta, sin clave y
 	$db->seed( 'n_binario', array( array( 'id' => 1, 'datos' => "\xff\xfe\x01" . str_repeat( 'B', 5 * 1048576 ) . 'https://origen.com/blob' ), array( 'id' => 2, 'datos' => 'https://origen.com/b2' ) ) );
 	$db->seed( 'n_posts', array( array( 'ID' => 1, 'guid' => 'https://origen.com/?p=1', 'post_content' => 'https://origen.com/p' ) ) );
 	$db->seed( 'n_usermeta', array( array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => 'a:0:{}' ) ) );
+	// Clave primaria de texto con aspecto numérico: en MySQL `codigo` = 123 también coincidiría con '123abc'.
+	$db->pdo->exec( 'CREATE TABLE `n_cupones` (`codigo` varchar(20) NOT NULL PRIMARY KEY, `url` text)' );
+	$db->seed( 'n_cupones', array( array( 'codigo' => '123', 'url' => 'https://origen.com/a' ), array( 'codigo' => '123abc', 'url' => 'https://origen.com/b' ) ) );
 	$GLOBALS['wpdb'] = $db;
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://origen.com', 'prefix' => 'wp_' ), array( 'home' => 'https://destino.mx', 'prefix' => 'n_' ) );
-	$tables = array( 'n_postmeta', 'n_term_relationships', 'n_sinclave', 'n_binario', 'n_posts', 'n_usermeta' );
+	$tables = array( 'n_postmeta', 'n_term_relationships', 'n_sinclave', 'n_binario', 'n_posts', 'n_usermeta', 'n_cupones' );
+	$db->queries = array();
 	$report = $plan->rewrite_tables( $tables );
+	$updates = implode( "\n", preg_grep( '/^UPDATE `n_cupones`/', $db->queries ) );
+	e1_check( false !== strpos( $updates, "WHERE `codigo` = '123'" ) && false === strpos( $updates, '= 123' ) && 'https://destino.mx/a' === $db->value( 'n_cupones', 'url', "codigo = '123'" ) && 'https://destino.mx/b' === $db->value( 'n_cupones', 'url', "codigo = '123abc'" ), 'Clave primaria VARCHAR sin comillas: ' . $updates );
 	e1_check( 401 === $report['n_postmeta']['rows'] && 750 === $report['n_term_relationships']['rows'] && 1 === $report['n_sinclave']['no_primary_key'] && 2 === $report['n_binario']['rows'] && 1 === $report['n_usermeta']['keys'], 'Informe por tabla: ' . json_encode( $report ) );
 	$value = e1_unserializes( $db->value( 'n_postmeta', 'meta_value', 'meta_id = 1203' ), 'postmeta' );
 	e1_check( 'https://destino.mx/1203' === $value['u'] && 'nada 1202' === $db->value( 'n_postmeta', 'meta_value', 'meta_id = 1202' ), 'postmeta reescrita: ' . json_encode( $value ) );

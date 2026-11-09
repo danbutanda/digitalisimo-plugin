@@ -301,6 +301,7 @@ jobs:
           php tests/backups-credentials-exact.php
           php tests/backups-credentials-hardening.php
           php tests/backups-relocate.php
+          php tests/backups-relocate-interrupted.php
           php tests/backups-restore-steps.php
           php tests/backups-restore-memory.php
           php tests/backups-updater.php

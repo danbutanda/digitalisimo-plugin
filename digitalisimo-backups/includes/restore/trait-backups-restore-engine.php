@@ -460,6 +460,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$data = self::restore_read_json( $job, 'metadata.json' );
 		$probe = (array) ( $cursor['probe'] ?? array() );
 		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
+		$source['rename_problems'] = (array) ( $cursor['rename_problems'] ?? array() );
+		if ( isset( $cursor['budget'] ) ) $source['budget'] = (int) $cursor['budget'];
 		$rollback = ! empty( $job['spec']['rollback'] );
 		$args = array( 'addresses' => 'backup' === ( $job['spec']['addresses'] ?? '' ) ? 'backup' : 'current', 'tables' => is_array( $data['database_tables'] ?? null ) ? $data['database_tables'] : null );
 		$destination = Digitalisimo_Backups_Relocate::describe();
@@ -468,6 +470,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$plan = Digitalisimo_Backups_Relocate::plan( $source, $destination, $args );
 			if ( $plan->problems() ) throw new Digitalisimo_Backups_Permanent_Error( implode( ' ', $plan->problems() ) );
 		}
+		// Con el mismo prefijo, las tablas temporales también renombran: una vista no se puede restaurar por pasos.
+		if ( ! empty( $cursor['views'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La restauración por pasos no restaura vistas SQL ni otros objetos que no son tablas (' . implode( ', ', array_slice( (array) $cursor['views'], 0, 5 ) ) . '): quítalos del origen y crea un respaldo nuevo. No se cambió nada del sitio.' );
 		self::restore_write_json( $job, 'plan.json', array( 'origin' => $source, 'destination' => $destination, 'args' => $args, 'skip' => $rollback ) );
 		// Tablas: del respaldo → de este sitio (con el prefijo de la reubicación) → temporal → vieja. Sólo las del WordPress
 		// que se restaura (las que llevan su prefijo): una tabla de otra aplicación que comparte la base de datos (otro
@@ -613,15 +617,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$temp = array();
 		$foreign = array();
 		if ( 'scan' === $mode ) {
-			$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
+			// La sonda de E1: origen del SQL y valores que lo mencionan y no cabrían en la memoria para reescribirlos.
+			$budget = method_exists( 'Digitalisimo_Backups_Relocate', 'value_budget' ) ? Digitalisimo_Backups_Relocate::value_budget() : 0;
+			$cursor['budget'] = $budget;
+			$probe = method_exists( 'Digitalisimo_Backups_Relocate', 'manifest_needles' ) ? new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ), array( 'budget' => $budget, 'needles' => Digitalisimo_Backups_Relocate::manifest_needles( $data ) ) ) : new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
 			$guard->on_insert( $probe );
-			$renames = self::relocation_renames( $data );
-			// Con la lista del manifiesto, la pasada en seco cambia los nombres como la importación: una vista o dos tablas
-			// que chocarían se rechazan antes de la copia previa.
-			if ( is_array( $data['database_tables'] ?? null ) ) {
-				foreach ( $data['database_tables'] as $n => $table ) $renames[ (string) $table ] = 'dgbkr_scan_' . $n;
-			}
-			if ( $renames ) $guard->rename_tables( $renames );
+			try { $renames = self::relocation_renames( $data ); } catch ( Exception $e ) { $renames = array(); } // El plan lo dice.
+			// Sin estricto (como verify de E1): lo que no se puede renombrar se anota y el plan lo rechaza antes de la copia previa.
+			if ( $renames ) $guard->rename_tables( $renames, false );
 		} else {
 			$plan = self::restore_plan( $job );
 			$tables = self::restore_read_json( $job, 'tables.json' );
@@ -670,8 +673,20 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$cursor['sentences'] = $guard->count();
 		$cursor['units'] = $units;
-		if ( $probe ) $cursor['probe'] = array_replace_recursive( (array) ( $cursor['probe'] ?? array() ), $probe->result() );
-		if ( $plan ) $cursor['report'] = self::restore_add_report( (array) ( $cursor['report'] ?? array() ), $plan );
+		if ( $probe ) {
+			$found = $probe->result();
+			$merged = (array) ( $cursor['probe'] ?? array() );
+			$oversized = array_merge( (array) ( $merged['oversized'] ?? array() ), (array) ( $found['oversized'] ?? array() ) );
+			unset( $merged['oversized'], $found['oversized'] );
+			$cursor['probe'] = array_replace_recursive( $merged, $found );
+			$cursor['probe']['oversized'] = array_slice( $oversized, 0, 50 );
+			if ( method_exists( $guard, 'rename_problems' ) ) $cursor['rename_problems'] = array_values( array_unique( array_merge( (array) ( $cursor['rename_problems'] ?? array() ), $guard->rename_problems() ) ) );
+		}
+		if ( $plan ) {
+			$cursor['report'] = self::restore_add_report( (array) ( $cursor['report'] ?? array() ), $plan );
+			// Claves de usermeta que chocan (E1, after_import()): se reúnen tramo a tramo y se resuelven antes del cambio.
+			foreach ( self::restore_plan_private( $plan, 'collisions' ) as $table => $rows ) foreach ( (array) $rows as $row ) $cursor['collisions'][ (string) $table ][ (int) $row[0] ] = $row;
+		}
 		if ( ! $done ) return $cursor;
 		if ( empty( $cursor['statements'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos del respaldo está vacía.' );
 		$cursor['step'] = 'scan' === $mode ? 'plan' : 'done';
@@ -688,6 +703,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			usort( $largest, function( $a, $b ) { return $b[1] <=> $a[1]; } );
 			$cursor['largest'] = array_slice( $largest, 0, 3 );
 		}
+		// Una vista u otro objeto (lo escribió SHOW CREATE TABLE): con tablas temporales no se puede asegurar a qué apunta.
+		if ( preg_match( '/^CREATE\s+(?:OR\s+REPLACE\s+)?(?:ALGORITHM\s*=\s*\w+\s+)?(?:DEFINER\s*=\s*\S+\s+)?(?:SQL\s+SECURITY\s+\w+\s+)?(VIEW|TRIGGER|FUNCTION|PROCEDURE|EVENT)\s+`?([^`\s(]+)/i', $statement, $view ) ) $cursor['views'][] = $view[2];
 		// Un respaldo sin lista de tablas (anterior al v3): las tablas salen de sus CREATE TABLE.
 		if ( preg_match( '/^CREATE\s+TABLE\s+`((?:[^`]|``)+)`/i', $statement, $m ) ) {
 			$table = str_replace( '``', '`', $m[1] );
@@ -734,6 +751,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$cursor['statements'] = (int) ( $cursor['statements'] ?? 0 ) + 1;
 		return $cursor;
+	}
+	/** Una propiedad interna del plan de E1 (si existe en esta versión), o array(). */
+	private static function restore_plan_private( $plan, $name, $value = null ) {
+		if ( ! is_object( $plan ) || ! property_exists( $plan, $name ) ) return array();
+		$property = new ReflectionProperty( $plan, $name );
+		if ( PHP_VERSION_ID < 80100 ) $property->setAccessible( true );
+		if ( null !== $value ) { $property->setValue( $plan, $value ); return $value; }
+		return (array) $property->getValue( $plan );
 	}
 	/** Suma a lo reunido lo que la reubicación contó en este tramo (por tabla y en total). */
 	private static function restore_add_report( array $report, $plan ) {
@@ -823,6 +848,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Red y direcciones en las tablas temporales, antes del cambio (revisión de E1, H1): las tablas pasan de una vez ya
 		// coherentes (blogs, site, sitemeta y home/siteurl de cada sitio), así que ningún punto intermedio deja la red sin cargar.
 		self::restore_preswap_addresses( $job );
+		// De dos claves de usermeta iguales, la del sitio restaurado (E1, after_import()), también en las temporales.
+		foreach ( self::restore_preswap_collisions( $job, (array) ( $cursor['collisions'] ?? array() ) ) as $table => $removed ) $cursor['report']['tables'][ $table ]['collisions'] = (int) ( $cursor['report']['tables'][ $table ]['collisions'] ?? 0 ) + $removed;
 		return array( 'next' => 'files', 'checkpoint' => array( 'done' => time(), 'statements' => (int) $cursor['statements'], 'report' => (array) ( $cursor['report'] ?? array() ), 'names' => $cursor['names'] ?? '', 'restarted' => (int) ( $cursor['restarted'] ?? 0 ) ), 'message' => 'Base de datos lista en tablas temporales; preparando los archivos…' );
 	}
 	/**
@@ -863,6 +890,21 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( ! isset( $temp[ $table ] ) ) continue;
 			foreach ( $values as $name => $value ) if ( '' !== (string) $value ) $run( $wpdb->prepare( 'UPDATE ' . call_user_func( $q, $temp[ $table ] ) . ' SET option_value = %s WHERE option_name = %s', $value, $name ) );
 		}
+	}
+	/** Devuelve, por tabla de este sitio, cuántas claves repetidas se retiraron. */
+	private static function restore_preswap_collisions( array $job, array $collisions ) {
+		if ( ! $collisions ) return array();
+		$plan = self::restore_plan( $job );
+		if ( ! $plan || ! method_exists( $plan, 'after_import' ) || ! property_exists( $plan, 'collisions' ) ) return array();
+		$temp = array();
+		foreach ( self::restore_read_json( $job, 'tables.json' ) as $row ) $temp[ (string) $row['dest'] ] = (string) $row['temp'];
+		$removed = array();
+		foreach ( $collisions as $table => $rows ) {
+			if ( ! isset( $temp[ $table ] ) ) continue;
+			self::restore_plan_private( $plan, 'collisions', array( $temp[ $table ] => array_values( (array) $rows ) ) );
+			$removed[ $table ] = (int) $plan->after_import();
+		}
+		return $removed;
 	}
 	private static function restore_table_exists( $table ) {
 		global $wpdb;
@@ -1133,6 +1175,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	}
 	/** `.htaccess`, `.user.ini` y `php.ini`: pueden llevar rutas absolutas o el dominio del origen (revisión de E1, P1). */
 	private static function restore_is_config( $relative ) {
+		if ( defined( 'Digitalisimo_Backups_Relocate::SERVER_FILES' ) && in_array( (string) $relative, Digitalisimo_Backups_Relocate::SERVER_FILES, true ) ) return true;
 		return in_array( strtolower( basename( (string) $relative ) ), array( '.htaccess', '.user.ini', 'php.ini' ), true );
 	}
 	/**
@@ -1151,6 +1194,18 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$notes = array();
 		$plan = $config['plan'];
 		$root = rtrim( (string) $config['root'], '/' );
+		// Con reubicación, la regla de E1 (Digitalisimo_Backups_Relocate::server_file(): rutas, dominio, auto_prepend_file
+		// que aquí no existe y el de este servidor que sí) para los archivos de la raíz que conoce.
+		if ( $plan && method_exists( $plan, 'server_file' ) && defined( 'Digitalisimo_Backups_Relocate::SERVER_FILES' ) && in_array( $relative, Digitalisimo_Backups_Relocate::SERVER_FILES, true ) ) {
+			$live = is_file( $root . '/' . $relative ) && ! is_link( $root . '/' . $relative ) ? (string) @file_get_contents( $root . '/' . $relative, false, null, 0, 1048576 ) : null;
+			$before = count( self::restore_plan_private( $plan, 'server_notes' ) );
+			$content = call_user_func( self::server_file_transform( $plan, $config['zip'] ), $relative, $original, $live );
+			foreach ( array_slice( self::restore_plan_private( $plan, 'server_notes' ), $before ) as $note ) $notes[] = (string) $note;
+			if ( ! is_string( $content ) ) $content = $original;
+			if ( $content !== $original && ! $notes ) $notes[] = 'se ajustaron las rutas o el dominio del origen para este servidor';
+			if ( $notes ) $config['notes'][ $relative ] = $notes;
+			return $content === $original ? null : $content;
+		}
 		if ( $plan ) {
 			$o = $plan->origin();
 			$d = $plan->destination();
@@ -1542,6 +1597,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( is_file( $list ) ) @rename( $list, $removed );
 		if ( function_exists( 'update_option' ) ) update_option( 'digitalisimo_backups_last_restore', array( 'date' => current_time( 'mysql' ), 'job' => (string) $job['id'], 'file' => basename( (string) $job['spec']['file'] ), 'rollback' => ! empty( $job['spec']['rollback'] ), 'safety' => (string) ( $result['safety_backup'] ?? '' ), 'removed' => (int) ( $result['removed']['count'] ?? 0 ), 'sample' => array_slice( (array) ( $result['removed']['sample'] ?? array() ), 0, 50 ) ), false );
 		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		// La caché del servidor web (LSCache de OpenLiteSpeed) seguiría sirviendo las páginas de antes de restaurar (E1).
+		if ( method_exists( 'Digitalisimo_Backups_Relocate', 'purge_server_cache' ) ) { try { Digitalisimo_Backups_Relocate::purge_server_cache(); } catch ( Throwable $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$message = ! empty( $job['spec']['rollback'] ) ? 'Se volvió a la copia previa ' . basename( (string) $job['spec']['file'] ) . ': el sitio está como antes de la restauración que falló.' : 'Restauración terminada desde ' . basename( (string) $job['spec']['file'] ) . '.';
 		if ( $warnings ) $result['warnings'] = $warnings;
 		return array( 'next' => null, 'checkpoint' => array( 'done' => time(), 'warnings' => $warnings ), 'result' => array( 'restore' => $result ), 'warnings' => $warnings, 'message' => $message );
