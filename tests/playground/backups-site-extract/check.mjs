@@ -66,16 +66,19 @@ try {
   check(info.blogname === inventory.blogname, 'el sitio es el sitio 2 de la red', info.blogname);
   const pluginsOk = inventory.plugins.every((p) => info.plugins.includes(p)) && info.plugins.includes('digitalisimo-backups/digitalisimo-backups.php');
   check(pluginsOk, 'plugins activos: los del sitio y los de la red', info.plugins.join(', '));
-  check(info.tools && info.tools.values && Number(info.tools.values.mobile_scroll) === 1, 'ajuste de red de DIGITALÍSIMO materializado (Tools)', JSON.stringify(info.tools));
+  // Tools no está activo en el sitio (ni instalado): no recibe los ajustes de red de Tools (B3).
+  check(!info.tools, 'un plugin que el sitio no tiene activo no recibe ajustes de la red (Tools)', JSON.stringify(info.tools));
 
-  // Usuarios: los del sitio con sus roles y su contraseña de la red; ni los de otros sitios ni la cuenta del destino.
-  const expected = { ...inventory.users, admin: ['administrator'] };
+  // Usuarios: los del sitio con sus roles y su contraseña de la red; ni los de otros sitios ni la cuenta del destino. El
+  // superadministrador «admin» no es miembro y sólo escribió en el sitio: viaja como autor, sin rol ni contraseña.
+  const expected = { ...inventory.users };
   for (const [user, roles] of Object.entries(expected)) {
     const got = info.users[user];
     check(got && JSON.stringify(got.roles.sort()) === JSON.stringify([...roles].sort()), `usuario ${user} con su rol (${roles.join(', ')})`, JSON.stringify(got));
     check(got && got.password === true, `la contraseña de ${user} en la red abre en el destino`);
   }
-  check(!info.users.solo3 && !info.users.otro, 'sin usuarios de otros sitios ni superadministradores que no lo administran', Object.keys(info.users).join(', '));
+  check(!info.users.solo3 && !info.users.otro, 'sin usuarios de otros sitios ni superadministradores que no escribieron en él', Object.keys(info.users).join(', '));
+  check(info.users.admin && info.users.admin.roles.length === 0 && info.users.admin.password === false, 'el superadministrador que sólo escribió en el sitio viaja como autor, sin rol ni contraseña', JSON.stringify(info.users.admin));
 
   // Contenido: el mismo, con las direcciones del destino.
   // Las dos URL del medio en la red (la del principal y la del propio sitio) pasan a la del destino.
@@ -117,9 +120,11 @@ try {
   if (sessions.editora?.ok) check(await can('editora', '/wp-admin/edit.php?post_type=page') === 200, 'la editora edita páginas');
   if (sessions.editora?.ok) check(await can('editora', '/wp-admin/plugins.php') === 403, 'la editora no gestiona plugins');
   if (sessions.duena?.ok) check(await can('duena', '/wp-admin/plugins.php') === 200, 'la dueña (administradora) gestiona plugins');
-  if (sessions.admin?.ok) check(await can('admin', '/wp-admin/options-general.php') === 200, 'el superadministrador que lo administraba es administrador');
+  check(!(await login('admin', state.passwords.admin)).ok, 'admin no puede entrar con su contraseña de la red (no viaja)');
   if (sessions.solo2?.ok) check(await can('solo2', '/wp-admin/edit.php') === 403, 'el usuario sólo de este sitio (suscriptor) no edita');
   for (const user of ['solo3', 'otro']) check(!(await login(user, state.passwords[user])).ok, `${user} no puede entrar (no es del sitio)`);
+  // Los drop-ins de la red no viajan: el destino conserva los suyos (en Playground, el db.php de SQLite).
+  check(info.dropin_db === true, 'el destino conserva su db.php', String(info.dropin_db));
 
   // Backups: la configuración del destino se conserva y el historial guarda la copia previa.
   check(info.backups.settings && info.backups.settings.retention === '7', 'la configuración de Backups del destino se conserva', JSON.stringify(info.backups.settings));

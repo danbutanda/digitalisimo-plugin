@@ -86,7 +86,7 @@ try {
 			add_user_to_blog( $two, $users['solo2'], 'subscriber' );
 			$activated = activate_plugin( 'digitalisimo-backups/digitalisimo-backups.php', '', true );
 			if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó Backups en la red: ' . $activated->get_error_message() );
-			// Ajuste de red de DIGITALÍSIMO que el sitio 2 hereda (Tools): se materializa en el paquete.
+			// Ajuste de red de DIGITALÍSIMO (Tools) que el sitio 2 heredaría, pero Tools no está activo: no viaja.
 			update_site_option( 'digitalisimo_tools_site_defaults', array( 'redirect_attachments' => 1, 'mobile_scroll' => 1, 'login_slug' => '' ) );
 			update_site_option( 'otro_plugin_de_red', 'x' );
 			foreach ( array( $two, $three ) as $blog ) {

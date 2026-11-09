@@ -22,6 +22,7 @@ $out['uploads'] = array( 'basedir' => $uploads['basedir'], 'baseurl' => $uploads
 if ( is_dir( $uploads['basedir'] ) ) foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $uploads['basedir'], FilesystemIterator::SKIP_DOTS ) ) as $f ) if ( $f->isFile() && false === strpos( $f->getPathname(), '/elementor/css/' ) ) $out['uploads']['files'][ substr( $f->getPathname(), strlen( $uploads['basedir'] ) + 1 ) ] = hash_file( 'sha256', $f->getPathname() );
 $out['backups'] = array( 'settings' => get_option( 'digitalisimo_backups_settings' ), 'history' => array_column( (array) get_option( 'digitalisimo_backups_history', array() ), 'policy' ), 'relocation' => get_option( 'digitalisimo_backups_last_relocation' ) ? true : false );
 $out['tools'] = get_option( 'digitalisimo_tools_site_options' );
+$out['dropin_db'] = is_file( WP_CONTENT_DIR . '/db.php' ) && false === strpos( (string) file_get_contents( WP_CONTENT_DIR . '/db.php' ), 'red.test' );
 // Restos del sitio de la red: cada valor que nombra su dirección (red.test/dos) o sus medios en la red (uploads/sites/2),
 // salvo guid y el informe de la reubicación (que nombra el origen a propósito). Los enlaces a la portada de la red y los
 // correos @red.test son lo declarado: se cuentan aparte.
