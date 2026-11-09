@@ -28,6 +28,9 @@ if ( 'cli' === PHP_SAPI ) {
 	add_filter( 'digitalisimo_backups_job_budget', static function () { return 15; } );
 	add_filter( 'digitalisimo_backups_request_limit', static function () { return 30; } );
 }
+// En php-wasm la verificación de este sitio cabe en un tramo de 5 s: con tramos de 2 s (lo que se guarda el punto de
+// control, no el presupuesto de la petición, que sigue en 15 s) también la verificación se parte y se puede matar a medias.
+add_filter( 'digitalisimo_backups_step_slice', static function () { return 2; } );
 add_filter( 'pre_http_request', static function ( $pre, $args, $url ) { return false !== strpos( (string) $url, 'wp-cron.php' ) ? new WP_Error( 'digi_t2_no_cron', 'Sin loopback de WP-Cron en el ensayo.' ) : $pre; }, 10, 3 );
 // Cada marca mata la petición dentro de su fase, pero sólo cuando esa fase ya guardó un punto de control con avance:
 // la muerte cae a mitad de un tramo retomado y lo escrito después del punto de control queda a medias.

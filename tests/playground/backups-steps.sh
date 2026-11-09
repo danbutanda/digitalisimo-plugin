@@ -12,6 +12,7 @@
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-steps) y temporales de Playground
 #   PORT          puerto (por defecto 9463)
 #   SIZE_MB       megabytes de medios generados (por defecto 170; con WordPress, unos 200 MB)
+# Los tramos son de como mucho 2 s (setup.php), para que en php-wasm también la verificación se parta en varios.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 D="$ROOT/tests/playground/backups-steps"
