@@ -116,6 +116,20 @@ autoload, también con `wp_set_option_autoload()` cuando no queda nada en claro.
 sólo escribe el motor de trabajos (`job_id`, `packer`): esa clase escribe en `plugin_version` la versión del plugin
 cargado, así que compararla con 1.0.58 fallaba desde que el repositorio pasó de esa versión.
 
+Ensayo de los tramos cortos (@NEXT_BACKUPS@, T2, `tests/playground/backups-steps.sh`: 183 s) en WordPress 7.1.4 sobre
+Playground (SQLite, PHP 8.5), con la pila del propietario simulada: `max_execution_time=30` y `memory_limit=64M` en cada
+petición (también admin y WP-Cron) y sin WP-CLI. Un sitio de 299,5 MB (6 928 archivos: JPEG y MP4 aleatorios, textos
+comprimibles y miles de archivos pequeños; base de 29 MB con 9 169 filas) se encoló desde la pantalla y avanzó sólo con
+16 peticiones del navegador (AJAX) y de `wp-cron.php` (el loopback de WP-Cron cortado). La más larga duró 10,1 s (9,4 s
+después de cargar WordPress) y ninguna pasó de 56,5 MB, con WordPress ocupando ya unos 52. La base salió en una sola
+instantánea (cupo en un tramo); el empaquetado avanzó en 101 tramos y la verificación en 3 (tramos de como mucho 2 s en
+el ensayo). Se mataron dos peticiones a mitad de un tramo retomado (empaquetado y verificación) y el trabajo siguió desde
+su punto de control sin gastar más de un intento. `unzip -t` y el `zipfile` de Python aceptaron el ZIP (6 930 entradas,
+cada SHA-256 igual al del manifiesto). El primer ensayo destapó que un tope de memoria del 75 % cerraba cada tramo tras
+una unidad (la base salió en 457 instantáneas): desde entonces el tramo deja libre una reserva y la exportación sólo
+corta por memoria si casi no queda. Con procesos de php-wasm se repitió además la muerte real con `SIGKILL` a mitad de una
+tabla tras un punto de control (`backups-job-kill.php`): el tramo siguiente siguió por la última clave escrita y el SQL
+salió idéntico al de una exportación sin cortes.
 **Pendiente:**
 
 | Bloque | Brecha principal |
