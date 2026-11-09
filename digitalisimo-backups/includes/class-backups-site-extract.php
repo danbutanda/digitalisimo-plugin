@@ -551,18 +551,22 @@ final class Digitalisimo_Backups_Site_Extract {
 	 */
 	public static function destination_snapshot() {
 		global $wpdb;
-		$names = (array) $wpdb->get_col( $wpdb->prepare( 'SELECT option_name FROM `' . $wpdb->prefix . 'options` WHERE option_name LIKE %s', $wpdb->esc_like( 'digitalisimo_backups_' ) . '%' ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, autoload FROM `' . $wpdb->prefix . 'options` WHERE option_name LIKE %s', $wpdb->esc_like( 'digitalisimo_backups_' ) . '%' ), ARRAY_A );
 		$keep = array();
-		foreach ( $names as $name ) {
-			$name = (string) $name;
-			if ( in_array( $name, array( Digitalisimo_Backups::HISTORY, Digitalisimo_Backups_Security::OPTION ), true ) || 0 === strpos( $name, Digitalisimo_Backups_Keys::SECRET_PREFIX ) ) continue;
-			$keep[ $name ] = get_option( $name );
+		foreach ( $rows as $row ) {
+			$name = (string) ( $row['option_name'] ?? '' );
+			if ( ! self::kept( $name ) ) continue;
+			$keep[ $name ] = array( 'value' => get_option( $name ), 'autoload' => in_array( strtolower( (string) ( $row['autoload'] ?? '' ) ), array( 'yes', 'on', 'auto-on' ), true ) );
 		}
 		return $keep;
 	}
+	/** Opciones de Backups que describen el servidor (no el historial, el llavero ni «Seguridad», que tienen su mecanismo). */
+	private static function kept( $name ) {
+		return 0 === strpos( $name, 'digitalisimo_backups_' ) && ! in_array( $name, array( Digitalisimo_Backups::HISTORY, Digitalisimo_Backups_Security::OPTION, Digitalisimo_Backups::LAST_RELOCATION ), true ) && 0 !== strpos( $name, Digitalisimo_Backups_Keys::SECRET_PREFIX );
+	}
 	/** Lo mismo para el diario de la restauración: sin ningún secreto en claro de los ajustes. */
 	public static function journal_snapshot( array $keep ) {
-		if ( isset( $keep[ Digitalisimo_Backups::OPTION ] ) && is_array( $keep[ Digitalisimo_Backups::OPTION ] ) ) $keep[ Digitalisimo_Backups::OPTION ] = array_diff_key( $keep[ Digitalisimo_Backups::OPTION ], array_flip( Digitalisimo_Backups_Credentials::FIELDS ) );
+		if ( is_array( $keep[ Digitalisimo_Backups::OPTION ]['value'] ?? null ) ) $keep[ Digitalisimo_Backups::OPTION ]['value'] = array_diff_key( $keep[ Digitalisimo_Backups::OPTION ]['value'], array_flip( Digitalisimo_Backups_Credentials::FIELDS ) );
 		return $keep;
 	}
 	/** Tras el SQL: vuelve la configuración de Backups del destino y se retira la que no sea suya. */
@@ -571,11 +575,11 @@ final class Digitalisimo_Backups_Site_Extract {
 		global $wpdb;
 		foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SELECT option_name FROM `' . $wpdb->prefix . 'options` WHERE option_name LIKE %s', $wpdb->esc_like( 'digitalisimo_backups_' ) . '%' ) ) as $name ) {
 			$name = (string) $name;
-			if ( ! array_key_exists( $name, $keep ) && ! in_array( $name, array( Digitalisimo_Backups::HISTORY, Digitalisimo_Backups_Security::OPTION ), true ) && 0 !== strpos( $name, Digitalisimo_Backups_Keys::SECRET_PREFIX ) ) delete_option( $name );
+			if ( self::kept( $name ) && ! array_key_exists( $name, $keep ) ) delete_option( $name );
 		}
-		foreach ( $keep as $name => $value ) {
-			if ( ! is_string( $name ) || 0 !== strpos( $name, 'digitalisimo_backups_' ) ) continue;
-			update_option( $name, $value, Digitalisimo_Backups::CREDENTIALS_CLEAN === $name ? true : false );
+		foreach ( $keep as $name => $entry ) {
+			if ( ! is_string( $name ) || ! self::kept( $name ) || ! is_array( $entry ) || ! array_key_exists( 'value', $entry ) ) continue;
+			update_option( $name, $entry['value'], ! empty( $entry['autoload'] ) );
 		}
 	}
 	/** Resumen público del bloque `extract` de un manifiesto (verify en REST y WP-CLI); null si no es un sitio extraído. */
