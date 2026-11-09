@@ -34,6 +34,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Lo evidente se dice ya, sin crear el trabajo: un paquete parcial, de un subsitio o de otro tipo de instalación.
 		if ( $report['zip'] instanceof ZipArchive ) self::restore_precheck( $report['zip'] );
 		$file = wp_basename( (string) $report['source'] );
+		$tag = bin2hex( random_bytes( 3 ) );
 		$spec = array(
 			'type' => 'restore',
 			'scope' => is_multisite() ? 'network' : 'installation',
@@ -58,7 +59,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			// La copia previa: fijada al encolar (pantalla, REST, WP-CLI) o, en la envoltura, al empezar su fase.
 			'safety' => $rollback ? '' : (string) ( $args['safety_spec']['file'] ?? '' ),
 			'safety_spec' => $rollback || ! is_array( $args['safety_spec'] ?? null ) ? array() : $args['safety_spec'],
-			'tag' => bin2hex( random_bytes( 3 ) ),
+			'tag' => $tag,
+			'mark' => $tag . bin2hex( random_bytes( 5 ) ),
 			'token' => (string) ( $args['token'] ?? Digitalisimo_Backups_Restore_Maintenance::new_token() ),
 			'adopted' => ! empty( $args['adopted'] ),
 			'sync' => ! empty( $args['sync'] ),
@@ -149,8 +151,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Con lo que permita el hosting (WP_MAX_MEMORY_LIMIT); las fases están pensadas para caber en 64 MB aunque no suba.
 		if ( function_exists( 'wp_raise_memory_limit' ) ) wp_raise_memory_limit( 'admin' );
 		if ( Digitalisimo_Backups_Job_Store::JOB_FORMAT !== (int) ( $job['spec']['engine']['job_format'] ?? 0 ) || 'restore' !== ( $job['spec']['type'] ?? '' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El trabajo de restauración se creó con otra versión del motor; vuelve a iniciarlo.' );
-		// Desde la base de datos hasta el final, el sitio está en mantenimiento (los ticks con el testigo pasan).
-		if ( in_array( $phase, array( 'database', 'files', 'switch', 'finish' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], self::restore_switched( $job ), $job['id'] );
+		// Desde la base de datos hasta el final, el sitio está en mantenimiento (los ticks con el testigo pasan). Una vuelta a
+		// la copia previa, desde su primera fase y sin caducar: el sitio quedó a medio cambiar (revisión, C2).
+		$rollback = ! empty( $job['spec']['rollback'] );
+		if ( $rollback || in_array( $phase, array( 'database', 'files', 'switch', 'finish', 'cleanup' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], $rollback || self::restore_switched( $job ), $job['id'] );
 		switch ( $phase ) {
 			case 'inspect': return self::restore_inspect( $job );
 			case 'safety': return self::restore_safety( $job );
@@ -171,22 +175,42 @@ trait Digitalisimo_Backups_Restore_Engine {
 		return in_array( (string) $job['phase'], array( 'switch', 'finish', 'cleanup' ), true ) || ! empty( $job['checkpoint']['switch'] );
 	}
 	/**
-	 * El sitio cambió de verdad: pasó el RENAME (o la transacción) de las tablas. Un fallo en el paso de las tablas antes
-	 * de cambiarlas (el diario, un RENAME rechazado, que es atómico) no tocó nada: no hace falta volver a la copia previa.
+	 * El sitio cambió (o pudo cambiar): hace falta volver a la copia previa si la restauración no termina. Lo decide la
+	 * base de datos, no un marcador ni que el RENAME devolviera error (revisión, C1): en el paso de las tablas, el sitio
+	 * sigue como estaba sólo si todas las tablas temporales siguen ahí y ninguna vieja; ante la duda, cambió. Una vuelta a
+	 * la copia previa trata el sitio como cambiado desde su primera fase: la restauración que deshace ya lo cambió (C2).
 	 */
 	private static function restore_changed( array $job ) {
+		if ( ! empty( $job['spec']['rollback'] ) ) return true;
 		if ( ! self::restore_switched( $job ) ) return false;
 		$cursor = (array) ( $job['checkpoint']['switch'] ?? array() );
 		if ( 'switch' !== (string) $job['phase'] || 'tables' !== (string) ( $cursor['step'] ?? 'tables' ) ) return true;
 		try {
-			if ( ! is_file( self::restore_staging( $job ) . '/swap.started' ) ) return false;
 			$tables = self::restore_read_json( $job, 'tables.json', false );
-			if ( ! is_array( $tables ) || ! $tables ) return true;
-			foreach ( $tables as $row ) if ( ! self::restore_table_exists( (string) $row['temp'] ) ) return true;
-			return false;
+			if ( ! is_array( $tables ) ) return true;
+			return 'before' !== self::restore_swap_state( $tables );
 		} catch ( Throwable $e ) {
 			return true;
 		}
+	}
+	/**
+	 * Estado real del cambio de tablas, por lo que hay en la base de datos: 'before' (todas las temporales y ninguna vieja),
+	 * 'after' (ninguna temporal: el RENAME o la transacción se hizo) o 'partial' (no debería pasar: ambos son atómicos).
+	 */
+	private static function restore_swap_state( array $tables ) {
+		global $wpdb;
+		if ( ! $tables ) return 'before';
+		$wpdb->last_error = '';
+		$live = array_flip( array_map( 'strval', (array) $wpdb->get_col( 'SHOW TABLES' ) ) );
+		if ( '' !== (string) $wpdb->last_error || ! $live ) throw new Exception( 'No se pudo consultar qué tablas tiene la base de datos' . ( '' !== (string) $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ) );
+		$temps = 0;
+		$olds = 0;
+		foreach ( $tables as $row ) {
+			if ( isset( $live[ (string) $row['temp'] ] ) ) $temps++;
+			if ( isset( $live[ (string) $row['old'] ] ) ) $olds++;
+		}
+		if ( count( $tables ) === $temps && 0 === $olds ) return 'before';
+		return 0 === $temps ? 'after' : 'partial';
 	}
 
 	/* ------------------------------------------------------------------------------------------- Comunes */
@@ -955,7 +979,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'root' => $root,
 			'plugins' => $relative( WP_PLUGIN_DIR ),
 			'themes' => $relative( function_exists( 'get_theme_root' ) ? get_theme_root() : WP_CONTENT_DIR . '/themes' ),
-			'mu' => $relative( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ),
+			// En un tick «mínimo» (ver la clase del mantenimiento), WPMU_PLUGIN_DIR se esconde a WordPress: vale la de verdad.
+			'mu' => $relative( defined( 'DIGITALISIMO_BACKUPS_MU_PLUGIN_DIR' ) ? DIGITALISIMO_BACKUPS_MU_PLUGIN_DIR : ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) ),
 			'uploads' => $relative( (string) ( $uploads['basedir'] ?? WP_CONTENT_DIR . '/uploads' ) ),
 			'self' => '',
 		);
@@ -976,12 +1001,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		return '';
 	}
-	/** Lo que el respaldo excluye a propósito (nunca es «ajeno»): `.git`, `node_modules`, carpetas `cache`. */
+	/**
+	 * Lo que nunca es «ajeno»: `wp-config.php` y `.maintenance` (de este servidor) y lo de una restauración (carpetas
+	 * `.digitalisimo-…`). Un respaldo completo v3 trae todo lo demás (también `.git`, `node_modules` y las carpetas
+	 * `cache`), así que con él no hay excepciones por nombre (revisión, M2).
+	 */
 	private static function restore_excluded( $relative ) {
-		// wp-config.php nunca se restaura ni se retira (es de este servidor).
 		if ( in_array( strtolower( $relative ), array( 'wp-config.php', '.maintenance' ), true ) ) return true;
-		$path = '/' . $relative . '/';
-		return false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || false !== strpos( $path, '/.digitalisimo-' );
+		return false !== strpos( '/' . $relative . '/', '/.digitalisimo-' );
 	}
 	/** La carpeta está dentro de una raíz gestionada o lleva a una. */
 	private static function restore_walk_into( $relative, array $layout ) {
@@ -991,9 +1018,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		return false;
 	}
-	/** Raíces donde se retira lo que el respaldo no tiene: núcleo (wp-admin, wp-includes y los .php de la raíz), plugins, temas, mu-plugins y medios. */
+	/**
+	 * Raíces donde se retira lo que el respaldo no tiene: núcleo (wp-admin, wp-includes y, en la raíz, todo archivo que PHP
+	 * pueda ejecutar: `.php`, `.phtml`, `.phar`…), plugins, temas, mu-plugins y medios.
+	 */
 	private static function restore_managed( $relative, array $layout ) {
-		if ( false === strpos( $relative, '/' ) ) return '.php' === strtolower( substr( $relative, -4 ) );
+		if ( false === strpos( $relative, '/' ) ) return (bool) preg_match( '/\.(?:php[0-9]?|phtml|pht|phar|phps)$/i', $relative );
 		foreach ( array( 'wp-admin', 'wp-includes', $layout['plugins'], $layout['themes'], $layout['mu'], $layout['uploads'] ) as $base ) if ( '' !== $base && 0 === strpos( $relative, $base . '/' ) ) return true;
 		return false;
 	}
@@ -1018,15 +1048,21 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( 'compare' === $cursor['step'] || 'extract' === $cursor['step'] ) {
 			$cursor = self::restore_extract( $job, $cursor, $layout, $deadline );
 			if ( 'done' !== $cursor['step'] ) return self::restore_slice( 'files', $cursor, ( 'compare' === $cursor['step'] ? 'Comparando archivos (' : 'Preparando los archivos que cambian (' ) . (int) $cursor['i'] . ' de ' . (int) ( $cursor['count'] ?? 0 ) . ')…', $started, (int) ( $cursor['units'] ?? 0 ), $job );
+			$cursor['step'] = 'near';
+		}
+		if ( 'near' === $cursor['step'] ) {
+			if ( ! self::restore_near( $job, $layout, $deadline ) ) return self::restore_slice( 'files', $cursor, 'Copiando junto a su sitio las carpetas que están en otro disco…', $started, 1, $job );
 			return array( 'next' => 'switch', 'checkpoint' => array( 'done' => time(), 'staged' => (int) ( $cursor['staged'] ?? 0 ), 'same' => (int) ( $cursor['same'] ?? 0 ), 'units' => (int) ( $cursor['changed_units'] ?? 0 ) ), 'message' => 'Archivos preparados; cambiando el sitio…' );
 		}
 		throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La preparación de los archivos perdió su punto de control; se repetirá.', 'files' );
 	}
 	/**
-	 * Recorre las raíces gestionadas del sitio, carpeta por carpeta (pila en walk.json): lo que el respaldo no tiene y no
-	 * excluye a propósito queda en extraneous.txt (archivo suelto o de medios) o marca su unidad como cambiada. Una unidad
-	 * con algo excluido (un `.git` de desarrollo, un enlace simbólico) no se cambia entera: sus archivos van uno a uno y
-	 * lo excluido se queda.
+	 * Recorre las raíces gestionadas del sitio (pila en el punto de control, y dentro de una carpeta, la posición: una
+	 * carpeta enorme de medios no tiene que caber en un tramo): lo que el respaldo no tiene queda en extraneous.txt
+	 * (archivo suelto o de medios; lo retira el cambio y lo anota en removed.txt) o marca su unidad como cambiada (y va a
+	 * removed.txt: sale con la unidad apartada). Una unidad con un enlace simbólico o un archivo especial, o que es un punto
+	 * de montaje (no se puede renombrar entera), no se cambia entera: sus archivos van uno a uno (revisión, P2). En un disco
+	 * que no distingue mayúsculas, `Foto.JPG` del respaldo es el `foto.jpg` del sitio (P3).
 	 */
 	private static function restore_walk( array $job, array $cursor, array $layout, $deadline ) {
 		$staging = self::restore_staging( $job );
@@ -1038,41 +1074,51 @@ trait Digitalisimo_Backups_Restore_Engine {
 			@unlink( $staging . '/removed.txt' );
 			$stack = array( '' );
 			$units = array();
+			$cursor['at'] = null;
 		}
 		$zip = self::restore_zip( $job );
 		// Sólo un respaldo completo v3 (con su inventario comprobado) dice qué sobra; uno anterior puede no traer el árbol entero.
 		$complete = ! empty( $job['checkpoint']['inspect']['v3'] );
+		$nocase = $complete && Digitalisimo_Backups_Archive_Inspector::case_insensitive( $root );
 		$extraneous = @fopen( $staging . '/extraneous.txt', 'ab' );
 		$removed = @fopen( $staging . '/removed.txt', 'ab' );
 		if ( ! $extraneous || ! $removed ) throw new Exception( 'No se pudo anotar lo que el respaldo no tiene en el área de trabajo.' );
 		$count = 0;
 		try {
 			while ( $stack ) {
-				if ( $count > 0 && self::restore_exhausted( $deadline, $count ) ) break;
 				$dir = (string) array_pop( $stack );
 				$path = rtrim( $root . $dir, '/' );
 				if ( is_link( $path ) || ! is_dir( $path ) ) continue;
 				$names = @scandir( $path );
 				if ( ! is_array( $names ) ) continue;
-				foreach ( $names as $name ) {
+				$from = is_array( $cursor['at'] ?? null ) && (string) $cursor['at'][0] === $dir ? (int) $cursor['at'][1] : 0;
+				$cursor['at'] = null;
+				for ( $n = $from, $total = count( $names ); $n < $total; $n++ ) {
+					if ( $count > 0 && self::restore_exhausted( $deadline, $count ) ) {
+						$stack[] = $dir;
+						$cursor['at'] = array( $dir, $n );
+						break 2;
+					}
+					$name = $names[ $n ];
 					if ( '.' === $name || '..' === $name ) continue;
 					$relative = '' === $dir ? $name : $dir . '/' . $name;
 					$full = $root . $relative;
 					$unit = self::restore_unit( $relative, $layout );
 					$count++;
 					if ( self::restore_excluded( $relative ) || is_link( $full ) || ( ! is_dir( $full ) && ! is_file( $full ) ) ) {
-						if ( '' !== $unit && 0 !== strpos( $relative, '.digitalisimo-' ) ) $units[ $unit ]['mixed'] = true;
+						if ( '' !== $unit && 0 !== strpos( $relative, '.digitalisimo-' ) && false === strpos( '/' . $relative, '/.digitalisimo-' ) ) $units[ $unit ]['mixed'] = true;
 						continue;
 					}
 					if ( is_dir( $full ) ) {
+						// La carpeta de una unidad que es un punto de montaje (mu-plugins de un hosting gestionado): rename() no la mueve.
+						if ( $unit === $relative && self::restore_mount_point( $full ) ) $units[ $unit ]['mixed'] = true;
 						// Sólo se entra en las raíces gestionadas y en las carpetas que llevan a ellas (wp-content).
 						if ( self::restore_walk_into( $relative, $layout ) ) $stack[] = $relative;
 						continue;
 					}
 					if ( ! self::restore_managed( $relative, $layout ) || ! $complete ) continue;
-					if ( false !== $zip->locateName( 'wordpress/' . $relative ) ) continue;
-					// Ajeno al respaldo, dentro de lo que gestiona: se retira (queda en la copia previa) y se informa.
-					fwrite( $removed, self::restore_line( $relative ) );
+					if ( false !== $zip->locateName( 'wordpress/' . $relative ) || ( $nocase && false !== $zip->locateName( 'wordpress/' . $relative, ZipArchive::FL_NOCASE ) ) ) continue;
+					// Ajeno al respaldo, dentro de lo que gestiona: se retira (antes, se comprueba que está en la copia previa).
 					if ( '' !== $unit ) {
 						$units[ $unit ]['changed'] = true;
 						$units[ $unit ]['pending'][] = $relative;
@@ -1081,25 +1127,23 @@ trait Digitalisimo_Backups_Restore_Engine {
 					}
 				}
 			}
+			$cursor['seen'] = (int) ( $cursor['seen'] ?? 0 ) + $count;
+			$cursor['units'] = $count;
+			if ( $stack ) {
+				$cursor['stack'] = array_values( $stack );
+				self::restore_write_json( $job, 'units.json', $units );
+				return $cursor;
+			}
+			// Una unidad mixta no se cambia entera: lo ajeno suyo se retira uno a uno; el de una entera sale con ella.
+			foreach ( $units as $unit => $state ) {
+				foreach ( (array) ( $state['pending'] ?? array() ) as $relative ) fwrite( ! empty( $state['mixed'] ) ? $extraneous : $removed, self::restore_line( $relative ) );
+				unset( $units[ $unit ]['pending'] );
+			}
 		} finally {
 			fclose( $extraneous );
 			fclose( $removed );
 			self::close_quietly( $zip );
 		}
-		$cursor['seen'] = (int) ( $cursor['seen'] ?? 0 ) + $count;
-		$cursor['units'] = $count;
-		if ( $stack ) {
-			$cursor['stack'] = array_values( $stack );
-			self::restore_write_json( $job, 'units.json', $units );
-			return $cursor;
-		}
-		// Una unidad mixta no se cambia entera: lo ajeno suyo se retira uno a uno.
-		$handle = @fopen( $staging . '/extraneous.txt', 'ab' );
-		foreach ( $units as $unit => $state ) {
-			if ( ! empty( $state['mixed'] ) ) foreach ( (array) ( $state['pending'] ?? array() ) as $relative ) fwrite( $handle, self::restore_line( $relative ) );
-			unset( $units[ $unit ]['pending'] );
-		}
-		if ( $handle ) fclose( $handle );
 		self::restore_write_json( $job, 'units.json', $units );
 		$zip = self::restore_zip( $job );
 		$count = (int) $zip->numFiles;
@@ -1108,6 +1152,47 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( ! $bitmap || ( $count > 0 && $count !== fwrite( $bitmap, str_repeat( "\0", $count ) ) ) ) throw new Exception( 'No se pudo preparar la lista de archivos que cambian en el área de trabajo.' );
 		fclose( $bitmap );
 		return array( 'step' => 'compare', 'i' => 0, 'count' => $count, 'seen' => $cursor['seen'], 'staged' => 0, 'same' => 0 );
+	}
+	/** La carpeta está en otro sistema de archivos que la que la contiene (un montaje): no se puede renombrar entera. */
+	private static function restore_mount_point( $path ) {
+		$here = @stat( $path );
+		$parent = @stat( dirname( $path ) );
+		return is_array( $here ) && is_array( $parent ) && (int) $here['dev'] !== (int) $parent['dev'];
+	}
+	/**
+	 * Cada unidad que cambia entera y cuya preparada está en otro disco que su sitio se copia ahora junto a él
+	 * (`.digitalisimo-new-<marca>-<nombre>`), con el sitio intacto: así el cambio sólo hace `rename()` y cabe en un paso
+	 * (revisión, A3). La copia se da por buena (`near` en units.json) sólo entera; después se borra la preparada.
+	 * Devuelve false si el plazo cortó el tramo.
+	 */
+	private static function restore_near( array $job, array $layout, $deadline ) {
+		$units = (array) ( self::restore_read_json( $job, 'units.json', false ) ?? array() );
+		$tree = (string) self::restore_read_json( $job, 'tree.json' )['root'];
+		$mark = self::restore_mark( $job );
+		$copied = 0;
+		foreach ( $units as $unit => $state ) {
+			if ( empty( $state['changed'] ) || ! empty( $state['mixed'] ) || empty( $state['in_backup'] ) || ! empty( $state['near'] ) ) continue;
+			$staged = $tree . '/new/' . $unit;
+			$live = $layout['root'] . $unit;
+			$parent = dirname( $live );
+			if ( ! is_dir( $staged ) || ! is_dir( $parent ) ) continue;
+			$from = @stat( $staged );
+			$to = @stat( $parent );
+			if ( ! is_array( $from ) || ! is_array( $to ) || (int) $from['dev'] === (int) $to['dev'] ) continue;
+			if ( $copied > 0 && self::restore_exhausted( $deadline, $copied ) ) return false;
+			self::restore_assert_inside( $parent, $layout['root'] );
+			$near = $parent . '/.digitalisimo-new-' . $mark . '-' . basename( $live );
+			if ( file_exists( $near ) ) self::restore_remove_tree( $near );
+			if ( ! self::restore_copy_tree( $staged, $near ) ) {
+				self::restore_remove_tree( $near );
+				throw new Exception( 'No se pudo copiar ' . $unit . ' junto a su sitio (otro disco): revisa el espacio libre.' );
+			}
+			$units[ $unit ]['near'] = true;
+			self::restore_write_json( $job, 'units.json', $units );
+			self::restore_remove_tree( $staged );
+			$copied++;
+		}
+		return true;
 	}
 	private static function restore_line( $relative ) { return str_replace( array( '%', "\n", "\r" ), array( '%25', '%0A', '%0D' ), (string) $relative ) . "\n"; }
 	private static function restore_unline( $line ) { return str_replace( array( '%0A', '%0D', '%25' ), array( "\n", "\r", '%' ), rtrim( (string) $line, "\n" ) ); }
@@ -1154,7 +1239,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 						$expected = $index->get( $i );
 						$same = is_array( $expected ) && hash_equals( $expected['sha256'], (string) @hash_file( 'sha256', $live ) );
 					} elseif ( $same ) {
-						$same = sprintf( '%08x', $stat['crc'] ) === (string) @hash_file( 'crc32b', $live );
+						// Sin el SHA-256 del manifiesto (un respaldo anterior al v3), se reescribe siempre: el mismo tamaño y CRC32
+						// no prueban nada (forjar un CRC32 cuesta 4 bytes) y así se hizo siempre (revisión, M3).
+						$same = false;
 					}
 					if ( $same ) { $cursor['same'] = (int) ( $cursor['same'] ?? 0 ) + 1; continue; }
 					if ( $whole ) { $units[ $unit ]['changed'] = true; $units_changed = true; continue; }
@@ -1288,8 +1375,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 	/* ------------------------------------------------------------------------------------------- 5. Cambio */
 
 	/**
-	 * El cambio: tablas (de una vez), historial, llavero y credenciales; archivos movidos (cada unidad de código de una
-	 * vez), lo ajeno retirado y, al final, la carpeta de este plugin. Reanudable desde cualquier punto.
+	 * El cambio, reanudable desde cualquier punto:
+	 *  - `tables`: las tablas (de una vez), historial, llavero y credenciales y, en el mismo paso y sin cortes, todo el
+	 *    código: cada unidad entera (wp-admin, wp-includes, cada plugin y tema, mu-plugins; la de este plugin no) y los
+	 *    archivos sueltos fuera de los medios (los de la raíz, los drop-ins y las traducciones de wp-content, los de una
+	 *    unidad mixta). Ningún tick ve la base de datos restaurada con el código de antes ni el núcleo a medio cambiar
+	 *    (revisión, A3); los ticks, además, cargan WordPress sin los demás plugins ni el tema (ver la clase del mantenimiento);
+	 *  - `move`: los medios que cambian, por tramos;
+	 *  - `remove`: lo que el respaldo no tiene, por tramos.
+	 * Este plugin y los `.htaccess` van en el último paso de la limpieza, después de todo (A2, H6).
 	 */
 	private static function restore_switch( array $job ) {
 		$cursor = (array) ( $job['checkpoint']['switch'] ?? array() );
@@ -1297,30 +1391,39 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$started = microtime( true );
 		$deadline = self::restore_deadline( $job, 'switch', $cursor );
 		Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], true, $job['id'] );
+		$layout = self::restore_switch_layout( $job );
+		$tree = (string) self::restore_read_json( $job, 'tree.json' )['root'];
 		if ( 'tables' === $cursor['step'] ) {
 			$cursor = self::restore_swap( $job, $cursor );
-			return array( 'next' => 'switch', 'checkpoint' => $cursor, 'message' => 'Base de datos cambiada; moviendo los archivos…' );
+			$cursor = self::restore_move_code( $job, $cursor, $layout, $tree );
+			$cursor['step'] = 'move';
+			return array( 'next' => 'switch', 'checkpoint' => $cursor, 'message' => 'Base de datos y código cambiados; moviendo los medios…' );
 		}
-		$layout = self::restore_layout();
-		$layout['tag'] = (string) $job['spec']['tag'];
-		$layout['units'] = (array) ( self::restore_read_json( $job, 'units.json', false ) ?? array() );
-		$tree = (string) self::restore_read_json( $job, 'tree.json' )['root'];
 		if ( 'move' === $cursor['step'] ) {
 			$cursor = self::restore_move( $job, $cursor, $layout, $tree, $deadline );
 			if ( 'move' === $cursor['step'] ) return self::restore_slice( 'switch', $cursor, 'Moviendo los archivos restaurados (' . (int) ( $cursor['moved'] ?? 0 ) . ')…', $started, (int) ( $cursor['units'] ?? 0 ), $job );
 		}
 		if ( 'remove' === $cursor['step'] ) {
-			$cursor = self::restore_remove( $job, $cursor, $layout, $deadline );
+			$cursor = self::restore_remove( $job, $cursor, $layout, $tree, $deadline );
 			if ( 'remove' === $cursor['step'] ) return self::restore_slice( 'switch', $cursor, 'Retirando lo que el respaldo no tenía (' . (int) ( $cursor['removed'] ?? 0 ) . ')…', $started, (int) ( $cursor['units'] ?? 0 ), $job );
 		}
-		if ( 'self' === $cursor['step'] ) {
-			// Este plugin, lo último y de una vez: los tramos anteriores lo necesitaban entero.
-			if ( '' !== $layout['self'] ) self::restore_move_unit( $layout['self'], $layout, $tree, $cursor );
-			// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo).
-			$cursor['htaccess'] = self::restore_place_htaccess( $tree, $layout );
-			$cursor['step'] = 'done';
-		}
+		$cursor['step'] = 'done';
 		return array( 'next' => 'finish', 'checkpoint' => $cursor, 'message' => 'Sitio cambiado; ajustando direcciones y cachés…' );
+	}
+	/** Lo que el cambio necesita de la instalación: raíces, unidades y la marca de las carpetas apartadas de este trabajo. */
+	private static function restore_switch_layout( array $job ) {
+		$layout = self::restore_layout();
+		$layout['tag'] = self::restore_mark( $job );
+		$layout['units'] = (array) ( self::restore_read_json( $job, 'units.json', false ) ?? array() );
+		return $layout;
+	}
+	/**
+	 * Marca de las carpetas apartadas (`.digitalisimo-old-<marca>-<nombre>`, `.digitalisimo-new-…`): la de las tablas y 10
+	 * caracteres aleatorios, para que no se puedan adivinar desde fuera mientras viven junto al código (revisión, P5).
+	 */
+	private static function restore_mark( array $job ) {
+		$mark = (string) ( $job['spec']['mark'] ?? '' );
+		return preg_match( '/^[0-9a-f]{6,32}$/', $mark ) ? $mark : (string) $job['spec']['tag'];
 	}
 	/**
 	 * Tablas viejas → `dgbko_`, temporales → su nombre (MySQL: un solo RENAME TABLE, atómico; SQLite, que no lo tiene:
@@ -1329,14 +1432,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * del almacén cubre la muerte entre el cambio y la reposición.
 	 */
 	private static function restore_swap( array $job, array $cursor ) {
-		global $wpdb;
 		$tables = self::restore_read_json( $job, 'tables.json' );
 		$marker = self::restore_staging( $job ) . '/swap.started';
-		// Sólo si el proceso murió con el RENAME en marcha hay que mirar la base de datos para saber si se hizo.
-		$pending = ! is_file( $marker ) || array_filter( $tables, function( $row ) { return self::restore_table_exists( (string) $row['temp'] ); } );
+		// Lo que hay en la base de datos decide si el cambio se hizo (revisión, C1), no el marcador ni el error del RENAME.
+		$state = self::restore_swap_state( $tables );
+		if ( 'partial' === $state ) throw new Digitalisimo_Backups_Permanent_Error( 'Las tablas quedaron a medio cambiar (parte de las temporales sigue ahí); se vuelve a la copia previa.' );
 		$origin = Digitalisimo_Backups_Credentials::from_journal( self::restore_read_json( $job, 'credentials.json', false ) );
 		try {
-			if ( $pending ) {
+			if ( 'before' === $state ) {
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
 				self::write_restore_journal( $origin );
@@ -1344,18 +1447,31 @@ trait Digitalisimo_Backups_Restore_Engine {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
 					$mode = self::restore_swap_tables( $tables );
 				} catch ( Throwable $e ) {
-					@unlink( $marker );
-					self::remove_restore_journal();
-					throw $e;
+					// Un error no dice que no se hiciera: la conexión puede caerse con el RENAME ya ejecutado, o un RENAME
+					// que esperaba un bloqueo puede terminar después. Se mira la base de datos.
+					try {
+						$after = self::restore_swap_state( $tables );
+					} catch ( Throwable $unknown ) {
+						// Sin saberlo, el diario y el marcador se quedan: el reintento (o la vuelta a la copia previa) lo decide.
+						throw $e;
+					}
+					if ( 'before' === $after ) {
+						@unlink( $marker );
+						self::remove_restore_journal();
+						throw $e;
+					}
+					if ( 'partial' === $after ) throw new Digitalisimo_Backups_Permanent_Error( 'Las tablas quedaron a medio cambiar tras un error (' . $e->getMessage() . '); se vuelve a la copia previa.' );
+					$mode = 'confirmed';
+					Digitalisimo_Backups_Job_Store::event( $job['id'], 'swap_confirmed', array( 'error' => substr( $e->getMessage(), 0, 300 ) ) );
 				}
 				$cursor['mode'] = $mode;
-				try {
-					self::after_restore_sql( $history_before, $vault_before, $origin );
-				} finally {
-					self::remove_restore_journal();
-				}
+				// El diario sólo se retira cuando el historial, el llavero y las credenciales quedaron repuestos: si esto
+				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
+				self::after_restore_sql( $history_before, $vault_before, $origin );
+				self::remove_restore_journal();
 			} else {
-				// Ya cambiadas (el proceso murió después del RENAME): el diario se aplicó al tomar el bloqueo.
+				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,
+				// se aplicó al tomar el bloqueo de este tick; las credenciales del respaldo se cifran aquí.
 				$cursor['mode'] = $cursor['mode'] ?? 'resumed';
 				self::restore_credentials( $origin );
 			}
@@ -1364,8 +1480,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		// El SQL restaurado trae su propia opción `cron`: esta restauración (y lo que espere) recupera su tick.
 		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		$cursor['step'] = 'move';
-		$cursor['swapped_at'] = time();
+		$cursor['swapped_at'] = $cursor['swapped_at'] ?? time();
 		return $cursor;
 	}
 	/** 'rename' (MySQL) o 'copy' (SQLite de WordPress: sin RENAME TABLE). */
@@ -1407,21 +1522,44 @@ trait Digitalisimo_Backups_Restore_Engine {
 		return 'copy';
 	}
 	/**
-	 * Mueve lo preparado a su sitio. Las unidades de código cambian de una vez (la vieja se aparta junto a la suya como
-	 * `.digitalisimo-old-<marca>-<nombre>` y la nueva va a su lugar: dos `rename()`), los archivos sueltos uno a uno
-	 * (`rename()` sobre el anterior). Lo que queda en tree/new es lo que falta: un tramo que muere se retoma sin repetir nada.
+	 * El código del paso de las tablas, sin cortes: cada unidad entera que cambia (salvo este plugin, que va al final) y
+	 * los archivos sueltos preparados fuera de la carpeta de medios (salvo los `.htaccess`, que van al final).
+	 */
+	private static function restore_move_code( array $job, array $cursor, array $layout, $tree ) {
+		foreach ( $layout['units'] as $unit => $state ) {
+			if ( empty( $state['changed'] ) || ! empty( $state['mixed'] ) || $unit === $layout['self'] ) continue;
+			self::restore_move_unit( (string) $unit, $layout, $tree, $cursor );
+		}
+		$moved = self::restore_move_loose( $layout, $tree, $cursor, INF, false );
+		$cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + $moved;
+		$cursor['code_moved'] = true;
+		return $cursor;
+	}
+	/**
+	 * Los medios (y cualquier archivo suelto que quede) a su sitio, por tramos: `rename()` sobre el anterior. Lo que queda
+	 * en tree/new es lo que falta: un tramo que muere se retoma sin repetir nada.
 	 */
 	private static function restore_move( array $job, array $cursor, array $layout, $tree, $deadline ) {
-		$units = (array) self::restore_read_json( $job, 'units.json' );
-		$moved = 0;
-		foreach ( $units as $unit => $state ) {
-			if ( empty( $state['changed'] ) || ! empty( $state['mixed'] ) || $unit === $layout['self'] || ! empty( $cursor['units_done'][ $unit ] ) ) continue;
-			if ( $moved > 0 && self::restore_exhausted( $deadline, $moved ) ) { $cursor['units'] = $moved; return $cursor; }
-			if ( self::restore_move_unit( (string) $unit, $layout, $tree, $cursor ) ) $moved++;
-		}
-		// Archivos sueltos y de unidades mixtas: lo que quede en tree/new fuera de las unidades que cambian enteras.
+		// Un trabajo que murió entre el RENAME y el final del código: lo que falte del código, antes que nada.
+		if ( empty( $cursor['code_moved'] ) ) $cursor = self::restore_move_code( $job, $cursor, $layout, $tree );
+		$moved = self::restore_move_loose( $layout, $tree, $cursor, $deadline, true );
+		$cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + abs( $moved );
+		$cursor['units'] = abs( $moved );
+		if ( $moved < 0 ) return $cursor;
+		$cursor['step'] = 'remove';
+		$cursor['line'] = 0;
+		return $cursor;
+	}
+	/**
+	 * Mueve los archivos sueltos preparados en tree/new: fuera de las unidades enteras (las lleva restore_move_unit()) y
+	 * sin los `.htaccess`. Sin $media, no entra en la carpeta de medios. Devuelve cuántos movió (en negativo si el plazo
+	 * cortó el tramo antes de acabar).
+	 */
+	private static function restore_move_loose( array $layout, $tree, array $cursor, $deadline, $media ) {
 		$new = $tree . '/new';
+		$units = $layout['units'];
 		$stack = array( '' );
+		$moved = 0;
 		while ( $stack ) {
 			$dir = (string) array_pop( $stack );
 			$path = rtrim( $new . '/' . $dir, '/' );
@@ -1430,25 +1568,25 @@ trait Digitalisimo_Backups_Restore_Engine {
 				if ( '.' === $name || '..' === $name ) continue;
 				$relative = '' === $dir ? $name : $dir . '/' . $name;
 				$full = $new . '/' . $relative;
-				$unit = self::restore_unit( $relative . ( is_dir( $full ) ? '/x' : '' ), $layout );
 				if ( is_dir( $full ) && ! is_link( $full ) ) {
-					// Una unidad entera que todavía no se movió la lleva restore_move_unit() (la del plugin, al final).
-					if ( '' !== $unit && $unit === $relative && ! empty( $units[ $unit ]['changed'] ) && empty( $units[ $unit ]['mixed'] ) ) continue;
+					if ( self::restore_whole_unit( $relative, $layout ) ) continue;
+					if ( ! $media && '' !== $layout['uploads'] && $relative === $layout['uploads'] ) continue;
 					$stack[] = $relative;
 					continue;
 				}
 				// Los .htaccess, al final y una sola vez: escribirlos recarga OpenLiteSpeed en Webuzo (H6 del laboratorio).
 				if ( '.htaccess' === $name ) continue;
-				if ( $moved > 0 && self::restore_exhausted( $deadline, $moved ) ) { $cursor['units'] = $moved; $cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + $moved; return $cursor; }
-				self::restore_place( $full, $layout['root'] . $relative, $tree . '/old/' . $relative, $layout['root'] );
+				if ( $moved > 0 && self::restore_exhausted( $deadline, $moved ) ) return -$moved;
+				self::restore_place( $full, $layout['root'] . $relative, '', $layout['root'] );
 				$moved++;
 			}
 		}
-		$cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + $moved;
-		$cursor['units'] = $moved;
-		$cursor['step'] = 'remove';
-		$cursor['line'] = 0;
-		return $cursor;
+		return $moved;
+	}
+	/** $relative es la carpeta de una unidad que cambia entera (la mueve restore_move_unit(), no el recorrido de sueltos). */
+	private static function restore_whole_unit( $relative, array $layout ) {
+		$unit = self::restore_unit( $relative . '/x', $layout );
+		return '' !== $unit && $unit === $relative && ! empty( $layout['units'][ $unit ]['changed'] ) && empty( $layout['units'][ $unit ]['mixed'] );
 	}
 	/** Mueve a su lugar los .htaccess preparados que no van dentro de una unidad (la raíz, wp-content, medios). */
 	private static function restore_place_htaccess( $tree, array $layout ) {
@@ -1461,60 +1599,89 @@ trait Digitalisimo_Backups_Restore_Engine {
 			foreach ( (array) @scandir( $path ) as $name ) {
 				if ( '.' === $name || '..' === $name ) continue;
 				$relative = '' === $dir ? $name : $dir . '/' . $name;
-				if ( is_dir( $path . '/' . $name ) && ! is_link( $path . '/' . $name ) ) { $stack[] = $relative; continue; }
+				if ( is_dir( $path . '/' . $name ) && ! is_link( $path . '/' . $name ) ) {
+					if ( ! self::restore_whole_unit( $relative, $layout ) ) $stack[] = $relative;
+					continue;
+				}
 				if ( '.htaccess' !== $name ) continue;
-				self::restore_place( $path . '/' . $name, $layout['root'] . $relative, $tree . '/old/' . $relative, $layout['root'] );
+				self::restore_place( $path . '/' . $name, $layout['root'] . $relative, '', $layout['root'] );
 				$placed++;
 			}
 		}
 		return $placed;
 	}
-	/** Cambia una unidad de código de una vez; idempotente (si el proceso murió entre los dos `rename()`, sigue). */
+	/**
+	 * Cambia una unidad de código de una vez. La viva se aparta junto a ella (`.digitalisimo-old-<marca>-<nombre>`, mismo
+	 * disco) y la nueva va a su lugar con un `rename()`: la preparada, o su copia junto al destino si estaba en otro disco
+	 * (`.digitalisimo-new-…`, ya copiada en la fase de archivos o aquí). Reanudable sin perder nada (revisión, A4):
+	 *  - si poner la nueva falla, la apartada vuelve a su sitio antes de lanzar el error;
+	 *  - la unidad queda hecha con una marca en tree/done/ escrita tras colocarla y antes de borrar nada; sin marca, si la
+	 *    apartada y la viva existen a la vez, la viva ya es la nueva (la apartada sólo vuelve deshaciendo, y entonces deja
+	 *    de existir); la apartada nunca se borra aquí (sólo en la limpieza);
+	 *  - entre discos, la preparada se borra después de la marca: una muerte a mitad no hace pasar por buena una copia
+	 *    incompleta.
+	 */
 	private static function restore_move_unit( $unit, array $layout, $tree, array &$cursor ) {
 		if ( ! empty( $cursor['units_done'][ $unit ] ) ) return false;
+		$done = $tree . '/done/' . md5( $unit );
+		if ( is_file( $done ) ) { $cursor['units_done'][ $unit ] = true; return false; }
 		$units = $layout['units'] ?? array();
 		$staged = $tree . '/new/' . $unit;
 		$live = $layout['root'] . $unit;
 		if ( is_link( $staged ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El área de trabajo de los archivos tiene un enlace simbólico.' );
 		if ( is_link( $live ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Una carpeta de restauración es un enlace simbólico: ' . $unit );
 		self::restore_assert_inside( dirname( $live ), $layout['root'] );
-		// Lo viejo se aparta junto a lo vivo (mismo disco: un rename() de carpeta no cruza discos) con un nombre oculto que
-		// WordPress no carga; la limpieza lo retira.
 		$old = dirname( $live ) . '/.digitalisimo-old-' . $layout['tag'] . '-' . basename( $live );
+		$near = dirname( $live ) . '/.digitalisimo-new-' . $layout['tag'] . '-' . basename( $live );
+		$mark = function() use ( $done, $unit, &$cursor, $old, $layout ) {
+			if ( ! is_dir( dirname( $done ) ) && ! @mkdir( dirname( $done ), 0700, true ) ) throw new Exception( 'No se pudo anotar el avance del cambio en el área de trabajo.' );
+			if ( false === @file_put_contents( $done, $unit ) ) throw new Exception( 'No se pudo anotar el avance del cambio en el área de trabajo.' );
+			if ( is_dir( $old ) ) $cursor['old_dirs'][] = substr( $old, strlen( $layout['root'] ) );
+			$cursor['units_done'][ $unit ] = true;
+			$cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + 1;
+		};
 		if ( empty( $units[ $unit ]['in_backup'] ) ) {
-			// Una unidad que no está en el respaldo (un plugin instalado después): sale entera (queda en la copia previa).
-			if ( is_dir( $live ) ) {
-				if ( file_exists( $old ) ) self::restore_remove_tree( $old );
-				if ( ! @rename( $live, $old ) ) throw new Exception( 'No se pudo retirar ' . $unit . ', que el respaldo no tiene.' );
-				$cursor['old_dirs'][] = substr( $old, strlen( $layout['root'] ) );
-			}
-		} else {
-			if ( ! is_dir( $staged ) ) {
-				// Ya se movió (el proceso murió después del segundo rename()).
-				$cursor['units_done'][ $unit ] = true;
-				return false;
-			}
-			if ( file_exists( $live ) ) {
-				if ( file_exists( $old ) ) self::restore_remove_tree( $old );
-				if ( ! @rename( $live, $old ) ) throw new Exception( 'No se pudo apartar ' . $unit . ' para cambiarla.' );
-				$cursor['old_dirs'][] = substr( $old, strlen( $layout['root'] ) );
-			}
-			if ( ! wp_mkdir_p( dirname( $live ) ) || ! self::restore_rename_dir( $staged, $live, $layout['tag'] ) ) throw new Exception( 'No se pudo poner en su lugar ' . $unit . '.' );
+			// Una unidad que no está en el respaldo (un plugin instalado después): sale entera, apartada (ver la limpieza).
+			if ( is_dir( $live ) && ! file_exists( $old ) && ! @rename( $live, $old ) ) throw new Exception( 'No se pudo retirar ' . $unit . ', que el respaldo no tiene.' );
+			$mark();
+			return true;
 		}
-		$cursor['units_done'][ $unit ] = true;
-		$cursor['moved'] = (int) ( $cursor['moved'] ?? 0 ) + 1;
+		// Copiada junto al destino en la fase de archivos: sólo esa copia (completa) vale; la preparada pudo quedar a medio borrar.
+		$prepared = ! empty( $units[ $unit ]['near'] );
+		$source = $prepared ? $near : $staged;
+		if ( ! is_dir( $source ) ) {
+			// Ya se movió: el rename() consumió la preparada (o su copia) y el proceso murió antes de la marca.
+			$mark();
+			return false;
+		}
+		if ( is_dir( $old ) && file_exists( $live ) ) {
+			// La viva ya es la nueva (entre discos, la preparada aún no se había borrado).
+			$mark();
+			if ( ! $prepared && is_dir( $staged ) ) self::restore_remove_tree( $staged );
+			return false;
+		}
+		if ( file_exists( $live ) && ! @rename( $live, $old ) ) throw new Exception( 'No se pudo apartar ' . $unit . ' para cambiarla.' );
+		$placed = false;
+		try {
+			$placed = wp_mkdir_p( dirname( $live ) ) && ( $prepared ? @rename( $near, $live ) : self::restore_rename_dir( $staged, $live, $layout['tag'] ) );
+		} finally {
+			if ( ! $placed && ! file_exists( $live ) && is_dir( $old ) ) @rename( $old, $live );
+		}
+		if ( ! $placed ) throw new Exception( 'No se pudo poner en su lugar ' . $unit . ( file_exists( $live ) ? '; la carpeta de antes sigue en su sitio' : '' ) . '.' );
+		$mark();
+		if ( ! $prepared && is_dir( $staged ) ) self::restore_remove_tree( $staged );
 		return true;
 	}
 	/**
 	 * `rename()` de una carpeta preparada a su lugar. Si cruza de disco, se copia entera junto al destino (con un nombre
-	 * oculto, en su mismo disco) y entonces se renombra allí: el cambio sigue siendo de una vez.
+	 * oculto, en su mismo disco) y entonces se renombra allí: el cambio sigue siendo de una vez. La preparada no se borra
+	 * aquí (lo hace quien marcó la unidad como hecha).
 	 */
 	private static function restore_rename_dir( $from, $to, $tag ) {
 		if ( @rename( $from, $to ) ) return true;
 		$temp = dirname( $to ) . '/.digitalisimo-new-' . $tag . '-' . basename( $to );
 		if ( file_exists( $temp ) ) self::restore_remove_tree( $temp );
 		if ( ! self::restore_copy_tree( $from, $temp ) || ! @rename( $temp, $to ) ) { self::restore_remove_tree( $temp ); return false; }
-		self::restore_remove_tree( $from );
 		return true;
 	}
 	private static function restore_copy_tree( $from, $to ) {
@@ -1568,12 +1735,20 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$real = realpath( $directory );
 		if ( false === $real || 0 !== strpos( trailingslashit( wp_normalize_path( $real ) ), $root ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La carpeta de destino sale de WordPress.' );
 	}
-	/** Retira, uno a uno, los archivos sueltos o de medios que el respaldo no tiene (extraneous.txt, por tramos). */
-	private static function restore_remove( array $job, array $cursor, array $layout, $deadline ) {
-		$path = self::restore_staging( $job ) . '/extraneous.txt';
-		$handle = is_file( $path ) ? @fopen( $path, 'rb' ) : false;
+	/**
+	 * Retira, uno a uno, los archivos sueltos o de medios que el respaldo no tiene (extraneous.txt, por tramos). Nunca uno
+	 * que cargue un `auto_prepend_file`/`auto_append_file` de un `.user.ini`, `php.ini` o `.htaccess` que se queda: PHP
+	 * daría error a todo (revisión, A5). Lo que cambió después de empezar la restauración y no está en la copia previa se
+	 * aparta en el almacén privado en vez de borrarse (M1). Lo retirado de verdad va a removed.txt.
+	 */
+	private static function restore_remove( array $job, array $cursor, array $layout, $tree, $deadline ) {
+		$staging = self::restore_staging( $job );
+		$handle = is_file( $staging . '/extraneous.txt' ) ? @fopen( $staging . '/extraneous.txt', 'rb' ) : false;
 		$count = 0;
 		if ( $handle ) {
+			$protected = self::restore_protected( $layout, $tree );
+			$keeper = self::restore_keeper( $job );
+			$list = @fopen( $staging . '/removed.txt', 'ab' );
 			try {
 				fseek( $handle, (int) ( $cursor['line'] ?? 0 ) );
 				while ( false !== ( $line = fgets( $handle ) ) ) {
@@ -1582,7 +1757,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 					// Sólo un archivo normal dentro de las raíces gestionadas; nunca un enlace ni lo que el respaldo trae ahora.
 					if ( '' !== $relative && false === strpos( '/' . $relative . '/', '/../' ) && self::restore_managed( $relative, $layout ) && ! self::restore_excluded( $relative ) && is_file( $full ) && ! is_link( $full ) ) {
 						$real = realpath( dirname( $full ) );
-						if ( false !== $real && 0 === strpos( trailingslashit( wp_normalize_path( $real ) ), $layout['root'] ) && @unlink( $full ) ) $count++;
+						if ( isset( $protected[ $relative ] ) ) {
+							if ( count( (array) ( $cursor['protected'] ?? array() ) ) < 50 ) $cursor['protected'][ $relative ] = $protected[ $relative ];
+						} elseif ( false !== $real && 0 === strpos( trailingslashit( wp_normalize_path( $real ) ), $layout['root'] ) && self::restore_retire_file( $keeper, $full, $relative ) ) {
+							$count++;
+							if ( $list ) fwrite( $list, self::restore_line( $relative ) );
+						}
 					}
 					$cursor['line'] = ftell( $handle );
 					if ( self::restore_exhausted( $deadline, $count + 1 ) ) break;
@@ -1590,13 +1770,144 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$eof = feof( $handle );
 			} finally {
 				fclose( $handle );
+				if ( $list ) fclose( $list );
+				self::restore_keeper_close( $keeper );
 			}
 			$cursor['removed'] = (int) ( $cursor['removed'] ?? 0 ) + $count;
+			$cursor['kept'] = (int) ( $cursor['kept'] ?? 0 ) + (int) $keeper['kept'];
 			$cursor['units'] = $count;
 			if ( ! $eof ) return $cursor;
 		}
-		$cursor['step'] = 'self';
+		$cursor['step'] = 'done';
 		return $cursor;
+	}
+	/**
+	 * Archivos (relativos a la raíz) que carga un `auto_prepend_file`/`auto_append_file` de los `.user.ini`, `php.ini` y
+	 * `.htaccess` de la raíz tal como quedan: los dos primeros ya están en su sitio; el `.htaccess`, preparado si cambia.
+	 */
+	private static function restore_protected( array $layout, $tree ) {
+		$protected = array();
+		$root = rtrim( (string) $layout['root'], '/' );
+		foreach ( array( '.user.ini', 'php.ini', '.htaccess' ) as $name ) {
+			$file = '.htaccess' === $name && '' !== (string) $tree && is_file( $tree . '/new/.htaccess' ) ? $tree . '/new/.htaccess' : $root . '/' . $name;
+			if ( ! is_file( $file ) || is_link( $file ) ) continue;
+			$text = (string) @file_get_contents( $file, false, null, 0, 1048576 );
+			if ( ! preg_match_all( '/^\s*(?:php_(?:admin_)?value\s+)?auto_(?:prepend|append)_file\s*=?\s*["\']?([^"\'\r\n;]+)/mi', $text, $m ) ) continue;
+			foreach ( $m[1] as $target ) {
+				$target = wp_normalize_path( trim( $target ) );
+				$real = realpath( $target );
+				foreach ( array_unique( array_filter( array( $target, false === $real ? '' : wp_normalize_path( $real ) ) ) ) as $path ) {
+					if ( 0 === strpos( $path, $root . '/' ) ) $protected[ substr( $path, strlen( $root ) + 1 ) ] = $name;
+				}
+			}
+		}
+		return $protected;
+	}
+	/**
+	 * Lo necesario para retirar sin perder nada (revisión, M1): desde cuándo (lo que no cambió desde que se encoló la
+	 * restauración está en su copia previa, que se hizo después y copia todos los archivos) y qué copias lo pueden tener
+	 * (la copia previa; en una vuelta a ella, además el respaldo que se restauraba, que trajo lo que la vuelta retira).
+	 */
+	private static function restore_keeper( array $job ) {
+		$undone = ! empty( $job['spec']['rollback']['of'] ) ? Digitalisimo_Backups_Jobs::get( (string) $job['spec']['rollback']['of'] ) : null;
+		$copies = array();
+		if ( ! empty( $job['spec']['rollback'] ) ) {
+			$copies[] = self::restore_source_path( $job );
+			if ( $undone ) $copies[] = self::restore_source_path( $undone );
+		} elseif ( '' !== self::restore_safety_file( $job ) ) {
+			$copies[] = rtrim( self::local_directory(), '/\\' ) . '/' . basename( self::restore_safety_file( $job ) );
+		}
+		return array(
+			'since' => (int) ( $undone ? $undone['created_at'] : $job['created_at'] ),
+			'copies' => array_values( array_filter( $copies, 'is_file' ) ),
+			'zips' => array(),
+			'dir' => rtrim( self::local_directory(), '/\\' ) . '/restore-kept-' . self::restore_mark( $job ),
+			'list' => self::restore_staging( $job ) . '/kept.txt',
+			'kept' => 0,
+			'progress' => 0,
+		);
+	}
+	private static function restore_keeper_close( array &$keeper ) {
+		foreach ( $keeper['zips'] as $zip ) if ( $zip instanceof ZipArchive ) self::close_quietly( $zip );
+		$keeper['zips'] = array();
+	}
+	/**
+	 * Retira del sitio un archivo: lo borra si no cambió desde que empezó la restauración o si una de las copias lo tiene
+	 * igual (tamaño y SHA-256); si no, lo aparta en el almacén privado (`restore-kept-<marca>/<ruta>`). Devuelve si salió.
+	 */
+	private static function restore_retire_file( array &$keeper, $full, $relative ) {
+		$keeper['progress']++;
+		clearstatcache( true, $full );
+		$changed = @filectime( $full );
+		if ( ( false !== $changed && (int) $changed < (int) $keeper['since'] ) || self::restore_in_copies( $keeper, $full, $relative ) ) return @unlink( $full );
+		$target = $keeper['dir'] . '/' . $relative;
+		if ( ! is_dir( $keeper['dir'] ) && @mkdir( $keeper['dir'], 0700, true ) && DIRECTORY_SEPARATOR === '/' ) @chmod( $keeper['dir'], 0700 );
+		if ( ! wp_mkdir_p( dirname( $target ) ) || ! self::restore_rename_file( $full, $target ) ) return false;
+		$keeper['kept']++;
+		@file_put_contents( $keeper['list'], self::restore_line( $relative ), FILE_APPEND );
+		return true;
+	}
+	/** Una de las copias tiene `wordpress/<ruta>` con el mismo tamaño y SHA-256 que el archivo. */
+	private static function restore_in_copies( array &$keeper, $full, $relative ) {
+		$size = @filesize( $full );
+		$hash = null;
+		foreach ( $keeper['copies'] as $n => $path ) {
+			if ( ! isset( $keeper['zips'][ $n ] ) ) {
+				$zip = new ZipArchive();
+				$keeper['zips'][ $n ] = true === $zip->open( $path ) ? $zip : false;
+			}
+			$zip = $keeper['zips'][ $n ];
+			if ( ! $zip ) continue;
+			$stat = $zip->statName( 'wordpress/' . $relative );
+			if ( ! $stat || (int) $stat['size'] !== (int) $size ) continue;
+			if ( null === $hash ) $hash = (string) @hash_file( 'sha256', $full );
+			$stream = $zip->getStream( 'wordpress/' . $relative );
+			if ( ! $stream ) continue;
+			$context = hash_init( 'sha256' );
+			while ( ! feof( $stream ) ) {
+				$chunk = fread( $stream, 1048576 );
+				if ( false === $chunk ) break;
+				hash_update( $context, $chunk );
+			}
+			fclose( $stream );
+			if ( '' !== $hash && hash_equals( $hash, hash_final( $context ) ) ) return true;
+		}
+		return false;
+	}
+	/**
+	 * Retira una carpeta apartada (`.digitalisimo-old-…`), archivo a archivo con restore_retire_file() (lo que cambió
+	 * después de empezar no se pierde) y sin seguir enlaces. Con plazo: false si no le dio tiempo (siempre avanza algo).
+	 */
+	private static function restore_retire_tree( array &$keeper, $path, $relative, $deadline ) {
+		if ( is_link( $path ) ) { @unlink( $path ); return true; }
+		if ( is_file( $path ) ) { self::restore_retire_file( $keeper, $path, $relative ); return true; }
+		if ( ! is_dir( $path ) ) return true;
+		foreach ( (array) @scandir( $path ) as $name ) {
+			if ( '.' === $name || '..' === $name || '' === $name ) continue;
+			if ( $keeper['progress'] > 0 && microtime( true ) >= $deadline ) return false;
+			if ( ! self::restore_retire_tree( $keeper, $path . '/' . $name, $relative . '/' . $name, $deadline ) ) return false;
+		}
+		@rmdir( $path );
+		return true;
+	}
+	/** Carpetas apartadas o copiadas junto a su sitio con estas marcas (relativas a la raíz), estén anotadas o no. */
+	private static function restore_aside_dirs( array $marks, array $layout ) {
+		$found = array();
+		$root = $layout['root'];
+		foreach ( array_filter( array_unique( $marks ) ) as $mark ) {
+			foreach ( array_unique( array( '', $layout['plugins'], $layout['themes'], '' === $layout['mu'] ? '' : (string) dirname( $layout['mu'] ) ) ) as $parent ) {
+				$parent = '.' === $parent ? '' : $parent;
+				foreach ( array( '.digitalisimo-old-', '.digitalisimo-new-' ) as $kind ) foreach ( (array) glob( rtrim( $root . $parent, '/' ) . '/' . $kind . $mark . '-*', GLOB_ONLYDIR ) as $dir ) $found[] = substr( wp_normalize_path( $dir ), strlen( $root ) );
+			}
+		}
+		return array_values( array_unique( $found ) );
+	}
+	/** La ruta de la unidad de una carpeta apartada: `plugins/.digitalisimo-old-<marca>-demo` → `plugins/demo`. */
+	private static function restore_aside_unit( $aside ) {
+		$base = basename( $aside );
+		$name = preg_replace( '/^\.digitalisimo-(?:old|new)-[0-9a-f]+-/', '', $base );
+		$parent = dirname( $aside );
+		return ( '.' === $parent || '' === $parent ? '' : $parent . '/' ) . $name;
 	}
 
 	/* ------------------------------------------------------------------------------------------- 6. Direcciones */
@@ -1621,64 +1932,99 @@ trait Digitalisimo_Backups_Restore_Engine {
 	/* ------------------------------------------------------------------------------------------- 7. Limpieza */
 
 	/**
-	 * Fin del mantenimiento, informe (lo retirado, la copia previa, la reubicación, las credenciales) y retirada de lo
-	 * viejo. Nunca hace fallar la restauración: lo que no se pueda borrar se informa y lo retira la operación siguiente.
+	 * Lo viejo fuera y, en el último paso, sin cortes: este plugin del respaldo, los `.htaccess`, el informe, el área de
+	 * trabajo y el fin del mantenimiento. Este plugin va aquí, lo último de todo (revisión, A2): desde ese momento la
+	 * petición siguiente carga el del respaldo, que quizá sea de antes de la restauración por pasos y no sepa terminarla.
+	 * Nunca hace fallar la restauración: lo que no se pueda hacer se informa.
 	 */
 	private static function restore_cleanup( array $job ) {
 		global $wpdb;
 		$cursor = (array) ( $job['checkpoint']['cleanup'] ?? array() );
-		Digitalisimo_Backups_Restore_Maintenance::release();
-		$warnings = array();
+		$cursor += array( 'warnings' => array(), 'kept' => 0 );
 		$started = microtime( true );
 		$deadline = self::restore_deadline( $job, 'cleanup', $cursor );
+		$layout = self::restore_switch_layout( $job );
+		$root = $layout['root'];
+		$undone = ! empty( $job['spec']['rollback']['of'] ) ? Digitalisimo_Backups_Jobs::get( (string) $job['spec']['rollback']['of'] ) : null;
 		try {
-			if ( empty( $cursor['reported'] ) ) {
-				$cursor['result'] = self::restore_result( $job );
-				$cursor['reported'] = true;
-			}
-			foreach ( (array) self::restore_read_json( $job, 'tables.json', false ) as $row ) {
-				foreach ( array( (string) $row['old'], (string) $row['temp'] ) as $table ) if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) ) ) $warnings[] = 'No se pudo retirar la tabla ' . $table . '.';
-			}
-			// Las tablas viejas de la restauración que ésta deshizo, si la había.
-			$undone = (string) ( $job['spec']['rollback']['tag'] ?? '' );
-			if ( '' !== $undone ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array() ) as $table ) if ( false !== strpos( $table, '_' . $undone . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
-			$root = trailingslashit( wp_normalize_path( (string) realpath( ABSPATH ) ) );
-			$olds = (array) ( $job['checkpoint']['switch']['old_dirs'] ?? array() );
-			// Y las de la restauración que esta vuelta a la copia previa deshizo.
-			$undone_job = ! empty( $job['spec']['rollback']['of'] ) ? Digitalisimo_Backups_Jobs::get( (string) $job['spec']['rollback']['of'] ) : null;
-			if ( $undone_job ) $olds = array_merge( $olds, (array) ( $undone_job['checkpoint']['switch']['old_dirs'] ?? array() ) );
-			// También las que un tramo apartó sin llegar a anotarlas (murió o falló antes de guardar su punto de control).
-			$layout = self::restore_layout();
-			foreach ( array_filter( array( (string) $job['spec']['tag'], (string) ( $job['spec']['rollback']['tag'] ?? '' ) ) ) as $mark ) {
-				foreach ( array_unique( array( '', $layout['plugins'], $layout['themes'], '' === $layout['mu'] ? '' : (string) dirname( $layout['mu'] ) ) ) as $parent ) {
-					foreach ( array( '.digitalisimo-old-', '.digitalisimo-new-' ) as $kind ) foreach ( (array) glob( rtrim( $root . $parent, '/' ) . '/' . $kind . $mark . '-*', GLOB_ONLYDIR ) as $dir ) $olds[] = substr( wp_normalize_path( $dir ), strlen( $root ) );
+			// 1. Las tablas viejas y las temporales: la restauración ya está hecha (y, si era la vuelta a la copia previa, las
+			// de la restauración que deshizo, que eran la base de datos de antes de ella: la copia previa ya la repuso).
+			if ( empty( $cursor['tables'] ) ) {
+				foreach ( (array) self::restore_read_json( $job, 'tables.json', false ) as $row ) {
+					foreach ( array( (string) $row['old'], (string) $row['temp'] ) as $table ) if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) ) ) $cursor['warnings'][] = 'No se pudo retirar la tabla ' . $table . '.';
 				}
+				$undone_tag = (string) ( $job['spec']['rollback']['tag'] ?? '' );
+				if ( '' !== $undone_tag ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array(), true ) as $table ) if ( false !== strpos( $table, '_' . $undone_tag . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
+				$cursor['tables'] = true;
 			}
-			foreach ( array_unique( $olds ) as $old ) {
-				$old = (string) $old;
-				if ( ( false === strpos( '/' . $old, '/.digitalisimo-old-' ) && false === strpos( '/' . $old, '/.digitalisimo-new-' ) ) || false !== strpos( $old, '..' ) ) continue;
-				if ( ! self::restore_remove_tree( $root . $old, $deadline ) ) return self::restore_slice( 'cleanup', $cursor, 'Retirando los archivos anteriores…', $started, 1, $job );
+			// 2. Las carpetas apartadas (las suyas y las de la restauración que deshizo), salvo la de este plugin, que va al
+			// final: lo que cambió después de empezar y no está en la copia previa se aparta en el almacén (M1).
+			$marks = array( self::restore_mark( $job ), (string) ( $job['spec']['rollback']['mark'] ?? $job['spec']['rollback']['tag'] ?? '' ) );
+			$olds = array_merge( (array) ( $job['checkpoint']['switch']['old_dirs'] ?? array() ), $undone ? (array) ( $undone['checkpoint']['switch']['old_dirs'] ?? array() ) : array(), self::restore_aside_dirs( $marks, $layout ) );
+			$keeper = self::restore_keeper( $job );
+			try {
+				foreach ( array_unique( array_map( 'strval', $olds ) ) as $old ) {
+					if ( ( false === strpos( '/' . $old, '/.digitalisimo-old-' ) && false === strpos( '/' . $old, '/.digitalisimo-new-' ) ) || false !== strpos( $old, '..' ) || ! file_exists( $root . $old ) ) continue;
+					if ( self::restore_aside_unit( $old ) === $layout['self'] ) continue;
+					$done = false !== strpos( '/' . $old, '/.digitalisimo-new-' ) ? self::restore_remove_tree( $root . $old, $deadline, true ) : self::restore_retire_tree( $keeper, $root . $old, self::restore_aside_unit( $old ), $deadline );
+					if ( ! $done ) {
+						$cursor['kept'] += (int) $keeper['kept'];
+						return self::restore_slice( 'cleanup', $cursor, 'Retirando los archivos anteriores…', $started, (int) $keeper['progress'], $job );
+					}
+				}
+			} finally {
+				self::restore_keeper_close( $keeper );
 			}
-			$tree = self::restore_read_json( $job, 'tree.json', false );
-			if ( is_array( $tree ) && ! empty( $tree['root'] ) ) {
-				if ( ! self::restore_remove_tree( (string) $tree['root'], $deadline ) ) return self::restore_slice( 'cleanup', $cursor, 'Retirando los archivos anteriores…', $started, 1, $job );
-			}
+			$cursor['kept'] += (int) $keeper['kept'];
 		} catch ( Digitalisimo_Backups_Job_Lease_Lost $e ) {
 			throw $e;
 		} catch ( Throwable $e ) {
-			$warnings[] = 'Limpieza: ' . $e->getMessage();
+			$cursor['warnings'][] = 'Limpieza: ' . $e->getMessage();
 		}
-		$result = (array) ( $cursor['result'] ?? array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => true ) );
+		return self::restore_finale( $job, $cursor, $layout, $undone );
+	}
+	/** El último paso de la restauración, sin cortes (ver restore_cleanup()). */
+	private static function restore_finale( array $job, array $cursor, array $layout, $undone ) {
+		$warnings = (array) $cursor['warnings'];
+		$tree = self::restore_read_json( $job, 'tree.json', false );
+		$tree = is_array( $tree ) && ! empty( $tree['root'] ) ? (string) $tree['root'] : '';
+		$switch = (array) ( $job['checkpoint']['switch'] ?? array() );
+		$self = $layout['self'];
+		if ( '' !== $tree && '' !== $self && ! empty( $layout['units'][ $self ]['changed'] ) && empty( $layout['units'][ $self ]['mixed'] ) ) {
+			try {
+				self::restore_move_unit( $self, $layout, $tree, $switch );
+			} catch ( Throwable $e ) {
+				$warnings[] = 'No se pudo poner la versión de DIGITALÍSIMO Backups del respaldo; queda la de antes: ' . $e->getMessage();
+			}
+		}
+		$keeper = self::restore_keeper( $job );
+		foreach ( self::restore_aside_dirs( array( self::restore_mark( $job ) ), $layout ) as $old ) {
+			if ( self::restore_aside_unit( $old ) === $self ) self::restore_retire_tree( $keeper, $layout['root'] . $old, $self, INF );
+		}
+		self::restore_keeper_close( $keeper );
+		$cursor['kept'] += (int) $keeper['kept'];
+		// Y los .htaccess sueltos, una sola vez y al final de todo (cada escritura recarga OpenLiteSpeed en Webuzo).
+		try {
+			if ( '' !== $tree ) $switch['htaccess'] = self::restore_place_htaccess( $tree, $layout );
+		} catch ( Throwable $e ) {
+			$warnings[] = 'No se pudo poner un .htaccess del respaldo: ' . $e->getMessage();
+		}
+		$result = self::restore_result( $job, $cursor, $warnings );
+		if ( '' !== $tree ) self::restore_remove_tree( $tree );
 		$removed = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/removed.txt';
 		$list = self::restore_staging( $job ) . '/removed.txt';
 		if ( is_file( $list ) ) @rename( $list, $removed );
-		if ( function_exists( 'update_option' ) ) update_option( 'digitalisimo_backups_last_restore', array( 'date' => current_time( 'mysql' ), 'job' => (string) $job['id'], 'file' => basename( (string) $job['spec']['file'] ), 'rollback' => ! empty( $job['spec']['rollback'] ), 'safety' => (string) ( $result['safety_backup'] ?? '' ), 'removed' => (int) ( $result['removed']['count'] ?? 0 ), 'sample' => array_slice( (array) ( $result['removed']['sample'] ?? array() ), 0, 50 ) ), false );
+		// El ZIP descifrado de un .dgbk y el SQL del respaldo no se quedan en el área de trabajo (revisión, P8); tampoco los
+		// de la restauración que esta vuelta a la copia previa deshizo.
+		foreach ( array_filter( array( $job, $undone ) ) as $owner ) foreach ( array( 'source.zip', 'source.sql' ) as $name ) @unlink( self::restore_staging( $owner ) . '/' . $name );
+		Digitalisimo_Backups_Restore_Maintenance::release();
+		if ( function_exists( 'update_option' ) ) update_option( 'digitalisimo_backups_last_restore', array( 'date' => current_time( 'mysql' ), 'job' => (string) $job['id'], 'file' => basename( (string) $job['spec']['file'] ), 'rollback' => ! empty( $job['spec']['rollback'] ), 'safety' => (string) ( $result['safety_backup'] ?? '' ), 'removed' => (int) ( $result['removed']['count'] ?? 0 ), 'kept' => (int) ( $result['removed']['kept'] ?? 0 ), 'sample' => array_slice( (array) ( $result['removed']['sample'] ?? array() ), 0, 50 ) ), false );
 		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		// La caché del servidor web (LSCache de OpenLiteSpeed) seguiría sirviendo las páginas de antes de restaurar (E1).
 		if ( method_exists( 'Digitalisimo_Backups_Relocate', 'purge_server_cache' ) ) { try { Digitalisimo_Backups_Relocate::purge_server_cache(); } catch ( Throwable $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$message = ! empty( $job['spec']['rollback'] ) ? 'Se volvió a la copia previa ' . basename( (string) $job['spec']['file'] ) . ': el sitio está como antes de la restauración que falló.' : 'Restauración terminada desde ' . basename( (string) $job['spec']['file'] ) . '.';
 		if ( $warnings ) $result['warnings'] = $warnings;
-		return array( 'next' => null, 'checkpoint' => array( 'done' => time(), 'warnings' => $warnings ), 'result' => array( 'restore' => $result ), 'warnings' => $warnings, 'message' => $message );
+		return array( 'next' => null, 'checkpoint' => array( 'done' => time(), 'warnings' => $warnings, 'kept' => (int) $cursor['kept'] ), 'result' => array( 'restore' => $result ), 'warnings' => $warnings, 'message' => $message );
 	}
 	/** Informe público: lo que vuelven la pantalla, REST y WP-CLI. Sin rutas del servidor ni secretos. */
 	private static function restore_result( array $job ) {
@@ -1795,14 +2141,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$file = self::restore_safety_file( $job );
 		$path = rtrim( self::local_directory(), '/\\' ) . '/' . $file;
 		$item = self::history_item( $file );
+		$tag = bin2hex( random_bytes( 3 ) );
 		$rollback = array(
 			'type' => 'restore', 'scope' => $spec['scope'], 'policy' => 'restore', 'destination' => 'local', 'inline' => false, 'retain' => 1, 'retention' => 'none',
 			'file' => $file,
 			'source' => array( 'container' => 'zip', 'trust' => ! empty( $item['sha256'] ) ? 'provenance' : 'untrusted', 'auth' => 'unsigned', 'key' => '', 'staged' => false, 'fp' => Digitalisimo_Backups_Backup_Job::fingerprint( $path ) ),
 			'addresses' => 'current',
-			'rollback' => array( 'of' => (string) $job['id'], 'file' => (string) $spec['file'], 'tag' => (string) $spec['tag'] ),
+			'rollback' => array( 'of' => (string) $job['id'], 'file' => (string) $spec['file'], 'tag' => (string) $spec['tag'], 'mark' => self::restore_mark( $job ) ),
 			'safety' => '', 'safety_spec' => array(),
-			'tag' => bin2hex( random_bytes( 3 ) ),
+			'tag' => $tag,
+			'mark' => $tag . bin2hex( random_bytes( 5 ) ),
 			'token' => (string) $spec['token'],
 			'adopted' => false, 'sync' => ! empty( $spec['sync'] ),
 			'site_id' => (int) ( $spec['site_id'] ?? 1 ),

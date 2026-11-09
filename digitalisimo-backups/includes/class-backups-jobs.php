@@ -41,7 +41,25 @@ final class Digitalisimo_Backups_Jobs {
 		add_action( 'wp_ajax_' . self::AJAX_RESTORE_TICK, array( __CLASS__, 'ajax_restore_tick' ) );
 		add_action( 'wp_ajax_nopriv_' . self::AJAX_RESTORE_TICK, array( __CLASS__, 'ajax_restore_tick' ) );
 		add_filter( 'cron_request', array( __CLASS__, 'cron_request' ) );
+		add_filter( 'pre_get_ready_cron_jobs', array( __CLASS__, 'restore_cron_jobs' ) );
 		add_action( 'init', array( __CLASS__, 'ensure_watchdog' ) );
+	}
+	/**
+	 * Mientras una restauración tiene el sitio en mantenimiento, WP-Cron sólo ejecuta sus eventos (el tick y el
+	 * watchdog), nunca los demás que venzan: tras el cambio, la opción `cron` es la del respaldo, siempre atrasada, y sus
+	 * eventos (actualizaciones automáticas, correos, tareas de plugins) correrían a mitad del cambio (revisión, P1). Los
+	 * demás siguen en la opción y corren cuando la restauración termina.
+	 */
+	public static function restore_cron_jobs( $pre ) {
+		if ( null !== $pre || ! function_exists( '_get_cron_array' ) ) return $pre;
+		if ( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) && ! Digitalisimo_Backups_Restore_Maintenance::ours() ) return $pre;
+		$ready = array();
+		$now = microtime( true );
+		foreach ( (array) _get_cron_array() as $timestamp => $hooks ) {
+			if ( $timestamp > $now ) break;
+			foreach ( array( self::HOOK_TICK, self::HOOK_WATCHDOG ) as $hook ) if ( isset( $hooks[ $hook ] ) ) $ready[ $timestamp ][ $hook ] = $hooks[ $hook ];
+		}
+		return $ready;
 	}
 	/** Al desactivar se retiran los disparadores; los trabajos se quedan en disco y se retoman o caducan al volver. */
 	public static function deactivate() {
