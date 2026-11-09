@@ -67,9 +67,11 @@ defined( 'ABSPATH' ) || exit;
  * - Puntos (cada uno un botón transparente con el punto en `::before`, a 7 px del pie de un botón de 24 px de alto como
  *   mínimo, con el centro a 15 px del borde como PRO; en el carrusel anidado y en el de bucle el botón mide lo que el
  *   punto y queda pegado al borde de la paginación): `--digi-crs-dot-size` (6px), `--digi-crs-dot-gap` (6px a cada lado:
- *   el ancho del botón y el paso entre centros son tamaño + 2 × separación, 18 px, como Swiper; el área táctil crece
- *   sólo en vertical, a 24 px, con un `::after` que no cambia el paso), `--digi-crs-dot-color` (#000) con
- *   `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal), `--digi-crs-dot-active` (#000, opacidad 1).
+ *   el ancho del botón y el paso entre centros son tamaño + 2 × separación, como Swiper, con un mínimo de 24 px por
+ *   decisión del propietario del 2026-11-08, WCAG 2.5.8: con los valores por defecto, 24 px donde Swiper deja 18; el
+ *   `::after` lleva el área táctil a 24 px en vertical sin cambiar el paso, así que cada punto ofrece 24 × 24 px),
+ *   `--digi-crs-dot-color` (#000) con `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal),
+ *   `--digi-crs-dot-active` (#000, opacidad 1).
  * - Fracción: hereda el color y la tipografía (los controles la pintan con un selector directo).
  * - Barra: `--digi-crs-bar-size` (4px), fondo #00000040, `--digi-crs-bar-color` (`--digi-crs-dot-active`).
  *
