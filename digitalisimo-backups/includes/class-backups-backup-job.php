@@ -48,7 +48,34 @@ final class Digitalisimo_Backups_Backup_Job {
 	 * la siguiente; tras una muerte, la tabla a medias se repite entera. Ver Digitalisimo_Backups_Sql_Export.
 	 */
 	private static function database( array $job ) {
+		// «Extraer como WordPress individual» (1.0.63) sigue en un paso: su exportador elige las tablas del sitio y deja el
+		// informe que lee «pack» (ver Digitalisimo_Backups_Site_Extract).
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( (array) ( $job['spec'] ?? array() ) ) ) return self::database_in_one_step( $job );
 		return Digitalisimo_Backups_Sql_Export::phase( $job );
+	}
+	/** La exportación en un solo paso (la de 1.0.63), para la extracción de un sitio de la red. */
+	private static function database_in_one_step( array $job ) {
+		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
+		self::remove_matching( $staging, '/^database\./' );
+		$tag = Digitalisimo_Backups_Jobs::current_owner_tag();
+		$part = $staging . '/database.' . $tag . '.sql.part';
+		$final = $staging . '/database.' . $tag . '.sql';
+		Digitalisimo_Backups_Jobs::progress( 3, 'Exportando la base de datos…', true );
+		try {
+			$export = Digitalisimo_Backups::job_export_database( $part );
+			if ( ! @rename( $part, $final ) ) throw new Exception( 'No se pudo cerrar el SQL exportado en el área de trabajo.' );
+		} catch ( Throwable $e ) {
+			@unlink( $part );
+			throw $e;
+		}
+		$size = @filesize( $final );
+		$hash = @hash_file( 'sha256', $final );
+		if ( false === $size || false === $hash ) throw new Exception( 'No se pudo verificar el SQL exportado.' );
+		return array(
+			'next' => 'pack',
+			'checkpoint' => array( 'file' => basename( $final ), 'size' => (int) $size, 'sha256' => $hash, 'tables' => $export['tables'], 'mode' => $export['mode'], 'at' => $export['at'], 'fp' => self::fingerprint( $final ) ),
+			'message' => 'Base de datos exportada; empaquetando archivos…',
+		);
 	}
 
 	/**
@@ -60,7 +87,24 @@ final class Digitalisimo_Backups_Backup_Job {
 		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 		$sql = is_array( $database ) ? $staging . '/' . basename( (string) ( $database['file'] ?? '' ) ) : '';
 		if ( ! $sql || ! is_file( $sql ) || ! self::same_fingerprint( self::fingerprint( $sql ), $database['fp'] ?? array() ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El SQL exportado ya no está íntegro en el área de trabajo; se exportará otra vez.', 'database' );
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( (array) ( $job['spec'] ?? array() ) ) ) return self::pack_in_one_step( $job, $staging, $sql, $database );
 		return Digitalisimo_Backups_Packer::pack( $job, $staging, $sql, $database );
+	}
+	/** El empaquetado en un solo paso (el de 1.0.63), para la extracción de un sitio de la red; «verify» lo comprueba entero. */
+	private static function pack_in_one_step( array $job, $staging, $sql, array $database ) {
+		self::remove_matching( $staging, '/^package\./' );
+		$target = $staging . '/package.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.zip';
+		try {
+			$build = Digitalisimo_Backups::job_build_package( $target, $sql, $database, array( 'job_id' => $job['id'], 'spec' => $job['spec'] ) );
+		} catch ( Throwable $e ) {
+			self::remove_matching( $staging, '/^package\./' );
+			throw $e;
+		}
+		return array(
+			'next' => 'verify',
+			'checkpoint' => array( 'file' => basename( $target ), 'fp' => self::fingerprint( $target ), 'file_count' => (int) $build['file_count'], 'files_started_at' => $build['files_started_at'], 'files_completed_at' => $build['files_completed_at'], 'backup_id' => (string) ( $build['backup_id'] ?? '' ), 'created_at' => (string) ( $build['created_at'] ?? '' ), 'signed' => ! empty( $build['signed'] ) ),
+			'message' => 'ZIP escrito; verificando cada entrada…',
+		);
 	}
 
 	/**
@@ -128,6 +172,8 @@ final class Digitalisimo_Backups_Backup_Job {
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP verificado ya no está en el área de trabajo; se empaquetará otra vez.', 'pack' );
 		}
 		if ( ! self::same_fingerprint( self::fingerprint( $final ), $verified ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo con el nombre final no es el ZIP que se verificó; revisa el almacén privado.' );
+		// El respaldo lleva wp-config.php y la base de datos: 0600 aunque venga de un área de trabajo anterior.
+		Digitalisimo_Backups::private_file( $final );
 		// También las listas del inventario (T2): llevan los nombres de los archivos en claro.
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
@@ -142,7 +188,11 @@ final class Digitalisimo_Backups_Backup_Job {
 		);
 	}
 
-	/** Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. */
+	/**
+	 * Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. La fila
+	 * sigue siendo la del ZIP local (`destination` = local) y la copia remota se anota aparte: un respaldo copiado sigue
+	 * restaurándose desde el almacén mientras su ZIP exista.
+	 */
 	private static function transfer( array $job ) {
 		$spec = $job['spec'];
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
@@ -150,7 +200,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		Digitalisimo_Backups_Jobs::progress( 90, 'Copiando a ' . Digitalisimo_Backups::destination_name( $spec['destination'] ) . '…', true );
 		// El estado reanudable de la subida (multipart, sesión, temporal) vive en el área de este trabajo.
 		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'], $job['id'] );
-		Digitalisimo_Backups::history_update( basename( $final ), array( 'destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
+		Digitalisimo_Backups::history_update( basename( $final ), array( 'transfer_destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
 		return array( 'next' => 'prune', 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia remota verificada; aplicando la retención…' );
 	}
 

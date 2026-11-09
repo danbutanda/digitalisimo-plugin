@@ -30,6 +30,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups automation', 'Digitalisimo_Backups_Cli_Automation' );
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
+		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
@@ -157,6 +158,7 @@ final class Digitalisimo_Backups_Cli {
 			if ( 'last_backup' === $key ) $value = $value ? $value['file'] . ' (' . $value['date'] . ')' : '';
 			elseif ( 'destinations' === $key ) $value = implode( ', ', array_keys( (array) $value ) );
 			elseif ( 'problems' === $key ) $value = implode( ' | ', (array) $value );
+			elseif ( 'notifications' === $key ) $value = 'fallos: ' . ( empty( $value['failure'] ) ? 'no' : 'sí' ) . ', éxitos: ' . ( empty( $value['success'] ) ? 'no' : 'sí' ) . ', correo: ' . ( 'custom' === ( $value['recipient'] ?? '' ) ? 'configurado' : 'de administración' );
 			$rows[] = array( 'campo' => $key, 'valor' => is_bool( $value ) ? ( $value ? 'sí' : 'no' ) : (string) $value );
 		}
 		WP_CLI\Utils\format_items( 'table', $rows, array( 'campo', 'valor' ) );
@@ -164,7 +166,8 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
-	 * Lista el historial de respaldos, del más reciente al más antiguo.
+	 * Lista el historial de respaldos, del más reciente al más antiguo, con sus copias (local y remota) y si se puede
+	 * restaurar desde el almacén.
 	 *
 	 * ## OPTIONS
 	 *
@@ -181,9 +184,14 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = self::result( Digitalisimo_Backups::service_backups() );
+		// Las copias, como texto: «local, google» (la remota con su estado si no está verificada: «google (falló)»).
+		$states = array( 'pending' => 'pendiente', 'failed' => 'falló', 'cancelled' => 'cancelada', 'legacy' => 'sin identificador' );
+		foreach ( $rows as &$row ) $row['copies'] = implode( ', ', array_map( function( $copy ) use ( $states ) { return $copy['destination'] . ( isset( $states[ $copy['state'] ] ) ? ' (' . $states[ $copy['state'] ] . ')' : '' ); }, (array) $row['copies'] ) );
+		unset( $row );
+		// Los avisos del respaldo (T2), como texto.
 		foreach ( $rows as &$row ) $row['notices'] = implode( ' ', (array) ( $row['notices'] ?? array() ) );
 		unset( $row );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'notices' ) ) );
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'notices' ) ) );
 	}
 
 	/**
@@ -220,8 +228,73 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
+	 * Extrae un sitio de la red como WordPress individual: encola el paquete (alcance `extracted-site`) y lo hace avanzar
+	 * hasta que queda verificado. Se restaura en un WordPress individual recién instalado con Backups, con otra URL.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <site-id>
+	 * : ID del sitio en la red (`wp site list`).
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio.
+	 *
+	 * [--super-admins=<mode>]
+	 * : Superadministradores que no son miembros del sitio: none (ninguno viaja con su contraseña), managing (como administrador sólo quien tiene el correo de administración del sitio) o all.
+	 * ---
+	 * default: none
+	 * options:
+	 *   - none
+	 *   - managing
+	 *   - all
+	 * ---
+	 *
+	 * [--secret-file=<path>]
+	 * : Archivo con la frase propia de este paquete (16 caracteres o más): lo cifra y lo firma. Nunca la clave de la red.
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase de la entrada estándar (en una terminal, sin mostrarla).
+	 *
+	 * [--network-secrets]
+	 * : Copia también las claves de API que el sitio hereda de la red (sin ella quedan vacías y el informe las nombra).
+	 *
+	 * [--destination=<destination>]
+	 * : Destino conectado: local, el tipo de una conexión principal o el identificador de una adicional (wp digitalisimo-backups destinations list). Sin él, local.
+	 *
+	 * [--async]
+	 * : Sólo lo encola; lo continúan WP-Cron o `wp digitalisimo-backups jobs run`.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el nombre del paquete (con --async, el identificador del trabajo).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups extract 2 --network
+	 *     wp digitalisimo-backups extract 2 --network --super-admins=none --porcelain
+	 */
+	public function extract( $args, $assoc_args ) {
+		$async = ! empty( $assoc_args['async'] );
+		$porcelain = ! empty( $assoc_args['porcelain'] );
+		$view = self::result( Digitalisimo_Backups::service_extract( (int) ( $args[0] ?? 0 ), array( 'network' => ! empty( $assoc_args['network'] ), 'super_admins' => (string) ( $assoc_args['super-admins'] ?? 'none' ), 'network_secrets' => ! empty( $assoc_args['network-secrets'] ), 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'secret' => self::secret( $assoc_args ), 'via' => 'cli', 'spawn' => $async ) ) );
+		if ( $async ) {
+			self::queued( $view, $porcelain );
+			return;
+		}
+		$view = self::drive( $view, $porcelain );
+		if ( 'success' !== $view['status'] ) WP_CLI::error( ( 'cancelled' === $view['status'] ? 'Trabajo cancelado: ' : 'La extracción falló: ' ) . ( $view['error'] ?: $view['detail'] ) );
+		if ( $porcelain ) {
+			WP_CLI::line( $view['file'] );
+			return;
+		}
+		WP_CLI::success( 'Sitio extraído y verificado: ' . $view['file'] . ' (' . $view['destination_label'] . ( $view['encrypt'] ? ', cifrado' : '' ) . '). Restáuralo en un WordPress individual recién instalado con Backups; `wp digitalisimo-backups verify ' . $view['file'] . ' --format=json` muestra su informe.' );
+	}
+
+	/**
 	 * Verifica un respaldo local sin tocar el sitio: firma, descifrado de un `.dgbk`, estructura, CRC y SHA-256 de cada
-	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración.
+	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración. Si viene de otra
+	 * dirección, carpeta del servidor o prefijo, dice «Origen → este sitio» y qué se reescribiría al restaurarlo. Como la
+	 * restauración nunca escribe wp-config.php, también lista las constantes que el respaldo define y este servidor no, las
+	 * que sólo define este servidor y las que tienen otro valor (nunca muestra un valor secreto ni una ruta del servidor).
 	 *
 	 * ## OPTIONS
 	 *
@@ -234,6 +307,15 @@ final class Digitalisimo_Backups_Cli {
 	 * [--secret-stdin]
 	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
 	 *
+	 * [--addresses=<addresses>]
+	 * : Como en restore: current (conservar las direcciones de este sitio) o backup (las del respaldo).
+	 * ---
+	 * default: current
+	 * options:
+	 *   - current
+	 *   - backup
+	 * ---
+	 *
 	 * [--format=<format>]
 	 * : table o json.
 	 * ---
@@ -241,7 +323,7 @@ final class Digitalisimo_Backups_Cli {
 	 * ---
 	 */
 	public function verify( $args, $assoc_args ) {
-		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ) ) ) );
+		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) ) );
 		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
 			WP_CLI::line( wp_json_encode( $report ) );
 			return;
@@ -249,6 +331,14 @@ final class Digitalisimo_Backups_Cli {
 		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
+		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
+		// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (los valores secretos nunca se
+		// muestran). Va después y aparte de «Origen → este sitio»: un respaldo de otro servidor suele traer las dos cosas.
+		$config = (array) ( $report['wp_config'] ?? array() );
+		if ( ! empty( $config['differences'] ) ) {
+			WP_CLI::warning( (string) $config['text'] );
+			foreach ( Digitalisimo_Backups_Config_Diff::lines( (array) $config['differences'] ) as $line ) WP_CLI::log( '  ' . $line );
+		}
 	}
 
 	/**
@@ -274,18 +364,29 @@ final class Digitalisimo_Backups_Cli {
 	 * [--adopt-secret]
 	 * : Usa la frase escrita para firmar y cifrar los respaldos nuevos.
 	 *
+	 * [--addresses=<addresses>]
+	 * : Si el respaldo viene de otra dirección: current conserva las de este sitio y backup las del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este sitio.
+	 * ---
+	 * default: current
+	 * options:
+	 *   - current
+	 *   - backup
+	 * ---
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 */
 	public function restore( $args, $assoc_args ) {
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ) ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'via' => 'cli' ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 }
 
-/** Automatizaciones de respaldo completo. */
+/**
+ * Automatizaciones de respaldo completo: listarlas y ejecutar una ahora.
+ */
 final class Digitalisimo_Backups_Cli_Automation {
 	/**
 	 * Lista las automatizaciones y su próxima ejecución.
@@ -302,7 +403,7 @@ final class Digitalisimo_Backups_Cli_Automation {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_automations() );
-		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'destination', 'retain', 'enabled', 'next_run' ) );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'destination', 'retain', 'enabled', 'next_run' ) );
 	}
 
 	/**
@@ -333,7 +434,9 @@ final class Digitalisimo_Backups_Cli_Automation {
 	}
 }
 
-/** Cola de trabajos: la misma que la tarjeta «Trabajos» de la pantalla. */
+/**
+ * Cola de trabajos de respaldo, la misma de la tarjeta «Trabajos» de la pantalla: listar, cancelar y hacerla avanzar.
+ */
 final class Digitalisimo_Backups_Cli_Jobs {
 	/**
 	 * Lista los trabajos sin terminar y los últimos terminados.
@@ -454,5 +557,64 @@ final class Digitalisimo_Backups_Cli_Destinations {
 	public function fetch( $args, $assoc_args ) {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
 		WP_CLI::success( $result['message'] );
+	}
+}
+
+/**
+ * Subidas de respaldos desde el navegador o REST: verlas, terminarlas sin límite de tiempo y descartarlas.
+ */
+final class Digitalisimo_Backups_Cli_Upload {
+	/**
+	 * Lista las subidas sin terminar y las cerradas de las últimas 24 h, de todas las cuentas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * @subcommand list
+	 */
+	public function list_( $args, $assoc_args ) {
+		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_list() );
+		foreach ( $rows as &$row ) $row['error'] = isset( $row['error'] ) ? (string) $row['error']['message'] : '';
+		unset( $row );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'name', 'size', 'received', 'phase', 'attempts', 'error', 'updated_at' ) );
+	}
+
+	/**
+	 * Termina una subida completa: la comprueba como archivo no confiable, sin el límite de tiempo de la web, y la deja
+	 * en el almacén como «sin registro». Para una subida cuya comprobación se cortó en el navegador o por REST.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la subida (wp digitalisimo-backups upload list).
+	 *
+	 * [--secret-file=<path>]
+	 * : Archivo con la frase o la clave de un respaldo cifrado o firmado con una clave que este sitio no tiene.
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
+	 */
+	public function finish( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_finish( (string) ( $args[0] ?? '' ), array( 'secret' => Digitalisimo_Backups_Cli::secret( $assoc_args ) ) ) );
+		WP_CLI::success( 'Respaldo subido y comprobado: ' . $result['file'] . '. Para restaurarlo: --confirm="' . $result['confirmation'] . '"' . ( ! empty( $result['needs_secret'] ) ? ' y su frase o su clave' : '' ) . '.' );
+		foreach ( (array) ( $result['problems'] ?? array() ) as $problem ) WP_CLI::warning( (string) $problem );
+	}
+
+	/**
+	 * Descarta una subida sin terminar (de cualquier cuenta) y borra lo recibido.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la subida.
+	 */
+	public function cancel( $args, $assoc_args ) {
+		Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_cancel( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Subida descartada; se borró lo recibido.' );
 	}
 }

@@ -146,16 +146,21 @@ try {
 	copy( $store . '/' . $created['file'], $store . '/' . $loose );
 	$report = $S::service_verify( $loose );
 	digi_assert( ! is_wp_error( $report ) && false === $report['registered'] && 'untrusted' === $report['trust'] && 'RESTAURAR SIN FIRMA' === $report['confirmation'], 'La copia suelta no se informó como no confiable: ' . json_encode( $report ) );
-	// Una instalación con otro prefijo de tablas: el paquete es íntegro, pero no compatible aquí.
+	// Una instalación con otro prefijo de tablas (desde E1): el paquete es compatible y la verificación anuncia el cambio
+	// de prefijo, «Origen → este sitio», antes de confirmar.
 	$db->base_prefix = 'otro_';
 	$report = $S::service_verify( $created['file'] );
-	digi_assert( ! is_wp_error( $report ) && false === $report['compatible'] && false !== strpos( implode( ' ', $report['problems'] ), 'prefijo de tablas' ), 'La verificación no avisó de un prefijo incompatible.' );
-	// Restaurarlo se detiene antes de la copia previa: 422 (el sitio no cambió), no 500.
-	$stored = digi_stored( $store );
-	$error = $S::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR' ) );
-	digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'prefijo de tablas' ), 'Una restauración rechazada antes de la copia previa no respondió 422: ' . ( is_wp_error( $error ) ? $error->get_error_code() : 'terminó' ) );
-	digi_assert( $stored === digi_stored( $store ) && array() === array_filter( get_option( $S::HISTORY ), function( $row ) { return 'pre-restore' === $row['policy']; } ), 'La restauración rechazada creó una copia previa.' );
+	digi_assert( ! is_wp_error( $report ) && true === $report['compatible'] && ! empty( $report['relocation']['needed'] ) && false !== strpos( $report['relocation']['text'], 'prefijo de tablas wp_ → otro_' ), 'La verificación no anunció el cambio de prefijo: ' . json_encode( is_wp_error( $report ) ? $report->get_error_message() : $report ) );
 	$db->base_prefix = 'wp_';
+	// Un respaldo individual en una red se detiene antes de la copia previa: 422 (el sitio no cambió), no 500, con qué cambiar.
+	$GLOBALS['digi']['multisite'] = true;
+	$GLOBALS['digi']['caps']['manage_network_options'] = true;
+	$stored = digi_stored( $store );
+	$error = $S::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) );
+	$GLOBALS['digi']['multisite'] = false;
+	unset( $GLOBALS['digi']['caps']['manage_network_options'] );
+	digi_assert( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && 422 === $error->get_error_data()['status'] && false !== strpos( $error->get_error_message(), 'Restáuralo en una instalación individual' ), 'Una restauración rechazada antes de la copia previa no respondió 422: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'terminó' ) );
+	digi_assert( $stored === digi_stored( $store ) && array() === array_filter( get_option( $S::HISTORY ), function( $row ) { return 'pre-restore' === $row['policy']; } ), 'La restauración rechazada creó una copia previa.' );
 	$tampered = 'digitalisimo-backup-alterado.zip';
 	copy( $store . '/' . $created['file'], $store . '/' . $tampered );
 	$zip = new ZipArchive();

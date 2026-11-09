@@ -147,7 +147,8 @@ $case( 'c', function() use ( $B, $C, $K, $check, $leak, $second, $settings ) {
 	$key = 'otra/' . basename( $job['spec']['file'] );
 	$check( isset( $second->objects[ $key ] ) && hash_file( 'sha256', bk_storage() . '/' . basename( $job['spec']['file'] ) ) === hash( 'sha256', $second->objects[ $key ] ), 'El respaldo no llegó al bucket de la conexión adicional.' );
 	$row = bk_call( $B, 'history_item', basename( $job['spec']['file'] ) );
-	$check( $id === $row['destination'] && $id === $row['remote']['connection'] && 'ok' === $row['transfer'] && null === $leak( json_encode( $row ) ), 'El historial no registra la conexión o lleva un secreto: ' . json_encode( $row ) );
+	// Desde el lote corto la fila sigue siendo la del ZIP local y la copia remota va en transfer_destination.
+	$check( 'local' === $row['destination'] && $id === $row['transfer_destination'] && $id === $row['remote']['connection'] && 'ok' === $row['transfer'] && null === $leak( json_encode( $row ) ), 'El historial no registra la conexión o lleva un secreto: ' . json_encode( $row ) );
 	// No se borra mientras es el destino de una automatización; después sí, con sus secretos.
 	update_option( $B::POLICIES, array( array( 'id' => 'p1', 'label' => '', 'type' => 'full', 'schedule' => 'weekly', 'destination' => $id, 'retain' => 4, 'enabled' => true ) ) );
 	list( $ok, $message ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $id ) );

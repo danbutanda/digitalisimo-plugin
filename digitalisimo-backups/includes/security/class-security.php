@@ -177,7 +177,7 @@ final class Digitalisimo_Backups_Security {
 			$zip = new ZipArchive();
 			if ( true !== $zip->open( $inner, ZipArchive::CHECKCONS ) ) throw new Exception( 'El contenido descifrado no es un ZIP válido.' );
 			$auth = Digitalisimo_Backups_Manifest_Auth::verify( $zip, '', $root );
-			if ( 'signed' !== $auth['state'] || true !== $auth['encrypted'] || ( $auth['manifest']['backup_id'] ?? '' ) !== $parsed['header']['backup_id'] || ! hash_equals( $descriptor['id'], (string) ( $auth['key']['id'] ?? '' ) ) ) throw new Exception( 'El contenido descifrado no corresponde a su cabecera: el respaldo fue modificado o está dañado.' );
+			if ( 'signed' !== $auth['state'] || true !== $auth['encrypted'] || ( $auth['manifest']['backup_id'] ?? '' ) !== $parsed['header']['backup_id'] || ! hash_equals( $descriptor['id'], (string) ( $auth['key']['id'] ?? '' ) ) || (string) ( $auth['manifest']['scope'] ?? 'installation' ) !== (string) $parsed['header']['scope'] ) throw new Exception( 'El contenido descifrado no corresponde a su cabecera: el respaldo fue modificado o está dañado.' );
 		} catch ( Throwable $e ) {
 			self::close_zip( $zip );
 			self::remove_tree( $staging );

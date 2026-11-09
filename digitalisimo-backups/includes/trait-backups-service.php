@@ -96,7 +96,12 @@ trait Digitalisimo_Backups_Service {
 		}
 		return Digitalisimo_Backups_Keys::can_open( $key_id ) ? null : self::service_error( 'secret_required', Digitalisimo_Backups_Security::missing_key_text( $key_id ), 400, array( 'key' => Digitalisimo_Backups_Keys::short( $key_id ) ) );
 	}
-	/** Fila pública del historial. `restorable` sigue la lista de la pantalla: local, completo y presente. */
+	/**
+	 * Fila pública del historial. `restorable` sigue la lista de la pantalla: completo y con su ZIP en el almacén, tenga
+	 * o no copia remota. `copies` enumera sólo las copias que existen: la local, si el ZIP sigue en el almacén, y la
+	 * remota verificada (`ok`) o anterior sin identificador (`legacy`); `destination` es la de esa copia remota (o
+	 * `local`), y una copia que se intentó y no llegó va en `transfer_destination` con su `transfer`.
+	 */
 	private static function service_summary( $item ) {
 		$item = (array) $item;
 		$file = (string) ( $item['file'] ?? '' );
@@ -104,18 +109,19 @@ trait Digitalisimo_Backups_Service {
 		$type = (string) ( $item['backup_type'] ?? 'full' );
 		$container = 'dgbk' === ( $item['container'] ?? '' ) ? 'dgbk' : 'zip';
 		$key_id = (string) ( $item['key_id'] ?? '' );
-		$available = false;
-		if ( '' !== $file ) {
-			try { $available = '' !== self::local_path( $file ); } catch ( Exception $e ) { $available = false; }
-		}
+		$available = '' !== self::local_copy( $item );
+		$copy = self::remote_copy( $item );
 		return array(
 			'file' => $file,
 			'date' => (string) ( $item['date'] ?? '' ),
 			'size' => (int) ( $item['size'] ?? 0 ),
 			'sha256' => (string) ( $item['sha256'] ?? '' ),
-			'destination' => (string) ( $item['destination'] ?? 'local' ),
+			// Dónde hay una copia remota que existe; la que se intentó y no llegó va en transfer_destination y transfer.
+			'destination' => self::remote_exists( $item ) ? $copy['destination'] : 'local',
 			'remote' => (string) ( ( (array) ( $item['remote'] ?? array() ) )['provider'] ?? '' ),
 			'transfer' => (string) ( $item['transfer'] ?? '' ),
+			'transfer_destination' => $copy ? (string) $copy['destination'] : '',
+			'copies' => self::item_copies( $item, $available ),
 			'scope' => $scope,
 			'type' => $type,
 			'policy' => (string) ( $item['policy'] ?? 'manual' ),
@@ -126,7 +132,8 @@ trait Digitalisimo_Backups_Service {
 			'needs_secret' => 'dgbk' === $container && ! Digitalisimo_Backups_Keys::can_open( $key_id ),
 			'locked' => ! empty( $item['locked'] ),
 			'available' => $available,
-			'restorable' => $available && 'local' === ( $item['destination'] ?? 'local' ) && 'full' === $type && in_array( $scope, array( 'network', 'installation' ), true ),
+			'restorable' => self::restorable_item( $item, $available ),
+			'site' => (string) ( $item['extract']['label'] ?? '' ),
 			'consistency' => (string) ( $item['consistency'] ?? '' ),
 			'notices' => array_values( array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ),
 		);
@@ -142,6 +149,8 @@ trait Digitalisimo_Backups_Service {
 			'destination' => (string) ( $spec['destination'] ?? 'local' ),
 			'policy' => (string) ( $spec['policy'] ?? '' ),
 			'encrypt' => ! empty( $spec['security']['encrypt'] ),
+			'scope' => (string) ( $spec['scope'] ?? '' ),
+			'site' => Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ? (int) $spec['extract']['site_id'] : 0,
 		);
 	}
 	/** Encolar responde enseguida: el trabajo lo hacen avanzar WP-Cron, el navegador, `POST /jobs/tick` o WP-CLI. */
@@ -200,6 +209,7 @@ trait Digitalisimo_Backups_Service {
 			'key_source' => 'none' !== $constant ? 'wp-config' : ( $ring['active'] ? 'passphrase' : 'none' ),
 			'credentials' => (string) $credentials['state'],
 			'credentials_notice' => (string) $credentials['notice'],
+			'notifications' => Digitalisimo_Backups_Notify::status(),
 			'backups' => count( $history ),
 			'last_backup' => $history ? self::service_summary( $history[0] ) : null,
 			'automations' => count( $automations ),
@@ -225,6 +235,7 @@ trait Digitalisimo_Backups_Service {
 				'label' => (string) ( $policy['label'] ?? '' ),
 				'type' => (string) ( $policy['type'] ?? '' ),
 				'schedule' => (string) ( $policy['schedule'] ?? 'disabled' ),
+				'time' => self::fixed_time( $policy ),
 				'destination' => (string) ( $policy['destination'] ?? 'local' ),
 				'retain' => (int) ( $policy['retain'] ?? 0 ),
 				'enabled' => $enabled,
@@ -255,6 +266,46 @@ trait Digitalisimo_Backups_Service {
 			return self::service_error( 'not_ready', $e->getMessage(), 422 );
 		}
 		return self::service_enqueued( $queued, 'Ya hay un respaldo manual pendiente o en curso; su avance está en «Trabajos».', $args['spawn'] ?? true );
+	}
+	/**
+	 * «Extraer como WordPress individual»: encola un trabajo que produce el paquete de un sitio de la red, restaurable en
+	 * una instalación individual (alcance `extracted-site`, ver Digitalisimo_Backups_Site_Extract). Es una acción de la
+	 * red: sólo un superadministrador (o WP-CLI), desde el sitio principal y con el alcance de red explícito, como crear un
+	 * respaldo de la red; un sitio no puede extraer otros. `super_admins` (managing, all o none) decide qué pasa con los
+	 * superadministradores que no son miembros del sitio y `network_secrets`, si las claves de API que el sitio hereda de
+	 * la red viajan. Nunca duplica la extracción pendiente de un mismo sitio (409).
+	 */
+	public static function service_extract( $site_id, array $args = array() ) {
+		if ( ! is_multisite() ) return self::service_error( 'scope', 'Esta instalación no es una red: no hay sitios que extraer.', 400 );
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		if ( ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! is_super_admin() ) return self::service_error( 'forbidden', 'Sólo un superadministrador de la red puede extraer un sitio.', 403 );
+		$site = Digitalisimo_Backups_Site_Extract::site( $site_id );
+		if ( is_wp_error( $site ) ) return $site;
+		$options = Digitalisimo_Backups_Site_Extract::options( $args );
+		if ( is_wp_error( $options ) ) return $options;
+		$settings = self::settings();
+		$destination = sanitize_key( (string) ( $args['destination'] ?? '' ) );
+		if ( '' === $destination ) $destination = 'local';
+		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) ) {
+			$problem = 'local' === $destination ? '' : self::credentials_problem( $destination );
+			return self::service_error( 'destination', '' !== $problem ? $problem : 'El destino seleccionado no está conectado o no es válido.', 400 );
+		}
+		try {
+			self::ensure_ready();
+			foreach ( Digitalisimo_Backups_Site_Extract::problems( $site ) as $problem ) throw new Exception( $problem );
+			// La seguridad del paquete es suya (own_key()), nunca la de la red: la especificación se pide sin el plan de la red
+			// (inline, que no abre ni exige su clave) y job_spec() fija la propia.
+			$spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => Digitalisimo_Backups_Site_Extract::policy_id( $site['id'] ), 'destination' => $destination, 'retain' => 1, 'retention' => 'none', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => true, 'site_id' => get_main_site_id(), 'file' => Digitalisimo_Backups_Site_Extract::file_name( $site ), 'inline' => true ) );
+			Digitalisimo_Backups_Site_Extract::forget_keys();
+			$own = Digitalisimo_Backups_Site_Extract::own_key( $args['secret'] ?? '' );
+			if ( is_wp_error( $own ) ) return $own;
+			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Site_Extract::job_spec( $spec, $site, $options, $own ) );
+			if ( ! empty( $queued['duplicate'] ) && '' !== $own['key_id'] ) Digitalisimo_Backups_Site_Extract::forget_keys( $own['key_id'] );
+		} catch ( Throwable $e ) {
+			return self::service_error( 'not_ready', $e->getMessage(), 422 );
+		}
+		return self::service_enqueued( $queued, 'Ya hay una extracción de ' . $site['label'] . ' pendiente o en curso; su avance está en «Trabajos».', $args['spawn'] ?? true );
 	}
 	/** Encola ahora una automatización completa, por el mismo camino que su botón «Ejecutar ahora» y su evento de cron. */
 	public static function service_run_automation( $id, array $args = array() ) {
@@ -329,10 +380,16 @@ trait Digitalisimo_Backups_Service {
 	 * para uno sin firma ni registro (que «Restaurar sólo respaldos firmados» bloquea). `secret` es la frase o la clave
 	 * de un respaldo cifrado o firmado con una clave que este sitio no tiene; se usa tal cual y nunca vuelve en la
 	 * respuesta. Con `adopt`, la frase escrita firma después los respaldos nuevos.
+	 *
+	 * Un respaldo de otra dirección, otra carpeta del servidor u otro prefijo se reubica (Digitalisimo_Backups_Relocate):
+	 * `addresses` = `current` (por defecto: el sitio conserva sus direcciones) o `backup` (conserva las del respaldo). La
+	 * respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final.
 	 */
 	public static function service_restore( $file, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		$addresses = self::service_addresses( $args );
+		if ( is_wp_error( $addresses ) ) return $addresses;
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) ( $args['confirm'] ?? '' ) ) ) );
 		if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) return self::service_error( 'confirm', 'Escribe RESTAURAR para confirmar una operación destructiva.', 400 );
 		$path = self::service_local_file( $file );
@@ -349,11 +406,15 @@ trait Digitalisimo_Backups_Service {
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		$report = null;
+		// Aviso por correo con los ajustes de antes del SQL (que trae los del respaldo); se envía al soltar el bloqueo.
+		$mail = Digitalisimo_Backups_Notify::snapshot();
+		$event = null;
 		try {
 			if ( Digitalisimo_Backups_Jobs::has_active() ) return self::service_error( 'busy', 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.', 409 );
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ), $secret );
 			} catch ( Exception $e ) {
+				$event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
 				return self::service_error( 'invalid', $e->getMessage(), 422 );
 			}
 			try {
@@ -364,14 +425,21 @@ trait Digitalisimo_Backups_Service {
 			$trust = (string) $report['trust'];
 			$key = isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '';
 			$copies = self::service_safety_copies();
+			// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (sin valores secretos).
+			$config = self::config_report( $report['zip'] );
 			try {
-				self::restore_digitalisimo_zip( $report['path'], $report );
+				$relocation = self::restore_digitalisimo_zip( $report['path'], $report, array( 'addresses' => $addresses ) );
 			} catch ( Throwable $e ) {
 				// Sin copia previa nueva, el SQL y los archivos no se tocaron: el paquete (o la copia previa) se rechazó
 				// antes (422). Con ella, la restauración empezó y el mensaje dice qué se recuperó (500).
-				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
+				$started = self::service_safety_copies() > $copies;
+				$event = array( 'ok' => false, 'started' => $started, 'message' => $e->getMessage() );
+				return $started ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
 			}
-			$notice = '';
+			// Un sitio extraído de una red: con qué cuentas se entra ahora.
+			$restored = null;
+			try { $restored = Digitalisimo_Backups_Archive_Inspector::manifest( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			$notice = is_array( $restored ) && Digitalisimo_Backups_Site_Extract::SCOPE === ( $restored['scope'] ?? '' ) ? ' ' . Digitalisimo_Backups_Site_Extract::restored_notice( $restored ) : '';
 			$adopted = false;
 			if ( ! empty( $args['adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
 				try {
@@ -385,17 +453,59 @@ trait Digitalisimo_Backups_Service {
 			// Las credenciales del respaldo mandan: si alguna no se pudo volver a cifrar aquí, se avisa ya.
 			$credentials = self::credentials_status();
 			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
+			if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
+			if ( '' !== $config['text'] ) $notice .= ' ' . $config['text'];
+			$event = array( 'ok' => true, 'started' => true, 'notes' => array( ltrim( $notice ) ) );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
 			// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
 			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			if ( $event ) {
+				$event += array( 'file' => wp_basename( $path ), 'via' => (string) ( $args['via'] ?? '' ), 'safety' => self::service_latest_safety() );
+				try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			}
 		}
-		$safety = '';
+		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => self::service_latest_safety(), 'relocation' => $relocation ? self::relocation_public( $relocation ) : null, 'wp_config' => $config );
+	}
+	/** La copia previa más reciente del historial (la de esta restauración si llegó a crearse). */
+	private static function service_latest_safety() {
 		foreach ( (array) get_option( self::HISTORY, array() ) as $item ) {
-			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) { $safety = (string) ( $item['file'] ?? '' ); break; }
+			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) return (string) ( $item['file'] ?? '' );
 		}
-		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => $safety );
+		return '';
+	}
+	/** `addresses` de restaurar y verificar: current (por defecto) o backup. */
+	private static function service_addresses( array $args ) {
+		$addresses = strtolower( trim( (string) ( $args['addresses'] ?? '' ) ) );
+		if ( '' === $addresses ) return 'current';
+		if ( ! in_array( $addresses, array( 'current', 'backup' ), true ) ) return self::service_error( 'addresses', 'addresses debe ser current (el sitio conserva sus direcciones) o backup (conserva las del respaldo).', 400 );
+		return $addresses;
+	}
+	/** Informe público de una reubicación: lo reescrito por tabla, red, direcciones, cachés, comprobación y avisos. */
+	private static function relocation_public( array $report ) {
+		return array(
+			'text' => (string) ( $report['summary']['text'] ?? '' ),
+			'addresses' => (string) ( $report['summary']['addresses'] ?? 'current' ),
+			'origin' => $report['summary']['origin'] ?? array(),
+			'destination' => $report['summary']['destination'] ?? array(),
+			'rewrites' => (array) ( $report['summary']['rewrites'] ?? array() ),
+			'tables' => (array) ( $report['tables'] ?? array() ),
+			'network' => (array) ( $report['network'] ?? array() ),
+			'caches' => (array) ( $report['caches'] ?? array() ),
+			'check' => $report['check'] ?? null,
+			'warnings' => array_values( (array) ( $report['warnings'] ?? array() ) ),
+		);
+	}
+	/** Una línea para el aviso de la restauración: qué se reescribió y qué quedó del origen. */
+	private static function relocation_notice( array $report ) {
+		$check = is_array( $report['check'] ?? null ) ? $report['check'] : null;
+		$rows = 0;
+		foreach ( (array) ( $report['tables'] ?? array() ) as $counts ) $rows += (int) ( $counts['rows'] ?? 0 );
+		$text = 'Origen → este sitio: se reescribieron ' . $rows . ' filas' . ( empty( $report['summary']['rewrites'] ) ? '' : ' (' . implode( '; ', $report['summary']['rewrites'] ) . ')' ) . '.';
+		if ( $check ) $text .= ' Comprobación: ' . (int) $check['urls'] . ' URL y ' . (int) $check['paths'] . ' rutas del origen pendientes; sin tocar a propósito ' . (int) $check['guid'] . ' guid y ' . (int) $check['emails'] . ' correos.';
+		foreach ( (array) ( $report['warnings'] ?? array() ) as $warning ) $text .= ' ' . $warning;
+		return $text;
 	}
 	/**
 	 * Comprueba un respaldo local sin tocar el sitio, con las mismas comprobaciones del paquete que la restauración
@@ -406,6 +516,8 @@ trait Digitalisimo_Backups_Service {
 	public static function service_verify( $file, array $args = array() ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		$addresses = self::service_addresses( $args );
+		if ( is_wp_error( $addresses ) ) return $addresses;
 		$path = self::service_local_file( $file );
 		if ( is_wp_error( $path ) ) return $path;
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'zip', 'El servidor necesita la extensión PHP ZipArchive para verificar el respaldo.', 500 );
@@ -424,13 +536,21 @@ trait Digitalisimo_Backups_Service {
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, $item, $secret );
 				$zip = $report['zip'];
-				$data = self::inspect_package( $zip, 'untrusted' !== $report['trust'], false );
+				$source = array();
+				$data = self::inspect_package( $zip, 'untrusted' !== $report['trust'], false, $source );
 			} catch ( Exception $e ) {
 				return self::service_error( 'invalid', $e->getMessage(), 422 );
 			}
 			$checksum = @hash_file( 'sha256', $path );
 			if ( false === $checksum ) return self::service_error( 'invalid', 'No se pudo calcular el SHA-256 del respaldo.', 422 );
 			$problems = self::package_installation_problems( $data );
+			// «Origen → este sitio»: qué cambiaría al restaurarlo aquí (o por qué no se puede).
+			$relocation = null;
+			if ( ! $problems ) {
+				$plan = self::relocation_plan( $data, $source, array( 'addresses' => $addresses ) );
+				$problems = $plan->problems();
+				$relocation = $plan->summary();
+			}
 			return array(
 				'file' => wp_basename( $path ),
 				'verified' => true,
@@ -452,6 +572,9 @@ trait Digitalisimo_Backups_Service {
 				'table_prefix' => (string) ( $data['table_prefix'] ?? '' ),
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
+				'relocation' => $relocation,
+				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
+				'wp_config' => self::config_report( $zip ),
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );

@@ -172,6 +172,8 @@ final class Digitalisimo_Backups_Jobs {
 			Digitalisimo_Backups::release_operation_lock( $lock );
 		}
 		self::schedule();
+		// Avisos de los trabajos que terminaron (aquí o en un proceso que murió después): fuera del cerrojo del almacén.
+		Digitalisimo_Backups_Notify::flush_jobs();
 		return array( 'result' => $result );
 	}
 	/** Elige el primer trabajo listo en orden de llegada y le pone un arrendamiento nuevo. */
@@ -263,6 +265,8 @@ final class Digitalisimo_Backups_Jobs {
 				$job['status'] = 'success';
 				$job['finished_at'] = time();
 				$job['progress'] = array( 'percent' => 100, 'message' => (string) ( $outcome['message'] ?? 'Respaldo completo creado y verificado.' ) );
+				// El aviso por correo sale después, fuera del cerrojo (flush_jobs()); la marca sobrevive a una muerte del proceso.
+				$job = Digitalisimo_Backups_Notify::mark( $job );
 			} else {
 				$job['phase'] = $next;
 				$job['status'] = self::status_for( $next, $job['spec'] );
@@ -345,7 +349,8 @@ final class Digitalisimo_Backups_Jobs {
 			$job['error'] = $error;
 			$job['progress']['message'] = (string) ( $error['message'] ?? 'El trabajo falló.' );
 		}
-		return $job;
+		// Sólo un estado terminal avisa: los reintentos con espera (queue_retry) no pasan por aquí.
+		return Digitalisimo_Backups_Notify::mark( $job );
 	}
 
 	/** Ejecuta todas las fases en este proceso (la copia previa de una restauración, con el cerrojo ya tomado). */
@@ -600,11 +605,14 @@ final class Digitalisimo_Backups_Jobs {
 				Digitalisimo_Backups::job_transfer_abandon_pending();
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
+				// Subidas de respaldos sin actividad durante 24 h.
+				Digitalisimo_Backups_Uploads::sessions();
 			} catch ( Throwable $e ) {
 				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 			} finally {
 				Digitalisimo_Backups::release_operation_lock( $lock );
 			}
+			Digitalisimo_Backups_Notify::flush_jobs();
 		}
 		self::schedule( true );
 	}
@@ -715,7 +723,7 @@ final class Digitalisimo_Backups_Jobs {
 			'terminal' => $terminal,
 			'file' => 'success' === $status ? basename( (string) ( $spec['file'] ?? '' ) ) : '',
 			'error' => 'success' === $status ? '' : $error,
-			'origin_label' => ! empty( $spec['inline'] ) ? 'Copia previa a una restauración' : ( 'manual' === ( $spec['policy'] ?? '' ) ? 'Respaldo manual' : 'Automatización' ),
+			'origin_label' => self::origin_label( $spec ),
 			'destination_label' => Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',
 			'warnings' => count( (array) ( $job['warnings'] ?? array() ) ),
@@ -802,5 +810,14 @@ final class Digitalisimo_Backups_Jobs {
 		} finally {
 			if ( $switch ) restore_current_blog();
 		}
+	}
+	/**
+	 * Punto de extensión: de dónde viene un trabajo, en la tarjeta «Trabajos», REST y WP-CLI. Un tipo de trabajo propio
+	 * (p. ej. «Extraer como WordPress individual») da la suya con el filtro `digitalisimo_backups_job_origin`.
+	 */
+	public static function origin_label( array $spec ) {
+		$label = (string) self::filter( 'digitalisimo_backups_job_origin', '', $spec );
+		if ( '' !== $label ) return $label;
+		return ! empty( $spec['inline'] ) ? 'Copia previa a una restauración' : ( 'manual' === ( $spec['policy'] ?? '' ) ? 'Respaldo manual' : 'Automatización' );
 	}
 }
