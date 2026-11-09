@@ -434,7 +434,10 @@ instalación ya tiene su carpeta).
   generada, presentación, paquete pedido y listo, descarga, migración terminada, liberada, revocada, caducada,
   bloqueada, intentos fallidos y deshacer. Nada del flujo deja la clave, la credencial ni `K` en registros, respuestas,
   URL, trabajos ni el navegador (salvo la página que la muestra una vez).
-**Escala.** El paquete lo crea el motor de trabajos del origen (fases con punto de control y reintentos); el destino lo
+**Escala.** El paquete lo crea el motor de trabajos del origen (fases con punto de control y reintentos); mientras
+tanto el destino pregunta con una espera de hasta 10 minutos (`digitalisimo_backups_migration_step_timeout`) y, si se
+agota porque el origen sigue en un paso largo o atiende otra petición, vuelve a preguntar en 30 s sin gastar intento
+(hasta 12 veces seguidas). El destino lo
 descarga en fragmentos de 4 MiB (`digitalisimo_backups_migration_chunk`) por pasos de 15 s, siempre desde lo que ya
 está en disco: un corte de red, un fragmento incompleto o una muerte del proceso reanudan donde quedó, y sólo los
 fallos seguidos sin avanzar gastan intentos (5). La restauración es un paso largo, como «Restaurar»: en un hosting que
