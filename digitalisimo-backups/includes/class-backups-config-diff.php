@@ -10,8 +10,8 @@ defined( 'ABSPATH' ) || exit;
  * restaurar, para que el administrador decida si las copia a mano.
  *
  * Los dos archivos se leen con el tokenizador de PHP (sólo `define( 'NOMBRE', … )` en el archivo; nunca se ejecutan
- * ni se incluyen). Nunca se muestra el valor de una constante secreta (contraseñas, claves, sales, tokens, credenciales
- * de la base de datos) ni una ruta del servidor: sólo que es distinta. Un valor que no es un literal (getenv(), otra
+ * ni se incluyen). Sólo se muestra el valor de las constantes conocidas de WordPress (SHOWN) que no son secretas ni
+ * rutas del servidor; de las demás (contraseñas, claves, sales, la base de datos, las de los plugins), sólo que difieren. Un valor que no es un literal (getenv(), otra
  * constante, una concatenación) se informa como «expresión».
  */
 final class Digitalisimo_Backups_Config_Diff {
@@ -91,9 +91,16 @@ final class Digitalisimo_Backups_Config_Diff {
 		if ( 0 === strpos( $name, 'DB_' ) && ! in_array( $name, array( 'DB_CHARSET', 'DB_COLLATE' ), true ) ) return true;
 		return (bool) preg_match( '/(?:PASS|KEY|SALT|SECRET|TOKEN|AUTH|NONCE|CREDENTIAL|LICEN[CS]E|PRIVATE|SIGN)/', $name );
 	}
-	/** Valor apto para mostrarse: nunca secreto ni ruta del servidor; null si se oculta. */
+	/**
+	 * Constantes de WordPress (y de la instalación) cuyo valor se puede mostrar: límites, depuración, caché, cron,
+	 * actualizaciones, direcciones, red y edición. El valor de cualquier otra (las de plugins, que a menudo llevan una
+	 * licencia o un token con un nombre cualquiera) nunca se muestra: sólo que es distinta.
+	 */
+	const SHOWN = array( 'WP_MEMORY_LIMIT', 'WP_MAX_MEMORY_LIMIT', 'WP_DEBUG', 'WP_DEBUG_LOG', 'WP_DEBUG_DISPLAY', 'SCRIPT_DEBUG', 'SAVEQUERIES', 'CONCATENATE_SCRIPTS', 'COMPRESS_SCRIPTS', 'COMPRESS_CSS', 'WP_CACHE', 'DISABLE_WP_CRON', 'ALTERNATE_WP_CRON', 'WP_CRON_LOCK_TIMEOUT', 'WP_POST_REVISIONS', 'AUTOSAVE_INTERVAL', 'EMPTY_TRASH_DAYS', 'MEDIA_TRASH', 'IMAGE_EDIT_OVERWRITE', 'WP_AUTO_UPDATE_CORE', 'AUTOMATIC_UPDATER_DISABLED', 'DISALLOW_FILE_EDIT', 'DISALLOW_FILE_MODS', 'DISALLOW_UNFILTERED_HTML', 'ALLOW_UNFILTERED_UPLOADS', 'FORCE_SSL_ADMIN', 'WP_HTTP_BLOCK_EXTERNAL', 'WP_ENVIRONMENT_TYPE', 'WP_DEVELOPMENT_MODE', 'WP_HOME', 'WP_SITEURL', 'WP_DEFAULT_THEME', 'WPLANG', 'FS_METHOD', 'FS_CHMOD_DIR', 'FS_CHMOD_FILE', 'DB_CHARSET', 'DB_COLLATE', 'WP_ALLOW_MULTISITE', 'MULTISITE', 'SUBDOMAIN_INSTALL', 'DOMAIN_CURRENT_SITE', 'PATH_CURRENT_SITE', 'SITE_ID_CURRENT_SITE', 'BLOG_ID_CURRENT_SITE', 'NOBLOGREDIRECT', 'WP_ALLOW_REPAIR', 'DO_NOT_UPGRADE_GLOBAL_TABLES', 'WP_DISABLE_FATAL_ERROR_HANDLER', 'DIGITALISIMO_BACKUPS_MAX_ENTRIES' );
+
+	/** Valor apto para mostrarse: sólo de una constante conocida, nunca secreto ni ruta del servidor; null si se oculta. */
 	private static function shown( $name, array $item ) {
-		if ( empty( $item['literal'] ) || self::secret( $name ) ) return null;
+		if ( empty( $item['literal'] ) || self::secret( $name ) || ! in_array( strtoupper( (string) $name ), self::SHOWN, true ) ) return null;
 		$value = (string) $item['value'];
 		if ( preg_match( '#^(?:/|~|[A-Za-z]:[\\\\/]|\\\\\\\\)#', $value ) || false !== strpos( $value, '\\' ) ) return null;
 		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 80 ) : substr( $value, 0, 80 );
@@ -102,6 +109,7 @@ final class Digitalisimo_Backups_Config_Diff {
 	private static function hidden_reason( $name, array $item ) {
 		if ( empty( $item['literal'] ) ) return 'expression';
 		if ( self::secret( $name ) ) return 'secret';
+		if ( ! in_array( strtoupper( (string) $name ), self::SHOWN, true ) ) return 'other';
 		return null === self::shown( $name, $item ) ? 'path' : null;
 	}
 
@@ -164,7 +172,7 @@ final class Digitalisimo_Backups_Config_Diff {
 	}
 	/** Una línea por diferencia, con los valores que se pueden mostrar (WP-CLI y la pantalla). */
 	public static function lines( array $differences ) {
-		$reasons = array( 'secret' => 'valor oculto', 'path' => 'ruta del servidor', 'expression' => 'expresión' );
+		$reasons = array( 'secret' => 'valor oculto', 'path' => 'ruta del servidor', 'expression' => 'expresión', 'other' => 'valor no mostrado' );
 		$value = function( $row, $side ) use ( $reasons ) { return null !== ( $row[ $side ] ?? null ) ? var_export( (string) $row[ $side ], true ) : '(' . ( $reasons[ $row[ $side . '_hidden' ] ?? '' ] ?? 'oculto' ) . ')'; };
 		$out = array();
 		foreach ( $differences as $row ) {

@@ -25,7 +25,7 @@ function wp_mail( $to, $subject, $body ) { $GLOBALS['mails'][] = array( 'to' => 
 $B = 'Digitalisimo_Backups';
 $D = 'Digitalisimo_Backups_Config_Diff';
 $ns = 'digitalisimo-backups/v1';
-$secrets = array( 'clave-db-origen-7731', 'clave-db-destino-9902', 'auth-origen-c0ffee', 'auth-destino-beef00', 'licencia-origen-5a5a', '/srv/origen/wp-content', '/var/www/destino/wp-content', 'db-interno.origen.lan' );
+$secrets = array( 'cuenta-origen-77', 'clave-db-origen-7731', 'clave-db-destino-9902', 'auth-origen-c0ffee', 'auth-destino-beef00', 'licencia-origen-5a5a', '/srv/origen/wp-content', '/var/www/destino/wp-content', 'db-interno.origen.lan' );
 $origin = <<<'PHP'
 <?php
 define( 'DB_NAME', 'wp_origen' );
@@ -41,6 +41,7 @@ define( 'DISABLE_WP_CRON', true );
 define( 'EMPTY_TRASH_DAYS', 7 );
 define( 'MI_PLUGIN_LICENSE', 'licencia-origen-5a5a' );
 define( 'WP_REDIS_HOST', getenv( 'REDIS_HOST' ) );
+define( 'MI_SERVICIO_CUENTA', 'cuenta-origen-77' );
 // define( 'COMENTADA', 'no cuenta' );
 $table_prefix = 'wp_';
 PHP;
@@ -70,16 +71,16 @@ try {
 	call_user_func( $GLOBALS['digi']['actions']['rest_api_init'][0] );
 	Digitalisimo_Backups_Cli::register();
 	list( $code, $report ) = digi_rest( 'GET', $ns . '/backups/' . $created['file'] . '/verify' );
-	digi_assert( 200 === $code && true === ( $report['wp_config']['available'] ?? null ) && 11 === count( $report['wp_config']['differences'] ) && false !== strpos( $report['wp_config']['text'], 'WP_MEMORY_LIMIT' ), 'GET …/verify no trae el informe de wp-config.php: ' . json_encode( $report['wp_config'] ?? null ) );
+	digi_assert( 200 === $code && true === ( $report['wp_config']['available'] ?? null ) && 12 === count( $report['wp_config']['differences'] ) && false !== strpos( $report['wp_config']['text'], 'WP_MEMORY_LIMIT' ), 'GET …/verify no trae el informe de wp-config.php: ' . json_encode( $report['wp_config'] ?? null ) );
 	list( $code, $out ) = digi_wp( 'digitalisimo-backups', 'verify', array( $created['file'] ) );
 	$cli = implode( "\n", $out );
-	digi_assert( 0 === $code && false !== strpos( $cli, 'Warning: wp-config.php no se restaura' ) && false !== strpos( $cli, "WP_MEMORY_LIMIT: respaldo '256M', este servidor '128M'" ) && false !== strpos( $cli, 'DB_PASSWORD: respaldo (valor oculto), este servidor (valor oculto)' ) && false !== strpos( $cli, 'WP_CONTENT_DIR: respaldo (ruta del servidor)' ), 'wp … verify no lista las diferencias: ' . $cli );
+	digi_assert( 0 === $code && false !== strpos( $cli, 'Warning: wp-config.php no se restaura' ) && false !== strpos( $cli, "WP_MEMORY_LIMIT: respaldo '256M', este servidor '128M'" ) && false !== strpos( $cli, 'DB_PASSWORD: respaldo (valor oculto), este servidor (valor oculto)' ) && false !== strpos( $cli, 'WP_CONTENT_DIR: respaldo (valor no mostrado)' ) && false !== strpos( $cli, 'MI_SERVICIO_CUENTA: sólo en el respaldo = (valor no mostrado)' ), 'wp … verify no lista las diferencias: ' . $cli );
 	foreach ( $secrets as $secret ) digi_assert( false === strpos( json_encode( $report ) . $cli, $secret ) && false === strpos( json_encode( $report ), str_replace( '/', '\\/', $secret ) ), 'verify expone un valor secreto o una ruta: ' . $secret );
 
 	// 2. Después de restaurar: el aviso, el resultado y el correo (sólo nombres) lo dicen; wp-config.php no cambia.
 	Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Notify::OPTION, array( 'failure' => true, 'success' => true, 'email' => 'avisos@example.test' ) );
 	list( $code, $restored ) = digi_rest( 'POST', $ns . '/backups/' . $created['file'] . '/restore', array( 'confirm' => 'RESTAURAR' ) );
-	digi_assert( 200 === $code && 11 === count( $restored['wp_config']['differences'] ) && false !== strpos( $restored['notice'], 'wp-config.php no se restaura' ) && false !== strpos( $restored['notice'], 'DISABLE_WP_CRON' ), 'La restauración no informa las diferencias de wp-config.php: ' . json_encode( $restored ) );
+	digi_assert( 200 === $code && 12 === count( $restored['wp_config']['differences'] ) && false !== strpos( $restored['notice'], 'wp-config.php no se restaura' ) && false !== strpos( $restored['notice'], 'DISABLE_WP_CRON' ), 'La restauración no informa las diferencias de wp-config.php: ' . json_encode( $restored ) );
 	digi_assert( $server === file_get_contents( ABSPATH . 'wp-config.php' ), 'La restauración escribió wp-config.php.' );
 	$mail = end( $GLOBALS['mails'] );
 	digi_assert( $mail && false !== strpos( $mail['body'], 'WP_MEMORY_LIMIT' ) && false !== strpos( $mail['body'], 'DB_PASSWORD' ) && false === strpos( $mail['body'], '256M' ) && false === strpos( $mail['body'], '128M' ), 'El correo de la restauración no lista los nombres o lleva valores: ' . json_encode( $mail ) );
@@ -90,7 +91,7 @@ try {
 	$session = $B::service_upload_start( array( 'name' => 'digitalisimo-otro-servidor.zip', 'size' => strlen( $bytes ) ) );
 	for ( $offset = 0; $offset < strlen( $bytes ); $offset += $session['chunk_size'] ) $B::service_upload_chunk( $session['id'], $offset, array( 'data' => substr( $bytes, $offset, $session['chunk_size'] ) ) );
 	$uploaded = $B::service_upload_finish( $session['id'] );
-	digi_assert( ! is_wp_error( $uploaded ) && 11 === count( $uploaded['wp_config']['differences'] ), 'La subida no informa las diferencias de wp-config.php: ' . json_encode( is_wp_error( $uploaded ) ? $uploaded->get_error_message() : $uploaded ) );
+	digi_assert( ! is_wp_error( $uploaded ) && 12 === count( $uploaded['wp_config']['differences'] ), 'La subida no informa las diferencias de wp-config.php: ' . json_encode( is_wp_error( $uploaded ) ? $uploaded->get_error_message() : $uploaded ) );
 
 	// 4. El análisis: sólo define() con nombre literal, valores literales o «expresión», nunca lo comentado ni un método.
 	$parsed = $D::parse( "<?php\ndefine( 'A', 'uno' ); define( \"B\", \"dos\\tdos\" ); define( 'C', -5 ); define( 'D', 1.5 ); define( 'E', FALSE ); define( 'F', null );\ndefine( 'G', 'a' . 'b' ); define( 'H', getenv( 'H' ) ); define( 'I', \"con \$variable\" ); define( 'J2', \"precio \\\$5\" ); define( 'U', \"\\u{41}\" ); define( 'A', 'repetida' );\n// define( 'J', 'comentada' );\n/* define( 'K', 'bloque' ); */\n\$o->define( 'L', 'metodo' ); Clase::define( 'M', 'estatico' ); echo \"define( 'N', 'cadena' )\";\n" );
@@ -102,11 +103,11 @@ try {
 	// 5. La comparación: qué falta, qué sobra y qué cambia; los secretos y las rutas, sin valor.
 	$rows = array();
 	foreach ( $D::compare( $origin, $server ) as $row ) $rows[ $row['name'] ] = $row;
-	digi_assert( array( 'AUTH_KEY', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DISABLE_WP_CRON', 'MI_PLUGIN_LICENSE', 'WP_CACHE', 'WP_CONTENT_DIR', 'WP_DEBUG', 'WP_HOME', 'WP_MEMORY_LIMIT' ) === array_keys( $rows ), 'Las diferencias no son las esperadas: ' . json_encode( array_keys( $rows ) ) );
+	digi_assert( array( 'AUTH_KEY', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DISABLE_WP_CRON', 'MI_PLUGIN_LICENSE', 'MI_SERVICIO_CUENTA', 'WP_CACHE', 'WP_CONTENT_DIR', 'WP_DEBUG', 'WP_HOME', 'WP_MEMORY_LIMIT' ) === array_keys( $rows ), 'Las diferencias no son las esperadas: ' . json_encode( array_keys( $rows ) ) );
 	digi_assert( 'different' === $rows['WP_MEMORY_LIMIT']['change'] && '256M' === $rows['WP_MEMORY_LIMIT']['backup'] && '128M' === $rows['WP_MEMORY_LIMIT']['server'], 'WP_MEMORY_LIMIT no muestra sus dos valores.' );
 	digi_assert( 'backup_only' === $rows['WP_DEBUG']['change'] && 'true' === $rows['WP_DEBUG']['backup'] && 'backup_only' === $rows['DISABLE_WP_CRON']['change'] && 'server_only' === $rows['WP_CACHE']['change'], 'Lo que sólo define uno de los dos no se informó.' );
 	digi_assert( 'https://origen.example' === $rows['WP_HOME']['backup'] && 'https://destino.example' === $rows['WP_HOME']['server'], 'Una dirección no es una ruta del servidor y debe mostrarse.' );
-	foreach ( array( 'DB_PASSWORD' => 'secret', 'DB_NAME' => 'secret', 'DB_HOST' => 'secret', 'AUTH_KEY' => 'secret', 'MI_PLUGIN_LICENSE' => 'secret', 'WP_CONTENT_DIR' => 'path' ) as $name => $reason ) {
+	foreach ( array( 'DB_PASSWORD' => 'secret', 'DB_NAME' => 'secret', 'DB_HOST' => 'secret', 'AUTH_KEY' => 'secret', 'MI_PLUGIN_LICENSE' => 'secret', 'MI_SERVICIO_CUENTA' => 'other', 'WP_CONTENT_DIR' => 'other' ) as $name => $reason ) {
 		digi_assert( null === ( $rows[ $name ]['backup'] ?? null ) && null === ( $rows[ $name ]['server'] ?? null ) && $reason === ( $rows[ $name ]['backup_hidden'] ?? $rows[ $name ]['server_hidden'] ), 'El valor de ' . $name . ' no se ocultó (' . $reason . ').' );
 	}
 	digi_assert( ! isset( $rows['EMPTY_TRASH_DAYS'] ) && ! isset( $rows['DB_CHARSET'] ) && ! isset( $rows['WP_REDIS_HOST'] ), 'Una constante igual en los dos (también la misma expresión) se dio por distinta.' );
