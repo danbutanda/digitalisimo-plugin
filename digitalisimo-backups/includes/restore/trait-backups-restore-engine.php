@@ -1622,9 +1622,20 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$undone = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 			if ( '' !== $undone ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array() ) as $table ) if ( false !== strpos( $table, '_' . $undone . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
 			$root = trailingslashit( wp_normalize_path( (string) realpath( ABSPATH ) ) );
-			foreach ( (array) ( $job['checkpoint']['switch']['old_dirs'] ?? array() ) as $old ) {
+			$olds = (array) ( $job['checkpoint']['switch']['old_dirs'] ?? array() );
+			// Y las de la restauración que esta vuelta a la copia previa deshizo.
+			$undone_job = ! empty( $job['spec']['rollback']['of'] ) ? Digitalisimo_Backups_Jobs::get( (string) $job['spec']['rollback']['of'] ) : null;
+			if ( $undone_job ) $olds = array_merge( $olds, (array) ( $undone_job['checkpoint']['switch']['old_dirs'] ?? array() ) );
+			// También las que un tramo apartó sin llegar a anotarlas (murió o falló antes de guardar su punto de control).
+			$layout = self::restore_layout();
+			foreach ( array_filter( array( (string) $job['spec']['tag'], (string) ( $job['spec']['rollback']['tag'] ?? '' ) ) ) as $mark ) {
+				foreach ( array_unique( array( '', $layout['plugins'], $layout['themes'], '' === $layout['mu'] ? '' : (string) dirname( $layout['mu'] ) ) ) as $parent ) {
+					foreach ( array( '.digitalisimo-old-', '.digitalisimo-new-' ) as $kind ) foreach ( (array) glob( rtrim( $root . $parent, '/' ) . '/' . $kind . $mark . '-*', GLOB_ONLYDIR ) as $dir ) $olds[] = substr( wp_normalize_path( $dir ), strlen( $root ) );
+				}
+			}
+			foreach ( array_unique( $olds ) as $old ) {
 				$old = (string) $old;
-				if ( false === strpos( '/' . $old, '/.digitalisimo-old-' ) || false !== strpos( $old, '..' ) ) continue;
+				if ( ( false === strpos( '/' . $old, '/.digitalisimo-old-' ) && false === strpos( '/' . $old, '/.digitalisimo-new-' ) ) || false !== strpos( $old, '..' ) ) continue;
 				if ( ! self::restore_remove_tree( $root . $old, $deadline ) ) return self::restore_slice( 'cleanup', $cursor, 'Retirando los archivos anteriores…', $started, 1, $job );
 			}
 			$tree = self::restore_read_json( $job, 'tree.json', false );
