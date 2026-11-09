@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
  * Respaldos completos de WordPress o de toda la red desde WP-CLI, con los mismos casos de uso que la pantalla Backups.
  *
  * WP-CLI corre con la cuenta del sistema, que ya controla los archivos y wp-config.php, así que no pide capability. En
- * una red se ejecuta en el sitio principal (`--url`), y crear, restaurar o ejecutar una automatización piden además
- * `--network`, porque abarcan todos los sitios.
+ * una red se ejecuta en el sitio principal (`--url`), y crear, restaurar, ejecutar una automatización o traer una copia
+ * remota al almacén piden además `--network`, porque abarcan todos los sitios.
  *
  * Crear y ejecutar una automatización encolan un trabajo en la misma cola que la pantalla y, salvo con `--async`, lo
  * hacen avanzar en este proceso (sin límite de tiempo) hasta que termina. La frase o clave de un respaldo cifrado nunca
@@ -443,9 +443,12 @@ final class Digitalisimo_Backups_Cli_Destinations {
 	 *
 	 * <file>
 	 * : Nombre del archivo, tal como aparece en `wp digitalisimo-backups list`.
+	 *
+	 * [--network]
+	 * : En Multisite, confirma el alcance de red: el almacén privado es de toda la instalación.
 	 */
 	public function fetch( $args, $assoc_args ) {
-		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ) ) );
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
 		WP_CLI::success( $result['message'] );
 	}
 }

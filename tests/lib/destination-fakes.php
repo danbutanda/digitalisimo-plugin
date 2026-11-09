@@ -286,7 +286,7 @@ final class Bk_Fake_Pcloud {
 		}
 		return $this->ok( $request, array( 'result' => 2000, 'error' => 'Método desconocido ' . $method ) );
 	}
-	private function meta( $id ) { return array( 'fileid' => $id, 'name' => $this->files[ $id ]['name'], 'size' => strlen( $this->files[ $id ]['data'] ), 'isfolder' => false, 'path' => '/x/' . $this->files[ $id ]['name'] ); }
+	private function meta( $id ) { return array( 'fileid' => $id, 'parentfolderid' => $this->files[ $id ]['folder'], 'name' => $this->files[ $id ]['name'], 'size' => strlen( $this->files[ $id ]['data'] ), 'isfolder' => false, 'path' => '/x/' . $this->files[ $id ]['name'] ); }
 	private function ok( array $request, array $data ) { return bk_fake_response( $request, 200, json_encode( $data + array( 'result' => 0 ) ) ); }
 }
 

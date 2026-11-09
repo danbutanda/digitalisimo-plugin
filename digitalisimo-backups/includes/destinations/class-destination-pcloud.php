@@ -125,8 +125,28 @@ final class Digitalisimo_Backups_Destination_Pcloud extends Digitalisimo_Backups
 		$data = $this->check( $this->call( 'renamefile', array( 'fileid' => (int) $temp['id'], 'toname' => $name ) ), 'la publicación del respaldo verificado' );
 		return array( 'provider' => self::TYPE, 'id' => (int) ( $data['metadata']['fileid'] ?? $temp['id'] ), 'path' => (string) ( $data['metadata']['path'] ?? '' ) );
 	}
+	/** Un recibo de pCloud: su fileid numérico. */
+	private static function own_id( array $remote ) {
+		$id = $remote['id'] ?? '';
+		if ( ! is_int( $id ) && ! ( is_string( $id ) && preg_match( '/^[0-9]{1,20}$/D', $id ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El identificador de la copia en pCloud no es válido; no se toca.' );
+		return (int) $id;
+	}
+	/**
+	 * Metadatos (`stat`) del archivo de un recibo, sólo si está en la carpeta de esta conexión (el token ve toda la
+	 * cuenta: un fileid del historial no puede señalar otro archivo). null si ya no existe.
+	 */
+	private function own( array $remote ) {
+		$data = $this->call( 'stat', array( 'fileid' => self::own_id( $remote ) ) );
+		if ( 2009 === (int) ( $data['result'] ?? -1 ) ) return null;
+		$data = $this->check( $data, 'la consulta del respaldo' );
+		$meta = (array) ( $data['metadata'] ?? array() );
+		if ( ! empty( $meta['isdeleted'] ) ) return null;
+		if ( ! empty( $meta['isfolder'] ) || ! isset( $meta['parentfolderid'] ) || (int) $meta['parentfolderid'] !== $this->folder_id() ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en la carpeta de esta conexión de pCloud; no se toca.' );
+		return $meta;
+	}
 	public function get( array $remote, $target ) {
-		$data = $this->check( $this->call( 'getfilelink', array( 'fileid' => (int) $remote['id'], 'forcedownload' => 1 ) ), 'el enlace de descarga' );
+		if ( null === $this->own( $remote ) ) throw new Exception( 'El respaldo ya no está en pCloud.' );
+		$data = $this->check( $this->call( 'getfilelink', array( 'fileid' => self::own_id( $remote ), 'forcedownload' => 1 ) ), 'el enlace de descarga' );
 		$hosts = (array) ( $data['hosts'] ?? array() );
 		$path = (string) ( $data['path'] ?? '' );
 		if ( ! $hosts || '' === $path || ! preg_match( '/^[a-z0-9.-]+\.pcloud\.com$/i', (string) $hosts[0] ) ) throw new Exception( 'pCloud no devolvió un enlace de descarga válido.' );
@@ -134,13 +154,12 @@ final class Digitalisimo_Backups_Destination_Pcloud extends Digitalisimo_Backups
 		if ( 200 !== $response['code'] ) throw new Exception( 'No se pudo descargar el respaldo de pCloud (HTTP ' . $response['code'] . ').' );
 	}
 	public function size( array $remote ) {
-		$data = $this->call( 'stat', array( 'fileid' => (int) $remote['id'] ) );
-		if ( 2009 === (int) ( $data['result'] ?? -1 ) ) return false;
-		$data = $this->check( $data, 'la consulta del respaldo' );
-		return ! empty( $data['metadata']['isdeleted'] ) ? false : (int) ( $data['metadata']['size'] ?? 0 );
+		$meta = $this->own( $remote );
+		return null === $meta ? false : (int) ( $meta['size'] ?? 0 );
 	}
 	public function delete( array $remote ) {
-		$data = $this->call( 'deletefile', array( 'fileid' => (int) $remote['id'] ) );
+		if ( null === $this->own( $remote ) ) return;
+		$data = $this->call( 'deletefile', array( 'fileid' => self::own_id( $remote ) ) );
 		if ( 2009 === (int) ( $data['result'] ?? -1 ) ) return;
 		$this->check( $data, 'el borrado del respaldo' );
 	}

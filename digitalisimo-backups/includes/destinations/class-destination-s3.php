@@ -24,10 +24,33 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 
 	/** array( scheme, host (con puerto si no es el habitual), region, style: virtual|path, verify, ca ). */
 	abstract protected function endpoint();
-	protected function bucket() { return (string) $this->s[ static::PREFIX . 'bucket' ]; }
+	/** Nombre de bucket válido (lo mismo que acepta el formulario): sin «/», «:», «@» ni nada que cambie el host. */
+	const BUCKET_PATTERN = '/^[a-z0-9][a-z0-9.\-_]{1,61}[a-z0-9]$/D';
+	/**
+	 * El bucket se valida al usarse, no sólo al guardar: una escritura directa en la base no puede convertirlo en otro
+	 * host (también va en el dato adicional de la Secret key).
+	 */
+	protected function bucket() {
+		$bucket = (string) ( $this->s[ static::PREFIX . 'bucket' ] ?? '' );
+		if ( ! preg_match( self::BUCKET_PATTERN, $bucket ) || false !== strpos( $bucket, '..' ) || filter_var( $bucket, FILTER_VALIDATE_IP ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El bucket de ' . static::label() . ' no es válido; revísalo en Backups → Servidores.' );
+		return $bucket;
+	}
 	protected function prefix() {
 		$path = trim( str_replace( '\\', '/', (string) ( $this->s[ static::PREFIX . 'path' ] ?? '' ) ), '/' );
-		return '' === $path ? '' : $path . '/';
+		if ( '' === $path ) return '';
+		return ltrim( self::clean_path( $path ), '/' ) . '/';
+	}
+	/** Estilo de ruta guardado: sólo los tres valores del formulario. */
+	protected function style() {
+		$style = (string) ( $this->s[ static::PREFIX . 'style' ] ?? 'auto' );
+		if ( ! in_array( $style, array( 'auto', 'virtual', 'path' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El estilo de ruta de ' . static::label() . ' no es válido; revísalo en Backups → Servidores.' );
+		return $style;
+	}
+	/** Una clave de un recibo sólo se usa si está en la carpeta de esta conexión. */
+	protected function own_key( array $remote ) {
+		$key = (string) ( $remote['key'] ?? '' );
+		if ( '' === $key || preg_match( '/[\x00-\x1F\x7F]/', $key ) || ( isset( $remote['bucket'] ) && (string) $remote['bucket'] !== $this->bucket() ) || 0 !== strpos( $key, $this->prefix() ) || false !== strpos( '/' . $key . '/', '/../' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en el bucket y la carpeta de esta conexión de ' . static::label() . '; no se toca.' );
+		return $key;
 	}
 	protected function key_for( $name ) { return $this->prefix() . $name; }
 	/** Clases de almacenamiento con acceso inmediato (las de archivo impedirían verificar). */
@@ -38,7 +61,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 	}
 	protected static function sanitize_common( array $out ) {
 		$bucket = strtolower( trim( (string) $out[ static::PREFIX . 'bucket' ] ) );
-		if ( '' !== $bucket && ! preg_match( '/^[a-z0-9][a-z0-9.\-_]{1,61}[a-z0-9]$/', $bucket ) ) throw new Exception( 'El nombre del bucket debe tener de 3 a 63 caracteres: minúsculas, números, puntos y guiones.' );
+		if ( '' !== $bucket && ( ! preg_match( self::BUCKET_PATTERN, $bucket ) || false !== strpos( $bucket, '..' ) || filter_var( $bucket, FILTER_VALIDATE_IP ) ) ) throw new Exception( 'El nombre del bucket debe tener de 3 a 63 caracteres: minúsculas, números, puntos y guiones.' );
 		$out[ static::PREFIX . 'bucket' ] = $bucket;
 		$out[ static::PREFIX . 'access_key' ] = preg_replace( '/\s+/', '', (string) $out[ static::PREFIX . 'access_key' ] );
 		$path = trim( str_replace( '\\', '/', (string) $out[ static::PREFIX . 'path' ] ), '/' );
@@ -298,7 +321,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		}
 	}
 	public function get( array $remote, $target ) {
-		$response = $this->call( 'GET', (string) $remote['key'], array(), array(), '', array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
+		$response = $this->call( 'GET', $this->own_key( $remote ), array(), array(), '', array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
 		if ( 200 !== $response['code'] ) {
 			$body = is_file( $target ) && filesize( $target ) < 65536 ? (string) @file_get_contents( $target ) : '';
 			if ( 404 === $response['code'] ) throw new Exception( 'El respaldo ya no está en ' . static::label() . '.' );
@@ -306,13 +329,13 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		}
 	}
 	public function size( array $remote ) {
-		$response = $this->call( 'HEAD', (string) $remote['key'] );
+		$response = $this->call( 'HEAD', $this->own_key( $remote ) );
 		if ( 404 === $response['code'] ) return false;
 		if ( 200 !== $response['code'] ) $this->fail( $response, 'la consulta del respaldo' );
 		return (int) ( $response['headers']['content-length'] ?? 0 );
 	}
 	public function delete( array $remote ) {
-		$response = $this->call( 'DELETE', (string) $remote['key'] );
+		$response = $this->call( 'DELETE', $this->own_key( $remote ) );
 		if ( ! in_array( $response['code'], array( 200, 204, 404 ), true ) ) $this->fail( $response, 'el borrado del respaldo' );
 	}
 	public function list() {
@@ -337,6 +360,9 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 	}
 	public function abandon() {
 		$state = $this->state();
+		// Con el bucket cambiado desde la subida, no se envía nada a otro sitio (el multipart caduca por su ciclo de vida).
+		try { $same = ( $state['bucket'] ?? '' ) === $this->bucket(); } catch ( Exception $e ) { $same = false; }
+		if ( ! $same ) { $this->forget_state(); return; }
 		if ( ! empty( $state['upload_id'] ) && empty( $state['completed'] ) ) $this->abort_upload( $state );
 		elseif ( ! empty( $state['key'] ) && empty( $state['published'] ) ) $this->discard_quietly( array( 'key' => (string) $state['key'] ) );
 		$this->forget_state();
@@ -374,7 +400,7 @@ final class Digitalisimo_Backups_Destination_S3 extends Digitalisimo_Backups_Des
 	protected function endpoint() {
 		$region = (string) $this->s['s3_region'];
 		if ( ! isset( self::REGIONS[ $region ] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Elige la región de Amazon S3.' );
-		$style = (string) ( $this->s['s3_style'] ?? 'auto' );
+		$style = $this->style();
 		if ( 'auto' === $style ) $style = false !== strpos( $this->bucket(), '.' ) ? 'path' : 'virtual';
 		return array( 'scheme' => 'https', 'host' => 's3.' . $region . '.amazonaws.com', 'region' => $region, 'style' => $style, 'verify' => true, 'ca' => '' );
 	}
@@ -438,6 +464,12 @@ final class Digitalisimo_Backups_Destination_S3_Compatible extends Digitalisimo_
 		if ( ! preg_match( '/^[a-z0-9-]{1,40}$/', $out['s3compat_signing_region'] ) ) throw new Exception( 'La región para la firma sólo admite minúsculas, números y guiones.' );
 		return $out;
 	}
+	/** El endpoint escrito (Backblaze, Linode, Vultr u otro); los de DigitalOcean, Wasabi y R2 salen de su región o cuenta. */
+	public static function hosts( array $s ) {
+		$endpoint = (string) ( $s['s3compat_endpoint'] ?? '' );
+		if ( '' === $endpoint ) return array();
+		return array( false !== strpos( $endpoint, '://' ) ? (string) parse_url( $endpoint, PHP_URL_HOST ) : (string) preg_replace( '#[:/].*$#', '', $endpoint ) );
+	}
 	public static function ready( array $s ) {
 		if ( ! parent::ready( $s ) ) return false;
 		$provider = (string) ( $s['s3compat_provider'] ?? '' );
@@ -487,19 +519,20 @@ final class Digitalisimo_Backups_Destination_S3_Compatible extends Digitalisimo_
 				break;
 			case 'other':
 				$parts = parse_url( (string) $s['s3compat_endpoint'] );
-				if ( empty( $parts['host'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Escribe el endpoint del servicio compatible con S3.' );
+				if ( empty( $parts['host'] ) || ! self::valid_host( $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['query'] ) || isset( $parts['fragment'] ) || ( isset( $parts['path'] ) && '/' !== $parts['path'] ) || ! in_array( strtolower( (string) ( $parts['scheme'] ?? '' ) ), array( 'http', 'https' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El endpoint del servicio compatible con S3 no es válido; revísalo en Backups → Servidores.' );
 				$scheme = strtolower( (string) $parts['scheme'] );
 				if ( 'http' === $scheme && empty( $s['s3compat_allow_http'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El endpoint usa http:// sin permitirlo de forma explícita.' );
 				$port = isset( $parts['port'] ) ? (int) $parts['port'] : 0;
 				$host = $parts['host'] . ( $port && ! ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) ? ':' . $port : '' );
 				$signing = (string) ( $s['s3compat_signing_region'] ?: 'us-east-1' );
+				if ( ! preg_match( '/^[a-z0-9-]{1,40}$/D', $signing ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La región para la firma no es válida; revísala en Backups → Servidores.' );
 				$verify = empty( $s['s3compat_insecure'] );
 				$ca = $this->ca_file( (string) ( $s['s3compat_ca'] ?? '' ) );
 				break;
 			default:
 				throw new Digitalisimo_Backups_Permanent_Error( 'Elige el proveedor compatible con S3.' );
 		}
-		$style = (string) ( $s['s3compat_style'] ?? 'auto' );
+		$style = $this->style();
 		if ( 'auto' === $style ) $style = 'virtual' === $default_style && false === strpos( $this->bucket(), '.' ) ? 'virtual' : 'path';
 		return array( 'scheme' => $scheme, 'host' => $host, 'region' => $signing, 'style' => $style, 'verify' => $verify, 'ca' => $ca );
 	}

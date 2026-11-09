@@ -42,7 +42,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		return $out;
 	}
 	/** Destino del contrato para una conexión; con un trabajo, su estado reanudable vive en el área de ese trabajo. */
-	public static function destination( $id, $settings = null, $job_id = '' ) {
+	public static function destination( $id, $settings = null, $job_id = '', $state_path = '', $timeout = 0 ) {
 		$type = Digitalisimo_Backups_Destinations::type_of( (string) $id );
 		if ( '' === $type ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino ' . (string) $id . ' no existe.' );
 		$class = Digitalisimo_Backups_Destinations::class_of( $type );
@@ -52,6 +52,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			'connection' => (string) $id,
 		);
 		if ( '' !== (string) $job_id ) $context['state'] = new Digitalisimo_Backups_Transfer_State( Digitalisimo_Backups_Job_Store::directory( $job_id ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/transfer.json' );
+		if ( '' !== (string) $state_path ) $context['state'] = new Digitalisimo_Backups_Transfer_State( $state_path );
+		if ( $timeout > 0 ) $context['timeout'] = (int) $timeout;
 		return new $class( null === $settings ? self::connection_settings( $id ) : (array) $settings, $context );
 	}
 	/** Mensaje de un destino cuyas credenciales no se abren ('' si no es el caso). */
@@ -94,20 +96,55 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		return $remote;
 	}
 	/**
-	 * @internal Un trabajo que falla o se cancela durante «transfer»: retira del destino lo que su subida dejó a medias
-	 * (multipart de S3, temporal de SFTP/FTP/WebDAV/Dropbox) según el estado de su área. Nunca lanza.
+	 * @internal Un trabajo que falla o se cancela durante «transfer» (lo llama el motor con el cerrojo de su registro
+	 * tomado): sólo mueve el estado de su subida a `jobs/<uuid>/abandon.json`, sin ninguna llamada de red. El siguiente
+	 * tick o el vigilante lo retiran del destino fuera de ese cerrojo (job_transfer_abandon_pending). Nunca lanza.
 	 */
-	public static function job_transfer_abandon( array $job ) {
+	public static function job_transfer_queue_abandon( array $job ) {
 		try {
-			$spec = (array) ( $job['spec'] ?? array() );
-			$destination = (string) ( $spec['destination'] ?? 'local' );
+			$destination = (string) ( $job['spec']['destination'] ?? 'local' );
 			if ( 'local' === $destination || empty( $job['id'] ) ) return;
-			$path = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/transfer.json';
-			if ( ! is_file( $path ) ) return;
-			self::destination( $destination, null, $job['id'] )->abandon();
+			$dir = Digitalisimo_Backups_Job_Store::directory( $job['id'] );
+			$from = $dir . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/transfer.json';
+			if ( ! is_file( $from ) || is_link( $from ) ) return;
+			$state = json_decode( (string) @file_get_contents( $from ), true );
+			if ( ! is_array( $state ) ) return;
+			$state['destination'] = $destination;
+			( new Digitalisimo_Backups_Transfer_State( $dir . '/' . self::ABANDON ) )->set( $state );
+			@unlink( $from );
 		} catch ( Throwable $e ) {
-			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo retirar la subida interrumpida: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) );
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo apartar la subida interrumpida: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) );
 		}
+	}
+	/** @internal Abandonos pendientes (rutas de `abandon.json`). */
+	public static function job_transfer_pending_abandons() {
+		try { return glob( Digitalisimo_Backups_Job_Store::root() . '/*/' . self::ABANDON ) ?: array(); } catch ( Throwable $e ) { return array(); }
+	}
+	/**
+	 * @internal Retira del destino lo que dejaron las subidas interrumpidas (multipart de S3, temporales de SFTP, FTP,
+	 * WebDAV o Dropbox), fuera del cerrojo del registro de trabajos y con tiempos de espera cortos. Cada abandono se
+	 * intenta una sola vez; nunca lanza. Devuelve cuántos se intentaron.
+	 */
+	public static function job_transfer_abandon_pending( $limit = 5 ) {
+		$done = 0;
+		foreach ( array_slice( self::job_transfer_pending_abandons(), 0, $limit ) as $path ) {
+			$claim = $path . '.running';
+			if ( ! @rename( $path, $claim ) ) continue;
+			$done++;
+			try {
+				$state = json_decode( (string) @file_get_contents( $claim ), true );
+				$destination = is_array( $state ) ? (string) ( $state['destination'] ?? '' ) : '';
+				if ( '' === Digitalisimo_Backups_Destinations::type_of( $destination ) || ! Digitalisimo_Backups_Destinations::exists( $destination ) ) continue;
+				Digitalisimo_Backups_Http::$cap_timeout = self::ABANDON_TIMEOUT;
+				self::destination( $destination, null, '', $claim, self::ABANDON_TIMEOUT )->abandon();
+			} catch ( Throwable $e ) {
+				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo retirar la subida interrumpida: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) );
+			} finally {
+				Digitalisimo_Backups_Http::$cap_timeout = null;
+				@unlink( $claim );
+			}
+		}
+		return $done;
 	}
 	private static function transfer( $file, $s ) { return self::destination( $s['destination'], $s )->put( $file ); }
 	private static function sftp( $file, $s ) { return self::destination( 'sftp', $s )->put( $file ); }
@@ -126,11 +163,24 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$connection = (string) ( $remote['connection'] ?? '' );
 		return '' !== $connection && '' !== Digitalisimo_Backups_Destinations::type_of( $connection ) ? $connection : (string) ( $remote['provider'] ?? '' );
 	}
+	/** Una conexión adicional que se eliminó en «Servidores» después de copiar en ella el respaldo de esta fila. */
+	private static function remote_connection_gone( array $remote ) {
+		$id = self::remote_connection( $remote );
+		return Digitalisimo_Backups_Destinations::is_connection_id( $id ) && ! isset( Digitalisimo_Backups_Destinations::connections()[ $id ] );
+	}
+	private static function gone_text( array $remote ) {
+		return 'La conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' donde se copió este respaldo se eliminó en «Servidores». La copia remota sigue en el servicio: descárgala desde allí. «Eliminar» sólo quita su fila del historial.';
+	}
+	/** Filas del historial cuya copia remota vive en la conexión $id. */
+	private static function history_rows_in( $id ) {
+		return count( array_filter( (array) get_option( self::HISTORY, array() ), function( $row ) use ( $id ) { return is_array( $row ) && (string) ( ( (array) ( $row['remote'] ?? array() ) )['connection'] ?? '' ) === $id; } ) );
+	}
 	/** Descarga la copia remota de una fila a $target en streaming y comprueba tamaño y SHA-256 con los del historial. */
 	private static function fetch_remote_copy( array $item, $target ) {
 		$remote = (array) ( $item['remote'] ?? array() );
 		$id = self::remote_connection( $remote );
 		if ( '' === $id ) throw new Exception( 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.' );
+		if ( self::remote_connection_gone( $remote ) ) throw new Digitalisimo_Backups_Permanent_Error( self::gone_text( $remote ) );
 		$problem = self::credentials_problem( $id );
 		if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
 		self::destination( $id )->get( $remote, $target );
@@ -143,10 +193,17 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	private static function download_remote( $item ) {
 		$remote = (array) ( $item['remote'] ?? array() );
 		if ( empty( $remote['provider'] ) ) wp_die( 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.' );
+		if ( self::remote_connection_gone( $remote ) ) wp_die( esc_html( self::gone_text( $remote ) ) );
 		$temp = @tempnam( self::local_directory(), '.download-' );
 		if ( false === $temp ) wp_die( 'No se pudo preparar la descarga del respaldo remoto.' );
 		try {
-			try { self::fetch_remote_copy( (array) $item, $temp ); } catch ( Exception $e ) { wp_die( esc_html( 'No se pudo descargar el respaldo remoto. ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) ) ); }
+			try {
+				self::fetch_remote_copy( (array) $item, $temp );
+			} catch ( Exception $e ) {
+				// wp_die() termina con exit y no ejecuta el finally: el temporal (sin verificar) se borra antes.
+				@unlink( $temp );
+				wp_die( esc_html( 'No se pudo descargar el respaldo remoto. ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) ) );
+			}
 			nocache_headers();
 			header( 'Content-Type: ' . self::content_type( $item['file'] ) );
 			header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' );
@@ -156,23 +213,36 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			@unlink( $temp );
 		}
 	}
+	/**
+	 * Borra la copia remota de una fila. Si su conexión ya se eliminó no hay a dónde llamar: no toca nada remoto y
+	 * devuelve el aviso para quitar sólo la fila. Devuelve '' cuando borró la copia remota.
+	 */
 	private static function delete_remote( $item ) {
 		$remote = (array) ( $item['remote'] ?? array() );
 		if ( empty( $remote['provider'] ) ) throw new Exception( 'Este respaldo remoto no tiene identificador para eliminarse desde WordPress.' );
+		if ( self::remote_connection_gone( $remote ) ) return 'Se quitó la fila del historial. Su conexión de ' . Digitalisimo_Backups_Destinations::label( (string) $remote['provider'] ) . ' ya no existe, así que la copia remota no se tocó: bórrala desde el servicio si ya no la necesitas.';
 		$id = self::remote_connection( $remote );
 		$problem = self::credentials_problem( $id );
 		if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
 		self::destination( $id )->delete( $remote );
+		return '';
 	}
 	/**
 	 * Trae al almacén privado la copia remota de un respaldo del historial (verificada contra su SHA-256) para
 	 * restaurarlo o descargarlo sin volver al destino. Si ya está en el almacén no hace nada.
 	 */
-	public static function service_fetch( $file ) {
+	public static function service_fetch( $file, array $args = array() ) {
+		// Escribe en el almacén privado de toda la instalación: en una red pide el alcance de red, como crear o restaurar.
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
 		$file = sanitize_file_name( (string) $file );
 		$item = '' !== $file ? self::history_item( $file ) : array();
 		if ( ! $item ) return self::service_error( 'not_found', 'El respaldo no está registrado.', 404 );
 		if ( empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] ) ) return self::service_error( 'not_remote', 'Este respaldo no tiene una copia remota registrada.', 400 );
+		if ( self::remote_connection_gone( (array) $item['remote'] ) ) return self::service_error( 'connection_gone', self::gone_text( (array) $item['remote'] ), 410 );
+		// Con el cerrojo de operaciones: ni un respaldo, ni una restauración, ni otra descarga tocan el almacén a la vez.
+		$lock = self::service_lock();
+		if ( is_wp_error( $lock ) ) return $lock;
 		try {
 			if ( '' !== self::local_path( $file ) ) return array( 'file' => $file, 'fetched' => false, 'message' => 'El respaldo ya está en el almacén privado.' );
 			$target = trailingslashit( self::local_directory() ) . $file;
@@ -186,6 +256,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			}
 		} catch ( Exception $e ) {
 			return self::service_error( 'fetch_failed', Digitalisimo_Backups_Http::redact( $e->getMessage() ), 502 );
+		} finally {
+			self::release_operation_lock( $lock );
 		}
 		return array( 'file' => $file, 'fetched' => true, 'message' => 'Copia de ' . self::destination_label( self::remote_connection( (array) $item['remote'] ) ) . ' descargada al almacén privado y verificada por SHA-256.' );
 	}
@@ -202,7 +274,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_FETCH );
 		@set_time_limit( 0 );
-		$result = self::service_fetch( wp_unslash( $_POST['file'] ?? '' ) );
+		$result = self::service_fetch( wp_unslash( $_POST['file'] ?? '' ), array( 'network' => self::network_context() ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		self::redirect( true, $result['message'] );
 	}
@@ -275,7 +347,10 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$help = self::type_help( $type );
 		if ( $help ) echo '<tr data-server="' . esc_attr( $type ) . '"><th>Cómo obtener ' . esc_html( $class::label() ) . '</th><td><ol><li>' . implode( '</li><li>', $help ) . '</li></ol></td></tr>';
 		echo '<tr data-server="' . esc_attr( $type ) . '"><th></th><td><p class="digitalisimo-backups-destination-actions">';
-		if ( $class::oauth() ) {
+		if ( $class::oauth() && 'digitalisimo_backups_connection' === $name && ! Digitalisimo_Backups_Destinations::is_connection_id( $connection ) ) {
+			// Una conexión adicional aún sin crear no tiene identificador: «Conectar» conectaría la principal.
+			echo '<span class="description">Crea la conexión; después, en su edición, usa «Conectar ' . esc_html( $class::label() ) . '».</span> ';
+		} elseif ( $class::oauth() ) {
 			$saved = '' !== (string) ( $s[ $class::PREFIX . ( 'pcloud' === $type ? 'access_token' : 'refresh_token' ) ] ?? '' );
 			echo '<a class="button button-secondary" href="' . esc_url( self::oauth_url( $type, $connection ) ) . '">Conectar ' . esc_html( $class::label() ) . '</a> <span class="digitalisimo-secret ' . ( $saved ? 'is-set' : 'is-empty' ) . '">' . ( $saved ? 'Conectado' : 'Sin conectar' ) . '</span> ';
 		}
@@ -414,6 +489,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( ! Digitalisimo_Backups_Destinations::is_type( $type ) ) self::redirect( false, 'Tipo de destino no válido.', null, 'servers' );
 		if ( '' !== $id && ! isset( $connections[ $id ] ) ) self::redirect( false, 'La conexión ya no existe.', null, 'servers' );
 		if ( '' === $id && count( $connections ) >= Digitalisimo_Backups_Destinations::MAX_CONNECTIONS ) self::redirect( false, 'Se alcanzó el máximo de ' . Digitalisimo_Backups_Destinations::MAX_CONNECTIONS . ' conexiones adicionales.', null, 'servers' );
+		$creating = '' === $id;
 		$name = sanitize_text_field( wp_unslash( (string) ( $_POST['connection_name'] ?? '' ) ) );
 		if ( '' === $name ) self::redirect( false, 'Escribe un nombre para la conexión.', null, 'servers' );
 		$class = Digitalisimo_Backups_Destinations::class_of( $type );
@@ -423,6 +499,11 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			if ( '' === $id ) $id = Digitalisimo_Backups_Destinations::new_connection_id( $type );
 			self::store_connection( $id, $type, $name, $values );
 		} catch ( Exception $e ) { self::redirect( false, $e->getMessage(), null, 'servers' ); }
+		// Una conexión recién creada se abre en su edición: ahí «Conectar» (OAuth) conecta ESA conexión.
+		if ( $creating ) {
+			wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Conexión «' . $name . '» creada.' . ( $class::oauth() ? ' Ahora usa «Conectar ' . $class::label() . '» en esta conexión.' : '' ) ), 'tab' => 'servers', 'connection' => $id ), self::admin_url() ) . '#digitalisimo-backups-connection' );
+			exit;
+		}
 		self::redirect( true, 'Conexión «' . $name . '» guardada.', null, 'servers' );
 	}
 	public static function delete_connection() {
@@ -433,11 +514,16 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( ! isset( $connections[ $id ] ) ) self::redirect( false, 'La conexión ya no existe.', null, 'servers' );
 		$used = array_filter( self::policies(), function( $policy ) use ( $id ) { return ( $policy['destination'] ?? '' ) === $id; } );
 		if ( $used || ( self::settings()['destination'] ?? '' ) === $id ) self::redirect( false, 'Esta conexión es el destino predeterminado o el de una automatización: cámbialo antes de eliminarla.', null, 'servers' );
+		foreach ( Digitalisimo_Backups_Jobs::active() as $job ) {
+			if ( ( $job['spec']['destination'] ?? '' ) === $id ) self::redirect( false, 'Hay un respaldo en curso hacia esta conexión: espera a que termine o cancélalo antes de eliminarla.', null, 'servers' );
+		}
 		$name = $connections[ $id ]['name'];
+		$rows = self::history_rows_in( $id );
 		unset( $connections[ $id ] );
 		Digitalisimo_Backups_Destinations::save_connections( $connections );
 		try { Digitalisimo_Backups_Credentials::remove( Digitalisimo_Backups_Credentials::fields_of( $id ) ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		self::redirect( true, 'Conexión «' . $name . '» eliminada. Los respaldos ya copiados en ella siguen en el destino.', null, 'servers' );
+		$note = $rows ? ' ' . ( 1 === $rows ? 'Un respaldo del historial está' : $rows . ' respaldos del historial están' ) . ' en ella: siguen en el destino, pero ya no se pueden traer ni descargar desde WordPress; «Eliminar» sólo quitará su fila, sin tocar la copia remota.' : ' Los respaldos ya copiados en ella siguen en el destino.';
+		self::redirect( true, 'Conexión «' . $name . '» eliminada.' . $note, null, 'servers' );
 	}
 
 	/* ------------------------------------------------------------------ Probar conexión */
@@ -460,6 +546,14 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		try {
 			$old = Digitalisimo_Backups_Destinations::is_type( $id ) || Digitalisimo_Backups_Destinations::is_connection_id( $id ) ? self::connection_settings( $id ) : $class::defaults();
 			$settings = $input ? array_merge( $old, $class::sanitize( $input, $old ) ) : $old;
+			$retype = $input ? self::retype_problem( $class, $old, $settings, $input ) : '';
+			if ( '' !== $retype ) return array( 'ok' => false, 'message' => $retype, 'steps' => array(), 'warning' => '' );
+			$warning = '';
+			foreach ( array_filter( $class::hosts( $settings ) ) as $host ) {
+				$kind = Digitalisimo_Backups_Http::internal( $host );
+				if ( 'metadata' === $kind ) return array( 'ok' => false, 'message' => 'La prueba no se conecta a «' . $host . '»: es ' . Digitalisimo_Backups_Http::INTERNAL_TEXT['metadata'] . ', no un destino de respaldos.', 'steps' => array(), 'warning' => '' );
+				if ( '' !== $kind && '' === $warning ) $warning = 'Atención: «' . $host . '» es ' . Digitalisimo_Backups_Http::INTERNAL_TEXT[ $kind ] . '; la prueba se conecta a un servicio interno. Úsalo sólo si ahí está de verdad tu servidor de respaldos. ';
+			}
 			if ( ! $class::ready( $settings ) ) {
 				$problem = self::credentials_problem( $id );
 				throw new Exception( '' !== $problem ? $problem : 'Completa los datos de ' . $class::label() . ( $class::oauth() ? ' y conéctalo' : '' ) . ' antes de probar.' );
@@ -467,9 +561,28 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			$destination = new $class( $settings, array( 'temp_dir' => function() { return self::local_directory(); }, 'connection' => '' !== $id ? $id : $type ) );
 			$steps = $destination->test();
 		} catch ( Throwable $e ) {
-			return array( 'ok' => false, 'message' => 'La prueba de ' . $class::label() . ' falló: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ), 'steps' => isset( $steps ) ? $steps : array() );
+			$warning = isset( $warning ) ? $warning : '';
+			return array( 'ok' => false, 'message' => $warning . 'La prueba de ' . $class::label() . ' falló: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ), 'steps' => isset( $steps ) ? $steps : array(), 'warning' => $warning );
 		}
-		return array( 'ok' => true, 'message' => 'Conexión con ' . $class::label() . ' correcta: ' . implode( ' ', $steps ), 'steps' => $steps );
+		return array( 'ok' => true, 'message' => $warning . 'Conexión con ' . $class::label() . ' correcta: ' . implode( ' ', $steps ), 'steps' => $steps, 'warning' => $warning );
+	}
+	/**
+	 * La prueba usa lo escrito y, si un secreto se deja vacío, el guardado; pero nunca lo envía a otro servidor: si cambió
+	 * un dato al que ese secreto está atado (servidor, puerto, usuario, URL, endpoint, bucket, huella, TLS…) y no se volvió
+	 * a escribir, pide escribirlo. Las carpetas no cuentan (no cambian a quién se envía). '' si se puede probar.
+	 */
+	private static function retype_problem( $class, array $old, array $settings, array $input ) {
+		$fields = $class::fields();
+		foreach ( $class::secrets() as $secret ) {
+			if ( '' === (string) ( $old[ $secret ] ?? '' ) ) continue;
+			if ( is_string( $input[ $secret ] ?? null ) && '' !== trim( $input[ $secret ] ) ) continue;
+			foreach ( Digitalisimo_Backups_Credentials::CONTEXT[ $secret ] ?? array() as $field ) {
+				if ( preg_match( '/_(path|folder|passive)$/', $field ) ) continue;
+				if ( (string) ( $settings[ $field ] ?? '' ) === (string) ( $old[ $field ] ?? '' ) ) continue;
+				return 'Cambiaste «' . ( $fields[ $field ]['label'] ?? $field ) . '» respecto a lo guardado y la prueba no envía el valor guardado de «' . ( $fields[ $secret ]['label'] ?? $secret ) . '» a otro servidor: escríbelo otra vez para probar' . ( $class::oauth() ? ', o guarda los cambios y vuelve a conectar' : '' ) . '.';
+			}
+		}
+		return '';
 	}
 	/**
 	 * Destinos remotos para REST y WP-CLI: identificador, tipo, nombre, si está listo y, si sus credenciales no se abren,
@@ -529,6 +642,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 
 	/* ------------------------------------------------------------------ OAuth */
 
+	/** @internal Fila del estado OAuth pendiente del usuario actual (prefijo de la bóveda: fuera de todo respaldo). */
+	public static function oauth_pending_key() { return Digitalisimo_Backups_Keys::SECRET_PREFIX . 'oauth_' . (int) get_current_user_id(); }
 	private static function oauth_callback_url() { return add_query_arg( self::context_args(), admin_url( 'admin-post.php?action=' . self::ACTION_OAUTH ) ); }
 	private static function oauth_url( $provider, $connection = '' ) {
 		$args = array( 'action' => self::ACTION_OAUTH, 'provider' => $provider );
@@ -541,9 +656,12 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	 */
 	public static function oauth_callback() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
-		$transient = 'digitalisimo_backup_oauth_' . get_current_user_id();
+		// El estado pendiente (con el verificador PKCE de Dropbox) va en una fila digitalisimo_backups_vault_*, que ningún
+		// respaldo exporta, y caduca a los 15 minutos.
+		$pending_key = self::oauth_pending_key();
 		$returning = ! empty( $_GET['code'] );
-		$saved = $returning ? get_transient( $transient ) : null;
+		$saved = $returning ? get_option( $pending_key, null ) : null;
+		if ( ! is_array( $saved ) || (int) ( $saved['expires'] ?? 0 ) < time() ) $saved = null;
 		$provider = sanitize_key( $_REQUEST['provider'] ?? ( is_array( $saved ) ? (string) ( $saved['provider'] ?? '' ) : '' ) );
 		if ( ! in_array( $provider, array( 'google', 'onedrive', 'dropbox', 'pcloud' ), true ) ) self::redirect( false, 'Proveedor no válido.' );
 		if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() );
@@ -566,11 +684,11 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				$pending['verifier'] = Digitalisimo_Backups_Destination_Dropbox::code_verifier();
 				$url = add_query_arg( array( 'client_id' => $settings['dropbox_app_key'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'token_access_type' => 'offline', 'code_challenge' => Digitalisimo_Backups_Destination_Dropbox::code_challenge( $pending['verifier'] ), 'code_challenge_method' => 'S256', 'state' => $state ), 'https://www.dropbox.com/oauth2/authorize' );
 			} else $url = add_query_arg( array( 'client_id' => $settings['pcloud_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'state' => $state ), 'https://my.pcloud.com/oauth2/authorize' );
-			set_transient( $transient, $pending, 15 * MINUTE_IN_SECONDS );
+			update_option( $pending_key, $pending + array( 'expires' => time() + 15 * MINUTE_IN_SECONDS ), false );
 			wp_redirect( $url ); exit;
 		}
 		if ( empty( $saved['state'] ) || ! hash_equals( (string) $saved['state'], (string) ( $_GET['state'] ?? '' ) ) || $provider !== ( $saved['provider'] ?? '' ) || $connection !== (string) ( $saved['connection'] ?? '' ) ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' );
-		delete_transient( $transient );
+		delete_option( $pending_key );
 		$code = sanitize_text_field( wp_unslash( $_GET['code'] ) );
 		$values = array();
 		if ( in_array( $provider, array( 'google', 'onedrive' ), true ) ) {

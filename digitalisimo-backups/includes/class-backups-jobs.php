@@ -160,6 +160,8 @@ final class Digitalisimo_Backups_Jobs {
 				if ( ! $job || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
 				$finished = true;
 			} while ( microtime( true ) - $start < $budget );
+			// Subidas interrumpidas por un fallo o una cancelación: se retiran del destino fuera del cerrojo del registro.
+			Digitalisimo_Backups::job_transfer_abandon_pending();
 			if ( $finished ) Digitalisimo_Backups_Job_Store::prune();
 		} catch ( Throwable $e ) {
 			$result = 'error';
@@ -554,6 +556,8 @@ final class Digitalisimo_Backups_Jobs {
 				$at = ! empty( $job['lease'] ) ? time() + 60 : max( time(), (int) $job['retry_at'] );
 				$next = null === $next ? $at : min( $next, $at );
 			}
+			// Una subida cancelada o fallida que espera retirarse del destino también necesita su tick.
+			if ( Digitalisimo_Backups::job_transfer_pending_abandons() ) $next = null === $next ? time() : min( $next, time() );
 		} catch ( Throwable $e ) {
 			return;
 		}
@@ -584,6 +588,7 @@ final class Digitalisimo_Backups_Jobs {
 		if ( $lock ) {
 			try {
 				self::recover();
+				Digitalisimo_Backups::job_transfer_abandon_pending();
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
 			} catch ( Throwable $e ) {

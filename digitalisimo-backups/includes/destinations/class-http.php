@@ -19,8 +19,66 @@ final class Digitalisimo_Backups_Http {
 	 * Con `sink`, el transporte escribe el cuerpo en ese archivo; con `file`, lee el cuerpo de ahí (`offset`, `length`).
 	 */
 	public static $transport = null;
+	/** Tope de espera de cada petición (segundos) mientras se retira una subida interrumpida; null = sin tope. */
+	public static $cap_timeout = null;
+	/** Sólo pruebas: callable( string $host ) que devuelve sus IPv4 (como gethostbynamel) o false. */
+	public static $resolver = null;
 	/** Sin cURL, una subida desde archivo mayor que esto no se carga en memoria. */
 	const MEMORY_UPLOAD = 33554432;
+	/** Servicios de metadatos de las nubes (AWS, Azure, Google, Oracle, DigitalOcean, Alibaba, ECS): nunca son un destino. */
+	const METADATA_IPS = array( '169.254.169.254', '169.254.170.2', '169.254.170.23', '100.100.100.200', 'fd00:ec2::254' );
+	const METADATA_NAMES = array( 'metadata.google.internal', 'metadata.goog', 'metadata', 'instance-data', 'instance-data.ec2.internal' );
+	/** Qué es cada clase de dirección interna, para los avisos. */
+	const INTERNAL_TEXT = array( 'metadata' => 'el servicio de metadatos de la nube', 'loopback' => 'este mismo servidor (loopback)', 'link-local' => 'una dirección de enlace local', 'private' => 'una red privada' );
+
+	/**
+	 * Si $host es una dirección interna: 'metadata' (servicio de metadatos de la nube), 'loopback', 'link-local' o
+	 * 'private' (redes privadas, CGNAT y ULA); '' si es pública o no se resuelve. Con $resolve, un nombre se resuelve
+	 * (IPv4) y cuenta la peor de sus direcciones; sin él sólo se clasifican IP literales y nombres conocidos.
+	 */
+	public static function internal( $host, $resolve = true ) {
+		$host = strtolower( trim( (string) $host, "[] \t\r\n." ) );
+		if ( '' === $host ) return '';
+		if ( in_array( $host, self::METADATA_NAMES, true ) ) return 'metadata';
+		if ( 'localhost' === $host || '.localhost' === substr( $host, -10 ) ) return 'loopback';
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) $ips = array( $host );
+		elseif ( preg_match( '/^(0x[0-9a-f]{1,8}|[0-9]{1,10})$/', $host ) ) {
+			// Una IPv4 escrita como un solo número (2130706433, 0x7f000001) también llega a la red.
+			$number = 0 === strpos( $host, '0x' ) ? hexdec( substr( $host, 2 ) ) : (float) $host;
+			$ips = $number <= 4294967295 ? array( long2ip( (int) $number ) ) : array();
+		} elseif ( $resolve ) {
+			$resolver = self::$resolver ? self::$resolver : function( $name ) { return function_exists( 'gethostbynamel' ) ? @gethostbynamel( $name ) : false; };
+			$ips = (array) ( call_user_func( $resolver, $host ) ?: array() );
+		} else $ips = array();
+		$found = '';
+		foreach ( $ips as $ip ) {
+			$kind = self::ip_kind( (string) $ip );
+			if ( 'metadata' === $kind ) return 'metadata';
+			if ( '' === $found ) $found = $kind;
+		}
+		return $found;
+	}
+	private static function ip_kind( $ip ) {
+		$ip = strtolower( $ip );
+		if ( in_array( $ip, self::METADATA_IPS, true ) ) return 'metadata';
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$bin = (string) @inet_pton( $ip );
+			if ( 16 !== strlen( $bin ) ) return '';
+			if ( str_repeat( "\0", 10 ) . "\xff\xff" === substr( $bin, 0, 12 ) ) return self::ip_kind( (string) inet_ntop( substr( $bin, 12 ) ) );
+			if ( str_repeat( "\0", 15 ) . "\1" === $bin || str_repeat( "\0", 16 ) === $bin ) return 'loopback';
+			if ( "\xfd\x00\x0e\xc2" === substr( $bin, 0, 4 ) && "\x02\x54" === substr( $bin, 14 ) && str_repeat( "\0", 10 ) === substr( $bin, 4, 10 ) ) return 'metadata';
+			if ( 0xfe === ord( $bin[0] ) && 0x80 === ( ord( $bin[1] ) & 0xc0 ) ) return 'link-local';
+			if ( 0xfc === ( ord( $bin[0] ) & 0xfe ) ) return 'private';
+			return '';
+		}
+		$number = ip2long( $ip );
+		if ( false === $number ) return '';
+		$in = function( $network, $bits ) use ( $number ) { $mask = ( 0xffffffff << ( 32 - $bits ) ) & 0xffffffff; return ( $number & $mask ) === ( ip2long( $network ) & $mask ); };
+		if ( $in( '127.0.0.0', 8 ) || $in( '0.0.0.0', 8 ) ) return 'loopback';
+		if ( $in( '169.254.0.0', 16 ) ) return 'link-local';
+		if ( $in( '10.0.0.0', 8 ) || $in( '172.16.0.0', 12 ) || $in( '192.168.0.0', 16 ) || $in( '100.64.0.0', 10 ) ) return 'private';
+		return '';
+	}
 
 	/**
 	 * @param string $method  GET, PUT, POST, DELETE, HEAD, MKCOL, MOVE, PROPFIND…
@@ -34,6 +92,8 @@ final class Digitalisimo_Backups_Http {
 		$url = (string) $url;
 		$scheme = strtolower( (string) parse_url( $url, PHP_URL_SCHEME ) );
 		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) || '' === (string) parse_url( $url, PHP_URL_HOST ) ) throw new Exception( 'La dirección del destino no es una URL http(s) válida.' );
+		// El servicio de metadatos de la nube nunca es un destino (ni por un dato guardado en la base): no se le envía nada.
+		if ( 'metadata' === self::internal( (string) parse_url( $url, PHP_URL_HOST ), false ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino apunta al servicio de metadatos de la nube; no se envía nada ahí.' );
 		$request = array(
 			'method' => strtoupper( (string) $method ),
 			'url' => $url,
@@ -49,6 +109,7 @@ final class Digitalisimo_Backups_Http {
 			'redirection' => (int) ( $args['redirection'] ?? 0 ),
 			'progress' => $args['progress'] ?? null,
 		);
+		if ( null !== self::$cap_timeout ) $request['timeout'] = $request['timeout'] > 0 ? min( (int) $request['timeout'], (int) self::$cap_timeout ) : (int) self::$cap_timeout;
 		if ( '' !== $request['file'] && null === $request['length'] ) {
 			$size = @filesize( $request['file'] );
 			if ( false === $size ) throw new Exception( 'No se pudo leer el archivo local para enviarlo.' );

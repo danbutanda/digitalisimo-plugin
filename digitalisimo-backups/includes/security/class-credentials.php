@@ -21,6 +21,14 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Digitalisimo_Backups_Credentials {
 	const OPTION = 'digitalisimo_backups_credentials';
+	/**
+	 * Los secretos que 1.0.61 no conoce (destinos nuevos y conexiones adicionales) van en una opción aparte con el mismo
+	 * formato: 1.0.61 reescribe la suya desde los campos que conoce, así que volver a ella desde rollback/ y guardar no
+	 * los borra. También viaja en el SQL y vive en sitemeta en una red.
+	 */
+	const OPTION_MORE = 'digitalisimo_backups_credentials_more';
+	/** Campos que 1.0.61 guarda en OPTION. */
+	const LEGACY_FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' );
 	const VERSION = 1;
 	const FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token', 'sftp_private_key', 'sftp_key_passphrase', 'ftp_password', 'webdav_password', 'dropbox_refresh_token', 's3_secret_key', 's3compat_secret_key', 'pcloud_client_secret', 'pcloud_access_token' );
 	/** Campos de cada destino remoto. */
@@ -56,7 +64,7 @@ final class Digitalisimo_Backups_Credentials {
 	 */
 	const CONFIG_MAX = 65536;
 	/** Datos de la conexión que ata el dato adicional de cada secreto. */
-	const CONTEXT = array( 'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'google_client_secret' => array( 'google_client_id' ), 'google_refresh_token' => array( 'google_client_id' ), 'onedrive_client_secret' => array( 'onedrive_client_id' ), 'onedrive_refresh_token' => array( 'onedrive_client_id' ), 'sftp_private_key' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'sftp_key_passphrase' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'ftp_password' => array( 'ftp_host', 'ftp_port', 'ftp_user', 'ftp_security', 'ftp_insecure', 'ftp_ca' ), 'webdav_password' => array( 'webdav_url', 'webdav_user', 'webdav_insecure', 'webdav_allow_http', 'webdav_ca' ), 'dropbox_refresh_token' => array( 'dropbox_app_key' ), 's3_secret_key' => array( 's3_access_key', 's3_region' ), 's3compat_secret_key' => array( 's3compat_access_key', 's3compat_provider', 's3compat_endpoint', 's3compat_do_region', 's3compat_wasabi_region', 's3compat_account', 's3compat_jurisdiction', 's3compat_insecure', 's3compat_allow_http', 's3compat_ca' ), 'pcloud_client_secret' => array( 'pcloud_client_id' ), 'pcloud_access_token' => array( 'pcloud_client_id', 'pcloud_host' ) );
+	const CONTEXT = array( 'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'google_client_secret' => array( 'google_client_id' ), 'google_refresh_token' => array( 'google_client_id' ), 'onedrive_client_secret' => array( 'onedrive_client_id' ), 'onedrive_refresh_token' => array( 'onedrive_client_id' ), 'sftp_private_key' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'sftp_key_passphrase' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'ftp_password' => array( 'ftp_host', 'ftp_port', 'ftp_user', 'ftp_security', 'ftp_insecure', 'ftp_ca', 'ftp_path', 'ftp_passive' ), 'webdav_password' => array( 'webdav_url', 'webdav_user', 'webdav_insecure', 'webdav_allow_http', 'webdav_ca', 'webdav_path' ), 'dropbox_refresh_token' => array( 'dropbox_app_key', 'dropbox_folder' ), 's3_secret_key' => array( 's3_access_key', 's3_region', 's3_bucket', 's3_style', 's3_path' ), 's3compat_secret_key' => array( 's3compat_access_key', 's3compat_provider', 's3compat_endpoint', 's3compat_signing_region', 's3compat_do_region', 's3compat_wasabi_region', 's3compat_account', 's3compat_jurisdiction', 's3compat_insecure', 's3compat_allow_http', 's3compat_ca', 's3compat_bucket', 's3compat_style', 's3compat_path' ), 'pcloud_client_secret' => array( 'pcloud_client_id' ), 'pcloud_access_token' => array( 'pcloud_client_id', 'pcloud_host', 'pcloud_folder' ) );
 	/** Valores candidatos por constante (un define dentro de un if, otro fuera…): cada combinación se comprueba por su huella. */
 	const CONFIG_CANDIDATES = 4;
 
@@ -152,30 +160,47 @@ final class Digitalisimo_Backups_Credentials {
 	 * nunca rompe la lectura de los ajustes ni la pantalla.
 	 */
 	public static function raw() {
-		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		if ( null === $saved ) $saved = self::adopt_site_store();
 		$store = array( 'v' => self::VERSION, 'items' => array() );
-		if ( ! is_array( $saved ) ) return $store;
-		$known = self::VERSION === ( $saved['v'] ?? null );
-		$items = $saved['items'] ?? array();
-		foreach ( is_array( $items ) ? $items : array() as $field => $item ) {
-			if ( ! self::valid_field( $field ) || ! is_array( $item ) ) continue;
-			$kw = $item['kw'] ?? '';
-			$c = $item['c'] ?? '';
-			$store['items'][ $field ] = $known && is_string( $kw ) && is_string( $c ) ? array( 'kw' => $kw, 'c' => $c ) : array( 'kw' => '', 'c' => '' );
+		foreach ( array( self::OPTION, self::OPTION_MORE ) as $option ) {
+			$saved = Digitalisimo_Backups_Keys::get( $option, null );
+			if ( null === $saved ) $saved = self::adopt_site_store( $option );
+			if ( ! is_array( $saved ) ) continue;
+			$known = self::VERSION === ( $saved['v'] ?? null );
+			$items = $saved['items'] ?? array();
+			foreach ( is_array( $items ) ? $items : array() as $field => $item ) {
+				// Un campo en la opción que no le toca (escrito por una versión previa de esta rama) se lee igual y se
+				// mueve al guardar; si está en las dos, manda el de su opción.
+				if ( ! self::valid_field( $field ) || ! is_array( $item ) || ( isset( $store['items'][ $field ] ) && self::option_for( $field ) !== $option ) ) continue;
+				$kw = $item['kw'] ?? '';
+				$c = $item['c'] ?? '';
+				$store['items'][ $field ] = $known && is_string( $kw ) && is_string( $c ) ? array( 'kw' => $kw, 'c' => $c ) : array( 'kw' => '', 'c' => '' );
+			}
 		}
 		return $store;
+	}
+	/** Opción del almacén de un campo: la de 1.0.61 para sus cinco campos; la nueva para los demás. */
+	public static function option_for( $field ) { return in_array( $field, self::LEGACY_FIELDS, true ) ? self::OPTION : self::OPTION_MORE; }
+	/** Escribe el almacén repartido en sus dos opciones (sólo las que cambian). */
+	private static function write_store( array $items ) {
+		$parts = array( self::OPTION => array(), self::OPTION_MORE => array() );
+		foreach ( $items as $field => $item ) $parts[ self::option_for( $field ) ][ $field ] = $item;
+		foreach ( $parts as $option => $part ) {
+			$current = Digitalisimo_Backups_Keys::get( $option, null );
+			$value = array( 'v' => self::VERSION, 'items' => $part );
+			if ( $current === $value || ( null === $current && ! $part ) ) continue;
+			Digitalisimo_Backups_Keys::put( $option, $value );
+		}
 	}
 	/**
 	 * Un sitio individual convertido en red: el almacén quedó en las opciones del sitio principal y la red lo busca en
 	 * sitemeta. Se adopta (mismas salts, mismos datos de conexión): las credenciales siguen funcionando, nunca se pierden.
 	 */
-	private static function adopt_site_store() {
+	private static function adopt_site_store( $option = self::OPTION ) {
 		if ( ! is_multisite() || ! is_main_site() ) return null;
-		$site = get_option( self::OPTION, null );
+		$site = get_option( $option, null );
 		if ( ! is_array( $site ) ) return null;
-		Digitalisimo_Backups_Keys::put( self::OPTION, $site );
-		delete_option( self::OPTION );
+		Digitalisimo_Backups_Keys::put( $option, $site );
+		delete_option( $option );
 		return $site;
 	}
 	/** Los valores que este servidor abre para la conexión de $settings: campo => texto. Sin clave propia no lee nada. */
@@ -204,13 +229,17 @@ final class Digitalisimo_Backups_Credentials {
 	 * almacén. No necesita la clave. Devuelve los campos retirados.
 	 */
 	public static function remove( array $fields ) {
-		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		if ( ! is_array( $saved ) || ! is_array( $saved['items'] ?? null ) ) return array();
-		$removed = array_values( array_intersect( array_keys( $saved['items'] ), array_filter( $fields, array( __CLASS__, 'valid_field' ) ) ) );
-		if ( ! $removed ) return array();
-		foreach ( $removed as $field ) unset( $saved['items'][ $field ] );
-		Digitalisimo_Backups_Keys::put( self::OPTION, $saved );
-		return $removed;
+		$removed = array();
+		foreach ( array( self::OPTION, self::OPTION_MORE ) as $option ) {
+			$saved = Digitalisimo_Backups_Keys::get( $option, null );
+			if ( ! is_array( $saved ) || ! is_array( $saved['items'] ?? null ) ) continue;
+			$here = array_values( array_intersect( array_keys( $saved['items'] ), array_filter( $fields, array( __CLASS__, 'valid_field' ) ) ) );
+			if ( ! $here ) continue;
+			foreach ( $here as $field ) unset( $saved['items'][ $field ] );
+			Digitalisimo_Backups_Keys::put( $option, $saved );
+			$removed = array_merge( $removed, $here );
+		}
+		return array_values( array_unique( $removed ) );
 	}
 
 	/**
@@ -242,13 +271,13 @@ final class Digitalisimo_Backups_Credentials {
 	 * almacén como estaba y avisa: quien llama no retira nada de los ajustes, así que ninguna credencial se pierde.
 	 */
 	private static function save( array $store, $key, array $written, array $settings ) {
-		$before = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		Digitalisimo_Backups_Keys::put( self::OPTION, array( 'v' => self::VERSION, 'items' => $store['items'] ) );
+		$before = array( self::OPTION => Digitalisimo_Backups_Keys::get( self::OPTION, null ), self::OPTION_MORE => Digitalisimo_Backups_Keys::get( self::OPTION_MORE, null ) );
+		self::write_store( $store['items'] );
 		$check = self::raw()['items'];
 		foreach ( $written as $field => $value ) {
 			$opened = self::open( $key, $field, $check[ $field ] ?? null, $settings );
 			if ( false !== $opened && hash_equals( $value, $opened ) ) continue;
-			Digitalisimo_Backups_Keys::put( self::OPTION, null === $before ? array( 'v' => self::VERSION, 'items' => array() ) : $before );
+			foreach ( $before as $option => $previous ) if ( null !== $previous || null !== Digitalisimo_Backups_Keys::get( $option, null ) ) Digitalisimo_Backups_Keys::put( $option, null === $previous ? array( 'v' => self::VERSION, 'items' => array() ) : $previous );
 			throw new Exception( 'No se pudo comprobar una credencial cifrada; se conserva como estaba.' );
 		}
 	}

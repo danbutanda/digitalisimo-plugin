@@ -187,8 +187,20 @@ final class Digitalisimo_Backups_Destination_Dropbox extends Digitalisimo_Backup
 		}
 		return array( 'provider' => self::TYPE, 'path' => (string) ( $data['metadata']['path_display'] ?? $final ), 'id' => (string) ( $data['metadata']['id'] ?? '' ) );
 	}
+	/**
+	 * Un recibo de Dropbox: su ruta, y sólo dentro de la carpeta de esta conexión. Se opera siempre por la ruta (no por
+	 * el id del recibo, que podría señalar cualquier archivo de la cuenta).
+	 */
+	private function own( array $remote ) {
+		$path = (string) ( $remote['path'] ?? '' );
+		if ( '' === $path ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia en Dropbox no tiene ruta; no se toca.' );
+		// Dropbox no distingue mayúsculas (`path_display` lleva las de la carpeta que ya existía).
+		$lower = function( $text ) { return function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $text, 'UTF-8' ) : strtolower( (string) $text ); };
+		self::inside( $lower( $path ), $lower( $this->folder() ), self::label() );
+		return $path;
+	}
 	public function get( array $remote, $target ) {
-		list( $code, , $response ) = $this->content( 'files/download', array( 'path' => (string) ( $remote['id'] ?? '' ) ?: (string) $remote['path'] ), '', array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
+		list( $code, , $response ) = $this->content( 'files/download', array( 'path' => $this->own( $remote ) ), '', array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
 		if ( 200 !== $code ) {
 			$data = is_file( $target ) && filesize( $target ) < 65536 ? json_decode( (string) @file_get_contents( $target ), true ) : null;
 			if ( 409 === $code && false !== strpos( (string) ( $data['error_summary'] ?? '' ), 'not_found' ) ) throw new Exception( 'El respaldo ya no está en Dropbox.' );
@@ -196,13 +208,13 @@ final class Digitalisimo_Backups_Destination_Dropbox extends Digitalisimo_Backup
 		}
 	}
 	public function size( array $remote ) {
-		list( $code, $data ) = $this->rpc( 'files/get_metadata', array( 'path' => (string) ( $remote['id'] ?? '' ) ?: (string) $remote['path'] ) );
+		list( $code, $data ) = $this->rpc( 'files/get_metadata', array( 'path' => $this->own( $remote ) ) );
 		if ( 409 === $code && false !== strpos( (string) ( $data['error_summary'] ?? '' ), 'not_found' ) ) return false;
 		if ( 200 !== $code ) $this->fail( $code, $data, 'la consulta del respaldo' );
 		return (int) ( $data['size'] ?? 0 );
 	}
 	public function delete( array $remote ) {
-		list( $code, $data ) = $this->rpc( 'files/delete_v2', array( 'path' => (string) ( $remote['id'] ?? '' ) ?: (string) $remote['path'] ) );
+		list( $code, $data ) = $this->rpc( 'files/delete_v2', array( 'path' => $this->own( $remote ) ) );
 		if ( 200 === $code || ( 409 === $code && false !== strpos( (string) ( $data['error_summary'] ?? '' ), 'not_found' ) ) ) return;
 		$this->fail( $code, $data, 'el borrado del respaldo' );
 	}

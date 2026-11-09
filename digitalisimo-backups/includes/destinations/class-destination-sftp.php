@@ -32,6 +32,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	public static function help() {
 		return array( 'En el servidor: ssh-keyscan -t ed25519 servidor > k; ssh-keygen -l -E sha256 -f k muestra la huella SHA-256 (con -E sha1, la SHA-1).', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
 	}
+	public static function hosts( array $s ) { return array( (string) ( $s['sftp_host'] ?? '' ) ); }
 	public static function ready( array $s ) {
 		$auth = 'key' === ( $s['sftp_auth'] ?? 'password' ) ? ! empty( $s['sftp_private_key'] ) && ! empty( $s['sftp_public_key'] ) : ! empty( $s['sftp_password'] );
 		return ! empty( $s['sftp_host'] ) && ! empty( $s['sftp_user'] ) && $auth && ! empty( $s['sftp_fingerprint'] );
@@ -163,8 +164,9 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		}
 		return array( 'provider' => self::TYPE, 'path' => $final );
 	}
+	private function own( array $remote ) { return self::inside( (string) ( $remote['path'] ?? '' ), rtrim( $this->directory(), '/' ), self::label() ); }
 	public function get( array $remote, $target ) {
-		$source = @fopen( $this->url( (string) $remote['path'] ), 'rb' );
+		$source = @fopen( $this->url( $this->own( $remote ) ), 'rb' );
 		if ( ! $source ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
 		$out = @fopen( $target, 'wb' );
 		if ( ! $out ) { fclose( $source ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
@@ -177,12 +179,14 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		if ( false === $copied ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
 	}
 	public function size( array $remote ) {
-		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), (string) $remote['path'] ) : @stat( $this->url( (string) $remote['path'] ) );
+		$path = $this->own( $remote );
+		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), $path ) : @stat( $this->url( $path ) );
 		return is_array( $stat ) && isset( $stat['size'] ) ? (int) $stat['size'] : false;
 	}
 	public function delete( array $remote ) {
+		$path = $this->own( $remote );
 		$sftp = $this->session();
-		if ( @ssh2_sftp_unlink( $sftp, (string) $remote['path'] ) ) return;
+		if ( @ssh2_sftp_unlink( $sftp, $path ) ) return;
 		if ( false === $this->size( $remote ) ) return;
 		throw new Exception( 'No se pudo eliminar el archivo SFTP.' );
 	}

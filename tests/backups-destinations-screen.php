@@ -79,8 +79,14 @@ $case( 'a', function() use ( $B, $C, $check, $leak, $save, $fields, $secrets, $s
 	$check( $ok, 'No se guardó: ' . $message );
 	$raw = get_option( $B::OPTION );
 	$check( null === $leak( serialize( $raw ) ), 'digitalisimo_backups_settings guarda un secreto en claro.' );
-	$stored = Digitalisimo_Backups_Keys::get( $C::OPTION, array() );
-	foreach ( $secrets as $field => $value ) $check( isset( $stored['items'][ $field ] ) && false === strpos( json_encode( $stored ), $value ), 'El secreto ' . $field . ' no está cifrado en el almacén.' );
+	// Los cinco campos que ya existían en 1.0.61 siguen en su almacén; los nuevos van en el segundo, que 1.0.61 no reescribe.
+	$legacy = Digitalisimo_Backups_Keys::get( $C::OPTION, array() );
+	$more = Digitalisimo_Backups_Keys::get( $C::OPTION_MORE, array() );
+	foreach ( $secrets as $field => $value ) {
+		$home = in_array( $field, $C::LEGACY_FIELDS, true ) ? $legacy : $more;
+		$check( isset( $home['items'][ $field ] ) && false === strpos( json_encode( $legacy ) . json_encode( $more ), $value ), 'El secreto ' . $field . ' no está cifrado en su almacén.' );
+	}
+	$check( ! array_diff_key( (array) ( $legacy['items'] ?? array() ), array_flip( $C::LEGACY_FIELDS ) ), 'El almacén de 1.0.61 lleva campos que 1.0.61 descartaría al guardar.' );
 	foreach ( $secrets as $field => $value ) $check( $value === $settings()[ $field ], 'El secreto ' . $field . ' no se abre igual.' );
 	// Un respaldo real: el SQL lleva el almacén cifrado y ningún secreto en claro.
 	$path = bk_backup();
@@ -122,15 +128,15 @@ $case( 'c', function() use ( $B, $C, $K, $check, $leak, $second, $settings ) {
 	$GLOBALS['bk_connection'] = $id;
 	$check( Digitalisimo_Backups_Destinations::is_connection_id( $id ) && 's3compat' === $connections[ $id ]['type'] && 'Segundo MinIO' === $connections[ $id ]['name'], 'La conexión no quedó registrada: ' . json_encode( $connections ) );
 	$check( false === strpos( serialize( get_option( Digitalisimo_Backups_Destinations::CONNECTIONS ) ), 'Segunda-Secreta-11' ), 'La fila de la conexión guarda su secreto en claro.' );
-	$store = $K::get( $C::OPTION, array() );
+	$store = $K::get( $C::OPTION_MORE, array() );
 	$check( isset( $store['items'][ $id . '/s3compat_secret_key' ] ) && 'Segunda-Secreta-11' === bk_call( $B, 'connection_settings', $id )['s3compat_secret_key'], 'El secreto de la conexión no va cifrado por conexión.' );
 	$check( 'Compat-Secreta-Unica-5' === $settings()['s3compat_secret_key'], 'La conexión adicional pisó la principal.' );
 	// El dato adicional ata el valor a su conexión: movido a la principal no abre.
 	$moved = $store;
 	$moved['items']['s3compat_secret_key'] = $store['items'][ $id . '/s3compat_secret_key' ];
-	$K::put( $C::OPTION, $moved );
+	$K::put( $C::OPTION_MORE, $moved );
 	$check( ! isset( $C::read( bk_call( $B, 'credential_settings' ) )['s3compat_secret_key'] ), 'Un secreto de una conexión se abrió en otra.' );
-	$K::put( $C::OPTION, $store );
+	$K::put( $C::OPTION_MORE, $store );
 	$destinations = bk_call( $B, 'manual_destinations', $settings() );
 	$check( 'Segundo MinIO' === ( $destinations[ $id ] ?? '' ) && 'Segundo MinIO' === $B::destination_name( $id ), 'La conexión no aparece como destino con su nombre.' );
 	// Un trabajo real hacia la conexión adicional usa su bucket y sus credenciales.
@@ -150,7 +156,7 @@ $case( 'c', function() use ( $B, $C, $K, $check, $leak, $second, $settings ) {
 	list( $ok ) = bk_post( array( $B, 'save_connection' ), array( 'connection_name' => 'Para borrar' ) + $post );
 	$other = (string) key( array_diff_key( Digitalisimo_Backups_Destinations::connections(), array( $id => 1 ) ) );
 	list( $ok, $message ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $other ) );
-	$check( $ok && ! isset( Digitalisimo_Backups_Destinations::connections()[ $other ] ) && ! isset( $K::get( $C::OPTION, array() )['items'][ $other . '/s3compat_secret_key' ] ), 'Borrar la conexión no retiró su fila y su secreto.' );
+	$check( $ok && ! isset( Digitalisimo_Backups_Destinations::connections()[ $other ] ) && ! isset( $K::get( $C::OPTION_MORE, array() )['items'][ $other . '/s3compat_secret_key' ] ), 'Borrar la conexión no retiró su fila y su secreto.' );
 	$check( ! Digitalisimo_Backups_Destinations::exists( $other ) && 'local' === Digitalisimo_Backups_Jobs::spec( array( 'destination' => $other ) )['destination'], 'Una conexión borrada se sigue aceptando como destino.' );
 } );
 
@@ -160,7 +166,13 @@ $case( 'd', function() use ( $B, $check, $dropbox, $settings ) {
 	$_REQUEST = $_GET; $_POST = $_GET;
 	try { $B::oauth_callback(); throw new LogicException( 'No redirigió a Dropbox.' ); } catch ( Bk_Redirect $redirect ) { $url = $redirect->url; }
 	parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
-	$saved = $GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'];
+	// El estado pendiente (con el verificador PKCE) vive en una fila de la bóveda, que ningún respaldo exporta.
+	$pending = $B::oauth_pending_key();
+	$saved = get_option( $pending );
+	$check( 0 === strpos( $pending, Digitalisimo_Backups_Keys::SECRET_PREFIX ) && is_array( $saved ) && ! $GLOBALS['bk_transients'] && (int) $saved['expires'] > time(), 'El verificador PKCE no está en la bóveda (entraría en el SQL de un respaldo).' );
+	$path = bk_backup();
+	$zip = new ZipArchive(); $zip->open( $path ); $sql = (string) $zip->getFromName( 'database.sql' ); $zip->close(); unlink( $path );
+	$check( '' !== $sql && false === strpos( $sql, $saved['verifier'] ) && false === strpos( $sql, $pending ), 'El database.sql de un respaldo lleva el verificador PKCE.' );
 	$check( 0 === strpos( $url, 'https://www.dropbox.com/oauth2/authorize?' ) && 'S256' === $query['code_challenge_method'] && 'offline' === $query['token_access_type'] && 'appkey1234' === $query['client_id'] && ! isset( $query['client_secret'] ), 'La autorización de Dropbox no usa PKCE S256 offline: ' . $url );
 	$check( Digitalisimo_Backups_Destination_Dropbox::code_challenge( $saved['verifier'] ) === $query['code_challenge'] && $saved['state'] === $query['state'], 'El verificador guardado no corresponde al desafío.' );
 	// Vuelta del proveedor: sólo code y state (sin provider).
@@ -168,17 +180,23 @@ $case( 'd', function() use ( $B, $check, $dropbox, $settings ) {
 	$_GET = array( 'code' => 'codigo-dropbox', 'state' => $saved['state'] );
 	$_REQUEST = $_GET; $_POST = array();
 	try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $back ); }
-	$check( 'ok' === $back['backup'] && 'refresh-dropbox-0123' === $settings()['dropbox_refresh_token'] && ! isset( $GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] ), 'Dropbox no quedó conectado: ' . rawurldecode( $back['message'] ?? '' ) );
+	$check( 'ok' === $back['backup'] && 'refresh-dropbox-0123' === $settings()['dropbox_refresh_token'] && false === get_option( $pending ), 'Dropbox no quedó conectado o su estado pendiente sigue guardado: ' . rawurldecode( $back['message'] ?? '' ) );
 	$check( false === strpos( serialize( get_option( $B::OPTION ) ), 'refresh-dropbox-0123' ), 'El refresh token de Dropbox quedó en claro en los ajustes.' );
 	// pCloud: región que indica pCloud al volver.
 	bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => array( 'pcloud_client_id' => 'cid', 'pcloud_client_secret' => 'csecret' ) + array_intersect_key( $settings(), array_flip( array( 'sftp_host', 'sftp_user', 'sftp_fingerprint', 'sftp_path', 'ftp_host', 'ftp_user', 'webdav_url', 'webdav_user', 'webdav_path', 's3_region', 's3_bucket', 's3_access_key', 's3compat_provider', 's3compat_endpoint', 's3compat_bucket', 's3compat_access_key', 's3compat_path', 'dropbox_app_key', 'google_client_id', 'onedrive_client_id' ) ) ) ) );
-	$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'estado-pcloud', 'provider' => 'pcloud', 'connection' => '' );
+	update_option( $pending, array( 'state' => 'estado-pcloud', 'provider' => 'pcloud', 'connection' => '', 'expires' => time() + 600 ) );
 	$_GET = array( 'code' => 'codigo-pcloud', 'state' => 'estado-pcloud', 'hostname' => 'eapi.pcloud.com', 'locationid' => '2' );
 	$_REQUEST = $_GET;
 	try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $back ); }
 	$check( 'ok' === $back['backup'] && 'pcloud-token-1' === $settings()['pcloud_access_token'] && 'eapi.pcloud.com' === $settings()['pcloud_host'], 'pCloud no quedó conectado en su región: ' . rawurldecode( $back['message'] ?? '' ) );
 	// Google sin `provider` en la vuelta (antes respondía «Proveedor no válido»).
-	$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'estado-google', 'provider' => 'google', 'connection' => '' );
+	// Un estado caducado no vale.
+	update_option( $pending, array( 'state' => 'estado-google', 'provider' => 'google', 'connection' => '', 'expires' => time() - 1 ) );
+	$_GET = array( 'code' => 'codigo-google', 'state' => 'estado-google' );
+	$_REQUEST = $_GET;
+	try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $back ); }
+	$check( 'ok' !== $back['backup'], 'Se aceptó un estado OAuth caducado.' );
+	update_option( $pending, array( 'state' => 'estado-google', 'provider' => 'google', 'connection' => '', 'expires' => time() + 600 ) );
 	$_GET = array( 'code' => 'codigo-google', 'state' => 'estado-google' );
 	$_REQUEST = $_GET;
 	try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $back ); }
@@ -230,7 +248,11 @@ $case( 'f', function() use ( $B, $check, $compat ) {
 		$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'cancelar', 'destination' => 's3compat', 'retention' => 'none', 'via' => 'test' ) ) );
 		for ( $i = 0; $i < 20; $i++ ) { Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX ); $job = Digitalisimo_Backups_Jobs::get( $queued['job']['id'] ); if ( 'transfer' === $job['phase'] && 'queued' === $job['status'] ) break; }
 		$check( 'transfer' === $job['phase'] && 1 === count( $compat->uploads ), 'No quedó una transferencia a medias que cancelar: ' . json_encode( array( $job['phase'], $job['status'], count( $compat->uploads ) ) ) );
+		// Cancelar no llama al destino con el registro de trabajos bloqueado: sólo aparta la subida; el siguiente tick la aborta.
+		$calls = count( $compat->log );
 		$result = Digitalisimo_Backups_Jobs::cancel( $job['id'] );
+		$check( $calls === count( $compat->log ) && 1 === count( $compat->uploads ), 'Cancelar llamó al destino dentro del cerrojo del registro de trabajos.' );
+		Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 		$job = Digitalisimo_Backups_Jobs::get( $job['id'] );
 		$check( $result['ok'] && 'cancelled' === $job['status'] && ! $compat->uploads, 'Cancelar no abortó la subida por partes en el destino.' );
 		$check( 'cancelled' === bk_call( $B, 'history_item', basename( $job['spec']['file'] ) )['transfer'], 'El historial no marca la copia cancelada.' );
@@ -336,7 +358,7 @@ $case( 'h', function() use ( $B, $C, $check, $fields, $secrets, $save ) {
 	$_REQUEST['digitalisimo_backups_network'] = '1';
 	try {
 		list( $ok ) = $save( $fields + $secrets );
-		$check( $ok && isset( $GLOBALS['bk_site_options'][ $C::OPTION ]['items']['ftp_password'] ) && isset( $GLOBALS['bk_site_options'][ $C::OPTION ]['items']['pcloud_access_token'] ), 'En una red los secretos nuevos no viven en sitemeta.' );
+		$check( $ok && isset( $GLOBALS['bk_site_options'][ $C::OPTION ]['items']['sftp_password'] ) && isset( $GLOBALS['bk_site_options'][ $C::OPTION_MORE ]['items']['ftp_password'] ) && isset( $GLOBALS['bk_site_options'][ $C::OPTION_MORE ]['items']['pcloud_access_token'] ), 'En una red los secretos nuevos no viven en sitemeta.' );
 		$_REQUEST['digitalisimo_backups_network'] = '1';
 		ob_start();
 		try { bk_call( $B, 'servers_panel', bk_call( $B, 'settings' ), array() ); } finally { $html = ob_get_clean(); }

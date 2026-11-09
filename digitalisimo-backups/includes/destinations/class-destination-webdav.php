@@ -30,6 +30,7 @@ final class Digitalisimo_Backups_Destination_Webdav extends Digitalisimo_Backups
 		);
 	}
 	public static function help() { return array( 'Usa la URL WebDAV que indica tu servicio (en Nextcloud: Archivos → Ajustes de archivos → WebDAV).', 'La carpeta remota se crea si no existe.' ); }
+	public static function hosts( array $s ) { return array( (string) parse_url( (string) ( $s['webdav_url'] ?? '' ), PHP_URL_HOST ) ); }
 	public static function ready( array $s ) { return ! empty( $s['webdav_url'] ) && ! empty( $s['webdav_user'] ) && ! empty( $s['webdav_password'] ); }
 	public static function sanitize( array $input, array $old ) {
 		$out = parent::sanitize( $input, $old );
@@ -105,21 +106,22 @@ final class Digitalisimo_Backups_Destination_Webdav extends Digitalisimo_Backups
 		}
 		return array( 'provider' => self::TYPE, 'path' => $relative );
 	}
+	private function own( array $remote ) { return self::inside( (string) ( $remote['path'] ?? '' ), $this->folder(), self::label() ); }
 	public function get( array $remote, $target ) {
-		$response = $this->call( 'GET', (string) $remote['path'], array(), array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
+		$response = $this->call( 'GET', $this->own( $remote ), array(), array( 'sink' => $target, 'timeout' => 0, 'progress' => function( $done, $total ) { if ( $total > 0 ) $this->progress( $done, $total, 'Descargados' ); } ) );
 		if ( 404 === $response['code'] ) throw new Exception( 'El respaldo ya no está en el servidor WebDAV.' );
 		if ( 200 !== $response['code'] ) throw new Exception( 'No se pudo descargar el respaldo de WebDAV (HTTP ' . $response['code'] . ').' );
 	}
 	/** DAV:getcontentlength de PROPFIND Depth 0. */
 	public function size( array $remote ) {
-		$response = $this->call( 'PROPFIND', (string) $remote['path'], array( 'Depth' => '0', 'Content-Type' => 'application/xml; charset=utf-8' ), array( 'body' => self::propfind_body() ) );
+		$response = $this->call( 'PROPFIND', $this->own( $remote ), array( 'Depth' => '0', 'Content-Type' => 'application/xml; charset=utf-8' ), array( 'body' => self::propfind_body() ) );
 		if ( 404 === $response['code'] ) return false;
 		if ( 207 !== $response['code'] ) throw new Exception( 'El servidor WebDAV no informó el tamaño del respaldo (HTTP ' . $response['code'] . ').' );
 		$items = self::multistatus( $response['body'] );
 		return $items ? (int) $items[0]['size'] : false;
 	}
 	public function delete( array $remote ) {
-		$response = $this->call( 'DELETE', (string) $remote['path'] );
+		$response = $this->call( 'DELETE', $this->own( $remote ) );
 		if ( ! in_array( $response['code'], array( 200, 204, 404 ), true ) ) throw new Exception( 'El servidor WebDAV no borró el archivo (HTTP ' . $response['code'] . ').' );
 	}
 	public function list() {

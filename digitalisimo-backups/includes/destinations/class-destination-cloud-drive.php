@@ -104,13 +104,26 @@ abstract class Digitalisimo_Backups_Destination_Cloud_Drive extends Digitalisimo
 		return $response;
 	}
 
+	/** Identificador de un recibo: sólo caracteres de un id de Drive u OneDrive (sin «/», «?», «#» ni de control). */
+	protected static function own_id( array $remote ) {
+		$id = (string) ( $remote['id'] ?? '' );
+		if ( ! preg_match( '/^[A-Za-z0-9!_.\-]{1,200}$/D', $id ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El identificador de la copia en ' . static::label() . ' no es válido; no se toca.' );
+		return $id;
+	}
+	/**
+	 * Comprueba que el archivo del recibo está en la carpeta de esta conexión antes de tocarlo: false si ya no existe.
+	 * Google Drive no lo necesita: con el alcance drive.file la app sólo ve los archivos que creó (sus respaldos).
+	 */
+	protected function confine( $id ) { return true; }
 	/** Descarga en streaming a un archivo (memoria constante). */
 	public function get( array $remote, $target ) {
-		$response = wp_remote_get( static::content_url( (string) ( $remote['id'] ?? '' ) ), array( 'timeout' => 600, 'redirection' => 5, 'stream' => true, 'filename' => $target, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
+		if ( ! $this->confine( self::own_id( $remote ) ) ) throw new Exception( 'El respaldo ya no está en ' . static::label() . '.' );
+		$response = wp_remote_get( static::content_url( self::own_id( $remote ) ), array( 'timeout' => 600, 'redirection' => 5, 'stream' => true, 'filename' => $target, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) throw new Exception( 'No se pudo descargar el respaldo remoto.' );
 	}
 	public function size( array $remote ) {
-		$response = wp_remote_get( static::metadata_url( (string) ( $remote['id'] ?? '' ) ), array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
+		if ( ! $this->confine( self::own_id( $remote ) ) ) return false;
+		$response = wp_remote_get( static::metadata_url( self::own_id( $remote ) ), array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
 		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 		if ( 404 === $code ) return false;
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
@@ -119,7 +132,8 @@ abstract class Digitalisimo_Backups_Destination_Cloud_Drive extends Digitalisimo
 		return (int) $data['size'];
 	}
 	public function delete( array $remote ) {
-		$response = wp_remote_request( static::item_url( (string) ( $remote['id'] ?? '' ) ), array( 'method' => 'DELETE', 'timeout' => 60, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
+		if ( ! $this->confine( self::own_id( $remote ) ) ) return;
+		$response = wp_remote_request( static::item_url( self::own_id( $remote ) ), array( 'method' => 'DELETE', 'timeout' => 60, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
 		if ( is_wp_error( $response ) || ! in_array( (int) wp_remote_retrieve_response_code( $response ), array( 200, 204, 404 ), true ) ) throw new Exception( 'El proveedor remoto no confirmó la eliminación.' );
 	}
 	abstract protected static function metadata_url( $id );
@@ -191,6 +205,24 @@ final class Digitalisimo_Backups_Destination_Onedrive extends Digitalisimo_Backu
 	private function folder_path() {
 		$folder = trim( (string) $this->s['onedrive_folder'], '/' );
 		return implode( '/', array_map( 'rawurlencode', array_filter( explode( '/', $folder ) ) ) );
+	}
+	/**
+	 * El token de OneDrive ve toda la unidad: un id del historial sólo se toca si su carpeta (parentReference.path, una
+	 * ruta codificada como «/drive/root:/Carpeta»; lo anterior a los dos puntos es la unidad) es la de esta conexión.
+	 */
+	protected function confine( $id ) {
+		$response = wp_remote_get( 'https://graph.microsoft.com/v1.0/me/drive/items/' . rawurlencode( $id ) . '?$select=id,parentReference', array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
+		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		if ( 404 === $code ) return false;
+		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( 200 !== $code || ! is_array( $data ) ) throw new Exception( 'No se pudo consultar el respaldo en OneDrive.' );
+		$path = (string) ( $data['parentReference']['path'] ?? '' );
+		$colon = strpos( $path, ':' );
+		$where = false === $colon ? null : trim( rawurldecode( substr( $path, $colon + 1 ) ), '/' );
+		$folder = implode( '/', array_filter( explode( '/', trim( (string) $this->s['onedrive_folder'], '/' ) ) ) );
+		$lower = function( $text ) { return function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $text, 'UTF-8' ) : strtolower( (string) $text ); };
+		if ( null === $where || $lower( $where ) !== $lower( $folder ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en la carpeta de esta conexión de OneDrive; no se toca.' );
+		return true;
 	}
 	protected function upload_with_token( $file, $name, $token ) {
 		$url = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $this->folder_path() . '/' . rawurlencode( $name ) . ':/createUploadSession';

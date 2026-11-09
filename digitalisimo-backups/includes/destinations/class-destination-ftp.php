@@ -108,6 +108,8 @@ final class Digitalisimo_Backups_Ftp_Client {
 		return array( $code, trim( $text ) );
 	}
 	public function command( $command ) {
+		// Un CR, LF o NUL en un argumento (una ruta) inyectaría otro comando con la sesión autenticada.
+		if ( preg_match( '/[\r\n\0]/', (string) $command ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Una ruta o un dato de FTP contiene caracteres de control; no se envía.' );
 		$this->log[] = 0 === strpos( $command, 'PASS ' ) ? 'PASS ***' : $command;
 		$this->write( $this->control, $command . "\r\n" );
 		return $this->reply();
@@ -163,14 +165,28 @@ final class Digitalisimo_Backups_Ftp_Client {
 	/** Tras la respuesta preliminar (125/150): acepta la conexión activa y activa TLS en el canal de datos. */
 	private function data_ready( array $data ) {
 		if ( isset( $data['server'] ) ) {
-			$stream = @stream_socket_accept( $data['server'], (int) $this->o['timeout'] );
+			$peer = '';
+			$stream = @stream_socket_accept( $data['server'], (int) $this->o['timeout'], $peer );
 			fclose( $data['server'] );
 			if ( ! $stream ) throw new Exception( 'El servidor FTP no abrió la conexión de datos del modo activo (¿cortafuegos?). Prueba el modo pasivo.' );
+			// Sólo el servidor de control: quien gane la carrera al puerto desde otro equipo no recibe ni envía el respaldo.
+			if ( self::address( (string) $peer ) !== self::address( (string) stream_socket_get_name( $this->control, true ) ) ) {
+				@fclose( $stream );
+				throw new Exception( 'La conexión de datos del modo activo no vino del servidor FTP; se rechazó. Prueba el modo pasivo.' );
+			}
 			stream_set_timeout( $stream, (int) $this->o['timeout'] );
 			$data['stream'] = $stream;
 		}
 		if ( $this->secure ) $this->crypto( $data['stream'] );
 		return $data['stream'];
+	}
+	/** IP de un «ip:puerto» de un socket, normalizada (una IPv4 dentro de IPv6 vale como IPv4). */
+	private static function address( $name ) {
+		$ip = trim( (string) preg_replace( '/:\d+$/', '', $name ), '[]' );
+		$bin = @inet_pton( $ip );
+		if ( false === $bin || '' === $ip ) return $ip;
+		if ( 16 === strlen( $bin ) && str_repeat( "\0", 10 ) . "\xff\xff" === substr( $bin, 0, 12 ) ) $bin = substr( $bin, 12 );
+		return (string) inet_ntop( $bin );
 	}
 	private function abort_data( array $data ) {
 		if ( isset( $data['stream'] ) && is_resource( $data['stream'] ) ) @fclose( $data['stream'] );
@@ -324,6 +340,7 @@ final class Digitalisimo_Backups_Destination_Ftp extends Digitalisimo_Backups_De
 		);
 	}
 	public static function help() { return array( 'Pide a tu proveedor el servidor, el usuario y si ofrece FTPS explícito o implícito.', 'Si el servidor exige reutilizar la sesión TLS en el canal de datos (vsftpd con require_ssl_reuse=YES o ProFTPD sin NoSessionReuseRequired), desactiva esa opción para esta cuenta: PHP no puede reutilizarla.' ); }
+	public static function hosts( array $s ) { return array( (string) ( $s['ftp_host'] ?? '' ) ); }
 	public static function ready( array $s ) { return ! empty( $s['ftp_host'] ) && ! empty( $s['ftp_user'] ) && ! empty( $s['ftp_password'] ); }
 	public static function sanitize( array $input, array $old ) {
 		$out = parent::sanitize( $input, $old );
@@ -341,7 +358,7 @@ final class Digitalisimo_Backups_Destination_Ftp extends Digitalisimo_Backups_De
 			$problem = class_exists( 'Digitalisimo_Backups' ) && empty( $s['ftp_password'] ) ? Digitalisimo_Backups::destination_problem( (string) $this->context['connection'] ) : '';
 			throw new Digitalisimo_Backups_Permanent_Error( '' !== $problem ? $problem : 'Completa el servidor, el usuario y la contraseña de FTP.' );
 		}
-		$client = new Digitalisimo_Backups_Ftp_Client( array( 'host' => (string) $s['ftp_host'], 'port' => (int) ( $s['ftp_port'] ?: 21 ), 'mode' => in_array( $s['ftp_security'] ?? '', array( 'explicit', 'implicit', 'none' ), true ) ? $s['ftp_security'] : 'explicit', 'verify' => empty( $s['ftp_insecure'] ), 'ca' => $this->ca_file( (string) ( $s['ftp_ca'] ?? '' ) ), 'passive' => 'active' !== ( $s['ftp_passive'] ?? 'passive' ) ) );
+		$client = new Digitalisimo_Backups_Ftp_Client( array( 'host' => (string) $s['ftp_host'], 'port' => (int) ( $s['ftp_port'] ?: 21 ), 'mode' => in_array( $s['ftp_security'] ?? '', array( 'explicit', 'implicit', 'none' ), true ) ? $s['ftp_security'] : 'explicit', 'verify' => empty( $s['ftp_insecure'] ), 'ca' => $this->ca_file( (string) ( $s['ftp_ca'] ?? '' ) ), 'passive' => 'active' !== ( $s['ftp_passive'] ?? 'passive' ), 'timeout' => (int) ( $this->context['timeout'] ?? 60 ) ?: 60 ) );
 		$client->connect( (string) $s['ftp_user'], (string) $s['ftp_password'] );
 		return $this->client = $client;
 	}
@@ -380,9 +397,10 @@ final class Digitalisimo_Backups_Destination_Ftp extends Digitalisimo_Backups_De
 		$client->rename( (string) $temp['path'], $final );
 		return array( 'provider' => self::TYPE, 'path' => $final );
 	}
-	public function get( array $remote, $target ) { $this->client()->retrieve( (string) $remote['path'], $target, function( $done ) {} ); }
-	public function size( array $remote ) { return $this->client()->size( (string) $remote['path'] ); }
-	public function delete( array $remote ) { $this->client()->delete( (string) $remote['path'] ); }
+	private function own( array $remote ) { return self::inside( (string) ( $remote['path'] ?? '' ), $this->directory(), self::label() ); }
+	public function get( array $remote, $target ) { $path = $this->own( $remote ); $this->client()->retrieve( $path, $target, function( $done ) {} ); }
+	public function size( array $remote ) { $path = $this->own( $remote ); return $this->client()->size( $path ); }
+	public function delete( array $remote ) { $path = $this->own( $remote ); $this->client()->delete( $path ); }
 	public function list() {
 		$out = array();
 		foreach ( $this->client()->files( '' !== $this->directory() ? $this->directory() : '/' ) as $item ) $out[] = $item + array( 'remote' => array( 'provider' => self::TYPE, 'connection' => (string) $this->context['connection'], 'path' => $this->directory() . '/' . $item['name'] ) );

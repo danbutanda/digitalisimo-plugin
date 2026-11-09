@@ -59,6 +59,8 @@ abstract class Digitalisimo_Backups_Destination {
 	abstract public static function ready( array $s );
 	/** OAuth: el proveedor da el token al conectar, no se escribe. */
 	public static function oauth() { return false; }
+	/** Servidores que elige quien configura la conexión (los de un servicio con nombre no cuentan): «Probar conexión» avisa si son internos. */
+	public static function hosts( array $s ) { return array(); }
 	/**
 	 * Valida y normaliza lo enviado por el formulario. Un secreto vacío conserva el guardado. Lanza Exception con un
 	 * mensaje para la pantalla si algo no es válido.
@@ -137,6 +139,8 @@ abstract class Digitalisimo_Backups_Destination {
 	/** Ruta remota absoluta y normalizada: sin «..», sin barras repetidas, sin barra final (salvo la raíz). */
 	public static function clean_path( $path, $default = '/' ) {
 		$path = str_replace( '\\', '/', trim( (string) $path ) );
+		// Ningún carácter de control: CR/LF inyectarían comandos en FTP y en cualquier protocolo de texto.
+		if ( preg_match( '/[\x00-\x1F\x7F]/', $path ) ) throw new Exception( 'La carpeta remota no puede contener caracteres de control.' );
 		if ( '' === $path ) $path = $default;
 		$parts = array();
 		foreach ( explode( '/', $path ) as $part ) {
@@ -145,6 +149,20 @@ abstract class Digitalisimo_Backups_Destination {
 			$parts[] = $part;
 		}
 		return '/' . implode( '/', $parts );
+	}
+
+	/**
+	 * Ruta de un recibo del historial, sólo si está dentro de $folder (la carpeta de esta conexión): sin caracteres de
+	 * control ni segmentos «.» o «..». Lo que no cumpla no se toca (un recibo alterado en la base no borra ni descarga
+	 * nada fuera de la carpeta). $folder sin barra final; '' o '/' es la raíz.
+	 */
+	protected static function inside( $path, $folder, $label ) {
+		$path = (string) $path;
+		$folder = rtrim( (string) $folder, '/' );
+		$segments = explode( '/', trim( $path, '/' ) );
+		$ok = '' !== $path && ! preg_match( '/[\x00-\x1F\x7F]/', $path ) && ! array_intersect( $segments, array( '', '.', '..' ) ) && ( '' === $folder ? true : 0 === strpos( $path, $folder . '/' ) );
+		if ( ! $ok ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en la carpeta de esta conexión de ' . $label . '; no se toca.' );
+		return $path;
 	}
 
 	/* ------------------------------------------------------------------ Contrato */

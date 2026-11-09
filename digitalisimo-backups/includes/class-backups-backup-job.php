@@ -197,7 +197,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	/** Al fallar o cancelar: sin área de trabajo; un ZIP ya registrado sigue siendo local y verificado. */
 	public static function on_terminal( array $job, $status, $message ) {
 		// Una transferencia que falla o se cancela retira del destino lo que dejó a medias (multipart, temporales).
-		if ( 'transfer' === ( $job['phase'] ?? '' ) && empty( $job['spec']['inline'] ) ) Digitalisimo_Backups::job_transfer_abandon( $job );
+		// Sólo aparta su estado: la llamada al destino ocurre después, fuera del cerrojo del registro (job_transfer_abandon_pending).
+		if ( 'transfer' === ( $job['phase'] ?? '' ) && empty( $job['spec']['inline'] ) ) Digitalisimo_Backups::job_transfer_queue_abandon( $job );
 		try {
 			Digitalisimo_Backups_Job_Store::remove_staging( $job['id'] );
 		} catch ( Throwable $e ) {

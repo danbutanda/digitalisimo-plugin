@@ -57,7 +57,7 @@ final class Bk_Fake_Drives {
 		}
 		if ( preg_match( '#^https://graph\.microsoft\.com/v1\.0/me/drive/root:/(.*):/createUploadSession$#', $url, $match ) ) {
 			$id = 'o' . bin2hex( random_bytes( 4 ) );
-			self::$sessions[ 'https://upload.fake/' . $id ] = array( 'id' => $id, 'name' => rawurldecode( basename( $match[1] ) ), 'data' => '' );
+			self::$sessions[ 'https://upload.fake/' . $id ] = array( 'id' => $id, 'name' => rawurldecode( basename( $match[1] ) ), 'folder' => rawurldecode( dirname( $match[1] ) ), 'data' => '' );
 			return self::reply( 200, array( 'uploadUrl' => 'https://upload.fake/' . $id ) );
 		}
 		if ( isset( self::$sessions[ $url ] ) ) {
@@ -68,7 +68,7 @@ final class Bk_Fake_Drives {
 			if ( strlen( self::$sessions[ $url ]['data'] ) < (int) $range[3] ) return self::reply( 308 );
 			$session = self::$sessions[ $url ];
 			unset( self::$sessions[ $url ] );
-			self::$files[ $session['id'] ] = array( 'name' => $session['name'], 'data' => $session['data'] );
+			self::$files[ $session['id'] ] = array( 'name' => $session['name'], 'folder' => $session['folder'] ?? '', 'data' => $session['data'] );
 			return self::reply( 201, array( 'id' => $session['id'] ) );
 		}
 		if ( preg_match( '#^https://(www\.googleapis\.com/drive/v3/files|graph\.microsoft\.com/v1\.0/me/drive/items)/([^/?]+)(/content|\?alt=media)?#', $url, $match ) && ( 'https://www.googleapis.com/drive/v3/files?' !== substr( $url, 0, 43 ) ) ) {
@@ -82,7 +82,8 @@ final class Bk_Fake_Drives {
 				file_put_contents( $args['filename'], $data );
 				return self::reply( 200 );
 			}
-			return self::reply( 200, array( 'id' => $id, 'name' => self::$files[ $id ]['name'], 'size' => (string) strlen( self::$files[ $id ]['data'] ) ) );
+			// Como Graph: parentReference.path codificado y precedido de la unidad («/drive/root:/Carpeta»).
+			return self::reply( 200, array( 'id' => $id, 'name' => self::$files[ $id ]['name'], 'size' => (string) strlen( self::$files[ $id ]['data'] ), 'parentReference' => array( 'path' => '/drive/root:' . ( '' !== ( self::$files[ $id ]['folder'] ?? '' ) && '.' !== self::$files[ $id ]['folder'] ? '/' . str_replace( '%2F', '/', rawurlencode( self::$files[ $id ]['folder'] ) ) : '' ) ) ) );
 		}
 		if ( 0 === strpos( $url, 'https://www.googleapis.com/drive/v3/files?' ) || false !== strpos( $url, '/children' ) ) {
 			$items = array();
