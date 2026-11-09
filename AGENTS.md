@@ -58,7 +58,7 @@ Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo d
 
 ### DIGITALÍSIMO Backups
 
-Responsable de los respaldos completos del sitio o de la red (manifiesto con SHA-256, almacén privado fuera de la raíz web, destinos local, SFTP, Google Drive y OneDrive) y de su restauración. Un archivo parcial nunca se presenta como respaldo completo. Objetivo, estado y pendientes en `docs/BACKUPS.md`.
+Responsable de los respaldos completos del sitio o de la red (manifiesto con SHA-256, almacén privado fuera de la raíz web, destinos local, FTP/FTPS, SFTP, WebDAV, Google Drive, OneDrive, Dropbox, Amazon S3 y compatibles y pCloud sobre un contrato común en `includes/destinations/`) y de su restauración. Un archivo parcial nunca se presenta como respaldo completo. Objetivo, estado y pendientes en `docs/BACKUPS.md`.
 
 ### DIGITALÍSIMO Elements
 

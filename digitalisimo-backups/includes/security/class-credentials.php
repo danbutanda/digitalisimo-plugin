@@ -2,7 +2,8 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Credenciales de los destinos (contraseña SFTP, Client secret y Refresh token de Google Drive y OneDrive) cifradas en
+ * Credenciales de los destinos (contraseñas, claves privadas, Secret keys, Client secret y tokens de OAuth de SFTP,
+ * FTP/FTPS, WebDAV, Google Drive, OneDrive, Dropbox, Amazon S3 y compatibles y pCloud) cifradas en
  * reposo. Viven en la opción digitalisimo_backups_credentials (de la red en Multisite), que SÍ entra en el SQL de cada
  * respaldo: restaurar deja los destinos funcionando. Nunca se guardan en claro en digitalisimo_backups_settings
  * mientras wp-config.php defina AUTH_KEY y SECURE_AUTH_KEY propias (las mismas reglas que el llavero).
@@ -20,35 +21,50 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Digitalisimo_Backups_Credentials {
 	const OPTION = 'digitalisimo_backups_credentials';
+	/**
+	 * Los secretos que 1.0.61 no conoce (destinos nuevos y conexiones adicionales) van en una opción aparte con el mismo
+	 * formato: 1.0.61 reescribe la suya desde los campos que conoce, así que volver a ella desde rollback/ y guardar no
+	 * los borra. También viaja en el SQL y vive en sitemeta en una red.
+	 */
+	const OPTION_MORE = 'digitalisimo_backups_credentials_more';
+	/** Campos que 1.0.61 guarda en OPTION. */
+	const LEGACY_FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' );
 	const VERSION = 1;
-	const FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' );
+	const FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token', 'sftp_private_key', 'sftp_key_passphrase', 'ftp_password', 'webdav_password', 'dropbox_refresh_token', 's3_secret_key', 's3compat_secret_key', 'pcloud_client_secret', 'pcloud_access_token' );
 	/** Campos de cada destino remoto. */
-	const DESTINATIONS = array( 'sftp' => array( 'sftp_password' ), 'google' => array( 'google_client_secret', 'google_refresh_token' ), 'onedrive' => array( 'onedrive_client_secret', 'onedrive_refresh_token' ) );
+	const DESTINATIONS = array( 'sftp' => array( 'sftp_password', 'sftp_private_key', 'sftp_key_passphrase' ), 'google' => array( 'google_client_secret', 'google_refresh_token' ), 'onedrive' => array( 'onedrive_client_secret', 'onedrive_refresh_token' ), 'ftp' => array( 'ftp_password' ), 'webdav' => array( 'webdav_password' ), 'dropbox' => array( 'dropbox_refresh_token' ), 's3' => array( 's3_secret_key' ), 's3compat' => array( 's3compat_secret_key' ), 'pcloud' => array( 'pcloud_client_secret', 'pcloud_access_token' ) );
+	/** Nombre de cada tipo y qué volver a escribir cuando sus credenciales no se abren. */
+	const TYPE_LABELS = array( 'sftp' => 'SFTP', 'ftp' => 'FTP/FTPS', 'webdav' => 'WebDAV', 'google' => 'Google Drive', 'onedrive' => 'OneDrive', 'dropbox' => 'Dropbox', 's3' => 'Amazon S3', 's3compat' => 'S3 compatible', 'pcloud' => 'pCloud' );
+	const REENTRY = array( 'sftp' => 'vuelve a escribir la contraseña de SFTP (o su clave privada)', 'ftp' => 'vuelve a escribir la contraseña de FTP', 'webdav' => 'vuelve a escribir la contraseña de WebDAV', 'google' => 'vuelve a escribir el Client secret de Google Drive y conéctalo de nuevo', 'onedrive' => 'vuelve a escribir el Client secret de OneDrive y conéctalo de nuevo', 'dropbox' => 'conecta de nuevo Dropbox', 's3' => 'vuelve a escribir la Secret access key de Amazon S3', 's3compat' => 'vuelve a escribir la Secret key del almacenamiento compatible con S3', 'pcloud' => 'vuelve a escribir el Client secret de pCloud y conéctalo de nuevo' );
+	/** Secretos de varias líneas (una clave privada): admiten saltos de línea, y nada más de control. */
+	const MULTILINE = array( 'sftp_private_key' );
 	const MAX_VALUE = 16384;
 	/** Longitud máxima de un secreto escrito (bytes): de sobra para una contraseña o un refresh token de OneDrive. */
 	const MAX_SECRET = 8192;
-	const LABELS = array( 'sftp_password' => 'La contraseña de SFTP', 'google_client_secret' => 'El Client secret de Google Drive', 'google_refresh_token' => 'El Refresh token de Google Drive', 'onedrive_client_secret' => 'El Client secret de OneDrive', 'onedrive_refresh_token' => 'El Refresh token de OneDrive' );
+	const LABELS = array( 'sftp_password' => 'La contraseña de SFTP', 'google_client_secret' => 'El Client secret de Google Drive', 'google_refresh_token' => 'El Refresh token de Google Drive', 'onedrive_client_secret' => 'El Client secret de OneDrive', 'onedrive_refresh_token' => 'El Refresh token de OneDrive', 'sftp_private_key' => 'La clave privada de SFTP', 'sftp_key_passphrase' => 'La frase de la clave privada de SFTP', 'ftp_password' => 'La contraseña de FTP', 'webdav_password' => 'La contraseña de WebDAV', 'dropbox_refresh_token' => 'El Refresh token de Dropbox', 's3_secret_key' => 'La Secret access key de Amazon S3', 's3compat_secret_key' => 'La Secret key del almacenamiento compatible con S3', 'pcloud_client_secret' => 'El Client secret de pCloud', 'pcloud_access_token' => 'El token de acceso de pCloud' );
 
 	/**
 	 * Por qué un secreto escrito (o devuelto por OAuth) no se puede guardar; '' si se puede. Se guarda exactamente como
 	 * llegó, sin recortar ni sanear: comillas, barras, <…>, %xx y espacios al borde forman parte del secreto. Sólo se
 	 * rechazan lo que no es texto, lo que pasa de MAX_SECRET bytes, NUL y los caracteres de control (C0, DEL y C1).
 	 */
-	public static function secret_problem( $value ) {
+	public static function secret_problem( $value, $field = '' ) {
 		if ( ! is_string( $value ) ) return 'no es texto';
 		if ( strlen( $value ) > self::MAX_SECRET ) return 'pasa de ' . self::MAX_SECRET . ' bytes';
+		// Una clave privada lleva saltos de línea: sólo esos se admiten (normalizados a \n por el formulario).
+		if ( in_array( self::base_field( $field ), self::MULTILINE, true ) ) $value = str_replace( "\n", '', $value );
 		if ( preg_match( '/[\x00-\x1F\x7F]/', $value ) || 1 === @preg_match( '/[\x{80}-\x{9F}]/u', $value ) ) return 'contiene caracteres de control (como NUL, saltos de línea o tabuladores)';
 		return '';
 	}
 	/** Nombre de un campo secreto para los mensajes (nunca su valor). */
-	public static function label( $field ) { return self::LABELS[ $field ] ?? 'Una credencial'; }
+	public static function label( $field ) { return self::LABELS[ self::base_field( $field ) ] ?? 'Una credencial'; }
 	/**
 	 * Un wp-config.php de un respaldo más grande no se analiza (sus salts quedan «vuelve a escribir»). Uno real ocupa de 3 a
 	 * 10 KB; con 64 KiB, el tokenizador usa unos 18 MiB como mucho, así que uno hostil no agota la memoria.
 	 */
 	const CONFIG_MAX = 65536;
 	/** Datos de la conexión que ata el dato adicional de cada secreto. */
-	const CONTEXT = array( 'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'google_client_secret' => array( 'google_client_id' ), 'google_refresh_token' => array( 'google_client_id' ), 'onedrive_client_secret' => array( 'onedrive_client_id' ), 'onedrive_refresh_token' => array( 'onedrive_client_id' ) );
+	const CONTEXT = array( 'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'google_client_secret' => array( 'google_client_id' ), 'google_refresh_token' => array( 'google_client_id' ), 'onedrive_client_secret' => array( 'onedrive_client_id' ), 'onedrive_refresh_token' => array( 'onedrive_client_id' ), 'sftp_private_key' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'sftp_key_passphrase' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'ftp_password' => array( 'ftp_host', 'ftp_port', 'ftp_user', 'ftp_security', 'ftp_insecure', 'ftp_ca', 'ftp_path', 'ftp_passive' ), 'webdav_password' => array( 'webdav_url', 'webdav_user', 'webdav_insecure', 'webdav_allow_http', 'webdav_ca', 'webdav_path' ), 'dropbox_refresh_token' => array( 'dropbox_app_key', 'dropbox_folder' ), 's3_secret_key' => array( 's3_access_key', 's3_region', 's3_bucket', 's3_style', 's3_path' ), 's3compat_secret_key' => array( 's3compat_access_key', 's3compat_provider', 's3compat_endpoint', 's3compat_signing_region', 's3compat_do_region', 's3compat_wasabi_region', 's3compat_account', 's3compat_jurisdiction', 's3compat_insecure', 's3compat_allow_http', 's3compat_ca', 's3compat_bucket', 's3compat_style', 's3compat_path' ), 'pcloud_client_secret' => array( 'pcloud_client_id' ), 'pcloud_access_token' => array( 'pcloud_client_id', 'pcloud_host', 'pcloud_folder' ) );
 	/** Valores candidatos por constante (un define dentro de un if, otro fuera…): cada combinación se comprueba por su huella. */
 	const CONFIG_CANDIDATES = 4;
 
@@ -85,8 +101,10 @@ final class Digitalisimo_Backups_Credentials {
 	 */
 	public static function context( $field, array $settings ) {
 		$out = '';
-		foreach ( self::CONTEXT[ $field ] ?? array() as $name ) {
-			$value = $settings[ $name ] ?? '';
+		// Una conexión adicional (`<id>/<campo>`) toma sus datos de las claves `<id>/<dato>` de los ajustes.
+		$scope = self::connection_of( $field );
+		foreach ( self::CONTEXT[ self::base_field( $field ) ] ?? array() as $name ) {
+			$value = $settings[ '' !== $scope ? $scope . '/' . $name : $name ] ?? '';
 			$value = is_scalar( $value ) ? (string) $value : '';
 			if ( 'sftp_port' === $name ) $value = (string) (int) $value;
 			if ( 'sftp_fingerprint' === $name ) $value = strtoupper( str_replace( ':', '', trim( $value ) ) );
@@ -95,7 +113,27 @@ final class Digitalisimo_Backups_Credentials {
 		return $out;
 	}
 	private static function aad( $field, array $settings ) { return 'DGBK1/credentials|v' . self::VERSION . '|' . $field . '|' . self::context( $field, $settings ); }
-	public static function valid_field( $field ) { return is_string( $field ) && in_array( $field, self::FIELDS, true ); }
+	/**
+	 * Un campo de la conexión principal de un tipo (`sftp_password`) o de una conexión adicional del mismo tipo
+	 * (`sftp-0a1b2c3d/sftp_password`): el dato adicional lleva el nombre completo y los datos de esa conexión, así que un
+	 * valor no se mueve de una conexión a otra.
+	 */
+	public static function valid_field( $field ) {
+		if ( ! is_string( $field ) ) return false;
+		if ( in_array( $field, self::FIELDS, true ) ) return true;
+		return 1 === preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}\/([a-z0-9_]+)$/D', $field, $match ) && in_array( $match[2], self::DESTINATIONS[ $match[1] ] ?? array(), true );
+	}
+	/** Clave del secreto sin el prefijo de su conexión adicional. */
+	public static function base_field( $field ) { $field = (string) $field; $slash = strpos( $field, '/' ); return false === $slash ? $field : substr( $field, $slash + 1 ); }
+	/** Conexión adicional de un campo ('' si es de la conexión principal de su tipo). */
+	public static function connection_of( $field ) { return preg_match( '/^([a-z0-9]+-[a-f0-9]{8})\//', (string) $field, $match ) ? $match[1] : ''; }
+	/** Campos del almacén de un destino: los de su tipo, o los de una conexión adicional con su prefijo. */
+	public static function fields_of( $destination ) {
+		$destination = (string) $destination;
+		if ( isset( self::DESTINATIONS[ $destination ] ) ) return self::DESTINATIONS[ $destination ];
+		if ( ! preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}$/D', $destination, $match ) || ! isset( self::DESTINATIONS[ $match[1] ] ) ) return array();
+		return array_map( function( $field ) use ( $destination ) { return $destination . '/' . $field; }, self::DESTINATIONS[ $match[1] ] );
+	}
 
 	/** Un elemento cifrado del almacén para $field, atado a la conexión que describen $settings. */
 	public static function seal( $key, $field, $value, array $settings ) {
@@ -122,30 +160,47 @@ final class Digitalisimo_Backups_Credentials {
 	 * nunca rompe la lectura de los ajustes ni la pantalla.
 	 */
 	public static function raw() {
-		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		if ( null === $saved ) $saved = self::adopt_site_store();
 		$store = array( 'v' => self::VERSION, 'items' => array() );
-		if ( ! is_array( $saved ) ) return $store;
-		$known = self::VERSION === ( $saved['v'] ?? null );
-		$items = $saved['items'] ?? array();
-		foreach ( is_array( $items ) ? $items : array() as $field => $item ) {
-			if ( ! self::valid_field( $field ) || ! is_array( $item ) ) continue;
-			$kw = $item['kw'] ?? '';
-			$c = $item['c'] ?? '';
-			$store['items'][ $field ] = $known && is_string( $kw ) && is_string( $c ) ? array( 'kw' => $kw, 'c' => $c ) : array( 'kw' => '', 'c' => '' );
+		foreach ( array( self::OPTION, self::OPTION_MORE ) as $option ) {
+			$saved = Digitalisimo_Backups_Keys::get( $option, null );
+			if ( null === $saved ) $saved = self::adopt_site_store( $option );
+			if ( ! is_array( $saved ) ) continue;
+			$known = self::VERSION === ( $saved['v'] ?? null );
+			$items = $saved['items'] ?? array();
+			foreach ( is_array( $items ) ? $items : array() as $field => $item ) {
+				// Un campo en la opción que no le toca (escrito por una versión previa de esta rama) se lee igual y se
+				// mueve al guardar; si está en las dos, manda el de su opción.
+				if ( ! self::valid_field( $field ) || ! is_array( $item ) || ( isset( $store['items'][ $field ] ) && self::option_for( $field ) !== $option ) ) continue;
+				$kw = $item['kw'] ?? '';
+				$c = $item['c'] ?? '';
+				$store['items'][ $field ] = $known && is_string( $kw ) && is_string( $c ) ? array( 'kw' => $kw, 'c' => $c ) : array( 'kw' => '', 'c' => '' );
+			}
 		}
 		return $store;
+	}
+	/** Opción del almacén de un campo: la de 1.0.61 para sus cinco campos; la nueva para los demás. */
+	public static function option_for( $field ) { return in_array( $field, self::LEGACY_FIELDS, true ) ? self::OPTION : self::OPTION_MORE; }
+	/** Escribe el almacén repartido en sus dos opciones (sólo las que cambian). */
+	private static function write_store( array $items ) {
+		$parts = array( self::OPTION => array(), self::OPTION_MORE => array() );
+		foreach ( $items as $field => $item ) $parts[ self::option_for( $field ) ][ $field ] = $item;
+		foreach ( $parts as $option => $part ) {
+			$current = Digitalisimo_Backups_Keys::get( $option, null );
+			$value = array( 'v' => self::VERSION, 'items' => $part );
+			if ( $current === $value || ( null === $current && ! $part ) ) continue;
+			Digitalisimo_Backups_Keys::put( $option, $value );
+		}
 	}
 	/**
 	 * Un sitio individual convertido en red: el almacén quedó en las opciones del sitio principal y la red lo busca en
 	 * sitemeta. Se adopta (mismas salts, mismos datos de conexión): las credenciales siguen funcionando, nunca se pierden.
 	 */
-	private static function adopt_site_store() {
+	private static function adopt_site_store( $option = self::OPTION ) {
 		if ( ! is_multisite() || ! is_main_site() ) return null;
-		$site = get_option( self::OPTION, null );
+		$site = get_option( $option, null );
 		if ( ! is_array( $site ) ) return null;
-		Digitalisimo_Backups_Keys::put( self::OPTION, $site );
-		delete_option( self::OPTION );
+		Digitalisimo_Backups_Keys::put( $option, $site );
+		delete_option( $option );
 		return $site;
 	}
 	/** Los valores que este servidor abre para la conexión de $settings: campo => texto. Sin clave propia no lee nada. */
@@ -174,13 +229,17 @@ final class Digitalisimo_Backups_Credentials {
 	 * almacén. No necesita la clave. Devuelve los campos retirados.
 	 */
 	public static function remove( array $fields ) {
-		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		if ( ! is_array( $saved ) || ! is_array( $saved['items'] ?? null ) ) return array();
-		$removed = array_values( array_intersect( array_keys( $saved['items'] ), array_filter( $fields, array( __CLASS__, 'valid_field' ) ) ) );
-		if ( ! $removed ) return array();
-		foreach ( $removed as $field ) unset( $saved['items'][ $field ] );
-		Digitalisimo_Backups_Keys::put( self::OPTION, $saved );
-		return $removed;
+		$removed = array();
+		foreach ( array( self::OPTION, self::OPTION_MORE ) as $option ) {
+			$saved = Digitalisimo_Backups_Keys::get( $option, null );
+			if ( ! is_array( $saved ) || ! is_array( $saved['items'] ?? null ) ) continue;
+			$here = array_values( array_intersect( array_keys( $saved['items'] ), array_filter( $fields, array( __CLASS__, 'valid_field' ) ) ) );
+			if ( ! $here ) continue;
+			foreach ( $here as $field ) unset( $saved['items'][ $field ] );
+			Digitalisimo_Backups_Keys::put( $option, $saved );
+			$removed = array_merge( $removed, $here );
+		}
+		return array_values( array_unique( $removed ) );
 	}
 
 	/**
@@ -212,13 +271,13 @@ final class Digitalisimo_Backups_Credentials {
 	 * almacén como estaba y avisa: quien llama no retira nada de los ajustes, así que ninguna credencial se pierde.
 	 */
 	private static function save( array $store, $key, array $written, array $settings ) {
-		$before = Digitalisimo_Backups_Keys::get( self::OPTION, null );
-		Digitalisimo_Backups_Keys::put( self::OPTION, array( 'v' => self::VERSION, 'items' => $store['items'] ) );
+		$before = array( self::OPTION => Digitalisimo_Backups_Keys::get( self::OPTION, null ), self::OPTION_MORE => Digitalisimo_Backups_Keys::get( self::OPTION_MORE, null ) );
+		self::write_store( $store['items'] );
 		$check = self::raw()['items'];
 		foreach ( $written as $field => $value ) {
 			$opened = self::open( $key, $field, $check[ $field ] ?? null, $settings );
 			if ( false !== $opened && hash_equals( $value, $opened ) ) continue;
-			Digitalisimo_Backups_Keys::put( self::OPTION, null === $before ? array( 'v' => self::VERSION, 'items' => array() ) : $before );
+			foreach ( $before as $option => $previous ) if ( null !== $previous || null !== Digitalisimo_Backups_Keys::get( $option, null ) ) Digitalisimo_Backups_Keys::put( $option, null === $previous ? array( 'v' => self::VERSION, 'items' => array() ) : $previous );
 			throw new Exception( 'No se pudo comprobar una credencial cifrada; se conserva como estaba.' );
 		}
 	}
@@ -396,24 +455,30 @@ final class Digitalisimo_Backups_Credentials {
 
 	/** Destino al que pertenece un campo. */
 	public static function destination_of( $field ) {
+		if ( '' !== self::connection_of( $field ) ) return self::connection_of( $field );
 		foreach ( self::DESTINATIONS as $destination => $fields ) if ( in_array( $field, $fields, true ) ) return $destination;
 		return '';
 	}
 	/** Qué hay que hacer para volver a usar cada destino con credenciales que no se abren. */
 	private static function reentry_text( array $destinations ) {
-		$labels = array( 'sftp' => 'SFTP', 'google' => 'Google Drive', 'onedrive' => 'OneDrive' );
-		$names = array_map( function( $destination ) use ( $labels ) { return $labels[ $destination ]; }, $destinations );
+		$names = array();
 		$actions = array();
-		if ( in_array( 'sftp', $destinations, true ) ) $actions[] = 'vuelve a escribir la contraseña de SFTP';
-		foreach ( array( 'google' => 'Google Drive', 'onedrive' => 'OneDrive' ) as $destination => $label ) if ( in_array( $destination, $destinations, true ) ) $actions[] = 'vuelve a escribir el Client secret de ' . $label . ' y conéctalo de nuevo';
-		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php y los datos de su conexión: las claves cambiaron, el sitio se restauró desde otro servidor sin poder leer las suyas, o el host, el usuario, la huella o el Client ID cambiaron fuera de este formulario. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
+		foreach ( $destinations as $destination ) {
+			$type = preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}$/D', (string) $destination, $match ) ? $match[1] : (string) $destination;
+			// Una conexión adicional se nombra por su nombre en la pantalla.
+			$name = $type !== $destination && class_exists( 'Digitalisimo_Backups_Destinations' ) ? Digitalisimo_Backups_Destinations::name_of( $destination ) : '';
+			$label = self::TYPE_LABELS[ $type ] ?? $type;
+			$names[] = '' !== $name ? $label . ' «' . $name . '»' : $label;
+			$actions[] = ( self::REENTRY[ $type ] ?? 'vuelve a escribir sus credenciales' ) . ( '' !== $name ? ' (conexión «' . $name . '»)' : '' );
+		}
+		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php y los datos de su conexión: las claves cambiaron, el sitio se restauró desde otro servidor sin poder leer las suyas, o los datos de su conexión (servidor, usuario, huella, Access key, Client ID o App key) cambiaron fuera de este formulario. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
 	}
 	/**
 	 * Mensaje para un destino cuyas credenciales no abren ('' si no es el caso). $plain: campos que siguen en claro;
 	 * $settings: los ajustes guardados (los datos de cada conexión).
 	 */
 	public static function destination_problem( $destination, array $plain, array $settings ) {
-		$fields = self::DESTINATIONS[ $destination ] ?? array();
+		$fields = self::fields_of( $destination );
 		if ( ! $fields ) return '';
 		$locked = array_diff( array_intersect( self::locked( $settings ), $fields ), $plain );
 		return $locked ? self::reentry_text( array( $destination ) ) : '';
