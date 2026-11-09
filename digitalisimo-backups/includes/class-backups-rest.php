@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /backups                           historial
  * - POST /backups                           encola un respaldo completo (`destination`, `network`): 202 con el trabajo
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
- * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`)
+ * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`)
  * - GET  /automations                       automatizaciones y su próxima ejecución
  * - POST /automations/<id>/run              encola la automatización ahora (`network`): 202 con el trabajo
  * - GET  /jobs                              trabajos sin terminar y los últimos terminados
@@ -44,13 +44,15 @@ final class Digitalisimo_Backups_Rest {
 			$route( 'GET', 'backups' ),
 			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, sftp, google u onedrive. Vacío usa el de los ajustes.' ), 'network' => $network ) ),
 		) );
-		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret ) ) ) );
+		$addresses = array( 'type' => 'string', 'default' => 'current', 'enum' => array( 'current', 'backup' ), 'description' => 'Si el respaldo viene de otra dirección: current conserva las de este sitio (por defecto) y backup las del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este sitio.' );
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
 			$route( 'POST', 'restore', array(
 				'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'RESTAURAR, o RESTAURAR SIN FIRMA para un archivo sin firma válida ni registro: la restauración reemplaza la base de datos y los archivos.' ),
 				'network' => $network,
 				'secret' => $secret,
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
+				'addresses' => $addresses,
 			) ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/automations', array( $route( 'GET', 'automations' ) ) );
@@ -94,12 +96,12 @@ final class Digitalisimo_Backups_Rest {
 	public static function verify( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret ) ) );
+		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret, 'addresses' => (string) $request['addresses'] ) ) );
 	}
 	public static function restore( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'] ) ) );
+		return self::respond( Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'] ) ) );
 	}
 	public static function automations( $request ) {
 		return self::respond( Digitalisimo_Backups::service_automations() );

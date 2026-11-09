@@ -1385,10 +1385,54 @@ final class Digitalisimo_Backups {
 		sort( $loose );
 		echo '<section class="digitalisimo-backups-card"><h2>Restaurar respaldo local</h2><p>Antes de reemplazar la instalación, se creará y bloqueará un respaldo de seguridad actual. La restauración reemplaza la base de datos y los archivos incluidos. Escribe <code>RESTAURAR</code> para un respaldo firmado o registrado en este sitio. Un archivo sin firma válida ni registro pide <code>RESTAURAR SIN FIRMA</code>: restaurarlo instala su código y sus datos, así que revisa antes su origen. Un respaldo cifrado sólo se restaura con su frase o con la clave de <code>wp-config.php</code> que lo cifró: sin ella no se puede restaurar y nadie puede recuperarlo, tampoco DIGITALÍSIMO.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_RESTORE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file"><option value="">Elige un respaldo de Digitalisimo</option>';
-		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) echo '<option value="' . esc_attr( $item['file'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) ) . '</option>'; echo '</optgroup>'; }
-		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) echo '<option value="' . esc_attr( $file ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) ) . '</option>'; echo '</optgroup>'; }
-		echo '</select></p><p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label><br><span class="description">Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.</span></p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form></section>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file" id="digitalisimo-backups-restore-file"><option value="">Elige un respaldo de Digitalisimo</option>';
+		// «Origen → este sitio» de cada archivo, antes de confirmar (de su manifiesto; un .dgbk lo dice al descifrarlo).
+		$here = Digitalisimo_Backups_Relocate::describe();
+		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si el respaldo viene de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas, se reescriben al restaurar: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.</p>';
+		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Conservar las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label><br><label><input type="radio" name="addresses" value="backup"> Conservar las del respaldo: el sitio quedará en su dirección original (las rutas del servidor y el prefijo siguen siendo los de este servidor)</label></p></fieldset>';
+		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label><br><span class="description">Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.</span></p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
+		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
+		self::relocation_card();
+		echo '</section>';
+	}
+	/**
+	 * «Origen → este sitio» de un archivo del almacén a partir de su manifiesto (sin abrir el SQL): una etiqueta corta
+	 * para la lista y el texto completo para el párrafo bajo ella. Un .dgbk no se puede leer sin descifrarlo.
+	 */
+	private static function relocation_hint( $path, array $here ) {
+		static $cache = array();
+		$key = $path . '|' . @filemtime( $path );
+		if ( isset( $cache[ $key ] ) ) return $cache[ $key ];
+		$none = array( 'label' => '', 'text' => '' );
+		if ( ! class_exists( 'ZipArchive' ) || Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return $cache[ $key ] = array( 'label' => '', 'text' => 'Respaldo cifrado: su origen se conoce al descifrarlo; si viene de otra dirección o con otro prefijo, se reescribe igual.' );
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path ) ) return $cache[ $key ] = $none;
+		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$zip->close();
+		if ( ! is_array( $manifest ) ) return $cache[ $key ] = $none;
+		$plan = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), $here, array( 'tables' => is_array( $manifest['database_tables'] ?? null ) ? $manifest['database_tables'] : null ) );
+		$summary = $plan->summary();
+		if ( ! $summary['needed'] && ! $summary['problems'] ) return $cache[ $key ] = array( 'label' => '', 'text' => $summary['text'] );
+		$label = ' · origen ' . ( '' !== $summary['origin']['home'] ? $summary['origin']['home'] : 'desconocido' ) . ( $summary['origin']['prefix'] !== $summary['destination']['prefix'] && '' !== $summary['origin']['prefix'] ? ' (' . $summary['origin']['prefix'] . ')' : '' ) . ' → este sitio' . ( $summary['problems'] ? ': no se puede restaurar aquí' : '' );
+		return $cache[ $key ] = array( 'label' => $label, 'text' => $summary['text'] );
+	}
+	/** Informe de la última restauración que reescribió direcciones, rutas o prefijo. */
+	private static function relocation_card() {
+		$last = get_option( self::LAST_RELOCATION );
+		if ( ! is_array( $last ) || empty( $last['summary'] ) ) return;
+		$check = is_array( $last['check'] ?? null ) ? $last['check'] : null;
+		echo '<h3>Última restauración en otro dominio</h3><p>' . esc_html( (string) ( $last['date'] ?? '' ) . ' · ' . (string) ( $last['file'] ?? '' ) ) . '</p><p>' . esc_html( (string) ( $last['summary']['text'] ?? '' ) ) . '</p>';
+		if ( $check ) echo '<p>' . esc_html( 'Comprobación final: ' . (int) $check['urls'] . ' URL y ' . (int) $check['paths'] . ' rutas del origen pendientes (debe ser 0); sin tocar a propósito: ' . (int) $check['guid'] . ' guid, ' . (int) ( $check['kept'] ?? 0 ) . ' en datos que no se pueden reescribir sin riesgo (serializado dañado, objeto con formato propio, clave que chocaría), ' . (int) $check['emails'] . ' correos y ' . (int) $check['other'] . ' menciones sin esquema.' . ( empty( $check['complete'] ) ? ' Revisión parcial: había más filas candidatas de las que se revisaron.' : '' ) ) . '</p>';
+		$rows = array();
+		foreach ( (array) ( $last['tables'] ?? array() ) as $table => $counts ) if ( ! empty( $counts['rows'] ) || ! empty( $counts['keys'] ) || ! empty( $counts['malformed'] ) ) $rows[ $table ] = $counts;
+		if ( $rows ) {
+			echo '<table class="widefat striped"><thead><tr><th>Tabla</th><th>Filas reescritas</th><th>Valores</th><th>Claves con prefijo</th><th>Sin tocar (dañados o con formato propio)</th></tr></thead><tbody>';
+			foreach ( $rows as $table => $counts ) echo '<tr><td><code>' . esc_html( $table ) . '</code></td><td>' . (int) ( $counts['rows'] ?? 0 ) . '</td><td>' . (int) ( $counts['values'] ?? 0 ) . '</td><td>' . (int) ( $counts['keys'] ?? 0 ) . '</td><td>' . (int) ( ( $counts['malformed'] ?? 0 ) + ( $counts['opaque'] ?? 0 ) + ( $counts['too_large'] ?? 0 ) ) . '</td></tr>';
+			echo '</tbody></table>';
+		}
+		foreach ( (array) ( $last['warnings'] ?? array() ) as $warning ) echo '<p class="notice notice-warning inline">' . esc_html( (string) $warning ) . '</p>';
 	}
 	public static function restore_request() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
@@ -1400,7 +1444,8 @@ final class Digitalisimo_Backups {
 			// Mismo caso de uso que REST y WP-CLI. En una red, esta pantalla restaura la red entera. La frase se usa tal
 			// cual: sanitize_text_field() la alteraría.
 			$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ) ) );
+			$addresses = 'backup' === sanitize_key( wp_unslash( $_POST['addresses'] ?? '' ) ) ? 'backup' : 'current';
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses ) );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
