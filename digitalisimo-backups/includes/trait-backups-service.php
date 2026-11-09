@@ -127,6 +127,7 @@ trait Digitalisimo_Backups_Service {
 			'locked' => ! empty( $item['locked'] ),
 			'available' => $available,
 			'restorable' => $available && 'local' === ( $item['destination'] ?? 'local' ) && 'full' === $type && in_array( $scope, array( 'network', 'installation' ), true ),
+			'site' => (string) ( $item['extract']['label'] ?? '' ),
 		);
 	}
 	/** Copias previas a una restauración en el historial: se registran (bloqueadas) justo antes del SQL. */
@@ -140,6 +141,8 @@ trait Digitalisimo_Backups_Service {
 			'destination' => (string) ( $spec['destination'] ?? 'local' ),
 			'policy' => (string) ( $spec['policy'] ?? '' ),
 			'encrypt' => ! empty( $spec['security']['encrypt'] ),
+			'scope' => (string) ( $spec['scope'] ?? '' ),
+			'site' => Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ? (int) $spec['extract']['site_id'] : 0,
 		);
 	}
 	/** Encolar responde enseguida: el trabajo lo hacen avanzar WP-Cron, el navegador, `POST /jobs/tick` o WP-CLI. */
@@ -254,6 +257,40 @@ trait Digitalisimo_Backups_Service {
 		}
 		return self::service_enqueued( $queued, 'Ya hay un respaldo manual pendiente o en curso; su avance está en «Trabajos».', $args['spawn'] ?? true );
 	}
+	/**
+	 * «Extraer como WordPress individual»: encola un trabajo que produce el paquete de un sitio de la red, restaurable en
+	 * una instalación individual (alcance `extracted-site`, ver Digitalisimo_Backups_Site_Extract). Es una acción de la
+	 * red: sólo un superadministrador (o WP-CLI), desde el sitio principal y con el alcance de red explícito, como crear un
+	 * respaldo de la red; un sitio no puede extraer otros. `super_admins` (managing, all o none) decide qué pasa con los
+	 * superadministradores que no son miembros del sitio y `network_secrets`, si las claves de API que el sitio hereda de
+	 * la red viajan. Nunca duplica la extracción pendiente de un mismo sitio (409).
+	 */
+	public static function service_extract( $site_id, array $args = array() ) {
+		if ( ! is_multisite() ) return self::service_error( 'scope', 'Esta instalación no es una red: no hay sitios que extraer.', 400 );
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		if ( ! ( defined( 'WP_CLI' ) && WP_CLI ) && ! is_super_admin() ) return self::service_error( 'forbidden', 'Sólo un superadministrador de la red puede extraer un sitio.', 403 );
+		$site = Digitalisimo_Backups_Site_Extract::site( $site_id );
+		if ( is_wp_error( $site ) ) return $site;
+		$options = Digitalisimo_Backups_Site_Extract::options( $args );
+		if ( is_wp_error( $options ) ) return $options;
+		$settings = self::settings();
+		$destination = sanitize_key( (string) ( $args['destination'] ?? '' ) );
+		if ( '' === $destination ) $destination = 'local';
+		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) ) {
+			$problem = 'local' === $destination ? '' : self::credentials_problem( $destination );
+			return self::service_error( 'destination', '' !== $problem ? $problem : 'El destino seleccionado no está conectado o no es válido.', 400 );
+		}
+		try {
+			self::ensure_ready();
+			foreach ( Digitalisimo_Backups_Site_Extract::problems( $site ) as $problem ) throw new Exception( $problem );
+			$spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => Digitalisimo_Backups_Site_Extract::policy_id( $site['id'] ), 'destination' => $destination, 'retain' => 1, 'retention' => 'none', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => true, 'site_id' => get_main_site_id(), 'file' => Digitalisimo_Backups_Site_Extract::file_name( $site ) ) );
+			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Site_Extract::job_spec( $spec, $site, $options ) );
+		} catch ( Throwable $e ) {
+			return self::service_error( 'not_ready', $e->getMessage(), 422 );
+		}
+		return self::service_enqueued( $queued, 'Ya hay una extracción de ' . $site['label'] . ' pendiente o en curso; su avance está en «Trabajos».', $args['spawn'] ?? true );
+	}
 	/** Encola ahora una automatización completa, por el mismo camino que su botón «Ejecutar ahora» y su evento de cron. */
 	public static function service_run_automation( $id, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
@@ -363,13 +400,14 @@ trait Digitalisimo_Backups_Service {
 			$key = isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '';
 			$copies = self::service_safety_copies();
 			try {
-				self::restore_digitalisimo_zip( $report['path'], $report );
+				$restored = self::restore_digitalisimo_zip( $report['path'], $report );
 			} catch ( Throwable $e ) {
 				// Sin copia previa nueva, el SQL y los archivos no se tocaron: el paquete (o la copia previa) se rechazó
 				// antes (422). Con ella, la restauración empezó y el mensaje dice qué se recuperó (500).
 				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
 			}
-			$notice = '';
+			// Un sitio extraído de una red: con qué cuentas se entra ahora.
+			$notice = is_array( $restored ) && Digitalisimo_Backups_Site_Extract::SCOPE === ( $restored['scope'] ?? '' ) ? ' ' . Digitalisimo_Backups_Site_Extract::restored_notice( $restored ) : '';
 			$adopted = false;
 			if ( ! empty( $args['adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
 				try {
@@ -450,6 +488,7 @@ trait Digitalisimo_Backups_Service {
 				'table_prefix' => (string) ( $data['table_prefix'] ?? '' ),
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
+				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );

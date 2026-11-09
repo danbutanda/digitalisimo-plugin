@@ -21,6 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /jobs/<id>                         un trabajo
  * - POST /jobs/<id>/cancel                  cancela un trabajo
  * - POST /jobs/tick                         un paso de la cola, como el navegador con la pantalla abierta
+ * - POST /sites/<id>/extract                extrae un sitio de la red como WordPress individual (`network`,
+ *                                           `super_admins`, `network_secrets`, `destination`): 202 con el trabajo
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
  * registros del servidor y del proxy, así que una petición que la lleve en la cadena de consulta se rechaza (400).
@@ -59,6 +61,14 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/jobs/tick', array( $route( 'POST', 'tick' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB, array( $route( 'GET', 'job' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB . '/cancel', array( $route( 'POST', 'cancel' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/sites/(?P<site>[0-9]+)/extract', array(
+			$route( 'POST', 'extract', array(
+				'network' => $network,
+				'super_admins' => array( 'type' => 'string', 'default' => 'managing', 'enum' => Digitalisimo_Backups_Site_Extract::SUPER_ADMINS, 'description' => 'Superadministradores que no son miembros del sitio: managing (sólo los que lo administran, como administradores), all o none.' ),
+				'network_secrets' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Copiar también las claves de API que el sitio hereda de la red.' ),
+				'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, sftp, google u onedrive. Vacío es local.' ),
+			) ),
+		) );
 	}
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
@@ -115,6 +125,9 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function cancel( $request ) {
 		return self::respond( Digitalisimo_Backups::service_cancel( (string) $request['id'] ) );
+	}
+	public static function extract( $request ) {
+		return self::respond( Digitalisimo_Backups::service_extract( (int) $request['site'], array( 'network' => (bool) $request['network'], 'super_admins' => (string) $request['super_admins'], 'network_secrets' => (bool) $request['network_secrets'], 'destination' => (string) $request['destination'], 'via' => 'rest' ) ), 202 );
 	}
 	public static function tick( $request ) {
 		return self::respond( Digitalisimo_Backups::service_tick() );

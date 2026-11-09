@@ -215,6 +215,62 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
+	 * Extrae un sitio de la red como WordPress individual: encola el paquete (alcance `extracted-site`) y lo hace avanzar
+	 * hasta que queda verificado. Se restaura en un WordPress individual recién instalado con Backups, con otra URL.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <site-id>
+	 * : ID del sitio en la red (`wp site list`).
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio.
+	 *
+	 * [--super-admins=<mode>]
+	 * : Superadministradores que no son miembros del sitio: managing (sólo los que lo administran, como administradores), all o none.
+	 * ---
+	 * default: managing
+	 * options:
+	 *   - managing
+	 *   - all
+	 *   - none
+	 * ---
+	 *
+	 * [--network-secrets]
+	 * : Copia también las claves de API que el sitio hereda de la red (sin ella quedan vacías y el informe las nombra).
+	 *
+	 * [--destination=<destination>]
+	 * : Destino conectado (local, sftp, google u onedrive). Sin él, local.
+	 *
+	 * [--async]
+	 * : Sólo lo encola; lo continúan WP-Cron o `wp digitalisimo-backups jobs run`.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el nombre del paquete (con --async, el identificador del trabajo).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups extract 2 --network
+	 *     wp digitalisimo-backups extract 2 --network --super-admins=none --porcelain
+	 */
+	public function extract( $args, $assoc_args ) {
+		$async = ! empty( $assoc_args['async'] );
+		$porcelain = ! empty( $assoc_args['porcelain'] );
+		$view = self::result( Digitalisimo_Backups::service_extract( (int) ( $args[0] ?? 0 ), array( 'network' => ! empty( $assoc_args['network'] ), 'super_admins' => (string) ( $assoc_args['super-admins'] ?? 'managing' ), 'network_secrets' => ! empty( $assoc_args['network-secrets'] ), 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'via' => 'cli', 'spawn' => $async ) ) );
+		if ( $async ) {
+			self::queued( $view, $porcelain );
+			return;
+		}
+		$view = self::drive( $view, $porcelain );
+		if ( 'success' !== $view['status'] ) WP_CLI::error( ( 'cancelled' === $view['status'] ? 'Trabajo cancelado: ' : 'La extracción falló: ' ) . ( $view['error'] ?: $view['detail'] ) );
+		if ( $porcelain ) {
+			WP_CLI::line( $view['file'] );
+			return;
+		}
+		WP_CLI::success( 'Sitio extraído y verificado: ' . $view['file'] . ' (' . $view['destination_label'] . ( $view['encrypt'] ? ', cifrado' : '' ) . '). Restáuralo en un WordPress individual recién instalado con Backups; `wp digitalisimo-backups verify ' . $view['file'] . ' --format=json` muestra su informe.' );
+	}
+
+	/**
 	 * Verifica un respaldo local sin tocar el sitio: firma, descifrado de un `.dgbk`, estructura, CRC y SHA-256 de cada
 	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración.
 	 *

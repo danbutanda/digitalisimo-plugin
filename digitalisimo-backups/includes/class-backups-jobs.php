@@ -694,7 +694,7 @@ final class Digitalisimo_Backups_Jobs {
 			'terminal' => $terminal,
 			'file' => 'success' === $status ? basename( (string) ( $spec['file'] ?? '' ) ) : '',
 			'error' => 'success' === $status ? '' : $error,
-			'origin_label' => ! empty( $spec['inline'] ) ? 'Copia previa a una restauración' : ( 'manual' === ( $spec['policy'] ?? '' ) ? 'Respaldo manual' : 'Automatización' ),
+			'origin_label' => self::origin_label( $spec ),
 			'destination_label' => Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',
 			'warnings' => count( (array) ( $job['warnings'] ?? array() ) ),
@@ -780,5 +780,14 @@ final class Digitalisimo_Backups_Jobs {
 		} finally {
 			if ( $switch ) restore_current_blog();
 		}
+	}
+	/**
+	 * Punto de extensión: de dónde viene un trabajo, en la tarjeta «Trabajos», REST y WP-CLI. Un tipo de trabajo propio
+	 * (p. ej. «Extraer como WordPress individual») da la suya con el filtro `digitalisimo_backups_job_origin`.
+	 */
+	public static function origin_label( array $spec ) {
+		$label = (string) self::filter( 'digitalisimo_backups_job_origin', '', $spec );
+		if ( '' !== $label ) return $label;
+		return ! empty( $spec['inline'] ) ? 'Copia previa a una restauración' : ( 'manual' === ( $spec['policy'] ?? '' ) ? 'Respaldo manual' : 'Automatización' );
 	}
 }
