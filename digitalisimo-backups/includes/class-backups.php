@@ -1457,14 +1457,35 @@ final class Digitalisimo_Backups {
 		if ( ! class_exists( 'ZipArchive' ) || Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return $cache[ $key ] = array( 'label' => '', 'text' => 'Respaldo cifrado: su origen se conoce al descifrarlo; si viene de otra dirección o con otro prefijo, se reescribe igual.' );
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $path ) ) return $cache[ $key ] = $none;
-		$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$manifest = self::manifest_head( $zip );
 		$zip->close();
 		if ( ! is_array( $manifest ) ) return $cache[ $key ] = $none;
-		$plan = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), $here, array( 'tables' => is_array( $manifest['database_tables'] ?? null ) ? $manifest['database_tables'] : null ) );
+		$args = array_key_exists( 'database_tables', $manifest ) ? array( 'tables' => is_array( $manifest['database_tables'] ) ? $manifest['database_tables'] : null ) : array();
+		$plan = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), $here, $args );
 		$summary = $plan->summary();
 		if ( ! $summary['needed'] && ! $summary['problems'] ) return $cache[ $key ] = array( 'label' => '', 'text' => $summary['text'] );
 		$label = ' · origen ' . ( '' !== $summary['origin']['home'] ? $summary['origin']['home'] : 'desconocido' ) . ( $summary['origin']['prefix'] !== $summary['destination']['prefix'] && '' !== $summary['origin']['prefix'] ? ' (' . $summary['origin']['prefix'] . ')' : '' ) . ' → este sitio' . ( $summary['problems'] ? ': no se puede restaurar aquí' : '' );
 		return $cache[ $key ] = array( 'label' => $label, 'text' => $summary['text'] );
+	}
+	/**
+	 * Lo que la lista de Restaurar necesita del manifiesto (direcciones, prefijo, tipo de instalación, `origin` y, si
+	 * cabe, la lista de tablas) sin cargarlo entero: el de un sitio con cientos de miles de archivos pesa decenas de MB y
+	 * la pantalla lo lee de cada respaldo. Más de 1 MiB: sólo su comienzo, donde van esas claves (antes de `entries`).
+	 */
+	private static function manifest_head( $zip ) {
+		$stat = $zip->statName( 'manifest.json' );
+		if ( ! $stat ) return null;
+		if ( (int) $stat['size'] <= 1048576 ) return json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$stream = $zip->getStream( 'manifest.json' );
+		if ( ! $stream ) return null;
+		$head = (string) fread( $stream, 1048576 );
+		fclose( $stream );
+		$out = array();
+		foreach ( array( 'home_url', 'site_url', 'table_prefix' ) as $name ) if ( preg_match( '/"' . $name . '"\s*:\s*("(?:[^"\\\\]|\\\\.)*")/', $head, $m ) ) $out[ $name ] = json_decode( $m[1] );
+		if ( preg_match( '/"multisite"\s*:\s*(true|false)/', $head, $m ) ) $out['multisite'] = 'true' === $m[1];
+		if ( preg_match( '/"origin"\s*:\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/', $head, $m ) ) $out['origin'] = json_decode( $m[1], true );
+		if ( ! isset( $out['multisite'] ) && isset( $out['origin']['multisite'] ) ) $out['multisite'] = (bool) $out['origin']['multisite'];
+		return $out;
 	}
 	/** Informe de la última restauración que reescribió direcciones, rutas o prefijo. */
 	private static function relocation_card() {

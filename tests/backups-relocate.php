@@ -454,6 +454,20 @@ e1_case( 'E7 pantalla: «Origen → este sitio» antes de confirmar y conservar 
 	e1_check( false !== strpos( $html, esc_html( $single . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'La lista no dice «Origen → este sitio»: ' . substr( strip_tags( $html ), 0, 600 ) );
 	e1_check( false !== strpos( $html, esc_attr( 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx/pantalla (prefijo pan_). Se reescribirá: prefijo de tablas wp_ → pan_' ) ), 'El texto completo de lo que se reescribirá no está en la opción.' );
 	e1_check( false !== strpos( $html, 'name="addresses" value="current" checked' ) && false !== strpos( $html, 'name="addresses" value="backup"' ), 'Falta la opción de conservar las direcciones del respaldo.' );
+	// Un manifiesto de más de 1 MiB (un sitio con muchísimos archivos) no se carga entero para la lista: sólo su comienzo.
+	$big = 'digitalisimo-backup-grande.zip';
+	copy( bk_storage() . '/' . $single, bk_storage() . '/' . $big );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $big );
+	$manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+	$manifest['relleno'] = str_repeat( 'x', 1200000 );
+	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	$zip->close();
+	ob_start();
+	bk_call( 'Digitalisimo_Backups', 'restore_panel', array() );
+	$html = ob_get_clean();
+	@unlink( bk_storage() . '/' . $big );
+	e1_check( false !== strpos( $html, esc_html( $big . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'Con un manifiesto de más de 1 MiB la lista no dice «Origen → este sitio».' );
 	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $single, 'confirmation' => 'RESTAURAR SIN FIRMA', 'addresses' => 'backup' ) );
 	e1_check( $ok && false !== strpos( $message, 'Origen → este sitio' ), 'La pantalla no restauró o no dijo qué reescribió: ' . $message );
 	e1_check( 'https://origen.com' === $dest->value( 'pan_options', 'option_value', "option_name = 'home'" ) && null !== $dest->value( 'pan_options', 'option_value', "option_name = 'pan_user_roles'" ), 'La pantalla no envió «conservar las direcciones del respaldo».' );
