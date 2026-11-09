@@ -26,6 +26,10 @@ function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOT
 function esc_url( $value ) { return (string) $value; }
 function wp_nonce_field( $action ) { echo '<input type="hidden" name="_wpnonce" value="nonce-' . esc_attr( $action ) . '">'; }
 function wp_delete_file( $file ) { return @unlink( $file ); }
+function size_format( $bytes ) { return $bytes . ' B'; }
+function selected( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' selected="selected"' : ''; }
+function checked( $a, $b = true, $echo = true ) { return (string) $a === (string) $b ? ' checked="checked"' : ''; }
+function disabled( $a, $b = true, $echo = true ) { return $a === $b ? ' disabled="disabled"' : ''; }
 // Google Drive simulado: acepta la subida, devuelve la copia íntegra al verificar y anota cada petición.
 $GLOBALS['http'] = array();
 $GLOBALS['uploaded'] = '';
@@ -138,7 +142,28 @@ try {
 	unset( $item );
 	update_option( $B::HISTORY, $history );
 	$summary = $summary_of( 'digitalisimo-backup-s4.zip' );
-	digi_assert( true === $summary['restorable'] && 'google' === $summary['destination'] && array( array( 'destination' => 'local', 'state' => 'ok' ), array( 'destination' => 'google', 'state' => 'failed' ) ) === $summary['copies'], 'Una copia remota fallida cambió la restaurabilidad: ' . json_encode( $summary ) );
+	digi_assert( true === $summary['restorable'] && 'local' === $summary['destination'] && 'google' === $summary['transfer_destination'] && 'failed' === $summary['transfer'] && array( array( 'destination' => 'local', 'state' => 'ok' ) ) === $summary['copies'], 'Una copia remota fallida cambió la restaurabilidad o se anunció como una copia que existe: ' . json_encode( $summary ) );
+	// R4: la retención borra además su ZIP local: no queda ninguna copia. Se rotula así, REST no anuncia ninguna y se
+	// puede eliminar la fila (sin pedir nada al remoto).
+	rename( $store . '/digitalisimo-backup-s4.zip', $store . '/apartado.zip' );
+	$summary = $summary_of( 'digitalisimo-backup-s4.zip' );
+	digi_assert( false === $summary['restorable'] && 'local' === $summary['destination'] && array() === $summary['copies'] && 'failed' === $summary['transfer'], 'REST anuncia una copia que no existe: ' . json_encode( $summary ) );
+	$_GET = array( 'tab' => 'backups' );
+	ob_start();
+	try { $B::page(); } catch ( Throwable $e ) { echo "\n[render interrumpido: ", $e->getMessage(), ']'; }
+	$html = (string) ob_get_clean();
+	$_GET = array();
+	$at = strpos( $html, '<td>digitalisimo-backup-s4.zip</td>' );
+	$tr = false === $at ? '' : substr( $html, $at, (int) strpos( substr( $html, $at ), '</tr>' ) );
+	digi_assert( '' !== $tr && false !== strpos( $tr, 'name="action" value="' . $B::ACTION_DELETE . '"' ) && false === strpos( $tr, 'Descargar' ) && false === strpos( $tr, 'sin identificador' ), 'La fila sin copias no ofrece «Eliminar» en la pantalla (o ofrece descargar): ' . strip_tags( $tr ) );
+	$destination = new ReflectionMethod( $B, 'history_destination' );
+	if ( PHP_VERSION_ID < 80100 ) $destination->setAccessible( true );
+	$label = $destination->invoke( null, $row_of( 'digitalisimo-backup-s4.zip' ) );
+	digi_assert( 0 === strpos( $label, 'Sin copias: el ZIP ya no está en el almacén y la copia a Google Drive falló' ), 'La fila sin copias no se rotula así: ' . $label );
+	$GLOBALS['http'] = array();
+	$query = digi_admin_post( 'delete_backup', $B::ACTION_DELETE, array( 'file' => 'digitalisimo-backup-s4.zip' ) );
+	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && null === $row_of( 'digitalisimo-backup-s4.zip' ) && array() === $GLOBALS['http'], 'La fila sin copias no se pudo eliminar o se pidió algo al remoto: ' . json_encode( $query ) );
+	rename( $store . '/apartado.zip', $store . '/digitalisimo-backup-s4.zip' );
 
 	// 5. «Eliminar» un respaldo copiado retira las dos copias y su fila; nunca deja el ZIP local como «sin registro».
 	$GLOBALS['http'] = array();

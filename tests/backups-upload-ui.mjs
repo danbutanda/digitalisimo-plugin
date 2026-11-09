@@ -89,6 +89,7 @@ const joined = (chunks) => { const out = new Uint8Array(chunks.reduce((n, c) => 
 
 // 1. Subida limpia: start, fragmentos de 300 bytes en 0, 300, 600 y 900, y finish con la frase escrita.
 let s = server();
+let s7;
 let ui = setup({ server: s.handle });
 await run(ui);
 assert.deepEqual(ui.requests.map((r) => r.action.replace('digitalisimo_backups_upload_', '') + (r.offset !== undefined ? '@' + r.offset : '')), ['start', 'chunk@0', 'chunk@300', 'chunk@600', 'chunk@900', 'finish']);
@@ -128,5 +129,51 @@ ui = setup({ server: s.handle });
 await run(ui);
 assert.equal(ui.status.textContent, 'La subida se detuvo: No supera la validación <script>x</script>');
 assert.deepEqual(Object.keys(ui.storage.data), [], 'Un archivo descartado sigue recordado para reanudarse');
+
+// 5. P1: el cierre tarda más que el proxy (202 «comprobándose») o la conexión se corta al cerrar: se consulta el estado
+// hasta el resultado, sin volver a cerrar en bucle ni subir el archivo otra vez.
+for (const cut of ['validating', 'network']) {
+  const st = server();
+  let finishes = 0;
+  let polls = 0;
+  const handle = (fields, n) => {
+    const action = fields.action.replace('digitalisimo_backups_upload_', '');
+    if (action === 'finish') {
+      finishes++;
+      if (cut === 'network') return 'network';
+      return { status: 202, body: { success: false, data: { code: 'digitalisimo_backups_upload_validating', message: 'La subida se está comprobando' } } };
+    }
+    if (action === 'status' && st.total === 1000) {
+      polls++;
+      if (polls < 3) return { status: 200, body: { success: true, data: { id: 'sesion-1', size: 1000, received: 1000, chunk_size: 300, phase: 'validating', validating: true } } };
+      return { status: 200, body: { success: true, data: { id: 'sesion-1', size: 1000, received: 1000, chunk_size: 300, phase: 'done', result: { file: 'digitalisimo-backup-sitio.zip', confirmation: 'RESTAURAR SIN FIRMA', needs_secret: false, problems: [] } } } };
+    }
+    return st.handle(fields, n);
+  };
+  ui = setup({ server: handle });
+  await run(ui);
+  assert.equal(finishes, 1, `Con el cierre cortado (${cut}) se volvió a cerrar en vez de consultar el estado`);
+  assert.equal(ui.requests.filter((r) => r.action.endsWith('start')).length, 1, 'Se empezó otra subida');
+  assert.ok(polls >= 3, 'No se consultó el estado hasta el resultado');
+  assert.match(ui.status.textContent, /^Respaldo subido y comprobado: digitalisimo-backup-sitio\.zip/);
+}
+
+// 6. P1: al volver a elegir el archivo de una subida ya cerrada (el navegador no vio el final), se muestra su resultado.
+ui = setup({ stored: { [key]: 'sesion-1' }, server: (fields) => {
+  const action = fields.action.replace('digitalisimo_backups_upload_', '');
+  if (action === 'status') return { status: 200, body: { success: true, data: { id: 'sesion-1', size: 1000, received: 1000, chunk_size: 300, phase: 'done', result: { file: 'digitalisimo-backup-sitio.zip', confirmation: 'RESTAURAR', needs_secret: false, problems: [] } } } };
+  throw new Error('petición inesperada: ' + action);
+} });
+await run(ui);
+assert.deepEqual(ui.requests.map((r) => r.action.replace('digitalisimo_backups_upload_', '')), ['status'], 'Una subida ya cerrada se volvió a subir o a cerrar');
+assert.match(ui.status.textContent, /^Respaldo subido y comprobado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR\./);
+
+// 7. Un error con motivo del servidor (espacio para descifrar, 507) se muestra y no se reintenta en bucle.
+s7 = server({ failures: { 6: () => ({ status: 507, body: { success: false, data: { code: 'digitalisimo_backups_upload_space', message: 'No hay espacio para descifrar el respaldo. La subida se conserva.' } } }) } });
+ui = setup({ server: s7.handle });
+await run(ui);
+assert.equal(ui.requests.filter((r) => r.action.endsWith('finish')).length, 1, 'Un 507 con motivo se reintentó');
+assert.equal(ui.status.textContent, 'La subida se detuvo: No hay espacio para descifrar el respaldo. La subida se conserva. Vuelve a elegir el mismo archivo para continuar donde se quedó.');
+assert.deepEqual(Object.values(ui.storage.data), ['sesion-1'], 'Una subida conservada se olvidó');
 
 console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar y pinta texto.');

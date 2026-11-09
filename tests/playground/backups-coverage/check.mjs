@@ -303,7 +303,12 @@ try {
   check(chunkOk && received === bytes.length, `B3: ${Math.ceil(bytes.length / (upload.chunk_size || 1))} fragmentos de ${upload.chunk_size} bytes (${Math.round((Date.now() - started) / 1000)} s)`, `${res.status} ${res.text.slice(0, 300)}`);
   res = await api('POST', `/uploads/${upload.id}/finish`, { headers: basic('admin'), body: {} });
   const uploaded = res.json || {};
-  check(res.status === 200 && uploaded.verified === true && uploaded.registered === false && uploaded.trust === 'untrusted' && uploaded.confirmation === 'RESTAURAR SIN FIRMA' && uploaded.wp_config?.available === true && modeOf(`${store}/${uploaded.file}`) === '600' && !existsSync(`${store}/incoming/${upload.id}`), 'B3: al terminar se valida y entra en el almacén como «sin registro»', `${res.status} ${res.text.slice(0, 600)}`);
+  check(res.status === 200 && uploaded.verified === true && uploaded.registered === false && uploaded.trust === 'untrusted' && uploaded.confirmation === 'RESTAURAR SIN FIRMA' && uploaded.wp_config?.available === true && modeOf(`${store}/${uploaded.file}`) === '600' && !existsSync(`${store}/incoming/${upload.id}/data.bin`), 'B3: al terminar se valida y entra en el almacén como «sin registro»', `${res.status} ${res.text.slice(0, 600)}`);
+  // P1: repetir el cierre (la respuesta se perdió tras un corte) devuelve lo mismo y no duplica nada; P3: se lista.
+  res = await api('POST', `/uploads/${upload.id}/finish`, { headers: basic('admin'), body: {} });
+  check(res.status === 200 && res.json?.file === uploaded.file && readdirSync(store).filter((name) => name.startsWith('digitalisimo-subido-ensayo')).length === 1, 'P1: repetir el cierre devuelve el mismo resultado sin duplicar la subida', `${res.status} ${res.text.slice(0, 300)}`);
+  res = await api('GET', '/uploads', { headers: basic('admin') });
+  check(res.status === 200 && (res.json || []).some((row) => row.id === upload.id && row.phase === 'done'), 'P3: GET /uploads lista la subida cerrada', `${res.status} ${res.text.slice(0, 300)}`);
   check(!res.text.includes('/digi-store') && !res.text.includes('/wordpress/'), 'B3: la subida no expone rutas del servidor');
   // B7 e I8: restaurar lo subido (RESTAURAR SIN FIRMA) con los avisos de éxito activos: un correo, sin rutas.
   rmSync(`${dir}/probe/mails.jsonl`, { force: true });

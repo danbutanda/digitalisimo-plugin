@@ -92,6 +92,22 @@ try {
 	digi_assert( 'admin@example.test' === $mail['to'] && false !== strpos( $mail['subject'], 'El respaldo falló' ), 'El aviso de fallo no va al correo de administración o no lo dice: ' . json_encode( $mail ) );
 	digi_assert( false !== strpos( $mail['body'], 'Motivo: No se pudo leer [ruta] ni [ruta] ni [ruta] (contraseña [oculto], clave [oculto]).' ) && false !== strpos( $mail['body'], 'Fase: ' ) && false !== strpos( $mail['body'], 'respaldo manual' ), 'El aviso no da el motivo limpio: ' . $mail['body'] );
 	foreach ( array( $root, $store, '/home/cliente', $secret, AUTH_KEY, 'GOCSPX-secreto-google', '1//renovar-google' ) as $forbidden ) digi_assert( false === strpos( $mail['subject'] . $mail['body'], $forbidden ), 'El aviso lleva una ruta del servidor o un secreto: ' . $forbidden );
+	// R7: rutas con espacios, file:, un nivel, open_basedir, Windows y el detalle de MySQL (cita datos de las filas).
+	$cases = array(
+		'No se pudo leer /mnt/Copias de seguridad/cliente/viejo.zip' => array( 'No se pudo leer [ruta]', array( 'Copias', 'viejo.zip' ) ),
+		'fopen(file:/home/cliente/privado/clave.txt): failed' => array( 'fopen([ruta]): failed', array( 'clave.txt', 'privado' ) ),
+		'No se pudo escribir en /backups' => array( 'No se pudo escribir en [ruta]', array( 'backups' ) ),
+		'open_basedir restriction in effect. File(/var/lib/php/sessions/x) is not within the allowed path(s): (/home/cliente:/tmp)' => array( 'open_basedir restriction in effect. File([ruta]) is not within the allowed path(s): ([ruta])', array( 'sessions', '/tmp', 'cliente' ) ),
+		'No se pudo abrir C:\\Program Files\\Datos Cliente\\respaldo.zip' => array( 'No se pudo abrir [ruta]', array( 'Datos Cliente', 'respaldo.zip' ) ),
+		"La restauración falló: Falló una sentencia SQL: Duplicate entry 'admin@cliente.com' for key 'user_email'" => array( 'La restauración falló: Falló una sentencia SQL (el detalle, con datos del sitio, no va en el correo).', array( 'admin@cliente.com' ) ),
+		"El archivo 'mis-datos-privados.zip' no es válido" => array( "El archivo '…' no es válido", array( 'mis-datos' ) ),
+		'Revisa https://example.test/wp-admin/admin.php?page=digitalisimo-backups y la fase «Verificación».' => array( 'Revisa https://example.test/wp-admin/admin.php?page=digitalisimo-backups y la fase «Verificación».', array() ),
+	);
+	foreach ( $cases as $raw => list( $expected, $gone ) ) {
+		$clean = Digitalisimo_Backups_Notify::clean( $raw );
+		digi_assert( $expected === $clean, 'clean() no dejó el texto esperado: ' . $clean );
+		foreach ( $gone as $piece ) digi_assert( false === strpos( $clean, $piece ), 'clean() dejó pasar «' . $piece . '»: ' . $clean );
+	}
 	// Ni otro tick, ni el watchdog, ni vaciar de nuevo repiten el aviso.
 	$B::service_tick();
 	$J::watchdog();

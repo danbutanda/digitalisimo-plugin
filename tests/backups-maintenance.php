@@ -78,6 +78,18 @@ $M::heartbeat();
 digi_assert( true === digi_wp_maintenance(), 'La renovación no mantuvo el mantenimiento en una restauración larga.' );
 $M::stop();
 digi_assert( ! file_exists( ABSPATH . '.maintenance' ), 'Parar el mantenimiento no retiró .maintenance.' );
+// P2: al recuperar la copia previa, su verificación (que lee el ZIP entero) también renueva la marca.
+$M::start();
+file_put_contents( ABSPATH . '.maintenance', '<?php $upgrading = ' . ( time() - 3000 ) . '; // ' . $M::MARKER );
+$written->setValue( null, time() - 120 );
+$zip = new ZipArchive();
+$zip->open( $root . '/private/' . $created['file'] );
+$verify = new ReflectionMethod( $B, 'verify_zip_contents' );
+if ( PHP_VERSION_ID < 80100 ) $verify->setAccessible( true );
+$verify->invoke( null, $zip );
+$zip->close();
+digi_assert( true === digi_wp_maintenance(), 'La verificación de la copia previa no renovó el mantenimiento.' );
+$M::stop();
 
 // 4. Una restauración que falla después del SQL (y recupera la copia previa) también saca al sitio del mantenimiento.
 // Un archivo del respaldo que no se puede escribir (en su lugar hay una carpeta): falla la extracción, no la copia previa.

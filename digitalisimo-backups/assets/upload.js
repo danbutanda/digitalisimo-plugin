@@ -1,8 +1,9 @@
 /* Subida de un respaldo por fragmentos desde la pantalla Backups (tarjeta «Subir un respaldo»). Cada fragmento va en un
    formulario multipart a admin-ajax (por debajo de upload_max_filesize) y se anexa en el byte que el servidor espera: si
    la conexión se corta, se reintenta con espera, y si se recarga la página, volver a elegir el mismo archivo continúa
-   donde se quedó (el identificador de la subida se recuerda en este navegador). Todo texto del servidor se pinta como
-   texto. */
+   donde se quedó (el identificador de la subida se recuerda en este navegador). El cierre se comprueba en el servidor:
+   si tarda más que el proxy o la conexión se corta, se consulta su estado hasta el resultado (nunca se sube otra vez).
+   Todo texto del servidor se pinta como texto. */
 (function () {
   'use strict';
   var config = window.digitalisimoBackupsUpload;
@@ -59,7 +60,8 @@
           var failure = new Error(result.data && result.data.message || 'Error HTTP ' + response.status);
           failure.data = result.data || {};
           failure.status = response.status;
-          failure.transient = response.status >= 500 && failure.data.code !== 'digitalisimo_backups_upload_write';
+          // Con código, el servidor explicó el motivo (espacio, cortes, frase): se muestra y no se repite en bucle.
+          failure.transient = response.status >= 500 && !failure.data.code;
           throw failure;
         }
         return result.data;
@@ -103,6 +105,36 @@
     return step();
   }
 
+  /** Espera el resultado de una comprobación en curso (o cortada): consulta el estado; si el proceso murió, la reanuda. */
+  function settle(session) {
+    var polls = 0;
+    function poll() {
+      return wait(Math.min(15000, 3000 + 1000 * polls)).then(function () {
+        polls++;
+        return post('status', { id: session.id });
+      }).then(function (state) {
+        if (state.phase === 'done' && state.result) return state.result;
+        if (state.phase === 'rejected') { var rejected = new Error(state.error && state.error.message || 'El archivo no era un respaldo válido.'); rejected.data = { code: 'digitalisimo_backups_upload_invalid' }; throw rejected; }
+        if (state.phase === 'validating' && state.validating) { say('Comprobando el respaldo… (sigue en el servidor aunque se haya cortado la conexión)'); return poll(); }
+        if (state.error) { var kept = new Error(state.error.message); kept.data = { code: state.error.code }; throw kept; }
+        return close(session);
+      }, function (error) {
+        if (error.transient && polls < 200) return poll();
+        throw error;
+      });
+    }
+    return poll();
+  }
+  /** Cierra la subida; ante 202 (otro proceso la comprueba) o un corte, consulta el estado en vez de volver a subirla. */
+  function close(session) {
+    say('Comprobando el respaldo como archivo no confiable (puede tardar varios minutos)…');
+    return post('finish', { id: session.id, secret: secret ? secret.value : '' }).catch(function (error) {
+      var code = error.data && error.data.code || '';
+      if (code === 'digitalisimo_backups_upload_validating' || error.transient) return settle(session);
+      throw error;
+    });
+  }
+
   function summary(result) {
     var text = 'Respaldo subido y comprobado: ' + result.file + '. ';
     if (result.needs_secret) text += 'Está cifrado con una clave que este sitio no tiene: al restaurarlo escribe su frase o su clave y ';
@@ -123,16 +155,20 @@
     if (cancel) cancel.hidden = false;
     if (bar) bar.hidden = false;
     var known = recall(file);
-    var resume = known ? post('status', { id: known }).then(function (session) { return Number(session.size) === file.size ? session : null; }, function () { return null; }) : Promise.resolve(null);
+    var resume = known ? post('status', { id: known }).then(function (session) { return Number(session.size) === file.size && session.phase !== 'cancelled' ? session : null; }, function () { return null; }) : Promise.resolve(null);
     resume.then(function (session) {
-      if (session) { say('Continuando la subida desde ' + mb(session.received) + '…'); return session; }
-      return post('start', { name: file.name, size: file.size });
-    }).then(function (session) {
-      current = session;
-      remember(file, session.id);
-      return send(file, session).then(function () {
-        say('Comprobando el respaldo como archivo no confiable (puede tardar varios minutos)…');
-        return post('finish', { id: session.id, secret: secret ? secret.value : '' });
+      if (session && session.phase === 'done' && session.result) return { done: session.result };
+      if (session && session.phase === 'rejected') return { session: null };
+      if (session) { say('Continuando la subida desde ' + mb(session.received) + '…'); return { session: session }; }
+      return { session: null };
+    }).then(function (found) {
+      if (found.done) return found.done;
+      var start = found.session ? Promise.resolve(found.session) : post('start', { name: file.name, size: file.size });
+      return start.then(function (session) {
+        current = session;
+        remember(file, session.id);
+        if (session.phase === 'validating') return settle(session);
+        return send(file, session).then(function () { return close(session); });
       });
     }).then(function (result) {
       remember(file, null);

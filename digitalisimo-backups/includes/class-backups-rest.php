@@ -21,10 +21,12 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /jobs/<id>                         un trabajo
  * - POST /jobs/<id>/cancel                  cancela un trabajo
  * - POST /jobs/tick                         un paso de la cola, como el navegador con la pantalla abierta
+ * - GET  /uploads                           las subidas sin terminar y las cerradas de las últimas 24 h (todas las cuentas)
  * - POST /uploads                           empieza a subir un respaldo (`name`, `size`, `sha256` opcional): 201
- * - GET  /uploads/<id>                      cuánto lleva recibido (para continuar una subida cortada)
+ * - GET  /uploads/<id>                      fase, lo recibido y, si terminó, su resultado (para continuar o consultar)
  * - POST|PUT /uploads/<id>/chunk            un fragmento en `offset`: el cuerpo en bruto o el archivo `chunk` (multipart)
- * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`)
+ * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`); 202
+ *                                           mientras otro proceso lo comprueba; repetirlo tras un corte da el mismo resultado
  * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
@@ -67,6 +69,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB, array( $route( 'GET', 'job' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB . '/cancel', array( $route( 'POST', 'cancel' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads', array(
+			$route( 'GET', 'upload_list' ),
 			$route( 'POST', 'upload_start', array(
 				'name' => array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del archivo (.zip o .dgbk).' ),
 				'size' => array( 'type' => 'integer', 'required' => true, 'minimum' => 1, 'description' => 'Tamaño exacto en bytes.' ),
@@ -138,6 +141,9 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function upload_start( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_start( array( 'name' => (string) $request['name'], 'size' => $request['size'], 'sha256' => (string) $request['sha256'] ) ), 201 );
+	}
+	public static function upload_list( $request ) {
+		return self::respond( Digitalisimo_Backups::service_upload_list() );
 	}
 	public static function upload_status( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_status( (string) $request['id'] ) );

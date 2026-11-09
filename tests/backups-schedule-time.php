@@ -76,6 +76,13 @@ $cases = array(
 	array( 'weekly', '03:00', '2026-10-21T01:00:20Z', '2026-10-28T01:00:00Z', '2026-10-28T02:00:00Z' ), // el mismo miércoles
 	array( 'monthly', '03:00', '2026-10-10T01:00:20Z', '2026-11-09T01:00:00Z', '2026-11-09T02:00:00Z' ),
 	array( 'daily', '03:00', '2026-07-10T01:00:20Z', '2026-07-11T01:00:00Z', '2026-07-11T01:00:00Z' ), // sin cambio de hora: nada que mover
+	// R5: WP-Cron corrió con retraso (sitio con poco tráfico) y dejó la siguiente en su hora: no se salta un día.
+	array( 'daily', '03:00', '2026-11-10T15:00:00Z', '2026-11-11T02:00:00Z', '2026-11-11T02:00:00Z' ), // 13 h tarde
+	array( 'daily', '03:00', '2026-11-10T22:00:00Z', '2026-11-11T02:00:00Z', '2026-11-11T02:00:00Z' ), // 20 h tarde
+	array( 'weekly', '03:00', '2026-11-10T15:00:00Z', '2026-11-17T02:00:00Z', '2026-11-17T02:00:00Z' ), // el mismo martes
+	array( 'monthly', '03:00', '2026-11-10T22:00:00Z', '2026-12-10T02:00:00Z', '2026-12-10T02:00:00Z' ),
+	// Atrasado y además con el cambio de hora en medio: la HH:MM más cercana, el mismo día.
+	array( 'weekly', '03:00', '2026-10-21T15:00:00Z', '2026-10-28T01:00:00Z', '2026-10-28T02:00:00Z' ),
 );
 foreach ( $cases as $i => list( $schedule, $time, $now, $wp_next, $expected ) ) {
 	$id = 'automation-dst-' . $i;

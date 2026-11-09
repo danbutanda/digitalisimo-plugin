@@ -181,8 +181,11 @@ final class Digitalisimo_Backups_Notify {
 		return $sent;
 	}
 	/**
-	 * Texto apto para un correo: sin rutas del servidor (la raíz de WordPress, el almacén privado o cualquier ruta
-	 * absoluta) ni secretos (credenciales de los destinos y claves de wp-config.php).
+	 * Texto apto para un correo: sin secretos (credenciales de los destinos y claves de wp-config.php), sin rutas del
+	 * servidor (la raíz de WordPress, el almacén, el temporal, cualquier ruta absoluta de Unix o Windows aunque lleve
+	 * espacios, rutas de un nivel, `file:` y otros esquemas de PHP, listas de `open_basedir`) y sin datos del sitio: el
+	 * detalle de un error de MySQL (que cita valores de las filas) no va, y lo que va entre comillas se sustituye por «…».
+	 * Ante la duda tapa de más: el detalle completo está en la pantalla y en el registro del trabajo.
 	 */
 	public static function clean( $text ) {
 		$text = (string) $text;
@@ -197,16 +200,27 @@ final class Digitalisimo_Backups_Notify {
 		}
 		usort( $secrets, function( $a, $b ) { return strlen( $b ) <=> strlen( $a ); } );
 		foreach ( $secrets as $secret ) $text = str_replace( $secret, '[oculto]', $text );
-		// Rutas: primero las conocidas (por si contienen espacios), después cualquier ruta absoluta de Unix o Windows.
+		// Un error de MySQL o SQLite cita valores de las filas (correos, nombres): sólo queda que falló.
+		$text = preg_replace( '/Falló una sentencia SQL:.*$/su', 'Falló una sentencia SQL (el detalle, con datos del sitio, no va en el correo).', $text );
+		// Rutas: primero las conocidas (por si contienen espacios), después cualquier ruta.
 		$roots = array( ABSPATH, defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR : '', function_exists( 'sys_get_temp_dir' ) ? sys_get_temp_dir() : '' );
 		try { $roots[] = Digitalisimo_Backups::storage_directory(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		foreach ( $roots as $root ) {
 			$root = rtrim( str_replace( '\\', '/', (string) $root ), '/' );
 			if ( strlen( $root ) > 1 ) $text = str_replace( array( $root, str_replace( '/', '\\', $root ) ), '[ruta]', $text );
 		}
-		$text = preg_replace( '#[A-Za-z]:\\\\[^\s\'"«»,;]+#', '[ruta]', $text );
-		$text = preg_replace( '#(?<![\w:/.\]])/(?:[^\s/\'"«»,;:]+/)+[^\s/\'"«»,;:]*#u', '[ruta]', $text );
-		$text = preg_replace( '#\[ruta\][^\s\'"«»,;]*#', '[ruta]', $text );
+		$stop = '\s\'"«»,;()';
+		// file:, phar://, zip://… (la ruta va pegada al esquema).
+		$text = preg_replace( '#\b(?:file|phar|zip|compress\.zlib|compress\.bzip2|glob|php):/{0,2}[^' . $stop . ']*#iu', '[ruta]', $text );
+		// Windows: C:\Program Files\Datos Cliente\respaldo.zip (las carpetas pueden llevar espacios).
+		$text = preg_replace( '#\b[A-Za-z]:\\\\(?:[^\\\\' . $stop . ':]+(?: [^\\\\' . $stop . ':]+)*\\\\)*[^\\\\' . $stop . ':]*#u', '[ruta]', $text );
+		// Unix: /mnt/Copias de seguridad/cliente/viejo.zip (las carpetas pueden llevar espacios) y /backups (un nivel).
+		$text = preg_replace( '#(?<![\w:/.\]\\\\])/(?:[^/' . $stop . ':]+(?: [^/' . $stop . ':]+)*/)*[^/' . $stop . ':]+#u', '[ruta]', $text );
+		// Listas de rutas (open_basedir: /home/cliente:/tmp) y lo que quede pegado a una ruta ya tapada.
+		$text = preg_replace( '#\[ruta\](?::/?[^' . $stop . ':]*)+#u', '[ruta]', $text );
+		$text = preg_replace( '#\[ruta\][^' . $stop . ']*#u', '[ruta]', $text );
+		// Lo que va entre comillas suele ser un dato (un valor de una fila, un nombre de archivo).
+		$text = preg_replace( array( "/'[^'\n]{1,300}'/u", '/"[^"\n]{1,300}"/u' ), array( "'…'", '"…"' ), $text );
 		return trim( preg_replace( '/\s+/', ' ', $text ) );
 	}
 	private static function site_name() {

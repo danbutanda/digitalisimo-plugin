@@ -98,8 +98,9 @@ trait Digitalisimo_Backups_Service {
 	}
 	/**
 	 * Fila pública del historial. `restorable` sigue la lista de la pantalla: completo y con su ZIP en el almacén, tenga
-	 * o no copia remota. `destination` es a dónde se envió (local o el destino remoto) y `copies` enumera las copias:
-	 * la local, si el ZIP sigue en el almacén, y la remota con su estado (ok, pending, failed, cancelled o legacy).
+	 * o no copia remota. `copies` enumera sólo las copias que existen: la local, si el ZIP sigue en el almacén, y la
+	 * remota verificada (`ok`) o anterior sin identificador (`legacy`); `destination` es la de esa copia remota (o
+	 * `local`), y una copia que se intentó y no llegó va en `transfer_destination` con su `transfer`.
 	 */
 	private static function service_summary( $item ) {
 		$item = (array) $item;
@@ -115,9 +116,11 @@ trait Digitalisimo_Backups_Service {
 			'date' => (string) ( $item['date'] ?? '' ),
 			'size' => (int) ( $item['size'] ?? 0 ),
 			'sha256' => (string) ( $item['sha256'] ?? '' ),
-			'destination' => $copy ? $copy['destination'] : 'local',
+			// Dónde hay una copia remota que existe; la que se intentó y no llegó va en transfer_destination y transfer.
+			'destination' => self::remote_exists( $item ) ? $copy['destination'] : 'local',
 			'remote' => (string) ( ( (array) ( $item['remote'] ?? array() ) )['provider'] ?? '' ),
 			'transfer' => (string) ( $item['transfer'] ?? '' ),
+			'transfer_destination' => $copy ? (string) $copy['destination'] : '',
 			'copies' => self::item_copies( $item, $available ),
 			'scope' => $scope,
 			'type' => $type,

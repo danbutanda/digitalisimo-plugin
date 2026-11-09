@@ -5,7 +5,23 @@
  * programación de las automatizaciones (tests/backups-schedule-time.php y tests/backups-default-schedule.php).
  * `$GLOBALS['multisite']` y `$GLOBALS['main']` simulan una red y un subsitio.
  */
-define( 'ABSPATH', __DIR__ . '/' );
+// Un WordPress en una carpeta temporal propia y su almacén privado fuera de ella (se borran al terminar).
+$GLOBALS['cron_root'] = sys_get_temp_dir() . '/digitalisimo-cron-' . bin2hex( random_bytes( 4 ) );
+mkdir( $GLOBALS['cron_root'] . '/public/wp-content/plugins', 0700, true );
+$GLOBALS['cron_root'] = realpath( $GLOBALS['cron_root'] );
+register_shutdown_function( function() {
+	$items = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $GLOBALS['cron_root'], FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+	foreach ( $items as $item ) $item->isDir() && ! $item->isLink() ? @rmdir( $item->getPathname() ) : @unlink( $item->getPathname() );
+	@rmdir( $GLOBALS['cron_root'] );
+} );
+define( 'ABSPATH', $GLOBALS['cron_root'] . '/public/' );
+define( 'WP_CONTENT_DIR', $GLOBALS['cron_root'] . '/public/wp-content' );
+define( 'WP_PLUGIN_DIR', $GLOBALS['cron_root'] . '/public/wp-content/plugins' );
+define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $GLOBALS['cron_root'] . '/private' );
+function wp_normalize_path( $path ) { return str_replace( '\\', '/', (string) $path ); }
+function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
+function trailingslashit( $path ) { return rtrim( (string) $path, '/\\' ) . '/'; }
+function update_site_option( $key, $value ) { return update_option( $key, $value ); }
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
@@ -29,6 +45,7 @@ function get_site_option( $key, $default = false ) { return $default; }
 function wp_parse_args( $args, $defaults = array() ) { return array_merge( (array) $defaults, (array) $args ); }
 function is_multisite() { return ! empty( $GLOBALS['multisite'] ); }
 function is_main_site() { return ! isset( $GLOBALS['main'] ) || $GLOBALS['main']; }
+function is_main_network() { return ! isset( $GLOBALS['main_network'] ) || $GLOBALS['main_network']; }
 function is_network_admin() { return false; }
 function get_current_blog_id() { return is_main_site() ? 1 : 2; }
 function get_main_site_id() { return 1; }

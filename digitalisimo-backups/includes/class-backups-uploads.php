@@ -13,6 +13,12 @@ defined( 'ABSPATH' ) || exit;
  *
  * Los fragmentos tienen un tamaño seguro para el hosting: como mucho 8 MiB y por debajo de `upload_max_filesize` y
  * `post_max_size` (wp_max_upload_size()). Una sesión sin actividad durante 24 h se borra.
+ *
+ * Estados (`phase`): `uploading` (llegan fragmentos; también completa y a la espera de cerrarse), `validating` (un
+ * proceso la está comprobando: lleva el cerrojo), `done` (entró en el almacén; se guarda el resultado 24 h para que
+ * repetir el cierre tras un corte devuelva lo mismo y nunca obligue a subirla otra vez) y `rejected` (no era un
+ * respaldo válido: sus bytes se borran y queda el motivo). Una subida que no se pudo comprobar por espacio, por la
+ * frase o por un error del servidor vuelve a `uploading` con el motivo y se conserva para reintentar o descartar.
  */
 final class Digitalisimo_Backups_Uploads {
 	const DIRECTORY = 'incoming';
@@ -22,7 +28,12 @@ final class Digitalisimo_Backups_Uploads {
 	const NONCE = 'digitalisimo_backups_upload';
 	const CHUNK_MAX = 8388608;
 	const CHUNK_MIN = 65536;
+	/** Subidas sin terminar por cuenta, y en total (todas reservan espacio en el almacén). */
 	const MAX_SESSIONS = 3;
+	const MAX_TOTAL = 10;
+	/** Comprobaciones cortadas (el proceso murió) antes de pedir WP-CLI, que no tiene límite de tiempo. */
+	const MAX_ATTEMPTS = 3;
+	const ACTION_DISCARD = 'digitalisimo_backups_upload_discard';
 	const EXPIRES_AFTER = 86400;
 	const MAX_SIZE = 68719476736;
 	/** Comprueba que un archivo de $_FILES lo subió PHP en esta petición (sustituible en las pruebas). */
@@ -30,6 +41,7 @@ final class Digitalisimo_Backups_Uploads {
 
 	public static function init() {
 		foreach ( array( 'start', 'chunk', 'status', 'finish', 'cancel' ) as $step ) add_action( 'wp_ajax_digitalisimo_backups_upload_' . $step, array( __CLASS__, 'ajax_' . $step ) );
+		add_action( 'admin_post_' . self::ACTION_DISCARD, array( __CLASS__, 'discard' ) );
 	}
 	public static function valid_id( $id ) { return Digitalisimo_Backups_Job_Store::valid_id( $id ); }
 
@@ -105,36 +117,68 @@ final class Digitalisimo_Backups_Uploads {
 		flock( $handle, LOCK_UN );
 		fclose( $handle );
 	}
-	/** Sesiones vivas; las de más de 24 h sin actividad (o sin estado) se borran. */
+	/**
+	 * Todas las sesiones (también las cerradas de las últimas 24 h). Las de más de 24 h sin actividad se borran, salvo
+	 * la que alguien está escribiendo; una carpeta sin estado sólo si tiene más de una hora (puede ser un create() en curso).
+	 */
 	public static function sessions() {
 		$root = self::root();
-		$alive = array();
+		$all = array();
 		foreach ( (array) @scandir( $root ) as $name ) {
 			if ( ! self::valid_id( $name ) ) continue;
 			$state = self::read( $name );
-			$touched = $state ? (int) ( $state['updated_at'] ?? 0 ) : (int) @filemtime( $root . '/' . $name );
-			if ( ! $state || time() - $touched > self::EXPIRES_AFTER ) {
-				// Una sesión que escribe ahora mismo no se borra; el cerrojo se suelta antes de borrarla.
-				$lock = $state ? self::lock( $name ) : null;
-				$idle = ! $state || $lock;
+			if ( ! $state ) {
+				if ( time() - (int) @filemtime( $root . '/' . $name ) > 3600 ) self::remove( $name );
+				continue;
+			}
+			if ( time() - (int) ( $state['updated_at'] ?? 0 ) > self::EXPIRES_AFTER ) {
+				// El cerrojo se suelta antes de borrar (php-wasm y Windows no sueltan el de un archivo borrado).
+				$lock = self::lock( $name );
+				$idle = (bool) $lock;
 				self::unlock( $lock );
 				if ( $idle ) self::remove( $name );
 				continue;
 			}
-			$alive[] = $state;
+			$all[] = $state;
 		}
-		return $alive;
+		return $all;
 	}
-	/** Vista pública de una sesión: sin rutas ni usuario. */
+	public static function phase( array $state ) { return (string) ( $state['phase'] ?? 'uploading' ); }
+	/** Sin cerrar: reservan espacio y cuentan para el límite. */
+	public static function open( array $state ) { return in_array( self::phase( $state ), array( 'uploading', 'validating' ), true ); }
+	/** Espacio que una sesión abierta todavía necesita: lo que falta por llegar y, si es un .dgbk, descifrarlo. */
+	public static function reserved( array $state ) {
+		if ( ! self::open( $state ) ) return 0;
+		$size = (int) $state['size'];
+		return max( 0, $size - self::received( $state['id'] ) ) + ( self::encrypted_name( (string) $state['name'] ) ? (int) ceil( $size * 1.05 ) : 0 );
+	}
+	public static function encrypted_name( $name ) { return (bool) preg_match( '/\.dgbk$/i', (string) $name ); }
+	/** Si un proceso está comprobando la sesión ahora mismo (tiene su cerrojo). */
+	public static function busy( $id ) {
+		$lock = self::lock( $id );
+		if ( ! $lock ) return true;
+		self::unlock( $lock );
+		return false;
+	}
+	/** Vista pública de una sesión: sin rutas ni usuario (sólo si es de la cuenta en curso). */
 	public static function view( array $state ) {
-		return array(
+		$phase = self::phase( $state );
+		$view = array(
 			'id' => (string) $state['id'],
 			'name' => (string) $state['name'],
 			'size' => (int) $state['size'],
-			'received' => self::received( $state['id'] ),
+			'received' => 'done' === $phase ? (int) $state['size'] : self::received( $state['id'] ),
 			'chunk_size' => (int) $state['chunk_size'],
+			'phase' => $phase,
+			'validating' => 'validating' === $phase && self::busy( $state['id'] ),
+			'attempts' => (int) ( $state['attempts'] ?? 0 ),
+			'mine' => (int) ( $state['user_id'] ?? 0 ) === (int) get_current_user_id(),
+			'updated_at' => gmdate( 'c', (int) $state['updated_at'] ),
 			'expires_at' => gmdate( 'c', (int) $state['updated_at'] + self::EXPIRES_AFTER ),
 		);
+		if ( ! empty( $state['error'] ) && is_array( $state['error'] ) ) $view['error'] = array( 'code' => (string) ( $state['error']['code'] ?? '' ), 'message' => (string) ( $state['error']['message'] ?? '' ) );
+		if ( 'done' === $phase && is_array( $state['result'] ?? null ) ) $view['result'] = $state['result'];
+		return $view;
 	}
 
 	/* ------------------------------------------------------------------ Pantalla (AJAX) */
@@ -190,6 +234,28 @@ final class Digitalisimo_Backups_Uploads {
 		echo '<noscript><p class="description">Subir un respaldo necesita JavaScript. Sin él, cópialo por SSH o SFTP a la carpeta privada de respaldos.</p></noscript>';
 		echo '<form class="digitalisimo-backups-upload-form" hidden><p><input type="file" name="digitalisimo_backups_upload_file" accept=".zip,.dgbk,application/zip,application/octet-stream"></p><p><label>Frase o clave (sólo si está cifrado con una clave que este sitio no tiene) <input type="password" name="digitalisimo_backups_upload_secret" value="" autocomplete="off"></label></p><p><button class="button button-primary" type="submit">Subir respaldo</button> <button class="button" type="button" data-upload-cancel hidden>Cancelar la subida</button></p>';
 		if ( $network ) echo '<input type="hidden" name="digitalisimo_backups_network" value="1">';
-		echo '<progress max="100" value="0" hidden></progress><p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p></form></section>';
+		echo '<progress max="100" value="0" hidden></progress><p class="digitalisimo-backups-upload-status" role="status" aria-live="polite"></p></form>';
+		// Subidas sin cerrar de cualquier cuenta: se pueden descartar (no hace falta el navegador que la empezó).
+		$open = array();
+		try { $open = array_values( array_filter( self::sessions(), array( __CLASS__, 'open' ) ) ); } catch ( Exception $e ) { $open = array(); }
+		if ( $open ) {
+			echo '<h3>Subidas sin terminar</h3><p class="description">Cada una reserva espacio en el almacén hasta que termina, se descarta o pasan 24 h sin actividad. Para continuar la tuya, vuelve a elegir el mismo archivo.</p><table class="widefat striped"><thead><tr><th>Archivo</th><th>Recibido</th><th>Cuenta</th><th>Estado</th><th></th></tr></thead><tbody>';
+			foreach ( $open as $state ) {
+				$view = self::view( $state );
+				$status = $view['validating'] ? 'comprobándose' : ( isset( $view['error'] ) ? $view['error']['message'] : ( $view['received'] >= $view['size'] ? 'completa, sin cerrar' : 'subiendo' ) );
+				echo '<tr><td>' . esc_html( $view['name'] ) . '</td><td>' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $view['received'] ) . ' de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $view['size'] ) ) . '</td><td>' . ( $view['mine'] ? 'la tuya' : 'otra cuenta' ) . '</td><td>' . esc_html( $status ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Descartar esta subida y borrar lo recibido?\')">';
+				wp_nonce_field( self::ACTION_DISCARD );
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DISCARD ) . '"><input type="hidden" name="id" value="' . esc_attr( $view['id'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small">Descartar</button></form></td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+		echo '</section>';
+	}
+	/** «Descartar» de la tabla de subidas sin terminar (admin-post: capability y nonce propio). */
+	public static function discard() {
+		if ( ! Digitalisimo_Backups::can_manage_backups() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DISCARD );
+		$result = Digitalisimo_Backups::service_upload_cancel( sanitize_text_field( wp_unslash( $_POST['id'] ?? '' ) ) );
+		Digitalisimo_Backups::redirect_result( ! is_wp_error( $result ), is_wp_error( $result ) ? $result->get_error_message() : 'Subida descartada; se borró lo recibido.' );
 	}
 }

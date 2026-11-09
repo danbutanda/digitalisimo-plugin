@@ -65,5 +65,11 @@ digi_assert( array() === $policy_events(), 'Un subsitio de la red programó una 
 $GLOBALS['main'] = true;
 $load();
 digi_assert( 2 === count( $policy_events() ), 'El sitio principal de la red no programó sus automatizaciones.' );
+// P4: con varias redes, el sitio principal de una red secundaria no programa nada (el respaldo completo es de la principal).
+$GLOBALS['cron'] = array();
+$GLOBALS['main_network'] = false;
+$load();
+digi_assert( array() === $policy_events(), 'El sitio principal de una red secundaria programó una automatización.' );
+$GLOBALS['main_network'] = true;
 
 echo "DIGITALÍSIMO Backups: las automatizaciones activas sin evento (la mensual por defecto) quedan programadas, sin duplicar, sólo en el sitio principal.\n";
