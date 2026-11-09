@@ -758,12 +758,12 @@ final class Digitalisimo_Backups_Relocate {
 		$moved = $this->origin['multisite'] ? $this->origin['network']['path'] !== $this->destination['network']['path'] : ( $from && $to && $from['path'] !== $to['path'] );
 		if ( ! $moved ) return;
 		$report['caches']['htaccess'] = false;
-		if ( ! $this->origin['multisite'] && defined( 'ABSPATH' ) && is_file( ABSPATH . 'wp-admin/includes/misc.php' ) ) {
+		// Sólo con las funciones que ya cargó esta petición (la pantalla de administración): incluir ahora
+		// wp-admin/includes/misc.php cargaría el que acaban de traer los archivos del respaldo.
+		if ( ! $this->origin['multisite'] && function_exists( 'save_mod_rewrite_rules' ) && function_exists( 'got_mod_rewrite' ) && function_exists( 'get_home_path' ) ) {
 			try {
-				require_once ABSPATH . 'wp-admin/includes/file.php';
-				require_once ABSPATH . 'wp-admin/includes/misc.php';
 				if ( isset( $GLOBALS['wp_rewrite'] ) && is_object( $GLOBALS['wp_rewrite'] ) && method_exists( $GLOBALS['wp_rewrite'], 'init' ) ) $GLOBALS['wp_rewrite']->init();
-				if ( function_exists( 'save_mod_rewrite_rules' ) && function_exists( 'got_mod_rewrite' ) && got_mod_rewrite() ) $report['caches']['htaccess'] = (bool) save_mod_rewrite_rules();
+				if ( got_mod_rewrite() ) $report['caches']['htaccess'] = (bool) save_mod_rewrite_rules();
 			} catch ( Throwable $e ) {
 				$report['warnings'][] = 'No se pudo regenerar .htaccess: ' . $e->getMessage();
 			}
