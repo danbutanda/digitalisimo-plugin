@@ -78,6 +78,17 @@ function changes(before, after) {
   }
   return out;
 }
+// Registros del origen que sí cambian (no son contenido): el uso de la clave, debug.log de PHP y el registro de
+// Elementor. Se informan; un aviso de PHP del código de Backups es un fallo.
+async function originLogs(when) {
+  const logs = await probe('A', `logs&from=${originLogs.from}`);
+  const lines = String(logs.debug || '').split('\n').filter((line) => line.trim());
+  const ours = lines.filter((line) => /digitalisimo-backups/.test(line));
+  check(!ours.length, `A: ningún aviso de PHP del código de Backups en debug.log (${when})`, ours.slice(0, 5).join(' | '));
+  const sample = [...new Set(lines.map((line) => line.replace(/^\[[^\]]+\]\s*/, '').slice(0, 160)))].slice(0, 4);
+  log(`· A (${when}): registros que cambiaron (no son contenido): uso de la clave ${logs.key_log.length} eventos (${[...new Set(logs.key_log.map((row) => row.event))].join(', ')}); debug.log +${lines.length} líneas${sample.length ? ': ' + sample.join(' | ') : ''}; elementor_log ${logs.elementor.length} entradas${logs.elementor.length ? ': ' + logs.elementor.slice(0, 3).map((row) => `${row.type} ${row.message.slice(0, 100)} (${row.file.replace(/^.*\/wp-content\//, '')}:${row.line}, ×${row.times})`).join(' | ') : ''}`);
+}
+originLogs.from = 0;
 const form = (fields) => Object.entries(fields).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 const post = (site, path, fields) => request(site, 'POST', path, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(fields) });
 const probe = async (site, what, body) => {
@@ -132,6 +143,7 @@ try {
   check(!res.text.includes(key), 'A: la pestaña no vuelve a mostrar la clave');
   // Huella del origen después de su sesión y de la clave (lo que la migración no debe cambiar).
   const fingerprintA = await probe('A', 'fingerprint');
+  originLogs.from = fingerprintA.logs?.debug_size || 0;
 
   // 2. B: «Migrar desde otro sitio» con la clave pegada y un clic; la pestaña hace avanzar la migración.
   check(await login('B', conf.B.password), 'B: inicio de sesión del administrador del destino');
@@ -194,7 +206,8 @@ try {
 
   // 4. A no cambió y su clave quedó usada.
   const changedA = changes(fingerprintA, await probe('A', 'fingerprint'));
-  check(!changedA.length, 'A: el origen no cambió (base de datos y archivos)', changedA.slice(0, 20).join(' · '));
+  check(!changedA.length, 'A: el contenido del origen no cambió (base de datos y archivos)', changedA.slice(0, 20).join(' · '));
+  await originLogs('tras migrar');
   const stateA = await probe('A', 'state');
   check(stateA.keys[0]?.state === 'used', 'A: la clave quedó usada', JSON.stringify(stateA.keys[0]));
   check(['hello', 'package', 'ready', 'download', 'used'].every((event) => stateA.log.some((row) => row.event === event)), 'A: el registro anota cada uso', JSON.stringify(stateA.log.map((row) => row.event)));
@@ -217,7 +230,8 @@ try {
   check(res.status === 200 && res.text.includes('Entrada propia del destino'), 'B: su entrada propia vuelve', res.status);
   check(state.history.some((row) => row.migration && row.migration.state === 'undone') && !state.undo, 'B: la migración queda deshecha y no se puede deshacer otra vez');
   const changedA2 = changes(fingerprintA, await probe('A', 'fingerprint'));
-  check(!changedA2.length, 'A: el origen sigue igual tras deshacer', changedA2.slice(0, 20).join(' · '));
+  check(!changedA2.length, 'A: el contenido del origen sigue igual tras deshacer', changedA2.slice(0, 20).join(' · '));
+  await originLogs('tras deshacer');
 } catch (error) {
   check(false, 'el ensayo se interrumpió', error.stack || error.message);
 }
