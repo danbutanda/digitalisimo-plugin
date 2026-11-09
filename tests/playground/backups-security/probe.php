@@ -254,7 +254,9 @@ try {
 			$old = $legacy( 'create_network' );
 			$legacy( 'remember', $old, 'local', $network ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
 			$manifest = ( function( $path ) { $z = new ZipArchive(); $z->open( $path ); $m = json_decode( (string) $z->getFromName( 'manifest.json' ), true ); $z->close(); return $m; } )( $old );
-			$check( $legacy_version === ( $manifest['plugin_version'] ?? '' ) && ! isset( $manifest['auth'] ) && ! isset( $manifest['job_id'] ), 'S8 respaldo ' . basename( $old ) . ' creado por ' . $legacy_version . ' (sin firma ni trabajo) · ' . $elapsed() );
+			// El manifiesto de la clase anterior lleva la versión del plugin cargado (DIGITALISIMO_BACKUPS_VERSION), no la suya:
+			// lo que sólo escribe el motor de trabajos (job_id, packer) y la firma (auth) es lo que lo distingue.
+			$check( ! isset( $manifest['auth'] ) && ! isset( $manifest['job_id'] ) && ! isset( $manifest['packer'] ) && 'digitalisimo-backup/v3' === ( $manifest['format'] ?? '' ), 'S8 respaldo ' . basename( $old ) . ' creado por ' . $legacy_version . ' (sin firma ni trabajo) · ' . $elapsed() );
 			update_option( 'blogname', 'Cambiado tras el respaldo de ' . $legacy_version );
 			list( $ok, $message ) = $restore( basename( $old ), 'RESTAURAR' );
 			wp_cache_flush();
