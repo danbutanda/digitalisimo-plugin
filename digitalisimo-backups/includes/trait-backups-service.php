@@ -201,6 +201,7 @@ trait Digitalisimo_Backups_Service {
 			'key_source' => 'none' !== $constant ? 'wp-config' : ( $ring['active'] ? 'passphrase' : 'none' ),
 			'credentials' => (string) $credentials['state'],
 			'credentials_notice' => (string) $credentials['notice'],
+			'notifications' => Digitalisimo_Backups_Notify::status(),
 			'backups' => count( $history ),
 			'last_backup' => $history ? self::service_summary( $history[0] ) : null,
 			'automations' => count( $automations ),
@@ -350,11 +351,15 @@ trait Digitalisimo_Backups_Service {
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		$report = null;
+		// Aviso por correo con los ajustes de antes del SQL (que trae los del respaldo); se envía al soltar el bloqueo.
+		$mail = Digitalisimo_Backups_Notify::snapshot();
+		$event = null;
 		try {
 			if ( Digitalisimo_Backups_Jobs::has_active() ) return self::service_error( 'busy', 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.', 409 );
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ), $secret );
 			} catch ( Exception $e ) {
+				$event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
 				return self::service_error( 'invalid', $e->getMessage(), 422 );
 			}
 			try {
@@ -370,7 +375,9 @@ trait Digitalisimo_Backups_Service {
 			} catch ( Throwable $e ) {
 				// Sin copia previa nueva, el SQL y los archivos no se tocaron: el paquete (o la copia previa) se rechazó
 				// antes (422). Con ella, la restauración empezó y el mensaje dice qué se recuperó (500).
-				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
+				$started = self::service_safety_copies() > $copies;
+				$event = array( 'ok' => false, 'started' => $started, 'message' => $e->getMessage() );
+				return $started ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
 			}
 			$notice = '';
 			$adopted = false;
@@ -386,17 +393,25 @@ trait Digitalisimo_Backups_Service {
 			// Las credenciales del respaldo mandan: si alguna no se pudo volver a cifrar aquí, se avisa ya.
 			$credentials = self::credentials_status();
 			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
+			$event = array( 'ok' => true, 'started' => true, 'notes' => array( ltrim( $notice ) ) );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
 			// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
 			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			if ( $event ) {
+				$event += array( 'file' => wp_basename( $path ), 'via' => (string) ( $args['via'] ?? '' ), 'safety' => self::service_latest_safety() );
+				try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			}
 		}
-		$safety = '';
+		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => self::service_latest_safety() );
+	}
+	/** La copia previa más reciente del historial (la de esta restauración si llegó a crearse). */
+	private static function service_latest_safety() {
 		foreach ( (array) get_option( self::HISTORY, array() ) as $item ) {
-			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) { $safety = (string) ( $item['file'] ?? '' ); break; }
+			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) return (string) ( $item['file'] ?? '' );
 		}
-		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => $safety );
+		return '';
 	}
 	/**
 	 * Comprueba un respaldo local sin tocar el sitio, con las mismas comprobaciones del paquete que la restauración

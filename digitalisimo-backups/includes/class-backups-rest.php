@@ -99,7 +99,7 @@ final class Digitalisimo_Backups_Rest {
 	public static function restore( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'] ) ) );
+		return self::respond( Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'via' => 'rest' ) ) );
 	}
 	public static function automations( $request ) {
 		return self::respond( Digitalisimo_Backups::service_automations() );

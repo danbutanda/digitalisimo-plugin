@@ -154,6 +154,7 @@ final class Digitalisimo_Backups_Cli {
 			if ( 'last_backup' === $key ) $value = $value ? $value['file'] . ' (' . $value['date'] . ')' : '';
 			elseif ( 'destinations' === $key ) $value = implode( ', ', array_keys( (array) $value ) );
 			elseif ( 'problems' === $key ) $value = implode( ' | ', (array) $value );
+			elseif ( 'notifications' === $key ) $value = 'fallos: ' . ( empty( $value['failure'] ) ? 'no' : 'sí' ) . ', éxitos: ' . ( empty( $value['success'] ) ? 'no' : 'sí' ) . ', correo: ' . ( 'custom' === ( $value['recipient'] ?? '' ) ? 'configurado' : 'de administración' );
 			$rows[] = array( 'campo' => $key, 'valor' => is_bool( $value ) ? ( $value ? 'sí' : 'no' ) : (string) $value );
 		}
 		WP_CLI\Utils\format_items( 'table', $rows, array( 'campo', 'valor' ) );
@@ -280,7 +281,7 @@ final class Digitalisimo_Backups_Cli {
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 */
 	public function restore( $args, $assoc_args ) {
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ) ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'via' => 'cli' ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 }

@@ -168,6 +168,8 @@ final class Digitalisimo_Backups_Jobs {
 			Digitalisimo_Backups::release_operation_lock( $lock );
 		}
 		self::schedule();
+		// Avisos de los trabajos que terminaron (aquí o en un proceso que murió después): fuera del cerrojo del almacén.
+		Digitalisimo_Backups_Notify::flush_jobs();
 		return array( 'result' => $result );
 	}
 	/** Elige el primer trabajo listo en orden de llegada y le pone un arrendamiento nuevo. */
@@ -257,6 +259,8 @@ final class Digitalisimo_Backups_Jobs {
 				$job['status'] = 'success';
 				$job['finished_at'] = time();
 				$job['progress'] = array( 'percent' => 100, 'message' => (string) ( $outcome['message'] ?? 'Respaldo completo creado y verificado.' ) );
+				// El aviso por correo sale después, fuera del cerrojo (flush_jobs()); la marca sobrevive a una muerte del proceso.
+				$job = Digitalisimo_Backups_Notify::mark( $job );
 			} else {
 				$job['phase'] = $next;
 				$job['status'] = self::status_for( $next, $job['spec'] );
@@ -336,7 +340,8 @@ final class Digitalisimo_Backups_Jobs {
 			$job['error'] = $error;
 			$job['progress']['message'] = (string) ( $error['message'] ?? 'El trabajo falló.' );
 		}
-		return $job;
+		// Sólo un estado terminal avisa: los reintentos con espera (queue_retry) no pasan por aquí.
+		return Digitalisimo_Backups_Notify::mark( $job );
 	}
 
 	/** Ejecuta todas las fases en este proceso (la copia previa de una restauración, con el cerrojo ya tomado). */
@@ -591,6 +596,7 @@ final class Digitalisimo_Backups_Jobs {
 			} finally {
 				Digitalisimo_Backups::release_operation_lock( $lock );
 			}
+			Digitalisimo_Backups_Notify::flush_jobs();
 		}
 		self::schedule( true );
 	}

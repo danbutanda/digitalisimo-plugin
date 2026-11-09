@@ -319,6 +319,7 @@ jobs:
           php tests/backups-credentials-surfaces.php
           php tests/backups-credentials-nokeys.php
           php tests/backups-remote-copy.php
+          php tests/backups-notify.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
