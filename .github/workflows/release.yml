@@ -324,6 +324,7 @@ jobs:
           php tests/backups-relocate-interrupted.php
           php tests/backups-restore-steps.php
           php tests/backups-restore-memory.php
+          php tests/backups-restore-review.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php

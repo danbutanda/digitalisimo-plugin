@@ -46,7 +46,7 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	/** El mantenimiento de una restauración que no caduca (desde el cambio, o la vuelta a la copia previa). */
 	public static function until_done( $path = null ) {
 		$path = null === $path ? self::path() : $path;
-		return self::ours( $path ) && false !== strpos( (string) @file_get_contents( $path, false, null, 0, 4096 ), "'until_done' => true" );
+		return self::ours( $path ) && false !== strpos( (string) @file_get_contents( $path, false, null, 0, 65536 ), "'until_done' => true" );
 	}
 	/** Plugin de este archivo (`carpeta/archivo.php`), el único que cargan los ticks durante el mantenimiento. */
 	public static function plugin() {
