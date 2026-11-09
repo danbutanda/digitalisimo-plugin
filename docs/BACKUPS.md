@@ -485,7 +485,9 @@ pasa con el sitio y qué la hace avanzar; `status` (REST y WP-CLI) lo da en `res
 (los respaldos esperan a que termine). Una restauración que falló a mitad (`failed_midway`, con `recover`: la copia
 previa que se puede volver a poner), que volvió a la copia previa o que se canceló se avisa durante 7 días. La tarjeta
 «Trabajos» la lista («Restauración» o «Vuelta a la copia previa») y deja cancelarla antes del cambio. Al terminar, el
-aviso por correo (pestaña «Avisos») sale con los ajustes que había antes del SQL.
+aviso por correo (pestaña «Avisos») sale con los ajustes que había antes del SQL, pero nunca desde un tick con WordPress
+mínimo (sin los plugins de SMTP del sitio, `wp_mail()` iría por `mail()` de PHP): queda pendiente y un tick de WP-Cron
+programado a 60 s lo envía con WordPress entero.
 
 **Mantenimiento.** Desde la base de datos hasta el final, `ABSPATH/.maintenance` pone el sitio en mantenimiento y es una
 puerta: deja pasar `wp-cron.php` (sin testigo: el cron del sistema o el loopback), el tick por testigo de la pantalla
@@ -499,8 +501,10 @@ actualizaciones automáticas ni los eventos vencidos del cron del respaldo). Una
 visitante, otro administrador) despierta la restauración como mucho una vez por minuto (lanza `wp-cron.php` sin esperar):
 cerrar el navegador no la detiene si el sitio recibe visitas o tiene cron del sistema (la pantalla da la línea:
 `* * * * * curl -s -o /dev/null https://…/wp-cron.php`); sin ninguno de los dos, sigue cuando se vuelve a la pantalla o
-con `wp digitalisimo-backups jobs run`. Hasta el cambio el mantenimiento caduca solo a los 10 minutos si la restauración
-se detiene (el sitio sigue entero); desde el cambio, y en una vuelta a la copia previa, no.
+con `wp digitalisimo-backups jobs run`. Cada tick deja programado el siguiente en cuanto toma el trabajo (WP-Cron ya
+retiró el evento que lo lanzó): si muere a mitad, WP-Cron lo sigue al minuto sin esperar al watchdog horario. Hasta el
+cambio el mantenimiento caduca solo a los 10 minutos si la restauración se detiene (el sitio sigue entero); desde el
+cambio, y en una vuelta a la copia previa, no.
 
 **Archivos ajenos (H3).** Dentro de las raíces que el respaldo gestiona —núcleo (`wp-admin`, `wp-includes` y, en la raíz,
 todo archivo que PHP pueda ejecutar: `.php`, `.phtml`, `.phar`…), plugins, temas, mu-plugins y medios—, lo que no figura
@@ -550,8 +554,15 @@ almacén y la cuenta del hosting abreviados); las del servidor de origen que tra
 tick de 15 s; sitio individual y red por subdirectorios, 1 200 entradas y unas 5 340 entradas en el respaldo): el respaldo se
 crea desde la pantalla, el sitio cambia (base de datos, plugin, tema, un `.php` inyectado en uploads, un plugin nuevo y
 un archivo fuera de las raíces gestionadas) y la restauración se pide por REST (202) y avanza sólo con ticks web (el de
-la pantalla con el testigo y `wp-cron.php`), con dos peticiones muertas a propósito a mitad de la base de datos y a mitad
-de los archivos. @BK_RESTORE_PG_RESULT@
+la pantalla con el testigo y `wp-cron.php` sin testigo, como el cron del sistema), con dos peticiones muertas a propósito a
+mitad de la base de datos y a mitad de los archivos; en la red muere además la propia petición de REST ya en
+mantenimiento, así que la restauración sólo sigue con `wp-cron.php`. Los dos terminan con el inventario (cada tabla y cada archivo con su hash) idéntico al
+de después del respaldo (12 tablas y 5 347 archivos; 28 tablas y 5 348), lo inyectado y el plugin nuevo retirados e
+informados, el archivo de fuera intacto, mantenimiento (503) para los visitantes y sin él al terminar. En la red, sin
+trabajo ni testigo en el cliente, `wp-cron.php` la reanudó y, tras cada muerte dentro de WP-Cron, el tick de guardia la
+siguió al minuto. En el sitio individual, una segunda restauración que falla al mover vuelve sola a la copia previa y deja
+el sitio como estaba. Ninguna petición pasó de 30 s (la más larga, 21,8 s: la de REST, que hace la verificación y la
+copia previa) ni de 64 MB (pico 62,5 MB).
 
 **Límites declarados.**
 
