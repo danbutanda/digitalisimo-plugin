@@ -18,7 +18,7 @@
 # Uso: bash tests/playground/backups-site-extract.sh (en el servidor de desarrollo, por el semáforo de corridas pesadas
 #      y con systemd-run --user)
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-site-extract) y temporales de Playground
-#   PORT          puerto del destino (por defecto 9471)
+#   PORT          puerto del destino (por defecto 9471; si está ocupado, el siguiente libre)
 #   ELEMENTS_DIR  copia de DIGITALÍSIMO Elements (por defecto la del repositorio, que se copia a OUT)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -86,7 +86,9 @@ cat > "$OUT/destino/blueprint.json" <<JSON
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_ENVIRONMENT_TYPE":"local","AUTH_KEY":"destino-auth-key-0123456789abcdef0123456789abcdef","SECURE_AUTH_KEY":"destino-secure-auth-key-0123456789abcdef0123456789"}},
 {"step":"runPHP","code":"<?php require '/digi-probe/destination.php';"}]}
 JSON
-if fuser -n tcp "$PORT" >/dev/null 2>&1; then echo "== destino: el puerto $PORT está ocupado; usa PORT=…"; exit 1; fi
+# Servidor compartido: si el puerto lo ocupa otra corrida, el siguiente libre (nunca se libera el de otra).
+for try in $(seq "$PORT" $(( PORT + 40 ))); do fuser -n tcp "$try" >/dev/null 2>&1 || { PORT="$try"; break; }; done
+if fuser -n tcp "$PORT" >/dev/null 2>&1; then echo "== destino: no hay un puerto libre desde $PORT; usa PORT=…"; exit 1; fi
 begun=$(date +%s)
 $CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT/destino/blueprint.json" \
   --mount="$OUT/destino/backups:/wordpress/wp-content/plugins/digitalisimo-backups" \
