@@ -34,7 +34,7 @@ final class Digitalisimo_Backups_Relocate {
 	/** Anidamiento máximo de arrays u objetos dentro de un valor serializado. */
 	const MAX_NESTING = 512;
 	/** Tamaño máximo de un valor que se reescribe; uno mayor se deja intacto y se informa (`too_large`). */
-	const MAX_VALUE = 67108864;
+	const MAX_VALUE = 33554432;
 	/** Filas por lote al leer una tabla ya importada y bytes por grupo de filas que se cargan a la vez. */
 	const BATCH_ROWS = 500;
 	const BATCH_BYTES = 4194304;
@@ -42,16 +42,35 @@ final class Digitalisimo_Backups_Relocate {
 	const CHECK_ROWS = 2000;
 	/** Estilos en los que aparece una URL o una ruta: barras normales, JSON, JSON dentro de JSON y codificación de URL. */
 	const STYLES = array(
-		'json2' => array( 'slash' => '\\\\\\/', 'colon' => ':' ),
-		'url' => array( 'slash' => '%2F', 'colon' => '%3A' ),
-		'json' => array( 'slash' => '\\/', 'colon' => ':' ),
-		'plain' => array( 'slash' => '/', 'colon' => ':' ),
+		'url2' => array( 'slash' => '%252F', 'colon' => '%253A', 'encoded' => true ),
+		'json2' => array( 'slash' => '\\\\\\/', 'colon' => ':', 'encoded' => false ),
+		'url' => array( 'slash' => '%2F', 'colon' => '%3A', 'encoded' => true ),
+		'json' => array( 'slash' => '\\/', 'colon' => ':', 'encoded' => false ),
+		'plain' => array( 'slash' => '/', 'colon' => ':', 'encoded' => false ),
 	);
+	/**
+	 * Dónde se reescriben las rutas del servidor (las URL, en todas partes): `setting` (ajustes y metas: el valor entero
+	 * que es una ruta y, dentro de un texto, la ruta seguida de /wp-content, /wp-includes, /wp-admin o /wp-config.php),
+	 * `content` (contenido público y tablas de plugins: sólo el valor entero que es una ruta) y `config` (archivos de
+	 * configuración del servidor: en cualquier lugar). Un origen de un solo segmento (/wordpress, /app) nunca se cambia
+	 * dentro de un texto: se confunde con un enlace relativo.
+	 */
+	const PATH_CONTEXTS = array( 'setting', 'content', 'config' );
+	/** Tablas base cuyos textos son ajustes o metas (contexto `setting`); el resto, `content`. */
+	const SETTING_TABLES = array( 'options', 'sitemeta', 'postmeta', 'usermeta', 'termmeta', 'commentmeta', 'blogmeta' );
+	/** Memoria de PHP que cuesta, como mucho, reescribir un valor, por cada byte del valor (medido: de x3 a x19). */
+	const MEMORY_FACTOR = 24;
 	/** Columnas que nunca se reescriben, por tabla base (sin prefijo ni número de sitio). */
 	const KEEP_COLUMNS = array( 'posts' => array( 'guid' ) );
 
-	/** host[:puerto] en minúsculas => lista de array( path, scheme, host, to_path ), de la ruta más larga a la más corta. */
+	/** host[:puerto] en minúsculas => lista de array( path, scheme, host, to_path, identity ), de la ruta más larga a la más corta. */
 	private $hosts = array();
+	/** Hay algún par de URL que cambia algo (los iguales sólo protegen su ruta). */
+	private $changing = false;
+	/** Contexto de las rutas en la llamada en curso a rewrite() (ver PATH_CONTEXTS). */
+	private $context = 'setting';
+	/** Rutas del origen (con estilo) que pueden cambiarse dentro de un texto (dos segmentos o más). */
+	private $deep_paths = array();
 	/** Pares de URL añadidos, para el informe. */
 	private $url_pairs = array();
 	/** Pares de rutas añadidos (origen => destino). */
@@ -100,8 +119,9 @@ final class Digitalisimo_Backups_Relocate {
 		$a = self::parse_url( $from );
 		$b = self::parse_url( $to );
 		if ( ! $a || ! $b ) return false;
-		if ( $a['host'] === $b['host'] && $a['path'] === $b['path'] && $a['scheme'] === $b['scheme'] ) return true;
-		$this->url_pairs[ $a['scheme'] . '://' . $a['host'] . $a['path'] ] = $b['scheme'] . '://' . $b['host'] . $b['path'];
+		// Un par igual («este sitio se queda donde está») también se guarda: protege su ruta del par más corto de su host.
+		$identity = $a['host'] === $b['host'] && $a['path'] === $b['path'] && $a['scheme'] === $b['scheme'];
+		if ( ! $identity ) $this->url_pairs[ $a['scheme'] . '://' . $a['host'] . $a['path'] ] = $b['scheme'] . '://' . $b['host'] . $b['path'];
 		$variants = array( $a['host'] );
 		$name = preg_replace( '/:[0-9]+$/', '', $a['host'] );
 		// Con y sin «www» (no para una IP ni un nombre sin punto, como localhost).
@@ -111,7 +131,7 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		foreach ( $variants as $host ) {
 			if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$/D', $host ) ) continue;
-			$entry = array( 'path' => $a['path'], 'scheme' => $b['scheme'], 'host' => $b['host'], 'to_path' => $b['path'] );
+			$entry = array( 'path' => $a['path'], 'scheme' => $b['scheme'], 'host' => $b['host'], 'to_path' => $b['path'], 'identity' => $identity && $host === $a['host'] );
 			$list = $this->hosts[ $host ] ?? array();
 			$implied = false;
 			foreach ( $list as $i => $known ) {
@@ -130,6 +150,7 @@ final class Digitalisimo_Backups_Relocate {
 	}
 	/** $short ya produce el mismo resultado que $long: su ruta es un prefijo de segmento y el resto se conserva igual. */
 	private static function implies( array $short, array $long ) {
+		if ( ! empty( $long['identity'] ) !== ! empty( $short['identity'] ) ) return false;
 		if ( $short['scheme'] !== $long['scheme'] || $short['host'] !== $long['host'] || strlen( $short['path'] ) >= strlen( $long['path'] ) ) return false;
 		if ( 0 !== strpos( $long['path'] . '/', $short['path'] . '/' ) ) return false;
 		return $short['to_path'] . substr( $long['path'], strlen( $short['path'] ) ) === $long['to_path'];
@@ -169,8 +190,8 @@ final class Digitalisimo_Backups_Relocate {
 		return $this;
 	}
 
-	/** true si hay algo que reescribir en los valores (URL o rutas). */
-	public function rewrites_values() { return (bool) ( $this->hosts || $this->path_pairs ); }
+	/** true si hay algo que reescribir en los valores (URL o rutas); los pares iguales no cuentan. */
+	public function rewrites_values() { return $this->changing || (bool) $this->path_pairs; }
 
 	/**
 	 * Devuelve `$value` con las direcciones y rutas del origen cambiadas por las del destino. Un valor que no es cadena,
@@ -178,7 +199,7 @@ final class Digitalisimo_Backups_Relocate {
 	 * vuelve a escribir con las longitudes en bytes; si está dañado vuelve intacto. `flags()` dice qué pasó con la última
 	 * llamada (`malformed`, `too_large`, `opaque`, `deep`) y `stats()` acumula los totales.
 	 */
-	public function rewrite( $value ) {
+	public function rewrite( $value, $context = 'setting' ) {
 		$this->flags = array();
 		if ( ! is_string( $value ) || '' === $value || ! $this->rewrites_values() ) return $value;
 		if ( ! $this->may_contain( $value ) ) return $value;
@@ -187,6 +208,7 @@ final class Digitalisimo_Backups_Relocate {
 			$this->stats['too_large']++;
 			return $value;
 		}
+		$this->context = in_array( $context, self::PATH_CONTEXTS, true ) ? $context : 'setting';
 		$new = $this->rewrite_text( $value, 0 );
 		if ( ! empty( $this->flags['malformed'] ) ) $this->stats['malformed']++;
 		if ( ! empty( $this->flags['opaque'] ) ) $this->stats['opaque']++;
@@ -1088,14 +1110,25 @@ final class Digitalisimo_Backups_Relocate {
 	private function compile() {
 		$this->needles = array();
 		$this->sql_needles = array();
-		foreach ( array_keys( $this->hosts ) as $host ) { $this->needles[] = array( $host, true ); $this->sql_needles[] = array( $host, true ); }
+		$this->changing = false;
+		$names = array();
+		foreach ( $this->hosts as $host => $entries ) {
+			foreach ( $entries as $entry ) if ( empty( $entry['identity'] ) ) $this->changing = true;
+			// La aguja es el nombre sin puerto: en una URL codificada el puerto va como %3A8080 (o %253A8080).
+			$names[ preg_replace( '/:[0-9]+$/', '', $host ) ] = true;
+		}
+		foreach ( array_keys( $names ) as $name ) { $this->needles[] = array( $name, true ); $this->sql_needles[] = array( $name, true ); }
 		$alternatives = array();
 		$this->path_map = array();
+		$this->deep_paths = array();
 		foreach ( $this->path_pairs as $from => $to ) {
+			// Segmentos propios de la instalación (sin /wp-content ni /uploads): /var/www/origen tiene 3; /wordpress, 1.
+			$deep = count( array_filter( explode( '/', preg_replace( '#/wp-content(?:/uploads)?$#', '', $from ) ) ) ) >= 2;
 			foreach ( array( 'plain', 'json', 'json2' ) as $style ) {
 				$slash = self::STYLES[ $style ]['slash'];
 				$styled = str_replace( '/', $slash, $from );
 				$this->path_map[ $styled ] = str_replace( '/', $slash, $to );
+				if ( $deep ) $this->deep_paths[ $styled ] = true;
 				$alternatives[ $styled ] = preg_quote( $styled, '#' );
 				$this->needles[] = array( $styled, false );
 				$this->sql_needles[] = array( str_replace( '\\', '\\\\', $styled ), false );
@@ -1107,7 +1140,7 @@ final class Digitalisimo_Backups_Relocate {
 		if ( count( $this->hosts ) > 32 ) {
 			$this->needles = array_values( array_filter( $this->needles, function( $n ) { return ! $n[1]; } ) );
 			$this->sql_needles = array_values( array_filter( $this->sql_needles, function( $n ) { return ! $n[1]; } ) );
-			foreach ( array( '//', '\\/\\/', '%2F%2F' ) as $token ) { $this->needles[] = array( $token, true ); $this->sql_needles[] = array( str_replace( '\\', '\\\\', $token ), true ); }
+			foreach ( array( '//', '\\/\\/', '%2F%2F', '%252F%252F' ) as $token ) { $this->needles[] = array( $token, true ); $this->sql_needles[] = array( str_replace( '\\', '\\\\', $token ), true ); }
 		}
 	}
 	private function may_contain( $value ) {
@@ -1137,13 +1170,35 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		if ( ! $this->may_contain( $s ) ) return $s;
 		$s = $this->scan_urls( $s, false, $this->stats['urls'] );
-		if ( $this->path_regex ) {
-			$map = $this->path_map;
-			$count = 0;
-			$s = preg_replace_callback( $this->path_regex, function( $m ) use ( $map ) { return $map[ $m[0] ] ?? $m[0]; }, $s, -1, $count );
-			$this->stats['paths'] += $count;
-		}
+		if ( $this->path_regex ) $s = $this->replace_paths( $s, $this->stats['paths'] );
 		return $s;
+	}
+	/**
+	 * Rutas del servidor según el contexto (ver PATH_CONTEXTS). Un valor que ES una ruta (empieza por ella y no sigue
+	 * texto con espacios, comillas o etiquetas) cambia en cualquier contexto; dentro de un texto, sólo en `config` o, en
+	 * `setting`, cuando la ruta del origen tiene dos segmentos o más y va seguida de /wp-content, /wp-includes, /wp-admin
+	 * o /wp-config.php (o ya es la de wp-content): así un enlace relativo «/wordpress/» o un tutorial no cambian.
+	 */
+	private function replace_paths( $s, &$count ) {
+		$map = $this->path_map;
+		$deep = $this->deep_paths;
+		$context = $this->context;
+		$changed = 0;
+		$out = preg_replace_callback( $this->path_regex, function( $m ) use ( $s, $map, $deep, $context, &$changed ) {
+			list( $text, $at ) = $m[0];
+			$whole = 0 === $at && ! preg_match( '/[\s"\'<>]/', (string) substr( $s, strlen( $text ) ) );
+			if ( ! $whole && 'config' !== $context ) {
+				if ( 'content' === $context || ! isset( $deep[ $text ] ) ) return $text;
+				$plain = str_replace( array( '\\\\\\/', '\\/' ), '/', $text );
+				$after = str_replace( array( '\\\\\\/', '\\/' ), '/', (string) substr( $s, $at + strlen( $text ), 48 ) );
+				if ( false === strpos( $plain, '/wp-content' ) && ! preg_match( '#^/(?:wp-content|wp-includes|wp-admin)(?:/|$)|^/wp-config\.php#', $after ) ) return $text;
+			}
+			if ( ! isset( $map[ $text ] ) ) return $text;
+			$changed++;
+			return $map[ $text ];
+		}, $s, -1, $ignored, PREG_OFFSET_CAPTURE );
+		$count += $changed;
+		return null === $out ? $s : $out;
 	}
 	/** Como is_serialized() de WordPress (estricto), más `C:` (Serializable) y `E:` (enum). */
 	private static function looks_serialized( $s ) {
@@ -1294,7 +1349,8 @@ final class Digitalisimo_Backups_Relocate {
 		if ( null === $regex ) {
 			$slashes = array();
 			foreach ( self::STYLES as $style ) $slashes[] = '(?i:' . preg_quote( $style['slash'] . $style['slash'], '~' ) . ')';
-			$regex = '~(?:(?<scheme>(?i:https?))(?<colon>:|(?i:%3A)))?(?<slashes>' . implode( '|', $slashes ) . ')(?<host>[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?<port>(?::|(?i:%3A))[0-9]{1,5}(?![0-9]))?~';
+			$colons = '(?i:%253A)|(?i:%3A)|:';
+			$regex = '~(?:(?<scheme>(?i:https?))(?<colon>' . $colons . '))?(?<slashes>' . implode( '|', $slashes ) . ')(?<host>[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?<port>(?:' . $colons . ')[0-9]{1,5}(?![0-9]))?~';
 		}
 		$out = '';
 		$offset = 0;
@@ -1305,25 +1361,35 @@ final class Digitalisimo_Backups_Relocate {
 			$end = $start + strlen( $m[0][0] );
 			$offset = $end;
 			$style = $this->style_of( $m['slashes'][0] );
+			$encoded = self::STYLES[ $style ]['encoded'];
+			$colon = self::STYLES[ $style ]['colon'];
 			$has_scheme = isset( $m['scheme'] ) && -1 !== $m['scheme'][1] && '' !== $m['scheme'][0];
 			$slash_at = $m['slashes'][1];
 			// «ftp://origen.com»: otro esquema delante de «//» no es una URL nuestra.
 			if ( ! $has_scheme ) {
-				$colon = self::STYLES[ $style ]['colon'];
 				if ( $slash_at >= strlen( $colon ) && 0 === substr_compare( $s, $colon, $slash_at - strlen( $colon ), strlen( $colon ), true ) ) continue;
-			} elseif ( ( 'url' === $style ) !== ( 0 === strcasecmp( '%3A', $m['colon'][0] ) ) ) {
+			} elseif ( 0 !== strcasecmp( $colon, $m['colon'][0] ) ) {
 				continue;
 			}
 			$port = isset( $m['port'] ) && -1 !== $m['port'][1] ? $m['port'][0] : '';
-			if ( '' !== $port && 0 !== strncasecmp( $port, self::STYLES[ $style ]['colon'], strlen( self::STYLES[ $style ]['colon'] ) ) ) continue;
-			$host = strtolower( $m['host'][0] ) . ( '' === $port ? '' : ':' . substr( $port, strlen( self::STYLES[ $style ]['colon'] ) ) );
+			if ( '' !== $port && 0 !== strncasecmp( $port, $colon, strlen( $colon ) ) ) continue;
+			$name = strtolower( $m['host'][0] );
+			$number = '' === $port ? '' : substr( $port, strlen( $colon ) );
+			$host = $name . ( '' === $number ? '' : ':' . $number );
+			// Un puerto por defecto explícito (https://origen.com:443/, http://origen.com:80/) es el mismo origen.
+			if ( ! isset( $this->hosts[ $host ] ) && in_array( $number, array( '443', '80' ), true ) ) $host = $name;
 			if ( ! isset( $this->hosts[ $host ] ) ) continue;
 			$slash = self::STYLES[ $style ]['slash'];
 			foreach ( $this->hosts[ $host ] as $entry ) {
 				$path = str_replace( '/', $slash, $entry['path'] );
 				$length = strlen( $path );
-				if ( $length && ( $end + $length > $n || 0 !== substr_compare( $s, $path, $end, $length, 'url' === $style ) ) ) continue;
+				if ( $length && ( $end + $length > $n || 0 !== substr_compare( $s, $path, $end, $length, $encoded ) ) ) continue;
 				if ( $length && ! $this->segment_ends( $s, $end + $length, $style ) ) continue;
+				// Un par igual («este sitio se queda») sólo protege su ruta de los pares más cortos.
+				if ( ! empty( $entry['identity'] ) ) {
+					$offset = $end + $length;
+					break;
+				}
 				if ( $count_only ) {
 					// Una URL del destino con el mismo host (otra ruta) no es un resto del origen.
 					$to = str_replace( '/', $slash, $entry['to_path'] );
@@ -1332,10 +1398,10 @@ final class Digitalisimo_Backups_Relocate {
 					break;
 				}
 				// En una URL codificada se conserva la caja de los escapes (%2F o %2f), también en el puerto.
-				$colon = self::STYLES[ $style ]['colon'];
+				$out_colon = $colon;
 				$out_slash = $slash;
-				if ( 'url' === $style && false !== strpos( $m['slashes'][0], '%2f' ) ) { $colon = strtolower( $colon ); $out_slash = strtolower( $slash ); }
-				$replacement = ( $has_scheme ? $entry['scheme'] . $colon : '' ) . $out_slash . $out_slash . str_replace( ':', $colon, $entry['host'] ) . str_replace( '/', $out_slash, $entry['to_path'] );
+				if ( $encoded && $m['slashes'][0] !== strtoupper( $m['slashes'][0] ) ) { $out_colon = strtolower( $colon ); $out_slash = strtolower( $slash ); }
+				$replacement = ( $has_scheme ? $entry['scheme'] . $out_colon : '' ) . $out_slash . $out_slash . str_replace( ':', $out_colon, $entry['host'] ) . str_replace( '/', $out_slash, $entry['to_path'] );
 				$out .= substr( $s, $last, $start - $last ) . $replacement;
 				$last = $end + $length;
 				$offset = $last;
@@ -1356,7 +1422,7 @@ final class Digitalisimo_Backups_Relocate {
 		$slash = self::STYLES[ $style ]['slash'];
 		if ( 0 === substr_compare( $s, $slash, $at, strlen( $slash ), true ) ) return true;
 		$c = $s[ $at ];
-		if ( 'url' === $style && '%' === $c ) return true;
+		if ( self::STYLES[ $style ]['encoded'] && '%' === $c ) return true;
 		// Un punto final de frase («…/blog.») es límite; «/blog.html» no.
 		if ( '.' === $c ) return ! preg_match( '/[A-Za-z0-9]/', $s[ $at + 1 ] ?? '' );
 		return ! preg_match( '/[A-Za-z0-9_~%+-]/', $c );
