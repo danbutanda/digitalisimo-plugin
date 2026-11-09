@@ -9,6 +9,17 @@
 require __DIR__ . '/lib/backups-env.php';
 $S = 'Digitalisimo_Backups_Security';
 $repo = dirname( __DIR__ );
+// La opción de un subsitio (que el motor no usa) con secretos en claro de una versión anterior: el SQL no los lleva.
+class Compat_DB extends Bk_Test_DB {
+	public function get_results( $query, $format ) {
+		if ( false === strpos( $query, '`wp_2_options`' ) ) return parent::get_results( $query, $format );
+		$this->last_error = '';
+		if ( 0 === strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'option_id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
+		return bk_page( array( array( 'option_id' => '1', 'option_name' => 'digitalisimo_backups_settings', 'option_value' => serialize( array( 'sftp_host' => 'viejo.example.test', 'sftp_password' => 'Clave-VIEJA-de-subsitio-T2' ) ) ) ), $query, 'option_id' );
+	}
+}
+$GLOBALS['wpdb'] = new Compat_DB();
+$GLOBALS['wpdb']->extra_tables['wp_2_options'] = "CREATE TABLE `wp_2_options` (\n  `option_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `option_name` varchar(191) NOT NULL DEFAULT '',\n  `option_value` longtext NOT NULL,\n  PRIMARY KEY (`option_id`)\n) ENGINE=InnoDB";
 $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
 $GLOBALS['bk_filters']['digitalisimo_backups_db_batch'] = 1;
 $GLOBALS['bk_filters']['digitalisimo_backups_zip_chunk'] = 4096;
@@ -93,6 +104,7 @@ $zip->close();
 $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] = array();
 bk_call( 'Digitalisimo_Backups', 'database_sql_to_file', $GLOBALS['wpdb']->tables(), $legacy_sql );
 if ( file_get_contents( $legacy_sql ) !== $sql_again ) compat_fail( 'El SQL exportado por tramos difiere del exportador de un paso.' );
+if ( false === strpos( $sql, 'viejo.example.test' ) || false !== strpos( $sql, 'Clave-VIEJA-de-subsitio-T2' ) ) compat_fail( 'El SQL por tramos lleva en claro un secreto de la opción de un subsitio.' );
 if ( 3 !== substr_count( $sql, 'INSERT INTO `wp_posts`' ) || false === strpos( $sql, str_repeat( "fila grande con \\'comillas\\' y \\\\ barras\\n", 3 ) ) ) compat_fail( 'La fila grande no se exportó igual.' );
 @unlink( $again );
 

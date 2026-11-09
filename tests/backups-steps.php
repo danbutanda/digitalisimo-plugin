@@ -172,6 +172,21 @@ clearstatcache();
 $job = steps_until( $d['id'], function( $job ) { return 'pack' === $job['phase'] || Digitalisimo_Backups_Job_Store::is_terminal( $job ); } );
 bk_assert( 'pack' === $job['phase'] && 1 === (int) $job['attempts']['verify'] && false !== strpos( (string) $job['error']['message'], 'verificación del ZIP falló' ), 'Un ZIP dañado superó la verificación por tramos.' );
 steps_done( $d['id'] );
+// Lo mismo con una entrada que se verifica leyéndola con ZipArchive (el JPEG, guardado sin comprimir).
+steps_filters( array( 'digitalisimo_backups_step_units' => 1 ) );
+$d2 = bk_manual( 'local', 'jpeg-danado' );
+$job = steps_until( $d2['id'], function( $job ) { return 'verify' === $job['phase']; } );
+$staged = steps_staging( $d2['id'] ) . '/' . $job['checkpoint']['pack']['file'];
+$raw = file_get_contents( $staged );
+$at = strpos( $raw, 'wordpress/wp-content/uploads/2026/11/foto.jpg' ) + 45 + 16000;
+$raw[ $at ] = chr( ord( $raw[ $at ] ) ^ 0x55 );
+$mtime = filemtime( $staged );
+file_put_contents( $staged, $raw );
+touch( $staged, $mtime );
+clearstatcache();
+$job = steps_until( $d2['id'], function( $job ) { return 'pack' === $job['phase'] || Digitalisimo_Backups_Job_Store::is_terminal( $job ); } );
+bk_assert( 'pack' === $job['phase'] && false !== strpos( (string) $job['error']['message'], 'foto.jpg' ), 'Un JPEG dañado dentro del ZIP superó la verificación por tramos.' );
+steps_done( $d2['id'] );
 
 }
 // D. Presupuesto: con una base lenta cada tick termina en su presupuesto y la exportación se reparte en tramos.
