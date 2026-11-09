@@ -3,6 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 /** El punto de control de un tramo ya no describe sus archivos: la fase vuelve a empezar desde cero, sin reintento. */
 class Digitalisimo_Backups_Resume_Invalid extends Exception {}
+/** El código del sitio cambió durante el empaquetado (una actualización a mitad): se empaqueta otra vez. */
+class Digitalisimo_Backups_Tree_Changed extends Digitalisimo_Backups_Resume_Invalid {}
 
 /**
  * Presupuesto de cada tramo de la exportación, el empaquetado y la verificación (T2). Un tramo trabaja hasta el fin
@@ -13,11 +15,12 @@ class Digitalisimo_Backups_Resume_Invalid extends Exception {}
  */
 final class Digitalisimo_Backups_Step_Budget {
 	/**
-	 * Memoria que un tramo deja siempre libre: la octava parte de memory_limit y al menos 4 MB (8 MB con 64 MB). Es una
-	 * reserva y no un porcentaje de uso porque WordPress con sus plugins puede ocupar ya más del 75 % antes de respaldar
-	 * (unos 52 de 64 MB en Playground), y lo que un tramo añade es poco: trozos de 1 MB y lotes de filas a medida.
+	 * Memoria que un tramo deja siempre libre: la dieciseisava parte de memory_limit y al menos 4 MB (4 MB con 64 MB). Es
+	 * una reserva y no un porcentaje de uso porque WordPress con sus plugins puede ocupar ya casi todo antes de respaldar
+	 * (en Playground con 1.0.63, unos 54,5 de 64 MB en una petición ligera y 56 trabajando; con 1/8, 8 MB, cada tramo de
+	 * la verificación se cerraba tras una entrada), y lo que un tramo añade es poco: trozos de 1 MB y lotes a medida.
 	 */
-	const MEMORY_RESERVE_SHARE = 0.125;
+	const MEMORY_RESERVE_SHARE = 0.0625;
 	const MEMORY_RESERVE_MIN = 4194304;
 	/** Escala mínima del tramo tras varias muertes seguidas. */
 	const MIN_SCALE = 0.125;
@@ -62,6 +65,25 @@ final class Digitalisimo_Backups_Step_Budget {
 		if ( is_finite( $remaining ) ) $length = min( $length, max( 0.0, $remaining ) );
 		return is_finite( $length ) ? $now + $length : INF;
 	}
+	/**
+	 * Límite duro de un tramo de la exportación (microtime): una tabla empezada puede seguir después del plazo del tick,
+	 * pero nunca más allá del límite real de la petición menos su margen (por la escala adaptativa). INF sin límite:
+	 * WP-CLI, el cron del sistema por PHP CLI y la copia previa de una restauración.
+	 */
+	public static function hard_deadline( $scale = 1.0 ) {
+		if ( ! is_finite( Digitalisimo_Backups_Jobs::step_deadline() ) ) return INF;
+		$remaining = self::request_remaining();
+		if ( ! is_finite( $remaining ) ) return INF;
+		return microtime( true ) + max( 0.0, $remaining ) * max( self::MIN_SCALE, min( 1.0, (float) $scale ) );
+	}
+	/**
+	 * Tiempo que una tabla tuvo para terminar para que no hacerlo cuente contra ella: un tick que empieza tarde (con la
+	 * petición casi agotada) no la hace fallar. Una cuarta parte del límite de la petición y al menos 2 s.
+	 */
+	public static function table_min_seconds() {
+		$limit = self::request_limit();
+		return max( 0.0, (float) self::filter( 'digitalisimo_backups_table_min_seconds', max( 2.0, 0.25 * $limit ) ) );
+	}
 	/** Duración máxima de un tramo de empaquetado o verificación: su punto de control se guarda al menos con esta frecuencia. */
 	public static function slice_cap() { return max( 0.5, (float) self::filter( 'digitalisimo_backups_step_slice', 5.0 ) ); }
 	/** Tope de unidades (lotes, carpetas, archivos o entradas) por tramo; 0 sin tope. Sólo lo usan las pruebas. */
@@ -86,12 +108,24 @@ final class Digitalisimo_Backups_Step_Budget {
 		$reserve = max( self::MEMORY_RESERVE_MIN, (int) ( self::MEMORY_RESERVE_SHARE * $limit ) );
 		return (int) max( 0, $limit - $reserve - memory_get_usage( true ) );
 	}
-	/** El tramo debe cerrar: venció su plazo, agotó sus unidades o la memoria se acerca al límite. */
-	public static function exhausted( $deadline, $units = 0, $reserve = 0 ) {
+	/**
+	 * Casi sin memoria: quedan libres menos de max(2 MB, 1/32 de memory_limit). La exportación sólo cierra su tramo por
+	 * esto: cerrarlo no libera la memoria de esta petición y partiría la instantánea sin necesidad (sus lotes ya se ajustan
+	 * a la memoria libre).
+	 */
+	public static function memory_critical() {
+		$limit = self::memory_limit();
+		return $limit && $limit - memory_get_usage( true ) < max( (int) ( self::MEMORY_RESERVE_MIN / 2 ), (int) ( $limit / 32 ) );
+	}
+	/**
+	 * El tramo debe cerrar: venció su plazo, agotó sus unidades o tocó su reserva de memoria (con `$critical`, sólo si ya
+	 * casi no queda: la exportación de la base de datos).
+	 */
+	public static function exhausted( $deadline, $units = 0, $critical = false ) {
 		$cap = self::units();
 		if ( $cap && $units >= $cap ) return true;
 		if ( microtime( true ) >= $deadline ) return true;
-		return self::memory_headroom() <= max( 0, (int) $reserve );
+		return $critical ? self::memory_critical() : self::memory_headroom() <= 0;
 	}
 
 	/**

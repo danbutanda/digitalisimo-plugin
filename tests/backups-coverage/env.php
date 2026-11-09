@@ -86,6 +86,15 @@ class Digi_Redirect extends Exception {
 class Digi_Die extends Exception {}
 
 /** Tabla wp_options en memoria: el SQL que exporta el motor se vuelve a importar fila por fila. */
+if ( ! function_exists( 'bk_page' ) ) {
+	/** Lote de filas como lo daría MySQL: paginación por clave («WHERE (`col` > N)») y LIMIT con o sin desplazamiento. */
+	function bk_page( array $rows, $query, $key ) {
+		if ( preg_match( '/ WHERE \(`' . preg_quote( $key, '/' ) . '` > \'?(-?[0-9]+)\'?\)/', $query, $after ) ) $rows = array_values( array_filter( $rows, function( $row ) use ( $key, $after ) { return (int) $row[ $key ] > (int) $after[1]; } ) );
+		if ( preg_match( '/ LIMIT ([0-9]+), ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, (int) $limit[1], (int) $limit[2] );
+		if ( preg_match( '/ LIMIT ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, 0, (int) $limit[1] );
+		return $rows;
+	}
+}
 class Digi_Test_DB {
 	public $base_prefix = 'wp_';
 	public $prefix = 'wp_';
@@ -112,8 +121,7 @@ class Digi_Test_DB {
 	public function get_results( $query, $format = null ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'option_id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
-		if ( preg_match( '/LIMIT (\d+), (\d+)/', $query, $limit ) ) return array_slice( $this->rows, (int) $limit[1], (int) $limit[2] );
-		return $this->rows;
+		return bk_page( $this->rows, $query, 'option_id' );
 	}
 	public function db_version() { return '8.0'; }
 	/** `upload_path` de cada sitio de la red (id => valor), leído por Digitalisimo_Backups_Layout. */

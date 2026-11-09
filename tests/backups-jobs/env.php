@@ -177,6 +177,15 @@ function bk_google_ok( $hook = null ) {
 	};
 }
 
+if ( ! function_exists( 'bk_page' ) ) {
+	/** Lote de filas como lo daría MySQL: paginación por clave («WHERE (`col` > N)») y LIMIT con o sin desplazamiento. */
+	function bk_page( array $rows, $query, $key ) {
+		if ( preg_match( '/ WHERE \(`' . preg_quote( $key, '/' ) . '` > \'?(-?[0-9]+)\'?\)/', $query, $after ) ) $rows = array_values( array_filter( $rows, function( $row ) use ( $key, $after ) { return (int) $row[ $key ] > (int) $after[1]; } ) );
+		if ( preg_match( '/ LIMIT ([0-9]+), ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, (int) $limit[1], (int) $limit[2] );
+		if ( preg_match( '/ LIMIT ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, 0, (int) $limit[1] );
+		return $rows;
+	}
+}
 /* ---- Base de datos sintética que registra cada consulta ---- */
 class Digitalisimo_Jobs_Test_DB {
 	public $base_prefix = 'wp_';
@@ -205,12 +214,9 @@ class Digitalisimo_Jobs_Test_DB {
 		if ( 0 === strpos( $query, 'SELECT * FROM' ) ) {
 			if ( is_callable( $this->on_select ) ) call_user_func( $this->on_select, $query );
 			preg_match( '/`([^`]+)`/', $query, $m );
-			if ( false !== strpos( $query, 'LIMIT 0,' ) ) {
-				$rows = array();
-				for ( $i = 1; $i <= ( $this->tables[ $m[1] ] ?? 0 ); $i++ ) $rows[] = array( 'id' => $i, 'v' => $m[1] . " fila $i con 'comillas' y ñ" );
-				return $rows;
-			}
-			return array();
+			$rows = array();
+			for ( $i = 1; $i <= ( $this->tables[ $m[1] ] ?? 0 ); $i++ ) $rows[] = array( 'id' => $i, 'v' => $m[1] . " fila $i con 'comillas' y ñ" );
+			return bk_page( $rows, $query, 'id' );
 		}
 		return array();
 	}

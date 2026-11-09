@@ -134,6 +134,8 @@ trait Digitalisimo_Backups_Service {
 			'available' => $available,
 			'restorable' => self::restorable_item( $item, $available ),
 			'site' => (string) ( $item['extract']['label'] ?? '' ),
+			'consistency' => (string) ( $item['consistency'] ?? '' ),
+			'notices' => array_values( array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ),
 		);
 	}
 	/** Copias previas a una restauración en el historial: se registran (bloqueadas) justo antes del SQL. */

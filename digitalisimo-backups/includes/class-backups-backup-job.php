@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
  * historial y no se puede descargar. El nombre final sólo nace de un `rename()` después de verificar el ZIP. Con la
  * clave que el trabajo fijó al encolarse, `pack` firma el manifiesto, `verify` comprueba la firma y, si el trabajo
  * cifra, termina sellando el ZIP verificado en un DGBK que también se descifra completo antes de publicarse.
+ *
+ * Desde T2, «database», «pack» y «verify» avanzan por tramos dentro de una misma fase: cada tramo devuelve la misma
+ * fase con su punto de control (`resume`) y, tras una muerte, el siguiente sigue desde ahí sin repetir lo guardado.
  */
 final class Digitalisimo_Backups_Backup_Job {
 	public static function run_phase( $phase, array $job ) {
@@ -40,8 +43,18 @@ final class Digitalisimo_Backups_Backup_Job {
 		return array( 'next' => 'database', 'checkpoint' => array( 'at' => time() ), 'message' => 'Exportando la base de datos…' );
 	}
 
-	/** Paso atómico: la instantánea consistente no sobrevive entre peticiones, así que una exportación a medias se repite entera. */
+	/**
+	 * Por tramos (T2): cada tramo exporta tablas enteras dentro de su instantánea hasta su plazo y guarda dónde empieza
+	 * la siguiente; tras una muerte, la tabla a medias se repite entera. Ver Digitalisimo_Backups_Sql_Export.
+	 */
 	private static function database( array $job ) {
+		// «Extraer como WordPress individual» (1.0.63) sigue en un paso: su exportador elige las tablas del sitio y deja el
+		// informe que lee «pack» (ver Digitalisimo_Backups_Site_Extract).
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( (array) ( $job['spec'] ?? array() ) ) ) return self::database_in_one_step( $job );
+		return Digitalisimo_Backups_Sql_Export::phase( $job );
+	}
+	/** La exportación en un solo paso (la de 1.0.63), para la extracción de un sitio de la red. */
+	private static function database_in_one_step( array $job ) {
 		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 		self::remove_matching( $staging, '/^database\./' );
 		$tag = Digitalisimo_Backups_Jobs::current_owner_tag();
@@ -65,12 +78,20 @@ final class Digitalisimo_Backups_Backup_Job {
 		);
 	}
 
-	/** Inventario, SHA-256 y ZIP de los archivos con el SQL ya exportado; el ZIP se escribe dentro del área de trabajo. */
+	/**
+	 * Inventario por carpetas, SHA-256 y ZIP de los archivos con el SQL ya exportado, por tramos y dentro del área de
+	 * trabajo (T2). Ver Digitalisimo_Backups_Packer.
+	 */
 	private static function pack( array $job ) {
 		$database = $job['checkpoint']['database'] ?? null;
 		$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
 		$sql = is_array( $database ) ? $staging . '/' . basename( (string) ( $database['file'] ?? '' ) ) : '';
 		if ( ! $sql || ! is_file( $sql ) || ! self::same_fingerprint( self::fingerprint( $sql ), $database['fp'] ?? array() ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El SQL exportado ya no está íntegro en el área de trabajo; se exportará otra vez.', 'database' );
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( (array) ( $job['spec'] ?? array() ) ) ) return self::pack_in_one_step( $job, $staging, $sql, $database );
+		return Digitalisimo_Backups_Packer::pack( $job, $staging, $sql, $database );
+	}
+	/** El empaquetado en un solo paso (el de 1.0.63), para la extracción de un sitio de la red; «verify» lo comprueba entero. */
+	private static function pack_in_one_step( array $job, $staging, $sql, array $database ) {
 		self::remove_matching( $staging, '/^package\./' );
 		$target = $staging . '/package.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.zip';
 		try {
@@ -89,6 +110,7 @@ final class Digitalisimo_Backups_Backup_Job {
 	/**
 	 * Relee cada entrada contra el manifiesto y comprueba la firma. Si falla, el ZIP se rehace (un archivo pudo cambiar
 	 * mientras se leía). Un trabajo cifrado sella después el ZIP verificado: si el sellado falla, se repite esta fase.
+	 * La lectura de las entradas va por tramos (T2): hasta comprobar la última, la fase devuelve su punto de control.
 	 */
 	private static function verify( array $job ) {
 		$pack = $job['checkpoint']['pack'] ?? null;
@@ -96,7 +118,8 @@ final class Digitalisimo_Backups_Backup_Job {
 		$path = is_array( $pack ) ? $staging . '/' . basename( (string) ( $pack['file'] ?? '' ) ) : '';
 		if ( ! $path || ! is_file( $path ) || ! self::same_fingerprint( self::fingerprint( $path ), $pack['fp'] ?? array() ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP del área de trabajo cambió o desapareció antes de verificarse; se empaquetará otra vez.', 'pack' );
 		try {
-			Digitalisimo_Backups::job_verify_package( $path, $job['spec'] );
+			$more = Digitalisimo_Backups_Packer::verify_slice( $job, $path, $pack );
+			if ( $more ) return $more;
 		} catch ( Digitalisimo_Backups_Job_Cancelled $e ) {
 			throw $e;
 		} catch ( Digitalisimo_Backups_Job_Lease_Lost $e ) {
@@ -108,7 +131,8 @@ final class Digitalisimo_Backups_Backup_Job {
 		}
 		$fingerprint = self::fingerprint( $path );
 		if ( ! self::same_fingerprint( $fingerprint, $pack['fp'] ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se verificaba; se empaquetará otra vez.', 'pack' );
-		if ( ! Digitalisimo_Backups::job_encrypts( $job['spec'] ) ) return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…' );
+		$notices = Digitalisimo_Backups_Packer::take_notices(); // T2: lo que la verificación no pudo probar, a la vista.
+		if ( ! Digitalisimo_Backups::job_encrypts( $job['spec'] ) ) return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…', 'warnings' => $notices );
 		$sealed = $staging . '/' . preg_replace( '/\.zip$/', '', basename( $path ) ) . '.dgbk';
 		try {
 			Digitalisimo_Backups::job_seal_package( $path, $sealed, $job['spec'], array( 'backup_id' => (string) ( $pack['backup_id'] ?? '' ), 'created_at' => (string) ( $pack['created_at'] ?? '' ) ) );
@@ -120,7 +144,7 @@ final class Digitalisimo_Backups_Backup_Job {
 			@unlink( $sealed );
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se cifraba; se empaquetará otra vez.', 'pack' );
 		}
-		return array( 'next' => 'publish', 'checkpoint' => array( 'file' => basename( $sealed ), 'fp' => self::fingerprint( $sealed ), 'zip_fp' => $fingerprint, 'at' => time() ), 'message' => 'Respaldo verificado y cifrado; registrándolo…' );
+		return array( 'next' => 'publish', 'checkpoint' => array( 'file' => basename( $sealed ), 'fp' => self::fingerprint( $sealed ), 'zip_fp' => $fingerprint, 'at' => time() ), 'message' => 'Respaldo verificado y cifrado; registrándolo…', 'warnings' => $notices );
 	}
 
 	/**
@@ -150,9 +174,11 @@ final class Digitalisimo_Backups_Backup_Job {
 		if ( ! self::same_fingerprint( self::fingerprint( $final ), $verified ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo con el nombre final no es el ZIP que se verificó; revisa el almacén privado.' );
 		// El respaldo lleva wp-config.php y la base de datos: 0600 aunque venga de un área de trabajo anterior.
 		Digitalisimo_Backups::private_file( $final );
-		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\..*\.zip$/' );
+		// También las listas del inventario (T2): llevan los nombres de los archivos en claro.
+		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
+		Digitalisimo_Backups::job_record_notices( basename( $final ), $job ); // T2: avisos visibles y coherencia de la base.
 		$remote = 'local' !== $spec['destination'];
 		return array(
 			'next' => $remote ? 'transfer' : 'prune',
@@ -191,14 +217,22 @@ final class Digitalisimo_Backups_Backup_Job {
 		return Digitalisimo_Backups_Jobs::run_inline( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $file, 'inline' => true ) ) );
 	}
 
-	/** Al reintentar o volver a una fase, retira lo que esa fase y las siguientes dejaron a medias. */
+	/**
+	 * Al reintentar o volver a una fase, retira lo que esa fase y las siguientes dejaron a medias. Al repetir la misma
+	 * fase con un punto de control por tramos (T2), conserva sus archivos: el tramo siguiente los trunca a ese punto.
+	 */
 	public static function discard( array $job, $phase ) {
 		$staging = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING;
 		if ( is_link( $staging ) || ! is_dir( $staging ) ) return;
 		$index = array_search( $phase, Digitalisimo_Backups_Jobs::PHASES, true );
 		if ( false === $index ) return;
-		if ( $index <= 1 ) self::remove_matching( $staging, '/^database\./' );
-		if ( $index <= 2 ) self::remove_matching( $staging, '/^package\./' );
+		$keep = array();
+		$resume = $phase === ( $job['phase'] ?? '' ) ? ( $job['checkpoint'][ $phase ]['resume'] ?? null ) : null;
+		// El SQL de trabajo y, si el proceso murió justo después de darle su nombre final, también ese nombre (T2).
+		if ( is_array( $resume ) && 'database' === $phase ) array_push( $keep, (string) ( $resume['file'] ?? '' ), preg_replace( '/\.part$/', '', (string) ( $resume['file'] ?? '' ) ) );
+		if ( is_array( $resume ) && 'pack' === $phase ) foreach ( array( '.zip', '.dirs.jsonl', '.files.jsonl', '.entries.jsonl', '.code.jsonl' ) as $suffix ) $keep[] = 'package.' . ( $resume['tag'] ?? '' ) . $suffix;
+		if ( $index <= 1 ) self::remove_matching( $staging, '/^database\./', $keep );
+		if ( $index <= 2 ) self::remove_matching( $staging, '/^package\./', $keep );
 	}
 	/** Al fallar o cancelar: sin área de trabajo; un ZIP ya registrado sigue siendo local y verificado. */
 	public static function on_terminal( array $job, $status, $message ) {
@@ -230,9 +264,9 @@ final class Digitalisimo_Backups_Backup_Job {
 		foreach ( array( 'size', 'mtime' ) as $key ) if ( (int) ( $a[ $key ] ?? -1 ) !== (int) ( $b[ $key ] ?? -2 ) ) return false;
 		return true;
 	}
-	private static function remove_matching( $directory, $pattern ) {
+	private static function remove_matching( $directory, $pattern, array $keep = array() ) {
 		foreach ( (array) @scandir( $directory ) as $name ) {
-			if ( '.' === $name || '..' === $name || ! preg_match( $pattern, $name ) ) continue;
+			if ( '.' === $name || '..' === $name || ! preg_match( $pattern, $name ) || in_array( $name, $keep, true ) ) continue;
 			$path = $directory . '/' . $name;
 			if ( is_link( $path ) || is_file( $path ) ) @unlink( $path );
 		}

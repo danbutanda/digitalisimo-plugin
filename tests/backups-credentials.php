@@ -68,12 +68,12 @@ class Bk_Credentials_DB extends Bk_Test_DB {
 		return parent::get_row( $query, $format );
 	}
 	public function get_results( $query, $format ) {
+		if ( false !== strpos( $query, 'SHOW INDEX FROM `wp_sitemeta`' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'meta_id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
 		if ( false === strpos( $query, '`wp_sitemeta`' ) || false !== strpos( $query, 'SHOW INDEX' ) ) return parent::get_results( $query, $format );
-		if ( false !== strpos( $query, 'LIMIT 500,' ) ) return array();
 		$rows = array();
 		$id = 0;
 		foreach ( $GLOBALS['bk_site_options'] as $name => $value ) $rows[] = array( 'meta_id' => (string) ++$id, 'site_id' => '1', 'meta_key' => $name, 'meta_value' => is_scalar( $value ) ? (string) $value : serialize( $value ) );
-		return $rows;
+		return bk_page( $rows, $query, 'meta_id' );
 	}
 	public function query( $sql ) {
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_sitemeta`' ) ) { $this->queries[] = $sql; $GLOBALS['bk_site_options'] = array(); return 1; }

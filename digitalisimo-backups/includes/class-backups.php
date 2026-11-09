@@ -3,7 +3,8 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
-require_once __DIR__ . '/steps/class-step-budget.php';
+// Exportación, empaquetado y verificación por tramos (T2).
+foreach ( array( 'step-budget', 'zip-writer', 'sql-export', 'packer' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/steps/class-' . $digitalisimo_backups_part . '.php';
 // Restauración por pasos (H1–H4): manifiesto por partes, trabajo de restauración y su modo de mantenimiento.
 foreach ( array( 'manifest-stream', 'manifest-index', 'restore-maintenance' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/restore/class-' . $digitalisimo_backups_part . '.php';
 require_once __DIR__ . '/class-backups-restore-job.php';
@@ -614,7 +615,7 @@ final class Digitalisimo_Backups {
 			echo '<p>' . self::manual_destination_select( $s ) . '</p><button class="button button-primary button-hero"' . disabled( is_multisite() && ! is_main_site(), true, false ) . '>Crear respaldo completo ' . ( is_multisite() ? 'de la red' : 'de WordPress' ) . '</button></form><div id="digitalisimo-backups-manual-progress" class="digitalisimo-backups-manual-progress" hidden><p id="digitalisimo-backups-manual-message" role="status" aria-live="polite"></p><progress id="digitalisimo-backups-manual-bar" max="100" value="0"></progress><p id="digitalisimo-backups-manual-detail" aria-live="polite"></p></div>';
 
 			echo '<p class="description">Destino actual: <strong>' . esc_html( self::destination_label( $s['destination'] ) ) . '</strong></p></section><section class="digitalisimo-backups-card"><h2>Últimos respaldos</h2>';
-				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $item['scope'] ?? '' ) ? 'Sitio extraído: ' . (string) ( $item['extract']['label'] ?? '' ) : 'Exportación anterior de sitio' ) ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; $has_local = '' !== self::local_copy( $item ); if ( $has_local || ! empty( $item['remote']['provider'] ) ) echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> '; elseif ( self::remote_exists( $item ) ) echo 'Respaldo remoto anterior: sin identificador '; /* «Eliminar» siempre: también una fila que ya no tiene ninguna copia. */ echo '<form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; self::fetch_button( $item ); echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
+				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $item['scope'] ?? '' ) ? 'Sitio extraído: ' . (string) ( $item['extract']['label'] ?? '' ) : 'Exportación anterior de sitio' ) ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . ( '' !== self::history_notices_text( $item ) ? ' <span class="digitalisimo-backups-badge is-warning">Con avisos</span><br><small>' . esc_html( self::history_notices_text( $item ) ) . '</small>' : '' ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; $has_local = '' !== self::local_copy( $item ); if ( $has_local || ! empty( $item['remote']['provider'] ) ) echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> '; elseif ( self::remote_exists( $item ) ) echo 'Respaldo remoto anterior: sin identificador '; /* «Eliminar» siempre: también una fila que ya no tiene ninguna copia. */ echo '<form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; self::fetch_button( $item ); echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
 			if ( $network && is_multisite() ) self::extract_panel( $s );
 			self::jobs_panel( $network ); self::updraft_panel(); if ( ! is_multisite() || is_main_site() ) Digitalisimo_Backups_Uploads::panel( $network ); self::restore_panel( $history ); self::automation_fields(); echo '</div>';
 		}
@@ -846,7 +847,7 @@ final class Digitalisimo_Backups {
 		$view = Digitalisimo_Backups_Jobs::view( $job );
 		$map = array( 'success' => 'complete', 'failed' => 'failed', 'cancelled' => 'failed', 'queued' => 'queued' );
 		$status = $map[ $job['status'] ] ?? 'running';
-		return array( 'status' => $status, 'phase' => $view['phase_label'] ?: $view['status_label'], 'percent' => $view['percent'], 'message' => 'failed' === $status && $view['error'] ? $view['error'] : $view['message'], 'file' => $view['file'] );
+		return array( 'status' => $status, 'phase' => $view['phase_label'] ?: $view['status_label'], 'percent' => $view['percent'], 'message' => 'failed' === $status && $view['error'] ? $view['error'] : $view['message'] . ( $view['notices'] ? ' · Con avisos: ' . implode( ' ', $view['notices'] ) : '' ), 'file' => $view['file'] );
 	}
 	/** Avance para las fases que viven fuera de esta clase (cifrado y descifrado). Sin un trabajo en curso en este proceso no hace nada. */
 	public static function report_progress( $percent, $phase, $message, $force = false ) { self::manual_progress( $percent, $phase, $message, $force ); }
@@ -884,7 +885,8 @@ final class Digitalisimo_Backups {
 		do {
 			$tick = Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 			$job = Digitalisimo_Backups_Jobs::get( $job['id'] );
-		} while ( $job && 'worked' === $tick['result'] && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && (int) $job['retry_at'] <= time() );
+			// Por tramos (T2): sin pasar del límite real de la petición; lo que falte lo siguen WP-Cron o la pantalla.
+		} while ( $job && 'worked' === $tick['result'] && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && (int) $job['retry_at'] <= time() && Digitalisimo_Backups_Step_Budget::request_remaining() > 0 );
 		wp_send_json_success( array( 'status' => $job ? self::manual_view( $job )['status'] : 'failed' ) );
 	}
 	/** Latido y avance del trabajo en curso: se escribe en el almacén, nunca en la base de datos (puede estar en su instantánea). */
@@ -946,8 +948,11 @@ final class Digitalisimo_Backups {
 	}
 	/** El trabajo cifra si su especificación inmutable lo fijó al encolarse (la copia previa nunca). */
 	public static function job_encrypts( array $spec ) { return empty( $spec['inline'] ) && ! empty( $spec['security']['encrypt'] ); }
-	/** Clave del trabajo en esta fase: un fallo es permanente y nunca deja salir en claro un respaldo que debía cifrarse. */
-	private static function job_security_plan( array $spec ) {
+	/**
+	 * @internal Clave del trabajo en esta fase (devuelve la clave raíz: sólo para las fases del motor, que la borran de
+	 * memoria al terminar). Un fallo es permanente y nunca deja salir en claro un respaldo que debía cifrarse.
+	 */
+	public static function job_security_plan( array $spec ) {
 		// Un sitio extraído tiene su propia clave (la frase de la extracción) o ninguna; nunca la de la red.
 		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
 			try { return Digitalisimo_Backups_Site_Extract::job_plan( $spec ); } catch ( Exception $e ) { throw new Digitalisimo_Backups_Permanent_Error( $e->getMessage() ); }
@@ -963,10 +968,19 @@ final class Digitalisimo_Backups {
 	/**
 	 * Las tablas temporales y viejas de una restauración por pasos (`<prefijo>dgbkr_<marca>_<n>`, `…dgbko_…`) nunca
 	 * entran en un respaldo: son del trabajo, no del sitio (una restauración que murió las deja hasta la siguiente).
+	 * También cualquier `<prefijo>dgbkr_*`/`<prefijo>dgbko_*` con el prefijo de la base (la regla de T2 en la exportación
+	 * por tramos, `Digitalisimo_Backups_Sql_Export::exportable()`, que usa ésta).
 	 */
 	public static function exportable_tables( $tables ) {
 		if ( ! is_array( $tables ) ) return $tables;
-		return array_values( array_filter( $tables, function( $table ) { return ! preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', (string) $table ); } ) );
+		global $wpdb;
+		$prefix = is_object( $wpdb ) ? (string) ( $wpdb->base_prefix ?? ( $wpdb->prefix ?? '' ) ) : '';
+		return array_values( array_filter( $tables, function( $table ) use ( $prefix ) {
+			$table = (string) $table;
+			if ( preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', $table ) ) return false;
+			foreach ( array( 'dgbkr_', 'dgbko_' ) as $temporary ) if ( 0 === strpos( $table, $prefix . $temporary ) ) return false;
+			return true;
+		} ) );
 	}
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
 	public static function job_export_database( $path, $spec = null ) {
@@ -1129,6 +1143,22 @@ final class Digitalisimo_Backups {
 		self::remember( $final, 'local', 'network' === ( $spec['scope'] ?? '' ) ? 'network' : 'installation', array( 'id' => (string) $spec['policy'], 'type' => 'full' ), array(), (int) ( $spec['site_id'] ?? 0 ), false, $extra );
 		return self::history_item( wp_basename( $final ) );
 	}
+	/**
+	 * @internal Avisos visibles del trabajo (T2: la base en varias instantáneas, archivos que faltaron, la memoria que
+	 * necesitará restaurarlo) y la coherencia de su base de datos, en la fila del historial.
+	 */
+	public static function job_record_notices( $file, array $job ) {
+		$notices = array();
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[ (string) $warning['notice'] ] = array( 'code' => (string) $warning['notice'], 'text' => (string) ( $warning['text'] ?? '' ) );
+		$notices = array_values( $notices );
+		$changes = array( 'consistency' => (string) ( $job['checkpoint']['database']['mode'] ?? '' ) );
+		if ( $notices ) $changes['notices'] = $notices;
+		self::history_update( $file, $changes );
+	}
+	/** Texto de los avisos de una fila del historial; vacío si no tiene. */
+	public static function history_notices_text( $item ) {
+		return trim( implode( ' ', array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ) );
+	}
 	/** @internal Fase «prune»: retención de la política o la global, sólo después de un respaldo verificado. */
 	public static function job_prune( array $spec ) {
 		if ( 'policy' === ( $spec['retention'] ?? '' ) ) self::prune_policy( array( 'id' => (string) $spec['policy'], 'retain' => (int) $spec['retain'] ) );
@@ -1191,17 +1221,27 @@ final class Digitalisimo_Backups {
 		return $remote && in_array( $remote['state'], array( 'ok', 'legacy' ), true );
 	}
 	private static function bytes_label( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
-	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
-	private static function add_full_files( $zip, $backup_dir, &$entries ) {
+	/**
+	 * @internal Raíz, wp-config.php, almacén y archivos SQLite activos para el inventario por carpetas de la fase «pack»
+	 * (T2); las mismas comprobaciones que add_full_files().
+	 */
+	public static function job_files_context() {
 		$root = realpath( ABSPATH );
 		$content = realpath( WP_CONTENT_DIR );
 		if ( false === $root || false === $content ) throw new Exception( 'No se pudo resolver la ruta de WordPress o wp-content.' );
 		$root = trailingslashit( wp_normalize_path( $root ) );
 		$content = wp_normalize_path( $content );
 		if ( 0 !== strpos( trailingslashit( $content ), $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; se necesita incluirlo explícitamente antes de crear un respaldo completo.' );
-		$config = self::wordpress_config_file();
+		return array( 'root' => $root, 'config' => self::wordpress_config_file(), 'backup' => trailingslashit( wp_normalize_path( realpath( self::local_directory() ) ) ), 'sqlite' => self::active_sqlite_database_files() );
+	}
+	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
+	private static function add_full_files( $zip, $backup_dir, &$entries ) {
+		// Las mismas comprobaciones que el inventario por tramos (una sola copia: job_files_context()).
+		$context = self::job_files_context();
+		$root = $context['root'];
+		$config = $context['config'];
 		$backup_dir = trailingslashit( wp_normalize_path( realpath( $backup_dir ) ) );
-		$active_database_files = self::active_sqlite_database_files();
+		$active_database_files = $context['sqlite'];
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY );
 		$count = 0;
 		foreach ( $iterator as $entry ) {
@@ -1602,8 +1642,8 @@ final class Digitalisimo_Backups {
 		ksort( $primary );
 		return array_values( $primary );
 	}
-	/** Ningún respaldo contiene la clave que lo protege: las filas digitalisimo_backups_vault_* no se exportan. */
-	private static function secret_row( $table, $row ) {
+	/** @internal Ningún respaldo contiene la clave que lo protege: las filas digitalisimo_backups_vault_* no se exportan. */
+	public static function secret_row( $table, $row ) {
 		global $wpdb;
 		$prefix = (string) ( $wpdb->base_prefix ?? '' );
 		if ( '' === $prefix || 0 !== strpos( $table, $prefix ) ) return false;
@@ -1619,7 +1659,7 @@ final class Digitalisimo_Backups {
 	 * una red, que el motor no usa, puede conservar unos de una versión anterior), se exporta sin ellos. Sin salts propias
 	 * se exporta tal cual: es la decisión del punto 7 (no hay con qué cifrarlos y sin ellos no se restauraría el destino).
 	 */
-	private static function export_row( $table, $row ) {
+	public static function export_row( $table, $row ) {
 		global $wpdb;
 		if ( ! is_array( $row ) || self::OPTION !== ( $row['option_name'] ?? null ) || ! is_string( $row['option_value'] ?? null ) ) return $row;
 		$prefix = (string) ( $wpdb->base_prefix ?? '' );
@@ -1651,7 +1691,7 @@ final class Digitalisimo_Backups {
 		}
 	}
 
-	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
+	public static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
 	/**
 	 * Protección del almacén por si alguna vez quedara bajo una ruta servida (nunca debería: local_directory() lo
 	 * rechaza): `index.php` vacío y `.htaccess` con «Deny from all». Se escriben sólo si faltan o su contenido no es el
@@ -1798,7 +1838,7 @@ final class Digitalisimo_Backups {
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file" id="digitalisimo-backups-restore-file"><option value="">Elige un respaldo de Digitalisimo</option>';
 		// «Origen → este sitio» de cada archivo, antes de confirmar (de su manifiesto; un .dgbk lo dice al descifrarlo).
 		$here = Digitalisimo_Backups_Relocate::describe();
-		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] . ( '' !== self::history_notices_text( $item ) ? ' · con avisos' : '' ) ) . '</option>'; } echo '</optgroup>'; }
 		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
 		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si el respaldo viene de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas, se reescriben al restaurar: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.</p>';
 		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Conservar las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label><br><label><input type="radio" name="addresses" value="backup"> Conservar las del respaldo: el sitio quedará en su dirección original (las rutas del servidor y el prefijo siguen siendo los de este servidor)</label></p></fieldset>';
