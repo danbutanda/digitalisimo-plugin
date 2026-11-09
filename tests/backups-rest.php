@@ -36,7 +36,7 @@ try {
 	Digitalisimo_Backups_Rest::register();
 	digi_assert( array() === $GLOBALS['digi']['routes'] && 1 === count( $GLOBALS['digi']['actions']['rest_api_init'] ?? array() ), 'Las rutas deben registrarse en rest_api_init.' );
 	call_user_func( $GLOBALS['digi']['actions']['rest_api_init'][0] );
-	$expected = array( '/status' => 'GET', '/backups' => 'GET,POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/verify' => 'GET, POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/restore' => 'POST', '/automations' => 'GET', '/automations/(?P<id>[a-z0-9_-]+)/run' => 'POST', '/jobs' => 'GET', '/jobs/tick' => 'POST', $job_route => 'GET', $job_route . '/cancel' => 'POST' );
+	$expected = array( '/status' => 'GET', '/backups' => 'GET,POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/verify' => 'GET, POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/restore' => 'POST', '/automations' => 'GET', '/automations/(?P<id>[a-z0-9_-]+)/run' => 'POST', '/jobs' => 'GET', '/jobs/tick' => 'POST', $job_route => 'GET', $job_route . '/cancel' => 'POST', '/sites/(?P<site>[0-9]+)/extract' => 'POST' );
 	digi_assert( array_map( function( $route ) use ( $ns ) { return $ns . $route; }, array_keys( $expected ) ) === array_keys( $GLOBALS['digi']['routes'] ), 'Las rutas registradas no son las documentadas: ' . implode( ', ', array_keys( $GLOBALS['digi']['routes'] ) ) );
 	foreach ( $expected as $route => $methods ) {
 		$handlers = $GLOBALS['digi']['routes'][ $ns . $route ];
