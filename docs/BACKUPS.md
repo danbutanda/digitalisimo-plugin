@@ -59,6 +59,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | REST (`digitalisimo-backups/v1`) y WP-CLI (`wp digitalisimo-backups`) usan los casos de uso de la pantalla (`Digitalisimo_Backups_Service`) sobre el motor de «Trabajos» y «Seguridad»: estado, historial, crear, verificar, restaurar, automatizaciones y la cola (listar, consultar, avanzar y cancelar). La pantalla («Crear respaldo completo» por AJAX o formulario, «Ejecutar ahora» y «Restaurar») pasa por los mismos casos de uso. Crear y ejecutar una automatización encolan un trabajo y nunca lo duplican: REST responde 202 con el trabajo (409 con el que ya estaba pendiente) y `POST /jobs/tick` lo hace avanzar como el navegador; WP-CLI lo hace avanzar en su proceso hasta terminar (o sólo lo encola con `--async`), y `wp digitalisimo-backups jobs list|cancel|run` opera sobre la misma cola. Restaurar y verificar abren el paquete como la pantalla: aceptan `.dgbk`, piden `RESTAURAR` o `RESTAURAR SIN FIRMA` según su confianza («Restaurar sólo respaldos firmados» responde 403) y `verify` hace las mismas comprobaciones del paquete que la restauración. Un respaldo cifrado cuya clave no tiene el sitio responde, antes de tomar el bloqueo, `secret_required` con la huella corta y dónde va la frase: en REST sólo en el cuerpo (en la URL, 400); en WP-CLI por `--secret-file` o `--secret-stdin` (`--secret` es un error). Ninguna respuesta ni salida lleva la frase, la clave, su envoltura ni la huella completa, tampoco al rechazar una frase equivocada. REST pide la capability de la pantalla con la autenticación de WordPress (401 sin sesión, 403 sin permiso). En una red sólo responde el sitio principal (con varias redes, el de la red principal, porque el respaldo las abarca todas; el motor tampoco exporta desde una red secundaria), y crear, restaurar o ejecutar exigen el alcance de red explícito. Otra operación en curso o un trabajo activo impiden restaurar (409). Los resúmenes no llevan la ruta del almacén ni identificadores remotos (ruta SFTP o identificador de Google Drive y OneDrive); un aviso que impide respaldar nombra la carpeta que hay que corregir (ver «REST y WP-CLI»). Ensayado en Playground: WordPress 7.1.4, sitio individual y red (`tests/playground/backups-coverage.sh`). | 1.0.60 | `backups-service.php`, `backups-rest.php`, `backups-cli.php` |
 | Rutas externas. `wp-config.php` en la carpeta superior o enlazado (archivos compartidos de un despliegue) se respalda; la restauración nunca lo escribe ni crea otro en `ABSPATH`. Fuera de `ABSPATH` o tras un enlace simbólico, wp-content, plugins, mu-plugins, medios (en una red, también los de cada sitio con `upload_path` propio, salvo con la constante `UPLOADS`, que hace a WordPress ignorarlo) o un directorio de temas se rechazan antes de exportar nada (al crear o ejecutar desde la pantalla, REST o WP-CLI, antes de encolar el trabajo), con la carpeta, quién la define y qué hacer; antes, plugins, medios y temas externos se omitían sin aviso. La restauración se detiene antes de tocar el sitio, un `ABSPATH` que es enlace de despliegue (`current → releases/N`) funciona y otro enlace dentro de `ABSPATH` hace fallar el trabajo al momento (error permanente, sin reintentos) con su destino, sin dejar ZIP. | 1.0.60 | `backups-layout.php`, `backups-external-config.php` |
 | **Credenciales de los destinos cifradas que viajan en el respaldo (S4).** La contraseña de SFTP y el Client secret y el Refresh token de Google Drive y OneDrive viven en `digitalisimo_backups_credentials` (de la red en Multisite), cada uno cifrado con AEAD XChaCha20-Poly1305 (libsodium o el sodium_compat de WordPress) con una clave que sale de `AUTH_KEY` y `SECURE_AUTH_KEY` con su propia separación de dominio, y un dato adicional que lo ata a su campo. `digitalisimo_backups_settings` ya no guarda ninguno en claro: guardar «Servidores», la conexión OAuth (refresh token) y la migración de los sitios que vienen de 1.0.60 o anteriores (al cargar el escritorio, el cron o WP-CLI, sin ninguna consulta cuando no queda nada en claro, y después de cada restauración) pasan por el almacén, que comprueba cada valor antes de retirar el texto en claro; el navegador nunca recibe un valor. El almacén sí entra en `database.sql`: restaurar deja los destinos funcionando con las credenciales del respaldo, que mandan sobre las que tenía el servidor. En otro servidor (otras salts) se vuelven a cifrar con las de éste usando las del `wp-config.php` que va dentro del propio respaldo (sólo `define()` con literales de cadena, leídos con el tokenizador de PHP; el archivo nunca se ejecuta ni se incluye). Si no se pueden leer (`getenv()`, otro archivo) o cambiaron las salts de este servidor, el destino queda en «vuelve a escribir la contraseña / conéctalo de nuevo» en la pantalla, en `status` de REST y WP-CLI, en el aviso de la restauración y en el error permanente del trabajo con destino remoto; nunca se cae al texto en claro. Sin `AUTH_KEY` y `SECURE_AUTH_KEY` propias se guardan como hasta ahora, con aviso. Una restauración que muere entre el SQL y el nuevo cifrado lo termina con el diario. | @NEXT_BACKUPS@ | `backups-credentials.php`, `backups-credentials-surfaces.php`, `backups-credentials-nokeys.php` y, en Playground, S9 de `tests/playground/backups-security.sh` |
+| **Migración en un clic entre servidores y dominios, con staging y deshacer.** En el origen, Backups → Migrar → «Generar clave de migración» crea una clave de un solo uso que caduca (1 a 72 h, 24 por defecto), se revoca y se muestra una sola vez; en el destino (un WordPress recién instalado o un sitio que se reemplaza) se pega en «Migrar desde otro sitio» y basta un clic. El destino tira del origen por REST, autorizado por la clave en la cabecera `X-Digitalisimo-Migration` (nunca en la URL): el origen crea el paquete con su motor de trabajos (un respaldo completo en DGBK, con el manifiesto firmado, cifrado con una clave que sale de la clave de migración y nunca viaja), el destino lo descarga por fragmentos con `Range` y se reanuda tras un corte o una muerte, comprueba tamaño, SHA-256, cabecera, descifrado y firma, y lo restaura con la copia previa bloqueada y la reescritura de direcciones, rutas y prefijo de «Restaurar en otro dominio» (el destino conserva su dirección). «Deshacer la migración» restaura esa copia previa en un clic; el origen nunca cambia y su clave queda usada. Individual → individual y red → red del mismo tipo, con un mensaje antes de descargar si el `wp-config.php` del destino no declara la red. En la base de datos sólo queda la huella de la credencial; límite de intentos por clave (5) y global (20 en 15 min); HTTPS salvo «Permitir HTTP» (laboratorio); registro de cada uso; avance en «Trabajos». Pantalla, REST y WP-CLI (`wp digitalisimo-backups migrate --from-key-file=…`) sobre `Digitalisimo_Backups_Service`. Staging: la misma migración hacia una copia de pruebas y, para publicarla, en sentido contrario. | @NEXT_BACKUPS@ | `backups-migrate.php`, `backups-migrate-surfaces.php` y, en Playground, `tests/playground/backups-migrate.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -119,6 +120,7 @@ cargado, así que compararla con 1.0.58 fallaba desde que el repositorio pasó d
 | --- | --- |
 | Trabajos | Hecho en 1.0.59 con reanudación por fase (T1). Falta **T2**: pasos cortos dentro de la exportación y el empaquetado (escritor ZIP propio de sólo añadir, inventario por directorios y verificación por tramos), porque hoy esas dos fases son un paso largo cada una y una interrupción las repite enteras; con ella, la reducción del lote tras un tiempo agotado. Falta **T3**: transferencias reanudables por fragmentos (SFTP por desplazamiento, sesiones de Google y OneDrive guardadas de forma privada) y retirar los temporales SFTP que deja un proceso muerto; hoy una cancelación pedida durante una subida SFTP llega cuando la copia ya terminó, y el respaldo se completa. Desde 1.0.60, REST y WP-CLI consultan, hacen avanzar y cancelan la misma cola (`wp digitalisimo-backups jobs cancel`, `POST /jobs/<id>/cancel`). Ensayo real pendiente: `kill -9` y `max_execution_time` cortos en Playground y en un hosting con MySQL. Una restauración interrumpida ya no pierde el historial, la seguridad ni el llavero (diario del almacén), pero deja el sitio a medias: hay que restaurar la copia previa a mano, escribiendo la frase si el llavero volvió sin su envoltura. Límite declarado sin consecuencia para los datos: con el almacén compartido entre varios servidores sin `flock` común y PHP anterior a 8 (sin el aviso de avance de `ZipArchive::close()`), un empaquetado de más de 30 min sin latido puede tomarlo otro servidor; se pierde trabajo y puede agotar intentos, pero nunca se presenta un parcial como completo. |
 | Restauración | Preflight completo, espacio libre, staging de toda la instalación, mantenimiento, rollback atómico y migración extremo a extremo a otro servidor o dominio con datos serializados. |
+| Migración | Hecha en @NEXT_BACKUPS@ (un clic, staging y deshacer). Falta: restauración reanudable por pasos (hoy la fase «Restauración» de la migración es un paso largo, como «Restaurar», y no se repite sola si muere: «Deshacer la migración» devuelve el estado anterior); fusión de cambios entre dos sitios vivos (fuera de alcance, declarado); que la copia de pruebas apague sola las automatizaciones y los destinos que trajo del origen; y el ensayo entre dos servidores reales con MySQL y HTTPS (el de Playground usa HTTP con «Permitir HTTP»). |
 | Seguridad | Argon2id opcional para la frase. Botón «Inspeccionar» con el informe de un archivo antes de restaurarlo (hoy la inspección completa ocurre al restaurar, antes de la copia previa). Ensayo del cifrado en un hosting real con libsodium nativo y MySQL. Sin la extensión, sodium_compat es lento: en php-wasm, unos 11 s por MiB (36 MB tardaron unos 11 minutos en cifrarse y comprobarse y unos 6 en descifrarse y restaurarse); la pestaña mide la velocidad del servidor y estima el tiempo del último respaldo. |
 | Restauración (UpdraftPlus) | La ruta de UpdraftPlus ya valida todo antes de cambiar nada, pero aún no crea copia previa ni revierte si falla a medias. Su restauración y el diario de una restauración interrumpida sólo se han probado en php-wasm, sobre la base de datos simulada; falta ensayarlos en WordPress real. |
 | Automatización | Respaldo previo a actualizaciones, incrementales con borrados y cadena íntegra, retención que preserve dependencias y varios destinos por trabajo. |
@@ -154,6 +156,7 @@ destinos remotos.
 | `includes/class-backups-rest.php` | `Digitalisimo_Backups_Rest`: rutas `digitalisimo-backups/v1` con la capability de la pantalla; la frase de un respaldo, sólo en el cuerpo de la petición. |
 | `includes/class-backups-cli.php` | `wp digitalisimo-backups`, `wp digitalisimo-backups automation` y `wp digitalisimo-backups jobs`; hace avanzar la cola en su proceso y lee la frase de un archivo o de STDIN. |
 | `includes/class-backups-layout.php` | `Digitalisimo_Backups_Layout`: carpetas de WordPress que un respaldo completo debe contener; rechaza las externas o enlazadas antes de exportar. |
+| `includes/class-backups-migrate.php` | `Digitalisimo_Backups_Migrate`: migración en un clic. Claves de migración (huella de la credencial en `digitalisimo_backups_vault_migration`, clave del paquete envuelta en `migrations/<id>.key` del almacén), su límite de intentos y su registro; la API del origen (`hello`, `package`, `step`, `download`, `finish`, `release`); el tipo de trabajo `migrate` del destino (fases `preflight`, `remote`, `download`, `check`, `restore` y `finish`, registrado con `Digitalisimo_Backups_Jobs::register_kind()`); deshacer; la pestaña «Migrar» y sus acciones `admin-post`. |
 | `assets/backups-admin.css` | Presentación propia sobre el diseño compartido `digitalisimo-ui/`. |
 
 La configuración y el historial viven en opciones del sitio o de la red; el estado de los trabajos, en el almacén
@@ -203,6 +206,12 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /jobs` (`limit`) · `GET /jobs/<id>` | `wp digitalisimo-backups jobs list [--limit=…] [--fields=…] [--format=…]` | Trabajos sin terminar y los últimos terminados, con la vista de la tarjeta «Trabajos» (estado, fase, avance, reintento, archivo o error) más destino, automatización y si se cifra. |
 | `POST /jobs/<id>/cancel` | `wp digitalisimo-backups jobs cancel <id>` | Como «Cancelar»: uno en cola termina ya; uno en curso se detiene en su siguiente punto de control; uno ya verificado y registrado no se cancela (409). |
 | `POST /jobs/tick` | `wp digitalisimo-backups jobs run [--quiet]` | Hace avanzar la cola: REST da un paso con el presupuesto de una petición web, como el navegador con la pantalla abierta; WP-CLI sigue sin límite de tiempo hasta que no queda trabajo listo (sirve para el cron del sistema en un hosting que corta las peticiones largas). |
+| `GET /migration` | `wp digitalisimo-backups migration status [--format=json]` · `migration keys` | Migración: claves (identificador, estado, caducidad y destino; nunca su valor), migración en curso, la que se puede deshacer, «Permitir HTTP» y el registro. |
+| `POST /migration/keys` (`hours`, `network`) | `wp digitalisimo-backups migration create-key [--hours=…] [--key-file=…] [--network]` | Genera una clave de migración y la devuelve **una sola vez** (201, `Cache-Control: no-store`); WP-CLI la imprime o la deja en un archivo nuevo 0600. |
+| `POST /migration/keys/<id>/revoke` | `wp digitalisimo-backups migration revoke <id>` | Revoca una clave: deja de servir, su paquete y su clave envuelta se borran y su trabajo se cancela. |
+| `POST /migration/pull` (`key`, `confirm`=`MIGRAR`, `network`) | `wp digitalisimo-backups migrate --from-key-file=…\|--from-key-stdin [--network] [--yes] [--async] [--porcelain]` | «Migrar desde otro sitio»: comprueba la clave con el origen y que los sitios son compatibles, y encola la migración (202); WP-CLI la hace avanzar hasta terminar. La clave sólo en el cuerpo (en la URL, 400 `key_in_url`) o en un archivo o STDIN (`--from-key=` es un error). |
+| `POST /migration/undo` (`confirm`=`DESHACER`, `network`) | `wp digitalisimo-backups migration undo [--network] [--yes]` | «Deshacer la migración»: restaura la copia previa de la última migración recibida. |
+| `POST /migrate/source/{hello,package,step,finish,release}` · `GET /migrate/source/download` | — | API del sitio de origen para el destino, autorizada sólo por la clave de migración (cabecera `X-Digitalisimo-Migration: <id>.<credencial>` y `X-Digitalisimo-Migration-Client: <trabajo>`), sin la sesión de WordPress. `download` responde 206 con los bytes del paquete (`Range`, hasta 16 MiB por fragmento, `X-Digitalisimo-Package-Sha256`). |
 
 - **Autorización.** REST usa la autenticación de WordPress: con cookie exige el nonce `wp_rest` en `X-WP-Nonce`, y
   también sirven las contraseñas de aplicación. Cada ruta pide la capability de la pantalla (`manage_network_options`
@@ -266,6 +275,88 @@ trabajo encolado por REST y el de `create --async` antes de que el ensayo los ca
 | Red por REST | Sin `network=true`, 400. El subsitio responde 400 y su estado explica por qué. |
 | WP-CLI real | Sinopsis tomadas del PHPDoc. `restore` sin `--confirm` no corre. `create --porcelain` hace avanzar la cola hasta terminar (19 a 20 s) y su respaldo aparece primero en el historial de REST. `create --async` deja el trabajo en cola, `jobs list` lo muestra primero y `jobs cancel` lo cancela. En la red, sin `--network` o desde el subsitio, falla con el motivo. |
 | Medios de un subsitio | Con `upload_path` fuera de `ABSPATH`, el estado nombra el sitio, el ajuste y la carpeta que calcula WordPress, y `POST /backups` responde 422 sin exportar. Con su valor original, la red vuelve a estar lista. |
+
+## Migración entre servidores y dominios
+
+Desde @NEXT_BACKUPS@. Sustituye a «respaldar, descargar, subir y restaurar a mano»: un clic en el destino, que **tira**
+del origen.
+
+1. **Origen** (el sitio que se lleva): Backups → Migrar → «Generar clave de migración». La página que la muestra no se
+   guarda en caché ni pasa por una redirección, y no se vuelve a mostrar.
+2. **Destino** (un WordPress recién instalado con Backups, o un sitio existente que se reemplaza): Backups → Migrar →
+   pega la clave en «Migrar desde otro sitio» y pulsa «Migrar a este sitio». Antes de encolar nada, el destino se
+   presenta al origen y comprueba que la migración es posible (abajo); después el avance está en «Trabajos»
+   («Conexión con el origen» → «Paquete en el origen» → «Descarga» → «Comprobación del paquete» → «Restauración» →
+   «Cierre»). Con la página abierta el navegador lo hace avanzar; si se cierra, WP-Cron o
+   `wp digitalisimo-backups jobs run`. Al restaurar, los usuarios pasan a ser los del origen: la sesión del navegador
+   deja de valer y la pantalla pide iniciar sesión con un usuario del origen.
+3. El destino conserva **su** dirección: la restauración reescribe URL, rutas del servidor y prefijo de tablas con el
+   motor de «Restaurar en otro dominio» (datos serializados, JSON y URL codificadas), vacía el CSS generado de Elements
+   y las cachés, y fija `home`/`siteurl` (en una red, también `site`, `blogs` y `sitemeta`).
+
+**Qué se comprueba antes de tocar el destino.** Individual → individual y red → red del mismo tipo (subdominios o
+subdirectorios); si el origen es una red y el `wp-config.php` del destino no la declara, el mensaje dice qué definir
+(`WP_ALLOW_MULTISITE`, crear la red y `MULTISITE`, `SUBDOMAIN_INSTALL`, `DOMAIN_CURRENT_SITE` y `PATH_CURRENT_SITE`) y no
+se descarga nada; que la clave no sea de este mismo sitio; que el destino pueda hacer su copia previa (un respaldo
+completo); espacio para descargar y descifrar. Después, antes de la copia previa: tamaño y SHA-256 anunciados por el
+origen, cabecera DGBK con la clave de esta migración, descifrado autenticado completo, firma del manifiesto, la
+inspección de archivos no confiables y el guardián SQL, y el plan de reubicación (con el `wp-config.php` de la red).
+
+**Deshacer.** La copia previa que crea la restauración queda bloqueada y marcada con la migración (`migration` en su
+fila del historial: origen, fecha, trabajo y estado). «Deshacer la migración» (pantalla, `POST /migration/undo` con
+`DESHACER`, `wp digitalisimo-backups migration undo`) la restaura —con su propia copia previa del estado migrado— y la
+marca como deshecha; no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en su almacén
+privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
+
+**Staging.** Es la misma migración: para una copia de pruebas (otro dominio o subdominio), la clave se genera en
+producción y se migra desde el sitio de pruebas; para **publicarla**, la clave se genera en el sitio de pruebas y se
+migra desde producción, que guarda su copia previa y se deshace igual. **Fuera de alcance:** fusionar cambios entre dos
+sitios vivos (lo que cambie en producción mientras tanto se reemplaza). Las automatizaciones y los destinos remotos del
+origen llegan con la migración: en una copia de pruebas hay que revisarlos para que no respalde sobre los de producción.
+
+### Seguridad de la migración
+
+- **La clave.** `DGMIG1.` + base64url de `{"v":1,"u":<API del origen>,"i":<id>,"s":<32 bytes aleatorios>}`. Con
+  `H(m, k) = BLAKE2b-256(m, clave k)`: la credencial `A = H("DGBK1/migrate-auth", s)` y la clave raíz del paquete
+  `K = H("DGBK1/migrate-root", s)`. El origen guarda en `digitalisimo_backups_vault_migration` (de la red en Multisite;
+  como todo `digitalisimo_backups_vault_*`, nunca entra en un respaldo ni en el SQL) sólo la huella
+  `hex(H("DGBK1/migrate-verifier", A))` y la huella pública de `K`, y `K` envuelta (secretbox, con una clave que sale de
+  `AUTH_KEY` y `SECURE_AUTH_KEY`) en `migrations/<id>.key` del almacén privado, que se borra al usarla, revocarla, caducar
+  o bloquearse. El destino guarda `A` y `K` envueltas con sus propias claves de `wp-config.php` mientras dura el trabajo.
+  Sin `AUTH_KEY` y `SECURE_AUTH_KEY` propias no se genera ni se usa una clave.
+- **El paquete.** Un respaldo completo del motor de trabajos en el contenedor DGBK de «Seguridad» con la clave `K`
+  (descriptor `{"source":"migration"}`) y el manifiesto firmado con ella: `K` nunca viaja, así que el paquete va cifrado
+  de extremo a extremo aunque la conexión no lo esté, y un paquete que no se cifró con la clave de esta migración, o que
+  se alteró, se rechaza antes de tocar el destino.
+- **Autenticación.** Cada petición lleva `X-Digitalisimo-Migration: <id>.<base64url(A)>` y, salvo la presentación, el
+  identificador del trabajo del destino (`X-Digitalisimo-Migration-Client`); la clave en la cadena de consulta responde
+  400 sin usarse. Comparación de tiempo constante con la huella. La primera petición de paquete **ata** la clave a ese
+  trabajo: otra migración con la misma clave responde 409. Si el destino abandona antes de restaurar, la libera.
+  Al terminar, la clave queda **usada** (410 en adelante).
+- **Límites.** 5 credenciales equivocadas bloquean la clave; 20 fallos de cualquier origen en 15 minutos cierran la API
+  de migración del sitio (429) hasta que pase la ventana. Caducidad de 1 a 72 horas.
+- **HTTPS.** Exigido en los dos lados. «Permitir HTTP» (Backups → Migrar → Laboratorio, en cada sitio) lo permite para
+  pruebas en una red propia: la credencial viajaría legible y quien vea el tráfico podría descargar el paquete (que
+  sigue cifrado con `K`) o interrumpir la migración, pero no abrirlo.
+- **Quién.** Generar, revocar, migrar y deshacer: la capability de la pantalla (superadministrador en una red,
+  administrador en un sitio individual); en una red, desde el sitio principal y con el alcance de red explícito. La API
+  del origen no usa la sesión de WordPress: la autoriza sólo la clave.
+- **Registro.** Cada uso en el registro de la pestaña (fecha, huella corta de la clave, evento, IP y detalle): clave
+  generada, presentación, paquete pedido y listo, descarga, migración terminada, liberada, revocada, caducada,
+  bloqueada, intentos fallidos y deshacer. Nada del flujo deja la clave, la credencial ni `K` en registros, respuestas,
+  URL, trabajos ni el navegador (salvo la página que la muestra una vez).
+
+**Escala.** El paquete lo crea el motor de trabajos del origen (fases con punto de control y reintentos); el destino lo
+descarga en fragmentos de 4 MiB (`digitalisimo_backups_migration_chunk`) por pasos de 15 s, siempre desde lo que ya
+está en disco: un corte de red, un fragmento incompleto o una muerte del proceso reanudan donde quedó, y sólo los
+fallos seguidos sin avanzar gastan intentos (5). La restauración es un paso largo, como «Restaurar»: en un hosting que
+corta las peticiones largas, usa WP-CLI o el cron del sistema; si muere a mitad, la migración falla diciendo que
+«Deshacer la migración» devuelve el estado anterior (no se repite sola sobre un sitio a medias).
+
+Límites declarados: un plugin de seguridad que cierre la API REST a visitantes anónimos impide migrar desde ese origen
+(la API del origen no usa la sesión); el estado de la migración del destino (sus propias claves y el registro) vuelve
+tras restaurar, pero si el proceso muere en mitad del SQL se pierde (las claves que generó quedan, en la práctica,
+revocadas); la sesión del navegador del destino termina al restaurar (los usuarios son los del origen).
 
 ## Almacenamiento local
 
