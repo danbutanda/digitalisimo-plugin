@@ -50,9 +50,12 @@ add_filter( 'digitalisimo_backups_step_units', static function () {
 	$cursor = (array) ( $job['checkpoint'][ $job['phase'] ] ?? array() );
 	if ( 'database' === $job['phase'] && (int) ( $cursor['offset'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-db' ) && @unlink( '/digi-ctl/die-db' ) ) digi_r_kill( 'die-db' );
 	if ( 'files' === $job['phase'] && 'extract' === ( $cursor['step'] ?? '' ) && (int) ( $cursor['i'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-files' ) && @unlink( '/digi-ctl/die-files' ) ) digi_r_kill( 'die-files' );
-	if ( 'switch' === $job['phase'] && 'move' === ( $cursor['step'] ?? '' ) && empty( $job['spec']['rollback'] ) && is_file( '/digi-ctl/fail-move' ) ) throw new RuntimeException( 'fallo inyectado al mover los archivos' );
 	return 400;
 } );
+// El plan B: con la marca, la restauración (no su vuelta a la copia previa) falla al mover el código, ya hecho el RENAME.
+add_action( 'digitalisimo_backups_restore_move_unit', static function ( $unit, $job ) {
+	if ( empty( $job['spec']['rollback'] ) && is_file( '/digi-ctl/fail-move' ) ) throw new RuntimeException( 'fallo inyectado al mover los archivos' );
+}, 10, 2 );
 $GLOBALS['digi_r_request'] = array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ) );
 // Dónde estaba la restauración al empezar y al terminar la petición (fase, paso y posición), para el informe.
 function digi_r_where() {

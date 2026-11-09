@@ -47,7 +47,7 @@ for mode in ${MODES:-single multisite}; do
   # Un nombre sin puerto (una red de WordPress no admite puertos); las peticiones van a 127.0.0.1 con este Host.
   host="restore-$mode.test"
   cat > "$dir/blueprint.json" <<JSON
-{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local"}},$multi
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true}},$multi
 {"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi

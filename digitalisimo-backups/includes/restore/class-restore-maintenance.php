@@ -122,7 +122,8 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		add_filter( 'site_option_active_sitewide_plugins', function( $list ) use ( $plugin ) { $list = (array) $list; return isset( $list[ $plugin ] ) ? array( $plugin => $list[ $plugin ] ) : array(); }, PHP_INT_MAX );
 		add_filter( 'template_directory', function() use ( $none ) { return $none; }, PHP_INT_MAX );
 		add_filter( 'stylesheet_directory', function() use ( $none ) { return $none; }, PHP_INT_MAX );
-		if ( ! defined( 'WPMU_PLUGIN_DIR' ) ) define( 'WPMU_PLUGIN_DIR', $none );
+		// Un hosting que necesita sus mu-plugins para cargar WordPress (o un ensayo) lo dice en wp-config.php.
+		if ( ! defined( 'WPMU_PLUGIN_DIR' ) && ! ( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS' ) && DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS ) ) define( 'WPMU_PLUGIN_DIR', $none );
 	}
 	function digitalisimo_backups_restore_kick( $url, $every ) {
 		$self = rtrim( ABSPATH, '/\\' ) . '/.maintenance';

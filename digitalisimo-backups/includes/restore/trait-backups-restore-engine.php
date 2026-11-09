@@ -1574,6 +1574,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static function restore_move_code( array $job, array $cursor, array $layout, $tree ) {
 		foreach ( $layout['units'] as $unit => $state ) {
 			if ( empty( $state['changed'] ) || ! empty( $state['mixed'] ) || $unit === $layout['self'] ) continue;
+			// Punto de enganche antes de cada unidad (los ensayos inyectan aquí fallos y muertes a mitad del código).
+			if ( function_exists( 'do_action' ) ) do_action( 'digitalisimo_backups_restore_move_unit', (string) $unit, $job );
 			self::restore_move_unit( (string) $unit, $layout, $tree, $cursor );
 		}
 		$moved = self::restore_move_loose( $layout, $tree, $cursor, INF, false );
