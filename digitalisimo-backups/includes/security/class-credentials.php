@@ -130,13 +130,19 @@ final class Digitalisimo_Backups_Credentials {
 			Digitalisimo_Backups_Sodium::memzero( $key );
 		}
 	}
-	/** Guarda el almacén y comprueba, leyéndolo otra vez, que cada valor escrito se abre igual. */
+	/**
+	 * Guarda el almacén y comprueba, leyéndolo otra vez, que cada valor escrito se abre igual. Si no, vuelve a dejar el
+	 * almacén como estaba y avisa: quien llama no retira nada de los ajustes, así que ninguna credencial se pierde.
+	 */
 	private static function save( array $store, $key, array $written ) {
+		$before = Digitalisimo_Backups_Keys::get( self::OPTION, null );
 		Digitalisimo_Backups_Keys::put( self::OPTION, array( 'v' => self::VERSION, 'items' => $store['items'] ) );
 		$check = self::raw()['items'];
 		foreach ( $written as $field => $value ) {
 			$opened = self::open( $key, $field, $check[ $field ] ?? null );
-			if ( false === $opened || ! hash_equals( $value, $opened ) ) throw new Exception( 'No se pudo comprobar una credencial cifrada; se conserva como estaba.' );
+			if ( false !== $opened && hash_equals( $value, $opened ) ) continue;
+			Digitalisimo_Backups_Keys::put( self::OPTION, null === $before ? array( 'v' => self::VERSION, 'items' => array() ) : $before );
+			throw new Exception( 'No se pudo comprobar una credencial cifrada; se conserva como estaba.' );
 		}
 	}
 
