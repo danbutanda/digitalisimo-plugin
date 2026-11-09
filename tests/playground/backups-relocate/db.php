@@ -15,10 +15,12 @@ foreach ( $out['tables'] as $table ) {
 	if ( 0 !== strpos( $table, $wpdb->base_prefix ) ) continue;
 	foreach ( (array) $wpdb->get_results( 'SHOW COLUMNS FROM `' . $table . '`', ARRAY_A ) as $column ) {
 		if ( ! preg_match( '/char|text|blob|json/i', (string) $column['Type'] ) ) continue;
-		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $table . '` WHERE `' . $column['Field'] . '` LIKE %s', '%' . $wpdb->esc_like( $needle ) . '%' ) );
+		// El informe de la reubicación nombra el origen a propósito («Origen http://… → este sitio»): no cuenta.
+		$own = preg_match( '/options$/', $table ) ? $wpdb->prepare( ' AND option_name <> %s', 'digitalisimo_backups_last_relocation' ) : '';
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $table . '` WHERE `' . $column['Field'] . '` LIKE %s', '%' . $wpdb->esc_like( $needle ) . '%' ) . $own );
 		if ( ! $count ) continue;
 		if ( 'guid' === $column['Field'] ) { $out['guid'] += $count; continue; }
-		$values = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . $column['Field'] . '` FROM `' . $table . '` WHERE `' . $column['Field'] . '` LIKE %s LIMIT 3', '%' . $wpdb->esc_like( $needle ) . '%' ) );
+		$values = $wpdb->get_col( $wpdb->prepare( 'SELECT `' . $column['Field'] . '` FROM `' . $table . '` WHERE `' . $column['Field'] . '` LIKE %s', '%' . $wpdb->esc_like( $needle ) . '%' ) . $own . ' LIMIT 3' );
 		$out['hits'][ $table . '.' . $column['Field'] ] = array( 'count' => $count, 'sample' => array_map( function( $v ) use ( $needle ) { $at = stripos( $v, $needle ); return substr( $v, max( 0, $at - 60 ), 160 ); }, $values ) );
 	}
 }
