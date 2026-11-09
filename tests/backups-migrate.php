@@ -295,6 +295,31 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	mig_use( 'origen' );
 } );
 
+mig_case( 'f2 · cancelar en el destino libera la clave en el origen y borra su paquete', function() use ( &$all_needles, $NS ) {
+	$key = mig_key();
+	$p = mig_parts( $key['key'] );
+	$all_needles = array_merge( $all_needles, $p['needles'] );
+	mig_use( 'destino' );
+	$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR' ) );
+	mig_assert( 202 === $reply[0], 'El destino no encoló la migración: ' . json_encode( $reply ) );
+	$id = $reply[1]['id'];
+	// Un paso por tick (presupuesto 0): conexión y, después, el paquete en el origen (que queda atado y listo).
+	for ( $i = 0; $i < 4 && 'remote' !== ( Digitalisimo_Backups_Jobs::get( $id )['phase'] ?? '' ); $i++ ) Digitalisimo_Backups_Jobs::tick( 0 );
+	Digitalisimo_Backups_Jobs::tick( 0 );
+	mig_assert( 'in_use' === mig_record( $p['id'] )['state'], 'El origen no ató la clave a la migración.' );
+	$origin_view = mig_in( 'origen', function() use ( $p ) { return Digitalisimo_Backups_Jobs::view( Digitalisimo_Backups_Jobs::get( mig_record( $p['id'] )['job'] ) ); } );
+	mig_assert( 'migration-package' === $origin_view['kind'] && 'Paquete de migración' === $origin_view['origin_label'] && '' === $origin_view['file'], 'La tarjeta «Trabajos» del origen no describe el paquete: ' . json_encode( $origin_view ) );
+	$cancelled = mig_rest( 'POST', $NS . '/jobs/' . $id . '/cancel' );
+	mig_assert( 200 === $cancelled[0] && 'cancelled' === Digitalisimo_Backups_Jobs::get( $id )['status'], 'No se canceló la migración: ' . json_encode( $cancelled ) );
+	mig_assert( 'pending' === mig_record( $p['id'] )['state'] && in_array( 'released', array_column( mig_state()['log'], 'event' ), true ), 'Cancelar no liberó la clave en el origen.' );
+	mig_assert( ! glob( mig_storage() . '/migrations/pull-*.key' ) && ! is_dir( mig_storage() . '/jobs/' . $id . '/download' ), 'Cancelar dejó la clave o la descarga en el destino.' );
+	mig_in( 'origen', function() use ( $p ) {
+		mig_assert( ! glob( mig_storage() . '/jobs/*/migration-' . $p['id'] . '.dgbk' ), 'Cancelar dejó el paquete en el origen.' );
+		Digitalisimo_Backups_Migrate::revoke( $p['id'] );
+	} );
+	mig_use( 'origen' );
+} );
+
 mig_case( 'g · un paquete alterado en el origen se rechaza antes de tocar el destino', function() use ( &$all_needles, $NS ) {
 	foreach ( array( 'cabecera' => 'no está cifrado con la clave de esta migración', 'cifrado' => 'no supera la comprobación de su cifrado' ) as $what => $expected ) {
 		$key = mig_key();
