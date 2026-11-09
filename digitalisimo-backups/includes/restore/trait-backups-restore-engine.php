@@ -715,6 +715,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		if ( preg_match( '/^SET\s+NAMES\s+(utf8mb4|utf8)\b/i', $statement, $m ) ) $cursor['names'] = strtolower( $m[1] );
 		if ( preg_match( '/^SET\s+foreign_key_checks\s*=\s*([01])/i', $statement, $m ) ) $cursor['fk'] = (int) $m[1];
+		// Lo que el guardián (o la reubicación) decide no ejecutar: una tabla omitida o una fila descartada.
+		if ( method_exists( $guard, 'skipped' ) && $guard->skipped() ) {
+			$cursor['guard_skipped'] = (int) ( $cursor['guard_skipped'] ?? 0 ) + 1;
+			return $cursor;
+		}
 		$sql = $guard->rewritten();
 		if ( preg_match( '/^CREATE\s+TABLE/i', $statement ) && isset( $cursor['table'] ) ) $cursor['created'][ (string) $cursor['table'] ] = true;
 		if ( false === $wpdb->query( $sql ) ) {
