@@ -305,7 +305,8 @@ final class Digitalisimo_Backups_Site_Extract {
 		$tables = array();
 		foreach ( $all as $table ) {
 			$table = (string) $table;
-			if ( 0 !== strpos( $table, $prefix ) ) continue;
+			// Un prefijo vacío ($table_prefix = '') lo llevan todas: strpos() con aguja vacía da false en PHP 7.4.
+			if ( 0 !== strncmp( $table, $prefix, strlen( $prefix ) ) ) continue;
 			if ( $prefix === $base ) {
 				$rest = substr( $table, strlen( $base ) );
 				if ( in_array( $rest, self::GLOBAL_TABLES, true ) || preg_match( '/^[0-9]+_/', $rest ) ) continue;
@@ -326,7 +327,7 @@ final class Digitalisimo_Backups_Site_Extract {
 		$out = array();
 		foreach ( (array) $wpdb->get_col( 'SHOW TABLES' ) as $table ) {
 			$table = (string) $table;
-			if ( 0 !== strpos( $table, $base ) ) continue;
+			if ( 0 !== strncmp( $table, $base, strlen( $base ) ) ) continue; // Prefijo vacío: como en site_tables().
 			$rest = substr( $table, strlen( $base ) );
 			if ( in_array( $rest, self::GLOBAL_TABLES, true ) || in_array( $rest, self::CORE_SITE_TABLES, true ) || preg_match( '/^[0-9]+_/', $rest ) ) continue;
 			$out[] = $table;

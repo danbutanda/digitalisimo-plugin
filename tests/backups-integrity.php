@@ -33,6 +33,9 @@ foreach ( array( 'missing-list', 'missing-create', 'failed-select' ) as $mode ) 
 $GLOBALS['wpdb']->mode = 'ok';
 $sql = $sql_method->invoke( null );
 if ( false === strpos( $sql, 'CREATE TABLE `wp_posts`' ) || false === strpos( $sql, 'VALUES (\'7\')' ) ) throw new RuntimeException( 'Falta definición o contenido SQL.' );
+// Un $table_prefix vacío (WordPress lo admite) también se cambia por el de destino, en cualquier versión de PHP.
+$sql = $sql_method->invoke( null, array( 'posts' ), '', 'wp_' );
+if ( false === strpos( $sql, 'DROP TABLE IF EXISTS `wp_posts`;' ) || false === strpos( $sql, 'INSERT INTO `wp_posts`' ) ) throw new RuntimeException( 'Con un prefijo de origen vacío las tablas no salen con el de destino.' );
 
 $add_string = new ReflectionMethod( 'Digitalisimo_Backups', 'zip_add_string' );
 $add_file = new ReflectionMethod( 'Digitalisimo_Backups', 'zip_add_file' );

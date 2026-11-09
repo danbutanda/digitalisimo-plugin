@@ -414,6 +414,17 @@ try {
 
 	/* ---- El sitio principal: sus tablas (sin las globales ni las de los demás sitios) y sus medios sin uploads/sites/ ---- */
 	digi_assert( array( 'wp_2fa_policies', 'wp_comments', 'wp_global_plugin_log', 'wp_options', 'wp_postmeta', 'wp_posts' ) === $X::site_tables( 1 ), 'Las tablas del sitio principal no son las suyas: ' . json_encode( $X::site_tables( 1 ) ) );
+	// Con un $table_prefix vacío (WordPress lo admite) todas las tablas llevan el prefijo, también en PHP 7.4.
+	$network_db = $GLOBALS['wpdb'];
+	$GLOBALS['wpdb'] = new Digi_Extract_DB();
+	$GLOBALS['wpdb']->base_prefix = $GLOBALS['wpdb']->prefix = '';
+	foreach ( array( 'options', 'posts', 'postmeta', 'users', 'usermeta', 'sitemeta', 'blogs', '2_options', '2_posts', 'plugin_log' ) as $table ) $GLOBALS['wpdb']->create( $table, array( 'id' ) );
+	try {
+		$empty_prefix = array( $X::site_tables( 1 ), $X::global_plugin_tables( 2 ) );
+	} finally {
+		$GLOBALS['wpdb'] = $network_db;
+	}
+	digi_assert( array( array( 'options', 'plugin_log', 'postmeta', 'posts' ), array( 'plugin_log' ) ) === $empty_prefix, 'Con un prefijo de tablas vacío no salen las tablas del sitio ni las globales de plugins: ' . json_encode( $empty_prefix ) );
 	$main = digi_extract( 1, array( 'super_admins' => 'none' ) );
 	$main_entries = digi_zip( $store . '/' . $main['file'] );
 	$main_manifest = json_decode( $main_entries['manifest.json'], true );

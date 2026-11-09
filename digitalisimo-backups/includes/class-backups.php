@@ -1511,8 +1511,10 @@ final class Digitalisimo_Backups {
 		if ( null === $tables ) $tables = self::exportable_tables( $wpdb->get_col( 'SHOW TABLES' ) );
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		$sql = "-- Digitalisimo WordPress backup\n-- " . gmdate( 'c' ) . "\nSET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n";
+		// Con un prefijo de origen vacío ($table_prefix = '' en wp-config.php) todas las tablas lo llevan: strncmp() con
+		// longitud 0 lo acepta en cualquier PHP; strpos() con aguja vacía da false en PHP 7.4.
 		foreach ( $tables as $table ) {
-			$output = $target_prefix && 0 === strpos( $table, $source_prefix ) ? $target_prefix . substr( $table, strlen( $source_prefix ) ) : $table;
+			$output = $target_prefix && 0 === strncmp( $table, $source_prefix, strlen( $source_prefix ) ) ? $target_prefix . substr( $table, strlen( $source_prefix ) ) : $table;
 			$escaped = str_replace( '`', '``', $table );
 			$create = $wpdb->get_row( "SHOW CREATE TABLE `" . $escaped . "`", ARRAY_N );
 			if ( ! is_array( $create ) || empty( $create[1] ) ) throw new Exception( 'No se pudo exportar la definición de la tabla ' . $table . '.' );
