@@ -9,7 +9,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Formato v1: {"v":1,"items":{"<campo>":{"kw":"<huella de la clave, 16 hex>","c":"<base64url(nonce ‖ cifrado)>"}}}.
  * Cada elemento es AEAD XChaCha20-Poly1305 (libsodium o el sodium_compat de WordPress) con un nonce de 24 bytes y el
- * dato adicional «DGBK1/credentials|v1|<campo>»: un valor no se puede mover a otro campo ni a otro formato. La clave es
+ * dato adicional «DGBK1/credentials|v1|<campo>|<contexto>», donde el contexto son los datos de la conexión a la que va
+ * el secreto (host, puerto, usuario y huella SSH para SFTP; el Client ID para Google Drive y OneDrive), cada uno como
+ * «<longitud>:<valor>;». Un valor no se puede mover a otro campo ni a otro formato, y una escritura directa en la base de
+ * datos que cambie el host o el Client ID no desvía el secreto: deja de abrirse y pide escribirlo. La clave es
  * K = BLAKE2b-256("DGBK1/credentials", clave = BLAKE2b-256(AUTH_KEY ‖ "\0" ‖ SECURE_AUTH_KEY)), con separación de
  * dominio distinta a la del llavero, y su huella kw = hex(BLAKE2b-128("DGBK1/credentials-id", clave = K))[0..16].
  * Cada elemento lleva su huella: si cambian las claves de wp-config.php, o el SQL viene de otro servidor y no se pudo
@@ -39,8 +42,13 @@ final class Digitalisimo_Backups_Credentials {
 	}
 	/** Nombre de un campo secreto para los mensajes (nunca su valor). */
 	public static function label( $field ) { return self::LABELS[ $field ] ?? 'Una credencial'; }
-	/** Un wp-config.php de un respaldo más grande no se analiza. */
-	const CONFIG_MAX = 1048576;
+	/**
+	 * Un wp-config.php de un respaldo más grande no se analiza (sus salts quedan «vuelve a escribir»). Uno real ocupa de 3 a
+	 * 10 KB; con 64 KiB, el tokenizador usa unos 18 MiB como mucho, así que uno hostil no agota la memoria.
+	 */
+	const CONFIG_MAX = 65536;
+	/** Datos de la conexión que ata el dato adicional de cada secreto. */
+	const CONTEXT = array( 'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ), 'google_client_secret' => array( 'google_client_id' ), 'google_refresh_token' => array( 'google_client_id' ), 'onedrive_client_secret' => array( 'onedrive_client_id' ), 'onedrive_refresh_token' => array( 'onedrive_client_id' ) );
 	/** Valores candidatos por constante (un define dentro de un if, otro fuera…): cada combinación se comprueba por su huella. */
 	const CONFIG_CANDIDATES = 4;
 
@@ -71,64 +79,116 @@ final class Digitalisimo_Backups_Credentials {
 		return true;
 	}
 	public static function key_id( $key ) { return substr( bin2hex( sodium_crypto_generichash( 'DGBK1/credentials-id', $key, 16 ) ), 0, 16 ); }
-	private static function aad( $field ) { return 'DGBK1/credentials|v' . self::VERSION . '|' . $field; }
+	/**
+	 * Datos de la conexión de $field en unos ajustes (los no secretos), normalizados como los guarda el formulario: puerto
+	 * como entero y huella en mayúsculas sin dos puntos. Lo que no es texto ni número cuenta como vacío.
+	 */
+	public static function context( $field, array $settings ) {
+		$out = '';
+		foreach ( self::CONTEXT[ $field ] ?? array() as $name ) {
+			$value = $settings[ $name ] ?? '';
+			$value = is_scalar( $value ) ? (string) $value : '';
+			if ( 'sftp_port' === $name ) $value = (string) (int) $value;
+			if ( 'sftp_fingerprint' === $name ) $value = strtoupper( str_replace( ':', '', trim( $value ) ) );
+			$out .= strlen( $value ) . ':' . $value . ';';
+		}
+		return $out;
+	}
+	private static function aad( $field, array $settings ) { return 'DGBK1/credentials|v' . self::VERSION . '|' . $field . '|' . self::context( $field, $settings ); }
 	public static function valid_field( $field ) { return is_string( $field ) && in_array( $field, self::FIELDS, true ); }
 
-	/** Un elemento cifrado del almacén para $field. */
-	public static function seal( $key, $field, $value ) {
+	/** Un elemento cifrado del almacén para $field, atado a la conexión que describen $settings. */
+	public static function seal( $key, $field, $value, array $settings ) {
 		if ( ! self::valid_field( $field ) ) throw new Exception( 'Campo de credencial desconocido.' );
 		$nonce = random_bytes( 24 );
-		return array( 'kw' => self::key_id( $key ), 'c' => Digitalisimo_Backups_Keys::b64url_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( (string) $value, self::aad( $field ), $nonce, $key ) ) );
+		return array( 'kw' => self::key_id( $key ), 'c' => Digitalisimo_Backups_Keys::b64url_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( (string) $value, self::aad( $field, $settings ), $nonce, $key ) ) );
 	}
-	/** El texto de un elemento, o false si no es de esta clave, es de otro campo o fue alterado. */
-	public static function open( $key, $field, $item ) {
+	/** El texto de un elemento, o false si no es de esta clave, es de otro campo, de otra conexión o fue alterado. */
+	public static function open( $key, $field, $item, array $settings ) {
 		if ( ! self::valid_field( $field ) || ! is_array( $item ) || ! is_string( $item['kw'] ?? null ) || ! hash_equals( self::key_id( $key ), $item['kw'] ) ) return false;
 		$raw = Digitalisimo_Backups_Keys::b64url_decode( $item['c'] ?? null );
 		if ( false === $raw || strlen( $raw ) < 24 + 16 || strlen( $raw ) > 24 + 16 + self::MAX_VALUE ) return false;
 		try {
-			$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, 24 ), self::aad( $field ), substr( $raw, 0, 24 ), $key );
+			$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, 24 ), self::aad( $field, $settings ), substr( $raw, 0, 24 ), $key );
 		} catch ( Throwable $e ) {
 			return false;
 		}
 		return is_string( $plain ) && '' !== $plain ? $plain : false;
 	}
 
-	/** El almacén tal como está guardado (sólo campos conocidos); un formato desconocido se lee como elementos que no abren. */
+	/**
+	 * El almacén tal como está guardado (sólo campos conocidos). Un formato desconocido, o un elemento cuyos datos no son
+	 * texto (un objeto de un SQL hostil o de una escritura directa), se lee como elemento que no abre: pide escribirse y
+	 * nunca rompe la lectura de los ajustes ni la pantalla.
+	 */
 	public static function raw() {
-		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, array() );
+		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
+		if ( null === $saved ) $saved = self::adopt_site_store();
 		$store = array( 'v' => self::VERSION, 'items' => array() );
 		if ( ! is_array( $saved ) ) return $store;
 		$known = self::VERSION === ( $saved['v'] ?? null );
-		foreach ( (array) ( $saved['items'] ?? array() ) as $field => $item ) {
+		$items = $saved['items'] ?? array();
+		foreach ( is_array( $items ) ? $items : array() as $field => $item ) {
 			if ( ! self::valid_field( $field ) || ! is_array( $item ) ) continue;
-			$store['items'][ $field ] = $known ? array( 'kw' => (string) ( $item['kw'] ?? '' ), 'c' => (string) ( $item['c'] ?? '' ) ) : array( 'kw' => '', 'c' => '' );
+			$kw = $item['kw'] ?? '';
+			$c = $item['c'] ?? '';
+			$store['items'][ $field ] = $known && is_string( $kw ) && is_string( $c ) ? array( 'kw' => $kw, 'c' => $c ) : array( 'kw' => '', 'c' => '' );
 		}
 		return $store;
 	}
-	/** Los valores que este servidor abre: campo => texto. Sin clave propia no lee nada. */
-	public static function read() {
+	/**
+	 * Un sitio individual convertido en red: el almacén quedó en las opciones del sitio principal y la red lo busca en
+	 * sitemeta. Se adopta (mismas salts, mismos datos de conexión): las credenciales siguen funcionando, nunca se pierden.
+	 */
+	private static function adopt_site_store() {
+		if ( ! is_multisite() || ! is_main_site() ) return null;
+		$site = get_option( self::OPTION, null );
+		if ( ! is_array( $site ) ) return null;
+		Digitalisimo_Backups_Keys::put( self::OPTION, $site );
+		delete_option( self::OPTION );
+		return $site;
+	}
+	/** Los valores que este servidor abre para la conexión de $settings: campo => texto. Sin clave propia no lee nada. */
+	public static function read( array $settings ) {
 		$key = self::key();
 		if ( false === $key ) return array();
 		$out = array();
 		foreach ( self::raw()['items'] as $field => $item ) {
-			$value = self::open( $key, $field, $item );
+			$value = self::open( $key, $field, $item, $settings );
 			if ( false !== $value ) $out[ $field ] = $value;
 		}
 		Digitalisimo_Backups_Sodium::memzero( $key );
 		return $out;
 	}
-	/** Campos guardados que este servidor no abre (otras claves de wp-config.php, un valor alterado o movido de campo). */
-	public static function locked() {
+	/**
+	 * Campos guardados que este servidor no abre para la conexión de $settings (otras claves de wp-config.php, otros datos
+	 * de conexión, un valor alterado o movido de campo).
+	 */
+	public static function locked( array $settings ) {
 		$items = self::raw()['items'];
 		if ( ! $items ) return array();
-		return array_values( array_diff( array_keys( $items ), array_keys( self::read() ) ) );
+		return array_values( array_diff( array_keys( $items ), array_keys( self::read( $settings ) ) ) );
+	}
+	/**
+	 * «Olvidar» las credenciales de un destino que ya no se usa (también las que no se abren): retira sus elementos del
+	 * almacén. No necesita la clave. Devuelve los campos retirados.
+	 */
+	public static function remove( array $fields ) {
+		$saved = Digitalisimo_Backups_Keys::get( self::OPTION, null );
+		if ( ! is_array( $saved ) || ! is_array( $saved['items'] ?? null ) ) return array();
+		$removed = array_values( array_intersect( array_keys( $saved['items'] ), array_filter( $fields, array( __CLASS__, 'valid_field' ) ) ) );
+		if ( ! $removed ) return array();
+		foreach ( $removed as $field ) unset( $saved['items'][ $field ] );
+		Digitalisimo_Backups_Keys::put( self::OPTION, $saved );
+		return $removed;
 	}
 
 	/**
-	 * Cifra y guarda estos valores (un valor vacío no cambia lo guardado) y comprueba que vuelven a abrirse. Devuelve
-	 * false, sin escribir nada, si este servidor no puede cifrar (sin AUTH_KEY y SECURE_AUTH_KEY propias).
+	 * Cifra y guarda estos valores para la conexión de $settings (un valor vacío no cambia lo guardado) y comprueba que
+	 * vuelven a abrirse. Devuelve false, sin escribir nada, si este servidor no puede cifrar (sin AUTH_KEY y
+	 * SECURE_AUTH_KEY propias).
 	 */
-	public static function put( array $values ) {
+	public static function put( array $values, array $settings ) {
 		$key = self::key();
 		if ( false === $key ) return false;
 		try {
@@ -137,11 +197,11 @@ final class Digitalisimo_Backups_Credentials {
 			foreach ( $values as $field => $value ) {
 				if ( ! self::valid_field( $field ) || ! is_string( $value ) || '' === $value ) continue;
 				if ( strlen( $value ) > self::MAX_VALUE ) throw new Exception( 'Una credencial es demasiado larga para guardarla. No se cambió nada.' );
-				$store['items'][ $field ] = self::seal( $key, $field, $value );
+				$store['items'][ $field ] = self::seal( $key, $field, $value, $settings );
 				$written[ $field ] = $value;
 			}
 			if ( ! $written ) return true;
-			self::save( $store, $key, $written );
+			self::save( $store, $key, $written, $settings );
 			return true;
 		} finally {
 			Digitalisimo_Backups_Sodium::memzero( $key );
@@ -151,12 +211,12 @@ final class Digitalisimo_Backups_Credentials {
 	 * Guarda el almacén y comprueba, leyéndolo otra vez, que cada valor escrito se abre igual. Si no, vuelve a dejar el
 	 * almacén como estaba y avisa: quien llama no retira nada de los ajustes, así que ninguna credencial se pierde.
 	 */
-	private static function save( array $store, $key, array $written ) {
+	private static function save( array $store, $key, array $written, array $settings ) {
 		$before = Digitalisimo_Backups_Keys::get( self::OPTION, null );
 		Digitalisimo_Backups_Keys::put( self::OPTION, array( 'v' => self::VERSION, 'items' => $store['items'] ) );
 		$check = self::raw()['items'];
 		foreach ( $written as $field => $value ) {
-			$opened = self::open( $key, $field, $check[ $field ] ?? null );
+			$opened = self::open( $key, $field, $check[ $field ] ?? null, $settings );
 			if ( false !== $opened && hash_equals( $value, $opened ) ) continue;
 			Digitalisimo_Backups_Keys::put( self::OPTION, null === $before ? array( 'v' => self::VERSION, 'items' => array() ) : $before );
 			throw new Exception( 'No se pudo comprobar una credencial cifrada; se conserva como estaba.' );
@@ -165,9 +225,10 @@ final class Digitalisimo_Backups_Credentials {
 
 	/**
 	 * Tras restaurar: los elementos cifrados con la clave de otro servidor ($origin, sacada del wp-config.php del respaldo)
-	 * se vuelven a cifrar con la de este. Devuelve cuántos. Lo que ninguna clave abre se queda como está (pide escribirse).
+	 * se vuelven a cifrar con la de este, para la conexión de los ajustes restaurados ($settings). Devuelve cuántos. Lo
+	 * que ninguna clave abre se queda como está (pide escribirse).
 	 */
-	public static function reseal( array $origin ) {
+	public static function reseal( array $origin, array $settings ) {
 		if ( ! $origin ) return 0;
 		$key = self::key();
 		if ( false === $key ) return 0;
@@ -178,14 +239,14 @@ final class Digitalisimo_Backups_Credentials {
 			foreach ( $store['items'] as $field => $item ) {
 				if ( hash_equals( $current, $item['kw'] ) ) continue;
 				foreach ( $origin as $old ) {
-					$value = is_string( $old ) ? self::open( $old, $field, $item ) : false;
+					$value = is_string( $old ) ? self::open( $old, $field, $item, $settings ) : false;
 					if ( false === $value ) continue;
-					$store['items'][ $field ] = self::seal( $key, $field, $value );
+					$store['items'][ $field ] = self::seal( $key, $field, $value, $settings );
 					$written[ $field ] = $value;
 					break;
 				}
 			}
-			if ( $written ) self::save( $store, $key, $written );
+			if ( $written ) self::save( $store, $key, $written, $settings );
 			return count( $written );
 		} finally {
 			Digitalisimo_Backups_Sodium::memzero( $key );
@@ -227,29 +288,45 @@ final class Digitalisimo_Backups_Credentials {
 		} catch ( Throwable $e ) {
 			return $found;
 		}
-		$skip = array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT );
-		$tokens = array_values( array_filter( $tokens, function( $token ) use ( $skip ) { return ! is_array( $token ) || ! in_array( $token[0], $skip, true ); } ) );
+		// Se recorren los tokens sin copiarlos (saltando espacios y comentarios al vuelo): la memoria es la del tokenizador.
 		$names = array( T_STRING );
 		if ( defined( 'T_NAME_FULLY_QUALIFIED' ) ) $names[] = constant( 'T_NAME_FULLY_QUALIFIED' );
 		$member = array( T_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_NEW, T_CONST );
 		if ( defined( 'T_NULLSAFE_OBJECT_OPERATOR' ) ) $member[] = constant( 'T_NULLSAFE_OBJECT_OPERATOR' );
 		$count = count( $tokens );
-		for ( $i = 0; $i + 5 < $count; $i++ ) {
+		$before = null;
+		for ( $i = 0; $i < $count; $i++ ) {
 			$token = $tokens[ $i ];
+			if ( self::insignificant( $token ) ) continue;
+			$previous = $before;
+			$before = $token;
 			if ( ! is_array( $token ) || ! in_array( $token[0], $names, true ) || 'define' !== strtolower( ltrim( $token[1], '\\' ) ) ) continue;
-			$before = $tokens[ $i - 1 ] ?? null;
-			if ( is_array( $before ) && in_array( $before[0], $member, true ) ) continue;
-			list( , $open, $name, $comma, $value, $close ) = array_slice( $tokens, $i, 6 );
+			if ( is_array( $previous ) && in_array( $previous[0], $member, true ) ) continue;
+			$j = $i;
+			$open = self::next_token( $tokens, $count, $j );
+			$name = self::next_token( $tokens, $count, $j );
+			$comma = self::next_token( $tokens, $count, $j );
+			$value = self::next_token( $tokens, $count, $j );
+			$close = self::next_token( $tokens, $count, $j );
 			if ( '(' !== $open || ',' !== $comma || ! is_array( $name ) || T_CONSTANT_ENCAPSED_STRING !== $name[0] || ! is_array( $value ) || T_CONSTANT_ENCAPSED_STRING !== $value[0] ) continue;
 			// Sólo el literal entero: define( 'X', 'v' ) o el antiguo define( 'X', 'v', true|false ).
-			$flag = $tokens[ $i + 6 ] ?? null;
-			if ( ')' !== $close && ! ( ',' === $close && is_array( $flag ) && in_array( strtolower( $flag[1] ), array( 'true', 'false' ), true ) && ')' === ( $tokens[ $i + 7 ] ?? null ) ) ) continue;
+			if ( ',' === $close ) {
+				$flag = self::next_token( $tokens, $count, $j );
+				$close = is_array( $flag ) && in_array( strtolower( $flag[1] ), array( 'true', 'false' ), true ) ? self::next_token( $tokens, $count, $j ) : null;
+			}
+			if ( ')' !== $close ) continue;
 			$constant = self::literal( $name[1] );
 			if ( null === $constant || ! isset( $found[ $constant ] ) ) continue;
 			$literal = self::literal( $value[1] );
 			if ( null !== $literal && ! in_array( $literal, $found[ $constant ], true ) ) $found[ $constant ][] = $literal;
 		}
 		return $found;
+	}
+	private static function insignificant( $token ) { return is_array( $token ) && in_array( $token[0], array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ); }
+	/** El siguiente token significativo después de $j (avanza $j); null al final. Los tokens no se copian. */
+	private static function next_token( array $tokens, $count, &$j ) {
+		for ( $j++; $j < $count; $j++ ) if ( ! self::insignificant( $tokens[ $j ] ) ) return $tokens[ $j ];
+		return null;
 	}
 	/** Valor de un literal de cadena de PHP con sus reglas de escape; null si no se puede leer con seguridad. */
 	private static function literal( $token ) {
@@ -282,12 +359,13 @@ final class Digitalisimo_Backups_Credentials {
 		if ( ! $origin ) return array();
 		$key = self::key();
 		if ( false === $key ) return array();
+		// Una lista y no un mapa por huella: una huella toda decimal sería una clave entera de PHP y de JSON.
 		$out = array( 'v' => 1, 'kw' => self::key_id( $key ), 'keys' => array() );
 		foreach ( $origin as $old ) {
 			if ( ! is_string( $old ) || 32 !== strlen( $old ) ) continue;
 			$id = self::key_id( $old );
 			$nonce = random_bytes( 24 );
-			$out['keys'][ $id ] = Digitalisimo_Backups_Keys::b64url_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( $old, 'DGBK1/credentials-journal|' . $id, $nonce, $key ) );
+			$out['keys'][] = array( 'id' => $id, 'box' => Digitalisimo_Backups_Keys::b64url_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( $old, 'DGBK1/credentials-journal|' . $id, $nonce, $key ) ) );
 		}
 		Digitalisimo_Backups_Sodium::memzero( $key );
 		return $out['keys'] ? $out : array();
@@ -298,9 +376,10 @@ final class Digitalisimo_Backups_Credentials {
 		if ( false === $key ) return array();
 		$keys = array();
 		if ( hash_equals( self::key_id( $key ), (string) ( $journal['kw'] ?? '' ) ) ) {
-			foreach ( array_slice( $journal['keys'], 0, self::CONFIG_CANDIDATES * self::CONFIG_CANDIDATES, true ) as $id => $box ) {
-				$raw = Digitalisimo_Backups_Keys::b64url_decode( $box );
-				if ( ! is_string( $id ) || false === $raw || 24 + 16 + 32 !== strlen( $raw ) ) continue;
+			foreach ( array_slice( array_values( $journal['keys'] ), 0, self::CONFIG_CANDIDATES * self::CONFIG_CANDIDATES ) as $entry ) {
+				$id = is_array( $entry ) ? ( $entry['id'] ?? null ) : null;
+				$raw = is_array( $entry ) ? Digitalisimo_Backups_Keys::b64url_decode( $entry['box'] ?? null ) : false;
+				if ( ! is_string( $id ) || ! preg_match( '/^[0-9a-f]{16}$/D', $id ) || false === $raw || 24 + 16 + 32 !== strlen( $raw ) ) continue;
 				try { $old = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, 24 ), 'DGBK1/credentials-journal|' . $id, substr( $raw, 0, 24 ), $key ); }
 				catch ( Throwable $e ) { $old = false; }
 				if ( is_string( $old ) && 32 === strlen( $old ) && hash_equals( $id, self::key_id( $old ) ) ) $keys[ $id ] = $old;
@@ -327,24 +406,28 @@ final class Digitalisimo_Backups_Credentials {
 		$actions = array();
 		if ( in_array( 'sftp', $destinations, true ) ) $actions[] = 'vuelve a escribir la contraseña de SFTP';
 		foreach ( array( 'google' => 'Google Drive', 'onedrive' => 'OneDrive' ) as $destination => $label ) if ( in_array( $destination, $destinations, true ) ) $actions[] = 'vuelve a escribir el Client secret de ' . $label . ' y conéctalo de nuevo';
-		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php: cambiaron, o el sitio se restauró desde otro servidor sin poder leer las suyas. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
+		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php y los datos de su conexión: las claves cambiaron, el sitio se restauró desde otro servidor sin poder leer las suyas, o el host, el usuario, la huella o el Client ID cambiaron fuera de este formulario. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
 	}
-	/** Mensaje para un destino cuyas credenciales no abren ('' si no es el caso). $plain: campos que siguen en claro. */
-	public static function destination_problem( $destination, array $plain = array() ) {
+	/**
+	 * Mensaje para un destino cuyas credenciales no abren ('' si no es el caso). $plain: campos que siguen en claro;
+	 * $settings: los ajustes guardados (los datos de cada conexión).
+	 */
+	public static function destination_problem( $destination, array $plain, array $settings ) {
 		$fields = self::DESTINATIONS[ $destination ] ?? array();
 		if ( ! $fields ) return '';
-		$locked = array_diff( array_intersect( self::locked(), $fields ), $plain );
+		$locked = array_diff( array_intersect( self::locked( $settings ), $fields ), $plain );
 		return $locked ? self::reentry_text( array( $destination ) ) : '';
 	}
 	/**
 	 * Estado público, sin ningún valor: 'none' (no hay credenciales), 'encrypted', 'unprotected' (en claro porque
 	 * wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias) o 'needs_reentry' (alguna no se abre). $plain son los
-	 * campos que siguen en claro en los ajustes. `notice` explica qué hacer ('' si no hay nada que hacer).
+	 * campos que siguen en claro en los ajustes y $settings los ajustes guardados (los datos de cada conexión). `notice`
+	 * explica qué hacer ('' si no hay nada que hacer).
 	 */
-	public static function status( array $plain ) {
+	public static function status( array $plain, array $settings ) {
 		$plain = array_values( array_intersect( self::FIELDS, $plain ) );
 		$can = self::can_encrypt();
-		$locked = array_values( array_diff( self::locked(), $plain ) );
+		$locked = array_values( array_diff( self::locked( $settings ), $plain ) );
 		$stored = array_keys( self::raw()['items'] );
 		$notices = array();
 		if ( $locked ) {

@@ -220,7 +220,8 @@ try {
 		$check( $auth_count && $secure_count && array( $origin_auth ) === $salts['AUTH_KEY'] && array( $origin_secure ) === $salts['SECURE_AUTH_KEY'], 'S9 el wp-config.php de «otro servidor» define sus salts con literales (' . $auth_count . ' y ' . $secure_count . ')' );
 		$origin = $C::key_from( $origin_auth, $origin_secure );
 		$items = array();
-		foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $origin, $field, $value );
+		$connection = $call( 'settings' );
+		foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $origin, $field, $value, $connection );
 		Digitalisimo_Backups_Keys::put( $C::OPTION, array( 'v' => 1, 'items' => $items ) );
 		file_put_contents( $config_path, $origin_config );
 		try { $foreign = $backup( $context ); } finally { file_put_contents( $config_path, $config ); }

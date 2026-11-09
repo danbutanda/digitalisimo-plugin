@@ -49,7 +49,7 @@ $check( $secrets === $secret_values( $settings() ), 'Un secreto no se guardó ex
 $check( array( $secrets['google_client_secret'], $secrets['google_refresh_token'] ) === $google_sent(), 'Google no recibió los secretos exactos.' );
 $store = $K::get( $C::OPTION, array() );
 $key = $C::key();
-foreach ( $secrets as $field => $value ) $check( $value === $C::open( $key, $field, $store['items'][ $field ] ?? null ), 'El almacén no guarda ' . $field . ' exacto.' );
+foreach ( $secrets as $field => $value ) $check( $value === $C::open( $key, $field, $store['items'][ $field ] ?? null, $settings() ), 'El almacén no guarda ' . $field . ' exacto.' );
 $check( ! array_intersect_key( (array) get_option( $B::OPTION ), $secrets ), 'Un secreto quedó en los ajustes.' );
 // Los campos que no son secretos conservan su saneado.
 $s = $settings();
