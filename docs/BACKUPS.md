@@ -396,7 +396,7 @@ es un trabajo del mismo motor que los respaldos (`Digitalisimo_Backups_Restore_J
 | Copia previa | Un respaldo completo con las fases del respaldo (sus tramos, cuando T2 los tenga), bloqueado en el historial. La vuelta a la copia previa no hace otra. | Sigue desde la fase del respaldo en que se quedó. |
 | Base de datos | Desde aquí, mantenimiento. El SQL va a tablas temporales `<prefijo>dgbkr_<marca>_<n>`; el sitio sigue sirviéndose de las suyas. Al terminar se fijan en ellas la red (`site`, `sitemeta`, `blogs`) y `home`/`siteurl` de cada sitio. | Repite sólo la tabla en curso desde su `DROP TABLE IF EXISTS` (lo ejecutado tras el último punto de control no consta). |
 | Archivos | Recorre las raíces gestionadas (lo ajeno, al informe), compara cada archivo con el sitio (tamaño y SHA-256) y prepara lo que cambia en un área de trabajo: una carpeta de código entera si algo suyo cambia, un medio o un archivo suelto, solo. | Sigue desde la entrada en que se quedó; el recorrido se repite (sólo mira). |
-| Cambio del sitio | Las tablas pasan de una vez (MySQL: un solo `RENAME TABLE`, atómico; el SQLite de WordPress, que no lo tiene: una transacción); se reponen historial, llavero, seguridad y credenciales; se mueven los archivos (cada carpeta de código con dos `rename()`), se retira lo ajeno, este plugin y, al final y una sola vez, los `.htaccess`. Desde aquí el mantenimiento no caduca. | Sigue; si murió justo tras el `RENAME`, el diario del almacén repone historial, llavero y credenciales al tomar el bloqueo. |
+| Cambio del sitio | Las tablas pasan de una vez (MySQL: un solo `RENAME TABLE`, atómico; el SQLite de WordPress, que no lo tiene: una transacción); se reponen historial, llavero, seguridad y credenciales; se mueven los archivos (cada carpeta de código con dos `rename()`: la vieja se aparta junto a la viva como `.digitalisimo-old-<marca>-<nombre>`, en su mismo disco, y si la preparada está en otro disco se copia junto al destino y se renombra allí), se retira lo ajeno, este plugin y, al final y una sola vez, los `.htaccess`. Desde aquí el mantenimiento no caduca. | Sigue; si murió justo tras el `RENAME`, el diario del almacén repone historial, llavero y credenciales al tomar el bloqueo. |
 | Direcciones y cachés | `finish()` de la reubicación (E1): red, direcciones, cachés y comprobación final. | Se repite (idempotente). |
 | Limpieza | Fin del mantenimiento, informe y retirada de tablas y carpetas viejas. Nunca hace fallar la restauración. | Se repite. |
 
@@ -464,7 +464,9 @@ caché del servidor web (LSCache).
   pone MySQL.
 - La copia previa: su empaquetado y su verificación son un paso largo cada uno hasta T2; sin T2, un sitio muy grande en
   un hosting que corta a los 30 s puede no terminarla (el sitio no cambia).
-- Un archivo muy grande se prepara entero en un tramo; mover entre discos distintos copia y comprueba (más lento).
+- Un archivo muy grande se prepara entero en un tramo; mover entre discos distintos copia y comprueba (más lento). Si el
+  proceso muere para siempre a mitad del cambio, quedan carpetas apartadas `.digitalisimo-old-*` junto a las vivas (ocultas:
+  WordPress no las carga); la vuelta a la copia previa no las usa y hay que borrarlas a mano.
 - Una muerte justo después del `RENAME` deja el llavero sin su envoltura hasta volver a escribir la frase (el diario, como
   en 1.0.59); el resto se repone.
 - Si muere en el cambio y lo restaurado no deja cargar WordPress (un plugin a medio cambiar que da un error fatal), la
