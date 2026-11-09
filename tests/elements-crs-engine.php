@@ -132,8 +132,9 @@ namespace {
 	// 2. Recursos: tamaños y contenido.
 	$css = (string) file_get_contents( $module . 'assets/css/carousel.css' );
 	$js  = (string) file_get_contents( $module . 'assets/js/carousel.js' );
-	// Topes de la corrección de fidelidad (bucle real, arrastre, pausa oculta, puntos de PRO): la hoja la comparten los seis
-	// carruseles (4,5 KB, excepción declarada en docs/pro/c1.md §1.3) y el script cumple el criterio 7 (8 KB).
+	// Topes de la corrección de fidelidad (bucle real, arrastre, pausa oculta, puntos con el paso de PRO y 24 px como
+	// mínimo): la hoja la comparten los seis carruseles (4,5 KB, excepción declarada en docs/pro/c1.md §1.3) y el script
+	// cumple el criterio 7 (8 KB).
 	check_ce( strlen( $css ) <= 4608 && strlen( $js ) <= 8192, 'carousel.css ≤ 4,5 KB (' . strlen( $css ) . ' B) y carousel.js ≤ 8 KB (' . strlen( $js ) . ' B).' );
 	// La única mención de Swiper que se admite es el nombre de su clase `swiper-no-swiping`, que PRO respetaba (`noSwiping`
 	// activo por defecto) y el motor también: sin arrastre con el ratón, sin clic que mueva y sin deslizar con el dedo.
@@ -143,9 +144,11 @@ namespace {
 	check_ce( false !== strpos( $js, "'--ready'" ) && false !== strpos( $js, 'frontend/element_ready/global' ) && false !== strpos( $js, "'go'" ) && false !== strpos( $js, "'change'" ) && false !== strpos( $js, 'digiCrs' ) && false !== strpos( $js, 'inert' ), 'El script marca --ready, se reinicia en el editor y expone digiCrs, digi-crs-go y digi-crs-change.' );
 	check_ce( false !== strpos( $css, 'prefers-reduced-motion' ) && false !== strpos( $css, 'outline:2px solid;outline-offset:2px' ) && false !== strpos( $css, 'min-width:24px;min-height:24px' ) && false !== strpos( $css, 'height:max(24px,var(--_d) + 7px)' ), 'Movimiento reducido, foco visible (2 px a 2 px), flechas de 24 × 24 px como mínimo y puntos de 24 px de alto.' );
 	// Fidelidad con PRO (docs/pro/c1.md, «Diferencias declaradas»): el paso de los puntos es el de Swiper (tamaño + 2 ×
-	// separación) con el área táctil sólo en vertical; la pausa, oculta a la vista salvo con el foco del teclado y a salvo
-	// del :hover del tema; sin bucle y todo a la vista, las flechas quedan atenuadas; cursor de agarre.
-	check_ce( false !== strpos( $css, 'width:calc(var(--_d) + 2*var(--digi-crs-dot-gap,6px))' ) && false === strpos( $css, 'max(24px,var(--_d) + 2*' ) && false !== strpos( $css, '.digi-crs__dot:after{content:"";position:absolute;inset:calc(50% - 12px) 0}' ), 'Puntos con el paso de PRO (tamaño + 2 × separación) y área táctil vertical de 24 px.' );
+	// separación) con un mínimo de 24 px (decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px; con
+	// los valores por defecto, 24 px donde Swiper deja 18) y el `::after` lleva el área táctil a 24 px en vertical; la
+	// pausa, oculta a la vista salvo con el foco del teclado y a salvo del :hover del tema; sin bucle y todo a la vista, las
+	// flechas quedan atenuadas; cursor de agarre.
+	check_ce( false !== strpos( $css, 'button.digi-crs__dot{' ) && false !== strpos( $css, 'width:max(24px,var(--_d) + 2*var(--digi-crs-dot-gap,6px))' ) && false === strpos( $css, 'width:calc(var(--_d) + 2*' ) && false !== strpos( $css, '.digi-crs__dot:after{content:"";position:absolute;inset:calc(50% - 12px) 0}' ), 'Puntos con el paso de Swiper (tamaño + 2 × separación) y 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8), con 24 px de área táctil en vertical.' );
 	check_ce( (bool) preg_match( '/\.digi-crs>button\.digi-crs__pause\{[^}]*clip-path:inset\(50%\)[^}]*\}\.digi-crs>button:focus-visible,\.digi-crs__dot:focus-visible\{[^}]*clip-path:none\}/', $css ), 'Pausa recortada a la vista (0,2,1: gana al :hover del tema) y visible con :focus-visible, que va después.' );
 	check_ce( false !== strpos( $css, '.digi-crs--locked>:not(.digi-crs__track,.digi-crs__arrow){display:none}' ) && false !== strpos( $css, '[data-digi-grab]:not(.digi-crs--locked){cursor:grab}' ) && false !== strpos( $css, '[data-digi-grab].digi-crs--drag{cursor:grabbing}' ), 'Bloqueado: flechas atenuadas a la vista; cursor de agarre como grabCursor.' );
 	// La única diapositiva del carrusel anidado y del de bucle (a todo el ancho, como PRO sin Swiper) gana a la regla del
