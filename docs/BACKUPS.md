@@ -101,15 +101,17 @@ llavero quedó en `sitemeta` y un subsitio no pudo cambiar la seguridad; con `DI
 quedó en claro y firmada con la constante. Con el código unido se repitieron además, con procesos de php-wasm (PHP 8.2),
 la muerte real con `SIGKILL` y el error fatal de `backups-job-kill.php`.
 
-Ensayo de las credenciales de los destinos (@NEXT_BACKUPS@, S9 de `tests/playground/backups-security.sh`: 380 s junto con
-S1, S3, S4, S7 y S8) en WordPress 7.1.4 sobre Playground (SQLite, PHP 8.5 con el sodium_compat de WordPress), por los
+Ensayo de las credenciales de los destinos (@NEXT_BACKUPS@, S9 de `tests/playground/backups-security.sh`: 471 s junto con
+S1, S3, S4, S6, S7 y S8) en WordPress 7.1.4 sobre Playground (SQLite, PHP 8.5 con el sodium_compat de WordPress), por los
 handlers `admin-post` reales. En un sitio individual y en una red (almacén en `sitemeta`): las cinco credenciales
 guardadas por «Servidores» no aparecen en claro en ninguna fila de `options` ni de `sitemeta`, y `status` las da por
 cifradas con los tres destinos conectados; el `database.sql` de un respaldo de 36 MB lleva el almacén cifrado y ningún
 secreto; tras cambiar la contraseña, restaurar devuelve las del respaldo, cifradas con las salts del servidor, y Google
 renueva el acceso con ellas (la petición se intercepta; Playground no tiene SSH2); y un respaldo de «otro servidor»
 (su `wp-config.php` con otras salts y su almacén cifrado con ellas) se restaura con las credenciales vueltas a cifrar
-con las salts de éste, sin tocar su `wp-config.php`. S8 identifica ahora el respaldo de la clase anterior por lo que
+con las salts de éste, sin tocar su `wp-config.php`. Los ajustes quedan con autoload; reescritos en claro y sin autoload
+(como lo haría 1.0.60 tras volver desde `rollback/`), la siguiente carga del escritorio los cifra y les devuelve el
+autoload, también con `wp_set_option_autoload()` cuando no queda nada en claro. S8 identifica ahora el respaldo de la clase anterior por lo que
 sólo escribe el motor de trabajos (`job_id`, `packer`): esa clase escribe en `plugin_version` la versión del plugin
 cargado, así que compararla con 1.0.58 fallaba desde que el repositorio pasó de esa versión.
 
