@@ -520,9 +520,14 @@ rr_case( 'P13 el aviso por correo no sale de una petición con WordPress mínimo
 	$GLOBALS['rr_mails'] = array();
 	$GLOBALS['rr_events'] = array();
 	$GLOBALS['bk_options'][ Digitalisimo_Backups_Notify::OPTION ] = array( 'failure' => true, 'success' => true, 'email' => 'avisos@example.test' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
 	rr_restore( $backup );
-	rr_finish();
-	Digitalisimo_Backups_Jobs::tick();
+	// Cada tick lo lanza WP-Cron, que ya retiró su evento: lo que quede programado al final lo programó el último tick.
+	for ( $i = 0; $i < 3000 && Digitalisimo_Backups_Jobs::active(); $i++ ) {
+		$GLOBALS['rr_events'] = array();
+		Digitalisimo_Backups_Jobs::tick();
+	}
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] );
 	$list = rr_restores();
 	$job = end( $list );
 	unset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Notify::OPTION ] );
