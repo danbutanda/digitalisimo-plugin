@@ -5,7 +5,9 @@
 //   sobran ocultos, aria-current, inert fuera de la ventana, flechas aria-disabled en los extremos sin bucle), flechas,
 //   puntos y teclado (flechas, Inicio y Fin; foco en el punto), API digiCrs y eventos digi-crs-go / digi-crs-change;
 //   deslizamiento del usuario; flechas de 24 × 24 px como mínimo y en su sitio (10 px, centradas en la pista); puntos con
-//   el paso de PRO (18 px) y 24 px de área táctil en vertical;
+//   el paso de PRO (tamaño + 2 × separación) y 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8:
+//   24 px donde Swiper deja 18 con los valores por defecto), un objetivo de 24 × 24 px sin solaparse y, con puntos o
+//   separaciones mayores, el paso de PRO sin cambios;
 // - fundido con fracción y reproducción automática (avanza; región viva off; pausa con el puntero encima, con el foco
 //   dentro, con el botón Pausar/Reanudar —oculto a la vista salvo con el foco del teclado— y fuera de la pantalla),
 //   detención tras una interacción, movimiento reducido;
@@ -16,7 +18,7 @@
 //   todo a la vista sin bloqueo, miniaturas centradas con la última a la izquierda, copias repetidas con pocas
 //   diapositivas, manejadores del núcleo sobre las copias; arrastre con el ratón (cursor de agarre, gesto rápido, clic
 //   anulado tras arrastrar, sin seleccionar texto) y clic en una diapositiva; puntos del carrusel anidado pegados al borde
-//   y visibles sin acotar al número de diapositivas; bucle con paso 2 y un número impar de diapositivas (w25): de página en
+//   (con el mismo objetivo de 24 × 24 px) y visibles sin acotar al número de diapositivas; bucle con paso 2 y un número impar de diapositivas (w25): de página en
 //   página, con la actual, el punto y lo que se ve de acuerdo tras flechas, arrastre, clic y API; `swiper-no-swiping` en un
 //   elemento o en el widget (sin arrastre con el ratón, sin clic que mueva y, con el dedo, sin deslizar la pista).
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
@@ -124,19 +126,28 @@ try {
       const r = document.querySelector('[data-id="w1"] .digi-crs'), t = r.querySelector('.digi-crs__track').getBoundingClientRect().toJSON(), b = sel => r.querySelector(sel).getBoundingClientRect().toJSON(), icon = b('.digi-crs__prev svg');
       return { prev: b('.digi-crs__prev'), dot: b('.digi-crs__dot'), root: r.getBoundingClientRect().toJSON(), track: t, icon, pag: b('.digi-crs__pagination'), color: getComputedStyle(r.querySelector('.digi-crs__prev')).color, bg: getComputedStyle(r.querySelector('.digi-crs__prev')).backgroundColor };
     });
-    ok(geo.prev.width >= 24 && geo.prev.height >= 24 && geo.dot.height >= 24, `${width}: flechas de 24 × 24 px como mínimo y puntos de 24 px de alto: ${JSON.stringify([geo.prev, geo.dot])}`);
+    ok(geo.prev.width >= 24 && geo.prev.height >= 24 && geo.dot.width >= 24 && geo.dot.height >= 24, `${width}: flechas y puntos de 24 × 24 px como mínimo: ${JSON.stringify([geo.prev, geo.dot])}`);
     ok(Math.abs(geo.icon.left - geo.root.left - 10) <= 1 && Math.abs(geo.icon.top + geo.icon.height / 2 - (geo.track.top + geo.track.height / 2)) <= 1.5 && Math.abs(geo.icon.width - 25) <= 1, `${width}: icono de 25 px a 10 px del borde y centrado en la pista (paginación fuera): ${JSON.stringify([geo.icon, geo.track])}`);
     ok(Math.abs(geo.root.bottom - geo.track.bottom - 30) <= 1 && geo.pag.bottom <= geo.root.bottom - 4 && geo.pag.top >= geo.track.bottom - 1, `${width}: paginación fuera: 30 px bajo la pista y los puntos a 5 px del borde.`);
     ok(geo.color === 'rgba(237, 237, 237, 0.9)' && geo.bg === 'rgba(0, 0, 0, 0)', `${width}: flechas del color de PRO sin el fondo del tema: ${geo.color} ${geo.bg}`);
-    const dg = await page.evaluate(() => {
-      const r = document.querySelector('[data-id="w1"] .digi-crs'), R = r.getBoundingClientRect(), el = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')];
-      const ds = el.map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height, l: b.left, r: b.right }; });
-      // Área táctil: el botón de 24 px de alto (el punto, a 7 px de su pie): 9 px por debajo y 13 px por encima del centro
-      // del punto responde ese punto.
-      const hit = el.every((d, k) => [-13, 9].every(dy => document.elementFromPoint(ds[k].x, ds[k].y + dy) === d));
-      return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h, overlap: ds[1].l < ds[0].r - 0.5, hit };
-    });
-    ok(Math.abs(dg.gap - 18) < 0.6 && Math.abs(dg.w - 18) < 0.6 && !dg.overlap && dg.hit && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.h >= 24, `${width}: puntos con el paso de PRO (6 + 2 × 6 = 18 px entre centros, sin solaparse), 24 px de área táctil en vertical, centro a 15 px del borde inferior como PRO y centrados: ${JSON.stringify(dg)}`);
+    const dots = (vars = '') => page.evaluate(vars => {
+      const w = document.querySelector('[data-id="w1"]');
+      w.style.cssText = w.style.cssText.replace(/;?--digi-crs-dot-(gap|size):[^;]*/g, '') + vars;
+      const r = w.querySelector('.digi-crs'), R = r.getBoundingClientRect(), el = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')];
+      const ds = el.map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height, l: b.left, r: b.right, t: b.top + b.height / 2 }; });
+      // Objetivo de 24 × 24 px (WCAG 2.5.8): los píxeles de las cuatro esquinas del cuadrado de 24 px centrado en el botón
+      // (el punto, a 7 px de su pie) responden ese punto, sin solaparse (Chrome redondea las coordenadas al píxel).
+      const hit = el.every((d, k) => [[-12, -12], [11, -12], [-12, 11], [11, 11], [0, 0]].every(([dx, dy]) => document.elementFromPoint(ds[k].x + dx, ds[k].t + dy) === d));
+      return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h, overlap: ds.some((d, k) => k && d.l < ds[k - 1].r - 0.5), hit };
+    }, vars);
+    let dg = await dots();
+    ok(Math.abs(dg.gap - 24) < 0.6 && Math.abs(dg.w - 24) < 0.6 && !dg.overlap && dg.hit && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.h >= 24, `${width}: puntos a 24 px entre centros (PRO, 6 + 2 × 6 = 18 px; decisión del propietario del 2026-11-08, WCAG 2.5.8), objetivo de 24 × 24 px sin solaparse, centro a 15 px del borde inferior como PRO y centrados: ${JSON.stringify(dg)}`);
+    // Sin separación, el paso sigue siendo de 24 px; con un punto o una separación que ya dan 24 px o más, el de PRO.
+    for (const [vars, step] of [[';--digi-crs-dot-gap:0px', 24], [';--digi-crs-dot-gap:9px', 24], [';--digi-crs-dot-gap:10px', 26], [';--digi-crs-dot-size:14px', 26], [';--digi-crs-dot-size:20px;--digi-crs-dot-gap:2px', 24]]) {
+      dg = await dots(vars);
+      ok(Math.abs(dg.gap - step) < 0.6 && Math.abs(dg.w - step) < 0.6 && !dg.overlap && dg.hit && Math.abs(dg.center) < 1, `${width}: puntos con${vars.replace(/;--digi-crs-dot-/g, ' ')}: ${step} px entre centros (máximo de 24 px y el paso de PRO), objetivo de 24 × 24 px: ${JSON.stringify(dg)}`);
+    }
+    await dots();
 
     await click(page, 'w1', '.digi-crs__next');
     await settle(page);
@@ -429,10 +440,10 @@ try {
     await page.$eval('[data-id="w17"] .digi-crs__pause', b => b.click());
     // Carrusel anidado (w20): puntos pegados al borde inferior de la raíz, con la paginación de la altura del punto; arriba
     // con su posición personalizada.
-    const nd = () => page.evaluate(() => { const r = document.querySelector('[data-id="w20"] .digi-crs'), R = r.getBoundingClientRect(), p = r.querySelector('.digi-crs__pagination').getBoundingClientRect(), d = r.querySelector('.digi-crs__dot'), b = d.getBoundingClientRect(), y = b.top + b.height / 2; return { ph: p.height, h: b.height, bottom: R.bottom - b.bottom, top: b.top - R.top, hit: [-10, 10].every(dy => document.elementFromPoint(b.left + b.width / 2, y + dy) === d), w: b.width }; });
+    const nd = () => page.evaluate(() => { const r = document.querySelector('[data-id="w20"] .digi-crs'), R = r.getBoundingClientRect(), p = r.querySelector('.digi-crs__pagination').getBoundingClientRect(), [d, e] = r.querySelectorAll('.digi-crs__dot'), b = d.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2; return { ph: p.height, h: b.height, bottom: R.bottom - b.bottom, top: b.top - R.top, hit: [[-12, -12], [11, -12], [-12, 11], [11, 11]].every(([dx, dy]) => document.elementFromPoint(x + dx, y + dy) === d), w: b.width, gap: e.getBoundingClientRect().left - b.left }; });
     await page.$eval('[data-id="w20"]', e => e.scrollIntoView({ block: 'center' }));
     let n1 = await nd();
-    ok(Math.abs(n1.ph - 6) < 0.5 && Math.abs(n1.h - 6) < 0.5 && Math.abs(n1.bottom) < 0.5 && n1.hit && Math.abs(n1.w - 18) < 0.5, `${width}: carrusel anidado: el punto mide 6 px y queda pegado al borde inferior, con 24 px de área táctil: ${JSON.stringify(n1)}`);
+    ok(Math.abs(n1.ph - 6) < 0.5 && Math.abs(n1.h - 6) < 0.5 && Math.abs(n1.bottom) < 0.5 && n1.hit && Math.abs(n1.w - 24) < 0.5 && Math.abs(n1.gap - 24) < 0.5, `${width}: carrusel anidado: el punto mide 6 px y queda pegado al borde inferior, a 24 px del siguiente, con un objetivo de 24 × 24 px: ${JSON.stringify(n1)}`);
     await page.$eval('[data-id="w20"]', e => e.style.cssText += ';--digi-crs-pag-y:0%;--digi-crs-pag-t:-50% 0%');
     n1 = await nd();
     ok(Math.abs(n1.top) < 0.5, `${width}: carrusel anidado con los puntos arriba: el punto toca el borde superior: ${JSON.stringify(n1)}`);

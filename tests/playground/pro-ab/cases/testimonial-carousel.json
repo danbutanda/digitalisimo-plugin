@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B del Carrusel de testimonios (frente T de C1): A con `testimonial-carousel` de PRO, B con `digitalisimo-testimonial-carousel`. Imágenes de prueba con `{\"$image\": n}` (setup.php). Autoplay desactivado salvo en tc-autoplay."
+  "Casos A/B del Carrusel de testimonios (frente T de C1): A con `testimonial-carousel` de PRO, B con `digitalisimo-testimonial-carousel`. Imágenes de prueba con `{\"$image\": n}` (setup.php). Autoplay desactivado salvo en tc-autoplay.",
+  "Puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, textual «mándalo a 24px»; WCAG 2.2, criterio 2.5.8, objetivo táctil de 24 × 24 px; diferencia declarada 7 de docs/pro/c1.md, que prevalece sobre la regla de igualar a PRO para este punto): con los valores por defecto los puntos propios quedan a 24 px entre centros donde PRO los deja a 18, con el mismo tamaño, color, altura y centro de la fila. La firma no cambia (el ancho de los botones no entra en ella); los píxeles de la paginación sí: medidos el 2026-11-08 frente a la corrida anterior con el paso de Swiper, como mucho +0,12 puntos (tc-responsive a 375 px), dentro del umbral de cada caso. tc-stacked-left, que quedaba en el 1,93 % por el suavizado del texto, llega al 2,00 % a 375 px y declara un umbral propio del 2,1 % sólo en ese ancho."
  ],
  "declared": [
   {
@@ -42,7 +43,7 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px); en PRO el punto era el propio elemento. Mismo color, misma altura y mismo centro de la fila (píxeles).",
    "widget": "testimonial-carousel"
   },
   {
@@ -151,6 +152,14 @@
   },
   "tc-stacked-left": {
    "title": "Imagen apilada, alineada a la izquierda, con borde y radio de la imagen y colores del texto",
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.021,
+      "reason": "Sólo a 375 px, que queda en el borde del umbral general: el suavizado del texto de este caso (1,93 % con el paso de Swiper; lo mismo que declaran con su umbral los demás testimonios: Swiper componía la pista en una capa y Chrome pintaba el texto de A en escala de grises) más 0,07 puntos de la paginación, con los puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8): medido 2,00 % (2 833 de 141 804 píxeles). A 768 y 1 280 px, el umbral general."
+     }
+    }
+   },
    "widget": "testimonial-carousel",
    "settings": {
     "autoplay": "",

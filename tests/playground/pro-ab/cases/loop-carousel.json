@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Casos A/B del Carrusel de bucle (frente J de C5): A con `loop-carousel` de PRO, B con `digitalisimo-loop-carousel` sobre el motor digi-crs. Entradas y plantilla de bucle de prueba comunes; autoplay desactivado. Acción: mover el carrusel (flecha, punto y tecla). Las diferencias declaradas son las del motor (C1, carrusel anidado)."
+  "Casos A/B del Carrusel de bucle (frente J de C5): A con `loop-carousel` de PRO, B con `digitalisimo-loop-carousel` sobre el motor digi-crs. Entradas y plantilla de bucle de prueba comunes; autoplay desactivado. Acción: mover el carrusel (flecha, punto y tecla). Las diferencias declaradas son las del motor (C1, carrusel anidado).",
+  "Puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, textual «mándalo a 24px»; WCAG 2.2, criterio 2.5.8, objetivo táctil de 24 × 24 px; diferencia declarada 7 de docs/pro/c1.md, que prevalece sobre la regla de igualar a PRO para este punto): con los valores por defecto los puntos propios quedan a 24 px entre centros donde PRO los deja a 18, con el mismo tamaño, color, altura y centro de la fila. La firma no cambia (el ancho de los botones no entra en ella); los píxeles de la paginación sí: medidos el 2026-11-08 frente a la corrida anterior con el paso de Swiper, como mucho +0,15 puntos (lc-autoplay-default a 375 px), dentro del umbral de cada caso."
  ],
  "declared": [
   {
@@ -48,7 +49,7 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px); en PRO el punto era el propio elemento. Mismo color, misma altura y mismo centro de la fila (píxeles).",
    "widget": "loop-carousel"
   },
   {

@@ -1,7 +1,8 @@
 {
  "_doc": [
   "Casos A/B de las Diapositivas (frente S de C1): A con `slides` de PRO, B con `digitalisimo-slides`. Autoplay desactivado salvo en sl-autoplay. Las acciones esperan 2,2 s: la transición (0,5 s) más la animación del contenido (1,25 s) en los dos lados.",
-  "Imágenes de prueba con `{\"$image\": n}` (setup.php). Ken Burns va en un caso propio con umbral de píxeles mayor: es un zoom lineal de 20 s."
+  "Imágenes de prueba con `{\"$image\": n}` (setup.php). Ken Burns va en un caso propio con umbral de píxeles mayor: es un zoom lineal de 20 s.",
+  "Puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, textual «mándalo a 24px»; WCAG 2.2, criterio 2.5.8, objetivo táctil de 24 × 24 px; diferencia declarada 7 de docs/pro/c1.md, que prevalece sobre la regla de igualar a PRO para este punto): con los valores por defecto los puntos propios quedan a 24 px entre centros donde PRO los deja a 18, con el mismo tamaño, color, altura y centro de la fila. La firma no cambia (el ancho de los botones no entra en ella); los píxeles de la paginación sí: medidos el 2026-11-08 frente a la corrida anterior con el paso de Swiper, como mucho +0,05 puntos (sl-images a 375 px), dentro del umbral de cada caso."
  ],
  "declared": [
   {
@@ -31,7 +32,7 @@
   {
    "kind": "control",
    "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
-   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y el área táctil crecida sólo en vertical (24 px); en PRO el punto era el propio elemento. Mismo lugar y mismo color (píxeles).",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente con el punto dibujado en ::before, con el paso de PRO (tamaño + 2 × separación) y 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px); en PRO el punto era el propio elemento. Mismo color, misma altura y mismo centro de la fila (píxeles).",
    "widget": "slides"
   },
   {
@@ -579,12 +580,12 @@
     {
      "kind": "hover",
      "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
-     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px de área táctil en vertical); en PRO el punto era el propio elemento."
+     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px); en PRO el punto era el propio elemento."
     },
     {
      "kind": "foco",
      "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
-     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px de área táctil en vertical); en PRO el punto era el propio elemento."
+     "reason": "El primer control es un punto: en el motor, un <button> transparente con el punto dibujado en ::before (con el paso de PRO y 24 px como mínimo, decisión del propietario del 2026-11-08, WCAG 2.5.8: objetivo de 24 × 24 px); en PRO el punto era el propio elemento."
     }
    ]
   },
