@@ -660,7 +660,9 @@ tanto el destino pregunta con una espera de hasta 10 minutos (`digitalisimo_back
 agota porque el origen sigue en un paso largo o atiende otra petición, vuelve a preguntar en 30 s sin gastar intento
 (hasta 12 veces seguidas). El destino lo
 descarga en fragmentos de 4 MiB (`digitalisimo_backups_migration_chunk`) por pasos de 15 s, siempre desde lo que ya
-está en disco: un corte de red, un fragmento incompleto o una muerte del proceso reanudan donde quedó, y sólo los
+está en disco y con memoria constante en los dos lados (el origen envía el tramo leyendo el archivo de 64 KiB en 64 KiB;
+el destino lo recibe directo a un archivo y lo añade copiando entre archivos, así que ni un hosting de 64 MB guarda un
+fragmento entero en memoria): un corte de red, un fragmento incompleto o una muerte del proceso reanudan donde quedó, y sólo los
 fallos seguidos sin avanzar gastan intentos (5). La restauración es un paso largo, como «Restaurar»: en un hosting que
 corta las peticiones largas, usa WP-CLI o el cron del sistema; si muere a mitad, la migración falla diciendo que
 «Deshacer la migración» devuelve el estado anterior (no se repite sola sobre un sitio a medias).
