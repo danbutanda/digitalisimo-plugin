@@ -672,6 +672,21 @@ Límites declarados: un plugin de seguridad que cierre la API REST a visitantes 
 tras restaurar, pero si el proceso muere en mitad del SQL se pierde (las claves que generó quedan, en la práctica,
 revocadas); la sesión del navegador del destino termina al restaurar (los usuarios son los del origen).
 
+Ensayo en WordPress Playground (`tests/playground/backups-migrate.sh`): WordPress 7.1.4, PHP 8.5 sin libsodium nativo
+(el paquete se cifra y se descifra con el sodium_compat de WordPress) y SQLite, dos servidores por modo, A (origen) y B
+(destino), cada uno con su copia del plugin, su almacén privado y sus propias `AUTH_KEY` y `SECURE_AUTH_KEY`, por HTTP
+entre dos puertos con «Permitir HTTP». El driver hace lo que haría el administrador, por los handlers reales con su
+sesión y su nonce: en A genera la clave; en B la pega y hace un clic, con la pestaña abierta. Un sitio individual y una
+red por subdirectorios (con el subsitio «uno»), cada uno por separado y con un paquete de 32,6 MB: la migración tarda
+1012 y 907 s y deshacer, 18 y 17 s; B conserva su dirección con el contenido, los usuarios, la contraseña y los medios
+(byte a byte) de A, en la red con el subsitio «uno» en su dominio; la clave se muestra una sola vez y no queda en
+ninguna base de datos ni almacén; la copia previa queda bloqueada y marcada, y un clic devuelve a B su contenido, sus
+usuarios y su contraseña. El contenido de A (todas las tablas, cada opción y cada archivo de `wp-content`) no cambia ni
+tras migrar ni tras deshacer: sólo su registro de uso de la clave. 31 y 34 comprobaciones, todo correcto, con unos 1,5
+GB de memoria como máximo para los dos servidores. Con `ELEMENTS=single`, A lleva además DIGITALÍSIMO Elements y una
+página suya, y B la muestra con sus medios y su CSS regenerado con la dirección de B (paquete de 67 MB). Falta el ensayo
+entre dos servidores reales con MySQL y HTTPS.
+
 ## Almacenamiento local
 
 Desde 1.0.44 los ZIP se guardan en una carpeta privada fuera de la raíz pública del servidor y de WordPress. Al abrir la
