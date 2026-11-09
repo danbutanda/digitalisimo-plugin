@@ -60,7 +60,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | Rutas externas. `wp-config.php` en la carpeta superior o enlazado (archivos compartidos de un despliegue) se respalda; la restauración nunca lo escribe ni crea otro en `ABSPATH`. Fuera de `ABSPATH` o tras un enlace simbólico, wp-content, plugins, mu-plugins, medios (en una red, también los de cada sitio con `upload_path` propio, salvo con la constante `UPLOADS`, que hace a WordPress ignorarlo) o un directorio de temas se rechazan antes de exportar nada (al crear o ejecutar desde la pantalla, REST o WP-CLI, antes de encolar el trabajo), con la carpeta, quién la define y qué hacer; antes, plugins, medios y temas externos se omitían sin aviso. La restauración se detiene antes de tocar el sitio, un `ABSPATH` que es enlace de despliegue (`current → releases/N`) funciona y otro enlace dentro de `ABSPATH` hace fallar el trabajo al momento (error permanente, sin reintentos) con su destino, sin dejar ZIP. | 1.0.60 | `backups-layout.php`, `backups-external-config.php` |
 | **Credenciales de los destinos cifradas que viajan en el respaldo (S4).** La contraseña de SFTP y el Client secret y el Refresh token de Google Drive y OneDrive viven en `digitalisimo_backups_credentials` (de la red en Multisite), cada uno cifrado con AEAD XChaCha20-Poly1305 (libsodium o el sodium_compat de WordPress) con una clave que sale de `AUTH_KEY` y `SECURE_AUTH_KEY` con su propia separación de dominio, y un dato adicional que lo ata a su campo. `digitalisimo_backups_settings` ya no guarda ninguno en claro: guardar «Servidores», la conexión OAuth (refresh token) y la migración de los sitios que vienen de 1.0.60 o anteriores (al cargar el escritorio, el cron o WP-CLI, sin ninguna consulta cuando no queda nada en claro, y después de cada restauración) pasan por el almacén, que comprueba cada valor antes de retirar el texto en claro; el navegador nunca recibe un valor. El almacén sí entra en `database.sql`: restaurar deja los destinos funcionando con las credenciales del respaldo, que mandan sobre las que tenía el servidor. En otro servidor (otras salts) se vuelven a cifrar con las de éste usando las del `wp-config.php` que va dentro del propio respaldo (sólo `define()` con literales de cadena, leídos con el tokenizador de PHP; el archivo nunca se ejecuta ni se incluye). Si no se pueden leer (`getenv()`, otro archivo) o cambiaron las salts de este servidor, el destino queda en «vuelve a escribir la contraseña / conéctalo de nuevo» en la pantalla, en `status` de REST y WP-CLI, en el aviso de la restauración y en el error permanente del trabajo con destino remoto; nunca se cae al texto en claro. Sin `AUTH_KEY` y `SECURE_AUTH_KEY` propias se guardan como hasta ahora, con aviso. Una restauración que muere entre el SQL y el nuevo cifrado lo termina con el diario. El dato adicional ata cada secreto también a su conexión (host, puerto, usuario y huella SSH; Client ID), así que una escritura directa que cambie el host no lo desvía. Ningún respaldo lleva un secreto en claro si hay salts propias (se migra antes del volcado y cada fila de ajustes sale sin ellos, también la de un subsitio); los ajustes van con autoload, así que la comprobación al cargar no cuesta consultas y detecta lo que 1.0.60 reescriba tras volver desde `rollback/`. En una red sólo el sitio principal lee y escribe el almacén; un sitio convertido en red lo adopta; «Olvidar las credenciales guardadas» retira las de un destino que ya no se usa; un almacén con datos que no son texto pide volver a escribir sin romper nada, y un `wp-config.php` de más de 64 KiB no se analiza. Cada secreto (del formulario o del retorno de OAuth) se guarda exactamente como se escribió, sin las barras de `$_POST` y sin saneado ni recorte: antes, comillas y barras invertidas ganaban barras, y `<…>`, `%xx` y los espacios al borde se perdían; sólo se rechazan, con un mensaje que no repite el valor y sin cambiar nada, NUL, los caracteres de control y más de 8192 bytes. | 1.0.61 | `backups-credentials.php`, `backups-credentials-surfaces.php`, `backups-credentials-nokeys.php`, `backups-credentials-exact.php`, `backups-credentials-hardening.php` y, en Playground, S9 de `tests/playground/backups-security.sh` |
 | **Restaurar en otro dominio, otra ruta y otro prefijo (E1).** Un respaldo de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas ya no se rechaza ni deja el sitio apuntando al origen: por defecto el sitio conserva **sus** direcciones (las de este servidor) y las del respaldo se reescriben al restaurar; «Conservar las direcciones del respaldo» es una opción explícita (pantalla, `addresses=backup` en REST, `--addresses=backup` en WP-CLI). El motor, `Digitalisimo_Backups_Relocate`, cambia URL y rutas del servidor dentro de PHP serializado sin llamar nunca a `unserialize()` (recorre el formato y recalcula cada longitud en bytes, también anidado y con multibyte; ningún objeto del respaldo se instancia), JSON con barras escapadas (el `_elementor_data` de Elements), URL codificadas, `http` y `https`, `//dominio`, con y sin `www`; un dominio sólo coincide completo (`origen.com` no toca `origen.com.mx`, `miorigen.com` ni un correo). Se aplica fila por fila durante la importación, con memoria constante, sobre los literales que comprobó el guardián SQL. Otro prefijo renombra las tablas (también en `REFERENCES`) y las claves que lo llevan (`{prefijo}user_roles`, `{prefijo}capabilities`…); una tabla ajena o de otro WordPress de la misma base no se toca. En una red (subdominios o subdirectorios) cambian `site`, `sitemeta`, `blogs` y las direcciones de cada sitio; una red de otro tipo o un `wp-config.php` que declara otro dominio se rechazan antes de tocar nada diciendo qué cambiar. Después se vacían transitorios, reglas de reescritura, el CSS generado de Elements/Elementor y la caché de objetos, y una comprobación final cuenta lo que quedó del origen (0 salvo `guid` y lo declarado). La pantalla dice «Origen → este sitio» antes de confirmar y guarda el informe por tabla. Ver «Restaurar en otro dominio». | @NEXT_BACKUPS@ | `backups-relocate.php` y, en Playground, `tests/playground/backups-relocate.sh` |
-| **Extraer un sitio de la red como WordPress individual.** En la administración de la red (sólo un superadministrador), «Extraer como WordPress individual» encola un trabajo del mismo motor que los respaldos completos (cola, fases, reanudación, verificación, cifrado y firma) que deja un paquete con el alcance explícito `extracted-site` en el manifiesto v3: las tablas del sitio con su prefijo de la red (`wp_N_`), `wp_N_users` y `wp_N_usermeta` sólo con sus usuarios (todos sus datos y el hash de su contraseña; las metas de los demás sitios y las de núcleo del sitio principal no viajan), sus roles (`wp_N_user_roles`), sus medios (`uploads/sites/N/` pasa a `uploads/`), los plugins activos en el sitio y en la red (que quedan en `active_plugins`), su tema y su padre, mu-plugins, idiomas y el núcleo, sin el `wp-config.php` ni el `.htaccess` de la red; los ajustes de red de los plugins DIGITALÍSIMO que el sitio hereda se materializan en sus opciones (las claves de API heredadas sólo si se pide) y el informe del paquete nombra los `sitemeta` y tablas de otros plugins que no viajan. Se restaura sólo en un WordPress individual, con la copia previa, la recuperación y el motor de reubicación (E1), que pasa el prefijo, las URL (también las de los medios en la red) y las rutas a las del destino; la configuración de Backups del destino se conserva. El alcance `site` de la vía antigua `create_site()` sigue rechazado. REST `POST /sites/<id>/extract` y `wp digitalisimo-backups extract <id> --network`. | @NEXT_BACKUPS@ | `backups-site-extract.php` y, en Playground, `tests/playground/backups-site-extract.sh` |
+| **Extraer un sitio de la red como WordPress individual.** En la administración de la red (sólo un superadministrador, alcance de red explícito), «Extraer como WordPress individual» encola un trabajo del mismo motor que los respaldos completos (cola, fases, reanudación y verificación) que deja un paquete con el alcance explícito `extracted-site` en el manifiesto v3, cifrado y firmado sólo con una frase propia de esa extracción (nunca con la clave de la red; obligatoria si la red cifra sus respaldos). Lleva las tablas del sitio con su prefijo de la red (`wp_N_`) y `wp_N_users`/`wp_N_usermeta` sólo con sus usuarios: los miembros con todos sus datos y el hash de su contraseña; los superadministradores que no son miembros, ninguno por defecto (`managing`: sólo quien tiene el correo de administración del sitio; escribir o comentar no cuenta); los usuarios bloqueados en la red (`spam`/`deleted`) nunca como miembros; los autores sin cuenta, sólo con su nombre público. Sus roles (`wp_N_user_roles`), sus medios (`uploads/sites/N/` → `uploads/`), los plugins activos en el sitio y en la red, su tema y padre, mu-plugins (con aviso), idiomas y el núcleo por lista blanca: ningún archivo de configuración de la raíz ni drop-ins. Los ajustes de red de los plugins DIGITALÍSIMO activos en el sitio se materializan por lista blanca (las claves y cuentas de la red, sólo si se pide); el paquete sólo cuenta lo que no viaja y nombra los `sitemeta` de otros plugins, mu-plugins y drop-ins. Se restaura sólo en un WordPress individual, con la copia previa, la recuperación y el motor de reubicación (E1), que pasa el prefijo, las URL (también las de los medios en la red y `/files/`) y las rutas a las del destino; la configuración de Backups del destino, con sus credenciales, se conserva. El alcance `site` de la vía antigua `create_site()` sigue rechazado. REST `POST /sites/<id>/extract` y `wp digitalisimo-backups extract <id> --network`. | @NEXT_BACKUPS@ | `backups-site-extract.php` y, en Playground, `tests/playground/backups-site-extract.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -209,7 +209,7 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /jobs` (`limit`) · `GET /jobs/<id>` | `wp digitalisimo-backups jobs list [--limit=…] [--fields=…] [--format=…]` | Trabajos sin terminar y los últimos terminados, con la vista de la tarjeta «Trabajos» (estado, fase, avance, reintento, archivo o error) más destino, automatización y si se cifra. |
 | `POST /jobs/<id>/cancel` | `wp digitalisimo-backups jobs cancel <id>` | Como «Cancelar»: uno en cola termina ya; uno en curso se detiene en su siguiente punto de control; uno ya verificado y registrado no se cancela (409). |
 | `POST /jobs/tick` | `wp digitalisimo-backups jobs run [--quiet]` | Hace avanzar la cola: REST da un paso con el presupuesto de una petición web, como el navegador con la pantalla abierta; WP-CLI sigue sin límite de tiempo hasta que no queda trabajo listo (sirve para el cron del sistema en un hosting que corta las peticiones largas). |
-| `POST /sites/<id>/extract` (`network`, `super_admins`, `network_secrets`, `destination`) | `wp digitalisimo-backups extract <id> --network [--super-admins=managing\|all\|none] [--network-secrets] [--destination=…] [--async] [--porcelain]` | «Extraer como WordPress individual» (ver «Extraer un sitio de la red»): sólo en una red, desde el sitio principal, con el alcance de red y, en REST, un superadministrador. REST responde 202 con el trabajo (409 si ese sitio ya tiene una extracción pendiente); WP-CLI lo hace avanzar hasta que queda verificado. `verify` de un paquete así añade `extract` (sitio, usuarios, plugins, ajustes materializados, claves no copiadas y lo que no viajó). |
+| `POST /sites/<id>/extract` (`network`, `super_admins`, `network_secrets`, `destination`; en el cuerpo, `secret`) | `wp digitalisimo-backups extract <id> --network [--super-admins=none\|managing\|all] [--secret-file=…\|--secret-stdin] [--network-secrets] [--destination=…] [--async] [--porcelain]` | «Extraer como WordPress individual» (ver «Extraer un sitio de la red»): sólo en una red, desde el sitio principal, con el alcance de red y, en REST, un superadministrador. `super_admins` es `none` por defecto. La frase propia del paquete (`secret`) sólo en el cuerpo de la petición (en la URL, 400) o por archivo o entrada estándar; con el cifrado de la red activo es obligatoria. REST responde 202 con el trabajo (409 si ese sitio ya tiene una extracción pendiente); WP-CLI lo hace avanzar hasta que queda verificado. `verify` de un paquete así añade `extract` (sitio, usuarios, bloqueados, plugins, mu-plugins, drop-ins, ajustes materializados, claves no copiadas y lo que no viajó). |
 
 - **Autorización.** REST usa la autenticación de WordPress: con cookie exige el nonce `wp_rest` en `X-WP-Nonce`, y
   también sirven las contraseñas de aplicación. Cada ruta pide la capability de la pantalla (`manage_network_options`
@@ -365,106 +365,130 @@ roles y permisos con el prefijo nuevo, así que se puede entrar), pero el sitio 
 copia previa (límite declarado, igual que antes de E1).
 
 ## Extraer un sitio de la red
+
 Desde @NEXT_BACKUPS@. Saca un sitio de una red Multisite como paquete restaurable en un WordPress individual, en otro
-servidor y otro dominio. El sitio sigue en la red: extraerlo no lo cambia ni lo retira.
+servidor y otro dominio, que puede ser de otro dueño. El sitio sigue en la red: extraerlo no lo cambia ni lo retira.
+
 **Cómo.** En la red, Backups → «Extraer un sitio como WordPress individual»: el sitio, qué hacer con los
-superadministradores que no son miembros, si copiar las claves de API que hereda de la red y el destino. Encola un
-trabajo del mismo motor que los respaldos completos (tarjeta «Trabajos»: «Extracción de red.test/dos como WordPress
-individual»), con sus fases, reintentos, verificación, cifrado y firma; el paquete `extracted-site-<sitio>-<fecha>-<rand>`
-(`.zip`, o `.dgbk` con el cifrado activo) queda en el historial de la red como «Sitio extraído», se descarga como
-cualquier respaldo y no aparece en «Restaurar» de la red. En el destino, un WordPress individual recién instalado con
-Backups: se copia a su almacén privado, aparece en «Restaurar» como archivo sin registro y se restaura con
-`RESTAURAR SIN FIRMA` (o con la frase, si se cifró o firmó con una). Después se entra con un usuario del sitio extraído:
-las cuentas que tenía el destino ya no existen. REST `POST /sites/<id>/extract` y
+superadministradores que no son miembros, la frase propia del paquete, si copiar las claves y cuentas que el sitio hereda
+de la red y el destino. Encola un trabajo del mismo motor que los respaldos completos (tarjeta «Trabajos»: «Extracción de
+red.test/dos como WordPress individual»), con sus fases, reintentos y verificación; el paquete
+`extracted-site-<sitio>-<fecha>-<rand>` (`.zip`, o `.dgbk` con frase) queda en el historial de la red como «Sitio
+extraído», se descarga como cualquier respaldo y no aparece en «Restaurar» de la red. En el destino, un WordPress
+individual recién instalado con Backups: se copia a su almacén privado, aparece en «Restaurar» como archivo sin registro y
+se restaura con su frase (`RESTAURAR`) o, sin frase, con `RESTAURAR SIN FIRMA`. Después se entra con un usuario del sitio
+extraído: las cuentas que tenía el destino ya no existen. REST `POST /sites/<id>/extract` y
 `wp digitalisimo-backups extract <id> --network` usan el mismo caso de uso (`Digitalisimo_Backups::service_extract()`).
+
 **Quién.** Es una acción de la red: sólo un superadministrador (en WP-CLI, la cuenta del sistema), desde el sitio
 principal y con el alcance de red explícito (`network=true`, `--network` o el formulario de la administración de la red).
 La tarjeta sólo existe en la administración de la red y el handler rechaza el envío sin ese contexto: un sitio no puede
 extraer otros sitios. Una extracción pendiente de un sitio no se duplica (409).
+
+**Cifrado: la frase del paquete, nunca la clave de la red.** La clave de la red abre todos sus respaldos (los datos de
+todos los sitios), así que nunca cifra ni firma un sitio extraído. Con una frase propia (16 caracteres o más; en REST sólo
+en el cuerpo, `secret`; en WP-CLI `--secret-file` o `--secret-stdin`) el paquete se cifra y se firma con una clave
+derivada de ella como la de «Seguridad» (PBKDF2-SHA256 con su salt, que viaja en el paquete): en el destino basta esa
+frase. Mientras dura el trabajo, la clave vive envuelta con `AUTH_KEY` y `SECURE_AUTH_KEY` en el almacén privado y se
+borra al registrar el paquete; nunca entra en el llavero. Sin frase, el paquete sale sin cifrar y sin firma, salvo que la
+red tenga el cifrado activo: entonces la frase es obligatoria (nunca sale en claro lo que debía cifrarse). La cabecera del
+`.dgbk` dice `scope: extracted-site` y `multisite: false`, y debe coincidir con el manifiesto que lleva dentro.
+
 ### Qué lleva el paquete
+
 El paquete es un WordPress individual cuyo prefijo de tablas es el que el sitio tenía en la red (`wp_N_`; el sitio
 principal, `wp_`): así sus metas y sus roles ya llevan el prefijo de esa instalación, y al restaurar el motor de
-reubicación (E1) los pasa al prefijo del destino junto con las URL y las rutas. La extracción no reescribe ninguna URL,
-ruta ni prefijo: decide qué viaja. Con «Conservar las direcciones del respaldo» (`addresses=backup`) el sitio queda con
-su dirección de la red y sólo cambian el prefijo, las rutas y la carpeta de los medios (`…/sites/N` → `…/uploads`).
+reubicación (ver «Restaurar en otro dominio») los pasa al prefijo del destino junto con las URL y las rutas. La extracción
+no reescribe ninguna URL, ruta ni prefijo: decide qué viaja, y todo por lista blanca.
+
 | Parte | Qué viaja |
 | --- | --- |
-| Tablas | Las del sitio (`wp_N_*`; del sitio principal, las `wp_*` que no son globales de la red ni de otro sitio `wp_<n>_*`), más `wp_users` y `wp_usermeta` como `wp_N_users` y `wp_N_usermeta`. Manifiesto v3 con `scope: extracted-site`, `multisite: false`, `table_prefix: wp_N_`, `home_url` del sitio, `origin` (el sitio descrito como el WordPress individual que será: sus direcciones, su carpeta de medios y su prefijo) y `extract` (el informe). |
-| Usuarios | Los miembros del sitio (tienen `wp_N_capabilities`, aunque sea sin rol), con todos sus datos y el hash de su contraseña. Los superadministradores que no son miembros, según `super_admins`: `managing` (por defecto) entra como administrador sólo quien administra el sitio (su correo de administración o autor de su contenido), `all` todos y `none` ninguno. Argumento: en la red ya podían hacerlo todo en ese sitio, así que no ganan nada; y quien no lo administra no se lleva una cuenta con su contraseña a otro servidor. Los autores de entradas o comentarios que no son miembros (un usuario retirado del sitio, o un superadministrador que no entra) viajan sin rol, sin contraseña y sin sus sesiones ni contraseñas de aplicación, sólo para que su contenido conserve el autor. |
-| Metas de usuario | Las del sitio (`wp_N_*`) tal cual. No viajan las de otros sitios (`wp_<n>_*`), las de núcleo del sitio principal (`wp_capabilities`, `wp_user_level`, `wp_user-settings`, `wp_user-settings-time`, `wp_dashboard_quick_press_last_post_id`, `wp_persisted_preferences`, `wp_media_library_mode`), una del principal cuyo nombre ya tiene el sitio, ni `primary_blog` y `source_domain` (sólo de una red; nombran su dominio). Las demás globales viajan, también las de un plugin con el prefijo de la red sin número (`wp_2fa_…`), que nunca dan permisos. |
+| Tablas | Las del sitio (`wp_N_*`; del sitio principal, las `wp_*` que no son globales de la red ni de otro sitio `wp_<n>_*`), más `wp_users` y `wp_usermeta` como `wp_N_users` y `wp_N_usermeta`, leídas sólo para los usuarios que viajan. Manifiesto v3 con `scope: extracted-site`, `multisite: false`, `table_prefix: wp_N_`, `home_url` del sitio, `origin` (el sitio descrito como el WordPress individual que será) y `extract` (el informe). |
+| Usuarios | Los miembros del sitio (tienen `wp_N_capabilities`, aunque sea sin rol), con todos sus datos y el hash de su contraseña. Los superadministradores que no son miembros, según `super_admins`: `none` (por defecto) ninguno; `managing`, como administrador sólo quien tiene el correo de administración del sitio (quien tiene un rol con `manage_options` en el sitio ya es miembro); `all`, todos. Haber escrito una entrada, una revisión o un comentario no prueba que se administra el sitio: WordPress guarda como autor a quien edita, también como soporte. Un usuario bloqueado en la red (`spam` o `deleted`) nunca viaja como miembro ni como administrador, porque fuera de la red WordPress no comprueba esas marcas. |
+| Autores sin cuenta | Quien escribió entradas o comentarios y no viaja como miembro ni como administrador (un usuario retirado del sitio, un superadministrador, un usuario bloqueado) viaja sólo con lo que pinta su autoría: usuario y nombre público, y de sus metas `nickname`, `first_name`, `last_name` y `description`. Sin contraseña, correo, web, rol ni ninguna otra meta (ni la facturación de otra tienda ni su segundo factor). |
+| Metas de usuario | Las del sitio (`wp_N_*`) tal cual. No viajan las de otros sitios (`wp_<n>_*`), las de núcleo del sitio principal (`wp_capabilities`, `wp_user_level`, `wp_user-settings`, `wp_user-settings-time`, `wp_dashboard_quick_press_last_post_id`, `wp_persisted_preferences`, `wp_media_library_mode`), una del principal cuyo nombre ya tiene el sitio, ni `primary_blog` y `source_domain`. Las demás globales de los miembros viajan (también las de un plugin con el prefijo de la red sin número, `wp_2fa_…`, que nunca dan permisos), incluidas las que otros sitios de la red guardaron sobre ellos. |
 | Roles | `wp_N_user_roles`, con sus roles y capacidades tal cual. |
-| Opciones | `active_plugins` con los plugins activos en el sitio, los activados en la red y Backups (quien restaura); `upload_path` y `upload_url_path` vacías (los medios quedan donde un sitio individual los busca); los ajustes de red DIGITALÍSIMO que hereda, materializados (tabla siguiente). Las opciones `digitalisimo_backups_*` del sitio no viajan. |
-| Archivos | El núcleo (`wp-admin`, `wp-includes` y los `.php` de la raíz salvo `wp-config.php`), los `.php` de `wp-content` (drop-ins) salvo `sunrise.php`, mu-plugins, idiomas, los plugins activos (del sitio y de la red), el tema y su padre, y los medios del sitio: `uploads/sites/N/` (o la carpeta que calcula WordPress para el sitio) pasa a `uploads/`; del sitio principal, `uploads/` sin `sites/`. |
+| Opciones | `active_plugins` con los plugins activos en el sitio, los activados en la red y Backups (quien restaura); `upload_path` y `upload_url_path` vacías; los ajustes de red DIGITALÍSIMO que hereda, materializados (tabla siguiente). Las opciones `digitalisimo_backups_*` del sitio no viajan. |
+| Archivos | Los archivos de la raíz que trae WordPress (`index.php`, `wp-*.php` del núcleo, `xmlrpc.php`, `license.txt`, `readme.html`, `wp-config-sample.php`), `wp-admin` y `wp-includes`; de `wp-content`, sólo `index.php`; mu-plugins (se avisan y se listan), idiomas, los plugins activos (del sitio y de la red), el tema y su padre, y los medios del sitio: `uploads/sites/N/` (o `blogs.dir/N/files`, o la carpeta que calcula WordPress para el sitio) pasa a `uploads/`; del sitio principal, `uploads/` sin `sites/`. Un nombre de tema o de plugin con `.`, `..` o una barra no se usa (el informe lo nombra) y cada carpeta debe quedar dentro de su raíz; la verificación rechaza cualquier entrada con `.` o `..` o fuera de las raíces de un respaldo. |
+
 Ajustes de red que se materializan en las opciones del sitio, con la misma resolución de cada plugin
-(`contenido → sitio → red → default`, ver `AGENTS.md`), leyendo sus datos aunque el plugin no esté cargado:
+(`contenido → sitio → red → default`, ver `AGENTS.md`), leyendo sus datos aunque el plugin no esté cargado, **sólo si el
+plugin está activo en el sitio** (por su archivo principal) y **por lista blanca**:
+
 | Plugin | Opción del sitio · de la red | Cómo |
 | --- | --- | --- |
-| SEO (y los ajustes de módulos que Hosting heredó de SEO) | `digitalisimo_integrations_options` · la misma en `sitemeta` | Una clave que el sitio hereda (`digitalisimo_seo_network_inherit`, o `digitalisimo_module_network_inherit` para los de módulos) toma el valor de la red si la red lo tiene; las de identidad del sitio nunca. Las reglas de rastreadores IA que el sitio marcó «heredar» toman la de la red. |
+| SEO | `digitalisimo_integrations_options` · la misma en `sitemeta` | Una clave que el sitio hereda (`digitalisimo_seo_network_inherit`, o `digitalisimo_module_network_inherit` para las de módulos) toma el valor de la red si la red lo tiene y está en la lista de ajustes de SEO; las de identidad del sitio nunca. Las reglas de rastreadores IA que el sitio marcó «heredar» toman la de la red. |
 | Tools | `digitalisimo_tools_site_options` · `digitalisimo_tools_site_defaults` | Cada ajuste heredado (ruta privada de acceso, redirección de adjuntos, desplazamiento en móvil) toma el de la red; sin la opción del sitio, como la importaba Tools desde SEO. |
-| Elements (front) | `digitalisimo_elements_front` · `digitalisimo_elements_front_defaults` | Cada interruptor que el sitio no personalizó (`own`) toma el de la red, o el neutro si la red no lo guardó. |
-| Elements (Google Places) | `digitalisimo_elements_google_places_key` | La del sitio o, si no tiene, la de la red (es un secreto). |
-| Hosting | `digitalisimo_hosting_options` | Con «heredar de la red», todo el ajuste de la red. |
-| IA Tools | `digitalisimo_ai_options` | Con «heredar de la red» (lo que hace un sitio sin opción), todo el ajuste de la red. |
-Las claves de API que el sitio hereda de la red (`openai_api_key`, `namecheap_api_key` e `ipinfo_tokens` de SEO, la de
-Google Places, la de Namecheap de Hosting y las de los proveedores de IA) **sólo** viajan con `network_secrets`
-(«Copiar también las claves de API…», `--network-secrets`): sin marcarlo quedan vacías y el informe del paquete dice
-cuáles volver a escribir. Argumento: las claves de la red son de quien la administra (su facturación); un sitio que se
-entrega a otro dueño no debe llevárselas sin decidirlo, y olvidarlas sólo exige volver a escribirlas, mientras que
-copiarlas por error obliga a cambiarlas. Las claves que el sitio guardó como suyas viajan siempre (son datos del sitio).
+| Elements (front) | `digitalisimo_elements_front` · `digitalisimo_elements_front_defaults` | Cada interruptor que el sitio no personalizó (`own`) toma el de la red, o el neutro si la red no lo guardó; sólo booleanos. |
+| Elements (Google Places) | `digitalisimo_elements_google_places_key` | La del sitio o, si no tiene, la de la red (de la cuenta de la red). |
+| Hosting | `digitalisimo_hosting_options` | Con «heredar de la red», los ajustes de la lista; usuario, cuenta y clave de Namecheap son de la cuenta de la red. |
+| IA Tools | `digitalisimo_ai_options` | Con «heredar de la red» (lo que hace un sitio sin opción), los ajustes de la lista y los proveedores sin su clave. |
+
+Lo que es de la cuenta de la red (claves de API de SEO, de los proveedores IA, de Google Places, de Namecheap y de IPinfo,
+la cuenta de Namecheap, la clave de IndexNow, los códigos de verificación de buscadores y los identificadores de
+medición) **sólo** viaja con `network_secrets` («Copiar también las claves y cuentas de la red», `--network-secrets`): sin
+marcarlo queda vacío y el informe dice cuáles. Una clave que no está en la lista (un ajuste nuevo de un plugin) no se
+copia y el informe la nombra (`not_copied`): un secreto nuevo nunca viaja sin pedirlo. Un plugin inactivo en el sitio no
+recibe nada de la red (el informe lo dice, `inactive`): si el nuevo dueño lo activa después, no entra en vigor, por
+ejemplo, la ruta privada de acceso de la red. Las claves que el sitio guardó como suyas viajan siempre.
+
 ### Qué no lleva y por qué
-- **`wp-config.php` y `.htaccess` de la red**: llevan la contraseña de la base de datos, las salts y las reglas de una
-  red; el destino conserva los suyos (una restauración nunca escribe `wp-config.php`).
+
+- **Archivos de configuración de la raíz** (`wp-config.php`, `wp-config-*.php`, `wp-salt.php`, `.env` y todo lo que no es
+  del núcleo): llevan la contraseña de la base de datos, las salts o claves de la red. El paquete trae el núcleo limpio y
+  el destino conserva los suyos (una restauración nunca escribe `wp-config.php`).
+- **Drop-ins** (`db.php`, `object-cache.php`, `advanced-cache.php`, `sunrise.php` y los demás): son del servidor de la red
+  (HyperDB, Memcached, caché de página) y en otro servidor lo dejarían sin servicio. La pantalla y el informe los nombran;
+  el destino conserva los suyos.
 - **La configuración de Backups de la red** (destinos, credenciales, historial, automatizaciones): es del servidor de la
-  red. Al restaurar, la del destino se conserva (también si el proceso muere a mitad: va en el diario, sin secretos en
-  claro).
-- **Usuarios de otros sitios**, superadministradores que no lo administran (con `managing`) y las contraseñas de los
-  autores que no eran miembros.
-- **Plugins y temas que el sitio no usa**, `sunrise.php` (sólo de una red), otros archivos de la raíz y las carpetas de
-  `wp-content` de otros plugins (cachés, registros): su lista va en el informe (`files.excluded`).
-- **Tablas sin número de sitio que no son de WordPress** (de plugins del sitio principal o globales de un plugin, que no
-  se distinguen) y **los `sitemeta` de otros plugins**: sus nombres van en el informe (`excluded_tables`,
-  `network_options`) para revisarlos.
+  red. Al restaurar, la del destino se conserva; antes, lo que siguiera en claro en sus ajustes pasa a su almacén cifrado,
+  así que una restauración interrumpida tampoco la pierde (el diario lleva el almacén cifrado, nunca un secreto en claro).
+- **Usuarios de otros sitios**, superadministradores que no son miembros (por defecto), usuarios bloqueados que no
+  escribieron en el sitio, y la contraseña, el correo y las metas de los autores sin cuenta.
+- **Plugins y temas que el sitio no usa**, otros archivos de la raíz y las carpetas de `wp-content` de otros plugins
+  (cachés, registros), **tablas sin número de sitio que no son de WordPress** (de plugins del sitio principal o globales de
+  un plugin): el paquete sólo lleva cuántos; los nombres se quedan en el historial de la red, porque pueden ser de otros
+  clientes. En una red de más de 500 sitios las tablas no se listan.
+- **Los `sitemeta` de otros plugins**: el informe del paquete los nombra para revisarlos.
 - **Los fragmentos PHP de red de Tools**: son código firmado con las claves de cada servidor; se copian a mano en
   Herramientas → Código PHP del sitio extraído.
+
+Viajan, con aviso en la pantalla y su lista en el informe, los **mu-plugins** de la red: pueden llevar personalizaciones
+de otros sitios o claves de la agencia; revísalos antes de entregar el sitio.
+
 ### Restaurar el paquete
+
 Sólo en un WordPress individual: una red rechaza el alcance `extracted-site` antes de tocar nada, y el alcance `site` de
 la vía antigua sigue rechazado en todas partes. Pasa por lo mismo que cualquier restauración: comprobación previa (la
 lista de «Restaurar» y `verify` lo dan por compatible y dicen «Origen → este sitio» con lo que se reescribirá), copia
 previa, diario y recuperación. El motor de reubicación (ver «Restaurar en otro dominio») cambia el prefijo `wp_N_` por el del destino (tablas,
 `wp_N_user_roles`, `wp_N_capabilities` y demás metas), las URL del sitio por las del destino y las rutas del servidor; la
-extracción añade a su mismo plan los pares de la URL de los medios del sitio en la red (`…/wp-content/uploads/sites/N` y
-la misma carpeta servida desde el dominio de la red) a la de los medios del destino, porque los archivos pasaron a
-`uploads/`. Después vacía el CSS generado de Elements, que se regenera con las nuevas URL. Quedan, como en cualquier
-restauración en otro dominio, la columna `guid`, los correos y los enlaces a otros sitios de la red (siguen apuntando a
-ellos). La respuesta y el aviso de la pantalla dicen con qué cuentas se entra.
+extracción añade a su mismo plan los pares de la URL de los medios del sitio en la red (`…/wp-content/uploads/sites/N`, la
+misma carpeta servida desde el dominio de la red y, en una red antigua con `ms_files_rewriting`, la URL `…/files`) a la
+de los medios del destino, porque los archivos pasaron a `uploads/`. Después vacía el CSS generado de Elements, que se
+regenera con las nuevas URL. Quedan, como en cualquier restauración en otro dominio, la columna `guid`, los correos y los
+enlaces a otros sitios de la red (siguen apuntando a ellos). La respuesta y el aviso de la pantalla dicen con qué cuentas
+se entra. Fuera de la red, administradores y editores recuperan `unfiltered_html` (en la red era sólo del
+superadministrador): el aviso lo dice y sugiere `DISALLOW_UNFILTERED_HTML` si no se quiere. Con «Conservar las direcciones
+del respaldo» (`addresses=backup`) el sitio queda con su dirección de la red y sólo cambian el prefijo, las rutas y la
+carpeta de los medios.
+
 ### La vía antigua (`create_site()`)
+
 La exportación v2 de un sitio (tablas renombradas a `wp_`, `migration.json` con el alcance `site` y
 `MIGRAR-A-WORDPRESS-UNICO.txt` con pasos manuales) se conserva por compatibilidad: sólo la llama una automatización
 incremental anterior a 1.0.38, sin botón, y su paquete nunca se restaura. Llevaba todos los usuarios de la red, dejaba
 los roles como `wp_N_capabilities`, no movía `uploads/sites/N` ni dejaba activos los plugins de red. La vía recomendada
 es «Extraer como WordPress individual».
-Límites declarados: un plugin que guarda datos de cada sitio fuera de sus tablas `wp_N_*` y de `uploads/sites/N` (una
-carpeta propia en `wp-content` o una tabla global) no los lleva: el informe lista esas carpetas y tablas. Una meta de
-usuario con el prefijo de la red y sin número que no es de WordPress viaja aunque fuera del sitio principal (no se
-distingue de una global de un plugin), salvo que el sitio tenga una con el mismo nombre. Una red antigua con
-`ms_files_rewriting` (medios en `blogs.dir` y URL `/files/`) sigue el mismo camino (la carpeta del sitio pasa a
-`uploads/` y su URL se añade al plan), pero no se ha ensayado.
 
-Ensayo en WordPress Playground 7.1.4 (SQLite, PHP 8.5; `tests/playground/backups-site-extract.sh`, 218 s, 56
-comprobaciones). Red por subdirectorios `red.test` con los sitios `/dos/` y `/tres/`, DIGITALÍSIMO Elements activo en ellos
-y Backups en la red; en el sitio 2, una dueña, una editora (también autora del sitio 3), un suscriptor sólo de él y un
-superadministrador que no es miembro pero escribió en él; otro superadministrador y una administradora sólo del sitio 3;
-una página de Elements con imagen, fondo (CSS generado con la URL del medio en la red) y enlaces, y contenido creado desde
-el principal y desde el propio sitio (las dos URL de los medios). La extracción por el handler `admin-post` real tardó
-37 s (paquete de 65 MB, con Elements). En un WordPress individual recién instalado en `127.0.0.1:9471` (prefijo `wp_`),
-el paquete copiado al almacén se restauró en 48 s (15 filas reescritas, 0 URL y 0 rutas del origen pendientes) y, por
-HTTP: el contenido es el mismo con las URL del destino; los cuatro usuarios del sitio entran por `wp-login.php` con su
-contraseña de la red y su rol (la editora edita páginas y no gestiona plugins, la dueña y el superadministrador son
-administradores, el suscriptor no edita) y los otros dos no existen; el medio está en `uploads/` (sin `sites/`) y se sirve
-igual; la página de Elements carga con el medio del destino y su CSS regenerado con el fondo del destino; Backups y
-Elements quedan activos, el ajuste de red de Tools materializado y la configuración de Backups del destino, conservada.
-De `red.test` sólo quedan lo declarado: el enlace a la portada de la red (comentario por defecto, un widget, la entrada de
-bienvenida) y correos.
+Límites declarados: un plugin que guarda datos de cada sitio fuera de sus tablas `wp_N_*` y de `uploads/sites/N` (una
+carpeta propia en `wp-content` o una tabla global) no los lleva. Una meta de usuario con el prefijo de la red y sin número
+que no es de WordPress viaja con un miembro aunque fuera del sitio principal (no se distingue de una global de un plugin),
+salvo que el sitio tenga una con el mismo nombre. `super_admins = none` no deja fuera a un superadministrador que es
+miembro del sitio (viaja con su rol del sitio, como cualquier miembro). Al extraer el sitio principal, `SHOW TABLES`
+recorre todas las tablas con el prefijo de la red. La URL `/files/` de una red con `ms_files_rewriting` se comprobó por
+unidad, no en un ensayo con una red así.
+
 ## Almacenamiento local
 
 Desde 1.0.44 los ZIP se guardan en una carpeta privada fuera de la raíz pública del servidor y de WordPress. Al abrir la
