@@ -476,9 +476,11 @@ nuevo. Cada petición eleva la memoria con `wp_raise_memory_limit()`, pero las f
 ocupados.
 
 **Presupuesto (H4).** Cada fase trabaja por tramos con el medidor de T2 (`Digitalisimo_Backups_Step_Budget`, copiado tal
-cual): el plazo del tick, nunca más allá del límite real de la petición menos un margen, la mitad tras un tramo que murió
-y un cupo de memoria. La copia previa usa las fases del respaldo: hasta que llegue T2, su empaquetado y su verificación
-son un paso largo cada uno (límite declarado).
+cual): el plazo del tick, nunca más allá del límite real de la petición menos un margen, y la mitad tras un tramo que
+murió. La memoria de un tramo se mide por lo que crece (cierra si creció más de 4 MB o si quedan menos de 2 MB hasta
+`memory_limit`) y no con la reserva fija de T2: WordPress con sus plugins ya ocupa 52 a 56 de 64 MB en Playground, y la
+reserva partía cada tramo en una sola unidad. La copia previa usa las fases del respaldo: hasta que llegue T2, su
+empaquetado y su verificación son un paso largo cada uno (límite declarado).
 
 **Garantías de la revisión de E1.** La red y las direcciones se fijan en las tablas temporales antes del cambio, así que
 las tablas llegan de una vez coherentes (H1); de dos claves de `usermeta` que chocan al cambiar de prefijo queda la del
