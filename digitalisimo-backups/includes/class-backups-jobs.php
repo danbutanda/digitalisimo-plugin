@@ -604,7 +604,9 @@ final class Digitalisimo_Backups_Jobs {
 		$candidates = array();
 		foreach ( (array) @scandir( sys_get_temp_dir() ) as $name ) if ( preg_match( '/^digitalisimo-sql-[A-Za-z0-9]{6}$/', $name ) ) $candidates[] = rtrim( sys_get_temp_dir(), '/\\' ) . '/' . $name;
 		$storage = Digitalisimo_Backups::storage_directory();
-		foreach ( (array) @scandir( $storage ) as $name ) if ( preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.zip\.[A-Za-z0-9]{6}|\.cloud-check-[A-Za-z0-9]{6})$/', $name ) ) $candidates[] = $storage . '/' . $name;
+		// También los temporales de los destinos remotos: verificación, descarga, «Probar conexión», la clave SFTP en archivo
+		// (que se borra al momento) y la copia a medias de «Traer al almacén».
+		foreach ( (array) @scandir( $storage ) as $name ) if ( preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.zip\.[A-Za-z0-9]{6}|\.(?:cloud-check|verify|download|connection-test|connection-back|sftp-pub|sftp-key)-[A-Za-z0-9]{6}|digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)\.part-[0-9a-f]{12})$/', $name ) ) $candidates[] = $storage . '/' . $name;
 		foreach ( $candidates as $path ) {
 			if ( is_link( $path ) || ! is_file( $path ) || $now - (int) @filemtime( $path ) <= $older_than ) continue;
 			if ( @unlink( $path ) ) $removed++;

@@ -13,6 +13,9 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /status                            requisitos, operación y trabajos en curso, destinos, seguridad y último respaldo
  * - GET  /backups                           historial
  * - POST /backups                           encola un respaldo completo (`destination`, `network`): 202 con el trabajo
+ * - POST /backups/<file>/fetch               trae al almacén la copia remota, verificada por su SHA-256
+ * - GET  /destinations                       destinos remotos y su estado (sin secretos)
+ * - POST /destinations/<id>/test             «Probar conexión» de una conexión guardada
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
  * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`)
  * - GET  /automations                       automatizaciones y su próxima ejecución
@@ -42,7 +45,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/status', array( $route( 'GET', 'status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups', array(
 			$route( 'GET', 'backups' ),
-			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, sftp, google u onedrive. Vacío usa el de los ajustes.' ), 'network' => $network ) ),
+			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, el tipo de una conexión principal (sftp, ftp, webdav, google, onedrive, dropbox, s3, s3compat, pcloud) o el identificador de una conexión adicional (como sftp-0a1b2c3d); ver GET /destinations. Vacío usa el de los ajustes.' ), 'network' => $network ) ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
@@ -53,6 +56,9 @@ final class Digitalisimo_Backups_Rest {
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
 			) ),
 		) );
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations', array( $route( 'GET', 'destinations' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test', array( $route( 'POST', 'test_destination' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/automations', array( $route( 'GET', 'automations' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/automations/(?P<id>[a-z0-9_-]+)/run', array( $route( 'POST', 'run_automation', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs', array( $route( 'GET', 'jobs', array( 'limit' => array( 'type' => 'integer', 'default' => 8, 'minimum' => 1, 'maximum' => 200, 'description' => 'Cuántos trabajos terminados mostrar además de los que siguen en curso.' ) ) ) ) );
@@ -91,6 +97,12 @@ final class Digitalisimo_Backups_Rest {
 	public static function create( $request ) {
 		return self::respond( Digitalisimo_Backups::service_create( array( 'destination' => (string) $request['destination'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
 	}
+	/** Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256. */
+	public static function fetch( $request ) { return self::respond( Digitalisimo_Backups::service_fetch( (string) $request['file'] ) ); }
+	/** Destinos remotos y su estado (sin valores secretos). */
+	public static function destinations( $request ) { return self::respond( Digitalisimo_Backups::service_destinations() ); }
+	/** «Probar conexión» de una conexión guardada: sube, verifica, descarga, lista y borra un archivo pequeño. */
+	public static function test_destination( $request ) { return self::respond( Digitalisimo_Backups::service_test_saved( (string) $request['id'] ) ); }
 	public static function verify( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;

@@ -471,6 +471,32 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		}
 		return array( 'ok' => true, 'message' => 'Conexión con ' . $class::label() . ' correcta: ' . implode( ' ', $steps ), 'steps' => $steps );
 	}
+	/**
+	 * Destinos remotos para REST y WP-CLI: identificador, tipo, nombre, si está listo y, si sus credenciales no se abren,
+	 * qué hacer. Nunca un valor secreto.
+	 */
+	public static function service_destinations() {
+		$allowed = self::service_scope( is_multisite(), false );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		if ( ! self::credentials_here() ) return self::service_error( 'main_site', self::subsite_credentials_text(), 400 );
+		$settings = self::settings();
+		$rows = array();
+		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) $rows[] = array( 'id' => $type, 'type' => $type, 'name' => Digitalisimo_Backups_Destinations::name_of( $type, $settings ), 'primary' => true, 'ready' => $class::ready( $settings ), 'problem' => self::credentials_problem( $type ) );
+		foreach ( Digitalisimo_Backups_Destinations::connections() as $id => $connection ) {
+			try { $ready = Digitalisimo_Backups_Destinations::class_of( $connection['type'] )::ready( self::connection_settings( $id ) ); } catch ( Exception $e ) { $ready = false; }
+			$rows[] = array( 'id' => $id, 'type' => $connection['type'], 'name' => $connection['name'], 'primary' => false, 'ready' => $ready, 'problem' => self::credentials_problem( $id ) );
+		}
+		return $rows;
+	}
+	/** «Probar conexión» de una conexión guardada, para REST y WP-CLI. */
+	public static function service_test_saved( $id ) {
+		$allowed = self::service_scope( is_multisite(), false );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		$id = sanitize_key( (string) $id );
+		if ( ! Digitalisimo_Backups_Destinations::exists( $id ) || 'local' === $id ) return self::service_error( 'destination', 'El destino ' . $id . ' no existe.', 404 );
+		$result = self::service_test_destination( $id );
+		return $result['ok'] ? $result : self::service_error( 'destination_test', $result['message'], 502 );
+	}
 	/** Lo enviado por el formulario para la conexión que se prueba (principal o adicional). */
 	private static function test_input() {
 		$id = sanitize_key( (string) ( $_POST['digitalisimo_backups_test'] ?? '' ) );

@@ -16,6 +16,8 @@
  *   (g) «Traer al almacén», descarga y borrado de una copia remota del historial, verificada por SHA-256;
  *   (i) el dato adicional ata cada secreto nuevo a su conexión: una escritura directa en la base que pasa FTP a «sin
  *       cifrar» o cambia el endpoint de una conexión adicional deja el secreto sin abrir, con el aviso que la nombra;
+ *   (j) REST y WP-CLI: destinos sin secretos y «Probar conexión» de uno guardado; los temporales de un proceso muerto
+ *       se retiran pasadas 24 horas;
  *   (h) red: los secretos nuevos viven en sitemeta y la pantalla conserva el contexto de red.
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -291,6 +293,25 @@ $case( 'i', function() use ( $B, $check, $settings ) {
 	$check( 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'Segundo MinIO' ), 'status no avisa de la conexión adicional que hay que volver a escribir.' );
 	update_option( Digitalisimo_Backups_Destinations::CONNECTIONS, $connections );
 	$check( 'Segunda-Secreta-11' === bk_call( $B, 'connection_settings', $id )['s3compat_secret_key'], 'Al volver el endpoint, la Secret key no volvió a abrirse.' );
+} );
+
+$case( 'j', function() use ( $B, $check, $leak ) {
+	// REST y WP-CLI usan los mismos casos de uso: destinos y su estado sin secretos, y «Probar conexión» de uno guardado.
+	$rows = $B::service_destinations();
+	$check( ! is_wp_error( $rows ) && null === $leak( json_encode( $rows ) ), 'service_destinations falló o lleva un secreto.' );
+	$ids = array_column( $rows, 'id' );
+	foreach ( array( 'sftp', 'ftp', 'webdav', 'google', 'onedrive', 'dropbox', 's3', 's3compat', 'pcloud', $GLOBALS['bk_connection'] ) as $id ) $check( in_array( $id, $ids, true ), 'service_destinations no lista ' . $id . '.' );
+	$test = $B::service_test_saved( 's3compat' );
+	$check( ! is_wp_error( $test ) && $test['ok'], 'service_test_saved no probó la conexión guardada.' );
+	$missing = $B::service_test_saved( 'ftp-00000000' );
+	$check( is_wp_error( $missing ) && 404 === ( $missing->get_error_data()['status'] ?? 0 ), 'Probar una conexión que no existe no responde 404.' );
+	// Los temporales de los destinos que deja un proceso muerto se retiran pasadas 24 horas.
+	$old = array( '.verify-AbC123', '.download-Zz9Yy8', '.sftp-key-Qq1Ww2', 'digitalisimo-backup-x-20261109-120000-abcd1234.zip.part-0123456789ab' );
+	foreach ( $old as $name ) { file_put_contents( bk_storage() . '/' . $name, 'resto' ); touch( bk_storage() . '/' . $name, time() - 90000 ); }
+	file_put_contents( bk_storage() . '/.verify-Nuevo1', 'reciente' );
+	Digitalisimo_Backups_Jobs::cleanup_orphans();
+	$check( ! array_filter( $old, function( $name ) { return file_exists( bk_storage() . '/' . $name ); } ) && is_file( bk_storage() . '/.verify-Nuevo1' ), 'La limpieza no retiró los temporales viejos de los destinos o retiró uno reciente.' );
+	unlink( bk_storage() . '/.verify-Nuevo1' );
 } );
 
 $case( 'h', function() use ( $B, $C, $check, $fields, $secrets, $save ) {
