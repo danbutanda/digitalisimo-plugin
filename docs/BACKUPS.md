@@ -445,13 +445,17 @@ y un cupo de memoria. La copia previa usa las fases del respaldo: hasta que lleg
 son un paso largo cada uno (límite declarado).
 
 **Garantías de la revisión de E1.** La red y las direcciones se fijan en las tablas temporales antes del cambio, así que
-las tablas llegan de una vez coherentes (H1). Una tabla sin el prefijo del WordPress que se restaura (otra aplicación u
-otro WordPress de la misma base) se comprueba con el guardián pero nunca se borra ni se recrea, y se informa (H3). Las
-tres sentencias más grandes pasan por la reubicación en la verificación: si no caben en memoria, la petición muere ahí,
-antes de la copia previa; y si algo muere en la importación, el sitio sigue intacto (H4). `.user.ini`, `php.ini` y
-`.htaccess` del respaldo cambian las rutas del servidor del origen por las de éste y, en las reglas de reescritura, su
-dominio por el de este sitio; un `auto_prepend_file` o `auto_append_file` que aquí no existiría se desactiva
-comentándolo, porque daría 500 a todo (P1); la limpieza avisa si alguno sigue apuntando a un archivo que no existe.
+las tablas llegan de una vez coherentes (H1); de dos claves de `usermeta` que chocan al cambiar de prefijo queda la del
+sitio restaurado, también resuelto en las temporales (`after_import()` de E1, con lo que cada tramo anota). Una tabla sin
+el prefijo del WordPress que se restaura (otra aplicación u otro WordPress de la misma base) se comprueba con el guardián
+pero nunca se borra ni se recrea, y se informa (H3). La sonda de E1 mide en la verificación los valores que mencionan el
+origen y no cabrían en la memoria para reescribirlos (el plan los rechaza), y además las tres sentencias más grandes pasan
+por la reubicación en seco: si no caben, la petición muere ahí, antes de la copia previa; y si algo muere en la
+importación, el sitio sigue intacto (H4). Los archivos del servidor de la raíz (`.htaccess`, `.user.ini`, `php.ini`,
+`wordfence-waf.php`) pasan por `server_file()` de E1 al prepararlos (rutas y dominio del origen, un `auto_prepend_file`
+que aquí no existiría se desactiva y el de este servidor que sí, se conserva), y sin reubicación un `auto_prepend_file`
+inexistente también se desactiva (P1); la limpieza avisa si alguno sigue apuntando a un archivo que no existe y vacía la
+caché del servidor web (LSCache).
 
 **Límites declarados.**
 
