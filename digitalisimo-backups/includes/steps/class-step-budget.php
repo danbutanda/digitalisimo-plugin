@@ -12,8 +12,13 @@ class Digitalisimo_Backups_Resume_Invalid extends Exception {}
  * memoria, proceso matado) el siguiente trabaja la mitad; tras uno que terminó bien vuelve a crecer.
  */
 final class Digitalisimo_Backups_Step_Budget {
-	/** Cupo de memoria que un tramo no pasa (fracción de memory_limit). */
-	const MEMORY_SHARE = 0.75;
+	/**
+	 * Memoria que un tramo deja siempre libre: la octava parte de memory_limit y al menos 4 MB (8 MB con 64 MB). Es una
+	 * reserva y no un porcentaje de uso porque WordPress con sus plugins puede ocupar ya más del 75 % antes de respaldar
+	 * (unos 52 de 64 MB en Playground), y lo que un tramo añade es poco: trozos de 1 MB y lotes de filas a medida.
+	 */
+	const MEMORY_RESERVE_SHARE = 0.125;
+	const MEMORY_RESERVE_MIN = 4194304;
 	/** Escala mínima del tramo tras varias muertes seguidas. */
 	const MIN_SCALE = 0.125;
 	/** @var int|null max_execution_time de la petición al cargar el plugin. */
@@ -74,11 +79,12 @@ final class Digitalisimo_Backups_Step_Budget {
 		}
 		return max( 0, (int) $value );
 	}
-	/** Bytes que el tramo aún puede ocupar sin pasar su cupo de memoria; PHP_INT_MAX sin límite. */
+	/** Bytes que el tramo aún puede ocupar sin tocar su reserva de memoria; PHP_INT_MAX sin límite. */
 	public static function memory_headroom() {
 		$limit = self::memory_limit();
 		if ( ! $limit ) return PHP_INT_MAX;
-		return (int) max( 0, self::MEMORY_SHARE * $limit - memory_get_usage( true ) );
+		$reserve = max( self::MEMORY_RESERVE_MIN, (int) ( self::MEMORY_RESERVE_SHARE * $limit ) );
+		return (int) max( 0, $limit - $reserve - memory_get_usage( true ) );
 	}
 	/** El tramo debe cerrar: venció su plazo, agotó sus unidades o la memoria se acerca al límite. */
 	public static function exhausted( $deadline, $units = 0, $reserve = 0 ) {

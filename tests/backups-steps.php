@@ -238,6 +238,16 @@ ini_set( 'memory_limit', (string) (int) ( memory_get_usage( true ) * 1.25 ) );
 $tight = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ) && Digitalisimo_Backups_Step_Budget::memory_headroom() <= 0;
 ini_set( 'memory_limit', $limit );
 bk_assert( $tight && ! Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ), 'El presupuesto no se detiene cerca de memory_limit.' );
+// Con el 80 % ya ocupado antes de respaldar (WordPress con sus plugins, unos 52 de 64 MB en Playground) el tramo sigue
+// trabajando; sólo se detiene al tocar su reserva (la octava parte del límite, al menos 4 MB).
+ini_set( 'memory_limit', '40M' );
+$wordpress = str_repeat( 'w', 32 * 1048576 - memory_get_usage( true ) );
+$room = Digitalisimo_Backups_Step_Budget::memory_headroom();
+$more = str_repeat( 'm', 4 * 1048576 );
+$full = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 );
+unset( $wordpress, $more );
+ini_set( 'memory_limit', $limit );
+bk_assert( $room > 0 && $room <= 3 * 1048576 && $full, 'Con el 80 % de la memoria ocupado el tramo no pudo trabajar, o no se detuvo en su reserva (' . $room . ' B libres).' );
 
 }
 // E. Escala adaptativa del lote: tras una muerte el siguiente tramo pide la mitad de filas.
