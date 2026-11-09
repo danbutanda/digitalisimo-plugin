@@ -145,7 +145,7 @@ $original_config = file_get_contents( ABSPATH . 'wp-config.php' );
 /** Respaldo de un servidor con otras salts: su almacén está cifrado con ellas y su wp-config.php es $config. */
 $origin_backup = function( $config, $origin_key ) use ( $C, $K, $secrets, $plain_settings, $original_config ) {
 	$items = array();
-	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $origin_key, $field, $value );
+	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $origin_key, $field, $value, $plain_settings );
 	$K::put( $C::OPTION, array( 'v' => 1, 'items' => $items ) );
 	update_option( Digitalisimo_Backups::OPTION, $plain_settings );
 	file_put_contents( ABSPATH . 'wp-config.php', $config );
@@ -156,8 +156,12 @@ $origin_backup = function( $config, $origin_key ) use ( $C, $K, $secrets, $plain
 $case( 'vectores', function() use ( $C, $K, $check ) {
 	$key = $C::key_from( 'clave-auth-de-prueba-kat-0123456789', 'clave-secure-de-prueba-kat-0123456789' );
 	$check( '9f9939e78a105b509183e1b68ee649688188cf8ddaf6cc871c399db8be59a3b4' === bin2hex( (string) $key ) && '1c8beaa02f39d494' === $C::key_id( $key ), 'Cambió la derivación de la clave de las credenciales o su huella.' );
-	$item = array( 'kw' => '1c8beaa02f39d494', 'c' => 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYpx5LOQwg0PtyUzC7x8Suhvp6G7pc6MNhT8wWcD8rZv4sLjr6COsIaJ19G2p-CD4' );
-	$check( 'secreto-kat-de-las-credenciales' === $C::open( $key, 'sftp_password', $item ), 'El elemento del vector conocido no se abre.' );
+	// Dato adicional «DGBK1/credentials|v1|sftp_password|17:sftp.example.test;2:22;9:respaldos;40:AAAA…;».
+	$connection = array( 'sftp_host' => 'sftp.example.test', 'sftp_port' => 22, 'sftp_user' => 'respaldos', 'sftp_fingerprint' => str_repeat( 'a', 40 ) );
+	$item = array( 'kw' => '1c8beaa02f39d494', 'c' => 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYpx5LOQwg0PtyUzC7x8Suhvp6G7pc6MNhT8wWcD8rZkB137iWEJ1OfZw4FXQIwG0' );
+	$check( '17:sftp.example.test;2:22;9:respaldos;40:' . str_repeat( 'A', 40 ) . ';' === $C::context( 'sftp_password', $connection ), 'Cambió el contexto de la conexión del dato adicional.' );
+	$check( 'secreto-kat-de-las-credenciales' === $C::open( $key, 'sftp_password', $item, $connection ), 'El elemento del vector conocido no se abre.' );
+	$check( false === $C::open( $key, 'sftp_password', $item, array( 'sftp_host' => 'otro.example.test' ) + $connection ), 'El elemento se abre con otro host.' );
 	$check( false === $C::key_from( 'put your unique phrase here', 'clave-secure-de-prueba-kat-0123456789' ) && false === $C::key_from( 'corta', 'clave-secure-de-prueba-kat-0123456789' ), 'Se aceptaron salts de ejemplo o cortas.' );
 	// Separación de dominio: nunca la clave del llavero.
 	$check( ! hash_equals( (string) $K::wrap_key(), (string) $C::key() ), 'Las credenciales usan la misma clave que el llavero.' );
@@ -173,7 +177,6 @@ $case( 'a', function() use ( $B, $C, $check, $leak, $save, $secrets, $plain_sett
 	$saved = $store();
 	$check( is_array( $saved ) && 1 === $saved['v'] && array_keys( $secrets ) === array_keys( $saved['items'] ) && ! array_filter( $saved['items'], function( $item ) use ( $current ) { return $item['kw'] !== $current(); } ), 'El almacén cifrado no tiene los cinco secretos con la clave de este servidor.' );
 	$check( array_intersect_key( $settings(), $secrets ) == $secrets, 'Los ajustes no devuelven los secretos descifrados.' );
-	$check( '1' === get_option( $B::CREDENTIALS_CLEAN ), 'Falta la marca de ajustes sin secretos en claro.' );
 	$backup_a = bk_backup( true );
 	$sql = $sql_of( $backup_a );
 	$check( null === $leak( $sql ), 'El database.sql del respaldo contiene un secreto en claro.' );
@@ -200,22 +203,22 @@ $case( 'i', function() use ( $B, $C, $check, $leak, $settings ) {
 $case( 'j', function() use ( $B, $C, $K, $check, $store, $settings, $secrets ) {
 	$saved = $store();
 	$key = $C::key();
-	$check( $secrets['sftp_password'] === $C::open( $key, 'sftp_password', $saved['items']['sftp_password'] ) && false === $C::open( $key, 'google_client_secret', $saved['items']['sftp_password'] ), 'El elemento de SFTP se abre como otro campo.' );
+	$check( $secrets['sftp_password'] === $C::open( $key, 'sftp_password', $saved['items']['sftp_password'], $settings() ) && false === $C::open( $key, 'google_client_secret', $saved['items']['sftp_password'], $settings() ), 'El elemento de SFTP se abre como otro campo.' );
 	$moved = $saved;
 	$moved['items']['google_client_secret'] = $saved['items']['sftp_password'];
 	$K::put( $C::OPTION, $moved );
 	$s = $settings();
-	$check( '' === $s['google_client_secret'] && $secrets['sftp_password'] === $s['sftp_password'] && in_array( 'google_client_secret', $C::locked(), true ), 'Un valor movido a otro campo se leyó: ' . $s['google_client_secret'] );
+	$check( '' === $s['google_client_secret'] && $secrets['sftp_password'] === $s['sftp_password'] && in_array( 'google_client_secret', $C::locked( $settings() ), true ), 'Un valor movido a otro campo se leyó: ' . $s['google_client_secret'] );
 	$tampered = $saved;
 	$raw = Digitalisimo_Backups_Keys::b64url_decode( $saved['items']['onedrive_refresh_token']['c'] );
 	$raw[ strlen( $raw ) - 1 ] = chr( ord( $raw[ strlen( $raw ) - 1 ] ) ^ 1 );
 	$tampered['items']['onedrive_refresh_token']['c'] = Digitalisimo_Backups_Keys::b64url_encode( $raw );
 	$K::put( $C::OPTION, $tampered );
-	$check( '' === $settings()['onedrive_refresh_token'] && in_array( 'onedrive_refresh_token', $C::locked(), true ), 'Un elemento alterado se aceptó.' );
+	$check( '' === $settings()['onedrive_refresh_token'] && in_array( 'onedrive_refresh_token', $C::locked( $settings() ), true ), 'Un elemento alterado se aceptó.' );
 	$K::put( $C::OPTION, array( 'v' => 2 ) + $saved );
-	$check( '' === $settings()['sftp_password'] && 5 === count( $C::locked() ), 'Un almacén de otro formato se leyó como v1.' );
+	$check( '' === $settings()['sftp_password'] && 5 === count( $C::locked( $settings() ) ), 'Un almacén de otro formato se leyó como v1.' );
 	$K::put( $C::OPTION, $saved );
-	$check( array_intersect_key( $settings(), $secrets ) == $secrets && ! $C::locked(), 'El almacén original no volvió a abrirse.' );
+	$check( array_intersect_key( $settings(), $secrets ) == $secrets && ! $C::locked( $settings() ), 'El almacén original no volvió a abrirse.' );
 } );
 
 // (c) Restaurar en el mismo servidor: las credenciales del respaldo mandan sobre las de ahora, funcionan y siguen cifradas.
@@ -237,14 +240,15 @@ $case( 'c', function() use ( $B, $C, $check, $leak, $save, $restore, $secrets, $
 $case( 'f', function() use ( $B, $C, $K, $check, $leak, $save, $secrets, $settings, $store, $current ) {
 	$old = $C::key_from( 'salt-anterior-auth-0123456789abcdef', 'salt-anterior-secure-0123456789abcdef' );
 	$items = array();
-	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $old, $field, $value );
+	$connection = $settings();
+	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $old, $field, $value, $connection );
 	$K::put( $C::OPTION, array( 'v' => 1, 'items' => $items ) );
 	$s = $settings();
-	$check( '' === $s['sftp_password'] && '' === $s['google_refresh_token'] && 5 === count( $C::locked() ), 'Con otras salts se leyeron credenciales.' );
+	$check( '' === $s['sftp_password'] && '' === $s['google_refresh_token'] && 5 === count( $C::locked( $settings() ) ), 'Con otras salts se leyeron credenciales.' );
 	$status = $B::service_status();
 	$check( 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'vuelve a escribir la contraseña de SFTP' ) && false !== strpos( $status['credentials_notice'], 'Google Drive' ) && null === $leak( json_encode( $status ) ), 'El estado no pide volver a escribir las credenciales: ' . json_encode( $status ) );
 	ob_start();
-	try { bk_call( $B, 'servers_panel', $s, $C::locked() ); } finally { $html = ob_get_clean(); }
+	try { bk_call( $B, 'servers_panel', $s, $C::locked( $settings() ) ); } finally { $html = ob_get_clean(); }
 	$check( 5 === substr_count( $html, 'vuelve a escribirlo' ) && null === $leak( $html ), 'La pantalla no marca los campos que hay que volver a escribir.' );
 	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'sftp', 'retention' => 'none', 'via' => 'test' ) ) );
 	$job = $queued['job'];
@@ -258,12 +262,12 @@ $case( 'f', function() use ( $B, $C, $K, $check, $leak, $save, $secrets, $settin
 	// Volver a escribir la contraseña de SFTP la cifra con las salts actuales; Google y OneDrive siguen pidiéndose.
 	list( $ok ) = $save( array( 'sftp_password' => $secrets['sftp_password'] ) + array_diff_key( $settings(), $secrets ) );
 	$saved = $store();
-	$check( $ok && $current() === $saved['items']['sftp_password']['kw'] && $items['google_refresh_token'] === $saved['items']['google_refresh_token'] && array( 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' ) === $C::locked(), 'Volver a escribir un secreto no lo recuperó o tocó los demás.' );
+	$check( $ok && $current() === $saved['items']['sftp_password']['kw'] && $items['google_refresh_token'] === $saved['items']['google_refresh_token'] && array( 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' ) === $C::locked( $settings() ), 'Volver a escribir un secreto no lo recuperó o tocó los demás.' );
 	$destinations = bk_call( $B, 'manual_destinations', $settings() );
 	$check( isset( $destinations['sftp'] ) && ! isset( $destinations['google'] ) && ! isset( $destinations['onedrive'] ), 'Tras volver a escribir la contraseña, SFTP no volvió a estar disponible o Google y OneDrive sí.' );
 	// Los demás se vuelven a escribir y todo queda como en (a).
 	list( $ok ) = $save( $secrets + array_diff_key( $settings(), $secrets ) );
-	$check( $ok && ! $C::locked() && array_intersect_key( $settings(), $secrets ) == $secrets, 'No se recuperaron las credenciales al volver a escribirlas.' );
+	$check( $ok && ! $C::locked( $settings() ) && array_intersect_key( $settings(), $secrets ) == $secrets, 'No se recuperaron las credenciales al volver a escribirlas.' );
 	foreach ( Digitalisimo_Backups_Jobs::active() as $active ) Digitalisimo_Backups_Jobs::cancel( $active['id'] );
 } );
 
@@ -282,30 +286,26 @@ $case( 'g', function() use ( $B, $C, $check, $leak, $settings, $store, $current 
 	$check( $token === $settings()['google_refresh_token'] && $current() === $store()['items']['google_refresh_token']['kw'], 'El refresh token no quedó cifrado en el almacén.' );
 	$check( 'GOCSPX-cliente-secreto-91ab4d' === ( $GLOBALS['bk_http'][0][1]['body']['client_secret'] ?? '' ), 'OAuth no usó el Client secret descifrado.' );
 	// Los casos siguientes parten del refresh token de (a).
-	$C::put( array( 'google_refresh_token' => '1//refresh-google-55de0b7f' ) );
+	$C::put( array( 'google_refresh_token' => '1//refresh-google-55de0b7f' ), $settings() );
 } );
 
 // (b) Migración desde claro: un sitio actualizado desde 1.0.60 y un respaldo antiguo con los secretos en los ajustes.
 $case( 'b', function() use ( $B, $C, $K, $check, $leak, $secrets, $plain_settings, $settings, $store, $current, $restore ) {
 	delete_option( $C::OPTION );
-	delete_option( $B::CREDENTIALS_CLEAN );
 	update_option( $B::OPTION, $plain_settings + $secrets );
 	$check( 'migrated' === $B::migrate_credentials(), 'No se migraron los secretos en claro.' );
 	$saved = $store();
-	$check( null === $leak( serialize( $GLOBALS['bk_options'] ) ) && 5 === count( $saved['items'] ) && array_intersect_key( $settings(), $secrets ) == $secrets && '1' === get_option( $B::CREDENTIALS_CLEAN ), 'La migración perdió un secreto o lo dejó en claro.' );
+	$check( null === $leak( serialize( $GLOBALS['bk_options'] ) ) && 5 === count( $saved['items'] ) && array_intersect_key( $settings(), $secrets ) == $secrets, 'La migración perdió un secreto o lo dejó en claro.' );
 	$check( 'clean' === $B::migrate_credentials() && $saved === $store(), 'La migración no es idempotente (volvió a cifrar).' );
-	// Con la marca, la comprobación al cargar no lee los ajustes; la única lectura (settings) migra lo que aparezca.
+	// La única lectura (settings) cifra lo que aparezca en claro por otro camino.
 	$options = $GLOBALS['bk_options'];
 	$GLOBALS['bk_options'][ $B::OPTION ]['sftp_password'] = 'escrito-por-fuera-en-claro';
-	$B::credentials_on_load();
-	$check( 'escrito-por-fuera-en-claro' === $GLOBALS['bk_options'][ $B::OPTION ]['sftp_password'], 'Con la marca, la carga del escritorio leyó los ajustes.' );
 	$check( 'escrito-por-fuera-en-claro' === $settings()['sftp_password'] && ! isset( $GLOBALS['bk_options'][ $B::OPTION ]['sftp_password'] ), 'La lectura de los ajustes no cifró un secreto en claro.' );
 	$GLOBALS['bk_options'] = $options;
-	// Sin la marca (un SQL de 1.0.60 la borra), la carga del escritorio migra.
+	// La carga del escritorio también (los ajustes tienen autoload: comprobarlos no es una consulta).
 	update_option( $B::OPTION, $plain_settings + $secrets );
-	delete_option( $B::CREDENTIALS_CLEAN );
 	$B::credentials_on_load();
-	$check( null === $leak( serialize( $GLOBALS['bk_options'] ) ) && '1' === get_option( $B::CREDENTIALS_CLEAN ), 'La carga del escritorio no migró sin la marca.' );
+	$check( null === $leak( serialize( $GLOBALS['bk_options'] ) ), 'La carga del escritorio no migró.' );
 	// Un respaldo creado por la clase publicada de 1.0.58 con los secretos en claro se migra al restaurarlo.
 	$legacy = 'Digitalisimo_Backups_1_0_58_Cred';
 	if ( ! class_exists( $legacy, false ) ) {
@@ -319,7 +319,6 @@ $case( 'b', function() use ( $B, $C, $K, $check, $leak, $secrets, $plain_setting
 		eval( $code ); // phpcs:ignore Squiz.PHP.Eval
 	}
 	delete_option( $C::OPTION );
-	delete_option( $B::CREDENTIALS_CLEAN );
 	update_option( $B::OPTION, $plain_settings + $secrets );
 	$old = bk_call( $legacy, 'create_network' );
 	$path = bk_storage() . '/digitalisimo-antiguo-1.0.58.zip';
@@ -331,7 +330,7 @@ $case( 'b', function() use ( $B, $C, $K, $check, $leak, $secrets, $plain_setting
 	$check( $secrets['sftp_password'] === $leak( $sql, array( $secrets['sftp_password'] ) ), 'El respaldo de 1.0.58 no lleva los secretos en claro (no es la situación de partida).' );
 	$now = array( 'sftp_password' => 'clave-de-ahora-que-no-gana' );
 	update_option( $B::OPTION, $plain_settings );
-	$C::put( $now );
+	$C::put( $now, $settings() );
 	bk_call( $B, 'remember', $path, 'local', 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
 	$restore( $path );
 	$check( null === $leak( serialize( $GLOBALS['bk_options'] ), $secrets + $now ) && array_intersect_key( $settings(), $secrets ) == $secrets && $current() === $store()['items']['sftp_password']['kw'], 'Restaurar un respaldo antiguo con secretos en claro no los cifró.' );
@@ -351,10 +350,10 @@ $case( 'd', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store,
 	$check( false === strpos( (string) file_get_contents( ABSPATH . 'wp-config.php' ), 'origen-auth-key' ), 'El wp-config.php del servidor cambió.' );
 	// El servidor tenía otras credenciales: las del respaldo mandan.
 	update_option( $B::OPTION, array() );
-	$C::put( array( 'sftp_password' => 'la-del-servidor-antes' ) );
+	$C::put( array( 'sftp_password' => 'la-del-servidor-antes' ), $settings() );
 	$restore( $backup );
 	$saved = $store();
-	$check( ! array_filter( $saved['items'], function( $item ) use ( $current ) { return $item['kw'] !== $current(); } ) && array_intersect_key( $settings(), $secrets ) == $secrets && ! $C::locked(), 'Las credenciales del respaldo no se volvieron a cifrar con las salts de este servidor.' );
+	$check( ! array_filter( $saved['items'], function( $item ) use ( $current ) { return $item['kw'] !== $current(); } ) && array_intersect_key( $settings(), $secrets ) == $secrets && ! $C::locked( $settings() ), 'Las credenciales del respaldo no se volvieron a cifrar con las salts de este servidor.' );
 	$check( null === $leak( serialize( $GLOBALS['bk_options'] ), $secrets + array( 'x' => 'la-del-servidor-antes' ) ) && 'encrypted' === $B::service_status()['credentials'], 'Tras restaurar con otras salts quedó un secreto en claro o el estado no es «cifradas».' );
 	$check( $sftp_works( $secrets['sftp_password'] ), 'SFTP no funciona tras restaurar desde otro servidor.' );
 	$check( file_get_contents( ABSPATH . 'wp-config.php' ) !== $config, 'La restauración escribió el wp-config.php del respaldo.' );
@@ -373,7 +372,7 @@ $case( 'e', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store,
 	$check( ! is_wp_error( $result ) && true === $result['restored'], 'La restauración falló: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	$check( false !== strpos( $result['notice'], 'vuelve a escribir la contraseña de SFTP' ), 'La restauración no avisó de las credenciales que hay que volver a escribir: ' . $result['notice'] );
 	$s = $settings();
-	$check( '' === $s['sftp_password'] && '' === $s['google_client_secret'] && 5 === count( $C::locked() ) && $items === $store()['items'], 'Con salts no legibles se leyó o se perdió el almacén.' );
+	$check( '' === $s['sftp_password'] && '' === $s['google_client_secret'] && 5 === count( $C::locked( $settings() ) ) && $items === $store()['items'], 'Con salts no legibles se leyó o se perdió el almacén.' );
 	$status = $B::service_status();
 	$check( 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'OneDrive' ), 'El estado no pide volver a escribir las credenciales.' );
 	$journal = bk_storage() . '/' . $B::RESTORE_JOURNAL;

@@ -298,6 +298,8 @@ jobs:
           php tests/backups-credentials.php
           php tests/backups-credentials-surfaces.php
           php tests/backups-credentials-nokeys.php
+          php tests/backups-credentials-exact.php
+          php tests/backups-credentials-hardening.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
           php tests/backups-destinations-screen.php

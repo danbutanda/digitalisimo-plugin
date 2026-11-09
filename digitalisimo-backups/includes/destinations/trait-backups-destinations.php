@@ -23,8 +23,22 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$class = Digitalisimo_Backups_Destinations::class_of( $connections[ $id ]['type'] );
 		$out = $connections[ $id ]['settings'] + $class::defaults();
 		$out[ $class::PREFIX . 'name' ] = $connections[ $id ]['name'];
-		$secrets = Digitalisimo_Backups_Credentials::read();
+		$secrets = self::credentials_here() ? Digitalisimo_Backups_Credentials::read( self::credential_settings() ) : array();
 		foreach ( $class::secrets() as $field ) $out[ $field ] = (string) ( $secrets[ $id . '/' . $field ] ?? '' );
+		return $out;
+	}
+	/**
+	 * Los datos de conexión que atan cada secreto (el dato adicional del AEAD): los ajustes de las conexiones principales
+	 * y, con la clave `<id>/<dato>`, los de cada conexión adicional. $saved: ajustes guardados (por defecto, los actuales).
+	 */
+	private static function credential_settings( $saved = null ) {
+		$out = wp_parse_args( is_array( $saved ) ? $saved : self::saved_settings(), self::defaults() );
+		foreach ( Digitalisimo_Backups_Destinations::connections() as $id => $connection ) $out += self::connection_context( $id, $connection['settings'] + Digitalisimo_Backups_Destinations::class_of( $connection['type'] )::defaults() );
+		return $out;
+	}
+	private static function connection_context( $id, array $values ) {
+		$out = array();
+		foreach ( $values as $key => $value ) if ( ! in_array( $key, Digitalisimo_Backups_Credentials::FIELDS, true ) ) $out[ $id . '/' . $key ] = $value;
 		return $out;
 	}
 	/** Destino del contrato para una conexión; con un trabajo, su estado reanudable vive en el área de ese trabajo. */
@@ -257,6 +271,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$class = Digitalisimo_Backups_Destinations::class_of( $type );
 		echo '<tr data-server="' . esc_attr( $type ) . '"><th colspan="2"><h3>' . esc_html( $class::label() ) . '</h3></th></tr>';
 		foreach ( $class::fields() as $key => $field ) self::field( $key, $field['label'], $s, $field['type'] ?? 'text', $locked, $field, $name, $id_prefix, $type, $connection );
+		if ( 'digitalisimo_backups' === $name ) self::forget_row( $type, $s, $locked );
 		$help = self::type_help( $type );
 		if ( $help ) echo '<tr data-server="' . esc_attr( $type ) . '"><th>Cómo obtener ' . esc_html( $class::label() ) . '</th><td><ol><li>' . implode( '</li><li>', $help ) . '</li></ol></td></tr>';
 		echo '<tr data-server="' . esc_attr( $type ) . '"><th></th><td><p class="digitalisimo-backups-destination-actions">';
@@ -265,6 +280,15 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			echo '<a class="button button-secondary" href="' . esc_url( self::oauth_url( $type, $connection ) ) . '">Conectar ' . esc_html( $class::label() ) . '</a> <span class="digitalisimo-secret ' . ( $saved ? 'is-set' : 'is-empty' ) . '">' . ( $saved ? 'Conectado' : 'Sin conectar' ) . '</span> ';
 		}
 		echo '<button type="submit" class="button digitalisimo-backups-test" name="digitalisimo_backups_test" value="' . esc_attr( $connection ) . '" formaction="' . esc_url( add_query_arg( array( 'action' => self::ACTION_TEST_DESTINATION ), admin_url( 'admin-post.php' ) ) ) . '">Probar conexión</button> <span class="digitalisimo-backups-test-result" role="status" aria-live="polite"></span></p></td></tr>';
+	}
+	/**
+	 * «Olvidar» las credenciales guardadas de un destino que ya no se usa, también las que ya no se abren (si no, su aviso
+	 * quedaría para siempre): una casilla del mismo formulario, con su nonce y su capability. Sólo si hay algo guardado.
+	 */
+	private static function forget_row( $destination, $s, array $locked ) {
+		$fields = Digitalisimo_Backups_Credentials::DESTINATIONS[ $destination ] ?? array();
+		if ( ! array_filter( $fields, function( $field ) use ( $s, $locked ) { return ! empty( $s[ $field ] ) || in_array( $field, $locked, true ); } ) ) return;
+		echo '<tr data-server="' . esc_attr( $destination ) . '"><th></th><td><label><input type="checkbox" name="digitalisimo_backups[forget][' . esc_attr( $destination ) . ']" value="1"> Olvidar las credenciales guardadas de ' . esc_html( self::destination_label( $destination ) ) . '</label><p class="description">Al guardar se retiran del sitio, también las que ya no se pueden abrir. Para un destino que ya no usas; lo que escribas ahora en sus campos sí se guarda.</p></td></tr>';
 	}
 	/** Pasos para crear las credenciales de cada proveedor; los de OAuth incluyen la URL de redirección exacta. */
 	private static function type_help( $type ) {
@@ -335,7 +359,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$connections = Digitalisimo_Backups_Destinations::connections();
 		$current = isset( $connections[ $editing ] ) ? $connections[ $editing ] : null;
 		$settings = $current ? self::connection_settings( $editing ) : array();
-		$locked = $current ? Digitalisimo_Backups_Credentials::locked() : array();
+		$locked = $current ? Digitalisimo_Backups_Credentials::locked( self::credential_settings() ) : array();
 		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir otra conexión' ) . '</h2><p>' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Crea varias conexiones del mismo tipo con nombres distintos (por ejemplo, dos servidores SFTP o dos buckets). Cada una aparece como destino propio en Backups y en las automatizaciones.' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
 		wp_nonce_field( self::ACTION_SAVE_CONNECTION );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_CONNECTION ) . '"><input type="hidden" name="connection_id" value="' . esc_attr( $current ? $editing : '' ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="digitalisimo-connection-type">Tipo</label></th><td><select id="digitalisimo-connection-type" class="digitalisimo-backups-type" name="connection_type"' . ( $current ? ' disabled' : '' ) . '>';
@@ -351,16 +375,20 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	/* ------------------------------------------------------------------ Guardar */
 
 	public static function save() {
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); $old = self::settings(); $input = wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ); $out = self::defaults();
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ); $out = self::defaults();
 		$out['destination'] = Digitalisimo_Backups_Destinations::exists( $input['destination'] ?? '' ) ? (string) $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
 		try {
 			foreach ( Digitalisimo_Backups_Destinations::CLASSES as $class ) $out = array_merge( $out, $class::sanitize( $input, $old ) );
 		} catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
 		$out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled';
+		// «Olvidar»: las credenciales de los destinos marcados se retiran (también las que no se abren), salvo lo que se acabe de escribir.
+		$forget_input = is_array( $input['forget'] ?? null ) ? $input['forget'] : array(); $forget = array();
+		foreach ( Digitalisimo_Backups_Credentials::DESTINATIONS as $destination => $fields ) { if ( empty( $forget_input[ $destination ] ) ) continue; foreach ( $fields as $key ) { $typed = $input[ $key ] ?? ''; if ( is_string( $typed ) && '' !== trim( $typed ) ) continue; $out[ $key ] = ''; $forget[ $key ] = $destination; } }
 		// Los secretos van cifrados al almacén, nunca en claro a los ajustes (sin AUTH_KEY y SECURE_AUTH_KEY propias, como hasta ahora y con aviso).
-		try { $encrypted = self::store_settings( $out ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
+		try { $encrypted = self::store_settings( $out ); if ( $forget ) Digitalisimo_Backups_Credentials::remove( array_keys( $forget ) ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
+		$forgotten = array_map( array( __CLASS__, 'destination_label' ), array_values( array_unique( $forget ) ) );
 		$unprotected = ! $encrypted && array_filter( array_intersect_key( $out, array_flip( self::secret_fields() ) ), function( $value ) { return is_string( $value ) && '' !== $value; } );
-		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
+		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $forgotten ? ' Se olvidaron las credenciales de ' . implode( ' y ', $forgotten ) . '.' : '' ) . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
 	}
 	/** Guarda una conexión adicional: valores no secretos en su fila; secretos sólo cifrados en el almacén. */
 	private static function store_connection( $id, $type, $name, array $values ) {
@@ -370,9 +398,10 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			if ( '' !== (string) ( $values[ $field ] ?? '' ) ) $secrets[ Digitalisimo_Backups_Destinations::secret_key( $id, $field ) ] = (string) $values[ $field ];
 			unset( $values[ $field ] );
 		}
-		if ( $secrets && ! Digitalisimo_Backups_Credentials::put( $secrets ) ) throw new Exception( 'Las conexiones adicionales sólo guardan sus credenciales cifradas: define AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php (la conexión principal de cada tipo sí se puede guardar sin cifrar, con aviso).' );
-		$connections = Digitalisimo_Backups_Destinations::connections();
+		if ( ! self::credentials_here() ) throw new Exception( self::subsite_credentials_text() );
 		unset( $values[ $class::PREFIX . 'name' ] );
+		if ( $secrets && ! Digitalisimo_Backups_Credentials::put( $secrets, self::connection_context( $id, $values ) ) ) throw new Exception( 'Las conexiones adicionales sólo guardan sus credenciales cifradas: define AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php (la conexión principal de cada tipo sí se puede guardar sin cifrar, con aviso).' );
+		$connections = Digitalisimo_Backups_Destinations::connections();
 		$connections[ $id ] = array( 'type' => $type, 'name' => $name, 'settings' => array_map( 'strval', $values ) );
 		Digitalisimo_Backups_Destinations::save_connections( $connections );
 	}
@@ -419,6 +448,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	 */
 	public static function service_test_destination( $id, array $input = array() ) {
 		$id = (string) $id;
+		if ( ! self::credentials_here() ) return array( 'ok' => false, 'message' => self::subsite_credentials_text(), 'steps' => array() );
 		$type = Digitalisimo_Backups_Destinations::type_of( $id );
 		if ( '' === $type ) {
 			// Una conexión nueva aún sin identificador: se prueba con el tipo elegido y lo escrito.
@@ -490,6 +520,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$saved = $returning ? get_transient( $transient ) : null;
 		$provider = sanitize_key( $_REQUEST['provider'] ?? ( is_array( $saved ) ? (string) ( $saved['provider'] ?? '' ) : '' ) );
 		if ( ! in_array( $provider, array( 'google', 'onedrive', 'dropbox', 'pcloud' ), true ) ) self::redirect( false, 'Proveedor no válido.' );
+		if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() );
 		$connection = sanitize_key( $_REQUEST['connection'] ?? ( is_array( $saved ) ? (string) ( $saved['connection'] ?? '' ) : '' ) );
 		if ( '' !== $connection && Digitalisimo_Backups_Destinations::type_of( $connection ) !== $provider ) self::redirect( false, 'Proveedor no válido.' );
 		$id = '' !== $connection ? $connection : $provider;
@@ -521,7 +552,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			$response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => $code, 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) );
 			$data = json_decode( wp_remote_retrieve_body( $response ), true );
 			if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' );
-			$values[ $provider . '_refresh_token' ] = sanitize_text_field( $data['refresh_token'] );
+			$values[ $provider . '_refresh_token' ] = $data['refresh_token'];
 		} elseif ( 'dropbox' === $provider ) {
 			$token = Digitalisimo_Backups_Destination_Dropbox::exchange_code( (string) $settings['dropbox_app_key'], $code, (string) ( $saved['verifier'] ?? '' ), self::oauth_callback_url() );
 			if ( '' === $token ) self::redirect( false, 'Dropbox no devolvió un refresh token. Revisa la Redirect URI y que la app permita clientes públicos (PKCE).' );
@@ -532,6 +563,12 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			if ( '' === $token ) self::redirect( false, 'pCloud no devolvió un token. Revisa el Client ID, el Client secret y la Redirect URI de la app.' );
 			$values['pcloud_access_token'] = $token;
 			$values['pcloud_host'] = $host;
+		}
+		// El token se guarda exactamente como lo devolvió el proveedor; sólo se rechaza lo que no se puede guardar.
+		foreach ( $values as $field => $value ) {
+			if ( ! in_array( $field, Digitalisimo_Backups_Credentials::FIELDS, true ) ) continue;
+			$problem = Digitalisimo_Backups_Credentials::secret_problem( $value, $field );
+			if ( '' !== $problem ) self::redirect( false, 'El proveedor devolvió un token que no se puede guardar (' . $problem . '). No se cambió nada.' );
 		}
 		try {
 			if ( '' !== $connection ) {

@@ -125,7 +125,7 @@ $case( 'c', function() use ( $B, $C, $K, $check, $leak, $second, $settings ) {
 	$moved = $store;
 	$moved['items']['s3compat_secret_key'] = $store['items'][ $id . '/s3compat_secret_key' ];
 	$K::put( $C::OPTION, $moved );
-	$check( ! isset( $C::read()['s3compat_secret_key'] ), 'Un secreto de una conexión se abrió en otra.' );
+	$check( ! isset( $C::read( bk_call( $B, 'credential_settings' ) )['s3compat_secret_key'] ), 'Un secreto de una conexión se abrió en otra.' );
 	$K::put( $C::OPTION, $store );
 	$destinations = bk_call( $B, 'manual_destinations', $settings() );
 	$check( 'Segundo MinIO' === ( $destinations[ $id ] ?? '' ) && 'Segundo MinIO' === $B::destination_name( $id ), 'La conexión no aparece como destino con su nombre.' );

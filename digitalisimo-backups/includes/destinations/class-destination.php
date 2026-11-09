@@ -70,9 +70,16 @@ abstract class Digitalisimo_Backups_Destination {
 			$raw = $input[ $key ] ?? null;
 			$type = $field['type'] ?? 'text';
 			if ( ! empty( $field['secret'] ) ) {
-				$value = is_string( $raw ) ? trim( $raw ) : '';
-				if ( 'textarea' === $type && is_string( $raw ) ) $value = trim( str_replace( "\r\n", "\n", $raw ) );
-				$out[ $key ] = '' !== $value ? $value : (string) ( $old[ $key ] ?? '' );
+				// Un secreto se guarda exactamente como se escribió (sin recortar ni sanear); vacío o sólo espacios conserva
+				// el guardado. Una clave privada (textarea) sólo normaliza sus saltos de línea.
+				$label = class_exists( 'Digitalisimo_Backups_Credentials' ) ? Digitalisimo_Backups_Credentials::label( $key ) : 'Una credencial';
+				if ( null !== $raw && ! is_string( $raw ) ) throw new Exception( $label . ' no se guardó: no es texto. Corrígelo y vuelve a guardar; no se cambió nada.' );
+				$value = (string) $raw;
+				if ( 'textarea' === $type ) $value = trim( str_replace( array( "\r\n", "\r" ), "\n", $value ) );
+				if ( '' === trim( $value ) ) { $out[ $key ] = (string) ( $old[ $key ] ?? '' ); continue; }
+				$problem = class_exists( 'Digitalisimo_Backups_Credentials' ) ? Digitalisimo_Backups_Credentials::secret_problem( $value, $key ) : '';
+				if ( '' !== $problem ) throw new Exception( $label . ' no se guardó: ' . $problem . '. Corrígelo y vuelve a guardar; no se cambió nada.' );
+				$out[ $key ] = $value;
 				continue;
 			}
 			if ( ! empty( $field['readonly'] ) ) { $out[ $key ] = (string) ( $old[ $key ] ?? ( $field['default'] ?? '' ) ); continue; }

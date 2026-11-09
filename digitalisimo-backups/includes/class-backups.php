@@ -30,12 +30,6 @@ final class Digitalisimo_Backups {
 	const ACTION_MANUAL_STATUS = 'digitalisimo_backups_manual_status';
 	/** Diario de una restauración en curso, en el almacén y fuera de la base de datos que el SQL reemplaza. */
 	const RESTORE_JOURNAL = '.restore-journal.json';
-	/**
-	 * Marca (con autoload) de que los ajustes no guardan ningún secreto en claro: con ella, la comprobación al cargar el
-	 * escritorio o el cron no hace ninguna consulta. Viaja en el SQL como los ajustes, así que un respaldo anterior (sin
-	 * ella) se comprueba al restaurarlo.
-	 */
-	const CREDENTIALS_CLEAN = 'digitalisimo_backups_credentials_migrated';
 	/** Tope del avance de la verificación: con cifrado, la verificación deja sitio a la fase de cifrado. */
 	private static $verify_top = 98;
 	const ACTION_OAUTH = 'digitalisimo_backups_oauth';
@@ -245,24 +239,31 @@ final class Digitalisimo_Backups {
 	/** Rechaza piezas ausentes, cifradas o ilegibles antes de extraer cualquier archivo. */
 	public static function validate_backup_set( $set ) { if ( empty( $set['complete'] ) || empty( $set['files']['db'] ) ) return new WP_Error( 'digitalisimo_backup_incomplete', 'El conjunto no incluye una base de datos legible o tiene piezas cifradas.' ); foreach ( $set['files'] as $parts ) foreach ( $parts as $part ) if ( ! is_readable( $part['path'] ) ) return new WP_Error( 'digitalisimo_backup_unreadable', 'Una pieza del respaldo no se puede leer.' ); return true; }
 	/**
+	 * En una red, las credenciales de los destinos son de toda la red y sólo las lee y escribe el sitio principal (la
+	 * administración de red corre en él): ni un subsitio ni su migración tocan el almacén de la red.
+	 */
+	private static function credentials_here() { return ! is_multisite() || is_main_site(); }
+	/** Los ajustes tal como están guardados (sin valores por defecto). */
+	private static function saved_settings() { $saved = get_option( self::OPTION, array() ); return is_array( $saved ) ? $saved : array(); }
+	/**
 	 * Ajustes con los secretos de los destinos descifrados en memoria, la única lectura de las credenciales. Un secreto
 	 * todavía en claro en los ajustes (sitios actualizados desde 1.0.60 o anteriores, o sin AUTH_KEY y SECURE_AUTH_KEY
-	 * propias) manda y, si ya se puede cifrar, se cifra aquí mismo; uno cifrado con otras claves de wp-config.php queda
-	 * vacío (el destino pide volver a escribirlo): nunca se cae al texto en claro.
+	 * propias) manda y, si ya se puede cifrar, se cifra aquí mismo; uno cifrado con otras claves de wp-config.php, o para
+	 * otros datos de conexión, queda vacío (el destino pide volver a escribirlo): nunca se cae al texto en claro. En un
+	 * subsitio de una red no hay secretos: ni los de la red ni los que quedaran en claro en su propia opción.
 	 */
 	private static function settings() {
-		$saved = get_option( self::OPTION, array() );
-		$saved = is_array( $saved ) ? $saved : array();
+		$saved = self::saved_settings();
+		if ( ! self::credentials_here() ) return wp_parse_args( array_diff_key( $saved, array_flip( self::secret_fields() ) ), self::defaults() );
 		if ( self::plain_secrets( $saved ) && Digitalisimo_Backups_Credentials::can_encrypt() ) {
 			try {
 				self::migrate_credentials();
-				$saved = get_option( self::OPTION, array() );
-				$saved = is_array( $saved ) ? $saved : array();
+				$saved = self::saved_settings();
 			} catch ( Throwable $e ) {
 				error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 			}
 		}
-		$secrets = Digitalisimo_Backups_Credentials::read();
+		$secrets = Digitalisimo_Backups_Credentials::read( self::credential_settings( $saved ) );
 		foreach ( self::secret_fields() as $field ) {
 			if ( is_string( $saved[ $field ] ?? null ) && '' !== $saved[ $field ] ) continue;
 			unset( $saved[ $field ] );
@@ -277,56 +278,61 @@ final class Digitalisimo_Backups {
 		return $plain;
 	}
 	/**
-	 * Único camino para guardar los ajustes: los secretos van cifrados al almacén y nunca en claro a
-	 * digitalisimo_backups_settings. Un secreto vacío no cambia lo guardado. Sin AUTH_KEY y SECURE_AUTH_KEY propias se
-	 * guardan en claro, como hasta 1.0.60, con aviso en la pantalla y en `status` (sin ellas no hay con qué cifrar y no
-	 * guardar dejaría el sitio sin destino); se cifran solos en cuanto existan. Devuelve si quedaron cifrados.
+	 * Único camino para guardar los ajustes: los secretos van cifrados al almacén, atados a los datos de su conexión, y
+	 * nunca en claro a digitalisimo_backups_settings. Un secreto vacío no cambia lo guardado. Sin AUTH_KEY y
+	 * SECURE_AUTH_KEY propias se guardan en claro, como hasta 1.0.60, con aviso en la pantalla y en `status` (sin ellas no
+	 * hay con qué cifrar y no guardar dejaría el sitio sin destino); se cifran solos en cuanto existan. Los ajustes se
+	 * guardan con autoload: comprobarlos al cargar el escritorio no cuesta ninguna consulta. Devuelve si quedaron cifrados.
 	 */
 	private static function store_settings( array $settings ) {
+		if ( ! self::credentials_here() ) throw new Exception( self::subsite_credentials_text() );
 		$secrets = array();
 		foreach ( self::secret_fields() as $field ) {
 			$value = is_string( $settings[ $field ] ?? null ) ? $settings[ $field ] : '';
 			unset( $settings[ $field ] );
 			if ( '' !== $value ) $secrets[ $field ] = $value;
 		}
-		if ( Digitalisimo_Backups_Credentials::put( $secrets ) ) {
-			update_option( self::OPTION, $settings, false );
-			self::mark_credentials( true );
+		if ( Digitalisimo_Backups_Credentials::put( $secrets, $settings ) ) {
+			update_option( self::OPTION, $settings, true );
 			return true;
 		}
-		update_option( self::OPTION, $settings + $secrets, false );
-		self::mark_credentials( ! $secrets );
+		update_option( self::OPTION, $settings + $secrets, true );
 		return false;
 	}
-	private static function mark_credentials( $clean ) {
-		// Sin la marca, get_option() ya la dejó en la caché de opciones inexistentes: comprobarla no es otra consulta.
-		if ( ! $clean ) { if ( false !== get_option( self::CREDENTIALS_CLEAN ) ) delete_option( self::CREDENTIALS_CLEAN ); return; }
-		if ( '1' !== get_option( self::CREDENTIALS_CLEAN ) ) update_option( self::CREDENTIALS_CLEAN, '1', true );
+	private static function subsite_credentials_text() { return 'En una red, las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal. No se cambió nada.'; }
+	/**
+	 * Los ajustes con autoload, para que comprobarlos al cargar no sea una consulta. Una versión anterior (1.0.60 tras
+	 * volver desde rollback/) los reescribe sin autoload: la primera carga los lee (una consulta), migra lo que traigan en
+	 * claro y vuelve a ponerlos con autoload. Sin wp_set_option_autoload() (WordPress anterior a 6.4) se espera al próximo
+	 * guardado.
+	 */
+	private static function autoload_settings() {
+		if ( ! function_exists( 'wp_load_alloptions' ) || ! function_exists( 'wp_set_option_autoload' ) ) return;
+		if ( array_key_exists( self::OPTION, (array) wp_load_alloptions() ) || false === get_option( self::OPTION, false ) ) return;
+		wp_set_option_autoload( self::OPTION, true );
 	}
 	/**
 	 * Migración idempotente de los secretos en claro de los ajustes al almacén cifrado: se cifran, se comprueba que
 	 * vuelven a abrirse y sólo entonces se retiran de los ajustes. Devuelve 'clean', 'migrated', 'unprotected' (no hay
 	 * con qué cifrar; siguen en claro) o 'skipped' (subsitio de una red: los ajustes que usa el motor son los del
-	 * principal).
+	 * principal). Corre al cargar el escritorio, el cron o WP-CLI, antes de volcar el SQL de cada respaldo y tras restaurar.
 	 */
 	public static function migrate_credentials() {
-		if ( is_multisite() && ! is_main_site() ) return 'skipped';
-		$saved = get_option( self::OPTION, array() );
-		$saved = is_array( $saved ) ? $saved : array();
+		if ( ! self::credentials_here() ) return 'skipped';
+		$saved = self::saved_settings();
 		$plain = self::plain_secrets( $saved );
-		if ( ! $plain ) { self::mark_credentials( true ); return 'clean'; }
-		if ( ! Digitalisimo_Backups_Credentials::put( $plain ) ) { self::mark_credentials( false ); return 'unprotected'; }
-		update_option( self::OPTION, array_diff_key( $saved, $plain ), false );
-		self::mark_credentials( true );
+		if ( ! $plain ) { self::autoload_settings(); return 'clean'; }
+		if ( ! Digitalisimo_Backups_Credentials::put( $plain, wp_parse_args( $saved, self::defaults() ) ) ) { self::autoload_settings(); return 'unprotected'; }
+		update_option( self::OPTION, array_diff_key( $saved, $plain ), true );
 		return 'migrated';
 	}
 	/**
-	 * Al cargar el escritorio: sin la marca, comprueba y migra; con ella (autoload) no hace ninguna consulta. En un
-	 * subsitio de una red no hace nada: los ajustes que usa el motor son los del sitio principal.
+	 * Al cargar el escritorio: los ajustes tienen autoload, así que leerlos no cuesta ninguna consulta, y lo que aparezca
+	 * en claro (también lo que reescribió 1.0.60 tras volver desde rollback/ y actualizar otra vez) se cifra. En un
+	 * subsitio de una red no hace nada.
 	 */
 	public static function credentials_on_load() {
-		if ( is_multisite() && ! is_main_site() ) return;
-		if ( '1' === get_option( self::CREDENTIALS_CLEAN ) ) return;
+		if ( ! self::credentials_here() ) return;
 		try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 	}
 	/** Lo mismo en una petición de WP-Cron o de WP-CLI, que no pasan por admin_init. */
@@ -335,24 +341,27 @@ final class Digitalisimo_Backups {
 	}
 	/** Estado público de las credenciales de los destinos (sin valores) para la pantalla, REST y WP-CLI. */
 	private static function credentials_status() {
+		if ( ! self::credentials_here() ) return array( 'state' => 'none', 'locked' => array(), 'plain' => array(), 'notice' => '' );
 		self::settings();
-		$saved = get_option( self::OPTION, array() );
-		return Digitalisimo_Backups_Credentials::status( array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+		$saved = self::saved_settings();
+		return Digitalisimo_Backups_Credentials::status( array_keys( self::plain_secrets( $saved ) ), self::credential_settings( $saved ) );
 	}
 	/** Mensaje de un destino remoto cuyas credenciales no se abren ('' si no es el caso). */
 	private static function credentials_problem( $destination ) {
-		$saved = get_option( self::OPTION, array() );
-		return Digitalisimo_Backups_Credentials::destination_problem( (string) $destination, array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+		if ( ! self::credentials_here() ) return '';
+		$saved = self::saved_settings();
+		return Digitalisimo_Backups_Credentials::destination_problem( (string) $destination, array_keys( self::plain_secrets( $saved ) ), self::credential_settings( $saved ) );
 	}
 	/**
 	 * Tras el SQL de una restauración (también si se recuperó la copia previa o se aplica el diario): las credenciales del
 	 * respaldo mandan sobre las que tenía el servidor. Las cifradas con las claves del servidor de origen se vuelven a
-	 * cifrar con las de éste ($origin sale del wp-config.php del respaldo) y las que venían en claro (respaldos hasta
-	 * 1.0.60) se cifran. Nunca falla la restauración: lo que no se abre queda en «vuelve a escribirla» con su aviso.
+	 * cifrar con las de éste ($origin sale del wp-config.php del respaldo), atadas a los datos de conexión restaurados, y
+	 * las que venían en claro (respaldos hasta 1.0.60) se cifran. Nunca falla la restauración: lo que no se abre queda en
+	 * «vuelve a escribirla» con su aviso.
 	 */
 	private static function restore_credentials( array $origin ) {
 		try {
-			Digitalisimo_Backups_Credentials::reseal( $origin );
+			Digitalisimo_Backups_Credentials::reseal( $origin, self::credential_settings() );
 			self::migrate_credentials();
 		} catch ( Throwable $e ) {
 			error_log( 'DIGITALÍSIMO Backups: credenciales tras restaurar: ' . $e->getMessage() );
@@ -420,7 +429,7 @@ final class Digitalisimo_Backups {
 		$credentials = self::credentials_status();
 		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
 		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a></nav>';
-		if ( 'servers' === $tab ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); echo '</div>'; return; }
+		if ( 'servers' === $tab ) { if ( self::credentials_here() ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); } else echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal.</p></section>'; echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
 			echo '<div class="digitalisimo-backups-grid"><section class="digitalisimo-backups-card"><h2>Crear respaldo completo</h2><p>Incluye todos los sitios de la red cuando WordPress usa Multisite, o el sitio completo en una instalación individual.</p>';
 			if ( is_multisite() && ! is_main_site() ) echo '<p class="notice notice-warning inline">El respaldo completo de la red debe iniciarse desde el sitio principal o la administración de red. Este subsitio no generará una copia incompleta.</p>';
@@ -663,6 +672,10 @@ final class Digitalisimo_Backups {
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
 	public static function job_export_database( $path ) {
 		global $wpdb;
+		// Ningún respaldo lleva un secreto en claro si hay salts propias: lo que quede en claro en los ajustes (por ejemplo,
+		// lo que reescribió 1.0.60 tras volver desde rollback/) se cifra antes del volcado; si no se puede comprobar, la
+		// fase falla y se reintenta. export_row() es la última defensa, fila a fila.
+		self::migrate_credentials();
 		$at = gmdate( 'c' );
 		$tables = $wpdb->get_col( 'SHOW TABLES' );
 		$mode = self::database_sql_to_file( $tables, $path );
@@ -1002,6 +1015,7 @@ final class Digitalisimo_Backups {
 			if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
 			foreach ( $rows as $row ) {
 				if ( self::secret_row( $table, $row ) ) continue;
+				$row = self::export_row( $table, $row );
 				$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
 				$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
 				$sql .= 'INSERT INTO `' . str_replace( '`', '``', $output ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n";
@@ -1120,8 +1134,26 @@ final class Digitalisimo_Backups {
 		else return false;
 		return is_string( $name ) && 0 === strpos( $name, Digitalisimo_Backups_Keys::SECRET_PREFIX );
 	}
+	/**
+	 * Con salts propias ningún respaldo lleva un secreto de destino en claro: si la fila de digitalisimo_backups_settings
+	 * de cualquier tabla de opciones los trae (la del sitio principal ya se cifró antes del volcado; la de un subsitio de
+	 * una red, que el motor no usa, puede conservar unos de una versión anterior), se exporta sin ellos. Sin salts propias
+	 * se exporta tal cual: es la decisión del punto 7 (no hay con qué cifrarlos y sin ellos no se restauraría el destino).
+	 */
+	private static function export_row( $table, $row ) {
+		global $wpdb;
+		if ( ! is_array( $row ) || self::OPTION !== ( $row['option_name'] ?? null ) || ! is_string( $row['option_value'] ?? null ) ) return $row;
+		$prefix = (string) ( $wpdb->base_prefix ?? '' );
+		if ( '' === $prefix || 0 !== strpos( $table, $prefix ) || ! preg_match( '/^(?:[0-9]+_)?options$/D', substr( $table, strlen( $prefix ) ) ) ) return $row;
+		$value = @unserialize( $row['option_value'], array( 'allowed_classes' => false ) );
+		$plain = is_array( $value ) ? self::plain_secrets( $value ) : array();
+		if ( ! $plain || ! Digitalisimo_Backups_Credentials::can_encrypt() ) return $row;
+		$row['option_value'] = serialize( array_diff_key( $value, $plain ) );
+		return $row;
+	}
 	private static function write_sql_row( $handle, $table, $row ) {
 		if ( self::secret_row( $table, $row ) ) return;
+		$row = self::export_row( $table, $row );
 		$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
 		$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
 		self::write_sql( $handle, 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
