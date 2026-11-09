@@ -57,6 +57,12 @@ function steps_kill( $id, $phase, array $garbage ) {
 	return $job;
 }
 function steps_staging( $id ) { return bk_storage() . '/jobs/' . $id . '/staging'; }
+/** Con BK_STEPS_ONLY=A,B… sólo corren esas secciones (para comprobarlas una a una contra la rama anterior). */
+function steps_section( $name ) {
+	$only = (string) getenv( 'BK_STEPS_ONLY' );
+	return '' === $only || in_array( $name, explode( ',', $only ), true );
+}
+$same = function( $a, $b ) { ksort( $a ); ksort( $b ); return $a === $b; };
 
 // Referencia: una corrida sin cortes (cada fase en un tramo).
 steps_filters( array() );
@@ -64,11 +70,12 @@ $reference = bk_manual( 'local', 'referencia' );
 $job = steps_done( $reference['id'] );
 $expected_sql = steps_sql( steps_zip( $job ) );
 $expected = bk_zip_entries( steps_zip( $job ) );
-bk_assert( 'transaction' === $job['checkpoint']['database']['mode'] && 1 === $job['checkpoint']['database']['segments'] && 'transaction' === $expected['database_consistency'], 'Sin cortes, la base de datos no salió de una sola instantánea.' );
-bk_assert( isset( $expected['entries']['wordpress/wp-content/uploads/2026/11/grande.txt'] ) && Digitalisimo_Backups_Packer::PACKER === $expected['packer'], 'La referencia no tiene el archivo grande o el empaquetador nuevo.' );
+bk_assert( 'transaction' === $job['checkpoint']['database']['mode'] && 'transaction' === $expected['database_consistency'], 'Sin cortes, la base de datos no salió de una sola instantánea.' );
+bk_assert( isset( $expected['entries']['wordpress/wp-content/uploads/2026/11/grande.txt'] ), 'La referencia no tiene el archivo grande.' );
 bk_assert( 9 === substr_count( $expected_sql, 'INSERT INTO `wp_posts`' ) && 1 === substr_count( $expected_sql, 'SET foreign_key_checks = 1;' ), 'El SQL de referencia no tiene las filas esperadas.' );
 
 // A. Muerte a mitad de una tabla: el tramo siguiente trunca el SQL y sigue por la clave, sin releer lo ya escrito.
+if ( steps_section( 'A' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_db_batch' => 2 ) );
 $exports = $db->exports;
 $a = bk_manual( 'local', 'mitad-de-tabla' );
@@ -89,18 +96,22 @@ $job = steps_done( $a['id'] );
 bk_assert( $exports + 1 === $db->exports, 'La reanudación volvió a pedir la lista de tablas.' );
 bk_assert( $expected_sql === steps_sql( steps_zip( $job ) ), 'El SQL exportado por tramos y retomado no es idéntico al de una corrida sin cortes.' );
 $manifest = bk_zip_entries( steps_zip( $job ) );
-bk_assert( 'transaction-steps' === $manifest['database_consistency'] && $job['checkpoint']['database']['segments'] > 2 && preg_grep( '/instantánea única/', $job['warnings'] ), 'La exportación en varios tramos no se declaró en el manifiesto y el trabajo.' );
+bk_assert( 'transaction-steps' === $manifest['database_consistency'] && 'digitalisimo-zip/1' === $manifest['packer'] && $job['checkpoint']['database']['segments'] > 2 && preg_grep( '/instantánea única/', $job['warnings'] ), 'La exportación en varios tramos no se declaró en el manifiesto y el trabajo.' );
 Digitalisimo_Backups::job_verify_package( steps_zip( $job ) );
 
+}
 // A2. Muerte entre dos tramos (justo después de guardar el punto de control): sigue sin perder ni repetir nada.
+if ( steps_section( 'A2' ) ) {
 $a2 = bk_manual( 'local', 'entre-tramos' );
 steps_until( $a2['id'], function( $job ) { $r = $job['checkpoint']['database']['resume'] ?? null; return is_array( $r ) && 0 === (int) $r['table'] && 2 === (int) $r['rows']; } );
 steps_kill( $a2['id'], 'database', array() );
 $job = steps_done( $a2['id'] );
 bk_assert( $expected_sql === steps_sql( steps_zip( $job ) ), 'Una muerte entre dos tramos cambió el SQL.' );
 
+}
 // B. Muerte a mitad del inventario por carpetas y a mitad de un archivo: las listas y el ZIP se truncan a su punto de
 // control, lo escrito antes no cambia y el ZIP final tiene las mismas entradas que sin cortes.
+if ( steps_section( 'B' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_zip_chunk' => 16384 ) );
 $b = bk_manual( 'local', 'mitad-de-carpeta' );
 $job = steps_until( $b['id'], function( $job ) { $r = $job['checkpoint']['pack']['resume'] ?? null; return is_array( $r ) && 'inventory' === $r['stage'] && $r['dirs_read'] > 0 && $r['files'] >= 5; } );
@@ -126,7 +137,6 @@ $job = steps_done( $b['id'] );
 $final = steps_zip( $job );
 bk_assert( $written === $confirmed( file_get_contents( $final ) ), 'El empaquetado retomado reescribió bytes ya confirmados del ZIP.' );
 $manifest = bk_zip_entries( $final );
-$same = function( $a, $b ) { ksort( $a ); ksort( $b ); return $a === $b; };
 bk_assert( $same( $expected['entries'], $manifest['entries'] ), 'El ZIP empaquetado por tramos y retomado no tiene las mismas entradas que sin cortes.' );
 bk_assert( $entries_before > 1 && 0 === (int) ( $job['attempts']['pack'] ?? 0 ), 'El empaquetado no avanzó entrada a entrada.' );
 Digitalisimo_Backups::job_verify_package( $final );
@@ -135,10 +145,14 @@ $zip->open( $final );
 bk_assert( $big === $zip->getFromName( 'wordpress/wp-content/uploads/2026/11/grande.txt' ) && 8 === (int) $zip->statName( 'wordpress/wp-content/uploads/2026/11/grande.txt' )['comp_method'] && 0 === (int) $zip->statName( 'wordpress/wp-content/uploads/2026/11/foto.jpg' )['comp_method'], 'libzip no lee igual el archivo partido en varios compresores o el JPEG no se guardó sin comprimir.' );
 $zip->close();
 
+}
 // C. Verificación por tramos, también a mitad de una entrada (por sus límites de bloque), y muerte en medio.
+if ( steps_section( 'C' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_zip_chunk' => 16384, 'digitalisimo_backups_verify_parts_from' => 1024 ) );
 $c = bk_manual( 'local', 'verificacion-por-tramos' );
-$job = steps_until( $c['id'], function( $job ) { $r = $job['checkpoint']['verify']['resume'] ?? null; return 'verify' === $job['phase'] && is_array( $r ) && is_array( $r['partial'] ) && $r['partial']['from'] > 0; } );
+// Con PHP 7.4 no se puede guardar el estado del hash: la verificación se corta entre entradas, no dentro de una.
+$parts = Digitalisimo_Backups_Zip_Writer::hash_state_supported();
+$job = steps_until( $c['id'], function( $job ) use ( $parts ) { $r = $job['checkpoint']['verify']['resume'] ?? null; return 'verify' === $job['phase'] && is_array( $r ) && ( $parts ? is_array( $r['partial'] ) && $r['partial']['from'] > 0 : $r['index'] > 3 ); } );
 $resume = steps_resume( $c['id'], 'verify' );
 bk_assert( 'content' === $resume['stage'] && $resume['index'] > 0, 'La verificación no avanzó entrada a entrada.' );
 steps_kill( $c['id'], 'verify', array() );
@@ -159,10 +173,13 @@ $job = steps_until( $d['id'], function( $job ) { return 'pack' === $job['phase']
 bk_assert( 'pack' === $job['phase'] && 1 === (int) $job['attempts']['verify'] && false !== strpos( (string) $job['error']['message'], 'verificación del ZIP falló' ), 'Un ZIP dañado superó la verificación por tramos.' );
 steps_done( $d['id'] );
 
+}
 // D. Presupuesto: con una base lenta cada tick termina en su presupuesto y la exportación se reparte en tramos.
+if ( steps_section( 'D' ) ) {
 steps_filters( array( 'digitalisimo_backups_db_batch' => 1, 'digitalisimo_backups_step_min' => 0.05 ) );
 $db->tables['wp_posts'] = 40;
-$db->on_select = function() { usleep( 20000 ); };
+// Cada fila leída tarda 20 ms: una consulta de 40 filas, 0,8 s.
+$db->on_select = function( $query ) { preg_match( '/LIMIT (?:[0-9]+, )?([0-9]+)$/', $query, $m ); usleep( 20000 * min( 40, (int) ( $m[1] ?? 40 ) ) ); };
 $slow = bk_manual( 'local', 'presupuesto' );
 Digitalisimo_Backups_Jobs::tick( 0 ); // Comprobaciones.
 $durations = array();
@@ -171,7 +188,8 @@ for ( $i = 0; $i < 200 && 'database' === bk_job( $slow['id'] )['phase']; $i++ ) 
 	Digitalisimo_Backups_Jobs::tick( 0.2 );
 	$durations[] = microtime( true ) - $start;
 }
-bk_assert( count( $durations ) >= 3 && max( $durations ) < 0.45, 'Un tick de exportación pasó de su presupuesto de 0,2 s: ' . round( max( $durations ), 3 ) . ' s en ' . count( $durations ) . ' ticks.' );
+bk_assert( max( $durations ) < 0.45, 'Un tick de exportación pasó de su presupuesto de 0,2 s: ' . round( max( $durations ), 3 ) . ' s.' );
+bk_assert( count( $durations ) >= 3, 'La exportación lenta no se repartió en tramos (' . count( $durations ) . ' ticks).' );
 // El límite real de la petición manda aunque el que llama pida «sin límite» (la pantalla de 1.0.58 lo hacía).
 steps_filters( array( 'digitalisimo_backups_db_batch' => 1, 'digitalisimo_backups_step_min' => 0.05, 'digitalisimo_backups_request_limit' => 10 ) );
 $late = bk_manual( 'local', 'limite-de-peticion' );
@@ -194,7 +212,9 @@ $tight = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ) && Digitalisimo_B
 ini_set( 'memory_limit', $limit );
 bk_assert( $tight && ! Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 ), 'El presupuesto no se detiene cerca de memory_limit.' );
 
+}
 // E. Escala adaptativa del lote: tras una muerte el siguiente tramo pide la mitad de filas.
+if ( steps_section( 'E' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 2 ) );
 $db->tables['wp_posts'] = 2000;
 $e = bk_manual( 'local', 'lote-adaptativo' );
@@ -209,7 +229,9 @@ steps_filters( array() );
 steps_done( $e['id'] );
 $db->tables['wp_posts'] = 9;
 
+}
 // F. Claves compuestas, de texto con cifras y binarias: la paginación sigue el orden de la clave en cada tramo.
+if ( steps_section( 'F' ) ) {
 class Steps_Keys_DB extends Digitalisimo_Jobs_Test_DB {
 	public $keyed = array();
 	public function __construct() {
@@ -288,7 +310,9 @@ $queries = implode( "\n", $GLOBALS['wpdb']->queries );
 bk_assert( false !== strpos( $queries, "WHERE (`object_id` > 1) OR (`object_id` = 1 AND `term_taxonomy_id` > 2)" ) && false !== strpos( $queries, "WHERE (`k` > '10')" ) && false !== strpos( $queries, "WHERE (`b` > X'0001')" ), 'La paginación no usa la clave compuesta, el texto entre comillas o el literal binario.' );
 $GLOBALS['wpdb'] = $db;
 
+}
 // G. Un archivo que desaparece después del inventario se omite con aviso; uno obligatorio hace fallar el empaquetado.
+if ( steps_section( 'G' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 1 ) );
 $g = bk_manual( 'local', 'archivo-desaparecido' );
 steps_until( $g['id'], function( $job ) { $r = $job['checkpoint']['pack']['resume'] ?? null; return is_array( $r ) && 'write' === $r['stage']; } );
@@ -308,7 +332,9 @@ $job = steps_until( $h['id'], function( $job ) { return Digitalisimo_Backups_Job
 bk_assert( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'wp-load.php' ) && ! is_file( steps_zip( $job ) ), 'Sin un archivo obligatorio el empaquetado no falló limpio.' );
 file_put_contents( $load, $content );
 
+}
 // H. Sin poder guardar el estado de CRC y SHA-256 (PHP 7.4) una entrada partida se retoma releyendo lo escrito.
+if ( steps_section( 'H' ) ) {
 Digitalisimo_Backups_Zip_Writer::$no_hash_state = true;
 steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_zip_chunk' => 16384 ) );
 $i74 = bk_manual( 'local', 'sin-estado-de-hash' );
@@ -319,7 +345,9 @@ Digitalisimo_Backups_Zip_Writer::$no_hash_state = false;
 bk_assert( $same( $expected['entries'], bk_zip_entries( steps_zip( $job ) )['entries'] ), 'Sin estado de hash serializable, la entrada retomada no quedó íntegra.' );
 Digitalisimo_Backups::job_verify_package( steps_zip( $job ) );
 
+}
 // I. MyISAM: cada tramo toma y suelta su bloqueo de lectura, y nada lee opciones dentro de la instantánea.
+if ( steps_section( 'I' ) ) {
 steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_db_batch' => 2 ) );
 $db->engine = 'MyISAM';
 $db->snapshot_violations = array();
@@ -329,6 +357,7 @@ $locks = count( preg_grep( '/^LOCK TABLES /', $db->queries ) );
 bk_assert( 'lock-steps' === $job['checkpoint']['database']['mode'] && $locks === $job['checkpoint']['database']['segments'] && $locks === count( array_keys( $db->queries, 'UNLOCK TABLES', true ) ) && ! $db->snapshot_violations, 'Con tablas no transaccionales los tramos no tomaron y soltaron su bloqueo de lectura.' );
 $db->engine = 'InnoDB';
 
+}
 steps_filters( array() );
 bk_assert( ! Digitalisimo_Backups_Jobs::has_active(), 'Quedaron trabajos activos.' );
 bk_cleanup();
