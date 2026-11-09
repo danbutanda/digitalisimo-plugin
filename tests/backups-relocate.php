@@ -157,6 +157,7 @@ file_put_contents( $abspath . '/wp-content/uploads/elementor/css/post-2.css', '.
 file_put_contents( $abspath . '/wp-content/uploads/elementor/google-fonts/css/roboto.css', '@font-face{src:url(https://origen.com/wp-content/uploads/elementor/google-fonts/fonts/r.woff2)}' );
 e1_use( $origin, 'https://origen.com' );
 $single = e1_backup();
+$GLOBALS['e1_single'] = $single;
 
 /* -------------------------------------------------------------------- E1: otro dominio y otra ruta, mismo prefijo */
 e1_case( 'E1 sitio individual en otro dominio y otra ruta', function() use ( $single, $abspath, $malformed ) {
@@ -339,6 +340,33 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	e1_check( $plan->problems() && false !== strpos( implode( ' ', $plan->problems() ), 'BLOG_ID_CURRENT_SITE es 5' ), 'BLOG_ID_CURRENT_SITE inexistente.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( $origin, array( 'home' => 'https://destino.mx', 'prefix' => 'wp_', 'multisite' => false ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'convierte esta instalación en una red por subdirectorios' ), 'Red en un sitio individual: ' . json_encode( $plan->problems() ) );
+	// Un respaldo de confianza con una vista: con otro prefijo no se puede asegurar a qué apunta, y se rechaza en la pasada
+	// en seco, antes de la copia previa.
+	$dest = e1_db( 'vista', 'v_' );
+	e1_tables( $dest, 'v_' );
+	e1_options( $dest, 'v_options', 'https://destino.mx', 'https://destino.mx' );
+	e1_use( $dest, 'https://destino.mx' );
+	$view = 'digitalisimo-backup-con-vista.zip';
+	copy( bk_storage() . '/' . $GLOBALS['e1_single'], bk_storage() . '/' . $view );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $view );
+	$sql = $zip->getFromName( 'database.sql' ) . "CREATE ALGORITHM=UNDEFINED VIEW `wp_vista` AS select 1;\n";
+	$manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+	$manifest['database_tables'][] = 'wp_vista';
+	$manifest['entries']['database.sql'] = array( 'size' => strlen( $sql ), 'sha256' => hash( 'sha256', $sql ) );
+	$manifest['database_size'] = strlen( $sql );
+	$manifest['uncompressed_size'] = array_sum( array_column( $manifest['entries'], 'size' ) );
+	$zip->addFromString( 'database.sql', $sql );
+	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	$zip->close();
+	bk_call( 'Digitalisimo_Backups', 'remember', bk_storage() . '/' . $view, 'local', 'installation', array( 'id' => 'manual', 'type' => 'full' ) );
+	$before = $dest->names();
+	$copies = count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() );
+	$error = Digitalisimo_Backups::service_restore( $view, array( 'confirm' => 'RESTAURAR' ) );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_rejected' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'no se puede cambiar el prefijo de una vista' ), 'Una vista con otro prefijo no se rechazó antes de tocar nada: ' . ( is_wp_error( $error ) ? $error->get_error_code() . ' ' . $error->get_error_message() : 'se restauró' ) );
+	e1_check( $before === $dest->names() && count( glob( bk_storage() . '/safety-before-restore-*' ) ?: array() ) === $copies, 'El rechazo de la vista tocó la base de datos o creó una copia previa.' );
+	bk_call( 'Digitalisimo_Backups', 'remove_history', $view );
+	@unlink( bk_storage() . '/' . $view );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => null ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'no lista sus tablas' ), 'Formato sin lista de tablas con otro prefijo.' );
 	$plan = Digitalisimo_Backups_Relocate::plan( array( 'home' => 'https://a.test', 'prefix' => 'wp_' ), array( 'home' => 'https://b.test', 'prefix' => 'x_' ), array( 'tables' => array( 'wp_posts', 'x_posts' ) ) );
@@ -454,6 +482,20 @@ e1_case( 'E7 pantalla: «Origen → este sitio» antes de confirmar y conservar 
 	e1_check( false !== strpos( $html, esc_html( $single . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'La lista no dice «Origen → este sitio»: ' . substr( strip_tags( $html ), 0, 600 ) );
 	e1_check( false !== strpos( $html, esc_attr( 'Origen https://origen.com (prefijo wp_) → este sitio https://destino.mx/pantalla (prefijo pan_). Se reescribirá: prefijo de tablas wp_ → pan_' ) ), 'El texto completo de lo que se reescribirá no está en la opción.' );
 	e1_check( false !== strpos( $html, 'name="addresses" value="current" checked' ) && false !== strpos( $html, 'name="addresses" value="backup"' ), 'Falta la opción de conservar las direcciones del respaldo.' );
+	// Un manifiesto de más de 1 MiB (un sitio con muchísimos archivos) no se carga entero para la lista: sólo su comienzo.
+	$big = 'digitalisimo-backup-grande.zip';
+	copy( bk_storage() . '/' . $single, bk_storage() . '/' . $big );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $big );
+	$manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+	$manifest['relleno'] = str_repeat( 'x', 1200000 );
+	$zip->addFromString( 'manifest.json', json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+	$zip->close();
+	ob_start();
+	bk_call( 'Digitalisimo_Backups', 'restore_panel', array() );
+	$html = ob_get_clean();
+	@unlink( bk_storage() . '/' . $big );
+	e1_check( false !== strpos( $html, esc_html( $big . ' · sin registro · origen https://origen.com (wp_) → este sitio' ) ), 'Con un manifiesto de más de 1 MiB la lista no dice «Origen → este sitio».' );
 	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $single, 'confirmation' => 'RESTAURAR SIN FIRMA', 'addresses' => 'backup' ) );
 	e1_check( $ok && false !== strpos( $message, 'Origen → este sitio' ), 'La pantalla no restauró o no dijo qué reescribió: ' . $message );
 	e1_check( 'https://origen.com' === $dest->value( 'pan_options', 'option_value', "option_name = 'home'" ) && null !== $dest->value( 'pan_options', 'option_value', "option_name = 'pan_user_roles'" ), 'La pantalla no envió «conservar las direcciones del respaldo».' );

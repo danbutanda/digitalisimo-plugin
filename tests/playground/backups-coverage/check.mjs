@@ -123,6 +123,12 @@ try {
   check(backup.restorable === true && backup.scope === (network ? 'network' : 'installation') && backup.container === 'zip', 'el respaldo del trabajo está en el historial y es restaurable', res.text);
   res = await api('GET', `/backups/${backup.file}/verify`, { headers: basic('admin') });
   check(res.status === 200 && res.json?.verified === true && res.json?.sha256 === backup.sha256 && res.json?.registered === true, 'GET verify: íntegro y registrado', res.text);
+  // E1: «Origen → este sitio» y el parámetro addresses, con la validación real de WordPress (enum).
+  check(res.json?.relocation && res.json.relocation.needed === false && res.json.relocation.addresses === 'current', 'GET verify: el mismo sitio no anuncia reescrituras (relocation)', JSON.stringify(res.json?.relocation));
+  res = await request('GET', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/backups/${backup.file}/verify`)}&addresses=backup`, { headers: basic('admin') });
+  check(res.status === 200 && res.json?.relocation?.addresses === 'backup', 'GET verify con addresses=backup', `${res.status} ${res.text.slice(0, 300)}`);
+  res = await api('POST', `/backups/${backup.file}/restore`, { headers: basic('admin'), body: network ? { confirm: 'RESTAURAR', network: true, addresses: 'otra' } : { confirm: 'RESTAURAR', addresses: 'otra' } });
+  check(res.status === 400 && ['rest_invalid_param', 'digitalisimo_backups_addresses'].includes(res.json?.code), 'POST restore con un addresses inválido: 400 sin restaurar', `${res.status} ${res.text.slice(0, 300)}`);
   check(!res.text.includes('/digi-store') && !res.text.includes('/wordpress/'), 'la verificación no expone rutas del servidor');
   res = await request('POST', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/backups/${backup.file}/verify`)}&secret=frase-en-la-url`, { headers: { ...basic('admin'), 'Content-Type': 'application/json' }, body: {} });
   check(res.status === 400 && res.json?.code === 'digitalisimo_backups_secret_in_url' && !res.text.includes('frase-en-la-url'), 'la frase en la URL se rechaza sin repetirla (400)', `${res.status} ${res.text}`);
@@ -170,6 +176,10 @@ try {
   check(Array.isArray(parsed) && parsed.some((row) => row.file === backup.file), 'wp digitalisimo-backups list --format=json', out.stdout + out.stderr);
   out = await wp('digitalisimo-backups', 'verify', backup.file);
   check(out.stdout.includes(`Success: Respaldo íntegro: ${backup.file}`), 'wp digitalisimo-backups verify', out.stdout + out.stderr);
+  out = await wp('digitalisimo-backups', 'verify', backup.file, '--addresses=backup');
+  check(out.stdout.includes(`Success: Respaldo íntegro: ${backup.file}`), 'wp digitalisimo-backups verify --addresses=backup', out.stdout + out.stderr);
+  out = await wp('digitalisimo-backups', 'restore', backup.file, '--confirm=RESTAURAR', '--addresses=otra', ...(network ? ['--network'] : []));
+  check(/addresses/.test(out.stdout + out.stderr) && !/Restauración terminada/.test(out.stdout), 'wp digitalisimo-backups restore --addresses=otra no restaura', out.stdout + out.stderr);
   // «Seguridad» en las dos superficies, con un .dgbk pequeño (sodium_compat cifra unos 11 s por MiB en php-wasm) cifrado
   // con una frase que este sitio no tiene. Sin ella, REST y WP-CLI dan un error claro con la huella corta y dónde va la
   // frase; una frase equivocada se rechaza sin repetirla; con la buena, lo descifrado pasa por la validación de archivos

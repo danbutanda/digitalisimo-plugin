@@ -9,7 +9,9 @@ $dir = '/digi-probe';
 try {
 	if ( is_file( $dir . '/setup-error.txt' ) ) return;
 	global $wpdb;
-	if ( 'dst_' !== $wpdb->base_prefix ) throw new RuntimeException( 'El destino no quedó con el prefijo dst_ (' . $wpdb->base_prefix . ').' );
+	$target = trim( (string) @file_get_contents( $dir . '/prefix.txt' ) );
+	if ( '' === $target ) $target = 'dst_';
+	if ( $target !== $wpdb->base_prefix ) throw new RuntimeException( 'El destino no quedó con el prefijo ' . $target . ' (' . $wpdb->base_prefix . ').' );
 	$network = is_multisite();
 	$activated = activate_plugin( 'digitalisimo-backups/digitalisimo-backups.php', '', $network );
 	if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó Backups: ' . $activated->get_error_message() );
@@ -19,7 +21,7 @@ try {
 	if ( ! $admin ) throw new RuntimeException( 'Falta el usuario admin del destino.' );
 	$created = WP_Application_Passwords::create_new_application_password( $admin->ID, array( 'name' => 'digi-relocate-destino' ) );
 	if ( is_wp_error( $created ) ) throw new RuntimeException( 'Sin contraseña de aplicación: ' . $created->get_error_message() );
-	file_put_contents( $dir . '/setup.json', wp_json_encode( array( 'network' => $network, 'password' => $created[0], 'prefix' => $wpdb->base_prefix, 'home' => home_url(), 'other_options' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM wp_options' ), 'tables' => $wpdb->get_col( 'SHOW TABLES' ) ) ) );
+	file_put_contents( $dir . '/setup.json', wp_json_encode( array( 'network' => $network, 'password' => $created[0], 'prefix' => $wpdb->base_prefix, 'home' => home_url(), 'other_options' => 'wp_' === $wpdb->base_prefix ? null : (int) $wpdb->get_var( 'SELECT COUNT(*) FROM wp_options' ), 'tables' => $wpdb->get_col( 'SHOW TABLES' ) ) ) );
 } catch ( Throwable $e ) {
 	file_put_contents( $dir . '/setup-error.txt', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
 }
