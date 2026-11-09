@@ -241,6 +241,21 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	e1_check( is_wp_error( $bad ) && 'digitalisimo_backups_addresses' === $bad->get_error_code() && 400 === $bad->get_error_data()['status'], 'Un valor de addresses inválido no se rechazó.' );
 } );
 
+e1_case( 'E2 un fallo a mitad de la reescritura vuelve a la copia previa', function() use ( $single ) {
+	$dest = e1_db( 'destino-falla', 'dst_' );
+	e1_tables( $dest, 'dst_' );
+	e1_options( $dest, 'dst_options', 'https://destino.mx', 'https://destino.mx', array( 'propia' => 'del destino' ) );
+	$dest->seed( 'dst_posts', array( array( 'ID' => 5, 'post_title' => 'Antes', 'post_content' => 'contenido del destino', 'guid' => 'g' ) ) );
+	e1_use( $dest, 'https://destino.mx' );
+	$before = array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) );
+	// La sentencia ya renombrada y reescrita falla: la importación se detiene y la copia previa vuelve a su sitio.
+	$dest->fail_on = 'INSERT INTO `dst_posts`';
+	$error = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'Se recuperaron la base de datos y los archivos anteriores' ), 'El fallo no se recuperó desde la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
+	e1_check( $before === array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) ), 'La copia previa no devolvió el destino tal como estaba.' );
+	e1_no_trap();
+} );
+
 /* ---------------------------------------------------------------------------------------- E3 y E4: redes */
 /** Red de origen con el sitio principal, un subsitio y, si se pide, un sitio con dominio propio. */
 function e1_network_origin( $name, $subdomain ) {
