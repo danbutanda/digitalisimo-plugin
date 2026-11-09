@@ -377,6 +377,9 @@ trait Digitalisimo_Backups_Service {
 			} catch ( Exception $e ) {
 				return 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ? self::service_error( 'signed_only', $e->getMessage(), 403 ) : self::service_error( 'confirm_unsigned', $e->getMessage(), 400 );
 			}
+			// La copia previa se firma con la clave que el sitio tiene ahora (no con la frase que se adopte): se fija ya.
+			$safety_file = self::backup_file_name( 'safety-before-restore-' );
+			$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
 			// La frase escrita sólo vive en esta petición: si se pidió, firma desde ya los respaldos nuevos.
 			$adopted = false;
 			$adopt_note = '';
@@ -384,18 +387,21 @@ trait Digitalisimo_Backups_Service {
 				try {
 					Digitalisimo_Backups_Keys::adopt( $report['root'], $report['key'] );
 					$adopted = true;
+					$adopt_note = ' La frase escrita firma ahora los respaldos nuevos (clave ' . Digitalisimo_Backups_Keys::short( $report['key']['id'] ) . ').';
 				} catch ( Exception $adopt_error ) {
 					$adopt_note = ' No se guardó la frase: ' . $adopt_error->getMessage();
 				}
 			}
 			try {
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'sync' => array_key_exists( 'sync', $args ) ? ! empty( $args['sync'] ) : 'cli' === PHP_SAPI ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => array_key_exists( 'sync', $args ) ? ! empty( $args['sync'] ) : 'cli' === PHP_SAPI ) );
 			} catch ( Throwable $e ) {
 				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
 			}
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
+			// Lo que esperaba en la cola (y la restauración misma) conserva su tick, también si se rechazó.
+			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
 		// El resto lo hacen ticks: los de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
 		$job = self::restore_drive( $job['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );

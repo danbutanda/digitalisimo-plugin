@@ -53,8 +53,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			),
 			'addresses' => 'backup' === ( $args['addresses'] ?? '' ) ? 'backup' : 'current',
 			'rollback' => $rollback,
-			// La copia previa recibe su nombre al empezar su fase (Digitalisimo_Backups_Restore_Job::safety_file()).
-			'safety' => '',
+			// La copia previa: fijada al encolar (pantalla, REST, WP-CLI) o, en la envoltura, al empezar su fase.
+			'safety' => $rollback ? '' : (string) ( $args['safety_spec']['file'] ?? '' ),
+			'safety_spec' => $rollback || ! is_array( $args['safety_spec'] ?? null ) ? array() : $args['safety_spec'],
 			'tag' => bin2hex( random_bytes( 3 ) ),
 			'token' => (string) ( $args['token'] ?? Digitalisimo_Backups_Restore_Maintenance::new_token() ),
 			'adopted' => ! empty( $args['adopted'] ),
@@ -481,7 +482,6 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$old = str_replace( 'dgbkr_', 'dgbko_', $temp );
 			$rows[] = array( 'backup' => $table, 'dest' => (string) $map[ $n ], 'temp' => $temp, 'old' => $old );
 		}
-		if ( ! $rows ) throw new Digitalisimo_Backups_Permanent_Error( 'La base de datos del respaldo no tiene tablas.' );
 		self::restore_write_json( $job, 'tables.json', $rows );
 		// Tablas temporales o viejas que dejó otra restauración que murió (nunca las de la que esta deshace).
 		$keep = (string) ( $job['spec']['rollback']['tag'] ?? '' );
@@ -709,7 +709,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 */
 	private static function restore_safety( array $job ) {
 		$cursor = (array) ( $job['checkpoint']['safety'] ?? array() );
-		if ( empty( $cursor['spec'] ) ) {
+		if ( empty( $cursor['spec'] ) && ! empty( $job['spec']['safety_spec']['file'] ) ) {
+			$cursor = array( 'file' => (string) $job['spec']['safety_spec']['file'], 'spec' => (array) $job['spec']['safety_spec'] );
+		} elseif ( empty( $cursor['spec'] ) ) {
 			$file = self::backup_file_name( 'safety-before-restore-' );
 			$cursor = array( 'file' => $file, 'spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $file, 'inline' => true ) ) );
 		}
@@ -820,6 +822,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	}
 	/** Lo que el respaldo excluye a propósito (nunca es «ajeno»): `.git`, `node_modules`, carpetas `cache`. */
 	private static function restore_excluded( $relative ) {
+		// wp-config.php nunca se restaura ni se retira (es de este servidor).
+		if ( in_array( strtolower( $relative ), array( 'wp-config.php', '.maintenance' ), true ) ) return true;
 		$path = '/' . $relative . '/';
 		return false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || 0 === strpos( $relative, '.digitalisimo-restore-' ) || 0 === strpos( $relative, '.digitalisimo-case-' );
 	}
@@ -878,6 +882,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$units = array();
 		}
 		$zip = self::restore_zip( $job );
+		// Sólo un respaldo completo v3 (con su inventario comprobado) dice qué sobra; uno anterior puede no traer el árbol entero.
+		$complete = ! empty( $job['checkpoint']['inspect']['v3'] );
 		$extraneous = @fopen( $staging . '/extraneous.txt', 'ab' );
 		$removed = @fopen( $staging . '/removed.txt', 'ab' );
 		if ( ! $extraneous || ! $removed ) throw new Exception( 'No se pudo anotar lo que el respaldo no tiene en el área de trabajo.' );
@@ -905,7 +911,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 						if ( self::restore_walk_into( $relative, $layout ) ) $stack[] = $relative;
 						continue;
 					}
-					if ( ! self::restore_managed( $relative, $layout ) ) continue;
+					if ( ! self::restore_managed( $relative, $layout ) || ! $complete ) continue;
 					if ( false !== $zip->locateName( 'wordpress/' . $relative ) ) continue;
 					// Ajeno al respaldo, dentro de lo que gestiona: se retira (queda en la copia previa) y se informa.
 					fwrite( $removed, self::restore_line( $relative ) );
@@ -1128,6 +1134,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$q = array( 'Digitalisimo_Backups_Relocate', 'quote_name' );
 		$live = array_flip( array_map( 'strval', (array) $wpdb->get_col( 'SHOW TABLES' ) ) );
 		$mode = self::restore_swap_mode();
+		if ( ! $tables ) return 'none'; // Un SQL sin tablas (paquetes muy antiguos): nada que cambiar.
 		if ( 'rename' === $mode ) {
 			$pairs = array();
 			foreach ( $tables as $row ) if ( isset( $live[ (string) $row['dest'] ] ) ) $pairs[] = call_user_func( $q, $row['dest'] ) . ' TO ' . call_user_func( $q, $row['old'] );
@@ -1282,7 +1289,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$plan = self::restore_plan( $job );
 		$cursor = array( 'done' => time() );
 		if ( $plan ) {
-			$report = $plan->finish( $plan->table_names() );
+			// Los nombres de las tablas en este sitio (los del plan, que se calcularon con el sitio intacto).
+			$report = $plan->finish( array_column( self::restore_read_json( $job, 'tables.json' ), 'dest' ) );
 			$imported = (array) ( $job['checkpoint']['database']['report'] ?? array() );
 			foreach ( (array) ( $imported['tables'] ?? array() ) as $table => $counts ) foreach ( (array) $counts as $what => $n ) $report['tables'][ $table ][ $what ] = (int) ( $report['tables'][ $table ][ $what ] ?? 0 ) + (int) $n;
 			foreach ( (array) ( $imported['stats'] ?? array() ) as $what => $n ) $report['stats'][ $what ] = (int) ( $report['stats'][ $what ] ?? 0 ) + (int) $n;
@@ -1419,9 +1427,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$copy = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : $safety;
 			return ( ! empty( $spec['rollback'] ) ? 'La vuelta a la copia previa también falló: ' : 'La restauración falló a mitad del cambio: ' ) . $message . ' El sitio sigue en mantenimiento para no servirse a medias. Restaura a mano ' . ( '' !== $copy ? $copy : 'la copia previa' ) . ' (WP-CLI: wp digitalisimo-backups restore ' . ( '' !== $copy ? $copy : '<archivo>' ) . ' --confirm=RESTAURAR' . ( is_multisite() ? ' --network' : '' ) . '); si hace falta, borra .maintenance de la raíz para entrar.';
 		}
-		// Antes del cambio: nada del sitio se tocó; se retira lo temporal.
+		// Antes del cambio: nada del sitio se tocó; se retira lo temporal (las tablas temporales nacen en la base de datos).
 		try {
-			$tables = self::restore_read_json( $job, 'tables.json', false );
+			$tables = in_array( (string) ( $job['phase'] ?? '' ), array( 'inspect', 'safety' ), true ) ? array() : self::restore_read_json( $job, 'tables.json', false );
 			foreach ( (array) $tables as $row ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( (string) $row['temp'] ) );
 			$tree = self::restore_read_json( $job, 'tree.json', false );
 			if ( is_array( $tree ) && ! empty( $tree['root'] ) ) self::restore_remove_tree( (string) $tree['root'] );

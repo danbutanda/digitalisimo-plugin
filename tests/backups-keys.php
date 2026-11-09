@@ -101,8 +101,11 @@ $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] = array( array( 'file' =
 $ring_before = $GLOBALS['bk_options'][ $K::KEYRING ];
 $GLOBALS['wpdb']->queries = array();
 $seen = null;
+// Restauración por pasos: el SQL va a tablas temporales y las tablas cambian (RENAME TABLE) antes de mover los archivos;
+// se observa la primera carpeta que se prepara después de ese cambio, con un archivo que cambió tras el respaldo.
+file_put_contents( ABSPATH . 'wp-load.php', "<?php // cambiado después del respaldo\n" );
 $GLOBALS['bk_on_mkdir'] = function() use ( &$seen ) {
-	if ( null !== $seen || ! preg_grep( '/^INSERT INTO `wp_posts`/', $GLOBALS['wpdb']->queries ) ) return;
+	if ( null !== $seen || ! bk_inserts_into( 'wp_posts' ) || ! preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ) ) return;
 	$seen = array( 'keyring' => $GLOBALS['bk_options'][ Digitalisimo_Backups_Keys::KEYRING ] ?? null, 'security' => $GLOBALS['bk_options'][ Digitalisimo_Backups_Security::OPTION ] ?? array(), 'history' => array_column( (array) ( $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ] ?? array() ), 'file' ) );
 };
 $report = Digitalisimo_Backups_Security::open( $signed, array(), '' );

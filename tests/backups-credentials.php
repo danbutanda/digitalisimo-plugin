@@ -437,7 +437,9 @@ register_shutdown_function( function() use ( $B, $C, $check, $leak, $secrets, $s
 } );
 if ( null !== $interrupted ) {
 	unset( $GLOBALS['bk_options'][ $C::OPTION ] );
-	$GLOBALS['wpdb']->exit_on = 'INSERT INTO `wp_posts`';
+	// Restauración por pasos: el momento crítico es justo después del RENAME TABLE (el SQL ya está en las tablas del sitio)
+	// y antes de volver a cifrar las credenciales; ahí muere el proceso.
+	$GLOBALS['wpdb']->exit_after = 'RENAME TABLE ';
 	$restore( $interrupted );
 	$failures[] = 'k';
 	echo "FALLA (k): la restauración no se interrumpió.\n";

@@ -30,6 +30,8 @@ class Bk_Test_DB {
 	public $fail_on = '';
 	/** Simula que el proceso muere en esta sentencia: exit() no ejecuta ningún finally. */
 	public $exit_on = '';
+	/** Como exit_on, pero después de ejecutarla (el proceso muere con la sentencia hecha). */
+	public $exit_after = '';
 	public $posts = array();
 	public $extra_tables = array();
 	/** Tablas que no son wp_options ni wp_posts (las temporales de una restauración): nombre => opciones leídas de sus INSERT. */
@@ -80,26 +82,31 @@ class Bk_Test_DB {
 		elseif ( preg_match( '/^DROP TABLE(?: IF EXISTS)? `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) ) unset( $this->staged[ $t[1] ] );
 		if ( preg_match( '/^CREATE TABLE `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) && ! isset( $this->staged[ $t[1] ] ) ) $this->staged[ $t[1] ] = array();
 		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
-			$value = bk_sql_unescape( $m[1][2] );
-			$unserialized = @unserialize( $value );
-			$value = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
-			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ bk_sql_unescape( $m[1][1] ) ] = $value;
-			elseif ( 'wp_posts' !== $t[1] ) $this->staged[ $t[1] ][ bk_sql_unescape( $m[1][1] ) ] = $value;
+			$values = array_map( 'bk_sql_unescape', $m[1] );
+			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ $values[1] ] = bk_maybe_unserialize( $values[2] );
+			elseif ( 'wp_posts' !== $t[1] ) $this->staged[ $t[1] ][] = $values;
 		}
-		// RENAME TABLE (el cambio de una restauración por pasos): la tabla que pasa a ser wp_options trae sus opciones.
+		$die = '' !== $this->exit_after && false !== strpos( $sql, $this->exit_after );
+		// RENAME TABLE (el cambio de una restauración por pasos): la tabla que pasa a ser wp_options (o wp_sitemeta en
+		// una red) trae sus filas.
 		if ( 0 === strpos( $sql, 'RENAME TABLE ' ) && preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $sql, $pairs, PREG_SET_ORDER ) ) {
 			foreach ( $pairs as $pair ) {
 				list( , $from, $to ) = $pair;
-				if ( 'wp_options' === $from ) $rows = $GLOBALS['bk_options'];
+				if ( 'wp_posts' === $from ) $rows = array();
+				elseif ( 'wp_options' === $from ) { $rows = array(); foreach ( $GLOBALS['bk_options'] as $name => $value ) $rows[] = array( '', $name, is_scalar( $value ) ? (string) $value : serialize( $value ) ); }
+				elseif ( 'wp_sitemeta' === $from ) { $rows = array(); foreach ( $GLOBALS['bk_site_options'] as $name => $value ) $rows[] = array( '', '1', $name, is_scalar( $value ) ? (string) $value : serialize( $value ) ); }
 				else { $rows = $this->staged[ $from ] ?? array(); unset( $this->staged[ $from ] ); }
-				if ( 'wp_options' === $to ) $GLOBALS['bk_options'] = $rows;
+				if ( 'wp_options' === $to ) { $GLOBALS['bk_options'] = array(); foreach ( $rows as $row ) $GLOBALS['bk_options'][ $row[1] ] = bk_maybe_unserialize( $row[2] ); }
+				elseif ( 'wp_sitemeta' === $to ) { $GLOBALS['bk_site_options'] = array(); foreach ( $rows as $row ) if ( isset( $row[3] ) ) $GLOBALS['bk_site_options'][ $row[2] ] = bk_maybe_unserialize( $row[3] ); }
 				elseif ( 'wp_posts' !== $to ) $this->staged[ $to ] = $rows;
 			}
 		}
+		if ( $die ) { $this->exit_after = ''; if ( isset( $GLOBALS['bk_on_exit'] ) ) call_user_func( $GLOBALS['bk_on_exit'] ); exit; }
 		return 1;
 	}
 	public function selects() { return array_values( array_filter( $this->queries, function( $q ) { return 0 === strpos( $q, 'DROP' ) || 0 === strpos( $q, 'INSERT' ) || 0 === strpos( $q, 'CREATE' ) || 0 === strpos( $q, 'SET NAMES' ); } ) ); }
 }
+function bk_maybe_unserialize( $value ) { $unserialized = @unserialize( $value ); return false === $unserialized && 'b:0;' !== $value ? $value : $unserialized; }
 function bk_sql_unescape( $value ) { return strtr( $value, array( '\\\\' => '\\', '\\0' => "\0", '\\n' => "\n", '\\r' => "\r", '\\Z' => "\x1a", "\\'" => "'" ) ); }
 $GLOBALS['wpdb'] = new Bk_Test_DB();
 $GLOBALS['bk_options'] = array( 'siteurl' => 'https://example.test', 'blogname' => 'Sitio de prueba' );
@@ -176,7 +183,11 @@ function current_user_can( $cap ) { return ! empty( $GLOBALS['bk_caps'][ $cap ] 
 function wp_get_referer() { return ''; }
 function size_format( $bytes ) { return number_format( $bytes / 1048576, 1 ) . ' MB'; }
 function add_action() { return true; }
-function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['bk_filters'] ) ? $GLOBALS['bk_filters'][ $hook ] : $value; }
+/** Un filtro de la prueba es un valor fijo o una función (que recibe el valor y los argumentos de apply_filters). */
+function apply_filters( $hook, $value, ...$args ) {
+	if ( ! array_key_exists( $hook, $GLOBALS['bk_filters'] ) ) return $value;
+	return $GLOBALS['bk_filters'][ $hook ] instanceof Closure ? call_user_func( $GLOBALS['bk_filters'][ $hook ], $value, ...$args ) : $GLOBALS['bk_filters'][ $hook ];
+}
 function wp_upload_dir() { return array( 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
 function get_theme_root() { return WP_CONTENT_DIR . '/themes'; }
 function wp_clear_scheduled_hook() { return true; }
@@ -215,6 +226,19 @@ function bk_backup( $keep_row = false ) {
 	$path = rtrim( bk_storage(), '/' ) . '/' . basename( (string) $job['spec']['file'] );
 	if ( ! $keep_row ) bk_call( 'Digitalisimo_Backups', 'remove_history', basename( $path ) );
 	return $path;
+}
+/**
+ * Sentencias INSERT que acabaron en $table: las directas (una restauración en una sola petición o una versión anterior) y
+ * las de la tabla temporal que un RENAME TABLE puso después en su lugar (la restauración por pasos).
+ */
+function bk_inserts_into( $table, $queries = null ) {
+	$queries = null === $queries ? $GLOBALS['wpdb']->queries : $queries;
+	$names = array( $table => true );
+	foreach ( $queries as $query ) {
+		if ( 0 !== strpos( $query, 'RENAME TABLE ' ) || ! preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $query, $pairs, PREG_SET_ORDER ) ) continue;
+		foreach ( $pairs as $pair ) if ( $pair[2] === $table ) $names[ $pair[1] ] = true;
+	}
+	return array_values( array_filter( $queries, function( $query ) use ( $names ) { return preg_match( '/^INSERT INTO `([^`]+)`/', $query, $t ) && isset( $names[ $t[1] ] ); } ) );
 }
 /** Archivos bajo ABSPATH (para comprobar que un rechazo no escribió nada). */
 function bk_tree( $root = null ) {
