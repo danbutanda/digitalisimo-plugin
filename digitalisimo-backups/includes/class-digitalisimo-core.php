@@ -17,5 +17,8 @@ final class Digitalisimo_Backups_Core {
 		if ( ! in_array( $page, array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true ) ) return;
 		wp_enqueue_script( 'digitalisimo-backups-manual', plugins_url( '../assets/manual-progress.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
 		wp_add_inline_script( 'digitalisimo-backups-manual', 'window.digitalisimoBackupsManual=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_manual' ), 'jobsNonce' => wp_create_nonce( 'digitalisimo_backups_jobs' ), 'context' => is_network_admin() ? 'network' : 'site' ) ) . ';', 'before' );
+		// Subida de un respaldo por fragmentos (tarjeta «Subir un respaldo»).
+		wp_enqueue_script( 'digitalisimo-backups-upload', plugins_url( '../assets/upload.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
+		wp_add_inline_script( 'digitalisimo-backups-upload', 'window.digitalisimoBackupsUpload=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_upload' ), 'context' => is_network_admin() ? 'network' : 'site' ) ) . ';', 'before' );
 	}
 }

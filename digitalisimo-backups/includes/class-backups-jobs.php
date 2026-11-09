@@ -591,6 +591,8 @@ final class Digitalisimo_Backups_Jobs {
 				self::recover();
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
+				// Subidas de respaldos sin actividad durante 24 h.
+				Digitalisimo_Backups_Uploads::sessions();
 			} catch ( Throwable $e ) {
 				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 			} finally {

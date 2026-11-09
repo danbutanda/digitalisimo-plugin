@@ -21,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /jobs/<id>                         un trabajo
  * - POST /jobs/<id>/cancel                  cancela un trabajo
  * - POST /jobs/tick                         un paso de la cola, como el navegador con la pantalla abierta
+ * - POST /uploads                           empieza a subir un respaldo (`name`, `size`, `sha256` opcional): 201
+ * - GET  /uploads/<id>                      cuánto lleva recibido (para continuar una subida cortada)
+ * - POST|PUT /uploads/<id>/chunk            un fragmento en `offset`: el cuerpo en bruto o el archivo `chunk` (multipart)
+ * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`)
+ * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
  * registros del servidor y del proxy, así que una petición que la lleve en la cadena de consulta se rechaza (400).
@@ -59,6 +64,16 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/jobs/tick', array( $route( 'POST', 'tick' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB, array( $route( 'GET', 'job' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB . '/cancel', array( $route( 'POST', 'cancel' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/uploads', array(
+			$route( 'POST', 'upload_start', array(
+				'name' => array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del archivo (.zip o .dgbk).' ),
+				'size' => array( 'type' => 'integer', 'required' => true, 'minimum' => 1, 'description' => 'Tamaño exacto en bytes.' ),
+				'sha256' => array( 'type' => 'string', 'default' => '', 'description' => 'SHA-256 del archivo, si se conoce: al terminar se comprueba.' ),
+			) ),
+		) );
+		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB, array( $route( 'GET', 'upload_status' ), $route( 'DELETE', 'upload_cancel' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/chunk', array( $route( 'POST, PUT', 'upload_chunk', array( 'offset' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0, 'description' => 'Byte en el que empieza el fragmento: exactamente lo ya recibido.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/finish', array( $route( 'POST', 'upload_finish', array( 'secret' => $secret ) ) ) );
 	}
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
@@ -118,5 +133,27 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function tick( $request ) {
 		return self::respond( Digitalisimo_Backups::service_tick() );
+	}
+	public static function upload_start( $request ) {
+		return self::respond( Digitalisimo_Backups::service_upload_start( array( 'name' => (string) $request['name'], 'size' => $request['size'], 'sha256' => (string) $request['sha256'] ) ), 201 );
+	}
+	public static function upload_status( $request ) {
+		return self::respond( Digitalisimo_Backups::service_upload_status( (string) $request['id'] ) );
+	}
+	/** El fragmento: el archivo `chunk` de un formulario multipart (sin cargarlo en memoria) o el cuerpo en bruto. */
+	public static function upload_chunk( $request ) {
+		$files = method_exists( $request, 'get_file_params' ) ? (array) $request->get_file_params() : array();
+		$file = isset( $files['chunk'] ) && is_array( $files['chunk'] ) ? $files['chunk'] : array();
+		if ( is_string( $file['tmp_name'] ?? null ) && '' !== $file['tmp_name'] && UPLOAD_ERR_OK === (int) ( $file['error'] ?? UPLOAD_ERR_NO_FILE ) && call_user_func( Digitalisimo_Backups_Uploads::$is_uploaded, $file['tmp_name'] ) ) $source = array( 'file' => $file['tmp_name'] );
+		else $source = array( 'data' => method_exists( $request, 'get_body' ) ? (string) $request->get_body() : '' );
+		return self::respond( Digitalisimo_Backups::service_upload_chunk( (string) $request['id'], $request['offset'], $source ) );
+	}
+	public static function upload_finish( $request ) {
+		$secret = self::secret( $request );
+		if ( is_wp_error( $secret ) ) return $secret;
+		return self::respond( Digitalisimo_Backups::service_upload_finish( (string) $request['id'], array( 'secret' => $secret ) ) );
+	}
+	public static function upload_cancel( $request ) {
+		return self::respond( Digitalisimo_Backups::service_upload_cancel( (string) $request['id'] ) );
 	}
 }
