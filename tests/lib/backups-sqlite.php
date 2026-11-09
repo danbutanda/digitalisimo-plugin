@@ -119,6 +119,8 @@ class Bk_Sqlite_DB {
 		if ( preg_match( '/^START TRANSACTION/i', $sql ) ) { if ( ! $this->pdo->inTransaction() ) $this->pdo->beginTransaction(); return null; }
 		if ( preg_match( '/^(COMMIT|ROLLBACK)$/i', $sql, $m ) ) { if ( $this->pdo->inTransaction() ) ( 'COMMIT' === strtoupper( $m[1] ) ? $this->pdo->commit() : $this->pdo->rollBack() ); return null; }
 		if ( preg_match( '/^INSERT INTO `((?:[^`]|``)+)`\s*\(([^)]*)\)\s*VALUES\s*/i', $sql, $m ) ) return $this->insert( str_replace( '``', '`', $m[1] ), $m[2], substr( $sql, strlen( $m[0] ) ) );
+		// MySQL escapa en LIKE con «\» por defecto (como emula el SQLite de WordPress); SQLite no tiene escape por defecto.
+		$sql = preg_replace( "/\\bLIKE\\s+('(?:[^']|'')*')(?!\\s*ESCAPE)/i", "LIKE $1 ESCAPE '\\\\'", $sql );
 		if ( preg_match( '/^(?:SELECT|PRAGMA)\b/i', $sql ) ) return $this->pdo->query( $sql )->fetchAll( PDO::FETCH_ASSOC );
 		$this->rows_affected = (int) $this->pdo->exec( $sql );
 		return null;

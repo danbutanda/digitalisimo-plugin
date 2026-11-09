@@ -9,7 +9,8 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 
 const [phase, port, host, dir, originDir, originHost] = process.argv.slice(2);
 const setup = JSON.parse(readFileSync(`${dir}/probe/setup.json`, 'utf8'));
-const token = readFileSync(`${dir}/web/token.txt`, 'utf8').trim();
+// El respaldo trae la carpeta digi-web del origen (con su token): se lee cada vez, no al empezar.
+const token = () => readFileSync(`${dir}/web/token.txt`, 'utf8').trim();
 let failures = 0;
 const log = (line) => { appendFileSync(`${dir}/result.txt`, `${line}\n`); console.log(line); };
 const check = (ok, what, detail = '') => {
@@ -44,11 +45,19 @@ const api = (method, route, { headers = {}, body } = {}) => request(method, `/?r
   body,
 });
 const pathOf = (url) => { const u = new URL(url, `http://${host}`); return u.pathname + u.search; };
+// En una red por subdirectorios, /uno/wp-content/… lo resuelve la regla de .htaccess de WordPress (el servidor de
+// Playground no la aplica a archivos estáticos): se pide como la sirve Apache.
+const assetPath = (url) => pathOf(url).replace(/^\/[_0-9a-zA-Z-]+\/(wp-(?:content|admin|includes)\/)/, '/$1');
+// La imagen de fondo en el CSS: el host y el archivo bajo wp-content, con o sin la ruta del subsitio delante (Elementor
+// la regenera desde el adjunto, con la ruta del subsitio aunque el dato guardado no la lleve).
+const esc = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const hasImage = (text, where, image) => new RegExp(`${esc(where)}(?:/[_0-9a-zA-Z-]+)?/${esc(image.replace(/^.*?\/wp-content\//, 'wp-content/'))}`).test(text || '');
+const around = (text, needle, size = 120) => { const at = text.indexOf(needle); return at < 0 ? '' : text.slice(Math.max(0, at - size), at + size); };
 // La página de Elements y su CSS generado: devuelve { html, css, cssUrl }.
 const page = async (link) => {
   const res = await request('GET', pathOf(link));
   const match = res.text.match(/href=['"]([^'"]*\/elementor\/css\/post-\d+\.css[^'"]*)['"]/);
-  const css = match ? await request('GET', pathOf(match[1].replace(/&#038;/g, '&'))) : null;
+  const css = match ? await request('GET', assetPath(match[1].replace(/&#038;/g, '&'))) : null;
   return { status: res.status, html: res.text, cssUrl: match ? match[1] : '', css };
 };
 
@@ -58,7 +67,7 @@ try {
     for (const [name, info] of Object.entries(setup.pages)) {
       const view = await page(info.link);
       check(view.status === 200 && view.html.includes('Hola desde el origen'), `origen: la página de Elements «${name}» carga`, `${view.status}`);
-      check(view.css && view.css.status === 200 && view.css.text.includes(`${host}${info.image}`), `origen: su CSS generado lleva la imagen de fondo de ${host}`, view.cssUrl || view.html.slice(0, 300));
+      check(view.css && view.css.status === 200 && hasImage(view.css.text, host, info.image), `origen: su CSS generado lleva la imagen de fondo de ${host}`, `${view.cssUrl} ${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')}`);
     }
     let res = await api('POST', '/backups', { headers: basic(setup.password), body: setup.network ? { network: true } : {} });
     const id = res.json?.id || res.json?.job?.id;
@@ -86,6 +95,8 @@ try {
     check(res.status === 200 && res.json?.restored === true, `destino: POST restore restaura (${Math.round((Date.now() - started) / 1000)} s)`, res.text.slice(0, 900));
     const relocation = res.json?.relocation || {};
     check(relocation.check && relocation.check.urls === 0 && relocation.check.paths === 0, 'destino: la comprobación final cuenta 0 URL del origen', JSON.stringify(relocation.check));
+    // La comprobación ve de verdad la base de datos (en el SQLite de WordPress): el guid del origen, que no se toca, aparece.
+    check(relocation.check && relocation.check.guid >= Object.keys(origin.pages).length, `destino: la comprobación final encuentra los guid de ${originHost} que se dejan a propósito`, JSON.stringify(relocation.check));
     log(`· aviso: ${res.json?.notice || ''}`);
     // Después de restaurar, los usuarios son los del respaldo: vale la contraseña de aplicación del origen.
     res = await api('GET', '/status', { headers: basic(origin.password) });
@@ -95,10 +106,12 @@ try {
       const view = await page(link);
       check(view.status === 200 && view.html.includes('Hola desde el origen'), `destino: la página de Elements «${name}» carga en ${host}`, `${view.status} ${view.html.slice(0, 300)}`);
       check(!view.html.includes(originHost), `destino: la página «${name}» no menciona ${originHost}`, (view.html.match(new RegExp(`.{0,80}${originHost.replace('.', '\\.')}.{0,80}`)) || [''])[0]);
-      check(view.css && view.css.status === 200 && view.css.text.includes(`${host}${info.image}`) && !view.css.text.includes(originHost), `destino: su CSS regenerado carga y lleva la imagen de ${host}`, view.cssUrl ? `${view.css?.status} ${view.css?.text.slice(0, 300)}` : 'sin CSS de Elements en la página');
+      check(view.css && view.css.status === 200 && hasImage(view.css.text, host, info.image) && !view.css.text.includes(originHost), `destino: su CSS regenerado carga y lleva la imagen de ${host}`, view.cssUrl ? `${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')} · ${around(view.css?.text || '', originHost)}` : 'sin CSS de Elements en la página');
       check(view.html.includes(`http://${host}/contacto/`) || view.html.includes(`http://${host}/uno/contacto/`), `destino: los enlaces internos de «${name}» van a ${host}`);
     }
-    const db = (await request('GET', `/wp-content/digi-web/db.php?token=${token}&needle=${encodeURIComponent(originHost)}`)).json || {};
+    const dbres = await request('GET', `/wp-content/digi-web/db.php?token=${token()}&needle=${encodeURIComponent(originHost)}`);
+    const db = dbres.json || {};
+    check(dbres.status === 200 && db.prefix, 'destino: consulta de la base de datos del ensayo', `${dbres.status} ${dbres.text.slice(0, 200)}`);
     check(db.prefix === setup.prefix && db.user_roles === true && Object.keys(db.hits || {}).length === 0, `destino: ninguna tabla del sitio menciona ${originHost} (salvo guid: ${db.guid})`, JSON.stringify(db.hits || db).slice(0, 900));
     if (setup.prefix !== 'wp_') check(db.other_options === setup.other_options && !(db.tables || []).some((t) => /^wp_/.test(t) && !(setup.tables || []).includes(t)), 'destino: el otro WordPress (prefijo wp_) de la misma base quedó intacto', `${db.other_options} / ${setup.other_options}`);
     if (network) check(Array.isArray(db.blogs) && db.blogs.length === 2 && db.blogs.every((b) => b.domain === host), 'destino: los sitios de la red tienen el dominio nuevo', JSON.stringify(db.blogs));

@@ -75,6 +75,8 @@ final class Digitalisimo_Backups_Relocate {
 	private $problems = array();
 	private $sites = array();
 	private $table_map = array();
+	/** Dominio de origen => dominio de destino de los sitios de la red que se mudan (para `usermeta.source_domain`). */
+	private $domains = array();
 	private $report = array();
 
 	/**
@@ -280,8 +282,22 @@ final class Digitalisimo_Backups_Relocate {
 		$keep = self::KEEP_COLUMNS[ $base ] ?? array();
 		$key_column = 'usermeta' === $base ? 'meta_key' : ( 'options' === $base ? 'option_name' : '' );
 		$spans = array();
+		// `source_domain` (usermeta de una red): el dominio del sitio donde se registró el usuario, sin esquema.
+		$meta_key = 'usermeta' === $base && $this->domains ? array_search( 'meta_key', $insert['columns'], true ) : false;
+		$meta_value = false !== $meta_key ? array_search( 'meta_value', $insert['columns'], true ) : false;
 		foreach ( (array) $insert['rows'] as $row ) {
 			$changed = false;
+			if ( false !== $meta_value && is_array( $row[ $meta_key ] ?? null ) && is_array( $row[ $meta_value ] ?? null ) && 'str' === ( $row[ $meta_value ]['type'] ?? '' ) ) {
+				$key = $row[ $meta_key ];
+				$literal = $row[ $meta_value ];
+				$domain = strtolower( self::sql_unescape( substr( $sql, $literal['start'], $literal['end'] - $literal['start'] ), $literal['quote'] ) );
+				if ( 'source_domain' === self::sql_unescape( substr( $sql, $key['start'], $key['end'] - $key['start'] ), $key['quote'] ) && isset( $this->domains[ $domain ] ) ) {
+					$spans[] = array( $literal['start'], $literal['end'], self::sql_escape( $this->domains[ $domain ] ) );
+					$this->count( $table, 'values' );
+					$this->count( $table, 'rows' );
+					unset( $row[ $meta_value ] );
+				}
+			}
 			foreach ( $row as $index => $literal ) {
 				if ( ! is_array( $literal ) || 'str' !== ( $literal['type'] ?? '' ) ) continue;
 				$column = (string) ( $insert['columns'][ $index ] ?? '' );
@@ -428,9 +444,11 @@ final class Digitalisimo_Backups_Relocate {
 				if ( '' === $where ) continue;
 				if ( in_array( $column, $keep, true ) ) {
 					$counts['guid'] += (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::quote_name( $table ) . ' WHERE ' . $where );
+					self::assert_query( $table );
 					continue;
 				}
 				$values = $wpdb->get_col( 'SELECT ' . self::quote_name( $column ) . ' FROM ' . self::quote_name( $table ) . ' WHERE ' . $where . ' LIMIT ' . ( self::CHECK_ROWS + 1 ) );
+				self::assert_query( $table );
 				if ( ! is_array( $values ) ) continue;
 				if ( count( $values ) > self::CHECK_ROWS ) { $total['complete'] = false; array_pop( $values ); }
 				foreach ( $values as $value ) foreach ( $this->classify( (string) $value ) as $what => $n ) $counts[ $what ] += $n;
@@ -474,6 +492,11 @@ final class Digitalisimo_Backups_Relocate {
 		return $out;
 	}
 
+	/** Un error de la base de datos en la comprobación no cuenta como «nada que contar»: se informa. */
+	private static function assert_query( $table ) {
+		global $wpdb;
+		if ( isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error ) throw new Exception( 'la consulta sobre ' . $table . ' falló: ' . $wpdb->last_error );
+	}
 	/** Informe por tabla de lo reescrito: rows, values, keys, kept, malformed, too_large, opaque, conflicts… */
 	public function tables_report() { return $this->tables; }
 	/** Nombres de las tablas en el destino tras attach() (los del respaldo con el prefijo nuevo). */
@@ -646,6 +669,7 @@ final class Digitalisimo_Backups_Relocate {
 				if ( 0 === strpos( $path, $from['path'] ) ) $new_path = $to['path'] . substr( $path, strlen( $from['path'] ) );
 			}
 			$this->sites[ (int) $id ] = array( 'from' => array( 'domain' => $domain, 'path' => $path ), 'to' => array( 'domain' => $new_domain, 'path' => $new_path ) );
+			if ( $new_domain !== $domain ) $this->domains[ $domain ] = $new_domain;
 			$base_from = $domain . self::untrail( $path );
 			$base_to = $scheme . '://' . $new_domain . self::untrail( $new_path );
 			$this->sites[ (int) $id ]['home'] = $this->site_url_for( (string) ( $site['home'] ?? '' ), $domain, $path, $base_to );
@@ -786,7 +810,8 @@ final class Digitalisimo_Backups_Relocate {
 			list( $base, $site ) = $this->kind( $table );
 			try {
 				if ( 'options' === $base ) {
-					$done = $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . " WHERE option_name LIKE '!_transient!_%' ESCAPE '!' OR option_name LIKE '!_site!_transient!_%' ESCAPE '!'" );
+					$done = $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . ' WHERE option_name LIKE ' . self::sql_literal( self::esc_like( '_transient_' ) . '%' ) . ' OR option_name LIKE ' . self::sql_literal( self::esc_like( '_site_transient_' ) . '%' ) );
+					if ( false === $done ) throw new Exception( (string) $wpdb->last_error );
 					$out['transients'] += (int) $done;
 					$out['rewrite_rules'] += (int) $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . " WHERE option_name = 'rewrite_rules'" );
 					$out['elementor_options'] += (int) $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . " WHERE option_name IN ('_elementor_assets_data', 'elementor-custom-breakpoints-files', '_elementor_global_css')" );
@@ -794,7 +819,9 @@ final class Digitalisimo_Backups_Relocate {
 				} elseif ( 'postmeta' === $base ) {
 					$out['elementor_meta'] += (int) $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . " WHERE meta_key IN ('_elementor_css', '_elementor_element_cache', '_elementor_page_assets')" );
 				} elseif ( 'sitemeta' === $base ) {
-					$out['transients'] += (int) $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . " WHERE meta_key LIKE '!_site!_transient!_%' ESCAPE '!'" );
+					$done = $wpdb->query( 'DELETE FROM ' . self::quote_name( $table ) . ' WHERE meta_key LIKE ' . self::sql_literal( self::esc_like( '_site_transient_' ) . '%' ) );
+					if ( false === $done ) throw new Exception( (string) $wpdb->last_error );
+					$out['transients'] += (int) $done;
 				}
 			} catch ( Throwable $e ) {
 				$warnings[] = 'No se pudo vaciar la caché de ' . $table . ': ' . $e->getMessage();
@@ -966,18 +993,24 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		return '(' . implode( ' OR ', $parts ) . ')';
 	}
-	/** Condición LIKE (con `!` como escape, igual en MySQL y SQLite) que encuentra las filas que mencionan el origen. */
+	/**
+	 * Condición LIKE que encuentra las filas que mencionan el origen, como la escribe el núcleo ($wpdb->esc_like() y
+	 * prepare(), sin cláusula ESCAPE): igual en MySQL y en el SQLite de WordPress, que no admite otro carácter de escape.
+	 */
 	private function like_clause( array $columns, $key_column ) {
 		$needles = array();
 		foreach ( array_keys( $this->hosts ) as $host ) $needles[ $host ] = true;
 		foreach ( array_keys( $this->path_pairs ) as $path ) foreach ( array( 'plain', 'json', 'json2' ) as $style ) $needles[ str_replace( '/', self::STYLES[ $style ]['slash'], $path ) ] = true;
 		$parts = array();
-		$like = function( $text ) { return strtr( $text, array( '!' => '!!', '%' => '!%', '_' => '!_' ) ); };
 		foreach ( $columns as $column ) {
-			foreach ( array_keys( $needles ) as $needle ) $parts[] = self::quote_name( $column ) . ' LIKE ' . self::sql_literal( '%' . $like( $needle ) . '%' ) . " ESCAPE '!'";
+			foreach ( array_keys( $needles ) as $needle ) $parts[] = self::quote_name( $column ) . ' LIKE ' . self::sql_literal( '%' . self::esc_like( $needle ) . '%' );
 		}
-		foreach ( array_keys( $this->prefixes ) as $prefix ) if ( '' !== $key_column ) $parts[] = self::quote_name( $key_column ) . ' LIKE ' . self::sql_literal( $like( $prefix ) . '%' ) . " ESCAPE '!'";
+		foreach ( array_keys( $this->prefixes ) as $prefix ) if ( '' !== $key_column ) $parts[] = self::quote_name( $key_column ) . ' LIKE ' . self::sql_literal( self::esc_like( $prefix ) . '%' );
 		return implode( ' OR ', $parts );
+	}
+	private static function esc_like( $text ) {
+		global $wpdb;
+		return is_object( $wpdb ) && method_exists( $wpdb, 'esc_like' ) ? $wpdb->esc_like( $text ) : addcslashes( (string) $text, '_%\\' );
 	}
 	/**
 	 * Columnas de una tabla: nombre => array( text, primary ). Texto: char, varchar, text, json, binary, varbinary y blob
