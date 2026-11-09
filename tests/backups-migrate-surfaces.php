@@ -151,6 +151,25 @@ mig_case( 'm · pantalla: generar, mostrar una vez, revocar, laboratorio, migrar
 	mig_use( 'origen' );
 } );
 
+mig_case( 'n · en una red, la pantalla de la red genera la clave (alcance de red) y REST lo exige', function() {
+	$M = 'Digitalisimo_Backups_Migrate';
+	$GLOBALS['mig']['sites']['origen']['multisite'] = true;
+	mig_use( 'destino' );
+	mig_use( 'origen' );
+	try {
+		list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1 ) );
+		mig_assert( null === $ok && preg_match( '/>(DGMIG1\.[A-Za-z0-9_-]+)</', $page ), 'La pantalla de la red no generó la clave: ' . substr( (string) $page, 0, 200 ) );
+		$reply = mig_rest( 'POST', 'digitalisimo-backups/v1/migration/keys', array() );
+		mig_assert( 400 === $reply[0] && 'digitalisimo_backups_scope' === $reply[1]['code'], 'REST generó una clave de la red sin el alcance de red.' );
+		$reply = mig_rest( 'POST', 'digitalisimo-backups/v1/migration/keys', array( 'network' => true ) );
+		mig_assert( 201 === $reply[0], 'REST no generó la clave de la red con el alcance de red.' );
+	} finally {
+		$GLOBALS['mig']['sites']['origen']['multisite'] = false;
+		mig_use( 'destino' );
+		mig_use( 'origen' );
+	}
+} );
+
 echo $failures ? 'Superficies de la migración con fallos: ' . implode( ', ', $failures ) . "\n" : "Superficies de la migración: todo correcto.\n";
 mig_remove_tree( $GLOBALS['mig_root'] );
 exit( $failures ? 1 : 0 );

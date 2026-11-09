@@ -1134,7 +1134,8 @@ final class Digitalisimo_Backups_Migrate {
 	 */
 	public static function create_request() {
 		self::guard( self::ACTION_CREATE );
-		$result = Digitalisimo_Backups::service_migration_create_key( array( 'hours' => (int) ( $_POST['hours'] ?? self::DEFAULT_HOURS ) ) );
+		// En una red, la clave se lleva la red entera: esta pantalla es la de la red (alcance explícito, como migrar).
+		$result = Digitalisimo_Backups::service_migration_create_key( array( 'hours' => (int) ( $_POST['hours'] ?? self::DEFAULT_HOURS ), 'network' => is_multisite() ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, $result->get_error_message(), null, 'migrate' );
 		if ( function_exists( 'nocache_headers' ) ) nocache_headers();
 		if ( ! headers_sent() ) {

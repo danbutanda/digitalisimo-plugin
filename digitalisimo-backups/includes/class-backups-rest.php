@@ -204,7 +204,6 @@ final class Digitalisimo_Backups_Rest {
 		$response = new WP_REST_Response( $result['bytes'], 206 );
 		$response->header( 'Content-Type', 'application/octet-stream' );
 		$response->header( 'Content-Range', 'bytes ' . $result['start'] . '-' . $result['end'] . '/' . $result['total'] );
-		$response->header( 'Content-Length', (string) strlen( $result['bytes'] ) );
 		$response->header( 'X-Digitalisimo-Package-Sha256', $result['sha256'] );
 		$response->header( 'Cache-Control', 'no-store' );
 		$response->header( 'X-Digitalisimo-Package', '1' );
