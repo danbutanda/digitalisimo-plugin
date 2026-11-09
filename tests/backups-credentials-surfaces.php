@@ -64,7 +64,7 @@ try {
 	// Las claves de wp-config.php cambiaron (el almacén está cifrado con otras): «vuelve a escribir» en las dos superficies.
 	$other = $C::key_from( 'salts-antiguas-auth-0123456789abcdef', 'salts-antiguas-secure-0123456789abcdef' );
 	$items = array();
-	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $other, $field, $value );
+	foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $other, $field, $value, $fields );
 	$K::put( $C::OPTION, array( 'v' => 1, 'items' => $items ) );
 	list( $code, $status ) = digi_rest( 'GET', $ns . '/status' );
 	digi_assert( 200 === $code && 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'vuelve a escribir la contraseña de SFTP' ) && false !== strpos( $status['credentials_notice'], 'OneDrive' ) && ! isset( $status['destinations']['sftp'] ) && true === $status['ready'], 'GET /status no pide volver a escribir las credenciales: ' . json_encode( $status ) );

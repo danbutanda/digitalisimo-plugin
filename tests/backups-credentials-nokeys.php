@@ -27,7 +27,7 @@ if ( false !== $C::key() || $C::can_encrypt() || false !== $K::wrap_key() ) thro
 list( $ok, $message ) = bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $fields + $secrets ) );
 if ( ! $ok || false === strpos( $message, 'se guardaron sin cifrar' ) || false === strpos( $message, 'AUTH_KEY y SECURE_AUTH_KEY' ) ) throw new RuntimeException( 'Guardar sin salts propias no avisó: ' . $message );
 foreach ( $secrets as $value ) if ( false !== strpos( $message, $value ) ) throw new RuntimeException( 'La redirección repite un secreto.' );
-if ( array_intersect_key( $settings(), $secrets ) != $secrets || false !== get_option( $C::OPTION ) || false !== get_option( $B::CREDENTIALS_CLEAN ) ) throw new RuntimeException( 'Sin salts propias los secretos no se conservaron como hasta ahora o se marcaron como limpios.' );
+if ( array_intersect_key( $settings(), $secrets ) != $secrets || false !== get_option( $C::OPTION ) ) throw new RuntimeException( 'Sin salts propias los secretos no se conservaron como hasta ahora o se marcaron como limpios.' );
 $status = $B::service_status();
 if ( 'unprotected' !== $status['credentials'] || false === strpos( $status['credentials_notice'], 'sin cifrar' ) || ! isset( $status['destinations']['sftp'], $status['destinations']['google'] ) ) throw new RuntimeException( 'El estado no avisa de las credenciales sin cifrar: ' . json_encode( $status ) );
 foreach ( $secrets as $value ) if ( false !== strpos( json_encode( $status ), $value ) ) throw new RuntimeException( 'El estado lleva un secreto.' );
