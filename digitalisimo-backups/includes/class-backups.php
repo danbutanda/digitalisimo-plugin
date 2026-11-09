@@ -17,14 +17,21 @@ unset( $digitalisimo_backups_part );
 require_once __DIR__ . '/destinations/trait-backups-destinations.php';
 
 require_once __DIR__ . '/class-backups-layout.php';
+require_once __DIR__ . '/class-backups-notify.php';
+require_once __DIR__ . '/class-backups-maintenance.php';
+require_once __DIR__ . '/class-backups-config-diff.php';
+require_once __DIR__ . '/class-backups-uploads.php';
+require_once __DIR__ . '/trait-backups-upload-service.php';
 // Restaurar en otro dominio, otra ruta del servidor u otro prefijo de tablas (ver «Restaurar en otro dominio»).
 require_once __DIR__ . '/class-backups-relocate.php';
+require_once __DIR__ . '/class-backups-site-extract.php';
 require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Service; // Casos de uso que comparten la pantalla, REST y WP-CLI.
 	use Digitalisimo_Backups_Restore_Engine; // Restauración por pasos (Digitalisimo_Backups_Restore_Job).
 	use Digitalisimo_Backups_Destinations_Screen; // Destinos remotos: contrato, conexiones, «Servidores», «Probar conexión» y OAuth.
+	use Digitalisimo_Backups_Upload_Service; // Subida de un respaldo por fragmentos (pantalla y REST).
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
@@ -49,6 +56,8 @@ final class Digitalisimo_Backups {
 	const ACTION_SAVE_POLICIES = 'digitalisimo_backups_save_policies';
 	const ACTION_RUN_POLICY = 'digitalisimo_backups_run_policy';
 	const ACTION_RESTORE = 'digitalisimo_backups_restore';
+	/** Eliminar a mano un archivo del almacén sin fila en el historial (una subida o uno copiado por SSH). */
+	const ACTION_DELETE_LOOSE = 'digitalisimo_backups_delete_loose';
 	const ACTION_CREATE_AUTOMATION = 'digitalisimo_backups_create_automation';
 	const ACTION_UPDATE_AUTOMATION = 'digitalisimo_backups_update_automation';
 	const ACTION_DELETE_AUTOMATION = 'digitalisimo_backups_delete_automation';
@@ -60,7 +69,7 @@ final class Digitalisimo_Backups {
 	const ABANDON = 'abandon.json';
 	/** Segundos de espera de cada llamada al retirarla (fuera del cerrojo del registro de trabajos). */
 	const ABANDON_TIMEOUT = 20;
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ) + Digitalisimo_Backups_Destinations::defaults(); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
 	private static function local_directory() {
@@ -118,6 +127,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::OPERATION_LOCK;
 		$handle = @fopen( $path, 'c' );
 		if ( ! $handle ) throw new Exception( 'No se pudo abrir el bloqueo de operaciones de Backups.' );
+		self::private_file( $path );
 		if ( ! @flock( $handle, LOCK_EX | LOCK_NB ) ) {
 			fclose( $handle );
 			return null;
@@ -134,11 +144,11 @@ final class Digitalisimo_Backups {
 	 * la siguiente operación lo aplica: la protección no queda más débil, el cifrado falla cerrado hasta volver a
 	 * escribir la frase y la frase vuelve a abrir la misma clave. Sin diario no se restaura.
 	 */
-	private static function write_restore_journal( array $origin = array() ) {
+	private static function write_restore_journal( array $origin = array(), $kept = null ) {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -157,6 +167,8 @@ final class Digitalisimo_Backups {
 		if ( is_array( $data ) && is_string( $data['wordpress_root'] ?? null ) && $data['wordpress_root'] !== self::journal_owner() ) return; // De otra instalación: es suyo.
 		if ( is_array( $data ) && 1 === ( $data['version'] ?? null ) ) {
 			wp_cache_flush();
+			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
+			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
 			Digitalisimo_Backups_Keys::recover_public( $data );
 			// Las credenciales que trajo el SQL: las del servidor de origen se cifran con las claves de éste y las que
@@ -166,6 +178,21 @@ final class Digitalisimo_Backups {
 			Digitalisimo_Backups_Credentials::forget( $origin );
 		}
 		@unlink( $path );
+		// Una restauración por pasos sigue: el trabajo la reanuda, su mantenimiento no se toca y avisará al terminar.
+		try {
+			if ( Digitalisimo_Backups_Jobs::restore_active() ) return;
+		} catch ( Throwable $e ) {
+			return;
+		}
+		// El proceso murió con el sitio en mantenimiento: se retira, y se avisa a quien recibía los avisos antes del SQL.
+		Digitalisimo_Backups_Maintenance::clear_stale();
+		if ( is_array( $data ) && is_array( $data['notify'] ?? null ) ) {
+			$safety = '';
+			foreach ( (array) ( $data['history'] ?? array() ) as $row ) if ( 'pre-restore' === ( $row['policy'] ?? '' ) ) { $safety = (string) ( $row['file'] ?? '' ); break; }
+			$started = (int) ( $data['started'] ?? 0 );
+			$message = 'La restauración que empezó ' . ( $started ? 'el ' . ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', $started ) : gmdate( 'Y-m-d H:i', $started ) . ' UTC' ) . ' ' : '' ) . 'se interrumpió antes de terminar (el proceso se detuvo: tiempo agotado, memoria o una recarga del servidor web). Se recuperaron el historial, la seguridad y las credenciales, pero la base de datos y los archivos pueden haber quedado a medias' . ( '' !== $safety ? ': restaura la copia previa ' . $safety . '.' : '.' );
+			try { Digitalisimo_Backups_Notify::restore( $data['notify'], false, array( 'started' => true, 'message' => $message ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+		}
 	}
 	public static function release_operation_lock( $handle ) {
 		if ( is_resource( $handle ) ) {
@@ -179,6 +206,7 @@ final class Digitalisimo_Backups {
 		if ( ! file_exists( $legacy ) ) return;
 		if ( is_link( $legacy ) || ! is_dir( $legacy ) ) throw new Exception( 'La carpeta de respaldos anterior no es una carpeta segura.' );
 		$lock = @fopen( $private . '/.migration.lock', 'c' );
+		self::private_file( $private . '/.migration.lock' );
 		if ( ! $lock || ! flock( $lock, LOCK_EX ) ) { if ( $lock ) fclose( $lock ); throw new Exception( 'No se pudo bloquear la migración de respaldos anteriores.' ); }
 		try {
 			$names = @scandir( $legacy );
@@ -203,8 +231,10 @@ final class Digitalisimo_Backups {
 					fclose( $input );
 					fclose( $output );
 					$temp_hash = @hash_file( 'sha256', $temp );
+					self::private_file( $temp );
 					if ( false === $copied || ! $flushed || $copied !== @filesize( $source ) || false === $temp_hash || ! hash_equals( $source_hash, $temp_hash ) || ! @rename( $temp, $target ) ) { @unlink( $temp ); throw new Exception( 'La copia del respaldo anterior ' . $name . ' no superó la verificación.' ); }
 				}
+				self::private_file( $target );
 				if ( file_exists( $source ) && ! @unlink( $source ) ) throw new Exception( 'Se copió ' . $name . ' a la carpeta privada, pero no se pudo retirar de la carpeta pública.' );
 			}
 		} finally {
@@ -388,7 +418,99 @@ final class Digitalisimo_Backups {
 	public static function cron_schedules( $schedules ) { $schedules['digitalisimo_every_6_hours'] = array( 'interval' => 6 * HOUR_IN_SECONDS, 'display' => 'Cada 6 horas' ); $schedules['digitalisimo_every_12_hours'] = array( 'interval' => 12 * HOUR_IN_SECONDS, 'display' => 'Cada 12 horas' ); $schedules['monthly'] = array( 'interval' => 30 * DAY_IN_SECONDS, 'display' => 'Mensual' ); return $schedules; }
 	private static function schedule_options() { return array( 'disabled' => 'Desactivado', 'hourly' => 'Cada hora', 'digitalisimo_every_6_hours' => 'Cada 6 horas', 'digitalisimo_every_12_hours' => 'Cada 12 horas', 'daily' => 'Diario', 'weekly' => 'Semanal', 'monthly' => 'Mensual' ); }
 	private static function sync_schedules( $settings ) { foreach ( array( 'full' => 'full_schedule', 'db' => 'database_schedule' ) as $type => $key ) { $hook = 'digitalisimo_backups_' . $type; wp_clear_scheduled_hook( $hook ); if ( 'full' === $type && 'disabled' !== $settings[ $key ] ) wp_schedule_event( time() + MINUTE_IN_SECONDS, $settings[ $key ], $hook, array( get_current_blog_id() ) ); } }
-	private static function sync_policy_schedules() { foreach ( self::policies() as $policy ) { $args = array( $policy['id'], get_current_blog_id() ); wp_clear_scheduled_hook( 'digitalisimo_backups_policy', $args ); if ( ! empty( $policy['enabled'] ) && 'disabled' !== $policy['schedule'] ) wp_schedule_event( time() + MINUTE_IN_SECONDS, $policy['schedule'], 'digitalisimo_backups_policy', $args ); } }
+	/**
+	 * Programa cada automatización. Se conserva lo ya programado si su frecuencia y su hora no cambiaron (guardar una
+	 * automatización no adelanta las demás); lo nuevo o cambiado se programa a su hora fija o, sin ella, en un minuto.
+	 */
+	private static function sync_policy_schedules() {
+		foreach ( self::policies() as $policy ) {
+			$args = array( $policy['id'], get_current_blog_id() );
+			$active = ! empty( $policy['enabled'] ) && 'disabled' !== ( $policy['schedule'] ?? 'disabled' );
+			$time = self::fixed_time( $policy );
+			$event = function_exists( 'wp_get_scheduled_event' ) ? wp_get_scheduled_event( 'digitalisimo_backups_policy', $args ) : false;
+			if ( $active && $event && ( $event->schedule ?? '' ) === $policy['schedule'] && ( '' === $time || self::local_clock( (int) $event->timestamp ) === $time ) ) continue;
+			wp_clear_scheduled_hook( 'digitalisimo_backups_policy', $args );
+			if ( $active ) wp_schedule_event( '' !== $time ? self::next_fixed_run( $time, time() + MINUTE_IN_SECONDS ) : time() + MINUTE_IN_SECONDS, $policy['schedule'], 'digitalisimo_backups_policy', $args );
+		}
+	}
+	/** Hora fija válida (HH:MM) de una automatización diaria, semanal o mensual; '' si no tiene o no aplica. */
+	private static function fixed_time( $policy ) {
+		$time = trim( (string) ( ( (array) $policy )['time'] ?? '' ) );
+		return in_array( (string) ( $policy['schedule'] ?? '' ), array( 'daily', 'weekly', 'monthly' ), true ) && preg_match( '/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time ) ? $time : '';
+	}
+	private static function site_timezone() {
+		if ( function_exists( 'wp_timezone' ) ) return wp_timezone();
+		return new DateTimeZone( 'UTC' );
+	}
+	/** HH:MM de un instante en la hora del sitio. */
+	private static function local_clock( $timestamp ) {
+		return ( new DateTimeImmutable( '@' . (int) $timestamp ) )->setTimezone( self::site_timezone() )->format( 'H:i' );
+	}
+	/**
+	 * La primera vez, desde $from (incluido), que el reloj del sitio marca $time (HH:MM). Calculado en la zona horaria del
+	 * sitio, así que el cambio de horario de verano no mueve la hora local; una hora que ese día no existe (el salto de
+	 * primavera) pasa a la siguiente que sí.
+	 */
+	public static function next_fixed_run( $time, $from ) {
+		list( $hour, $minute ) = array_map( 'intval', explode( ':', (string) $time ) );
+		$day = ( new DateTimeImmutable( '@' . (int) $from ) )->setTimezone( self::site_timezone() );
+		for ( $i = 0; $i < 3; $i++ ) {
+			$candidate = $day->setTime( $hour, $minute, 0 );
+			if ( $candidate->getTimestamp() >= (int) $from ) return $candidate->getTimestamp();
+			$day = $day->setTime( 12, 0, 0 )->modify( '+1 day' );
+		}
+		return (int) $from + DAY_IN_SECONDS;
+	}
+	/**
+	 * Antes de cada ejecución de una automatización con hora fija: WP-Cron ya programó la siguiente sumando el intervalo
+	 * en UTC (también si corrió con retraso: la deja en la fase de su hora original). Si esa siguiente ya cae a la hora
+	 * local elegida, se respeta; si el horario de verano o un cambio de zona la desplazaron, va a la HH:MM más cercana
+	 * (nunca salta un día ni cambia el día de la semanal o la mensual). $now sólo en pruebas.
+	 */
+	public static function realign_policy( $policy_id, $site_id, $now = null ) {
+		$policy = self::policy( (string) $policy_id );
+		$time = self::fixed_time( $policy );
+		if ( '' === $time || empty( $policy['enabled'] ) ) return;
+		$now = null === $now ? time() : (int) $now;
+		$intervals = array( 'daily' => DAY_IN_SECONDS, 'weekly' => 7 * DAY_IN_SECONDS, 'monthly' => 30 * DAY_IN_SECONDS );
+		$args = array( (string) $policy_id, (int) $site_id );
+		$next = wp_next_scheduled( 'digitalisimo_backups_policy', $args );
+		if ( $next && self::local_clock( (int) $next ) === $time ) return;
+		$want = $next ? self::next_fixed_run( $time, (int) $next - 12 * HOUR_IN_SECONDS ) : self::next_fixed_run( $time, $now + $intervals[ $policy['schedule'] ] - 12 * HOUR_IN_SECONDS );
+		if ( $next && abs( (int) $next - $want ) < MINUTE_IN_SECONDS ) return;
+		if ( $next ) wp_unschedule_event( (int) $next, 'digitalisimo_backups_policy', $args );
+		wp_schedule_event( $want, $policy['schedule'], 'digitalisimo_backups_policy', $args );
+	}
+	/**
+	 * Una automatización activa sin evento de WP-Cron se programa: la «Completo mensual» que viene activa por defecto en
+	 * un sitio donde nunca se guardó la pantalla, o un evento que se perdió (la opción `cron` que trajo el SQL de una
+	 * restauración). Va a su hora fija o, sin ella, a las 03:00 del sitio (las de cada hora, 6 o 12 horas, en un minuto).
+	 * No añade consultas: las automatizaciones ya se leen en cada carga y `cron` se carga con las opciones.
+	 */
+	public static function ensure_policy_schedules() {
+		if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_schedule_event' ) ) return;
+		if ( ( function_exists( 'wp_installing' ) && wp_installing() ) || ( is_multisite() && ! is_main_site() ) ) return;
+		// Con varias redes, el respaldo completo sólo se hace desde la principal (en otra fallaría cada vez y avisaría).
+		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) return;
+		$storage = null;
+		foreach ( self::policies() as $policy ) {
+			if ( empty( $policy['enabled'] ) || empty( $policy['id'] ) || 'full' !== ( $policy['type'] ?? '' ) || ! array_key_exists( (string) ( $policy['schedule'] ?? '' ), self::schedule_options() ) || 'disabled' === $policy['schedule'] ) continue;
+			$args = array( (string) $policy['id'], get_current_blog_id() );
+			if ( wp_next_scheduled( 'digitalisimo_backups_policy', $args ) ) continue;
+			// Sin un almacén privado resoluble (WP-CLI o cron sin DOCUMENT_ROOT antes de abrir la pantalla) el respaldo
+			// fallaría: no se programa hasta que lo haya (se comprueba sólo cuando falta un evento).
+			if ( null === $storage ) { try { self::local_directory(); $storage = true; } catch ( Exception $e ) { $storage = false; } }
+			if ( ! $storage ) return;
+			$time = self::fixed_time( $policy );
+			if ( '' === $time && in_array( $policy['schedule'], array( 'daily', 'weekly', 'monthly' ), true ) ) $time = '03:00';
+			wp_schedule_event( '' !== $time ? self::next_fixed_run( $time, time() + MINUTE_IN_SECONDS ) : time() + MINUTE_IN_SECONDS, $policy['schedule'], 'digitalisimo_backups_policy', $args );
+		}
+	}
+	/** Cambió la zona horaria del sitio: las automatizaciones con hora fija vuelven a su hora local (las demás no se tocan). */
+	public static function timezone_changed() {
+		if ( is_multisite() && ! is_main_site() ) return;
+		self::sync_policy_schedules();
+	}
 	/** El evento de la política encola y da el primer paso; los siguientes los dan el tick, el navegador o el watchdog. */
 	public static function scheduled_policy( $policy_id, $site_id ) {
 		$result = self::run_policy( $policy_id, $site_id, 'cron' );
@@ -418,8 +540,29 @@ final class Digitalisimo_Backups {
 	/** @internal Acceso del motor de trabajos a las piezas de esta clase. */
 	public static function can_manage_backups() { return self::can_manage(); }
 	public static function storage_directory() { return self::local_directory(); }
+	/**
+	 * Archivo del almacén sólo para el usuario de PHP (0600): respaldos (llevan wp-config.php y la base de datos),
+	 * temporales, descargas de verificación y cerrojos. La carpeta ya es 0700; esto no depende de ella.
+	 */
+	public static function private_file( $path ) {
+		if ( DIRECTORY_SEPARATOR !== '/' || ! is_string( $path ) || is_link( $path ) || ! is_file( $path ) ) return;
+		clearstatcache( true, $path );
+		if ( 0600 !== ( (int) @fileperms( $path ) & 0777 ) ) @chmod( $path, 0600 );
+	}
 	public static function redirect_result( $ok, $message ) { self::redirect( $ok, $message ); }
 	public static function destination_name( $destination ) { return self::destination_label( $destination ); }
+	/**
+	 * @internal Valores de los secretos de los destinos, descifrados por la única lectura (settings()), para que un aviso
+	 * por correo los oculte si un mensaje de error llegara a contener alguno. Nunca salen de este proceso.
+	 */
+	public static function secret_values() {
+		$settings = self::settings();
+		$values = array();
+		foreach ( self::secret_fields() as $field ) if ( is_string( $settings[ $field ] ?? null ) && '' !== $settings[ $field ] ) $values[] = $settings[ $field ];
+		return $values;
+	}
+	/** Nombre de una automatización para los avisos: su etiqueta o, sin ella, su tipo y frecuencia. */
+	public static function automation_name( array $policy ) { return '' !== trim( (string) ( $policy['label'] ?? '' ) ) ? (string) $policy['label'] : self::policy_label( $policy ); }
 	public static function backup_file_name( $prefix = '' ) { return $prefix . 'digitalisimo-backup-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . gmdate( 'Ymd-His' ) . '-' . substr( str_replace( '-', '', wp_generate_uuid4() ), 0, 8 ) . '.zip'; }
 	private static function network_context() { if ( ! is_multisite() ) return false; if ( is_network_admin() || ! empty( $_REQUEST['digitalisimo_backups_network'] ) ) return true; $referer = wp_get_referer(); return $referer && false !== strpos( $referer, '/wp-admin/network/' ); }
 	private static function admin_url() { return self::network_context() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ); }
@@ -458,9 +601,10 @@ final class Digitalisimo_Backups {
 			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
 			if ( $active && Digitalisimo_Backups_Restore_Maintenance::request_has( (string) $active['spec']['token'] ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'token' => (string) $active['spec']['token'], 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
 		}
-		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a></nav>';
+		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a><a class="' . ( 'notifications' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'notifications', $base ) ) . '">Avisos</a></nav>';
 		if ( 'servers' === $tab ) { if ( self::credentials_here() ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); } else echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal.</p></section>'; echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
+		if ( 'notifications' === $tab ) { Digitalisimo_Backups_Notify::panel( $network ); echo '</div>'; return; }
 			echo '<div class="digitalisimo-backups-grid"><section class="digitalisimo-backups-card"><h2>Crear respaldo completo</h2><p>Incluye todos los sitios de la red cuando WordPress usa Multisite, o el sitio completo en una instalación individual.</p>';
 			if ( is_multisite() && ! is_main_site() ) echo '<p class="notice notice-warning inline">El respaldo completo de la red debe iniciarse desde el sitio principal o la administración de red. Este subsitio no generará una copia incompleta.</p>';
 			echo '<form id="digitalisimo-backups-manual-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -470,15 +614,56 @@ final class Digitalisimo_Backups {
 			echo '<p>' . self::manual_destination_select( $s ) . '</p><button class="button button-primary button-hero"' . disabled( is_multisite() && ! is_main_site(), true, false ) . '>Crear respaldo completo ' . ( is_multisite() ? 'de la red' : 'de WordPress' ) . '</button></form><div id="digitalisimo-backups-manual-progress" class="digitalisimo-backups-manual-progress" hidden><p id="digitalisimo-backups-manual-message" role="status" aria-live="polite"></p><progress id="digitalisimo-backups-manual-bar" max="100" value="0"></progress><p id="digitalisimo-backups-manual-detail" aria-live="polite"></p></div>';
 
 			echo '<p class="description">Destino actual: <strong>' . esc_html( self::destination_label( $s['destination'] ) ) . '</strong></p></section><section class="digitalisimo-backups-card"><h2>Últimos respaldos</h2>';
-				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : 'Exportación anterior de sitio' ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; if ( 'local' === ( $item['destination'] ?? 'local' ) || ! empty( $item['remote'] ) ) { echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; self::fetch_button( $item ); } else echo 'Respaldo remoto anterior: sin identificador'; echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
-			self::jobs_panel( $network ); self::updraft_panel(); self::restore_panel( $history ); self::automation_fields(); echo '</div>';
+				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $item['scope'] ?? '' ) ? 'Sitio extraído: ' . (string) ( $item['extract']['label'] ?? '' ) : 'Exportación anterior de sitio' ) ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; $has_local = '' !== self::local_copy( $item ); if ( $has_local || ! empty( $item['remote']['provider'] ) ) echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> '; elseif ( self::remote_exists( $item ) ) echo 'Respaldo remoto anterior: sin identificador '; /* «Eliminar» siempre: también una fila que ya no tiene ninguna copia. */ echo '<form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; self::fetch_button( $item ); echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
+			if ( $network && is_multisite() ) self::extract_panel( $s );
+			self::jobs_panel( $network ); self::updraft_panel(); if ( ! is_multisite() || is_main_site() ) Digitalisimo_Backups_Uploads::panel( $network ); self::restore_panel( $history ); self::automation_fields(); echo '</div>';
+		}
+		/**
+		 * «Extraer como WordPress individual»: sólo en la administración de la red (un superadministrador). Encola un
+		 * trabajo como «Crear respaldo completo»; el paquete aparece en el historial y se descarga para restaurarlo en un
+		 * WordPress individual recién instalado con Backups.
+		 */
+		private static function extract_panel( $s ) {
+			$sites = function_exists( 'get_sites' ) ? get_sites( array( 'number' => 500, 'orderby' => 'id' ) ) : array();
+			echo '<section class="digitalisimo-backups-card digitalisimo-backups-extract" id="digitalisimo-backups-extract"><h2>Extraer un sitio como WordPress individual</h2><p>Crea un paquete con un sitio de la red listo para restaurarse en un WordPress individual en otro servidor y otro dominio: sus tablas, sus usuarios (sólo los del sitio, con su contraseña y su rol), sus medios, sus plugins activos (también los activados en la red), su tema y los ajustes de red de los plugins DIGITALÍSIMO que hereda. Al restaurarlo, las direcciones pasan a las del sitio de destino.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			wp_nonce_field( Digitalisimo_Backups_Site_Extract::ACTION );
+			echo '<input type="hidden" name="action" value="' . esc_attr( Digitalisimo_Backups_Site_Extract::ACTION ) . '"><input type="hidden" name="digitalisimo_backups_network" value="1"><p><label>Sitio<br>';
+			if ( count( $sites ) < 500 ) {
+				echo '<select name="site_id" required><option value="">Elige un sitio de la red</option>';
+				foreach ( $sites as $site ) { $site = is_object( $site ) ? $site : get_site( $site ); if ( ! $site ) continue; echo '<option value="' . (int) $site->blog_id . '">' . esc_html( Digitalisimo_Backups_Site_Extract::label( $site->domain, $site->path ) . ' (ID ' . (int) $site->blog_id . ')' ) . '</option>'; }
+				echo '</select>';
+			} else echo '<input type="number" min="1" name="site_id" required placeholder="ID del sitio">';
+			echo '</label></p><p><label>Superadministradores que no son miembros del sitio<br><select name="super_admins"><option value="none" selected>Ninguno viaja con su contraseña (si escribieron contenido, quedan como autores sin acceso)</option><option value="managing">Como administrador, sólo quien tiene el correo de administración del sitio</option><option value="all">Todos, como administradores</option></select></label></p>';
+			echo '<p><label>Frase propia de este paquete<br><input type="password" name="extract_secret" value="" autocomplete="new-password" minlength="16"></label><br><span class="description">Cifra y firma el paquete; quien lo restaura sólo necesita esta frase. Nunca se usa la clave de la red, que abre todos sus respaldos: no la entregues. Sin frase, el paquete sale sin cifrar ni firmar' . ( Digitalisimo_Backups_Security::settings()['encrypt'] ? ' (en esta red los respaldos se cifran: la frase es obligatoria)' : '' ) . '.</span></p>';
+			$server = Digitalisimo_Backups_Site_Extract::server_files();
+			if ( $server['mu_plugins'] ) echo '<p class="notice notice-warning inline">Viajan y se ejecutarán en el destino estos mu-plugins de la red (revísalos antes de entregar el sitio: pueden llevar personalizaciones de otros sitios o claves): ' . esc_html( implode( ', ', $server['mu_plugins'] ) ) . '.</p>';
+			if ( $server['drop_ins'] ) echo '<p class="notice notice-info inline">No viajan estos drop-ins del servidor de la red (en otro servidor lo dejarían sin servicio; el destino conserva los suyos): ' . esc_html( implode( ', ', $server['drop_ins'] ) ) . '.</p>';
+			echo '<p><label><input type="checkbox" name="network_secrets" value="1"> Copiar también las claves de API que el sitio hereda de la red (IA, Google Places, Namecheap, IPinfo)</label><br><span class="description">Sin marcar, esas claves quedan vacías y el informe del paquete dice cuáles volver a escribir: así un sitio entregado a otro dueño no se lleva las claves de la red.</span></p>';
+			echo '<p>' . self::manual_destination_select( $s ) . '</p><p><button class="button button-primary">Extraer como WordPress individual</button></p><p class="description">Su avance aparece en «Trabajos». El sitio sigue en la red: la extracción no lo cambia ni lo retira.</p></form></section>';
+		}
+		/** admin-post de «Extraer como WordPress individual»: el mismo caso de uso que REST y WP-CLI, con el alcance de red. */
+		public static function extract_request() {
+			if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+			check_admin_referer( Digitalisimo_Backups_Site_Extract::ACTION );
+			if ( ! is_multisite() || empty( $_POST['digitalisimo_backups_network'] ) ) self::redirect( false, 'Un sitio se extrae desde la administración de la red.', is_multisite() );
+			// La frase se usa tal cual (sanitize_text_field() la alteraría).
+			$secret = isset( $_POST['extract_secret'] ) && is_string( $_POST['extract_secret'] ) ? (string) wp_unslash( $_POST['extract_secret'] ) : '';
+			$result = self::service_extract( absint( $_POST['site_id'] ?? 0 ), array( 'network' => true, 'secret' => $secret, 'super_admins' => sanitize_key( wp_unslash( $_POST['super_admins'] ?? 'none' ) ), 'network_secrets' => ! empty( $_POST['network_secrets'] ), 'destination' => sanitize_key( wp_unslash( $_POST['digitalisimo_backup_destination'] ?? 'local' ) ), 'via' => 'admin-post' ) );
+			if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message(), true );
+			self::redirect( true, 'Extracción en cola. Su avance aparece en «Trabajos»; el paquete quedará en el historial para descargarlo.', true );
 		}
 		/** Destino de una fila del historial con el estado de su copia remota (las filas antiguas no lo tienen). */
 		private static function history_destination( $item ) {
-			$label = self::destination_label( $item['destination'] ?? 'local' );
-			$target = self::destination_label( $item['transfer_destination'] ?? '' );
-			$states = array( 'pending' => ' · copia a ' . $target . ' pendiente', 'failed' => ' · la copia a ' . $target . ' falló', 'cancelled' => ' · copia a ' . $target . ' cancelada' );
-			return $label . ( $states[ $item['transfer'] ?? '' ] ?? '' );
+			$local = '' !== self::local_copy( $item );
+			$copy = self::remote_copy( $item );
+			if ( ! $copy ) return self::destination_label( 'local' ) . ( $local ? '' : ' · el ZIP ya no está en el almacén' );
+			$target = self::destination_label( $copy['destination'] );
+			$states = array( 'ok' => 'copia en ' . $target . ' verificada', 'pending' => 'copia a ' . $target . ' pendiente', 'failed' => 'la copia a ' . $target . ' falló', 'cancelled' => 'copia a ' . $target . ' cancelada', 'legacy' => 'copia anterior en ' . $target . ' sin identificador' );
+			$remote = $states[ $copy['state'] ] ?? 'copia en ' . $target;
+			if ( $local ) return self::destination_label( 'local' ) . ' · ' . $remote;
+			// Sin el ZIP local y sin copia remota que exista: no queda ninguna copia (la fila sólo se puede eliminar).
+			if ( ! self::remote_exists( $item ) ) return 'Sin copias: el ZIP ya no está en el almacén y ' . $remote;
+			return $target . ( 'ok' === $copy['state'] ? ' · sólo la copia remota' : ' · ' . $remote );
 		}
 		/** Tarjeta «Trabajos»: el mismo estado que consultan el navegador, el cron, REST y WP-CLI. */
 		private static function jobs_panel( $network ) {
@@ -504,23 +689,81 @@ final class Digitalisimo_Backups {
 			echo '</div></section>';
 		}
 		private static function policy_types() { return array( 'full' => 'Respaldo completo' ); }
-		private static function policy_label( $policy ) { $types = self::policy_types(); $schedules = self::schedule_options(); return ( $types[ $policy['type'] ] ?? 'Respaldo' ) . ' · ' . ( $schedules[ $policy['schedule'] ] ?? 'Sin programación' ); }
+		private static function policy_label( $policy ) { $types = self::policy_types(); $schedules = self::schedule_options(); $time = self::fixed_time( $policy ); return ( $types[ $policy['type'] ] ?? 'Respaldo' ) . ' · ' . ( $schedules[ $policy['schedule'] ] ?? 'Sin programación' ) . ( '' !== $time ? ' a las ' . $time : '' ); }
+		/** Campo de la hora fija de una automatización (hora del sitio). */
+		private static function time_field( $value ) { return '<label>Hora del sitio<br><input type="time" step="60" name="digitalisimo_backup_automation[time]" value="' . esc_attr( (string) $value ) . '"></label>'; }
+		private static function time_help() { $zone = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC'; return '<p class="description">Hora fija para las frecuencias diaria, semanal y mensual, en la zona horaria del sitio (' . esc_html( $zone ) . '); la semanal y la mensual empiezan el primer día que llegue esa hora. Sin hora, WP-Cron la ejecuta cuando toca, como hasta ahora. WP-Cron necesita visitas: para una hora exacta en un sitio con poco tráfico, programa el cron del sistema (ver «REST y WP-CLI»).</p>'; }
 		/** Cada automatización tiene un formulario propio: no existe una configuración global compartida. */
 		private static function automation_fields() {
 			$types = self::policy_types(); $schedules = self::schedule_options(); $destinations = array_keys( self::destination_choices() );
 			echo '<section class="digitalisimo-backups-automations"><h2>Automatizaciones de respaldo</h2><p>Crea una automatización para cada estrategia de respaldo. Sus opciones se guardan de manera independiente y puedes crear, modificar, ejecutar o eliminar cada una sin afectar las demás.</p>';
-			echo '<div class="digitalisimo-backups-card"><h3>Crear automatización</h3><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_CREATE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_CREATE_AUTOMATION ) . '"><p><label>Tipo<br><select name="digitalisimo_backup_automation[type]">'; foreach ( $types as $value => $label ) echo '<option value="' . esc_attr( $value ) . '">' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Frecuencia<br><select name="digitalisimo_backup_automation[schedule]">'; foreach ( $schedules as $value => $label ) if ( 'disabled' !== $value ) echo '<option value="' . esc_attr( $value ) . '"' . selected( $value, 'weekly', false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Destino<br><select name="digitalisimo_backup_automation[destination]">'; foreach ( $destinations as $destination ) echo '<option value="' . esc_attr( $destination ) . '">' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></label> <label>Conservar<br><input type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="4"></label></p><p><button class="button button-primary">Crear automatización</button></p></form></div>';
+			echo '<div class="digitalisimo-backups-card"><h3>Crear automatización</h3><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_CREATE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_CREATE_AUTOMATION ) . '"><p><label>Tipo<br><select name="digitalisimo_backup_automation[type]">'; foreach ( $types as $value => $label ) echo '<option value="' . esc_attr( $value ) . '">' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Frecuencia<br><select name="digitalisimo_backup_automation[schedule]">'; foreach ( $schedules as $value => $label ) if ( 'disabled' !== $value ) echo '<option value="' . esc_attr( $value ) . '"' . selected( $value, 'weekly', false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Destino<br><select name="digitalisimo_backup_automation[destination]">'; foreach ( $destinations as $destination ) echo '<option value="' . esc_attr( $destination ) . '">' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></label> <label>Conservar<br><input type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="4"></label> ' . self::time_field( '' ) . '</p>' . self::time_help() . '<p><button class="button button-primary">Crear automatización</button></p></form></div>';
 			echo '<h3>Automatizaciones creadas</h3><div class="digitalisimo-backups-grid">';
-			foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); if ( 'full' !== ( $policy['type'] ?? '' ) ) { echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( $policy['label'] ?? $id ) . '</h3><p>Esta automatización parcial anterior está desactivada. Sus respaldos históricos se conservan; crea una automatización completa para proteger la instalación.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar esta automatización anterior?\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><button class="button button-link-delete">Eliminar automatización</button></form></section>'; continue; } echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( self::policy_label( $policy ) ) . '</h3><p class="description">Tipo fijo: Respaldo completo.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_UPDATE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_UPDATE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><p><label><input type="checkbox" name="digitalisimo_backup_automation[enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '> Activa</label></p><p><label>Frecuencia<br><select name="digitalisimo_backup_automation[schedule]">'; foreach ( $schedules as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Destino<br><select name="digitalisimo_backup_automation[destination]">'; foreach ( $destinations as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></label> <label>Conservar<br><input type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( $policy['retain'] ) . '"></label></p><p><button class="button button-primary">Guardar esta automatización</button></p></form><div class="digitalisimo-backups-actions"><form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RUN_POLICY ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '"><input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"><button class="button">Ejecutar ahora</button></form> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar esta automatización? Sus respaldos ya creados se conservan.\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><button class="button button-link-delete">Eliminar</button></form></div></section>'; }
+			foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); if ( 'full' !== ( $policy['type'] ?? '' ) ) { echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( $policy['label'] ?? $id ) . '</h3><p>Esta automatización parcial anterior está desactivada. Sus respaldos históricos se conservan; crea una automatización completa para proteger la instalación.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar esta automatización anterior?\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><button class="button button-link-delete">Eliminar automatización</button></form></section>'; continue; } echo '<section class="digitalisimo-backups-card"><h3>' . esc_html( self::policy_label( $policy ) ) . '</h3><p class="description">Tipo fijo: Respaldo completo.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_UPDATE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_UPDATE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><p><label><input type="checkbox" name="digitalisimo_backup_automation[enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '> Activa</label></p><p><label>Frecuencia<br><select name="digitalisimo_backup_automation[schedule]">'; foreach ( $schedules as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></label> <label>Destino<br><select name="digitalisimo_backup_automation[destination]">'; foreach ( $destinations as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></label> <label>Conservar<br><input type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( $policy['retain'] ) . '"></label> ' . self::time_field( $policy['time'] ?? '' ) . '</p><p><button class="button button-primary">Guardar esta automatización</button></p></form><div class="digitalisimo-backups-actions"><form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RUN_POLICY ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '"><input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"><button class="button">Ejecutar ahora</button></form> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar esta automatización? Sus respaldos ya creados se conservan.\')">'; wp_nonce_field( self::ACTION_DELETE_AUTOMATION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_AUTOMATION ) . '"><input type="hidden" name="policy_id" value="' . $id . '"><button class="button button-link-delete">Eliminar</button></form></div></section>'; }
 			echo '</div></section>';
 		}
 		private static function updraft_panel() { $sets = self::detect_updraft_sets(); echo '<h2>Respaldos detectados de UpdraftPlus</h2><p>Se analizan los archivos estándar dentro de <code>wp-content/updraft</code>. Sólo los conjuntos completos y sin cifrado se pueden restaurar.</p>'; if ( ! $sets ) { echo '<p>No se detectaron respaldos de UpdraftPlus en el almacenamiento local.</p>'; return; } echo '<table class="widefat striped"><thead><tr><th>Conjunto</th><th>Componentes</th><th>Estado</th></tr></thead><tbody>'; foreach ( $sets as $set ) { $components = array_map( function( $name, $parts ) { return $name . ( count( $parts ) > 1 ? ' × ' . count( $parts ) : '' ); }, array_keys( $set['files'] ), $set['files'] ); echo '<tr><td>' . esc_html( $set['id'] ) . '</td><td>' . esc_html( implode( ', ', $components ) ) . '</td><td>' . ( $set['complete'] ? 'Listo para restaurar abajo' : 'Incompleto o cifrado' ) . '</td></tr>'; } echo '</tbody></table><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RESTORE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="updraft" value="1"><p><select name="updraft_set"><option value="">Elige un conjunto UpdraftPlus</option>'; foreach ( $sets as $set ) if ( $set['complete'] ) echo '<option value="' . esc_attr( $set['id'] ) . '">' . esc_html( $set['id'] ) . '</option>'; echo '</select> <input type="text" name="confirmation" placeholder="RESTAURAR SIN FIRMA" autocomplete="off"> <button class="button">Restaurar conjunto</button></p><p class="description">Un conjunto de UpdraftPlus no lleva firma de este sitio: su SQL se revisa entero antes de cambiar nada y se pide escribir RESTAURAR SIN FIRMA. Restaurarlo instala su código y sus datos.</p></form>'; }
 		private static function schedule_fields( $s ) { echo '<h2>Políticas automáticas</h2><p>Cada política tiene su propia frecuencia, destino y retención. Un incremental guarda la base de datos y sólo los archivos modificados desde su último punto base; al restaurar se aplica después de su respaldo completo base.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE_POLICIES ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_POLICIES ) . '"><table class="widefat striped"><thead><tr><th>Activa</th><th>Nombre</th><th>Tipo</th><th>Frecuencia</th><th>Destino</th><th>Conservar</th><th>Ejecutar</th></tr></thead><tbody>'; foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); echo '<tr><td><input type="checkbox" name="digitalisimo_backups_policies[' . $id . '][enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '></td><td><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][id]" value="' . $id . '"><input type="text" name="digitalisimo_backups_policies[' . $id . '][label]" value="' . esc_attr( $policy['label'] ) . '"></td><td><strong>' . esc_html( array( 'full' => 'Completo', 'incremental' => 'Incremental', 'database' => 'Base de datos' )[ $policy['type'] ] ) . '</strong><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][type]" value="' . esc_attr( $policy['type'] ) . '"></td><td><select name="digitalisimo_backups_policies[' . $id . '][schedule]">'; foreach ( self::schedule_options() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></td><td><select name="digitalisimo_backups_policies[' . $id . '][destination]">'; foreach ( array_keys( self::destination_choices() ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></td><td><input type="number" min="1" max="100" name="digitalisimo_backups_policies[' . $id . '][retain]" value="' . esc_attr( $policy['retain'] ) . '"></td><td><button class="button" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post">Ejecutar ahora<input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"></button></td></tr>'; } echo '</tbody></table><p><button class="button button-primary">Guardar políticas automáticas</button></p></form>'; }
 	private static function download_url( $file ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_DOWNLOAD, 'file' => rawurlencode( $file ) ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_DOWNLOAD ); }
-	public static function download() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DOWNLOAD ); $file = sanitize_file_name( wp_unslash( $_GET['file'] ?? '' ) ); $item = self::history_item( $file ); if ( ! $item ) wp_die( 'Respaldo no disponible.' ); if ( 'local' !== ( $item['destination'] ?? 'local' ) ) { self::download_remote( $item ); exit; } $path = self::local_path( $file ); if ( ! $path ) wp_die( 'Respaldo no disponible.' ); nocache_headers(); header( 'Content-Type: ' . self::content_type( $file ) ); header( 'Content-Disposition: attachment; filename="' . $file . '"' ); header( 'Content-Length: ' . filesize( $path ) ); readfile( $path ); exit; }
+	/** Descarga el ZIP local si sigue en el almacén (también el de un respaldo con copia remota); si no, la copia remota. */
+	public static function download() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DOWNLOAD );
+		$file = sanitize_file_name( wp_unslash( $_GET['file'] ?? '' ) );
+		$item = self::history_item( $file );
+		if ( ! $item ) wp_die( 'Respaldo no disponible.' );
+		$path = self::local_path( $file );
+		if ( ! $path ) {
+			$copy = self::remote_copy( $item );
+			if ( $copy && ( ! empty( $copy['remote']['provider'] ) || 'legacy' === $copy['state'] ) ) { self::download_remote( $item ); exit; }
+			wp_die( 'Respaldo no disponible.' );
+		}
+		nocache_headers();
+		header( 'Content-Type: ' . self::content_type( $file ) );
+		header( 'Content-Disposition: attachment; filename="' . $file . '"' );
+		header( 'Content-Length: ' . filesize( $path ) );
+		readfile( $path );
+		exit;
+	}
 	/** Un respaldo cifrado no es un ZIP para el navegador ni para los destinos remotos. */
 	private static function content_type( $file ) { return '.dgbk' === substr( (string) $file, -5 ) ? 'application/octet-stream' : 'application/zip'; }
-	public static function delete_backup() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $item = self::history_item( $file ); if ( ! $item ) self::redirect( false, 'El respaldo no está registrado.' ); try { if ( 'local' === ( $item['destination'] ?? 'local' ) ) { $path = self::local_path( $file ); if ( ! $path ) { self::remove_history( $file ); self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' ); } if ( ! is_writable( dirname( $path ) ) ) throw new Exception( 'El hosting no permite escribir en la carpeta de respaldos: ' . dirname( $path ) ); if ( ! @wp_delete_file( $path ) && file_exists( $path ) ) throw new Exception( 'El hosting rechazó eliminar el archivo local. Revisa permisos de la carpeta de respaldos.' ); } else $note = self::delete_remote( $item ); self::remove_history( $file ); self::redirect( true, empty( $note ) ? 'Respaldo eliminado.' : $note ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } }
+	/**
+	 * Elimina un respaldo: su copia remota verificada, su ZIP local y su fila. La copia remota va primero: si el destino no
+	 * confirma la eliminación no se cambia nada. Una copia remota anterior a 1.0.59 sin identificador no se puede borrar
+	 * desde aquí y el aviso dice dónde queda; una copia que nunca se verificó (pendiente, fallida o cancelada) no existe.
+	 */
+	public static function delete_backup() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DELETE );
+		$file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) );
+		$item = self::history_item( $file );
+		if ( ! $item ) self::redirect( false, 'El respaldo no está registrado.' );
+		$gone = '';
+		try {
+			$path = self::local_path( $file );
+			$copy = self::remote_copy( $item );
+			$remote = $copy && ! empty( $copy['remote']['provider'] );
+			$notice = $copy && 'legacy' === $copy['state'] ? ' La copia anterior en ' . self::destination_label( $copy['destination'] ) . ' no tiene identificador: elimínala desde ' . self::destination_label( $copy['destination'] ) . '.' : '';
+			// Si su conexión ya se eliminó no hay a dónde llamar: sólo se quita la fila, con el aviso (1.0.62).
+			$gone = $remote ? self::delete_remote( $item ) : '';
+			if ( $path ) {
+				try {
+					if ( ! is_writable( dirname( $path ) ) ) throw new Exception( 'El hosting no permite escribir en la carpeta de respaldos: ' . dirname( $path ) );
+					if ( ! @wp_delete_file( $path ) && file_exists( $path ) ) throw new Exception( 'El hosting rechazó eliminar el archivo local. Revisa permisos de la carpeta de respaldos.' );
+				} catch ( Exception $local_error ) {
+					// La copia remota ya no existe: la fila se queda sólo con el ZIP local que no se pudo borrar.
+					if ( $remote ) self::history_update( $file, array( 'destination' => 'local', 'transfer' => '', 'transfer_destination' => '', 'transfer_error' => '', 'remote' => array() ) );
+					throw $local_error;
+				}
+			}
+			self::remove_history( $file );
+		} catch ( Exception $e ) {
+			self::redirect( false, $e->getMessage() );
+		}
+		if ( '' !== $gone ) self::redirect( true, $gone . $notice );
+		if ( ! $path && ! $copy ) self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' );
+		self::redirect( true, 'Respaldo eliminado' . ( $remote ? ( $path ? ', también su copia en ' : ' de ' ) . self::destination_label( $copy['destination'] ) : '' ) . '.' . $notice );
+	}
 	public static function save_policies() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_SAVE_POLICIES );
@@ -529,7 +772,8 @@ final class Digitalisimo_Backups {
 			$id = sanitize_key( $id ); $type = sanitize_key( $policy['type'] ?? '' );
 			if ( ! $id || ! in_array( $type, $allowed_types, true ) ) continue;
 			$schedule = sanitize_key( $policy['schedule'] ?? 'disabled' );
-			$out[] = array( 'id' => $id, 'label' => sanitize_text_field( $policy['label'] ?? $id ), 'type' => $type, 'schedule' => array_key_exists( $schedule, self::schedule_options() ) ? $schedule : 'disabled', 'destination' => in_array( $policy['destination'] ?? '', $allowed_destinations, true ) ? $policy['destination'] : 'local', 'retain' => min( 100, max( 1, absint( $policy['retain'] ?? 4 ) ) ), 'enabled' => ! empty( $policy['enabled'] ) );
+			$time = trim( (string) ( $policy['time'] ?? ( self::policy( $id )['time'] ?? '' ) ) );
+			$out[] = array( 'id' => $id, 'label' => sanitize_text_field( $policy['label'] ?? $id ), 'type' => $type, 'schedule' => array_key_exists( $schedule, self::schedule_options() ) ? $schedule : 'disabled', 'destination' => in_array( $policy['destination'] ?? '', $allowed_destinations, true ) ? $policy['destination'] : 'local', 'retain' => min( 100, max( 1, absint( $policy['retain'] ?? 4 ) ) ), 'enabled' => ! empty( $policy['enabled'] ), 'time' => preg_match( '/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time ) ? $time : '' );
 		}
 		if ( ! $out ) self::redirect( false, 'No se recibió una política válida.' );
 		update_option( self::POLICIES, $out, false ); self::sync_policy_schedules(); self::redirect( true, 'Políticas automáticas guardadas.' );
@@ -542,7 +786,10 @@ final class Digitalisimo_Backups {
 		if ( ! isset( $schedules[ $schedule ] ) ) $schedule = 'daily';
 		$destination = in_array( $input['destination'] ?? '', $destinations, true ) ? $input['destination'] : 'local';
 		if ( 'incremental' === $type && ! in_array( $destination, array( 'local', 'sftp' ), true ) ) return new WP_Error( 'digitalisimo_backup_incremental_destination', 'Los respaldos incrementales sólo se admiten en Local o SFTP. Google Drive y OneDrive siempre generan respaldos completos.' );
-		return array( 'id' => $id ?: 'automation-' . wp_generate_uuid4(), 'label' => '', 'type' => $type, 'schedule' => $schedule, 'destination' => $destination, 'retain' => min( 100, max( 1, absint( $input['retain'] ?? 4 ) ) ), 'enabled' => ! empty( $input['enabled'] ) );
+		// Hora fija (del sitio) para diaria, semanal y mensual; vacía, WP-Cron la ejecuta cuando toca, como hasta ahora.
+		$time = trim( (string) ( $input['time'] ?? '' ) );
+		if ( '' !== $time && ! preg_match( '/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time ) ) return new WP_Error( 'digitalisimo_backup_time', 'La hora de la automatización debe tener el formato HH:MM (de 00:00 a 23:59).' );
+		return array( 'id' => $id ?: 'automation-' . wp_generate_uuid4(), 'label' => '', 'type' => $type, 'schedule' => $schedule, 'destination' => $destination, 'retain' => min( 100, max( 1, absint( $input['retain'] ?? 4 ) ) ), 'enabled' => ! empty( $input['enabled'] ), 'time' => $time );
 	}
 	public static function create_automation() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_CREATE_AUTOMATION );
@@ -656,6 +903,14 @@ final class Digitalisimo_Backups {
 		Digitalisimo_Backups_Layout::assert_complete();
 		self::wordpress_config_file();
 	}
+	/**
+	 * Diferencias de wp-config.php entre un respaldo abierto y el que carga este servidor
+	 * (Digitalisimo_Backups_Config_Diff): `available`, `differences` (sin valores secretos ni rutas) y `text`.
+	 */
+	private static function config_report( $zip ) {
+		try { $server = self::wordpress_config_file(); } catch ( Exception $e ) { $server = ''; }
+		return Digitalisimo_Backups_Config_Diff::for_zip( $zip, $server );
+	}
 	private static function wordpress_config_file() {
 		$root = realpath( ABSPATH );
 		foreach ( array( trailingslashit( $root ) . 'wp-config.php', dirname( $root ) . '/wp-config.php' ) as $candidate ) {
@@ -683,6 +938,8 @@ final class Digitalisimo_Backups {
 		if ( '' === $file || basename( $file ) !== $file || '.' === $file[0] || substr( $file, -strlen( $extension ) ) !== $extension || preg_match( '#[\x00-\x1f/\\\\]#', $file ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El nombre del respaldo no es válido.' );
 		$free = function_exists( 'disk_free_space' ) ? @disk_free_space( $dir ) : false;
 		if ( is_numeric( $free ) && $free < 64 * 1048576 ) throw new Digitalisimo_Backups_Permanent_Error( 'Quedan ' . self::bytes_label( $free ) . ' libres en el almacén privado; libera espacio antes de respaldar.' );
+		// Un sitio extraído: el sitio sigue existiendo y su base de datos y sus medios tienen la forma de un sitio de la red.
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) Digitalisimo_Backups_Site_Extract::preflight( $spec );
 		// La clave que el trabajo fijó al encolarse se puede abrir: si no, falla ahora, antes de exportar nada.
 		$plan = self::job_security_plan( $spec );
 		if ( $plan['root'] ) Digitalisimo_Backups_Sodium::memzero( $plan['root'] );
@@ -691,6 +948,10 @@ final class Digitalisimo_Backups {
 	public static function job_encrypts( array $spec ) { return empty( $spec['inline'] ) && ! empty( $spec['security']['encrypt'] ); }
 	/** Clave del trabajo en esta fase: un fallo es permanente y nunca deja salir en claro un respaldo que debía cifrarse. */
 	private static function job_security_plan( array $spec ) {
+		// Un sitio extraído tiene su propia clave (la frase de la extracción) o ninguna; nunca la de la red.
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
+			try { return Digitalisimo_Backups_Site_Extract::job_plan( $spec ); } catch ( Exception $e ) { throw new Digitalisimo_Backups_Permanent_Error( $e->getMessage() ); }
+		}
 		try {
 			$plan = Digitalisimo_Backups_Security::job_plan( $spec );
 		} catch ( Exception $e ) {
@@ -708,13 +969,22 @@ final class Digitalisimo_Backups {
 		return array_values( array_filter( $tables, function( $table ) { return ! preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', (string) $table ); } ) );
 	}
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
-	public static function job_export_database( $path ) {
+	public static function job_export_database( $path, $spec = null ) {
 		global $wpdb;
 		// Ningún respaldo lleva un secreto en claro si hay salts propias: lo que quede en claro en los ajustes (por ejemplo,
 		// lo que reescribió 1.0.60 tras volver desde rollback/) se cifra antes del volcado; si no se puede comprobar, la
 		// fase falla y se reintenta. export_row() es la última defensa, fila a fila.
 		self::migrate_credentials();
 		$at = gmdate( 'c' );
+		if ( null === $spec ) { $current = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() ); $spec = is_array( $current['spec'] ?? null ) ? $current['spec'] : array(); }
+		// «Extraer como WordPress individual»: sólo las tablas del sitio, con sus usuarios y metas (ver Digitalisimo_Backups_Site_Extract).
+		// Su informe queda junto al SQL en el área de trabajo (`database.*`: se borra con él si la fase se repite) para «pack».
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( (array) $spec ) ) {
+			$export = Digitalisimo_Backups_Site_Extract::exporter( $spec );
+			$mode = self::database_sql_to_file( $export->tables(), $path, $export );
+			Digitalisimo_Backups_Site_Extract::write_report( Digitalisimo_Backups_Site_Extract::report_path( $path ), $export->report() );
+			return array( 'tables' => array_values( array_map( array( $export, 'name' ), $export->tables() ) ), 'mode' => $mode, 'at' => $at );
+		}
 		$tables = self::exportable_tables( $wpdb->get_col( 'SHOW TABLES' ) );
 		$mode = self::database_sql_to_file( $tables, $path );
 		return array( 'tables' => array_values( (array) $tables ), 'mode' => $mode, 'at' => $at );
@@ -727,7 +997,10 @@ final class Digitalisimo_Backups {
 		global $wpdb;
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
 		$dir = self::local_directory();
-		$plan = self::job_security_plan( (array) ( $extra['spec'] ?? array() ) );
+		$spec = (array) ( $extra['spec'] ?? array() );
+		$extract = Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ? Digitalisimo_Backups_Site_Extract::read_report( Digitalisimo_Backups_Site_Extract::report_path( $sql_path ) ) : null;
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) && empty( $extract['site'] ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta el informe de la exportación del sitio; se exportará otra vez.', 'database' );
+		$plan = self::job_security_plan( $spec );
 		if ( file_exists( $target ) ) @unlink( $target );
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $target, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
@@ -740,29 +1013,33 @@ final class Digitalisimo_Backups {
 			$entries = array( 'database.sql' => array( 'size' => (int) $database['size'], 'sha256' => (string) $database['sha256'] ) );
 			self::manual_progress( 40, 'archivos', 'Comprimiendo archivos de WordPress…', true );
 			$files_started_at = gmdate( 'c' );
-			self::add_full_files( $zip, $dir, $entries );
+			$files = null;
+			if ( is_array( $extract ) ) $files = self::add_extract_files( $zip, $dir, $entries, $extract );
+			else self::add_full_files( $zip, $dir, $entries );
 			$files_completed_at = gmdate( 'c' );
 			$manifest = array(
 				'format' => 'digitalisimo-backup/v3',
 				'backup_format_version' => 3,
 				'backup_id' => wp_generate_uuid4(),
-				'scope' => 'installation',
+				'scope' => is_array( $extract ) ? Digitalisimo_Backups_Site_Extract::SCOPE : 'installation',
 				'type' => 'full',
 				'created_at' => (string) $database['at'],
 				'completed_at' => gmdate( 'c' ),
-				'home_url' => home_url(),
-				'site_url' => site_url(),
+				'home_url' => is_array( $extract ) ? (string) $extract['site']['url'] : home_url(),
+				'site_url' => is_array( $extract ) ? (string) $extract['site']['site_url'] : site_url(),
 				'wordpress_version' => get_bloginfo( 'version' ),
 				'php_version' => PHP_VERSION,
 				'database_version' => method_exists( $wpdb, 'db_version' ) ? $wpdb->db_version() : '',
 				'database_name' => DB_NAME,
 				'database_size' => $entries['database.sql']['size'],
 				'database_consistency' => (string) $database['mode'],
-				'table_prefix' => $wpdb->base_prefix,
-				// Direcciones, rutas del servidor y red del origen: con ellas se restaura en otro dominio o servidor.
-				'origin' => Digitalisimo_Backups_Relocate::describe( false ),
+				// Un sitio extraído es un WordPress individual con el prefijo que tenía en la red (wp_N_).
+				'table_prefix' => is_array( $extract ) ? (string) $extract['source_prefix'] : $wpdb->base_prefix,
+				// Direcciones, rutas del servidor y red del origen: con ellas se restaura en otro dominio o servidor (un sitio
+				// extraído se describe como el WordPress individual que será).
+				'origin' => is_array( $extract ) ? Digitalisimo_Backups_Site_Extract::origin_block( $extract ) : Digitalisimo_Backups_Relocate::describe( false ),
 				'database_tables' => (array) $database['tables'],
-				'multisite' => is_multisite(),
+				'multisite' => is_array( $extract ) ? false : is_multisite(),
 				'file_count' => count( $entries ) - 1,
 				'uncompressed_size' => array_sum( array_column( $entries, 'size' ) ),
 				'checksum_algorithm' => 'sha256',
@@ -775,6 +1052,7 @@ final class Digitalisimo_Backups {
 				'files_started_at' => $files_started_at,
 				'files_completed_at' => $files_completed_at,
 			);
+			if ( is_array( $extract ) ) $manifest['extract'] = Digitalisimo_Backups_Site_Extract::manifest_block( $extract, $files );
 			if ( $plan['root'] ) $manifest['auth'] = Digitalisimo_Backups_Manifest_Auth::block( $plan['descriptor'], $plan['encrypt'] );
 			$manifest_json = wp_json_encode( $manifest, JSON_PRETTY_PRINT );
 			self::zip_add_string( $zip, 'manifest.json', $manifest_json );
@@ -787,6 +1065,8 @@ final class Digitalisimo_Backups {
 				Digitalisimo_Backups_Jobs::throw_if_aborted();
 				throw new Exception( 'El ZIP no se pudo cerrar correctamente.' );
 			}
+			// libzip crea el ZIP con los permisos por defecto (0644 en Linux): lleva wp-config.php y la base de datos.
+			self::private_file( $target );
 			return array( 'file_count' => count( $entries ) - 1, 'files_started_at' => $files_started_at, 'files_completed_at' => $files_completed_at, 'backup_id' => (string) $manifest['backup_id'], 'created_at' => (string) $manifest['created_at'], 'signed' => (bool) $plan['root'] );
 		} catch ( Throwable $e ) {
 			if ( ! $closing ) { @$zip->unchangeAll(); self::close_quietly( $zip ); }
@@ -825,7 +1105,9 @@ final class Digitalisimo_Backups {
 		try {
 			if ( ! $plan['encrypt'] || ! $plan['root'] ) throw new Digitalisimo_Backups_Permanent_Error( 'Este trabajo no cifra; no hay nada que sellar.' );
 			if ( file_exists( $target ) || is_link( $target ) ) @unlink( $target );
-			return Digitalisimo_Backups_Security::seal( $zip_path, $target, $plan, array( 'backup_id' => (string) ( $meta['backup_id'] ?? '' ), 'created_at' => (string) ( $meta['created_at'] ?? '' ), 'plugin_version' => DIGITALISIMO_BACKUPS_VERSION, 'multisite' => is_multisite() ) );
+			// La cabecera dice lo que es el paquete: un sitio extraído es un WordPress individual.
+			$extracted = Digitalisimo_Backups_Site_Extract::is_extract( $spec );
+			return Digitalisimo_Backups_Security::seal( $zip_path, $target, $plan, array( 'backup_id' => (string) ( $meta['backup_id'] ?? '' ), 'created_at' => (string) ( $meta['created_at'] ?? '' ), 'plugin_version' => DIGITALISIMO_BACKUPS_VERSION, 'multisite' => $extracted ? false : is_multisite(), 'scope' => $extracted ? Digitalisimo_Backups_Site_Extract::SCOPE : 'installation' ) );
 		} finally {
 			if ( $plan['root'] ) Digitalisimo_Backups_Sodium::memzero( $plan['root'] );
 		}
@@ -834,6 +1116,16 @@ final class Digitalisimo_Backups {
 	public static function job_register( $final, array $spec, $job_id ) {
 		$extra = array( 'job' => (string) $job_id );
 		if ( 'local' !== ( $spec['destination'] ?? 'local' ) ) $extra += array( 'transfer' => 'pending', 'transfer_destination' => (string) $spec['destination'] );
+		// Un sitio extraído no es un respaldo de esta instalación: su fila lo dice y no aparece en «Restaurar» de la red.
+		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
+			// Lo que no viajó (nombres de la raíz, de plugins y temas de la red y de tablas de otros plugins) se queda aquí, en
+			// el historial de la red: el paquete sólo lleva los recuentos.
+			$detail = Digitalisimo_Backups_Site_Extract::network_detail( $job_id );
+			self::remember( $final, 'local', Digitalisimo_Backups_Site_Extract::SCOPE, array( 'id' => (string) $spec['policy'], 'type' => Digitalisimo_Backups_Site_Extract::POLICY ), array(), (int) $spec['extract']['site_id'], false, $extra + array( 'extract' => array( 'site_id' => (int) $spec['extract']['site_id'], 'label' => (string) $spec['extract']['label'] ) + $detail ) );
+			// La clave propia del paquete ya no hace falta: sólo la frase lo abre.
+			Digitalisimo_Backups_Site_Extract::forget_keys( (string) ( $spec['security']['key_id'] ?? '' ) );
+			return self::history_item( wp_basename( $final ) );
+		}
 		self::remember( $final, 'local', 'network' === ( $spec['scope'] ?? '' ) ? 'network' : 'installation', array( 'id' => (string) $spec['policy'], 'type' => 'full' ), array(), (int) ( $spec['site_id'] ?? 0 ), false, $extra );
 		return self::history_item( wp_basename( $final ) );
 	}
@@ -852,6 +1144,51 @@ final class Digitalisimo_Backups {
 			unset( $row );
 			return $found;
 		} );
+	}
+	/**
+	 * Copia remota de una fila del historial: destino, estado (ok, pending, failed, cancelled o legacy) y su referencia.
+	 * Desde el lote corto la fila es la del ZIP local y la copia remota va en `transfer_destination`; de 1.0.59 a 1.0.61
+	 * la transferencia cambiaba `destination` al proveedor, y antes de 1.0.59 no había `transfer` (legacy: sin
+	 * identificador si tampoco hay `remote`). null si la fila no tiene copia remota.
+	 */
+	private static function remote_copy( $item ) {
+		$item = (array) $item;
+		$target = (string) ( $item['transfer_destination'] ?? '' );
+		$recorded = (string) ( $item['destination'] ?? 'local' );
+		if ( '' === $target && 'local' !== $recorded ) $target = $recorded;
+		if ( '' === $target || 'local' === $target ) return null;
+		$remote = (array) ( $item['remote'] ?? array() );
+		$state = (string) ( $item['transfer'] ?? '' );
+		if ( '' === $state ) $state = ! empty( $remote['provider'] ) ? 'ok' : 'legacy';
+		return array( 'destination' => $target, 'state' => $state, 'remote' => $remote );
+	}
+	/** Ruta del ZIP local de una fila del historial ('' si ya no está en el almacén). */
+	private static function local_copy( $item ) {
+		$file = (string) ( ( (array) $item )['file'] ?? '' );
+		if ( '' === $file ) return '';
+		try { return self::local_path( $file ); } catch ( Exception $e ) { return ''; }
+	}
+	/** Restaurable desde el almacén: completo, de la instalación o la red, y con su ZIP local (tenga o no copia remota). */
+	private static function restorable_item( $item, $local = null ) {
+		$item = (array) $item;
+		$local = null === $local ? '' !== self::local_copy( $item ) : (bool) $local;
+		return $local && 'full' === (string) ( $item['backup_type'] ?? 'full' ) && in_array( (string) ( $item['scope'] ?? '' ), array( 'network', 'installation' ), true );
+	}
+	/**
+	 * Copias que existen de una fila: la local (si el ZIP sigue en el almacén) y la remota verificada (`ok`) o anterior
+	 * a 1.0.59 sin identificador (`legacy`). Una copia pendiente, fallida o cancelada no existe: va en `transfer`.
+	 */
+	private static function item_copies( $item, $local = null ) {
+		$local = null === $local ? '' !== self::local_copy( $item ) : (bool) $local;
+		$copies = $local ? array( array( 'destination' => 'local', 'state' => 'ok' ) ) : array();
+		$remote = self::remote_copy( $item );
+		if ( $remote && in_array( $remote['state'], array( 'ok', 'legacy' ), true ) ) $copies[] = array( 'destination' => $remote['destination'], 'state' => $remote['state'] );
+		return $copies;
+	}
+	/** Si la fila tiene una copia remota que existe (verificada o anterior sin identificador). */
+	private static function remote_exists( $item ) {
+		$remote = self::remote_copy( $item );
+		return $remote && in_array( $remote['state'], array( 'ok', 'legacy' ), true );
 	}
 	private static function bytes_label( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
@@ -899,6 +1236,45 @@ final class Digitalisimo_Backups {
 			if ( ! isset( $entries[ $required ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el respaldo.' );
 		}
 	}
+	/**
+	 * Inventario de un sitio extraído (Digitalisimo_Backups_Site_Extract::file_map()): cada origen a su nombre en el ZIP,
+	 * con las mismas reglas que el respaldo completo (sin omitir archivos sin avisar, sin seguir enlaces, sin el almacén ni
+	 * la base SQLite en uso). Devuelve lo que no viajó, para el informe.
+	 */
+	private static function add_extract_files( $zip, $backup_dir, &$entries, array $extract ) {
+		$files = Digitalisimo_Backups_Site_Extract::file_map( $extract );
+		$backup_dir = trailingslashit( wp_normalize_path( realpath( $backup_dir ) ) );
+		$active_database_files = self::active_sqlite_database_files();
+		$count = 0;
+		foreach ( $files['map'] as $item ) {
+			$from = rtrim( wp_normalize_path( $item['from'] ), '/' );
+			$skip = array_map( function( $path ) { return trailingslashit( wp_normalize_path( $path ) ); }, (array) ( $item['skip'] ?? array() ) );
+			if ( is_link( $from ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio extraído no puede omitir el enlace simbólico ' . $from . ' (apunta a ' . ( realpath( $from ) ?: (string) @readlink( $from ) ) . '). Sustitúyelo por el archivo o la carpeta real.' );
+			$sources = is_dir( $from ) ? new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $from, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ) : array( new SplFileInfo( $from ) );
+			foreach ( $sources as $entry ) {
+				$path = wp_normalize_path( $entry->getPathname() );
+				if ( 0 === strpos( $path, $backup_dir ) || isset( $active_database_files[ $path ] ) ) continue;
+				foreach ( $skip as $excluded ) if ( 0 === strpos( $path, $excluded ) ) continue 2;
+				if ( $entry->isLink() ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio extraído no puede omitir el enlace simbólico ' . $path . ' (apunta a ' . ( realpath( $path ) ?: (string) @readlink( $path ) ) . '). Sustitúyelo por el archivo o la carpeta real.' );
+				if ( ! $entry->isFile() ) continue;
+				$name = $path === $from ? $item['to'] : $item['to'] . substr( $path, strlen( $from ) );
+				// Ningún nombre del paquete sale de su raíz: sin segmentos «.» ni «..» (vendrían de datos del sitio, no del disco).
+				if ( preg_match( '#(?:^|/)\.{1,2}(?:/|$)#', $name ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Un nombre del sitio extraído sale de su carpeta: ' . $name . '.' );
+				if ( isset( $entries[ $name ] ) ) throw new Exception( 'Dos archivos del sitio irían al mismo lugar del paquete: ' . $name . '.' );
+				$size = @filesize( $path );
+				$hash = @hash_file( 'sha256', $path );
+				if ( false === $size || false === $hash ) throw new Exception( 'No se pudo inventariar el archivo ' . $path . '.' );
+				self::zip_add_file( $zip, $path, $name );
+				$entries[ $name ] = array( 'size' => $size, 'sha256' => $hash );
+				$count++;
+				if ( 0 === $count % 25 ) self::manual_progress( min( 78, 40 + (int) floor( $count / 100 ) ), 'archivos', 'Archivos incluidos: ' . $count . ' · último: ' . substr( $name, strlen( 'wordpress/' ) ) );
+			}
+		}
+		foreach ( Digitalisimo_Backups_Site_Extract::required_entries() as $required ) {
+			if ( ! isset( $entries[ $required ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el sitio extraído.' );
+		}
+		return $files;
+	}
 	/** El archivo SQLite en uso no puede copiarse ni reemplazarse mientras la conexión está abierta. */
 	private static function active_sqlite_database_files() {
 		global $wpdb;
@@ -920,6 +1296,12 @@ final class Digitalisimo_Backups {
 		return $files;
 	}
 
+	/**
+	 * Vía antigua (v2) de exportar un sitio de la red: tablas renombradas a `wp_` y MIGRAR-A-WORDPRESS-UNICO.txt con pasos
+	 * manuales. Sólo la llama una automatización incremental anterior a 1.0.38; su paquete (alcance `site`) nunca se
+	 * restaura. Se conserva por compatibilidad: la vía recomendada es «Extraer como WordPress individual»
+	 * (Digitalisimo_Backups_Site_Extract, alcance `extracted-site`), que pasa por el motor de trabajos y se restaura.
+	 */
 	private static function create_site( $site_id, $type = 'full' ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
 		$dir = self::local_directory();
@@ -974,6 +1356,7 @@ final class Digitalisimo_Backups {
 			@unlink( $file );
 			throw new Exception( 'El ZIP no se pudo cerrar correctamente.' );
 		}
+		self::private_file( $file );
 		$check = new ZipArchive();
 		if ( true !== $check->open( $file, ZipArchive::CHECKCONS ) ) {
 			@unlink( $file );
@@ -1019,6 +1402,8 @@ final class Digitalisimo_Backups {
 			$required = array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
 			$present = array();
 			for ( $i = 0; $i < $count; $i++ ) {
+				// Al recuperar la copia previa, el sitio sigue en mantenimiento mientras se lee entera (no hace nada si no lo está).
+				Digitalisimo_Backups_Maintenance::heartbeat();
 				if ( 0 === $i % 25 ) self::manual_progress( 81 + (int) floor( ( self::$verify_top - 81 ) * $i / max( 1, $count ) ), 'verificación', 'Verificando archivo ' . ( $i + 1 ) . ' de ' . $count );
 				$stat = $zip->statIndex( $i );
 				if ( ! $stat || ! isset( $stat['name'], $stat['size'], $stat['crc'] ) ) throw new Exception( 'Una entrada ZIP no tiene metadatos completos.' );
@@ -1045,8 +1430,13 @@ final class Digitalisimo_Backups {
 			$manifest = $head['data'];
 			if ( ! in_array( $manifest['format'] ?? '', array( '', 'digitalisimo-backup/v2', 'digitalisimo-backup/v3' ), true ) ) throw new Exception( 'El formato del manifiesto no es compatible.' );
 			if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) ) return;
-			if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || null === $head['entries'] || (int) $head['entries'] !== $observed ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
-			foreach ( $required as $file ) if ( ! isset( $present[ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
+			// v3: la instalación (o red) completa, o un sitio extraído de una red (sin el wp-config.php de la red).
+			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $manifest['scope'] ?? '' );
+			if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || ( 'installation' !== ( $manifest['scope'] ?? '' ) && ! $extracted ) || 'full' !== ( $manifest['type'] ?? '' ) || null === $head['entries'] || (int) $head['entries'] !== $observed ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
+			if ( $extracted && ( ! empty( $manifest['multisite'] ) || ! is_array( $manifest['extract'] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
+			// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
+			if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
+			foreach ( $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : $required as $file ) if ( $extracted ? false === $zip->locateName( $file ) : ! isset( $present[ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
 			if ( (int) ( $manifest['file_count'] ?? -1 ) !== $observed - 1 || (int) ( $manifest['uncompressed_size'] ?? -1 ) !== $total ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
 			if ( null !== $mismatch ) throw new Exception( 'Falló el SHA-256 de ' . $mismatch . ' en el manifiesto.' );
 		} finally {
@@ -1101,30 +1491,40 @@ final class Digitalisimo_Backups {
 		}
 		return $sql . "SET foreign_key_checks = 1;\n";
 	}
-	/** Exporta el SQL por filas sin construir toda la base de datos en memoria. */
-	private static function database_sql_to_file( $tables, $path ) {
+	/**
+	 * Exporta el SQL por filas sin construir toda la base de datos en memoria. Con $transform (un sitio extraído,
+	 * Digitalisimo_Backups_Site_Extract_Export), cada tabla sale con su nombre en el paquete y cada fila pasa por él:
+	 * prepare() consulta lo que necesita ya dentro de la instantánea y rows()/finish() no consultan nada.
+	 */
+	private static function database_sql_to_file( $tables, $path, $transform = null ) {
 		global $wpdb;
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		$output = @fopen( $path, 'wb' );
 		if ( ! $output ) throw new Exception( 'No se pudo abrir el archivo SQL temporal.' );
+		// El SQL lleva toda la base de datos: sólo el usuario de PHP lo lee, también mientras se escribe.
+		self::private_file( $path );
 		$snapshot = '';
 		$complete = false;
 		try {
-			$snapshot = self::begin_database_snapshot( $tables );
+			$snapshot = self::begin_database_snapshot( $transform ? array_values( array_unique( array_merge( $tables, $transform->read_tables() ) ) ) : $tables );
+			if ( $transform ) $transform->prepare();
 			self::write_sql( $output, "SET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n" );
 			foreach ( $tables as $index => $table ) {
 				self::manual_progress( 5 + (int) floor( 33 * $index / count( $tables ) ), 'base de datos', 'Exportando tabla ' . ( $index + 1 ) . ' de ' . count( $tables ) . ': ' . $table );
 				$escaped = str_replace( '`', '``', $table );
 				$create = $wpdb->get_row( "SHOW CREATE TABLE `" . $escaped . "`", ARRAY_N );
 				if ( ! is_array( $create ) || empty( $create[1] ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudo exportar la definición de la tabla ' . $table . '.' );
-				self::write_sql( $output, "DROP TABLE IF EXISTS `" . $escaped . "`;\n" . $create[1] . ";\n" );
+				self::write_sql( $output, "DROP TABLE IF EXISTS `" . str_replace( '`', '``', $transform ? $transform->name( $table ) : $table ) . "`;\n" . ( $transform ? $transform->create( $table, $create[1] ) : $create[1] ) . ";\n" );
 				$query = "SELECT * FROM `" . $escaped . "`";
+				// Un sitio extraído lee de usuarios y metas sólo las filas de sus usuarios.
+				$where = $transform ? $transform->where( $table ) : null;
+				if ( null !== $where ) $query .= ' WHERE ' . $where;
 				if ( class_exists( 'mysqli' ) && isset( $wpdb->dbh ) && $wpdb->dbh instanceof mysqli ) {
 					$result = @mysqli_query( $wpdb->dbh, $query, MYSQLI_USE_RESULT );
 					if ( false === $result ) throw new Exception( 'No se pudo leer la tabla ' . $table . ' en modo streaming.' );
 					try {
 						$row_count = 0;
-						while ( $row = mysqli_fetch_assoc( $result ) ) { self::write_sql_row( $output, $table, $row ); $row_count++; if ( 0 === $row_count % 1000 ) self::manual_progress( 5 + (int) floor( 33 * $index / count( $tables ) ), 'base de datos', 'Tabla ' . $table . ': ' . $row_count . ' filas exportadas' ); }
+						while ( $row = mysqli_fetch_assoc( $result ) ) { self::write_sql_row( $output, $table, $row, $transform ); $row_count++; if ( 0 === $row_count % 1000 ) self::manual_progress( 5 + (int) floor( 33 * $index / count( $tables ) ), 'base de datos', 'Tabla ' . $table . ': ' . $row_count . ' filas exportadas' ); }
 						if ( mysqli_errno( $wpdb->dbh ) ) throw new Exception( 'Se interrumpió la lectura de la tabla ' . $table . '.' );
 					} finally {
 						mysqli_free_result( $result );
@@ -1134,7 +1534,8 @@ final class Digitalisimo_Backups {
 					if ( ! $order ) {
 						$rows = $wpdb->get_results( $query, ARRAY_A );
 						if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
-						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row );
+						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row, $transform );
+						if ( $transform ) foreach ( $transform->finish( $table ) as $row ) self::write_sql_insert( $output, $transform->name( $table ), $row );
 						self::write_sql( $output, "\n" );
 						continue;
 					}
@@ -1143,11 +1544,12 @@ final class Digitalisimo_Backups {
 					do {
 						$rows = $wpdb->get_results( $query . ' ORDER BY ' . implode( ', ', $order ) . ' LIMIT ' . $offset . ', ' . $batch, ARRAY_A );
 						if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
-						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row );
+						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row, $transform );
 						$offset += count( $rows );
 						self::manual_progress( 5 + (int) floor( 33 * $index / count( $tables ) ), 'base de datos', 'Tabla ' . $table . ': ' . $offset . ' filas exportadas' );
 					} while ( count( $rows ) === $batch );
 				}
+				if ( $transform ) foreach ( $transform->finish( $table ) as $row ) self::write_sql_insert( $output, $transform->name( $table ), $row );
 				self::write_sql( $output, "\n" );
 			}
 			self::write_sql( $output, "SET foreign_key_checks = 1;\n" );
@@ -1228,9 +1630,13 @@ final class Digitalisimo_Backups {
 		$row['option_value'] = serialize( array_diff_key( $value, $plain ) );
 		return $row;
 	}
-	private static function write_sql_row( $handle, $table, $row ) {
+	private static function write_sql_row( $handle, $table, $row, $transform = null ) {
 		if ( self::secret_row( $table, $row ) ) return;
 		$row = self::export_row( $table, $row );
+		if ( ! $transform ) { self::write_sql_insert( $handle, $table, $row ); return; }
+		foreach ( $transform->rows( $table, $row ) as $out ) self::write_sql_insert( $handle, $transform->name( $table ), $out );
+	}
+	private static function write_sql_insert( $handle, $table, $row ) {
 		$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
 		$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
 		self::write_sql( $handle, 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
@@ -1246,7 +1652,23 @@ final class Digitalisimo_Backups {
 	}
 
 	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
-	private static function protect( $dir ) { if ( ! file_exists( trailingslashit( $dir ) . 'index.php' ) ) file_put_contents( trailingslashit( $dir ) . 'index.php', "<?php // Silence is golden.\n" ); if ( ! file_exists( trailingslashit( $dir ) . '.htaccess' ) ) file_put_contents( trailingslashit( $dir ) . '.htaccess', "Deny from all\n" ); }
+	/**
+	 * Protección del almacén por si alguna vez quedara bajo una ruta servida (nunca debería: local_directory() lo
+	 * rechaza): `index.php` vacío y `.htaccess` con «Deny from all». Se escriben sólo si faltan o su contenido no es el
+	 * correcto, con temporal y rename() y en 0600: reescribir un `.htaccess` hace que algunos hostings recarguen el
+	 * servidor web de todos los sitios (OpenLiteSpeed en Webuzo, cada 2 minutos), y una recarga puede cortar una
+	 * restauración en curso.
+	 */
+	private static function protect( $dir ) {
+		foreach ( array( 'index.php' => "<?php // Silence is golden.\n", '.htaccess' => "Deny from all\n" ) as $name => $content ) {
+			$path = trailingslashit( $dir ) . $name;
+			if ( is_link( $path ) ) continue;
+			if ( is_file( $path ) && (string) @file_get_contents( $path ) === $content ) { self::private_file( $path ); continue; }
+			$temp = $path . '.tmp-' . bin2hex( random_bytes( 4 ) );
+			if ( strlen( $content ) === @file_put_contents( $temp, $content ) ) { self::private_file( $temp ); if ( ! @rename( $temp, $path ) ) @unlink( $temp ); }
+			else @unlink( $temp );
+		}
+	}
 	private static function remember( $file, $destination, $scope = 'site', $policy = array(), $remote = array(), $site_id = 0, $locked = false, $extra = array() ) {
 		// El SHA-256 de todo el ZIP se calcula antes de leer el historial, así que lo que cambie otra petición mientras tanto cuenta.
 		$checksum = hash_file( 'sha256', $file );
@@ -1287,8 +1709,22 @@ final class Digitalisimo_Backups {
 	public static function toggle_lock() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_LOCK ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $locked = ! empty( $_POST['locked'] ); try { self::change_history( function( &$history ) use ( $file, $locked ) { foreach ( $history as &$item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) $item['locked'] = $locked; unset( $item ); } ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ! empty( $_POST['locked'] ) ? 'Respaldo bloqueado: no se eliminará durante la rotación.' : 'Respaldo desbloqueado.' ); }
 	private static function prune( $dir, $keep ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $dir, $keep ) { self::prune_locked( $dir, $keep ); } ); }
 	private static function prune_policy( $policy ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $policy ) { self::prune_policy_locked( $policy ); } ); }
-	/** Con el cerrojo del historial: un «Bloquear» llega antes de la retención o después, nunca en medio. */
-	private static function prune_locked( $dir, $keep ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $locked = array_filter( array_column( array_filter( $history, function( $item ) { return ! empty( $item['locked'] ); } ), 'file' ) ); $files = array_merge( glob( trailingslashit( $dir ) . 'digitalisimo-*.zip' ) ?: array(), glob( trailingslashit( $dir ) . 'digitalisimo-*.dgbk' ) ?: array() ); usort( $files, function( $a, $b ) { return filemtime( $b ) <=> filemtime( $a ); } ); $rotating = array_values( array_filter( $files, function( $file ) use ( $locked ) { return ! in_array( wp_basename( $file ), $locked, true ); } ) ); foreach ( array_slice( $rotating, $keep ) as $file ) if ( ! isset( $busy[ wp_basename( $file ) ] ) ) @unlink( $file ); }
+	/**
+	 * Retención global, con el cerrojo del historial: un «Bloquear» llega antes de la retención o después, nunca en medio.
+	 * Sólo cuenta y borra respaldos con fila en el historial: un archivo «sin registro» (una subida o uno copiado al
+	 * almacén por SSH) nunca ocupa un hueco de la retención ni se borra solo; se elimina a mano desde «Restaurar».
+	 */
+	private static function prune_locked( $dir, $keep ) {
+		$busy = self::busy_backup_files();
+		if ( null === $busy ) return;
+		$history = self::fresh_history();
+		$registered = array();
+		foreach ( $history as $item ) if ( empty( $item['locked'] ) && '' !== (string) ( $item['file'] ?? '' ) ) $registered[ wp_basename( (string) $item['file'] ) ] = true;
+		$files = array_merge( glob( trailingslashit( $dir ) . 'digitalisimo-*.zip' ) ?: array(), glob( trailingslashit( $dir ) . 'digitalisimo-*.dgbk' ) ?: array() );
+		usort( $files, function( $a, $b ) { return filemtime( $b ) <=> filemtime( $a ); } );
+		$rotating = array_values( array_filter( $files, function( $file ) use ( $registered ) { return isset( $registered[ wp_basename( $file ) ] ); } ) );
+		foreach ( array_slice( $rotating, $keep ) as $file ) if ( ! isset( $busy[ wp_basename( $file ) ] ) ) @unlink( $file );
+	}
 	private static function prune_policy_locked( $policy ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $matching = array_values( array_filter( $history, function( $item ) use ( $policy ) { return ( $item['policy'] ?? '' ) === $policy['id'] && empty( $item['locked'] ); } ) ); foreach ( array_slice( $matching, (int) $policy['retain'] ) as $item ) { $name = sanitize_file_name( $item['file'] ?? '' ); if ( isset( $busy[ $name ] ) ) continue; $path = trailingslashit( self::local_directory() ) . $name; if ( is_file( $path ) ) @unlink( $path ); } }
 	/**
 	 * ZIP que un trabajo sin terminar todavía necesita (el verificado que espera su copia remota, con la transferencia en
@@ -1350,10 +1786,12 @@ final class Digitalisimo_Backups {
 	/** Respaldos del historial y archivos sueltos del almacén; un archivo sin registro nunca cuenta como propio. */
 	private static function restore_panel( $history ) {
 		$dir = trailingslashit( self::local_directory() );
-		$local = array_filter( (array) $history, function( $item ) use ( $dir ) { return 'local' === ( $item['destination'] ?? 'local' ) && in_array( $item['scope'] ?? '', array( 'network', 'installation' ), true ) && 'full' === ( $item['backup_type'] ?? 'full' ) && is_file( $dir . ( $item['file'] ?? '' ) ); } );
+		// Con su ZIP en el almacén, también los que tienen copia remota (verificada, pendiente o fallida) y las filas antiguas.
+		$local = array_filter( (array) $history, function( $item ) { return self::restorable_item( $item ); } );
 		$known = array_flip( array_map( 'strval', array_column( (array) get_option( self::HISTORY, array() ), 'file' ) ) );
 		$loose = array();
-		foreach ( array_merge( glob( $dir . 'digitalisimo-*.zip' ) ?: array(), glob( $dir . 'digitalisimo-*.dgbk' ) ?: array(), glob( $dir . 'safety-before-restore-*.zip' ) ?: array() ) as $path ) if ( is_file( $path ) && ! is_link( $path ) && ! isset( $known[ wp_basename( $path ) ] ) ) $loose[] = wp_basename( $path );
+		$extracted = is_multisite() ? array() : array_merge( glob( $dir . Digitalisimo_Backups_Site_Extract::FILE_PREFIX . '*.zip' ) ?: array(), glob( $dir . Digitalisimo_Backups_Site_Extract::FILE_PREFIX . '*.dgbk' ) ?: array() );
+		foreach ( array_merge( glob( $dir . 'digitalisimo-*.zip' ) ?: array(), glob( $dir . 'digitalisimo-*.dgbk' ) ?: array(), glob( $dir . 'safety-before-restore-*.zip' ) ?: array(), $extracted ) as $path ) if ( is_file( $path ) && ! is_link( $path ) && ! isset( $known[ wp_basename( $path ) ] ) ) $loose[] = wp_basename( $path );
 		sort( $loose );
 		echo '<section class="digitalisimo-backups-card"><h2>Restaurar respaldo local</h2><p>Antes de reemplazar la instalación, se creará y bloqueará un respaldo de seguridad actual. La restauración reemplaza la base de datos y los archivos incluidos. Escribe <code>RESTAURAR</code> para un respaldo firmado o registrado en este sitio. Un archivo sin firma válida ni registro pide <code>RESTAURAR SIN FIRMA</code>: restaurarlo instala su código y sus datos, así que revisa antes su origen. Un respaldo cifrado sólo se restaura con su frase o con la clave de <code>wp-config.php</code> que lo cifró: sin ella no se puede restaurar y nadie puede recuperarlo, tampoco DIGITALÍSIMO.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_RESTORE );
@@ -1366,8 +1804,43 @@ final class Digitalisimo_Backups {
 		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Conservar las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label><br><label><input type="radio" name="addresses" value="backup"> Conservar las del respaldo: el sitio quedará en su dirección original (las rutas del servidor y el prefijo siguen siendo los de este servidor)</label></p></fieldset>';
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label><br><span class="description">Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.</span></p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
 		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
+		if ( $loose ) {
+			// Sin fila no cuentan para la retención (prune_locked()): se eliminan a mano.
+			echo '<h3>Archivos del almacén sin registro</h3><p class="description">Subidos desde el navegador o copiados al almacén a mano. La retención nunca los cuenta ni los borra: elimínalos aquí cuando ya no los necesites.</p><table class="widefat striped"><thead><tr><th>Archivo</th><th>Tamaño</th><th>Fecha</th><th></th></tr></thead><tbody>';
+			foreach ( array_slice( $loose, 0, 100 ) as $file ) {
+				echo '<tr><td>' . esc_html( $file ) . '</td><td>' . esc_html( size_format( (int) @filesize( $dir . $file ) ) ) . '</td><td>' . esc_html( gmdate( 'Y-m-d H:i', (int) @filemtime( $dir . $file ) ) ) . ' UTC</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este archivo del almacén?\')">';
+				wp_nonce_field( self::ACTION_DELETE_LOOSE );
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_LOOSE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small">Eliminar</button></form></td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 		self::relocation_card();
 		echo '</section>';
+	}
+	/**
+	 * Elimina un archivo del almacén que no tiene fila en el historial (una subida o uno copiado a mano), con capability,
+	 * nonce y, en una red, desde el sitio principal. Nunca toca un respaldo registrado (eso es «Eliminar» del historial).
+	 */
+	public static function delete_loose() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DELETE_LOOSE );
+		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Los archivos del almacén se gestionan desde el sitio principal o la administración de red.' );
+		$file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) );
+		if ( ! preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip)$/', $file ) ) self::redirect( false, 'Ese archivo no es un respaldo del almacén.' );
+		if ( self::history_item( $file ) ) self::redirect( false, 'Ese respaldo está en el historial: elimínalo desde «Últimos respaldos».' );
+		try {
+			$path = self::local_path( $file );
+			if ( '' === $path ) self::redirect( false, 'El archivo ya no está en el almacén.' );
+			$removed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $path, $file ) {
+				// Con el cerrojo del historial: si entretanto se registró, ya no es «sin registro».
+				if ( self::history_item( $file ) ) return false;
+				return @unlink( $path ) || ! file_exists( $path );
+			} );
+		} catch ( Exception $e ) {
+			self::redirect( false, $e->getMessage() );
+		}
+		if ( ! $removed ) self::redirect( false, 'No se pudo eliminar el archivo del almacén.' );
+		self::redirect( true, 'Archivo eliminado del almacén: ' . $file . '.' );
 	}
 	/**
 	 * «Origen → este sitio» de un archivo del almacén a partir de su manifiesto (sin abrir el SQL): una etiqueta corta
@@ -1461,19 +1934,31 @@ final class Digitalisimo_Backups {
 		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
 		$allowed = self::service_scope( is_multisite(), true );
 		if ( is_wp_error( $allowed ) ) self::redirect( false, 'La restauración se detuvo: ' . $allowed->get_error_message() );
+		$set = sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) );
+		$mail = Digitalisimo_Backups_Notify::snapshot();
+		$event = null;
 		try {
 			$operation_lock = self::acquire_operation_lock();
 			try {
 				if ( Digitalisimo_Backups_Jobs::has_active() ) throw new Exception( Digitalisimo_Backups_Jobs::restore_active() ? 'Ya hay una restauración en curso. Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
 				Digitalisimo_Backups_Security::require_confirmation( array( 'trust' => 'untrusted', 'auth' => 'unsigned' ), $confirmation );
-				self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
+				try {
+					self::restore_updraft_set( $set );
+					$event = array( 'ok' => true, 'started' => true );
+				} catch ( Exception $failure ) {
+					$event = array( 'ok' => false, 'started' => true, 'message' => $failure->getMessage() );
+					throw $failure;
+				}
 			} finally {
 				self::release_operation_lock( $operation_lock );
 				// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
 				try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+				if ( $event ) {
+					try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event + array( 'file' => $set, 'kind' => 'updraft', 'via' => 'admin-post' ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+				}
 			}
-			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
 		} catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); }
+		self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
 	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); if ( '' === $file || '.' === $file[0] ) return ''; $root = realpath( self::local_directory() ); if ( ! $root || is_link( trailingslashit( $root ) . $file ) ) return ''; $path = realpath( trailingslashit( $root ) . $file ); return $path && dirname( wp_normalize_path( $path ) ) === wp_normalize_path( $root ) && is_file( $path ) ? $path : ''; }
 	/**
@@ -1536,7 +2021,8 @@ final class Digitalisimo_Backups {
 	private static function relocation_plan( array $data, array $source, array $options ) {
 		$args = array( 'addresses' => 'backup' === ( $options['addresses'] ?? 'current' ) ? 'backup' : 'current' );
 		$args['tables'] = is_array( $data['database_tables'] ?? null ) ? $data['database_tables'] : null;
-		return Digitalisimo_Backups_Relocate::plan( $source, Digitalisimo_Backups_Relocate::describe(), $args );
+		// Un sitio extraído de una red: además, la URL de sus medios en la red (`/sites/N`) pasa a la de un sitio individual.
+		return Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( $source, Digitalisimo_Backups_Relocate::describe(), $args ), $data );
 	}
 	/**
 	 * Todo lo que puede rechazar un paquete antes de la copia previa y de cualquier consulta o escritura: entradas,
@@ -1552,7 +2038,11 @@ final class Digitalisimo_Backups {
 		$data = self::package_metadata( $zip );
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
-		if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
+		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );
+		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		if ( $extracted && $installation && is_multisite() ) throw new Exception( 'Este paquete es un sitio extraído de una red: se restaura en un WordPress individual recién instalado, no en una red.' );
+		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		if ( $installation ) foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
 		if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
 		$sql_stat = $zip->statName( 'database.sql' );
@@ -1594,7 +2084,8 @@ final class Digitalisimo_Backups {
 	private static function package_installation_problems( array $data ) {
 		$problems = array();
 		// Un prefijo de tablas distinto ya no impide restaurar: la reubicación lo cambia (ver relocation_plan()).
-		if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite: ' . ( $data['multisite'] ? 'el respaldo es una red y este WordPress es un sitio individual. Convierte esta instalación en una red del mismo tipo (subdominios o subdirectorios) desde Herramientas → Configuración de la red y vuelve a restaurar.' : 'el respaldo es un sitio individual y este WordPress es una red. Restáuralo en una instalación individual.' );
+		if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) && is_multisite() ) $problems[] = 'Este paquete es un sitio extraído de una red: se restaura en un WordPress individual recién instalado, no en una red.';
+		elseif ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite: ' . ( $data['multisite'] ? 'el respaldo es una red y este WordPress es un sitio individual. Convierte esta instalación en una red del mismo tipo (subdominios o subdirectorios) desde Herramientas → Configuración de la red y vuelve a restaurar.' : 'el respaldo es un sitio individual y este WordPress es una red. Restáuralo en una instalación individual.' );
 		if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) $problems[] = 'La red completa sólo puede restaurarse desde su sitio principal.';
 		return $problems;
 	}
@@ -1602,8 +2093,9 @@ final class Digitalisimo_Backups {
 	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse, y
 	 * las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
 	 */
-	private static function after_restore_sql( $history_before, $vault_before, array $origin = array() ) {
+	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null ) {
 		wp_cache_flush();
+		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );
 		update_option( self::HISTORY, $history_before, false );
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
 		self::restore_credentials( $origin );
@@ -1619,6 +2111,8 @@ final class Digitalisimo_Backups {
 			if ( 0 !== strpos( $name, 'wordpress/' ) || 'wordpress/wp-config.php' === $name || '/' === substr( $name, -1 ) ) continue;
 			$relative = substr( $name, strlen( 'wordpress/' ) );
 			if ( ! $relative || 0 === strpos( $relative, '.git/' ) ) continue;
+			// El `.maintenance` que tuviera el respaldo (hecho durante una actualización) nunca sustituye al de esta restauración.
+			if ( '.maintenance' === $relative ) continue;
 			if ( isset( $active_database_files[ $root . $relative ] ) ) continue;
 			$created_hash = self::write_entry( $zip, $i, $root, $relative, is_array( $created_files ), $transform );
 			if ( null !== $created_hash ) $created_files[ $root . $relative ] = $created_hash;
@@ -1630,6 +2124,7 @@ final class Digitalisimo_Backups {
 	 * $transform( $relativo, $contenido, $actual ), un archivo pequeño (hasta 1 MiB) se ajusta antes de publicarlo.
 	 */
 	private static function write_entry( $zip, $index, $root, $relative, $track, $transform = null ) {
+		Digitalisimo_Backups_Maintenance::heartbeat();
 		$destination = $root . $relative;
 		$current = rtrim( $root, '/' );
 		foreach ( explode( '/', dirname( $relative ) ) as $part ) {
@@ -1643,6 +2138,12 @@ final class Digitalisimo_Backups {
 		$real_parent = realpath( dirname( $destination ) );
 		if ( false === $real_parent || 0 !== strpos( trailingslashit( wp_normalize_path( $real_parent ) ), $root ) ) throw new Exception( 'La carpeta de destino sale de WordPress.' );
 		$stat = $zip->statIndex( $index );
+		// Un archivo que ya es idéntico al del respaldo no se reescribe ni cambia de fecha: reescribir un .htaccess (o
+		// web.config) recarga el servidor web en algunos hostings (OpenLiteSpeed en Webuzo) y puede cortar la restauración.
+		// Se compara byte a byte (nunca por el CRC, que se puede falsificar), y el respaldo ya se comprobó contra su manifiesto.
+		// Si la reubicación ajusta el archivo ($transform), se compara el resultado ya ajustado, más abajo.
+		$adjusted = $transform && $stat && (int) $stat['size'] <= 1048576;
+		if ( ! $adjusted && $was_present && $stat && is_file( $destination ) && (int) @filesize( $destination ) === (int) $stat['size'] && self::same_content( $zip, (string) $stat['name'], $destination ) ) return null;
 		$input = $stat ? $zip->getStream( $stat['name'] ) : false;
 		$temp = $destination . '.digitalisimo-restore-' . wp_generate_uuid4();
 		$output = @fopen( $temp, 'xb' );
@@ -1657,6 +2158,8 @@ final class Digitalisimo_Backups {
 			$content = (string) @file_get_contents( $temp );
 			$changed = call_user_func( $transform, $relative, $content, is_file( $destination ) ? (string) @file_get_contents( $destination ) : null );
 			if ( is_string( $changed ) && $changed !== $content && strlen( $changed ) !== @file_put_contents( $temp, $changed ) ) { @unlink( $temp ); throw new Exception( 'No se pudo ajustar el archivo ' . $relative . ' para este servidor.' ); }
+			// El resultado ajustado ya es el archivo de este sitio: no se reescribe (ver arriba).
+			if ( $was_present && is_file( $destination ) && (string) @file_get_contents( $destination ) === ( is_string( $changed ) ? $changed : $content ) ) { @unlink( $temp ); return null; }
 		}
 		$created_hash = ! $was_present && $track ? @hash_file( 'sha256', $temp ) : null;
 		if ( false === $created_hash ) { @unlink( $temp ); throw new Exception( 'No se pudo verificar el archivo nuevo ' . $relative . '.' ); }
@@ -1664,6 +2167,32 @@ final class Digitalisimo_Backups {
 		return $created_hash;
 	}
 
+	/** Si una entrada del ZIP y un archivo tienen exactamente los mismos bytes. */
+	private static function same_content( $zip, $name, $path ) {
+		$entry = $zip->getStream( $name );
+		$file = @fopen( $path, 'rb' );
+		try {
+			if ( ! $entry || ! $file ) return false;
+			while ( true ) {
+				$left = self::read_exact( $entry, 1048576 );
+				$right = self::read_exact( $file, 1048576 );
+				if ( $left !== $right ) return false;
+				if ( '' === $left ) return true;
+			}
+		} finally {
+			if ( $entry ) fclose( $entry );
+			if ( $file ) fclose( $file );
+		}
+	}
+	private static function read_exact( $handle, $length ) {
+		$out = '';
+		while ( strlen( $out ) < $length && ! feof( $handle ) ) {
+			$chunk = fread( $handle, $length - strlen( $out ) );
+			if ( false === $chunk || '' === $chunk ) break;
+			$out .= $chunk;
+		}
+		return $out;
+	}
 	/** Lee el SQL del ZIP por fragmentos; cada sentencia pasa el guardián antes de ejecutarse. */
 	private static function import_zip_sql( $zip, $guard = null ) {
 		global $wpdb;
@@ -1672,6 +2201,7 @@ final class Digitalisimo_Backups {
 		if ( ! $stream ) throw new Exception( 'No se pudo leer la base de datos del ZIP.' );
 		try {
 			$guard->scan( function() use ( $stream ) {
+				Digitalisimo_Backups_Maintenance::heartbeat();
 				if ( feof( $stream ) ) return null;
 				$chunk = fread( $stream, 65536 );
 				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'La base de datos del ZIP está truncada.' );
@@ -1712,13 +2242,18 @@ final class Digitalisimo_Backups {
 			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
 			self::write_restore_journal();
+			Digitalisimo_Backups_Maintenance::start();
 			try {
 				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
 				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
 			} finally {
-				self::after_restore_sql( $history_before, $vault_before );
-				self::remove_restore_journal();
+				try {
+					self::after_restore_sql( $history_before, $vault_before );
+					self::remove_restore_journal();
+				} finally {
+					Digitalisimo_Backups_Maintenance::stop();
+				}
 			}
 		} finally {
 			foreach ( $pieces as $piece ) self::close_quietly( $piece[0] );
@@ -1730,6 +2265,7 @@ final class Digitalisimo_Backups {
 		if ( ! $handle ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );
 		try {
 			return $guard->scan( function() use ( $handle ) {
+				Digitalisimo_Backups_Maintenance::heartbeat();
 				if ( gzeof( $handle ) ) return null;
 				$chunk = gzread( $handle, 65536 );
 				if ( false === $chunk || ( '' === $chunk && ! gzeof( $handle ) ) ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );

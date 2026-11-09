@@ -72,6 +72,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 				'context' => is_multisite() ? 'network' : 'site',
 			),
 			'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
+			// Para el informe: qué constantes de wp-config.php difieren (sin valores secretos) y un aviso del paquete (un sitio
+			// extraído de una red). Y los avisos por correo con los ajustes de antes del SQL (que trae los del respaldo).
+			'wp_config' => is_array( $args['wp_config'] ?? null ) ? $args['wp_config'] : array(),
+			'notice' => (string) ( $args['notice'] ?? '' ),
+			'notify' => self::restore_notify_snapshot(),
 		);
 		$queued = Digitalisimo_Backups_Jobs::enqueue_restore( $spec, function( $job ) use ( $report ) {
 			if ( 'dgbk' === $report['container'] ) {
@@ -88,6 +93,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		return $queued['job'];
 	}
+	private static function restore_notify_snapshot() {
+		try {
+			return class_exists( 'Digitalisimo_Backups_Notify' ) ? Digitalisimo_Backups_Notify::snapshot() : array();
+		} catch ( Throwable $e ) {
+			return array();
+		}
+	}
 	/**
 	 * Alcance del paquete contra esta instalación, con los mismos mensajes que la verificación del trabajo. Si sus
 	 * metadatos no se leen, lo dirá la verificación completa en su orden de siempre (primero el contenido).
@@ -100,7 +112,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
-		if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
+		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );
+		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
 	}
 	/**
@@ -394,17 +409,23 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( ! in_array( $cursor['format'], array( '', 'digitalisimo-backup/v2', 'digitalisimo-backup/v3' ), true ) ) throw new Exception( 'El formato del manifiesto no es compatible.' );
 		}
 		$data = self::package_metadata( $zip );
+		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );
 		if ( 'digitalisimo-backup/v3' === $cursor['format'] ) {
-			$required = array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
-			if ( 3 !== ( $data['backup_format_version'] ?? null ) || 'installation' !== ( $data['scope'] ?? '' ) || 'full' !== ( $data['type'] ?? '' ) || null === $cursor['manifest_entries'] || (int) $cursor['manifest_entries'] !== (int) $cursor['observed'] ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
-			foreach ( $required as $file ) if ( empty( $cursor['present'][ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
+			// v3: la instalación (o red) completa, o un sitio extraído de una red (sin el wp-config.php de la red).
+			$required = $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
+			if ( $extracted && ( ! empty( $data['multisite'] ) || ! is_array( $data['extract'] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
+			if ( 3 !== ( $data['backup_format_version'] ?? null ) || ( 'installation' !== ( $data['scope'] ?? '' ) && ! $extracted ) || 'full' !== ( $data['type'] ?? '' ) || null === $cursor['manifest_entries'] || (int) $cursor['manifest_entries'] !== (int) $cursor['observed'] ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
+			foreach ( $required as $file ) if ( empty( $cursor['present'][ $file ] ) && ( ! $extracted || false === $zip->locateName( $file ) ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
 			if ( (int) ( $data['file_count'] ?? -1 ) !== (int) $cursor['observed'] - 1 || (int) ( $data['uncompressed_size'] ?? -1 ) !== (int) $cursor['total'] ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
 			if ( null !== $cursor['mismatch'] ) throw new Exception( 'Falló el SHA-256 de ' . $cursor['mismatch'] . ' en el manifiesto.' );
 		}
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
-		if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
+		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
+		// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
+		if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
 		if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
 		$sql_stat = $zip->statName( 'database.sql' );
 		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
@@ -512,7 +533,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$destination = Digitalisimo_Backups_Relocate::describe();
 		// La vuelta a la copia previa es de esta misma instalación: nada que reubicar, aunque el sitio esté a medio cambiar.
 		if ( ! $rollback ) {
-			$plan = Digitalisimo_Backups_Relocate::plan( $source, $destination, $args );
+			// Un sitio extraído de una red: además, la URL de sus medios en la red (`/sites/N`) pasa a la de un sitio individual.
+			$plan = Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( $source, $destination, $args ), $data );
 			if ( $plan->problems() ) throw new Digitalisimo_Backups_Permanent_Error( implode( ' ', $plan->problems() ) );
 		}
 		// Con el mismo prefijo, las tablas temporales también renombran: una vista no se puede restaurar por pasos.
@@ -834,7 +856,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static function restore_plan( array $job ) {
 		$saved = self::restore_read_json( $job, 'plan.json' );
 		if ( ! empty( $saved['skip'] ) ) return null;
-		$plan = Digitalisimo_Backups_Relocate::plan( (array) $saved['origin'], (array) $saved['destination'], (array) $saved['args'] );
+		$plan = Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( (array) $saved['origin'], (array) $saved['destination'], (array) $saved['args'] ), (array) self::restore_read_json( $job, 'metadata.json' ) );
 		return $plan->problems() || ! $plan->needed() ? null : $plan;
 	}
 
@@ -1457,9 +1479,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$origin = Digitalisimo_Backups_Credentials::from_journal( self::restore_read_json( $job, 'credentials.json', false ) );
 		try {
 			if ( 'before' === $state ) {
+				// Un sitio extraído de una red no trae la configuración de Backups: la de este servidor se conserva. Antes de la
+				// foto, lo que siguiera en claro en los ajustes pasa al almacén cifrado: el diario nunca lo lleva en claro.
+				$kept = null;
+				if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' ) ) {
+					try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+					$kept = Digitalisimo_Backups_Site_Extract::destination_snapshot();
+				}
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
-				self::write_restore_journal( $origin );
+				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
 					$mode = self::restore_swap_tables( $tables );
@@ -1484,7 +1513,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$cursor['mode'] = $mode;
 				// El diario sólo se retira cuando el historial, el llavero y las credenciales quedaron repuestos: si esto
 				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
-				self::after_restore_sql( $history_before, $vault_before, $origin );
+				self::after_restore_sql( $history_before, $vault_before, $origin, $kept );
 				self::remove_restore_journal();
 			} else {
 				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,
@@ -2095,6 +2124,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$notice .= ' No se pudo comprobar el estado de las credenciales de los destinos: ' . $e->getMessage();
 		}
 		if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
+		// Lo del paquete (un sitio extraído de una red: con qué cuentas se entra) y wp-config.php, que no se restaura.
+		if ( '' !== (string) ( $spec['notice'] ?? '' ) ) $notice .= ' ' . $spec['notice'];
+		if ( '' !== (string) ( $spec['wp_config']['text'] ?? '' ) ) $notice .= ' ' . $spec['wp_config']['text'];
 		foreach ( $warnings as $warning ) $notice .= ' ' . rtrim( (string) $warning, '.' ) . '.';
 		$public = function( $text ) use ( $job ) { return self::restore_public_text( (string) $text, $job ); };
 		$public_config = array();
@@ -2113,6 +2145,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'config' => $public_config,
 			'foreign_tables' => $foreign,
 			'rollback' => ! empty( $spec['rollback'] ),
+			'wp_config' => (array) ( $spec['wp_config'] ?? array() ),
 		);
 	}
 	/**
@@ -2243,6 +2276,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'site_id' => (int) ( $spec['site_id'] ?? 1 ),
 			'origin' => array( 'via' => 'rollback' ) + (array) ( $spec['origin'] ?? array() ),
 			'engine' => $spec['engine'],
+			'notify' => (array) ( $spec['notify'] ?? array() ),
 		);
 		return Digitalisimo_Backups_Jobs::create_restore( $rollback );
 	}

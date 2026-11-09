@@ -16,6 +16,10 @@
 #   - WP-CLI real (wp-cli.phar dentro de Playground): ayuda generada del PHPDoc, --confirm obligatorio, sin --secret en
 #     la línea de órdenes, status, list, verify, automation list, create (hasta terminar y --async) y jobs list y
 #     cancel; en la red, --network y el sitio principal.
+#   - lote corto: subir un respaldo por REST en fragmentos y restaurarlo (B3), su aviso por correo (B7, capturado por
+#     un mu-plugin), el sitio fuera de mantenimiento tras restaurar (I8), el informe de wp-config.php en verify (I10), y
+#     del laboratorio el almacén en 0600 visto desde el anfitrión (H5), la ayuda real de WP-CLI sin marcas (H7) y la
+#     automatización mensual por defecto programada (H8).
 # Modos: single (sitio individual) y multisite (red con el subsitio «uno»). La copia del plugin, la carpeta de WP-CLI y
 # el almacén privado se montan desde la carpeta de resultados: una restauración nunca escribe en el repositorio.
 # Uso: bash tests/playground/backups-coverage.sh (en el servidor de desarrollo, por el semáforo de corridas pesadas y

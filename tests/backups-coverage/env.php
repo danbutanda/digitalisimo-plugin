@@ -177,6 +177,7 @@ function sanitize_title( $value ) { return trim( preg_replace( '/[^a-z0-9-]+/', 
 function wp_unslash( $value ) { return $value; }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', (string) $path ); }
 function trailingslashit( $path ) { return rtrim( (string) $path, '/\\' ) . '/'; }
+function untrailingslashit( $path ) { return rtrim( (string) $path, '/\\' ); }
 function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
 function wp_basename( $path ) { return basename( (string) $path ); }
 function home_url() { return 'https://example.test/'; }
