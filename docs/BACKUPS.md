@@ -531,6 +531,20 @@ incremental anterior a 1.0.38, sin botón, y su paquete nunca se restaura. Lleva
 los roles como `wp_N_capabilities`, no movía `uploads/sites/N` ni dejaba activos los plugins de red. La vía recomendada
 es «Extraer como WordPress individual».
 
+Ensayo en WordPress Playground (`tests/playground/backups-site-extract.sh`): WordPress 7.1.4, PHP 8.5, SQLite y
+DIGITALÍSIMO Elements. Una red por subdirectorios `red.test` con `/dos/` y `/tres/`, usuarios de cada tipo (dueña y
+editora del sitio, un suscriptor, una administradora sólo del otro sitio, un superadministrador que escribió en el sitio
+sin ser miembro y otro que no lo administra), un ajuste de red de Tools (inactivo en el sitio), una página de Elements con
+fondo, imagen y enlaces y entradas creadas desde el sitio y desde el principal (las dos URL de los medios). La extracción
+del sitio 2 por el formulario real de la red (superadministrador, nonce, alcance de red) y la cola por pasos tarda 37 s
+(paquete de 63 MB); en otro WordPress individual (`http://127.0.0.1:<puerto>`, prefijo `wp_`, otras salts) se restaura
+como archivo suelto en 36 s, con el plan de E1 (prefijo `wp_2_ → wp_`, dirección, las dos URL de los medios y la ruta
+`uploads/sites/2 → uploads`; comprobación final con 0 URL y 0 rutas pendientes). 57 comprobaciones por HTTP, todas en
+verde (198 s): cada miembro entra por `wp-login.php` con su contraseña de la red y abre lo que su rol permite; el
+superadministrador que no es miembro no entra (viaja como autor sin contraseña) y los que no son del sitio no existen;
+contenido y medios iguales, servidos desde `uploads/`; la página de Elements y su CSS regenerado con el dominio nuevo;
+plugins activos; la configuración de Backups del destino intacta; ningún rastro de `red.test/dos` ni de `uploads/sites/2`.
+
 Límites declarados: un plugin que guarda datos de cada sitio fuera de sus tablas `wp_N_*` y de `uploads/sites/N` (una
 carpeta propia en `wp-content` o una tabla global) no los lleva. Una meta de usuario con el prefijo de la red y sin número
 que no es de WordPress viaja con un miembro aunque fuera del sitio principal (no se distingue de una global de un plugin),
