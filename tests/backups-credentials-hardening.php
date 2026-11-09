@@ -73,7 +73,7 @@ $case( 'F1', function() use ( $B, $C, $K, $check, $save, $settings, $secret_valu
 		$B::credentials_on_load();
 		$check( $network === $K::get( $C::OPTION, null ), 'La contraseña vieja de un subsitio llegó al almacén de la red.' );
 		// OAuth desde un subsitio: rechazado sin escribir.
-		$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'e', 'provider' => 'google' );
+		update_option( $B::oauth_pending_key(), array( 'state' => 'e', 'provider' => 'google', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 		$_GET = array( 'code' => 'c', 'state' => 'e' );
 		$_REQUEST = array( 'provider' => 'google' ) + $_GET;
 		try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { $url = rawurldecode( $redirect->url ); } finally { $_GET = array(); $_REQUEST = array(); }

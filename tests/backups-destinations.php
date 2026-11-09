@@ -455,8 +455,15 @@ $case( 'validación guiada de cada tipo', function() use ( $check, $expect_failu
 } );
 
 // ---------------------------------------------------------------------------------------------------------- Revisión de 1.0.62
+// Toda petición HTTP de aquí en adelante queda en $routes (otros casos cambiaron el transporte por uno sin registro).
+$transport_before_review = Digitalisimo_Backups_Http::$transport;
+Digitalisimo_Backups_Http::$transport = function( array $request ) use ( &$routes, $transport_before_review ) { $routes[] = parse_url( $request['url'], PHP_URL_HOST ); return $transport_before_review( $request ); };
 $case( 'revisión R1: bucket, estilo y endpoint se validan al usarse y atan la credencial', function() use ( &$routes, $s3, $context, $file_of, $check, $expect_failure, $destinations ) {
 	$file = $file_of( 2000, 'r1.zip' );
+	// La costura registra: una consulta legítima sí llega al servicio.
+	$routes = array();
+	( new Digitalisimo_Backups_Destination_S3( $destinations['s3'][1], $context( 's3-r1' ) ) )->size( array( 'provider' => 's3', 'key' => 'digitalisimo-backups/no-existe.zip' ) );
+	$check( array( 'mi-bucket.s3.eu-west-1.amazonaws.com' ) === $routes, 'La costura no registra las peticiones: ' . json_encode( $routes ) );
 	foreach ( array( 's3' => 's3_', 's3compat' => 's3compat_' ) as $type => $p ) {
 		list( $class, $settings ) = $destinations[ $type ];
 		// Lo que una escritura directa en la base pondría para desviar el respaldo a otro host.

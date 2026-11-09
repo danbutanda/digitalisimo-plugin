@@ -59,7 +59,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | REST (`digitalisimo-backups/v1`) y WP-CLI (`wp digitalisimo-backups`) usan los casos de uso de la pantalla (`Digitalisimo_Backups_Service`) sobre el motor de «Trabajos» y «Seguridad»: estado, historial, crear, verificar, restaurar, automatizaciones y la cola (listar, consultar, avanzar y cancelar). La pantalla («Crear respaldo completo» por AJAX o formulario, «Ejecutar ahora» y «Restaurar») pasa por los mismos casos de uso. Crear y ejecutar una automatización encolan un trabajo y nunca lo duplican: REST responde 202 con el trabajo (409 con el que ya estaba pendiente) y `POST /jobs/tick` lo hace avanzar como el navegador; WP-CLI lo hace avanzar en su proceso hasta terminar (o sólo lo encola con `--async`), y `wp digitalisimo-backups jobs list|cancel|run` opera sobre la misma cola. Restaurar y verificar abren el paquete como la pantalla: aceptan `.dgbk`, piden `RESTAURAR` o `RESTAURAR SIN FIRMA` según su confianza («Restaurar sólo respaldos firmados» responde 403) y `verify` hace las mismas comprobaciones del paquete que la restauración. Un respaldo cifrado cuya clave no tiene el sitio responde, antes de tomar el bloqueo, `secret_required` con la huella corta y dónde va la frase: en REST sólo en el cuerpo (en la URL, 400); en WP-CLI por `--secret-file` o `--secret-stdin` (`--secret` es un error). Ninguna respuesta ni salida lleva la frase, la clave, su envoltura ni la huella completa, tampoco al rechazar una frase equivocada. REST pide la capability de la pantalla con la autenticación de WordPress (401 sin sesión, 403 sin permiso). En una red sólo responde el sitio principal (con varias redes, el de la red principal, porque el respaldo las abarca todas; el motor tampoco exporta desde una red secundaria), y crear, restaurar o ejecutar exigen el alcance de red explícito. Otra operación en curso o un trabajo activo impiden restaurar (409). Los resúmenes no llevan la ruta del almacén ni identificadores remotos (ruta SFTP o identificador de Google Drive y OneDrive); un aviso que impide respaldar nombra la carpeta que hay que corregir (ver «REST y WP-CLI»). Ensayado en Playground: WordPress 7.1.4, sitio individual y red (`tests/playground/backups-coverage.sh`). | 1.0.60 | `backups-service.php`, `backups-rest.php`, `backups-cli.php` |
 | Rutas externas. `wp-config.php` en la carpeta superior o enlazado (archivos compartidos de un despliegue) se respalda; la restauración nunca lo escribe ni crea otro en `ABSPATH`. Fuera de `ABSPATH` o tras un enlace simbólico, wp-content, plugins, mu-plugins, medios (en una red, también los de cada sitio con `upload_path` propio, salvo con la constante `UPLOADS`, que hace a WordPress ignorarlo) o un directorio de temas se rechazan antes de exportar nada (al crear o ejecutar desde la pantalla, REST o WP-CLI, antes de encolar el trabajo), con la carpeta, quién la define y qué hacer; antes, plugins, medios y temas externos se omitían sin aviso. La restauración se detiene antes de tocar el sitio, un `ABSPATH` que es enlace de despliegue (`current → releases/N`) funciona y otro enlace dentro de `ABSPATH` hace fallar el trabajo al momento (error permanente, sin reintentos) con su destino, sin dejar ZIP. | 1.0.60 | `backups-layout.php`, `backups-external-config.php` |
 | **Credenciales de los destinos cifradas que viajan en el respaldo (S4).** La contraseña de SFTP y el Client secret y el Refresh token de Google Drive y OneDrive viven en `digitalisimo_backups_credentials` (de la red en Multisite), cada uno cifrado con AEAD XChaCha20-Poly1305 (libsodium o el sodium_compat de WordPress) con una clave que sale de `AUTH_KEY` y `SECURE_AUTH_KEY` con su propia separación de dominio, y un dato adicional que lo ata a su campo. `digitalisimo_backups_settings` ya no guarda ninguno en claro: guardar «Servidores», la conexión OAuth (refresh token) y la migración de los sitios que vienen de 1.0.60 o anteriores (al cargar el escritorio, el cron o WP-CLI, sin ninguna consulta cuando no queda nada en claro, y después de cada restauración) pasan por el almacén, que comprueba cada valor antes de retirar el texto en claro; el navegador nunca recibe un valor. El almacén sí entra en `database.sql`: restaurar deja los destinos funcionando con las credenciales del respaldo, que mandan sobre las que tenía el servidor. En otro servidor (otras salts) se vuelven a cifrar con las de éste usando las del `wp-config.php` que va dentro del propio respaldo (sólo `define()` con literales de cadena, leídos con el tokenizador de PHP; el archivo nunca se ejecuta ni se incluye). Si no se pueden leer (`getenv()`, otro archivo) o cambiaron las salts de este servidor, el destino queda en «vuelve a escribir la contraseña / conéctalo de nuevo» en la pantalla, en `status` de REST y WP-CLI, en el aviso de la restauración y en el error permanente del trabajo con destino remoto; nunca se cae al texto en claro. Sin `AUTH_KEY` y `SECURE_AUTH_KEY` propias se guardan como hasta ahora, con aviso. Una restauración que muere entre el SQL y el nuevo cifrado lo termina con el diario. El dato adicional ata cada secreto también a su conexión (host, puerto, usuario y huella SSH; Client ID), así que una escritura directa que cambie el host no lo desvía. Ningún respaldo lleva un secreto en claro si hay salts propias (se migra antes del volcado y cada fila de ajustes sale sin ellos, también la de un subsitio); los ajustes van con autoload, así que la comprobación al cargar no cuesta consultas y detecta lo que 1.0.60 reescriba tras volver desde `rollback/`. En una red sólo el sitio principal lee y escribe el almacén; un sitio convertido en red lo adopta; «Olvidar las credenciales guardadas» retira las de un destino que ya no se usa; un almacén con datos que no son texto pide volver a escribir sin romper nada, y un `wp-config.php` de más de 64 KiB no se analiza. Cada secreto (del formulario o del retorno de OAuth) se guarda exactamente como se escribió, sin las barras de `$_POST` y sin saneado ni recorte: antes, comillas y barras invertidas ganaban barras, y `<…>`, `%xx` y los espacios al borde se perdían; sólo se rechazan, con un mensaje que no repite el valor y sin cambiar nada, NUL, los caracteres de control y más de 8192 bytes. | 1.0.61 | `backups-credentials.php`, `backups-credentials-surfaces.php`, `backups-credentials-nokeys.php`, `backups-credentials-exact.php`, `backups-credentials-hardening.php` y, en Playground, S9 de `tests/playground/backups-security.sh` |
-| **Destinos remotos: todos los de Backuply.** FTP y FTPS (explícito e implícito, pasivo o activo), SFTP (también con clave privada y huella SHA-256), WebDAV, Google Drive, OneDrive, Dropbox (PKCE y sesiones de subida), Amazon S3, S3 compatibles (DigitalOcean Spaces, Wasabi, Cloudflare R2, Backblaze B2, Akamai/Linode, Vultr y otros como MinIO) y pCloud, sobre un contrato común (`put`/`get`/`size`/`delete`/`list`/`verify`/`test`): subida a un nombre temporal, verificación (descarga y SHA-256, o el `content_hash` de Dropbox y el `checksumfile` de pCloud) y publicación sólo después; TLS verificado (CA propia admitida), S3 sólo con SigV4 y carga firmada, sin cabeceras ni URL firmadas en ningún mensaje. Credenciales de todos por el almacén cifrado de S4, atadas a los datos de su conexión; varias conexiones con nombre del mismo tipo; pantalla con campos guiados y «Probar conexión»; reanudación de S3 multipart, Dropbox y FTP en el área del trabajo y abandono (multipart abortado, temporal retirado) al fallar o cancelar; «Traer al almacén» y descarga verificadas. Ver «Destinos remotos». | @NEXT_BACKUPS@ | `backups-destinations.php`, `backups-destinations-protocols.php`, `backups-destinations-screen.php`, `backups-destinations-live.php`, `backups-sftp.php`, `backups-cloud-verification.php` |
+| **Destinos remotos: todos los de Backuply.** FTP y FTPS (explícito e implícito, pasivo o activo), SFTP (también con clave privada y huella SHA-256), WebDAV, Google Drive, OneDrive, Dropbox (PKCE y sesiones de subida), Amazon S3, S3 compatibles (DigitalOcean Spaces, Wasabi, Cloudflare R2, Backblaze B2, Akamai/Linode, Vultr y otros como MinIO) y pCloud, sobre un contrato común (`put`/`get`/`size`/`delete`/`list`/`verify`/`test`): subida a un nombre temporal, verificación (descarga y SHA-256, o el `content_hash` de Dropbox y el `checksumfile` de pCloud) y publicación sólo después; TLS verificado (CA propia admitida), S3 sólo con SigV4 y carga firmada, sin cabeceras ni URL firmadas en ningún mensaje. Credenciales de todos por el almacén cifrado de S4, atadas a todo lo que decide adónde van los bytes (servidor, bucket, estilo, endpoint, carpeta, TLS); recibos del historial confinados a la carpeta de su conexión; nada al servicio de metadatos de la nube; varias conexiones con nombre del mismo tipo; pantalla con campos guiados y «Probar conexión»; reanudación de S3 multipart, Dropbox y FTP en el área del trabajo y abandono (multipart abortado, temporal retirado) al fallar o cancelar, fuera del cerrojo del registro de trabajos; «Traer al almacén» y descarga verificadas. Ver «Destinos remotos». | @NEXT_BACKUPS@ | `backups-destinations.php`, `backups-destinations-protocols.php`, `backups-destinations-screen.php`, `backups-destinations-live.php`, `backups-sftp.php`, `backups-cloud-verification.php` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -204,7 +204,7 @@ restaurar y verificar trabajan en la misma petición.
 | `POST /backups` (`destination`, `network`) | `wp digitalisimo-backups create [--destination=…] [--network] [--async] [--porcelain]` | Encola el respaldo completo de la instalación o de la red. REST responde 202 con el trabajo; WP-CLI lo hace avanzar hasta que queda verificado (y copiado, con destino remoto) o, con `--async`, sólo lo encola. |
 | `GET\|POST /backups/<archivo>/verify` (`secret`) | `wp digitalisimo-backups verify <archivo> [--secret-file=…\|--secret-stdin]` | Sin tocar el sitio, las mismas comprobaciones del paquete que la restauración: SHA-256 del historial, firma o registro, descifrado completo de un `.dgbk`, entradas, CRC y SHA-256 de cada una contra el manifiesto, manifiesto v3 estricto y el SQL en seco. Informa la confianza, la confirmación que pedirá y si las condiciones de esta instalación (red o sitio, prefijo) lo admiten. |
 | `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret]` | Restauración con la copia previa bloqueada y la recuperación del motor. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. |
-| `POST /backups/<archivo>/fetch` | `wp digitalisimo-backups destinations fetch <archivo>` | Desde @NEXT_BACKUPS@, «Traer al almacén»: descarga en streaming la copia remota de una fila del historial, la compara con su SHA-256 registrado y la deja en el almacén privado para verificarla o restaurarla; si ya está, no hace nada. |
+| `POST /backups/<archivo>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <archivo> [--network]` | Desde @NEXT_BACKUPS@, «Traer al almacén»: descarga en streaming la copia remota de una fila del historial, la compara con su SHA-256 registrado y la deja en el almacén privado para verificarla o restaurarla; si ya está, no hace nada. Escribe en el almacén de toda la instalación: en una red pide el alcance de red, como crear o restaurar, y toma el cerrojo de operaciones (409 si hay otra en curso). Si la conexión de la fila se eliminó, responde 410 con qué hacer. |
 | `GET /destinations` | `wp digitalisimo-backups destinations list [--format=…]` | Desde @NEXT_BACKUPS@: cada destino remoto (la conexión principal de cada tipo y las adicionales) con su tipo, nombre, si está listo y, si sus credenciales no se abren, qué volver a escribir; nunca un valor secreto. |
 | `POST /destinations/<id>/test` | `wp digitalisimo-backups destinations test <id>` | Desde @NEXT_BACKUPS@, «Probar conexión» de una conexión guardada: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra (502 con el motivo si falla). |
 | `GET /automations` | `wp digitalisimo-backups automation list` | Automatizaciones y su próxima ejecución. |
@@ -328,7 +328,7 @@ el propietario pidió aunque Backuply no lo nombra) y **otro compatible con S3**
 | `list()` | Archivos de la carpeta del destino con nombre, tamaño y recibo para `get`/`delete` (restaurar desde el remoto, sincronizar y retener en el remoto lo usarán). |
 | `verify( $recibo, $archivo )` | Descarga y compara tamaño y SHA-256, o usa una suma que el proveedor calcula sobre lo guardado (ver la tabla). |
 | `test()` | «Probar conexión»: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra. |
-| `abandon()` | Al fallar o cancelarse un trabajo en «transfer», retira lo que su subida dejó a medias según su estado (multipart, temporal). |
+| `abandon()` | Al fallar o cancelarse un trabajo en «transfer», retira lo que su subida dejó a medias según su estado (multipart, temporal). El motor, con el registro de trabajos bloqueado, sólo aparta ese estado a `jobs/<uuid>/abandon.json`, sin ninguna llamada de red; el siguiente tick o el vigilante lo retira del destino fuera de ese cerrojo, con esperas de 20 s como máximo por petición y un solo intento. |
 
 `Digitalisimo_Backups_Destinations` registra los tipos y las conexiones; `Digitalisimo_Backups_Http` hace las peticiones
 (TLS verificado, cURL en streaming para subidas y descargas de archivos, la API HTTP de WordPress para los fragmentos);
@@ -371,15 +371,38 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
 - SFTP con contraseña o **clave privada** (en memoria con `ssh2_auth_pubkey` o en archivos `0600` de la carpeta privada
   que se borran al momento) y huella **SHA-256** de OpenSSH (`SHA256:…`) si la extensión la calcula, además de la SHA-1
   que ya se guardaba.
+- Lo que decide adónde van los bytes se valida **al usarse**, no sólo al guardar: el bucket (3 a 63 caracteres,
+  minúsculas, números, puntos, guiones y guion bajo; nunca `/`, `@`, `:` ni una IP), el estilo de ruta, el endpoint de
+  «otro compatible» (sin ruta, consulta ni credenciales) y la región de la firma. Un dato guardado que no lo cumpla hace
+  fallar el trabajo de forma permanente sin ninguna petición: una escritura directa en la base no convierte el bucket en
+  otro host.
+- Ningún CR, LF ni NUL llega a un protocolo de texto: el cliente FTP rechaza cualquier comando que los lleve, y las
+  carpetas y nombres los rechazan antes. Un recibo del historial sólo se usa dentro de **la carpeta de su conexión**:
+  ruta dentro de la carpeta y sin `..` (SFTP, FTP, WebDAV, Dropbox, que además opera siempre por esa ruta y nunca por un
+  id suelto), clave dentro del bucket y el prefijo de la conexión (S3), o archivo cuya carpeta padre es la de la conexión
+  (pCloud por `stat`, OneDrive por `parentReference`). Google Drive pide el alcance `drive.file`, que ya sólo ve los
+  archivos que creó la app. Un recibo ajeno falla sin llamar al destino.
+- Al **servicio de metadatos de la nube** (`169.254.169.254`, `169.254.170.2`, `fd00:ec2::254`, `100.100.100.200`,
+  `metadata.google.internal`…) no se envía nada: `Digitalisimo_Backups_Http` lo rechaza también desde un dato guardado,
+  guardar una conexión que apunte ahí se rechaza y «Probar conexión» no se conecta.
 
 ### Credenciales y conexiones
 
 Los secretos nuevos (clave privada y su frase de SFTP, contraseñas de FTP y WebDAV, Secret keys de S3, refresh token de
-Dropbox, Client secret y token de pCloud) van al almacén cifrado de S4 como los demás, guardados tal como se escriben, y
-su dato adicional los ata a los datos de su conexión: servidor, puerto, usuario y cifrado (FTP); URL, usuario y opciones
-TLS (WebDAV); Access key y región o endpoint (S3); App key (Dropbox); Client ID y región (pCloud). Así una escritura
-directa en la base de datos que cambie el servidor, desactive TLS o cambie la CA no desvía el secreto: deja de abrirse
-y pide volver a escribirlo.
+Dropbox, Client secret y token de pCloud) van al almacén cifrado de S4, guardados tal como se escriben, y su dato
+adicional los ata a **todo lo que decide adónde van los bytes** de su conexión: servidor, puerto, usuario, cifrado, CA,
+verificación TLS, carpeta y modo pasivo (FTP); URL, usuario, opciones TLS, `http://` y carpeta (WebDAV); Access key,
+región, bucket, estilo de ruta y carpeta (Amazon S3); Access key, proveedor, endpoint, región de firma, región de
+DigitalOcean o Wasabi, cuenta y jurisdicción de R2, opciones TLS, bucket, estilo y carpeta (S3 compatible); App key y
+carpeta (Dropbox); Client ID, región y carpeta (pCloud). Así una escritura directa en la base de datos que cambie el
+servidor, el bucket, la carpeta, desactive TLS o cambie la CA no desvía el secreto: deja de abrirse y pide volver a
+escribirlo. SFTP, Google Drive y OneDrive conservan el contexto de 1.0.61 (host, puerto, usuario y huella; Client ID)
+para que sus secretos sigan abriéndose al actualizar: su carpeta no está atada, pero cambiarla no cambia de servidor ni
+de cuenta.
+
+Los cinco campos que ya existían en 1.0.61 siguen en `digitalisimo_backups_credentials`; los nuevos y los de las
+conexiones adicionales van en `digitalisimo_backups_credentials_more` (mismo formato, misma clave, misma ubicación,
+también en el SQL de cada respaldo). 1.0.61 sólo reescribe la primera, así que volver a ella no borra los secretos nuevos.
 
 Además de la conexión principal de cada tipo, se pueden crear **conexiones adicionales con nombre** del mismo tipo
 («Añadir otra conexión»): sus valores no secretos viven en `digitalisimo_backups_connections` y sus secretos en el
@@ -401,7 +424,22 @@ pCloud sólo devuelven `code` y `state`), así que el tipo y la conexión salen 
 respondía «Proveedor no válido». En el historial, una copia remota cuyo archivo ya no está en el almacén tiene **«Traer
 al almacén»**: la descarga en streaming, la compara con el SHA-256 registrado y la deja en el almacén privado para
 restaurarla (también con `service_fetch()`, la misma pieza para REST y WP-CLI). «Descargar» de una copia remota pasa por
-el mismo temporal verificado.
+el mismo temporal verificado, que se borra también cuando la descarga falla.
+
+- **«Conectar» de una conexión adicional.** «Añadir otra conexión» no ofrece «Conectar» (sin identificador conectaría la
+  principal y su token cambiaría de cuenta en silencio): al crearla, la pantalla abre su edición con el aviso «Ahora usa
+  «Conectar …» en esta conexión», y ahí el enlace lleva su identificador y el token vuelve a ella.
+- **El estado OAuth pendiente** (estado aleatorio, tipo, conexión y el verificador PKCE de Dropbox) vive en la fila
+  `digitalisimo_backups_vault_oauth_<usuario>`, que ningún respaldo exporta, caduca a los 15 minutos y se borra al usarse.
+- **«Probar conexión» con lo escrito** usa un secreto vacío como el guardado, pero nunca hacia otro servidor: si cambió
+  un dato al que está atado (servidor, puerto, usuario, URL, endpoint, bucket, huella, opciones TLS…) pide volver a
+  escribirlo; cambiar sólo la carpeta no lo pide. Avisa en el mismo mensaje (también por AJAX, en `warning`) cuando el
+  servidor es este mismo equipo (loopback), una red privada (10/8, 172.16/12, 192.168/16, 100.64/10, `fc00::/7`), o una
+  dirección de enlace local, también si su nombre se resuelve ahí; el servicio de metadatos de la nube se rechaza.
+- **Una conexión borrada.** No se borra con un respaldo en curso hacia ella. Al borrarla, el aviso cuenta las filas del
+  historial que tienen ahí su copia: siguen en el destino, pero «Traer al almacén» y «Descargar» explican que la conexión
+  ya no existe, y «Eliminar» quita sólo la fila, sin ninguna llamada al destino, con el aviso de que la copia remota no
+  se tocó.
 
 ### Ensayos
 
@@ -412,6 +450,13 @@ el mismo temporal verificado.
   de un respaldo, pantalla guiada, conexiones adicionales usadas por un trabajo, OAuth con PKCE, «Probar conexión»,
   transferencia S3 interrumpida que el reintento completa subiendo sólo las partes que faltaban, cancelación que aborta
   el multipart, «Traer al almacén» y descarga verificadas, y red con el almacén en `sitemeta`.
+- Revisión de 1.0.62 (las mismas dos pruebas; cada caso falla con el código revisado, `4c1ade71`): bucket, estilo y
+  endpoint desviados desde la base sin ninguna petición y atados al AAD (también en una conexión adicional); CR/LF y
+  NUL rechazados por el cliente FTP; recibos fuera de su carpeta o bucket rechazados sin llamar a S3, FTP, WebDAV,
+  Dropbox, pCloud, OneDrive ni SFTP; clasificación de direcciones internas y nada al servicio de metadatos; «Conectar»
+  de una conexión nueva; el verificador PKCE fuera del SQL; cancelar sin ninguna llamada de red con el registro de
+  trabajos bloqueado; la prueba que no envía la contraseña guardada a otro servidor; filas de una conexión borrada;
+  «Traer al almacén» con alcance de red y cerrojo; y los secretos nuevos a salvo de una escritura de 1.0.61.
 - Servidores reales (`backups-destinations-live.php`, se omite sin ellos): MinIO RELEASE.2025-09-07 (S3 compatible),
   pyftpdlib 2.2.0 (FTPS explícito) y wsgidav 4.4.0 (WebDAV sobre HTTPS), con TLS verificado por una CA de prueba y
   rechazado sin ella.
@@ -429,6 +474,15 @@ Para probar con cuentas reales (Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, 
 Google Drive, OneDrive y pCloud): crear la cuenta y la clave como indica «Cómo obtener…» en la pantalla, guardar la
 conexión, «Probar conexión», y crear un respaldo hacia ella; la prueba en vivo admite cualquier S3 compatible con
 `DIGI_LIVE_S3`.
+
+Volver a 1.0.61 desde `rollback/`: los secretos nuevos y las conexiones adicionales sobreviven (1.0.61 no conoce
+`digitalisimo_backups_credentials_more` ni `digitalisimo_backups_connections` y no los toca), pero su «Guardar
+conexiones» reescribe `digitalisimo_backups_settings` sin los datos no secretos de los destinos nuevos y sus
+automatizaciones convierten en Local los destinos que no conoce. Al volver a actualizar, esos destinos piden sus datos;
+al escribirlos iguales que antes, sus secretos vuelven a abrirse (su AAD los ata a esos mismos datos).
+
+Un recibo de antes de cambiar la carpeta de una conexión (o con una carpeta que WordPress no puede confirmar) ya no se
+trae, descarga ni borra desde WordPress: la copia sigue en el destino.
 
 Límites declarados: FTPS no reutiliza la sesión TLS en el canal de datos (PHP no lo permite): un servidor que lo exige
 (vsftpd con `require_ssl_reuse=YES`, ProFTPD sin `NoSessionReuseRequired`) rechaza la transferencia y hay que
@@ -508,7 +562,8 @@ Desde 1.0.61. Decisión del propietario (2026-11-08): un respaldo restaura el si
 conexiones de sus destinos, así que las credenciales siguen viajando en el SQL de cada respaldo, pero cifradas.
 
 - **Qué se guarda y dónde.** La contraseña de SFTP y el Client secret y el Refresh token de Google Drive y OneDrive
-  viven en `digitalisimo_backups_credentials` (`sitemeta` en una red, `options` en un sitio individual), nunca en
+  viven en `digitalisimo_backups_credentials` (`sitemeta` en una red, `options` en un sitio individual; los campos
+  nuevos de la entrega de destinos, en `digitalisimo_backups_credentials_more`, que 1.0.61 no reescribe), nunca en
   `digitalisimo_backups_settings`. Guardar «Servidores», conectar por OAuth y la migración pasan por el almacén; el
   navegador nunca recibe un valor (campo vacío y su estado en el `placeholder`). Desde la entrega de destinos
   (@NEXT_BACKUPS@) también los de los destinos nuevos y los de cada conexión adicional (campo `<id>/<clave>`), atados a

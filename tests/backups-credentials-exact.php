@@ -83,7 +83,7 @@ $check( $secrets === $secret_values( $settings() ), 'Tras los rechazos los secre
 
 // 4. El refresh token del retorno de OAuth se guarda exacto; uno con caracteres de control se rechaza sin cambiar nada.
 $oauth = function( $token ) use ( $B ) {
-	$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'estado', 'provider' => 'onedrive' );
+	update_option( $B::oauth_pending_key(), array( 'state' => 'estado', 'provider' => 'onedrive', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 	$GLOBALS['bk_http'] = array();
 	$GLOBALS['bk_http_reply'] = array( 'refresh_token' => $token );
 	$_GET = array( 'code' => 'codigo', 'state' => 'estado' );

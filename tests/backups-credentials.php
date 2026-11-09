@@ -275,7 +275,7 @@ $case( 'f', function() use ( $B, $C, $K, $check, $leak, $save, $secrets, $settin
 $case( 'g', function() use ( $B, $C, $check, $leak, $settings, $store, $current ) {
 	$token = '1//refresh-de-oauth-nuevo-a1b2c3d4';
 	$GLOBALS['bk_http'] = array();
-	$GLOBALS['bk_transients'][ 'digitalisimo_backup_oauth_1' ] = array( 'state' => 'estado-oauth', 'provider' => 'google' );
+	update_option( $B::oauth_pending_key(), array( 'state' => 'estado-oauth', 'provider' => 'google', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 	$GLOBALS['bk_http_reply'] = array( 'refresh_token' => $token );
 	$_GET = array( 'code' => 'codigo-de-google', 'state' => 'estado-oauth' );
 	$_REQUEST = array( 'provider' => 'google' ) + $_GET;
