@@ -75,6 +75,8 @@ final class Digitalisimo_Backups_Relocate {
 	private $problems = array();
 	private $sites = array();
 	private $table_map = array();
+	/** Dominio de origen => dominio de destino de los sitios de la red que se mudan (para `usermeta.source_domain`). */
+	private $domains = array();
 	private $report = array();
 
 	/**
@@ -280,8 +282,22 @@ final class Digitalisimo_Backups_Relocate {
 		$keep = self::KEEP_COLUMNS[ $base ] ?? array();
 		$key_column = 'usermeta' === $base ? 'meta_key' : ( 'options' === $base ? 'option_name' : '' );
 		$spans = array();
+		// `source_domain` (usermeta de una red): el dominio del sitio donde se registró el usuario, sin esquema.
+		$meta_key = 'usermeta' === $base && $this->domains ? array_search( 'meta_key', $insert['columns'], true ) : false;
+		$meta_value = false !== $meta_key ? array_search( 'meta_value', $insert['columns'], true ) : false;
 		foreach ( (array) $insert['rows'] as $row ) {
 			$changed = false;
+			if ( false !== $meta_value && is_array( $row[ $meta_key ] ?? null ) && is_array( $row[ $meta_value ] ?? null ) && 'str' === ( $row[ $meta_value ]['type'] ?? '' ) ) {
+				$key = $row[ $meta_key ];
+				$literal = $row[ $meta_value ];
+				$domain = strtolower( self::sql_unescape( substr( $sql, $literal['start'], $literal['end'] - $literal['start'] ), $literal['quote'] ) );
+				if ( 'source_domain' === self::sql_unescape( substr( $sql, $key['start'], $key['end'] - $key['start'] ), $key['quote'] ) && isset( $this->domains[ $domain ] ) ) {
+					$spans[] = array( $literal['start'], $literal['end'], self::sql_escape( $this->domains[ $domain ] ) );
+					$this->count( $table, 'values' );
+					$this->count( $table, 'rows' );
+					unset( $row[ $meta_value ] );
+				}
+			}
 			foreach ( $row as $index => $literal ) {
 				if ( ! is_array( $literal ) || 'str' !== ( $literal['type'] ?? '' ) ) continue;
 				$column = (string) ( $insert['columns'][ $index ] ?? '' );
@@ -653,6 +669,7 @@ final class Digitalisimo_Backups_Relocate {
 				if ( 0 === strpos( $path, $from['path'] ) ) $new_path = $to['path'] . substr( $path, strlen( $from['path'] ) );
 			}
 			$this->sites[ (int) $id ] = array( 'from' => array( 'domain' => $domain, 'path' => $path ), 'to' => array( 'domain' => $new_domain, 'path' => $new_path ) );
+			if ( $new_domain !== $domain ) $this->domains[ $domain ] = $new_domain;
 			$base_from = $domain . self::untrail( $path );
 			$base_to = $scheme . '://' . $new_domain . self::untrail( $new_path );
 			$this->sites[ (int) $id ]['home'] = $this->site_url_for( (string) ( $site['home'] ?? '' ), $domain, $path, $base_to );

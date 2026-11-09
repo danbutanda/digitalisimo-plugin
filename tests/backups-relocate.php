@@ -276,7 +276,7 @@ function e1_network_origin( $name, $subdomain ) {
 	$db->seed( 'wp_site', array( array( 'id' => 1, 'domain' => 'origen.com', 'path' => '/' ) ) );
 	$db->seed( 'wp_sitemeta', array( array( 'site_id' => 1, 'meta_key' => 'siteurl', 'meta_value' => 'https://origen.com/' ), array( 'site_id' => 1, 'meta_key' => 'subdomain_install', 'meta_value' => $subdomain ? '1' : '0' ), array( 'site_id' => 1, 'meta_key' => '_site_transient_x', 'meta_value' => 'https://origen.com/' ) ) );
 	$db->seed( 'wp_users', array( array( 'ID' => 1, 'user_login' => 'admin', 'user_email' => 'admin@origen.com', 'user_url' => '' ) ) );
-	$db->seed( 'wp_usermeta', array( array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => 'a:0:{}' ), array( 'user_id' => 1, 'meta_key' => 'wp_2_capabilities', 'meta_value' => 'a:0:{}' ) ) );
+	$db->seed( 'wp_usermeta', array( array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => 'a:0:{}' ), array( 'user_id' => 1, 'meta_key' => 'wp_2_capabilities', 'meta_value' => 'a:0:{}' ), array( 'user_id' => 1, 'meta_key' => 'source_domain', 'meta_value' => $subdomain ? 'uno.origen.com' : 'origen.com' ), array( 'user_id' => 1, 'meta_key' => 'nota', 'meta_value' => 'origen.com' ) ) );
 	e1_use( $db, 'https://origen.com', array( 'domain' => 'origen.com', 'path' => '/' ), $subdomain );
 	return e1_backup();
 }
@@ -302,7 +302,8 @@ e1_case( 'E3 red por subdirectorios a otro dominio, otra ruta y otro prefijo', f
 	e1_check( null !== $dest->value( 'red_2_options', 'option_value', "option_name = 'red_2_user_roles'" ) && null !== $dest->value( 'red_options', 'option_value', "option_name = 'red_user_roles'" ), 'user_roles de cada sitio sin el prefijo nuevo.' );
 	$keys = array_column( $dest->rows( 'red_usermeta' ), 'meta_key' );
 	sort( $keys );
-	e1_check( array( 'red_2_capabilities', 'red_capabilities' ) === $keys, 'usermeta de la red: ' . implode( ', ', $keys ) );
+	e1_check( array( 'nota', 'red_2_capabilities', 'red_capabilities', 'source_domain' ) === $keys, 'usermeta de la red: ' . implode( ', ', $keys ) );
+	e1_check( 'destino.mx' === $dest->value( 'red_usermeta', 'meta_value', "meta_key = 'source_domain'" ) && 'origen.com' === $dest->value( 'red_usermeta', 'meta_value', "meta_key = 'nota'" ), 'source_domain (dominio del sitio del usuario) debe tomar el dominio nuevo, y sólo él.' );
 	e1_check( null === $dest->value( 'red_sitemeta', 'meta_value', "meta_key = '_site_transient_x'" ), 'No se vaciaron los transitorios de la red.' );
 	e1_check( 'https://origen.com/uno/?p=1' === $dest->value( 'red_2_posts', 'guid', 'ID = 1' ), 'Se cambió guid en un subsitio.' );
 	e1_check( 0 === $result['relocation']['check']['urls'] && 2 === (int) ( $result['relocation']['network']['blogs'] ?? 0 ), 'Informe de la red: ' . json_encode( $result['relocation']['network'] + array( 'check' => $result['relocation']['check'] ) ) );
@@ -317,6 +318,7 @@ e1_case( 'E4 red por subdominios: x.origen.com → x.destino.com', function() {
 	e1_check( '<a href="https://uno.destino.mx/hola/">hola</a> <a href="https://destino.mx/">red</a>' === $dest->value( 'wp_2_posts', 'post_content', 'ID = 1' ), 'Contenido: ' . $dest->value( 'wp_2_posts', 'post_content', 'ID = 1' ) );
 	$links = e1_unserializes( $dest->value( 'wp_2_options', 'option_value', "option_name = 'enlaces'" ), 'enlaces' );
 	e1_check( 'https://cdn.origen.com/x.png' === $links['cdn'] && 'https://cliente.com/' === $links['cliente'] && 'https://uno.destino.mx/pagina' === $links['propio'], 'Un subdominio ajeno o un dominio propio cambiaron: ' . json_encode( $links ) );
+	e1_check( 'uno.destino.mx' === $dest->value( 'wp_usermeta', 'meta_value', "meta_key = 'source_domain'" ), 'source_domain del subdominio: ' . $dest->value( 'wp_usermeta', 'meta_value', "meta_key = 'source_domain'" ) );
 	e1_check( 0 === $result['relocation']['check']['urls'], 'Comprobación: ' . json_encode( $result['relocation']['check'] ) );
 } );
 

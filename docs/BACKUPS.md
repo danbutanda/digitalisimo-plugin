@@ -317,7 +317,8 @@ Si no:
   prefijo distinto ya no impide restaurar.
 - **Red**: con el dominio y la ruta de la red de este servidor, `site`, `sitemeta.siteurl`, `blogs` y `home`/`siteurl` de
   cada sitio. Por subdirectorios, `origen.com/uno/` pasa a `destino.com/<ruta de la red>uno/`; por subdominios,
-  `uno.origen.com` pasa a `uno.destino.com`. Un sitio con dominio propio (`cliente.com`) se queda como está.
+  `uno.origen.com` pasa a `uno.destino.com`; también la meta `source_domain` de cada usuario (el dominio, sin esquema,
+  del sitio donde se registró). Un sitio con dominio propio (`cliente.com`) se queda como está.
 - **Cachés**: transitorios (`options` y `sitemeta`), `rewrite_rules` de cada sitio (WordPress las regenera en la
   siguiente visita: es `flush_rewrite_rules` sin depender del `$wp_rewrite` de otro sitio, que `switch_to_blog()` no
   cambia), las metas `_elementor_css`, `_elementor_element_cache` y `_elementor_page_assets`, las opciones

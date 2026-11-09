@@ -48,6 +48,10 @@ const pathOf = (url) => { const u = new URL(url, `http://${host}`); return u.pat
 // En una red por subdirectorios, /uno/wp-content/… lo resuelve la regla de .htaccess de WordPress (el servidor de
 // Playground no la aplica a archivos estáticos): se pide como la sirve Apache.
 const assetPath = (url) => pathOf(url).replace(/^\/[_0-9a-zA-Z-]+\/(wp-(?:content|admin|includes)\/)/, '/$1');
+// La imagen de fondo en el CSS: el host y el archivo bajo wp-content, con o sin la ruta del subsitio delante (Elementor
+// la regenera desde el adjunto, con la ruta del subsitio aunque el dato guardado no la lleve).
+const esc = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const hasImage = (text, where, image) => new RegExp(`${esc(where)}(?:/[_0-9a-zA-Z-]+)?/${esc(image.replace(/^.*?\/wp-content\//, 'wp-content/'))}`).test(text || '');
 const around = (text, needle, size = 120) => { const at = text.indexOf(needle); return at < 0 ? '' : text.slice(Math.max(0, at - size), at + size); };
 // La página de Elements y su CSS generado: devuelve { html, css, cssUrl }.
 const page = async (link) => {
@@ -63,7 +67,7 @@ try {
     for (const [name, info] of Object.entries(setup.pages)) {
       const view = await page(info.link);
       check(view.status === 200 && view.html.includes('Hola desde el origen'), `origen: la página de Elements «${name}» carga`, `${view.status}`);
-      check(view.css && view.css.status === 200 && view.css.text.includes(`${host}${info.image}`), `origen: su CSS generado lleva la imagen de fondo de ${host}`, `${view.cssUrl} ${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')}`);
+      check(view.css && view.css.status === 200 && hasImage(view.css.text, host, info.image), `origen: su CSS generado lleva la imagen de fondo de ${host}`, `${view.cssUrl} ${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')}`);
     }
     let res = await api('POST', '/backups', { headers: basic(setup.password), body: setup.network ? { network: true } : {} });
     const id = res.json?.id || res.json?.job?.id;
@@ -102,7 +106,7 @@ try {
       const view = await page(link);
       check(view.status === 200 && view.html.includes('Hola desde el origen'), `destino: la página de Elements «${name}» carga en ${host}`, `${view.status} ${view.html.slice(0, 300)}`);
       check(!view.html.includes(originHost), `destino: la página «${name}» no menciona ${originHost}`, (view.html.match(new RegExp(`.{0,80}${originHost.replace('.', '\\.')}.{0,80}`)) || [''])[0]);
-      check(view.css && view.css.status === 200 && view.css.text.includes(`${host}${info.image}`) && !view.css.text.includes(originHost), `destino: su CSS regenerado carga y lleva la imagen de ${host}`, view.cssUrl ? `${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')} · ${around(view.css?.text || '', originHost)}` : 'sin CSS de Elements en la página');
+      check(view.css && view.css.status === 200 && hasImage(view.css.text, host, info.image) && !view.css.text.includes(originHost), `destino: su CSS regenerado carga y lleva la imagen de ${host}`, view.cssUrl ? `${view.css?.status} esperaba ${host}${info.image} · ${around(view.css?.text || '', 'url(')} · ${around(view.css?.text || '', originHost)}` : 'sin CSS de Elements en la página');
       check(view.html.includes(`http://${host}/contacto/`) || view.html.includes(`http://${host}/uno/contacto/`), `destino: los enlaces internos de «${name}» van a ${host}`);
     }
     const dbres = await request('GET', `/wp-content/digi-web/db.php?token=${token()}&needle=${encodeURIComponent(originHost)}`);
