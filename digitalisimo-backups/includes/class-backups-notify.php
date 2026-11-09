@@ -187,7 +187,7 @@ final class Digitalisimo_Backups_Notify {
 		$text = (string) $text;
 		$secrets = array();
 		try {
-			foreach ( (array) Digitalisimo_Backups_Credentials::read() as $value ) if ( is_string( $value ) && strlen( $value ) >= 4 ) $secrets[] = $value;
+			foreach ( Digitalisimo_Backups::secret_values() as $value ) if ( strlen( $value ) >= 4 ) $secrets[] = $value;
 		} catch ( Throwable $e ) {
 			// Sin el almacén cifrado no hay credenciales que ocultar.
 		}

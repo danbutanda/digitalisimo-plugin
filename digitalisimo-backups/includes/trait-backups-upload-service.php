@@ -200,8 +200,16 @@ trait Digitalisimo_Backups_Upload_Service {
 		$report = null;
 		try {
 			$report = Digitalisimo_Backups_Security::open( $path, array(), $secret );
-			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false );
+			$source = array();
+			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false, $source );
 			$problems = self::package_installation_problems( $data );
+			// «Origen → este sitio», como `verify`: qué cambiaría al restaurarlo aquí (o por qué no se puede).
+			$relocation = null;
+			if ( ! $problems ) {
+				$plan = self::relocation_plan( $data, $source, array( 'addresses' => 'current' ) );
+				$problems = $plan->problems();
+				$relocation = $plan->summary();
+			}
 			if ( 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ) $problems[] = 'Este sitio sólo restaura respaldos firmados (Backups → Seguridad) y este archivo no tiene una firma válida de una clave de este sitio.';
 			return array_merge( $summary, array(
 				'container' => (string) $report['container'],
@@ -218,6 +226,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				'multisite' => ! empty( $data['multisite'] ),
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
+				'relocation' => $relocation,
 			) );
 		} catch ( Exception $e ) {
 			return self::service_error( 'upload_invalid', 'El archivo no supera la validación de archivos no confiables y se descartó: ' . $e->getMessage(), 422 );

@@ -92,6 +92,15 @@ try {
 	digi_assert( 400 === $code && 'rest_missing_callback_param' === $error['code'], 'La restauración no exige el parámetro confirm.' );
 	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $backup['file'] . '/restore', array( 'confirm' => 'sí' ) );
 	digi_assert( 400 === $code && 'digitalisimo_backups_confirm' === $error['code'], 'Se restauró sin escribir RESTAURAR.' );
+	// «Conservar las direcciones del respaldo» (E1): el mismo parámetro en restaurar y verificar, con sus dos valores.
+	foreach ( array( '/restore', '/verify' ) as $route ) {
+		$arg = $GLOBALS['digi']['routes'][ $ns . '/backups/' . Digitalisimo_Backups_Rest::FILE . $route ][0]['args']['addresses'] ?? array();
+		digi_assert( array( 'current', 'backup' ) === ( $arg['enum'] ?? null ) && 'current' === ( $arg['default'] ?? null ), 'La ruta ' . $route . ' no declara addresses.' );
+	}
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $backup['file'] . '/restore', array( 'confirm' => 'RESTAURAR', 'addresses' => 'otra' ) );
+	digi_assert( 400 === $code && 'digitalisimo_backups_addresses' === $error['code'], 'Un addresses inválido no se rechazó antes de restaurar.' );
+	list( $code, $report ) = digi_rest( 'GET', $ns . '/backups/' . $backup['file'] . '/verify', array( 'addresses' => 'backup' ) );
+	digi_assert( 200 === $code && is_array( $report['relocation'] ) && 'backup' === $report['relocation']['addresses'] && false === $report['relocation']['needed'], 'verify no transmitió addresses o anunció cambios en el mismo sitio: ' . json_encode( $report['relocation'] ?? null ) );
 	file_put_contents( WP_PLUGIN_DIR . '/example.php', "<?php // cambiado\n" );
 	list( $code, $restored ) = digi_rest( 'POST', $ns . '/backups/' . $backup['file'] . '/restore', array( 'confirm' => 'RESTAURAR' ) );
 	digi_assert( 200 === $code && true === $restored['restored'] && "<?php // plugin de ejemplo\n" === file_get_contents( WP_PLUGIN_DIR . '/example.php' ), 'POST restore no restauró: ' . json_encode( $restored ) );

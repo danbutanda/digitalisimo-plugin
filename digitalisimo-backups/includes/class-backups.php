@@ -11,6 +11,8 @@ require_once __DIR__ . '/class-backups-layout.php';
 require_once __DIR__ . '/class-backups-notify.php';
 require_once __DIR__ . '/class-backups-uploads.php';
 require_once __DIR__ . '/trait-backups-upload-service.php';
+// Restaurar en otro dominio, otra ruta del servidor u otro prefijo de tablas (ver «Restaurar en otro dominio»).
+require_once __DIR__ . '/class-backups-relocate.php';
 require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
@@ -29,12 +31,8 @@ final class Digitalisimo_Backups {
 	const ACTION_MANUAL_STATUS = 'digitalisimo_backups_manual_status';
 	/** Diario de una restauración en curso, en el almacén y fuera de la base de datos que el SQL reemplaza. */
 	const RESTORE_JOURNAL = '.restore-journal.json';
-	/**
-	 * Marca (con autoload) de que los ajustes no guardan ningún secreto en claro: con ella, la comprobación al cargar el
-	 * escritorio o el cron no hace ninguna consulta. Viaja en el SQL como los ajustes, así que un respaldo anterior (sin
-	 * ella) se comprueba al restaurarlo.
-	 */
-	const CREDENTIALS_CLEAN = 'digitalisimo_backups_credentials_migrated';
+	/** Informe de la última restauración que cambió direcciones, rutas o prefijo (sin carga automática). */
+	const LAST_RELOCATION = 'digitalisimo_backups_last_relocation';
 	/** Tope del avance de la verificación: con cifrado, la verificación deja sitio a la fase de cifrado. */
 	private static $verify_top = 98;
 	const ACTION_OAUTH = 'digitalisimo_backups_oauth';
@@ -244,24 +242,31 @@ final class Digitalisimo_Backups {
 	/** Rechaza piezas ausentes, cifradas o ilegibles antes de extraer cualquier archivo. */
 	public static function validate_backup_set( $set ) { if ( empty( $set['complete'] ) || empty( $set['files']['db'] ) ) return new WP_Error( 'digitalisimo_backup_incomplete', 'El conjunto no incluye una base de datos legible o tiene piezas cifradas.' ); foreach ( $set['files'] as $parts ) foreach ( $parts as $part ) if ( ! is_readable( $part['path'] ) ) return new WP_Error( 'digitalisimo_backup_unreadable', 'Una pieza del respaldo no se puede leer.' ); return true; }
 	/**
+	 * En una red, las credenciales de los destinos son de toda la red y sólo las lee y escribe el sitio principal (la
+	 * administración de red corre en él): ni un subsitio ni su migración tocan el almacén de la red.
+	 */
+	private static function credentials_here() { return ! is_multisite() || is_main_site(); }
+	/** Los ajustes tal como están guardados (sin valores por defecto). */
+	private static function saved_settings() { $saved = get_option( self::OPTION, array() ); return is_array( $saved ) ? $saved : array(); }
+	/**
 	 * Ajustes con los secretos de los destinos descifrados en memoria, la única lectura de las credenciales. Un secreto
 	 * todavía en claro en los ajustes (sitios actualizados desde 1.0.60 o anteriores, o sin AUTH_KEY y SECURE_AUTH_KEY
-	 * propias) manda y, si ya se puede cifrar, se cifra aquí mismo; uno cifrado con otras claves de wp-config.php queda
-	 * vacío (el destino pide volver a escribirlo): nunca se cae al texto en claro.
+	 * propias) manda y, si ya se puede cifrar, se cifra aquí mismo; uno cifrado con otras claves de wp-config.php, o para
+	 * otros datos de conexión, queda vacío (el destino pide volver a escribirlo): nunca se cae al texto en claro. En un
+	 * subsitio de una red no hay secretos: ni los de la red ni los que quedaran en claro en su propia opción.
 	 */
 	private static function settings() {
-		$saved = get_option( self::OPTION, array() );
-		$saved = is_array( $saved ) ? $saved : array();
+		$saved = self::saved_settings();
+		if ( ! self::credentials_here() ) return wp_parse_args( array_diff_key( $saved, array_flip( self::secret_fields() ) ), self::defaults() );
 		if ( self::plain_secrets( $saved ) && Digitalisimo_Backups_Credentials::can_encrypt() ) {
 			try {
 				self::migrate_credentials();
-				$saved = get_option( self::OPTION, array() );
-				$saved = is_array( $saved ) ? $saved : array();
+				$saved = self::saved_settings();
 			} catch ( Throwable $e ) {
 				error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 			}
 		}
-		$secrets = Digitalisimo_Backups_Credentials::read();
+		$secrets = Digitalisimo_Backups_Credentials::read( wp_parse_args( $saved, self::defaults() ) );
 		foreach ( self::secret_fields() as $field ) {
 			if ( is_string( $saved[ $field ] ?? null ) && '' !== $saved[ $field ] ) continue;
 			unset( $saved[ $field ] );
@@ -276,56 +281,61 @@ final class Digitalisimo_Backups {
 		return $plain;
 	}
 	/**
-	 * Único camino para guardar los ajustes: los secretos van cifrados al almacén y nunca en claro a
-	 * digitalisimo_backups_settings. Un secreto vacío no cambia lo guardado. Sin AUTH_KEY y SECURE_AUTH_KEY propias se
-	 * guardan en claro, como hasta 1.0.60, con aviso en la pantalla y en `status` (sin ellas no hay con qué cifrar y no
-	 * guardar dejaría el sitio sin destino); se cifran solos en cuanto existan. Devuelve si quedaron cifrados.
+	 * Único camino para guardar los ajustes: los secretos van cifrados al almacén, atados a los datos de su conexión, y
+	 * nunca en claro a digitalisimo_backups_settings. Un secreto vacío no cambia lo guardado. Sin AUTH_KEY y
+	 * SECURE_AUTH_KEY propias se guardan en claro, como hasta 1.0.60, con aviso en la pantalla y en `status` (sin ellas no
+	 * hay con qué cifrar y no guardar dejaría el sitio sin destino); se cifran solos en cuanto existan. Los ajustes se
+	 * guardan con autoload: comprobarlos al cargar el escritorio no cuesta ninguna consulta. Devuelve si quedaron cifrados.
 	 */
 	private static function store_settings( array $settings ) {
+		if ( ! self::credentials_here() ) throw new Exception( self::subsite_credentials_text() );
 		$secrets = array();
 		foreach ( self::secret_fields() as $field ) {
 			$value = is_string( $settings[ $field ] ?? null ) ? $settings[ $field ] : '';
 			unset( $settings[ $field ] );
 			if ( '' !== $value ) $secrets[ $field ] = $value;
 		}
-		if ( Digitalisimo_Backups_Credentials::put( $secrets ) ) {
-			update_option( self::OPTION, $settings, false );
-			self::mark_credentials( true );
+		if ( Digitalisimo_Backups_Credentials::put( $secrets, $settings ) ) {
+			update_option( self::OPTION, $settings, true );
 			return true;
 		}
-		update_option( self::OPTION, $settings + $secrets, false );
-		self::mark_credentials( ! $secrets );
+		update_option( self::OPTION, $settings + $secrets, true );
 		return false;
 	}
-	private static function mark_credentials( $clean ) {
-		// Sin la marca, get_option() ya la dejó en la caché de opciones inexistentes: comprobarla no es otra consulta.
-		if ( ! $clean ) { if ( false !== get_option( self::CREDENTIALS_CLEAN ) ) delete_option( self::CREDENTIALS_CLEAN ); return; }
-		if ( '1' !== get_option( self::CREDENTIALS_CLEAN ) ) update_option( self::CREDENTIALS_CLEAN, '1', true );
+	private static function subsite_credentials_text() { return 'En una red, las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal. No se cambió nada.'; }
+	/**
+	 * Los ajustes con autoload, para que comprobarlos al cargar no sea una consulta. Una versión anterior (1.0.60 tras
+	 * volver desde rollback/) los reescribe sin autoload: la primera carga los lee (una consulta), migra lo que traigan en
+	 * claro y vuelve a ponerlos con autoload. Sin wp_set_option_autoload() (WordPress anterior a 6.4) se espera al próximo
+	 * guardado.
+	 */
+	private static function autoload_settings() {
+		if ( ! function_exists( 'wp_load_alloptions' ) || ! function_exists( 'wp_set_option_autoload' ) ) return;
+		if ( array_key_exists( self::OPTION, (array) wp_load_alloptions() ) || false === get_option( self::OPTION, false ) ) return;
+		wp_set_option_autoload( self::OPTION, true );
 	}
 	/**
 	 * Migración idempotente de los secretos en claro de los ajustes al almacén cifrado: se cifran, se comprueba que
 	 * vuelven a abrirse y sólo entonces se retiran de los ajustes. Devuelve 'clean', 'migrated', 'unprotected' (no hay
 	 * con qué cifrar; siguen en claro) o 'skipped' (subsitio de una red: los ajustes que usa el motor son los del
-	 * principal).
+	 * principal). Corre al cargar el escritorio, el cron o WP-CLI, antes de volcar el SQL de cada respaldo y tras restaurar.
 	 */
 	public static function migrate_credentials() {
-		if ( is_multisite() && ! is_main_site() ) return 'skipped';
-		$saved = get_option( self::OPTION, array() );
-		$saved = is_array( $saved ) ? $saved : array();
+		if ( ! self::credentials_here() ) return 'skipped';
+		$saved = self::saved_settings();
 		$plain = self::plain_secrets( $saved );
-		if ( ! $plain ) { self::mark_credentials( true ); return 'clean'; }
-		if ( ! Digitalisimo_Backups_Credentials::put( $plain ) ) { self::mark_credentials( false ); return 'unprotected'; }
-		update_option( self::OPTION, array_diff_key( $saved, $plain ), false );
-		self::mark_credentials( true );
+		if ( ! $plain ) { self::autoload_settings(); return 'clean'; }
+		if ( ! Digitalisimo_Backups_Credentials::put( $plain, wp_parse_args( $saved, self::defaults() ) ) ) { self::autoload_settings(); return 'unprotected'; }
+		update_option( self::OPTION, array_diff_key( $saved, $plain ), true );
 		return 'migrated';
 	}
 	/**
-	 * Al cargar el escritorio: sin la marca, comprueba y migra; con ella (autoload) no hace ninguna consulta. En un
-	 * subsitio de una red no hace nada: los ajustes que usa el motor son los del sitio principal.
+	 * Al cargar el escritorio: los ajustes tienen autoload, así que leerlos no cuesta ninguna consulta, y lo que aparezca
+	 * en claro (también lo que reescribió 1.0.60 tras volver desde rollback/ y actualizar otra vez) se cifra. En un
+	 * subsitio de una red no hace nada.
 	 */
 	public static function credentials_on_load() {
-		if ( is_multisite() && ! is_main_site() ) return;
-		if ( '1' === get_option( self::CREDENTIALS_CLEAN ) ) return;
+		if ( ! self::credentials_here() ) return;
 		try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 	}
 	/** Lo mismo en una petición de WP-Cron o de WP-CLI, que no pasan por admin_init. */
@@ -334,24 +344,27 @@ final class Digitalisimo_Backups {
 	}
 	/** Estado público de las credenciales de los destinos (sin valores) para la pantalla, REST y WP-CLI. */
 	private static function credentials_status() {
+		if ( ! self::credentials_here() ) return array( 'state' => 'none', 'locked' => array(), 'plain' => array(), 'notice' => '' );
 		self::settings();
-		$saved = get_option( self::OPTION, array() );
-		return Digitalisimo_Backups_Credentials::status( array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+		$saved = self::saved_settings();
+		return Digitalisimo_Backups_Credentials::status( array_keys( self::plain_secrets( $saved ) ), wp_parse_args( $saved, self::defaults() ) );
 	}
 	/** Mensaje de un destino remoto cuyas credenciales no se abren ('' si no es el caso). */
 	private static function credentials_problem( $destination ) {
-		$saved = get_option( self::OPTION, array() );
-		return Digitalisimo_Backups_Credentials::destination_problem( (string) $destination, array_keys( self::plain_secrets( is_array( $saved ) ? $saved : array() ) ) );
+		if ( ! self::credentials_here() ) return '';
+		$saved = self::saved_settings();
+		return Digitalisimo_Backups_Credentials::destination_problem( (string) $destination, array_keys( self::plain_secrets( $saved ) ), wp_parse_args( $saved, self::defaults() ) );
 	}
 	/**
 	 * Tras el SQL de una restauración (también si se recuperó la copia previa o se aplica el diario): las credenciales del
 	 * respaldo mandan sobre las que tenía el servidor. Las cifradas con las claves del servidor de origen se vuelven a
-	 * cifrar con las de éste ($origin sale del wp-config.php del respaldo) y las que venían en claro (respaldos hasta
-	 * 1.0.60) se cifran. Nunca falla la restauración: lo que no se abre queda en «vuelve a escribirla» con su aviso.
+	 * cifrar con las de éste ($origin sale del wp-config.php del respaldo), atadas a los datos de conexión restaurados, y
+	 * las que venían en claro (respaldos hasta 1.0.60) se cifran. Nunca falla la restauración: lo que no se abre queda en
+	 * «vuelve a escribirla» con su aviso.
 	 */
 	private static function restore_credentials( array $origin ) {
 		try {
-			Digitalisimo_Backups_Credentials::reseal( $origin );
+			Digitalisimo_Backups_Credentials::reseal( $origin, wp_parse_args( self::saved_settings(), self::defaults() ) );
 			self::migrate_credentials();
 		} catch ( Throwable $e ) {
 			error_log( 'DIGITALÍSIMO Backups: credenciales tras restaurar: ' . $e->getMessage() );
@@ -487,6 +500,16 @@ final class Digitalisimo_Backups {
 	}
 	public static function redirect_result( $ok, $message ) { self::redirect( $ok, $message ); }
 	public static function destination_name( $destination ) { return self::destination_label( $destination ); }
+	/**
+	 * @internal Valores de los secretos de los destinos, descifrados por la única lectura (settings()), para que un aviso
+	 * por correo los oculte si un mensaje de error llegara a contener alguno. Nunca salen de este proceso.
+	 */
+	public static function secret_values() {
+		$settings = self::settings();
+		$values = array();
+		foreach ( self::secret_fields() as $field ) if ( is_string( $settings[ $field ] ?? null ) && '' !== $settings[ $field ] ) $values[] = $settings[ $field ];
+		return $values;
+	}
 	/** Nombre de una automatización para los avisos: su etiqueta o, sin ella, su tipo y frecuencia. */
 	public static function automation_name( array $policy ) { return '' !== trim( (string) ( $policy['label'] ?? '' ) ) ? (string) $policy['label'] : self::policy_label( $policy ); }
 	public static function backup_file_name( $prefix = '' ) { return $prefix . 'digitalisimo-backup-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . gmdate( 'Ymd-His' ) . '-' . substr( str_replace( '-', '', wp_generate_uuid4() ), 0, 8 ) . '.zip'; }
@@ -513,7 +536,7 @@ final class Digitalisimo_Backups {
 		$credentials = self::credentials_status();
 		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
 		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a><a class="' . ( 'notifications' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'notifications', $base ) ) . '">Avisos</a></nav>';
-		if ( 'servers' === $tab ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); echo '</div>'; return; }
+		if ( 'servers' === $tab ) { if ( self::credentials_here() ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); } else echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal.</p></section>'; echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
 		if ( 'notifications' === $tab ) { Digitalisimo_Backups_Notify::panel( $network ); echo '</div>'; return; }
 			echo '<div class="digitalisimo-backups-grid"><section class="digitalisimo-backups-card"><h2>Crear respaldo completo</h2><p>Incluye todos los sitios de la red cuando WordPress usa Multisite, o el sitio completo en una instalación individual.</p>';
@@ -580,10 +603,19 @@ final class Digitalisimo_Backups {
 		private static function schedule_fields( $s ) { echo '<h2>Políticas automáticas</h2><p>Cada política tiene su propia frecuencia, destino y retención. Un incremental guarda la base de datos y sólo los archivos modificados desde su último punto base; al restaurar se aplica después de su respaldo completo base.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_SAVE_POLICIES ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_POLICIES ) . '"><table class="widefat striped"><thead><tr><th>Activa</th><th>Nombre</th><th>Tipo</th><th>Frecuencia</th><th>Destino</th><th>Conservar</th><th>Ejecutar</th></tr></thead><tbody>'; foreach ( self::policies() as $policy ) { $id = esc_attr( $policy['id'] ); echo '<tr><td><input type="checkbox" name="digitalisimo_backups_policies[' . $id . '][enabled]" value="1" ' . checked( ! empty( $policy['enabled'] ), true, false ) . '></td><td><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][id]" value="' . $id . '"><input type="text" name="digitalisimo_backups_policies[' . $id . '][label]" value="' . esc_attr( $policy['label'] ) . '"></td><td><strong>' . esc_html( array( 'full' => 'Completo', 'incremental' => 'Incremental', 'database' => 'Base de datos' )[ $policy['type'] ] ) . '</strong><input type="hidden" name="digitalisimo_backups_policies[' . $id . '][type]" value="' . esc_attr( $policy['type'] ) . '"></td><td><select name="digitalisimo_backups_policies[' . $id . '][schedule]">'; foreach ( self::schedule_options() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $policy['schedule'], $value, false ) . '>' . esc_html( $label ) . '</option>'; echo '</select></td><td><select name="digitalisimo_backups_policies[' . $id . '][destination]">'; foreach ( array( 'local', 'sftp', 'google', 'onedrive' ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '" ' . selected( $policy['destination'], $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>'; echo '</select></td><td><input type="number" min="1" max="100" name="digitalisimo_backups_policies[' . $id . '][retain]" value="' . esc_attr( $policy['retain'] ) . '"></td><td><button class="button" name="action" value="' . esc_attr( self::ACTION_RUN_POLICY ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post">Ejecutar ahora<input type="hidden" name="digitalisimo_backup_policy" value="' . $id . '"></button></td></tr>'; } echo '</tbody></table><p><button class="button button-primary">Guardar políticas automáticas</button></p></form>'; }
 	private static function connection_fields( $s, array $locked = array() ) {
 		echo '<h2>Conexiones externas</h2><p>Elige un tipo para ver únicamente sus campos. Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.</p><p><label for="digitalisimo-server-type"><strong>Tipo de servidor</strong><br><select id="digitalisimo-server-type"><option value="sftp">SFTP</option><option value="google">Google Drive</option><option value="onedrive">OneDrive</option></select></label></p><table class="form-table"><tr data-server="sftp"><th colspan="2"><h3>SFTP</h3></th></tr>';
-		self::field( 'sftp_host', 'Host o IP', $s ); self::field( 'sftp_port', 'Puerto', $s, 'number' ); self::field( 'sftp_user', 'Usuario', $s ); self::field( 'sftp_password', 'Contraseña', $s, 'password', $locked ); self::field( 'sftp_path', 'Carpeta remota', $s ); self::field( 'sftp_fingerprint', 'Huella SHA-1 de la clave SSH del servidor', $s ); echo '<tr data-server="sftp"><th></th><td><p class="description">Confírmala con el administrador del servidor por un canal independiente. Se acepta una huella hexadecimal de 40 caracteres, con o sin dos puntos. Sin ella no se enviarán respaldos por SFTP.</p></td></tr>';
-		echo '<tr data-server="google"><th colspan="2"><h3>Google Drive</h3></th></tr>'; self::field( 'google_client_id', 'Client ID', $s ); self::field( 'google_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'google_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'google_folder_id', 'ID de carpeta', $s ); echo '<tr data-server="google"><th>Cómo obtener Google Drive</th><td><ol><li>Abre <strong>Google Cloud Console</strong> y crea o elige un proyecto.</li><li>Activa <strong>Google Drive API</strong> en APIs y servicios.</li><li>En Credenciales crea un cliente OAuth de tipo <strong>Aplicación web</strong>.</li><li>Agrega como URI de redirección autorizada: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret aquí, guarda y usa «Conectar Google Drive con mi sesión».</li></ol></td></tr>';
-		echo '<tr data-server="onedrive"><th colspan="2"><h3>Microsoft OneDrive</h3></th></tr>'; self::field( 'onedrive_client_id', 'Client ID', $s ); self::field( 'onedrive_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'onedrive_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'onedrive_folder', 'Carpeta remota', $s ); echo '<tr data-server="onedrive"><th>Cómo obtener OneDrive</th><td><ol><li>Abre <strong>Microsoft Entra</strong> → App registrations → New registration.</li><li>En Authentication agrega esta URL: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret, guarda y conecta la sesión.</li></ol></td></tr></table><p data-server="google"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'google' ) ) . '">Conectar Google Drive</a></p><p data-server="onedrive"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'onedrive' ) ) . '">Conectar OneDrive</a></p><script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-server-type");if(!s)return;function f(){document.querySelectorAll("[data-server]").forEach(function(e){e.style.display=e.dataset.server===s.value?"":"none"})}s.addEventListener("change",f);f()})</script>';
+		self::field( 'sftp_host', 'Host o IP', $s ); self::field( 'sftp_port', 'Puerto', $s, 'number' ); self::field( 'sftp_user', 'Usuario', $s ); self::field( 'sftp_password', 'Contraseña', $s, 'password', $locked ); self::field( 'sftp_path', 'Carpeta remota', $s ); self::field( 'sftp_fingerprint', 'Huella SHA-1 de la clave SSH del servidor', $s ); echo '<tr data-server="sftp"><th></th><td><p class="description">Confírmala con el administrador del servidor por un canal independiente. Se acepta una huella hexadecimal de 40 caracteres, con o sin dos puntos. Sin ella no se enviarán respaldos por SFTP.</p></td></tr>'; self::forget_row( 'sftp', $s, $locked );
+		echo '<tr data-server="google"><th colspan="2"><h3>Google Drive</h3></th></tr>'; self::field( 'google_client_id', 'Client ID', $s ); self::field( 'google_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'google_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'google_folder_id', 'ID de carpeta', $s ); self::forget_row( 'google', $s, $locked ); echo '<tr data-server="google"><th>Cómo obtener Google Drive</th><td><ol><li>Abre <strong>Google Cloud Console</strong> y crea o elige un proyecto.</li><li>Activa <strong>Google Drive API</strong> en APIs y servicios.</li><li>En Credenciales crea un cliente OAuth de tipo <strong>Aplicación web</strong>.</li><li>Agrega como URI de redirección autorizada: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret aquí, guarda y usa «Conectar Google Drive con mi sesión».</li></ol></td></tr>';
+		echo '<tr data-server="onedrive"><th colspan="2"><h3>Microsoft OneDrive</h3></th></tr>'; self::field( 'onedrive_client_id', 'Client ID', $s ); self::field( 'onedrive_client_secret', 'Client secret', $s, 'password', $locked ); self::field( 'onedrive_refresh_token', 'Refresh token', $s, 'password', $locked ); self::field( 'onedrive_folder', 'Carpeta remota', $s ); self::forget_row( 'onedrive', $s, $locked ); echo '<tr data-server="onedrive"><th>Cómo obtener OneDrive</th><td><ol><li>Abre <strong>Microsoft Entra</strong> → App registrations → New registration.</li><li>En Authentication agrega esta URL: <code>' . esc_html( self::oauth_callback_url() ) . '</code></li><li>Copia Client ID y Client secret, guarda y conecta la sesión.</li></ol></td></tr></table><p data-server="google"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'google' ) ) . '">Conectar Google Drive</a></p><p data-server="onedrive"><a class="button button-secondary" href="' . esc_url( self::oauth_url( 'onedrive' ) ) . '">Conectar OneDrive</a></p><script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-server-type");if(!s)return;function f(){document.querySelectorAll("[data-server]").forEach(function(e){e.style.display=e.dataset.server===s.value?"":"none"})}s.addEventListener("change",f);f()})</script>';
 		}
+	/**
+	 * «Olvidar» las credenciales guardadas de un destino que ya no se usa, también las que ya no se abren (si no, su aviso
+	 * quedaría para siempre): una casilla del mismo formulario, con su nonce y su capability. Sólo si hay algo guardado.
+	 */
+	private static function forget_row( $destination, $s, array $locked ) {
+		$fields = Digitalisimo_Backups_Credentials::DESTINATIONS[ $destination ] ?? array();
+		if ( ! array_filter( $fields, function( $field ) use ( $s, $locked ) { return ! empty( $s[ $field ] ) || in_array( $field, $locked, true ); } ) ) return;
+		echo '<tr data-server="' . esc_attr( $destination ) . '"><th></th><td><label><input type="checkbox" name="digitalisimo_backups[forget][' . esc_attr( $destination ) . ']" value="1"> Olvidar las credenciales guardadas de ' . esc_html( self::destination_label( $destination ) ) . '</label><p class="description">Al guardar se retiran del sitio, también las que ya no se pueden abrir. Para un destino que ya no usas; lo que escribas ahora en sus campos sí se guarda.</p></td></tr>';
+	}
 	/** Un secreto guardado nunca vuelve al navegador: el campo va vacío y su estado se anuncia en el placeholder. */
 	private static function field( $key, $label, $s, $type = 'text', array $locked = array() ) { $secret = in_array( $key, self::secret_fields(), true ); $server = 0 === strpos( $key, 'sftp_' ) ? 'sftp' : ( 0 === strpos( $key, 'google_' ) ? 'google' : 'onedrive' ); $placeholder = ''; if ( $secret && $s[ $key ] ) $placeholder = 'Guardado · escribe sólo para reemplazar'; elseif ( $secret && in_array( $key, $locked, true ) ) $placeholder = 'Guardado con otras claves de wp-config.php · vuelve a escribirlo'; echo '<tr data-server="' . esc_attr( $server ) . '"><th><label for="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td><input class="regular-text" type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="digitalisimo_backups[' . esc_attr( $key ) . ']" value="' . esc_attr( $secret ? '' : $s[ $key ] ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . '></td></tr>'; }
 	private static function oauth_callback_url() { return add_query_arg( self::context_args(), admin_url( 'admin-post.php?action=' . self::ACTION_OAUTH ) ); }
@@ -645,19 +677,26 @@ final class Digitalisimo_Backups {
 		if ( ! $path && ! $copy ) self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' );
 		self::redirect( true, 'Respaldo eliminado' . ( $remote ? ( $path ? ', también su copia en ' : ' de ' ) . self::destination_label( $copy['destination'] ) : '' ) . '.' . $notice );
 	}
-	public static function oauth_callback() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); $provider = sanitize_key( $_REQUEST['provider'] ?? '' ); if ( ! in_array( $provider, array( 'google', 'onedrive' ), true ) ) self::redirect( false, 'Proveedor no válido.' ); $settings = self::settings(); if ( empty( $_GET['code'] ) ) { check_admin_referer( self::ACTION_OAUTH ); if ( empty( $settings[ $provider . '_client_id' ] ) || empty( $settings[ $provider . '_client_secret' ] ) ) self::redirect( false, 'Guarda antes el Client ID y Client secret del proveedor.' ); $state = wp_generate_password( 32, false, false ); set_transient( 'digitalisimo_backup_oauth_' . get_current_user_id(), array( 'state' => $state, 'provider' => $provider ), 15 * MINUTE_IN_SECONDS ); $redirect = self::oauth_callback_url(); if ( 'google' === $provider ) $url = add_query_arg( array( 'client_id' => $settings['google_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'access_type' => 'offline', 'prompt' => 'consent', 'scope' => 'https://www.googleapis.com/auth/drive.file', 'state' => $state ), 'https://accounts.google.com/o/oauth2/v2/auth' ); else $url = add_query_arg( array( 'client_id' => $settings['onedrive_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'response_mode' => 'query', 'scope' => 'offline_access Files.ReadWrite', 'state' => $state ), 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' ); wp_redirect( $url ); exit; } $saved = get_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); if ( empty( $saved['state'] ) || ! hash_equals( $saved['state'], (string) $_GET['state'] ) || $provider !== $saved['provider'] ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' ); delete_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); $endpoint = 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token'; $response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => sanitize_text_field( wp_unslash( $_GET['code'] ) ), 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' ); $settings[ $provider . '_refresh_token' ] = sanitize_text_field( $data['refresh_token'] ); try { self::store_settings( $settings ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ( 'google' === $provider ? 'Google Drive' : 'OneDrive' ) . ' conectado correctamente.' ); }
+	public static function oauth_callback() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); $provider = sanitize_key( $_REQUEST['provider'] ?? '' ); if ( ! in_array( $provider, array( 'google', 'onedrive' ), true ) ) self::redirect( false, 'Proveedor no válido.' ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $settings = self::settings(); if ( empty( $_GET['code'] ) ) { check_admin_referer( self::ACTION_OAUTH ); if ( empty( $settings[ $provider . '_client_id' ] ) || empty( $settings[ $provider . '_client_secret' ] ) ) self::redirect( false, 'Guarda antes el Client ID y Client secret del proveedor.' ); $state = wp_generate_password( 32, false, false ); set_transient( 'digitalisimo_backup_oauth_' . get_current_user_id(), array( 'state' => $state, 'provider' => $provider ), 15 * MINUTE_IN_SECONDS ); $redirect = self::oauth_callback_url(); if ( 'google' === $provider ) $url = add_query_arg( array( 'client_id' => $settings['google_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'access_type' => 'offline', 'prompt' => 'consent', 'scope' => 'https://www.googleapis.com/auth/drive.file', 'state' => $state ), 'https://accounts.google.com/o/oauth2/v2/auth' ); else $url = add_query_arg( array( 'client_id' => $settings['onedrive_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'response_mode' => 'query', 'scope' => 'offline_access Files.ReadWrite', 'state' => $state ), 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' ); wp_redirect( $url ); exit; } $saved = get_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); if ( empty( $saved['state'] ) || ! hash_equals( $saved['state'], (string) $_GET['state'] ) || $provider !== $saved['provider'] ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' ); delete_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); $endpoint = 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token'; $response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => sanitize_text_field( wp_unslash( $_GET['code'] ) ), 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' ); $problem = Digitalisimo_Backups_Credentials::secret_problem( $data['refresh_token'] ); if ( '' !== $problem ) self::redirect( false, 'El proveedor devolvió un refresh token que no se puede guardar (' . $problem . '). No se cambió nada.' ); $settings[ $provider . '_refresh_token' ] = $data['refresh_token']; try { self::store_settings( $settings ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ( 'google' === $provider ? 'Google Drive' : 'OneDrive' ) . ' conectado correctamente.' ); }
 	public static function save() {
-		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); $old = self::settings(); $input = (array) ( $_POST['digitalisimo_backups'] ?? array() ); $out = self::defaults();
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = (array) ( $_POST['digitalisimo_backups'] ?? array() ); $out = self::defaults();
 			$out['destination'] = in_array( $input['destination'] ?? '', array( 'local', 'sftp', 'google', 'onedrive' ), true ) ? $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
 		foreach ( array( 'sftp_name', 'google_name', 'onedrive_name', 'sftp_host', 'sftp_user', 'sftp_path', 'google_client_id', 'google_folder_id', 'onedrive_client_id', 'onedrive_folder' ) as $key ) $out[ $key ] = sanitize_text_field( $input[ $key ] ?? '' ); $out['sftp_port'] = min( 65535, max( 1, absint( $input['sftp_port'] ?? 22 ) ) );
 		$fingerprint = trim( (string) ( $input['sftp_fingerprint'] ?? '' ) );
 		if ( '' !== $fingerprint && ! preg_match( '/^(?:[a-f0-9]{40}|(?:[a-f0-9]{2}:){19}[a-f0-9]{2})$/i', $fingerprint ) ) self::redirect( false, 'La huella SFTP debe contener 40 caracteres hexadecimales SHA-1, con o sin dos puntos.' );
 		$out['sftp_fingerprint'] = strtoupper( str_replace( ':', '', $fingerprint ) );
-			foreach ( self::secret_fields() as $key ) $out[ $key ] = '' !== trim( (string) ( $input[ $key ] ?? '' ) ) ? sanitize_text_field( $input[ $key ] ) : $old[ $key ]; $out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled'; 
+			// Un secreto se guarda exactamente como se escribió (WordPress añade barras a $_POST: se quitan, y nada más). Un
+			// campo vacío o sólo con espacios conserva lo guardado; NUL, caracteres de control o más de 8 KiB se rechazan sin
+			// cambiar nada. Los demás campos conservan su saneado.
+			foreach ( self::secret_fields() as $key ) { $value = $input[ $key ] ?? ''; $value = is_string( $value ) ? wp_unslash( $value ) : $value; if ( is_string( $value ) && '' === trim( $value ) ) { $out[ $key ] = $old[ $key ]; continue; } $problem = Digitalisimo_Backups_Credentials::secret_problem( $value ); if ( '' !== $problem ) self::redirect( false, Digitalisimo_Backups_Credentials::label( $key ) . ' no se guardó: ' . $problem . '. Corrígelo y vuelve a guardar; no se cambió nada.' ); $out[ $key ] = $value; } $out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled'; 
+		// «Olvidar»: las credenciales de los destinos marcados se retiran (también las que no se abren), salvo lo que se acabe de escribir.
+		$forget_input = is_array( $input['forget'] ?? null ) ? $input['forget'] : array(); $forget = array();
+		foreach ( Digitalisimo_Backups_Credentials::DESTINATIONS as $destination => $fields ) { if ( empty( $forget_input[ $destination ] ) ) continue; foreach ( $fields as $key ) { $typed = $input[ $key ] ?? ''; if ( is_string( $typed ) && '' !== trim( $typed ) ) continue; $out[ $key ] = ''; $forget[ $key ] = $destination; } }
 		// Los secretos van cifrados al almacén, nunca en claro a los ajustes (sin AUTH_KEY y SECURE_AUTH_KEY propias, como hasta ahora y con aviso).
-		try { $encrypted = self::store_settings( $out ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
+		try { $encrypted = self::store_settings( $out ); if ( $forget ) Digitalisimo_Backups_Credentials::remove( array_keys( $forget ) ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
+		$forgotten = array_map( array( __CLASS__, 'destination_label' ), array_values( array_unique( $forget ) ) );
 		$unprotected = ! $encrypted && array_filter( array_intersect_key( $out, array_flip( self::secret_fields() ) ), function( $value ) { return is_string( $value ) && '' !== $value; } );
-		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
+		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $forgotten ? ' Se olvidaron las credenciales de ' . implode( ' y ', $forgotten ) . '.' : '' ) . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
 	}
 	public static function save_policies() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
@@ -844,6 +883,10 @@ final class Digitalisimo_Backups {
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
 	public static function job_export_database( $path ) {
 		global $wpdb;
+		// Ningún respaldo lleva un secreto en claro si hay salts propias: lo que quede en claro en los ajustes (por ejemplo,
+		// lo que reescribió 1.0.60 tras volver desde rollback/) se cifra antes del volcado; si no se puede comprobar, la
+		// fase falla y se reintenta. export_row() es la última defensa, fila a fila.
+		self::migrate_credentials();
 		$at = gmdate( 'c' );
 		$tables = $wpdb->get_col( 'SHOW TABLES' );
 		$mode = self::database_sql_to_file( $tables, $path );
@@ -889,6 +932,8 @@ final class Digitalisimo_Backups {
 				'database_size' => $entries['database.sql']['size'],
 				'database_consistency' => (string) $database['mode'],
 				'table_prefix' => $wpdb->base_prefix,
+				// Direcciones, rutas del servidor y red del origen: con ellas se restaura en otro dominio o servidor.
+				'origin' => Digitalisimo_Backups_Relocate::describe( false ),
 				'database_tables' => (array) $database['tables'],
 				'multisite' => is_multisite(),
 				'file_count' => count( $entries ) - 1,
@@ -1235,6 +1280,7 @@ final class Digitalisimo_Backups {
 			if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
 			foreach ( $rows as $row ) {
 				if ( self::secret_row( $table, $row ) ) continue;
+				$row = self::export_row( $table, $row );
 				$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
 				$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
 				$sql .= 'INSERT INTO `' . str_replace( '`', '``', $output ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n";
@@ -1355,8 +1401,26 @@ final class Digitalisimo_Backups {
 		else return false;
 		return is_string( $name ) && 0 === strpos( $name, Digitalisimo_Backups_Keys::SECRET_PREFIX );
 	}
+	/**
+	 * Con salts propias ningún respaldo lleva un secreto de destino en claro: si la fila de digitalisimo_backups_settings
+	 * de cualquier tabla de opciones los trae (la del sitio principal ya se cifró antes del volcado; la de un subsitio de
+	 * una red, que el motor no usa, puede conservar unos de una versión anterior), se exporta sin ellos. Sin salts propias
+	 * se exporta tal cual: es la decisión del punto 7 (no hay con qué cifrarlos y sin ellos no se restauraría el destino).
+	 */
+	private static function export_row( $table, $row ) {
+		global $wpdb;
+		if ( ! is_array( $row ) || self::OPTION !== ( $row['option_name'] ?? null ) || ! is_string( $row['option_value'] ?? null ) ) return $row;
+		$prefix = (string) ( $wpdb->base_prefix ?? '' );
+		if ( '' === $prefix || 0 !== strpos( $table, $prefix ) || ! preg_match( '/^(?:[0-9]+_)?options$/D', substr( $table, strlen( $prefix ) ) ) ) return $row;
+		$value = @unserialize( $row['option_value'], array( 'allowed_classes' => false ) );
+		$plain = is_array( $value ) ? self::plain_secrets( $value ) : array();
+		if ( ! $plain || ! Digitalisimo_Backups_Credentials::can_encrypt() ) return $row;
+		$row['option_value'] = serialize( array_diff_key( $value, $plain ) );
+		return $row;
+	}
 	private static function write_sql_row( $handle, $table, $row ) {
 		if ( self::secret_row( $table, $row ) ) return;
+		$row = self::export_row( $table, $row );
 		$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
 		$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
 		self::write_sql( $handle, 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
@@ -1603,10 +1667,75 @@ final class Digitalisimo_Backups {
 		sort( $loose );
 		echo '<section class="digitalisimo-backups-card"><h2>Restaurar respaldo local</h2><p>Antes de reemplazar la instalación, se creará y bloqueará un respaldo de seguridad actual. La restauración reemplaza la base de datos y los archivos incluidos. Escribe <code>RESTAURAR</code> para un respaldo firmado o registrado en este sitio. Un archivo sin firma válida ni registro pide <code>RESTAURAR SIN FIRMA</code>: restaurarlo instala su código y sus datos, así que revisa antes su origen. Un respaldo cifrado sólo se restaura con su frase o con la clave de <code>wp-config.php</code> que lo cifró: sin ella no se puede restaurar y nadie puede recuperarlo, tampoco DIGITALÍSIMO.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_RESTORE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file"><option value="">Elige un respaldo de Digitalisimo</option>';
-		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) echo '<option value="' . esc_attr( $item['file'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) ) . '</option>'; echo '</optgroup>'; }
-		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) echo '<option value="' . esc_attr( $file ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) ) . '</option>'; echo '</optgroup>'; }
-		echo '</select></p><p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label><br><span class="description">Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.</span></p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form></section>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file" id="digitalisimo-backups-restore-file"><option value="">Elige un respaldo de Digitalisimo</option>';
+		// «Origen → este sitio» de cada archivo, antes de confirmar (de su manifiesto; un .dgbk lo dice al descifrarlo).
+		$here = Digitalisimo_Backups_Relocate::describe();
+		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
+		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si el respaldo viene de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas, se reescriben al restaurar: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.</p>';
+		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Conservar las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label><br><label><input type="radio" name="addresses" value="backup"> Conservar las del respaldo: el sitio quedará en su dirección original (las rutas del servidor y el prefijo siguen siendo los de este servidor)</label></p></fieldset>';
+		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label><br><span class="description">Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.</span></p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
+		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
+		self::relocation_card();
+		echo '</section>';
+	}
+	/**
+	 * «Origen → este sitio» de un archivo del almacén a partir de su manifiesto (sin abrir el SQL): una etiqueta corta
+	 * para la lista y el texto completo para el párrafo bajo ella. Un .dgbk no se puede leer sin descifrarlo.
+	 */
+	private static function relocation_hint( $path, array $here ) {
+		static $cache = array();
+		$key = $path . '|' . @filemtime( $path );
+		if ( isset( $cache[ $key ] ) ) return $cache[ $key ];
+		$none = array( 'label' => '', 'text' => '' );
+		if ( ! class_exists( 'ZipArchive' ) || Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) return $cache[ $key ] = array( 'label' => '', 'text' => 'Respaldo cifrado: su origen se conoce al descifrarlo; si viene de otra dirección o con otro prefijo, se reescribe igual.' );
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path ) ) return $cache[ $key ] = $none;
+		$manifest = self::manifest_head( $zip );
+		$zip->close();
+		if ( ! is_array( $manifest ) ) return $cache[ $key ] = $none;
+		$args = array_key_exists( 'database_tables', $manifest ) ? array( 'tables' => is_array( $manifest['database_tables'] ) ? $manifest['database_tables'] : null ) : array();
+		$plan = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), $here, $args );
+		$summary = $plan->summary();
+		if ( ! $summary['needed'] && ! $summary['problems'] ) return $cache[ $key ] = array( 'label' => '', 'text' => $summary['text'] );
+		$label = ' · origen ' . ( '' !== $summary['origin']['home'] ? $summary['origin']['home'] : 'desconocido' ) . ( $summary['origin']['prefix'] !== $summary['destination']['prefix'] && '' !== $summary['origin']['prefix'] ? ' (' . $summary['origin']['prefix'] . ')' : '' ) . ' → este sitio' . ( $summary['problems'] ? ': no se puede restaurar aquí' : '' );
+		return $cache[ $key ] = array( 'label' => $label, 'text' => $summary['text'] );
+	}
+	/**
+	 * Lo que la lista de Restaurar necesita del manifiesto (direcciones, prefijo, tipo de instalación, `origin` y, si
+	 * cabe, la lista de tablas) sin cargarlo entero: el de un sitio con cientos de miles de archivos pesa decenas de MB y
+	 * la pantalla lo lee de cada respaldo. Más de 1 MiB: sólo su comienzo, donde van esas claves (antes de `entries`).
+	 */
+	private static function manifest_head( $zip ) {
+		$stat = $zip->statName( 'manifest.json' );
+		if ( ! $stat ) return null;
+		if ( (int) $stat['size'] <= 1048576 ) return json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+		$stream = $zip->getStream( 'manifest.json' );
+		if ( ! $stream ) return null;
+		$head = (string) fread( $stream, 1048576 );
+		fclose( $stream );
+		$out = array();
+		foreach ( array( 'home_url', 'site_url', 'table_prefix' ) as $name ) if ( preg_match( '/"' . $name . '"\s*:\s*("(?:[^"\\\\]|\\\\.)*")/', $head, $m ) ) $out[ $name ] = json_decode( $m[1] );
+		if ( preg_match( '/"multisite"\s*:\s*(true|false)/', $head, $m ) ) $out['multisite'] = 'true' === $m[1];
+		if ( preg_match( '/"origin"\s*:\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/', $head, $m ) ) $out['origin'] = json_decode( $m[1], true );
+		if ( ! isset( $out['multisite'] ) && isset( $out['origin']['multisite'] ) ) $out['multisite'] = (bool) $out['origin']['multisite'];
+		return $out;
+	}
+	/** Informe de la última restauración que reescribió direcciones, rutas o prefijo. */
+	private static function relocation_card() {
+		$last = get_option( self::LAST_RELOCATION );
+		if ( ! is_array( $last ) || empty( $last['summary'] ) ) return;
+		$check = is_array( $last['check'] ?? null ) ? $last['check'] : null;
+		echo '<h3>Última restauración en otro dominio</h3><p>' . esc_html( (string) ( $last['date'] ?? '' ) . ' · ' . (string) ( $last['file'] ?? '' ) ) . '</p><p>' . esc_html( (string) ( $last['summary']['text'] ?? '' ) ) . '</p>';
+		if ( $check ) echo '<p>' . esc_html( 'Comprobación final: ' . (int) $check['urls'] . ' URL y ' . (int) $check['paths'] . ' rutas del origen pendientes (debe ser 0); sin tocar a propósito: ' . (int) $check['guid'] . ' guid, ' . (int) ( $check['kept'] ?? 0 ) . ' en datos que no se pueden reescribir sin riesgo (serializado dañado, objeto con formato propio, clave que chocaría), ' . (int) $check['emails'] . ' correos y ' . (int) $check['other'] . ' menciones sin esquema.' . ( empty( $check['complete'] ) ? ' Revisión parcial: había más filas candidatas de las que se revisaron.' : '' ) ) . '</p>';
+		$rows = array();
+		foreach ( (array) ( $last['tables'] ?? array() ) as $table => $counts ) if ( ! empty( $counts['rows'] ) || ! empty( $counts['keys'] ) || ! empty( $counts['malformed'] ) ) $rows[ $table ] = $counts;
+		if ( $rows ) {
+			echo '<table class="widefat striped"><thead><tr><th>Tabla</th><th>Filas reescritas</th><th>Valores</th><th>Claves con prefijo</th><th>Sin tocar (dañados o con formato propio)</th></tr></thead><tbody>';
+			foreach ( $rows as $table => $counts ) echo '<tr><td><code>' . esc_html( $table ) . '</code></td><td>' . (int) ( $counts['rows'] ?? 0 ) . '</td><td>' . (int) ( $counts['values'] ?? 0 ) . '</td><td>' . (int) ( $counts['keys'] ?? 0 ) . '</td><td>' . (int) ( ( $counts['malformed'] ?? 0 ) + ( $counts['opaque'] ?? 0 ) + ( $counts['too_large'] ?? 0 ) ) . '</td></tr>';
+			echo '</tbody></table>';
+		}
+		foreach ( (array) ( $last['warnings'] ?? array() ) as $warning ) echo '<p class="notice notice-warning inline">' . esc_html( (string) $warning ) . '</p>';
 	}
 	public static function restore_request() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
@@ -1618,7 +1747,8 @@ final class Digitalisimo_Backups {
 			// Mismo caso de uso que REST y WP-CLI. En una red, esta pantalla restaura la red entera. La frase se usa tal
 			// cual: sanitize_text_field() la alteraría.
 			$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'via' => 'admin-post' ) );
+			$addresses = 'backup' === sanitize_key( wp_unslash( $_POST['addresses'] ?? '' ) ) ? 'backup' : 'current';
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'via' => 'admin-post' ) );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
@@ -1656,16 +1786,27 @@ final class Digitalisimo_Backups {
 	 * Restaura un ZIP propio. Todo lo que puede rechazarlo (firma, entradas, contenido, manifiesto, espacio y SQL) se
 	 * comprueba antes de la copia previa y antes de cualquier consulta o escritura. $report es el de
 	 * Digitalisimo_Backups_Security::open(); sin él se abre aquí.
+	 *
+	 * Si el respaldo viene de otra dirección, otra carpeta del servidor u otro prefijo de tablas, el plan de
+	 * Digitalisimo_Backups_Relocate se calcula antes de la copia previa (y lo que lo impide la detiene) y se aplica en la
+	 * importación, fila por fila; después de extraer los archivos, finish() ajusta la red y las direcciones, vacía las
+	 * cachés y cuenta lo que quedó del origen. `$options['addresses']`: `current` (por defecto, el sitio conserva sus
+	 * direcciones) o `backup` (conserva las del respaldo). Devuelve el informe de la reubicación, o null si no hizo falta.
 	 */
-	private static function restore_digitalisimo_zip( $path, $report = null ) {
+	private static function restore_digitalisimo_zip( $path, $report = null, array $options = array() ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
 		$owned = null === $report;
 		if ( $owned ) $report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
 		$zip = $report['zip'];
 		$origin = array();
+		$relocation = null;
 		try {
 			$trusted = 'untrusted' !== $report['trust'];
-			$data = self::inspect_package( $zip, $trusted, true );
+			$source = array();
+			$data = self::inspect_package( $zip, $trusted, true, $source );
+			// Con esta instalación tal como está ahora: después del SQL sus direcciones serían las del respaldo.
+			$plan = self::relocation_plan( $data, $source, $options );
+			if ( $plan->problems() ) throw new Exception( implode( ' ', $plan->problems() ) );
 			// Claves de las credenciales del servidor de origen, del wp-config.php del propio respaldo (ya comprobado contra
 			// su manifiesto): sólo literales de cadena, nunca se ejecuta. Con ellas, las credenciales se vuelven a cifrar aquí.
 			$origin = Digitalisimo_Backups_Credentials::origin_keys( $zip );
@@ -1679,11 +1820,17 @@ final class Digitalisimo_Backups {
 			self::write_restore_journal( $origin );
 			$created_files = array();
 			try {
-				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
+				$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted );
+				// Prefijo, direcciones y rutas cambian en cada fila antes de ejecutarla: memoria constante y, si el proceso
+				// muere a mitad, lo ya importado está completo (también los roles y permisos con el prefijo nuevo).
+				if ( $plan->needed() ) $plan->attach( $guard, (array) ( $data['database_tables'] ?? array() ) );
+				self::import_zip_sql( $zip, $guard );
 				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
 				// llavero, la seguridad y las credenciales ya están en su sitio. El finally lo repite y es quien avisa si falla.
 				try { self::after_restore_sql( $history_before, $vault_before, $origin ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				self::extract_digitalisimo_files( $zip, $created_files );
+				// Red, direcciones, cachés (también el CSS generado que trajeron los archivos) y comprobación final.
+				if ( $plan->needed() ) $relocation = $plan->finish( $plan->table_names() );
 			} catch ( Throwable $failure ) {
 				try {
 					self::rollback_from_safety( $safety );
@@ -1697,19 +1844,40 @@ final class Digitalisimo_Backups {
 				self::after_restore_sql( $history_before, $vault_before, $origin );
 				self::remove_restore_journal();
 			}
+			if ( null !== $relocation ) update_option( self::LAST_RELOCATION, array( 'date' => current_time( 'mysql' ), 'file' => wp_basename( $path ) ) + $relocation, false );
+			return $relocation;
 		} finally {
 			Digitalisimo_Backups_Credentials::forget( $origin );
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
+	}
+	/** Tablas del respaldo que cambian de nombre en esta instalación (el mismo mapa que usa la importación). */
+	private static function relocation_renames( array $data ) {
+		$from = (string) ( $data['table_prefix'] ?? '' );
+		$to = (string) ( $GLOBALS['wpdb']->base_prefix ?? '' );
+		if ( '' === $from || '' === $to || $from === $to || ! is_array( $data['database_tables'] ?? null ) ) return array();
+		$relocate = new Digitalisimo_Backups_Relocate();
+		$map = $relocate->set_prefixes( array( $from => $to ), $to )->table_map( $data['database_tables'] );
+		return array_filter( $map, function( $new, $old ) { return $new !== $old; }, ARRAY_FILTER_USE_BOTH );
+	}
+	/**
+	 * Plan de reubicación de un paquete ya inspeccionado contra esta instalación (Digitalisimo_Backups_Relocate::plan()).
+	 * Un respaldo sin lista de tablas (formato anterior al v3) sólo se restaura con su mismo prefijo.
+	 */
+	private static function relocation_plan( array $data, array $source, array $options ) {
+		$args = array( 'addresses' => 'backup' === ( $options['addresses'] ?? 'current' ) ? 'backup' : 'current' );
+		$args['tables'] = is_array( $data['database_tables'] ?? null ) ? $data['database_tables'] : null;
+		return Digitalisimo_Backups_Relocate::plan( $source, Digitalisimo_Backups_Relocate::describe(), $args );
 	}
 	/**
 	 * Todo lo que puede rechazar un paquete antes de la copia previa y de cualquier consulta o escritura: entradas,
 	 * contenido contra el manifiesto, alcance completo, manifiesto v3 estricto, base de datos y guardián SQL en seco.
 	 * Con $installation, también las condiciones de esta instalación (red o sitio, sitio principal, prefijo de tablas y
 	 * espacio libre), en el mismo orden de siempre. La restauración y `verify` (REST y WP-CLI) usan esta misma función.
-	 * Devuelve el manifiesto (el estricto si es v3).
+	 * Devuelve el manifiesto (el estricto si es v3). En $source deja el origen del respaldo para la reubicación: su bloque
+	 * `origin` completado con lo que dice su SQL (Digitalisimo_Backups_Relocate_Probe, en la misma pasada en seco).
 	 */
-	private static function inspect_package( $zip, $trusted, $installation ) {
+	private static function inspect_package( $zip, $trusted, $installation, &$source = null ) {
 		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
 		self::verify_zip_contents( $zip );
 		$manifest = $zip->getFromName( 'manifest.json' );
@@ -1725,15 +1893,24 @@ final class Digitalisimo_Backups {
 		$sql_stat = $zip->statName( 'database.sql' );
 		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
 		if ( $installation ) Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
-		Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->scan_zip( $zip );
+		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
+		$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe );
+		// Al restaurar con otro prefijo, la pasada en seco renombra igual que la importación: lo que no se puede renombrar
+		// (una vista, una tabla en un comentario ejecutable) o dos tablas que chocarían se rechazan antes de la copia previa.
+		if ( $installation ) {
+			$renames = self::relocation_renames( $data );
+			if ( $renames ) $guard->rename_tables( $renames );
+		}
+		$guard->scan_zip( $zip );
+		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
 		return $data;
 	}
 	/** Por qué un paquete íntegro no puede restaurarse en esta instalación (vacío si puede). */
 	private static function package_installation_problems( array $data ) {
 		$problems = array();
-		if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite.';
+		// Un prefijo de tablas distinto ya no impide restaurar: la reubicación lo cambia (ver relocation_plan()).
+		if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite: ' . ( $data['multisite'] ? 'el respaldo es una red y este WordPress es un sitio individual. Convierte esta instalación en una red del mismo tipo (subdominios o subdirectorios) desde Herramientas → Configuración de la red y vuelve a restaurar.' : 'el respaldo es un sitio individual y este WordPress es una red. Restáuralo en una instalación individual.' );
 		if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) $problems[] = 'La red completa sólo puede restaurarse desde su sitio principal.';
-		if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) $problems[] = 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.';
 		return $problems;
 	}
 	/**
