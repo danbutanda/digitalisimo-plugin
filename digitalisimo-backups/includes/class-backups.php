@@ -1646,7 +1646,7 @@ final class Digitalisimo_Backups {
 	 * una ruta existirá si ya está en el disco o si el propio respaldo la trae bajo la raíz de WordPress.
 	 */
 	private static function server_file_transform( Digitalisimo_Backups_Relocate $plan, $zip ) {
-		$roots = array_unique( array_filter( array( untrailingslashit( wp_normalize_path( ABSPATH ) ), false === realpath( ABSPATH ) ? '' : untrailingslashit( wp_normalize_path( realpath( ABSPATH ) ) ) ) ) );
+		$roots = array_unique( array_filter( array( rtrim( wp_normalize_path( ABSPATH ), '/' ), false === realpath( ABSPATH ) ? '' : rtrim( wp_normalize_path( realpath( ABSPATH ) ), '/' ) ) ) );
 		$exists = function( $path ) use ( $zip, $roots ) {
 			$path = wp_normalize_path( (string) $path );
 			if ( file_exists( $path ) ) return true;
