@@ -124,8 +124,11 @@ try {
   // Backups: la configuración del destino se conserva y el historial guarda la copia previa.
   check(info.backups.settings && info.backups.settings.retention === '7', 'la configuración de Backups del destino se conserva', JSON.stringify(info.backups.settings));
   check(info.backups.history.includes('pre-restore') && info.backups.relocation, 'copia previa en el historial e informe de la reubicación');
-  // Ningún rastro de la red salvo lo declarado (guid, correos y el enlace a la portada de la red).
-  check(info.leftovers.length === 0, 'ningún rastro del sitio de la red en la base de datos', info.leftovers.slice(0, 5).join(' | '));
+  // Ningún rastro del sitio en la red (su dirección ni sus medios) salvo guid; lo declarado (enlaces a la portada de la red
+  // y correos @red.test) se cuenta.
+  check(info.leftovers.length === 0, 'ningún rastro de la dirección del sitio en la red ni de sus medios en la base de datos', info.leftovers.slice(0, 5).join(' | '));
+  log(`· declarado (enlaces a la portada de la red y correos): ${info.declared.length} · ${info.declared.slice(0, 6).join(' | ')}`);
+  check(info.declared.every((d) => /red\.test\/?(?:["\\&]|$)|@red\.test/.test(d)), 'lo que queda de red.test es sólo la portada de la red o un correo', info.declared.join(' | '));
 } catch (error) {
   failures++;
   log(`FALLA · ${error.stack || error}`);

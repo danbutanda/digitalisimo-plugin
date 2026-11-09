@@ -22,9 +22,11 @@ $out['uploads'] = array( 'basedir' => $uploads['basedir'], 'baseurl' => $uploads
 if ( is_dir( $uploads['basedir'] ) ) foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $uploads['basedir'], FilesystemIterator::SKIP_DOTS ) ) as $f ) if ( $f->isFile() && false === strpos( $f->getPathname(), '/elementor/css/' ) ) $out['uploads']['files'][ substr( $f->getPathname(), strlen( $uploads['basedir'] ) + 1 ) ] = hash_file( 'sha256', $f->getPathname() );
 $out['backups'] = array( 'settings' => get_option( 'digitalisimo_backups_settings' ), 'history' => array_column( (array) get_option( 'digitalisimo_backups_history', array() ), 'policy' ), 'relocation' => get_option( 'digitalisimo_backups_last_relocation' ) ? true : false );
 $out['tools'] = get_option( 'digitalisimo_tools_site_options' );
-// Restos de la red: cada valor que nombra red.test, salvo guid, correos, el enlace a la portada de la red y el informe de
-// la reubicación (que nombra el origen a propósito).
+// Restos del sitio de la red: cada valor que nombra su dirección (red.test/dos) o sus medios en la red (uploads/sites/2),
+// salvo guid y el informe de la reubicación (que nombra el origen a propósito). Los enlaces a la portada de la red y los
+// correos @red.test son lo declarado: se cuentan aparte.
 $out['leftovers'] = array();
+$out['declared'] = array();
 foreach ( $out['tables'] as $table ) {
 	$columns = $wpdb->get_results( 'SHOW COLUMNS FROM `' . $table . '`', ARRAY_A );
 	foreach ( (array) $columns as $column ) {
@@ -33,8 +35,11 @@ foreach ( $out['tables'] as $table ) {
 		$rows = $wpdb->get_results( 'SELECT * FROM `' . $table . '` WHERE `' . $name . "` LIKE '%red.test%'", ARRAY_A );
 		foreach ( (array) $rows as $row ) {
 			if ( 'digitalisimo_backups_last_relocation' === ( $row['option_name'] ?? '' ) ) continue;
-			$value = str_replace( array( '@red.test', 'http://red.test/"', 'http:\/\/red.test\/"', 'http:\/\/red.test\/\"', 'http://red.test/&quot;' ), '', (string) $row[ $name ] );
-			if ( false !== strpos( $value, 'red.test' ) ) $out['leftovers'][] = $table . '.' . $name . ': ' . substr( $value, max( 0, strpos( $value, 'red.test' ) - 60 ), 160 );
+			$value = (string) $row[ $name ];
+			$plain = str_replace( '\\/', '/', $value );
+			$hit = false;
+			foreach ( array( 'red.test/dos', 'uploads/sites/2' ) as $needle ) if ( false !== ( $at = strpos( $plain, $needle ) ) ) { $out['leftovers'][] = $table . '.' . $name . ': ' . substr( $plain, max( 0, $at - 60 ), 160 ); $hit = true; break; }
+			if ( ! $hit ) $out['declared'][] = $table . '.' . $name . ': ' . substr( $plain, max( 0, strpos( $plain, 'red.test' ) - 40 ), 100 );
 		}
 	}
 }
