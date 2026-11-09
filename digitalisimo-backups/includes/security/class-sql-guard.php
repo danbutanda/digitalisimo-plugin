@@ -85,6 +85,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 	/** Gancho que recibe cada INSERT comprobado (tabla, columnas y posición de cada literal) y devuelve tramos que cambian. */
 	private $insert_hook = null;
 	private $insert = null;
+	/** Tablas que se comprueban pero no se ejecutan, y si la sentencia en curso no se ejecuta. */
+	private $skips = array();
+	private $skip_current = false;
+	/** Con el renombrado en seco (verify y la pasada previa a la restauración), lo que no se puede renombrar se anota. */
+	private $rename_strict = true;
+	private $rename_problems = array();
 
 	/** $tables: lista del manifiesto v3; sin ella, $prefix (si no es vacío) acota las tablas. */
 	public function __construct( $dialect, $trusted, $tables = null, $prefix = '' ) {
@@ -105,33 +111,52 @@ final class Digitalisimo_Backups_Sql_Guard {
 	 * por búsqueda de texto. Una vista u otro objeto que no es una tabla, o una tabla dentro de un comentario
 	 * ejecutable, se rechazan: no se puede asegurar su nombre nuevo.
 	 */
-	public function rename_tables( array $map ) {
+	public function rename_tables( array $map, $strict = true ) {
 		foreach ( $map as $from => $to ) if ( (string) $from !== (string) $to ) $this->renames[ (string) $from ] = (string) $to;
+		$this->rename_strict = (bool) $strict;
 		return $this;
+	}
+	/** Sin $strict (pasada en seco): lo que no se puede renombrar, en el orden en que apareció. */
+	public function rename_problems() { return array_values( array_unique( $this->rename_problems ) ); }
+	/** Estas tablas se comprueban como las demás, pero sus sentencias no se ejecutan (ni DROP, ni CREATE, ni INSERT). */
+	public function skip_tables( array $tables ) {
+		foreach ( $tables as $table ) $this->skips[ (string) $table ] = true;
+		return $this;
+	}
+	/** La última sentencia comprobada no se ejecuta (tabla omitida o fila que el gancho descartó). */
+	public function skipped() { return $this->skip_current; }
+	private function cannot_rename( $why ) {
+		if ( $this->rename_strict ) $this->reject( $why );
+		$this->rename_problems[] = $why;
 	}
 	/**
 	 * $hook( array $insert, string $sql ) recibe cada INSERT permitido: `table` (nombre en el respaldo), `columns` (o null
 	 * sin lista de columnas) y `rows`, una lista por fila con, por valor, array( type => 'str', quote, start, end ) (el
 	 * contenido entre comillas, tal como está en $sql), null para NULL o array( type => 'raw'|'other' ). Devuelve tramos
-	 * array( inicio, fin, texto ) que reemplazan el contenido de esos literales en la sentencia que se ejecuta.
+	 * array( inicio, fin, texto ) que reemplazan el contenido de esos literales en la sentencia que se ejecuta, o false
+	 * para no ejecutarla.
 	 */
 	public function on_insert( callable $hook ) {
 		$this->insert_hook = $hook;
 		return $this;
 	}
-	/** La última sentencia comprobada, con los nombres de tabla y los literales cambiados. */
+	/** La última sentencia comprobada, con los nombres de tabla y los literales cambiados ('' si no se ejecuta). */
 	public function rewritten() {
+		if ( $this->skip_current ) return '';
 		if ( ! $this->spans ) return $this->s;
 		$spans = $this->spans;
-		usort( $spans, function( $a, $b ) { return $b[0] - $a[0]; } );
-		$out = $this->s;
-		$floor = PHP_INT_MAX;
+		usort( $spans, function( $a, $b ) { return $a[0] - $b[0]; } );
+		// Una sola pasada: los tramos se copian en orden, sin rehacer la sentencia entera por cada uno.
+		$parts = array();
+		$at = 0;
 		foreach ( $spans as $span ) {
-			if ( $span[1] > $floor || $span[0] > $span[1] ) throw new Exception( 'Cambios superpuestos en una sentencia del respaldo.' );
-			$out = substr( $out, 0, $span[0] ) . $span[2] . substr( $out, $span[1] );
-			$floor = $span[0];
+			if ( $span[0] < $at || $span[0] > $span[1] ) throw new Exception( 'Cambios superpuestos en una sentencia del respaldo.' );
+			$parts[] = substr( $this->s, $at, $span[0] - $at );
+			$parts[] = $span[2];
+			$at = $span[1];
 		}
-		return $out;
+		$parts[] = substr( $this->s, $at );
+		return implode( '', $parts );
 	}
 
 	/** Recorre el SQL completo del ZIP sin ejecutar nada. */
@@ -154,9 +179,9 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$reader = new Digitalisimo_Backups_Sql_Reader();
 		$executed = 0;
 		while ( null !== ( $chunk = call_user_func( $read ) ) ) {
-			foreach ( $reader->feed( $chunk ) as $statement ) if ( $this->check( $statement ) ) { if ( $run ) call_user_func( $run, $this->rewritten() ); $executed++; }
+			foreach ( $reader->feed( $chunk ) as $statement ) if ( $this->check( $statement ) ) { if ( $run && ! $this->skip_current ) call_user_func( $run, $this->rewritten() ); $executed++; }
 		}
-		foreach ( $reader->finish() as $statement ) if ( $this->check( $statement ) ) { if ( $run ) call_user_func( $run, $this->rewritten() ); $executed++; }
+		foreach ( $reader->finish() as $statement ) if ( $this->check( $statement ) ) { if ( $run && ! $this->skip_current ) call_user_func( $run, $this->rewritten() ); $executed++; }
 		if ( ! $executed ) throw new Exception( 'La base de datos del respaldo está vacía.' );
 		return $executed;
 	}
@@ -172,9 +197,14 @@ final class Digitalisimo_Backups_Sql_Guard {
 		$this->spans = array();
 		$this->insert = null;
 		$this->nested = false;
+		$this->skip_current = false;
 		try {
 			$allowed = $this->statement();
-			if ( $allowed && $this->insert_hook && null !== $this->insert ) foreach ( (array) call_user_func( $this->insert_hook, $this->insert, $this->s ) as $span ) $this->spans[] = $span;
+			if ( $allowed && ! $this->skip_current && $this->insert_hook && null !== $this->insert ) {
+				$spans = call_user_func( $this->insert_hook, $this->insert, $this->s );
+				if ( false === $spans ) $this->skip_current = true;
+				else foreach ( (array) $spans as $span ) $this->spans[] = $span;
+			}
 			return $allowed;
 		} catch ( UnexpectedValueException $e ) {
 			$excerpt = preg_replace( '/[\x00-\x1F\x7F]+/', ' ', substr( $this->s, 0, min( 80, $this->excerpt_end ) ) );
@@ -302,7 +332,10 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( 'word' !== $what[0] || 'TABLE' !== $what[1] ) {
 			// Lo escribió SHOW CREATE TABLE de este servidor (por ejemplo, una vista). Con otro prefijo no se puede asegurar
 			// a qué tablas apunta.
-			if ( $this->trusted && $this->renames ) $this->reject( 'no se puede cambiar el prefijo de una vista u otro objeto que no es una tabla' );
+			if ( $this->trusted && $this->renames ) {
+				$name = $this->peek_name();
+				$this->cannot_rename( 'no se puede cambiar el prefijo de una vista u otro objeto que no es una tabla' . ( null === $name ? '' : ' («' . $name . '»)' ) );
+			}
 			if ( $this->trusted ) return;
 			$this->reject( 'sólo se admite CREATE TABLE' );
 		}
@@ -344,6 +377,26 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$previous = $token[1];
 		}
 	}
+	/** Nombre de una vista u otro objeto (el identificador tras VIEW, TRIGGER…), sin mover la lectura; null si no lo hay. */
+	private function peek_name() {
+		$at = $this->i;
+		$name = null;
+		try {
+			while ( true ) {
+				$token = $this->next();
+				if ( 'end' === $token[0] ) break;
+				if ( 'word' === $token[0] && in_array( $token[1], array( 'VIEW', 'TRIGGER', 'FUNCTION', 'PROCEDURE', 'EVENT' ), true ) ) {
+					$token = $this->next();
+					if ( 'ident' === $token[0] ) $name = $token[1];
+					break;
+				}
+			}
+		} catch ( UnexpectedValueException $e ) {
+			$name = null;
+		}
+		$this->i = $at;
+		return $name;
+	}
 	/** Claves foráneas de un CREATE TABLE: `REFERENCES` a una tabla que cambia de nombre la apunta a su nombre nuevo. */
 	private function references() {
 		$at = $this->i;
@@ -352,7 +405,7 @@ final class Digitalisimo_Backups_Sql_Guard {
 			$token = $this->next();
 			if ( 'end' === $token[0] ) break;
 			if ( 'exec' === $token[0] ) {
-				if ( false !== stripos( $token[1], 'REFERENCES' ) ) $this->reject( 'clave foránea dentro de un comentario ejecutable' );
+				if ( false !== stripos( $token[1], 'REFERENCES' ) ) $this->cannot_rename( 'clave foránea dentro de un comentario ejecutable' );
 				continue;
 			}
 			if ( $expect && 'ident' === $token[0] && isset( $this->renames[ $token[1] ] ) ) $this->spans[] = array( $token[2], $token[3], '`' . str_replace( '`', '``', $this->renames[ $token[1] ] ) . '`' );
@@ -414,9 +467,10 @@ final class Digitalisimo_Backups_Sql_Guard {
 		if ( null !== $this->tables ) { if ( ! isset( $this->tables[ $name ] ) ) $this->reject( 'la tabla no figura en el manifiesto' ); }
 		elseif ( '' !== $this->prefix && 0 !== strpos( $name, $this->prefix ) ) $this->reject( 'la tabla no usa el prefijo de este sitio' );
 		if ( isset( $this->renames[ $name ] ) ) {
-			if ( $this->nested ) $this->reject( 'no se puede cambiar el prefijo de una tabla dentro de un comentario ejecutable' );
-			$this->spans[] = array( $token[2], $token[3], '`' . str_replace( '`', '``', $this->renames[ $name ] ) . '`' );
+			if ( $this->nested ) $this->cannot_rename( 'no se puede cambiar el prefijo de una tabla dentro de un comentario ejecutable («' . $name . '»)' );
+			else $this->spans[] = array( $token[2], $token[3], '`' . str_replace( '`', '``', $this->renames[ $name ] ) . '`' );
 		}
+		if ( isset( $this->skips[ $name ] ) ) $this->skip_current = true;
 		return $name;
 	}
 	private function words( $words ) {

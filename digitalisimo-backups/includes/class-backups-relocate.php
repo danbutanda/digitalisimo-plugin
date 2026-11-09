@@ -34,7 +34,7 @@ final class Digitalisimo_Backups_Relocate {
 	/** Anidamiento máximo de arrays u objetos dentro de un valor serializado. */
 	const MAX_NESTING = 512;
 	/** Tamaño máximo de un valor que se reescribe; uno mayor se deja intacto y se informa (`too_large`). */
-	const MAX_VALUE = 67108864;
+	const MAX_VALUE = 33554432;
 	/** Filas por lote al leer una tabla ya importada y bytes por grupo de filas que se cargan a la vez. */
 	const BATCH_ROWS = 500;
 	const BATCH_BYTES = 4194304;
@@ -42,16 +42,37 @@ final class Digitalisimo_Backups_Relocate {
 	const CHECK_ROWS = 2000;
 	/** Estilos en los que aparece una URL o una ruta: barras normales, JSON, JSON dentro de JSON y codificación de URL. */
 	const STYLES = array(
-		'json2' => array( 'slash' => '\\\\\\/', 'colon' => ':' ),
-		'url' => array( 'slash' => '%2F', 'colon' => '%3A' ),
-		'json' => array( 'slash' => '\\/', 'colon' => ':' ),
-		'plain' => array( 'slash' => '/', 'colon' => ':' ),
+		'url2' => array( 'slash' => '%252F', 'colon' => '%253A', 'encoded' => true ),
+		'json2' => array( 'slash' => '\\\\\\/', 'colon' => ':', 'encoded' => false ),
+		'url' => array( 'slash' => '%2F', 'colon' => '%3A', 'encoded' => true ),
+		'json' => array( 'slash' => '\\/', 'colon' => ':', 'encoded' => false ),
+		'plain' => array( 'slash' => '/', 'colon' => ':', 'encoded' => false ),
 	);
+	/**
+	 * Dónde se reescriben las rutas del servidor (las URL, en todas partes): `setting` (ajustes y metas: el valor entero
+	 * que es una ruta y, dentro de un texto, la ruta seguida de /wp-content, /wp-includes, /wp-admin o /wp-config.php),
+	 * `content` (contenido público y tablas de plugins: sólo el valor entero que es una ruta) y `config` (archivos de
+	 * configuración del servidor: en cualquier lugar). Un origen de un solo segmento (/wordpress, /app) nunca se cambia
+	 * dentro de un texto: se confunde con un enlace relativo.
+	 */
+	const PATH_CONTEXTS = array( 'setting', 'content', 'config' );
+	/** Tablas base cuyos textos son ajustes o metas (contexto `setting`); el resto, `content`. */
+	const SETTING_TABLES = array( 'options', 'sitemeta', 'postmeta', 'usermeta', 'termmeta', 'commentmeta', 'blogmeta' );
+	/** Memoria de PHP que cuesta, como mucho, reescribir un valor, por cada byte del valor (medido: de x3 a x19). */
+	const MEMORY_FACTOR = 24;
+	/** Archivos de configuración del servidor, en la raíz de WordPress, que se ajustan al extraerlos (server_file()). */
+	const SERVER_FILES = array( '.htaccess', '.user.ini', 'php.ini', 'wordfence-waf.php' );
 	/** Columnas que nunca se reescriben, por tabla base (sin prefijo ni número de sitio). */
 	const KEEP_COLUMNS = array( 'posts' => array( 'guid' ) );
 
-	/** host[:puerto] en minúsculas => lista de array( path, scheme, host, to_path ), de la ruta más larga a la más corta. */
+	/** host[:puerto] en minúsculas => lista de array( path, scheme, host, to_path, identity ), de la ruta más larga a la más corta. */
 	private $hosts = array();
+	/** Hay algún par de URL que cambia algo (los iguales sólo protegen su ruta). */
+	private $changing = false;
+	/** Contexto de las rutas en la llamada en curso a rewrite() (ver PATH_CONTEXTS). */
+	private $context = 'setting';
+	/** Rutas del origen (con estilo) que pueden cambiarse dentro de un texto (dos segmentos o más). */
+	private $deep_paths = array();
 	/** Pares de URL añadidos, para el informe. */
 	private $url_pairs = array();
 	/** Pares de rutas añadidos (origen => destino). */
@@ -77,6 +98,14 @@ final class Digitalisimo_Backups_Relocate {
 	private $table_map = array();
 	/** Dominio de origen => dominio de destino de los sitios de la red que se mudan (para `usermeta.source_domain`). */
 	private $domains = array();
+	/** Redes (id de `site`) que se mudan, tablas ajenas que no se restauran y claves que pueden chocar (after_import()). */
+	private $moving = array();
+	private $foreign = array();
+	private $collisions = array();
+	/** Bytes de un valor que se pueden reescribir con la memoria disponible (ver value_budget()). */
+	private $budget = self::MAX_VALUE;
+	/** Avisos de los archivos de configuración del servidor ajustados al extraerlos. */
+	private $server_notes = array();
 	private $report = array();
 
 	/**
@@ -100,18 +129,19 @@ final class Digitalisimo_Backups_Relocate {
 		$a = self::parse_url( $from );
 		$b = self::parse_url( $to );
 		if ( ! $a || ! $b ) return false;
-		if ( $a['host'] === $b['host'] && $a['path'] === $b['path'] && $a['scheme'] === $b['scheme'] ) return true;
-		$this->url_pairs[ $a['scheme'] . '://' . $a['host'] . $a['path'] ] = $b['scheme'] . '://' . $b['host'] . $b['path'];
+		// Un par igual («este sitio se queda donde está») también se guarda: protege su ruta del par más corto de su host.
+		$identity = $a['host'] === $b['host'] && $a['path'] === $b['path'] && $a['scheme'] === $b['scheme'];
+		if ( ! $identity ) $this->url_pairs[ $a['scheme'] . '://' . $a['host'] . $a['path'] ] = $b['scheme'] . '://' . $b['host'] . $b['path'];
 		$variants = array( $a['host'] );
 		$name = preg_replace( '/:[0-9]+$/', '', $a['host'] );
-		// Con y sin «www» (no para una IP ni un nombre sin punto, como localhost).
-		if ( false !== strpos( $name, '.' ) && ! preg_match( '/^[0-9.]+$/D', $name ) ) {
+		// Con y sin «www» (no para una IP ni un nombre sin punto, como localhost, ni para un par igual).
+		if ( ! $identity && false !== strpos( $name, '.' ) && ! preg_match( '/^[0-9.]+$/D', $name ) ) {
 			$bare = preg_replace( '/^www\./', '', $a['host'] );
 			$variants[] = $bare === $a['host'] ? 'www.' . $a['host'] : $bare;
 		}
 		foreach ( $variants as $host ) {
 			if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$/D', $host ) ) continue;
-			$entry = array( 'path' => $a['path'], 'scheme' => $b['scheme'], 'host' => $b['host'], 'to_path' => $b['path'] );
+			$entry = array( 'path' => $a['path'], 'scheme' => $b['scheme'], 'host' => $b['host'], 'to_path' => $b['path'], 'identity' => $identity && $host === $a['host'] );
 			$list = $this->hosts[ $host ] ?? array();
 			$implied = false;
 			foreach ( $list as $i => $known ) {
@@ -130,6 +160,7 @@ final class Digitalisimo_Backups_Relocate {
 	}
 	/** $short ya produce el mismo resultado que $long: su ruta es un prefijo de segmento y el resto se conserva igual. */
 	private static function implies( array $short, array $long ) {
+		if ( ! empty( $long['identity'] ) !== ! empty( $short['identity'] ) ) return false;
 		if ( $short['scheme'] !== $long['scheme'] || $short['host'] !== $long['host'] || strlen( $short['path'] ) >= strlen( $long['path'] ) ) return false;
 		if ( 0 !== strpos( $long['path'] . '/', $short['path'] . '/' ) ) return false;
 		return $short['to_path'] . substr( $long['path'], strlen( $short['path'] ) ) === $long['to_path'];
@@ -169,8 +200,8 @@ final class Digitalisimo_Backups_Relocate {
 		return $this;
 	}
 
-	/** true si hay algo que reescribir en los valores (URL o rutas). */
-	public function rewrites_values() { return (bool) ( $this->hosts || $this->path_pairs ); }
+	/** true si hay algo que reescribir en los valores (URL o rutas); los pares iguales no cuentan. */
+	public function rewrites_values() { return $this->changing || (bool) $this->path_pairs; }
 
 	/**
 	 * Devuelve `$value` con las direcciones y rutas del origen cambiadas por las del destino. Un valor que no es cadena,
@@ -178,7 +209,7 @@ final class Digitalisimo_Backups_Relocate {
 	 * vuelve a escribir con las longitudes en bytes; si está dañado vuelve intacto. `flags()` dice qué pasó con la última
 	 * llamada (`malformed`, `too_large`, `opaque`, `deep`) y `stats()` acumula los totales.
 	 */
-	public function rewrite( $value ) {
+	public function rewrite( $value, $context = 'setting' ) {
 		$this->flags = array();
 		if ( ! is_string( $value ) || '' === $value || ! $this->rewrites_values() ) return $value;
 		if ( ! $this->may_contain( $value ) ) return $value;
@@ -187,6 +218,7 @@ final class Digitalisimo_Backups_Relocate {
 			$this->stats['too_large']++;
 			return $value;
 		}
+		$this->context = in_array( $context, self::PATH_CONTEXTS, true ) ? $context : 'setting';
 		$new = $this->rewrite_text( $value, 0 );
 		if ( ! empty( $this->flags['malformed'] ) ) $this->stats['malformed']++;
 		if ( ! empty( $this->flags['opaque'] ) ) $this->stats['opaque']++;
@@ -236,6 +268,8 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		$seen = array();
 		foreach ( $map as $table => $new ) {
+			// MySQL admite nombres de hasta 64 caracteres: lo que crece con el prefijo nuevo se rechaza antes de tocar nada.
+			if ( $new !== $table && strlen( $new ) > 64 ) throw new Exception( 'Con el prefijo de tablas de este sitio, «' . $table . '» se llamaría «' . $new . '» (' . strlen( $new ) . ' caracteres) y MySQL admite 64: usa un prefijo más corto en wp-config.php o restaura con el prefijo del respaldo.' );
 			if ( isset( $seen[ $new ] ) ) throw new Exception( 'Al cambiar el prefijo de tablas, «' . $table . '» y «' . $seen[ $new ] . '» del respaldo acabarían como «' . $new . '». Restaura el respaldo en una instalación con el prefijo del respaldo o retira antes la tabla sobrante en el origen.' );
 			$seen[ $new ] = $table;
 		}
@@ -261,57 +295,107 @@ final class Digitalisimo_Backups_Relocate {
 	 */
 	public function attach( Digitalisimo_Backups_Sql_Guard $guard, array $tables ) {
 		$this->table_map = $this->table_map( $tables );
+		$this->foreign = $this->foreign_of( $tables );
 		$renames = array_filter( $this->table_map, function( $new, $old ) { return $new !== $old; }, ARRAY_FILTER_USE_BOTH );
+		$renames = array_diff_key( $renames, array_flip( $this->foreign ) );
 		if ( $renames ) $guard->rename_tables( $renames );
-		if ( $renames || $this->rewrites_values() ) $guard->on_insert( array( $this, 'transform_insert' ) );
+		// Las tablas ajenas al WordPress que se mueve (otra aplicación de la base del origen) no se tocan en el destino.
+		if ( $this->foreign ) $guard->skip_tables( $this->foreign );
+		$guard->on_insert( array( $this, 'transform_insert' ) );
 		return $guard;
+	}
+	/** Tablas del respaldo que no son del WordPress que se mueve (sin el prefijo del origen); con un plan, no se restauran. */
+	public function foreign_of( array $tables ) {
+		$own = (string) ( $this->origin['prefix'] ?? '' );
+		if ( '' === $own ) return array();
+		return array_values( array_filter( array_map( 'strval', $tables ), function( $table ) use ( $own ) { return 0 !== strpos( $table, $own ); } ) );
 	}
 
 	/**
 	 * @internal Gancho del guardián: recibe un INSERT ya comprobado (tabla, columnas y la posición de cada literal) y
-	 * devuelve los tramos que cambian, array( inicio, fin, texto SQL nuevo ).
+	 * devuelve los tramos que cambian, array( inicio, fin, texto SQL nuevo ), o false para no ejecutarlo (una clave de
+	 * permisos de otra instalación). En una red, `blogs` y `site` toman aquí el dominio y la ruta de destino, como `home`
+	 * y `siteurl`: ningún punto de la restauración deja la red con unas tablas en un dominio y otras en el otro.
 	 */
 	public function transform_insert( array $insert, $sql ) {
 		if ( ! is_array( $insert['columns'] ?? null ) ) return array();
-		// Una tabla ajena a esta instalación (sin el prefijo del origen, de otra aplicación de la misma base de datos) se
-		// restaura como siempre, sin cambios.
-		$own = (string) ( $this->origin['prefix'] ?? '' );
-		if ( '' !== $own && 0 !== strpos( (string) $insert['table'], $own ) ) { $this->count( (string) $insert['table'], 'foreign' ); return array(); }
 		$table = $this->table_map[ $insert['table'] ] ?? $insert['table'];
 		list( $base ) = $this->kind( $table );
+		$columns = $insert['columns'];
+		$col = array_flip( $columns );
+		$context = in_array( $base, self::SETTING_TABLES, true ) ? 'setting' : 'content';
 		$keep = self::KEEP_COLUMNS[ $base ] ?? array();
 		$key_column = 'usermeta' === $base ? 'meta_key' : ( 'options' === $base ? 'option_name' : '' );
+		$value_of = function( $literal ) use ( $sql ) {
+			if ( ! is_array( $literal ) ) return null;
+			if ( 'raw' === ( $literal['type'] ?? '' ) ) return (string) $literal['raw'];
+			if ( 'str' !== ( $literal['type'] ?? '' ) ) return null;
+			return self::sql_unescape( substr( $sql, $literal['start'], $literal['end'] - $literal['start'] ), $literal['quote'] );
+		};
+		$network = 'current' === $this->mode && ! empty( $this->origin['multisite'] );
 		$spans = array();
-		// `source_domain` (usermeta de una red): el dominio del sitio donde se registró el usuario, sin esquema.
-		$meta_key = 'usermeta' === $base && $this->domains ? array_search( 'meta_key', $insert['columns'], true ) : false;
-		$meta_value = false !== $meta_key ? array_search( 'meta_value', $insert['columns'], true ) : false;
 		foreach ( (array) $insert['rows'] as $row ) {
 			$changed = false;
-			if ( false !== $meta_value && is_array( $row[ $meta_key ] ?? null ) && is_array( $row[ $meta_value ] ?? null ) && 'str' === ( $row[ $meta_value ]['type'] ?? '' ) ) {
-				$key = $row[ $meta_key ];
-				$literal = $row[ $meta_value ];
-				$domain = strtolower( self::sql_unescape( substr( $sql, $literal['start'], $literal['end'] - $literal['start'] ), $literal['quote'] ) );
-				if ( 'source_domain' === self::sql_unescape( substr( $sql, $key['start'], $key['end'] - $key['start'] ), $key['quote'] ) && isset( $this->domains[ $domain ] ) ) {
-					$spans[] = array( $literal['start'], $literal['end'], self::sql_escape( $this->domains[ $domain ] ) );
-					$this->count( $table, 'values' );
-					$this->count( $table, 'rows' );
-					unset( $row[ $meta_value ] );
+			$fixed = array();
+			// Red: dominio y ruta de cada sitio y de la red que se muda, ya en la importación.
+			if ( $network && 'blogs' === $base && isset( $col['blog_id'], $col['domain'], $col['path'] ) ) {
+				$id = (int) $value_of( $row[ $col['blog_id'] ] ?? null );
+				if ( isset( $this->sites[ $id ] ) && $this->sites[ $id ]['from'] !== $this->sites[ $id ]['to'] ) {
+					$fixed[ $col['domain'] ] = $this->sites[ $id ]['to']['domain'];
+					$fixed[ $col['path'] ] = $this->sites[ $id ]['to']['path'];
+				}
+			} elseif ( $network && 'site' === $base && isset( $col['id'], $col['domain'], $col['path'] ) && $this->origin['network'] !== $this->destination['network'] ) {
+				if ( in_array( (int) $value_of( $row[ $col['id'] ] ?? null ), $this->moving, true ) ) {
+					$fixed[ $col['domain'] ] = $this->destination['network']['domain'];
+					$fixed[ $col['path'] ] = $this->destination['network']['path'];
+				}
+			} elseif ( 'usermeta' === $base && $this->domains && isset( $col['meta_key'], $col['meta_value'] ) && 'source_domain' === $value_of( $row[ $col['meta_key'] ] ?? null ) ) {
+				// `source_domain`: el dominio, sin esquema, del sitio donde se registró el usuario.
+				$domain = strtolower( (string) $value_of( $row[ $col['meta_value'] ] ?? null ) );
+				if ( isset( $this->domains[ $domain ] ) ) $fixed[ $col['meta_value'] ] = $this->domains[ $domain ];
+			}
+			// Claves con prefijo: las del origen toman el del destino; las de permisos de OTRA instalación (con el prefijo
+			// del destino, que el respaldo traía de una tabla de usuarios compartida o de un cambio de prefijo anterior) no
+			// se aplican: darían permisos que el usuario no tenía en el sitio restaurado.
+			if ( '' !== $key_column && $this->prefixes && isset( $col[ $key_column ] ) && ! array_key_exists( $col[ $key_column ], $fixed ) ) {
+				$key = $value_of( $row[ $col[ $key_column ] ] ?? null );
+				if ( null !== $key ) {
+					$foreign = $this->foreign_key( $key, $base );
+					if ( 'drop' === $foreign ) {
+						if ( 1 !== count( (array) $insert['rows'] ) ) throw new Exception( 'El respaldo trae en una sentencia de varias filas una clave de permisos de otra instalación (' . $key . '): no se puede descartar sola.' );
+						$this->count( $table, 'foreign_keys' );
+						return false;
+					}
+					$new_key = $this->rename_key( $key, $base );
+					if ( $new_key !== $key ) {
+						$fixed[ $col[ $key_column ] ] = $new_key;
+						$this->stats['keys']++;
+						$this->count( $table, 'keys' );
+					} elseif ( 'dedupe' === $foreign && isset( $col['umeta_id'], $col['user_id'] ) ) {
+						// Otra clave con el prefijo del destino: si choca con la del sitio restaurado, gana la de éste (after_import()).
+						$this->collisions[ $table ][] = array( (int) $value_of( $row[ $col['umeta_id'] ] ?? null ), (int) $value_of( $row[ $col['user_id'] ] ?? null ), $key );
+					}
 				}
 			}
 			foreach ( $row as $index => $literal ) {
 				if ( ! is_array( $literal ) || 'str' !== ( $literal['type'] ?? '' ) ) continue;
-				$column = (string) ( $insert['columns'][ $index ] ?? '' );
+				$column = (string) ( $columns[ $index ] ?? '' );
 				$raw = substr( $sql, $literal['start'], $literal['end'] - $literal['start'] );
-				if ( '' !== $key_column && $key_column === $column && $this->prefixes ) {
+				if ( array_key_exists( $index, $fixed ) ) {
 					$value = self::sql_unescape( $raw, $literal['quote'] );
-					$new = $this->rename_key( $value, $base );
-					if ( $new !== $value ) { $this->stats['keys']++; $this->count( $table, 'keys' ); }
+					$new = $fixed[ $index ];
+					if ( $new !== $value ) $this->count( $table, 'values' );
 				} elseif ( in_array( $column, $keep, true ) ) {
 					if ( $this->rewrites_values() && $this->may_contain_sql( $raw ) ) $this->count( $table, 'kept' );
 					continue;
+				} elseif ( '' !== $key_column && $key_column === $column && $this->prefixes ) {
+					continue;
 				} elseif ( $this->rewrites_values() && $this->may_contain_sql( $raw ) ) {
+					// Un valor que no cabe en la memoria no se deja a medias: la pasada en seco ya lo rechazó (problems()); si
+					// llega aquí, la restauración falla y vuelve a la copia previa.
+					if ( strlen( $raw ) > $this->budget ) throw new Exception( self::budget_text( $table, $column, strlen( $raw ), $this->budget ) );
 					$value = self::sql_unescape( $raw, $literal['quote'] );
-					$new = $this->rewrite( $value );
+					$new = $this->rewrite( $value, $context );
 					foreach ( array( 'malformed', 'too_large', 'opaque' ) as $flag ) if ( ! empty( $this->flags[ $flag ] ) ) $this->count( $table, $flag );
 					if ( $new !== $value ) $this->count( $table, 'values' );
 				} else {
@@ -324,6 +408,41 @@ final class Digitalisimo_Backups_Relocate {
 			if ( $changed ) $this->count( $table, 'rows' );
 		}
 		return $spans;
+	}
+	/**
+	 * Una clave con el prefijo del DESTINO que no es del origen (otra instalación): `drop` si es de permisos
+	 * (`capabilities`, `user_level`, `user_roles`), `dedupe` si es otra clave de usermeta, '' si es del origen.
+	 */
+	private function foreign_key( $key, $base ) {
+		foreach ( $this->prefixes as $from => $to ) {
+			if ( 0 === strpos( $key, $from ) || 0 !== strpos( $key, $to ) ) continue;
+			$rest = (string) substr( $key, strlen( $to ) );
+			if ( 'options' === $base ) return preg_match( '/^(?:[0-9]+_)?user_roles$/D', $rest ) ? 'drop' : '';
+			return preg_match( '/^(?:[0-9]+_)?(?:capabilities|user_level)$/D', $rest ) ? 'drop' : 'dedupe';
+		}
+		return '';
+	}
+	/**
+	 * Justo después de importar el SQL y antes de extraer los archivos: de dos claves de usermeta iguales para un usuario
+	 * (la del sitio restaurado, con el prefijo nuevo, y una que el respaldo ya traía con ese prefijo), se queda la del sitio
+	 * restaurado. Devuelve cuántas filas retiró.
+	 */
+	public function after_import() {
+		global $wpdb;
+		$removed = 0;
+		foreach ( $this->collisions as $table => $rows ) {
+			foreach ( $rows as $row ) {
+				list( $id, $user, $key ) = $row;
+				$same = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::quote_name( $table ) . ' WHERE user_id = %d AND meta_key = %s', $user, $key ) );
+				if ( $same < 2 ) continue;
+				$done = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::quote_name( $table ) . ' WHERE umeta_id = %d', $id ) );
+				if ( false === $done ) throw new Exception( 'No se pudo retirar una clave duplicada de ' . $table . ': ' . $wpdb->last_error );
+				$removed += (int) $done;
+				$this->count( $table, 'collisions', (int) $done );
+			}
+		}
+		$this->collisions = array();
+		return $removed;
 	}
 
 	/* ---------------------------------------------------------------- Aplicación sobre una base ya importada --------- */
@@ -343,7 +462,11 @@ final class Digitalisimo_Backups_Relocate {
 			$columns = $this->columns( $table );
 			if ( null === $columns ) { $this->count( $table, 'unreadable' ); continue; }
 			$primary = array_keys( array_filter( $columns, function( $c ) { return $c['primary']; } ) );
+			// El literal de la clave primaria sale del tipo de su columna, nunca del valor: un VARCHAR '123' va entre comillas.
+			$numeric = array();
+			foreach ( $primary as $column ) $numeric[ $column ] = $columns[ $column ]['numeric'];
 			$keep = array_merge( self::KEEP_COLUMNS[ $base ] ?? array(), $primary );
+			$context = in_array( $base, self::SETTING_TABLES, true ) ? 'setting' : 'content';
 			$text = array_keys( array_filter( $columns, function( $c ) { return $c['text']; } ) );
 			$text = array_values( array_diff( $text, $keep ) );
 			$key_column = 'usermeta' === $base ? 'meta_key' : ( 'options' === $base ? 'option_name' : '' );
@@ -358,7 +481,7 @@ final class Digitalisimo_Backups_Relocate {
 			$size = implode( ' + ', array_map( function( $c ) { return 'COALESCE(LENGTH(' . self::quote_name( $c ) . '), 0)'; }, $text ) );
 			$last = null;
 			while ( true ) {
-				$after = null === $last ? '' : self::after_clause( $primary, $last ) . ' AND ';
+				$after = null === $last ? '' : self::after_clause( $primary, $last, $numeric ) . ' AND ';
 				$candidates = $wpdb->get_results( 'SELECT ' . implode( ', ', array_map( array( __CLASS__, 'quote_name' ), $primary ) ) . ', ' . $size . ' AS ' . self::quote_name( '__digi_size' ) . ' FROM ' . self::quote_name( $table ) . ' WHERE ' . $after . '(' . $where . ') ORDER BY ' . implode( ', ', array_map( array( __CLASS__, 'quote_name' ), $primary ) ) . ' LIMIT ' . self::BATCH_ROWS, ARRAY_A );
 				if ( ! is_array( $candidates ) || ( isset( $wpdb->last_error ) && '' !== $wpdb->last_error ) ) throw new Exception( 'No se pudo leer la tabla ' . $table . ' para reescribirla: ' . $wpdb->last_error );
 				if ( ! $candidates ) break;
@@ -368,7 +491,7 @@ final class Digitalisimo_Backups_Relocate {
 					$group[] = $candidate;
 					$bytes += (int) $candidate['__digi_size'];
 					if ( $bytes >= self::BATCH_BYTES || count( $candidates ) - 1 === $index ) {
-						$this->rewrite_group( $table, $base, $primary, $text, $key_column, $group );
+						$this->rewrite_group( $table, $base, $primary, $text, $key_column, $group, $numeric, $context );
 						$group = array();
 						$bytes = 0;
 					}
@@ -381,12 +504,12 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		return $this->tables;
 	}
-	private function rewrite_group( $table, $base, array $primary, array $text, $key_column, array $group ) {
+	private function rewrite_group( $table, $base, array $primary, array $text, $key_column, array $group, array $numeric, $context ) {
 		global $wpdb;
 		$keys = array();
 		foreach ( $group as $candidate ) {
 			$parts = array();
-			foreach ( $primary as $column ) $parts[] = self::quote_name( $column ) . ' = ' . self::sql_literal( $candidate[ $column ] );
+			foreach ( $primary as $column ) $parts[] = self::quote_name( $column ) . ' = ' . self::sql_literal( $candidate[ $column ], ! empty( $numeric[ $column ] ) );
 			$keys[] = '(' . implode( ' AND ', $parts ) . ')';
 		}
 		$rows = $wpdb->get_results( 'SELECT ' . implode( ', ', array_map( array( __CLASS__, 'quote_name' ), array_unique( array_merge( $primary, $text ) ) ) ) . ' FROM ' . self::quote_name( $table ) . ' WHERE ' . implode( ' OR ', $keys ), ARRAY_A );
@@ -400,7 +523,7 @@ final class Digitalisimo_Backups_Relocate {
 					$new = $this->rename_key( $value, $base );
 					if ( $new !== $value ) { $this->stats['keys']++; $this->count( $table, 'keys' ); }
 				} else {
-					$new = $this->rewrite( $value );
+					$new = $this->rewrite( $value, $context );
 					foreach ( array( 'malformed', 'too_large', 'opaque' ) as $flag ) if ( ! empty( $this->flags[ $flag ] ) ) $this->count( $table, $flag );
 					if ( $new !== $value ) $this->count( $table, 'values' );
 				}
@@ -408,7 +531,7 @@ final class Digitalisimo_Backups_Relocate {
 			}
 			if ( ! $set ) continue;
 			$where = array();
-			foreach ( $primary as $column ) $where[] = self::quote_name( $column ) . ' = ' . self::sql_literal( $row[ $column ] );
+			foreach ( $primary as $column ) $where[] = self::quote_name( $column ) . ' = ' . self::sql_literal( $row[ $column ], ! empty( $numeric[ $column ] ) );
 			$done = $wpdb->query( 'UPDATE ' . self::quote_name( $table ) . ' SET ' . implode( ', ', $set ) . ' WHERE ' . implode( ' AND ', $where ) );
 			if ( false === $done ) {
 				if ( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) || false !== stripos( (string) $wpdb->last_error, 'unique' ) ) { $this->count( $table, 'conflicts' ); continue; }
@@ -451,7 +574,8 @@ final class Digitalisimo_Backups_Relocate {
 				self::assert_query( $table );
 				if ( ! is_array( $values ) ) continue;
 				if ( count( $values ) > self::CHECK_ROWS ) { $total['complete'] = false; array_pop( $values ); }
-				foreach ( $values as $value ) foreach ( $this->classify( (string) $value ) as $what => $n ) $counts[ $what ] += $n;
+				$context = in_array( $base, self::SETTING_TABLES, true ) ? 'setting' : 'content';
+				foreach ( $values as $value ) foreach ( $this->classify( (string) $value, $context ) as $what => $n ) $counts[ $what ] += $n;
 			}
 			if ( array_sum( $counts ) ) $total['tables'][ $table ] = $counts;
 			foreach ( $counts as $what => $n ) $total[ $what ] += $n;
@@ -464,7 +588,7 @@ final class Digitalisimo_Backups_Relocate {
 	 * resto que no debía quedar), `kept` (lo que deja a propósito), `emails` y `other` (el host del origen en otro
 	 * contexto). Una URL del destino que empieza igual que una del origen (mismo host con otra ruta) no cuenta.
 	 */
-	public function classify( $value ) {
+	public function classify( $value, $context = 'setting' ) {
 		$out = array( 'urls' => 0, 'paths' => 0, 'kept' => 0, 'emails' => 0, 'other' => 0 );
 		if ( ! is_string( $value ) || '' === $value ) return $out;
 		$this->scan_urls( $value, true, $out['urls'] );
@@ -474,7 +598,7 @@ final class Digitalisimo_Backups_Relocate {
 			// excesivos) es `kept`; sólo lo que todavía cambiaría es un resto que no debía quedar.
 			$stats = $this->stats;
 			$flags = $this->flags;
-			$after = $this->rewrite( $value );
+			$after = $this->rewrite( $value, $context );
 			$this->stats = $stats;
 			$this->flags = $flags;
 			$urls = 0;
@@ -485,7 +609,9 @@ final class Digitalisimo_Backups_Relocate {
 			$out['paths'] -= min( $out['paths'], $paths );
 			$out['kept'] = $kept;
 		}
-		foreach ( array_keys( $this->hosts ) as $host ) {
+		foreach ( $this->hosts as $host => $entries ) {
+			// Un host que sólo tiene pares iguales («se queda») no es un resto del origen.
+			if ( ! array_filter( $entries, function( $entry ) { return empty( $entry['identity'] ); } ) ) continue;
 			$out['emails'] += preg_match_all( '~@' . preg_quote( $host, '~' ) . '(?![a-z0-9-]|\.[a-z0-9])~i', $value );
 			$out['other'] += preg_match_all( '~(?<![a-z0-9.@/-])' . preg_quote( $host, '~' ) . '(?![a-z0-9-]|\.[a-z0-9])~i', $value );
 		}
@@ -499,8 +625,10 @@ final class Digitalisimo_Backups_Relocate {
 	}
 	/** Informe por tabla de lo reescrito: rows, values, keys, kept, malformed, too_large, opaque, conflicts… */
 	public function tables_report() { return $this->tables; }
-	/** Nombres de las tablas en el destino tras attach() (los del respaldo con el prefijo nuevo). */
-	public function table_names() { return array_values( $this->table_map ); }
+	/** Nombres de las tablas en el destino tras attach() (los del respaldo con el prefijo nuevo, sin las ajenas). */
+	public function table_names() { return array_values( array_diff_key( $this->table_map, array_flip( $this->foreign ) ) ); }
+	/** Tablas ajenas que no se restauran (tras attach()). */
+	public function foreign_tables() { return $this->foreign; }
 
 	/* ---------------------------------------------------------------- Plan ------------------------------------------ */
 
@@ -561,7 +689,46 @@ final class Digitalisimo_Backups_Relocate {
 				foreach ( (array) $o['extra_urls'] as $url ) if ( '' !== $d['home'] ) $plan->add_url( $url, $d['home'] );
 			}
 		}
+		// Memoria: un valor que menciona el origen y no cabe se rechaza aquí, antes de la copia previa (la pasada en seco
+		// de la sonda los midió); en la importación, uno que se escapara haría fallar y revertir la restauración.
+		$plan->budget = isset( $o['budget'] ) ? max( 0, (int) $o['budget'] ) : self::value_budget();
+		foreach ( (array) $o['oversized'] as $big ) {
+			if ( ( ! empty( $big['url'] ) && $plan->changing ) || ( ! empty( $big['path'] ) && $plan->path_pairs ) ) $plan->problems[] = self::budget_text( (string) $big['table'], (string) $big['column'], (int) $big['size'], $plan->budget );
+		}
+		// Lo que el guardián no puede renombrar con otro prefijo (una vista, una tabla en un comentario ejecutable): la
+		// misma respuesta en verify que en restore.
+		if ( $plan->prefixes ) foreach ( (array) $o['rename_problems'] as $why ) $plan->problems[] = 'Con otro prefijo de tablas, ' . $why . ': restáuralo en una instalación con el prefijo del respaldo (' . $o['prefix'] . ').';
+		if ( is_array( $args['tables'] ?? null ) ) $plan->foreign = $plan->foreign_of( $args['tables'] );
+		$plan->problems = array_values( array_unique( $plan->problems ) );
 		return $plan;
+	}
+	/**
+	 * Bytes de un valor que se pueden reescribir con la memoria que le queda a PHP: lo libre de `memory_limit` entre
+	 * MEMORY_FACTOR (lo que cuesta, medido, recorrer un serializado grande), como mucho MAX_VALUE. Filtro
+	 * `digitalisimo_backups_relocate_value_budget`.
+	 */
+	public static function value_budget() {
+		$limit = self::bytes( (string) ini_get( 'memory_limit' ) );
+		$budget = $limit <= 0 ? self::MAX_VALUE : (int) floor( max( 0, $limit - memory_get_usage( true ) ) / self::MEMORY_FACTOR );
+		if ( function_exists( 'apply_filters' ) ) $budget = (int) apply_filters( 'digitalisimo_backups_relocate_value_budget', $budget );
+		return max( 0, min( self::MAX_VALUE, $budget ) );
+	}
+	private static function bytes( $value ) {
+		$value = trim( $value );
+		if ( '' === $value || '-1' === $value ) return -1;
+		$number = (float) $value;
+		switch ( strtoupper( substr( $value, -1 ) ) ) {
+			case 'G': $number *= 1024;
+			// no break
+			case 'M': $number *= 1024;
+			// no break
+			case 'K': $number *= 1024;
+		}
+		return (int) $number;
+	}
+	private static function budget_text( $table, $column, $size, $budget ) {
+		$mib = function( $bytes ) { return number_format( $bytes / 1048576, 1, ',', '.' ) . ' MiB'; };
+		return 'Un valor de ' . $table . '.' . $column . ' (' . $mib( $size ) . ') menciona el origen y no cabe en la memoria de PHP para reescribirlo (con memory_limit ' . ini_get( 'memory_limit' ) . ' se pueden reescribir valores de hasta ' . $mib( $budget ) . '; hacen falta unos ' . $mib( $size * self::MEMORY_FACTOR ) . ' libres): sube memory_limit (WP_MAX_MEMORY_LIMIT en wp-config.php) o restaura desde WP-CLI con más memoria.';
 	}
 	/** Lo que impide aplicar el plan, con qué cambiar (vacío si se puede). */
 	public function problems() { return $this->problems; }
@@ -585,14 +752,16 @@ final class Digitalisimo_Backups_Relocate {
 		if ( $this->path_pairs ) $changes[] = 'rutas del servidor ' . implode( ', ', array_map( function( $from, $to ) { return $from . ' → ' . $to; }, array_keys( $this->path_pairs ), $this->path_pairs ) );
 		$moved = array_filter( $this->sites, function( $site ) { return $site['from'] !== $site['to']; } );
 		if ( $moved ) $changes[] = count( $moved ) . ' ' . ( 1 === count( $moved ) ? 'sitio' : 'sitios' ) . ' de la red con otro dominio o ruta';
+		$foreign = $this->needed() ? $this->foreign : array();
 		return array(
 			'needed' => $this->needed(),
 			'addresses' => $this->mode,
 			'origin' => array( 'home' => $o['home'], 'prefix' => $o['prefix'], 'multisite' => $o['multisite'], 'subdomain' => $o['subdomain'], 'sites' => count( $o['sites'] ) ),
 			'destination' => array( 'home' => $d['home'], 'prefix' => $d['prefix'], 'multisite' => $d['multisite'], 'subdomain' => $d['subdomain'] ),
 			'rewrites' => $changes,
+			'foreign_tables' => $foreign,
 			'problems' => $this->problems,
-			'text' => $this->summary_text( $changes ),
+			'text' => $this->summary_text( $changes ) . ( $foreign && ! $this->problems ? ' No se restauran ' . count( $foreign ) . ' tablas sin el prefijo del origen, que no son de este WordPress (' . implode( ', ', array_slice( $foreign, 0, 6 ) ) . ( count( $foreign ) > 6 ? '…' : '' ) . '): las de este servidor con el mismo nombre no se tocan.' : '' ),
 		);
 	}
 	private function summary_text( array $changes ) {
@@ -646,6 +815,10 @@ final class Digitalisimo_Backups_Relocate {
 		$from = $o['network'];
 		$to = $d['network'];
 		$scheme = (string) ( self::parse_url( $d['home'] )['scheme'] ?? 'https' );
+		// La red que se muda: la del dominio y la ruta del origen (con varias redes, las demás se quedan).
+		$this->moving = array();
+		foreach ( $o['networks'] as $id => $row ) if ( $row['domain'] === $from['domain'] && $row['path'] === $from['path'] ) $this->moving[] = (int) $id;
+		if ( ! $this->moving ) $this->moving = array( 1 );
 		$sites = $o['sites'] ? $o['sites'] : array( 1 => array( 'domain' => $from['domain'], 'path' => $from['path'], 'home' => $o['home'], 'siteurl' => $o['siteurl'] ) );
 		foreach ( $sites as $id => $site ) {
 			$domain = strtolower( (string) $site['domain'] );
@@ -714,11 +887,8 @@ final class Digitalisimo_Backups_Relocate {
 			$from = $this->origin['network'];
 			$to = $d['network'];
 			$scheme = (string) ( self::parse_url( $d['home'] )['scheme'] ?? 'https' );
-			// La red del respaldo que se muda: la que tiene su dominio y su ruta (con varias redes, las demás se quedan).
-			$ids = array();
-			foreach ( $this->origin['networks'] as $id => $row ) if ( $row['domain'] === $from['domain'] && $row['path'] === $from['path'] ) $ids[] = (int) $id;
-			if ( ! $ids ) $ids = array( 1 );
-			foreach ( $ids as $id ) {
+			// La importación ya los dejó así (transform_insert()); esto lo garantiza y es idempotente.
+			foreach ( $this->moving as $id ) {
 				if ( isset( $has[ $prefix . 'site' ] ) && $from !== $to ) {
 					$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::quote_name( $prefix . 'site' ) . ' SET domain = %s, path = %s WHERE id = %d', $to['domain'], $to['path'], $id ) );
 					if ( false === $done ) throw new Exception( 'No se pudo cambiar el dominio de la red: ' . $wpdb->last_error );
@@ -770,6 +940,7 @@ final class Digitalisimo_Backups_Relocate {
 		// Lo último: escribir .htaccess recarga el servidor web en algunos hostings (OpenLiteSpeed de Webuzo), y una
 		// recarga corta la petición; aquí ya no queda nada de la base de datos ni de los archivos por hacer.
 		$this->rewrite_rules_file( $report );
+		foreach ( $this->server_notes as $note ) $report['warnings'][] = $note;
 		$this->report = $report + array( 'summary' => $this->summary(), 'tables' => $this->tables, 'stats' => $this->stats );
 		return $this->report;
 	}
@@ -796,6 +967,63 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		if ( ! $report['caches']['htaccess'] ) $report['warnings'][] = 'La ruta del sitio cambió: si el servidor usa reglas de reescritura propias (.htaccess de una red, nginx), actualízalas para la ruta nueva y guarda los enlaces permanentes.';
+	}
+
+	/**
+	 * Un archivo de configuración del servidor del respaldo (SERVER_FILES, en la raíz de WordPress) antes de escribirlo:
+	 * rutas del origen → las de este servidor y direcciones del origen → las de este sitio (también el host escapado de
+	 * un RewriteCond de .htaccess), y una directiva `auto_prepend_file`/`auto_append_file` cuyo archivo no existirá aquí
+	 * queda comentada con un aviso: si no, PHP daría un error fatal en cada petición (también en el escritorio, donde se
+	 * restauraría la copia previa). Si se comenta la del respaldo y el archivo actual de este servidor tenía una que sí
+	 * funciona (el Wordfence de este servidor), se conserva esa. `$exists( $ruta )` dice si una ruta existirá después de
+	 * restaurar; `$current` es el contenido actual del archivo en este servidor (o null).
+	 */
+	public function server_file( $relative, $content, callable $exists, $current = null ) {
+		if ( ! in_array( $relative, self::SERVER_FILES, true ) || ! is_string( $content ) ) return $content;
+		$new = $this->rewrite( $content, 'config' );
+		if ( '.htaccess' === $relative && 'current' === $this->mode ) {
+			$map = array();
+			foreach ( $this->hosts as $host => $entries ) foreach ( $entries as $entry ) {
+				if ( '' !== $entry['path'] || ! empty( $entry['identity'] ) ) continue;
+				$from = preg_quote( preg_replace( '/:[0-9]+$/', '', $host ), '#' );
+				$map[ $from ] = preg_quote( preg_replace( '/:[0-9]+$/', '', $entry['host'] ), '#' );
+			}
+			if ( $map ) {
+				uksort( $map, function( $x, $y ) { return strlen( $y ) - strlen( $x ); } );
+				$alternatives = array_map( function( $from ) { return preg_quote( $from, '#' ); }, array_keys( $map ) );
+				$replaced = preg_replace_callback( '#(?<![A-Za-z0-9-])(?:' . implode( '|', $alternatives ) . ')(?![A-Za-z0-9-])#i', function( $m ) use ( $map ) {
+					foreach ( $map as $from => $to ) if ( 0 === strcasecmp( $from, $m[0] ) ) return $to;
+					return $m[0];
+				}, $new );
+				if ( null !== $replaced ) $new = $replaced;
+			}
+		}
+		if ( 'wordfence-waf.php' === $relative ) return $new;
+		$ini = '.htaccess' !== $relative;
+		$pattern = $ini ? '/^([ \t]*)(auto_(?:prepend|append)_file[ \t]*=[ \t]*)(["\']?)([^"\'\r\n;]*)\3(.*)$/mi' : '/^([ \t]*)(php_value[ \t]+auto_(?:prepend|append)_file[ \t]+)(["\']?)([^"\'\r\n]*)\3(.*)$/mi';
+		$comment = $ini ? ';' : '#';
+		$off = array();
+		$out = preg_replace_callback( $pattern, function( $m ) use ( $exists, $comment, &$off ) {
+			$path = trim( $m[4] );
+			if ( '' === $path || 'none' === strtolower( $path ) || '/' !== $path[0] || $exists( $path ) ) return $m[0];
+			$off[] = $path;
+			return $m[1] . $comment . ' DIGITALÍSIMO Backups: desactivado al restaurar en otro servidor, porque aquí no existe ' . $path . "\n" . $m[1] . $comment . ' ' . ltrim( $m[0] );
+		}, $new );
+		if ( null === $out ) return $new;
+		if ( $off ) {
+			$this->server_notes[] = $relative . ': se desactivó ' . implode( ', ', array_unique( $off ) ) . ' (auto_prepend_file o auto_append_file con un archivo que no existe en este servidor); si es el cortafuegos de Wordfence, vuelve a optimizarlo desde Wordfence.';
+			// El cortafuegos de este servidor, si funcionaba, se conserva.
+			if ( is_string( $current ) && preg_match_all( $pattern, $current, $mine, PREG_SET_ORDER ) ) {
+				foreach ( $mine as $line ) {
+					$path = trim( $line[4] );
+					if ( '' !== $path && '/' === $path[0] && $exists( $path ) ) {
+						$out .= ( "\n" === substr( $out, -1 ) ? '' : "\n" ) . $comment . ' DIGITALÍSIMO Backups: se conserva la de este servidor' . "\n" . trim( $line[0] ) . "\n";
+						$this->server_notes[] = $relative . ': se conservó ' . $path . ' de este servidor.';
+					}
+				}
+			}
+		}
+		return $out;
 	}
 
 	/** El informe de finish(): resumen, tablas, red, direcciones, cachés, comprobación y avisos. */
@@ -827,8 +1055,44 @@ final class Digitalisimo_Backups_Relocate {
 				$warnings[] = 'No se pudo vaciar la caché de ' . $table . ': ' . $e->getMessage();
 			}
 		}
+		// Cachés de página y de recursos optimizados (WP Super Cache, W3TC, WP Rocket, Autoptimize, LiteSpeed): viajan en el
+		// respaldo con las direcciones del origen. Con otras direcciones se vacían (los plugins las regeneran).
+		$out['page_cache_files'] = 0;
+		if ( $this->changing && '' !== $this->destination['content_dir'] ) {
+			foreach ( array( 'cache', 'litespeed' ) as $folder ) {
+				$dir = $this->destination['content_dir'] . '/' . $folder;
+				if ( is_dir( $dir ) && ! is_link( $dir ) ) self::empty_dir( $dir, $out['page_cache_files'], $warnings );
+			}
+		}
 		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
 		return $out;
+	}
+	/** Vacía una carpeta sin seguir enlaces (los enlaces se retiran, su destino no se toca) y sin borrar la carpeta. */
+	private static function empty_dir( $dir, &$count, array &$warnings ) {
+		$items = @scandir( $dir );
+		if ( ! is_array( $items ) ) return;
+		foreach ( $items as $item ) {
+			if ( '.' === $item || '..' === $item ) continue;
+			$path = $dir . '/' . $item;
+			if ( is_dir( $path ) && ! is_link( $path ) ) {
+				self::empty_dir( $path, $count, $warnings );
+				@rmdir( $path );
+			} elseif ( @unlink( $path ) ) {
+				$count++;
+			} else {
+				$warnings[] = 'No se pudo vaciar ' . $path . ' de la caché de página.';
+				return;
+			}
+		}
+	}
+	/**
+	 * Después de cualquier restauración: la caché del servidor web (LiteSpeed/OpenLiteSpeed con LSCache) seguiría
+	 * sirviendo las páginas de antes. Se le pide que la purgue (cabecera X-LiteSpeed-Purge en esta respuesta y la acción
+	 * del plugin LiteSpeed Cache, si está). Por WP-CLI no hay respuesta HTTP: queda la acción del plugin.
+	 */
+	public static function purge_server_cache() {
+		if ( function_exists( 'do_action' ) ) do_action( 'litespeed_purge_all' );
+		if ( 'cli' !== PHP_SAPI && ! headers_sent() ) header( 'X-LiteSpeed-Purge: *' );
 	}
 	/** CSS generado de Elementor de un sitio (se regenera al visitarlo) y las URL de sus fuentes locales de Google. */
 	private function clear_upload_caches( $site, array &$out, array &$warnings ) {
@@ -929,6 +1193,7 @@ final class Digitalisimo_Backups_Relocate {
 				$origin[ $key ] = $main[ $key ];
 			}
 			if ( null !== $found['subdomain'] ) $origin['subdomain'] = (bool) $found['subdomain'];
+			$origin['oversized'] = $found['oversized'];
 			if ( $found['networks'] ) {
 				$origin['networks'] = $found['networks'];
 				$first = $found['networks'][ min( array_keys( $found['networks'] ) ) ];
@@ -946,6 +1211,27 @@ final class Digitalisimo_Backups_Relocate {
 
 	/* ---------------------------------------------------------------- Utilidades ------------------------------------ */
 
+	/**
+	 * Agujas del origen según el manifiesto (sin leer el SQL): `url` (hosts de home, siteurl y la red, sin puerto) y `path`
+	 * (rutas del servidor, en texto y en JSON, como aparecen en el SQL). Para la sonda de la pasada en seco.
+	 */
+	public static function manifest_needles( array $manifest ) {
+		$block = is_array( $manifest['origin'] ?? null ) ? $manifest['origin'] : array();
+		$hosts = array();
+		foreach ( array( $manifest['home_url'] ?? '', $manifest['site_url'] ?? '', $block['home'] ?? '', $block['siteurl'] ?? '' ) as $url ) {
+			$parsed = self::parse_url( self::untrail( (string) $url ) );
+			if ( $parsed ) $hosts[ preg_replace( '/^www\./', '', preg_replace( '/:[0-9]+$/', '', $parsed['host'] ) ) ] = true;
+		}
+		if ( ! empty( $block['network']['domain'] ) ) $hosts[ strtolower( (string) $block['network']['domain'] ) ] = true;
+		$paths = array();
+		foreach ( array( 'abspath', 'abspath_real', 'content_dir', 'uploads_dir' ) as $key ) {
+			$path = self::clean_path( $block[ $key ] ?? '' );
+			if ( '' === $path ) continue;
+			$paths[ $path ] = true;
+			$paths[ str_replace( '/', '\\\\/', $path ) ] = true;
+		}
+		return array( 'url' => array_keys( $hosts ), 'path' => array_keys( $paths ) );
+	}
 	/** Literal SQL de un valor de cadena (como el exportador, más la comilla doble): no depende de la conexión. */
 	public static function sql_escape( $value ) {
 		return str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'", '"' ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'", '\\"' ), (string) $value );
@@ -977,18 +1263,19 @@ final class Digitalisimo_Backups_Relocate {
 	}
 	public static function quote_name( $name ) { return '`' . str_replace( '`', '``', (string) $name ) . '`'; }
 	/** Literal SQL de un valor para la conexión actual ($wpdb->prepare): igual en MySQL y en el SQLite de WordPress. */
-	private static function sql_literal( $value ) {
+	private static function sql_literal( $value, $numeric = false ) {
 		global $wpdb;
 		if ( null === $value ) return 'NULL';
-		if ( is_int( $value ) || ( is_string( $value ) && preg_match( '/^-?[1-9][0-9]{0,17}$|^0$/D', $value ) ) ) return (string) $value;
+		if ( $numeric && ( is_int( $value ) || ( is_string( $value ) && preg_match( '/^-?[1-9][0-9]{0,17}$|^0$/D', $value ) ) ) ) return (string) $value;
 		return $wpdb->prepare( '%s', (string) $value );
 	}
-	private static function after_clause( array $primary, array $last ) {
+	private static function after_clause( array $primary, array $last, array $numeric = array() ) {
 		$parts = array();
 		$equal = array();
 		foreach ( $primary as $column ) {
-			$parts[] = '(' . implode( ' AND ', array_merge( $equal, array( self::quote_name( $column ) . ' > ' . self::sql_literal( $last[ $column ] ) ) ) ) . ')';
-			$equal[] = self::quote_name( $column ) . ' = ' . self::sql_literal( $last[ $column ] );
+			$literal = self::sql_literal( $last[ $column ], ! empty( $numeric[ $column ] ) );
+			$parts[] = '(' . implode( ' AND ', array_merge( $equal, array( self::quote_name( $column ) . ' > ' . $literal ) ) ) . ')';
+			$equal[] = self::quote_name( $column ) . ' = ' . $literal;
 		}
 		return '(' . implode( ' OR ', $parts ) . ')';
 	}
@@ -998,7 +1285,7 @@ final class Digitalisimo_Backups_Relocate {
 	 */
 	private function like_clause( array $columns, $key_column ) {
 		$needles = array();
-		foreach ( array_keys( $this->hosts ) as $host ) $needles[ $host ] = true;
+		foreach ( array_keys( $this->hosts ) as $host ) $needles[ preg_replace( '/:[0-9]+$/', '', $host ) ] = true;
 		foreach ( array_keys( $this->path_pairs ) as $path ) foreach ( array( 'plain', 'json', 'json2' ) as $style ) $needles[ str_replace( '/', self::STYLES[ $style ]['slash'], $path ) ] = true;
 		$parts = array();
 		foreach ( $columns as $column ) {
@@ -1025,6 +1312,7 @@ final class Digitalisimo_Backups_Relocate {
 			$out[ (string) ( $row['Field'] ?? $row['field'] ?? '' ) ] = array(
 				'text' => (bool) preg_match( '/^(?:var)?char|text|^json|^(?:var)?binary|blob/', $type ),
 				'primary' => 'PRI' === strtoupper( (string) ( $row['Key'] ?? $row['key'] ?? '' ) ),
+				'numeric' => (bool) preg_match( '/^(?:tiny|small|medium|big)?int|^integer|^decimal|^numeric|^float|^double|^real|^bit|^year/', $type ),
 			);
 		}
 		return $out;
@@ -1059,7 +1347,9 @@ final class Digitalisimo_Backups_Relocate {
 			'sites' => $sites,
 			'config' => (array) ( $d['config'] ?? array() ),
 			'extra_urls' => array_values( array_filter( array_map( $url, (array) ( $d['extra_urls'] ?? array() ) ) ) ),
-		);
+			'oversized' => array_values( (array) ( $d['oversized'] ?? array() ) ),
+			'rename_problems' => array_values( array_map( 'strval', (array) ( $d['rename_problems'] ?? array() ) ) ),
+		) + ( isset( $d['budget'] ) ? array( 'budget' => (int) $d['budget'] ) : array() );
 	}
 	private static function untrail( $text ) { return rtrim( (string) $text, '/\\' ); }
 	private static function valid_prefix( $prefix ) { return is_string( $prefix ) && (bool) preg_match( '/^[A-Za-z0-9_]{1,64}$/D', $prefix ); }
@@ -1088,14 +1378,25 @@ final class Digitalisimo_Backups_Relocate {
 	private function compile() {
 		$this->needles = array();
 		$this->sql_needles = array();
-		foreach ( array_keys( $this->hosts ) as $host ) { $this->needles[] = array( $host, true ); $this->sql_needles[] = array( $host, true ); }
+		$this->changing = false;
+		$names = array();
+		foreach ( $this->hosts as $host => $entries ) {
+			foreach ( $entries as $entry ) if ( empty( $entry['identity'] ) ) $this->changing = true;
+			// La aguja es el nombre sin puerto: en una URL codificada el puerto va como %3A8080 (o %253A8080).
+			$names[ preg_replace( '/:[0-9]+$/', '', $host ) ] = true;
+		}
+		foreach ( array_keys( $names ) as $name ) { $this->needles[] = array( $name, true ); $this->sql_needles[] = array( $name, true ); }
 		$alternatives = array();
 		$this->path_map = array();
+		$this->deep_paths = array();
 		foreach ( $this->path_pairs as $from => $to ) {
+			// Segmentos propios de la instalación (sin /wp-content ni /uploads): /var/www/origen tiene 3; /wordpress, 1.
+			$deep = count( array_filter( explode( '/', preg_replace( '#/wp-content(?:/uploads)?$#', '', $from ) ) ) ) >= 2;
 			foreach ( array( 'plain', 'json', 'json2' ) as $style ) {
 				$slash = self::STYLES[ $style ]['slash'];
 				$styled = str_replace( '/', $slash, $from );
 				$this->path_map[ $styled ] = str_replace( '/', $slash, $to );
+				if ( $deep ) $this->deep_paths[ $styled ] = true;
 				$alternatives[ $styled ] = preg_quote( $styled, '#' );
 				$this->needles[] = array( $styled, false );
 				$this->sql_needles[] = array( str_replace( '\\', '\\\\', $styled ), false );
@@ -1107,7 +1408,7 @@ final class Digitalisimo_Backups_Relocate {
 		if ( count( $this->hosts ) > 32 ) {
 			$this->needles = array_values( array_filter( $this->needles, function( $n ) { return ! $n[1]; } ) );
 			$this->sql_needles = array_values( array_filter( $this->sql_needles, function( $n ) { return ! $n[1]; } ) );
-			foreach ( array( '//', '\\/\\/', '%2F%2F' ) as $token ) { $this->needles[] = array( $token, true ); $this->sql_needles[] = array( str_replace( '\\', '\\\\', $token ), true ); }
+			foreach ( array( '//', '\\/\\/', '%2F%2F', '%252F%252F' ) as $token ) { $this->needles[] = array( $token, true ); $this->sql_needles[] = array( str_replace( '\\', '\\\\', $token ), true ); }
 		}
 	}
 	private function may_contain( $value ) {
@@ -1137,13 +1438,35 @@ final class Digitalisimo_Backups_Relocate {
 		}
 		if ( ! $this->may_contain( $s ) ) return $s;
 		$s = $this->scan_urls( $s, false, $this->stats['urls'] );
-		if ( $this->path_regex ) {
-			$map = $this->path_map;
-			$count = 0;
-			$s = preg_replace_callback( $this->path_regex, function( $m ) use ( $map ) { return $map[ $m[0] ] ?? $m[0]; }, $s, -1, $count );
-			$this->stats['paths'] += $count;
-		}
+		if ( $this->path_regex ) $s = $this->replace_paths( $s, $this->stats['paths'] );
 		return $s;
+	}
+	/**
+	 * Rutas del servidor según el contexto (ver PATH_CONTEXTS). Un valor que ES una ruta (empieza por ella y no sigue
+	 * texto con espacios, comillas o etiquetas) cambia en cualquier contexto; dentro de un texto, sólo en `config` o, en
+	 * `setting`, cuando la ruta del origen tiene dos segmentos o más y va seguida de /wp-content, /wp-includes, /wp-admin
+	 * o /wp-config.php (o ya es la de wp-content): así un enlace relativo «/wordpress/» o un tutorial no cambian.
+	 */
+	private function replace_paths( $s, &$count ) {
+		$map = $this->path_map;
+		$deep = $this->deep_paths;
+		$context = $this->context;
+		$changed = 0;
+		$out = preg_replace_callback( $this->path_regex, function( $m ) use ( $s, $map, $deep, $context, &$changed ) {
+			list( $text, $at ) = $m[0];
+			$whole = 0 === $at && ! preg_match( '/[\s"\'<>]/', (string) substr( $s, strlen( $text ) ) );
+			if ( ! $whole && 'config' !== $context ) {
+				if ( 'content' === $context || ! isset( $deep[ $text ] ) ) return $text;
+				$plain = str_replace( array( '\\\\\\/', '\\/' ), '/', $text );
+				$after = str_replace( array( '\\\\\\/', '\\/' ), '/', (string) substr( $s, $at + strlen( $text ), 48 ) );
+				if ( false === strpos( $plain, '/wp-content' ) && ! preg_match( '#^/(?:wp-content|wp-includes|wp-admin)(?:/|$)|^/wp-config\.php#', $after ) ) return $text;
+			}
+			if ( ! isset( $map[ $text ] ) ) return $text;
+			$changed++;
+			return $map[ $text ];
+		}, $s, -1, $ignored, PREG_OFFSET_CAPTURE );
+		$count += $changed;
+		return null === $out ? $s : $out;
 	}
 	/** Como is_serialized() de WordPress (estricto), más `C:` (Serializable) y `E:` (enum). */
 	private static function looks_serialized( $s ) {
@@ -1294,7 +1617,8 @@ final class Digitalisimo_Backups_Relocate {
 		if ( null === $regex ) {
 			$slashes = array();
 			foreach ( self::STYLES as $style ) $slashes[] = '(?i:' . preg_quote( $style['slash'] . $style['slash'], '~' ) . ')';
-			$regex = '~(?:(?<scheme>(?i:https?))(?<colon>:|(?i:%3A)))?(?<slashes>' . implode( '|', $slashes ) . ')(?<host>[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?<port>(?::|(?i:%3A))[0-9]{1,5}(?![0-9]))?~';
+			$colons = '(?i:%253A)|(?i:%3A)|:';
+			$regex = '~(?:(?<scheme>(?i:https?))(?<colon>' . $colons . '))?(?<slashes>' . implode( '|', $slashes ) . ')(?<host>[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?<port>(?:' . $colons . ')[0-9]{1,5}(?![0-9]))?~';
 		}
 		$out = '';
 		$offset = 0;
@@ -1305,25 +1629,35 @@ final class Digitalisimo_Backups_Relocate {
 			$end = $start + strlen( $m[0][0] );
 			$offset = $end;
 			$style = $this->style_of( $m['slashes'][0] );
+			$encoded = self::STYLES[ $style ]['encoded'];
+			$colon = self::STYLES[ $style ]['colon'];
 			$has_scheme = isset( $m['scheme'] ) && -1 !== $m['scheme'][1] && '' !== $m['scheme'][0];
 			$slash_at = $m['slashes'][1];
 			// «ftp://origen.com»: otro esquema delante de «//» no es una URL nuestra.
 			if ( ! $has_scheme ) {
-				$colon = self::STYLES[ $style ]['colon'];
 				if ( $slash_at >= strlen( $colon ) && 0 === substr_compare( $s, $colon, $slash_at - strlen( $colon ), strlen( $colon ), true ) ) continue;
-			} elseif ( ( 'url' === $style ) !== ( 0 === strcasecmp( '%3A', $m['colon'][0] ) ) ) {
+			} elseif ( 0 !== strcasecmp( $colon, $m['colon'][0] ) ) {
 				continue;
 			}
 			$port = isset( $m['port'] ) && -1 !== $m['port'][1] ? $m['port'][0] : '';
-			if ( '' !== $port && 0 !== strncasecmp( $port, self::STYLES[ $style ]['colon'], strlen( self::STYLES[ $style ]['colon'] ) ) ) continue;
-			$host = strtolower( $m['host'][0] ) . ( '' === $port ? '' : ':' . substr( $port, strlen( self::STYLES[ $style ]['colon'] ) ) );
+			if ( '' !== $port && 0 !== strncasecmp( $port, $colon, strlen( $colon ) ) ) continue;
+			$name = strtolower( $m['host'][0] );
+			$number = '' === $port ? '' : substr( $port, strlen( $colon ) );
+			$host = $name . ( '' === $number ? '' : ':' . $number );
+			// Un puerto por defecto explícito (https://origen.com:443/, http://origen.com:80/) es el mismo origen.
+			if ( ! isset( $this->hosts[ $host ] ) && in_array( $number, array( '443', '80' ), true ) ) $host = $name;
 			if ( ! isset( $this->hosts[ $host ] ) ) continue;
 			$slash = self::STYLES[ $style ]['slash'];
 			foreach ( $this->hosts[ $host ] as $entry ) {
 				$path = str_replace( '/', $slash, $entry['path'] );
 				$length = strlen( $path );
-				if ( $length && ( $end + $length > $n || 0 !== substr_compare( $s, $path, $end, $length, 'url' === $style ) ) ) continue;
+				if ( $length && ( $end + $length > $n || 0 !== substr_compare( $s, $path, $end, $length, $encoded ) ) ) continue;
 				if ( $length && ! $this->segment_ends( $s, $end + $length, $style ) ) continue;
+				// Un par igual («este sitio se queda») sólo protege su ruta de los pares más cortos.
+				if ( ! empty( $entry['identity'] ) ) {
+					$offset = $end + $length;
+					break;
+				}
 				if ( $count_only ) {
 					// Una URL del destino con el mismo host (otra ruta) no es un resto del origen.
 					$to = str_replace( '/', $slash, $entry['to_path'] );
@@ -1332,10 +1666,10 @@ final class Digitalisimo_Backups_Relocate {
 					break;
 				}
 				// En una URL codificada se conserva la caja de los escapes (%2F o %2f), también en el puerto.
-				$colon = self::STYLES[ $style ]['colon'];
+				$out_colon = $colon;
 				$out_slash = $slash;
-				if ( 'url' === $style && false !== strpos( $m['slashes'][0], '%2f' ) ) { $colon = strtolower( $colon ); $out_slash = strtolower( $slash ); }
-				$replacement = ( $has_scheme ? $entry['scheme'] . $colon : '' ) . $out_slash . $out_slash . str_replace( ':', $colon, $entry['host'] ) . str_replace( '/', $out_slash, $entry['to_path'] );
+				if ( $encoded && $m['slashes'][0] !== strtoupper( $m['slashes'][0] ) ) { $out_colon = strtolower( $colon ); $out_slash = strtolower( $slash ); }
+				$replacement = ( $has_scheme ? $entry['scheme'] . $out_colon : '' ) . $out_slash . $out_slash . str_replace( ':', $out_colon, $entry['host'] ) . str_replace( '/', $out_slash, $entry['to_path'] );
 				$out .= substr( $s, $last, $start - $last ) . $replacement;
 				$last = $end + $length;
 				$offset = $last;
@@ -1356,7 +1690,7 @@ final class Digitalisimo_Backups_Relocate {
 		$slash = self::STYLES[ $style ]['slash'];
 		if ( 0 === substr_compare( $s, $slash, $at, strlen( $slash ), true ) ) return true;
 		$c = $s[ $at ];
-		if ( 'url' === $style && '%' === $c ) return true;
+		if ( self::STYLES[ $style ]['encoded'] && '%' === $c ) return true;
 		// Un punto final de frase («…/blog.») es límite; «/blog.html» no.
 		if ( '.' === $c ) return ! preg_match( '/[A-Za-z0-9]/', $s[ $at + 1 ] ?? '' );
 		return ! preg_match( '/[A-Za-z0-9_~%+-]/', $c );
@@ -1373,10 +1707,23 @@ final class Digitalisimo_Backups_Relocate_Probe {
 	private $sites = array();
 	private $networks = array();
 	private $subdomain = null;
+	/** Valores mayores que el presupuesto de memoria que mencionan el origen (ver Digitalisimo_Backups_Relocate::value_budget()). */
+	private $budget = 0;
+	private $needles = array();
+	private $oversized = array();
 
-	public function __construct( $prefix ) { $this->prefix = (string) $prefix; }
+	/**
+	 * `$args`: `budget` (bytes que se pueden reescribir) y `needles` (Digitalisimo_Backups_Relocate::manifest_needles():
+	 * hosts y rutas del origen según su manifiesto), para anotar los valores que no cabrían.
+	 */
+	public function __construct( $prefix, array $args = array() ) {
+		$this->prefix = (string) $prefix;
+		$this->budget = max( 0, (int) ( $args['budget'] ?? 0 ) );
+		$this->needles = (array) ( $args['needles'] ?? array() );
+	}
 	public function __invoke( array $insert, $sql ) {
 		$table = (string) ( $insert['table'] ?? '' );
+		if ( $this->budget && $this->needles && is_array( $insert['columns'] ?? null ) && ( '' === $this->prefix || 0 === strpos( $table, $this->prefix ) ) ) $this->measure( $insert, $sql );
 		if ( '' === $this->prefix || 0 !== strpos( $table, $this->prefix ) || ! is_array( $insert['columns'] ?? null ) ) return array();
 		$rest = substr( $table, strlen( $this->prefix ) );
 		if ( 'options' === $rest ) $site = 1;
@@ -1404,10 +1751,22 @@ final class Digitalisimo_Backups_Relocate_Probe {
 		}
 		return array();
 	}
-	/** array( sites => id => array( home, siteurl, domain, path, network ), networks => id => array( domain, path ), subdomain => bool|null ). */
+	private function measure( array $insert, $sql ) {
+		foreach ( (array) $insert['rows'] as $row ) {
+			foreach ( $row as $index => $literal ) {
+				if ( ! is_array( $literal ) || 'str' !== ( $literal['type'] ?? '' ) || $literal['end'] - $literal['start'] <= $this->budget ) continue;
+				$raw = substr( $sql, $literal['start'], $literal['end'] - $literal['start'] );
+				$hit = array( 'url' => false, 'path' => false );
+				foreach ( array( 'url', 'path' ) as $kind ) foreach ( (array) ( $this->needles[ $kind ] ?? array() ) as $needle ) if ( false !== ( 'url' === $kind ? stripos( $raw, $needle ) : strpos( $raw, $needle ) ) ) { $hit[ $kind ] = true; break; }
+				if ( $hit['url'] || $hit['path'] ) $this->oversized[] = array( 'table' => (string) $insert['table'], 'column' => (string) ( $insert['columns'][ $index ] ?? '' ), 'size' => strlen( $raw ) ) + $hit;
+				if ( count( $this->oversized ) >= 20 ) $this->budget = 0; // Bastan unos pocos para decir qué hacer.
+			}
+		}
+	}
+	/** array( sites => id => array( home, siteurl, domain, path, network ), networks => id => array( domain, path ), subdomain => bool|null, oversized ). */
 	public function result() {
 		ksort( $this->sites );
 		ksort( $this->networks );
-		return array( 'sites' => $this->sites, 'networks' => $this->networks, 'subdomain' => $this->subdomain );
+		return array( 'sites' => $this->sites, 'networks' => $this->networks, 'subdomain' => $this->subdomain, 'oversized' => $this->oversized );
 	}
 }
