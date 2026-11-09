@@ -82,7 +82,8 @@ function compat_restore( $prefix, $path, $needle ) {
 	} else {
 		compat_call( $prefix, 'restore_digitalisimo_zip', $path );
 	}
-	if ( ! preg_grep( '/^INSERT INTO `wp_posts`.*' . preg_quote( $needle, '/' ) . '/s', $GLOBALS['wpdb']->queries ) ) compat_fail( $prefix . ' no restauró ' . basename( $path ) . '.' );
+	// Desde la restauración por pasos (1.0.64) el SQL va a una tabla temporal que un RENAME convierte en wp_posts.
+	if ( ! preg_grep( '/^INSERT INTO `wp_(?:posts|dgbkr_[0-9a-f]{6}_[0-9]{3,})`.*' . preg_quote( $needle, '/' ) . '/s', $GLOBALS['wpdb']->queries ) ) compat_fail( $prefix . ' no restauró ' . basename( $path ) . '.' );
 }
 
 // 1. El SQL por tramos es el del exportador de un paso, byte a byte (también la fila de más de 1 MB).

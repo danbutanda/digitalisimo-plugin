@@ -71,6 +71,13 @@ function rr_current() {
 	$id = Digitalisimo_Backups_Jobs::current_id();
 	return '' !== $id ? Digitalisimo_Backups_Jobs::get( $id ) : null;
 }
+/**
+ * Peticiones de 1 s para que cada tick haga poco, salvo en la copia previa: con T2 (1.0.64) su exportación por tramos
+ * abandona una tabla que no cabe en lo que queda de la petición, y en este proceso de pruebas nunca queda nada.
+ */
+function rr_short_requests() {
+	return function( $limit ) { $job = rr_current(); return $job && 'safety' === $job['phase'] ? 0 : 1; };
+}
 /** Deja el sitio como tras el respaldo, sin trabajos ni mantenimiento (para el caso siguiente). */
 function rr_reset( $root, $backup ) {
 	foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $job['id'] ) );
@@ -202,7 +209,7 @@ rr_case( 'A2 este plugin del respaldo va en el último paso, con el fin del mant
 	file_put_contents( $self . '/digitalisimo-backups.php', "<?php /* Plugin Name: DIGITALÍSIMO Backups · Version: 1.0.60 */\n" );
 	$old = bk_backup( true );
 	file_put_contents( $self . '/digitalisimo-backups.php', "<?php /* Plugin Name: DIGITALÍSIMO Backups · Version: 9.9.9 */\n" );
-	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = rr_short_requests();
 	$result = rr_restore( $old );
 	$window = null;
 	for ( $i = 0; $i < 600; $i++ ) {
@@ -229,7 +236,7 @@ rr_case( 'A3 entre ticks nunca quedan la base de datos del respaldo con el códi
 	file_put_contents( $root . '/wp-includes/class-nuevo-69.php', "<?php // sólo existe en 6.9\n" );
 	file_put_contents( $root . '/wp-settings.php', "<?php // 6.9: require wp-includes/class-nuevo-69.php\n" );
 	file_put_contents( $root . '/wp-content/plugins/demo/inc/a.php', "<?php // plugin version nueva\n" );
-	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = rr_short_requests();
 	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 1;
 	rr_restore( $core );
 	$mixed = array();
@@ -447,7 +454,7 @@ if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event
 rr_case( 'P12 un tick de WP-Cron que muere a mitad del paso deja programado el siguiente', function() use ( $root, $backup ) {
 	rr_reset( $root, $backup );
 	$GLOBALS['rr_events'] = array();
-	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = rr_short_requests();
 	rr_restore( $backup );
 	$missing = array();
 	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function( $units ) use ( &$missing ) {
@@ -520,7 +527,7 @@ rr_case( 'P13 el aviso por correo no sale de una petición con WordPress mínimo
 	$GLOBALS['rr_mails'] = array();
 	$GLOBALS['rr_events'] = array();
 	$GLOBALS['bk_options'][ Digitalisimo_Backups_Notify::OPTION ] = array( 'failure' => true, 'success' => true, 'email' => 'avisos@example.test' );
-	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = rr_short_requests();
 	rr_restore( $backup );
 	// Cada tick lo lanza WP-Cron, que ya retiró su evento: lo que quede programado al final lo programó el último tick.
 	for ( $i = 0; $i < 3000 && Digitalisimo_Backups_Jobs::active(); $i++ ) {

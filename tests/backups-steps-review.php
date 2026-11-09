@@ -9,7 +9,7 @@
  * H4  Que no hubo una instantánea única se ve en la pantalla, REST, WP-CLI y el historial.
  * H5  El código del sitio que sigue cambiando durante las dos pasadas del empaquetado deja un aviso visible.
  * H6  Un archivo que cambia en cada tramo se copia de corrido y el empaquetado termina; si ni así, falla nombrándolo.
- * H7  Si la verificación no puede leer el manifiesto como la restauración, lo dice en un aviso visible.
+ * H7  Con poca memoria libre la verificación lee el manifiesto por partes, como la restauración (1.0.64): sin aviso.
  * H8  El bucle verify → pack agota sus intentos.
  * P1  Claves ENUM y FLOAT se paginan por desplazamiento dentro de la instantánea.
  * P3  La ruta de la entrada a medias va en base64 (no se estropea si no es UTF-8).
@@ -384,7 +384,8 @@ bk_assert( 'failed' === $job['status'] && false !== strpos( (string) $job['error
 unlink( $debug );
 }
 
-// H7. Sin memoria libre para leer el manifiesto como la restauración, «verificado» no lo cubre y se dice.
+// H7. Con poca memoria libre, la verificación lee el manifiesto como la restauración: por partes (Manifest_Auth y
+// Archive_Inspector de la restauración por pasos, 1.0.64), así que lo comprueba siempre y no hay aviso que dar.
 if ( rv_section( 'H7' ) ) {
 // Un manifiesto de unos 100 KB: 250 archivos con nombres largos.
 $many = $root . 'wp-content/uploads/muchos';
@@ -403,7 +404,7 @@ $view = Digitalisimo_Backups_Jobs::view( $job );
 $file = basename( rv_zip( $job ) );
 $row = array();
 foreach ( bk_history() as $item ) if ( $file === ( $item['file'] ?? '' ) ) $row = $item;
-bk_assert( in_array( 'restore_memory', rv_notices( $job ), true ) && 'Completo con avisos' === $view['status_label'] && preg_grep( '/no prueba que la restauración pueda leerlo/', $view['notices'] ) && false !== strpos( Digitalisimo_Backups::history_notices_text( $row ), 'no prueba que la restauración pueda leerlo' ), 'Sin leer el manifiesto, el respaldo quedó «verificado» sin decirlo: ' . json_encode( $view['notices'], JSON_UNESCAPED_UNICODE ) );
+bk_assert( 'success' === $job['status'] && ! in_array( 'restore_memory', rv_notices( $job ), true ) && 'Completo con avisos' !== $view['status_label'] && '' === Digitalisimo_Backups::history_notices_text( $row ), 'Con poca memoria la verificación no leyó el manifiesto por partes: ' . json_encode( array( $job['status'], rv_notices( $job ), $view['status_label'] ), JSON_UNESCAPED_UNICODE ) );
 foreach ( glob( $many . '/*' ) as $path ) unlink( $path );
 rmdir( $many );
 }

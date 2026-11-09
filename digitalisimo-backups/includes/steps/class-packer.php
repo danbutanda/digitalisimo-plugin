@@ -27,8 +27,6 @@ final class Digitalisimo_Backups_Packer {
 	const REQUIRED = array( 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
 	/** Desde este tamaño una entrada se verifica por partes, retomable entre tramos (PHP 8). */
 	const RAW_FROM = 268435456;
-	/** Memoria que ocupa un manifiesto decodificado, en veces su tamaño (medido: unas 3,2 con 17 000 entradas). */
-	const MANIFEST_FACTOR = 5;
 	/** Veces que una entrada a medias puede volver a empezar porque su archivo cambió; a la siguiente se copia de corrido. */
 	const CHURN_MAX = 2;
 	/** Pasadas del empaquetado: si el código del sitio cambia durante la primera, se empaqueta otra vez una sola vez. */
@@ -615,26 +613,16 @@ final class Digitalisimo_Backups_Packer {
 				} elseif ( 0 === strpos( $comment, Digitalisimo_Backups_Manifest_Auth::PREFIX ) || ! empty( $pack['signed'] ) ) {
 					throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
 				}
-				// Si cabe en la memoria libre, el manifiesto se comprueba además como lo hace la restauración: es lo que prueba
-				// que la restauración podrá leerlo en esta misma pila. Decodificado ocupa unas 3,2 veces su tamaño (medido
-				// con 17 000 entradas); con el texto leído y el margen, MANIFEST_FACTOR veces.
-				$size = (int) $stat['size'];
-				if ( self::MANIFEST_FACTOR * $size < Digitalisimo_Backups_Step_Budget::memory_headroom() ) {
-					$auth = Digitalisimo_Backups_Manifest_Auth::verify( $zip, '', $plan['root'] );
-					$state = $auth['state'];
-					unset( $auth );
-					if ( $plan['root'] && 'signed' !== $state ) throw new Exception( 'El respaldo no supera la comprobación de su propia firma.' );
-					if ( ! $plan['root'] && 'unsigned' !== $state ) throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
-					$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
-					if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) || 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || ! is_array( $manifest['entries'] ?? null ) || count( $manifest['entries'] ) !== (int) $pack['count'] - 1 || (int) $manifest['file_count'] !== (int) $pack['count'] - 2 ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
-				} else {
-					// No se pudo probar aquí, así que «verificado» no lo cubre y se dice siempre: la restauración (que lo
-					// decodifica entero, dos veces, con su texto) necesitará unas 7,5 veces su tamaño además de lo que ocupe
-					// WordPress. Se declara en el trabajo y en el historial (el manifiesto ya está escrito).
-					$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
-					$need = memory_get_usage( true ) + (int) ceil( 7.5 * $size );
-					$notices[] = array( 'notice' => 'restore_memory', 'text' => 'La verificación no pudo leer entero el manifiesto (' . number_format( (int) $pack['count'], 0, ',', '.' ) . ' entradas, ' . round( $size / 1048576, 1 ) . ' MB) con la memoria libre de esta petición, así que no prueba que la restauración pueda leerlo en este servidor: necesitará unos ' . (int) ceil( $need / 1048576 ) . ' MB' . ( $limit ? ' (memory_limit: ' . (int) round( $limit / 1048576 ) . ' MB)' : '' ) . '. Si no alcanzan, restáuralo con WP-CLI o sube WP_MAX_MEMORY_LIMIT antes de restaurarlo desde la pantalla.' );
-				}
+				// El manifiesto se comprueba además como lo hace la restauración (firma y esquema estricto, por partes y con
+				// memoria constante: `Manifest_Auth::verify()` y `Archive_Inspector::manifest()` de la restauración por pasos),
+				// así que «verificado» prueba también que la restauración podrá leerlo en esta misma pila, sea cual sea su tamaño.
+				$auth = Digitalisimo_Backups_Manifest_Auth::verify( $zip, '', $plan['root'] );
+				$state = $auth['state'];
+				unset( $auth );
+				if ( $plan['root'] && 'signed' !== $state ) throw new Exception( 'El respaldo no supera la comprobación de su propia firma.' );
+				if ( ! $plan['root'] && 'unsigned' !== $state ) throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
+				$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
+				if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) || 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || (int) ( $manifest['entries_count'] ?? -1 ) !== (int) $pack['count'] - 1 || (int) $manifest['file_count'] !== (int) $pack['count'] - 2 ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
 			} finally {
 				$zip->close();
 			}
