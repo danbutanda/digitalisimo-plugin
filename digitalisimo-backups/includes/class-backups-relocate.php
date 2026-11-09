@@ -849,9 +849,12 @@ final class Digitalisimo_Backups_Relocate {
 			$this->sites[ (int) $id ]['siteurl'] = $this->site_url_for( (string) ( $site['siteurl'] ?? '' ), $domain, $path, $base_to );
 			// La URL propia del sitio (home y siteurl, que pueden diferir de dominio + ruta) y la de dominio + ruta.
 			foreach ( array( 'siteurl', 'home' ) as $key ) if ( '' !== (string) ( $site[ $key ] ?? '' ) && '' !== $this->sites[ (int) $id ][ $key ] ) $this->add_url( $site[ $key ], $this->sites[ (int) $id ][ $key ] );
-			$this->add_url( 'http://' . $base_from, $base_to );
+			// Dominio + ruta con el esquema del propio sitio: en la misma red y con el mismo esquema es un par igual (nada cambia).
+			$own = self::parse_url( (string) ( $site['home'] ?? '' ) ) ?: self::parse_url( $o['home'] );
+			$this->add_url( ( $own ? $own['scheme'] : $scheme ) . '://' . $base_from, $base_to );
 		}
-		if ( $from['domain'] !== $to['domain'] || $from['path'] !== $to['path'] ) $this->add_url( 'http://' . $from['domain'] . self::untrail( $from['path'] ), $scheme . '://' . $to['domain'] . self::untrail( $to['path'] ) );
+		$origin_home = self::parse_url( $o['home'] );
+		if ( $from['domain'] !== $to['domain'] || $from['path'] !== $to['path'] ) $this->add_url( ( $origin_home ? $origin_home['scheme'] : 'https' ) . '://' . $from['domain'] . self::untrail( $from['path'] ), $scheme . '://' . $to['domain'] . self::untrail( $to['path'] ) );
 	}
 	/** URL de destino de una URL de un sitio: si empieza por su dominio + ruta, la parte cambia; si no (dominio propio), se queda. */
 	private function site_url_for( $url, $domain, $path, $base_to ) {

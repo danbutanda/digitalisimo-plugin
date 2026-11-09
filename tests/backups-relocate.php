@@ -398,6 +398,11 @@ e1_case( 'E5 comprobaciones previas con qué cambiar, antes de tocar nada', func
 	$destination['config'] = array( 'DOMAIN_CURRENT_SITE' => 'destino.mx', 'PATH_CURRENT_SITE' => '/', 'BLOG_ID_CURRENT_SITE' => 5 );
 	$plan = Digitalisimo_Backups_Relocate::plan( $origin, $destination );
 	e1_check( $plan->problems() && false !== strpos( implode( ' ', $plan->problems() ), 'BLOG_ID_CURRENT_SITE es 5' ), 'BLOG_ID_CURRENT_SITE inexistente.' );
+	// La misma red, en el mismo sitio y con https: no hay nada que reescribir (el par dominio + ruta lleva el esquema del sitio).
+	$same = $origin;
+	$same['sites'] = array( 1 => array( 'domain' => 'origen.com', 'path' => '/', 'home' => 'https://origen.com', 'siteurl' => 'https://origen.com' ), 2 => array( 'domain' => 'origen.com', 'path' => '/uno/', 'home' => 'https://origen.com/uno', 'siteurl' => 'https://origen.com/uno' ) );
+	$plan = Digitalisimo_Backups_Relocate::plan( $same, array( 'home' => 'https://origen.com', 'prefix' => 'wp_', 'multisite' => true, 'subdomain' => false, 'network' => array( 'domain' => 'origen.com', 'path' => '/' ) ) );
+	e1_check( ! $plan->problems() && ! $plan->needed(), 'Una red restaurada en su mismo sitio no debe reescribir nada: ' . json_encode( $plan->summary()['rewrites'] ) );
 	$plan = Digitalisimo_Backups_Relocate::plan( $origin, array( 'home' => 'https://destino.mx', 'prefix' => 'wp_', 'multisite' => false ) );
 	e1_check( false !== strpos( implode( ' ', $plan->problems() ), 'convierte esta instalación en una red por subdirectorios' ), 'Red en un sitio individual: ' . json_encode( $plan->problems() ) );
 	// Un respaldo de confianza con una vista: con otro prefijo no se puede asegurar a qué apunta, y se rechaza en la pasada
