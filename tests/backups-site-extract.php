@@ -318,6 +318,20 @@ try {
 	sort( $ids );
 	digi_assert( array( 2, 3, 6, 7 ) === $ids, 'Con «none» entró un superadministrador que no es miembro: ' . json_encode( $ids ) );
 
+	/* ---- El sitio principal: sus tablas (sin las globales ni las de los demás sitios) y sus medios sin uploads/sites/ ---- */
+	digi_assert( array( 'wp_2fa_policies', 'wp_comments', 'wp_global_plugin_log', 'wp_options', 'wp_postmeta', 'wp_posts' ) === $X::site_tables( 1 ), 'Las tablas del sitio principal no son las suyas: ' . json_encode( $X::site_tables( 1 ) ) );
+	$main = digi_extract( 1, array( 'super_admins' => 'none' ) );
+	$main_entries = digi_zip( $store . '/' . $main['file'] );
+	$main_manifest = json_decode( $main_entries['manifest.json'], true );
+	$main_tables = $main_manifest['database_tables'];
+	sort( $main_tables );
+	digi_assert( 'wp_' === $main_manifest['table_prefix'] && array( 'wp_2fa_policies', 'wp_comments', 'wp_global_plugin_log', 'wp_options', 'wp_postmeta', 'wp_posts', 'wp_usermeta', 'wp_users' ) === $main_tables, 'El paquete del sitio principal no lleva sus tablas: ' . json_encode( $main_tables ) );
+	digi_assert( isset( $main_entries['wordpress/wp-content/uploads/2026/01/principal.jpg'] ) && ! preg_grep( '#^wordpress/wp-content/uploads/sites/#', array_keys( $main_entries ) ), 'Los medios del sitio principal no son los suyos.' );
+	$main_rows = digi_sql_rows( $main_entries['database.sql'] );
+	$main_ids = array_map( 'intval', array_column( $main_rows['wp_users'], 'ID' ) );
+	sort( $main_ids );
+	digi_assert( array( 1, 2, 5, 6 ) === $main_ids && array( 'subscriber' => true ) === maybe_unserialize( digi_meta_keys( $main_rows['wp_usermeta'], 2 )['wp_capabilities'] ) && ! isset( digi_meta_keys( $main_rows['wp_usermeta'], 2 )['wp_2_capabilities'] ), 'Los usuarios del sitio principal no son los suyos: ' . json_encode( $main_ids ) );
+
 	/* ---- REST y la pantalla de red ---- */
 	$rest = digi_rest( 'POST', 'digitalisimo-backups/v1/sites/3/extract', array() );
 	digi_assert( 400 === $rest[0], 'REST extrajo sin network=true: ' . json_encode( $rest ) );
