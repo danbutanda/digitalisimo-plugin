@@ -2116,8 +2116,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		);
 	}
 	/**
-	 * Un texto para la pantalla, REST o WP-CLI sin rutas del servidor: lo de dentro de WordPress, relativo; el almacén, «el
-	 * almacén»; la raíz del servidor de origen, «(origen)»; cualquier otra ruta absoluta, sólo su nombre.
+	 * Un texto para la pantalla, REST o WP-CLI sin rutas de este servidor: lo de dentro de WordPress, relativo; el almacén,
+	 * «(almacén)»; la carpeta de la cuenta del hosting, «…»; la raíz del servidor de origen, «(origen)».
 	 */
 	private static function restore_public_text( $text, array $job = array() ) {
 		$roots = array();
@@ -2133,10 +2133,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 				if ( '' !== $origin && ! isset( $roots[ rtrim( $origin, '/' ) . '/' ] ) ) $roots[ rtrim( $origin, '/' ) . '/' ] = '(origen)/';
 			}
 		}
+		// Y la carpeta que contiene WordPress (la cuenta del hosting: /home/<usuario>), para lo que esté fuera de la raíz.
+		$home = rtrim( wp_normalize_path( dirname( (string) realpath( ABSPATH ) ) ), '/' );
+		if ( '' !== $home && '.' !== $home && substr_count( $home, '/' ) >= 2 && ! isset( $roots[ $home . '/' ] ) ) $roots[ $home . '/' ] = '…/';
 		uksort( $roots, function( $a, $b ) { return strlen( $b ) - strlen( $a ); } );
 		$text = str_replace( array_keys( $roots ), array_values( $roots ), $text );
 		foreach ( $roots as $root => $label ) $text = str_replace( rtrim( $root, '/' ), '' === $label ? '(WordPress)' : rtrim( $label, '/' ), $text );
-		return (string) preg_replace_callback( '#(?<![\w.:/-])/(?:[^\s/\'"<>]+/)+([^\s/\'"<>,;)]+)#u', function( $m ) { return '…/' . $m[1]; }, $text );
+		// Una ruta de otro servidor (la del origen que traía el respaldo) se queda: dice qué se cambió o desactivó.
+		return $text;
 	}
 	/**
 	 * Borra un árbol sin seguir enlaces; con plazo, devuelve false si no le dio tiempo (se sigue en el tramo siguiente).

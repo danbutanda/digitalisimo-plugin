@@ -302,7 +302,10 @@ e1_case( 'E2 un fallo a mitad de la reescritura vuelve a la copia previa', funct
 	// La sentencia ya renombrada y reescrita falla. Desde la restauración por pasos va a una tabla temporal con el
 	// prefijo del destino: la importación se detiene antes del cambio y las tablas del destino no se tocaron.
 	$dest->fail_on = 'INSERT INTO `dst_dgbkr_';
+	// Un solo intento: con reintentos (también en WP-CLI desde la revisión, P7) un fallo de una vez se recupera.
+	$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
 	$error = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] );
 	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'antes de cambiar el sitio' ), 'El fallo no dejó el destino como estaba: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
 	e1_check( ! array_filter( $dest->names(), function( $table ) { return false !== strpos( $table, 'dgbk' ); } ), 'Quedaron tablas temporales tras el fallo.' );
 	e1_check( $before === array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) ), 'La copia previa no devolvió el destino tal como estaba.' );
