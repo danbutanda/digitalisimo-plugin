@@ -545,7 +545,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// WordPress, una tienda) nunca se borra ni se recrea; se informa (revisión de E1, H3).
 		$tables = is_array( $data['database_tables'] ?? null ) ? array_values( array_map( 'strval', $data['database_tables'] ) ) : array_values( (array) ( $cursor['tables'] ?? array() ) );
 		$own_prefix = (string) ( $data['table_prefix'] ?? '' );
-		$foreign = '' === $own_prefix ? array() : array_values( array_filter( $tables, function( $table ) use ( $own_prefix ) { return 0 !== strpos( $table, $own_prefix ); } ) );
+		$foreign = '' === $own_prefix ? array() : array_values( array_filter( $tables, function( $table ) use ( $own_prefix ) { return 0 !== strncmp( $table, $own_prefix, strlen( $own_prefix ) ); } ) );
 		$tables = array_values( array_diff( $tables, $foreign ) );
 		self::restore_write_json( $job, 'foreign.json', $foreign );
 		$map = $tables;
