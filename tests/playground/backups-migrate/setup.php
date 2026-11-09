@@ -4,10 +4,11 @@
  * /digi-probe/site.json (`role` origen|destino, `password`, `elements`) y deja el resultado en /digi-probe/setup.json
  * (un fallo, en setup-error.txt).
  *
- * - Los dos: Backups activo (en la red, en toda la red), contraseña propia de admin, «Permitir HTTP» (laboratorio: el
- *   ensayo es por HTTP entre dos puertos), sin loopback de WP-Cron (la cola sólo avanza cuando el ensayo lo pide) y un
- *   mu-plugin que resuelve los hosts del arnés (origen.test → 127.0.0.1:<puerto>) para las peticiones salientes, como un
- *   DNS de laboratorio.
+ * - Los dos: Backups activo (en la red, en toda la red), sólo el tema en uso (sitio de prueba reducido: un paquete y
+ *   unas copias previas más pequeñas), contraseña propia de admin, «Permitir HTTP» (laboratorio: el ensayo es por HTTP
+ *   entre dos puertos), sin loopback de WP-Cron (la cola sólo avanza cuando el ensayo lo pide) y un mu-plugin que
+ *   resuelve los hosts del arnés (origen.test → 127.0.0.1:<puerto>) para las peticiones salientes, como un DNS de
+ *   laboratorio.
  * - Origen: contenido propio (entrada, medio con su archivo, una editora) y, con Elements, una página de Elements cuya
  *   imagen y fondo apuntan a sus medios (su CSS generado lleva la dirección del origen); en la red, el subsitio «uno»
  *   con su entrada y su medio.
@@ -27,6 +28,15 @@ try {
 		$activated = activate_plugin( 'digitalisimo-elements/pro-elements.php', '', $network );
 		if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó Elements: ' . $activated->get_error_message() );
 	}
+	// Sitio de prueba reducido: fuera los temas que no se usan (≈ 14 MB menos en el paquete y en cada copia previa).
+	$keep = array( get_stylesheet(), get_template(), defined( 'WP_DEFAULT_THEME' ) ? WP_DEFAULT_THEME : '' );
+	foreach ( (array) glob( get_theme_root() . '/*', GLOB_ONLYDIR ) as $theme ) {
+		if ( in_array( basename( $theme ), $keep, true ) ) continue;
+		$items = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $theme, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+		foreach ( $items as $item ) $item->isDir() ? rmdir( $item->getPathname() ) : unlink( $item->getPathname() );
+		rmdir( $theme );
+	}
+	wp_clean_themes_cache();
 	wp_mkdir_p( WPMU_PLUGIN_DIR );
 	$mu = "<?php\n// Ensayo de migración de DIGITALÍSIMO Backups: sin loopback de WP-Cron y DNS de laboratorio para los hosts del arnés.\n"
 		. "add_filter( 'pre_http_request', static function ( \$pre, \$args, \$url ) {\n"

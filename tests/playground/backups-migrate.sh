@@ -3,7 +3,7 @@
 # paquete se cifra y se descifra con el sodium_compat de WordPress), sin Chrome. Por cada modo arranca dos servidores en
 # dos puertos: A (origen) y B (destino), cada uno con su copia del plugin, su almacén privado y sus propias AUTH_KEY y
 # SECURE_AUTH_KEY, y check.mjs hace por HTTP lo que haría el administrador con el navegador (ver check.mjs):
-#   single     sitio individual en http://127.0.0.1:<puerto> (A con DIGITALÍSIMO Elements y una página suya, si
+#   single     sitio individual en http://127.0.0.1:<puerto> (A con DIGITALÍSIMO Elements y una página suya si
 #              ELEMENTS incluye «single»)
 #   multisite  red por subdirectorios en http://origen.test y http://destino.test (servidas en dos puertos; un mu-plugin
 #              de laboratorio resuelve origen.test hacia el puerto de A), A con el subsitio «uno»
@@ -15,8 +15,11 @@
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-migrate) y temporales de Playground; en el
 #                 servidor de desarrollo, en el disco que elige /var/tmp/digi-wt/pick-disk.sh
 #   MODES         modos a correr (por defecto «single multisite»)
-#   ELEMENTS      modos en los que A lleva Elements (por defecto «single»: con sodium_compat, sus ~32 MB comprimidos
-#                 suman unos 10 minutos de cifrado y otros tantos de descifrado)
+#   ELEMENTS      modos en los que A lleva Elements (por defecto ninguno; «single» añade la comprobación de su
+#                 página y su CSS en B, pero sus ~32 MB comprimidos duplican el paquete: con sodium_compat son unos 10
+#                 minutos más de cifrado y otros tantos de descifrado, y B carga sus 126 MB en memoria al restaurar)
+# Sitio de prueba reducido: setup.php borra en los dos sitios los temas que no se usan, así que el paquete, la copia
+# previa de B y la copia de «Deshacer» son unos 14 MB (sin comprimir) más pequeños.
 #   PORT          primer puerto (por defecto 9481; cada modo usa dos)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -27,7 +30,7 @@ mkdir -p "$OUT" "$TMPDIR"
 . "$ROOT/tests/playground/playground-cleanup.sh"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PORT="${PORT:-9481}"
-ELEMENTS="${ELEMENTS:-single}"
+ELEMENTS="${ELEMENTS:-}"
 PIDS=()
 PORTS=()
 stop_servers() {
