@@ -172,5 +172,20 @@ compat_restore( 'Digitalisimo_Backups', $sealed, 'contenido T2 cifrado' );
 compat_restore( compat_load( $repo, '1.0.60' ), $sealed, 'contenido T2 cifrado' );
 $GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => false );
 
+// 7. Un manifiesto de más de 1 MB (miles de archivos) se registra sin decodificarlo entero y con los mismos datos.
+$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 0;
+foreach ( range( 1, 60 ) as $d ) {
+	mkdir( ABSPATH . 'wp-content/uploads/muchos/carpeta-con-un-nombre-bastante-largo-' . $d, 0700, true );
+	foreach ( range( 1, 100 ) as $f ) file_put_contents( ABSPATH . 'wp-content/uploads/muchos/carpeta-con-un-nombre-bastante-largo-' . $d . '/miniatura-de-imagen-' . $f . '-150x150.txt', (string) $f );
+}
+$many = bk_backup( true );
+$zip = compat_open( $many );
+$bytes = $zip->getFromName( 'manifest.json' );
+$zip->close();
+$row = bk_call( 'Digitalisimo_Backups', 'history_item', basename( $many ) );
+$manifest = json_decode( $bytes, true );
+if ( strlen( $bytes ) <= 1048576 ) compat_fail( 'La prueba no llegó a un manifiesto de más de 1 MB (' . strlen( $bytes ) . ' B).' );
+if ( $manifest['backup_id'] !== $row['backup_id'] || true !== $row['signed'] || $manifest['auth']['key']['id'] !== $row['key_id'] || 'zip' !== $row['container'] ) compat_fail( 'La fila de un respaldo con un manifiesto grande no lleva su identificador y su firma: ' . json_encode( array_intersect_key( $row, array_flip( array( 'backup_id', 'signed', 'key_id', 'container' ) ) ) ) );
+
 bk_cleanup();
-echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58 y 1.0.60.\n";
+echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58 y 1.0.60; un manifiesto grande se registra sin decodificarlo entero.\n";
