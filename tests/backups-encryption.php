@@ -146,13 +146,15 @@ $signed_copies = 0;
 foreach ( $safety as $copy ) { if ( $E::is_encrypted( $copy ) || '.zip' !== substr( $copy, -4 ) ) throw new RuntimeException( 'La copia previa debe quedar en claro.' ); $signed_copies += $S::describe( $copy )['signed'] ? 1 : 0; }
 if ( 2 !== count( $safety ) || 1 !== $signed_copies ) throw new RuntimeException( 'La copia previa con clave no quedó firmada.' );
 
-// 5. La rotación incluye los .dgbk y respeta .staging/ y los .part.
-foreach ( array( 'digitalisimo-a.dgbk' => 100, 'digitalisimo-b.zip' => 200 ) as $name => $age ) { file_put_contents( "$storage/$name", 'x' ); touch( "$storage/$name", time() - $age ); }
+// 5. La rotación incluye los .dgbk y respeta .staging/ y los .part. Sólo cuenta y borra respaldos con fila en el historial:
+// uno «sin registro» (subido o copiado a mano) se queda (revisión del lote corto, R3).
+foreach ( array( 'digitalisimo-a.dgbk' => 100, 'digitalisimo-b.zip' => 200, 'digitalisimo-suelto.dgbk' => 300 ) as $name => $age ) { file_put_contents( "$storage/$name", 'x' ); touch( "$storage/$name", time() - $age ); }
+foreach ( array( 'digitalisimo-a.dgbk', 'digitalisimo-b.zip' ) as $name ) $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ][] = array( 'file' => $name, 'date' => gmdate( 'Y-m-d H:i:s' ), 'destination' => 'local' );
 $staging = $S::new_staging( $storage );
 file_put_contents( "$staging/inner.zip", 'x' );
 file_put_contents( "$storage/digitalisimo-c.dgbk.part", 'x' );
 bk_call( 'Digitalisimo_Backups', 'prune', $storage, 1 );
-if ( ! file_exists( $sealed ) || file_exists( "$storage/digitalisimo-a.dgbk" ) || file_exists( "$storage/digitalisimo-b.zip" ) || ! file_exists( "$staging/inner.zip" ) || ! file_exists( "$storage/digitalisimo-c.dgbk.part" ) ) throw new RuntimeException( 'La rotación no trató bien .dgbk, .staging o .part.' );
+if ( ! file_exists( $sealed ) || file_exists( "$storage/digitalisimo-a.dgbk" ) || file_exists( "$storage/digitalisimo-b.zip" ) || ! file_exists( "$storage/digitalisimo-suelto.dgbk" ) || ! file_exists( "$staging/inner.zip" ) || ! file_exists( "$storage/digitalisimo-c.dgbk.part" ) ) throw new RuntimeException( 'La rotación no trató bien .dgbk, .staging o .part.' );
 // Al tomar el bloqueo, cualquier operación siguiente (también una que no cifra) borra los huérfanos: un ZIP en claro
 // o descifrado que dejó un proceso interrumpido no espera al próximo respaldo cifrado.
 $lock = bk_call( 'Digitalisimo_Backups', 'acquire_operation_lock' );
