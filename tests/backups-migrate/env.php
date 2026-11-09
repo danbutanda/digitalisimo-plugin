@@ -237,7 +237,7 @@ function wp_nonce_field( $action ) { echo '<input type="hidden" name="_wpnonce" 
 function submit_button( $text ) { echo '<button class="button button-primary">' . esc_html( $text ) . '</button>'; }
 function admin_url( $path = '' ) { return home_url( 'wp-admin/' . ltrim( $path, '/' ) ); }
 function network_admin_url( $path = '' ) { return home_url( 'wp-admin/network/' . ltrim( $path, '/' ) ); }
-function add_query_arg( $args, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args ); }
+function add_query_arg( ...$a ) { if ( is_array( $a[0] ) ) { $args = $a[0]; $url = $a[1]; } else { $args = array( $a[0] => $a[1] ); $url = $a[2]; } return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args ); }
 function wp_safe_redirect( $url ) { throw new Mig_Redirect( $url ); }
 function wp_die( $message = '' ) { throw new Mig_Die( (string) $message ); }
 function check_admin_referer( $action ) { if ( ( $_POST['_wpnonce'] ?? '' ) !== 'nonce-' . $action ) throw new Mig_Die( 'nonce inválido' ); return 1; }

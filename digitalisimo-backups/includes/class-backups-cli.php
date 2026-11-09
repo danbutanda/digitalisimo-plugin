@@ -281,12 +281,13 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function migrate( $args, $assoc_args ) {
 		$key = self::migration_key( $assoc_args );
-		if ( empty( $assoc_args['yes'] ) ) WP_CLI::confirm( 'La migración reemplaza ' . ( is_multisite() ? 'esta red' : 'este sitio' ) . ' por el del origen (con una copia previa para deshacerla). ¿Continuar?' );
+		WP_CLI::confirm( 'La migración reemplaza ' . ( is_multisite() ? 'esta red' : 'este sitio' ) . ' por el del origen (con una copia previa para deshacerla). ¿Continuar?', $assoc_args );
 		$async = ! empty( $assoc_args['async'] );
 		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
 		$key = '';
-		if ( $async || ! empty( $assoc_args['porcelain'] ) ) {
-			if ( $async ) { WP_CLI::line( ! empty( $assoc_args['porcelain'] ) ? $view['id'] : 'Migración en cola desde ' . $view['source'] . ' (trabajo ' . $view['id'] . ').' ); return; }
+		if ( $async ) {
+			WP_CLI::line( ! empty( $assoc_args['porcelain'] ) ? $view['id'] : 'Migración en cola desde ' . $view['source'] . ' (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
+			return;
 		}
 		$done = self::drive( $view, ! empty( $assoc_args['porcelain'] ) );
 		if ( 'success' !== $done['status'] ) WP_CLI::error( ( 'cancelled' === $done['status'] ? 'Migración cancelada: ' : 'La migración falló: ' ) . ( $done['error'] ?: $done['detail'] ) );
@@ -559,7 +560,7 @@ final class Digitalisimo_Backups_Cli_Migration {
 	 * : No pide confirmación.
 	 */
 	public function undo( $args, $assoc_args ) {
-		if ( empty( $assoc_args['yes'] ) ) WP_CLI::confirm( '¿Deshacer la última migración y volver al estado anterior?' );
+		WP_CLI::confirm( '¿Deshacer la última migración y volver al estado anterior?', $assoc_args );
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'network' => ! empty( $assoc_args['network'] ) ) ) );
 		WP_CLI::success( 'Migración de ' . $result['from'] . ' deshecha con ' . $result['file'] . '. Revisa los enlaces permanentes.' );
 	}

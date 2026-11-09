@@ -175,6 +175,7 @@ function add_query_arg( $args, $url ) { $pairs = array(); foreach ( (array) $arg
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 function network_admin_url( $path = '' ) { return 'https://example.test/wp-admin/network/' . $path; }
 function add_action( $hook, $callback, $priority = 10, $args = 1 ) { $GLOBALS['digi']['actions'][ $hook ][] = $callback; return true; }
+function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { $GLOBALS['digi']['filters'][ $hook ][] = $callback; return true; }
 
 /** REST: las rutas se registran y se despachan como lo hace WordPress después de autenticar. */
 function register_rest_route( $namespace, $route, $args ) { $GLOBALS['digi']['routes'][ $namespace . $route ] = $args; return true; }
