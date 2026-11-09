@@ -210,6 +210,7 @@ final class Digitalisimo_Backups_Jobs {
 		}
 		$result = 'idle';
 		$finished = false;
+		$guard = 0;
 		try {
 			self::recover();
 			$start = microtime( true );
@@ -221,7 +222,7 @@ final class Digitalisimo_Backups_Jobs {
 				if ( ! $job ) break;
 				// WP-Cron retira el evento antes de llamar a este tick: si el proceso muere en el paso (límite del hosting,
 				// un reinicio), sin otro programado el trabajo esperaría al watchdog horario. Con el arrendamiento, a 60 s.
-				if ( 'worked' !== $result ) self::schedule();
+				if ( 'worked' !== $result ) $guard = self::schedule_guard();
 				$result = 'worked';
 				$job = self::run( $job, $start, $budget );
 				if ( ! $job || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
@@ -236,6 +237,8 @@ final class Digitalisimo_Backups_Jobs {
 		} finally {
 			Digitalisimo_Backups::release_operation_lock( $lock );
 		}
+		// El tick de guardia ya no hace falta: el siguiente se programa a su hora (un reintento, a la suya).
+		if ( $guard ) self::on_main_site( function() use ( $guard ) { if ( wp_next_scheduled( self::HOOK_TICK ) === $guard ) wp_unschedule_event( $guard, self::HOOK_TICK ); } );
 		self::schedule();
 		// Avisos de los trabajos que terminaron (aquí o en un proceso que murió después): fuera del cerrojo del almacén.
 		Digitalisimo_Backups_Notify::flush_jobs();
@@ -676,6 +679,15 @@ final class Digitalisimo_Backups_Jobs {
 			}
 			if ( $spawn && $next <= time() && function_exists( 'spawn_cron' ) && ! ( defined( 'DOING_CRON' ) && DOING_CRON ) ) spawn_cron();
 		} );
+	}
+	/** Programa el tick de guardia de un trabajo recién reclamado; devuelve su hora si lo añadió este tick (si no, 0). */
+	private static function schedule_guard() {
+		if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_unschedule_event' ) ) return 0;
+		$next = function() { return wp_next_scheduled( self::HOOK_TICK ); };
+		$before = self::on_main_site( $next );
+		self::schedule();
+		$after = self::on_main_site( $next );
+		return false !== $after && $after !== $before ? (int) $after : 0;
 	}
 	public static function cron_tick() { self::tick(); }
 	public static function ensure_watchdog() {
