@@ -415,8 +415,14 @@ el mismo temporal verificado.
 - Servidores reales (`backups-destinations-live.php`, se omite sin ellos): MinIO RELEASE.2025-09-07 (S3 compatible),
   pyftpdlib 2.2.0 (FTPS explícito) y wsgidav 4.4.0 (WebDAV sobre HTTPS), con TLS verificado por una CA de prueba y
   rechazado sin ella.
-- Playground (`tests/playground/backups-destinations.sh`): un respaldo real enviado, verificado, traído, descargado y
-  restaurado desde MinIO, FTPS y WebDAV (este como conexión adicional).
+- Playground (`tests/playground/backups-destinations.sh`, WordPress 7.1.4 sobre PHP 8.5.10 con cURL 7.69.1, 386 s):
+  en un sitio individual, las conexiones de MinIO y FTPS se guardaron por «Servidores» y la de WebDAV como conexión
+  adicional, sin ningún secreto en claro en `wp_options`; «Probar conexión» por admin-post pasó en las tres; un respaldo
+  real de 36 MB hacia cada una terminó en «success» después de «transfer», con el recibo verificado en el historial y el
+  destino listándolo sin temporales; con la copia local borrada, «Traer al almacén» la devolvió verificada por SHA-256,
+  la descarga al navegador fue el mismo archivo y la restauración por admin-post devolvió el sitio al respaldo; «Eliminar»
+  la borró también del destino (S3 91 s, FTPS 44 s, WebDAV 94 s). En una red, lo mismo con MinIO desde la
+  administración de red (84 s).
 
 Para probar con cuentas reales (Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, DigitalOcean, Akamai, Vultr, Dropbox,
 Google Drive, OneDrive y pCloud): crear la cuenta y la clave como indica «Cómo obtener…» en la pantalla, guardar la
