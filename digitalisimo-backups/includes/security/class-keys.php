@@ -62,6 +62,8 @@ final class Digitalisimo_Backups_Keys {
 	public static function valid_descriptor( $descriptor ) {
 		if ( ! is_array( $descriptor ) || ! is_string( $descriptor['id'] ?? null ) || ! preg_match( '/^[0-9a-f]{32}$/D', $descriptor['id'] ) ) return false;
 		if ( 'wp-config' === ( $descriptor['source'] ?? '' ) ) return null === ( $descriptor['kdf'] ?? null );
+		// Paquete de una migración: su clave sale de la clave de migración (Digitalisimo_Backups_Migrate), sin KDF.
+		if ( 'migration' === ( $descriptor['source'] ?? '' ) ) return null === ( $descriptor['kdf'] ?? null );
 		return 'passphrase' === ( $descriptor['source'] ?? '' ) && self::valid_kdf( $descriptor['kdf'] ?? null );
 	}
 	public static function valid_passphrase( $passphrase ) { return is_string( $passphrase ) && strlen( $passphrase ) >= self::PASSPHRASE_MIN && strlen( $passphrase ) <= self::PASSPHRASE_MAX; }
@@ -198,6 +200,7 @@ final class Digitalisimo_Backups_Keys {
 	/** Descriptor público de una clave que este sitio conoce por su huella (constante o llavero), o null. Nunca la clave. */
 	public static function descriptor_by_id( $key_id ) {
 		if ( ! is_string( $key_id ) || ! preg_match( '/^[0-9a-f]{32}$/D', $key_id ) ) return null;
+		if ( class_exists( 'Digitalisimo_Backups_Migrate', false ) && Digitalisimo_Backups_Migrate::knows_key( $key_id ) ) return self::descriptor( $key_id, 'migration' );
 		$constant = self::constant_key();
 		if ( false !== $constant ) {
 			$match = hash_equals( $key_id, self::key_id( $constant ) );
@@ -210,6 +213,8 @@ final class Digitalisimo_Backups_Keys {
 	/** Una clave que este sitio conoce por su huella (constante o llavero), o false. */
 	public static function resolve_by_id( $key_id ) {
 		if ( ! is_string( $key_id ) || ! preg_match( '/^[0-9a-f]{32}$/D', $key_id ) || ! Digitalisimo_Backups_Sodium::available() ) return false;
+		// La clave del paquete de una migración que prepara este sitio (envuelta en el almacén mientras su clave vive).
+		if ( class_exists( 'Digitalisimo_Backups_Migrate', false ) && Digitalisimo_Backups_Migrate::knows_key( $key_id ) ) return Digitalisimo_Backups_Migrate::package_key( $key_id );
 		$constant = self::constant_key();
 		if ( false !== $constant && hash_equals( $key_id, self::key_id( $constant ) ) ) return $constant;
 		$ring = self::keyring();

@@ -8,6 +8,7 @@ foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-fi
 unset( $digitalisimo_backups_part );
 
 require_once __DIR__ . '/class-backups-layout.php';
+require_once __DIR__ . '/class-backups-migrate.php';
 require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
@@ -43,11 +44,15 @@ final class Digitalisimo_Backups {
 	const ACTION_CREATE_AUTOMATION = 'digitalisimo_backups_create_automation';
 	const ACTION_UPDATE_AUTOMATION = 'digitalisimo_backups_update_automation';
 	const ACTION_DELETE_AUTOMATION = 'digitalisimo_backups_delete_automation';
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
+	/** Carpeta del almacén ya comprobada en esta petición. */
+	private static $storage_directory = null;
+	/** @internal Olvida la carpeta comprobada (pruebas que alternan dos instalaciones en un proceso). */
+	public static function forget_storage_directory() { self::$storage_directory = null; }
 	private static function local_directory() {
-		static $directory = null;
+		$directory = self::$storage_directory;
 		if ( null !== $directory ) return $directory;
 		$wp_root = realpath( ABSPATH );
 		if ( false === $wp_root ) throw new Exception( 'No se pudo resolver la raíz de WordPress para ubicar los respaldos.' );
@@ -82,8 +87,8 @@ final class Digitalisimo_Backups {
 			else update_option( self::STORAGE, $record, false );
 		}
 		self::migrate_legacy_storage( $real );
-		$directory = $real;
-		return $directory;
+		self::$storage_directory = $real;
+		return $real;
 	}
 	private static function path_within( $path, $root ) {
 		$path = wp_normalize_path( $path );
@@ -156,6 +161,26 @@ final class Digitalisimo_Backups {
 			fclose( $handle );
 		}
 	}
+	/** Registra la carpeta del almacén de esta instalación (sin la constante), como al abrir la pantalla. */
+	private static function remember_storage() {
+		if ( defined( 'DIGITALISIMO_BACKUPS_STORAGE_DIR' ) || null === self::$storage_directory ) return;
+		$root = realpath( ABSPATH );
+		$record = array( 'wordpress_root' => wp_normalize_path( false === $root ? ABSPATH : $root ), 'directory' => self::$storage_directory );
+		if ( is_multisite() ) update_site_option( self::STORAGE, $record );
+		else update_option( self::STORAGE, $record, false );
+	}
+	/** @internal Requisitos de un respaldo completo: la copia previa de una migración y el paquete del origen lo son. */
+	public static function migration_ready() { self::ensure_ready(); }
+	/**
+	 * @internal Restaura el paquete ya abierto de una migración con el motor de «Restaurar»: inspección completa antes de
+	 * la copia previa (marcada con $migration para deshacerla) y recuperación si algo falla después. Este sitio conserva
+	 * su dirección.
+	 */
+	public static function migration_restore( array $report, array $migration ) {
+		self::restore_digitalisimo_zip( $report['path'], $report, array( 'safety_extra' => $migration ) );
+	}
+	/** @internal URL de la pantalla Backups (en el contexto de red si corresponde) con su pestaña. */
+	public static function admin_page_url( $tab = '' ) { $url = self::admin_url(); return '' !== $tab ? add_query_arg( 'tab', $tab, $url ) : $url; }
 	/** Traslada los respaldos anteriores; nunca deja un ZIP parcialmente copiado como válido. */
 	private static function migrate_legacy_storage( $private ) {
 		$legacy = WP_PLUGIN_DIR . '/digitalisimo-backups-storage';
@@ -411,9 +436,11 @@ final class Digitalisimo_Backups {
 		// Credenciales de los destinos que no se abren o que siguen sin cifrar: qué hacer, sin ningún valor.
 		$credentials = self::credentials_status();
 		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
-		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a></nav>';
+		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a><a class="' . ( 'migrate' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'migrate', $base ) ) . '">Migrar</a></nav>';
 		if ( 'servers' === $tab ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
+		// Migrar: la tarjeta «Trabajos» hace avanzar la migración con la página abierta, como un respaldo.
+		if ( 'migrate' === $tab ) { Digitalisimo_Backups_Migrate::panel( $network, self::migration_status_data() ); self::jobs_panel( $network ); echo '</div>'; return; }
 			echo '<div class="digitalisimo-backups-grid"><section class="digitalisimo-backups-card"><h2>Crear respaldo completo</h2><p>Incluye todos los sitios de la red cuando WordPress usa Multisite, o el sitio completo en una instalación individual.</p>';
 			if ( is_multisite() && ! is_main_site() ) echo '<p class="notice notice-warning inline">El respaldo completo de la red debe iniciarse desde el sitio principal o la administración de red. Este subsitio no generará una copia incompleta.</p>';
 			echo '<form id="digitalisimo-backups-manual-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -1421,7 +1448,7 @@ final class Digitalisimo_Backups {
 	 * comprueba antes de la copia previa y antes de cualquier consulta o escritura. $report es el de
 	 * Digitalisimo_Backups_Security::open(); sin él se abre aquí.
 	 */
-	private static function restore_digitalisimo_zip( $path, $report = null ) {
+	private static function restore_digitalisimo_zip( $path, $report = null, array $options = array() ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
 		$owned = null === $report;
 		if ( $owned ) $report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
@@ -1437,7 +1464,9 @@ final class Digitalisimo_Backups {
 			$safety = self::create_network( 'safety-before-restore-' );
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
-			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
+			Digitalisimo_Backups_Migrate::before_restore();
+			// `safety_extra`: la migración marca su copia previa (la que «Deshacer la migración» restaura).
+			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true, (array) ( $options['safety_extra'] ?? array() ) );
 			// El historial que debe quedar, ya con la copia previa: reconstruirlo no vuelve a leer la copia entera.
 			$history_before = self::fresh_history();
 			self::write_restore_journal( $origin );
@@ -1507,6 +1536,10 @@ final class Digitalisimo_Backups {
 	private static function after_restore_sql( $history_before, $vault_before, array $origin = array() ) {
 		wp_cache_flush();
 		update_option( self::HISTORY, $history_before, false );
+		// El SQL trae la carpeta del almacén del sitio de origen: esta instalación vuelve a registrar la suya (WP-CLI y el
+		// cron no tienen DOCUMENT_ROOT), y el estado de la migración (fuera de todo respaldo) vuelve como estaba.
+		self::remember_storage();
+		Digitalisimo_Backups_Migrate::after_restore();
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
 		self::restore_credentials( $origin );
 	}
