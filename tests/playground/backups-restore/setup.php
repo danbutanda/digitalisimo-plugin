@@ -9,7 +9,7 @@
  * también para admin y WP-Cron), los presupuestos que la web calcula con 30 s (php-wasm se identifica como CLI), corta el
  * loopback de WP-Cron (la cola sólo avanza con lo que pide el ensayo), registra cada petición que hace avanzar la cola
  * (duración, memoria, fase), da el inventario del sitio y lo cambia (con el testigo de /digi-probe/token.txt) y mata la
- * petición a mitad de una fase de la restauración cuando el ensayo deja una marca (die-db, die-files) o hace fallar el
+ * petición a mitad de una fase de la restauración cuando el ensayo deja una marca (die-rest, die-db, die-files) o hace fallar el
  * movimiento de archivos (fail-move), como lo haría el hosting.
  */
 require '/wordpress/wp-load.php';
@@ -48,6 +48,10 @@ add_filter( 'digitalisimo_backups_step_units', static function () {
 	$job = '' !== $id ? Digitalisimo_Backups_Jobs::get( $id ) : null;
 	if ( ! $job || 'restore' !== $job['kind'] ) return 400;
 	$cursor = (array) ( $job['checkpoint'][ $job['phase'] ] ?? array() );
+	// La petición de REST que pidió la restauración muere ya en mantenimiento: el cliente no recibe ni el trabajo ni el
+	// testigo, y sólo WP-Cron (el cron del sistema, sin testigo) puede seguirla.
+	$uri = rawurldecode( (string) ( $GLOBALS['digi_r_request']['uri'] ?? '' ) );
+	if ( 'database' === $job['phase'] && false !== strpos( $uri, '/restore' ) && is_file( '/digi-ctl/die-rest' ) && @unlink( '/digi-ctl/die-rest' ) ) digi_r_kill( 'die-rest' );
 	if ( 'database' === $job['phase'] && (int) ( $cursor['offset'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-db' ) && @unlink( '/digi-ctl/die-db' ) ) digi_r_kill( 'die-db' );
 	if ( 'files' === $job['phase'] && 'extract' === ( $cursor['step'] ?? '' ) && (int) ( $cursor['i'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-files' ) && @unlink( '/digi-ctl/die-files' ) ) digi_r_kill( 'die-files' );
 	return 400;

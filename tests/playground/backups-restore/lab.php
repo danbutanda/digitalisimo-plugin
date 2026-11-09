@@ -3,7 +3,9 @@
  * Inventario y cambios del ensayo de la restauración robusta (lo carga el mu-plugin con el testigo del ensayo).
  * El inventario es comparable entre dos momentos: por tabla, filas y SHA-256 de las filas ordenadas (sin lo volátil:
  * transitorios, cron, sesiones, reglas de reescritura y las opciones de Backups, que una restauración repone a propósito)
- * y, por archivo bajo la raíz, su SHA-256 (sin la base de datos SQLite activa, el mantenimiento ni áreas de trabajo).
+ * y, por archivo bajo la raíz, su SHA-256 (sin la base de datos SQLite activa, el mantenimiento, áreas de trabajo ni
+ * wp-content/debug.log: lo escriben PHP y WordPress en cualquier petición, también las de la restauración y las del
+ * ensayo, como el error_log de un aviso por correo que php-wasm no puede enviar; no es estado del sitio).
  */
 function digi_lab_inventory() {
 	global $wpdb;
@@ -28,7 +30,7 @@ function digi_lab_inventory() {
 	foreach ( $iterator as $entry ) {
 		if ( $entry->isLink() || ! $entry->isFile() ) continue;
 		$relative = substr( $entry->getPathname(), strlen( $root ) + 1 );
-		if ( 0 === strpos( $relative, 'wp-content/database/' ) || '.maintenance' === $relative || 0 === strpos( $relative, '.digitalisimo-restore-' ) || false !== strpos( $relative, '/cache/' ) ) continue;
+		if ( 0 === strpos( $relative, 'wp-content/database/' ) || '.maintenance' === $relative || 'wp-content/debug.log' === $relative || 0 === strpos( $relative, '.digitalisimo-restore-' ) || false !== strpos( $relative, '/cache/' ) ) continue;
 		$files[ $relative ] = hash_file( 'sha256', $entry->getPathname() );
 	}
 	ksort( $files );

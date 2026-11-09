@@ -73,6 +73,9 @@ final class Digitalisimo_Backups_Notify {
 	 * de enviar: dos procesos que vacían a la vez no envían el mismo aviso dos veces. Nunca lanza.
 	 */
 	public static function flush_jobs() {
+		// Con WordPress mínimo (ticks de una restauración) no hay plugins de SMTP: wp_mail() iría por mail() de PHP. El
+		// aviso queda pendiente y Jobs::schedule() programa un tick que lo envía con WordPress entero.
+		if ( self::deferred() ) return 0;
 		try {
 			$jobs = Digitalisimo_Backups_Job_Store::all();
 		} catch ( Throwable $e ) {
@@ -89,6 +92,19 @@ final class Digitalisimo_Backups_Notify {
 			}
 		}
 		return $sent;
+	}
+	/** Esta petición carga WordPress mínimo (la puerta del mantenimiento de una restauración): los avisos esperan. */
+	public static function deferred() {
+		return defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' );
+	}
+	/** Hay un aviso de un trabajo terminado sin enviar. */
+	public static function pending() {
+		try {
+			foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) if ( 'pending' === ( $job['notice'] ?? '' ) && Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return true;
+		} catch ( Throwable $e ) {
+			return false;
+		}
+		return false;
 	}
 	/**
 	 * Reclama el aviso pendiente de un trabajo con el cerrojo de los trabajos: devuelve el trabajo (ya marcado `sent`)

@@ -1,14 +1,16 @@
 // Ensayo de la restauración robusta contra el Playground que levantó backups-restore.sh, sin WP-CLI: el respaldo se
 // crea desde la pantalla (AJAX), se toma el inventario, se cambia el sitio (base de datos y archivos, también un .php
 // inyectado en uploads y un plugin nuevo) y se restaura por REST; la restauración sólo avanza con ticks web (AJAX con el
-// testigo de la restauración, como la pantalla, y wp-cron.php, como un cron del sistema por HTTP), con dos peticiones
-// muertas a propósito (a mitad de la base de datos y a mitad de los archivos). Al final el inventario debe ser idéntico
-// al de después del respaldo y lo inyectado no debe sobrevivir. En el sitio individual, una segunda restauración falla
+// testigo de la restauración, como la pantalla, y wp-cron.php sin testigo ni `doing_wp_cron`, como el cron del sistema),
+// con dos peticiones muertas a propósito (a mitad de la base de datos y a mitad de los archivos). En la red muere además
+// la propia petición de REST, ya en mantenimiento: sin trabajo ni testigo en la respuesta, la restauración sólo sigue con
+// wp-cron.php (la puerta del .maintenance). Al final el inventario debe ser idéntico al de después del respaldo y lo
+// inyectado no debe sobrevivir. En el sitio individual, una segunda restauración falla
 // a mitad del cambio y debe volver a la copia previa (inventario idéntico al de antes de restaurar). Comprueba que
 // ninguna petición de la restauración pasó de 30 s ni de 64 MB. Escribe <dir>/result.txt y <dir>/summary.json.
 // Uso: node drive.mjs <puerto> <host> <dir> <single|multisite>
 import http from 'node:http';
-import { appendFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const [port, host, dir, mode] = process.argv.slice(2);
 const network = mode === 'multisite';
@@ -85,7 +87,7 @@ const started = await ajax('digitalisimo_backups_manual_start', config.nonce, { 
 const backupId = started.json?.data?.id;
 check(started.status === 200 && backupId, 'respaldo encolado desde la pantalla', started.text);
 for (let i = 0; i < 3000 && backupId && !terminal(jobFile(backupId)); i++) {
-  const res = i % 4 === 3 ? await request('GET', `/wp-cron.php?doing_wp_cron=${(Date.now() / 1000).toFixed(4)}`) : await ajax('digitalisimo_backups_job_tick', config.jobsNonce);
+  const res = i % 4 === 3 ? await request('GET', '/wp-cron.php') : await ajax('digitalisimo_backups_job_tick', config.jobsNonce);
   await sleep(res.json?.data?.result === 'worked' ? 200 : 1500);
 }
 const backup = jobFile(backupId);
@@ -96,14 +98,25 @@ writeFileSync(`${dir}/inventory-reference.json`, JSON.stringify(reference, null,
 /** Restaura por REST y la hace avanzar sólo con ticks web; devuelve el trabajo de la restauración (y su vuelta, si la hubo). */
 async function restoreByWeb(file, label) {
   const nonce = (await request('GET', '/wp-admin/admin-ajax.php?action=rest-nonce', { headers: { Cookie: cookie() } })).text.trim();
+  const posted = Date.now();
   const res = keep(await request('POST', `/?rest_route=${encodeURIComponent(`/digitalisimo-backups/v1/backups/${file}/restore`)}`, {
     headers: { Cookie: cookie(), 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: 'RESTAURAR', network }),
   }));
-  const restoring = res.status === 202 && res.json?.restoring;
-  check(restoring || res.status === 200, `${label}: POST restore responde 202 y la restauración sigue por pasos`, `${res.status} ${res.text.slice(0, 300)}`);
-  const id = res.json?.job?.id;
-  const maintenance = res.json?.maintenance_token || '';
+  const died = jsonl(`${ctl}/deaths.jsonl`).some((d) => d.flag === 'die-rest' && d.at * 1000 >= posted);
+  let id = res.json?.job?.id;
+  let maintenance = res.json?.maintenance_token || '';
+  if (died) {
+    // Como un SIGKILL o un corte del proxy: al cliente no le llega nada de esa respuesta (ni la cookie del testigo).
+    cookies.delete('digitalisimo_backups_restore');
+    maintenance = '';
+    const restores = readdirSync(`${store}/jobs`).map(jobFile).filter((job) => job?.kind === 'restore' && !job.spec?.rollback && job.created_at * 1000 >= posted - 2000);
+    id = restores.sort((a, b) => b.created_at - a.created_at)[0]?.id;
+    check(Boolean(id), `${label}: la petición de REST murió ya en mantenimiento (die-rest), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
+  } else {
+    const restoring = res.status === 202 && res.json?.restoring;
+    check(restoring || res.status === 200, `${label}: POST restore responde 202 y la restauración sigue por pasos`, `${res.status} ${res.text.slice(0, 300)}`);
+  }
   let followed = id;
   const ticks = [];
   let maintenanceSeen = false;
@@ -116,26 +129,31 @@ async function restoreByWeb(file, label) {
     }
     const visitor = i % 10 === 5 ? await request('GET', '/') : null;
     if (visitor && visitor.status === 503) maintenanceSeen = true;
-    const kind = i % 3 === 2 ? 'wp-cron' : 'pantalla';
+    // Sin testigo (la petición de REST murió) sólo queda el cron del sistema: wp-cron.php, como la línea que da la pantalla.
+    const kind = !maintenance || i % 3 === 2 ? 'wp-cron' : 'pantalla';
     const r = kind === 'wp-cron'
-      ? await request('GET', `/wp-cron.php?doing_wp_cron=${(Date.now() / 1000).toFixed(4)}&digitalisimo_backups_restore=${maintenance}`)
+      ? await request('GET', '/wp-cron.php')
       : await ajax('digitalisimo_backups_restore_tick', '', { digitalisimo_backups_restore: maintenance }, `?digitalisimo_backups_restore=${maintenance}`);
     ticks.push({ kind, status: r.status, ms: r.ms, result: r.json?.data?.result ?? null, phase: job?.phase });
     const view = (r.json?.data?.jobs || []).find((item) => item.id === followed);
     await sleep(r.json?.data?.result === 'worked' ? 200 : Math.max(500, Math.min(5000, (view?.retry_in || 1) * 1000)));
   }
-  return { id, followed, job: jobFile(id), last: jobFile(followed), ticks, maintenanceSeen };
+  return { id, followed, job: jobFile(id), last: jobFile(followed), ticks, maintenanceSeen, died };
 }
 
 // 2. Cambios después del respaldo y restauración con dos muertes (base de datos y archivos).
 const mutated = await probe('mutate', '&round=1');
 check(mutated?.round === 1, 'el sitio cambió después del respaldo (base de datos, inyectado.php, plugin nuevo, tema)');
-for (const flag of ['die-db', 'die-files']) writeFileSync(`${ctl}/${flag}`, '');
+for (const flag of network ? ['die-rest', 'die-db', 'die-files'] : ['die-db', 'die-files']) writeFileSync(`${ctl}/${flag}`, '');
 const first = await restoreByWeb(backup.spec.file, 'restauración');
 check(first.job?.status === 'success', `restauración terminada sólo con ticks web (${first.ticks.length} peticiones)`, JSON.stringify(first.job?.error || first.job?.status));
 const deaths = jsonl(`${ctl}/deaths.jsonl`).map((d) => d.flag);
 const events = jsonl(`${store}/jobs/${first.id}/events.jsonl`);
-check(deaths.includes('die-db') && deaths.includes('die-files') && events.filter((e) => e.type === 'interrupted').length >= 2, `las peticiones muertas a mitad de la base de datos y de los archivos (${deaths.join(', ')}) se reconocieron y la restauración siguió desde su punto de control`, JSON.stringify(events.filter((e) => !['phase', 'claimed'].includes(e.type)).slice(0, 12)));
+const expected = network ? ['die-rest', 'die-db', 'die-files'] : ['die-db', 'die-files'];
+check(expected.every((flag) => deaths.includes(flag)) && events.filter((e) => e.type === 'interrupted').length >= expected.length, `las peticiones muertas (${deaths.join(', ')}) se reconocieron y la restauración siguió desde su punto de control`, JSON.stringify(events.filter((e) => !['phase', 'claimed'].includes(e.type)).slice(0, 12)));
+// WP-Cron por la puerta del mantenimiento: wp-cron.php, sin testigo, hizo avanzar la restauración.
+const cronWorked = jsonl(`${ctl}/requests.jsonl`).filter((r) => r.kind === 'wp-cron' && r.from && r.from !== r.to).length;
+check(cronWorked >= (first.died ? 3 : 1), `wp-cron.php sin testigo hizo avanzar la restauración (${cronWorked} peticiones${first.died ? '; la única vía tras morir la de REST' : ''})`);
 const slices = (phase) => events.filter((e) => e.type === 'phase' && e.phase === phase && e.next === phase).length;
 check(slices('database') >= 2 && slices('files') >= 2 && slices('inspect') >= 1, `base de datos, archivos y verificación por tramos (${slices('inspect')}, ${slices('database')}, ${slices('files')})`);
 const restored = await probe('inventory');

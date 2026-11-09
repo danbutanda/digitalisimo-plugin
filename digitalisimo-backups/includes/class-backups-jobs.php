@@ -219,6 +219,9 @@ final class Digitalisimo_Backups_Jobs {
 			do {
 				$job = self::claim();
 				if ( ! $job ) break;
+				// WP-Cron retira el evento antes de llamar a este tick: si el proceso muere en el paso (límite del hosting,
+				// un reinicio), sin otro programado el trabajo esperaría al watchdog horario. Con el arrendamiento, a 60 s.
+				if ( 'worked' !== $result ) self::schedule();
 				$result = 'worked';
 				$job = self::run( $job, $start, $budget );
 				if ( ! $job || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
@@ -658,6 +661,8 @@ final class Digitalisimo_Backups_Jobs {
 			}
 			// Una subida cancelada o fallida que espera retirarse del destino también necesita su tick.
 			if ( Digitalisimo_Backups::job_transfer_pending_abandons() ) $next = null === $next ? time() : min( $next, time() );
+			// Avisos por correo que una petición con WordPress mínimo no envió: los manda un tick con WordPress entero.
+			if ( Digitalisimo_Backups_Notify::deferred() && Digitalisimo_Backups_Notify::pending() ) $next = null === $next ? time() + 60 : min( $next, time() + 60 );
 		} catch ( Throwable $e ) {
 			return;
 		}

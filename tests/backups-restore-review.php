@@ -18,6 +18,8 @@
  *   M4  entries() con 60 000 entradas no guarda una entrada por archivo en memoria.   B1  el aviso sin rutas de este servidor.
  *   P6  la exportación de un sitio no lleva tablas de una restauración.   P7  WP-CLI restaura con reintentos.
  *   P11 la limpieza siempre avanza aunque el tick llegue sin tiempo.
+ *   P12 (ensayo de Playground) un tick de WP-Cron que muere a mitad del paso deja programado el siguiente.
+ *   P13 (ensayo de Playground) el aviso por correo no sale de una petición con WordPress mínimo (sin SMTP).
  * Uso: php tests/backups-restore-review.php (php-wasm: igual).
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -436,6 +438,38 @@ rr_case( 'P11 borrar una carpeta siempre avanza', function() {
 	rr_check( ! file_exists( $dir ), 'Sin tiempo, la limpieza no avanza (' . $rounds . ' rondas).' );
 } );
 
+// P12 (del ensayo de Playground tras la revisión): WP-Cron retira el evento antes de llamar al tick. Si el proceso muere
+// en el paso, otro tick tiene que estar ya programado; si no, una restauración que sólo sigue con WP-Cron (la petición que
+// la empezó murió y nadie tiene el testigo) esperaría en mantenimiento al watchdog horario.
+if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $hook ) { return $GLOBALS['rr_events'][ $hook ] ?? false; } }
+if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $at, $hook ) { $GLOBALS['rr_events'][ $hook ] = (int) $at; return true; } }
+if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $at, $hook ) { unset( $GLOBALS['rr_events'][ $hook ] ); return true; } }
+rr_case( 'P12 un tick de WP-Cron que muere a mitad del paso deja programado el siguiente', function() use ( $root, $backup ) {
+	rr_reset( $root, $backup );
+	$GLOBALS['rr_events'] = array();
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 1;
+	rr_restore( $backup );
+	$missing = array();
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function( $units ) use ( &$missing ) {
+		$job = rr_current();
+		// Si el proceso muriera aquí, ¿quién sigue? Un tick programado (o el watchdog, una hora después).
+		$at = $GLOBALS['rr_events'][ Digitalisimo_Backups_Jobs::HOOK_TICK ] ?? 0;
+		if ( $job && ( ! $at || $at > time() + 120 ) ) $missing[ $job['phase'] ] = true;
+		return $units;
+	};
+	$ticks = 0;
+	for ( $i = 0; $i < 3000 && Digitalisimo_Backups_Jobs::active(); $i++ ) {
+		$GLOBALS['rr_events'] = array(); // WP-Cron ya retiró el evento que dispara este tick.
+		Digitalisimo_Backups_Jobs::tick();
+		$ticks++;
+	}
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_request_limit'], $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	rr_finish();
+	$list = rr_restores();
+	rr_check( $ticks >= 3 && 'success' === end( $list )['status'], 'La restauración no terminó por ticks (' . $ticks . ').' );
+	rr_check( ! $missing, 'Durante el paso no había ningún tick programado: si el proceso muere, nadie sigue hasta el watchdog (fases ' . implode( ', ', array_keys( $missing ) ) . ').' );
+} );
+
 // A1, P1 (al final: la puerta define WordPress mínimo para el resto de este proceso).
 rr_case( 'A1 P1 el mantenimiento deja pasar WP-Cron y el tick, despierta la restauración y WP-Cron sólo corre lo suyo', function() use ( $root ) {
 	if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { $GLOBALS['rr_added'][ $hook ][] = $callback; return true; } }
@@ -476,6 +510,29 @@ rr_case( 'A1 P1 el mantenimiento deja pasar WP-Cron y el tick, despierta la rest
 	Digitalisimo_Backups_Restore_Maintenance::release();
 } );
 
+// P13 (del ensayo de Playground tras la revisión): el aviso por correo de una restauración termina en un tick con WordPress
+// mínimo, sin los plugins de SMTP del sitio (wp_mail() iría por mail() de PHP, que muchos hostings no entregan). Queda
+// pendiente y un tick programado lo envía con WordPress entero. Depende de A1, que deja definido WordPress mínimo.
+rr_case( 'P13 el aviso por correo no sale de una petición con WordPress mínimo: queda pendiente con un tick programado', function() use ( $root, $backup ) {
+	rr_check( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ), 'La prueba necesita WordPress mínimo (caso A1).' );
+	rr_reset( $root, $backup );
+	if ( ! function_exists( 'wp_mail' ) ) { function wp_mail( $to, $subject, $body ) { $GLOBALS['rr_mails'][] = $subject; return true; } }
+	$GLOBALS['rr_mails'] = array();
+	$GLOBALS['rr_events'] = array();
+	$GLOBALS['bk_options'][ Digitalisimo_Backups_Notify::OPTION ] = array( 'failure' => true, 'success' => true, 'email' => 'avisos@example.test' );
+	rr_restore( $backup );
+	rr_finish();
+	Digitalisimo_Backups_Jobs::tick();
+	$list = rr_restores();
+	$job = end( $list );
+	unset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Notify::OPTION ] );
+	rr_check( 'success' === $job['status'], 'La restauración no terminó.' );
+	rr_check( ! $GLOBALS['rr_mails'], 'Salió un aviso desde WordPress mínimo: ' . implode( ', ', $GLOBALS['rr_mails'] ) );
+	rr_check( 'pending' === ( $job['notice'] ?? '' ), 'El aviso no quedó pendiente (' . ( $job['notice'] ?? '' ) . ').' );
+	$at = $GLOBALS['rr_events'][ Digitalisimo_Backups_Jobs::HOOK_TICK ] ?? 0;
+	rr_check( $at && $at <= time() + 120, 'No quedó un tick programado para enviarlo.' );
+} );
+
 bk_cleanup();
 if ( $GLOBALS['failures'] ) { echo 'FALLA: ' . $GLOBALS['failures'] . " caso(s) de la revisión de la restauración.\n"; exit( 1 ); }
-echo "DIGITALÍSIMO Backups: restauración por pasos tras la revisión (C1, C2, A1–A5, M1–M4, B1, P1, P6, P7, P11).\n";
+echo "DIGITALÍSIMO Backups: restauración por pasos tras la revisión (C1, C2, A1–A5, M1–M4, B1, P1, P6, P7, P11, P12, P13).\n";
