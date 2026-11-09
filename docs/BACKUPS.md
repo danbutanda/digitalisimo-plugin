@@ -468,7 +468,8 @@ el mismo temporal verificado, que se borra también cuando la descarga falla.
   la descarga al navegador fue el mismo archivo y la restauración por admin-post devolvió el sitio al respaldo; «Eliminar»
   la borró también del destino (S3 91 s, FTPS 44 s, WebDAV 94 s). En una red, lo mismo con MinIO desde la
   administración de red (84 s). Sobre el mismo código se repitió `tests/playground/backups-security.sh` (los tres
-  modos, S9 incluido) sin ningún fallo.
+  modos, S9 incluido) sin ningún fallo. Con las correcciones de la revisión de 1.0.62 se repitió entero (342 s: sitio
+  individual 232 s, red 110 s), con «Probar conexión» avisando de que el servidor de prueba es loopback y el resto igual.
 
 Para probar con cuentas reales (Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, DigitalOcean, Akamai, Vultr, Dropbox,
 Google Drive, OneDrive y pCloud): crear la cuenta y la clave como indica «Cómo obtener…» en la pantalla, guardar la
