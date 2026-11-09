@@ -853,6 +853,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$started = microtime( true );
 		$deadline = self::restore_deadline( $job, 'files', $cursor );
 		$layout = self::restore_layout();
+		// Un recorrido que murió a mitad pudo anotar carpetas dos veces: se repite desde el principio (sólo mira, es barato).
+		if ( 'walk' === $cursor['step'] && (int) ( $job['attempts']['files'] ?? 0 ) > 0 ) $cursor = array( 'step' => 'walk' );
 		if ( 'walk' === $cursor['step'] ) {
 			$cursor = self::restore_walk( $job, $cursor, $layout, $deadline );
 			return self::restore_slice( 'files', $cursor, 'Buscando lo que el respaldo no tiene (' . (int) ( $cursor['seen'] ?? 0 ) . ' archivos revisados)…', $started, (int) ( $cursor['units'] ?? 0 ), $job );
@@ -1245,7 +1247,21 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		if ( ! wp_mkdir_p( dirname( $live ) ) ) throw new Exception( 'No se pudo preparar una carpeta de destino segura.' );
 		self::restore_assert_inside( dirname( $live ), $root );
-		if ( ! @rename( $staged, $live ) ) throw new Exception( 'No se pudo reemplazar el archivo ' . $relative . ' durante la restauración.' );
+		if ( ! self::restore_rename_file( $staged, $live ) ) throw new Exception( 'No se pudo reemplazar el archivo ' . $relative . ' durante la restauración.' );
+	}
+	/**
+	 * `rename()` de un archivo; si cruza de disco (los medios montados aparte, un almacén en otro volumen), lo copia junto
+	 * al destino, comprueba tamaño y SHA-256 y entonces lo renombra allí (sigue siendo un cambio atómico en el destino).
+	 */
+	private static function restore_rename_file( $from, $to ) {
+		if ( @rename( $from, $to ) ) return true;
+		if ( ! is_file( $from ) || is_link( $from ) ) return false;
+		$temp = $to . '.digitalisimo-restore-' . bin2hex( random_bytes( 4 ) );
+		if ( ! @copy( $from, $temp ) ) { @unlink( $temp ); return false; }
+		clearstatcache();
+		if ( @filesize( $temp ) !== @filesize( $from ) || @hash_file( 'sha256', $temp ) !== @hash_file( 'sha256', $from ) || ! @rename( $temp, $to ) ) { @unlink( $temp ); return false; }
+		@unlink( $from );
+		return true;
 	}
 	private static function restore_assert_inside( $directory, $root ) {
 		$real = realpath( $directory );
@@ -1499,6 +1515,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 			if ( 'interrupted' === $state ) $text .= 'Se interrumpió y se reanudará desde su último punto de control' . ( $waiting ? ' a las ' . $view['retry_label'] : '' ) . '. ';
 			$text .= Digitalisimo_Backups_Restore_Job::cancellable( (string) $active['phase'] ) && ! $rollback ? 'El sitio sigue entero hasta el cambio.' : 'El sitio está en mantenimiento hasta que termine.';
 			return array( 'state' => $state, 'job' => (string) $active['id'], 'phase' => (string) $active['phase'], 'phase_label' => $view['phase_label'], 'percent' => $view['percent'], 'file' => basename( (string) $active['spec']['file'] ), 'safety' => self::restore_safety_file( $active ), 'notice' => trim( $text ), 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
+		}
+		// La última fue la vuelta a la copia previa: el sitio está como antes, pero la restauración pedida no se hizo.
+		if ( $last && 'success' === $last['status'] && ! empty( $last['spec']['rollback'] ) && time() - (int) $last['finished_at'] < 7 * 86400 ) {
+			$failed = Digitalisimo_Backups_Jobs::get( (string) ( $last['spec']['rollback']['of'] ?? '' ) );
+			$why = $failed ? self::restore_rollback_info( $failed['id'] )['cause'] : '';
+			return array( 'state' => 'rolled_back', 'job' => (string) $last['id'], 'file' => basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ), 'safety' => basename( (string) $last['spec']['file'] ), 'notice' => 'La restauración de ' . basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ) . ' falló a mitad del cambio' . ( '' !== $why ? ' (' . $why . ')' : '' ) . ' y el sitio volvió a la copia previa ' . basename( (string) $last['spec']['file'] ) . ': está como antes de restaurar.', 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
 		}
 		if ( $last && 'success' !== $last['status'] && time() - (int) $last['finished_at'] < 7 * 86400 ) {
 			$message = is_array( $last['error'] ?? null ) ? (string) $last['error']['message'] : (string) ( $last['progress']['message'] ?? '' );

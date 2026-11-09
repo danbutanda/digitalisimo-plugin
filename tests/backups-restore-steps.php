@@ -249,7 +249,7 @@ rs_case( 'R4 un fallo tras el cambio vuelve a la copia previa entera', function(
 	foreach ( $before as $path => $hash ) rs_check( ( $after[ $path ] ?? null ) === $hash, 'El archivo no volvió a como estaba antes de restaurar: ' . $path );
 	rs_check( ! file_exists( $root . '/.maintenance' ), 'Tras volver a la copia previa el sitio quedó en mantenimiento.' );
 	$status = Digitalisimo_Backups::service_status()['restore'];
-	rs_check( 'none' === $status['state'] || 'failed_midway' === $status['state'], 'El estado no describe la restauración fallida: ' . json_encode( $status ) );
+	rs_check( 'rolled_back' === $status['state'] && false !== strpos( $status['notice'], 'volvió a la copia previa' ), 'El estado no describe la restauración fallida: ' . json_encode( $status ) );
 	$view = Digitalisimo_Backups::service_job_view( $failed );
 	rs_check( $rollback['id'] === $view['restore']['followed_by'], 'La vista del trabajo fallido no nombra su vuelta a la copia previa.' );
 	$GLOBALS['bk_options'] = $options;

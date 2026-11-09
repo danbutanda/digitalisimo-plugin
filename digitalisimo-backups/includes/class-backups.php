@@ -433,7 +433,7 @@ final class Digitalisimo_Backups {
 		// Una restauración sin terminar (o que no terminó bien): qué fase y qué pasa con el sitio, en todas las pestañas.
 		$restore = self::restore_status();
 		if ( 'none' !== $restore['state'] ) {
-			$titles = array( 'running' => 'Restauración en curso.', 'interrupted' => 'Restauración interrumpida: se reanudará sola.', 'rollback' => 'Volviendo a la copia previa.', 'failed' => 'La última restauración no se completó.', 'failed_midway' => 'La última restauración falló a mitad del cambio.', 'cancelled' => 'La última restauración se canceló.' );
+			$titles = array( 'running' => 'Restauración en curso.', 'interrupted' => 'Restauración interrumpida: se reanudará sola.', 'rollback' => 'Volviendo a la copia previa.', 'failed' => 'La última restauración no se completó.', 'failed_midway' => 'La última restauración falló a mitad del cambio.', 'rolled_back' => 'La última restauración falló y el sitio volvió a la copia previa.', 'cancelled' => 'La última restauración se canceló.' );
 			echo '<div class="notice notice-' . ( in_array( $restore['state'], array( 'failed_midway', 'rollback', 'interrupted' ), true ) ? 'error' : 'warning' ) . ' digitalisimo-backups-restore-state" data-state="' . esc_attr( $restore['state'] ) . '"><p><strong>' . esc_html( $titles[ $restore['state'] ] ?? '' ) . '</strong> ' . esc_html( $restore['notice'] ) . '</p></div>';
 			$active = Digitalisimo_Backups_Jobs::restore_active();
 			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
