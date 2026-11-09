@@ -93,10 +93,11 @@ try {
 	digi_assert( ! is_wp_error( $uploaded ) && 11 === count( $uploaded['wp_config']['differences'] ), 'La subida no informa las diferencias de wp-config.php: ' . json_encode( is_wp_error( $uploaded ) ? $uploaded->get_error_message() : $uploaded ) );
 
 	// 4. El análisis: sólo define() con nombre literal, valores literales o «expresión», nunca lo comentado ni un método.
-	$parsed = $D::parse( "<?php\ndefine( 'A', 'uno' ); define( \"B\", \"dos\\tdos\" ); define( 'C', -5 ); define( 'D', 1.5 ); define( 'E', FALSE ); define( 'F', null );\ndefine( 'G', 'a' . 'b' ); define( 'H', getenv( 'H' ) ); define( 'I', \"con \$variable\" ); define( 'A', 'repetida' );\n// define( 'J', 'comentada' );\n/* define( 'K', 'bloque' ); */\n\$o->define( 'L', 'metodo' ); Clase::define( 'M', 'estatico' ); echo \"define( 'N', 'cadena' )\";\n" );
-	digi_assert( array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I' ) === array_keys( $parsed ), 'El análisis no encontró exactamente las constantes definidas: ' . json_encode( array_keys( $parsed ) ) );
+	$parsed = $D::parse( "<?php\ndefine( 'A', 'uno' ); define( \"B\", \"dos\\tdos\" ); define( 'C', -5 ); define( 'D', 1.5 ); define( 'E', FALSE ); define( 'F', null );\ndefine( 'G', 'a' . 'b' ); define( 'H', getenv( 'H' ) ); define( 'I', \"con \$variable\" ); define( 'J2', \"precio \\\$5\" ); define( 'U', \"\\u{41}\" ); define( 'A', 'repetida' );\n// define( 'J', 'comentada' );\n/* define( 'K', 'bloque' ); */\n\$o->define( 'L', 'metodo' ); Clase::define( 'M', 'estatico' ); echo \"define( 'N', 'cadena' )\";\n" );
+	digi_assert( array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J2', 'U' ) === array_keys( $parsed ), 'El análisis no encontró exactamente las constantes definidas: ' . json_encode( array_keys( $parsed ) ) );
 	digi_assert( 'uno' === $parsed['A']['value'] && "dos\tdos" === $parsed['B']['value'] && '-5' === $parsed['C']['value'] && '1.5' === $parsed['D']['value'] && 'false' === $parsed['E']['value'] && 'null' === $parsed['F']['value'], 'Los literales no se leyeron bien: ' . json_encode( $parsed ) );
-	foreach ( array( 'G', 'H', 'I' ) as $name ) digi_assert( false === $parsed[ $name ]['literal'] && null === $parsed[ $name ]['value'], 'Una expresión se tomó por literal: ' . $name );
+	digi_assert( true === $parsed['J2']['literal'] && 'precio $5' === $parsed['J2']['value'], 'Un \\$ escapado no se leyó como literal: ' . json_encode( $parsed['J2'] ) );
+	foreach ( array( 'G', 'H', 'I', 'U' ) as $name ) digi_assert( false === $parsed[ $name ]['literal'] && null === $parsed[ $name ]['value'], 'Una expresión se tomó por literal: ' . $name );
 
 	// 5. La comparación: qué falta, qué sobra y qué cambia; los secretos y las rutas, sin valor.
 	$rows = array();

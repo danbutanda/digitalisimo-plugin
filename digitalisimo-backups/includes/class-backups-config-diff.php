@@ -80,7 +80,8 @@ final class Digitalisimo_Backups_Config_Diff {
 		if ( substr( $token, -1 ) !== $quote || ! in_array( $quote, array( "'", '"' ), true ) ) return null;
 		$body = substr( $token, 1, -1 );
 		if ( "'" === $quote ) return preg_replace( "/\\\\([\\\\'])/", '$1', $body );
-		if ( false !== strpos( $body, '$' ) || false !== strpos( $body, '\\u{' ) ) return null;
+		// Una cadena con variables nunca llega aquí (el tokenizador la parte); \u{…} no lo lee stripcslashes().
+		if ( false !== strpos( $body, '\\u{' ) ) return null;
 		return stripcslashes( $body );
 	}
 
