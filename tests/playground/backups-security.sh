@@ -3,10 +3,12 @@
 # WordPress), sin Chrome. Las claves de ejemplo de wp-config.php no bastan para guardar una frase, así que el blueprint
 # define AUTH_KEY y SECURE_AUTH_KEY propias. Cada modo arranca su propio Playground (escenarios en
 # backups-security/probe.php):
-#   single     sitio individual: S1, S3, S4, S7 y S8 (un respaldo de la versión anterior restaurado con el código
-#              actual); con ENCRYPT=1 también S2 (con sodium_compat en php-wasm cifrar tarda unos 11 s por MiB: S2 suma
-#              unos 25 minutos)
-#   multisite  red: S1 desde la red, S5 (un subsitio no gestiona la seguridad) y S8 desde la red
+#   single     sitio individual: S1, S9 (credenciales de los destinos cifradas que viajan en el respaldo, también desde
+#              «otro servidor» con otras salts), S3, S4, S7 y S8 (un respaldo de la versión anterior restaurado con el
+#              código actual); con ENCRYPT=1 también S2 (con sodium_compat en php-wasm cifrar tarda unos 11 s por MiB: S2
+#              suma unos 25 minutos)
+#   multisite  red: S1 desde la red, S9 con el almacén en sitemeta, S5 (un subsitio no gestiona la seguridad) y S8
+#              desde la red
 #   constant   DIGITALISIMO_BACKUPS_KEY en wp-config.php: S6
 # La carpeta de resultados se monta fuera de /wordpress para que las restauraciones no la reemplacen.
 # Uso: bash tests/playground/backups-security.sh (en el servidor de desarrollo, por el semáforo de corridas pesadas

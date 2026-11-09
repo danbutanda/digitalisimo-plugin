@@ -18,8 +18,13 @@
  *       trabajos ni seguridad) y registrado como lo registraba se restaura con el código actual por admin-post.
  *   S2  (ENCRYPT=1) respaldo cifrado y restauración en «otro servidor» (llavero vacío): sin la frase se explica y no
  *       cambia nada; con la frase restaura.
+ *   S9  credenciales de los destinos guardadas por el formulario real de «Servidores»: ningún secreto en claro en la
+ *       base de datos ni en database.sql, el almacén cifrado viaja; restaurar devuelve las del respaldo y los destinos
+ *       funcionan (Google renueva el acceso con ellas); desde «otro servidor» (wp-config.php con otras salts dentro del
+ *       respaldo) se vuelven a cifrar con las salts de éste.
  * Modo «multisite» (red):
  *   S5  S1 desde la red (llavero en sitemeta) y un subsitio que no puede gestionar la seguridad.
+ *   S9  como en el sitio individual, con el almacén de las credenciales en sitemeta.
  *   S8  como en el sitio individual, con el respaldo de toda la red que crea y registra la clase anterior.
  * Modo «constant» (DIGITALISIMO_BACKUPS_KEY en wp-config.php):
  *   S6  cifrado obligatorio, huella sin el valor, frase rechazada y copia previa firmada con la constante.
@@ -157,6 +162,78 @@ try {
 	$check( $ok && 'Antes del respaldo' === get_option( 'blogname' ), 'S1 restauración por admin-post que revierte el cambio · ' . $elapsed() );
 	$check( $K::keyring()['active'] === $key_id && $K::can_open( $key_id ) && ( ! $network || is_array( get_site_option( $K::KEYRING ) ) ), 'S1 llavero conservado tras restaurar' );
 	$storage = dirname( $file );
+
+	// S9 (S4 del plan de seguridad): las credenciales de los destinos, guardadas por el formulario real de «Servidores»,
+	// viajan cifradas en el respaldo y la restauración deja los destinos funcionando; también desde «otro servidor» con
+	// otras salts, que se leen del wp-config.php del propio respaldo. Google se prueba hasta la renovación del acceso (la
+	// petición al proveedor se intercepta) y SFTP hasta su conexión configurada (Playground no tiene SSH2).
+	$s9 = function() use ( $post, $call, $check, $log, $backup, $restore, $context, $network, $elapsed ) {
+		global $wpdb;
+		$C = 'Digitalisimo_Backups_Credentials';
+		$secrets = array( 'sftp_password' => 'Sftp-Playground.c4e7a91f', 'google_client_secret' => 'GOCSPX-playground-6b2d', 'google_refresh_token' => '1//refresh-playground-0e85', 'onedrive_client_secret' => 'onedrive~playground~93fa', 'onedrive_refresh_token' => 'M.R3_BAY.playground-27c1' );
+		$fields = array( 'destination' => 'local', 'retention' => '20', 'sftp_host' => 'sftp.example.test', 'sftp_port' => '22', 'sftp_user' => 'respaldos', 'sftp_path' => '/respaldos', 'sftp_fingerprint' => str_repeat( 'A', 40 ), 'google_client_id' => 'cliente-google', 'onedrive_client_id' => 'cliente-onedrive', 'onedrive_folder' => 'Respaldos' );
+		$tables = $network ? array( $wpdb->options => 'option_value', $wpdb->sitemeta => 'meta_value' ) : array( $wpdb->options => 'option_value' );
+		/** Secretos que aparecen en claro en la base de datos (las tablas de opciones y, en la red, sitemeta). */
+		$in_database = function( array $values ) use ( $wpdb, $tables ) {
+			$found = array();
+			foreach ( $tables as $table => $column ) foreach ( $values as $value ) if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$column} LIKE %s", '%' . $wpdb->esc_like( $value ) . '%' ) ) ) $found[] = $table . ':' . $value;
+			return $found;
+		};
+		$store_row = function() use ( $wpdb, $network, $C ) { return $network ? $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s", $C::OPTION ) ) : $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $C::OPTION ) ); };
+		$current = $C::key_id( $C::key() );
+		$kws = function() use ( $C ) { wp_cache_flush(); return array_unique( array_column( $C::raw()['items'], 'kw' ) ); };
+		$google = function() use ( $call ) {
+			$sent = array();
+			$intercept = function( $pre, $args, $url ) use ( &$sent ) { if ( 0 !== strpos( (string) $url, 'https://oauth2.googleapis.com/token' ) ) return $pre; $sent = (array) ( $args['body'] ?? array() ); return array( 'headers' => array(), 'body' => wp_json_encode( array( 'access_token' => 'acceso-de-prueba' ) ), 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null ); };
+			add_filter( 'pre_http_request', $intercept, 5, 3 );
+			try { $call( 'token', 'https://oauth2.googleapis.com/token', $call( 'settings' ), 'google' ); } finally { remove_filter( 'pre_http_request', $intercept, 5 ); }
+			return array( (string) ( $sent['client_secret'] ?? '' ), (string) ( $sent['refresh_token'] ?? '' ) );
+		};
+		list( $ok, $message ) = $post( array( 'Digitalisimo_Backups', 'save' ), Digitalisimo_Backups::ACTION_SAVE, array( 'digitalisimo_backups' => $fields + $secrets ) + $context );
+		wp_cache_flush();
+		$check( $ok && ! $in_database( $secrets ) && is_string( $store_row() ) && ( ! $network || false === get_option( $C::OPTION ) ) && array( $current ) === $kws(), 'S9 conexiones guardadas por admin-post: ningún secreto en claro en la base de datos y el almacén cifrado en ' . ( $network ? 'sitemeta' : 'las opciones' ) );
+		$status = Digitalisimo_Backups::service_status();
+		$check( 'encrypted' === $status['credentials'] && isset( $status['destinations']['sftp'], $status['destinations']['google'], $status['destinations']['onedrive'] ) && false === strpos( wp_json_encode( $status ), 'playground-' ), 'S9 el estado dice «cifradas», con los tres destinos conectados y sin valores' );
+		$file = $backup( $context );
+		$zip = new ZipArchive();
+		$zip->open( $file );
+		$sql = (string) $zip->getFromName( 'database.sql' );
+		$zip->close();
+		$leaks = array_filter( $secrets, function( $value ) use ( $sql ) { return false !== strpos( $sql, $value ); } );
+		$check( ! $leaks && false !== strpos( $sql, "'" . $C::OPTION . "'" ), 'S9 el database.sql del respaldo lleva el almacén cifrado y ningún secreto en claro · ' . $elapsed() );
+		list( $ok ) = $post( array( 'Digitalisimo_Backups', 'save' ), Digitalisimo_Backups::ACTION_SAVE, array( 'digitalisimo_backups' => $fields + array( 'sftp_password' => 'otra-clave-posterior-al-respaldo' ) ) + $context );
+		$check( $ok && 'otra-clave-posterior-al-respaldo' === $call( 'settings' )['sftp_password'], 'S9 contraseña cambiada después del respaldo' );
+		list( $ok, $message ) = $restore( basename( $file ), 'RESTAURAR' );
+		wp_cache_flush();
+		$settings = $call( 'settings' );
+		$check( $ok && array_intersect_key( $settings, $secrets ) == $secrets && ! $in_database( $secrets + array( 'x' => 'otra-clave-posterior-al-respaldo' ) ) && array( $current ) === $kws(), 'S9 restaurar en el mismo servidor devuelve las credenciales del respaldo, cifradas · ' . $elapsed() );
+		$check( isset( $call( 'manual_destinations', $settings )['sftp'] ) && array( $secrets['google_client_secret'], $secrets['google_refresh_token'] ) === $google(), 'S9 destinos operativos: SFTP conectado y Google renueva el acceso con los secretos del respaldo' );
+		// «Otro servidor»: el respaldo lleva un wp-config.php con otras salts y su almacén está cifrado con ellas.
+		$config_path = ABSPATH . 'wp-config.php';
+		$config = (string) file_get_contents( $config_path );
+		$origin_auth = 'playground-origen-auth-' . wp_generate_password( 40, false );
+		$origin_secure = 'playground-origen-secure-' . wp_generate_password( 40, false );
+		$origin_config = preg_replace( '/define\(\s*([\'"])AUTH_KEY\1\s*,\s*([\'"]).*?\2\s*\)/', "define( 'AUTH_KEY', '" . $origin_auth . "' )", $config, -1, $auth_count );
+		$origin_config = preg_replace( '/define\(\s*([\'"])SECURE_AUTH_KEY\1\s*,\s*([\'"]).*?\2\s*\)/', "define( 'SECURE_AUTH_KEY', '" . $origin_secure . "' )", $origin_config, -1, $secure_count );
+		$salts = $C::config_salts( $origin_config );
+		$check( $auth_count && $secure_count && array( $origin_auth ) === $salts['AUTH_KEY'] && array( $origin_secure ) === $salts['SECURE_AUTH_KEY'], 'S9 el wp-config.php de «otro servidor» define sus salts con literales (' . $auth_count . ' y ' . $secure_count . ')' );
+		$origin = $C::key_from( $origin_auth, $origin_secure );
+		$items = array();
+		foreach ( $secrets as $field => $value ) $items[ $field ] = $C::seal( $origin, $field, $value );
+		Digitalisimo_Backups_Keys::put( $C::OPTION, array( 'v' => 1, 'items' => $items ) );
+		file_put_contents( $config_path, $origin_config );
+		try { $foreign = $backup( $context ); } finally { file_put_contents( $config_path, $config ); }
+		$check( array( $C::key_id( $origin ) ) === $kws(), 'S9 respaldo de «otro servidor» creado con su almacén cifrado con sus salts · ' . $elapsed() );
+		Digitalisimo_Backups_Credentials::put( array( 'sftp_password' => 'la-que-tenia-este-servidor' ) );
+		list( $ok, $message ) = $restore( basename( $foreign ), 'RESTAURAR' );
+		wp_cache_flush();
+		$settings = $call( 'settings' );
+		$check( $ok && array_intersect_key( $settings, $secrets ) == $secrets && array( $current ) === $kws() && ! $in_database( $secrets + array( 'x' => 'la-que-tenia-este-servidor', 'y' => $origin_auth ) ) && 'encrypted' === Digitalisimo_Backups::service_status()['credentials'], 'S9 restaurado desde «otro servidor»: las credenciales se volvieron a cifrar con las salts de éste y funcionan · ' . $elapsed() );
+		$check( (string) file_get_contents( $config_path ) === $config && array( $secrets['google_client_secret'], $secrets['google_refresh_token'] ) === $google(), 'S9 el wp-config.php de este servidor no cambió y Google renueva con los secretos del otro servidor' );
+		@unlink( $file );
+		@unlink( $foreign );
+	};
+	$s9();
 
 	// S8: un respaldo del código anterior, creado y registrado por su propia clase, se restaura con el código actual.
 	// Se ensaya en los dos modos: en el sitio individual tras S7 y en la red tras S5.
