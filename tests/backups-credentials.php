@@ -186,7 +186,10 @@ $case( 'i', function() use ( $B, $C, $check, $leak, $settings ) {
 	ob_start();
 	try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $html = ob_get_clean(); }
 	$check( null === $leak( $html ), 'La pantalla de Servidores muestra un secreto.' );
-	$check( 5 === substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) && 5 === substr_count( $html, 'type="password"' ), 'La pantalla no anuncia los cinco secretos guardados con el campo vacío.' );
+	// Cada uno de los cinco secretos guardados: campo de contraseña vacío con su estado en el placeholder (desde la
+	// entrega de destinos la pantalla tiene más campos de contraseña, de los demás destinos, que van vacíos y sin él).
+	$announced = preg_match_all( '#<input class="regular-text" type="password" id="(sftp_password|google_client_secret|google_refresh_token|onedrive_client_secret|onedrive_refresh_token)" name="digitalisimo_backups\[\1\]" value="" placeholder="Guardado · escribe sólo para reemplazar" autocomplete="new-password">#', $html );
+	$check( 5 === substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) && 5 === $announced, 'La pantalla no anuncia los cinco secretos guardados con el campo vacío.' );
 	$status = $B::service_status();
 	$json = json_encode( $status );
 	$check( ! is_wp_error( $status ) && 'encrypted' === $status['credentials'] && '' === $status['credentials_notice'], 'El estado no dice que las credenciales están cifradas: ' . $json );

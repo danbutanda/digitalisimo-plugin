@@ -2,7 +2,8 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Credenciales de los destinos (contraseña SFTP, Client secret y Refresh token de Google Drive y OneDrive) cifradas en
+ * Credenciales de los destinos (contraseñas, claves privadas, Secret access keys, Client secret y tokens de OAuth de
+ * SFTP, FTP/FTPS, WebDAV, Google Drive, OneDrive, Dropbox, Amazon S3 y compatibles y pCloud) cifradas en
  * reposo. Viven en la opción digitalisimo_backups_credentials (de la red en Multisite), que SÍ entra en el SQL de cada
  * respaldo: restaurar deja los destinos funcionando. Nunca se guardan en claro en digitalisimo_backups_settings
  * mientras wp-config.php defina AUTH_KEY y SECURE_AUTH_KEY propias (las mismas reglas que el llavero).
@@ -18,9 +19,12 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Backups_Credentials {
 	const OPTION = 'digitalisimo_backups_credentials';
 	const VERSION = 1;
-	const FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token' );
-	/** Campos de cada destino remoto. */
-	const DESTINATIONS = array( 'sftp' => array( 'sftp_password' ), 'google' => array( 'google_client_secret', 'google_refresh_token' ), 'onedrive' => array( 'onedrive_client_secret', 'onedrive_refresh_token' ) );
+	const FIELDS = array( 'sftp_password', 'google_client_secret', 'google_refresh_token', 'onedrive_client_secret', 'onedrive_refresh_token', 'sftp_private_key', 'sftp_key_passphrase', 'ftp_password', 'webdav_password', 'dropbox_refresh_token', 's3_secret_key', 's3compat_secret_key', 'pcloud_client_secret', 'pcloud_access_token' );
+	/** Campos de cada destino remoto (la conexión principal de cada tipo). */
+	const DESTINATIONS = array( 'sftp' => array( 'sftp_password', 'sftp_private_key', 'sftp_key_passphrase' ), 'google' => array( 'google_client_secret', 'google_refresh_token' ), 'onedrive' => array( 'onedrive_client_secret', 'onedrive_refresh_token' ), 'ftp' => array( 'ftp_password' ), 'webdav' => array( 'webdav_password' ), 'dropbox' => array( 'dropbox_refresh_token' ), 's3' => array( 's3_secret_key' ), 's3compat' => array( 's3compat_secret_key' ), 'pcloud' => array( 'pcloud_client_secret', 'pcloud_access_token' ) );
+	/** Qué volver a escribir en cada tipo cuando sus credenciales no se abren. */
+	const REENTRY = array( 'sftp' => 'vuelve a escribir la contraseña de SFTP (o su clave privada)', 'ftp' => 'vuelve a escribir la contraseña de FTP', 'webdav' => 'vuelve a escribir la contraseña de WebDAV', 'google' => 'vuelve a escribir el Client secret de Google Drive y conéctalo de nuevo', 'onedrive' => 'vuelve a escribir el Client secret de OneDrive y conéctalo de nuevo', 'dropbox' => 'conecta de nuevo Dropbox', 's3' => 'vuelve a escribir la Secret access key de Amazon S3', 's3compat' => 'vuelve a escribir la Secret access key del almacenamiento compatible con S3', 'pcloud' => 'vuelve a escribir el Client secret de pCloud y conéctalo de nuevo' );
+	const LABELS = array( 'sftp' => 'SFTP', 'ftp' => 'FTP/FTPS', 'webdav' => 'WebDAV', 'google' => 'Google Drive', 'onedrive' => 'OneDrive', 'dropbox' => 'Dropbox', 's3' => 'Amazon S3', 's3compat' => 'S3 compatible', 'pcloud' => 'pCloud' );
 	const MAX_VALUE = 16384;
 	/** Un wp-config.php de un respaldo más grande no se analiza. */
 	const CONFIG_MAX = 1048576;
@@ -55,7 +59,30 @@ final class Digitalisimo_Backups_Credentials {
 	}
 	public static function key_id( $key ) { return substr( bin2hex( sodium_crypto_generichash( 'DGBK1/credentials-id', $key, 16 ) ), 0, 16 ); }
 	private static function aad( $field ) { return 'DGBK1/credentials|v' . self::VERSION . '|' . $field; }
-	public static function valid_field( $field ) { return is_string( $field ) && in_array( $field, self::FIELDS, true ); }
+	/**
+	 * Un campo de la conexión principal (`sftp_password`) o de una conexión adicional del mismo tipo
+	 * (`sftp-0a1b2c3d/sftp_password`): el dato adicional incluye el nombre completo, así que un valor no se mueve de una
+	 * conexión a otra.
+	 */
+	public static function valid_field( $field ) {
+		if ( ! is_string( $field ) ) return false;
+		if ( in_array( $field, self::FIELDS, true ) ) return true;
+		return 1 === preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}\/([a-z0-9_]+)$/', $field, $match ) && in_array( $match[2], self::DESTINATIONS[ $match[1] ] ?? array(), true );
+	}
+	/** Campos del almacén de un destino: los del tipo, o los de una conexión adicional con su prefijo. */
+	public static function fields_of( $destination ) {
+		$destination = (string) $destination;
+		if ( isset( self::DESTINATIONS[ $destination ] ) ) return self::DESTINATIONS[ $destination ];
+		if ( ! preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}$/', $destination, $match ) || ! isset( self::DESTINATIONS[ $match[1] ] ) ) return array();
+		return array_map( function( $field ) use ( $destination ) { return $destination . '/' . $field; }, self::DESTINATIONS[ $match[1] ] );
+	}
+	/** Retira del almacén estos campos (al borrar una conexión adicional). */
+	public static function remove( array $fields ) {
+		$store = self::raw();
+		$changed = false;
+		foreach ( $fields as $field ) if ( isset( $store['items'][ $field ] ) ) { unset( $store['items'][ $field ] ); $changed = true; }
+		if ( $changed ) Digitalisimo_Backups_Keys::put( self::OPTION, array( 'v' => self::VERSION, 'items' => $store['items'] ) );
+	}
 
 	/** Un elemento cifrado del almacén para $field. */
 	public static function seal( $key, $field, $value ) {
@@ -294,21 +321,27 @@ final class Digitalisimo_Backups_Credentials {
 
 	/** Destino al que pertenece un campo. */
 	public static function destination_of( $field ) {
+		if ( is_string( $field ) && preg_match( '/^([a-z0-9]+-[a-f0-9]{8})\//', $field, $match ) ) return $match[1];
 		foreach ( self::DESTINATIONS as $destination => $fields ) if ( in_array( $field, $fields, true ) ) return $destination;
 		return '';
 	}
 	/** Qué hay que hacer para volver a usar cada destino con credenciales que no se abren. */
 	private static function reentry_text( array $destinations ) {
-		$labels = array( 'sftp' => 'SFTP', 'google' => 'Google Drive', 'onedrive' => 'OneDrive' );
-		$names = array_map( function( $destination ) use ( $labels ) { return $labels[ $destination ]; }, $destinations );
+		$names = array();
 		$actions = array();
-		if ( in_array( 'sftp', $destinations, true ) ) $actions[] = 'vuelve a escribir la contraseña de SFTP';
-		foreach ( array( 'google' => 'Google Drive', 'onedrive' => 'OneDrive' ) as $destination => $label ) if ( in_array( $destination, $destinations, true ) ) $actions[] = 'vuelve a escribir el Client secret de ' . $label . ' y conéctalo de nuevo';
+		foreach ( $destinations as $destination ) {
+			$type = preg_match( '/^([a-z0-9]+)-[a-f0-9]{8}$/', (string) $destination, $match ) ? $match[1] : (string) $destination;
+			$label = self::LABELS[ $type ] ?? $type;
+			// Una conexión adicional se nombra por su nombre en la pantalla.
+			$name = $type !== $destination && class_exists( 'Digitalisimo_Backups_Destinations' ) ? Digitalisimo_Backups_Destinations::name_of( $destination ) : '';
+			$names[] = '' !== $name ? $label . ' «' . $name . '»' : $label;
+			$actions[] = ( self::REENTRY[ $type ] ?? 'vuelve a escribir sus credenciales' ) . ( '' !== $name ? ' (conexión «' . $name . '»)' : '' );
+		}
 		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php: cambiaron, o el sitio se restauró desde otro servidor sin poder leer las suyas. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
 	}
 	/** Mensaje para un destino cuyas credenciales no abren ('' si no es el caso). $plain: campos que siguen en claro. */
 	public static function destination_problem( $destination, array $plain = array() ) {
-		$fields = self::DESTINATIONS[ $destination ] ?? array();
+		$fields = self::fields_of( $destination );
 		if ( ! $fields ) return '';
 		$locked = array_diff( array_intersect( self::locked(), $fields ), $plain );
 		return $locked ? self::reentry_text( array( $destination ) ) : '';

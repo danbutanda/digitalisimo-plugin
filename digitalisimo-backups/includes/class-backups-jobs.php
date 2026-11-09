@@ -58,7 +58,7 @@ final class Digitalisimo_Backups_Jobs {
 		return array(
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'type' => 'full',
-			'destination' => in_array( $destination, array( 'local', 'sftp', 'google', 'onedrive' ), true ) ? $destination : 'local',
+			'destination' => Digitalisimo_Backups_Destinations::exists( $destination ) ? $destination : 'local',
 			'policy' => (string) ( $args['policy'] ?? 'manual' ),
 			'retain' => max( 1, min( 100, (int) ( $args['retain'] ?? 5 ) ) ),
 			'retention' => in_array( $retention, array( 'global', 'policy', 'none' ), true ) ? $retention : 'global',
