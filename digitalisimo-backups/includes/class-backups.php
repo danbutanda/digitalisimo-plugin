@@ -8,6 +8,8 @@ foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-fi
 unset( $digitalisimo_backups_part );
 
 require_once __DIR__ . '/class-backups-layout.php';
+// Restaurar en otro dominio, otra ruta del servidor u otro prefijo de tablas (ver «Restaurar en otro dominio»).
+require_once __DIR__ . '/class-backups-relocate.php';
 require_once __DIR__ . '/class-backups-site-extract.php';
 require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
@@ -32,6 +34,8 @@ final class Digitalisimo_Backups {
 	 * ella) se comprueba al restaurarlo.
 	 */
 	const CREDENTIALS_CLEAN = 'digitalisimo_backups_credentials_migrated';
+	/** Informe de la última restauración que cambió direcciones, rutas o prefijo (sin carga automática). */
+	const LAST_RELOCATION = 'digitalisimo_backups_last_relocation';
 	/** Tope del avance de la verificación: con cifrado, la verificación deja sitio a la fase de cifrado. */
 	private static $verify_top = 98;
 	const ACTION_OAUTH = 'digitalisimo_backups_oauth';
@@ -774,6 +778,9 @@ final class Digitalisimo_Backups {
 				'database_consistency' => (string) $database['mode'],
 				// Un sitio extraído es un WordPress individual con el prefijo que tenía en la red (wp_N_).
 				'table_prefix' => is_array( $extract ) ? (string) $extract['source_prefix'] : $wpdb->base_prefix,
+				// Direcciones, rutas del servidor y red del origen: con ellas se restaura en otro dominio o servidor (un sitio
+				// extraído se describe como el WordPress individual que será).
+				'origin' => is_array( $extract ) ? Digitalisimo_Backups_Site_Extract::origin_block( $extract ) : Digitalisimo_Backups_Relocate::describe( false ),
 				'database_tables' => (array) $database['tables'],
 				'multisite' => is_array( $extract ) ? false : is_multisite(),
 				'file_count' => count( $entries ) - 1,
@@ -1527,16 +1534,27 @@ final class Digitalisimo_Backups {
 	 * Restaura un ZIP propio. Todo lo que puede rechazarlo (firma, entradas, contenido, manifiesto, espacio y SQL) se
 	 * comprueba antes de la copia previa y antes de cualquier consulta o escritura. $report es el de
 	 * Digitalisimo_Backups_Security::open(); sin él se abre aquí.
+	 *
+	 * Si el respaldo viene de otra dirección, otra carpeta del servidor u otro prefijo de tablas, el plan de
+	 * Digitalisimo_Backups_Relocate se calcula antes de la copia previa (y lo que lo impide la detiene) y se aplica en la
+	 * importación, fila por fila; después de extraer los archivos, finish() ajusta la red y las direcciones, vacía las
+	 * cachés y cuenta lo que quedó del origen. `$options['addresses']`: `current` (por defecto, el sitio conserva sus
+	 * direcciones) o `backup` (conserva las del respaldo). Devuelve el informe de la reubicación, o null si no hizo falta.
 	 */
-	private static function restore_digitalisimo_zip( $path, $report = null ) {
+	private static function restore_digitalisimo_zip( $path, $report = null, array $options = array() ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
 		$owned = null === $report;
 		if ( $owned ) $report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
 		$zip = $report['zip'];
 		$origin = array();
+		$relocation = null;
 		try {
 			$trusted = 'untrusted' !== $report['trust'];
-			$data = self::inspect_package( $zip, $trusted, true );
+			$source = array();
+			$data = self::inspect_package( $zip, $trusted, true, $source );
+			// Con esta instalación tal como está ahora: después del SQL sus direcciones serían las del respaldo.
+			$plan = self::relocation_plan( $data, $source, $options );
+			if ( $plan->problems() ) throw new Exception( implode( ' ', $plan->problems() ) );
 			// Un sitio extraído de una red no trae la configuración de Backups: la de este servidor se conserva.
 			$kept = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ? Digitalisimo_Backups_Site_Extract::destination_snapshot() : null;
 			// Claves de las credenciales del servidor de origen, del wp-config.php del propio respaldo (ya comprobado contra
@@ -1552,11 +1570,17 @@ final class Digitalisimo_Backups {
 			self::write_restore_journal( $origin, $kept );
 			$created_files = array();
 			try {
-				self::import_zip_sql( $zip, Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted ) );
+				$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted );
+				// Prefijo, direcciones y rutas cambian en cada fila antes de ejecutarla: memoria constante y, si el proceso
+				// muere a mitad, lo ya importado está completo (también los roles y permisos con el prefijo nuevo).
+				if ( $plan->needed() ) $plan->attach( $guard, (array) ( $data['database_tables'] ?? array() ) );
+				self::import_zip_sql( $zip, $guard );
 				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
 				// llavero, la seguridad y las credenciales ya están en su sitio. El finally lo repite y es quien avisa si falla.
 				try { self::after_restore_sql( $history_before, $vault_before, $origin, $kept ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				self::extract_digitalisimo_files( $zip, $created_files );
+				// Red, direcciones, cachés (también el CSS generado que trajeron los archivos) y comprobación final.
+				if ( $plan->needed() ) $relocation = $plan->finish( $plan->table_names() );
 			} catch ( Throwable $failure ) {
 				try {
 					self::rollback_from_safety( $safety );
@@ -1570,20 +1594,32 @@ final class Digitalisimo_Backups {
 				self::after_restore_sql( $history_before, $vault_before, $origin, $kept );
 				self::remove_restore_journal();
 			}
-			return $data;
+			if ( null !== $relocation ) update_option( self::LAST_RELOCATION, array( 'date' => current_time( 'mysql' ), 'file' => wp_basename( $path ) ) + $relocation, false );
+			return $relocation;
 		} finally {
 			Digitalisimo_Backups_Credentials::forget( $origin );
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
 	}
 	/**
+	 * Plan de reubicación de un paquete ya inspeccionado contra esta instalación (Digitalisimo_Backups_Relocate::plan()).
+	 * Un respaldo sin lista de tablas (formato anterior al v3) sólo se restaura con su mismo prefijo.
+	 */
+	private static function relocation_plan( array $data, array $source, array $options ) {
+		$args = array( 'addresses' => 'backup' === ( $options['addresses'] ?? 'current' ) ? 'backup' : 'current' );
+		$args['tables'] = is_array( $data['database_tables'] ?? null ) ? $data['database_tables'] : null;
+		// Un sitio extraído de una red: además, la URL de sus medios en la red (`/sites/N`) pasa a la de un sitio individual.
+		return Digitalisimo_Backups_Site_Extract::adjust_plan( Digitalisimo_Backups_Relocate::plan( $source, Digitalisimo_Backups_Relocate::describe(), $args ), $data );
+	}
+	/**
 	 * Todo lo que puede rechazar un paquete antes de la copia previa y de cualquier consulta o escritura: entradas,
 	 * contenido contra el manifiesto, alcance completo, manifiesto v3 estricto, base de datos y guardián SQL en seco.
 	 * Con $installation, también las condiciones de esta instalación (red o sitio, sitio principal, prefijo de tablas y
 	 * espacio libre), en el mismo orden de siempre. La restauración y `verify` (REST y WP-CLI) usan esta misma función.
-	 * Devuelve el manifiesto (el estricto si es v3).
+	 * Devuelve el manifiesto (el estricto si es v3). En $source deja el origen del respaldo para la reubicación: su bloque
+	 * `origin` completado con lo que dice su SQL (Digitalisimo_Backups_Relocate_Probe, en la misma pasada en seco).
 	 */
-	private static function inspect_package( $zip, $trusted, $installation ) {
+	private static function inspect_package( $zip, $trusted, $installation, &$source = null ) {
 		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
 		self::verify_zip_contents( $zip );
 		$manifest = $zip->getFromName( 'manifest.json' );
@@ -1603,16 +1639,18 @@ final class Digitalisimo_Backups {
 		$sql_stat = $zip->statName( 'database.sql' );
 		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
 		if ( $installation ) Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
-		Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->scan_zip( $zip );
+		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
+		Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe )->scan_zip( $zip );
+		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
 		return $data;
 	}
 	/** Por qué un paquete íntegro no puede restaurarse en esta instalación (vacío si puede). */
 	private static function package_installation_problems( array $data ) {
 		$problems = array();
+		// Un prefijo de tablas distinto ya no impide restaurar: la reubicación lo cambia (ver relocation_plan()).
 		if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) && is_multisite() ) $problems[] = 'Este paquete es un sitio extraído de una red: se restaura en un WordPress individual recién instalado, no en una red.';
-		elseif ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite.';
+		elseif ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) $problems[] = 'No se puede restaurar directamente entre WordPress individual y Multisite: ' . ( $data['multisite'] ? 'el respaldo es una red y este WordPress es un sitio individual. Convierte esta instalación en una red del mismo tipo (subdominios o subdirectorios) desde Herramientas → Configuración de la red y vuelve a restaurar.' : 'el respaldo es un sitio individual y este WordPress es una red. Restáuralo en una instalación individual.' );
 		if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) $problems[] = 'La red completa sólo puede restaurarse desde su sitio principal.';
-		if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) $problems[] = 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.';
 		return $problems;
 	}
 	/**

@@ -364,10 +364,16 @@ trait Digitalisimo_Backups_Service {
 	 * para uno sin firma ni registro (que «Restaurar sólo respaldos firmados» bloquea). `secret` es la frase o la clave
 	 * de un respaldo cifrado o firmado con una clave que este sitio no tiene; se usa tal cual y nunca vuelve en la
 	 * respuesta. Con `adopt`, la frase escrita firma después los respaldos nuevos.
+	 *
+	 * Un respaldo de otra dirección, otra carpeta del servidor u otro prefijo se reubica (Digitalisimo_Backups_Relocate):
+	 * `addresses` = `current` (por defecto: el sitio conserva sus direcciones) o `backup` (conserva las del respaldo). La
+	 * respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final.
 	 */
 	public static function service_restore( $file, array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		$addresses = self::service_addresses( $args );
+		if ( is_wp_error( $addresses ) ) return $addresses;
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) ( $args['confirm'] ?? '' ) ) ) );
 		if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) return self::service_error( 'confirm', 'Escribe RESTAURAR para confirmar una operación destructiva.', 400 );
 		$path = self::service_local_file( $file );
@@ -400,13 +406,15 @@ trait Digitalisimo_Backups_Service {
 			$key = isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '';
 			$copies = self::service_safety_copies();
 			try {
-				$restored = self::restore_digitalisimo_zip( $report['path'], $report );
+				$relocation = self::restore_digitalisimo_zip( $report['path'], $report, array( 'addresses' => $addresses ) );
 			} catch ( Throwable $e ) {
 				// Sin copia previa nueva, el SQL y los archivos no se tocaron: el paquete (o la copia previa) se rechazó
 				// antes (422). Con ella, la restauración empezó y el mensaje dice qué se recuperó (500).
 				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
 			}
 			// Un sitio extraído de una red: con qué cuentas se entra ahora.
+			$restored = null;
+			try { $restored = Digitalisimo_Backups_Archive_Inspector::manifest( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 			$notice = is_array( $restored ) && Digitalisimo_Backups_Site_Extract::SCOPE === ( $restored['scope'] ?? '' ) ? ' ' . Digitalisimo_Backups_Site_Extract::restored_notice( $restored ) : '';
 			$adopted = false;
 			if ( ! empty( $args['adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
@@ -421,6 +429,7 @@ trait Digitalisimo_Backups_Service {
 			// Las credenciales del respaldo mandan: si alguna no se pudo volver a cifrar aquí, se avisa ya.
 			$credentials = self::credentials_status();
 			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
+			if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
@@ -431,7 +440,39 @@ trait Digitalisimo_Backups_Service {
 		foreach ( (array) get_option( self::HISTORY, array() ) as $item ) {
 			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) { $safety = (string) ( $item['file'] ?? '' ); break; }
 		}
-		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => $safety );
+		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => $safety, 'relocation' => $relocation ? self::relocation_public( $relocation ) : null );
+	}
+	/** `addresses` de restaurar y verificar: current (por defecto) o backup. */
+	private static function service_addresses( array $args ) {
+		$addresses = strtolower( trim( (string) ( $args['addresses'] ?? '' ) ) );
+		if ( '' === $addresses ) return 'current';
+		if ( ! in_array( $addresses, array( 'current', 'backup' ), true ) ) return self::service_error( 'addresses', 'addresses debe ser current (el sitio conserva sus direcciones) o backup (conserva las del respaldo).', 400 );
+		return $addresses;
+	}
+	/** Informe público de una reubicación: lo reescrito por tabla, red, direcciones, cachés, comprobación y avisos. */
+	private static function relocation_public( array $report ) {
+		return array(
+			'text' => (string) ( $report['summary']['text'] ?? '' ),
+			'addresses' => (string) ( $report['summary']['addresses'] ?? 'current' ),
+			'origin' => $report['summary']['origin'] ?? array(),
+			'destination' => $report['summary']['destination'] ?? array(),
+			'rewrites' => (array) ( $report['summary']['rewrites'] ?? array() ),
+			'tables' => (array) ( $report['tables'] ?? array() ),
+			'network' => (array) ( $report['network'] ?? array() ),
+			'caches' => (array) ( $report['caches'] ?? array() ),
+			'check' => $report['check'] ?? null,
+			'warnings' => array_values( (array) ( $report['warnings'] ?? array() ) ),
+		);
+	}
+	/** Una línea para el aviso de la restauración: qué se reescribió y qué quedó del origen. */
+	private static function relocation_notice( array $report ) {
+		$check = is_array( $report['check'] ?? null ) ? $report['check'] : null;
+		$rows = 0;
+		foreach ( (array) ( $report['tables'] ?? array() ) as $counts ) $rows += (int) ( $counts['rows'] ?? 0 );
+		$text = 'Origen → este sitio: se reescribieron ' . $rows . ' filas' . ( empty( $report['summary']['rewrites'] ) ? '' : ' (' . implode( '; ', $report['summary']['rewrites'] ) . ')' ) . '.';
+		if ( $check ) $text .= ' Comprobación: ' . (int) $check['urls'] . ' URL y ' . (int) $check['paths'] . ' rutas del origen pendientes; sin tocar a propósito ' . (int) $check['guid'] . ' guid y ' . (int) $check['emails'] . ' correos.';
+		foreach ( (array) ( $report['warnings'] ?? array() ) as $warning ) $text .= ' ' . $warning;
+		return $text;
 	}
 	/**
 	 * Comprueba un respaldo local sin tocar el sitio, con las mismas comprobaciones del paquete que la restauración
@@ -442,6 +483,8 @@ trait Digitalisimo_Backups_Service {
 	public static function service_verify( $file, array $args = array() ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
+		$addresses = self::service_addresses( $args );
+		if ( is_wp_error( $addresses ) ) return $addresses;
 		$path = self::service_local_file( $file );
 		if ( is_wp_error( $path ) ) return $path;
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'zip', 'El servidor necesita la extensión PHP ZipArchive para verificar el respaldo.', 500 );
@@ -460,13 +503,21 @@ trait Digitalisimo_Backups_Service {
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, $item, $secret );
 				$zip = $report['zip'];
-				$data = self::inspect_package( $zip, 'untrusted' !== $report['trust'], false );
+				$source = array();
+				$data = self::inspect_package( $zip, 'untrusted' !== $report['trust'], false, $source );
 			} catch ( Exception $e ) {
 				return self::service_error( 'invalid', $e->getMessage(), 422 );
 			}
 			$checksum = @hash_file( 'sha256', $path );
 			if ( false === $checksum ) return self::service_error( 'invalid', 'No se pudo calcular el SHA-256 del respaldo.', 422 );
 			$problems = self::package_installation_problems( $data );
+			// «Origen → este sitio»: qué cambiaría al restaurarlo aquí (o por qué no se puede).
+			$relocation = null;
+			if ( ! $problems ) {
+				$plan = self::relocation_plan( $data, $source, array( 'addresses' => $addresses ) );
+				$problems = $plan->problems();
+				$relocation = $plan->summary();
+			}
 			return array(
 				'file' => wp_basename( $path ),
 				'verified' => true,
@@ -488,6 +539,7 @@ trait Digitalisimo_Backups_Service {
 				'table_prefix' => (string) ( $data['table_prefix'] ?? '' ),
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
+				'relocation' => $relocation,
 				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
 			);
 		} finally {

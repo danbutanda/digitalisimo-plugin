@@ -210,7 +210,13 @@ final class Digitalisimo_Backups_Site_Extract {
 		$base = (string) $wpdb->base_prefix;
 		$tables[] = $base . 'users';
 		$tables[] = $base . 'usermeta';
-		return new Digitalisimo_Backups_Site_Extract_Export( $site, $spec['extract'], $tables, self::uploads( $site['id'] ) );
+		$uploads = self::uploads( $site['id'] );
+		// La misma carpeta servida desde el dominio de la red (subdirectorios, o contenido insertado desde el sitio principal).
+		$uploads['aliases'] = array();
+		$main = untrailingslashit( (string) get_blog_option( get_main_site_id(), 'siteurl' ) );
+		$own = untrailingslashit( (string) get_blog_option( $site['id'], 'siteurl' ) );
+		if ( '' !== $main && '' !== $own && $main !== $own && 0 === strpos( $uploads['baseurl'], $own . '/' ) ) $uploads['aliases'][] = $main . substr( $uploads['baseurl'], strlen( $own ) );
+		return new Digitalisimo_Backups_Site_Extract_Export( $site, $spec['extract'], $tables, $uploads );
 	}
 
 	/* ------------------------------------------------------------------ Usuarios */
@@ -483,6 +489,52 @@ final class Digitalisimo_Backups_Site_Extract {
 		return $block;
 	}
 
+	/* ------------------------------------------------------------------ Reubicación (motor de E1) */
+
+	/**
+	 * Bloque `origin` del manifiesto (el que lee Digitalisimo_Backups_Relocate::origin_of()): el sitio extraído descrito
+	 * como el WordPress individual que será. Sus direcciones son las suyas en la red (el dominio y la ruta del sitio), su
+	 * prefijo el que tenía en ella y su carpeta de medios la suya (`uploads/sites/N`): el motor de E1 pasa todo eso a las
+	 * del destino al restaurar. Las rutas del servidor (ABSPATH, wp-content) son las de la red, que son las mismas.
+	 */
+	public static function origin_block( array $report ) {
+		$origin = Digitalisimo_Backups_Relocate::describe( false );
+		$origin['home'] = untrailingslashit( (string) $report['site']['url'] );
+		$origin['siteurl'] = untrailingslashit( (string) ( $report['site']['site_url'] ?? $report['site']['url'] ) );
+		$origin['uploads_dir'] = (string) ( $report['uploads']['basedir'] ?? '' );
+		$origin['prefix'] = (string) $report['source_prefix'];
+		$origin['multisite'] = false;
+		$origin['subdomain'] = false;
+		unset( $origin['network'], $origin['networks'], $origin['sites'], $origin['config'] );
+		return $origin;
+	}
+	/**
+	 * Pares de URL que el plan de E1 no deduce de `home` y `siteurl`: la URL de los medios del sitio en la red (con
+	 * `/sites/N`, o la de blogs.dir con ms_files_rewriting) y sus alias (la misma carpeta servida desde el dominio de la
+	 * red) pasan a la URL de los medios de un sitio individual. Con `addresses = current` (por defecto), la del destino;
+	 * con `backup`, la del sitio con sus direcciones de siempre. Se añaden al mismo plan (el mismo reescritor seguro con
+	 * datos serializados, JSON y URL codificadas); la ruta más larga del mismo host manda, así que van antes que `home`.
+	 */
+	public static function adjust_plan( Digitalisimo_Backups_Relocate $plan, array $manifest ) {
+		if ( self::SCOPE !== ( $manifest['scope'] ?? '' ) || ! is_array( $manifest['extract'] ?? null ) ) return $plan;
+		$extract = $manifest['extract'];
+		$from = untrailingslashit( (string) ( $extract['uploads']['baseurl'] ?? '' ) );
+		if ( '' === $from ) return $plan;
+		$here = wp_upload_dir( null, false );
+		$baseurl = untrailingslashit( (string) ( $here['baseurl'] ?? '' ) );
+		$siteurl = untrailingslashit( (string) get_option( 'siteurl' ) );
+		if ( 'backup' === $plan->mode() ) {
+			$origin = untrailingslashit( (string) ( $extract['site']['site_url'] ?? $extract['site']['url'] ?? '' ) );
+			$to = '' !== $siteurl && 0 === strpos( $baseurl, $siteurl . '/' ) ? $origin . substr( $baseurl, strlen( $siteurl ) ) : $origin . '/wp-content/uploads';
+		} else {
+			$to = $baseurl;
+		}
+		if ( '' === $to ) return $plan;
+		$plan->add_url( $from, $to );
+		foreach ( (array) ( $extract['uploads']['aliases'] ?? array() ) as $alias ) if ( is_string( $alias ) && '' !== $alias ) $plan->add_url( untrailingslashit( $alias ), $to );
+		return $plan;
+	}
+
 	/* ------------------------------------------------------------------ Restauración */
 
 	/**
@@ -638,7 +690,7 @@ final class Digitalisimo_Backups_Site_Extract_Export {
 			'site' => array( 'id' => (int) $this->site['id'], 'domain' => (string) $this->site['domain'], 'path' => (string) $this->site['path'], 'label' => (string) $this->site['label'], 'url' => (string) $this->site['url'], 'site_url' => untrailingslashit( (string) ( $this->site_values['siteurl'] ?? $this->site['url'] ) ), 'subdomain_install' => ! empty( $this->network_values['subdomain_install'] ), 'ms_files_rewriting' => ! empty( $this->network_values['ms_files_rewriting'] ) ),
 			'source_prefix' => $this->prefix,
 			'network_prefix' => $this->base,
-			'uploads' => array( 'basedir' => $this->uploads['basedir'], 'baseurl' => $this->uploads['baseurl'] ),
+			'uploads' => array( 'basedir' => $this->uploads['basedir'], 'baseurl' => $this->uploads['baseurl'], 'aliases' => array_values( (array) ( $this->uploads['aliases'] ?? array() ) ) ),
 			'users' => array( 'policy' => (string) $this->options['super_admins'], 'total' => count( $this->users ), 'members' => (int) ( $kinds['member'] ?? 0 ), 'super_admins' => (int) ( $kinds['admin'] ?? 0 ), 'authors' => (int) ( $kinds['author'] ?? 0 ), 'super_admins_left' => count( array_diff_key( $super, $this->users ) ) ),
 			'plugins' => array( 'active' => $active, 'site' => $this->active, 'network' => $this->network_active ),
 			'themes' => array( 'stylesheet' => (string) ( $this->site_values['stylesheet'] ?? '' ), 'template' => (string) ( $this->site_values['template'] ?? '' ) ),
