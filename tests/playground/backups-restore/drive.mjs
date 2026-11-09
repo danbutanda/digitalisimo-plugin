@@ -110,7 +110,7 @@ async function restoreByWeb(file, label) {
     // Como un SIGKILL o un corte del proxy: al cliente no le llega nada de esa respuesta (ni la cookie del testigo).
     cookies.delete('digitalisimo_backups_restore');
     maintenance = '';
-    const restores = readdirSync(`${store}/jobs`).map(jobFile).filter((job) => job?.kind === 'restore' && !job.spec?.rollback && job.created_at * 1000 >= posted - 2000);
+    const restores = readdirSync(`${store}/jobs`).map(jobFile).filter((job) => job?.kind === 'restore' && !Object.keys(job.spec?.rollback || {}).length && job.created_at * 1000 >= posted - 2000);
     id = restores.sort((a, b) => b.created_at - a.created_at)[0]?.id;
     check(Boolean(id), `${label}: la petición de REST murió ya en mantenimiento (die-rest), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
   } else {
