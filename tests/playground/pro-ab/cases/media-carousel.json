@@ -1,7 +1,8 @@
 {
  "_doc": [
   "Casos A/B del Carrusel multimedia (frente M de C1): A con `media-carousel` de PRO, B con `digitalisimo-media-carousel`. Imágenes de prueba con `{\"$image\": n}` (setup.php las crea con GD: título «Imagen de prueba n», alt «Texto alternativo n»). Autoplay desactivado salvo en mc-autoplay y mc-autoplay-default (el valor por defecto de PRO, sí, cada 60 s).",
-  "`actions`: `a`/`b` es el selector de cada lado (relativo al widget); con `key`, se enfoca y se pulsa la tecla. Tras cada una se comparan firma y píxeles."
+  "`actions`: `a`/`b` es el selector de cada lado (relativo al widget); con `key`, se enfoca y se pulsa la tecla. Tras cada una se comparan firma y píxeles.",
+  "Puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, textual «mándalo a 24px»; WCAG 2.2, criterio 2.5.8, objetivo táctil de 24 × 24 px; diferencia declarada 7 de docs/pro/c1.md, que prevalece sobre la regla de igualar a PRO para este punto): con los valores por defecto los puntos propios quedan a 24 px entre centros donde PRO los deja a 18, con el mismo tamaño, color, altura y centro de la fila. La firma no cambia (el ancho de los botones no entra en ella); los píxeles de la paginación sí: medidos el 2026-11-08 frente a la corrida anterior con el paso de Swiper, como mucho +0,21 puntos (mc-responsive a 375 px), dentro del umbral de cada caso."
  ],
  "declared": [
   {

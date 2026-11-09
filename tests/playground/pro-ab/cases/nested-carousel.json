@@ -1,7 +1,8 @@
 {
  "_doc": [
   "Casos A/B del Carrusel anidado (frente N de C1): A con `nested-carousel` de PRO, B con `digitalisimo-nested-carousel`. Cada caso trae sus contenedores hijos (`elements`, una diapositiva cada uno, con fondo y título) y las filas de `carousel_items` que les corresponden. Autoplay desactivado salvo en nc-autoplay.",
-  "`actions` (formato de run.cjs): pulsar el selector de cada lado (`a` en PRO, `b` en el propio) o, con `key`, enfocarlo y teclear. Tras cada una se comparan firma y píxeles."
+  "`actions` (formato de run.cjs): pulsar el selector de cada lado (`a` en PRO, `b` en el propio) o, con `key`, enfocarlo y teclear. Tras cada una se comparan firma y píxeles.",
+  "Puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, textual «mándalo a 24px»; WCAG 2.2, criterio 2.5.8, objetivo táctil de 24 × 24 px; diferencia declarada 7 de docs/pro/c1.md, que prevalece sobre la regla de igualar a PRO para este punto): con los valores por defecto los puntos propios quedan a 24 px entre centros donde PRO los deja a 18, con el mismo tamaño, color, altura y centro de la fila. La firma no cambia (el ancho de los botones no entra en ella); los píxeles de la paginación sí: medidos el 2026-11-08 frente a la corrida anterior con el paso de Swiper, como mucho +0,23 puntos (nc-responsive a 375 px), dentro del umbral de cada caso."
  ],
  "declared": [
   {
