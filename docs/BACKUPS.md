@@ -127,21 +127,23 @@ sólo escribe el motor de trabajos (`job_id`, `packer`): esa clase escribe en `p
 cargado, así que compararla con 1.0.58 fallaba desde que el repositorio pasó de esa versión.
 
 Ensayo de los tramos cortos (@NEXT_BACKUPS@, T2, `tests/playground/backups-steps.sh`) en WordPress 7.1.4 sobre
-Playground (SQLite, PHP 8.5), con la pila del propietario simulada: `max_execution_time=30` y `memory_limit=64M` en cada
-petición (también admin y WP-Cron) y sin WP-CLI. Un sitio de 299,8 MB (6 942 entradas: JPEG y MP4 aleatorios, textos
-comprimibles y miles de archivos pequeños; base de 29 MB con 9 169 filas) se encoló desde la pantalla y avanzó sólo con
-28 peticiones del navegador (AJAX) y de `wp-cron.php` (el loopback de WP-Cron cortado). La más larga duró 14,6 s (13,8 s
-después de cargar WordPress) y ninguna pasó de 56,5 MB, con WordPress ocupando ya unos 52. Con ticks de 0,1 s mientras
-se exporta (el ensayo los acorta para que una base que aquí sale en menos de 1 s se reparta), la base salió en 3
-instantáneas, cada tabla entera en una (`transaction-per-table`), y se comprobó antes de empaquetarla; el empaquetado
-avanzó en 106 tramos y la verificación en 4. Se mataron tres peticiones a mitad de un tramo retomado (exportación, con la
-tabla a medias repetida entera; empaquetado y verificación) y el trabajo siguió sin gastar más de un intento. Terminó
-«Completo con avisos», con los dos textos en la pantalla: la base no salió de una instantánea común y, con 64 MB, la
-verificación no pudo leer entero el manifiesto (1,4 MB; la restauración necesitará unos 65 MB). Con ticks normales la
-base cabe en un tramo y sale en una sola instantánea. `unzip -t` y el `zipfile` de Python aceptaron el ZIP (cada
-SHA-256 igual al del manifiesto). Con procesos de php-wasm se repitió además la muerte real con `SIGKILL` a mitad de una
-tabla (`backups-job-kill.php`): el tramo siguiente exportó la tabla entera desde su primera fila y el SQL salió idéntico
-al de una exportación sin cortes.
+Playground (SQLite, PHP 8.5), con 1.0.63 fusionada y la pila del propietario simulada: `max_execution_time=30` y
+`memory_limit=64M` en cada petición (también admin y WP-Cron) y sin WP-CLI. Un sitio de 300,1 MB (6 950 entradas: JPEG y
+MP4 aleatorios, textos comprimibles y miles de archivos pequeños; base de 29 MB con 9 169 filas) se encoló desde la
+pantalla y avanzó sólo con 29 peticiones del navegador (AJAX) y de `wp-cron.php` (el loopback de WP-Cron cortado), en
+222 s. La más larga duró 11,5 s (10,8 s después de cargar WordPress) y ninguna pasó de 58,5 MB, con WordPress ocupando
+ya 54,5. Con ticks de 0,1 s mientras se exporta (el ensayo los acorta para que una base que aquí sale en menos de 1 s se
+reparta), la base salió en 4 instantáneas, cada tabla entera en una (`transaction-per-table`), y se comprobó antes de
+empaquetarla; el empaquetado avanzó en 7 tramos y la verificación en 4. Se mataron tres peticiones a mitad de un tramo
+retomado (exportación, con la tabla a medias repetida entera; empaquetado y verificación) y el trabajo siguió sin gastar
+más de un intento. Terminó «Completo con avisos», con los dos textos en la pantalla: la base no salió de una instantánea
+común y, con 64 MB, la verificación no pudo leer entero el manifiesto (1,4 MB; la restauración necesitará unos 65 MB).
+Con ticks normales la base cabe en un tramo y sale en una sola instantánea. `unzip -t` y el `zipfile` de Python
+aceptaron el ZIP (cada SHA-256 igual al del manifiesto). Una corrida anterior, con la reserva de memoria de 1/8 que había
+antes de 1.0.63, cerró la verificación tras cada entrada (3 731 tramos): con 1.0.63 WordPress ocupa más y la reserva pasó
+a 1/16. Con procesos de php-wasm se repitió además la muerte real con `SIGKILL` a mitad de una tabla
+(`backups-job-kill.php`): el tramo siguiente exportó la tabla entera desde su primera fila y el SQL salió idéntico al de
+una exportación sin cortes.
 **Pendiente:**
 
 | Bloque | Brecha principal |
