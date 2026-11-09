@@ -212,6 +212,21 @@ function bk_call( $class, $method, ...$args ) {
 	if ( PHP_VERSION_ID < 80100 ) $reflection->setAccessible( true );
 	return $reflection->invokeArgs( null, $args );
 }
+/**
+ * «La operación siguiente» de una prueba que simula una muerte con exit corre en la misma petición, en una función de
+ * cierre. En producción es otra petición y PHP (o el sistema) ya cerró los descriptores de la que murió; PHP 7.4 sale con
+ * exit sin deshacer la pila, así que el bloqueo de operaciones del tick muerto sigue con flock: se cierran, como lo haría
+ * el final de esa petición (en PHP 8 ya no queda ninguno). Lo mismo que hace backups-maintenance.php (rama php74).
+ */
+function bk_close_dead_locks() {
+	$storage = realpath( bk_storage() );
+	if ( false === $storage ) return;
+	foreach ( get_resources( 'stream' ) as $handle ) {
+		$meta = stream_get_meta_data( $handle );
+		$path = realpath( (string) ( $meta['uri'] ?? '' ) );
+		if ( false !== $path && 0 === strncmp( $path, $storage . '/', strlen( $storage ) + 1 ) && '.lock' === substr( $path, -5 ) ) fclose( $handle );
+	}
+}
 function bk_storage() { return bk_call( 'Digitalisimo_Backups', 'local_directory' ); }
 /**
  * Respaldo completo con el motor de trabajos real, como el botón «Crear respaldo»: lo encola (la especificación fija el

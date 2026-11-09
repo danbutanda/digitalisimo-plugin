@@ -36,6 +36,7 @@ if ( file_exists( $journal ) || ( $GLOBALS['bk_options'][ $K::KEYRING ]['active'
 $history = array_column( $GLOBALS['bk_options'][ $B::HISTORY ], 'file' );
 
 register_shutdown_function( function() use ( $K, $S, $B, $passphrase, $key_id, $box, $root, $storage, $journal, $backup, $history ) {
+	bk_close_dead_locks();
 	$check = function( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); };
 	// Lo que dejó el proceso muerto: el SQL reemplazó wp_options, sin llavero y con la seguridad del respaldo.
 	$check( ! isset( $GLOBALS['bk_options'][ $K::KEYRING ] ) && empty( $GLOBALS['bk_options'][ $S::OPTION ]['encrypt'] ), 'La simulación no dejó el sitio como lo deja el SQL recién cambiado.' );

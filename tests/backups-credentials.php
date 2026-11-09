@@ -421,6 +421,7 @@ $case( 'k', function() use ( $origin_backup, $config_with, $auth_literal, $origi
 } );
 register_shutdown_function( function() use ( $B, $C, $check, $leak, $secrets, $settings, $store, $current, $origin_auth, $origin_secure, &$failures, &$done, $case, &$interrupted ) {
 	if ( null !== $interrupted ) {
+		bk_close_dead_locks();
 		$case( 'k', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store, $current, $origin_auth, $origin_secure ) {
 			$origin = $C::key_from( $origin_auth, $origin_secure );
 			$journal = bk_storage() . '/' . $B::RESTORE_JOURNAL;
