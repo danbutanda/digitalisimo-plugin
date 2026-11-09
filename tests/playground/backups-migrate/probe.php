@@ -20,6 +20,8 @@ if ( 'fingerprint' === $what ) {
 		$where = preg_match( '/options$/', $table ) ? ' WHERE NOT (' . $skip . ')' : ( preg_match( '/sitemeta$/', $table ) ? " WHERE meta_key NOT LIKE 'digitalisimo\\_backups\\_%' AND meta_key NOT LIKE '\\_site\\_transient%'" : ( preg_match( '/usermeta$/', $table ) ? " WHERE meta_key <> 'session_tokens'" : '' ) );
 		$rows = $wpdb->get_results( 'SELECT * FROM `' . $table . '`' . $where, ARRAY_A );
 		$out['tables'][ $table ] = hash( 'sha256', wp_json_encode( $rows ) );
+		// Las opciones, una por una: si algo cambia, el ensayo dice cuál.
+		if ( preg_match( '/options$/', $table ) ) foreach ( (array) $rows as $row ) $out['options'][ $table . ':' . $row['option_name'] ] = hash( 'sha256', (string) $row['option_value'] );
 	}
 	$files = array();
 	$root = WP_CONTENT_DIR;
@@ -30,7 +32,7 @@ if ( 'fingerprint' === $what ) {
 		$files[ $name ] = hash_file( 'sha256', $file->getPathname() );
 	}
 	ksort( $files );
-	$out['files'] = hash( 'sha256', wp_json_encode( $files ) );
+	$out['files'] = $files;
 	$out['file_count'] = count( $files );
 } elseif ( 'secrets' === $what ) {
 	$needles = json_decode( (string) file_get_contents( 'php://input' ), true );

@@ -57,6 +57,27 @@ function request(site, method, path, { headers = {}, body, raw = false, timeout 
     req.end();
   });
 }
+// GET que sigue las redirecciones dentro del mismo sitio (la canónica de WordPress lleva a los enlaces permanentes);
+// una redirección a otro host (p. ej. al origen) se devuelve tal cual para que la comprobación falle con su destino.
+async function get(site, path, options = {}) {
+  let res = await request(site, 'GET', path, options);
+  for (let i = 0; i < 5 && [301, 302, 307, 308].includes(res.status); i++) {
+    const target = new URL(String(res.headers.location || ''), sites[site].home + '/');
+    if (target.host !== new URL(sites[site].home).host) { res.offsite = target.href; return res; }
+    res = await request(site, 'GET', target.pathname + target.search, options);
+  }
+  return res;
+}
+// Qué cambió entre dos huellas de la sonda: tablas, opciones y archivos de wp-content.
+function changes(before, after) {
+  const out = [];
+  for (const key of ['tables', 'options', 'files']) {
+    const a = before[key] || {};
+    const b = after[key] || {};
+    for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) if (a[name] !== b[name]) out.push(`${key}:${name}${name in a ? (name in b ? '' : ' (borrado)') : ' (nuevo)'}`);
+  }
+  return out;
+}
 const form = (fields) => Object.entries(fields).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 const post = (site, path, fields) => request(site, 'POST', path, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form(fields) });
 const probe = async (site, what, body) => {
@@ -143,25 +164,25 @@ try {
   check(await login('B', conf.A.password), 'B: inicio de sesión con la contraseña del administrador del origen');
   check(!(await login('B', conf.B.password)), 'B: la contraseña anterior del destino ya no sirve');
   await login('B', conf.A.password);
-  res = await request('B', 'GET', `/?p=${sites.A.setup.post}`);
-  check(res.status === 200 && res.text.includes('Entrada del origen') && !res.text.includes(sites.A.home.replace(/^https?:\/\//, '')) && res.text.includes(`${sites.B.home}/wp-content/uploads/`), 'B: la entrada del origen apunta a los medios de B y no menciona a A', res.status);
+  res = await get('B', `/?p=${sites.A.setup.post}`);
+  check(res.status === 200 && res.text.includes('Entrada del origen') && !res.text.includes(sites.A.home.replace(/^https?:\/\//, '')) && res.text.includes(`${sites.B.home}/wp-content/uploads/`), 'B: la entrada del origen apunta a los medios de B y no menciona a A', `${res.status} ${res.offsite || ''}`);
   const imagePath = sites.A.setup.image.url.replace(sites.A.home, '');
   res = await request('B', 'GET', imagePath, { raw: true });
   const crypto = await import('node:crypto');
   check(res.status === 200 && crypto.createHash('sha256').update(res.buffer).digest('hex') === sites.A.setup.image.sha256, 'B: el medio del origen está en B, byte a byte', `${res.status} ${imagePath}`);
   if (sites.A.setup.page) {
-    res = await request('B', 'GET', `/?page_id=${sites.A.setup.page}`);
+    res = await get('B', `/?page_id=${sites.A.setup.page}`);
     const css = (/href=['"]([^'"]*\/elementor\/css\/post-\d+\.css[^'"]*)['"]/.exec(res.text) || [])[1];
-    check(res.status === 200 && res.text.includes('Página de Elements del origen') && res.text.includes(`${sites.B.home}/wp-content/uploads/`) && !res.text.includes(sites.A.home.replace(/^https?:\/\//, '')), 'B: la página de Elements carga con los medios de B', res.status);
+    check(res.status === 200 && res.text.includes('Página de Elements del origen') && res.text.includes(`${sites.B.home}/wp-content/uploads/`) && !res.text.includes(sites.A.home.replace(/^https?:\/\//, '')), 'B: la página de Elements carga con los medios de B', `${res.status} ${res.offsite || ''}`);
     if (check(!!css, 'B: la página de Elements enlaza su CSS generado')) {
-      const cssRes = await request('B', 'GET', css.replace(/^https?:\/\/[^/]+/, ''));
+      const cssRes = await get('B', css.replace(/^https?:\/\/[^/]+/, ''));
       check(cssRes.status === 200 && cssRes.text.includes('background-image') && cssRes.text.includes(sites.B.home.replace(/^https?:\/\//, '')) && !cssRes.text.includes(sites.A.home.replace(/^https?:\/\//, '')), 'B: el CSS de Elements se regeneró con la dirección de B', `${cssRes.status} ${cssRes.text.slice(0, 200)}`);
     }
   }
   if (network) {
     const sub = sites.A.setup.sub;
     check(state.sites.some((site) => site.path === '/uno/' && site.domain === sites.B.host), 'B: la red tiene el subsitio «uno» del origen en su dominio', JSON.stringify(state.sites));
-    res = await request('B', 'GET', `/uno/?p=${sub.post}`);
+    res = await get('B', `/uno/?p=${sub.post}`);
     check(res.status === 200 && res.text.includes('Entrada del subsitio uno') && res.text.includes(`${sites.B.home}/uno/`) && !res.text.includes(sites.A.host), 'B: el subsitio carga con su contenido en la dirección de B', res.status);
     const subImage = sub.image.url.replace(/^https?:\/\/[^/]+/, '');
     res = await request('B', 'GET', subImage, { raw: true });
@@ -172,7 +193,8 @@ try {
   check((await probe('B', 'secrets', secrets)).found.length === 0, 'B: ni la base de datos ni el almacén guardan la clave');
 
   // 4. A no cambió y su clave quedó usada.
-  check(JSON.stringify(await probe('A', 'fingerprint')) === JSON.stringify(fingerprintA), 'A: el origen no cambió (base de datos y archivos)');
+  const changedA = changes(fingerprintA, await probe('A', 'fingerprint'));
+  check(!changedA.length, 'A: el origen no cambió (base de datos y archivos)', changedA.slice(0, 20).join(' · '));
   const stateA = await probe('A', 'state');
   check(stateA.keys[0]?.state === 'used', 'A: la clave quedó usada', JSON.stringify(stateA.keys[0]));
   check(['hello', 'package', 'ready', 'download', 'used'].every((event) => stateA.log.some((row) => row.event === event)), 'A: el registro anota cada uso', JSON.stringify(stateA.log.map((row) => row.event)));
@@ -191,10 +213,11 @@ try {
   state = await probe('B', 'state');
   check(state.blogname === 'Sitio de destino' && !state.users.includes('editora') && state.home.replace(/\/$/, '') === sites.B.home, 'B: volvió a su contenido y sus usuarios', `${state.blogname}`);
   check(await login('B', conf.B.password), 'B: la contraseña del destino vuelve a servir');
-  res = await request('B', 'GET', `/?p=${sites.B.setup.post}`);
+  res = await get('B', `/?p=${sites.B.setup.post}`);
   check(res.status === 200 && res.text.includes('Entrada propia del destino'), 'B: su entrada propia vuelve', res.status);
   check(state.history.some((row) => row.migration && row.migration.state === 'undone') && !state.undo, 'B: la migración queda deshecha y no se puede deshacer otra vez');
-  check(JSON.stringify(await probe('A', 'fingerprint')) === JSON.stringify(fingerprintA), 'A: el origen sigue igual tras deshacer');
+  const changedA2 = changes(fingerprintA, await probe('A', 'fingerprint'));
+  check(!changedA2.length, 'A: el origen sigue igual tras deshacer', changedA2.slice(0, 20).join(' · '));
 } catch (error) {
   check(false, 'el ensayo se interrumpió', error.stack || error.message);
 }
