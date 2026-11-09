@@ -1634,6 +1634,15 @@ final class Digitalisimo_Backups {
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
 	}
+	/** Tablas del respaldo que cambian de nombre en esta instalación (el mismo mapa que usa la importación). */
+	private static function relocation_renames( array $data ) {
+		$from = (string) ( $data['table_prefix'] ?? '' );
+		$to = (string) ( $GLOBALS['wpdb']->base_prefix ?? '' );
+		if ( '' === $from || '' === $to || $from === $to || ! is_array( $data['database_tables'] ?? null ) ) return array();
+		$relocate = new Digitalisimo_Backups_Relocate();
+		$map = $relocate->set_prefixes( array( $from => $to ), $to )->table_map( $data['database_tables'] );
+		return array_filter( $map, function( $new, $old ) { return $new !== $old; }, ARRAY_FILTER_USE_BOTH );
+	}
 	/**
 	 * Plan de reubicación de un paquete ya inspeccionado contra esta instalación (Digitalisimo_Backups_Relocate::plan()).
 	 * Un respaldo sin lista de tablas (formato anterior al v3) sólo se restaura con su mismo prefijo.
@@ -1668,7 +1677,14 @@ final class Digitalisimo_Backups {
 		if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
 		if ( $installation ) Digitalisimo_Backups_Archive_Inspector::space( $zip, ABSPATH );
 		$probe = new Digitalisimo_Backups_Relocate_Probe( (string) ( $data['table_prefix'] ?? '' ) );
-		Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe )->scan_zip( $zip );
+		$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted )->on_insert( $probe );
+		// Al restaurar con otro prefijo, la pasada en seco renombra igual que la importación: lo que no se puede renombrar
+		// (una vista, una tabla en un comentario ejecutable) o dos tablas que chocarían se rechazan antes de la copia previa.
+		if ( $installation ) {
+			$renames = self::relocation_renames( $data );
+			if ( $renames ) $guard->rename_tables( $renames );
+		}
+		$guard->scan_zip( $zip );
 		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
 		return $data;
 	}

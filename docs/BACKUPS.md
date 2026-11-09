@@ -295,7 +295,8 @@ Si no:
 - Por defecto, el sitio **conserva sus direcciones** (las de este servidor) y las del respaldo se cambian por ellas.
 - «Conservar las direcciones del respaldo» (pantalla), `addresses=backup` (REST) o `--addresses=backup` (WP-CLI) deja
   las URL del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este servidor: son hechos de la
-  instalación, no una preferencia.
+  instalación, no una preferencia. Si `wp-config.php` de este servidor define `WP_HOME` o `WP_SITEURL`, esas constantes
+  son «las direcciones de este sitio» y siguen mandando después de restaurar, también con la opción del respaldo.
 - La pantalla de Restaurar dice en cada archivo «origen … → este sitio» y, al elegirlo, qué se reescribirá; `verify`
   lo devuelve en `relocation` (REST) o lo escribe (WP-CLI). Después de restaurar, el aviso resume lo hecho y la pantalla
   muestra el informe por tabla («Última restauración en otro dominio», `digitalisimo_backups_last_relocation`).
@@ -329,7 +330,8 @@ Si no:
   `_elementor_assets_data`, `elementor-custom-breakpoints-files` y `_elementor_global_css`, los archivos de
   `uploads[/sites/N]/elementor/css/` (Elements los regenera) y la caché de objetos. El CSS de las fuentes locales de
   Google (`elementor/google-fonts/css/`) se reescribe. En un sitio individual cuya ruta cambia, el bloque de WordPress de
-  `.htaccess` se regenera como al guardar los enlaces permanentes.
+  `.htaccess` se regenera como al guardar los enlaces permanentes, como último paso: en algunos hostings escribir
+  `.htaccess` recarga el servidor web (OpenLiteSpeed de Webuzo) y corta la petición en curso.
 
 **Qué no se reescribe, y por qué.**
 
