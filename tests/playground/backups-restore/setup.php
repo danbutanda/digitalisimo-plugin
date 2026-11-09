@@ -31,7 +31,13 @@ if ( 'cli' === PHP_SAPI ) {
 	add_filter( 'digitalisimo_backups_request_limit', static function () { return 30; } );
 }
 add_filter( 'digitalisimo_backups_job_backoff', static function ( $wait ) { return min( (int) $wait, 2 ); } );
-add_filter( 'pre_http_request', static function ( $pre, $args, $url ) { return false !== strpos( (string) $url, 'wp-cron.php' ) ? new WP_Error( 'digi_r_no_cron', 'Sin loopback de WP-Cron en el ensayo.' ) : $pre; }, 10, 3 );
+// Sin loopback de WP-Cron. spawn_cron() ya tomó el candado `doing_cron`: se suelta como si esa petición hubiera corrido y
+// terminado; si no, el wp-cron.php del cron del sistema del ensayo lo encontraría tomado 60 s y no ejecutaría nada.
+add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
+	if ( false === strpos( (string) $url, 'wp-cron.php' ) ) return $pre;
+	delete_transient( 'doing_cron' );
+	return new WP_Error( 'digi_r_no_cron', 'Sin loopback de WP-Cron en el ensayo.' );
+}, 10, 3 );
 function digi_r_kill( $flag ) {
 	file_put_contents( '/digi-ctl/deaths.jsonl', json_encode( array( 'flag' => $flag, 'at' => microtime( true ), 'job' => Digitalisimo_Backups_Jobs::current_id() ) ) . "\n", FILE_APPEND );
 	// Como SIGKILL: el apagado del motor no anota nada; el arrendamiento queda y lo reconoce el detector.
