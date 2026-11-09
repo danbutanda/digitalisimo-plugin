@@ -122,8 +122,20 @@ final class Digitalisimo_Backups_Sql_Export {
 		$at = gmdate( 'c' );
 		$tables = $wpdb->get_col( 'SHOW TABLES' );
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
+		$tables = array_values( array_filter( array_map( 'strval', $tables ), array( __CLASS__, 'exportable' ) ) );
+		if ( ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		self::$listed = true;
-		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'stage' => 'export', 'file' => 'database.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.sql.part', 'tables' => array_values( array_map( 'strval', $tables ) ), 'at' => $at, 'mode' => null, 'table' => 0, 'rows' => 0, 'size' => 0, 'snapshots' => 0, 'total' => 0, 'batch' => 0, 'abandons' => array(), 'check' => array( 'offset' => 0, 'table' => 0, 'unchecked' => array() ), 'scale' => 1.0 );
+		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'stage' => 'export', 'file' => 'database.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.sql.part', 'tables' => $tables, 'at' => $at, 'mode' => null, 'table' => 0, 'rows' => 0, 'size' => 0, 'snapshots' => 0, 'total' => 0, 'batch' => 0, 'abandons' => array(), 'check' => array( 'offset' => 0, 'table' => 0, 'unchecked' => array() ), 'scale' => 1.0 );
+	}
+	/**
+	 * Las tablas temporales de una restauración que murió a mitad (`<prefijo>dgbkr_*`, las que se importaban, y
+	 * `<prefijo>dgbko_*`, las que se apartaban) no son del sitio: respaldarlas las restauraría como tablas sueltas.
+	 */
+	private static function exportable( $table ) {
+		global $wpdb;
+		$prefix = (string) ( $wpdb->base_prefix ?? ( $wpdb->prefix ?? '' ) );
+		foreach ( array( 'dgbkr_', 'dgbko_' ) as $temporary ) if ( 0 === strpos( $table, $prefix . $temporary ) ) return false;
+		return true;
 	}
 	private static function remove( $staging ) {
 		foreach ( (array) @scandir( $staging ) as $name ) {

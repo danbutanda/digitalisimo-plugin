@@ -18,6 +18,7 @@
  * P8  Con tablas no transaccionales, una tabla borrada entre tramos reinicia la exportación con la lista actual.
  * CHK La comprobación del SQL detecta, sentencia a sentencia, lo que no se importaría (H1 y H3).
  * SQL El database.sql del ZIP es el SQL comprobado; uno cambiado después no se da por verificado.
+ * TMP Las tablas temporales de una restauración que murió (<prefijo>dgbkr_* y <prefijo>dgbko_*) no se respaldan.
  *
  * Con BK_REVIEW_ONLY=H1,H2… sólo corren esas secciones.
  */
@@ -534,6 +535,19 @@ $job = rv_done( $p8['id'] );
 rv_filters( array() );
 bk_assert( array( 'wp_options', 'wp_plugin_log' ) === bk_zip_entries( rv_zip( $job ) )['database_tables'] && preg_grep( '/No se pudo abrir la instantánea con la lista de tablas del primer tramo/', rv_warnings( $job ) ) && 0 === (int) ( $job['attempts']['database'] ?? 0 ), 'Una tabla borrada entre tramos con LOCK TABLES no reinició la exportación con la lista actual.' );
 $GLOBALS['wpdb'] = $db;
+}
+
+// TMP. Las tablas temporales de una restauración que murió a mitad (<prefijo>dgbkr_* y <prefijo>dgbko_*) no se
+// respaldan: ni se leen ni figuran en el manifiesto.
+if ( rv_section( 'TMP' ) ) {
+$tables = $db->tables;
+$db->tables = array( 'wp_options' => 3, 'wp_posts' => 2, 'wp_dgbkr_posts' => 2, 'wp_dgbko_options' => 3, 'wp_mydgbkr_log' => 1 );
+$db->queries = array();
+$job = rv_done( bk_manual( 'local', 'tablas-temporales' )['id'] );
+$manifest = bk_zip_entries( rv_zip( $job ) );
+$read = preg_grep( '/`wp_dgbk[ro]_|Name = .wp_dgbk[ro]_/', array_filter( $db->queries, function( $q ) { return 'SHOW TABLES' !== $q; } ) );
+bk_assert( array( 'wp_options', 'wp_posts', 'wp_mydgbkr_log' ) === $manifest['database_tables'] && false === strpos( rv_sql( $job ), 'dgbkr_posts' ) && false === strpos( rv_sql( $job ), 'dgbko_' ) && ! $read, 'Se respaldaron las tablas temporales de una restauración: ' . json_encode( array( $manifest['database_tables'], array_values( $read ) ) ) );
+$db->tables = $tables;
 }
 
 rv_filters( array() );
