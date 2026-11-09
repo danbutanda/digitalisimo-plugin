@@ -381,7 +381,8 @@ extraer otros sitios. Una extracción pendiente de un sitio no se duplica (409).
 El paquete es un WordPress individual cuyo prefijo de tablas es el que el sitio tenía en la red (`wp_N_`; el sitio
 principal, `wp_`): así sus metas y sus roles ya llevan el prefijo de esa instalación, y al restaurar el motor de
 reubicación (E1) los pasa al prefijo del destino junto con las URL y las rutas. La extracción no reescribe ninguna URL,
-ruta ni prefijo: decide qué viaja.
+ruta ni prefijo: decide qué viaja. Con «Conservar las direcciones del respaldo» (`addresses=backup`) el sitio queda con
+su dirección de la red y sólo cambian el prefijo, las rutas y la carpeta de los medios (`…/sites/N` → `…/uploads`).
 | Parte | Qué viaja |
 | --- | --- |
 | Tablas | Las del sitio (`wp_N_*`; del sitio principal, las `wp_*` que no son globales de la red ni de otro sitio `wp_<n>_*`), más `wp_users` y `wp_usermeta` como `wp_N_users` y `wp_N_usermeta`. Manifiesto v3 con `scope: extracted-site`, `multisite: false`, `table_prefix: wp_N_`, `home_url` del sitio, `origin` (el sitio descrito como el WordPress individual que será: sus direcciones, su carpeta de medios y su prefijo) y `extract` (el informe). |
@@ -425,7 +426,7 @@ copiarlas por error obliga a cambiarlas. Las claves que el sitio guardó como su
 Sólo en un WordPress individual: una red rechaza el alcance `extracted-site` antes de tocar nada, y el alcance `site` de
 la vía antigua sigue rechazado en todas partes. Pasa por lo mismo que cualquier restauración: comprobación previa (la
 lista de «Restaurar» y `verify` lo dan por compatible y dicen «Origen → este sitio» con lo que se reescribirá), copia
-previa, diario y recuperación. El motor de reubicación (E1) cambia el prefijo `wp_N_` por el del destino (tablas,
+previa, diario y recuperación. El motor de reubicación (ver «Restaurar en otro dominio») cambia el prefijo `wp_N_` por el del destino (tablas,
 `wp_N_user_roles`, `wp_N_capabilities` y demás metas), las URL del sitio por las del destino y las rutas del servidor; la
 extracción añade a su mismo plan los pares de la URL de los medios del sitio en la red (`…/wp-content/uploads/sites/N` y
 la misma carpeta servida desde el dominio de la red) a la de los medios del destino, porque los archivos pasaron a

@@ -426,6 +426,12 @@ try {
 	$history = (array) get_option( Digitalisimo_Backups::HISTORY, array() );
 	digi_assert( 1 === count( $history ) && 'pre-restore' === $history[0]['policy'] && is_file( $store . '/' . $history[0]['file'] ), 'El historial del destino no conserva su copia previa.' );
 
+	// Con «conservar las direcciones del respaldo», los medios pasan a la carpeta de un sitio individual con la dirección
+	// del sitio en la red (sus archivos están ya en uploads/), y no a la del destino.
+	$keep = Digitalisimo_Backups_Relocate::plan( Digitalisimo_Backups_Relocate::origin_of( $manifest ), Digitalisimo_Backups_Relocate::describe(), array( 'addresses' => 'backup', 'tables' => $manifest['database_tables'] ) );
+	$X::adjust_plan( $keep, $manifest );
+	$urls = $keep->pairs()['urls'];
+	digi_assert( 'https://red.test/sub2/wp-content/uploads' === ( $urls['https://red.test/wp-content/uploads/sites/2'] ?? '' ) && 'https://red.test/sub2/wp-content/uploads' === ( $urls['https://red.test/sub2/wp-content/uploads/sites/2'] ?? '' ) && ! isset( $urls['https://red.test/sub2'] ), 'Conservando las direcciones, los medios no pasan a uploads/ del sitio: ' . json_encode( $urls ) );
 	// El alcance heredado `site` (create_site de la v2) sigue rechazado en un WordPress individual.
 	$legacy = $store . '/digitalisimo-site-2-red-test-full-20260101-000000.zip';
 	$zip = new ZipArchive();
