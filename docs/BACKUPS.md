@@ -581,6 +581,9 @@ copia previa) ni de 64 MB (pico 62,5 MB).
   terminado y lo da por dañado (lo aparta); el sitio, el informe en `digitalisimo_backups_last_restore` y lo apartado se
   quedan. Volver a una versión anterior desde `rollback/` con una restauración sin terminar: lo mismo, sin terminarla.
 - Un `.htaccess` dentro de una carpeta de plugin o de tema se escribe con su carpeta, en el paso del cambio.
+- El aviso por correo de una restauración sale en la primera petición de WP-Cron con WordPress entero después de terminar
+  (un tick programado a 60 s); un sitio sin visitas, sin cron del sistema y con `DISABLE_WP_CRON` lo envía cuando algo
+  vuelva a correr WP-Cron o la cola.
 - UpdraftPlus sigue restaurándose en una sola petición.
 - No probado en MySQL real ni en el hosting del laboratorio.
 
