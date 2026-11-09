@@ -286,7 +286,9 @@ final class Digitalisimo_Backups_Cli {
 	}
 }
 
-/** Automatizaciones de respaldo completo. */
+/**
+ * Automatizaciones de respaldo completo: listarlas y ejecutar una ahora.
+ */
 final class Digitalisimo_Backups_Cli_Automation {
 	/**
 	 * Lista las automatizaciones y su próxima ejecución.
@@ -334,7 +336,9 @@ final class Digitalisimo_Backups_Cli_Automation {
 	}
 }
 
-/** Cola de trabajos: la misma que la tarjeta «Trabajos» de la pantalla. */
+/**
+ * Cola de trabajos de respaldo, la misma de la tarjeta «Trabajos» de la pantalla: listar, cancelar y hacerla avanzar.
+ */
 final class Digitalisimo_Backups_Cli_Jobs {
 	/**
 	 * Lista los trabajos sin terminar y los últimos terminados.

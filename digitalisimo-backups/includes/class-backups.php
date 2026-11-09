@@ -47,7 +47,7 @@ final class Digitalisimo_Backups {
 	const ACTION_CREATE_AUTOMATION = 'digitalisimo_backups_create_automation';
 	const ACTION_UPDATE_AUTOMATION = 'digitalisimo_backups_update_automation';
 	const ACTION_DELETE_AUTOMATION = 'digitalisimo_backups_delete_automation';
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
 	private static function local_directory() {
@@ -105,6 +105,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::OPERATION_LOCK;
 		$handle = @fopen( $path, 'c' );
 		if ( ! $handle ) throw new Exception( 'No se pudo abrir el bloqueo de operaciones de Backups.' );
+		self::private_file( $path );
 		if ( ! @flock( $handle, LOCK_EX | LOCK_NB ) ) {
 			fclose( $handle );
 			return null;
@@ -166,6 +167,7 @@ final class Digitalisimo_Backups {
 		if ( ! file_exists( $legacy ) ) return;
 		if ( is_link( $legacy ) || ! is_dir( $legacy ) ) throw new Exception( 'La carpeta de respaldos anterior no es una carpeta segura.' );
 		$lock = @fopen( $private . '/.migration.lock', 'c' );
+		self::private_file( $private . '/.migration.lock' );
 		if ( ! $lock || ! flock( $lock, LOCK_EX ) ) { if ( $lock ) fclose( $lock ); throw new Exception( 'No se pudo bloquear la migración de respaldos anteriores.' ); }
 		try {
 			$names = @scandir( $legacy );
@@ -190,8 +192,10 @@ final class Digitalisimo_Backups {
 					fclose( $input );
 					fclose( $output );
 					$temp_hash = @hash_file( 'sha256', $temp );
+					self::private_file( $temp );
 					if ( false === $copied || ! $flushed || $copied !== @filesize( $source ) || false === $temp_hash || ! hash_equals( $source_hash, $temp_hash ) || ! @rename( $temp, $target ) ) { @unlink( $temp ); throw new Exception( 'La copia del respaldo anterior ' . $name . ' no superó la verificación.' ); }
 				}
+				self::private_file( $target );
 				if ( file_exists( $source ) && ! @unlink( $source ) ) throw new Exception( 'Se copió ' . $name . ' a la carpeta privada, pero no se pudo retirar de la carpeta pública.' );
 			}
 		} finally {
@@ -420,6 +424,24 @@ final class Digitalisimo_Backups {
 		if ( $next ) wp_unschedule_event( (int) $next, 'digitalisimo_backups_policy', $args );
 		wp_schedule_event( $want, $policy['schedule'], 'digitalisimo_backups_policy', $args );
 	}
+	/**
+	 * Una automatización activa sin evento de WP-Cron se programa: la «Completo mensual» que viene activa por defecto en
+	 * un sitio donde nunca se guardó la pantalla, o un evento que se perdió (la opción `cron` que trajo el SQL de una
+	 * restauración). Va a su hora fija o, sin ella, a las 03:00 del sitio (las de cada hora, 6 o 12 horas, en un minuto).
+	 * No añade consultas: las automatizaciones ya se leen en cada carga y `cron` se carga con las opciones.
+	 */
+	public static function ensure_policy_schedules() {
+		if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_schedule_event' ) ) return;
+		if ( ( function_exists( 'wp_installing' ) && wp_installing() ) || ( is_multisite() && ! is_main_site() ) ) return;
+		foreach ( self::policies() as $policy ) {
+			if ( empty( $policy['enabled'] ) || empty( $policy['id'] ) || 'full' !== ( $policy['type'] ?? '' ) || ! array_key_exists( (string) ( $policy['schedule'] ?? '' ), self::schedule_options() ) || 'disabled' === $policy['schedule'] ) continue;
+			$args = array( (string) $policy['id'], get_current_blog_id() );
+			if ( wp_next_scheduled( 'digitalisimo_backups_policy', $args ) ) continue;
+			$time = self::fixed_time( $policy );
+			if ( '' === $time && in_array( $policy['schedule'], array( 'daily', 'weekly', 'monthly' ), true ) ) $time = '03:00';
+			wp_schedule_event( '' !== $time ? self::next_fixed_run( $time, time() + MINUTE_IN_SECONDS ) : time() + MINUTE_IN_SECONDS, $policy['schedule'], 'digitalisimo_backups_policy', $args );
+		}
+	}
 	/** Cambió la zona horaria del sitio: las automatizaciones con hora fija vuelven a su hora local (las demás no se tocan). */
 	public static function timezone_changed() {
 		if ( is_multisite() && ! is_main_site() ) return;
@@ -454,6 +476,15 @@ final class Digitalisimo_Backups {
 	/** @internal Acceso del motor de trabajos a las piezas de esta clase. */
 	public static function can_manage_backups() { return self::can_manage(); }
 	public static function storage_directory() { return self::local_directory(); }
+	/**
+	 * Archivo del almacén sólo para el usuario de PHP (0600): respaldos (llevan wp-config.php y la base de datos),
+	 * temporales, descargas de verificación y cerrojos. La carpeta ya es 0700; esto no depende de ella.
+	 */
+	public static function private_file( $path ) {
+		if ( DIRECTORY_SEPARATOR !== '/' || ! is_string( $path ) || is_link( $path ) || ! is_file( $path ) ) return;
+		clearstatcache( true, $path );
+		if ( 0600 !== ( (int) @fileperms( $path ) & 0777 ) ) @chmod( $path, 0600 );
+	}
 	public static function redirect_result( $ok, $message ) { self::redirect( $ok, $message ); }
 	public static function destination_name( $destination ) { return self::destination_label( $destination ); }
 	/** Nombre de una automatización para los avisos: su etiqueta o, sin ella, su tipo y frecuencia. */
@@ -884,6 +915,8 @@ final class Digitalisimo_Backups {
 				Digitalisimo_Backups_Jobs::throw_if_aborted();
 				throw new Exception( 'El ZIP no se pudo cerrar correctamente.' );
 			}
+			// libzip crea el ZIP con los permisos por defecto (0644 en Linux): lleva wp-config.php y la base de datos.
+			self::private_file( $target );
 			return array( 'file_count' => count( $entries ) - 1, 'files_started_at' => $files_started_at, 'files_completed_at' => $files_completed_at, 'backup_id' => (string) $manifest['backup_id'], 'created_at' => (string) $manifest['created_at'], 'signed' => (bool) $plan['root'] );
 		} catch ( Throwable $e ) {
 			if ( ! $closing ) { @$zip->unchangeAll(); self::close_quietly( $zip ); }
@@ -1120,6 +1153,7 @@ final class Digitalisimo_Backups {
 			@unlink( $file );
 			throw new Exception( 'El ZIP no se pudo cerrar correctamente.' );
 		}
+		self::private_file( $file );
 		$check = new ZipArchive();
 		if ( true !== $check->open( $file, ZipArchive::CHECKCONS ) ) {
 			@unlink( $file );
@@ -1215,6 +1249,8 @@ final class Digitalisimo_Backups {
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		$output = @fopen( $path, 'wb' );
 		if ( ! $output ) throw new Exception( 'No se pudo abrir el archivo SQL temporal.' );
+		// El SQL lleva toda la base de datos: sólo el usuario de PHP lo lee, también mientras se escribe.
+		self::private_file( $path );
 		$snapshot = '';
 		$complete = false;
 		try {
@@ -1336,7 +1372,23 @@ final class Digitalisimo_Backups {
 	}
 
 	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
-	private static function protect( $dir ) { if ( ! file_exists( trailingslashit( $dir ) . 'index.php' ) ) file_put_contents( trailingslashit( $dir ) . 'index.php', "<?php // Silence is golden.\n" ); if ( ! file_exists( trailingslashit( $dir ) . '.htaccess' ) ) file_put_contents( trailingslashit( $dir ) . '.htaccess', "Deny from all\n" ); }
+	/**
+	 * Protección del almacén por si alguna vez quedara bajo una ruta servida (nunca debería: local_directory() lo
+	 * rechaza): `index.php` vacío y `.htaccess` con «Deny from all». Se escriben sólo si faltan o su contenido no es el
+	 * correcto, con temporal y rename() y en 0600: reescribir un `.htaccess` hace que algunos hostings recarguen el
+	 * servidor web de todos los sitios (OpenLiteSpeed en Webuzo, cada 2 minutos), y una recarga puede cortar una
+	 * restauración en curso.
+	 */
+	private static function protect( $dir ) {
+		foreach ( array( 'index.php' => "<?php // Silence is golden.\n", '.htaccess' => "Deny from all\n" ) as $name => $content ) {
+			$path = trailingslashit( $dir ) . $name;
+			if ( is_link( $path ) ) continue;
+			if ( is_file( $path ) && (string) @file_get_contents( $path ) === $content ) { self::private_file( $path ); continue; }
+			$temp = $path . '.tmp-' . bin2hex( random_bytes( 4 ) );
+			if ( strlen( $content ) === @file_put_contents( $temp, $content ) ) { self::private_file( $temp ); if ( ! @rename( $temp, $path ) ) @unlink( $temp ); }
+			else @unlink( $temp );
+		}
+	}
 	private static function transfer( $file, $s ) { if ( 'sftp' === $s['destination'] ) return self::sftp( $file, $s ); if ( 'google' === $s['destination'] ) return self::google( $file, $s ); if ( 'onedrive' === $s['destination'] ) return self::onedrive( $file, $s ); }
 	private static function sftp( $file, $s ) {
 		$connection = self::sftp_connection( $s );
@@ -1401,6 +1453,7 @@ final class Digitalisimo_Backups {
 	private static function verify_cloud_copy( $provider, $id, $source, $token ) {
 		$temp = tempnam( self::local_directory(), '.cloud-check-' );
 		if ( false === $temp ) throw new Exception( 'No se pudo preparar la verificación del respaldo remoto.' );
+		self::private_file( $temp );
 		try {
 			$url = 'google' === $provider
 				? 'https://www.googleapis.com/drive/v3/files/' . rawurlencode( $id ) . '?alt=media'
@@ -1757,6 +1810,10 @@ final class Digitalisimo_Backups {
 		$real_parent = realpath( dirname( $destination ) );
 		if ( false === $real_parent || 0 !== strpos( trailingslashit( wp_normalize_path( $real_parent ) ), $root ) ) throw new Exception( 'La carpeta de destino sale de WordPress.' );
 		$stat = $zip->statIndex( $index );
+		// Un archivo que ya es idéntico al del respaldo no se reescribe ni cambia de fecha: reescribir un .htaccess (o
+		// web.config) recarga el servidor web en algunos hostings (OpenLiteSpeed en Webuzo) y puede cortar la restauración.
+		// Se compara byte a byte (nunca por el CRC, que se puede falsificar), y el respaldo ya se comprobó contra su manifiesto.
+		if ( $was_present && $stat && is_file( $destination ) && (int) @filesize( $destination ) === (int) $stat['size'] && self::same_content( $zip, (string) $stat['name'], $destination ) ) return null;
 		$input = $stat ? $zip->getStream( $stat['name'] ) : false;
 		$temp = $destination . '.digitalisimo-restore-' . wp_generate_uuid4();
 		$output = @fopen( $temp, 'xb' );
@@ -1773,6 +1830,32 @@ final class Digitalisimo_Backups {
 		return $created_hash;
 	}
 
+	/** Si una entrada del ZIP y un archivo tienen exactamente los mismos bytes. */
+	private static function same_content( $zip, $name, $path ) {
+		$entry = $zip->getStream( $name );
+		$file = @fopen( $path, 'rb' );
+		try {
+			if ( ! $entry || ! $file ) return false;
+			while ( true ) {
+				$left = self::read_exact( $entry, 1048576 );
+				$right = self::read_exact( $file, 1048576 );
+				if ( $left !== $right ) return false;
+				if ( '' === $left ) return true;
+			}
+		} finally {
+			if ( $entry ) fclose( $entry );
+			if ( $file ) fclose( $file );
+		}
+	}
+	private static function read_exact( $handle, $length ) {
+		$out = '';
+		while ( strlen( $out ) < $length && ! feof( $handle ) ) {
+			$chunk = fread( $handle, $length - strlen( $out ) );
+			if ( false === $chunk || '' === $chunk ) break;
+			$out .= $chunk;
+		}
+		return $out;
+	}
 	/** Lee el SQL del ZIP por fragmentos; cada sentencia pasa el guardián antes de ejecutarse. */
 	private static function import_zip_sql( $zip, $guard = null ) {
 		global $wpdb;

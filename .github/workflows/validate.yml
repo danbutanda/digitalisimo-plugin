@@ -303,6 +303,10 @@ jobs:
           php tests/backups-upload.php
           node tests/backups-upload-ui.mjs
           php tests/backups-schedule-time.php
+          php tests/backups-default-schedule.php
+          php tests/backups-cli-help.php
+          php tests/backups-private-files.php
+          php tests/backups-no-rewrite.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

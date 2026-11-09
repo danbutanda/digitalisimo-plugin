@@ -96,6 +96,7 @@ final class Digitalisimo_Backups_Uploads {
 	public static function lock( $id ) {
 		$handle = @fopen( self::directory( $id ) . '/' . self::LOCK, 'c' );
 		if ( ! $handle ) return null;
+		Digitalisimo_Backups::private_file( self::directory( $id ) . '/' . self::LOCK );
 		if ( ! @flock( $handle, LOCK_EX | LOCK_NB ) ) { fclose( $handle ); return null; }
 		return $handle;
 	}
