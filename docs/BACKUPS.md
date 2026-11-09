@@ -286,7 +286,8 @@ Si no:
 - Por defecto, el sitio **conserva sus direcciones** (las de este servidor) y las del respaldo se cambian por ellas.
 - «Conservar las direcciones del respaldo» (pantalla), `addresses=backup` (REST) o `--addresses=backup` (WP-CLI) deja
   las URL del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este servidor: son hechos de la
-  instalación, no una preferencia.
+  instalación, no una preferencia. Si `wp-config.php` de este servidor define `WP_HOME` o `WP_SITEURL`, esas constantes
+  son «las direcciones de este sitio» y siguen mandando después de restaurar, también con la opción del respaldo.
 - La pantalla de Restaurar dice en cada archivo «origen … → este sitio» y, al elegirlo, qué se reescribirá; `verify`
   lo devuelve en `relocation` (REST) o lo escribe (WP-CLI). Después de restaurar, el aviso resume lo hecho y la pantalla
   muestra el informe por tabla («Última restauración en otro dominio», `digitalisimo_backups_last_relocation`).
