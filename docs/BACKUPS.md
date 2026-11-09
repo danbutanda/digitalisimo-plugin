@@ -59,7 +59,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | REST (`digitalisimo-backups/v1`) y WP-CLI (`wp digitalisimo-backups`) usan los casos de uso de la pantalla (`Digitalisimo_Backups_Service`) sobre el motor de «Trabajos» y «Seguridad»: estado, historial, crear, verificar, restaurar, automatizaciones y la cola (listar, consultar, avanzar y cancelar). La pantalla («Crear respaldo completo» por AJAX o formulario, «Ejecutar ahora» y «Restaurar») pasa por los mismos casos de uso. Crear y ejecutar una automatización encolan un trabajo y nunca lo duplican: REST responde 202 con el trabajo (409 con el que ya estaba pendiente) y `POST /jobs/tick` lo hace avanzar como el navegador; WP-CLI lo hace avanzar en su proceso hasta terminar (o sólo lo encola con `--async`), y `wp digitalisimo-backups jobs list|cancel|run` opera sobre la misma cola. Restaurar y verificar abren el paquete como la pantalla: aceptan `.dgbk`, piden `RESTAURAR` o `RESTAURAR SIN FIRMA` según su confianza («Restaurar sólo respaldos firmados» responde 403) y `verify` hace las mismas comprobaciones del paquete que la restauración. Un respaldo cifrado cuya clave no tiene el sitio responde, antes de tomar el bloqueo, `secret_required` con la huella corta y dónde va la frase: en REST sólo en el cuerpo (en la URL, 400); en WP-CLI por `--secret-file` o `--secret-stdin` (`--secret` es un error). Ninguna respuesta ni salida lleva la frase, la clave, su envoltura ni la huella completa, tampoco al rechazar una frase equivocada. REST pide la capability de la pantalla con la autenticación de WordPress (401 sin sesión, 403 sin permiso). En una red sólo responde el sitio principal (con varias redes, el de la red principal, porque el respaldo las abarca todas; el motor tampoco exporta desde una red secundaria), y crear, restaurar o ejecutar exigen el alcance de red explícito. Otra operación en curso o un trabajo activo impiden restaurar (409). Los resúmenes no llevan la ruta del almacén ni identificadores remotos (ruta SFTP o identificador de Google Drive y OneDrive); un aviso que impide respaldar nombra la carpeta que hay que corregir (ver «REST y WP-CLI»). Ensayado en Playground: WordPress 7.1.4, sitio individual y red (`tests/playground/backups-coverage.sh`). | 1.0.60 | `backups-service.php`, `backups-rest.php`, `backups-cli.php` |
 | Rutas externas. `wp-config.php` en la carpeta superior o enlazado (archivos compartidos de un despliegue) se respalda; la restauración nunca lo escribe ni crea otro en `ABSPATH`. Fuera de `ABSPATH` o tras un enlace simbólico, wp-content, plugins, mu-plugins, medios (en una red, también los de cada sitio con `upload_path` propio, salvo con la constante `UPLOADS`, que hace a WordPress ignorarlo) o un directorio de temas se rechazan antes de exportar nada (al crear o ejecutar desde la pantalla, REST o WP-CLI, antes de encolar el trabajo), con la carpeta, quién la define y qué hacer; antes, plugins, medios y temas externos se omitían sin aviso. La restauración se detiene antes de tocar el sitio, un `ABSPATH` que es enlace de despliegue (`current → releases/N`) funciona y otro enlace dentro de `ABSPATH` hace fallar el trabajo al momento (error permanente, sin reintentos) con su destino, sin dejar ZIP. | 1.0.60 | `backups-layout.php`, `backups-external-config.php` |
 | **Credenciales de los destinos cifradas que viajan en el respaldo (S4).** La contraseña de SFTP y el Client secret y el Refresh token de Google Drive y OneDrive viven en `digitalisimo_backups_credentials` (de la red en Multisite), cada uno cifrado con AEAD XChaCha20-Poly1305 (libsodium o el sodium_compat de WordPress) con una clave que sale de `AUTH_KEY` y `SECURE_AUTH_KEY` con su propia separación de dominio, y un dato adicional que lo ata a su campo. `digitalisimo_backups_settings` ya no guarda ninguno en claro: guardar «Servidores», la conexión OAuth (refresh token) y la migración de los sitios que vienen de 1.0.60 o anteriores (al cargar el escritorio, el cron o WP-CLI, sin ninguna consulta cuando no queda nada en claro, y después de cada restauración) pasan por el almacén, que comprueba cada valor antes de retirar el texto en claro; el navegador nunca recibe un valor. El almacén sí entra en `database.sql`: restaurar deja los destinos funcionando con las credenciales del respaldo, que mandan sobre las que tenía el servidor. En otro servidor (otras salts) se vuelven a cifrar con las de éste usando las del `wp-config.php` que va dentro del propio respaldo (sólo `define()` con literales de cadena, leídos con el tokenizador de PHP; el archivo nunca se ejecuta ni se incluye). Si no se pueden leer (`getenv()`, otro archivo) o cambiaron las salts de este servidor, el destino queda en «vuelve a escribir la contraseña / conéctalo de nuevo» en la pantalla, en `status` de REST y WP-CLI, en el aviso de la restauración y en el error permanente del trabajo con destino remoto; nunca se cae al texto en claro. Sin `AUTH_KEY` y `SECURE_AUTH_KEY` propias se guardan como hasta ahora, con aviso. Una restauración que muere entre el SQL y el nuevo cifrado lo termina con el diario. El dato adicional ata cada secreto también a su conexión (host, puerto, usuario y huella SSH; Client ID), así que una escritura directa que cambie el host no lo desvía. Ningún respaldo lleva un secreto en claro si hay salts propias (se migra antes del volcado y cada fila de ajustes sale sin ellos, también la de un subsitio); los ajustes van con autoload, así que la comprobación al cargar no cuesta consultas y detecta lo que 1.0.60 reescriba tras volver desde `rollback/`. En una red sólo el sitio principal lee y escribe el almacén; un sitio convertido en red lo adopta; «Olvidar las credenciales guardadas» retira las de un destino que ya no se usa; un almacén con datos que no son texto pide volver a escribir sin romper nada, y un `wp-config.php` de más de 64 KiB no se analiza. Cada secreto (del formulario o del retorno de OAuth) se guarda exactamente como se escribió, sin las barras de `$_POST` y sin saneado ni recorte: antes, comillas y barras invertidas ganaban barras, y `<…>`, `%xx` y los espacios al borde se perdían; sólo se rechazan, con un mensaje que no repite el valor y sin cambiar nada, NUL, los caracteres de control y más de 8192 bytes. | 1.0.61 | `backups-credentials.php`, `backups-credentials-surfaces.php`, `backups-credentials-nokeys.php`, `backups-credentials-exact.php`, `backups-credentials-hardening.php` y, en Playground, S9 de `tests/playground/backups-security.sh` |
-| **Restaurar en otro dominio, otra ruta y otro prefijo (E1).** Un respaldo de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas ya no se rechaza ni deja el sitio apuntando al origen: por defecto el sitio conserva **sus** direcciones (las de este servidor) y las del respaldo se reescriben al restaurar; «Conservar las direcciones del respaldo» es una opción explícita (pantalla, `addresses=backup` en REST, `--addresses=backup` en WP-CLI). El motor, `Digitalisimo_Backups_Relocate`, cambia URL y rutas del servidor dentro de PHP serializado sin llamar nunca a `unserialize()` (recorre el formato y recalcula cada longitud en bytes, también anidado y con multibyte; ningún objeto del respaldo se instancia), JSON con barras escapadas (el `_elementor_data` de Elements), URL codificadas, `http` y `https`, `//dominio`, con y sin `www`; un dominio sólo coincide completo (`origen.com` no toca `origen.com.mx`, `miorigen.com` ni un correo). Se aplica fila por fila durante la importación, con memoria constante, sobre los literales que comprobó el guardián SQL. Otro prefijo renombra las tablas (también en `REFERENCES`) y las claves que lo llevan (`{prefijo}user_roles`, `{prefijo}capabilities`…); una tabla ajena o de otro WordPress de la misma base no se toca. En una red (subdominios o subdirectorios) cambian `site`, `sitemeta`, `blogs` y las direcciones de cada sitio; una red de otro tipo o un `wp-config.php` que declara otro dominio se rechazan antes de tocar nada diciendo qué cambiar. Después se vacían transitorios, reglas de reescritura, el CSS generado de Elements/Elementor y la caché de objetos, y una comprobación final cuenta lo que quedó del origen (0 salvo `guid` y lo declarado). La pantalla dice «Origen → este sitio» antes de confirmar y guarda el informe por tabla. Ver «Restaurar en otro dominio». | @NEXT_BACKUPS@ | `backups-relocate.php` y, en Playground, `tests/playground/backups-relocate.sh` |
+| **Restaurar en otro dominio, otra ruta y otro prefijo (E1).** Un respaldo de otra dirección, de otra carpeta del servidor o con otro prefijo de tablas ya no se rechaza ni deja el sitio apuntando al origen: por defecto el sitio conserva **sus** direcciones (las de este servidor) y las del respaldo se reescriben al restaurar; «Conservar las direcciones del respaldo» es una opción explícita (pantalla, `addresses=backup` en REST, `--addresses=backup` en WP-CLI). El motor, `Digitalisimo_Backups_Relocate`, cambia URL y rutas del servidor dentro de PHP serializado sin llamar nunca a `unserialize()` (recorre el formato y recalcula cada longitud en bytes, también anidado y con multibyte; ningún objeto del respaldo se instancia), JSON con barras escapadas (el `_elementor_data` de Elements), URL codificadas, `http` y `https`, `//dominio`, con y sin `www`; un dominio sólo coincide completo (`origen.com` no toca `origen.com.mx`, `miorigen.com` ni un correo). Se aplica fila por fila durante la importación, con memoria constante, sobre los literales que comprobó el guardián SQL. Otro prefijo renombra las tablas (también en `REFERENCES`) y las claves que lo llevan (`{prefijo}user_roles`, `{prefijo}capabilities`…), y los permisos de otra instalación que traiga el respaldo no se aplican; las tablas sin el prefijo del origen no se restauran y las de este servidor no se tocan. En una red (subdominios o subdirectorios) cambian `site`, `sitemeta`, `blogs` y las direcciones de cada sitio, durante la importación (cortar el proceso después del SQL deja la red accesible); una red de otro tipo o un `wp-config.php` que declara otro dominio se rechazan antes de tocar nada diciendo qué cambiar. Después se vacían transitorios, reglas de reescritura, el CSS generado de Elements/Elementor, las cachés de página y la caché de objetos, se pide a LiteSpeed que purgue la suya, y al extraer `.htaccess` y `.user.ini` toman las rutas de este servidor (un `auto_prepend_file` que aquí no existe queda comentado); una comprobación final cuenta lo que quedó del origen (0 salvo `guid` y lo declarado). La pantalla dice «Origen → este sitio» antes de confirmar y guarda el informe por tabla. Ver «Restaurar en otro dominio». | @NEXT_BACKUPS@ | `backups-relocate.php`, `backups-relocate-interrupted.php` y, en Playground, `tests/playground/backups-relocate.sh` |
 | **Extraer un sitio de la red como WordPress individual.** En la administración de la red (sólo un superadministrador, alcance de red explícito), «Extraer como WordPress individual» encola un trabajo del mismo motor que los respaldos completos (cola, fases, reanudación y verificación) que deja un paquete con el alcance explícito `extracted-site` en el manifiesto v3, cifrado y firmado sólo con una frase propia de esa extracción (nunca con la clave de la red; obligatoria si la red cifra sus respaldos). Lleva las tablas del sitio con su prefijo de la red (`wp_N_`) y `wp_N_users`/`wp_N_usermeta` sólo con sus usuarios: los miembros con todos sus datos y el hash de su contraseña; los superadministradores que no son miembros, ninguno por defecto (`managing`: sólo quien tiene el correo de administración del sitio; escribir o comentar no cuenta); los usuarios bloqueados en la red (`spam`/`deleted`) nunca como miembros; los autores sin cuenta, sólo con su nombre público. Sus roles (`wp_N_user_roles`), sus medios (`uploads/sites/N/` → `uploads/`), los plugins activos en el sitio y en la red, su tema y padre, mu-plugins (con aviso), idiomas y el núcleo por lista blanca: ningún archivo de configuración de la raíz ni drop-ins. Los ajustes de red de los plugins DIGITALÍSIMO activos en el sitio se materializan por lista blanca (las claves y cuentas de la red, sólo si se pide); el paquete sólo cuenta lo que no viaja y nombra los `sitemeta` de otros plugins, mu-plugins y drop-ins. Se restaura sólo en un WordPress individual, con la copia previa, la recuperación y el motor de reubicación (E1), que pasa el prefijo, las URL (también las de los medios en la red y `/files/`) y las rutas a las del destino; la configuración de Backups del destino, con sus credenciales, se conserva. El alcance `site` de la vía antigua `create_site()` sigue rechazado. REST `POST /sites/<id>/extract` y `wp digitalisimo-backups extract <id> --network`. | @NEXT_BACKUPS@ | `backups-site-extract.php` y, en Playground, `tests/playground/backups-site-extract.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
@@ -300,24 +300,39 @@ Si no:
 
 - **URL**: `https://origen.com/ruta` → `https://destino.com/otra`, también `http://`, `//origen.com` (protocolo
   relativo, queda `//destino.com`), `www.origen.com`, JSON con barras escapadas una y dos veces (`https:\/\/…`, como el
-  `_elementor_data` de Elements) y URL codificadas (`https%3A%2F%2F…`, conservando `%2f` o `%2F`). El host compara sin
-  mayúsculas y sólo completo: `origen.com` no toca `origen.com.mx`, `miorigen.com`, `cdn.origen.com`, `origen.com:8443`
-  ni `ftp://origen.com`. La ruta compara hasta un límite de segmento (`/blog` no toca `/blogs` ni `/blog.html`).
+  `_elementor_data` de Elements) y URL codificadas una y dos veces (`https%3A%2F%2F…`, `https%253A%252F%252F…`,
+  conservando `%2f` o `%2F`, también con el puerto codificado, `localhost%3A8080`). Un puerto por defecto explícito
+  (`https://origen.com:443/`, `http://origen.com:80/`) es el mismo origen. El host compara sin mayúsculas y sólo
+  completo: `origen.com` no toca `origen.com.mx`, `miorigen.com`, `cdn.origen.com`, `origen.com:8443` ni
+  `ftp://origen.com`. La ruta compara hasta un límite de segmento (`/blog` no toca `/blogs` ni `/blog.html`). Un sitio
+  que se queda en su dirección (un par igual) no lo cambia el par más corto de su host.
 - **PHP serializado**: se recorre el formato (nunca `unserialize()`, así que ningún objeto del respaldo se instancia y
   ningún `__wakeup` o `__destruct` corre) y cada cadena se reescribe con su longitud en bytes recalculada, también
   serializados dentro de cadenas serializadas (hasta 16 niveles) y con multibyte. Las claves de un array que son URL (un
   mapa de redirecciones) también cambian, salvo que chocaran con otra clave del mismo array.
-- **Rutas del servidor**: `ABSPATH` (y su ruta real), `wp-content` y `uploads` del origen → las de este servidor, en
-  texto y JSON, con límites (`/var/www/origen2` no se toca). El manifiesto las trae desde @NEXT_BACKUPS@ (bloque
+- **Rutas del servidor**: `ABSPATH` (y su ruta real), `wp-content` y `uploads` del origen → las de este servidor, con
+  límites (`/var/www/origen2` no se toca), sólo donde las guardan WordPress y los plugins: un valor que **es** una ruta
+  (empieza por ella y no sigue texto), en cualquier tabla y dentro de un serializado; y, en ajustes y metas (`options`,
+  `sitemeta`, `*meta`), una ruta dentro de un texto o JSON si va seguida de `/wp-content`, `/wp-includes`, `/wp-admin` o
+  `/wp-config.php`. El contenido público (`post_content`, extractos, comentarios) y un tutorial que nombra la ruta no
+  cambian, y un origen de un solo segmento (`/wordpress`, el de Playground) nunca se cambia dentro de un texto, porque
+  se confunde con un enlace relativo (`href="/wordpress/"`). El manifiesto trae las rutas desde @NEXT_BACKUPS@ (bloque
   `origin`).
 - **Prefijo de tablas**: cada tabla del origen se crea, vacía y llena con el prefijo de este sitio (el guardián cambia
   el identificador exacto que leyó, también en `REFERENCES` de una clave foránea). Cambian `{prefijo}user_roles` de cada
   sitio y en `usermeta` todas las claves que empiezan por el prefijo (`{prefijo}capabilities`, `{prefijo}N_user_level`,
-  lo que escribe `update_user_option()`). Una tabla sin el prefijo del origen (otra aplicación de la misma base) se
-  restaura como siempre, sin cambios, y el otro WordPress que use en esta base el prefijo del origen no se toca. Un
-  prefijo distinto ya no impide restaurar.
+  lo que escribe `update_user_option()`). Las claves de permisos que el respaldo ya traía con el prefijo de **este**
+  sitio (`{prefijo-destino}capabilities`, `user_level` o `user_roles` de otra instalación: una tabla de usuarios
+  compartida o un cambio de prefijo anterior) no se aplican, porque darían permisos que el usuario no tenía en el sitio
+  restaurado; de otra clave repetida queda la del sitio restaurado. El otro WordPress que use en esta base el prefijo
+  del origen no se toca. Un prefijo distinto ya no impide restaurar.
+- **Tablas ajenas**: el respaldo guarda todas las tablas de la base del origen. Al restaurar en otro dominio, servidor o
+  prefijo, las que no tienen el prefijo del origen (otra aplicación u otro WordPress de aquella base) **no se
+  restauran**: las de este servidor con el mismo nombre no se borran ni se recrean. `verify`, la pantalla y el informe
+  las nombran antes de confirmar. Restaurar en el mismo sitio, sin reubicar, las sigue restaurando como antes.
 - **Red**: con el dominio y la ruta de la red de este servidor, `site`, `sitemeta.siteurl`, `blogs` y `home`/`siteurl` de
-  cada sitio. Por subdirectorios, `origen.com/uno/` pasa a `destino.com/<ruta de la red>uno/`; por subdominios,
+  cada sitio, todo **durante la importación**, fila por fila: ningún punto de la restauración deja unas tablas de la red
+  en un dominio y otras en el otro. Por subdirectorios, `origen.com/uno/` pasa a `destino.com/<ruta de la red>uno/`; por subdominios,
   `uno.origen.com` pasa a `uno.destino.com`; también la meta `source_domain` de cada usuario (el dominio, sin esquema,
   del sitio donde se registró). Un sitio con dominio propio (`cliente.com`) se queda como está.
 - **Cachés**: transitorios (`options` y `sitemeta`), `rewrite_rules` de cada sitio (WordPress las regenera en la
@@ -327,7 +342,18 @@ Si no:
   `uploads[/sites/N]/elementor/css/` (Elements los regenera) y la caché de objetos. El CSS de las fuentes locales de
   Google (`elementor/google-fonts/css/`) se reescribe. En un sitio individual cuya ruta cambia, el bloque de WordPress de
   `.htaccess` se regenera como al guardar los enlaces permanentes, como último paso: en algunos hostings escribir
-  `.htaccess` recarga el servidor web (OpenLiteSpeed de Webuzo) y corta la petición en curso.
+  `.htaccess` recarga el servidor web (OpenLiteSpeed de Webuzo) y corta la petición en curso. Las cachés de página y de
+  recursos optimizados que viajan en el respaldo (`wp-content/cache/`: WP Super Cache, W3TC, WP Rocket, Autoptimize;
+  `wp-content/litespeed/`) llevan las direcciones del origen: con otras direcciones se vacían. Después de cualquier
+  restauración se pide a LiteSpeed que purgue su caché (cabecera `X-LiteSpeed-Purge` y la acción del plugin LiteSpeed
+  Cache); por WP-CLI sólo queda la acción del plugin.
+- **Archivos de configuración del servidor** (en la raíz de WordPress: `.htaccess`, `.user.ini`, `php.ini`,
+  `wordfence-waf.php`), al extraerlos: las rutas y las direcciones del origen cambian por las de este servidor (también
+  el host escapado de un `RewriteCond`, `^www\.origen\.com$`), y un `auto_prepend_file` o `auto_append_file` cuyo
+  archivo no existirá aquí queda comentado con un aviso: si no, PHP daría un error fatal en cada petición, también en el
+  escritorio desde el que se restauraría la copia previa. El cortafuegos de Wordfence del respaldo queda apuntando a este
+  servidor (su `wordfence-waf.php` viaja); si el del respaldo se desactiva y este servidor tenía uno que funcionaba en
+  ese archivo, se conserva el de este servidor.
 
 **Qué no se reescribe, y por qué.**
 
@@ -336,45 +362,57 @@ Si no:
   web; cambiarlo rompería el inicio de sesión por correo, los avisos y los pedidos.
 - El dominio como texto, sin esquema ni `//` («visita origen.com»): es redacción, no una dirección.
 - Un serializado dañado (longitudes que no cuadran): se deja intacto, porque reescribirlo como texto lo rompería más. Un
-  objeto `C:` (Serializable: su contenido es un formato propio de la clase), un anidamiento de más de 16 serializados o
-  512 arrays y un valor de más de 64 MiB también se dejan e informan.
+  objeto `C:` (Serializable: su contenido es un formato propio de la clase) y un anidamiento de más de 16 serializados o
+  512 arrays también se dejan e informan.
+- Las rutas del servidor en el contenido público y en textos libres (ver «Rutas del servidor»), y las de un origen en
+  Windows (`C:\xampp\htdocs\…`).
 - Base64, entidades HTML (`&#x2F;`) y otras codificaciones propias de un plugin.
 - Las vistas SQL y las tablas dentro de comentarios ejecutables con otro prefijo: se rechazan antes de tocar nada.
 - Las rutas del servidor de un respaldo anterior a @NEXT_BACKUPS@: su manifiesto no las trae (las URL sí se reescriben).
 - Un conjunto de UpdraftPlus: sigue su propio camino, que exige el prefijo de este sitio y no reubica direcciones.
-- Las cachés de página de otros plugins (`wp-content/cache/`): se guardan por host, así que el dominio nuevo no las sirve;
-  conviene vaciarlas. Las reglas de nginx o del `.htaccess` de una red si cambia la ruta: se avisa.
+- Las reglas de nginx o del `.htaccess` de una red si cambia la ruta: se avisa.
 
 La comprobación final busca en la base de datos (con `LIKE`) cada host y cada ruta del origen en las tablas de este
 sitio y clasifica cada fila candidata con el mismo criterio: `urls` y `paths` (lo que la reescritura habría cambiado y
-sigue ahí) deben ser 0; `guid`, `kept` (lo que se deja a propósito), `emails` y `other` se informan.
+sigue ahí) deben ser 0; `guid`, `kept` (lo que se deja a propósito, también las rutas en el contenido público), `emails`
+y `other` se informan. Un error de la base de datos en la comprobación se avisa; nunca cuenta como 0.
 
 **Comprobaciones previas** (antes de la copia previa y de cualquier escritura, con qué cambiar): sitio individual ↔ red;
 red por subdominios ↔ por subdirectorios («define SUBDOMAIN_INSTALL como …»); `DOMAIN_CURRENT_SITE` o
 `PATH_CURRENT_SITE` definidas en `wp-config.php` con otro dominio o ruta que los que tendrá la red (los de este sitio o,
 con «conservar las del respaldo», los del respaldo); `SITE_ID_CURRENT_SITE` o `BLOG_ID_CURRENT_SITE` que el respaldo no
-tiene; un respaldo sin lista de tablas (formato anterior al v3) con otro prefijo; y tablas que acabarían con el mismo
-nombre.
+tiene; un respaldo sin lista de tablas (formato anterior al v3) con otro prefijo; tablas que acabarían con el mismo
+nombre o con más de 64 caracteres; una vista o una tabla dentro de un comentario ejecutable que no se puede renombrar
+(`verify` responde lo mismo que la restauración); y un valor que menciona el origen y no cabe en la memoria de PHP para
+reescribirlo (ver «Escala y fallos»).
 
 **Escala y fallos.** La reubicación ocurre en la importación, sentencia por sentencia y con los literales que comprobó
-el guardián, así que la memoria no depende del tamaño de las tablas ni hace falta clave primaria, y no hay una segunda
-pasada sobre la base de datos. Para una base ya importada, `rewrite_tables()` trabaja por lotes de clave primaria
-(simple o compuesta), lee grupos de hasta 4 MiB y no toca una tabla sin clave primaria (la informa). Si algo falla
-durante la importación o después (la red, las direcciones), la restauración vuelve a la copia previa como siempre. Una
-restauración no es un trabajo reanudable: si el proceso muere a mitad, lo ya importado está reubicado fila por fila (los
-roles y permisos con el prefijo nuevo, así que se puede entrar), pero el sitio queda a medias y hay que restaurar la
-copia previa (límite declarado, igual que antes de E1).
+el guardián, así que la memoria no depende del tamaño de las **tablas** ni hace falta clave primaria, y no hay una
+segunda pasada sobre la base de datos. Sí depende del tamaño de cada **valor**: recorrer un serializado grande cuesta de
+3 a 19 veces su tamaño. Por eso la pasada en seco mide cada valor que menciona el origen contra lo libre de
+`memory_limit` (entre 24, como mucho 32 MiB) y, si alguno no cabe, rechaza la restauración antes de la copia previa
+diciendo qué subir; en la importación, uno que se escapara haría fallar la sentencia y volver a la copia previa, nunca
+dejaría el sitio a medias por un error fatal. Para una base ya importada, `rewrite_tables()` trabaja por lotes de clave
+primaria (simple o compuesta, con el literal según el tipo de la columna), lee grupos de hasta 4 MiB y no toca una
+tabla sin clave primaria (la informa). Si algo falla durante la importación o después (la red, las direcciones), la
+restauración vuelve a la copia previa como siempre. Una restauración no es un trabajo reanudable (lo trata la etapa
+«restauración robusta»): si el proceso muere a mitad del SQL, lo ya importado está reubicado fila por fila, pero el
+sitio queda a medias y hay que restaurar la copia previa. Si muere después del SQL (mientras se extraen los archivos),
+la base de datos ya está completa y coherente con el destino, también en una red (`blogs`, `site`, `sitemeta`, `home`,
+roles y permisos), así que WordPress carga y se puede entrar a restaurar la copia previa
+(`backups-relocate-interrupted.php`).
 
 Ensayo en WordPress Playground (`tests/playground/backups-relocate.sh`): WordPress 7.1.4, PHP 8.5, SQLite y núcleo de
-Elements 4.3.5, todo por HTTP. Un sitio individual y una red por subdirectorios (con el subsitio `/uno/`), con páginas de
-Elements con imagen de fondo, se respaldan por REST en `http://origen.test` (prefijo `wp_`) y se restauran por REST como
-archivo suelto de otro servidor en `http://destino.test`, instalado con el prefijo `dst_` junto a otro WordPress con
-`wp_` en la misma base. `verify` dice «Origen → este sitio»; después de restaurar (41 a 43 s), las páginas y su CSS
-regenerado cargan sin `origen.test`, los enlaces internos van al dominio nuevo, ninguna tabla del sitio menciona el
-origen salvo `guid` (7 y 13, que la comprobación final encuentra y deja), el otro WordPress queda intacto, los sitios de
-la red tienen el dominio nuevo y se inicia sesión con la cuenta del respaldo, con el escritorio (de la red) y sus
-permisos: 384 s, todo correcto. El cambio de ruta del sitio y de carpeta del servidor y la red por subdominios no caben
-en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por cabecera) y se prueban en `backups-relocate.php`.
+Elements 4.3.5, todo por HTTP. Un sitio individual y una red por subdirectorios (con el subsitio `/uno/`), con páginas
+de Elements con imagen de fondo, se respaldan por REST en `http://origen.test` (prefijo `wp_`) y se restauran por REST
+como archivo suelto de otro servidor en `http://destino.test`, instalado con el prefijo `dst_` junto a otro WordPress
+con `wp_` en la misma base. `verify` dice «Origen → este sitio»; después de restaurar (71 y 72 s con el servidor
+cargado), las páginas y su CSS regenerado cargan sin `origen.test`, los enlaces internos van al dominio nuevo, ninguna
+tabla del sitio menciona el origen salvo `guid` (7 y 13, que la comprobación final encuentra y deja), el otro WordPress
+queda intacto, los sitios de la red tienen el dominio nuevo y se inicia sesión con la cuenta del respaldo, con el
+escritorio (de la red) y sus permisos: 45 comprobaciones, 574 s, todo correcto. El cambio de ruta del sitio y de carpeta
+del servidor y la red por subdominios no caben en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por
+cabecera) y se prueban en `backups-relocate.php`.
 
 ## Extraer un sitio de la red
 
