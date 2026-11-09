@@ -41,6 +41,8 @@ final class Digitalisimo_Backups_Migrate {
 	const MAX_HOURS = 72;
 	const CHUNK = 4194304;
 	const MAX_CHUNK = 16777216;
+	/** Tiempos agotados seguidos al preguntar al origen (que sigue trabajando) antes de contar un intento. */
+	const TIMEOUTS = 12;
 	const LOG_MAX = 100;
 	const KEYS_MAX = 50;
 	const LIVE = array( 'pending', 'in_use' );
@@ -814,9 +816,23 @@ final class Digitalisimo_Backups_Migrate {
 		list( $auth ) = self::pull_secrets( $job );
 		$migration = $job['spec']['migration'];
 		$body = array( 'site' => home_url() );
-		if ( empty( $job['checkpoint']['remote']['requested'] ) ) self::call( $migration, $auth, (string) $job['id'], 'package', 'POST', $body, 60 );
-		$view = self::call( $migration, $auth, (string) $job['id'], 'step', 'POST', $body, (int) self::filter( 'digitalisimo_backups_migration_step_timeout', 600 ) );
-		Digitalisimo_Backups_Sodium::memzero( $auth );
+		$requested = ! empty( $job['checkpoint']['remote']['requested'] );
+		try {
+			if ( ! $requested ) self::call( $migration, $auth, (string) $job['id'], 'package', 'POST', $body, 60 );
+			$requested = true;
+			$view = self::call( $migration, $auth, (string) $job['id'], 'step', 'POST', $body, (int) self::filter( 'digitalisimo_backups_migration_step_timeout', 600 ) );
+		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
+			throw $e;
+		} catch ( Exception $e ) {
+			// Un tiempo agotado no es un fallo del origen: sigue trabajando en su paso (o atiende otra petición, con pocos
+			// procesos de PHP). Se espera sin gastar un intento, hasta TIMEOUTS seguidos.
+			$timeouts = (int) ( $job['checkpoint']['remote']['timeouts'] ?? 0 ) + 1;
+			if ( ! preg_match( '/timed out|cURL error 28|tiempo de espera/i', $e->getMessage() ) || $timeouts > self::TIMEOUTS ) throw $e;
+			Digitalisimo_Backups_Jobs::progress( (int) ( $job['checkpoint']['remote']['percent'] ?? 3 ), 'El origen sigue preparando el paquete (la petición superó el tiempo de espera); se vuelve a preguntar…', true );
+			return array( 'next' => 'remote', 'checkpoint' => array( 'requested' => $requested, 'percent' => (int) ( $job['checkpoint']['remote']['percent'] ?? 3 ), 'timeouts' => $timeouts ), 'wait' => 30, 'message' => 'El origen sigue preparando el paquete; se vuelve a preguntar en 30 s.' );
+		} finally {
+			Digitalisimo_Backups_Sodium::memzero( $auth );
+		}
 		$state = (string) ( $view['state'] ?? '' );
 		$percent = 3 + (int) floor( 0.37 * max( 0, min( 100, (int) ( $view['percent'] ?? 0 ) ) ) );
 		if ( in_array( $state, array( 'failed', 'cancelled', 'missing' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen no pudo preparar el paquete: ' . (string) ( $view['message'] ?? $state ) );

@@ -238,7 +238,10 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	// Fallos en el camino: un corte de red en la 2.ª descarga, un fragmento truncado en la 3.ª, la muerte del proceso en
 	// la 5.ª y un byte cambiado en la 4.ª (sólo lo detecta el SHA-256 del paquete completo).
 	$count = 0;
-	$GLOBALS['mig']['faults'] = array( function( $method, $route, $args, $response ) use ( &$count ) {
+	$steps = 0;
+	$GLOBALS['mig']['faults'] = array( function( $method, $route, $args, $response ) use ( &$count, &$steps ) {
+		// La primera vez que pregunta por el paquete, el origen tarda más que la espera del destino (sigue trabajando).
+		if ( null === $response && false !== strpos( $route, '/migrate/source/step' ) && 1 === ++$steps ) return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 600000 milliseconds with 0 bytes received' );
 		if ( false === strpos( $route, '/migrate/source/download' ) ) return null;
 		if ( null === $response ) {
 			$count++;
@@ -258,6 +261,7 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	$migrated_job = $reply[1]['id'];
 	$job = mig_drive( $migrated_job );
 	$GLOBALS['mig']['faults'] = array();
+	mig_assert( $steps >= 2 && $job && ! isset( $job['attempts']['remote'] ), 'Un tiempo agotado del origen gastó un intento de «Paquete en el origen»: ' . json_encode( $job['attempts'] ?? null ) );
 	mig_assert( $job && 'success' === $job['status'], 'La migración no terminó: ' . json_encode( array( $job['status'] ?? '', $job['phase'] ?? '', $job['error'] ?? null, $job['progress'] ?? null ) ) );
 	// Las descargas: cada una pide desde lo que ya hay en disco; tras el SHA-256 distinto se empieza otra vez.
 	$ranges = array();
