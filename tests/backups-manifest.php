@@ -68,21 +68,25 @@ $restore->invoke( null, $file );
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
 if ( 1 !== count( $history ) || empty( $history[0]['locked'] ) || 'pre-restore' !== $history[0]['policy'] || empty( $history[0]['sha256'] ) || ! is_file( dirname( $file ) . '/' . $history[0]['file'] ) ) throw new RuntimeException( 'La restauración no dejó un respaldo de seguridad bloqueado.' );
 if ( ! $GLOBALS['wpdb']->queries ) throw new RuntimeException( 'La restauración válida no importó SQL.' );
+// Desde la restauración por pasos, el SQL va a tablas temporales: un fallo de la importación no toca las tablas del
+// sitio (ningún RENAME), así que no hace falta recuperar nada desde la copia previa, que queda en el historial.
 $GLOBALS['wpdb']->fail_next_import = true;
+$GLOBALS['wpdb']->queries = array();
 try {
 	$restore->invoke( null, $file );
 	throw new RuntimeException( 'Se aceptó una importación SQL fallida.' );
 } catch ( Exception $e ) {
-	if ( false === strpos( $e->getMessage(), 'Se recuperaron la base de datos' ) ) throw $e;
+	if ( false === strpos( $e->getMessage(), 'antes de cambiar el sitio' ) ) throw $e;
 }
+if ( preg_grep( '/^(RENAME|DROP TABLE IF EXISTS `wp_options`)/', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( 'Una importación fallida tocó las tablas del sitio.' );
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
-if ( 2 !== count( $history ) || empty( $history[0]['locked'] ) ) throw new RuntimeException( 'La reversión no conservó el respaldo previo.' );
+if ( 2 !== count( $history ) || empty( $history[0]['locked'] ) ) throw new RuntimeException( 'La importación fallida no conservó el respaldo previo.' );
 $GLOBALS['wpdb']->fail_import = true;
 try {
 	$restore->invoke( null, $file );
 	throw new RuntimeException( 'Se aceptó una importación SQL fallida.' );
 } catch ( Exception $e ) {
-	if ( false === strpos( $e->getMessage(), 'reversión también falló' ) ) throw $e;
+	if ( false === strpos( $e->getMessage(), 'antes de cambiar el sitio' ) ) throw $e;
 }
 $GLOBALS['wpdb']->fail_import = false;
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
@@ -145,11 +149,13 @@ foreach ( $new_entries as $name => $content ) {
 }
 $zip->addFromString( 'manifest.json', wp_json_encode( $failed_manifest ) );
 $zip->close();
+// Desde la restauración por pasos, una ruta que es a la vez archivo y carpeta se rechaza en la verificación, antes de
+// la copia previa: el archivo nuevo nunca llega a escribirse.
 try {
 	$restore->invoke( null, $failed_restore );
 	throw new RuntimeException( 'La restauración con una ruta imposible no falló.' );
 } catch ( Exception $e ) {
-	if ( false === strpos( $e->getMessage(), 'se retiraron los archivos nuevos' ) ) throw $e;
+	if ( false === strpos( $e->getMessage(), 'a la vez archivo y carpeta' ) ) throw $e;
 }
 if ( file_exists( $root . '/wp-content/new-from-restore.txt' ) ) throw new RuntimeException( 'La reversión dejó un archivo creado por la restauración fallida.' );
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
@@ -174,9 +180,10 @@ unlink( $incomplete );
 unlink( $linked );
 unlink( $failed_restore );
 foreach ( $history as $record ) unlink( dirname( $file ) . '/' . $record['file'] );
-// Las copias previas corren como trabajos del mismo motor: terminados y sin área de trabajo ni ZIP intermedio.
+// Las restauraciones y sus copias previas corren como trabajos del mismo motor: terminados y sin área de trabajo ni ZIP
+// intermedio.
 foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) {
-	if ( empty( $job['spec']['inline'] ) || ! in_array( $job['status'], array( 'success', 'failed' ), true ) ) throw new RuntimeException( 'Una copia previa quedó como trabajo sin terminar.' );
+	if ( ( 'restore' !== $job['kind'] && empty( $job['spec']['inline'] ) ) || ! in_array( $job['status'], array( 'success', 'failed' ), true ) ) throw new RuntimeException( 'Una restauración o su copia previa quedó como trabajo sin terminar.' );
 	if ( is_dir( dirname( $file ) . '/jobs/' . $job['id'] . '/staging' ) ) throw new RuntimeException( 'Una copia previa dejó su área de trabajo.' );
 }
 if ( glob( dirname( $file ) . '/digitalisimo-*.zip.*' ) || glob( sys_get_temp_dir() . '/digitalisimo-sql-*' ) ) throw new RuntimeException( 'Quedaron temporales de libzip o un SQL fuera del almacén.' );

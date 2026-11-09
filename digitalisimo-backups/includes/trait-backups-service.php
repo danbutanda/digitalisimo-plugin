@@ -136,11 +136,16 @@ trait Digitalisimo_Backups_Service {
 	/** Vista pública de un trabajo (la de la tarjeta «Trabajos») con su destino y su origen. */
 	public static function service_job_view( array $job ) {
 		$spec = (array) ( $job['spec'] ?? array() );
-		return Digitalisimo_Backups_Jobs::view( $job ) + array(
+		$view = Digitalisimo_Backups_Jobs::view( $job ) + array(
 			'destination' => (string) ( $spec['destination'] ?? 'local' ),
 			'policy' => (string) ( $spec['policy'] ?? '' ),
 			'encrypt' => ! empty( $spec['security']['encrypt'] ),
 		);
+		// Una restauración: su informe al terminar y, si falló a mitad, la vuelta a la copia previa que la sigue.
+		if ( Digitalisimo_Backups_Jobs::is_restore( $job ) ) {
+			$view['restore'] = array( 'file' => basename( (string) ( $spec['file'] ?? '' ) ), 'safety_backup' => self::restore_safety_file( $job ), 'rollback' => ! empty( $spec['rollback'] ), 'result' => (array) ( $job['result']['restore'] ?? array() ), 'followed_by' => self::restore_rollback_info( (string) $job['id'] )['job'] );
+		}
+		return $view;
 	}
 	/** Encolar responde enseguida: el trabajo lo hacen avanzar WP-Cron, el navegador, `POST /jobs/tick` o WP-CLI. */
 	private static function service_enqueued( array $queued, $duplicate_message, $spawn ) {
@@ -177,8 +182,12 @@ trait Digitalisimo_Backups_Service {
 		$history = $main ? array_values( (array) get_option( self::HISTORY, array() ) ) : array();
 		$automations = $main ? array_filter( self::policies(), function( $policy ) { return ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? '' ); } ) : array();
 		$jobs = 0;
+		$restore = array( 'state' => 'none', 'notice' => '' );
 		if ( $main && $storage ) {
 			try { $jobs = count( Digitalisimo_Backups_Jobs::active() ); } catch ( Throwable $e ) { $jobs = 0; }
+			// Una restauración sin terminar (o que no terminó bien) se avisa con claridad: qué fase, qué pasa con el sitio.
+			$restore = self::restore_status();
+			if ( in_array( $restore['state'], array( 'running', 'interrupted', 'rollback' ), true ) ) $problems[] = 'Hay una restauración en curso: los respaldos esperan a que termine. ' . $restore['notice'];
 		}
 		return array(
 			'version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '',
@@ -201,6 +210,8 @@ trait Digitalisimo_Backups_Service {
 			'backups' => count( $history ),
 			'last_backup' => $history ? self::service_summary( $history[0] ) : null,
 			'automations' => count( $automations ),
+			'restoring' => in_array( $restore['state'], array( 'running', 'interrupted', 'rollback' ), true ),
+			'restore' => $restore,
 		);
 	}
 	/** Historial, del más reciente al más antiguo. */
@@ -346,15 +357,16 @@ trait Digitalisimo_Backups_Service {
 		if ( $needs ) return $needs;
 		// La copia previa es un respaldo completo: sin él no se restaura (422, como al crear), y nada se toca.
 		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
-		// Un hosting puede deshabilitar estas funciones (disable_functions): en PHP 8 llamarlas sería un fatal en mitad
-		// de la restauración, también desde la pantalla, que antes no llamaba a ignore_user_abort().
-		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
+		// Con lo que el hosting permita; cada paso está pensado para caber en 64 MB aunque no suba (H1).
+		if ( function_exists( 'wp_raise_memory_limit' ) ) wp_raise_memory_limit( 'admin' );
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		$report = null;
+		$copies = self::service_safety_copies();
 		try {
-			if ( Digitalisimo_Backups_Jobs::has_active() ) return self::service_error( 'busy', 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.', 409 );
+			$active = Digitalisimo_Backups_Jobs::active();
+			if ( $active ) return self::service_error( 'busy', Digitalisimo_Backups_Jobs::is_restore( $active[0] ) ? 'Ya hay una restauración en curso. Espera a que termine (la pantalla Backups muestra su avance).' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.', 409, array( 'job' => (string) $active[0]['id'] ) );
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ), $secret );
 			} catch ( Exception $e ) {
@@ -365,42 +377,59 @@ trait Digitalisimo_Backups_Service {
 			} catch ( Exception $e ) {
 				return 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ? self::service_error( 'signed_only', $e->getMessage(), 403 ) : self::service_error( 'confirm_unsigned', $e->getMessage(), 400 );
 			}
-			$trust = (string) $report['trust'];
-			$key = isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '';
-			$copies = self::service_safety_copies();
-			try {
-				$relocation = self::restore_digitalisimo_zip( $report['path'], $report, array( 'addresses' => $addresses ) );
-			} catch ( Throwable $e ) {
-				// Sin copia previa nueva, el SQL y los archivos no se tocaron: el paquete (o la copia previa) se rechazó
-				// antes (422). Con ella, la restauración empezó y el mensaje dice qué se recuperó (500).
-				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
-			}
-			$notice = '';
+			// La frase escrita sólo vive en esta petición: si se pidió, firma desde ya los respaldos nuevos.
 			$adopted = false;
+			$adopt_note = '';
 			if ( ! empty( $args['adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
 				try {
 					Digitalisimo_Backups_Keys::adopt( $report['root'], $report['key'] );
 					$adopted = true;
-					$notice = ' La frase escrita firma ahora los respaldos nuevos (clave ' . $key . ').';
 				} catch ( Exception $adopt_error ) {
-					$notice = ' No se guardó la frase: ' . $adopt_error->getMessage();
+					$adopt_note = ' No se guardó la frase: ' . $adopt_error->getMessage();
 				}
 			}
-			// Las credenciales del respaldo mandan: si alguna no se pudo volver a cifrar aquí, se avisa ya.
-			$credentials = self::credentials_status();
-			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
-			if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
+			try {
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'sync' => array_key_exists( 'sync', $args ) ? ! empty( $args['sync'] ) : 'cli' === PHP_SAPI ) );
+			} catch ( Throwable $e ) {
+				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
+			}
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
-			// El SQL restaurado trae su propia opción `cron`: un trabajo encolado durante la restauración recupera su tick.
-			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
-		$safety = '';
-		foreach ( (array) get_option( self::HISTORY, array() ) as $item ) {
-			if ( 'pre-restore' === ( $item['policy'] ?? '' ) ) { $safety = (string) ( $item['file'] ?? '' ); break; }
+		// El resto lo hacen ticks: los de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
+		$job = self::restore_drive( $job['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
+		return self::restore_outcome( $job, $copies, $adopt_note );
+	}
+	/**
+	 * Resultado de una restauración para la pantalla, REST y WP-CLI. Terminada: el mismo informe de siempre. Fallida: 422
+	 * si se detuvo antes de la copia previa (rechazada), 500 si había empezado (con lo que se recuperó). Sin terminar en
+	 * esta petición: `restoring` con el trabajo y el testigo del modo de mantenimiento (REST responde 202).
+	 */
+	private static function restore_outcome( $job, $copies, $note = '' ) {
+		$outcome = self::restore_outcome_raw( $job, $copies, $note );
+		return isset( $outcome['error'] ) ? self::service_error( $outcome['error'][0], $outcome['error'][1], $outcome['error'][2] ) : $outcome;
+	}
+	/** Lo mismo sin WP_Error (la envoltura en este proceso lo usa sin WordPress cargado): array( 'error' => array( código, mensaje, estado ) ). */
+	private static function restore_outcome_raw( $job, $copies, $note = '' ) {
+		if ( ! $job ) return array( 'error' => array( 'restore_failed', 'El trabajo de la restauración ya no existe.', 500 ) );
+		$followed = self::restore_followed( $job );
+		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $followed ) ) {
+			return array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => false, 'restoring' => true, 'job' => self::service_job_view( $followed ), 'notice' => 'La restauración sigue en segundo plano (' . Digitalisimo_Backups_Jobs::phase_label( (string) $followed['phase'] ) . '): la pantalla Backups, WP-Cron o POST /jobs/tick la hacen avanzar' . ( ! empty( $followed['spec']['rollback'] ) ? '; está volviendo a la copia previa' : '' ) . '.' . $note, 'safety_backup' => self::restore_safety_file( $job ), 'maintenance_token' => (string) $job['spec']['token'] );
 		}
-		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => $safety, 'relocation' => $relocation ? self::relocation_public( $relocation ) : null );
+		if ( 'success' === $job['status'] ) {
+			$result = (array) ( $job['result']['restore'] ?? array() );
+			$result['notice'] = ltrim( (string) ( $result['notice'] ?? '' ) . $note );
+			return $result + array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => true, 'trust' => '', 'key' => '', 'adopted' => false, 'safety_backup' => '', 'relocation' => null );
+		}
+		$message = is_array( $job['error'] ?? null ) ? (string) $job['error']['message'] : (string) ( $job['progress']['message'] ?? 'La restauración no terminó.' );
+		if ( $followed !== $job ) {
+			$safety = self::restore_safety_file( $job );
+			$why = self::restore_rollback_info( $job['id'] )['cause'] ?: $message;
+			$message = 'success' === $followed['status'] ? 'La restauración falló. Se recuperaron la base de datos y los archivos anteriores desde ' . $safety . ' y se retiraron los archivos nuevos: ' . $why : 'La restauración falló y la reversión también falló. Conserva ' . $safety . ' para recuperación manual: ' . ( is_array( $followed['error'] ?? null ) ? (string) $followed['error']['message'] : $why );
+		}
+		if ( 'cancelled' === $job['status'] ) return array( 'error' => array( 'restore_cancelled', $message, 409 ) );
+		return array( 'error' => self::service_safety_copies() > $copies ? array( 'restore_failed', $message, 500 ) : array( 'restore_rejected', $message, 422 ) );
 	}
 	/** `addresses` de restaurar y verificar: current (por defecto) o backup. */
 	private static function service_addresses( array $args ) {

@@ -875,7 +875,7 @@ final class Digitalisimo_Backups_Relocate {
 	 * manda para las direcciones porque es lo que guardan los datos. Un respaldo anterior no trae las rutas del servidor:
 	 * esas no se reescriben (límite declarado).
 	 */
-	public static function origin_of( array $manifest, ?Digitalisimo_Backups_Relocate_Probe $probe = null ) {
+	public static function origin_of( array $manifest, $probe = null ) {
 		$block = is_array( $manifest['origin'] ?? null ) ? $manifest['origin'] : array();
 		$first = function( ...$values ) { foreach ( $values as $value ) if ( is_string( $value ) && '' !== $value ) return $value; return ''; };
 		$origin = array(
@@ -891,8 +891,9 @@ final class Digitalisimo_Backups_Relocate {
 			'network' => is_array( $block['network'] ?? null ) ? $block['network'] : array(),
 			'extra_urls' => array(),
 		);
-		if ( $probe ) {
-			$found = $probe->result();
+		// $probe: la sonda, o su result() ya reunido (una restauración por tramos recorre el SQL en varias peticiones).
+		if ( $probe instanceof Digitalisimo_Backups_Relocate_Probe || is_array( $probe ) ) {
+			$found = is_array( $probe ) ? $probe + array( 'sites' => array(), 'networks' => array(), 'subdomain' => null ) : $probe->result();
 			$main = $found['sites'][1] ?? array();
 			// Las direcciones que guarda la base de datos mandan; las del manifiesto (home_url() con WP_HOME, por ejemplo)
 			// se reescriben también si son otras.

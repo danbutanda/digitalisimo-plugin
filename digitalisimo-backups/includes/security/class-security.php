@@ -225,7 +225,7 @@ final class Digitalisimo_Backups_Security {
 			$zip = new ZipArchive();
 			if ( true !== $zip->open( $path ) ) return $info;
 			try {
-				$data = json_decode( (string) Digitalisimo_Backups_Manifest_Auth::read_manifest( $zip ), true, 64 );
+				$data = self::manifest_summary( $zip );
 				if ( is_array( $data ) && is_string( $data['backup_id'] ?? null ) ) $info['backup_id'] = $data['backup_id'];
 				if ( is_array( $data['auth'] ?? null ) && Digitalisimo_Backups_Keys::valid_descriptor( $data['auth']['key'] ?? null ) && 0 === strpos( (string) $zip->getArchiveComment(), Digitalisimo_Backups_Manifest_Auth::PREFIX . ' ' . $data['auth']['key']['id'] . ' ' ) ) {
 					$info['signed'] = true;
@@ -238,6 +238,36 @@ final class Digitalisimo_Backups_Security {
 			return $info;
 		}
 		return $info;
+	}
+	/**
+	 * `backup_id` y bloque `auth` del manifiesto. Uno de más de 1 MB (decenas de miles de entradas) no se decodifica
+	 * entero, que con 64 MB no cabe (T2): se lee por partes y sólo se miran su principio (backup_id) y su final (auth, la
+	 * última clave del manifiesto desde 1.0.59). Sólo describe la fila del historial: la restauración comprueba la firma.
+	 */
+	private static function manifest_summary( $zip ) {
+		$stat = $zip->statName( 'manifest.json' );
+		if ( ! $stat ) return null;
+		if ( (int) $stat['size'] <= 1048576 ) return json_decode( (string) Digitalisimo_Backups_Manifest_Auth::read_manifest( $zip ), true, 64 );
+		$stream = $zip->getStream( 'manifest.json' );
+		if ( ! $stream ) return null;
+		$head = '';
+		$tail = '';
+		try {
+			while ( ! feof( $stream ) ) {
+				$chunk = fread( $stream, 1048576 );
+				if ( false === $chunk || '' === $chunk ) break;
+				if ( strlen( $head ) < 65536 ) $head .= substr( $chunk, 0, 65536 - strlen( $head ) );
+				$tail = substr( $tail . $chunk, -65536 );
+			}
+		} finally {
+			fclose( $stream );
+		}
+		$summary = array();
+		if ( preg_match( '/"backup_id"\s*:\s*"([0-9a-f-]{36})"/i', $head, $match ) ) $summary['backup_id'] = $match[1];
+		$at = strrpos( $tail, '"auth":' );
+		$auth = false === $at ? null : json_decode( '{' . substr( $tail, $at ), true, 64 );
+		if ( is_array( $auth['auth'] ?? null ) ) $summary['auth'] = $auth['auth'];
+		return $summary;
 	}
 	/** Aviso para un respaldo cifrado cuya clave este sitio no puede abrir sin que se escriba. */
 	public static function missing_key_text( $key_id ) { return 'Este respaldo está cifrado con la clave ' . Digitalisimo_Backups_Keys::short( $key_id ) . '. Escribe su frase o su clave; sin ella no se puede restaurar.'; }

@@ -23,7 +23,10 @@
     return fetch(config.url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: body.toString() })
       .then(function (response) { return response.text().then(function (text) {
         var result;
-        try { result = JSON.parse(text); } catch (error) { throw new Error('El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.'); }
+        try { result = JSON.parse(text); } catch (error) {
+          if (response.status === 503) throw new Error('El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)');
+          throw new Error('El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
+        }
         if (!response.ok || !result.success) {
           var failure = new Error(result.data && result.data.message || 'Error HTTP ' + response.status);
           failure.data = result.data || {};
@@ -97,10 +100,13 @@
     timer = setTimeout(step, delay);
   }
   /* Un tick por petición: si otro proceso trabaja (busy) sólo se consulta; si se espera un reintento, se espera. */
+  /* Con una restauración en curso, el tick lleva su testigo: tras el cambio de tablas la sesión puede no valer. */
+  var restore = window.digitalisimoBackupsRestore || null;
   function step() {
     if (busy) return;
     busy = true;
-    request('digitalisimo_backups_job_tick', {}, config.jobsNonce).then(function (data) {
+    var tick = restore ? request(restore.action, { digitalisimo_backups_restore: restore.token }, '') : request('digitalisimo_backups_job_tick', {}, config.jobsNonce);
+    tick.then(function (data) {
       busy = false;
       failures = 0;
       var active = update(data.jobs || []);

@@ -101,6 +101,21 @@ class Bk_Sqlite_DB {
 			return $out;
 		}
 		if ( preg_match( '/^(?:SET\s|LOCK TABLES|UNLOCK TABLES)/i', $sql ) ) return null;
+		// RENAME TABLE de MySQL (atómico): en SQLite, ALTER TABLE … RENAME TO dentro de una transacción.
+		if ( preg_match( '/^RENAME TABLE\s+(.+)$/is', $sql, $m ) ) {
+			preg_match_all( '/`((?:[^`]|``)+)`\s+TO\s+`((?:[^`]|``)+)`/i', $m[1], $pairs, PREG_SET_ORDER );
+			if ( ! $pairs ) throw new RuntimeException( 'RENAME TABLE no reconocido por la prueba.' );
+			$own = ! $this->pdo->inTransaction();
+			if ( $own ) $this->pdo->beginTransaction();
+			try {
+				foreach ( $pairs as $pair ) $this->pdo->exec( 'ALTER TABLE "' . str_replace( '"', '""', str_replace( '``', '`', $pair[1] ) ) . '" RENAME TO "' . str_replace( '"', '""', str_replace( '``', '`', $pair[2] ) ) . '"' );
+				if ( $own ) $this->pdo->commit();
+			} catch ( Throwable $e ) {
+				if ( $own ) $this->pdo->rollBack();
+				throw $e;
+			}
+			return null;
+		}
 		if ( preg_match( '/^START TRANSACTION/i', $sql ) ) { if ( ! $this->pdo->inTransaction() ) $this->pdo->beginTransaction(); return null; }
 		if ( preg_match( '/^(COMMIT|ROLLBACK)$/i', $sql, $m ) ) { if ( $this->pdo->inTransaction() ) ( 'COMMIT' === strtoupper( $m[1] ) ? $this->pdo->commit() : $this->pdo->rollBack() ); return null; }
 		if ( preg_match( '/^INSERT INTO `((?:[^`]|``)+)`\s*\(([^)]*)\)\s*VALUES\s*/i', $sql, $m ) ) return $this->insert( str_replace( '``', '`', $m[1] ), $m[2], substr( $sql, strlen( $m[0] ) ) );

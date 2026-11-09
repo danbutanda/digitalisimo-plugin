@@ -3,6 +3,11 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-backups-job-store.php';
 require_once __DIR__ . '/class-backups-jobs.php';
 require_once __DIR__ . '/class-backups-backup-job.php';
+require_once __DIR__ . '/steps/class-step-budget.php';
+// Restauración por pasos (H1–H4): manifiesto por partes, trabajo de restauración y su modo de mantenimiento.
+foreach ( array( 'manifest-stream', 'manifest-index', 'restore-maintenance' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/restore/class-' . $digitalisimo_backups_part . '.php';
+require_once __DIR__ . '/class-backups-restore-job.php';
+require_once __DIR__ . '/restore/trait-backups-restore-engine.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
 foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
 unset( $digitalisimo_backups_part );
@@ -14,6 +19,7 @@ require_once __DIR__ . '/trait-backups-service.php';
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Service; // Casos de uso que comparten la pantalla, REST y WP-CLI.
+	use Digitalisimo_Backups_Restore_Engine; // Restauración por pasos (Digitalisimo_Backups_Restore_Job).
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
@@ -424,6 +430,15 @@ final class Digitalisimo_Backups {
 		// Credenciales de los destinos que no se abren o que siguen sin cifrar: qué hacer, sin ningún valor.
 		$credentials = self::credentials_status();
 		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
+		// Una restauración sin terminar (o que no terminó bien): qué fase y qué pasa con el sitio, en todas las pestañas.
+		$restore = self::restore_status();
+		if ( 'none' !== $restore['state'] ) {
+			$titles = array( 'running' => 'Restauración en curso.', 'interrupted' => 'Restauración interrumpida: se reanudará sola.', 'rollback' => 'Volviendo a la copia previa.', 'failed' => 'La última restauración no se completó.', 'failed_midway' => 'La última restauración falló a mitad del cambio.', 'cancelled' => 'La última restauración se canceló.' );
+			echo '<div class="notice notice-' . ( in_array( $restore['state'], array( 'failed_midway', 'rollback', 'interrupted' ), true ) ? 'error' : 'warning' ) . ' digitalisimo-backups-restore-state" data-state="' . esc_attr( $restore['state'] ) . '"><p><strong>' . esc_html( $titles[ $restore['state'] ] ?? '' ) . '</strong> ' . esc_html( $restore['notice'] ) . '</p></div>';
+			$active = Digitalisimo_Backups_Jobs::restore_active();
+			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
+			if ( $active && Digitalisimo_Backups_Restore_Maintenance::request_has( (string) $active['spec']['token'] ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'token' => (string) $active['spec']['token'], 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
+		}
 		$tab = sanitize_key( $_GET['tab'] ?? 'backups' ); $base = self::admin_url(); echo '<nav class="digitalisimo-backups-tabs"><a class="' . ( 'backups' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'backups', $base ) ) . '">Backups</a><a class="' . ( 'servers' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'servers', $base ) ) . '">Servidores</a><a class="' . ( 'security' === $tab ? 'is-active' : '' ) . '" href="' . esc_url( add_query_arg( 'tab', 'security', $base ) ) . '">Seguridad</a></nav>';
 		if ( 'servers' === $tab ) { if ( self::credentials_here() ) { self::servers_panel( $s, $credentials['locked'] ); self::server_list(); } else echo '<section class="digitalisimo-backups-card"><h2>Servidores y nubes</h2><p>Las conexiones de los destinos son de toda la red: se gestionan desde la administración de red o el sitio principal.</p></section>'; echo '</div>'; return; }
 		if ( 'security' === $tab ) { Digitalisimo_Backups_Security::panel( $network, (array) get_option( self::HISTORY, array() ) ); echo '</div>'; return; }
@@ -706,6 +721,14 @@ final class Digitalisimo_Backups {
 		if ( ! empty( $spec['inline'] ) ) $plan['encrypt'] = false;
 		return $plan;
 	}
+	/**
+	 * Las tablas temporales y viejas de una restauración por pasos (`<prefijo>dgbkr_<marca>_<n>`, `…dgbko_…`) nunca
+	 * entran en un respaldo: son del trabajo, no del sitio (una restauración que murió las deja hasta la siguiente).
+	 */
+	public static function exportable_tables( $tables ) {
+		if ( ! is_array( $tables ) ) return $tables;
+		return array_values( array_filter( $tables, function( $table ) { return ! preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', (string) $table ); } ) );
+	}
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
 	public static function job_export_database( $path ) {
 		global $wpdb;
@@ -714,7 +737,7 @@ final class Digitalisimo_Backups {
 		// fase falla y se reintenta. export_row() es la última defensa, fila a fila.
 		self::migrate_credentials();
 		$at = gmdate( 'c' );
-		$tables = $wpdb->get_col( 'SHOW TABLES' );
+		$tables = self::exportable_tables( $wpdb->get_col( 'SHOW TABLES' ) );
 		$mode = self::database_sql_to_file( $tables, $path );
 		return array( 'tables' => array_values( (array) $tables ), 'mode' => $mode, 'at' => $at );
 	}
@@ -1003,50 +1026,87 @@ final class Digitalisimo_Backups {
 		}
 		$check->close();
 	}
-	/** Comprueba presencia, lectura completa y CRC de todos los miembros del archivo. */
-	private static function verify_zip_contents( $zip ) {
-		$names = array();
-		$observed = array();
-		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
-			if ( 0 === $i % 25 ) self::manual_progress( 81 + (int) floor( ( self::$verify_top - 81 ) * $i / max( 1, $zip->numFiles ) ), 'verificación', 'Verificando archivo ' . ( $i + 1 ) . ' de ' . $zip->numFiles );
-			$stat = $zip->statIndex( $i );
-			if ( ! $stat || ! isset( $stat['name'], $stat['size'], $stat['crc'] ) ) throw new Exception( 'Una entrada ZIP no tiene metadatos completos.' );
-			$name = $stat['name'];
-			if ( isset( $names[ $name ] ) ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados.' );
-			$names[ $name ] = true;
-			if ( '/' === substr( $name, -1 ) ) continue;
-			$stream = $zip->getStream( $name );
-			if ( ! $stream ) throw new Exception( 'No se pudo leer ' . $name . ' del ZIP.' );
-			$bytes = 0;
-			$crc = hash_init( 'crc32b' );
-			$sha = hash_init( 'sha256' );
+	/**
+	 * Comprueba presencia, lectura completa y CRC de todos los miembros del archivo y, con un manifiesto v3, el tamaño y el
+	 * SHA-256 de cada uno. Memoria constante (H1): el manifiesto se lee por partes a un índice en disco
+	 * (Digitalisimo_Backups_Manifest_Index) y los duplicados se reconocen con la tabla de nombres de libzip; antes se
+	 * decodificaba entero y se guardaban todos los nombres, que con 64 MB no cabía en un sitio de ~17 000 archivos. Los
+	 * mensajes y su orden son los de siempre. $on_entry( $i, $name, $chunk ) recibe los bytes de cada entrada.
+	 */
+	private static function verify_zip_contents( $zip, $on_entry = null ) {
+		$count = (int) $zip->numFiles;
+		$head = null;
+		$manifest_error = null;
+		$has_manifest = false !== $zip->locateName( 'manifest.json' );
+		if ( $has_manifest ) {
+			try {
+				$head = Digitalisimo_Backups_Manifest_Index::build( $zip, null, false );
+			} catch ( Exception $e ) {
+				$manifest_error = $e;
+			}
+		}
+		$index = $head['index'] ?? null;
+		try {
+			$observed = 0;
+			$total = 0;
+			$mismatch = null;
+			$required = array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
+			$present = array();
+			for ( $i = 0; $i < $count; $i++ ) {
+				if ( 0 === $i % 25 ) self::manual_progress( 81 + (int) floor( ( self::$verify_top - 81 ) * $i / max( 1, $count ) ), 'verificación', 'Verificando archivo ' . ( $i + 1 ) . ' de ' . $count );
+				$stat = $zip->statIndex( $i );
+				if ( ! $stat || ! isset( $stat['name'], $stat['size'], $stat['crc'] ) ) throw new Exception( 'Una entrada ZIP no tiene metadatos completos.' );
+				$name = $stat['name'];
+				if ( $zip->locateName( $name ) !== $i ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados.' );
+				if ( '/' === substr( $name, -1 ) ) continue;
+				$actual = self::hash_zip_entry( $zip, $i, $name, $on_entry );
+				if ( $actual['size'] !== (int) $stat['size'] || $actual['crc'] !== sprintf( '%08x', $stat['crc'] ) ) throw new Exception( 'Falló la integridad de ' . $name . ' dentro del ZIP.' );
+				if ( 'manifest.json' === $name ) continue;
+				$observed++;
+				$total += $actual['size'];
+				if ( in_array( $name, $required, true ) ) $present[ $name ] = true;
+				if ( null === $mismatch && $index ) {
+					$expected = $index->get( $i );
+					if ( ! is_array( $expected ) || $expected['size'] !== $actual['size'] || ! hash_equals( $expected['sha256'], $actual['sha256'] ) ) $mismatch = $name;
+				}
+			}
+			if ( false === $zip->locateName( 'database.sql' ) || ( ! $has_manifest && false === $zip->locateName( 'migration.json' ) ) ) throw new Exception( 'Falta SQL o metadata obligatoria en el ZIP.' );
+			if ( ! $has_manifest ) return;
+			if ( $manifest_error ) {
+				if ( false !== strpos( $manifest_error->getMessage(), 'tamaño permitido' ) ) throw $manifest_error;
+				throw new Exception( 'El manifiesto del ZIP no es JSON válido.' );
+			}
+			$manifest = $head['data'];
+			if ( ! in_array( $manifest['format'] ?? '', array( '', 'digitalisimo-backup/v2', 'digitalisimo-backup/v3' ), true ) ) throw new Exception( 'El formato del manifiesto no es compatible.' );
+			if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) ) return;
+			if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || null === $head['entries'] || (int) $head['entries'] !== $observed ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
+			foreach ( $required as $file ) if ( ! isset( $present[ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
+			if ( (int) ( $manifest['file_count'] ?? -1 ) !== $observed - 1 || (int) ( $manifest['uncompressed_size'] ?? -1 ) !== $total ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
+			if ( null !== $mismatch ) throw new Exception( 'Falló el SHA-256 de ' . $mismatch . ' en el manifiesto.' );
+		} finally {
+			if ( $index ) $index->close();
+		}
+	}
+	/** Tamaño, CRC32 y SHA-256 de una entrada del ZIP leída por fragmentos de 1 MiB. */
+	private static function hash_zip_entry( $zip, $i, $name, $on_entry = null ) {
+		$stream = $zip->getStream( $name );
+		if ( ! $stream ) throw new Exception( 'No se pudo leer ' . $name . ' del ZIP.' );
+		$bytes = 0;
+		$crc = hash_init( 'crc32b' );
+		$sha = hash_init( 'sha256' );
+		try {
 			while ( ! feof( $stream ) ) {
 				$chunk = fread( $stream, 1048576 );
-				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) { fclose( $stream ); throw new Exception( 'La entrada ' . $name . ' está truncada.' ); }
+				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'La entrada ' . $name . ' está truncada.' );
 				$bytes += strlen( $chunk );
 				hash_update( $crc, $chunk );
 				hash_update( $sha, $chunk );
+				if ( $on_entry && '' !== $chunk ) call_user_func( $on_entry, $i, $name, $chunk );
 			}
+		} finally {
 			fclose( $stream );
-			if ( $bytes !== (int) $stat['size'] || hash_final( $crc ) !== sprintf( '%08x', $stat['crc'] ) ) throw new Exception( 'Falló la integridad de ' . $name . ' dentro del ZIP.' );
-			if ( 'manifest.json' !== $name ) $observed[ $name ] = array( 'size' => $bytes, 'sha256' => hash_final( $sha ) );
 		}
-		if ( ! isset( $names['database.sql'] ) || ( ! isset( $names['manifest.json'] ) && ! isset( $names['migration.json'] ) ) ) throw new Exception( 'Falta SQL o metadata obligatoria en el ZIP.' );
-		if ( isset( $names['manifest.json'] ) ) {
-			$raw_manifest = $zip->getFromName( 'manifest.json' );
-			$manifest = false === $raw_manifest ? null : json_decode( $raw_manifest, true );
-			if ( ! is_array( $manifest ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'El manifiesto del ZIP no es JSON válido.' );
-			if ( ! in_array( $manifest['format'] ?? '', array( '', 'digitalisimo-backup/v2', 'digitalisimo-backup/v3' ), true ) ) throw new Exception( 'El formato del manifiesto no es compatible.' );
-			if ( 'digitalisimo-backup/v3' === ( $manifest['format'] ?? '' ) ) {
-				if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || ! is_array( $manifest['entries'] ?? null ) || count( $manifest['entries'] ) !== count( $observed ) ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
-				foreach ( array( 'database.sql', 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' ) as $required ) if ( ! isset( $observed[ $required ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el respaldo completo.' );
-				if ( (int) ( $manifest['file_count'] ?? -1 ) !== count( $observed ) - 1 || (int) ( $manifest['uncompressed_size'] ?? -1 ) !== array_sum( array_column( $observed, 'size' ) ) ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
-				foreach ( $observed as $name => $actual ) {
-					$expected = $manifest['entries'][ $name ] ?? null;
-					if ( ! is_array( $expected ) || (int) ( $expected['size'] ?? -1 ) !== $actual['size'] || ! is_string( $expected['sha256'] ?? null ) || ! hash_equals( $expected['sha256'], $actual['sha256'] ) ) throw new Exception( 'Falló el SHA-256 de ' . $name . ' en el manifiesto.' );
-				}
-			}
-		}
+		return array( 'size' => $bytes, 'crc' => hash_final( $crc ), 'sha256' => hash_final( $sha ) );
 	}
 
 	private static function site_tables( $prefix ) { global $wpdb; $like = $wpdb->esc_like( $prefix ) . '%'; $tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ); foreach ( array( $wpdb->base_prefix . 'users', $wpdb->base_prefix . 'usermeta' ) as $table ) if ( ! in_array( $table, $tables, true ) ) $tables[] = $table; return $tables; }
@@ -1378,7 +1438,11 @@ final class Digitalisimo_Backups {
 	private static function busy_backup_files() {
 		$busy = array();
 		try {
-			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( ! empty( $job['spec']['file'] ) ) $busy[ wp_basename( (string) $job['spec']['file'] ) ] = true;
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) {
+				if ( ! empty( $job['spec']['file'] ) ) $busy[ wp_basename( (string) $job['spec']['file'] ) ] = true;
+				// Una restauración también necesita su copia previa (la vuelta a ella la restaura).
+				if ( Digitalisimo_Backups_Jobs::is_restore( $job ) && '' !== self::restore_safety_file( $job ) ) $busy[ wp_basename( self::restore_safety_file( $job ) ) ] = true;
+			}
 		} catch ( Throwable $e ) {
 			return null;
 		}
@@ -1514,8 +1578,14 @@ final class Digitalisimo_Backups {
 			// cual: sanitize_text_field() la alteraría.
 			$secret = isset( $_POST['backup_secret'] ) && is_string( $_POST['backup_secret'] ) ? (string) wp_unslash( $_POST['backup_secret'] ) : '';
 			$addresses = 'backup' === sanitize_key( wp_unslash( $_POST['addresses'] ?? '' ) ) ? 'backup' : 'current';
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses ) );
+			// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y la pantalla (o WP-Cron)
+			// la termina; la cookie del testigo deja a este navegador verla durante el mantenimiento.
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
+			if ( ! empty( $result['restoring'] ) ) {
+				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
+				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». No hace falta dejarla abierta (WP-Cron la continúa); si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
+			}
 			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
 		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
@@ -1524,7 +1594,7 @@ final class Digitalisimo_Backups {
 		try {
 			$operation_lock = self::acquire_operation_lock();
 			try {
-				if ( Digitalisimo_Backups_Jobs::has_active() ) throw new Exception( 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
+				if ( Digitalisimo_Backups_Jobs::has_active() ) throw new Exception( Digitalisimo_Backups_Jobs::restore_active() ? 'Ya hay una restauración en curso. Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
 				Digitalisimo_Backups_Security::require_confirmation( array( 'trust' => 'untrusted', 'auth' => 'unsigned' ), $confirmation );
 				self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
 			} finally {
@@ -1537,73 +1607,34 @@ final class Digitalisimo_Backups {
 	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); if ( '' === $file || '.' === $file[0] ) return ''; $root = realpath( self::local_directory() ); if ( ! $root || is_link( trailingslashit( $root ) . $file ) ) return ''; $path = realpath( trailingslashit( $root ) . $file ); return $path && dirname( wp_normalize_path( $path ) ) === wp_normalize_path( $root ) && is_file( $path ) ? $path : ''; }
 	/**
-	 * Restaura un ZIP propio. Todo lo que puede rechazarlo (firma, entradas, contenido, manifiesto, espacio y SQL) se
-	 * comprueba antes de la copia previa y antes de cualquier consulta o escritura. $report es el de
-	 * Digitalisimo_Backups_Security::open(); sin él se abre aquí.
-	 *
-	 * Si el respaldo viene de otra dirección, otra carpeta del servidor u otro prefijo de tablas, el plan de
-	 * Digitalisimo_Backups_Relocate se calcula antes de la copia previa (y lo que lo impide la detiene) y se aplica en la
-	 * importación, fila por fila; después de extraer los archivos, finish() ajusta la red y las direcciones, vacía las
-	 * cachés y cuenta lo que quedó del origen. `$options['addresses']`: `current` (por defecto, el sitio conserva sus
-	 * direcciones) o `backup` (conserva las del respaldo). Devuelve el informe de la reubicación, o null si no hizo falta.
+	 * Restaura un ZIP propio en este proceso, hasta terminar: el mismo trabajo de restauración por pasos que la pantalla,
+	 * REST y WP-CLI (Digitalisimo_Backups_Restore_Job), con sus ticks seguidos y sin reintentos (un fallo tras empezar el
+	 * cambio vuelve enseguida a la copia previa). $report es el de Digitalisimo_Backups_Security::open(); sin él se abre
+	 * aquí. Todo lo que puede rechazar el paquete se comprueba antes de la copia previa y de tocar el sitio. Devuelve el
+	 * informe de la reubicación (o null si no hizo falta); lanza Exception con el mensaje de siempre si falla.
+	 * `$options['addresses']`: `current` (por defecto) o `backup`.
 	 */
 	private static function restore_digitalisimo_zip( $path, $report = null, array $options = array() ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
 		$owned = null === $report;
 		if ( $owned ) $report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
-		$zip = $report['zip'];
-		$origin = array();
-		$relocation = null;
+		$copies = self::service_safety_copies();
 		try {
-			$trusted = 'untrusted' !== $report['trust'];
-			$source = array();
-			$data = self::inspect_package( $zip, $trusted, true, $source );
-			// Con esta instalación tal como está ahora: después del SQL sus direcciones serían las del respaldo.
-			$plan = self::relocation_plan( $data, $source, $options );
-			if ( $plan->problems() ) throw new Exception( implode( ' ', $plan->problems() ) );
-			// Claves de las credenciales del servidor de origen, del wp-config.php del propio respaldo (ya comprobado contra
-			// su manifiesto): sólo literales de cadena, nunca se ejecuta. Con ellas, las credenciales se vuelven a cifrar aquí.
-			$origin = Digitalisimo_Backups_Credentials::origin_keys( $zip );
-			// Copia previa con el motor de trabajos: nunca se cifra, se firma si hay clave y nace con su nombre protegido.
-			$safety = self::create_network( 'safety-before-restore-' );
-			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
-			$vault_before = Digitalisimo_Backups_Keys::snapshot();
-			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
-			// El historial que debe quedar, ya con la copia previa: reconstruirlo no vuelve a leer la copia entera.
-			$history_before = self::fresh_history();
-			self::write_restore_journal( $origin );
-			$created_files = array();
-			try {
-				$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted );
-				// Prefijo, direcciones y rutas cambian en cada fila antes de ejecutarla: memoria constante y, si el proceso
-				// muere a mitad, lo ya importado está completo (también los roles y permisos con el prefijo nuevo).
-				if ( $plan->needed() ) $plan->attach( $guard, (array) ( $data['database_tables'] ?? array() ) );
-				self::import_zip_sql( $zip, $guard );
-				// Antes de la extracción, la parte larga: si el proceso muere mientras escribe archivos, el historial, el
-				// llavero, la seguridad y las credenciales ya están en su sitio. El finally lo repite y es quien avisa si falla.
-				try { self::after_restore_sql( $history_before, $vault_before, $origin ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-				self::extract_digitalisimo_files( $zip, $created_files );
-				// Red, direcciones, cachés (también el CSS generado que trajeron los archivos) y comprobación final.
-				if ( $plan->needed() ) $relocation = $plan->finish( $plan->table_names() );
-			} catch ( Throwable $failure ) {
-				try {
-					self::rollback_from_safety( $safety );
-					self::remove_new_restore_files( $created_files );
-					throw new Exception( 'La restauración falló. Se recuperaron la base de datos y los archivos anteriores desde ' . wp_basename( $safety ) . ' y se retiraron los archivos nuevos: ' . $failure->getMessage(), 0, $failure );
-				} catch ( Throwable $rollback_error ) {
-					if ( $rollback_error->getPrevious() === $failure ) throw $rollback_error;
-					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
-				}
-			} finally {
-				self::after_restore_sql( $history_before, $vault_before, $origin );
-				self::remove_restore_journal();
-			}
-			if ( null !== $relocation ) update_option( self::LAST_RELOCATION, array( 'date' => current_time( 'mysql' ), 'file' => wp_basename( $path ) ) + $relocation, false );
-			return $relocation;
+			$job = self::restore_enqueue( $report, array( 'addresses' => $options['addresses'] ?? 'current', 'via' => (string) ( $options['via'] ?? 'inline' ), 'sync' => true, 'path' => (string) $path ) );
 		} finally {
-			Digitalisimo_Backups_Credentials::forget( $origin );
 			if ( $owned ) Digitalisimo_Backups_Security::close( $report );
 		}
+		$outcome = self::restore_outcome_raw( self::restore_drive( $job['id'], true ), $copies );
+		if ( isset( $outcome['error'] ) ) throw new Exception( $outcome['error'][1] );
+		if ( empty( $outcome['restored'] ) ) throw new Exception( 'La restauración no terminó en este proceso.' );
+		return self::get_last_relocation_for( $job['id'] );
+	}
+	/** Informe completo de la reubicación que dejó la restauración $id (el de LAST_RELOCATION), o null. */
+	private static function get_last_relocation_for( $id ) {
+		$job = Digitalisimo_Backups_Jobs::get( $id );
+		if ( ! $job || empty( $job['checkpoint']['finish']['relocated'] ) ) return null;
+		$saved = get_option( self::LAST_RELOCATION, null );
+		return is_array( $saved ) ? $saved : null;
 	}
 	/** Tablas del respaldo que cambian de nombre en esta instalación (el mismo mapa que usa la importación). */
 	private static function relocation_renames( array $data ) {
@@ -1634,11 +1665,7 @@ final class Digitalisimo_Backups {
 	private static function inspect_package( $zip, $trusted, $installation, &$source = null ) {
 		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
 		self::verify_zip_contents( $zip );
-		$manifest = $zip->getFromName( 'manifest.json' );
-		$migration = $zip->getFromName( 'migration.json' );
-		$metadata = false !== $manifest ? $manifest : $migration;
-		$data = json_decode( (string) $metadata, true );
-		if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'La metadata del respaldo no es válida.' );
+		$data = self::package_metadata( $zip );
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		if ( ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
@@ -1659,6 +1686,22 @@ final class Digitalisimo_Backups {
 		$source = Digitalisimo_Backups_Relocate::origin_of( $data, $probe );
 		return $data;
 	}
+	/**
+	 * Primer nivel de manifest.json (por partes y sin `entries`: memoria constante, H1) o, en un paquete anterior sin
+	 * manifiesto, migration.json entero (pequeño).
+	 */
+	private static function package_metadata( $zip ) {
+		if ( false !== $zip->locateName( 'manifest.json' ) ) {
+			try {
+				return Digitalisimo_Backups_Manifest_Stream::read( $zip )['data'];
+			} catch ( Exception $e ) {
+				throw new Exception( 'La metadata del respaldo no es válida.', 0, $e );
+			}
+		}
+		$data = json_decode( (string) $zip->getFromName( 'migration.json' ), true );
+		if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'La metadata del respaldo no es válida.' );
+		return $data;
+	}
 	/** Por qué un paquete íntegro no puede restaurarse en esta instalación (vacío si puede). */
 	private static function package_installation_problems( array $data ) {
 		$problems = array();
@@ -1677,36 +1720,6 @@ final class Digitalisimo_Backups {
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
 		self::restore_credentials( $origin );
 	}
-	/** Sólo borra archivos creados por este intento y que no cambiaron desde que se escribieron. */
-	private static function remove_new_restore_files( $created_files ) {
-		$real_root = realpath( ABSPATH );
-		if ( false === $real_root ) throw new Exception( 'No se puede comprobar la ruta de los archivos nuevos.' );
-		$root = trailingslashit( wp_normalize_path( $real_root ) );
-		foreach ( $created_files as $path => $expected_hash ) {
-			$normalized = wp_normalize_path( $path );
-			if ( 0 !== strpos( $normalized, $root ) || is_link( $path ) ) throw new Exception( 'Un archivo nuevo quedó fuera de la ruta segura de restauración.' );
-			if ( ! file_exists( $path ) ) continue;
-			$actual_hash = is_file( $path ) ? @hash_file( 'sha256', $path ) : false;
-			if ( false === $actual_hash || ! hash_equals( $expected_hash, $actual_hash ) ) throw new Exception( 'Un archivo nuevo cambió durante la reversión y requiere revisión manual: ' . $path );
-			if ( ! @unlink( $path ) ) throw new Exception( 'No se pudo retirar un archivo nuevo durante la reversión: ' . $path );
-		}
-	}
-	/** Reintenta la instalación anterior sin crear otra copia ni entrar en recursión. */
-	private static function rollback_from_safety( $path ) {
-		$zip = new ZipArchive();
-		if ( true !== $zip->open( $path, ZipArchive::CHECKCONS ) ) throw new Exception( 'No se pudo abrir la copia de seguridad previa.' );
-		try {
-			self::validate_zip_entries( $zip );
-			self::verify_zip_contents( $zip );
-			$sql_stat = $zip->statName( 'database.sql' );
-			if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'La copia previa no contiene SQL.' );
-			self::import_zip_sql( $zip );
-			self::extract_digitalisimo_files( $zip );
-		} finally {
-			$zip->close();
-		}
-	}
-
 	private static function validate_zip_entries( $zip ) { Digitalisimo_Backups_Archive_Inspector::entries( $zip, true ); }
 	private static function extract_digitalisimo_files( $zip, &$created_files = null ) {
 		$real_root = realpath( ABSPATH );

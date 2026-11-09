@@ -32,10 +32,21 @@ class Bk_Test_DB {
 	public $exit_on = '';
 	public $posts = array();
 	public $extra_tables = array();
+	/** Tablas que no son wp_options ni wp_posts (las temporales de una restauración): nombre => opciones leídas de sus INSERT. */
+	public $staged = array();
 	public function __construct() { $this->posts = array( array( 'ID' => '1', 'post_content' => "Texto con 'comillas', \"dobles\", ; punto y coma, \\ barra, salto\nde línea y \0 nulo" ), array( 'ID' => '2', 'post_content' => null ) ); }
 	public function tables() { return array_merge( array( 'wp_options', 'wp_posts' ), array_keys( $this->extra_tables ) ); }
-	public function get_col( $query ) { return $this->tables(); }
+	/** SHOW TABLES (con LIKE) ve también las tablas temporales de una restauración, como MySQL. */
+	public function get_col( $query ) {
+		$all = array_values( array_unique( array_merge( $this->tables(), array_keys( $this->staged ) ) ) );
+		if ( preg_match( "/SHOW TABLES LIKE '((?:[^'\\\\]|\\\\.)*)'/", (string) $query, $m ) ) {
+			$pattern = '/^' . strtr( preg_quote( stripslashes( str_replace( array( '\\_', '\\%' ), array( "\x01", "\x02" ), $m[1] ) ), '/' ), array( '%' => '.*', '_' => '.', "\x01" => '_', "\x02" => '%' ) ) . '$/D';
+			return array_values( array_filter( $all, function( $t ) use ( $pattern ) { return preg_match( $pattern, $t ); } ) );
+		}
+		return 0 === strpos( (string) $query, 'SHOW TABLES' ) ? $all : $this->tables();
+	}
 	public function prepare( $query, $value ) { return str_replace( '%s', "'" . $value . "'", $query ); }
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
 	public function get_row( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW TABLE STATUS' ) ) return array( 'Engine' => 'InnoDB' );
@@ -66,10 +77,24 @@ class Bk_Test_DB {
 		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->last_error = 'Fallo simulado'; return false; }
 		if ( '' !== $this->exit_on && false !== strpos( $sql, $this->exit_on ) ) { $this->exit_on = ''; exit; }
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) $GLOBALS['bk_options'] = array();
-		if ( 0 === strpos( $sql, 'INSERT INTO `wp_options`' ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
+		elseif ( preg_match( '/^DROP TABLE(?: IF EXISTS)? `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) ) unset( $this->staged[ $t[1] ] );
+		if ( preg_match( '/^CREATE TABLE `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) && ! isset( $this->staged[ $t[1] ] ) ) $this->staged[ $t[1] ] = array();
+		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
 			$value = bk_sql_unescape( $m[1][2] );
 			$unserialized = @unserialize( $value );
-			$GLOBALS['bk_options'][ bk_sql_unescape( $m[1][1] ) ] = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
+			$value = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
+			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ bk_sql_unescape( $m[1][1] ) ] = $value;
+			elseif ( 'wp_posts' !== $t[1] ) $this->staged[ $t[1] ][ bk_sql_unescape( $m[1][1] ) ] = $value;
+		}
+		// RENAME TABLE (el cambio de una restauración por pasos): la tabla que pasa a ser wp_options trae sus opciones.
+		if ( 0 === strpos( $sql, 'RENAME TABLE ' ) && preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $sql, $pairs, PREG_SET_ORDER ) ) {
+			foreach ( $pairs as $pair ) {
+				list( , $from, $to ) = $pair;
+				if ( 'wp_options' === $from ) $rows = $GLOBALS['bk_options'];
+				else { $rows = $this->staged[ $from ] ?? array(); unset( $this->staged[ $from ] ); }
+				if ( 'wp_options' === $to ) $GLOBALS['bk_options'] = $rows;
+				elseif ( 'wp_posts' !== $to ) $this->staged[ $to ] = $rows;
+			}
 		}
 		return 1;
 	}
