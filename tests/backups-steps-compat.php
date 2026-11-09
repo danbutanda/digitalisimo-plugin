@@ -1,7 +1,7 @@
 <?php
 /**
  * T2: el respaldo hecho por tramos tiene el mismo formato que el de un solo paso y lo restauran sin cambios el código
- * actual y el publicado de 1.0.58 y 1.0.60 (tomados de rollback/ y dist/, con sus clases renombradas). El SQL es
+ * actual y el publicado de 1.0.58, 1.0.60 y 1.0.61 (tomados de rollback/ y dist/, con sus clases renombradas). El SQL es
  * idéntico byte a byte al del exportador de un paso (también con una fila de más de 1 MB), el manifiesto es el mismo
  * JSON con las mismas claves en el mismo orden, la firma calculada por partes es la de libsodium, y lo mismo vale con
  * Zip64 forzado y con el contenedor DGBK.
@@ -45,7 +45,7 @@ function compat_load( $repo, $version ) {
 	if ( ! $package ) compat_fail( 'Falta el paquete publicado de Backups ' . $version . ' en dist/ o rollback/.' );
 	$zip = new ZipArchive();
 	$zip->open( $package );
-	$files = array( 'class-backups-job-store', 'class-backups-jobs', 'class-backups-backup-job', 'security/class-sodium', 'security/class-keys', 'security/class-manifest-auth', 'security/class-encrypted-file', 'security/class-archive-inspector', 'security/class-sql-guard', 'security/class-security', 'class-backups-layout', 'trait-backups-service', 'class-backups' );
+	$files = array( 'class-backups-job-store', 'class-backups-jobs', 'class-backups-backup-job', 'security/class-sodium', 'security/class-keys', 'security/class-credentials', 'security/class-manifest-auth', 'security/class-encrypted-file', 'security/class-archive-inspector', 'security/class-sql-guard', 'security/class-security', 'class-backups-layout', 'trait-backups-service', 'class-backups' );
 	foreach ( $files as $file ) {
 		$code = $zip->getFromName( 'digitalisimo-backups/includes/' . $file . '.php' );
 		if ( false === $code ) {
@@ -141,11 +141,11 @@ if ( $reference['entries'] !== $entries ) compat_fail( 'Las entradas del ZIP por
 @unlink( $sql_path );
 @unlink( $legacy_sql );
 
-// 4. Lo restauran el código actual y el publicado de 1.0.58 y 1.0.60.
+// 4. Lo restauran el código actual y el publicado de 1.0.58, 1.0.60 y 1.0.61.
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'contenido T2 original';
 compat_restore( 'Digitalisimo_Backups', $signed, 'contenido T2 original' );
 // 1.0.58 no conoce el llavero y su restauración reemplaza wp_options sin conservarlo (límite declarado): va la última.
-foreach ( array( '1.0.60', '1.0.58' ) as $version ) compat_restore( compat_load( $repo, $version ), $signed, 'contenido T2 original' );
+foreach ( array( '1.0.61', '1.0.60', '1.0.58' ) as $version ) compat_restore( compat_load( $repo, $version ), $signed, 'contenido T2 original' );
 
 // 5. Zip64 forzado (como con más de 65 535 entradas o 4 GiB): CHECKCONS, inspección, contenido y las tres restauraciones.
 Digitalisimo_Backups_Keys::set_passphrase( 'frase de la prueba de formato de T2' );
@@ -160,16 +160,16 @@ $zip->close();
 $raw = file_get_contents( $wide );
 if ( false === strpos( $raw, "PK\x06\x06" ) || false === strpos( $raw, "PK\x06\x07" ) ) compat_fail( 'El ZIP forzado no lleva el fin de directorio Zip64.' );
 compat_restore( 'Digitalisimo_Backups', $wide, 'contenido T2 zip64' );
-foreach ( array( '1.0.60', '1.0.58' ) as $version ) compat_restore( compat_load( $repo, $version ), $wide, 'contenido T2 zip64' );
+foreach ( array( '1.0.61', '1.0.60', '1.0.58' ) as $version ) compat_restore( compat_load( $repo, $version ), $wide, 'contenido T2 zip64' );
 
-// 6. Cifrado: el DGBK sellado al final de «verify» se abre, se verifica y se restaura; 1.0.60 también.
+// 6. Cifrado: el DGBK sellado al final de «verify» se abre, se verifica y se restaura; 1.0.60 y 1.0.61 también.
 Digitalisimo_Backups_Keys::set_passphrase( 'frase de la prueba de formato de T2' );
 $GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => true );
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'contenido T2 cifrado';
 $sealed = bk_backup();
 if ( '.dgbk' !== substr( $sealed, -5 ) || ! Digitalisimo_Backups_Encrypted_File::is_encrypted( $sealed ) ) compat_fail( 'El respaldo cifrado por tramos no es un DGBK.' );
 compat_restore( 'Digitalisimo_Backups', $sealed, 'contenido T2 cifrado' );
-compat_restore( compat_load( $repo, '1.0.60' ), $sealed, 'contenido T2 cifrado' );
+foreach ( array( '1.0.61', '1.0.60' ) as $version ) compat_restore( compat_load( $repo, $version ), $sealed, 'contenido T2 cifrado' );
 $GLOBALS['bk_options'][ $S::OPTION ] = array( 'encrypt' => false );
 
 // 7. Un manifiesto de más de 1 MB (miles de archivos) se registra sin decodificarlo entero y con los mismos datos.
@@ -188,4 +188,4 @@ if ( strlen( $bytes ) <= 1048576 ) compat_fail( 'La prueba no llegó a un manifi
 if ( $manifest['backup_id'] !== $row['backup_id'] || true !== $row['signed'] || $manifest['auth']['key']['id'] !== $row['key_id'] || 'zip' !== $row['container'] ) compat_fail( 'La fila de un respaldo con un manifiesto grande no lleva su identificador y su firma: ' . json_encode( array_intersect_key( $row, array_flip( array( 'backup_id', 'signed', 'key_id', 'container' ) ) ) ) );
 
 bk_cleanup();
-echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58 y 1.0.60; un manifiesto grande se registra sin decodificarlo entero.\n";
+echo "DIGITALÍSIMO Backups: el respaldo por tramos tiene el formato de siempre (SQL, manifiesto y firma idénticos, Zip64 y DGBK) y lo restauran el código actual, 1.0.58, 1.0.60 y 1.0.61; un manifiesto grande se registra sin decodificarlo entero.\n";
