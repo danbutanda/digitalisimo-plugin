@@ -396,6 +396,9 @@ producción y se migra desde el sitio de pruebas; para **publicarla**, la clave 
 migra desde producción, que guarda su copia previa y se deshace igual. **Fuera de alcance:** fusionar cambios entre dos
 sitios vivos (lo que cambie en producción mientras tanto se reemplaza). Las automatizaciones y los destinos remotos del
 origen llegan con la migración: en una copia de pruebas hay que revisarlos para que no respalde sobre los de producción.
+Si las dos copias viven en el mismo servidor, cada una necesita su propio almacén privado: con la misma
+`DIGITALISIMO_BACKUPS_STORAGE_DIR` en los dos `wp-config.php` compartirían la cola de «Trabajos» (sin la constante, cada
+instalación ya tiene su carpeta).
 ### Seguridad de la migración
 - **La clave.** `DGMIG1.` + base64url de `{"v":1,"u":<API del origen>,"i":<id>,"s":<32 bytes aleatorios>}`. Con
   `H(m, k) = BLAKE2b-256(m, clave k)`: la credencial `A = H("DGBK1/migrate-auth", s)` y la clave raíz del paquete
