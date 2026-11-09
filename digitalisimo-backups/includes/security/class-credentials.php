@@ -22,6 +22,23 @@ final class Digitalisimo_Backups_Credentials {
 	/** Campos de cada destino remoto. */
 	const DESTINATIONS = array( 'sftp' => array( 'sftp_password' ), 'google' => array( 'google_client_secret', 'google_refresh_token' ), 'onedrive' => array( 'onedrive_client_secret', 'onedrive_refresh_token' ) );
 	const MAX_VALUE = 16384;
+	/** Longitud máxima de un secreto escrito (bytes): de sobra para una contraseña o un refresh token de OneDrive. */
+	const MAX_SECRET = 8192;
+	const LABELS = array( 'sftp_password' => 'La contraseña de SFTP', 'google_client_secret' => 'El Client secret de Google Drive', 'google_refresh_token' => 'El Refresh token de Google Drive', 'onedrive_client_secret' => 'El Client secret de OneDrive', 'onedrive_refresh_token' => 'El Refresh token de OneDrive' );
+
+	/**
+	 * Por qué un secreto escrito (o devuelto por OAuth) no se puede guardar; '' si se puede. Se guarda exactamente como
+	 * llegó, sin recortar ni sanear: comillas, barras, <…>, %xx y espacios al borde forman parte del secreto. Sólo se
+	 * rechazan lo que no es texto, lo que pasa de MAX_SECRET bytes, NUL y los caracteres de control (C0, DEL y C1).
+	 */
+	public static function secret_problem( $value ) {
+		if ( ! is_string( $value ) ) return 'no es texto';
+		if ( strlen( $value ) > self::MAX_SECRET ) return 'pasa de ' . self::MAX_SECRET . ' bytes';
+		if ( preg_match( '/[\x00-\x1F\x7F]/', $value ) || 1 === @preg_match( '/[\x{80}-\x{9F}]/u', $value ) ) return 'contiene caracteres de control (como NUL, saltos de línea o tabuladores)';
+		return '';
+	}
+	/** Nombre de un campo secreto para los mensajes (nunca su valor). */
+	public static function label( $field ) { return self::LABELS[ $field ] ?? 'Una credencial'; }
 	/** Un wp-config.php de un respaldo más grande no se analiza. */
 	const CONFIG_MAX = 1048576;
 	/** Valores candidatos por constante (un define dentro de un if, otro fuera…): cada combinación se comprueba por su huella. */
