@@ -234,6 +234,23 @@ $case( 'f', function() use ( $B, $check, $compat ) {
 		$job = Digitalisimo_Backups_Jobs::get( $job['id'] );
 		$check( $result['ok'] && 'cancelled' === $job['status'] && ! $compat->uploads, 'Cancelar no abortó la subida por partes en el destino.' );
 		$check( 'cancelled' === bk_call( $B, 'history_item', basename( $job['spec']['file'] ) )['transfer'], 'El historial no marca la copia cancelada.' );
+		// Cancelar mientras sube (la petición llega con la parte 2 en vuelo): se detiene antes de la siguiente parte.
+		$GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
+		unset( $compat->faults['fail_part'] );
+		$transport = Digitalisimo_Backups_Http::$transport;
+		Digitalisimo_Backups_Http::$transport = function( array $request ) use ( $transport ) {
+			if ( 'PUT' === $request['method'] && false !== strpos( $request['url'], 'partNumber=2&' ) && '' !== Digitalisimo_Backups_Jobs::current_id() ) Digitalisimo_Backups_Jobs::cancel( Digitalisimo_Backups_Jobs::current_id() );
+			return $transport( $request );
+		};
+		try {
+			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'cancelar-en-vuelo', 'destination' => 's3compat', 'retention' => 'none', 'via' => 'test' ) ) );
+			$compat->log = array();
+			for ( $i = 0; $i < 20; $i++ ) { Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX ); $job = Digitalisimo_Backups_Jobs::get( $queued['job']['id'] ); if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break; }
+		} finally {
+			Digitalisimo_Backups_Http::$transport = $transport;
+		}
+		$parts = array_map( function( $entry ) { return $entry['query']['partNumber']; }, array_values( array_filter( $compat->log, function( $entry ) { return 'PUT' === $entry['method'] && isset( $entry['query']['partNumber'] ); } ) ) );
+		$check( 'cancelled' === $job['status'] && array( '1', '2' ) === $parts && ! $compat->uploads && ! array_filter( array_keys( $compat->objects ), function( $key ) { return false !== strpos( $key, 'cancelar' ) || false !== strpos( $key, '.part-' ); } ), 'Cancelar durante la subida no la detuvo en la siguiente parte o no abortó el multipart: ' . json_encode( array( $job['status'], $parts, count( $compat->uploads ) ) ) );
 	} finally {
 		$GLOBALS['bk_filters'] = $filters;
 		@unlink( ABSPATH . 'wp-content/uploads/grande.bin' );
