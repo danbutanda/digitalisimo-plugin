@@ -502,6 +502,17 @@ que aquí no existiría se desactiva y el de este servidor que sí, se conserva)
 inexistente también se desactiva (P1); la limpieza avisa si alguno sigue apuntando a un archivo que no existe y vacía la
 caché del servidor web (LSCache).
 
+**Ensayo en Playground** (`tests/playground/backups-restore.sh`, con `memory_limit=64M`, límite de 30 s por petición y
+tick de 15 s; sitio individual y red por subdirectorios, 1 200 entradas y 5 328 entradas en el respaldo): el respaldo se
+crea desde la pantalla, el sitio cambia (base de datos, plugin, tema, un `.php` inyectado en uploads, un plugin nuevo y
+un archivo fuera de las raíces gestionadas) y la restauración se pide por REST (202) y avanza sólo con ticks web (el de
+la pantalla con el testigo y `wp-cron.php`), con dos peticiones muertas a propósito a mitad de la base de datos y a mitad
+de los archivos. Termina con el inventario (cada tabla y cada archivo con su hash) idéntico al de después del respaldo,
+lo inyectado y el plugin nuevo retirados e informados, el archivo de fuera intacto, mantenimiento (503) para los
+visitantes y sin él al terminar; en el sitio individual, una segunda restauración que falla al mover vuelve sola a la
+copia previa y deja el sitio como estaba. Ninguna petición pasó de 30 s (la más larga, 21,8 s) ni de 64 MB (pico
+60,5 MB).
+
 **Límites declarados.**
 
 - Las vistas SQL de un respaldo no se restauran por pasos: el renombrado a las tablas temporales las rechaza antes de la
