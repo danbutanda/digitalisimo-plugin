@@ -304,6 +304,7 @@ jobs:
           php tests/backups-destinations-protocols.php
           php tests/backups-destinations-screen.php
           php tests/backups-destinations-live.php
+          node tests/backups-destinations-ui.mjs
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
