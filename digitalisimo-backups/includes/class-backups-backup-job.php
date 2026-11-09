@@ -160,14 +160,18 @@ final class Digitalisimo_Backups_Backup_Job {
 		);
 	}
 
-	/** Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. */
+	/**
+	 * Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. La fila
+	 * sigue siendo la del ZIP local (`destination` = local) y la copia remota se anota aparte: un respaldo copiado sigue
+	 * restaurándose desde el almacén mientras su ZIP exista.
+	 */
 	private static function transfer( array $job ) {
 		$spec = $job['spec'];
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
 		if ( ! is_file( $final ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El ZIP local desapareció antes de copiarlo al destino remoto.' );
 		Digitalisimo_Backups_Jobs::progress( 90, 'Copiando a ' . Digitalisimo_Backups::destination_name( $spec['destination'] ) . '…', true );
 		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'] );
-		Digitalisimo_Backups::history_update( basename( $final ), array( 'destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
+		Digitalisimo_Backups::history_update( basename( $final ), array( 'transfer_destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
 		return array( 'next' => 'prune', 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia remota verificada; aplicando la retención…' );
 	}
 

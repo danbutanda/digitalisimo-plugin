@@ -423,15 +423,18 @@ final class Digitalisimo_Backups {
 			echo '<p>' . self::manual_destination_select( $s ) . '</p><button class="button button-primary button-hero"' . disabled( is_multisite() && ! is_main_site(), true, false ) . '>Crear respaldo completo ' . ( is_multisite() ? 'de la red' : 'de WordPress' ) . '</button></form><div id="digitalisimo-backups-manual-progress" class="digitalisimo-backups-manual-progress" hidden><p id="digitalisimo-backups-manual-message" role="status" aria-live="polite"></p><progress id="digitalisimo-backups-manual-bar" max="100" value="0"></progress><p id="digitalisimo-backups-manual-detail" aria-live="polite"></p></div>';
 
 			echo '<p class="description">Destino actual: <strong>' . esc_html( self::destination_label( $s['destination'] ) ) . '</strong></p></section><section class="digitalisimo-backups-card"><h2>Últimos respaldos</h2>';
-				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : 'Exportación anterior de sitio' ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; if ( 'local' === ( $item['destination'] ?? 'local' ) || ! empty( $item['remote'] ) ) { echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; } else echo 'Respaldo remoto anterior: sin identificador'; echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
+				if ( ! $history ) echo '<p>Aún no hay respaldos creados.</p>'; else { echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Tamaño</th><th>Destino</th><th>Seguridad</th><th>Protección</th><th>Acciones</th></tr></thead><tbody>'; foreach ( $history as $item ) { $file = $item['file'] ?? ''; echo '<tr><td>' . esc_html( $item['date'] ?? '' ) . '</td><td>' . esc_html( $file ) . '</td><td>' . esc_html( ( $item['scope'] ?? 'site' ) === 'network' ? 'Red completa' : ( ( $item['scope'] ?? 'site' ) === 'installation' ? 'Instalación completa' : 'Exportación anterior de sitio' ) ) . '</td><td>' . esc_html( size_format( (int) ( $item['size'] ?? 0 ) ) ) . '</td><td>' . esc_html( self::history_destination( $item ) ) . '</td><td>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_LOCK ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Bloqueado ✓' ) . '</button></form></td><td>'; if ( '' !== self::local_copy( $item ) || ! empty( $item['remote']['provider'] ) || ! self::remote_copy( $item ) ) { echo '<a class="button button-small" href="' . esc_url( self::download_url( $file ) ) . '">Descargar</a> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar este respaldo?\')">'; wp_nonce_field( self::ACTION_DELETE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><button class="button button-small">Eliminar</button></form>'; } else echo 'Respaldo remoto anterior: sin identificador'; echo '</td></tr>'; } echo '</tbody></table>'; } echo '</section></div>';
 			self::jobs_panel( $network ); self::updraft_panel(); self::restore_panel( $history ); self::automation_fields(); echo '</div>';
 		}
 		/** Destino de una fila del historial con el estado de su copia remota (las filas antiguas no lo tienen). */
 		private static function history_destination( $item ) {
-			$label = self::destination_label( $item['destination'] ?? 'local' );
-			$target = self::destination_label( $item['transfer_destination'] ?? '' );
-			$states = array( 'pending' => ' · copia a ' . $target . ' pendiente', 'failed' => ' · la copia a ' . $target . ' falló', 'cancelled' => ' · copia a ' . $target . ' cancelada' );
-			return $label . ( $states[ $item['transfer'] ?? '' ] ?? '' );
+			$local = '' !== self::local_copy( $item );
+			$copy = self::remote_copy( $item );
+			if ( ! $copy ) return self::destination_label( 'local' ) . ( $local ? '' : ' · el ZIP ya no está en el almacén' );
+			$target = self::destination_label( $copy['destination'] );
+			$states = array( 'ok' => 'copia en ' . $target . ' verificada', 'pending' => 'copia a ' . $target . ' pendiente', 'failed' => 'la copia a ' . $target . ' falló', 'cancelled' => 'copia a ' . $target . ' cancelada', 'legacy' => 'copia anterior en ' . $target . ' sin identificador' );
+			$remote = $states[ $copy['state'] ] ?? 'copia en ' . $target;
+			return $local ? self::destination_label( 'local' ) . ' · ' . $remote : $target . ( 'ok' === $copy['state'] ? ' · sólo la copia remota' : ' · ' . $remote );
 		}
 		/** Tarjeta «Trabajos»: el mismo estado que consultan el navegador, el cron, REST y WP-CLI. */
 		private static function jobs_panel( $network ) {
@@ -481,10 +484,62 @@ final class Digitalisimo_Backups {
 	private static function oauth_callback_url() { return add_query_arg( self::context_args(), admin_url( 'admin-post.php?action=' . self::ACTION_OAUTH ) ); }
 	private static function oauth_url( $provider ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_OAUTH, 'provider' => $provider ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_OAUTH ); }
 	private static function download_url( $file ) { return wp_nonce_url( add_query_arg( array_merge( array( 'action' => self::ACTION_DOWNLOAD, 'file' => rawurlencode( $file ) ), self::context_args() ), admin_url( 'admin-post.php' ) ), self::ACTION_DOWNLOAD ); }
-	public static function download() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DOWNLOAD ); $file = sanitize_file_name( wp_unslash( $_GET['file'] ?? '' ) ); $item = self::history_item( $file ); if ( ! $item ) wp_die( 'Respaldo no disponible.' ); if ( 'local' !== ( $item['destination'] ?? 'local' ) ) { self::download_remote( $item ); exit; } $path = self::local_path( $file ); if ( ! $path ) wp_die( 'Respaldo no disponible.' ); nocache_headers(); header( 'Content-Type: ' . self::content_type( $file ) ); header( 'Content-Disposition: attachment; filename="' . $file . '"' ); header( 'Content-Length: ' . filesize( $path ) ); readfile( $path ); exit; }
+	/** Descarga el ZIP local si sigue en el almacén (también el de un respaldo con copia remota); si no, la copia remota. */
+	public static function download() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DOWNLOAD );
+		$file = sanitize_file_name( wp_unslash( $_GET['file'] ?? '' ) );
+		$item = self::history_item( $file );
+		if ( ! $item ) wp_die( 'Respaldo no disponible.' );
+		$path = self::local_path( $file );
+		if ( ! $path ) {
+			$copy = self::remote_copy( $item );
+			if ( $copy && ( ! empty( $copy['remote']['provider'] ) || 'legacy' === $copy['state'] ) ) { self::download_remote( $item ); exit; }
+			wp_die( 'Respaldo no disponible.' );
+		}
+		nocache_headers();
+		header( 'Content-Type: ' . self::content_type( $file ) );
+		header( 'Content-Disposition: attachment; filename="' . $file . '"' );
+		header( 'Content-Length: ' . filesize( $path ) );
+		readfile( $path );
+		exit;
+	}
 	/** Un respaldo cifrado no es un ZIP para el navegador ni para los destinos remotos. */
 	private static function content_type( $file ) { return '.dgbk' === substr( (string) $file, -5 ) ? 'application/octet-stream' : 'application/zip'; }
-	public static function delete_backup() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $item = self::history_item( $file ); if ( ! $item ) self::redirect( false, 'El respaldo no está registrado.' ); try { if ( 'local' === ( $item['destination'] ?? 'local' ) ) { $path = self::local_path( $file ); if ( ! $path ) { self::remove_history( $file ); self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' ); } if ( ! is_writable( dirname( $path ) ) ) throw new Exception( 'El hosting no permite escribir en la carpeta de respaldos: ' . dirname( $path ) ); if ( ! @wp_delete_file( $path ) && file_exists( $path ) ) throw new Exception( 'El hosting rechazó eliminar el archivo local. Revisa permisos de la carpeta de respaldos.' ); } else self::delete_remote( $item ); self::remove_history( $file ); self::redirect( true, 'Respaldo eliminado.' ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } }
+	/**
+	 * Elimina un respaldo: su copia remota verificada, su ZIP local y su fila. La copia remota va primero: si el destino no
+	 * confirma la eliminación no se cambia nada. Una copia remota anterior a 1.0.59 sin identificador no se puede borrar
+	 * desde aquí y el aviso dice dónde queda; una copia que nunca se verificó (pendiente, fallida o cancelada) no existe.
+	 */
+	public static function delete_backup() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_DELETE );
+		$file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) );
+		$item = self::history_item( $file );
+		if ( ! $item ) self::redirect( false, 'El respaldo no está registrado.' );
+		try {
+			$path = self::local_path( $file );
+			$copy = self::remote_copy( $item );
+			$remote = $copy && ! empty( $copy['remote']['provider'] );
+			$notice = $copy && 'legacy' === $copy['state'] ? ' La copia anterior en ' . self::destination_label( $copy['destination'] ) . ' no tiene identificador: elimínala desde ' . self::destination_label( $copy['destination'] ) . '.' : '';
+			if ( $remote ) self::delete_remote( $item );
+			if ( $path ) {
+				try {
+					if ( ! is_writable( dirname( $path ) ) ) throw new Exception( 'El hosting no permite escribir en la carpeta de respaldos: ' . dirname( $path ) );
+					if ( ! @wp_delete_file( $path ) && file_exists( $path ) ) throw new Exception( 'El hosting rechazó eliminar el archivo local. Revisa permisos de la carpeta de respaldos.' );
+				} catch ( Exception $local_error ) {
+					// La copia remota ya no existe: la fila se queda sólo con el ZIP local que no se pudo borrar.
+					if ( $remote ) self::history_update( $file, array( 'destination' => 'local', 'transfer' => '', 'transfer_destination' => '', 'transfer_error' => '', 'remote' => array() ) );
+					throw $local_error;
+				}
+			}
+			self::remove_history( $file );
+		} catch ( Exception $e ) {
+			self::redirect( false, $e->getMessage() );
+		}
+		if ( ! $path && ! $copy ) self::redirect( true, 'El archivo local ya no existía; se eliminó su registro del listado.' );
+		self::redirect( true, 'Respaldo eliminado' . ( $remote ? ( $path ? ', también su copia en ' : ' de ' ) . self::destination_label( $copy['destination'] ) : '' ) . '.' . $notice );
+	}
 	public static function oauth_callback() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); $provider = sanitize_key( $_REQUEST['provider'] ?? '' ); if ( ! in_array( $provider, array( 'google', 'onedrive' ), true ) ) self::redirect( false, 'Proveedor no válido.' ); $settings = self::settings(); if ( empty( $_GET['code'] ) ) { check_admin_referer( self::ACTION_OAUTH ); if ( empty( $settings[ $provider . '_client_id' ] ) || empty( $settings[ $provider . '_client_secret' ] ) ) self::redirect( false, 'Guarda antes el Client ID y Client secret del proveedor.' ); $state = wp_generate_password( 32, false, false ); set_transient( 'digitalisimo_backup_oauth_' . get_current_user_id(), array( 'state' => $state, 'provider' => $provider ), 15 * MINUTE_IN_SECONDS ); $redirect = self::oauth_callback_url(); if ( 'google' === $provider ) $url = add_query_arg( array( 'client_id' => $settings['google_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'access_type' => 'offline', 'prompt' => 'consent', 'scope' => 'https://www.googleapis.com/auth/drive.file', 'state' => $state ), 'https://accounts.google.com/o/oauth2/v2/auth' ); else $url = add_query_arg( array( 'client_id' => $settings['onedrive_client_id'], 'redirect_uri' => $redirect, 'response_type' => 'code', 'response_mode' => 'query', 'scope' => 'offline_access Files.ReadWrite', 'state' => $state ), 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize' ); wp_redirect( $url ); exit; } $saved = get_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); if ( empty( $saved['state'] ) || ! hash_equals( $saved['state'], (string) $_GET['state'] ) || $provider !== $saved['provider'] ) self::redirect( false, 'La autorización expiró o no coincide. Inténtalo nuevamente.' ); delete_transient( 'digitalisimo_backup_oauth_' . get_current_user_id() ); $endpoint = 'google' === $provider ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token'; $response = wp_remote_post( $endpoint, array( 'timeout' => 30, 'body' => array( 'client_id' => $settings[ $provider . '_client_id' ], 'client_secret' => $settings[ $provider . '_client_secret' ], 'code' => sanitize_text_field( wp_unslash( $_GET['code'] ) ), 'redirect_uri' => self::oauth_callback_url(), 'grant_type' => 'authorization_code' ) ) ); $data = json_decode( wp_remote_retrieve_body( $response ), true ); if ( is_wp_error( $response ) || empty( $data['refresh_token'] ) ) self::redirect( false, 'El proveedor no devolvió un refresh token. Revisa la URL de redirección registrada en su aplicación.' ); $settings[ $provider . '_refresh_token' ] = sanitize_text_field( $data['refresh_token'] ); try { self::store_settings( $settings ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ( 'google' === $provider ? 'Google Drive' : 'OneDrive' ) . ' conectado correctamente.' ); }
 	public static function save() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); $old = self::settings(); $input = (array) ( $_POST['digitalisimo_backups'] ?? array() ); $out = self::defaults();
@@ -828,6 +883,43 @@ final class Digitalisimo_Backups {
 			unset( $row );
 			return $found;
 		} );
+	}
+	/**
+	 * Copia remota de una fila del historial: destino, estado (ok, pending, failed, cancelled o legacy) y su referencia.
+	 * Desde el lote corto la fila es la del ZIP local y la copia remota va en `transfer_destination`; de 1.0.59 a 1.0.60
+	 * la transferencia cambiaba `destination` al proveedor, y antes de 1.0.59 no había `transfer` (legacy: sin
+	 * identificador si tampoco hay `remote`). null si la fila no tiene copia remota.
+	 */
+	private static function remote_copy( $item ) {
+		$item = (array) $item;
+		$target = (string) ( $item['transfer_destination'] ?? '' );
+		$recorded = (string) ( $item['destination'] ?? 'local' );
+		if ( '' === $target && 'local' !== $recorded ) $target = $recorded;
+		if ( '' === $target || 'local' === $target ) return null;
+		$remote = (array) ( $item['remote'] ?? array() );
+		$state = (string) ( $item['transfer'] ?? '' );
+		if ( '' === $state ) $state = ! empty( $remote['provider'] ) ? 'ok' : 'legacy';
+		return array( 'destination' => $target, 'state' => $state, 'remote' => $remote );
+	}
+	/** Ruta del ZIP local de una fila del historial ('' si ya no está en el almacén). */
+	private static function local_copy( $item ) {
+		$file = (string) ( ( (array) $item )['file'] ?? '' );
+		if ( '' === $file ) return '';
+		try { return self::local_path( $file ); } catch ( Exception $e ) { return ''; }
+	}
+	/** Restaurable desde el almacén: completo, de la instalación o la red, y con su ZIP local (tenga o no copia remota). */
+	private static function restorable_item( $item, $local = null ) {
+		$item = (array) $item;
+		$local = null === $local ? '' !== self::local_copy( $item ) : (bool) $local;
+		return $local && 'full' === (string) ( $item['backup_type'] ?? 'full' ) && in_array( (string) ( $item['scope'] ?? '' ), array( 'network', 'installation' ), true );
+	}
+	/** Copias de una fila: la local (si el ZIP sigue en el almacén) y la remota con su estado. */
+	private static function item_copies( $item, $local = null ) {
+		$local = null === $local ? '' !== self::local_copy( $item ) : (bool) $local;
+		$copies = $local ? array( array( 'destination' => 'local', 'state' => 'ok' ) ) : array();
+		$remote = self::remote_copy( $item );
+		if ( $remote ) $copies[] = array( 'destination' => $remote['destination'], 'state' => $remote['state'] );
+		return $copies;
 	}
 	private static function bytes_label( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
@@ -1372,7 +1464,8 @@ final class Digitalisimo_Backups {
 	/** Respaldos del historial y archivos sueltos del almacén; un archivo sin registro nunca cuenta como propio. */
 	private static function restore_panel( $history ) {
 		$dir = trailingslashit( self::local_directory() );
-		$local = array_filter( (array) $history, function( $item ) use ( $dir ) { return 'local' === ( $item['destination'] ?? 'local' ) && in_array( $item['scope'] ?? '', array( 'network', 'installation' ), true ) && 'full' === ( $item['backup_type'] ?? 'full' ) && is_file( $dir . ( $item['file'] ?? '' ) ); } );
+		// Con su ZIP en el almacén, también los que tienen copia remota (verificada, pendiente o fallida) y las filas antiguas.
+		$local = array_filter( (array) $history, function( $item ) { return self::restorable_item( $item ); } );
 		$known = array_flip( array_map( 'strval', array_column( (array) get_option( self::HISTORY, array() ), 'file' ) ) );
 		$loose = array();
 		foreach ( array_merge( glob( $dir . 'digitalisimo-*.zip' ) ?: array(), glob( $dir . 'digitalisimo-*.dgbk' ) ?: array(), glob( $dir . 'safety-before-restore-*.zip' ) ?: array() ) as $path ) if ( is_file( $path ) && ! is_link( $path ) && ! isset( $known[ wp_basename( $path ) ] ) ) $loose[] = wp_basename( $path );

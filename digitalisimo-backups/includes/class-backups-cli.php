@@ -161,7 +161,8 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
-	 * Lista el historial de respaldos, del más reciente al más antiguo.
+	 * Lista el historial de respaldos, del más reciente al más antiguo, con sus copias (local y remota) y si se puede
+	 * restaurar desde el almacén.
 	 *
 	 * ## OPTIONS
 	 *
@@ -178,7 +179,11 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = self::result( Digitalisimo_Backups::service_backups() );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret' ) ) );
+		// Las copias, como texto: «local, google» (la remota con su estado si no está verificada: «google (falló)»).
+		$states = array( 'pending' => 'pendiente', 'failed' => 'falló', 'cancelled' => 'cancelada', 'legacy' => 'sin identificador' );
+		foreach ( $rows as &$row ) $row['copies'] = implode( ', ', array_map( function( $copy ) use ( $states ) { return $copy['destination'] . ( isset( $states[ $copy['state'] ] ) ? ' (' . $states[ $copy['state'] ] . ')' : '' ); }, (array) $row['copies'] ) );
+		unset( $row );
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret' ) ) );
 	}
 
 	/**

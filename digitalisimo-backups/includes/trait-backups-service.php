@@ -96,7 +96,11 @@ trait Digitalisimo_Backups_Service {
 		}
 		return Digitalisimo_Backups_Keys::can_open( $key_id ) ? null : self::service_error( 'secret_required', Digitalisimo_Backups_Security::missing_key_text( $key_id ), 400, array( 'key' => Digitalisimo_Backups_Keys::short( $key_id ) ) );
 	}
-	/** Fila pública del historial. `restorable` sigue la lista de la pantalla: local, completo y presente. */
+	/**
+	 * Fila pública del historial. `restorable` sigue la lista de la pantalla: completo y con su ZIP en el almacén, tenga
+	 * o no copia remota. `destination` es a dónde se envió (local o el destino remoto) y `copies` enumera las copias:
+	 * la local, si el ZIP sigue en el almacén, y la remota con su estado (ok, pending, failed, cancelled o legacy).
+	 */
 	private static function service_summary( $item ) {
 		$item = (array) $item;
 		$file = (string) ( $item['file'] ?? '' );
@@ -104,18 +108,17 @@ trait Digitalisimo_Backups_Service {
 		$type = (string) ( $item['backup_type'] ?? 'full' );
 		$container = 'dgbk' === ( $item['container'] ?? '' ) ? 'dgbk' : 'zip';
 		$key_id = (string) ( $item['key_id'] ?? '' );
-		$available = false;
-		if ( '' !== $file ) {
-			try { $available = '' !== self::local_path( $file ); } catch ( Exception $e ) { $available = false; }
-		}
+		$available = '' !== self::local_copy( $item );
+		$copy = self::remote_copy( $item );
 		return array(
 			'file' => $file,
 			'date' => (string) ( $item['date'] ?? '' ),
 			'size' => (int) ( $item['size'] ?? 0 ),
 			'sha256' => (string) ( $item['sha256'] ?? '' ),
-			'destination' => (string) ( $item['destination'] ?? 'local' ),
+			'destination' => $copy ? $copy['destination'] : 'local',
 			'remote' => (string) ( ( (array) ( $item['remote'] ?? array() ) )['provider'] ?? '' ),
 			'transfer' => (string) ( $item['transfer'] ?? '' ),
+			'copies' => self::item_copies( $item, $available ),
 			'scope' => $scope,
 			'type' => $type,
 			'policy' => (string) ( $item['policy'] ?? 'manual' ),
@@ -126,7 +129,7 @@ trait Digitalisimo_Backups_Service {
 			'needs_secret' => 'dgbk' === $container && ! Digitalisimo_Backups_Keys::can_open( $key_id ),
 			'locked' => ! empty( $item['locked'] ),
 			'available' => $available,
-			'restorable' => $available && 'local' === ( $item['destination'] ?? 'local' ) && 'full' === $type && in_array( $scope, array( 'network', 'installation' ), true ),
+			'restorable' => self::restorable_item( $item, $available ),
 		);
 	}
 	/** Copias previas a una restauración en el historial: se registran (bloqueadas) justo antes del SQL. */
