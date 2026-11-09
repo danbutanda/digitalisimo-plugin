@@ -256,7 +256,8 @@ restaurar y verificar trabajan en la misma petición.
 
 Ensayo en WordPress Playground (`tests/playground/backups-coverage.sh`), sobre el motor de 1.0.59: WordPress 7.1.4,
 PHP 8.5 y SQLite, en un sitio individual y en una red con un subsitio, todo por HTTP real. Pasaron 99 comprobaciones
-(45 en el sitio individual y 54 en la red, 395 s). El ensayo corta el loopback de WP-Cron (un mu-plugin de `setup.php`)
+(45 en el sitio individual y 54 en la red, 395 s). Con E1 (@NEXT_BACKUPS@) se repitió con `addresses` en `verify` y `restore` (REST con la validación de WordPress, WP-CLI
+con la suya): 109 comprobaciones, 320 s, todo correcto. El ensayo corta el loopback de WP-Cron (un mu-plugin de `setup.php`)
 para que la cola sólo avance cuando él lo pide; sin ese corte, en el sitio individual WP-Cron terminó por su cuenta el
 trabajo encolado por REST y el de `create --async` antes de que el ensayo los cancelara.
 
