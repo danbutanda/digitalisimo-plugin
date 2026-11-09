@@ -82,18 +82,25 @@ final class Digitalisimo_Backups_Notify {
 		foreach ( $jobs as $job ) {
 			if ( 'pending' !== ( $job['notice'] ?? '' ) || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) continue;
 			try {
-				$claimed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $job ) {
-					$fresh = Digitalisimo_Backups_Job_Store::read( $job['id'] );
-					if ( ! $fresh || 'pending' !== ( $fresh['notice'] ?? '' ) ) return null;
-					$fresh['notice'] = 'sent';
-					return Digitalisimo_Backups_Job_Store::write( $fresh );
-				} );
+				$claimed = self::claim( (string) $job['id'] );
 				if ( $claimed && self::job( $claimed ) ) $sent++;
 			} catch ( Throwable $e ) {
 				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo enviar un aviso: ' . $e->getMessage() );
 			}
 		}
 		return $sent;
+	}
+	/**
+	 * Reclama el aviso pendiente de un trabajo con el cerrojo de los trabajos: devuelve el trabajo (ya marcado `sent`)
+	 * sólo al primero que lo pide; otro proceso que leyó la lista antes recibe null y no envía.
+	 */
+	public static function claim( $id ) {
+		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $id ) {
+			$fresh = Digitalisimo_Backups_Job_Store::read( $id );
+			if ( ! $fresh || ! Digitalisimo_Backups_Job_Store::is_terminal( $fresh ) || 'pending' !== ( $fresh['notice'] ?? '' ) ) return null;
+			$fresh['notice'] = 'sent';
+			return Digitalisimo_Backups_Job_Store::write( $fresh );
+		} );
 	}
 	/** Aviso de un trabajo terminado: respaldo creado, respaldo fallido o copia remota fallida (el ZIP local se conserva). */
 	public static function job( array $job ) {

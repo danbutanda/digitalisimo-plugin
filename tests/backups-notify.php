@@ -165,6 +165,15 @@ try {
 	Digitalisimo_Backups_Job_Store::with_lock( function() use ( $job ) { $fresh = Digitalisimo_Backups_Job_Store::read( $job['id'] ); $fresh['notice'] = 'pending'; Digitalisimo_Backups_Job_Store::write( $fresh ); } );
 	$GLOBALS['mails'] = array();
 	digi_assert( 1 === Digitalisimo_Backups_Notify::flush_jobs() && 0 === Digitalisimo_Backups_Notify::flush_jobs() && 1 === count( $GLOBALS['mails'] ), 'Un aviso pendiente se envió más de una vez o ninguna.' );
+	// La carrera: dos procesos leyeron la lista con el aviso pendiente; sólo el primero que lo reclama lo envía.
+	Digitalisimo_Backups_Job_Store::with_lock( function() use ( $job ) { $fresh = Digitalisimo_Backups_Job_Store::read( $job['id'] ); $fresh['notice'] = 'pending'; Digitalisimo_Backups_Job_Store::write( $fresh ); } );
+	$first = Digitalisimo_Backups_Notify::claim( $job['id'] );
+	digi_assert( is_array( $first ) && 'sent' === $first['notice'] && 'sent' === Digitalisimo_Backups_Jobs::get( $job['id'] )['notice'] && null === Digitalisimo_Backups_Notify::claim( $job['id'] ), 'Dos procesos pudieron reclamar el mismo aviso.' );
+	// Un trabajo sin terminar nunca se reclama, aunque lleve la marca.
+	$queued = Digitalisimo_Backups::service_create();
+	Digitalisimo_Backups_Job_Store::with_lock( function() use ( $queued ) { $fresh = Digitalisimo_Backups_Job_Store::read( $queued['id'] ); $fresh['notice'] = 'pending'; Digitalisimo_Backups_Job_Store::write( $fresh ); } );
+	digi_assert( null === Digitalisimo_Backups_Notify::claim( $queued['id'] ), 'Se reclamó el aviso de un trabajo sin terminar.' );
+	digi_assert( 'success' === digi_drive( $queued['id'] )['status'] && 2 === count( $GLOBALS['mails'] ), 'El trabajo que terminó después no avisó una vez.' );
 	// Un trabajo terminado antes de esta versión (sin marca) nunca avisa.
 	Digitalisimo_Backups_Job_Store::with_lock( function() use ( $job ) { $fresh = Digitalisimo_Backups_Job_Store::read( $job['id'] ); unset( $fresh['notice'] ); Digitalisimo_Backups_Job_Store::write( $fresh ); } );
 	digi_assert( 0 === Digitalisimo_Backups_Notify::flush_jobs(), 'Un trabajo anterior sin marca envió un aviso.' );
@@ -175,6 +184,9 @@ try {
 	digi_assert( is_wp_error( $error ) && array() === $GLOBALS['mails'], 'Una confirmación equivocada envió un aviso.' );
 	$result = Digitalisimo_Backups::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR', 'via' => 'rest' ) );
 	digi_assert( ! is_wp_error( $result ) && 1 === count( $GLOBALS['mails'] ), 'Una restauración terminada no avisó: ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : $GLOBALS['mails'] ) );
+	// La copia previa es un trabajo del mismo motor, pero nunca avisa como un respaldo.
+	Digitalisimo_Backups_Notify::flush_jobs();
+	digi_assert( 1 === count( $GLOBALS['mails'] ), 'La copia previa de la restauración envió su propio aviso.' );
 	$mail = $GLOBALS['mails'][0];
 	digi_assert( false !== strpos( $mail['subject'], 'Restauración terminada' ) && false !== strpos( $mail['body'], 'Archivo: ' . $created['file'] ) && false !== strpos( $mail['body'], 'Copia previa bloqueada: ' . $result['safety_backup'] ) && false !== strpos( $mail['body'], 'Origen: API REST' ), 'El aviso de la restauración no es el esperado: ' . $mail['body'] );
 	$GLOBALS['mails'] = array();
