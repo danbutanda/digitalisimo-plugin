@@ -46,7 +46,8 @@ try {
 	// Guardado por el formulario de la pantalla (admin-post): los secretos sólo cifrados.
 	$query = digi_admin_post( 'save', $B::ACTION_SAVE, array( 'digitalisimo_backups' => $fields + $secrets ) );
 	digi_assert( 'ok' === ( $query['backup'] ?? '' ), 'No se guardaron las conexiones: ' . json_encode( $query ) );
-	$clean( 'Las opciones del sitio', serialize( array_diff_key( $GLOBALS['digi']['options'], array( $C::OPTION => true ) ) ) );
+	foreach ( $secrets as $value ) digi_assert( false === strpos( serialize( $GLOBALS['digi']['options'] ), $value ), 'Las opciones del sitio guardan un secreto en claro.' );
+	$clean( 'Las opciones del sitio fuera del almacén', serialize( array_diff_key( $GLOBALS['digi']['options'], array( 'digitalisimo_backups_credentials' => true ) ) ) );
 	digi_assert( 5 === count( $K::get( $C::OPTION, array() )['items'] ?? array() ), 'El almacén cifrado no tiene los cinco secretos.' );
 
 	// Cifradas: REST y WP-CLI lo dicen sin ningún valor y los tres destinos están conectados.

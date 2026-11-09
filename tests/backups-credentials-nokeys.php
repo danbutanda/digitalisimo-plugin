@@ -18,10 +18,10 @@ $secrets = array( 'sftp_password' => 'Sftp-SinSalts.b81f4c', 'google_client_secr
 $fields = array( 'destination' => 'local', 'retention' => '100', 'sftp_host' => 'sftp.example.test', 'sftp_port' => '22', 'sftp_user' => 'respaldos', 'sftp_path' => '/backups', 'sftp_fingerprint' => str_repeat( 'C', 40 ), 'google_client_id' => 'cliente-google' );
 $settings = function() use ( $B ) { return bk_call( $B, 'settings' ); };
 
-if ( false !== $C::key() || $C::can_encrypt() || false !== $K::wrap_key() ) throw new RuntimeException( 'Con las salts de ejemplo no debe haber clave de credenciales ni de llavero.' );
 // Sin secretos, `status` ya avisa de que hay que definirlas antes de conectar un destino.
 $status = $B::service_status();
-if ( 'none' !== $status['credentials'] || false === strpos( $status['credentials_notice'], 'AUTH_KEY y SECURE_AUTH_KEY propias' ) ) throw new RuntimeException( 'Sin salts propias, el estado no avisa de que hay que definirlas: ' . json_encode( $status ) );
+if ( 'none' !== ( $status['credentials'] ?? null ) || false === strpos( (string) ( $status['credentials_notice'] ?? '' ), 'AUTH_KEY y SECURE_AUTH_KEY propias' ) ) throw new RuntimeException( 'Sin salts propias, el estado no avisa de que hay que definirlas: ' . json_encode( $status ) );
+if ( false !== $C::key() || $C::can_encrypt() || false !== $K::wrap_key() ) throw new RuntimeException( 'Con las salts de ejemplo no debe haber clave de credenciales ni de llavero.' );
 
 // Guardar: se guarda como hasta ahora, con aviso; nunca se pierde un secreto.
 list( $ok, $message ) = bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $fields + $secrets ) );
