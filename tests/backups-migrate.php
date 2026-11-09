@@ -251,6 +251,8 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 		return null;
 	} );
 	mig_use( 'destino' );
+	Digitalisimo_Backups_Migrate::set_allow_http( false );
+	$instance = Digitalisimo_Backups_Migrate::instance();
 	$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR' ) );
 	mig_assert( 202 === $reply[0] && 'origen.test' === $reply[1]['source'] && 'migration' === $reply[1]['kind'], 'El destino no encoló la migración: ' . json_encode( $reply ) );
 	$migrated_job = $reply[1]['id'];
@@ -263,6 +265,9 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	mig_assert( count( $ranges ) >= 9 && 'bytes=0-65535' === $ranges[0] && 'bytes=65536-131071' === $ranges[1] && $ranges[1] === $ranges[2] && $ranges[2] === $ranges[3], 'La descarga no se reanudó desde lo descargado: ' . json_encode( $ranges ) );
 	mig_assert( count( array_keys( $ranges, 'bytes=0-65535', true ) ) >= 2, 'Tras el SHA-256 distinto no se descargó otra vez desde el principio: ' . json_encode( $ranges ) );
 	// El destino es ahora el origen con su propia dirección (reescritura de E1).
+	// El estado de la migración del destino (fuera de todo respaldo) sobrevive a la restauración, como el llavero.
+	$state = get_option( 'digitalisimo_backups_vault_migration' );
+	mig_assert( is_array( $state ) && $instance === $state['instance'] && in_array( 'lab_off', array_column( $state['log'], 'event' ), true ), 'La restauración se llevó el estado de la migración del destino.' );
 	mig_assert( 'Origen' === get_option( 'blogname' ) && 'https://destino.test' === rtrim( (string) get_option( 'home' ), '/' ) && 'https://destino.test' === rtrim( (string) get_option( 'siteurl' ), '/' ), 'El destino no quedó como el origen con su dirección: ' . json_encode( array( get_option( 'blogname' ), get_option( 'home' ), get_option( 'siteurl' ) ) ) );
 	$widget = get_option( 'widget_text' );
 	mig_assert( is_array( $widget ) && '<a href="https://destino.test/contacto">Contacto · ñ</a>' === $widget[2]['text'] && 'https://destino.test' === $widget[2]['url'], 'El serializado no se reescribió con sus longitudes: ' . json_encode( $widget ) );
