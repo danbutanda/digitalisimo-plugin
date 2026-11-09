@@ -54,7 +54,14 @@ add_filter( 'digitalisimo_backups_step_units', static function () {
 	return 400;
 } );
 $GLOBALS['digi_r_request'] = array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ) );
-add_action( 'init', static function () { $GLOBALS['digi_r_request']['init'] = microtime( true ); }, -1000 );
+// Dónde estaba la restauración al empezar y al terminar la petición (fase, paso y posición), para el informe.
+function digi_r_where() {
+	$job = class_exists( 'Digitalisimo_Backups_Jobs', false ) ? Digitalisimo_Backups_Jobs::restore_active() : null;
+	if ( ! $job ) return '';
+	$cursor = (array) ( $job['checkpoint'][ $job['phase'] ] ?? array() );
+	return substr( (string) $job['id'], 0, 8 ) . ':' . $job['phase'] . ':' . ( $cursor['step'] ?? $cursor['sub'] ?? '' ) . ':' . ( $cursor['i'] ?? $cursor['offset'] ?? $cursor['line'] ?? '' );
+}
+add_action( 'init', static function () { $GLOBALS['digi_r_request']['init'] = microtime( true ); $GLOBALS['digi_r_request']['from'] = digi_r_where(); }, -1000 );
 register_shutdown_function( static function () {
 	$request = $GLOBALS['digi_r_request'];
 	$cron = false !== strpos( $request['uri'], 'wp-cron.php' );
@@ -72,6 +79,8 @@ register_shutdown_function( static function () {
 		'memory_limit' => ini_get( 'memory_limit' ),
 		'request_limit' => class_exists( 'Digitalisimo_Backups_Step_Budget', false ) ? Digitalisimo_Backups_Step_Budget::request_limit() : null,
 		'restore_phase' => $restore ? $restore['phase'] : '',
+		'from' => $request['from'] ?? '',
+		'to' => digi_r_where(),
 		'error' => error_get_last()['message'] ?? '',
 	) ) . "\n", FILE_APPEND );
 } );
