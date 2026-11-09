@@ -55,10 +55,11 @@ const jobFile = (id) => { try { return JSON.parse(readFileSync(`${store}/jobs/${
 const terminal = (job) => job && ['success', 'failed', 'cancelled'].includes(job.status);
 
 // Inventario: la misma base de datos y los mismos archivos, sin lo volátil (ver lab.php).
-function compare(a, b, label) {
+// robots-ensayo.txt se crea después del respaldo fuera de las raíces gestionadas: debe quedarse, así que no cuenta.
+function compare(a, b, label, ignore = ['robots-ensayo.txt']) {
   const tables = new Set([...Object.keys(a.tables), ...Object.keys(b.tables)]);
   const diffTables = [...tables].filter((t) => JSON.stringify(a.tables[t]) !== JSON.stringify(b.tables[t]));
-  const files = new Set([...Object.keys(a.files), ...Object.keys(b.files)]);
+  const files = new Set([...Object.keys(a.files), ...Object.keys(b.files)].filter((f) => !ignore.includes(f)));
   const diffFiles = [...files].filter((f) => a.files[f] !== b.files[f]);
   check(!diffTables.length && !diffFiles.length, `${label}: ${Object.keys(b.tables).length} tablas y ${Object.keys(b.files).length} archivos idénticos`, JSON.stringify({ tablas: diffTables.slice(0, 8), archivos: diffFiles.slice(0, 12) }));
   return { tables: diffTables, files: diffFiles };

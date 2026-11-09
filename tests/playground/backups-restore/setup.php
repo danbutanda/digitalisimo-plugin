@@ -58,7 +58,8 @@ add_action( 'init', static function () { $GLOBALS['digi_r_request']['init'] = mi
 register_shutdown_function( static function () {
 	$request = $GLOBALS['digi_r_request'];
 	$cron = false !== strpos( $request['uri'], 'wp-cron.php' );
-	$rest = false !== strpos( $request['uri'], 'digitalisimo-backups' ) && false !== strpos( $request['uri'], '/restore' );
+	$uri = rawurldecode( $request['uri'] );
+	$rest = false !== strpos( $uri, 'digitalisimo-backups' ) && false !== strpos( $uri, '/restore' );
 	if ( ! $cron && ! $rest && ! in_array( $request['action'], array( 'digitalisimo_backups_job_tick', 'digitalisimo_backups_restore_tick', 'digitalisimo_backups_manual_start' ), true ) ) return;
 	$start = (float) ( $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime( true ) );
 	$restore = class_exists( 'Digitalisimo_Backups_Jobs', false ) ? Digitalisimo_Backups_Jobs::restore_active() : null;

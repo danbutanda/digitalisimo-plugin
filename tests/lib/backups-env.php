@@ -84,7 +84,11 @@ class Bk_Test_DB {
 		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
 			$values = array_map( 'bk_sql_unescape', $m[1] );
 			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ $values[1] ] = bk_maybe_unserialize( $values[2] );
-			elseif ( 'wp_posts' !== $t[1] ) $this->staged[ $t[1] ][] = $values;
+			elseif ( 'wp_posts' !== $t[1] ) {
+				// Como MySQL: una clave primaria (la primera columna) repetida en la misma tabla falla.
+				foreach ( $this->staged[ $t[1] ] ?? array() as $row ) if ( (string) $row[0] === (string) $values[0] && '' !== (string) $values[0] ) { $this->last_error = "Duplicate entry '" . $values[0] . "' for key 'PRIMARY'"; return false; }
+				$this->staged[ $t[1] ][] = $values;
+			}
 		}
 		$die = '' !== $this->exit_after && false !== strpos( $sql, $this->exit_after );
 		// RENAME TABLE (el cambio de una restauración por pasos): la tabla que pasa a ser wp_options (o wp_sitemeta en

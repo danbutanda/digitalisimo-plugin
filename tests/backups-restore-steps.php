@@ -221,7 +221,8 @@ if ( '' !== $death ) {
 	} elseif ( 'move' === $death ) {
 		rs_die_in( 'switch', 2, 'move' );
 	} else {
-		rs_die_in( $death, 2 );
+		// En la base de datos, la muerte cae en el segundo tramo, con filas de una tabla ya insertadas tras su punto de control.
+		rs_die_in( $death, 'database' === $death ? 7 : 2 );
 	}
 	if ( 'safety' === $death ) {
 		// La muerte cae dentro de la exportación de la base de datos de la copia previa (su latido), con el SQL a medias.
