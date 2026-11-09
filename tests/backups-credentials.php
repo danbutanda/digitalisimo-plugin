@@ -360,7 +360,7 @@ $case( 'd', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store,
 // (e) Las salts del respaldo no se pueden leer (getenv): «vuelve a escribir», sin texto en claro, con aviso al restaurar.
 $case( 'e', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store, $origin_backup, $config_with ) {
 	$origin = $C::key_from( 'salts-por-entorno-auth-0123456789ab', 'salts-por-entorno-secure-0123456789ab' );
-	$config = $config_with( "getenv( 'WP_AUTH_KEY' )", "getenv( 'WP_SECURE_AUTH_KEY' ) . ''" );
+	$config = $config_with( "'parte-literal-de-la-salt-0123456789' . getenv( 'WP_AUTH_KEY' )", "getenv( 'WP_SECURE_AUTH_KEY' )" );
 	$check( array( 'AUTH_KEY' => array(), 'SECURE_AUTH_KEY' => array() ) === $C::config_salts( $config ), 'Se tomó una expresión por un literal.' );
 	$backup = $origin_backup( $config, $origin );
 	$items = $store()['items'];
