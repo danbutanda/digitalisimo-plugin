@@ -232,6 +232,21 @@ try {
 		$settings = $call( 'settings' );
 		$check( $ok && array_intersect_key( $settings, $secrets ) == $secrets && array( $current ) === $kws() && ! $in_database( $secrets + array( 'x' => 'la-que-tenia-este-servidor', 'y' => $origin_auth ) ) && 'encrypted' === Digitalisimo_Backups::service_status()['credentials'], 'S9 restaurado desde «otro servidor»: las credenciales se volvieron a cifrar con las salts de éste y funcionan · ' . $elapsed() );
 		$check( (string) file_get_contents( $config_path ) === $config && array( $secrets['google_client_secret'], $secrets['google_refresh_token'] ) === $google(), 'S9 el wp-config.php de este servidor no cambió y Google renueva con los secretos del otro servidor' );
+		// Los ajustes van con autoload (comprobarlos al cargar no es una consulta). 1.0.60, tras volver desde rollback/, los
+		// reescribe en claro y sin autoload: la siguiente carga del escritorio los cifra y les devuelve el autoload.
+		$autoloaded = function() { return array_key_exists( Digitalisimo_Backups::OPTION, (array) wp_load_alloptions( true ) ); };
+		$check( $autoloaded(), 'S9 los ajustes se guardan con autoload' );
+		update_option( Digitalisimo_Backups::OPTION, array_merge( (array) get_option( Digitalisimo_Backups::OPTION ), array( 'sftp_password' => 'escrita-por-1.0.60' ) ), false );
+		wp_cache_flush();
+		$check( ! $autoloaded() && $in_database( array( 'escrita-por-1.0.60' ) ), 'S9 simulación de 1.0.60: contraseña en claro y ajustes sin autoload' );
+		Digitalisimo_Backups::credentials_on_load();
+		wp_cache_flush();
+		$check( $autoloaded() && ! $in_database( array( 'escrita-por-1.0.60' ) ) && 'escrita-por-1.0.60' === $call( 'settings' )['sftp_password'], 'S9 la carga del escritorio cifra lo que 1.0.60 reescribió y devuelve el autoload' );
+		update_option( Digitalisimo_Backups::OPTION, array_merge( (array) get_option( Digitalisimo_Backups::OPTION ), array( 'retention' => '21' ) ), false );
+		wp_cache_flush();
+		Digitalisimo_Backups::credentials_on_load();
+		wp_cache_flush();
+		$check( $autoloaded(), 'S9 unos ajustes sin nada en claro y sin autoload lo recuperan al cargar (wp_set_option_autoload)' );
 		@unlink( $file );
 		@unlink( $foreign );
 	};
