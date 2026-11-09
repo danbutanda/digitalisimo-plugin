@@ -94,13 +94,13 @@ foreach ( $cases as $i => list( $schedule, $time, $now, $wp_next, $expected ) ) 
 	digi_assert( $next && $at( $expected ) === $next->timestamp && $schedule === $next->schedule && 1 === count( $GLOBALS['cron'] ), 'El realineado (' . $schedule . ', ' . $now . ') no dejó la ejecución a las ' . $time . ' locales: ' . json_encode( $next ? gmdate( 'c', $next->timestamp ) : null ) );
 }
 // Si la siguiente ya cae a la hora elegida se respeta: la noche en que la hora se repite (America/New_York, el 1 de
-// noviembre las 01:30 ocurren en EDT y en EST) no se mueve a la otra 01:30.
+// noviembre las 01:30 ocurren en EDT y en EST; WP-Cron deja la siguiente en la de EDT) no se mueve a la otra 01:30.
 $GLOBALS['tz'] = 'America/New_York';
 update_option( $B::POLICIES, array( array( 'id' => 'repetida', 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4, 'enabled' => true, 'time' => '01:30' ) ) );
 $GLOBALS['cron'] = array();
-wp_schedule_event( $at( '2026-11-01T06:30:00Z' ), 'daily', 'digitalisimo_backups_policy', array( 'repetida', 1 ) );
+wp_schedule_event( $at( '2026-11-01T05:30:00Z' ), 'daily', 'digitalisimo_backups_policy', array( 'repetida', 1 ) );
 $B::realign_policy( 'repetida', 1, $at( '2026-10-31T05:30:00Z' ) );
-digi_assert( $at( '2026-11-01T06:30:00Z' ) === $event( 'repetida' )->timestamp, 'El realineado movió una ejecución que ya caía a su hora local: ' . gmdate( 'c', $event( 'repetida' )->timestamp ) );
+digi_assert( $at( '2026-11-01T05:30:00Z' ) === $event( 'repetida' )->timestamp, 'El realineado movió una ejecución que ya caía a su hora local: ' . gmdate( 'c', $event( 'repetida' )->timestamp ) );
 $GLOBALS['tz'] = 'Europe/Madrid';
 // Sin hora fija, el realineado no toca nada.
 update_option( $B::POLICIES, array( array( 'id' => 'sin-hora', 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 4, 'enabled' => true ) ) );
