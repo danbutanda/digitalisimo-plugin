@@ -151,6 +151,14 @@
   },
   "tc-stacked-left": {
    "title": "Imagen apilada, alineada a la izquierda, con borde y radio de la imagen y colores del texto",
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.021,
+      "reason": "Sólo a 375 px, que queda en el borde del umbral general: el suavizado del texto de este caso (1,93 % con el paso de Swiper; lo mismo que declaran con su umbral los demás testimonios: Swiper componía la pista en una capa y Chrome pintaba el texto de A en escala de grises) más 0,07 puntos de la paginación, con los puntos a 24 px como mínimo (decisión del propietario del 2026-11-08, WCAG 2.5.8): medido 2,00 % (2 833 de 141 804 píxeles). A 768 y 1 280 px, el umbral general."
+     }
+    }
+   },
    "widget": "testimonial-carousel",
    "settings": {
     "autoplay": "",
