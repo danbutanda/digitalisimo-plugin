@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
  * Respaldos completos de WordPress o de toda la red desde WP-CLI, con los mismos casos de uso que la pantalla Backups.
  *
  * WP-CLI corre con la cuenta del sistema, que ya controla los archivos y wp-config.php, así que no pide capability. En
- * una red se ejecuta en el sitio principal (`--url`), y crear, restaurar o ejecutar una automatización piden además
- * `--network`, porque abarcan todos los sitios.
+ * una red se ejecuta en el sitio principal (`--url`), y crear, restaurar, ejecutar una automatización o traer una copia
+ * remota al almacén piden además `--network`, porque abarcan todos los sitios.
  *
  * Crear y ejecutar una automatización encolan un trabajo en la misma cola que la pantalla y, salvo con `--async`, lo
  * hacen avanzar en este proceso (sin límite de tiempo) hasta que termina. La frase o clave de un respaldo cifrado nunca
@@ -29,6 +29,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups', __CLASS__ );
 		WP_CLI::add_command( 'digitalisimo-backups automation', 'Digitalisimo_Backups_Cli_Automation' );
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
+		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
@@ -479,5 +480,57 @@ final class Digitalisimo_Backups_Cli_Jobs {
 			return;
 		}
 		WP_CLI::success( $steps ? 'Cola avanzada.' : 'No había trabajo listo.' );
+	}
+}
+
+/** Destinos remotos: listarlos, probarlos y traer una copia remota al almacén. */
+final class Digitalisimo_Backups_Cli_Destinations {
+	/**
+	 * Destinos remotos y su estado (sin valores secretos).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * @subcommand list
+	 */
+	public function list_( $args, $assoc_args ) {
+		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_destinations() );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'type', 'name', 'primary', 'ready', 'problem' ) );
+	}
+	/**
+	 * «Probar conexión»: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : El tipo de una conexión principal (sftp, ftp, webdav, google, onedrive, dropbox, s3, s3compat, pcloud) o el identificador de una conexión adicional.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups destinations test s3compat
+	 */
+	public function test( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_test_saved( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( $result['message'] );
+	}
+	/**
+	 * Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256, para restaurarlo.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <file>
+	 * : Nombre del archivo, tal como aparece en `wp digitalisimo-backups list`.
+	 *
+	 * [--network]
+	 * : En Multisite, confirma el alcance de red: el almacén privado es de toda la instalación.
+	 */
+	public function fetch( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		WP_CLI::success( $result['message'] );
 	}
 }

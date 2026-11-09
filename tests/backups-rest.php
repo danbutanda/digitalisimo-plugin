@@ -36,7 +36,7 @@ try {
 	Digitalisimo_Backups_Rest::register();
 	digi_assert( array() === $GLOBALS['digi']['routes'] && 1 === count( $GLOBALS['digi']['actions']['rest_api_init'] ?? array() ), 'Las rutas deben registrarse en rest_api_init.' );
 	call_user_func( $GLOBALS['digi']['actions']['rest_api_init'][0] );
-	$expected = array( '/status' => 'GET', '/backups' => 'GET,POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/verify' => 'GET, POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/restore' => 'POST', '/automations' => 'GET', '/automations/(?P<id>[a-z0-9_-]+)/run' => 'POST', '/jobs' => 'GET', '/jobs/tick' => 'POST', $job_route => 'GET', $job_route . '/cancel' => 'POST', '/sites/(?P<site>[0-9]+)/extract' => 'POST' );
+	$expected = array( '/status' => 'GET', '/backups' => 'GET,POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/verify' => 'GET, POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/restore' => 'POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/fetch' => 'POST', '/destinations' => 'GET', '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test' => 'POST', '/automations' => 'GET', '/automations/(?P<id>[a-z0-9_-]+)/run' => 'POST', '/jobs' => 'GET', '/jobs/tick' => 'POST', $job_route => 'GET', $job_route . '/cancel' => 'POST', '/sites/(?P<site>[0-9]+)/extract' => 'POST' );
 	digi_assert( array_map( function( $route ) use ( $ns ) { return $ns . $route; }, array_keys( $expected ) ) === array_keys( $GLOBALS['digi']['routes'] ), 'Las rutas registradas no son las documentadas: ' . implode( ', ', array_keys( $GLOBALS['digi']['routes'] ) ) );
 	foreach ( $expected as $route => $methods ) {
 		$handlers = $GLOBALS['digi']['routes'][ $ns . $route ];
@@ -48,7 +48,7 @@ try {
 	// Sin sesión: 401; con una cuenta sin la capability: 403. Nada llega al motor.
 	$GLOBALS['digi']['caps'] = array();
 	$uuid = '0b6f6b8e-3c1d-4f7a-9a1e-2f4d5c6b7a8e';
-	$every = array( array( 'GET', '/status' ), array( 'GET', '/backups' ), array( 'POST', '/backups' ), array( 'GET', '/backups/x.zip/verify' ), array( 'POST', '/backups/x.zip/restore', array( 'confirm' => 'RESTAURAR' ) ), array( 'GET', '/automations' ), array( 'POST', '/automations/monthly-full/run' ), array( 'GET', '/jobs' ), array( 'POST', '/jobs/tick' ), array( 'GET', '/jobs/' . $uuid ), array( 'POST', '/jobs/' . $uuid . '/cancel' ) );
+	$every = array( array( 'GET', '/status' ), array( 'GET', '/backups' ), array( 'POST', '/backups' ), array( 'GET', '/backups/x.zip/verify' ), array( 'POST', '/backups/x.zip/restore', array( 'confirm' => 'RESTAURAR' ) ), array( 'POST', '/backups/x.zip/fetch' ), array( 'GET', '/destinations' ), array( 'POST', '/destinations/s3/test' ), array( 'GET', '/automations' ), array( 'POST', '/automations/monthly-full/run' ), array( 'GET', '/jobs' ), array( 'POST', '/jobs/tick' ), array( 'GET', '/jobs/' . $uuid ), array( 'POST', '/jobs/' . $uuid . '/cancel' ) );
 	foreach ( $every as $call ) {
 		list( $code ) = digi_rest( $call[0], $ns . $call[1], $call[2] ?? array(), false );
 		digi_assert( 401 === $code, 'Una petición sin sesión no recibió 401 en ' . $call[1] );

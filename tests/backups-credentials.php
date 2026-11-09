@@ -189,7 +189,10 @@ $case( 'i', function() use ( $B, $C, $check, $leak, $settings ) {
 	ob_start();
 	try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $html = ob_get_clean(); }
 	$check( null === $leak( $html ), 'La pantalla de Servidores muestra un secreto.' );
-	$check( 5 === substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) && 5 === substr_count( $html, 'type="password"' ), 'La pantalla no anuncia los cinco secretos guardados con el campo vacío.' );
+	// Cada uno de los cinco secretos guardados: campo de contraseña vacío con su estado en el placeholder (desde la
+	// entrega de destinos la pantalla tiene más campos de contraseña, de los demás destinos, que van vacíos y sin él).
+	$announced = preg_match_all( '#<input class="regular-text" type="password" id="(sftp_password|google_client_secret|google_refresh_token|onedrive_client_secret|onedrive_refresh_token)" name="digitalisimo_backups\[\1\]" value="" placeholder="Guardado · escribe sólo para reemplazar" autocomplete="new-password">#', $html );
+	$check( 5 === substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) && 5 === $announced, 'La pantalla no anuncia los cinco secretos guardados con el campo vacío.' );
 	$status = $B::service_status();
 	$json = json_encode( $status );
 	$check( ! is_wp_error( $status ) && 'encrypted' === $status['credentials'] && '' === $status['credentials_notice'], 'El estado no dice que las credenciales están cifradas: ' . $json );
@@ -272,7 +275,7 @@ $case( 'f', function() use ( $B, $C, $K, $check, $leak, $save, $secrets, $settin
 $case( 'g', function() use ( $B, $C, $check, $leak, $settings, $store, $current ) {
 	$token = '1//refresh-de-oauth-nuevo-a1b2c3d4';
 	$GLOBALS['bk_http'] = array();
-	$GLOBALS['bk_transients'][ 'digitalisimo_backup_oauth_1' ] = array( 'state' => 'estado-oauth', 'provider' => 'google' );
+	update_option( $B::oauth_pending_key(), array( 'state' => 'estado-oauth', 'provider' => 'google', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 	$GLOBALS['bk_http_reply'] = array( 'refresh_token' => $token );
 	$_GET = array( 'code' => 'codigo-de-google', 'state' => 'estado-oauth' );
 	$_REQUEST = array( 'provider' => 'google' ) + $_GET;
