@@ -735,6 +735,7 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		if ( $this->needed() ) $report['caches'] = $this->flush_caches( $names, $report['warnings'] );
+		$this->rewrite_rules_file( $report );
 		try {
 			$report['check'] = $this->leftovers( $names );
 		} catch ( Throwable $e ) {
@@ -745,6 +746,31 @@ final class Digitalisimo_Backups_Relocate {
 		$this->report = $report + array( 'summary' => $this->summary(), 'tables' => $this->tables, 'stats' => $this->stats );
 		return $this->report;
 	}
+	/**
+	 * Si cambió la ruta del sitio (/a → /b), las reglas de reescritura del servidor que trajo el respaldo apuntan a la
+	 * anterior. En un sitio individual con Apache, el bloque de WordPress de .htaccess se regenera como al guardar los
+	 * enlaces permanentes; en una red o con otro servidor (nginx) se avisa.
+	 */
+	private function rewrite_rules_file( array &$report ) {
+		if ( 'current' !== $this->mode ) return;
+		$from = self::parse_url( $this->origin['home'] );
+		$to = self::parse_url( $this->destination['home'] );
+		$moved = $this->origin['multisite'] ? $this->origin['network']['path'] !== $this->destination['network']['path'] : ( $from && $to && $from['path'] !== $to['path'] );
+		if ( ! $moved ) return;
+		$report['caches']['htaccess'] = false;
+		if ( ! $this->origin['multisite'] && defined( 'ABSPATH' ) && is_file( ABSPATH . 'wp-admin/includes/misc.php' ) ) {
+			try {
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+				require_once ABSPATH . 'wp-admin/includes/misc.php';
+				if ( isset( $GLOBALS['wp_rewrite'] ) && is_object( $GLOBALS['wp_rewrite'] ) && method_exists( $GLOBALS['wp_rewrite'], 'init' ) ) $GLOBALS['wp_rewrite']->init();
+				if ( function_exists( 'save_mod_rewrite_rules' ) && function_exists( 'got_mod_rewrite' ) && got_mod_rewrite() ) $report['caches']['htaccess'] = (bool) save_mod_rewrite_rules();
+			} catch ( Throwable $e ) {
+				$report['warnings'][] = 'No se pudo regenerar .htaccess: ' . $e->getMessage();
+			}
+		}
+		if ( ! $report['caches']['htaccess'] ) $report['warnings'][] = 'La ruta del sitio cambió: si el servidor usa reglas de reescritura propias (.htaccess de una red, nginx), actualízalas para la ruta nueva y guarda los enlaces permanentes.';
+	}
+
 	/** El informe de finish(): resumen, tablas, red, direcciones, cachés, comprobación y avisos. */
 	public function report() { return $this->report; }
 
