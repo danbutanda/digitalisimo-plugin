@@ -390,7 +390,11 @@ try {
 	$error = $S::service_extract( 2, array( 'network' => true, 'secret' => 'corta' ) );
 	digi_assert( is_wp_error( $error ) && 400 === $error->get_error_data()['status'], 'Se aceptó una frase de menos de 16 caracteres.' );
 	$phrase = 'frase del cliente <nuevo> & "propia"';
+	// Aunque la red cifre y todavía no tenga clave (sus respaldos no pueden crearse), un sitio se extrae con su frase.
+	$ring = get_site_option( Digitalisimo_Backups_Keys::KEYRING );
+	update_site_option( Digitalisimo_Backups_Keys::KEYRING, null );
 	$sealed = digi_extract( 2, array( 'secret' => $phrase ) );
+	update_site_option( Digitalisimo_Backups_Keys::KEYRING, $ring );
 	digi_assert( '.dgbk' === substr( $sealed['file'], -5 ), 'El sitio extraído con frase no salió cifrado: ' . $sealed['file'] );
 	$header = Digitalisimo_Backups_Encrypted_File::read_header( $store . '/' . $sealed['file'] )['header'];
 	digi_assert( $network_key !== $header['key']['id'] && $network_key === Digitalisimo_Backups_Keys::active()[1]['id'], 'El sitio extraído se cifró con la clave de la red o cambió la clave activa de la red.' );
