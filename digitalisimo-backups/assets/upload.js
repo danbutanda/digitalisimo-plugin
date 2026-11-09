@@ -109,6 +109,7 @@
     else text += 'Para restaurarlo ';
     text += 'escribe ' + result.confirmation + '. ';
     if (result.problems && result.problems.length) text += result.problems.join(' ') + ' ';
+    if (result.wp_config && result.wp_config.text) text += result.wp_config.text + ' ';
     return text + 'Recarga la página para verlo en «Restaurar» como «sin registro».';
   }
 

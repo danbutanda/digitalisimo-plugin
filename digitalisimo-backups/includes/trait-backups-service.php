@@ -377,6 +377,8 @@ trait Digitalisimo_Backups_Service {
 			$trust = (string) $report['trust'];
 			$key = isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '';
 			$copies = self::service_safety_copies();
+			// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (sin valores secretos).
+			$config = self::config_report( $report['zip'] );
 			try {
 				$relocation = self::restore_digitalisimo_zip( $report['path'], $report, array( 'addresses' => $addresses ) );
 			} catch ( Throwable $e ) {
@@ -401,6 +403,7 @@ trait Digitalisimo_Backups_Service {
 			$credentials = self::credentials_status();
 			if ( 'needs_reentry' === $credentials['state'] ) $notice .= ' ' . $credentials['notice'];
 			if ( $relocation ) $notice .= ' ' . self::relocation_notice( $relocation );
+			if ( '' !== $config['text'] ) $notice .= ' ' . $config['text'];
 			$event = array( 'ok' => true, 'started' => true, 'notes' => array( ltrim( $notice ) ) );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
@@ -412,7 +415,7 @@ trait Digitalisimo_Backups_Service {
 				try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 			}
 		}
-		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => self::service_latest_safety(), 'relocation' => $relocation ? self::relocation_public( $relocation ) : null );
+		return array( 'file' => wp_basename( $path ), 'restored' => true, 'trust' => $trust, 'key' => $key, 'adopted' => $adopted, 'notice' => ltrim( $notice ), 'safety_backup' => self::service_latest_safety(), 'relocation' => $relocation ? self::relocation_public( $relocation ) : null, 'wp_config' => $config );
 	}
 	/** La copia previa más reciente del historial (la de esta restauración si llegó a crearse). */
 	private static function service_latest_safety() {
@@ -519,6 +522,7 @@ trait Digitalisimo_Backups_Service {
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
 				'relocation' => $relocation,
+				'wp_config' => self::config_report( $zip ),
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );

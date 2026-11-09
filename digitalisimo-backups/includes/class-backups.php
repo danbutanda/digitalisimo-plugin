@@ -9,6 +9,8 @@ unset( $digitalisimo_backups_part );
 
 require_once __DIR__ . '/class-backups-layout.php';
 require_once __DIR__ . '/class-backups-notify.php';
+require_once __DIR__ . '/class-backups-maintenance.php';
+require_once __DIR__ . '/class-backups-config-diff.php';
 require_once __DIR__ . '/class-backups-uploads.php';
 require_once __DIR__ . '/trait-backups-upload-service.php';
 // Restaurar en otro dominio, otra ruta del servidor u otro prefijo de tablas (ver «Restaurar en otro dominio»).
@@ -124,7 +126,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ) ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -152,6 +154,15 @@ final class Digitalisimo_Backups {
 			Digitalisimo_Backups_Credentials::forget( $origin );
 		}
 		@unlink( $path );
+		// El proceso murió con el sitio en mantenimiento: se retira, y se avisa a quien recibía los avisos antes del SQL.
+		Digitalisimo_Backups_Maintenance::clear_stale();
+		if ( is_array( $data ) && is_array( $data['notify'] ?? null ) ) {
+			$safety = '';
+			foreach ( (array) ( $data['history'] ?? array() ) as $row ) if ( 'pre-restore' === ( $row['policy'] ?? '' ) ) { $safety = (string) ( $row['file'] ?? '' ); break; }
+			$started = (int) ( $data['started'] ?? 0 );
+			$message = 'La restauración que empezó ' . ( $started ? 'el ' . ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i', $started ) : gmdate( 'Y-m-d H:i', $started ) . ' UTC' ) . ' ' : '' ) . 'se interrumpió antes de terminar (el proceso se detuvo: tiempo agotado, memoria o una recarga del servidor web). Se recuperaron el historial, la seguridad y las credenciales, pero la base de datos y los archivos pueden haber quedado a medias' . ( '' !== $safety ? ': restaura la copia previa ' . $safety . '.' : '.' );
+			try { Digitalisimo_Backups_Notify::restore( $data['notify'], false, array( 'started' => true, 'message' => $message ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+		}
 	}
 	public static function release_operation_lock( $handle ) {
 		if ( is_resource( $handle ) ) {
@@ -836,6 +847,14 @@ final class Digitalisimo_Backups {
 		if ( is_multisite() && function_exists( 'is_main_network' ) && ! is_main_network() ) throw new Exception( self::service_main_site_problem() );
 		Digitalisimo_Backups_Layout::assert_complete();
 		self::wordpress_config_file();
+	}
+	/**
+	 * Diferencias de wp-config.php entre un respaldo abierto y el que carga este servidor
+	 * (Digitalisimo_Backups_Config_Diff): `available`, `differences` (sin valores secretos ni rutas) y `text`.
+	 */
+	private static function config_report( $zip ) {
+		try { $server = self::wordpress_config_file(); } catch ( Exception $e ) { $server = ''; }
+		return Digitalisimo_Backups_Config_Diff::for_zip( $zip, $server );
 	}
 	private static function wordpress_config_file() {
 		$root = realpath( ABSPATH );
@@ -1819,6 +1838,8 @@ final class Digitalisimo_Backups {
 			$history_before = self::fresh_history();
 			self::write_restore_journal( $origin );
 			$created_files = array();
+			// Desde el SQL hasta el final (también la recuperación desde la copia previa), el sitio está en mantenimiento.
+			Digitalisimo_Backups_Maintenance::start();
 			try {
 				$guard = Digitalisimo_Backups_Sql_Guard::for_backup( $data, $trusted );
 				// Prefijo, direcciones y rutas cambian en cada fila antes de ejecutarla: memoria constante y, si el proceso
@@ -1841,8 +1862,12 @@ final class Digitalisimo_Backups {
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
 				}
 			} finally {
-				self::after_restore_sql( $history_before, $vault_before, $origin );
-				self::remove_restore_journal();
+				try {
+					self::after_restore_sql( $history_before, $vault_before, $origin );
+					self::remove_restore_journal();
+				} finally {
+					Digitalisimo_Backups_Maintenance::stop();
+				}
 			}
 			if ( null !== $relocation ) update_option( self::LAST_RELOCATION, array( 'date' => current_time( 'mysql' ), 'file' => wp_basename( $path ) ) + $relocation, false );
 			return $relocation;
@@ -1964,6 +1989,8 @@ final class Digitalisimo_Backups {
 			if ( 0 !== strpos( $name, 'wordpress/' ) || 'wordpress/wp-config.php' === $name || '/' === substr( $name, -1 ) ) continue;
 			$relative = substr( $name, strlen( 'wordpress/' ) );
 			if ( ! $relative || 0 === strpos( $relative, '.git/' ) ) continue;
+			// El `.maintenance` que tuviera el respaldo (hecho durante una actualización) nunca sustituye al de esta restauración.
+			if ( '.maintenance' === $relative ) continue;
 			if ( isset( $active_database_files[ $root . $relative ] ) ) continue;
 			$created_hash = self::write_entry( $zip, $i, $root, $relative, is_array( $created_files ) );
 			if ( null !== $created_hash ) $created_files[ $root . $relative ] = $created_hash;
@@ -1974,6 +2001,7 @@ final class Digitalisimo_Backups {
 	 * de lo declarado (un tamaño falso no llena el disco). Devuelve el SHA-256 de un archivo nuevo si $track.
 	 */
 	private static function write_entry( $zip, $index, $root, $relative, $track ) {
+		Digitalisimo_Backups_Maintenance::heartbeat();
 		$destination = $root . $relative;
 		$current = rtrim( $root, '/' );
 		foreach ( explode( '/', dirname( $relative ) ) as $part ) {
@@ -2041,6 +2069,7 @@ final class Digitalisimo_Backups {
 		if ( ! $stream ) throw new Exception( 'No se pudo leer la base de datos del ZIP.' );
 		try {
 			$guard->scan( function() use ( $stream ) {
+				Digitalisimo_Backups_Maintenance::heartbeat();
 				if ( feof( $stream ) ) return null;
 				$chunk = fread( $stream, 65536 );
 				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'La base de datos del ZIP está truncada.' );
@@ -2081,13 +2110,18 @@ final class Digitalisimo_Backups {
 			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
 			self::write_restore_journal();
+			Digitalisimo_Backups_Maintenance::start();
 			try {
 				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
 				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
 			} finally {
-				self::after_restore_sql( $history_before, $vault_before );
-				self::remove_restore_journal();
+				try {
+					self::after_restore_sql( $history_before, $vault_before );
+					self::remove_restore_journal();
+				} finally {
+					Digitalisimo_Backups_Maintenance::stop();
+				}
 			}
 		} finally {
 			foreach ( $pieces as $piece ) self::close_quietly( $piece[0] );
@@ -2099,6 +2133,7 @@ final class Digitalisimo_Backups {
 		if ( ! $handle ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );
 		try {
 			return $guard->scan( function() use ( $handle ) {
+				Digitalisimo_Backups_Maintenance::heartbeat();
 				if ( gzeof( $handle ) ) return null;
 				$chunk = gzread( $handle, 65536 );
 				if ( false === $chunk || ( '' === $chunk && ! gzeof( $handle ) ) ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' );

@@ -152,7 +152,8 @@ final class Digitalisimo_Backups_Notify {
 	 */
 	public static function restore( array $snapshot, $ok, array $facts ) {
 		$kind = (string) ( $facts['kind'] ?? 'backup' );
-		$lines = array( 'Archivo: ' . basename( (string) ( $facts['file'] ?? '' ) ) . ( 'updraft' === $kind ? ' (UpdraftPlus)' : '' ) );
+		$lines = array();
+		if ( '' !== (string) ( $facts['file'] ?? '' ) ) $lines[] = 'Archivo: ' . basename( (string) $facts['file'] ) . ( 'updraft' === $kind ? ' (UpdraftPlus)' : '' );
 		if ( ! empty( $facts['via'] ) ) $lines[] = 'Origen: ' . self::via_label( (string) $facts['via'] );
 		if ( $ok ) {
 			if ( ! empty( $facts['safety'] ) ) $lines[] = 'Copia previa bloqueada: ' . basename( (string) $facts['safety'] );

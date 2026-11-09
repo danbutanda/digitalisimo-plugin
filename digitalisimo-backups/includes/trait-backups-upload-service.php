@@ -227,6 +227,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				'created_at' => (string) ( $data['created_at'] ?? '' ),
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
 				'relocation' => $relocation,
+				'wp_config' => self::config_report( $report['zip'] ),
 			) );
 		} catch ( Exception $e ) {
 			return self::service_error( 'upload_invalid', 'El archivo no supera la validación de archivos no confiables y se descartó: ' . $e->getMessage(), 422 );
