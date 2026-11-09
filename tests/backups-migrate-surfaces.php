@@ -151,6 +151,17 @@ mig_case( 'm · pantalla: generar, mostrar una vez, revocar, laboratorio, migrar
 	mig_use( 'origen' );
 } );
 
+mig_case( 'o · la API del origen con y sin enlaces permanentes', function() {
+	$M = 'Digitalisimo_Backups_Migrate';
+	$cases = array(
+		array( 'https://a.test/wp-json/digitalisimo-backups/v1/migrate/source', 'https://a.test/wp-json/digitalisimo-backups/v1/migrate/source/hello' ),
+		array( 'https://a.test/blog/wp-json/digitalisimo-backups/v1/migrate/source/', 'https://a.test/blog/wp-json/digitalisimo-backups/v1/migrate/source/hello' ),
+		array( 'https://a.test/index.php?rest_route=/digitalisimo-backups/v1/migrate/source', 'https://a.test/index.php?rest_route=/digitalisimo-backups/v1/migrate/source/hello' ),
+		array( 'https://a.test/?lang=es&rest_route=%2Fdigitalisimo-backups%2Fv1%2Fmigrate%2Fsource&x=1', 'https://a.test/?lang=es&rest_route=/digitalisimo-backups/v1/migrate/source/hello&x=1' ),
+	);
+	foreach ( $cases as $case ) mig_assert( $case[1] === $M::endpoint( $case[0], 'hello' ), 'La URL de la API no es la esperada: ' . $M::endpoint( $case[0], 'hello' ) );
+} );
+
 mig_case( 'n · en una red, la pantalla de la red genera la clave (alcance de red) y REST lo exige', function() {
 	$M = 'Digitalisimo_Backups_Migrate';
 	$GLOBALS['mig']['sites']['origen']['multisite'] = true;
