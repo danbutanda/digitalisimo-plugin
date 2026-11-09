@@ -46,8 +46,9 @@ for mode in ${MODES:-single multisite}; do
   port_a=$((PORT + offset)); port_b=$((PORT + offset + 1)); offset=$((offset + 2))
   with_elements=0; case " $ELEMENTS " in *" $mode "*) with_elements=1 ;; esac
   case "$mode" in
-    single) host_a="127.0.0.1:$port_a"; host_b="127.0.0.1:$port_b"; extra=''; hosts='{}' ;;
-    multisite) host_a='origen.test'; host_b='destino.test'; extra='{"step":"enableMultisite"},'; hosts="{\"origen.test\":\"127.0.0.1:$port_a\",\"destino.test\":\"127.0.0.1:$port_b\"}" ;;
+    single) host_a="127.0.0.1:$port_a"; host_b="127.0.0.1:$port_b"; extra=''; hosts_a='{}'; hosts_b='{}' ;;
+    # Cada sitio sólo resuelve el host del otro: una petición a sí mismo con un solo worker se esperaría a sí misma.
+    multisite) host_a='origen.test'; host_b='destino.test'; extra='{"step":"enableMultisite"},'; hosts_a="{\"destino.test\":\"127.0.0.1:$port_b\"}"; hosts_b="{\"origen.test\":\"127.0.0.1:$port_a\"}" ;;
     *) echo "Modo desconocido: $mode"; exit 2 ;;
   esac
   printf '{"token":"%s","A":{"port":%s,"host":"%s","home":"http://%s","password":"origen-admin-%s"},"B":{"port":%s,"host":"%s","home":"http://%s","password":"destino-admin-%s"}}\n' \
@@ -61,7 +62,7 @@ for mode in ${MODES:-single multisite}; do
     cp "$D/setup.php" "$sd/probe/"
     cp "$D/probe.php" "$sd/web/"
     echo "$TOKEN" > "$sd/web/token.txt"
-    echo "$hosts" > "$sd/probe/hosts.json"
+    if [ "$site" = A ]; then echo "$hosts_a" > "$sd/probe/hosts.json"; else echo "$hosts_b" > "$sd/probe/hosts.json"; fi
     role=origen; [ "$site" = B ] && role=destino
     elements=false; mounts=()
     if [ "$site" = A ] && [ "$with_elements" = 1 ]; then
