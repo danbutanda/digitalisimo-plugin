@@ -302,6 +302,7 @@ jobs:
           php tests/backups-notify.php
           php tests/backups-upload.php
           node tests/backups-upload-ui.mjs
+          php tests/backups-schedule-time.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

@@ -303,7 +303,7 @@ final class Digitalisimo_Backups_Cli_Automation {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_automations() );
-		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'destination', 'retain', 'enabled', 'next_run' ) );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'destination', 'retain', 'enabled', 'next_run' ) );
 	}
 
 	/**

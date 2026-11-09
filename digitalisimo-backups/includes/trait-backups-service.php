@@ -227,6 +227,7 @@ trait Digitalisimo_Backups_Service {
 				'label' => (string) ( $policy['label'] ?? '' ),
 				'type' => (string) ( $policy['type'] ?? '' ),
 				'schedule' => (string) ( $policy['schedule'] ?? 'disabled' ),
+				'time' => self::fixed_time( $policy ),
 				'destination' => (string) ( $policy['destination'] ?? 'local' ),
 				'retain' => (int) ( $policy['retain'] ?? 0 ),
 				'enabled' => $enabled,
