@@ -53,6 +53,8 @@ final class Digitalisimo_Backups_Migrate {
 	public static $transport = null;
 	/** Espera entre reintentos inmediatos de un fragmento (sustituible en las pruebas). */
 	public static $pause = 'sleep';
+	/** Fin de la página que muestra la clave (sustituible en las pruebas; en WordPress, exit). */
+	public static $end = null;
 
 	public static function init() {
 		foreach ( array( self::ACTION_CREATE => 'create_request', self::ACTION_REVOKE => 'revoke_request', self::ACTION_PULL => 'pull_request', self::ACTION_UNDO => 'undo_request', self::ACTION_SETTINGS => 'settings_request' ) as $action => $method ) add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
@@ -79,6 +81,7 @@ final class Digitalisimo_Backups_Migrate {
 		if ( 'migrate' === ( $spec['kind'] ?? '' ) ) {
 			$host = (string) ( $spec['migration']['source_host'] ?? '' );
 			if ( 'preflight' === $view['phase'] && ! $view['terminal'] ) $view['phase_label'] = 'Conexión con el origen';
+			if ( 'success' === $view['status'] ) $view['detail'] = (string) $view['message'] . ( $view['warnings'] ? ' · ' . $view['warnings'] . ' aviso(s) en el registro del trabajo' : '' );
 			return array_merge( $view, array( 'kind' => 'migration', 'origin_label' => 'Migración desde otro sitio', 'destination_label' => 'desde ' . $host, 'file' => '' ) );
 		}
 		if ( 'source' === ( $spec['migration']['role'] ?? '' ) ) {
@@ -1145,6 +1148,7 @@ final class Digitalisimo_Backups_Migrate {
 		echo '<h1>Clave de migración</h1><p class="aviso"><strong>Se muestra una sola vez.</strong> Cópiala ahora y pégala en Backups → Migrar del sitio de destino. Caduca el ' . esc_html( gmdate( 'Y-m-d H:i', (int) $result['expires'] ) ) . ' UTC, sirve para una sola migración y la puedes revocar en esta pantalla. Quien la tenga puede llevarse una copia completa de este sitio: no la envíes por un canal inseguro.</p>';
 		echo '<textarea id="clave" rows="5" readonly autocomplete="off" spellcheck="false" onclick="this.select()">' . esc_html( $result['key'] ) . '</textarea>';
 		echo '<p><button type="button" onclick="var t=document.getElementById(\'clave\');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value);}this.textContent=\'Copiada\'">Copiar</button> · <a href="' . esc_url( $back ) . '">Volver a Backups → Migrar</a></p></body></html>';
+		if ( self::$end ) { call_user_func( self::$end ); return; }
 		exit;
 	}
 	public static function revoke_request() {

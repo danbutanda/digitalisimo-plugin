@@ -17,6 +17,7 @@
   var timer = null;
   var busy = false;
   var failures = 0;
+  var migrating = false;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
@@ -85,7 +86,16 @@
     if (job.status === 'success') detail.textContent = job.detail + '. Actualiza la página para verlo en el historial.';
     else if (job.status === 'failed') detail.textContent = job.detail + ' No se registró ningún respaldo parcial; puedes corregir el error y volver a intentarlo.';
   }
+  /* Una migración que llegó a restaurar reemplaza los usuarios: la sesión de este navegador deja de valer. */
+  function sessionReplaced() {
+    if (!card || card.querySelector('.digitalisimo-backups-migrate-login')) return;
+    var note = element('p', 'La migración reemplazó este sitio y tu sesión ya no vale: inicia sesión con un usuario del sitio de origen para ver el resultado. Si algo salió mal, «Deshacer la migración» en Backups → Migrar lo devuelve a su estado anterior.', { 'class': 'notice notice-info inline digitalisimo-backups-migrate-login', role: 'status' });
+    var link = element('a', ' Iniciar sesión', { href: config.login || '/wp-login.php' });
+    note.appendChild(link);
+    card.insertBefore(note, list);
+  }
   function update(jobs) {
+    migrating = jobs.some(function (job) { return job.kind === 'migration' && !job.terminal && ['check', 'restore', 'finish'].indexOf(job.phase) !== -1; });
     renderJobs(jobs);
     showWatched(jobs);
     var active = jobs.filter(function (job) { return !job.terminal; });
@@ -116,6 +126,7 @@
     }).catch(function (error) {
       busy = false;
       failures++;
+      if (migrating && failures >= 2) { sessionReplaced(); return; }
       if (watching && detail) detail.textContent = 'No se pudo avanzar ahora: ' + error.message + '. Se reintentará; WP-Cron también lo continúa.';
       schedule(Math.min(30000, 2000 * failures));
     });
