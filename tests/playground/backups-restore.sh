@@ -44,7 +44,8 @@ for mode in ${MODES:-single multisite}; do
   cp -a "$ROOT/digitalisimo-backups" "$dir/plugin"
   cp "$D/setup.php" "$D/lab.php" "$dir/probe/"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
-  host="127.0.0.1:$port"
+  # Un nombre sin puerto (una red de WordPress no admite puertos); las peticiones van a 127.0.0.1 con este Host.
+  host="restore-$mode.test"
   cat > "$dir/blueprint.json" <<JSON
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local"}},$multi
 {"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
@@ -63,10 +64,10 @@ JSON
     sleep 3
     kill -0 "$SERVER" 2>/dev/null || break
     [ -f "$dir/probe/setup-error.txt" ] && break
-    if [ -s "$dir/probe/setup.json" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -m 60 "http://$host/?rest_route=%2F")" = 200 ]; then ready=1; break; fi
+    if [ -s "$dir/probe/setup.json" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -m 60 -H "Host: $host" "http://127.0.0.1:$port/?rest_route=%2F")" = 200 ]; then ready=1; break; fi
   done
   if [ "$ready" != 1 ]; then
-    echo "== $mode: el sitio no quedó listo"; cat "$dir/probe/setup-error.txt" 2>/dev/null || true; tail -20 "$dir/server.log"; stop_server; fail=1; port=$((port + 1)); continue
+    echo "== $mode: el sitio no quedó listo (servidor vivo: $(kill -0 "$SERVER" 2>/dev/null && echo sí || echo no))"; cat "$dir/probe/setup-error.txt" 2>/dev/null || true; tail -20 "$dir/server.log"; stop_server; fail=1; port=$((port + 1)); continue
   fi
   echo "== $mode: sitio listo en $(( $(date +%s) - begun )) s: $(cat "$dir/probe/setup.json")"
   node "$D/drive.mjs" "$port" "$host" "$dir" "$mode" || fail=1

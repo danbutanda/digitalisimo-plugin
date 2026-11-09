@@ -41,7 +41,9 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 			. '$upgrading = ' . (int) $upgrading . ";\n"
 			. '$digitalisimo_backups_restore = isset( $_COOKIE[\'' . self::COOKIE . '\'] ) ? $_COOKIE[\'' . self::COOKIE . '\'] : ( isset( $_GET[\'' . self::PARAM . '\'] ) ? $_GET[\'' . self::PARAM . '\'] : \'\' );' . "\n"
 			. 'if ( is_string( $digitalisimo_backups_restore ) && \'\' !== $digitalisimo_backups_restore && hash_equals( \'' . $hash . '\', hash( \'sha256\', $digitalisimo_backups_restore ) ) ) $upgrading = 0;' . "\n"
-			. 'unset( $digitalisimo_backups_restore );' . "\n";
+			. 'unset( $digitalisimo_backups_restore );' . "\n"
+			// WP-CLI (la cuenta del sistema) siempre pasa: es la vía para terminar o recuperar a mano.
+			. 'if ( defined( \'WP_CLI\' ) && WP_CLI ) $upgrading = 0;' . "\n";
 		$temp = $path . '.tmp-' . bin2hex( random_bytes( 4 ) );
 		if ( strlen( $content ) === @file_put_contents( $temp, $content ) && @rename( $temp, $path ) ) return true;
 		@unlink( $temp );
