@@ -736,7 +736,6 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		if ( $this->needed() ) $report['caches'] = $this->flush_caches( $names, $report['warnings'] );
-		$this->rewrite_rules_file( $report );
 		try {
 			$report['check'] = $this->leftovers( $names );
 		} catch ( Throwable $e ) {
@@ -744,6 +743,9 @@ final class Digitalisimo_Backups_Relocate {
 			$report['warnings'][] = 'No se pudo hacer la comprobación final: ' . $e->getMessage();
 		}
 		if ( ! empty( $report['check']['urls'] ) || ! empty( $report['check']['paths'] ) ) $report['warnings'][] = 'Quedan ' . (int) $report['check']['urls'] . ' URL y ' . (int) $report['check']['paths'] . ' rutas del origen (ver la comprobación por tabla).';
+		// Lo último: escribir .htaccess recarga el servidor web en algunos hostings (OpenLiteSpeed de Webuzo), y una
+		// recarga corta la petición; aquí ya no queda nada de la base de datos ni de los archivos por hacer.
+		$this->rewrite_rules_file( $report );
 		$this->report = $report + array( 'summary' => $this->summary(), 'tables' => $this->tables, 'stats' => $this->stats );
 		return $this->report;
 	}
