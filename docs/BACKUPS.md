@@ -361,6 +361,17 @@ restauración no es un trabajo reanudable: si el proceso muere a mitad, lo ya im
 roles y permisos con el prefijo nuevo, así que se puede entrar), pero el sitio queda a medias y hay que restaurar la
 copia previa (límite declarado, igual que antes de E1).
 
+Ensayo en WordPress Playground (`tests/playground/backups-relocate.sh`): WordPress 7.1.4, PHP 8.5, SQLite y núcleo de
+Elements 4.3.5, todo por HTTP. Un sitio individual y una red por subdirectorios (con el subsitio `/uno/`), con páginas de
+Elements con imagen de fondo, se respaldan por REST en `http://origen.test` (prefijo `wp_`) y se restauran por REST como
+archivo suelto de otro servidor en `http://destino.test`, instalado con el prefijo `dst_` junto a otro WordPress con
+`wp_` en la misma base. `verify` dice «Origen → este sitio»; después de restaurar (41 a 43 s), las páginas y su CSS
+regenerado cargan sin `origen.test`, los enlaces internos van al dominio nuevo, ninguna tabla del sitio menciona el
+origen salvo `guid` (7 y 13, que la comprobación final encuentra y deja), el otro WordPress queda intacto, los sitios de
+la red tienen el dominio nuevo y se inicia sesión con la cuenta del respaldo, con el escritorio (de la red) y sus
+permisos: 384 s, todo correcto. El cambio de ruta del sitio y de carpeta del servidor y la red por subdominios no caben
+en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por cabecera) y se prueban en `backups-relocate.php`.
+
 ## Almacenamiento local
 
 Desde 1.0.44 los ZIP se guardan en una carpeta privada fuera de la raíz pública del servidor y de WordPress. Al abrir la
