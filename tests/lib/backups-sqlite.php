@@ -87,6 +87,9 @@ class Bk_Sqlite_DB {
 			$statement->execute( array( $table ) );
 			$create = $statement->fetchColumn();
 			if ( false === $create ) throw new RuntimeException( "Table '" . $table . "' doesn't exist" );
+			// Como MySQL (y la integración SQLite de WordPress): el nombre entre acentos graves. SQLite guarda el de un
+			// ALTER TABLE … RENAME TO (el RENAME TABLE de la restauración por pasos) entre comillas dobles.
+			$create = preg_replace( '/^CREATE TABLE\s+(?:"(?:[^"]|"")+"|`(?:[^`]|``)+`|[A-Za-z0-9_$]+)/', 'CREATE TABLE `' . str_replace( '`', '``', $table ) . '`', (string) $create, 1 );
 			return array( array( 'Table' => $table, 'Create Table' => $create ) );
 		}
 		if ( preg_match( '/^SHOW TABLE STATUS WHERE Name = /i', $sql ) ) return array( array( 'Name' => 'x', 'Engine' => 'InnoDB' ) );
