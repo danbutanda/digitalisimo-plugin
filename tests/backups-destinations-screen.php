@@ -62,6 +62,7 @@ $sql_of = function( $path ) { $zip = new ZipArchive(); $zip->open( $path ); $sql
 $compat = new Bk_Fake_S3( 'compat-bucket', 'Compat-Secreta-Unica-5', 'us-east-1' );
 $second = new Bk_Fake_S3( 'segundo-bucket', 'Segunda-Secreta-11', 'eu-1' );
 $dropbox = new Bk_Fake_Dropbox();
+$GLOBALS['bk_dropbox'] = $dropbox;
 $pcloud = new Bk_Fake_Pcloud();
 $webdav = new Bk_Fake_Webdav( 'https://nube.ejemplo.test/remote.php/dav/files/ana/', 'ana', 'WebDav-Clave-Unica-3' );
 Digitalisimo_Backups_Http::$transport = function( array $request ) use ( $compat, $second, $dropbox, $pcloud, $webdav ) {
@@ -291,6 +292,7 @@ $case( 'g', function() use ( $B, $check, $compat ) {
 	unlink( $local );
 	$key = 'sitio/' . $file;
 	$good = $compat->objects[ $key ];
+	$GLOBALS['bk_f_data'] = $good;
 	$compat->objects[ $key ][100] = chr( ord( $compat->objects[ $key ][100] ) ^ 1 );
 	$result = $B::service_fetch( $file );
 	$check( is_wp_error( $result ) && false !== strpos( $result->get_error_message(), 'SHA-256' ) && ! is_file( $local ) && ! glob( bk_storage() . '/' . $file . '.part-*' ), 'Se trajo una copia remota alterada.' );
@@ -351,6 +353,124 @@ $case( 'j', function() use ( $B, $check, $leak ) {
 	Digitalisimo_Backups_Jobs::cleanup_orphans();
 	$check( ! array_filter( $old, function( $name ) { return file_exists( bk_storage() . '/' . $name ); } ) && is_file( bk_storage() . '/.verify-Nuevo1' ), 'La limpieza no retiró los temporales viejos de los destinos o retiró uno reciente.' );
 	unlink( bk_storage() . '/.verify-Nuevo1' );
+} );
+
+// ------------------------------------------------------------------ Revisión de 1.0.62
+
+$case( 'k', function() use ( $B, $C, $K, $check, $settings ) {
+	// R3: «Añadir otra conexión» no ofrece «Conectar» (sin identificador conectaría la principal); al crearla se abre su
+	// edición, donde «Conectar» lleva la conexión y el token vuelve a ELLA.
+	$principal = $settings()['dropbox_refresh_token'];
+	ob_start();
+	try { bk_call( $B, 'connection_form', '' ); } finally { $html = ob_get_clean(); }
+	$check( ! preg_match( '/[?&;]provider=(dropbox|google|onedrive|pcloud)/', $html ) && false === strpos( $html, '>Conectar ' ) && false !== strpos( $html, 'Crea la conexión; después, en su edición, usa «Conectar Dropbox»' ), '«Añadir otra conexión» ofrece «Conectar», que conectaría la principal.' );
+	list( $ok, $message, $url ) = bk_post( array( $B, 'save_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE_CONNECTION, 'connection_type' => 'dropbox', 'connection_name' => 'Dropbox del cliente', 'digitalisimo_backups_connection' => array( 'dropbox_app_key' => 'appkey1234', 'dropbox_folder' => '/Cliente' ) ) );
+	parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
+	$id = (string) ( $query['connection'] ?? '' );
+	$check( $ok && 'dropbox' === Digitalisimo_Backups_Destinations::type_of( $id ) && isset( Digitalisimo_Backups_Destinations::connections()[ $id ] ) && false !== strpos( $message, 'Ahora usa «Conectar Dropbox» en esta conexión' ), 'Crear la conexión no abrió su edición: ' . $url );
+	$_GET = array( 'connection' => $id );
+	ob_start();
+	try { bk_call( $B, 'connection_form', $id ); } finally { $html = ob_get_clean(); $_GET = array(); }
+	$check( false !== strpos( $html, 'connection=' . $id ), 'La edición de la conexión no ofrece «Conectar» con su identificador.' );
+	$_GET = array( 'provider' => 'dropbox', 'connection' => $id, '_wpnonce' => 'nonce-' . $B::ACTION_OAUTH );
+	$_REQUEST = $_GET; $_POST = $_GET;
+	try { $B::oauth_callback(); throw new LogicException( 'No redirigió a Dropbox.' ); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $auth ); }
+	$pending = get_option( $B::oauth_pending_key() );
+	$GLOBALS['bk_dropbox']->faults['challenge'] = $auth['code_challenge'];
+	$_GET = array( 'code' => 'codigo-dropbox', 'state' => $pending['state'] );
+	$_REQUEST = $_GET; $_POST = array();
+	try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { parse_str( (string) parse_url( $redirect->url, PHP_URL_QUERY ), $back ); }
+	$_GET = array(); $_REQUEST = array();
+	$check( 'ok' === ( $back['backup'] ?? '' ) && 'refresh-dropbox-0123' === bk_call( $B, 'connection_settings', $id )['dropbox_refresh_token'] && $principal === $settings()['dropbox_refresh_token'], 'El token no fue a la conexión adicional o cambió el de la principal.' );
+	list( $ok ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $id ) );
+	$check( $ok, 'No se pudo retirar la conexión de prueba.' );
+} );
+
+$case( 'l', function() use ( $B, $check, $leak, $webdav, $compat ) {
+	// R6: la prueba nunca envía un secreto guardado a otro servidor sin volver a escribirlo, no se conecta al servicio de
+	// metadatos de la nube (ni se guarda) y avisa claro de loopback y redes privadas.
+	$calls = count( $webdav->log ) + count( $compat->log );
+	$changed = array( 'webdav_url' => 'https://otro.ejemplo.test/dav/', 'webdav_user' => 'ana', 'webdav_password' => '', 'webdav_path' => '/respaldos' );
+	$result = $B::service_test_destination( 'webdav', $changed );
+	$check( ! $result['ok'] && false !== strpos( $result['message'], 'Cambiaste «URL del servidor WebDAV»' ) && false !== strpos( $result['message'], 'escríbelo otra vez' ), 'La prueba usó la contraseña guardada con otro servidor: ' . $result['message'] );
+	foreach ( array( array( 'webdav_user' => 'otra' ), array( 'webdav_insecure' => '1' ), array( 'webdav_ca' => "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----" ) ) as $change ) {
+		$result = $B::service_test_destination( 'webdav', $change + $changed + array( 'webdav_url' => 'https://nube.ejemplo.test/remote.php/dav/files/ana/' ) );
+		$check( ! $result['ok'] && false !== strpos( $result['message'], 'Cambiaste' ), 'La prueba usó la contraseña guardada con ' . json_encode( $change ) . ': ' . $result['message'] );
+	}
+	$check( count( $webdav->log ) + count( $compat->log ) === $calls, 'Se envió una petición con la contraseña guardada.' );
+	// Cambiar sólo la carpeta no cambia a quién se envía: se prueba con la guardada.
+	$result = $B::service_test_destination( 'webdav', array( 'webdav_path' => '/otra-carpeta', 'webdav_url' => 'https://nube.ejemplo.test/remote.php/dav/files/ana/', 'webdav_user' => 'ana', 'webdav_password' => '' ) );
+	$check( $result['ok'], 'Cambiar sólo la carpeta pidió volver a escribir la contraseña: ' . $result['message'] );
+	// Metadatos de la nube: ni se prueba ni se guarda.
+	$result = $B::service_test_destination( 'webdav', array( 'webdav_url' => 'http://169.254.169.254/latest/', 'webdav_user' => 'ana', 'webdav_password' => 'Escrita-1', 'webdav_allow_http' => '1' ) );
+	$check( ! $result['ok'] && false !== strpos( $result['message'], 'metadatos de la nube' ), 'La prueba se conectó al servicio de metadatos: ' . $result['message'] );
+	$result = $B::service_test_destination( '', array( '__type' => 'ftp', 'ftp_host' => 'metadata.google.internal', 'ftp_user' => 'u', 'ftp_password' => 'p' ) );
+	$check( ! $result['ok'] && false !== strpos( $result['message'], 'metadatos de la nube' ), 'La prueba FTP se conectó al servicio de metadatos: ' . $result['message'] );
+	list( $ok, $message ) = bk_post( array( $B, 'save_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE_CONNECTION, 'connection_type' => 'ftp', 'connection_name' => 'Metadatos', 'digitalisimo_backups_connection' => array( 'ftp_host' => '169.254.169.254', 'ftp_user' => 'u', 'ftp_password' => 'p' ) ) );
+	$check( ! $ok && false !== strpos( $message, 'metadatos de la nube' ) && ! array_filter( Digitalisimo_Backups_Destinations::connections(), function( $c ) { return 'Metadatos' === $c['name']; } ), 'Se guardó una conexión al servicio de metadatos.' );
+	// Un servidor en una red privada: la prueba sigue, con un aviso claro también por AJAX.
+	Digitalisimo_Backups_Http::$resolver = function( $name ) { return 'minio.ejemplo.test' === $name ? array( '10.0.0.7' ) : false; };
+	try {
+		$result = $B::service_test_destination( 's3compat' );
+		$check( $result['ok'] && 0 === strpos( $result['message'], 'Atención: «minio.ejemplo.test» es una red privada' ) && '' !== $result['warning'] && null === $leak( json_encode( $result ) ), 'La prueba hacia una red privada no avisó: ' . $result['message'] );
+		$result = $B::service_test_destination( '', array( '__type' => 'ftp', 'ftp_host' => '127.0.0.1', 'ftp_user' => 'u', 'ftp_password' => 'p', 'ftp_security' => 'explicit' ) );
+		$check( false !== strpos( $result['message'], 'Atención: «127.0.0.1» es este mismo servidor (loopback)' ), 'La prueba hacia loopback no avisó: ' . $result['message'] );
+	} finally { Digitalisimo_Backups_Http::$resolver = null; }
+} );
+
+$case( 'm', function() use ( $B, $check, $webdav ) {
+	// R8: borrar una conexión avisa de las filas del historial que quedan en ella; «Eliminar» quita esas filas sin tocar la
+	// copia remota, y «Traer al almacén» y «Descargar» lo explican. No se borra con un respaldo en curso hacia ella.
+	list( $ok, $message, $url ) = bk_post( array( $B, 'save_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE_CONNECTION, 'connection_type' => 'webdav', 'connection_name' => 'Nube del cliente', 'digitalisimo_backups_connection' => array( 'webdav_url' => 'https://nube.ejemplo.test/remote.php/dav/files/ana/', 'webdav_user' => 'ana', 'webdav_password' => 'WebDav-Clave-Unica-3', 'webdav_path' => '/cliente' ) ) );
+	parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
+	$id = (string) $query['connection'];
+	$file = 'digitalisimo-backup-x-20261109-000000-aaaa1111.zip';
+	$webdav->files[ 'cliente/' . $file ] = 'copia remota';
+	$history = get_option( $B::HISTORY, array() );
+	update_option( $B::HISTORY, array_merge( $history, array( array( 'date' => '2026-11-09 00:00:00', 'file' => $file, 'size' => 12, 'sha256' => hash( 'sha256', 'copia remota' ), 'destination' => $id, 'remote' => array( 'provider' => 'webdav', 'connection' => $id, 'path' => 'cliente/' . $file, 'sha256' => hash( 'sha256', 'copia remota' ), 'size' => 12 ) ) ) ) );
+	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $id, 'retention' => 'none', 'via' => 'test' ) ) );
+	list( $ok, $message ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $id ) );
+	$check( ! $ok && false !== strpos( $message, 'respaldo en curso' ), 'Se borró una conexión con un respaldo en curso hacia ella.' );
+	Digitalisimo_Backups_Jobs::cancel( $queued['job']['id'] );
+	list( $ok, $message ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $id ) );
+	$check( $ok && false !== strpos( $message, 'Un respaldo del historial está en ella' ) && false !== strpos( $message, 'sin tocar la copia remota' ), 'Borrar la conexión no avisó de su fila del historial: ' . $message );
+	$fetch = $B::service_fetch( $file );
+	$check( is_wp_error( $fetch ) && 410 === ( $fetch->get_error_data()['status'] ?? 0 ) && false !== strpos( $fetch->get_error_message(), 'se eliminó en «Servidores»' ), '«Traer al almacén» no explica que la conexión ya no existe: ' . ( is_wp_error( $fetch ) ? $fetch->get_error_message() : 'sin error' ) );
+	try { bk_call( $B, 'download_remote', bk_call( $B, 'history_item', $file ) ); throw new LogicException( 'La descarga no se detuvo.' ); } catch ( Bk_Die $die ) { $check( false !== strpos( $die->getMessage(), 'se eliminó en «Servidores»' ), '«Descargar» no explica que la conexión ya no existe: ' . $die->getMessage() ); }
+	$calls = count( $webdav->log );
+	list( $ok, $message ) = bk_post( array( $B, 'delete_backup' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE, 'file' => $file ) );
+	$check( $ok && false !== strpos( $message, 'la copia remota no se tocó' ) && ! bk_call( $B, 'history_item', $file ), '«Eliminar» no quitó la fila de una conexión borrada: ' . $message );
+	$check( $calls === count( $webdav->log ) && isset( $webdav->files[ 'cliente/' . $file ] ), '«Eliminar» llamó al destino de una conexión borrada.' );
+	unset( $webdav->files[ 'cliente/' . $file ] );
+} );
+
+$case( 'n', function() use ( $B, $check, $compat ) {
+	// I2: «Traer al almacén» escribe en el almacén de toda la instalación: en una red pide el alcance de red, y nunca
+	// corre a la vez que otra operación.
+	$file = $GLOBALS['bk_f_file'];
+	// (g) borró su copia remota: se vuelve a dejar la del almacén en el bucket.
+	$compat->objects[ 'sitio/' . $file ] = $GLOBALS['bk_f_data'];
+	$GLOBALS['bk_multisite'] = true;
+	try {
+		$result = $B::service_fetch( $file );
+		$check( is_wp_error( $result ) && 'digitalisimo_backups_scope' === $result->get_error_code(), 'En una red se trajo una copia sin confirmar el alcance de red.' );
+	} finally { $GLOBALS['bk_multisite'] = false; }
+	$lock = $B::try_operation_lock();
+	try {
+		@unlink( bk_storage() . '/' . $file );
+		$result = $B::service_fetch( $file );
+		$check( is_wp_error( $result ) && 409 === ( $result->get_error_data()['status'] ?? 0 ) && ! is_file( bk_storage() . '/' . $file ), 'Se trajo una copia con otra operación en curso.' );
+	} finally { $B::release_operation_lock( $lock ); }
+	$result = $B::service_fetch( $file );
+	$check( ! is_wp_error( $result ) && $result['fetched'], 'Sin otra operación, «Traer al almacén» no funcionó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	// R4: una escritura de 1.0.61 (que sólo conoce sus cinco campos) no puede borrar los secretos nuevos: viven aparte.
+	$C = 'Digitalisimo_Backups_Credentials';
+	$K = 'Digitalisimo_Backups_Keys';
+	$legacy = $K::get( $C::OPTION, array() );
+	$K::put( $C::OPTION, array( 'items' => array() ) + $legacy );
+	try {
+		$check( 'Ftp-Clave-Unica-2' === bk_call( $B, 'settings' )['ftp_password'] && 'Compat-Secreta-Unica-5' === bk_call( $B, 'settings' )['s3compat_secret_key'], 'Reescribir el almacén de 1.0.61 borró los secretos de los destinos nuevos.' );
+	} finally { $K::put( $C::OPTION, $legacy ); }
 } );
 
 $case( 'h', function() use ( $B, $C, $check, $fields, $secrets, $save ) {

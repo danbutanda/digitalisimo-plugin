@@ -449,11 +449,17 @@ trait Digitalisimo_Backups_Destinations_Screen {
 
 	/* ------------------------------------------------------------------ Guardar */
 
+	/** El servicio de metadatos de la nube nunca es un destino: no se guarda (y Digitalisimo_Backups_Http no le envía nada). */
+	private static function refuse_metadata( $class, array $values ) {
+		foreach ( array_filter( $class::hosts( $values ) ) as $host ) {
+			if ( 'metadata' === Digitalisimo_Backups_Http::internal( $host, false ) ) throw new Exception( '«' . $host . '» es ' . Digitalisimo_Backups_Http::INTERNAL_TEXT['metadata'] . ', no un destino de respaldos. No se guardó nada.' );
+		}
+	}
 	public static function save() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ); $out = self::defaults();
 		$out['destination'] = Digitalisimo_Backups_Destinations::exists( $input['destination'] ?? '' ) ? (string) $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
 		try {
-			foreach ( Digitalisimo_Backups_Destinations::CLASSES as $class ) $out = array_merge( $out, $class::sanitize( $input, $old ) );
+			foreach ( Digitalisimo_Backups_Destinations::CLASSES as $class ) { $values = $class::sanitize( $input, $old ); self::refuse_metadata( $class, $values ); $out = array_merge( $out, $values ); }
 		} catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
 		$out['full_schedule'] = array_key_exists( $input['full_schedule'] ?? '', self::schedule_options() ) ? $input['full_schedule'] : 'disabled'; $out['database_schedule'] = 'disabled';
 		// «Olvidar»: las credenciales de los destinos marcados se retiran (también las que no se abren), salvo lo que se acabe de escribir.
@@ -496,6 +502,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		try {
 			$old = '' !== $id ? self::connection_settings( $id ) : $class::defaults();
 			$values = $class::sanitize( wp_unslash( (array) ( $_POST['digitalisimo_backups_connection'] ?? array() ) ), $old );
+			self::refuse_metadata( $class, $values );
 			if ( '' === $id ) $id = Digitalisimo_Backups_Destinations::new_connection_id( $type );
 			self::store_connection( $id, $type, $name, $values );
 		} catch ( Exception $e ) { self::redirect( false, $e->getMessage(), null, 'servers' ); }

@@ -454,6 +454,129 @@ $case( 'validación guiada de cada tipo', function() use ( $check, $expect_failu
 	foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) foreach ( $class::secrets() as $field ) $check( in_array( $field, Digitalisimo_Backups_Credentials::FIELDS, true ), 'El secreto ' . $field . ' de ' . $type . ' no está en el almacén cifrado.' );
 } );
 
+// ---------------------------------------------------------------------------------------------------------- Revisión de 1.0.62
+$case( 'revisión R1: bucket, estilo y endpoint se validan al usarse y atan la credencial', function() use ( &$routes, $s3, $context, $file_of, $check, $expect_failure, $destinations ) {
+	$file = $file_of( 2000, 'r1.zip' );
+	foreach ( array( 's3' => 's3_', 's3compat' => 's3compat_' ) as $type => $p ) {
+		list( $class, $settings ) = $destinations[ $type ];
+		// Lo que una escritura directa en la base pondría para desviar el respaldo a otro host.
+		foreach ( array( array( $p . 'bucket' => 'atacante.example/', $p . 'style' => 'virtual' ), array( $p . 'bucket' => '2130706433/', $p . 'style' => 'auto' ), array( $p . 'bucket' => '169.254.169.254' ), array( $p . 'bucket' => 'x@atacante.example' ), array( $p . 'style' => 'otro' ) ) as $change ) {
+			$routes = array();
+			$destination = new $class( $change + $settings, $context( $type . '-r1' ) );
+			$expect_failure( function() use ( $destination, $file ) { $destination->put( $file ); }, '', 'Digitalisimo_Backups_Permanent_Error' );
+			$check( ! $routes, $type . ' llamó a ' . json_encode( $routes ) . ' con ' . json_encode( $change ) );
+		}
+	}
+	$routes = array();
+	$expect_failure( function() use ( $destinations, $context, $file ) { ( new Digitalisimo_Backups_Destination_S3_Compatible( array( 's3compat_endpoint' => 'https://minio.ejemplo.test:9443/ruta?x=1' ) + $destinations['s3compat'][1], $context( 'r1-endpoint' ) ) )->put( $file ); }, 'endpoint', 'Digitalisimo_Backups_Permanent_Error' );
+	$check( ! $routes, 'Un endpoint con ruta guardado en la base se usó.' );
+	// Un recibo del historial sólo vale en el bucket y la carpeta de esta conexión.
+	$s3->objects['otra/ajeno.zip'] = 'no tocar';
+	$s3_destination = new Digitalisimo_Backups_Destination_S3( $destinations['s3'][1], $context( 's3-r1' ) );
+	foreach ( array( array( 'key' => 'otra/ajeno.zip' ), array( 'key' => 'digitalisimo-backups/../otra/ajeno.zip' ), array( 'key' => 'digitalisimo-backups/x.zip', 'bucket' => 'otro-bucket' ), array( 'key' => "digitalisimo-backups/x\r\n.zip" ) ) as $remote ) {
+		$routes = array();
+		$expect_failure( function() use ( $s3_destination, $remote ) { $s3_destination->delete( array( 'provider' => 's3' ) + $remote ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+		$check( ! $routes, 'Se llamó a S3 con un recibo ajeno: ' . json_encode( $remote ) );
+	}
+	$check( isset( $s3->objects['otra/ajeno.zip'] ), 'Se borró un objeto fuera de la carpeta.' );
+	unset( $s3->objects['otra/ajeno.zip'] );
+	// Todo dato que decide adónde van los bytes entra en el dato adicional (AAD) de su secreto, también en una conexión adicional.
+	$C = 'Digitalisimo_Backups_Credentials';
+	$bound = array(
+		's3_secret_key' => array( 's3_access_key', 's3_region', 's3_bucket', 's3_style', 's3_path' ),
+		's3compat_secret_key' => array( 's3compat_access_key', 's3compat_provider', 's3compat_endpoint', 's3compat_signing_region', 's3compat_do_region', 's3compat_wasabi_region', 's3compat_account', 's3compat_jurisdiction', 's3compat_insecure', 's3compat_allow_http', 's3compat_ca', 's3compat_bucket', 's3compat_style', 's3compat_path' ),
+		'ftp_password' => array( 'ftp_host', 'ftp_port', 'ftp_user', 'ftp_security', 'ftp_insecure', 'ftp_ca', 'ftp_path', 'ftp_passive' ),
+		'webdav_password' => array( 'webdav_url', 'webdav_user', 'webdav_insecure', 'webdav_allow_http', 'webdav_ca', 'webdav_path' ),
+		'dropbox_refresh_token' => array( 'dropbox_app_key', 'dropbox_folder' ),
+		'pcloud_access_token' => array( 'pcloud_client_id', 'pcloud_host', 'pcloud_folder' ),
+		'sftp_password' => array( 'sftp_host', 'sftp_port', 'sftp_user', 'sftp_fingerprint' ),
+	);
+	foreach ( $bound as $secret => $fields ) foreach ( $fields as $field ) {
+		$check( $C::context( $secret, array( $field => '21' ) ) !== $C::context( $secret, array( $field => '22' ) ), $secret . ' no está atado a ' . $field . '.' );
+		$type = strtok( $secret, '_' );
+		$check( $C::context( $type . '-0a1b2c3d/' . $secret, array( $type . '-0a1b2c3d/' . $field => '21' ) ) !== $C::context( $type . '-0a1b2c3d/' . $secret, array( $type . '-0a1b2c3d/' . $field => '22' ) ), 'El ' . $secret . ' de una conexión adicional no está atado a ' . $field . '.' );
+	}
+	unlink( $file );
+} );
+$case( 'revisión R2: CR/LF y NUL nunca llegan a FTP; el historial sólo toca la carpeta de su conexión', function() use ( &$routes, $webdav, $dropbox, $pcloud, $context, $file_of, $check, $expect_failure, $destinations ) {
+	Bk_Fake_Ftp::reset( 'explicit' );
+	Bk_Fake_Ftp::$files['/respaldos/otro.zip'] = 'no tocar';
+	Bk_Fake_Ftp::$files['/otra/ajeno.zip'] = 'no tocar';
+	$ftp = new Digitalisimo_Backups_Destination_Ftp( $destinations['ftp'][1], $context( 'ftp-r2' ) );
+	foreach ( array( "/respaldos/x.zip\r\nDELE /respaldos/otro.zip", "/respaldos/x.zip\nDELE /respaldos/otro.zip", "/respaldos/x\0.zip", '/otra/ajeno.zip', '/respaldos/../otra/ajeno.zip', '/respaldos-otra/ajeno.zip', 'respaldos/x.zip' ) as $path ) {
+		$expect_failure( function() use ( $ftp, $path ) { $ftp->delete( array( 'provider' => 'ftp', 'path' => $path ) ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+	}
+	$file = $file_of( 500, 'r2.zip' );
+	$expect_failure( function() use ( $ftp, $file ) { $ftp->put( $file, "r2.zip\r\nDELE /respaldos/otro.zip" ); } );
+	// El cliente rechaza por sí mismo cualquier comando con CR, LF o NUL (defensa en profundidad).
+	$client = new ReflectionMethod( 'Digitalisimo_Backups_Destination_Ftp', 'client' );
+	if ( PHP_VERSION_ID < 80100 ) $client->setAccessible( true );
+	$expect_failure( function() use ( $client, $ftp ) { $client->invoke( $ftp )->delete( "/respaldos/x.zip\r\nDELE /respaldos/otro.zip" ); }, '', 'Digitalisimo_Backups_Permanent_Error' );
+	$check( isset( Bk_Fake_Ftp::$files['/respaldos/otro.zip'], Bk_Fake_Ftp::$files['/otra/ajeno.zip'] ) && ! preg_grep( '/^DELE /', Bk_Fake_Ftp::$log ) && ! preg_grep( '/[\r\n]/', Bk_Fake_Ftp::$log ), 'Un salto de línea inyectó un comando FTP: ' . implode( ' | ', Bk_Fake_Ftp::$log ) );
+	Bk_Fake_Ftp::reset( 'explicit' );
+	// WebDAV: rutas fuera de la carpeta, con «..» o con caracteres de control.
+	$webdav->files['otra/ajeno.zip'] = 'no tocar';
+	$dav = new Digitalisimo_Backups_Destination_Webdav( $destinations['webdav'][1], $context( 'webdav-r2' ) );
+	foreach ( array( 'otra/ajeno.zip', 'respaldos/sitio/../../otra/ajeno.zip', 'respaldos/sitio-otra/ajeno.zip', "respaldos/sitio/x\r\n.zip" ) as $path ) {
+		$routes = array();
+		$expect_failure( function() use ( $dav, $path ) { $dav->delete( array( 'provider' => 'webdav', 'path' => $path ) ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+		$check( ! $routes, 'WebDAV llamó al servidor con una ruta ajena: ' . json_encode( $path ) );
+	}
+	$check( isset( $webdav->files['otra/ajeno.zip'] ), 'WebDAV borró un archivo fuera de la carpeta.' );
+	unset( $webdav->files['otra/ajeno.zip'] );
+	// Dropbox opera siempre por la ruta confinada, nunca por un id suelto (que podría ser cualquier archivo de la cuenta).
+	$box = new Digitalisimo_Backups_Destination_Dropbox( $destinations['dropbox'][1], $context( 'dropbox-r2' ) );
+	foreach ( array( array( 'path' => '/Otra/ajeno.zip' ), array( 'id' => 'id:ajeno123' ), array( 'path' => '/Respaldos ñandú/../Otra/x.zip' ), array( 'path' => '/Otra/x.zip', 'id' => 'id:ajeno123' ) ) as $remote ) {
+		$routes = array();
+		$expect_failure( function() use ( $box, $remote ) { $box->delete( array( 'provider' => 'dropbox' ) + $remote ); }, '', 'Digitalisimo_Backups_Permanent_Error' );
+		$check( ! $routes, 'Dropbox llamó a la API con un recibo ajeno: ' . json_encode( $remote ) );
+	}
+	// pCloud y OneDrive (el token ve toda la cuenta): un id de otra carpeta no se toca.
+	$pcloud->files[990] = array( 'name' => 'ajeno.zip', 'folder' => 0, 'data' => 'no tocar' );
+	$cloud = new Digitalisimo_Backups_Destination_Pcloud( $destinations['pcloud'][1], $context( 'pcloud-r2' ) );
+	$expect_failure( function() use ( $cloud ) { $cloud->delete( array( 'provider' => 'pcloud', 'id' => 990 ) ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+	$expect_failure( function() use ( $cloud ) { $cloud->get( array( 'provider' => 'pcloud', 'id' => 990 ), $GLOBALS['bk_root'] . '/private/r2-pcloud' ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+	$check( isset( $pcloud->files[990] ) && ! is_file( $GLOBALS['bk_root'] . '/private/r2-pcloud' ), 'pCloud tocó un archivo fuera de la carpeta.' );
+	unset( $pcloud->files[990] );
+	Bk_Fake_Drives::$files['ajeno'] = array( 'name' => 'ajeno.zip', 'folder' => 'Otra carpeta', 'data' => 'no tocar' );
+	$drive = new Digitalisimo_Backups_Destination_Onedrive( $destinations['onedrive'][1], $context( 'onedrive-r2' ) );
+	$expect_failure( function() use ( $drive ) { $drive->delete( array( 'provider' => 'onedrive', 'id' => 'ajeno' ) ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+	$check( isset( Bk_Fake_Drives::$files['ajeno'] ), 'OneDrive borró un archivo fuera de la carpeta.' );
+	Bk_Fake_Drives::$files['ajeno']['folder'] = 'digitalisimo backups';
+	$drive->delete( array( 'provider' => 'onedrive', 'id' => 'ajeno' ) );
+	$check( ! isset( Bk_Fake_Drives::$files['ajeno'] ), 'OneDrive no borró una copia de su carpeta (sin distinguir mayúsculas).' );
+	// SFTP: lo mismo, con la ruta absoluta de su carpeta.
+	$sftp = new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_host' => 'sftp.ejemplo.test', 'sftp_user' => 'u', 'sftp_password' => 'p', 'sftp_fingerprint' => str_repeat( 'A', 40 ), 'sftp_path' => '/srv/respaldos' ), $context( 'sftp-r2' ) );
+	$own = new ReflectionMethod( 'Digitalisimo_Backups_Destination_Sftp', 'own' );
+	if ( PHP_VERSION_ID < 80100 ) $own->setAccessible( true );
+	$check( '/srv/respaldos/x.zip' === $own->invoke( $sftp, array( 'path' => '/srv/respaldos/x.zip' ) ), 'SFTP rechazó una copia de su carpeta.' );
+	foreach ( array( '/etc/passwd', '/srv/respaldos/../../etc/passwd', '/srv/respaldos-otra/x.zip', "/srv/respaldos/x\n.zip" ) as $path ) $expect_failure( function() use ( $own, $sftp, $path ) { $own->invoke( $sftp, array( 'path' => $path ) ); }, 'no se toca', 'Digitalisimo_Backups_Permanent_Error' );
+	unlink( $file );
+} );
+$case( 'revisión R6: direcciones internas y metadatos de la nube', function() use ( &$routes, $check, $expect_failure ) {
+	$H = 'Digitalisimo_Backups_Http';
+	$H::$resolver = function( $name ) { $map = array( 'nas.lan.test' => array( '192.168.1.20' ), 'publico.test' => array( '93.184.215.14' ), 'mixto.test' => array( '93.184.215.14', '169.254.169.254' ) ); return $map[ $name ] ?? false; };
+	try {
+		$expected = array( '169.254.169.254' => 'metadata', 'metadata.google.internal' => 'metadata', 'METADATA.GOOGLE.INTERNAL.' => 'metadata', 'fd00:ec2::254' => 'metadata', '[fd00:ec2::254]' => 'metadata', '100.100.100.200' => 'metadata', 'mixto.test' => 'metadata', '127.0.0.1' => 'loopback', '127.8.9.10' => 'loopback', 'localhost' => 'loopback', 'api.localhost' => 'loopback', '::1' => 'loopback', '[::1]' => 'loopback', '2130706433' => 'loopback', '0x7f000001' => 'loopback', '::ffff:127.0.0.1' => 'loopback', '0.0.0.0' => 'loopback', '10.0.0.5' => 'private', '172.16.0.1' => 'private', '172.31.255.255' => 'private', '192.168.1.1' => 'private', '100.64.0.1' => 'private', 'fd12:3456::1' => 'private', 'nas.lan.test' => 'private', '169.254.10.1' => 'link-local', 'fe80::1' => 'link-local', '172.32.0.1' => '', '100.128.0.1' => '', '8.8.8.8' => '', 'publico.test' => '', 'no-resuelve.test' => '', '2001:db8::1' => '' );
+		foreach ( $expected as $host => $kind ) $check( $kind === $H::internal( $host ), $host . ' se clasificó como «' . $H::internal( $host ) . '» y no como «' . $kind . '».' );
+		$check( '' === $H::internal( 'nas.lan.test', false ), 'Sin resolver, un nombre se clasificó.' );
+		// Al servicio de metadatos no se envía nada, ni siquiera desde un dato guardado.
+		foreach ( array( 'http://169.254.169.254/latest/meta-data/', 'https://[fd00:ec2::254]/', 'http://metadata.google.internal/computeMetadata/v1/' ) as $url ) {
+			$routes = array();
+			$expect_failure( function() use ( $url ) { Digitalisimo_Backups_Http::request( 'GET', $url ); }, 'metadatos', 'Digitalisimo_Backups_Permanent_Error' );
+			$check( ! $routes, 'Se envió una petición al servicio de metadatos: ' . $url );
+		}
+	} finally { $H::$resolver = null; }
+	// Cada destino declara los servidores que elige quien lo configura.
+	$check( array( 'nube.test' ) === Digitalisimo_Backups_Destination_Webdav::hosts( array( 'webdav_url' => 'https://nube.test/dav/' ) ) && array( 'f.test' ) === Digitalisimo_Backups_Destination_Ftp::hosts( array( 'ftp_host' => 'f.test' ) ) && array( 's.test' ) === Digitalisimo_Backups_Destination_Sftp::hosts( array( 'sftp_host' => 's.test' ) ), 'WebDAV, FTP o SFTP no declaran su servidor.' );
+	$check( array( '10.0.0.9' ) === Digitalisimo_Backups_Destination_S3_Compatible::hosts( array( 's3compat_endpoint' => 'https://10.0.0.9:9000' ) ) && array( 's3.us-west-004.backblazeb2.com' ) === Digitalisimo_Backups_Destination_S3_Compatible::hosts( array( 's3compat_endpoint' => 's3.us-west-004.backblazeb2.com' ) ) && array() === Digitalisimo_Backups_Destination_S3::hosts( array() ) && array() === Digitalisimo_Backups_Destination_Dropbox::hosts( array() ), 'Los servidores de S3 compatible o de un servicio con nombre no se declaran bien.' );
+} );
+$case( 'revisión I6: FTP activo compara la IP del par con la del servidor de control', function() use ( $check ) {
+	$address = new ReflectionMethod( 'Digitalisimo_Backups_Ftp_Client', 'address' );
+	if ( PHP_VERSION_ID < 80100 ) $address->setAccessible( true );
+	$check( '127.0.0.1' === $address->invoke( null, '[::ffff:127.0.0.1]:50123' ) && '127.0.0.1' === $address->invoke( null, '127.0.0.1:21' ) && '2001:db8::1' === $address->invoke( null, '[2001:db8::1]:21' ) && '10.0.0.9' !== $address->invoke( null, '10.0.0.8:21' ), 'La IP del par FTP no se normaliza.' );
+} );
+
 foreach ( array_diff( scandir( $root . '/private' ), array( '.', '..' ) ) as $name ) @unlink( $root . '/private/' . $name );
 foreach ( glob( $root . '/*' ) ?: array() as $path ) is_dir( $path ) ? @rmdir( $path ) : @unlink( $path );
 @rmdir( $root );
