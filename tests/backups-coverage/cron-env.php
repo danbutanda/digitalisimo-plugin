@@ -17,7 +17,9 @@ register_shutdown_function( function() {
 define( 'ABSPATH', $GLOBALS['cron_root'] . '/public/' );
 define( 'WP_CONTENT_DIR', $GLOBALS['cron_root'] . '/public/wp-content' );
 define( 'WP_PLUGIN_DIR', $GLOBALS['cron_root'] . '/public/wp-content/plugins' );
-define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $GLOBALS['cron_root'] . '/private' );
+// Sin la constante (`$GLOBALS['cron_no_storage']` antes de cargar este archivo) el almacén sólo se resuelve con
+// DOCUMENT_ROOT, como en WP-CLI o el cron del sistema antes de abrir la pantalla.
+if ( empty( $GLOBALS['cron_no_storage'] ) ) define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $GLOBALS['cron_root'] . '/private' );
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', (string) $path ); }
 function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
 function trailingslashit( $path ) { return rtrim( (string) $path, '/\\' ) . '/'; }

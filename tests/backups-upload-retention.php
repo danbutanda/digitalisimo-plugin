@@ -60,11 +60,15 @@ try {
 	// Eliminar a mano: un archivo sin registro sí; un respaldo registrado, otro nombre o una ruta, nunca.
 	$query = digi_admin_post( 'delete_loose', $B::ACTION_DELETE_LOOSE, array( 'file' => $uploaded['file'] ) );
 	digi_assert( 'ok' === $query['backup'] && ! is_file( $store . '/' . $uploaded['file'] ), 'No se eliminó la subida a mano: ' . json_encode( $query ) );
-	foreach ( array( $d['file'], '../public/wp-load.php', '.operation.lock', 'jobs' ) as $bad ) {
+	$query = digi_admin_post( 'delete_loose', $B::ACTION_DELETE_LOOSE, array( 'file' => $d['file'] ) );
+	digi_assert( 'error' === $query['backup'] && false !== strpos( rawurldecode( (string) $query['message'] ), 'está en el historial' ), 'Un respaldo registrado no se rechazó con su motivo: ' . json_encode( $query ) );
+	// Nada que no sea un respaldo del almacén: la protección del almacén (index.php), una ruta, un cerrojo, una carpeta.
+	digi_assert( is_file( $store . '/index.php' ), 'El almacén no tiene su index.php de protección.' );
+	foreach ( array( 'index.php', '../public/wp-load.php', '.operation.lock', 'jobs' ) as $bad ) {
 		$query = digi_admin_post( 'delete_loose', $B::ACTION_DELETE_LOOSE, array( 'file' => $bad ) );
 		digi_assert( 'error' === $query['backup'], 'Se eliminó por la vía de los archivos sin registro: ' . $bad );
 	}
-	digi_assert( is_file( $store . '/' . $d['file'] ) && is_file( ABSPATH . 'wp-load.php' ), 'Se borró un respaldo registrado o un archivo del sitio.' );
+	digi_assert( is_file( $store . '/' . $d['file'] ) && is_file( ABSPATH . 'wp-load.php' ) && is_file( $store . '/index.php' ), 'Se borró un respaldo registrado, un archivo del sitio o la protección del almacén.' );
 	try { digi_admin_post( 'delete_loose', 'otra-accion', array( 'file' => 'digitalisimo-backup-suelto-0.zip' ) ); throw new RuntimeException( 'FALLA: se eliminó con un nonce ajeno.' ); } catch ( Digi_Die $die ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	$GLOBALS['digi']['caps'] = array( 'edit_posts' => true );
 	try { digi_admin_post( 'delete_loose', $B::ACTION_DELETE_LOOSE, array( 'file' => 'digitalisimo-backup-suelto-0.zip' ) ); throw new RuntimeException( 'FALLA: se eliminó sin capability.' ); } catch ( Digi_Die $die ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement

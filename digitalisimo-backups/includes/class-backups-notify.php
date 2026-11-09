@@ -216,8 +216,7 @@ final class Digitalisimo_Backups_Notify {
 		$text = preg_replace( '#\b[A-Za-z]:\\\\(?:[^\\\\' . $stop . ':]+(?: [^\\\\' . $stop . ':]+)*\\\\)*[^\\\\' . $stop . ':]*#u', '[ruta]', $text );
 		// Unix: /mnt/Copias de seguridad/cliente/viejo.zip (las carpetas pueden llevar espacios) y /backups (un nivel).
 		$text = preg_replace( '#(?<![\w:/.\]\\\\])/(?:[^/' . $stop . ':]+(?: [^/' . $stop . ':]+)*/)*[^/' . $stop . ':]+#u', '[ruta]', $text );
-		// Listas de rutas (open_basedir: /home/cliente:/tmp) y lo que quede pegado a una ruta ya tapada.
-		$text = preg_replace( '#\[ruta\](?::/?[^' . $stop . ':]*)+#u', '[ruta]', $text );
+		// Lo que quede pegado a una ruta ya tapada, también el resto de una lista (open_basedir: /home/cliente:/tmp).
 		$text = preg_replace( '#\[ruta\][^' . $stop . ']*#u', '[ruta]', $text );
 		// Lo que va entre comillas suele ser un dato (un valor de una fila, un nombre de archivo).
 		$text = preg_replace( array( "/'[^'\n]{1,300}'/u", '/"[^"\n]{1,300}"/u' ), array( "'…'", '"…"' ), $text );

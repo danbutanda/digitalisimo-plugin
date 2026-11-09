@@ -155,7 +155,7 @@ try {
 	$_GET = array();
 	$at = strpos( $html, '<td>digitalisimo-backup-s4.zip</td>' );
 	$tr = false === $at ? '' : substr( $html, $at, (int) strpos( substr( $html, $at ), '</tr>' ) );
-	digi_assert( '' !== $tr && false !== strpos( $tr, 'name="action" value="' . $B::ACTION_DELETE . '"' ) && false === strpos( $tr, 'Descargar' ) && false === strpos( $tr, 'sin identificador' ), 'La fila sin copias no ofrece «Eliminar» en la pantalla (o ofrece descargar): ' . strip_tags( $tr ) );
+	digi_assert( '' !== $tr && false !== strpos( $tr, "onsubmit=\"return confirm('¿Eliminar este respaldo?')\">" ) && false !== strpos( $tr, 'name="action" value="' . $B::ACTION_DELETE . '"' ) && false === strpos( $tr, 'Descargar' ) && false === strpos( $tr, 'sin identificador' ), 'La fila sin copias no ofrece «Eliminar» en la pantalla (o ofrece descargar): ' . strip_tags( $tr ) );
 	$destination = new ReflectionMethod( $B, 'history_destination' );
 	if ( PHP_VERSION_ID < 80100 ) $destination->setAccessible( true );
 	$label = $destination->invoke( null, $row_of( 'digitalisimo-backup-s4.zip' ) );

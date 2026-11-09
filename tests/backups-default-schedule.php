@@ -3,8 +3,10 @@
  * Laboratorio H8: la automatización «Completo mensual» viene activa por defecto, pero en un sitio donde nunca se guardó
  * la pantalla no tenía ningún evento de WP-Cron (`next_run` vacío), así que nunca se ejecutaba. Ahora toda automatización
  * activa sin evento se programa al cargar WordPress (a su hora fija o a las 03:00 del sitio), una sola vez, sólo en el
- * sitio principal de una red, sin tocar lo que ya estaba programado ni las automatizaciones desactivadas.
+ * sitio principal de una red, sin tocar lo que ya estaba programado ni las automatizaciones desactivadas. Revisión del
+ * lote corto (P4): nunca en una red secundaria ni sin un almacén privado resoluble.
  */
+$GLOBALS['cron_no_storage'] = true;
 require __DIR__ . '/backups-coverage/cron-env.php';
 
 $B = 'Digitalisimo_Backups';
@@ -18,6 +20,13 @@ $load = function() use ( $B ) {
 };
 $local = function( $timestamp ) { return ( new DateTimeImmutable( '@' . (int) $timestamp ) )->setTimezone( new DateTimeZone( $GLOBALS['tz'] ) ); };
 $policy_events = function() { return array_values( array_filter( $GLOBALS['cron'], function( $event ) { return 'digitalisimo_backups_policy' === $event['hook']; } ) ); };
+
+// 0. WP-CLI o el cron del sistema sin DOCUMENT_ROOT ni almacén guardado ni la constante: el respaldo fallaría (y
+// avisaría) cada mes, así que no se programa todavía; en cuanto el almacén se puede resolver, sí.
+unset( $_SERVER['DOCUMENT_ROOT'] );
+$load();
+digi_assert( array() === $policy_events(), 'Se programó una automatización sin un almacén privado resoluble.' );
+$_SERVER['DOCUMENT_ROOT'] = rtrim( ABSPATH, '/' );
 
 // 1. Sitio nuevo: la automatización por defecto existe, está activa y, sin guardar nada, ya tiene su próxima ejecución.
 $load();

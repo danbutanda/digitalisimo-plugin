@@ -65,9 +65,12 @@ function digi_admin_post_class( $class, $handler, $action, array $post ) {
 	try { call_user_func( array( $class, $handler ) ); } catch ( Digi_Redirect $redirect ) { return $redirect->query; }
 	throw new RuntimeException( 'FALLA: ' . $handler . ' terminó sin redirigir.' );
 }
-/** Espacio libre del almacén simulado (filtro digitalisimo_backups_free_space); null: el real. */
+/** Espacio libre del almacén simulado (filtro digitalisimo_backups_free_space); null: el real; una función: por consulta. */
 $GLOBALS['free_space'] = null;
-function apply_filters( $hook, $value, ...$args ) { return 'digitalisimo_backups_free_space' === $hook && null !== $GLOBALS['free_space'] ? (float) $GLOBALS['free_space'] : $value; }
+function apply_filters( $hook, $value, ...$args ) {
+	if ( 'digitalisimo_backups_free_space' !== $hook || null === $GLOBALS['free_space'] ) return $value;
+	return $GLOBALS['free_space'] instanceof Closure ? ( $GLOBALS['free_space'] )( $value ) : (float) $GLOBALS['free_space'];
+}
 /** Un fragmento por REST con el cuerpo en bruto (como `curl --data-binary`). */
 class Digi_Raw_Request extends WP_REST_Request {
 	private $raw;
@@ -265,6 +268,12 @@ try {
 	digi_assert( 'ok' === ( $query['backup'] ?? '' ), '«Descartar» de la tarjeta no respondió: ' . json_encode( $query ) );
 	digi_assert( ! is_dir( $store . '/incoming/' . $others[0] ), '«Descartar» de la tarjeta no borró la subida.' );
 	foreach ( array_merge( array_slice( $others, 1 ), array( $mine['id'] ) ) as $left ) digi_rest( 'DELETE', $ns . '/uploads/' . $left );
+	// P3: y diez sin terminar en todo el sitio, sean de quien sean.
+	$crowd = array();
+	for ( $i = 0; $i < $U::MAX_TOTAL; $i++ ) { list( , $s ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-de-muchos-' . $i . '.zip', 'size' => 1000 ) ); $state = $U::read( $s['id'] ); $state['user_id'] = 200 + $i; $U::write( $state ); $crowd[] = $s['id']; }
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-una-mas.zip', 'size' => 1000 ) );
+	digi_assert( 409 === $code && 'digitalisimo_backups_upload_limit' === $error['code'] && false !== strpos( $error['message'], 'en este sitio' ), 'Se pasó del tope de subidas sin terminar del sitio: ' . json_encode( $error ) );
+	foreach ( $crowd as $left ) digi_rest( 'DELETE', $ns . '/uploads/' . $left );
 	// P5: un fragmento que llega en el hueco entre descartar (marca y suelta el cerrojo) y borrar no escribe nada.
 	list( , $gap ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-hueco.zip', 'size' => 1000 ) );
 	$state = $U::read( $gap['id'] );
@@ -300,6 +309,17 @@ try {
 	$GLOBALS['free_space'] = strlen( $dgbk ) + Digitalisimo_Backups_Security::MARGIN + 4096;
 	list( $code, $error ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'copia.dgbk', 'size' => strlen( $dgbk ) ) );
 	digi_assert( 507 === $code && 'digitalisimo_backups_upload_space' === $error['code'] && false !== strpos( $error['message'], 'descifrarlo' ), 'Empezar un .dgbk sin sitio para descifrarlo no se rechazó: ' . json_encode( $error ) );
+	// R8: un .dgbk sin terminar sigue reservando su descifrado: otra subida que sólo cabría sin esa reserva no empieza.
+	$s = strlen( $dgbk );
+	$GLOBALS['free_space'] = 2 * $s + (int) ceil( $s * 1.05 ) + Digitalisimo_Backups_Security::MARGIN;
+	list( $code, $reserving ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-reserva.dgbk', 'size' => $s ) );
+	list( $code2, $error ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-detras.zip', 'size' => $s + 1 ) );
+	digi_assert( 201 === $code && 507 === $code2 && 'digitalisimo_backups_upload_space' === $error['code'], 'Una subida no contó el descifrado reservado por un .dgbk sin terminar: ' . json_encode( array( $code, $code2, $error ) ) );
+	list( $code2, $behind ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-detras.zip', 'size' => $s ) );
+	digi_assert( 201 === $code2, 'Una subida que cabe con la reserva no empezó: ' . json_encode( $behind ) );
+	digi_rest( 'DELETE', $ns . '/uploads/' . $reserving['id'] );
+	digi_rest( 'DELETE', $ns . '/uploads/' . $behind['id'] );
+	$GLOBALS['free_space'] = strlen( $dgbk ) + Digitalisimo_Backups_Security::MARGIN + 4096;
 	list( $code, $error, $upload_id ) = $upload( 'copia-renombrada.zip', $dgbk );
 	digi_assert( 507 === $code && 'digitalisimo_backups_upload_space' === $error['code'] && false !== strpos( $error['message'], 'No hay espacio para descifrar' ) && false === strpos( $error['message'], 'no supera la validación' ), 'Sin sitio para descifrar, el cierre no dio el motivo real: ' . json_encode( $error ) );
 	digi_assert( strlen( $dgbk ) === filesize( $store . '/incoming/' . $upload_id . '/data.bin' ) && 'uploading' === $U::read( $upload_id )['phase'], 'Sin sitio para descifrar, se borró lo subido.' );
@@ -317,6 +337,28 @@ try {
 	unlink( $store . '/incoming/' . $session['id'] . '/.staging' );
 	list( $code ) = digi_rest( 'POST', $ns . '/uploads/' . $session['id'] . '/finish' );
 	digi_assert( 200 === $code, 'Tras el error del servidor, la subida conservada no se pudo cerrar.' );
+	// R8: el disco se llena entre la comprobación previa y el descifrado (otra escritura): también se conserva, con su motivo.
+	list( , $session ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-disco-lleno.dgbk', 'size' => strlen( $dgbk ) ) );
+	for ( $offset = 0; $offset < strlen( $dgbk ); $offset += $session['chunk_size'] ) $rest_chunk( $session['id'], $offset, substr( $dgbk, $offset, $session['chunk_size'] ) );
+	$asked = 0;
+	$GLOBALS['free_space'] = function( $value ) use ( &$asked ) { return ++$asked > 1 ? 1024.0 : $value; };
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/uploads/' . $session['id'] . '/finish' );
+	$GLOBALS['free_space'] = null;
+	digi_assert( 2 === $asked && 507 === $code && 'digitalisimo_backups_upload_space' === $error['code'] && is_file( $store . '/incoming/' . $session['id'] . '/data.bin' ) && 'uploading' === $U::read( $session['id'] )['phase'], 'Sin espacio al descifrar, se descartó la subida: ' . json_encode( array( $asked, $code, $error ) ) );
+	list( $code ) = digi_rest( 'POST', $ns . '/uploads/' . $session['id'] . '/finish' );
+	digi_assert( 200 === $code, 'Con espacio, la subida conservada no se pudo cerrar.' );
+	// R8: un fallo al moverla al almacén (el registro de trabajos no se abre) la conserva para reintentar.
+	list( , $session ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-sin-registro.zip', 'size' => strlen( $signed_bytes ) ) );
+	for ( $offset = 0; $offset < strlen( $signed_bytes ); $offset += $session['chunk_size'] ) $rest_chunk( $session['id'], $offset, substr( $signed_bytes, $offset, $session['chunk_size'] ) );
+	$jobs_lock = $store . '/' . Digitalisimo_Backups_Job_Store::LOCK;
+	@unlink( $jobs_lock );
+	mkdir( $jobs_lock, 0700 );
+	list( $code, $error ) = digi_rest( 'POST', $ns . '/uploads/' . $session['id'] . '/finish' );
+	rmdir( $jobs_lock );
+	$kept = $U::read( $session['id'] );
+	digi_assert( 500 === $code && 'digitalisimo_backups_upload_error' === $error['code'] && is_file( $store . '/incoming/' . $session['id'] . '/data.bin' ) && 'uploading' === $kept['phase'] && 'digitalisimo_backups_upload_error' === ( $kept['error']['code'] ?? '' ), 'Un fallo al moverla al almacén borró la subida: ' . json_encode( array( $code, $error, $kept ) ) );
+	list( $code ) = digi_rest( 'POST', $ns . '/uploads/' . $session['id'] . '/finish' );
+	digi_assert( 200 === $code, 'Tras el fallo al moverla, la subida conservada no se pudo cerrar.' );
 	// P1: mientras otro proceso la comprueba, cerrarla responde 202 y el estado lo dice; si el proceso murió, el cierre
 	// se reanuda, y tras tres cortes pide WP-CLI y la conserva (nunca obliga a subirla otra vez).
 	list( , $session ) = digi_rest( 'POST', $ns . '/uploads', array( 'name' => 'digitalisimo-larga.zip', 'size' => strlen( $signed_bytes ) ) );

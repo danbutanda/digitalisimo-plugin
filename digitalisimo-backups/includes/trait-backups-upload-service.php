@@ -346,12 +346,12 @@ trait Digitalisimo_Backups_Upload_Service {
 		return self::service_error( 'secret_wrong', 'La frase o clave escrita no corresponde a la clave ' . Digitalisimo_Backups_Keys::short( $key_id ) . ' de este respaldo. La subida se conserva: vuelve a terminarla con la frase correcta o sin frase.', 400 );
 	}
 	/**
-	 * Qué significa un fallo de la comprobación: lo que dice del servidor (espacio, libsodium, la carpeta de trabajo) o
-	 * de la frase conserva la subida; lo demás es que el archivo no es un respaldo válido, y se descarta.
+	 * Qué significa un fallo de la comprobación: lo que dice del servidor (espacio, libsodium, la carpeta de trabajo)
+	 * conserva la subida; lo demás es que el archivo no es un respaldo válido, y se descarta. Una frase equivocada no
+	 * llega aquí: upload_inspect() la reconoce antes por la cabecera del .dgbk o por la firma del manifiesto.
 	 */
 	private static function upload_failure( $message ) {
 		if ( false !== strpos( $message, 'No hay espacio' ) ) return self::service_error( 'upload_space', $message . ' La subida se conserva: libera espacio y vuelve a terminarla, o descártala.', 507 );
-		if ( false !== strpos( $message, 'no corresponde a la clave' ) ) return self::service_error( 'secret_wrong', $message . ' La subida se conserva: vuelve a terminarla con la frase correcta o sin frase.', 400 );
 		if ( false !== strpos( $message, 'este servidor no tiene' ) || false !== strpos( $message, 'No se pudo crear la carpeta de trabajo' ) || false !== strpos( $message, 'ZipArchive' ) ) return self::service_error( 'upload_error', 'No se pudo comprobar el respaldo en este servidor; la subida se conserva para reintentar: ' . $message, 500 );
 		return self::service_error( 'upload_invalid', 'El archivo no supera la validación de archivos no confiables y se descartó: ' . $message, 422 );
 	}
