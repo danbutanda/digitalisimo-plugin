@@ -96,7 +96,7 @@ function rs_assert_restored( $root, array $expected ) {
 	// Revisión de E1, P1: el auto_prepend_file que aquí no existe se desactiva (si no, PHP daría 500 a todo).
 	$ini = (string) @file_get_contents( $root . '/.user.ini' );
 	rs_check( false !== strpos( $ini, '; Desactivado por DIGITALÍSIMO Backups' ) && ! preg_match( '/^auto_prepend_file/m', $ini ) && false !== strpos( $ini, 'memory_limit = 256M' ), 'El .user.ini con un auto_prepend_file inexistente no se desactivó: ' . $ini );
-	rs_check( ! glob( $root . '/.digitalisimo-restore-*' ) && ! glob( $root . '/wp-content/{plugins,themes}/.digitalisimo-*', GLOB_BRACE ) && ! glob( $root . '/.digitalisimo-old-*' ), 'Quedó el área de trabajo o una carpeta apartada junto a WordPress.' );
+	rs_check( ! glob( $root . '/.digitalisimo-restore-*' ) && ! glob( $root . '/wp-content/plugins/.digitalisimo-*' ) && ! glob( $root . '/wp-content/themes/.digitalisimo-*' ) && ! glob( $root . '/.digitalisimo-old-*' ), 'Quedó el área de trabajo o una carpeta apartada junto a WordPress.' );
 	rs_check( ! preg_grep( '/dgbk[ro]_/', array_keys( $GLOBALS['wpdb']->staged ) ), 'Quedaron tablas temporales o viejas: ' . implode( ', ', array_keys( $GLOBALS['wpdb']->staged ) ) );
 }
 /** Vuelve a dejar el sitio como tras el respaldo (para el caso siguiente). */
@@ -180,10 +180,12 @@ if ( '' !== $death ) {
 		echo $GLOBALS['failures'] ? "FALLA: restauración con muerte en «{$death}».\n" : "DIGITALÍSIMO Backups: restauración muerta en «{$death}» reanudada desde su punto de control e idéntica al respaldo.\n";
 	} );
 	if ( 'oom' === $death ) {
-		// Revisión de E1, H4: una opción serializada enorme con direcciones que reescribir no cabe en la memoria: la
-		// petición muere en la verificación (la reubicación en seco de las sentencias más grandes), antes de la copia previa.
+		// Revisión de E1, H4: una opción serializada enorme con direcciones que reescribir no cabe en la memoria. Primero, el
+		// presupuesto de E1 (value_budget()) la rechaza en el plan de la verificación, sin copia previa y sin tocar el sitio.
+		// Después, con el presupuesto forzado (una estimación que se quedara corta), la petición muere en la verificación
+		// (la reubicación en seco de las sentencias más grandes), también antes de la copia previa.
 		$GLOBALS['wpdb']->exit_on = '';
-		$GLOBALS['bk_options']['opcion_enorme'] = array_fill( 0, 200000, 'https://example.test/x' );
+		$GLOBALS['bk_options']['opcion_enorme'] = array_fill( 0, 320000, 'https://example.test/x' );
 		$GLOBALS['bk_options']['opcion_intrusa'] = 'no estaba en el respaldo';
 		$big = bk_backup( true );
 		unset( $GLOBALS['bk_options']['opcion_enorme'] );
@@ -202,15 +204,24 @@ if ( '' !== $death ) {
 				rs_check( ! glob( bk_storage() . '/safety-before-restore-*' ) && 'no estaba en el respaldo' === ( $GLOBALS['bk_options']['opcion_intrusa'] ?? '' ) && ! preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ), 'Antes de agotar la memoria se creó la copia previa o se tocó el sitio.' );
 			} );
 			bk_cleanup();
-			echo $GLOBALS['failures'] ? "FALLA: memoria agotada al reescribir.\n" : "DIGITALÍSIMO Backups: una reubicación que no cabe en memoria muere en la verificación, antes de la copia previa y sin tocar el sitio.\n";
+			echo $GLOBALS['failures'] ? "FALLA: memoria agotada al reescribir.\n" : "DIGITALÍSIMO Backups: una reubicación que no cabe en memoria se rechaza (o, si el presupuesto se queda corto, muere) en la verificación, antes de la copia previa y sin tocar el sitio.\n";
 		} );
 		$GLOBALS['wpdb']->queries = array();
 		// El error fatal es el esperado: no se muestra (error_get_last() lo conserva para la comprobación).
 		ini_set( 'display_errors', '0' );
 		ini_set( 'memory_limit', '96M' );
 		$GLOBALS['rs_ballast'] = str_repeat( 'b', max( 0, 60 * 1048576 - memory_get_usage( true ) ) );
-		rs_restore( $big );
-		echo "FALLA: la reubicación en seco cupo en memoria (no se probó la muerte).\n";
+		$refused = rs_restore( $big );
+		rs_case( 'memoria: el presupuesto de E1 rechaza el valor en la verificación', function() use ( $refused ) {
+			$job = rs_last_restore();
+			rs_check( is_wp_error( $refused ) && false !== strpos( $refused->get_error_message(), 'no cabe en la memoria de PHP' ), 'El presupuesto de memoria no rechazó el valor: ' . json_encode( is_wp_error( $refused ) ? $refused->get_error_message() : $refused ) );
+			rs_check( $job && 'failed' === $job['status'] && 'inspect' === $job['phase'] && empty( $job['checkpoint']['safety'] ), 'El rechazo no fue en la verificación: ' . json_encode( array( $job['phase'] ?? null, $job['status'] ?? null ) ) );
+			rs_check( ! glob( bk_storage() . '/safety-before-restore-*' ) && 'no estaba en el respaldo' === ( $GLOBALS['bk_options']['opcion_intrusa'] ?? '' ) && ! preg_grep( '/^RENAME TABLE /', $GLOBALS['wpdb']->queries ), 'Antes del rechazo se creó la copia previa o se tocó el sitio.' );
+		} );
+		$GLOBALS['bk_filters']['digitalisimo_backups_relocate_value_budget'] = 33554432;
+		$GLOBALS['wpdb']->queries = array();
+		$result = rs_restore( $big );
+		echo 'FALLA: la reubicación en seco cupo en memoria (no se probó la muerte): ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : $result ) . "\n";
 		exit;
 	}
 	if ( 'rename' === $death ) {

@@ -14,8 +14,10 @@ defined( 'ABSPATH' ) || exit;
  *   tables.json    tabla del respaldo → tabla de este sitio → temporal → vieja
  *   credentials.json  claves de credenciales del origen, cifradas con las de este servidor (como el diario)
  *   units.json, changed.bin, walk.json, extraneous.txt, removed.txt  decisiones sobre los archivos
- *   tree/new, tree/old  archivos que entran y los que salen (o, si el almacén está en otro disco, una carpeta oculta y
- *                  aleatoria junto a WordPress, porque mover exige el mismo disco)
+ *   tree/new, tree/old  archivos que entran y los sueltos que salen (o, si el almacén está en otro disco, una carpeta
+ *                  oculta y aleatoria junto a WordPress, porque mover exige el mismo disco). Las carpetas de código que
+ *                  salen se apartan junto a la suya (`.digitalisimo-old-<marca>-<nombre>`, mismo disco); la limpieza las
+ *                  retira.
  * Nada de eso entra en un respaldo, se puede descargar ni lleva un secreto en claro.
  */
 trait Digitalisimo_Backups_Restore_Engine {
@@ -1386,9 +1388,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		return 'copy';
 	}
 	/**
-	 * Mueve lo preparado a su sitio. Las unidades de código cambian de una vez (la vieja a tree/old, la nueva a su
-	 * lugar: dos `rename()`), los archivos sueltos uno a uno (`rename()` sobre el anterior). Lo que queda en tree/new es
-	 * lo que falta: un tramo que muere se retoma sin repetir nada.
+	 * Mueve lo preparado a su sitio. Las unidades de código cambian de una vez (la vieja se aparta junto a la suya como
+	 * `.digitalisimo-old-<marca>-<nombre>` y la nueva va a su lugar: dos `rename()`), los archivos sueltos uno a uno
+	 * (`rename()` sobre el anterior). Lo que queda en tree/new es lo que falta: un tramo que muere se retoma sin repetir nada.
 	 */
 	private static function restore_move( array $job, array $cursor, array $layout, $tree, $deadline ) {
 		$units = (array) self::restore_read_json( $job, 'units.json' );
