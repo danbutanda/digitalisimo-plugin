@@ -29,10 +29,16 @@ if ( 'cli' === PHP_SAPI ) {
 	add_filter( 'digitalisimo_backups_request_limit', static function () { return 30; } );
 }
 add_filter( 'pre_http_request', static function ( $pre, $args, $url ) { return false !== strpos( (string) $url, 'wp-cron.php' ) ? new WP_Error( 'digi_t2_no_cron', 'Sin loopback de WP-Cron en el ensayo.' ) : $pre; }, 10, 3 );
-foreach ( array( 'digitalisimo_backups_db_batch' => 'die-db', 'digitalisimo_backups_zip_chunk' => 'die-pack', 'digitalisimo_backups_verify_parts_from' => 'die-verify' ) as $digi_t2_hook => $digi_t2_flag ) {
-	add_filter( $digi_t2_hook, static function ( $value ) use ( $digi_t2_flag ) {
+// Cada marca mata la petición dentro de su fase, pero sólo cuando esa fase ya guardó un punto de control con avance:
+// la muerte cae a mitad de un tramo retomado y lo escrito después del punto de control queda a medias.
+foreach ( array( 'digitalisimo_backups_db_batch' => array( 'die-db', 'database', 'total', 0 ), 'digitalisimo_backups_zip_chunk' => array( 'die-pack', 'pack', 'done', 100 ), 'digitalisimo_backups_verify_parts_from' => array( 'die-verify', 'verify', 'index', 100 ) ) as $digi_t2_hook => $digi_t2_rule ) {
+	add_filter( $digi_t2_hook, static function ( $value ) use ( $digi_t2_rule ) {
+		list( $digi_t2_flag, $phase, $field, $after ) = $digi_t2_rule;
 		$flag = '/digi-ctl/' . $digi_t2_flag;
-		if ( is_file( $flag ) && @unlink( $flag ) ) {
+		if ( ! is_file( $flag ) || ! class_exists( 'Digitalisimo_Backups_Jobs', false ) ) return $value;
+		$job = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() );
+		if ( (int) ( $job['checkpoint'][ $phase ]['resume'][ $field ] ?? -1 ) <= $after ) return $value;
+		if ( @unlink( $flag ) ) {
 			file_put_contents( '/digi-ctl/deaths.jsonl', json_encode( array( 'flag' => $digi_t2_flag, 'at' => microtime( true ), 'job' => class_exists( 'Digitalisimo_Backups_Jobs', false ) ? Digitalisimo_Backups_Jobs::current_id() : '' ) ) . "\n", FILE_APPEND );
 			exit; // La petición muere a mitad del tramo, con lo escrito a medias en el área de trabajo.
 		}

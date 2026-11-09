@@ -59,22 +59,18 @@ const ajax = (action, nonce, fields = {}) => request('POST', '/wp-admin/admin-aj
   body: new URLSearchParams({ action, nonce, context: 'site', ...fields }).toString(),
 });
 
+// Las tres muertes se dejan preparadas: el mu-plugin mata la petición dentro de su fase cuando ya guardó avance.
+for (const flag of ['die-db', 'die-pack', 'die-verify']) writeFileSync(`${dir}/ctl/${flag}`, '');
 const started = await ajax('digitalisimo_backups_manual_start', config.nonce, { destination: 'local' });
 const id = started.json?.data?.id;
 check(started.status === 200 && id, 'respaldo encolado desde la pantalla (AJAX)', started.text);
 const store = `${dir}/store`;
 const jobFile = () => JSON.parse(readFileSync(`${store}/jobs/${id}/job.json`, 'utf8'));
-const deaths = { db: false, pack: false, verify: false };
 const ticks = [];
 let job = null;
 for (let i = 0; i < 3000 && id; i++) {
   job = jobFile();
   if (['success', 'failed', 'cancelled'].includes(job.status)) break;
-  // Las muertes: a mitad de un tramo retomado, cuando la fase ya guardó su avance.
-  const resume = job.checkpoint?.[job.phase]?.resume;
-  if (!deaths.db && job.phase === 'database' && resume && resume.total > 0) { writeFileSync(`${dir}/ctl/die-db`, ''); deaths.db = true; }
-  if (!deaths.pack && job.phase === 'pack' && resume?.stage === 'write' && resume.done > 100) { writeFileSync(`${dir}/ctl/die-pack`, ''); deaths.pack = true; }
-  if (!deaths.verify && job.phase === 'verify' && resume?.stage === 'content' && resume.index > 100) { writeFileSync(`${dir}/ctl/die-verify`, ''); deaths.verify = true; }
   const kind = i % 3 === 2 ? 'wp-cron' : 'navegador';
   const res = kind === 'wp-cron'
     ? await request('GET', `/wp-cron.php?doing_wp_cron=${(Date.now() / 1000).toFixed(4)}`)
@@ -100,11 +96,12 @@ check(!worked.some((r) => /Allowed memory|Maximum execution time/.test(r.error))
 
 // Tramos y muertes, por el registro del trabajo.
 const events = jsonl(`${store}/jobs/${id}/events.jsonl`);
-const slices = (phase) => events.filter((e) => e.type === 'phase' && e.data?.phase === phase).length;
+const slices = (phase) => events.filter((e) => e.type === 'phase' && e.phase === phase).length;
 const summary = { seconds, requests: worked.length, ticks: ticks.length, slowest, heaviest, slices: { database: slices('database'), pack: slices('pack'), verify: slices('verify') }, deaths: jsonl(`${dir}/ctl/deaths.jsonl`), checkpoint: job.checkpoint?.database ? { mode: job.checkpoint.database.mode, segments: job.checkpoint.database.segments, rows: job.checkpoint.database.rows } : null, warnings: job.warnings, sapi: worked[0]?.sapi };
 check(summary.slices.pack > 2 && summary.slices.verify > 1, `el empaquetado y la verificación avanzaron por tramos (${summary.slices.pack} y ${summary.slices.verify})`);
-const planted = Object.values(deaths).filter(Boolean).length;
-check(deaths.pack && deaths.verify && summary.deaths.length === planted && events.filter((e) => ['interrupted', 'timeout', 'fatal'].includes(e.type)).length === planted, `las ${planted} peticiones muertas a mitad de tramo (${Object.keys(deaths).filter((k) => deaths[k]).join(', ')}) se reconocieron y el trabajo siguió`, JSON.stringify(summary.deaths));
+const died = summary.deaths.map((d) => d.flag);
+const deaths = { db: died.includes('die-db'), pack: died.includes('die-pack'), verify: died.includes('die-verify') };
+check(deaths.pack && deaths.verify && events.filter((e) => ['interrupted', 'timeout', 'fatal'].includes(e.type)).length === died.length, `las ${died.length} peticiones muertas a mitad de un tramo retomado (${died.join(', ')}) se reconocieron y el trabajo siguió`, JSON.stringify(summary.deaths));
 // La base de datos: en varios tramos (cada uno coherente, declarado) o, si cupo en uno, la instantánea única de siempre.
 check(summary.checkpoint && (summary.checkpoint.segments > 1 ? summary.checkpoint.mode === 'transaction-steps' && deaths.db : summary.checkpoint.mode === 'transaction'), `base de datos en ${summary.checkpoint?.segments} tramo(s), modo ${summary.checkpoint?.mode}, ${summary.checkpoint?.rows} filas`);
 check(Object.keys(job.attempts || {}).length === 0 || Object.values(job.attempts).every((n) => n <= 1), 'ninguna fase gastó más de un intento', JSON.stringify(job.attempts));
