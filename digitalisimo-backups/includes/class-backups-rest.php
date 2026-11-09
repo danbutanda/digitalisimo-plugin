@@ -56,6 +56,8 @@ final class Digitalisimo_Backups_Rest {
 
 	/** Registro de la clave que autorizó cada petición del origen (lo llena permission_callback). */
 	private static $migration_records = array();
+	/** Tramo del paquete que serve_package() envía (ruta, posición y largo). */
+	private static $package_range = null;
 
 	public static function register() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -250,8 +252,11 @@ final class Digitalisimo_Backups_Rest {
 		$body = method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array();
 		$result = Digitalisimo_Backups::service_migration_source( $action, $record, self::header( $request, Digitalisimo_Backups_Migrate::CLIENT_HEADER ), $body, self::header( $request, 'range' ) );
 		if ( is_wp_error( $result ) || 'download' !== $action ) return self::respond( $result );
-		// Bytes del paquete: rest_pre_serve_request los envía tal cual (WordPress codificaría el cuerpo como JSON).
-		$response = new WP_REST_Response( $result['bytes'], 206 );
+		// Bytes del paquete: rest_pre_serve_request los envía tal cual, leyendo el archivo por trozos (WordPress codificaría el
+		// cuerpo como JSON y lo tendría entero en memoria).
+		self::$package_range = array( 'path' => $result['path'], 'start' => (int) $result['start'], 'length' => (int) $result['end'] - (int) $result['start'] + 1 );
+		$response = new WP_REST_Response( null, 206 );
+		$response->header( 'Content-Length', (string) self::$package_range['length'] );
 		$response->header( 'Content-Type', 'application/octet-stream' );
 		$response->header( 'Content-Range', 'bytes ' . $result['start'] . '-' . $result['end'] . '/' . $result['total'] );
 		$response->header( 'X-Digitalisimo-Package-Sha256', $result['sha256'] );
@@ -259,12 +264,14 @@ final class Digitalisimo_Backups_Rest {
 		$response->header( 'X-Digitalisimo-Package', '1' );
 		return $response;
 	}
-	/** Envía tal cual los bytes de un fragmento del paquete; cualquier otra respuesta sigue su camino. */
+	/** Envía tal cual los bytes de un fragmento del paquete, por trozos; cualquier otra respuesta sigue su camino. */
 	public static function serve_package( $served, $result, $request = null, $server = null ) {
 		if ( $served || ! $result instanceof WP_REST_Response || 206 !== $result->get_status() ) return $served;
 		$headers = method_exists( $result, 'get_headers' ) ? (array) $result->get_headers() : array();
-		if ( '1' !== ( $headers['X-Digitalisimo-Package'] ?? '' ) || ! is_string( $result->get_data() ) ) return $served;
-		echo $result->get_data(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- bytes del paquete cifrado.
+		$range = self::$package_range;
+		if ( '1' !== ( $headers['X-Digitalisimo-Package'] ?? '' ) || ! is_array( $range ) ) return $served;
+		self::$package_range = null;
+		Digitalisimo_Backups_Migrate::emit_range( $range['path'], $range['start'], $range['length'] );
 		return true;
 	}
 	public static function upload_start( $request ) {

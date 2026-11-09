@@ -268,6 +268,8 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	foreach ( $GLOBALS['mig']['requests'] as $request ) if ( false !== strpos( $request['route'], '/download' ) ) $ranges[] = (string) $request['args']['headers']['Range'];
 	mig_assert( count( $ranges ) >= 9 && 'bytes=0-65535' === $ranges[0] && 'bytes=65536-131071' === $ranges[1] && $ranges[1] === $ranges[2] && $ranges[2] === $ranges[3], 'La descarga no se reanudó desde lo descargado: ' . json_encode( $ranges ) );
 	mig_assert( count( array_keys( $ranges, 'bytes=0-65535', true ) ) >= 2, 'Tras el SHA-256 distinto no se descargó otra vez desde el principio: ' . json_encode( $ranges ) );
+	// Cada fragmento llega a un archivo (memoria constante en el destino), como pide WP_Http con `stream`.
+	foreach ( $GLOBALS['mig']['requests'] as $request ) if ( false !== strpos( $request['route'], '/download' ) ) mig_assert( ! empty( $request['args']['stream'] ) && '' !== (string) ( $request['args']['filename'] ?? '' ), 'Un fragmento se pidió sin llevarlo a un archivo.' );
 	// El destino es ahora el origen con su propia dirección (reescritura de E1).
 	// El estado de la migración del destino (fuera de todo respaldo) sobrevive a la restauración, como el llavero.
 	$state = get_option( 'digitalisimo_backups_vault_migration' );

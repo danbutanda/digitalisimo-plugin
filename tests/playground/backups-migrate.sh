@@ -7,11 +7,13 @@
 #              ELEMENTS incluye «single»)
 #   multisite  red por subdirectorios en http://origen.test y http://destino.test (servidas en dos puertos; un mu-plugin
 #              de laboratorio resuelve origen.test hacia el puerto de A), A con el subsitio «uno»
-# Los dos sitios usan «Permitir HTTP» (laboratorio). La carpeta de resultados se monta fuera de /wordpress, y el plugin
-# y Elements son copias: una restauración nunca escribe en el repositorio.
+# Los dos sitios usan «Permitir HTTP» (laboratorio). La carpeta de resultados se monta fuera de /wordpress y el plugin de
+# Backups es una copia en cada sitio: la restauración de B nunca escribe en el repositorio (A no restaura, así que
+# Elements se monta desde el repositorio). Los modos corren uno detrás de otro.
 # Uso: bash tests/playground/backups-migrate.sh (en el servidor de desarrollo, por el semáforo de corridas pesadas y
 #      con systemd-run --user)
-#   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-migrate) y temporales de Playground
+#   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-migrate) y temporales de Playground; en el
+#                 servidor de desarrollo, en el disco que elige /var/tmp/digi-wt/pick-disk.sh
 #   MODES         modos a correr (por defecto «single multisite»)
 #   ELEMENTS      modos en los que A lleva Elements (por defecto «single»: con sodium_compat, sus ~32 MB comprimidos
 #                 suman unos 10 minutos de cifrado y otros tantos de descifrado)
@@ -65,10 +67,11 @@ for mode in ${MODES:-single multisite}; do
     if [ "$site" = A ]; then echo "$hosts_a" > "$sd/probe/hosts.json"; else echo "$hosts_b" > "$sd/probe/hosts.json"; fi
     role=origen; [ "$site" = B ] && role=destino
     elements=false; mounts=()
+    # A sólo es origen (nunca restaura): Elements se monta desde el repositorio, sin copiar sus 126 MB en cada corrida
+    # (lo mismo que brand-audit.sh). B lo recibe en su propio disco al restaurar.
     if [ "$site" = A ] && [ "$with_elements" = 1 ]; then
-      cp -a "$ROOT/digitalisimo-elements" "$sd/elements"
       elements=true
-      mounts=(--mount="$sd/elements:/wordpress/wp-content/plugins/digitalisimo-elements")
+      mounts=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements")
     fi
     password="$(node -e "console.log(require('$dir/conf.json').$site.password)")"
     printf '{"role":"%s","password":"%s","elements":%s}\n' "$role" "$password" "$elements" > "$sd/probe/site.json"

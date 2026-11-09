@@ -362,7 +362,14 @@ function mig_transport( $method, $url, $args ) {
 	$out = array( 'response' => array( 'code' => $reply[0] ), 'body' => is_string( $reply[1] ) ? $reply[1] : json_encode( $reply[1] ), 'headers' => array_change_key_case( (array) $reply[2], CASE_LOWER ) );
 	foreach ( $GLOBALS['mig']['faults'] as $fault ) {
 		$changed = call_user_func( $fault, $method, $route, $args, $out );
-		if ( null !== $changed ) return $changed;
+		if ( null !== $changed ) { $out = $changed; break; }
+	}
+	if ( is_wp_error( $out ) ) return $out;
+	// Como WP_Http con `stream`: el cuerpo va al archivo pedido y la respuesta no lo lleva.
+	if ( ! empty( $args['stream'] ) && ! empty( $args['filename'] ) ) {
+		file_put_contents( $args['filename'], (string) $out['body'] );
+		$GLOBALS['mig']['streamed'][] = strlen( (string) $out['body'] );
+		$out['body'] = '';
 	}
 	return $out;
 }

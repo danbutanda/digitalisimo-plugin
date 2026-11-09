@@ -538,8 +538,9 @@ final class Digitalisimo_Backups_Migrate {
 		return Digitalisimo_Backups_Job_Store::directory( (string) $job['id'] ) . '/' . basename( (string) $job['spec']['file'] );
 	}
 	/**
-	 * Un fragmento del paquete (`Range: bytes=a-b`, como mucho MAX_CHUNK bytes): devuelve los bytes con su posición, el
-	 * tamaño total y el SHA-256 del paquete. Un rango fuera del paquete responde 416.
+	 * Un fragmento del paquete (`Range: bytes=a-b`, como mucho MAX_CHUNK bytes): devuelve dónde está (ruta, posición y
+	 * largo, que la API envía leyendo el archivo por trozos, con memoria constante), el tamaño total y el SHA-256 del
+	 * paquete. Un rango fuera del paquete responde 416.
 	 */
 	public static function source_download( array $record, $range ) {
 		$job = Digitalisimo_Backups_Job_Store::valid_id( (string) $record['job'] ) ? Digitalisimo_Backups_Jobs::get( (string) $record['job'] ) : null;
@@ -557,23 +558,31 @@ final class Digitalisimo_Backups_Migrate {
 			$end = min( $end, $total - 1, $start + $max - 1 );
 			if ( $start >= $total || $end < $start ) return self::error( 'range', 'El rango pedido está fuera del paquete.', 416 );
 		}
+		if ( ! is_readable( $path ) ) return self::error( 'read', 'No se pudo leer el paquete en el sitio de origen.', 500 );
+		if ( 0 === $start ) self::log( $record['id'], 'download' );
+		return array( 'path' => $path, 'start' => $start, 'end' => $end, 'total' => $total, 'sha256' => (string) ( $job['result']['sha256'] ?? '' ) );
+	}
+	/**
+	 * Envía un tramo de un archivo por trozos de 64 KiB: la memoria no depende del tamaño del fragmento (un hosting de
+	 * 64 MB con WordPress y sus plugins cargados no tiene margen para guardar varios MiB en una cadena).
+	 */
+	public static function emit_range( $path, $start, $length ) {
 		$handle = @fopen( $path, 'rb' );
-		if ( ! $handle ) return self::error( 'read', 'No se pudo leer el paquete en el sitio de origen.', 500 );
+		if ( ! $handle ) return false;
+		$sent = 0;
 		try {
-			if ( 0 !== fseek( $handle, $start ) ) return self::error( 'read', 'No se pudo leer el paquete en el sitio de origen.', 500 );
-			$bytes = '';
-			$length = $end - $start + 1;
-			while ( strlen( $bytes ) < $length && ! feof( $handle ) ) {
-				$chunk = fread( $handle, $length - strlen( $bytes ) );
-				if ( false === $chunk || '' === $chunk ) break;
-				$bytes .= $chunk;
+			if ( 0 !== fseek( $handle, (int) $start ) ) return false;
+			while ( $sent < $length && ! feof( $handle ) ) {
+				$piece = fread( $handle, (int) min( 65536, $length - $sent ) );
+				if ( false === $piece || '' === $piece ) break;
+				echo $piece; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- bytes del paquete cifrado.
+				$sent += strlen( $piece );
+				if ( function_exists( 'flush' ) && 0 === ob_get_level() ) flush();
 			}
 		} finally {
 			fclose( $handle );
 		}
-		if ( strlen( $bytes ) !== $length ) return self::error( 'read', 'No se pudo leer el paquete completo en el sitio de origen.', 500 );
-		if ( 0 === $start ) self::log( $record['id'], 'download' );
-		return array( 'bytes' => $bytes, 'start' => $start, 'end' => $end, 'total' => $total, 'sha256' => (string) ( $job['result']['sha256'] ?? '' ) );
+		return $sent === (int) $length;
 	}
 	/** La migración terminó en el destino: la clave queda usada (no sirve más) y su paquete se borra. */
 	public static function source_finish( array $record, array $body ) {
@@ -750,7 +759,7 @@ final class Digitalisimo_Backups_Migrate {
 	 * Una petición al origen. La credencial va en la cabecera, nunca en la URL ni en el cuerpo. 401/403/404/409/410 y
 	 * 422 son permanentes (repetir no lo arregla); 429 y los fallos de red o del servidor, transitorios.
 	 */
-	private static function call( array $migration, $auth, $client, $action, $method, $body = array(), $timeout = 60, array $headers = array() ) {
+	private static function call( array $migration, $auth, $client, $action, $method, $body = array(), $timeout = 60, array $headers = array(), $file = '' ) {
 		$args = array(
 			'method' => $method,
 			'timeout' => $timeout,
@@ -763,13 +772,19 @@ final class Digitalisimo_Backups_Migrate {
 			$args['headers']['Content-Type'] = 'application/json';
 			$args['body'] = wp_json_encode( (object) $body );
 		}
+		// Un fragmento del paquete va directo a un archivo: la memoria no depende de su tamaño.
+		if ( '' !== $file ) {
+			$args['stream'] = true;
+			$args['filename'] = $file;
+		}
 		$url = self::endpoint( (string) $migration['url'], $action );
 		$response = self::$transport ? call_user_func( self::$transport, $method, $url, $args ) : wp_remote_request( $url, $args );
 		$host = (string) wp_parse_url( (string) $migration['url'], PHP_URL_HOST );
 		if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo conectar con el sitio de origen (' . $host . '): ' . $response->get_error_message() );
 		$code = (int) wp_remote_retrieve_response_code( $response );
-		$raw = (string) wp_remote_retrieve_body( $response );
-		if ( 'download' === $action && in_array( $code, array( 200, 206 ), true ) ) return array( 'code' => $code, 'body' => $raw, 'range' => (string) wp_remote_retrieve_header( $response, 'content-range' ), 'sha256' => strtolower( (string) wp_remote_retrieve_header( $response, 'x-digitalisimo-package-sha256' ) ) );
+		if ( 'download' === $action && in_array( $code, array( 200, 206 ), true ) ) return array( 'code' => $code, 'file' => $file, 'range' => (string) wp_remote_retrieve_header( $response, 'content-range' ), 'sha256' => strtolower( (string) wp_remote_retrieve_header( $response, 'x-digitalisimo-package-sha256' ) ) );
+		// Con la respuesta en un archivo, un error trae su JSON allí (pequeño).
+		$raw = '' !== $file ? (string) @file_get_contents( $file, false, null, 0, 65536 ) : (string) wp_remote_retrieve_body( $response );
 		$data = json_decode( $raw, true );
 		$message = is_array( $data ) && is_string( $data['message'] ?? null ) ? $data['message'] : 'HTTP ' . $code;
 		if ( $code >= 200 && $code < 300 && is_array( $data ) ) return $data;
@@ -868,6 +883,7 @@ final class Digitalisimo_Backups_Migrate {
 		$dir = self::work_dir( $job );
 		$part = $dir . '/package.dgbk.download';
 		$final = $dir . '/package.dgbk';
+		$tmp = $dir . '/piece.tmp';
 		if ( is_link( $part ) || is_link( $final ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La descarga de la migración no puede ser un enlace simbólico.' );
 		if ( is_file( $final ) ) return array( 'next' => 'check', 'checkpoint' => array( 'size' => $size, 'at' => time() ), 'message' => 'Paquete descargado; comprobándolo…' );
 		clearstatcache( true, $part );
@@ -889,7 +905,7 @@ final class Digitalisimo_Backups_Migrate {
 				$piece = null;
 				for ( $try = 0; $try < 2 && null === $piece; $try++ ) {
 					try {
-						$piece = self::fetch_piece( $job, $auth, $offset, $end, $size, $sha );
+						$piece = self::fetch_piece( $job, $auth, $offset, $end, $size, $sha, $tmp );
 					} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
 						throw $e;
 					} catch ( Exception $e ) {
@@ -899,14 +915,18 @@ final class Digitalisimo_Backups_Migrate {
 				}
 				if ( null === $piece ) break;
 				$failure = null;
+				// Del archivo del fragmento al de la descarga, por flujo (sin cargar el fragmento en memoria).
 				$handle = @fopen( $part, 'ab' );
-				if ( ! $handle ) throw new Exception( 'No se pudo escribir la descarga de la migración en el almacén privado.' );
-				$written = fwrite( $handle, $piece );
+				$input = @fopen( $tmp, 'rb' );
+				if ( ! $handle || ! $input ) { if ( $handle ) fclose( $handle ); if ( $input ) fclose( $input ); throw new Exception( 'No se pudo escribir la descarga de la migración en el almacén privado.' ); }
+				$written = stream_copy_to_stream( $input, $handle );
 				$flushed = fflush( $handle );
+				fclose( $input );
 				fclose( $handle );
+				@unlink( $tmp );
 				clearstatcache( true, $part );
-				if ( strlen( $piece ) !== $written || ! $flushed || $offset + strlen( $piece ) !== (int) filesize( $part ) ) throw new Exception( 'La descarga de la migración no se pudo guardar completa (¿disco lleno?).' );
-				$offset += strlen( $piece );
+				if ( $piece !== $written || ! $flushed || $offset + $piece !== (int) filesize( $part ) ) throw new Exception( 'La descarga de la migración no se pudo guardar completa (¿disco lleno?).' );
+				$offset += $piece;
 				Digitalisimo_Backups_Jobs::progress( 40 + (int) floor( 35 * $offset / $size ), 'Descargando el paquete: ' . self::megabytes( $offset ) . ' de ' . self::megabytes( $size ) . '…' );
 				if ( microtime( true ) >= $deadline ) break;
 			}
@@ -927,18 +947,23 @@ final class Digitalisimo_Backups_Migrate {
 		if ( ! @rename( $part, $final ) ) throw new Exception( 'No se pudo cerrar la descarga de la migración.' );
 		return array( 'next' => 'check', 'checkpoint' => array( 'size' => $size, 'at' => time() ), 'message' => 'Paquete descargado y con el SHA-256 anunciado; comprobándolo…' );
 	}
-	/** Un fragmento exacto: 206, `Content-Range` con la posición pedida y el total anunciado, y el largo justo. */
-	private static function fetch_piece( array $job, $auth, $start, $end, $size, $sha ) {
-		$reply = self::call( $job['spec']['migration'], $auth, (string) $job['id'], 'download', 'GET', array(), 120, array( 'Range' => 'bytes=' . $start . '-' . $end ) );
-		$body = (string) $reply['body'];
+	/**
+	 * Un fragmento exacto, recibido en $file: 206, `Content-Range` con la posición pedida y el total anunciado, y el largo
+	 * justo. Devuelve su largo; nunca lo tiene entero en memoria.
+	 */
+	private static function fetch_piece( array $job, $auth, $start, $end, $size, $sha, $file ) {
+		@unlink( $file );
+		$reply = self::call( $job['spec']['migration'], $auth, (string) $job['id'], 'download', 'GET', array(), 120, array( 'Range' => 'bytes=' . $start . '-' . $end ), $file );
+		clearstatcache( true, $file );
+		$got = is_file( $file ) ? (int) filesize( $file ) : -1;
 		if ( 200 === $reply['code'] ) {
-			if ( 0 !== $start || strlen( $body ) !== $size ) throw new Exception( 'El origen no respetó el rango pedido.' );
-			return $body;
+			if ( 0 !== $start || $got !== $size ) throw new Exception( 'El origen no respetó el rango pedido.' );
+			return $got;
 		}
 		if ( ! preg_match( '/^bytes (\d+)-(\d+)\/(\d+)$/D', trim( (string) $reply['range'] ), $m ) || (int) $m[1] !== $start || (int) $m[3] !== $size || (int) $m[2] < $start || (int) $m[2] > $end ) throw new Exception( 'El fragmento recibido no es el pedido (bytes ' . $start . '-' . $end . ').' );
 		if ( '' !== $reply['sha256'] && ! hash_equals( $sha, $reply['sha256'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete del origen cambió durante la descarga (otro SHA-256).' );
-		if ( strlen( $body ) !== (int) $m[2] - $start + 1 ) throw new Exception( 'El fragmento llegó incompleto.' );
-		return $body;
+		if ( $got !== (int) $m[2] - $start + 1 ) throw new Exception( 'El fragmento llegó incompleto.' );
+		return $got;
 	}
 	/** Antes de descifrar: la cabecera DGBK dice que el paquete está cifrado con la clave pegada y su tamaño cuadra. */
 	private static function check( array $job ) {
