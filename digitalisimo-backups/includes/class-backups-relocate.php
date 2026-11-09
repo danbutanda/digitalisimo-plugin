@@ -271,6 +271,10 @@ final class Digitalisimo_Backups_Relocate {
 	 */
 	public function transform_insert( array $insert, $sql ) {
 		if ( ! is_array( $insert['columns'] ?? null ) ) return array();
+		// Una tabla ajena a esta instalación (sin el prefijo del origen, de otra aplicación de la misma base de datos) se
+		// restaura como siempre, sin cambios.
+		$own = (string) ( $this->origin['prefix'] ?? '' );
+		if ( '' !== $own && 0 !== strpos( (string) $insert['table'], $own ) ) { $this->count( (string) $insert['table'], 'foreign' ); return array(); }
 		$table = $this->table_map[ $insert['table'] ] ?? $insert['table'];
 		list( $base ) = $this->kind( $table );
 		$keep = self::KEEP_COLUMNS[ $base ] ?? array();
@@ -401,13 +405,15 @@ final class Digitalisimo_Backups_Relocate {
 	/**
 	 * Cuenta lo que quedó del origen en las tablas (ya importadas y reescritas): la base de datos busca con LIKE las
 	 * filas que mencionan un host o una ruta del origen y cada candidata (hasta CHECK_ROWS por tabla) se clasifica con
-	 * el mismo criterio estricto que la reescritura. `urls` y `paths` deben quedar en 0; `guid` (sin tocar a propósito),
-	 * `emails` (`@origen.com`, sin tocar) y `other` (texto sin esquema, otros dominios que contienen el del origen, como
-	 * `origen.com.mx`) se informan. `complete` es false si alguna tabla tenía más candidatas de las que se revisaron.
+	 * el mismo criterio estricto que la reescritura. `urls` y `paths` (lo que la reescritura habría cambiado y sigue ahí)
+	 * deben quedar en 0; se informan `guid` (sin tocar a propósito), `kept` (lo que las reglas dejan a propósito:
+	 * serializado dañado, objeto C:, clave que chocaría, anidamiento o tamaño excesivos), `emails` (`@origen.com`) y
+	 * `other` (el host sin esquema ni `//`, como texto). `complete` es false si alguna tabla tenía más candidatas de las
+	 * que se revisaron.
 	 */
 	public function leftovers( array $tables ) {
 		global $wpdb;
-		$total = array( 'urls' => 0, 'paths' => 0, 'guid' => 0, 'emails' => 0, 'other' => 0, 'complete' => true, 'tables' => array() );
+		$total = array( 'urls' => 0, 'paths' => 0, 'guid' => 0, 'kept' => 0, 'emails' => 0, 'other' => 0, 'complete' => true, 'tables' => array() );
 		if ( ! $this->rewrites_values() ) return $total;
 		foreach ( $tables as $table ) {
 			$table = (string) $table;
@@ -416,7 +422,7 @@ final class Digitalisimo_Backups_Relocate {
 			if ( null === $columns ) continue;
 			$text = array_keys( array_filter( $columns, function( $c ) { return $c['text']; } ) );
 			$keep = self::KEEP_COLUMNS[ $base ] ?? array();
-			$counts = array( 'urls' => 0, 'paths' => 0, 'guid' => 0, 'emails' => 0, 'other' => 0 );
+			$counts = array( 'urls' => 0, 'paths' => 0, 'guid' => 0, 'kept' => 0, 'emails' => 0, 'other' => 0 );
 			foreach ( $text as $column ) {
 				$where = $this->like_clause( array( $column ), '' );
 				if ( '' === $where ) continue;
@@ -436,15 +442,31 @@ final class Digitalisimo_Backups_Relocate {
 	}
 
 	/**
-	 * Clasifica las menciones del origen que quedan en un valor: `urls` (una URL del origen que debía cambiar), `paths`
-	 * (una ruta del origen), `emails` y `other` (el host del origen en otro contexto). Una URL del destino que empieza
-	 * igual que una del origen (mismo host con otra ruta) no cuenta.
+	 * Clasifica las menciones del origen que quedan en un valor: `urls` y `paths` (lo que la reescritura cambiaría: un
+	 * resto que no debía quedar), `kept` (lo que deja a propósito), `emails` y `other` (el host del origen en otro
+	 * contexto). Una URL del destino que empieza igual que una del origen (mismo host con otra ruta) no cuenta.
 	 */
 	public function classify( $value ) {
-		$out = array( 'urls' => 0, 'paths' => 0, 'emails' => 0, 'other' => 0 );
+		$out = array( 'urls' => 0, 'paths' => 0, 'kept' => 0, 'emails' => 0, 'other' => 0 );
 		if ( ! is_string( $value ) || '' === $value ) return $out;
-		$value = $this->scan_urls( $value, true, $out['urls'] );
+		$this->scan_urls( $value, true, $out['urls'] );
 		if ( $this->path_regex ) $out['paths'] += preg_match_all( $this->path_regex, $value );
+		if ( $out['urls'] || $out['paths'] ) {
+			// Lo que la reescritura deja a propósito (serializado dañado, objeto C:, clave que chocaría, anidamiento o tamaño
+			// excesivos) es `kept`; sólo lo que todavía cambiaría es un resto que no debía quedar.
+			$stats = $this->stats;
+			$flags = $this->flags;
+			$after = $this->rewrite( $value );
+			$this->stats = $stats;
+			$this->flags = $flags;
+			$urls = 0;
+			$this->scan_urls( $after, true, $urls );
+			$paths = $this->path_regex ? preg_match_all( $this->path_regex, $after ) : 0;
+			$kept = min( $out['urls'], $urls ) + min( $out['paths'], $paths );
+			$out['urls'] -= min( $out['urls'], $urls );
+			$out['paths'] -= min( $out['paths'], $paths );
+			$out['kept'] = $kept;
+		}
 		foreach ( array_keys( $this->hosts ) as $host ) {
 			$out['emails'] += preg_match_all( '~@' . preg_quote( $host, '~' ) . '(?![a-z0-9-]|\.[a-z0-9])~i', $value );
 			$out['other'] += preg_match_all( '~(?<![a-z0-9.@/-])' . preg_quote( $host, '~' ) . '(?![a-z0-9-]|\.[a-z0-9])~i', $value );
@@ -506,7 +528,8 @@ final class Digitalisimo_Backups_Relocate {
 		// Rutas del servidor: siempre las del destino, de la más larga a la más corta.
 		foreach ( array( 'uploads_dir', 'content_dir', 'abspath' ) as $key ) {
 			if ( '' !== $o[ $key ] && '' !== $d[ $key ] ) $plan->add_path( $o[ $key ], $d[ $key ] );
-			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
+			// La ruta real de un despliegue con enlace (current → releases/N) también, salvo que sea la misma aquí.
+			if ( 'abspath' === $key && '' !== $o['abspath_real'] && '' !== $d['abspath'] && $o['abspath_real'] !== $d['abspath_real'] ) $plan->add_path( $o['abspath_real'], $d['abspath'] );
 		}
 		if ( 'current' === $plan->mode ) {
 			if ( $o['multisite'] ) $plan->plan_network( (array) ( $args['sites'] ?? array() ) );
@@ -606,6 +629,12 @@ final class Digitalisimo_Backups_Relocate {
 			$path = self::slash_path( (string) $site['path'] );
 			$new_domain = $domain;
 			$new_path = $path;
+			$own = isset( $explicit[ $id ]['domain'] ) || $domain === $from['domain'] || 'www.' . $from['domain'] === $domain || ( $o['subdomain'] && self::ends_with( $domain, '.' . $from['domain'] ) );
+			if ( ! $own ) {
+				// Un sitio con dominio propio (cliente.com) se queda tal cual: su dominio no es de la red que se muda.
+				$this->sites[ (int) $id ] = array( 'from' => array( 'domain' => $domain, 'path' => $path ), 'to' => array( 'domain' => $domain, 'path' => $path ) );
+				continue;
+			}
 			if ( isset( $explicit[ $id ]['domain'] ) ) {
 				$new_domain = strtolower( (string) $explicit[ $id ]['domain'] );
 				$new_path = self::slash_path( (string) ( $explicit[ $id ]['path'] ?? '/' ) );
@@ -653,8 +682,8 @@ final class Digitalisimo_Backups_Relocate {
 		global $wpdb;
 		$d = $this->destination;
 		$report = array( 'network' => array(), 'addresses' => array(), 'caches' => array(), 'warnings' => array() );
-		$names = array_values( array_map( 'strval', $tables ) );
 		$prefix = $d['prefix'];
+		$names = array_values( array_filter( array_map( 'strval', $tables ), function( $table ) use ( $prefix ) { return '' === $prefix || 0 === strpos( $table, $prefix ); } ) );
 		$has = array_flip( $names );
 		// Red: dominio y ruta (la base de datos manda; sin esto la red no carga en su nuevo dominio).
 		if ( 'current' === $this->mode && $this->origin['multisite'] ) {
@@ -707,6 +736,7 @@ final class Digitalisimo_Backups_Relocate {
 			}
 		}
 		if ( $this->needed() ) $report['caches'] = $this->flush_caches( $names, $report['warnings'] );
+		$this->rewrite_rules_file( $report );
 		try {
 			$report['check'] = $this->leftovers( $names );
 		} catch ( Throwable $e ) {
@@ -717,6 +747,31 @@ final class Digitalisimo_Backups_Relocate {
 		$this->report = $report + array( 'summary' => $this->summary(), 'tables' => $this->tables, 'stats' => $this->stats );
 		return $this->report;
 	}
+	/**
+	 * Si cambió la ruta del sitio (/a → /b), las reglas de reescritura del servidor que trajo el respaldo apuntan a la
+	 * anterior. En un sitio individual con Apache, el bloque de WordPress de .htaccess se regenera como al guardar los
+	 * enlaces permanentes; en una red o con otro servidor (nginx) se avisa.
+	 */
+	private function rewrite_rules_file( array &$report ) {
+		if ( 'current' !== $this->mode ) return;
+		$from = self::parse_url( $this->origin['home'] );
+		$to = self::parse_url( $this->destination['home'] );
+		$moved = $this->origin['multisite'] ? $this->origin['network']['path'] !== $this->destination['network']['path'] : ( $from && $to && $from['path'] !== $to['path'] );
+		if ( ! $moved ) return;
+		$report['caches']['htaccess'] = false;
+		// Sólo con las funciones que ya cargó esta petición (la pantalla de administración): incluir ahora
+		// wp-admin/includes/misc.php cargaría el que acaban de traer los archivos del respaldo.
+		if ( ! $this->origin['multisite'] && function_exists( 'save_mod_rewrite_rules' ) && function_exists( 'got_mod_rewrite' ) && function_exists( 'get_home_path' ) ) {
+			try {
+				if ( isset( $GLOBALS['wp_rewrite'] ) && is_object( $GLOBALS['wp_rewrite'] ) && method_exists( $GLOBALS['wp_rewrite'], 'init' ) ) $GLOBALS['wp_rewrite']->init();
+				if ( got_mod_rewrite() ) $report['caches']['htaccess'] = (bool) save_mod_rewrite_rules();
+			} catch ( Throwable $e ) {
+				$report['warnings'][] = 'No se pudo regenerar .htaccess: ' . $e->getMessage();
+			}
+		}
+		if ( ! $report['caches']['htaccess'] ) $report['warnings'][] = 'La ruta del sitio cambió: si el servidor usa reglas de reescritura propias (.htaccess de una red, nginx), actualízalas para la ruta nueva y guarda los enlaces permanentes.';
+	}
+
 	/** El informe de finish(): resumen, tablas, red, direcciones, cachés, comprobación y avisos. */
 	public function report() { return $this->report; }
 
@@ -892,10 +947,12 @@ final class Digitalisimo_Backups_Relocate {
 		return $out;
 	}
 	public static function quote_name( $name ) { return '`' . str_replace( '`', '``', (string) $name ) . '`'; }
+	/** Literal SQL de un valor para la conexión actual ($wpdb->prepare): igual en MySQL y en el SQLite de WordPress. */
 	private static function sql_literal( $value ) {
+		global $wpdb;
 		if ( null === $value ) return 'NULL';
-		if ( is_int( $value ) || ( is_string( $value ) && preg_match( '/^-?[0-9]{1,18}$/D', $value ) ) ) return (string) $value;
-		return "'" . self::sql_escape( $value ) . "'";
+		if ( is_int( $value ) || ( is_string( $value ) && preg_match( '/^-?[1-9][0-9]{0,17}$|^0$/D', $value ) ) ) return (string) $value;
+		return $wpdb->prepare( '%s', (string) $value );
 	}
 	private static function after_clause( array $primary, array $last ) {
 		$parts = array();
@@ -912,10 +969,11 @@ final class Digitalisimo_Backups_Relocate {
 		foreach ( array_keys( $this->hosts ) as $host ) $needles[ $host ] = true;
 		foreach ( array_keys( $this->path_pairs ) as $path ) foreach ( array( 'plain', 'json', 'json2' ) as $style ) $needles[ str_replace( '/', self::STYLES[ $style ]['slash'], $path ) ] = true;
 		$parts = array();
+		$like = function( $text ) { return strtr( $text, array( '!' => '!!', '%' => '!%', '_' => '!_' ) ); };
 		foreach ( $columns as $column ) {
-			foreach ( array_keys( $needles ) as $needle ) $parts[] = self::quote_name( $column ) . " LIKE '%" . self::sql_escape( strtr( $needle, array( '!' => '!!', '%' => '!%', '_' => '!_' ) ) ) . "%' ESCAPE '!'";
+			foreach ( array_keys( $needles ) as $needle ) $parts[] = self::quote_name( $column ) . ' LIKE ' . self::sql_literal( '%' . $like( $needle ) . '%' ) . " ESCAPE '!'";
 		}
-		foreach ( array_keys( $this->prefixes ) as $prefix ) if ( '' !== $key_column ) $parts[] = self::quote_name( $key_column ) . " LIKE '" . self::sql_escape( strtr( $prefix, array( '!' => '!!', '%' => '!%', '_' => '!_' ) ) ) . "%' ESCAPE '!'";
+		foreach ( array_keys( $this->prefixes ) as $prefix ) if ( '' !== $key_column ) $parts[] = self::quote_name( $key_column ) . ' LIKE ' . self::sql_literal( $like( $prefix ) . '%' ) . " ESCAPE '!'";
 		return implode( ' OR ', $parts );
 	}
 	/**
