@@ -385,6 +385,29 @@ bk_assert( 'lock-steps' === $job['checkpoint']['database']['mode'] && $locks ===
 $db->engine = 'InnoDB';
 
 }
+// J. Una tabla que desaparece a mitad de una exportación retomada (un plugin desinstalado): la exportación empieza de
+// nuevo con la lista de tablas actual, con aviso, y el manifiesto no la nombra.
+if ( steps_section( 'J' ) ) {
+class Steps_Gone_DB extends Digitalisimo_Jobs_Test_DB {
+	public $gone = '';
+	public function get_row( $query, $format = null ) {
+		if ( '' !== $this->gone && false !== strpos( $query, 'SHOW CREATE TABLE `' . $this->gone . '`' ) ) { $this->queries[] = $query; $this->last_error = "Table '" . $this->gone . "' doesn't exist"; return null; }
+		return parent::get_row( $query, $format );
+	}
+}
+$GLOBALS['wpdb'] = new Steps_Gone_DB();
+$GLOBALS['wpdb']->tables = array( 'wp_options' => 3, 'wp_posts' => 9, 'wp_plugin_extra' => 4 );
+steps_filters( array( 'digitalisimo_backups_step_units' => 1, 'digitalisimo_backups_db_batch' => 2 ) );
+$j = bk_manual( 'local', 'tabla-desaparecida' );
+steps_until( $j['id'], function( $job ) { $r = $job['checkpoint']['database']['resume'] ?? null; return is_array( $r ) && 1 === (int) $r['table'] && (int) $r['rows'] > 0; } );
+unset( $GLOBALS['wpdb']->tables['wp_plugin_extra'] );
+$GLOBALS['wpdb']->gone = 'wp_plugin_extra';
+$job = steps_done( $j['id'] );
+$manifest = bk_zip_entries( steps_zip( $job ) );
+bk_assert( array( 'wp_options', 'wp_posts' ) === $manifest['database_tables'] && preg_grep( '/wp_plugin_extra cambió o desapareció/', $job['warnings'] ) && false === strpos( steps_sql( steps_zip( $job ) ), 'wp_plugin_extra' ), 'Una tabla desaparecida a mitad de la exportación no la reinició con la lista actual.' );
+$GLOBALS['wpdb'] = $db;
+}
+
 steps_filters( array() );
 bk_assert( ! Digitalisimo_Backups_Jobs::has_active(), 'Quedaron trabajos activos.' );
 bk_cleanup();
