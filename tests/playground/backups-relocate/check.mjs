@@ -79,7 +79,7 @@ try {
     const { file } = JSON.parse(readFileSync(`${originDir}/origin.json`, 'utf8'));
     const network = setup.network;
     let res = await api('GET', `/backups/${file}/verify`, { headers: basic(setup.password) });
-    check(res.status === 200 && res.json?.compatible === true && res.json?.relocation?.needed === true && res.json.relocation.text.includes(`Origen http://${originHost} (prefijo wp_) → este sitio http://${host} (prefijo dst_)`), 'destino: verify dice «Origen → este sitio» y qué se reescribirá', res.text.slice(0, 900));
+    check(res.status === 200 && res.json?.compatible === true && res.json?.relocation?.needed === true && res.json.relocation.text.includes(`Origen http://${originHost} (prefijo wp_) → este sitio http://${host} (prefijo ${setup.prefix})`), 'destino: verify dice «Origen → este sitio» y qué se reescribirá', res.text.slice(0, 900));
     log(`· ${res.json?.relocation?.text || ''}`);
     const started = Date.now();
     res = await api('POST', `/backups/${file}/restore`, { headers: basic(setup.password), body: { confirm: 'RESTAURAR SIN FIRMA', network, addresses: 'current' } });
@@ -99,8 +99,8 @@ try {
       check(view.html.includes(`http://${host}/contacto/`) || view.html.includes(`http://${host}/uno/contacto/`), `destino: los enlaces internos de «${name}» van a ${host}`);
     }
     const db = (await request('GET', `/wp-content/digi-web/db.php?token=${token}&needle=${encodeURIComponent(originHost)}`)).json || {};
-    check(db.prefix === 'dst_' && db.user_roles === true && Object.keys(db.hits || {}).length === 0, `destino: ninguna tabla dst_ menciona ${originHost} (salvo guid: ${db.guid})`, JSON.stringify(db.hits || db).slice(0, 900));
-    check(db.other_options === setup.other_options && !(db.tables || []).some((t) => /^wp_/.test(t) && !(setup.tables || []).includes(t)), 'destino: el otro WordPress (prefijo wp_) de la misma base quedó intacto', `${db.other_options} / ${setup.other_options}`);
+    check(db.prefix === setup.prefix && db.user_roles === true && Object.keys(db.hits || {}).length === 0, `destino: ninguna tabla del sitio menciona ${originHost} (salvo guid: ${db.guid})`, JSON.stringify(db.hits || db).slice(0, 900));
+    if (setup.prefix !== 'wp_') check(db.other_options === setup.other_options && !(db.tables || []).some((t) => /^wp_/.test(t) && !(setup.tables || []).includes(t)), 'destino: el otro WordPress (prefijo wp_) de la misma base quedó intacto', `${db.other_options} / ${setup.other_options}`);
     if (network) check(Array.isArray(db.blogs) && db.blogs.length === 2 && db.blogs.every((b) => b.domain === host), 'destino: los sitios de la red tienen el dominio nuevo', JSON.stringify(db.blogs));
     const login = await request('POST', '/wp-login.php', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: 'wordpress_test_cookie=WP%20Cookie%20check' },

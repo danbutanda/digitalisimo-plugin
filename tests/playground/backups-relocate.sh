@@ -14,6 +14,7 @@
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-relocate) y temporales de Playground
 #   MODES         modos (por defecto «single multisite»)
 #   PORT          primer puerto (por defecto 9481; cada servidor usa el siguiente)
+#   DEST_PREFIX   prefijo de tablas del destino (por defecto dst_; con wp_ no hay «otro WordPress» que comprobar)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 D="$ROOT/tests/playground/backups-relocate"
@@ -84,7 +85,8 @@ for mode in ${MODES:-single multisite}; do
   stop_server; sleep 2
   file=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).file||"")' "$dir/origin/origin.json" 2>/dev/null || true)
   [ -n "$file" ] && [ -f "$dir/origin/store/$file" ] || { echo "== $mode: no hay respaldo del origen"; fail=1; port=$((port + 2)); continue; }
-  mkdir -p "$dir/dest/store"; chmod 700 "$dir/dest/store"
+  mkdir -p "$dir/dest/store" "$dir/dest/probe"; chmod 700 "$dir/dest/store"
+  echo "${DEST_PREFIX:-dst_}" > "$dir/dest/probe/prefix.txt"
   cp "$dir/origin/store/$file" "$dir/dest/store/$file"
   port=$((port + 1))
   begun=$(date +%s)
