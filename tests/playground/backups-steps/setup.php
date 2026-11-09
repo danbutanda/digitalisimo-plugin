@@ -46,6 +46,8 @@ foreach ( array( 'digitalisimo_backups_db_batch' => array( 'die-db', 'database',
 	} );
 }
 $GLOBALS['digi_t2_request'] = array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ) );
+// Lo que tarda WordPress en cargar se separa de lo que hace la petición después (un atasco del servidor cae en lo primero).
+add_action( 'init', static function () { $GLOBALS['digi_t2_request']['init'] = microtime( true ); }, -1000 );
 register_shutdown_function( static function () {
 	$request = $GLOBALS['digi_t2_request'];
 	if ( false === strpos( $request['uri'], 'wp-cron.php' ) && 'digitalisimo_backups_job_tick' !== $request['action'] && 'digitalisimo_backups_manual_start' !== $request['action'] ) return;
@@ -54,6 +56,8 @@ register_shutdown_function( static function () {
 		'kind' => false !== strpos( $request['uri'], 'wp-cron.php' ) ? 'wp-cron' : ( 'digitalisimo_backups_manual_start' === $request['action'] ? 'start' : 'navegador' ),
 		'start' => $start,
 		'seconds' => round( microtime( true ) - $start, 3 ),
+		'bootstrap' => isset( $request['init'] ) ? round( $request['init'] - $start, 3 ) : null,
+		'work' => isset( $request['init'] ) ? round( microtime( true ) - $request['init'], 3 ) : null,
 		'peak_mb' => round( memory_get_peak_usage( true ) / 1048576, 1 ),
 		'memory_limit' => ini_get( 'memory_limit' ),
 		'request_limit' => class_exists( 'Digitalisimo_Backups_Step_Budget', false ) ? Digitalisimo_Backups_Step_Budget::request_limit() : null,

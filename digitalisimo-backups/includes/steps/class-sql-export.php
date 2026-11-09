@@ -118,7 +118,7 @@ final class Digitalisimo_Backups_Sql_Export {
 			if ( 0 === (int) $cursor['size'] ) self::write( $out, self::HEADER );
 			$count = count( $cursor['tables'] );
 			while ( $cursor['table'] < $count ) {
-				if ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) break;
+				if ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units, true ) ) break;
 				$table = (string) $cursor['tables'][ $cursor['table'] ];
 				if ( ! $cursor['started'] ) self::start_table( $out, $table, $cursor );
 				if ( self::rows( $out, $table, $cursor, $deadline, $units ) ) {
@@ -240,7 +240,7 @@ final class Digitalisimo_Backups_Sql_Export {
 		}
 		$order = implode( ', ', array_map( function( $key ) { return '`' . str_replace( '`', '``', $key[0] ) . '`'; }, $keys ) );
 		while ( true ) {
-			if ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) return false;
+			if ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units, true ) ) return false;
 			$limit = self::batch( $cursor, $streaming );
 			$query = 'SELECT * FROM ' . $escaped . self::after( $keys, $cursor['key'], $streaming ) . ' ORDER BY ' . $order . ' LIMIT ' . $limit;
 			$fetched = self::fetch( $out, $table, $query, $cursor, $streaming, $deadline );
@@ -267,7 +267,7 @@ final class Digitalisimo_Backups_Sql_Export {
 					$bytes += self::row( $out, $table, $row, $cursor );
 					$rows++;
 					// Sólo con clave primaria se puede cortar a mitad de lote: la siguiente consulta sigue por la clave.
-					if ( 0 === $rows % 200 && $cursor['keys'] && ( microtime( true ) >= $deadline || Digitalisimo_Backups_Step_Budget::memory_headroom() <= 0 ) ) { $stopped = true; break; }
+					if ( 0 === $rows % 200 && $cursor['keys'] && ( microtime( true ) >= $deadline || Digitalisimo_Backups_Step_Budget::memory_critical() ) ) { $stopped = true; break; }
 				}
 				if ( ! $stopped && mysqli_errno( $wpdb->dbh ) ) throw new Exception( 'Se interrumpió la lectura de la tabla ' . $table . '.' );
 			} finally {

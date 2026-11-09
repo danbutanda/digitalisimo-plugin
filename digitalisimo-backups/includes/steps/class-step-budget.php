@@ -86,12 +86,24 @@ final class Digitalisimo_Backups_Step_Budget {
 		$reserve = max( self::MEMORY_RESERVE_MIN, (int) ( self::MEMORY_RESERVE_SHARE * $limit ) );
 		return (int) max( 0, $limit - $reserve - memory_get_usage( true ) );
 	}
-	/** El tramo debe cerrar: venció su plazo, agotó sus unidades o la memoria se acerca al límite. */
-	public static function exhausted( $deadline, $units = 0, $reserve = 0 ) {
+	/**
+	 * Casi sin memoria: quedan libres menos de max(2 MB, 1/32 de memory_limit). La exportación sólo cierra su tramo por
+	 * esto: cerrarlo no libera la memoria de esta petición y partiría la instantánea sin necesidad (sus lotes ya se ajustan
+	 * a la memoria libre).
+	 */
+	public static function memory_critical() {
+		$limit = self::memory_limit();
+		return $limit && $limit - memory_get_usage( true ) < max( (int) ( self::MEMORY_RESERVE_MIN / 2 ), (int) ( $limit / 32 ) );
+	}
+	/**
+	 * El tramo debe cerrar: venció su plazo, agotó sus unidades o tocó su reserva de memoria (con `$critical`, sólo si ya
+	 * casi no queda: la exportación de la base de datos).
+	 */
+	public static function exhausted( $deadline, $units = 0, $critical = false ) {
 		$cap = self::units();
 		if ( $cap && $units >= $cap ) return true;
 		if ( microtime( true ) >= $deadline ) return true;
-		return self::memory_headroom() <= max( 0, (int) $reserve );
+		return $critical ? self::memory_critical() : self::memory_headroom() <= 0;
 	}
 
 	/**

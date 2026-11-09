@@ -90,14 +90,17 @@ const worked = requests.filter((r) => r.kind !== 'start');
 const slowest = Math.max(...worked.map((r) => r.seconds));
 const heaviest = Math.max(...worked.map((r) => r.peak_mb));
 check(worked.length > 5 && worked.every((r) => r.memory_limit === '64M' && r.request_limit === 30), 'cada petición corrió con memory_limit=64M y límite de 30 s', JSON.stringify(worked.slice(0, 2)));
-check(slowest < 30, `ninguna petición pasó de 30 s (la más larga: ${slowest} s)`);
+const longestWork = Math.max(...worked.map((r) => r.work ?? r.seconds));
+const longestBoot = Math.max(...worked.map((r) => r.bootstrap ?? 0));
+check(longestWork < 30, `ninguna petición pasó de 30 s desde que WordPress terminó de cargar (la más larga: ${longestWork} s)`);
+check(slowest < 30, `ninguna petición pasó de 30 s en total (la más larga: ${slowest} s; arranque de WordPress más lento: ${longestBoot} s)`);
 check(heaviest < 64, `ninguna petición pasó de 64 MB (pico: ${heaviest} MB)`);
 check(!worked.some((r) => /Allowed memory|Maximum execution time/.test(r.error)), 'sin memoria ni tiempo agotados');
 
 // Tramos y muertes, por el registro del trabajo.
 const events = jsonl(`${store}/jobs/${id}/events.jsonl`);
 const slices = (phase) => events.filter((e) => e.type === 'phase' && e.phase === phase).length;
-const summary = { seconds, requests: worked.length, ticks: ticks.length, slowest, heaviest, slices: { database: slices('database'), pack: slices('pack'), verify: slices('verify') }, deaths: jsonl(`${dir}/ctl/deaths.jsonl`), checkpoint: job.checkpoint?.database ? { mode: job.checkpoint.database.mode, segments: job.checkpoint.database.segments, rows: job.checkpoint.database.rows } : null, warnings: job.warnings, sapi: worked[0]?.sapi };
+const summary = { seconds, requests: worked.length, ticks: ticks.length, slowest, longestWork, longestBoot, heaviest, slices: { database: slices('database'), pack: slices('pack'), verify: slices('verify') }, deaths: jsonl(`${dir}/ctl/deaths.jsonl`), checkpoint: job.checkpoint?.database ? { mode: job.checkpoint.database.mode, segments: job.checkpoint.database.segments, rows: job.checkpoint.database.rows } : null, warnings: job.warnings, sapi: worked[0]?.sapi };
 check(summary.slices.pack > 2 && summary.slices.verify > 1, `el empaquetado y la verificación avanzaron por tramos (${summary.slices.pack} y ${summary.slices.verify})`);
 const died = summary.deaths.map((d) => d.flag);
 const deaths = { db: died.includes('die-db'), pack: died.includes('die-pack'), verify: died.includes('die-verify') };

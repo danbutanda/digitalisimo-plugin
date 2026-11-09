@@ -245,9 +245,15 @@ $wordpress = str_repeat( 'w', 32 * 1048576 - memory_get_usage( true ) );
 $room = Digitalisimo_Backups_Step_Budget::memory_headroom();
 $more = str_repeat( 'm', 4 * 1048576 );
 $full = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1 );
+// La exportación no parte su instantánea por eso: sólo cierra el tramo si ya casi no queda memoria.
+$export_goes_on = ! Digitalisimo_Backups_Step_Budget::exhausted( INF, 1, true );
+$last = str_repeat( 'l', 3 * 1048576 );
+$export_stops = Digitalisimo_Backups_Step_Budget::exhausted( INF, 1, true );
+unset( $last );
 unset( $wordpress, $more );
 ini_set( 'memory_limit', $limit );
 bk_assert( $room > 0 && $room <= 3 * 1048576 && $full, 'Con el 80 % de la memoria ocupado el tramo no pudo trabajar, o no se detuvo en su reserva (' . $room . ' B libres).' );
+bk_assert( $export_goes_on && $export_stops, 'La exportación cerró su tramo (y su instantánea) al tocar la reserva, o no lo cerró casi sin memoria.' );
 
 }
 // E. Escala adaptativa del lote: tras una muerte el siguiente tramo pide la mitad de filas.
