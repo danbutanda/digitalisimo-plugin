@@ -86,6 +86,8 @@ $db->create( 'wp_sitemeta', array( 'meta_id', 'site_id', 'meta_key', 'meta_value
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_ai_options', 'meta_value' => serialize( array( 'chat_enabled' => 1, 'providers' => array( 'openai' => array( 'enabled' => 1, 'key' => 'sk-ai-red' ) ) ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_hosting_options', 'meta_value' => serialize( array( 'enabled' => 1, 'api_key' => 'nc-red' ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'otro_plugin_de_red', 'meta_value' => 'x' ),
+	array( 'site_id' => 1, 'meta_key' => 'main_site', 'meta_value' => '1' ),
+	array( 'site_id' => 1, 'meta_key' => 'nonce_salt', 'meta_value' => 'sal-generada-por-wordpress' ),
 	array( 'site_id' => 1, 'meta_key' => '_site_transient_algo', 'meta_value' => 'y' ),
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_releases_last_known', 'meta_value' => 'z' ),
 ) );
