@@ -506,11 +506,15 @@ final class Digitalisimo_Backups_Packer {
 				} elseif ( 0 === strpos( $comment, Digitalisimo_Backups_Manifest_Auth::PREFIX ) || ! empty( $pack['signed'] ) ) {
 					throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
 				}
-				// Un manifiesto de tamaño normal se comprueba además como lo hace la restauración.
-				if ( (int) $stat['size'] <= self::DECODE_MANIFEST ) {
+				// Si cabe con holgura en la memoria libre, el manifiesto se comprueba además como lo hace la restauración.
+				// Decodificado ocupa unas 16 veces su tamaño: con 64 MB, uno de ~17 000 entradas no cabe (hallazgo H1 del
+				// laboratorio) y basta lo anterior (su SHA-256, su tamaño y su firma, leídos por partes).
+				if ( (int) $stat['size'] <= self::DECODE_MANIFEST && 16 * (int) $stat['size'] < Digitalisimo_Backups_Step_Budget::memory_headroom() ) {
 					$auth = Digitalisimo_Backups_Manifest_Auth::verify( $zip, '', $plan['root'] );
-					if ( $plan['root'] && 'signed' !== $auth['state'] ) throw new Exception( 'El respaldo no supera la comprobación de su propia firma.' );
-					if ( ! $plan['root'] && 'unsigned' !== $auth['state'] ) throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
+					$state = $auth['state'];
+					unset( $auth );
+					if ( $plan['root'] && 'signed' !== $state ) throw new Exception( 'El respaldo no supera la comprobación de su propia firma.' );
+					if ( ! $plan['root'] && 'unsigned' !== $state ) throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
 					$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
 					if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) || 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || ! is_array( $manifest['entries'] ?? null ) || count( $manifest['entries'] ) !== (int) $pack['count'] - 1 || (int) $manifest['file_count'] !== (int) $pack['count'] - 2 ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
 				}

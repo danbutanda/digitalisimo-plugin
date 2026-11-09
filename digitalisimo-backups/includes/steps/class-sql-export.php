@@ -32,6 +32,9 @@ final class Digitalisimo_Backups_Sql_Export {
 			if ( ! empty( $job['checkpoint']['database']['resume'] ) ) $warnings[] = 'La exportación de la base de datos no se pudo retomar desde su punto de control y empezó de nuevo.';
 			$cursor = self::fresh( $staging );
 		}
+		// Antes de cada instantánea, lo que quedara en claro en los ajustes (lo que reescribe 1.0.60 tras volver desde
+		// rollback/) se cifra, como en el exportador de un paso: es barato si ya no queda nada en claro.
+		Digitalisimo_Backups::migrate_credentials();
 		$started = microtime( true );
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'database', $cursor );
 		$retry = (int) ( $job['attempts']['database'] ?? 0 ) > 0;
@@ -288,6 +291,7 @@ final class Digitalisimo_Backups_Sql_Export {
 		$cursor['rows']++;
 		$cursor['total']++;
 		if ( Digitalisimo_Backups::secret_row( $table, $row ) ) return 0;
+		$row = Digitalisimo_Backups::export_row( $table, $row ); // Ningún secreto de destino en claro (S4), como el exportador de un paso.
 		$columns = array();
 		$values = array();
 		$length = 0;

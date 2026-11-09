@@ -1200,7 +1200,7 @@ final class Digitalisimo_Backups {
 	 * una red, que el motor no usa, puede conservar unos de una versión anterior), se exporta sin ellos. Sin salts propias
 	 * se exporta tal cual: es la decisión del punto 7 (no hay con qué cifrarlos y sin ellos no se restauraría el destino).
 	 */
-	private static function export_row( $table, $row ) {
+	public static function export_row( $table, $row ) {
 		global $wpdb;
 		if ( ! is_array( $row ) || self::OPTION !== ( $row['option_name'] ?? null ) || ! is_string( $row['option_value'] ?? null ) ) return $row;
 		$prefix = (string) ( $wpdb->base_prefix ?? '' );
