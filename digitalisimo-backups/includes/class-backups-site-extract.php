@@ -315,8 +315,10 @@ final class Digitalisimo_Backups_Site_Extract {
 				if ( in_array( $key, self::SEO_SITE_ONLY, true ) ) continue;
 				$map = in_array( $key, self::SEO_MODULE_KEYS, true ) ? $module : $inherit;
 				if ( array_key_exists( $key, $map ) && empty( $map[ $key ] ) ) continue;
-				if ( in_array( $key, self::SEO_SECRETS, true ) && ! $secrets ) {
-					if ( '' !== (string) ( is_scalar( $value ) ? $value : '' ) ) { $withheld[] = self::SEO_OPTION . ':' . $key; $own[ $key ] = ''; }
+				// Una clave de API de la red no viaja sin pedirlo: queda vacía (como el vacío de la red, que también manda).
+				if ( in_array( $key, self::SEO_SECRETS, true ) && ! $secrets && '' !== (string) ( is_scalar( $value ) ? $value : '' ) ) {
+					$withheld[] = self::SEO_OPTION . ':' . $key;
+					$own[ $key ] = '';
 					continue;
 				}
 				$own[ $key ] = $value;

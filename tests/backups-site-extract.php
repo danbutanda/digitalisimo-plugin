@@ -79,7 +79,7 @@ $db->create( 'wp_sitemeta', array( 'meta_id', 'site_id', 'meta_key', 'meta_value
 	array( 'site_id' => 1, 'meta_key' => 'active_sitewide_plugins', 'meta_value' => serialize( array( 'digitalisimo-backups/digitalisimo-backups.php' => 1, 'red-plugin/red-plugin.php' => 1 ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'subdomain_install', 'meta_value' => '0' ),
 	array( 'site_id' => 1, 'meta_key' => 'siteurl', 'meta_value' => 'https://red.test/' ),
-	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_integrations_options', 'meta_value' => serialize( array( 'seo_title_sep' => '-', 'seo_robots_rules' => 'Disallow: /privado/', 'seo_site_name' => 'RED', 'openai_api_key' => 'sk-red-0001', 'seo_ai_crawler_rules' => wp_json_encode( array( 'gptbot' => 'disallow', 'ccbot' => 'allow' ) ) ) ) ),
+	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_integrations_options', 'meta_value' => serialize( array( 'seo_title_sep' => '-', 'seo_robots_rules' => 'Disallow: /privado/', 'seo_site_name' => 'RED', 'openai_api_key' => 'sk-red-0001', 'ipinfo_tokens' => '', 'seo_ai_crawler_rules' => wp_json_encode( array( 'gptbot' => 'disallow', 'ccbot' => 'allow' ) ) ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_tools_site_defaults', 'meta_value' => serialize( array( 'login_slug' => 'acceso-red', 'mobile_scroll' => 1, 'redirect_attachments' => 1 ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_elements_front_defaults', 'meta_value' => serialize( array( 'svg_icons' => 1, 'lazy_media' => 0 ) ) ),
 	array( 'site_id' => 1, 'meta_key' => 'digitalisimo_elements_google_places_key', 'meta_value' => 'g-places-red' ),
@@ -130,7 +130,7 @@ $db->create( 'wp_2_options', $options, array(
 	array( 'option_name' => 'template', 'option_value' => 'tema', 'autoload' => 'yes' ),
 	array( 'option_name' => 'upload_path', 'option_value' => '', 'autoload' => 'yes' ),
 	array( 'option_name' => 'digitalisimo_backups_policies', 'option_value' => serialize( array( array( 'id' => 'monthly-full' ) ) ), 'autoload' => 'no' ),
-	array( 'option_name' => 'digitalisimo_integrations_options', 'option_value' => serialize( array( 'seo_site_name' => 'Sub dos', 'seo_title_sep' => '|', 'seo_ai_crawler_rules' => wp_json_encode( array( 'gptbot' => 'inherit', 'ccbot' => 'disallow', 'bingbot' => 'inherit' ) ) ) ), 'autoload' => 'yes' ),
+	array( 'option_name' => 'digitalisimo_integrations_options', 'option_value' => serialize( array( 'seo_site_name' => 'Sub dos', 'seo_title_sep' => '|', 'ipinfo_tokens' => 'token-viejo-del-sitio', 'seo_ai_crawler_rules' => wp_json_encode( array( 'gptbot' => 'inherit', 'ccbot' => 'disallow', 'bingbot' => 'inherit' ) ) ) ), 'autoload' => 'yes' ),
 	array( 'option_name' => 'digitalisimo_seo_network_inherit', 'option_value' => serialize( array( 'seo_title_sep' => 0, 'seo_ai_crawler_rules' => 0 ) ), 'autoload' => 'yes' ),
 	array( 'option_name' => 'digitalisimo_tools_site_options', 'option_value' => serialize( array( 'values' => array( 'redirect_attachments' => 0 ), 'inherit' => array( 'redirect_attachments' => false ) ) ), 'autoload' => 'yes' ),
 	array( 'option_name' => 'digitalisimo_elements_front', 'option_value' => serialize( array( 'lazy_media' => true, 'svg_icons' => false, 'own' => array( 'lazy_media' ) ) ), 'autoload' => 'yes' ),
@@ -280,7 +280,7 @@ try {
 	digi_assert( array( 'digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/digitalisimo-elements.php', 'digitalisimo-seo/digitalisimo-seo.php', 'red-plugin/red-plugin.php' ) === digi_option( $opts, 'active_plugins' ), 'Los plugins activos no son los del sitio y de la red: ' . json_encode( digi_option( $opts, 'active_plugins' ) ) );
 	digi_assert( null === digi_option( $opts, 'digitalisimo_backups_policies' ), 'La configuración de Backups de la red viajó en el sitio.' );
 	$seo = digi_option( $opts, 'digitalisimo_integrations_options' );
-	digi_assert( '|' === $seo['seo_title_sep'] && 'Sub dos' === $seo['seo_site_name'] && 'Disallow: /privado/' === $seo['seo_robots_rules'] && '' === $seo['openai_api_key'], 'SEO no quedó con la resolución sitio → red: ' . json_encode( $seo ) );
+	digi_assert( '|' === $seo['seo_title_sep'] && 'Sub dos' === $seo['seo_site_name'] && 'Disallow: /privado/' === $seo['seo_robots_rules'] && '' === $seo['openai_api_key'] && '' === $seo['ipinfo_tokens'], 'SEO no quedó con la resolución sitio → red: ' . json_encode( $seo ) );
 	digi_assert( array( 'gptbot' => 'disallow', 'ccbot' => 'disallow' ) === json_decode( $seo['seo_ai_crawler_rules'], true ), 'Las reglas de rastreadores heredadas no se resolvieron con las de la red: ' . $seo['seo_ai_crawler_rules'] );
 	digi_assert( array( 'values' => array( 'redirect_attachments' => 0, 'login_slug' => 'acceso-red', 'mobile_scroll' => 1 ), 'inherit' => array( 'redirect_attachments' => false ) ) === digi_option( $opts, 'digitalisimo_tools_site_options' ), 'Tools no materializó los ajustes de red: ' . json_encode( digi_option( $opts, 'digitalisimo_tools_site_options' ) ) );
 	$front = digi_option( $opts, 'digitalisimo_elements_front' );
