@@ -77,6 +77,7 @@ final class Digitalisimo_Backups_Job_Store {
 			$path = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . self::LOCK;
 			$handle = @fopen( $path, 'c' );
 			if ( ! $handle ) throw new Exception( 'No se pudo abrir el registro de trabajos de Backups.' );
+			Digitalisimo_Backups::private_file( $path );
 			if ( ! flock( $handle, LOCK_EX ) ) { fclose( $handle ); throw new Exception( 'No se pudo bloquear el registro de trabajos de Backups.' ); }
 			self::$lock = $handle;
 		}

@@ -148,6 +148,8 @@ final class Digitalisimo_Backups_Backup_Job {
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP verificado ya no está en el área de trabajo; se empaquetará otra vez.', 'pack' );
 		}
 		if ( ! self::same_fingerprint( self::fingerprint( $final ), $verified ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo con el nombre final no es el ZIP que se verificó; revisa el almacén privado.' );
+		// El respaldo lleva wp-config.php y la base de datos: 0600 aunque venga de un área de trabajo anterior.
+		Digitalisimo_Backups::private_file( $final );
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\..*\.zip$/' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
@@ -160,7 +162,11 @@ final class Digitalisimo_Backups_Backup_Job {
 		);
 	}
 
-	/** Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. */
+	/**
+	 * Copia al destino remoto y lo verifica allí; el registro local verificado se conserva pase lo que pase. La fila
+	 * sigue siendo la del ZIP local (`destination` = local) y la copia remota se anota aparte: un respaldo copiado sigue
+	 * restaurándose desde el almacén mientras su ZIP exista.
+	 */
 	private static function transfer( array $job ) {
 		$spec = $job['spec'];
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
@@ -168,7 +174,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		Digitalisimo_Backups_Jobs::progress( 90, 'Copiando a ' . Digitalisimo_Backups::destination_name( $spec['destination'] ) . '…', true );
 		// El estado reanudable de la subida (multipart, sesión, temporal) vive en el área de este trabajo.
 		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'], $job['id'] );
-		Digitalisimo_Backups::history_update( basename( $final ), array( 'destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
+		Digitalisimo_Backups::history_update( basename( $final ), array( 'transfer_destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
 		return array( 'next' => 'prune', 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia remota verificada; aplicando la retención…' );
 	}
 

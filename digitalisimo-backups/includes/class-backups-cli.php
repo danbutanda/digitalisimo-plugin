@@ -30,6 +30,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups automation', 'Digitalisimo_Backups_Cli_Automation' );
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
+		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
@@ -155,6 +156,7 @@ final class Digitalisimo_Backups_Cli {
 			if ( 'last_backup' === $key ) $value = $value ? $value['file'] . ' (' . $value['date'] . ')' : '';
 			elseif ( 'destinations' === $key ) $value = implode( ', ', array_keys( (array) $value ) );
 			elseif ( 'problems' === $key ) $value = implode( ' | ', (array) $value );
+			elseif ( 'notifications' === $key ) $value = 'fallos: ' . ( empty( $value['failure'] ) ? 'no' : 'sí' ) . ', éxitos: ' . ( empty( $value['success'] ) ? 'no' : 'sí' ) . ', correo: ' . ( 'custom' === ( $value['recipient'] ?? '' ) ? 'configurado' : 'de administración' );
 			$rows[] = array( 'campo' => $key, 'valor' => is_bool( $value ) ? ( $value ? 'sí' : 'no' ) : (string) $value );
 		}
 		WP_CLI\Utils\format_items( 'table', $rows, array( 'campo', 'valor' ) );
@@ -162,7 +164,8 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
-	 * Lista el historial de respaldos, del más reciente al más antiguo.
+	 * Lista el historial de respaldos, del más reciente al más antiguo, con sus copias (local y remota) y si se puede
+	 * restaurar desde el almacén.
 	 *
 	 * ## OPTIONS
 	 *
@@ -179,7 +182,11 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = self::result( Digitalisimo_Backups::service_backups() );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret' ) ) );
+		// Las copias, como texto: «local, google» (la remota con su estado si no está verificada: «google (falló)»).
+		$states = array( 'pending' => 'pendiente', 'failed' => 'falló', 'cancelled' => 'cancelada', 'legacy' => 'sin identificador' );
+		foreach ( $rows as &$row ) $row['copies'] = implode( ', ', array_map( function( $copy ) use ( $states ) { return $copy['destination'] . ( isset( $states[ $copy['state'] ] ) ? ' (' . $states[ $copy['state'] ] . ')' : '' ); }, (array) $row['copies'] ) );
+		unset( $row );
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret' ) ) );
 	}
 
 	/**
@@ -247,7 +254,7 @@ final class Digitalisimo_Backups_Cli {
 	 * : Copia también las claves de API que el sitio hereda de la red (sin ella quedan vacías y el informe las nombra).
 	 *
 	 * [--destination=<destination>]
-	 * : Destino conectado (local, sftp, google u onedrive). Sin él, local.
+	 * : Destino conectado: local, el tipo de una conexión principal o el identificador de una adicional (wp digitalisimo-backups destinations list). Sin él, local.
 	 *
 	 * [--async]
 	 * : Sólo lo encola; lo continúan WP-Cron o `wp digitalisimo-backups jobs run`.
@@ -280,7 +287,9 @@ final class Digitalisimo_Backups_Cli {
 	/**
 	 * Verifica un respaldo local sin tocar el sitio: firma, descifrado de un `.dgbk`, estructura, CRC y SHA-256 de cada
 	 * archivo contra su manifiesto y el SQL en seco, con las mismas comprobaciones que la restauración. Si viene de otra
-	 * dirección, carpeta del servidor o prefijo, dice «Origen → este sitio» y qué se reescribiría al restaurarlo.
+	 * dirección, carpeta del servidor o prefijo, dice «Origen → este sitio» y qué se reescribiría al restaurarlo. Como la
+	 * restauración nunca escribe wp-config.php, también lista las constantes que el respaldo define y este servidor no, las
+	 * que sólo define este servidor y las que tienen otro valor (nunca muestra un valor secreto ni una ruta del servidor).
 	 *
 	 * ## OPTIONS
 	 *
@@ -318,6 +327,13 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
 		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
+		// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (los valores secretos nunca se
+		// muestran). Va después y aparte de «Origen → este sitio»: un respaldo de otro servidor suele traer las dos cosas.
+		$config = (array) ( $report['wp_config'] ?? array() );
+		if ( ! empty( $config['differences'] ) ) {
+			WP_CLI::warning( (string) $config['text'] );
+			foreach ( Digitalisimo_Backups_Config_Diff::lines( (array) $config['differences'] ) as $line ) WP_CLI::log( '  ' . $line );
+		}
 	}
 
 	/**
@@ -358,12 +374,14 @@ final class Digitalisimo_Backups_Cli {
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 */
 	public function restore( $args, $assoc_args ) {
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ) ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'via' => 'cli' ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 }
 
-/** Automatizaciones de respaldo completo. */
+/**
+ * Automatizaciones de respaldo completo: listarlas y ejecutar una ahora.
+ */
 final class Digitalisimo_Backups_Cli_Automation {
 	/**
 	 * Lista las automatizaciones y su próxima ejecución.
@@ -380,7 +398,7 @@ final class Digitalisimo_Backups_Cli_Automation {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_automations() );
-		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'destination', 'retain', 'enabled', 'next_run' ) );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'destination', 'retain', 'enabled', 'next_run' ) );
 	}
 
 	/**
@@ -411,7 +429,9 @@ final class Digitalisimo_Backups_Cli_Automation {
 	}
 }
 
-/** Cola de trabajos: la misma que la tarjeta «Trabajos» de la pantalla. */
+/**
+ * Cola de trabajos de respaldo, la misma de la tarjeta «Trabajos» de la pantalla: listar, cancelar y hacerla avanzar.
+ */
 final class Digitalisimo_Backups_Cli_Jobs {
 	/**
 	 * Lista los trabajos sin terminar y los últimos terminados.
@@ -532,5 +552,64 @@ final class Digitalisimo_Backups_Cli_Destinations {
 	public function fetch( $args, $assoc_args ) {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
 		WP_CLI::success( $result['message'] );
+	}
+}
+
+/**
+ * Subidas de respaldos desde el navegador o REST: verlas, terminarlas sin límite de tiempo y descartarlas.
+ */
+final class Digitalisimo_Backups_Cli_Upload {
+	/**
+	 * Lista las subidas sin terminar y las cerradas de las últimas 24 h, de todas las cuentas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * @subcommand list
+	 */
+	public function list_( $args, $assoc_args ) {
+		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_list() );
+		foreach ( $rows as &$row ) $row['error'] = isset( $row['error'] ) ? (string) $row['error']['message'] : '';
+		unset( $row );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'name', 'size', 'received', 'phase', 'attempts', 'error', 'updated_at' ) );
+	}
+
+	/**
+	 * Termina una subida completa: la comprueba como archivo no confiable, sin el límite de tiempo de la web, y la deja
+	 * en el almacén como «sin registro». Para una subida cuya comprobación se cortó en el navegador o por REST.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la subida (wp digitalisimo-backups upload list).
+	 *
+	 * [--secret-file=<path>]
+	 * : Archivo con la frase o la clave de un respaldo cifrado o firmado con una clave que este sitio no tiene.
+	 *
+	 * [--secret-stdin]
+	 * : Lee esa frase o clave de la entrada estándar (en una terminal, sin mostrarla).
+	 */
+	public function finish( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_finish( (string) ( $args[0] ?? '' ), array( 'secret' => Digitalisimo_Backups_Cli::secret( $assoc_args ) ) ) );
+		WP_CLI::success( 'Respaldo subido y comprobado: ' . $result['file'] . '. Para restaurarlo: --confirm="' . $result['confirmation'] . '"' . ( ! empty( $result['needs_secret'] ) ? ' y su frase o su clave' : '' ) . '.' );
+		foreach ( (array) ( $result['problems'] ?? array() ) as $problem ) WP_CLI::warning( (string) $problem );
+	}
+
+	/**
+	 * Descarta una subida sin terminar (de cualquier cuenta) y borra lo recibido.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la subida.
+	 */
+	public function cancel( $args, $assoc_args ) {
+		Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_cancel( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Subida descartada; se borró lo recibido.' );
 	}
 }

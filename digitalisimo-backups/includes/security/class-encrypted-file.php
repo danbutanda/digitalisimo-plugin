@@ -109,6 +109,7 @@ final class Digitalisimo_Backups_Encrypted_File {
 		$input = @fopen( $source, 'rb' );
 		$output = @fopen( $target, 'xb' );
 		if ( ! $input || ! $output ) { if ( $input ) fclose( $input ); if ( $output ) fclose( $output ); throw new Exception( 'No se pudo preparar el respaldo cifrado.' ); }
+		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $target, 0600 );
 		try {
 			list( $state, $stream_header ) = sodium_crypto_secretstream_xchacha20poly1305_init_push( $key );
 			self::write_all( $output, $prefix . $stream_header );
@@ -154,6 +155,8 @@ final class Digitalisimo_Backups_Encrypted_File {
 		$input = @fopen( $path, 'rb' );
 		$output = null === $target ? null : @fopen( $target, 'xb' );
 		if ( ! $input || ( null !== $target && ! $output ) ) { if ( $input ) fclose( $input ); if ( $output ) fclose( $output ); throw new Exception( 'No se pudo preparar el descifrado del respaldo.' ); }
+		// El ZIP descifrado es el respaldo en claro: sólo para el usuario de PHP.
+		if ( null !== $target && DIRECTORY_SEPARATOR === '/' ) @chmod( $target, 0600 );
 		try {
 			try { $state = sodium_crypto_secretstream_xchacha20poly1305_init_pull( $parsed['stream_header'], $key ); }
 			catch ( Throwable $e ) { throw new Exception( $damaged ); }
