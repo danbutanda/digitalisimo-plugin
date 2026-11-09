@@ -110,11 +110,13 @@ final class Digitalisimo_Backups_Cli {
 	/** Resultado de un trabajo terminado: éxito con su archivo, o error con el motivo (código 1). */
 	public static function finish( array $view, $porcelain ) {
 		if ( 'success' !== $view['status'] ) WP_CLI::error( ( 'cancelled' === $view['status'] ? 'Trabajo cancelado: ' : 'El respaldo falló: ' ) . ( $view['error'] ?: $view['detail'] ) );
+		// Avisos que cambian lo que es el respaldo (T2): siempre a la vista, también con --porcelain (por STDERR).
+		foreach ( (array) ( $view['notices'] ?? array() ) as $notice ) WP_CLI::warning( $notice );
 		if ( $porcelain ) {
 			WP_CLI::line( $view['file'] );
 			return;
 		}
-		WP_CLI::success( 'Respaldo completo creado y verificado: ' . $view['file'] . ' (' . $view['destination_label'] . ( $view['encrypt'] ? ', cifrado' : '' ) . ').' );
+		WP_CLI::success( ( empty( $view['notices'] ) ? 'Respaldo completo creado y verificado: ' : 'Respaldo completo creado y verificado, con avisos: ' ) . $view['file'] . ' (' . $view['destination_label'] . ( $view['encrypt'] ? ', cifrado' : '' ) . ').' );
 	}
 	/** Encolado sin esperar: el trabajo lo continúan WP-Cron o `wp digitalisimo-backups jobs run`. */
 	public static function queued( array $view, $porcelain ) {
@@ -178,7 +180,9 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = self::result( Digitalisimo_Backups::service_backups() );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret' ) ) );
+		foreach ( $rows as &$row ) $row['notices'] = implode( ' ', (array) ( $row['notices'] ?? array() ) );
+		unset( $row );
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'notices' ) ) );
 	}
 
 	/**

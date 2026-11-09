@@ -87,7 +87,8 @@ final class Digitalisimo_Backups_Backup_Job {
 		}
 		$fingerprint = self::fingerprint( $path );
 		if ( ! self::same_fingerprint( $fingerprint, $pack['fp'] ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se verificaba; se empaquetará otra vez.', 'pack' );
-		if ( ! Digitalisimo_Backups::job_encrypts( $job['spec'] ) ) return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…' );
+		$notices = Digitalisimo_Backups_Packer::take_notices(); // T2: lo que la verificación no pudo probar, a la vista.
+		if ( ! Digitalisimo_Backups::job_encrypts( $job['spec'] ) ) return array( 'next' => 'publish', 'checkpoint' => array( 'fp' => $fingerprint, 'at' => time() ), 'message' => 'ZIP verificado; registrándolo…', 'warnings' => $notices );
 		$sealed = $staging . '/' . preg_replace( '/\.zip$/', '', basename( $path ) ) . '.dgbk';
 		try {
 			Digitalisimo_Backups::job_seal_package( $path, $sealed, $job['spec'], array( 'backup_id' => (string) ( $pack['backup_id'] ?? '' ), 'created_at' => (string) ( $pack['created_at'] ?? '' ) ) );
@@ -99,7 +100,7 @@ final class Digitalisimo_Backups_Backup_Job {
 			@unlink( $sealed );
 			throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió mientras se cifraba; se empaquetará otra vez.', 'pack' );
 		}
-		return array( 'next' => 'publish', 'checkpoint' => array( 'file' => basename( $sealed ), 'fp' => self::fingerprint( $sealed ), 'zip_fp' => $fingerprint, 'at' => time() ), 'message' => 'Respaldo verificado y cifrado; registrándolo…' );
+		return array( 'next' => 'publish', 'checkpoint' => array( 'file' => basename( $sealed ), 'fp' => self::fingerprint( $sealed ), 'zip_fp' => $fingerprint, 'at' => time() ), 'message' => 'Respaldo verificado y cifrado; registrándolo…', 'warnings' => $notices );
 	}
 
 	/**
@@ -131,6 +132,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
+		Digitalisimo_Backups::job_record_notices( basename( $final ), $job ); // T2: avisos visibles y coherencia de la base.
 		$remote = 'local' !== $spec['destination'];
 		return array(
 			'next' => $remote ? 'transfer' : 'prune',
@@ -175,8 +177,9 @@ final class Digitalisimo_Backups_Backup_Job {
 		if ( false === $index ) return;
 		$keep = array();
 		$resume = $phase === ( $job['phase'] ?? '' ) ? ( $job['checkpoint'][ $phase ]['resume'] ?? null ) : null;
-		if ( is_array( $resume ) && 'database' === $phase ) $keep[] = (string) ( $resume['file'] ?? '' );
-		if ( is_array( $resume ) && 'pack' === $phase ) foreach ( array( '.zip', '.dirs.jsonl', '.files.jsonl', '.entries.jsonl' ) as $suffix ) $keep[] = 'package.' . ( $resume['tag'] ?? '' ) . $suffix;
+		// El SQL de trabajo y, si el proceso murió justo después de darle su nombre final, también ese nombre (T2).
+		if ( is_array( $resume ) && 'database' === $phase ) array_push( $keep, (string) ( $resume['file'] ?? '' ), preg_replace( '/\.part$/', '', (string) ( $resume['file'] ?? '' ) ) );
+		if ( is_array( $resume ) && 'pack' === $phase ) foreach ( array( '.zip', '.dirs.jsonl', '.files.jsonl', '.entries.jsonl', '.code.jsonl' ) as $suffix ) $keep[] = 'package.' . ( $resume['tag'] ?? '' ) . $suffix;
 		if ( $index <= 1 ) self::remove_matching( $staging, '/^database\./', $keep );
 		if ( $index <= 2 ) self::remove_matching( $staging, '/^package\./', $keep );
 	}

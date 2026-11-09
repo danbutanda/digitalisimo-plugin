@@ -119,7 +119,7 @@ $S::close( $report );
 $check = compat_open( $signed );
 bk_call( 'Digitalisimo_Backups', 'verify_zip_contents', $check );
 $check->close();
-if ( 'transaction-steps' !== $manifest['database_consistency'] || Digitalisimo_Backups_Packer::PACKER !== $manifest['packer'] ) compat_fail( 'El manifiesto no declara la exportación por tramos o el empaquetador.' );
+if ( 'transaction-per-table' !== $manifest['database_consistency'] || Digitalisimo_Backups_Packer::PACKER !== $manifest['packer'] ) compat_fail( 'El manifiesto no declara la exportación por tramos o el empaquetador.' );
 
 // 3. Mismas entradas, tamaños, SHA-256 y claves del manifiesto (en el mismo orden) que el empaquetado de un paso.
 $sql_path = tempnam( sys_get_temp_dir(), 'bk-t2-db-' );

@@ -279,6 +279,8 @@ final class Digitalisimo_Backups_Jobs {
 	private static function retry_owned( array $job, $message, $back_to ) {
 		$phase = $job['phase'];
 		$count = (int) ( $job['attempts'][ $phase ] ?? 0 ) + 1;
+		// Volver a una fase anterior (verify → pack) cuenta aparte, sin que los tramos que avanzan lo borren (T2).
+		if ( in_array( $back_to, self::PHASES, true ) && $back_to !== $phase ) $count = max( $count, (int) ( $job['setbacks'][ $phase ] ?? 0 ) + 1 );
 		$max = self::max_attempts( $phase );
 		if ( ! empty( $job['spec']['inline'] ) || $count >= $max ) return self::fail_owned( $job, 'attempts', $message . ( $count > 1 ? ' (se agotaron ' . $count . ' intentos de la fase ' . self::phase_label( $phase ) . ')' : '' ), false );
 		$wait = self::backoff( $count );
@@ -290,6 +292,7 @@ final class Digitalisimo_Backups_Jobs {
 	private static function queue_retry( array $job, $phase, $count, $back_to, $wait, $code, $message ) {
 		$job['attempts'][ $phase ] = $count;
 		if ( in_array( $back_to, self::PHASES, true ) && $back_to !== $phase ) {
+			$job['setbacks'][ $phase ] = $count;
 			$job['phase'] = $back_to;
 			foreach ( array_slice( self::PHASES, (int) array_search( $back_to, self::PHASES, true ) ) as $later ) unset( $job['checkpoint'][ $later ] );
 		}
@@ -665,8 +668,11 @@ final class Digitalisimo_Backups_Jobs {
 		$heartbeat = $lease ? (int) ( $lease['heartbeat_at'] ?? 0 ) : 0;
 		$error = is_array( $job['error'] ?? null ) ? (string) ( $job['error']['message'] ?? '' ) : '';
 		$message = (string) ( $job['progress']['message'] ?? '' );
+		// Avisos que cambian lo que es el respaldo (T2): se muestran con su texto, no sólo se cuentan.
+		$notices = array();
+		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[] = (string) ( $warning['text'] ?? '' );
 		$detail = array();
-		if ( 'success' === $status ) $detail[] = ( '.dgbk' === substr( (string) ( $spec['file'] ?? '' ), -5 ) ? 'Respaldo cifrado y verificado: ' : 'ZIP verificado: ' ) . basename( (string) ( $spec['file'] ?? '' ) );
+		if ( 'success' === $status ) $detail[] = ( '.dgbk' === substr( (string) ( $spec['file'] ?? '' ), -5 ) ? 'Respaldo cifrado y verificado: ' : 'ZIP verificado: ' ) . basename( (string) ( $spec['file'] ?? '' ) ) . ( $notices ? ' · Con avisos: ' . implode( ' ', $notices ) : '' );
 		elseif ( 'failed' === $status ) $detail[] = $error ?: $message;
 		elseif ( 'cancelled' === $status ) $detail[] = $message;
 		else {
@@ -681,7 +687,7 @@ final class Digitalisimo_Backups_Jobs {
 			'detail' => implode( ' · ', array_filter( $detail, 'strlen' ) ),
 			'id' => (string) $job['id'],
 			'status' => $status,
-			'status_label' => self::status_label( $status ),
+			'status_label' => 'success' === $status && $notices ? 'Completo con avisos' : self::status_label( $status ),
 			'phase' => $phase,
 			'phase_label' => $terminal ? '' : self::phase_label( $phase ),
 			'percent' => 'success' === $status ? 100 : max( 0, min( 99, (int) ( $job['progress']['percent'] ?? 0 ) ) ),
@@ -704,6 +710,7 @@ final class Digitalisimo_Backups_Jobs {
 			'destination_label' => Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',
 			'warnings' => count( (array) ( $job['warnings'] ?? array() ) ),
+			'notices' => $notices,
 		);
 	}
 	/** Trabajos sin terminar (en orden de llegada) y los últimos terminados. */

@@ -3,6 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 /** El punto de control de un tramo ya no describe sus archivos: la fase vuelve a empezar desde cero, sin reintento. */
 class Digitalisimo_Backups_Resume_Invalid extends Exception {}
+/** El código del sitio cambió durante el empaquetado (una actualización a mitad): se empaqueta otra vez. */
+class Digitalisimo_Backups_Tree_Changed extends Digitalisimo_Backups_Resume_Invalid {}
 
 /**
  * Presupuesto de cada tramo de la exportación, el empaquetado y la verificación (T2). Un tramo trabaja hasta el fin
@@ -61,6 +63,25 @@ final class Digitalisimo_Backups_Step_Budget {
 		$remaining = is_finite( $tick ) ? self::request_remaining() : INF;
 		if ( is_finite( $remaining ) ) $length = min( $length, max( 0.0, $remaining ) );
 		return is_finite( $length ) ? $now + $length : INF;
+	}
+	/**
+	 * Límite duro de un tramo de la exportación (microtime): una tabla empezada puede seguir después del plazo del tick,
+	 * pero nunca más allá del límite real de la petición menos su margen (por la escala adaptativa). INF sin límite:
+	 * WP-CLI, el cron del sistema por PHP CLI y la copia previa de una restauración.
+	 */
+	public static function hard_deadline( $scale = 1.0 ) {
+		if ( ! is_finite( Digitalisimo_Backups_Jobs::step_deadline() ) ) return INF;
+		$remaining = self::request_remaining();
+		if ( ! is_finite( $remaining ) ) return INF;
+		return microtime( true ) + max( 0.0, $remaining ) * max( self::MIN_SCALE, min( 1.0, (float) $scale ) );
+	}
+	/**
+	 * Tiempo que una tabla tuvo para terminar para que no hacerlo cuente contra ella: un tick que empieza tarde (con la
+	 * petición casi agotada) no la hace fallar. Una cuarta parte del límite de la petición y al menos 2 s.
+	 */
+	public static function table_min_seconds() {
+		$limit = self::request_limit();
+		return max( 0.0, (float) self::filter( 'digitalisimo_backups_table_min_seconds', max( 2.0, 0.25 * $limit ) ) );
 	}
 	/** Duración máxima de un tramo de empaquetado o verificación: su punto de control se guarda al menos con esta frecuencia. */
 	public static function slice_cap() { return max( 0.5, (float) self::filter( 'digitalisimo_backups_step_slice', 5.0 ) ); }

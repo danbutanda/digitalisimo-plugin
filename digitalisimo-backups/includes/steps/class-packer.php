@@ -18,27 +18,40 @@ defined( 'ABSPATH' ) || exit;
  * (o, si es enorme, por partes desde el archivo) contra su CRC, sus tamaños y su SHA-256.
  */
 final class Digitalisimo_Backups_Packer {
-	const VERSION = 1;
+	const VERSION = 2;
 	/** Valor de `packer` en el manifiesto. */
 	const PACKER = 'digitalisimo-zip/1';
 	const REQUIRED = array( 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' );
 	/** Desde este tamaño una entrada se verifica por partes, retomable entre tramos (PHP 8). */
 	const RAW_FROM = 268435456;
-	/** Hasta este tamaño el manifiesto se decodifica entero en la verificación (con más, se comprueba por su SHA-256). */
-	const DECODE_MANIFEST = 4194304;
+	/** Memoria que ocupa un manifiesto decodificado, en veces su tamaño (medido: unas 3,2 con 17 000 entradas). */
+	const MANIFEST_FACTOR = 5;
+	/** Veces que una entrada a medias puede volver a empezar porque su archivo cambió; a la siguiente se copia de corrido. */
+	const CHURN_MAX = 2;
+	/** Pasadas del empaquetado: si el código del sitio cambia durante la primera, se empaqueta otra vez una sola vez. */
+	const PASSES = 2;
+	/** Carpetas de código: si cambian durante el empaquetado, el respaldo podría llevar una versión a medias. */
+	const CODE_DIRS = '#^(?:|wp-admin(?:/.*)?|wp-includes(?:/.*)?|wp-content/(?:plugins|themes|mu-plugins)(?:/.*)?)$#sD';
+	/** @var array Avisos visibles de la verificación terminada (los recoge la fase «verify»). */
+	private static $notices = array();
 
 	/* ------------------------------------------------------------------ pack */
 
 	public static function pack( array $job, $staging, $sql, array $database ) {
 		$warnings = array();
-		$restarts = (int) ( $job['checkpoint']['pack']['resume']['restarts'] ?? $job['checkpoint']['pack']['restarts'] ?? 0 );
+		$previous = (array) ( $job['checkpoint']['pack'] ?? array() );
+		$restarts = (int) ( $previous['resume']['restarts'] ?? $previous['restarts'] ?? 0 );
+		$passes = (int) ( $previous['resume']['passes'] ?? $previous['passes'] ?? 1 );
+		$reason = (string) ( $previous['resume']['reason'] ?? $previous['reason'] ?? '' );
 		$cursor = self::resumable( $job, $staging );
 		if ( ! $cursor ) {
-			if ( ! empty( $job['checkpoint']['pack']['resume'] ) ) { $warnings[] = 'El empaquetado no se pudo retomar desde su punto de control y empezó de nuevo.'; $restarts++; }
+			if ( ! empty( $previous['resume'] ) ) { $warnings[] = 'El empaquetado no se pudo retomar desde su punto de control y empezó de nuevo.'; $restarts++; }
 			// Empezar de nuevo cuenta como avance (reinicia los intentos): a la tercera vez es un fallo que gasta intentos.
-			if ( $restarts >= 3 ) throw new Exception( 'El empaquetado empezó de nuevo tres veces sin poder terminar; revisa el registro del trabajo.' );
+			if ( $restarts >= 3 ) throw new Exception( 'El empaquetado empezó de nuevo tres veces sin poder terminar' . ( '' !== $reason ? ': ' . $reason : '; revisa el registro del trabajo.' ) );
 			$cursor = self::fresh( $staging );
 			$cursor['restarts'] = $restarts;
+			$cursor['passes'] = $passes;
+			$cursor['reason'] = $reason;
 		}
 		$started = microtime( true );
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'pack', $cursor );
@@ -46,32 +59,44 @@ final class Digitalisimo_Backups_Packer {
 		$units = 0;
 		try {
 			if ( 'inventory' === $cursor['stage'] ) self::inventory( $staging, $cursor, $deadline, $units );
-			if ( 'write' === $cursor['stage'] && ! ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) ) self::write( $staging, $sql, $cursor, $deadline, $units, $warnings );
+			if ( 'write' === $cursor['stage'] && ! ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) ) self::write( $staging, $sql, $cursor, $deadline, $units, $warnings, (int) ( $job['attempts']['pack'] ?? 0 ) );
 			if ( 'finish' === $cursor['stage'] && ! ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) ) {
-				$final = self::finish( $staging, $job, $database, $cursor );
+				$notices = self::notices( $cursor, $database );
+				$final = self::finish( $staging, $job, $database, $cursor, $notices );
 				$final['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units + 1, $cursor['scale'] );
+				foreach ( $notices as $notice ) $warnings[] = $notice;
 				return array( 'next' => 'verify', 'checkpoint' => $final, 'message' => 'ZIP escrito; verificando cada entrada…', 'warnings' => $warnings );
 			}
 		} catch ( Digitalisimo_Backups_Resume_Invalid $e ) {
 			self::remove( $staging );
-			return array( 'next' => 'pack', 'checkpoint' => array( 'restarts' => $restarts + 1 ), 'message' => 'Empaquetando otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' El empaquetado empieza de nuevo.' ) );
+			$again = $e instanceof Digitalisimo_Backups_Tree_Changed;
+			return array( 'next' => 'pack', 'checkpoint' => array( 'restarts' => $restarts + 1, 'passes' => $passes + ( $again ? 1 : 0 ), 'reason' => $e->getMessage() ), 'message' => 'Empaquetando otra vez desde el principio…', 'warnings' => array( $e->getMessage() . ' El empaquetado empieza de nuevo.' ) );
 		}
 		$cursor['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] );
 		$message = 'inventory' === $cursor['stage'] ? 'Inventariando archivos: ' . number_format( (int) $cursor['files'], 0, ',', '.' ) . ' archivos en las carpetas recorridas…' : 'Archivos incluidos: ' . number_format( (int) $cursor['done'], 0, ',', '.' ) . ' de ' . number_format( (int) $cursor['files'], 0, ',', '.' ) . '…';
 		return array( 'next' => 'pack', 'checkpoint' => array( 'resume' => $cursor ), 'message' => $message, 'warnings' => $warnings );
 	}
+	/** Avisos visibles del empaquetado: archivos que desaparecieron y carpetas de código que cambiaron en la última pasada. */
+	private static function notices( array $cursor, array $database ) {
+		$notices = array();
+		$changed = (array) ( $cursor['changed'] ?? array() );
+		$vanished = (array) ( $cursor['vanished'] ?? array() );
+		if ( $changed ) $notices[] = array( 'notice' => 'files_changed', 'text' => 'Mientras se respaldaba cambió el código del sitio en ' . count( $changed ) . ' carpeta(s) (' . implode( ', ', array_slice( $changed, 0, 3 ) ) . ( count( $changed ) > 3 ? '…' : '' ) . '), también al empaquetar otra vez: esas carpetas pueden quedar con una versión a medias. Vuelve a respaldar cuando terminen las actualizaciones.' );
+		if ( (int) ( $cursor['vanished_count'] ?? 0 ) > 0 ) $notices[] = array( 'notice' => 'files_missing', 'text' => (int) $cursor['vanished_count'] . ' archivo(s) desaparecieron entre el inventario y su copia y no están en el respaldo (' . implode( ', ', array_slice( $vanished, 0, 3 ) ) . ( (int) $cursor['vanished_count'] > 3 ? '…' : '' ) . ').' );
+		return $notices;
+	}
 
 	private static function paths( $staging, $tag ) {
 		$base = $staging . '/package.' . $tag;
-		return array( 'zip' => $base . '.zip', 'dirs' => $base . '.dirs.jsonl', 'files' => $base . '.files.jsonl', 'entries' => $base . '.entries.jsonl' );
+		return array( 'zip' => $base . '.zip', 'dirs' => $base . '.dirs.jsonl', 'files' => $base . '.files.jsonl', 'entries' => $base . '.entries.jsonl', 'code' => $base . '.code.jsonl' );
 	}
 	private static function resumable( array $job, $staging ) {
 		$cursor = $job['checkpoint']['pack']['resume'] ?? null;
 		if ( ! is_array( $cursor ) || self::VERSION !== (int) ( $cursor['v'] ?? 0 ) || ( $cursor['host'] ?? '' ) !== Digitalisimo_Backups_Jobs::host() ) return null;
-		foreach ( array( 'tag', 'stage', 'dirs_read', 'dirs_size', 'files_size', 'files', 'bytes', 'config', 'files_read', 'done', 'done_bytes', 'zip_size', 'entries_size', 'entries', 'sql', 'partial', 'required', 'started_at', 'completed_at' ) as $key ) if ( ! array_key_exists( $key, $cursor ) ) return null;
+		foreach ( array( 'tag', 'stage', 'dirs_read', 'dirs_size', 'files_size', 'code_size', 'files', 'bytes', 'config', 'files_read', 'done', 'done_bytes', 'zip_size', 'entries_size', 'entries', 'sql', 'partial', 'pending', 'required', 'started_at', 'completed_at' ) as $key ) if ( ! array_key_exists( $key, $cursor ) ) return null;
 		if ( ! is_string( $cursor['tag'] ) || ! preg_match( '/^[A-Za-z0-9]{8}$/D', $cursor['tag'] ) || ! in_array( $cursor['stage'], array( 'inventory', 'write', 'finish' ), true ) ) return null;
 		$paths = self::paths( $staging, $cursor['tag'] );
-		foreach ( array( 'dirs' => 'dirs_size', 'files' => 'files_size', 'entries' => 'entries_size', 'zip' => 'zip_size' ) as $file => $size ) {
+		foreach ( array( 'dirs' => 'dirs_size', 'files' => 'files_size', 'code' => 'code_size', 'entries' => 'entries_size', 'zip' => 'zip_size' ) as $file => $size ) {
 			clearstatcache( true, $paths[ $file ] );
 			if ( is_link( $paths[ $file ] ) || ! is_file( $paths[ $file ] ) || (int) filesize( $paths[ $file ] ) < (int) $cursor[ $size ] ) return null;
 		}
@@ -83,11 +108,11 @@ final class Digitalisimo_Backups_Packer {
 		$tag = Digitalisimo_Backups_Jobs::current_owner_tag();
 		$paths = self::paths( $staging, $tag );
 		$root = self::encode( '' ) . "\n";
-		foreach ( array( 'dirs' => $root, 'files' => '', 'entries' => '', 'zip' => '' ) as $file => $contents ) {
+		foreach ( array( 'dirs' => $root, 'files' => '', 'code' => '', 'entries' => '', 'zip' => '' ) as $file => $contents ) {
 			if ( false === @file_put_contents( $paths[ $file ], $contents ) ) throw new Exception( 'No se pudo preparar el empaquetado en el área de trabajo.' );
 			if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $paths[ $file ], 0600 );
 		}
-		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'tag' => $tag, 'stage' => 'inventory', 'dirs_read' => 0, 'dirs_size' => strlen( $root ), 'files_size' => 0, 'files' => 0, 'bytes' => 0, 'config' => false, 'files_read' => 0, 'done' => 0, 'done_bytes' => 0, 'zip_size' => 0, 'entries_size' => 0, 'entries' => 0, 'sql' => false, 'partial' => null, 'required' => array(), 'started_at' => '', 'completed_at' => '', 'scale' => 1.0 );
+		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'tag' => $tag, 'stage' => 'inventory', 'dirs_read' => 0, 'dirs_size' => strlen( $root ), 'files_size' => 0, 'code_size' => 0, 'files' => 0, 'bytes' => 0, 'config' => false, 'files_read' => 0, 'done' => 0, 'done_bytes' => 0, 'zip_size' => 0, 'entries_size' => 0, 'entries' => 0, 'sql' => false, 'partial' => null, 'pending' => null, 'oneshot' => '', 'churn' => array(), 'vanished' => array(), 'vanished_count' => 0, 'vanished_code' => array(), 'changed' => array(), 'required' => array(), 'started_at' => '', 'completed_at' => '', 'scale' => 1.0 );
 	}
 	private static function remove( $staging ) {
 		foreach ( (array) @scandir( $staging ) as $name ) {
@@ -103,6 +128,7 @@ final class Digitalisimo_Backups_Packer {
 		$paths = self::paths( $staging, $cursor['tag'] );
 		$dirs = self::append_handle( $paths['dirs'], $cursor['dirs_size'] );
 		$files = self::append_handle( $paths['files'], $cursor['files_size'] );
+		$code = self::append_handle( $paths['code'], $cursor['code_size'] );
 		$reader = @fopen( $paths['dirs'], 'rb' );
 		try {
 			if ( ! $reader ) throw new Exception( 'No se pudo leer el inventario del área de trabajo.' );
@@ -112,6 +138,13 @@ final class Digitalisimo_Backups_Packer {
 				$line = fgets( $reader );
 				$relative = false === $line ? null : self::decode( $line );
 				if ( null === $relative ) throw new Digitalisimo_Backups_Resume_Invalid( 'La cola de carpetas del inventario está dañada.' );
+				// La fecha de una carpeta de código se anota antes de leerla: si cambia hasta el final, algo se instaló o quitó.
+				if ( preg_match( self::CODE_DIRS, $relative ) ) {
+					$mtime = @filemtime( '' === $relative ? rtrim( $context['root'], '/' ) : $context['root'] . $relative );
+					$entry = self::encode( $relative ) . "\t" . (int) $mtime . "\n";
+					self::put( $code, $entry );
+					$cursor['code_size'] += strlen( $entry );
+				}
 				$found = self::scan( $context, $relative, $dirs, $files );
 				$cursor['dirs_read'] += strlen( $line );
 				$cursor['dirs_size'] += $found['dirs_bytes'];
@@ -133,11 +166,12 @@ final class Digitalisimo_Backups_Packer {
 				}
 				$cursor['stage'] = 'write';
 			}
-			foreach ( array( $dirs, $files ) as $handle ) if ( ! fflush( $handle ) ) throw new Exception( 'No se pudo guardar el inventario en el área de trabajo.' );
+			foreach ( array( $dirs, $files, $code ) as $handle ) self::sync( $handle, 'No se pudo guardar el inventario en el área de trabajo.' );
 		} finally {
 			if ( $reader ) fclose( $reader );
 			fclose( $dirs );
 			fclose( $files );
+			fclose( $code );
 		}
 	}
 	/** Lee una carpeta entera: subcarpetas a la cola, archivos a la lista. Mismas reglas que el empaquetado de un paso. */
@@ -188,17 +222,29 @@ final class Digitalisimo_Backups_Packer {
 		$file_lines = '';
 	}
 
-	/** Etapa 2: `database.sql` y los archivos de la lista, con la entrada a medias que dejó el tramo anterior. */
-	private static function write( $staging, $sql, array &$cursor, $deadline, &$units, array &$warnings ) {
+	/**
+	 * Etapa 2: `database.sql` y los archivos de la lista, con la entrada a medias que dejó el tramo anterior. Al terminar
+	 * la lista se comprueba que ninguna carpeta de código cambió mientras tanto (una actualización a mitad): si cambió en
+	 * la primera pasada, el empaquetado empieza de nuevo.
+	 */
+	private static function write( $staging, $sql, array &$cursor, $deadline, &$units, array &$warnings, $attempts ) {
 		$context = Digitalisimo_Backups::job_files_context();
 		$paths = self::paths( $staging, $cursor['tag'] );
 		$partial = $cursor['partial'];
 		$committed = (int) $cursor['zip_size'];
-		$restart = false;
-		if ( is_array( $partial ) ) {
-			// Un archivo que cambió mientras su entrada estaba a medias se vuelve a escribir desde su cabecera.
-			$restart = ! self::same_source( $partial );
-			if ( $restart ) $committed = (int) $partial['o'];
+		$decided = false;
+		if ( is_array( $partial ) && ! self::same_source( $partial ) ) {
+			// El archivo de la entrada a medias cambió: se vuelve a escribir desde su cabecera. Si ya pasó varias veces
+			// (un registro al que escribe cada petición), se copiará de corrido, sin partirlo, en el tramo siguiente.
+			$committed = (int) $partial['o'];
+			$name = (string) $partial['n'];
+			$cursor['churn'][ $name ] = (int) ( $cursor['churn'][ $name ] ?? 0 ) + 1;
+			$cursor['pending'] = array( $name, (string) $partial['src'] );
+			if ( $cursor['churn'][ $name ] >= self::CHURN_MAX ) {
+				$cursor['oneshot'] = $name;
+				$decided = true; // Se guarda antes de leerlo: si la petición muere copiándolo, el tramo siguiente lo sabe.
+			}
+			$cursor['partial'] = $partial = null;
 		}
 		$zip = new Digitalisimo_Backups_Zip_Writer( $paths['zip'], $committed );
 		$entries = self::append_handle( $paths['entries'], $cursor['entries_size'] );
@@ -208,20 +254,23 @@ final class Digitalisimo_Backups_Packer {
 			if ( ! $list ) throw new Exception( 'No se pudo leer la lista de archivos del área de trabajo.' );
 			if ( is_array( $partial ) ) {
 				$cursor['partial'] = null;
-				if ( $restart ) {
-					$item = array( $partial['n'], $partial['src'] );
-				} else {
-					$zip->resume( $partial );
-					$item = null;
-					if ( self::stream( $zip, $partial['src'], (int) $partial['read'], $partial['id'], $cursor, $deadline, $chunks ) ) self::entry_done( $entries, $zip->finish(), $cursor, $units );
-				}
-				if ( $restart ) self::add( $zip, $entries, $item[0], $item[1], $cursor, $deadline, $units, $chunks, $warnings );
+				$zip->resume( $partial );
+				if ( self::stream( $zip, self::source_of( $partial ), (int) $partial['read'], $partial['id'], $cursor, $deadline, $chunks, false ) ) self::entry_done( $entries, $zip->finish(), $cursor, $units );
 			}
-			if ( ! $cursor['sql'] && ! $cursor['partial'] ) {
+			if ( is_array( $cursor['pending'] ) && ! $cursor['partial'] && ! $decided ) {
+				list( $name, $encoded ) = $cursor['pending'];
+				$oneshot = $name === (string) ( $cursor['oneshot'] ?? '' );
+				// Dos peticiones murieron copiándolo de corrido: partido no termina nunca y entero no da tiempo.
+				if ( $oneshot && $attempts >= 2 ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo ' . ( 0 === strpos( $name, 'wordpress/' ) ? substr( $name, 10 ) : $name ) . ' cambia mientras se respalda y no cabe en una petición de este servidor: partido no termina nunca y de corrido no da tiempo. Vacíalo o rótalo (si es un registro) o respalda con WP-CLI o con el cron del sistema.' );
+				$cursor['pending'] = null;
+				self::add( $zip, $entries, $name, self::decode_source( $encoded ), $cursor, $deadline, $units, $chunks, $oneshot );
+				if ( $oneshot && ! $cursor['partial'] ) $cursor['oneshot'] = '';
+			}
+			if ( ! $decided && ! $cursor['sql'] && ! $cursor['partial'] ) {
 				$cursor['sql'] = true;
-				self::add( $zip, $entries, 'database.sql', $sql, $cursor, $deadline, $units, $chunks, $warnings );
+				self::add( $zip, $entries, 'database.sql', $sql, $cursor, $deadline, $units, $chunks, false );
 			}
-			while ( ! $cursor['partial'] && $cursor['files_read'] < $cursor['files_size'] ) {
+			while ( ! $decided && ! $cursor['partial'] && $cursor['files_read'] < $cursor['files_size'] ) {
 				if ( $units > 0 && Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) break;
 				if ( 0 !== fseek( $list, (int) $cursor['files_read'] ) ) throw new Digitalisimo_Backups_Resume_Invalid( 'La lista de archivos no coincide con su punto de control.' );
 				$line = fgets( $list );
@@ -232,15 +281,17 @@ final class Digitalisimo_Backups_Packer {
 				$relative = self::decode( $fields[0] );
 				$source = isset( $fields[1] ) ? self::decode( $fields[1] ) : ( null === $relative ? null : $context['root'] . $relative );
 				if ( null === $relative || null === $source ) throw new Digitalisimo_Backups_Resume_Invalid( 'La lista de archivos del inventario está dañada.' );
-				self::add( $zip, $entries, 'wordpress/' . $relative, $source, $cursor, $deadline, $units, $chunks, $warnings );
+				self::add( $zip, $entries, 'wordpress/' . $relative, $source, $cursor, $deadline, $units, $chunks, false );
 				Digitalisimo_Backups_Jobs::progress( 40 + (int) floor( 38 * min( 1, $cursor['done_bytes'] / max( 1, $cursor['bytes'] ) ) ), 'Archivos incluidos: ' . $cursor['done'] . ' de ' . $cursor['files'] . ' · último: ' . $relative );
 			}
-			if ( ! $cursor['partial'] && $cursor['files_read'] >= $cursor['files_size'] ) {
+			if ( ! $decided && ! $cursor['partial'] && ! is_array( $cursor['pending'] ) && $cursor['files_read'] >= $cursor['files_size'] ) {
 				foreach ( self::REQUIRED as $required ) if ( ! in_array( $required, (array) $cursor['required'], true ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el respaldo.' );
+				$cursor['changed'] = self::changed_code( $paths['code'], (int) $cursor['code_size'], $context, (array) $cursor['vanished_code'] );
+				if ( $cursor['changed'] && (int) ( $cursor['passes'] ?? 1 ) < self::PASSES ) throw new Digitalisimo_Backups_Tree_Changed( 'El código del sitio cambió mientras se empaquetaba (' . implode( ', ', array_slice( $cursor['changed'], 0, 3 ) ) . '), quizá por una actualización: se empaqueta otra vez para que el respaldo no lleve una versión a medias.' );
 				$cursor['completed_at'] = gmdate( 'c' );
 				$cursor['stage'] = 'finish';
 			}
-			if ( ! fflush( $entries ) ) throw new Exception( 'No se pudo guardar la lista de entradas del ZIP.' );
+			self::sync( $entries, 'No se pudo guardar la lista de entradas del ZIP.' );
 			$cursor['zip_size'] = $zip->commit();
 			$position = ftell( $entries );
 			if ( false === $position ) throw new Exception( 'No se pudo medir la lista de entradas del ZIP.' );
@@ -251,31 +302,54 @@ final class Digitalisimo_Backups_Packer {
 			$zip->close();
 		}
 	}
-	/** Añade un archivo completo o lo deja a medias; uno que desapareció tras el inventario se omite con aviso. */
-	private static function add( $zip, $entries, $name, $source, array &$cursor, $deadline, &$units, &$chunks, array &$warnings ) {
+	/** Carpetas de código cuya fecha cambió desde que se inventariaron, o con archivos que desaparecieron. */
+	private static function changed_code( $path, $size, array $context, array $vanished ) {
+		$changed = array_values( array_unique( array_map( 'strval', $vanished ) ) );
+		foreach ( self::lines( $path, $size ) as $line ) {
+			$fields = explode( "\t", $line );
+			$relative = self::decode( $fields[0] );
+			if ( null === $relative || ! isset( $fields[1] ) ) continue;
+			$directory = '' === $relative ? rtrim( $context['root'], '/' ) : $context['root'] . $relative;
+			clearstatcache( true, $directory );
+			$mtime = @filemtime( $directory );
+			if ( false === $mtime || (int) $mtime !== (int) $fields[1] ) $changed[] = '' === $relative ? '/' : $relative;
+			if ( count( $changed ) >= 50 ) break;
+		}
+		return array_values( array_unique( $changed ) );
+	}
+	/**
+	 * Añade un archivo completo o lo deja a medias (con `$oneshot`, de corrido aunque venza el plazo). Uno que desapareció
+	 * tras el inventario se anota: los de carpetas de código cuentan como un cambio del código; todos salen en un aviso.
+	 */
+	private static function add( $zip, $entries, $name, $source, array &$cursor, $deadline, &$units, &$chunks, $oneshot ) {
 		clearstatcache( true, $source );
 		if ( is_link( $source ) && ! ( 'wordpress/wp-config.php' === $name ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo completo no puede omitir el enlace simbólico ' . $source . ' (apunta a ' . ( realpath( $source ) ?: (string) @readlink( $source ) ) . '). Sustitúyelo por el archivo o la carpeta real para respaldar la instalación completa.' );
 		if ( ! file_exists( $source ) && 'database.sql' !== $name ) {
-			$warnings[] = 'El archivo ' . substr( $name, 10 ) . ' desapareció después del inventario y no está en el respaldo.';
+			$relative = substr( $name, 10 );
+			$cursor['vanished_count'] = (int) ( $cursor['vanished_count'] ?? 0 ) + 1;
+			if ( count( (array) $cursor['vanished'] ) < 20 ) $cursor['vanished'][] = $relative;
+			$folder = dirname( $relative );
+			if ( preg_match( self::CODE_DIRS, '.' === $folder ? '' : $folder ) && count( (array) $cursor['vanished_code'] ) < 20 ) $cursor['vanished_code'][] = '.' === $folder ? '/' : $folder;
 			$units++;
 			return;
 		}
 		$stat = @stat( $source );
 		if ( ! is_array( $stat ) || ! is_file( $source ) || ! is_readable( $source ) ) throw new Exception( 'No se pudo agregar el archivo ' . $name . ' al respaldo.' );
 		$zip->begin( $name, (int) $stat['mtime'], (int) $stat['mode'], (int) $stat['size'], Digitalisimo_Backups_Zip_Writer::method_for( $name, (int) $stat['size'] ) );
-		$identity = array( 'size' => (int) $stat['size'], 'mtime' => (int) $stat['mtime'] );
-		if ( self::stream( $zip, $source, 0, $identity, $cursor, $deadline, $chunks ) ) self::entry_done( $entries, $zip->finish(), $cursor, $units );
+		$identity = self::identity( $stat );
+		if ( self::stream( $zip, $source, 0, $identity, $cursor, $deadline, $chunks, $oneshot ) ) self::entry_done( $entries, $zip->finish(), $cursor, $units );
 	}
 	/**
 	 * Copia el archivo a la entrada abierta desde `$offset`. Devuelve true al terminarlo; si vence el plazo antes, deja
-	 * la entrada suspendida en el punto de control y devuelve false.
+	 * la entrada suspendida en el punto de control y devuelve false. Con `$oneshot` no se suspende nunca.
 	 */
-	private static function stream( $zip, $source, $offset, array $identity, array &$cursor, $deadline, &$chunks ) {
+	private static function stream( $zip, $source, $offset, array $identity, array &$cursor, $deadline, &$chunks, $oneshot ) {
 		$handle = @fopen( $source, 'rb' );
 		if ( ! $handle ) throw new Exception( 'No se pudo agregar el archivo ' . basename( $source ) . ' al respaldo.' );
 		$size = function_exists( 'apply_filters' ) ? (int) apply_filters( 'digitalisimo_backups_zip_chunk', Digitalisimo_Backups_Zip_Writer::CHUNK ) : Digitalisimo_Backups_Zip_Writer::CHUNK;
 		$size = max( 1, $size );
 		$cap = Digitalisimo_Backups_Step_Budget::units();
+		if ( $oneshot ) Digitalisimo_Backups_Jobs::progress( 40, 'Copiando de corrido ' . basename( $source ) . ' (cambió entre tramos)…', true );
 		try {
 			if ( $offset > 0 && 0 !== fseek( $handle, $offset ) ) throw new Exception( 'No se pudo retomar la lectura de ' . basename( $source ) . '.' );
 			while ( true ) {
@@ -289,14 +363,15 @@ final class Digitalisimo_Backups_Packer {
 				$chunks++;
 				$cursor['done_bytes'] += strlen( $chunk );
 				if ( feof( $handle ) ) return true;
-				if ( microtime( true ) >= $deadline || ( $cap && $chunks >= $cap ) || Digitalisimo_Backups_Step_Budget::memory_headroom() <= 0 ) {
+				if ( ! $oneshot && ( microtime( true ) >= $deadline || ( $cap && $chunks >= $cap ) || Digitalisimo_Backups_Step_Budget::memory_headroom() <= 0 ) ) {
 					// Queda archivo: si lo que falta es sólo el final (EOF sin leer), termina igual.
 					$probe = fread( $handle, 1 );
 					if ( '' === $probe && feof( $handle ) ) return true;
 					if ( false === $probe ) throw new Exception( 'No se pudo leer ' . basename( $source ) . ' para el respaldo.' );
 					$cursor['done_bytes'] += 1;
 					$state = $zip->suspend( $probe );
-					$state['src'] = $source;
+					// La ruta va en base64: el estado del trabajo es JSON y una ruta que no es UTF-8 se estropearía.
+					$state['src'] = base64_encode( $source );
 					$state['read'] = (int) $state['raw'];
 					$state['id'] = $identity;
 					$cursor['partial'] = $state;
@@ -315,16 +390,22 @@ final class Digitalisimo_Backups_Packer {
 		if ( in_array( $record['n'], self::REQUIRED, true ) && ! in_array( $record['n'], (array) $cursor['required'], true ) ) $cursor['required'][] = $record['n'];
 		$units++;
 	}
-	/** El archivo de una entrada a medias sigue siendo el mismo (tamaño y fecha) que cuando empezó. */
+	/** Identidad de un archivo: tamaño, fechas de modificación y de cambio, e inodo. */
+	private static function identity( array $stat ) { return array( 'size' => (int) $stat['size'], 'mtime' => (int) $stat['mtime'], 'ctime' => (int) $stat['ctime'], 'ino' => (int) $stat['ino'] ); }
+	private static function source_of( array $partial ) { return self::decode_source( (string) ( $partial['src'] ?? '' ) ); }
+	private static function decode_source( $encoded ) { $source = base64_decode( (string) $encoded, true ); return false === $source ? '' : $source; }
+	/** El archivo de una entrada a medias sigue siendo el mismo que cuando empezó. */
 	private static function same_source( array $partial ) {
-		$source = (string) ( $partial['src'] ?? '' );
+		$source = self::source_of( $partial );
 		clearstatcache( true, $source );
 		$stat = '' === $source || is_link( $source ) ? false : @stat( $source );
-		return is_array( $stat ) && (int) $stat['size'] === (int) ( $partial['id']['size'] ?? -1 ) && (int) $stat['mtime'] === (int) ( $partial['id']['mtime'] ?? -1 );
+		if ( ! is_array( $stat ) ) return false;
+		foreach ( self::identity( $stat ) as $key => $value ) if ( (int) ( $partial['id'][ $key ] ?? -1 ) !== $value ) return false;
+		return true;
 	}
 
 	/** Etapa 3: manifiesto, directorio central y fin de archivo. Si muere, se repite entera desde el final de las entradas. */
-	private static function finish( $staging, array $job, array $database, array &$cursor ) {
+	private static function finish( $staging, array $job, array $database, array &$cursor, array $notices = array() ) {
 		global $wpdb;
 		$paths = self::paths( $staging, $cursor['tag'] );
 		$plan = Digitalisimo_Backups::job_security_plan( (array) ( $job['spec'] ?? array() ) );
@@ -373,6 +454,8 @@ final class Digitalisimo_Backups_Packer {
 				'files_started_at' => (string) $cursor['started_at'],
 				'files_completed_at' => (string) $cursor['completed_at'],
 			);
+			// Lo que faltó o cambió durante el empaquetado queda también en el manifiesto (las versiones anteriores lo ignoran).
+			if ( $notices ) $tail['notices'] = array_values( array_map( function( $notice ) { return (string) $notice['text']; }, $notices ) );
 			if ( $plan['root'] ) $tail['auth'] = Digitalisimo_Backups_Manifest_Auth::block( $plan['descriptor'], $plan['encrypt'] );
 			$mac = null;
 			$key_id = '';
@@ -402,7 +485,7 @@ final class Digitalisimo_Backups_Packer {
 			$zip->close();
 			$zip = null;
 			if ( $count !== $totals['count'] + 1 ) throw new Exception( 'El directorio central del ZIP no tiene todas las entradas.' );
-			return array( 'file' => basename( $paths['zip'] ), 'fp' => Digitalisimo_Backups_Backup_Job::fingerprint( $paths['zip'] ), 'file_count' => $totals['count'] - 1, 'files_started_at' => (string) $cursor['started_at'], 'files_completed_at' => (string) $cursor['completed_at'], 'backup_id' => $backup_id, 'created_at' => (string) $database['at'], 'signed' => (bool) $plan['root'], 'packer' => self::PACKER, 'entries' => basename( $paths['entries'] ), 'entries_size' => $entries_size, 'count' => $count, 'manifest' => array( 'size' => (int) $manifest['s'], 'sha256' => (string) $manifest['h'] ) );
+			return array( 'file' => basename( $paths['zip'] ), 'fp' => Digitalisimo_Backups_Backup_Job::fingerprint( $paths['zip'] ), 'file_count' => $totals['count'] - 1, 'files_started_at' => (string) $cursor['started_at'], 'files_completed_at' => (string) $cursor['completed_at'], 'backup_id' => $backup_id, 'created_at' => (string) $database['at'], 'signed' => (bool) $plan['root'], 'packer' => self::PACKER, 'entries' => basename( $paths['entries'] ), 'entries_size' => $entries_size, 'count' => $count, 'manifest' => array( 'size' => (int) $manifest['s'], 'sha256' => (string) $manifest['h'] ), 'passes' => (int) ( $cursor['passes'] ?? 1 ) );
 		} finally {
 			if ( $zip ) $zip->close();
 			if ( $plan['root'] ) Digitalisimo_Backups_Sodium::memzero( $plan['root'] );
@@ -465,25 +548,42 @@ final class Digitalisimo_Backups_Packer {
 		if ( is_link( $list ) || ! is_file( $list ) || (int) filesize( $list ) !== (int) $pack['entries_size'] ) throw new Exception( 'Falta la lista de entradas del ZIP o cambió.' );
 		$cursor = $job['checkpoint']['verify']['resume'] ?? null;
 		if ( ! is_array( $cursor ) || self::VERSION !== (int) ( $cursor['v'] ?? 0 ) || ! isset( $cursor['stage'], $cursor['index'], $cursor['offset'] ) || (int) $cursor['offset'] > (int) $pack['entries_size'] || (int) $cursor['index'] > (int) $pack['count'] ) {
-			$cursor = array( 'v' => self::VERSION, 'stage' => 'structure', 'index' => 0, 'offset' => 0, 'partial' => null, 'required' => array(), 'scale' => 1.0 );
+			$cursor = array( 'v' => self::VERSION, 'stage' => 'structure', 'index' => 0, 'offset' => 0, 'partial' => null, 'required' => array(), 'notices' => array(), 'scale' => 1.0 );
 		}
+		self::$notices = array();
 		$started = microtime( true );
 		$cursor['scale'] = Digitalisimo_Backups_Step_Budget::scale( $job, 'verify', $cursor );
 		$deadline = Digitalisimo_Backups_Step_Budget::deadline( $cursor['scale'], Digitalisimo_Backups_Step_Budget::slice_cap() );
 		$units = 0;
 		if ( 'structure' === $cursor['stage'] ) {
 			Digitalisimo_Backups_Jobs::progress( 81, 'Comprobando la estructura y la firma del ZIP…', true );
-			self::structure( $path, $pack, (array) $job['spec'] );
+			$cursor['notices'] = self::structure( $path, $pack, (array) $job['spec'] );
 			$cursor['stage'] = 'content';
 			$units++;
 		}
 		$top = Digitalisimo_Backups::job_encrypts( (array) $job['spec'] ) ? 89 : 98;
-		if ( self::content( $path, $list, $pack, $cursor, $deadline, $units, $top ) ) return null;
+		// El database.sql del ZIP tiene que ser el SQL que la exportación comprobó (columnas y claves que se importan).
+		$sql = (array) ( $job['checkpoint']['database'] ?? array() );
+		$checked = ! empty( $sql['checked'] ) ? (string) ( $sql['sha256'] ?? '' ) : '';
+		if ( self::content( $path, $list, $pack, $cursor, $deadline, $units, $top, $checked ) ) {
+			self::$notices = (array) ( $cursor['notices'] ?? array() );
+			return null;
+		}
 		$cursor['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] );
 		return array( 'next' => 'verify', 'checkpoint' => array( 'resume' => $cursor ), 'message' => 'Verificando el ZIP: entrada ' . min( (int) $pack['count'], (int) $cursor['index'] + 1 ) . ' de ' . (int) $pack['count'] . '…' );
 	}
-	/** CHECKCONS, número de entradas y firma (o su ausencia) con la clave que fijó el trabajo. */
+	/** Avisos visibles de la última verificación terminada (la memoria que necesitará restaurar), una sola vez. */
+	public static function take_notices() {
+		$notices = self::$notices;
+		self::$notices = array();
+		return $notices;
+	}
+	/**
+	 * CHECKCONS, número de entradas y firma (o su ausencia) con la clave que fijó el trabajo. Devuelve los avisos: si el
+	 * manifiesto no cabe en la memoria de esta petición para decodificarlo como la restauración, se dice cuánta necesitará.
+	 */
 	private static function structure( $path, array $pack, array $spec ) {
+		$notices = array();
 		$plan = Digitalisimo_Backups::job_security_plan( $spec );
 		$zip = new ZipArchive();
 		try {
@@ -510,10 +610,11 @@ final class Digitalisimo_Backups_Packer {
 				} elseif ( 0 === strpos( $comment, Digitalisimo_Backups_Manifest_Auth::PREFIX ) || ! empty( $pack['signed'] ) ) {
 					throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
 				}
-				// Si cabe con holgura en la memoria libre, el manifiesto se comprueba además como lo hace la restauración.
-				// Decodificado ocupa unas 16 veces su tamaño: con 64 MB, uno de ~17 000 entradas no cabe (hallazgo H1 del
-				// laboratorio) y basta lo anterior (su SHA-256, su tamaño y su firma, leídos por partes).
-				if ( (int) $stat['size'] <= self::DECODE_MANIFEST && 16 * (int) $stat['size'] < Digitalisimo_Backups_Step_Budget::memory_headroom() ) {
+				// Si cabe en la memoria libre, el manifiesto se comprueba además como lo hace la restauración: es lo que prueba
+				// que la restauración podrá leerlo en esta misma pila. Decodificado ocupa unas 3,2 veces su tamaño (medido
+				// con 17 000 entradas); con el texto leído y el margen, MANIFEST_FACTOR veces.
+				$size = (int) $stat['size'];
+				if ( self::MANIFEST_FACTOR * $size < Digitalisimo_Backups_Step_Budget::memory_headroom() ) {
 					$auth = Digitalisimo_Backups_Manifest_Auth::verify( $zip, '', $plan['root'] );
 					$state = $auth['state'];
 					unset( $auth );
@@ -521,6 +622,13 @@ final class Digitalisimo_Backups_Packer {
 					if ( ! $plan['root'] && 'unsigned' !== $state ) throw new Exception( 'El respaldo lleva una firma que este trabajo no puede comprobar.' );
 					$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
 					if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) || 3 !== ( $manifest['backup_format_version'] ?? null ) || 'installation' !== ( $manifest['scope'] ?? '' ) || 'full' !== ( $manifest['type'] ?? '' ) || ! is_array( $manifest['entries'] ?? null ) || count( $manifest['entries'] ) !== (int) $pack['count'] - 1 || (int) $manifest['file_count'] !== (int) $pack['count'] - 2 ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
+				} else {
+					// No se pudo probar aquí, así que «verificado» no lo cubre y se dice siempre: la restauración (que lo
+					// decodifica entero, dos veces, con su texto) necesitará unas 7,5 veces su tamaño además de lo que ocupe
+					// WordPress. Se declara en el trabajo y en el historial (el manifiesto ya está escrito).
+					$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
+					$need = memory_get_usage( true ) + (int) ceil( 7.5 * $size );
+					$notices[] = array( 'notice' => 'restore_memory', 'text' => 'La verificación no pudo leer entero el manifiesto (' . number_format( (int) $pack['count'], 0, ',', '.' ) . ' entradas, ' . round( $size / 1048576, 1 ) . ' MB) con la memoria libre de esta petición, así que no prueba que la restauración pueda leerlo en este servidor: necesitará unos ' . (int) ceil( $need / 1048576 ) . ' MB' . ( $limit ? ' (memory_limit: ' . (int) round( $limit / 1048576 ) . ' MB)' : '' ) . '. Si no alcanzan, restáuralo con WP-CLI o sube WP_MAX_MEMORY_LIMIT antes de restaurarlo desde la pantalla.' );
 				}
 			} finally {
 				$zip->close();
@@ -528,12 +636,13 @@ final class Digitalisimo_Backups_Packer {
 		} finally {
 			if ( $plan['root'] ) Digitalisimo_Backups_Sodium::memzero( $plan['root'] );
 		}
+		return $notices;
 	}
 	/**
 	 * Entradas desde el punto de control: metadatos de ZipArchive contra la lista y contenido (CRC, tamaño y SHA-256).
 	 * Devuelve true si comprobó la última.
 	 */
-	private static function content( $path, $list, array $pack, array &$cursor, $deadline, &$units, $top ) {
+	private static function content( $path, $list, array $pack, array &$cursor, $deadline, &$units, $top, $checked = '' ) {
 		$count = (int) $pack['count'];
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $path ) ) throw new Exception( 'No se pudo abrir el ZIP para verificarlo.' );
@@ -549,6 +658,7 @@ final class Digitalisimo_Backups_Packer {
 				if ( 0 === $index % 25 ) Digitalisimo_Backups_Jobs::progress( 81 + (int) floor( ( $top - 81 ) * $index / max( 1, $count ) ), 'Verificando archivo ' . ( $index + 1 ) . ' de ' . $count );
 				$stat = $zip->statIndex( $index );
 				if ( ! is_array( $stat ) || $stat['name'] !== $record['n'] || (int) $stat['size'] !== (int) $record['s'] || (int) $stat['comp_size'] !== (int) $record['z'] || (int) $stat['comp_method'] !== (int) $record['m'] || sprintf( '%08x', $stat['crc'] ) !== $record['c'] ) throw new Exception( 'La entrada ' . self::shown( $record['n'] ) . ' del ZIP no es la que se escribió.' );
+				if ( 'database.sql' === $record['n'] && '' !== $checked && ! hash_equals( $checked, (string) $record['h'] ) ) throw new Exception( 'El database.sql del ZIP no es el SQL que se exportó y se comprobó.' );
 				if ( ! self::entry( $zip, $path, $record, $cursor, $deadline ) ) return false;
 				if ( ( 'database.sql' === $record['n'] || in_array( $record['n'], self::REQUIRED, true ) ) && ! in_array( $record['n'], $cursor['required'], true ) ) $cursor['required'][] = $record['n'];
 				$cursor['index']++;
@@ -637,6 +747,25 @@ final class Digitalisimo_Backups_Packer {
 		$line = rtrim( (string) $line, "\n" );
 		if ( preg_match( '/%(?!25|0A|0D|09)/', $line ) ) return null;
 		return strtr( $line, array( '%25' => '%', '%0A' => "\n", '%0D' => "\r", '%09' => "\t" ) );
+	}
+	/** Vacía una lista a disco (con fsync, como el ZIP): un corte de luz no deja una lista con basura detrás. */
+	private static function sync( $handle, $message ) {
+		if ( ! fflush( $handle ) ) throw new Exception( $message );
+		if ( function_exists( 'fsync' ) ) @fsync( $handle );
+	}
+	/** Líneas (sin el salto final) de una lista hasta `$size` bytes. */
+	private static function lines( $path, $size ) {
+		$handle = @fopen( $path, 'rb' );
+		if ( ! $handle ) return;
+		try {
+			$read = 0;
+			while ( $read < $size && false !== ( $line = fgets( $handle ) ) ) {
+				$read += strlen( $line );
+				yield rtrim( $line, "\n" );
+			}
+		} finally {
+			fclose( $handle );
+		}
 	}
 	private static function append_handle( $path, $size ) {
 		$handle = @fopen( $path, 'c+b' );

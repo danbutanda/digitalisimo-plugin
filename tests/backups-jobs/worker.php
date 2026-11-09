@@ -24,14 +24,14 @@ if ( in_array( 'fatal-db', $argv, true ) ) {
 	};
 }
 if ( in_array( 'bloquear-db-tramos', $argv, true ) ) {
-	// T2: tramos de un lote de dos filas; se detiene dentro de la instantánea del tramo que sigue a un punto de control ya
-	// guardado (a mitad de wp_options), para que lo maten ahí.
+	// T2: tramos de una tabla con lotes de dos filas; se detiene dentro de la instantánea del tramo que sigue a un punto
+	// de control ya guardado (wp_options entera), a mitad de wp_posts, para que lo maten ahí.
 	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function() { return 1; };
 	$GLOBALS['bk_filters']['digitalisimo_backups_db_batch'] = function() { return 2; };
 	$GLOBALS['wpdb']->on_select = function() {
 		if ( ! $GLOBALS['wpdb']->in_snapshot || file_exists( $GLOBALS['bk_root'] . '/worker-ready' ) ) return;
 		$jobs = Digitalisimo_Backups_Job_Store::all();
-		if ( ( $jobs[0]['checkpoint']['database']['resume']['total'] ?? 0 ) < 2 ) return;
+		if ( ( $jobs[0]['checkpoint']['database']['resume']['table'] ?? 0 ) < 1 ) return;
 		file_put_contents( $GLOBALS['bk_root'] . '/worker-ready', (string) getmypid() );
 		sleep( 120 );
 	};

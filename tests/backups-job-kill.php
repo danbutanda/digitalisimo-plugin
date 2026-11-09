@@ -66,22 +66,23 @@ function kill_after_fatal( $id ) {
 
 /**
  * T2: muerto con SIGKILL a mitad de una tabla, después de un punto de control guardado. El detector lo reconoce, el SQL
- * del punto de control se conserva, el tramo siguiente sigue desde la última clave escrita (truncando lo del proceso
- * muerto) y el SQL final es el de una exportación sin cortes.
+ * del punto de control (las tablas ya enteras) se conserva, el tramo siguiente trunca lo del proceso muerto y exporta la
+ * tabla entera otra vez desde su primera fila, sin releer las anteriores, y el SQL final es el de una exportación sin
+ * cortes.
  */
 function kill_after_steps() {
 	bk_assert( Digitalisimo_Backups_Jobs::recover_if_idle(), 'El cerrojo del proceso muerto no quedó libre.' );
 	$job = kill_job();
 	$resume = $job['checkpoint']['database']['resume'] ?? null;
-	bk_assert( 'queued' === $job['status'] && 'interrupted' === $job['error']['code'] && 1 === $job['attempts']['database'] && is_array( $resume ) && 2 === (int) $resume['total'], 'La muerte por SIGKILL a mitad de tabla no conservó el punto de control.' );
+	bk_assert( 'queued' === $job['status'] && 'interrupted' === $job['error']['code'] && 1 === $job['attempts']['database'] && is_array( $resume ) && 1 === (int) $resume['table'] && 3 === (int) $resume['total'], 'La muerte por SIGKILL a mitad de tabla no conservó el punto de control.' );
 	$part = bk_storage() . '/jobs/' . $job['id'] . '/staging/' . $resume['file'];
 	bk_assert( is_file( $part ) && filesize( $part ) >= (int) $resume['size'], 'El SQL del punto de control no se conservó tras la muerte.' );
 	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function() { return 1; };
 	$GLOBALS['bk_filters']['digitalisimo_backups_db_batch'] = function() { return 2; };
 	$GLOBALS['wpdb']->queries = array();
 	bk_run_until_done( $job['id'], 120 );
-	$selects = array_values( preg_grep( '/^SELECT \* FROM `wp_options`/', $GLOBALS['wpdb']->queries ) );
-	bk_assert( $selects && 0 === strpos( $selects[0], 'SELECT * FROM `wp_options` WHERE (`id` > 2)' ), 'Tras la muerte no se siguió por la última clave escrita: ' . json_encode( array_slice( $selects, 0, 2 ) ) );
+	$selects = array_values( preg_grep( '/^SELECT \* FROM `/', $GLOBALS['wpdb']->queries ) );
+	bk_assert( $selects && 'SELECT * FROM `wp_posts` ORDER BY `id` LIMIT 2' === $selects[0] && ! preg_grep( '/`wp_options`/', $selects ), 'Tras la muerte no se exportó la tabla entera desde su primera fila, o se releyó la anterior: ' . json_encode( array_slice( $selects, 0, 2 ) ) );
 	$job = kill_job();
 	$zip = new ZipArchive();
 	bk_assert( 'success' === $job['status'] && true === $zip->open( bk_storage() . '/' . $job['spec']['file'], ZipArchive::CHECKCONS ), 'El trabajo retomado tras SIGKILL no terminó.' );

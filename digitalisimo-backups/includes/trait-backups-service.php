@@ -127,6 +127,8 @@ trait Digitalisimo_Backups_Service {
 			'locked' => ! empty( $item['locked'] ),
 			'available' => $available,
 			'restorable' => $available && 'local' === ( $item['destination'] ?? 'local' ) && 'full' === $type && in_array( $scope, array( 'network', 'installation' ), true ),
+			'consistency' => (string) ( $item['consistency'] ?? '' ),
+			'notices' => array_values( array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ),
 		);
 	}
 	/** Copias previas a una restauración en el historial: se registran (bloqueadas) justo antes del SQL. */

@@ -20,6 +20,8 @@ final class Digitalisimo_Backups_Zip_Writer {
 	/** Desde este tamaño un archivo se guarda sin comprimir: deflate podría superar 4 GiB sin cabecera Zip64. */
 	const STORE_FROM = 2147483648;
 	const LIMIT32 = 0xFFFFFFFF;
+	/** Bytes comprimidos por llamada a inflate_add() al leer lo escrito: su salida queda acotada (H2 de la revisión). */
+	const INFLATE_PIECE = 4096;
 	/** Formatos que ya vienen comprimidos: comprimirlos otra vez cuesta tiempo y no reduce nada. */
 	const STORED = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'heif', 'jxl', 'mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi', 'wmv', 'mp3', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'flac', 'zip', 'gz', 'tgz', 'bz2', 'xz', 'lz', 'lzma', '7z', 'rar', 'zst', 'br', 'woff', 'woff2', 'jar', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'epub', 'apk', 'dgbk' );
 	/** Sólo pruebas: escribe Zip64 aunque no haga falta. */
@@ -254,8 +256,11 @@ final class Digitalisimo_Backups_Zip_Writer {
 			if ( 0 !== fseek( $in, (int) $data_offset + (int) $from ) ) throw new Exception( 'No se pudo situar la lectura del ZIP.' );
 			$position = (int) $from;
 			$inflate = $method ? inflate_init( ZLIB_ENCODING_RAW ) : null;
+			// Comprimido se lee de 4 KB en 4 KB: deflate expande como mucho unas 1 032 veces, así que cada inflate_add()
+			// devuelve unos 4 MB en el peor caso (un archivo de ceros), no todo lo que salga de 1 MB (hasta 1 GB).
+			$piece = $method ? self::INFLATE_PIECE : self::CHUNK;
 			while ( $position < $to ) {
-				$chunk = fread( $in, (int) min( self::CHUNK, $to - $position ) );
+				$chunk = fread( $in, (int) min( $piece, $to - $position ) );
 				if ( false === $chunk || '' === $chunk ) throw new Exception( 'El ZIP del área de trabajo está truncado.' );
 				$position += strlen( $chunk );
 				$out = $inflate ? @inflate_add( $inflate, $chunk, ZLIB_SYNC_FLUSH ) : $chunk;
