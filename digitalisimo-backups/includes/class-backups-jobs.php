@@ -72,7 +72,7 @@ final class Digitalisimo_Backups_Jobs {
 		return array(
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'type' => 'full',
-			'destination' => in_array( $destination, array( 'local', 'sftp', 'google', 'onedrive' ), true ) ? $destination : 'local',
+			'destination' => Digitalisimo_Backups_Destinations::exists( $destination ) ? $destination : 'local',
 			'policy' => (string) ( $args['policy'] ?? 'manual' ),
 			'retain' => max( 1, min( 100, (int) ( $args['retain'] ?? 5 ) ) ),
 			'retention' => in_array( $retention, array( 'global', 'policy', 'none' ), true ) ? $retention : 'global',
@@ -174,6 +174,8 @@ final class Digitalisimo_Backups_Jobs {
 				if ( ! $job || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
 				$finished = true;
 			} while ( microtime( true ) - $start < $budget );
+			// Subidas interrumpidas por un fallo o una cancelación: se retiran del destino fuera del cerrojo del registro.
+			Digitalisimo_Backups::job_transfer_abandon_pending();
 			if ( $finished ) Digitalisimo_Backups_Job_Store::prune();
 		} catch ( Throwable $e ) {
 			$result = 'error';
@@ -573,6 +575,8 @@ final class Digitalisimo_Backups_Jobs {
 				$at = ! empty( $job['lease'] ) ? time() + 60 : max( time(), (int) $job['retry_at'] );
 				$next = null === $next ? $at : min( $next, $at );
 			}
+			// Una subida cancelada o fallida que espera retirarse del destino también necesita su tick.
+			if ( Digitalisimo_Backups::job_transfer_pending_abandons() ) $next = null === $next ? time() : min( $next, time() );
 		} catch ( Throwable $e ) {
 			return;
 		}
@@ -603,6 +607,7 @@ final class Digitalisimo_Backups_Jobs {
 		if ( $lock ) {
 			try {
 				self::recover();
+				Digitalisimo_Backups::job_transfer_abandon_pending();
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
 			} catch ( Throwable $e ) {
@@ -623,7 +628,9 @@ final class Digitalisimo_Backups_Jobs {
 		$candidates = array();
 		foreach ( (array) @scandir( sys_get_temp_dir() ) as $name ) if ( preg_match( '/^digitalisimo-sql-[A-Za-z0-9]{6}$/', $name ) ) $candidates[] = rtrim( sys_get_temp_dir(), '/\\' ) . '/' . $name;
 		$storage = Digitalisimo_Backups::storage_directory();
-		foreach ( (array) @scandir( $storage ) as $name ) if ( preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.zip\.[A-Za-z0-9]{6}|\.cloud-check-[A-Za-z0-9]{6})$/', $name ) ) $candidates[] = $storage . '/' . $name;
+		// También los temporales de los destinos remotos: verificación, descarga, «Probar conexión», la clave SFTP en archivo
+		// (que se borra al momento) y la copia a medias de «Traer al almacén».
+		foreach ( (array) @scandir( $storage ) as $name ) if ( preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.zip\.[A-Za-z0-9]{6}|\.(?:cloud-check|verify|download|connection-test|connection-back|sftp-pub|sftp-key)-[A-Za-z0-9]{6}|digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)\.part-[0-9a-f]{12})$/', $name ) ) $candidates[] = $storage . '/' . $name;
 		foreach ( $candidates as $path ) {
 			if ( is_link( $path ) || ! is_file( $path ) || $now - (int) @filemtime( $path ) <= $older_than ) continue;
 			if ( @unlink( $path ) ) $removed++;

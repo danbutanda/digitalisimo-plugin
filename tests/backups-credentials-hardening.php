@@ -38,7 +38,8 @@ $fields = array( 'destination' => 'local', 'retention' => '100', 'sftp_name' => 
 $secrets = array( 'sftp_password' => 'Clave-de-la-RED_aa11', 'google_client_secret' => 'GOCSPX-red-77aa', 'google_refresh_token' => '1//refresh-red-88bb', 'onedrive_client_secret' => 'onedrive~red~99cc', 'onedrive_refresh_token' => 'M.R3_BAY.red-00dd' );
 $save = function( array $post_fields ) use ( $B ) { return bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $post_fields ) ); };
 $settings = function() use ( $B ) { return bk_call( $B, 'settings' ); };
-$secret_values = function( array $s ) use ( $C ) { return array_intersect_key( $s, array_flip( $C::FIELDS ) ); };
+// Los cinco secretos que escribe la prueba (desde la entrega de destinos hay más campos secretos, que quedan vacíos).
+$secret_values = function( array $s ) use ( &$secrets ) { return array_intersect_key( $s, $secrets ); };
 $sql_of = function( $path ) { $zip = new ZipArchive(); $zip->open( $path ); $sql = (string) $zip->getFromName( 'database.sql' ); $zip->close(); return $sql; };
 $panel = function( $s, array $locked = array() ) use ( $B ) { ob_start(); try { bk_call( $B, 'servers_panel', $s, $locked ); } finally { $html = ob_get_clean(); } return $html; };
 /** Cambia de sitio en una red: cada sitio con sus propias opciones (las de la red, en bk_site_options, son comunes). */
@@ -72,7 +73,7 @@ $case( 'F1', function() use ( $B, $C, $K, $check, $save, $settings, $secret_valu
 		$B::credentials_on_load();
 		$check( $network === $K::get( $C::OPTION, null ), 'La contraseña vieja de un subsitio llegó al almacén de la red.' );
 		// OAuth desde un subsitio: rechazado sin escribir.
-		$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'e', 'provider' => 'google' );
+		update_option( $B::oauth_pending_key(), array( 'state' => 'e', 'provider' => 'google', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 		$_GET = array( 'code' => 'c', 'state' => 'e' );
 		$_REQUEST = array( 'provider' => 'google' ) + $_GET;
 		try { $B::oauth_callback(); } catch ( Bk_Redirect $redirect ) { $url = rawurldecode( $redirect->url ); } finally { $_GET = array(); $_REQUEST = array(); }
