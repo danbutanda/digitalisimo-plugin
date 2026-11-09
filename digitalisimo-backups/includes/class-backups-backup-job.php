@@ -148,7 +148,8 @@ final class Digitalisimo_Backups_Backup_Job {
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
 		if ( ! is_file( $final ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El ZIP local desapareció antes de copiarlo al destino remoto.' );
 		Digitalisimo_Backups_Jobs::progress( 90, 'Copiando a ' . Digitalisimo_Backups::destination_name( $spec['destination'] ) . '…', true );
-		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'] );
+		// El estado reanudable de la subida (multipart, sesión, temporal) vive en el área de este trabajo.
+		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'], $job['id'] );
 		Digitalisimo_Backups::history_update( basename( $final ), array( 'destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
 		return array( 'next' => 'prune', 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia remota verificada; aplicando la retención…' );
 	}
@@ -185,6 +186,9 @@ final class Digitalisimo_Backups_Backup_Job {
 	}
 	/** Al fallar o cancelar: sin área de trabajo; un ZIP ya registrado sigue siendo local y verificado. */
 	public static function on_terminal( array $job, $status, $message ) {
+		// Una transferencia que falla o se cancela retira del destino lo que dejó a medias (multipart, temporales).
+		// Sólo aparta su estado: la llamada al destino ocurre después, fuera del cerrojo del registro (job_transfer_abandon_pending).
+		if ( 'transfer' === ( $job['phase'] ?? '' ) && empty( $job['spec']['inline'] ) ) Digitalisimo_Backups::job_transfer_queue_abandon( $job );
 		try {
 			Digitalisimo_Backups_Job_Store::remove_staging( $job['id'] );
 		} catch ( Throwable $e ) {

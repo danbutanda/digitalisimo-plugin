@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.253.zip', version: '1.0.253' },
   { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.60.zip', version: '1.0.60' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.30.zip', version: '1.0.30' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.61.zip', version: '1.0.61' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.62.zip', version: '1.0.62' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.37.zip', version: '1.0.37' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.182.zip', version: '4.3.0.182' };
@@ -232,7 +232,8 @@ if (updaterFiles.some((source) =>
   source.includes("delete_site_transient( 'update_plugins' )") ||
   !source.includes('! is_object( $transient ) || ! isset( $transient->checked )')
 )) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
-const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 'utf8');
+// Backups: la clase principal y, desde la entrega de destinos, el trait de la pantalla de destinos y cada destino.
+const backups = ['digitalisimo-backups/includes/class-backups.php', ...readdirSync('digitalisimo-backups/includes/destinations').filter((name) => name.endsWith('.php')).sort().map((name) => `digitalisimo-backups/includes/destinations/${name}`)].map((path) => readFileSync(path, 'utf8')).join('\n');
 if (!backups.includes("'wp_ajax_' . self::ACTION_MANUAL_START") || !backups.includes('function manual_status()') || !backups.includes('function wordpress_config_file()') || !['digitalisimo_backups_manual_start', 'digitalisimo_backups_job_tick', 'digitalisimo_backups_job_cancel'].every((action) => readFileSync('digitalisimo-backups/assets/manual-progress.js', 'utf8').includes(action))) throw new Error('Backups debe incluir avance consultable y validar wp-config.php antes del trabajo largo.');
 if (!backups.includes('create_network') || !backups.includes('create_site') || !backups.includes('create_incremental_site') || !backups.includes('network_context') || !backups.includes('servers_panel') || !backups.includes('manual_destinations') || !backups.includes('digitalisimo_backup_destination') || !backups.includes('incremental_destination') || !backups.includes('remove_history') || !backups.includes('restore_digitalisimo_zip') || !backups.includes('restore_updraft_set') || !backups.includes('download_remote') || !backups.includes('delete_remote') || !backups.includes('digitalisimo_backups_policy') || !backups.includes('create_automation') || !backups.includes('update_automation') || !backups.includes('delete_automation') || !backups.includes('automation_fields') || !backups.includes('MIGRAR-A-WORDPRESS-UNICO.txt') || !backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
   throw new Error('Backups debe incluir archivos y base de datos, con destinos local, SFTP, Google Drive y OneDrive.');

@@ -25,7 +25,8 @@ $check = function( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what
 $slash = function( $value ) use ( &$slash ) { return is_array( $value ) ? array_map( $slash, $value ) : addslashes( (string) $value ); };
 $save = function( array $fields ) use ( $B, $slash ) { return bk_post( array( $B, 'save' ), $slash( array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $fields ) ) ); };
 $settings = function() use ( $B ) { return bk_call( $B, 'settings' ); };
-$secret_values = function( array $settings ) use ( $C ) { return array_intersect_key( $settings, array_flip( $C::FIELDS ) ); };
+// Los cinco secretos que escribe la prueba (desde la entrega de destinos hay más campos secretos, que quedan vacíos).
+$secret_values = function( array $settings ) use ( &$secrets ) { return array_intersect_key( $settings, $secrets ); };
 $fields = array( 'destination' => 'local', 'retention' => '100', 'sftp_host' => '  sftp.example.test <b>x</b> ', 'sftp_port' => '22', 'sftp_user' => ' respaldos ', 'sftp_path' => '/backups', 'sftp_fingerprint' => str_repeat( 'A', 40 ), 'google_client_id' => 'cliente-google', 'onedrive_client_id' => 'cliente-onedrive', 'onedrive_folder' => 'Respaldos' );
 $secrets = array(
 	'sftp_password' => "  O'Brien \"clave\" \\ barra\\\\doble  ",
@@ -82,7 +83,7 @@ $check( $secrets === $secret_values( $settings() ), 'Tras los rechazos los secre
 
 // 4. El refresh token del retorno de OAuth se guarda exacto; uno con caracteres de control se rechaza sin cambiar nada.
 $oauth = function( $token ) use ( $B ) {
-	$GLOBALS['bk_transients']['digitalisimo_backup_oauth_1'] = array( 'state' => 'estado', 'provider' => 'onedrive' );
+	update_option( $B::oauth_pending_key(), array( 'state' => 'estado', 'provider' => 'onedrive', 'expires' => time() + 600 ) ); // Estado OAuth pendiente (en la bóveda desde la entrega de destinos).
 	$GLOBALS['bk_http'] = array();
 	$GLOBALS['bk_http_reply'] = array( 'refresh_token' => $token );
 	$_GET = array( 'code' => 'codigo', 'state' => 'estado' );
