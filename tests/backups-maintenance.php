@@ -122,6 +122,15 @@ register_shutdown_function( function() use ( $B, $root ) {
 	try {
 		$GLOBALS['wpdb']->die_after = 0;
 		digi_assert( true === digi_wp_maintenance() && Digitalisimo_Backups_Maintenance::ours(), 'Al morir el proceso, el sitio no quedó en mantenimiento.' );
+		// La operación siguiente es otra petición: cuando empieza, PHP (o el sistema, si el proceso murió) ya cerró los
+		// descriptores de la que murió, y con ellos su bloqueo de operaciones. Aquí sigue siendo la misma petición: PHP 8
+		// destruye las variables locales al ejecutar exit, pero PHP 7.4 sale sin deshacer la pila y el $lock de
+		// service_restore() sigue abierto y con flock hasta el final, así que se cierra como lo haría ese final.
+		$lock_path = realpath( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/' . $B::OPERATION_LOCK );
+		foreach ( get_resources( 'stream' ) as $handle ) {
+			$meta = stream_get_meta_data( $handle );
+			if ( false !== $lock_path && realpath( (string) ( $meta['uri'] ?? '' ) ) === $lock_path ) fclose( $handle );
+		}
 		$lock = $B::try_operation_lock();
 		$B::release_operation_lock( $lock );
 		digi_assert( ! file_exists( ABSPATH . '.maintenance' ) && false === digi_wp_maintenance(), 'La operación siguiente no sacó al sitio del mantenimiento.' );
