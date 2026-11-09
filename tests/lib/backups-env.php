@@ -118,10 +118,11 @@ function home_url() { return 'https://example.test/'; }
 function site_url() { return 'https://example.test/'; }
 function get_bloginfo( $key ) { return '6.8'; }
 function is_multisite() { return $GLOBALS['bk_multisite']; }
-function is_main_site() { return true; }
+/** Un subsitio de la red: $GLOBALS['bk_main_site'] = false y $GLOBALS['bk_blog_id'] (por defecto, el sitio principal). */
+function is_main_site() { return $GLOBALS['bk_main_site'] ?? true; }
 function is_network_admin() { return false; }
 function get_main_site_id() { return 1; }
-function get_current_blog_id() { return 1; }
+function get_current_blog_id() { return $GLOBALS['bk_blog_id'] ?? 1; }
 function wp_generate_uuid4() { $b = random_bytes( 16 ); $b[6] = chr( ord( $b[6] ) & 0x0f | 0x40 ); $b[8] = chr( ord( $b[8] ) & 0x3f | 0x80 ); return vsprintf( '%s%s-%s-%s-%s-%s%s%s', str_split( bin2hex( $b ), 4 ) ); }
 function wp_generate_password( $length = 12 ) { return substr( bin2hex( random_bytes( $length ) ), 0, $length ); }
 function wp_json_encode( $value, $flags = 0 ) { return json_encode( $value, $flags ); }
