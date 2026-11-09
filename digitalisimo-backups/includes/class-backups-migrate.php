@@ -655,12 +655,12 @@ final class Digitalisimo_Backups_Migrate {
 			$problem = self::pull_problem();
 			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
 			if ( 'https' !== strtolower( (string) wp_parse_url( $parsed['url'], PHP_URL_SCHEME ) ) && ! self::allow_http() ) throw new Digitalisimo_Backups_Permanent_Error( 'La clave apunta a un sitio sin HTTPS (' . wp_parse_url( $parsed['url'], PHP_URL_HOST ) . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP» en Backups → Migrar de los dos sitios.' );
-			$migration = array( 'role' => 'destination', 'url' => $parsed['url'], 'id' => $parsed['id'], 'key_id' => Digitalisimo_Backups_Keys::key_id( $root ), 'source_host' => (string) wp_parse_url( $parsed['url'], PHP_URL_HOST ), 'secret' => $token );
+			$migration = array( 'role' => 'destination', 'url' => $parsed['url'], 'id' => $parsed['id'], 'key_id' => Digitalisimo_Backups_Keys::key_id( $root ), 'source_host' => self::host_label( $parsed['url'] ), 'secret' => $token );
 			self::seal_file( $file, $auth . $root );
 			$hello = self::call( $migration, $auth, '', 'hello', 'POST', array( 'site' => home_url() ), 30 );
 			self::compatible( $hello );
 			$migration['source'] = self::source_summary( $hello );
-			$migration['source_host'] = (string) wp_parse_url( (string) $hello['home'], PHP_URL_HOST ) ?: $migration['source_host'];
+			$migration['source_host'] = self::host_label( (string) $hello['home'] ) ?: $migration['source_host'];
 			$spec = self::pull_spec( $migration, $via );
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
 			if ( ! empty( $queued['duplicate'] ) ) {
@@ -675,6 +675,12 @@ final class Digitalisimo_Backups_Migrate {
 			Digitalisimo_Backups_Sodium::memzero( $auth );
 			Digitalisimo_Backups_Sodium::memzero( $root );
 		}
+	}
+	/** Host (con su puerto, si lo tiene) para los mensajes: dos sitios en la misma máquina se distinguen. */
+	private static function host_label( $url ) {
+		$host = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
+		$port = wp_parse_url( (string) $url, PHP_URL_PORT );
+		return '' === $host ? '' : $host . ( $port ? ':' . (int) $port : '' );
 	}
 	private static function pull_spec( array $migration, $via ) {
 		$now_scope = is_multisite() ? 'network' : 'installation';
