@@ -45,7 +45,14 @@ jpeg_mb=$(( SIZE_MB * 45 / 100 )); text_mb=$(( SIZE_MB * 20 / 100 )); small_mb=$
 mkdir -p "$dir/uploads/2026/11" "$dir/uploads/video" "$dir/uploads/logs"
 for i in $(seq 1 $(( jpeg_mb / 2 ))); do head -c 2097152 /dev/urandom > "$dir/uploads/2026/11/foto-$i.jpg"; done
 head -c $(( 48 * 1048576 )) /dev/urandom > "$dir/uploads/video/presentacion.mp4"
-for i in $(seq 1 $(( text_mb / 10 > 0 ? text_mb / 10 : 1 ))); do yes "registro $i del ensayo T2: texto que se comprime bien con deflate" | head -c $(( 10 * 1048576 )) > "$dir/uploads/logs/registro-$i.txt"; done
+python3 -I -c '
+import sys
+root, count = sys.argv[1], int(sys.argv[2])
+for i in range(1, count + 1):
+    line = ("registro %d del ensayo T2: texto que se comprime bien con deflate\n" % i).encode()
+    with open("%s/registro-%d.txt" % (root, i), "wb") as f:
+        f.write((line * (10 * 1048576 // len(line) + 1))[: 10 * 1048576])
+' "$dir/uploads/logs" $(( text_mb / 10 > 0 ? text_mb / 10 : 1 ))
 files=$(( small_mb * 256 ))
 for d in $(seq 1 40); do mkdir -p "$dir/uploads/miniaturas/carpeta-$d"; done
 python3 -I -c '
