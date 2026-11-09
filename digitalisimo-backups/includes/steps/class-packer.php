@@ -571,7 +571,7 @@ final class Digitalisimo_Backups_Packer {
 		$sha = hash_init( 'sha256' );
 		try {
 			while ( ! feof( $stream ) ) {
-				$chunk = fread( $stream, 1048576 );
+				$chunk = @fread( $stream, 1048576 ); // libzip avisa de un CRC erróneo; la comparación de abajo da el motivo.
 				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'La entrada ' . self::shown( $record['n'] ) . ' está truncada.' );
 				$bytes += strlen( $chunk );
 				hash_update( $crc, $chunk );

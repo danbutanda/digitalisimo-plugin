@@ -51,7 +51,9 @@ final class Digitalisimo_Backups_Step_Budget {
 		$length = is_finite( $tick ) ? max( $min, $tick - $now ) : INF;
 		if ( null !== $cap ) $length = min( $length, max( $min, (float) $cap ) );
 		if ( is_finite( $length ) ) $length = max( min( $min, $length ), $length * max( self::MIN_SCALE, min( 1.0, (float) $scale ) ) );
-		$remaining = self::request_remaining();
+		// Un tick ya llega recortado al límite de su petición; sin plazo (WP-CLI o la copia previa de una restauración, que
+		// no puede seguir en otra petición) no se recorta: sus tramos sólo marcan cada cuánto se guarda el avance.
+		$remaining = is_finite( $tick ) ? self::request_remaining() : INF;
 		if ( is_finite( $remaining ) ) $length = min( $length, max( 0.0, $remaining ) );
 		return is_finite( $length ) ? $now + $length : INF;
 	}

@@ -214,11 +214,23 @@ Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 $elapsed = microtime( true ) - $start;
 bk_assert( $elapsed < 1.8 && ! Digitalisimo_Backups_Job_Store::is_terminal( bk_job( $late['id'] ) ), 'El tick no se detuvo antes del límite real de la petición: ' . round( $elapsed, 2 ) . ' s.' );
+// Sin tick (la copia previa de una restauración, que no puede seguir en otra petición) el plazo no se recorta.
+bk_assert( INF === Digitalisimo_Backups_Step_Budget::deadline() && 0.0 === Digitalisimo_Backups_Step_Budget::request_remaining(), 'Fuera de un tick, el plazo se recortó por el límite de la petición.' );
+// El AJAX de 1.0.58 (una pestaña abierta al actualizar) encadena ticks, pero no más allá del límite de la petición.
+$db->tables['wp_posts'] = 200;
+$legacy_ajax = bk_manual( 'local', 'ajax-de-1058' );
+$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 6.5;
+$_POST = array( 'nonce' => 'ok', 'token' => $legacy_ajax['id'] );
+$start = microtime( true );
+try { Digitalisimo_Backups::manual_work(); } catch ( RuntimeException $response ) { bk_assert( 0 === strpos( $response->getMessage(), 'OK:' ), 'manual_work no respondió: ' . $response->getMessage() ); }
+$_POST = array();
+bk_assert( microtime( true ) - $start < 2.5 && ! Digitalisimo_Backups_Job_Store::is_terminal( bk_job( $legacy_ajax['id'] ) ), 'manual_work siguió más allá del límite real de la petición (' . round( microtime( true ) - $start, 2 ) . ' s, fase ' . bk_job( $legacy_ajax['id'] )['phase'] . ').' );
 $_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
 steps_filters( array() );
 $db->on_select = null;
 steps_done( $slow['id'] );
 steps_done( $late['id'] );
+steps_done( $legacy_ajax['id'] );
 $db->tables['wp_posts'] = 9;
 // Memoria: cerca de memory_limit, un tramo se detiene tras una unidad.
 $limit = ini_get( 'memory_limit' );

@@ -642,7 +642,8 @@ final class Digitalisimo_Backups {
 		do {
 			$tick = Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
 			$job = Digitalisimo_Backups_Jobs::get( $job['id'] );
-		} while ( $job && 'worked' === $tick['result'] && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && (int) $job['retry_at'] <= time() );
+			// Por tramos (T2): sin pasar del límite real de la petición; lo que falte lo siguen WP-Cron o la pantalla.
+		} while ( $job && 'worked' === $tick['result'] && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && (int) $job['retry_at'] <= time() && Digitalisimo_Backups_Step_Budget::request_remaining() > 0 );
 		wp_send_json_success( array( 'status' => $job ? self::manual_view( $job )['status'] : 'failed' ) );
 	}
 	/** Latido y avance del trabajo en curso: se escribe en el almacén, nunca en la base de datos (puede estar en su instantánea). */
