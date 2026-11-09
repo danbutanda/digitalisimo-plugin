@@ -55,7 +55,7 @@ final class Digitalisimo_Backups_Http {
 			$request['length'] = max( 0, (int) $size - $request['offset'] );
 		}
 		if ( self::$transport ) $response = call_user_func( self::$transport, $request );
-		elseif ( ( '' !== $request['file'] || '' !== $request['sink'] ) && self::curl_available() ) $response = self::curl( $request );
+		elseif ( ( '' !== $request['file'] || '' !== $request['sink'] || ! function_exists( 'wp_remote_request' ) ) && self::curl_available() ) $response = self::curl( $request );
 		else $response = self::wp( $request );
 		$headers = array();
 		foreach ( (array) ( $response['headers'] ?? array() ) as $name => $value ) $headers[ strtolower( (string) $name ) ] = is_array( $value ) ? (string) end( $value ) : (string) $value;
@@ -155,7 +155,7 @@ final class Digitalisimo_Backups_Http {
 		$out = null;
 		if ( '' !== $request['file'] ) {
 			$in = @fopen( $request['file'], 'rb' );
-			if ( ! $in || ( $request['offset'] > 0 && 0 !== fseek( $in, $request['offset'] ) ) ) { if ( $in ) fclose( $in ); curl_close( $handle ); throw new Exception( 'No se pudo leer el archivo local para enviarlo.' ); }
+			if ( ! $in || ( $request['offset'] > 0 && 0 !== fseek( $in, $request['offset'] ) ) ) { if ( $in ) fclose( $in ); self::close( $handle ); throw new Exception( 'No se pudo leer el archivo local para enviarlo.' ); }
 			$left = (int) $request['length'];
 			$options[ CURLOPT_UPLOAD ] = true;
 			$options[ CURLOPT_INFILESIZE ] = $left;
@@ -172,7 +172,7 @@ final class Digitalisimo_Backups_Http {
 		if ( 'HEAD' === $request['method'] ) $options[ CURLOPT_NOBODY ] = true;
 		if ( '' !== $request['sink'] ) {
 			$out = @fopen( $request['sink'], 'wb' );
-			if ( ! $out ) { if ( $in ) fclose( $in ); curl_close( $handle ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
+			if ( ! $out ) { if ( $in ) fclose( $in ); self::close( $handle ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
 			$options[ CURLOPT_FILE ] = $out;
 		} else {
 			$options[ CURLOPT_RETURNTRANSFER ] = true;
@@ -182,13 +182,15 @@ final class Digitalisimo_Backups_Http {
 		$errno = curl_errno( $handle );
 		$error = curl_error( $handle );
 		$code = (int) curl_getinfo( $handle, CURLINFO_RESPONSE_CODE );
-		curl_close( $handle );
+		self::close( $handle );
 		if ( $in ) fclose( $in );
 		if ( $out ) fclose( $out );
 		if ( $failure ) throw $failure;
 		if ( $errno ) throw new Exception( 'No se pudo conectar con ' . self::host( $request['url'] ) . ': ' . self::redact( $error, $request['url'] ) );
 		return array( 'code' => $code, 'headers' => $headers, 'body' => is_string( $body ) ? $body : '' );
 	}
+	/** curl_close() no hace nada desde PHP 8.0 y está obsoleto en 8.5. */
+	private static function close( $handle ) { if ( PHP_VERSION_ID < 80000 ) curl_close( $handle ); }
 	/** El proxy de wp-config.php (WP_PROXY_*), como la API HTTP de WordPress. */
 	private static function proxy( $url, array &$options ) {
 		if ( ! class_exists( 'WP_HTTP_Proxy' ) ) return;

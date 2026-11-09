@@ -318,6 +318,10 @@ jobs:
           php tests/backups-credentials.php
           php tests/backups-credentials-surfaces.php
           php tests/backups-credentials-nokeys.php
+          php tests/backups-destinations.php
+          php tests/backups-destinations-protocols.php
+          php tests/backups-destinations-screen.php
+          php tests/backups-destinations-live.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
