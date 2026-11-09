@@ -334,6 +334,7 @@ Si no:
 - Base64, entidades HTML (`&#x2F;`) y otras codificaciones propias de un plugin.
 - Las vistas SQL y las tablas dentro de comentarios ejecutables con otro prefijo: se rechazan antes de tocar nada.
 - Las rutas del servidor de un respaldo anterior a @NEXT_BACKUPS@: su manifiesto no las trae (las URL sí se reescriben).
+- Un conjunto de UpdraftPlus: sigue su propio camino, que exige el prefijo de este sitio y no reubica direcciones.
 - Las cachés de página de otros plugins (`wp-content/cache/`): se guardan por host, así que el dominio nuevo no las sirve;
   conviene vaciarlas. Las reglas de nginx o del `.htaccess` de una red si cambia la ruta: se avisa.
 
