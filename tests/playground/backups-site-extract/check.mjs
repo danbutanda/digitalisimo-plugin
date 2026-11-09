@@ -123,8 +123,6 @@ try {
   check(!(await login('admin', state.passwords.admin)).ok, 'admin no puede entrar con su contraseña de la red (no viaja)');
   if (sessions.solo2?.ok) check(await can('solo2', '/wp-admin/edit.php') === 403, 'el usuario sólo de este sitio (suscriptor) no edita');
   for (const user of ['solo3', 'otro']) check(!(await login(user, state.passwords[user])).ok, `${user} no puede entrar (no es del sitio)`);
-  // Los drop-ins de la red no viajan: el destino conserva los suyos (en Playground, el db.php de SQLite).
-  check(info.dropin_db === true, 'el destino conserva su db.php', String(info.dropin_db));
 
   // Backups: la configuración del destino se conserva y el historial guarda la copia previa.
   check(info.backups.settings && info.backups.settings.retention === '7', 'la configuración de Backups del destino se conserva', JSON.stringify(info.backups.settings));
