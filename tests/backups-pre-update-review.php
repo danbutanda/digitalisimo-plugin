@@ -78,6 +78,7 @@ $reset = function() use ( $P, $J, $age ) {
 	foreach ( $J::active() as $job ) { $J::cancel( $job['id'] ); }
 	$J::tick();
 	update_option( $P::STATE, array() );
+	update_site_option( $P::STATE, array() ); // El estado de la red (sitemeta), también.
 	$J::$phase_runner = null;
 	$P::$cli = false;
 	foreach ( array( 'cli_failure' => null, 'user' => null, 'clock' => 'time', 'cli_args' => null ) as $property => $value ) if ( property_exists( $P, $property ) ) $P::$$property = $value;
