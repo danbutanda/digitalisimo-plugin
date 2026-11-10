@@ -925,8 +925,8 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
   fija una clave, como varias líneas de `known_hosts` para el mismo servidor, y ninguna se aprende sola al conectar. Una
   huella que no coincide dice qué tipo de clave presentó el servidor y su SHA-1 (y SHA-256 si la extensión la calcula),
   con la orden `ssh-keyscan -t <tipo> -p <puerto> <servidor> | ssh-keygen -l -E sha1 -f -` para comprobarla por un canal
-  independiente (H12 del ensayo E2); nada se autentica antes de comprobarla. Cambiar la huella pide volver a escribir la
-  contraseña o la clave, que están atadas a ella.
+  independiente (H12 del ensayo E2); nada se autentica antes de comprobarla. La contraseña y la clave están atadas a la huella:
+  «Probar conexión» con otra huella sin guardarla pide volver a escribirlas, y «Guardar» las vuelve a cifrar con la nueva.
 - Lo que decide adónde van los bytes se valida **al usarse**, no sólo al guardar: el bucket (3 a 63 caracteres,
   minúsculas, números, puntos, guiones y guion bajo; nunca `/`, `@`, `:` ni una IP), el estilo de ruta, el endpoint de
   «otro compatible» (sin ruta, consulta ni credenciales) y la región de la firma. Un dato guardado que no lo cumpla hace
