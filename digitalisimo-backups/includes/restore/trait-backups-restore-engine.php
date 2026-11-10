@@ -549,9 +549,26 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$own_prefix = (string) ( $data['table_prefix'] ?? '' );
 		$foreign = '' === $own_prefix ? array() : array_values( array_filter( $tables, function( $table ) use ( $own_prefix ) { return 0 !== strncmp( $table, $own_prefix, strlen( $own_prefix ) ); } ) );
 		$tables = array_values( array_diff( $tables, $foreign ) );
-		self::restore_write_json( $job, 'foreign.json', $foreign );
 		$map = $tables;
 		if ( ! $rollback && ! empty( $plan ) && $plan->needed() ) $map = array_values( self::restore_dest_names( $plan, $tables ) );
+		// Otra instalación de WordPress en esta base de datos con un prefijo que empieza por el de este sitio (wp_ y wp_dev_):
+		// sus tablas nunca se restauran ni se tocan, aunque el respaldo las traiga (los anteriores a 1.0.65 respaldaban todas
+		// las tablas de la base y las daban por propias); se informa.
+		$neighbors = self::other_installation_prefixes( (array) $wpdb->get_col( 'SHOW TABLES' ), (string) $wpdb->base_prefix );
+		$neighbor_tables = array();
+		if ( $neighbors ) {
+			$kept_tables = array();
+			$kept_map = array();
+			foreach ( $tables as $n => $table ) {
+				foreach ( $neighbors as $neighbor ) if ( 0 === strncmp( (string) $map[ $n ], $neighbor, strlen( $neighbor ) ) ) { $neighbor_tables[] = $table; continue 2; }
+				$kept_tables[] = $table;
+				$kept_map[] = $map[ $n ];
+			}
+			$tables = $kept_tables;
+			$map = $kept_map;
+		}
+		self::restore_write_json( $job, 'foreign.json', array_merge( $foreign, $neighbor_tables ) );
+		self::restore_write_json( $job, 'neighbors.json', array( 'prefixes' => $neighbors, 'tables' => $neighbor_tables ) );
 		$base = (string) $wpdb->base_prefix;
 		$tag = (string) $job['spec']['tag'];
 		$rows = array();
@@ -1012,6 +1029,25 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 	}
 	/** Devuelve, por tabla de este sitio, cuántas claves repetidas se retiraron. */
+	/**
+	 * El registro del almacén privado de este servidor en la tabla temporal de opciones (en una red, la de `sitemeta`)
+	 * antes del cambio de tablas: la fila que trajo el respaldo (la de su servidor) se retira y, si aquí hay registro, se
+	 * escribe el de aquí. Sin la tabla temporal (no la trae el respaldo) no hace nada.
+	 */
+	private static function restore_preswap_storage( array $tables, $record ) {
+		global $wpdb;
+		$network = is_multisite();
+		$want = (string) $wpdb->base_prefix . ( $network ? 'sitemeta' : 'options' );
+		$temp = '';
+		foreach ( $tables as $row ) if ( $want === (string) ( $row['dest'] ?? '' ) ) $temp = (string) $row['temp'];
+		if ( '' === $temp ) return;
+		$name = Digitalisimo_Backups_Relocate::quote_name( $temp );
+		$site = $network && function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+		// Lo mejor posible: si no se puede, after_restore_sql() y el diario lo reponen como antes (no se aborta el cambio).
+		$done = $network ? $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE meta_key = %s', self::STORAGE ) ) : $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE option_name = %s', self::STORAGE ) );
+		if ( false !== $done && is_array( $record ) ) $done = $network ? $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (`meta_id`, `site_id`, `meta_key`, `meta_value`) VALUES (NULL, %s, %s, %s)', (string) $site, self::STORAGE, serialize( $record ) ) ) : $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . " (`option_id`, `option_name`, `option_value`, `autoload`) VALUES (NULL, %s, %s, 'no')", self::STORAGE, serialize( $record ) ) );
+		if ( false === $done && function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo preparar el registro del almacén en las tablas temporales: ' . $wpdb->last_error );
+	}
 	private static function restore_preswap_collisions( array $job, array $collisions ) {
 		if ( ! $collisions ) return array();
 		$plan = self::restore_plan( $job );
@@ -1504,8 +1540,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	/**
 	 * Tablas viejas → `dgbko_`, temporales → su nombre (MySQL: un solo RENAME TABLE, atómico; SQLite, que no lo tiene:
 	 * una transacción que copia cada temporal en su tabla). Después, como en la restauración de siempre, se reponen el
-	 * historial (con la copia previa), el llavero, la seguridad y las credenciales del respaldo cifradas aquí. El diario
-	 * del almacén cubre la muerte entre el cambio y la reposición.
+	 * historial (con la copia previa), el registro del almacén privado de este servidor, el llavero, la seguridad y las
+	 * credenciales del respaldo cifradas aquí. El diario del almacén cubre la muerte entre el cambio y la reposición.
 	 */
 	private static function restore_swap( array $job, array $cursor ) {
 		$tables = self::restore_read_json( $job, 'tables.json' );
@@ -1525,6 +1561,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 				}
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
+				// El registro del almacén privado de este servidor: el SQL de otro servidor trae el suyo (H10).
+				$storage_before = self::storage_record();
+				// Y va ya en la tabla temporal: el cambio de tablas trae el de aquí, sin ventana en la que una muerte deje en la
+				// base el del otro servidor (revisión C1: en un clon de la misma cuenta, su carpeta existe aquí).
+				self::restore_preswap_storage( $tables, $storage_before );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
@@ -1550,7 +1591,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$cursor['mode'] = $mode;
 				// El diario sólo se retira cuando el historial, el llavero y las credenciales quedaron repuestos: si esto
 				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
-				self::after_restore_sql( $history_before, $vault_before, $origin, $kept );
+				self::after_restore_sql( $history_before, $vault_before, $origin, $kept, $storage_before );
 				self::remove_restore_journal();
 			} else {
 				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,
@@ -2151,7 +2192,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$protected = (array) ( $switch['protected'] ?? array() );
 		foreach ( $protected as $relative => $name ) $notice .= ' Se conservó ' . $relative . ', que el respaldo no tiene, porque ' . $name . ' lo carga (auto_prepend_file o auto_append_file); retíralo junto con esa línea si ya no lo usas.';
-		$foreign = (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() );
+		$neighbors = (array) ( self::restore_read_json( $job, 'neighbors.json', false ) ?? array() );
+		if ( ! empty( $neighbors['prefixes'] ) ) $notice .= ' No se tocaron las tablas de otra instalación de WordPress que comparte la base de datos (' . implode( ', ', array_map( function( $prefix ) { return $prefix . '*'; }, array_slice( (array) $neighbors['prefixes'], 0, 5 ) ) ) . ')' . ( ! empty( $neighbors['tables'] ) ? ': el respaldo traía ' . count( (array) $neighbors['tables'] ) . ' tabla(s) suyas, que no se restauraron' : '' ) . '.';
+		$foreign = array_values( array_diff( (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() ), (array) ( $neighbors['tables'] ?? array() ) ) );
 		if ( $foreign ) $notice .= ' No se restauraron ' . count( $foreign ) . ' tabla(s) de otra aplicación que traía el respaldo (sin el prefijo de este WordPress): ' . implode( ', ', array_slice( $foreign, 0, 10 ) ) . ( count( $foreign ) > 10 ? '…' : '' ) . '.';
 		$safety = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : self::restore_safety_file( $job );
 		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía' . ( $kept ? '' : ': están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) ) . '.';

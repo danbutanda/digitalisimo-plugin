@@ -166,6 +166,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		// Una muerte después de publicar: el objeto final ya está; se comprueba su tamaño y se termina.
 		if ( ! empty( $state['published'] ) && ( $state['final'] ?? '' ) === $final && $this->size( array( 'key' => $final ) ) === $source['size'] ) {
 			if ( ! empty( $state['temp'] ) ) $this->discard_quietly( $state['temp'] );
+			$this->discard_stale();
 			$this->forget_state();
 			return $this->receipt( $final, $source );
 		}
@@ -176,10 +177,12 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 			throw $e;
 		} catch ( Exception $e ) {
 			$this->discard_quietly( $temp );
+			$this->discard_stale();
 			$this->forget_state();
 			throw $e;
 		}
 		$this->publish( $temp, $name, $source );
+		$this->discard_stale();
 		$this->forget_state();
 		return $this->receipt( $final, $source );
 	}
@@ -382,6 +385,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		if ( ! $same ) { $this->forget_state(); return; }
 		if ( ! empty( $state['upload_id'] ) && empty( $state['completed'] ) ) $this->abort_upload( $state );
 		elseif ( ! empty( $state['key'] ) && empty( $state['published'] ) ) $this->discard_quietly( array( 'key' => (string) $state['key'] ) );
+		$this->discard_stale();
 		$this->forget_state();
 	}
 }

@@ -328,6 +328,7 @@ jobs:
           php tests/backups-restore-steps.php
           php tests/backups-restore-memory.php
           php tests/backups-restore-review.php
+          php tests/backups-restore-neighbors.php
           php tests/backups-restore-integration.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
@@ -350,6 +351,9 @@ jobs:
           php tests/backups-upload-retention.php
           php tests/backups-upload-cli.php
           php tests/backups-updater.php
+          php tests/backups-memory-64m.php
+          php tests/backups-e2-findings.php
+          php tests/backups-storage-clone.php
           php tests/backups-remote-restore.php
           php tests/backups-default-exclusions.php
           php tests/backups-remote-review.php

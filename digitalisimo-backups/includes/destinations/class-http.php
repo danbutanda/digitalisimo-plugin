@@ -23,7 +23,10 @@ final class Digitalisimo_Backups_Http {
 	public static $cap_timeout = null;
 	/** Sólo pruebas: callable( string $host ) que devuelve sus IPv4 (como gethostbynamel) o false. */
 	public static $resolver = null;
-	/** Sin cURL, una subida desde archivo mayor que esto no se carga en memoria. */
+	/**
+	 * Sin cURL, una subida desde archivo mayor que esto no se carga en memoria; con poca memoria libre el tope baja a un
+	 * cuarto de lo que queda (memory_upload_limit()): la API de WordPress copia el cuerpo al armar la petición.
+	 */
 	const MEMORY_UPLOAD = 33554432;
 	/** Servicios de metadatos de las nubes (AWS, Azure, Google, Oracle, DigitalOcean, Alibaba, ECS): nunca son un destino. */
 	const METADATA_IPS = array( '169.254.169.254', '169.254.170.2', '169.254.170.23', '100.100.100.200', 'fd00:ec2::254' );
@@ -124,6 +127,29 @@ final class Digitalisimo_Backups_Http {
 		return array( 'code' => (int) ( $response['code'] ?? 0 ), 'headers' => $headers, 'body' => (string) ( $response['body'] ?? '' ) );
 	}
 
+	/**
+	 * Bytes que la API de WordPress puede recibir como cuerpo de una sola petición sin agotar la memoria: MEMORY_UPLOAD, o
+	 * un cuarto de lo que queda libre bajo memory_limit si es menos (el cuerpo, su copia al armar la petición y margen).
+	 */
+	public static function memory_upload_limit() {
+		$limit = self::ini_bytes( (string) ini_get( 'memory_limit' ) );
+		if ( $limit <= 0 ) return self::MEMORY_UPLOAD;
+		return (int) max( 0, min( self::MEMORY_UPLOAD, ( $limit - memory_get_usage( true ) ) / 4 ) );
+	}
+	/** «64M», «1G», «-1»… en bytes (0 o menos: sin límite). */
+	private static function ini_bytes( $value ) {
+		$value = trim( $value );
+		if ( '' === $value || '-1' === $value ) return -1;
+		$number = (float) $value;
+		switch ( strtolower( substr( $value, -1 ) ) ) {
+			case 'g': $number *= 1024;
+			// no break
+			case 'm': $number *= 1024;
+			// no break
+			case 'k': $number *= 1024;
+		}
+		return (int) $number;
+	}
 	public static function curl_available() {
 		return function_exists( 'curl_init' ) && function_exists( 'curl_exec' ) && function_exists( 'curl_setopt_array' );
 	}
@@ -154,7 +180,8 @@ final class Digitalisimo_Backups_Http {
 		if ( ! function_exists( 'wp_remote_request' ) ) throw new Exception( 'La API HTTP de WordPress no está disponible.' );
 		$body = $request['body'];
 		if ( '' !== $request['file'] ) {
-			if ( $request['length'] > self::MEMORY_UPLOAD ) throw new Digitalisimo_Backups_Permanent_Error( 'Este servidor no tiene cURL para PHP: sin él no se puede enviar en streaming un archivo de más de ' . (int) ( self::MEMORY_UPLOAD / 1048576 ) . ' MB a este destino.' );
+			$limit = self::memory_upload_limit();
+			if ( $request['length'] > $limit ) throw new Digitalisimo_Backups_Permanent_Error( 'Este servidor no tiene cURL para PHP: sin él no se puede enviar en streaming a este destino y, con la memoria de PHP que queda libre, sólo cabe un archivo de hasta ' . max( 1, (int) floor( $limit / 1048576 ) ) . ' MB (éste ocupa ' . (int) ceil( $request['length'] / 1048576 ) . ' MB). Activa cURL en PHP o usa SFTP o FTP, que siempre envían por bloques.' );
 			$body = (string) @file_get_contents( $request['file'], false, null, $request['offset'], max( 0, (int) $request['length'] ) );
 			if ( strlen( $body ) !== (int) $request['length'] ) throw new Exception( 'No se pudo leer el archivo local para enviarlo.' );
 		}

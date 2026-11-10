@@ -242,6 +242,7 @@ final class Digitalisimo_Backups_Destination_Dropbox extends Digitalisimo_Backup
 		// Una sesión sin cerrar caduca sola en 48 horas; un temporal ya cerrado se borra.
 		$state = $this->state();
 		if ( ! empty( $state['finished'] ) && ! empty( $state['path'] ) ) $this->discard_quietly( array( 'path' => (string) $state['path'] ) );
+		$this->discard_stale();
 		$this->forget_state();
 	}
 }

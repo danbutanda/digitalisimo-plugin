@@ -15,6 +15,10 @@ defined( 'ABSPATH' ) || exit;
  * - test(): sube, verifica, descarga, comprueba y borra un archivo pequeño («Probar conexión»).
  * - abandon(): al fallar o cancelarse un trabajo, retira lo que su subida dejó a medias (temporal, multipart, sesión).
  *
+ * Un intento que muere sin poder limpiar (SIGKILL del hosting, tiempo agotado) deja su temporal en el destino; el estado
+ * reanudable lo recuerda en `stale` cuando el intento siguiente empieza otro, y se retira al publicar o al abandonar
+ * (H14 del ensayo E2: quedaban `.part-*` de 0 bytes en el SFTP tras cada transferencia interrumpida).
+ *
  * Un destino recibe la configuración ya resuelta (con los secretos descifrados en memoria) y un contexto: carpeta
  * privada para temporales (`temp_dir`), avance y cancelación (`progress`) y estado reanudable (`state`, en el área del
  * trabajo). Nunca registra un secreto, una cabecera de autorización ni una URL firmada.
@@ -181,10 +185,12 @@ abstract class Digitalisimo_Backups_Destination {
 			throw $e;
 		} catch ( Exception $e ) {
 			$this->discard_quietly( $temp );
+			$this->discard_stale();
 			$this->forget_state();
 			throw $e;
 		}
 		$remote = $this->publish( $temp, $name );
+		$this->discard_stale();
 		$this->forget_state();
 		return $remote + array( 'provider' => static::TYPE, 'connection' => (string) $this->context['connection'], 'sha256' => $source['sha256'], 'size' => $source['size'] );
 	}
@@ -326,7 +332,16 @@ abstract class Digitalisimo_Backups_Destination {
 	public function abandon() {
 		$state = $this->state();
 		if ( ! empty( $state['temp'] ) && is_array( $state['temp'] ) ) $this->discard_quietly( $state['temp'] );
+		$this->discard_stale();
 		$this->forget_state();
+	}
+	/** Retira los temporales de intentos anteriores que el estado recuerda (`stale`); nunca lanza. */
+	protected function discard_stale() {
+		$state = $this->state();
+		foreach ( (array) ( $state['stale'] ?? array() ) as $stale ) {
+			if ( ! is_array( $stale ) || ( isset( $state['temp'] ) && $stale == $state['temp'] ) ) continue;
+			$this->discard_quietly( $stale );
+		}
 	}
 
 	/* ------------------------------------------------------------------ Ayudas */
@@ -364,7 +379,23 @@ abstract class Digitalisimo_Backups_Destination {
 	protected static function bytes( $bytes ) { return function_exists( 'size_format' ) ? (string) size_format( (int) $bytes ) : round( $bytes / 1048576, 1 ) . ' MB'; }
 	/** Estado reanudable de la subida en curso (en el área del trabajo, nunca en la base de datos). */
 	protected function state() { return $this->context['state'] instanceof Digitalisimo_Backups_Transfer_State ? $this->context['state']->get() : array(); }
-	protected function save_state( array $state ) { if ( $this->context['state'] instanceof Digitalisimo_Backups_Transfer_State ) $this->context['state']->set( $state + array( 'type' => static::TYPE ) ); }
+	/**
+	 * Guarda el estado reanudable. Si el anterior apuntaba a otro temporal (el de un intento que murió sin limpiar), ése
+	 * pasa a `stale` con los que ya hubiera, para retirarlos al terminar (discard_stale()).
+	 */
+	protected function save_state( array $state ) {
+		if ( ! $this->context['state'] instanceof Digitalisimo_Backups_Transfer_State ) return;
+		$previous = $this->context['state']->get();
+		$stale = array_values( array_filter( (array) ( $previous['stale'] ?? array() ), 'is_array' ) );
+		if ( ! empty( $previous['temp'] ) && is_array( $previous['temp'] ) && ( $previous['type'] ?? '' ) === static::TYPE && $previous['temp'] != ( $state['temp'] ?? null ) ) $stale[] = $previous['temp'];
+		$current = $state['temp'] ?? null;
+		$stale = array_values( array_filter( $stale, function( $temp ) use ( $current ) { return $temp != $current; } ) );
+		$unique = array();
+		foreach ( $stale as $temp ) $unique[ md5( json_encode( $temp ) ) ] = $temp;
+		$state['stale'] = array_slice( array_values( $unique ), -20 );
+		if ( ! $state['stale'] ) unset( $state['stale'] );
+		$this->context['state']->set( $state + array( 'type' => static::TYPE ) );
+	}
 	protected function forget_state() { if ( $this->context['state'] instanceof Digitalisimo_Backups_Transfer_State ) $this->context['state']->clear(); }
 	/** Estado guardado sólo si es de este tipo, de esta conexión y del mismo archivo (tamaño, fecha y SHA-256). */
 	protected function resumable_state( array $source ) {

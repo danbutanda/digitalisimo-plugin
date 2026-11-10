@@ -6,10 +6,16 @@ defined( 'ABSPATH' ) || exit;
  * hexadecimal (la que ya se guardaba) o SHA-256 en el formato de OpenSSH (`SHA256:…`) si la extensión la calcula.
  * Contraseña o clave privada (con frase opcional). Escritura a `<nombre>.part-<aleatorio>`, comparación SHA-256 leyendo
  * la copia remota y `rename()` sólo después.
+ *
+ * La copia va por bloques de BLOCK bytes en las dos direcciones (H9 del ensayo E2): stream_copy_to_stream() mapeaba el ZIP
+ * entero y se lo daba de una vez a la extensión, así que la memoria subía al tamaño del respaldo y con 64 MB el proceso
+ * moría. Cada bloque se escribe entero (las escrituras cortas se repiten) y lo copiado se compara con el tamaño esperado.
  */
 final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_Destination {
 	const TYPE = 'sftp';
 	const PREFIX = 'sftp_';
+	/** Bloque de cada lectura y escritura de una transferencia: memoria acotada con un respaldo de cualquier tamaño. */
+	const BLOCK = 1048576;
 	private $connection = null;
 	private $sftp = null;
 	private $key_files = array();
@@ -26,11 +32,11 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			'sftp_key_passphrase' => array( 'label' => 'Frase de la clave', 'type' => 'password', 'secret' => true, 'show' => 'sftp_auth=key', 'help' => 'Sólo si la clave privada está protegida con una frase.' ),
 			'sftp_public_key' => array( 'label' => 'Clave pública', 'type' => 'textarea', 'show' => 'sftp_auth=key', 'help' => 'La línea de la clave pública (ssh-ed25519 AAAA… o ssh-rsa AAAA…) que está en authorized_keys del servidor.' ),
 			'sftp_path' => array( 'label' => 'Carpeta remota', 'type' => 'path', 'default' => '/' ),
-			'sftp_fingerprint' => array( 'label' => 'Huella de la clave SSH del servidor', 'type' => 'text', 'help' => 'SHA-256 como la muestra OpenSSH (SHA256:…) o SHA-1 hexadecimal de 40 caracteres, con o sin dos puntos. Confírmala con el administrador del servidor por un canal independiente: sin ella no se envían respaldos.' ),
+			'sftp_fingerprint' => array( 'label' => 'Huella de la clave SSH del servidor', 'type' => 'text', 'help' => 'SHA-1, la que calcula la extensión ssh2 de PHP: «SHA1:…» como la muestra ssh-keygen -E sha1, o 40 caracteres hexadecimales con o sin dos puntos. SHA-256 (SHA256:…) sólo si la extensión de este servidor la calcula. Puedes pegar varias, una por cada clave del servidor (ED25519, ECDSA, RSA; también las líneas de ssh-keygen tal cual): vale la de la clave que presente. Confírmalas con el administrador del servidor por un canal independiente: sin huella no se envían respaldos.' ),
 		);
 	}
 	public static function help() {
-		return array( 'En el servidor: ssh-keyscan -t ed25519 servidor > k; ssh-keygen -l -E sha256 -f k muestra la huella SHA-256 (con -E sha1, la SHA-1).', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
+		return array( 'En un equipo de confianza: «ssh-keyscan -p 22 servidor | ssh-keygen -l -E sha1 -f -» muestra la huella SHA-1 de cada clave del servidor (una línea por tipo: ED25519, ECDSA, RSA).', 'La extensión ssh2 de PHP elige el tipo de clave al conectar y no siempre es el que usa OpenSSH: con libssh2 suele ser ECDSA aunque el servidor tenga ED25519. Pega las líneas de todas las claves (vale la de la que presente) o sólo la del tipo que nombre el error de «Probar conexión»; confírmalas con el administrador del servidor por un canal independiente.', 'SHA-256 (-E sha256) sólo sirve si la extensión ssh2 de este servidor la calcula; si no, «Probar conexión» lo dice.', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
 	}
 	public static function hosts( array $s ) { return array( (string) ( $s['sftp_host'] ?? '' ) ); }
 	public static function ready( array $s ) {
@@ -39,10 +45,10 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	public static function sanitize( array $input, array $old ) {
 		$fingerprint = trim( (string) ( $input['sftp_fingerprint'] ?? '' ) );
-		$normalized = self::normalize_fingerprint( $fingerprint );
-		if ( '' !== $fingerprint && '' === $normalized ) throw new Exception( 'La huella SFTP debe ser SHA-256 (SHA256:… como la muestra OpenSSH, o 64 caracteres hexadecimales) o SHA-1 de 40 caracteres hexadecimales, con o sin dos puntos.' );
+		$normalized = self::fingerprints( $fingerprint );
+		if ( '' !== $fingerprint && ! $normalized ) throw new Exception( 'La huella SFTP debe ser SHA-1 («SHA1:…» como la muestra ssh-keygen -E sha1, o 40 caracteres hexadecimales con o sin dos puntos) o SHA-256 (SHA256:… o 64 caracteres hexadecimales); puedes pegar varias, una por clave del servidor, o las líneas de ssh-keygen -l tal cual.' );
 		$out = parent::sanitize( $input, $old );
-		$out['sftp_fingerprint'] = $normalized;
+		$out['sftp_fingerprint'] = implode( ' ', $normalized );
 		$out['sftp_port'] = (string) min( 65535, max( 1, (int) ( $input['sftp_port'] ?? 22 ) ?: 22 ) );
 		$public = trim( preg_replace( '/\s+/', ' ', (string) ( $input['sftp_public_key'] ?? '' ) ) );
 		if ( '' !== $public && ! preg_match( '/^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-nistp(256|384|521)|sk-[a-z0-9@.-]+) [A-Za-z0-9+\/=]+( [^\s].*)?$/', $public ) ) throw new Exception( 'La clave pública SFTP debe ser una línea como «ssh-ed25519 AAAA… comentario».' );
@@ -52,16 +58,69 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		if ( '' !== (string) $out['sftp_path'] ) $out['sftp_path'] = self::clean_path( $out['sftp_path'] );
 		return $out;
 	}
-	/** SHA-1 → 40 hexadecimales en mayúsculas (como se guardaba); SHA-256 → «SHA256:<base64 sin relleno>». '' si no es válida. */
+	/** Huellas que se aceptan como mucho en el campo (una por clave del servidor). */
+	const MAX_FINGERPRINTS = 8;
+	/**
+	 * SHA-1 → 40 hexadecimales en mayúsculas (como se guardaba; también desde el «SHA1:<base64>» de ssh-keygen -E sha1);
+	 * SHA-256 → «SHA256:<base64 sin relleno>». '' si no es válida.
+	 */
 	public static function normalize_fingerprint( $fingerprint ) {
 		$fingerprint = trim( (string) $fingerprint );
 		if ( preg_match( '/^(?:[a-f0-9]{40}|(?:[a-f0-9]{2}:){19}[a-f0-9]{2})$/i', $fingerprint ) ) return strtoupper( str_replace( ':', '', $fingerprint ) );
+		if ( preg_match( '/^SHA1:([A-Za-z0-9+\/]{27})=?$/', $fingerprint, $match ) ) {
+			$raw = base64_decode( $match[1] . '=', true );
+			return false !== $raw && 20 === strlen( $raw ) ? strtoupper( bin2hex( $raw ) ) : '';
+		}
 		if ( preg_match( '/^(?:[a-f0-9]{64}|(?:[a-f0-9]{2}:){31}[a-f0-9]{2})$/i', $fingerprint ) ) return 'SHA256:' . rtrim( base64_encode( hex2bin( str_replace( ':', '', $fingerprint ) ) ), '=' );
 		if ( preg_match( '/^SHA256:([A-Za-z0-9+\/]{43})=?$/', $fingerprint, $match ) ) {
 			$raw = base64_decode( $match[1] . '=', true );
 			return false !== $raw && 32 === strlen( $raw ) ? 'SHA256:' . $match[1] : '';
 		}
 		return '';
+	}
+	/**
+	 * Todas las huellas de un texto pegado, normalizadas y sin repetir: una o varias separadas por espacios, comas, punto y
+	 * coma o saltos de línea, o las líneas de `ssh-keygen -l` tal cual («256 SHA1:… servidor (ECDSA)», también pegadas
+	 * en un campo de una línea, que junta las líneas). array() si no hay ninguna, si sobra algo que parece una huella
+	 * incompleta o si hay más de MAX_FINGERPRINTS.
+	 */
+	public static function fingerprints( $text ) {
+		$text = trim( (string) $text );
+		if ( '' === $text || strlen( $text ) > 4096 ) return array();
+		$found = array();
+		$pattern = '/(?<![A-Za-z0-9+\/:])(?:SHA256:[A-Za-z0-9+\/]{43}=?|SHA1:[A-Za-z0-9+\/]{27}=?|(?:[a-f0-9]{2}:){31}[a-f0-9]{2}|(?:[a-f0-9]{2}:){19}[a-f0-9]{2}|[a-f0-9]{64}|[a-f0-9]{40})(?![A-Za-z0-9+\/:])/i';
+		$rest = preg_replace_callback( $pattern, function( $match ) use ( &$found ) {
+			$normalized = self::normalize_fingerprint( $match[0] );
+			if ( '' === $normalized ) return $match[0];
+			$found[ $normalized ] = true;
+			return ' ';
+		}, $text );
+		// Lo que queda sólo puede ser el resto de una línea de ssh-keygen (bits, nombre del servidor, tipo); un algoritmo
+		// sin su huella o una huella a medias es un error, no algo que se ignore.
+		if ( null === $rest || preg_match( '/\b(?:SHA256|SHA1|MD5):|[a-f0-9]{16,}|(?:[a-f0-9]{2}:){8,}/i', $rest ) ) return array();
+		return count( $found ) > self::MAX_FINGERPRINTS ? array() : array_keys( $found );
+	}
+	/** Tipo de clave que negoció la conexión: array( nombre para el mensaje, tipo de ssh-keyscan -t ), o tipo desconocido. */
+	private static function host_key_type( $connection ) {
+		$methods = function_exists( 'ssh2_methods_negotiated' ) ? @ssh2_methods_negotiated( $connection ) : null;
+		$name = is_array( $methods ) ? strtolower( (string) ( $methods['hostkey'] ?? '' ) ) : '';
+		if ( 0 === strpos( $name, 'ssh-ed25519' ) ) return array( 'ED25519', 'ed25519' );
+		if ( 0 === strpos( $name, 'ecdsa-sha2-' ) ) return array( 'ECDSA (' . substr( $name, 11 ) . ')', 'ecdsa' );
+		if ( in_array( $name, array( 'ssh-rsa', 'rsa-sha2-256', 'rsa-sha2-512' ), true ) ) return array( 'RSA', 'rsa' );
+		if ( 'ssh-dss' === $name ) return array( 'DSA', 'dsa' );
+		return array( '' !== $name ? preg_replace( '/[^a-z0-9@.-]/', '', $name ) : '', '' );
+	}
+	/** Mensaje de una huella que no coincide: qué clave presentó el servidor, su huella y cómo comprobarla. */
+	private function mismatch_text( $connection, $sha1, $sha256 ) {
+		list( $type, $scan ) = self::host_key_type( $connection );
+		$colons = implode( ':', str_split( strtolower( (string) $sha1 ), 2 ) );
+		$base64 = preg_match( '/^[A-F0-9]{40}$/', (string) $sha1 ) ? 'SHA1:' . rtrim( base64_encode( (string) hex2bin( (string) $sha1 ) ), '=' ) : '';
+		$text = 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.';
+		$text .= ' El servidor presentó ' . ( '' !== $type ? 'su clave ' . $type : 'una clave de tipo desconocido' ) . ' (la que negoció la extensión ssh2 de este servidor)';
+		if ( '' !== $base64 ) $text .= ' con huella ' . $base64 . ' (SHA-1: ' . $colons . ')' . ( '' !== $sha256 ? ' y ' . $sha256 : '' );
+		$port = (int) ( $this->s['sftp_port'] ?? 22 ) ?: 22;
+		$text .= '. Compruébala en un equipo de confianza con ssh-keyscan' . ( '' !== $scan ? ' -t ' . $scan : '' ) . ' -p ' . $port . ' ' . (string) ( $this->s['sftp_host'] ?? '' ) . ' | ssh-keygen -l -E sha1 -f - y con el administrador del servidor por un canal independiente; si coincide, pégala (puedes pegar las de todas sus claves). Si no coincide, no la uses: alguien podría estar suplantando al servidor.';
+		return $text;
 	}
 
 	/* ------------------------------------------------------------------ Conexión */
@@ -74,21 +133,28 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$secret = $key ? ( $s['sftp_private_key'] ?? '' ) : ( $s['sftp_password'] ?? '' );
 		if ( empty( $secret ) && class_exists( 'Digitalisimo_Backups' ) && '' !== ( $problem = Digitalisimo_Backups::destination_problem( (string) $this->context['connection'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
 		if ( ! function_exists( 'ssh2_connect' ) || ! function_exists( 'ssh2_fingerprint' ) || empty( $s['sftp_host'] ) || empty( $s['sftp_user'] ) || empty( $secret ) || ( $key && empty( $s['sftp_public_key'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Completa la conexión SFTP para gestionar este respaldo.' );
-		$expected = self::normalize_fingerprint( (string) ( $s['sftp_fingerprint'] ?? '' ) );
-		if ( '' === $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' );
-		$sha256 = 0 === strpos( $expected, 'SHA256:' );
-		if ( $sha256 && ! defined( 'SSH2_FINGERPRINT_SHA256' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La extensión ssh2 de este servidor no calcula huellas SHA-256: escribe la huella SHA-1 de la clave del servidor (ssh-keygen -l -E sha1 -f …).' );
+		// Una o varias huellas (una por clave del servidor): vale la de la clave que presente. Cada una fija una clave,
+		// como varias líneas de known_hosts para el mismo servidor; ninguna se aprende sola al conectar.
+		$expected = self::fingerprints( (string) ( $s['sftp_fingerprint'] ?? '' ) );
+		if ( ! $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' );
+		$can_sha256 = defined( 'SSH2_FINGERPRINT_SHA256' );
+		$sha1_expected = array_values( array_filter( $expected, function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } ) );
+		if ( ! $sha1_expected && ! $can_sha256 ) throw new Digitalisimo_Backups_Permanent_Error( 'La extensión ssh2 de este servidor no calcula huellas SHA-256: escribe la huella SHA-1 de la clave del servidor (ssh-keyscan -p ' . ( (int) $s['sftp_port'] ?: 22 ) . ' ' . $s['sftp_host'] . ' | ssh-keygen -l -E sha1 -f -).' );
 		$connection = @ssh2_connect( $s['sftp_host'], (int) $s['sftp_port'] );
 		if ( ! $connection ) throw new Exception( 'No se pudo conectar al servidor SFTP.' );
-		if ( $sha256 ) {
+		$sha1 = @ssh2_fingerprint( $connection, SSH2_FINGERPRINT_SHA1 | SSH2_FINGERPRINT_HEX );
+		$sha1 = is_string( $sha1 ) && preg_match( '/^[a-f0-9]{40}$/i', $sha1 ) ? strtoupper( $sha1 ) : '';
+		$sha256 = '';
+		if ( $can_sha256 ) {
 			$raw = @ssh2_fingerprint( $connection, constant( 'SSH2_FINGERPRINT_SHA256' ) | SSH2_FINGERPRINT_RAW );
-			$actual = is_string( $raw ) ? 'SHA256:' . rtrim( base64_encode( $raw ), '=' ) : '';
-			$match = '' !== $actual && hash_equals( $expected, $actual );
-		} else {
-			$actual = @ssh2_fingerprint( $connection, SSH2_FINGERPRINT_SHA1 | SSH2_FINGERPRINT_HEX );
-			$match = is_string( $actual ) && hash_equals( $expected, strtoupper( $actual ) );
+			$sha256 = is_string( $raw ) && 32 === strlen( $raw ) ? 'SHA256:' . rtrim( base64_encode( $raw ), '=' ) : '';
 		}
-		if ( ! $match ) throw new Digitalisimo_Backups_Permanent_Error( 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' );
+		$match = false;
+		foreach ( $expected as $fingerprint ) {
+			$actual = 0 === strpos( $fingerprint, 'SHA256:' ) ? $sha256 : $sha1;
+			if ( '' !== $actual && hash_equals( $fingerprint, $actual ) ) $match = true;
+		}
+		if ( ! $match ) throw new Digitalisimo_Backups_Permanent_Error( $this->mismatch_text( $connection, $sha1, $sha256 ) );
 		if ( ! ( $key ? $this->auth_key( $connection ) : @ssh2_auth_password( $connection, $s['sftp_user'], $s['sftp_password'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'No se pudo autenticar en SFTP.' );
 		return $this->connection = $connection;
 	}
@@ -137,23 +203,68 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			if ( $target ) fclose( $target );
 			throw new Exception( 'No se pudo abrir el archivo local o el destino SFTP.' );
 		}
+		$copied = false;
+		$flushed = false;
 		try {
-			$copied = @stream_copy_to_stream( $handle, $target );
-			$flushed = @fflush( $target );
-		} finally {
+			$copied = self::copy_blocks( $handle, $target, function( $done ) use ( $source ) { $this->progress( $done, $source['size'] ); } );
+			$flushed = false !== $copied && @fflush( $target );
+		} catch ( Throwable $e ) {
+			// Cancelado entre bloques (o un fallo del avance): el temporal no queda a medias en el servidor.
 			fclose( $handle );
 			fclose( $target );
+			@ssh2_sftp_unlink( $sftp, $temporary );
+			throw $e;
 		}
-		if ( false === $copied || $copied !== $source['size'] || ! $flushed ) {
+		fclose( $handle );
+		$closed = fclose( $target );
+		if ( false === $copied || $copied !== $source['size'] || ! $flushed || ! $closed ) {
 			@ssh2_sftp_unlink( $sftp, $temporary );
 			throw new Exception( 'La transferencia SFTP quedó incompleta.' );
 		}
 		return array( 'provider' => self::TYPE, 'path' => $temporary );
 	}
-	/** Lee la copia remota completa y compara su SHA-256 (también el tamaño, por la longitud leída). */
+	/**
+	 * Copia $in en $out (o sólo lo suma a $hash, con $out null) por bloques de BLOCK bytes y devuelve los bytes leídos, o
+	 * false si una lectura o una escritura falla. Una escritura corta se completa; $tick( $hechos ) corre tras cada bloque
+	 * (latido y cancelación del trabajo).
+	 */
+	private static function copy_blocks( $in, $out, $tick = null, $hash = null ) {
+		$done = 0;
+		$idle = 0;
+		while ( ! feof( $in ) ) {
+			$block = fread( $in, self::BLOCK );
+			if ( false === $block ) return false;
+			if ( '' === $block ) {
+				if ( feof( $in ) ) break;
+				if ( ++$idle > 50 ) return false;
+				continue;
+			}
+			$idle = 0;
+			$length = strlen( $block );
+			if ( null !== $hash ) hash_update( $hash, $block );
+			for ( $offset = 0; null !== $out && $offset < $length; $offset += $written ) {
+				$written = @fwrite( $out, 0 === $offset ? $block : substr( $block, $offset ) );
+				if ( false === $written || 0 === $written ) return false;
+			}
+			$done += $length;
+			unset( $block );
+			if ( is_callable( $tick ) ) call_user_func( $tick, $done );
+		}
+		return $done;
+	}
+	/** Lee la copia remota completa por bloques y compara su tamaño y su SHA-256. */
 	public function verify( array $remote, $file, array $source ) {
-		$hash = @hash_file( 'sha256', $this->url( (string) $remote['path'] ) );
-		if ( false === $hash || ! hash_equals( $source['sha256'], $hash ) ) throw new Exception( 'La copia SFTP no coincide con el ZIP local.' );
+		$handle = @fopen( $this->url( (string) $remote['path'] ), 'rb' );
+		$hash = false;
+		$read = 0;
+		if ( $handle ) {
+			@stream_set_chunk_size( $handle, self::BLOCK );
+			$context = hash_init( 'sha256' );
+			$read = self::copy_blocks( $handle, null, null, $context );
+			fclose( $handle );
+			$hash = false === $read ? false : hash_final( $context );
+		}
+		if ( false === $hash || $read !== $source['size'] || ! hash_equals( $source['sha256'], $hash ) ) throw new Exception( 'La copia SFTP no coincide con el ZIP local.' );
 	}
 	protected function publish( array $temp, $name ) {
 		$sftp = $this->session();
@@ -165,18 +276,24 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		return array( 'provider' => self::TYPE, 'path' => $final );
 	}
 	private function own( array $remote ) { return self::inside( (string) ( $remote['path'] ?? '' ), rtrim( $this->directory(), '/' ), self::label() ); }
+	/** Descarga por bloques a $target y comprueba que llegó el tamaño que informa el servidor. */
 	public function get( array $remote, $target ) {
-		$source = @fopen( $this->url( $this->own( $remote ) ), 'rb' );
+		$path = $this->own( $remote );
+		$expected = $this->size( $remote );
+		$source = @fopen( $this->url( $path ), 'rb' );
 		if ( ! $source ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+		@stream_set_chunk_size( $source, self::BLOCK );
 		$out = @fopen( $target, 'wb' );
 		if ( ! $out ) { fclose( $source ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
 		try {
-			$copied = @stream_copy_to_stream( $source, $out );
+			$copied = self::copy_blocks( $source, $out, function( $done ) use ( $expected ) { if ( $expected > 0 ) $this->progress( min( $done, $expected ), $expected, 'Descargados' ); } );
+			$flushed = false !== $copied && @fflush( $out );
 		} finally {
 			fclose( $source );
 			fclose( $out );
 		}
-		if ( false === $copied ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+		if ( false === $copied || ! $flushed ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+		if ( false !== $expected && $copied !== $expected ) throw new Exception( 'La descarga SFTP quedó incompleta (' . $copied . ' de ' . $expected . ' bytes).' );
 	}
 	/** B1b: lectura desde una posición (`fseek` del flujo SFTP), por bloques de 1 MiB (memoria constante). */
 	public function ranged() { return true; }
