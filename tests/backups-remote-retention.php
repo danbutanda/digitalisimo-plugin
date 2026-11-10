@@ -34,6 +34,10 @@ function size_format( $bytes ) { return $bytes . ' B'; }
 function selected( $a, $b, $echo = true ) { return (string) $a === (string) $b ? ' selected="selected"' : ''; }
 function checked( $a, $b = true, $echo = true ) { return (string) $a === (string) $b ? ' checked="checked"' : ''; }
 function disabled( $a, $b = true, $echo = true ) { return $a === $b ? ' disabled="disabled"' : ''; }
+// Las automatizaciones se programan en WP-Cron: aquí sólo se anotan.
+if ( ! function_exists( 'wp_schedule_event' ) ) { function wp_schedule_event( $timestamp, $recurrence, $hook, $args = array() ) { return true; } }
+if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event( $timestamp, $hook, $args = array() ) { return true; } }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 // Google Drive simulado: cada subida recibe su identificador; guarda el contenido por identificador y anota cada petición.
 $GLOBALS['http'] = array();
 $GLOBALS['drive'] = array();
@@ -220,11 +224,12 @@ try {
 	$queued = $B::service_run_automation( $remote_auto[0]['id'], array( 'spawn' => false ) );
 	$done = digi_drive( $queued['id'] );
 	digi_assert( 'success' === $done['status'] && ! is_file( $store . '/' . $done['file'] ) && 'remote-only' === $row_of( $done['file'] )['local'], 'La automatización «sólo en el remoto» conservó el ZIP local.' );
-	$_GET = array( 'tab' => 'automations' );
+	// Las tarjetas de las automatizaciones (al final de la pestaña principal).
+	$fields = new ReflectionMethod( $B, 'automation_fields' );
+	if ( PHP_VERSION_ID < 80100 ) $fields->setAccessible( true );
 	ob_start();
-	try { $B::page(); } catch ( Throwable $e ) { echo "\n[render interrumpido: ", $e->getMessage(), ']'; }
+	$fields->invoke( null );
 	$html = (string) ob_get_clean();
-	$_GET = array();
 	digi_assert( false !== strpos( $html, 'name="digitalisimo_backup_automation[remote_only]" value="1" checked' ), 'La automatización no muestra «Sólo en el remoto» marcado.' );
 
 	// (g) I7: el catálogo «Servidores creados» anterior se retira sin perder nada: su `legacy-ftp` es la conexión SFTP

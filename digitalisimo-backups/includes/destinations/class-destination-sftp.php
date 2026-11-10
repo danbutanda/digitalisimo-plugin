@@ -167,8 +167,10 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		if ( 'ssh2' === $choice || 'phpseclib' === $choice ) return $choice;
 		if ( ! self::has_ssh2() ) return 'phpseclib';
 		if ( 'key' === ( $this->s['sftp_auth'] ?? 'password' ) && empty( $this->s['sftp_public_key'] ) ) return 'phpseclib';
-		$sha1 = array_filter( self::fingerprints( (string) ( $this->s['sftp_fingerprint'] ?? '' ) ), function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } );
-		return $sha1 || defined( 'SSH2_FINGERPRINT_SHA256' ) ? 'ssh2' : 'phpseclib';
+		$expected = self::fingerprints( (string) ( $this->s['sftp_fingerprint'] ?? '' ) );
+		$sha1 = array_filter( $expected, function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } );
+		// Sin huella no se conecta con ninguno: el mensaje de siempre, el de la extensión.
+		return ! $expected || $sha1 || defined( 'SSH2_FINGERPRINT_SHA256' ) ? 'ssh2' : 'phpseclib';
 	}
 	/** Comprobaciones comunes antes de conectar: credencial, servidor, usuario y huellas. Devuelve array( clave?, huellas ). */
 	private function precheck( $engine ) {
@@ -181,7 +183,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		// Una o varias huellas (una por clave del servidor): vale la de la clave que presente. Cada una fija una clave,
 		// como varias líneas de known_hosts para el mismo servidor; ninguna se aprende sola al conectar.
 		$expected = self::fingerprints( (string) ( $s['sftp_fingerprint'] ?? '' ) );
-		if ( ! $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella de la clave SSH del servidor (SHA-256 o SHA-1) antes de usar SFTP.' );
+		if ( ! $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'ssh2' === $engine ? 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' : 'Configura y verifica la huella de la clave SSH del servidor (SHA-256 o SHA-1) antes de usar SFTP.' );
 		return array( $key, $expected );
 	}
 	/** Cliente incluido ya autenticado (la huella se comprueba antes de enviar ninguna credencial). */
