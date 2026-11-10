@@ -328,6 +328,7 @@ jobs:
           php tests/backups-restore-steps.php
           php tests/backups-restore-memory.php
           php tests/backups-restore-review.php
+          php tests/backups-restore-neighbors.php
           php tests/backups-restore-integration.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
