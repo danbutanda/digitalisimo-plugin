@@ -303,7 +303,7 @@ try {
 	update_option( $B::HISTORY, $history );
 	$GLOBALS['http'] = array();
 	$backup( array( 'destination' => 'google' ) );
-	$backup( array( 'destination' => 'google' ) );
+	$i2 = $backup( array( 'destination' => 'google' ) );
 	foreach ( $outsiders as $name => $installation ) {
 		$expected = $installation ? 'other' : 'unknown';
 		digi_assert( isset( $GLOBALS['drive'][ 'ajeno-' . md5( $name ) ] ) && ! preg_grep( '#' . md5( $name ) . '#', $deletes() ), 'La retención borró la copia remota de una fila de otra instalación: ' . $name );
@@ -312,7 +312,7 @@ try {
 	digi_assert( false !== strpos( $label_of( 'digitalisimo-backup-clon-staging.zip' ), 'es de otra instalación' ), 'Rótulo de la fila de otra instalación: ' . $label_of( 'digitalisimo-backup-clon-staging.zip' ) );
 	digi_assert( is_array( $template['installation'] ?? null ) && preg_match( '/^[a-f0-9]{64}$/', $template['installation']['id'] ) && is_file( $store . '/.installation-id' ) && '0600' === substr( sprintf( '%o', fileperms( $store . '/.installation-id' ) ), -4 ), 'La fila no lleva la identidad de esta instalación o su archivo no está en el almacén en 0600.' );
 	// Una fila importada (sincronizar un destino, importar Backuply): origin = imported y sin identidad.
-	copy( $store . '/' . $h3, $store . '/digitalisimo-backup-importado-r1.zip' );
+	copy( $store . '/' . $i2, $store . '/digitalisimo-backup-importado-r1.zip' );
 	$remember = new ReflectionMethod( $B, 'remember' );
 	if ( PHP_VERSION_ID < 80100 ) $remember->setAccessible( true );
 	$remember->invoke( null, $store . '/digitalisimo-backup-importado-r1.zip', 'local', 'installation', array(), array(), 0, false, $B::imported_row_fields( array( 'job' => 'x', 'installation' => $B::installation_stamp() ) ) );
