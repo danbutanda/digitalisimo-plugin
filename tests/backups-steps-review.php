@@ -215,8 +215,9 @@ list( $crc, $sha, $raw ) = Digitalisimo_Backups_Zip_Writer::hash_region( $zip_pa
 $peak = memory_get_peak_usage( true );
 ini_set( 'memory_limit', $limit );
 bk_assert( 64 * 1048576 === $raw && hash_final( $crc ) === $record['c'] && hash_final( $sha ) === $record['h'], 'hash_region no recorrió los 64 MB de ceros.' );
-// Por el motor: un registro de 48 MB de ceros, empaquetado en trozos de 8 MB y verificado por partes, con 32 MB libres.
-$log = $root . 'wp-content/ceros.log';
+// Por el motor: un archivo de 48 MB de ceros, empaquetado en trozos de 8 MB y verificado por partes, con 32 MB libres.
+// No es un `.log`: desde B8 los registros no entran en el respaldo (exclusiones por defecto).
+$log = $root . 'wp-content/ceros.bin';
 $out = fopen( $log, 'wb' );
 for ( $i = 0; $i < 48; $i++ ) fwrite( $out, str_repeat( "\0", 1048576 ) );
 fclose( $out );
@@ -226,7 +227,7 @@ ini_set( 'memory_limit', (string) ( memory_get_usage( true ) + 32 * 1048576 ) );
 $job = rv_done( $h2['id'] );
 ini_set( 'memory_limit', $limit );
 rv_filters( array() );
-bk_assert( isset( bk_zip_entries( rv_zip( $job ) )['entries']['wordpress/wp-content/ceros.log'] ), 'El registro de ceros no está en el respaldo.' );
+bk_assert( isset( bk_zip_entries( rv_zip( $job ) )['entries']['wordpress/wp-content/ceros.bin'] ), 'El archivo de ceros no está en el respaldo.' );
 unlink( $log );
 }
 
