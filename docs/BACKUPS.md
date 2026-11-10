@@ -366,7 +366,8 @@ petición no espera ni hace el respaldo, que avanza por ticks (WP-Cron, la panta
 siempre, por debajo de los 30 s del hosting. Al terminar bien, el tick vuelve a programar `wp_maybe_auto_update` y la
 siguiente pasada actualiza sin otro respaldo. Si el respaldo falla o se cancela, las actualizaciones quedan **pospuestas**:
 no se relanza nada, el aviso de fallo de Backups añade que están pospuestas y la siguiente comprobación de WordPress (unas
-dos veces al día) vuelve a intentar el respaldo. Si ni siquiera puede encolarse (por ejemplo, el cifrado activo sin
+dos veces al día) vuelve a intentar el respaldo; un respaldo completo válido hecho entretanto (manual o de una
+automatización) las libera en el siguiente tick. Si ni siquiera puede encolarse (por ejemplo, el cifrado activo sin
 clave), se posponen igual y llega un correo propio, como mucho uno cada 12 horas. Un núcleo retenido no manda el correo
 de WordPress «hay una versión nueva»: el aviso es el de Backups. En la red, sólo decide el sitio principal (donde WordPress
 corre las automáticas) y el respaldo abarca la red entera.

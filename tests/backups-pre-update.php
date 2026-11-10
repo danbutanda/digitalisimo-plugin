@@ -211,6 +211,11 @@ try {
 	$status = $P::service_status();
 	digi_assert( $status['postponed'] && false !== strpos( $status['failure'], 'No se pudo iniciar' ), 'El estado no dice que no se pudo iniciar: ' . json_encode( $status ) );
 	Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Security::OPTION, array() );
+	// Un respaldo manual válido libera las pospuestas sin esperar a la siguiente comprobación de WordPress.
+	$runs = $auto_runs();
+	digi_assert( ! is_wp_error( digi_backup() ), 'El respaldo manual de prueba falló.' );
+	$status = $P::service_status();
+	digi_assert( ! $status['postponed'] && ! $status['retained'] && '' === $status['failure'] && $runs + 1 === $auto_runs(), 'Un respaldo manual válido no liberó las automáticas pospuestas: ' . json_encode( $status ) );
 	update_option( $P::STATE, array() );
 
 	// 8. Manuales: sin respaldo, la descarga se rechaza con un motivo y el respaldo queda en marcha.

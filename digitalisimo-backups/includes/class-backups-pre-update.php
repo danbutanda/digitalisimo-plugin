@@ -212,19 +212,23 @@ final class Digitalisimo_Backups_Pre_Update {
 	/**
 	 * Mira el respaldo que se espera: si terminó bien (o ya hay uno reciente válido), libera las automáticas retenidas
 	 * programando otra vez `wp_maybe_auto_update`; si falló, las deja pospuestas y anota el motivo. Un respaldo ajeno
-	 * (manual o de una automatización) que falla mientras retiene automáticas se sustituye por uno propio.
+	 * (manual o de una automatización) que falla mientras retiene automáticas se sustituye por uno propio. Unas
+	 * automáticas pospuestas se liberan en cuanto aparece un respaldo reciente válido (p. ej. uno manual).
 	 */
 	public static function resolve() {
 		$state = self::state();
-		if ( '' === $state['job'] ) return $state;
-		$job = Digitalisimo_Backups_Jobs::get( $state['job'] );
+		$expected = (string) $state['job'];
+		if ( '' === $expected && empty( $state['auto'] ) ) return $state;
+		$job = '' !== $expected ? Digitalisimo_Backups_Jobs::get( $expected ) : null;
 		$fresh = self::fresh();
+		if ( '' === $expected && ! $fresh ) return $state;
 		if ( $job && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && ! $fresh ) return $state;
 		$ok = $fresh || ( $job && 'success' === $job['status'] );
 		$release = false;
 		$retry = false;
-		$state = self::change( function( &$state ) use ( $job, $ok, &$release, &$retry ) {
-			if ( '' === $state['job'] || ( $job && $state['job'] !== $job['id'] ) ) return false;
+		$state = self::change( function( &$state ) use ( $expected, $job, $ok, &$release, &$retry ) {
+			// Otro proceso ya lo resolvió (o espera ya otro trabajo): nada que hacer.
+			if ( (string) $state['job'] !== $expected ) return false;
 			$state['job'] = '';
 			if ( $ok ) {
 				$release = ! empty( $state['auto'] );
@@ -244,10 +248,11 @@ final class Digitalisimo_Backups_Pre_Update {
 		if ( $retry ) self::ensure( 'cron', true );
 		return self::state();
 	}
-	/** Después de cada tick de la cola (y en el watchdog). Nunca lanza. */
+	/** Después de cada tick de la cola (y en el watchdog): también libera pospuestas tras otro respaldo válido. Nunca lanza. */
 	public static function after_tick() {
 		try {
-			if ( '' !== self::state()['job'] ) self::resolve();
+			$state = self::state();
+			if ( '' !== $state['job'] || ! empty( $state['auto'] ) ) self::resolve();
 		} catch ( Throwable $e ) {
 			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: antes de actualizar: ' . $e->getMessage() );
 		}
