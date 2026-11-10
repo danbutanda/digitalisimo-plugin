@@ -37,11 +37,14 @@ try {
 	digi_assert( array() === $GLOBALS['digi']['routes'] && 1 === count( $GLOBALS['digi']['actions']['rest_api_init'] ?? array() ), 'Las rutas deben registrarse en rest_api_init.' );
 	call_user_func( $GLOBALS['digi']['actions']['rest_api_init'][0] );
 	$expected = array( '/status' => 'GET', '/backups' => 'GET,POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/verify' => 'GET, POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/restore' => 'POST', '/backups/' . Digitalisimo_Backups_Rest::FILE . '/fetch' => 'POST', '/destinations' => 'GET', '/destinations/(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)/test' => 'POST', '/automations' => 'GET', '/automations/(?P<id>[a-z0-9_-]+)/run' => 'POST', '/jobs' => 'GET', '/jobs/tick' => 'POST', $job_route => 'GET', $job_route . '/cancel' => 'POST', '/sites/(?P<site>[0-9]+)/extract' => 'POST', '/uploads' => 'GET,POST', '/uploads/' . Digitalisimo_Backups_Rest::JOB => 'GET,DELETE', '/uploads/' . Digitalisimo_Backups_Rest::JOB . '/chunk' => 'POST, PUT', '/uploads/' . Digitalisimo_Backups_Rest::JOB . '/finish' => 'POST' );
+	// Migración: administración con la capability de la pantalla; la API del origen la autoriza la clave de migración.
+	$expected += array( '/migration' => 'GET', '/migration/keys' => 'POST', '/migration/keys/(?P<key>[0-9a-f]{16})/revoke' => 'POST', '/migration/pull' => 'POST', '/migration/undo' => 'POST', '/migrate/source/hello' => 'POST', '/migrate/source/package' => 'POST', '/migrate/source/step' => 'POST', '/migrate/source/finish' => 'POST', '/migrate/source/release' => 'POST', '/migrate/source/download' => 'GET' );
 	digi_assert( array_map( function( $route ) use ( $ns ) { return $ns . $route; }, array_keys( $expected ) ) === array_keys( $GLOBALS['digi']['routes'] ), 'Las rutas registradas no son las documentadas: ' . implode( ', ', array_keys( $GLOBALS['digi']['routes'] ) ) );
 	foreach ( $expected as $route => $methods ) {
 		$handlers = $GLOBALS['digi']['routes'][ $ns . $route ];
 		digi_assert( $methods === implode( ',', array_column( $handlers, 'methods' ) ), 'Métodos inesperados en ' . $route );
-		foreach ( $handlers as $handler ) digi_assert( array( 'Digitalisimo_Backups_Rest', 'allowed' ) === $handler['permission_callback'], 'La ruta ' . $route . ' no usa la capability de la pantalla.' );
+		$permission = 0 === strpos( $route, '/migrate/source/' ) ? 'migration_source_allowed' : 'allowed';
+		foreach ( $handlers as $handler ) digi_assert( array( 'Digitalisimo_Backups_Rest', $permission ) === $handler['permission_callback'], 'La ruta ' . $route . ' no usa su permiso (' . $permission . ').' );
 	}
 	digi_assert( ! preg_match( '@^' . $job_route . '$@', '/jobs/../../wp-config' ) && ! preg_match( '@^' . $job_route . '$@', '/jobs/tick' ), 'El patrón de un trabajo acepta algo que no es un UUID.' );
 

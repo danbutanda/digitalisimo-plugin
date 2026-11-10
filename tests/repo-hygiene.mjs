@@ -133,8 +133,17 @@ const phpNode = phpNodeCommands(readFileSync(join(root, '.github/workflows/relea
 const pending = pendingTests(readFileSync(join(root, PHP74_PENDING), 'utf8'));
 assert.deepEqual(pending.filter((test) => !phpListed.includes(`php ${test}`) && !phpNode.includes(`node ${test}`)), [], `${PHP74_PENDING} nombra pruebas que no están en la lista`);
 assert.deepEqual(pending.filter((test) => !new RegExp(`^${test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+#\\s*\\S`, 'm').test(readFileSync(join(root, PHP74_PENDING), 'utf8'))), [], `Cada pendiente de ${PHP74_PENDING} lleva su causa tras «#»`);
-// Y la lista sólo se acorta: nada que no esté ya en la de origin/main. Sin origin/main (checkout superficial de la CI) o
-// sin la lista allí (la rama que la crea), no hay con qué comparar.
+// Y la lista sólo se acorta: nada que no esté ya en la de origin/main. Los dos workflows traen main antes de la
+// higiene (su checkout es superficial); en GitHub, sin origin/main, la higiene falla en lugar de saltarse la
+// comprobación. Sin la lista en origin/main (la rama que la crea) no hay con qué comparar.
+const FETCH_MAIN = 'run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main\n';
+for (const name of ['validate.yml', 'release.yml']) {
+  const text = readFileSync(join(root, '.github/workflows', name), 'utf8');
+  const fetchAt = text.indexOf(FETCH_MAIN);
+  assert.ok(fetchAt > 0 && fetchAt < text.indexOf('- name: Probar la suite\n'), `${name}: el trabajo principal debe traer origin/main antes de «Probar la suite» (la higiene compara la lista de pendientes)`);
+}
+const hasMain = git('rev-parse', '--verify', '-q', 'refs/remotes/origin/main').status === 0;
+assert.ok(hasMain || process.env.GITHUB_ACTIONS !== 'true', 'Falta origin/main en la CI: el paso «Traer main para la higiene» no corrió');
 const mainPending = git('show', `origin/main:${PHP74_PENDING}`);
 const grown = mainPending.status === 0 ? pending.filter((test) => !pendingTests(mainPending.stdout).includes(test)) : [];
 assert.deepEqual(grown, [], `${PHP74_PENDING} sólo puede acortarse respecto de origin/main: pruebas nuevas en la lista`);

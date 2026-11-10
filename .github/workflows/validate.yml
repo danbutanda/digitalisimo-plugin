@@ -22,6 +22,9 @@ jobs:
           node-version: '20'
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
+      - name: Traer main para la higiene
+        # tests/repo-hygiene.mjs compara scripts/ci-php74-pendientes.txt con la de origin/main: la lista sólo se acorta.
+        run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       - name: Probar la suite
         # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
@@ -308,7 +311,12 @@ jobs:
           php tests/backups-restore-steps.php
           php tests/backups-restore-memory.php
           php tests/backups-restore-review.php
+          php tests/backups-restore-neighbors.php
           php tests/backups-restore-integration.php
+          php tests/backups-migrate.php
+          php tests/backups-migrate-surfaces.php
+          php tests/backups-migrate-hardening.php
+          php tests/backups-migrate-restore.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
@@ -330,6 +338,9 @@ jobs:
           php tests/backups-upload-retention.php
           php tests/backups-upload-cli.php
           php tests/backups-updater.php
+          php tests/backups-memory-64m.php
+          php tests/backups-e2-findings.php
+          php tests/backups-storage-clone.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
           php tests/tools-media-webp.php

@@ -64,7 +64,7 @@ try {
 } catch ( ReflectionException $e ) {
 	throw $e;
 } catch ( Exception $e ) {
-	if ( 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' !== $e->getMessage() ) throw $e;
+	if ( 0 !== strpos( $e->getMessage(), 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' ) ) throw $e;
 }
 if ( $GLOBALS['sftp_test_auth_attempts'] !== $attempts ) throw new RuntimeException( 'El plugin intentó autenticarse antes de verificar la clave SSH.' );
 

@@ -122,7 +122,8 @@ final class Digitalisimo_Backups_Sql_Export {
 		$at = gmdate( 'c' );
 		$tables = $wpdb->get_col( 'SHOW TABLES' );
 		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
-		$tables = array_values( array_filter( array_map( 'strval', $tables ), array( __CLASS__, 'exportable' ) ) );
+		// La lista entera: así se ve también si una tabla es de otra instalación que comparte la base (wp_ y wp_dev_).
+		$tables = Digitalisimo_Backups::exportable_tables( array_map( 'strval', $tables ) );
 		if ( ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
 		self::$listed = true;
 		return array( 'v' => self::VERSION, 'host' => Digitalisimo_Backups_Jobs::host(), 'stage' => 'export', 'file' => 'database.' . Digitalisimo_Backups_Jobs::current_owner_tag() . '.sql.part', 'tables' => $tables, 'at' => $at, 'mode' => null, 'table' => 0, 'rows' => 0, 'size' => 0, 'snapshots' => 0, 'total' => 0, 'batch' => 0, 'abandons' => array(), 'check' => array( 'offset' => 0, 'table' => 0, 'unchecked' => array() ), 'scale' => 1.0 );

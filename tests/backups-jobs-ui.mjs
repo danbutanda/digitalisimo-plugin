@@ -14,6 +14,7 @@ function node(tag) {
     get textContent() { return this.text + this.children.map((child) => child.textContent).join(''); },
     get firstChild() { return this.children[0] || null; },
     appendChild(child) { this.children.push(child); return child; },
+    insertBefore(child, ref) { const at = this.children.indexOf(ref); if (at < 0) this.children.push(child); else this.children.splice(at, 0, child); return child; },
     removeChild(child) { this.children = this.children.filter((item) => item !== child); return child; },
     setAttribute(name, value) { this.attributes[name] = String(value); },
     getAttribute(name) { return name in this.attributes ? this.attributes[name] : null; },
@@ -35,7 +36,7 @@ const timers = [];
 const alerts = [];
 const job = (overrides) => Object.assign({ id: '11111111-2222-4333-8444-555555555555', status: 'running', status_label: 'En curso', phase: 'database', phase_label: 'Base de datos', percent: 10, detail: '<img src=x onerror=alert(1)>', origin_label: 'Respaldo manual', destination_label: 'Google Drive', created_label: '2026-11-05 10:00', can_cancel: true, terminal: false, running: true, retry_in: 0 }, overrides);
 const context = {
-  window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs', context: 'network' }, confirm: () => true, alert: (text) => alerts.push(text) },
+  window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs', context: 'network', login: '/wp-login.php?redirect_to=migrar' }, confirm: () => true, alert: (text) => alerts.push(text) },
   document: { getElementById: (id) => ids[id] || null, createElement: node, createTextNode: (text) => ({ textContent: String(text), children: [] }) },
   URLSearchParams, Object, String, Number, Math, Error, JSON,
   setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
@@ -111,4 +112,29 @@ replies.push({ ok: false, status: 409, body: { success: false, data: { message: 
 ids['digitalisimo-backups-jobs'].listeners.click({ target: { closest: () => cancelButton }, preventDefault: () => {} });
 for (let i = 0; i < 5; i++) await flush();
 assert.ok(alerts.length === 1 && alerts[0].includes('verificado') && cancelButton.disabled === false, 'Un rechazo de cancelación debe explicarse');
+
+// Una migración que llega a restaurar reemplaza los usuarios del sitio: la sesión de este navegador deja de valer. Cuando
+// el tick deja de responder, la tarjeta pide iniciar sesión con un usuario del origen en lugar de reintentar sin fin.
+const migration = (overrides) => job(Object.assign({ id: 'cccccccc-dddd-4eee-8fff-000000000000', kind: 'migration', phase: 'restore', phase_label: 'Restauración', status: 'running', status_label: 'En curso', terminal: false }, overrides));
+assert.ok(timers.length === 1, 'Tras cancelar, la pantalla sigue dando pasos');
+replies.push({ body: { success: true, data: { result: 'worked', jobs: [migration()] } } });
+await runTimer();
+// Un corte del proxy o el 503 del mantenimiento durante la restauración no es la sesión: se sigue reintentando (P3).
+replies.push({ ok: false, status: 504, body: '<html>Gateway Timeout</html>' });
+await runTimer();
+replies.push({ ok: false, status: 503, body: '<html>Mantenimiento</html>' });
+await runTimer();
+replies.push({ ok: false, status: 502, body: '<html>Bad gateway</html>' });
+await runTimer();
+assert.ok(timers.length === 1 && !texts(ids['digitalisimo-backups-jobs']).includes('inicia sesión'), 'Un corte del proxy o un 503 durante la restauración no deben dar la sesión por perdida ni dejar de sondear');
+replies.push({ body: { success: true, data: { result: 'worked', jobs: [migration()] } } });
+await runTimer();
+replies.push({ ok: false, status: 400, body: '-1' });
+await runTimer();
+assert.ok(timers.length === 1 && !texts(ids['digitalisimo-backups-jobs']).includes('inicia sesión'), 'Un primer fallo todavía se reintenta');
+replies.push({ ok: false, status: 400, body: '-1' });
+await runTimer();
+const card = ids['digitalisimo-backups-jobs'];
+const notice = card.children.find((child) => /digitalisimo-backups-migrate-login/.test(child.getAttribute('class') || ''));
+assert.ok(notice && notice.textContent.includes('inicia sesión con un usuario del sitio de origen') && notice.children[0].getAttribute('href') === '/wp-login.php?redirect_to=migrar' && timers.length === 0, 'Tras restaurar, la tarjeta debe pedir iniciar sesión con un usuario del origen y dejar de reintentar');
 console.log('DIGITALÍSIMO Backups: la pantalla avanza la cola, pinta texto, espera, se detiene al terminar y cancela con su nonce.');
