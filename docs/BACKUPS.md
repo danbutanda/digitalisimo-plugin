@@ -1157,6 +1157,9 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
     bloquea, porque el tick ya tiene el cerrojo de operaciones.
   - **N7.** La identidad usa `home_url()`, que se puede filtrar: con un `WP_HOME` que dependa de la petición o un plugin
     multilingüe que lo filtre, las filas pueden quedar «de otra instalación» según la petición (lado seguro, como N4).
+  - **N5, informativo.** En PHP 7.4, unas 70 llamadas seguidas a `put()` con el cliente incluido en un mismo proceso
+    agotan 64 MB (la prueba de tramos de la revisión, en `SFTP.php`); en 8.2 y 8.5 no. En la web cada tick hace una sola
+    llamada y WP-CLI hace la fase en una sola llamada sin plazo, así que no ocurre en el uso normal.
   - **N8.** Un servidor que sólo ofrece `aes192-ctr`/`aes256-ctr`, con la extensión ssh2 sin `ssh2_auth_pubkey`, no tiene
     camino para autenticar con clave privada: el cliente incluido rechaza esos cifrados (H1) y la extensión no recibe una
     clave sin cifrar en un archivo (H6). Funcionan la contraseña con ssh2 o habilitar `aes128-ctr` o AES-GCM en el
