@@ -22,8 +22,14 @@ try {
 	$probe = stream_socket_server( 'tcp://127.0.0.1:0', $errno, $error );
 	$port = (int) substr( strrchr( stream_socket_get_name( $probe, false ), ':' ), 1 );
 	fclose( $probe );
-	// Varios trabajadores: el servidor lento no bloquea a los demás.
-	$server = proc_open( array( PHP_BINARY, '-S', '127.0.0.1:' . $port, __DIR__ . '/lib/remote-net-server.php' ), array( 0 => array( 'pipe', 'r' ), 1 => array( 'file', $root . '/server.log', 'w' ), 2 => array( 'file', $root . '/server.log', 'a' ) ), $pipes, null, array( 'PHP_CLI_SERVER_WORKERS' => '4' ) + (array) getenv() );
+	// Un solo proceso (sin PHP_CLI_SERVER_WORKERS: sus trabajadores sobreviven a quien mata al principal) y con un tope de
+	// vida: aunque esta prueba muera de golpe (SIGKILL, el tiempo de la corrida), el servidor se cierra solo a los 90 s.
+	$command = array( PHP_BINARY, '-S', '127.0.0.1:' . $port, __DIR__ . '/lib/remote-net-server.php' );
+	foreach ( array( '/usr/bin/timeout', '/bin/timeout' ) as $timeout ) if ( is_executable( $timeout ) ) { $command = array_merge( array( $timeout, '-s', 'KILL', '90' ), $command ); break; }
+	$server = proc_open( $command, array( 0 => array( 'pipe', 'r' ), 1 => array( 'file', $root . '/server.log', 'w' ), 2 => array( 'file', $root . '/server.log', 'a' ) ), $pipes );
+	// También ante un error fatal de esta prueba (el finally no corre): se cierra al terminar el proceso. SIGTERM, que
+	// `timeout` pasa al servidor (un SIGKILL lo mataría a él y dejaría huérfano a php -S).
+	register_shutdown_function( function() use ( &$server ) { if ( is_resource( $server ) ) { proc_terminate( $server ); @proc_close( $server ); } } );
 	for ( $i = 0; $i < 50 && ! @fsockopen( '127.0.0.1', $port, $errno, $error, 0.2 ); $i++ ) usleep( 100000 );
 	$dav = new Digitalisimo_Backups_Destination_Webdav( array( 'webdav_url' => 'http://127.0.0.1:' . $port . '/', 'webdav_user' => 'ana', 'webdav_password' => 'x', 'webdav_path' => '/', 'webdav_allow_http' => '1' ), array( 'connection' => 'webdav' ) );
 	$piece = $root . '/piece.tmp';
@@ -44,14 +50,6 @@ try {
 	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'overflow/x.zip' ), $piece, 65536, 65536, array( 'total' => 999999999, 'timeout' => 30 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
 	digi_assert( '' !== $error && $size() <= 65537, 'A mitad se escribieron ' . $size() . ' bytes de más: ' . $error );
 
-	// C2: el servidor tarda 15 s; al tramo le quedan 5.
-	@unlink( $piece );
-	$started = microtime( true );
-	$error = '';
-	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'slow/x.zip' ), $piece, 0, 10, array( 'total' => 1000, 'timeout' => 5 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
-	$took = microtime( true ) - $started;
-	digi_assert( '' !== $error && $took < 10, 'Un fragmento esperó ' . round( $took, 1 ) . ' s con 5 s de tramo: ' . $error );
-
 	// Un servidor correcto: fragmentos exactos hasta completar el archivo.
 	$out = '';
 	for ( $offset = 0; $offset < 300000; ) {
@@ -60,8 +58,16 @@ try {
 		$offset += $got;
 	}
 	digi_assert( str_repeat( 'DIGITALISIMO', 25000 ) === $out, 'La descarga por rangos de un servidor correcto no es el archivo.' );
+	// C2: el servidor tarda 15 s; al tramo le quedan 5.
+	@unlink( $piece );
+	$started = microtime( true );
+	$error = '';
+	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'slow/x.zip' ), $piece, 0, 10, array( 'total' => 1000, 'timeout' => 5 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
+	$took = microtime( true ) - $started;
+	digi_assert( '' !== $error && $took < 10, 'Un fragmento esperó ' . round( $took, 1 ) . ' s con 5 s de tramo: ' . $error );
+
 	echo "OK: fragmentos por HTTP real con tope de bytes y tiempo del tramo (C2, C3)\n";
 } finally {
-	if ( is_resource( $server ) ) { proc_terminate( $server ); proc_close( $server ); }
+	if ( is_resource( $server ) ) { proc_terminate( $server ); @proc_close( $server ); }
 	digi_rmtree( $root );
 }
