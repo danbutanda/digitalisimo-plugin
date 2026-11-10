@@ -39,6 +39,9 @@ mig_use( 'origen' );
 
 $failures = array();
 function hard_case( $label, callable $test ) {
+	// HARD_ONLY=h6 corre sólo ese caso (para ver cada uno por separado contra el código anterior).
+	$only = (string) getenv( 'HARD_ONLY' );
+	if ( '' !== $only && 0 !== strpos( $label, $only . ' ' ) ) return;
 	try {
 		$test();
 		echo 'ok   ' . $label . "\n";
