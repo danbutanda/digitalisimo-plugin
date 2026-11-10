@@ -84,6 +84,18 @@ try {
 	$file = $created['file'];
 	$bytes = file_get_contents( $store . '/' . $file );
 	$sha = hash( 'sha256', $bytes );
+	/** Un respaldo con su propio contenido (otro SHA-256), sin fila ni archivo en este sitio: el «de otro sitio». */
+	$foreign = function() use ( $B, $store ) {
+		$made = digi_backup();
+		digi_assert( ! is_wp_error( $made ), 'No se creó un respaldo auxiliar.' );
+		$data = file_get_contents( $store . '/' . $made['file'] );
+		update_option( $B::HISTORY, array_values( array_filter( (array) get_option( $B::HISTORY, array() ), function( $row ) use ( $made ) { return $made['file'] !== $row['file']; } ) ) );
+		unlink( $store . '/' . $made['file'] );
+		return $data;
+	};
+	$other_bytes = $foreign();
+	$third_bytes = $foreign();
+	$last_bytes = $foreign();
 	digi_assert( ( $dav->files[ 'respaldos/' . $file ] ?? '' ) === $bytes && strlen( $bytes ) > 4 * 65536, 'La copia remota no es el ZIP local o es demasiado pequeña para la prueba (' . strlen( $bytes ) . ' bytes).' );
 
 	// 1. B1b: «Traer al almacén» es un trabajo por fragmentos que se reanuda tras un corte desde lo ya recibido.
@@ -130,8 +142,8 @@ try {
 	// 3. B2: sincronizar lista sólo los respaldos de DIGITALÍSIMO y distingue los de este sitio de los de otro.
 	$other = 'digitalisimo-backup-otro-sitio-test-20261101-101010-0a1b2c3d.zip';
 	$third = 'digitalisimo-backup-tercero-test-20261103-030303-0c1d2e3f.zip';
-	$dav->files[ 'respaldos/' . $other ] = $bytes;
-	$dav->files[ 'respaldos/' . $third ] = $bytes;
+	$dav->files[ 'respaldos/' . $other ] = $other_bytes;
+	$dav->files[ 'respaldos/' . $third ] = $third_bytes;
 	$dav->files[ 'respaldos/' . $file . '.part-0123456789ab' ] = 'temporal';
 	$dav->files[ 'respaldos/digitalisimo-backups-prueba-20261101-101010-0a1b2c3d.txt' ] = 'prueba';
 	$dav->files[ 'respaldos/notas.zip' ] = 'otro archivo';
@@ -146,7 +158,7 @@ try {
 	foreach ( $synced['items'] as $row ) $by[ $row['name'] ] = $row;
 	digi_assert( array( $file, $other, $third ) == array_keys( $by ) || ( 3 === count( $by ) && isset( $by[ $file ], $by[ $other ], $by[ $third ] ) ), 'La sincronización listó otros archivos: ' . json_encode( array_keys( $by ) ) );
 	digi_assert( 'local' === $by[ $file ]['state'] && true === $by[ $file ]['registered'] && 'this' === $by[ $file ]['origin'], 'El respaldo de este sitio no sale como suyo: ' . json_encode( $by[ $file ] ) );
-	digi_assert( 'importable' === $by[ $other ]['state'] && false === $by[ $other ]['registered'] && 'other' === $by[ $other ]['origin'] && 'otro-sitio-test' === $by[ $other ]['site'] && '2026-11-01 10:10:10' === $by[ $other ]['date'] && strlen( $bytes ) === $by[ $other ]['size'] && false !== strpos( $by[ $other ]['label'], 'sin verificar' ), 'El respaldo de otro sitio no sale como importable sin verificar: ' . json_encode( $by[ $other ] ) );
+	digi_assert( 'importable' === $by[ $other ]['state'] && false === $by[ $other ]['registered'] && 'other' === $by[ $other ]['origin'] && 'otro-sitio-test' === $by[ $other ]['site'] && '2026-11-01 10:10:10' === $by[ $other ]['date'] && strlen( $other_bytes ) === $by[ $other ]['size'] && false !== strpos( $by[ $other ]['label'], 'sin verificar' ), 'El respaldo de otro sitio no sale como importable sin verificar: ' . json_encode( $by[ $other ] ) );
 	$index = get_option( $B::REMOTE_INDEX );
 	digi_assert( is_array( $index ) && isset( $index['webdav'] ) && 3 === count( $index['webdav']['items'] ), 'La sincronización no guardó el índice.' );
 	digi_assert( false === strpos( json_encode( array( $index, $synced ) ), 'respaldos/' ) && false === strpos( json_encode( $index ), '"path"' ), 'El índice o la respuesta guardan rutas remotas.' );
@@ -163,7 +175,7 @@ try {
 	$rows = count( (array) get_option( $B::HISTORY, array() ) );
 	list( $code, $imported ) = digi_rest( 'POST', $ns . '/destinations/webdav/backups/' . $other . '/fetch' );
 	digi_assert( 200 === $code && $other === $imported['file'] && true === $imported['fetched'] && false === $imported['registered'] && 'untrusted' === $imported['trust'] && 'RESTAURAR SIN FIRMA' === $imported['confirmation'] && true === $imported['compatible'] && 'fetch' === $imported['job']['kind'], 'Traer el respaldo de otro sitio no dio el resultado esperado: ' . json_encode( $imported ) );
-	digi_assert( $sha === hash_file( 'sha256', $store . '/' . $other ) && $rows === count( (array) get_option( $B::HISTORY, array() ) ) && ! in_array( $other, $history_files(), true ), 'El respaldo de otro sitio entró en el historial o no es el del destino.' );
+	digi_assert( hash( 'sha256', $other_bytes ) === hash_file( 'sha256', $store . '/' . $other ) && $rows === count( (array) get_option( $B::HISTORY, array() ) ) && ! in_array( $other, $history_files(), true ), 'El respaldo de otro sitio entró en el historial o no es el del destino.' );
 	$html = $panel();
 	digi_assert( preg_match( '#<optgroup label="Archivos del almacén sin registro">.*' . preg_quote( $other, '#' ) . '.*</optgroup>#s', $html ), 'El respaldo traído no aparece en «Restaurar» como «sin registro».' );
 	$refused = $B::service_restore( $other, array( 'confirm' => 'RESTAURAR' ) );
@@ -202,7 +214,7 @@ try {
 	$html = $panel();
 	digi_assert( false !== strpos( $html, 'Respaldos en los destinos remotos' ) && false !== strpos( $html, 'value="' . $B::ACTION_SYNC . '"' ) && false !== strpos( $html, 'name="name" value="' . $hostile . '"' ) && false === strpos( $html, 'name="name" value="' . $other . '"' ), 'La pantalla no ofrece traer lo que falta (o lo ofrece de algo que ya está): ' . $html );
 	$clean( $html, 'la pantalla' );
-	$dav->files[ 'respaldos/' . $hostile ] = $bytes;
+	$dav->files[ 'respaldos/' . $hostile ] = $last_bytes;
 	$query = digi_admin_post( 'remote_fetch_request', $B::ACTION_REMOTE_FETCH, array( 'destination' => 'webdav', 'name' => $hostile ) );
 	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && false !== strpos( rawurldecode( (string) $query['message'] ), 'RESTAURAR SIN FIRMA' ) && is_file( $store . '/' . $hostile ), '«Traer al almacén» de la pantalla no trajo el respaldo: ' . json_encode( $query ) );
 	try {

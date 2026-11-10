@@ -352,6 +352,8 @@ jobs:
           php tests/backups-updater.php
           php tests/backups-remote-restore.php
           php tests/backups-default-exclusions.php
+          php tests/backups-remote-review.php
+          php tests/backups-remote-net.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
           php tests/tools-media-webp.php

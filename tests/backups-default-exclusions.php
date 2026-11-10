@@ -38,8 +38,13 @@ $excluded = array(
 	'wp-content/cache/page_enhanced/example.test/index.html' => '<html>caché</html>',
 	'wp-content/debug.log' => 'PHP Notice',
 	'wp-content/uploads/wc-logs/fatal-errors-2026-11-01.log' => 'registro de WooCommerce',
-	'wp-content/plugins/ejemplo/registro/ERRORES.LOG' => 'mayúsculas',
+	'wp-content/uploads/registro/ERRORES.LOG' => 'mayúsculas',
 	'error_log' => 'registro del servidor',
+	// Backup Migration con su carpeta aleatoria, WPvivid, BackWPup y BackupBuddy (estos dos, en los medios).
+	'wp-content/backup-migration-Xy12ab/backups/BM_Backup_2026.zip' => 'bm aleatorio',
+	'wp-content/wpvividbackups/sitio_wpvivid_backup.zip' => 'wpvivid',
+	'wp-content/uploads/backwpup-abc123-backups/backup_2026.zip' => 'backwpup',
+	'wp-content/uploads/backupbuddy_backups/backup-sitio.zip' => 'backupbuddy',
 );
 // Lo que sí entra, aunque se parezca: otros nombres y extensiones.
 $included = array(
@@ -49,6 +54,13 @@ $included = array(
 	'wp-content/plugins/ejemplo/cache/datos.php' => '<?php // caché propia del plugin (no es wp-content/cache)',
 	'wp-content/themes/ejemplo/backuply.css' => '/* un archivo, no la carpeta */',
 	'wp-content/mis-cache/notas.txt' => 'otra carpeta',
+	// Un `.log` que es parte del código (C12) y archivos con el nombre de una carpeta excluida (una regla de carpeta sólo
+	// coincide con carpetas, C8).
+	'wp-content/plugins/ejemplo/datos/palabras.log' => 'diccionario que el plugin necesita',
+	'wp-admin/error_log' => 'registro dentro del núcleo: entra con su carpeta',
+	'wp-content/cache.php' => '<?php // no es la carpeta cache',
+	'wp-content/object-cache.php' => '<?php // drop-in',
+	'wp-content/backup-migration-notas.txt' => 'un archivo, no la carpeta',
 );
 foreach ( $excluded + $included as $relative => $content ) $put( $relative, $content );
 $entries = function( $file ) use ( $store ) {
@@ -101,6 +113,24 @@ try {
 	list( $names, $manifest ) = $entries( $some['file'] );
 	digi_assert( ! preg_grep( '#^wordpress/wp-content/backuply/#', $names ) && in_array( 'wordpress/wp-content/updraft/backup_2026-11-01-db.gz', $names, true ) && in_array( 'wordpress/wp-content/plugins/ejemplo/ejemplo.php', $names, true ) && in_array( 'wordpress/wp-content/uploads/2026/11/foto.jpg', $names, true ) && in_array( 'wordpress/wp-config.php', $names, true ) && in_array( 'wordpress/wp-content/debug.log', $names, true ), 'Una lista reducida por el filtro no se aplicó bien o excluyó código: ' . json_encode( $manifest['excluded'] ?? null ) );
 	digi_assert( array( 'wp-content/backuply/' ) === $manifest['excluded'], 'El manifiesto no declara sólo la regla válida del filtro: ' . json_encode( $manifest['excluded'] ?? null ) );
+
+	// 4. El filtro sólo QUITA reglas (C6): lo que añade se ignora, así que la restauración nunca borra algo que el respaldo
+	// dejó fuera; y nunca excluye código (C8).
+	$put( 'wp-content/uploads/2026/11/importante.bak', 'copia manual del usuario' );
+	$put( 'wp-content/wflogs/config-livewaf.php', '<?php // Wordfence' );
+	$GLOBALS['filters']['digitalisimo_backups_default_exclusions'] = function( $rules ) { $rules['files'][] = '*.bak'; $rules['files'][] = '*.php'; $rules['files'][] = 'functions.php'; $rules['folders'][] = 'wflogs'; $rules['folders'][] = 'object-cache.php'; $rules['folders'][] = 'plugins'; return $rules; };
+	$added = digi_backup();
+	list( $names, $manifest ) = $entries( $added['file'] );
+	foreach ( array( 'wp-content/uploads/2026/11/importante.bak', 'wp-content/wflogs/config-livewaf.php', 'wp-content/object-cache.php', 'wp-content/plugins/ejemplo/ejemplo.php', 'wp-content/themes/ejemplo/style.css' ) as $relative ) digi_assert( in_array( 'wordpress/' . $relative, $names, true ), 'Una regla añadida por el filtro dejó fuera ' . $relative . '.' );
+	digi_assert( ! array_diff( (array) $manifest['excluded'], (array) $declared ) && ! in_array( '*.bak', (array) $manifest['excluded'], true ), 'El manifiesto declara reglas que no son de la lista fija: ' . json_encode( $manifest['excluded'] ) );
+	$restored = $B::service_restore( $added['file'], array( 'confirm' => 'RESTAURAR' ) );
+	digi_assert( ! is_wp_error( $restored ) && is_file( $wp . 'wp-content/uploads/2026/11/importante.bak' ), 'La restauración borró un medio que el filtro intentó excluir.' );
+	unset( $GLOBALS['filters']['digitalisimo_backups_default_exclusions'] );
+	$code = array( 'folders' => array( 'wp-content/object-cache.php' => true ), 'files' => array( '*.php', '*.phtml', 'functions.php', '*.log' ), 'code' => array( 'wp-admin', 'wp-content/plugins' ) );
+	foreach ( array( 'wp-content/object-cache.php', 'wp-content/uploads/a.php', 'wp-content/themes/t/functions.php', 'wp-content/uploads/x.phtml', 'wp-content/plugins/p/debug.log', 'wp-admin/error_log' ) as $relative ) digi_assert( ! Digitalisimo_Backups_Exclusions::excluded( $relative, false, $code ), 'Una regla excluye código o un archivo de código: ' . $relative . '.' );
+	digi_assert( Digitalisimo_Backups_Exclusions::excluded( 'wp-content/object-cache.php', true, $code ) && Digitalisimo_Backups_Exclusions::excluded( 'wp-content/uploads/debug.log', false, $code ), 'Las reglas válidas dejaron de aplicarse.' );
+	foreach ( array( 'wp-content/backup-migration-Ab12/x.zip', 'wp-content/uploads/backwpup-1-logs/l.html', 'wp-content/uploads/wc-logs/a.log' ) as $relative ) digi_assert( Digitalisimo_Backups_Exclusions::kept( $relative ), 'La restauración no conserva ' . $relative . '.' );
+	foreach ( array( 'wp-content/plugins/p/debug.log', 'wp-content/backup-migration-', 'wp-content/cache.php', 'wp-content/uploads/foto.jpg' ) as $relative ) digi_assert( ! Digitalisimo_Backups_Exclusions::kept( $relative ), 'La restauración conserva sin motivo ' . $relative . '.' );
 
 	echo "OK: exclusiones por defecto del respaldo completo (B8)\n";
 } finally {

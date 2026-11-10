@@ -39,6 +39,8 @@ trait Digitalisimo_Backups_Remote_Service {
 		$out = array();
 		foreach ( (array) get_option( self::HISTORY, array() ) as $row ) {
 			if ( ! is_array( $row ) || empty( $row['remote']['provider'] ) ) continue;
+			// Sin SHA-256 en la fila (filas antiguas) no hay con qué verificar la copia: se trae como «sin registro» (C9).
+			if ( ! preg_match( '/^[0-9a-f]{64}$/', strtolower( (string) ( $row['sha256'] ?? '' ) ) ) ) continue;
 			if ( self::remote_connection( (array) $row['remote'] ) === (string) $id ) $out[ (string) ( $row['file'] ?? '' ) ] = $row;
 		}
 		return $out;
@@ -75,7 +77,10 @@ trait Digitalisimo_Backups_Remote_Service {
 		return array_slice( $rows, 0, 500 );
 	}
 	private static function remote_label( array $row ) {
-		if ( 'local' === $row['state'] ) return 'Ya está en el almacén privado';
+		if ( 'local' === $row['state'] ) {
+			$expires = self::fetched_expires( (string) $row['name'] );
+			return 'Ya está en el almacén privado' . ( '' !== $expires ? ' (traído «sin registro»: se borra el ' . $expires . ' si no se usa)' : '' );
+		}
 		if ( $row['registered'] ) return 'De este sitio (en el historial): se verifica por su SHA-256 al traerlo';
 		$who = 'other' === $row['origin'] ? 'De otro sitio (' . $row['site'] . ')' : ( 'this' === $row['origin'] ? 'Con el nombre de este sitio, sin fila en el historial' : 'Origen desconocido' );
 		return $who . ': sin verificar; al traerlo se comprueba como archivo no confiable';
@@ -124,8 +129,10 @@ trait Digitalisimo_Backups_Remote_Service {
 		);
 	}
 	/**
-	 * Sincroniza: lista los respaldos de cada destino remoto con conexión completa (o sólo de $id) y guarda el índice. Un
-	 * destino que no responde conserva su lista anterior con el error. Devuelve el resumen por destino y las filas.
+	 * Sincroniza: lista los respaldos de cada destino remoto con conexión completa (o sólo de $id) y guarda el índice
+	 * destino a destino. Un destino que no responde conserva su lista anterior con el error. En la web, con el tiempo que
+	 * le queda a la petición: ningún listado espera más (Digitalisimo_Backups_Http::$cap_timeout) y los destinos que ya no
+	 * caben quedan en `pending` (se sincronizan en la siguiente vez). Devuelve el resumen por destino y las filas.
 	 */
 	public static function service_sync( $id = '', array $args = array() ) {
 		$allowed = self::service_scope( false, false );
@@ -138,27 +145,36 @@ trait Digitalisimo_Backups_Remote_Service {
 			$ids = array_values( array_diff( array_map( 'strval', array_keys( self::manual_destinations( self::settings() ) ) ), array( 'local' ) ) );
 		}
 		if ( ! $ids ) return self::service_error( 'no_destinations', 'No hay destinos remotos con una conexión completa: configúralos en «Servidores».', 409 );
-		$index = self::remote_index();
 		$summaries = array();
 		$items = array();
+		$pending = array();
 		foreach ( $ids as $one ) {
+			// Cada listado necesita unos segundos: sin ellos, el destino queda para la próxima sincronización.
+			$left = Digitalisimo_Backups_Step_Budget::request_remaining();
+			if ( $left < 5 ) { $pending[] = array( 'destination' => $one, 'name' => self::destination_label( $one ) ); continue; }
 			$entry = array( 'destination' => $one, 'name' => self::destination_label( $one ), 'synced_at' => time(), 'error' => '', 'items' => array() );
+			$previous = (array) ( self::remote_index()[ $one ]['items'] ?? array() );
+			$cap = Digitalisimo_Backups_Http::$cap_timeout;
 			try {
+				if ( is_finite( $left ) ) Digitalisimo_Backups_Http::$cap_timeout = max( 3, (int) floor( $left - 1 ) );
 				$problem = self::credentials_problem( $one );
 				if ( '' !== $problem ) throw new Exception( $problem );
 				$entry['items'] = self::remote_rows( $one, (array) self::destination( $one )->list() );
 			} catch ( Throwable $e ) {
 				$entry['error'] = Digitalisimo_Backups_Http::redact( $e->getMessage() );
-				$entry['items'] = (array) ( $index[ $one ]['items'] ?? array() );
+				$entry['items'] = $previous;
+			} finally {
+				Digitalisimo_Backups_Http::$cap_timeout = $cap;
 			}
+			// Guardado destino a destino: si la petición muere en el siguiente, éste ya quedó.
+			$index = self::remote_index();
 			$index[ $one ] = $entry;
+			foreach ( array_keys( $index ) as $known ) if ( ! Digitalisimo_Backups_Destinations::exists( (string) $known ) || 'local' === $known ) unset( $index[ $known ] );
+			self::remote_index_save( $index );
 			$summaries[] = self::remote_summary( $entry );
 			$items = array_merge( $items, $entry['items'] );
 		}
-		// Una conexión eliminada en «Servidores» sale del índice.
-		foreach ( array_keys( $index ) as $known ) if ( ! Digitalisimo_Backups_Destinations::exists( (string) $known ) || 'local' === $known ) unset( $index[ $known ] );
-		self::remote_index_save( $index );
-		return array( 'destinations' => $summaries, 'items' => $items );
+		return array( 'destinations' => $summaries, 'items' => $items, 'pending' => $pending );
 	}
 	/** Lo último que se sincronizó, sin llamar a los destinos (pantalla, `GET /destinations/sync`). */
 	public static function service_remote_index() {
@@ -168,15 +184,20 @@ trait Digitalisimo_Backups_Remote_Service {
 		$items = array();
 		foreach ( self::remote_index() as $id => $entry ) {
 			if ( ! is_array( $entry ) || ! Digitalisimo_Backups_Destinations::exists( (string) $id ) || 'local' === $id ) continue;
-			$summaries[] = self::remote_summary( $entry );
+			$registered = self::remote_registered( (string) $id );
+			$rows = array();
 			foreach ( (array) ( $entry['items'] ?? array() ) as $row ) {
 				if ( ! is_array( $row ) ) continue;
-				// El estado local cambia sin sincronizar (se trajo, se borró): se recalcula.
+				// Lo local y el historial cambian sin sincronizar (se trajo, se borró, se quitó la fila): se recalculan.
 				try { $row['local'] = '' !== self::local_path( (string) ( $row['name'] ?? '' ) ); } catch ( Exception $e ) { $row['local'] = false; }
+				$row['registered'] = isset( $registered[ (string) ( $row['name'] ?? '' ) ] );
 				$row['state'] = $row['local'] ? 'local' : ( ! empty( $row['registered'] ) ? 'registered' : 'importable' );
 				$row['label'] = self::remote_label( $row );
-				$items[] = $row;
+				$rows[] = $row;
 			}
+			$entry['items'] = $rows;
+			$summaries[] = self::remote_summary( $entry );
+			$items = array_merge( $items, $rows );
 		}
 		return array( 'destinations' => $summaries, 'items' => $items );
 	}
@@ -195,8 +216,12 @@ trait Digitalisimo_Backups_Remote_Service {
 		$name = (string) $name;
 		if ( ! self::remote_backup_name( $name ) ) return self::service_error( 'remote_name', 'Ese nombre no es el de un respaldo de DIGITALÍSIMO (.zip o .dgbk) en el destino.', 400 );
 		$row = self::remote_registered( $id )[ $name ] ?? array();
+		// Sólo un respaldo de este sitio que ya está en el almacén con el SHA-256 de su fila se da por traído. Cualquier otro
+		// archivo con ese nombre (una subida, otra conexión, uno copiado a mano) no es la copia del destino: se trae siempre
+		// (C4), y si ya estaba el mismo contenido, no se duplica (fetch_place(), C5).
 		try {
-			if ( '' !== self::local_path( $name ) && ( $row || ! empty( $args['skip_local'] ) ) ) return array( 'file' => $name, 'fetched' => false, 'message' => 'El respaldo ya está en el almacén privado.' );
+			$local = '' !== $name ? self::local_path( $name ) : '';
+			if ( $row && '' !== $local && hash_equals( strtolower( (string) $row['sha256'] ), (string) @hash_file( 'sha256', $local ) ) ) return array( 'file' => $name, 'fetched' => false, 'registered' => true, 'message' => 'El respaldo ya está en el almacén privado (el SHA-256 de su historial coincide).' );
 		} catch ( Exception $e ) {
 			return self::service_error( 'storage', $e->getMessage(), 500 );
 		}
@@ -305,6 +330,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		$parts = array();
 		foreach ( $result['destinations'] as $summary ) $parts[] = $summary['name'] . ': ' . ( '' !== $summary['error'] ? 'no respondió (' . $summary['error'] . ')' : $summary['count'] . ' respaldo(s), ' . $summary['importable'] . ' para importar' );
+		foreach ( (array) ( $result['pending'] ?? array() ) as $pending ) $parts[] = $pending['name'] . ': sin tiempo en esta petición, vuelve a sincronizar';
 		self::redirect( true, 'Destinos sincronizados. ' . implode( ' · ', $parts ) . '.' );
 	}
 	/** admin-post «Traer al almacén» de un respaldo listado en un destino: encola el trabajo y avanza lo que cabe. */
@@ -331,7 +357,37 @@ trait Digitalisimo_Backups_Remote_Service {
 	}
 	private static function fetch_paths( array $job ) {
 		$dir = Digitalisimo_Backups_Job_Store::staging( (string) $job['id'] );
-		return array( 'part' => $dir . '/remote.part', 'piece' => $dir . '/piece.tmp', 'done' => $dir . '/remote' . ( Digitalisimo_Backups_Uploads::encrypted_name( (string) $job['spec']['fetch']['name'] ) ? '.dgbk' : '.zip' ) );
+		// La extensión de lo descargado no importa: el contenedor se decide por el contenido (C11).
+		return array( 'part' => $dir . '/remote.part', 'piece' => $dir . '/piece.tmp', 'done' => $dir . '/remote.bin', 'state' => $dir . '/receive.json', 'place' => $dir . '/place.json' );
+	}
+	/** Archivo JSON pequeño del área de trabajo (estado de `receive`, nombre elegido en `place`), o array() si no está. */
+	private static function fetch_read( $path ) {
+		$data = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
+		return is_array( $data ) ? $data : array();
+	}
+	private static function fetch_write( $path, array $data ) {
+		if ( is_link( $path ) || false === @file_put_contents( $path . '.tmp', (string) wp_json_encode( $data ) ) || ! @rename( $path . '.tmp', $path ) ) throw new Exception( 'No se pudo guardar el avance de la descarga en el área de trabajo.' );
+		self::private_file( $path );
+	}
+	/**
+	 * @internal Para el motor (Digitalisimo_Backups_Fetch_Job::advanced()): el proceso que murió en `receive` dejó en disco más
+	 * de lo que había cuando empezó su tramo. Entonces la muerte no gasta un intento (C1).
+	 */
+	public static function fetch_advanced( array $job ) {
+		try {
+			if ( 'receive' !== (string) ( $job['phase'] ?? '' ) ) return false;
+			$paths = self::fetch_paths( $job );
+			$state = self::fetch_read( $paths['state'] );
+			if ( empty( $state['open'] ) ) return false;
+			clearstatcache( true, $paths['part'] );
+			return is_file( $paths['part'] ) && (int) filesize( $paths['part'] ) > (int) ( $state['start'] ?? PHP_INT_MAX );
+		} catch ( Throwable $e ) {
+			return false;
+		}
+	}
+	/** Segundos que le quedan al tramo (para que ninguna petición de la descarga espere más), al menos 5. */
+	private static function fetch_time_left( $deadline ) {
+		return is_finite( $deadline ) ? max( 5, (int) floor( $deadline - microtime( true ) ) ) : 120;
 	}
 	/** Conexión, copia remota (la del historial o, para un archivo sin fila, la que lista el destino ahora) y espacio. */
 	private static function fetch_preflight( array $job ) {
@@ -353,20 +409,28 @@ trait Digitalisimo_Backups_Remote_Service {
 		}
 		if ( ! $remote || $size <= 0 ) {
 			$found = null;
-			foreach ( (array) self::destination( $id )->list() as $item ) if ( (string) ( $item['name'] ?? '' ) === $name ) $found = $item;
+			// El listado tampoco espera más de lo que le queda al tramo (C2).
+			$cap = Digitalisimo_Backups_Http::$cap_timeout;
+			try {
+				Digitalisimo_Backups_Http::$cap_timeout = self::fetch_time_left( Digitalisimo_Backups_Jobs::step_deadline() );
+				foreach ( (array) self::destination( $id )->list() as $item ) if ( (string) ( $item['name'] ?? '' ) === $name ) $found = $item;
+			} finally {
+				Digitalisimo_Backups_Http::$cap_timeout = $cap;
+			}
 			if ( ! $found || empty( $found['remote'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo ' . $name . ' ya no está en ' . self::destination_label( $id ) . '.' );
 			if ( ! $remote ) $remote = (array) $found['remote'];
 			if ( $size <= 0 ) $size = (int) ( $found['size'] ?? 0 );
 		}
 		if ( $size <= 0 ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino no informa el tamaño de ' . $name . '; no se puede descargar por fragmentos.' );
 		if ( $size > Digitalisimo_Backups_Uploads::MAX_SIZE ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo supera el tamaño máximo que se trae de un destino (64 GB).' );
-		// Lo que ya llegó se descarga sólo una vez; un .dgbk necesita además sitio para descifrarlo al comprobarlo.
+		// Lo que ya llegó se descarga sólo una vez; un .dgbk necesita además sitio para descifrarlo al comprobarlo (si el
+		// nombre engaña, la comprobación vuelve a medir el espacio con la cabecera del archivo).
 		$free = Digitalisimo_Backups_Archive_Inspector::free_space( self::local_directory() );
 		$needed = $size * ( Digitalisimo_Backups_Uploads::encrypted_name( $name ) ? 2.05 : 1 ) + Digitalisimo_Backups_Security::MARGIN;
 		if ( null !== $free && $free < $needed ) throw new Digitalisimo_Backups_Permanent_Error( 'No hay espacio en el almacén privado para traer ' . $name . ': se necesitan ' . Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $needed ) . ' libres y hay ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $free ) . '.' );
 		return array( 'next' => 'receive', 'checkpoint' => array( 'remote' => $remote, 'size' => $size, 'ranged' => (bool) self::destination( $id )->ranged() ), 'message' => 'Descargando ' . $name . ' de ' . self::destination_label( $id ) . '…' );
 	}
-	/** Tamaño del fragmento: 8 MiB por defecto (filtro `digitalisimo_backups_fetch_chunk`), entre 64 KiB y 64 MiB. */
+	/** Tamaño del fragmento: 8 MiB por defecto (filtro `digitalisimo_backups_fetch_chunk`, entre 64 KiB y 64 MiB). */
 	private static function fetch_chunk() {
 		$chunk = function_exists( 'apply_filters' ) ? (int) apply_filters( 'digitalisimo_backups_fetch_chunk', 8388608 ) : 8388608;
 		return max( 65536, min( 67108864, $chunk ) );
@@ -374,6 +438,10 @@ trait Digitalisimo_Backups_Remote_Service {
 	/**
 	 * Descarga por fragmentos, siempre desde lo que ya está en disco: una muerte, un corte o el fin del tramo se reanudan
 	 * donde quedó. Cada fragmento llega a un archivo aparte y sólo se anexa si es exactamente el pedido.
+	 *
+	 * `receive.json` (área del trabajo) guarda dónde empezó este tramo y el tamaño de fragmento: si el proceso muere con más
+	 * bytes en disco, el motor no le cuenta un intento (fetch_advanced(), C1), y el tramo siguiente empieza con la mitad del
+	 * fragmento. Ninguna petición espera más de lo que le queda al tramo (C2), y nunca se escribe más de lo pedido (C3).
 	 */
 	private static function fetch_receive( array $job ) {
 		$fetch = (array) $job['spec']['fetch'];
@@ -391,16 +459,21 @@ trait Digitalisimo_Backups_Remote_Service {
 		$ranged = $destination->ranged();
 		// Sin lectura por rangos, lo que quedó a medias no sirve: se descarga entero (un paso).
 		if ( ! $ranged && $offset > 0 ) { @unlink( $paths['part'] ); $offset = 0; }
-		$chunk = (int) ( $job['checkpoint']['receive']['chunk'] ?? self::fetch_chunk() );
+		$state = self::fetch_read( $paths['state'] );
+		$chunk = (int) ( $state['chunk'] ?? ( $job['checkpoint']['receive']['chunk'] ?? self::fetch_chunk() ) );
+		// El tramo anterior murió sin cerrar: fragmentos de la mitad (uno lento no se repite igual).
+		if ( ! empty( $state['open'] ) ) $chunk = (int) ( $chunk / 2 );
 		$chunk = max( 65536, min( self::fetch_chunk() * 4, $chunk ) );
 		$deadline = min( Digitalisimo_Backups_Jobs::step_deadline(), microtime( true ) + 20 );
 		$start = $offset;
+		self::fetch_write( $paths['state'], array( 'open' => true, 'start' => $start, 'chunk' => $chunk ) );
 		$failure = null;
 		while ( $offset < $size ) {
 			try {
 				$began = microtime( true );
 				@unlink( $paths['piece'] );
-				$got = (int) $destination->get_range( $remote, $paths['piece'], $offset, $ranged ? min( $chunk, $size - $offset ) : $size );
+				$length = $ranged ? min( $chunk, $size - $offset ) : $size;
+				$got = (int) $destination->get_range( $remote, $paths['piece'], $offset, $length, array( 'total' => $size, 'timeout' => self::fetch_time_left( $deadline ) ) );
 				clearstatcache( true, $paths['piece'] );
 				if ( $got <= 0 || $got !== (int) @filesize( $paths['piece'] ) ) throw new Exception( 'El fragmento descargado no tiene el largo que dice el destino.' );
 				if ( $offset + $got > $size ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de ' . self::destination_label( (string) $fetch['connection'] ) . ' es más largo de lo que se listó (cambió en el destino); vuelve a pedirlo.' );
@@ -423,6 +496,8 @@ trait Digitalisimo_Backups_Remote_Service {
 				$took = microtime( true ) - $began;
 				if ( $ranged && $took > 8 ) $chunk = max( 65536, (int) ( $chunk / 2 ) );
 				elseif ( $ranged && $took < 2 ) $chunk = min( self::fetch_chunk() * 4, $chunk * 2 );
+				// El fragmento vigente, por si el proceso muere: el tramo siguiente empieza con la mitad.
+				self::fetch_write( $paths['state'], array( 'open' => true, 'start' => $start, 'chunk' => $chunk ) );
 				Digitalisimo_Backups_Jobs::progress( 5 + (int) floor( 80 * $offset / $size ), 'Descargando de ' . self::destination_label( (string) $fetch['connection'] ) . ': ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . ' de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $size ) . '…' );
 			} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
 				@unlink( $paths['piece'] );
@@ -438,6 +513,9 @@ trait Digitalisimo_Backups_Remote_Service {
 			}
 			if ( microtime( true ) >= $deadline ) break;
 		}
+		// El tramo cierra limpio (también con un corte que devuelve la fase): la mitad del fragmento si el corte fue un timeout.
+		if ( $failure && $ranged ) $chunk = max( 65536, (int) ( $chunk / 2 ) );
+		self::fetch_write( $paths['state'], array( 'open' => false, 'start' => $offset, 'chunk' => $chunk ) );
 		if ( $failure ) {
 			// Sin avance, el corte cuenta un intento; con avance, se espera un poco y se reanuda sin gastarlo.
 			if ( $offset === $start ) throw $failure;
@@ -451,7 +529,8 @@ trait Digitalisimo_Backups_Remote_Service {
 	/**
 	 * Tamaño y SHA-256 (el del historial, si es de este sitio). Un archivo sin fila de este sitio pasa además toda la
 	 * validación de archivos no confiables (la de la subida, B3). Lo que no es un respaldo válido se descarta y el trabajo
-	 * falla sin reintentos; lo que impide comprobarlo (espacio, el servidor) se reintenta.
+	 * falla sin reintentos; lo que impide comprobarlo (espacio, el servidor) se reintenta. El contenedor (ZIP o DGBK) sale
+	 * del contenido, nunca del nombre (C11).
 	 */
 	private static function fetch_examine( array $job ) {
 		$fetch = (array) $job['spec']['fetch'];
@@ -471,12 +550,14 @@ trait Digitalisimo_Backups_Remote_Service {
 		$sha256 = @hash_file( 'sha256', $paths['done'] );
 		if ( false === $sha256 ) throw new Exception( 'No se pudo leer lo descargado para calcular su SHA-256.' );
 		$expected = strtolower( (string) $fetch['sha256'] );
-		if ( '' !== $expected && ! hash_equals( $expected, $sha256 ) ) {
+		$registered = '' !== (string) $fetch['registered'] && '' !== $expected;
+		if ( $registered && ! hash_equals( $expected, $sha256 ) ) {
 			@unlink( $paths['done'] );
 			throw new Digitalisimo_Backups_Permanent_Error( 'La copia descargada de ' . $from . ' no coincide con el SHA-256 registrado del respaldo; no se usa.' );
 		}
-		$result = array( 'size' => $size, 'sha256' => $sha256, 'registered' => '' !== (string) $fetch['registered'] );
-		if ( '' === (string) $fetch['registered'] ) {
+		$container = Digitalisimo_Backups_Encrypted_File::is_encrypted( $paths['done'] ) ? 'dgbk' : 'zip';
+		$result = array( 'size' => $size, 'sha256' => $sha256, 'registered' => $registered, 'container' => $container );
+		if ( ! $registered ) {
 			Digitalisimo_Backups_Jobs::progress( 88, 'Comprobando el archivo como no confiable: firma, cifrado, entradas, CRC y SHA-256 contra el manifiesto, y el SQL en seco…', true );
 			// La comprobación sigue aunque el proxy corte la petición que la conduce.
 			if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
@@ -489,14 +570,28 @@ trait Digitalisimo_Backups_Remote_Service {
 				throw new Exception( $report->get_error_message() );
 			}
 			unset( $report['relocation'], $report['wp_config'] );
-			$result += $report;
+			$result = array_merge( $result, $report, array( 'registered' => false, 'container' => (string) ( $report['container'] ?? $container ) ) );
 		}
 		return array( 'next' => 'place', 'checkpoint' => array( 'sha256' => $sha256, 'result' => $result ), 'message' => 'Archivo comprobado; entrando en el almacén privado…' );
 	}
 	/**
-	 * Entra en el almacén con `rename()` y el cerrojo corto del almacén: con el nombre de su fila (un respaldo de este sitio)
-	 * o como «sin registro», con su nombre si está libre (upload_final_name()). Si el proceso murió justo después del
-	 * `rename()`, se reconoce el archivo por su SHA-256 y no se duplica.
+	 * Un archivo del almacén (respaldo de DIGITALÍSIMO, registrado o no) con exactamente ese tamaño y SHA-256, o ''. Sólo se
+	 * calcula el SHA-256 de los que tienen el mismo tamaño.
+	 */
+	private static function fetch_same_in_store( $sha256, $size ) {
+		$dir = trailingslashit( self::local_directory() );
+		foreach ( array_merge( glob( $dir . 'digitalisimo-*.zip' ) ?: array(), glob( $dir . 'digitalisimo-*.dgbk' ) ?: array(), glob( $dir . 'safety-before-restore-*.zip' ) ?: array() ) as $path ) {
+			if ( is_link( $path ) || ! is_file( $path ) || (int) @filesize( $path ) !== (int) $size ) continue;
+			if ( hash_equals( (string) $sha256, (string) @hash_file( 'sha256', $path ) ) ) return wp_basename( $path );
+		}
+		return '';
+	}
+	/**
+	 * Entra en el almacén con `rename()` y el cerrojo corto del almacén: con el nombre de su fila (un respaldo de este sitio,
+	 * también sobre una copia local dañada) o como «sin registro», con su nombre si está libre (upload_final_name()) y
+	 * la extensión de su contenido. Si ese mismo contenido (tamaño y SHA-256) ya está en el almacén, no se duplica: se
+	 * devuelve el que había (C5). El nombre elegido se anota antes del `rename()` (`place.json`): si el proceso muere justo
+	 * después, el reintento lo reconoce por su SHA-256 y no lo descarga otra vez (C7).
 	 */
 	private static function fetch_place( array $job ) {
 		$fetch = (array) $job['spec']['fetch'];
@@ -506,32 +601,97 @@ trait Digitalisimo_Backups_Remote_Service {
 		$result = (array) ( $examine['result'] ?? array() );
 		if ( '' === $sha256 ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta la comprobación del archivo; se repite.', 'examine' );
 		$storage = trailingslashit( self::local_directory() );
-		$registered = (string) $fetch['registered'];
+		$registered = ! empty( $result['registered'] ) ? (string) $fetch['registered'] : '';
 		$name = (string) $fetch['name'];
-		$container = Digitalisimo_Backups_Uploads::encrypted_name( $name ) ? 'dgbk' : 'zip';
-		$file = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $paths, $storage, $registered, $name, $container, $sha256 ) {
-			$placed = '' !== $registered ? $registered : $name;
+		$size = (int) ( $result['size'] ?? 0 );
+		$container = 'dgbk' === ( $result['container'] ?? '' ) ? 'dgbk' : 'zip';
+		$placed = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $paths, $storage, $registered, $name, $container, $sha256, $size ) {
+			$same = function( $file ) use ( $sha256 ) { $path = '' !== (string) $file ? self::local_path( (string) $file ) : ''; return '' !== $path && hash_equals( $sha256, (string) @hash_file( 'sha256', $path ) ); };
+			$note = self::fetch_read( $paths['place'] );
+			$chosen = (string) ( $note['target'] ?? '' );
 			if ( ! is_file( $paths['done'] ) ) {
-				$path = self::local_path( $placed );
-				if ( '' !== $path && hash_equals( $sha256, (string) @hash_file( 'sha256', $path ) ) ) return $placed;
+				foreach ( array_filter( array( $chosen, $registered ) ) as $candidate ) if ( $same( $candidate ) ) return array( $candidate, $candidate === $chosen && ! empty( $note['deduplicated'] ) );
 				throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La descarga comprobada desapareció del área de trabajo; se descarga otra vez.', 'preflight' );
 			}
+			// El nombre que queda se anota antes de tocar nada: si el proceso muere aquí, el reintento lo reconoce.
 			if ( '' !== $registered ) {
-				if ( '' !== self::local_path( $registered ) ) { @unlink( $paths['done'] ); return $registered; }
+				if ( $same( $registered ) ) { self::fetch_write( $paths['place'], array( 'target' => $registered ) ); @unlink( $paths['done'] ); return array( $registered, false ); }
 				$target = $registered;
 			} else {
+				$existing = self::fetch_same_in_store( $sha256, $size );
+				if ( '' !== $existing ) { self::fetch_write( $paths['place'], array( 'target' => $existing, 'deduplicated' => true ) ); @unlink( $paths['done'] ); return array( $existing, true ); }
 				$target = self::upload_final_name( $name, $container );
 			}
-			if ( file_exists( $storage . $target ) || ! @rename( $paths['done'], $storage . $target ) ) throw new Exception( 'No se pudo colocar la copia comprobada en el almacén privado.' );
+			self::fetch_write( $paths['place'], array( 'target' => $target ) );
+			// Un respaldo de este sitio reemplaza una copia local dañada con su nombre; uno «sin registro» nunca pisa nada.
+			if ( ( '' === $registered && file_exists( $storage . $target ) ) || ! @rename( $paths['done'], $storage . $target ) ) throw new Exception( 'No se pudo colocar la copia comprobada en el almacén privado.' );
 			self::private_file( $storage . $target );
-			return $target;
+			return array( $target, false );
 		} );
+		list( $file, $deduplicated ) = $placed;
+		if ( '' === $registered && ! $deduplicated ) self::fetched_remember( $file, $sha256, (string) $fetch['connection'], $name );
 		$from = self::destination_label( (string) $fetch['connection'] );
-		if ( '' !== $registered ) $message = 'Copia de ' . $from . ' descargada al almacén privado y verificada por SHA-256: ' . $file . '. Ya se puede restaurar.';
+		if ( $deduplicated ) $message = 'Ese respaldo de ' . $from . ' ya estaba en el almacén privado con el mismo contenido (tamaño y SHA-256): ' . $file . '. No se guardó otra copia.';
+		elseif ( '' !== $registered ) $message = 'Copia de ' . $from . ' descargada al almacén privado y verificada por el SHA-256 de su historial: ' . $file . '. Ya se puede restaurar.';
 		elseif ( 'untrusted' === ( $result['trust'] ?? 'untrusted' ) ) $message = 'Respaldo de ' . $from . ' traído al almacén como «sin registro» y comprobado como archivo no confiable: ' . $file . '. Restaurarlo pide RESTAURAR SIN FIRMA (no tiene una firma válida de una clave de este sitio).';
 		else $message = 'Respaldo de ' . $from . ' traído al almacén como «sin registro», comprobado y con una firma válida de una clave de este sitio: ' . $file . '.';
+		if ( '' === $registered && ! $deduplicated ) $message .= ' Se borrará del almacén en ' . self::fetched_keep_days() . ' días si no se usa (sigue en el destino).';
 		if ( ! empty( $result['needs_secret'] ) ) $message .= ' Está cifrado con una clave que este sitio no tiene: se comprueba entero al restaurarlo con su frase.';
 		if ( ! empty( $result['problems'] ) && empty( $result['compatible'] ) ) $message .= ' Aviso: ' . implode( ' ', array_map( 'strval', (array) $result['problems'] ) );
-		return array( 'next' => null, 'checkpoint' => array( 'file' => $file ), 'result' => array( 'file' => $file, 'connection' => (string) $fetch['connection'] ) + $result, 'message' => $message );
+		return array( 'next' => null, 'checkpoint' => array( 'file' => $file ), 'result' => array( 'file' => $file, 'connection' => (string) $fetch['connection'], 'deduplicated' => $deduplicated ) + $result, 'message' => $message );
+	}
+
+	/* ------------------------------------------------------------------ Retención de lo traído «sin registro» */
+
+	/** Días que se conserva en el almacén un respaldo traído «sin registro» (filtro `digitalisimo_backups_fetched_keep_days`, 7). */
+	private static function fetched_keep_days() {
+		$days = function_exists( 'apply_filters' ) ? (int) apply_filters( 'digitalisimo_backups_fetched_keep_days', 7 ) : 7;
+		return max( 1, min( 365, $days ) );
+	}
+	private static function fetched_records() {
+		$value = is_multisite() ? get_site_option( self::FETCHED, array() ) : get_option( self::FETCHED, array() );
+		return is_array( $value ) ? $value : array();
+	}
+	private static function fetched_save( array $records ) {
+		if ( is_multisite() ) update_site_option( self::FETCHED, $records );
+		else update_option( self::FETCHED, $records, false );
+	}
+	private static function fetched_remember( $file, $sha256, $connection, $name ) {
+		$records = self::fetched_records();
+		$records[ (string) $file ] = array( 'at' => time(), 'sha256' => (string) $sha256, 'connection' => (string) $connection, 'name' => (string) $name );
+		self::fetched_save( array_slice( $records, -200, null, true ) );
+	}
+	/**
+	 * Retención de lo traído «sin registro» que nadie usa (C5): pasados fetched_keep_days() días desde que se trajo, se
+	 * borra del almacén (sigue en el destino, de donde se puede volver a traer). Nunca un archivo que tenga fila en el
+	 * historial, que haya cambiado (otro SHA-256: se dejó de seguir) o que use una restauración sin terminar. La llama el
+	 * vigilante horario de los trabajos. Devuelve los archivos borrados.
+	 */
+	public static function fetched_cleanup( $now = null ) {
+		$now = null === $now ? time() : (int) $now;
+		$removed = array();
+		try {
+			$records = self::fetched_records();
+			if ( ! $records ) return $removed;
+			$busy = array();
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( Digitalisimo_Backups_Jobs::is_restore( $job ) ) $busy[ wp_basename( (string) ( $job['spec']['file'] ?? '' ) ) ] = true;
+			$changed = false;
+			foreach ( $records as $file => $record ) {
+				$path = self::local_path( (string) $file );
+				if ( '' === $path || self::history_item( (string) $file ) ) { unset( $records[ $file ] ); $changed = true; continue; }
+				if ( $now - (int) ( $record['at'] ?? $now ) < self::fetched_keep_days() * 86400 || isset( $busy[ (string) $file ] ) ) continue;
+				if ( ! hash_equals( (string) ( $record['sha256'] ?? '' ), (string) @hash_file( 'sha256', $path ) ) ) { unset( $records[ $file ] ); $changed = true; continue; }
+				if ( @unlink( $path ) || ! file_exists( $path ) ) { $removed[] = (string) $file; unset( $records[ $file ] ); $changed = true; }
+			}
+			if ( $changed ) self::fetched_save( $records );
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: retención de lo traído de un destino: ' . $e->getMessage() );
+		}
+		return $removed;
+	}
+	/** Cuándo se borrará del almacén un archivo traído «sin registro» ('' si no es uno). */
+	private static function fetched_expires( $file ) {
+		$record = self::fetched_records()[ (string) $file ] ?? null;
+		return is_array( $record ) ? gmdate( 'Y-m-d', (int) $record['at'] + self::fetched_keep_days() * 86400 ) : '';
 	}
 }

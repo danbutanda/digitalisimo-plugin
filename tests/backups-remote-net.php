@@ -1,0 +1,67 @@
+<?php
+/**
+ * Revisión de R1 · C2 y C3: get_range() del contrato por HTTP real (cURL) contra un servidor `php -S`
+ * (tests/lib/remote-net-server.php), como un destino compartido hostil o lento.
+ *   C3  desde el byte 0, un servidor que ignora `Range` y envía 20 MiB no escribe en disco más de lo pedido o del total
+ *       que listó el destino: se corta y se rechaza (también a mitad);
+ *   C2  una petición de fragmento espera como mucho lo que le queda al tramo (`timeout`), nunca 120 s fijos;
+ *   y un servidor correcto sigue descargando por rangos exactos.
+ */
+$root = sys_get_temp_dir() . '/digitalisimo-remote-net-' . bin2hex( random_bytes( 4 ) );
+mkdir( $root . '/public', 0700, true );
+$root = realpath( $root );
+define( 'ABSPATH', $root . '/public/' );
+define( 'WP_CONTENT_DIR', $root . '/public/wp-content' );
+define( 'WP_PLUGIN_DIR', $root . '/public/wp-content/plugins' );
+define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $root . '/private' );
+require __DIR__ . '/backups-coverage/env.php';
+$server = null;
+try {
+	if ( ! Digitalisimo_Backups_Http::curl_available() ) { echo "OMITIDA: este PHP no tiene cURL.\n"; return; }
+	// Servidor propio en un puerto libre; se cierra al terminar.
+	$probe = stream_socket_server( 'tcp://127.0.0.1:0', $errno, $error );
+	$port = (int) substr( strrchr( stream_socket_get_name( $probe, false ), ':' ), 1 );
+	fclose( $probe );
+	// Varios trabajadores: el servidor lento no bloquea a los demás.
+	$server = proc_open( array( PHP_BINARY, '-S', '127.0.0.1:' . $port, __DIR__ . '/lib/remote-net-server.php' ), array( 0 => array( 'pipe', 'r' ), 1 => array( 'file', $root . '/server.log', 'w' ), 2 => array( 'file', $root . '/server.log', 'a' ) ), $pipes, null, array( 'PHP_CLI_SERVER_WORKERS' => '4' ) + (array) getenv() );
+	for ( $i = 0; $i < 50 && ! @fsockopen( '127.0.0.1', $port, $errno, $error, 0.2 ); $i++ ) usleep( 100000 );
+	$dav = new Digitalisimo_Backups_Destination_Webdav( array( 'webdav_url' => 'http://127.0.0.1:' . $port . '/', 'webdav_user' => 'ana', 'webdav_password' => 'x', 'webdav_path' => '/', 'webdav_allow_http' => '1' ), array( 'connection' => 'webdav' ) );
+	$piece = $root . '/piece.tmp';
+	$size = function() use ( $piece ) { clearstatcache(); return is_file( $piece ) ? filesize( $piece ) : 0; };
+
+	// C3 desde 0: se piden 64 KiB de un respaldo de 70 000 bytes; el servidor manda 20 MiB con un 200.
+	$error = '';
+	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'overflow/x.zip' ), $piece, 0, 65536, array( 'total' => 70000, 'timeout' => 30 ) ); } catch ( Exception $e ) { $error = get_class( $e ) . ': ' . $e->getMessage(); }
+	digi_assert( '' !== $error && $size() <= 70001, 'Desde el byte 0 se escribieron ' . $size() . ' bytes de un servidor que envía de más: ' . $error );
+	// Sin el total, el tope es lo pedido.
+	@unlink( $piece );
+	$error = '';
+	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'overflow/x.zip' ), $piece, 0, 65536, array( 'timeout' => 30 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
+	digi_assert( '' !== $error && $size() <= 65537, 'Sin total, desde 0 se escribieron ' . $size() . ' bytes: ' . $error );
+	// C3 a mitad.
+	@unlink( $piece );
+	$error = '';
+	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'overflow/x.zip' ), $piece, 65536, 65536, array( 'total' => 999999999, 'timeout' => 30 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
+	digi_assert( '' !== $error && $size() <= 65537, 'A mitad se escribieron ' . $size() . ' bytes de más: ' . $error );
+
+	// C2: el servidor tarda 15 s; al tramo le quedan 5.
+	@unlink( $piece );
+	$started = microtime( true );
+	$error = '';
+	try { $dav->get_range( array( 'provider' => 'webdav', 'path' => 'slow/x.zip' ), $piece, 0, 10, array( 'total' => 1000, 'timeout' => 5 ) ); } catch ( Exception $e ) { $error = $e->getMessage(); }
+	$took = microtime( true ) - $started;
+	digi_assert( '' !== $error && $took < 10, 'Un fragmento esperó ' . round( $took, 1 ) . ' s con 5 s de tramo: ' . $error );
+
+	// Un servidor correcto: fragmentos exactos hasta completar el archivo.
+	$out = '';
+	for ( $offset = 0; $offset < 300000; ) {
+		$got = $dav->get_range( array( 'provider' => 'webdav', 'path' => 'ok/x.zip' ), $piece, $offset, 65536, array( 'total' => 300000, 'timeout' => 30 ) );
+		$out .= file_get_contents( $piece );
+		$offset += $got;
+	}
+	digi_assert( str_repeat( 'DIGITALISIMO', 25000 ) === $out, 'La descarga por rangos de un servidor correcto no es el archivo.' );
+	echo "OK: fragmentos por HTTP real con tope de bytes y tiempo del tramo (C2, C3)\n";
+} finally {
+	if ( is_resource( $server ) ) { proc_terminate( $server ); proc_close( $server ); }
+	digi_rmtree( $root );
+}

@@ -85,7 +85,7 @@ final class Digitalisimo_Backups_Http {
 	 * @param string $url     http(s) solamente.
 	 * @param array  $args    headers, body (texto), file + offset + length (cuerpo desde archivo), sink (archivo de
 	 *                        destino), timeout, verify (bool), ca (ruta a un PEM), redirection, progress (callable( $hechos,
-	 *                        $total ) que puede lanzar para cancelar).
+	 *                        $total ) que puede lanzar para cancelar), max (bytes: una descarga que lo pasa se corta y lanza).
 	 * @return array{code:int,headers:array,body:string}
 	 */
 	public static function request( $method, $url, array $args = array() ) {
@@ -108,6 +108,7 @@ final class Digitalisimo_Backups_Http {
 			'ca' => (string) ( $args['ca'] ?? '' ),
 			'redirection' => (int) ( $args['redirection'] ?? 0 ),
 			'progress' => $args['progress'] ?? null,
+			'max' => max( 0, (int) ( $args['max'] ?? 0 ) ),
 		);
 		if ( null !== self::$cap_timeout ) $request['timeout'] = $request['timeout'] > 0 ? min( (int) $request['timeout'], (int) self::$cap_timeout ) : (int) self::$cap_timeout;
 		if ( '' !== $request['file'] && null === $request['length'] ) {
@@ -160,6 +161,8 @@ final class Digitalisimo_Backups_Http {
 		$args = array( 'method' => $request['method'], 'headers' => $request['headers'], 'body' => $body, 'timeout' => $request['timeout'], 'redirection' => $request['redirection'], 'sslverify' => $request['verify'], 'user-agent' => self::agent() );
 		if ( '' !== $request['ca'] ) $args['sslcertificates'] = $request['ca'];
 		if ( '' !== $request['sink'] ) { $args['stream'] = true; $args['filename'] = $request['sink']; }
+		// La API de WordPress deja de escribir al llegar al tope; quien llama ve que pasó de lo pedido y lo rechaza.
+		if ( $request['max'] > 0 ) $args['limit_response_size'] = $request['max'];
 		if ( '' === $body && in_array( $request['method'], array( 'GET', 'HEAD', 'DELETE' ), true ) ) unset( $args['body'] );
 		$response = wp_remote_request( $request['url'], $args );
 		if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo conectar con ' . self::host( $request['url'] ) . ': ' . self::redact( $response->get_error_message(), $request['url'] ) );
@@ -200,11 +203,14 @@ final class Digitalisimo_Backups_Http {
 		self::proxy( $request['url'], $options );
 		$failure = null;
 		$progress = $request['progress'];
-		if ( is_callable( $progress ) ) {
+		$max = (int) $request['max'];
+		if ( is_callable( $progress ) || $max > 0 ) {
 			$options[ CURLOPT_NOPROGRESS ] = false;
-			$options[ CURLOPT_PROGRESSFUNCTION ] = function( $curl, $down_total, $down, $up_total, $up ) use ( $progress, &$failure ) {
+			$options[ CURLOPT_PROGRESSFUNCTION ] = function( $curl, $down_total, $down, $up_total, $up ) use ( $progress, $max, &$failure ) {
 				try {
-					call_user_func( $progress, max( (int) $down, (int) $up ), max( (int) $down_total, (int) $up_total ) );
+					// Un destino que envía más de lo pedido (o anuncia más) se corta: nunca llena el disco del almacén.
+					if ( $max > 0 && ( (int) $down > $max || (int) $down_total > $max ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino envía más bytes de los pedidos; la descarga se cortó.' );
+					if ( is_callable( $progress ) ) call_user_func( $progress, max( (int) $down, (int) $up ), max( (int) $down_total, (int) $up_total ) );
 				} catch ( Throwable $e ) {
 					$failure = $e;
 					return 1;
@@ -234,7 +240,22 @@ final class Digitalisimo_Backups_Http {
 		if ( '' !== $request['sink'] ) {
 			$out = @fopen( $request['sink'], 'wb' );
 			if ( ! $out ) { if ( $in ) fclose( $in ); self::close( $handle ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
-			$options[ CURLOPT_FILE ] = $out;
+			if ( $max > 0 ) {
+				// Con tope, cada bloque se escribe a mano: nunca llega al disco un byte de más (cortar en el aviso de avance
+				// llegaría tarde, según la versión de cURL, hasta 1,6 MB después).
+				$written = 0;
+				$options[ CURLOPT_WRITEFUNCTION ] = function( $curl, $data ) use ( $out, $max, &$written, &$failure ) {
+					if ( $written + strlen( $data ) > $max ) {
+						if ( ! $failure ) $failure = new Digitalisimo_Backups_Permanent_Error( 'El destino envía más bytes de los pedidos; la descarga se cortó.' );
+						return 0;
+					}
+					$bytes = fwrite( $out, $data );
+					$written += (int) $bytes;
+					return (int) $bytes;
+				};
+			} else {
+				$options[ CURLOPT_FILE ] = $out;
+			}
 		} else {
 			$options[ CURLOPT_RETURNTRANSFER ] = true;
 		}

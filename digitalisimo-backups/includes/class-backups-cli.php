@@ -385,7 +385,7 @@ final class Digitalisimo_Backups_Cli {
 	public function restore( $args, $assoc_args ) {
 		if ( isset( $assoc_args['from'] ) ) {
 			// Restaurar desde el remoto: traerlo (un trabajo por fragmentos, aquí sin límite de tiempo) y restaurar lo traído.
-			$fetched = self::result( Digitalisimo_Backups::service_remote_fetch( (string) $assoc_args['from'], (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'skip_local' => true ) ) );
+			$fetched = self::result( Digitalisimo_Backups::service_remote_fetch( (string) $assoc_args['from'], (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli' ) ) );
 			if ( empty( $fetched['file'] ) ) WP_CLI::error( 'La descarga no terminó: ' . $fetched['message'] );
 			WP_CLI::log( $fetched['message'] );
 			$args[0] = $fetched['file'];
@@ -416,6 +416,7 @@ final class Digitalisimo_Backups_Cli {
 	public function sync( $args, $assoc_args ) {
 		$result = self::result( Digitalisimo_Backups::service_sync( (string) ( $args[0] ?? '' ) ) );
 		foreach ( $result['destinations'] as $summary ) if ( '' !== $summary['error'] ) WP_CLI::warning( $summary['name'] . ' no respondió: ' . $summary['error'] );
+		foreach ( (array) ( $result['pending'] ?? array() ) as $pending ) WP_CLI::warning( $pending['name'] . ' no se sincronizó (sin tiempo).' );
 		self::rows( $result['items'], $assoc_args, array( 'destination', 'name', 'size', 'site', 'date', 'state', 'registered' ) );
 	}
 }

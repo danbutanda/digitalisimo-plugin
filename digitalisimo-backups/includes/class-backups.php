@@ -76,6 +76,8 @@ final class Digitalisimo_Backups {
 	const ACTION_SYNC = 'digitalisimo_backups_sync';
 	const ACTION_REMOTE_FETCH = 'digitalisimo_backups_remote_fetch';
 	const REMOTE_INDEX = 'digitalisimo_backups_remote_index';
+	/** Respaldos traídos «sin registro»: cuándo y con qué SHA-256, para su retención (C5). */
+	const FETCHED = 'digitalisimo_backups_fetched';
 	/** Estado de una subida interrumpida que espera retirarse del destino, en el área de su trabajo. */
 	const ABANDON = 'abandon.json';
 	/** Segundos de espera de cada llamada al retirarla (fuera del cerrojo del registro de trabajos). */

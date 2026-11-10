@@ -126,9 +126,9 @@ final class Digitalisimo_Backups_Destination_Webdav extends Digitalisimo_Backups
 	}
 	/** B1b: GET con `Range` (RFC 7233), un fragmento por llamada. */
 	public function ranged() { return true; }
-	public function get_range( array $remote, $target, $offset, $length ) {
-		$range = self::range_args( $offset, $length );
-		return self::range_reply( $this->call( 'GET', $this->own( $remote ), $range['headers'], array( 'sink' => $target, 'timeout' => 120, 'progress' => $range['progress'] ) ), $target, $offset, $length );
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
+		$range = self::range_args( $offset, $length, $limits );
+		return self::range_reply( $this->call( 'GET', $this->own( $remote ), $range['headers'], array( 'sink' => $target, 'timeout' => $range['timeout'], 'max' => $range['max'] ) ), $target, $offset, $length, $limits );
 	}
 	public function list() {
 		$folder = $this->folder();

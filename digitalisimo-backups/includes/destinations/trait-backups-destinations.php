@@ -258,7 +258,11 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$problem = self::credentials_problem( $id );
 		if ( '' !== $problem ) return self::service_error( 'fetch_failed', $problem, 502 );
 		$name = wp_basename( (string) ( $remote['path'] ?? ( $remote['key'] ?? $file ) ) );
-		return self::fetch_start( array( 'connection' => $id, 'name' => self::remote_backup_name( $name ) ? $name : $file, 'registered' => $file, 'sha256' => strtolower( (string) ( $item['sha256'] ?? ( $remote['sha256'] ?? '' ) ) ), 'size' => (int) ( $item['size'] ?? 0 ) ), $args );
+		// Sin SHA-256 en la fila (filas antiguas) no hay con qué verificarla: se trae como «sin registro» y se comprueba como
+		// archivo no confiable; nunca con el nombre de la fila ni «verificada» (C9).
+		$sha256 = strtolower( (string) ( $item['sha256'] ?? ( $remote['sha256'] ?? '' ) ) );
+		$verified = (bool) preg_match( '/^[0-9a-f]{64}$/', $sha256 );
+		return self::fetch_start( array( 'connection' => $id, 'name' => self::remote_backup_name( $name ) ? $name : $file, 'registered' => $verified ? $file : '', 'sha256' => $verified ? $sha256 : '', 'size' => $verified ? (int) ( $item['size'] ?? 0 ) : 0 ), $args );
 	}
 	/** «Traer al almacén» en el historial: sólo para una copia remota cuyo archivo ya no está en el almacén privado. */
 	private static function fetch_button( $item ) {

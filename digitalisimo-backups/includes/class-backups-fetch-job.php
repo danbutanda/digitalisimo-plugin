@@ -17,7 +17,11 @@ defined( 'ABSPATH' ) || exit;
  *    (B3): firma, descifrado completo de un `.dgbk` con una clave de este sitio, entradas, CRC y SHA-256 contra el
  *    manifiesto y el SQL en seco. Un archivo hostil o alterado se descarta y el trabajo falla sin reintentos.
  * 4. `place`: entra en el almacén con `rename()`: con el nombre de su fila (de este sitio, verificado por su SHA-256) o
- *    como «sin registro» (pide `RESTAURAR SIN FIRMA` salvo firma válida de una clave de este sitio).
+ *    como «sin registro» (pide `RESTAURAR SIN FIRMA` salvo firma válida de una clave de este sitio); si el mismo
+ *    contenido ya estaba en el almacén, no se duplica. Lo traído «sin registro» se borra a los 7 días si nadie lo usa.
+ *
+ * Una muerte en `receive` con más bytes en disco no gasta un intento (advanced()); cada petición espera como mucho lo
+ * que le queda al tramo y nunca escribe más de lo pedido.
  */
 final class Digitalisimo_Backups_Fetch_Job {
 	const KIND = 'fetch';
@@ -34,6 +38,8 @@ final class Digitalisimo_Backups_Fetch_Job {
 		return $phases[ $phase ] ?? null;
 	}
 	public static function run_phase( $phase, array $job ) { return Digitalisimo_Backups::fetch_phase( $phase, $job ); }
+	/** Para Digitalisimo_Backups_Jobs::interrupted(): una muerte en `receive` con más bytes en disco no gasta un intento. */
+	public static function advanced( array $job ) { return Digitalisimo_Backups::fetch_advanced( $job ); }
 	/** Cada fase empieza comprobando lo que hay en disco: la descarga a medias se conserva para reanudarla. */
 	public static function discard( array $job, $phase ) {}
 	/** Al fallar o cancelar: lo descargado a medias se retira (no ocupa el almacén). */
@@ -68,4 +74,6 @@ Digitalisimo_Backups_Jobs::register_kind( Digitalisimo_Backups_Fetch_Job::KIND, 
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'admin_post_digitalisimo_backups_sync', array( 'Digitalisimo_Backups', 'sync_request' ) );
 	add_action( 'admin_post_digitalisimo_backups_remote_fetch', array( 'Digitalisimo_Backups', 'remote_fetch_request' ) );
+	// Retención de los respaldos traídos «sin registro» que nadie usa, con el vigilante horario de los trabajos.
+	add_action( Digitalisimo_Backups_Jobs::HOOK_WATCHDOG, array( 'Digitalisimo_Backups', 'fetched_cleanup' ), 30, 0 );
 }

@@ -608,13 +608,18 @@ final class Digitalisimo_Backups_Jobs {
 			$phase = $job['phase'];
 			if ( Digitalisimo_Backups_Job_Store::cancel_requested( $job['id'] ) && self::cancellable_phase( $phase, $job ) ) return self::terminate( $job, 'cancelled' );
 			$count = (int) ( $job['attempts'][ $phase ] ?? 0 ) + 1;
+			// Un tipo registrado que avanzó antes de morir (los bytes ya en disco de una descarga `fetch`) no gasta un
+			// intento: sólo cuentan las muertes seguidas sin avance, como los tramos que devuelven `progress_made`.
+			$kind = self::kind_handler( (array) ( $job['spec'] ?? array() ) );
+			$advanced = $kind && method_exists( $kind, 'advanced' ) && $kind::advanced( $job );
+			if ( $advanced ) $count = 0;
 			if ( ! empty( $job['spec']['inline'] ) || $count >= self::max_attempts( $phase, $job ) ) {
 				$suffix = ! empty( $job['spec']['inline'] ) ? '' : ' Se agotaron los intentos de la fase. Si el hosting corta las peticiones largas, programa el cron del sistema para WP-Cron.';
 				if ( self::kind_handler( $job['spec'] ) ) $suffix = (string) ( self::phase_info( $phase )['interrupted'] ?? $suffix );
 				return self::terminate( $job, 'failed', array( 'code' => $code, 'message' => $message . $suffix, 'permanent' => false ) );
 			}
 			self::discard( $job, $phase );
-			$wait = self::backoff( $count, $job );
+			$wait = $advanced ? (int) self::filter( 'digitalisimo_backups_job_backoff', 10, 0 ) : self::backoff( $count, $job );
 			$job = self::queue_retry( $job, $phase, $count, $phase, $wait, $code, $message );
 			$job['lease'] = null;
 			$job = Digitalisimo_Backups_Job_Store::write( $job );

@@ -180,9 +180,11 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	/** B1b: lectura desde una posición (`fseek` del flujo SFTP), por bloques de 1 MiB (memoria constante). */
 	public function ranged() { return true; }
-	public function get_range( array $remote, $target, $offset, $length ) {
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
 		$source = @fopen( $this->url( $this->own( $remote ) ), 'rb' );
 		if ( ! $source ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+		// Ninguna lectura espera más de lo que le queda al tramo.
+		@stream_set_timeout( $source, self::range_timeout( $limits ) );
 		$out = @fopen( $target, 'wb' );
 		if ( ! $out ) { fclose( $source ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
 		$done = 0;
