@@ -489,7 +489,7 @@ trait Digitalisimo_Backups_Service {
 		if ( ! $job ) return array( 'error' => array( 'restore_failed', 'El trabajo de la restauración ya no existe.', 500 ) );
 		$followed = self::restore_followed( $job );
 		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $followed ) ) {
-			return array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => false, 'restoring' => true, 'job' => self::service_job_view( $followed ), 'notice' => 'La restauración sigue en segundo plano (' . Digitalisimo_Backups_Jobs::phase_label( (string) $followed['phase'] ) . '): la pantalla Backups, WP-Cron o POST /jobs/tick la hacen avanzar' . ( ! empty( $followed['spec']['rollback'] ) ? '; está volviendo a la copia previa' : '' ) . '.' . $note, 'safety_backup' => self::restore_safety_file( $job ), 'maintenance_token' => (string) $job['spec']['token'] );
+			return array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => false, 'restoring' => true, 'job' => self::service_job_view( $followed ), 'notice' => 'La restauración sigue en segundo plano (' . Digitalisimo_Backups_Jobs::phase_label( (string) $followed['phase'], $followed ) . '): la pantalla Backups, WP-Cron o POST /jobs/tick la hacen avanzar' . ( ! empty( $followed['spec']['rollback'] ) ? '; está volviendo a la copia previa' : '' ) . '.' . $note, 'safety_backup' => self::restore_safety_file( $job ), 'maintenance_token' => (string) $job['spec']['token'] );
 		}
 		if ( 'success' === $job['status'] ) {
 			$result = (array) ( $job['result']['restore'] ?? array() );
@@ -734,9 +734,9 @@ trait Digitalisimo_Backups_Service {
 				// La restauración en curso (si la hay) es la que decide la salida: la de la migración o su vuelta a la copia previa.
 				$first = Digitalisimo_Backups_Jobs::restore_active() ?: $active[0];
 				$applying = 'migrate' === ( $first['spec']['kind'] ?? '' ) && in_array( (string) $first['phase'], array( 'restore', 'close' ), true );
-				if ( $applying ) $message = 'La migración se está aplicando (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine (su restauración se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
-				elseif ( Digitalisimo_Backups_Jobs::is_restore( $first ) ) $message = ! empty( $first['spec']['rollback'] ) ? 'El sitio está volviendo a su copia previa (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine.' : 'Hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): si es la de la migración, espera a que termine (se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
-				elseif ( 'migrate' === ( $first['spec']['kind'] ?? '' ) ) $message = 'Hay una migración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine o cancélala en «Trabajos» antes de deshacer.';
+				if ( $applying ) $message = 'La migración se está aplicando (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'], $first ) . '): espera a que termine (su restauración se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
+				elseif ( Digitalisimo_Backups_Jobs::is_restore( $first ) ) $message = ! empty( $first['spec']['rollback'] ) ? 'El sitio está volviendo a su copia previa (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'], $first ) . '): espera a que termine.' : 'Hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'], $first ) . '): si es la de la migración, espera a que termine (se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
+				elseif ( 'migrate' === ( $first['spec']['kind'] ?? '' ) ) $message = 'Hay una migración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'], $first ) . '): espera a que termine o cancélala en «Trabajos» antes de deshacer.';
 				else $message = 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de deshacer.';
 				return self::service_error( 'busy', $message, 409, array( 'job' => (string) $first['id'] ) );
 			}

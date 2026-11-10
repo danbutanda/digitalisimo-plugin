@@ -12,8 +12,13 @@
  *   (h4) una migración cuya restauración falla después del cambio vuelve sola a la copia previa y nunca se ofrece para
  *        «Deshacer» (lo hecho después no se pierde);
  *   (h7) «Deshacer» mientras la restauración de la migración sigue (o se reanuda tras una caída) responde 409 con la
- *        salida (esperar), no 404; cancelar la migración en esa fase lo explica con su propio texto; al terminar, se deshace.
- * Cada caso escribe «FALLA (x)» si falla. Con el código de 220b2419 fallan h1, h2, h4 y h7.
+ *        salida (esperar), no 404; cancelar la migración en esa fase lo explica con su propio texto; al terminar, se deshace;
+ *   (n1) las tablas de otro WordPress que comparte la base de datos con un prefijo que empieza igual (dst_ y dst_otro_)
+ *        nunca se apartan ni se borran, ni al migrar ni al deshacer; las propias que el paquete no trae se conservan
+ *        apartadas (h2);
+ *   (n3) un «Deshacer» que sigue en segundo plano queda asentado en el historial al terminar: podar su trabajo no lo
+ *        vuelve a ofrecer, y una marca sin asentar cuyo trabajo ya no existe tampoco.
+ * Cada caso escribe «FALLA (x)» si falla. Con el código de 220b2419 fallan h1, h2, h4 y h7; con el de f86a3f17, n1 y n3.
  */
 require __DIR__ . '/backups-migrate/env.php';
 
@@ -78,6 +83,13 @@ function rs_drive_until( $id, callable $until, $max = 400, $budget = PHP_INT_MAX
 /** Restauraciones de la cola (las del motor por pasos; con un código sin él, ninguna). */
 function rs_restores() { return array_values( array_filter( Digitalisimo_Backups_Jobs::all(), function( $job ) { return 'restore' === ( $job['kind'] ?? '' ); } ) ); }
 function rs_tables() { return $GLOBALS['wpdb']->names(); }
+/** Un valor de una tabla que la restauración apartó y conserva (`<prefijo>dgbkk_<marca>_9…`), o null. */
+function rs_kept_value( $column, $value = null ) {
+	foreach ( preg_grep( '/dgbkk_[0-9a-f]{6}_9[0-9]{3}$/', rs_tables() ) as $table ) {
+		foreach ( $GLOBALS['wpdb']->rows( $table ) as $row ) if ( isset( $row[ $column ] ) && ( null === $value || $value === $row[ $column ] ) ) return (string) $row[ $column ];
+	}
+	return null;
+}
 
 rs_case( 'h1 · con un respaldo a medias la migración espera y el respaldo queda coherente', function() {
 	rs_sites();
@@ -155,6 +167,8 @@ rs_case( 'h2 · deshacer deja el destino idéntico a su copia previa, en archivo
 	// El sitio se reemplaza por completo: la tabla y el medio propios del destino se retiran (están en la copia previa).
 	$tables = rs_tables();
 	mig_assert( in_array( 'dst_solo_origen', $tables, true ) && ! in_array( 'dst_solo_destino', $tables, true ) && ! file_exists( $real . '/wp-content/uploads/2026/11/solo-destino.txt' ), 'Tras migrar, el destino no tiene exactamente las tablas y los medios del origen: ' . implode( ', ', $tables ) );
+	// La tabla propia que el paquete no trae se aparta con otro nombre y se conserva (N1: nunca se borra).
+	mig_assert( 'dato del destino' === rs_kept_value( 'nota' ), 'La tabla propia del destino no se conservó apartada: ' . implode( ', ', $tables ) );
 	mig_assert( ! preg_grep( '/dgbk[ro]_/', $tables ), 'La migración dejó tablas temporales o apartadas: ' . implode( ', ', preg_grep( '/dgbk[ro]_/', $tables ) ) );
 	$undo = mig_rest( 'POST', RS_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
 	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'], 'No se deshizo: ' . json_encode( $undo ) );
@@ -165,6 +179,7 @@ rs_case( 'h2 · deshacer deja el destino idéntico a su copia previa, en archivo
 	$tables = rs_tables();
 	mig_assert( ! in_array( 'dst_solo_origen', $tables, true ) && in_array( 'dst_solo_destino', $tables, true ) && 'dato del destino' === $GLOBALS['wpdb']->value( 'dst_solo_destino', 'nota', 'id = 1' ), 'Tras deshacer, las tablas no son las de la copia previa: ' . implode( ', ', $tables ) );
 	mig_assert( ! preg_grep( '/dgbk[ro]_/', $tables ), 'Deshacer dejó tablas temporales o apartadas: ' . implode( ', ', preg_grep( '/dgbk[ro]_/', $tables ) ) );
+	mig_assert( 'pedido del origen' === rs_kept_value( 'nota', 'pedido del origen' ), 'La tabla que trajo el origen no se conservó apartada al deshacer.' );
 	mig_assert( null === Digitalisimo_Backups_Migrate::undo_target(), 'La migración deshecha se sigue ofreciendo para deshacer.' );
 } );
 
@@ -223,6 +238,68 @@ rs_case( 'h7 · deshacer mientras la restauración de la migración sigue respon
 	mig_assert( 'success' === $job['status'], 'La migración no terminó tras la caída de su restauración: ' . json_encode( $job['error'] ) );
 	$undo = mig_rest( 'POST', RS_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
 	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'] && 'Destino' === get_option( 'blogname' ), 'Tras terminar, no se pudo deshacer: ' . json_encode( $undo ) );
+} );
+
+rs_case( 'n1 · las tablas de otro WordPress de la misma base de datos nunca se apartan', function() {
+	rs_sites();
+	// Otra instalación en la misma base con un prefijo que empieza por el del destino (dst_ y dst_otro_).
+	$db = $GLOBALS['mig']['sites']['destino']['db'];
+	$db->pdo->exec( 'CREATE TABLE `dst_otro_options` (`option_id` INTEGER PRIMARY KEY, `option_name` varchar(191), `option_value` longtext)' );
+	$db->pdo->exec( "INSERT INTO `dst_otro_options` (`option_name`, `option_value`) VALUES ('siteurl', 'https://otro-sitio.test'), ('blogname', 'Otro sitio en la misma base')" );
+	$db->pdo->exec( 'CREATE TABLE `dst_otro_posts` (`ID` INTEGER PRIMARY KEY, `post_content` longtext)' );
+	$db->pdo->exec( "INSERT INTO `dst_otro_posts` (`ID`, `post_content`) VALUES (1, 'Entrada de otro sitio')" );
+	$migration = rs_pull( rs_key() );
+	$job = rs_drive_until( $migration, function() { return false; } );
+	mig_assert( 'success' === $job['status'], 'La migración no terminó: ' . json_encode( $job['error'] ) );
+	mig_use( 'destino' );
+	$check = function( $when ) use ( $db ) {
+		$tables = rs_tables();
+		mig_assert( in_array( 'dst_otro_options', $tables, true ) && in_array( 'dst_otro_posts', $tables, true ) && 'Otro sitio en la misma base' === $db->value( 'dst_otro_options', 'option_value', "option_name = 'blogname'" ) && 'Entrada de otro sitio' === $db->value( 'dst_otro_posts', 'post_content', 'ID = 1' ), $when . ' se tocaron las tablas de otro WordPress de la misma base: ' . implode( ', ', $tables ) );
+		mig_assert( null === rs_kept_value( 'post_content', 'Entrada de otro sitio' ), $when . ' se apartó una tabla de otro WordPress.' );
+	};
+	$check( 'Al migrar' );
+	$restore = rs_restores()[0] ?? null;
+	mig_assert( $restore && false !== strpos( (string) ( $restore['result']['restore']['notice'] ?? '' ), 'dst_otro_*' ), 'El informe no dice que se dejaron las tablas de la otra instalación: ' . json_encode( $restore['result']['restore']['notice'] ?? null ) );
+	$undo = mig_rest( 'POST', RS_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
+	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'], 'No se deshizo: ' . json_encode( $undo ) );
+	$check( 'Al deshacer' );
+} );
+
+rs_case( 'n3 · un deshacer en segundo plano queda asentado y no se vuelve a ofrecer al podar su trabajo', function() {
+	rs_sites();
+	$migration = rs_pull( rs_key() );
+	$job = rs_drive_until( $migration, function() { return false; } );
+	mig_assert( 'success' === $job['status'], 'La migración no terminó: ' . json_encode( $job['error'] ) );
+	mig_use( 'destino' );
+	// «Deshacer» desde la pantalla o REST con poco tiempo de petición: la restauración sigue en segundo plano.
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 5;
+	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 60;
+	$undo = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'drive_cli' => false ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_request_limit'], $_SERVER['REQUEST_TIME_FLOAT'] );
+	mig_assert( is_array( $undo ) && ! empty( $undo['restoring'] ), 'El deshacer no quedó en segundo plano (la prueba lo necesita): ' . json_encode( $undo ) );
+	$undo_job = (string) ( $undo['job']['id'] ?? '' );
+	// WP-Cron lo termina.
+	for ( $i = 0; $i < 300; $i++ ) {
+		$current = Digitalisimo_Backups_Jobs::get( $undo_job );
+		if ( ! $current || Digitalisimo_Backups_Job_Store::is_terminal( $current ) ) break;
+		foreach ( Digitalisimo_Backups_Jobs::active() as $active ) if ( (int) $active['retry_at'] > time() ) { $active['retry_at'] = 0; Digitalisimo_Backups_Job_Store::write( $active ); }
+		Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	}
+	$row = null;
+	foreach ( (array) get_option( 'digitalisimo_backups_history', array() ) as $item ) if ( is_array( $item['migration'] ?? null ) ) { $row = $item; break; }
+	mig_assert( 'Destino' === get_option( 'blogname' ) && $row && 'undone' === $row['migration']['state'], 'El deshacer en segundo plano no dejó la marca asentada: ' . json_encode( $row['migration'] ?? null ) );
+	// El administrador sigue trabajando y la poda del almacén retira el trabajo de «Deshacer».
+	$posts = $GLOBALS['wpdb']->posts;
+	$posts[5] = array( 'ID' => '5', 'post_content' => 'Escrita después de deshacer', 'guid' => 'https://destino.test/?p=5' );
+	$GLOBALS['wpdb']->posts = $posts;
+	Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $undo_job ) );
+	$status = Digitalisimo_Backups::service_migration_status();
+	mig_assert( null === $status['undo'], 'Tras podar el trabajo de «Deshacer», la pestaña vuelve a ofrecerlo: ' . json_encode( $status['undo'] ) );
+	$again = mig_rest( 'POST', RS_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
+	mig_assert( 404 === $again[0] && isset( $GLOBALS['wpdb']->posts[5] ), 'Deshacer otra vez borró lo hecho después del primer «Deshacer»: ' . json_encode( $again ) );
+	// Una marca sin asentar cuyo trabajo ya no existe nunca se ofrece.
+	Digitalisimo_Backups::migration_mark( (string) $row['file'], array_merge( $row['migration'], array( 'state' => 'undoing', 'undo' => $undo_job ) ) );
+	mig_assert( null === Digitalisimo_Backups_Migrate::undo_target(), 'Una marca «undoing» sin trabajo se ofrece para deshacer.' );
 } );
 
 echo $failures ? 'Migración con la restauración por pasos con fallos: ' . implode( ', ', $failures ) . "\n" : "Migración con la restauración por pasos: todo correcto.\n";

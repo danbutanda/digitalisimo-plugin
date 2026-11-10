@@ -27,6 +27,8 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Backups_Migrate {
 	/** Estado de la migración: claves (huellas), registro de usos, intentos fallidos y opciones. Nunca entra en un respaldo. */
 	const OPTION = 'digitalisimo_backups_vault_migration';
+	/** Contador de peticiones sin una clave válida (fuera del estado: se escribe sin su cerrojo, como mucho una vez por minuto). */
+	const REJECTED = 'digitalisimo_backups_vault_migration_rejected';
 	const KEY_PREFIX = 'DGMIG1.';
 	const HEADER = 'X-Digitalisimo-Migration';
 	const CLIENT_HEADER = 'X-Digitalisimo-Migration-Client';
@@ -70,6 +72,7 @@ final class Digitalisimo_Backups_Migrate {
 	const RESPONSE_MAX = 1048576;
 
 	public static function init() {
+		add_action( 'http_api_curl', array( __CLASS__, 'pin_curl' ), 10, 3 );
 		foreach ( array( self::ACTION_CREATE => 'create_request', self::ACTION_REVOKE => 'revoke_request', self::ACTION_PULL => 'pull_request', self::ACTION_UNDO => 'undo_request', self::ACTION_SETTINGS => 'settings_request' ) as $action => $method ) add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
 		add_action( Digitalisimo_Backups_Jobs::HOOK_WATCHDOG, array( __CLASS__, 'sweep' ), 20 );
 	}
@@ -396,6 +399,9 @@ final class Digitalisimo_Backups_Migrate {
 	 * paquete ya no se está preparando (la migración falló o se canceló sin poder liberarla).
 	 */
 	private static function stale( array $record, $now ) {
+		// Un paquete ya entregado entero nunca se vuelve a servir (N2): la clave es de un solo uso aunque el destino tarde
+		// en restaurar (o espere a otro trabajo) más que STALE sin hablar con el origen.
+		if ( ! empty( $record['delivered'] ) ) return false;
 		if ( 'in_use' !== ( $record['state'] ?? '' ) || $now - self::seen( $record ) <= self::STALE ) return false;
 		$job = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $record['job'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $record['job'] ) : null;
 		return ! $job || Digitalisimo_Backups_Job_Store::is_terminal( $job );
@@ -487,14 +493,16 @@ final class Digitalisimo_Backups_Migrate {
 	 * el registro de usos ni cerrar nada.
 	 */
 	private static function reject() {
+		// Como mucho una escritura por minuto, en su propia opción y sin el cerrojo de los trabajos (N4): una avalancha de
+		// peticiones anónimas no escribe en la base de datos en cada una ni espera al cerrojo de la cola. No es exacto.
 		try {
-			self::change( function( &$state ) {
-				$now = time();
-				$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? substr( preg_replace( '/[^0-9A-Fa-f:.]/', '', (string) $_SERVER['REMOTE_ADDR'] ), 0, 45 ) : '';
-				$seen = $state['rejected'];
-				if ( $now - (int) ( $seen['since'] ?? 0 ) > 86400 ) $seen = array( 'count' => 0, 'since' => $now );
-				$state['rejected'] = array( 'count' => (int) ( $seen['count'] ?? 0 ) + 1, 'since' => (int) $seen['since'], 'last' => $now, 'ip' => $ip );
-			} );
+			$now = time();
+			$seen = Digitalisimo_Backups_Keys::get( self::REJECTED, array() );
+			$seen = is_array( $seen ) ? $seen : array();
+			if ( $now - (int) ( $seen['last'] ?? 0 ) < 60 ) return;
+			$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? substr( preg_replace( '/[^0-9A-Fa-f:.]/', '', (string) $_SERVER['REMOTE_ADDR'] ), 0, 45 ) : '';
+			if ( $now - (int) ( $seen['since'] ?? 0 ) > 86400 ) $seen = array( 'count' => 0, 'since' => $now );
+			Digitalisimo_Backups_Keys::put( self::REJECTED, array( 'count' => (int) ( $seen['count'] ?? 0 ) + 1, 'since' => (int) $seen['since'], 'last' => $now, 'ip' => $ip ) );
 		} catch ( Throwable $e ) {
 			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 		}
@@ -703,6 +711,14 @@ final class Digitalisimo_Backups_Migrate {
 		}
 		if ( ! is_readable( $path ) ) return self::error( 'read', 'No se pudo leer el paquete en el sitio de origen.', 500 );
 		if ( 0 === $start ) self::log( $record['id'], 'download' );
+		// El último fragmento: el paquete quedó entregado entero (la clave ya no se puede retomar desde otro destino).
+		if ( $end === $total - 1 && empty( $record['delivered'] ) ) {
+			$id = (string) $record['id'];
+			self::change( function( &$state ) use ( $id ) {
+				if ( ! isset( $state['keys'][ $id ] ) || ! empty( $state['keys'][ $id ]['delivered'] ) ) return false;
+				$state['keys'][ $id ]['delivered'] = time();
+			} );
+		}
 		return array( 'path' => $path, 'start' => $start, 'end' => $end, 'total' => $total, 'sha256' => (string) ( $job['result']['sha256'] ?? '' ) );
 	}
 	/**
@@ -750,6 +766,7 @@ final class Digitalisimo_Backups_Migrate {
 			$state['keys'][ $id ]['state'] = 'pending';
 			$state['keys'][ $id ]['client'] = '';
 			$state['keys'][ $id ]['job'] = '';
+			unset( $state['keys'][ $id ]['delivered'] );
 			self::log_into( $state, $id, 'released' );
 			return $before;
 		} );
@@ -845,12 +862,34 @@ final class Digitalisimo_Backups_Migrate {
 		$lab = self::allow_http();
 		if ( 'https' !== $scheme && ! $lab ) return 'La clave apunta a un sitio sin HTTPS (' . $host . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP y direcciones internas» en Backups → Migrar de los dos sitios.';
 		if ( $lab ) return '';
-		$internal = 'localhost' === $host || '.localhost' === substr( $host, -10 ) ? $host : '';
-		if ( '' === $internal ) foreach ( self::addresses( $host ) as $ip ) if ( ! self::public_ip( $ip ) ) { $internal = $host === $ip ? $ip : $host . ' → ' . $ip; break; }
+		$internal = 'localhost' === $host || '.localhost' === substr( $host, -10 ) || false !== strpos( $host, '%' ) ? $host : '';
+		$addresses = '' === $internal ? self::addresses( $host ) : array();
+		// Un nombre que no resuelve (o un DNS que no contesta) no se da por público (N5).
+		if ( '' === $internal && ! $addresses ) return 'No se pudo resolver la dirección del sitio de origen (' . $host . '): el destino sólo se conecta a un sitio cuya dirección pública puede comprobar.';
+		if ( '' === $internal ) foreach ( $addresses as $ip ) if ( ! self::public_ip( $ip ) ) { $internal = $host === $ip ? $ip : $host . ' → ' . $ip; break; }
 		if ( '' !== $internal ) return 'La clave apunta a una dirección interna (' . $internal . '): loopback, red privada, enlace local o metadatos de la nube. El destino sólo se conecta a sitios públicos; en un laboratorio, activa «Permitir HTTP y direcciones internas» en Backups → Migrar.';
 		return '';
 	}
 	/** Direcciones IP de un host (la IP misma si lo es; IPv4 y, si se puede, IPv6). Sin resolver, ninguna. */
+	/**
+	 * La dirección comprobada para un host, en la forma de CURLOPT_RESOLVE (`host:puerto:ip`), o '' (una IP, el
+	 * laboratorio o sin resolver): la conexión va a esa IP y no a lo que resuelva cURL otra vez (DNS rebinding, N5).
+	 */
+	private static function pin_for( $url ) {
+		if ( self::allow_http() ) return '';
+		$host = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_HOST ) );
+		if ( '' === $host || false !== @inet_pton( trim( $host, '[]' ) ) ) return '';
+		$addresses = self::addresses( $host );
+		if ( ! $addresses ) return '';
+		$port = (int) ( wp_parse_url( (string) $url, PHP_URL_PORT ) ?: ( 'http' === strtolower( (string) wp_parse_url( (string) $url, PHP_URL_SCHEME ) ) ? 80 : 443 ) );
+		$ip = (string) $addresses[0];
+		return $host . ':' . $port . ':' . ( false !== strpos( $ip, ':' ) ? '[' . $ip . ']' : $ip );
+	}
+	/** `http_api_curl`: una petición de la migración se conecta a la IP que se comprobó (la que lleva `digitalisimo_pin`). */
+	public static function pin_curl( $handle, $request = array(), $url = '' ) {
+		if ( ! is_array( $request ) || empty( $request['digitalisimo_pin'] ) || ! defined( 'CURLOPT_RESOLVE' ) || ! function_exists( 'curl_setopt' ) ) return;
+		@curl_setopt( $handle, CURLOPT_RESOLVE, array( (string) $request['digitalisimo_pin'] ) );
+	}
 	private static function addresses( $host ) {
 		if ( false !== @inet_pton( $host ) ) return array( $host );
 		if ( self::$resolver ) return (array) call_user_func( self::$resolver, $host );
@@ -1020,6 +1059,7 @@ final class Digitalisimo_Backups_Migrate {
 		for ( $hop = 0; ; $hop++ ) {
 			$problem = self::target_problem( $url );
 			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
+			$args['digitalisimo_pin'] = self::pin_for( $url );
 			$response = self::$transport ? call_user_func( self::$transport, $method, $url, $args ) : wp_remote_request( $url, $args );
 			$host = self::host_label( $url );
 			if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo conectar con el sitio de origen (' . $host . '): ' . $response->get_error_message() );
@@ -1027,7 +1067,11 @@ final class Digitalisimo_Backups_Migrate {
 			$location = in_array( $code, array( 301, 302, 303, 307, 308 ), true ) ? trim( (string) wp_remote_retrieve_header( $response, 'location' ) ) : '';
 			if ( '' === $location ) break;
 			if ( $hop >= self::REDIRECTS ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen (' . $host . ') redirige más de ' . self::REDIRECTS . ' veces: revisa su dirección.' );
-			$url = self::absolute_url( $location, $url );
+			$next = self::absolute_url( $location, $url );
+			// Sólo dentro del mismo host: la credencial de la clave nunca viaja a otro (N5). Una clave nueva del origen lleva
+			// su dirección de ahora.
+			if ( strtolower( (string) wp_parse_url( $next, PHP_URL_HOST ) ) !== strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen (' . $host . ') redirige a otro host (' . self::host_label( $next ) . '): la credencial de la clave no se envía fuera de su host. Genera la clave en el sitio de origen con su dirección definitiva.' );
+			$url = $next;
 			if ( '' !== $file ) @unlink( $file );
 		}
 		if ( 'download' === $action && in_array( $code, array( 200, 206 ), true ) ) return array( 'code' => $code, 'file' => $file, 'range' => (string) wp_remote_retrieve_header( $response, 'content-range' ), 'sha256' => strtolower( (string) wp_remote_retrieve_header( $response, 'x-digitalisimo-package-sha256' ) ) );
@@ -1247,7 +1291,7 @@ final class Digitalisimo_Backups_Migrate {
 		foreach ( Digitalisimo_Backups_Jobs::active() as $other ) {
 			if ( (string) $other['id'] === (string) $id ) continue;
 			$label = Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'la restauración en curso' : ( 'migrate' === ( $other['spec']['kind'] ?? '' ) ? 'otra migración' : 'el respaldo pendiente o en curso' );
-			return array( 'id' => (string) $other['id'], 'label' => $label . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'] ) . ')' );
+			return array( 'id' => (string) $other['id'], 'label' => $label . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'], $other ) . ')' );
 		}
 		return null;
 	}
@@ -1428,25 +1472,52 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/**
 	 * Estado real de la migración de una copia previa marcada. La marca se escribe al crear la copia («restoring») y la
-	 * cambia la migración al ver el resultado («migrated», «rolled_back», «failed») o «Deshacer» («undoing», «undone»);
-	 * si nadie la cambió (el trabajo de la migración no volvió a correr), lo dice el trabajo de la restauración: sólo
-	 * una restauración terminada es una migración aplicada (H4), y un «Deshacer» terminado la deshizo.
+	 * asienta en el historial quien ve el resultado: la migración («migrated», «rolled_back», «failed»), «Deshacer»
+	 * («undoing» → «undone»), el final de cualquier restauración (settle(), desde el motor de trabajos) o esta misma
+	 * consulta. Una marca que nadie asentó y cuyo trabajo ya no existe (lo podó el almacén) es «unknown»: nunca se
+	 * ofrece para «Deshacer» (N3), porque podría devolver el sitio a la copia de antes de migrar y borrar lo de después.
 	 */
 	public static function effective_state( array $row ) {
 		$tag = (array) ( $row['migration'] ?? array() );
 		$state = (string) ( $tag['state'] ?? '' );
-		if ( 'restoring' === $state ) {
-			$restore = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $row['job'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $row['job'] ) : null;
-			if ( $restore && 'success' === $restore['status'] ) return 'migrated';
-			return $restore && ! Digitalisimo_Backups_Job_Store::is_terminal( $restore ) ? 'restoring' : 'not_applied';
+		if ( ! in_array( $state, array( 'restoring', 'undoing' ), true ) ) return $state;
+		$ref = 'restoring' === $state ? (string) ( $row['job'] ?? '' ) : (string) ( $tag['undo'] ?? '' );
+		$job = Digitalisimo_Backups_Job_Store::valid_id( $ref ) ? Digitalisimo_Backups_Jobs::get( $ref ) : null;
+		if ( ! $job ) return 'unknown';
+		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return $state;
+		return self::settle_row( $row, (string) $job['status'] );
+	}
+	/**
+	 * Asienta en el historial las marcas que esperaban a la restauración $ended (la que acaba de terminar, con su estado)
+	 * o, sin ella, a cualquier restauración ya terminada. Nunca lanza.
+	 */
+	public static function settle( array $ended = array() ) {
+		try {
+			foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) {
+				$tag = (array) ( $row['migration'] ?? array() );
+				$state = (string) ( $tag['state'] ?? '' );
+				if ( ! in_array( $state, array( 'restoring', 'undoing' ), true ) ) continue;
+				$ref = 'restoring' === $state ? (string) ( $row['job'] ?? '' ) : (string) ( $tag['undo'] ?? '' );
+				if ( $ended && (string) ( $ended['id'] ?? '' ) === $ref ) {
+					self::settle_row( $row, (string) $ended['status'] );
+					continue;
+				}
+				$job = Digitalisimo_Backups_Job_Store::valid_id( $ref ) ? Digitalisimo_Backups_Jobs::get( $ref ) : null;
+				if ( $job && Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) self::settle_row( $row, (string) $job['status'] );
+			}
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 		}
-		if ( 'undoing' === $state ) {
-			$undo = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $tag['undo'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $tag['undo'] ) : null;
-			if ( $undo && 'success' === $undo['status'] ) return 'undone';
-			// Un «Deshacer» que falló antes del cambio, o que volvió solo a su copia previa, dejó la migración como estaba.
-			return $undo && ! Digitalisimo_Backups_Job_Store::is_terminal( $undo ) ? 'undoing' : 'migrated';
-		}
-		return $state;
+	}
+	/** Estado resuelto de una marca según cómo terminó su restauración, guardado en el historial. */
+	private static function settle_row( array $row, $status ) {
+		$tag = (array) $row['migration'];
+		$resolved = 'restoring' === ( $tag['state'] ?? '' ) ? ( 'success' === $status ? 'migrated' : 'failed' ) : ( 'success' === $status ? 'undone' : 'migrated' );
+		$tag['state'] = $resolved;
+		$tag['settled_at'] = time();
+		if ( 'undone' === $resolved && empty( $tag['undone_at'] ) ) $tag['undone_at'] = time();
+		Digitalisimo_Backups::migration_mark( (string) $row['file'], $tag );
+		return $resolved;
 	}
 
 	/* ------------------------------------------------------------------ Pantalla */
@@ -1459,8 +1530,8 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/** Peticiones sin una clave válida (agregadas, fuera del registro de usos): cuántas, desde cuándo, la última e IP. */
 	public static function rejected() {
-		$seen = self::state()['rejected'];
-		if ( empty( $seen['count'] ) ) return array( 'count' => 0, 'since' => '', 'last' => '', 'ip' => '' );
+		$seen = Digitalisimo_Backups_Keys::get( self::REJECTED, array() );
+		if ( ! is_array( $seen ) || empty( $seen['count'] ) ) return array( 'count' => 0, 'since' => '', 'last' => '', 'ip' => '' );
 		return array( 'count' => (int) $seen['count'], 'since' => gmdate( 'c', (int) $seen['since'] ), 'last' => gmdate( 'c', (int) ( $seen['last'] ?? 0 ) ), 'ip' => (string) ( $seen['ip'] ?? '' ) );
 	}
 	public static function public_log( $limit = 20 ) {

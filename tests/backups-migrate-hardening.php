@@ -16,8 +16,14 @@
  *   (h8) los avisos dicen «migración» y van al destinatario del destino (no al del origen); el paquete del origen no
  *        avisa como un respaldo;
  *   (p5) en una red, la API del origen sólo responde en su sitio principal;
- *   (p8) una clave de destino huérfana (el proceso murió durante la presentación) se barre.
- * Cada caso escribe «FALLA (x)» si falla. Con el código de 220b2419 fallan h3, p2, h6, h5, h8, p5 y p8.
+ *   (p8) una clave de destino huérfana (el proceso murió durante la presentación) se barre;
+ *   (n2) una clave cuyo paquete ya se entregó entero no se retoma desde otro destino (un solo uso);
+ *   (n4) las peticiones anónimas no escriben en el estado y el contador, como mucho una vez por minuto;
+ *   (n5) una dirección que no resuelve o un IPv6 con zona se rechazan, cada petición fija la IP comprobada y una
+ *        redirección a otro host no se sigue (la credencial no sale de su host);
+ *   (n7) los nombres y las reglas de una fase salen del tipo del trabajo, aunque dos tipos repitan el nombre.
+ * Cada caso escribe «FALLA (x)» si falla. Con el código de 220b2419 fallan h3, p2, h6, h5, h8, p5 y p8; con el de
+ * f86a3f17, n2, n4, n5 y n7.
  */
 $GLOBALS['hard_mail'] = array();
 function wp_mail( $to, $subject, $body ) { $GLOBALS['hard_mail'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body ); return true; }
@@ -75,6 +81,7 @@ function hard_source( $action, $header, $client = '', array $body = array(), $ip
 	} );
 }
 function hard_state() { return mig_in( 'origen', function() { return get_option( 'digitalisimo_backups_vault_migration' ); } ); }
+function hard_rejected() { return (array) mig_in( 'origen', function() { return get_option( 'digitalisimo_backups_vault_migration_rejected', array() ); } ); }
 function hard_record( $id ) { return hard_state()['keys'][ $id ] ?? null; }
 function hard_edit_record( $id, callable $edit ) {
 	mig_in( 'origen', function() use ( $id, $edit ) {
@@ -127,9 +134,9 @@ hard_case( 'h3 · sin clave nadie cierra la API del origen ni vacía el registro
 	$state = hard_state();
 	$events = array_column( array_filter( $state['log'], function( $event ) use ( $p ) { return substr( $p['id'], 0, 8 ) === $event['key']; } ), 'event' );
 	foreach ( array( 'created', 'hello', 'package', 'ready', 'download', 'used' ) as $event ) mig_assert( in_array( $event, $events, true ), 'El registro de usos perdió «' . $event . '»: ' . implode( ',', $events ) );
-	mig_assert( ! in_array( 'auth_failed', array_column( $state['log'], 'event' ), true ) && (int) $state['rejected']['count'] >= 40, 'Las peticiones anónimas entraron en el registro de usos o no se contaron aparte.' );
+	mig_assert( ! in_array( 'auth_failed', array_column( $state['log'], 'event' ), true ) && (int) ( hard_rejected()['count'] ?? 0 ) >= 1, 'Las peticiones anónimas entraron en el registro de usos o no se contaron aparte.' );
 	$status = mig_in( 'origen', function() { return mig_rest( 'GET', HARD_NS . '/migration' ); } );
-	mig_assert( 200 === $status[0] && (int) $status[1]['rejected']['count'] >= 40, 'El estado no informa de las peticiones rechazadas.' );
+	mig_assert( 200 === $status[0] && (int) $status[1]['rejected']['count'] >= 1, 'El estado no informa de las peticiones rechazadas.' );
 	hard_undo_destination();
 
 	// Una migración que falla sin poder liberar su clave (el origen no respondió al «release») no la deja atada: otro
@@ -250,7 +257,7 @@ hard_case( 'h5 · el destino sólo se conecta a sitios públicos, con tope de ta
 	$before = count( $GLOBALS['mig']['requests'] );
 	$reply = hard_pull( $key['key'] );
 	$hosts = array_map( function( $request ) { return parse_url( $request['url'], PHP_URL_HOST ); }, array_slice( $GLOBALS['mig']['requests'], $before ) );
-	mig_assert( 422 === $reply[0] && false !== strpos( (string) $reply[1]['message'], 'dirección interna' ) && ! in_array( '169.254.169.254', $hosts, true ), 'Una redirección a los metadatos se siguió: ' . json_encode( array( $reply, $hosts ) ) );
+	mig_assert( 422 === $reply[0] && false !== strpos( (string) $reply[1]['message'], 'otro host' ) && ! in_array( '169.254.169.254', $hosts, true ), 'Una redirección a los metadatos se siguió: ' . json_encode( array( $reply, $hosts ) ) );
 	$GLOBALS['hard_safe_hop'] = true;
 	$reply = hard_pull( $key['key'] );
 	mig_assert( 202 === $reply[0], 'Una redirección dentro del origen no se siguió: ' . json_encode( $reply ) );
@@ -344,6 +351,84 @@ hard_case( 'p8 · una clave de destino huérfana se barre', function() {
 	mig_use( 'destino' );
 	Digitalisimo_Backups_Jobs::cancel( $reply[1]['id'] );
 } );
+
+hard_case( 'n2 · una clave cuyo paquete se entregó entero no se retoma', function() {
+	$key = hard_key();
+	$p = hard_parts( $key['key'] );
+	$reply = hard_pull( $key['key'] );
+	$id = $reply[1]['id'];
+	mig_use( 'destino' );
+	// El destino legítimo descarga el paquete entero y pasa a comprobarlo y restaurarlo.
+	$job = hard_drive_until( $id, function( $job ) { return in_array( $job['phase'], array( 'check', 'restore' ), true ); } );
+	mig_assert( in_array( $job['phase'], array( 'check', 'restore' ), true ) && ! empty( hard_record( $p['id'] )['delivered'] ), 'La migración no llegó a comprobar el paquete o el origen no anotó que lo entregó: ' . $job['phase'] );
+	// Su restauración dura más de STALE sin hablar con el origen, y alguien más con la clave pide el paquete.
+	hard_edit_record( $p['id'], function( $record ) { $record['seen'] = time() - Digitalisimo_Backups_Migrate::STALE - 60; $record['created'] = time() - Digitalisimo_Backups_Migrate::STALE - 120; return $record; } );
+	$thief = Digitalisimo_Backups_Job_Store::new_id();
+	$package = hard_source( 'package', $p['header'], $thief, array( 'site' => 'https://ladron.test/' ) );
+	$bytes = hard_source( 'download', $p['header'], $thief );
+	mig_assert( 409 === $package[0] && 409 === $bytes[0], 'Otro cliente retomó la clave de un paquete ya entregado: package HTTP ' . $package[0] . ' · download HTTP ' . $bytes[0] );
+	mig_use( 'destino' );
+	$job = mig_drive( $id, 200 );
+	$record = hard_record( $p['id'] );
+	$events = array_column( array_filter( hard_state()['log'], function( $event ) use ( $p ) { return substr( $p['id'], 0, 8 ) === $event['key']; } ), 'event' );
+	mig_assert( 'success' === $job['status'] && 'used' === $record['state'] && ! in_array( 'taken_over', $events, true ), 'La migración legítima no dejó la clave usada o se retomó: ' . $job['status'] . ' · ' . $record['state'] . ' · ' . implode( ',', $events ) );
+	hard_undo_destination();
+} );
+
+hard_case( 'n4 · las peticiones anónimas escriben como mucho una vez por minuto', function() {
+	$state_before = serialize( hard_state() );
+	$count_before = (int) ( hard_rejected()['count'] ?? 0 );
+	hard_edit_rejected_last( time() - 3600 );
+	for ( $i = 0; $i < 300; $i++ ) hard_source( 'hello', 0 === $i % 2 ? null : 'basura', '', array(), '203.0.113.' . ( $i % 250 ) );
+	mig_assert( $state_before === serialize( hard_state() ), 'Las peticiones anónimas escribieron en el estado de la migración.' );
+	mig_assert( (int) hard_rejected()['count'] === $count_before + 1, 'Las peticiones anónimas escribieron el contador más de una vez por minuto: ' . json_encode( array( $count_before, hard_rejected() ) ) );
+} );
+function hard_edit_rejected_last( $at ) {
+	mig_in( 'origen', function() use ( $at ) {
+		$seen = (array) get_option( 'digitalisimo_backups_vault_migration_rejected', array() );
+		$seen['last'] = $at;
+		update_option( 'digitalisimo_backups_vault_migration_rejected', $seen );
+	} );
+}
+
+hard_case( 'n5 · el destino no da por pública una dirección sin resolver, fija la IP comprobada y no lleva la credencial a otro host', function() {
+	$GLOBALS['mig']['dns']['nada.example'] = array();
+	foreach ( array( 'https://nada.example/wp-json/' => 'No se pudo resolver', 'https://[fe80::1%25eth0]/' => 'dirección interna' ) as $url => $expected ) {
+		$before = count( $GLOBALS['mig']['requests'] );
+		$reply = hard_pull( hard_forged( $url ) );
+		mig_assert( 422 === $reply[0] && false !== strpos( (string) $reply[1]['message'], $expected ) && count( $GLOBALS['mig']['requests'] ) === $before, 'El destino se conectó a ' . $url . ': HTTP ' . $reply[0] . ' · ' . ( $reply[1]['message'] ?? '' ) );
+	}
+	// Una redirección del origen a otro host público no se sigue: la credencial no sale de su host.
+	$key = hard_key();
+	$GLOBALS['mig']['dns']['recolector.example'] = array( '192.0.2.77' );
+	$GLOBALS['mig']['faults'] = array( function( $method, $route, $args, $response ) {
+		if ( null !== $response || false === strpos( $route, '/migrate/source/hello' ) ) return null;
+		return array( 'response' => array( 'code' => 307 ), 'body' => '', 'headers' => array( 'location' => 'https://recolector.example/robar' ) );
+	} );
+	$before = count( $GLOBALS['mig']['requests'] );
+	$reply = hard_pull( $key['key'] );
+	$GLOBALS['mig']['faults'] = array();
+	$sent = array_slice( $GLOBALS['mig']['requests'], $before );
+	$hosts = array_map( function( $request ) { return parse_url( $request['url'], PHP_URL_HOST ); }, $sent );
+	mig_assert( 422 === $reply[0] && false !== strpos( (string) $reply[1]['message'], 'otro host' ) && ! in_array( 'recolector.example', $hosts, true ), 'La credencial viajó a otro host por una redirección: ' . json_encode( array( $reply, $hosts ) ) );
+	// Cada petición lleva la IP que se comprobó, fijada para la conexión (cURL: CURLOPT_RESOLVE).
+	mig_assert( $sent && 'origen.test:443:192.0.2.10' === (string) ( $sent[0]['args']['digitalisimo_pin'] ?? '' ), 'La petición no fija la IP comprobada: ' . json_encode( $sent[0]['args']['digitalisimo_pin'] ?? null ) );
+	mig_in( 'origen', function() use ( $key ) { Digitalisimo_Backups_Migrate::revoke( hard_parts( $key['key'] )['id'] ); } );
+} );
+
+hard_case( 'n7 · los nombres de fase salen del tipo del trabajo, aunque dos tipos repitan nombre', function() {
+	Digitalisimo_Backups_Jobs::register_kind( 'falso', 'Hard_Fake_Kind' );
+	$restore = array( 'kind' => 'restore', 'spec' => array( 'type' => 'restore' ) );
+	$fake = array( 'kind' => 'backup', 'spec' => array( 'kind' => 'falso' ) );
+	$backup = array( 'kind' => 'backup', 'spec' => array( 'destination' => 'local' ) );
+	mig_assert( 'Direcciones y cachés' === Digitalisimo_Backups_Jobs::phase_label( 'finish', $restore ) && 'Fin falso' === Digitalisimo_Backups_Jobs::phase_label( 'finish', $fake ) && 'Comprobaciones' === Digitalisimo_Backups_Jobs::phase_label( 'preflight', $backup ), 'phase_label() mezcla fases que se llaman igual en dos tipos: ' . json_encode( array( Digitalisimo_Backups_Jobs::phase_label( 'finish', $restore ), Digitalisimo_Backups_Jobs::phase_label( 'finish', $fake ) ) ) );
+	mig_assert( Digitalisimo_Backups_Jobs::cancellable_phase( 'finish', $fake ) && 7 === Digitalisimo_Backups_Jobs::max_attempts( 'finish', $fake ) && 'transferring' === Digitalisimo_Backups_Jobs::status_for( 'finish', $fake['spec'] ) && 5 === Digitalisimo_Backups_Jobs::max_attempts( 'finish', $restore + array( 'spec' => array( 'type' => 'restore' ) ) ), 'Las consultas por fase no miran el tipo del trabajo.' );
+} );
+final class Hard_Fake_Kind {
+	public static function job_phases() { return array( 'preflight', 'finish' ); }
+	public static function job_phase( $phase ) { return 'finish' === $phase ? array( 'label' => 'Fin falso', 'floor' => 1, 'max' => 7, 'cancellable' => true, 'status' => 'transferring' ) : null; }
+	public static function job_view( array $job, array $view ) { return $view; }
+}
 
 echo $failures ? 'Seguridad operativa de la migración con fallos: ' . implode( ', ', $failures ) . "\n" : "Seguridad operativa de la migración: todo correcto.\n";
 mig_remove_tree( $GLOBALS['mig_root'] );

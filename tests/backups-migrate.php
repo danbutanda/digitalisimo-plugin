@@ -157,12 +157,13 @@ mig_case( 'b · credencial ausente, equivocada, en la URL, bloqueo por clave y s
 	$q = mig_parts( $third['key'] );
 	$all_needles = array_merge( $all_needles, $q['needles'] );
 	$before = count( mig_state()['log'] );
-	$rejected = (int) ( mig_state()['rejected']['count'] ?? 0 );
+	$rejected = (int) ( mig_in( 'origen', function() { return (array) get_option( 'digitalisimo_backups_vault_migration_rejected', array() ); } )['count'] ?? 0 );
 	for ( $i = 0; $i < 40; $i++ ) mig_source( 'hello', 0 === $i % 2 ? null : bin2hex( random_bytes( 8 ) ) . '.' . Digitalisimo_Backups_Keys::b64url_encode( random_bytes( 32 ) ) );
 	$reply = mig_source( 'hello', $q['header'] );
 	mig_assert( 200 === $reply[0], 'Tras 40 peticiones sin clave válida, la API no atendió a una clave válida: ' . $reply[0] );
 	$state = mig_state();
-	mig_assert( count( $state['log'] ) === $before + 1 && $rejected + 40 === (int) $state['rejected']['count'], 'Las peticiones sin clave válida entraron en el registro de usos o no se contaron aparte: ' . json_encode( array( count( $state['log'] ) - $before, $state['rejected'] ) ) );
+	$counted = (int) ( mig_in( 'origen', function() { return (array) get_option( 'digitalisimo_backups_vault_migration_rejected', array() ); } )['count'] ?? 0 );
+	mig_assert( count( $state['log'] ) === $before + 1 && $counted >= 1 && $counted <= $rejected + 1, 'Las peticiones sin clave válida entraron en el registro de usos o no se contaron aparte (como mucho una vez por minuto): ' . json_encode( array( count( $state['log'] ) - $before, $rejected, $counted ) ) );
 	$log = array_column( mig_state()['log'], 'event' );
 	mig_assert( in_array( 'auth_failed', $log, true ) && in_array( 'blocked', $log, true ) && in_array( 'hello', $log, true ), 'El registro no anota los usos y los fallos.' );
 	$GLOBALS['mig_third'] = $third;

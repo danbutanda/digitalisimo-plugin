@@ -1015,8 +1015,9 @@ final class Digitalisimo_Backups {
 		return array_values( array_filter( $tables, function( $table ) use ( $prefix, $neighbors ) {
 			$table = (string) $table;
 			foreach ( $neighbors as $neighbor ) if ( 0 === strncmp( $table, $neighbor, strlen( $neighbor ) ) ) return false;
-			if ( preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', $table ) ) return false;
-			foreach ( array( 'dgbkr_', 'dgbko_' ) as $temporary ) if ( 0 === strpos( $table, $prefix . $temporary ) ) return false;
+			// Las temporales y viejas de una restauración por pasos, y las que una migración apartó y conserva (`dgbkk_`).
+			if ( preg_match( '/(?:^|_)dgbk[rok]_[0-9a-f]{6}_[0-9]{3,}$/D', $table ) ) return false;
+			foreach ( array( 'dgbkr_', 'dgbko_', 'dgbkk_' ) as $temporary ) if ( 0 === strpos( $table, $prefix . $temporary ) ) return false;
 			return true;
 		} ) );
 	}

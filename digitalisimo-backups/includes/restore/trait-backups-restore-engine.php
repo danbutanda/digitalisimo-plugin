@@ -99,7 +99,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}, (string) ( $args['except'] ?? '' ) );
 		if ( ! empty( $queued['busy'] ) ) {
 			$other = $queued['job'];
-			throw new Exception( Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'Ya hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'] ) . '). Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
+			throw new Exception( Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'Ya hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'], $other ) . '). Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );
 		}
 		return $queued['job'];
 	}
@@ -591,14 +591,17 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		self::restore_write_json( $job, 'tables.json', $rows );
 		// Una migración y su «Deshacer» dejan el sitio idéntico al paquete también en tablas: las de este WordPress (con su
-		// prefijo) que el paquete no trae se apartan en el mismo cambio que las demás y la limpieza las retira; están en la
-		// copia previa, y la vuelta a ella las repone. Una restauración normal nunca retira tablas.
+		// prefijo) que el paquete no trae se apartan en el mismo cambio que las demás. Se **conservan** apartadas (con otro
+		// nombre, fuera de los respaldos, y el informe las nombra): nunca se borran (N1). Las de otra instalación que
+		// comparte la base de datos con un prefijo que empieza por el de esta nunca están entre ellas: exportable_tables()
+		// las deja fuera con el mismo criterio que el respaldo y la restauración (other_installation_prefixes()). Una
+		// restauración normal nunca aparta tablas.
 		if ( ! $rollback && ! empty( $job['spec']['exact_tables'] ) ) {
 			$dests = array_flip( array_map( 'strval', array_column( $rows, 'dest' ) ) );
 			$retire = array();
-			foreach ( self::exportable_tables( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', self::restore_like( $base ) . '%' ) ) ) as $table ) {
-				if ( isset( $dests[ (string) $table ] ) ) continue;
-				$suffix = 'dgbko_' . $tag . '_' . ( 9000 + count( $retire ) );
+			foreach ( self::exportable_tables( (array) $wpdb->get_col( 'SHOW TABLES' ) ) as $table ) {
+				if ( isset( $dests[ (string) $table ] ) || 0 !== strncmp( (string) $table, $base, strlen( $base ) ) ) continue;
+				$suffix = 'dgbkk_' . $tag . '_' . ( 9000 + count( $retire ) );
 				$retire[] = array( 'dest' => (string) $table, 'old' => strlen( $base . $suffix ) <= 64 ? $base . $suffix : $suffix );
 			}
 			self::restore_write_json( $job, 'retire.json', $retire );
@@ -1643,7 +1646,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 					if ( false === $wpdb->query( $sql ) ) throw new Exception( 'No se pudo cambiar la tabla ' . $row['dest'] . ': ' . $wpdb->last_error );
 				}
 			}
-			foreach ( $retire as $row ) if ( isset( $live[ (string) $row['dest'] ] ) && false === $wpdb->query( 'DROP TABLE ' . call_user_func( $q, $row['dest'] ) ) ) throw new Exception( 'No se pudo retirar la tabla ' . $row['dest'] . ': ' . $wpdb->last_error );
+			// Las que el paquete no trae se apartan con otro nombre (copiadas y retiradas dentro de la misma transacción).
+			foreach ( $retire as $row ) {
+				if ( ! isset( $live[ (string) $row['dest'] ] ) ) continue;
+				$create = $wpdb->get_row( 'SHOW CREATE TABLE ' . call_user_func( $q, $row['dest'] ), ARRAY_N );
+				if ( ! is_array( $create ) || empty( $create[1] ) ) throw new Exception( 'No se pudo leer la definición de la tabla ' . $row['dest'] . '.' );
+				$definition = preg_replace( '/^CREATE\s+TABLE\s+(?:`(?:[^`]|``)+`|"(?:[^"]|"")+"|\S+)/i', 'CREATE TABLE ' . call_user_func( $q, $row['old'] ), (string) $create[1], 1 );
+				foreach ( array( $definition, 'INSERT INTO ' . call_user_func( $q, $row['old'] ) . ' SELECT * FROM ' . call_user_func( $q, $row['dest'] ), 'DROP TABLE ' . call_user_func( $q, $row['dest'] ) ) as $sql ) {
+					if ( false === $wpdb->query( $sql ) ) throw new Exception( 'No se pudo apartar la tabla ' . $row['dest'] . ': ' . $wpdb->last_error );
+				}
+			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) throw new Exception( 'No se pudo confirmar el cambio de tablas: ' . $wpdb->last_error );
 		} catch ( Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -2087,7 +2099,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				foreach ( (array) self::restore_read_json( $job, 'tables.json', false ) as $row ) {
 					foreach ( array( (string) $row['old'], (string) $row['temp'] ) as $table ) if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) ) ) $cursor['warnings'][] = 'No se pudo retirar la tabla ' . $table . '.';
 				}
-				foreach ( (array) ( self::restore_read_json( $job, 'retire.json', false ) ?? array() ) as $row ) if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( (string) $row['old'] ) ) ) $cursor['warnings'][] = 'No se pudo retirar la tabla ' . $row['old'] . '.';
+				// Las tablas apartadas con `exact_tables` se conservan (N1): el informe las nombra.
 				$undone_tag = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 				if ( '' !== $undone_tag ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array(), true ) as $table ) if ( false !== strpos( $table, '_' . $undone_tag . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
 				$cursor['tables'] = true;
@@ -2206,6 +2218,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$safety = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : self::restore_safety_file( $job );
 		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía' . ( $kept ? '' : ': están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) ) . '.';
 		if ( $kept ) $notice .= ' ' . $kept . ' archivo(s) que cambiaron después de empezar la restauración y no están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . ' no se borraron: quedan apartados en el almacén privado de Backups, en restore-kept-' . self::restore_mark( $job ) . ' (por ejemplo, ' . implode( ', ', array_slice( $kept_sample, 0, 5 ) ) . '); lo demás está en la copia previa.';
+		$kept_tables = array_column( (array) ( self::restore_read_json( $job, 'retire.json', false ) ?? array() ), 'old', 'dest' );
+		if ( $kept_tables ) {
+			$pairs = array();
+			foreach ( array_slice( $kept_tables, 0, 10, true ) as $from => $to ) $pairs[] = $from . ' → ' . $to;
+			$notice .= ' ' . count( $kept_tables ) . ' tabla(s) de este WordPress que el paquete no trae se apartaron con otro nombre y se conservan (' . implode( ', ', $pairs ) . ( count( $kept_tables ) > 10 ? '…' : '' ) . '): también están en la copia previa; bórralas cuando no las necesites.';
+		}
 		$old_tables = (array) ( self::restore_read_json( $job, 'old-tables.json', false ) ?? array() );
 		if ( $old_tables ) $notice .= ' Quedan ' . count( $old_tables ) . ' tabla(s) de una restauración anterior que no terminó (' . implode( ', ', array_slice( $old_tables, 0, 5 ) ) . ( count( $old_tables ) > 5 ? '…' : '' ) . '): pueden ser la base de datos de antes de aquella restauración; bórralas sólo si no las necesitas.';
 		try {
@@ -2313,7 +2331,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 					$rollback = self::restore_rollback_job( $job );
 					Digitalisimo_Backups_Job_Store::event( $job['id'], 'rollback', array( 'job' => $rollback['id'], 'file' => $safety ) );
 					self::restore_note_rollback( $job['id'], $rollback['id'], $message );
-					return 'La restauración falló a mitad del cambio (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'] ) . '): ' . $message . ' Se está restaurando la copia previa ' . $safety . ' para dejar el sitio como estaba; el sitio sigue en mantenimiento hasta que termine.';
+					return 'La restauración falló a mitad del cambio (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'], $job ) . '): ' . $message . ' Se está restaurando la copia previa ' . $safety . ' para dejar el sitio como estaba; el sitio sigue en mantenimiento hasta que termine.';
 				} catch ( Throwable $e ) {
 					$message .= ' No se pudo encolar la vuelta a la copia previa: ' . $e->getMessage();
 				}
@@ -2413,7 +2431,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$job = self::restore_drive( $rollback['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
 		if ( ! $job ) return self::service_error( 'rollback_failed', 'El trabajo de la vuelta a la copia previa ya no existe.', 500 );
-		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return array( 'file' => $recover['file'], 'restored' => false, 'restoring' => true, 'rollback' => true, 'job' => self::service_job_view( $job ), 'notice' => 'Volviendo a la copia previa ' . $recover['file'] . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'] ) . '): la pantalla Backups, WP-Cron o WP-CLI la hacen avanzar.', 'maintenance_token' => (string) $job['spec']['token'] );
+		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return array( 'file' => $recover['file'], 'restored' => false, 'restoring' => true, 'rollback' => true, 'job' => self::service_job_view( $job ), 'notice' => 'Volviendo a la copia previa ' . $recover['file'] . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'], $job ) . '): la pantalla Backups, WP-Cron o WP-CLI la hacen avanzar.', 'maintenance_token' => (string) $job['spec']['token'] );
 		if ( 'success' === $job['status'] ) return array( 'file' => $recover['file'], 'restored' => true, 'rollback' => true, 'notice' => (string) ( $job['result']['restore']['notice'] ?? '' ), 'message' => 'Se volvió a la copia previa ' . $recover['file'] . ': el sitio está como antes de la restauración que falló.' );
 		return self::service_error( 'rollback_failed', is_array( $job['error'] ?? null ) ? (string) $job['error']['message'] : 'La vuelta a la copia previa no terminó.', 500 );
 	}
