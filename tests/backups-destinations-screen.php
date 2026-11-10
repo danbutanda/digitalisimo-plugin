@@ -299,16 +299,18 @@ $case( 'g', function() use ( $B, $check, $compat ) {
 	$check( is_wp_error( $result ) && false !== strpos( $result->get_error_message(), 'SHA-256' ) && ! is_file( $local ) && ! glob( bk_storage() . '/' . $file . '.part-*' ), 'Se trajo una copia remota alterada.' );
 	$compat->objects[ $key ] = $good;
 	// Descarga al navegador: temporal verificado y por bloques. La descarga cierra los búferes de salida que se pueden
-	// cerrar (H16); uno que no se puede cerrar (como el de esta prueba) recibe un bloque cada vez y lo deja pasar.
+	// cerrar (H16); uno que no se puede cerrar (como el de esta prueba) se vacía antes (lo impreso antes no va al archivo,
+	// revisión C3) y recibe un bloque cada vez.
 	// En la prueba ya se imprimió texto: las cabeceras de la descarga avisarían «headers already sent».
 	set_error_handler( function( $number, $text ) { return false !== strpos( $text, 'Cannot modify header information' ) || false !== strpos( $text, 'failed to discard buffer' ) || false !== strpos( $text, 'Failed to discard buffer' ); } );
 	$GLOBALS['bk_capture'] = array( 'on' => true, 'out' => '', 'largest' => 0 );
-	ob_start( function( $buffer ) { if ( ! $GLOBALS['bk_capture']['on'] ) return $buffer; $GLOBALS['bk_capture']['out'] .= $buffer; $GLOBALS['bk_capture']['largest'] = max( $GLOBALS['bk_capture']['largest'], strlen( $buffer ) ); return ''; }, 1, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE );
+	// Lo que se descarta con ob_clean() también pasa por el manejador (fase CLEAN), pero PHP no lo envía: no cuenta.
+	ob_start( function( $buffer, $phase = 0 ) { if ( ! $GLOBALS['bk_capture']['on'] ) return $buffer; if ( $phase & PHP_OUTPUT_HANDLER_CLEAN ) return ''; $GLOBALS['bk_capture']['out'] .= $buffer; $GLOBALS['bk_capture']['largest'] = max( $GLOBALS['bk_capture']['largest'], strlen( $buffer ) ); return ''; }, 0, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE );
 	echo 'texto previo de otro plugin';
 	try { bk_call( $B, 'download_remote', bk_call( $B, 'history_item', $file ) ); } finally { @ob_flush(); $GLOBALS['bk_capture']['on'] = false; restore_error_handler(); }
 	$out = $GLOBALS['bk_capture']['out'];
-	$check( 0 === strpos( $out, 'texto previo de otro plugin' ) && $sha === hash( 'sha256', substr( $out, strlen( 'texto previo de otro plugin' ) ) ), 'La descarga remota no es el respaldo: ' . strlen( $out ) . ' bytes, empieza por ' . json_encode( substr( $out, 0, 120 ) ) );
-	$check( $GLOBALS['bk_capture']['largest'] <= $B::SEND_BLOCK + strlen( 'texto previo de otro plugin' ), 'La descarga remota no pasó por bloques: ' . $GLOBALS['bk_capture']['largest'] . ' bytes de una vez.' );
+	$check( false === strpos( $out, 'texto previo de otro plugin' ) && $sha === hash( 'sha256', $out ), 'La descarga remota no es exactamente el respaldo: ' . strlen( $out ) . ' bytes, empieza por ' . json_encode( substr( $out, 0, 120 ) ) );
+	$check( $GLOBALS['bk_capture']['largest'] <= $B::SEND_BLOCK, 'La descarga remota no pasó por bloques: ' . $GLOBALS['bk_capture']['largest'] . ' bytes de una vez.' );
 	$check( ! glob( bk_storage() . '/.download-*' ), 'La descarga remota dejó el temporal: ' . json_encode( glob( bk_storage() . '/.download-*' ) ) );
 	// Borrar la copia remota por el contrato.
 	bk_call( $B, 'delete_remote', bk_call( $B, 'history_item', $file ) );

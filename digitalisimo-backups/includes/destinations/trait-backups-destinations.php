@@ -196,6 +196,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( self::remote_connection_gone( $remote ) ) wp_die( esc_html( self::gone_text( $remote ) ) );
 		$temp = @tempnam( self::local_directory(), '.download-' );
 		if ( false === $temp ) wp_die( 'No se pudo preparar la descarga del respaldo remoto.' );
+		// Si PHP termina sin pasar por el finally (el navegador corta, un error fatal), el temporal se borra al cerrar (C5).
+		register_shutdown_function( function() use ( $temp ) { if ( is_file( $temp ) ) @unlink( $temp ); } );
 		try {
 			try {
 				self::fetch_remote_copy( (array) $item, $temp );

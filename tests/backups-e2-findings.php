@@ -19,7 +19,9 @@
  *         validaciones (no uno registrado, ni otro nombre);
  *   (h17) un ZIP antiguo del almacén en 0644 queda en 0600 con la operación siguiente;
  *   (h18, fase B) si la restauración la termina otro proceso (WP-Cron), el tick de la pestaña que la seguía con su
- *         testigo devuelve el estado final de esa restauración en vez de un 403 que la pantalla reintentaba sin fin.
+ *         testigo devuelve el estado final de esa restauración en vez de un 403 que la pantalla reintentaba sin fin:
+ *         completo con sesión; sin ella, sólo por la cookie, sólo poco después de terminar y sin el detalle (C4);
+ *   (c5) los temporales `.download-*` y `*.part-*` viejos del almacén se retiran en la operación siguiente.
  * Cada caso escribe «FALLA (x)» si falla; la prueba falla si alguno lo hizo. Debe fallar con 1.0.64 (d3ac3fa8).
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -182,16 +184,56 @@ $case( 'h18', function() use ( $check ) {
 	$restore = null;
 	foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) if ( Digitalisimo_Backups_Jobs::is_restore( $job ) && Digitalisimo_Backups_Job_Store::is_terminal( $job ) && ( ! $restore || (int) $job['finished_at'] >= (int) $restore['finished_at'] ) ) $restore = $job;
 	$check( is_array( $restore ) && '' !== (string) ( $restore['spec']['token'] ?? '' ) && null === Digitalisimo_Backups_Jobs::restore_active(), 'No quedó la restauración terminada de h10 con su testigo.' );
-	$tick = function( $token ) {
-		$_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
-		try { Digitalisimo_Backups_Jobs::ajax_restore_tick(); return null; } catch ( Bk_E2_Json $json ) { return $json; } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ); }
+	$token = (string) $restore['spec']['token'];
+	$caps = $GLOBALS['bk_caps'];
+	/** El tick de la pestaña: el testigo en su cookie (o en la URL, como el de WP-Cron), con o sin sesión. */
+	$tick = function( $token, $via = 'cookie', $session = true ) use ( $caps ) {
+		$GLOBALS['bk_caps'] = $session ? $caps : array();
+		if ( 'cookie' === $via ) $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token; else $_GET[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] = $token;
+		try { Digitalisimo_Backups_Jobs::ajax_restore_tick(); return null; } catch ( Bk_E2_Json $json ) { return $json; } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ], $_GET[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] ); $GLOBALS['bk_caps'] = $caps; }
 	};
-	$answer = $tick( (string) $restore['spec']['token'] );
+	// Con la sesión de quien gestiona Backups: el estado final completo de esa restauración, y sólo de ella.
+	$answer = $tick( $token );
 	$check( $answer && $answer->success && 'finished' === ( $answer->payload['result'] ?? '' ), 'Con la restauración terminada por otro proceso, el tick de su testigo no da el estado final: ' . json_encode( $answer ? array( $answer->success, $answer->status, $answer->payload ) : null ) );
 	$jobs = (array) ( $answer->payload['jobs'] ?? array() );
 	$check( 1 === count( $jobs ) && $restore['id'] === $jobs[0]['id'] && ! empty( $jobs[0]['terminal'] ) && $restore['status'] === $jobs[0]['status'], 'El estado final no es el de esa restauración (o lleva otros trabajos): ' . json_encode( $jobs ) );
+	// Sin sesión (tras restaurar puede no valer), la pestaña de la cookie y recién terminada: estado y texto general, sin
+	// el error, el archivo ni el detalle (revisión C4).
+	$answer = $tick( $token, 'cookie', false );
+	$view = $answer && $answer->success ? (array) ( $answer->payload['jobs'][0] ?? array() ) : array();
+	$check( $view && $restore['status'] === $view['status'] && ! isset( $view['error'] ) && ! isset( $view['file'] ) && false === strpos( json_encode( $answer->payload ), basename( (string) ( $restore['spec']['file'] ?? 'x' ) ) ) && false !== strpos( (string) $view['detail'], 'Entra al escritorio' ), 'Sin sesión, la pestaña no recibe sólo el estado y un texto general: ' . json_encode( $answer ? $answer->payload : null ) );
+	// Sin sesión: el testigo en la URL (el del tick de WP-Cron, que queda en los registros) no da nada.
+	$answer = $tick( $token, 'url', false );
+	$check( $answer && ! $answer->success && 403 === $answer->status, 'Sin sesión, el testigo por la URL dio el estado final.' );
+	// Sin sesión y pasado el plazo: nada.
+	$old = $restore;
+	$old['finished_at'] = time() - Digitalisimo_Backups_Jobs::FINISHED_ANSWER - 60;
+	Digitalisimo_Backups_Job_Store::write( $old );
+	try {
+		$answer = $tick( $token, 'cookie', false );
+		$check( $answer && ! $answer->success && 403 === $answer->status, 'Sin sesión, una restauración terminada hace más de ' . Digitalisimo_Backups_Jobs::FINISHED_ANSWER . ' s dio su estado final.' );
+		$answer = $tick( $token );
+		$check( $answer && $answer->success, 'Con sesión, una restauración terminada hace tiempo no da su estado final.' );
+	} finally {
+		Digitalisimo_Backups_Job_Store::write( $restore );
+	}
 	$other = $tick( 'otro-testigo-que-no-es' );
 	$check( $other && ! $other->success && 403 === $other->status, 'Con otro testigo no respondió 403.' );
+} );
+
+// (c5) Los temporales de descarga y de «Traer al almacén» que nadie retiró (el navegador cortó, el proceso murió) se borran
+// en la operación siguiente pasadas unas horas; uno reciente (puede estar en uso) se queda.
+$case( 'c5', function() use ( $B, $check ) {
+	$dir = bk_storage();
+	$old = array( $dir . '/.download-viejo1', $dir . '/digitalisimo-x.zip.part-0a1b2c3d4e5f' );
+	$new = $dir . '/.download-nuevo1';
+	foreach ( array_merge( $old, array( $new ) ) as $path ) file_put_contents( $path, 'temporal' );
+	foreach ( $old as $path ) touch( $path, time() - ( $B::STALE_TEMPORARY_HOURS + 1 ) * 3600 );
+	$lock = bk_call( $B, 'acquire_operation_lock' );
+	bk_call( $B, 'release_operation_lock', $lock );
+	clearstatcache();
+	$check( ! array_filter( $old, 'file_exists' ) && is_file( $new ), 'Los temporales viejos no se retiraron o se retiró uno reciente: ' . json_encode( array_map( 'basename', array_filter( array_merge( $old, array( $new ) ), 'file_exists' ) ) ) );
+	@unlink( $new );
 } );
 
 // (h11) Una ruta dentro de una URL file:// que es el valor entero se reubica; en un texto, no.
@@ -359,8 +401,10 @@ $case( 'h17', function() use ( $B, $check ) {
 	@unlink( $old );
 } );
 
-// (h10-diario) El proceso muere justo después del cambio de tablas (antes de reponer nada): la operación siguiente repone
-// el registro del almacén de este servidor desde el diario. exit() no ejecuta ningún finally; sigue en el cierre.
+// (h10-diario) El proceso muere justo después del cambio de tablas (antes de reponer nada): la base ya tiene el registro
+// del almacén de este servidor (C1) y la operación siguiente aplica el diario y lo deja así. exit() no ejecuta ningún
+// finally; sigue en el cierre. La petición siguiente en otro proceso, con un clon de la misma cuenta, la prueba
+// backups-storage-clone.php.
 $interrupted = null;
 $here_at_death = get_option( $B::STORAGE );
 $case( 'h10-diario (preparación)', function() use ( $B, $check, &$interrupted, $here_at_death ) {
@@ -373,7 +417,10 @@ register_shutdown_function( function() use ( $B, $check, $case, &$failures, &$do
 		bk_close_dead_locks();
 		$case( 'h10-diario', function() use ( $B, $check, $here_at_death ) {
 			$journal = bk_storage() . '/' . $B::RESTORE_JOURNAL;
-			$check( is_file( $journal ) && false !== strpos( json_encode( get_option( $B::STORAGE ) ), 'origen-diario' ), 'La simulación no dejó el SQL cambiado con el registro del otro servidor.' );
+			// El cambio de tablas ya trae el registro de este servidor (revisión C1: se escribe en la tabla temporal antes del
+			// RENAME), aunque el SQL del respaldo traía el del otro.
+			$check( is_file( $journal ), 'La simulación no dejó la restauración muerta con su diario.' );
+			$check( $here_at_death === get_option( $B::STORAGE ), 'Tras el cambio de tablas, la base tiene el registro del otro servidor: ' . json_encode( get_option( $B::STORAGE ) ) );
 			$lock = bk_call( $B, 'acquire_operation_lock' );
 			bk_call( $B, 'release_operation_lock', $lock );
 			$check( ! file_exists( $journal ) && $here_at_death === get_option( $B::STORAGE ), 'La operación siguiente no repuso el registro del almacén de este servidor: ' . json_encode( get_option( $B::STORAGE ) ) );

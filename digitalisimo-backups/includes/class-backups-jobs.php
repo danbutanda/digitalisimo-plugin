@@ -765,17 +765,35 @@ final class Digitalisimo_Backups_Jobs {
 		if ( self::off_main_site() ) wp_send_json_error( array( 'message' => self::MAIN_SITE_ONLY ), 400 );
 		$job = self::restore_active();
 		if ( ! $job || ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) {
-			// La terminó otro proceso (WP-Cron, otra pestaña, WP-CLI): quien la sigue con su testigo recibe el estado final, no
-			// un error que la pantalla reintentaría sin fin (H18 del ensayo E2). Sólo esa restauración, nunca otros trabajos.
-			$done = self::restore_finished_for_request();
-			if ( $done ) wp_send_json_success( array( 'result' => 'finished', 'message' => (string) ( self::view( $done )['detail'] ?? '' ), 'jobs' => array( self::view( $done ) ) ) );
+			// La terminó otro proceso (WP-Cron, otra pestaña, WP-CLI): quien la sigue recibe el estado final, no un error que la
+			// pantalla reintentaría sin fin (H18 del ensayo E2). Sólo esa restauración, nunca otros trabajos. Con la sesión de
+			// quien gestiona Backups, la vista completa; sin ella (la sesión puede no valer tras restaurar), sólo la pestaña
+			// que la siguió (el testigo en su cookie, nunca en la URL como el de WP-Cron) y sólo durante FINISHED_ANSWER
+			// segundos tras terminar, con el estado y un texto general, sin el error ni el archivo (revisión C4).
+			$manager = Digitalisimo_Backups::can_manage_backups();
+			$done = self::restore_finished_for_request( ! $manager );
+			if ( $done && ( $manager || time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) ) {
+				$view = $manager ? self::view( $done ) : self::finished_view( $done );
+				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ) ) );
+			}
 			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
 		}
 		$result = self::tick();
 		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views() ) );
 	}
-	/** La restauración terminada más reciente cuyo testigo trae esta petición (cookie o parámetro), o null. */
-	private static function restore_finished_for_request() {
+	/** Segundos tras terminar en los que la pestaña que siguió una restauración, sin sesión, recibe su estado final (C4). */
+	const FINISHED_ANSWER = 900;
+	/** Vista mínima de una restauración terminada para quien no tiene sesión: estado y un texto general, sin detalle. */
+	private static function finished_view( array $job ) {
+		$status = (string) $job['status'];
+		$texts = array( 'success' => 'Restauración terminada. Entra al escritorio para ver el resultado.', 'failed' => 'La restauración no terminó bien. Entra al escritorio para ver el detalle y la copia previa.', 'cancelled' => 'La restauración se canceló. Entra al escritorio para ver el detalle.' );
+		return array( 'detail' => $texts[ $status ] ?? 'La restauración terminó. Entra al escritorio para ver el detalle.', 'id' => (string) $job['id'], 'status' => $status, 'status_label' => self::status_label( $status ), 'phase' => '', 'phase_label' => '', 'percent' => 'success' === $status ? 100 : 0, 'message' => '', 'terminal' => true, 'running' => false, 'retry_in' => 0, 'can_cancel' => false, 'kind' => 'restore', 'origin_label' => 'Restauración', 'destination_label' => '', 'created_label' => '' );
+	}
+	/**
+	 * La restauración terminada más reciente cuyo testigo trae esta petición, o null. Con $cookie_only, sólo el de la
+	 * cookie de la pestaña que la siguió (el parámetro lo lleva también la URL del tick de WP-Cron).
+	 */
+	private static function restore_finished_for_request( $cookie_only = false ) {
 		try {
 			$jobs = Digitalisimo_Backups_Job_Store::all();
 		} catch ( Throwable $e ) {
@@ -784,7 +802,8 @@ final class Digitalisimo_Backups_Jobs {
 		$found = null;
 		foreach ( $jobs as $job ) {
 			if ( ! self::is_restore( $job ) || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) continue;
-			if ( ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) continue;
+			$token = (string) ( $job['spec']['token'] ?? '' );
+			if ( $cookie_only ? ( '' === $token || ! is_string( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ?? null ) || ! hash_equals( hash( 'sha256', $token ), hash( 'sha256', (string) $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ) ) ) : ! Digitalisimo_Backups_Restore_Maintenance::request_has( $token ) ) continue;
 			if ( ! $found || (int) ( $job['finished_at'] ?? 0 ) > (int) ( $found['finished_at'] ?? 0 ) ) $found = $job;
 		}
 		return $found;
