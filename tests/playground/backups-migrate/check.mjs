@@ -164,9 +164,35 @@ try {
     if (job && job.terminal) break;
     if (res.json.data.result !== 'worked') await sleep(Math.max(1000, Math.min(15000, (job?.retry_in || 2) * 1000)));
   }
+  // La migración se aplica con la restauración por pasos (1.0.64): tras el cambio de tablas la sesión ya no vale y el
+  // sitio está en mantenimiento. Como en el navegador, se sigue con el tick por testigo (la cookie que recibió esta
+  // «pestaña» al encolarse la restauración) y, cuando la restauración termina, con la sesión de un administrador del
+  // origen (los usuarios de B son ya los de A), que hace avanzar el cierre. (El ensayo corta el loopback de WP-Cron.)
+  let byToken = 0;
+  if (lost) {
+    for (let i = 0; i < 600; i++) {
+      res = await post('B', '/wp-admin/admin-ajax.php', { action: 'digitalisimo_backups_restore_tick', digitalisimo_backups_restore: '' });
+      if (!res.json || !res.json.success) break;
+      byToken++;
+      job = (res.json.data.jobs || []).find((item) => item.kind === 'migration') || job;
+      if (job && job.terminal) break;
+      if (res.json.data.result !== 'worked') await sleep(1500);
+    }
+    if (!(job && job.terminal) && await login('B', conf.A.password)) {
+      const again = await page('B');
+      const nonce = (/"jobsNonce":"([0-9a-f]+)"/.exec(again.text) || [])[1];
+      for (let i = 0; nonce && i < 400; i++) {
+        res = await post('B', '/wp-admin/admin-ajax.php', { action: 'digitalisimo_backups_job_tick', nonce, context: network ? 'network' : 'site' });
+        if (!res.json || !res.json.success) break;
+        job = (res.json.data.jobs || []).find((item) => item.kind === 'migration') || job;
+        if (job && job.terminal) break;
+        if (res.json.data.result !== 'worked') await sleep(Math.max(1000, Math.min(15000, (job?.retry_in || 2) * 1000)));
+      }
+    }
+  }
   let state = await probe('B', 'state');
   const migration = state.jobs.find((item) => item.kind === 'migration');
-  log(`· B: migración ${migration?.status} en ${Math.round((Date.now() - begun) / 1000)} s (${lost ? 'la sesión del navegador terminó al restaurar' : 'la sesión siguió'})`);
+  log(`· B: migración ${migration?.status} en ${Math.round((Date.now() - begun) / 1000)} s (${lost ? `la sesión del navegador terminó al restaurar; ${byToken} tick(s) por testigo` : 'la sesión siguió'})`);
   check(migration && migration.status === 'success', 'B: la migración terminó', JSON.stringify(migration));
   check(lost || job?.status === 'success', 'B: la pestaña siguió la migración hasta el final o hasta que la sesión cambió');
 
@@ -221,8 +247,16 @@ try {
   const undoStart = Date.now();
   res = await post('B', '/wp-admin/admin-post.php', undo || {});
   target = location(res);
+  // Si la restauración de la copia previa sigue en segundo plano, se sigue con su testigo (la cookie de la redirección).
+  if (res.status === 302 && target.ok && target.message.includes('Deshaciendo la migración')) {
+    for (let i = 0; i < 600; i++) {
+      res = await post('B', '/wp-admin/admin-ajax.php', { action: 'digitalisimo_backups_restore_tick', digitalisimo_backups_restore: '' });
+      if (!res.json || !res.json.success || !(res.json.data.jobs || []).some((item) => !item.terminal)) break;
+      if (res.json.data.result !== 'worked') await sleep(1500);
+    }
+  }
   log(`· B: deshacer en ${Math.round((Date.now() - undoStart) / 1000)} s`);
-  check(res.status === 302 && target.ok && target.message.includes('Migración deshecha'), 'B: un clic deshace la migración', `${res.status} ${target.message}`);
+  check(target.ok && (target.message.includes('Migración deshecha') || target.message.includes('Deshaciendo la migración')), 'B: un clic deshace la migración', `${res.status} ${target.message}`);
   state = await probe('B', 'state');
   check(state.blogname === 'Sitio de destino' && !state.users.includes('editora') && state.home.replace(/\/$/, '') === sites.B.home, 'B: volvió a su contenido y sus usuarios', `${state.blogname}`);
   check(await login('B', conf.B.password), 'B: la contraseña del destino vuelve a servir');

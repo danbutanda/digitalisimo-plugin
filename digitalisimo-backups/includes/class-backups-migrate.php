@@ -1295,6 +1295,9 @@ final class Digitalisimo_Backups_Migrate {
 			// El ZIP descifrado pasó al área de trabajo de la restauración; el paquete cifrado ya no hace falta.
 			@unlink( $path );
 			Digitalisimo_Backups_Jobs::schedule();
+			// Como «Restaurar»: el navegador que hace avanzar la migración (el tick de «Trabajos» de un administrador) recibe
+			// el testigo de la restauración, con el que la sigue durante el mantenimiento y después del cambio de tablas.
+			if ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $restore['spec']['token'] );
 			return array( 'next' => 'restore', 'checkpoint' => array( 'job' => (string) $restore['id'] ), 'progress_made' => true, 'wait' => 1, 'message' => 'Aplicando la migración con la restauración por pasos: copia previa, base de datos, archivos y cambio…' );
 		}
 		$restore = Digitalisimo_Backups_Jobs::get( $restore_id );
@@ -1581,6 +1584,7 @@ final class Digitalisimo_Backups_Migrate {
 		self::guard( self::ACTION_UNDO );
 		$result = Digitalisimo_Backups::service_migration_undo( array( 'network' => is_multisite(), 'confirm' => 'DESHACER', 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, 'No se deshizo la migración: ' . $result->get_error_message(), null, 'migrate' );
+		if ( ! empty( $result['restoring'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) ( $result['maintenance_token'] ?? '' ) );
 		if ( ! empty( $result['restoring'] ) ) Digitalisimo_Backups::redirect( true, 'Deshaciendo la migración: la copia previa ' . $result['file'] . ' se está restaurando por pasos (su avance está en «Trabajos»; WP-Cron la continúa). Al terminar, inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
 		Digitalisimo_Backups::redirect( true, 'Migración deshecha: el sitio volvió al estado de ' . $result['file'] . '. Inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
 	}

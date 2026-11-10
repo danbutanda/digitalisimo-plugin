@@ -140,6 +140,9 @@
       busy = false;
       failures++;
       sessionFailures = error && error.session ? sessionFailures + 1 : 0;
+      /* La migración se aplica con la restauración por pasos: sin sesión (o en su mantenimiento) se sigue con el tick
+         por testigo (la cookie que recibió este navegador al encolarla); si tampoco vale, se pide iniciar sesión. */
+      if (migrating && error && error.session && !restore) { restore = { action: config.restoreTick || 'digitalisimo_backups_restore_tick', token: '' }; schedule(1000); return; }
       if (migrating && sessionFailures >= 2) { sessionReplaced(); return; }
       if (watching && detail) detail.textContent = 'No se pudo avanzar ahora: ' + error.message + '. Se reintentará; WP-Cron también lo continúa.';
       schedule(Math.min(30000, 2000 * failures));

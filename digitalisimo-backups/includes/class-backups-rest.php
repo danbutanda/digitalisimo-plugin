@@ -227,7 +227,9 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function migration_undo( $request ) {
 		$result = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) );
-		// Como «Restaurar»: 202 si la restauración sigue en segundo plano (su trabajo y el testigo del mantenimiento van en la respuesta).
+		// Como «Restaurar»: 202 si la restauración sigue en segundo plano (su trabajo y el testigo del mantenimiento van en la
+		// respuesta, y el testigo también en su cookie).
+		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}
 	private static function migration_action( $request ) {
