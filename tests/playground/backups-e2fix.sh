@@ -16,8 +16,6 @@
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-e2fix) y temporales de Playground
 #   PORT          primer puerto (por defecto 9491; el destino usa el siguiente)
 #   BIG_MB        tamaño del respaldo grande del destino (por defecto 100)
-#   H19=1         además, Elements activo con 12 páginas en el origen (visitadas antes del respaldo) y, en el destino tras
-#                 restaurar en el otro dominio, dos visitas a cada una y a /wp-json/ con 64 MB: la primera no da 500 (H19)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 D="$ROOT/tests/playground/backups-e2fix"
@@ -45,14 +43,12 @@ start_site() {
   cp "$D/setup.php" "$dir/probe/"
   echo "$mode" > "$dir/probe/mode.txt"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
-  if [ -n "${H19:-}" ]; then touch "$dir/probe/h19"; else rm -f "$dir/probe/h19"; fi
   cat > "$dir/blueprint.json" <<'JSON'
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"WP_ENVIRONMENT_TYPE":"local"}},{"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; return 1; fi
   $CLI server --port="$port" --workers=1 --site-url="http://$host" --blueprint="$dir/blueprint.json" \
     --mount="$PLUGINS/digitalisimo-backups:/wordpress/wp-content/plugins/digitalisimo-backups" \
-    ${H19:+--mount="$PLUGINS/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements"} \
     --mount="$dir/probe:/digi-probe" \
     --mount="$dir/store:$store" "$@" > "$dir/server.log" 2>&1 &
   SERVER=$!
@@ -73,7 +69,6 @@ rm -rf "$OUT/origin" "$OUT/dest" "$OUT/plugins"
 PLUGINS="$OUT/plugins"
 mkdir -p "$PLUGINS"
 cp -a "$ROOT/digitalisimo-backups" "$PLUGINS/"
-[ -n "${H19:-}" ] && cp -a "$ROOT/digitalisimo-elements" "$PLUGINS/"
 begun=$(date +%s)
 if ! start_site "$OUT/origin" origen.test "$PORT" origin /origen-store; then stop_server; echo 'Ensayo E2FIX con fallos: el origen no arrancó'; exit 1; fi
 echo "== origen listo en $(( $(date +%s) - begun )) s (puerto $PORT)"

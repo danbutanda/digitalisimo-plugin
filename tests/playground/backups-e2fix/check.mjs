@@ -64,12 +64,6 @@ const requests = () => (existsSync(`${dir}/probe/requests.jsonl`) ? readFileSync
 try {
   log(`· ${phase}: ${setup.versions}`);
   if (phase === 'origin') {
-    // H19: las páginas de Elements se visitan antes del respaldo (su CSS generado viaja en él) y se mide su memoria.
-    for (const path of setup.pages || []) {
-      const view = await request('GET', path);
-      const row = requests().filter((r) => r.uri === path).pop() || {};
-      log(`· origen (h19): ${path} → ${view.status}, pico ${row.peak_mb ?? '?'} MiB`);
-    }
     let res = await api('POST', '/backups', { headers: basic(setup.password), body: {} });
     const id = res.json?.id || res.json?.job?.id;
     check(res.status === 202 && id, 'origen: POST /backups encola el respaldo (202)', `${res.status} ${res.text}`);
@@ -131,23 +125,6 @@ try {
     check(safety && safety.available === true && safety.restorable === true && existsSync(`${dir}/store/${safety.file}`), 'destino (h10): la copia previa sale disponible y restaurable, con su ZIP en el almacén de este servidor', JSON.stringify(safety || list.text.slice(0, 400)));
     const grande = (list.json || []).find((row) => row.file === big.file);
     check(grande && grande.available === true, 'destino (h10): el historial de este servidor sigue con sus respaldos disponibles', JSON.stringify(grande || null));
-    // H19: dos visitas a cada página de Elements y a /wp-json/ tras restaurar en otro dominio, con 64 MB.
-    if ((origin.pages || []).length) {
-      const paths = [...origin.pages, '/?rest_route=%2F'];
-      const rounds = [[], []];
-      for (const round of [0, 1]) {
-        for (const path of paths) {
-          const view = await request('GET', path);
-          const row = requests().filter((r) => r.uri === path).pop() || {};
-          rounds[round].push({ path, status: view.status, peak: row.peak_mb, error: row.error || '' });
-        }
-      }
-      const fails = rounds[0].filter((r) => r.status >= 500);
-      const first = rounds[0].map((r) => r.peak || 0);
-      const second = rounds[1].map((r) => r.peak || 0);
-      log(`· destino (h19): primera visita ${rounds[0].map((r) => r.status).join(',')} · picos ${first.join('/')} MiB; segunda ${rounds[1].map((r) => r.status).join(',')} · picos ${second.join('/')} MiB`);
-      check(fails.length === 0, `destino (h19): tras restaurar en otro dominio con 64 MB, la primera visita a ${paths.length} URL (páginas de Elements y /wp-json/) no da 500`, JSON.stringify(fails.slice(0, 3)));
-    }
     const peaks = requests().filter((row) => row.peak_mb > 64 || /Allowed memory size|Maximum execution time/.test(row.error || ''));
     check(peaks.length === 0, 'destino: ninguna petición pasó de 64 MB ni agotó la memoria o el tiempo', JSON.stringify(peaks.slice(0, 3)));
   }

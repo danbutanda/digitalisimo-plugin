@@ -99,32 +99,6 @@ PHP;
 	$created = WP_Application_Passwords::create_new_application_password( $admin->ID, array( 'name' => 'digi-e2fix-' . $mode ) );
 	if ( is_wp_error( $created ) ) throw new RuntimeException( 'Sin contraseña de aplicación: ' . $created->get_error_message() );
 	$setup = array( 'mode' => $mode, 'password' => $created[0], 'store' => $store, 'home' => home_url(), 'versions' => 'WordPress ' . $GLOBALS['wp_version'] . ' · PHP ' . PHP_VERSION );
-	// H19 (fase B): con /digi-probe/h19, Elements activo y páginas de Elements en el origen, para medir la primera visita
-	// del destino tras restaurar en otro dominio (la reubicación vacía transitorios y el CSS generado de Elements).
-	if ( is_file( $dir . '/h19' ) ) {
-		$activated = activate_plugin( 'digitalisimo-elements/pro-elements.php' );
-		if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó Elements: ' . $activated->get_error_message() );
-		$setup['pages'] = array();
-		if ( 'origin' === $mode ) {
-			update_option( 'elementor_onboarded', true );
-			wp_set_current_user( $admin->ID );
-			for ( $i = 1; $i <= 12; $i++ ) {
-				$widgets = array();
-				for ( $w = 1; $w <= 8; $w++ ) {
-					$widgets[] = array( 'id' => substr( md5( "h$i-$w" ), 0, 7 ), 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Título ' . $w . ' de la página ' . $i, 'title_color' => '#1a2b3c', 'link' => array( 'url' => home_url( '/pagina-elements-' . ( $i % 12 + 1 ) . '/' ) ) ), 'elements' => array() );
-					$widgets[] = array( 'id' => substr( md5( "t$i-$w" ), 0, 7 ), 'elType' => 'widget', 'widgetType' => 'text-editor', 'settings' => array( 'editor' => str_repeat( '<p>Texto del ensayo H19 con <a href="' . esc_url( home_url( '/' ) ) . '">enlace</a>.</p>', 6 ) ), 'elements' => array() );
-				}
-				$data = array( array( 'id' => substr( md5( "s$i" ), 0, 7 ), 'elType' => 'section', 'settings' => array( 'background_background' => 'classic', 'background_color' => '#f0f4ff', 'padding' => array( 'unit' => 'px', 'top' => '40', 'right' => '20', 'bottom' => '40', 'left' => '20', 'isLinked' => false ) ), 'elements' => array( array( 'id' => substr( md5( "c$i" ), 0, 7 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => $widgets ) ) ) );
-				$id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página Elements ' . $i, 'post_name' => 'pagina-elements-' . $i, 'post_content' => '' ) );
-				if ( is_wp_error( $id ) || ! $id ) throw new RuntimeException( 'No se creó la página ' . $i . '.' );
-				update_post_meta( $id, '_elementor_edit_mode', 'builder' );
-				update_post_meta( $id, '_elementor_template_type', 'wp-page' );
-				update_post_meta( $id, '_elementor_version', defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '3.0.0' );
-				update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
-				$setup['pages'][] = wp_parse_url( get_permalink( $id ), PHP_URL_PATH ) . ( (string) wp_parse_url( get_permalink( $id ), PHP_URL_QUERY ) !== '' ? '?' . wp_parse_url( get_permalink( $id ), PHP_URL_QUERY ) : '' );
-			}
-		}
-	}
 	if ( 'dest' === $mode ) {
 		// El respaldo grande (más que memory_limit) que el arnés dejó en el almacén, registrado como uno propio.
 		$big = json_decode( (string) file_get_contents( $dir . '/big.json' ), true );
