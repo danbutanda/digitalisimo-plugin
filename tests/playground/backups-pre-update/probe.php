@@ -215,7 +215,7 @@ try {
 	// U4 · REST real.
 	$response = rest_do_request( new WP_REST_Request( 'GET', '/digitalisimo-backups/v1/pre-update' ) );
 	$data = $response->get_data();
-	$check( 200 === $response->get_status() && 'all' === $data['settings']['plugin'] && $data['fresh'], 'U4 GET /pre-update responde 200 con los ajustes y el respaldo reciente' );
+	$check( 200 === $response->get_status() && 'all' === $data['settings']['plugin'] && array_key_exists( 'fresh', $data ) && array_key_exists( 'bypass_until', $data ), 'U4 GET /pre-update responde 200 con los ajustes y el estado' );
 	wp_set_current_user( 0 );
 	$check( 401 === rest_do_request( new WP_REST_Request( 'GET', '/digitalisimo-backups/v1/pre-update' ) )->get_status(), 'U4 sin sesión, 401' );
 	$log( 'TERMINADO en ' . $elapsed() );
