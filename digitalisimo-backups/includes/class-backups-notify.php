@@ -147,13 +147,24 @@ final class Digitalisimo_Backups_Notify {
 			}
 			if ( '' !== $phase ) $lines[] = 'Fase: ' . Digitalisimo_Backups_Jobs::phase_label( $phase );
 			$lines[] = 'Motivo: ' . self::clean( (string) ( $job['error']['message'] ?? 'El trabajo falló.' ) );
+			if ( Digitalisimo_Backups_Pre_Update::POLICY === (string) ( $spec['policy'] ?? '' ) ) $lines[] = self::POSTPONED;
 		}
 		return self::send( $snapshot, $ok, $subject, $lines );
+	}
+	/** Las actualizaciones automáticas que esperaban un respaldo quedan pospuestas (I1). */
+	const POSTPONED = 'Las actualizaciones automáticas de WordPress, plugins y temas que esperaban este respaldo quedan pospuestas hasta que haya un respaldo válido; se reintenta en la próxima comprobación de WordPress (unas dos veces al día). Las actualizaciones manuales preguntan antes de seguir sin respaldo.';
+	/** Un respaldo previo a una actualización automática que ni siquiera pudo encolarse (p. ej. cifrado sin clave). */
+	public static function pre_update_postponed( $message, array $items = array() ) {
+		$lines = array( 'Origen: respaldo antes de actualizar (WP-Cron)', 'Motivo: ' . self::clean( (string) $message ) );
+		if ( $items ) $lines[] = 'Pospuestas: ' . self::clean( implode( ', ', array_map( 'strval', $items ) ) );
+		$lines[] = self::POSTPONED;
+		return self::send( self::snapshot(), false, 'Actualizaciones automáticas pospuestas: el respaldo previo falló', $lines );
 	}
 	private static function origin_label( array $spec ) {
 		$policy = (string) ( $spec['policy'] ?? 'manual' );
 		if ( 'manual' === $policy ) return 'Origen: respaldo manual (' . self::via_label( (string) ( $spec['origin']['via'] ?? '' ) ) . ')';
 		if ( 'legacy-full' === $policy ) return 'Origen: programación anterior';
+		if ( Digitalisimo_Backups_Pre_Update::POLICY === $policy ) return 'Origen: respaldo antes de actualizar (' . self::via_label( (string) ( $spec['origin']['via'] ?? '' ) ) . ')';
 		$found = Digitalisimo_Backups::policy( $policy );
 		return 'Origen: automatización' . ( $found ? ' «' . Digitalisimo_Backups::automation_name( $found ) . '»' : '' );
 	}

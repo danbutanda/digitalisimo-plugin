@@ -34,6 +34,11 @@ defined( 'ABSPATH' ) || exit;
  * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`); 202
  *                                           mientras otro proceso lo comprueba; repetirlo tras un corte da el mismo resultado
  * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
+ * - GET  /pre-update                        respaldo antes de actualizar: ajustes por tipo, respaldo reciente válido,
+ *                                           actualizaciones automáticas retenidas o pospuestas y el último fallo
+ * - POST /pre-update                        guarda los ajustes (`core`, `plugin`, `theme`: all, auto u off; `max_age`)
+ * - POST /pre-update/backup                 el respaldo previo ahora (`network`): `ready` si ya hay uno reciente, si no 202
+ * - POST /pre-update/skip                   las manuales no esperan respaldo durante `minutes` (`network`)
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
  * registros del servidor y del proxy, así que una petición que la lleve en la cadena de consulta se rechaza (400).
@@ -97,6 +102,14 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB, array( $route( 'GET', 'upload_status' ), $route( 'DELETE', 'upload_cancel' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/chunk', array( $route( 'POST, PUT', 'upload_chunk', array( 'offset' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0, 'description' => 'Byte en el que empieza el fragmento: exactamente lo ya recibido.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/finish', array( $route( 'POST', 'upload_finish', array( 'secret' => $secret ) ) ) );
+		// Respaldo antes de actualizar (I1).
+		$mode = array( 'type' => 'string', 'enum' => array_keys( Digitalisimo_Backups_Pre_Update::MODES ), 'description' => 'all (manuales y automáticas), auto (sólo automáticas) u off.' );
+		register_rest_route( self::NAMESPACE_V1, '/pre-update', array(
+			$route( 'GET', 'pre_update' ),
+			$route( 'POST', 'pre_update_save', array( 'core' => $mode, 'plugin' => $mode, 'theme' => $mode, 'max_age' => array( 'type' => 'integer', 'enum' => Digitalisimo_Backups_Pre_Update::AGES, 'description' => 'Horas: un respaldo completo válido de esta antigüedad o menos evita crear otro.' ) ) ),
+		) );
+		register_rest_route( self::NAMESPACE_V1, '/pre-update/backup', array( $route( 'POST', 'pre_update_backup', array( 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/pre-update/skip', array( $route( 'POST', 'pre_update_skip', array( 'network' => $network, 'minutes' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Pre_Update::SKIP_MINUTES, 'minimum' => 1, 'maximum' => 60, 'description' => 'Minutos sin respaldo previo para las actualizaciones manuales.' ) ) ) ) );
 	}
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
@@ -197,5 +210,20 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function upload_cancel( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_cancel( (string) $request['id'] ) );
+	}
+	public static function pre_update( $request ) {
+		return self::respond( Digitalisimo_Backups_Pre_Update::service_status() );
+	}
+	public static function pre_update_save( $request ) {
+		$input = array();
+		foreach ( array( 'core', 'plugin', 'theme', 'max_age' ) as $key ) if ( null !== $request[ $key ] ) $input[ $key ] = $request[ $key ];
+		return self::respond( Digitalisimo_Backups_Pre_Update::service_save( $input ) );
+	}
+	public static function pre_update_backup( $request ) {
+		$result = Digitalisimo_Backups_Pre_Update::service_backup( array( 'network' => (bool) $request['network'], 'via' => 'rest' ) );
+		return self::respond( $result, is_array( $result ) && 'running' === $result['state'] ? 202 : 200 );
+	}
+	public static function pre_update_skip( $request ) {
+		return self::respond( Digitalisimo_Backups_Pre_Update::service_skip( array( 'network' => (bool) $request['network'], 'minutes' => (int) $request['minutes'], 'via' => 'rest' ) ) );
 	}
 }

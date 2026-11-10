@@ -242,6 +242,8 @@ final class Digitalisimo_Backups_Jobs {
 		self::schedule();
 		// Avisos de los trabajos que terminaron (aquí o en un proceso que murió después): fuera del cerrojo del almacén.
 		Digitalisimo_Backups_Notify::flush_jobs();
+		// Respaldo antes de actualizar: si el que se esperaba terminó, libera (o pospone) las actualizaciones retenidas.
+		if ( class_exists( 'Digitalisimo_Backups_Pre_Update', false ) ) Digitalisimo_Backups_Pre_Update::after_tick();
 		return array( 'result' => $result );
 	}
 	/** Elige el primer trabajo listo en orden de llegada y le pone un arrendamiento nuevo. */

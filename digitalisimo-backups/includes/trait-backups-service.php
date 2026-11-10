@@ -55,6 +55,10 @@ trait Digitalisimo_Backups_Service {
 		if ( $write && ! $network ) return self::service_error( 'scope', 'En una red, el respaldo y la restauración abarcan todos los sitios: confirma el alcance de red.', 400 );
 		return true;
 	}
+	/** La misma comprobación de permiso y alcance para los casos de uso de otras clases (p. ej. antes de actualizar). */
+	public static function service_check( $network, $write ) {
+		return self::service_scope( (bool) $network, (bool) $write );
+	}
 	/** Otra petición tiene el bloqueo exclusivo del almacén; no espera ni crea el archivo del bloqueo. */
 	private static function service_busy() {
 		try { $path = trailingslashit( self::local_directory() ) . self::OPERATION_LOCK; } catch ( Exception $e ) { return false; }

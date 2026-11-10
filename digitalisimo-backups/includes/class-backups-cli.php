@@ -31,6 +31,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
+		WP_CLI::add_command( 'digitalisimo-backups pre-update', 'Digitalisimo_Backups_Cli_Pre_Update' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
@@ -632,5 +633,107 @@ final class Digitalisimo_Backups_Cli_Upload {
 	public function cancel( $args, $assoc_args ) {
 		Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_upload_cancel( (string) ( $args[0] ?? '' ) ) );
 		WP_CLI::success( 'Subida descartada; se borró lo recibido.' );
+	}
+}
+
+/**
+ * Respaldo antes de actualizar el núcleo, los plugins y los temas: ajustes por tipo, estado y respaldo previo ahora.
+ */
+final class Digitalisimo_Backups_Cli_Pre_Update {
+	/**
+	 * Muestra los ajustes por tipo, el respaldo reciente válido y las actualizaciones automáticas retenidas o pospuestas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table o json.
+	 * ---
+	 * default: table
+	 * ---
+	 */
+	public function status( $args, $assoc_args ) {
+		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups_Pre_Update::service_status() );
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
+			WP_CLI::line( wp_json_encode( $status ) );
+			return;
+		}
+		$modes = Digitalisimo_Backups_Pre_Update::MODES;
+		$rows = array();
+		foreach ( Digitalisimo_Backups_Pre_Update::TYPES as $type => $label ) $rows[] = array( 'campo' => $type, 'valor' => $status['settings'][ $type ] . ' (' . $modes[ $status['settings'][ $type ] ] . ')' );
+		$rows[] = array( 'campo' => 'max_age', 'valor' => $status['settings']['max_age'] . ' h' );
+		$rows[] = array( 'campo' => 'fresh', 'valor' => $status['fresh'] ? $status['fresh']['file'] . ' (' . $status['fresh']['date'] . ')' : '' );
+		$rows[] = array( 'campo' => 'job', 'valor' => $status['job'] ? $status['job']['id'] . ' · ' . $status['job']['status_label'] . ' (' . (int) $status['job']['percent'] . ' %)' : '' );
+		$rows[] = array( 'campo' => 'retained', 'valor' => implode( ', ', $status['retained'] ) );
+		$rows[] = array( 'campo' => 'postponed', 'valor' => $status['postponed'] ? 'sí' : 'no' );
+		$rows[] = array( 'campo' => 'failure', 'valor' => $status['failure'] );
+		$rows[] = array( 'campo' => 'skip_until', 'valor' => $status['skip_until'] );
+		WP_CLI\Utils\format_items( 'table', $rows, array( 'campo', 'valor' ) );
+	}
+
+	/**
+	 * Cambia los ajustes: por tipo, all (manuales y automáticas), auto (sólo automáticas) u off; y la antigüedad máxima.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--core=<mode>]
+	 * : all, auto u off para las actualizaciones de WordPress.
+	 *
+	 * [--plugin=<mode>]
+	 * : all, auto u off para los plugins.
+	 *
+	 * [--theme=<mode>]
+	 * : all, auto u off para los temas.
+	 *
+	 * [--max-age=<hours>]
+	 * : 1, 6, 12, 24, 48 o 168: un respaldo válido de esta antigüedad o menos evita crear otro.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups pre-update set --plugin=auto --max-age=12
+	 */
+	public function set( $args, $assoc_args ) {
+		$input = array();
+		foreach ( array( 'core' => 'core', 'plugin' => 'plugin', 'theme' => 'theme', 'max-age' => 'max_age' ) as $flag => $key ) if ( array_key_exists( $flag, $assoc_args ) ) $input[ $key ] = (string) $assoc_args[ $flag ];
+		if ( ! $input ) WP_CLI::error( 'Indica al menos un ajuste: --core, --plugin, --theme o --max-age.' );
+		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups_Pre_Update::service_save( $input ) );
+		WP_CLI::success( 'Guardado: núcleo ' . $status['settings']['core'] . ', plugins ' . $status['settings']['plugin'] . ', temas ' . $status['settings']['theme'] . ', respaldo reciente ' . $status['settings']['max_age'] . ' h.' );
+	}
+
+	/**
+	 * Crea ahora el respaldo previo, salvo que ya haya uno reciente válido, y lo hace avanzar hasta terminar.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 */
+	public function run( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups_Pre_Update::service_backup( array( 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli' ) ) );
+		if ( 'ready' === $result['state'] ) {
+			WP_CLI::success( $result['message'] );
+			return;
+		}
+		if ( 'running' !== $result['state'] || empty( $result['job'] ) ) WP_CLI::error( $result['message'] );
+		Digitalisimo_Backups_Cli::finish( Digitalisimo_Backups_Cli::drive( $result['job'] ), false );
+	}
+
+	/**
+	 * Las actualizaciones manuales no esperan un respaldo durante unos minutos (tras un respaldo previo fallido). Las
+	 * automáticas siguen esperando uno.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--minutes=<minutes>]
+	 * : De 1 a 60.
+	 * ---
+	 * default: 15
+	 * ---
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 */
+	public function skip( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups_Pre_Update::service_skip( array( 'network' => ! empty( $assoc_args['network'] ), 'minutes' => (int) ( $assoc_args['minutes'] ?? Digitalisimo_Backups_Pre_Update::SKIP_MINUTES ), 'via' => 'cli' ) ) );
+		WP_CLI::success( $result['message'] );
 	}
 }
