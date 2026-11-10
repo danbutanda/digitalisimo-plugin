@@ -353,17 +353,20 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 				$state['hash'] = '';
 				$this->save_state( $state );
 			}
-			// El temporal ya no está: ¿murió el proceso justo después del renombre? Si el archivo final es éste (tamaño y
-			// marca), se verifica entero desde el principio y se da por publicado (revisión N2); si no, empieza de nuevo.
+			// El temporal ya no está: ¿murió el proceso justo después del renombre? El archivo final se reconoce por su
+			// contenido, no por su fecha (tras publicar se le pone la actual): se verifica entero, por tramos, y se da por
+			// publicado (revisión N2). Uno de otro tamaño o que no coincide es ajeno: error claro, sin repetir la subida.
 			$final = rtrim( $this->directory(), '/' ) . '/' . $name;
 			$stat = $this->stat_of( $path );
 			if ( false === $stat && ! empty( $this->stat_of( $final ) ) ) {
 				$there = $this->stat_of( $final );
-				if ( $there['size'] !== $size || ( ! empty( $state['marker'] ) && $there['mtime'] !== (int) $state['marker'] ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia temporal SFTP desapareció y el archivo final no es este respaldo.' );
+				if ( $there['size'] !== $size ) throw new Digitalisimo_Backups_Permanent_Error( self::foreign_final_text( $name ) );
 				if ( empty( $state['published'] ) ) {
 					$state['published'] = true;
 					$state['verified'] = 0;
 					$state['hash'] = '';
+					// Durante esta verificación vale la fecha que tiene ahora: una escritura la cambiaría (N1).
+					$state['marker'] = (int) $there['mtime'];
 					$this->save_state( $state );
 				}
 				$path = $final;
@@ -396,6 +399,8 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			$this->forget_state();
 			throw $e;
 		} catch ( Digitalisimo_Backups_Sftp_Mismatch $e ) {
+			// El archivo final que ya estaba no es este respaldo: no se toca ni se repite la subida (choca con él).
+			if ( isset( $final ) && $path === $final ) { $this->forget_state(); throw new Digitalisimo_Backups_Permanent_Error( self::foreign_final_text( $name ) ); }
 			$this->discard_quietly( $temp );
 			$this->discard_stale();
 			$this->forget_state();
@@ -408,10 +413,15 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			throw $e;
 		}
 		$receipt = $path === $final ? array( 'provider' => self::TYPE, 'path' => $final ) : $this->publish( $temp, $name );
+		// La marca de la verificación (una fecha de hace más de un año) no se queda en el respaldo publicado: una limpieza
+		// del servidor por antigüedad (find -mtime +30 -delete) lo borraría (revisión R1). Fecha de ahora.
+		// Si el servidor no deja cambiar la fecha, el renombre ya la conservó de la marca o de la subida (límite declarado).
+		$this->mark( $final, time() );
 		$this->discard_stale();
 		$this->forget_state();
 		return $receipt + array( 'provider' => self::TYPE, 'connection' => (string) $this->context['connection'], 'sha256' => (string) $state['sha256'], 'size' => $size );
 	}
+	private static function foreign_final_text( $name ) { return 'Ya hay en el SFTP un archivo «' . $name . '» que no es este respaldo (otro tamaño u otro contenido): no se sobrescribe ni se repite la subida. Bórralo o renómbralo en el servidor si sobra.'; }
 	/** La copia sigue con el tamaño y la marca de la subida terminada; si no, algo la cambió y se descarta (N1). */
 	private function unchanged( $stat, array $state, $size ) {
 		if ( null === $stat ) return; // Sin stat (una extensión sin ssh2_sftp_stat): sólo valen los bloques y el SHA-256.
@@ -619,6 +629,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			$client = $this->client();
 			if ( ! $client->rename( $temp['path'], $final ) ) {
 				$client->delete( $temp['path'] );
+				if ( false !== $client->size( $final ) ) throw new Digitalisimo_Backups_Permanent_Error( self::foreign_final_text( $name ) );
 				throw new Exception( 'No se pudo publicar el respaldo verificado en SFTP.' );
 			}
 			return array( 'provider' => self::TYPE, 'path' => $final );
@@ -626,6 +637,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$sftp = $this->session();
 		if ( ! @ssh2_sftp_rename( $sftp, $temp['path'], $final ) ) {
 			@ssh2_sftp_unlink( $sftp, $temp['path'] );
+			if ( is_array( $this->stat_of( $final ) ) ) throw new Digitalisimo_Backups_Permanent_Error( self::foreign_final_text( $name ) );
 			throw new Exception( 'No se pudo publicar el respaldo verificado en SFTP.' );
 		}
 		return array( 'provider' => self::TYPE, 'path' => $final );

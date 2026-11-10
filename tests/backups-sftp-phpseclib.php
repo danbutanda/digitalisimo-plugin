@@ -30,6 +30,9 @@
  *       copia (la marca de la subida cambió y el SHA-256 final no sería el del ZIP); se sube de nuevo y se publica la buena;
  *   (p) N2 [T5]: el proceso muere justo después del renombre final (vuelve el estado de antes): la transferencia termina
  *       igual, con el archivo final que ya está (verificado entero), sin subir otra vez ni chocar con él;
+ *   (r) revisión R1 (en p): el respaldo publicado lleva la fecha de ahora, no la marca de hace más de un año (una
+ *       limpieza del servidor por antigüedad lo borraría); y un archivo final ajeno (otro tamaño, o el mismo tamaño y otro
+ *       contenido) termina con un error permanente claro, sin tocarlo ni repetir la subida;
  *   (q) N3: si la copia de phpseclib no tiene las propiedades privadas de las que dependen las protecciones (un renombre),
  *       el cliente incluido no conecta: error claro y ninguna conexión.
  * Sin sshd/ssh-keygen sólo corren los casos sin servidor, salvo en la CI (CI=true, el workflow lo instala) o con
@@ -397,6 +400,8 @@ if ( '' === $sshd || '' === $keygen ) {
 		$last = null;
 		list( $receipt ) = $slices( $big, $state_path, function( $state ) use ( &$last ) { $last = $state; } );
 		$check( $receipt && is_file( $receipt['path'] ) && is_array( $last ), 'La primera subida no se publicó.' );
+		clearstatcache();
+		$check( filemtime( $receipt['path'] ) >= time() - 600, 'El respaldo publicado quedó con la fecha de la marca: ' . gmdate( 'Y-m-d', filemtime( $receipt['path'] ) ) );
 		// Muerte justo después del renombre: vuelve el estado de la llamada anterior.
 		file_put_contents( $state_path, json_encode( $last ) );
 		$sent = (int) ( $last['sent'] ?? 0 );
@@ -405,6 +410,45 @@ if ( '' === $sshd || '' === $keygen ) {
 		$check( $again && $again['path'] === $receipt['path'] && hash_file( 'sha256', $big ) === hash_file( 'sha256', $again['path'] ) && ! $errors && $calls <= 12, 'Tras morir después del renombre la transferencia no terminó con el archivo que ya estaba: ' . json_encode( array( $again, $errors, $calls ) ) );
 		$check( ! $parts() && (int) ( $after['sent'] ?? 0 ) === $sent, 'Se volvió a subir el respaldo tras morir después del renombre.' );
 		@unlink( $receipt['path'] ); @unlink( $big );
+	} );
+
+	$case( 'r', function() use ( $check, $root, $base, $key, $context, $sha256 ) {
+		// Hasta el primer error que no sea «sigue en el próximo paso»: devuelve array( excepción, llamadas ).
+		$until_error = function( $big, $state_path ) use ( $base, $key, $context, $sha256 ) {
+			$sliced = array( 'state' => new Digitalisimo_Backups_Transfer_State( $state_path ) ) + $context;
+			for ( $calls = 1; $calls <= 40; $calls++ ) {
+				$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $sliced );
+				$destination->set_deadline( microtime( true ) - 1 );
+				try { $destination->put( $big ); return array( null, $calls ); }
+				catch ( Digitalisimo_Backups_Transfer_Pending $e ) { continue; }
+				catch ( Exception $e ) { return array( $e, $calls ); }
+			}
+			return array( null, $calls );
+		};
+		$big = $root . '/digitalisimo-backup-ajeno.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 2; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fwrite( $h, random_bytes( 555 ) ); fclose( $h );
+		$final = $root . '/remote/backups/digitalisimo-backup-ajeno.zip';
+		// 1) Ya hay un archivo con ese nombre y otro tamaño: el renombre no lo pisa y el error lo dice.
+		file_put_contents( $final, 'otro respaldo de otra persona' );
+		list( $error ) = $until_error( $big, $root . '/private/transfer-r1.json' );
+		$check( $error instanceof Digitalisimo_Backups_Permanent_Error && false !== strpos( $error->getMessage(), 'no es este respaldo' ) && 'otro respaldo de otra persona' === file_get_contents( $final ), 'Un archivo final ajeno no terminó en un error permanente claro: ' . ( $error ? get_class( $error ) . ': ' . $error->getMessage() : 'sin error' ) );
+		// 2) El proceso «murió» tras el renombre y el archivo final tiene el mismo tamaño pero otro contenido.
+		unlink( $final );
+		$state_path = $root . '/private/transfer-r2.json';
+		$last = null;
+		$sliced = array( 'state' => new Digitalisimo_Backups_Transfer_State( $state_path ) ) + $context;
+		for ( $i = 0, $done = null; $i < 40 && ! $done; $i++ ) {
+			$last = json_decode( (string) @file_get_contents( $state_path ), true );
+			$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $sliced );
+			$destination->set_deadline( microtime( true ) - 1 );
+			try { $done = $destination->put( $big ); } catch ( Digitalisimo_Backups_Transfer_Pending $e ) { continue; }
+		}
+		$check( $done && is_file( $final ), 'La subida de control no se publicó.' );
+		$h = fopen( $final, 'r+b' ); fseek( $h, 1048576 + 7 ); fwrite( $h, 'X' ); fclose( $h );
+		file_put_contents( $state_path, json_encode( $last ) );
+		list( $error, $calls ) = $until_error( $big, $state_path );
+		$check( $error instanceof Digitalisimo_Backups_Permanent_Error && false !== strpos( $error->getMessage(), 'no es este respaldo' ) && $calls <= 6 && is_file( $final ), 'Un archivo final con otro contenido no terminó en un error permanente claro: ' . ( $error ? get_class( $error ) . ': ' . $error->getMessage() : 'sin error' ) . ' en ' . $calls . ' llamadas' );
+		@unlink( $final ); @unlink( $big );
 	} );
 
 	proc_terminate( $server );

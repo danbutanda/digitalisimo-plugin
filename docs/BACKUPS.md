@@ -1146,8 +1146,12 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
     misma cuenta, un fallo del almacenamiento) descarta la copia y la sube de nuevo. Además, el SHA-256 de todo lo leído
     de la copia remota se acumula entre tramos y se compara con el del ZIP antes de publicar (en PHP 7.4, que no puede
     guardar el contexto del hash, sólo cuando la verificación cabe en un tramo; los bloques se comparan siempre uno a
-    uno). Si el proceso muere justo después del renombre, la llamada siguiente encuentra el archivo final con el tamaño
-    y la marca, lo verifica entero por tramos y lo da por publicado, sin volver a subir ni chocar con él.
+    uno). Tras publicar, el respaldo recibe la **fecha de ahora** (revisión R1: con la marca, de hace más de un año, una
+    limpieza del servidor por antigüedad como `find -mtime +30 -delete` lo habría borrado). Si el proceso muere justo
+    después del renombre, la llamada siguiente encuentra el archivo final con el tamaño del ZIP, lo **verifica entero
+    por su contenido**, por tramos, y lo da por publicado, sin volver a subir ni chocar con él. Un archivo final ajeno
+    (otro tamaño u otro contenido, o uno que ya estaba con ese nombre) termina en un error permanente que lo dice, sin
+    tocarlo ni repetir la subida.
 - **Límites declarados de SFTP y de la retención remota** (segunda revisión):
   - **N4, del lado seguro.** La identidad de la instalación incluye la URL entera del sitio: al cambiar de dominio, de
     `http` a `https`, de `www` a sin `www`, de ruta del hosting o al migrar con el propio plugin, las filas anteriores
@@ -1157,9 +1161,14 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
     bloquea, porque el tick ya tiene el cerrojo de operaciones.
   - **N7.** La identidad usa `home_url()`, que se puede filtrar: con un `WP_HOME` que dependa de la petición o un plugin
     multilingüe que lo filtre, las filas pueden quedar «de otra instalación» según la petición (lado seguro, como N4).
-  - **N5, informativo.** En PHP 7.4, unas 70 llamadas seguidas a `put()` con el cliente incluido en un mismo proceso
-    agotan 64 MB (la prueba de tramos de la revisión, en `SFTP.php`); en 8.2 y 8.5 no. En la web cada tick hace una sola
-    llamada y WP-CLI hace la fase en una sola llamada sin plazo, así que no ocurre en el uso normal.
+  - **N5, informativo.** En PHP 7.4, entre unas 70 y 180 llamadas seguidas a `put()` con el cliente incluido en un mismo
+    proceso agotan 64 MB (las pruebas de tramos de la revisión, en `SFTP.php`; un error fatal, sin pérdida: el estado
+    reanudable sigue); en 8.2 y 8.5 no. En la web cada tick hace una sola llamada y WP-CLI hace la fase en una sola
+    llamada sin plazo, así que no ocurre en el uso normal.
+  - **N1 residual.** La marca detecta cualquier escritura en el temporal mientras se verifica, salvo la de alguien que
+    escriba y vuelva a poner la misma fecha (con permiso de escritura en esa carpeta, que también podría alterar el
+    respaldo ya publicado). Si el servidor no deja cambiar fechas, la marca es la fecha que tenga el temporal y una
+    escritura en el mismo segundo no se notaría.
   - **N8.** Un servidor que sólo ofrece `aes192-ctr`/`aes256-ctr`, con la extensión ssh2 sin `ssh2_auth_pubkey`, no tiene
     camino para autenticar con clave privada: el cliente incluido rechaza esos cifrados (H1) y la extensión no recibe una
     clave sin cifrar en un archivo (H6). Funcionan la contraseña con ssh2 o habilitar `aes128-ctr` o AES-GCM en el
