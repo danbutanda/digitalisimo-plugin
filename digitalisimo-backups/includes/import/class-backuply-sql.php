@@ -113,6 +113,8 @@ final class Digitalisimo_Backups_Backuply_Sql {
 				while ( $to > $from && false !== strpos( " \t\r\n", $buffer[ $to - 1 ] ) ) $to--;
 				if ( $to > $from && preg_match( '/\GINSERT\b/i', $buffer, $m, 0, $from ) ) $this->insert( $buffer, $from, $to );
 				elseif ( $to > $from ) $this->handle( self::normalize( substr( $buffer, $from, $to - $from ) ) );
+			} elseif ( self::ROUTINE === $clean ) {
+				$this->note( 'routines' );
 			} elseif ( '' !== ( $clean = trim( $clean ) ) ) {
 				$this->handle( self::normalize( $clean ) );
 			}

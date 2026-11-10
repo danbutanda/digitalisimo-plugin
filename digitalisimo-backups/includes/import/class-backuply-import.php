@@ -675,6 +675,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 		// en el entorno): el volcado trae sus tablas `blogs` y `site`. Dominio, ruta y tipo los lee E1 de esas tablas.
 		$order = (array) $database['order'];
 		$meta['multisite'] = ! empty( $meta['multisite'] ) || ( in_array( $database['prefix'] . 'blogs', $order, true ) && in_array( $database['prefix'] . 'site', $order, true ) );
+		$zip = new Digitalisimo_Backups_Zip_Writer( $paths['zip'], (int) $files['zip'] );
 		try {
 			$totals = array( 'count' => 0, 'bytes' => 0 );
 			foreach ( Digitalisimo_Backups_Packer::records( $paths['entries'], (int) $files['entries'] ) as $record ) { $totals['count']++; $totals['bytes'] += (int) $record['s']; }
