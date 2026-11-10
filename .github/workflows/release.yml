@@ -552,8 +552,8 @@ jobs:
 
   php74:
     # Requires PHP: 7.4 es el mínimo que declaran los plugins y el tema: sintaxis de todos con PHP 7.4 y las pruebas PHP
-    # de «Probar la suite» de este mismo archivo, que scripts/ci-php-suite.mjs lee sin copiar la lista (las de Node y
-    # Chrome no dependen de la versión de PHP y se quedan en el trabajo principal). tests/repo-hygiene.mjs lo comprueba.
+    # de «Probar la suite» de este mismo archivo, que scripts/ci-php-suite.mjs lee sin copiar la lista, más las de Node
+    # que lanzan PHP (leen PHP_BIN); las demás de Node y las de Chrome no dependen de PHP. tests/repo-hygiene.mjs lo comprueba.
     # La publicación (trabajo release) espera a que pase: no sale una versión que rompa el mínimo declarado.
     name: PHP 7.4
     runs-on: ubuntu-latest

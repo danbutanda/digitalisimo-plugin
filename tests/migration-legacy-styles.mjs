@@ -230,7 +230,9 @@ ok(styles['bdt-mega-menu'].length >= 30 && sels(control('bdt-mega-menu', 'menu_i
 ok(!JSON.stringify(styles['bdt-mega-menu']).match(/\.(?:ep|bdt)-|offcanvas/), 'El panel lateral y las clases de Element Pack no pasan al Mega Menu');
 
 // La traducción real del Mega Menu (Translator::translate con el mapa), si hay PHP (en CI) o php-wasm (local).
+// PHP_BIN manda (el trabajo «PHP 7.4» de la CI la fija); si no, el `php` del sistema.
 const phpCmd = (() => {
+  if (process.env.PHP_BIN) return process.env.PHP_BIN.split(' ');
   if (!spawnSync('php', ['-v'], { encoding: 'utf8' }).error) return ['php'];
   const wasm = join(homedir(), '.npm/_npx/98db5c2db358871c/node_modules/.bin/php-wasm-cli');
   return existsSync(wasm) ? [process.execPath, wasm] : null;

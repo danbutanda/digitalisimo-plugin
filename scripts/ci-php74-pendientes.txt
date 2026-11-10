@@ -3,6 +3,9 @@
 # fallando: si una ya pasa, el trabajo falla hasta que se quite de aquí, así que esta lista sólo se acorta. Las de
 # Backups y de Migración no pueden estar aquí (tests/repo-hygiene.mjs lo comprueba).
 #
-# Vacía desde la rama backups/ci-php74: las 138 que fallaban se arreglaron en sus pruebas (reflexión abierta y polyfills
-# de WordPress en tests/fixtures/php74.php, tokens y tipos como en PHP 8, la premisa del TypeError) y en Tools (marcador
-# de carga del guardián de fragmentos PHP). Una prueba nueva que no pueda correr en 7.4 se añade aquí con su causa.
+# Desde la rama backups/ci-php74, 137 de las 138 que fallaban se arreglaron en sus pruebas (reflexión abierta y
+# polyfills de WordPress en tests/fixtures/php74.php, tokens y tipos como en PHP 8, la premisa del TypeError). La lista
+# no puede crecer respecto de la de origin/main (tests/repo-hygiene.mjs).
+#
+# Queda una, por un límite de PHP 7.4, no por su arnés:
+tests/tools-php-guard.php  # límite de PHP 7.4 en Tools: tras agotar la memoria PHP 7.4 termina el proceso sin funciones de cierre, y el guardián de fragmentos no puede apagar el fragmento que la agotó al cargarse (caso «memoria al cargar»). Se descartó un marcador en la carpeta temporal (revisión de backups/ci-php74: carpeta predecible entre cuentas y apagados falsos con SIGTERM).

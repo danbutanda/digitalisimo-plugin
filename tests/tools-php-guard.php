@@ -129,14 +129,8 @@ namespace {
 				go();
 				break;
 			case 'memory':
-			case 'next':
-				// «next»: la petición siguiente a la que murió al cargar aaaa0001 (PHP 7.4 la reconoce por el marcador de carga).
 				ini_set( 'memory_limit', '32M' );
-				site_run( array( 'aaaa0001' => item( 'site', 'aaaa0001', "<?php\n\$a = array();\nwhile ( true ) \$a[] = str_repeat( 'x', 100000 );\n" ), 'aaaa0002' => item( 'site', 'aaaa0002', "<?php\nmark( 'ran-2' );\n" ) ) );
-				go();
-				break;
-			case 'clean':
-				site_run( array( 'aaaa0002' => item( 'site', 'aaaa0002', "<?php\nmark( 'ran-2' );\n" ) ) );
+				site_run( array( 'aaaa0001' => item( 'site', 'aaaa0001', "<?php\n\$a = array();\nwhile ( true ) \$a[] = str_repeat( 'x', 100000 );\n" ) ) );
 				go();
 				break;
 			case 'time':
@@ -262,32 +256,6 @@ namespace {
 	}
 	$child = child_command();
 
-	/**
-	 * ¿Este PHP ejecuta las funciones de cierre tras agotar la memoria? Se pregunta al motor (PHP 7.4.33 de deb.sury.org
-	 * no lo hace): así la vía del marcador de carga nunca tapa una regresión del cierre en PHP 8.
-	 */
-	function shutdown_after_oom() {
-		global $child;
-		$code = 'register_shutdown_function( function () { echo "cierre"; } ); ini_set( "memory_limit", "32M" ); $x = str_repeat( "x", 128 << 20 );';
-		$proc = @proc_open( $child . ' -d display_errors=0 -d log_errors=0 -r ' . escapeshellarg( $code ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
-		if ( ! is_resource( $proc ) ) return true;
-		$out = stream_get_contents( $pipes[1] );
-		fclose( $pipes[1] );
-		fclose( $pipes[2] );
-		proc_close( $proc );
-		return false !== strpos( $out, 'cierre' );
-	}
-	/** Carpeta de los marcadores de carga del guardián para este ABSPATH (red 1), como Guard::marker_dir(). */
-	function marker_dir() {
-		global $root;
-		return rtrim( sys_get_temp_dir(), '/\\' ) . '/digitalisimo-tools-php-' . substr( md5( $root . '/|1' ), 0, 12 );
-	}
-	function markers() {
-		$list = glob( marker_dir() . '/*' ) ?: array();
-		sort( $list );
-		return $list;
-	}
-
 	/** Corre un caso en un PHP aparte y devuelve lo que dejó escrito. */
 	function scenario( $name ) {
 		global $root, $child;
@@ -327,51 +295,9 @@ namespace {
 	only_off( $s, 'Throwable al cargarse', 'aaaa0001', "<?php\n\nthrow new LogicException( 'al cargar' );\n" );
 	check( in_array( 'ran-2', $s['marks'], true ) && in_array( 'fin', $s['marks'], true ), 'Throwable: sigue con el siguiente fragmento y la petición termina', $s['out'] );
 
-	$oom = "<?php\n\$a = array();\nwhile ( true ) \$a[] = str_repeat( 'x', 100000 );\n";
 	$s   = scenario( 'memory' );
-	if ( shutdown_after_oom() ) {
-		$row = only_off( $s, 'memoria al cargar', 'aaaa0001', $oom );
-		check( 0 === strpos( $row['msg'], 'Allowed memory size' ), 'memoria: la escritura termina tras agotar la memoria' );
-		check( array() === markers(), 'memoria: sin marcador de carga tras atenderla en el cierre', implode( "\n", markers() ) );
-	} else {
-		// PHP 7.4 (7.4.33 de deb.sury.org): al agotar la memoria termina el proceso con código 1, sin funciones de cierre
-		// ni registro, así que esa petición no puede escribir nada. Queda el marcador de carga de aaaa0001, y la petición
-		// siguiente lo apaga con su fila `off` antes de cargar nada y sigue con los demás.
-		check( array() === off_rows( $s ) && ! in_array( 'fin', $s['marks'], true ), 'memoria (sin cierre): el proceso muere sin escribir nada', $s['out'] . print_r( $s['rows'], true ) );
-		$left = markers();
-		check( 1 === count( $left ) && false !== strpos( (string) file_get_contents( $left[0] ), '"id":"aaaa0001"' ), 'memoria (sin cierre): queda el marcador de carga del fragmento', implode( "\n", $left ) );
-		$s   = scenario( 'next' );
-		$row = only_off( $s, 'memoria al cargar, en la petición siguiente', 'aaaa0001', $oom );
-		check( 0 === strpos( $row['msg'], 'PHP terminó la petición mientras se cargaba el fragmento' ) && 0 === $row['line'], 'memoria (sin cierre): mensaje de la fila off', print_r( $row, true ) );
-		check( in_array( 'ran-2', $s['marks'], true ) && in_array( 'fin', $s['marks'], true ), 'la petición siguiente no vuelve a cargarlo y sigue con los demás', $s['out'] );
-		check( array() === markers(), 'la petición siguiente borra el marcador', implode( "\n", markers() ) );
-	}
-	if ( PHP_VERSION_ID < 80000 ) {
-		// El marcador de una petición viva (bloqueado) no se toca; ya muerta, se atiende; uno vacío sólo se borra.
-		$entry = json_encode( array( 'scope' => 'site', 'id' => 'aaaa0009', 'hash' => hash( 'sha256', 'otro' ), 'rev' => 0, 'path' => '/' ) );
-		@mkdir( marker_dir(), 0700, true );
-		file_put_contents( marker_dir() . '/b1-vacio.run', '' );
-		file_put_contents( marker_dir() . '/b2-otro-sitio.run', $entry );
-		$alive = fopen( marker_dir() . '/b1-vivo.run', 'c+' );
-		fwrite( $alive, $entry );
-		check( flock( $alive, LOCK_EX ), 'no se pudo bloquear el marcador vivo' );
-		$s = scenario( 'clean' );
-		check( array() === off_rows( $s ) && in_array( 'fin', $s['marks'], true ), 'marcador de una petición viva: no se apaga nada', $s['out'] . print_r( $s['rows'], true ) );
-		check( array( marker_dir() . '/b1-vivo.run', marker_dir() . '/b2-otro-sitio.run' ) === markers(), 'el vacío se borra; el vivo y el de otro sitio quedan', implode( "\n", markers() ) );
-		flock( $alive, LOCK_UN );
-		fclose( $alive );
-		$s = scenario( 'clean' );
-		check( array( 'digitalisimo_tools_php_off_s_aaaa0009_' . substr( hash( 'sha256', 'otro' ), 0, 12 ) ) === array_keys( off_rows( $s ) ) && in_array( 'ran-2', $s['marks'], true ), 'marcador de una petición ya muerta: se apaga su fragmento', $s['out'] . print_r( $s['rows'], true ) );
-		check( array( marker_dir() . '/b2-otro-sitio.run' ) === markers(), 'sólo queda el de otro sitio', implode( "\n", markers() ) );
-		unlink( marker_dir() . '/b2-otro-sitio.run' );
-	} else {
-		// PHP 8 ejecuta el cierre tras agotar la memoria: ni escribe marcadores ni los atiende.
-		@mkdir( marker_dir(), 0700, true );
-		file_put_contents( marker_dir() . '/b1-ajeno.run', json_encode( array( 'scope' => 'site', 'id' => 'aaaa0009', 'hash' => hash( 'sha256', 'otro' ), 'rev' => 0, 'path' => '/' ) ) );
-		$s = scenario( 'clean' );
-		check( array() === off_rows( $s ) && array( marker_dir() . '/b1-ajeno.run' ) === markers(), 'PHP 8: el marcador no se usa', $s['out'] . print_r( $s['rows'], true ) );
-		unlink( marker_dir() . '/b1-ajeno.run' );
-	}
+	$row = only_off( $s, 'memoria al cargar', 'aaaa0001', "<?php\n\$a = array();\nwhile ( true ) \$a[] = str_repeat( 'x', 100000 );\n" );
+	check( 0 === strpos( $row['msg'], 'Allowed memory size' ), 'memoria: la escritura termina tras agotar la memoria' );
 
 	$s = scenario( 'time' );
 	if ( in_array( 'no-timeout', $s['marks'], true ) ) {
@@ -423,14 +349,11 @@ namespace {
 	$s = scenario( 'die_handler' );
 	only_off( $s, 'un wp_die_handler que hace exit', 'aaaa0001', $dup );
 	check( in_array( 'core-handler', $s['marks'], true ), 'el filtro del núcleo ya escribió la fila antes del exit' );
-	check( array() === markers(), 'un exit ajeno tras atender el fatal no deja marcador de carga', implode( "\n", markers() ) );
 
 	$s = scenario( 'stream_notices' );
 	check( array() === $s['notices'], 'Stream sin avisos con E_ALL', print_r( $s['notices'], true ) . $s['out'] );
 	check( array( 'loaded', 'olvidado', 'file', 'fin' ) === $s['marks'], 'el envoltorio sirve __FILE__ y olvida el código tras el include', print_r( $s['marks'], true ) );
 
-	check( array() === markers(), 'ningún marcador de carga queda tras los casos', implode( "\n", markers() ) );
-	@rmdir( marker_dir() );
 	array_map( 'unlink', glob( $root . '/state-*.json' ) );
 	foreach ( array( 'wp-includes/fake-core.php', 'wp-content/plugins/fake/fake.php', 'wp-content/plugins/fake/fn.php', 'wp-content/plugins/fake/cond.php', 'wp-content/plugins/fake/class.php' ) as $file ) unlink( $root . '/' . $file );
 	foreach ( array( 'wp-content/plugins/fake', 'wp-content/plugins', 'wp-content', 'wp-includes', '' ) as $dir ) @rmdir( $root . '/' . $dir );

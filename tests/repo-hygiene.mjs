@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pendingTests, phpSuiteCommands } from '../scripts/ci-php-suite.mjs';
+import { pendingTests, phpNodeCommands, phpSuiteCommands } from '../scripts/ci-php-suite.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -125,10 +125,20 @@ for (const file of skipped) {
   const bootstrap = readFileSync(join(root, file.replace(/bootstrap80\.php$/, 'bootstrap.php')), 'utf8');
   assert.match(bootstrap, /if \(\\?PHP_VERSION_ID >= 80000\) \{\s*return require __DIR__ ?\. ?'\/bootstrap80\.php';/, `${file} usa sintaxis de PHP 8 y su bootstrap.php debe cargarlo sólo con PHP >= 8`);
 }
+// Una prueba Node que lanza PHP lo toma de PHP_BIN (así el trabajo 7.4 la corre con su PHP), nunca de un `php` fijo.
+const nodeTests = readdirSync(join(root, 'tests')).filter((file) => file.endsWith('.mjs'));
+assert.deepEqual(nodeTests.filter((file) => /\b(?:spawnSync|execFileSync|execSync|spawn|execFile)\(\s*['"]php['"]/.test(readFileSync(join(root, 'tests', file), 'utf8')) && !/process\.env\.PHP_BIN\b/.test(readFileSync(join(root, 'tests', file), 'utf8'))), [], 'Pruebas Node que lanzan `php` sin mirar PHP_BIN');
+const phpNode = phpNodeCommands(readFileSync(join(root, '.github/workflows/release.yml'), 'utf8'), root);
 // Las pendientes en 7.4 son pruebas de la lista, sin repetir, y nunca de Backups ni de Migración, que corren enteras.
 const pending = pendingTests(readFileSync(join(root, PHP74_PENDING), 'utf8'));
-assert.deepEqual(pending.filter((test) => !phpListed.includes(`php ${test}`)), [], `${PHP74_PENDING} nombra pruebas que no están en la lista`);
+assert.deepEqual(pending.filter((test) => !phpListed.includes(`php ${test}`) && !phpNode.includes(`node ${test}`)), [], `${PHP74_PENDING} nombra pruebas que no están en la lista`);
+assert.deepEqual(pending.filter((test) => !new RegExp(`^${test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+#\\s*\\S`, 'm').test(readFileSync(join(root, PHP74_PENDING), 'utf8'))), [], `Cada pendiente de ${PHP74_PENDING} lleva su causa tras «#»`);
+// Y la lista sólo se acorta: nada que no esté ya en la de origin/main. Sin origin/main (checkout superficial de la CI) o
+// sin la lista allí (la rama que la crea), no hay con qué comparar.
+const mainPending = git('show', `origin/main:${PHP74_PENDING}`);
+const grown = mainPending.status === 0 ? pending.filter((test) => !pendingTests(mainPending.stdout).includes(test)) : [];
+assert.deepEqual(grown, [], `${PHP74_PENDING} sólo puede acortarse respecto de origin/main: pruebas nuevas en la lista`);
 assert.equal(new Set(pending).size, pending.length, `${PHP74_PENDING} repite pruebas`);
 assert.deepEqual(pending.filter((test) => /^tests\/(backups|migration)-/.test(test)), [], `Las pruebas de Backups y de Migración corren enteras con PHP 7.4: no pueden estar en ${PHP74_PENDING}`);
 
-console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados; ${releaseTests.length} pruebas iguales en validate.yml y release.yml, de las que ${phpListed.length} PHP corren también con PHP 7.4 (${pending.length} pendientes en ${PHP74_PENDING}; ${skipped.length} bootstrap80.php de Symfony fuera de la sintaxis 7.4).`);
+console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados; ${releaseTests.length} pruebas iguales en validate.yml y release.yml, de las que ${phpListed.length} PHP corren también con PHP 7.4 y ${phpNode.length} de Node que lanzan PHP (${pending.length} pendientes en ${PHP74_PENDING}${mainPending.status === 0 ? ', ninguna nueva respecto de origin/main' : ', sin lista en origin/main con qué comparar'}; ${skipped.length} bootstrap80.php de Symfony fuera de la sintaxis 7.4).`);
