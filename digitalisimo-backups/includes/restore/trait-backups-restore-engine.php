@@ -1045,7 +1045,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$site = $network && function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
 		// Lo mejor posible: si no se puede, after_restore_sql() y el diario lo reponen como antes (no se aborta el cambio).
 		$done = $network ? $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE meta_key = %s', self::STORAGE ) ) : $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE option_name = %s', self::STORAGE ) );
-		if ( false !== $done && is_array( $record ) ) $done = $network ? $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (meta_id, site_id, meta_key, meta_value) VALUES (NULL, %s, %s, %s)', (string) $site, self::STORAGE, serialize( $record ) ) ) : $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . " (option_id, option_name, option_value, autoload) VALUES (NULL, %s, %s, 'no')", self::STORAGE, serialize( $record ) ) );
+		if ( false !== $done && is_array( $record ) ) $done = $network ? $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (`meta_id`, `site_id`, `meta_key`, `meta_value`) VALUES (NULL, %s, %s, %s)', (string) $site, self::STORAGE, serialize( $record ) ) ) : $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . " (`option_id`, `option_name`, `option_value`, `autoload`) VALUES (NULL, %s, %s, 'no')", self::STORAGE, serialize( $record ) ) );
 		if ( false === $done && function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo preparar el registro del almacén en las tablas temporales: ' . $wpdb->last_error );
 	}
 	private static function restore_preswap_collisions( array $job, array $collisions ) {

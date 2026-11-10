@@ -304,7 +304,8 @@ $case( 'g', function() use ( $B, $check, $compat ) {
 	// En la prueba ya se imprimió texto: las cabeceras de la descarga avisarían «headers already sent».
 	set_error_handler( function( $number, $text ) { return false !== strpos( $text, 'Cannot modify header information' ) || false !== strpos( $text, 'failed to discard buffer' ) || false !== strpos( $text, 'Failed to discard buffer' ); } );
 	$GLOBALS['bk_capture'] = array( 'on' => true, 'out' => '', 'largest' => 0 );
-	ob_start( function( $buffer ) { if ( ! $GLOBALS['bk_capture']['on'] ) return $buffer; $GLOBALS['bk_capture']['out'] .= $buffer; $GLOBALS['bk_capture']['largest'] = max( $GLOBALS['bk_capture']['largest'], strlen( $buffer ) ); return ''; }, 0, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE );
+	// Lo que se descarta con ob_clean() también pasa por el manejador (fase CLEAN), pero PHP no lo envía: no cuenta.
+	ob_start( function( $buffer, $phase = 0 ) { if ( ! $GLOBALS['bk_capture']['on'] ) return $buffer; if ( $phase & PHP_OUTPUT_HANDLER_CLEAN ) return ''; $GLOBALS['bk_capture']['out'] .= $buffer; $GLOBALS['bk_capture']['largest'] = max( $GLOBALS['bk_capture']['largest'], strlen( $buffer ) ); return ''; }, 0, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE );
 	echo 'texto previo de otro plugin';
 	try { bk_call( $B, 'download_remote', bk_call( $B, 'history_item', $file ) ); } finally { @ob_flush(); $GLOBALS['bk_capture']['on'] = false; restore_error_handler(); }
 	$out = $GLOBALS['bk_capture']['out'];
