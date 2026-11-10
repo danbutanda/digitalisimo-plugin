@@ -34,6 +34,12 @@ defined( 'ABSPATH' ) || exit;
  * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`); 202
  *                                           mientras otro proceso lo comprueba; repetirlo tras un corte da el mismo resultado
  * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
+ * - GET  /destinations/sync                 lo último sincronizado de cada destino (sin llamarlos)
+ * - POST /destinations/sync                 sincroniza los respaldos de los destinos (`destination`: uno o todos)
+ * - GET  /destinations/<id>/backups         los respaldos de DIGITALÍSIMO del destino, listados ahora: de este sitio
+ *                                           (`registered`) y de otro sitio (`importable`, sin verificar)
+ * - POST /destinations/<id>/backups/<nombre>/fetch  lo trae al almacén por fragmentos y lo comprueba (`network`): 200
+ *                                           con el resultado, 202 con el trabajo si sigue; después, POST …/restore
  *
  * La frase o clave de un respaldo (`secret`) sólo se acepta en el cuerpo de la petición: en la URL quedaría en los
  * registros del servidor y del proxy, así que una petición que la lleve en la cadena de consulta se rechaza (400).
@@ -42,6 +48,7 @@ final class Digitalisimo_Backups_Rest {
 	const NAMESPACE_V1 = 'digitalisimo-backups/v1';
 	const FILE = '(?P<file>[A-Za-z0-9][A-Za-z0-9._-]*)';
 	const JOB = '(?P<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
+	const DESTINATION = '(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)';
 
 	public static function register() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -97,6 +104,13 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB, array( $route( 'GET', 'upload_status' ), $route( 'DELETE', 'upload_cancel' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/chunk', array( $route( 'POST, PUT', 'upload_chunk', array( 'offset' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0, 'description' => 'Byte en el que empieza el fragmento: exactamente lo ya recibido.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/finish', array( $route( 'POST', 'upload_finish', array( 'secret' => $secret ) ) ) );
+		// Respaldos en los destinos remotos (B1b, B2): listar, sincronizar y traer al almacén, también los de otro sitio.
+		register_rest_route( self::NAMESPACE_V1, '/destinations/sync', array(
+			$route( 'GET', 'remote_index' ),
+			$route( 'POST', 'sync', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Un destino (ver GET /destinations); vacío: todos los que tienen conexión completa.' ) ) ),
+		) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups', array( $route( 'GET', 'remote_backups' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)/fetch', array( $route( 'POST', 'remote_fetch', array( 'network' => $network ) ) ) );
 	}
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
@@ -130,7 +144,11 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_create( array( 'destination' => (string) $request['destination'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
 	}
 	/** Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256. */
-	public static function fetch( $request ) { return self::respond( Digitalisimo_Backups::service_fetch( (string) $request['file'], array( 'network' => (bool) $request['network'] ) ) ); }
+	public static function fetch( $request ) {
+		// Un trabajo por fragmentos (B1b): 202 con el trabajo si no terminó en esta petición.
+		$result = Digitalisimo_Backups::service_fetch( (string) $request['file'], array( 'network' => (bool) $request['network'], 'via' => 'rest' ) );
+		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
+	}
 	/** Destinos remotos y su estado (sin valores secretos). */
 	public static function destinations( $request ) { return self::respond( Digitalisimo_Backups::service_destinations() ); }
 	/** «Probar conexión» de una conexión guardada: sube, verifica, descarga, lista y borra un archivo pequeño. */
@@ -197,5 +215,19 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function upload_cancel( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_cancel( (string) $request['id'] ) );
+	}
+	/** Lo último sincronizado de cada destino, sin llamarlos. */
+	public static function remote_index( $request ) { return self::respond( Digitalisimo_Backups::service_remote_index() ); }
+	/** Sincroniza los respaldos de los destinos (o de uno) y guarda el índice. */
+	public static function sync( $request ) { return self::respond( Digitalisimo_Backups::service_sync( (string) $request['destination'] ) ); }
+	/** Respaldos de DIGITALÍSIMO del destino, listados ahora. */
+	public static function remote_backups( $request ) { return self::respond( Digitalisimo_Backups::service_remote_backups( (string) $request['id'] ) ); }
+	/**
+	 * Trae al almacén un respaldo del destino (de este sitio o de otro) por fragmentos: 200 con el resultado si terminó en
+	 * esta petición, 202 con el trabajo si sigue (lo terminan `POST /jobs/tick`, la pantalla o WP-Cron).
+	 */
+	public static function remote_fetch( $request ) {
+		$result = Digitalisimo_Backups::service_remote_fetch( (string) $request['id'], (string) $request['name'], array( 'network' => (bool) $request['network'], 'via' => 'rest', 'drive_cli' => false ) );
+		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
 	}
 }

@@ -120,6 +120,8 @@ final class Digitalisimo_Backups_Notify {
 	}
 	/** Aviso de un trabajo terminado: respaldo creado, respaldo fallido o copia remota fallida (el ZIP local se conserva). */
 	public static function job( array $job ) {
+		// Traer un respaldo de un destino (B1b) lo pide alguien que espera el resultado en pantalla o en la terminal: sin correo.
+		if ( 'fetch' === ( $job['spec']['kind'] ?? '' ) ) return false;
 		if ( 'restore' === ( $job['kind'] ?? '' ) ) return self::restore_job( $job );
 		$snapshot = self::snapshot();
 		$spec = (array) ( $job['spec'] ?? array() );

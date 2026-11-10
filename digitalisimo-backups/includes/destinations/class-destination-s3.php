@@ -342,6 +342,12 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		$response = $this->call( 'DELETE', $this->own_key( $remote ) );
 		if ( ! in_array( $response['code'], array( 200, 204, 404 ), true ) ) $this->fail( $response, 'el borrado del respaldo' );
 	}
+	/** B1b: GetObject con `Range` (firmado con SigV4 como el resto de cabeceras). */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length ) {
+		$range = self::range_args( $offset, $length );
+		return self::range_reply( $this->call( 'GET', $this->own_key( $remote ), array(), $range['headers'], '', array( 'sink' => $target, 'timeout' => 120, 'progress' => $range['progress'] ) ), $target, $offset, $length );
+	}
 	public function list() {
 		$prefix = $this->prefix();
 		$out = array();

@@ -163,6 +163,17 @@ final class Digitalisimo_Backups_Destination_Pcloud extends Digitalisimo_Backups
 		if ( 2009 === (int) ( $data['result'] ?? -1 ) ) return;
 		$this->check( $data, 'el borrado del respaldo' );
 	}
+	/** B1b: el enlace de `getfilelink` admite `Range`; se pide uno por fragmento (caducan). */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length ) {
+		if ( null === $this->own( $remote ) ) throw new Exception( 'El respaldo ya no está en pCloud.' );
+		$data = $this->check( $this->call( 'getfilelink', array( 'fileid' => self::own_id( $remote ), 'forcedownload' => 1 ) ), 'el enlace de descarga' );
+		$hosts = (array) ( $data['hosts'] ?? array() );
+		$path = (string) ( $data['path'] ?? '' );
+		if ( ! $hosts || '' === $path || ! preg_match( '/^[a-z0-9.-]+\.pcloud\.com$/i', (string) $hosts[0] ) ) throw new Exception( 'pCloud no devolvió un enlace de descarga válido.' );
+		$range = self::range_args( $offset, $length );
+		return self::range_reply( Digitalisimo_Backups_Http::request( 'GET', 'https://' . $hosts[0] . $path, array( 'headers' => $range['headers'], 'sink' => $target, 'timeout' => 120, 'progress' => $range['progress'] ) ), $target, $offset, $length );
+	}
 	public function list() {
 		$data = $this->check( $this->call( 'listfolder', array( 'folderid' => $this->folder_id() ) ), 'el listado de la carpeta' );
 		$out = array();

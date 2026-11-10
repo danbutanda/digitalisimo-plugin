@@ -373,14 +373,50 @@ final class Digitalisimo_Backups_Cli {
 	 *   - backup
 	 * ---
 	 *
+	 * [--from=<destination>]
+	 * : Restaura desde un destino remoto: primero trae el respaldo al almacén por fragmentos y lo comprueba (el de este sitio por su SHA-256; el de otro sitio, como archivo no confiable), después lo restaura. Ver `wp digitalisimo-backups destinations backups <destino>`.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
+	 *     wp digitalisimo-backups restore digitalisimo-backup-otro-com-20261106-120000-1a2b3c4d.zip --from=sftp --confirm="RESTAURAR SIN FIRMA"
 	 */
 	public function restore( $args, $assoc_args ) {
+		if ( isset( $assoc_args['from'] ) ) {
+			// Restaurar desde el remoto: traerlo (un trabajo por fragmentos, aquí sin límite de tiempo) y restaurar lo traído.
+			$fetched = self::result( Digitalisimo_Backups::service_remote_fetch( (string) $assoc_args['from'], (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'skip_local' => true ) ) );
+			if ( empty( $fetched['file'] ) ) WP_CLI::error( 'La descarga no terminó: ' . $fetched['message'] );
+			WP_CLI::log( $fetched['message'] );
+			$args[0] = $fetched['file'];
+		}
 		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'via' => 'cli' ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
+	}
+
+	/**
+	 * Sincroniza los respaldos de los destinos remotos: lista los de DIGITALÍSIMO de cada uno (también los de otro sitio que comparte el destino) y guarda la lista para la pantalla «Restaurar». No descarga nada.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<destination>]
+	 * : Un destino (ver `wp digitalisimo-backups destinations list`); sin él, todos los que tienen conexión completa.
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups sync
+	 *     wp digitalisimo-backups sync sftp --format=json
+	 */
+	public function sync( $args, $assoc_args ) {
+		$result = self::result( Digitalisimo_Backups::service_sync( (string) ( $args[0] ?? '' ) ) );
+		foreach ( $result['destinations'] as $summary ) if ( '' !== $summary['error'] ) WP_CLI::warning( $summary['name'] . ' no respondió: ' . $summary['error'] );
+		self::rows( $result['items'], $assoc_args, array( 'destination', 'name', 'size', 'site', 'date', 'state', 'registered' ) );
 	}
 }
 
@@ -560,18 +596,49 @@ final class Digitalisimo_Backups_Cli_Destinations {
 		WP_CLI::success( $result['message'] );
 	}
 	/**
-	 * Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256, para restaurarlo.
+	 * Lista ahora los respaldos de DIGITALÍSIMO que hay en un destino, sin descargarlos: los de este sitio (en su historial) y los de otro sitio que comparte el destino (importables, sin verificar).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : El tipo de una conexión principal o el identificador de una conexión adicional (ver `destinations list`).
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups destinations backups sftp
+	 */
+	public function backups( $args, $assoc_args ) {
+		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_remote_backups( (string) ( $args[0] ?? '' ) ) );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'name', 'size', 'site', 'date', 'origin', 'state' ) );
+	}
+	/**
+	 * Trae al almacén privado un respaldo de un destino, por fragmentos y con reanudación: la copia remota de un respaldo del historial (verificada por su SHA-256) o, con --from, cualquier respaldo de ese destino (de otro sitio: comprobado como archivo no confiable, entra «sin registro»).
 	 *
 	 * ## OPTIONS
 	 *
 	 * <file>
-	 * : Nombre del archivo, tal como aparece en `wp digitalisimo-backups list`.
+	 * : Nombre del archivo, tal como aparece en `wp digitalisimo-backups list` o en `destinations backups <destino>`.
+	 *
+	 * [--from=<destination>]
+	 * : El destino donde está (ver `destinations list`); sin él, el de su fila del historial.
 	 *
 	 * [--network]
 	 * : En Multisite, confirma el alcance de red: el almacén privado es de toda la instalación.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups destinations fetch digitalisimo-backup-otro-com-20261106-120000-1a2b3c4d.zip --from=s3compat
 	 */
 	public function fetch( $args, $assoc_args ) {
-		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		$options = array( 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli' );
+		$result = Digitalisimo_Backups_Cli::result( isset( $assoc_args['from'] ) ? Digitalisimo_Backups::service_remote_fetch( (string) $assoc_args['from'], (string) ( $args[0] ?? '' ), $options ) : Digitalisimo_Backups::service_fetch( (string) ( $args[0] ?? '' ), $options ) );
+		if ( empty( $result['fetched'] ) && ! empty( $result['running'] ) ) WP_CLI::error( $result['message'] );
 		WP_CLI::success( $result['message'] );
 	}
 }

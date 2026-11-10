@@ -1082,6 +1082,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 */
 	private static function restore_excluded( $relative ) {
 		if ( in_array( strtolower( $relative ), array( 'wp-config.php', '.maintenance' ), true ) ) return true;
+		// B8: lo que el respaldo excluye por defecto (otros plugins de respaldo, la caché de páginas, los registros) se conserva.
+		if ( Digitalisimo_Backups_Exclusions::kept( $relative ) ) return true;
 		return false !== strpos( '/' . $relative . '/', '/.digitalisimo-' );
 	}
 	/** La carpeta está dentro de una raíz gestionada o lleva a una. */

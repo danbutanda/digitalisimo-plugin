@@ -124,6 +124,12 @@ final class Digitalisimo_Backups_Destination_Webdav extends Digitalisimo_Backups
 		$response = $this->call( 'DELETE', $this->own( $remote ) );
 		if ( ! in_array( $response['code'], array( 200, 204, 404 ), true ) ) throw new Exception( 'El servidor WebDAV no borró el archivo (HTTP ' . $response['code'] . ').' );
 	}
+	/** B1b: GET con `Range` (RFC 7233), un fragmento por llamada. */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length ) {
+		$range = self::range_args( $offset, $length );
+		return self::range_reply( $this->call( 'GET', $this->own( $remote ), $range['headers'], array( 'sink' => $target, 'timeout' => 120, 'progress' => $range['progress'] ) ), $target, $offset, $length );
+	}
 	public function list() {
 		$folder = $this->folder();
 		$response = $this->call( 'PROPFIND', '' !== $folder ? $folder . '/' : '', array( 'Depth' => '1', 'Content-Type' => 'application/xml; charset=utf-8' ), array( 'body' => self::propfind_body() ) );

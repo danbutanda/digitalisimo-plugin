@@ -18,11 +18,16 @@ unset( $digitalisimo_backups_part );
 require_once __DIR__ . '/destinations/trait-backups-destinations.php';
 
 require_once __DIR__ . '/class-backups-layout.php';
+// Exclusiones por defecto (B8): otros plugins de respaldo, la caché de páginas y los registros.
+require_once __DIR__ . '/class-backups-exclusions.php';
 require_once __DIR__ . '/class-backups-notify.php';
 require_once __DIR__ . '/class-backups-maintenance.php';
 require_once __DIR__ . '/class-backups-config-diff.php';
 require_once __DIR__ . '/class-backups-uploads.php';
 require_once __DIR__ . '/trait-backups-upload-service.php';
+// Restaurar desde un destino remoto y sincronizar sus respaldos (B1b, B2): trabajo `fetch` y casos de uso.
+require_once __DIR__ . '/class-backups-fetch-job.php';
+require_once __DIR__ . '/trait-backups-remote-service.php';
 // Restaurar en otro dominio, otra ruta del servidor u otro prefijo de tablas (ver «Restaurar en otro dominio»).
 require_once __DIR__ . '/class-backups-relocate.php';
 require_once __DIR__ . '/class-backups-site-extract.php';
@@ -33,6 +38,7 @@ final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Restore_Engine; // Restauración por pasos (Digitalisimo_Backups_Restore_Job).
 	use Digitalisimo_Backups_Destinations_Screen; // Destinos remotos: contrato, conexiones, «Servidores», «Probar conexión» y OAuth.
 	use Digitalisimo_Backups_Upload_Service; // Subida de un respaldo por fragmentos (pantalla y REST).
+	use Digitalisimo_Backups_Remote_Service; // Respaldos en los destinos: listar, sincronizar y traer (B1b, B2, I13).
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
@@ -66,6 +72,10 @@ final class Digitalisimo_Backups {
 	const ACTION_DELETE_CONNECTION = 'digitalisimo_backups_delete_connection';
 	const ACTION_TEST_DESTINATION = 'digitalisimo_backups_test_destination';
 	const ACTION_FETCH = 'digitalisimo_backups_fetch';
+	/** Respaldos en los destinos remotos (B2): sincronizar y traer uno de la lista, también de otro sitio. */
+	const ACTION_SYNC = 'digitalisimo_backups_sync';
+	const ACTION_REMOTE_FETCH = 'digitalisimo_backups_remote_fetch';
+	const REMOTE_INDEX = 'digitalisimo_backups_remote_index';
 	/** Estado de una subida interrumpida que espera retirarse del destino, en el área de su trabajo. */
 	const ABANDON = 'abandon.json';
 	/** Segundos de espera de cada llamada al retirarla (fuera del cerrojo del registro de trabajos). */
@@ -1067,6 +1077,8 @@ final class Digitalisimo_Backups {
 				'files_completed_at' => $files_completed_at,
 			);
 			if ( is_array( $extract ) ) $manifest['extract'] = Digitalisimo_Backups_Site_Extract::manifest_block( $extract, $files );
+			// Exclusiones por defecto (B8), como el empaquetado por tramos.
+			elseif ( Digitalisimo_Backups_Exclusions::declared( (array) ( self::job_files_context()['exclusions'] ?? array() ) ) ) $manifest['excluded'] = Digitalisimo_Backups_Exclusions::declared( (array) self::job_files_context()['exclusions'] );
 			if ( $plan['root'] ) $manifest['auth'] = Digitalisimo_Backups_Manifest_Auth::block( $plan['descriptor'], $plan['encrypt'] );
 			$manifest_json = wp_json_encode( $manifest, JSON_PRETTY_PRINT );
 			self::zip_add_string( $zip, 'manifest.json', $manifest_json );
@@ -1232,7 +1244,7 @@ final class Digitalisimo_Backups {
 		$root = trailingslashit( wp_normalize_path( $root ) );
 		$content = wp_normalize_path( $content );
 		if ( 0 !== strpos( trailingslashit( $content ), $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; se necesita incluirlo explícitamente antes de crear un respaldo completo.' );
-		return array( 'root' => $root, 'config' => self::wordpress_config_file(), 'backup' => trailingslashit( wp_normalize_path( realpath( self::local_directory() ) ) ), 'sqlite' => self::active_sqlite_database_files() );
+		return array( 'root' => $root, 'config' => self::wordpress_config_file(), 'backup' => trailingslashit( wp_normalize_path( realpath( self::local_directory() ) ) ), 'sqlite' => self::active_sqlite_database_files(), 'exclusions' => Digitalisimo_Backups_Exclusions::rules( $root, $content ) );
 	}
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
 	private static function add_full_files( $zip, $backup_dir, &$entries ) {
@@ -1248,6 +1260,8 @@ final class Digitalisimo_Backups {
 			$path = wp_normalize_path( $entry->getPathname() );
 			if ( 0 === strpos( $path, $backup_dir ) ) continue;
 			if ( isset( $active_database_files[ $path ] ) ) continue; // database.sql es la copia lógica consistente.
+			// B8: otros plugins de respaldo, la caché de páginas y los registros, como el inventario por tramos.
+			if ( Digitalisimo_Backups_Exclusions::excluded( substr( $path, strlen( $root ) ), false, (array) $context['exclusions'] ) ) continue;
 			if ( $entry->isLink() ) {
 				// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido abajo y nunca se restaura encima.
 				if ( $root . 'wp-config.php' === $path ) continue;
@@ -1884,6 +1898,7 @@ final class Digitalisimo_Backups {
 			}
 			echo '</tbody></table>';
 		}
+		self::remote_panel();
 		self::relocation_card();
 		echo '</section>';
 	}

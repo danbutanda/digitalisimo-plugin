@@ -16,6 +16,8 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Digitalisimo_Backups_Backup_Job {
 	public static function run_phase( $phase, array $job ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) return $kind::run_phase( $phase, $job );
 		switch ( $phase ) {
 			case 'preflight': return self::preflight( $job );
 			case 'database': return self::database( $job );
@@ -222,6 +224,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	 * fase con un punto de control por tramos (T2), conserva sus archivos: el tramo siguiente los trunca a ese punto.
 	 */
 	public static function discard( array $job, $phase ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) { $kind::discard( $job, $phase ); return; }
 		$staging = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING;
 		if ( is_link( $staging ) || ! is_dir( $staging ) ) return;
 		$index = array_search( $phase, Digitalisimo_Backups_Jobs::PHASES, true );
@@ -236,6 +240,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	}
 	/** Al fallar o cancelar: sin área de trabajo; un ZIP ya registrado sigue siendo local y verificado. */
 	public static function on_terminal( array $job, $status, $message ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) { $kind::on_terminal( $job, $status, $message ); return; }
 		// Una transferencia que falla o se cancela retira del destino lo que dejó a medias (multipart, temporales).
 		// Sólo aparta su estado: la llamada al destino ocurre después, fuera del cerrojo del registro (job_transfer_abandon_pending).
 		if ( 'transfer' === ( $job['phase'] ?? '' ) && empty( $job['spec']['inline'] ) ) Digitalisimo_Backups::job_transfer_queue_abandon( $job );

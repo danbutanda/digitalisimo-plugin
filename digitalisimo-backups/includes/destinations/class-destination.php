@@ -197,6 +197,55 @@ abstract class Digitalisimo_Backups_Destination {
 	abstract public function delete( array $remote );
 	abstract public function list();
 
+	/* ------------------------------------------------------------------ Descarga por fragmentos (B1b) */
+
+	/** El destino lee por rangos: una descarga larga avanza por fragmentos y se reanuda donde quedó. */
+	public function ranged() { return false; }
+	/**
+	 * Escribe en $target (que se vacía antes) los bytes desde $offset de la copia remota, como mucho $length, y devuelve
+	 * cuántos escribió (al menos uno). Sin lectura por rangos sólo admite $offset 0 y descarga el archivo entero de una vez
+	 * (`get()`), sea cual sea $length: es un paso largo que, si se corta, empieza de nuevo (límite declarado).
+	 */
+	public function get_range( array $remote, $target, $offset, $length ) {
+		if ( (int) $offset > 0 ) throw new Digitalisimo_Backups_Permanent_Error( static::label() . ' no permite reanudar una descarga a mitad; vuelve a empezarla.' );
+		$this->get( $remote, $target );
+		clearstatcache( true, $target );
+		$size = @filesize( $target );
+		if ( false === $size || $size <= 0 ) throw new Exception( 'La descarga de ' . static::label() . ' llegó vacía.' );
+		return (int) $size;
+	}
+	/**
+	 * Comprueba la respuesta HTTP de un rango pedido con `Range: bytes=<offset>-<offset + length - 1>`, ya escrita en $target:
+	 * 206 con `Content-Range` exactamente desde $offset y el largo que dice, o 200 con el archivo entero si se pidió desde 0
+	 * (un servidor sin rangos). Devuelve los bytes escritos; un fragmento distinto del pedido nunca se acepta.
+	 */
+	protected static function range_reply( array $response, $target, $offset, $length ) {
+		clearstatcache( true, $target );
+		$got = is_file( $target ) ? (int) filesize( $target ) : -1;
+		if ( 200 === (int) $response['code'] ) {
+			if ( (int) $offset > 0 ) throw new Digitalisimo_Backups_Permanent_Error( static::label() . ' no respeta las descargas por rangos (respondió el archivo entero a un fragmento).' );
+			if ( $got <= 0 ) throw new Exception( 'La descarga de ' . static::label() . ' llegó vacía.' );
+			return $got;
+		}
+		if ( 206 !== (int) $response['code'] ) {
+			if ( 404 === (int) $response['code'] ) throw new Exception( 'El respaldo ya no está en ' . static::label() . '.' );
+			if ( 416 === (int) $response['code'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de ' . static::label() . ' es más corto de lo que se listó (cambió en el destino).' );
+			throw new Exception( 'No se pudo descargar un fragmento del respaldo de ' . static::label() . ' (HTTP ' . (int) $response['code'] . ').' );
+		}
+		$range = (string) ( $response['headers']['content-range'] ?? '' );
+		if ( ! preg_match( '/^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i', trim( $range ), $m ) || (int) $m[1] !== (int) $offset || (int) $m[2] < (int) $m[1] || (int) $m[2] - (int) $m[1] + 1 > (int) $length ) throw new Exception( 'El fragmento recibido de ' . static::label() . ' no es el pedido (bytes ' . (int) $offset . '-' . ( (int) $offset + (int) $length - 1 ) . ').' );
+		if ( $got !== (int) $m[2] - (int) $m[1] + 1 ) throw new Exception( 'El fragmento de ' . static::label() . ' llegó incompleto.' );
+		return $got;
+	}
+	/** Cabecera `Range` del fragmento y el tope de bytes que se aceptan antes de cortar (un servidor que ignora el rango). */
+	protected static function range_args( $offset, $length ) {
+		$cap = (int) $length + 1;
+		return array(
+			'headers' => array( 'Range' => 'bytes=' . (int) $offset . '-' . ( (int) $offset + (int) $length - 1 ) ),
+			'progress' => function( $done, $total ) use ( $cap, $offset ) { if ( (int) $offset > 0 && $done > $cap ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino envía más de lo pedido: no respeta las descargas por rangos.' ); },
+		);
+	}
+
 	/** Verificación por defecto: descarga a un temporal privado y compara tamaño y SHA-256. */
 	public function verify( array $remote, $file, array $source ) {
 		$temp = $this->temp_file( '.verify-' );

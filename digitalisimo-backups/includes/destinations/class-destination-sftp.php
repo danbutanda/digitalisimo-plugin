@@ -178,6 +178,30 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		}
 		if ( false === $copied ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
 	}
+	/** B1b: lectura desde una posición (`fseek` del flujo SFTP), por bloques de 1 MiB (memoria constante). */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length ) {
+		$source = @fopen( $this->url( $this->own( $remote ) ), 'rb' );
+		if ( ! $source ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+		$out = @fopen( $target, 'wb' );
+		if ( ! $out ) { fclose( $source ); throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' ); }
+		$done = 0;
+		try {
+			if ( (int) $offset > 0 && 0 !== @fseek( $source, (int) $offset ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor SFTP no permite reanudar la lectura a mitad del respaldo.' );
+			while ( $done < (int) $length && ! feof( $source ) ) {
+				$chunk = fread( $source, (int) min( 1048576, (int) $length - $done ) );
+				if ( false === $chunk ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+				if ( '' === $chunk ) break;
+				if ( strlen( $chunk ) !== fwrite( $out, $chunk ) ) throw new Exception( 'No se pudo escribir la descarga en el almacén privado.' );
+				$done += strlen( $chunk );
+			}
+		} finally {
+			fclose( $source );
+			fclose( $out );
+		}
+		if ( $done <= 0 ) throw new Exception( 'El respaldo SFTP es más corto de lo que se listó (cambió en el destino).' );
+		return $done;
+	}
 	public function size( array $remote ) {
 		$path = $this->own( $remote );
 		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), $path ) : @stat( $this->url( $path ) );
