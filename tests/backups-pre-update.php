@@ -220,6 +220,7 @@ try {
 
 	// 8. Manuales: sin respaldo, la descarga se rechaza con un motivo y el respaldo queda en marcha.
 	$age( 30 * 3600 );
+	$runs = $auto_runs();
 	$P::store( array( 'theme' => 'auto' ) );
 	$update = array( 'plugin' => 'hello/hello.php', 'type' => 'plugin', 'action' => 'update' );
 	$blocked = $P::gate_download( false, 'https://downloads.example.test/hello.zip', new Plugin_Upgrader(), $update );
@@ -238,7 +239,7 @@ try {
 	array_pop( $GLOBALS['doing'] );
 	digi_drive( $manual[0]['id'] );
 	digi_assert( false === $P::gate_download( false, '', new Plugin_Upgrader(), $update ) && false === $P::gate_download( false, '', new Core_Upgrader(), array() ), 'Con el respaldo listo la actualización manual siguió bloqueada.' );
-	digi_assert( 3 === $auto_runs(), 'Un respaldo manual relanzó las automáticas sin que hubiera ninguna retenida.' );
+	digi_assert( $runs === $auto_runs(), 'Un respaldo manual relanzó las automáticas sin que hubiera ninguna retenida.' );
 
 	// 9. Manual con el respaldo fallido: «Actualizar sin respaldo» deja pasar las manuales unos minutos, nunca las automáticas.
 	$age( 30 * 3600 );
