@@ -121,7 +121,7 @@ final class Digitalisimo_Backups_Pre_Update {
 	}
 	private static function state() {
 		$saved = Digitalisimo_Backups_Keys::get( self::STATE, array() );
-		return array_merge( array( 'job' => '', 'auto' => false, 'items' => array(), 'since' => 0, 'failure' => '', 'failed_at' => 0, 'fails' => 0, 'mailed_at' => 0, 'skip_until' => 0, 'skip_via' => '', 'skip_user' => 0, 'last_ok' => 0, 'last_file' => '', 'bypass_until' => 0, 'bypass_reason' => '', 'bypass_items' => array() ), is_array( $saved ) ? $saved : array() );
+		return array_merge( array( 'job' => '', 'auto' => false, 'items' => array(), 'since' => 0, 'failure' => '', 'failed_at' => 0, 'fails' => 0, 'mailed_at' => 0, 'skip_until' => 0, 'skip_via' => '', 'skip_user' => 0, 'last_ok' => 0, 'last_file' => '', 'win_from' => 0, 'win_extra' => 0, 'bypass_until' => 0, 'bypass_reason' => '', 'bypass_items' => array() ), is_array( $saved ) ? $saved : array() );
 	}
 	private static function user() { return null !== self::$user ? (int) self::$user : ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ); }
 	/** En una red, el historial y la cola son del sitio principal: WP-CLI con `--url` de un subsitio también va allí. */
@@ -173,16 +173,32 @@ final class Digitalisimo_Backups_Pre_Update {
 		return null;
 	}
 	/**
-	 * Respaldo reciente para actualizar: el válido del historial o, si no aparece (borrado, movido), el respaldo previo
-	 * que terminó bien dentro de la antigüedad máxima. Así nunca se lanza más de un respaldo previo por ventana.
+	 * Respaldo reciente para actualizar: el válido del historial o, si no aparece, el respaldo previo que terminó bien
+	 * dentro de la antigüedad máxima, siempre que su archivo siga en el almacén y sano (intact()). Si se borró o se dañó,
+	 * se permite **un** respaldo previo más en esa ventana (`win_extra`); después cuenta igual, para no repetir respaldos
+	 * completos sin fin (revisión N1 y su límite 1).
 	 */
 	public static function recent() {
 		$fresh = self::fresh();
 		if ( $fresh ) return $fresh;
 		$state = self::state();
 		$ok = (int) $state['last_ok'];
-		if ( ! $ok || time() - $ok > self::settings()['max_age'] * 3600 ) return null;
+		$window = self::settings()['max_age'] * 3600;
+		if ( ! $ok || time() - $ok > $window ) return null;
+		$file = sanitize_file_name( (string) $state['last_file'] );
+		$sound = false;
+		try {
+			$path = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . $file;
+			$sound = '' !== $file && is_file( $path ) && self::intact( $path );
+		} catch ( Throwable $e ) {
+			$sound = false;
+		}
+		if ( ! $sound && (int) $state['win_extra'] < 1 ) return null;
 		return array( 'file' => (string) $state['last_file'], 'date' => gmdate( 'Y-m-d H:i:s', $ok ), 'age_minutes' => (int) floor( ( time() - $ok ) / 60 ), 'policy' => self::POLICY );
+	}
+	/** Dentro de la ventana del último respaldo previo bueno (para contar el respaldo de más que se permite). */
+	private static function in_window( array $state ) {
+		return (int) $state['win_from'] && time() - (int) $state['win_from'] <= self::settings()['max_age'] * 3600;
 	}
 	private static function copy_exists( array $item, $dir ) {
 		$file = sanitize_file_name( (string) ( $item['file'] ?? '' ) );
@@ -243,6 +259,7 @@ final class Digitalisimo_Backups_Pre_Update {
 		return self::on_main( function() use ( $via, $auto, $item ) { return self::ensure_here( $via, $auto, $item ); } );
 	}
 	private static function ensure_here( $via, $auto, $item ) {
+		$queued = null;
 		$state = self::resolve();
 		$fresh = self::recent();
 		if ( $fresh ) return array( 'state' => 'ready', 'fresh' => $fresh );
@@ -263,7 +280,9 @@ final class Digitalisimo_Backups_Pre_Update {
 			Digitalisimo_Backups_Jobs::schedule( true );
 		}
 		$id = (string) $job['id'];
-		self::change( function( &$state ) use ( $id, $auto, $item ) {
+		$launched = ! empty( $queued ) && empty( $queued['duplicate'] );
+		self::change( function( &$state ) use ( $id, $auto, $item, $launched ) {
+			if ( $launched && $state['job'] !== $id && self::in_window( $state ) ) $state['win_extra'] = (int) $state['win_extra'] + 1;
 			$state['job'] = $id;
 			if ( $auto ) {
 				$state['auto'] = true;
@@ -321,6 +340,7 @@ final class Digitalisimo_Backups_Pre_Update {
 				if ( $job && 'success' === $job['status'] ) {
 					$state['last_ok'] = time();
 					$state['last_file'] = basename( (string) ( $job['result']['file'] ?? $job['spec']['file'] ?? '' ) );
+					if ( ! self::in_window( $state ) ) { $state['win_from'] = time(); $state['win_extra'] = 0; }
 				}
 				$release = ! empty( $state['auto'] );
 				$state['auto'] = false;

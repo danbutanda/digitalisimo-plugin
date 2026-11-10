@@ -355,10 +355,18 @@ try {
 		digi_assert( array( 'no', 'sí', 'sí', 'sí' ) === $seq && 1 === $pre_jobs() - $before, 'N1: con un respaldo previo que termina con files_missing, pasadas ' . implode( ',', $seq ) . ' y ' . ( $pre_jobs() - $before ) . ' respaldos previos (debía actualizar en la segunda con uno solo).' );
 		$row = get_option( $B::HISTORY )[0];
 		digi_assert( 'pre-update' === $row['policy'] && 'files_missing' === ( $row['notices'][0]['code'] ?? '' ), 'N1: el respaldo previo no quedó con su aviso.' );
-		// Aunque el respaldo desaparezca del almacén, no se lanza otro dentro de la ventana del respaldo reciente.
+		// Límite 1 de la segunda revisión: si el respaldo previo se borra dentro de su ventana, ya no cuenta y se permite UNO
+		// más; si ése también se daña, cuenta igual (nunca respaldos completos sin fin).
 		unlink( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/' . $row['file'] );
 		clearstatcache();
-		digi_assert( true === $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ) && 1 === $pre_jobs() - $before, 'N1: dentro de la ventana se lanzó otro respaldo previo.' );
+		digi_assert( false === $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ) && 2 === $pre_jobs() - $before, 'N1: con el respaldo previo borrado, la actualización siguió sin respaldo o no se lanzó uno nuevo.' );
+		foreach ( $J::active() as $job ) digi_drive( $job['id'] );
+		digi_assert( true === $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ), 'N1: con el respaldo previo nuevo, la actualización no siguió.' );
+		$second = get_option( $B::HISTORY )[0];
+		$path = DIGITALISIMO_BACKUPS_STORAGE_DIR . '/' . $second['file'];
+		file_put_contents( $path, str_repeat( "\0", 4096 ) . substr( (string) file_get_contents( $path ), 4096 ) );
+		clearstatcache();
+		digi_assert( null === $P::fresh() && true === $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ) && 2 === $pre_jobs() - $before, 'N1: tras el respaldo de más de la ventana, uno dañado lanzó otro respaldo previo.' );
 	} );
 	$case( 'N4 · WP-CLI no respalda sin nada del núcleo pendiente ni con --dry-run', function( $ctx ) {
 		extract( $ctx );

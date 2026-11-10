@@ -366,9 +366,10 @@ una tienda conviene 1 a 6 h) y con su ZIP en el almacén con el tamaño registra
 cabecera local de ZIP y termina con el directorio central; un `.dgbk`, con la cabecera DGBK v1), o, si sólo queda en el
 remoto, con su copia remota verificada. Los avisos de archivos que cambiaron o desaparecieron durante el respaldo
 (`files_changed`, `files_missing`: una caché, un CSS regenerado) no lo descalifican; descartarlo repetiría respaldos
-completos sin fin. Además, **nunca se lanza más de un respaldo previo por ventana**: si el respaldo previo terminó bien
-dentro de la antigüedad máxima, cuenta aunque su fila ya no aparezca (borrada o movida). El SHA-256 se comprobó al
-crearlo; aquí no se relee el archivo entero. Si ya hay
+completos sin fin. Además, el respaldo previo que terminó bien dentro de la antigüedad máxima cuenta aunque su fila ya no
+aparezca, siempre que su archivo siga en el almacén y sano; si se borró o se dañó, se permite **un** respaldo previo más
+en esa ventana y, después, cuenta igual hasta que la ventana termina (nunca respaldos completos sin fin). El SHA-256 se
+comprobó al crearlo; aquí no se relee el archivo entero. Si ya hay
 un respaldo completo en curso (manual o de una automatización), se espera a ése en vez de hacer otro. Los respaldos
 previos tienen su propia retención (tres) y no cuentan en la retención global de los respaldos del usuario.
 
@@ -441,7 +442,10 @@ reintenta; con dos fallos seguidos actualiza igual; el núcleo menor no espera; 
 desde WP-CLI no respalda con el sitio en mantenimiento, y desde un subsitio el respaldo es el del sitio principal.
 
 **Límites.** La validez del respaldo reciente se mira por fecha, tamaño, estructura del ZIP y copia remota verificada, sin
-releer su SHA-256. Las automáticas sólo se retienen dentro de `wp_maybe_auto_update` (WP-Cron o `wp cron event run`); un
+releer su SHA-256. Un respaldo con `files_changed` (carpetas de código que cambiaron mientras se respaldaba, quizá con una
+versión a medias) cuenta como válido, igual que uno con `files_missing`: es la contrapartida de no repetir respaldos
+completos sin fin en un sitio con caché. Tras el respaldo previo de más que se permite en una ventana, uno borrado o dañado
+cuenta igual hasta que esa ventana termina (24 h por defecto). Las automáticas sólo se retienen dentro de `wp_maybe_auto_update` (WP-Cron o `wp cron event run`); un
 plugin que llame directamente a `WP_Automatic_Updater::run()` fuera de esa acción no pasa por aquí (el filtro
 `digitalisimo_backups_pre_update_auto_context` lo permite), y un plugin que se actualice a sí mismo fuera de esa acción
 cuenta como manual. Reemplazar un plugin o un tema subiendo un ZIP («Reemplazar el actual con el subido») cuenta como
