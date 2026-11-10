@@ -13,6 +13,7 @@
  * - recursos: hojas ≤ 4 KB sin `--e-global-*` ni `url()`, scripts sin jQuery ni Swiper y ≤ 8 KB, movimiento reducido,
  *   y ningún nombre de los plugins de origen que la guarda de `scripts/build-packages.sh` rechaza.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ . '/' );
 $GLOBALS['lp'] = array( 'n' => 0 );
 function add_filter( $hook, $cb, $priority = 10, $args = 1 ) {}

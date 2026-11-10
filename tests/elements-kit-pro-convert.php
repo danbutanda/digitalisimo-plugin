@@ -22,6 +22,9 @@
  */
 
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	require __DIR__ . '/sources/kits/wp-stubs.php';
 	// Algunos mapas leen la imagen de reserva del núcleo al cargarse; `class_sets()` los carga todos.
 	defined( 'ELEMENTOR_ASSETS_URL' ) || define( 'ELEMENTOR_ASSETS_URL', 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' );

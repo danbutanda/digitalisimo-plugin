@@ -4,6 +4,9 @@
  * (clases CSS, ajustes, CSS que impide convertir) y la tarea por etapas del sitio y de la red (pausa tras desactivar,
  * cerrojo, reintentos, documentos que fallan, informe y origen permitido para la pantalla de red).
  */
+namespace {
+	require_once __DIR__ . '/fixtures/wp-compat.php'; // str_contains() con PHP 7.4, como el compat.php de WordPress.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();

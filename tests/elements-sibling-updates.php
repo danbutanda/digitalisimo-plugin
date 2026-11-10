@@ -7,6 +7,7 @@
  * el plugin al actualizarlo, y no toca lo que un actualizador propio ya atiende, a sí mismo, a los ajenos ni a las copias
  * inactivas de un plugin activo. Sólo acepta ZIPs suyos del repositorio oficial.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'DIGITALISIMO_ELEMENTS_FILE', '/wp/plugins/digitalisimo-elements/pro-elements.php' );

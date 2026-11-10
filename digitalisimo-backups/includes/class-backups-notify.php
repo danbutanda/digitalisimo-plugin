@@ -62,9 +62,13 @@ final class Digitalisimo_Backups_Notify {
 
 	/* ------------------------------------------------------------------ Trabajos */
 
-	/** Marca de un trabajo terminado que debe avisar: éxito o fallo definitivo, nunca la copia previa de una restauración. */
+	/**
+	 * Marca de un trabajo terminado que debe avisar: éxito o fallo definitivo. Nunca la copia previa de una restauración
+	 * ni el paquete que el origen prepara para una migración (no es un respaldo suyo: su uso queda en el registro de la
+	 * clave); la migración que recibe el destino avisa con su propio texto (migration()).
+	 */
 	public static function mark( array $job ) {
-		if ( ! empty( $job['spec']['inline'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
+		if ( ! empty( $job['spec']['inline'] ) || 'source' === ( $job['spec']['migration']['role'] ?? '' ) || ! empty( $job['spec']['safety_extra']['migration'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
 		$job['notice'] = 'pending';
 		return $job;
 	}
@@ -123,6 +127,7 @@ final class Digitalisimo_Backups_Notify {
 		// Traer un respaldo de un destino (B1b) lo pide alguien que espera el resultado en pantalla o en la terminal: sin correo.
 		if ( 'fetch' === ( $job['spec']['kind'] ?? '' ) ) return false;
 		if ( 'restore' === ( $job['kind'] ?? '' ) ) return self::restore_job( $job );
+		if ( 'migrate' === ( $job['spec']['kind'] ?? '' ) ) return self::migration( $job );
 		$snapshot = self::snapshot();
 		$spec = (array) ( $job['spec'] ?? array() );
 		$ok = 'success' === ( $job['status'] ?? '' );
@@ -151,6 +156,29 @@ final class Digitalisimo_Backups_Notify {
 			$lines[] = 'Motivo: ' . self::clean( (string) ( $job['error']['message'] ?? 'El trabajo falló.' ) );
 		}
 		return self::send( $snapshot, $ok, $subject, $lines );
+	}
+	/**
+	 * Aviso de una migración recibida: terminada o fallida. Va a quien se avisaba en este sitio antes de migrar (la foto
+	 * se toma al encolarla): los ajustes de avisos que llegan con el SQL del origen son los del origen.
+	 */
+	public static function migration( array $job ) {
+		$spec = (array) ( $job['spec'] ?? array() );
+		$snapshot = is_array( $spec['notify'] ?? null ) && array_key_exists( 'to', $spec['notify'] ) ? $spec['notify'] : self::snapshot();
+		$ok = 'success' === ( $job['status'] ?? '' );
+		$source = (string) ( $spec['migration']['source_host'] ?? '' );
+		$lines = array( 'Origen de la migración: ' . ( '' !== $source ? $source : 'otro sitio' ) . ' (' . self::via_label( (string) ( $spec['origin']['via'] ?? '' ) ) . ')' );
+		$phase = (string) ( $job['phase'] ?? '' );
+		if ( $ok ) {
+			if ( ! empty( $job['result']['safety'] ) ) $lines[] = 'Copia previa bloqueada: ' . basename( (string) $job['result']['safety'] ) . ' («Deshacer la migración» en Backups → Migrar la restaura)';
+			$lines[] = 'Este sitio es ahora una copia del origen con su propia dirección: inicia sesión con un usuario del sitio de origen.';
+			foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( '' !== (string) $warning ) $lines[] = 'Aviso: ' . self::clean( (string) $warning );
+			return self::send( $snapshot, true, 'Migración terminada', $lines );
+		}
+		$own = class_exists( 'Digitalisimo_Backups_Migrate' ) ? Digitalisimo_Backups_Migrate::job_phase( $phase ) : null;
+		if ( '' !== $phase ) $lines[] = 'Fase: ' . ( 'preflight' === $phase ? 'Conexión con el origen' : ( $own ? $own['label'] : Digitalisimo_Backups_Jobs::phase_label( $phase ) ) );
+		if ( ! in_array( $phase, array( 'restore', 'close' ), true ) ) $lines[] = 'No se cambió nada de este sitio.';
+		$lines[] = 'Motivo: ' . self::clean( (string) ( $job['error']['message'] ?? 'La migración falló.' ) );
+		return self::send( $snapshot, false, 'La migración falló', $lines );
 	}
 	private static function origin_label( array $spec ) {
 		$policy = (string) ( $spec['policy'] ?? 'manual' );

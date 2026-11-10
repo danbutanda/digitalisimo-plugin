@@ -9,6 +9,9 @@
  * (aquí sólo se definen las que faltan) y ajusta `$GLOBALS['h_wp']` (opciones del entorno: `features`, `edit_mode`,
  * `preview_mode`, `taxonomies`, `post_types`, `rtl`, `home`).
  */
+namespace {
+	require_once dirname( __DIR__ ) . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -268,7 +271,7 @@ namespace {
 	/** Un widget con sus controles registrados. */
 	function h_widget( string $class ) {
 		$widget = new $class();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		return $widget;
 	}
 
@@ -293,7 +296,7 @@ namespace {
 		$widget->attrs    = array();
 		$widget->settings = $defaults ? array_merge( h_defaults( $widget ), $settings ) : $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	}
 

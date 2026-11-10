@@ -14,6 +14,9 @@
  *   `__dynamic__`, `__globals__`, CSS personalizado con clases de PRO): ningún `pro.unmapped`, cada clave cae en un
  *   control propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
@@ -217,14 +220,14 @@ namespace {
 
 	$widget = static function ( array $settings = array() ) {
 		$w = new Media_Carousel();
-		( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 		$w->settings = $settings;
 		return $w;
 	};
 	$render = static function ( array $settings ) use ( $widget ) {
 		$w = $widget( $settings );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$img = static function ( $n, array $extra = array() ) {

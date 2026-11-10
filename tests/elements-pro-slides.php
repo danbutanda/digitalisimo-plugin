@@ -16,6 +16,9 @@
  *   `__dynamic__` y `__globals__` en el widget y en las filas, CSS personalizado con clases de PRO, responsivos):
  *   ningún `pro.unmapped`, cada clave cae en un control propio y lo convertido se pinta con los mismos textos.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -129,7 +132,7 @@ namespace {
 		$widget           = new Slides();
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -174,8 +177,8 @@ namespace {
 
 	// 2. Los controles de PRO, uno a uno, en el widget propio.
 	$pro = new \ElementorPro\Modules\Slides\Widgets\Slides();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	$map = require $root . 'modules/digitalisimo-convert/maps/slides.php';
 	$same = static function ( string $where, string $name, array $a, array $b ) {
 		foreach ( array( 'type', 'default', 'condition', 'conditions', 'responsive', 'size_units', 'range', 'tablet_default', 'mobile_default', 'show_label', 'label_block', 'title_field', 'classes', 'separator' ) as $key ) {
@@ -308,7 +311,7 @@ namespace {
 	$GLOBALS['sl_status'] = array( 40 => 'publish', 41 => 'draft' );
 	$templated = $render( array( 'slides' => array( array( '_id' => 't1', 'heading' => 'Con plantilla', 'description' => 'No se ve', 'digitalisimo_template_id' => '40' ), array( '_id' => 't2', 'heading' => 'Borrador', 'description' => 'Sí se ve', 'digitalisimo_template_id' => 41 ) ) ) + $base );
 	check_sl( str_contains( $templated, '<div class="digi-slides__description digi-slides__template"><div class="elementor elementor-40"><p>Plantilla 40</p><script>var x=1;</script></div></div>' ) && ! str_contains( $templated, 'No se ve' ) && str_contains( $templated, '<p class="digi-slides__description">Sí se ve</p>' ) && array( 40 ) === $GLOBALS['sl_rendered'], 'Una plantilla publicada ocupa el lugar de la descripción (con su marcado del constructor); un borrador no.' );
-	$depth = new ReflectionProperty( Slides_Templates::class, 'depth' );
+	$depth = digi_test_accessible( new ReflectionProperty( Slides_Templates::class, 'depth' ) );
 	$depth->setValue( null, 2 );
 	check_sl( '' === Slides_Templates::content( array( 'digitalisimo_template_id' => 40 ) ), 'Más allá del tope de anidamiento, no se pinta la plantilla (como en PRO).' );
 	$depth->setValue( null, 0 );

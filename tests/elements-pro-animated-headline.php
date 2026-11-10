@@ -13,6 +13,9 @@
  *   `__globals__`, CSS personalizado con clases de PRO): ningún `pro.unmapped` y lo convertido se pinta con los textos
  *   de PRO.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -100,7 +103,7 @@ namespace {
 		$widget->settings = $settings;
 		$widget->attrs    = array();
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	// Texto visible: sin etiquetas ni el texto sólo para lectores de pantalla, espacios normalizados.
@@ -113,7 +116,7 @@ namespace {
 	// Movimiento reducido (corrección de fidelidad, docs/pro/c2.md): lo convertido de PRO rota también con «reducir
 	// movimiento», como PRO, que sólo consulta la preferencia en el resaltado; lo nuevo, no.
 	$motion_widget = new Animated_Headline();
-	( new ReflectionMethod( $motion_widget, 'register_controls' ) )->invoke( $motion_widget );
+	( digi_test_accessible( new ReflectionMethod( $motion_widget, 'register_controls' ) ) )->invoke( $motion_widget );
 	$ok( str_contains( $render( $motion_widget, array( 'headline_style' => 'rotate', 'rotating_text' => "a\nb", '_digitalisimo_pro' => 'animated-headline' ) ), 'digi-ah--motion' ), 'Lo convertido de PRO que rota lleva digi-ah--motion.' );
 	$ok( ! str_contains( $render( $motion_widget, array( 'headline_style' => 'rotate', 'rotating_text' => "a\nb" ) ), 'digi-ah--motion' ) && ! str_contains( $render( $motion_widget, array( 'headline_style' => 'highlight', 'highlighted_text' => 'x', '_digitalisimo_pro' => 'animated-headline' ) ), 'digi-ah--motion' ), 'Lo nuevo, y el resaltado aunque venga de PRO, respetan el movimiento reducido.' );
 
@@ -152,8 +155,8 @@ namespace {
 
 	// 2. Los controles de PRO, uno a uno, en el widget propio.
 	$pro = new \ElementorPro\Modules\AnimatedHeadline\Widgets\Animated_Headline();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	$ok( array_keys( $pro->controls ) === array_keys( $widget->controls ) && array_keys( $pro->sections ) === array_keys( $widget->sections ) && array_keys( $pro->groups ) === array_keys( $widget->groups ), 'Los mismos controles, secciones y grupos en el mismo orden.' );
 	foreach ( $pro->sections as $name => $section ) {
 		$ok( ( $section['tab'] ?? '' ) === ( $widget->sections[ $name ]['tab'] ?? '' ), "Sección $name en la misma pestaña." );
@@ -183,8 +186,8 @@ namespace {
 	$GLOBALS['ah_rtl'] = true;
 	$rtl_pro = new \ElementorPro\Modules\AnimatedHeadline\Widgets\Animated_Headline();
 	$rtl_own = new Animated_Headline();
-	( new ReflectionMethod( $rtl_pro, 'register_controls' ) )->invoke( $rtl_pro );
-	( new ReflectionMethod( $rtl_own, 'register_controls' ) )->invoke( $rtl_own );
+	( digi_test_accessible( new ReflectionMethod( $rtl_pro, 'register_controls' ) ) )->invoke( $rtl_pro );
+	( digi_test_accessible( new ReflectionMethod( $rtl_own, 'register_controls' ) ) )->invoke( $rtl_own );
 	$ok( $rtl_pro->controls['alignment']['selectors_dictionary'] === $rtl_own->controls['alignment']['selectors_dictionary'] && 'end' === $rtl_own->controls['alignment']['selectors_dictionary']['left'], 'En RTL la alineación antigua izquierda/derecha se traduce igual que en PRO.' );
 	$GLOBALS['ah_rtl'] = false;
 	$map = require $root . 'modules/digitalisimo-convert/maps/animated-headline.php';

@@ -31,6 +31,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
+		WP_CLI::add_command( 'digitalisimo-backups migration', 'Digitalisimo_Backups_Cli_Migration' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
@@ -53,14 +54,17 @@ final class Digitalisimo_Backups_Cli {
 	 * Frase o clave de un respaldo, tal cual (sólo se quita el salto de línea final). `--secret=<valor>` se rechaza:
 	 * quedaría en la lista de procesos y en el historial del shell.
 	 */
-	public static function secret( $assoc_args ) {
+	public static function secret( $assoc_args, array $words = array() ) {
+		// Textos de la opción que lo pidió: --secret-file/--secret-stdin (frase o clave de un respaldo) por defecto, o los de
+		// la clave de migración (--from-key-file/--from-key-stdin).
+		$words += array( 'file' => '--secret-file', 'stdin' => '--secret-stdin', 'what' => 'frase o clave', 'prompt' => 'Frase o clave del respaldo: ', 'empty' => 'La frase o clave del respaldo está vacía.' );
 		if ( array_key_exists( 'secret', $assoc_args ) ) WP_CLI::error( 'La frase o clave nunca va en la línea de órdenes, donde la verían otros procesos y el historial del shell. Usa --secret-file=<ruta> o --secret-stdin.' );
-		if ( isset( $assoc_args['secret-file'] ) && ! empty( $assoc_args['secret-stdin'] ) ) WP_CLI::error( 'Usa --secret-file o --secret-stdin, no los dos.' );
+		if ( isset( $assoc_args['secret-file'] ) && ! empty( $assoc_args['secret-stdin'] ) ) WP_CLI::error( 'Usa ' . $words['file'] . ' o ' . $words['stdin'] . ', no los dos.' );
 		if ( isset( $assoc_args['secret-file'] ) ) {
 			$path = (string) $assoc_args['secret-file'];
-			if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) WP_CLI::error( 'No se puede leer el archivo de --secret-file.' );
+			if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) WP_CLI::error( 'No se puede leer el archivo de ' . $words['file'] . '.' );
 			$secret = @file_get_contents( $path, false, null, 0, 65537 );
-			if ( false === $secret || strlen( $secret ) > 65536 ) WP_CLI::error( 'El archivo de --secret-file no se puede leer o es demasiado grande para una frase o clave.' );
+			if ( false === $secret || strlen( $secret ) > 65536 ) WP_CLI::error( 'El archivo de ' . $words['file'] . ' no se puede leer o es demasiado grande para una ' . $words['what'] . '.' );
 		} elseif ( ! empty( $assoc_args['secret-stdin'] ) ) {
 			// En una terminal se pide sin eco; por una tubería se lee la primera línea. En los dos casos, la línea tal cual:
 			// \cli\prompt() la recorta (trim), y la pantalla guarda la frase sin recortar, así que una frase con espacios
@@ -68,7 +72,7 @@ final class Digitalisimo_Backups_Cli {
 			$tty = null === self::$tty ? 'php://stdin' === self::$stdin && defined( 'STDIN' ) && function_exists( 'posix_isatty' ) && @posix_isatty( STDIN ) : (bool) self::$tty;
 			$hide = $tty && is_callable( array( 'cli\\Shell', 'hide' ) );
 			$handle = @fopen( self::$stdin, 'rb' );
-			if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, 'Frase o clave del respaldo: ' );
+			if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, $words['prompt'] );
 			if ( $hide ) \cli\Shell::hide();
 			try {
 				$secret = $handle ? fgets( $handle, 65537 ) : false;
@@ -77,12 +81,12 @@ final class Digitalisimo_Backups_Cli {
 				if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, "\n" );
 				if ( $handle ) fclose( $handle );
 			}
-			if ( false === $secret ) WP_CLI::error( 'No llegó ninguna frase o clave por la entrada estándar.' );
+			if ( false === $secret ) WP_CLI::error( 'No llegó ninguna ' . $words['what'] . ' por la entrada estándar.' );
 		} else {
 			return '';
 		}
 		$secret = preg_replace( '/\r?\n\z/', '', $secret );
-		if ( '' === $secret ) WP_CLI::error( 'La frase o clave del respaldo está vacía.' );
+		if ( '' === $secret ) WP_CLI::error( $words['empty'] );
 		return $secret;
 	}
 	/**
@@ -342,6 +346,66 @@ final class Digitalisimo_Backups_Cli {
 	}
 
 	/**
+	 * Migra a este sitio otro WordPress (o red) en un paso: con la clave de migración generada en el origen, lo descarga
+	 * cifrado, lo comprueba y lo restaura aquí conservando la dirección de este sitio. Antes crea una copia previa
+	 * bloqueada (`wp digitalisimo-backups migration undo` la restaura). Avanza en este proceso hasta terminar.
+	 *
+	 * La clave nunca va en la línea de órdenes, donde la verían otros procesos y el historial del shell.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--from-key-file=<path>]
+	 * : Archivo con la clave de migración.
+	 *
+	 * [--from-key-stdin]
+	 * : Lee la clave de la entrada estándar (en una terminal, sin mostrarla).
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 *
+	 * [--yes]
+	 * : No pide confirmación (la migración reemplaza este sitio).
+	 *
+	 * [--async]
+	 * : Sólo la encola; la continúan WP-Cron o `wp digitalisimo-backups jobs run`.
+	 *
+	 * [--porcelain]
+	 * : Imprime sólo el identificador del trabajo.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups migrate --from-key-file=/root/clave-migracion.txt --yes
+	 *     cat clave.txt | wp digitalisimo-backups migrate --from-key-stdin --network --yes
+	 */
+	public function migrate( $args, $assoc_args ) {
+		$key = self::migration_key( $assoc_args );
+		WP_CLI::confirm( 'La migración reemplaza ' . ( is_multisite() ? 'esta red' : 'este sitio' ) . ' por el del origen (con una copia previa para deshacerla). ¿Continuar?', $assoc_args );
+		$async = ! empty( $assoc_args['async'] );
+		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$key = '';
+		if ( $async ) {
+			WP_CLI::line( ! empty( $assoc_args['porcelain'] ) ? $view['id'] : 'Migración en cola desde ' . $view['source'] . ' (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
+			return;
+		}
+		$done = self::drive( $view, ! empty( $assoc_args['porcelain'] ) );
+		if ( 'success' !== $done['status'] ) WP_CLI::error( ( 'cancelled' === $done['status'] ? 'Migración cancelada: ' : 'La migración falló: ' ) . ( $done['error'] ?: $done['detail'] ) );
+		if ( ! empty( $assoc_args['porcelain'] ) ) { WP_CLI::line( $done['id'] ); return; }
+		WP_CLI::success( $done['message'] );
+	}
+	/**
+	 * Clave de migración de un archivo (`--from-key-file`) o de la entrada estándar (`--from-key-stdin`). En la línea de
+	 * órdenes (`--from-key`, `--key`) es un error.
+	 */
+	public static function migration_key( $assoc_args ) {
+		foreach ( array( 'from-key', 'key' ) as $name ) if ( array_key_exists( $name, $assoc_args ) ) WP_CLI::error( 'La clave de migración nunca va en la línea de órdenes, donde la verían otros procesos y el historial del shell. Usa --from-key-file=<ruta> o --from-key-stdin.' );
+		$mapped = array();
+		if ( isset( $assoc_args['from-key-file'] ) ) $mapped['secret-file'] = $assoc_args['from-key-file'];
+		if ( ! empty( $assoc_args['from-key-stdin'] ) ) $mapped['secret-stdin'] = true;
+		if ( ! $mapped ) WP_CLI::error( 'Falta la clave de migración: --from-key-file=<ruta> o --from-key-stdin.' );
+		return self::secret( $mapped, array( 'file' => '--from-key-file', 'stdin' => '--from-key-stdin', 'what' => 'clave de migración', 'prompt' => 'Clave de migración: ', 'empty' => 'La clave de migración está vacía.' ) );
+	}
+
+	/**
 	 * Restaura un respaldo local completo. Antes crea y bloquea una copia del estado actual; si algo falla, recupera desde ella.
 	 *
 	 * ## OPTIONS
@@ -558,6 +622,123 @@ final class Digitalisimo_Backups_Cli_Jobs {
 			return;
 		}
 		WP_CLI::success( $steps ? 'Cola avanzada.' : 'No había trabajo listo.' );
+	}
+}
+
+/** Migración en un clic entre servidores y dominios: claves del origen, estado y deshacer en el destino. */
+final class Digitalisimo_Backups_Cli_Migration {
+	/**
+	 * Estado de la migración: claves (sin secretos), migración en curso, la que se puede deshacer y el registro.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table o json.
+	 * ---
+	 * default: table
+	 * ---
+	 */
+	public function status( $args, $assoc_args ) {
+		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_status() );
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) { WP_CLI::line( wp_json_encode( $status ) ); return; }
+		WP_CLI::line( 'Sitio: ' . $status['site'] . ( $status['multisite'] ? ' (red por ' . ( $status['subdomain_install'] ? 'subdominios' : 'subdirectorios' ) . ')' : '' ) );
+		WP_CLI::line( 'HTTPS: ' . ( $status['https'] ? 'sí' : 'no' ) . ( $status['allow_http'] ? ' · laboratorio activado (HTTP y direcciones internas)' : '' ) );
+		if ( '' !== $status['key_problem'] ) WP_CLI::warning( 'No puede generar claves: ' . $status['key_problem'] );
+		if ( '' !== $status['pull_problem'] ) WP_CLI::warning( 'No puede recibir una migración: ' . $status['pull_problem'] );
+		if ( $status['active'] ) WP_CLI::line( 'Migración en curso: ' . $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . $status['active']['percent'] . ' %)' );
+		if ( $status['undo'] ) WP_CLI::line( 'Se puede deshacer la migración de ' . $status['undo']['from'] . ' (' . $status['undo']['date'] . ') con la copia previa ' . $status['undo']['file'] . '.' );
+		if ( $status['keys'] ) Digitalisimo_Backups_Cli::rows( $status['keys'], array( 'format' => 'table' ), array( 'id', 'state_label', 'expires_at', 'site' ) );
+	}
+	/**
+	 * Genera una clave de migración de este sitio (o red) y la muestra una sola vez. Pégala en el destino:
+	 * `wp digitalisimo-backups migrate --from-key-file=…` o Backups → Migrar.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--hours=<hours>]
+	 * : Horas hasta que caduca (1 a 72).
+	 * ---
+	 * default: 24
+	 * ---
+	 *
+	 * [--key-file=<path>]
+	 * : Escribe la clave en este archivo nuevo (permisos 0600) en lugar de imprimirla.
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite (la clave se lleva la red entera).
+	 *
+	 * @subcommand create-key
+	 */
+	public function create_key( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_create_key( array( 'hours' => (int) ( $assoc_args['hours'] ?? 24 ), 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		$note = 'Clave ' . substr( $result['id'], 0, 8 ) . ' de ' . $result['source'] . ', de un solo uso; caduca el ' . gmdate( 'Y-m-d H:i', (int) $result['expires'] ) . ' UTC.';
+		if ( isset( $assoc_args['key-file'] ) ) {
+			$path = (string) $assoc_args['key-file'];
+			// El archivo nace sólo legible por su dueño (umask) y se comprueba antes de escribir la clave: si no queda en
+			// 0600 (un sistema de archivos que no lo admite), se borra y la clave se revoca.
+			$mask = umask( 0077 );
+			$handle = '' !== $path ? @fopen( $path, 'xb' ) : false;
+			umask( $mask );
+			if ( ! $handle ) { Digitalisimo_Backups::service_migration_revoke_key( $result['id'] ); WP_CLI::error( 'No se pudo crear ' . $path . ' (debe ser un archivo nuevo). La clave se revocó.' ); }
+			@chmod( $path, 0600 );
+			clearstatcache( true, $path );
+			$private = 0 === ( (int) @fileperms( $path ) & 0077 ) || '\\' === DIRECTORY_SEPARATOR;
+			$written = $private ? fwrite( $handle, $result['key'] . "\n" ) : false;
+			fclose( $handle );
+			if ( ! $private || strlen( $result['key'] ) + 1 !== (int) $written ) {
+				@unlink( $path );
+				Digitalisimo_Backups::service_migration_revoke_key( $result['id'] );
+				WP_CLI::error( ! $private ? 'No se pudo dejar ' . $path . ' sólo legible por su dueño (0600). Se borró y la clave se revocó.' : 'No se pudo escribir la clave en ' . $path . '. Se borró y la clave se revocó.' );
+			}
+			WP_CLI::success( $note . ' Guardada en ' . $path . '.' );
+			return;
+		}
+		WP_CLI::line( $result['key'] );
+		if ( defined( 'STDERR' ) ) fwrite( STDERR, $note . " Se muestra una sola vez.\n" );
+	}
+	/**
+	 * Lista las claves de migración (nunca su valor).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv o yaml.
+	 * ---
+	 * default: table
+	 * ---
+	 */
+	public function keys( $args, $assoc_args ) {
+		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_status() );
+		Digitalisimo_Backups_Cli::rows( $status['keys'], $assoc_args, array( 'id', 'state', 'state_label', 'created_at', 'expires_at', 'site', 'failures' ) );
+	}
+	/**
+	 * Revoca una clave de migración: deja de servir y su paquete se borra. El sitio no cambia.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador de la clave (16 caracteres), tal como aparece en `wp digitalisimo-backups migration keys`.
+	 */
+	public function revoke( $args, $assoc_args ) {
+		$key = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_revoke_key( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Clave ' . substr( $key['id'], 0, 8 ) . ': ' . $key['state_label'] . '.' );
+	}
+	/**
+	 * Deshace la última migración recibida: restaura su copia previa (y antes guarda el estado actual en otra).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 *
+	 * [--yes]
+	 * : No pide confirmación.
+	 */
+	public function undo( $args, $assoc_args ) {
+		WP_CLI::confirm( '¿Deshacer la última migración y volver al estado anterior?', $assoc_args );
+		// En WP-CLI la restauración de la copia previa avanza hasta terminar en este proceso (con sus reintentos).
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'drive_cli' => true ) ) );
+		WP_CLI::success( 'Migración de ' . $result['from'] . ' deshecha con ' . $result['file'] . '. Revisa los enlaces permanentes.' . ( '' !== (string) ( $result['notice'] ?? '' ) ? ' ' . $result['notice'] : '' ) );
 	}
 }
 

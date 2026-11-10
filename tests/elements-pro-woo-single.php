@@ -17,6 +17,7 @@
  * - mapas: cada control de PRO declarado y conversión de ajustes reales (por defecto, estilos, responsivos, globales,
  *   dinámicos, CSS personalizado) sin `pro.unmapped`, con cada clave en un control propio.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 require __DIR__ . '/elements-woo-single/stubs.php';
 
 use Digitalisimo\Elements\Convert\Registry as Maps;
@@ -138,7 +139,7 @@ foreach ( array( 'class-module.php', 'class-base.php', 'class-product-trait.php'
 
 // Envolturas: la clase propia en lugar de la de PRO (y la del encabezado del núcleo en el título).
 $wrapper = static function ( $w ) {
-	return ( new ReflectionMethod( $w, 'get_html_wrapper_class' ) )->invoke( $w );
+	return ( digi_test_accessible( new ReflectionMethod( $w, 'get_html_wrapper_class' ) ) )->invoke( $w );
 };
 $check( 'elementor-widget-digitalisimo-woo-product-title elementor-page-title elementor-widget-heading' === $wrapper( $widgets['woocommerce-product-title'][1] ) && 'elementor-widget-woocommerce-product-title elementor-page-title elementor-widget-heading' === $wrapper( $widgets['woocommerce-product-title'][0] ), 'Título: la envoltura del encabezado, como PRO.' );
 $check( 'elementor-widget-digitalisimo-woo-product-content' === $wrapper( $widgets['woocommerce-product-content'][1] ), 'Contenido del producto: sin la clase del contenido de la entrada (como PRO).' );

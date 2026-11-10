@@ -159,6 +159,10 @@ final class Digitalisimo_Backups_Backup_Job {
 		$verified = (array) ( $job['checkpoint']['verify']['fp'] ?? array() );
 		if ( ! $verified ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta la verificación del ZIP; se repetirá.', 'verify' );
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
+		// El paquete de una migración (Digitalisimo_Backups_Migrate) no es un respaldo de este sitio: se queda en la carpeta
+		// de su trabajo, fuera del historial, de la retención y de Restaurar, hasta que el destino lo descarga.
+		$migration = 'source' === ( $spec['migration']['role'] ?? '' );
+		if ( $migration ) $final = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . basename( (string) $spec['file'] );
 		// Un trabajo cifrado publica el DGBK que selló la verificación; el ZIP en claro nunca sale del área de trabajo.
 		$encrypted = Digitalisimo_Backups::job_encrypts( $spec );
 		$staged_name = $encrypted ? (string) ( $job['checkpoint']['verify']['file'] ?? '' ) : (string) ( $pack['file'] ?? '' );
@@ -179,6 +183,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		// También las listas del inventario (T2): llevan los nombres de los archivos en claro.
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
+		if ( $migration ) return Digitalisimo_Backups_Migrate::published( $final );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
 		Digitalisimo_Backups::job_record_notices( basename( $final ), $job ); // T2: avisos visibles y coherencia de la base.
 		$remote = 'local' !== $spec['destination'];

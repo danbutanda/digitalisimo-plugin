@@ -6,6 +6,9 @@
  * sus hojas y scripts caben en el tope. Las excepciones documentadas se listan abajo con su motivo.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	$root = realpath( __DIR__ . '/../digitalisimo-elements' );
 	$dir  = $root . '/modules/digitalisimo-widgets/';

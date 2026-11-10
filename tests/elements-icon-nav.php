@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); private $links = array();
@@ -25,12 +28,12 @@ namespace {
 	$widget = new \Digitalisimo\Elements\Icon_Nav_Widget();
 	check_icon_nav( array() === $widget->get_script_depends(), 'La barra no debe cargar UIkit, Popper ni Tippy.' );
 	$widget->settings = array( 'iconnav_position' => 'right', 'menu_text' => 'show_as_tooltip', 'show_branding' => 'yes', 'branding_image' => array( 'id' => 11 ), 'navbar' => '7', 'navbar_level' => '2', 'iconnavs' => array( array( 'iconnav_title' => 'Inicio <script>x</script>', 'iconnav_icon' => array( 'value' => 'fas fa-home' ), 'iconnav_link' => array( 'url' => 'https://sitio-dos.test/' ) ) ) );
-	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $html = ob_get_clean();
 	check_icon_nav( str_contains( $html, 'digi-icon-nav--right' ) && str_contains( $html, 'aria-label="Inicio x"' ) && str_contains( $html, 'https://sitio-dos.test/logo.webp' ), 'Debe mostrar enlaces accesibles y marca del sitio actual.' );
 	check_icon_nav( str_contains( $html, '<details class="digi-icon-nav__menu">' ) && 2 === $GLOBALS['nav_menu_args']['depth'] && 7 === $GLOBALS['nav_menu_args']['menu'], 'El menú nativo debe limitar niveles y usar el menú del sitio actual.' );
 	check_icon_nav( ! str_contains( $html, '<script>' ) && str_contains( $html, 'data-tooltip="Inicio x"' ), 'Debe sanear el texto externo y ofrecer nombre visible por foco.' );
 	$widget->settings = array( 'navbar' => '999', 'iconnavs' => array() );
-	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $empty = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $empty = ob_get_clean();
 	check_icon_nav( '' === $empty, 'Sin enlaces ni menú válido no debe pintar una barra vacía.' );
 	echo "DIGITALÍSIMO Elements: navegación con iconos aislada por sitio.\n";
 }

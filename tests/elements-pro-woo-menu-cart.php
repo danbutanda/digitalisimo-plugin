@@ -17,6 +17,9 @@
  * - mapas: declaran todos los controles de PRO, sólo nombran controles propios y convierten ajustes reales sin
  *   `pro.unmapped`, con el CSS personalizado (clases y variables) traducido.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; }
 }
@@ -219,7 +222,7 @@ namespace {
 	$GLOBALS['m_wp']['items'] = array( 'k1' => array( 'data' => new M_Product( 'P', 1, 'S' ), 'product_id' => 1, 'quantity' => 1 ) );
 	$base = h_render( $own );
 	$check( str_contains( \Digitalisimo\Elements\Cart_Title::insert( $base, 'Tu carrito' ), '<p class="digi-cart-title">Tu carrito</p><div class="digi-mc__ct">' ), 'El título del panel va delante del contenido del panel propio.' );
-	$apply = new ReflectionMethod( \Digitalisimo\Elements\Cart_Title::class, 'applies' );
+	$apply = digi_test_accessible( new ReflectionMethod( \Digitalisimo\Elements\Cart_Title::class, 'applies' ) );
 	$check( $apply->invoke( null, $own ) && \Digitalisimo\Elements\Woo\Cart\Mini_Cart_Extras::applies( $own ) && ! \Digitalisimo\Elements\Woo\Cart\Mini_Cart_Extras::applies( $pown ), 'Título, barra y cupón reconocen el Carrito del menú propio.' );
 	$top    = \Digitalisimo\Elements\Woo\Cart\Mini_Cart_Extras::insert( $base, array( 'digitalisimo_cart_coupon' => 'yes' ), 'u1' );
 	$bottom = \Digitalisimo\Elements\Woo\Cart\Mini_Cart_Extras::insert( $base, array( 'digitalisimo_cart_coupon' => 'yes', 'digitalisimo_cart_extras_position' => 'bottom' ), 'u1' );

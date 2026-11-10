@@ -14,6 +14,9 @@
  * - conversión con `Converter::tree()` de ajustes reales (por defecto, completos, `__dynamic__` y `__globals__`, CSS
  *   personalizado con clases de PRO, responsivos): ningún `pro.unmapped`, cada clave cae en un control propio.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -106,7 +109,7 @@ namespace {
 		$widget           = new Table_Of_Contents();
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -143,8 +146,8 @@ namespace {
 
 	// 2. Los controles de PRO, uno a uno, en el widget propio.
 	$pro = new \ElementorPro\Modules\TableOfContents\Widgets\Table_Of_Contents();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	$map = require $root . 'modules/digitalisimo-convert/maps/table-of-contents.php';
 	foreach ( $pro->controls as $control => $a ) {
 		check_toc( isset( $widget->controls[ $control ] ), "$control: sin control propio." );
@@ -185,7 +188,7 @@ namespace {
 	// en `.elementor-widget-container`) y la caja con el optimizado (donde la caja propia es la del envoltorio de PRO).
 	$optimized = new \Digitalisimo\Elements\Content\Widgets\Table_Of_Contents();
 	\Elementor\Plugin::$instance->experiments = new class() { public function is_feature_active( $f ) { return 'e_optimized_markup' === $f; } };
-	( new ReflectionMethod( $optimized, 'register_controls' ) )->invoke( $optimized );
+	( digi_test_accessible( new ReflectionMethod( $optimized, 'register_controls' ) ) )->invoke( $optimized );
 	\Elementor\Plugin::$instance->experiments = new class() { public function is_feature_active( $f ) { return false; } };
 	check_toc( '{{WRAPPER}}' === $pro->groups['box_shadow']['selector'] && '{{WRAPPER}}' === $widget->groups['box_shadow']['selector'] && '{{WRAPPER}} .digi-toc' === $optimized->groups['box_shadow']['selector'] && ! str_contains( (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-table-of-contents.php' ), 'function has_widget_inner_wrapper' ) && ! isset( $map['approx']['box_shadow_box_shadow_type'] ), 'La sombra va al envoltorio con el marcado heredado (como PRO) y a la caja con el optimizado (la caja propia es el envoltorio de PRO; el widget conserva su contenedor interior); ya no es una aproximación.' );
 	foreach ( array_merge( array_keys( $pro->controls ), array_keys( $pro->groups ) ) as $control ) {

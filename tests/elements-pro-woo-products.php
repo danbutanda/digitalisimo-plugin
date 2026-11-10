@@ -16,6 +16,9 @@
  * `pro.unmapped` y con cada clave en un control propio); hojas (≤ 4 KB, foco visible, sin `--e-global-*` ni `url()`);
  * lista negra del empaquetado y dominios de proveedores; partes de Productos y vista rápida enganchadas al propio.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor\Core\Kits\Documents\Tabs {
 	class Global_Colors {
 		const COLOR_PRIMARY = 'globals/colors?id=primary'; const COLOR_SECONDARY = 'globals/colors?id=secondary'; const COLOR_TEXT = 'globals/colors?id=text'; const COLOR_ACCENT = 'globals/colors?id=accent';
@@ -41,7 +44,7 @@ namespace Elementor {
 		private $injection = null;
 		public function __construct() {
 			if ( method_exists( $this, 'register_skins' ) ) {
-				( new \ReflectionMethod( $this, 'register_skins' ) )->invoke( $this );
+				( digi_test_accessible( new \ReflectionMethod( $this, 'register_skins' ) ) )->invoke( $this );
 			}
 		}
 		public function get_name() { return 'widget'; }
@@ -258,7 +261,7 @@ namespace {
 	};
 	$make = static function ( $class, array $settings = array() ) {
 		$widget = new $class();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		foreach ( $widget->skins as $skin ) {
 			$skin->register_controls( $widget );
 		}
@@ -291,7 +294,7 @@ namespace {
 			$skin->set_parent( $widget );
 			$skin->render();
 		} else {
-			( new ReflectionMethod( $widget, method_exists( $widget, 'render_widget' ) ? 'render_widget' : 'render' ) )->invoke( $widget );
+			( digi_test_accessible( new ReflectionMethod( $widget, method_exists( $widget, 'render_widget' ) ? 'render_widget' : 'render' ) ) )->invoke( $widget );
 		}
 		return (string) ob_get_clean();
 	};

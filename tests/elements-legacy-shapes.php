@@ -1,5 +1,8 @@
 <?php
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	define( 'DIGITALISIMO_MIGRATION_FILE', __DIR__ . '/../digitalisimo-migration/digitalisimo-migration.php' );
 	define( 'DIGITALISIMO_MIGRATION_VERSION', 'test' );

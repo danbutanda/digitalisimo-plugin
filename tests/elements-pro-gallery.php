@@ -14,6 +14,9 @@
  * - conversión con `Converter::tree()` de ajustes reales de PRO: ningún `pro.unmapped`, cada clave cae en un control
  *   propio, sólo las aproximaciones declaradas, y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
@@ -213,14 +216,14 @@ namespace {
 
 	$widget = static function ( array $settings = array() ) {
 		$w = new Gallery();
-		( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 		$w->settings = $settings;
 		return $w;
 	};
 	$render = static function ( array $settings ) use ( $widget ) {
 		$w = $widget( $settings );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$images = static function ( array $ids ) {
@@ -274,7 +277,7 @@ namespace {
 	// 2. Controles: los de la clase real de PRO frente a los propios.
 	$map = require $root . 'modules/digitalisimo-convert/maps/gallery.php';
 	$pro = new \ElementorPro\Modules\Gallery\Widgets\Gallery();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 	$classes = $map['classes'];
 	$own_selector = static function ( string $selector ) use ( $classes ) {
 		return str_replace( ':focus ', ':focus-visible ', Translator::rewrite_classes( $selector, $classes ) );

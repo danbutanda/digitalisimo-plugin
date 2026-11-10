@@ -4,6 +4,9 @@
  * inserción en el HTML real del widget, con usuario elegido o datos escritos a mano. También el texto
  * bajo Lottie (descripción y botón) y la leyenda de Hotspot.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Icons_Manager { public static function render_icon( $icon, $attrs ) { echo '<i aria-hidden="true"></i>'; } }
 }

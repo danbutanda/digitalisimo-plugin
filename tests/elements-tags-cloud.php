@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -33,19 +36,19 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-tags-cloud.php';
 	$widget = new \Digitalisimo\Elements\Tags_Cloud_Widget();
 	check_tags( array( 'digitalisimo-tags-cloud' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'Sólo debe cargar CSS condicional.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_tags( isset( $widget->controls['taxonomy']['options']['post_tag'], $widget->controls['limit'], $widget->controls['orderby'] ), 'Debe listar taxonomías públicas y controles de consulta.' );
 	$widget->settings = array( 'taxonomy' => 'post_tag', 'limit' => 999, 'orderby' => 'invalid', 'show_count' => 'yes', 'label' => 'Explorar <script>mal</script>' );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_tags( 50 === $GLOBALS['tag_query']['number'] && 'count' === $GLOBALS['tag_query']['orderby'] && true === $GLOBALS['tag_query']['hide_empty'], 'La consulta debe limitarse a términos públicos con uso.' );
 	check_tags( 2 === substr_count( $html, 'class="digi-tags-cloud__item"' ) && str_contains( $html, 'Marketing &amp; IA' ) && str_contains( $html, '(5)' ), 'Debe omitir enlaces inválidos y conservar nombres y conteos.' );
 	check_tags( ! str_contains( $html, '<script>' ) && str_contains( $html, 'aria-label="Explorar mal"' ), 'Debe sanear nombres y etiqueta.' );
 	$widget->settings['taxonomy'] = 'private';
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget );
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget );
 	check_tags( '' === ob_get_clean(), 'No debe consultar taxonomías privadas.' );
 	$widget->settings = array( 'source' => 'static', 'label' => 'Temas', 'static_tags' => array( array( 'tag_text' => 'Diseño', 'tag_link' => array( 'url' => 'https://a.test/diseno', 'is_external' => 'on' ), 'tag_weight' => 3 ), array( 'tag_text' => 'SEO', 'tag_weight' => 1 ), array( 'tag_text' => '' ) ) );
 	$GLOBALS['tag_query'] = null;
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $static = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $static = ob_get_clean();
 	check_tags( 2 === substr_count( $static, 'class="digi-tags-cloud__item"' ) && str_contains( $static, 'href="https://a.test/diseno"' ) && str_contains( $static, 'rel="noopener noreferrer"' ) && str_contains( $static, '--digi-tag-size:1.50em' ) && str_contains( $static, '<span class="digi-tags-cloud__link" style="--digi-tag-size:0.85em">SEO</span>' ) && null === $GLOBALS['tag_query'], 'Las etiquetas estáticas no consultan la base de datos y respetan enlace y peso.' );
 	echo "DIGITALÍSIMO Elements: Nube de etiquetas validada.\n";
 }

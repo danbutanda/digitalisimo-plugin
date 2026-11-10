@@ -10,6 +10,9 @@
  * - el panel oculta sólo los mapas listos con `panel => hide` cuyo widget propio está registrado;
  * - cada mapa de `maps/` declara todos los controles de su widget de PRO y apunta a un widget propio existente.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin {
 		public static $instance;

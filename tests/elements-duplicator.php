@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 class WP_Post {
 	public $ID, $post_type, $post_status, $post_title, $post_content, $post_content_filtered, $post_excerpt, $post_parent, $post_password, $comment_status, $ping_status, $menu_order;

@@ -18,6 +18,9 @@
  *
  * Uso: php-wasm-cli tests/elements-pro-time.php [--write]. Se ejecuta con php-wasm: sale con 0 aunque haya un error fatal, así que se juzga por la línea final.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -115,7 +118,7 @@ namespace {
 	$render = static function ( $widget, array $settings ) {
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
@@ -159,8 +162,8 @@ namespace {
 
 		// 2. Los controles de PRO, uno a uno, en el widget propio.
 		$pro = new $pro_class();
-		( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		check_pt( array_keys( $pro->controls ) === array_keys( $widget->controls ), "$name: los mismos controles en el mismo orden." );
 		foreach ( $pro->controls as $control => $a ) {
 			$b = $widget->controls[ $control ];
@@ -272,7 +275,7 @@ namespace {
 	foreach ( array( array(), array( 'elementor-pro' => array( 'Days' => 'Tage', 'Hours' => 'Stunden', 'Minutes' => 'Minuten', 'Seconds' => 'Sekunden' ) ) ) as $l10n ) {
 		$GLOBALS['pt_l10n'] = $l10n;
 		$pro_labels         = array_intersect_key( $pro_cd->get_default_countdown_labels(), Countdown::default_labels() );
-		( new ReflectionProperty( $pro_cd, '_default_countdown_labels' ) )->setValue( $pro_cd, null );
+		( digi_test_accessible( new ReflectionProperty( $pro_cd, '_default_countdown_labels' ) ) )->setValue( $pro_cd, null );
 		$converted = $render( $cd, array( 'due_date' => '2020-01-01 10:00', Translator::MARKER => 'countdown' ) + $base );
 		preg_match_all( '#<span class="digi-countdown__label">([^<]*)</span>#', $converted, $got );
 		check_pt( array_values( $pro_labels ) === $got[1] && $pro_labels === Countdown::pro_labels(), 'Lo convertido de PRO sin «Etiquetas personalizadas» pinta las etiquetas de PRO (' . implode( ' ', $got[1] ) . '), como PRO: ' . implode( ' ', $pro_labels ) );
