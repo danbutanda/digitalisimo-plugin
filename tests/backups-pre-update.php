@@ -25,7 +25,10 @@ require __DIR__ . '/backups-coverage/env.php';
 digi_make_wordpress( $root . '/public' );
 
 // Lo que este caso necesita y el entorno de cobertura no trae.
-function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return add_action( $hook, $callback, $priority, $args ); }
+// El entorno de cobertura trae add_filter() desde la 1.0.66 (en $GLOBALS['digi']['filters']); si no, como add_action().
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return add_action( $hook, $callback, $priority, $args ); } }
+/** Lo enganchado a una acción o un filtro. */
+function digi_hooked( $hook ) { return array_merge( $GLOBALS['digi']['actions'][ $hook ] ?? array(), $GLOBALS['digi']['filters'][ $hook ] ?? array() ); }
 $GLOBALS['doing'] = array();
 function doing_action( $hook ) { return in_array( $hook, $GLOBALS['doing'], true ); }
 $GLOBALS['single'] = array();
@@ -112,7 +115,7 @@ try {
 	$P::$cli = false;
 	// 0. Enganches: los tres filtros automáticos, la puerta de las manuales, la pantalla y el watchdog.
 	$P::init();
-	foreach ( array( 'auto_update_core', 'auto_update_plugin', 'auto_update_theme', 'upgrader_pre_download', 'digitalisimo_backups_job_origin', 'admin_post_' . $P::ACTION_SAVE, 'wp_ajax_' . $P::AJAX_START, 'wp_ajax_' . $P::AJAX_STATUS, 'wp_ajax_' . $P::AJAX_SKIP, 'admin_enqueue_scripts', $J::HOOK_WATCHDOG ) as $hook ) digi_assert( ! empty( $GLOBALS['digi']['actions'][ $hook ] ), 'No se engancha ' . $hook );
+	foreach ( array( 'auto_update_core', 'auto_update_plugin', 'auto_update_theme', 'upgrader_pre_download', 'digitalisimo_backups_job_origin', 'admin_post_' . $P::ACTION_SAVE, 'wp_ajax_' . $P::AJAX_START, 'wp_ajax_' . $P::AJAX_STATUS, 'wp_ajax_' . $P::AJAX_SKIP, 'admin_enqueue_scripts', $J::HOOK_WATCHDOG ) as $hook ) digi_assert( (bool) digi_hooked( $hook ), 'No se engancha ' . $hook );
 	digi_assert( array( 'core' => 'all', 'plugin' => 'all', 'theme' => 'all', 'max_age' => 24 ) === $P::settings(), 'Ajustes por defecto inesperados: ' . json_encode( $P::settings() ) );
 	digi_assert( 'Respaldo antes de actualizar' === $P::origin( '', array( 'policy' => 'pre-update' ) ) && 'Otro' === $P::origin( 'Otro', array( 'policy' => 'pre-update' ) ) && '' === $P::origin( '', array( 'policy' => 'manual' ) ), 'La etiqueta de origen del trabajo no es la esperada.' );
 
@@ -140,7 +143,7 @@ try {
 	digi_assert( 'queued' === $job['status'] && ! get_option( $B::HISTORY ), 'El respaldo se hizo dentro del filtro en vez de por la cola.' );
 	$status = $P::service_status();
 	digi_assert( 3 === count( $status['retained'] ) && in_array( 'WordPress 6.9.1', $status['retained'], true ) && in_array( 'Plugin hello/hello.php 2.0', $status['retained'], true ) && ! $status['postponed'] && $status['job'] && $job['id'] === $status['job']['id'], 'El estado no muestra las actualizaciones retenidas: ' . json_encode( $status ) );
-	digi_assert( ! empty( $GLOBALS['digi']['actions']['send_core_update_notification_email'] ), 'El núcleo retenido debería callar el correo de «hay una versión nueva».' );
+	digi_assert( (bool) digi_hooked( 'send_core_update_notification_email' ), 'El núcleo retenido debería callar el correo de «hay una versión nueva».' );
 	digi_assert( 0 === $auto_runs(), 'Se relanzaron las automáticas antes de tener el respaldo.' );
 
 	// 3. Con un tipo en «Nunca», ese tipo no espera (aunque los demás sí).

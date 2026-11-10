@@ -25,7 +25,10 @@ require __DIR__ . '/backups-coverage/cli.php';
 require __DIR__ . '/backups-coverage/env.php';
 digi_make_wordpress( $root . '/public' );
 
-function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return add_action( $hook, $callback, $priority, $args ); }
+// El entorno de cobertura trae add_filter() desde la 1.0.66 (en $GLOBALS['digi']['filters']); si no, como add_action().
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return add_action( $hook, $callback, $priority, $args ); } }
+/** Lo enganchado a una acción o un filtro. */
+function digi_hooked( $hook ) { return array_merge( $GLOBALS['digi']['actions'][ $hook ] ?? array(), $GLOBALS['digi']['filters'][ $hook ] ?? array() ); }
 $GLOBALS['doing'] = array();
 function doing_action( $hook ) { return in_array( $hook, $GLOBALS['doing'], true ); }
 $GLOBALS['single'] = array();
@@ -154,11 +157,11 @@ try {
 		// H1 · aviso fijo mientras espera y, tras un fallo, pospuestas; el correo del núcleo sólo se calla la primera vez.
 		digi_assert( false === $auto( 'core', array( 'current' => '7.0' ) ), 'H1: el núcleo 7.0 no se retuvo.' );
 		digi_assert( false !== strpos( $notice(), 'en espera del respaldo previo' ), 'H1: el escritorio no avisa de la retención en curso.' );
-		$silenced = count( $GLOBALS['digi']['actions']['send_core_update_notification_email'] ?? array() );
+		$silenced = count( digi_hooked( 'send_core_update_notification_email' ) );
 		$J::$phase_runner = $fail;
 		digi_drive( $J::active()[0]['id'] );
 		digi_assert( false !== strpos( $notice(), 'pospuestas' ), 'H1: el escritorio no avisa de las pospuestas.' );
-		digi_assert( false === $auto( 'core', array( 'current' => '7.0' ) ) && $silenced === count( $GLOBALS['digi']['actions']['send_core_update_notification_email'] ?? array() ), 'H1: con las actualizaciones ya pospuestas se calló el correo del núcleo de WordPress.' );
+		digi_assert( false === $auto( 'core', array( 'current' => '7.0' ) ) && $silenced === count( digi_hooked( 'send_core_update_notification_email' ) ), 'H1: con las actualizaciones ya pospuestas se calló el correo del núcleo de WordPress.' );
 	} );
 	$case( 'H1 · un respaldo previo lento (más de 24 h) no caduca; a las 72 h, sí', function( $ctx ) {
 		extract( $ctx );
