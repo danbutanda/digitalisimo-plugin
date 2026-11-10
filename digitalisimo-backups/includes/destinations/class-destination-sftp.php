@@ -345,6 +345,9 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 				// posterior la cambia, así que lo verificado no puede alterarse sin que se note (revisión N1).
 				$marker = time() - 34560000 - random_int( 0, 86400 );
 				$state['marker'] = $this->mark( $path, $marker ) ? $marker : (int) ( ( $this->stat_of( $path ) ?: array() )['mtime'] ?? 0 );
+				// La marca sólo vale si el servidor la guardó (algunos no admiten cambiar la fecha).
+				$seen = $this->stat_of( $path );
+				if ( is_array( $seen ) && $state['marker'] && (int) $seen['mtime'] !== (int) $state['marker'] ) $state['marker'] = (int) $seen['mtime'];
 				$state['stage'] = 'verify';
 				$state['verified'] = 0;
 				$state['hash'] = '';
@@ -411,14 +414,22 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	/** La copia sigue con el tamaño y la marca de la subida terminada; si no, algo la cambió y se descarta (N1). */
 	private function unchanged( $stat, array $state, $size ) {
+		if ( null === $stat ) return; // Sin stat (una extensión sin ssh2_sftp_stat): sólo valen los bloques y el SHA-256.
 		if ( false === $stat ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia temporal SFTP desapareció.' );
 		if ( (int) $stat['size'] !== (int) $size ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no tiene el tamaño del ZIP local.' );
 		if ( ! empty( $state['marker'] ) && ! empty( $stat['mtime'] ) && (int) $stat['mtime'] !== (int) $state['marker'] ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP cambió en el servidor mientras se verificaba (otra escritura); se sube de nuevo.' );
 	}
-	/** Tamaño y fecha de modificación de una ruta remota de esta conexión (false si no existe). */
+	/**
+	 * Tamaño y fecha de modificación de una ruta remota de esta conexión: false si no existe; null si no se puede saber
+	 * (la extensión sin ssh2_sftp_stat y un stat() del flujo que no responde).
+	 */
 	private function stat_of( $path ) {
 		if ( $this->lib() ) return $this->client()->stat_of( $path );
-		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), $path ) : @stat( $this->url( $path ) );
+		if ( ! function_exists( 'ssh2_sftp_stat' ) ) {
+			$stat = @stat( $this->url( $path ) );
+			return is_array( $stat ) && isset( $stat['size'] ) ? array( 'size' => (int) $stat['size'], 'mtime' => (int) ( $stat['mtime'] ?? 0 ) ) : null;
+		}
+		$stat = @ssh2_sftp_stat( $this->session(), $path );
 		return is_array( $stat ) && isset( $stat['size'] ) ? array( 'size' => (int) $stat['size'], 'mtime' => (int) ( $stat['mtime'] ?? 0 ) ) : false;
 	}
 	/** Pone la marca de la subida terminada como fecha de modificación; false si el servidor o la extensión no lo permiten. */
