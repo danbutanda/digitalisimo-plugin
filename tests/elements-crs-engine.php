@@ -16,6 +16,9 @@
  *   de hoy: con `--write`, se regenera.
  * Uso: php-wasm-cli tests/elements-crs-engine.php [--write]
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';

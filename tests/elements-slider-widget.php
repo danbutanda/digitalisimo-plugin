@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const SELECT = 'select';
@@ -50,7 +53,7 @@ namespace {
 	}
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-slider/class-widget.php';
 	$widget = new \Digitalisimo\Elements\Elementor_Slider_Widget();
-	$controls = new \ReflectionMethod( $widget, 'register_controls' );
+	$controls = digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) );
 	$controls->invoke( $widget );
 	if ( 'gallery' !== ( $widget->test_controls['gallery_images']['type'] ?? '' ) || 'repeater' !== ( $widget->test_controls['images']['type'] ?? '' ) ) throw new \RuntimeException( 'El editor debe ofrecer selección múltiple y conservar los elementos individuales.' );
 	$visible = $widget->test_controls['visible'];
@@ -61,7 +64,7 @@ namespace {
 		'visible' => 5, 'visible_tablet' => 5, 'visible_mobile' => 5,
 		'priority' => 'high', 'loading' => 'lazy', 'image_size' => 'large', 'label' => 'Ondas',
 	);
-	$method = new \ReflectionMethod( $widget, 'render' );
+	$method = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	ob_start();
 	$method->invoke( $widget );
 	$html = ob_get_clean();

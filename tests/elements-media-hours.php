@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -17,7 +20,7 @@ namespace {
 	foreach ( array( 'audio-player', 'image-compare', 'business-hours' ) as $file ) {
 		require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-' . $file . '.php';
 	}
-	$render = static function ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	$audio = new \Digitalisimo\Elements\Audio_Player_Widget();
 	$audio->settings = array( 'loop' => 'yes', 'preload' => 'none', 'tracks' => array( array( 'title' => 'Uno', 'artist' => 'Ana <b>x</b>', 'audio_url' => array( 'url' => 'https://s.test/1.mp3' ), 'cover' => array( 'url' => 'https://s.test/c.jpg' ) ), array( 'title' => 'Sin archivo' ) ) );

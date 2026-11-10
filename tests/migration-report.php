@@ -19,6 +19,7 @@ namespace {
 	/** Inyecta un catálogo de prueba (sin tocar los archivos). */
 	function with_catalog( array $codes ) {
 		$prop = new \ReflectionProperty( Report::class, 'catalog' );
+		if ( PHP_VERSION_ID < 80100 ) $prop->setAccessible( true ); // PHP 7.4 lo exige; desde 8.1 sobra y 8.5 la declara obsoleta.
 		$prop->setValue( null, $codes );
 	}
 

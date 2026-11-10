@@ -16,6 +16,9 @@
  * - Ganchos: búferes anidados en el orden correcto, nada en el editor, hoja de la animación, paquetes de PRO y popup
  *   (al pintar y en cada documento impreso, también desde la caché), regla `[hidden]` en el CSS del documento.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TAB_ADVANCED = 'advanced';

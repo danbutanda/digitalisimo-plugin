@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace ElementorPro\Base { class Base_Widget {} }
 namespace {
 	define( 'ABSPATH', __DIR__ );
@@ -6,7 +9,7 @@ namespace {
 	function get_site_option( $key ) { return $GLOBALS['network_registration']; }
 	function get_option( $key ) { return $GLOBALS['site_registration']; }
 	require __DIR__ . '/../digitalisimo-elements/modules/forms/widgets/login.php';
-	$method = new \ReflectionMethod( \ElementorPro\Modules\Forms\Widgets\Login::class, 'registration_enabled' );
+	$method = digi_test_accessible( new \ReflectionMethod( \ElementorPro\Modules\Forms\Widgets\Login::class, 'registration_enabled' ) );
 	foreach ( array(
 		array( false, 'none', false, false ),
 		array( false, 'none', true, true ),

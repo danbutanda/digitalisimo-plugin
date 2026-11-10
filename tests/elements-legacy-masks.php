@@ -4,6 +4,9 @@
  * CSS de «Image Masking», conversión de los ajustes y separadores propios registrados por Elements.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	$tmp = sys_get_temp_dir() . '/digi-masks-' . getmypid();
 	define( 'ABSPATH', __DIR__ );
 	define( 'WP_PLUGIN_DIR', $tmp . '/plugins' );

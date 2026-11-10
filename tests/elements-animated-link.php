@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -50,7 +53,7 @@ namespace {
 	check_animated( DIGITALISIMO_ELEMENTS_VERSION === $style['version'], 'El CSS debe invalidarse con la versión del plugin.' );
 	$widget = $manager->widgets['digitalisimo-animated-link'];
 	check_animated( 16 === count( $widget->get_style_depends() ) && 'digitalisimo-animated-link' === $widget->get_style_depends()[0] && array() === $widget->get_script_depends(), 'La instancia de registro declara la base y los quince estilos; sin JS ni UIkit.' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'link_text' => '<script>alert(1)</script>', 'link_style' => 'carme', 'link_url' => array( 'url' => 'https://example.test/' ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_animated( str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ), 'El texto debe escaparse.' );

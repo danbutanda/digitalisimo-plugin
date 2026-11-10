@@ -12,6 +12,8 @@ namespace {
 		public static function line( $message = '' ) { self::$output[] = (string) $message; }
 		public static function log( $message ) { self::$output[] = (string) $message; }
 		public static function error( $message ) { self::$output[] = 'Error: ' . $message; throw new Digi_Cli_Exit( (string) $message ); }
+		/** Como WP-CLI: con --yes sigue; sin él, en una prueba (sin terminal) se responde «no» y el comando termina. */
+		public static function confirm( $question, $assoc_args = array() ) { if ( ! empty( $assoc_args['yes'] ) ) return; self::$output[] = $question . ' [y/n] n'; throw new Digi_Cli_Exit( 'No confirmado.' ); }
 	}
 	/**
 	 * Ejecuta `wp <comando> <subcomando> [args] [--assoc]` sobre las clases registradas y devuelve array( código, salida ).

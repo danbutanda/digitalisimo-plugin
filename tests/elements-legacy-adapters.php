@@ -1,5 +1,8 @@
 <?php
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 	function get_term( $id ) { return (object) array( 'term_id' => $id, 'term_taxonomy_id' => $id * 11 ); }

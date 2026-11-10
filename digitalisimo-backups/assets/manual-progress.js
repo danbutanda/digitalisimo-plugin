@@ -18,19 +18,26 @@
   var timer = null;
   var busy = false;
   var failures = 0;
+  var sessionFailures = 0;
+  var migrating = false;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
     return fetch(config.url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: body.toString() })
       .then(function (response) { return response.text().then(function (text) {
         var result;
+        /* La sesión ya no vale: 401/403, o admin-ajax responde «-1» (nonce) o «0» (sin sesión). Un corte del proxy, un
+           502/504 o el 503 del mantenimiento durante la restauración no lo son. */
+        var session = response.status === 401 || response.status === 403 || ['-1', '0'].indexOf(text.trim()) !== -1;
         try { result = JSON.parse(text); } catch (error) {
-          if (response.status === 503) throw new Error('El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)');
-          throw new Error('El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
+          var broken = new Error(response.status === 503 ? 'El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)' : 'El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
+          broken.session = session;
+          throw broken;
         }
         if (!response.ok || !result.success) {
           var failure = new Error(result.data && result.data.message || 'Error HTTP ' + response.status);
           failure.data = result.data || {};
+          failure.session = session;
           throw failure;
         }
         return result.data;
@@ -89,7 +96,16 @@
     if (job.status === 'success') detail.textContent = job.detail + '. Actualiza la página para verlo en el historial.';
     else if (job.status === 'failed') detail.textContent = job.detail + ' No se registró ningún respaldo parcial; puedes corregir el error y volver a intentarlo.';
   }
+  /* Una migración que llegó a restaurar reemplaza los usuarios: la sesión de este navegador deja de valer. */
+  function sessionReplaced() {
+    if (!card || card.querySelector('.digitalisimo-backups-migrate-login')) return;
+    var note = element('p', 'La migración reemplazó este sitio y tu sesión ya no vale: inicia sesión con un usuario del sitio de origen para ver el resultado. Si algo salió mal, «Deshacer la migración» en Backups → Migrar lo devuelve a su estado anterior.', { 'class': 'notice notice-info inline digitalisimo-backups-migrate-login', role: 'status' });
+    var link = element('a', ' Iniciar sesión', { href: config.login || '/wp-login.php' });
+    note.appendChild(link);
+    card.insertBefore(note, list);
+  }
   function update(jobs) {
+    migrating = jobs.some(function (job) { return job.kind === 'migration' && !job.terminal && ['check', 'restore', 'close'].indexOf(job.phase) !== -1; });
     renderJobs(jobs);
     showWatched(jobs);
     var active = jobs.filter(function (job) { return !job.terminal; });
@@ -110,6 +126,7 @@
     tick.then(function (data) {
       busy = false;
       failures = 0;
+      sessionFailures = 0;
       var active = update(data.jobs || []);
       if (!active.length) return;
       var delay = 300;
@@ -123,6 +140,11 @@
     }).catch(function (error) {
       busy = false;
       failures++;
+      sessionFailures = error && error.session ? sessionFailures + 1 : 0;
+      /* La migración se aplica con la restauración por pasos: sin sesión (o en su mantenimiento) se sigue con el tick
+         por testigo (la cookie que recibió este navegador al encolarla); si tampoco vale, se pide iniciar sesión. */
+      if (migrating && error && error.session && !restore) { restore = { action: config.restoreTick || 'digitalisimo_backups_restore_tick', token: '' }; schedule(1000); return; }
+      if (migrating && sessionFailures >= 2) { sessionReplaced(); return; }
       if (watching && detail) detail.textContent = 'No se pudo avanzar ahora: ' + error.message + '. Se reintentará; WP-Cron también lo continúa.';
       schedule(Math.min(30000, 2000 * failures));
     });

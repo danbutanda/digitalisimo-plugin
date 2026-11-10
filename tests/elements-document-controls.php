@@ -13,6 +13,9 @@
  * - El widget «Imagen destacada» se oculta sólo con el contenido consultado y nunca dentro de un bucle.
  * - Sin ajustes, ningún gancho. Guarda sin el Theme Builder. El tema no cambia: su árbol es el ZIP de su versión.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager { const SWITCHER = 'switcher'; const RAW_HTML = 'raw_html'; const TEXT = 'text'; }
 	/** Pila con la inyección como en `Controls_Stack` (`at = after`, con `fallback`). */
@@ -282,7 +285,7 @@ namespace {
 		foreach ( array( 'header', 'footer' ) as $part ) {
 			$tb->locations->register_location( $part, array( 'hook' => 'digitalisimo_' . $part, 'remove_hooks' => array( 'digitalisimo_theme_' . $part ) ) );
 		}
-		$reset = new \ReflectionProperty( $controls, 'hidden' );
+		$reset = digi_test_accessible( new \ReflectionProperty( $controls, 'hidden' ) );
 		$reset->setValue( null, array( 'basura' ) );
 	};
 	if ( ! function_exists( 'digitalisimo_theme_header' ) ) {

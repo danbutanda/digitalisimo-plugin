@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -48,7 +51,7 @@ namespace {
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy\Bdt_AnimatedLink && $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Animated_Link_Widget, 'El ID legacy debe usar el adaptador sobre nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_legacy( str_contains( $html, 'digi-animated-link--leda' ) && ! str_contains( $html, 'bdt-' ), 'El adaptador pinta sólo el marcado propio.' );
 	check_legacy( str_contains( $html, 'href="https://example.test/"' ) && str_contains( $html, 'data-text="Ejemplo"' ), 'El adaptador debe leer los controles legacy sin convertir la base de datos.' );

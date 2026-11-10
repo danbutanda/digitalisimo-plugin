@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $links = array();
@@ -25,18 +28,18 @@ namespace {
 	$callout = new \Digitalisimo\Elements\Call_Out_Widget();
 	foreach ( array( $dual, $callout ) as $widget ) {
 		check_actions( array() === $widget->get_script_depends() && 1 === count( $widget->get_style_depends() ), 'Ambos widgets deben usar sólo su CSS condicional.' );
-		(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+		(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	}
 	foreach ( array( 'button_a_text', 'button_a_link', 'button_b_text', 'button_b_link', 'show_middle_text' ) as $control ) { check_actions( isset( $dual->controls[ $control ] ), 'Falta ' . $control ); }
 	$dual->settings = array( 'button_a_text' => 'Ver <script>x</script>', 'button_a_link' => array( 'url' => 'https://example.test/uno' ), 'button_b_text' => 'Contactar', 'button_b_link' => array( 'url' => '' ), 'show_middle_text' => 'yes', 'middle_text' => 'o', 'size' => 'large' );
-	ob_start(); (new \ReflectionMethod( $dual, 'render' ))->invoke( $dual ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $dual, 'render' ) ))->invoke( $dual ); $html = ob_get_clean();
 	check_actions( 1 === substr_count( $html, '<a ' ) && str_contains( $html, 'href="https://example.test/uno"' ) && str_contains( $html, 'digi-dual-button--large' ), 'Sólo el botón con URL debe ser enlace.' );
 	check_actions( ! str_contains( $html, '<script' ) && str_contains( $html, 'Ver x' ) && str_contains( $html, 'digi-dual-button__middle' ), 'Los textos se deben sanear y mantener el separador.' );
 	$callout->settings = array( 'title' => 'Ayuda <script>x</script>', 'description' => 'Línea 1\nLínea 2', 'title_size' => 'script', 'button_text' => 'Enviar', 'link' => array( 'url' => 'https://example.test/contacto' ) );
-	ob_start(); (new \ReflectionMethod( $callout, 'render' ))->invoke( $callout ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $callout, 'render' ) ))->invoke( $callout ); $html = ob_get_clean();
 	check_actions( str_contains( $html, '<h3 ' ) && ! str_contains( $html, '<script' ) && str_contains( $html, 'href="https://example.test/contacto"' ), 'Call Out debe usar título válido y enlace real.' );
 	$callout->settings['link']['url'] = '';
-	ob_start(); (new \ReflectionMethod( $callout, 'render' ))->invoke( $callout ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $callout, 'render' ) ))->invoke( $callout ); $html = ob_get_clean();
 	check_actions( ! str_contains( $html, '<a ' ) && str_contains( $html, 'digi-call-out__content' ), 'Sin URL se conserva el contenido sin acción vacía.' );
 	echo "DIGITALÍSIMO Elements: Botón doble y Call Out aislados validados.\n";
 }

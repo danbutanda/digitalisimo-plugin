@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -51,7 +54,7 @@ namespace {
 	check_reviews( ! hash_equals( $signature, $service::signature( 'ChIJTest' ) ), 'La firma pública debe aislar cada sitio de la red.' );
 	$widget = new \Digitalisimo\Elements\Google_Reviews_Widget();
 	$widget->settings = array( 'google_place_id' => 'ChIJTest', 'heading' => 'Opiniones' );
-	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $widget_html = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $widget_html = ob_get_clean();
 	check_reviews( str_contains( $widget_html, 'data-digi-google-reviews' ) && str_contains( $widget_html, 'https://site.test/wp-admin/admin-ajax.php' ) && ! str_contains( $widget_html, $network ), 'El widget carga diferido desde el sitio actual y no expone la clave.' );
 	echo "DIGITALÍSIMO Elements: reseñas de Google aisladas y atribuidas.\n";
 }

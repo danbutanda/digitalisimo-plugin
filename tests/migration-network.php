@@ -238,6 +238,7 @@ namespace {
 	f8_check( str_contains( $GLOBALS['wpdb']->queries[ count( $GLOBALS['wpdb']->queries ) - 1 ], 'INSERT IGNORE INTO wp_options' ), 'El cerrojo es un INSERT IGNORE en `options` del sitio principal.' );
 	// Simula una segunda petición: sin token propio, no puede tomarlo.
 	$token = ( new \ReflectionProperty( Runner::class, 'network_token' ) );
+	if ( PHP_VERSION_ID < 80100 ) $token->setAccessible( true ); // PHP 7.4 lo exige; desde 8.1 sobra y 8.5 la declara obsoleta.
 	$mine  = $token->getValue();
 	$token->setValue( null, '' );
 	$blocked_rel = Runner::network_release();

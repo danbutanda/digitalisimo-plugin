@@ -13,6 +13,9 @@
  * Uso: php-wasm-cli tests/elements-pro-global-link.php. php-wasm sale con 0 aunque haya un error fatal: se juzga por la
  * línea final.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		private $raw;
@@ -123,7 +126,7 @@ namespace {
 	check_gl( str_contains( $module, "'digitalisimo-global' => 'Digitalisimo_Global'," ), 'El módulo del widget global registra el propio.' );
 	require $dir . 'module.php';
 	$mod  = ( new ReflectionClass( \ElementorPro\Modules\GlobalWidget\Module::class ) )->newInstanceWithoutConstructor();
-	$save = new ReflectionMethod( $mod, 'get_document_data' );
+	$save = digi_test_accessible( new ReflectionMethod( $mod, 'get_document_data' ) );
 	if ( PHP_VERSION_ID < 80100 ) {
 		$save->setAccessible( true );
 	}

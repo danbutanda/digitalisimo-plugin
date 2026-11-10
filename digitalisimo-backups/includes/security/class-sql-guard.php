@@ -382,6 +382,14 @@ final class Digitalisimo_Backups_Sql_Guard {
 				continue;
 			}
 			if ( 'var' === $token[0] ) $this->reject( 'variables en CREATE TABLE' );
+			// Una clave foránea hacia otra base de datos (`REFERENCES otra.tabla`, con la base entre comillas invertidas o sin
+			// ellas). Sólo tras REFERENCES: MariaDB escribe `DEFAULT nextval(\`base\`.\`secuencia\`)` con la base delante, y eso
+			// no lee nada de otra base (las formas TABLE/VALUES/SELECT, que sí, se rechazan aparte).
+			if ( 'REFERENCES' === $previous && in_array( $token[0], array( 'ident', 'word' ), true ) && $this->accept_punct( '.' ) ) $this->reject( 'otra base de datos dentro de CREATE TABLE no permitida en un archivo sin firma' );
+			// MySQL 8.0.19+: `CREATE TABLE t (…) TABLE otra` y `… VALUES ROW(…)` llenan la tabla como CREATE … SELECT.
+			// VALUES sólo vale en una partición (VALUES LESS THAN, VALUES IN).
+			if ( 'word' === $token[0] && 'TABLE' === $token[1] ) $this->reject( 'la forma TABLE de CREATE TABLE no se admite en un archivo sin firma' );
+			if ( 'word' === $token[0] && 'VALUES' === $token[1] && ! $this->peek_word( 'LESS' ) && ! $this->peek_word( 'IN' ) ) $this->reject( 'la forma VALUES de CREATE TABLE no se admite en un archivo sin firma' );
 			// ENGINE admite un nombre o un texto: ENGINE='CONNECT' y ENGINE=`SPIDER` también eligen el motor.
 			if ( in_array( $previous, array( 'ENGINE', 'TYPE' ), true ) && in_array( $token[0], array( 'str', 'ident' ), true ) ) {
 				$engine = strtoupper( 'ident' === $token[0] ? $token[1] : substr( $this->s, $token[2], $token[3] - $token[2] ) );

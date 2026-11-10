@@ -1,5 +1,6 @@
 <?php
 /** El extracto escrito llena el snippet vacío y respeta una meta personalizada. */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 $post = (object) array( 'ID' => 468, 'post_type' => 'page', 'post_title' => 'Inicio', 'post_name' => 'inicio', 'post_excerpt' => 'Extracto breve del sitio.', 'post_content' => 'Contenido largo del sitio que no debe sustituir al extracto.' );
 $meta = array();
@@ -38,7 +39,7 @@ require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 $seo = Digitalisimo_Integrations_SEO_Suite::class;
 ob_start(); $seo::metabox( $post ); $html = ob_get_clean();
 if ( false === strpos( $html, '>Extracto breve del sitio.</textarea>' ) ) throw new RuntimeException( 'El campo Meta descripción debe llenarse con el extracto escrito.' );
-$current = new ReflectionMethod( $seo, 'current' );
+$current = digi_test_accessible( new ReflectionMethod( $seo, 'current' ) );
 if ( 'Extracto breve del sitio.' !== $current->invoke( null )['description'] ) throw new RuntimeException( 'La meta pública debe priorizar el extracto escrito.' );
 $meta['digitalisimo_seo_description'] = 'Descripción personalizada.';
 ob_start(); $seo::metabox( $post ); $html = ob_get_clean();

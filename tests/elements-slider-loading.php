@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -22,7 +25,7 @@ namespace {
 	function check_slider_load( $condition, $message ) { if ( ! $condition ) throw new \RuntimeException( $message ); }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-slider/class-widget.php';
 	$widget = new \Digitalisimo\Elements\Elementor_Slider_Widget();
-	$render = static function () use ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function () use ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 	$widget->settings = array( 'mode' => 'repeat', 'repeat_image' => array( 'id' => 1 ), 'repeat_alt' => 'Onda', 'repeat_count' => 2, 'animation' => 'continuous', 'infinite' => 'yes', 'direction' => 'right', 'visible' => 1, 'visible_tablet' => 1, 'visible_mobile' => 1, 'loading' => 'auto', 'priority' => 'high' );
 	$html = $render();
 	preg_match_all( '/<img\b[^>]*>/', $html, $matches );

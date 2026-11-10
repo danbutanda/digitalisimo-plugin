@@ -16,6 +16,9 @@
  *   personalizado con clases de PRO, repetidores, responsivos): ningún `pro.unmapped`, cada clave cae en un control
  *   propio y lo convertido se pinta con los mismos textos.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Stack_Stub {
 		public $settings = array();
@@ -177,8 +180,8 @@ namespace {
 		}
 
 		$pro = new $conf['pro']();
-		( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		check_cards( $pro->order === $widget->order, "$name: los mismos controles y grupos en el mismo orden que PRO." );
 		check_cards( array_keys( $pro->sections ) === array_keys( $widget->sections ) && $pro->tabs === $widget->tabs, "$name: las mismas secciones y pestañas." );
 		foreach ( $pro->sections as $section => $args ) {
@@ -280,7 +283,7 @@ namespace {
 	$render = static function ( $widget, array $settings ) {
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$defaults = static function ( $widget ) {

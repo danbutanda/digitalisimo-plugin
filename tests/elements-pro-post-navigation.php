@@ -15,6 +15,9 @@
  *   control propio, el CSS personalizado pasa a las clases propias y lo convertido se pinta con los mismos textos.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	$GLOBALS['h_wp'] = array(
 		'post_types'  => array( 'post' => 'Entradas', 'page' => 'Páginas', 'producto' => 'Productos' ),
 		'taxonomies'  => array( 'category' => 'Categorías', 'post_tag' => 'Etiquetas' ),

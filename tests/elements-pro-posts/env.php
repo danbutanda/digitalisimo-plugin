@@ -7,6 +7,9 @@
  * propio y comparar sus controles. Lo cargan `tests/elements-pro-posts.php` y, para listar controles,
  * `php-wasm-cli tests/elements-pro-posts/env.php dump <widget>`.
  */
+namespace {
+	require_once dirname( __DIR__ ) . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor\Core\Kits\Documents\Tabs {
 	class Global_Colors {
 		const COLOR_PRIMARY = 'globals/colors?id=primary'; const COLOR_SECONDARY = 'globals/colors?id=secondary'; const COLOR_TEXT = 'globals/colors?id=text'; const COLOR_ACCENT = 'globals/colors?id=accent';
@@ -260,7 +263,7 @@ namespace {
 		pe_load();
 		$GLOBALS['pe']['actions'] = array();
 		$widget = new $class( array(), array() );
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		$defaults = array();
 		foreach ( $widget->controls as $name => $control ) {
 			if ( array_key_exists( 'default', $control ) ) {

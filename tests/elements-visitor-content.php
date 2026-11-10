@@ -254,6 +254,14 @@ namespace {
 	check_vc( true === Own::check( 'user', $rule( 'user', array( '' ) ) ) && true === Own::check( 'user', $rule( 'user', array( ' ', null ) ) ) && true === Own::check( 'user', $rule( 'user', array( array( 'id' => '' ) ) ) ), 'Propio: una lista sólo con blancos es «sin usuarios elegidos».' );
 	check_vc( true === Own::check( 'user', $rule( 'user', array( array( 'id' => '3' ), array( 'id' => 9 ) ) ) ) && false === Own::check( 'user', $rule( 'user', array( array( 'id' => '9' ) ) ) ), 'Propio: una lista de objetos {id} restringe a esos usuarios.' );
 	check_vc( false === Own::check( 'user', $rule( 'user', '9' ) ) && false === Own::check( 'user', $rule( 'user', 9 ) ) && true === Own::check( 'user', $rule( 'user', '3' ) ) && true === Own::check( 'user', $rule( 'user', ' ' ) ), 'Propio: un solo ID guardado como texto restringe a ese usuario.' );
+	// Texto de URL vacío y buscador sin elegir: cualquier URL y cualquier referencia, también en PHP 7.4, donde strpos() con
+	// una aguja vacía da false y avisa (PHP 8 da 0).
+	$server                  = $_SERVER;
+	$_SERVER['REQUEST_URI']  = '/oferta/';
+	$_SERVER['HTTP_REFERER'] = 'https://mi-sitio.test/blog/';
+	check_vc( true === Own::check( 'url_string', $rule( 'url_string', '' ) ) && true === Own::check( 'url_string', $rule( 'url_string', 'oferta' ) ) && false === Own::check( 'url_string', $rule( 'url_string', 'otra' ) ), 'Propio: un texto de URL vacío está en cualquier URL.' );
+	check_vc( true === Own::check( 'search_engine_url', $rule( 'search_engine_url', array() ) ) && false === Own::check( 'search_engine_url', $rule( 'search_engine_url', array( 'google.com' ) ) ), 'Propio: sin buscador elegido, cualquier referencia.' );
+	$_SERVER = $server;
 	$GLOBALS['digi']['user'] = 9;
 	$GLOBALS['digi']['roles'] = array( 'administrator' );
 	check_vc( true === Own::check( 'role', $rule( 'role', 'administrator' ) ) && true === Own::check( 'role', $rule( 'role', array( 'editor', 'administrator' ) ) ) && false === Own::check( 'role', $rule( 'role', array( 'subscriber' ) ) ) && false === Own::check( 'role', $rule( 'role', 'subscriber' ) ), 'Propio: el rol acepta un valor o una lista.' );

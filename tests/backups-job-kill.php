@@ -3,10 +3,11 @@
  * Proceso real muerto con SIGKILL a mitad de la exportación: mientras vive, su cerrojo impide tocar su trabajo; al
  * morir, el kernel libera el cerrojo, el detector lo reconoce, descarta el SQL parcial y el trabajo termina sin
  * repetir nada más. Después, un error fatal real (memoria agotada) dentro de la instantánea: el apagado de PHP lo anota
- * y devuelve el trabajo a la cola sin esperar al detector. Necesita proc_open y un PHP del sistema (la CI); en php-wasm
- * se omite y la cubre backups-job-resume.php con muertes simuladas. Las fases se pueden correr por separado con
- * --fase=… (preparar, vivo, tras-matar; preparar-fatal, tras-fatal; preparar-tramos, tras-matar-tramos) para ensayarla
- * con procesos de php-wasm.
+ * y devuelve el trabajo a la cola sin esperar al detector; con un PHP que no ejecuta funciones de cierre tras agotar la
+ * memoria (PHP 7.4), el detector la reconoce como interrupción. Necesita proc_open y un PHP del sistema (la CI); en
+ * php-wasm se omite y la cubre backups-job-resume.php con muertes simuladas. Las fases se pueden correr por separado
+ * con --fase=… (preparar, vivo, tras-matar; preparar-fatal, tras-fatal; preparar-tramos, tras-matar-tramos) para
+ * ensayarla con procesos de php-wasm.
  */
 $phase = '';
 $root = '';
@@ -65,6 +66,42 @@ function kill_after_fatal( $id ) {
 }
 
 /**
+ * PHP 7.4 (el 7.4.33 de deb.sury.org de la PC; setup-php instala en Ubuntu los paquetes de ese mismo repositorio) no
+ * ejecuta funciones de cierre tras agotar la memoria: el gestor de memoria imprime el error y termina el proceso con
+ * código 1, sin `register_shutdown_function`, destructores ni registro de errores (con E_USER_ERROR o con el tiempo
+ * agotado sí las ejecuta). Ningún
+ * código PHP puede anotar esa muerte, así que la prueba exige lo que sí está en manos del producto: el trabajo queda
+ * con el contrato del proceso muerto, el kernel libera su cerrojo, el detector lo reconoce como interrupción (con la
+ * memoria agotada entre las causas), descarta el SQL parcial y el trabajo termina después.
+ */
+function kill_after_fatal_without_shutdown( $id ) {
+	$job = bk_job( $id );
+	bk_assert( 'running' === $job['status'] && ! empty( $job['lease']['owner'] ) && empty( $job['error'] ), 'Con un PHP que no ejecuta funciones de cierre tras agotar la memoria, el trabajo debería seguir con el contrato del proceso muerto: ' . json_encode( array( $job['status'], $job['error'], $job['lease'] ) ) );
+	bk_assert( Digitalisimo_Backups_Jobs::recover_if_idle(), 'El cerrojo del proceso que agotó la memoria no quedó libre.' );
+	$job = bk_job( $id );
+	bk_assert( 'queued' === $job['status'] && null === $job['lease'] && 'interrupted' === ( $job['error']['code'] ?? '' ) && false !== strpos( (string) $job['error']['message'], '«Base de datos»' ) && false !== strpos( (string) $job['error']['message'], 'memoria agotada' ) && 1 === $job['attempts']['database'], 'El detector no reconoció la muerte por memoria agotada como interrupción del paso: ' . json_encode( array( $job['status'], $job['error'], $job['lease'] ) ) );
+	bk_assert( ! glob( bk_storage() . '/jobs/' . $id . '/staging/database.*' ), 'Quedó el SQL parcial del paso que agotó la memoria.' );
+	bk_ready( $id );
+	bk_run_until_done( $id );
+	bk_assert( 'success' === bk_job( $id )['status'], 'El trabajo no terminó tras agotar la memoria.' );
+}
+
+/**
+ * ¿Este PHP ejecuta las funciones de cierre tras agotar la memoria? Se pregunta al motor, no a la versión ni al
+ * producto: así una regresión del apagado del producto nunca se confunde con la limitación de PHP 7.4.
+ */
+function kill_shutdown_after_oom() {
+	if ( ! function_exists( 'proc_open' ) || '' === PHP_BINARY ) return true;
+	$probe = @proc_open( array( PHP_BINARY, '-d', 'display_errors=0', '-d', 'log_errors=0', '-r', 'register_shutdown_function( function() { echo "cierre"; } ); ini_set( "memory_limit", "32M" ); $x = str_repeat( "x", 128 << 20 );' ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+	if ( ! is_resource( $probe ) ) return true;
+	$output = stream_get_contents( $pipes[1] );
+	fclose( $pipes[1] );
+	fclose( $pipes[2] );
+	proc_close( $probe );
+	return false !== strpos( $output, 'cierre' );
+}
+
+/**
  * T2: muerto con SIGKILL a mitad de una tabla, después de un punto de control guardado. El detector lo reconoce, el SQL
  * del punto de control (las tablas ya enteras) se conserva, el tramo siguiente trunca lo del proceso muerto y exporta la
  * tabla entera otra vez desde su primera fila, sin releer las anteriores, y el SQL final es el de una exportación sin
@@ -102,7 +139,7 @@ if ( 'preparar' === $phase ) { kill_prepare(); echo $GLOBALS['bk_root'], "\n"; e
 if ( 'preparar-tramos' === $phase ) { @unlink( $GLOBALS['bk_root'] . '/worker-ready' ); bk_manual( 'local', 'tramos' ); echo $GLOBALS['bk_root'], "\n"; exit; }
 if ( 'tras-matar-tramos' === $phase ) { kill_after_steps(); bk_cleanup(); echo "tramos: ok\n"; exit; }
 if ( 'preparar-fatal' === $phase ) { echo bk_manual( 'local', 'fatal' )['id'], "\n"; exit; }
-if ( 'tras-fatal' === $phase ) { foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'fatal' === $job['spec']['policy'] ) kill_after_fatal( $job['id'] ); bk_cleanup(); echo "fatal: ok\n"; exit; }
+if ( 'tras-fatal' === $phase ) { $shutdown = kill_shutdown_after_oom(); foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( 'fatal' === $job['spec']['policy'] ) $shutdown ? kill_after_fatal( $job['id'] ) : kill_after_fatal_without_shutdown( $job['id'] ); bk_cleanup(); echo $shutdown ? "fatal: ok\n" : "fatal (sin cierre de PHP): ok\n"; exit; }
 if ( 'vivo' === $phase ) { kill_check_alive(); echo "vivo: ok\n"; exit; }
 if ( 'tras-matar' === $phase ) { kill_after(); bk_cleanup(); echo "DIGITALÍSIMO Backups: proceso muerto con SIGKILL reconocido y trabajo terminado sin repetir lo confirmado.\n"; exit; }
 
@@ -146,8 +183,16 @@ bk_assert( is_resource( $process ), 'No se pudo lanzar el trabajador del error f
 $output = stream_get_contents( $pipes[1] ) . stream_get_contents( $pipes[2] );
 fclose( $pipes[1] );
 fclose( $pipes[2] );
-bk_assert( 255 === proc_close( $process ), 'El trabajador no terminó con un error fatal: ' . $output );
-kill_after_fatal( $fatal['id'] );
+$exit = proc_close( $process );
+$shutdown = kill_shutdown_after_oom();
+if ( $shutdown ) {
+	bk_assert( 255 === $exit, 'El trabajador no terminó con un error fatal: ' . $output );
+	kill_after_fatal( $fatal['id'] );
+} else {
+	// PHP 7.4: el proceso termina con código 1 sin funciones de cierre (ver kill_after_fatal_without_shutdown()).
+	bk_assert( 0 !== $exit && false !== strpos( $output, 'Allowed memory size' ), 'El trabajador no agotó la memoria: ' . $output );
+	kill_after_fatal_without_shutdown( $fatal['id'] );
+}
 // T2: a mitad de una tabla, después de un punto de control guardado.
 foreach ( Digitalisimo_Backups_Jobs::all() as $old ) Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $old['id'] ) );
 @unlink( $GLOBALS['bk_root'] . '/worker-ready' );
@@ -165,4 +210,4 @@ fclose( $pipes[2] );
 proc_close( $process );
 kill_after_steps();
 bk_cleanup();
-echo "DIGITALÍSIMO Backups: proceso muerto con SIGKILL (también a mitad de una tabla, tras un punto de control) y error fatal reconocidos, y trabajos terminados sin repetir lo confirmado.\n";
+echo 'DIGITALÍSIMO Backups: proceso muerto con SIGKILL (también a mitad de una tabla, tras un punto de control) y ' . ( $shutdown ? 'error fatal anotado por el apagado de PHP' : 'memoria agotada sin funciones de cierre (PHP ' . PHP_VERSION . ') reconocida por el detector' ) . ", y trabajos terminados sin repetir lo confirmado.\n";

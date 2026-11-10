@@ -20,6 +20,9 @@
  *   ajustes reales (por defecto, dinámicos, globales, responsivos, CSS personalizado) sin `pro.unmapped`, con cada clave
  *   en un control propio y el mismo marcado que PRO.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor\Modules\ContentSanitizer\Interfaces {
 	interface Sanitizable {
 		public function sanitize( $content ): string;
@@ -308,7 +311,7 @@ namespace {
 	);
 	$make = static function ( $class, array $settings = array() ) {
 		$widget = new $class();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		$defaults = array();
 		foreach ( $widget->controls as $name => $control ) {
 			if ( array_key_exists( 'default', $control ) ) {
@@ -326,7 +329,7 @@ namespace {
 	$render = static function ( $class, array $settings = array() ) use ( $make ) {
 		$widget = $make( $class, $settings );
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return trim( preg_replace( '/>\s+</', '><', preg_replace( '/\s+/', ' ', (string) ob_get_clean() ) ) );
 	};
 	// Lo comparable de un control: todo menos los textos traducidos (de las opciones de un desplegable, sólo las claves).
@@ -542,7 +545,7 @@ namespace {
 		make_post( $id, array( 'post_content' => 'Antes [anidar] después' ) );
 		$GLOBALS['tt']['nest'] = static function () use ( $class, $make ) {
 			$widget = $make( $class );
-			( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+			( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		};
 		$out[ $id ] = $content( $class, $id, $pro_content === $class ? array() : $converted );
 	}

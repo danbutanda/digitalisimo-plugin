@@ -283,7 +283,8 @@ final class Visibility_Rules {
 		if ( '' === $uri ) {
 			return null;
 		}
-		return self::compare( false !== strpos( $uri, (string) $val ), $relation );
+		$text = (string) $val; // Un texto vacío está en cualquier URL: PHP 8 da 0 con una aguja vacía, PHP 7.4 da false y avisa.
+		return self::compare( '' === $text || false !== strpos( $uri, $text ), $relation );
 	}
 
 	/** Sólo cuenta el primer buscador elegido y, sin selección, acepta cualquier referencia. */
@@ -298,7 +299,8 @@ final class Visibility_Rules {
 					break;
 				}
 			}
-			$show = false !== strpos( $url, $engine );
+			// Sin buscador elegido, cualquier referencia: PHP 8 da 0 con una aguja vacía, pero PHP 7.4 da false y avisa.
+			$show = '' === $engine || false !== strpos( $url, $engine );
 		}
 		return self::compare( $show, $relation );
 	}

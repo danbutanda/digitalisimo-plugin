@@ -18,6 +18,9 @@
  * Uso: php-wasm-cli tests/elements-pro-facebook.php [--write]. Con `--write` regenera tests/fixtures/pro-facebook.html (la
  * usa tests/elements-pro-facebook-chrome.mjs). php-wasm sale con 0 aunque haya un error fatal: se juzga por la última línea.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -112,13 +115,13 @@ namespace {
 		$widget->settings = $settings;
 		$widget->attrs    = array();
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$controls = static function ( $widget ) {
 		$widget->controls = array();
 		$widget->sections = array();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		return $widget->controls;
 	};
 	// Atributos del primer `div` con la clase del plugin del servicio.

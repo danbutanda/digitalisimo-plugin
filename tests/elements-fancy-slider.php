@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
@@ -27,21 +30,21 @@ namespace {
 	function check_fancy_slider( $ok, $message ) { if ( ! $ok ) { throw new \RuntimeException( $message ); } }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-slider.php';
 	$widget = new \Digitalisimo\Elements\Fancy_Slider_Widget();
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_fancy_slider( isset( $widget->controls['slides'], $widget->controls['image_position'] ) && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'Debe usar controles editoriales y el motor compartido.' );
 	$widget->settings = array( 'title_tags' => 'script', 'slides' => array(
 		array( 'title' => 'Primera <script>x</script>', 'sub_title' => 'Subtítulo', 'description' => '<p>Descripción</p><script>x</script>', 'slide_image' => array( 'id' => 10, 'url' => 'https://site.test/imagen.webp' ), 'slide_button' => 'Leer', 'button_link' => array( 'url' => 'https://site.test/leer', 'is_external' => true, 'nofollow' => true ) ),
 		array( 'title' => 'Segunda', 'slide_image' => array( 'id' => 11, 'url' => 'https://site.test/imagen.webp' ), 'title_link' => array( 'url' => 'https://site.test/segunda', 'is_external' => true ) ),
 	) );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_fancy_slider( 2 === substr_count( $html, '<li class="digi-carousel__slide ' ) && str_contains( $html, 'data-digi-carousel-next' ), 'Debe renderizar dos diapositivas y la navegación del motor.' );
 	check_fancy_slider( str_contains( $html, 'srcset=' ) && 0 === substr_count( $html, 'loading="lazy"' ) && str_contains( $html, 'alt="Imagen destacada"' ), 'WordPress decide la carga de cada imagen según su posición real; ALT y srcset se conservan.' );
 	check_fancy_slider( str_contains( $html, '<h2 class="digi-fancy-slider__title">' ) && ! str_contains( $html, '<script' ) && str_contains( $html, 'href="https://site.test/leer"' ), 'El texto y las etiquetas deben sanearse sin perder el enlace.' );
 	check_fancy_slider( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'Título y botón externos deben proteger la pestaña.' );
-	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ))->invoke( $widget ); $editor = ob_get_clean();
 	check_fancy_slider( str_contains( $editor, 'titleLink.url' ) && str_contains( $editor, 'item.slide_image.alt' ) && str_contains( $editor, 'data-digi-carousel-next' ), 'El editor debe mostrar enlaces, ALT y navegación.' );
 	$widget->settings['slides'] = array( $widget->settings['slides'][0] );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $single = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $single = ob_get_clean();
 	check_fancy_slider( ! str_contains( $single, 'data-digi-carousel-next' ), 'Una sola diapositiva no debe mostrar flechas.' );
 	echo "DIGITALÍSIMO Elements: Slider destacado validado.\n";
 }

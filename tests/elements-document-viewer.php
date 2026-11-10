@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -23,10 +26,10 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-document-viewer.php';
 	$widget = new \Digitalisimo\Elements\Document_Viewer_Widget();
 	check_document( array( 'digitalisimo-document-viewer' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El visor sólo debe cargar su CSS.' );
-	$controls = new \ReflectionMethod( $widget, 'register_controls' );
+	$controls = digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) );
 	$controls->invoke( $widget );
 	check_document( isset( $widget->controls['file_source'], $widget->controls['viewer_type'], $widget->controls['document_height'] ), 'Deben existir URL, visor y altura responsiva.' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'file_source' => array( 'url' => 'javascript:alert(1)' ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_document( '' === $html, 'Se debe rechazar un esquema distinto de HTTP(S).' );
