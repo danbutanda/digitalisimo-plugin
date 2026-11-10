@@ -313,7 +313,7 @@ function bi_child( $case ) {
 		} else {
 			// Como la revisión (r3-mem.php): la importación entera, con 40 MB de lastre sobre lo que ocupa el entorno.
 			$make = function() use ( $case ) {
-				if ( 'comillas' === $case ) return str_repeat( "a'b\\c\"d\n", 262144 );
+				if ( 'comillas' === $case || 'apretado' === $case ) return str_repeat( "a'b\\c\"d\n", 262144 );
 				if ( 'texto' === $case ) return str_repeat( 'Lorem ipsum dolor sit amet ', 155345 );
 				return str_repeat( 'x', 9437184 );
 			};
@@ -324,7 +324,8 @@ function bi_child( $case ) {
 			$file = bi_store_file( 'memoria.tar.gz', bi_gz( bi_tar( bi_entries( 'memoria', array( 'sql' => $sql ) ) ) ) );
 			unset( $sql );
 			gc_collect_cycles();
-			$ballast = str_repeat( 'w', 40 * 1048576 );
+			// «apretado»: 4 MB más de lastre (unos 52 MB ocupados): 0301ad78 moría aquí con un error fatal.
+			$ballast = str_repeat( 'w', ( 'apretado' === $case ? 44 : 40 ) * 1048576 );
 			$out['used'] = memory_get_usage( true );
 			$job = bi_import( $file, 'store' );
 			unset( $ballast );
@@ -628,7 +629,7 @@ bi_case( 'B8 nombres reales de Backuply con el sanitize_file_name() de WordPress
 bi_case( 'B9 memoria acotada con memory_limit=64M (procesos hijos)', function() {
 	if ( ! function_exists( 'proc_open' ) || ! is_executable( PHP_BINARY ) ) { echo "  · sin proc_open o PHP_BINARY (php-wasm): se omite\n"; return; }
 	// true: se importa; null: se importa o se rechaza con el aviso de WP-CLI (nunca un error fatal); false: se rechaza.
-	foreach ( array( 'comillas' => true, 'texto' => null, 'grande' => false, 'config' => true ) as $case => $fits ) {
+	foreach ( array( 'comillas' => true, 'apretado' => null, 'texto' => null, 'grande' => false, 'config' => true ) as $case => $fits ) {
 		$proc = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', __FILE__, '--memoria=' . $case ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
 		$stdout = stream_get_contents( $pipes[1] );
 		$stderr = stream_get_contents( $pipes[2] );
