@@ -56,8 +56,15 @@ class Bk_Test_DB {
 		}
 		return 0 === strpos( (string) $query, 'SHOW TABLES' ) ? $all : $this->tables();
 	}
-	public function prepare( $query, $value ) { return str_replace( '%s', "'" . $value . "'", $query ); }
+	/** Con un valor, como siempre (todo %s); con varios, uno por marcador y escapado como el volcado (lo lee bk_sql_unescape()). */
+	public function prepare( $query, ...$values ) {
+		if ( count( $values ) < 2 ) return str_replace( '%s', "'" . ( $values[0] ?? '' ) . "'", $query );
+		foreach ( $values as $value ) $query = preg_replace( '/%[sd]/', str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'" ), $query, 1 );
+		return $query;
+	}
 	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
+	/** Un valor suelto: la base simulada no lo responde (para otras instalaciones con prefijo anidado, ninguna). */
+	public function get_var( $query ) { return null; }
 	public function get_row( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW TABLE STATUS' ) ) return array( 'Engine' => 'InnoDB' );
@@ -168,6 +175,7 @@ function add_option( $key, $value, $deprecated = '', $autoload = null ) { if ( i
 function delete_option( $key ) { unset( $GLOBALS['bk_options'][ $key ] ); return true; }
 function get_site_option( $key, $default = false ) { return $GLOBALS['bk_site_options'][ $key ] ?? $default; }
 function update_site_option( $key, $value ) { $GLOBALS['bk_site_options'][ $key ] = $value; return true; }
+function delete_site_option( $key ) { unset( $GLOBALS['bk_site_options'][ $key ] ); return true; }
 function wp_cache_flush() { return true; }
 function current_time( $format ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_basename( $path ) { return basename( $path ); }
