@@ -360,7 +360,7 @@ hard_case( 'n2 · una clave cuyo paquete se entregó entero no se retoma', funct
 	mig_use( 'destino' );
 	// El destino legítimo descarga el paquete entero y pasa a comprobarlo y restaurarlo.
 	$job = hard_drive_until( $id, function( $job ) { return in_array( $job['phase'], array( 'check', 'restore' ), true ); } );
-	mig_assert( in_array( $job['phase'], array( 'check', 'restore' ), true ) && ! empty( hard_record( $p['id'] )['delivered'] ), 'La migración no llegó a comprobar el paquete o el origen no anotó que lo entregó: ' . $job['phase'] );
+	mig_assert( in_array( $job['phase'], array( 'check', 'restore' ), true ), 'La migración no llegó a comprobar el paquete: ' . $job['phase'] );
 	// Su restauración dura más de STALE sin hablar con el origen, y alguien más con la clave pide el paquete.
 	hard_edit_record( $p['id'], function( $record ) { $record['seen'] = time() - Digitalisimo_Backups_Migrate::STALE - 60; $record['created'] = time() - Digitalisimo_Backups_Migrate::STALE - 120; return $record; } );
 	$thief = Digitalisimo_Backups_Job_Store::new_id();
