@@ -971,6 +971,31 @@ ruta es «automático» (el que recomienda el proveedor; de ruta si el bucket ll
     pequeñas («Probar conexión», listar, borrar) siguen.
   - **Borrar** (revisión P1): sólo «no existe» (`SSH_FX_NO_SUCH_FILE`) cuenta como ya borrado; un permiso denegado es un
     error aunque `stat` tampoco vea el archivo.
+  - **Falla cerrado** (segunda revisión, N3): la reconexión automática y la comprobación de la clave dependen de cuatro
+    propiedades privadas de la clase `SSH2` de la copia fijada (`bad_key_size_fix`, `server_public_host_key`,
+    `exchange_hash`, `signature_validated`). Si falta alguna (otra versión de phpseclib), el cliente incluido no conecta
+    y lo dice; `scripts/vendor-phpseclib.sh` también lo comprueba al generar la copia.
+  - **Subida por tramos, verificación y publicación** (H20; segunda revisión N1 y N2). Al terminar la subida, la fecha
+    del temporal pasa a una marca propia (en el pasado y al azar) y se anota con su tamaño: cada tramo de la verificación
+    y el renombre final comprueban que siguen iguales, así que una escritura en la zona ya verificada (otro proceso con la
+    misma cuenta, un fallo del almacenamiento) descarta la copia y la sube de nuevo. Además, el SHA-256 de todo lo leído
+    de la copia remota se acumula entre tramos y se compara con el del ZIP antes de publicar (en PHP 7.4, que no puede
+    guardar el contexto del hash, sólo cuando la verificación cabe en un tramo; los bloques se comparan siempre uno a
+    uno). Si el proceso muere justo después del renombre, la llamada siguiente encuentra el archivo final con el tamaño
+    y la marca, lo verifica entero por tramos y lo da por publicado, sin volver a subir ni chocar con él.
+- **Límites declarados de SFTP y de la retención remota** (segunda revisión):
+  - **N4, del lado seguro.** La identidad de la instalación incluye la URL entera del sitio: al cambiar de dominio, de
+    `http` a `https`, de `www` a sin `www`, de ruta del hosting o al migrar con el propio plugin, las filas anteriores
+    pasan a «de otra instalación» y su copia remota ya no se rota sola (se borra con «Eliminar»). Nunca borra de más.
+  - **N6.** El borrado remoto va dentro del cerrojo del historial (es lo que cierra H2): «Bloquear», «Eliminar» y las
+    demás escrituras del historial pueden esperar hasta 20 s por cada borrado (como mucho 5 por tick); la cola no se
+    bloquea, porque el tick ya tiene el cerrojo de operaciones.
+  - **N7.** La identidad usa `home_url()`, que se puede filtrar: con un `WP_HOME` que dependa de la petición o un plugin
+    multilingüe que lo filtre, las filas pueden quedar «de otra instalación» según la petición (lado seguro, como N4).
+  - **N8.** Un servidor que sólo ofrece `aes192-ctr`/`aes256-ctr`, con la extensión ssh2 sin `ssh2_auth_pubkey`, no tiene
+    camino para autenticar con clave privada: el cliente incluido rechaza esos cifrados (H1) y la extensión no recibe una
+    clave sin cifrar en un archivo (H6). Funcionan la contraseña con ssh2 o habilitar `aes128-ctr` o AES-GCM en el
+    servidor; los mensajes lo dicen.
   - **Motor** (campo de la conexión): «Automático» usa la extensión si está y puede con la conexión (una clave privada
     con su clave pública; alguna huella SHA-1 o una extensión que calcule SHA-256) y si no, el cliente incluido;
     también se puede forzar uno. Las conexiones guardadas siguen igual: con la extensión, el mismo camino de siempre.

@@ -63,9 +63,19 @@ final class Digitalisimo_Backups_Sftp_Client {
 	public static function slow_text() {
 		return self::fast() ? '' : 'Este PHP no tiene la extensión OpenSSL: el cliente SFTP incluido cifraría en PHP puro, a unos 0,1 MiB/s, y no se usa para respaldos de más de ' . (int) ( self::SLOW_LIMIT / 1048576 ) . ' MiB. Activa OpenSSL en el hosting o usa la extensión ssh2.';
 	}
+	/**
+	 * Propiedades privadas de phpseclib de las que depende la seguridad (revisión N3): la reconexión automática, la clave
+	 * del servidor de la sesión, el hash del intercambio y la validación de su firma. @internal Público sólo para que la
+	 * prueba simule una versión que las renombró.
+	 */
+	public static $internals = array( 'bad_key_size_fix', 'server_public_host_key', 'exchange_hash', 'signature_validated' );
 	public static function load() {
 		if ( ! self::available() ) throw new Digitalisimo_Backups_Permanent_Error( 'El cliente SFTP incluido no puede funcionar en este PHP (mbstring.func_overload activo) y la extensión ssh2 no está: actívala o desactiva mbstring.func_overload.' );
 		require_once dirname( __DIR__ ) . '/lib/autoload.php';
+		// Falla cerrado: si una versión de phpseclib renombra o quita alguna, una asignación crearía una propiedad nueva y
+		// la protección se perdería sin aviso; así no se conecta.
+		$missing = array_values( array_filter( self::$internals, function( $name ) { return ! property_exists( self::NS . 'Net\\SSH2', $name ); } ) );
+		if ( $missing ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia incluida de phpseclib no es la esperada (falta ' . implode( ', ', $missing ) . '): el cliente SFTP incluido no se usa para no conectar sin sus protecciones. Vuelve a generar includes/lib con scripts/vendor-phpseclib.sh o usa la extensión ssh2.' );
 	}
 
 	/** Huellas de un blob de clave pública SSH: array( tipo, SHA-1 en 40 hexadecimales mayúsculas, «SHA256:…» ). */
@@ -289,7 +299,7 @@ final class Digitalisimo_Backups_Sftp_Client {
 	 * Tramo de la verificación: compara la copia remota con el ZIP local bloque a bloque desde $offset hasta $deadline o
 	 * el final. Devuelve hasta dónde coinciden; lanza si un bloque difiere (la copia no se publica).
 	 */
-	public function compare_from( $file, $remote, $offset, $size, $deadline, $tick = null ) {
+	public function compare_from( $file, $remote, $offset, $size, $deadline, $tick = null, $hash = null ) {
 		$handle = @fopen( (string) $file, 'rb' );
 		if ( ! $handle ) throw new Exception( 'No se pudo abrir el ZIP local.' );
 		$position = (int) $offset;
@@ -302,6 +312,7 @@ final class Digitalisimo_Backups_Sftp_Client {
 				$local = (string) fread( $handle, $length );
 				$copy = $this->checked()->get( (string) $remote, false, $position, $length );
 				if ( false === $copy || strlen( $local ) !== $length || ! hash_equals( $local, (string) $copy ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no coincide con el ZIP local.' );
+				if ( $hash ) hash_update( $hash, (string) $copy );
 				$position += $length;
 				if ( is_callable( $tick ) ) call_user_func( $tick, $position );
 			}
@@ -312,6 +323,13 @@ final class Digitalisimo_Backups_Sftp_Client {
 		}
 		return $position;
 	}
+	/** Tamaño y fecha de modificación de $remote (false si no existe). */
+	public function stat_of( $remote ) {
+		$stat = $this->checked()->stat( (string) $remote );
+		return is_array( $stat ) && isset( $stat['size'] ) ? array( 'size' => (int) $stat['size'], 'mtime' => (int) ( $stat['mtime'] ?? 0 ) ) : false;
+	}
+	/** Pone la fecha de modificación de $remote (la marca de la subida terminada, N1). */
+	public function mark( $remote, $time ) { return (bool) $this->checked()->touch( (string) $remote, (int) $time, (int) $time ); }
 	/** Descarga $remote a $target por paquetes (memoria acotada). */
 	public function download( $remote, $target, $tick = null ) {
 		if ( ! self::fast() && (int) $this->size( $remote ) > self::SLOW_LIMIT ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text() );

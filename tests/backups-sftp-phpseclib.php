@@ -25,7 +25,13 @@
  *   (m) revisión P2: sin OpenSSL el cliente incluido no sube un respaldo grande y la pantalla lo avisa;
  *   (n) H20 del ensayo E3: la subida va por tramos (cada uno hasta su plazo) con el estado en el área del trabajo, cada
  *       tramo en una conexión nueva (otro tick); una muerte a mitad de un tramo no repite lo que el servidor ya tiene; la
- *       verificación también va por tramos y al final se publica la copia íntegra.
+ *       verificación también va por tramos y al final se publica la copia íntegra;
+ *   (o) segunda revisión N1 [T4]: algo escribe en la zona ya verificada del temporal entre dos tramos: no se publica esa
+ *       copia (la marca de la subida cambió y el SHA-256 final no sería el del ZIP); se sube de nuevo y se publica la buena;
+ *   (p) N2 [T5]: el proceso muere justo después del renombre final (vuelve el estado de antes): la transferencia termina
+ *       igual, con el archivo final que ya está (verificado entero), sin subir otra vez ni chocar con él;
+ *   (q) N3: si la copia de phpseclib no tiene las propiedades privadas de las que dependen las protecciones (un renombre),
+ *       el cliente incluido no conecta: error claro y ninguna conexión.
  * Sin sshd/ssh-keygen sólo corren los casos sin servidor, salvo en la CI (CI=true, el workflow lo instala) o con
  * BK_REQUIRE_SSHD=1.
  */
@@ -65,6 +71,21 @@ $case( 'h', function() use ( $check, $root ) {
 	$check( 'ssh2' === $destination->engine(), 'El motor forzado no se respetó.' );
 	try { $destination->list(); throw new LogicException( 'Usó ssh2 sin la extensión.' ); }
 	catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'extensión ssh2' ), 'Mensaje sin la extensión: ' . $e->getMessage() ); }
+	// (q) N3: una copia de phpseclib que renombró una de las propiedades privadas de las que dependen las protecciones.
+	$saved_internals = Digitalisimo_Backups_Sftp_Client::$internals;
+	Digitalisimo_Backups_Sftp_Client::$internals[] = 'bad_key_size_fix_renombrada';
+	try {
+		try { Digitalisimo_Backups_Sftp_Client::load(); throw new LogicException( 'Aceptó una copia de phpseclib sin sus propiedades.' ); }
+		catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'no es la esperada' ) && false !== strpos( $e->getMessage(), 'bad_key_size_fix_renombrada' ), 'Mensaje: ' . $e->getMessage() ); }
+		$probe = stream_socket_server( 'tcp://127.0.0.1:0' );
+		$port = (int) substr( strrchr( stream_socket_get_name( $probe, false ), ':' ), 1 );
+		try { ( new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_engine' => 'phpseclib', 'sftp_host' => '127.0.0.1', 'sftp_port' => (string) $port, 'sftp_user' => 'x', 'sftp_password' => 'y', 'sftp_fingerprint' => str_repeat( 'A', 40 ), 'sftp_path' => '/' ), array( 'temp_dir' => $root . '/private', 'connection' => 'sftp' ) ) )->list(); throw new LogicException( 'Conectó con una copia de phpseclib sin sus propiedades.' ); }
+		catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'no es la esperada' ), 'Mensaje: ' . $e->getMessage() ); }
+		$check( false === @stream_socket_accept( $probe, 0.2 ), 'Abrió una conexión con una copia de phpseclib sin sus propiedades.' );
+		fclose( $probe );
+	} finally {
+		Digitalisimo_Backups_Sftp_Client::$internals = $saved_internals;
+	}
 	$auto = new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_engine' => 'auto' ), array() );
 	$check( 'phpseclib' === $auto->engine() && class_exists( 'Digitalisimo_Backups_Sftp_Client' ) && Digitalisimo_Backups_Sftp_Client::available(), 'Sin ssh2, el motor automático no eligió el cliente incluido.' );
 	$check( ! class_exists( 'phpseclib3\\Net\\SSH2', false ) || ! is_subclass_of( 'DigitalisimoBackups\\Vendor\\phpseclib3\\Net\\SFTP', 'phpseclib3\\Net\\SSH2' ), 'El cliente incluido no está aislado del phpseclib de otro plugin.' );
@@ -334,6 +355,56 @@ if ( '' === $sshd || '' === $keygen ) {
 		$check( ! $parts() && ! is_file( $state_path ), 'Tras publicar quedó el temporal o el estado de la subida.' );
 		@unlink( $receipt['path'] );
 		@unlink( $big );
+	} );
+
+	// Tramos con el plazo vencido (un MiB cada uno), cada uno en una conexión nueva; $before( $estado ) corre antes de cada
+	// llamada. Devuelve array( recibo, errores, llamadas ).
+	$slices = function( $big, $state_path, callable $before = null, $limit = 80 ) use ( $base, $key, $context, $sha256 ) {
+		$sliced = array( 'state' => new Digitalisimo_Backups_Transfer_State( $state_path ) ) + $context;
+		$receipt = null; $errors = array(); $calls = 0;
+		while ( ! $receipt && $calls < $limit ) {
+			$calls++;
+			if ( $before ) $before( json_decode( (string) @file_get_contents( $state_path ), true ) );
+			$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $sliced );
+			$destination->set_deadline( microtime( true ) - 1 );
+			try { $receipt = $destination->put( $big ); }
+			catch ( Digitalisimo_Backups_Transfer_Pending $e ) { continue; }
+			catch ( Exception $e ) { $errors[] = $e->getMessage(); }
+		}
+		return array( $receipt, $errors, $calls );
+	};
+
+	$case( 'o', function() use ( $check, $root, $parts, $slices ) {
+		$big = $root . '/digitalisimo-backup-alterado.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 5; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fwrite( $h, random_bytes( 999 ) ); fclose( $h );
+		$altered = false;
+		list( $receipt, $errors ) = $slices( $big, $root . '/private/transfer-o.json', function( $state ) use ( &$altered, $parts ) {
+			if ( $altered || ! is_array( $state ) || 'verify' !== ( $state['stage'] ?? '' ) || (int) ( $state['verified'] ?? 0 ) < 2097152 ) return;
+			$part = $parts();
+			$h = fopen( $part[0], 'r+b' ); fseek( $h, 10 ); fwrite( $h, 'CORRUPTO' ); fclose( $h );
+			$altered = true;
+		} );
+		$check( $altered, 'La prueba no llegó a alterar la zona ya verificada.' );
+		$check( $receipt && hash_file( 'sha256', $big ) === hash_file( 'sha256', $receipt['path'] ), 'Se publicó una copia que no es el ZIP: ' . json_encode( array( $receipt ? hash_file( 'sha256', $receipt['path'] ) : null, hash_file( 'sha256', $big ), $errors ) ) );
+		$check( (bool) preg_grep( '/cambió en el servidor|SHA-256/', $errors ), 'La alteración no se detectó: ' . json_encode( $errors ) );
+		@unlink( $receipt['path'] ); @unlink( $big );
+	} );
+
+	$case( 'p', function() use ( $check, $root, $parts, $slices ) {
+		$big = $root . '/digitalisimo-backup-renombre.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 4; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fwrite( $h, random_bytes( 777 ) ); fclose( $h );
+		$state_path = $root . '/private/transfer-p.json';
+		$last = null;
+		list( $receipt ) = $slices( $big, $state_path, function( $state ) use ( &$last ) { $last = $state; } );
+		$check( $receipt && is_file( $receipt['path'] ) && is_array( $last ), 'La primera subida no se publicó.' );
+		// Muerte justo después del renombre: vuelve el estado de la llamada anterior.
+		file_put_contents( $state_path, json_encode( $last ) );
+		$sent = (int) ( $last['sent'] ?? 0 );
+		$after = null;
+		list( $again, $errors, $calls ) = $slices( $big, $state_path, function( $state ) use ( &$after ) { if ( is_array( $state ) ) $after = $state; } );
+		$check( $again && $again['path'] === $receipt['path'] && hash_file( 'sha256', $big ) === hash_file( 'sha256', $again['path'] ) && ! $errors && $calls <= 12, 'Tras morir después del renombre la transferencia no terminó con el archivo que ya estaba: ' . json_encode( array( $again, $errors, $calls ) ) );
+		$check( ! $parts() && (int) ( $after['sent'] ?? 0 ) === $sent, 'Se volvió a subir el respaldo tras morir después del renombre.' );
+		@unlink( $receipt['path'] ); @unlink( $big );
 	} );
 
 	proc_terminate( $server );

@@ -341,19 +341,51 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 					$this->save_state( $state );
 					throw new Digitalisimo_Backups_Transfer_Pending( 'Subidos ' . self::bytes( $reached ) . ' de ' . self::bytes( $size ) . ' a SFTP; sigue en el próximo paso…' );
 				}
+				// Subida terminada: la fecha del temporal pasa a una marca propia (en el pasado y al azar). Cualquier escritura
+				// posterior la cambia, así que lo verificado no puede alterarse sin que se note (revisión N1).
+				$marker = time() - 34560000 - random_int( 0, 86400 );
+				$state['marker'] = $this->mark( $path, $marker ) ? $marker : (int) ( ( $this->stat_of( $path ) ?: array() )['mtime'] ?? 0 );
 				$state['stage'] = 'verify';
 				$state['verified'] = 0;
+				$state['hash'] = '';
 				$this->save_state( $state );
 			}
-			$have = $this->size( $temp );
-			if ( false !== $have && (int) $have !== $size ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no tiene el tamaño del ZIP local.' );
+			// El temporal ya no está: ¿murió el proceso justo después del renombre? Si el archivo final es éste (tamaño y
+			// marca), se verifica entero desde el principio y se da por publicado (revisión N2); si no, empieza de nuevo.
+			$final = rtrim( $this->directory(), '/' ) . '/' . $name;
+			$stat = $this->stat_of( $path );
+			if ( false === $stat && ! empty( $this->stat_of( $final ) ) ) {
+				$there = $this->stat_of( $final );
+				if ( $there['size'] !== $size || ( ! empty( $state['marker'] ) && $there['mtime'] !== (int) $state['marker'] ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia temporal SFTP desapareció y el archivo final no es este respaldo.' );
+				if ( empty( $state['published'] ) ) {
+					$state['published'] = true;
+					$state['verified'] = 0;
+					$state['hash'] = '';
+					$this->save_state( $state );
+				}
+				$path = $final;
+				$stat = $there;
+			}
+			$this->unchanged( $stat, $state, $size );
+			// SHA-256 de lo leído del remoto, acumulado entre tramos (PHP 8 serializa el contexto; en PHP 7.4 sólo dentro de
+			// un mismo tramo): al final se compara con el del ZIP.
+			$hash = null;
+			if ( 0 === (int) $state['verified'] ) $hash = hash_init( 'sha256' );
+			elseif ( '' !== (string) ( $state['hash'] ?? '' ) ) {
+				$restored = @unserialize( (string) base64_decode( (string) $state['hash'] ), array( 'allowed_classes' => array( 'HashContext' ) ) );
+				$hash = $restored instanceof HashContext ? $restored : null;
+			}
 			$verify = function( $done ) use ( $size ) { $this->progress( $done, $size, 'Verificados' ); };
-			$checked = $this->lib() ? $this->client()->compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify ) : $this->ssh2_compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify );
+			$checked = $this->lib() ? $this->client()->compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify, $hash ) : $this->ssh2_compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify, $hash );
 			if ( $checked < $size ) {
 				$state['verified'] = $checked;
+				try { $state['hash'] = $hash ? base64_encode( serialize( $hash ) ) : ''; } catch ( Throwable $e ) { $state['hash'] = ''; }
 				$this->save_state( $state );
 				throw new Digitalisimo_Backups_Transfer_Pending( 'Verificados ' . self::bytes( $checked ) . ' de ' . self::bytes( $size ) . ' en SFTP; sigue en el próximo paso…' );
 			}
+			if ( $hash && ! hash_equals( (string) $state['sha256'], hash_final( $hash ) ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'El SHA-256 de la copia SFTP no es el del ZIP local.' );
+			// Justo antes de publicar: nada escribió en la copia mientras se verificaba (N1).
+			$this->unchanged( $this->stat_of( $path ), $state, $size );
 		} catch ( Digitalisimo_Backups_Job_Cancelled $e ) {
 			// Cancelado: el temporal no queda en el servidor (otra sesión si la de ahora se cortó a mitad).
 			$this->drop_client();
@@ -372,10 +404,27 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			$this->drop_client();
 			throw $e;
 		}
-		$receipt = $this->publish( $temp, $name );
+		$receipt = $path === $final ? array( 'provider' => self::TYPE, 'path' => $final ) : $this->publish( $temp, $name );
 		$this->discard_stale();
 		$this->forget_state();
 		return $receipt + array( 'provider' => self::TYPE, 'connection' => (string) $this->context['connection'], 'sha256' => (string) $state['sha256'], 'size' => $size );
+	}
+	/** La copia sigue con el tamaño y la marca de la subida terminada; si no, algo la cambió y se descarta (N1). */
+	private function unchanged( $stat, array $state, $size ) {
+		if ( false === $stat ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia temporal SFTP desapareció.' );
+		if ( (int) $stat['size'] !== (int) $size ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no tiene el tamaño del ZIP local.' );
+		if ( ! empty( $state['marker'] ) && ! empty( $stat['mtime'] ) && (int) $stat['mtime'] !== (int) $state['marker'] ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP cambió en el servidor mientras se verificaba (otra escritura); se sube de nuevo.' );
+	}
+	/** Tamaño y fecha de modificación de una ruta remota de esta conexión (false si no existe). */
+	private function stat_of( $path ) {
+		if ( $this->lib() ) return $this->client()->stat_of( $path );
+		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), $path ) : @stat( $this->url( $path ) );
+		return is_array( $stat ) && isset( $stat['size'] ) ? array( 'size' => (int) $stat['size'], 'mtime' => (int) ( $stat['mtime'] ?? 0 ) ) : false;
+	}
+	/** Pone la marca de la subida terminada como fecha de modificación; false si el servidor o la extensión no lo permiten. */
+	private function mark( $path, $time ) {
+		if ( $this->lib() ) { try { return $this->client()->mark( $path, $time ); } catch ( Digitalisimo_Backups_Permanent_Error $e ) { throw $e; } catch ( Throwable $e ) { return false; } }
+		return (bool) @touch( $this->url( $path ), (int) $time, (int) $time );
 	}
 	/** Tramo de subida con la extensión ssh2: desde $offset (sin truncar) hasta $deadline o el final; devuelve lo alcanzado. */
 	private function ssh2_write_from( $file, $path, $offset, $size, $deadline, $tick ) {
@@ -411,7 +460,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		return $position;
 	}
 	/** Tramo de verificación con la extensión ssh2: compara bloque a bloque desde $offset; lanza si un bloque difiere. */
-	private function ssh2_compare_from( $file, $path, $offset, $size, $deadline, $tick ) {
+	private function ssh2_compare_from( $file, $path, $offset, $size, $deadline, $tick, $hash = null ) {
 		$handle = @fopen( $file, 'rb' );
 		$remote = @fopen( $this->url( $path ), 'rb' );
 		if ( ! $handle || ! $remote || ( $offset > 0 && ( 0 !== fseek( $handle, $offset ) || 0 !== fseek( $remote, $offset ) ) ) ) {
@@ -434,6 +483,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 					$copy .= $part;
 				}
 				if ( strlen( $local ) !== $length || ! hash_equals( $local, $copy ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no coincide con el ZIP local.' );
+				if ( $hash ) hash_update( $hash, $copy );
 				$position += $length;
 				if ( is_callable( $tick ) ) call_user_func( $tick, $position );
 			}

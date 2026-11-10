@@ -55,4 +55,9 @@ find "$dest/phpseclib3" "$dest/ParagonIE" -name '*.php' -print0 | xargs -0 perl 
 left=$(grep -rnE 'phpseclib3|ParagonIE' --include='*.php' "$dest/phpseclib3" "$dest/ParagonIE" \
   | grep -vE 'Vendor\\{1,2}(phpseclib3|ParagonIE)' | grep -vE '^[^:]+:[0-9]+:\s*(\*|//|/\*)' || true)
 if [ -n "$left" ]; then printf '%s\n' "$left" >&2; echo "Quedan nombres sin prefijo" >&2; exit 1; fi
+# Las propiedades privadas de SSH2 de las que dependen las protecciones del cliente (sin reconexión automática, clave
+# del servidor comprobada en cada operación; revisión N3). El plugin también lo comprueba al cargar y falla cerrado.
+for prop in bad_key_size_fix server_public_host_key exchange_hash signature_validated; do
+  grep -qE "(private|protected) \\\$$prop\b" "$dest/phpseclib3/Net/SSH2.php" || { echo "Falta la propiedad $prop en Net/SSH2.php: revisa Digitalisimo_Backups_Sftp_Client" >&2; exit 1; }
+done
 echo "phpseclib 3.0.58 y constant_time_encoding 2.8.2 copiados con prefijo en $dest"
