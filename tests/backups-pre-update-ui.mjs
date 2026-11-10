@@ -185,4 +185,40 @@ const failed = { success: true, data: { state: 'failed', message: 'Sin espacio' 
   assert.ok(env.confirms[0].includes('No autorizado'), 'El mensaje del servidor llega a la pregunta');
 }
 
-console.log('Respaldo antes de actualizar (pantalla): formularios, AJAX en lote, fallos, «sin respaldo» y cortes de red: OK');
+// 9. Revisión H7: «Ocultar esta actualización» y «Mostrar de nuevo» (mismo formulario) no esperan un respaldo.
+{
+  const env = setup({ server: () => { throw new Error('No debía consultar al servidor'); } });
+  assert.ok(!submit(env, form('upgrade'), { name: 'dismiss', value: 'Ocultar esta actualización' }).prevented, '«Ocultar» no espera');
+  assert.ok(!submit(env, form('upgrade'), { name: 'undismiss', value: 'Mostrar de nuevo' }).prevented, '«Mostrar de nuevo» no espera');
+  assert.equal(env.requests.length, 0);
+}
+
+// 10. Revisión H10: sin event.submitter (navegadores antiguos), el núcleo sale con el campo «upgrade» que WordPress exige.
+{
+  const env = setup({ server: () => ready });
+  const target = form('upgrade');
+  target.querySelector = (selector) => ('[name="upgrade"]' === selector ? { name: 'upgrade', value: 'Actualizar a la versión 7.0' } : null);
+  const event = submit(env, target, null);
+  assert.ok(event.prevented);
+  await settle();
+  const hidden = target.children.find((child) => child.name === 'upgrade');
+  assert.ok(env.submitted.length === 1 && hidden && hidden.value === 'Actualizar a la versión 7.0', 'Sin submitter, el formulario lleva «upgrade»');
+}
+
+// 11. Revisión H4: tras «Cancelar», la página no vuelve a pedir el respaldo ni a preguntar; cada actualización por
+// AJAX sale y el servidor responde con el motivo; un nuevo envío del formulario también sale.
+{
+  const env = setup({ server: (f) => ('start' === f.action ? failed : ready), confirm: () => false });
+  const first = env.wp.updates.ajax('update-plugin', { plugin: 'a/a.php' });
+  await settle();
+  env.wp.updates.ajax('update-plugin', { plugin: 'b/b.php' });
+  env.wp.updates.ajax('update-plugin', { plugin: 'c/c.php' });
+  await settle();
+  assert.equal(env.requests.filter((r) => 'start' === r.action).length, 1, 'Un solo «start» en el lote tras «Cancelar»');
+  assert.equal(env.confirms.length, 1, 'Una sola pregunta en el lote');
+  assert.deepEqual(env.original.map((o) => o.data.plugin), ['a/a.php', 'b/b.php', 'c/c.php'], 'Las tres salen para que el servidor dé el motivo');
+  assert.ok(await first);
+  assert.ok(!submit(env, form('upgrade-plugins'), { name: 'upgrade', value: 'Actualizar' }).prevented, 'Tras «Cancelar», el formulario sale al servidor');
+}
+
+console.log('Respaldo antes de actualizar (pantalla): formularios, AJAX en lote, fallos, «sin respaldo», cortes de red, «Ocultar», sin submitter y «Cancelar» recordado: OK');

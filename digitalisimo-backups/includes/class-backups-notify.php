@@ -153,6 +153,15 @@ final class Digitalisimo_Backups_Notify {
 	}
 	/** Las actualizaciones automáticas que esperaban un respaldo quedan pospuestas (I1). */
 	const POSTPONED = 'Las actualizaciones automáticas de WordPress, plugins y temas que esperaban este respaldo quedan pospuestas hasta que haya un respaldo válido; se reintenta en la próxima comprobación de WordPress (unas dos veces al día). Las actualizaciones manuales preguntan antes de seguir sin respaldo.';
+	/** Tope de la retención (I1): las automáticas se hacen sin respaldo previo. Avisa siempre, aunque «Fallos» esté apagado. */
+	public static function pre_update_bypassed( $reason, array $items = array() ) {
+		$lines = array( 'Motivo: ' . self::clean( (string) $reason ) );
+		if ( $items ) $lines[] = 'Actualizaciones que esperaban: ' . self::clean( implode( ', ', array_map( 'strval', $items ) ) );
+		$lines[] = 'Durante las próximas 24 horas las actualizaciones automáticas de WordPress, plugins y temas se hacen sin respaldo previo, para no dejar sin aplicar las de seguridad. Revisa por qué falla el respaldo.';
+		$snapshot = self::snapshot();
+		$snapshot['failure'] = true;
+		return self::send( $snapshot, false, 'Actualizado sin respaldo previo', $lines );
+	}
 	/** Un respaldo previo a una actualización automática que ni siquiera pudo encolarse (p. ej. cifrado sin clave). */
 	public static function pre_update_postponed( $message, array $items = array() ) {
 		$lines = array( 'Origen: respaldo antes de actualizar (WP-Cron)', 'Motivo: ' . self::clean( (string) $message ) );

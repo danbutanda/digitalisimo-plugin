@@ -6,14 +6,16 @@
  * previo: si ya hay uno reciente válido sigue enseguida; si no, el servidor lo encola y esta página lo hace avanzar
  * (cada consulta es un tick corto de la cola, dentro del límite de la petición) mostrando su avance. Cuando termina,
  * envía la actualización. Si falla, pregunta si actualizar sin respaldo: con «Aceptar», el servidor deja actualizar
- * sin respaldo unos minutos; con «Cancelar», el formulario no se envía y una actualización por AJAX la rechaza el
- * servidor con su motivo. Todo texto del servidor se pinta como texto.
+ * sin respaldo unos minutos; con «Cancelar», el formulario no se envía, la página lo recuerda (no vuelve a pedir el
+ * respaldo ni a preguntar) y cada actualización por AJAX la rechaza el servidor con el motivo del fallo, sin encolar
+ * otro respaldo. «Ocultar esta actualización» y «Mostrar de nuevo» no esperan. Todo texto del servidor se pinta como
+ * texto.
  */
 (function () {
   'use strict';
   var cfg = window.digitalisimoBackupsPreUpdate;
   if (!cfg || !cfg.types) return;
-  var state = { ready: false, pending: null };
+  var state = { ready: false, pending: null, declined: '' };
   var box = null;
   var later = function (fn, ms) { return window.setTimeout(fn, ms); };
 
@@ -41,6 +43,7 @@
   /** Promesa que se cumple con true para actualizar (respaldo listo o «sin respaldo» aceptado) o con false. */
   function ensure() {
     if (state.ready) return Promise.resolve(true);
+    if (state.declined) return Promise.resolve(false);
     if (state.pending) return state.pending;
     state.pending = new Promise(function (resolve) {
       var errors = 0;
@@ -76,6 +79,8 @@
           }, function () { say(cfg.text.declined, 'error'); resolve(false); });
           return;
         }
+        // «Cancelar» vale para el resto de la página: no se vuelve a pedir el respaldo ni a preguntar.
+        state.declined = String(message);
         say(cfg.text.declined + ' ' + String(message), 'error');
         resolve(false);
       }
@@ -90,18 +95,22 @@
     var form = event.target;
     var type = form && form.getAttribute ? forms[form.getAttribute('name')] : null;
     if (!type || !cfg.types[type] || state.ready) return;
-    event.preventDefault();
     var submitter = event.submitter || null;
+    // «Ocultar esta actualización» y «Mostrar de nuevo» (dismiss, undismiss) van en el mismo formulario: no esperan.
+    if (submitter && submitter.name && 'upgrade' !== submitter.name) return;
+    // Tras «Cancelar», un nuevo envío sale: el servidor responde con el motivo del fallo (sin encolar otro respaldo).
+    if (state.declined) return;
+    event.preventDefault();
     ensure().then(function (ok) {
       if (!ok) return;
-      // submit() no envía el botón pulsado: va como campo oculto (p. ej. «upgrade» o «reinstall»).
-      if (submitter && submitter.name) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = submitter.name;
-        input.value = submitter.value;
-        form.appendChild(input);
-      }
+      // submit() no envía el botón pulsado: va como campo oculto. Sin event.submitter (navegadores antiguos), el campo
+      // «upgrade» que WordPress exige, con el valor del botón del formulario.
+      var button = form.querySelector ? form.querySelector('[name="upgrade"]') : null;
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = submitter && submitter.name ? submitter.name : 'upgrade';
+      input.value = submitter && submitter.name ? submitter.value : (button ? button.value : '1');
+      form.appendChild(input);
       HTMLFormElement.prototype.submit.call(form);
     });
   }, true);
@@ -114,7 +123,8 @@
     var original = wp.updates.ajax;
     var wrapped = function (action) {
       var type = actions[action];
-      if (!type || !cfg.types[type] || state.ready) return original.apply(this, arguments);
+      // Ya listo, o con «Cancelar» recordado: la petición sale y el servidor responde (con el motivo del fallo).
+      if (!type || !cfg.types[type] || state.ready || state.declined) return original.apply(this, arguments);
       var self = this;
       var args = arguments;
       var deferred = $.Deferred();

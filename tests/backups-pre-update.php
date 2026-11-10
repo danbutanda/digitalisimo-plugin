@@ -375,7 +375,7 @@ try {
 	$json = json_decode( (string) end( $out ), true );
 	digi_assert( 0 === $code && 'auto' === $json['settings']['core'] && $json['fresh'], 'wp … pre-update status --format=json no da el estado: ' . implode( ' | ', $out ) );
 	list( $code, $out ) = digi_wp( 'digitalisimo-backups pre-update', 'skip', array(), array( 'minutes' => '10' ) );
-	digi_assert( 0 === $code && (bool) preg_grep( '/^Success: Las actualizaciones manuales no esperarán/', $out ), 'wp … pre-update skip no respondió: ' . implode( ' | ', $out ) );
+	digi_assert( 0 === $code && (bool) preg_grep( '/^Success: Tus actualizaciones manuales no esperarán/', $out ), 'wp … pre-update skip no respondió: ' . implode( ' | ', $out ) );
 	update_option( $P::STATE, array() );
 
 	// 16. Red: ajustes en sitemeta, respaldo de la red entera (uno de la instalación no cuenta) y un subsitio no decide.

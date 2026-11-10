@@ -257,8 +257,10 @@ final class Digitalisimo_Backups_Jobs {
 			foreach ( $jobs as $job ) {
 				if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) || ! empty( $job['lease'] ) ) continue;
 				if ( $restoring && ! self::is_restore( $job ) ) continue;
-				if ( $now - (int) $job['created_at'] > self::filter( 'digitalisimo_backups_job_expiry', self::EXPIRES_AFTER ) ) {
-					self::terminate( $job, 'failed', array( 'code' => 'expired', 'message' => 'El trabajo caducó sin terminar en 24 horas. Vuelve a iniciarlo; si se repite, revisa el cron del sistema.', 'permanent' => true ) );
+				// Un trabajo puede pedir más plazo (el respaldo antes de actualizar, en un hosting lento), nunca menos.
+				$expiry = (int) self::filter( 'digitalisimo_backups_job_expiry', max( self::EXPIRES_AFTER, (int) ( $job['spec']['expires_after'] ?? 0 ) ) );
+				if ( $now - (int) $job['created_at'] > $expiry ) {
+					self::terminate( $job, 'failed', array( 'code' => 'expired', 'message' => 'El trabajo caducó sin terminar en ' . (int) round( $expiry / 3600 ) . ' horas. Vuelve a iniciarlo; si se repite, revisa el cron del sistema.', 'permanent' => true ) );
 					continue;
 				}
 				if ( Digitalisimo_Backups_Job_Store::cancel_requested( $job['id'] ) && self::cancellable_phase( $job['phase'], $job ) ) {

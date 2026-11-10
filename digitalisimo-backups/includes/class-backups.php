@@ -1251,6 +1251,7 @@ final class Digitalisimo_Backups {
 			$path = wp_normalize_path( $entry->getPathname() );
 			if ( 0 === strpos( $path, $backup_dir ) ) continue;
 			if ( isset( $active_database_files[ $path ] ) ) continue; // database.sql es la copia lógica consistente.
+			if ( $root . '.maintenance' === $path ) continue; // El marcador de mantenimiento de una actualización en curso.
 			if ( $entry->isLink() ) {
 				// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido abajo y nunca se restaura encima.
 				if ( $root . 'wp-config.php' === $path ) continue;
@@ -1792,7 +1793,8 @@ final class Digitalisimo_Backups {
 		if ( null === $busy ) return;
 		$history = self::fresh_history();
 		$registered = array();
-		foreach ( $history as $item ) if ( empty( $item['locked'] ) && '' !== (string) ( $item['file'] ?? '' ) ) $registered[ wp_basename( (string) $item['file'] ) ] = true;
+		// Los respaldos previos a actualizar (I1) tienen su propia retención y no desplazan los del usuario.
+		foreach ( $history as $item ) if ( empty( $item['locked'] ) && '' !== (string) ( $item['file'] ?? '' ) && Digitalisimo_Backups_Pre_Update::POLICY !== (string) ( $item['policy'] ?? '' ) ) $registered[ wp_basename( (string) $item['file'] ) ] = true;
 		$files = array_merge( glob( trailingslashit( $dir ) . 'digitalisimo-*.zip' ) ?: array(), glob( trailingslashit( $dir ) . 'digitalisimo-*.dgbk' ) ?: array() );
 		usort( $files, function( $a, $b ) { return filemtime( $b ) <=> filemtime( $a ); } );
 		$rotating = array_values( array_filter( $files, function( $file ) use ( $registered ) { return isset( $registered[ wp_basename( $file ) ] ); } ) );

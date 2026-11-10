@@ -348,55 +348,87 @@ plugin o un tema hay un respaldo completo reciente y válido de la instalación 
 «Trabajos». Código: `includes/class-backups-pre-update.php` y `assets/pre-update.js`.
 
 **Respaldo reciente válido.** Completo, de esta instalación (de la red, en Multisite), creado aquí (no subido, importado
-ni una copia previa a restaurar), con fecha dentro de la antigüedad máxima (`max_age`: 1, 6, 12, 24, 48 o 168 horas; 24
-por defecto) y con su ZIP en el almacén con el tamaño registrado o, si sólo queda en el remoto, con su copia remota
-verificada. Su SHA-256 se comprobó al crearlo; aquí no se vuelve a leer el archivo. Si ya hay un respaldo completo en
-curso (manual o de una automatización), se espera a ése en vez de hacer otro.
+ni una copia previa a restaurar), sin avisos de carpetas a medias ni de archivos que faltaron (`files_changed`,
+`files_missing`), con fecha dentro de la antigüedad máxima (`max_age`: 1, 6, 12, 24, 48 o 168 horas; 24 por defecto; en
+una tienda conviene 1 a 6 h) y con su ZIP en el almacén con el tamaño registrado y la estructura sana (empieza por una
+cabecera local de ZIP y termina con el directorio central; un `.dgbk`, con la cabecera DGBK v1), o, si sólo queda en el
+remoto, con su copia remota verificada. El SHA-256 se comprobó al crearlo; aquí no se relee el archivo entero. Si ya hay
+un respaldo completo en curso (manual o de una automatización), se espera a ése en vez de hacer otro. Los respaldos
+previos tienen su propia retención (tres) y no cuentan en la retención global de los respaldos del usuario.
 
 **Ajuste por tipo.** Núcleo, plugins y temas por separado: «Manuales y automáticas» (`all`, por defecto), «Sólo
 automáticas» (`auto`) o «Nunca» (`off`). Se configuran en la tarjeta «Antes de actualizar» de la pestaña Backups, por REST
 o por WP-CLI (ver «REST y WP-CLI»). Ajustes y estado son de toda la instalación: `sitemeta` en una red, que se gestiona
-desde la administración de red o el sitio principal.
+desde la administración de red o el sitio principal. Consultar el estado (`GET /pre-update`, la tarjeta,
+`pre-update status`) sólo lee: no encola ni libera nada.
 
 **Actualizaciones automáticas.** Los filtros `auto_update_core`, `auto_update_plugin` y `auto_update_theme` (prioridad
 100, después de los de otros plugins) sólo deciden dentro de `wp_maybe_auto_update` y sólo cuando WordPress iba a
-actualizar; en las listas de plugins o en Salud del sitio no cambian nada. Sin respaldo reciente, la actualización se
-retiene (el filtro devuelve `false`) y se encola **un** trabajo `pre-update` (destino local, retención propia de tres): la
-petición no espera ni hace el respaldo, que avanza por ticks (WP-Cron, la pantalla, REST o WP-CLI) con el presupuesto de
-siempre, por debajo de los 30 s del hosting. Al terminar bien, el tick vuelve a programar `wp_maybe_auto_update` y la
-siguiente pasada actualiza sin otro respaldo. Si el respaldo falla o se cancela, las actualizaciones quedan **pospuestas**:
-no se relanza nada, el aviso de fallo de Backups añade que están pospuestas y la siguiente comprobación de WordPress (unas
-dos veces al día) vuelve a intentar el respaldo; un respaldo completo válido hecho entretanto (manual o de una
-automatización) las libera en el siguiente tick. Si ni siquiera puede encolarse (por ejemplo, el cifrado activo sin
-clave), se posponen igual y llega un correo propio, como mucho uno cada 12 horas. Un núcleo retenido no manda el correo
-de WordPress «hay una versión nueva»: el aviso es el de Backups. En la red, sólo decide el sitio principal (donde WordPress
-corre las automáticas) y el respaldo abarca la red entera.
+actualizar; en las listas de plugins o en Salud del sitio no cambian nada, y nunca convierten un «no» en «sí». Sin respaldo
+reciente, la actualización se retiene (el filtro devuelve `false`) y se encola **un** trabajo `pre-update` (destino local):
+la petición no espera ni hace el respaldo, que avanza por ticks (WP-Cron, la pantalla, REST o WP-CLI) con el presupuesto
+de siempre, por debajo de los 30 s del hosting, y que caduca a las 72 h en vez de a las 24 h del motor (un hosting lento
+con poco cron). Al terminar bien, el tick vuelve a programar `wp_maybe_auto_update` y la siguiente pasada actualiza sin
+otro respaldo. Si el respaldo falla o se cancela, las actualizaciones quedan **pospuestas**: no se relanza nada, el aviso
+de fallo de Backups añade que están pospuestas y la siguiente comprobación de WordPress (unas dos veces al día) vuelve a
+intentar el respaldo; un respaldo completo válido hecho entretanto las libera en el siguiente tick. Si ni siquiera puede
+encolarse (por ejemplo, el cifrado activo sin clave), se posponen igual y llega un correo propio, como mucho uno cada 12
+horas.
+
+- **Tope.** Con **48 h** desde la primera retención o **dos respaldos previos fallidos seguidos**, WordPress actualiza
+  igual: se abre una ventana de 24 h en la que las automáticas no esperan ni se reintenta el respaldo previo, y llega el
+  correo «Actualizado sin respaldo previo» con el motivo y lo que esperaba, **aunque los avisos de fallos estén
+  apagados**.
+- **Nunca se retienen** el núcleo menor de la misma rama (`x.y.z` → `x.y.z+1`, las de seguridad), lo que WordPress.org
+  fuerza (`autoupdate`) ni el propio Backups (la única vía para recibir el arreglo de un fallo de Backups; tampoco espera
+  en una actualización manual). El filtro `digitalisimo_backups_pre_update_exempt` permite añadir otras.
+- **Aviso fijo** en el escritorio (sitio y red), para quien gestiona los respaldos, mientras haya automáticas en espera o
+  pospuestas y durante la ventana sin respaldo; no depende del correo.
+- El correo de WordPress «hay una versión nueva» del núcleo sólo se calla mientras el primer respaldo está en marcha; con
+  las actualizaciones ya pospuestas, WordPress avisa como siempre.
+- En la red, sólo decide el sitio principal (donde WordPress corre las automáticas) y el respaldo abarca la red entera.
 
 **Actualizaciones manuales.** En Escritorio → Actualizaciones, Plugins y Temas (también los de la red),
-`assets/pre-update.js` retiene el formulario o la actualización por AJAX (`wp.updates.ajax`, también en lote) de un tipo
-con `all`, pide el respaldo previo y, si hace falta, lo hace avanzar mostrando su avance (cada consulta es un tick corto
-dentro del límite de la petición); al terminar, envía la actualización. Si falla, pregunta si actualizar sin respaldo: con
-«Aceptar», el servidor deja actualizar sin respaldo durante 15 minutos (`skip`); con «Cancelar», el formulario no sale y
-una actualización por AJAX la rechaza el servidor con su motivo. En el servidor, `upgrader_pre_download` es la garantía
-para cualquier otro camino (sin JavaScript, un enlace directo de `update.php`): sin respaldo reciente, encola el respaldo
-y rechaza esa actualización con un error que explica que el respaldo está en marcha y dónde seguirlo. En WP-CLI
-(`wp core update`, `wp plugin update`, `wp theme update`) el respaldo corre en el mismo proceso, sin límite de tiempo, con
-su avance en la salida; si falla, la actualización se rechaza con el motivo hasta `wp digitalisimo-backups pre-update
-skip`. Instalar algo nuevo y las traducciones no esperan. «Actualizar sin respaldo» nunca deja pasar una automática.
+`assets/pre-update.js` retiene el botón «Actualizar» de los formularios (no «Ocultar esta actualización» ni «Mostrar de
+nuevo») y la actualización por AJAX (`wp.updates.ajax`, también en lote) de un tipo con `all`, pide el respaldo previo y, si
+hace falta, lo hace avanzar mostrando su avance (cada consulta es un tick corto dentro del límite de la petición); al
+terminar, envía la actualización (sin `event.submitter`, con el campo `upgrade` que WordPress exige). Si falla, pregunta
+si actualizar sin respaldo: con «Aceptar», el servidor deja actualizar sin respaldo durante 15 minutos (`skip`); con
+«Cancelar», el formulario no sale y la página lo recuerda: no vuelve a pedir el respaldo ni a preguntar, y cada
+actualización por AJAX (o un nuevo envío) la rechaza el servidor con el motivo del fallo, sin encolar otro respaldo. En el
+servidor, `upgrader_pre_download` es la garantía para cualquier otro camino (sin JavaScript, un enlace directo de
+`update.php`): sin respaldo reciente, encola el respaldo y rechaza esa actualización con un error que explica que el
+respaldo está en marcha y dónde seguirlo; si el respaldo previo falló hace menos de 15 minutos, responde con ese motivo sin
+encolar otro (lo reintentan «Crear el respaldo previo» en la pantalla, `POST /pre-update/backup` o `pre-update run`).
+Instalar algo nuevo y las traducciones no esperan. «Actualizar sin respaldo» vale sólo para la cuenta que lo pidió (en
+WP-CLI sin `--user`, la cuenta 0), queda en el registro con la cuenta y nunca deja pasar una automática.
 
-**Pruebas.** `tests/backups-pre-update.php` (motor real), `tests/backups-pre-update-ui.mjs` (el script) y el ensayo
+**WP-CLI.** En `wp core update`, `wp plugin update` y `wp theme update`, el respaldo previo se hace en `before_invoke`,
+antes de que el actualizador ponga el sitio en mantenimiento, y sólo si hay algo que actualizar (sin contar Backups),
+en el mismo proceso, sin límite de tiempo y con su avance en la salida. La guarda de cada elemento nunca respalda con
+`.maintenance` presente (los visitantes verían un 503): sin respaldo reciente, rechaza con el motivo. Si el respaldo
+falla, el motivo queda para todo el proceso: cada elemento del lote se rechaza con él, sin otro respaldo, hasta
+`wp digitalisimo-backups pre-update skip`. Con `--url` de un subsitio, el respaldo, la cola y el historial son los del
+sitio principal, y la espera termina con el motivo si el respaldo no avanza en 20 minutos. El marcador `.maintenance` de
+la raíz nunca entra en un respaldo.
+
+**Pruebas.** `tests/backups-pre-update.php` y `tests/backups-pre-update-review.php` (motor real; la segunda, los
+hallazgos de la revisión adversaria), `tests/backups-pre-update-ui.mjs` (el script) y el ensayo
 `tests/playground/backups-pre-update.sh` en un WordPress real, individual y en red, con los actualizadores de WordPress y
 un plugin de prueba con paquetes locales: `Plugin_Upgrader` se rechaza hasta que la cola termina el respaldo y después
 actualiza; `wp_maybe_auto_update` real retiene la automática, la cola respalda, vuelve a programarse y la pasada
 siguiente actualiza sin otro respaldo; con el respaldo fallido queda pospuesta con correo y la siguiente pasada lo
-reintenta.
+reintenta; con dos fallos seguidos actualiza igual; el núcleo menor no espera; `bulk_upgrade()` de un plugin activo
+desde WP-CLI no respalda con el sitio en mantenimiento, y desde un subsitio el respaldo es el del sitio principal.
 
-**Límites.** La validez del respaldo reciente se mira por fecha, tamaño y copia remota verificada, sin releer su
-SHA-256. Las automáticas sólo se retienen dentro de `wp_maybe_auto_update` (WP-Cron o `wp cron event run`); un plugin que
-llame directamente a `WP_Automatic_Updater::run()` fuera de esa acción no pasa por aquí (el filtro
-`digitalisimo_backups_pre_update_auto_context` lo permite). Reemplazar un plugin o un tema subiendo un ZIP («Reemplazar
-el actual con el subido») cuenta como instalación y no espera. Las pospuestas no tienen un plazo máximo: siguen retenidas
-mientras el respaldo falle, con un aviso por cada intento fallido.
+**Límites.** La validez del respaldo reciente se mira por fecha, tamaño, estructura del ZIP y copia remota verificada, sin
+releer su SHA-256. Las automáticas sólo se retienen dentro de `wp_maybe_auto_update` (WP-Cron o `wp cron event run`); un
+plugin que llame directamente a `WP_Automatic_Updater::run()` fuera de esa acción no pasa por aquí (el filtro
+`digitalisimo_backups_pre_update_auto_context` lo permite), y un plugin que se actualice a sí mismo fuera de esa acción
+cuenta como manual. Reemplazar un plugin o un tema subiendo un ZIP («Reemplazar el actual con el subido») cuenta como
+instalación y no espera. Los gestores remotos (MainWP, ManageWP, Jetpack) ven el rechazo con el motivo hasta que el cron
+termina el respaldo. `plugin-install.php` y el personalizador no cargan el script: su «Actualizar» lo frena el servidor
+con el motivo, sin la espera con avance. En WP-CLI, `--dry-run` también hace el respaldo previo.
 
 ## Restaurar en otro dominio
 

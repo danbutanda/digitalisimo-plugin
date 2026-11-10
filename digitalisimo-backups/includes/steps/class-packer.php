@@ -192,6 +192,8 @@ final class Digitalisimo_Backups_Packer {
 				$rel = $prefix . $name;
 				if ( 0 === strpos( $path . '/', $context['backup'] ) ) continue;
 				if ( isset( $context['sqlite'][ $path ] ) ) continue; // database.sql es la copia lógica consistente.
+				// El marcador de mantenimiento de una actualización en curso: restaurarlo dejaría el sitio fuera de servicio.
+				if ( '' === $prefix && '.maintenance' === $name ) continue;
 				if ( is_link( $path ) ) {
 					// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido al final del inventario.
 					if ( $root . 'wp-config.php' === $path ) continue;

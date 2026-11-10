@@ -11,7 +11,11 @@
  *       siguiente pasada actualiza sin otro respaldo;
  *   U3  fallo: con el respaldo fallido la automática queda pospuesta, llega el correo y no se programa otra pasada; la
  *       siguiente pasada lo reintenta, y con el respaldo bien, actualiza;
- *   U4  REST real: GET /pre-update como administrador (de la red, en Multisite).
+ *   U4  REST real: GET /pre-update como administrador (de la red, en Multisite);
+ *   U5  WP-CLI (revisión H2): bulk_upgrade() de un plugin activo; el respaldo va antes del actualizador y nunca con el
+ *       sitio en mantenimiento; sin él, la guarda rechaza sin respaldar;
+ *   U6  red (revisión H3): desde un subsitio, el respaldo, la cola y el historial son del sitio principal;
+ *   U7  tope (revisión H1): con dos respaldos previos fallidos seguidos la automática se hace igual, con su correo.
  */
 define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', '/var/digitalisimo-backups-probe' );
 require '/wordpress/wp-load.php';
@@ -138,6 +142,75 @@ try {
 	$drive();
 	$auto_pass( '4.0' );
 	$check( '4.0' === $version() && ! $P::service_status()['postponed'], 'U3 con el reintento bien, la automática actualizó a 4.0' );
+
+	// U5 · WP-CLI con bulk_upgrade() de un plugin ACTIVO (el actualizador pone el sitio en mantenimiento): el respaldo va
+	// antes (before_invoke) y nunca con .maintenance presente; sin él, la guarda rechaza sin respaldar en mantenimiento.
+	$P::$cli = true;
+	$P::$sleep = function() { static $spins = 0; if ( ++$spins > 400 ) throw new RuntimeException( 'La espera de WP-CLI no avanza.' ); };
+	wp_clean_plugins_cache( false );
+	$activated = activate_plugin( $file, '', is_multisite() );
+	if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó digi-demo: ' . $activated->get_error_message() );
+	$in_maintenance = array();
+	$J::$phase_runner = function( $phase, $job ) use ( &$in_maintenance ) {
+		$in_maintenance[ $phase ] = file_exists( ABSPATH . '.maintenance' );
+		return Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
+	};
+	$age();
+	$offer( '5.0' );
+	$P::cli_before( 'plugin' );
+	$check( $P::fresh() && $in_maintenance && ! array_filter( $in_maintenance ), 'U5 before_invoke hizo el respaldo previo antes del actualizador, sin mantenimiento (fases: ' . implode( ', ', array_keys( $in_maintenance ) ) . ')' );
+	$in_maintenance = array();
+	$skin = new WP_Ajax_Upgrader_Skin();
+	( new Plugin_Upgrader( $skin ) )->bulk_upgrade( array( $file ) );
+	$check( '5.0' === $version() && ! $in_maintenance && ! $skin->get_errors()->has_errors(), 'U5 bulk_upgrade() de un plugin activo actualizó a 5.0 sin otro respaldo' );
+	$age();
+	$offer( '6.0' );
+	$skin = new WP_Ajax_Upgrader_Skin();
+	( new Plugin_Upgrader( $skin ) )->bulk_upgrade( array( $file ) );
+	$message = (string) $skin->get_errors()->get_error_message( 'digitalisimo_backups_pre_update' );
+	$check( '5.0' === $version() && ! $in_maintenance && false !== strpos( $message, 'mantenimiento' ) && ! file_exists( ABSPATH . '.maintenance' ), 'U5 sin respaldo previo, la guarda rechazó sin respaldar con el sitio en mantenimiento (' . $message . ')' );
+	$J::$phase_runner = null;
+	$P::$cli_failure = null;
+	deactivate_plugins( $file, true, is_multisite() );
+
+	// U6 · red: WP-CLI con --url de un subsitio (switch_to_blog): el respaldo, la cola y el historial son del principal.
+	if ( is_multisite() ) {
+		$sub = wp_insert_site( array( 'domain' => 'playground.test', 'path' => '/uno/', 'title' => 'Uno', 'user_id' => 1 ) );
+		if ( is_wp_error( $sub ) ) throw new RuntimeException( 'No se creó el subsitio: ' . $sub->get_error_message() );
+		$age();
+		$offer( '7.0' );
+		switch_to_blog( (int) $sub );
+		$skin = new WP_Ajax_Upgrader_Skin();
+		( new Plugin_Upgrader( $skin ) )->upgrade( $file );
+		$errors = $skin->get_errors();
+		$fresh_here = $P::fresh();
+		restore_current_blog();
+		$row = $last();
+		$check( ! $errors->has_errors() && '7.0' === $version() && 'pre-update' === ( $row['policy'] ?? '' ) && 'network' === ( $row['scope'] ?? '' ) && $fresh_here, 'U6 desde el subsitio, WP-CLI hizo el respaldo de la red en el principal y actualizó a 7.0 (' . ( $row['file'] ?? '' ) . ')' );
+	}
+	$P::$cli = false;
+
+	// U7 · tope: dos respaldos previos fallidos seguidos y la tercera pasada actualiza igual, con el correo.
+	$age();
+	$mails = array();
+	$J::$phase_runner = function( $phase, $job ) {
+		if ( 'database' === $phase ) throw new Digitalisimo_Backups_Permanent_Error( 'Fallo simulado de la sonda.' );
+		return Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
+	};
+	$target = is_multisite() ? '8.0' : '7.0';
+	for ( $i = 0; $i < 2; $i++ ) {
+		$auto_pass( $target );
+		$drive();
+		$state = get_site_option( $P::STATE ) ?: get_option( $P::STATE );
+		if ( is_multisite() ) { $state['failed_at'] = time() - 3600; update_site_option( $P::STATE, $state ); } else { $state['failed_at'] = time() - 3600; update_option( $P::STATE, $state, false ); }
+	}
+	$before = $version();
+	$auto_pass( $target );
+	$subjects = implode( ' | ', array_map( function( $mail ) { return (string) $mail['subject']; }, $mails ) );
+	$check( $target === $version() && $before !== $target && false !== strpos( $subjects, 'Actualizado sin respaldo previo' ), 'U7 tras dos respaldos previos fallidos seguidos, la automática se hizo igual (' . $target . ') y llegó «Actualizado sin respaldo previo»' );
+	$J::$phase_runner = null;
+	delete_site_option( $P::STATE );
+	delete_option( $P::STATE );
 
 	// U4 · REST real.
 	$response = rest_do_request( new WP_REST_Request( 'GET', '/digitalisimo-backups/v1/pre-update' ) );
