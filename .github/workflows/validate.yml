@@ -337,6 +337,7 @@ jobs:
           php tests/backups-cli-verify.php
           php tests/backups-upload-retention.php
           php tests/backups-upload-cli.php
+          php tests/backups-backuply-import.php
           php tests/backups-updater.php
           php tests/backups-memory-64m.php
           php tests/backups-e2-findings.php

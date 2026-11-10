@@ -40,6 +40,10 @@ defined( 'ABSPATH' ) || exit;
  *                                           (`registered`) y de otro sitio (`importable`, sin verificar)
  * - POST /destinations/<id>/backups/<nombre>/fetch  lo trae al almacén por fragmentos y lo comprueba (`network`): 200
  *                                           con el resultado, 202 con el trabajo si sigue; después, POST …/restore
+ * - GET  /backuply                          si Backuply está en el sitio y sus respaldos que se pueden importar
+ * - POST /backuply/import                   importa un respaldo de Backuply (`name`, `source`): 202 con el trabajo
+ * - POST /backuply/fetch                    trae al almacén un respaldo de Backuply de un destino (`connection`, `name`)
+ * - DELETE /backuply/<nombre>               borra un respaldo de Backuply del almacén privado (no los de su carpeta)
  *
  * - GET  /migration                         estado de la migración: claves (sin secretos), registro, la que se puede deshacer
  * - POST /migration/keys                    genera una clave de migración (`hours`, `network`): 201, la clave sólo esta vez
@@ -128,6 +132,11 @@ final class Digitalisimo_Backups_Rest {
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups', array( $route( 'GET', 'remote_backups' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)/fetch', array( $route( 'POST', 'remote_fetch', array( 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply', array( $route( 'GET', 'backuply' ) ) );
+		$backuply_name = array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del respaldo de Backuply (.tar.gz), como aparece en GET /backuply o en el destino.' );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/import', array( $route( 'POST', 'backuply_import', array( 'name' => $backuply_name, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'backuply', 'store' ), 'description' => 'backuply (la carpeta de Backuply de este sitio) o store (el almacén privado); vacío lo busca en los dos.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]{0,190}\.tar\.gz)', array( $route( 'DELETE', 'backuply_delete' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/fetch', array( $route( 'POST', 'backuply_fetch', array( 'name' => $backuply_name, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
 		// Migración: administración (la misma capability que la pantalla).
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys', array( $route( 'POST', 'migration_create_key', array( 'hours' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Migrate::DEFAULT_HOURS, 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Migrate::MAX_HOURS, 'description' => 'Horas hasta que caduca la clave.' ), 'network' => $network ) ) ) );
@@ -322,6 +331,14 @@ final class Digitalisimo_Backups_Rest {
 		if ( is_wp_error( $secret ) ) return $secret;
 		return self::respond( Digitalisimo_Backups::service_upload_finish( (string) $request['id'], array( 'secret' => $secret ) ) );
 	}
+	/** Si Backuply está en el sitio y los respaldos suyos que se pueden importar (sin rutas). */
+	public static function backuply( $request ) { return self::respond( Digitalisimo_Backups::service_backuply() ); }
+	/** Encola la importación de un respaldo de Backuply: 202 con el trabajo. */
+	public static function backuply_import( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_import( (string) $request['name'], array( 'source' => (string) $request['source'], 'via' => 'rest' ) ), 202 ); }
+	/** Borra un respaldo de Backuply del almacén privado. */
+	public static function backuply_delete( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_delete( (string) $request['name'] ) ); }
+	/** Trae al almacén un respaldo de Backuply que está en un destino remoto. */
+	public static function backuply_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_fetch( (string) $request['connection'], (string) $request['name'] ) ); }
 	public static function upload_cancel( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_cancel( (string) $request['id'] ) );
 	}

@@ -180,7 +180,8 @@ function wp_cache_flush() { return true; }
 function current_time( $format ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_basename( $path ) { return basename( $path ); }
 function sanitize_title( $value ) { return trim( preg_replace( '/[^a-z0-9-]+/', '-', strtolower( $value ) ), '-' ); }
-function sanitize_file_name( $value ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', str_replace( array( '/', '\\' ), '', (string) $value ) ); }
+// Una prueba puede traer antes el sanitize_file_name() real de WordPress (backups-backuply-import.php).
+if ( ! function_exists( 'sanitize_file_name' ) ) { function sanitize_file_name( $value ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', str_replace( array( '/', '\\' ), '', (string) $value ) ); } }
 function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
 function sanitize_text_field( $value ) { return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $value ) ) ); }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
