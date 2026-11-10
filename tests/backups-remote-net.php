@@ -15,6 +15,7 @@ define( 'WP_CONTENT_DIR', $root . '/public/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/public/wp-content/plugins' );
 define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $root . '/private' );
 require __DIR__ . '/backups-coverage/env.php';
+require __DIR__ . '/lib/destination-fakes.php';
 $server = null;
 try {
 	if ( ! Digitalisimo_Backups_Http::curl_available() ) { echo "OMITIDA: este PHP no tiene cURL.\n"; return; }
@@ -66,7 +67,22 @@ try {
 	$took = microtime( true ) - $started;
 	digi_assert( '' !== $error && $took < 10, 'Un fragmento esperó ' . round( $took, 1 ) . ' s con 5 s de tramo: ' . $error );
 
-	echo "OK: fragmentos por HTTP real con tope de bytes y tiempo del tramo (C2, C3)\n";
+	// C3 en FTP (sin rangos: el archivo entero desde 0): con 70 000 bytes listados, un servidor que manda 20 MiB se corta
+	// en cuanto pasa del total y no deja nada en disco.
+	Bk_Fake_Ftp::install();
+	Bk_Fake_Ftp::reset( 'explicit' );
+	Bk_Fake_Ftp::$dirs['/respaldos'] = true;
+	Bk_Fake_Ftp::$files['/respaldos/x.zip'] = str_repeat( "\0", 20 << 20 );
+	$ftp = new Digitalisimo_Backups_Destination_Ftp( array( 'ftp_host' => 'ftp.ejemplo.test', 'ftp_port' => '21', 'ftp_security' => 'explicit', 'ftp_user' => 'respaldos', 'ftp_password' => 'Ftp-Clave-1', 'ftp_path' => '/respaldos', 'ftp_passive' => 'passive' ), array( 'connection' => 'ftp' ) );
+	@unlink( $piece );
+	Bk_Fake_Ftp::$served = 0;
+	$error = '';
+	try { $ftp->get_range( array( 'provider' => 'ftp', 'path' => '/respaldos/x.zip' ), $piece, 0, 20 << 20, array( 'total' => 70000, 'timeout' => 30 ) ); } catch ( Exception $e ) { $error = get_class( $e ) . ': ' . $e->getMessage(); }
+	digi_assert( '' !== $error && ! is_file( $piece ) && Bk_Fake_Ftp::$served < 1048576, 'FTP escribió ' . $size() . ' bytes (y leyó ' . Bk_Fake_Ftp::$served . ') de un servidor que envía de más: ' . $error );
+	// Un archivo que sí mide lo listado llega entero.
+	Bk_Fake_Ftp::$files['/respaldos/x.zip'] = str_repeat( 'F', 70000 );
+	digi_assert( 70000 === $ftp->get_range( array( 'provider' => 'ftp', 'path' => '/respaldos/x.zip' ), $piece, 0, 70000, array( 'total' => 70000 ) ) && str_repeat( 'F', 70000 ) === file_get_contents( $piece ), 'FTP no trajo entero un archivo del tamaño listado.' );
+	echo "OK: fragmentos por HTTP real y FTP con tope de bytes y tiempo del tramo (C2, C3)\n";
 } finally {
 	if ( is_resource( $server ) ) { proc_terminate( $server ); @proc_close( $server ); }
 	digi_rmtree( $root );

@@ -387,6 +387,8 @@ final class Bk_Fake_Ftp {
 	public static $pasv_ip = '10.0.0.7';
 	public static $faults = array();
 	public static $connected = array();
+	/** Bytes que el canal de datos entregó al cliente (para comprobar que corta a tiempo). */
+	public static $served = 0;
 	private static $pending = null;
 	private static $rename = null;
 	private static $port = 50000;
@@ -516,6 +518,7 @@ final class Bk_Fake_Ftp_Stream {
 			if ( ! $this->data_sent ) { $this->out = Bk_Fake_Ftp::data_out(); $this->data_sent = true; }
 			$chunk = substr( $this->out, 0, $count );
 			$this->out = (string) substr( $this->out, $count );
+			Bk_Fake_Ftp::$served += strlen( $chunk );
 			return $chunk;
 		}
 		// Una línea por lectura, como fgets sobre un socket.

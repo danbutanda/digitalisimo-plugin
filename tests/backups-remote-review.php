@@ -150,6 +150,13 @@ try {
 	list( $c2, $r2 ) = digi_rest( 'POST', $ns . '/destinations/webdav/backups/' . $other . '/fetch' );
 	list( $c3, $out ) = digi_wp( 'digitalisimo-backups destinations', 'fetch', array( $other ), array( 'from' => 'webdav' ) );
 	digi_assert( 200 === $c1 && 200 === $c2 && 0 === $c3 && $before === $copies( $osha ) && $restored_from === $r1['file'] && ! empty( $r2['deduplicated'] ) && false !== strpos( implode( "\n", $out ), 'No se guardó otra copia' ), 'Traer otra vez el mismo respaldo lo duplicó: ' . json_encode( array( 'antes' => $before, 'después' => $copies( $osha ), 'r1' => $r1['file'] ?? null, 'r2' => $r2 ) ) );
+	// Traer otra vez lo ya traído renueva su plazo: con 6 días cumplidos, vuelve a contar desde ahora.
+	$records = get_option( $B::FETCHED, array() );
+	$records[ $restored_from ]['at'] = time() - 6 * 86400;
+	update_option( $B::FETCHED, $records );
+	list( $c4, $r4 ) = digi_rest( 'POST', $ns . '/destinations/webdav/backups/' . $other . '/fetch' );
+	$renewed = (int) ( get_option( $B::FETCHED, array() )[ $restored_from ]['at'] ?? 0 );
+	digi_assert( 200 === $c4 && ! empty( $r4['deduplicated'] ) && $renewed >= time() - 60, 'Traer otra vez lo ya traído no renovó su plazo de 7 días: ' . json_encode( array( 'at' => $renewed, 'r4' => $r4['file'] ?? null ) ) );
 	// Retención: pasados 7 días, lo traído «sin registro» que nadie usa se borra; nunca un archivo subido a mano.
 	file_put_contents( $store . '/digitalisimo-upload-20261101-000000-aaaaaaaa.zip', $impostor_bytes );
 	$records = get_option( $B::FETCHED, array() );

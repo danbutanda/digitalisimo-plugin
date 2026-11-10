@@ -629,7 +629,8 @@ trait Digitalisimo_Backups_Remote_Service {
 			return array( $target, false );
 		} );
 		list( $file, $deduplicated ) = $placed;
-		if ( '' === $registered && ! $deduplicated ) self::fetched_remember( $file, $sha256, (string) $fetch['connection'], $name );
+		// Traer otra vez lo que ya estaba (sin fila) renueva su plazo en el almacén.
+		if ( '' === $registered && ( ! $deduplicated || isset( self::fetched_records()[ $file ] ) ) && ! self::history_item( $file ) ) self::fetched_remember( $file, $sha256, (string) $fetch['connection'], $name );
 		$from = self::destination_label( (string) $fetch['connection'] );
 		if ( $deduplicated ) $message = 'Ese respaldo de ' . $from . ' ya estaba en el almacén privado con el mismo contenido (tamaño y SHA-256): ' . $file . '. No se guardó otra copia.';
 		elseif ( '' !== $registered ) $message = 'Copia de ' . $from . ' descargada al almacén privado y verificada por el SHA-256 de su historial: ' . $file . '. Ya se puede restaurar.';
