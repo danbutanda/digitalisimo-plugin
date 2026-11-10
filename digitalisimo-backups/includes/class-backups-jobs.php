@@ -234,8 +234,8 @@ final class Digitalisimo_Backups_Jobs {
 			} while ( microtime( true ) - $start < $budget );
 			// Subidas interrumpidas por un fallo o una cancelación: se retiran del destino fuera del cerrojo del registro.
 			Digitalisimo_Backups::job_transfer_abandon_pending();
-			// Copias remotas que la retención retiró (B6): también fuera del cerrojo, con esperas cortas.
-			Digitalisimo_Backups::job_remote_retention_pending();
+			// Copias remotas que la retención retiró (B6): con el cerrojo de operaciones de este tick, con esperas cortas.
+			Digitalisimo_Backups::job_remote_retention_pending( 5, true );
 			if ( $finished ) Digitalisimo_Backups_Job_Store::prune();
 		} catch ( Throwable $e ) {
 			$result = 'error';
@@ -715,7 +715,7 @@ final class Digitalisimo_Backups_Jobs {
 			try {
 				self::recover();
 				Digitalisimo_Backups::job_transfer_abandon_pending();
-				Digitalisimo_Backups::job_remote_retention_pending();
+				Digitalisimo_Backups::job_remote_retention_pending( 5, true );
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
 				// Subidas de respaldos sin actividad durante 24 h.

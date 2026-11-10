@@ -137,9 +137,10 @@ trait Digitalisimo_Backups_Service {
 			'consistency' => (string) ( $item['consistency'] ?? '' ),
 			'notices' => array_values( array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ),
 			// «Sólo en el remoto» (I4): el ZIP local se borró a propósito; restaurar exige traerlo (fetch).
-			'remote_only' => 'remote-only' === ( $item['local'] ?? '' ),
+			// Tras «Traer al almacén» el ZIP vuelve a estar aquí: ya no es «sólo en el remoto» (revisión P6).
+			'remote_only' => 'remote-only' === ( $item['local'] ?? '' ) && ! $available,
 			// Retención en el remoto (B6): pending (se borrará), failed (no se pudo; con el motivo) o vacío.
-			'remote_retention' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['state'] ?? '' ),
+			'remote_retention' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['state'] ?? ( '' !== (string) ( $item['remote_foreign'] ?? '' ) ? 'foreign' : '' ) ),
 			'remote_retention_error' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['error'] ?? '' ),
 		);
 	}

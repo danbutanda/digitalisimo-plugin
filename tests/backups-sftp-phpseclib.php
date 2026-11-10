@@ -13,7 +13,16 @@
  *   (f) memoria acotada: con memory_limit=64M sube y descarga un archivo de 72 MiB, aunque otro plugin haya definido
  *       NET_SSH2_LOGGING (registro de cada paquete en memoria) y cargado su propio phpseclib3 sin prefijo;
  *   (g) cancelar a mitad de la subida no deja el temporal en el servidor;
- *   (h) el motor «ssh2» forzado sin la extensión da un mensaje claro.
+ *   (h) el motor «ssh2» forzado sin la extensión da un mensaje claro;
+ *   (i) revisión H1, atacante en medio (tests/backups-sftp/mitm-proxy.php): deja pasar la primera conexión al servidor
+ *       real volteando un bit del largo del primer paquete cifrado y manda las siguientes a un impostor con otra clave.
+ *       Con un servidor que sólo ofrece aes256-ctr, el cliente no conecta (no negocia los cifrados que activan la
+ *       reconexión automática de phpseclib); con aes256-ctr y aes128-ctr, negocia aes128-ctr, el bit roto corta la
+ *       sesión y nunca reconecta. En los dos casos el impostor no recibe nada: ni contraseña ni clave ni respaldo;
+ *   (j) si la clave del servidor de la sesión cambia después de conectar, la siguiente operación se corta sin hacer nada;
+ *   (k) revisión P3: un servidor que sólo ofrece hmac-md5 no se acepta;
+ *   (l) revisión P1: un borrado que falla por permisos (y stat tampoco ve el archivo) es un error, no «ya no existe»;
+ *   (m) revisión P2: sin OpenSSL el cliente incluido no sube un respaldo grande y la pantalla lo avisa.
  * Sin sshd/ssh-keygen sólo corren los casos sin servidor, salvo en la CI (CI=true, el workflow lo instala) o con
  * BK_REQUIRE_SSHD=1.
  */
@@ -184,6 +193,104 @@ if ( '' === $sshd || '' === $keygen ) {
 		try { ( new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $cancel ) )->put( $file ); throw new LogicException( 'No se canceló.' ); }
 		catch ( Digitalisimo_Backups_Job_Cancelled $e ) { $check( true, '' ); }
 		$check( ! $parts() && ! glob( $root . '/remote/backups/*' ), 'Cancelar a mitad dejó archivos en el servidor: ' . json_encode( glob( $root . '/remote/backups/*' ) ) );
+	} );
+
+	// Arranca otro sshd sin privilegios con su clave de host y $extra en la configuración. Devuelve array( proceso, puerto ).
+	$sshd_with = function( $name, $extra ) use ( $sshd, $k, $run ) {
+		$run( 'ssh-keygen -q -t ed25519 -N "" -f ' . escapeshellarg( $k . '/' . $name . '_host' ) );
+		$socket = stream_socket_server( 'tcp://127.0.0.1:0' );
+		$port = (int) substr( strrchr( stream_socket_get_name( $socket, false ), ':' ), 1 );
+		fclose( $socket );
+		file_put_contents( $k . '/' . $name . '.conf', "Port $port\nListenAddress 127.0.0.1\nHostKey $k/{$name}_host\nPidFile $k/$name.pid\nAuthorizedKeysFile $k/authorized_keys\nPasswordAuthentication yes\nKbdInteractiveAuthentication no\nUsePAM no\nStrictModes no\nSubsystem sftp internal-sftp\nLogLevel VERBOSE\n" . $extra );
+		$proc = proc_open( array( $sshd, '-D', '-e', '-f', $k . '/' . $name . '.conf' ), array( 0 => array( 'file', '/dev/null', 'r' ), 1 => array( 'file', $k . '/' . $name . '.log', 'a' ), 2 => array( 'file', $k . '/' . $name . '.log', 'a' ) ), $pipes );
+		register_shutdown_function( function() use ( $proc ) { if ( is_resource( $proc ) ) { @proc_terminate( $proc ); @proc_close( $proc ); } } );
+		for ( $i = 0; $i < 100 && ! @fsockopen( '127.0.0.1', $port, $errno, $errstr, 0.2 ); $i++ ) usleep( 100000 );
+		return array( $proc, $port );
+	};
+	$host_sha256 = function( $name ) use ( $fingerprint, $k ) { return $fingerprint( $k . '/' . $name . '_host.pub', 'sha256' ); };
+
+	$case( 'i', function() use ( $check, $base, $key, $context, $file, $root, $k, $sshd_with, $host_sha256 ) {
+		list( $impostor, $port_b ) = $sshd_with( 'impostor', '' );
+		foreach ( array( 'solo256' => 'aes256-ctr', 'ctr' => 'aes256-ctr,aes128-ctr' ) as $label => $ciphers ) {
+			list( $real, $port_a ) = $sshd_with( 'real_' . $label, "Ciphers $ciphers\n" );
+			$fp_a = $host_sha256( 'real_' . $label );
+			foreach ( array( 'clave' => $key, 'contraseña' => array( 'sftp_auth' => 'password', 'sftp_password' => 'Contraseña-SFTP-de-prueba' ) ) as $auth_label => $auth ) {
+				// Un proxy nuevo por caso: su primera conexión siempre va al servidor real.
+				file_put_contents( $k . '/impostor.log', '' );
+				$socket = stream_socket_server( 'tcp://127.0.0.1:0' );
+				$port_p = (int) substr( strrchr( stream_socket_get_name( $socket, false ), ':' ), 1 );
+				fclose( $socket );
+				$log = $k . '/proxy_' . $label . '_' . md5( $auth_label ) . '.log';
+				$proxy = proc_open( array( PHP_BINARY, __DIR__ . '/backups-sftp/mitm-proxy.php', (string) $port_p, (string) $port_a, (string) $port_b, $log ), array( 0 => array( 'file', '/dev/null', 'r' ), 1 => array( 'file', $log, 'a' ), 2 => array( 'file', $log, 'a' ) ), $pipes );
+				for ( $i = 0; $i < 100 && false === strpos( (string) @file_get_contents( $log ), 'escuchando' ); $i++ ) usleep( 100000 );
+				$outcome = 'subió';
+				try { ( new Digitalisimo_Backups_Destination_Sftp( $auth + array( 'sftp_port' => (string) $port_p, 'sftp_engine' => 'phpseclib', 'sftp_fingerprint' => $fp_a ) + $base, $context ) )->put( $file ); }
+				catch ( Throwable $e ) { $outcome = get_class( $e ) . ': ' . $e->getMessage(); }
+				usleep( 300000 );
+				$seen = (string) @file_get_contents( $k . '/impostor.log' );
+				$proxied = (string) @file_get_contents( $log );
+				proc_terminate( $proxy ); proc_close( $proxy );
+				$check( 'subió' !== $outcome && ! preg_match( '/Accepted|Failed password|Connection from/', $seen ), "[$label/$auth_label] el impostor recibió la conexión: $outcome · " . trim( $seen ) );
+				$check( false === strpos( $proxied, 'conexión 2' ), "[$label/$auth_label] hubo una segunda conexión (reconexión): " . $proxied );
+				if ( 'solo256' === $label ) $check( false !== strpos( $outcome, 'sólo ofrece algoritmos' ), "[$label] sin un cifrado admitido el mensaje no lo explica: $outcome" );
+			}
+			$check( ! glob( $root . '/remote/backups/*' ), "[$label] quedó algo en la carpeta." );
+			proc_terminate( $real ); proc_close( $real );
+		}
+		proc_terminate( $impostor ); proc_close( $impostor );
+	} );
+
+	$case( 'j', function() use ( $check, $base, $key, $context, $file, $sha256, $root ) {
+		$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $context );
+		$receipt = $destination->put( $file );
+		// La clave del servidor de la sesión cambia (otra conexión u otro intercambio con otra clave).
+		$client = Closure::bind( function() { return $this->client; }, $destination, 'Digitalisimo_Backups_Destination_Sftp' )();
+		$sftp = Closure::bind( function() { return $this->sftp; }, $client, get_class( $client ) )();
+		Closure::bind( function() { $this->server_public_host_key = "\0\0\0\x0bssh-ed25519\0\0\0\x20" . str_repeat( 'Z', 32 ); }, $sftp, 'DigitalisimoBackups\\Vendor\\phpseclib3\\Net\\SSH2' )();
+		try { $destination->delete( $receipt ); throw new LogicException( 'Siguió operando con otra clave del servidor.' ); }
+		catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'cambió durante la sesión' ), 'Mensaje: ' . $e->getMessage() ); }
+		$check( is_file( $receipt['path'] ), 'La operación se hizo con otra clave del servidor.' );
+		@unlink( $receipt['path'] );
+	} );
+
+	$case( 'k', function() use ( $check, $base, $key, $context, $file, $sshd_with, $host_sha256 ) {
+		list( $legacy, $port ) = $sshd_with( 'md5', "Ciphers aes128-ctr\nMACs hmac-md5\n" );
+		try { ( new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_port' => (string) $port, 'sftp_engine' => 'phpseclib', 'sftp_fingerprint' => $host_sha256( 'md5' ) ) + $key + $base, $context ) )->list(); throw new LogicException( 'Aceptó un servidor que sólo ofrece hmac-md5.' ); }
+		catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'sólo ofrece algoritmos' ), 'Mensaje: ' . $e->getMessage() ); }
+		proc_terminate( $legacy ); proc_close( $legacy );
+	} );
+
+	$case( 'l', function() use ( $check, $base, $key, $context, $sha256, $root ) {
+		$dir = $root . '/remote/backups/cerrada';
+		mkdir( $dir, 0700 );
+		file_put_contents( $dir . '/digitalisimo-backup-x.zip', 'x' );
+		chmod( $dir, 0000 );
+		try {
+			( new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $context ) )->delete( array( 'provider' => 'sftp', 'path' => $dir . '/digitalisimo-backup-x.zip' ) );
+			$outcome = 'dado por borrado';
+		} catch ( Exception $e ) {
+			$outcome = 'error: ' . $e->getMessage();
+		}
+		chmod( $dir, 0700 );
+		$check( 0 === strpos( $outcome, 'error: No se pudo eliminar' ) && is_file( $dir . '/digitalisimo-backup-x.zip' ), 'Un borrado sin permiso se dio por hecho: ' . $outcome );
+		@unlink( $dir . '/digitalisimo-backup-x.zip' );
+		@rmdir( $dir );
+	} );
+
+	$case( 'm', function() use ( $check, $base, $key, $context, $sha256, $root ) {
+		$big = $root . '/digitalisimo-backup-mediano.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 9; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fclose( $h );
+		Digitalisimo_Backups_Sftp_Client::$openssl = false;
+		try {
+			$help = implode( ' ', Digitalisimo_Backups_Destination_Sftp::help() );
+			try { ( new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $context ) )->put( $big ); $outcome = 'subió'; }
+			catch ( Digitalisimo_Backups_Permanent_Error $e ) { $outcome = $e->getMessage(); }
+		} finally {
+			Digitalisimo_Backups_Sftp_Client::$openssl = null;
+		}
+		$check( false !== strpos( $outcome, 'OpenSSL' ) && ! glob( $root . '/remote/backups/*' ), 'Sin OpenSSL subió un respaldo grande: ' . $outcome );
+		$check( false !== strpos( $help, 'no tiene la extensión OpenSSL' ), 'La pantalla no avisa de la falta de OpenSSL.' );
+		@unlink( $big );
 	} );
 
 	proc_terminate( $server );

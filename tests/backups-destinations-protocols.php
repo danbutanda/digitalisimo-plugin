@@ -33,7 +33,7 @@ function ssh2_auth_password( $connection, $user, $password ) { $GLOBALS['sftp_au
 function ssh2_auth_pubkey_file( $connection, $user, $public, $private, $passphrase ) {
 	$GLOBALS['sftp_pubkey_files'][] = array( $public, $private, substr( sprintf( '%o', fileperms( $private ) ), -3 ), file_get_contents( $private ) );
 	$GLOBALS['sftp_auth'][] = array( 'pubkey_file', $user, trim( file_get_contents( $public ) ), $passphrase );
-	return false !== strpos( file_get_contents( $private ), 'CLAVE-PRIVADA-DE-PRUEBA' ) && 'frase' === $passphrase;
+	return trim( (string) file_get_contents( $private ) ) === $GLOBALS['bk_private'] && 'frase' === $passphrase;
 }
 function ssh2_sftp( $connection ) { return fopen( 'php://memory', 'r+' ); }
 function ssh2_sftp_rename( $sftp, $from, $to ) { return rename( $GLOBALS['sftp_root'] . $from, $GLOBALS['sftp_root'] . $to ); }
@@ -58,6 +58,20 @@ final class Bk_Sftp_Stream {
 stream_wrapper_register( 'ssh2.sftp', 'Bk_Sftp_Stream' );
 require __DIR__ . '/../digitalisimo-backups/includes/class-backups-job-store.php';
 foreach ( array( 'http', 'destination', 'destinations', 'destination-sftp', 'destination-s3' ) as $part ) require __DIR__ . '/../digitalisimo-backups/includes/destinations/class-' . $part . '.php';
+// Una clave RSA real cifrada con su frase (PEM «ENCRYPTED»), generada con la copia incluida de phpseclib: desde la
+// revisión H6 la extensión ssh2 sólo recibe en un archivo una clave que sigue cifrada, y desde H7 una frase se
+// comprueba al guardar (la clave de mentira de antes ya no sirve para eso).
+if ( is_file( __DIR__ . '/../digitalisimo-backups/includes/destinations/class-sftp-client.php' ) ) {
+	require_once __DIR__ . '/../digitalisimo-backups/includes/destinations/class-sftp-client.php';
+	Digitalisimo_Backups_Sftp_Client::load();
+	$bk_rsa = 'DigitalisimoBackups\\Vendor\\phpseclib3\\Crypt\\RSA';
+	$bk_key = $bk_rsa::createKey( 2048 );
+	$GLOBALS['bk_private'] = trim( str_replace( "\r\n", "\n", $bk_key->withPassword( 'frase' )->toString( 'PKCS1' ) ) );
+	$GLOBALS['bk_public'] = trim( $bk_key->getPublicKey()->toString( 'OpenSSH', array( 'comment' => 'respaldos@sitio' ) ) );
+} else {
+	$GLOBALS['bk_private'] = "-----BEGIN OPENSSH PRIVATE KEY-----\nCLAVE-PRIVADA-DE-PRUEBA\n-----END OPENSSH PRIVATE KEY-----";
+	$GLOBALS['bk_public'] = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPrueba respaldos@sitio';
+}
 
 $case = function( $label, callable $test ) {
 	try { $test(); echo "ok ($label)\n"; }
@@ -93,14 +107,14 @@ file_put_contents( $file, random_bytes( 70000 ) );
 $base = array( 'sftp_host' => 'sftp.test', 'sftp_port' => '22', 'sftp_user' => 'respaldos', 'sftp_path' => '/backups' );
 $context = array( 'temp_dir' => $root . '/private', 'connection' => 'sftp' );
 $case( 'b', function() use ( $check, $base, $context, $file, $sha256, $sha1, $root ) {
-	$key = array( 'sftp_auth' => 'key', 'sftp_private_key' => "-----BEGIN OPENSSH PRIVATE KEY-----\nCLAVE-PRIVADA-DE-PRUEBA\n-----END OPENSSH PRIVATE KEY-----", 'sftp_key_passphrase' => 'frase', 'sftp_public_key' => 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPrueba respaldos@sitio', 'sftp_fingerprint' => $sha256 );
+	$key = array( 'sftp_auth' => 'key', 'sftp_private_key' => $GLOBALS['bk_private'], 'sftp_key_passphrase' => 'frase', 'sftp_public_key' => $GLOBALS['bk_public'], 'sftp_fingerprint' => $sha256 );
 	$check( Digitalisimo_Backups_Destination_Sftp::ready( $base + $key ) && ! Digitalisimo_Backups_Destination_Sftp::ready( array( 'sftp_public_key' => '' ) + $base + $key ), 'ready() no exige la clave pública con la privada.' );
 	$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key, $context );
 	$receipt = $destination->put( $file );
 	$check( '/backups/' . basename( $file ) === $receipt['path'] && hash_file( 'sha256', $file ) === hash_file( 'sha256', $GLOBALS['sftp_root'] . $receipt['path'] ), 'SFTP con clave no publicó la copia verificada.' );
 	$auth = $GLOBALS['sftp_pubkey_files'][0];
 	$check( '600' === $auth[2] && ! file_exists( $auth[0] ) && ! file_exists( $auth[1] ) && 0 === strpos( basename( $auth[1] ), '.sftp-key-' ), 'La clave privada no se escribió 0600 en la carpeta privada o no se borró: ' . json_encode( array( $auth[2], file_exists( $auth[1] ) ) ) );
-	$check( array( 'pubkey_file', 'respaldos', 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPrueba respaldos@sitio', 'frase' ) === $GLOBALS['sftp_auth'][0], 'La autenticación por clave no usó la pública, la privada y su frase.' );
+	$check( array( 'pubkey_file', 'respaldos', $GLOBALS['bk_public'], 'frase' ) === $GLOBALS['sftp_auth'][0], 'La autenticación por clave no usó la pública, la privada y su frase.' );
 	$check( ! glob( $root . '/private/.sftp-*' ), 'Quedaron archivos de clave en la carpeta privada.' );
 	// size, get, list y delete del contrato.
 	$check( 70000 === $destination->size( $receipt ), 'size() SFTP.' );
@@ -121,7 +135,7 @@ $case( 'b', function() use ( $check, $base, $context, $file, $sha256, $sha1, $ro
 	$check( is_file( $GLOBALS['sftp_root'] . $receipt['path'] ), 'La huella SHA-1 guardada dejó de funcionar.' );
 	unlink( $GLOBALS['sftp_root'] . $receipt['path'] );
 	// Validación al guardar.
-	$saved = Digitalisimo_Backups_Destination_Sftp::sanitize( array( 'sftp_private_key' => "-----BEGIN OPENSSH PRIVATE KEY-----\r\nCLAVE-PRIVADA-DE-PRUEBA\r\n-----END OPENSSH PRIVATE KEY-----" ) + $base + $key, array() );
+	$saved = Digitalisimo_Backups_Destination_Sftp::sanitize( array( 'sftp_private_key' => str_replace( "\n", "\r\n", $GLOBALS['bk_private'] ) ) + $base + $key, array() );
 	$check( $sha256 === $saved['sftp_fingerprint'] && false === strpos( $saved['sftp_private_key'], "\r" ), 'La huella SHA-256 o la clave no se normalizaron.' );
 	try { Digitalisimo_Backups_Destination_Sftp::sanitize( array( 'sftp_private_key' => 'no es una clave' ) + $base + $key, array() ); throw new LogicException( 'Aceptó una clave privada incompleta.' ); } catch ( Exception $e ) { $check( false !== strpos( $e->getMessage(), 'BEGIN' ), 'Mensaje de clave privada incompleta: ' . $e->getMessage() ); }
 } );

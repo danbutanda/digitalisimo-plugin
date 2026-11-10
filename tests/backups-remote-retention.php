@@ -12,7 +12,14 @@
  *       verificar la copia remota; la fila dice que restaurar exige traerla, y `fetch` la trae y la vuelve restaurable;
  *       una copia remota que no se verificó nunca deja el respaldo sin ZIP local;
  *   (f) «sólo en el remoto» en una automatización (pantalla y REST de automatizaciones), nunca con destino local;
- *   (g) I7: el catálogo «Servidores creados» anterior pasa a conexiones con nombre sin perder ninguna.
+ *   (g) I7: el catálogo «Servidores creados» anterior pasa a conexiones con nombre sin perder ninguna;
+ *   revisión adversaria:
+ *   (h) H2: un «Bloquear» que llega mientras el borrado diferido ya trabaja (al pedir el token) lo detiene: la copia
+ *       remota sigue y la fila queda bloqueada con su copia;
+ *   (i) H3: una fila de otra instalación (un clon o una copia de la base de datos, otra identidad) o sin identidad nunca
+ *       borra en el remoto y queda marcada; una fila importada (imported_row_fields()) no lleva identidad;
+ *   (j) H4: sin SHA-256 en el recibo o en la fila, la copia no es propia;
+ *   (k) H5: un tick que coincide con «Traer al almacén» no borra la copia que se está descargando.
  */
 $root = sys_get_temp_dir() . '/digitalisimo-remote-retention-' . bin2hex( random_bytes( 4 ) );
 mkdir( $root . '/public', 0700, true );
@@ -45,6 +52,19 @@ $GLOBALS['next_id'] = 0;
 $GLOBALS['uploading'] = '';
 function digi_google( $method, $url, $args ) {
 	$GLOBALS['http'][] = $method . ' ' . $url;
+	// (h) Un «Bloquear» que se confirma cuando el borrado diferido ya trabaja (primera petición suya: el token).
+	if ( ! empty( $GLOBALS['lock_during'] ) && in_array( $method, array( 'POST', 'DELETE' ), true ) && in_array( 'job_remote_retention_pending', array_column( debug_backtrace(), 'function' ), true ) ) {
+		$file = $GLOBALS['lock_during'];
+		unset( $GLOBALS['lock_during'] );
+		foreach ( $GLOBALS['digi']['options'][ Digitalisimo_Backups::HISTORY ] as &$r ) if ( $file === ( $r['file'] ?? '' ) ) $r['locked'] = true;
+		unset( $r );
+		$GLOBALS['locked_at'] = $method . ' ' . $url;
+	}
+	// (k) Un tick que coincide con «Traer al almacén» de esa copia.
+	if ( ! empty( $GLOBALS['tick_during_get'] ) && 'GET' === $method && false !== strpos( $url, $GLOBALS['tick_during_get'] ) ) {
+		unset( $GLOBALS['tick_during_get'] );
+		$GLOBALS['tick_result'] = Digitalisimo_Backups::job_remote_retention_pending();
+	}
 	if ( 'POST' === $method && false !== strpos( $url, 'oauth2' ) ) return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array( 'access_token' => 'token-de-prueba' ) ) );
 	if ( 'POST' === $method ) { $GLOBALS['uploading'] = ''; return array( 'response' => array( 'code' => 200 ), 'headers' => array( 'location' => 'https://upload.test/session/' . ( $GLOBALS['next_id'] + 1 ) ), 'body' => '' ); }
 	if ( 'PUT' === $method ) {
@@ -248,6 +268,66 @@ try {
 	$html = (string) ob_get_clean();
 	$_GET = array();
 	digi_assert( false === strpos( $html, 'Servidores creados' ) && false !== strpos( $html, 'Copia en Hetzner' ), '«Servidores» sigue mostrando el catálogo anterior o no la conexión migrada.' );
+
+	// (h) H2: «Bloquear» mientras el borrado diferido ya trabaja.
+	$h1 = $backup( array( 'destination' => 'google' ) );
+	$h1_id = (string) $row_of( $h1 )['remote']['id'];
+	$backup( array( 'destination' => 'google' ) );
+	$GLOBALS['lock_during'] = $h1;
+	$h3 = $backup( array( 'destination' => 'google' ) );
+	$row = $row_of( $h1 );
+	digi_assert( isset( $GLOBALS['locked_at'] ) && ! empty( $row['locked'] ) && isset( $GLOBALS['drive'][ $h1_id ] ) && 'ok' === $row['transfer'] && ! isset( $row['remote_prune'] ), 'Un «Bloquear» durante el borrado diferido no lo detuvo: ' . json_encode( array( $GLOBALS['locked_at'] ?? null, $row['transfer'] ?? '', isset( $GLOBALS['drive'][ $h1_id ] ) ) ) );
+
+	// (j) H4: sin SHA-256 en el recibo o en la fila, nunca es propia.
+	$owned = new ReflectionMethod( $B, 'remote_owned' );
+	if ( PHP_VERSION_ID < 80100 ) $owned->setAccessible( true );
+	$template = $row_of( $h3 );
+	digi_assert( true === $owned->invoke( null, $template ), 'La fila de un respaldo de este sitio no es propia.' );
+	foreach ( array( 'recibo sin SHA-256' => array( array( 'sha256' => '' ), array() ), 'recibo sin la clave' => array( array( 'sha256' => null ), array() ), 'fila y recibo sin SHA-256' => array( array( 'sha256' => '' ), array( 'sha256' => '' ) ) ) as $label => $changes ) {
+		$probe = array_merge( $template, $changes[1] );
+		$probe['remote'] = array_filter( array_merge( $template['remote'], $changes[0] ), function( $value ) { return null !== $value; } );
+		digi_assert( false === $owned->invoke( null, $probe ), 'Se da por propia una copia con ' . $label . '.' );
+	}
+
+	// (i) H3: filas de otra instalación (otra identidad) o sin identidad, más antiguas que todas.
+	$history = (array) get_option( $B::HISTORY, array() );
+	$outsiders = array( 'digitalisimo-backup-clon-staging.zip' => array( 'id' => str_repeat( 'f', 64 ), 'home' => 'https://staging.example' ), 'digitalisimo-backup-sin-identidad.zip' => null );
+	foreach ( $outsiders as $name => $installation ) {
+		$id = 'ajeno-' . md5( $name );
+		$GLOBALS['drive'][ $id ] = 'contenido de producción';
+		$row = array_merge( $template, array( 'file' => $name, 'locked' => false, 'remote' => array_merge( $template['remote'], array( 'id' => $id ) ) ) );
+		if ( $installation ) $row['installation'] = $installation; else unset( $row['installation'] );
+		unset( $row['remote_prune'], $row['remote_foreign'] );
+		$history[] = $row;
+	}
+	update_option( $B::HISTORY, $history );
+	$GLOBALS['http'] = array();
+	$backup( array( 'destination' => 'google' ) );
+	$backup( array( 'destination' => 'google' ) );
+	foreach ( $outsiders as $name => $installation ) {
+		$expected = $installation ? 'other' : 'unknown';
+		digi_assert( isset( $GLOBALS['drive'][ 'ajeno-' . md5( $name ) ] ) && ! preg_grep( '#' . md5( $name ) . '#', $deletes() ), 'La retención borró la copia remota de una fila de otra instalación: ' . $name );
+		digi_assert( $expected === ( $row_of( $name )['remote_foreign'] ?? '' ) && 'foreign' === $summary_of( $name )['remote_retention'], 'La fila de otra instalación no quedó marcada: ' . $name . ' ' . json_encode( $row_of( $name )['remote_foreign'] ?? null ) );
+	}
+	digi_assert( false !== strpos( $label_of( 'digitalisimo-backup-clon-staging.zip' ), 'es de otra instalación' ), 'Rótulo de la fila de otra instalación: ' . $label_of( 'digitalisimo-backup-clon-staging.zip' ) );
+	digi_assert( is_array( $template['installation'] ?? null ) && preg_match( '/^[a-f0-9]{64}$/', $template['installation']['id'] ) && is_file( $store . '/.installation-id' ) && '0600' === substr( sprintf( '%o', fileperms( $store . '/.installation-id' ) ), -4 ), 'La fila no lleva la identidad de esta instalación o su archivo no está en el almacén en 0600.' );
+	// Una fila importada (sincronizar un destino, importar Backuply): origin = imported y sin identidad.
+	copy( $store . '/' . $h3, $store . '/digitalisimo-backup-importado-r1.zip' );
+	$remember = new ReflectionMethod( $B, 'remember' );
+	if ( PHP_VERSION_ID < 80100 ) $remember->setAccessible( true );
+	$remember->invoke( null, $store . '/digitalisimo-backup-importado-r1.zip', 'local', 'installation', array(), array(), 0, false, $B::imported_row_fields( array( 'job' => 'x', 'installation' => $B::installation_stamp() ) ) );
+	$imported = $row_of( 'digitalisimo-backup-importado-r1.zip' );
+	digi_assert( 'imported' === $imported['origin'] && ! isset( $imported['installation'] ), 'Una fila importada lleva la identidad de esta instalación o no dice que es importada: ' . json_encode( array( $imported['origin'], $imported['installation'] ?? null ) ) );
+
+	// (k) H5: un tick durante «Traer al almacén» no borra la copia que se descarga.
+	$k1 = $backup( array( 'destination' => 'google' ) );
+	$k1_id = (string) $row_of( $k1 )['remote']['id'];
+	unlink( $store . '/' . $k1 );
+	$set_row( $k1, array( 'remote_prune' => array( 'state' => 'pending', 'attempts' => 0, 'next' => 0, 'error' => '', 'at' => time() ) ) );
+	$GLOBALS['tick_during_get'] = $k1_id;
+	$fetched = $B::service_fetch( $k1 );
+	digi_assert( ! is_wp_error( $fetched ) && is_file( $store . '/' . $k1 ) && isset( $GLOBALS['drive'][ $k1_id ] ) && 0 === ( $GLOBALS['tick_result'] ?? null ) && 'pending' === ( $row_of( $k1 )['remote_prune']['state'] ?? '' ), 'Un tick durante «Traer al almacén» borró la copia remota: ' . json_encode( array( is_wp_error( $fetched ) ? $fetched->get_error_message() : 'ok', isset( $GLOBALS['drive'][ $k1_id ] ), $GLOBALS['tick_result'] ?? null ) ) );
+	$set_row( $k1, array( 'remote_prune' => null ) );
 
 	echo "DIGITALÍSIMO Backups: la retención borra también las copias remotas que registró este sitio (nunca las bloqueadas ni las ajenas, con reintento) y «sólo en el remoto» deja el respaldo sólo en el destino tras verificarlo.\n";
 } finally {

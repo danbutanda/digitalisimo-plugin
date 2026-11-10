@@ -41,6 +41,12 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		);
 	}
 	public static function help() {
+		// Revisión P2: sin OpenSSL el cliente incluido es inservible para respaldos de verdad; la pantalla lo dice.
+		$client = self::client_class();
+		$slow = $client::slow_text();
+		return array_merge( '' !== $slow ? array( $slow ) : array(), self::help_lines() );
+	}
+	private static function help_lines() {
 		return array( 'En un equipo de confianza: «ssh-keyscan -p 22 servidor | ssh-keygen -l -f -» muestra la huella SHA-256 de cada clave del servidor (una línea por tipo: ED25519, ECDSA, RSA); con «-E sha1», la SHA-1.', 'Sin la extensión ssh2 se usa el cliente SFTP incluido (PHP puro): calcula SHA-256 y SHA-1 y, si la clave que negocia no es la de la huella, prueba las demás claves del servidor. Con la extensión ssh2, ésta elige el tipo de clave al conectar (con libssh2 suele ser ECDSA aunque el servidor tenga ED25519) y SHA-256 sólo sirve si la calcula: pega las líneas de todas las claves o elige el cliente incluido.', 'Clave privada: OpenSSH, PEM (PKCS#1 o PKCS#8) o PuTTY, también protegida con una frase; se guarda cifrada en el almacén de credenciales y nunca vuelve al navegador.', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
 	}
 	public static function hosts( array $s ) { return array( (string) ( $s['sftp_host'] ?? '' ) ); }
@@ -61,23 +67,25 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$putty = (bool) preg_match( '/^PuTTY-User-Key-File-[23]: [a-z0-9-]+\n.+Private-MAC: [a-f0-9]+$/s', $private );
 		if ( '' !== $private && ! $putty && ! preg_match( '/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n.+\n-----END [A-Z0-9 ]*PRIVATE KEY-----$/s', $private ) ) throw new Exception( 'La clave privada SFTP debe pegarse completa, de «-----BEGIN … PRIVATE KEY-----» a «-----END … PRIVATE KEY-----» (o el archivo .ppk de PuTTY entero).' );
 		// Una clave con frase se abre aquí, una vez: queda sin frase dentro del almacén cifrado (que ya guardaba las dos) y
-		// cada conexión se ahorra los segundos de bcrypt_pbkdf en PHP. Sin la clave pública, se calcula de la privada: la
-		// extensión ssh2 la necesita y así se comprueba al guardar que la frase abre la clave. Si el cliente incluido no
-		// puede abrir una clave que trae su clave pública (un formato que sólo lee libssh2), se guarda tal cual, como antes.
+		// cada conexión se ahorra los segundos de bcrypt_pbkdf en PHP. Sin la clave pública, se calcula de la privada (la
+		// extensión ssh2 la necesita). Revisión H7: con frase, la frase equivocada se rechaza aunque se pegue la clave
+		// pública. Revisión H8: un .ppk siempre se convierte (libssh2 no lee el formato de PuTTY). Sólo una clave sin frase
+		// que trae su clave pública y que el cliente incluido no sabe leer se guarda tal cual, como antes.
 		$passphrase = (string) ( $out['sftp_key_passphrase'] ?? '' );
-		if ( '' !== $private && 'key' === ( $out['sftp_auth'] ?? '' ) && ( '' === $public || '' !== $passphrase ) ) {
+		if ( '' !== $private && 'key' === ( $out['sftp_auth'] ?? '' ) && ( '' === $public || '' !== $passphrase || $putty ) ) {
 			$client = self::client_class();
 			if ( ! $client::available() ) {
+				if ( $putty ) throw new Exception( 'Este PHP no puede convertir el archivo .ppk de PuTTY: expórtalo como clave OpenSSH con PuTTYgen («Conversions → Export OpenSSH key») y pégalo otra vez. No se cambió nada.' );
 				if ( '' === $public ) throw new Exception( 'Pega también la clave pública SFTP: este PHP no puede calcularla de la privada.' );
 			} else {
 				try {
 					list( $private, $derived ) = $client::unlock( $private, $passphrase );
-					$out['sftp_private_key'] = $private;
-					$out['sftp_key_passphrase'] = '';
-					if ( '' === $public ) $public = $derived;
 				} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
-					if ( '' === $public ) throw new Exception( $e->getMessage() . ' No se cambió nada.' );
+					throw new Exception( $e->getMessage() . ' No se cambió nada.' );
 				}
+				$out['sftp_private_key'] = $private;
+				$out['sftp_key_passphrase'] = '';
+				if ( '' === $public ) $public = $derived;
 			}
 		}
 		$out['sftp_public_key'] = $public;
@@ -166,12 +174,33 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$choice = (string) ( $this->s['sftp_engine'] ?? 'auto' );
 		if ( 'ssh2' === $choice || 'phpseclib' === $choice ) return $choice;
 		if ( ! self::has_ssh2() ) return 'phpseclib';
-		if ( 'key' === ( $this->s['sftp_auth'] ?? 'password' ) && empty( $this->s['sftp_public_key'] ) ) return 'phpseclib';
+		// Con clave privada, la extensión sólo si la autentica en memoria (ssh2_auth_pubkey) o si la clave guardada sigue
+		// cifrada con su frase (como antes de esta versión): nunca se escribe una clave sin cifrar en el disco (revisión
+		// H6). Un .ppk de PuTTY nunca va a libssh2 (H8).
+		if ( 'key' === ( $this->s['sftp_auth'] ?? 'password' ) && ( empty( $this->s['sftp_public_key'] ) || self::putty( (string) ( $this->s['sftp_private_key'] ?? '' ) ) || ! ( function_exists( 'ssh2_auth_pubkey' ) || $this->key_file_safe() ) ) ) return 'phpseclib';
 		$expected = self::fingerprints( (string) ( $this->s['sftp_fingerprint'] ?? '' ) );
 		$sha1 = array_filter( $expected, function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } );
 		// Sin huella no se conecta con ninguno: el mensaje de siempre, el de la extensión.
 		return ! $expected || $sha1 || defined( 'SSH2_FINGERPRINT_SHA256' ) ? 'ssh2' : 'phpseclib';
 	}
+	/** Si el texto es un archivo .ppk de PuTTY. */
+	private static function putty( $private ) { return 1 === preg_match( '/^PuTTY-User-Key-File-[23]: /', ltrim( (string) $private ) ); }
+	/**
+	 * Si la clave privada guardada va cifrada con una frase (PEM «ENCRYPTED», PKCS#8 cifrado u OpenSSH con un cifrado
+	 * distinto de «none»): sólo entonces puede ir a un archivo para ssh2_auth_pubkey_file(), porque el disco sólo ve el
+	 * texto cifrado y la frase va aparte.
+	 */
+	public static function key_encrypted( $private ) {
+		$private = trim( (string) $private );
+		if ( false !== strpos( $private, '-----BEGIN ENCRYPTED PRIVATE KEY-----' ) || preg_match( '/^Proc-Type: 4,ENCRYPTED$/m', $private ) ) return true;
+		if ( ! preg_match( '/^-----BEGIN OPENSSH PRIVATE KEY-----\s+([A-Za-z0-9+\/=\s]+)-----END OPENSSH PRIVATE KEY-----$/', $private, $match ) ) return false;
+		$raw = base64_decode( preg_replace( '/\s+/', '', $match[1] ), true );
+		if ( false === $raw || 0 !== strpos( $raw, "openssh-key-v1\0" ) || strlen( $raw ) < 19 ) return false;
+		$length = unpack( 'N', substr( $raw, 15, 4 ) )[1];
+		$cipher = (string) substr( $raw, 19, min( 64, $length ) );
+		return '' !== $cipher && 'none' !== $cipher;
+	}
+	private function key_file_safe() { return function_exists( 'ssh2_auth_pubkey_file' ) && '' !== (string) ( $this->s['sftp_key_passphrase'] ?? '' ) && self::key_encrypted( (string) ( $this->s['sftp_private_key'] ?? '' ) ); }
 	/** Comprobaciones comunes antes de conectar: credencial, servidor, usuario y huellas. Devuelve array( clave?, huellas ). */
 	private function precheck( $engine ) {
 		$s = $this->s;
@@ -205,6 +234,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	private function lib() { return 'phpseclib' === $this->engine(); }
 
+	public function prepare() { $this->connection(); }
 	/** Conexión autenticada (la huella se comprueba antes de enviar ninguna credencial). */
 	public function connection() {
 		if ( $this->lib() ) return $this->client();
@@ -236,8 +266,11 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	private function auth_key( $connection ) {
 		$s = $this->s;
 		$passphrase = (string) ( $s['sftp_key_passphrase'] ?? '' );
+		if ( self::putty( (string) $s['sftp_private_key'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La extensión ssh2 no lee claves .ppk de PuTTY: vuelve a guardar la clave (se convierte al guardar) o elige el cliente SFTP incluido.' );
 		if ( function_exists( 'ssh2_auth_pubkey' ) ) return @ssh2_auth_pubkey( $connection, $s['sftp_user'], $s['sftp_public_key'], $s['sftp_private_key'], $passphrase );
 		if ( ! function_exists( 'ssh2_auth_pubkey_file' ) ) return false;
+		// Revisión H6: la clave sólo va a un archivo si sigue cifrada con su frase; sin cifrar, nunca toca el disco.
+		if ( ! $this->key_file_safe() ) throw new Digitalisimo_Backups_Permanent_Error( 'La extensión ssh2 de este servidor sólo autentica con la clave privada en un archivo, y la clave guardada no lleva frase: para no escribirla sin cifrar en el disco, elige el motor «Automático» o el cliente SFTP incluido.' );
 		$public = $this->temp_file( '.sftp-pub-' );
 		$private = $this->temp_file( '.sftp-key-' );
 		try {

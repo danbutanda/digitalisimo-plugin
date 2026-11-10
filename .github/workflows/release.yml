@@ -289,6 +289,7 @@ jobs:
           php tests/hosting-migration.php
           php tests/backups-sftp.php
           php tests/backups-sftp-phpseclib.php
+          php tests/backups-sftp-keys.php
           php tests/backups-integrity.php
           php tests/backups-manifest.php
           php tests/backups-policies.php

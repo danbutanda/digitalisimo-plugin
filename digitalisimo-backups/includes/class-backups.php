@@ -451,22 +451,30 @@ final class Digitalisimo_Backups {
 	 * queda «incompleta» hasta completarla), así que nada se pierde. Idempotente.
 	 */
 	public static function migrate_server_catalog() {
-		$servers = get_option( self::SERVERS, false );
-		if ( false === $servers ) return 0;
-		$connections = get_option( Digitalisimo_Backups_Destinations::CONNECTIONS, array() );
-		$connections = is_array( $connections ) ? $connections : array();
-		$moved = 0;
-		foreach ( is_array( $servers ) ? $servers : array() as $server ) {
-			if ( ! is_array( $server ) || 'legacy-ftp' === ( $server['id'] ?? '' ) || ! Digitalisimo_Backups_Destinations::is_type( $server['type'] ?? '' ) ) continue;
-			$name = sanitize_text_field( (string) ( $server['name'] ?? '' ) );
-			if ( '' === $name || count( $connections ) >= Digitalisimo_Backups_Destinations::MAX_CONNECTIONS ) continue;
-			do { $id = $server['type'] . '-' . bin2hex( random_bytes( 4 ) ); } while ( isset( $connections[ $id ] ) );
-			$connections[ $id ] = array( 'type' => (string) $server['type'], 'name' => $name, 'settings' => array() );
-			$moved++;
-		}
-		if ( $moved ) Digitalisimo_Backups_Destinations::save_connections( $connections );
-		delete_option( self::SERVERS );
-		return $moved;
+		if ( false === get_option( self::SERVERS, false ) ) return 0;
+		// Con el cerrojo del almacén (revisión P5): la pantalla y GET /destinations a la vez no migran dos veces.
+		return Digitalisimo_Backups_Job_Store::with_lock( function() {
+			if ( function_exists( 'wp_cache_delete' ) ) wp_cache_delete( self::SERVERS, 'options' );
+			$servers = get_option( self::SERVERS, false );
+			if ( false === $servers ) return 0;
+			$connections = get_option( Digitalisimo_Backups_Destinations::CONNECTIONS, array() );
+			$connections = is_array( $connections ) ? $connections : array();
+			$moved = 0;
+			$left = array();
+			foreach ( is_array( $servers ) ? $servers : array() as $server ) {
+				if ( ! is_array( $server ) || 'legacy-ftp' === ( $server['id'] ?? '' ) || ! Digitalisimo_Backups_Destinations::is_type( $server['type'] ?? '' ) ) continue;
+				// Sin nombre, el del tipo; con el tope de conexiones lleno, la entrada se queda en el catálogo (no se pierde).
+				$name = sanitize_text_field( (string) ( $server['name'] ?? '' ) );
+				if ( '' === $name ) $name = Digitalisimo_Backups_Destinations::label( (string) $server['type'] );
+				if ( count( $connections ) >= Digitalisimo_Backups_Destinations::MAX_CONNECTIONS ) { $left[] = $server; continue; }
+				do { $id = $server['type'] . '-' . bin2hex( random_bytes( 4 ) ); } while ( isset( $connections[ $id ] ) );
+				$connections[ $id ] = array( 'type' => (string) $server['type'], 'name' => $name, 'settings' => array() );
+				$moved++;
+			}
+			if ( $moved ) Digitalisimo_Backups_Destinations::save_connections( $connections );
+			if ( $left ) update_option( self::SERVERS, $left, false ); else delete_option( self::SERVERS );
+			return $moved;
+		} );
 	}
 	public static function cron_schedules( $schedules ) { $schedules['digitalisimo_every_6_hours'] = array( 'interval' => 6 * HOUR_IN_SECONDS, 'display' => 'Cada 6 horas' ); $schedules['digitalisimo_every_12_hours'] = array( 'interval' => 12 * HOUR_IN_SECONDS, 'display' => 'Cada 12 horas' ); $schedules['monthly'] = array( 'interval' => 30 * DAY_IN_SECONDS, 'display' => 'Mensual' ); return $schedules; }
 	private static function schedule_options() { return array( 'disabled' => 'Desactivado', 'hourly' => 'Cada hora', 'digitalisimo_every_6_hours' => 'Cada 6 horas', 'digitalisimo_every_12_hours' => 'Cada 12 horas', 'daily' => 'Diario', 'weekly' => 'Semanal', 'monthly' => 'Mensual' ); }
@@ -1236,7 +1244,8 @@ final class Digitalisimo_Backups {
 	}
 	/** @internal Fase «publish»: registra el ZIP verificado como local; la copia remota se anota al terminar la transferencia. */
 	public static function job_register( $final, array $spec, $job_id ) {
-		$extra = array( 'job' => (string) $job_id );
+		// La identidad de esta instalación (revisión H3): una copia de la base en otro sitio no puede hacer suyas estas filas.
+		$extra = array( 'job' => (string) $job_id, 'installation' => self::installation_stamp() );
 		if ( 'local' !== ( $spec['destination'] ?? 'local' ) ) $extra += array( 'transfer' => 'pending', 'transfer_destination' => (string) $spec['destination'] );
 		// Un sitio extraído no es un respaldo de esta instalación: su fila lo dice y no aparece en «Restaurar» de la red.
 		if ( Digitalisimo_Backups_Site_Extract::is_extract( $spec ) ) {
@@ -1859,6 +1868,9 @@ final class Digitalisimo_Backups {
 		if ( false === $checksum ) throw new Exception( 'No se pudo calcular el SHA-256 del respaldo terminado.' );
 		$name = wp_basename( $file );
 		$row = array( 'date' => current_time( 'mysql' ), 'file' => $name, 'size' => filesize( $file ), 'sha256' => $checksum, 'destination' => $destination, 'scope' => $scope, 'site_id' => $site_id ?: get_current_blog_id(), 'policy' => $policy['id'] ?? 'manual', 'backup_type' => $policy['type'] ?? ( false !== strpos( $name, '-db-' ) ? 'database' : 'full' ), 'remote' => (array) $remote, 'locked' => $locked ) + Digitalisimo_Backups_Security::describe( $file ) + array( 'origin' => 'created' ) + (array) $extra;
+		// Una fila que entra de fuera (imported_row_fields(): sincronizar un destino, importar, subir) lo dice siempre y
+		// nunca lleva la identidad de esta instalación: la retención no borra su copia remota.
+		if ( 'imported' === ( $extra['origin'] ?? '' ) ) { $row['origin'] = 'imported'; unset( $row['installation'] ); }
 		self::change_history( function( &$history ) use ( $name, $row ) {
 			// Registrar otra vez el mismo ZIP (un paso repetido tras una muerte) deja una sola fila y conserva su bloqueo.
 			foreach ( $history as $entry ) if ( ( $entry['file'] ?? '' ) === $name && ! empty( $entry['locked'] ) ) $row['locked'] = true;

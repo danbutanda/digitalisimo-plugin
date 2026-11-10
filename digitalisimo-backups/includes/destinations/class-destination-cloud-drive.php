@@ -15,6 +15,7 @@ abstract class Digitalisimo_Backups_Destination_Cloud_Drive extends Digitalisimo
 	public static function oauth() { return true; }
 	public static function ready( array $s ) { return ! empty( $s[ static::PREFIX . 'refresh_token' ] ); }
 
+	public function prepare() { $this->token(); }
 	/** Token de acceso a partir del refresh token (las credenciales que no abren dicen qué volver a escribir). */
 	public function token() {
 		if ( '' !== $this->access ) return $this->access;

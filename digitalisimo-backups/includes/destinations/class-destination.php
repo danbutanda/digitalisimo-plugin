@@ -202,6 +202,11 @@ abstract class Digitalisimo_Backups_Destination {
 	abstract public function size( array $remote );
 	abstract public function delete( array $remote );
 	abstract public function list();
+	/**
+	 * Prepara la conexión (token de acceso, sesión SFTP) sin tocar ningún archivo: la retención remota la llama antes de
+	 * comprobar con el cerrojo del historial que puede borrar, para que el borrado sea una sola petición justo después.
+	 */
+	public function prepare() {}
 
 	/** Verificación por defecto: descarga a un temporal privado y compara tamaño y SHA-256. */
 	public function verify( array $remote, $file, array $source ) {
