@@ -18,7 +18,7 @@ function digi_cli_doc( $comment ) {
 function digi_cli_shortdesc( $doc ) { return preg_match( '|^([^@][^\n]+)\n*|', $doc, $matches ) ? $matches[1] : ''; }
 
 // Los comandos que registra Digitalisimo_Backups_Cli::register() y sus subcomandos (métodos públicos no estáticos).
-$commands = array( 'digitalisimo-backups' => 'Digitalisimo_Backups_Cli', 'digitalisimo-backups automation' => 'Digitalisimo_Backups_Cli_Automation', 'digitalisimo-backups jobs' => 'Digitalisimo_Backups_Cli_Jobs', 'digitalisimo-backups upload' => 'Digitalisimo_Backups_Cli_Upload' );
+$commands = array( 'digitalisimo-backups' => 'Digitalisimo_Backups_Cli', 'digitalisimo-backups automation' => 'Digitalisimo_Backups_Cli_Automation', 'digitalisimo-backups jobs' => 'Digitalisimo_Backups_Cli_Jobs', 'digitalisimo-backups upload' => 'Digitalisimo_Backups_Cli_Upload', 'digitalisimo-backups backuply' => 'Digitalisimo_Backups_Cli_Backuply' );
 $register = file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups-cli.php' );
 foreach ( $commands as $name => $class ) digi_assert( false !== strpos( $register, "WP_CLI::add_command( '" . $name . "', " ), 'El comando ' . $name . ' ya no se registra como espera la prueba.' );
 $checked = 0;

@@ -43,7 +43,7 @@ trait Digitalisimo_Backups_Upload_Service {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		$name = sanitize_file_name( (string) ( $args['name'] ?? '' ) );
-		if ( '' === $name || strlen( $name ) > 200 || ! preg_match( '/\.(?:zip|dgbk)$/i', $name ) ) return self::service_error( 'upload_name', 'Elige un respaldo de DIGITALÍSIMO: un archivo .zip o .dgbk.', 400 );
+		if ( '' === $name || strlen( $name ) > 200 || ! preg_match( '/\.(?:zip|dgbk|tar\.gz)$/i', $name ) ) return self::service_error( 'upload_name', 'Elige un respaldo de DIGITALÍSIMO: un archivo .zip o .dgbk (o el .tar.gz de un respaldo de Backuply, para importarlo).', 400 );
 		$size = is_numeric( $args['size'] ?? null ) ? (int) $args['size'] : 0;
 		if ( $size <= 0 ) return self::service_error( 'upload_size', 'El tamaño del respaldo no es válido.', 400 );
 		if ( $size > Digitalisimo_Backups_Uploads::MAX_SIZE ) return self::service_error( 'upload_size', 'El respaldo supera el tamaño máximo de una subida (64 GB).', 413 );
@@ -188,6 +188,8 @@ trait Digitalisimo_Backups_Upload_Service {
 				if ( false === $checksum ) $report = self::service_error( 'upload_error', 'No se pudo leer el archivo subido para calcular su SHA-256; se conserva para reintentar.', 500 );
 				elseif ( ! hash_equals( (string) $state['sha256'], $checksum ) ) $report = self::service_error( 'upload_checksum', 'El archivo recibido no coincide con el SHA-256 declarado y se descartó. Vuelve a subirlo.', 422 );
 			}
+			// Un respaldo de Backuply (.tar.gz) no se comprueba aquí: la importación lo valida entero, por pasos (I9).
+			if ( null === $report && self::upload_is_backuply( (string) $state['name'] ) ) $report = "\x1f\x8b" === (string) @file_get_contents( $path, false, null, 0, 2 ) ? array( 'container' => 'backuply' ) : self::service_error( 'upload_invalid', 'El archivo no es un respaldo de Backuply (.tar.gz comprimido con gzip) y se descartó.', 422 );
 			if ( null === $report ) $report = self::upload_inspect( $path, is_string( $args['secret'] ?? null ) ? $args['secret'] : '' );
 			if ( is_wp_error( $report ) ) {
 				$code = $report->get_error_code();
@@ -201,6 +203,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				if ( $discard ) @unlink( $path );
 				return $report;
 			}
+			if ( 'backuply' === ( $report['container'] ?? '' ) ) return self::upload_backuply_done( $state, $path );
 			$storage = trailingslashit( self::local_directory() );
 			$name = (string) $state['name'];
 			// Nombre y rename() con el cerrojo corto del almacén: nunca pisa un respaldo ni toma el nombre de una fila del historial.
@@ -231,6 +234,30 @@ trait Digitalisimo_Backups_Upload_Service {
 		} finally {
 			Digitalisimo_Backups_Uploads::unlock( $lock );
 		}
+	}
+	private static function upload_is_backuply( $name ) { return (bool) preg_match( '/\.tar\.gz$/i', (string) $name ); }
+	/**
+	 * Un `.tar.gz` de Backuply subido entra en `backuply/` del almacén (con un nombre libre) para importarlo: no es un
+	 * respaldo de Backups ni aparece en «Restaurar» hasta convertirlo (Respaldos de Backuply, REST o WP-CLI).
+	 */
+	private static function upload_backuply_done( array $state, $path ) {
+		$store = Digitalisimo_Backups_Backuply_Import::store_directory( true );
+		$name = (string) preg_replace( '/[^A-Za-z0-9._-]+/', '-', (string) $state['name'] );
+		$name = ltrim( $name, '.-_' );
+		if ( ! preg_match( Digitalisimo_Backups_Backuply_Import::NAME, $name ) ) $name = 'backuply-upload-' . gmdate( 'Ymd-His' ) . '.tar.gz';
+		$file = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $path, $store, $name ) {
+			$file = $name;
+			while ( file_exists( $store . '/' . $file ) || is_link( $store . '/' . $file ) ) $file = substr( $name, 0, -7 ) . '-' . bin2hex( random_bytes( 3 ) ) . '.tar.gz';
+			if ( ! @rename( $path, $store . '/' . $file ) ) throw new Exception( 'No se pudo mover el respaldo de Backuply subido al almacén privado.' );
+			@chmod( $store . '/' . $file, 0600 );
+			return $file;
+		} );
+		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en «Respaldos de Backuply» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
+		$state['phase'] = 'done';
+		$state['result'] = $result;
+		$state['updated_at'] = time();
+		Digitalisimo_Backups_Uploads::write( $state );
+		return $result;
 	}
 	/** Una subida ya cerrada responde siempre lo mismo: su resultado o su rechazo. */
 	private static function upload_closed( array $state ) {

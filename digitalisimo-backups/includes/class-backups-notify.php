@@ -64,7 +64,8 @@ final class Digitalisimo_Backups_Notify {
 
 	/** Marca de un trabajo terminado que debe avisar: éxito o fallo definitivo, nunca la copia previa de una restauración. */
 	public static function mark( array $job ) {
-		if ( ! empty( $job['spec']['inline'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
+		// La importación de un respaldo de Backuply no cambia el sitio ni crea un respaldo: no avisa por correo.
+		if ( ! empty( $job['spec']['inline'] ) || 'import' === ( $job['kind'] ?? '' ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
 		$job['notice'] = 'pending';
 		return $job;
 	}

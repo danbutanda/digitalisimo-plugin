@@ -116,11 +116,11 @@ final class Digitalisimo_Backups_Jobs {
 		return array(
 			'format' => Digitalisimo_Backups_Job_Store::FORMAT,
 			'id' => $id,
-			'kind' => 'restore' === $kind ? 'restore' : 'backup',
+			'kind' => in_array( $kind, array( 'restore', 'import' ), true ) ? $kind : 'backup',
 			'rev' => 0,
 			'spec' => $spec,
 			'status' => $status,
-			'phase' => 'restore' === $kind ? Digitalisimo_Backups_Restore_Job::PHASES[0] : 'preflight',
+			'phase' => 'restore' === $kind ? Digitalisimo_Backups_Restore_Job::PHASES[0] : ( 'import' === $kind ? Digitalisimo_Backups_Import_Job::PHASES[0] : 'preflight' ),
 			'progress' => array( 'percent' => 0, 'message' => 'En cola.' ),
 			'checkpoint' => array(),
 			'attempts' => array(),
@@ -158,6 +158,21 @@ final class Digitalisimo_Backups_Jobs {
 			return array( 'busy' => false, 'job' => $job );
 		} );
 	}
+	/**
+	 * Encola la importación de un respaldo de Backuply (Digitalisimo_Backups_Import_Job): nunca durante una restauración ni
+	 * dos veces el mismo archivo. Devuelve array( 'busy' | 'duplicate' => bool, 'job' => el nuevo o el que lo impide ).
+	 */
+	public static function enqueue_import( array $spec ) {
+		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec ) {
+			foreach ( self::active() as $job ) {
+				if ( self::is_restore( $job ) ) return array( 'busy' => true, 'duplicate' => false, 'job' => $job );
+				if ( Digitalisimo_Backups_Import_Job::is_import( $job ) && ( $job['spec']['policy'] ?? '' ) === $spec['policy'] ) return array( 'busy' => false, 'duplicate' => true, 'job' => $job );
+			}
+			$job = Digitalisimo_Backups_Job_Store::create( self::blank( Digitalisimo_Backups_Job_Store::new_id(), $spec, 'queued', 'import' ) );
+			Digitalisimo_Backups_Job_Store::event( $job['id'], 'queued', array( 'kind' => 'import', 'source' => (string) ( $spec['source']['name'] ?? '' ), 'via' => $spec['origin']['via'] ?? '' ) );
+			return array( 'busy' => false, 'duplicate' => false, 'job' => $job );
+		} );
+	}
 	/** Crea una restauración sin comprobar la cola (la vuelta a la copia previa, encolada por la que falla, con el cerrojo tomado). */
 	public static function create_restore( array $spec ) {
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec ) {
@@ -173,7 +188,7 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	public static function is_restore( $job ) { return is_array( $job ) && 'restore' === ( $job['kind'] ?? 'backup' ); }
 	/** Fases del tipo de trabajo. */
-	public static function phases( $job ) { return self::is_restore( $job ) ? Digitalisimo_Backups_Restore_Job::PHASES : self::PHASES; }
+	public static function phases( $job ) { return self::is_restore( $job ) ? Digitalisimo_Backups_Restore_Job::PHASES : ( Digitalisimo_Backups_Import_Job::is_import( $job ) ? Digitalisimo_Backups_Import_Job::PHASES : self::PHASES ); }
 	public static function get( $id ) { return Digitalisimo_Backups_Job_Store::valid_id( $id ) ? Digitalisimo_Backups_Job_Store::read( $id ) : null; }
 	public static function all() { return Digitalisimo_Backups_Job_Store::all(); }
 	public static function active() { return array_values( array_filter( Digitalisimo_Backups_Job_Store::all(), function( $job ) { return ! Digitalisimo_Backups_Job_Store::is_terminal( $job ); } ) ); }
@@ -310,6 +325,7 @@ final class Digitalisimo_Backups_Jobs {
 		self::$current['phase'] = $phase;
 		try {
 			if ( self::$phase_runner ) $outcome = call_user_func( self::$phase_runner, $phase, $job );
+			elseif ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) $outcome = Digitalisimo_Backups_Import_Job::run_phase( $phase, $job );
 			else $outcome = self::is_restore( $job ) ? Digitalisimo_Backups_Restore_Job::run_phase( $phase, $job ) : Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
 		} catch ( Digitalisimo_Backups_Job_Cancelled $e ) {
 			throw $e;
@@ -421,6 +437,7 @@ final class Digitalisimo_Backups_Jobs {
 			$job['error'] = null;
 			$job['progress']['message'] = 'Cancelado por el administrador. No se registró ningún respaldo parcial.';
 			if ( self::is_restore( $job ) ) $job['progress']['message'] = 'Restauración cancelada antes de cambiar el sitio: la base de datos y los archivos siguen como estaban.';
+			elseif ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) $job['progress']['message'] = 'Importación cancelada: no se dejó nada en el almacén.';
 			elseif ( 'transfer' === $job['phase'] ) $job['progress']['message'] = 'Transferencia cancelada. El respaldo local verificado se conserva en el historial.';
 		} else {
 			$job['error'] = $error;
@@ -433,11 +450,13 @@ final class Digitalisimo_Backups_Jobs {
 	/** Al terminar sin éxito: cada tipo deshace lo suyo; una restauración puede encolar la vuelta a la copia previa. Devuelve el mensaje. */
 	private static function on_terminal( array $job, $status, $message ) {
 		if ( self::is_restore( $job ) ) return Digitalisimo_Backups_Restore_Job::on_terminal( $job, $status, (string) $message );
+		if ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) return Digitalisimo_Backups_Import_Job::on_terminal( $job, $status, (string) $message );
 		Digitalisimo_Backups_Backup_Job::on_terminal( $job, $status, $message );
 		return (string) $message;
 	}
 	private static function discard( array $job, $phase ) {
 		if ( self::is_restore( $job ) ) Digitalisimo_Backups_Restore_Job::discard( $job, $phase );
+		elseif ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) Digitalisimo_Backups_Import_Job::discard( $job, $phase );
 		else Digitalisimo_Backups_Backup_Job::discard( $job, $phase );
 	}
 
@@ -648,6 +667,7 @@ final class Digitalisimo_Backups_Jobs {
 	/** Un respaldo se cancela hasta registrarse; una restauración, hasta que empieza a cambiar el sitio (nunca la vuelta a la copia previa). */
 	public static function cancellable_phase( $phase, $job = null ) {
 		if ( is_array( $job ) && ( 'restore' === ( $job['kind'] ?? '' ) ) ) return empty( $job['spec']['rollback'] ) && Digitalisimo_Backups_Restore_Job::cancellable( $phase );
+		if ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) return Digitalisimo_Backups_Import_Job::cancellable( $phase );
 		return ! in_array( $phase, array( 'publish', 'prune' ), true );
 	}
 
@@ -808,6 +828,7 @@ final class Digitalisimo_Backups_Jobs {
 		$lease = $job['lease'] ?? null;
 		$spec = (array) ( $job['spec'] ?? array() );
 		$restore = self::is_restore( $job );
+		$import = Digitalisimo_Backups_Import_Job::is_import( $job );
 		$max = self::max_attempts( $phase, $job );
 		$retry_at = 'queued' === $status ? (int) $job['retry_at'] : 0;
 		$heartbeat = $lease ? (int) ( $lease['heartbeat_at'] ?? 0 ) : 0;
@@ -819,7 +840,7 @@ final class Digitalisimo_Backups_Jobs {
 		foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( is_array( $warning ) && ! empty( $warning['notice'] ) ) $notices[ (string) $warning['notice'] ] = (string) ( $warning['text'] ?? '' );
 		$notices = array_values( $notices );
 		$detail = array();
-		if ( 'success' === $status && $restore ) $detail[] = (string) ( $job['progress']['message'] ?? 'Restauración terminada.' );
+		if ( 'success' === $status && ( $restore || $import ) ) $detail[] = (string) ( $job['progress']['message'] ?? 'Restauración terminada.' );
 		elseif ( 'success' === $status ) $detail[] = ( '.dgbk' === substr( (string) ( $spec['file'] ?? '' ), -5 ) ? 'Respaldo cifrado y verificado: ' : 'ZIP verificado: ' ) . basename( (string) ( $spec['file'] ?? '' ) ) . ( $notices ? ' · Con avisos: ' . implode( ' ', $notices ) : '' );
 		elseif ( 'failed' === $status ) $detail[] = $error ?: $message;
 		elseif ( 'cancelled' === $status ) $detail[] = $message;
@@ -852,11 +873,11 @@ final class Digitalisimo_Backups_Jobs {
 			'cancel_requested' => ! empty( $job['cancel_requested_at'] ),
 			'can_cancel' => ! $terminal && empty( $spec['inline'] ) && self::cancellable_phase( $phase, $job ) && empty( $job['cancel_requested_at'] ),
 			'terminal' => $terminal,
-			'file' => 'success' === $status ? basename( (string) ( $spec['file'] ?? '' ) ) : '',
+			'file' => 'success' === $status ? basename( (string) ( $import ? ( $job['result']['import']['file'] ?? '' ) : ( $spec['file'] ?? '' ) ) ) : '',
 			'error' => 'success' === $status ? '' : $error,
-			'origin_label' => $restore ? ( ! empty( $spec['rollback'] ) ? 'Vuelta a la copia previa' : 'Restauración' ) : self::origin_label( $spec ),
-			'destination_label' => $restore ? basename( (string) ( $spec['file'] ?? '' ) ) : Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ),
-			'kind' => $restore ? 'restore' : 'backup',
+			'origin_label' => $restore ? ( ! empty( $spec['rollback'] ) ? 'Vuelta a la copia previa' : 'Restauración' ) : ( $import ? 'Importación de Backuply' : self::origin_label( $spec ) ),
+			'destination_label' => $restore ? basename( (string) ( $spec['file'] ?? '' ) ) : ( $import ? basename( (string) ( $spec['source']['name'] ?? '' ) ) : Digitalisimo_Backups::destination_name( (string) ( $spec['destination'] ?? 'local' ) ) ),
+			'kind' => $restore ? 'restore' : ( $import ? 'import' : 'backup' ),
 			'created_label' => ! empty( $job['created_at'] ) ? self::clock( (int) $job['created_at'], true ) : '',
 			'warnings' => count( (array) ( $job['warnings'] ?? array() ) ),
 			'notices' => $notices,
@@ -885,6 +906,7 @@ final class Digitalisimo_Backups_Jobs {
 
 	public static function status_for( $phase, array $spec ) {
 		if ( 'restore' === ( $spec['type'] ?? '' ) ) return 'inspect' === $phase ? 'verifying' : 'running';
+		if ( 'import' === ( $spec['type'] ?? '' ) ) return in_array( $phase, array( 'scan', 'finish' ), true ) ? 'verifying' : 'running';
 		if ( in_array( $phase, array( 'verify', 'publish' ), true ) ) return 'verifying';
 		if ( 'transfer' === $phase ) return 'transferring';
 		if ( 'prune' === $phase ) return 'local' === ( $spec['destination'] ?? 'local' ) ? 'verifying' : 'transferring';
@@ -895,11 +917,12 @@ final class Digitalisimo_Backups_Jobs {
 		return $labels[ $status ] ?? $status;
 	}
 	public static function phase_label( $phase ) {
-		$labels = array( 'preflight' => 'Comprobaciones', 'database' => 'Base de datos', 'pack' => 'Archivos y ZIP', 'verify' => 'Verificación', 'publish' => 'Registro', 'transfer' => 'Transferencia', 'prune' => 'Retención' ) + Digitalisimo_Backups_Restore_Job::LABELS;
+		$labels = array( 'preflight' => 'Comprobaciones', 'database' => 'Base de datos', 'pack' => 'Archivos y ZIP', 'verify' => 'Verificación', 'publish' => 'Registro', 'transfer' => 'Transferencia', 'prune' => 'Retención' ) + Digitalisimo_Backups_Restore_Job::LABELS + Digitalisimo_Backups_Import_Job::LABELS;
 		return $labels[ $phase ] ?? (string) $phase;
 	}
 	private static function phase_floor( $phase, array $spec = array() ) {
 		if ( 'restore' === ( $spec['type'] ?? '' ) ) return Digitalisimo_Backups_Restore_Job::FLOORS[ $phase ] ?? 0;
+		if ( 'import' === ( $spec['type'] ?? '' ) ) return Digitalisimo_Backups_Import_Job::FLOORS[ $phase ] ?? 0;
 		$floors = array( 'preflight' => 0, 'database' => 3, 'pack' => 40, 'verify' => 81, 'publish' => 98, 'transfer' => 99, 'prune' => 99 );
 		return $floors[ $phase ] ?? 0;
 	}
@@ -918,13 +941,14 @@ final class Digitalisimo_Backups_Jobs {
 	public static function max_attempts( $phase, $job = null ) {
 		// En este proceso (WP-CLI, la envoltura sincrónica) no hay reintentos: un fallo tras el cambio vuelve enseguida a la copia previa.
 		if ( self::is_restore( $job ) ) $max = ! empty( $job['spec']['sync'] ) ? 1 : 5;
+		elseif ( Digitalisimo_Backups_Import_Job::is_import( $job ) ) $max = 3;
 		else $max = 'database' === $phase ? 2 : ( 'transfer' === $phase ? 5 : 3 );
 		return max( 1, (int) self::filter( 'digitalisimo_backups_job_max_attempts', $max, $phase ) );
 	}
 	private static function attempt( array $job ) { return (int) ( $job['attempts'][ $job['phase'] ] ?? 0 ) + 1; }
 	/** Espera de 1, 5 y 15 minutos con ±20 % para que dos sitios no reintenten a la vez; 10 s, 1 y 5 min en una restauración. */
 	public static function backoff( $count, $job = null ) {
-		$steps = self::is_restore( $job ) ? self::RESTORE_BACKOFF : self::BACKOFF;
+		$steps = self::is_restore( $job ) || Digitalisimo_Backups_Import_Job::is_import( $job ) ? self::RESTORE_BACKOFF : self::BACKOFF;
 		$base = $steps[ max( 0, min( count( $steps ) - 1, (int) $count - 1 ) ) ];
 		$wait = (int) round( $base * ( 1 + random_int( -20, 20 ) / 100 ) );
 		return max( 0, (int) self::filter( 'digitalisimo_backups_job_backoff', $wait, (int) $count ) );

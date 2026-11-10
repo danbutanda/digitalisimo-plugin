@@ -136,6 +136,7 @@
   }
 
   function summary(result) {
+    if (result.container === 'backuply') return 'Respaldo de Backuply subido: ' + result.file + '. Impórtalo en «Respaldos de Backuply» (recarga la página) para convertirlo en un ZIP de Backups y restaurarlo.';
     var text = 'Respaldo subido y comprobado: ' + result.file + '. ';
     if (result.needs_secret) text += 'Está cifrado con una clave que este sitio no tiene: al restaurarlo escribe su frase o su clave y ';
     else text += 'Para restaurarlo ';
@@ -148,7 +149,7 @@
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     var file = input && input.files && input.files[0];
-    if (!file) { say('Elige un archivo .zip o .dgbk.'); return; }
+    if (!file) { say('Elige un archivo .zip, .dgbk o .tar.gz.'); return; }
     stopped = false;
     currentFile = file;
     if (submit) submit.disabled = true;
