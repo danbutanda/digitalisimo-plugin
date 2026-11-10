@@ -17,7 +17,9 @@
  *         al abandonar la subida;
  *   (h15) «Eliminar» de «Archivos del almacén sin registro» acepta un paquete `extracted-site-*` con las mismas
  *         validaciones (no uno registrado, ni otro nombre);
- *   (h17) un ZIP antiguo del almacén en 0644 queda en 0600 con la operación siguiente.
+ *   (h17) un ZIP antiguo del almacén en 0644 queda en 0600 con la operación siguiente;
+ *   (h18, fase B) si la restauración la termina otro proceso (WP-Cron), el tick de la pestaña que la seguía con su
+ *         testigo devuelve el estado final de esa restauración en vez de un 403 que la pantalla reintentaba sin fin.
  * Cada caso escribe «FALLA (x)» si falla; la prueba falla si alguno lo hizo. Debe fallar con 1.0.64 (d3ac3fa8).
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -169,6 +171,27 @@ $case( 'h10-red', function() use ( $B, $check, $sql_of, $restore ) {
 	} finally {
 		$GLOBALS['bk_multisite'] = false;
 	}
+} );
+
+// (h18) La restauración de h10 ya terminó (como si la hubiera terminado WP-Cron): la pestaña que la seguía con su testigo
+// recibe el estado final, no un 403 que reintentaría sin fin; con otro testigo, 403 como siempre, y nada de otros trabajos.
+class Bk_E2_Json extends Error { public $success; public $payload; public $status; public function __construct( $success, $payload, $status ) { parent::__construct( 'json' ); $this->success = $success; $this->payload = $payload; $this->status = $status; } }
+function wp_send_json_success( $data = null, $status = null ) { throw new Bk_E2_Json( true, $data, $status ); }
+function wp_send_json_error( $data = null, $status = null ) { throw new Bk_E2_Json( false, $data, $status ); }
+$case( 'h18', function() use ( $check ) {
+	$restore = null;
+	foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) if ( Digitalisimo_Backups_Jobs::is_restore( $job ) && Digitalisimo_Backups_Job_Store::is_terminal( $job ) && ( ! $restore || (int) $job['finished_at'] >= (int) $restore['finished_at'] ) ) $restore = $job;
+	$check( is_array( $restore ) && '' !== (string) ( $restore['spec']['token'] ?? '' ) && null === Digitalisimo_Backups_Jobs::restore_active(), 'No quedó la restauración terminada de h10 con su testigo.' );
+	$tick = function( $token ) {
+		$_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
+		try { Digitalisimo_Backups_Jobs::ajax_restore_tick(); return null; } catch ( Bk_E2_Json $json ) { return $json; } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ); }
+	};
+	$answer = $tick( (string) $restore['spec']['token'] );
+	$check( $answer && $answer->success && 'finished' === ( $answer->payload['result'] ?? '' ), 'Con la restauración terminada por otro proceso, el tick de su testigo no da el estado final: ' . json_encode( $answer ? array( $answer->success, $answer->status, $answer->payload ) : null ) );
+	$jobs = (array) ( $answer->payload['jobs'] ?? array() );
+	$check( 1 === count( $jobs ) && $restore['id'] === $jobs[0]['id'] && ! empty( $jobs[0]['terminal'] ) && $restore['status'] === $jobs[0]['status'], 'El estado final no es el de esa restauración (o lleva otros trabajos): ' . json_encode( $jobs ) );
+	$other = $tick( 'otro-testigo-que-no-es' );
+	$check( $other && ! $other->success && 403 === $other->status, 'Con otro testigo no respondió 403.' );
 } );
 
 // (h11) Una ruta dentro de una URL file:// que es el valor entero se reubica; en un texto, no.
