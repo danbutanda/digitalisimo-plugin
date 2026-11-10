@@ -15,6 +15,9 @@
  * «Desvincular» sólo lee; permisos de las acciones AJAX con un suscriptor y un autor ajeno; la pantalla y «Probar»;
  * y que con la bandera apagada nada se engancha en el front.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace ElementorPro\Modules\QueryControl {
 	class Module {
 		public static $displayed_ids = array();
@@ -237,7 +240,7 @@ namespace {
 		if ( class_exists( '\Digitalisimo\Elements\F7b\Queries\Store', false ) ) {
 			\Digitalisimo\Elements\F7b\Queries\Store::forget();
 			\Digitalisimo\Elements\F7b\Queries\Runtime::reset();
-			( new \ReflectionProperty( \Digitalisimo\Elements\F7b\Queries\Store::class, 'registered' ) )->setValue( null, false );
+			( digi_test_accessible( new \ReflectionProperty( \Digitalisimo\Elements\F7b\Queries\Store::class, 'registered' ) ) )->setValue( null, false );
 		}
 	}
 	function t_post( array $data ): WP_Post {
@@ -1025,7 +1028,7 @@ namespace {
 		return t_widget( $name, $wid, array( Controls::CONTROL => (string) $query ) + $settings );
 	}
 	function t_front(): void {
-		( new ReflectionProperty( Runtime::class, 'initialized' ) )->setValue( null, false );
+		( digi_test_accessible( new ReflectionProperty( Runtime::class, 'initialized' ) ) )->setValue( null, false );
 		Runtime::init();
 	}
 
@@ -1778,11 +1781,11 @@ namespace {
 	\Digitalisimo\Elements\F7b\Flags::$on['saved_queries'] = 1;
 	$GLOBALS['t']['did']['init'] = 1;
 	$GLOBALS['t']['registered']  = array();
-	$reflection = new ReflectionProperty( Queries::class, 'initialized' );
+	$reflection = digi_test_accessible( new ReflectionProperty( Queries::class, 'initialized' ) );
 	$reflection->setValue( null, false );
-	( new ReflectionProperty( Store::class, 'registered' ) )->setValue( null, false );
+	( digi_test_accessible( new ReflectionProperty( Store::class, 'registered' ) ) )->setValue( null, false );
 	foreach ( array( Runtime::class, Controls::class ) as $class ) {
-		( new ReflectionProperty( $class, 'initialized' ) )->setValue( null, false );
+		( digi_test_accessible( new ReflectionProperty( $class, 'initialized' ) ) )->setValue( null, false );
 	}
 	Queries::init();
 	$hooks = t_hooks();
@@ -1796,9 +1799,9 @@ namespace {
 	t_reset();
 	$GLOBALS['t']['admin'] = true;
 	foreach ( array( Queries::class, Runtime::class, Controls::class, Screen::class ) as $class ) {
-		( new ReflectionProperty( $class, 'initialized' ) )->setValue( null, false );
+		( digi_test_accessible( new ReflectionProperty( $class, 'initialized' ) ) )->setValue( null, false );
 	}
-	( new ReflectionProperty( Controls::class, 'ajax' ) )->setValue( null, false );
+	( digi_test_accessible( new ReflectionProperty( Controls::class, 'ajax' ) ) )->setValue( null, false );
 	Queries::init();
 	$hooks = t_hooks();
 	check( isset( $hooks['admin_menu'], $hooks['elementor/ajax/register_actions'], $hooks['elementor/editor/after_enqueue_scripts'], $hooks['init'] ) && ! isset( $hooks['elementor/query/query_args'] ) && ! isset( $hooks['elementor/widget/before_render_content'] ), 'Administración sin bandera: pantalla, AJAX y tipo; sin aplicación.' );

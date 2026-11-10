@@ -19,6 +19,9 @@
  *   regenera).
  * Uso: node php-wasm-cli tests/elements-pro-nav-menu.php [--write]
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $experiments; public $breakpoints; public $editor; }
 	class Controls_Manager {
@@ -240,7 +243,7 @@ namespace {
 	use Digitalisimo\Elements\Convert\Translator;
 
 	$controls_of = static function ( $widget ) {
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		return $widget;
 	};
 	$own = $controls_of( new Nav_Menu() );
@@ -261,7 +264,7 @@ namespace {
 		$widget->controls = $own->controls;
 		$widget->settings = $settings + $defaults( $own );
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -519,7 +522,7 @@ namespace {
 		$w->controls = $own->controls;
 		$w->settings = $fc['settings'] + $defaults( $own );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		$body .= '<div class="elementor-element elementor-widget elementor-widget-digitalisimo-nav-menu ' . $fc['wrapper'] . '" data-id="' . $fid . '">' . str_replace( 'abc1234', $fid, (string) ob_get_clean() ) . "</div>\n<div class=\"spacer\"><p id=\"contacto\">Contacto</p></div>\n";
 	}
 	$links = '';

@@ -19,6 +19,9 @@
  *
  * Uso: php-wasm-cli tests/elements-pro-form.php. php-wasm sale con 0 aunque haya un error fatal: se juzga por la línea final.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Stack {}
 	class Widget_Base extends Controls_Stack {
@@ -198,7 +201,7 @@ namespace {
 		$widget->settings = $settings;
 		$widget->attrs    = array();
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
@@ -273,10 +276,10 @@ namespace {
 	// 3. Controles de PRO, uno a uno.
 	$broken          = array_pop( $registrar->list );
 	$pro             = new \ElementorPro\Modules\Forms\Widgets\Form();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 	$registrar->list[] = $broken; // El de PRO no sobrevive a una acción rota: sólo el propio la recibe.
 	$own = new Form();
-	( new ReflectionMethod( $own, 'register_controls' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'register_controls' ) ) )->invoke( $own );
 	// En el núcleo, el gancho genérico de sección llega a `Module::forward()`: aquí se llama como lo haría el núcleo.
 	Forms::forward_before_section_end( $own, 'section_form_fields', array() );
 	Forms::forward_before_section_end( $pro, 'section_form_fields', array() );

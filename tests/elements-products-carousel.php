@@ -1,6 +1,9 @@
 <?php
 /** Presentaciones en carrusel y en tabla del widget Productos, y título del panel del carrito. */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	function check_carousel( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }

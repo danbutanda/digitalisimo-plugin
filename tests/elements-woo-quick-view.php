@@ -364,7 +364,8 @@ namespace {
 	$request  = static function ( array $p ) { return new class( $p ) implements \ArrayAccess {
 		private $p; public function __construct( $p ) { $this->p = $p; }
 		public function offsetExists( $k ): bool { return isset( $this->p[ $k ] ); }
-		#[\ReturnTypeWillChange] public function offsetGet( $k ) { return $this->p[ $k ] ?? null; }
+		#[\ReturnTypeWillChange]
+		public function offsetGet( $k ) { return $this->p[ $k ] ?? null; }
 		public function offsetSet( $k, $v ): void {}
 		public function offsetUnset( $k ): void {}
 		public function get_route() { return '/digitalisimo-elements/v1/woo/quick-view'; }

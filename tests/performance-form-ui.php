@@ -1,5 +1,6 @@
 <?php
 /** Comprueba la paridad de los selectores y que la comparativa reutilice la URL elegida. */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 $GLOBALS['test_blog_id'] = 1;
 function get_current_blog_id() { return $GLOBALS['test_blog_id']; }
@@ -56,12 +57,12 @@ ob_start(); Digitalisimo_Integrations_SEO_Suite::performance_tracking_network_fi
 if ( false === strpos( $prefilled_html, 'id="network_perf_ga4_id"' ) || false === strpos( $prefilled_html, 'value="G-SUBSITE"' ) || false === strpos( $prefilled_html, 'value="GT-EXISTING"' ) || false !== strpos( $prefilled_html, 'value="GT-SUBSITE"' ) || false === strpos( $prefilled_html, 'https://example.test/subsite/' ) ) throw new RuntimeException( 'La red debe completar sólo IDs vacíos desde el sitio seleccionado, conservando los existentes.' );
 unset( $_GET['site_id'] );
 $GLOBALS['test_network'][ Digitalisimo_Integrations_Settings::OPTION ] = array( 'perf_safe_mode' => 1 );
-$network_field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'nf' );
+$network_field = digi_test_accessible( new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'nf' ) );
 ob_start();
 $network_field->invoke( null, 'seo_schema_enabled', 'Schema JSON-LD', 'checkbox' );
 $network_default_html = ob_get_clean();
 if ( ! preg_match( '/class="digitalisimo-default-value"[^>]*type="checkbox"[^>]*checked="checked"/', $network_default_html ) || false !== strpos( $network_default_html, 'id="network_seo_schema_enabled" name="digitalisimo_network[seo_schema_enabled]" value="1" checked="checked" disabled' ) ) throw new RuntimeException( 'Un checkbox activo predeterminado de red debe seguir marcado y editable.' );
-$field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'f' );
+$field = digi_test_accessible( new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'f' ) );
 ob_start();
 $field->invoke( null, 'perf_safe_mode', 'Modo seguro', 'checkbox' );
 $inherited_html = ob_get_clean();
@@ -71,9 +72,9 @@ ob_start();
 Digitalisimo_Integrations_Performance_Measurements::render( true );
 $measurement_html = ob_get_clean();
 if ( false === strpos( $measurement_html, '<input type="hidden" name="url" value="https://example.test/subsite/page/">' ) || false !== strpos( $measurement_html, 'type="url" name="url"' ) || false === strpos( $measurement_html, '<details>' ) || false === strpos( $measurement_html, 'Puedes llenar sólo las métricas que tengas' ) ) throw new RuntimeException( 'La comparación debe usar la URL analizada y explicar que las métricas son opcionales.' );
-$sections = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'sections' );
+$sections = digi_test_accessible( new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'sections' ) );
 if ( ( $sections->invoke( null )['status'] ?? '' ) !== 'Diagnóstico de assets' || ( $sections->invoke( null )['measurements'] ?? '' ) !== 'PageSpeed manual' ) throw new RuntimeException( 'El diagnóstico y las mediciones manuales deben tener pestañas inequívocas.' );
-$page_url = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'page_url' );
+$page_url = digi_test_accessible( new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'page_url' ) );
 if ( false === strpos( $page_url->invoke( null, true, 'measurements' ), 'performance_url=https%3A%2F%2Fexample.test%2Fsubsite%2Fpage%2F' ) ) throw new RuntimeException( 'La navegación debe conservar la URL analizada.' );
 unset( $_GET['performance_url'] );
 $GLOBALS['test_result'] = array( 'url' => 'https://example.test/subsite/page/' );

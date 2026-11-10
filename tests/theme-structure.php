@@ -29,7 +29,14 @@ function theme_files( $theme ) {
 	return $files;
 }
 
-/** Tokens sin espacios ni comentarios. */
+// PHP 7.4 (el mínimo declarado) parte `Elementor\Plugin` en T_STRING y T_NS_SEPARATOR; PHP 8 lo da como un solo token
+// T_NAME_QUALIFIED o T_NAME_FULLY_QUALIFIED. code_tokens() los une en 7.4 con estas mismas constantes, que 7.4 no trae.
+if ( ! defined( 'T_NAME_QUALIFIED' ) ) {
+	define( 'T_NAME_QUALIFIED', 20001 );
+	define( 'T_NAME_FULLY_QUALIFIED', 20002 );
+}
+
+/** Tokens sin espacios ni comentarios, con los nombres con espacio de nombres en un token, como en PHP 8. */
 function code_tokens( $source ) {
 	$out = array();
 	foreach ( token_get_all( $source ) as $token ) {
@@ -38,7 +45,25 @@ function code_tokens( $source ) {
 		}
 		$out[] = $token;
 	}
-	return $out;
+	if ( PHP_VERSION_ID >= 80000 ) {
+		return $out;
+	}
+	$merged = array();
+	$part   = function ( $token ) { return is_array( $token ) && in_array( $token[0], array( T_STRING, T_NS_SEPARATOR ), true ); };
+	for ( $i = 0, $n = count( $out ); $i < $n; $i++ ) {
+		$j = $i;
+		while ( $j < $n && $part( $out[ $j ] ) && ( $j === $i || ( T_NS_SEPARATOR === $out[ $j ][0] ) !== ( T_NS_SEPARATOR === $out[ $j - 1 ][0] ) ) ) {
+			$j++;
+		}
+		$text = implode( '', array_map( 'token_text', array_slice( $out, $i, $j - $i ) ) );
+		if ( $j - $i > 1 && '\\' !== substr( $text, -1 ) ) {
+			$merged[] = array( '\\' === $text[0] ? T_NAME_FULLY_QUALIFIED : T_NAME_QUALIFIED, $text, $out[ $i ][2] );
+			$i        = $j - 1;
+			continue;
+		}
+		$merged[] = $out[ $i ];
+	}
+	return $merged;
 }
 
 function token_text( $token ) {

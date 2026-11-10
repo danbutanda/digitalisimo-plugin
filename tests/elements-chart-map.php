@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -15,7 +18,7 @@ namespace {
 	function esc_url( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-chart.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-map.php';
-	$render = static function ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	check_cm( array( 2.0, 4.5, -1.0 ) === \Digitalisimo\Elements\Chart_Widget::numbers( '2; 4,5; -1' ), 'Los valores admiten coma decimal y negativos.' );
 	$chart = new \Digitalisimo\Elements\Chart_Widget();

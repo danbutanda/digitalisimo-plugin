@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -43,7 +46,7 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-list.php';
 	$widget = new \Digitalisimo\Elements\Fancy_List_Widget();
 	verify_fancy( 'digitalisimo-fancy-list' === $widget->get_name() && array( 'digitalisimo-fancy-list' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El widget sólo debe depender de su CSS.' );
-	$controls = new \ReflectionMethod( $widget, 'register_controls' );
+	$controls = digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) );
 	$controls->invoke( $widget );
 	verify_fancy( isset( $widget->controls['icon_list']['fields']['img'], $widget->controls['columns']['selectors'], $widget->controls['title_typography'], $widget->controls['image_size'] ), 'El editor debe registrar repetidor, controles responsivos y estilos nativos.' );
 	$widget->settings = array(
@@ -54,7 +57,7 @@ namespace {
 			array( 'text' => 'Segundo', 'list_icon' => array( 'value' => 'fas fa-star' ) ),
 		),
 	);
-	$method = new \ReflectionMethod( $widget, 'render' );
+	$method = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	ob_start(); $method->invoke( $widget ); $html = ob_get_clean();
 	verify_fancy( str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ) && str_contains( $html, '<h4 class="digi-fancy-list__title">' ), 'El título y la etiqueta deben estar saneados.' );
 	verify_fancy( str_contains( $html, '<div class="digi-fancy-list__content"><h4' ), 'El encabezado no debe quedar dentro de un span inválido.' );
@@ -64,7 +67,7 @@ namespace {
 	verify_fancy( str_contains( $html, '>1</span>' ) && str_contains( $html, '>2</span>' ), 'La numeración debe omitir elementos vacíos.' );
 	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/fancy-list.css' );
 	verify_fancy( str_contains( $css, '.digi-fancy-list__items' ) && ! str_contains( $css, 'uikit' ), 'El CSS debe estar aislado y libre de UIkit.' );
-	$template = new \ReflectionMethod( $widget, 'content_template' );
+	$template = digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) );
 	ob_start(); $template->invoke( $widget ); $editor = ob_get_clean();
 	verify_fancy( str_contains( $editor, 'digi-fancy-list__content' ) && str_contains( $editor, 'renderIcon' ) && str_contains( $editor, '{{ title }}' ), 'La vista previa del editor debe reflejar la lista sin insertar texto HTML sin escapar.' );
 	echo "DIGITALÍSIMO Elements: Lista destacada validada.\n";

@@ -11,6 +11,9 @@
  * - El campo `priority` de los kits exporta, importa con el valor recibido y llama a `reindex()`; rango 1–99.
  * - Guarda: sin los símbolos del Theme Builder no se registra nada.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager { const NUMBER = 'number'; const SELECT = 'select'; const SWITCHER = 'switcher'; const RAW_HTML = 'raw_html'; const SECTION = 'section'; }
 }
@@ -249,7 +252,7 @@ namespace {
 	do_action( 'admin_init' );
 	check_priority( ! empty( $GLOBALS['autoload'][ $priority::OPTION ] ) && array( 101 => 15 ) === $GLOBALS['options'][ $priority::OPTION ], 'La opción existente pasa a carga automática sin perder datos.' );
 	update_option( $priority::OPTION, array(), true );
-	$reset = new \ReflectionProperty( $priority, 'memo' );
+	$reset = digi_test_accessible( new \ReflectionProperty( $priority, 'memo' ) );
 	$reset->setValue( null, array() );
 
 	$GLOBALS['queries'] = 0;

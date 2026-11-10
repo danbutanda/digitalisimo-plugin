@@ -15,6 +15,9 @@
  *   estilos, `__dynamic__` y `__globals__`, CSS personalizado) con su contenedor hijo intacto y el enlace que lo abre sin
  *   tocar: ningún `pro.unmapped`, cada clave cae en un control propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $experiments; }
 	class Controls_Manager {
@@ -117,9 +120,9 @@ namespace {
 	use Digitalisimo\Elements\Convert\Translator;
 
 	$own = new Nested_Off_Canvas();
-	( new ReflectionMethod( $own, 'register_controls' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'register_controls' ) ) )->invoke( $own );
 	$pro = new \ElementorPro\Modules\OffCanvas\Widgets\Off_Canvas();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 
 	$defaults = static function ( $widget ) {
 		$out = array();
@@ -137,7 +140,7 @@ namespace {
 		$widget->children = null === $kids ? array( new OC_Child( '<a href="/contacto/">Contacto</a>' ) ) : $kids;
 		$widget->id       = $id;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -166,7 +169,7 @@ namespace {
 	foreach ( array( $source, $css, $js, $editor, (string) file_get_contents( $root . 'modules/digitalisimo-convert/maps/off-canvas.php' ) ) as $text ) {
 		check_oc( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $text ), 'Sin nombres de otros proveedores (guarda de build-packages.sh).' );
 	}
-	$config = ( new ReflectionMethod( $own, 'get_initial_config' ) )->invoke( $own );
+	$config = ( digi_test_accessible( new ReflectionMethod( $own, 'get_initial_config' ) ) )->invoke( $own );
 	check_oc( '.digi-noc__content' === $config['defaults']['elements_placeholder_selector'] && array( array( 'elType' => 'container', 'settings' => array( 'content_width' => 'full' ) ) ) === $config['defaults']['elements'] && '' === $config['defaults']['repeater_title_setting'], 'Un contenedor hijo de ancho completo, dentro del contenido; sin repetidor.' );
 
 	// 2. Un control propio por cada control de PRO, igual salvo los textos.
@@ -242,7 +245,7 @@ namespace {
 
 	// 5. Plantilla del editor.
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template' ) ) )->invoke( $own );
 	$template = (string) ob_get_clean();
 	foreach ( array( "'off-canvas-' + view.getID()", "'role': 'dialog'", "'aria-modal': 'true'", "'data-digi-noc': JSON.stringify( digiConfig )", "'data-delay-child-handlers': 'true'", 'elementor.previewView.isBuffering', "'yes' !== settings.editing_mode", 'validateHTMLTag', '<div class="digi-noc__overlay"></div><div class="digi-noc__main"><div class="digi-noc__content"></div></div>', 'eicon-off-canvas' ) as $piece ) {
 		check_oc( str_contains( $template, $piece ), 'La plantilla del editor no tiene: ' . $piece );

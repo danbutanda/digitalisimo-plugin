@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -29,9 +32,9 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-total-count.php';
 	$widget = new \Digitalisimo\Elements\Total_Count_Widget();
 	check_total( array( 'digitalisimo-total-count' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'Debe cargar sólo CSS condicional.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_total( isset( $widget->controls['source'], $widget->controls['post_type'], $widget->controls['label'] ), 'Faltan controles.' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'source' => 'post', 'post_type' => 'post', 'label' => 'Entradas <b>reales</b>' );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_total( str_contains( $html, '>17</span>' ) && str_contains( $html, 'Entradas reales' ) && ! str_contains( $html, '<b>' ) && array( 'post', 'readable' ) === $GLOBALS['count_posts_args'], 'Sólo contar publicaciones y sanear la etiqueta.' );

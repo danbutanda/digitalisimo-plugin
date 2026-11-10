@@ -18,6 +18,7 @@
  * - conversión con `Converter::tree()` de ajustes reales de los tres widgets (pieles, responsivos, globales, dinámicos,
  *   CSS personalizado con clases de PRO): ningún `pro.unmapped` y cada clave cae en un control propio.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 require __DIR__ . '/elements-pro-posts/env.php';
 
 // ── WordPress mínimo para pintar ─────────────────────────────────────────────────────────────────────────────────
@@ -402,10 +403,10 @@ $pf_label = static function ( $translations, array $marker = array( \Digitalisim
 	$GLOBALS['pe']['query'] = pe_query( 3 );
 	$own = $render( pe_widget( $F, array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) + $marker ) );
 	$pro = pe_widget( 'ElementorPro\Modules\Posts\Widgets\Portfolio', array( 'show_filter_bar' => 'yes', 'taxonomy' => 'category' ) );
-	$q   = new ReflectionProperty( $pro, '_query' );
+	$q   = digi_test_accessible( new ReflectionProperty( $pro, '_query' ) );
 	$q->setValue( $pro, (object) array( 'posts' => array( (object) array( 'tags' => array( 6 => (object) array( 'term_id' => 6, 'name' => 'Guías' ) ) ) ) ) );
 	ob_start();
-	( new ReflectionMethod( $pro, 'render_filter_menu' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'render_filter_menu' ) ) )->invoke( $pro );
 	$pro_html = (string) ob_get_clean();
 	unset( $GLOBALS['pe']['l10n'] );
 	preg_match( '~data-filter="__all">([^<]*)</li>~', $pro_html, $a );
@@ -431,7 +432,7 @@ $fit = static function ( array $settings ) use ( $render, $F ) {
 };
 $check( 2 === $fit( array( 'item_ratio' => array( 'size' => 1 ) ) ) && 0 === $fit( array( 'item_ratio' => array( 'size' => 0.5 ) ) ) && 0 === $fit( array( 'item_ratio' => array( 'size' => 1 ), 'masonry' => 'yes' ) ) && 0 === $fit( array() ), 'Portafolio: ajuste al alto sólo con una imagen más apaisada que la caja y sin mampostería (dos de tres entradas tienen imagen).' );
 $pf_widget = pe_widget( $F, array() );
-( new ReflectionMethod( $pf_widget, 'register_controls' ) )->invoke( $pf_widget );
+( digi_test_accessible( new ReflectionMethod( $pf_widget, 'register_controls' ) ) )->invoke( $pf_widget );
 $pf_sel = $pf_widget->controls['item_ratio']['selectors'] ?? array();
 $check( str_contains( $pf_sel['{{WRAPPER}} .digi-portfolio__img img'] ?? '', 'height: auto;' ) && ! str_contains( implode( ' ', $pf_sel ), 'object-fit' ) && 'height: 100%; width: auto;' === ( $pf_sel['{{WRAPPER}} .digi-portfolio__img--fit-height img'] ?? '' ) && array_search( '{{WRAPPER}} .digi-portfolio__img--fit-height img', array_keys( $pf_sel ), true ) > array_search( '{{WRAPPER}} .digi-portfolio__img img', array_keys( $pf_sel ), true ), 'Portafolio: la imagen con su alto (sin object-fit) y, ajustada al alto, a todo el alto con su ancho, después.' );
 
@@ -517,7 +518,7 @@ require_once $root . 'modules/digitalisimo-widgets/class-posts-terms.php';
 $pt = new \ElementorPro\Modules\Posts\Widgets\Posts( array(), array() );
 $pt_before = array_keys( $pt->get_skins() );
 \Digitalisimo\Elements\Posts_Terms::replace_skin( $pt );
-( new ReflectionMethod( $pt, 'register_controls' ) )->invoke( $pt );
+( digi_test_accessible( new ReflectionMethod( $pt, 'register_controls' ) ) )->invoke( $pt );
 $check( 'classic' === $pt_before[0] && $pt_before === array_keys( $pt->get_skins() ) && $pt->get_skin( 'classic' ) instanceof \Digitalisimo\Elements\Posts_Terms_Skin && 'classic' === ( $pt->controls['_skin']['default'] ?? '' ), 'Posts_Terms: la piel clásica sigue primera y es la de por defecto (' . implode( ', ', array_keys( $pt->get_skins() ) ) . ').' );
 $check( 'classic' === $pt->get_current_skin_id(), 'Posts_Terms: un Posts sin `_skin` guardado se pinta con la piel clásica, como en PRO.' );
 foreach ( array( 'posts', 'archive-posts', 'portfolio' ) as $type ) {

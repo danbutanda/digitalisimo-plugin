@@ -17,6 +17,9 @@
  * - datos del script del editor (lo ejecuta `tests/elements-page-visits.mjs`).
  */
 
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const SELECT    = 'select';

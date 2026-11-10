@@ -18,6 +18,9 @@
  * La especificidad, los colores y el comportamiento en un navegador real los mira `elements-f7b-presentation.mjs`.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	require __DIR__ . '/fixtures/f7b-wp.php';
 	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.169' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', realpath( __DIR__ . '/../digitalisimo-elements/pro-elements.php' ) );

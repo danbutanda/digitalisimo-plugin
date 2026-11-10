@@ -86,7 +86,7 @@ namespace {
 
 	// ── 1. Autocarga acotada y correspondencia clase ↔ archivo (§5.1) ──────────────────────────────────────────
 	$autoloaders = function () {
-		return count( array_filter( spl_autoload_functions(), function ( $fn ) {
+		return count( array_filter( spl_autoload_functions() ?: array(), function ( $fn ) { // PHP 7.4 da false sin autocargas.
 			return is_array( $fn ) && Module::class === ( is_object( $fn[0] ) ? get_class( $fn[0] ) : $fn[0] ) && 'autoload' === $fn[1];
 		} ) );
 	};
@@ -180,12 +180,17 @@ namespace {
 	$check( $seen >= 9, 'El recorrido del módulo debe ver al menos los archivos del contrato.' );
 
 	// ── 2. Interfaces con las firmas exactas de §5.5 ────────────────────────────────────────────────────────────
-	$signature = function ( ReflectionMethod $method ) {
+	// Tipo como lo escribe PHP 8 («?array»): PHP 7.4 (el mínimo declarado) omite el «?» de un tipo anulable al pasarlo a texto.
+	$type = function ( ReflectionType $type ) {
+		$text = (string) $type;
+		return $type instanceof ReflectionNamedType && $type->allowsNull() && '?' !== $text[0] && ! in_array( $text, array( 'mixed', 'null' ), true ) ? '?' . $text : $text;
+	};
+	$signature = function ( ReflectionMethod $method ) use ( $type ) {
 		$params = array();
 		foreach ( $method->getParameters() as $param ) {
-			$params[] = ( $param->hasType() ? (string) $param->getType() . ' ' : '' ) . '$' . $param->getName() . ( $param->isOptional() ? ' = …' : '' );
+			$params[] = ( $param->hasType() ? $type( $param->getType() ) . ' ' : '' ) . '$' . $param->getName() . ( $param->isOptional() ? ' = …' : '' );
 		}
-		return $method->getName() . '( ' . implode( ', ', $params ) . ' ): ' . ( $method->hasReturnType() ? (string) $method->getReturnType() : '' );
+		return $method->getName() . '( ' . implode( ', ', $params ) . ' ): ' . ( $method->hasReturnType() ? $type( $method->getReturnType() ) : '' );
 	};
 	$ns       = 'Digitalisimo\\Elements\\Import\\Kits\\';
 	$expected = array(

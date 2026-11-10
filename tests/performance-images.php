@@ -4,6 +4,7 @@
  * prioridad de carga, sizes desde el layout de Elementor, fondos y aislamiento
  * por sitio. Sin WordPress completo: las funciones de medios se simulan.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 $GLOBALS['blog'] = 1;
 $GLOBALS['settings'] = array();
@@ -104,7 +105,7 @@ check( ! isset( $tag['srcset'] ) && ! isset( $tag['loading'] ) && ! isset( $tag[
 check( '1024' === $tag['width'] && '576' === $tag['height'], 'El slide reserva su espacio con las dimensiones del archivo que cargará.' );
 $sized = '<img class="swiper-slide-image swiper-lazy" data-src="https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg" width="600">';
 check( 1 === substr_count( $img::process( page( $sized ) ), 'width=' ) && false === strpos( $img::process( page( $sized ) ), 'height=' ), 'Un slide con dimensiones propias no se toca.' );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( 'RESPONSIVE' === $report[0]['status'] && in_array( 'LAZY', $report[0]['states'], true ) && '' !== $report[0]['srcset'], 'El informe muestra el slide como responsive y diferido.' );
 $lazysizes = '<img class="lazyload" data-src="' . $hero . '" data-sizes="auto">';
 check( false !== strpos( $img::process( page( $lazysizes ) ), 'data-sizes="auto"' ) && 1 === substr_count( $img::process( page( $lazysizes ) ), 'data-sizes=' ), 'Un data-sizes existente de lazysizes se respeta.' );
@@ -149,7 +150,7 @@ preg_match_all( '/<img[^>]*>/', $out, $tags );
 check( 'low' === $img::attributes( $tags[0][0] )['fetchpriority'] && 'high' === ( $img::attributes( $tags[0][1] )['fetchpriority'] ?? '' ), 'La siguiente imagen grande es la candidata a LCP.' );
 // Sin variantes menores: añadir dimensiones no la vuelve «responsive».
 $img::process( page( '<img src="https://site1.test/wp-content/uploads/2026/01/hero-300x169.jpg">' ) );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( 'SIN VARIANTES' === $report[0]['status'] && '300' === $report[0]['width'], 'Una imagen sin variantes menores figura SIN VARIANTES aunque reciba width/height.' );
 
 // Interruptores independientes.
@@ -189,9 +190,9 @@ $first = $GLOBALS['lookups'];
 $img::process( page( '<img src="https://site1.test/wp-content/uploads/2026/01/hero-768x432.jpg">' ) );
 check( $first > 0 && $first === $GLOBALS['lookups'], 'Una URL ya resuelta no se vuelve a consultar.' );
 // Sin caché de objetos persistente, el mapa por sitio sobrevive a la petición.
-( new ReflectionProperty( $img, 'resolved' ) )->setValue( null, array() );
+( digi_test_accessible( new ReflectionProperty( $img, 'resolved' ) ) )->setValue( null, array() );
 $img::save_map();
-( new ReflectionProperty( $img, 'map' ) )->setValue( null, null );
+( digi_test_accessible( new ReflectionProperty( $img, 'map' ) ) )->setValue( null, null );
 $img::process( page( '<img src="https://site1.test/wp-content/uploads/2026/01/hero-768x432.jpg">' ) );
 check( $first === $GLOBALS['lookups'], 'En la petición siguiente la URL sale del mapa guardado, sin consultas.' );
 $GLOBALS['blog'] = 2; on();
@@ -202,7 +203,7 @@ $GLOBALS['blog'] = 1;
 
 // Debug: cada imagen queda clasificada.
 $img::process( page( '<img src="' . $hero . '"><img src="https://cdn.otro.test/a.jpg"><img src="data:image/png;base64,AA">' ) );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( array( 'RESPONSIVE', 'SIN ATTACHMENT', 'EXCLUIDA' ) === array_column( $report, 'status' ) && 10 === $report[0]['attachment_id'] && array( 1920, 1080 ) === $report[0]['original'], 'El informe clasifica cada imagen con su adjunto y dimensiones.' );
 check( in_array( 'CRÍTICA', $report[0]['states'], true ), 'La primera imagen figura como crítica.' );
 
@@ -237,35 +238,35 @@ on();
 $generic = '<img src="' . $hero . '" srcset="' . $hero . ' 1920w" sizes="100vw" width="1920" height="1080"';
 $out = $img::process( page( $generic . ' data-digitalisimo-sizes="(max-width: 767px) 100vw, 50vw">' ) );
 check( false !== strpos( $out, 'sizes="(max-width: 767px) 100vw, 50vw"' ) && 1 === substr_count( $out, ' sizes=' ), 'Un sizes «100vw» se sustituye por el del layout.' );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( 'RESPONSIVE' === $report[0]['status'] && in_array( 'SIZES CORREGIDO', $report[0]['states'], true ), 'El informe indica la corrección.' );
 $out = $img::process( page( $generic . '>' ) );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( false !== strpos( $out, 'sizes="100vw"' ) && in_array( 'SIZES GENÉRICO', $report[0]['states'], true ) && 'OPTIMIZADA' === $report[0]['status'], 'Sin layout conocido el sizes se conserva y se marca genérico.' );
 $out = $img::process( page( $generic . ' data-digitalisimo-sizes="100vw">' ) );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( false !== strpos( $out, 'sizes="100vw"' ) && ! in_array( 'SIZES CORREGIDO', $report[0]['states'], true ), 'Si el layout también es de ancho completo, nada cambia ni se informa como corrección.' );
 check( $img::generic_sizes( ' 100VW ' ) && ! $img::generic_sizes( 'auto, 100vw' ) && ! $img::generic_sizes( '(max-width: 767px) 100vw, 50vw' ), 'Sólo «100vw» a secas es genérico.' );
 on( array( 'perf_img_dimensions' => 0 ) );
 $img::process( page( '<img src="' . $hero . '">' ) );
-$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'report' ) ) )->getValue();
 check( in_array( 'SIN DIMENSIONES', $report[0]['states'], true ), 'Una imagen sin width/height se marca.' );
 
 // Clasificación decorativa: alt="" para el adjunto marcado, también con la optimización apagada.
 class Digitalisimo_Integrations_Quality_Audit { public static function role( $id ) { return 10 === $id ? 'decorative' : ''; } }
-( new ReflectionProperty( $img, 'has_roles' ) )->setValue( null, true );
+( digi_test_accessible( new ReflectionProperty( $img, 'has_roles' ) ) )->setValue( null, true );
 on();
 $out = $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="Héroe">' ) );
 check( false !== strpos( $out, 'alt=""' ) && false === strpos( $out, 'Héroe' ) && false !== strpos( $out, 'srcset=' ), 'Una decorativa se publica con alt="" y sigue optimizándose.' );
 $out = $img::process( page( '<img class="swiper-slide-image swiper-lazy" data-src="' . $hero . '" alt="Slide">' ) );
 check( false !== strpos( $out, 'alt=""' ), 'También en los slides de Swiper.' );
-( new ReflectionProperty( $img, 'roles_only' ) )->setValue( null, true );
+( digi_test_accessible( new ReflectionProperty( $img, 'roles_only' ) ) )->setValue( null, true );
 $out = $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="Héroe">' ) );
 check( page( '<img class="wp-image-10" src="' . $hero . '" alt="">' ) === $out, 'Con la optimización apagada sólo se cambia el alt.' );
 $other = '<img src="https://site1.test/wp-content/uploads/otra.jpg" alt="Otra">';
 check( page( $other ) === $img::process( page( $other ) ), 'Las imágenes no clasificadas quedan intactas.' );
-( new ReflectionProperty( $img, 'roles_only' ) )->setValue( null, false );
-( new ReflectionProperty( $img, 'has_roles' ) )->setValue( null, false );
+( digi_test_accessible( new ReflectionProperty( $img, 'roles_only' ) ) )->setValue( null, false );
+( digi_test_accessible( new ReflectionProperty( $img, 'has_roles' ) ) )->setValue( null, false );
 
 // ALT en la salida: contexto del HTML, caption, palabra clave una sola vez y Biblioteca intacta.
 function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
@@ -279,7 +280,7 @@ function get_theme_mod( $key ) { return 0; }
 require_once __DIR__ . '/../digitalisimo-seo/includes/performance/class-image-alt.php';
 $GLOBALS['meta_alt'] = '';
 on( array( 'seo_alt_optimize' => 1, 'seo_alt_keyword_mode' => 'contextual', 'seo_alt_keyword' => '' ) );
-( new ReflectionProperty( $img, 'alt_on' ) )->setValue( null, true );
+( digi_test_accessible( new ReflectionProperty( $img, 'alt_on' ) ) )->setValue( null, true );
 $body = '<h2>Análisis del mercado</h2><img class="wp-image-10" src="' . $hero . '" alt="">'
 	. '<figure><img src="https://site1.test/wp-content/uploads/2026/01/Equipo-Oficina.jpg"><figcaption>Equipo oficina</figcaption></figure>'
 	. '<div class="elementor-widget-image-box"><img src="https://site1.test/wp-content/uploads/IMG_77.jpg" alt=""><h3 class="elementor-image-box-title">Diseño web</h3></div>'
@@ -292,11 +293,11 @@ check( '' === $alts[1], 'Lo generado repetiría el caption visible: alt="".' );
 check( '' === $alts[2], 'Una imagen ajena a la Biblioteca con alt="" se respeta.' );
 check( 'Mercado Local' === $alts[3], 'La keyword ya se usó en esta página: no se repite (' . $alts[3] . ').' );
 check( 'Foto propia' === $alts[4], 'El ALT manual se conserva.' );
-$report = ( new ReflectionProperty( $img, 'alt_report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $img, 'alt_report' ) ) )->getValue();
 check( array( 'GENERADO', 'VACÍO CORRECTO', 'VACÍO CORRECTO', 'GENERADO', 'MANUAL' ) === array_column( $report, 'state' ), 'Estados del informe: ' . implode( ', ', array_column( $report, 'state' ) ) );
 $GLOBALS['meta_alt'] = 'ALT desde Medios';
 check( false !== strpos( $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="">' ) ), 'alt="ALT desde Medios"' ), 'El ALT guardado en la Biblioteca gana a cualquier generado.' );
 $GLOBALS['meta_alt'] = '';
-( new ReflectionProperty( $img, 'alt_on' ) )->setValue( null, false );
+( digi_test_accessible( new ReflectionProperty( $img, 'alt_on' ) ) )->setValue( null, false );
 
 echo "Imágenes: srcset, sizes, dimensiones, prioridad, exclusiones, fondos y aislamiento por sitio correctos.\n";

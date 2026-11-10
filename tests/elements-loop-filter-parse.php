@@ -303,17 +303,28 @@ PHP;
 	$rest->register_widget_filter( 'abc1234', array( 'digitalisimo_price' => array( 'digi_price_max' => array( 'terms' => array( '50' ) ) ) ) );
 	check_parse( array( 'taxonomy', 'digitalisimo_price' ) === array_keys( $rest->get_query_string_filters()['abc1234'] ), 'register_widget_filter() pone la clave taxonomy también en el refresco.' );
 	check_parse( false !== strpos( $render( $rest ), 'data-filter="__all" aria-pressed="true"' ), 'Sin error tras un refresco con sólo el precio.' );
-	// Sin la línea de V.8.2, PHP 8 lanza el TypeError de la crítica: la línea es la que lo evita.
+	// Sin la línea de V.8.2, PHP 8 lanza el TypeError de la crítica: la línea es la que lo evita. PHP 7.4 (el mínimo
+	// declarado) no lanza nada con un argumento de tipo equivocado en una función interna: avisa «array_key_exists()
+	// expects parameter 2 to be array» y sigue. Es el mismo error (PHP 8.0 convirtió esos avisos en TypeError), así que en
+	// 7.4 se exige ese aviso.
 	$failed = '';
-	set_error_handler( function () { return true; } ); // El aviso de la clave ausente precede al TypeError.
+	$kind   = '';
+	set_error_handler( function ( $severity, $message ) use ( &$failed, &$kind ) { // El aviso de la clave ausente precede.
+		if ( '' === $failed && false !== strpos( $message, 'array_key_exists' ) ) {
+			$failed = $message;
+			$kind   = 'aviso';
+		}
+		return true;
+	} );
 	try {
 		$render( $from_url( $no_init_class, 'e-filter-abc1234-digi_price_min=10' ) );
 	} catch ( \TypeError $error ) {
 		$failed = $error->getMessage();
+		$kind   = 'TypeError';
 	} finally {
 		restore_error_handler();
 	}
-	check_parse( false !== strpos( $failed, 'array_key_exists' ), 'Sin inicializar la clave taxonomy, el render de PRO lanza TypeError (V-B1).' );
+	check_parse( false !== strpos( $failed, 'array_key_exists' ) && ( PHP_VERSION_ID >= 80000 ? 'TypeError' : 'aviso' ) === $kind, 'Sin inicializar la clave taxonomy, el render de PRO lanza TypeError (V-B1; en PHP 7.4, su aviso): ' . $kind . ' ' . $failed );
 
 	// --- Tipos registrados: se apartan y se aplican una vez; taxonomy y lo no registrado, como siempre. -----------
 	$calls = array();

@@ -40,10 +40,14 @@ class WP_REST_Request implements ArrayAccess {
 	public function get_param( $key ) { return $this->params[ $key ] ?? null; }
 	public function has_param( $key ) { return array_key_exists( $key, $this->params ); }
 	public function get_file_params() { return $this->files; }
-	#[\ReturnTypeWillChange] public function offsetExists( $key ) { return isset( $this->params[ $key ] ); }
-	#[\ReturnTypeWillChange] public function offsetGet( $key ) { return $this->params[ $key ] ?? null; }
-	#[\ReturnTypeWillChange] public function offsetSet( $key, $value ) { $this->params[ $key ] = $value; }
-	#[\ReturnTypeWillChange] public function offsetUnset( $key ) { unset( $this->params[ $key ] ); }
+	#[\ReturnTypeWillChange]
+	public function offsetExists( $key ) { return isset( $this->params[ $key ] ); }
+	#[\ReturnTypeWillChange]
+	public function offsetGet( $key ) { return $this->params[ $key ] ?? null; }
+	#[\ReturnTypeWillChange]
+	public function offsetSet( $key, $value ) { $this->params[ $key ] = $value; }
+	#[\ReturnTypeWillChange]
+	public function offsetUnset( $key ) { unset( $this->params[ $key ] ); }
 }
 function is_wp_error( $value ) { return $value instanceof WP_Error; }
 function is_multisite() { return false; }

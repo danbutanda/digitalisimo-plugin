@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -27,7 +30,7 @@ namespace {
 	function dynamic_sidebar( $id ) { echo '<section class="widget">Widgets</section>'; }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-offcanvas.php';
 	$widget = new \Digitalisimo\Elements\Offcanvas_Widget();
-	$render = static function () use ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function () use ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	$widget->settings = array( 'trigger' => 'button', 'button_text' => 'Menú <b>x</b>', 'button_icon' => array( 'value' => 'fas fa-bars' ), 'source' => 'template', 'template_id' => '7', 'content_before' => '<p>Antes<script>x</script></p>', 'close_button' => 'yes', 'close_on_overlay' => 'yes', 'close_on_escape' => '', 'side' => 'right', 'overlay' => 'yes' );
 	$html = $render();

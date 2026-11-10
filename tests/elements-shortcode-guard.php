@@ -14,6 +14,9 @@
  * - Guarda del paquete: ningún nombre ni prefijo de los productos de origen.
  * Uso: node <php-wasm-cli> tests/elements-shortcode-guard.php
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager { const SWITCHER = 'switcher'; const TEXTAREA = 'textarea'; }
 	class Plugin { public static $instance; }

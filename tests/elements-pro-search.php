@@ -18,6 +18,9 @@
  *   estilos de cada pestaña, paginación, `__dynamic__` y `__globals__`, CSS personalizado): ningún `pro.unmapped`, cada
  *   clave cae en un control propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $experiments; public $documents; public $elements_manager; }
 	class Controls_Manager {
@@ -200,9 +203,9 @@ namespace {
 	use Digitalisimo\Elements\Convert\Translator;
 
 	$own = new Search();
-	( new ReflectionMethod( $own, 'register_controls' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'register_controls' ) ) )->invoke( $own );
 	$pro = new \ElementorPro\Modules\Search\Widgets\Search();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 
 	$defaults = static function ( $widget ) {
 		$out = array();
@@ -218,7 +221,7 @@ namespace {
 		$widget->controls = $own->controls;
 		$widget->settings = $settings + $defaults( $own );
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return preg_replace( '/>\s+</', '><', trim( (string) ob_get_clean() ) );
 	};
 
@@ -329,18 +332,18 @@ namespace {
 	$widget           = new Search();
 	$widget->settings = array( 'enable_nothing_found_message' => 'yes', 'nothing_found_message_text' => 'Nada <b>aquí</b><script>x</script>', 'nothing_found_message_html_tag' => 'h3' ) + $defaults( $own );
 	ob_start();
-	( new ReflectionMethod( $widget, 'handle_no_posts_found' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'handle_no_posts_found' ) ) )->invoke( $widget );
 	check_se( '<h3 class="digi-search__nothing">Nada <b>aquí</b>x</h3>' === ob_get_clean(), 'Mensaje sin resultados con su etiqueta y el texto filtrado.' );
 	$widget->settings['enable_nothing_found_message'] = '';
 	ob_start();
-	( new ReflectionMethod( $widget, 'handle_no_posts_found' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'handle_no_posts_found' ) ) )->invoke( $widget );
 	check_se( '' === ob_get_clean(), 'Sin mensaje si se ocultó.' );
 	$pages = static function ( array $settings, int $page, int $max, string $referer = 'https://sitio.test/buscar/?lang=es' ) use ( $own, $defaults ) {
 		$GLOBALS['se']['referer'] = $referer;
 		$widget           = new Search();
 		$widget->settings = $settings + $defaults( $own );
 		$widget->set_page_number( $page );
-		( new ReflectionProperty( $widget, 'query' ) )->setValue( $widget, (object) array( 'max_num_pages' => $max, 'found_posts' => $max * 6 ) );
+		( digi_test_accessible( new ReflectionProperty( $widget, 'query' ) ) )->setValue( $widget, (object) array( 'max_num_pages' => $max, 'found_posts' => $max * 6 ) );
 		ob_start();
 		$widget->render_pagination();
 		return (string) ob_get_clean();
@@ -368,7 +371,7 @@ namespace {
 
 	// 7. Plantilla del editor.
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template' ) ) )->invoke( $own );
 	$template = (string) ob_get_clean();
 	foreach ( array( '<search class="digi-search', 'role="search"', 'for="search-{{ digiId }}"', 'digi-search__clear digi-search__clear--off', 'aria-label="Borrar la búsqueda"', 'role="region"', 'role=\\"status\\"', 'data-digi-search="{{ digiConfig }}"', 'digitalisimo-elements\\/v1\\/search' ) as $piece ) {
 		check_se( str_contains( $template, $piece ) || str_contains( $template, stripslashes( $piece ) ), 'La plantilla del editor no tiene: ' . $piece );

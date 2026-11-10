@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -32,15 +35,15 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-table.php';
 	$widget = new \Digitalisimo\Elements\Table_Widget();
 	check_table( array( 'digitalisimo-table' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'La tabla debe cargar sólo su CSS.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_table( isset( $widget->controls['source'], $widget->controls['content'], $widget->controls['csv_file'], $widget->controls['delimiter'], $widget->controls['first_column_header'] ), 'Deben existir CSV manual y archivo de Medios con separador y encabezados.' );
 	$widget->settings = array( 'caption' => 'Precios <script>mal</script>', 'content' => "Producto,Descripción,Precio\nServicio,\"Incluye diseño, soporte\",$100\nOtro,<script>alert(1)</script>,$200", 'first_column_header' => 'yes' );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_table( str_contains( $html, '<caption>Precios mal</caption>' ) && 3 === substr_count( $html, '<th scope="col">' ), 'Debe construir título y encabezados reales.' );
 	check_table( str_contains( $html, 'Incluye diseño, soporte' ) && 2 === substr_count( $html, '<th scope="row">' ), 'Debe leer comas entrecomilladas y encabezados de fila.' );
 	check_table( ! str_contains( $html, '<script>' ) && str_contains( $html, 'digi-table-wrap' ) && str_contains( $html, 'tabindex="0"' ), 'Debe sanear datos y permitir desplazar con teclado.' );
 	$widget->settings = array( 'content' => "Uno,Dos" );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget );
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget );
 	check_table( '' === ob_get_clean(), 'Una tabla sin filas de datos no debe pintarse.' );
 	$dir = sys_get_temp_dir() . '/digi-table-' . getmypid();
 	mkdir( $dir );
@@ -50,24 +53,24 @@ namespace {
 	file_put_contents( $GLOBALS['table_files'][6], "Secreto,Valor\nNo,leer\n" );
 	try {
 		$widget->settings = array( 'source' => 'media', 'csv_file' => array( 'id' => 5 ), 'caption' => 'Precios' );
-		ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $media = ob_get_clean();
+		ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $media = ob_get_clean();
 		check_table( str_contains( $media, '<td>100</td>' ) && 1 === $GLOBALS['table_reads'], 'Debe leer el CSV local del sitio y almacenar sus filas.' );
-		ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); ob_end_clean();
+		ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); ob_end_clean();
 		check_table( 1 === $GLOBALS['table_reads'], 'La segunda solicitud debe usar la caché del archivo.' );
 		$widget->settings['csv_file'] = array( 'id' => 6 );
-		ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $outside = ob_get_clean();
+		ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $outside = ob_get_clean();
 		check_table( '' === $outside, 'Un adjunto que apunta fuera de los uploads del sitio debe rechazarse.' );
 	} finally {
 		unlink( $GLOBALS['table_files'][5] ); unlink( $GLOBALS['table_files'][6] ); rmdir( $dir );
 	}
-	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ))->invoke( $widget ); $editor = ob_get_clean();
 	check_table( str_contains( $editor, 'var rows = []' ) && str_contains( $editor, 'digi-table-wrap' ) && str_contains( $editor, "settings.source === 'media'" ), 'El editor debe distinguir CSV manual y de Medios.' );
 	$widget->settings = array( 'content' => "Plan,Precio\nA,1\nB,2", 'table_search' => 'yes', 'table_paginate' => 'yes', 'table_page_size' => 900 );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $live = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $live = ob_get_clean();
 	check_table( str_contains( $live, 'tabindex="0" data-digi-table data-search data-paginate data-page-size="500">' ) && array( 'digitalisimo-table' ) === $widget->get_script_depends(), 'Con interacción la tabla anuncia sus funciones, limita el largo de página y carga su script.' );
 	check_table( isset( $widget->controls['table_search'], $widget->controls['table_sort'], $widget->controls['table_paginate'], $widget->controls['table_page_size'], $widget->controls['table_info'] ), 'Faltan los controles de interacción.' );
 	$widget->settings = array( 'content' => "Plan,Precio\nA,1" );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $plain = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $plain = ob_get_clean();
 	check_table( ! str_contains( $plain, 'data-digi-table' ) && array() === $widget->get_script_depends(), 'Sin interacción la tabla no carga JavaScript.' );
 	// La instancia de registro (la del editor) no tiene ajustes: no se leen y se devuelve el script.
 	$type = new \Digitalisimo\Elements\Table_Widget();

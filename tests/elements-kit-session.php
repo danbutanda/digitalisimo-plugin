@@ -20,6 +20,9 @@
  * 10. Temporales: staged_rel relativo; nada se borra fuera de tmp/; token de otro usuario, caducado o usado → null.
  */
 
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin {
 		public static $instance;
@@ -347,7 +350,7 @@ namespace {
 	Session::forget( $session_id );
 	Context::activate( $session_id );
 	// 20 s de red ya gastados en esta petición (D13: request_network), sin esperar de verdad.
-	$seconds = new ReflectionProperty( Media_Proxy::class, 'seconds' );
+	$seconds = digi_test_accessible( new ReflectionProperty( Media_Proxy::class, 'seconds' ) );
 	$seconds->setValue( null, (float) $limits['request_network'] );
 	$res = \Otro_Plugin\Cliente::fetch( 'http://demo-autor.test/wp-content/uploads/otra.png' );
 	kt_check( is_wp_error( $res ) && 'digitalisimo_kit_time' === $res->get_error_code() && false !== strpos( $res->get_error_message(), 'tiempo' ), 'Proxy: con el tiempo de red agotado → «no descargado (tiempo)» (CV-23, A13).' );

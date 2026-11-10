@@ -16,6 +16,9 @@
  *   configuración en `before`.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	define( 'ELEMENTOR_PRO_URL', 'https://sitio.test/wp-content/plugins/digitalisimo-elements/' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', '/srv/wp-content/plugins/digitalisimo-elements/pro-elements.php' );
@@ -298,7 +301,7 @@ namespace {
 	check_local( false === strpos( $metabox_source, 'integrity' ) && false === strpos( $metabox_source, 'jshint.min.js' ) && false === strpos( $metabox_source, 'wp_deregister_script' ), 'El metabox no reemplaza jshint ni añade integridad.' );
 	ll_reset( array( 'admin' => true ) );
 	$metabox = ( new ReflectionClass( 'ElementorPro\Modules\CustomCode\Custom_Code_Metabox' ) )->newInstanceWithoutConstructor();
-	$enqueue = new ReflectionMethod( $metabox, 'enqueue_code_editor_scripts' );
+	$enqueue = digi_test_accessible( new ReflectionMethod( $metabox, 'enqueue_code_editor_scripts' ) );
 	$enqueue->invoke( $metabox, 'codigo' );
 	check_local( array( 'htmlhint', 'csslint', 'jshint' ) === $GLOBALS['ll']['enqueued'], 'Se encolan htmlhint, csslint y el jshint registrado por WordPress: ' . implode( ', ', $GLOBALS['ll']['enqueued'] ) );
 	foreach ( $GLOBALS['ll']['enqueue_args'] as $call ) {

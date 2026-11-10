@@ -5,6 +5,7 @@
  * y estricto, validación, preloads críticos, estados de debug y aislamiento
  * entre sitios de una red.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 define( 'KB_IN_BYTES', 1024 );
 
@@ -145,7 +146,7 @@ check( 'No detectado · conservado por modo seguro' === $guard::origin( array( '
 // ---------------------------------------------------------------------------
 // Validación posterior a la generación.
 $GLOBALS['blog'] = 1;
-$rules = ( new ReflectionMethod( $guard, 'rules' ) )->invoke( null, 'strict', '', $report1 );
+$rules = ( digi_test_accessible( new ReflectionMethod( $guard, 'rules' ) ) )->invoke( null, 'strict', '', $report1 );
 $original = implode( "\n", $css1 );
 check( array() === $guard::validate_css( $original, $out1, $rules, 'strict', '' ), 'Una copia correcta no debe tener errores.' );
 $errors = $guard::validate_css( $original, $original, $rules, 'strict', '' );

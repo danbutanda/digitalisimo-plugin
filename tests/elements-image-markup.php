@@ -1,6 +1,9 @@
 <?php
 /** Generador de imágenes de los widgets propios: adjuntos por WordPress, URL con las mismas decisiones de carga, sizes por columnas. */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_url( $v ) { return 0 === strpos( (string) $v, 'javascript:' ) ? '' : htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
