@@ -332,6 +332,28 @@ final class Digitalisimo_Backups_Sftp_Client {
 		}
 		return $position;
 	}
+	/**
+	 * Tramo de una descarga reanudable (restaurar desde el remoto, B1b): de $offset a $offset + $length (o el final), en
+	 * bloques de BLOCK bytes, sin pasar de $deadline salvo el primer bloque. Devuelve los bytes escritos en $target.
+	 */
+	public function download_range( $remote, $target, $offset, $length, $deadline = INF ) {
+		$out = @fopen( (string) $target, 'wb' );
+		if ( ! $out ) throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' );
+		$done = 0;
+		try {
+			while ( $done < $length && ( 0 === $done || microtime( true ) < $deadline ) ) {
+				$block = $this->checked()->get( (string) $remote, false, $offset + $done, (int) min( self::BLOCK, $length - $done ) );
+				if ( false === $block ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
+				if ( '' === $block ) break;
+				if ( strlen( $block ) !== fwrite( $out, $block ) ) throw new Exception( 'No se pudo escribir la descarga en el almacén privado.' );
+				$done += strlen( $block );
+			}
+		} finally {
+			fclose( $out );
+		}
+		if ( $done <= 0 ) throw new Exception( 'El respaldo SFTP es más corto de lo que se listó (cambió en el destino).' );
+		return $done;
+	}
 	/** Tamaño y fecha de modificación de $remote (false si no existe). */
 	public function stat_of( $remote ) {
 		$stat = $this->checked()->stat( (string) $remote );

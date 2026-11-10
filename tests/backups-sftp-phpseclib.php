@@ -33,6 +33,7 @@
  *   (r) revisión R1 (en p): el respaldo publicado lleva la fecha de ahora, no la marca de hace más de un año (una
  *       limpieza del servidor por antigüedad lo borraría); y un archivo final ajeno (otro tamaño, o el mismo tamaño y otro
  *       contenido) termina con un error permanente claro, sin tocarlo ni repetir la subida;
+ *   (s) restaurar desde el remoto (1.0.69) lee tramos con get_range(): también con el cliente incluido;
  *   (q) N3: si la copia de phpseclib no tiene las propiedades privadas de las que dependen las protecciones (un renombre),
  *       el cliente incluido no conecta: error claro y ninguna conexión.
  * Sin sshd/ssh-keygen sólo corren los casos sin servidor, salvo en la CI (CI=true, el workflow lo instala) o con
@@ -449,6 +450,21 @@ if ( '' === $sshd || '' === $keygen ) {
 		list( $error, $calls ) = $until_error( $big, $state_path );
 		$check( $error instanceof Digitalisimo_Backups_Permanent_Error && false !== strpos( $error->getMessage(), 'no es este respaldo' ) && $calls <= 6 && is_file( $final ), 'Un archivo final con otro contenido no terminó en un error permanente claro: ' . ( $error ? get_class( $error ) . ': ' . $error->getMessage() : 'sin error' ) . ' en ' . $calls . ' llamadas' );
 		@unlink( $final ); @unlink( $big );
+	} );
+
+	$case( 's', function() use ( $check, $root, $base, $key, $context, $sha256 ) {
+		// Restaurar desde el remoto (B1b, 1.0.69) lee por tramos con get_range(): también con el cliente incluido.
+		$big = $root . '/digitalisimo-backup-rango.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 3; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fclose( $h );
+		$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $context );
+		$receipt = $destination->put( $big );
+		$part = $root . '/private/rango.part';
+		$got = $destination->get_range( $receipt, $part, 1048576 + 3, 1572864 );
+		$h = fopen( $big, 'rb' ); fseek( $h, 1048576 + 3 ); $want = fread( $h, 1572864 ); fclose( $h );
+		$check( 1572864 === $got && hash_equals( $want, (string) file_get_contents( $part ) ), 'get_range() con el cliente incluido no leyó el tramo pedido.' );
+		$tail = $destination->get_range( $receipt, $part, 3 * 1048576 - 10, 100 );
+		$check( 10 === $tail, 'get_range() al final no se detuvo en el tamaño real: ' . $tail );
+		@unlink( $part ); $destination->delete( $receipt ); @unlink( $big );
 	} );
 
 	proc_terminate( $server );

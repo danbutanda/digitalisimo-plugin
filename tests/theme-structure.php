@@ -468,7 +468,10 @@ foreach ( $scan_roots as $dir ) {
 				check( false === stripos( $first, 'allowedthemes' ), "Nadie habilita temas en la red ni en un sitio: {$where}." );
 			}
 			if ( 'add_filter' === $call['name'] ) {
-				check( 'auto_update_theme' !== $arg, "Nadie fuerza la actualización automática de temas: {$where}." );
+				// Única excepción: el respaldo antes de actualizar de Backups (I1) sólo retiene la actualización automática
+				// de un tema hasta tener respaldo; devuelve false o lo que recibe, nunca true (tests/backups-pre-update.php).
+				$retains = 'digitalisimo-backups/includes/class-backups-pre-update.php' === $path && "array(__CLASS__,'auto_theme')" === preg_replace( '/\s+/', '', implode( '', array_map( 'token_text', $call['args'][1] ?? array() ) ) );
+				check( 'auto_update_theme' !== $arg || $retains, "Nadie fuerza la actualización automática de temas: {$where}." );
 			}
 			if ( 'add_option' === $call['name'] ) {
 				check( ! is_string( $arg ) || ! preg_match( '/_lock$/', $arg ), "Un cerrojo nunca se toma con add_option (no es atómico): {$where}." );

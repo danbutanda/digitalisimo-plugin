@@ -187,7 +187,7 @@ final class Digitalisimo_Backups_Job_Store {
 	private static function decode( $raw, $id ) {
 		if ( ! is_string( $raw ) || '' === $raw ) return null;
 		$job = json_decode( $raw, true );
-		if ( ! is_array( $job ) || self::FORMAT !== ( $job['format'] ?? '' ) || $id !== ( $job['id'] ?? '' ) || ! in_array( $job['kind'] ?? '', array( 'backup', 'restore' ), true ) || ! in_array( $job['status'] ?? '', self::STATUSES, true ) || ! is_array( $job['spec'] ?? null ) ) return null;
+		if ( ! is_array( $job ) || self::FORMAT !== ( $job['format'] ?? '' ) || $id !== ( $job['id'] ?? '' ) || ! in_array( $job['kind'] ?? '', array( 'backup', 'restore', 'import' ), true ) || ! in_array( $job['status'] ?? '', self::STATUSES, true ) || ! is_array( $job['spec'] ?? null ) ) return null;
 		foreach ( array( 'checkpoint', 'attempts', 'result', 'warnings', 'progress' ) as $key ) if ( ! is_array( $job[ $key ] ?? null ) ) $job[ $key ] = array();
 		if ( ! is_array( $job['lease'] ?? null ) ) $job['lease'] = null;
 		return $job;

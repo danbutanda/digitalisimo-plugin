@@ -215,8 +215,9 @@ list( $crc, $sha, $raw ) = Digitalisimo_Backups_Zip_Writer::hash_region( $zip_pa
 $peak = memory_get_peak_usage( true );
 ini_set( 'memory_limit', $limit );
 bk_assert( 64 * 1048576 === $raw && hash_final( $crc ) === $record['c'] && hash_final( $sha ) === $record['h'], 'hash_region no recorrió los 64 MB de ceros.' );
-// Por el motor: un registro de 48 MB de ceros, empaquetado en trozos de 8 MB y verificado por partes, con 32 MB libres.
-$log = $root . 'wp-content/ceros.log';
+// Por el motor: un archivo de 48 MB de ceros, empaquetado en trozos de 8 MB y verificado por partes, con 32 MB libres.
+// No es un `.log`: desde B8 los registros no entran en el respaldo (exclusiones por defecto).
+$log = $root . 'wp-content/ceros.bin';
 $out = fopen( $log, 'wb' );
 for ( $i = 0; $i < 48; $i++ ) fwrite( $out, str_repeat( "\0", 1048576 ) );
 fclose( $out );
@@ -226,7 +227,7 @@ ini_set( 'memory_limit', (string) ( memory_get_usage( true ) + 32 * 1048576 ) );
 $job = rv_done( $h2['id'] );
 ini_set( 'memory_limit', $limit );
 rv_filters( array() );
-bk_assert( isset( bk_zip_entries( rv_zip( $job ) )['entries']['wordpress/wp-content/ceros.log'] ), 'El registro de ceros no está en el respaldo.' );
+bk_assert( isset( bk_zip_entries( rv_zip( $job ) )['entries']['wordpress/wp-content/ceros.bin'] ), 'El archivo de ceros no está en el respaldo.' );
 unlink( $log );
 }
 
@@ -341,6 +342,9 @@ bk_assert( in_array( 'files_changed', rv_notices( $job ), true ) && 'Completo co
 
 // H6. Un registro al que se escribe en cada tramo: tras dos vueltas se copia de corrido y el empaquetado termina.
 if ( rv_section( 'H6' ) ) {
+// Desde B8 los registros no entran por defecto: este sitio los incluye con el filtro (lo que se prueba es un archivo que
+// crece en cada tramo, y un registro es el caso real).
+$GLOBALS['bk_filters']['digitalisimo_backups_default_exclusions'] = function() { return array(); };
 $debug = $root . 'wp-content/debug.log';
 $text = '';
 for ( $i = 0; $i < 3000; $i++ ) $text .= sprintf( "[09-Nov-2026 10:%02d:%02d UTC] PHP Notice: línea %05d\n", $i / 60 % 60, $i % 60, $i );
@@ -382,6 +386,7 @@ for ( $i = 0; $i < 300 && ! Digitalisimo_Backups_Job_Store::is_terminal( $job );
 rv_filters( array() );
 bk_assert( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'wp-content/debug.log cambia mientras se respalda' ) && ! empty( $job['error']['permanent'] ), 'Un registro que cambia y no cabe de corrido no falló nombrándolo: ' . json_encode( $job['error'], JSON_UNESCAPED_UNICODE ) );
 unlink( $debug );
+unset( $GLOBALS['bk_filters']['digitalisimo_backups_default_exclusions'] );
 }
 
 // H7. Con poca memoria libre, la verificación lee el manifiesto como la restauración: por partes (Manifest_Auth y

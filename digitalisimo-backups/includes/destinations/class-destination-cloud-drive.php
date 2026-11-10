@@ -122,6 +122,17 @@ abstract class Digitalisimo_Backups_Destination_Cloud_Drive extends Digitalisimo
 		$response = wp_remote_get( static::content_url( self::own_id( $remote ) ), array( 'timeout' => 600, 'redirection' => 5, 'stream' => true, 'filename' => $target, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) throw new Exception( 'No se pudo descargar el respaldo remoto.' );
 	}
+	/** B1b: Google Drive (`alt=media`) y OneDrive (`/content`) admiten `Range`. */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
+		if ( ! $this->confine( self::own_id( $remote ) ) ) throw new Exception( 'El respaldo ya no está en ' . static::label() . '.' );
+		$range = self::range_args( $offset, $length, $limits );
+		// `limit_response_size`: la API HTTP de WordPress deja de escribir al pasar el tope (también desde el byte 0).
+		$response = wp_remote_get( static::content_url( self::own_id( $remote ) ), array( 'timeout' => $range['timeout'], 'redirection' => 5, 'stream' => true, 'filename' => $target, 'limit_response_size' => $range['max'], 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) + $range['headers'] ) );
+		if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo descargar un fragmento del respaldo remoto.' );
+		$headers = function_exists( 'wp_remote_retrieve_header' ) ? array( 'content-range' => (string) wp_remote_retrieve_header( $response, 'content-range' ) ) : array();
+		return self::range_reply( array( 'code' => (int) wp_remote_retrieve_response_code( $response ), 'headers' => $headers ), $target, $offset, $length, $limits );
+	}
 	public function size( array $remote ) {
 		if ( ! $this->confine( self::own_id( $remote ) ) ) return false;
 		$response = wp_remote_get( static::metadata_url( self::own_id( $remote ) ), array( 'timeout' => 30, 'headers' => array( 'Authorization' => 'Bearer ' . $this->token() ) ) );

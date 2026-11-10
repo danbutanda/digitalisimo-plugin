@@ -192,6 +192,10 @@ final class Digitalisimo_Backups_Packer {
 				$rel = $prefix . $name;
 				if ( 0 === strpos( $path . '/', $context['backup'] ) ) continue;
 				if ( isset( $context['sqlite'][ $path ] ) ) continue; // database.sql es la copia lógica consistente.
+				// El marcador de mantenimiento de una actualización en curso: restaurarlo dejaría el sitio fuera de servicio.
+				if ( '' === $prefix && '.maintenance' === $name ) continue;
+				// B8: otros plugins de respaldo, la caché de páginas y los registros (declarados en el manifiesto, `excluded`).
+				if ( Digitalisimo_Backups_Exclusions::excluded( $rel, is_dir( $path ), (array) ( $context['exclusions'] ?? array() ) ) ) continue;
 				if ( is_link( $path ) ) {
 					// wp-config.php enlazado (archivos compartidos de un despliegue): se guarda su contenido al final del inventario.
 					if ( $root . 'wp-config.php' === $path ) continue;
@@ -459,6 +463,9 @@ final class Digitalisimo_Backups_Packer {
 			);
 			// Lo que faltó o cambió durante el empaquetado queda también en el manifiesto (las versiones anteriores lo ignoran).
 			if ( $notices ) $tail['notices'] = array_values( array_map( function( $notice ) { return (string) $notice['text']; }, $notices ) );
+			// Exclusiones por defecto (B8): lo que el respaldo no lleva a propósito; la restauración nunca lo retira.
+			$excluded = Digitalisimo_Backups_Exclusions::declared( (array) ( Digitalisimo_Backups::job_files_context()['exclusions'] ?? array() ) );
+			if ( $excluded ) $tail['excluded'] = $excluded;
 			if ( $plan['root'] ) $tail['auth'] = Digitalisimo_Backups_Manifest_Auth::block( $plan['descriptor'], $plan['encrypt'] );
 			$mac = null;
 			$key_id = '';
