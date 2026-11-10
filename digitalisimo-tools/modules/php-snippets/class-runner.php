@@ -85,6 +85,7 @@ final class Runner {
 		if ( ! $test && self::skip() ) return;
 		if ( ! Stream::register() ) return;                                // Sin envoltorio, o esquema ajeno.
 		Guard::arm( $test );
+		foreach ( Guard::recovered() as $name ) $all[ $name ] = '1'; // Apagado ahora mismo (PHP 7.4): no se vuelve a cargar.
 		foreach ( self::plan( $site, $net, $all, $test ) as $entry ) self::load( $entry, (bool) $test );
 	}
 

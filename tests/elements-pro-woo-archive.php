@@ -18,6 +18,9 @@
  *   dinámicos, CSS personalizado) sin `pro.unmapped`, con cada clave en un control propio.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	$GLOBALS['h_wp'] = array( 'features' => array( 'e_optimized_markup' ) );
 	$GLOBALS['wa']   = array( 'shortcodes' => array(), 'out' => array() );
 	function do_shortcode( $code ) {

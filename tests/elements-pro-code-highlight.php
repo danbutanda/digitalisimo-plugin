@@ -13,6 +13,9 @@
  * - conversión con `Converter::tree()` de ajustes reales (por defecto, completos, responsivos, `__dynamic__`,
  *   CSS personalizado con clases de PRO): ningún `pro.unmapped`, cada clave cae en un control propio.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -72,7 +75,7 @@ namespace {
 		$widget           = new Code_Highlight();
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -107,8 +110,8 @@ namespace {
 
 	// 2. Los controles de PRO, uno a uno, en el widget propio.
 	$pro = new \ElementorPro\Modules\CodeHighlight\Widgets\Code_Highlight();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	check_ch( array_keys( $pro->controls ) === array_keys( $widget->controls ) && array_keys( $pro->sections ) === array_keys( $widget->sections ) && array() === $pro->groups && array() === $widget->groups, 'Los mismos controles en el mismo orden y en la misma sección: ' . implode( ', ', array_keys( $widget->controls ) ) );
 	foreach ( $pro->controls as $name => $a ) {
 		$b = $widget->controls[ $name ];

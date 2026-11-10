@@ -26,6 +26,9 @@
  * - Fixture del navegador (`tests/fixtures/f7b-nested-slider.html`): sus sliders son exactamente el HTML de este
  *   `render()` y su plantilla, la de `content_template()`. Con `--write-fixture` se regenera.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const RAW_HTML = 'raw_html'; const TEXT = 'text'; const SELECT = 'select'; const NUMBER = 'number'; const SWITCHER = 'switcher';

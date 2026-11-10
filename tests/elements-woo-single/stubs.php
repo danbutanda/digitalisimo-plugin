@@ -9,6 +9,9 @@
  * marcado fijo por plantilla con el producto global y las plantillas de añadir al carrito disparan los mismos ganchos que
  * las de WooCommerce, para comprobar las envolturas. Lo que se compara es lo que pone el widget alrededor.
  */
+namespace {
+	require_once dirname( __DIR__ ) . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor\Modules\ContentSanitizer\Interfaces {
 	interface Sanitizable {
 		public function sanitize( $content ): string;
@@ -486,7 +489,7 @@ namespace {
 	/** Un widget con sus controles registrados. */
 	function ws_widget( string $class ) {
 		$widget = new $class();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		return $widget;
 	}
 
@@ -509,7 +512,7 @@ namespace {
 		$widget->settings = array_merge( ws_defaults( $widget ), $settings );
 		$GLOBALS['ws']['templates'] = array();
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	}
 

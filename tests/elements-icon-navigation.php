@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -34,15 +37,15 @@ namespace {
 	$external = array( 'url' => 'https://external.test/', 'is_external' => true, 'nofollow' => true );
 	$mobile = new \Digitalisimo\Elements\Icon_Mobile_Menu_Widget();
 	$mobile->settings = \Digitalisimo\Elements\Icon_Mobile_Menu_Widget::upgrade_settings( array( 'menu_style' => 'style-3', 'menu_tooltip' => 'yes', 'menu_items' => array( array( '_id' => 'one', 'menu_text' => 'Externo', 'menu_icon' => array( 'value' => 'fas fa-star' ), 'link' => $external ) ) ) );
-	ob_start(); (new \ReflectionMethod( $mobile, 'render' ))->invoke( $mobile ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $mobile, 'render' ) ))->invoke( $mobile ); $html = ob_get_clean();
 	check_icon_navigation( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'data-tooltip="Externo"' ) && str_contains( $html, 'class="digi-icon-nav digi-icon-nav--bar digi-icon-nav--style-3 digi-icon-mobile-menu digi-icon-mobile-menu--bar digi-icon-mobile-menu--style-3"' ), 'El menú móvil debe proteger enlaces externos, mostrar su nombre y conservar sus clases.' );
-	ob_start(); (new \ReflectionMethod( $mobile, 'content_template' ))->invoke( $mobile ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $mobile, 'content_template' ) ))->invoke( $mobile ); $editor = ob_get_clean();
 	check_icon_navigation( str_contains( $editor, 'data-tooltip=' ) && str_contains( $editor, 'target="_blank"' ), 'El editor del menú móvil debe reflejar tooltip y destino externo.' );
 	$nav = new \Digitalisimo\Elements\Icon_Nav_Widget();
 	$nav->settings = array( 'iconnavs' => array( array( 'iconnav_title' => 'Externo', 'iconnav_icon' => array( 'value' => 'fas fa-star' ), 'iconnav_link' => $external ) ), 'navbar' => '0' );
-	ob_start(); (new \ReflectionMethod( $nav, 'render' ))->invoke( $nav ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $nav, 'render' ) ))->invoke( $nav ); $html = ob_get_clean();
 	check_icon_navigation( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'data-tooltip="Externo"' ), 'La navegación con iconos debe proteger el enlace y mostrar su nombre.' );
-	ob_start(); (new \ReflectionMethod( $nav, 'content_template' ))->invoke( $nav ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $nav, 'content_template' ) ))->invoke( $nav ); $editor = ob_get_clean();
 	check_icon_navigation( str_contains( $editor, 'settings.branding_image.url' ) && str_contains( $editor, 'data-tooltip=' ) && str_contains( $editor, 'target="_blank"' ), 'El editor de navegación debe mostrar marca y enlace como el frontend.' );
 	echo "DIGITALÍSIMO Elements: navegación con iconos validada.\n";
 }

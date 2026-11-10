@@ -17,6 +17,9 @@
  * #11 Duplicador: la copia no lleva la sesión del importador, la procedencia ni la caché de elementos.
  */
 
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin {
 		public static $instance;
@@ -255,7 +258,7 @@ namespace {
 	foreach ( $fields as $key => $value ) {
 		update_post_meta( $snippet, $key, $value );
 	}
-	$prepare = new ReflectionMethod( $export_class, 'prepare_snippet_data' );
+	$prepare = digi_test_accessible( new ReflectionMethod( $export_class, 'prepare_snippet_data' ) );
 	$data    = $prepare->invoke( new $export_class(), get_post( $snippet ) );
 	foreach ( array( 'location' => 'elementor_body_end', 'priority' => '7', 'code' => '<script>console.log("k")</script>', 'conditions' => array( 'include/singular/page/12' ), 'device_mode' => array( 'desktop' ), 'user_roles' => array( 'administrator' ), 'site_languages' => array( 'es_MX' ), 'url_conditions' => array( array( 'url' => '/tienda' ) ), 'date_conditions' => array( 'from' => '2026-01-01' ), 'time_conditions' => array( 'from' => '08:00' ) ) as $key => $want ) {
 		kt_check( isset( $data[ $key ] ) && $want === $data[ $key ], "#5: la exportación de Custom Code lleva «{$key}» (CC-3)." );
@@ -290,7 +293,7 @@ namespace {
 	// ── #6 y #7 Theme Builder y widget global ───────────────────────────────────────────────────────────────────
 	foreach ( array( array( '\ElementorPro\Modules\ThemeBuilder\ImportExportCustomization\Import', 'import_theme_builder_template', 'header' ), array( '\ElementorPro\Modules\GlobalWidget\ImportExportCustomization\Import', 'import_global_widget', 'widget' ) ) as list( $class, $method, $type ) ) {
 		kt_check( class_exists( $class ), "Falta {$class}." );
-		$reflection = new ReflectionMethod( $class, $method );
+		$reflection = digi_test_accessible( new ReflectionMethod( $class, $method ) );
 		$instance   = ( new ReflectionClass( $class ) )->newInstanceWithoutConstructor();
 		$documents->created = array();
 		add_filter( 'digitalisimo_elements_kit_existing_document', $reuse = static function ( $id, $doc_type, $old ) use ( $type ) { return $type === $doc_type && '41' === (string) $old ? 777 : $id; }, 50, 3 );

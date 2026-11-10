@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -28,21 +31,21 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-qr-code.php';
 	$widget = new \Digitalisimo\Elements\QR_Code_Widget();
 	check_qr( array( 'digitalisimo-qr-code' ) === $widget->get_script_depends(), 'El widget debe cargar sólo su generador condicional.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_qr( isset( $widget->controls['site_link'], $widget->controls['text'], $widget->controls['size'] ), 'Debe ofrecer URL de la página o texto y tamaño.' );
 	$widget->settings = array( 'site_link' => 'yes', 'size' => 999, 'foreground' => 'red', 'label' => '<script>x</script>Escanear' );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_qr( str_contains( $html, 'data-text="https://sitio.test/pagina/"' ) && str_contains( $html, 'data-size="512"' ) && str_contains( $html, 'data-fill="#111111"' ), 'Debe usar el permalink del sitio y acotar tamaño/color.' );
 	check_qr( 42 === $GLOBALS['qr_permalink_id'], 'Una plantilla debe usar el objeto consultado y no su post global.' );
 	check_qr( str_contains( $html, 'href="https://sitio.test/pagina/"' ) && ! str_contains( $html, '<script>' ), 'Debe conservar un enlace accesible y sanear el rótulo.' );
 	$GLOBALS['qr_singular'] = false; $GLOBALS['qr_paged'] = 3;
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $archive = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $archive = ob_get_clean();
 	check_qr( str_contains( $archive, 'data-text="https://sitio.test/articulos/page/3/"' ), 'En archivos debe enlazar la página de resultados actual.' );
 	$widget->settings = array( 'site_link' => '', 'text' => 'Contacto & ayuda', 'size' => 32 );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $text = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $text = ob_get_clean();
 	check_qr( str_contains( $text, 'data-size="64"' ) && str_contains( $text, 'Contacto &amp; ayuda' ) && ! str_contains( $text, 'href=' ), 'El texto plano debe mantenerse legible sin enlace falso.' );
 	$widget->settings = array( 'site_link' => '', 'text' => '' );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget );
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget );
 	check_qr( '' === ob_get_clean(), 'No debe crear un QR vacío.' );
 	echo "DIGITALÍSIMO Elements: Código QR validado.\n";
 }

@@ -12,6 +12,9 @@
  *   y la caché de elementos no guarda una fachada con su imagen pendiente;
  * - el script y la hoja: tamaño, sin jQuery, sólo HTTPS y foco al iframe.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -100,7 +103,7 @@ namespace {
 
 	function check_fc( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 	function fc_png( $w, $h ) { $i = imagecreatetruecolor( $w, $h ); imagefill( $i, 0, 0, imagecolorallocate( $i, 30, 120, 200 ) ); ob_start(); imagepng( $i ); return ob_get_clean(); }
-	function fc_render( $widget ) { ob_start(); ( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); }
+	function fc_render( $widget ) { ob_start(); ( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); }
 	function fc_rmdir( $dir ) { foreach ( glob( $dir . '/*' ) ?: array() as $f ) { is_dir( $f ) ? fc_rmdir( $f ) : unlink( $f ); } @rmdir( $dir ); }
 
 	$front = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-front/';

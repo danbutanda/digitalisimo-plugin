@@ -16,6 +16,9 @@
  *   propio.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	$GLOBALS['ac'] = array( 'filters' => array(), 'shortcodes' => array(), 'edit' => false, 'logged' => true, 'qv' => array(), 'orders' => 1 );
 	function check_ac( $ok, $message ) {

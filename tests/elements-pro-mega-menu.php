@@ -20,6 +20,9 @@
  * - `tests/fixtures/mega-menu.html` (la usa tests/elements-pro-mega-menu-chrome.mjs) es el marcado de hoy (`--write`).
  * Uso: node php-wasm-cli tests/elements-pro-mega-menu.php [--write]
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $experiments; public $breakpoints; public $editor; }
 	class Controls_Manager {
@@ -223,7 +226,7 @@ namespace {
 	use Digitalisimo\Elements\Convert\Translator;
 
 	$controls_of = static function ( $widget ) {
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		return $widget;
 	};
 	$own = $controls_of( new Mega_Menu() );
@@ -242,7 +245,7 @@ namespace {
 		$widget->settings = $settings + $defaults( $own );
 		$widget->children = $kids;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$rows = static function ( array $titles, array $extra = array() ) {
@@ -307,7 +310,7 @@ namespace {
 		check_mm( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $text ), 'Sin nombres de otros proveedores (guarda de build-packages.sh).' );
 	}
 	check_mm( ! preg_match( "/'elementor-pro'|e-n-menu|--n-menu|ElementorPro/", $source ), 'El widget propio no usa el dominio, las clases ni las variables de PRO.' );
-	$config = ( new ReflectionMethod( $own, 'get_initial_config' ) )->invoke( $own );
+	$config = ( digi_test_accessible( new ReflectionMethod( $own, 'get_initial_config' ) ) )->invoke( $own );
 	check_mm( true === $config['support_improved_repeaters'] && array( '.digi-mm__heading' ) === $config['target_container'] && 'li' === $config['node'] && true === $config['is_interlaced'] && '.digi-mm__heading' === $config['defaults']['elements_placeholder_selector'] && '.digi-mm__content' === $config['defaults']['child_container_placeholder_selector'] && 3 === count( $config['defaults']['elements'] ) && 'Elemento n.º 1' === $config['defaults']['elements'][0]['settings']['_title'], 'Repetidor mejorado entrelazado como PRO; tres elementos nuevos.' );
 
 	// 2. Un control propio por cada control de PRO.
@@ -415,14 +418,14 @@ namespace {
 
 	// 5. Plantilla del editor: el mismo marcado que el servidor.
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template' ) ) )->invoke( $own );
 	$tpl = (string) ob_get_clean();
 	foreach ( array( 'class="digi-mm"', 'data-widget-number="{{ elementUid }}"', 'class="digi-mm__toggle elementor-clickable', 'id="digi-mm-toggle-{{ elementUid }}" aria-expanded="false" aria-controls="digi-mm-bar-{{ elementUid }}"', 'digi-mm__toggle-icon digi-mm__toggle-open', 'class="digi-mm__wrapper" id="digi-mm-bar-{{ elementUid }}"', '<ul class="digi-mm__heading">', '<li class="digi-mm__item">', 'digi-mm-title-', 'class="digi-mm__title-container digi-mm__link"', 'class="digi-mm__title-container"', 'digi-mm__icon-active', 'digi-mm__icon-inactive', 'class="digi-mm__title-text" data-binding-type="repeater-item" data-binding-repeater-name="menu_items" data-binding-setting="item_title"', 'class="digi-mm__dropdown-icon" id="digi-mm-dropdown-icon-{{ uid }}" data-tab-index="{{ index }}" aria-expanded="false" aria-controls="digi-mm-content-{{ uid }}"', 'digi-mm__dropdown-opened', 'digi-mm__dropdown-closed', '<div class="digi-mm__content"></div>', 'data-digi-anim="fadeIn"', 'data-digi-fit=', 'digi-mm__current', 'digi-mm__anchor', 'digi-mm__click' ) as $piece ) {
 		check_mm( str_contains( $tpl, $piece ), "Plantilla del editor: falta «{$piece}»." );
 	}
 	check_mm( str_contains( $tpl, '"Submenú de %s".replace(' ) && ! str_contains( $tpl, 'elementorPro' ) && ! str_contains( $tpl, 'e-n-menu' ), 'Plantilla: el nombre del botón del servidor; sin el módulo de PRO del editor.' );
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template_single_repeater_item' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template_single_repeater_item' ) ) )->invoke( $own );
 	$single = (string) ob_get_clean();
 	check_mm( str_contains( $single, 'view.collection.length + 1' ) && str_contains( $single, '<li class="digi-mm__item">' ) && str_contains( $single, '<div class="digi-mm__content"></div>' ), 'Un elemento nuevo del repetidor: el mismo marcado.' );
 
@@ -536,7 +539,7 @@ namespace {
 		$w->settings = $fc['settings'] + array( 'menu_items' => isset( $fc['rows'] ) ? $scroll_rows : $fixture_rows ) + $defaults( $own );
 		$w->children = isset( $fc['rows'] ) ? array() : $fixture_kids();
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		$body .= '<div class="elementor-element elementor-widget elementor-widget-digi-mega-menu ' . $fc['wrapper'] . '" data-id="' . $fid . '">' . str_replace( '123', substr( $fid, 1 ) . '00', (string) ob_get_clean() ) . "</div>\n<div class=\"spacer\"></div>\n";
 	}
 	$links = '';

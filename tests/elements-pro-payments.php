@@ -20,6 +20,9 @@
  * Uso: php-wasm-cli tests/elements-pro-payments.php. Se ejecuta con php-wasm: sale con 0 aunque haya un error fatal, así
  * que se juzga por la línea final.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -208,7 +211,7 @@ namespace {
 		$widget->settings = $settings;
 		$widget->attrs    = array();
 		ob_start();
-		( new ReflectionMethod( $widget, $method ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, $method ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	/** Valores por defecto de una pila (controles y subcontroles actualizados de grupo). */
@@ -383,7 +386,7 @@ namespace {
 	$check( str_contains( $scus, 'data-digi-pay-target="_self" data-digi-pay-custom="yes" data-digi-pay-global="Error general" data-digi-pay-payment="Sin pasarela"' ), 'Stripe: misma ventana y mensajes personalizados para el script.' );
 	$snull = $render( $st, array_merge( $s_ok, array( 'custom_messages' => '', 'error_message_global' => null, 'error_message_payment' => null ) ) );
 	$check( str_contains( $snull, 'data-digi-pay-custom="" data-digi-pay-global="Se produjo un error." data-digi-pay-payment="No hay ningún método de pago conectado. Contacta con el vendedor."' ), 'Stripe sin mensajes personalizados (el núcleo los da vacíos): el script recibe los de por defecto.' );
-	$check( ( new ReflectionMethod( $st, 'is_dynamic_content' ) )->invoke( $st ) === true, 'Stripe: no entra en la caché de elementos (lleva un nonce).' );
+	$check( ( digi_test_accessible( new ReflectionMethod( $st, 'is_dynamic_content' ) ) )->invoke( $st ) === true, 'Stripe: no entra en la caché de elementos (lleva un nonce).' );
 
 	// 6. Ningún secreto en el navegador.
 	$all = $sout . $scus . $serr . $render( $st, array_merge( $s_ok, array( 'sandbox_mode' => 'yes' ) ) ) . $render( $pp, array_merge( $base, $cases['pago'], array( 'sdk_token' => 'TOKEN_SECRETO_SDK' ) ) );

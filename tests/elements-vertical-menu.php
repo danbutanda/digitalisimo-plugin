@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); private $attrs = array();
@@ -26,7 +29,7 @@ namespace {
 	function wp_unslash( $v ) { return $v; }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-vertical-menu.php';
 	$widget = new \Digitalisimo\Elements\Vertical_Menu_Widget();
-	$render = static function () use ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function () use ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	// Los niveles forman el árbol; un salto de nivel se corrige al inmediato siguiente.
 	$tree = \Digitalisimo\Elements\Vertical_Menu_Widget::static_nodes( array(

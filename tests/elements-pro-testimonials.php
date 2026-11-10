@@ -14,6 +14,9 @@
  *   dinámicos en el widget y en las filas, CSS personalizado con clases de PRO, FA4 heredado): ningún `pro.unmapped`,
  *   cada clave cae en un control propio y lo convertido se pinta con los mismos textos.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -127,7 +130,7 @@ namespace {
 	);
 	$make = static function ( $class, array $settings = array() ) {
 		$widget = new $class();
-		( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 		$defaults = array();
 		foreach ( $widget->controls as $name => $control ) {
 			if ( array_key_exists( 'default', $control ) ) {
@@ -141,7 +144,7 @@ namespace {
 	$render = static function ( $class, array $settings ) use ( $make ) {
 		$widget = $make( $class, $settings );
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	// Lo que el empaquetado veta en DIGITALÍSIMO Elements (scripts/build-packages.sh).

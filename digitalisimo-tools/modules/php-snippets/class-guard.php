@@ -15,7 +15,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Atribución, en este orden (una ruta de fragmento sólo cuenta si es del sitio o la red de origen y su `h12` es el de la
  * versión que corrió en esta petición):
- * 1. Guard::$running: el fragmento se estaba cargando (compilación, memoria y tiempo durante la carga).
+ * 1. Guard::$running: el fragmento se estaba cargando (compilación, memoria y tiempo durante la carga). En PHP 7.4, que
+ *    tras agotar la memoria termina el proceso sin funciones de cierre, lo reconoce la petición siguiente por el
+ *    marcador de carga (recover()).
  * 2. Redeclaración: Reflection sobre el símbolo que ya existía; nunca se lee la ubicación del mensaje.
  * 3. Memoria o tiempo fuera de la carga: sin culpable.
  * 4. `error['file']` es una ruta de fragmento.
@@ -30,6 +32,12 @@ final class Guard {
 	const PATH      = '#^digitalisimo-php://(site|network)-(\d+)/([0-9a-f]{8})@([0-9a-f]{12})$#D';
 	const REDECLARE = '/^Cannot (?:re)?declare (function |class |interface |trait |enum )?([A-Za-z_\x80-\xff\\\\][\w\x80-\xff\\\\]*)/';
 	const NOTICES   = 20;
+	/**
+	 * Marcador de carga: sólo antes de PHP 8. PHP 7.4 (7.4.33 de deb.sury.org) termina el proceso con código 1 al agotar
+	 * la memoria, sin funciones de cierre ni registro, así que ni el cierre ni el filtro del núcleo llegan a correr; PHP 8
+	 * sí ejecuta el cierre y no paga nada por esto.
+	 */
+	const MARK_LOAD = PHP_VERSION_ID < 80000;
 
 	/** Entrada que se está cargando ({ scope, id, title, hash, rev, candidate }, sin código), o null. */
 	public static $running = null;
@@ -48,6 +56,11 @@ final class Guard {
 	private static $started = 0.0;
 	private static $culprit = null;
 	private static $previous_handler = null;
+	/** Archivo de marcador de esta petición (bloqueado con flock mientras vive) y su ruta, o null. */
+	private static $marker      = null;
+	private static $marker_path = '';
+	/** Filas `off` que esta petición escribió por marcadores de peticiones muertas al cargar (para no cargarlos ahora). */
+	private static $recovered = array();
 
 	/**
 	 * Arma el guardián (sólo cuando hay algo que ejecutar): cierre propio, filtro del núcleo, reserva de 64 KB y el sitio y
@@ -66,6 +79,12 @@ final class Guard {
 		register_shutdown_function( array( __CLASS__, 'shutdown' ) );
 		add_filter( 'wp_php_error_message', array( __CLASS__, 'message' ), 10, 2 );
 		if ( self::$test ) self::collect();
+		elseif ( self::MARK_LOAD ) self::recover();
+	}
+
+	/** Filas `off` que arm() escribió por fragmentos que mataron su petición al cargarse: el Runner no los carga ahora. */
+	public static function recovered() {
+		return self::$recovered;
 	}
 
 	/** Si el guardián está en modo prueba. */
@@ -79,11 +98,13 @@ final class Guard {
 		$e['path']                                 = (string) $path;
 		self::$running                             = $e;
 		self::$ran[ $e['scope'] . ':' . $e['id'] ] = $e;
+		if ( self::MARK_LOAD && ! self::$test ) self::mark( $e );
 	}
 
 	/** Terminó la carga del fragmento en curso. */
 	public static function leave() {
 		self::$running = null;
+		if ( self::$marker ) @ftruncate( self::$marker, 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 	}
 
 	/**
@@ -197,6 +218,7 @@ final class Guard {
 		$error = error_get_last();
 		if ( is_array( $error ) && in_array( (int) ( $error['type'] ?? 0 ), self::FATAL, true ) ) self::handle( $error );
 		if ( self::$test ) self::write_result();
+		self::unmark(); // También tras un `exit` al cargarse: esa carga no mató la petición.
 	}
 
 	/**
@@ -247,6 +269,7 @@ final class Guard {
 			return $found;
 		}
 		if ( $found ) self::disable( $found['entry'], array( 'type' => (int) $error['type'], 'line' => (int) $found['line'], 'message' => $message ) );
+		self::unmark(); // Atendido aquí: aunque un manejador ajeno haga `exit` antes del cierre, la petición siguiente no lo repite.
 		return $found;
 	}
 
@@ -360,8 +383,88 @@ final class Guard {
 
 	/** Una sola fila `INSERT IGNORE` en la tabla del sitio de origen: `off_s_<id>_<h12>` o `off_n_<id>_<h12>_<rev>` (D3). */
 	private static function disable( array $e, array $info ) {
-		$value = array( 't' => time(), 'type' => (int) $info['type'], 'line' => (int) $info['line'], 'msg' => Store::one_line( self::first_line( $info['message'] ), 500 ), 'path' => self::request_path() );
+		$value = array( 't' => time(), 'type' => (int) $info['type'], 'line' => (int) $info['line'], 'msg' => Store::one_line( self::first_line( $info['message'] ), 500 ), 'path' => isset( $info['path'] ) ? Store::one_line( (string) $info['path'], 200 ) : self::request_path() );
 		Store::insert_row( self::$origin_blog, Store::off_name( $e['scope'], $e['id'], $e['hash'], (int) ( $e['rev'] ?? 0 ) ), $value, true );
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * Marcador de carga (PHP 7.4)
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Mientras carga cada fragmento, esta petición deja su entrada (sin código) en un archivo propio, bloqueado con flock()
+	 * desde que existe: leave() lo vacía y el cierre lo borra. Si el proceso muere al cargarlo sin ejecutar el cierre (PHP
+	 * 7.4 con la memoria agotada), el kernel suelta el bloqueo y el marcador queda con contenido. Archivo privado en la
+	 * carpeta temporal, uno por petición, sin tocar la base de datos.
+	 */
+	private static function mark( array $e ) {
+		if ( ! self::$marker ) {
+			try {
+				$dir = self::marker_dir();
+				if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0700, true ) && ! is_dir( $dir ) ) return; // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				$path = $dir . '/b' . self::$origin_blog . '-' . bin2hex( random_bytes( 8 ) ) . '.run';
+				$h    = @fopen( $path . '.new', 'x+' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				if ( ! $h ) return;
+				// Bloqueado antes de tener el nombre que busca recover(): nadie lo ve sin bloqueo mientras esta petición vive.
+				if ( ! flock( $h, LOCK_EX ) || ! @rename( $path . '.new', $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+					fclose( $h );
+					@unlink( $path . '.new' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+					return;
+				}
+				@chmod( $path, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				self::$marker      = $h;
+				self::$marker_path = $path;
+			} catch ( \Throwable $t ) {
+				return;
+			}
+		}
+		@ftruncate( self::$marker, 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		@rewind( self::$marker ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		@fwrite( self::$marker, (string) json_encode( array( 'scope' => $e['scope'], 'id' => $e['id'], 'hash' => $e['hash'], 'rev' => (int) ( $e['rev'] ?? 0 ), 'path' => self::request_path() ) ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	}
+
+	/** Borra el marcador de esta petición (antes de soltar el bloqueo, para que nadie lo lea a medias). */
+	private static function unmark() {
+		if ( ! self::$marker ) return;
+		@unlink( self::$marker_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		@flock( self::$marker, LOCK_UN ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		@fclose( self::$marker ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		self::$marker = null;
+	}
+
+	/**
+	 * Marcadores de este sitio de peticiones que ya no existen: uno que se deja bloquear es de un proceso muerto. Con
+	 * contenido, murió al cargar ese fragmento y se apaga con la misma fila `off` que la regla 1; vacío, sólo se borra. Un
+	 * marcador bloqueado es de una petición viva y no se toca.
+	 */
+	private static function recover() {
+		try {
+			$files = glob( self::marker_dir() . '/b' . self::$origin_blog . '-*.run' );
+		} catch ( \Throwable $t ) {
+			return;
+		}
+		foreach ( is_array( $files ) ? $files : array() as $file ) {
+			$h = @fopen( $file, 'r' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			if ( ! $h ) continue;
+			if ( ! flock( $h, LOCK_EX | LOCK_NB ) ) {
+				fclose( $h );
+				continue;
+			}
+			$e = json_decode( (string) fread( $h, 4096 ), true );
+			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			flock( $h, LOCK_UN );
+			fclose( $h );
+			if ( ! is_array( $e ) || ! in_array( $e['scope'] ?? '', array( 'site', 'network' ), true ) || ! Store::valid_id( (string) ( $e['id'] ?? '' ) ) || ! preg_match( '/^[0-9a-f]{64}$/D', (string) ( $e['hash'] ?? '' ) ) ) continue;
+			$e['rev'] = (int) ( $e['rev'] ?? 0 );
+			self::disable( $e, array( 'type' => E_ERROR, 'line' => 0, 'message' => 'PHP terminó la petición mientras se cargaba el fragmento sin ejecutar su cierre (en PHP 7.4, memoria agotada).', 'path' => (string) ( $e['path'] ?? '' ) ) );
+			self::$recovered[] = Store::off_name( $e['scope'], $e['id'], $e['hash'], $e['rev'] );
+		}
+	}
+
+	/** Carpeta privada de los marcadores de esta instalación y esta red, en la carpeta temporal. */
+	private static function marker_dir() {
+		$base = function_exists( 'get_temp_dir' ) ? get_temp_dir() : sys_get_temp_dir();
+		return rtrim( (string) $base, '/\\' ) . '/digitalisimo-tools-php-' . substr( md5( ( defined( 'ABSPATH' ) ? ABSPATH : '' ) . '|' . self::$origin_network ), 0, 12 );
 	}
 
 	private static function write_result() {

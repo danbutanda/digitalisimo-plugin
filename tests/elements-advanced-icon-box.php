@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -33,12 +36,12 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-icon-box.php';
 	$widget = new \Digitalisimo\Elements\Advanced_Icon_Box_Widget();
 	check_icon_box( 'digitalisimo-advanced-icon-box' === $widget->get_name() && array( 'digitalisimo-advanced-icon-box' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El widget debe usar sólo su CSS condicional.' );
-	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	foreach ( array( 'icon_type', 'selected_icon', 'image', 'title_text', 'description_text', 'position', 'global_link', 'global_link_url', 'readmore_link', 'badge_text', 'text_align', 'icon_size', 'title_typography', 'subtitle_typography', 'description_typography', 'box_shadow' ) as $name ) {
 		check_icon_box( isset( $widget->controls[ $name ] ), 'Falta control ' . $name );
 	}
 	check_icon_box( '{{WRAPPER}} .digi-advanced-icon-box__title' === $widget->controls['title_typography']['selector'] && '{{WRAPPER}} .digi-advanced-icon-box' === $widget->controls['box_shadow']['selector'], 'Los estilos opcionales deben afectar sólo a la instancia actual.' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'icon_type' => 'icon', 'selected_icon' => array( 'value' => 'fas fa-star' ), 'title_text' => '<script>X</script>', 'title_size' => 'script', 'description_text' => '<p>Texto <strong>útil</strong></p><script>X</script>', 'readmore' => 'yes', 'readmore_text' => 'Más', 'readmore_link' => array( 'url' => 'https://example.test/detalle', 'is_external' => true ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_icon_box( str_contains( $html, '<h3 class="digi-advanced-icon-box__title">' ) && str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ), 'El título debe tener etiqueta segura y escapar texto.' );
@@ -51,7 +54,7 @@ namespace {
 	$widget->settings = array( 'icon_type' => 'image', 'image' => array( 'id' => 0, 'url' => 'javascript:alert(1)' ), 'title_text' => '', 'description_text' => '' );
 	ob_start(); $render->invoke( $widget ); $empty = ob_get_clean();
 	check_icon_box( '' === $empty, 'Una tarjeta vacía no debe añadir nodos.' );
-	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ) )->invoke( $widget ); $editor = ob_get_clean();
 	check_icon_box( str_contains( $editor, 'safeUrl( settings.global_link_url )' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ), 'El editor debe previsualizar icono y enlace seguros.' );
 	check_icon_box( str_contains( $editor, 'linkRel( settings.global_link_url )' ) && str_contains( $editor, 'linkRel( settings.title_link_url )' ) && str_contains( $editor, 'linkRel( settings.readmore_link )' ), 'Los tres enlaces del editor deben conservar la política de destino y rel del frontend.' );
 	check_icon_box( str_contains( $editor, 'aria-hidden="{{ settings.icon_type === \'image\' && !String( settings.title_text || \'\' ).trim() ? \'false\' : \'true\' }}"' ), 'Una imagen informativa sin título no debe ocultarse al lector de pantalla en la vista previa.' );
@@ -64,7 +67,7 @@ namespace {
 	$widget->settings['step_arrow'] = '';
 	ob_start(); $render->invoke( $widget ); $arrow = ob_get_clean();
 	check_icon_box( ! str_contains( $arrow, '__arrow' ), 'Sin activar no hay flecha.' );
-	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ) )->invoke( $widget ); $editor = ob_get_clean();
 	check_icon_box( str_contains( $editor, '"M3 23C27 5 64 2 92 15"' ) && str_contains( $editor, 'digi-advanced-icon-box__arrow--hide-' ), 'El editor previsualiza la flecha con los mismos trazos.' );
 	echo "DIGITALÍSIMO Elements: Caja de icono avanzada validada.\n";
 }

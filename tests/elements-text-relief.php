@@ -15,6 +15,9 @@
  *   `--write-fixture` lo regenera.
  * Uso: node <php-wasm-cli> tests/elements-text-relief.php
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TAB_STYLE = 'style'; const SWITCHER = 'switcher'; const SELECT = 'select'; const SLIDER = 'slider'; const COLOR = 'color'; const NUMBER = 'number';

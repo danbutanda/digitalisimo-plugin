@@ -18,6 +18,9 @@
  *
  * Uso: node …/php-wasm-cli tests/elements-pro-link-in-bio.php (php-wasm sale con 0 aunque falle: buscar «FALLA»).
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();

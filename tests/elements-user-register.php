@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -24,7 +27,7 @@ namespace {
 	$widget = new \Digitalisimo\Elements\User_Register_Widget();
 	check_register( array( 'digitalisimo-user-register' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'Sólo debe cargar CSS condicional.' );
 	$widget->settings = array( 'description' => 'Alta <b>segura</b>', 'button_text' => 'Crear <script>mal</script>cuenta' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$GLOBALS['multisite'] = false; $GLOBALS['site_registration'] = true; $GLOBALS['logged_in'] = false;
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_register( str_contains( $html, 'wp-login.php?action=register' ) && str_contains( $html, 'Alta segura' ) && ! str_contains( $html, '<script>' ), 'Debe enlazar al registro nativo y sanear el texto.' );

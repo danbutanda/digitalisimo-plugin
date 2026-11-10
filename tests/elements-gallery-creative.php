@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
@@ -43,23 +46,23 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-creative-button.php';
 	$gallery = new \Digitalisimo\Elements\Custom_Gallery_Widget();
 	$creative = new \Digitalisimo\Elements\Creative_Button_Widget();
-	foreach ( array( $gallery, $creative ) as $widget ) { (new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget ); check_visual( array() === $widget->get_script_depends(), 'Los widgets no deben cargar JavaScript.' ); }
+	foreach ( array( $gallery, $creative ) as $widget ) { (digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget ); check_visual( array() === $widget->get_script_depends(), 'Los widgets no deben cargar JavaScript.' ); }
 	check_visual( 'hidden' === $creative->controls['effect']['type'] && 'hidden' === $creative->controls['padding']['type'] && isset( $creative->controls['button_effect'] ), 'El alias registra sus claves de antes como controles ocultos para la conversión de la Migración.' );
 	$gallery->settings = array( 'gallery_images' => array( array( 'id' => 10, 'url' => 'https://site.test/image.webp', 'alt' => 'ALT original' ) ), 'gallery_items' => array( array( 'gallery_image' => array( 'url' => 'https://site.test/otra.webp' ), 'image_title' => 'Otro <script>x</script>', 'image_text' => 'Descripción', 'image_link' => array( 'url' => 'https://site.test/otro', 'is_external' => true, 'nofollow' => true ) ) ) );
-	ob_start(); (new \ReflectionMethod( $gallery, 'render' ))->invoke( $gallery ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $gallery, 'render' ) ))->invoke( $gallery ); $html = ob_get_clean();
 	check_visual( 2 === substr_count( $html, '<figure>' ) && str_contains( $html, 'srcset=' ) && str_contains( $html, 'alt="Imagen de prueba"' ), 'La galería debe usar Medios y su ALT sin perder srcset.' );
 	check_visual( str_contains( $html, 'href="https://site.test/otro"' ) && ! str_contains( $html, '<script' ), 'El enlace individual y los textos deben ser seguros.' );
 	check_visual( str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="nofollow noopener noreferrer"' ), 'El enlace externo protege la pestaña y conserva nofollow.' );
-	ob_start(); (new \ReflectionMethod( $gallery, 'content_template' ))->invoke( $gallery ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $gallery, 'content_template' ) ))->invoke( $gallery ); $editor = ob_get_clean();
 	check_visual( str_contains( $editor, 'item.image.alt' ) && str_contains( $editor, 'link.is_external' ) && str_contains( $editor, 'noopener noreferrer' ), 'El editor debe respetar ALT y atributos del enlace.' );
 	$creative->settings = \Digitalisimo\Elements\Creative_Button_Widget::upgrade_settings( array( 'text' => 'Conocer <script>x</script>', 'link' => array( 'url' => 'https://site.test/contacto', 'is_external' => true, 'nofollow' => true ), 'icon' => array( 'value' => 'fas fa-star' ), 'effect' => 'lift' ) );
-	ob_start(); (new \ReflectionMethod( $creative, 'render' ))->invoke( $creative ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $creative, 'render' ) ))->invoke( $creative ); $html = ob_get_clean();
 	check_visual( str_contains( $html, 'digi-advanced-button--effect-g' ) && str_contains( $html, ' digi-creative-button ' ) && str_contains( $html, 'href="https://site.test/contacto"' ) && ! str_contains( $html, '<script' ), 'Botón creativo debe sanear texto y enlace y conservar su clase de antes.' );
 	check_visual( str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="noopener noreferrer nofollow"' ) && str_contains( $html, 'aria-hidden="true"' ), 'Botón creativo debe proteger pestañas externas y mostrar su icono.' );
-	ob_start(); (new \ReflectionMethod( $creative, 'content_template' ))->invoke( $creative ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $creative, 'content_template' ) ))->invoke( $creative ); $editor = ob_get_clean();
 	check_visual( str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'settings.link.is_external' ) && str_contains( $editor, 'noopener noreferrer' ) && str_contains( $editor, '["digi-creative-button",{' ), 'El editor debe mostrar icono y atributos del enlace con las clases de antes.' );
 	$creative->settings['link']['url'] = '';
-	ob_start(); (new \ReflectionMethod( $creative, 'render' ))->invoke( $creative ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $creative, 'render' ) ))->invoke( $creative ); $html = ob_get_clean();
 	check_visual( ! str_contains( $html, '<a ' ) && str_contains( $html, '<span class="digi-advanced-button digi-advanced-button--md' ), 'Sin URL no debe existir enlace vacío.' );
 	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' );
 	check_visual( str_contains( $css, 'prefers-reduced-motion' ) && str_contains( $css, ':focus-visible' ) && ! is_file( __DIR__ . '/../digitalisimo-elements/assets/css/creative-button.css' ), 'Los efectos deben respetar movimiento reducido y foco en la hoja única del botón.' );

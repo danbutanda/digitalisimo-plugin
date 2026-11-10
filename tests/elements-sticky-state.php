@@ -12,6 +12,9 @@
  *   `json_encode` real); la hoja cabe en 0,5 KB, cada regla empieza por `body:not(.elementor-editor-active)`, sólo
  *   actúa en descendientes y nunca sobre el propio elemento fijo ni sobre el espaciador en estado normal.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager { const SELECT = 'select'; const RAW_HTML = 'raw_html'; const DIVIDER = 'divider'; const SWITCHER = 'switcher'; }
 	/** Pila con la inyección como en `Controls_Stack` (`get_position_info()` con `at = after`). */

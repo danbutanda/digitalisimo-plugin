@@ -16,6 +16,9 @@
  *   `__dynamic__` y `__globals__`, CSS personalizado) con sus hijos intactos: ningún `pro.unmapped`, cada clave cae en un
  *   control propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $experiments; }
 	class Controls_Manager {
@@ -162,9 +165,9 @@ namespace {
 	use Digitalisimo\Elements\Convert\Translator;
 
 	$own = new Nested_Carousel();
-	( new ReflectionMethod( $own, 'register_controls' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'register_controls' ) ) )->invoke( $own );
 	$pro = new \ElementorPro\Modules\NestedCarousel\Widgets\Nested_Carousel();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 
 	/** Ajustes como los daría Elementor: los valores por defecto de cada control (y de cada dispositivo) más los guardados. */
 	$defaults = static function ( $widget ) {
@@ -194,7 +197,7 @@ namespace {
 		$widget->settings = $settings + $defaults( $own );
 		$widget->children = $kids;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$items = static function ( int $n ) {
@@ -223,7 +226,7 @@ namespace {
 	foreach ( array( $source, $css, $editor_js, (string) file_get_contents( $root . 'modules/digitalisimo-convert/maps/nested-carousel.php' ) ) as $text ) {
 		check_nc( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $text ), 'Sin nombres de otros proveedores (guarda de build-packages.sh).' );
 	}
-	$config = ( new ReflectionMethod( $own, 'get_initial_config' ) )->invoke( $own );
+	$config = ( digi_test_accessible( new ReflectionMethod( $own, 'get_initial_config' ) ) )->invoke( $own );
 	check_nc( true === $config['support_improved_repeaters'] && array( '.digi-ncarousel__items' ) === $config['target_container'] && 'span' === $config['node'] && '.digi-crs__track' === $config['defaults']['elements_placeholder_selector'] && 3 === count( $config['defaults']['elements'] ), 'Repetidor mejorado sobre la lista oculta; hijos en la pista; tres diapositivas nuevas.' );
 
 	// 2. Un control propio por cada control de PRO, igual salvo los textos.
@@ -332,7 +335,7 @@ namespace {
 	// 5. Plantilla del editor: construida con las piezas de Engine::open() (la equivalencia, caso por caso, la comprueba
 	// tests/elements-pro-nested-carousel-editor.mjs con el volcado de NC_DUMP).
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template' ) ) )->invoke( $own );
 	$template = (string) ob_get_clean();
 	$markup   = Nested_Carousel::editor_markup();
 	foreach ( array( 'digi-crs__pause', 'digi-crs__prev', 'digi-crs__pagination', 'digi-crs__dot', 'digi-crs__fraction', 'digi-crs__total">{{ digiCount }}', 'digi-crs__bar', 'digi-crs__next', 'digi-crs__track', '{{ digiLabel }}', '{{ digiDelay }}', '{{ digiPag }}', '{{ digiSpeed }}', '{{ digiI }}', "'digi-crs--arrows-out'", "'digi-crs--pag-out'", "'digi-ncarousel'" ) as $piece ) {
@@ -341,7 +344,7 @@ namespace {
 	check_nc( ! preg_match( '/@L@|@PREV@|@NEXT@|4321|1234|rtl"|>7</', $markup ), 'No quedan valores de muestra en la plantilla: ' . $markup );
 	check_nc( str_contains( $template, $markup ) && str_contains( $template, 'class="digi-ncarousel__items" data-digi-slide="diapositiva" data-digi-of="%1$d de %2$d" hidden' ) && ! preg_match( '/var[^;#]*[\s,]view\s*=/', $template ) && ! str_contains( $template, '{{{ settings.' ) && ! str_contains( $template, '{{{ digiS.' ), 'Plantilla completa, con la lista oculta del repetidor, sin tapar el objeto view ni imprimir ajustes sin escapar.' );
 	ob_start();
-	( new ReflectionMethod( $own, 'content_template_single_repeater_item' ) )->invoke( $own );
+	( digi_test_accessible( new ReflectionMethod( $own, 'content_template_single_repeater_item' ) ) )->invoke( $own );
 	check_nc( '<span></span>' === trim( (string) ob_get_clean() ), 'Nodo de la lista oculta por fila.' );
 	if ( getenv( 'NC_DUMP' ) ) {
 		$variants = array(
