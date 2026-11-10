@@ -83,6 +83,9 @@ $age = function( $seconds ) use ( $B ) {
 	foreach ( $history as &$row ) $row['date'] = gmdate( 'Y-m-d H:i:s', time() - $seconds );
 	unset( $row );
 	update_option( $B::HISTORY, $history );
+	// El último respaldo previo bueno envejece igual (la ventana del respaldo reciente).
+	$state = Digitalisimo_Backups_Keys::get( Digitalisimo_Backups_Pre_Update::STATE, array() );
+	if ( is_array( $state ) && ! empty( $state['last_ok'] ) ) { $state['last_ok'] = time() - $seconds; Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Pre_Update::STATE, $state ); }
 };
 $fail_database = function( $phase, $job ) {
 	if ( 'database' === $phase ) throw new Digitalisimo_Backups_Permanent_Error( 'Sin espacio en /home/usuario/privado/almacen para el respaldo de prueba.' );

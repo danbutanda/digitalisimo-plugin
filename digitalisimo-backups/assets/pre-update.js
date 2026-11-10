@@ -8,8 +8,8 @@
  * envía la actualización. Si falla, pregunta si actualizar sin respaldo: con «Aceptar», el servidor deja actualizar
  * sin respaldo unos minutos; con «Cancelar», el formulario no se envía, la página lo recuerda (no vuelve a pedir el
  * respaldo ni a preguntar) y cada actualización por AJAX la rechaza el servidor con el motivo del fallo, sin encolar
- * otro respaldo. «Ocultar esta actualización» y «Mostrar de nuevo» no esperan. Todo texto del servidor se pinta como
- * texto.
+ * otro respaldo. «Ocultar esta actualización» y «Mostrar de nuevo» no esperan; sin event.submitter se usa el último
+ * botón pulsado y, si no se sabe cuál, el formulario sale tal cual. Todo texto del servidor se pinta como texto.
  */
 (function () {
   'use strict';
@@ -91,25 +91,32 @@
 
   // Formularios de Escritorio → Actualizaciones (update-core.php).
   var forms = { 'upgrade': 'core', 'upgrade-plugins': 'plugin', 'upgrade-themes': 'theme' };
+  // Sin event.submitter (navegadores antiguos): el último botón pulsado de cada formulario, como los polyfills.
+  var pressed = null;
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    var button = target && target.closest ? target.closest('button, input[type="submit"]') : null;
+    if (button && button.form) pressed = button;
+  }, true);
   document.addEventListener('submit', function (event) {
     var form = event.target;
     var type = form && form.getAttribute ? forms[form.getAttribute('name')] : null;
     if (!type || !cfg.types[type] || state.ready) return;
-    var submitter = event.submitter || null;
-    // «Ocultar esta actualización» y «Mostrar de nuevo» (dismiss, undismiss) van en el mismo formulario: no esperan.
-    if (submitter && submitter.name && 'upgrade' !== submitter.name) return;
+    var submitter = event.submitter || (pressed && pressed.form === form ? pressed : null);
+    pressed = null;
+    // Sólo el botón «upgrade» espera: «Ocultar esta actualización» y «Mostrar de nuevo» (dismiss, undismiss) no, y si no se
+    // sabe qué botón se pulsó, el formulario sale tal cual y el servidor decide.
+    if (!submitter || 'upgrade' !== submitter.name) return;
     // Tras «Cancelar», un nuevo envío sale: el servidor responde con el motivo del fallo (sin encolar otro respaldo).
     if (state.declined) return;
     event.preventDefault();
     ensure().then(function (ok) {
       if (!ok) return;
-      // submit() no envía el botón pulsado: va como campo oculto. Sin event.submitter (navegadores antiguos), el campo
-      // «upgrade» que WordPress exige, con el valor del botón del formulario.
-      var button = form.querySelector ? form.querySelector('[name="upgrade"]') : null;
+      // submit() no envía el botón pulsado: va como campo oculto («upgrade», que WordPress exige).
       var input = document.createElement('input');
       input.type = 'hidden';
-      input.name = submitter && submitter.name ? submitter.name : 'upgrade';
-      input.value = submitter && submitter.name ? submitter.value : (button ? button.value : '1');
+      input.name = submitter.name;
+      input.value = submitter.value;
       form.appendChild(input);
       HTMLFormElement.prototype.submit.call(form);
     });

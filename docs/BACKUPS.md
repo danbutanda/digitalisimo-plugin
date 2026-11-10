@@ -361,11 +361,14 @@ plugin o un tema hay un respaldo completo reciente y válido de la instalación 
 «Trabajos». Código: `includes/class-backups-pre-update.php` y `assets/pre-update.js`.
 
 **Respaldo reciente válido.** Completo, de esta instalación (de la red, en Multisite), creado aquí (no subido, importado
-ni una copia previa a restaurar), sin avisos de carpetas a medias ni de archivos que faltaron (`files_changed`,
-`files_missing`), con fecha dentro de la antigüedad máxima (`max_age`: 1, 6, 12, 24, 48 o 168 horas; 24 por defecto; en
+ni una copia previa a restaurar), con fecha dentro de la antigüedad máxima (`max_age`: 1, 6, 12, 24, 48 o 168 horas; 24 por defecto; en
 una tienda conviene 1 a 6 h) y con su ZIP en el almacén con el tamaño registrado y la estructura sana (empieza por una
 cabecera local de ZIP y termina con el directorio central; un `.dgbk`, con la cabecera DGBK v1), o, si sólo queda en el
-remoto, con su copia remota verificada. El SHA-256 se comprobó al crearlo; aquí no se relee el archivo entero. Si ya hay
+remoto, con su copia remota verificada. Los avisos de archivos que cambiaron o desaparecieron durante el respaldo
+(`files_changed`, `files_missing`: una caché, un CSS regenerado) no lo descalifican; descartarlo repetiría respaldos
+completos sin fin. Además, **nunca se lanza más de un respaldo previo por ventana**: si el respaldo previo terminó bien
+dentro de la antigüedad máxima, cuenta aunque su fila ya no aparezca (borrada o movida). El SHA-256 se comprobó al
+crearlo; aquí no se relee el archivo entero. Si ya hay
 un respaldo completo en curso (manual o de una automatización), se espera a ése en vez de hacer otro. Los respaldos
 previos tienen su propia retención (tres) y no cuentan en la retención global de los respaldos del usuario.
 
@@ -413,11 +416,14 @@ servidor, `upgrader_pre_download` es la garantía para cualquier otro camino (si
 `update.php`): sin respaldo reciente, encola el respaldo y rechaza esa actualización con un error que explica que el
 respaldo está en marcha y dónde seguirlo; si el respaldo previo falló hace menos de 15 minutos, responde con ese motivo sin
 encolar otro (lo reintentan «Crear el respaldo previo» en la pantalla, `POST /pre-update/backup` o `pre-update run`).
-Instalar algo nuevo y las traducciones no esperan. «Actualizar sin respaldo» vale sólo para la cuenta que lo pidió (en
-WP-CLI sin `--user`, la cuenta 0), queda en el registro con la cuenta y nunca deja pasar una automática.
+Instalar algo nuevo y las traducciones no esperan. «Actualizar sin respaldo» vale sólo para la cuenta que lo pidió en la
+web y, pedido en WP-CLI, para la consola (con cualquier `--user`, nunca en la web); queda en el registro y nunca deja
+pasar una automática. Sin `event.submitter`, el script usa el último botón pulsado del formulario; si no lo sabe, el
+formulario sale tal cual y decide el servidor.
 
 **WP-CLI.** En `wp core update`, `wp plugin update` y `wp theme update`, el respaldo previo se hace en `before_invoke`,
-antes de que el actualizador ponga el sitio en mantenimiento, y sólo si hay algo que actualizar (sin contar Backups),
+antes de que el actualizador ponga el sitio en mantenimiento, y sólo si hay algo que actualizar (sin contar Backups; en
+`core update`, una oferta `upgrade`, una versión pedida o un paquete) y no es `--dry-run`,
 en el mismo proceso, sin límite de tiempo y con su avance en la salida. La guarda de cada elemento nunca respalda con
 `.maintenance` presente (los visitantes verían un 503): sin respaldo reciente, rechaza con el motivo. Si el respaldo
 falla, el motivo queda para todo el proceso: cada elemento del lote se rechaza con él, sin otro respaldo, hasta
@@ -441,7 +447,7 @@ plugin que llame directamente a `WP_Automatic_Updater::run()` fuera de esa acci�
 cuenta como manual. Reemplazar un plugin o un tema subiendo un ZIP («Reemplazar el actual con el subido») cuenta como
 instalación y no espera. Los gestores remotos (MainWP, ManageWP, Jetpack) ven el rechazo con el motivo hasta que el cron
 termina el respaldo. `plugin-install.php` y el personalizador no cargan el script: su «Actualizar» lo frena el servidor
-con el motivo, sin la espera con avance. En WP-CLI, `--dry-run` también hace el respaldo previo.
+con el motivo, sin la espera con avance.
 
 ## Restaurar en otro dominio
 

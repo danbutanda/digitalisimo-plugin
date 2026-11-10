@@ -62,6 +62,8 @@ final class Digitalisimo_Backups_Pre_Update {
 	public static $sleep = 'sleep';
 	public static $clock = 'time';
 	public static $user = null;
+	/** Pruebas: argumentos de la orden de WP-CLI (array( posicionales, con nombre )); null los lee de WP-CLI. */
+	public static $cli_args = null;
 	/** WP-CLI: el respaldo previo de este proceso ya falló (no se repite por cada plugin del lote; las pruebas lo vacían). */
 	public static $cli_failure = null;
 
@@ -119,7 +121,7 @@ final class Digitalisimo_Backups_Pre_Update {
 	}
 	private static function state() {
 		$saved = Digitalisimo_Backups_Keys::get( self::STATE, array() );
-		return array_merge( array( 'job' => '', 'auto' => false, 'items' => array(), 'since' => 0, 'failure' => '', 'failed_at' => 0, 'fails' => 0, 'mailed_at' => 0, 'skip_until' => 0, 'skip_via' => '', 'skip_user' => 0, 'bypass_until' => 0, 'bypass_reason' => '', 'bypass_items' => array() ), is_array( $saved ) ? $saved : array() );
+		return array_merge( array( 'job' => '', 'auto' => false, 'items' => array(), 'since' => 0, 'failure' => '', 'failed_at' => 0, 'fails' => 0, 'mailed_at' => 0, 'skip_until' => 0, 'skip_via' => '', 'skip_user' => 0, 'last_ok' => 0, 'last_file' => '', 'bypass_until' => 0, 'bypass_reason' => '', 'bypass_items' => array() ), is_array( $saved ) ? $saved : array() );
 	}
 	private static function user() { return null !== self::$user ? (int) self::$user : ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ); }
 	/** En una red, el historial y la cola son del sitio principal: WP-CLI con `--url` de un subsitio también va allí. */
@@ -158,9 +160,8 @@ final class Digitalisimo_Backups_Pre_Update {
 			$item = (array) $item;
 			if ( $scope !== (string) ( $item['scope'] ?? '' ) || 'full' !== (string) ( $item['backup_type'] ?? 'full' ) ) continue;
 			if ( 'created' !== (string) ( $item['origin'] ?? 'created' ) || 'pre-restore' === (string) ( $item['policy'] ?? '' ) ) continue;
-			// Un respaldo con carpetas a medias o archivos que faltaron no es un punto de vuelta fiable.
-			$codes = array_map( function( $notice ) { return (string) ( ( (array) $notice )['code'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) );
-			if ( array_intersect( $codes, array( 'files_changed', 'files_missing' ) ) ) continue;
+			// Los avisos `files_missing` y `files_changed` (una caché que desaparece o cambia durante el respaldo) no lo
+			// descalifican: es lo normal en un sitio con caché, y descartarlo repetiría respaldos completos sin fin (revisión N1).
 			$time = strtotime( (string) ( $item['date'] ?? '' ) );
 			if ( false === $time || false === $now ) continue;
 			$age = $now - $time;
@@ -170,6 +171,18 @@ final class Digitalisimo_Backups_Pre_Update {
 			return array( 'file' => (string) $item['file'], 'date' => (string) $item['date'], 'age_minutes' => (int) floor( max( 0, $age ) / 60 ), 'policy' => (string) ( $item['policy'] ?? 'manual' ) );
 		}
 		return null;
+	}
+	/**
+	 * Respaldo reciente para actualizar: el válido del historial o, si no aparece (borrado, movido), el respaldo previo
+	 * que terminó bien dentro de la antigüedad máxima. Así nunca se lanza más de un respaldo previo por ventana.
+	 */
+	public static function recent() {
+		$fresh = self::fresh();
+		if ( $fresh ) return $fresh;
+		$state = self::state();
+		$ok = (int) $state['last_ok'];
+		if ( ! $ok || time() - $ok > self::settings()['max_age'] * 3600 ) return null;
+		return array( 'file' => (string) $state['last_file'], 'date' => gmdate( 'Y-m-d H:i:s', $ok ), 'age_minutes' => (int) floor( ( time() - $ok ) / 60 ), 'policy' => self::POLICY );
 	}
 	private static function copy_exists( array $item, $dir ) {
 		$file = sanitize_file_name( (string) ( $item['file'] ?? '' ) );
@@ -231,7 +244,7 @@ final class Digitalisimo_Backups_Pre_Update {
 	}
 	private static function ensure_here( $via, $auto, $item ) {
 		$state = self::resolve();
-		$fresh = self::fresh();
+		$fresh = self::recent();
 		if ( $fresh ) return array( 'state' => 'ready', 'fresh' => $fresh );
 		$job = '' !== $state['job'] ? Digitalisimo_Backups_Jobs::get( $state['job'] ) : null;
 		if ( ! $job || Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) $job = self::active_backup();
@@ -305,6 +318,10 @@ final class Digitalisimo_Backups_Pre_Update {
 			if ( (string) $state['job'] !== $expected ) return false;
 			$state['job'] = '';
 			if ( $ok ) {
+				if ( $job && 'success' === $job['status'] ) {
+					$state['last_ok'] = time();
+					$state['last_file'] = basename( (string) ( $job['result']['file'] ?? $job['spec']['file'] ?? '' ) );
+				}
 				$release = ! empty( $state['auto'] );
 				$state['auto'] = false;
 				$state['items'] = array();
@@ -476,7 +493,7 @@ final class Digitalisimo_Backups_Pre_Update {
 			$outcome = self::on_main( function() {
 				if ( self::is_cli() ) {
 					if ( null !== self::$cli_failure ) return array( 'state' => 'failed', 'message' => self::$cli_failure );
-					$fresh = self::fresh();
+					$fresh = self::recent();
 					if ( $fresh ) return array( 'state' => 'ready', 'fresh' => $fresh );
 					// Nunca un respaldo completo con el sitio en mantenimiento (los visitantes verían un 503).
 					if ( self::maintenance() ) return self::cli_failed( 'El sitio está en modo mantenimiento y el respaldo previo no se hace con los visitantes fuera: créalo antes con wp digitalisimo-backups pre-update run.' );
@@ -519,9 +536,11 @@ final class Digitalisimo_Backups_Pre_Update {
 	public static function cli_before( $type ) {
 		if ( ! isset( self::TYPES[ $type ] ) || 'all' !== self::settings()[ $type ] ) return;
 		try {
-			if ( self::skipping() || ! self::pending( $type ) ) return;
+			list( $args, $assoc ) = self::cli_args();
+			if ( ! empty( $assoc['dry-run'] ) ) return;
+			if ( self::skipping() || ! self::pending( $type, $args, $assoc ) ) return;
 			self::on_main( function() {
-				if ( self::fresh() || null !== self::$cli_failure ) return;
+				if ( self::recent() || null !== self::$cli_failure ) return;
 				$outcome = self::cli_wait();
 				if ( 'ready' !== $outcome['state'] ) self::cli_failed( (string) ( $outcome['message'] ?? 'El respaldo previo falló.' ) );
 			} );
@@ -529,9 +548,26 @@ final class Digitalisimo_Backups_Pre_Update {
 			self::cli_failed( $e->getMessage() );
 		}
 	}
-	/** Hay alguna actualización de ese tipo (sin contar Backups); el núcleo, siempre (`core update` puede pedir una versión). */
-	private static function pending( $type ) {
-		if ( 'core' === $type ) return true;
+	/** Argumentos de la orden de WP-CLI en curso (las pruebas los sustituyen con `$cli_args`). */
+	private static function cli_args() {
+		if ( is_array( self::$cli_args ) ) return array( (array) ( self::$cli_args[0] ?? array() ), (array) ( self::$cli_args[1] ?? array() ) );
+		if ( ! class_exists( 'WP_CLI' ) || ! method_exists( 'WP_CLI', 'get_runner' ) ) return array( array(), array() );
+		$runner = WP_CLI::get_runner();
+		return array( (array) ( $runner->arguments ?? array() ), (array) ( $runner->assoc_args ?? array() ) );
+	}
+	/**
+	 * Hay algo de ese tipo que actualizar (sin contar Backups). El núcleo: una versión o un paquete pedidos en la orden, o
+	 * una oferta `upgrade` en `update_core`.
+	 */
+	private static function pending( $type, array $args = array(), array $assoc = array() ) {
+		if ( 'core' === $type ) {
+			if ( ! empty( $assoc['version'] ) || count( $args ) > 2 ) return true;
+			if ( function_exists( 'wp_version_check' ) && ! empty( $assoc['force'] ) ) wp_version_check();
+			$core = function_exists( 'get_site_transient' ) ? get_site_transient( 'update_core' ) : null;
+			if ( ! is_object( $core ) ) return true;
+			foreach ( (array) ( $core->updates ?? array() ) as $offer ) if ( 'upgrade' === (string) ( ( (array) $offer )['response'] ?? '' ) ) return true;
+			return false;
+		}
 		$check = 'plugin' === $type ? 'wp_update_plugins' : 'wp_update_themes';
 		if ( function_exists( $check ) ) $check();
 		$transient = function_exists( 'get_site_transient' ) ? get_site_transient( 'plugin' === $type ? 'update_plugins' : 'update_themes' ) : null;
@@ -572,10 +608,10 @@ final class Digitalisimo_Backups_Pre_Update {
 			self::resolve();
 			$job = Digitalisimo_Backups_Job_Store::valid_id( (string) $id ) ? Digitalisimo_Backups_Jobs::get( (string) $id ) : null;
 			if ( $job && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return array( 'state' => 'running', 'job' => (string) $id, 'view' => Digitalisimo_Backups_Jobs::view( $job ) );
-			$fresh = self::fresh();
+			$fresh = self::recent();
 			if ( $fresh ) return array( 'state' => 'ready', 'fresh' => $fresh );
 			if ( ! $job ) return array( 'state' => 'failed', 'message' => 'El trabajo del respaldo previo ya no existe.' );
-			if ( 'success' === $job['status'] ) return array( 'state' => 'failed', 'message' => 'El respaldo terminó, pero no aparece como respaldo reciente válido de esta instalación.' );
+			if ( 'success' === $job['status'] ) return array( 'state' => 'ready', 'fresh' => array( 'file' => basename( (string) ( $job['spec']['file'] ?? '' ) ), 'date' => gmdate( 'Y-m-d H:i:s', (int) ( $job['finished_at'] ?? time() ) ), 'age_minutes' => 0, 'policy' => (string) ( $job['spec']['policy'] ?? self::POLICY ) ) );
 			return array( 'state' => 'failed', 'job' => (string) $id, 'message' => 'cancelled' === $job['status'] ? 'El respaldo previo se canceló.' : (string) ( $job['error']['message'] ?? 'El respaldo previo falló.' ) );
 		} );
 	}
@@ -586,12 +622,17 @@ final class Digitalisimo_Backups_Pre_Update {
 	public static function skip( $via, $minutes = self::SKIP_MINUTES ) {
 		$minutes = max( 1, min( 60, (int) $minutes ) );
 		$until = time() + $minutes * 60;
-		$user = self::user();
+		$user = self::is_cli() ? 'cli' : self::user();
 		self::change( function( &$state ) use ( $until, $via, $user ) { $state['skip_until'] = $until; $state['skip_via'] = (string) $via; $state['skip_user'] = $user; } );
 		if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: actualizaciones manuales sin respaldo previo durante ' . $minutes . ' min para la cuenta ' . $user . ' (' . $via . ').' );
 		return $until;
 	}
-	private static function skipping() { $state = self::state(); return (int) $state['skip_until'] > time() && (int) $state['skip_user'] === self::user(); }
+	/** «Sin respaldo» vigente para quien actualiza: la misma cuenta en la web; en WP-CLI, la consola (con cualquier `--user`). */
+	private static function skipping() {
+		$state = self::state();
+		if ( (int) $state['skip_until'] <= time() ) return false;
+		return self::is_cli() ? 'cli' === $state['skip_user'] : ( 'cli' !== $state['skip_user'] && (int) $state['skip_user'] === self::user() );
+	}
 
 	/* ------------------------------------------------------------------ Casos de uso (pantalla, REST y WP-CLI) */
 
@@ -728,6 +769,9 @@ final class Digitalisimo_Backups_Pre_Update {
 	 */
 	public static function notice() {
 		if ( ! Digitalisimo_Backups::can_manage_backups() ) return;
+		// Barato en cada pantalla: sin nada retenido ni ventana sin respaldo, no se lee el historial ni el ZIP.
+		try { $state = self::state(); } catch ( Throwable $e ) { return; }
+		if ( empty( $state['auto'] ) && (int) $state['bypass_until'] <= time() ) return;
 		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! is_main_site() ) return;
 		try {
 			$status = self::service_status();

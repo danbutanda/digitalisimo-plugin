@@ -65,6 +65,9 @@ $age = function( $seconds ) use ( $B ) {
 	foreach ( $history as &$row ) $row['date'] = gmdate( 'Y-m-d H:i:s', time() - $seconds );
 	unset( $row );
 	update_option( $B::HISTORY, $history );
+	// El último respaldo previo bueno envejece igual (la ventana del respaldo reciente).
+	$state = Digitalisimo_Backups_Keys::get( Digitalisimo_Backups_Pre_Update::STATE, array() );
+	if ( is_array( $state ) && ! empty( $state['last_ok'] ) ) { $state['last_ok'] = time() - $seconds; Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Pre_Update::STATE, $state ); }
 };
 $fail = function( $phase, $job ) {
 	if ( 'database' === $phase ) throw new Digitalisimo_Backups_Permanent_Error( 'Sin espacio para el respaldo de prueba.' );
@@ -77,7 +80,7 @@ $reset = function() use ( $P, $J, $age ) {
 	update_option( $P::STATE, array() );
 	$J::$phase_runner = null;
 	$P::$cli = false;
-	foreach ( array( 'cli_failure' => null, 'user' => null, 'clock' => 'time' ) as $property => $value ) if ( property_exists( $P, $property ) ) $P::$$property = $value;
+	foreach ( array( 'cli_failure' => null, 'user' => null, 'clock' => 'time', 'cli_args' => null ) as $property => $value ) if ( property_exists( $P, $property ) ) $P::$$property = $value;
 	$P::$sleep = function() {};
 	$GLOBALS['digi']['multisite'] = false;
 	$GLOBALS['digi']['main'] = true;
@@ -307,7 +310,8 @@ try {
 		$history = get_option( $B::HISTORY );
 		$history[0]['notices'] = array( array( 'code' => 'files_changed', 'text' => 'carpetas a medias' ) );
 		update_option( $B::HISTORY, $history );
-		digi_assert( null === $P::fresh(), 'H6: un respaldo con carpetas a medias contó como válido.' );
+		// Revisión N1: los avisos de archivos (una caché que desaparece) no descalifican el respaldo.
+		digi_assert( (bool) $P::fresh(), 'N1: un respaldo con el aviso files_changed no contó como válido.' );
 	} );
 	$case( 'H8 · GET /pre-update no encola nada (aunque lo esperado sea un respaldo ajeno que falló con automáticas retenidas)', function( $ctx ) {
 		extract( $ctx );
@@ -332,6 +336,57 @@ try {
 		digi_assert( is_wp_error( $P::gate_download( false, '', new Plugin_Upgrader(), $update ) ), 'H9: «sin respaldo» de otra cuenta dejó actualizar sin respaldo.' );
 		$P::$user = null;
 		digi_assert( false === $P::gate_download( false, '', new Plugin_Upgrader(), $update ), 'H9: «sin respaldo» no valió para la cuenta que lo pidió.' );
+	} );
+	$case( 'N1 · un respaldo previo que termina bien con files_missing libera las automáticas y no se repite', function( $ctx ) {
+		extract( $ctx );
+		// Una caché que desaparece entre el inventario y la copia: el respaldo termina bien, con el aviso files_missing.
+		$J::$phase_runner = function( $phase, $job ) {
+			$out = Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
+			if ( 'pack' === $phase && 'verify' === ( $out['next'] ?? '' ) ) $out['warnings'][] = array( 'notice' => 'files_missing', 'text' => '1 archivo(s) desaparecieron entre el inventario y su copia y no están en el respaldo (wp-content/cache/x.html).' );
+			return $out;
+		};
+		$before = $pre_jobs();
+		$seq = array();
+		for ( $i = 0; $i < 4; $i++ ) {
+			$seq[] = $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ) ? 'sí' : 'no';
+			foreach ( $J::active() as $job ) digi_drive( $job['id'] );
+		}
+		digi_assert( array( 'no', 'sí', 'sí', 'sí' ) === $seq && 1 === $pre_jobs() - $before, 'N1: con un respaldo previo que termina con files_missing, pasadas ' . implode( ',', $seq ) . ' y ' . ( $pre_jobs() - $before ) . ' respaldos previos (debía actualizar en la segunda con uno solo).' );
+		$row = get_option( $B::HISTORY )[0];
+		digi_assert( 'pre-update' === $row['policy'] && 'files_missing' === ( $row['notices'][0]['code'] ?? '' ), 'N1: el respaldo previo no quedó con su aviso.' );
+		// Aunque el respaldo desaparezca del almacén, no se lanza otro dentro de la ventana del respaldo reciente.
+		unlink( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/' . $row['file'] );
+		clearstatcache();
+		digi_assert( true === $auto( 'plugin', array( 'plugin' => 'akismet/akismet.php', 'new_version' => '9' ) ) && 1 === $pre_jobs() - $before, 'N1: dentro de la ventana se lanzó otro respaldo previo.' );
+	} );
+	$case( 'N4 · WP-CLI no respalda sin nada del núcleo pendiente ni con --dry-run', function( $ctx ) {
+		extract( $ctx );
+		$P::$cli = true;
+		$args = function( array $positional, array $named ) use ( $P ) { if ( property_exists( $P, 'cli_args' ) ) $P::$cli_args = array( $positional, $named ); };
+		$before = $pre_jobs();
+		$args( array( 'core', 'update' ), array() );
+		$GLOBALS['transients']['update_core'] = (object) array( 'updates' => array( (object) array( 'response' => 'latest' ) ) );
+		$P::cli_before( 'core' );
+		digi_assert( $before === $pre_jobs(), 'N4: wp core update sin nada pendiente hizo un respaldo previo.' );
+		$GLOBALS['transients']['update_plugins'] = (object) array( 'response' => array( 'hello/hello.php' => (object) array() ) );
+		$args( array( 'plugin', 'update' ), array( 'all' => true, 'dry-run' => true ) );
+		$P::cli_before( 'plugin' );
+		digi_assert( $before === $pre_jobs(), 'N4: wp plugin update --dry-run hizo un respaldo previo.' );
+		$args( array( 'core', 'update' ), array() );
+		$GLOBALS['transients']['update_core'] = (object) array( 'updates' => array( (object) array( 'response' => 'upgrade' ) ) );
+		$P::cli_before( 'core' );
+		digi_assert( $before + 1 === $pre_jobs() && $P::fresh(), 'N4: con una actualización del núcleo pendiente no se hizo el respaldo previo.' );
+		unset( $GLOBALS['transients']['update_core'], $GLOBALS['transients']['update_plugins'] );
+	} );
+	$case( 'N5 · «sin respaldo» de WP-CLI vale para la consola con cualquier --user', function( $ctx ) {
+		extract( $ctx );
+		$P::$cli = true;
+		$P::service_skip( array( 'via' => 'cli' ) );
+		$P::$user = 5;
+		$before = $pre_jobs();
+		digi_assert( false === $P::gate_download( false, '', new Plugin_Upgrader(), $update ) && $before === $pre_jobs(), 'N5: con «sin respaldo» de WP-CLI, wp plugin update --user=… esperó o hizo un respaldo.' );
+		$P::$cli = false;
+		digi_assert( is_wp_error( $P::gate_download( false, '', new Plugin_Upgrader(), $update ) ), 'N5: el «sin respaldo» de WP-CLI dejó actualizar sin respaldo en la web.' );
 	} );
 	if ( $failures ) throw new RuntimeException( 'FALLA: ' . count( $failures ) . ' hallazgo(s) de la revisión sin arreglar: ' . implode( ' | ', $failures ) );
 	echo "Respaldo antes de actualizar, revisión: tope de la retención, exenciones, aviso fijo, caducidad propia, WP-CLI antes del actualizador y fuera del mantenimiento, red, fallo reciente, retención global, ZIP dañado, GET sin efectos y «sin respaldo» por cuenta: OK\n";

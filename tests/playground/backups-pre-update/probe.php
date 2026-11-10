@@ -69,6 +69,9 @@ try {
 		foreach ( $history as &$row ) $row['date'] = gmdate( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) ) - 30 * 3600 );
 		unset( $row );
 		update_option( Digitalisimo_Backups::HISTORY, $history );
+		// El último respaldo previo bueno envejece igual (la ventana del respaldo reciente).
+		$state = Digitalisimo_Backups_Keys::get( Digitalisimo_Backups_Pre_Update::STATE, array() );
+		if ( is_array( $state ) && ! empty( $state['last_ok'] ) ) { $state['last_ok'] = time() - 30 * 3600; Digitalisimo_Backups_Keys::put( Digitalisimo_Backups_Pre_Update::STATE, $state ); }
 	};
 	$drive = function() use ( $J ) {
 		for ( $i = 0; $i < 80; $i++ ) {

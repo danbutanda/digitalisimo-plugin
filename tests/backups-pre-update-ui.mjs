@@ -75,7 +75,7 @@ function form(name) {
   f.attributes.name = name;
   return f;
 }
-function submit(env, target, submitter = null) {
+function submit(env, target, submitter = { name: 'upgrade', value: 'Actualizar' }) {
   const event = { target, submitter, prevented: false, preventDefault() { this.prevented = true; } };
   env.listeners.submit(event);
   return event;
@@ -193,16 +193,26 @@ const failed = { success: true, data: { state: 'failed', message: 'Sin espacio' 
   assert.equal(env.requests.length, 0);
 }
 
-// 10. Revisión H10: sin event.submitter (navegadores antiguos), el núcleo sale con el campo «upgrade» que WordPress exige.
+// 10. Revisiones H10 y N3: sin event.submitter (navegadores antiguos) cuenta el último botón pulsado del formulario: el de
+// «Actualizar» espera y sale con su campo «upgrade»; «Ocultar» no espera; sin saber qué botón, el formulario sale tal cual.
 {
   const env = setup({ server: () => ready });
   const target = form('upgrade');
-  target.querySelector = (selector) => ('[name="upgrade"]' === selector ? { name: 'upgrade', value: 'Actualizar a la versión 7.0' } : null);
+  const click = (name, value, owner = target) => env.listeners.click({ target: { name, value, form: owner, closest() { return this; } } });
+  click('upgrade', 'Actualizar a la versión 7.0');
   const event = submit(env, target, null);
-  assert.ok(event.prevented);
+  assert.ok(event.prevented, 'Con el botón «Actualizar» pulsado, espera');
   await settle();
   const hidden = target.children.find((child) => child.name === 'upgrade');
-  assert.ok(env.submitted.length === 1 && hidden && hidden.value === 'Actualizar a la versión 7.0', 'Sin submitter, el formulario lleva «upgrade»');
+  assert.ok(env.submitted.length === 1 && hidden && hidden.value === 'Actualizar a la versión 7.0', 'Sin submitter, el formulario lleva «upgrade» con su valor');
+  const other = setup({ server: () => { throw new Error('No debía consultar al servidor'); } });
+  const dismiss = form('upgrade');
+  other.listeners.click({ target: { name: 'dismiss', value: 'Ocultar esta actualización', form: dismiss, closest() { return this; } } });
+  assert.ok(!submit(other, dismiss, null).prevented, 'Sin submitter, «Ocultar» no espera ni sale como actualización');
+  assert.ok(!submit(other, form('upgrade'), null).prevented, 'Sin saber qué botón, el formulario sale tal cual');
+  other.listeners.click({ target: { name: 'upgrade', value: 'Actualizar', form: form('upgrade-plugins'), closest() { return this; } } });
+  assert.ok(!submit(other, dismiss, null).prevented, 'Un botón de otro formulario no cuenta');
+  assert.equal(other.requests.length, 0);
 }
 
 // 11. Revisión H4: tras «Cancelar», la página no vuelve a pedir el respaldo ni a preguntar; cada actualización por
