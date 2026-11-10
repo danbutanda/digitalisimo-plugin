@@ -1030,13 +1030,20 @@ final class Digitalisimo_Backups {
 		global $wpdb;
 		$base = (string) $base;
 		$others = array();
-		if ( '' === $base || ! is_object( $wpdb ) ) return $others;
+		// Sin una conexión que pueda leer una tabla (get_var) no hay nada que comprobar: nada se da por otra instalación.
+		if ( '' === $base || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) ) return $others;
 		foreach ( $tables as $table ) {
 			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(.+_)options$/D', (string) $table, $m ) ) continue;
 			if ( is_multisite() && preg_match( '/^[0-9]+_$/D', $m[1] ) ) continue;
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
-			$siteurl = $wpdb->get_var( 'SELECT option_value FROM `' . str_replace( '`', '``', (string) $table ) . "` WHERE option_name = 'siteurl' LIMIT 1" );
-			if ( null !== $suppress ) $wpdb->suppress_errors( $suppress );
+			try {
+				$siteurl = $wpdb->get_var( 'SELECT option_value FROM `' . str_replace( '`', '``', (string) $table ) . "` WHERE option_name = 'siteurl' LIMIT 1" );
+			} catch ( Throwable $e ) {
+				// Una tabla que no se puede leer no cuenta.
+				$siteurl = null;
+			} finally {
+				if ( null !== $suppress ) $wpdb->suppress_errors( $suppress );
+			}
 			if ( null !== $siteurl && '' !== (string) $siteurl ) $others[] = $base . $m[1];
 		}
 		return array_values( array_unique( $others ) );
