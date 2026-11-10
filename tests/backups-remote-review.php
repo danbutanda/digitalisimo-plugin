@@ -164,9 +164,10 @@ try {
 	$dav->files[ 'respaldos/' . $y ] = $y_bytes;
 	file_put_contents( $store . '/' . $y, $impostor_bytes );
 	$died = false;
-	Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( &$died, $die ) {
+	$gets_at_death = -1;
+	Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( &$died, &$gets_at_death, $die, $gets_of, $y ) {
 		$outcome = Digitalisimo_Backups_Jobs::is_restore( $job ) ? Digitalisimo_Backups_Restore_Job::run_phase( $phase, $job ) : Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
-		if ( 'place' === $phase && ! $died && 'fetch' === ( $job['spec']['kind'] ?? '' ) ) { $died = true; $die(); }
+		if ( 'place' === $phase && ! $died && 'fetch' === ( $job['spec']['kind'] ?? '' ) ) { $died = true; $gets_at_death = $gets_of( $y ); $die(); }
 		return $outcome;
 	};
 	$dav->log = array();
@@ -174,7 +175,7 @@ try {
 	$job = $drive( $fetch_job( $y ) );
 	Digitalisimo_Backups_Jobs::$phase_runner = null;
 	$mine = $copies( $ysha );
-	digi_assert( $died && 'success' === $job['status'] && 1 === count( $mine ) && $mine[0] === $job['result']['file'] && $mine[0] !== $y && $gets_of( $y ) <= (int) ceil( strlen( $y_bytes ) / 65536 ) + 2, 'Tras morir justo después del rename() se descargó otra vez o quedó duplicado: ' . json_encode( array( 'estado' => $job['status'], 'copias' => $mine, 'GET' => $gets_of( $y ) ) ) );
+	digi_assert( $died && 'success' === $job['status'] && 1 === count( $mine ) && $mine[0] === $job['result']['file'] && $mine[0] !== $y && $gets_at_death > 0 && $gets_of( $y ) === $gets_at_death, 'Tras morir justo después del rename() se descargó otra vez o quedó duplicado: ' . json_encode( array( 'estado' => $job['status'], 'copias' => $mine, 'GET' => $gets_of( $y ) ) ) );
 
 	// C9: una fila sin SHA-256 (antigua) y la copia remota alterada: no entra con el nombre de la fila ni se dice «verificada».
 	$rows = $history();
