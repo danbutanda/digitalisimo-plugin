@@ -1502,8 +1502,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 	/**
 	 * Tablas viejas → `dgbko_`, temporales → su nombre (MySQL: un solo RENAME TABLE, atómico; SQLite, que no lo tiene:
 	 * una transacción que copia cada temporal en su tabla). Después, como en la restauración de siempre, se reponen el
-	 * historial (con la copia previa), el llavero, la seguridad y las credenciales del respaldo cifradas aquí. El diario
-	 * del almacén cubre la muerte entre el cambio y la reposición.
+	 * historial (con la copia previa), el registro del almacén privado de este servidor, el llavero, la seguridad y las
+	 * credenciales del respaldo cifradas aquí. El diario del almacén cubre la muerte entre el cambio y la reposición.
 	 */
 	private static function restore_swap( array $job, array $cursor ) {
 		$tables = self::restore_read_json( $job, 'tables.json' );
@@ -1523,6 +1523,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				}
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
+				// El registro del almacén privado de este servidor: el SQL de otro servidor trae el suyo (H10).
+				$storage_before = self::storage_record();
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
@@ -1548,7 +1550,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$cursor['mode'] = $mode;
 				// El diario sólo se retira cuando el historial, el llavero y las credenciales quedaron repuestos: si esto
 				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
-				self::after_restore_sql( $history_before, $vault_before, $origin, $kept );
+				self::after_restore_sql( $history_before, $vault_before, $origin, $kept, $storage_before );
 				self::remove_restore_journal();
 			} else {
 				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,

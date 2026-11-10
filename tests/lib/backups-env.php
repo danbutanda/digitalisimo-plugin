@@ -168,6 +168,7 @@ function add_option( $key, $value, $deprecated = '', $autoload = null ) { if ( i
 function delete_option( $key ) { unset( $GLOBALS['bk_options'][ $key ] ); return true; }
 function get_site_option( $key, $default = false ) { return $GLOBALS['bk_site_options'][ $key ] ?? $default; }
 function update_site_option( $key, $value ) { $GLOBALS['bk_site_options'][ $key ] = $value; return true; }
+function delete_site_option( $key ) { unset( $GLOBALS['bk_site_options'][ $key ] ); return true; }
 function wp_cache_flush() { return true; }
 function current_time( $format ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_basename( $path ) { return basename( $path ); }

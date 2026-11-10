@@ -83,9 +83,13 @@ final class Digitalisimo_Backups {
 		$saved = is_multisite() ? get_site_option( self::STORAGE, array() ) : get_option( self::STORAGE, array() );
 		if ( $explicit ) {
 			$path = (string) DIGITALISIMO_BACKUPS_STORAGE_DIR;
-		} elseif ( is_array( $saved ) && wp_normalize_path( $wp_root ) === ( $saved['wordpress_root'] ?? '' ) && ! empty( $saved['directory'] ) ) {
+		} elseif ( is_array( $saved ) && wp_normalize_path( $wp_root ) === ( $saved['wordpress_root'] ?? '' ) && ! empty( $saved['directory'] ) && ( @is_dir( (string) $saved['directory'] ) || false === $document_root ) ) {
 			$path = (string) $saved['directory'];
 		} else {
+			// Sin registro, o con uno cuya carpeta no existe en este servidor: el de otro servidor que trajo una restauración
+			// interrumpida antes de reponer el de aquí (H10 del ensayo E2). Se usa la carpeta que corresponde a esta
+			// instalación, que es donde están su historial, su copia previa y el diario que lo repone. Sin DOCUMENT_ROOT
+			// (WP-CLI, cron del sistema) no hay otra que calcular: el registro se usa como antes y su carpeta se intenta crear.
 			if ( false === $document_root ) throw new Exception( 'No se conoce la raíz pública del servidor. Define DIGITALISIMO_BACKUPS_STORAGE_DIR en wp-config.php con una carpeta privada fuera del sitio.' );
 			$path = dirname( $document_root ) . '/.digitalisimo-backups-' . substr( hash( 'sha256', wp_normalize_path( $wp_root ) ), 0, 16 );
 		}
@@ -112,6 +116,27 @@ final class Digitalisimo_Backups {
 		$directory = $real;
 		return $directory;
 	}
+	/**
+	 * El registro del almacén privado de ESTE servidor (`digitalisimo_backups_private_storage`, en una red en sitemeta), o
+	 * null. Una restauración lo conserva como el historial (H10 del ensayo E2): el SQL de un respaldo de otro servidor trae
+	 * el suyo, con la carpeta de allá, y la reubicación sólo cambia su `wordpress_root` por el de aquí; sin reponerlo,
+	 * Backups buscaba aquí la carpeta del origen y quedaba inservible, sin historial ni copia previa visibles.
+	 */
+	private static function storage_record() {
+		$value = is_multisite() ? get_site_option( self::STORAGE, null ) : get_option( self::STORAGE, null );
+		return is_array( $value ) ? $value : null;
+	}
+	/** Repone el registro del almacén de este servidor ($record de storage_record(); null lo retira). */
+	private static function keep_storage_record( $record ) {
+		if ( is_array( $record ) ) {
+			if ( is_multisite() ) update_site_option( self::STORAGE, $record );
+			else update_option( self::STORAGE, $record, false );
+			return;
+		}
+		if ( null === self::storage_record() ) return;
+		if ( is_multisite() ) delete_site_option( self::STORAGE );
+		else delete_option( self::STORAGE );
+	}
 	private static function path_within( $path, $root ) {
 		$path = wp_normalize_path( $path );
 		$root = rtrim( wp_normalize_path( $root ), '/' );
@@ -136,11 +161,13 @@ final class Digitalisimo_Backups {
 		// Con el bloqueo tomado, lo que quede en .staging/ (un ZIP en claro o descifrado) y los *.part son de una
 		// operación interrumpida: se borran en cualquier operación, no sólo en la siguiente que cifre.
 		Digitalisimo_Backups_Security::clean_staging( self::local_directory() );
+		self::private_storage_files( self::local_directory() );
 		self::recover_interrupted_restore();
 		return $handle;
 	}
 	/**
-	 * Antes del SQL de una restauración: el historial (con la copia previa), la seguridad y la parte pública del llavero
+	 * Antes del SQL de una restauración: el historial (con la copia previa), el registro del almacén privado de este
+	 * servidor, la seguridad y la parte pública del llavero
 	 * (huellas y parámetros de cada frase, nunca una clave ni su envoltura). Si el proceso muere mientras corre el SQL,
 	 * la siguiente operación lo aplica: la protección no queda más débil, el cifrado falla cerrado hasta volver a
 	 * escribir la frase y la frase vuelve a abrir la misma clave. Sin diario no se restaura.
@@ -149,7 +176,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -171,6 +198,8 @@ final class Digitalisimo_Backups {
 			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
 			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
+			// El registro del almacén de este servidor (el diario de una versión anterior no lo lleva: entonces no se toca).
+			if ( is_array( $data['storage'] ?? null ) && array_key_exists( 'record', $data['storage'] ) ) self::keep_storage_record( $data['storage']['record'] );
 			Digitalisimo_Backups_Keys::recover_public( $data );
 			// Las credenciales que trajo el SQL: las del servidor de origen se cifran con las claves de éste y las que
 			// venían en claro se cifran.
@@ -550,6 +579,18 @@ final class Digitalisimo_Backups {
 		clearstatcache( true, $path );
 		if ( 0600 !== ( (int) @fileperms( $path ) & 0777 ) ) @chmod( $path, 0600 );
 	}
+	/**
+	 * Todo archivo de la raíz del almacén a 0600: los respaldos de una versión anterior a 1.0.63 (que los dejaba 0644),
+	 * los subidos y los copiados a mano (H17 del ensayo E2: H5 sólo corregía lo que cada operación volvía a escribir).
+	 * Lo hacen cada operación, con el bloqueo tomado, y la pantalla «Restaurar», que lista el almacén; sólo un chmod por
+	 * archivo que lo necesite, y nunca sigue un enlace.
+	 */
+	private static function private_storage_files( $dir ) {
+		if ( DIRECTORY_SEPARATOR !== '/' ) return;
+		$names = @scandir( $dir );
+		if ( ! is_array( $names ) ) return;
+		foreach ( $names as $name ) if ( '.' !== $name && '..' !== $name ) self::private_file( rtrim( $dir, '/' ) . '/' . $name );
+	}
 	public static function redirect_result( $ok, $message ) { self::redirect( $ok, $message ); }
 	public static function destination_name( $destination ) { return self::destination_label( $destination ); }
 	/**
@@ -719,12 +760,53 @@ final class Digitalisimo_Backups {
 			if ( $copy && ( ! empty( $copy['remote']['provider'] ) || 'legacy' === $copy['state'] ) ) { self::download_remote( $item ); exit; }
 			wp_die( 'Respaldo no disponible.' );
 		}
-		nocache_headers();
-		header( 'Content-Type: ' . self::content_type( $file ) );
-		header( 'Content-Disposition: attachment; filename="' . $file . '"' );
-		header( 'Content-Length: ' . filesize( $path ) );
-		readfile( $path );
+		self::send_file( $path, $file );
 		exit;
+	}
+	/** Bloque de cada escritura de una descarga al navegador. */
+	const SEND_BLOCK = 1048576;
+	/**
+	 * @internal Envía un archivo al navegador por bloques, con memoria constante (H16 del ensayo E2): readfile() con el
+	 * búfer de salida de PHP activo y sin límite (`output_buffering=On`, el «default output handler» del PHP del hosting)
+	 * acumulaba el archivo entero y un respaldo mayor que memory_limit fallaba (500, o el proceso muerto por el límite
+	 * duro del hosting); y lo que otro código hubiera impreso antes iba al principio del archivo. Cierra los búferes de
+	 * salida que se pueden cerrar (lo que tuvieran no es parte del archivo) y la compresión de salida, anuncia
+	 * Content-Length y escribe bloques de SEND_BLOCK bytes con flush(). Devuelve los bytes enviados.
+	 */
+	public static function send_file( $path, $name ) {
+		clearstatcache( true, $path );
+		$size = @filesize( $path );
+		$handle = @fopen( $path, 'rb' );
+		if ( false === $size || ! $handle ) {
+			if ( $handle ) fclose( $handle );
+			wp_die( 'No se pudo leer el respaldo en el almacén privado.' );
+		}
+		@set_time_limit( 0 );
+		@ini_set( 'zlib.output_compression', '0' );
+		if ( function_exists( 'apache_setenv' ) ) @apache_setenv( 'no-gzip', '1' );
+		// Un búfer que no se puede cerrar (ob_end_clean() devuelve false) se vacía después de cada bloque.
+		while ( ob_get_level() > 0 && @ob_end_clean() ) continue;
+		nocache_headers();
+		header( 'Content-Type: ' . self::content_type( $name ) );
+		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $name ) . '"' );
+		header( 'Content-Length: ' . (int) $size );
+		header( 'X-Content-Type-Options: nosniff' );
+		$sent = 0;
+		try {
+			while ( $sent < $size ) {
+				$block = fread( $handle, (int) min( self::SEND_BLOCK, $size - $sent ) );
+				if ( false === $block || '' === $block ) break;
+				echo $block; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- contenido binario del respaldo.
+				$sent += strlen( $block );
+				unset( $block );
+				if ( ob_get_level() > 0 ) @ob_flush();
+				flush();
+				if ( connection_aborted() ) break;
+			}
+		} finally {
+			fclose( $handle );
+		}
+		return $sent;
 	}
 	/** Un respaldo cifrado no es un ZIP para el navegador ni para los destinos remotos. */
 	private static function content_type( $file ) { return '.dgbk' === substr( (string) $file, -5 ) ? 'application/octet-stream' : 'application/zip'; }
@@ -1856,6 +1938,8 @@ final class Digitalisimo_Backups {
 	/** Respaldos del historial y archivos sueltos del almacén; un archivo sin registro nunca cuenta como propio. */
 	private static function restore_panel( $history ) {
 		$dir = trailingslashit( self::local_directory() );
+		// Abrir la pantalla tras actualizar ya deja en 0600 lo que dejó una versión anterior (H17), sin esperar a operar.
+		self::private_storage_files( $dir );
 		// Con su ZIP en el almacén, también los que tienen copia remota (verificada, pendiente o fallida) y las filas antiguas.
 		$local = array_filter( (array) $history, function( $item ) { return self::restorable_item( $item ); } );
 		$known = array_flip( array_map( 'strval', array_column( (array) get_option( self::HISTORY, array() ), 'file' ) ) );
@@ -1896,7 +1980,8 @@ final class Digitalisimo_Backups {
 		check_admin_referer( self::ACTION_DELETE_LOOSE );
 		if ( is_multisite() && ! is_main_site() ) self::redirect( false, 'Los archivos del almacén se gestionan desde el sitio principal o la administración de red.' );
 		$file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) );
-		if ( ! preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip)$/', $file ) ) self::redirect( false, 'Ese archivo no es un respaldo del almacén.' );
+		// También un paquete de un sitio extraído copiado al almacén a mano (H15 del ensayo E2): «Restaurar» lo lista aquí.
+		if ( ! preg_match( '/^(?:digitalisimo-[A-Za-z0-9._-]+\.(?:zip|dgbk)|safety-before-restore-[A-Za-z0-9._-]+\.zip|' . preg_quote( Digitalisimo_Backups_Site_Extract::FILE_PREFIX, '/' ) . '[A-Za-z0-9._-]+\.(?:zip|dgbk))$/', $file ) ) self::redirect( false, 'Ese archivo no es un respaldo del almacén.' );
 		if ( self::history_item( $file ) ) self::redirect( false, 'Ese respaldo está en el historial: elimínalo desde «Últimos respaldos».' );
 		try {
 			$path = self::local_path( $file );
@@ -2160,13 +2245,15 @@ final class Digitalisimo_Backups {
 		return $problems;
 	}
 	/**
-	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el llavero y la seguridad deben reconstruirse, y
-	 * las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
+	 * El SQL restaurado reemplaza wp_options (y sitemeta): el historial, el registro del almacén privado, el llavero y la
+	 * seguridad deben reconstruirse, y las credenciales del respaldo cifrarse con las claves de este servidor. Idempotente.
 	 */
-	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null ) {
+	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null, $storage = false ) {
 		wp_cache_flush();
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );
 		update_option( self::HISTORY, $history_before, false );
+		// El almacén privado sigue siendo el de este servidor (H10); false: quien llama no lo tomó (no se toca).
+		if ( false !== $storage ) self::keep_storage_record( $storage );
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
 		self::restore_credentials( $origin );
 	}
@@ -2312,15 +2399,16 @@ final class Digitalisimo_Backups {
 			// Su SQL reemplaza wp_options como el propio: el historial, el llavero y la seguridad no se pierden.
 			$history_before = (array) get_option( self::HISTORY, array() );
 			$vault_before = Digitalisimo_Backups_Keys::snapshot();
+			$storage_before = self::storage_record();
 			self::write_restore_journal();
 			Digitalisimo_Backups_Maintenance::start();
 			try {
 				self::updraft_sql( $database, new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::MYSQLDUMP, false, null, $prefix ), true );
-				try { self::after_restore_sql( $history_before, $vault_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				try { self::after_restore_sql( $history_before, $vault_before, array(), null, $storage_before ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				foreach ( $pieces as $piece ) self::extract_updraft_zip( $piece[0], $piece[1], $piece[2] );
 			} finally {
 				try {
-					self::after_restore_sql( $history_before, $vault_before );
+					self::after_restore_sql( $history_before, $vault_before, array(), null, $storage_before );
 					self::remove_restore_journal();
 				} finally {
 					Digitalisimo_Backups_Maintenance::stop();

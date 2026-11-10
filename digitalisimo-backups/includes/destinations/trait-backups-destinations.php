@@ -189,7 +189,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$hash = @hash_file( 'sha256', $target );
 		if ( false === $hash || ( '' !== $expected && ! hash_equals( $expected, $hash ) ) || ( isset( $item['size'] ) && (int) $item['size'] !== (int) @filesize( $target ) ) ) throw new Exception( 'La copia descargada de ' . self::destination_label( $id ) . ' no coincide con el SHA-256 registrado del respaldo; no se usa.' );
 	}
-	/** Descarga al navegador: primero a un temporal privado verificado, después en streaming (memoria constante). */
+	/** Descarga al navegador: primero a un temporal privado verificado, después por bloques (memoria constante). */
 	private static function download_remote( $item ) {
 		$remote = (array) ( $item['remote'] ?? array() );
 		if ( empty( $remote['provider'] ) ) wp_die( 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.' );
@@ -204,11 +204,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				@unlink( $temp );
 				wp_die( esc_html( 'No se pudo descargar el respaldo remoto. ' . Digitalisimo_Backups_Http::redact( $e->getMessage() ) ) );
 			}
-			nocache_headers();
-			header( 'Content-Type: ' . self::content_type( $item['file'] ) );
-			header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $item['file'] ) . '"' );
-			header( 'Content-Length: ' . filesize( $temp ) );
-			readfile( $temp );
+			// Por bloques y sin el búfer de salida de PHP, como «Descargar» de una copia local (H16).
+			self::send_file( $temp, (string) $item['file'] );
 		} finally {
 			@unlink( $temp );
 		}
@@ -456,6 +453,10 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		}
 	}
 	public static function save() {
+		// «Probar conexión» sin JavaScript: su `formaction` lleva action=…test_destination, pero el `action` oculto del
+		// formulario va en el cuerpo y PHP le da prioridad, así que llega aquí. El botón pulsado viaja con el formulario:
+		// se prueba y no se guarda nada (H13 del ensayo E2).
+		if ( isset( $_POST['digitalisimo_backups_test'] ) ) { self::test_destination(); exit; }
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_SAVE ); if ( ! self::credentials_here() ) self::redirect( false, self::subsite_credentials_text() ); $old = self::settings(); $input = wp_unslash( (array) ( $_POST['digitalisimo_backups'] ?? array() ) ); $out = self::defaults();
 		$out['destination'] = Digitalisimo_Backups_Destinations::exists( $input['destination'] ?? '' ) ? (string) $input['destination'] : 'local'; $out['retention'] = min( 100, max( 1, absint( $input['retention'] ?? 5 ) ) );
 		try {
@@ -487,6 +488,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		Digitalisimo_Backups_Destinations::save_connections( $connections );
 	}
 	public static function save_connection() {
+		// «Probar conexión» sin JavaScript en el formulario de otra conexión: se prueba y no se guarda (ver save()).
+		if ( isset( $_POST['digitalisimo_backups_test'] ) ) { self::test_destination(); exit; }
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_SAVE_CONNECTION );
 		$id = sanitize_key( $_POST['connection_id'] ?? '' );

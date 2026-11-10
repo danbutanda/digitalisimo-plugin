@@ -115,7 +115,7 @@ $case( 'b', function() use ( $check, $base, $context, $file, $sha256, $sha1, $ro
 	// Huella SHA-256 equivocada: se rechaza antes de autenticarse.
 	$GLOBALS['sftp_auth'] = array();
 	try { ( new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_fingerprint' => 'SHA256:' . str_repeat( 'A', 43 ) ) + $key + $base, $context ) )->put( $file ); throw new LogicException( 'Aceptó otra huella SHA-256.' ); }
-	catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' === $e->getMessage() && ! $GLOBALS['sftp_auth'], 'Con otra huella SHA-256 se intentó autenticar.' ); }
+	catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( 0 === strpos( $e->getMessage(), 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' ) && false !== strpos( $e->getMessage(), 'SHA256:' . rtrim( base64_encode( hash( 'sha256', $GLOBALS['sftp_hostkey'], true ) ), '=' ) ) && ! $GLOBALS['sftp_auth'], 'Con otra huella SHA-256 se intentó autenticar o el error no dice la que presentó el servidor: ' . $e->getMessage() ); }
 	// La SHA-1 de siempre sigue sirviendo, con contraseña.
 	$receipt = ( new Digitalisimo_Backups_Destination_Sftp( $base + array( 'sftp_password' => 'Clave-SFTP', 'sftp_fingerprint' => $sha1 ), $context ) )->put( $file );
 	$check( is_file( $GLOBALS['sftp_root'] . $receipt['path'] ), 'La huella SHA-1 guardada dejó de funcionar.' );
