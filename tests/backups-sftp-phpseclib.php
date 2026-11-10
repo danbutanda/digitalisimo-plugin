@@ -33,7 +33,9 @@ define( 'NET_SFTP_LOGGING', 2 );
 
 function wp_basename( $path ) { return basename( $path ); }
 require __DIR__ . '/../digitalisimo-backups/includes/class-backups-job-store.php';
-foreach ( array( 'http', 'destination', 'destinations', 'destination-sftp', 'sftp-client' ) as $part ) require __DIR__ . '/../digitalisimo-backups/includes/destinations/class-' . $part . '.php';
+foreach ( array( 'http', 'destination', 'destinations', 'destination-sftp' ) as $part ) require __DIR__ . '/../digitalisimo-backups/includes/destinations/class-' . $part . '.php';
+// El destino carga solo su cliente incluido; aquí también, si existe, para comprobarlo directamente (en 1.0.64 no existe).
+if ( is_file( __DIR__ . '/../digitalisimo-backups/includes/destinations/class-sftp-client.php' ) ) require_once __DIR__ . '/../digitalisimo-backups/includes/destinations/class-sftp-client.php';
 
 $case = function( $label, callable $test ) {
 	try { $test(); echo "ok ($label)\n"; }
@@ -52,7 +54,7 @@ $case( 'h', function() use ( $check, $root ) {
 	try { $destination->list(); throw new LogicException( 'Usó ssh2 sin la extensión.' ); }
 	catch ( Digitalisimo_Backups_Permanent_Error $e ) { $check( false !== strpos( $e->getMessage(), 'extensión ssh2' ), 'Mensaje sin la extensión: ' . $e->getMessage() ); }
 	$auto = new Digitalisimo_Backups_Destination_Sftp( array( 'sftp_engine' => 'auto' ), array() );
-	$check( 'phpseclib' === $auto->engine() && Digitalisimo_Backups_Sftp_Client::available(), 'Sin ssh2, el motor automático no eligió el cliente incluido.' );
+	$check( 'phpseclib' === $auto->engine() && class_exists( 'Digitalisimo_Backups_Sftp_Client' ) && Digitalisimo_Backups_Sftp_Client::available(), 'Sin ssh2, el motor automático no eligió el cliente incluido.' );
 	$check( ! class_exists( 'phpseclib3\\Net\\SSH2', false ) || ! is_subclass_of( 'DigitalisimoBackups\\Vendor\\phpseclib3\\Net\\SFTP', 'phpseclib3\\Net\\SSH2' ), 'El cliente incluido no está aislado del phpseclib de otro plugin.' );
 } );
 
