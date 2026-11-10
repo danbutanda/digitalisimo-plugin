@@ -179,6 +179,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$raw = (string) $raw;
 		if ( '' === $raw || strlen( $raw ) > 200 || false !== strpbrk( $raw, "/\\\0" ) ) return '';
 		$name = ltrim( (string) preg_replace( '/[^A-Za-z0-9._-]+/', '-', $raw ), '.-_' );
+		$name = (string) preg_replace( '/\.tar\.gz$/i', '.tar.gz', $name ); // `X.TAR.GZ` también.
 		return preg_match( self::NAME, $name ) ? $name : '';
 	}
 	/** Retira las descargas de `backuply fetch` que se cortaron (`.incoming-*.part` de más de 6 horas). */
@@ -268,6 +269,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$skip = $offset - $member_at;
 		$units = 0;
 		$deadline = null;
+		$checked = $offset;
+		$cap = self::max_expansion( $total );
 		$damaged = function( $where ) { return new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado o truncado: falló la descompresión gzip cerca del byte ' . $where . ' del archivo.' ); };
 		try {
 			if ( $skip < 0 || ! ftruncate( $out, $offset ) || 0 !== fseek( $out, $offset ) || 0 !== fseek( $in, $member ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La descompresión no coincide con su punto de control.', 'unpack' );
@@ -300,13 +303,15 @@ final class Digitalisimo_Backups_Backuply_Import {
 				}
 				if ( null === $deadline ) $deadline = self::deadline( $job, 'unpack' );
 				if ( '' === $chunk ) continue;
-				if ( $offset + strlen( $chunk ) > self::max_tar() ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply descomprimido supera ' . Digitalisimo_Backups_Archive_Inspector::megabytes( self::max_tar() ) . ', el máximo que se importa.' );
+				if ( $offset + strlen( $chunk ) > $cap ) throw new Digitalisimo_Backups_Permanent_Error( self::max_tar() === $cap ? 'El respaldo de Backuply descomprimido supera ' . Digitalisimo_Backups_Archive_Inspector::megabytes( self::max_tar() ) . ', el máximo que se importa.' : 'El respaldo de Backuply se descomprime a más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $cap ) . ', muchas más veces su tamaño (' . Digitalisimo_Backups_Archive_Inspector::megabytes( $total ) . ') de lo que da un sitio real: no se importa (puede ser una bomba de descompresión). Si el respaldo es legítimo, sube el tope con el filtro digitalisimo_backups_import_max_ratio.' );
 				self::put( $out, $chunk );
 				$offset += strlen( $chunk );
 				$units++;
-				if ( 0 === $units % 4096 ) self::space( dirname( $paths['tar'] ), 64 * self::CHUNK, 'descomprimir el respaldo de Backuply' );
+				// El espacio se vigila por bytes escritos, no por trozos de entrada: 4 KB de ceros comprimidos dan 4 MB.
+				if ( $offset - $checked >= self::SPACE_EVERY ) { self::space( dirname( $paths['tar'] ), self::SPACE_EVERY, 'descomprimir el respaldo de Backuply' ); $checked = $offset; }
 				if ( Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) {
 					self::sync( $out );
+					self::space( dirname( $paths['tar'] ), self::SPACE_EVERY, 'descomprimir el respaldo de Backuply' );
 					Digitalisimo_Backups_Jobs::progress( 2 + (int) min( 18, floor( 18 * ( $member + $fed ) / max( 1, $total ) ) ), 'Descomprimiendo el respaldo de Backuply: ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . '…', true );
 					return array( 'next' => 'unpack', 'checkpoint' => array( 'offset' => $offset, 'c' => $member, 'u' => $member_at, 'scale' => Digitalisimo_Backups_Step_Budget::scale( $job, 'unpack', $cursor ) ), 'message' => 'Descomprimiendo el respaldo de Backuply…' );
 				}
@@ -320,6 +325,16 @@ final class Digitalisimo_Backups_Backuply_Import {
 		return array( 'next' => 'scan', 'checkpoint' => array( 'offset' => $offset, 'tar_size' => $offset ), 'message' => 'Comprobando el contenido del respaldo de Backuply…' );
 	}
 	public static function max_tar() { return (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_import_max_size', self::MAX_TAR ) : self::MAX_TAR ); }
+	/** Cada cuántos bytes escritos del tar se vuelve a mirar el espacio libre (y siempre al cerrar un tramo). */
+	const SPACE_EVERY = 16777216;
+	/**
+	 * Tope del tar descomprimido para este `.tar.gz`: 50 veces su tamaño (un sitio real se comprime de 1 a 10 veces; una
+	 * bomba de ceros, unas 1 000), al menos 64 MB y nunca más que max_tar(). Filtro `digitalisimo_backups_import_max_ratio`.
+	 */
+	public static function max_expansion( $compressed ) {
+		$ratio = (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_import_max_ratio', 50 ) : 50 );
+		return (int) min( self::max_tar(), max( 67108864, max( 1, $ratio ) * (int) $compressed ) );
+	}
 
 	/**
 	 * Fase `scan`: recorre las cabeceras del tar (sin leer los datos), valida cada una y anota en `index.jsonl` los
@@ -348,6 +363,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 				if ( str_repeat( "\0", 512 ) === $block ) { $pos += 512; $cursor['zeros']++; if ( $cursor['zeros'] >= 2 ) { $cursor['end'] = true; break; } continue; }
 				$cursor['zeros'] = 0;
 				$long = null;
+				$pax_path = null;
 				$pax_size = null;
 				$chain = 0;
 				$header = Digitalisimo_Backups_Backuply_Tar::header( $block );
@@ -367,9 +383,18 @@ final class Digitalisimo_Backups_Backuply_Import {
 							$long = rtrim( $raw, "\0" );
 						} else {
 							$pax = Digitalisimo_Backups_Backuply_Tar::pax( $raw );
-							if ( isset( $pax['path'] ) ) $long = $pax['path'];
+							// Como GNU tar y Python: el `path` de PAX gana al nombre largo GNU (L), vaya antes o después.
+							if ( isset( $pax['path'] ) ) $pax_path = $pax['path'];
 							if ( isset( $pax['size'] ) ) $pax_size = $pax['size'];
 						}
+					} elseif ( 'g' === $header['type'] ) {
+						// Una cabecera PAX global con `path` o `size` cambia lo que tar y Python ven en las entradas siguientes
+						// (y cada uno lo aplica distinto): Backuply no las escribe y no se aceptan.
+						if ( $header['size'] > self::MAX_INFO ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply trae una cabecera PAX global demasiado grande.' );
+						fseek( $tar, $data );
+						$raw = $header['size'] ? (string) fread( $tar, $header['size'] ) : '';
+						$global = Digitalisimo_Backups_Backuply_Tar::pax( $raw );
+						if ( isset( $global['path'] ) || isset( $global['size'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply trae una cabecera PAX global con path o size, que tar y Python leen distinto: no es un tar de Backuply.' );
 					}
 					$pos = $data + $padded;
 					fseek( $tar, $pos );
@@ -378,6 +403,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 					$header = Digitalisimo_Backups_Backuply_Tar::header( $block );
 				}
 				if ( null !== $pax_size ) $header['size'] = $pax_size;
+				if ( null !== $pax_path ) $long = $pax_path;
 				$data = $pos + 512;
 				$padded = Digitalisimo_Backups_Backuply_Tar::padded( $header['size'] );
 				if ( $data + $padded > $size ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado (falta el contenido de ' . Digitalisimo_Backups_Backuply_Tar::shown( $header['name'] ) . ').' );
@@ -385,8 +411,12 @@ final class Digitalisimo_Backups_Backuply_Import {
 				$cursor['entries']++;
 				if ( $cursor['entries'] > $max ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply tiene más de ' . $max . ' entradas, el máximo permitido (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
 				$type = $header['type'];
-				// Una carpeta al estilo antiguo (v7): tipo de archivo regular, vacío y con «/» al final.
-				if ( in_array( $type, array( '0', "\0" ), true ) && 0 === $header['size'] && '/' === substr( null !== $long ? $long : $header['name'], -1 ) ) $type = '5';
+				// Una carpeta al estilo antiguo (v7): tipo de archivo regular, vacío y con «/» al final. Con datos, tar y Python
+				// lo leen distinto (carpeta o nada): se rechaza.
+				if ( in_array( $type, array( '0', "\0", '7' ), true ) && '/' === substr( null !== $long ? $long : $header['name'], -1 ) ) {
+					if ( 0 !== $header['size'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply trae un archivo con datos cuyo nombre acaba en «/»: ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
+					$type = '5';
+				}
 				if ( '5' === $type ) {
 					$cursor['dirs']++;
 				} elseif ( '2' === $type ) {

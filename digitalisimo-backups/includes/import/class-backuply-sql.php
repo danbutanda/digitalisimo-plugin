@@ -371,7 +371,9 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 						if ( '*' === ( $buffer[ $i + 1 ] ?? '' ) && '!' !== ( $buffer[ $i + 2 ] ?? '' ) ) $comment = 5;
 					}
 					if ( $comment ) {
-						$this->clean .= substr( $buffer, $this->segment, $i - $this->segment ) . ' ';
+						// Un comentario antes de la sentencia («-- Dumping data for table …» delante de cada primer INSERT) no se
+						// copia: la sentencia sigue yendo por posiciones, sin copias.
+						if ( $this->started ) $this->clean .= substr( $buffer, $this->segment, $i - $this->segment ) . ' ';
 						$this->mode = $comment;
 						$i += 4 === $comment ? 1 : 2;
 						break;
@@ -545,7 +547,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 		if ( $this->i >= $this->n ) return false;
 		if ( "'" === $c || '"' === $c ) return $this->string();
 		if ( $this->i + 4 <= $this->n && preg_match( '/\GNULL(?![A-Za-z0-9_])/i', $this->s, $m, 0, $this->i ) ) { $this->i += 4; return null; }
-		if ( preg_match( '/\G[+-]?(?:[0-9]{1,64}(?:\.[0-9]{0,64})?|\.[0-9]{1,64})(?:[eE][+-]?[0-9]{1,4})?(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) && $this->i + strlen( $m[0] ) <= $this->n ) { $this->i += strlen( $m[0] ); return $m[0]; }
+		if ( preg_match( '/\G[+-]?(?:[0-9]{1,80}(?:\.[0-9]{0,80})?|\.[0-9]{1,80})(?:[eE][+-]?[0-9]{1,4})?(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) && $this->i + strlen( $m[0] ) <= $this->n ) { $this->i += strlen( $m[0] ); return $m[0]; }
 		return false;
 	}
 	/**

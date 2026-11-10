@@ -42,7 +42,14 @@
  *   B15 el guardián SQL (también el de la restauración de cualquier archivo sin firma) rechaza CREATE TABLE … TABLE
  *       `mysql`.`user`, … VALUES ROW(), … IGNORE TABLE y REFERENCES a otra base de datos, y sigue aceptando
  *       particiones y columnas generadas.
- * Deben fallar con el código anterior (1.0.64, d3ac3fa8: no existe el importador) y B8–B15 con 0301ad78.
+ * Tras la segunda revisión (N1–N6):
+ *   B16 una bomba de ceros (160 MB en 160 KB) en un disco simulado de 100 MB para por espacio antes de pasar de 40 MB
+ *       escritos, y otra sin problema de disco, en el tope de expansión (50 veces el .tar.gz); las dos con un error
+ *       claro y sin dejar nada en el área de trabajo;
+ *   B17 cabeceras PAX globales con path o size y un archivo con datos y «/» final, rechazados; el path de PAX gana al
+ *       nombre largo GNU; el primer INSERT tras «-- Dumping data for table» va sin copias; X.TAR.GZ; DECIMAL(65,0).
+ * Deben fallar con el código anterior (1.0.64, d3ac3fa8: no existe el importador), B8–B15 con 0301ad78 y B16–B17 con
+ * 1e88392d.
  */
 // Proceso hijo de B9 (memoria con 64 MB): `php -d memory_limit=64M backups-backuply-import.php --memoria=<caso>`.
 $GLOBALS['bi_child'] = '';
@@ -793,6 +800,90 @@ bi_case( 'B15 el guardián SQL cierra CREATE TABLE … TABLE, VALUES, IGNORE TAB
 	$job = bi_import( bi_store_file( 'copia.tar.gz', bi_gz( bi_tar( bi_entries( 'copia', array( 'sql' => bi_dump( 'bk_', array( "CREATE TABLE `bk_copia` (\n  `a` text\n) TABLE `mysql`.`user`;\n" ) ) ) ) ) ) ), 'store' );
 	bi_check( 'failed' === $job['status'] && false !== strpos( $job['error']['message'], 'forma TABLE' ), 'La importación aceptó CREATE … TABLE `mysql`.`user`: ' . json_encode( $job['error'] ) );
 	@unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/copia.tar.gz' );
+} );
+
+bi_case( 'B16 una bomba de descompresión para por espacio o por tope, con error claro y sin dejar nada', function() {
+	$dir = Digitalisimo_Backups_Backuply_Import::store_directory( true );
+	// Ceros: se comprimen unas 1 000 veces (4 KB de entrada dan 4 MB de salida). Se escriben sin tenerlos en memoria.
+	$bomb = function( $file, $mb ) use ( $dir ) {
+		$gz = gzopen( $dir . '/' . $file, 'wb9' );
+		$zeros = str_repeat( "\0", 1048576 );
+		for ( $i = 0; $i < $mb; $i++ ) gzwrite( $gz, $zeros );
+		gzclose( $gz );
+		return $file;
+	};
+	$tar_size = function() {
+		$max = 0;
+		foreach ( (array) glob( Digitalisimo_Backups_Job_Store::root() . '/*/staging/source.tar' ) as $path ) { clearstatcache( true, $path ); $max = max( $max, (int) @filesize( $path ) ); }
+		return $max;
+	};
+	// Un disco de 100 MB: lo libre baja con lo que se escribe en source.tar.
+	$seen = 0;
+	$GLOBALS['bk_filters']['digitalisimo_backups_free_space'] = function( $free, $path ) use ( $tar_size, &$seen ) {
+		$written = $tar_size();
+		$seen = max( $seen, $written );
+		return (float) max( 0, 104857600 - $written );
+	};
+	try {
+		$job = bi_import( $bomb( 'bomba.tar.gz', 160 ), 'store' );
+		$seen = max( $seen, $tar_size() );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_free_space'] );
+	}
+	bi_check( 'failed' === $job['status'] && ! empty( $job['error']['permanent'] ) && false !== strpos( (string) $job['error']['message'], 'No hay espacio' ), 'La bomba no paró por espacio con un error claro: ' . json_encode( $job['error'] ) );
+	bi_check( $seen <= 40 * 1048576, 'La bomba escribió ' . round( $seen / 1048576 ) . ' MB en un disco de 100 MB antes de parar.' );
+	bi_check( array() === bi_staging_left(), 'Quedó lo parcial de la bomba en el área de trabajo.' );
+	// Sin problema de disco: el tope de expansión (50 veces el .tar.gz, al menos 64 MB) la para igual.
+	$job = bi_import( $bomb( 'bomba2.tar.gz', 96 ), 'store' );
+	bi_check( 'failed' === $job['status'] && ! empty( $job['error']['permanent'] ) && false !== strpos( (string) $job['error']['message'], 'bomba de descompresión' ), 'La bomba no paró en el tope de expansión: ' . json_encode( $job['error'] ) );
+	bi_check( array() === bi_staging_left(), 'Quedó lo parcial de la segunda bomba.' );
+	bi_check( 67108864 === Digitalisimo_Backups_Backuply_Import::max_expansion( 100000 ) && 50 * 36000000 === Digitalisimo_Backups_Backuply_Import::max_expansion( 36000000 ), 'El tope de expansión no es 50 veces (al menos 64 MB).' );
+	@unlink( $dir . '/bomba.tar.gz' );
+	@unlink( $dir . '/bomba2.tar.gz' );
+} );
+
+bi_case( 'B17 más diferencias con tar y Python, el primer INSERT sin copias, .TAR.GZ y DECIMAL(65)', function() {
+	$entries = bi_entries( 'tar2' );
+	$cases = array(
+		'path en una cabecera g' => bi_header( 'pax_global_header', 18, 'g' ) . bi_pad( "18 path=global.ph\n" ),
+		'size en una cabecera g' => bi_header( 'pax_global_header', 13, 'g' ) . bi_pad( "13 size=1024\n" ),
+		'archivo con datos y «/» al final' => bi_header( 'wp-content/plugins/', 5 ) . bi_pad( 'datos' ),
+	);
+	foreach ( $cases as $label => $raw ) {
+		$file = bi_store_file( 'n3-' . substr( md5( $label ), 0, 6 ) . '.tar.gz', bi_gz( bi_tar( bi_with( $entries, array( array( 'raw' => $raw ) ) ) ) ) );
+		$job = bi_import( $file, 'store' );
+		bi_check( 'failed' === $job['status'] && ! empty( $job['error']['permanent'] ), $label . ': se aceptó: ' . json_encode( $job['status'] ) );
+		@unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/' . $file );
+	}
+	// `x` con path y después `L`: gana el path de PAX, como en GNU tar y Python.
+	$long = 'wp-content/mu-plugins/' . str_repeat( 'l', 100 ) . '.php';
+	$raw = bi_header( '././@PaxHeader', 25, 'x' ) . bi_pad( "25 path=wp-content/b.txt\n" ) . bi_header( '././@LongLink', strlen( $long ), 'L', 0 ) . bi_pad( $long ) . bi_header( 'corto', 4 ) . bi_pad( 'hola' );
+	$job = bi_import( bi_store_file( 'n3-orden.tar.gz', bi_gz( bi_tar( bi_with( $entries, array( array( 'raw' => $raw ) ) ) ) ) ), 'store' );
+	bi_check( 'success' === $job['status'], 'La importación falló: ' . json_encode( $job['error'] ) );
+	$path = bk_storage() . '/' . $job['result']['import']['file'];
+	$zip = new ZipArchive();
+	$zip->open( $path );
+	bi_check( 'hola' === $zip->getFromName( 'wordpress/wp-content/b.txt' ) && false === $zip->locateName( 'wordpress/' . $long ), 'El nombre largo GNU ganó al path de PAX.' );
+	$zip->close();
+	@unlink( $path );
+	@unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/n3-orden.tar.gz' );
+	// N5: el primer INSERT de cada tabla (tras «-- Dumping data for table …») va por posiciones, sin copiar la sentencia.
+	$lexer = new Digitalisimo_Backups_Backuply_Sql_Lexer();
+	$sql = "\n--\n-- Dumping data for table `t`\n--\n\nINSERT INTO `t` VALUES\n(1, 'a');\n";
+	$found = $lexer->next( $sql, 0, true );
+	bi_check( is_array( $found ) && null === $found[0] && 0 === strpos( substr( $sql, $found[2], $found[3] - $found[2] ), 'INSERT INTO' ), 'La sentencia tras el comentario se copia: ' . json_encode( $found ) );
+	// N6: X.TAR.GZ y un DECIMAL(65,0) de 65 cifras.
+	bi_check( 'WP_SITIO.tar.gz' === Digitalisimo_Backups_Backuply_Import::upload_name( 'WP_SITIO.TAR.GZ' ), 'No se acepta .TAR.GZ en mayúsculas: ' . Digitalisimo_Backups_Backuply_Import::upload_name( 'WP_SITIO.TAR.GZ' ) );
+	$big = str_repeat( '9', 65 );
+	$dump = bi_dump( 'bk_', array( bi_table( 'bk_dinero', "CREATE TABLE `bk_dinero` (\n  `id` INTEGER PRIMARY KEY,\n  `monto` decimal(65,0) NOT NULL\n)", array( true, true ), array( array( 1, $big ) ) ) ) );
+	$job = bi_import( bi_store_file( 'decimal.tar.gz', bi_gz( bi_tar( bi_entries( 'decimal', array( 'sql' => $dump ) ) ) ) ), 'store' );
+	bi_check( 'success' === $job['status'], 'Un DECIMAL(65,0) de 65 cifras no se importa: ' . json_encode( $job['error'] ) );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $job['result']['import']['file'] );
+	bi_check( false !== strpos( (string) $zip->getFromName( 'database.sql' ), "('1','" . $big . "')" ), 'El DECIMAL de 65 cifras no quedó en el SQL.' );
+	$zip->close();
+	@unlink( bk_storage() . '/' . $job['result']['import']['file'] );
+	@unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/decimal.tar.gz' );
 } );
 
 bk_cleanup();
