@@ -115,7 +115,10 @@ try {
     }
     const dbres = await request('GET', `/wp-content/digi-web/db.php?token=${token()}&needle=${encodeURIComponent(originHost)}`);
     const db = dbres.json || {};
-    check(db.prefix === setup.prefix && db.user_roles === true && Object.keys(db.hits || {}).length === 0, `destino: ninguna tabla del sitio menciona ${originHost} (salvo guid: ${db.guid})`, JSON.stringify(db.hits || db).slice(0, 900));
+    // El nombre del respaldo de Backuply lleva el servidor de origen (wp_<SERVER_NAME>_<fecha>): el registro de la
+    // restauración que hace Backups en sus opciones nombra el archivo importado; eso no es un dato del origen.
+    const hits = Object.fromEntries(Object.entries(db.hits || {}).filter(([where, hit]) => !(/options\.option_value$/.test(where) && hit.count <= hit.sample.length && hit.sample.every((s) => s.includes(file)))));
+    check(db.prefix === setup.prefix && db.user_roles === true && Object.keys(hits).length === 0, `destino: ninguna tabla del sitio menciona ${originHost} (salvo guid: ${db.guid} y el nombre del archivo importado en el registro de la restauración)`, JSON.stringify(db.hits || db).slice(0, 900));
     if (network) check(Array.isArray(db.blogs) && db.blogs.length === 2 && db.blogs.every((b) => b.domain === host), 'destino: los sitios de la red tienen el dominio nuevo', JSON.stringify(db.blogs));
     const login = await request('POST', '/wp-login.php', {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: 'wordpress_test_cookie=WP%20Cookie%20check' },

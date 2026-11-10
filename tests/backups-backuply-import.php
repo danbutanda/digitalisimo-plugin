@@ -359,9 +359,9 @@ bi_case( 'B5 archivos hostiles o incompletos: fallan sin dejar nada', function()
 	$bad_sum = bi_header( 'wp-load.php', 5 );
 	$bad_sum[0] = 'x';
 	$cases = array(
-		'ruta con ..' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( '../../evil.php', '<?php' ) ) ) ) ), 'ruta no permitida' ),
-		'ruta absoluta' => array( bi_gz( bi_tar( array_merge( array( array( '/etc/evil', 'x' ) ), bi_entries( 'a' ) ) ) ), 'ruta no permitida' ),
-		'barra invertida' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( 'wp-content\\x.php', 'x' ) ) ) ) ), 'ruta no permitida' ),
+		'ruta con ..' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( '../../evil.php', '<?php' ) ) ) ) ), 'Backuply contiene una ruta no permitida' ),
+		'ruta absoluta' => array( bi_gz( bi_tar( array_merge( array( array( '/etc/evil', 'x' ) ), bi_entries( 'a' ) ) ) ), 'Backuply contiene una ruta no permitida' ),
+		'barra invertida' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( 'wp-content\\x.php', 'x' ) ) ) ) ), 'Backuply contiene una ruta no permitida' ),
 		'enlace duro' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( 'wp-content/duro', '', '1' ) ) ) ) ), 'enlace duro' ),
 		'suma de la cabecera' => array( bi_gz( bi_tar( array_merge( bi_entries( 'a' ), array( array( 'raw' => $bad_sum . bi_pad( 'hola!' ) ) ) ) ) ), 'suma de comprobación' ),
 		'gzip truncado' => array( substr( bi_gz( bi_tar( bi_entries( 'a' ) ), 1 ), 0, -3000 ), 'truncado' ),
