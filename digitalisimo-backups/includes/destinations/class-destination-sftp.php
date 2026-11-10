@@ -2,10 +2,12 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * SFTP (extensión ssh2). La huella de la clave del servidor es obligatoria y se compara antes de autenticarse: SHA-1
- * hexadecimal (la que ya se guardaba) o SHA-256 en el formato de OpenSSH (`SHA256:…`) si la extensión la calcula.
- * Contraseña o clave privada (con frase opcional). Escritura a `<nombre>.part-<aleatorio>`, comparación SHA-256 leyendo
- * la copia remota y `rename()` sólo después.
+ * SFTP con la extensión ssh2 o, sin ella, con el cliente en PHP incluido (phpseclib 3 con prefijo propio,
+ * Digitalisimo_Backups_Sftp_Client; I5). «Motor» automático: la extensión si está y puede con la conexión (la huella
+ * SHA-256 sólo si la calcula, la clave privada sólo con su clave pública); si no, el cliente incluido. La huella de la
+ * clave del servidor es obligatoria y se compara antes de autenticarse: SHA-1 hexadecimal (la que ya se guardaba) o
+ * SHA-256 en el formato de OpenSSH (`SHA256:…`). Contraseña o clave privada (con frase opcional). Escritura a
+ * `<nombre>.part-<aleatorio>`, comparación SHA-256 leyendo la copia remota y `rename()` sólo después.
  *
  * La copia va por bloques de BLOCK bytes en las dos direcciones (H9 del ensayo E2): stream_copy_to_stream() mapeaba el ZIP
  * entero y se lo daba de una vez a la extensión, así que la memoria subía al tamaño del respaldo y con 64 MB el proceso
@@ -19,6 +21,8 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	private $connection = null;
 	private $sftp = null;
 	private $key_files = array();
+	/** Cliente incluido (phpseclib) ya autenticado. */
+	private $client = null;
 
 	public static function label() { return 'SFTP'; }
 	public static function fields() {
@@ -28,15 +32,16 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 			'sftp_user' => array( 'label' => 'Usuario', 'type' => 'text', 'required' => true ),
 			'sftp_auth' => array( 'label' => 'Autenticación', 'type' => 'select', 'default' => 'password', 'options' => array( 'password' => 'Contraseña', 'key' => 'Clave privada SSH' ) ),
 			'sftp_password' => array( 'label' => 'Contraseña', 'type' => 'password', 'secret' => true, 'show' => 'sftp_auth=password' ),
-			'sftp_private_key' => array( 'label' => 'Clave privada', 'type' => 'textarea', 'secret' => true, 'show' => 'sftp_auth=key', 'help' => 'Pega la clave privada completa (OpenSSH o PEM). Se guarda cifrada y nunca vuelve al navegador.' ),
+			'sftp_private_key' => array( 'label' => 'Clave privada', 'type' => 'textarea', 'secret' => true, 'show' => 'sftp_auth=key', 'help' => 'Pega la clave privada completa (OpenSSH, PEM o el .ppk de PuTTY). Se guarda cifrada en el almacén de credenciales y nunca vuelve al navegador; si tiene frase, se abre una vez al guardar.' ),
 			'sftp_key_passphrase' => array( 'label' => 'Frase de la clave', 'type' => 'password', 'secret' => true, 'show' => 'sftp_auth=key', 'help' => 'Sólo si la clave privada está protegida con una frase.' ),
-			'sftp_public_key' => array( 'label' => 'Clave pública', 'type' => 'textarea', 'show' => 'sftp_auth=key', 'help' => 'La línea de la clave pública (ssh-ed25519 AAAA… o ssh-rsa AAAA…) que está en authorized_keys del servidor.' ),
+			'sftp_public_key' => array( 'label' => 'Clave pública', 'type' => 'textarea', 'show' => 'sftp_auth=key', 'help' => 'La línea de la clave pública (ssh-ed25519 AAAA… o ssh-rsa AAAA…) que está en authorized_keys del servidor. Si la dejas vacía, se calcula de la clave privada al guardar.' ),
 			'sftp_path' => array( 'label' => 'Carpeta remota', 'type' => 'path', 'default' => '/' ),
-			'sftp_fingerprint' => array( 'label' => 'Huella de la clave SSH del servidor', 'type' => 'text', 'help' => 'SHA-1, la que calcula la extensión ssh2 de PHP: «SHA1:…» como la muestra ssh-keygen -E sha1, o 40 caracteres hexadecimales con o sin dos puntos. SHA-256 (SHA256:…) sólo si la extensión de este servidor la calcula. Puedes pegar varias, una por cada clave del servidor (ED25519, ECDSA, RSA; también las líneas de ssh-keygen tal cual): vale la de la clave que presente. Confírmalas con el administrador del servidor por un canal independiente: sin huella no se envían respaldos.' ),
+			'sftp_fingerprint' => array( 'label' => 'Huella de la clave SSH del servidor', 'type' => 'text', 'help' => 'SHA-256 como la muestra ssh-keygen (SHA256:…) o SHA-1 («SHA1:…» de ssh-keygen -E sha1, o 40 caracteres hexadecimales con o sin dos puntos). Con la extensión ssh2, SHA-256 sólo si la calcula; el cliente incluido calcula las dos. Puedes pegar varias, una por cada clave del servidor (ED25519, ECDSA, RSA; también las líneas de ssh-keygen tal cual): vale la de la clave que presente. Confírmalas con el administrador del servidor por un canal independiente: sin huella no se envían respaldos.' ),
+			'sftp_engine' => array( 'label' => 'Motor SFTP', 'type' => 'select', 'default' => 'auto', 'options' => array( 'auto' => 'Automático: la extensión ssh2 si este servidor la tiene; si no, el cliente incluido', 'phpseclib' => 'Cliente SFTP incluido (PHP puro, phpseclib)', 'ssh2' => 'Extensión ssh2 de PHP' ), 'help' => 'El cliente incluido no necesita ninguna extensión (casi ningún hosting compartido trae ssh2), calcula la huella SHA-256 y prueba todas las claves del servidor. Usa OpenSSL y libsodium de PHP si están.' ),
 		);
 	}
 	public static function help() {
-		return array( 'En un equipo de confianza: «ssh-keyscan -p 22 servidor | ssh-keygen -l -E sha1 -f -» muestra la huella SHA-1 de cada clave del servidor (una línea por tipo: ED25519, ECDSA, RSA).', 'La extensión ssh2 de PHP elige el tipo de clave al conectar y no siempre es el que usa OpenSSH: con libssh2 suele ser ECDSA aunque el servidor tenga ED25519. Pega las líneas de todas las claves (vale la de la que presente) o sólo la del tipo que nombre el error de «Probar conexión»; confírmalas con el administrador del servidor por un canal independiente.', 'SHA-256 (-E sha256) sólo sirve si la extensión ssh2 de este servidor la calcula; si no, «Probar conexión» lo dice.', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
+		return array( 'En un equipo de confianza: «ssh-keyscan -p 22 servidor | ssh-keygen -l -f -» muestra la huella SHA-256 de cada clave del servidor (una línea por tipo: ED25519, ECDSA, RSA); con «-E sha1», la SHA-1.', 'Sin la extensión ssh2 se usa el cliente SFTP incluido (PHP puro): calcula SHA-256 y SHA-1 y, si la clave que negocia no es la de la huella, prueba las demás claves del servidor. Con la extensión ssh2, ésta elige el tipo de clave al conectar (con libssh2 suele ser ECDSA aunque el servidor tenga ED25519) y SHA-256 sólo sirve si la calcula: pega las líneas de todas las claves o elige el cliente incluido.', 'Clave privada: OpenSSH, PEM (PKCS#1 o PKCS#8) o PuTTY, también protegida con una frase; se guarda cifrada en el almacén de credenciales y nunca vuelve al navegador.', 'La carpeta remota debe ser una ruta absoluta en la que el usuario pueda escribir.' );
 	}
 	public static function hosts( array $s ) { return array( (string) ( $s['sftp_host'] ?? '' ) ); }
 	public static function ready( array $s ) {
@@ -52,9 +57,29 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$out['sftp_port'] = (string) min( 65535, max( 1, (int) ( $input['sftp_port'] ?? 22 ) ?: 22 ) );
 		$public = trim( preg_replace( '/\s+/', ' ', (string) ( $input['sftp_public_key'] ?? '' ) ) );
 		if ( '' !== $public && ! preg_match( '/^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-nistp(256|384|521)|sk-[a-z0-9@.-]+) [A-Za-z0-9+\/=]+( [^\s].*)?$/', $public ) ) throw new Exception( 'La clave pública SFTP debe ser una línea como «ssh-ed25519 AAAA… comentario».' );
-		$out['sftp_public_key'] = $public;
 		$private = (string) $out['sftp_private_key'];
-		if ( '' !== $private && ! preg_match( '/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n.+\n-----END [A-Z0-9 ]*PRIVATE KEY-----$/s', $private ) ) throw new Exception( 'La clave privada SFTP debe pegarse completa, de «-----BEGIN … PRIVATE KEY-----» a «-----END … PRIVATE KEY-----».' );
+		$putty = (bool) preg_match( '/^PuTTY-User-Key-File-[23]: [a-z0-9-]+\n.+Private-MAC: [a-f0-9]+$/s', $private );
+		if ( '' !== $private && ! $putty && ! preg_match( '/^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\n.+\n-----END [A-Z0-9 ]*PRIVATE KEY-----$/s', $private ) ) throw new Exception( 'La clave privada SFTP debe pegarse completa, de «-----BEGIN … PRIVATE KEY-----» a «-----END … PRIVATE KEY-----» (o el archivo .ppk de PuTTY entero).' );
+		// Una clave con frase se abre aquí, una vez: queda sin frase dentro del almacén cifrado (que ya guardaba las dos) y
+		// cada conexión se ahorra los segundos de bcrypt_pbkdf en PHP. Sin la clave pública, se calcula de la privada: la
+		// extensión ssh2 la necesita y así se comprueba al guardar que la frase abre la clave. Si el cliente incluido no
+		// puede abrir una clave que trae su clave pública (un formato que sólo lee libssh2), se guarda tal cual, como antes.
+		$passphrase = (string) ( $out['sftp_key_passphrase'] ?? '' );
+		if ( '' !== $private && 'key' === ( $out['sftp_auth'] ?? '' ) && ( '' === $public || '' !== $passphrase ) ) {
+			if ( ! Digitalisimo_Backups_Sftp_Client::available() ) {
+				if ( '' === $public ) throw new Exception( 'Pega también la clave pública SFTP: este PHP no puede calcularla de la privada.' );
+			} else {
+				try {
+					list( $private, $derived ) = Digitalisimo_Backups_Sftp_Client::unlock( $private, $passphrase );
+					$out['sftp_private_key'] = $private;
+					$out['sftp_key_passphrase'] = '';
+					if ( '' === $public ) $public = $derived;
+				} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
+					if ( '' === $public ) throw new Exception( $e->getMessage() . ' No se cambió nada.' );
+				}
+			}
+		}
+		$out['sftp_public_key'] = $public;
 		if ( '' !== (string) $out['sftp_path'] ) $out['sftp_path'] = self::clean_path( $out['sftp_path'] );
 		return $out;
 	}
@@ -125,18 +150,58 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 
 	/* ------------------------------------------------------------------ Conexión */
 
-	/** Conexión autenticada (la huella se comprueba antes de enviar ninguna credencial). */
-	public function connection() {
-		if ( $this->connection ) return $this->connection;
+	/** Si la extensión ssh2 de PHP está cargada. */
+	private static function has_ssh2() { return function_exists( 'ssh2_connect' ) && function_exists( 'ssh2_fingerprint' ); }
+	/**
+	 * Motor de esta conexión: `ssh2` o `phpseclib` (el cliente incluido). Automático: la extensión sólo si está y puede
+	 * con esta conexión (clave privada con su clave pública; alguna huella SHA-1 o una extensión que calcule SHA-256).
+	 */
+	public function engine() {
+		$choice = (string) ( $this->s['sftp_engine'] ?? 'auto' );
+		if ( 'ssh2' === $choice || 'phpseclib' === $choice ) return $choice;
+		if ( ! self::has_ssh2() ) return 'phpseclib';
+		if ( 'key' === ( $this->s['sftp_auth'] ?? 'password' ) && empty( $this->s['sftp_public_key'] ) ) return 'phpseclib';
+		$sha1 = array_filter( self::fingerprints( (string) ( $this->s['sftp_fingerprint'] ?? '' ) ), function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } );
+		return $sha1 || defined( 'SSH2_FINGERPRINT_SHA256' ) ? 'ssh2' : 'phpseclib';
+	}
+	/** Comprobaciones comunes antes de conectar: credencial, servidor, usuario y huellas. Devuelve array( clave?, huellas ). */
+	private function precheck( $engine ) {
 		$s = $this->s;
 		$key = 'key' === ( $s['sftp_auth'] ?? 'password' );
 		$secret = $key ? ( $s['sftp_private_key'] ?? '' ) : ( $s['sftp_password'] ?? '' );
 		if ( empty( $secret ) && class_exists( 'Digitalisimo_Backups' ) && '' !== ( $problem = Digitalisimo_Backups::destination_problem( (string) $this->context['connection'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
-		if ( ! function_exists( 'ssh2_connect' ) || ! function_exists( 'ssh2_fingerprint' ) || empty( $s['sftp_host'] ) || empty( $s['sftp_user'] ) || empty( $secret ) || ( $key && empty( $s['sftp_public_key'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Completa la conexión SFTP para gestionar este respaldo.' );
+		if ( 'ssh2' === $engine && ! self::has_ssh2() ) throw new Digitalisimo_Backups_Permanent_Error( 'Esta conexión SFTP usa la extensión ssh2 de PHP y este servidor no la tiene: elige el motor «Automático» o el cliente incluido.' );
+		if ( empty( $s['sftp_host'] ) || empty( $s['sftp_user'] ) || empty( $secret ) || ( $key && 'ssh2' === $engine && empty( $s['sftp_public_key'] ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Completa la conexión SFTP para gestionar este respaldo.' );
 		// Una o varias huellas (una por clave del servidor): vale la de la clave que presente. Cada una fija una clave,
 		// como varias líneas de known_hosts para el mismo servidor; ninguna se aprende sola al conectar.
 		$expected = self::fingerprints( (string) ( $s['sftp_fingerprint'] ?? '' ) );
-		if ( ! $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' );
+		if ( ! $expected ) throw new Digitalisimo_Backups_Permanent_Error( 'Configura y verifica la huella de la clave SSH del servidor (SHA-256 o SHA-1) antes de usar SFTP.' );
+		return array( $key, $expected );
+	}
+	/** Cliente incluido ya autenticado (la huella se comprueba antes de enviar ninguna credencial). */
+	private function client() {
+		if ( $this->client ) return $this->client;
+		list( $key, $expected ) = $this->precheck( 'phpseclib' );
+		$s = $this->s;
+		$auth = $key ? array( 'key' => (string) $s['sftp_private_key'], 'passphrase' => (string) ( $s['sftp_key_passphrase'] ?? '' ) ) : array( 'password' => (string) $s['sftp_password'] );
+		$timeout = (int) ( $this->context['timeout'] ?? 0 ) ?: 20;
+		$client = new Digitalisimo_Backups_Sftp_Client();
+		$client->connect( (string) $s['sftp_host'], (int) ( $s['sftp_port'] ?? 22 ) ?: 22, (string) $s['sftp_user'], $expected, $auth, $timeout );
+		return $this->client = $client;
+	}
+	/** Cierra el cliente incluido (tras un fallo a mitad de una transferencia su sesión no se reutiliza). */
+	private function drop_client() {
+		if ( $this->client ) $this->client->close();
+		$this->client = null;
+	}
+	private function lib() { return 'phpseclib' === $this->engine(); }
+
+	/** Conexión autenticada (la huella se comprueba antes de enviar ninguna credencial). */
+	public function connection() {
+		if ( $this->lib() ) return $this->client();
+		if ( $this->connection ) return $this->connection;
+		$s = $this->s;
+		list( $key, $expected ) = $this->precheck( 'ssh2' );
 		$can_sha256 = defined( 'SSH2_FINGERPRINT_SHA256' );
 		$sha1_expected = array_values( array_filter( $expected, function( $fingerprint ) { return 0 !== strpos( $fingerprint, 'SHA256:' ); } ) );
 		if ( ! $sha1_expected && ! $can_sha256 ) throw new Digitalisimo_Backups_Permanent_Error( 'La extensión ssh2 de este servidor no calcula huellas SHA-256: escribe la huella SHA-1 de la clave del servidor (ssh-keyscan -p ' . ( (int) $s['sftp_port'] ?: 22 ) . ' ' . $s['sftp_host'] . ' | ssh-keygen -l -E sha1 -f -).' );
@@ -177,7 +242,8 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	private function session() {
 		if ( $this->sftp ) return $this->sftp;
-		$sftp = @ssh2_sftp( $this->connection() );
+		$connection = $this->connection(); // Antes de llamar a la extensión: sin ella, precheck() da el mensaje claro.
+		$sftp = @ssh2_sftp( $connection );
 		if ( ! $sftp ) throw new Exception( 'No se pudo iniciar SFTP en el servidor remoto.' );
 		return $this->sftp = $sftp;
 	}
@@ -192,6 +258,7 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	/* ------------------------------------------------------------------ Contrato */
 
 	protected function upload( $file, $name, array $source ) {
+		if ( $this->lib() ) return $this->lib_upload( $file, $name, $source );
 		$sftp = $this->session();
 		$remote = rtrim( $this->directory(), '/' ) . '/' . $name;
 		$temporary = self::temporary_name( $remote );
@@ -252,8 +319,38 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		}
 		return $done;
 	}
+	/** Cliente incluido: sube por paquetes SFTP con avance (y cancelación) cada MiB; un fallo a mitad retira el temporal. */
+	private function lib_upload( $file, $name, array $source ) {
+		$client = $this->client();
+		$remote = rtrim( $this->directory(), '/' ) . '/' . $name;
+		$temporary = self::temporary_name( $remote );
+		$this->save_state( array( 'connection' => (string) $this->context['connection'], 'size' => $source['size'], 'sha256' => $source['sha256'], 'temp' => array( 'provider' => self::TYPE, 'path' => $temporary ) ) );
+		$last = 0;
+		try {
+			$sent = $client->upload( $file, $temporary, function( $done ) use ( &$last, $source ) {
+				if ( $done - $last < self::BLOCK && $done < $source['size'] ) return;
+				$last = $done;
+				$this->progress( $done, $source['size'] );
+			} );
+		} catch ( Throwable $e ) {
+			// Cancelado entre paquetes o la sesión se cortó: con otra sesión, el temporal no queda a medias en el servidor.
+			$this->drop_client();
+			try { $this->client()->delete( $temporary ); } catch ( Throwable $ignored ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			throw $e;
+		}
+		if ( $sent !== $source['size'] ) {
+			$client->delete( $temporary );
+			throw new Exception( 'La transferencia SFTP quedó incompleta.' );
+		}
+		return array( 'provider' => self::TYPE, 'path' => $temporary );
+	}
 	/** Lee la copia remota completa por bloques y compara su tamaño y su SHA-256. */
 	public function verify( array $remote, $file, array $source ) {
+		if ( $this->lib() ) {
+			list( $read, $hash ) = $this->client()->hash( $this->own( $remote ) );
+			if ( $read !== $source['size'] || ! hash_equals( $source['sha256'], $hash ) ) throw new Exception( 'La copia SFTP no coincide con el ZIP local.' );
+			return;
+		}
 		$handle = @fopen( $this->url( (string) $remote['path'] ), 'rb' );
 		$hash = false;
 		$read = 0;
@@ -267,8 +364,16 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		if ( false === $hash || $read !== $source['size'] || ! hash_equals( $source['sha256'], $hash ) ) throw new Exception( 'La copia SFTP no coincide con el ZIP local.' );
 	}
 	protected function publish( array $temp, $name ) {
-		$sftp = $this->session();
 		$final = rtrim( $this->directory(), '/' ) . '/' . $name;
+		if ( $this->lib() ) {
+			$client = $this->client();
+			if ( ! $client->rename( $temp['path'], $final ) ) {
+				$client->delete( $temp['path'] );
+				throw new Exception( 'No se pudo publicar el respaldo verificado en SFTP.' );
+			}
+			return array( 'provider' => self::TYPE, 'path' => $final );
+		}
+		$sftp = $this->session();
 		if ( ! @ssh2_sftp_rename( $sftp, $temp['path'], $final ) ) {
 			@ssh2_sftp_unlink( $sftp, $temp['path'] );
 			throw new Exception( 'No se pudo publicar el respaldo verificado en SFTP.' );
@@ -280,6 +385,18 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	public function get( array $remote, $target ) {
 		$path = $this->own( $remote );
 		$expected = $this->size( $remote );
+		if ( $this->lib() ) {
+			$last = 0;
+			$this->client()->download( $path, $target, function( $done ) use ( &$last, $expected ) {
+				if ( $expected <= 0 || $done - $last < self::BLOCK ) return;
+				$last = $done;
+				$this->progress( min( $done, $expected ), $expected, 'Descargados' );
+			} );
+			clearstatcache( true, $target );
+			$copied = (int) @filesize( $target );
+			if ( false !== $expected && $copied !== $expected ) throw new Exception( 'La descarga SFTP quedó incompleta (' . $copied . ' de ' . $expected . ' bytes).' );
+			return;
+		}
 		$source = @fopen( $this->url( $path ), 'rb' );
 		if ( ! $source ) throw new Exception( 'No se pudo leer el respaldo SFTP.' );
 		@stream_set_chunk_size( $source, self::BLOCK );
@@ -297,11 +414,16 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	public function size( array $remote ) {
 		$path = $this->own( $remote );
+		if ( $this->lib() ) return $this->client()->size( $path );
 		$stat = function_exists( 'ssh2_sftp_stat' ) ? @ssh2_sftp_stat( $this->session(), $path ) : @stat( $this->url( $path ) );
 		return is_array( $stat ) && isset( $stat['size'] ) ? (int) $stat['size'] : false;
 	}
 	public function delete( array $remote ) {
 		$path = $this->own( $remote );
+		if ( $this->lib() ) {
+			if ( $this->client()->delete( $path ) || false === $this->client()->size( $path ) ) return;
+			throw new Exception( 'No se pudo eliminar el archivo SFTP.' );
+		}
 		$sftp = $this->session();
 		if ( @ssh2_sftp_unlink( $sftp, $path ) ) return;
 		if ( false === $this->size( $remote ) ) return;
@@ -309,6 +431,13 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 	}
 	public function list() {
 		$directory = $this->directory();
+		if ( $this->lib() ) {
+			$files = $this->client()->files( $directory );
+			if ( false === $files ) throw new Exception( 'No se pudo listar la carpeta SFTP.' );
+			$out = array();
+			foreach ( $files as $entry => $size ) $out[] = array( 'name' => $entry, 'size' => $size, 'remote' => array( 'provider' => self::TYPE, 'connection' => (string) $this->context['connection'], 'path' => rtrim( $directory, '/' ) . '/' . $entry ) );
+			return $out;
+		}
 		$handle = @opendir( $this->url( $directory ) );
 		if ( ! $handle ) throw new Exception( 'No se pudo listar la carpeta SFTP.' );
 		$out = array();

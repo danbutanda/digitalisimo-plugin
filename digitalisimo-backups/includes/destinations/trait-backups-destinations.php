@@ -602,6 +602,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$allowed = self::service_scope( is_multisite(), false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		if ( ! self::credentials_here() ) return self::service_error( 'main_site', self::subsite_credentials_text(), 400 );
+		self::migrate_server_catalog();
 		$settings = self::settings();
 		$rows = array();
 		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) $rows[] = array( 'id' => $type, 'type' => $type, 'name' => Digitalisimo_Backups_Destinations::name_of( $type, $settings ), 'primary' => true, 'ready' => $class::ready( $settings ), 'problem' => self::credentials_problem( $type ) );

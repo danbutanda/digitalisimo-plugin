@@ -42,6 +42,8 @@ jobs:
           php-version: '8.2'
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
+      - name: sshd de OpenSSH para la prueba de SFTP sin la extensión ssh2
+        run: test -x /usr/sbin/sshd || (sudo apt-get update -qq && sudo apt-get install -y -qq openssh-server)
       - name: Probar la suite
         # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
@@ -286,6 +288,7 @@ jobs:
           php tests/elements-load-order.php
           php tests/hosting-migration.php
           php tests/backups-sftp.php
+          php tests/backups-sftp-phpseclib.php
           php tests/backups-integrity.php
           php tests/backups-manifest.php
           php tests/backups-policies.php
@@ -336,6 +339,7 @@ jobs:
           php tests/backups-destinations-live.php
           node tests/backups-destinations-ui.mjs
           php tests/backups-remote-copy.php
+          php tests/backups-remote-retention.php
           php tests/backups-notify.php
           php tests/backups-upload.php
           node tests/backups-upload-ui.mjs
