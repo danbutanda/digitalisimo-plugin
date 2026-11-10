@@ -34,10 +34,17 @@ final class Digitalisimo_Backups_Manifest_Auth {
 	 * tras crear o tras descifrar); si no, se busca la clave por su huella y, si no se conoce, se prueba $secret.
 	 */
 	public static function verify( $zip, $secret = '', $known_root = null ) {
-		$bytes = self::read_manifest( $zip );
-		if ( null === $bytes ) return array( 'state' => 'unsigned' );
-		$data = json_decode( $bytes, true, 64 );
-		if ( ! is_array( $data ) ) return array( 'state' => 'unsigned' ); // La verificación del contenido lo rechaza con su mensaje.
+		// Por partes y con memoria constante (H1): el bloque `auth` sale de la lectura del primer nivel y el MAC se calcula
+		// sobre los bytes exactos leídos por fragmentos (HMAC-SHA-512 truncado a 256 bits, el crypto_auth de libsodium).
+		$stat = $zip->statName( 'manifest.json' );
+		if ( ! $stat ) return array( 'state' => 'unsigned' );
+		if ( (int) $stat['size'] > self::MAX_MANIFEST ) throw new Exception( 'El manifiesto del respaldo supera el tamaño permitido.' );
+		try {
+			$data = Digitalisimo_Backups_Manifest_Stream::read( $zip )['data'];
+		} catch ( Exception $e ) {
+			if ( false !== strpos( $e->getMessage(), 'No se pudo leer' ) ) throw $e;
+			return array( 'state' => 'unsigned' ); // La verificación del contenido lo rechaza con su mensaje.
+		}
 		if ( ! array_key_exists( 'auth', $data ) ) return array( 'state' => 'unsigned' );
 		$auth = $data['auth'];
 		if ( ! is_array( $auth ) || 1 !== ( $auth['version'] ?? null ) || self::ALG !== ( $auth['alg'] ?? '' ) || ! is_bool( $auth['encrypted'] ?? null ) || ! Digitalisimo_Backups_Keys::valid_descriptor( $auth['key'] ?? null ) ) return array( 'state' => 'invalid', 'reason' => 'El bloque de firma del manifiesto no es válido.' );
@@ -60,9 +67,30 @@ final class Digitalisimo_Backups_Manifest_Auth {
 			if ( false === $root ) return array( 'state' => 'needs_key', 'key' => $descriptor );
 		}
 		if ( ! hash_equals( $descriptor['id'], Digitalisimo_Backups_Keys::key_id( $root ) ) ) return array( 'state' => 'wrong_key', 'key' => $descriptor );
-		try { $valid = sodium_crypto_auth_verify( $mac, self::message( $descriptor['id'], $bytes ), Digitalisimo_Backups_Keys::mac_key( $root ) ); }
+		try { $valid = hash_equals( self::stream_mac( $zip, $descriptor['id'], Digitalisimo_Backups_Keys::mac_key( $root ) ), $mac ); }
 		catch ( Throwable $e ) { $valid = false; }
 		if ( ! $valid ) return array( 'state' => 'invalid', 'key' => $descriptor, 'reason' => 'La firma no coincide: el respaldo fue modificado o está dañado.' );
 		return array( 'state' => 'signed', 'key' => $descriptor, 'encrypted' => $auth['encrypted'], 'root' => $root, 'via' => $via, 'manifest' => $data );
+	}
+	/** MAC de los bytes exactos de manifest.json leídos por fragmentos: el mismo valor que comment() (crypto_auth). */
+	public static function stream_mac( $zip, $key_id, $mac_key ) {
+		$stat = $zip->statName( 'manifest.json' );
+		$stream = $stat ? $zip->getStream( 'manifest.json' ) : false;
+		if ( ! $stream ) throw new Exception( 'No se pudo leer el manifiesto del respaldo.' );
+		$hmac = hash_init( 'sha512', HASH_HMAC, $mac_key );
+		hash_update( $hmac, self::PREFIX . "\n" . $key_id . "\n" );
+		$bytes = 0;
+		try {
+			while ( ! feof( $stream ) ) {
+				$chunk = fread( $stream, 1048576 );
+				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'No se pudo leer el manifiesto del respaldo.' );
+				$bytes += strlen( $chunk );
+				hash_update( $hmac, $chunk );
+			}
+		} finally {
+			fclose( $stream );
+		}
+		if ( $bytes !== (int) $stat['size'] ) throw new Exception( 'No se pudo leer el manifiesto del respaldo.' );
+		return substr( hash_final( $hmac, true ), 0, 32 );
 	}
 }

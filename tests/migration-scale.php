@@ -158,9 +158,12 @@ namespace {
 	$GLOBALS['wp']['options'][1][ Runner::JOB ] = array_merge( Runner::fresh( true ), array( 'stage' => 'convert', 'platform_prepared' => true ) );
 	f8_new_request();
 	Runner::site_step( false, 0.5 );
-	$meta = get_option( Runner::IDS . 'convert' );
-	f8_check( 2 === (int) $meta['chunks'] && 6001 === (int) $meta['total'], 'La lista de 6 001 IDs va en trozos de 5 000.' );
-	f8_check( 5000 === count( (array) get_option( Runner::IDS . 'convert_0' ) ) && false === f8_autoload( Runner::IDS . 'convert_0' ) && false === f8_autoload( Runner::IDS . 'convert_1' ), 'Sin carga automática.' );
+	// Se mira lo que la etapa ESCRIBIÓ, no lo que queda: el presupuesto mínimo es 1 s y con PHP nativo los 6 001
+	// documentos pueden convertirse en ese paso; entonces la etapa se cierra y borra sus listas (la comprobación de arriba).
+	$writes = $GLOBALS['wp']['f8_last_write'][1] ?? array();
+	$meta   = $writes[ Runner::IDS . 'convert' ]['value'] ?? array();
+	f8_check( 2 === (int) ( $meta['chunks'] ?? 0 ) && 6001 === (int) ( $meta['total'] ?? 0 ), 'La lista de 6 001 IDs va en trozos de 5 000.' );
+	f8_check( 5000 === count( (array) ( $writes[ Runner::IDS . 'convert_0' ]['value'] ?? array() ) ) && 1001 === count( (array) ( $writes[ Runner::IDS . 'convert_1' ]['value'] ?? array() ) ) && false === ( $writes[ Runner::IDS . 'convert_0' ]['autoload'] ?? null ) && false === ( $writes[ Runner::IDS . 'convert_1' ]['autoload'] ?? null ), 'Sin carga automática.' );
 
 	/* ================================================================ Análisis previo por trozos */
 	f8_reset();

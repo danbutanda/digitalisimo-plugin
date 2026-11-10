@@ -86,13 +86,32 @@ class Digi_Redirect extends Exception {
 class Digi_Die extends Exception {}
 
 /** Tabla wp_options en memoria: el SQL que exporta el motor se vuelve a importar fila por fila. */
+if ( ! function_exists( 'bk_page' ) ) {
+	/** Lote de filas como lo daría MySQL: paginación por clave («WHERE (`col` > N)») y LIMIT con o sin desplazamiento. */
+	function bk_page( array $rows, $query, $key ) {
+		if ( preg_match( '/ WHERE \(`' . preg_quote( $key, '/' ) . '` > \'?(-?[0-9]+)\'?\)/', $query, $after ) ) $rows = array_values( array_filter( $rows, function( $row ) use ( $key, $after ) { return (int) $row[ $key ] > (int) $after[1]; } ) );
+		if ( preg_match( '/ LIMIT ([0-9]+), ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, (int) $limit[1], (int) $limit[2] );
+		if ( preg_match( '/ LIMIT ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, 0, (int) $limit[1] );
+		return $rows;
+	}
+}
 class Digi_Test_DB {
 	public $base_prefix = 'wp_';
 	public $prefix = 'wp_';
 	public $last_error = '';
 	public $queries = array();
 	public $rows = array( array( 'option_id' => '1', 'option_name' => 'blogname', 'option_value' => 'Sitio de prueba' ) );
-	public function get_col( $query ) { return array( 'wp_options' ); }
+	/** Otras tablas (las temporales de una restauración por pasos): nombre => filas. */
+	public $tables = array();
+	public function get_col( $query ) {
+		$all = array_merge( array( 'wp_options' ), array_keys( $this->tables ) );
+		if ( preg_match( "/^SHOW TABLES LIKE '(.*)'$/", (string) $query, $m ) ) {
+			$pattern = '/^' . strtr( preg_quote( stripslashes( str_replace( array( '\\_', '\\%' ), array( "\x01", "\x02" ), $m[1] ) ), '/' ), array( '%' => '.*', '_' => '.', "\x01" => '_', "\x02" => '%' ) ) . '$/D';
+			return array_values( array_filter( $all, function( $t ) use ( $pattern ) { return preg_match( $pattern, $t ); } ) );
+		}
+		return 0 === strpos( (string) $query, 'SHOW TABLES' ) ? $all : array( 'wp_options' );
+	}
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
 	public function prepare( $query, ...$args ) { foreach ( $args as $arg ) $query = preg_replace( '/%s/', "'" . addslashes( (string) $arg ) . "'", $query, 1 ); return $query; }
 	public function get_row( $query, $format = null ) {
 		$this->last_error = '';
@@ -102,8 +121,7 @@ class Digi_Test_DB {
 	public function get_results( $query, $format = null ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'option_id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
-		if ( preg_match( '/LIMIT (\d+), (\d+)/', $query, $limit ) ) return array_slice( $this->rows, (int) $limit[1], (int) $limit[2] );
-		return $this->rows;
+		return bk_page( $this->rows, $query, 'option_id' );
 	}
 	public function db_version() { return '8.0'; }
 	/** `upload_path` de cada sitio de la red (id => valor), leído por Digitalisimo_Backups_Layout. */
@@ -118,9 +136,21 @@ class Digi_Test_DB {
 		$this->queries[] = $sql;
 		$this->last_error = '';
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) $this->rows = array();
-		if ( preg_match( '/^INSERT INTO `wp_options` \((.*?)\) VALUES \((.*)\)$/s', $sql, $match ) ) {
-			$columns = array_map( function( $column ) { return trim( $column, '`' ); }, explode( ',', $match[1] ) );
-			$this->rows[] = array_combine( $columns, str_getcsv( $match[2], ',', "'", '\\' ) );
+		elseif ( preg_match( '/^DROP TABLE(?: IF EXISTS)? `([^`]+)`/', $sql, $t ) ) unset( $this->tables[ $t[1] ] );
+		if ( preg_match( '/^CREATE TABLE `([^`]+)`/', $sql, $t ) && 'wp_options' !== $t[1] ) $this->tables[ $t[1] ] = array();
+		if ( preg_match( '/^INSERT INTO `([^`]+)` \((.*?)\) VALUES \((.*)\)$/s', $sql, $match ) ) {
+			$columns = array_map( function( $column ) { return trim( $column, '`' ); }, explode( ',', $match[2] ) );
+			$row = array_combine( $columns, str_getcsv( $match[3], ',', "'", '\\' ) );
+			if ( 'wp_options' === $match[1] ) $this->rows[] = $row;
+			else $this->tables[ $match[1] ][] = $row;
+		}
+		// RENAME TABLE de la restauración por pasos: la tabla que pasa a ser wp_options trae sus filas.
+		if ( 0 === strpos( $sql, 'RENAME TABLE ' ) && preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $sql, $pairs, PREG_SET_ORDER ) ) {
+			foreach ( $pairs as $pair ) {
+				$rows = 'wp_options' === $pair[1] ? $this->rows : ( $this->tables[ $pair[1] ] ?? array() );
+				if ( 'wp_options' !== $pair[1] ) unset( $this->tables[ $pair[1] ] );
+				if ( 'wp_options' === $pair[2] ) $this->rows = $rows; else $this->tables[ $pair[2] ] = $rows;
+			}
 		}
 		return 1;
 	}

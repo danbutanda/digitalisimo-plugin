@@ -264,9 +264,12 @@ e1_case( 'E2 otro prefijo de tablas sin tocar otro WordPress de la misma base', 
 	$result = e1_restore( $single );
 	e1_no_trap();
 	e1_check( $before === array( $dest->rows( 'wp_options' ), $dest->rows( 'wp_posts' ), $dest->rows( 'wp_users' ), $dest->rows( 'wp_usermeta' ), $dest->rows( 'otra_app' ) ), 'Cambiaron tablas del otro WordPress (prefijo wp_) o la tabla ajena del destino.' );
+	// Restauración por pasos: la tabla ajena ni se ejecuta ni entra en el cambio, y el resultado la nombra.
+	e1_check( ! preg_grep( '/^(DROP TABLE IF EXISTS|CREATE TABLE|INSERT INTO) `otra_app`/', $dest->queries ) && in_array( 'otra_app', (array) $result['foreign_tables'], true ), 'La tabla de otra aplicación del respaldo se tocó o no se informó.' );
 	foreach ( array( 'dst_options', 'dst_posts', 'dst_postmeta', 'dst_users', 'dst_usermeta', 'dst_hijos' ) as $table ) e1_check( in_array( $table, $dest->names(), true ), 'Falta la tabla ' . $table );
 	e1_check( ! in_array( 'wp_hijos', $dest->names(), true ), 'Se creó una tabla con el prefijo del origen.' );
-	e1_check( false !== strpos( $dest->create_sql( 'dst_hijos' ), 'REFERENCES `dst_posts`' ), 'La clave foránea sigue apuntando al prefijo del origen: ' . $dest->create_sql( 'dst_hijos' ) );
+	// SQLite reescribe la referencia (con comillas dobles) al renombrar la tabla temporal a su nombre final.
+	e1_check( preg_match( '/REFERENCES [`"]dst_posts[`"]/', $dest->create_sql( 'dst_hijos' ) ), 'La clave foránea sigue apuntando al prefijo del origen: ' . $dest->create_sql( 'dst_hijos' ) );
 	e1_check( 'https://destino.mx' === $dest->value( 'dst_options', 'option_value', "option_name = 'home'" ), 'home no quedó con la dirección de este sitio.' );
 	e1_check( null !== $dest->value( 'dst_options', 'option_value', "option_name = 'dst_user_roles'" ) && null === $dest->value( 'dst_options', 'option_value', "option_name = 'wp_user_roles'" ), 'user_roles no tomó el prefijo nuevo.' );
 	e1_check( '3' === $dest->value( 'dst_options', 'option_value', "option_name = 'wp_page_for_privacy_policy'" ), 'Se renombró una opción del núcleo que empieza por wp_ sin ser del prefijo.' );
@@ -296,10 +299,15 @@ e1_case( 'E2 un fallo a mitad de la reescritura vuelve a la copia previa', funct
 	$dest->seed( 'dst_posts', array( array( 'ID' => 5, 'post_title' => 'Antes', 'post_content' => 'contenido del destino', 'guid' => 'g' ) ) );
 	e1_use( $dest, 'https://destino.mx' );
 	$before = array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) );
-	// La sentencia ya renombrada y reescrita falla: la importación se detiene y la copia previa vuelve a su sitio.
-	$dest->fail_on = 'INSERT INTO `dst_posts`';
+	// La sentencia ya renombrada y reescrita falla. Desde la restauración por pasos va a una tabla temporal con el
+	// prefijo del destino: la importación se detiene antes del cambio y las tablas del destino no se tocaron.
+	$dest->fail_on = 'INSERT INTO `dst_dgbkr_';
+	// Un solo intento: con reintentos (también en WP-CLI desde la revisión, P7) un fallo de una vez se recupera.
+	$GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] = 1;
 	$error = Digitalisimo_Backups::service_restore( $single, array( 'confirm' => 'RESTAURAR SIN FIRMA' ) );
-	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'Se recuperaron la base de datos y los archivos anteriores' ), 'El fallo no se recuperó desde la copia previa: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_job_max_attempts'] );
+	e1_check( is_wp_error( $error ) && 'digitalisimo_backups_restore_failed' === $error->get_error_code() && false !== strpos( $error->get_error_message(), 'antes de cambiar el sitio' ), 'El fallo no dejó el destino como estaba: ' . ( is_wp_error( $error ) ? $error->get_error_message() : 'terminó' ) );
+	e1_check( ! array_filter( $dest->names(), function( $table ) { return false !== strpos( $table, 'dgbk' ); } ), 'Quedaron tablas temporales tras el fallo.' );
 	e1_check( $before === array( $dest->rows( 'dst_options' ), $dest->rows( 'dst_posts' ) ), 'La copia previa no devolvió el destino tal como estaba.' );
 	e1_no_trap();
 } );
@@ -337,7 +345,13 @@ function e1_network_destination( $name, $prefix, array $network, $subdomain ) {
 e1_case( 'E3 red por subdirectorios a otro dominio, otra ruta y otro prefijo', function() {
 	$file = e1_network_origin( 'red-dir', false );
 	$dest = e1_network_destination( 'red-dir-destino', 'red_', array( 'domain' => 'destino.mx', 'path' => '/red/' ), false );
+	$dest->queries = array();
 	$result = e1_restore( $file );
+	// Revisión de E1, H1: la red y las direcciones se fijan en las tablas temporales antes del RENAME, así que las tablas
+	// llegan de una vez coherentes y ningún punto intermedio deja la red sin cargar.
+	$rename = array_keys( preg_grep( '/^RENAME TABLE /', $dest->queries ) );
+	$network = array_keys( preg_grep( "/^UPDATE `red_dgbkr_[0-9a-f]{6}_\d{3}` SET (domain|meta_value|option_value)/", $dest->queries ) );
+	e1_check( 1 === count( $rename ) && count( $network ) >= 4 && max( $network ) < $rename[0], 'La red no se fijó en las tablas temporales antes del cambio: ' . json_encode( array( count( $rename ), count( $network ) ) ) );
 	$blogs = $dest->rows( 'red_blogs' );
 	e1_check( array( array( '1', 'destino.mx', '/red/' ), array( '2', 'destino.mx', '/red/uno/' ) ) === array_map( function( $b ) { return array( (string) $b['blog_id'], $b['domain'], $b['path'] ); }, $blogs ), 'blogs: ' . json_encode( $blogs ) );
 	e1_check( 'destino.mx' === $dest->value( 'red_site', 'domain', 'id = 1' ) && '/red/' === $dest->value( 'red_site', 'path', 'id = 1' ), 'La tabla site no tomó el dominio y la ruta nuevos.' );

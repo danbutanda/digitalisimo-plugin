@@ -29,7 +29,7 @@
            502/504 o el 503 del mantenimiento durante la restauración no lo son. */
         var session = response.status === 401 || response.status === 403 || ['-1', '0'].indexOf(text.trim()) !== -1;
         try { result = JSON.parse(text); } catch (error) {
-          var broken = new Error('El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
+          var broken = new Error(response.status === 503 ? 'El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)' : 'El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
           broken.session = session;
           throw broken;
         }
@@ -116,10 +116,13 @@
     timer = setTimeout(step, delay);
   }
   /* Un tick por petición: si otro proceso trabaja (busy) sólo se consulta; si se espera un reintento, se espera. */
+  /* Con una restauración en curso, el tick lleva su testigo: tras el cambio de tablas la sesión puede no valer. */
+  var restore = window.digitalisimoBackupsRestore || null;
   function step() {
     if (busy) return;
     busy = true;
-    request('digitalisimo_backups_job_tick', {}, config.jobsNonce).then(function (data) {
+    var tick = restore ? request(restore.action, { digitalisimo_backups_restore: restore.token }, '') : request('digitalisimo_backups_job_tick', {}, config.jobsNonce);
+    tick.then(function (data) {
       busy = false;
       failures = 0;
       sessionFailures = 0;

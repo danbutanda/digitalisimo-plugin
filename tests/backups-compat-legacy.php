@@ -81,7 +81,7 @@ foreach ( $versions as $version ) {
 	if ( $GLOBALS['wpdb']->queries ) throw new RuntimeException( $version . ': el rechazo tocó la base de datos.' );
 	$GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después';
 	if ( 'untrusted' !== bk_restore_with( $path, array(), 'RESTAURAR SIN FIRMA' ) ) throw new RuntimeException( $version . ': sin fila debía ser no confiable.' );
-	if ( ! preg_grep( '/^INSERT INTO `wp_posts`.*contenido original ' . preg_quote( $version, '/' ) . '/s', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( $version . ': la restauración no dejó el mismo estado.' );
+	if ( ! preg_grep( '/contenido original ' . preg_quote( $version, '/' ) . '/', bk_inserts_into( 'wp_posts' ) ) ) throw new RuntimeException( $version . ': la restauración no dejó el mismo estado.' );
 	// Con fila y SHA-256 (desde 1.0.39 el historial lo guarda): procedencia y RESTAURAR.
 	$row = array( 'file' => basename( $path ), 'scope' => 'installation', 'destination' => 'local' );
 	if ( version_compare( $version, '1.0.39', '>=' ) ) {
@@ -118,7 +118,7 @@ foreach ( $older as $version ) {
 	if ( $GLOBALS['wpdb']->queries ) throw new RuntimeException( $version . ': el rechazo tocó la base de datos.' );
 	$GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después';
 	if ( 'untrusted' !== bk_restore_with( $path, array( 'file' => basename( $path ), 'scope' => 'network', 'destination' => 'local' ), 'RESTAURAR SIN FIRMA' ) ) throw new RuntimeException( $version . ': debía ser no confiable.' );
-	if ( ! preg_grep( '/^INSERT INTO `wp_posts`.*contenido original ' . preg_quote( $version, '/' ) . '/s', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( $version . ': la restauración no dejó el mismo estado.' );
+	if ( ! preg_grep( '/contenido original ' . preg_quote( $version, '/' ) . '/', bk_inserts_into( 'wp_posts' ) ) ) throw new RuntimeException( $version . ': la restauración no dejó el mismo estado.' );
 	$checked[] = $version;
 }
 
@@ -131,7 +131,7 @@ if ( ! $S::describe( $signed )['signed'] ) throw new RuntimeException( 'El respa
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado otra vez';
 $GLOBALS['wpdb']->queries = array();
 bk_call( $legacy, 'restore_digitalisimo_zip', $signed );
-if ( ! preg_grep( '/^INSERT INTO `wp_posts`.*contenido firmado/s', $GLOBALS['wpdb']->queries ) ) throw new RuntimeException( '1.0.58 no restauró el ZIP nuevo firmado.' );
+if ( ! preg_grep( '/contenido firmado/', bk_inserts_into( 'wp_posts' ) ) ) throw new RuntimeException( '1.0.58 no restauró el ZIP nuevo firmado.' );
 // Límite declarado: 1.0.58 no conoce el llavero y su restauración reemplaza wp_options sin conservarlo; lo cifrado
 // después se abre escribiendo la frase, que viaja con su salt en cada respaldo.
 if ( isset( $GLOBALS['bk_options'][ Digitalisimo_Backups_Keys::KEYRING ] ) ) throw new RuntimeException( 'Se esperaba que 1.0.58 no conservara el llavero (límite declarado).' );

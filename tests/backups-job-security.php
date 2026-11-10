@@ -111,7 +111,7 @@ $check( $key_a === $inner_manifest['auth']['key']['id'] && true === $inner_manif
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después del respaldo';
 $GLOBALS['wpdb']->queries = array();
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => basename( $final ), 'confirmation' => 'RESTAURAR' ) );
-$check( $ok && preg_grep( '/^INSERT INTO `wp_posts`.*punto y coma/s', $GLOBALS['wpdb']->queries ), 'No se restauró el DGBK hecho por un trabajo: ' . $message );
+$check( $ok && preg_grep( '/punto y coma/', bk_inserts_into( 'wp_posts' ) ), 'No se restauró el DGBK hecho por un trabajo: ' . $message );
 $safety = glob( $storage . '/safety-before-restore-*' ) ?: array();
 $check( 1 === count( $safety ) && '.zip' === substr( $safety[0], -4 ) && ! $E::is_encrypted( $safety[0] ), 'La copia previa no es un ZIP sin cifrar.' );
 $described = $S::describe( $safety[0] );

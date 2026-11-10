@@ -154,8 +154,10 @@ unlink( $storage . '/digitalisimo-enlace-externo.zip' );
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después del respaldo';
 list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'restore_request' ), array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE, 'backup_file' => $loose, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
 if ( ! $ok ) throw new RuntimeException( 'El respaldo válido sin registro no se restauró con RESTAURAR SIN FIRMA: ' . $message );
-$inserts = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'INSERT INTO `wp_posts`' ); } );
-if ( ! $inserts || false === strpos( implode( "\n", $inserts ), 'punto y coma' ) ) throw new RuntimeException( 'La restauración no reimportó los datos del respaldo.' );
+// Desde la restauración por pasos, los datos van a una tabla temporal que un RENAME TABLE pone en lugar de wp_posts.
+$inserts = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'INSERT INTO `wp_dgbkr_' ); } );
+$renames = array_filter( $GLOBALS['wpdb']->queries, function( $q ) { return 0 === strpos( $q, 'RENAME TABLE ' ) && false !== strpos( $q, ' TO `wp_posts`' ); } );
+if ( ! $inserts || ! $renames || false === strpos( implode( "\n", $inserts ), 'punto y coma' ) ) throw new RuntimeException( 'La restauración no reimportó los datos del respaldo.' );
 if ( 1 !== count( glob( $storage . '/safety-before-restore-*' ) ) ) throw new RuntimeException( 'La restauración no creó su copia previa.' );
 if ( ! in_array( Digitalisimo_Backups::ACTION_RESTORE, $GLOBALS['bk_nonces'], true ) ) throw new RuntimeException( 'La restauración no comprobó el nonce.' );
 $GLOBALS['bk_caps'] = array();

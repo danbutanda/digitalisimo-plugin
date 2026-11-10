@@ -36,9 +36,10 @@ if ( file_exists( $journal ) || ( $GLOBALS['bk_options'][ $K::KEYRING ]['active'
 $history = array_column( $GLOBALS['bk_options'][ $B::HISTORY ], 'file' );
 
 register_shutdown_function( function() use ( $K, $S, $B, $passphrase, $key_id, $box, $root, $storage, $journal, $backup, $history ) {
+	bk_close_dead_locks();
 	$check = function( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); };
 	// Lo que dejó el proceso muerto: el SQL reemplazó wp_options, sin llavero y con la seguridad del respaldo.
-	$check( ! isset( $GLOBALS['bk_options'][ $K::KEYRING ] ) && empty( $GLOBALS['bk_options'][ $S::OPTION ]['encrypt'] ), 'La simulación no dejó el sitio como lo deja el SQL a medias.' );
+	$check( ! isset( $GLOBALS['bk_options'][ $K::KEYRING ] ) && empty( $GLOBALS['bk_options'][ $S::OPTION ]['encrypt'] ), 'La simulación no dejó el sitio como lo deja el SQL recién cambiado.' );
 	$check( is_file( $journal ), 'La restauración interrumpida no dejó su diario.' );
 	$text = file_get_contents( $journal );
 	foreach ( array( $passphrase, $box, bin2hex( $root ), base64_encode( $root ), $K::b64url_encode( $root ), AUTH_KEY ) as $secret ) $check( false === strpos( $text, $secret ), 'El diario guarda un secreto.' );
@@ -76,8 +77,9 @@ register_shutdown_function( function() use ( $K, $S, $B, $passphrase, $key_id, $
 	echo "DIGITALÍSIMO Backups: restauración interrumpida en el SQL: historial, seguridad y llavero recuperados del diario, cifrado cerrado hasta la frase y misma clave.\n";
 } );
 
-// El proceso muere en mitad del SQL (después de reemplazar wp_options).
-$GLOBALS['wpdb']->exit_on = 'INSERT INTO `wp_posts`';
+// El proceso muere con el SQL ya en las tablas del sitio: desde la restauración por pasos, el SQL va a tablas temporales
+// y el momento crítico es justo después del RENAME TABLE que las pone en su lugar, antes de reponer historial y llavero.
+$GLOBALS['wpdb']->exit_after = 'RENAME TABLE ';
 $report = $S::open( $backup, bk_call( $B, 'history_item', basename( $backup ) ), '' );
 bk_call( $B, 'restore_digitalisimo_zip', $report['path'], $report );
 throw new RuntimeException( 'La restauración no se interrumpió.' );

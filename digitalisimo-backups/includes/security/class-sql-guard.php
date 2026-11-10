@@ -11,9 +11,13 @@ final class Digitalisimo_Backups_Sql_Reader {
 	private $current = '';
 	private $quote = '';
 	private $escaped = false;
+	/** Bytes ya leídos y, de cada sentencia que devolvió el último feed(), la posición justo después de su «;». */
+	private $fed = 0;
+	private $ends = array();
 
 	public function feed( $chunk ) {
 		$out = array();
+		$this->ends = array();
 		$length = strlen( $chunk );
 		$i = 0;
 		while ( $i < $length ) {
@@ -35,15 +39,21 @@ final class Digitalisimo_Backups_Sql_Reader {
 			$char = $chunk[ $i++ ];
 			if ( ';' === $char ) {
 				$statement = trim( $this->current );
-				if ( '' !== $statement && 0 !== strpos( $statement, '--' ) ) $out[] = $statement;
+				if ( '' !== $statement && 0 !== strpos( $statement, '--' ) ) { $out[] = $statement; $this->ends[] = $this->fed + $i; }
 				$this->current = '';
 				continue;
 			}
 			$this->quote = $char;
 			$this->current .= $char;
 		}
+		$this->fed += $length;
 		return $out;
 	}
+	/**
+	 * Posiciones (desde el primer byte leído) justo después del «;» de cada sentencia del último feed(). Una
+	 * restauración por tramos sigue desde una de ellas con un lector nuevo: tras un «;» fuera de comillas no queda estado.
+	 */
+	public function ends() { return $this->ends; }
 	public function finish() {
 		if ( '' !== $this->quote ) throw new Exception( 'La base de datos del ZIP termina con una cadena SQL incompleta.' );
 		$statement = trim( $this->current );
@@ -186,6 +196,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 		return $executed;
 	}
 
+	/** Una restauración por tramos sigue contando desde la sentencia en la que se quedó (para los mensajes de error). */
+	public function start_at( $count ) {
+		$this->count = max( 0, (int) $count );
+		return $this;
+	}
+	public function count() { return $this->count; }
 	/** true si la sentencia se ejecuta, false si sólo trae comentarios; excepción si no está permitida. */
 	public function check( $sql ) {
 		$this->count++;

@@ -68,12 +68,12 @@ class Bk_Credentials_DB extends Bk_Test_DB {
 		return parent::get_row( $query, $format );
 	}
 	public function get_results( $query, $format ) {
+		if ( false !== strpos( $query, 'SHOW INDEX FROM `wp_sitemeta`' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'meta_id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
 		if ( false === strpos( $query, '`wp_sitemeta`' ) || false !== strpos( $query, 'SHOW INDEX' ) ) return parent::get_results( $query, $format );
-		if ( false !== strpos( $query, 'LIMIT 500,' ) ) return array();
 		$rows = array();
 		$id = 0;
 		foreach ( $GLOBALS['bk_site_options'] as $name => $value ) $rows[] = array( 'meta_id' => (string) ++$id, 'site_id' => '1', 'meta_key' => $name, 'meta_value' => is_scalar( $value ) ? (string) $value : serialize( $value ) );
-		return $rows;
+		return bk_page( $rows, $query, 'meta_id' );
 	}
 	public function query( $sql ) {
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_sitemeta`' ) ) { $this->queries[] = $sql; $GLOBALS['bk_site_options'] = array(); return 1; }
@@ -421,6 +421,7 @@ $case( 'k', function() use ( $origin_backup, $config_with, $auth_literal, $origi
 } );
 register_shutdown_function( function() use ( $B, $C, $check, $leak, $secrets, $settings, $store, $current, $origin_auth, $origin_secure, &$failures, &$done, $case, &$interrupted ) {
 	if ( null !== $interrupted ) {
+		bk_close_dead_locks();
 		$case( 'k', function() use ( $B, $C, $check, $leak, $secrets, $settings, $store, $current, $origin_auth, $origin_secure ) {
 			$origin = $C::key_from( $origin_auth, $origin_secure );
 			$journal = bk_storage() . '/' . $B::RESTORE_JOURNAL;
@@ -440,7 +441,9 @@ register_shutdown_function( function() use ( $B, $C, $check, $leak, $secrets, $s
 } );
 if ( null !== $interrupted ) {
 	unset( $GLOBALS['bk_options'][ $C::OPTION ] );
-	$GLOBALS['wpdb']->exit_on = 'INSERT INTO `wp_posts`';
+	// Restauración por pasos: el momento crítico es justo después del RENAME TABLE (el SQL ya está en las tablas del sitio)
+	// y antes de volver a cifrar las credenciales; ahí muere el proceso.
+	$GLOBALS['wpdb']->exit_after = 'RENAME TABLE ';
 	$restore( $interrupted );
 	$failures[] = 'k';
 	echo "FALLA (k): la restauración no se interrumpió.\n";

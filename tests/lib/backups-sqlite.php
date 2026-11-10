@@ -87,6 +87,9 @@ class Bk_Sqlite_DB {
 			$statement->execute( array( $table ) );
 			$create = $statement->fetchColumn();
 			if ( false === $create ) throw new RuntimeException( "Table '" . $table . "' doesn't exist" );
+			// Como MySQL (y la integración SQLite de WordPress): el nombre entre acentos graves. SQLite guarda el de un
+			// ALTER TABLE … RENAME TO (el RENAME TABLE de la restauración por pasos) entre comillas dobles.
+			$create = preg_replace( '/^CREATE TABLE\s+(?:"(?:[^"]|"")+"|`(?:[^`]|``)+`|[A-Za-z0-9_$]+)/', 'CREATE TABLE `' . str_replace( '`', '``', $table ) . '`', (string) $create, 1 );
 			return array( array( 'Table' => $table, 'Create Table' => $create ) );
 		}
 		if ( preg_match( '/^SHOW TABLE STATUS WHERE Name = /i', $sql ) ) return array( array( 'Name' => 'x', 'Engine' => 'InnoDB' ) );
@@ -101,6 +104,21 @@ class Bk_Sqlite_DB {
 			return $out;
 		}
 		if ( preg_match( '/^(?:SET\s|LOCK TABLES|UNLOCK TABLES)/i', $sql ) ) return null;
+		// RENAME TABLE de MySQL (atómico): en SQLite, ALTER TABLE … RENAME TO dentro de una transacción.
+		if ( preg_match( '/^RENAME TABLE\s+(.+)$/is', $sql, $m ) ) {
+			preg_match_all( '/`((?:[^`]|``)+)`\s+TO\s+`((?:[^`]|``)+)`/i', $m[1], $pairs, PREG_SET_ORDER );
+			if ( ! $pairs ) throw new RuntimeException( 'RENAME TABLE no reconocido por la prueba.' );
+			$own = ! $this->pdo->inTransaction();
+			if ( $own ) $this->pdo->beginTransaction();
+			try {
+				foreach ( $pairs as $pair ) $this->pdo->exec( 'ALTER TABLE "' . str_replace( '"', '""', str_replace( '``', '`', $pair[1] ) ) . '" RENAME TO "' . str_replace( '"', '""', str_replace( '``', '`', $pair[2] ) ) . '"' );
+				if ( $own ) $this->pdo->commit();
+			} catch ( Throwable $e ) {
+				if ( $own ) $this->pdo->rollBack();
+				throw $e;
+			}
+			return null;
+		}
 		if ( preg_match( '/^START TRANSACTION/i', $sql ) ) { if ( ! $this->pdo->inTransaction() ) $this->pdo->beginTransaction(); return null; }
 		if ( preg_match( '/^(COMMIT|ROLLBACK)$/i', $sql, $m ) ) { if ( $this->pdo->inTransaction() ) ( 'COMMIT' === strtoupper( $m[1] ) ? $this->pdo->commit() : $this->pdo->rollBack() ); return null; }
 		if ( preg_match( '/^INSERT INTO `((?:[^`]|``)+)`\s*\(([^)]*)\)\s*VALUES\s*/i', $sql, $m ) ) return $this->insert( str_replace( '``', '`', $m[1] ), $m[2], substr( $sql, strlen( $m[0] ) ) );

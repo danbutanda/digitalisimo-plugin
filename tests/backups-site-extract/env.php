@@ -185,6 +185,18 @@ class Digi_Extract_DB {
 		$sql = trim( $sql );
 		if ( preg_match( '/^(SET |START TRANSACTION|COMMIT|ROLLBACK|UNLOCK TABLES|LOCK TABLES)/i', $sql ) ) return 1;
 		if ( preg_match( '/^DROP TABLE IF EXISTS `([^`]+)`$/', $sql, $m ) ) { unset( $this->tables[ $m[1] ] ); return 1; }
+		// RENAME TABLE de MySQL (atómico, en orden): la restauración por pasos cambia así las tablas temporales por las del sitio.
+		if ( preg_match( '/^RENAME TABLE (.+)$/s', $sql, $m ) && preg_match_all( '/`((?:[^`]|``)+)` TO `((?:[^`]|``)+)`/', $m[1], $pairs, PREG_SET_ORDER ) ) {
+			$tables = $this->tables;
+			foreach ( $pairs as $pair ) {
+				if ( ! isset( $tables[ $pair[1] ] ) || isset( $tables[ $pair[2] ] ) ) { $this->last_error = "Can't rename " . $pair[1] . ' to ' . $pair[2]; return false; }
+				$tables[ $pair[2] ] = $tables[ $pair[1] ];
+				$tables[ $pair[2] ]['create'] = preg_replace( '/^CREATE TABLE `[^`]+`/', 'CREATE TABLE `' . $pair[2] . '`', (string) ( $tables[ $pair[2] ]['create'] ?? '' ) );
+				unset( $tables[ $pair[1] ] );
+			}
+			$this->tables = $tables;
+			return 1;
+		}
 		if ( preg_match( "/^DELETE FROM `([^`]+)` WHERE (.+)$/s", $sql, $m ) ) {
 			if ( ! isset( $this->tables[ $m[1] ] ) ) return 0;
 			$gone = array_map( 'serialize', self::where( $this->tables[ $m[1] ]['rows'], $m[2] ) );

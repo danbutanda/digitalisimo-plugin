@@ -479,6 +479,9 @@ if ( ! function_exists( 'did_action' ) ) {
 			if ( null !== $autoload || ! isset( $GLOBALS['wp']['autoload'][ $blog ][ $key ] ) ) {
 				$GLOBALS['wp']['autoload'][ $blog ][ $key ] = null === $autoload ? true : (bool) ( 'no' === $autoload || 'off' === $autoload ? false : $autoload );
 			}
+			// Última escritura de cada opción, con su carga automática: sobrevive a delete_option() para las pruebas de lo
+			// que una etapa escribe y borra dentro del mismo paso (con PHP nativo una etapa entera cabe en un paso).
+			$GLOBALS['wp']['f8_last_write'][ $blog ][ $key ] = array( 'value' => $value, 'autoload' => $GLOBALS['wp']['autoload'][ $blog ][ $key ] );
 			return true;
 		}
 	}

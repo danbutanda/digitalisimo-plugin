@@ -122,7 +122,7 @@ $restore = function( $secret, $adopt = false ) use ( $sealed ) { return bk_post(
 $GLOBALS['wpdb']->posts[0]['post_content'] = 'cambiado después del respaldo';
 $GLOBALS['wpdb']->queries = array();
 list( $ok, $message ) = $restore( '' );
-if ( ! $ok || ! preg_grep( '/^INSERT INTO `wp_posts`.*punto y coma/s', $GLOBALS['wpdb']->queries ) || glob( $storage . '/.staging/*' ) ) throw new RuntimeException( 'No se restauró el respaldo cifrado con la clave del sitio: ' . $message );
+if ( ! $ok || ! preg_grep( '/punto y coma/', bk_inserts_into( 'wp_posts' ) ) || glob( $storage . '/.staging/*' ) ) throw new RuntimeException( 'No se restauró el respaldo cifrado con la clave del sitio: ' . $message );
 if ( ( $GLOBALS['bk_options'][ $K::KEYRING ]['active'] ?? '' ) !== $key_id || empty( $GLOBALS['bk_options'][ $S::OPTION ]['encrypt'] ) ) throw new RuntimeException( 'La restauración perdió el llavero o la configuración de cifrado.' );
 $ring = $GLOBALS['bk_options'][ $K::KEYRING ];
 unset( $GLOBALS['bk_options'][ $K::KEYRING ] );

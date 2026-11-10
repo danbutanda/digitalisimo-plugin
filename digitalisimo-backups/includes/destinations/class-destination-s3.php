@@ -46,10 +46,14 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		if ( ! in_array( $style, array( 'auto', 'virtual', 'path' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El estilo de ruta de ' . static::label() . ' no es válido; revísalo en Backups → Servidores.' );
 		return $style;
 	}
-	/** Una clave de un recibo sólo se usa si está en la carpeta de esta conexión. */
+	/**
+	 * Una clave de un recibo sólo se usa si está en la carpeta de esta conexión. Sin carpeta el prefijo es '' (la raíz
+	 * del bucket): strncmp() con longitud 0 lo acepta en cualquier PHP; strpos() con aguja vacía da false en PHP 7.4.
+	 */
 	protected function own_key( array $remote ) {
 		$key = (string) ( $remote['key'] ?? '' );
-		if ( '' === $key || preg_match( '/[\x00-\x1F\x7F]/', $key ) || ( isset( $remote['bucket'] ) && (string) $remote['bucket'] !== $this->bucket() ) || 0 !== strpos( $key, $this->prefix() ) || false !== strpos( '/' . $key . '/', '/../' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en el bucket y la carpeta de esta conexión de ' . static::label() . '; no se toca.' );
+		$prefix = $this->prefix();
+		if ( '' === $key || preg_match( '/[\x00-\x1F\x7F]/', $key ) || ( isset( $remote['bucket'] ) && (string) $remote['bucket'] !== $this->bucket() ) || 0 !== strncmp( $key, $prefix, strlen( $prefix ) ) || false !== strpos( '/' . $key . '/', '/../' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia remota no está en el bucket y la carpeta de esta conexión de ' . static::label() . '; no se toca.' );
 		return $key;
 	}
 	protected function key_for( $name ) { return $this->prefix() . $name; }

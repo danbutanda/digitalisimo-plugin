@@ -77,6 +77,9 @@ final class Digitalisimo_Backups_Notify {
 	 * de enviar: dos procesos que vacían a la vez no envían el mismo aviso dos veces. Nunca lanza.
 	 */
 	public static function flush_jobs() {
+		// Con WordPress mínimo (ticks de una restauración) no hay plugins de SMTP: wp_mail() iría por mail() de PHP. El
+		// aviso queda pendiente y Jobs::schedule() programa un tick que lo envía con WordPress entero.
+		if ( self::deferred() ) return 0;
 		try {
 			$jobs = Digitalisimo_Backups_Job_Store::all();
 		} catch ( Throwable $e ) {
@@ -94,6 +97,19 @@ final class Digitalisimo_Backups_Notify {
 		}
 		return $sent;
 	}
+	/** Esta petición carga WordPress mínimo (la puerta del mantenimiento de una restauración): los avisos esperan. */
+	public static function deferred() {
+		return defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' );
+	}
+	/** Hay un aviso de un trabajo terminado sin enviar. */
+	public static function pending() {
+		try {
+			foreach ( Digitalisimo_Backups_Job_Store::all() as $job ) if ( 'pending' === ( $job['notice'] ?? '' ) && Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return true;
+		} catch ( Throwable $e ) {
+			return false;
+		}
+		return false;
+	}
 	/**
 	 * Reclama el aviso pendiente de un trabajo con el cerrojo de los trabajos: devuelve el trabajo (ya marcado `sent`)
 	 * sólo al primero que lo pide; otro proceso que leyó la lista antes recibe null y no envía.
@@ -108,6 +124,7 @@ final class Digitalisimo_Backups_Notify {
 	}
 	/** Aviso de un trabajo terminado: respaldo creado, respaldo fallido o copia remota fallida (el ZIP local se conserva). */
 	public static function job( array $job ) {
+		if ( 'restore' === ( $job['kind'] ?? '' ) ) return self::restore_job( $job );
 		if ( 'migrate' === ( $job['spec']['kind'] ?? '' ) ) return self::migration( $job );
 		$snapshot = self::snapshot();
 		$spec = (array) ( $job['spec'] ?? array() );
@@ -173,6 +190,28 @@ final class Digitalisimo_Backups_Notify {
 	}
 
 	/* ------------------------------------------------------------------ Restauraciones */
+
+	/**
+	 * Aviso de una restauración por pasos (o de su vuelta a la copia previa) al terminar, con los ajustes que había antes
+	 * del SQL (los guardó el trabajo al encolarse): el SQL restaurado trae los del respaldo.
+	 */
+	public static function restore_job( array $job ) {
+		$spec = (array) ( $job['spec'] ?? array() );
+		$snapshot = is_array( $spec['notify'] ?? null ) ? $spec['notify'] : self::snapshot();
+		$ok = 'success' === ( $job['status'] ?? '' );
+		$result = (array) ( $job['result']['restore'] ?? array() );
+		$rollback = ! empty( $spec['rollback'] );
+		$facts = array(
+			'file' => (string) ( $spec['file'] ?? '' ),
+			'via' => (string) ( $spec['origin']['via'] ?? '' ),
+			'safety' => $rollback ? '' : (string) ( $result['safety_backup'] ?? $job['checkpoint']['safety']['file'] ?? '' ),
+			'notes' => array_filter( array( $rollback ? 'Vuelta a la copia previa tras una restauración que falló a mitad: el sitio está como antes de ella.' : '', (string) ( $result['notice'] ?? '' ) ) ),
+			'message' => (string) ( $job['error']['message'] ?? $job['progress']['message'] ?? '' ),
+			// Empezó a cambiar algo (la copia previa existe o es la vuelta a ella): «falló», no «se rechazó sin cambiar nada».
+			'started' => $rollback || ! in_array( (string) ( $job['phase'] ?? '' ), array( 'inspect', 'safety' ), true ),
+		);
+		return self::restore( $snapshot, $ok, $facts );
+	}
 
 	/**
 	 * Aviso de una restauración que empezó (se abrió el paquete para restaurarlo): terminada, rechazada antes de cambiar

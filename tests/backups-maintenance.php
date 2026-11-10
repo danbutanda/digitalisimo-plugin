@@ -16,6 +16,8 @@ define( 'WP_CONTENT_DIR', $root . '/public/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/public/wp-content/plugins' );
 define( 'DIGITALISIMO_BACKUPS_STORAGE_DIR', $root . '/private' );
 require __DIR__ . '/backups-coverage/env.php';
+// La restauración es un trabajo por pasos con reintentos: aquí, sin esperas entre ellos.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value, ...$args ) { return 'digitalisimo_backups_job_backoff' === $hook ? 0 : $value; } }
 digi_make_wordpress( $root . '/public' );
 function is_email( $email ) { return filter_var( $email, FILTER_VALIDATE_EMAIL ) ? $email : false; }
 $GLOBALS['mails'] = array();
@@ -36,9 +38,11 @@ class Digi_Maintenance_DB extends Digi_Test_DB {
 		if ( 0 === strpos( $sql, 'INSERT INTO' ) ) {
 			$this->seen[] = digi_wp_maintenance();
 			if ( $this->die_after && count( $this->seen ) >= $this->die_after ) {
-				// El SQL ya reemplazó wp_options: el correo de administración ahora es el del respaldo.
-				update_option( 'admin_email', 'del-respaldo@example.test' );
-				exit; // La muerte del proceso: ningún finally se ejecuta.
+				// La muerte del proceso (como SIGKILL): ningún finally ni el apagado del motor de trabajos.
+				$current = new ReflectionProperty( 'Digitalisimo_Backups_Jobs', 'current' );
+				if ( PHP_VERSION_ID < 80100 ) $current->setAccessible( true );
+				$current->setValue( null, null );
+				exit;
 			}
 		}
 		return parent::query( $sql );
@@ -92,14 +96,15 @@ digi_assert( true === digi_wp_maintenance(), 'La verificación de la copia previ
 $M::stop();
 
 // 4. Una restauración que falla después del SQL (y recupera la copia previa) también saca al sitio del mantenimiento.
-// Un archivo del respaldo que no se puede escribir (en su lugar hay una carpeta): falla la extracción, no la copia previa.
-unlink( WP_CONTENT_DIR . '/plugins/example.php' );
-mkdir( WP_CONTENT_DIR . '/plugins/example.php' );
+// Un archivo del respaldo que no se puede escribir (cambió y su carpeta es de sólo lectura): falla el cambio, no la copia
+// previa; la vuelta a la copia previa (que no tiene que escribirlo) lo deja como estaba y termina sin mantenimiento.
+file_put_contents( WP_CONTENT_DIR . '/plugins/example.php', "<?php // plugin de ejemplo, cambiado\n" );
+chmod( WP_CONTENT_DIR . '/plugins', 0555 );
 $db->seen = array();
 $failed = $B::service_restore( $created['file'], array( 'confirm' => 'RESTAURAR' ) );
-digi_assert( is_wp_error( $failed ) && 500 === $failed->get_error_data()['status'] && $db->seen && ! in_array( false, $db->seen, true ), 'La restauración que debía fallar tras el SQL no lo hizo, o corrió sin mantenimiento.' );
+digi_assert( is_wp_error( $failed ) && 500 === $failed->get_error_data()['status'] && $db->seen && ! in_array( false, $db->seen, true ), 'La restauración que debía fallar tras el SQL no lo hizo, o corrió sin mantenimiento: ' . json_encode( array( is_wp_error( $failed ) ? array( $failed->get_error_message(), $failed->get_error_data() ) : $failed, $db->seen ) ) );
 digi_assert( ! file_exists( ABSPATH . '.maintenance' ), 'Una restauración fallida dejó el sitio en mantenimiento.' );
-rmdir( WP_CONTENT_DIR . '/plugins/example.php' );
+chmod( WP_CONTENT_DIR . '/plugins', 0755 );
 file_put_contents( WP_CONTENT_DIR . '/plugins/example.php', "<?php // plugin de ejemplo\n" );
 
 // 5. Un `.maintenance` que es un enlace simbólico nunca se sigue ni se borra (la copia previa, además, rechaza cualquier
@@ -115,13 +120,38 @@ digi_assert( 'no tocar' === file_get_contents( $target ) && is_link( ABSPATH . '
 unlink( ABSPATH . '.maintenance' );
 
 // 6. El proceso muere en mitad del SQL: el sitio queda en mantenimiento y la operación siguiente lo retira y avisa.
+// Desde la restauración por pasos, la operación siguiente la reanuda (el SQL va a tablas temporales y el sitio no cambió)
+// y el mantenimiento se retira al terminar; un diario de la restauración en una sola petición (la de UpdraftPlus) sigue
+// retirándolo y avisando como antes.
 $GLOBALS['mails'] = array();
 $db->seen = array();
 $db->die_after = 3;
-register_shutdown_function( function() use ( $B, $root ) {
+register_shutdown_function( function() use ( $B, $root, $created ) {
 	try {
 		$GLOBALS['wpdb']->die_after = 0;
 		digi_assert( true === digi_wp_maintenance() && Digitalisimo_Backups_Maintenance::ours(), 'Al morir el proceso, el sitio no quedó en mantenimiento.' );
+		// La operación siguiente es otra petición: cuando empieza, PHP (o el sistema, si el proceso murió) ya cerró los
+		// descriptores de la que murió, y con ellos su bloqueo de operaciones. Aquí sigue siendo la misma petición: PHP 8
+		// destruye las variables locales al ejecutar exit, pero PHP 7.4 sale sin deshacer la pila y el $lock de
+		// service_restore() sigue abierto y con flock hasta el final, así que se cierra como lo haría ese final.
+		$lock_path = realpath( DIGITALISIMO_BACKUPS_STORAGE_DIR . '/' . $B::OPERATION_LOCK );
+		foreach ( get_resources( 'stream' ) as $handle ) {
+			$meta = stream_get_meta_data( $handle );
+			if ( false !== $lock_path && realpath( (string) ( $meta['uri'] ?? '' ) ) === $lock_path ) fclose( $handle );
+		}
+		for ( $i = 0; $i < 400 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+		$last = null;
+		foreach ( Digitalisimo_Backups_Jobs::all() as $job ) if ( Digitalisimo_Backups_Jobs::is_restore( $job ) && ( ! $last || (float) $job['queued_at'] >= (float) $last['queued_at'] ) ) $last = $job;
+		digi_assert( $last && 'success' === $last['status'] && in_array( 'interrupted', array_column( Digitalisimo_Backups_Job_Store::events( $last['id'] ), 'type' ), true ), 'La operación siguiente no reanudó la restauración muerta en mitad del SQL.' );
+		digi_assert( ! file_exists( ABSPATH . '.maintenance' ) && false === digi_wp_maintenance(), 'La operación siguiente no sacó al sitio del mantenimiento.' );
+		digi_assert( ! $GLOBALS['mails'], 'Una restauración reanudada avisó de un fallo.' );
+		// El diario de una restauración en una sola petición que murió (UpdraftPlus): la operación siguiente retira el
+		// mantenimiento y avisa a quien recibía los avisos antes del SQL.
+		Digitalisimo_Backups_Maintenance::start();
+		$journal = new ReflectionMethod( $B, 'write_restore_journal' );
+		if ( PHP_VERSION_ID < 80100 ) $journal->setAccessible( true );
+		$journal->invoke( null, array() );
+		update_option( 'admin_email', 'del-respaldo@example.test' );
 		$lock = $B::try_operation_lock();
 		$B::release_operation_lock( $lock );
 		digi_assert( ! file_exists( ABSPATH . '.maintenance' ) && false === digi_wp_maintenance(), 'La operación siguiente no sacó al sitio del mantenimiento.' );

@@ -67,7 +67,10 @@ register_shutdown_function( function() use ( $dest ) {
 	echo "DIGITALÍSIMO Backups: una red restaurada en otro dominio y cortada antes de extraer los archivos queda coherente (blogs, site, sitemeta, home y permisos con el destino).\n";
 } );
 
-// El proceso muere al empezar a escribir los archivos en la raíz de WordPress (después del SQL).
+// El proceso muere al empezar a escribir los archivos en la raíz de WordPress (después del SQL). Con la restauración por
+// pasos, el SQL ya está en las tablas del sitio (tras su RENAME) cuando se mueve el primer archivo que cambió: aquí, uno
+// que cambió después del respaldo.
+file_put_contents( ABSPATH . 'wp-load.php', "<?php // cambiado después del respaldo\n" );
 $GLOBALS['bk_on_mkdir'] = function( $path ) use ( $dest ) {
 	if ( 0 !== strpos( str_replace( '\\', '/', $path ), rtrim( ABSPATH, '/' ) ) || ! in_array( 'red_site', $dest->names(), true ) ) return;
 	$GLOBALS['ri_cut'] = true;

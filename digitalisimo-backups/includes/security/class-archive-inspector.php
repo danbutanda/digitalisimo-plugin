@@ -26,8 +26,15 @@ final class Digitalisimo_Backups_Archive_Inspector {
 	public static function entries( $zip, $trusted, $layout = 'digitalisimo' ) {
 		$count = (int) $zip->numFiles;
 		if ( $count > self::max_entries() ) throw new Exception( 'El ZIP tiene ' . $count . ' entradas; el máximo permitido es ' . self::max_entries() . ' (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
-		$names = array();
-		$folded = array();
+		// Memoria acotada (H1): los duplicados exactos los reconoce la tabla de nombres de libzip (fuera de memory_limit) y
+		// sólo se guardan los nombres con «\\». Las colisiones de mayúsculas sólo importan en un disco que no las distingue:
+		// con pocas entradas, un entero de 64 bits por nombre en minúsculas en memoria (como siempre, sin sondear el disco);
+		// con muchas, se sondea el disco primero y, si no distingue mayúsculas, la tabla va en un archivo temporal, así que
+		// 100 000 o 2 000 000 de entradas caben en 64 MB (revisión, M4).
+		$converted = array();
+		$folded = $count <= self::FOLD_IN_MEMORY ? array() : null;
+		$table = null;
+		if ( null === $folded && self::case_insensitive( ABSPATH ) ) $table = self::fold_table( $count );
 		$collisions = false;
 		$declared = 0;
 		for ( $i = 0; $i < $count; $i++ ) {
@@ -49,15 +56,64 @@ final class Digitalisimo_Backups_Archive_Inspector {
 			}
 			if ( 0 !== (int) ( $stat['encryption_method'] ?? 0 ) ) throw new Exception( 'El ZIP contiene una entrada cifrada que no se puede verificar: ' . self::shown( $raw ) );
 			if ( ! in_array( (int) ( $stat['comp_method'] ?? 0 ), array( 0, 8 ), true ) ) throw new Exception( 'El ZIP usa un método de compresión no admitido en ' . self::shown( $raw ) . '.' );
-			if ( isset( $names[ $name ] ) ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados: ' . self::shown( $raw ) );
-			$names[ $name ] = true;
-			$lower = strtolower( $body );
-			if ( isset( $folded[ $lower ] ) && $folded[ $lower ] !== $body ) $collisions = true;
-			$folded[ $lower ] = $body;
+			if ( $zip->locateName( $raw ) !== $i ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados: ' . self::shown( $raw ) );
+			if ( $name !== $raw ) {
+				$other = $zip->locateName( $name );
+				if ( false !== $other && $other !== $i || isset( $converted[ $name ] ) ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados: ' . self::shown( $raw ) );
+				$converted[ $name ] = true;
+			} elseif ( isset( $converted[ $name ] ) ) {
+				throw new Exception( 'El ZIP contiene nombres de archivo duplicados: ' . self::shown( $raw ) );
+			}
+			if ( null !== $folded ) {
+				$lower = self::key64( strtolower( $body ) );
+				$exact = md5( $body, true );
+				if ( isset( $folded[ $lower ] ) && $folded[ $lower ] !== $exact ) $collisions = true;
+				$folded[ $lower ] = $exact;
+			} elseif ( null !== $table && self::fold_collides( $table, $zip, $i, $body ) ) {
+				$collisions = true;
+			}
 			if ( ! $directory ) $declared += max( 0, (int) $stat['size'] );
 		}
-		if ( $collisions && self::case_insensitive( ABSPATH ) ) throw new Exception( 'El ZIP contiene archivos que sólo se distinguen por mayúsculas y el disco de destino no las distingue.' );
+		if ( $table ) fclose( $table['handle'] );
+		if ( $collisions && ( null === $folded || self::case_insensitive( ABSPATH ) ) ) throw new Exception( 'El ZIP contiene archivos que sólo se distinguen por mayúsculas y el disco de destino no las distingue.' );
 		return array( 'count' => $count, 'declared' => $declared );
+	}
+	/** Entradas hasta las que las colisiones de mayúsculas se buscan en memoria (unos 2 MB). */
+	const FOLD_IN_MEMORY = 20000;
+	/** Tabla hash en un archivo temporal: registros de 12 bytes (8 del MD5 del nombre en minúsculas y la posición + 1). */
+	private static function fold_table( $count ) {
+		$slots = 1;
+		while ( $slots < 2 * max( 1, (int) $count ) ) $slots <<= 1;
+		$handle = tmpfile();
+		if ( ! $handle || ! ftruncate( $handle, $slots * 12 ) ) throw new Exception( 'No se pudo preparar la comprobación de nombres del ZIP en un archivo temporal.' );
+		return array( 'handle' => $handle, 'slots' => $slots );
+	}
+	/** Anota la entrada $index en la tabla; true si otra entrada tiene el mismo nombre salvo mayúsculas. */
+	private static function fold_collides( array $table, $zip, $index, $body ) {
+		$lower = strtolower( $body );
+		$key = substr( md5( $lower, true ), 0, 8 );
+		$slot = unpack( 'N', $key )[1] & ( $table['slots'] - 1 );
+		for ( $probes = 0; $probes < $table['slots']; $probes++ ) {
+			fseek( $table['handle'], $slot * 12 );
+			$record = (string) fread( $table['handle'], 12 );
+			$other = 12 === strlen( $record ) ? unpack( 'N', substr( $record, 8, 4 ) )[1] : 0;
+			if ( 0 === $other ) {
+				fseek( $table['handle'], $slot * 12 );
+				fwrite( $table['handle'], $key . pack( 'N', $index + 1 ) );
+				return false;
+			}
+			if ( substr( $record, 0, 8 ) === $key ) {
+				$name = rtrim( str_replace( '\\', '/', (string) $zip->getNameIndex( $other - 1 ) ), '/' );
+				if ( strtolower( $name ) === $lower ) return $name !== $body;
+			}
+			$slot = ( $slot + 1 ) & ( $table['slots'] - 1 );
+		}
+		return false;
+	}
+	/** Entero de 64 bits de un nombre (clave compacta de un array; una colisión sólo puede rechazar de más). */
+	private static function key64( $text ) {
+		$value = unpack( 'J', substr( md5( $text, true ), 0, 8 ) );
+		return (int) $value[1];
 	}
 	/** Sonda del sistema de archivos de destino; sólo se usa si hay nombres que chocan sin mayúsculas. */
 	public static function case_insensitive( $directory ) {
@@ -73,11 +129,18 @@ final class Digitalisimo_Backups_Archive_Inspector {
 		return $insensitive;
 	}
 
-	/** Esquema estricto del manifiesto v3; devuelve el manifiesto decodificado. */
+	/**
+	 * Esquema estricto del manifiesto v3; devuelve el primer nivel del manifiesto decodificado, sin `entries` (con
+	 * `entries_count`). Se lee por partes con memoria constante (Digitalisimo_Backups_Manifest_Stream): con 64 MB, el
+	 * manifiesto de un sitio de ~17 000 archivos no cabía decodificado entero (H1). Las entradas se comprueban de una en una
+	 * con la misma regla; la comparación con el contenido del ZIP la hace la verificación del contenido.
+	 */
 	public static function manifest( $zip ) {
-		$bytes = Digitalisimo_Backups_Manifest_Auth::read_manifest( $zip );
-		if ( null === $bytes ) throw new Exception( 'Falta el manifiesto del respaldo completo.' );
-		$data = json_decode( $bytes, true, 64 );
+		if ( ! $zip->statName( 'manifest.json' ) ) throw new Exception( 'Falta el manifiesto del respaldo completo.' );
+		$read = Digitalisimo_Backups_Manifest_Stream::read( $zip, function( $name, $entry ) {
+			if ( ! Digitalisimo_Backups_Manifest_Index::valid_entry( $entry ) ) throw new Exception( 'El manifiesto del respaldo no es válido: entrada ' . self::shown( $name ) . '.' );
+		} );
+		$data = $read['data'];
 		if ( ! is_array( $data ) ) throw new Exception( 'El manifiesto del respaldo no es JSON válido.' );
 		$invalid = function( $what ) { return new Exception( 'El manifiesto del respaldo no es válido: ' . $what . '.' ); };
 		if ( ! is_string( $data['backup_id'] ?? null ) || ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iD', $data['backup_id'] ) ) throw $invalid( 'identificador' );
@@ -88,9 +151,12 @@ final class Digitalisimo_Backups_Archive_Inspector {
 		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) throw $invalid( 'URL del sitio' );
 		if ( isset( $data['multisite'] ) && ! is_bool( $data['multisite'] ) ) throw $invalid( 'tipo de instalación' );
 		if ( ! is_int( $data['file_count'] ?? null ) || $data['file_count'] < 0 || ! is_int( $data['uncompressed_size'] ?? null ) || $data['uncompressed_size'] < 0 ) throw $invalid( 'totales' );
-		foreach ( (array) ( $data['entries'] ?? array() ) as $name => $entry ) {
-			if ( ! is_array( $entry ) || ! is_int( $entry['size'] ?? null ) || $entry['size'] < 0 || ! is_string( $entry['sha256'] ?? null ) || ! preg_match( '/^[0-9a-f]{64}$/D', $entry['sha256'] ) ) throw $invalid( 'entrada ' . self::shown( $name ) );
+		// Antes, `entries` que no era un objeto se recorría como lista: un escalar (null, texto) no tenía entradas que revisar.
+		if ( array_key_exists( 'entries', $data ) && is_array( $data['entries'] ) ) {
+			foreach ( $data['entries'] as $name => $entry ) if ( ! Digitalisimo_Backups_Manifest_Index::valid_entry( $entry ) ) throw $invalid( 'entrada ' . self::shown( $name ) );
 		}
+		unset( $data['entries'] );
+		$data['entries_count'] = null === $read['entries'] ? 0 : (int) $read['entries'];
 		return $data;
 	}
 

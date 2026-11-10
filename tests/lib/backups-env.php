@@ -21,6 +21,15 @@ defined( 'AUTH_KEY' ) || define( 'AUTH_KEY', 'clave-de-prueba-auth-0123456789abc
 defined( 'SECURE_AUTH_KEY' ) || define( 'SECURE_AUTH_KEY', 'clave-de-prueba-secure-0123456789abcdef0123456789abcd' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $GLOBALS['bk_root'] . '/' . $name, '<?php // ' . $name . "\n" );
 
+if ( ! function_exists( 'bk_page' ) ) {
+	/** Lote de filas como lo daría MySQL: paginación por clave («WHERE (`col` > N)») y LIMIT con o sin desplazamiento. */
+	function bk_page( array $rows, $query, $key ) {
+		if ( preg_match( '/ WHERE \(`' . preg_quote( $key, '/' ) . '` > \'?(-?[0-9]+)\'?\)/', $query, $after ) ) $rows = array_values( array_filter( $rows, function( $row ) use ( $key, $after ) { return (int) $row[ $key ] > (int) $after[1]; } ) );
+		if ( preg_match( '/ LIMIT ([0-9]+), ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, (int) $limit[1], (int) $limit[2] );
+		if ( preg_match( '/ LIMIT ([0-9]+)$/', $query, $limit ) ) return array_slice( $rows, 0, (int) $limit[1] );
+		return $rows;
+	}
+}
 /** Base de datos en memoria: wp_options refleja las opciones simuladas; wp_posts trae datos difíciles de escapar. */
 class Bk_Test_DB {
 	public $base_prefix = 'wp_';
@@ -30,12 +39,25 @@ class Bk_Test_DB {
 	public $fail_on = '';
 	/** Simula que el proceso muere en esta sentencia: exit() no ejecuta ningún finally. */
 	public $exit_on = '';
+	/** Como exit_on, pero después de ejecutarla (el proceso muere con la sentencia hecha). */
+	public $exit_after = '';
 	public $posts = array();
 	public $extra_tables = array();
+	/** Tablas que no son wp_options ni wp_posts (las temporales de una restauración): nombre => opciones leídas de sus INSERT. */
+	public $staged = array();
 	public function __construct() { $this->posts = array( array( 'ID' => '1', 'post_content' => "Texto con 'comillas', \"dobles\", ; punto y coma, \\ barra, salto\nde línea y \0 nulo" ), array( 'ID' => '2', 'post_content' => null ) ); }
 	public function tables() { return array_merge( array( 'wp_options', 'wp_posts' ), array_keys( $this->extra_tables ) ); }
-	public function get_col( $query ) { return $this->tables(); }
+	/** SHOW TABLES (con LIKE) ve también las tablas temporales de una restauración, como MySQL. */
+	public function get_col( $query ) {
+		$all = array_values( array_unique( array_merge( $this->tables(), array_keys( $this->staged ) ) ) );
+		if ( preg_match( "/SHOW TABLES LIKE '((?:[^'\\\\]|\\\\.)*)'/", (string) $query, $m ) ) {
+			$pattern = '/^' . strtr( preg_quote( stripslashes( str_replace( array( '\\_', '\\%' ), array( "\x01", "\x02" ), $m[1] ) ), '/' ), array( '%' => '.*', '_' => '.', "\x01" => '_', "\x02" => '%' ) ) . '$/D';
+			return array_values( array_filter( $all, function( $t ) use ( $pattern ) { return preg_match( $pattern, $t ); } ) );
+		}
+		return 0 === strpos( (string) $query, 'SHOW TABLES' ) ? $all : $this->tables();
+	}
 	public function prepare( $query, $value ) { return str_replace( '%s', "'" . $value . "'", $query ); }
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
 	public function get_row( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW TABLE STATUS' ) ) return array( 'Engine' => 'InnoDB' );
@@ -54,9 +76,8 @@ class Bk_Test_DB {
 	public function get_results( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => false !== strpos( $query, 'wp_options' ) ? 'option_id' : 'ID', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
-		if ( false !== strpos( $query, 'LIMIT 500,' ) ) return array();
-		if ( false !== strpos( $query, '`wp_options`' ) ) return $this->option_rows();
-		if ( false !== strpos( $query, '`wp_posts`' ) ) return $this->posts;
+		if ( false !== strpos( $query, '`wp_options`' ) ) return bk_page( $this->option_rows(), $query, 'option_id' );
+		if ( false !== strpos( $query, '`wp_posts`' ) ) return bk_page( $this->posts, $query, 'ID' );
 		return array();
 	}
 	public function db_version() { return '8.0'; }
@@ -66,15 +87,38 @@ class Bk_Test_DB {
 		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->last_error = 'Fallo simulado'; return false; }
 		if ( '' !== $this->exit_on && false !== strpos( $sql, $this->exit_on ) ) { $this->exit_on = ''; exit; }
 		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) $GLOBALS['bk_options'] = array();
-		if ( 0 === strpos( $sql, 'INSERT INTO `wp_options`' ) && preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
-			$value = bk_sql_unescape( $m[1][2] );
-			$unserialized = @unserialize( $value );
-			$GLOBALS['bk_options'][ bk_sql_unescape( $m[1][1] ) ] = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
+		elseif ( preg_match( '/^DROP TABLE(?: IF EXISTS)? `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) ) unset( $this->staged[ $t[1] ] );
+		if ( preg_match( '/^CREATE TABLE `([^`]+)`/', $sql, $t ) && ! in_array( $t[1], array( 'wp_options', 'wp_posts' ), true ) && ! isset( $this->staged[ $t[1] ] ) ) $this->staged[ $t[1] ] = array();
+		if ( preg_match( '/^INSERT INTO `([^`]+)`/', $sql, $t ) && preg_match_all( "/'((?:[^'\\\\]++|\\\\.)*+)'|NULL/s", substr( $sql, strpos( $sql, 'VALUES' ) ), $m ) && count( $m[1] ) >= 3 ) {
+			$values = array_map( 'bk_sql_unescape', $m[1] );
+			if ( 'wp_options' === $t[1] ) $GLOBALS['bk_options'][ $values[1] ] = bk_maybe_unserialize( $values[2] );
+			elseif ( 'wp_posts' !== $t[1] ) {
+				// Como MySQL: una clave primaria (la primera columna) repetida en la misma tabla falla.
+				foreach ( $this->staged[ $t[1] ] ?? array() as $row ) if ( (string) $row[0] === (string) $values[0] && '' !== (string) $values[0] ) { $this->last_error = "Duplicate entry '" . $values[0] . "' for key 'PRIMARY'"; return false; }
+				$this->staged[ $t[1] ][] = $values;
+			}
 		}
+		$die = '' !== $this->exit_after && false !== strpos( $sql, $this->exit_after );
+		// RENAME TABLE (el cambio de una restauración por pasos): la tabla que pasa a ser wp_options (o wp_sitemeta en
+		// una red) trae sus filas.
+		if ( 0 === strpos( $sql, 'RENAME TABLE ' ) && preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $sql, $pairs, PREG_SET_ORDER ) ) {
+			foreach ( $pairs as $pair ) {
+				list( , $from, $to ) = $pair;
+				if ( 'wp_posts' === $from ) $rows = array();
+				elseif ( 'wp_options' === $from ) { $rows = array(); foreach ( $GLOBALS['bk_options'] as $name => $value ) $rows[] = array( '', $name, is_scalar( $value ) ? (string) $value : serialize( $value ) ); }
+				elseif ( 'wp_sitemeta' === $from ) { $rows = array(); foreach ( $GLOBALS['bk_site_options'] as $name => $value ) $rows[] = array( '', '1', $name, is_scalar( $value ) ? (string) $value : serialize( $value ) ); }
+				else { $rows = $this->staged[ $from ] ?? array(); unset( $this->staged[ $from ] ); }
+				if ( 'wp_options' === $to ) { $GLOBALS['bk_options'] = array(); foreach ( $rows as $row ) $GLOBALS['bk_options'][ $row[1] ] = bk_maybe_unserialize( $row[2] ); }
+				elseif ( 'wp_sitemeta' === $to ) { $GLOBALS['bk_site_options'] = array(); foreach ( $rows as $row ) if ( isset( $row[3] ) ) $GLOBALS['bk_site_options'][ $row[2] ] = bk_maybe_unserialize( $row[3] ); }
+				elseif ( 'wp_posts' !== $to ) $this->staged[ $to ] = $rows;
+			}
+		}
+		if ( $die ) { $this->exit_after = ''; if ( isset( $GLOBALS['bk_on_exit'] ) ) call_user_func( $GLOBALS['bk_on_exit'] ); exit; }
 		return 1;
 	}
 	public function selects() { return array_values( array_filter( $this->queries, function( $q ) { return 0 === strpos( $q, 'DROP' ) || 0 === strpos( $q, 'INSERT' ) || 0 === strpos( $q, 'CREATE' ) || 0 === strpos( $q, 'SET NAMES' ); } ) ); }
 }
+function bk_maybe_unserialize( $value ) { $unserialized = @unserialize( $value ); return false === $unserialized && 'b:0;' !== $value ? $value : $unserialized; }
 function bk_sql_unescape( $value ) { return strtr( $value, array( '\\\\' => '\\', '\\0' => "\0", '\\n' => "\n", '\\r' => "\r", '\\Z' => "\x1a", "\\'" => "'" ) ); }
 $GLOBALS['wpdb'] = new Bk_Test_DB();
 $GLOBALS['bk_options'] = array( 'siteurl' => 'https://example.test', 'blogname' => 'Sitio de prueba' );
@@ -151,7 +195,11 @@ function current_user_can( $cap ) { return ! empty( $GLOBALS['bk_caps'][ $cap ] 
 function wp_get_referer() { return ''; }
 function size_format( $bytes ) { return number_format( $bytes / 1048576, 1 ) . ' MB'; }
 function add_action() { return true; }
-function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['bk_filters'] ) ? $GLOBALS['bk_filters'][ $hook ] : $value; }
+/** Un filtro de la prueba es un valor fijo o una función (que recibe el valor y los argumentos de apply_filters). */
+function apply_filters( $hook, $value, ...$args ) {
+	if ( ! array_key_exists( $hook, $GLOBALS['bk_filters'] ) ) return $value;
+	return $GLOBALS['bk_filters'][ $hook ] instanceof Closure ? call_user_func( $GLOBALS['bk_filters'][ $hook ], $value, ...$args ) : $GLOBALS['bk_filters'][ $hook ];
+}
 function wp_upload_dir() { return array( 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
 function get_theme_root() { return WP_CONTENT_DIR . '/themes'; }
 function wp_clear_scheduled_hook() { return true; }
@@ -163,6 +211,21 @@ function bk_call( $class, $method, ...$args ) {
 	$reflection = new ReflectionMethod( $class, $method );
 	if ( PHP_VERSION_ID < 80100 ) $reflection->setAccessible( true );
 	return $reflection->invokeArgs( null, $args );
+}
+/**
+ * «La operación siguiente» de una prueba que simula una muerte con exit corre en la misma petición, en una función de
+ * cierre. En producción es otra petición y PHP (o el sistema) ya cerró los descriptores de la que murió; PHP 7.4 sale con
+ * exit sin deshacer la pila, así que el bloqueo de operaciones del tick muerto sigue con flock: se cierran, como lo haría
+ * el final de esa petición (en PHP 8 ya no queda ninguno). Lo mismo que hace backups-maintenance.php (rama php74).
+ */
+function bk_close_dead_locks() {
+	$storage = realpath( bk_storage() );
+	if ( false === $storage ) return;
+	foreach ( get_resources( 'stream' ) as $handle ) {
+		$meta = stream_get_meta_data( $handle );
+		$path = realpath( (string) ( $meta['uri'] ?? '' ) );
+		if ( false !== $path && 0 === strncmp( $path, $storage . '/', strlen( $storage ) + 1 ) && '.lock' === substr( $path, -5 ) ) fclose( $handle );
+	}
 }
 function bk_storage() { return bk_call( 'Digitalisimo_Backups', 'local_directory' ); }
 /**
@@ -190,6 +253,19 @@ function bk_backup( $keep_row = false ) {
 	$path = rtrim( bk_storage(), '/' ) . '/' . basename( (string) $job['spec']['file'] );
 	if ( ! $keep_row ) bk_call( 'Digitalisimo_Backups', 'remove_history', basename( $path ) );
 	return $path;
+}
+/**
+ * Sentencias INSERT que acabaron en $table: las directas (una restauración en una sola petición o una versión anterior) y
+ * las de la tabla temporal que un RENAME TABLE puso después en su lugar (la restauración por pasos).
+ */
+function bk_inserts_into( $table, $queries = null ) {
+	$queries = null === $queries ? $GLOBALS['wpdb']->queries : $queries;
+	$names = array( $table => true );
+	foreach ( $queries as $query ) {
+		if ( 0 !== strpos( $query, 'RENAME TABLE ' ) || ! preg_match_all( '/`([^`]+)` TO `([^`]+)`/', $query, $pairs, PREG_SET_ORDER ) ) continue;
+		foreach ( $pairs as $pair ) if ( $pair[2] === $table ) $names[ $pair[1] ] = true;
+	}
+	return array_values( array_filter( $queries, function( $query ) use ( $names ) { return preg_match( '/^INSERT INTO `([^`]+)`/', $query, $t ) && isset( $names[ $t[1] ] ); } ) );
 }
 /** Archivos bajo ABSPATH (para comprobar que un rechazo no escribió nada). */
 function bk_tree( $root = null ) {
