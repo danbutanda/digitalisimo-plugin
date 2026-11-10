@@ -16,6 +16,8 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Digitalisimo_Backups_Backup_Job {
 	public static function run_phase( $phase, array $job ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) return $kind::run_phase( $phase, $job );
 		switch ( $phase ) {
 			case 'preflight': return self::preflight( $job );
 			case 'database': return self::database( $job );
@@ -157,6 +159,10 @@ final class Digitalisimo_Backups_Backup_Job {
 		$verified = (array) ( $job['checkpoint']['verify']['fp'] ?? array() );
 		if ( ! $verified ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Falta la verificación del ZIP; se repetirá.', 'verify' );
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
+		// El paquete de una migración (Digitalisimo_Backups_Migrate) no es un respaldo de este sitio: se queda en la carpeta
+		// de su trabajo, fuera del historial, de la retención y de Restaurar, hasta que el destino lo descarga.
+		$migration = 'source' === ( $spec['migration']['role'] ?? '' );
+		if ( $migration ) $final = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . basename( (string) $spec['file'] );
 		// Un trabajo cifrado publica el DGBK que selló la verificación; el ZIP en claro nunca sale del área de trabajo.
 		$encrypted = Digitalisimo_Backups::job_encrypts( $spec );
 		$staged_name = $encrypted ? (string) ( $job['checkpoint']['verify']['file'] ?? '' ) : (string) ( $pack['file'] ?? '' );
@@ -177,6 +183,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		// También las listas del inventario (T2): llevan los nombres de los archivos en claro.
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
+		if ( $migration ) return Digitalisimo_Backups_Migrate::published( $final );
 		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
 		Digitalisimo_Backups::job_record_notices( basename( $final ), $job ); // T2: avisos visibles y coherencia de la base.
 		$remote = 'local' !== $spec['destination'];
@@ -222,6 +229,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	 * fase con un punto de control por tramos (T2), conserva sus archivos: el tramo siguiente los trunca a ese punto.
 	 */
 	public static function discard( array $job, $phase ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) { $kind::discard( $job, $phase ); return; }
 		$staging = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING;
 		if ( is_link( $staging ) || ! is_dir( $staging ) ) return;
 		$index = array_search( $phase, Digitalisimo_Backups_Jobs::PHASES, true );
@@ -236,6 +245,8 @@ final class Digitalisimo_Backups_Backup_Job {
 	}
 	/** Al fallar o cancelar: sin área de trabajo; un ZIP ya registrado sigue siendo local y verificado. */
 	public static function on_terminal( array $job, $status, $message ) {
+		$kind = Digitalisimo_Backups_Jobs::kind_handler( (array) ( $job['spec'] ?? array() ) );
+		if ( $kind ) { $kind::on_terminal( $job, $status, $message ); return; }
 		// Una transferencia que falla o se cancela retira del destino lo que dejó a medias (multipart, temporales).
 		// Sólo aparta su estado: la llamada al destino ocurre después, fuera del cerrojo del registro (job_transfer_abandon_pending).
 		if ( 'transfer' === ( $job['phase'] ?? '' ) && empty( $job['spec']['inline'] ) ) Digitalisimo_Backups::job_transfer_queue_abandon( $job );
