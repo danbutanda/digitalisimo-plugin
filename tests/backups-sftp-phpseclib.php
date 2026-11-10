@@ -78,6 +78,8 @@ if ( '' === $sshd || '' === $keygen ) {
 	$config = "Port $port\nListenAddress 127.0.0.1\nHostKey $k/host_ed25519\nHostKey $k/host_ecdsa\nHostKey $k/host_rsa\nPidFile $k/sshd.pid\nAuthorizedKeysFile $k/authorized_keys\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nUsePAM no\nStrictModes no\nSubsystem sftp internal-sftp\nLogLevel ERROR\n";
 	file_put_contents( $k . '/sshd_config', $config );
 	$server = proc_open( array( $sshd, '-D', '-e', '-f', $k . '/sshd_config' ), array( 0 => array( 'file', '/dev/null', 'r' ), 1 => array( 'file', $k . '/sshd.log', 'a' ), 2 => array( 'file', $k . '/sshd.log', 'a' ) ), $pipes );
+	// Si la prueba muere a medias, sshd no queda vivo (heredaría los descriptores del proceso, también cerrojos).
+	register_shutdown_function( function() use ( $server ) { if ( is_resource( $server ) ) { @proc_terminate( $server ); @proc_close( $server ); } } );
 	for ( $i = 0; $i < 100 && ! @fsockopen( '127.0.0.1', $port, $errno, $errstr, 0.2 ); $i++ ) usleep( 100000 );
 	$user = function_exists( 'posix_getpwuid' ) ? posix_getpwuid( posix_geteuid() )['name'] : get_current_user();
 	$sha256 = array(); $sha1 = array();
