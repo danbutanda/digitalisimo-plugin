@@ -797,10 +797,14 @@ del origen.
    restauración por pasos del paquete (ver «Restauración por pasos»: verificación, copia previa, tablas temporales y un
    cambio atómico, archivos preparados, mantenimiento, reanudación tras una muerte y vuelta automática a la copia previa
    si falla tras el cambio) y espera su resultado. El sitio queda **idéntico al paquete**: los archivos de las raíces
-   gestionadas y las tablas de este WordPress (con su prefijo) que el paquete no trae se retiran con el cambio (están en
-   la copia previa). Los drop-ins de `wp-content` (`db.php`, `object-cache.php`…) y `wp-config.php` del destino son de
-   su servidor y se quedan. **Nunca con otro trabajo a medias:** si hay un respaldo (o cualquier trabajo) pendiente o en
-   curso, la migración espera en «Comprobación del paquete», sin gastar intentos y todavía cancelable, a que termine; su
+   gestionadas que el paquete no trae se retiran con el cambio, y las tablas de este WordPress (con su prefijo) que no
+   trae se apartan con otro nombre (`<prefijo>dgbkk_<marca>_9…`, fuera de los respaldos) y se conservan, nunca se
+   borran; todo eso está también en la copia previa. Nunca se tocan las tablas de otra instalación de WordPress que
+   comparte la base con un prefijo que empieza igual (`wp_` y `wp_dev_`: la delata su `<prefijo>options` con `siteurl`;
+   en una red, `<prefijo><número>_` son subsitios propios), con el mismo criterio que el respaldo y «Restaurar». Los
+   drop-ins de `wp-content` (`db.php`, `object-cache.php`…) y `wp-config.php` del destino son de su servidor y se
+   quedan. **Nunca con otro trabajo a medias:** si hay un respaldo (o cualquier trabajo) pendiente o en curso, la
+   migración espera en «Comprobación del paquete», sin gastar intentos y todavía cancelable, a que termine; su
    restauración, una vez encolada, impide que empiece otro. El navegador que hace avanzar la migración recibe el testigo
    de su restauración (como «Restaurar») y la sigue durante el mantenimiento; WP-Cron también.
 
@@ -814,17 +818,18 @@ inspección de archivos no confiables y el guardián SQL, y el plan de reubicaci
 
 **Deshacer.** La copia previa que crea la restauración queda bloqueada y marcada con la migración (`migration` en su
 fila del historial: origen, fecha, trabajo y estado: `restoring` al crearla, `migrated` sólo si la restauración terminó
-bien, `rolled_back` si falló y volvió sola a la copia previa, `failed` si se rechazó antes de cambiar nada; sin el
-trabajo de la migración, lo decide su restauración). «Deshacer la migración» (pantalla, `POST /migration/undo` con
-`DESHACER`, `wp digitalisimo-backups migration undo`) sólo se ofrece para una migración aplicada y restaura esa copia
-con el mismo motor por pasos —con su propia copia previa del estado migrado— dejando el sitio **idéntico** a ella:
-también retira lo que trajo el origen y la copia no tiene, en archivos (núcleo, plugins, temas, mu-plugins, drop-ins de
-`wp-content` y medios) y en tablas. En la web sigue en segundo plano (202 en REST, «Deshaciendo la migración» en la
-pantalla, con el testigo del mantenimiento); en WP-CLI, hasta terminar. Antes de decidir, pasa por el detector de
-procesos muertos y toma el cerrojo (que aplica el diario de una restauración interrumpida); mientras la restauración de
-la migración siga (o se esté reanudando tras una caída) responde 409 diciendo que hay que esperar. Al terminar, la
-marca queda `undone` y no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en su almacén
-privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
+bien, `rolled_back` si falló y volvió sola a la copia previa, `failed` si se rechazó antes de cambiar nada; la asienta
+en el historial el final de cualquier restauración o la primera consulta; una marca sin asentar cuyo trabajo ya no
+existe nunca se ofrece). «Deshacer la migración» (pantalla, `POST /migration/undo` con `DESHACER`,
+`wp digitalisimo-backups migration undo`) sólo se ofrece para una migración aplicada y restaura esa copia con el mismo motor
+por pasos —con su propia copia previa del estado migrado— dejando el sitio **idéntico** a ella: también retira lo que
+trajo el origen y la copia no tiene, en archivos (núcleo, plugins, temas, mu-plugins, drop-ins de `wp-content` y
+medios), y aparta (conservándolas) las tablas que trajo. En la web sigue en segundo plano (202 en REST, «Deshaciendo la
+migración» en la pantalla, con el testigo del mantenimiento); en WP-CLI, hasta terminar. Antes de decidir, pasa por el
+detector de procesos muertos y toma el cerrojo (que aplica el diario de una restauración interrumpida); mientras la
+restauración de la migración siga (o se esté reanudando tras una caída) responde 409 diciendo que hay que esperar. Al
+terminar, la marca queda `undone` y no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en
+su almacén privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
 
 **Staging.** Es la misma migración: para una copia de pruebas (otro dominio o subdominio), la clave se genera en
 producción y se migra desde el sitio de pruebas; para **publicarla**, la clave se genera en el sitio de pruebas y se
@@ -854,21 +859,25 @@ instalación ya tiene su carpeta).
   400 sin usarse. Comparación de tiempo constante con la huella. La primera petición de paquete **ata** la clave a ese
   trabajo, de forma atómica (con el cerrojo del almacén se comprueba otra vez que siga libre): otra migración con la
   misma clave responde 409. Si el destino abandona antes de restaurar, la libera; si no pudo liberarla (el origen no
-  respondía), otro trabajo del destino la retoma cuando lleva 30 minutos sin señales y su paquete ya no se prepara. Al
-  terminar, la clave queda **usada** (410 en adelante).
+  respondía), otro trabajo del destino la retoma cuando lleva 30 minutos sin señales y su paquete ya no se prepara,
+  salvo que el paquete ya se haya entregado entero (entonces la clave nunca sirve a otro destino). Al terminar, la clave
+  queda **usada** (410 en adelante).
 - **Límites.** 5 credenciales equivocadas bloquean esa clave. No hay límite global: una petición sin una clave válida
   (sin cabecera, mal formada o de una clave que no existe o ya cerrada) nunca cierra la API ni gasta los intentos de
-  nadie, y sólo suma a un contador aparte («Peticiones sin una clave válida» en el registro), sin desplazar los usos.
-  Adivinar no es viable (identificador de 64 bits y credencial de 256). Caducidad de 1 a 72 horas para empezar; una
-  clave en uso no caduca mientras su destino dé señales (una descarga larga nunca se corta a mitad) y caduca pasados 30
-  minutos sin ellas. En una red, la API del origen sólo responde en el sitio principal.
+  nadie, y sólo suma a un contador aparte («Peticiones sin una clave válida» en el registro), sin desplazar los usos; se
+  escribe en su propia opción, sin el cerrojo de la cola y como mucho una vez por minuto. Adivinar no es viable
+  (identificador de 64 bits y credencial de 256). Caducidad de 1 a 72 horas para empezar; una clave en uso no caduca
+  mientras su destino dé señales (una descarga larga nunca se corta a mitad) y caduca pasados 30 minutos sin ellas. En
+  una red, la API del origen sólo responde en el sitio principal.
 - **HTTPS y direcciones.** HTTPS exigido en los dos lados. El destino sólo se conecta a sitios públicos: nunca a
   loopback, red privada, enlace local (los metadatos de la nube), CGNAT ni direcciones reservadas, tampoco si el nombre
-  resuelve a una de ellas; sigue hasta 3 redirecciones validando cada salto igual; cada respuesta tiene tope (un
-  fragmento, su largo pedido; el resto, 1 MiB), y de una respuesta que no es de la API de migración sólo muestra el
-  código HTTP. «Permitir HTTP y direcciones internas» (Backups → Migrar → Laboratorio, en cada sitio) permite las dos
-  cosas para pruebas en una red propia o entre dos sitios del mismo servidor: la credencial viajaría legible y quien vea
-  el tráfico podría descargar el paquete (que sigue cifrado con `K`) o interrumpir la migración, pero no abrirlo.
+  resuelve a una de ellas, y un nombre que no resuelve (o un IPv6 con zona) se rechaza; la conexión va a la IP que se
+  comprobó (cURL, `CURLOPT_RESOLVE`); sigue hasta 3 redirecciones sólo dentro del mismo host (la credencial no sale de
+  él), validando cada salto igual; cada respuesta tiene tope (un fragmento, su largo pedido; el resto, 1 MiB), y de una
+  respuesta que no es de la API de migración sólo muestra el código HTTP. «Permitir HTTP y direcciones internas»
+  (Backups → Migrar → Laboratorio, en cada sitio) permite las dos cosas para pruebas en una red propia o entre dos
+  sitios del mismo servidor: la credencial viajaría legible y quien vea el tráfico podría descargar el paquete (que
+  sigue cifrado con `K`) o interrumpir la migración, pero no abrirlo.
 - **Quién.** Generar, revocar, migrar y deshacer: la capability de la pantalla (superadministrador en una red,
   administrador en un sitio individual); en una red, desde el sitio principal y con el alcance de red explícito. La API
   del origen no usa la sesión de WordPress: la autoriza sólo la clave.
