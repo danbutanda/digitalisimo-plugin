@@ -757,9 +757,30 @@ final class Digitalisimo_Backups_Jobs {
 	public static function ajax_restore_tick() {
 		if ( self::off_main_site() ) wp_send_json_error( array( 'message' => self::MAIN_SITE_ONLY ), 400 );
 		$job = self::restore_active();
-		if ( ! $job || ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
+		if ( ! $job || ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) {
+			// La terminó otro proceso (WP-Cron, otra pestaña, WP-CLI): quien la sigue con su testigo recibe el estado final, no
+			// un error que la pantalla reintentaría sin fin (H18 del ensayo E2). Sólo esa restauración, nunca otros trabajos.
+			$done = self::restore_finished_for_request();
+			if ( $done ) wp_send_json_success( array( 'result' => 'finished', 'message' => (string) ( self::view( $done )['detail'] ?? '' ), 'jobs' => array( self::view( $done ) ) ) );
+			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
+		}
 		$result = self::tick();
 		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views() ) );
+	}
+	/** La restauración terminada más reciente cuyo testigo trae esta petición (cookie o parámetro), o null. */
+	private static function restore_finished_for_request() {
+		try {
+			$jobs = Digitalisimo_Backups_Job_Store::all();
+		} catch ( Throwable $e ) {
+			return null;
+		}
+		$found = null;
+		foreach ( $jobs as $job ) {
+			if ( ! self::is_restore( $job ) || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) continue;
+			if ( ! Digitalisimo_Backups_Restore_Maintenance::request_has( (string) ( $job['spec']['token'] ?? '' ) ) ) continue;
+			if ( ! $found || (int) ( $job['finished_at'] ?? 0 ) > (int) ( $found['finished_at'] ?? 0 ) ) $found = $job;
+		}
+		return $found;
 	}
 	/** El tick de WP-Cron lleva el testigo mientras una restauración tiene el sitio en mantenimiento (si no, WordPress lo corta). */
 	public static function cron_request( $request ) {
