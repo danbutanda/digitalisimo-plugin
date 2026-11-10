@@ -91,7 +91,14 @@ final class Digitalisimo_Backups {
 			// instalación, que es donde están su historial, su copia previa y el diario que lo repone. Sin DOCUMENT_ROOT
 			// (WP-CLI, cron del sistema) no hay otra que calcular: el registro se usa como antes y su carpeta se intenta crear.
 			if ( false === $document_root ) throw new Exception( 'No se conoce la raíz pública del servidor. Define DIGITALISIMO_BACKUPS_STORAGE_DIR en wp-config.php con una carpeta privada fuera del sitio.' );
-			$path = dirname( $document_root ) . '/.digitalisimo-backups-' . substr( hash( 'sha256', wp_normalize_path( $wp_root ) ), 0, 16 );
+			$path = self::default_storage_path( $document_root, $wp_root );
+		}
+		// Si la carpeta que corresponde a esta instalación tiene el diario de una restauración suya interrumpida, ése es el
+		// almacén, aunque el registro de la base (el que trajo el SQL) apunte a otra carpeta que exista (revisión C1: un
+		// clon de la misma cuenta).
+		if ( ! $explicit && false !== $document_root && isset( $saved['directory'] ) && $path === (string) $saved['directory'] ) {
+			$own = self::default_storage_path( $document_root, $wp_root, false );
+			if ( '' !== $own && $own !== $path && self::journal_is_ours( $own ) ) $path = $own;
 		}
 		if ( ! preg_match( '#^(?:/|[a-zA-Z]:[/\\\\])#', $path ) || is_link( $path ) ) throw new Exception( 'La carpeta de respaldos debe ser una ruta absoluta y no un enlace simbólico.' );
 		if ( ! wp_mkdir_p( $path ) ) throw new Exception( 'No se pudo crear la carpeta privada de respaldos. Define DIGITALISIMO_BACKUPS_STORAGE_DIR con una ruta escribible fuera de la raíz pública.' );
@@ -137,6 +144,41 @@ final class Digitalisimo_Backups {
 		if ( is_multisite() ) delete_site_option( self::STORAGE );
 		else delete_option( self::STORAGE );
 	}
+	/**
+	 * La carpeta privada que corresponde a esta instalación: `.digitalisimo-backups-<hash de ABSPATH>` junto a la raíz
+	 * pública. Si la carpeta de al lado también es pública (un dominio adicional con la raíz dentro de la de otro sitio:
+	 * `public_html/<dominio>`), sube hasta una que no lo sea (revisión C6). Con $strict, si no la hay lanza el aviso para
+	 * definir DIGITALISIMO_BACKUPS_STORAGE_DIR; sin él devuelve ''.
+	 */
+	private static function default_storage_path( $document_root, $wp_root, $strict = true ) {
+		$parent = dirname( (string) $document_root );
+		for ( $i = 0; $i < 6 && self::looks_public( $parent ); $i++ ) {
+			$up = dirname( $parent );
+			if ( $up === $parent ) break;
+			$parent = $up;
+		}
+		if ( self::looks_public( $parent ) ) {
+			if ( ! $strict ) return '';
+			throw new Exception( 'La carpeta junto a la raíz pública de este sitio también es pública (por ejemplo, un dominio adicional dentro de public_html): ahí no se guardan respaldos. Define DIGITALISIMO_BACKUPS_STORAGE_DIR en wp-config.php con una carpeta privada fuera de toda raíz pública.' );
+		}
+		return rtrim( $parent, '/\\' ) . '/.digitalisimo-backups-' . substr( hash( 'sha256', wp_normalize_path( $wp_root ) ), 0, 16 );
+	}
+	/**
+	 * Una carpeta que sirve el servidor web: la raíz de otro sitio (su índice o un WordPress) o un nombre de raíz pública.
+	 * No cuentan `.htaccess` ni `wp-config.php`: WordPress admite `wp-config.php` una carpeta por encima de su raíz.
+	 */
+	private static function looks_public( $dir ) {
+		if ( in_array( strtolower( basename( (string) $dir ) ), array( 'public_html', 'htdocs', 'httpdocs' ), true ) ) return true;
+		foreach ( array( 'index.php', 'index.html', 'index.htm', 'wp-load.php' ) as $name ) if ( @file_exists( rtrim( (string) $dir, '/\\' ) . '/' . $name ) ) return true;
+		return false;
+	}
+	/** Si la carpeta tiene el diario de una restauración interrumpida de esta instalación. */
+	private static function journal_is_ours( $dir ) {
+		$path = rtrim( (string) $dir, '/' ) . '/' . self::RESTORE_JOURNAL;
+		if ( ! @is_file( $path ) || is_link( $path ) ) return false;
+		$data = json_decode( (string) @file_get_contents( $path ), true );
+		return is_array( $data ) && ( $data['wordpress_root'] ?? null ) === self::journal_owner();
+	}
 	private static function path_within( $path, $root ) {
 		$path = wp_normalize_path( $path );
 		$root = rtrim( wp_normalize_path( $root ), '/' );
@@ -162,6 +204,7 @@ final class Digitalisimo_Backups {
 		// operación interrumpida: se borran en cualquier operación, no sólo en la siguiente que cifre.
 		Digitalisimo_Backups_Security::clean_staging( self::local_directory() );
 		self::private_storage_files( self::local_directory() );
+		self::sweep_stale_temporaries( self::local_directory() );
 		self::recover_interrupted_restore();
 		return $handle;
 	}
@@ -585,6 +628,21 @@ final class Digitalisimo_Backups {
 	 * Lo hacen cada operación, con el bloqueo tomado, y la pantalla «Restaurar», que lista el almacén; sólo un chmod por
 	 * archivo que lo necesite, y nunca sigue un enlace.
 	 */
+	/** Horas tras las que un temporal de descarga o de «Traer al almacén» que nadie retiró se borra (revisión C5). */
+	const STALE_TEMPORARY_HOURS = 6;
+	/**
+	 * Retira de la raíz del almacén los temporales `.download-*` (una descarga remota que el navegador cortó o un proceso
+	 * que murió) y `<respaldo>.part-*` (un «Traer al almacén» interrumpido) con más de STALE_TEMPORARY_HOURS horas: uno
+	 * más nuevo puede estar en uso por otra petición.
+	 */
+	private static function sweep_stale_temporaries( $dir ) {
+		$limit = time() - self::STALE_TEMPORARY_HOURS * 3600;
+		foreach ( array_merge( glob( rtrim( $dir, '/' ) . '/.download-*' ) ?: array(), glob( rtrim( $dir, '/' ) . '/*.part-*' ) ?: array() ) as $path ) {
+			if ( is_link( $path ) || ! is_file( $path ) ) continue;
+			clearstatcache( true, $path );
+			if ( (int) @filemtime( $path ) < $limit ) @unlink( $path );
+		}
+	}
 	private static function private_storage_files( $dir ) {
 		if ( DIRECTORY_SEPARATOR !== '/' ) return;
 		$names = @scandir( $dir );
@@ -782,10 +840,23 @@ final class Digitalisimo_Backups {
 			wp_die( 'No se pudo leer el respaldo en el almacén privado.' );
 		}
 		@set_time_limit( 0 );
+		// Si el navegador corta, PHP no aborta a mitad: el bucle sale con connection_aborted() y quien llama limpia su
+		// temporal (revisión C5: sin esto no corría ningún finally).
+		@ignore_user_abort( true );
 		@ini_set( 'zlib.output_compression', '0' );
 		if ( function_exists( 'apache_setenv' ) ) @apache_setenv( 'no-gzip', '1' );
-		// Un búfer que no se puede cerrar (ob_end_clean() devuelve false) se vacía después de cada bloque.
 		while ( ob_get_level() > 0 && @ob_end_clean() ) continue;
+		// Un búfer que no se puede cerrar (de otro plugin): si es el único y se puede vaciar, se vacía (lo impreso antes no
+		// va al archivo) y recibe un bloque cada vez; si hay otro debajo (output_buffering=On) o no se puede vaciar, el
+		// archivo saldría dañado o acumulado en memoria: no se envía (revisión C2/C3).
+		$levels = ob_get_level() > 0 ? (array) ob_get_status( true ) : array();
+		if ( $levels ) {
+			$flags = (int) ( $levels[0]['flags'] ?? 0 );
+			if ( 1 !== count( $levels ) || ! ( $flags & PHP_OUTPUT_HANDLER_CLEANABLE ) || ! ( $flags & PHP_OUTPUT_HANDLER_FLUSHABLE ) || ! @ob_clean() ) {
+				fclose( $handle );
+				wp_die( 'Otro plugin retiene la salida de PHP (' . esc_html( implode( ', ', array_map( function( $level ) { return (string) ( $level['name'] ?? '?' ); }, $levels ) ) ) . ') y la descarga saldría dañada o no cabría en la memoria: no se envió. Desactívalo para descargar, o copia el respaldo del almacén privado por SFTP o SSH.', 'Descarga no disponible', array( 'response' => 500 ) );
+			}
+		}
 		nocache_headers();
 		header( 'Content-Type: ' . self::content_type( $name ) );
 		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $name ) . '"' );
@@ -2274,10 +2345,10 @@ final class Digitalisimo_Backups {
 	 */
 	private static function after_restore_sql( $history_before, $vault_before, array $origin = array(), $kept = null, $storage = false ) {
 		wp_cache_flush();
+		// El almacén privado sigue siendo el de este servidor (H10), lo primero; false: quien llama no lo tomó (no se toca).
+		if ( false !== $storage ) self::keep_storage_record( $storage );
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );
 		update_option( self::HISTORY, $history_before, false );
-		// El almacén privado sigue siendo el de este servidor (H10); false: quien llama no lo tomó (no se toca).
-		if ( false !== $storage ) self::keep_storage_record( $storage );
 		Digitalisimo_Backups_Keys::restore_snapshot( $vault_before );
 		self::restore_credentials( $origin );
 	}

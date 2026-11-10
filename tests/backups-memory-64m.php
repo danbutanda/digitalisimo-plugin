@@ -15,6 +15,9 @@
  *        `output_buffering=On` (el «default output handler» sin límite del PHP de Webuzo): 200, Content-Length exacto y
  *        el respaldo completo, sin lo que se imprimió antes. Antes, readfile() con ese búfer intentaba reservar el archivo
  *        entero (500; con output_buffering=4096 el búfer se vacía solo y no falla, pero lo impreso antes iba al ZIP);
+ *   (c2, c3, c5) revisión adversaria: con un búfer de otro plugin que no se puede quitar, error claro (con
+ *        output_buffering=On debajo) o el respaldo exacto, sin lo impreso antes (sin él); y si el navegador corta, el
+ *        envío termina y el finally de quien llama (el temporal de una descarga remota) corre;
  *   (http) sin cURL, la API de WordPress recibe el cuerpo entero: un archivo que no cabe en lo que queda de memoria se
  *        rechaza con un mensaje claro antes de leerlo, en vez de agotar la memoria.
  * Necesita proc_open y un PHP del sistema (la CI y la PC); en php-wasm se omite y lo dice.
@@ -55,8 +58,16 @@ if ( 'cli-server' === PHP_SAPI ) {
 	register_shutdown_function( function() { file_put_contents( (string) getenv( 'BK64_PEAK' ), (string) memory_get_peak_usage() ); bk_cleanup(); } );
 	$_GET = array( 'action' => Digitalisimo_Backups::ACTION_DOWNLOAD, 'file' => $name );
 	$_POST = array( '_wpnonce' => 'nonce-' . Digitalisimo_Backups::ACTION_DOWNLOAD );
+	$mode = (string) getenv( 'BK64_MODE' );
+	// Un plugin que abre un búfer de salida que no se puede quitar (sólo vaciar y enviar), como algunos de caché.
+	if ( 'plugin' === $mode ) ob_start( function( $buffer ) { return $buffer; }, 0, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE );
 	// Lo que imprime WordPress antes de la descarga (espacios de un plugin, avisos) queda en el búfer de salida.
 	echo "\n";
+	if ( 'abort' === $mode ) {
+		// Como download_remote(): envía un temporal y lo borra en un finally; el navegador corta a mitad.
+		try { Digitalisimo_Backups::send_file( $path, $name ); } finally { file_put_contents( (string) getenv( 'BK64_MARK' ), 'finally' ); }
+		exit;
+	}
 	Digitalisimo_Backups::download();
 	return;
 }
@@ -205,62 +216,100 @@ $child = function( $label ) use ( &$failures, &$lines ) {
 $child( 'h9' );
 $child( 'http' );
 
-// (h16) «Descargar» por el servidor web de PHP con 64 MB y output_buffering.
+// (h16) «Descargar» por el servidor web de PHP con 64 MB: un respaldo de 100 MiB con output_buffering=On (el del hosting);
+// (c2) con un búfer de otro plugin que no se puede quitar encima del de output_buffering=On: un error claro, nunca la
+// memoria agotada a mitad; (c3) con ese búfer solo (output_buffering=0): lo impreso antes no entra en el archivo; (c5) el
+// navegador corta a mitad: el envío termina y el finally de quien llama (el temporal de una descarga remota) corre.
 $mib = 100;
-$port = 0;
-for ( $try = 0; $try < 20 && ! $port; $try++ ) {
-	$candidate = random_int( 20000, 60000 );
-	$probe = @stream_socket_server( 'tcp://127.0.0.1:' . $candidate );
-	if ( $probe ) { fclose( $probe ); $port = $candidate; }
-}
-$peak_file = tempnam( sys_get_temp_dir(), 'bk64-peak-' );
-$log = tempnam( sys_get_temp_dir(), 'bk64-server-' );
-$env = array( 'BK64_MIB' => (string) $mib, 'BK64_PEAK' => $peak_file, 'TMPDIR' => sys_get_temp_dir(), 'PATH' => (string) getenv( 'PATH' ) );
-$server = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', '-d', 'output_buffering=On', '-d', 'display_errors=1', '-S', '127.0.0.1:' . $port, __FILE__ ), array( 0 => array( 'file', '/dev/null', 'r' ), 1 => array( 'file', $log, 'a' ), 2 => array( 'file', $log, 'a' ) ), $pipes, __DIR__, $env );
-try {
-	$socket = false;
-	for ( $wait = 0; $wait < 100 && ! $socket; $wait++ ) { $socket = @stream_socket_client( 'tcp://127.0.0.1:' . $port, $errno, $error, 1 ); if ( ! $socket ) usleep( 100000 ); }
-	if ( ! $socket ) throw new RuntimeException( 'El servidor web de PHP no arrancó: ' . file_get_contents( $log ) );
-	stream_set_timeout( $socket, 120 );
-	fwrite( $socket, "GET /wp-admin/admin-post.php HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" );
-	$head = '';
-	while ( false === strpos( $head, "\r\n\r\n" ) && ! feof( $socket ) ) $head .= fread( $socket, 1 );
-	$hash = hash_init( 'sha256' );
-	$length = 0;
-	$start = '';
-	while ( ! feof( $socket ) ) {
-		$chunk = fread( $socket, 1048576 );
-		if ( false === $chunk || '' === $chunk ) { if ( feof( $socket ) ) break; continue; }
-		if ( strlen( $start ) < 300 ) $start .= substr( $chunk, 0, 300 );
-		hash_update( $hash, $chunk );
-		$length += strlen( $chunk );
+$size = $mib * BK64_MIB;
+$expected = bk64_sha( $mib );
+/** Arranca `php -S` con 64 MB y el modo dado, pide la descarga (cortando tras $cut bytes) y devuelve lo que llegó. */
+$serve = function( $ob, $mode, $cut = 0 ) use ( $mib ) {
+	$port = 0;
+	for ( $try = 0; $try < 20 && ! $port; $try++ ) {
+		$candidate = random_int( 20000, 60000 );
+		$probe = @stream_socket_server( 'tcp://127.0.0.1:' . $candidate );
+		if ( $probe ) { fclose( $probe ); $port = $candidate; }
 	}
-	fclose( $socket );
-	$size = $mib * BK64_MIB;
-	$ok = 0 === strpos( $head, 'HTTP/1.0 200' ) || 0 === strpos( $head, 'HTTP/1.1 200' );
-	$header = function( $name ) use ( $head ) { return preg_match( '/^' . preg_quote( $name, '/' ) . ':\s*(.+?)\r?$/mi', $head, $m ) ? trim( $m[1] ) : ''; };
-	$problems = array();
-	if ( ! $ok ) $problems[] = 'estado ' . strtok( $head, "\r\n" );
-	if ( (string) $size !== $header( 'Content-Length' ) ) $problems[] = 'Content-Length «' . $header( 'Content-Length' ) . '»';
-	if ( 'application/zip' !== $header( 'Content-Type' ) || false === strpos( $header( 'Content-Disposition' ), 'attachment' ) ) $problems[] = 'tipo o disposición «' . $header( 'Content-Type' ) . ' / ' . $header( 'Content-Disposition' ) . '»';
-	if ( $length !== $size || bk64_sha( $mib ) !== hash_final( $hash ) ) $problems[] = 'cuerpo de ' . $length . ' bytes que no es el respaldo (empieza por ' . json_encode( substr( $start, 0, 160 ) ) . ')';
-	$peak = (int) @file_get_contents( $peak_file );
-	if ( $peak > 24 * BK64_MIB ) $problems[] = 'pico de memoria de ' . round( $peak / BK64_MIB, 1 ) . ' MiB';
+	$peak_file = tempnam( sys_get_temp_dir(), 'bk64-peak-' );
+	$mark = tempnam( sys_get_temp_dir(), 'bk64-mark-' );
+	@unlink( $mark );
+	$log = tempnam( sys_get_temp_dir(), 'bk64-server-' );
+	$env = array( 'BK64_MIB' => (string) $mib, 'BK64_PEAK' => $peak_file, 'BK64_MODE' => $mode, 'BK64_MARK' => $mark, 'TMPDIR' => sys_get_temp_dir(), 'PATH' => (string) getenv( 'PATH' ) );
+	$server = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', '-d', 'output_buffering=' . $ob, '-d', 'display_errors=1', '-S', '127.0.0.1:' . $port, __FILE__ ), array( 0 => array( 'file', '/dev/null', 'r' ), 1 => array( 'file', $log, 'a' ), 2 => array( 'file', $log, 'a' ) ), $pipes, __DIR__, $env );
+	$out = array( 'head' => '', 'length' => 0, 'sha' => '', 'start' => '', 'end' => '', 'peak' => 0, 'finally' => false, 'log' => '' );
+	try {
+		$socket = false;
+		for ( $wait = 0; $wait < 100 && ! $socket; $wait++ ) { $socket = @stream_socket_client( 'tcp://127.0.0.1:' . $port, $errno, $error, 1 ); if ( ! $socket ) usleep( 100000 ); }
+		if ( ! $socket ) throw new RuntimeException( 'El servidor web de PHP no arrancó: ' . file_get_contents( $log ) );
+		stream_set_timeout( $socket, 120 );
+		fwrite( $socket, "GET /wp-admin/admin-post.php HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" );
+		while ( false === strpos( $out['head'], "\r\n\r\n" ) && ! feof( $socket ) ) $out['head'] .= fread( $socket, 1 );
+		$hash = hash_init( 'sha256' );
+		while ( ! feof( $socket ) ) {
+			$chunk = fread( $socket, 1048576 );
+			if ( false === $chunk || '' === $chunk ) { if ( feof( $socket ) ) break; continue; }
+			if ( strlen( $out['start'] ) < 300 ) $out['start'] .= substr( $chunk, 0, 300 );
+			$out['end'] = substr( $out['end'] . $chunk, -400 );
+			hash_update( $hash, $chunk );
+			$out['length'] += strlen( $chunk );
+			if ( $cut && $out['length'] >= $cut ) break;
+		}
+		fclose( $socket );
+		$out['sha'] = hash_final( $hash );
+		// El servidor sigue hasta notar el corte; se espera su final (el archivo de la marca o el pico).
+		for ( $wait = 0; $wait < 150 && ! is_file( $mark ) && ! (int) @file_get_contents( $peak_file ); $wait++ ) usleep( 100000 );
+		usleep( 300000 );
+		$out['peak'] = (int) @file_get_contents( $peak_file );
+		$out['finally'] = is_file( $mark );
+	} finally {
+		proc_terminate( $server );
+		proc_close( $server );
+		$out['log'] = trim( substr( (string) @file_get_contents( $log ), -500 ) );
+		@unlink( $peak_file );
+		@unlink( $mark );
+		@unlink( $log );
+	}
+	$out['header'] = function( $name ) use ( $out ) { return preg_match( '/^' . preg_quote( $name, '/' ) . ':\s*(.+?)\r?$/mi', $out['head'], $m ) ? trim( $m[1] ) : ''; };
+	$out['status'] = (int) ( preg_match( '#^HTTP/1\.[01] (\d{3})#', $out['head'], $m ) ? $m[1] : 0 );
+	return $out;
+};
+$report = function( $label, array $problems, $ok_text, $res ) use ( &$failures, &$lines ) {
 	if ( $problems ) {
-		$failures[] = 'h16';
-		echo 'FALLA (h16): «Descargar» de un respaldo de ' . $mib . ' MiB con 64 MB y output_buffering=On: ' . implode( '; ', $problems ) . '. Registro del servidor: ' . trim( substr( (string) file_get_contents( $log ), -600 ) ) . "\n";
+		$failures[] = $label;
+		echo 'FALLA (' . $label . '): ' . implode( '; ', $problems ) . '. Registro del servidor: ' . $res['log'] . "\n";
 	} else {
-		$lines[] = 'h16';
-		printf( "OK h16: «Descargar» de %d MiB por el servidor web de PHP con memory_limit=64M y output_buffering=On: 200, Content-Length exacto, SHA-256 del respaldo y pico de %.1f MiB.\n", $mib, $peak / BK64_MIB );
+		$lines[] = $label;
+		echo 'OK ' . $label . ': ' . $ok_text . "\n";
 	}
+};
+try {
+	$res = $serve( 'On', '' );
+	$problems = array();
+	if ( 200 !== $res['status'] ) $problems[] = 'estado ' . strtok( $res['head'], "\r\n" );
+	if ( (string) $size !== $res['header']( 'Content-Length' ) ) $problems[] = 'Content-Length «' . $res['header']( 'Content-Length' ) . '»';
+	if ( 'application/zip' !== $res['header']( 'Content-Type' ) || false === strpos( $res['header']( 'Content-Disposition' ), 'attachment' ) ) $problems[] = 'tipo o disposición «' . $res['header']( 'Content-Type' ) . ' / ' . $res['header']( 'Content-Disposition' ) . '»';
+	if ( $res['length'] !== $size || $expected !== $res['sha'] ) $problems[] = 'cuerpo de ' . $res['length'] . ' bytes que no es el respaldo (empieza por ' . json_encode( substr( $res['start'], 0, 160 ) ) . ')';
+	if ( $res['peak'] > 24 * BK64_MIB ) $problems[] = 'pico de memoria de ' . round( $res['peak'] / BK64_MIB, 1 ) . ' MiB';
+	$report( 'h16', $problems ? array_merge( array( '«Descargar» de un respaldo de ' . $mib . ' MiB con 64 MB y output_buffering=On' ), $problems ) : array(), sprintf( '«Descargar» de %d MiB por el servidor web de PHP con memory_limit=64M y output_buffering=On: 200, Content-Length exacto, SHA-256 del respaldo y pico de %.1f MiB.', $mib, $res['peak'] / BK64_MIB ), $res );
+
+	$res = $serve( 'On', 'plugin' );
+	$body = $res['start'] . $res['end'];
+	$problems = array();
+	if ( false === strpos( $body, 'Otro plugin retiene la salida' ) ) $problems[] = 'no da el error claro (estado ' . $res['status'] . ', ' . $res['length'] . ' bytes, final ' . json_encode( substr( $res['end'], -200 ) ) . ')';
+	if ( (string) $size === $res['header']( 'Content-Length' ) || preg_match( '/Allowed memory size/', $body ) ) $problems[] = 'empezó la descarga o agotó la memoria';
+	$report( 'c2', $problems ? array_merge( array( 'output_buffering=On y un búfer no removible de otro plugin' ), $problems ) : array(), 'output_buffering=On y un búfer no removible de otro plugin: error claro («Otro plugin retiene la salida…»), sin empezar la descarga ni agotar los 64 MB.', $res );
+
+	$res = $serve( '0', 'plugin' );
+	$problems = array();
+	if ( 200 !== $res['status'] || $res['length'] !== $size || $expected !== $res['sha'] ) $problems[] = 'con un búfer no removible y lo impreso antes, el cuerpo no es exactamente el respaldo (' . $res['length'] . ' bytes, estado ' . $res['status'] . ')';
+	$report( 'c3', $problems, 'un búfer no removible (sin output_buffering) se vacía antes: el cuerpo es exactamente el respaldo (' . round( $res['peak'] / BK64_MIB, 1 ) . ' MiB de pico).', $res );
+
+	$res = $serve( 'On', 'abort', 3 * BK64_MIB );
+	$report( 'c5', $res['finally'] ? array() : array( 'el navegador cortó a los ' . $res['length'] . ' bytes y el finally de quien llama no corrió (el temporal de una descarga remota quedaría en el almacén)' ), 'el navegador corta a los 3 MiB: el envío termina y el finally de quien llama (el temporal) corre.', $res );
 } catch ( Throwable $e ) {
 	$failures[] = 'h16';
 	echo 'FALLA (h16): ' . $e->getMessage() . "\n";
-} finally {
-	proc_terminate( $server );
-	proc_close( $server );
-	@unlink( $peak_file );
-	@unlink( $log );
 }
 
 if ( $failures ) throw new RuntimeException( 'Memoria con 64 MB: fallaron ' . implode( ', ', $failures ) . '.' );

@@ -1029,6 +1029,25 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 	}
 	/** Devuelve, por tabla de este sitio, cuántas claves repetidas se retiraron. */
+	/**
+	 * El registro del almacén privado de este servidor en la tabla temporal de opciones (en una red, la de `sitemeta`)
+	 * antes del cambio de tablas: la fila que trajo el respaldo (la de su servidor) se retira y, si aquí hay registro, se
+	 * escribe el de aquí. Sin la tabla temporal (no la trae el respaldo) no hace nada.
+	 */
+	private static function restore_preswap_storage( array $tables, $record ) {
+		global $wpdb;
+		$network = is_multisite();
+		$want = (string) $wpdb->base_prefix . ( $network ? 'sitemeta' : 'options' );
+		$temp = '';
+		foreach ( $tables as $row ) if ( $want === (string) ( $row['dest'] ?? '' ) ) $temp = (string) $row['temp'];
+		if ( '' === $temp ) return;
+		$name = Digitalisimo_Backups_Relocate::quote_name( $temp );
+		$site = $network && function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+		// Lo mejor posible: si no se puede, after_restore_sql() y el diario lo reponen como antes (no se aborta el cambio).
+		$done = $network ? $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE meta_key = %s', self::STORAGE ) ) : $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $name . ' WHERE option_name = %s', self::STORAGE ) );
+		if ( false !== $done && is_array( $record ) ) $done = $network ? $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . ' (meta_id, site_id, meta_key, meta_value) VALUES (NULL, %s, %s, %s)', (string) $site, self::STORAGE, serialize( $record ) ) ) : $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $name . " (option_id, option_name, option_value, autoload) VALUES (NULL, %s, %s, 'no')", self::STORAGE, serialize( $record ) ) );
+		if ( false === $done && function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: no se pudo preparar el registro del almacén en las tablas temporales: ' . $wpdb->last_error );
+	}
 	private static function restore_preswap_collisions( array $job, array $collisions ) {
 		if ( ! $collisions ) return array();
 		$plan = self::restore_plan( $job );
@@ -1542,6 +1561,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
 				// El registro del almacén privado de este servidor: el SQL de otro servidor trae el suyo (H10).
 				$storage_before = self::storage_record();
+				// Y va ya en la tabla temporal: el cambio de tablas trae el de aquí, sin ventana en la que una muerte deje en la
+				// base el del otro servidor (revisión C1: en un clon de la misma cuenta, su carpeta existe aquí).
+				self::restore_preswap_storage( $tables, $storage_before );
 				self::write_restore_journal( $origin, $kept );
 				try {
 					if ( false === @file_put_contents( $marker, (string) time() ) ) throw new Exception( 'No se pudo anotar el cambio de tablas en el área de trabajo.' );
