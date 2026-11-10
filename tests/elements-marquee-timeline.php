@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -23,7 +26,7 @@ namespace {
 	function get_the_post_thumbnail_url( $p, $s ) { return ''; }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-marquee.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-timeline.php';
-	$render = static function ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	$m = new \Digitalisimo\Elements\Marquee_Widget();
 	$m->settings = array( 'source' => 'items', 'label' => 'Últimas', 'duration' => 2, 'direction' => 'right', 'items' => array( array( 'text' => 'Hola <b>x</b>', 'link' => array( 'url' => 'https://s.test/', 'is_external' => 'on' ) ), array( 'text' => '' ) ) );

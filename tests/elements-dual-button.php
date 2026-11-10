@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
     class Widget_Base {
         public $settings = array();
@@ -35,7 +38,7 @@ namespace {
     require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-dual-button.php';
     $widget = new \Digitalisimo\Elements\Dual_Button_Widget();
     check_dual( array( 'digitalisimo-dual-button' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El widget debe usar sólo su CSS.' );
-    (new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+    (digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
     check_dual( isset( $widget->controls['button_a_link'], $widget->controls['button_b_link'], $widget->controls['button_a_icon'], $widget->controls['button_b_icon'] ), 'Faltan controles de los dos botones.' );
     $widget->settings = array(
         'button_a_text' => 'Conoce <script>más</script>',
@@ -44,10 +47,10 @@ namespace {
         'button_b_text' => 'Contactar', 'button_b_link' => array( 'url' => '/contacto/' ),
         'show_middle_text' => 'yes', 'middle_text' => 'o',
     );
-    ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+    ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
     check_dual( 2 === substr_count( $html, '<a ' ) && str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'Los dos enlaces deben renderizarse y el externo proteger la pestaña.' );
     check_dual( str_contains( $html, 'Conoce más' ) && ! str_contains( $html, '<script>' ) && str_contains( $html, '<i aria-hidden="true">' ), 'El texto debe ser seguro y el icono decorativo.' );
-    ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
+    ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ))->invoke( $widget ); $editor = ob_get_clean();
     check_dual( str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'settings.button_a_link.is_external' ) && str_contains( $editor, 'noopener noreferrer' ), 'La vista previa debe conservar iconos y atributos de enlaces.' );
     echo "DIGITALÍSIMO Elements: Botón doble validado.\n";
 }

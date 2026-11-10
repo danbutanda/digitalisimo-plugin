@@ -16,6 +16,9 @@
  *   personalizado con clases de PRO, responsivos): ningún `pro.unmapped`, cada clave cae en un control propio;
  * - guarda de `scripts/build-packages.sh`.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -116,7 +119,7 @@ namespace {
 		$widget           = new Share_Buttons();
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -168,8 +171,8 @@ namespace {
 
 	// 2. Los controles de PRO, uno a uno, en el widget propio.
 	$pro = new \ElementorPro\Modules\ShareButtons\Widgets\Share_Buttons();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	$prefix = array( 'elementor-share-buttons--view-' => 'digi-share--view-', 'elementor-share-buttons--skin-' => 'digi-share--skin-', 'elementor-share-buttons--shape-' => 'digi-share--shape-', 'elementor-share-buttons--color-' => 'digi-share--color-', 'elementor-grid%s-' => 'elementor-grid%s-' );
 	$same   = static function ( string $where, string $name, array $a, array $b ) use ( $prefix ) {
 		foreach ( array( 'type', 'default', 'condition', 'conditions', 'responsive', 'size_units', 'range', 'tablet_default', 'mobile_default', 'show_label', 'label_block', 'separator', 'render_type', 'return_value', 'dynamic', 'multiple' ) as $key ) {

@@ -15,6 +15,9 @@
  *   convertido se pinta con los mismos textos.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	$GLOBALS['h_wp'] = array( 'search' => '' );
 	function get_search_query( $escaped = true ) { return $GLOBALS['h_wp']['search']; }
 	require __DIR__ . '/elements-theme-elements/stubs.php';

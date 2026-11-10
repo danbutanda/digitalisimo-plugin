@@ -13,6 +13,9 @@
  * Uso: node <php-wasm-cli> tests/elements-export-skip.php
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ );
 	$repo = dirname( __DIR__ );
 	$root = $repo . '/digitalisimo-elements';

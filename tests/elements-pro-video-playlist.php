@@ -14,6 +14,9 @@
  * - conversión con `Converter::tree()` de ajustes reales de PRO (por defecto, con todo, `__dynamic__`, `__globals__`, CSS
  *   personalizado con clases de PRO): ningún `pro.unmapped`, cada clave cae en un control propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; public $editor; }
 	class Controls_Manager {
@@ -144,7 +147,7 @@ namespace {
 	use Digitalisimo\Elements\Convert\Converter;
 
 	$controls = static function ( $w ) {
-		( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 		return $w;
 	};
 	$widget = static function ( array $settings = array() ) use ( $controls ) {
@@ -155,7 +158,7 @@ namespace {
 	$render = static function ( array $settings ) use ( $widget ) {
 		$w = $widget( $settings );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$count = static function ( $needle, $html ) { return substr_count( $html, $needle ); };
@@ -407,7 +410,7 @@ namespace {
 		$w     = $widget( $settings );
 		$w->id = $id;
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return '<div class="elementor-element elementor-widget-digitalisimo-video-playlist digi-vpl-layout-end" data-id="' . $id . '">' . ob_get_clean() . "</div>\n";
 	};
 	$long    = '<p>' . str_repeat( 'Texto largo de la transcripción. ', 30 ) . '</p>';

@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pendingTests, phpNodeCommands, phpSuiteCommands } from '../scripts/ci-php-suite.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -92,4 +93,61 @@ const listed = new Set(releaseTests.flatMap((line) => line.match(/tests\/[^ ;"]+
 const standalone = readdirSync(join(root, 'tests')).filter((file) => /\.(php|mjs)$/.test(file) && file !== 'validate-suite.mjs').map((file) => `tests/${file}`);
 assert.deepEqual(standalone.filter((file) => !listed.has(file)), [], 'Pruebas de tests/ que ningún workflow ejecuta');
 
-console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados; ${releaseTests.length} pruebas iguales en validate.yml y release.yml.`);
+// Trabajo «PHP 7.4» (el mínimo que declaran los plugins) en los dos workflows: la misma sintaxis que el trabajo
+// principal, pero con PHP 7.4 (sin los bootstrap80.php de los polyfills de Symfony, que sólo se cargan con PHP 8), y
+// las pruebas PHP de «Probar la suite» de su propio archivo, que scripts/ci-php-suite.mjs extrae de la lista (todas,
+// sin copiarla), con la lista de pendientes, que sólo puede acortarse. La publicación no sale sin él.
+const PHP74_SKIP = " -not -path '*/symfony/polyfill-*/bootstrap80.php'";
+const PHP74_PENDING = 'scripts/ci-php74-pendientes.txt';
+const jobBlock = (text, id) => {
+  const lines = text.split('\n');
+  const start = lines.indexOf(`  ${id}:`);
+  if (start < 0) return '';
+  const end = lines.findIndex((line, i) => i > start && /^ {0,2}\S/.test(line));
+  return lines.slice(start, end < 0 ? lines.length : end).join('\n');
+};
+const phpListed = releaseTests.filter((line) => /^php tests\//.test(line) || / php tests\//.test(line));
+for (const name of ['validate.yml', 'release.yml']) {
+  const text = readFileSync(join(root, '.github/workflows', name), 'utf8');
+  const lint = text.match(/- name: Validar sintaxis PHP\n\s+run: (.+)/);
+  assert.ok(lint, `${name}: falta el paso «Validar sintaxis PHP» del trabajo principal`);
+  const php74 = jobBlock(text, 'php74');
+  assert.ok(php74, `${name} debe tener el trabajo php74 con PHP 7.4, el mínimo que declaran los plugins`);
+  assert.match(php74, /php-version: '7\.4'\n/, `${name}: el trabajo php74 debe instalar PHP 7.4`);
+  assert.ok(php74.includes(`run: ${lint[1].replace(" -name '*.php' ", ` -name '*.php'${PHP74_SKIP} `)}\n`), `${name}: el trabajo php74 debe validar la sintaxis de las mismas carpetas que el principal, sin más excepción que los bootstrap80.php de Symfony`);
+  assert.ok(php74.includes(`run: node scripts/ci-php-suite.mjs .github/workflows/${name} --pendientes ${PHP74_PENDING}\n`), `${name}: el trabajo php74 debe correr las pruebas PHP de su propio «Probar la suite», con ${PHP74_PENDING}`);
+  assert.deepEqual(phpSuiteCommands(text), phpListed, `${name}: scripts/ci-php-suite.mjs debe correr todas las pruebas PHP de la lista`);
+}
+assert.match(jobBlock(readFileSync(join(root, '.github/workflows/release.yml'), 'utf8'), 'release'), /\n {4}needs: (php74|\[[^\]]*\bphp74\b[^\]]*\])\n/, 'release.yml no debe publicar sin pasar el trabajo php74');
+// Lo que la sintaxis 7.4 omite sólo puede ser un bootstrap80.php al que su bootstrap.php llega con PHP >= 8.
+const skipped = git('ls-files', '--', '*/symfony/polyfill-*/bootstrap80.php').stdout.split('\n').filter(Boolean);
+for (const file of skipped) {
+  const bootstrap = readFileSync(join(root, file.replace(/bootstrap80\.php$/, 'bootstrap.php')), 'utf8');
+  assert.match(bootstrap, /if \(\\?PHP_VERSION_ID >= 80000\) \{\s*return require __DIR__ ?\. ?'\/bootstrap80\.php';/, `${file} usa sintaxis de PHP 8 y su bootstrap.php debe cargarlo sólo con PHP >= 8`);
+}
+// Una prueba Node que lanza PHP lo toma de PHP_BIN (así el trabajo 7.4 la corre con su PHP), nunca de un `php` fijo.
+const nodeTests = readdirSync(join(root, 'tests')).filter((file) => file.endsWith('.mjs'));
+assert.deepEqual(nodeTests.filter((file) => /\b(?:spawnSync|execFileSync|execSync|spawn|execFile)\(\s*['"]php['"]/.test(readFileSync(join(root, 'tests', file), 'utf8')) && !/process\.env\.PHP_BIN\b/.test(readFileSync(join(root, 'tests', file), 'utf8'))), [], 'Pruebas Node que lanzan `php` sin mirar PHP_BIN');
+const phpNode = phpNodeCommands(readFileSync(join(root, '.github/workflows/release.yml'), 'utf8'), root);
+// Las pendientes en 7.4 son pruebas de la lista, sin repetir, y nunca de Backups ni de Migración, que corren enteras.
+const pending = pendingTests(readFileSync(join(root, PHP74_PENDING), 'utf8'));
+assert.deepEqual(pending.filter((test) => !phpListed.includes(`php ${test}`) && !phpNode.includes(`node ${test}`)), [], `${PHP74_PENDING} nombra pruebas que no están en la lista`);
+assert.deepEqual(pending.filter((test) => !new RegExp(`^${test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+#\\s*\\S`, 'm').test(readFileSync(join(root, PHP74_PENDING), 'utf8'))), [], `Cada pendiente de ${PHP74_PENDING} lleva su causa tras «#»`);
+// Y la lista sólo se acorta: nada que no esté ya en la de origin/main. Los dos workflows traen main antes de la
+// higiene (su checkout es superficial); en GitHub, sin origin/main, la higiene falla en lugar de saltarse la
+// comprobación. Sin la lista en origin/main (la rama que la crea) no hay con qué comparar.
+const FETCH_MAIN = 'run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main\n';
+for (const name of ['validate.yml', 'release.yml']) {
+  const text = readFileSync(join(root, '.github/workflows', name), 'utf8');
+  const fetchAt = text.indexOf(FETCH_MAIN);
+  assert.ok(fetchAt > 0 && fetchAt < text.indexOf('- name: Probar la suite\n'), `${name}: el trabajo principal debe traer origin/main antes de «Probar la suite» (la higiene compara la lista de pendientes)`);
+}
+const hasMain = git('rev-parse', '--verify', '-q', 'refs/remotes/origin/main').status === 0;
+assert.ok(hasMain || process.env.GITHUB_ACTIONS !== 'true', 'Falta origin/main en la CI: el paso «Traer main para la higiene» no corrió');
+const mainPending = git('show', `origin/main:${PHP74_PENDING}`);
+const grown = mainPending.status === 0 ? pending.filter((test) => !pendingTests(mainPending.stdout).includes(test)) : [];
+assert.deepEqual(grown, [], `${PHP74_PENDING} sólo puede acortarse respecto de origin/main: pruebas nuevas en la lista`);
+assert.equal(new Set(pending).size, pending.length, `${PHP74_PENDING} repite pruebas`);
+assert.deepEqual(pending.filter((test) => /^tests\/(backups|migration)-/.test(test)), [], `Las pruebas de Backups y de Migración corren enteras con PHP 7.4: no pueden estar en ${PHP74_PENDING}`);
+
+console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados; ${releaseTests.length} pruebas iguales en validate.yml y release.yml, de las que ${phpListed.length} PHP corren también con PHP 7.4 y ${phpNode.length} de Node que lanzan PHP (${pending.length} pendientes en ${PHP74_PENDING}${mainPending.status === 0 ? ', ninguna nueva respecto de origin/main' : ', sin lista en origin/main con qué comparar'}; ${skipped.length} bootstrap80.php de Symfony fuera de la sintaxis 7.4).`);

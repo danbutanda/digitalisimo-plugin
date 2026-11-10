@@ -15,6 +15,9 @@
  *   personalizado con las clases de alineación); con iconos SVG en línea, el icono de PRO queda donde lo dejaba PRO en
  *   la vista «Icono» (sin centrar).
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -65,7 +68,7 @@ namespace {
 		$widget           = new Blockquote_Widget();
 		$widget->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 
@@ -86,7 +89,7 @@ namespace {
 	check_bq( ! preg_match( '/jquery|wp_enqueue_script|wp_register_script|Icons_Manager::|fa-twitter|eicon-(?!blockquote|text-align)/i', $source ), 'Sin jQuery, scripts ni iconos del proveedor.' );
 
 	// 2. Un control propio por cada control de PRO, con los mismos valores por defecto visibles.
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	$map = require $root . 'modules/digitalisimo-convert/maps/blockquote.php';
 	$pro = (string) file_get_contents( $root . 'modules/blockquote/widgets/blockquote.php' );
 	preg_match_all( "/->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $pro, $pro_controls );
@@ -171,7 +174,7 @@ namespace {
 	$markdown->settings = array( 'blockquote_content' => "Uno\nDos", 'author_name' => 'Ana' );
 	check_bq( "> Uno\n> Dos\n>\n> — Ana" === $markdown->render_markdown(), 'Markdown de la cita como en PRO.' );
 	ob_start();
-	( new ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'content_template' ) ) )->invoke( $widget );
 	$editor = (string) ob_get_clean();
 	check_bq( str_contains( $editor, '<blockquote class="digi-blockquote">' ) && str_contains( $editor, '<footer class="digi-blockquote__footer">' ) && str_contains( $editor, 'rel="noopener noreferrer"' ) && str_contains( $editor, "aria-label=\"{{ label || 'Compartir en X' }}\"" ) && str_contains( $editor, Blockquote_Widget::ICON ) && ! preg_match( '/var[^;#]*[\s,]view\s*=/', $editor ) && ! str_contains( $editor, '{{{ settings.' ), 'La vista previa repite el marcado, escapa los textos y no tapa el objeto view.' );
 	check_bq( str_contains( $editor, "if ( 'legacy' === settings.share_icon || ( ! settings.share_icon && 'blockquote' === settings._digitalisimo_pro ) ) { #>" . Blockquote_Widget::ICON_LEGACY ) && str_contains( $editor, '<# } else { #>' . Blockquote_Widget::ICON ), 'La vista previa elige el icono como el servidor.' );

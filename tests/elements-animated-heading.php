@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -28,10 +31,10 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-animated-heading.php';
 	$widget = new \Digitalisimo\Elements\Animated_Heading_Widget();
 	check_animated_heading( array( 'digitalisimo-animated-heading' ) === $widget->get_style_depends() && array( 'digitalisimo-animated-heading' ) === $widget->get_script_depends(), 'Los recursos deben cargarse sólo con el widget.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	foreach ( array( 'before_text', 'animated_text', 'after_text', 'heading_tag', 'heading_link', 'rotate', 'interval' ) as $control ) { check_animated_heading( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
 	$widget->settings = array( 'before_text' => 'Creamos', 'animated_text' => "Ideas\nResultados", 'after_text' => 'para ti', 'heading_tag' => 'h1', 'heading_link' => array( 'url' => 'https://example.test/', 'is_external' => true, 'nofollow' => true ), 'rotate' => 'yes', 'interval' => 100 );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_animated_heading( 1 === substr_count( $html, '<h1 ' ) && 1 === substr_count( $html, '</h1>' ) && str_contains( $html, '>Ideas</span>' ), 'El primer término y el H1 deben ser visibles desde el HTML inicial.' );
 	check_animated_heading( str_contains( $html, 'data-digi-phrases=' ) && str_contains( $html, 'data-digi-interval="1500"' ) && str_contains( $html, 'href="https://example.test/"' ), 'La rotación y el enlace deben tener valores válidos.' );
@@ -43,7 +46,7 @@ namespace {
 	$js = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/animated-heading.js' );
 	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/animated-heading.css' );
 	check_animated_heading( str_contains( $js, 'prefers-reduced-motion' ) && str_contains( $js, 'document.fonts.ready' ) && str_contains( $js, 'initialized' ) && str_contains( $css, 'white-space:nowrap' ), 'La rotación debe respetar movimiento reducido, fuentes e instancias múltiples.' );
-	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ))->invoke( $widget ); $editor = ob_get_clean();
 	check_animated_heading( str_contains( $editor, 'settings.heading_link.is_external' ) && str_contains( $editor, 'settings.heading_link.nofollow' ) && str_contains( $editor, 'noopener noreferrer' ), 'La vista previa debe conservar el destino y la política del enlace.' );
 	echo "DIGITALÍSIMO Elements: Encabezado animado visible y aislado validado.\n";
 }

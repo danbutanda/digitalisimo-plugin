@@ -18,6 +18,9 @@
  *     lo deja vacío e informa.
  */
 
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		/** @var int Instancias creadas: un tope detecta la recursión antes de agotar la memoria. */

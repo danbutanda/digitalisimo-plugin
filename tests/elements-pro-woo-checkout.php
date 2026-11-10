@@ -18,6 +18,9 @@
  *   defecto, repetidores, globales, dinámicos, CSS personalizado) sin `pro.unmapped`, con los textos de PRO completados.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	$GLOBALS['h_wp'] = array( 'features' => array( 'e_optimized_markup' ), 'options' => array(), 'hooks' => array() );
 	$GLOBALS['ck']   = array( 'logged_in' => false, 'coupons' => true, 'zones' => 1, 'billing_only' => false, 'needs_payment' => true );
 

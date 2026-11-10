@@ -15,6 +15,9 @@
  *
  * Uso: php-wasm-cli tests/elements-pro-login.php. php-wasm sale con 0 aunque haya un error fatal: se juzga por la línea final.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -128,7 +131,7 @@ namespace {
 		$widget->settings = $settings;
 		$widget->attrs    = array();
 		ob_start();
-		( new ReflectionMethod( $widget, 'render' ) )->invoke( $widget );
+		( digi_test_accessible( new ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget );
 		return (string) ob_get_clean();
 	};
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
@@ -165,8 +168,8 @@ namespace {
 			$GLOBALS['lg']['optimized'] = $optimized;
 			$pro = new \ElementorPro\Modules\Forms\Widgets\Login();
 			$own = new Login();
-			( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-			( new ReflectionMethod( $own, 'register_controls' ) )->invoke( $own );
+			( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+			( digi_test_accessible( new ReflectionMethod( $own, 'register_controls' ) ) )->invoke( $own );
 			$tag = ( $register ? 'con' : 'sin' ) . ' registros' . ( $optimized ? ', marcado optimizado' : '' );
 			check_lg( array_keys( $pro->controls ) === array_keys( $own->controls ), "Los mismos controles en el mismo orden ($tag)." );
 			check_lg( $register === isset( $own->controls['show_register'] ), "«Registrarse» sólo con registros abiertos ($tag)." );
@@ -204,8 +207,8 @@ namespace {
 	$GLOBALS['lg']['optimized'] = false;
 	$GLOBALS['lg']['register']  = true;
 	$pro = new \ElementorPro\Modules\Forms\Widgets\Login();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	check_lg( isset( $widget->controls['message_color']['selectors']['{{WRAPPER}} .elementor-widget-container .elementor-login__logged-in-message'] ), 'Sin marcado optimizado, el aviso se estiliza dentro del envoltorio interior (como PRO).' );
 
 	// 3. El mapa: declara cada control y sus valores por defecto son los de PRO.

@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
@@ -24,14 +27,14 @@ namespace {
 	function check_fancy_icons( $ok, $message ) { if ( ! $ok ) { throw new \RuntimeException( $message ); } }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-icons.php';
 	$widget = new \Digitalisimo\Elements\Fancy_Icons_Widget();
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_fancy_icons( isset( $widget->controls['share_items'] ) && array() === $widget->get_script_depends(), 'Debe registrar el repetidor y no depender de scripts.' );
 	$widget->settings = array( 'share_items' => array(
 		array( '_id' => 'a1', 'social_type' => 'icon', 'social_name' => 'Facebook', 'social_icon' => array( 'value' => 'fab fa-facebook' ), 'social_link' => array( 'url' => 'https://example.com/red', 'is_external' => true, 'nofollow' => true ) ),
 		array( '_id' => 'b2', 'social_type' => 'text', 'social_name' => 'Contacto', 'social_link' => array( 'url' => '' ) ),
 		array( '_id' => 'c3', 'social_type' => 'icon', 'social_name' => '', 'social_icon' => array( 'value' => 'fas fa-star' ) ),
 	) );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_fancy_icons( 2 === substr_count( $html, '<li ' ) && str_contains( $html, 'aria-label="Facebook"' ) && str_contains( $html, 'href="https://example.com/red"' ), 'Debe renderizar sólo enlaces con contenido y nombre accesible.' );
 	check_fancy_icons( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'El icono externo debe proteger la pestaña.' );
 	check_fancy_icons( str_contains( $html, '<span class="digi-fancy-icons__content"><span>Contacto</span></span>' ) && ! str_contains( $html, 'elementor-repeater-item-c3' ), 'No debe producir enlaces vacíos ni iconos sin nombre.' );

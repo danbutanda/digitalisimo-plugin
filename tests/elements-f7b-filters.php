@@ -21,6 +21,9 @@
  * - Widgets: marcado accesible (`form[role=search]`, etiqueta, «Limpiar» con nombre, `aria-pressed`), `nofollow`,
  *   `style_transfer => false`, sin `default` en estilo, sin `<script>`; registro tolerante y recursos con `defer`.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const SELECT = 'select'; const TEXT = 'text'; const NUMBER = 'number'; const SWITCHER = 'switcher'; const RAW_HTML = 'raw_html';
@@ -218,7 +221,7 @@ namespace {
 		$filter = new \ElementorPro\Modules\LoopFilter\Module();
 		return $filter->filter_loop_query( $base_args, $loop ?: $loop_widget );
 	};
-	$parse = ( new \ReflectionClass( \ElementorPro\Modules\LoopFilter\Module::class ) )->getMethod( 'parse_query_string' );
+	$parse = digi_test_accessible( ( new \ReflectionClass( \ElementorPro\Modules\LoopFilter\Module::class ) )->getMethod( 'parse_query_string' ) );
 	if ( PHP_VERSION_ID < 80100 ) { $parse->setAccessible( true ); }
 	check_f7b( array( 'taxonomy' => 'digi_m_frange1-max', 'widget_id' => 'loop123' ) === $parse->invoke( new \ElementorPro\Modules\LoopFilter\Module(), 'e-filter-loop123-digi_m_frange1-max' ), 'El derivado parte el nombre por el primer guion tras el ID: -max llega entero.' );
 

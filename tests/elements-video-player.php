@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -29,7 +32,7 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-video-player.php';
 	$widget = new \Digitalisimo\Elements\Video_Player_Widget();
 	check_video( array( 'digitalisimo-video-player' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'Debe cargar sólo CSS condicional.' );
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'source' => 'media', 'video' => array( 'id' => 7 ), 'poster' => array( 'id' => 8 ), 'title' => 'Presentación <b>real</b>', 'ratio' => '4/3' );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_video( str_contains( $html, '<video controls playsinline preload="none"' ) && str_contains( $html, 'data-ratio="4/3"' ) && str_contains( $html, 'poster="https://sitio.test/uploads/poster.jpg"' ) && str_contains( $html, 'Presentación real' ), 'Debe conservar controles, proporción, portada y nombre accesible.' );

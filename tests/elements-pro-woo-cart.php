@@ -15,6 +15,9 @@
  *   estilos, globales, dinámicos, dispositivos, CSS personalizado) sin `pro.unmapped`.
  */
 namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
+namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', dirname( __DIR__ ) . '/digitalisimo-elements/pro-elements.php' );
 	$GLOBALS['c_wp'] = array( 'hooks' => array(), 'coupons' => true, 'count' => 2, 'edit' => false, 'locale' => 'es_ES', 'stack' => array(), 'tr' => array() );
@@ -216,7 +219,7 @@ namespace {
 
 	$pro = new \ElementorPro\Modules\Woocommerce\Widgets\Cart();
 	$own = new \Digitalisimo\Elements\Woo\Store\Cart();
-	$reg = function ( $w ) { ( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w ); };
+	$reg = function ( $w ) { ( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w ); };
 	$reg( $pro );
 	$reg( $own );
 
@@ -298,12 +301,12 @@ namespace {
 	$render = static function ( $w, array $settings ) {
 		$w->settings = $settings;
 		$w->attrs    = array();
-		$m           = new ReflectionMethod( $w, $w instanceof \Digitalisimo\Elements\Woo\Store\Cart ? 'render_widget' : 'render' );
+		$m           = digi_test_accessible( new ReflectionMethod( $w, $w instanceof \Digitalisimo\Elements\Woo\Store\Cart ? 'render_widget' : 'render' ) );
 		ob_start();
 		$m->invoke( $w );
 		$html = ob_get_clean();
 		// `gettext` lee los ajustes una vez: se vuelve a calcular en cada pintado.
-		$p = new ReflectionProperty( $w, 'gettext_modifications' );
+		$p = digi_test_accessible( new ReflectionProperty( $w, 'gettext_modifications' ) );
 		$p->setValue( $w, null );
 		return $html;
 	};

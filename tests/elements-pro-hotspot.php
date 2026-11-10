@@ -15,6 +15,9 @@
  *   `__globals__`, CSS personalizado con clases de PRO): ningún `pro.unmapped`, cada clave cae en un control propio y
  *   lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor\Core\Kits\Documents\Tabs {
 	class Global_Colors { const COLOR_PRIMARY = 'globals/colors?id=primary'; const COLOR_SECONDARY = 'globals/colors?id=secondary'; const COLOR_TEXT = 'globals/colors?id=text'; const COLOR_ACCENT = 'globals/colors?id=accent'; }
 	class Global_Typography { const TYPOGRAPHY_PRIMARY = 'globals/typography?id=primary'; const TYPOGRAPHY_SECONDARY = 'globals/typography?id=secondary'; const TYPOGRAPHY_TEXT = 'globals/typography?id=text'; const TYPOGRAPHY_ACCENT = 'globals/typography?id=accent'; }
@@ -176,14 +179,14 @@ namespace {
 
 	$widget = static function ( array $settings = array() ) {
 		$w = new Hotspot();
-		( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 		$w->settings = $settings;
 		return $w;
 	};
 	$render = static function ( array $settings ) use ( $widget ) {
 		$w = $widget( $settings );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$count = static function ( $needle, $html ) { return substr_count( $html, $needle ); };
@@ -215,7 +218,7 @@ namespace {
 
 	// 2. Controles frente al Hotspot de PRO cargado (con el widget Imagen del núcleo y sus cambios).
 	$pro = new \ElementorPro\Modules\Hotspot\Widgets\Hotspot();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 	$map     = require $root . 'modules/digitalisimo-convert/maps/hotspot.php';
 	$rename  = $map['classes'] + array(
 		'{{WRAPPER}} img'                                   => '{{WRAPPER}} .digi-hotspots>img',
@@ -388,7 +391,7 @@ namespace {
 		$fw     = $widget( $settings );
 		$fw->id = $id;
 		ob_start();
-		( new ReflectionMethod( $fw, 'render' ) )->invoke( $fw );
+		( digi_test_accessible( new ReflectionMethod( $fw, 'render' ) ) )->invoke( $fw );
 		$html = (string) preg_replace( '/<img src="[^"]+"/', '<img src="IMG"', (string) ob_get_clean() );
 		check_hs( preg_match( '/data-case="' . $id . '">(.*?)<\/div>\n/s', (string) preg_replace( '/<img src="[^"]+"/', '<img src="IMG"', $fixture ), $m ) && $m[1] === $html, "El fixture de Chrome «{$id}» es el marcado del servidor." );
 	}

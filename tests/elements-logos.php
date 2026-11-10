@@ -1,5 +1,8 @@
 <?php
 /** Logotipos: cuadrícula y carrusel unificados, recursos por presentación y los cuatro alias del contenido guardado. */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -33,12 +36,12 @@ namespace {
 	function wp_get_attachment_url( $id ) { return 'https://example.test/media/' . $id . '.webp'; }
 	function wp_get_attachment_image( $id, $size, $icon, $attrs ) { $GLOBALS['logos_image_attrs'][] = $attrs; return 12 === $id ? '<img class="' . esc_attr( $attrs['class'] ) . '" alt="' . esc_attr( $attrs['alt'] ) . '" data-size="' . esc_attr( $size ) . '">' : ''; }
 	function check_logos( $ok, $message ) { if ( ! $ok ) { throw new \RuntimeException( $message ); } }
-	function render_logos( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); }
+	function render_logos( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); }
 	foreach ( array( 'brand-carousel', 'logo-carousel', 'brand-grid', 'logo-grid' ) as $alias ) { require_once __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-' . $alias . '.php'; }
 
 	$widget = new \Digitalisimo\Elements\Logos_Widget();
 	check_logos( 'digitalisimo-logos' === $widget->get_name() && array( 'digitalisimo-carousel-engine', 'digitalisimo-logos', 'digitalisimo-logos-grid' ) === $widget->get_style_depends() && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'La instancia de registro declara el motor y sus dos hojas para que el editor los tenga.' );
-	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
+	( digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ) )->invoke( $widget );
 	check_logos( isset( $widget->controls['gallery_images'], $widget->controls['items']['fields']['link_text'], $widget->controls['items']['fields']['caption'], $widget->controls['layout'], $widget->controls['columns'], $widget->controls['style'], $widget->controls['details'], $widget->controls['navigation'], $widget->controls['show_link_text'] ), 'Faltan controles de galería, datos por logotipo o presentación.' );
 	check_logos( str_contains( $widget->controls['columns']['selectors']['{{WRAPPER}} .digi-logos__list'], 'grid-template-columns' ) && str_contains( $widget->controls['columns']['selectors']['{{WRAPPER}} .digi-carousel'], '--digi-carousel-visible' ), 'Las columnas sirven a la cuadrícula y al carrusel.' );
 
@@ -74,18 +77,18 @@ namespace {
 	$carousel = render_logos( $widget );
 	check_logos( str_contains( $carousel, 'class="digi-logos digi-logos--carousel"' ) && str_contains( $carousel, 'aria-label="Clientes"' ) && str_contains( $carousel, 'style="--digi-carousel-count:2"' ) && 2 === substr_count( $carousel, '<li class="digi-carousel__slide digi-logos__item">' ) && str_contains( $carousel, 'data-digi-carousel-next' ), 'El carrusel usa el motor con dos diapositivas, nombre accesible y flechas.' );
 	check_logos( str_contains( $carousel, '<a class="digi-logos__card digi-logos__card--stretch" href="https://example.test/a">' ) && str_contains( $carousel, '<h3 class="digi-logos__name">Primera</h3>' ) && str_contains( $carousel, '<span class="digi-logos__link-text">Visitar</span>' ) && str_contains( $carousel, '<div class="digi-logos__card digi-logos__card--stretch">' ), 'La tarjeta enlazada lleva imagen, nombre y texto del enlace.' );
-	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ) )->invoke( $widget ); $editor = ob_get_clean();
 	check_logos( str_contains( $editor, 'var P = [["digi-logos",[]]]' ) && str_contains( $editor, 'data-digi-carousel-track' ) && str_contains( $editor, "cls( 'details' )" ) && str_contains( $editor, 'settings.gallery_images' ), 'La vista previa pinta ambas presentaciones con el mismo generador de clases.' );
 
 	// Alias: Carrusel de marcas conserva nombre, clase, ajustes traducidos y clases CSS de antes.
 	$brand = new \Digitalisimo\Elements\Brand_Carousel_Widget();
 	check_logos( 'digitalisimo-brand-carousel' === $brand->get_name() && false === $brand->show_in_panel() && $brand instanceof \Digitalisimo\Elements\Logos_Widget, 'El alias conserva su nombre, se oculta del panel y es un Logotipos.' );
-	( new \ReflectionMethod( $brand, 'register_controls' ) )->invoke( $brand );
+	( digi_test_accessible( new \ReflectionMethod( $brand, 'register_controls' ) ) )->invoke( $brand );
 	$legacy = array( 'brand_html_tag' => 'h4', 'columns_tablet' => '1', 'item_gap_mobile' => array( 'size' => 4 ), 'show_website_link' => 'yes', 'brand_items' => array(), 'image_size' => 'large', 'navigation' => 'arrows', 'item_background' => '#fff' );
 	foreach ( array_keys( $legacy ) as $key ) { check_logos( isset( $brand->controls[ $key ] ), "La clave de antes {$key} debe tener control en el alias para que la conversión de la Migración la conserve." ); }
 	check_logos( 'hidden' === $brand->controls['brand_items']['type'] && 'hidden' === $brand->controls['item_gap']['type'] && 'select' === $brand->controls['columns']['type'] && isset( $brand->controls['items'], $brand->controls['layout'] ), 'Las claves de antes van ocultas y las unificadas no se repiten.' );
 	foreach ( array( new \Digitalisimo\Elements\Logo_Carousel_Widget(), new \Digitalisimo\Elements\Brand_Grid_Widget(), new \Digitalisimo\Elements\Logo_Grid_Widget() ) as $other ) {
-		( new \ReflectionMethod( $other, 'register_controls' ) )->invoke( $other );
+		( digi_test_accessible( new \ReflectionMethod( $other, 'register_controls' ) ) )->invoke( $other );
 		foreach ( $other::LEGACY_KEYS as $key => $responsive ) { check_logos( isset( $other->controls[ $key ] ) && ( ! $responsive || isset( $other->controls[ $key . '_tablet' ] ) ), $other->get_name() . ": la clave {$key} debe tener control oculto." ); }
 	}
 	$brand->settings = \Digitalisimo\Elements\Brand_Carousel_Widget::upgrade_settings( array( 'brand_html_tag' => 'h4', 'columns_tablet' => '1', 'item_gap' => array( 'size' => 10 ), 'brand_items' => array( array( '_id' => 'b1', 'brand_name' => 'Marca', 'image' => array( 'id' => 12 ), 'link' => array( 'url' => 'https://example.test/' ), 'website_link_text' => 'Web' ), array( 'brand_name' => '', 'image' => array() ) ) ) );
@@ -126,7 +129,7 @@ namespace {
 	check_logos( str_contains( $html, 'digi-logos--border digi-logos--tooltip digi-logos--cover digi-logo-grid digi-logo-grid--grid digi-logo-grid--border' ) && 4 === substr_count( $html, '<li class="digi-logos__item' ) && str_contains( $html, 'data-size="large"' ), 'El diseño, la cobertura y el tamaño de imagen se conservan.' );
 	check_logos( str_contains( $html, '<figcaption class="digi-logos__content digi-logos__content--tooltip digi-logo-grid__caption digi-logo-grid__caption--tooltip"><strong class="digi-logos__name">Tercero</strong><span class="digi-logos__description">Detalle</span></figcaption>' ) && str_contains( $html, '<figcaption class="digi-logos__content digi-logo-grid__caption"><strong class="digi-logos__name">Cuarto</strong></figcaption>' ) && ! str_contains( $html, 'Quinto</strong>' ), 'El pie es globo sólo con enlace, estático sin enlace y ausente sin la opción.' );
 	check_logos( str_contains( $html, '<a class="digi-logos__card digi-logo-grid__card" href="https://example.test/" target="_blank" rel="noopener noreferrer">' ) && str_contains( $html, 'alt="Tercero"' ), 'La tarjeta enlazada protege la pestaña y conserva el ALT por nombre.' );
-	ob_start(); ( new \ReflectionMethod( $lgrid, 'content_template' ) )->invoke( $lgrid ); $editor = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $lgrid, 'content_template' ) ) )->invoke( $lgrid ); $editor = ob_get_clean();
 	check_logos( str_contains( $editor, '["digi-logo-grid",{"content":"caption"' ), 'La vista previa del alias conoce sus clases de antes.' );
 
 	$js = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/carousel-engine.js' );

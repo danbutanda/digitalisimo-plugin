@@ -9,6 +9,9 @@
  *   sólo en el editor o la vista previa con los comentarios cerrados, nada fuera de la plantilla;
  * - conversión con `Converter::tree()` sin `pro.unmapped`, con la entrada elegida y el CSS personalizado.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; }
 }

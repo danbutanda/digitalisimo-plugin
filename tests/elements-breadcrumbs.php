@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -45,9 +48,9 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-breadcrumbs.php';
 	$widget = new \Digitalisimo\Elements\Breadcrumbs_Widget();
 	check_breadcrumbs( array( 'digitalisimo-breadcrumbs' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'La ruta sólo requiere CSS condicional.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	foreach ( array( 'home_text', 'show_home_only', 'separator', 'align' ) as $control ) { check_breadcrumbs( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
-	$render = new \ReflectionMethod( $widget, 'render' );
+	$render = digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) );
 	$widget->settings = array( 'home_text' => 'Inicio', 'separator' => 'chevron' );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_breadcrumbs( '' === $html, 'La portada no debe mostrar una ruta vacía por defecto.' );

@@ -13,6 +13,9 @@
  * - conversión con `Converter::tree()` de ajustes reales de PRO: ningún `pro.unmapped`, cada clave cae en un control
  *   propio y lo convertido se pinta.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const CHOOSE = 'choose';
@@ -147,14 +150,14 @@ namespace {
 
 	$widget = static function ( array $settings = array() ) {
 		$w = new Lottie();
-		( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 		$w->settings = $settings;
 		return $w;
 	};
 	$render = static function ( array $settings ) use ( $widget ) {
 		$w = $widget( $settings );
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$config = static function ( string $html ) {
@@ -200,7 +203,7 @@ namespace {
 	// 2. Controles: los de la clase real de PRO frente a los propios.
 	$map = require $root . 'modules/digitalisimo-convert/maps/lottie.php';
 	$pro = new \ElementorPro\Modules\Lottie\Widgets\Lottie();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
 	$extra = array( 'digitalisimo_lottie_description', 'digitalisimo_lottie_button_text', 'digitalisimo_lottie_button_link' );
 	$own   = array_values( array_diff( array_keys( $w->controls ), $extra ) );
 	check_lt( array_keys( $pro->controls ) === $own, 'Los mismos controles en el mismo orden: ' . implode( ', ', array_diff( array_keys( $pro->controls ), $own ) ) . ' / ' . implode( ', ', array_diff( $own, array_keys( $pro->controls ) ) ) );
@@ -226,7 +229,7 @@ namespace {
 	$GLOBALS['lt_caps'] = array();
 	$guest = $widget();
 	$prog  = new \ElementorPro\Modules\Lottie\Widgets\Lottie();
-	( new ReflectionMethod( $prog, 'register_controls' ) )->invoke( $prog );
+	( digi_test_accessible( new ReflectionMethod( $prog, 'register_controls' ) ) )->invoke( $prog );
 	check_lt( array( 'media_file' ) === array_keys( $guest->controls['source']['options'] ) && 'hidden' === $guest->controls['source_external_url']['type'] && array_keys( $prog->controls['source']['options'] ) === array_keys( $guest->controls['source']['options'] ), 'Sin permiso para publicar páginas, sin URL externa (como PRO).' );
 	$GLOBALS['lt_caps'] = array( 'publish_pages' => true );
 	foreach ( $pro->groups as $name => $group ) {

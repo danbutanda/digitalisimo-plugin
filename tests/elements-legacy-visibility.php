@@ -128,7 +128,7 @@ namespace {
 	check_legacy( Rules::check( 'os', $rule( 'os', 'windows' ) ) && Rules::check( 'browser', $rule( 'browser', 'edge' ) ) && ! Rules::check( 'browser', $rule( 'browser', 'chrome' ) ) && ! Rules::check( 'browser', $rule( 'browser', 'safari' ) ), 'Sistema y navegador como Element Pack.' );
 	$_SERVER['REQUEST_URI'] = '/oferta/?utm_source=mail&ref=vip';
 	$_GET = array( 'utm_source' => 'mail', 'ref' => 'vip' );
-	check_legacy( Rules::check( 'url_parameters', $rule( 'url_parameters', "utm_source=mail\nother=1" ) ) && Rules::check( 'url_parameters', $rule( 'url_parameters', 'ref' ) ) && Rules::check( 'url_string', $rule( 'url_string', 'oferta' ) ), 'Parámetros y texto de URL.' );
+	check_legacy( Rules::check( 'url_parameters', $rule( 'url_parameters', "utm_source=mail\nother=1" ) ) && Rules::check( 'url_parameters', $rule( 'url_parameters', 'ref' ) ) && Rules::check( 'url_string', $rule( 'url_string', 'oferta' ) ) && Rules::check( 'url_string', $rule( 'url_string', '' ) ), 'Parámetros y texto de URL (vacío: cualquier URL, también en PHP 7.4).' );
 	$_SERVER['HTTP_REFERER'] = 'https://www.bing.com/search?q=x';
 	check_legacy( Rules::check( 'search_engine_url', $rule( 'search_engine_url', array( 'bing.com' ) ) ) && ! Rules::check( 'search_engine_url', $rule( 'search_engine_url', array( 'google.com', 'bing.com' ) ) ) && Rules::check( 'search_engine_url', $rule( 'search_engine_url', array() ) ), 'Buscador: sólo el primero elegido y cualquier referencia sin selección.' );
 	check_legacy( Rules::check( 'ex_url', $rule( 'ex_url', '' ) ), 'Una referencia de otro dominio es externa.' );

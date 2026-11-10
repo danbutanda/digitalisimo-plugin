@@ -16,6 +16,9 @@
  * Uso: php-wasm-cli tests/elements-pro-template.php. php-wasm sale con 0 aunque haya un error fatal: se juzga por la línea
  * final y por las líneas «FALLA».
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -82,7 +85,7 @@ namespace {
 				$w = new \Digitalisimo\Elements\Services\Widgets\Template();
 				$w->settings = array( 'template_id' => (string) $inner[ $id ] );
 				ob_start();
-				( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+				( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 				return '<p>Plantilla ' . $id . '</p>' . ob_get_clean();
 			}
 			return '<p>Plantilla ' . $id . '</p>';
@@ -103,7 +106,7 @@ namespace {
 		$w           = new Template();
 		$w->settings = $settings;
 		ob_start();
-		( new ReflectionMethod( $w, 'render' ) )->invoke( $w );
+		( digi_test_accessible( new ReflectionMethod( $w, 'render' ) ) )->invoke( $w );
 		return (string) ob_get_clean();
 	};
 	$checks = 0;
@@ -121,8 +124,8 @@ namespace {
 
 	// 2. Controles frente a PRO.
 	$pro = new \ElementorPro\Modules\Library\Widgets\Template();
-	( new ReflectionMethod( $pro, 'register_controls' ) )->invoke( $pro );
-	( new ReflectionMethod( $w, 'register_controls' ) )->invoke( $w );
+	( digi_test_accessible( new ReflectionMethod( $pro, 'register_controls' ) ) )->invoke( $pro );
+	( digi_test_accessible( new ReflectionMethod( $w, 'register_controls' ) ) )->invoke( $w );
 	$check( array_keys( $pro->sections ) === array_keys( $w->sections ) && array( 'section_template' ) === array_keys( $w->sections ), 'Misma sección (`section_template`, donde F7b añade las sobrescrituras).' );
 	$check( array_keys( $pro->controls ) === array_keys( $w->controls ), 'Mismos controles: ' . implode( ', ', array_keys( $w->controls ) ) );
 	foreach ( $pro->controls as $name => $args ) {
@@ -160,7 +163,7 @@ namespace {
 	$f7b = $root . 'modules/digitalisimo-f7b/';
 	require $f7b . 'overrides/class-render.php';
 	$check( in_array( 'digitalisimo-template', \Digitalisimo\Elements\F7b\Overrides\Render::WIDGETS, true ) && in_array( 'template', \Digitalisimo\Elements\F7b\Overrides\Render::WIDGETS, true ), 'Render de F7b reconoce las dos Plantillas.' );
-	$is = new ReflectionMethod( \Digitalisimo\Elements\F7b\Overrides\Render::class, 'is_template' );
+	$is = digi_test_accessible( new ReflectionMethod( \Digitalisimo\Elements\F7b\Overrides\Render::class, 'is_template' ) );
 	if ( PHP_VERSION_ID < 80100 ) {
 		$is->setAccessible( true );
 	}

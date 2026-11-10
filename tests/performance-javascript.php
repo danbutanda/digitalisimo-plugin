@@ -3,6 +3,7 @@
  * Defer seguro de jQuery: árbol de dependencias, estrategia nativa, revisión
  * del HTML final, fallback por página y red de seguridad del navegador.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 $GLOBALS['settings'] = array( 'perf_js_jquery_mode' => 'defer' );
 $GLOBALS['options']  = array();
@@ -58,7 +59,7 @@ foreach ( array( 'swiper', 'hello-theme-frontend', 'wp-i18n', 'wp-hooks', 'eleme
 $js::request_defer();
 check( 'defer' === $s->get_data( 'jquery-core', 'strategy' ) && 'defer' === $s->get_data( 'smartmenus', 'strategy' ) && 'defer' === $s->get_data( 'elementor-frontend', 'strategy' ), 'La cadena recibe defer por la API de WordPress.' );
 check( 'async' === $s->get_data( 'propio-async', 'strategy' ) && false === $s->get_data( 'swiper', 'strategy' ), 'Nunca async, nunca fuera de la cadena, nunca sobre una estrategia existente.' );
-$requested = ( new ReflectionProperty( $js, 'requested' ) )->getValue();
+$requested = ( digi_test_accessible( new ReflectionProperty( $js, 'requested' ) ) )->getValue();
 check( ! isset( $requested['propio-async'] ) && isset( $requested['jquery-core'] ), 'Sólo se registra como pedido lo que este experimento cambió.' );
 
 // Sin soporte nativo o desactivado, no se pide nada.
@@ -76,7 +77,7 @@ $head = '<!doctype html><html><head><script>window.dataLayer=window.dataLayer||[
 $foot = '<script id="elementor-frontend-js-extra">var elementorFrontendConfig={"currency":"$","price":"$ 10"};</script>' . tag( 'jquery-ui-core' ) . tag( 'jquery-ui-position' ) . tag( 'elementor-frontend' ) . tag( 'smartmenus' ) . tag( 'swiper', false ) . tag( 'hello-theme-frontend', false ) . '<script type="application/ld+json">{"x":"jQuery"}</script></body></html>';
 $safe = $head . '<p>Contenido</p>' . $foot;
 check( $safe === $js::process( $safe, $s, $requested ), 'Una página sin riesgos conserva la cadena diferida.' );
-$report = ( new ReflectionProperty( $js, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $js, 'report' ) ) )->getValue();
 $rows = array_column( $report['rows'], null, 'handle' );
 check( 'Cadena diferida' === $report['page'] && 'SEGURO PARA DEFER' === $rows['jquery-core']['status'] && 'defer' === $rows['jquery-migrate']['effective'] && 'elementor-frontend-modules, jquery-ui-position' === $rows['elementor-frontend']['dependency'], 'El debug muestra jquery-core, jquery-migrate y cada dependiente con su estrategia.' );
 check( ! isset( $rows['swiper'] ), 'Swiper no está en la cadena.' );
@@ -87,7 +88,7 @@ $risky = $head . $own . '<script>jQuery(function($){ $(".menu").addClass("x"); }
 $out   = $js::process( $risky, $s, $requested );
 check( false === strpos( $out, 'id="jquery-core-js" defer' ) && false === strpos( $out, 'id="smartmenus-js" defer' ) && false === strpos( $out, 'data-wp-strategy' ), 'Se retira el defer de toda la cadena.' );
 check( false !== strpos( $out, 'id="otro-js" defer' ), 'Un defer que no pidió este experimento se conserva.' );
-$report = ( new ReflectionProperty( $js, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $js, 'report' ) ) )->getValue();
 check( false !== strpos( $report['snippet'], 'addClass' ), 'El debug muestra el código que impide diferir.' );
 check( 'Carga normal en esta página' === $report['page'] && false !== strpos( $report['reason'], 'inline' ) && 'NO DIFERIDO' === array_column( $report['rows'], null, 'handle' )['jquery-core']['status'], 'El debug explica el fallback.' );
 
@@ -98,7 +99,7 @@ check( $before === $js::process( $before, $s, $requested ), 'Un inline anterior 
 // Un script bloqueante sin registrar después de jQuery puede usarlo sin declararlo.
 $unknown = $head . '<script src="https://cdn.test/viejo.js"></script>' . $foot;
 check( false === strpos( $js::process( $unknown, $s, $requested ), 'id="jquery-core-js" defer' ), 'Un script desconocido bloqueante provoca fallback.' );
-check( false !== strpos( ( new ReflectionProperty( $js, 'report' ) )->getValue()['reason'], 'viejo.js' ), 'El motivo nombra el script.' );
+check( false !== strpos( ( digi_test_accessible( new ReflectionProperty( $js, 'report' ) ) )->getValue()['reason'], 'viejo.js' ), 'El motivo nombra el script.' );
 $async_unknown = $head . '<script async src="https://www.googletagmanager.com/gtag/js?id=G-X"></script><script type="module" src="/m.js"></script>' . $foot;
 check( $async_unknown === $js::process( $async_unknown, $s, $requested ), 'Scripts async o módulos no frenan el defer.' );
 
@@ -106,13 +107,13 @@ check( $async_unknown === $js::process( $async_unknown, $s, $requested ), 'Scrip
 $s->add_data( 'jquery-numerator', 'after', array( 'x' ) );
 $blocking = $head . tag( 'jquery-numerator', false ) . $foot;
 check( false === strpos( $js::process( $blocking, $s, $requested ), 'id="jquery-core-js" defer' ), 'Un dependiente bloqueante después de jQuery provoca fallback.' );
-check( false !== strpos( ( new ReflectionProperty( $js, 'report' ) )->getValue()['reason'], 'jquery-numerator' ), 'El motivo nombra el dependiente.' );
+check( false !== strpos( ( digi_test_accessible( new ReflectionProperty( $js, 'report' ) ) )->getValue()['reason'], 'jquery-numerator' ), 'El motivo nombra el dependiente.' );
 
 // El inline «before» que WordPress añade a jQuery UI (caso real de digitalisimo.mx).
 $before_tag = '<script id="jquery-ui-core-js-before">' . "\njQuery.uiBackCompat = true;\n//# sourceURL=jquery-ui-core-js-before\n" . '</script>';
 $ui = $head . '<p>x</p>' . str_replace( tag( 'jquery-ui-core' ), $before_tag . tag( 'jquery-ui-core' ), $foot );
 $out = $js::process( $ui, $s, $requested );
-$report = ( new ReflectionProperty( $js, 'report' ) )->getValue();
+$report = ( digi_test_accessible( new ReflectionProperty( $js, 'report' ) ) )->getValue();
 check( 'Cadena diferida' === $report['page'] && array( 'jquery-ui-core-js-before' ) === $report['converted'], 'El inline «before» de la cadena ya no impide diferir.' );
 check( false !== strpos( $out, 'id="jquery-core-js" defer' ) && false === strpos( $out, 'jQuery.uiBackCompat = true;' . "\n//" ), 'jQuery sigue diferido y el inline ya no se ejecuta al leerse.' );
 preg_match( '/<script id="jquery-ui-core-js-before" src="data:text\/javascript;base64,([^"]+)" defer><\/script>(<script[^>]*id="jquery-ui-core-js")/', $out, $m );

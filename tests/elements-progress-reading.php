@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
@@ -18,7 +21,7 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-progress-bars.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-reading-time.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-reading-progress.php';
-	$render = static function ( $widget ) { ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); return ob_get_clean(); };
+	$render = static function ( $widget ) { ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); return ob_get_clean(); };
 
 	$bars = new \Digitalisimo\Elements\Progress_Bars_Widget();
 	$bars->settings = array( 'layout' => 'bar', 'show_value' => 'yes', 'suffix' => '%', 'items' => array( array( '_id' => 'a', 'label' => 'Diseño <b>x</b>', 'value' => 150, 'max' => 100 ), array( 'label' => 'SEO', 'value' => 40, 'max' => 50, 'text' => 'Nota' ) ) );

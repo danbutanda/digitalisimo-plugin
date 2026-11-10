@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); private $links = array();
@@ -25,11 +28,11 @@ namespace {
 	$widget->settings = \Digitalisimo\Elements\Icon_Mobile_Menu_Widget::upgrade_settings( array( 'menu_style' => 'style-4', 'menu_tooltip' => 'yes', 'menu_items' => array( array( '_id' => 'x1', 'menu_text' => 'Inicio <script>x</script>', 'menu_icon' => array( 'value' => 'fas fa-home' ), 'link' => array( 'url' => 'https://site.test/' ) ), array( 'menu_text' => 'Sin icono', 'link' => array( 'url' => 'https://site.test/error' ) ) ) ) );
 	check_icon_menu( array( 'digitalisimo-icon-nav-bar' ) === $widget->get_style_depends(), 'En barra horizontal sólo carga la hoja de la barra.' );
 	check_icon_menu( 'bar' === $widget->settings['layout'] && 'Inicio <script>x</script>' === $widget->settings['iconnavs'][0]['iconnav_title'] && 'fas fa-home' === $widget->settings['iconnavs'][0]['iconnav_icon']['value'] && 'https://site.test/' === $widget->settings['iconnavs'][0]['iconnav_link']['url'] && ! isset( $widget->settings['menu_items'] ), 'Los elementos del menú móvil pasan al repetidor de la navegación.' );
-	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $html = ob_get_clean();
 	check_icon_menu( str_contains( $html, '<nav class="digi-icon-nav digi-icon-nav--bar digi-icon-nav--style-4 digi-icon-mobile-menu digi-icon-mobile-menu--bar digi-icon-mobile-menu--style-4" aria-label="Menú de iconos"><ul class="digi-icon-nav__links digi-icon-mobile-menu__list">' ) && str_contains( $html, '<li class="digi-icon-nav__entry digi-icon-mobile-menu__entry elementor-repeater-item-x1"><a class="digi-icon-nav__link digi-icon-mobile-menu__item" href="https://site.test/" aria-label="Inicio x" data-tooltip="Inicio x">' ) && str_contains( $html, '<span class="digi-icon-nav__icon digi-icon-mobile-menu__icon">' ) && str_contains( $html, '<span class="digi-icon-nav__text digi-icon-mobile-menu__text">Inicio x</span>' ), 'Debe mostrar enlace y nombre accesible con las clases nuevas y las de antes.' );
 	check_icon_menu( ! str_contains( $html, '<script>' ) && ! str_contains( $html, 'site.test/error' ) && str_contains( $html, 'data-tooltip="Inicio x"' ), 'Debe sanear textos y omitir iconos vacíos en el diseño compacto.' );
 	$widget->settings = \Digitalisimo\Elements\Icon_Mobile_Menu_Widget::upgrade_settings( array( 'menu_style' => 'style-2', 'menu_items' => array( array( 'menu_text' => 'Servicio', 'menu_icon' => array() ) ) ) );
-	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $plain = ob_get_clean();
+	ob_start(); ( digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ) )->invoke( $widget ); $plain = ob_get_clean();
 	check_icon_menu( str_contains( $plain, 'digi-icon-mobile-menu--style-2' ) && str_contains( $plain, '<span class="digi-icon-nav__link digi-icon-mobile-menu__item">' ) && ! str_contains( $plain, 'href=' ) && ! str_contains( $plain, 'role="img"' ), 'Sin enlace debe verse texto, no una acción vacía.' );
 	$rail = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/icon-nav.css' );
 	$bar = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/icon-nav-bar.css' );

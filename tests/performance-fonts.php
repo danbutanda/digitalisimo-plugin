@@ -1,5 +1,6 @@
 <?php
 /** Inventario de Kit y CSS local sin solicitudes externas ni mutaciones de Elementor. */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ );
 define( 'KB_IN_BYTES', 1024 );
 define( 'WP_CONTENT_DIR', __DIR__ . '/fixtures/wp-content' );
@@ -23,7 +24,7 @@ $merged = $class::merge_families( array( $families, array( array( 'family' => 'I
 if ( $merged[0]['weights'] || $merged[0]['styles'] ) throw new RuntimeException( 'Una variante no especificada debe conservar todos sus pesos y estilos.' );
 list( $used, $documents, $complete ) = $class::content_families();
 if ( 2 !== $documents || ! $complete || 2 !== count( $used ) || 'Inter' !== $used[0]['family'] ) throw new RuntimeException( 'Debe incluir familias de documentos Elementor publicados.' );
-$faces = ( new ReflectionClass( $class ) )->getMethod( 'local_faces' )->invoke( null );
+$faces = digi_test_accessible( ( new ReflectionClass( $class ) )->getMethod( 'local_faces' ) )->invoke( null );
 if ( 4 !== count( $faces ) || 'Inter' !== $faces[0]['family'] || '400' !== $faces[0]['weight'] || 'italic' !== $faces[1]['style'] || 'https://example.test/wp-content/uploads/elementor/google-fonts/fonts/inter-regular.woff2' !== $faces[0]['url'] || $faces[0]['url'] !== $faces[2]['url'] || 'U+0000-00FF' !== $faces[2]['unicode_range'] || '' !== $faces[3]['url'] ) throw new RuntimeException( 'Debe resolver URLs absolutas locales sin aceptar otro host.' );
 $report = $class::scan();
 if ( 0 !== $report['kit_id'] || 4 !== count( $report['faces'] ) || 'fonts' !== Digitalisimo_Integrations_Performance_Cache::$last[0] ) throw new RuntimeException( 'Sin Elementor, el análisis debe ser seguro y guardar sólo datos locales.' );

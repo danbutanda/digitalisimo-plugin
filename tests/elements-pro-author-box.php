@@ -14,6 +14,9 @@
  *   personalizado con clases de PRO, responsivos, perfil ampliado): ningún `pro.unmapped`, cada clave cae en un control
  *   propio y lo convertido se pinta con los mismos textos.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; }
 }

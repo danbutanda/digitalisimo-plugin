@@ -1,4 +1,7 @@
 <?php
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $attributes = array();
@@ -31,13 +34,13 @@ namespace {
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-call-out.php';
 	$widget = new \Digitalisimo\Elements\Call_Out_Widget();
 	check_call_out( array( 'digitalisimo-call-out' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'Call Out sólo debe cargar CSS propio.' );
-	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
+	(digi_test_accessible( new \ReflectionMethod( $widget, 'register_controls' ) ))->invoke( $widget );
 	check_call_out( isset( $widget->controls['button_icon'], $widget->controls['link'] ), 'Faltan los controles de icono y enlace.' );
 	$widget->settings = array( 'title' => 'Consulta', 'description' => 'Descripción', 'button_text' => 'Abrir', 'button_icon' => array( 'value' => 'fas fa-star' ), 'link' => array( 'url' => 'https://example.test/contacto', 'is_external' => true, 'nofollow' => true ) );
-	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'render' ) ))->invoke( $widget ); $html = ob_get_clean();
 	check_call_out( str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="nofollow noopener noreferrer"' ), 'El enlace externo debe proteger la pestaña y conservar nofollow.' );
 	check_call_out( str_contains( $html, '<i aria-hidden="true">' ) && str_contains( $html, '<h3 ' ), 'El icono y el título semántico deben conservarse.' );
-	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
+	ob_start(); (digi_test_accessible( new \ReflectionMethod( $widget, 'content_template' ) ))->invoke( $widget ); $editor = ob_get_clean();
 	check_call_out( str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'settings.link.is_external' ) && str_contains( $editor, 'noopener noreferrer' ), 'El editor debe mostrar el icono y respetar los atributos del enlace.' );
 	echo "DIGITALÍSIMO Elements: Call Out validado.\n";
 }

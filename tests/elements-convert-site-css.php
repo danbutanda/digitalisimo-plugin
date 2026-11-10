@@ -21,6 +21,7 @@
  * Uso: php-wasm-cli tests/elements-convert-site-css.php. php-wasm sale con 0 aunque haya un error fatal: se juzga por la
  * línea final.
  */
+require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
 define( 'ABSPATH', __DIR__ . '/' );
 function esc_html__( $t ) { return $t; }
 function __( $t ) { return $t; }

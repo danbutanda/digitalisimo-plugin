@@ -29,6 +29,7 @@ concurrency:
 
 jobs:
   release:
+    needs: php74
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +43,9 @@ jobs:
           php-version: '8.2'
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
+      - name: Traer main para la higiene
+        # tests/repo-hygiene.mjs compara scripts/ci-php74-pendientes.txt con la de origin/main: la lista sólo se acorta.
+        run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       - name: Probar la suite
         # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
@@ -330,6 +334,10 @@ jobs:
           php tests/backups-restore-review.php
           php tests/backups-restore-neighbors.php
           php tests/backups-restore-integration.php
+          php tests/backups-migrate.php
+          php tests/backups-migrate-surfaces.php
+          php tests/backups-migrate-hardening.php
+          php tests/backups-migrate-restore.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php
@@ -553,3 +561,27 @@ jobs:
           files: |
             ${{ runner.temp }}/digitalisimo-suite/*.zip
             ${{ runner.temp }}/digitalisimo-suite/digitalisimo-plugins.json
+
+  php74:
+    # Requires PHP: 7.4 es el mínimo que declaran los plugins y el tema: sintaxis de todos con PHP 7.4 y las pruebas PHP
+    # de «Probar la suite» de este mismo archivo, que scripts/ci-php-suite.mjs lee sin copiar la lista, más las de Node
+    # que lanzan PHP (leen PHP_BIN); las demás de Node y las de Chrome no dependen de PHP. tests/repo-hygiene.mjs lo comprueba.
+    # La publicación (trabajo release) espera a que pase: no sale una versión que rompa el mínimo declarado.
+    name: PHP 7.4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validar sintaxis PHP 7.4
+        # Los bootstrap80.php de los polyfills de Symfony usan sintaxis de PHP 8 a propósito: su bootstrap.php sólo los
+        # carga con PHP >= 8 (tests/repo-hygiene.mjs lo comprueba).
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -not -path '*/symfony/polyfill-*/bootstrap80.php' -print0 | xargs -0 -r -n1 php -l
+      - name: Probar la suite PHP con PHP 7.4
+        # scripts/ci-php74-pendientes.txt: pruebas que aún no corren en 7.4, cada una con su causa; deben seguir
+        # fallando, y la que ya pase hace fallar el trabajo para que la lista sólo se acorte.
+        run: node scripts/ci-php-suite.mjs .github/workflows/release.yml --pendientes scripts/ci-php74-pendientes.txt

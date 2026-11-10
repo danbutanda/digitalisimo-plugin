@@ -13,6 +13,9 @@
  *   globales, dinámicos en el widget y en las filas, FA4 heredado, CSS personalizado con clases de PRO): ningún
  *   `pro.unmapped`, cada clave cae en un control propio y lo convertido se pinta con los mismos textos que PRO.
  */
+namespace {
+	require_once __DIR__ . '/fixtures/php74.php'; // PHP 7.4: polyfills de WordPress y reflexión abierta.
+}
 namespace Elementor {
 	class Plugin { public static $instance; }
 }
