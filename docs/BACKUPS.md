@@ -155,7 +155,7 @@ una exportación sin cortes.
 | --- | --- |
 | Trabajos | Hecho en 1.0.59 con reanudación por fase (T1) y en 1.0.64 con tramos cortos dentro de la exportación, el empaquetado y la verificación (T2). Queda de T2 el sellado DGBK, que sigue siendo un paso por respaldo (con libsodium nativo cifra y comprueba unos 200 MB en pocos segundos; con sodium_compat, unos 11 s por MiB en php-wasm, no cabe en 30 s), repetir en un hosting con MySQL (webuzo-lab) el ensayo de Playground con 30 s y 64 MB, y un relanzamiento propio por loopback (como el de Backuply) para que un respaldo programado avance sin visitas: hoy, sin cron del sistema, cada tick de WP-Cron llega con una visita. **T3**, en parte desde 1.0.62: S3 multipart, Dropbox y FTP reanudan por fragmentos con el estado en el área del trabajo, y un trabajo que falla o se cancela en «transfer» retira lo que dejó en el destino (multipart abortado, temporal de SFTP, FTP, WebDAV o Dropbox). Falta reanudar SFTP por desplazamiento y las sesiones de Google Drive y OneDrive (hoy repiten la subida entera), y la cancelación durante una subida SFTP o WebDAV sólo llega cuando esa subida termina (S3, Dropbox, FTP, pCloud y WebDAV con cURL la comprueban entre fragmentos o durante la subida). Desde 1.0.60, REST y WP-CLI consultan, hacen avanzar y cancelan la misma cola (`wp digitalisimo-backups jobs cancel`, `POST /jobs/<id>/cancel`). Ensayo real pendiente: `kill -9` en un hosting con MySQL (en Playground, T2 ya mata peticiones a mitad de tramo con 30 s y 64 MB). Una restauración interrumpida ya no pierde el historial, la seguridad ni el llavero (diario del almacén), pero deja el sitio a medias: hay que restaurar la copia previa a mano, escribiendo la frase si el llavero volvió sin su envoltura. Desde T2 el empaquetado ya no depende del aviso de avance de `ZipArchive::close()`: late y guarda su punto de control al menos cada 5 s, así que otro servidor sin `flock` común ya no lo toma por muerto mientras avanza; un tramo que otro servidor retomó empieza su fase de nuevo (sólo se retoma un punto de control escrito en el mismo servidor) y, a la tercera vez, la fase falla. |
 | Restauración | Desde 1.0.64, trabajo por pasos con tablas temporales y un cambio atómico, archivos preparados y movidos, mantenimiento, reanudación, vuelta automática a la copia previa y, si ésa falla, «Volver a la copia previa» en la pantalla y `wp digitalisimo-backups jobs rollback` (ver «Restauración por pasos»). Desde E1 la base de datos se reubica (dominio, ruta, prefijo, red) con datos serializados seguros, también por pasos. **Restaurar desde un destino remoto** (B1b: descargar en streaming, comprobar el SHA-256 y restaurar como un archivo local), **sincronizar** los respaldos de un destino (B2) y la descarga en streaming de Google Drive y OneDrive (I12). Falta el ensayo con MySQL real y el corte del laboratorio (Webuzo con OpenLiteSpeed, 30 s, 64 MB y Cloudflare), la prueba extremo a extremo a otro servidor real (E2), la migración en un clic y restaurar UpdraftPlus por pasos. |
-| Migración | Hecha en @NEXT_BACKUPS@ (un clic, staging y deshacer). Falta: restauración reanudable por pasos (hoy la fase «Restauración» de la migración es un paso largo, como «Restaurar», y no se repite sola si muere: «Deshacer la migración» devuelve el estado anterior); fusión de cambios entre dos sitios vivos (fuera de alcance, declarado); que la copia de pruebas apague sola las automatizaciones y los destinos que trajo del origen; y el ensayo entre dos servidores reales con MySQL y HTTPS (el de Playground usa HTTP con «Permitir HTTP»). |
+| Migración | Hecha en @NEXT_BACKUPS@ (un clic, staging y deshacer). La restauración es la por pasos de 1.0.64 (se reanuda y vuelve sola a la copia previa). Falta: fusión de cambios entre dos sitios vivos (fuera de alcance, declarado); que la copia de pruebas apague sola las automatizaciones y los destinos que trajo del origen; y el ensayo entre dos servidores reales con MySQL y HTTPS (el de Playground usa HTTP con «Permitir HTTP»). |
 | Seguridad | Argon2id opcional para la frase. Botón «Inspeccionar» con el informe de un archivo antes de restaurarlo (hoy la inspección completa ocurre al restaurar, antes de la copia previa). Ensayo del cifrado en un hosting real con libsodium nativo y MySQL. Sin la extensión, sodium_compat es lento: en php-wasm, unos 11 s por MiB (36 MB tardaron unos 11 minutos en cifrarse y comprobarse y unos 6 en descifrarse y restaurarse); la pestaña mide la velocidad del servidor y estima el tiempo del último respaldo. |
 | Restauración (UpdraftPlus) | La ruta de UpdraftPlus ya valida todo antes de cambiar nada, pero aún no crea copia previa ni revierte si falla a medias. Su restauración y el diario de una restauración interrumpida sólo se han probado en php-wasm, sobre la base de datos simulada; falta ensayarlos en WordPress real. |
 | Automatización | Respaldo previo a actualizaciones, incrementales con borrados y cadena íntegra, retención que preserve dependencias y varios destinos por trabajo. |
@@ -787,12 +787,22 @@ del origen.
    pega la clave en «Migrar desde otro sitio» y pulsa «Migrar a este sitio». Antes de encolar nada, el destino se
    presenta al origen y comprueba que la migración es posible (abajo); después el avance está en «Trabajos»
    («Conexión con el origen» → «Paquete en el origen» → «Descarga» → «Comprobación del paquete» → «Restauración» →
-   «Cierre»). Con la página abierta el navegador lo hace avanzar; si se cierra, WP-Cron o
+   «Cierre»; la restauración, con su propia tarjeta). Con la página abierta el navegador lo hace avanzar; si se cierra, WP-Cron o
    `wp digitalisimo-backups jobs run`. Al restaurar, los usuarios pasan a ser los del origen: la sesión del navegador
    deja de valer y la pantalla pide iniciar sesión con un usuario del origen.
 3. El destino conserva **su** dirección: la restauración reescribe URL, rutas del servidor y prefijo de tablas con el
    motor de «Restaurar en otro dominio» (datos serializados, JSON y URL codificadas), vacía el CSS generado de Elements
    y las cachés, y fija `home`/`siteurl` (en una red, también `site`, `blogs` y `sitemeta`).
+4. **La restauración es la de «Restaurar»**, sin camino propio: la fase «Restauración» de la migración encola una
+   restauración por pasos del paquete (ver «Restauración por pasos»: verificación, copia previa, tablas temporales y un
+   cambio atómico, archivos preparados, mantenimiento, reanudación tras una muerte y vuelta automática a la copia previa
+   si falla tras el cambio) y espera su resultado. El sitio queda **idéntico al paquete**: los archivos de las raíces
+   gestionadas y las tablas de este WordPress (con su prefijo) que el paquete no trae se retiran con el cambio (están en
+   la copia previa). Los drop-ins de `wp-content` (`db.php`, `object-cache.php`…) y `wp-config.php` del destino son de
+   su servidor y se quedan. **Nunca con otro trabajo a medias:** si hay un respaldo (o cualquier trabajo) pendiente o en
+   curso, la migración espera en «Comprobación del paquete», sin gastar intentos y todavía cancelable, a que termine; su
+   restauración, una vez encolada, impide que empiece otro. El navegador que hace avanzar la migración recibe el testigo
+   de su restauración (como «Restaurar») y la sigue durante el mantenimiento; WP-Cron también.
 
 **Qué se comprueba antes de tocar el destino.** Individual → individual y red → red del mismo tipo (subdominios o
 subdirectorios); si el origen es una red y el `wp-config.php` del destino no la declara, el mensaje dice qué definir
@@ -803,9 +813,17 @@ origen, cabecera DGBK con la clave de esta migración, descifrado autenticado co
 inspección de archivos no confiables y el guardián SQL, y el plan de reubicación (con el `wp-config.php` de la red).
 
 **Deshacer.** La copia previa que crea la restauración queda bloqueada y marcada con la migración (`migration` en su
-fila del historial: origen, fecha, trabajo y estado). «Deshacer la migración» (pantalla, `POST /migration/undo` con
-`DESHACER`, `wp digitalisimo-backups migration undo`) la restaura —con su propia copia previa del estado migrado— y la
-marca como deshecha; no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en su almacén
+fila del historial: origen, fecha, trabajo y estado: `restoring` al crearla, `migrated` sólo si la restauración terminó
+bien, `rolled_back` si falló y volvió sola a la copia previa, `failed` si se rechazó antes de cambiar nada; sin el
+trabajo de la migración, lo decide su restauración). «Deshacer la migración» (pantalla, `POST /migration/undo` con
+`DESHACER`, `wp digitalisimo-backups migration undo`) sólo se ofrece para una migración aplicada y restaura esa copia
+con el mismo motor por pasos —con su propia copia previa del estado migrado— dejando el sitio **idéntico** a ella:
+también retira lo que trajo el origen y la copia no tiene, en archivos (núcleo, plugins, temas, mu-plugins, drop-ins de
+`wp-content` y medios) y en tablas. En la web sigue en segundo plano (202 en REST, «Deshaciendo la migración» en la
+pantalla, con el testigo del mantenimiento); en WP-CLI, hasta terminar. Antes de decidir, pasa por el detector de
+procesos muertos y toma el cerrojo (que aplica el diario de una restauración interrumpida); mientras la restauración de
+la migración siga (o se esté reanudando tras una caída) responde 409 diciendo que hay que esperar. Al terminar, la
+marca queda `undone` y no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en su almacén
 privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
 
 **Staging.** Es la misma migración: para una copia de pruebas (otro dominio o subdominio), la clave se genera en
@@ -878,9 +896,15 @@ mitad, la migración falla diciendo que «Deshacer la migración» devuelve el e
 sitio a medias).
 
 Límites declarados: un plugin de seguridad que cierre la API REST a visitantes anónimos impide migrar desde ese origen
-(la API del origen no usa la sesión); el estado de la migración del destino (sus propias claves y el registro) vuelve
-tras restaurar, pero si el proceso muere en mitad del SQL se pierde (las claves que generó quedan, en la práctica,
-revocadas); la sesión del navegador del destino termina al restaurar (los usuarios son los del origen).
+(la API del origen no usa la sesión); el estado de la migración del destino (sus propias claves y el registro) nunca
+viaja en un respaldo: se guarda antes del cambio de tablas (también sellado en el almacén, para una muerte entre el
+cambio y la reposición) y vuelve después; la sesión del navegador del destino termina al cambiar las tablas (los
+usuarios son los del origen) y el cierre con el origen lo hace el tick siguiente (WP-Cron, o la pantalla tras iniciar
+sesión con un usuario del origen); un trabajo de la cola caduca a las 24 h (`EXPIRES_AFTER` del motor), lo que limita un
+paquete enorme cifrado con sodium_compat; la validación de la dirección del origen resuelve el nombre antes de cada
+petición, pero la petición vuelve a resolverlo (un DNS que cambia entre las dos no se detecta); la retirada de tablas
+propias usa el prefijo de este WordPress, igual que la restauración (otra aplicación cuyas tablas empiecen por ese mismo
+prefijo se trataría como propia).
 
 Ensayo en WordPress Playground (`tests/playground/backups-migrate.sh`): WordPress 7.1.4, PHP 8.5 sin libsodium nativo
 (el paquete se cifra y se descifra con el sodium_compat de WordPress) y SQLite, dos servidores por modo, A (origen) y B
