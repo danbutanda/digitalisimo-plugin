@@ -1536,7 +1536,8 @@ Desde @NEXT_BACKUPS@ (B6 e I4 frente a Backuply; `trait-backups-remote-retention
 - **Cómo.** Con el cerrojo del historial, la retención sólo anota la copia (`remote_prune` pendiente); el borrado
   ocurre después, en el mismo tick que terminó el respaldo, en los siguientes y en el vigilante horario, siempre con el
   cerrojo de operaciones (revisión H5: nunca mientras «Traer al almacén», una restauración u otra operación usa el
-  almacén, ni si un trabajo activo usa ese respaldo), con esperas de 20 s como máximo por petición y sólo mientras le
+  almacén, ni si un trabajo activo usa ese respaldo; si su ZIP volvió al almacén con «Traer al almacén», no se borra la
+  copia remota y decide la siguiente retención), con esperas de 20 s como máximo por petición y sólo mientras le
   quede tiempo a la petición. Cada fila se vuelve a leer por separado: primero se prepara la conexión (token, sesión),
   y después, **con el cerrojo del historial**, se comprueba otra vez que no está bloqueada, que sigue siendo propia y con
   el mismo recibo, y sólo entonces se borra y se anota (revisión H2): un «Bloquear» que llega mientras tanto o se aplica

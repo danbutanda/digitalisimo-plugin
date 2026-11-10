@@ -329,7 +329,9 @@ try {
 	$set_row( $k1, array( 'remote_prune' => array( 'state' => 'pending', 'attempts' => 0, 'next' => 0, 'error' => '', 'at' => time() ) ) );
 	$GLOBALS['tick_during_get'] = $k1_id;
 	$fetched = $B::service_fetch( $k1 );
-	digi_assert( ! is_wp_error( $fetched ) && is_file( $store . '/' . $k1 ) && isset( $GLOBALS['drive'][ $k1_id ] ) && 0 === ( $GLOBALS['tick_result'] ?? null ) && 'pending' === ( $row_of( $k1 )['remote_prune']['state'] ?? '' ), 'Un tick durante «Traer al almacén» borró la copia remota: ' . json_encode( array( is_wp_error( $fetched ) ? $fetched->get_error_message() : 'ok', isset( $GLOBALS['drive'][ $k1_id ] ), $GLOBALS['tick_result'] ?? null ) ) );
+	// Desde 1.0.69 «Traer al almacén» es un trabajo fetch: al terminar, el tick sigue con la retención, que ya no borra la
+	// copia de una fila cuyo ZIP volvió al almacén (la deja para la siguiente retención).
+	digi_assert( ! is_wp_error( $fetched ) && is_file( $store . '/' . $k1 ) && isset( $GLOBALS['drive'][ $k1_id ] ) && 0 === ( $GLOBALS['tick_result'] ?? null ) && 'pending' !== ( $row_of( $k1 )['remote_prune']['state'] ?? '' ), 'Un tick durante «Traer al almacén» (o justo después) borró la copia remota: ' . json_encode( array( is_wp_error( $fetched ) ? $fetched->get_error_message() : 'ok', isset( $GLOBALS['drive'][ $k1_id ] ), $GLOBALS['tick_result'] ?? null ) ) );
 	$set_row( $k1, array( 'remote_prune' => null ) );
 
 	echo "DIGITALÍSIMO Backups: la retención borra también las copias remotas que registró este sitio (nunca las bloqueadas ni las ajenas, con reintento) y «sólo en el remoto» deja el respaldo sólo en el destino tras verificarlo.\n";

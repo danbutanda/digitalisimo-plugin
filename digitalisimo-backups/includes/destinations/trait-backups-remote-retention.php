@@ -175,8 +175,9 @@ trait Digitalisimo_Backups_Remote_Retention {
 			if ( null === $busy || isset( $busy[ wp_basename( $file ) ] ) ) continue;
 			$done++;
 			try {
-				// Bloqueado después de anotarlo, o la fila ya no cumple: no se borra nada.
-				if ( ! empty( $row['locked'] ) || ! self::remote_owned( $row ) ) { self::history_update( $file, array( 'remote_prune' => null ) ); continue; }
+				// Bloqueado después de anotarlo, o la fila ya no cumple: no se borra nada. Tampoco si su ZIP volvió al almacén
+				// («Traer al almacén», un trabajo fetch, que ya terminó): quien lo trajo lo quiere; decidirá la siguiente retención.
+				if ( ! empty( $row['locked'] ) || ! self::remote_owned( $row ) || '' !== self::local_copy( $row ) ) { self::history_update( $file, array( 'remote_prune' => null ) ); continue; }
 				$remote = (array) $row['remote'];
 				if ( self::remote_connection_gone( $remote ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Su conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' se eliminó en «Servidores»: bórrala desde el servicio.' );
 				$id = self::remote_connection( $remote );
