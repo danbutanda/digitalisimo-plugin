@@ -188,6 +188,8 @@ if ( ! function_exists( 'bk_page' ) ) {
 }
 /* ---- Base de datos sintética que registra cada consulta ---- */
 class Digitalisimo_Jobs_Test_DB {
+	/** Un valor suelto: esta base simulada no lo responde (para otras instalaciones con prefijo anidado, ninguna). */
+	public function get_var( $query ) { return null; }
 	public $base_prefix = 'wp_';
 	public $prefix = 'wp_';
 	public $last_error = '';

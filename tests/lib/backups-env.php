@@ -63,6 +63,8 @@ class Bk_Test_DB {
 		return $query;
 	}
 	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
+	/** Un valor suelto: la base simulada no lo responde (para otras instalaciones con prefijo anidado, ninguna). */
+	public function get_var( $query ) { return null; }
 	public function get_row( $query, $format ) {
 		$this->last_error = '';
 		if ( false !== strpos( $query, 'SHOW TABLE STATUS' ) ) return array( 'Engine' => 'InnoDB' );
