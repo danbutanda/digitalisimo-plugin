@@ -444,7 +444,7 @@ final class Digitalisimo_Backups_Migrate {
 				self::log( $id, 'other_client', $action );
 				return self::in_use_error();
 			}
-			if ( $mine && '' !== $record['client'] && $now - (int) ( $record['seen'] ?? 0 ) >= 60 ) self::touch( $id, $record['client'] );
+			if ( $mine && '' !== $record['client'] && $now - (int) ( $record['seen'] ?? 0 ) >= 60 ) self::touch( $id, (string) $record['client'] );
 		}
 		return $record;
 	}
@@ -453,9 +453,10 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/** Señal del destino al que está atada la clave (como mucho una escritura por minuto). */
 	private static function touch( $id, $client ) {
+		if ( '' === (string) $client ) return;
 		try {
 			self::change( function( &$state ) use ( $id, $client ) {
-				if ( ! isset( $state['keys'][ $id ] ) || ! hash_equals( (string) $state['keys'][ $id ]['client'], (string) $client ) ) return false;
+				if ( ! isset( $state['keys'][ $id ] ) || ! hash_equals( (string) $state['keys'][ $id ]['client'], (string) $client ) || time() - (int) ( $state['keys'][ $id ]['seen'] ?? 0 ) < 60 ) return false;
 				$state['keys'][ $id ]['seen'] = time();
 			} );
 		} catch ( Throwable $e ) {
@@ -626,6 +627,8 @@ final class Digitalisimo_Backups_Migrate {
 		}
 		$view = self::source_view( $record, $job );
 		if ( $busy && ! $view['ready'] ) $view['state'] = 'busy';
+		// Un paso puede durar tanto como el destino espera: al terminarlo, el destino sigue dando señales.
+		self::touch( (string) $record['id'], (string) $record['client'] );
 		if ( $view['ready'] ) {
 			$id = (string) $record['id'];
 			$size = self::megabytes( (int) $view['size'] );
