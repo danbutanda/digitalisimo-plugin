@@ -690,6 +690,12 @@ trait Digitalisimo_Backups_Remote_Service {
 		}
 		return $removed;
 	}
+	/** Tras el SQL de una restauración: el registro de lo traído vuelve al que tenía este almacén (lo guarda el diario). */
+	private static function fetched_from_journal() {
+		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
+		$data = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
+		if ( is_array( $data ) && is_array( $data['fetched'] ?? null ) ) self::fetched_save( $data['fetched'] );
+	}
 	/** Cuándo se borrará del almacén un archivo traído «sin registro» ('' si no es uno). */
 	private static function fetched_expires( $file ) {
 		$record = self::fetched_records()[ (string) $file ] ?? null;

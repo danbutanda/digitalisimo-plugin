@@ -236,7 +236,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -258,6 +258,8 @@ final class Digitalisimo_Backups {
 			// Un sitio extraído: la configuración de Backups de este servidor vuelve (sin los secretos en claro, que no van al diario).
 			if ( is_array( $data['extract_kept'] ?? null ) ) Digitalisimo_Backups_Site_Extract::reapply( $data['extract_kept'] );
 			if ( is_array( $data['history'] ?? null ) ) update_option( self::HISTORY, $data['history'], false );
+			// La retención de lo traído de un destino (C5), como el historial (un diario anterior no la lleva: no se toca).
+			if ( is_array( $data['fetched'] ?? null ) ) self::fetched_save( $data['fetched'] );
 			// El registro del almacén de este servidor (el diario de una versión anterior no lo lleva: entonces no se toca).
 			if ( is_array( $data['storage'] ?? null ) && array_key_exists( 'record', $data['storage'] ) ) self::keep_storage_record( $data['storage']['record'] );
 			Digitalisimo_Backups_Keys::recover_public( $data );
@@ -2408,6 +2410,9 @@ final class Digitalisimo_Backups {
 		if ( false !== $storage ) self::keep_storage_record( $storage );
 		if ( is_array( $kept ) ) Digitalisimo_Backups_Site_Extract::reapply( $kept );
 		update_option( self::HISTORY, $history_before, false );
+		// La retención de lo traído «sin registro» (digitalisimo_backups_fetched) es de este almacén, como el historial: el
+		// SQL trae la del respaldo. Vuelve la que anotó el diario justo antes del cambio.
+		self::fetched_from_journal();
 		// El SQL trae la carpeta del almacén del sitio de origen: esta instalación vuelve a registrar la suya (WP-CLI y el
 		// cron no tienen DOCUMENT_ROOT), y el estado de la migración (fuera de todo respaldo) vuelve como estaba.
 		self::remember_storage();
