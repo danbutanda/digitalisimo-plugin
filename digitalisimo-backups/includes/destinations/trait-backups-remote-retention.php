@@ -53,12 +53,19 @@ trait Digitalisimo_Backups_Remote_Retention {
 		$id = is_file( $path ) && ! is_link( $path ) ? trim( (string) @file_get_contents( $path ) ) : '';
 		return preg_match( '/^[a-f0-9]{64}$/', $id ) ? $id : '';
 	}
-	/** 'same' (de esta instalación), 'other' (de otra: clon o copia de la base) o 'unknown' (fila sin identidad). */
+	/**
+	 * 'same' (de esta instalación), 'other' (de otra: clon o copia de la base) o 'unknown' (fila sin identidad). Además
+	 * de la identidad, el nombre del archivo tiene que llevar el host de este sitio (backup_file_name()): una fila
+	 * copiada de otro sitio con su identidad no basta.
+	 */
 	private static function installation_of( $item ) {
-		$stamp = is_array( ( (array) $item )['installation'] ?? null ) ? $item['installation'] : array();
+		$item = (array) $item;
+		$stamp = is_array( $item['installation'] ?? null ) ? $item['installation'] : array();
 		if ( empty( $stamp['id'] ) || ! is_string( $stamp['id'] ) ) return 'unknown';
 		$here = self::installation_stamp();
-		return ! empty( $here['id'] ) && hash_equals( (string) $here['id'], $stamp['id'] ) ? 'same' : 'other';
+		if ( empty( $here['id'] ) || ! hash_equals( (string) $here['id'], $stamp['id'] ) ) return 'other';
+		$host = function_exists( 'home_url' ) && function_exists( 'sanitize_title' ) ? sanitize_title( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) : '';
+		return '' !== $host && 0 === strpos( (string) ( $item['file'] ?? '' ), 'digitalisimo-backup-' . $host . '-' ) ? 'same' : 'other';
 	}
 	/**
 	 * Campos de una fila que entra de fuera (la sincronización de un destino de R1, la importación de Backuply de R4, una

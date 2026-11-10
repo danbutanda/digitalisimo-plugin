@@ -291,12 +291,13 @@ try {
 
 	// (i) H3: filas de otra instalación (otra identidad) o sin identidad, más antiguas que todas.
 	$history = (array) get_option( $B::HISTORY, array() );
-	$outsiders = array( 'digitalisimo-backup-clon-staging.zip' => array( 'id' => str_repeat( 'f', 64 ), 'home' => 'https://staging.example' ), 'digitalisimo-backup-sin-identidad.zip' => null );
+	// La tercera lleva la identidad de esta instalación copiada, pero el nombre de otro sitio (el caso C de la revisión).
+	$outsiders = array( 'digitalisimo-backup-clon-staging.zip' => array( 'id' => str_repeat( 'f', 64 ), 'home' => 'https://staging.example' ), 'digitalisimo-backup-sin-identidad.zip' => null, 'digitalisimo-backup-produccion-ejemplo-com-20260101-000000-deadbeef.zip' => 'copiada' );
 	foreach ( $outsiders as $name => $installation ) {
 		$id = 'ajeno-' . md5( $name );
 		$GLOBALS['drive'][ $id ] = 'contenido de producción';
 		$row = array_merge( $template, array( 'file' => $name, 'locked' => false, 'remote' => array_merge( $template['remote'], array( 'id' => $id ) ) ) );
-		if ( $installation ) $row['installation'] = $installation; else unset( $row['installation'] );
+		if ( is_array( $installation ) ) $row['installation'] = $installation; elseif ( null === $installation ) unset( $row['installation'] );
 		unset( $row['remote_prune'], $row['remote_foreign'] );
 		$history[] = $row;
 	}
