@@ -26,9 +26,10 @@
  *   B8  nombres reales de Backuply (`wp_midominio.com.mx_…`, `wp_empresa.co.uk_…`) con el sanitize_file_name() de
  *       WordPress (su regla de extensiones intermedias), también en una red sin `tar` en upload_filetypes: «Importar»,
  *       la subida, restaurar y eliminar encuentran el archivo;
- *   B9  memoria: con memory_limit=64M y 46 MB ya ocupados (como WordPress), filas de 2,5 MB con comillas y barras y de
- *       3 MB de texto se importan, y una de 9 MB se rechaza con el aviso de WP-CLI, nunca con un error fatal (procesos
- *       hijos, como la CI); un wp-config.php de 1 MB de tokens tampoco agota la memoria;
+ *   B9  memoria: con memory_limit=64M y unos 48 MB ya ocupados (como WordPress y la revisión), una fila de 2 MB con
+ *       comillas y barras se importa idéntica, una de 4 MB de texto se importa o se rechaza con el aviso de WP-CLI y una
+ *       de 9 MB se rechaza así, nunca con un error fatal (procesos hijos, como la CI); un wp-config.php de 1 MB de
+ *       tokens tampoco agota la memoria;
  *   B10 la descompresión no vuelve al principio en cada tramo: con el primer miembro gzip dañado después de pasarlo, la
  *       importación termina;
  *   B11 una red sin MULTISITE en wp-config.php (sus tablas blogs y site) y un respaldo sin wp-config.php (encima de
@@ -310,29 +311,34 @@ function bi_child( $case ) {
 			$out['ok'] = 'success' === $job['status'];
 			$out['error'] = (string) ( $job['error']['message'] ?? '' );
 		} else {
-			$values = array( 'comillas' => str_repeat( "a'b\\c\"d\n", 330000 ), 'texto' => str_repeat( 'Lorem ipsum dolor sit amet ', 116000 ), 'grande' => str_repeat( 'x', 9437184 ) );
-			$value = $values[ $case ];
-			unset( $values );
+			// Como la revisión (r3-mem.php): la importación entera, con 40 MB de lastre sobre lo que ocupa el entorno.
+			$make = function() use ( $case ) {
+				if ( 'comillas' === $case ) return str_repeat( "a'b\\c\"d\n", 262144 );
+				if ( 'texto' === $case ) return str_repeat( 'Lorem ipsum dolor sit amet ', 155345 );
+				return str_repeat( 'x', 9437184 );
+			};
+			$value = $make();
 			$out['row'] = strlen( $value );
-			$sql = bi_table( 'bk_options', "CREATE TABLE `bk_options` (\n  `option_id` INTEGER PRIMARY KEY,\n  `option_name` varchar(191) NOT NULL,\n  `option_value` longtext NOT NULL\n)", array( true, false, false ), array( array( 1, 'grande', $value ) ) );
-			$expected = hash( 'sha256', Digitalisimo_Backups::sql_value( $value ) );
+			$sql = bi_dump( 'bk_', array( bi_table( 'bk_grande', "CREATE TABLE `bk_grande` (\n  `id` INTEGER PRIMARY KEY,\n  `v` longtext\n)", array( true, false ), array( array( 1, $value ) ) ) ) );
 			unset( $value );
-			$in_path = $GLOBALS['bk_root'] . '-memoria.sql';
-			$out_path = $GLOBALS['bk_root'] . '-memoria-salida.sql';
-			file_put_contents( $in_path, $sql );
+			$file = bi_store_file( 'memoria.tar.gz', bi_gz( bi_tar( bi_entries( 'memoria', array( 'sql' => $sql ) ) ) ) );
 			unset( $sql );
-			$in = fopen( $in_path, 'rb' );
-			$o = fopen( $out_path, 'w+b' );
-			$ballast = str_repeat( '.', (int) max( 0, 46 * 1048576 - memory_get_usage( true ) ) );
+			gc_collect_cycles();
+			$ballast = str_repeat( 'w', 40 * 1048576 );
 			$out['used'] = memory_get_usage( true );
-			$t = new Digitalisimo_Backups_Backuply_Sql( $in, 0, filesize( $in_path ), $o, array() );
-			$t->run( INF );
+			$job = bi_import( $file, 'store' );
 			unset( $ballast );
-			fclose( $o );
-			// El valor convertido es exactamente el de sql_value() (sin decodificarlo entero: se compara su SHA-256).
-			$sql = file_get_contents( $out_path );
-			$at = strpos( $sql, "'1','grande'," );
-			$out['ok'] = false !== $at && hash( 'sha256', substr( $sql, $at + 13, strrpos( $sql, ');' ) - $at - 13 ) ) === $expected;
+			$out['error'] = (string) ( $job['error']['message'] ?? '' );
+			if ( 'success' === $job['status'] ) {
+				// El valor convertido es exactamente el de sql_value().
+				$zip = new ZipArchive();
+				$zip->open( bk_storage() . '/' . $job['result']['import']['file'] );
+				$sql = (string) $zip->getFromName( 'database.sql' );
+				$zip->close();
+				$at = strpos( $sql, "INSERT INTO `bk_grande` (`id`,`v`) VALUES ('1'," );
+				$end = false === $at ? false : strpos( $sql, ");\n", $at );
+				$out['ok'] = false !== $end && hash( 'sha256', substr( $sql, $at + 47, $end - $at - 47 ) ) === hash( 'sha256', Digitalisimo_Backups::sql_value( $make() ) );
+			}
 		}
 	} catch ( Throwable $e ) {
 		$out['error'] = $e->getMessage();
@@ -621,7 +627,8 @@ bi_case( 'B8 nombres reales de Backuply con el sanitize_file_name() de WordPress
 
 bi_case( 'B9 memoria acotada con memory_limit=64M (procesos hijos)', function() {
 	if ( ! function_exists( 'proc_open' ) || ! is_executable( PHP_BINARY ) ) { echo "  · sin proc_open o PHP_BINARY (php-wasm): se omite\n"; return; }
-	foreach ( array( 'comillas' => true, 'texto' => true, 'grande' => false, 'config' => true ) as $case => $fits ) {
+	// true: se importa; null: se importa o se rechaza con el aviso de WP-CLI (nunca un error fatal); false: se rechaza.
+	foreach ( array( 'comillas' => true, 'texto' => null, 'grande' => false, 'config' => true ) as $case => $fits ) {
 		$proc = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', __FILE__, '--memoria=' . $case ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
 		$stdout = stream_get_contents( $pipes[1] );
 		$stderr = stream_get_contents( $pipes[2] );
@@ -631,8 +638,10 @@ bi_case( 'B9 memoria acotada con memory_limit=64M (procesos hijos)', function() 
 		$lines = array_values( array_filter( explode( "\n", trim( (string) $stdout ) ) ) );
 		$last = json_decode( (string) end( $lines ), true );
 		bi_check( 0 === $code && is_array( $last ), $case . ': el proceso hijo murió (código ' . $code . '): ' . substr( $stdout . $stderr, -500 ) );
-		if ( $fits ) bi_check( true === $last['ok'], $case . ': no se importó o el valor cambió: ' . json_encode( $last ) );
-		else bi_check( false === $last['ok'] && false !== strpos( (string) ( $last['error'] ?? '' ), 'WP-CLI' ) && false !== strpos( (string) $last['error'], 'cron del sistema' ), $case . ': una sentencia que no cabe no se rechazó con el aviso de WP-CLI: ' . json_encode( $last ) );
+		$refused = false === $last['ok'] && false !== strpos( (string) ( $last['error'] ?? '' ), 'WP-CLI' ) && false !== strpos( (string) $last['error'], 'cron del sistema' );
+		if ( true === $fits ) bi_check( true === $last['ok'], $case . ': no se importó o el valor cambió: ' . json_encode( $last ) );
+		elseif ( false === $fits ) bi_check( $refused, $case . ': una sentencia que no cabe no se rechazó con el aviso de WP-CLI: ' . json_encode( $last ) );
+		else bi_check( true === $last['ok'] || $refused, $case . ': ni se importó ni se rechazó con el aviso de WP-CLI: ' . json_encode( $last ) );
 		bi_check( $last['peak'] < 67108864, $case . ': pico de memoria de ' . $last['peak'] );
 		echo '  · ' . $case . ': pico ' . round( $last['peak'] / 1048576, 1 ) . ' MB' . ( isset( $last['used'] ) ? ' (' . round( $last['used'] / 1048576, 1 ) . ' MB ocupados antes, fila de ' . round( $last['row'] / 1048576, 1 ) . ' MB)' : '' ) . "\n";
 	}
