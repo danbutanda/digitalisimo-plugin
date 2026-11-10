@@ -149,11 +149,13 @@ try {
 	$third_id = (string) $row_of( $third )['remote']['id'];
 	$history = (array) get_option( $B::HISTORY, array() );
 	$template = $row_of( $third );
-	foreach ( array( 'digitalisimo-backup-importado.zip' => array( 'origin' => 'imported' ), 'digitalisimo-backup-sin-trabajo.zip' => array( 'job' => '' ), 'digitalisimo-backup-otro-sha.zip' => array() ) as $name => $changes ) {
+	// Con el nombre y la identidad de este sitio: sólo su propia condición (importada, sin trabajo, otro SHA-256) la protege.
+	$own = preg_replace( '/-\d{8}-\d{6}-[a-f0-9]+\.(zip|dgbk)$/', '', (string) $template['file'] );
+	foreach ( array( $own . '-importado.zip' => array( 'origin' => 'imported' ), $own . '-sin-trabajo.zip' => array( 'job' => '' ), $own . '-otro-sha.zip' => array() ) as $name => $changes ) {
 		$id = 'ajeno-' . md5( $name );
 		$GLOBALS['drive'][ $id ] = 'contenido ajeno';
 		$row = array_merge( $template, array( 'file' => $name, 'remote' => array_merge( $template['remote'], array( 'id' => $id ) ) ), $changes );
-		if ( 'digitalisimo-backup-otro-sha.zip' === $name ) $row['remote']['sha256'] = str_repeat( 'b', 64 );
+		if ( $own . '-otro-sha.zip' === $name ) $row['remote']['sha256'] = str_repeat( 'b', 64 );
 		$history[] = $row; // Más antiguas que todas: la retención las retiraría.
 	}
 	update_option( $B::HISTORY, $history );
@@ -161,7 +163,7 @@ try {
 	$fourth = $backup( array( 'destination' => 'google' ) );
 	$fifth = $backup( array( 'destination' => 'google' ) );
 	digi_assert( isset( $GLOBALS['drive'][ $second_id ] ) && 'ok' === $row_of( $second )['transfer'], 'La retención borró del remoto un respaldo bloqueado.' );
-	foreach ( array( 'digitalisimo-backup-importado.zip', 'digitalisimo-backup-sin-trabajo.zip', 'digitalisimo-backup-otro-sha.zip' ) as $name ) digi_assert( isset( $GLOBALS['drive'][ 'ajeno-' . md5( $name ) ] ) && ! isset( $row_of( $name )['remote_prune'] ), 'La retención tocó una copia remota que no registró este sitio: ' . $name );
+	foreach ( array( $own . '-importado.zip', $own . '-sin-trabajo.zip', $own . '-otro-sha.zip' ) as $name ) digi_assert( isset( $GLOBALS['drive'][ 'ajeno-' . md5( $name ) ] ) && ! isset( $row_of( $name )['remote_prune'] ), 'La retención tocó una copia remota que no registró este sitio: ' . $name );
 	digi_assert( ! isset( $GLOBALS['drive'][ $third_id ] ) && 'pruned' === $row_of( $third )['transfer'], 'El tercero (sin bloquear, fuera de los 2 más recientes) conserva su copia remota.' );
 	digi_assert( isset( $GLOBALS['drive'][ (string) $row_of( $fourth )['remote']['id'] ] ) && isset( $GLOBALS['drive'][ (string) $row_of( $fifth )['remote']['id'] ] ), 'La retención borró una de las 2 copias más recientes.' );
 
