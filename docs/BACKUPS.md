@@ -591,12 +591,12 @@ un archivo fuera de las raíces gestionadas) y la restauración se pide por REST
 la pantalla con el testigo y `wp-cron.php` sin testigo, como el cron del sistema), con dos peticiones muertas a propósito a
 mitad de la base de datos y a mitad de los archivos; en la red muere además la propia petición de REST ya en
 mantenimiento, así que la restauración sólo sigue con `wp-cron.php`. Los dos terminan con el inventario (cada tabla y cada archivo con su hash) idéntico al
-de después del respaldo (12 tablas y 5 347 archivos; 28 tablas y 5 348), lo inyectado y el plugin nuevo retirados e
+de después del respaldo (12 tablas y 5 350 archivos; 28 tablas y 5 351, con T2 integrado), lo inyectado y el plugin nuevo retirados e
 informados, el archivo de fuera intacto, mantenimiento (503) para los visitantes y sin él al terminar. En la red, sin
 trabajo ni testigo en el cliente, `wp-cron.php` la reanudó y, tras cada muerte dentro de WP-Cron, el tick de guardia la
 siguió al minuto. En el sitio individual, una segunda restauración que falla al mover vuelve sola a la copia previa y deja
-el sitio como estaba. Ninguna petición pasó de 30 s (la más larga, 21,8 s: la de REST, que hace la verificación y la
-copia previa) ni de 64 MB (pico 62,5 MB).
+el sitio como estaba. Ninguna petición pasó de 30 s (con T2 integrado, la copia previa va por tramos dentro de los ticks: la más
+larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pico 62,5 MB).
 
 **Límites declarados.**
 
