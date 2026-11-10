@@ -851,11 +851,12 @@ Ensayo en WordPress Playground (`tests/playground/backups-backuply.sh`): WordPre
 sólo cambia la elección de su controlador de base de datos, y un mu-plugin del ensayo le da `mysql_*` sobre el SQLite de
 Playground; el volcado, el tar, el gzip y el archivo de información los escribe su código. En un sitio individual y en una
 red por subdirectorios con el subsitio «uno», Backuply hizo un respaldo completo (36 MB, 4 410 entradas, 2 miembros gzip,
-nombres largos con `././@LongLink`, `wp_options` en dos INSERT) en 38–41 s; Backups lo detectó (`GET /backuply`), lo
-importó por REST en 13–14 s y `verify` lo comprobó entero como «sin firma»; en `destino.test` (prefijo `dst_`, junto al
-WordPress de Playground con `wp_`) `RESTAURAR` se rechazó y `RESTAURAR SIN FIRMA` lo restauró por pasos en 31–39 s:
+nombres largos con `././@LongLink`, `wp_options` en dos INSERT) en 33–44 s; Backups lo detectó (`GET /backuply`), lo
+importó por REST en 13–22 s y `verify` lo comprobó entero como «sin firma»; en `destino.test` (prefijo `dst_`, junto al
+WordPress de Playground con `wp_`) `RESTAURAR` se rechazó y `RESTAURAR SIN FIRMA` lo restauró por pasos en 28–29 s:
 entradas, imágenes y subsitio cargan en el dominio nuevo, la comprobación final cuenta 0 URL y 0 rutas del origen,
-ninguna tabla menciona `origen.test` salvo `guid` y se inicia sesión con el escritorio (de la red) y sus permisos.
+ninguna tabla menciona `origen.test` salvo `guid` (y el nombre del archivo importado, `wp_origen.test_…`, en el registro
+de la restauración) y se inicia sesión con el escritorio (de la red) y sus permisos: 38 comprobaciones, 437 s.
 
 **Límites declarados.** No se restauran vistas, disparadores, eventos, rutinas ni claves foráneas, ni los enlaces
 simbólicos (Backuply los recrea desde `softperms.txt`; Backups no sigue ni crea enlaces), ni los permisos de
