@@ -308,6 +308,8 @@ hard_case( 'h8 · los avisos dicen «migración» y van al destinatario del dest
 	mig_assert( ! $package, 'Un aviso trata la migración como un respaldo: ' . json_encode( $package ) );
 	$done = array_values( array_filter( $GLOBALS['hard_mail'], function( $mail ) { return false !== strpos( $mail['subject'], 'Migración terminada' ); } ) );
 	mig_assert( 1 === count( $done ) && 'avisos@destino.test' === $done[0]['to'] && false !== strpos( $done[0]['body'], 'origen.test' ), 'La migración terminada no avisó a quien se avisaba en el destino: ' . json_encode( $GLOBALS['hard_mail'] ) );
+	$restore = array_values( array_filter( $GLOBALS['hard_mail'], function( $mail ) { return false !== strpos( $mail['subject'], 'Restauración' ); } ) );
+	mig_assert( ! $restore, 'La restauración que aplica la migración avisó además por su cuenta: ' . json_encode( $restore ) );
 	hard_undo_destination();
 } );
 

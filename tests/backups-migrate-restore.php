@@ -75,7 +75,8 @@ function rs_drive_until( $id, callable $until, $max = 400, $budget = PHP_INT_MAX
 	}
 	return Digitalisimo_Backups_Jobs::get( $id );
 }
-function rs_restores() { return array_values( array_filter( Digitalisimo_Backups_Jobs::all(), function( $job ) { return Digitalisimo_Backups_Jobs::is_restore( $job ); } ) ); }
+/** Restauraciones de la cola (las del motor por pasos; con un código sin él, ninguna). */
+function rs_restores() { return array_values( array_filter( Digitalisimo_Backups_Jobs::all(), function( $job ) { return 'restore' === ( $job['kind'] ?? '' ); } ) ); }
 function rs_tables() { return $GLOBALS['wpdb']->names(); }
 
 rs_case( 'h1 · con un respaldo a medias la migración espera y el respaldo queda coherente', function() {
@@ -193,6 +194,10 @@ rs_case( 'h4 · una migración que vuelve sola a la copia previa nunca se ofrece
 	$row = null;
 	foreach ( (array) get_option( 'digitalisimo_backups_history', array() ) as $item ) if ( is_array( $item['migration'] ?? null ) ) $row = $item;
 	mig_assert( $row && 'rolled_back' === $row['migration']['state'], 'La copia previa no quedó marcada como vuelta atrás: ' . json_encode( $row['migration'] ?? null ) );
+	// Aunque el trabajo de la migración no hubiera vuelto a correr (la marca seguiría en «restoring»), lo decide su
+	// restauración: falló, así que no hay nada que deshacer.
+	Digitalisimo_Backups::migration_mark( (string) $row['file'], array_merge( $row['migration'], array( 'state' => 'restoring' ) ) );
+	mig_assert( null === Digitalisimo_Backups_Migrate::undo_target(), 'Una marca «restoring» de una restauración fallida se ofrece para deshacer.' );
 } );
 
 rs_case( 'h7 · deshacer mientras la restauración de la migración sigue responde 409 con la salida', function() {
