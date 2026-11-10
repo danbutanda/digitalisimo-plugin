@@ -62,6 +62,8 @@ final class Digitalisimo_Backups_Relocate {
 	const MEMORY_FACTOR = 24;
 	/** Archivos de configuración del servidor, en la raíz de WordPress, que se ajustan al extraerlos (server_file()). */
 	const SERVER_FILES = array( '.htaccess', '.user.ini', 'php.ini', 'wordfence-waf.php' );
+	/** Comienzo de un valor que es la URL `file://` de una ruta absoluta, en texto, JSON y JSON dentro de JSON. */
+	const FILE_URL = array( 'file://' => true, 'file:\\/\\/' => true, 'file:\\\\\\/\\\\\\/' => true );
 	/** Columnas que nunca se reescriben, por tabla base (sin prefijo ni número de sitio). */
 	const KEEP_COLUMNS = array( 'posts' => array( 'guid' ) );
 
@@ -1447,9 +1449,11 @@ final class Digitalisimo_Backups_Relocate {
 	}
 	/**
 	 * Rutas del servidor según el contexto (ver PATH_CONTEXTS). Un valor que ES una ruta (empieza por ella y no sigue
-	 * texto con espacios, comillas o etiquetas) cambia en cualquier contexto; dentro de un texto, sólo en `config` o, en
-	 * `setting`, cuando la ruta del origen tiene dos segmentos o más y va seguida de /wp-content, /wp-includes, /wp-admin
-	 * o /wp-config.php (o ya es la de wp-content): así un enlace relativo «/wordpress/» o un tutorial no cambian.
+	 * texto con espacios, comillas o etiquetas) cambia en cualquier contexto, también si es la URL `file://` de esa ruta
+	 * (`file:///home/…`, como el directorio aprobado de descargas de WooCommerce, H11 del ensayo E2); dentro de un texto,
+	 * sólo en `config` o, en `setting`, cuando la ruta del origen tiene dos segmentos o más y va seguida de /wp-content,
+	 * /wp-includes, /wp-admin o /wp-config.php (o ya es la de wp-content): así un enlace relativo «/wordpress/», un
+	 * tutorial o un `file://` citado en un texto no cambian.
 	 */
 	private function replace_paths( $s, &$count ) {
 		$map = $this->path_map;
@@ -1458,7 +1462,7 @@ final class Digitalisimo_Backups_Relocate {
 		$changed = 0;
 		$out = preg_replace_callback( $this->path_regex, function( $m ) use ( $s, $map, $deep, $context, &$changed ) {
 			list( $text, $at ) = $m[0];
-			$whole = 0 === $at && ! preg_match( '/[\s"\'<>]/', (string) substr( $s, strlen( $text ) ) );
+			$whole = ( 0 === $at || ( $at <= 13 && isset( self::FILE_URL[ strtolower( (string) substr( $s, 0, $at ) ) ] ) ) ) && ! preg_match( '/[\s"\'<>]/', (string) substr( $s, $at + strlen( $text ) ) );
 			if ( ! $whole && 'config' !== $context ) {
 				if ( 'content' === $context || ! isset( $deep[ $text ] ) ) return $text;
 				$plain = str_replace( array( '\\\\\\/', '\\/' ), '/', $text );
