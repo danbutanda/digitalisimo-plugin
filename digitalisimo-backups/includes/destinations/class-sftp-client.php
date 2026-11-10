@@ -142,10 +142,10 @@ final class Digitalisimo_Backups_Sftp_Client {
 		}
 		$credential = isset( $auth['key'] ) ? self::private_key( $auth['key'], (string) ( $auth['passphrase'] ?? '' ) ) : (string) ( $auth['password'] ?? '' );
 		// Sin reconexión automática: phpseclib nunca repite el login en otra conexión cuya clave no se comprobó.
-		self::internals( $sftp, function() { $this->bad_key_size_fix = true; } );
+		$this->internal( $sftp, 'bad_key_size_fix', true );
 		$this->sftp = $sftp;
 		$this->pinned = $this->blob( $sftp );
-		$this->exchange = self::internals( $sftp, function() { return (string) $this->exchange_hash; } );
+		$this->exchange = (string) $this->internal( $sftp, 'exchange_hash' );
 		$logged = false;
 		try {
 			$logged = $sftp->login( (string) $user, $credential );
@@ -160,12 +160,21 @@ final class Digitalisimo_Backups_Sftp_Client {
 		$sftp->disableStatCache();
 		return $this;
 	}
-	/** Ejecuta $code dentro de la clase SSH2 de phpseclib (propiedades privadas: reconexión, clave del servidor). */
-	private static function internals( $sftp, Closure $code ) {
-		return Closure::bind( $code, $sftp, self::NS . 'Net\SSH2' )();
+	/**
+	 * Lee (o, con $value, escribe) una propiedad privada de la clase SSH2 de phpseclib. Si la propiedad no existe (otra
+	 * versión que la renombró), lanza en vez de crear una propiedad nueva: la protección nunca se pierde en silencio
+	 * (revisión N3). El cierre se crea aquí, en un método de instancia, para poder enlazarlo al objeto de phpseclib.
+	 */
+	private function internal( $sftp, $name, $value = null ) {
+		$class = self::NS . 'Net\\SSH2';
+		if ( ! in_array( $name, self::$internals, true ) || ! property_exists( $class, $name ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La copia incluida de phpseclib no es la esperada (falta ' . $name . '): el cliente SFTP incluido no se usa para no conectar sin sus protecciones. Vuelve a generar includes/lib con scripts/vendor-phpseclib.sh o usa la extensión ssh2.' );
+		$write = func_num_args() > 2;
+		return Closure::bind( function() use ( $name, $value, $write ) {
+			if ( $write ) { $this->$name = $value; return $value; }
+			return $this->$name;
+		}, $sftp, $class )();
 	}
-	/** Blob de la clave del servidor de la sesión (los cierres se crean en métodos de instancia para poder enlazarlos). */
-	private function blob( $sftp ) { return (string) self::internals( $sftp, function() { return (string) $this->server_public_host_key; } ); }
+	private function blob( $sftp ) { return (string) $this->internal( $sftp, 'server_public_host_key' ); }
 	/**
 	 * La sesión sigue con la clave del servidor que se comprobó: si cambió (otra conexión, otro intercambio), se corta
 	 * sin enviar nada más. Un intercambio de claves nuevo con la misma clave vuelve a validar su firma.
@@ -173,10 +182,10 @@ final class Digitalisimo_Backups_Sftp_Client {
 	public function guard() {
 		$sftp = $this->sftp();
 		$blob = $this->blob( $sftp );
-		$exchange = (string) self::internals( $sftp, function() { return (string) $this->exchange_hash; } );
+		$exchange = (string) $this->internal( $sftp, 'exchange_hash' );
 		$ok = '' !== $this->pinned && hash_equals( $this->pinned, $blob );
 		if ( $ok && ! hash_equals( $this->exchange, $exchange ) ) {
-			self::internals( $sftp, function() { $this->signature_validated = false; } );
+			$this->internal( $sftp, 'signature_validated', false );
 			try {
 				$ok = is_string( $sftp->getServerPublicHostKey() ) && hash_equals( $this->pinned, $this->blob( $sftp ) );
 			} catch ( Throwable $e ) {
