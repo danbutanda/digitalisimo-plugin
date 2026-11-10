@@ -35,6 +35,9 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
 
+// str_contains() y similares, como en wp-includes/compat.php: la CI también corre estas pruebas con PHP 7.4.
+require_once __DIR__ . '/wp-compat.php';
+
 /* ------------------------------------------------------------------ Estado y ayudas */
 
 {

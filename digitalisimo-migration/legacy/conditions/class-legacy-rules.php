@@ -281,7 +281,8 @@ final class Legacy_Rules {
 					break;
 				}
 			}
-			$show = false !== strpos( $url, $engine );
+			// Sin buscador elegido, cualquier referencia: PHP 8 da 0 con una aguja vacía, pero PHP 7.4 da false y avisa.
+			$show = '' === $engine || false !== strpos( $url, $engine );
 		}
 		return self::compare( $show, $relation );
 	}
