@@ -74,7 +74,10 @@ try {
 		}
 		throw new RuntimeException( 'La cola no terminó el respaldo previo.' );
 	};
-	$auto_pass = function() {
+	// Cada pasada de WP_Automatic_Updater termina con wp_clean_plugins_cache(), que borra la oferta (con red, la vuelve a
+	// pedir a WordPress.org): sin red, la sonda la repone antes de cada pasada.
+	$auto_pass = function( $new ) use ( $offer ) {
+		$offer( $new );
 		wp_clear_scheduled_hook( 'wp_maybe_auto_update' );
 		delete_option( 'auto_updater.lock' );
 		do_action( 'wp_maybe_auto_update' );
@@ -99,10 +102,9 @@ try {
 	// U2 · Automática.
 	update_site_option( 'auto_update_plugins', array( $file ) );
 	$age();
-	$offer( '3.0' );
 	$before = count( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) );
 	$t = microtime( true );
-	$auto_pass();
+	$auto_pass( '3.0' );
 	$took = microtime( true ) - $t;
 	$status = $P::service_status();
 	$check( '2.0' === $version() && 1 === count( $J::active() ) && $before === count( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) ), 'U2 wp_maybe_auto_update retuvo el plugin y sólo encoló el respaldo (' . round( $took, 1 ) . ' s, sin respaldar en esa pasada)' );
@@ -112,18 +114,17 @@ try {
 	$next = wp_next_scheduled( 'wp_maybe_auto_update' );
 	$check( false !== $next && $next <= time() + 5, 'U2 al terminar el respaldo, wp_maybe_auto_update vuelve a estar programado' );
 	$count = count( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) );
-	$auto_pass();
+	$auto_pass( '3.0' );
 	$check( '3.0' === $version() && ! $J::active() && $count === count( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) ), 'U2 la siguiente pasada actualizó a 3.0 sin otro respaldo' );
 
 	// U3 · El respaldo falla: pospuesta con aviso; la pasada siguiente lo reintenta.
 	$age();
-	$offer( '4.0' );
 	$mails = array();
 	$J::$phase_runner = function( $phase, $job ) {
 		if ( 'database' === $phase ) throw new Digitalisimo_Backups_Permanent_Error( 'Fallo simulado de la sonda.' );
 		return Digitalisimo_Backups_Backup_Job::run_phase( $phase, $job );
 	};
-	$auto_pass();
+	$auto_pass( '4.0' );
 	$drive();
 	$status = $P::service_status();
 	$subjects = implode( ' | ', array_map( function( $mail ) { return (string) $mail['subject']; }, $mails ) );
@@ -132,10 +133,10 @@ try {
 	$check( false !== strpos( $subjects, 'El respaldo falló' ) && false !== strpos( $bodies, 'quedan pospuestas' ), 'U3 llegó el aviso por correo: ' . $subjects );
 	$check( false === wp_next_scheduled( 'wp_maybe_auto_update' ), 'U3 un respaldo fallido no relanza las automáticas' );
 	$J::$phase_runner = null;
-	$auto_pass();
+	$auto_pass( '4.0' );
 	$check( '3.0' === $version() && 1 === count( $J::active() ), 'U3 la siguiente pasada reintenta el respaldo sin actualizar' );
 	$drive();
-	$auto_pass();
+	$auto_pass( '4.0' );
 	$check( '4.0' === $version() && ! $P::service_status()['postponed'], 'U3 con el reintento bien, la automática actualizó a 4.0' );
 
 	// U4 · REST real.
