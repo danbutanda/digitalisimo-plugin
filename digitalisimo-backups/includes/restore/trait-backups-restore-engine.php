@@ -273,11 +273,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static $restore_memory_start = null;
 	/**
 	 * El tramo debe cerrar: su plazo o su tope de unidades (el medidor de T2), o la memoria. La memoria no se mide con la
-	 * reserva fija de T2 bajo memory_limit (un octavo, 8 MB con 64 MB): WordPress con sus plugins ya ocupa 52 a 56 de 64 MB
-	 * en Playground, así que la reserva cerraría cada tramo tras una sola unidad (miles de tramos, cada uno con su punto
+	 * reserva proporcional de T2 bajo memory_limit: WordPress con sus plugins ya ocupa 52 a 56 de 64 MB en Playground, y
+	 * con la reserva de antes (un octavo) cada tramo cerraba tras una sola unidad (miles de tramos, cada uno con su punto
 	 * de control y su evento). Lo que una fase de la restauración añade por unidad es poco y se libera (lecturas por
 	 * trozos, una sentencia), así que el tramo cierra si su memoria creció más de 4 MB desde que empezó (algo se acumula)
-	 * o si quedan menos de 2 MB hasta memory_limit. La primera unidad de cada tramo siempre se hace.
+	 * o si quedan menos de 4 MB hasta memory_limit, el mínimo de la reserva de T2: la peor unidad (leer una entrada del ZIP
+	 * en trozos de 1 MiB, o de hasta 256 KiB con zip_entry_reader()) pide como mucho un bloque nuevo de 2 MiB al gestor
+	 * de memoria de PHP. La primera unidad de cada tramo siempre se hace.
 	 */
 	private static function restore_exhausted( $deadline, $units ) {
 		$cap = Digitalisimo_Backups_Step_Budget::units();
@@ -285,7 +287,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
 		if ( ! $limit ) return false;
 		$used = memory_get_usage( true );
-		if ( $limit - $used < 2097152 ) return true;
+		if ( $limit - $used < 4194304 ) return true;
 		return null !== self::$restore_memory_start && $used - self::$restore_memory_start > 4194304;
 	}
 	/** El tramo terminó sin acabar la fase: la misma fase sigue desde $cursor (los intentos vuelven a cero). */
@@ -864,8 +866,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 
 	/**
 	 * La copia previa con las fases del respaldo (preflight, database, pack, verify, publish), una por paso, en el área de
-	 * trabajo de esta restauración. Sus puntos de control viven en el de esta fase; si las fases del respaldo trabajan por
-	 * tramos (T2), cada tramo es un paso. Queda bloqueada en el historial.
+	 * trabajo de esta restauración. Sus puntos de control viven en el de esta fase; las fases del respaldo trabajan por
+	 * tramos (T2) y cada tramo es un paso. Lo que el motor hace con un respaldo normal se hace aquí con su seudotrabajo:
+	 * los intentos de la fase (tras una muerte, T2 trabaja la mitad y nombra el archivo que cambia en cada tramo), las
+	 * vueltas atrás (verify → pack) que los tramos no ponen a cero, con tope, y los avisos de T2, que pasan al trabajo de la
+	 * restauración y a la fila de la copia previa en el historial con la coherencia de su base de datos. Queda bloqueada.
 	 */
 	private static function restore_safety( array $job ) {
 		$cursor = (array) ( $job['checkpoint']['safety'] ?? array() );
@@ -875,10 +880,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$file = self::backup_file_name( 'safety-before-restore-' );
 			$cursor = array( 'file' => $file, 'spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $file, 'inline' => true ) ) );
 		}
-		$cursor += array( 'sub' => 'preflight', 'checkpoint' => array(), 'attempts' => array(), 'retries' => 0 );
+		$cursor += array( 'sub' => 'preflight', 'checkpoint' => array(), 'retries' => 0, 'setbacks' => array(), 'warnings' => array() );
+		unset( $cursor['attempts'] );
 		$sub = (string) $cursor['sub'];
 		$spec = (array) $cursor['spec'];
-		$pseudo = array( 'id' => $job['id'], 'kind' => 'backup', 'spec' => $spec, 'phase' => $sub, 'checkpoint' => (array) $cursor['checkpoint'], 'attempts' => (array) $cursor['attempts'], 'status' => 'running', 'created_at' => (int) $job['created_at'] );
+		// Los intentos de la subfase son los de la fase «safety» de la restauración: el motor los cuenta tras una muerte y
+		// los pone a cero cuando un tramo avanza, como con la fase de un respaldo normal.
+		$pseudo = array( 'id' => $job['id'], 'kind' => 'backup', 'spec' => $spec, 'phase' => $sub, 'checkpoint' => (array) $cursor['checkpoint'], 'attempts' => array( $sub => (int) ( $job['attempts']['safety'] ?? 0 ) ), 'status' => 'running', 'created_at' => (int) $job['created_at'] );
 		try {
 			$outcome = Digitalisimo_Backups_Backup_Job::run_phase( $sub, $pseudo );
 		} catch ( Digitalisimo_Backups_Checkpoint_Invalid $e ) {
@@ -888,8 +896,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 			foreach ( array_slice( $phases, (int) array_search( $back, $phases, true ) ) as $later ) unset( $cursor['checkpoint'][ $later ] );
 			Digitalisimo_Backups_Backup_Job::discard( $pseudo, $back );
 			$cursor['sub'] = $back;
-			$cursor['retries'] = (int) $cursor['retries'] + 1;
-			if ( $cursor['retries'] > 3 ) throw new Exception( 'No se pudo crear la copia previa: ' . $e->getMessage() );
+			if ( $back !== $sub ) {
+				// Volver a una subfase anterior (verify → pack) cuenta aparte y los tramos que avanzan no lo ponen a cero, como
+				// `setbacks` en el motor (T2): un fallo de verificación que se repite tras cada empaquetado no da vueltas sin fin.
+				$cursor['setbacks'][ $sub ] = (int) ( $cursor['setbacks'][ $sub ] ?? 0 ) + 1;
+				if ( $cursor['setbacks'][ $sub ] >= 3 ) throw new Digitalisimo_Backups_Permanent_Error( 'No se pudo crear la copia previa, así que no se cambió nada del sitio: ' . $e->getMessage() . ' (se agotaron 3 intentos de la fase ' . Digitalisimo_Backups_Jobs::phase_label( $sub ) . ' de la copia previa)' );
+			} else {
+				$cursor['retries'] = (int) $cursor['retries'] + 1;
+				if ( $cursor['retries'] > 3 ) throw new Exception( 'No se pudo crear la copia previa: ' . $e->getMessage() );
+			}
 			return array( 'next' => 'safety', 'checkpoint' => $cursor, 'message' => 'Copia previa: ' . $e->getMessage() );
 		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
 			throw new Digitalisimo_Backups_Permanent_Error( 'No se pudo crear la copia previa, así que no se cambió nada del sitio: ' . $e->getMessage() );
@@ -898,18 +913,38 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$next = $outcome['next'] ?? null;
 		$cursor['checkpoint'][ $sub ] = is_array( $outcome['checkpoint'] ?? null ) ? $outcome['checkpoint'] : array( 'done' => time() );
 		$cursor['retries'] = 0;
-		if ( $next === $sub ) {
-			unset( $cursor['attempts'][ $sub ] );
-			return array( 'next' => 'safety', 'checkpoint' => $cursor, 'message' => 'Creando la copia previa: ' . (string) ( $outcome['message'] ?? '' ) );
+		// Los avisos de T2 (la base salió tabla por tabla, archivos que desaparecieron…): para la fila de la copia previa en
+		// el historial y, con «Copia previa:» delante, para el trabajo de la restauración.
+		$warnings = array();
+		foreach ( (array) ( $outcome['warnings'] ?? array() ) as $warning ) {
+			if ( ! is_array( $warning ) || empty( $warning['notice'] ) ) continue;
+			if ( count( $cursor['warnings'] ) < 50 ) $cursor['warnings'][] = $warning;
+			$warnings[] = array( 'notice' => (string) $warning['notice'], 'text' => 'Copia previa: ' . (string) ( $warning['text'] ?? '' ) );
 		}
+		if ( $next === $sub ) return array( 'next' => 'safety', 'checkpoint' => $cursor, 'warnings' => $warnings, 'message' => 'Creando la copia previa: ' . (string) ( $outcome['message'] ?? '' ) );
 		if ( null !== $next && in_array( $next, Digitalisimo_Backups_Jobs::PHASES, true ) ) {
 			$cursor['sub'] = $next;
-			return array( 'next' => 'safety', 'checkpoint' => $cursor, 'message' => 'Creando la copia previa: ' . (string) ( $outcome['message'] ?? Digitalisimo_Backups_Jobs::phase_label( $next ) ) );
+			return array( 'next' => 'safety', 'checkpoint' => $cursor, 'warnings' => $warnings, 'message' => 'Creando la copia previa: ' . (string) ( $outcome['message'] ?? Digitalisimo_Backups_Jobs::phase_label( $next ) ) );
 		}
 		$safety = rtrim( self::local_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
 		if ( ! is_file( $safety ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La copia previa no quedó en el almacén; se repetirá.', 'safety' );
 		self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', array( 'id' => 'pre-restore', 'type' => 'full' ), array(), 0, true, array( 'job' => (string) $job['id'] ) );
-		return array( 'next' => 'database', 'checkpoint' => array( 'done' => time(), 'file' => basename( $safety ) ), 'message' => 'Copia previa creada y bloqueada (' . basename( $safety ) . '); importando la base de datos a tablas temporales…' );
+		// Como un respaldo de T2: la coherencia de la base y los avisos visibles, en la fila de la copia previa.
+		self::job_record_notices( basename( $safety ), array( 'warnings' => $cursor['warnings'], 'checkpoint' => array( 'database' => (array) ( $cursor['checkpoint']['database'] ?? array() ) ) ) );
+		return array( 'next' => 'database', 'checkpoint' => array( 'done' => time(), 'file' => basename( $safety ), 'consistency' => (string) ( $cursor['checkpoint']['database']['mode'] ?? '' ) ), 'warnings' => $warnings, 'message' => 'Copia previa creada y bloqueada (' . basename( $safety ) . '); importando la base de datos a tablas temporales…' );
+	}
+
+	/**
+	 * Si la copia previa $file salió tabla por tabla (T2: sin una instantánea común, con el sitio abierto), la frase que lo
+	 * dice para el aviso de una vuelta a ella; si no, vacía.
+	 */
+	private static function restore_safety_consistency_text( $file ) {
+		try {
+			foreach ( (array) self::fresh_history() as $row ) if ( basename( (string) $file ) === (string) ( $row['file'] ?? '' ) && false !== strpos( (string) ( $row['consistency'] ?? '' ), 'per-table' ) ) return 'La copia previa se hizo tabla por tabla con el sitio abierto (cada tabla salió entera, pero no de una instantánea común): entre tablas puede haber segundos o minutos de diferencia.';
+		} catch ( Throwable $e ) {
+			return '';
+		}
+		return '';
 	}
 
 	/* ------------------------------------------------------------------------------------------- 3. Base de datos */
@@ -2131,6 +2166,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Lo del paquete (un sitio extraído de una red: con qué cuentas se entra) y wp-config.php, que no se restaura.
 		if ( '' !== (string) ( $spec['notice'] ?? '' ) ) $notice .= ' ' . $spec['notice'];
 		if ( '' !== (string) ( $spec['wp_config']['text'] ?? '' ) ) $notice .= ' ' . $spec['wp_config']['text'];
+		$per_table = ! empty( $spec['rollback'] ) ? self::restore_safety_consistency_text( (string) $spec['file'] ) : '';
+		if ( '' !== $per_table ) $notice .= ' ' . $per_table;
 		foreach ( $warnings as $warning ) $notice .= ' ' . rtrim( (string) $warning, '.' ) . '.';
 		$public = function( $text ) use ( $job ) { return self::restore_public_text( (string) $text, $job ); };
 		$public_config = array();
@@ -2372,7 +2409,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( $last && 'success' === $last['status'] && ! empty( $last['spec']['rollback'] ) && time() - (int) $last['finished_at'] < 7 * 86400 ) {
 			$failed = Digitalisimo_Backups_Jobs::get( (string) ( $last['spec']['rollback']['of'] ?? '' ) );
 			$why = $failed ? self::restore_rollback_info( $failed['id'] )['cause'] : '';
-			return array( 'state' => 'rolled_back', 'job' => (string) $last['id'], 'file' => basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ), 'safety' => basename( (string) $last['spec']['file'] ), 'notice' => 'La restauración de ' . basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ) . ' falló a mitad del cambio' . ( '' !== $why ? ' (' . $why . ')' : '' ) . ' y el sitio volvió a la copia previa ' . basename( (string) $last['spec']['file'] ) . ': está como antes de restaurar.', 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
+			return array( 'state' => 'rolled_back', 'job' => (string) $last['id'], 'file' => basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ), 'safety' => basename( (string) $last['spec']['file'] ), 'notice' => 'La restauración de ' . basename( (string) ( $last['spec']['rollback']['file'] ?? '' ) ) . ' falló a mitad del cambio' . ( '' !== $why ? ' (' . $why . ')' : '' ) . ' y el sitio volvió a la copia previa ' . basename( (string) $last['spec']['file'] ) . ': está como antes de restaurar.' . rtrim( ' ' . self::restore_safety_consistency_text( (string) $last['spec']['file'] ) ), 'maintenance' => Digitalisimo_Backups_Restore_Maintenance::ours() );
 		}
 		if ( $last && 'success' !== $last['status'] && time() - (int) $last['finished_at'] < 7 * 86400 ) {
 			$message = is_array( $last['error'] ?? null ) ? (string) $last['error']['message'] : (string) ( $last['progress']['message'] ?? '' );

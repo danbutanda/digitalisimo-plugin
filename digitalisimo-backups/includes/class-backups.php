@@ -1483,20 +1483,28 @@ final class Digitalisimo_Backups {
 			if ( $index ) $index->close();
 		}
 	}
+	/** Hasta este tamaño una entrada se lee del ZIP ya abierto (ver zip_entry_reader()). */
+	const ZIP_READ_INLINE = 262144;
 	/**
-	 * @internal Flujo de lectura de una entrada del ZIP abierto. Hasta 1 MiB se lee del archivo ya abierto: `getStream()`
+	 * @internal Flujo de lectura de una entrada del ZIP abierto. Hasta 256 KiB se lee del archivo ya abierto: `getStream()`
 	 * de PHP 7.4 a 8.1 vuelve a abrir el ZIP y relee su directorio central en cada llamada, así que recorrer decenas de
-	 * miles de entradas era cuadrático (40 008 entradas: más de 15 minutos en PHP 7.4 frente a 96 s en 8.5). Si esa
-	 * lectura no da exactamente el tamaño declarado (CRC erróneo, entrada truncada), se usa `getStream()` como siempre,
-	 * con sus mismos mensajes. Más grande, `getStream()` (son pocas).
+	 * miles de entradas era cuadrático (40 008 entradas: más de 15 minutos en PHP 7.4 frente a 96 s en 8.5). Lo leído vive
+	 * a la vez en la cadena, en el flujo temporal y en el trozo que lee quien llama: con 256 KiB son menos de 1 MiB, que
+	 * cabe en la reserva de memoria de la restauración y de T2 (4 MiB); las entradas mayores, pocas, van por
+	 * `getStream()` como siempre. Se piden `$size + 1` bytes: si llega más de lo declarado (datos de más tras el tamaño
+	 * del directorio central) o menos (truncada), y siempre con una entrada declarada vacía, también `getStream()`, que lo
+	 * detecta con sus mensajes de siempre. Un CRC erróneo lo rechazan quienes llaman, que comparan su propio CRC32 y
+	 * SHA-256 (`getFromName()` de PHP 7.4 y 8.2 no lo comprueba; el de 8.5, sí, y entonces también va por `getStream()`).
 	 */
 	public static function zip_entry_reader( $zip, $name, $size ) {
 		$size = (int) $size;
-		if ( $size >= 0 && $size <= 1048576 ) {
-			$data = @$zip->getFromName( (string) $name );
+		if ( $size > 0 && $size <= self::ZIP_READ_INLINE ) {
+			$data = @$zip->getFromName( (string) $name, $size + 1 );
 			if ( is_string( $data ) && strlen( $data ) === $size ) {
-				$stream = fopen( 'php://temp/maxmemory:2097152', 'w+b' );
-				if ( $stream && $size === (int) fwrite( $stream, $data ) && rewind( $stream ) ) return $stream;
+				$stream = fopen( 'php://temp/maxmemory:' . ( self::ZIP_READ_INLINE + 1 ), 'w+b' );
+				$written = $stream ? fwrite( $stream, $data ) : false;
+				unset( $data );
+				if ( $stream && $size === (int) $written && rewind( $stream ) ) return $stream;
 				if ( $stream ) fclose( $stream );
 			}
 		}

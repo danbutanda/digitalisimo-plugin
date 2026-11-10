@@ -564,11 +564,14 @@ ocupados, y `backups-restore-review.php` comprueba que 60 000 entradas no ocupan
 
 **Presupuesto (H4).** Cada fase trabaja por tramos con el medidor de T2 (`Digitalisimo_Backups_Step_Budget`, copiado tal
 cual): el plazo del tick, nunca más allá del límite real de la petición menos un margen, y la mitad tras un tramo que
-murió. La memoria de un tramo se mide por lo que crece (cierra si creció más de 4 MB o si quedan menos de 2 MB hasta
-`memory_limit`) y no con la reserva fija de T2: WordPress con sus plugins ya ocupa 52 a 56 de 64 MB en Playground, y la
+murió. La memoria de un tramo se mide por lo que crece (cierra si creció más de 4 MB o si quedan menos de 4 MB hasta
+`memory_limit`, el mínimo de la reserva de T2) y no con la reserva proporcional de T2: WordPress con sus plugins ya ocupa 52 a 56 de 64 MB en Playground, y la
 reserva partía cada tramo en una sola unidad. El paso del cambio pone las tablas y todo el código sin cortes (son
-`rename()`; lo que estaba en otro disco ya se copió antes). La copia previa usa las fases del respaldo: hasta que llegue
-T2, su empaquetado y su verificación son un paso largo cada uno (límite declarado).
+`rename()`; lo que estaba en otro disco ya se copió antes). La copia previa usa las fases del respaldo, por tramos de T2
+dentro de los ticks de la restauración, con lo mismo que un respaldo: tras una muerte el tramo siguiente trabaja la
+mitad, las vueltas de «verify» a «pack» agotan sus 3 intentos (y la restauración falla sin tocar el sitio), y sus avisos
+(una base que salió tabla por tabla) quedan en el trabajo y en su fila del historial; una vuelta a una copia previa así
+lo dice.
 
 **Garantías de la revisión de E1.** La red y las direcciones se fijan en las tablas temporales antes del cambio, así que
 las tablas llegan de una vez coherentes (H1); de dos claves de `usermeta` que chocan al cambiar de prefijo queda la del
@@ -604,9 +607,13 @@ larga, 21,2 s, una de la copia previa; las de las fases, 15,5 s) ni de 64 MB (pi
   copia previa, como E1 con otro prefijo. Una clave foránea con nombre que ya usa la tabla viva se crea con el nombre que
   pone MySQL. Una tabla viva que no está en el respaldo y tiene una clave foránea hacia una que sí sigue a su padre
   renombrado (InnoDB) y queda apuntando a la tabla vieja: la limpieza no puede borrarla y lo avisa (no probado en MySQL).
-- La copia previa: su empaquetado y su verificación son un paso largo cada uno hasta T2; sin T2, un sitio muy grande en
-  un hosting que corta a los 30 s puede no terminarla (el sitio no cambia). Un `.dgbk` se descifra entero en la petición
-  que pide restaurarlo, y `database.sql` se copia y se comprueba en un solo tramo.
+- La copia previa va por tramos de T2, así que su base de datos puede salir tabla por tabla con el sitio abierto (sin una
+  instantánea común; el mantenimiento empieza después, en la base de datos de la restauración): se avisa, y una vuelta a
+  ella lo dice. Su sellado DGBK, si se cifra, sigue en un paso (T2). Un `.dgbk` se descifra entero en la petición que
+  pide restaurarlo, y `database.sql` se copia y se comprueba en un solo tramo.
+- Con un prefijo de tablas en mayúsculas y sin guion bajo (p. ej. `WPX`) en un MySQL con `lower_case_table_names=1`, las
+  tablas temporales vuelven de `SHOW TABLES` en minúsculas: ni la exportación las descarta ni la limpieza las encuentra
+  (caso marginal, anterior a la 1.0.64).
 - Un archivo muy grande se prepara entero en un tramo. Las carpetas apartadas (`.digitalisimo-old-<marca>-…`, con una
   marca aleatoria que no se puede adivinar) viven junto a las vivas hasta la limpieza.
 - Una muerte justo después del `RENAME` deja el llavero sin su envoltura hasta volver a escribir la frase (el diario, como

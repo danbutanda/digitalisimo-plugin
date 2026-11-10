@@ -59,8 +59,9 @@ final class Digitalisimo_Backups_Step_Budget {
 		$length = is_finite( $tick ) ? max( $min, $tick - $now ) : INF;
 		if ( null !== $cap ) $length = min( $length, max( $min, (float) $cap ) );
 		if ( is_finite( $length ) ) $length = max( min( $min, $length ), $length * max( self::MIN_SCALE, min( 1.0, (float) $scale ) ) );
-		// Un tick ya llega recortado al límite de su petición; sin plazo (WP-CLI o la copia previa de una restauración, que
-		// no puede seguir en otra petición) no se recorta: sus tramos sólo marcan cada cuánto se guarda el avance.
+		// Un tick ya llega recortado al límite de su petición; sin plazo (WP-CLI o la copia previa de la restauración en una
+		// sola petición, `run_inline()`) no se recorta: sus tramos sólo marcan cada cuánto se guarda el avance. La copia
+		// previa de la restauración por pasos va dentro de los ticks de la restauración, con su plazo.
 		$remaining = is_finite( $tick ) ? self::request_remaining() : INF;
 		if ( is_finite( $remaining ) ) $length = min( $length, max( 0.0, $remaining ) );
 		return is_finite( $length ) ? $now + $length : INF;
@@ -68,7 +69,8 @@ final class Digitalisimo_Backups_Step_Budget {
 	/**
 	 * Límite duro de un tramo de la exportación (microtime): una tabla empezada puede seguir después del plazo del tick,
 	 * pero nunca más allá del límite real de la petición menos su margen (por la escala adaptativa). INF sin límite:
-	 * WP-CLI, el cron del sistema por PHP CLI y la copia previa de una restauración.
+	 * WP-CLI, el cron del sistema por PHP CLI y la copia previa de la restauración en una sola petición (`run_inline()`;
+	 * la de la restauración por pasos tiene el plazo de sus ticks).
 	 */
 	public static function hard_deadline( $scale = 1.0 ) {
 		if ( ! is_finite( Digitalisimo_Backups_Jobs::step_deadline() ) ) return INF;

@@ -575,15 +575,16 @@ final class Digitalisimo_Backups_Packer {
 		$cursor['last'] = Digitalisimo_Backups_Step_Budget::measure( $started, $units, $cursor['scale'] );
 		return array( 'next' => 'verify', 'checkpoint' => array( 'resume' => $cursor ), 'message' => 'Verificando el ZIP: entrada ' . min( (int) $pack['count'], (int) $cursor['index'] + 1 ) . ' de ' . (int) $pack['count'] . '…' );
 	}
-	/** Avisos visibles de la última verificación terminada (la memoria que necesitará restaurar), una sola vez. */
+	/** Avisos visibles de la última verificación terminada, una sola vez (el manifiesto ya no da ninguno: se lee por partes). */
 	public static function take_notices() {
 		$notices = self::$notices;
 		self::$notices = array();
 		return $notices;
 	}
 	/**
-	 * CHECKCONS, número de entradas y firma (o su ausencia) con la clave que fijó el trabajo. Devuelve los avisos: si el
-	 * manifiesto no cabe en la memoria de esta petición para decodificarlo como la restauración, se dice cuánta necesitará.
+	 * CHECKCONS, número de entradas y firma (o su ausencia) con la clave que fijó el trabajo, y el manifiesto como lo lee la
+	 * restauración (por partes, con memoria constante). Devuelve los avisos (hoy ninguno: el de la memoria del manifiesto
+	 * desapareció al integrarse con la restauración por pasos).
 	 */
 	private static function structure( $path, array $pack, array $spec ) {
 		$notices = array();
