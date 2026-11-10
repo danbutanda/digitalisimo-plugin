@@ -69,7 +69,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Modo de mantenimiento durante la restauración (I8).** Desde el SQL hasta el final (también mientras se recupera la copia previa), `ABSPATH/.maintenance` hace que el sitio, o la red entera, responda «en mantenimiento». Se renueva cada minuto mientras avanzan el SQL, los archivos y, al revertir, la verificación de la copia previa (WordPress lo ignora a los 10 minutos), así que si el proceso muere el sitio vuelve solo; la operación siguiente lo retira con el diario y avisa por correo. Se retira siempre, también si la restauración falla. El `.maintenance` que traiga un respaldo nunca se restaura y uno que sea un enlace simbólico nunca se sigue. También en la restauración de UpdraftPlus. | 1.0.63 | `backups-maintenance.php` |
 | **Informe de diferencias de `wp-config.php` (I10).** La restauración nunca escribe `wp-config.php`. `verify` (REST y WP-CLI, antes de confirmar), la subida, el resultado y el aviso de la restauración y su correo dicen qué constantes define el respaldo y este servidor no, cuáles sólo define este servidor y cuáles tienen otro valor (`wp_config`). Los dos archivos se leen con el tokenizador (sólo `define()`; nunca se ejecutan): un valor que no es un literal se informa como «expresión». Sólo se muestra el valor de las constantes conocidas de WordPress (límites, depuración, caché, cron, actualizaciones, direcciones, red y edición) que no son secretas ni rutas del servidor; de las demás (`DB_*` salvo `DB_CHARSET` y `DB_COLLATE`, cualquier nombre con `PASS`, `KEY`, `SALT`, `SECRET`, `TOKEN`, `AUTH`, `NONCE`, `LICENSE`…, y las de los plugins, que suelen llevar licencias o tokens con nombres cualesquiera), sólo que difieren; el correo sólo lleva los nombres. `wp … verify` muestra «Origen → este sitio» y las diferencias juntas (un respaldo de otro servidor suele traer las dos) y, con un respaldo incompatible, el motivo y nunca la reubicación. | 1.0.63 | `backups-config-diff.php`, `backups-cli-verify.php` |
 | **Hallazgos del laboratorio Webuzo (H5 a H7).** H5: todo archivo del almacén es `0600` (antes `0644`; php-wasm, `0666`): el respaldo publicado (ZIP o DGBK, que llevan `wp-config.php` y la base de datos), el SQL y el ZIP del área de trabajo mientras se escriben, el DGBK sellado, el ZIP descifrado para restaurar, la copia previa, la verificación de una copia en la nube, los cerrojos y la protección del almacén; uno de una versión anterior se corrige en la operación siguiente. H6: Backups no reescribe un archivo que ya tiene el contenido correcto (ver «Archivos que Backups escribe fuera del almacén»). H7: la ayuda de `wp help digitalisimo-backups automation` y `… jobs` ya no muestra las marcas del comentario. | 1.0.63 | `backups-private-files.php`, `backups-no-rewrite.php`, `backups-cli-help.php` |
-| **Migración en un clic entre servidores y dominios, con staging y deshacer.** En el origen, Backups → Migrar → «Generar clave de migración» crea una clave de un solo uso que caduca (1 a 72 h, 24 por defecto), se revoca y se muestra una sola vez; en el destino (un WordPress recién instalado o un sitio que se reemplaza) se pega en «Migrar desde otro sitio» y basta un clic. El destino tira del origen por REST, autorizado por la clave en la cabecera `X-Digitalisimo-Migration` (nunca en la URL): el origen crea el paquete con su motor de trabajos (un respaldo completo en DGBK, con el manifiesto firmado, cifrado con una clave que sale de la clave de migración y nunca viaja), el destino lo descarga por fragmentos con `Range` y se reanuda tras un corte o una muerte, comprueba tamaño, SHA-256, cabecera, descifrado y firma, y lo restaura con la copia previa bloqueada y la reescritura de direcciones, rutas y prefijo de «Restaurar en otro dominio» (el destino conserva su dirección). «Deshacer la migración» restaura esa copia previa en un clic; el origen nunca cambia y su clave queda usada. Individual → individual y red → red del mismo tipo, con un mensaje antes de descargar si el `wp-config.php` del destino no declara la red. En la base de datos sólo queda la huella de la credencial; límite de intentos por clave (5) y global (20 en 15 min); HTTPS salvo «Permitir HTTP» (laboratorio); registro de cada uso; avance en «Trabajos». Pantalla, REST y WP-CLI (`wp digitalisimo-backups migrate --from-key-file=…`) sobre `Digitalisimo_Backups_Service`. Staging: la misma migración hacia una copia de pruebas y, para publicarla, en sentido contrario. | @NEXT_BACKUPS@ | `backups-migrate.php`, `backups-migrate-surfaces.php` y, en Playground, `tests/playground/backups-migrate.sh` |
+| **Migración en un clic entre servidores y dominios, con staging y deshacer.** En el origen, Backups → Migrar → «Generar clave de migración» crea una clave de un solo uso que caduca (1 a 72 h, 24 por defecto), se revoca y se muestra una sola vez; en el destino (un WordPress recién instalado o un sitio que se reemplaza) se pega en «Migrar desde otro sitio» y basta un clic. El destino tira del origen por REST, autorizado por la clave en la cabecera `X-Digitalisimo-Migration` (nunca en la URL): el origen crea el paquete con su motor de trabajos (un respaldo completo en DGBK, con el manifiesto firmado, cifrado con una clave que sale de la clave de migración y nunca viaja), el destino lo descarga por fragmentos con `Range` y se reanuda tras un corte o una muerte, comprueba tamaño, SHA-256, cabecera, descifrado y firma, y lo restaura con la copia previa bloqueada y la reescritura de direcciones, rutas y prefijo de «Restaurar en otro dominio» (el destino conserva su dirección). «Deshacer la migración» restaura esa copia previa en un clic; el origen nunca cambia y su clave queda usada. Individual → individual y red → red del mismo tipo, con un mensaje antes de descargar si el `wp-config.php` del destino no declara la red. En la base de datos sólo queda la huella de la credencial; límite de intentos por clave (5), sin límite global que un anónimo pueda agotar; HTTPS y sólo sitios públicos salvo el laboratorio («Permitir HTTP y direcciones internas»); registro de cada uso; avance en «Trabajos». Pantalla, REST y WP-CLI (`wp digitalisimo-backups migrate --from-key-file=…`) sobre `Digitalisimo_Backups_Service`. Staging: la misma migración hacia una copia de pruebas y, para publicarla, en sentido contrario. | @NEXT_BACKUPS@ | `backups-migrate.php`, `backups-migrate-surfaces.php` y, en Playground, `tests/playground/backups-migrate.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -640,20 +640,36 @@ instalación ya tiene su carpeta).
 - **Autenticación.** Cada petición lleva `X-Digitalisimo-Migration: <id>.<base64url(A)>` y, salvo la presentación, el
   identificador del trabajo del destino (`X-Digitalisimo-Migration-Client`); la clave en la cadena de consulta responde
   400 sin usarse. Comparación de tiempo constante con la huella. La primera petición de paquete **ata** la clave a ese
-  trabajo: otra migración con la misma clave responde 409. Si el destino abandona antes de restaurar, la libera.
-  Al terminar, la clave queda **usada** (410 en adelante).
-- **Límites.** 5 credenciales equivocadas bloquean la clave; 20 fallos de cualquier origen en 15 minutos cierran la API
-  de migración del sitio (429) hasta que pase la ventana. Caducidad de 1 a 72 horas.
-- **HTTPS.** Exigido en los dos lados. «Permitir HTTP» (Backups → Migrar → Laboratorio, en cada sitio) lo permite para
-  pruebas en una red propia: la credencial viajaría legible y quien vea el tráfico podría descargar el paquete (que
-  sigue cifrado con `K`) o interrumpir la migración, pero no abrirlo.
+  trabajo, de forma atómica (con el cerrojo del almacén se comprueba otra vez que siga libre): otra migración con la
+  misma clave responde 409. Si el destino abandona antes de restaurar, la libera; si no pudo liberarla (el origen no
+  respondía), otro trabajo del destino la retoma cuando lleva 30 minutos sin señales y su paquete ya no se prepara. Al
+  terminar, la clave queda **usada** (410 en adelante).
+- **Límites.** 5 credenciales equivocadas bloquean esa clave. No hay límite global: una petición sin una clave válida
+  (sin cabecera, mal formada o de una clave que no existe o ya cerrada) nunca cierra la API ni gasta los intentos de
+  nadie, y sólo suma a un contador aparte («Peticiones sin una clave válida» en el registro), sin desplazar los usos.
+  Adivinar no es viable (identificador de 64 bits y credencial de 256). Caducidad de 1 a 72 horas para empezar; una
+  clave en uso no caduca mientras su destino dé señales (una descarga larga nunca se corta a mitad) y caduca pasados 30
+  minutos sin ellas. En una red, la API del origen sólo responde en el sitio principal.
+- **HTTPS y direcciones.** HTTPS exigido en los dos lados. El destino sólo se conecta a sitios públicos: nunca a
+  loopback, red privada, enlace local (los metadatos de la nube), CGNAT ni direcciones reservadas, tampoco si el nombre
+  resuelve a una de ellas; sigue hasta 3 redirecciones validando cada salto igual; cada respuesta tiene tope (un
+  fragmento, su largo pedido; el resto, 1 MiB), y de una respuesta que no es de la API de migración sólo muestra el
+  código HTTP. «Permitir HTTP y direcciones internas» (Backups → Migrar → Laboratorio, en cada sitio) permite las dos
+  cosas para pruebas en una red propia o entre dos sitios del mismo servidor: la credencial viajaría legible y quien vea
+  el tráfico podría descargar el paquete (que sigue cifrado con `K`) o interrumpir la migración, pero no abrirlo.
 - **Quién.** Generar, revocar, migrar y deshacer: la capability de la pantalla (superadministrador en una red,
   administrador en un sitio individual); en una red, desde el sitio principal y con el alcance de red explícito. La API
   del origen no usa la sesión de WordPress: la autoriza sólo la clave.
 - **Registro.** Cada uso en el registro de la pestaña (fecha, huella corta de la clave, evento, IP y detalle): clave
   generada, presentación, paquete pedido y listo, descarga, migración terminada, liberada, revocada, caducada,
-  bloqueada, intentos fallidos y deshacer. Nada del flujo deja la clave, la credencial ni `K` en registros, respuestas,
-  URL, trabajos ni el navegador (salvo la página que la muestra una vez).
+  bloqueada, intentos fallidos con una clave viva, clave retomada y deshacer. Nada del flujo deja la clave, la credencial
+  ni `K` en registros, respuestas, URL, trabajos ni el navegador (salvo la página que la muestra una vez, y recargarla
+  no crea otra clave: el formulario lleva un testigo de un solo uso). La clave se pega en un área de texto, que los
+  gestores de contraseñas no ofrecen guardar.
+- **Avisos por correo.** La migración avisa con su propio texto («Migración terminada», con la copia previa que la
+  deshace, o «La migración falló», con la fase y si se cambió algo) a quien se avisaba en el destino antes de migrar (la
+  foto se toma al encolarla: los ajustes de avisos que llegan con el SQL son los del origen). El paquete que prepara el
+  origen no avisa como un respaldo: su uso queda en el registro de la clave.
 
 **Escala.** El paquete lo crea el motor de trabajos del origen (fases con punto de control y reintentos); mientras tanto
 el destino pregunta con una espera de hasta 10 minutos (`digitalisimo_backups_migration_step_timeout`) y, si se agota
@@ -675,17 +691,17 @@ revocadas); la sesión del navegador del destino termina al restaurar (los usuar
 Ensayo en WordPress Playground (`tests/playground/backups-migrate.sh`): WordPress 7.1.4, PHP 8.5 sin libsodium nativo
 (el paquete se cifra y se descifra con el sodium_compat de WordPress) y SQLite, dos servidores por modo, A (origen) y B
 (destino), cada uno con su copia del plugin, su almacén privado y sus propias `AUTH_KEY` y `SECURE_AUTH_KEY`, por HTTP
-entre dos puertos con «Permitir HTTP». El driver hace lo que haría el administrador, por los handlers reales con su
-sesión y su nonce: en A genera la clave; en B la pega y hace un clic, con la pestaña abierta. Un sitio individual y una
-red por subdirectorios (con el subsitio «uno»), cada uno por separado y con un paquete de 32,6 MB: la migración tarda
-1012 y 907 s y deshacer, 18 y 17 s; B conserva su dirección con el contenido, los usuarios, la contraseña y los medios
-(byte a byte) de A, en la red con el subsitio «uno» en su dominio; la clave se muestra una sola vez y no queda en
-ninguna base de datos ni almacén; la copia previa queda bloqueada y marcada, y un clic devuelve a B su contenido, sus
-usuarios y su contraseña. El contenido de A (todas las tablas, cada opción y cada archivo de `wp-content`) no cambia ni
-tras migrar ni tras deshacer: sólo su registro de uso de la clave. 31 y 34 comprobaciones, todo correcto, con unos 1,5
-GB de memoria como máximo para los dos servidores. Con `ELEMENTS=single`, A lleva además DIGITALÍSIMO Elements y una
-página suya, y B la muestra con sus medios y su CSS regenerado con la dirección de B (paquete de 67 MB). Falta el ensayo
-entre dos servidores reales con MySQL y HTTPS.
+entre dos puertos con el laboratorio («Permitir HTTP y direcciones internas»). El driver hace lo que haría el
+administrador, por los handlers reales con su sesión y su nonce: en A genera la clave; en B la pega y hace un clic, con
+la pestaña abierta. Un sitio individual y una red por subdirectorios (con el subsitio «uno»), cada uno por separado y
+con un paquete de 32,6 MB: la migración tarda 1012 y 907 s y deshacer, 18 y 17 s; B conserva su dirección con el
+contenido, los usuarios, la contraseña y los medios (byte a byte) de A, en la red con el subsitio «uno» en su dominio;
+la clave se muestra una sola vez y no queda en ninguna base de datos ni almacén; la copia previa queda bloqueada y
+marcada, y un clic devuelve a B su contenido, sus usuarios y su contraseña. El contenido de A (todas las tablas, cada
+opción y cada archivo de `wp-content`) no cambia ni tras migrar ni tras deshacer: sólo su registro de uso de la clave.
+31 y 34 comprobaciones, todo correcto, con unos 1,5 GB de memoria como máximo para los dos servidores. Con
+`ELEMENTS=single`, A lleva además DIGITALÍSIMO Elements y una página suya, y B la muestra con sus medios y su CSS
+regenerado con la dirección de B (paquete de 67 MB). Falta el ensayo entre dos servidores reales con MySQL y HTTPS.
 
 ## Almacenamiento local
 
