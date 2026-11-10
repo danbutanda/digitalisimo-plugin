@@ -832,7 +832,7 @@ comprobado con respaldos reales que hizo ese código en Playground (`tests/playg
      remotos, ni `DATA DIRECTORY`, ni `CONNECTION`…). Se rechaza cualquier otra sentencia (GRANT, LOAD DATA, un
      ejecutable que no es SET), otra base de datos, un INSERT en una tabla que el volcado no creó o con funciones, una
      fila con otro número de valores y una cadena sin cerrar. No se importan vistas, disparadores, eventos, rutinas ni
-     claves foráneas (se cuentan y se avisan) ni las filas `digitalisimo_backups_secret_*` del origen. La sentencia más
+     claves foráneas (se cuentan y se avisan) ni las filas `digitalisimo_backups_vault_*` del origen. La sentencia más
      larga que se acepta es una cuarta parte de la memoria libre (entre 1 y 64 MB). Punto de control en cada frontera de
      sentencia.
   4. `files`: el ZIP con el escritor de sólo añadir de T2: `database.sql` y cada archivo como `wordpress/<ruta>`; una

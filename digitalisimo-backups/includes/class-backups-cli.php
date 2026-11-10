@@ -691,6 +691,19 @@ final class Digitalisimo_Backups_Cli_Backuply {
 		WP_CLI::success( 'Respaldo de Backuply importado: ' . $view['file'] . '. Para restaurarlo: wp digitalisimo-backups restore ' . $view['file'] . ' --confirm="RESTAURAR SIN FIRMA".' );
 	}
 	/**
+	 * Borra un respaldo de Backuply (.tar.gz) del almacén privado (subido o traído de un destino; los de la carpeta de
+	 * Backuply no).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <name>
+	 * : Nombre del archivo, como aparece en `wp digitalisimo-backups backuply list` (origen store).
+	 */
+	public function delete( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_backuply_delete( (string) ( $args[0] ?? '' ) ) );
+		WP_CLI::success( 'Respaldo de Backuply borrado del almacén privado: ' . $result['name'] . '.' );
+	}
+	/**
 	 * Trae al almacén privado un respaldo de Backuply que está en un destino remoto, para importarlo después.
 	 *
 	 * ## OPTIONS

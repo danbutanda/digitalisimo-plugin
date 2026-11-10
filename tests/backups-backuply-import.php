@@ -22,8 +22,63 @@
  *   B6  subida por fragmentos de un `.tar.gz` (al almacén `backuply/`, no a «Restaurar») y su importación; uno que no
  *       es gzip se descarta;
  *   B7  pantalla («Respaldos de Backuply» con «Importar», nonce y capability), duplicados, cancelación y REST.
- * Deben fallar con el código anterior (1.0.64, d3ac3fa8): no existe el importador.
+ * Tras la revisión adversaria (H1–H14 y P1), además:
+ *   B8  nombres reales de Backuply (`wp_midominio.com.mx_…`, `wp_empresa.co.uk_…`) con el sanitize_file_name() de
+ *       WordPress (su regla de extensiones intermedias), también en una red sin `tar` en upload_filetypes: «Importar»,
+ *       la subida, restaurar y eliminar encuentran el archivo;
+ *   B9  memoria: con memory_limit=64M y 46 MB ya ocupados (como WordPress), filas de 2,5 MB con comillas y barras y de
+ *       3 MB de texto se importan, y una de 9 MB se rechaza con el aviso de WP-CLI, nunca con un error fatal (procesos
+ *       hijos, como la CI); un wp-config.php de 1 MB de tokens tampoco agota la memoria;
+ *   B10 la descompresión no vuelve al principio en cada tramo: con el primer miembro gzip dañado después de pasarlo, la
+ *       importación termina;
+ *   B11 una red sin MULTISITE en wp-config.php (sus tablas blogs y site) y un respaldo sin wp-config.php (encima de
+ *       ABSPATH: marcador y aviso);
+ *   B12 una muerte justo después de publicar el ZIP deja el trabajo terminado con ese ZIP (sin huérfanos);
+ *   B13 el tar como lo ven tar y Python: nada tras la marca de fin, el `size` de PAX aplicado, cadenas largas de
+ *       cabeceras g rechazadas, tamaños base-256 enormes rechazados de una vez, la carpeta de Backuply en un contenido
+ *       que no se llama wp-content;
+ *   B14 etiquetas de fase propias de la importación, borrar un .tar.gz del almacén y limpiar descargas cortadas;
+ *   B15 el guardián SQL (también el de la restauración de cualquier archivo sin firma) rechaza CREATE TABLE … TABLE
+ *       `mysql`.`user`, … VALUES ROW(), … IGNORE TABLE y REFERENCES a otra base de datos, y sigue aceptando
+ *       particiones y columnas generadas.
+ * Deben fallar con el código anterior (1.0.64, d3ac3fa8: no existe el importador) y B8–B15 con 0301ad78.
  */
+// Proceso hijo de B9 (memoria con 64 MB): `php -d memory_limit=64M backups-backuply-import.php --memoria=<caso>`.
+$GLOBALS['bi_child'] = '';
+foreach ( array_slice( $argv ?? array(), 1 ) as $arg ) if ( 0 === strpos( $arg, '--memoria=' ) ) $GLOBALS['bi_child'] = substr( $arg, 10 );
+/**
+ * sanitize_file_name() de WordPress 7.1.4 (wp-includes/formatting.php) en lo que importa aquí: caracteres especiales,
+ * espacios y la regla de las extensiones intermedias, que añade «_» a cada parte de 2 a 5 letras (con un dígito
+ * opcional) que no es una extensión de get_allowed_mime_types() (en una red, la lista de upload_filetypes).
+ */
+function sanitize_file_name( $filename ) {
+	$special = array( '?', '[', ']', '/', '\\', '=', '<', '>', ':', ';', ',', "'", '"', '&', '$', '#', '*', '(', ')', '|', '~', '`', '!', '{', '}', '%', '+', chr( 0 ) );
+	$filename = str_replace( $special, '', (string) $filename );
+	$filename = str_replace( array( '%20', '+' ), '-', $filename );
+	$filename = preg_replace( '/\.{2,}/', '.', $filename );
+	$filename = preg_replace( '/[\r\n\t -]+/', '-', $filename );
+	$filename = trim( $filename, '.-_' );
+	$parts = explode( '.', $filename );
+	if ( count( $parts ) <= 2 ) return $filename;
+	$filename = array_shift( $parts );
+	$extension = array_pop( $parts );
+	foreach ( $parts as $part ) {
+		$filename .= '.' . $part;
+		if ( preg_match( '/^[a-zA-Z]{2,5}\d?$/', $part ) ) {
+			$allowed = false;
+			foreach ( get_allowed_mime_types() as $ext_preg => $mime ) if ( preg_match( '!^(' . $ext_preg . ')$!i', $part ) ) { $allowed = true; break; }
+			if ( ! $allowed ) $filename .= '_';
+		}
+	}
+	return $filename . '.' . $extension;
+}
+/** Extensiones permitidas: las de WordPress (con tar y gz) o las de una red con la lista histórica de upload_filetypes. */
+$GLOBALS['bi_mimes'] = array( 'jpg|jpeg|jpe' => 'image/jpeg', 'gif' => 'image/gif', 'png' => 'image/png', 'webp' => 'image/webp', 'mp4|m4v' => 'video/mp4', 'txt|asc|c|cc|h|srt' => 'text/plain', 'csv' => 'text/csv', 'css' => 'text/css', 'mp3|m4a|m4b' => 'audio/mpeg', 'pdf' => 'application/pdf', 'tar' => 'application/x-tar', 'zip' => 'application/zip', 'gz|gzip' => 'application/x-gzip', 'rar' => 'application/rar', '7z' => 'application/x-7z-compressed', 'doc' => 'application/msword', 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'odt' => 'application/vnd.oasis.opendocument.text', 'key' => 'application/vnd.apple.keynote' );
+function get_allowed_mime_types() { return $GLOBALS['bi_mimes']; }
+function bi_network_mimes() {
+	$historic = explode( ' ', 'jpg jpeg png gif mov avi mpg 3gp 3g2 midi mid pdf doc ppt odt pptx docx pps ppsx xls xlsx key mp3 ogg flac m4a wav mp4 m4v webm ogv flv' );
+	return array_filter( $GLOBALS['bi_mimes'], function( $exts ) use ( $historic ) { return (bool) array_intersect( explode( '|', $exts ), $historic ); }, ARRAY_FILTER_USE_KEY );
+}
 require __DIR__ . '/lib/backups-env.php';
 require __DIR__ . '/lib/backups-sqlite.php';
 require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-rest.php';
@@ -227,6 +282,68 @@ function bi_staging_left() {
 	return $left;
 }
 
+/** Cabecera con su suma rehecha tras cambiarle bytes. */
+function bi_fix_sum( $h ) {
+	$h = substr_replace( $h, '        ', 148, 8 );
+	$sum = 0;
+	for ( $i = 0; $i < 512; $i++ ) $sum += ord( $h[ $i ] );
+	return substr_replace( $h, pack( 'a8', sprintf( '%06s ', decoct( $sum ) ) ), 148, 8 );
+}
+/** Entradas de bi_entries() con otras antes de softperms.txt (el archivo de información debe seguir a softver.txt). */
+function bi_with( array $entries, array $more ) {
+	array_splice( $entries, count( $entries ) - 3, 0, $more );
+	return $entries;
+}
+/**
+ * B9, proceso hijo con memory_limit=64M: traduce un volcado con una fila grande con 46 MB ya ocupados (lo que ocupa
+ * WordPress en el hosting del propietario), o importa entero un respaldo con un wp-config.php de 1 MB de tokens.
+ * Imprime una línea JSON; un error fatal de memoria lo mataría sin ella.
+ */
+function bi_child( $case ) {
+	$out = array( 'case' => $case, 'ok' => false );
+	try {
+		if ( 'config' === $case ) {
+			$config = "<?php\n\$table_prefix = 'bk_';\n" . str_repeat( '1;', 520000 ) . "\n";
+			$file = bi_store_file( 'bomba.tar.gz', bi_gz( bi_tar( bi_entries( 'bomba', array( 'config' => $config ) ) ) ) );
+			unset( $config );
+			$job = bi_import( $file, 'store' );
+			$out['ok'] = 'success' === $job['status'];
+			$out['error'] = (string) ( $job['error']['message'] ?? '' );
+		} else {
+			$values = array( 'comillas' => str_repeat( "a'b\\c\"d\n", 330000 ), 'texto' => str_repeat( 'Lorem ipsum dolor sit amet ', 116000 ), 'grande' => str_repeat( 'x', 9437184 ) );
+			$value = $values[ $case ];
+			unset( $values );
+			$out['row'] = strlen( $value );
+			$sql = bi_table( 'bk_options', "CREATE TABLE `bk_options` (\n  `option_id` INTEGER PRIMARY KEY,\n  `option_name` varchar(191) NOT NULL,\n  `option_value` longtext NOT NULL\n)", array( true, false, false ), array( array( 1, 'grande', $value ) ) );
+			$expected = hash( 'sha256', Digitalisimo_Backups::sql_value( $value ) );
+			unset( $value );
+			$in_path = $GLOBALS['bk_root'] . '-memoria.sql';
+			$out_path = $GLOBALS['bk_root'] . '-memoria-salida.sql';
+			file_put_contents( $in_path, $sql );
+			unset( $sql );
+			$in = fopen( $in_path, 'rb' );
+			$o = fopen( $out_path, 'w+b' );
+			$ballast = str_repeat( '.', (int) max( 0, 46 * 1048576 - memory_get_usage( true ) ) );
+			$out['used'] = memory_get_usage( true );
+			$t = new Digitalisimo_Backups_Backuply_Sql( $in, 0, filesize( $in_path ), $o, array() );
+			$t->run( INF );
+			unset( $ballast );
+			fclose( $o );
+			// El valor convertido es exactamente el de sql_value() (sin decodificarlo entero: se compara su SHA-256).
+			$sql = file_get_contents( $out_path );
+			$at = strpos( $sql, "'1','grande'," );
+			$out['ok'] = false !== $at && hash( 'sha256', substr( $sql, $at + 13, strrpos( $sql, ');' ) - $at - 13 ) ) === $expected;
+		}
+	} catch ( Throwable $e ) {
+		$out['error'] = $e->getMessage();
+	}
+	$out['peak'] = memory_get_peak_usage( true );
+	echo "\n" . json_encode( $out ) . "\n";
+	bk_cleanup();
+	exit( 0 );
+}
+if ( '' !== $GLOBALS['bi_child'] ) bi_child( $GLOBALS['bi_child'] );
+
 /* ------------------------------------------------------------------ Destino: un WordPress con prefijo wp_ en otro dominio */
 $abspath = rtrim( ABSPATH, '/' );
 $dest = new Bk_Sqlite_DB( $GLOBALS['bk_root'] . '-destino.sqlite', 'wp_' );
@@ -238,7 +355,9 @@ $GLOBALS['bk_options']['home'] = 'https://destino.test/sitio';
 $GLOBALS['bk_options']['siteurl'] = 'https://destino.test/sitio';
 $GLOBALS['bk_multisite'] = false;
 $config_before = file_get_contents( $abspath . '/wp-config.php' );
-$name = 'wp_origen.com_2026-11-09_22-00-00';
+// Como lo nombra Backuply (wp_<SERVER_NAME>_<fecha>): un dominio de segundo nivel de país.
+$name = 'wp_midominio.com.mx_2026-11-09_22-00-00';
+$GLOBALS['bi_target'] = 'digitalisimo-backuply-wp_midominio-com-mx_2026-11-09_22-00-00.zip';
 
 bi_case( 'B1 detección de Backuply y lista de sus respaldos, sin rutas', function() use ( $name ) {
 	$none = Digitalisimo_Backups::service_backuply();
@@ -273,7 +392,8 @@ bi_case( 'B2 importación por tramos a un ZIP de Backups sin firma', function() 
 	foreach ( Digitalisimo_Backups_Job_Store::events( $job['id'] ) as $event ) if ( 'phase' === ( $event['type'] ?? '' ) && ( $event['phase'] ?? '' ) === ( $event['next'] ?? '' ) ) $phases[ $event['phase'] ] = ( $phases[ $event['phase'] ] ?? 0 ) + 1;
 	bi_check( ( $phases['scan'] ?? 0 ) >= 5 && ( $phases['database'] ?? 0 ) >= 5 && ( $phases['files'] ?? 0 ) >= 5, 'Las fases no avanzaron por tramos: ' . json_encode( $phases ) );
 	$converted = $job['result']['import']['file'];
-	bi_check( 'digitalisimo-backuply-' . $name . '.zip' === $converted && is_file( bk_storage() . '/' . $converted ), 'El ZIP convertido no está en el almacén: ' . $converted );
+	bi_check( $GLOBALS['bi_target'] === $converted && is_file( bk_storage() . '/' . $converted ), 'El ZIP convertido no está en el almacén (o su nombre cambiaría con sanitize_file_name()): ' . $converted );
+	bi_check( $converted === sanitize_file_name( $converted ), 'sanitize_file_name() cambia el nombre del ZIP convertido: ' . sanitize_file_name( $converted ) );
 	bi_check( 'RESTAURAR SIN FIRMA' === $job['result']['import']['confirmation'] && 'bk_' === $job['result']['import']['prefix'] && 6 === $job['result']['import']['tables'], 'El resultado no describe la importación: ' . json_encode( $job['result'] ) );
 	bi_check( array() === bi_staging_left(), 'Quedó el área de trabajo de la importación.' );
 	$zip = new ZipArchive();
@@ -463,6 +583,206 @@ bi_case( 'B7 pantalla, duplicados, cancelación y REST', function() use ( $name 
 	$view = Digitalisimo_Backups::service_job( $job['id'] );
 	bi_check( 'import' === $view['kind'] && $job['result']['import']['file'] === $view['file'] && false !== strpos( $view['detail'], 'RESTAURAR SIN FIRMA' ), 'La vista del trabajo terminado no dice qué hacer: ' . json_encode( $view ) );
 	@unlink( bk_storage() . '/' . $job['result']['import']['file'] );
+} );
+
+bi_case( 'B8 nombres reales de Backuply con el sanitize_file_name() de WordPress, también en una red sin tar', function() {
+	foreach ( array( 'wp_empresa.co.uk_2026-11-10_09-19-22.tar.gz', 'wp_shop.example.co.in_2026-11-10_09-19-22.tar.gz', 'wp_192.168.1.25_2026-11-10_09-19-22.tar.gz' ) as $real ) {
+		bi_check( $real === Digitalisimo_Backups_Backuply_Import::upload_name( $real ), 'El nombre de Backuply no se conserva: ' . $real );
+		bi_check( Digitalisimo_Backups_Backuply_Import::target_name( $real ) === sanitize_file_name( Digitalisimo_Backups_Backuply_Import::target_name( $real ) ), 'sanitize_file_name() cambia el ZIP de ' . $real );
+	}
+	foreach ( array( '../x.tar.gz', 'a/b.tar.gz', 'c:\\x.tar.gz', "x\0.tar.gz", '.tar.gz' ) as $bad ) bi_check( '' === Digitalisimo_Backups_Backuply_Import::upload_name( $bad ), 'Se aceptó el nombre ' . json_encode( $bad ) );
+	// Una red con la lista histórica de upload_filetypes (sin tar ni gz): sanitize_file_name() daría «.tar_.gz».
+	$mimes = $GLOBALS['bi_mimes'];
+	$GLOBALS['bi_mimes'] = bi_network_mimes();
+	try {
+		$real = 'wp_empresa.co.uk_2026-11-10_09-19-22.tar.gz';
+		bi_check( 'wp_empresa.co_.uk_2026-11-10_09-19-22.tar_.gz' === sanitize_file_name( $real ), 'La regla de extensiones de la prueba no es la de WordPress: ' . sanitize_file_name( $real ) );
+		$bytes = bi_gz( bi_tar( bi_entries( 'wp_empresa.co.uk_2026-11-10_09-19-22' ) ) );
+		$start = Digitalisimo_Backups::service_upload_start( array( 'name' => $real, 'size' => strlen( $bytes ) ) );
+		bi_check( ! is_wp_error( $start ) && $real === $start['name'], 'La subida de un .tar.gz se rechaza o cambia de nombre en una red sin tar: ' . json_encode( is_wp_error( $start ) ? $start->get_error_message() : $start ) );
+		for ( $offset = 0; $offset < strlen( $bytes ); $offset += (int) $start['chunk_size'] ) Digitalisimo_Backups::service_upload_chunk( $start['id'], $offset, array( 'data' => substr( $bytes, $offset, (int) $start['chunk_size'] ) ) );
+		$done = Digitalisimo_Backups::service_upload_finish( $start['id'] );
+		bi_check( ! is_wp_error( $done ) && $real === $done['file'], 'La subida no conservó el nombre: ' . json_encode( is_wp_error( $done ) ? $done->get_error_message() : $done ) );
+		list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'backuply_import_request' ), array( '_wpnonce' => 'nonce-digitalisimo_backups_backuply_import', 'backuply_file' => $real, 'backuply_source' => 'store' ) );
+		bi_check( $ok, '«Importar» no encuentra el respaldo con su nombre real: ' . $message );
+		$active = array_values( array_filter( Digitalisimo_Backups_Jobs::active(), array( 'Digitalisimo_Backups_Import_Job', 'is_import' ) ) );
+		$job = bi_drive( $active[0]['id'] );
+		$zip = 'digitalisimo-backuply-wp_empresa-co-uk_2026-11-10_09-19-22.zip';
+		bi_check( 'success' === $job['status'] && $zip === $job['result']['import']['file'], 'La importación por la pantalla falló: ' . json_encode( $job['error'] ?? $job['result'] ) );
+		$verify = Digitalisimo_Backups::service_verify( $zip );
+		bi_check( ! is_wp_error( $verify ) && true === $verify['verified'], 'verify (que sanea el nombre) no encuentra el ZIP convertido: ' . ( is_wp_error( $verify ) ? $verify->get_error_message() : '' ) );
+		$deleted = Digitalisimo_Backups::service_backuply_delete( $real );
+		bi_check( ! is_wp_error( $deleted ) && ! file_exists( Digitalisimo_Backups_Backuply_Import::store_directory() . '/' . $real ), 'No se pudo borrar el .tar.gz subido.' );
+		@unlink( bk_storage() . '/' . $zip );
+	} finally {
+		$GLOBALS['bi_mimes'] = $mimes;
+	}
+} );
+
+bi_case( 'B9 memoria acotada con memory_limit=64M (procesos hijos)', function() {
+	if ( ! function_exists( 'proc_open' ) || ! is_executable( PHP_BINARY ) ) { echo "  · sin proc_open o PHP_BINARY (php-wasm): se omite\n"; return; }
+	foreach ( array( 'comillas' => true, 'texto' => true, 'grande' => false, 'config' => true ) as $case => $fits ) {
+		$proc = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', __FILE__, '--memoria=' . $case ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+		$stdout = stream_get_contents( $pipes[1] );
+		$stderr = stream_get_contents( $pipes[2] );
+		fclose( $pipes[1] );
+		fclose( $pipes[2] );
+		$code = proc_close( $proc );
+		$lines = array_values( array_filter( explode( "\n", trim( (string) $stdout ) ) ) );
+		$last = json_decode( (string) end( $lines ), true );
+		bi_check( 0 === $code && is_array( $last ), $case . ': el proceso hijo murió (código ' . $code . '): ' . substr( $stdout . $stderr, -500 ) );
+		if ( $fits ) bi_check( true === $last['ok'], $case . ': no se importó o el valor cambió: ' . json_encode( $last ) );
+		else bi_check( false === $last['ok'] && false !== strpos( (string) ( $last['error'] ?? '' ), 'WP-CLI' ) && false !== strpos( (string) $last['error'], 'cron del sistema' ), $case . ': una sentencia que no cabe no se rechazó con el aviso de WP-CLI: ' . json_encode( $last ) );
+		bi_check( $last['peak'] < 67108864, $case . ': pico de memoria de ' . $last['peak'] );
+		echo '  · ' . $case . ': pico ' . round( $last['peak'] / 1048576, 1 ) . ' MB' . ( isset( $last['used'] ) ? ' (' . round( $last['used'] / 1048576, 1 ) . ' MB ocupados antes, fila de ' . round( $last['row'] / 1048576, 1 ) . ' MB)' : '' ) . "\n";
+	}
+} );
+
+bi_case( 'B10 la descompresión sigue en su miembro gzip, sin volver al principio', function() {
+	$entries = bi_with( bi_entries( 'miembros' ), array( array( 'wp-content/uploads/ruido.bin', random_bytes( 600000 ) ) ) );
+	$path = Digitalisimo_Backups_Backuply_Import::store_directory( true ) . '/' . bi_store_file( 'miembros.tar.gz', bi_gz( bi_tar( $entries ), 6 ) );
+	$mtime = filemtime( $path );
+	$queued = Digitalisimo_Backups::service_backuply_import( 'miembros.tar.gz', array( 'source' => 'store' ) );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 8;
+	$damaged = false;
+	try {
+		// Cuando ya va en el segundo miembro, el primero se estropea: volver a descomprimirlo fallaría.
+		$job = bi_drive( $queued['id'], true, function( $job ) use ( $path, $mtime, &$damaged ) {
+			if ( $damaged || 'unpack' !== $job['phase'] || (int) ( $job['checkpoint']['unpack']['c'] ?? 0 ) <= 0 ) return;
+			$handle = fopen( $path, 'r+b' );
+			fseek( $handle, 300 );
+			fwrite( $handle, str_repeat( "\xa5", 64 ) );
+			fclose( $handle );
+			touch( $path, $mtime );
+			clearstatcache();
+			$damaged = true;
+		} );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	}
+	bi_check( $damaged, 'La descompresión no llegó al segundo miembro gzip por tramos.' );
+	bi_check( 'success' === $job['status'], 'Al seguir, la descompresión volvió a leer el primer miembro (ya hecho y ahora dañado): ' . json_encode( $job['error'] ) );
+	$map = bi_zip_map( bk_storage() . '/' . $job['result']['import']['file'] );
+	bi_check( hash( 'sha256', $entries[ count( $entries ) - 4 ][1] ) === ( $map['wordpress/wp-content/uploads/ruido.bin'] ?? '' ), 'El archivo que cruza miembros no quedó idéntico.' );
+	@unlink( bk_storage() . '/' . $job['result']['import']['file'] );
+} );
+
+bi_case( 'B11 red sin MULTISITE en wp-config.php y respaldo sin wp-config.php', function() {
+	$net = array(
+		bi_table( 'bk_blogs', "CREATE TABLE `bk_blogs` (\n  `blog_id` INTEGER PRIMARY KEY,\n  `site_id` bigint(20) NOT NULL DEFAULT 0,\n  `domain` varchar(200) NOT NULL DEFAULT '',\n  `path` varchar(100) NOT NULL DEFAULT ''\n)", array( true, true, false, false ), array( array( 1, 1, 'origen.com', '/' ), array( 2, 1, 'origen.com', '/uno/' ) ) ),
+		bi_table( 'bk_site', "CREATE TABLE `bk_site` (\n  `id` INTEGER PRIMARY KEY,\n  `domain` varchar(200) NOT NULL DEFAULT '',\n  `path` varchar(100) NOT NULL DEFAULT ''\n)", array( true, false, false ), array( array( 1, 'origen.com', '/' ) ) ),
+	);
+	// MULTISITE en otro archivo (Bedrock, un hosting gestionado): wp-config.php no lo declara con un define() literal.
+	$config = "<?php\n\$table_prefix = 'bk_';\nrequire __DIR__ . '/../config/application.php';\n";
+	$file = bi_store_file( 'red.tar.gz', bi_gz( bi_tar( bi_entries( 'red', array( 'sql' => bi_dump( 'bk_', $net ), 'config' => $config ) ) ) ) );
+	$job = bi_import( $file, 'store' );
+	bi_check( 'success' === $job['status'] && true === $job['result']['import']['multisite'], 'La red no se reconoció por sus tablas blogs y site: ' . json_encode( $job['result'] ?? $job['error'] ) );
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $job['result']['import']['file'] );
+	$manifest = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
+	$zip->close();
+	bi_check( true === $manifest['multisite'], 'El manifiesto no declara la red.' );
+	@unlink( bk_storage() . '/' . $job['result']['import']['file'] );
+	// wp-config.php un nivel por encima de ABSPATH: Backuply no lo respalda.
+	$entries = array_values( array_filter( bi_entries( 'sinconfig' ), function( $e ) { return 'wp-config.php' !== $e[0]; } ) );
+	$job = bi_import( bi_store_file( 'sinconfig.tar.gz', bi_gz( bi_tar( $entries ) ) ), 'store' );
+	bi_check( 'success' === $job['status'] && 'bk_' === $job['result']['import']['prefix'], 'Un respaldo completo sin wp-config.php se rechazó: ' . json_encode( $job['error'] ?? $job['result'] ) );
+	bi_check( false !== strpos( implode( ' ', $job['result']['import']['notices'] ), 'no traía wp-config.php' ), 'No se avisa de que faltaba wp-config.php.' );
+	$file = $job['result']['import']['file'];
+	$zip = new ZipArchive();
+	$zip->open( bk_storage() . '/' . $file );
+	bi_check( Digitalisimo_Backups_Backuply_Import::CONFIG_PLACEHOLDER === $zip->getFromName( 'wordpress/wp-config.php' ), 'El ZIP no lleva el marcador de wp-config.php.' );
+	$zip->close();
+	$verify = Digitalisimo_Backups::service_verify( $file );
+	bi_check( ! is_wp_error( $verify ) && true === $verify['verified'] && true === $verify['compatible'], 'verify rechaza el ZIP sin wp-config.php: ' . json_encode( is_wp_error( $verify ) ? $verify->get_error_message() : $verify['problems'] ) );
+	@unlink( bk_storage() . '/' . $file );
+} );
+
+bi_case( 'B12 una muerte justo después de publicar deja la importación terminada con su ZIP', function() {
+	$file = bi_store_file( 'muerte.tar.gz', bi_gz( bi_tar( bi_entries( 'muerte' ) ) ) );
+	$died = false;
+	Digitalisimo_Backups_Jobs::$phase_runner = function( $phase, $job ) use ( &$died ) {
+		$outcome = Digitalisimo_Backups_Import_Job::run_phase( $phase, $job );
+		if ( 'finish' === $phase && ! $died ) { $died = true; throw new RuntimeException( 'El proceso murió justo después del rename().' ); }
+		return $outcome;
+	};
+	try {
+		$job = bi_import( $file, 'store' );
+	} finally {
+		Digitalisimo_Backups_Jobs::$phase_runner = null;
+	}
+	$zips = array_values( array_filter( bi_store_files(), function( $f ) { return 0 === strpos( $f, 'digitalisimo-backuply-muerte' ); } ) );
+	bi_check( $died && 'success' === $job['status'] && 'digitalisimo-backuply-muerte.zip' === ( $job['result']['import']['file'] ?? '' ) && array( 'digitalisimo-backuply-muerte.zip' ) === $zips, 'Tras morir después del rename() el trabajo no terminó con su ZIP: ' . json_encode( array( $job['status'], $job['error'], $zips ) ) );
+	@unlink( bk_storage() . '/digitalisimo-backuply-muerte.zip' );
+} );
+
+bi_case( 'B13 el tar como lo leen tar y Python (fin, PAX, cadenas, base-256, otra carpeta de contenido)', function() {
+	$entries = bi_entries( 'tar' );
+	// Tras la marca de fin, una entrada que tar y Python no ven; con un `size` de PAX, datos que no son otra cabecera.
+	$pax = bi_header( '././@PaxHeader', 13, 'x' ) . bi_pad( "13 size=1024\n" ) . bi_header( 'wp-content/a.txt', 0 ) . bi_entry( 'wp-content/mu-plugins/contrabando.php', '<?php // contrabando' );
+	$tar = bi_tar( bi_with( $entries, array( array( 'raw' => $pax ), array( 'app/backuply/backups-zz/viejo.tar.gz', 'de Backuply en app/' ) ) ) ) . bi_entry( 'wp-content/mu-plugins/oculto.php', '<?php // oculto' ) . str_repeat( "\0", 1024 );
+	$job = bi_import( bi_store_file( 'tar.tar.gz', bi_gz( $tar ) ), 'store' );
+	bi_check( 'success' === $job['status'], 'La importación falló: ' . json_encode( $job['error'] ) );
+	$path = bk_storage() . '/' . $job['result']['import']['file'];
+	$zip = new ZipArchive();
+	$zip->open( $path );
+	bi_check( false === $zip->locateName( 'wordpress/wp-content/mu-plugins/oculto.php' ), 'Se importó lo que va tras la marca de fin.' );
+	bi_check( false === $zip->locateName( 'wordpress/wp-content/mu-plugins/contrabando.php' ) && 1024 === strlen( (string) $zip->getFromName( 'wordpress/wp-content/a.txt' ) ), 'No se aplicó el size de PAX.' );
+	bi_check( false === $zip->locateName( 'wordpress/app/backuply/backups-zz/viejo.tar.gz' ), 'Entraron los respaldos de Backuply de una carpeta de contenido que no es wp-content.' );
+	$zip->close();
+	@unlink( $path );
+	// Una cadena de cabeceras globales (g) que ningún tar escribe.
+	$chain = str_repeat( bi_header( 'pax_global_header', 0, 'g' ), 9 );
+	$job = bi_import( bi_store_file( 'cadena.tar.gz', bi_gz( bi_tar( array_merge( array( array( 'raw' => $chain ) ), $entries ) ) ) ), 'store' );
+	bi_check( 'failed' === $job['status'] && ! empty( $job['error']['permanent'] ) && false !== strpos( $job['error']['message'], 'cadena de cabeceras' ), 'Una cadena de cabeceras g no se rechazó: ' . json_encode( $job['status'] . ' ' . json_encode( $job['error'] ) ) );
+	// Un tamaño base-256 de 2^62: rechazo permanente de una vez (no tres reintentos).
+	$huge = bi_fix_sum( substr_replace( bi_header( 'wp-content/x.bin', 0 ), "\x80" . "\0\0\0\x40" . str_repeat( "\0", 7 ), 124, 12 ) );
+	$job = bi_import( bi_store_file( 'enorme.tar.gz', bi_gz( bi_tar( array_merge( array( array( 'raw' => $huge ) ), $entries ) ) ) ), 'store' );
+	bi_check( 'failed' === $job['status'] && ! empty( $job['error']['permanent'] ) && false !== strpos( $job['error']['message'], 'tamaño no válido' ), 'Un tamaño base-256 enorme no se rechazó de una vez: ' . json_encode( $job['error'] ) );
+	foreach ( array( 'tar', 'cadena', 'enorme' ) as $stem ) @unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/' . $stem . '.tar.gz' );
+} );
+
+bi_case( 'B14 etiquetas de la importación, borrar un .tar.gz y limpiar descargas cortadas', function() use ( $name ) {
+	$import = array( 'kind' => 'import' );
+	bi_check( 'ZIP convertido' === Digitalisimo_Backups_Jobs::phase_label( 'files', $import ) && 'Manifiesto y publicación' === Digitalisimo_Backups_Jobs::phase_label( 'finish', $import ) && 'Archivos' === Digitalisimo_Backups_Jobs::phase_label( 'files', array( 'kind' => 'restore' ) ), 'Etiquetas de fase cruzadas: ' . Digitalisimo_Backups_Jobs::phase_label( 'files', $import ) . ' / ' . Digitalisimo_Backups_Jobs::phase_label( 'finish', $import ) );
+	bi_store_file( 'borrar.tar.gz', 'x' );
+	$deleted = Digitalisimo_Backups::service_backuply_delete( 'borrar.tar.gz' );
+	bi_check( ! is_wp_error( $deleted ) && ! file_exists( Digitalisimo_Backups_Backuply_Import::store_directory() . '/borrar.tar.gz' ), 'No se borró el .tar.gz del almacén.' );
+	$theirs = Digitalisimo_Backups::service_backuply_delete( $name . '.tar.gz' );
+	bi_check( is_wp_error( $theirs ) && is_file( WP_CONTENT_DIR . '/backuply/backups-abc123/' . $name . '.tar.gz' ), 'Se borró un respaldo de la carpeta de Backuply.' );
+	$dir = Digitalisimo_Backups_Backuply_Import::store_directory();
+	file_put_contents( $dir . '/.incoming-viejo.part', 'cortada' );
+	touch( $dir . '/.incoming-viejo.part', time() - 7 * 3600 );
+	file_put_contents( $dir . '/.incoming-nuevo.part', 'en curso' );
+	Digitalisimo_Backups::service_backuply();
+	bi_check( ! file_exists( $dir . '/.incoming-viejo.part' ) && file_exists( $dir . '/.incoming-nuevo.part' ), 'No se limpió la descarga cortada (o se borró una en curso).' );
+	@unlink( $dir . '/.incoming-nuevo.part' );
+} );
+
+bi_case( 'B15 el guardián SQL cierra CREATE TABLE … TABLE, VALUES, IGNORE TABLE y otra base de datos', function() {
+	$guard = new Digitalisimo_Backups_Sql_Guard( Digitalisimo_Backups_Sql_Guard::EXPORTER, false );
+	foreach ( array(
+		"CREATE TABLE `bk_copia` (\n  `a` text\n) TABLE `mysql`.`user`",
+		"CREATE TABLE `bk_copia` (\n  `a` text\n) VALUES ROW('x')",
+		"CREATE TABLE `bk_copia` (\n  `a` text\n) IGNORE TABLE `bk_options`",
+		"CREATE TABLE `bk_hijo` (\n  `id` int,\n  KEY `id` (`id`),\n  CONSTRAINT `f` FOREIGN KEY (`id`) REFERENCES `otra`.`t` (`id`)\n)",
+	) as $sql ) {
+		try {
+			$guard->check( $sql );
+			throw new RuntimeException( 'El guardián aceptó: ' . $sql );
+		} catch ( RuntimeException $e ) {
+			throw $e;
+		} catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+	}
+	foreach ( array(
+		"CREATE TABLE `bk_p` (\n  `id` int\n) ENGINE=InnoDB /*!50100 PARTITION BY RANGE (`id`) (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB, PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */",
+		"CREATE TABLE `bk_l` (\n  `id` int\n) ENGINE=InnoDB /*!50100 PARTITION BY LIST (`id`) (PARTITION p0 VALUES IN (1,2) ENGINE = InnoDB) */",
+		"CREATE TABLE `bk_g` (\n  `a` int,\n  `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,\n  `c` decimal(10,2) DEFAULT '1.50',\n  CONSTRAINT `h` FOREIGN KEY (`a`) REFERENCES `bk_p` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='una TABLE con VALUES'",
+	) as $sql ) $guard->check( $sql );
+	// Por la importación: un CREATE … TABLE del respaldo de Backuply se rechaza antes de convertir nada.
+	$job = bi_import( bi_store_file( 'copia.tar.gz', bi_gz( bi_tar( bi_entries( 'copia', array( 'sql' => bi_dump( 'bk_', array( "CREATE TABLE `bk_copia` (\n  `a` text\n) TABLE `mysql`.`user`;\n" ) ) ) ) ) ) ), 'store' );
+	bi_check( 'failed' === $job['status'] && false !== strpos( $job['error']['message'], 'forma TABLE' ), 'La importación aceptó CREATE … TABLE `mysql`.`user`: ' . json_encode( $job['error'] ) );
+	@unlink( Digitalisimo_Backups_Backuply_Import::store_directory() . '/copia.tar.gz' );
 } );
 
 bk_cleanup();

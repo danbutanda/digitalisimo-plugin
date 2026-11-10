@@ -28,10 +28,19 @@ final class Digitalisimo_Backups_Backuply_Import {
 	/** Tamaño máximo del tar descomprimido (como una subida): más allá se rechaza. */
 	const MAX_TAR = 68719476736;
 	const MAX_INFO = 65536;
-	const MAX_CONFIG = 1048576;
-	const REQUIRED = array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php' );
-	/** Carpetas que no se importan: los respaldos y el estado de Backuply (Backuply ya las excluye). */
-	const SKIP = '#^wp-content/backuply(?:/|$)#';
+	/** Lo que se lee de wp-config.php y version.php: sobra para el prefijo y las constantes (un archivo mayor se lee hasta aquí). */
+	const MAX_CONFIG = 65536;
+	/**
+	 * Lo que un respaldo completo de WordPress trae siempre. `wp-config.php` no: WordPress admite tenerlo un nivel por
+	 * encima de ABSPATH y Backuply sólo respalda ABSPATH (Backups nunca lo restaura: el ZIP lleva entonces un marcador).
+	 */
+	const REQUIRED = array( 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php' );
+	const CONFIG_PLACEHOLDER = "<?php\n// DIGITALÍSIMO Backups: el respaldo de Backuply no traía wp-config.php (estaba fuera de ABSPATH).\n// Marcador del ZIP convertido: la restauración nunca escribe wp-config.php.\n";
+	/**
+	 * Carpetas que no se importan: los respaldos y el estado de Backuply (Backuply ya las excluye), en la carpeta de
+	 * contenido que tenga el sitio (`wp-content` o la de `WP_CONTENT_DIR`, como `app/`).
+	 */
+	const SKIP = '#^(?:[^/]+/)?backuply(?:/|$)#';
 	const METADATA = array( 'softsql.sql', 'softperms.txt', 'softver.txt' );
 
 	/* ------------------------------------------------------------------ Detección y orígenes */
@@ -77,6 +86,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 	 * (`store`: subidos o traídos de un destino). Sin rutas: el origen y el nombre bastan para pedir la importación.
 	 */
 	public static function sources() {
+		self::clean_partials();
 		$items = array();
 		foreach ( self::backuply_folders( 'backups-*' ) as $dir ) {
 			foreach ( (array) glob( $dir . '/*.tar.gz' ) as $path ) {
@@ -151,9 +161,35 @@ final class Digitalisimo_Backups_Backuply_Import {
 			return '';
 		}
 	}
+	/**
+	 * Nombre del ZIP convertido. Sin puntos en la raíz: Backuply nombra sus respaldos con el servidor
+	 * (`wp_midominio.com.mx_…`) y `sanitize_file_name()`, que usan restaurar, descargar y eliminar, añade «_» a cada
+	 * «extensión» intermedia que no conoce (`midominio.com_.mx`): el ZIP no se encontraría.
+	 */
 	public static function target_name( $name ) {
-		$stem = preg_replace( '/[^A-Za-z0-9._-]+/', '-', substr( (string) $name, 0, -7 ) );
-		return 'digitalisimo-backuply-' . trim( (string) $stem, '.-_' ) . '.zip';
+		$stem = preg_replace( '/[^A-Za-z0-9_-]+/', '-', substr( (string) $name, 0, -7 ) );
+		return 'digitalisimo-backuply-' . trim( (string) $stem, '-_' ) . '.zip';
+	}
+	/**
+	 * Nombre de un `.tar.gz` de Backuply que llega por una subida, sin `sanitize_file_name()` (que lo cambiaría: ver
+	 * target_name(); en una red sin `tar` en `upload_filetypes`, también `.tar` → `.tar_`): una lista blanca de
+	 * caracteres, sin rutas. '' si no es un nombre aceptable.
+	 */
+	public static function upload_name( $raw ) {
+		$raw = (string) $raw;
+		if ( '' === $raw || strlen( $raw ) > 200 || false !== strpbrk( $raw, "/\\\0" ) ) return '';
+		$name = ltrim( (string) preg_replace( '/[^A-Za-z0-9._-]+/', '-', $raw ), '.-_' );
+		return preg_match( self::NAME, $name ) ? $name : '';
+	}
+	/** Retira las descargas de `backuply fetch` que se cortaron (`.incoming-*.part` de más de 6 horas). */
+	public static function clean_partials() {
+		try {
+			$dir = self::store_directory();
+		} catch ( Exception $e ) {
+			return;
+		}
+		if ( ! is_dir( $dir ) ) return;
+		foreach ( (array) glob( $dir . '/.incoming-*.part' ) as $path ) if ( is_file( $path ) && ! is_link( $path ) && time() - (int) @filemtime( $path ) > 21600 ) @unlink( $path );
 	}
 
 	/* ------------------------------------------------------------------ Trabajo */
@@ -203,53 +239,82 @@ final class Digitalisimo_Backups_Backuply_Import {
 	}
 
 	/**
-	 * Fase `unpack`: descomprime el `.tar.gz` (también con varios miembros gzip) a `staging/source.tar`, por tramos. Tras
-	 * una muerte, la salida se trunca a su punto de control y la lectura vuelve ahí (gzseek descomprime de nuevo lo
-	 * anterior sin escribirlo).
+	 * Fase `unpack`: descomprime el `.tar.gz` a `staging/source.tar` una sola vez, por tramos, con `inflate_add()` sobre
+	 * trozos de 4 KB (su salida queda acotada aunque los datos se compriman mucho). Backuply escribe un miembro gzip por
+	 * cada tramo suyo (y en un destino, cada 2 MB): el punto de control guarda dónde empieza el miembro en curso (`c`, en
+	 * el archivo comprimido, y `u`, en el tar) y lo ya escrito (`offset`). Tras una muerte o en el tramo siguiente sólo se
+	 * vuelve a descomprimir, sin escribirlo, lo ya hecho de ese miembro; el plazo del tramo empieza después. Lo que sigue
+	 * al último miembro y no es gzip se ignora, como hace zlib.
 	 */
 	public static function unpack( array $job ) {
 		$source = self::source( $job );
 		$paths = self::paths( $job );
-		$cursor = (array) ( $job['checkpoint']['unpack'] ?? array() ) + array( 'offset' => 0 );
-		$deadline = self::deadline( $job, 'unpack' );
+		$cursor = (array) ( $job['checkpoint']['unpack'] ?? array() ) + array( 'offset' => 0, 'c' => 0, 'u' => 0 );
+		$total = (int) $job['spec']['source']['size'];
 		if ( 0 === (int) $cursor['offset'] ) {
 			$magic = (string) @file_get_contents( $source, false, null, 0, 2 );
 			if ( "\x1f\x8b" !== $magic ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo no es un respaldo de Backuply: no está comprimido con gzip (.tar.gz).' );
-			self::space( dirname( $paths['tar'] ), (int) $job['spec']['source']['size'], 'descomprimir el respaldo de Backuply' );
+			self::space( dirname( $paths['tar'] ), $total, 'descomprimir el respaldo de Backuply' );
 		}
-		if ( ! function_exists( 'gzopen' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor necesita la extensión PHP zlib para leer un respaldo de Backuply (.tar.gz).' );
-		$gz = @gzopen( $source, 'rb' );
-		if ( ! $gz ) throw new Exception( 'No se pudo abrir el respaldo de Backuply.' );
+		if ( ! function_exists( 'inflate_init' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor necesita la extensión PHP zlib para leer un respaldo de Backuply (.tar.gz).' );
+		$in = @fopen( $source, 'rb' );
+		if ( ! $in ) throw new Exception( 'No se pudo abrir el respaldo de Backuply.' );
 		$out = @fopen( $paths['tar'], 'c+b' );
-		if ( ! $out ) { gzclose( $gz ); throw new Exception( 'No se pudo escribir en el área de trabajo de la importación.' ); }
+		if ( ! $out ) { fclose( $in ); throw new Exception( 'No se pudo escribir en el área de trabajo de la importación.' ); }
 		@chmod( $paths['tar'], 0600 );
 		$offset = (int) $cursor['offset'];
+		$member = (int) $cursor['c'];
+		$member_at = (int) $cursor['u'];
+		$skip = $offset - $member_at;
 		$units = 0;
+		$deadline = null;
+		$damaged = function( $where ) { return new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado o truncado: falló la descompresión gzip cerca del byte ' . $where . ' del archivo.' ); };
 		try {
-			if ( ! ftruncate( $out, $offset ) || 0 !== fseek( $out, $offset ) ) throw new Exception( 'No se pudo preparar el área de trabajo de la importación.' );
-			if ( $offset > 0 && 0 !== gzseek( $gz, $offset ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: no se pudo volver al punto de la descompresión.' );
+			if ( $skip < 0 || ! ftruncate( $out, $offset ) || 0 !== fseek( $out, $offset ) || 0 !== fseek( $in, $member ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'La descompresión no coincide con su punto de control.', 'unpack' );
+			$context = inflate_init( ZLIB_ENCODING_GZIP );
+			$fed = 0;
 			while ( true ) {
-				$chunk = gzread( $gz, self::CHUNK );
-				if ( false === $chunk ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: falló la descompresión gzip cerca del byte ' . $offset . '.' );
-				if ( '' === $chunk ) {
-					if ( ! gzeof( $gz ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: falló la descompresión gzip cerca del byte ' . $offset . '.' );
-					break;
+				// Fin de un miembro: el siguiente empieza donde el anterior dejó de leer.
+				if ( ZLIB_STREAM_END === inflate_get_status( $context ) ) {
+					$member += (int) inflate_get_read_len( $context );
+					$member_at = $offset - $skip;
+					if ( 0 !== fseek( $in, $member ) ) throw $damaged( $member );
+					$next = (string) fread( $in, 2 );
+					if ( "\x1f\x8b" !== $next ) break; // Final del archivo (o lo que zlib también ignora).
+					fseek( $in, $member );
+					$context = inflate_init( ZLIB_ENCODING_GZIP );
+					$fed = 0;
 				}
+				$piece = fread( $in, 4096 );
+				if ( false === $piece ) throw new Exception( 'No se pudo leer el respaldo de Backuply.' );
+				if ( '' === $piece ) throw $damaged( $member + $fed ); // Acabó a mitad de un miembro.
+				$fed += strlen( $piece );
+				$chunk = @inflate_add( $context, $piece, ZLIB_SYNC_FLUSH );
+				if ( false === $chunk ) throw $damaged( $member + $fed );
+				// Lo ya escrito de este miembro (un tramo anterior) se descomprime otra vez sin escribirlo.
+				if ( $skip > 0 ) {
+					$drop = min( $skip, strlen( $chunk ) );
+					$chunk = (string) substr( $chunk, $drop );
+					$skip -= $drop;
+					if ( $skip > 0 ) continue;
+				}
+				if ( null === $deadline ) $deadline = self::deadline( $job, 'unpack' );
+				if ( '' === $chunk ) continue;
 				if ( $offset + strlen( $chunk ) > self::max_tar() ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply descomprimido supera ' . Digitalisimo_Backups_Archive_Inspector::megabytes( self::max_tar() ) . ', el máximo que se importa.' );
 				self::put( $out, $chunk );
 				$offset += strlen( $chunk );
 				$units++;
-				if ( 0 === $units % 64 ) self::space( dirname( $paths['tar'] ), 64 * self::CHUNK, 'descomprimir el respaldo de Backuply' );
+				if ( 0 === $units % 4096 ) self::space( dirname( $paths['tar'] ), 64 * self::CHUNK, 'descomprimir el respaldo de Backuply' );
 				if ( Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $units ) ) {
 					self::sync( $out );
-					Digitalisimo_Backups_Jobs::progress( 2 + (int) min( 18, floor( 18 * $offset / max( 1, 3 * (int) $job['spec']['source']['size'] ) ) ), 'Descomprimiendo el respaldo de Backuply: ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . '…', true );
-					return array( 'next' => 'unpack', 'checkpoint' => array( 'offset' => $offset, 'scale' => Digitalisimo_Backups_Step_Budget::scale( $job, 'unpack', $cursor ) ), 'message' => 'Descomprimiendo el respaldo de Backuply…' );
+					Digitalisimo_Backups_Jobs::progress( 2 + (int) min( 18, floor( 18 * ( $member + $fed ) / max( 1, $total ) ) ), 'Descomprimiendo el respaldo de Backuply: ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $offset ) . '…', true );
+					return array( 'next' => 'unpack', 'checkpoint' => array( 'offset' => $offset, 'c' => $member, 'u' => $member_at, 'scale' => Digitalisimo_Backups_Step_Budget::scale( $job, 'unpack', $cursor ) ), 'message' => 'Descomprimiendo el respaldo de Backuply…' );
 				}
 			}
 			self::sync( $out );
 		} finally {
 			fclose( $out );
-			gzclose( $gz );
+			fclose( $in );
 		}
 		if ( $offset < 1024 || 0 !== $offset % 512 ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado o dañado: descomprimido mide ' . $offset . ' bytes, que no es un tar completo.' );
 		return array( 'next' => 'scan', 'checkpoint' => array( 'offset' => $offset, 'tar_size' => $offset ), 'message' => 'Comprobando el contenido del respaldo de Backuply…' );
@@ -279,12 +344,17 @@ final class Digitalisimo_Backups_Backuply_Import {
 				if ( 0 !== fseek( $tar, $pos ) ) throw new Exception( 'No se pudo leer el tar descomprimido.' );
 				$block = (string) fread( $tar, 512 );
 				if ( 512 !== strlen( $block ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado.' );
-				if ( str_repeat( "\0", 512 ) === $block ) { $pos += 512; $cursor['zeros']++; continue; }
+				// La marca de fin (dos bloques a cero) termina el tar, como para tar y Python: lo que siga no se lee.
+				if ( str_repeat( "\0", 512 ) === $block ) { $pos += 512; $cursor['zeros']++; if ( $cursor['zeros'] >= 2 ) { $cursor['end'] = true; break; } continue; }
 				$cursor['zeros'] = 0;
 				$long = null;
+				$pax_size = null;
+				$chain = 0;
 				$header = Digitalisimo_Backups_Backuply_Tar::header( $block );
-				// Nombre largo GNU (L) o cabecera PAX (x): valen para la cabecera siguiente.
+				// Nombre largo GNU (L) o cabecera PAX (x, también su `size`): valen para la cabecera siguiente. Una cadena
+				// larga de estas cabeceras no la escribe ningún tar (y no avanzaría dentro del plazo de un tramo).
 				while ( in_array( $header['type'], array( 'L', 'K', 'x', 'g' ), true ) ) {
+					if ( ++$chain > 8 ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply trae una cadena de cabeceras extendidas (L, K, x o g) demasiado larga: no es un tar de Backuply.' );
 					$data = $pos + 512;
 					$padded = Digitalisimo_Backups_Backuply_Tar::padded( $header['size'] );
 					if ( $data + $padded > $size ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado.' );
@@ -293,7 +363,13 @@ final class Digitalisimo_Backups_Backuply_Import {
 						fseek( $tar, $data );
 						$raw = $header['size'] ? (string) fread( $tar, $header['size'] ) : '';
 						if ( strlen( $raw ) !== $header['size'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado.' );
-						$long = 'L' === $header['type'] ? rtrim( $raw, "\0" ) : Digitalisimo_Backups_Backuply_Tar::pax_path( $raw, $long );
+						if ( 'L' === $header['type'] ) {
+							$long = rtrim( $raw, "\0" );
+						} else {
+							$pax = Digitalisimo_Backups_Backuply_Tar::pax( $raw );
+							if ( isset( $pax['path'] ) ) $long = $pax['path'];
+							if ( isset( $pax['size'] ) ) $pax_size = $pax['size'];
+						}
 					}
 					$pos = $data + $padded;
 					fseek( $tar, $pos );
@@ -301,6 +377,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 					if ( 512 !== strlen( $block ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado.' );
 					$header = Digitalisimo_Backups_Backuply_Tar::header( $block );
 				}
+				if ( null !== $pax_size ) $header['size'] = $pax_size;
 				$data = $pos + 512;
 				$padded = Digitalisimo_Backups_Backuply_Tar::padded( $header['size'] );
 				if ( $data + $padded > $size ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está truncado (falta el contenido de ' . Digitalisimo_Backups_Backuply_Tar::shown( $header['name'] ) . ').' );
@@ -308,6 +385,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 				$cursor['entries']++;
 				if ( $cursor['entries'] > $max ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply tiene más de ' . $max . ' entradas, el máximo permitido (DIGITALISIMO_BACKUPS_MAX_ENTRIES).' );
 				$type = $header['type'];
+				// Una carpeta al estilo antiguo (v7): tipo de archivo regular, vacío y con «/» al final.
+				if ( in_array( $type, array( '0', "\0" ), true ) && 0 === $header['size'] && '/' === substr( null !== $long ? $long : $header['name'], -1 ) ) $type = '5';
 				if ( '5' === $type ) {
 					$cursor['dirs']++;
 				} elseif ( '2' === $type ) {
@@ -337,7 +416,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 			fclose( $tar );
 			fclose( $index );
 		}
-		if ( $cursor['zeros'] < 2 ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está incompleto: el tar no termina con su marca de fin (Backuply no llegó a cerrarlo).' );
+		if ( empty( $cursor['end'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está incompleto: el tar no termina con su marca de fin (Backuply no llegó a cerrarlo).' );
 		$special = (array) $cursor['special'];
 		if ( empty( $special['softsql.sql'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Este respaldo de Backuply no incluye la base de datos (es «sólo archivos»): Backups sólo restaura respaldos completos. Importa uno hecho con la base de datos y los archivos.' );
 		$missing = array_values( array_diff( self::REQUIRED, array_keys( (array) ( $special['required'] ?? array() ) ) ) );
@@ -360,10 +439,8 @@ final class Digitalisimo_Backups_Backuply_Import {
 		}
 		if ( preg_match( self::SKIP, $name ) || ( $root && '.maintenance' === $name ) ) { $cursor['skipped']++; return; }
 		if ( ! preg_match( '//u', $name ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply trae un nombre de archivo que no es UTF-8 válido y no puede figurar en el manifiesto: ' . Digitalisimo_Backups_Backuply_Tar::shown( $name ) . '.' );
-		if ( in_array( $name, self::REQUIRED, true ) ) {
-			$cursor['special']['required'][ $name ] = true;
-			if ( in_array( $name, array( 'wp-config.php', 'wp-includes/version.php' ), true ) ) $cursor['special'][ $name ] = array( 'o' => $data, 's' => $header['size'] );
-		}
+		if ( in_array( $name, self::REQUIRED, true ) ) $cursor['special']['required'][ $name ] = true;
+		if ( in_array( $name, array( 'wp-config.php', 'wp-includes/version.php' ), true ) ) $cursor['special'][ $name ] = array( 'o' => $data, 's' => $header['size'] );
 		self::put( $index, wp_json_encode( array( 'n' => $name, 'o' => $data, 's' => $header['size'], 'm' => $header['mode'], 't' => $header['mtime'] ) ) . "\n" );
 		$cursor['files']++;
 		$cursor['bytes'] += $header['size'];
@@ -378,13 +455,14 @@ final class Digitalisimo_Backups_Backuply_Import {
 			$handle = @fopen( $tar, 'rb' );
 			if ( ! $handle ) return '';
 			fseek( $handle, (int) $special[ $what ]['o'] );
-			$raw = (int) $special[ $what ]['s'] > 0 ? (string) fread( $handle, (int) $special[ $what ]['s'] ) : '';
+			$take = (int) min( (int) $special[ $what ]['s'], PHP_INT_MAX === $max ? self::MAX_CONFIG : $max );
+			$raw = $take > 0 ? (string) fread( $handle, $take ) : '';
 			fclose( $handle );
 			return $raw;
 		};
 		$info = self::parse_info( $read( 'info', self::MAX_INFO ) ) ?: array();
-		$config = Digitalisimo_Backups_Backuply_Tar::config( $read( 'wp-config.php', self::MAX_CONFIG ) );
-		$version = preg_match( '/\$wp_version\s*=\s*[\'"]([0-9A-Za-z.\-]{1,32})[\'"]/', $read( 'wp-includes/version.php', self::MAX_CONFIG ), $m ) ? $m[1] : '';
+		$config = Digitalisimo_Backups_Backuply_Tar::config( $read( 'wp-config.php', PHP_INT_MAX ) );
+		$version = preg_match( '/\$wp_version\s*=\s*[\'"]([0-9A-Za-z.\-]{1,32})[\'"]/', $read( 'wp-includes/version.php', PHP_INT_MAX ), $m ) ? $m[1] : '';
 		$url = is_string( $info['backup_site_url'] ?? null ) && preg_match( '#^https?://[^\s"\'<>]+$#i', $info['backup_site_url'] ) ? rtrim( $info['backup_site_url'], '/' ) : '';
 		$path = is_string( $info['backup_site_path'] ?? null ) && '/' === substr( $info['backup_site_path'], 0, 1 ) && false === strpos( $info['backup_site_path'], "\0" ) && false === strpos( $info['backup_site_path'], '..' ) ? rtrim( $info['backup_site_path'], '/' ) : '';
 		$softver = trim( substr( $read( 'softver.txt', 64 ), 0, 32 ) );
@@ -448,6 +526,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 		if ( ! empty( $notes['routines'] ) ) $out[] = (int) $notes['routines'] . ' disparador(es), evento(s) o rutina(s) de la base de datos no se importaron.';
 		if ( ! empty( $notes['constraints'] ) ) $out[] = (int) $notes['constraints'] . ' grupo(s) de claves foráneas no se importaron: las tablas quedan sin esas restricciones.';
 		if ( ! empty( $scan['symlinks'] ) ) $out[] = (int) $scan['symlinks'] . ' enlace(s) simbólico(s) del respaldo no se importaron (Backuply los guarda sin su destino).';
+		if ( isset( $scan['special'] ) && empty( $scan['special']['wp-config.php'] ) ) $out[] = 'El respaldo no traía wp-config.php (estaba fuera de ABSPATH): el prefijo de tablas sale de la base de datos y el ZIP lleva un wp-config.php vacío de marcador, que la restauración nunca escribe.';
 		return $out;
 	}
 	private static function sql_warnings( array $notes ) {
@@ -497,6 +576,12 @@ final class Digitalisimo_Backups_Backuply_Import {
 					if ( ! self::copy( $zip, $handles['sql'], 0, $sql_size, $cursor, $deadline, array( 'src' => 'sql', 'o' => 0, 's' => $sql_size, 'next' => 0 ) ) ) return self::files_slice( $job, $zip, $entries, $cursor );
 					self::done( $zip, $entries, $cursor );
 					$cursor['sql'] = true;
+					// Sin wp-config.php en el respaldo (estaba encima de ABSPATH): un marcador, que nunca se restaura.
+					if ( empty( $scan['special']['wp-config.php'] ) ) {
+						$zip->begin( 'wordpress/wp-config.php', time(), 0600, strlen( self::CONFIG_PLACEHOLDER ), 0 );
+						$zip->data( self::CONFIG_PLACEHOLDER );
+						self::done( $zip, $entries, $cursor );
+					}
 				}
 				fseek( $index, (int) $cursor['index'] );
 				while ( (int) $cursor['index'] < $limit ) {
@@ -574,14 +659,22 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$paths = self::paths( $job );
 		$spec = (array) $job['spec'];
 		$storage = trailingslashit( Digitalisimo_Backups::storage_directory() );
-		$done = (array) ( $job['checkpoint']['finish'] ?? array() );
-		// Murió después de publicar: el ZIP ya está en el almacén con su huella.
-		if ( ! empty( $done['published'] ) && is_file( $storage . $done['published'] ) ) return self::published( $job, (string) $done['published'] );
+		// Murió justo después de publicar (antes de que el motor guardara el resultado): el nombre que eligió quedó anotado
+		// en el área de trabajo y ese archivo está en el almacén con el tamaño del ZIP escrito.
+		$note = Digitalisimo_Backups_Job_Store::staging( $job['id'] ) . '/publish.json';
+		$noted = is_file( $note ) ? json_decode( (string) @file_get_contents( $note, false, null, 0, 4096 ), true ) : null;
+		if ( is_array( $noted ) && is_string( $noted['file'] ?? null ) && preg_match( '/^digitalisimo-backuply-[A-Za-z0-9._-]+\.zip$/D', $noted['file'] ) && ! is_file( $paths['zip'] ) ) {
+			clearstatcache( true, $storage . $noted['file'] );
+			if ( is_file( $storage . $noted['file'] ) && (int) filesize( $storage . $noted['file'] ) === (int) ( $noted['size'] ?? -1 ) ) return self::published( $job, $noted['file'] );
+		}
 		$scan = (array) $job['checkpoint']['scan'];
 		$database = (array) $job['checkpoint']['database'];
 		$files = (array) $job['checkpoint']['files'];
 		$meta = (array) ( $scan['meta'] ?? array() );
-		$zip = new Digitalisimo_Backups_Zip_Writer( $paths['zip'], (int) $files['zip'] );
+		// Una red también sin `define( 'MULTISITE', true )` literal en wp-config.php (en otro archivo, con una expresión o
+		// en el entorno): el volcado trae sus tablas `blogs` y `site`. Dominio, ruta y tipo los lee E1 de esas tablas.
+		$order = (array) $database['order'];
+		$meta['multisite'] = ! empty( $meta['multisite'] ) || ( in_array( $database['prefix'] . 'blogs', $order, true ) && in_array( $database['prefix'] . 'site', $order, true ) );
 		try {
 			$totals = array( 'count' => 0, 'bytes' => 0 );
 			foreach ( Digitalisimo_Backups_Packer::records( $paths['entries'], (int) $files['entries'] ) as $record ) { $totals['count']++; $totals['bytes'] += (int) $record['s']; }
@@ -635,18 +728,26 @@ final class Digitalisimo_Backups_Backuply_Import {
 		}
 		if ( $count !== $totals['count'] + 1 ) throw new Exception( 'El directorio central del ZIP convertido no tiene todas las entradas.' );
 		self::check_zip( $paths['zip'] );
-		$file = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $paths, $storage, $spec ) {
+		$file = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $paths, $storage, $spec, $note ) {
 			$file = self::free_name( (string) $spec['file'] );
+			clearstatcache( true, $paths['zip'] );
+			if ( false === @file_put_contents( $note, wp_json_encode( array( 'file' => $file, 'size' => (int) filesize( $paths['zip'] ) ) ) ) ) throw new Exception( 'No se pudo anotar la publicación del ZIP convertido.' );
 			if ( ! @rename( $paths['zip'], $storage . $file ) ) throw new Exception( 'No se pudo mover el ZIP convertido al almacén privado.' );
 			@chmod( $storage . $file, 0600 );
 			return $file;
 		} );
-		return self::published( $job, $file, $notices, $head );
+		return self::published( $job, $file );
 	}
-	private static function published( array $job, $file, array $notices = array(), array $head = array() ) {
+	/** Resultado de la importación publicada, sólo con lo que guardan los puntos de control (también tras una muerte). */
+	private static function published( array $job, $file ) {
 		$scan = (array) ( $job['checkpoint']['scan'] ?? array() );
 		$database = (array) ( $job['checkpoint']['database'] ?? array() );
-		$result = array( 'import' => array( 'file' => $file, 'source' => (string) $job['spec']['source']['name'], 'origin' => (string) $job['spec']['source']['origin'], 'files' => (int) ( $scan['files'] ?? 0 ), 'tables' => count( (array) ( $database['order'] ?? array() ) ), 'rows' => (int) ( $database['rows'] ?? 0 ), 'prefix' => (string) ( $database['prefix'] ?? '' ), 'site_url' => (string) ( $head['home_url'] ?? '' ), 'multisite' => ! empty( $head['multisite'] ), 'notices' => $notices, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
+		$meta = (array) ( $scan['meta'] ?? array() );
+		$order = (array) ( $database['order'] ?? array() );
+		$prefix = (string) ( $database['prefix'] ?? '' );
+		$notices = self::notices( (array) ( $database['notes'] ?? array() ), $scan );
+		$multisite = ! empty( $meta['multisite'] ) || ( in_array( $prefix . 'blogs', $order, true ) && in_array( $prefix . 'site', $order, true ) );
+		$result = array( 'import' => array( 'file' => $file, 'source' => (string) $job['spec']['source']['name'], 'origin' => (string) $job['spec']['source']['origin'], 'files' => (int) ( $scan['files'] ?? 0 ), 'tables' => count( $order ), 'rows' => (int) ( $database['rows'] ?? 0 ), 'prefix' => $prefix, 'site_url' => (string) ( $meta['site_url'] ?? '' ), 'multisite' => $multisite, 'notices' => $notices, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
 		return array( 'next' => null, 'checkpoint' => array( 'published' => $file ), 'result' => $result, 'message' => 'Respaldo de Backuply importado como ' . $file . ': aparece en «Restaurar respaldo local» como archivo sin firma (escribe RESTAURAR SIN FIRMA para restaurarlo).' . ( $notices ? ' Avisos: ' . implode( ' ', $notices ) : '' ) );
 	}
 	/** Nombre libre en el almacén: ni un archivo ni una fila del historial con ese nombre. */
@@ -746,7 +847,7 @@ final class Digitalisimo_Backups_Backuply_Tar {
 		$declared = self::octal( substr( $block, 148, 8 ) );
 		if ( null === $declared || $declared !== $sum ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: una cabecera del tar no supera su suma de comprobación.' );
 		$size = self::number( substr( $block, 124, 12 ) );
-		if ( null === $size || $size < 0 ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: una cabecera del tar declara un tamaño no válido.' );
+		if ( null === $size || $size < 0 || $size > Digitalisimo_Backups_Backuply_Import::max_tar() ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: una cabecera del tar declara un tamaño no válido.' );
 		$name = self::field( substr( $block, 0, 100 ) );
 		$magic = substr( $block, 257, 6 );
 		$prefix = "ustar\0" === $magic ? self::field( substr( $block, 345, 155 ) ) : '';
@@ -754,7 +855,7 @@ final class Digitalisimo_Backups_Backuply_Tar {
 		$type = $block[156];
 		return array( 'name' => $name, 'mode' => (int) ( self::octal( substr( $block, 100, 8 ) ) ?? 0644 ) & 0777, 'size' => $size, 'mtime' => (int) ( self::number( substr( $block, 136, 12 ) ) ?? 0 ), 'type' => $type );
 	}
-	public static function padded( $size ) { return (int) ( ceil( $size / 512 ) * 512 ); }
+	public static function padded( $size ) { return intdiv( (int) $size + 511, 512 ) * 512; }
 	private static function field( $raw ) { $end = strpos( $raw, "\0" ); return false === $end ? $raw : substr( $raw, 0, $end ); }
 	private static function octal( $raw ) {
 		$text = trim( str_replace( "\0", ' ', $raw ) );
@@ -774,20 +875,25 @@ final class Digitalisimo_Backups_Backuply_Tar {
 		}
 		return self::octal( $raw );
 	}
-	/** `path` de una cabecera PAX («longitud clave=valor\n»); lo demás se ignora. */
-	public static function pax_path( $raw, $fallback ) {
+	/** `path` y `size` de una cabecera PAX («longitud clave=valor\n»); lo demás se ignora. Un `size` no válido se rechaza. */
+	public static function pax( $raw ) {
 		$i = 0;
 		$n = strlen( $raw );
-		$path = $fallback;
+		$out = array();
 		while ( $i < $n ) {
 			if ( ! preg_match( '/\G([0-9]{1,6}) /', $raw, $m, 0, $i ) ) break;
 			$length = (int) $m[1];
 			if ( $length <= strlen( $m[0] ) || $i + $length > $n ) break;
 			$record = substr( $raw, $i + strlen( $m[0] ), $length - strlen( $m[0] ) - 1 );
-			if ( 0 === strpos( $record, 'path=' ) ) $path = substr( $record, 5 );
+			if ( 0 === strpos( $record, 'path=' ) ) $out['path'] = substr( $record, 5 );
+			if ( 0 === strpos( $record, 'size=' ) ) {
+				$size = substr( $record, 5 );
+				if ( ! preg_match( '/^[0-9]{1,19}$/D', $size ) || strlen( $size ) > 18 || (int) $size > Digitalisimo_Backups_Backuply_Import::max_tar() ) throw new Digitalisimo_Backups_Permanent_Error( 'El respaldo de Backuply está dañado: una cabecera PAX declara un tamaño no válido.' );
+				$out['size'] = (int) $size;
+			}
 			$i += $length;
 		}
-		return $path;
+		return $out;
 	}
 	/**
 	 * Ruta relativa segura de una entrada (sin `./` delante ni barra final), o excepción: nada absoluto, ni unidades, ni

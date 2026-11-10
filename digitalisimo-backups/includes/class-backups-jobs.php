@@ -292,7 +292,7 @@ final class Digitalisimo_Backups_Jobs {
 		} );
 	}
 	private static function run( array $job, $start, $budget ) {
-		self::$current = array( 'kind' => self::is_restore( $job ) ? 'restore' : 'backup', 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ), 'deadline' => $start + $budget );
+		self::$current = array( 'kind' => self::is_restore( $job ) ? 'restore' : ( Digitalisimo_Backups_Import_Job::is_import( $job ) ? 'import' : 'backup' ), 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ), 'deadline' => $start + $budget );
 		self::register_shutdown();
 		@set_time_limit( 0 );
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
@@ -360,7 +360,7 @@ final class Digitalisimo_Backups_Jobs {
 			} else {
 				$job['phase'] = $next;
 				$job['status'] = self::status_for( $next, $job['spec'] );
-				$job['progress'] = array( 'percent' => max( (int) ( $job['progress']['percent'] ?? 0 ), self::scale( self::phase_floor( $next, $job['spec'] ), $job['spec'], $next ) ), 'message' => (string) ( $outcome['message'] ?? self::phase_label( $next ) . '…' ) );
+				$job['progress'] = array( 'percent' => max( (int) ( $job['progress']['percent'] ?? 0 ), self::scale( self::phase_floor( $next, $job['spec'] ), $job['spec'], $next ) ), 'message' => (string) ( $outcome['message'] ?? self::phase_label( $next, $job ) . '…' ) );
 			}
 			return $job;
 		}, $done, $done ? 'success' : 'phase', array( 'phase' => $phase, 'next' => $next ) );
@@ -378,7 +378,7 @@ final class Digitalisimo_Backups_Jobs {
 		// Volver a una fase anterior (verify → pack) cuenta aparte, sin que los tramos que avanzan lo borren (T2).
 		if ( in_array( $back_to, self::phases( $job ), true ) && $back_to !== $phase ) $count = max( $count, (int) ( $job['setbacks'][ $phase ] ?? 0 ) + 1 );
 		$max = self::max_attempts( $phase, $job );
-		if ( ! empty( $job['spec']['inline'] ) || $count >= $max ) return self::fail_owned( $job, 'attempts', $message . ( $count > 1 ? ' (se agotaron ' . $count . ' intentos de la fase ' . self::phase_label( $phase ) . ')' : '' ), false );
+		if ( ! empty( $job['spec']['inline'] ) || $count >= $max ) return self::fail_owned( $job, 'attempts', $message . ( $count > 1 ? ' (se agotaron ' . $count . ' intentos de la fase ' . self::phase_label( $phase, $job ) . ')' : '' ), false );
 		$wait = self::backoff( $count, $job );
 		return self::mutate_current( function( $job ) use ( $phase, $count, $back_to, $wait, $message ) {
 			self::discard( $job, in_array( $back_to, self::phases( $job ), true ) ? $back_to : $phase );
@@ -570,7 +570,7 @@ final class Digitalisimo_Backups_Jobs {
 			if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) || empty( $job['lease'] ) ) continue;
 			$lease = $job['lease'];
 			if ( ( $lease['host'] ?? '' ) === self::host() ) {
-				self::interrupted( $job, (string) $lease['owner'], 'interrupted', 'El proceso que ejecutaba «' . self::phase_label( $job['phase'] ) . '» se detuvo sin terminar el paso (reinicio, memoria agotada o límite del hosting).' );
+				self::interrupted( $job, (string) $lease['owner'], 'interrupted', 'El proceso que ejecutaba «' . self::phase_label( $job['phase'], $job ) . '» se detuvo sin terminar el paso (reinicio, memoria agotada o límite del hosting).' );
 			} elseif ( $now - (int) ( $lease['heartbeat_at'] ?? 0 ) > self::filter( 'digitalisimo_backups_job_takeover', self::TAKEOVER_AFTER ) ) {
 				self::interrupted( $job, (string) $lease['owner'], 'takeover', 'El servidor ' . preg_replace( '/[^A-Za-z0-9._-]/', '', (string) ( $lease['host'] ?? '' ) ) . ' dejó de dar señales durante «' . self::phase_label( $job['phase'] ) . '»; este servidor retoma el trabajo.' );
 			}
@@ -631,7 +631,7 @@ final class Digitalisimo_Backups_Jobs {
 		$fatal = $error && in_array( $error['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR ), true );
 		$timeout = $fatal && false !== stripos( (string) $error['message'], 'maximum execution time' );
 		$code = $timeout ? 'timeout' : ( $fatal ? 'fatal' : 'interrupted' );
-		$message = $timeout ? 'PHP agotó su tiempo máximo durante «' . self::phase_label( $current['phase'] ) . '».' : ( $fatal ? 'PHP se detuvo durante «' . self::phase_label( $current['phase'] ) . '»: ' . $error['message'] : 'La petición terminó antes de cerrar «' . self::phase_label( $current['phase'] ) . '».' );
+		$message = $timeout ? 'PHP agotó su tiempo máximo durante «' . self::phase_label( $current['phase'], $current ) . '».' : ( $fatal ? 'PHP se detuvo durante «' . self::phase_label( $current['phase'], $current ) . '»: ' . $error['message'] : 'La petición terminó antes de cerrar «' . self::phase_label( $current['phase'], $current ) . '».' );
 		try {
 			$job = Digitalisimo_Backups_Job_Store::read( $current['id'] );
 			if ( $job ) self::interrupted( $job, $current['owner'], $code, $message );
@@ -858,7 +858,7 @@ final class Digitalisimo_Backups_Jobs {
 			'status' => $status,
 			'status_label' => 'success' === $status && $notices ? 'Completo con avisos' : self::status_label( $status ),
 			'phase' => $phase,
-			'phase_label' => $terminal ? '' : self::phase_label( $phase ),
+			'phase_label' => $terminal ? '' : self::phase_label( $phase, $job ),
 			'percent' => 'success' === $status ? 100 : max( 0, min( 99, (int) ( $job['progress']['percent'] ?? 0 ) ) ),
 			'message' => (string) ( $job['progress']['message'] ?? '' ),
 			'attempt' => min( $max, (int) ( $job['attempts'][ $phase ] ?? 0 ) + 1 ),
@@ -916,8 +916,10 @@ final class Digitalisimo_Backups_Jobs {
 		$labels = array( 'queued' => 'Pendiente', 'running' => 'En curso', 'verifying' => 'Verificando', 'transferring' => 'Transfiriendo', 'success' => 'Completo', 'failed' => 'Fallido', 'cancelled' => 'Cancelado' );
 		return $labels[ $status ] ?? $status;
 	}
-	public static function phase_label( $phase ) {
-		$labels = array( 'preflight' => 'Comprobaciones', 'database' => 'Base de datos', 'pack' => 'Archivos y ZIP', 'verify' => 'Verificación', 'publish' => 'Registro', 'transfer' => 'Transferencia', 'prune' => 'Retención' ) + Digitalisimo_Backups_Restore_Job::LABELS + Digitalisimo_Backups_Import_Job::LABELS;
+	/** Nombre de una fase; con el trabajo (o su `kind`), el de su tipo (`files` es «Archivos» en una restauración y «ZIP convertido» en una importación). */
+	public static function phase_label( $phase, $job = null ) {
+		$labels = array( 'preflight' => 'Comprobaciones', 'database' => 'Base de datos', 'pack' => 'Archivos y ZIP', 'verify' => 'Verificación', 'publish' => 'Registro', 'transfer' => 'Transferencia', 'prune' => 'Retención' ) + Digitalisimo_Backups_Restore_Job::LABELS;
+		if ( is_array( $job ) && 'import' === ( $job['kind'] ?? '' ) ) $labels = Digitalisimo_Backups_Import_Job::LABELS + $labels;
 		return $labels[ $phase ] ?? (string) $phase;
 	}
 	private static function phase_floor( $phase, array $spec = array() ) {

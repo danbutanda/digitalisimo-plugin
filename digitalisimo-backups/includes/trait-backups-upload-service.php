@@ -42,7 +42,10 @@ trait Digitalisimo_Backups_Upload_Service {
 	public static function service_upload_start( array $args ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
-		$name = sanitize_file_name( (string) ( $args['name'] ?? '' ) );
+		$raw = (string) ( $args['name'] ?? '' );
+		// Un .tar.gz de Backuply conserva su nombre (sanitize_file_name() lo cambiaría y, en una red sin `tar` en
+		// upload_filetypes, lo rechazaría): lista blanca propia, sin rutas. Esta subida ya pide capability y nonce.
+		$name = preg_match( '/\.tar\.gz$/i', $raw ) ? Digitalisimo_Backups_Backuply_Import::upload_name( $raw ) : sanitize_file_name( $raw );
 		if ( '' === $name || strlen( $name ) > 200 || ! preg_match( '/\.(?:zip|dgbk|tar\.gz)$/i', $name ) ) return self::service_error( 'upload_name', 'Elige un respaldo de DIGITALÍSIMO: un archivo .zip o .dgbk (o el .tar.gz de un respaldo de Backuply, para importarlo).', 400 );
 		$size = is_numeric( $args['size'] ?? null ) ? (int) $args['size'] : 0;
 		if ( $size <= 0 ) return self::service_error( 'upload_size', 'El tamaño del respaldo no es válido.', 400 );
@@ -242,9 +245,8 @@ trait Digitalisimo_Backups_Upload_Service {
 	 */
 	private static function upload_backuply_done( array $state, $path ) {
 		$store = Digitalisimo_Backups_Backuply_Import::store_directory( true );
-		$name = (string) preg_replace( '/[^A-Za-z0-9._-]+/', '-', (string) $state['name'] );
-		$name = ltrim( $name, '.-_' );
-		if ( ! preg_match( Digitalisimo_Backups_Backuply_Import::NAME, $name ) ) $name = 'backuply-upload-' . gmdate( 'Ymd-His' ) . '.tar.gz';
+		$name = Digitalisimo_Backups_Backuply_Import::upload_name( (string) $state['name'] );
+		if ( '' === $name ) $name = 'backuply-upload-' . gmdate( 'Ymd-His' ) . '.tar.gz';
 		$file = Digitalisimo_Backups_Job_Store::with_lock( function() use ( $path, $store, $name ) {
 			$file = $name;
 			while ( file_exists( $store . '/' . $file ) || is_link( $store . '/' . $file ) ) $file = substr( $name, 0, -7 ) . '-' . bin2hex( random_bytes( 3 ) ) . '.tar.gz';

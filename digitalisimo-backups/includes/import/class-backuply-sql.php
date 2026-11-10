@@ -15,7 +15,13 @@ defined( 'ABSPATH' ) || exit;
  * lista de columnas y cada valor como cadena de `Digitalisimo_Backups::sql_value()`), que el guardián SQL comprueba
  * otra vez al restaurar. Cada DROP y CREATE pasa ya aquí por el guardián (dialecto del exportador, sin confianza). Las
  * vistas, las rutinas, los disparadores, los eventos y las claves foráneas no se importan: se cuentan y se avisan.
- * Las filas de claves de Backups (`digitalisimo_backups_secret_*`) del sitio de origen tampoco.
+ * Las filas de claves de Backups (`digitalisimo_backups_vault_*`) del sitio de origen tampoco.
+ *
+ * Memoria: una sentencia se lee entera en el búfer (es lo único que ocupa su tamaño) y un INSERT se traduce en una sola
+ * pasada sobre ese búfer, sin copiar la sentencia ni decodificar sus valores: cada cadena pasa del escape de Backuply al
+ * del exportador por trozos de 256 KB que van directos a la salida. La sentencia más grande que se acepta es un tercio de
+ * la memoria que queda libre (menos una reserva), comprobado antes de cada lectura; una mayor se rechaza con un error
+ * claro que pide WP-CLI o el cron del sistema, nunca con un error fatal de memoria.
  *
  * Por tramos: el punto de control está siempre en una frontera de sentencia (posición en el SQL de entrada, bytes ya
  * escritos, columnas de cada tabla y contadores); tras una muerte se trunca la salida y se sigue desde ahí.
@@ -48,12 +54,21 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	}
 	public function state() { return $this->state; }
 
-	/** Mayor sentencia de entrada que se acepta: una cuarta parte de la memoria libre, entre 1 y 64 MB. */
+	/** Reserva de memoria que la traducción nunca toca (lo que necesitan el guardián, el escritor y el motor). */
+	const RESERVE = 4194304;
+	const PIECE = 262144;
+	/**
+	 * Mayor sentencia de entrada que cabe ahora: un tercio de la memoria libre menos la reserva (el búfer, y su copia
+	 * mientras PHP lo agranda), como mucho 64 MB. Sin `memory_limit`, 64 MB.
+	 */
 	public static function max_statement() {
 		$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
-		$free = $limit ? $limit - memory_get_usage( true ) : 268435456;
-		$max = (int) max( 1048576, min( 67108864, $free / 4 ) );
+		$max = $limit ? (int) floor( ( $limit - memory_get_usage( true ) - self::RESERVE ) / 3 ) : 67108864;
+		$max = (int) min( 67108864, max( 0, $max ) );
 		return (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_import_max_statement', $max ) : $max );
+	}
+	private function too_big( $at, $size ) {
+		throw new Digitalisimo_Backups_Permanent_Error( 'Una sentencia del SQL de Backuply (cerca del byte ' . ( (int) $this->state['pos'] + (int) $at ) . ') mide más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $size ) . ' y no cabe en la memoria libre de PHP en esta petición (memory_limit ' . ini_get( 'memory_limit' ) . '). Impórtalo con WP-CLI (wp digitalisimo-backups backuply import) o con el cron del sistema por PHP CLI, que suelen tener más memoria.' );
 	}
 
 	/**
@@ -68,6 +83,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 		$at = 0;
 		$scan = new Digitalisimo_Backups_Backuply_Sql_Lexer();
 		$handled = 0;
+		// El tope de cada sentencia se fija al empezarla, con el búfer casi vacío (el tercio cuenta su crecimiento).
 		$max = self::max_statement();
 		while ( true ) {
 			$read = (int) $this->state['pos'] + strlen( $buffer );
@@ -78,14 +94,28 @@ final class Digitalisimo_Backups_Backuply_Sql {
 					if ( '' !== trim( $scan->pending( $buffer, $at ) ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El SQL del respaldo de Backuply termina con una sentencia incompleta: el archivo está truncado o dañado.' );
 					break;
 				}
-				if ( strlen( $buffer ) - $at > $max ) throw new Digitalisimo_Backups_Permanent_Error( 'Una sentencia del SQL de Backuply (cerca del byte ' . ( (int) $this->state['pos'] + $at ) . ') mide más de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $max ) . ' y no cabe en la memoria de PHP. Importa este respaldo con WP-CLI (wp digitalisimo-backups backuply import), que puede tener más memoria.' );
-				$chunk = fread( $this->in, (int) min( self::CHUNK, $this->length - $read ) );
+				// Antes de agrandar el búfer: lo que ya tiene más el trozo siguiente debe caber (con su copia al crecer).
+				$want = (int) min( self::CHUNK, $this->length - $read );
+				if ( strlen( $buffer ) + $want > $max ) {
+					$want = $max - strlen( $buffer );
+					if ( $want < 4096 ) $this->too_big( $at, max( strlen( $buffer ), $max ) );
+				}
+				$chunk = fread( $this->in, $want );
 				if ( false === $chunk || '' === $chunk ) throw new Exception( 'No se pudo leer el SQL de Backuply en el área de trabajo.' );
 				$buffer .= $chunk;
+				unset( $chunk );
 				continue;
 			}
-			list( $statement, $end ) = $found;
-			if ( '' !== $statement ) $this->handle( $statement );
+			list( $clean, $end, $from, $to ) = $found;
+			if ( null === $clean ) {
+				// Sin comentarios dentro: se trabaja sobre el búfer, sin copiar la sentencia (un INSERT puede medir megas).
+				$from += strspn( $buffer, " \t\r\n", $from, max( 0, $to - $from ) );
+				while ( $to > $from && false !== strpos( " \t\r\n", $buffer[ $to - 1 ] ) ) $to--;
+				if ( $to > $from && preg_match( '/\GINSERT\b/i', $buffer, $m, 0, $from ) ) $this->insert( $buffer, $from, $to );
+				elseif ( $to > $from ) $this->handle( self::normalize( substr( $buffer, $from, $to - $from ) ) );
+			} elseif ( '' !== ( $clean = trim( $clean ) ) ) {
+				$this->handle( self::normalize( $clean ) );
+			}
 			$this->state['statements']++;
 			$handled++;
 			// Frontera de sentencia: lo leído ya no hace falta y el punto de control puede quedarse aquí.
@@ -93,6 +123,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 			$buffer = (string) substr( $buffer, $end );
 			$at = 0;
 			$scan->reset();
+			$max = self::max_statement();
 			if ( Digitalisimo_Backups_Step_Budget::exhausted( $deadline, $handled ) ) {
 				$this->state['out'] = $this->flush();
 				return false;
@@ -120,6 +151,12 @@ final class Digitalisimo_Backups_Backuply_Sql {
 			if ( false === $written || 0 === $written ) throw new Exception( 'No se pudo escribir el SQL convertido; revisa el espacio libre del almacén privado.' );
 			$offset += $written;
 		}
+	}
+	/** Un ejecutable que abre la sentencia y la ocupa entera se marca con «!» para que el traductor lo reconozca. */
+	private static function normalize( $statement ) {
+		if ( self::ROUTINE === $statement ) return $statement;
+		if ( 0 === strpos( $statement, '/*!' ) && '*/' === substr( $statement, -2 ) && 1 === substr_count( $statement, '*/' ) ) return '!' . trim( substr( $statement, 3, -2 ) );
+		return $statement;
 	}
 	private function note( $key ) { $this->state['notes'][ $key ] = (int) ( $this->state['notes'][ $key ] ?? 0 ) + 1; }
 	private static function reject( $why, $sql ) {
@@ -170,7 +207,7 @@ final class Digitalisimo_Backups_Backuply_Sql {
 				self::reject( 'ALTER TABLE sólo puede añadir claves foráneas', $sql );
 				// No sigue.
 			case 'INSERT':
-				$this->insert( $sql );
+				$this->insert( $sql, 0, strlen( $sql ) );
 				return;
 			case 'DELIMITER':
 				// Lo resuelve el lexer; uno suelto aquí es un volcado que no es el de Backuply.
@@ -203,49 +240,77 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	}
 	private static function valid_table( $table ) { return '' !== $table && strlen( $table ) <= 64 && false === strpos( $table, "\0" ) && false === strpos( $table, '/' ) && false === strpos( $table, '\\' ) && false === strpos( $table, '.' ); }
 
-	/** INSERT de Backuply (varias filas, sin columnas): un INSERT por fila con columnas y cadenas, como el exportador. */
-	private function insert( $sql ) {
-		$p = new Digitalisimo_Backups_Backuply_Sql_Tokens( $sql );
+	/**
+	 * INSERT de Backuply (varias filas, sin columnas) en `$s[$from, $to)`: un INSERT por fila con columnas y cadenas, como
+	 * el exportador, escrito en una pasada y por trozos (ver la nota de memoria de la clase). Una fila de `*options` o
+	 * `*sitemeta` se retiene hasta su columna de nombre (que va antes que el valor) por si es una clave de Backups.
+	 */
+	private function insert( $s, $from, $to ) {
+		$excerpt = substr( $s, $from, 80 );
+		$p = new Digitalisimo_Backups_Backuply_Sql_Tokens( $s, $from, $to );
 		$p->word();
 		if ( 'IGNORE' === $p->peek_word() ) $p->word();
-		if ( 'INTO' !== $p->word() ) self::reject( 'INSERT no reconocido', $sql );
+		if ( 'INTO' !== $p->word() ) self::reject( 'INSERT no reconocido', $excerpt );
 		$table = $p->ident();
-		if ( null === $table || $p->punct( '.' ) ) self::reject( 'la tabla debe ir entre comillas invertidas y sin otra base de datos', $sql );
-		if ( ! isset( $this->state['tables'][ $table ] ) ) self::reject( 'INSERT en una tabla que el volcado no creó', $sql );
+		if ( null === $table || $p->punct( '.' ) ) self::reject( 'la tabla debe ir entre comillas invertidas y sin otra base de datos', $excerpt );
+		if ( ! isset( $this->state['tables'][ $table ] ) ) self::reject( 'INSERT en una tabla que el volcado no creó', $excerpt );
 		$columns = $this->state['tables'][ $table ];
 		if ( $p->punct( '(' ) ) {
 			$named = array();
 			do {
 				$column = $p->ident();
-				if ( null === $column ) self::reject( 'columna no reconocida', $sql );
+				if ( null === $column ) self::reject( 'columna no reconocida', $excerpt );
 				$named[] = $column;
 			} while ( $p->punct( ',' ) );
-			if ( ! $p->punct( ')' ) ) self::reject( 'lista de columnas no reconocida', $sql );
-			foreach ( $named as $column ) if ( ! in_array( $column, $columns, true ) ) self::reject( 'la columna ' . $column . ' no existe en ' . $table, $sql );
+			if ( ! $p->punct( ')' ) ) self::reject( 'lista de columnas no reconocida', $excerpt );
+			foreach ( $named as $column ) if ( ! in_array( $column, $columns, true ) ) self::reject( 'la columna ' . $column . ' no existe en ' . $table, $excerpt );
 			$columns = $named;
 		}
 		$keyword = $p->word();
-		if ( 'VALUES' !== $keyword && 'VALUE' !== $keyword ) self::reject( 'INSERT sólo admite VALUES con valores literales', $sql );
+		if ( 'VALUES' !== $keyword && 'VALUE' !== $keyword ) self::reject( 'INSERT sólo admite VALUES con valores literales', $excerpt );
 		$head = 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, $columns ) ) . ') VALUES (';
 		$secret = self::secret_column( $table, $columns );
-		$buffer = '';
+		$count = count( $columns );
+		$out = '';
+		$held = null;
+		$skip = false;
+		// Lo que sale de la fila: retenido (hasta la columna de nombre de una tabla de opciones), descartado o a la salida.
+		$sink = function( $bytes ) use ( &$out, &$held, &$skip ) {
+			if ( $skip ) return;
+			if ( null !== $held ) { $held .= $bytes; return; }
+			$out .= $bytes;
+			if ( strlen( $out ) >= self::PIECE ) { $this->write( $out ); $out = ''; }
+		};
 		do {
-			if ( ! $p->punct( '(' ) ) self::reject( 'se esperaba «(»', $sql );
-			$values = array();
+			if ( ! $p->punct( '(' ) ) self::reject( 'se esperaba «(»', $excerpt );
+			$skip = false;
+			$held = null === $secret ? null : '';
+			$sink( $head );
+			$k = 0;
 			do {
-				$value = $p->value();
-				if ( false === $value ) self::reject( 'INSERT sólo admite cadenas, números o NULL', $sql );
-				$values[] = $value;
+				if ( $k >= $count ) self::reject( 'una fila de ' . $table . ' tiene más valores que columnas (' . $count . ')', $excerpt );
+				if ( $k > 0 ) $sink( ',' );
+				if ( $k === $secret ) {
+					$value = $p->value();
+					if ( false === $value ) self::reject( 'INSERT sólo admite cadenas, números o NULL', $excerpt );
+					$sink( Digitalisimo_Backups::sql_value( $value ) );
+					$prefix = $held;
+					$held = null;
+					if ( 0 === strpos( (string) $value, Digitalisimo_Backups_Keys::SECRET_PREFIX ) ) $skip = true;
+					else $sink( $prefix );
+				} elseif ( ! $p->transcode( $sink ) ) {
+					self::reject( 'INSERT sólo admite cadenas, números o NULL', $excerpt );
+				}
+				$k++;
 			} while ( $p->punct( ',' ) );
-			if ( ! $p->punct( ')' ) ) self::reject( 'se esperaba «)»', $sql );
-			if ( count( $values ) !== count( $columns ) ) self::reject( 'una fila de ' . $table . ' tiene ' . count( $values ) . ' valores y la tabla ' . count( $columns ) . ' columnas', $sql );
-			if ( null !== $secret && 0 === strpos( (string) $values[ $secret ], Digitalisimo_Backups_Keys::SECRET_PREFIX ) ) { $this->note( 'secrets' ); continue; }
-			$buffer .= $head . implode( ',', array_map( array( 'Digitalisimo_Backups', 'sql_value' ), $values ) ) . ");\n";
+			if ( ! $p->punct( ')' ) ) self::reject( 'se esperaba «)»', $excerpt );
+			if ( $k !== $count ) self::reject( 'una fila de ' . $table . ' tiene ' . $k . ' valores y la tabla ' . $count . ' columnas', $excerpt );
+			if ( $skip ) { $this->note( 'secrets' ); continue; }
+			$sink( ");\n" );
 			$this->state['rows']++;
-			if ( strlen( $buffer ) >= 262144 ) { $this->write( $buffer ); $buffer = ''; }
 		} while ( $p->punct( ',' ) );
-		if ( ! $p->end() ) self::reject( 'texto de más al final', $sql );
-		if ( '' !== $buffer ) $this->write( $buffer );
+		if ( ! $p->end() ) self::reject( 'texto de más al final', $excerpt );
+		if ( '' !== $out ) $this->write( $out );
 	}
 	/** Columna con el nombre de la opción en `*options` y `*sitemeta` (para no importar las claves de Backups del origen). */
 	private static function secret_column( $table, array $columns ) {
@@ -281,8 +346,9 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 	public function pending( $buffer, $at ) { return 4 === $this->mode || 5 === $this->mode ? $this->clean : $this->clean . substr( $buffer, $this->segment ); }
 
 	/**
-	 * Siguiente sentencia de `$buffer`: array( texto sin comentarios, posición justo después de su fin ) o null si hace
-	 * falta leer más. Con `$eof`, el final del búfer cierra un comentario de línea.
+	 * Siguiente sentencia de `$buffer`: array( texto sin comentarios o null, posición justo después de su fin, inicio,
+	 * fin ) o null si hace falta leer más. Con null, la sentencia es `$buffer[inicio, fin)` (no tenía comentarios y no se
+	 * copia). Con `$eof`, el final del búfer cierra un comentario de línea.
 	 */
 	public function next( $buffer, $at, $eof ) {
 		$n = strlen( $buffer );
@@ -314,7 +380,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 						$line = false === $line_end ? substr( $buffer, $i ) : substr( $buffer, $i, $line_end - $i );
 						if ( preg_match( '/^DELIMITER\s+(\S+)\s*$/i', rtrim( $line, "\r" ), $m ) ) {
 							$after = false === $line_end ? $n : $line_end + 1;
-							if ( ';' === $m[1] ) { $this->i = $after; $this->segment = $after; return array( '', $after ); }
+							if ( ';' === $m[1] ) { $this->i = $after; $this->segment = $after; return array( '', $after, $after, $after ); }
 							// Rutina, disparador o evento: hasta la línea `DELIMITER ;` (se cuenta en su CREATE).
 							if ( ! preg_match( '/\n[ \t]*DELIMITER[ \t]+;[ \t]*\r?(?:\n|$)/i', $buffer, $close, PREG_OFFSET_CAPTURE, $after ) ) {
 								if ( ! $eof ) { $this->i = $i; return null; }
@@ -324,7 +390,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 							$end = $close[0][1] + strlen( $close[0][0] );
 							$this->i = $end;
 							$this->segment = $end;
-							return array( preg_match( '/\bCREATE\b/i', $body ) ? Digitalisimo_Backups_Backuply_Sql::ROUTINE : '', $end );
+							return array( preg_match( '/\bCREATE\b/i', $body ) ? Digitalisimo_Backups_Backuply_Sql::ROUTINE : '', $end, $end, $end );
 						}
 					}
 					$this->started = true;
@@ -333,11 +399,10 @@ final class Digitalisimo_Backups_Backuply_Sql_Lexer {
 					if ( '`' === $c ) { $this->mode = 3; $i++; break; }
 					if ( '/' === $c && '*' === ( $buffer[ $i + 1 ] ?? '' ) ) { $this->mode = 6; $i += 3; break; } // «/*!»: se conserva.
 					if ( ';' === $c ) {
-						$statement = trim( $this->clean . substr( $buffer, $this->segment, $i - $this->segment ) );
-						// Un ejecutable que abre la sentencia se marca con «!» para que el traductor lo reconozca.
-						if ( 0 === strpos( $statement, '/*!' ) && '*/' === substr( $statement, -2 ) && 1 === substr_count( $statement, '*/' ) ) $statement = '!' . trim( substr( $statement, 3, -2 ) );
 						$this->i = $i + 1;
-						return array( $statement, $i + 1 );
+						// Sin comentarios quitados, sólo las posiciones (la sentencia no se copia); si no, el texto limpio.
+						if ( '' === $this->clean ) return array( null, $i + 1, $this->segment, $i );
+						return array( $this->clean . substr( $buffer, $this->segment, $i - $this->segment ), $i + 1, $i, $i );
 					}
 					$i++;
 					break;
@@ -390,12 +455,13 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 	private $s;
 	private $i = 0;
 	private $n;
-	public function __construct( $sql ) { $this->s = (string) $sql; $this->n = strlen( $this->s ); }
-	private function space() { $this->i += strspn( $this->s, " \t\r\n", $this->i ); }
+	/** $sql no se copia: con $from y $to se lee sólo ese tramo (una sentencia dentro del búfer del traductor). */
+	public function __construct( $sql, $from = 0, $to = null ) { $this->s = (string) $sql; $this->i = (int) $from; $this->n = null === $to ? strlen( $this->s ) : (int) $to; }
+	private function space() { if ( $this->i < $this->n ) $this->i += strspn( $this->s, " \t\r\n", $this->i, $this->n - $this->i ); }
 	/** Siguiente palabra en mayúsculas, o null si lo que sigue no es una palabra. */
 	public function word() {
 		$this->space();
-		if ( ! preg_match( '/\G[A-Za-z_][A-Za-z0-9_]*/', $this->s, $m, 0, $this->i ) ) return null;
+		if ( $this->i >= $this->n || ! preg_match( '/\G[A-Za-z_][A-Za-z0-9_]{0,63}/', $this->s, $m, 0, $this->i ) || $this->i + strlen( $m[0] ) > $this->n ) return null;
 		$this->i += strlen( $m[0] );
 		return strtoupper( $m[0] );
 	}
@@ -420,7 +486,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 		$i = $this->i + 1;
 		while ( $i < $this->n ) {
 			$end = strpos( $this->s, '`', $i );
-			if ( false === $end ) return null;
+			if ( false === $end || $end >= $this->n ) return null;
 			$name .= substr( $this->s, $i, $end - $i );
 			if ( '`' === ( $this->s[ $end + 1 ] ?? '' ) ) { $name .= '`'; $i = $end + 2; continue; }
 			$this->i = $end + 1;
@@ -474,9 +540,57 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 	public function value() {
 		$this->space();
 		$c = $this->s[ $this->i ] ?? '';
+		if ( $this->i >= $this->n ) return false;
 		if ( "'" === $c || '"' === $c ) return $this->string();
-		if ( preg_match( '/\GNULL\b/i', $this->s, $m, 0, $this->i ) ) { $this->i += 4; return null; }
-		if ( preg_match( '/\G[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) ) { $this->i += strlen( $m[0] ); return $m[0]; }
+		if ( $this->i + 4 <= $this->n && preg_match( '/\GNULL(?![A-Za-z0-9_])/i', $this->s, $m, 0, $this->i ) ) { $this->i += 4; return null; }
+		if ( preg_match( '/\G[+-]?(?:[0-9]{1,64}(?:\.[0-9]{0,64})?|\.[0-9]{1,64})(?:[eE][+-]?[0-9]{1,4})?(?![A-Za-z0-9_])/', $this->s, $m, 0, $this->i ) && $this->i + strlen( $m[0] ) <= $this->n ) { $this->i += strlen( $m[0] ); return $m[0]; }
+		return false;
+	}
+	/**
+	 * Como value(), pero sin decodificar: entrega a `$sink` el literal ya escrito como lo escribe `sql_value()` (las
+	 * cadenas por trozos de 256 KB, sin copiarlas enteras). false si no es un literal admitido.
+	 */
+	public function transcode( callable $sink ) {
+		$this->space();
+		if ( $this->i >= $this->n ) return false;
+		$quote = $this->s[ $this->i ];
+		if ( "'" !== $quote && '"' !== $quote ) {
+			$value = $this->value();
+			if ( false === $value ) return false;
+			$sink( null === $value ? 'NULL' : "'" . $value . "'" );
+			return true;
+		}
+		// Del escape de MySQL (y la comilla duplicada) al de sql_value(): \\ \0 \n \r \Z \' y lo demás tal cual.
+		$decode = array( '0' => "\0", "'" => "'", '"' => '"', 'b' => "\x08", 'n' => "\n", 'r' => "\r", 't' => "\t", 'Z' => "\x1a", '\\' => '\\', '%' => '\\%', '_' => '\\_' );
+		$encode = array( '\\' => '\\\\', "\0" => '\\0', "\n" => '\\n', "\r" => '\\r', "\x1a" => '\\Z', "'" => "\\'" );
+		$stop = '\\' . $quote . ( '"' === $quote ? "'" : '' ) . "\0\n\r\x1a";
+		$sink( "'" );
+		$i = $this->i + 1;
+		while ( $i < $this->n ) {
+			$run = strcspn( $this->s, $stop, $i, $this->n - $i );
+			while ( $run > 0 ) {
+				$take = min( $run, Digitalisimo_Backups_Backuply_Sql::PIECE );
+				$sink( substr( $this->s, $i, $take ) );
+				$i += $take;
+				$run -= $take;
+			}
+			if ( $i >= $this->n ) return false;
+			$c = $this->s[ $i ];
+			if ( '\\' === $c ) {
+				if ( $i + 1 >= $this->n ) return false;
+				$sink( strtr( $decode[ $this->s[ $i + 1 ] ] ?? $this->s[ $i + 1 ], $encode ) );
+				$i += 2;
+				continue;
+			}
+			if ( $quote === $c ) {
+				if ( $i + 1 < $this->n && $quote === $this->s[ $i + 1 ] ) { $sink( $encode[ $quote ] ?? $quote ); $i += 2; continue; }
+				$this->i = $i + 1;
+				$sink( "'" );
+				return true;
+			}
+			$sink( $encode[ $c ] ?? $c ); // ' dentro de "…", o NUL, LF, CR y ^Z sin escapar.
+			$i++;
+		}
 		return false;
 	}
 	/** Cadena entre ' o ": barra invertida como en MySQL y la comilla duplicada. false si no cierra. */
@@ -486,7 +600,7 @@ final class Digitalisimo_Backups_Backuply_Sql_Tokens {
 		$i = $this->i + 1;
 		$map = array( '0' => "\0", "'" => "'", '"' => '"', 'b' => "\x08", 'n' => "\n", 'r' => "\r", 't' => "\t", 'Z' => "\x1a", '\\' => '\\', '%' => '\\%', '_' => '\\_' );
 		while ( $i < $this->n ) {
-			$run = strcspn( $this->s, '\\' . $quote, $i );
+			$run = strcspn( $this->s, '\\' . $quote, $i, $this->n - $i );
 			$out .= substr( $this->s, $i, $run );
 			$i += $run;
 			if ( $i >= $this->n ) return false;

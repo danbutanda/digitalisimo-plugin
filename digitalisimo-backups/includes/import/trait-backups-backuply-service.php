@@ -81,6 +81,8 @@ trait Digitalisimo_Backups_Backuply_Service {
 			$free = Digitalisimo_Backups_Archive_Inspector::free_space( $store );
 			if ( null !== $free && $size > 0 && $free < $size * 4 + Digitalisimo_Backups_Archive_Inspector::MARGIN ) return self::service_error( 'space', 'No hay espacio en el almacén privado para traer e importar este respaldo: se necesitan unos ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $size * 4 + Digitalisimo_Backups_Archive_Inspector::MARGIN ) . ' (el archivo, el tar descomprimido y el ZIP convertido) y hay ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $free ) . '.', 507 );
 			if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
+			if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
+			Digitalisimo_Backups_Backuply_Import::clean_partials();
 			$part = $store . '/.incoming-' . bin2hex( random_bytes( 8 ) ) . '.part';
 			$destination->get( (array) $found['remote'], $part );
 			clearstatcache( true, $part );
@@ -102,11 +104,39 @@ trait Digitalisimo_Backups_Backuply_Service {
 		}
 	}
 
+	/**
+	 * Borra un `.tar.gz` de `backuply/` del almacén (subido o traído de un destino). Los de la carpeta de Backuply son de
+	 * Backuply y no se tocan. No se borra uno que se está importando.
+	 */
+	public static function service_backuply_delete( $name ) {
+		$allowed = self::service_scope( false, false );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		$name = (string) $name;
+		if ( ! preg_match( Digitalisimo_Backups_Backuply_Import::NAME, $name ) ) return self::service_error( 'backuply_name', 'Indica el nombre de un respaldo de Backuply (.tar.gz) del almacén privado.', 400 );
+		try {
+			$path = Digitalisimo_Backups_Backuply_Import::source_path( 'store', $name );
+			if ( '' === $path ) return self::service_error( 'not_found', 'El almacén privado no tiene ese respaldo de Backuply.', 404 );
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( Digitalisimo_Backups_Import_Job::is_import( $job ) && 'store' === ( $job['spec']['source']['origin'] ?? '' ) && $name === ( $job['spec']['source']['name'] ?? '' ) ) return self::service_error( 'busy', 'Ese respaldo de Backuply se está importando (trabajo ' . $job['id'] . '): cancela la importación o espera a que termine.', 409, array( 'job' => (string) $job['id'] ) );
+			if ( ! @unlink( $path ) ) return self::service_error( 'storage', 'No se pudo borrar el respaldo de Backuply del almacén privado.', 500 );
+		} catch ( Exception $e ) {
+			return self::service_error( 'storage', $e->getMessage(), 500 );
+		}
+		return array( 'name' => $name, 'deleted' => true );
+	}
+	/** «Eliminar» de la tarjeta (admin-post): sólo los del almacén privado. */
+	public static function backuply_delete_request() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_BACKUPLY_DELETE );
+		$result = self::service_backuply_delete( (string) wp_unslash( $_POST['backuply_file'] ?? '' ) );
+		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
+		self::redirect( true, 'Respaldo de Backuply borrado del almacén privado: ' . $result['name'] . '.' );
+	}
 	/** «Importar» de la pantalla (admin-post): encola y vuelve a Backups con el resultado. */
 	public static function backuply_import_request() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION_BACKUPLY_IMPORT );
-		$result = self::service_backuply_import( sanitize_file_name( wp_unslash( $_POST['backuply_file'] ?? '' ) ), array( 'source' => sanitize_key( wp_unslash( $_POST['backuply_source'] ?? '' ) ), 'via' => 'admin-post', 'network' => ! empty( $_POST['digitalisimo_backups_network'] ), 'spawn' => true ) );
+		// El nombre no pasa por sanitize_file_name(): lo cambiaría (`.com.mx` → `.com_.mx`); lo valida la lista blanca del servicio.
+		$result = self::service_backuply_import( (string) wp_unslash( $_POST['backuply_file'] ?? '' ), array( 'source' => sanitize_key( wp_unslash( $_POST['backuply_source'] ?? '' ) ), 'via' => 'admin-post', 'network' => ! empty( $_POST['digitalisimo_backups_network'] ), 'spawn' => true ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance está en «Trabajos». Al terminar, el ZIP aparece en «Restaurar respaldo local».' );
 	}
@@ -130,7 +160,13 @@ trait Digitalisimo_Backups_Backuply_Service {
 			if ( '' !== $item['imported'] ) echo '<small>Importado como ' . esc_html( $item['imported'] ) . '</small> ';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
 			wp_nonce_field( self::ACTION_BACKUPLY_IMPORT );
-			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '"><input type="hidden" name="backuply_source" value="' . esc_attr( $item['source'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small"' . ( false === $item['database'] || false === $item['files'] ? ' disabled title="Backups sólo restaura respaldos completos"' : '' ) . '>' . ( '' !== $item['imported'] ? 'Importar de nuevo' : 'Importar' ) . '</button></form></td></tr>';
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '"><input type="hidden" name="backuply_source" value="' . esc_attr( $item['source'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small"' . ( false === $item['database'] || false === $item['files'] ? ' disabled title="Backups sólo restaura respaldos completos"' : '' ) . '>' . ( '' !== $item['imported'] ? 'Importar de nuevo' : 'Importar' ) . '</button></form>';
+			if ( 'store' === $item['source'] ) {
+				echo ' <form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline" onsubmit="return confirm(\'¿Borrar este respaldo de Backuply del almacén privado?\')">';
+				wp_nonce_field( self::ACTION_BACKUPLY_DELETE );
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_DELETE ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small button-link-delete">Eliminar</button></form>';
+			}
+			echo '</td></tr>';
 		}
 		echo '</tbody></table></section>';
 	}
