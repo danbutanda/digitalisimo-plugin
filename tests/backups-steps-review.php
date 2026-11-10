@@ -342,6 +342,9 @@ bk_assert( in_array( 'files_changed', rv_notices( $job ), true ) && 'Completo co
 
 // H6. Un registro al que se escribe en cada tramo: tras dos vueltas se copia de corrido y el empaquetado termina.
 if ( rv_section( 'H6' ) ) {
+// Desde B8 los registros no entran por defecto: este sitio los incluye con el filtro (lo que se prueba es un archivo que
+// crece en cada tramo, y un registro es el caso real).
+$GLOBALS['bk_filters']['digitalisimo_backups_default_exclusions'] = function() { return array(); };
 $debug = $root . 'wp-content/debug.log';
 $text = '';
 for ( $i = 0; $i < 3000; $i++ ) $text .= sprintf( "[09-Nov-2026 10:%02d:%02d UTC] PHP Notice: línea %05d\n", $i / 60 % 60, $i % 60, $i );
@@ -383,6 +386,7 @@ for ( $i = 0; $i < 300 && ! Digitalisimo_Backups_Job_Store::is_terminal( $job );
 rv_filters( array() );
 bk_assert( 'failed' === $job['status'] && false !== strpos( (string) $job['error']['message'], 'wp-content/debug.log cambia mientras se respalda' ) && ! empty( $job['error']['permanent'] ), 'Un registro que cambia y no cabe de corrido no falló nombrándolo: ' . json_encode( $job['error'], JSON_UNESCAPED_UNICODE ) );
 unlink( $debug );
+unset( $GLOBALS['bk_filters']['digitalisimo_backups_default_exclusions'] );
 }
 
 // H7. Con poca memoria libre, la verificación lee el manifiesto como la restauración: por partes (Manifest_Auth y
