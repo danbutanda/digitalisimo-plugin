@@ -121,6 +121,9 @@ try {
 	digi_assert( ! $active(), 'Se encoló un respaldo fuera de las actualizaciones automáticas.' );
 	// WordPress no iba a actualizar: el filtro no lo decide.
 	digi_assert( false === $auto( 'plugin', array( 'plugin' => 'hello/hello.php' ), false ) && ! $active(), 'Una actualización que WordPress no iba a hacer encoló un respaldo.' );
+	// Sólo retiene: nunca convierte en «sí» una actualización que WordPress no iba a hacer (tampoco la de un tema).
+	foreach ( array( 'core', 'plugin', 'theme' ) as $type ) foreach ( array( false, null, 0, '' ) as $no ) digi_assert( $no === $auto( $type, array(), $no ) && $no === call_user_func( array( $P, 'auto_' . $type ), $no, (object) array() ), 'El filtro de ' . $type . ' cambió un «no» de WordPress.' );
+	digi_assert( ! $active(), 'Un «no» de WordPress encoló un respaldo.' );
 
 	// 2. Automáticas sin respaldo: se retienen las tres y se encola UN trabajo, sin esperarlo ni hacer el respaldo aquí.
 	$start = microtime( true );

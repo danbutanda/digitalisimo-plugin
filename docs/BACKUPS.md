@@ -384,6 +384,13 @@ y rechaza esa actualización con un error que explica que el respaldo está en m
 su avance en la salida; si falla, la actualización se rechaza con el motivo hasta `wp digitalisimo-backups pre-update
 skip`. Instalar algo nuevo y las traducciones no esperan. «Actualizar sin respaldo» nunca deja pasar una automática.
 
+**Pruebas.** `tests/backups-pre-update.php` (motor real), `tests/backups-pre-update-ui.mjs` (el script) y el ensayo
+`tests/playground/backups-pre-update.sh` en un WordPress real, individual y en red, con los actualizadores de WordPress y
+un plugin de prueba con paquetes locales: `Plugin_Upgrader` se rechaza hasta que la cola termina el respaldo y después
+actualiza; `wp_maybe_auto_update` real retiene la automática, la cola respalda, vuelve a programarse y la pasada
+siguiente actualiza sin otro respaldo; con el respaldo fallido queda pospuesta con correo y la siguiente pasada lo
+reintenta.
+
 **Límites.** La validez del respaldo reciente se mira por fecha, tamaño y copia remota verificada, sin releer su
 SHA-256. Las automáticas sólo se retienen dentro de `wp_maybe_auto_update` (WP-Cron o `wp cron event run`); un plugin que
 llame directamente a `WP_Automatic_Updater::run()` fuera de esa acción no pasa por aquí (el filtro
