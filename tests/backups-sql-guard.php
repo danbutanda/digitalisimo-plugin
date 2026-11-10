@@ -93,6 +93,10 @@ $rejected["CREATE TABLE `wp_posts` (\n `a` text\n) VALUES ROW('x')"] = 'la forma
 $rejected["CREATE TABLE `wp_posts` (\n `a` text\n) IGNORE TABLE `wp_options`"] = 'no se admite en un archivo sin firma';
 $rejected["CREATE TABLE `wp_posts` (\n `a` int,\n FOREIGN KEY (`a`) REFERENCES `otra`.`t` (`id`)\n) ENGINE=InnoDB"] = 'otra base de datos dentro de CREATE TABLE';
 $guard( false )->check( "CREATE TABLE `wp_posts` (\n `ID` int NOT NULL,\n `table` text,\n `values` text,\n KEY `values` (`ID`)\n) ENGINE=InnoDB\n/*!50100 PARTITION BY RANGE (`ID`)\n(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,\n PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */" );
+$rejected["CREATE TABLE `wp_posts` (\n `a` bigint,\n FOREIGN KEY (`a`) REFERENCES otra.wp_users (`ID`)\n) ENGINE=InnoDB"] = 'otra base de datos dentro de CREATE TABLE';
+$rejected["CREATE TABLE `wp_posts` (\n `a` bigint,\n FOREIGN KEY (`a`) REFERENCES otra.`wp_users` (`ID`)\n) ENGINE=InnoDB"] = 'otra base de datos dentro de CREATE TABLE';
+// MariaDB: una secuencia en un DEFAULT lleva la base delante y no lee nada de otra base.
+$guard( false )->check( "CREATE TABLE `wp_posts` (\n `ID` bigint NOT NULL DEFAULT nextval(`wordpress`.`s1`),\n PRIMARY KEY (`ID`)\n) ENGINE=InnoDB" );
 $guard( false )->check( "CREATE TABLE `wp_posts` (\n `ID` int NOT NULL\n) ENGINE=InnoDB\n/*!50100 PARTITION BY LIST (`ID`)\n(PARTITION p0 VALUES IN (1,2) ENGINE = InnoDB) */" );
 foreach ( $rejected as $sql => $needle ) bk_expect_failure( 'no confiable: ' . substr( $sql, 0, 40 ), function() use ( $guard, $sql ) { $guard( false )->check( $sql ); }, $needle );
 // El mensaje nombra la sentencia y su tipo y nunca muestra valores de filas.

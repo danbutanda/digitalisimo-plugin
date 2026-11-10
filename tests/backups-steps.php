@@ -211,16 +211,24 @@ steps_filters( array( 'digitalisimo_backups_db_batch' => 1, 'digitalisimo_backup
 $tables = $db->tables;
 $db->tables = array( 'wp_options' => 3, 'wp_posts' => 5, 'wp_postmeta' => 5, 'wp_comments' => 5, 'wp_commentmeta' => 5, 'wp_terms' => 5 );
 // Cada fila leída tarda 20 ms: una tabla de 5 filas, 0,1 s.
-$db->on_select = function( $query ) { preg_match( '/LIMIT (?:[0-9]+, )?([0-9]+)$/', $query, $m ); usleep( 20000 * min( 40, (int) ( $m[1] ?? 40 ) ) ); };
+// El tiempo simulado de la base (20 ms por fila) se suma aparte: la comprobación del presupuesto mide ese trabajo, no el
+// reloj de pared, que en una máquina de CI cargada también cuenta la sobrecarga (0,496 s en GitHub con PHP 7.4). El motor
+// corta por el reloj, que nunca va por detrás del trabajo simulado, así que el umbral de siempre sigue valiendo.
+$simulated = 0.0;
+$db->on_select = function( $query ) use ( &$simulated ) { preg_match( '/LIMIT (?:[0-9]+, )?([0-9]+)$/', $query, $m ); $rows = min( 40, (int) ( $m[1] ?? 40 ) ); $simulated += 0.02 * $rows; usleep( 20000 * $rows ); };
 $slow = bk_manual( 'local', 'presupuesto' );
 Digitalisimo_Backups_Jobs::tick( 0 ); // Comprobaciones.
 $durations = array();
+$work = array();
 for ( $i = 0; $i < 200 && 'database' === bk_job( $slow['id'] )['phase']; $i++ ) {
+	$simulated = 0.0;
 	$start = microtime( true );
 	Digitalisimo_Backups_Jobs::tick( 0.2 );
 	$durations[] = microtime( true ) - $start;
+	$work[] = $simulated;
 }
-bk_assert( max( $durations ) < 0.45, 'Un tick de exportación pasó de su presupuesto de 0,2 s más una tabla: ' . round( max( $durations ), 3 ) . ' s.' );
+bk_assert( max( $work ) < 0.45, 'Un tick de exportación pasó de su presupuesto de 0,2 s más una tabla: ' . round( max( $work ), 3 ) . ' s de trabajo de la base.' );
+bk_assert( max( $durations ) < 3.0, 'Un tick de exportación tardó ' . round( max( $durations ), 3 ) . ' s de reloj (red contra cuelgues, holgada para CI lentas).' );
 bk_assert( count( $durations ) >= 3, 'La exportación lenta no se repartió en tramos (' . count( $durations ) . ' ticks).' );
 $db->tables = array( 'wp_options' => 3, 'wp_posts' => 40 );
 // El límite real de la petición manda aunque el que llama pida «sin límite» (la pantalla de 1.0.58 lo hacía): una tabla
