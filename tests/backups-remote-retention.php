@@ -184,7 +184,9 @@ try {
 	$set_row( $fourth, array( 'remote_prune' => array_merge( $prune, array( 'next' => time() - 1 ) ) ) );
 	Digitalisimo_Backups_Jobs::watchdog();
 	digi_assert( ! isset( $GLOBALS['drive'][ $fourth_id ] ) && 'pruned' === $row_of( $fourth )['transfer'] && ! isset( $row_of( $fourth )['remote_prune'] ), 'El vigilante no completó el borrado remoto pendiente: ' . json_encode( $row_of( $fourth ) ) );
-	// Permanente: la conexión de la copia ya no existe; no se llama al destino y queda a la vista.
+	// Permanente: la conexión de la copia ya no existe; no se llama al destino y queda a la vista. (Como en una fila que
+	// la retención retiró, sin su ZIP local: con el ZIP en el almacén la retención no borra su copia remota.)
+	@unlink( $store . '/' . $fifth );
 	$set_row( $fifth, array( 'remote' => array_merge( $row_of( $fifth )['remote'], array( 'connection' => 'google-0a1b2c3d' ) ), 'remote_prune' => array( 'state' => 'pending', 'attempts' => 0, 'next' => 0, 'error' => '', 'at' => time() ) ) );
 	$GLOBALS['http'] = array();
 	$B::job_remote_retention_pending();
