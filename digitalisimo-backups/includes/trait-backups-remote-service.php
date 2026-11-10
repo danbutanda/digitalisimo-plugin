@@ -281,7 +281,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		$view = self::service_job_view( $job );
 		if ( 'success' === $job['status'] ) {
 			$result = (array) $job['result'];
-			$keep = array_flip( array( 'size', 'sha256', 'registered', 'container', 'trust', 'signature', 'key', 'confirmation', 'needs_secret', 'compatible', 'problems', 'scope', 'created_at', 'multisite' ) );
+			$keep = array_flip( array( 'size', 'sha256', 'registered', 'deduplicated', 'container', 'trust', 'signature', 'key', 'confirmation', 'needs_secret', 'compatible', 'problems', 'scope', 'created_at', 'multisite' ) );
 			return array( 'file' => (string) ( $result['file'] ?? '' ), 'fetched' => true, 'message' => (string) ( $job['progress']['message'] ?? '' ), 'job' => $view ) + array_intersect_key( $result, $keep );
 		}
 		if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return self::service_error( 'fetch_failed', (string) ( $job['error']['message'] ?? ( $job['progress']['message'] ?? 'La descarga falló.' ) ), 'cancelled' === $job['status'] ? 409 : 502, array( 'job' => (string) $job['id'] ) );
