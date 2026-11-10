@@ -214,6 +214,8 @@ final class Digitalisimo_Backups_Pre_Update {
 			$spec = (array) ( $job['spec'] ?? array() );
 			if ( Digitalisimo_Backups_Jobs::is_restore( $job ) || ! empty( $spec['inline'] ) || Digitalisimo_Backups_Site_Extract::is_extract( $spec ) || ! empty( $job['cancel_requested_at'] ) ) continue;
 			if ( 'full' !== (string) ( $spec['type'] ?? '' ) ) continue;
+			// Una migración (recibida o el paquete para otro sitio) no es un respaldo de esta instalación.
+			if ( ! empty( $spec['migration'] ) || ( isset( $spec['kind'] ) && 'backup' !== $spec['kind'] ) ) continue;
 			return $job;
 		}
 		return null;
