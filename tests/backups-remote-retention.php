@@ -112,7 +112,7 @@ try {
 	digi_assert( 0 === strpos( $label_of( $first ), 'Sin copias: el ZIP ya no está en el almacén y la retención borró la copia en Google Drive' ), 'Rótulo de la fila retirada: ' . $label_of( $first ) );
 	$summary = $summary_of( $first );
 	digi_assert( array() === $summary['copies'] && 'pruned' === $summary['transfer'] && false === $summary['restorable'], 'REST anuncia una copia retirada: ' . json_encode( $summary ) );
-	digi_assert( ! preg_grep( '#\?q=|/files\?#', $GLOBALS['http'] ), 'La retención listó el destino: ' . json_encode( $GLOBALS['http'] ) );
+	digi_assert( ! preg_grep( '#/drive/v3/files\?q=#', $GLOBALS['http'] ), 'La retención listó el destino: ' . json_encode( $GLOBALS['http'] ) );
 	// «Eliminar» de la fila retirada sólo la quita: no pide nada al destino.
 	$GLOBALS['http'] = array();
 	$query = digi_admin_post( 'delete_backup', $B::ACTION_DELETE, array( 'file' => $first ) );

@@ -730,7 +730,7 @@ final class Digitalisimo_Backups {
 			if ( $local ) return self::destination_label( 'local' ) . ' · ' . $remote;
 			// Sin el ZIP local y sin copia remota que exista: no queda ninguna copia (la fila sólo se puede eliminar).
 			if ( ! self::remote_exists( $item ) ) return 'Sin copias: el ZIP ya no está en el almacén y ' . $remote;
-			return $target . ( 'ok' === $copy['state'] ? ' · sólo la copia remota' : ' · ' . $remote );
+			return $target . ( 'ok' === $copy['state'] ? ' · sólo la copia remota' . self::remote_retention_text( $item ) : ' · ' . $remote );
 		}
 		/** Tarjeta «Trabajos»: el mismo estado que consultan el navegador, el cron, REST y WP-CLI. */
 		private static function jobs_panel( $network ) {

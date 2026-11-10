@@ -66,11 +66,12 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		// puede abrir una clave que trae su clave pública (un formato que sólo lee libssh2), se guarda tal cual, como antes.
 		$passphrase = (string) ( $out['sftp_key_passphrase'] ?? '' );
 		if ( '' !== $private && 'key' === ( $out['sftp_auth'] ?? '' ) && ( '' === $public || '' !== $passphrase ) ) {
-			if ( ! Digitalisimo_Backups_Sftp_Client::available() ) {
+			$client = self::client_class();
+			if ( ! $client::available() ) {
 				if ( '' === $public ) throw new Exception( 'Pega también la clave pública SFTP: este PHP no puede calcularla de la privada.' );
 			} else {
 				try {
-					list( $private, $derived ) = Digitalisimo_Backups_Sftp_Client::unlock( $private, $passphrase );
+					list( $private, $derived ) = $client::unlock( $private, $passphrase );
 					$out['sftp_private_key'] = $private;
 					$out['sftp_key_passphrase'] = '';
 					if ( '' === $public ) $public = $derived;
@@ -150,6 +151,11 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 
 	/* ------------------------------------------------------------------ Conexión */
 
+	/** El cliente incluido vive junto a este archivo: se carga aunque quien use la clase sólo haya cargado ésta. */
+	private static function client_class() {
+		if ( ! class_exists( 'Digitalisimo_Backups_Sftp_Client', false ) ) require_once __DIR__ . '/class-sftp-client.php';
+		return 'Digitalisimo_Backups_Sftp_Client';
+	}
 	/** Si la extensión ssh2 de PHP está cargada. */
 	private static function has_ssh2() { return function_exists( 'ssh2_connect' ) && function_exists( 'ssh2_fingerprint' ); }
 	/**
@@ -185,7 +191,8 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 		$s = $this->s;
 		$auth = $key ? array( 'key' => (string) $s['sftp_private_key'], 'passphrase' => (string) ( $s['sftp_key_passphrase'] ?? '' ) ) : array( 'password' => (string) $s['sftp_password'] );
 		$timeout = (int) ( $this->context['timeout'] ?? 0 ) ?: 20;
-		$client = new Digitalisimo_Backups_Sftp_Client();
+		$class = self::client_class();
+		$client = new $class();
 		$client->connect( (string) $s['sftp_host'], (int) ( $s['sftp_port'] ?? 22 ) ?: 22, (string) $s['sftp_user'], $expected, $auth, $timeout );
 		return $this->client = $client;
 	}
