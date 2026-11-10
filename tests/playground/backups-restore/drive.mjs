@@ -114,7 +114,7 @@ async function restoreByWeb(file, label) {
     maintenance = '';
     const restores = readdirSync(`${store}/jobs`).map(jobFile).filter((job) => job?.kind === 'restore' && !Object.keys(job.spec?.rollback || {}).length && job.created_at * 1000 >= posted - 2000);
     id = restores.sort((a, b) => b.created_at - a.created_at)[0]?.id;
-    check(Boolean(id), `${label}: la petición de REST murió ya en mantenimiento (${killed.join(', ')}), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
+    check(Boolean(id), `${label}: la petición de REST murió (${killed.join(', ')}), sin trabajo ni testigo para el cliente; la restauración sigue sólo con wp-cron.php`, `${res.status} ${res.text.slice(0, 200)}`);
   } else {
     const restoring = res.status === 202 && res.json?.restoring;
     check(restoring || res.status === 200, `${label}: POST restore responde 202 y la restauración sigue por pasos`, `${res.status} ${res.text.slice(0, 300)}`);

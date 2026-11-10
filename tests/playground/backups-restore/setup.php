@@ -54,10 +54,11 @@ add_filter( 'digitalisimo_backups_step_units', static function () {
 	$job = '' !== $id ? Digitalisimo_Backups_Jobs::get( $id ) : null;
 	if ( ! $job || 'restore' !== $job['kind'] ) return 400;
 	$cursor = (array) ( $job['checkpoint'][ $job['phase'] ] ?? array() );
-	// La petición de REST que pidió la restauración muere ya en mantenimiento: el cliente no recibe ni el trabajo ni el
-	// testigo, y sólo WP-Cron (el cron del sistema, sin testigo) puede seguirla.
+	// La petición de REST que pidió la restauración muere en la copia previa (con T2 va por tramos y la petición de REST
+	// no suele pasar de ahí) o ya en mantenimiento: el cliente no recibe ni el trabajo ni el testigo, y sólo WP-Cron (el
+	// cron del sistema, sin testigo) puede seguirla, también cuando el sitio entra en mantenimiento.
 	$uri = rawurldecode( (string) ( $GLOBALS['digi_r_request']['uri'] ?? '' ) );
-	if ( 'database' === $job['phase'] && false !== strpos( $uri, '/restore' ) && is_file( '/digi-ctl/die-rest' ) && @unlink( '/digi-ctl/die-rest' ) ) digi_r_kill( 'die-rest' );
+	if ( in_array( $job['phase'], array( 'safety', 'database' ), true ) && false !== strpos( $uri, '/restore' ) && is_file( '/digi-ctl/die-rest' ) && @unlink( '/digi-ctl/die-rest' ) ) digi_r_kill( 'die-rest' );
 	if ( 'database' === $job['phase'] && (int) ( $cursor['offset'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-db' ) && @unlink( '/digi-ctl/die-db' ) ) digi_r_kill( 'die-db' );
 	if ( 'files' === $job['phase'] && 'extract' === ( $cursor['step'] ?? '' ) && (int) ( $cursor['i'] ?? 0 ) > 0 && is_file( '/digi-ctl/die-files' ) && @unlink( '/digi-ctl/die-files' ) ) digi_r_kill( 'die-files' );
 	return 400;
