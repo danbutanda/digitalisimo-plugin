@@ -207,8 +207,10 @@ if ( '' !== $death ) {
 			echo $GLOBALS['failures'] ? "FALLA: memoria agotada al reescribir.\n" : "DIGITALÍSIMO Backups: una reubicación que no cabe en memoria se rechaza (o, si el presupuesto se queda corto, muere) en la verificación, antes de la copia previa y sin tocar el sitio.\n";
 		} );
 		$GLOBALS['wpdb']->queries = array();
-		// El error fatal es el esperado: no se muestra (error_get_last() lo conserva para la comprobación).
+		// El error fatal es el esperado: no se muestra ni se registra (con PHP del sistema iría a stderr y el proceso que
+		// lanza esta muerte lo contaría como fallo); error_get_last() lo conserva para la comprobación.
 		ini_set( 'display_errors', '0' );
+		ini_set( 'log_errors', '0' );
 		ini_set( 'memory_limit', '96M' );
 		$GLOBALS['rs_ballast'] = str_repeat( 'b', max( 0, 60 * 1048576 - memory_get_usage( true ) ) );
 		$refused = rs_restore( $big );
