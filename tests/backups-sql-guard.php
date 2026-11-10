@@ -85,6 +85,15 @@ $rejected = array(
 	// MySQL puede leer sólo cinco dígitos: /*!900000 sería 9.0.0 y ejecutaría «0 DATA DIRECTORY=…».
 	"CREATE TABLE `wp_posts` (`a` int) AUTO_INCREMENT=/*!900000 DATA DIRECTORY='/var/www' */" => 'comentario ejecutable',
 );
+// 1.0.67: un archivo sin firma no llena una tabla al crearla (MySQL 8.0.19+: CREATE TABLE … TABLE / … VALUES ROW), ni
+// nombra otra base de datos dentro de la definición; las particiones VALUES LESS THAN / VALUES IN siguen permitidas.
+$rejected["CREATE TABLE `wp_posts` (\n `a` text\n) TABLE `mysql`.`user`"] = 'no se admite en un archivo sin firma';
+$rejected["CREATE TABLE `wp_posts` (\n `a` text\n) TABLE `wp_options`"] = 'la forma TABLE de CREATE TABLE';
+$rejected["CREATE TABLE `wp_posts` (\n `a` text\n) VALUES ROW('x')"] = 'la forma VALUES de CREATE TABLE';
+$rejected["CREATE TABLE `wp_posts` (\n `a` text\n) IGNORE TABLE `wp_options`"] = 'no se admite en un archivo sin firma';
+$rejected["CREATE TABLE `wp_posts` (\n `a` int,\n FOREIGN KEY (`a`) REFERENCES `otra`.`t` (`id`)\n) ENGINE=InnoDB"] = 'otra base de datos dentro de CREATE TABLE';
+$guard( false )->check( "CREATE TABLE `wp_posts` (\n `ID` int NOT NULL,\n `table` text,\n `values` text,\n KEY `values` (`ID`)\n) ENGINE=InnoDB\n/*!50100 PARTITION BY RANGE (`ID`)\n(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,\n PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */" );
+$guard( false )->check( "CREATE TABLE `wp_posts` (\n `ID` int NOT NULL\n) ENGINE=InnoDB\n/*!50100 PARTITION BY LIST (`ID`)\n(PARTITION p0 VALUES IN (1,2) ENGINE = InnoDB) */" );
 foreach ( $rejected as $sql => $needle ) bk_expect_failure( 'no confiable: ' . substr( $sql, 0, 40 ), function() use ( $guard, $sql ) { $guard( false )->check( $sql ); }, $needle );
 // El mensaje nombra la sentencia y su tipo y nunca muestra valores de filas.
 $message = bk_expect_failure( 'sin valores', function() use ( $guard ) { $g = $guard( false, array( 'wp_posts' ) ); $g->check( "SET NAMES utf8mb4" ); $g->check( "INSERT INTO `wp_secret` (`a`) VALUES ('contraseña-muy-secreta')" ); }, 'sentencia 2, INSERT' );

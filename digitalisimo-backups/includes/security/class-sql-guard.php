@@ -382,6 +382,12 @@ final class Digitalisimo_Backups_Sql_Guard {
 				continue;
 			}
 			if ( 'var' === $token[0] ) $this->reject( 'variables en CREATE TABLE' );
+			// `db`.`tabla` dentro de la definición: otra base de datos (una clave foránea o la forma TABLE de abajo).
+			if ( 'ident' === $token[0] && $this->accept_punct( '.' ) ) $this->reject( 'otra base de datos dentro de CREATE TABLE no permitida en un archivo sin firma' );
+			// MySQL 8.0.19+: `CREATE TABLE t (…) TABLE otra` y `… VALUES ROW(…)` llenan la tabla como CREATE … SELECT.
+			// VALUES sólo vale en una partición (VALUES LESS THAN, VALUES IN).
+			if ( 'word' === $token[0] && 'TABLE' === $token[1] ) $this->reject( 'la forma TABLE de CREATE TABLE no se admite en un archivo sin firma' );
+			if ( 'word' === $token[0] && 'VALUES' === $token[1] && ! $this->peek_word( 'LESS' ) && ! $this->peek_word( 'IN' ) ) $this->reject( 'la forma VALUES de CREATE TABLE no se admite en un archivo sin firma' );
 			// ENGINE admite un nombre o un texto: ENGINE='CONNECT' y ENGINE=`SPIDER` también eligen el motor.
 			if ( in_array( $previous, array( 'ENGINE', 'TYPE' ), true ) && in_array( $token[0], array( 'str', 'ident' ), true ) ) {
 				$engine = strtoupper( 'ident' === $token[0] ? $token[1] : substr( $this->s, $token[2], $token[3] - $token[2] ) );
