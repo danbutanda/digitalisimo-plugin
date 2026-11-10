@@ -218,6 +218,15 @@ final class Digitalisimo_Backups_Destination_Dropbox extends Digitalisimo_Backup
 		if ( 200 === $code || ( 409 === $code && false !== strpos( (string) ( $data['error_summary'] ?? '' ), 'not_found' ) ) ) return;
 		$this->fail( $code, $data, 'el borrado del respaldo' );
 	}
+	/** B1b: `files/download` admite `Range` como cualquier punto de contenido de Dropbox. */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
+		$range = self::range_args( $offset, $length, $limits );
+		$headers = array( 'Authorization' => 'Bearer ' . $this->token(), 'Dropbox-API-Arg' => self::arg( array( 'path' => $this->own( $remote ) ) ) ) + $range['headers'];
+		$response = Digitalisimo_Backups_Http::request( 'POST', self::CONTENT . 'files/download', array( 'headers' => $headers, 'sink' => $target, 'timeout' => $range['timeout'], 'max' => $range['max'] ) );
+		if ( 409 === (int) $response['code'] ) throw new Exception( 'El respaldo ya no está en Dropbox.' );
+		return self::range_reply( $response, $target, $offset, $length, $limits );
+	}
 	public function list() {
 		list( $code, $data ) = $this->rpc( 'files/list_folder', array( 'path' => $this->folder(), 'recursive' => false, 'limit' => 2000 ) );
 		$out = array();

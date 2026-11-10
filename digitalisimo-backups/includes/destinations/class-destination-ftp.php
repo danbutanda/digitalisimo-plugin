@@ -225,8 +225,11 @@ final class Digitalisimo_Backups_Ftp_Client {
 		}
 		$this->expect( $this->reply(), array( 226, 250 ), 'el cierre de la transferencia' );
 	}
-	/** RETR a un archivo local en streaming. */
-	public function retrieve( $remote, $target, $progress = null ) {
+	/**
+	 * RETR a un archivo local en streaming. Con $max (bytes), nunca escribe más: en cuanto el servidor envía de más, corta
+	 * la transferencia, borra lo recibido y lanza (C3: un destino compartido no llena el disco del almacén).
+	 */
+	public function retrieve( $remote, $target, $progress = null, $max = 0 ) {
 		$out = @fopen( $target, 'wb' );
 		if ( ! $out ) throw new Exception( 'No se pudo preparar el archivo temporal de la descarga.' );
 		$data = $this->prepare_data();
@@ -236,9 +239,11 @@ final class Digitalisimo_Backups_Ftp_Client {
 			$stream = $this->data_ready( $data );
 			$done = 0;
 			while ( ! feof( $stream ) ) {
-				$chunk = fread( $stream, 1048576 );
+				// Con tope se lee como mucho un byte más de lo que cabe: basta para saber que el servidor envía de más.
+				$chunk = fread( $stream, $max > 0 ? (int) max( 1, min( 1048576, $max - $done + 1 ) ) : 1048576 );
 				if ( false === $chunk ) break;
 				if ( '' === $chunk ) { $meta = stream_get_meta_data( $stream ); if ( ! empty( $meta['timed_out'] ) ) throw new Exception( 'El servidor FTP dejó de enviar datos.' ); continue; }
+				if ( $max > 0 && $done + strlen( $chunk ) > $max ) throw new Digitalisimo_Backups_Permanent_Error( 'El servidor FTP envía más bytes de los que listó; la descarga se cortó.' );
 				if ( false === fwrite( $out, $chunk ) ) throw new Exception( 'No se pudo escribir la descarga en el almacén privado.' );
 				$done += strlen( $chunk );
 				if ( is_callable( $progress ) ) call_user_func( $progress, $done, 0 );
@@ -247,9 +252,12 @@ final class Digitalisimo_Backups_Ftp_Client {
 			unset( $data['stream'] );
 		} catch ( Throwable $e ) {
 			$this->abort_data( $data );
+			fclose( $out );
+			$out = null;
+			if ( $max > 0 ) @unlink( $target );
 			throw $e;
 		} finally {
-			fclose( $out );
+			if ( $out ) fclose( $out );
 		}
 		$this->expect( $this->reply(), array( 226, 250 ), 'el cierre de la descarga' );
 	}
@@ -399,6 +407,26 @@ final class Digitalisimo_Backups_Destination_Ftp extends Digitalisimo_Backups_De
 	}
 	private function own( array $remote ) { return self::inside( (string) ( $remote['path'] ?? '' ), $this->directory(), self::label() ); }
 	public function get( array $remote, $target ) { $path = $this->own( $remote ); $this->client()->retrieve( $path, $target, function( $done ) {} ); }
+	/**
+	 * B1b sin rangos: sólo desde 0 y el archivo entero, pero con tope (C3): nunca más que lo pedido o que el tamaño listado.
+	 */
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
+		if ( (int) $offset > 0 ) throw new Digitalisimo_Backups_Permanent_Error( static::label() . ' no permite reanudar una descarga a mitad; vuelve a empezarla.' );
+		$path = $this->own( $remote );
+		// Sin rangos llega siempre el archivo entero: el tope es el tamaño listado (o, sin él, lo pedido), nunca más.
+		$total = (int) ( $limits['total'] ?? 0 );
+		try {
+			$this->client()->retrieve( $path, $target, function( $done ) {}, $total > 0 ? $total : (int) $length );
+		} catch ( Throwable $e ) {
+			// La transferencia cortada deja el canal de control a medias (su 426/226 sin leer): la próxima vez, otra sesión.
+			if ( $this->client ) { $this->client->close(); $this->client = null; }
+			throw $e;
+		}
+		clearstatcache( true, $target );
+		$size = @filesize( $target );
+		if ( false === $size || $size <= 0 ) throw new Exception( 'La descarga de ' . static::label() . ' llegó vacía.' );
+		return (int) $size;
+	}
 	public function size( array $remote ) { $path = $this->own( $remote ); return $this->client()->size( $path ); }
 	public function delete( array $remote ) { $path = $this->own( $remote ); $this->client()->delete( $path ); }
 	public function list() {

@@ -13,6 +13,20 @@ function bk_fake_body( array $request ) {
 	if ( '' !== (string) ( $request['file'] ?? '' ) ) return (string) file_get_contents( $request['file'], false, null, (int) $request['offset'], (int) $request['length'] );
 	return (string) ( $request['body'] ?? '' );
 }
+/**
+ * GET con `Range: bytes=a-b` (RFC 7233), como S3, WebDAV y los servicios con descarga por rangos: 206 con `Content-Range`,
+ * 416 si empieza después del final; sin `Range`, 200 con todo. Devuelve array( código, cuerpo, cabeceras ).
+ */
+function bk_fake_range( array $request, $data ) {
+	$range = '';
+	foreach ( (array) $request['headers'] as $name => $value ) if ( 'range' === strtolower( (string) $name ) ) $range = (string) $value;
+	if ( ! preg_match( '/^bytes=(\d+)-(\d*)$/', $range, $m ) ) return array( 200, $data, array() );
+	$total = strlen( $data );
+	$start = (int) $m[1];
+	if ( $start >= $total ) return array( 416, '', array( 'Content-Range' => 'bytes */' . $total ) );
+	$end = '' === $m[2] ? $total - 1 : min( $total - 1, (int) $m[2] );
+	return array( 206, (string) substr( $data, $start, $end - $start + 1 ), array( 'Content-Range' => 'bytes ' . $start . '-' . $end . '/' . $total ) );
+}
 /** Respuesta del transporte; con `sink`, el cuerpo va al archivo. */
 function bk_fake_response( array $request, $code, $body = '', array $headers = array() ) {
 	if ( '' !== (string) ( $request['sink'] ?? '' ) ) { file_put_contents( $request['sink'], $body ); $body = ''; }
@@ -111,7 +125,8 @@ final class Bk_Fake_S3 {
 		if ( 'GET' === $method ) {
 			$data = $this->objects[ $key ];
 			if ( ! empty( $this->faults['corrupt_get'] ) && '' !== $data ) $data[0] = chr( ord( $data[0] ) ^ 1 );
-			return bk_fake_response( $request, 200, $data );
+			list( $code, $body, $range ) = bk_fake_range( $request, $data );
+			return bk_fake_response( $request, $code, $body, $range );
 		}
 		if ( 'DELETE' === $method ) { unset( $this->objects[ $key ] ); return bk_fake_response( $request, 204 ); }
 		return $this->error( $request, 405, 'MethodNotAllowed', $method );
@@ -321,7 +336,9 @@ final class Bk_Fake_Webdav {
 				if ( ! isset( $this->files[ $path ] ) ) return bk_fake_response( $request, 404, '' );
 				$data = $this->files[ $path ];
 				if ( ! empty( $this->faults['corrupt_get'] ) && '' !== $data ) $data[0] = chr( ord( $data[0] ) ^ 1 );
-				return bk_fake_response( $request, 200, $data );
+				if ( isset( $this->faults['get'] ) && is_callable( $this->faults['get'] ) ) { $fault = call_user_func( $this->faults['get'], $request, $data ); if ( null !== $fault ) return $fault; }
+				list( $code, $body, $range ) = bk_fake_range( $request, $data );
+				return bk_fake_response( $request, $code, $body, $range );
 			case 'MOVE':
 				if ( ! isset( $this->files[ $path ] ) ) return bk_fake_response( $request, 404, '' );
 				$to = rawurldecode( rtrim( substr( (string) ( $headers['Destination'] ?? '' ), strlen( $this->base ) ), '/' ) );
@@ -370,6 +387,8 @@ final class Bk_Fake_Ftp {
 	public static $pasv_ip = '10.0.0.7';
 	public static $faults = array();
 	public static $connected = array();
+	/** Bytes que el canal de datos entregó al cliente (para comprobar que corta a tiempo). */
+	public static $served = 0;
 	private static $pending = null;
 	private static $rename = null;
 	private static $port = 50000;
@@ -499,6 +518,7 @@ final class Bk_Fake_Ftp_Stream {
 			if ( ! $this->data_sent ) { $this->out = Bk_Fake_Ftp::data_out(); $this->data_sent = true; }
 			$chunk = substr( $this->out, 0, $count );
 			$this->out = (string) substr( $this->out, $count );
+			Bk_Fake_Ftp::$served += strlen( $chunk );
 			return $chunk;
 		}
 		// Una línea por lectura, como fgets sobre un socket.

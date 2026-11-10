@@ -39,6 +39,16 @@ defined( 'ABSPATH' ) || exit;
  * - POST /pre-update                        guarda los ajustes (`core`, `plugin`, `theme`: all, auto u off; `max_age`)
  * - POST /pre-update/backup                 el respaldo previo ahora (`network`): `ready` si ya hay uno reciente, si no 202
  * - POST /pre-update/skip                   las manuales no esperan respaldo durante `minutes` (`network`)
+ * - GET  /destinations/sync                 lo último sincronizado de cada destino (sin llamarlos)
+ * - POST /destinations/sync                 sincroniza los respaldos de los destinos (`destination`: uno o todos)
+ * - GET  /destinations/<id>/backups         los respaldos de DIGITALÍSIMO del destino, listados ahora: de este sitio
+ *                                           (`registered`) y de otro sitio (`importable`, sin verificar)
+ * - POST /destinations/<id>/backups/<nombre>/fetch  lo trae al almacén por fragmentos y lo comprueba (`network`): 200
+ *                                           con el resultado, 202 con el trabajo si sigue; después, POST …/restore
+ * - GET  /backuply                          si Backuply está en el sitio y sus respaldos que se pueden importar
+ * - POST /backuply/import                   importa un respaldo de Backuply (`name`, `source`): 202 con el trabajo
+ * - POST /backuply/fetch                    trae al almacén un respaldo de Backuply de un destino (`connection`, `name`)
+ * - DELETE /backuply/<nombre>               borra un respaldo de Backuply del almacén privado (no los de su carpeta)
  *
  * - GET  /migration                         estado de la migración: claves (sin secretos), registro, la que se puede deshacer
  * - POST /migration/keys                    genera una clave de migración (`hours`, `network`): 201, la clave sólo esta vez
@@ -58,6 +68,7 @@ final class Digitalisimo_Backups_Rest {
 	const NAMESPACE_V1 = 'digitalisimo-backups/v1';
 	const FILE = '(?P<file>[A-Za-z0-9][A-Za-z0-9._-]*)';
 	const JOB = '(?P<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
+	const DESTINATION = '(?P<id>[a-z0-9]+(?:-[a-f0-9]{8})?)';
 
 	/** Registro de la clave que autorizó cada petición del origen (lo llena permission_callback). */
 	private static $migration_records = array();
@@ -119,6 +130,18 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB, array( $route( 'GET', 'upload_status' ), $route( 'DELETE', 'upload_cancel' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/chunk', array( $route( 'POST, PUT', 'upload_chunk', array( 'offset' => array( 'type' => 'integer', 'required' => true, 'minimum' => 0, 'description' => 'Byte en el que empieza el fragmento: exactamente lo ya recibido.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/uploads/' . self::JOB . '/finish', array( $route( 'POST', 'upload_finish', array( 'secret' => $secret ) ) ) );
+		// Respaldos en los destinos remotos (B1b, B2): listar, sincronizar y traer al almacén, también los de otro sitio.
+		register_rest_route( self::NAMESPACE_V1, '/destinations/sync', array(
+			$route( 'GET', 'remote_index' ),
+			$route( 'POST', 'sync', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Un destino (ver GET /destinations); vacío: todos los que tienen conexión completa.' ) ) ),
+		) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups', array( $route( 'GET', 'remote_backups' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/destinations/' . self::DESTINATION . '/backups/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)/fetch', array( $route( 'POST', 'remote_fetch', array( 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply', array( $route( 'GET', 'backuply' ) ) );
+		$backuply_name = array( 'type' => 'string', 'required' => true, 'description' => 'Nombre del respaldo de Backuply (.tar.gz), como aparece en GET /backuply o en el destino.' );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/import', array( $route( 'POST', 'backuply_import', array( 'name' => $backuply_name, 'source' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'backuply', 'store' ), 'description' => 'backuply (la carpeta de Backuply de este sitio) o store (el almacén privado); vacío lo busca en los dos.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/(?P<name>[A-Za-z0-9][A-Za-z0-9._-]{0,190}\.tar\.gz)', array( $route( 'DELETE', 'backuply_delete' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/backuply/fetch', array( $route( 'POST', 'backuply_fetch', array( 'name' => $backuply_name, 'connection' => array( 'type' => 'string', 'required' => true, 'description' => 'Destino conectado (ver GET /destinations).' ) ) ) ) );
 		// Migración: administración (la misma capability que la pantalla).
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys', array( $route( 'POST', 'migration_create_key', array( 'hours' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Migrate::DEFAULT_HOURS, 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Migrate::MAX_HOURS, 'description' => 'Horas hasta que caduca la clave.' ), 'network' => $network ) ) ) );
@@ -171,7 +194,11 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_create( array( 'destination' => (string) $request['destination'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
 	}
 	/** Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256. */
-	public static function fetch( $request ) { return self::respond( Digitalisimo_Backups::service_fetch( (string) $request['file'], array( 'network' => (bool) $request['network'] ) ) ); }
+	public static function fetch( $request ) {
+		// Un trabajo por fragmentos (B1b): 202 con el trabajo si no terminó en esta petición.
+		$result = Digitalisimo_Backups::service_fetch( (string) $request['file'], array( 'network' => (bool) $request['network'], 'via' => 'rest' ) );
+		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
+	}
 	/** Destinos remotos y su estado (sin valores secretos). */
 	public static function destinations( $request ) { return self::respond( Digitalisimo_Backups::service_destinations() ); }
 	/** «Probar conexión» de una conexión guardada: sube, verifica, descarga, lista y borra un archivo pequeño. */
@@ -317,6 +344,14 @@ final class Digitalisimo_Backups_Rest {
 		if ( is_wp_error( $secret ) ) return $secret;
 		return self::respond( Digitalisimo_Backups::service_upload_finish( (string) $request['id'], array( 'secret' => $secret ) ) );
 	}
+	/** Si Backuply está en el sitio y los respaldos suyos que se pueden importar (sin rutas). */
+	public static function backuply( $request ) { return self::respond( Digitalisimo_Backups::service_backuply() ); }
+	/** Encola la importación de un respaldo de Backuply: 202 con el trabajo. */
+	public static function backuply_import( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_import( (string) $request['name'], array( 'source' => (string) $request['source'], 'via' => 'rest' ) ), 202 ); }
+	/** Borra un respaldo de Backuply del almacén privado. */
+	public static function backuply_delete( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_delete( (string) $request['name'] ) ); }
+	/** Trae al almacén un respaldo de Backuply que está en un destino remoto. */
+	public static function backuply_fetch( $request ) { return self::respond( Digitalisimo_Backups::service_backuply_fetch( (string) $request['connection'], (string) $request['name'] ) ); }
 	public static function upload_cancel( $request ) {
 		return self::respond( Digitalisimo_Backups::service_upload_cancel( (string) $request['id'] ) );
 	}
@@ -334,5 +369,19 @@ final class Digitalisimo_Backups_Rest {
 	}
 	public static function pre_update_skip( $request ) {
 		return self::respond( Digitalisimo_Backups_Pre_Update::service_skip( array( 'network' => (bool) $request['network'], 'minutes' => (int) $request['minutes'], 'via' => 'rest' ) ) );
+	}
+	/** Lo último sincronizado de cada destino, sin llamarlos. */
+	public static function remote_index( $request ) { return self::respond( Digitalisimo_Backups::service_remote_index() ); }
+	/** Sincroniza los respaldos de los destinos (o de uno) y guarda el índice. */
+	public static function sync( $request ) { return self::respond( Digitalisimo_Backups::service_sync( (string) $request['destination'] ) ); }
+	/** Respaldos de DIGITALÍSIMO del destino, listados ahora. */
+	public static function remote_backups( $request ) { return self::respond( Digitalisimo_Backups::service_remote_backups( (string) $request['id'] ) ); }
+	/**
+	 * Trae al almacén un respaldo del destino (de este sitio o de otro) por fragmentos: 200 con el resultado si terminó en
+	 * esta petición, 202 con el trabajo si sigue (lo terminan `POST /jobs/tick`, la pantalla o WP-Cron).
+	 */
+	public static function remote_fetch( $request ) {
+		$result = Digitalisimo_Backups::service_remote_fetch( (string) $request['id'], (string) $request['name'], array( 'network' => (bool) $request['network'], 'via' => 'rest', 'drive_cli' => false ) );
+		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
 	}
 }

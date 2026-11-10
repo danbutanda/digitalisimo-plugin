@@ -68,7 +68,8 @@ final class Digitalisimo_Backups_Notify {
 	 * clave); la migración que recibe el destino avisa con su propio texto (migration()).
 	 */
 	public static function mark( array $job ) {
-		if ( ! empty( $job['spec']['inline'] ) || 'source' === ( $job['spec']['migration']['role'] ?? '' ) || ! empty( $job['spec']['safety_extra']['migration'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
+		// La importación de un respaldo de Backuply no cambia el sitio ni crea un respaldo: no avisa por correo.
+		if ( ! empty( $job['spec']['inline'] ) || 'import' === ( $job['kind'] ?? '' ) || 'source' === ( $job['spec']['migration']['role'] ?? '' ) || ! empty( $job['spec']['safety_extra']['migration'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
 		$job['notice'] = 'pending';
 		return $job;
 	}
@@ -124,6 +125,8 @@ final class Digitalisimo_Backups_Notify {
 	}
 	/** Aviso de un trabajo terminado: respaldo creado, respaldo fallido o copia remota fallida (el ZIP local se conserva). */
 	public static function job( array $job ) {
+		// Traer un respaldo de un destino (B1b) lo pide alguien que espera el resultado en pantalla o en la terminal: sin correo.
+		if ( 'fetch' === ( $job['spec']['kind'] ?? '' ) ) return false;
 		if ( 'restore' === ( $job['kind'] ?? '' ) ) return self::restore_job( $job );
 		if ( 'migrate' === ( $job['spec']['kind'] ?? '' ) ) return self::migration( $job );
 		$snapshot = self::snapshot();

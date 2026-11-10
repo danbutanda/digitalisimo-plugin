@@ -228,7 +228,9 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	}
 	/**
 	 * Trae al almacén privado la copia remota de un respaldo del historial (verificada contra su SHA-256) para
-	 * restaurarlo o descargarlo sin volver al destino. Si ya está en el almacén no hace nada.
+	 * restaurarlo o descargarlo sin volver al destino. Si ya está en el almacén no hace nada. Desde B1b es un trabajo
+	 * `fetch` por fragmentos con reanudación (Digitalisimo_Backups_Remote_Service): en WP-CLI espera a que termine; en la
+	 * web avanza lo que cabe en la petición y lo sigue la cola.
 	 */
 	public static function service_fetch( $file, array $args = array() ) {
 		// Escribe en el almacén privado de toda la instalación: en una red pide el alcance de red, como crear o restaurar.
@@ -239,26 +241,27 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( ! $item ) return self::service_error( 'not_found', 'El respaldo no está registrado.', 404 );
 		if ( empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] ) ) return self::service_error( 'not_remote', 'Este respaldo no tiene una copia remota registrada.', 400 );
 		if ( self::remote_connection_gone( (array) $item['remote'] ) ) return self::service_error( 'connection_gone', self::gone_text( (array) $item['remote'] ), 410 );
-		// Con el cerrojo de operaciones: ni un respaldo, ni una restauración, ni otra descarga tocan el almacén a la vez.
+		// Ni un respaldo, ni una restauración, ni otra descarga tocan el almacén a la vez: con otra operación en curso, 409.
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		try {
 			if ( '' !== self::local_path( $file ) ) return array( 'file' => $file, 'fetched' => false, 'message' => 'El respaldo ya está en el almacén privado.' );
-			$target = trailingslashit( self::local_directory() ) . $file;
-			$temp = $target . '.part-' . bin2hex( random_bytes( 6 ) );
-			try {
-				self::fetch_remote_copy( $item, $temp );
-				if ( file_exists( $target ) || ! @rename( $temp, $target ) ) throw new Exception( 'No se pudo colocar la copia verificada en el almacén privado.' );
-				@chmod( $target, 0600 );
-			} finally {
-				@unlink( $temp );
-			}
 		} catch ( Exception $e ) {
-			return self::service_error( 'fetch_failed', Digitalisimo_Backups_Http::redact( $e->getMessage() ), 502 );
+			return self::service_error( 'fetch_failed', $e->getMessage(), 502 );
 		} finally {
 			self::release_operation_lock( $lock );
 		}
-		return array( 'file' => $file, 'fetched' => true, 'message' => 'Copia de ' . self::destination_label( self::remote_connection( (array) $item['remote'] ) ) . ' descargada al almacén privado y verificada por SHA-256.' );
+		$remote = (array) $item['remote'];
+		$id = self::remote_connection( $remote );
+		if ( '' === $id ) return self::service_error( 'fetch_failed', 'Este respaldo remoto fue creado antes de guardar su identificador. Conserva la copia remota o genera un respaldo nuevo.', 502 );
+		$problem = self::credentials_problem( $id );
+		if ( '' !== $problem ) return self::service_error( 'fetch_failed', $problem, 502 );
+		$name = wp_basename( (string) ( $remote['path'] ?? ( $remote['key'] ?? $file ) ) );
+		// Sin SHA-256 en la fila (filas antiguas) no hay con qué verificarla: se trae como «sin registro» y se comprueba como
+		// archivo no confiable; nunca con el nombre de la fila ni «verificada» (C9).
+		$sha256 = strtolower( (string) ( $item['sha256'] ?? ( $remote['sha256'] ?? '' ) ) );
+		$verified = (bool) preg_match( '/^[0-9a-f]{64}$/', $sha256 );
+		return self::fetch_start( array( 'connection' => $id, 'name' => self::remote_backup_name( $name ) ? $name : $file, 'registered' => $verified ? $file : '', 'sha256' => $verified ? $sha256 : '', 'size' => $verified ? (int) ( $item['size'] ?? 0 ) : 0 ), $args );
 	}
 	/** «Traer al almacén» en el historial: sólo para una copia remota cuyo archivo ya no está en el almacén privado. */
 	private static function fetch_button( $item ) {

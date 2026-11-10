@@ -345,6 +345,19 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 		$response = $this->call( 'DELETE', $this->own_key( $remote ) );
 		if ( ! in_array( $response['code'], array( 200, 204, 404 ), true ) ) $this->fail( $response, 'el borrado del respaldo' );
 	}
+	/** B1b: GetObject con `Range` (firmado con SigV4 como el resto de cabeceras). */
+	public function ranged() { return true; }
+	public function get_range( array $remote, $target, $offset, $length, array $limits = array() ) {
+		$range = self::range_args( $offset, $length, $limits );
+		$response = $this->call( 'GET', $this->own_key( $remote ), array(), $range['headers'], '', array( 'sink' => $target, 'timeout' => $range['timeout'], 'max' => $range['max'] ) );
+		// Credenciales, permisos, bucket o región: como en get(), no se arreglan reintentando.
+		if ( ! in_array( (int) $response['code'], array( 200, 206, 404, 416 ), true ) && (int) $response['code'] < 500 ) {
+			$body = is_file( $target ) && filesize( $target ) < 65536 ? (string) @file_get_contents( $target ) : '';
+			@unlink( $target );
+			$this->fail( array( 'code' => $response['code'], 'body' => $body ), 'la descarga del respaldo' );
+		}
+		return self::range_reply( $response, $target, $offset, $length, $limits );
+	}
 	public function list() {
 		$prefix = $this->prefix();
 		$out = array();
