@@ -607,6 +607,7 @@ trait Digitalisimo_Backups_Service {
 			'pull_problem' => Digitalisimo_Backups_Migrate::pull_problem(),
 			'keys' => Digitalisimo_Backups_Migrate::keys(),
 			'log' => Digitalisimo_Backups_Migrate::public_log(),
+			'rejected' => Digitalisimo_Backups_Migrate::rejected(),
 			'undo' => $undo,
 			'active' => $active,
 		);

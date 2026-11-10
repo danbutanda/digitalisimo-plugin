@@ -35,8 +35,13 @@ final class Digitalisimo_Backups_Migrate {
 	const SOURCE_ROUTE = '/migrate/source';
 	/** Fallos de autenticación con una clave antes de bloquearla, y fallos de cualquier origen en la ventana antes de cerrar. */
 	const MAX_FAILURES = 5;
-	const GLOBAL_FAILURES = 20;
-	const WINDOW = 900;
+	/**
+	 * Una clave en uso cuyo destino no da señales en este tiempo (y cuyo paquete ya no se está preparando) se puede
+	 * retomar desde otro trabajo del destino y, pasada su caducidad, caduca: una migración que falló sin poder liberar la
+	 * clave no la deja atada a un trabajo muerto, y una descarga activa nunca caduca a mitad.
+	 */
+	const STALE = 1800;
+	const FORM_TOKENS = 20;
 	const DEFAULT_HOURS = 24;
 	const MAX_HOURS = 72;
 	const CHUNK = 4194304;
@@ -57,6 +62,12 @@ final class Digitalisimo_Backups_Migrate {
 	public static $pause = 'sleep';
 	/** Fin de la página que muestra la clave (sustituible en las pruebas; en WordPress, exit). */
 	public static $end = null;
+	/** Resolución de nombres del destino (sólo pruebas): callable( $host ) que devuelve sus direcciones IP. */
+	public static $resolver = null;
+	/** Saltos de redirección que sigue el destino (cada uno validado como la dirección de la clave). */
+	const REDIRECTS = 3;
+	/** Tope de una respuesta JSON del origen (un fragmento del paquete tiene el suyo: su largo pedido). */
+	const RESPONSE_MAX = 1048576;
 
 	public static function init() {
 		foreach ( array( self::ACTION_CREATE => 'create_request', self::ACTION_REVOKE => 'revoke_request', self::ACTION_PULL => 'pull_request', self::ACTION_UNDO => 'undo_request', self::ACTION_SETTINGS => 'settings_request' ) as $action => $method ) add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
@@ -110,7 +121,8 @@ final class Digitalisimo_Backups_Migrate {
 			'allow_http' => ! empty( $saved['allow_http'] ),
 			'keys' => is_array( $saved['keys'] ?? null ) ? $saved['keys'] : array(),
 			'log' => is_array( $saved['log'] ?? null ) ? array_values( $saved['log'] ) : array(),
-			'fails' => is_array( $saved['fails'] ?? null ) ? array_values( array_map( 'intval', $saved['fails'] ) ) : array(),
+			'rejected' => is_array( $saved['rejected'] ?? null ) ? $saved['rejected'] : array(),
+			'forms' => is_array( $saved['forms'] ?? null ) ? array_values( $saved['forms'] ) : array(),
 		);
 	}
 	/** Lee, cambia y guarda el estado con el cerrojo corto del almacén: dos peticiones del destino nunca se pisan. */
@@ -324,7 +336,7 @@ final class Digitalisimo_Backups_Migrate {
 				$now = time();
 				$closed = array();
 				foreach ( $state['keys'] as $id => &$record ) {
-					if ( in_array( $record['state'], self::LIVE, true ) && $now > (int) $record['expires'] ) {
+					if ( self::lapsed( $record, $now ) ) {
 						$record['state'] = 'expired';
 						$record['closed_at'] = $now;
 						self::log_into( $state, $id, 'expired' );
@@ -338,7 +350,6 @@ final class Digitalisimo_Backups_Migrate {
 					foreach ( $state['keys'] as $id => $record ) if ( count( $keep ) < self::KEYS_MAX || in_array( $record['state'], self::LIVE, true ) ) $keep[ $id ] = $record;
 					$state['keys'] = $keep;
 				}
-				$state['fails'] = array_values( array_filter( $state['fails'], function( $at ) use ( $now ) { return $now - $at < self::WINDOW; } ) );
 				return $closed;
 			} );
 			foreach ( (array) $closed as $record ) self::retire( $record );
@@ -348,8 +359,27 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/** Si una huella de clave es la de un paquete de una clave viva de este sitio (la usa Digitalisimo_Backups_Keys). */
 	public static function knows_key( $key_id ) {
-		foreach ( self::state()['keys'] as $record ) if ( hash_equals( (string) ( $record['key_id'] ?? '' ), (string) $key_id ) ) return in_array( $record['state'], self::LIVE, true ) && time() <= (int) $record['expires'];
+		foreach ( self::state()['keys'] as $record ) if ( hash_equals( (string) ( $record['key_id'] ?? '' ), (string) $key_id ) ) return in_array( $record['state'], self::LIVE, true ) && ! self::lapsed( $record, time() );
 		return false;
+	}
+	/**
+	 * Si una clave viva caducó. Sin usar, al pasar su caducidad. En uso, sólo si además su destino lleva STALE segundos
+	 * sin dar señales: la caducidad nunca corta una migración que avanza (el paquete puede tardar horas en un sitio grande).
+	 */
+	private static function lapsed( array $record, $now ) {
+		if ( ! in_array( $record['state'] ?? '', self::LIVE, true ) || $now <= (int) ( $record['expires'] ?? 0 ) ) return false;
+		return 'in_use' !== $record['state'] || $now - self::seen( $record ) > self::STALE;
+	}
+	/** Última señal del destino al que está atada la clave. */
+	private static function seen( array $record ) { return max( (int) ( $record['created'] ?? 0 ), (int) ( $record['seen'] ?? 0 ) ); }
+	/**
+	 * Si otro trabajo del destino puede retomar una clave en uso: su destino lleva STALE segundos sin dar señales y su
+	 * paquete ya no se está preparando (la migración falló o se canceló sin poder liberarla).
+	 */
+	private static function stale( array $record, $now ) {
+		if ( 'in_use' !== ( $record['state'] ?? '' ) || $now - self::seen( $record ) <= self::STALE ) return false;
+		$job = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $record['job'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $record['job'] ) : null;
+		return ! $job || Digitalisimo_Backups_Job_Store::is_terminal( $job );
 	}
 	/** La clave del paquete de una clave viva, desenvuelta del almacén; false si ya no existe o cambiaron las salts. */
 	public static function package_key( $key_id ) {
@@ -365,31 +395,41 @@ final class Digitalisimo_Backups_Migrate {
 
 	private static function error( $code, $message, $status ) { return new WP_Error( 'digitalisimo_backups_migration_' . $code, $message, array( 'status' => $status ) ); }
 	/**
-	 * Autentica una petición del destino: límite global de intentos, credencial (comparación de tiempo constante con la
-	 * huella guardada), límite por clave, caducidad, estado, HTTPS y, salvo para presentarse, el sitio al que quedó
-	 * atada la clave. Devuelve la fila de la clave o un WP_Error sin ningún secreto.
+	 * Autentica una petición del destino: credencial (comparación de tiempo constante con la huella guardada), límite de
+	 * intentos de esa clave, caducidad, estado, HTTPS y, salvo para presentarse, el trabajo del destino al que quedó atada
+	 * la clave. Devuelve la fila de la clave o un WP_Error sin ningún secreto.
+	 *
+	 * No hay un límite global: una petición sin una clave válida (sin cabecera, mal formada o de una clave que no existe)
+	 * nunca cierra la API ni gasta los intentos de nadie, y sólo suma a un contador agregado que no desplaza el registro
+	 * de usos. Adivinar no es viable (identificador de 64 bits y credencial de 256), y cada clave se bloquea sola tras
+	 * MAX_FAILURES credenciales equivocadas.
 	 */
 	public static function authenticate( $header, $client, $action ) {
 		$now = time();
 		$state = self::state();
-		$recent = array_filter( $state['fails'], function( $at ) use ( $now ) { return $now - $at < self::WINDOW; } );
-		if ( count( $recent ) >= self::GLOBAL_FAILURES ) return self::error( 'locked', 'Demasiados intentos fallidos de migración en este sitio: espera 15 minutos antes de volver a intentarlo.', 429 );
 		if ( ! is_ssl() && 'https' !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_SCHEME ) ) && ! $state['allow_http'] ) return self::error( 'https', 'El sitio de origen exige HTTPS para migrar. En un laboratorio, activa «Permitir HTTP» en Backups → Migrar de los dos sitios.', 403 );
+		// En una red, la API responde sólo en el sitio principal (la presentación lo explica en sus problemas).
+		if ( 'hello' !== $action && is_multisite() && ! is_main_site() ) return self::error( 'not_main', 'La API de migración de una red responde en su sitio principal.', 404 );
 		$header = trim( (string) $header );
 		$parts = explode( '.', $header, 2 );
 		$auth = 2 === count( $parts ) ? Digitalisimo_Backups_Keys::b64url_decode( $parts[1], 32 ) : false;
 		$id = $parts[0];
 		if ( false === $auth || ! self::valid_id( $id ) || ! isset( $state['keys'][ $id ] ) ) {
-			self::fail( '', 'Credencial ausente, mal formada o de una clave desconocida.' );
+			self::reject();
 			return self::error( 'unauthorized', 'La clave de migración no es válida para este sitio.', 401 );
 		}
 		$record = $state['keys'][ $id ];
 		if ( ! hash_equals( (string) $record['verifier'], self::verifier_of( $auth ) ) ) {
+			// Una clave cerrada ya no tiene intentos que contar: como una desconocida (el registro no crece sin fin).
+			if ( ! in_array( $record['state'], self::LIVE, true ) ) {
+				self::reject();
+				return self::error( 'unauthorized', 'La clave de migración no es válida para este sitio.', 401 );
+			}
 			$blocked = self::fail( $id, 'Credencial equivocada.' );
 			return self::error( 'unauthorized', 'La clave de migración no es válida para este sitio.' . ( $blocked ? ' Se bloqueó tras ' . self::MAX_FAILURES . ' intentos fallidos.' : '' ), 401 );
 		}
 		Digitalisimo_Backups_Sodium::memzero( $auth );
-		if ( in_array( $record['state'], self::LIVE, true ) && $now > (int) $record['expires'] ) {
+		if ( self::lapsed( $record, $now ) ) {
 			self::sweep();
 			return self::error( 'expired', 'La clave de migración caducó. Genera otra en el sitio de origen.', 410 );
 		}
@@ -398,22 +438,54 @@ final class Digitalisimo_Backups_Migrate {
 		$client = (string) $client;
 		if ( 'hello' !== $action ) {
 			if ( ! Digitalisimo_Backups_Job_Store::valid_id( $client ) ) return self::error( 'client', 'Falta el identificador de la migración del sitio de destino.', 400 );
-			if ( '' !== $record['client'] && ! hash_equals( (string) $record['client'], hash( 'sha256', $client ) ) ) {
+			$mine = '' === $record['client'] || hash_equals( (string) $record['client'], hash( 'sha256', $client ) );
+			// Otro trabajo del destino puede retomar con «package» una clave abandonada (source_package() lo decide con el cerrojo).
+			if ( ! $mine && ! ( 'package' === $action && self::stale( $record, $now ) ) ) {
 				self::log( $id, 'other_client', $action );
-				return self::error( 'in_use', 'Otra migración ya usa esta clave. Una clave sirve para una sola migración: genera otra en el sitio de origen.', 409 );
+				return self::in_use_error();
 			}
+			if ( $mine && '' !== $record['client'] && $now - (int) ( $record['seen'] ?? 0 ) >= 60 ) self::touch( $id, $record['client'] );
 		}
 		return $record;
 	}
-	/** Anota un intento fallido; con MAX_FAILURES en la misma clave, la bloquea. Devuelve si la bloqueó. */
+	private static function in_use_error() {
+		return self::error( 'in_use', 'Otra migración ya usa esta clave. Una clave sirve para una sola migración: genera otra en el sitio de origen (o, si la migración anterior falló, vuelve a intentarlo dentro de ' . (int) ( self::STALE / 60 ) . ' minutos).', 409 );
+	}
+	/** Señal del destino al que está atada la clave (como mucho una escritura por minuto). */
+	private static function touch( $id, $client ) {
+		try {
+			self::change( function( &$state ) use ( $id, $client ) {
+				if ( ! isset( $state['keys'][ $id ] ) || ! hash_equals( (string) $state['keys'][ $id ]['client'], (string) $client ) ) return false;
+				$state['keys'][ $id ]['seen'] = time();
+			} );
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
+		}
+	}
+	/**
+	 * Una petición sin una clave válida de este sitio: suma a un contador agregado (desde, última vez e IP), sin entrar en
+	 * el registro de usos ni cerrar nada.
+	 */
+	private static function reject() {
+		try {
+			self::change( function( &$state ) {
+				$now = time();
+				$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? substr( preg_replace( '/[^0-9A-Fa-f:.]/', '', (string) $_SERVER['REMOTE_ADDR'] ), 0, 45 ) : '';
+				$seen = $state['rejected'];
+				if ( $now - (int) ( $seen['since'] ?? 0 ) > 86400 ) $seen = array( 'count' => 0, 'since' => $now );
+				$state['rejected'] = array( 'count' => (int) ( $seen['count'] ?? 0 ) + 1, 'since' => (int) $seen['since'], 'last' => $now, 'ip' => $ip );
+			} );
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
+		}
+	}
+	/** Anota una credencial equivocada de una clave que existe; con MAX_FAILURES, la bloquea. Devuelve si la bloqueó. */
 	private static function fail( $id, $reason ) {
 		$blocked = null;
 		try {
 			$blocked = self::change( function( &$state ) use ( $id, $reason ) {
-				$state['fails'][] = time();
-				$state['fails'] = array_slice( $state['fails'], -( self::GLOBAL_FAILURES * 2 ) );
+				if ( ! isset( $state['keys'][ $id ] ) ) return null;
 				self::log_into( $state, $id, 'auth_failed', $reason );
-				if ( '' === $id || ! isset( $state['keys'][ $id ] ) ) return null;
 				$state['keys'][ $id ]['failures'] = (int) $state['keys'][ $id ]['failures'] + 1;
 				if ( $state['keys'][ $id ]['failures'] < self::MAX_FAILURES || ! in_array( $state['keys'][ $id ]['state'], self::LIVE, true ) ) return null;
 				$state['keys'][ $id ]['state'] = 'blocked';
@@ -460,9 +532,40 @@ final class Digitalisimo_Backups_Migrate {
 	/**
 	 * Ata la clave al trabajo del destino y encola el paquete con el motor de trabajos: un respaldo completo cifrado con la
 	 * clave del paquete, que no entra en el historial ni en la retención. Repetirlo devuelve el mismo trabajo.
+	 *
+	 * Atar es atómico: con el cerrojo del almacén se comprueba otra vez que la clave siga libre (o sea de este trabajo, o
+	 * esté abandonada) antes de escribir; dos destinos que piden el paquete a la vez nunca reciben los dos 200.
 	 */
 	public static function source_package( array $record, $client, array $body ) {
 		$id = (string) $record['id'];
+		$mine = hash( 'sha256', (string) $client );
+		$site = self::site_label( $body['site'] ?? '' );
+		$bound = self::change( function( &$state ) use ( $id, $mine, $site ) {
+			$now = time();
+			if ( ! isset( $state['keys'][ $id ] ) ) return array( 'error' => 'gone' );
+			$row = $state['keys'][ $id ];
+			if ( ! in_array( $row['state'], self::LIVE, true ) || self::lapsed( $row, $now ) ) return array( 'error' => 'gone' );
+			$abandoned = '';
+			if ( '' !== (string) $row['client'] && ! hash_equals( (string) $row['client'], $mine ) ) {
+				if ( ! self::stale( $row, $now ) ) return array( 'error' => 'taken' );
+				$abandoned = (string) $row['job'];
+				$row['job'] = '';
+				self::log_into( $state, $id, 'taken_over', $site );
+			}
+			$row['state'] = 'in_use';
+			$row['client'] = $mine;
+			$row['seen'] = $now;
+			if ( '' !== $site ) $row['site'] = $site;
+			$state['keys'][ $id ] = $row;
+			return array( 'record' => $row, 'abandoned' => $abandoned );
+		} );
+		if ( 'taken' === ( $bound['error'] ?? '' ) ) {
+			self::log( $id, 'other_client', 'package' );
+			return self::in_use_error();
+		}
+		if ( isset( $bound['error'] ) ) return self::error( 'unauthorized', 'La clave de migración ya no sirve: genera otra en el sitio de origen.', 410 );
+		$record = $bound['record'];
+		if ( '' !== $bound['abandoned'] ) self::drop_package( $bound['abandoned'] );
 		$job = Digitalisimo_Backups_Job_Store::valid_id( (string) $record['job'] ) ? Digitalisimo_Backups_Jobs::get( (string) $record['job'] ) : null;
 		if ( $job && ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) || 'success' === $job['status'] ) ) return self::source_view( $record, $job );
 		try {
@@ -475,22 +578,40 @@ final class Digitalisimo_Backups_Migrate {
 			$spec['migration'] = array( 'role' => 'source', 'key' => $id );
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
 		} catch ( Throwable $e ) {
+			// La clave vuelve a quedar libre: este intento no la deja atada a nada.
+			self::change( function( &$state ) use ( $id, $mine ) {
+				if ( ! isset( $state['keys'][ $id ] ) || 'in_use' !== $state['keys'][ $id ]['state'] || ! hash_equals( (string) $state['keys'][ $id ]['client'], $mine ) || '' !== (string) $state['keys'][ $id ]['job'] ) return false;
+				$state['keys'][ $id ]['state'] = 'pending';
+				$state['keys'][ $id ]['client'] = '';
+			} );
 			return self::error( 'not_ready', 'El sitio de origen no puede preparar el paquete: ' . $e->getMessage(), 422 );
 		}
 		$job = $queued['job'];
-		$site = self::site_label( $body['site'] ?? '' );
-		$record = self::change( function( &$state ) use ( $id, $client, $job, $site ) {
-			if ( ! isset( $state['keys'][ $id ] ) ) return false;
-			$state['keys'][ $id ]['state'] = 'in_use';
-			$state['keys'][ $id ]['client'] = hash( 'sha256', (string) $client );
+		$record = self::change( function( &$state ) use ( $id, $mine, $job, $site ) {
+			if ( ! isset( $state['keys'][ $id ] ) || 'in_use' !== $state['keys'][ $id ]['state'] || ! hash_equals( (string) $state['keys'][ $id ]['client'], $mine ) ) return false;
 			$state['keys'][ $id ]['job'] = (string) $job['id'];
-			if ( '' !== $site ) $state['keys'][ $id ]['site'] = $site;
 			self::log_into( $state, $id, 'package', $site );
 			return $state['keys'][ $id ];
 		} );
-		if ( false === $record ) return self::error( 'unauthorized', 'La clave de migración ya no existe.', 410 );
+		if ( false === $record ) {
+			// Revocada, caducada o retomada mientras se encolaba: el paquete recién encolado sobra.
+			self::drop_package( (string) $job['id'] );
+			return self::error( 'unauthorized', 'La clave de migración ya no sirve para este destino.', 410 );
+		}
 		Digitalisimo_Backups_Jobs::schedule();
 		return self::source_view( $record, $job );
+	}
+	/** Cancela el trabajo de un paquete de migración y borra el paquete (si ya existe). */
+	private static function drop_package( $job_id ) {
+		if ( ! Digitalisimo_Backups_Job_Store::valid_id( (string) $job_id ) ) return;
+		try {
+			$job = Digitalisimo_Backups_Jobs::get( (string) $job_id );
+			if ( $job && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) Digitalisimo_Backups_Jobs::cancel( (string) $job_id );
+			$package = $job ? self::package_path( $job ) : '';
+			if ( '' !== $package && is_file( $package ) && ! is_link( $package ) ) @unlink( $package );
+		} catch ( Throwable $e ) {
+			// La poda del almacén retira la carpeta del trabajo más adelante.
+		}
 	}
 	/** Hace avanzar la cola de este sitio (donde espera el paquete) con el presupuesto de una petición web y responde el estado del paquete. */
 	public static function source_step( array $record ) {
@@ -665,7 +786,9 @@ final class Digitalisimo_Backups_Migrate {
 		try {
 			$problem = self::pull_problem();
 			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
-			if ( 'https' !== strtolower( (string) wp_parse_url( $parsed['url'], PHP_URL_SCHEME ) ) && ! self::allow_http() ) throw new Digitalisimo_Backups_Permanent_Error( 'La clave apunta a un sitio sin HTTPS (' . wp_parse_url( $parsed['url'], PHP_URL_HOST ) . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP» en Backups → Migrar de los dos sitios.' );
+			$problem = self::target_problem( $parsed['url'] );
+			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
+			self::sweep_pulls();
 			$migration = array( 'role' => 'destination', 'url' => $parsed['url'], 'id' => $parsed['id'], 'key_id' => Digitalisimo_Backups_Keys::key_id( $root ), 'source_host' => self::host_label( $parsed['url'] ), 'secret' => $token );
 			self::seal_file( $file, $auth . $root );
 			$hello = self::call( $migration, $auth, '', 'hello', 'POST', array( 'site' => home_url() ), 30 );
@@ -685,6 +808,94 @@ final class Digitalisimo_Backups_Migrate {
 		} finally {
 			Digitalisimo_Backups_Sodium::memzero( $auth );
 			Digitalisimo_Backups_Sodium::memzero( $root );
+		}
+	}
+	/**
+	 * Por qué el destino no puede pedir nada a $url ('' si puede): HTTPS (o HTTP con el laboratorio) y un host público,
+	 * nunca loopback, red privada, enlace local (los metadatos de la nube están en 169.254.169.254), CGNAT, multidifusión
+	 * ni reservado, tampoco si un nombre resuelve a una de ellas. El laboratorio («Permitir HTTP y direcciones internas»)
+	 * permite las dos cosas, para un ensayo en una red propia o dos sitios del mismo servidor.
+	 */
+	public static function target_problem( $url ) {
+		$scheme = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_SCHEME ) );
+		$host = strtolower( trim( (string) wp_parse_url( (string) $url, PHP_URL_HOST ), '[]' ) );
+		if ( '' === $host || ! in_array( $scheme, array( 'http', 'https' ), true ) ) return 'La dirección del sitio de origen no es válida.';
+		$lab = self::allow_http();
+		if ( 'https' !== $scheme && ! $lab ) return 'La clave apunta a un sitio sin HTTPS (' . $host . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP y direcciones internas» en Backups → Migrar de los dos sitios.';
+		if ( $lab ) return '';
+		$internal = 'localhost' === $host || '.localhost' === substr( $host, -10 ) ? $host : '';
+		if ( '' === $internal ) foreach ( self::addresses( $host ) as $ip ) if ( ! self::public_ip( $ip ) ) { $internal = $host === $ip ? $ip : $host . ' → ' . $ip; break; }
+		if ( '' !== $internal ) return 'La clave apunta a una dirección interna (' . $internal . '): loopback, red privada, enlace local o metadatos de la nube. El destino sólo se conecta a sitios públicos; en un laboratorio, activa «Permitir HTTP y direcciones internas» en Backups → Migrar.';
+		return '';
+	}
+	/** Direcciones IP de un host (la IP misma si lo es; IPv4 y, si se puede, IPv6). Sin resolver, ninguna. */
+	private static function addresses( $host ) {
+		if ( false !== @inet_pton( $host ) ) return array( $host );
+		if ( self::$resolver ) return (array) call_user_func( self::$resolver, $host );
+		static $cache = array();
+		if ( ! isset( $cache[ $host ] ) ) {
+			$ips = function_exists( 'gethostbynamel' ) ? @gethostbynamel( $host ) : false;
+			$ips = is_array( $ips ) ? $ips : array();
+			if ( function_exists( 'dns_get_record' ) && defined( 'DNS_AAAA' ) ) {
+				$records = @dns_get_record( $host, DNS_AAAA );
+				foreach ( is_array( $records ) ? $records : array() as $record ) if ( ! empty( $record['ipv6'] ) ) $ips[] = (string) $record['ipv6'];
+			}
+			$cache[ $host ] = $ips;
+		}
+		return $cache[ $host ];
+	}
+	/** Si una IP es pública (ni loopback, privada, enlace local, CGNAT, multidifusión ni reservada). */
+	public static function public_ip( $ip ) {
+		$bin = @inet_pton( (string) $ip );
+		if ( false === $bin ) return false;
+		if ( 16 === strlen( $bin ) ) {
+			// IPv4 mapeada (::ffff:a.b.c.d), NAT64 (64:ff9b::/96) y 6to4 (2002::/16) se juzgan por su IPv4.
+			if ( self::in_cidr( $bin, '::ffff:0:0/96' ) || self::in_cidr( $bin, '64:ff9b::/96' ) ) return self::public_ip( inet_ntop( substr( $bin, 12 ) ) );
+			if ( self::in_cidr( $bin, '2002::/16' ) ) return self::public_ip( inet_ntop( substr( $bin, 2, 4 ) ) );
+			foreach ( array( '::/127', 'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8', '100::/64' ) as $range ) if ( self::in_cidr( $bin, $range ) ) return false;
+			return true;
+		}
+		foreach ( array( '0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.0.0.0/24', '192.168.0.0/16', '198.18.0.0/15', '224.0.0.0/4', '240.0.0.0/4' ) as $range ) if ( self::in_cidr( $bin, $range ) ) return false;
+		return true;
+	}
+	private static function in_cidr( $bin, $cidr ) {
+		list( $net, $bits ) = explode( '/', $cidr );
+		$net = inet_pton( $net );
+		if ( strlen( $net ) !== strlen( $bin ) ) return false;
+		$bits = (int) $bits;
+		$bytes = intdiv( $bits, 8 );
+		if ( $bytes > 0 && 0 !== strncmp( $bin, $net, $bytes ) ) return false;
+		$rest = $bits % 8;
+		if ( 0 === $rest ) return true;
+		$mask = ( 0xff << ( 8 - $rest ) ) & 0xff;
+		return ( ord( $bin[ $bytes ] ) & $mask ) === ( ord( $net[ $bytes ] ) & $mask );
+	}
+	/** Dirección absoluta de una redirección (`Location` absoluto, de protocolo relativo, de raíz o relativo). */
+	private static function absolute_url( $location, $base ) {
+		if ( preg_match( '#^https?://#i', $location ) ) return $location;
+		$parts = wp_parse_url( $base );
+		$origin = ( $parts['scheme'] ?? 'https' ) . '://' . ( $parts['host'] ?? '' ) . ( isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '' );
+		if ( 0 === strpos( $location, '//' ) ) return ( $parts['scheme'] ?? 'https' ) . ':' . $location;
+		if ( 0 === strpos( $location, '/' ) ) return $origin . $location;
+		$path = (string) ( $parts['path'] ?? '/' );
+		return $origin . substr( $path, 0, (int) strrpos( $path, '/' ) + 1 ) . $location;
+	}
+	/**
+	 * Claves de destino que quedaron en el almacén sin trabajo (el proceso murió durante la presentación, antes de
+	 * encolar): se borran pasada una hora si ningún trabajo activo las usa.
+	 */
+	private static function sweep_pulls() {
+		$files = @glob( self::directory() . '/pull-*.key' );
+		if ( ! $files ) return;
+		$live = array();
+		try {
+			foreach ( Digitalisimo_Backups_Jobs::active() as $job ) if ( '' !== (string) ( $job['spec']['migration']['secret'] ?? '' ) ) $live[ (string) $job['spec']['migration']['secret'] ] = true;
+		} catch ( Throwable $e ) {
+			return;
+		}
+		foreach ( $files as $file ) {
+			if ( ! preg_match( '/pull-([0-9a-f]{32})\.key$/D', $file, $m ) || isset( $live[ $m[1] ] ) ) continue;
+			if ( time() - (int) @filemtime( $file ) > 3600 ) @unlink( $file );
 		}
 	}
 	/** Host (con su puerto, si lo tiene) para los mensajes: dos sitios en la misma máquina se distinguen. */
@@ -708,6 +919,8 @@ final class Digitalisimo_Backups_Migrate {
 			'inline' => false,
 			'security' => array( 'encrypt' => false, 'key_id' => '' ),
 			'migration' => $migration,
+			// A quién avisar: los ajustes de avisos de este sitio antes de migrar (el SQL del origen trae los suyos).
+			'notify' => Digitalisimo_Backups_Notify::snapshot(),
 			'origin' => array( 'via' => (string) $via, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'blog_id' => (int) get_current_blog_id(), 'context' => is_multisite() ? 'network' : 'site' ),
 			'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
 		);
@@ -720,6 +933,7 @@ final class Digitalisimo_Backups_Migrate {
 	 * wp-config.php, el mensaje dice qué definir; nada se descarga ni se toca antes.
 	 */
 	public static function compatible( array $hello ) {
+		if ( 1 !== ( $hello['version'] ?? null ) || ! is_string( $hello['instance'] ?? null ) || ! preg_match( '/^[0-9a-f]{16}$/D', $hello['instance'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La dirección de la clave no responde como la API de migración de DIGITALÍSIMO Backups.' );
 		if ( empty( $hello['ready'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen no puede preparar el paquete: ' . implode( ' ', array_map( 'strval', (array) ( $hello['problems'] ?? array() ) ) ) );
 		if ( (string) ( $hello['instance'] ?? '' ) === self::instance() ) throw new Digitalisimo_Backups_Permanent_Error( 'Esta clave es de este mismo sitio: pégala en el sitio de destino.' );
 		$source_network = ! empty( $hello['multisite'] );
@@ -759,7 +973,7 @@ final class Digitalisimo_Backups_Migrate {
 	 * Una petición al origen. La credencial va en la cabecera, nunca en la URL ni en el cuerpo. 401/403/404/409/410 y
 	 * 422 son permanentes (repetir no lo arregla); 429 y los fallos de red o del servidor, transitorios.
 	 */
-	private static function call( array $migration, $auth, $client, $action, $method, $body = array(), $timeout = 60, array $headers = array(), $file = '' ) {
+	private static function call( array $migration, $auth, $client, $action, $method, $body = array(), $timeout = 60, array $headers = array(), $file = '', $limit = self::RESPONSE_MAX ) {
 		$args = array(
 			'method' => $method,
 			'timeout' => $timeout,
@@ -772,21 +986,36 @@ final class Digitalisimo_Backups_Migrate {
 			$args['headers']['Content-Type'] = 'application/json';
 			$args['body'] = wp_json_encode( (object) $body );
 		}
-		// Un fragmento del paquete va directo a un archivo: la memoria no depende de su tamaño.
+		// Un fragmento del paquete va directo a un archivo: la memoria no depende de su tamaño. Ninguna respuesta pasa de
+		// su tope (un fragmento, su largo pedido): un origen o un intermediario que no termina no llena el disco.
 		if ( '' !== $file ) {
 			$args['stream'] = true;
 			$args['filename'] = $file;
 		}
+		$args['limit_response_size'] = max( 1, (int) $limit );
+		// Cada salto de una redirección se valida como la dirección de la clave (HTTPS y host público) antes de pedirlo.
 		$url = self::endpoint( (string) $migration['url'], $action );
-		$response = self::$transport ? call_user_func( self::$transport, $method, $url, $args ) : wp_remote_request( $url, $args );
-		$host = (string) wp_parse_url( (string) $migration['url'], PHP_URL_HOST );
-		if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo conectar con el sitio de origen (' . $host . '): ' . $response->get_error_message() );
-		$code = (int) wp_remote_retrieve_response_code( $response );
+		for ( $hop = 0; ; $hop++ ) {
+			$problem = self::target_problem( $url );
+			if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
+			$response = self::$transport ? call_user_func( self::$transport, $method, $url, $args ) : wp_remote_request( $url, $args );
+			$host = self::host_label( $url );
+			if ( is_wp_error( $response ) ) throw new Exception( 'No se pudo conectar con el sitio de origen (' . $host . '): ' . $response->get_error_message() );
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			$location = in_array( $code, array( 301, 302, 303, 307, 308 ), true ) ? trim( (string) wp_remote_retrieve_header( $response, 'location' ) ) : '';
+			if ( '' === $location ) break;
+			if ( $hop >= self::REDIRECTS ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen (' . $host . ') redirige más de ' . self::REDIRECTS . ' veces: revisa su dirección.' );
+			$url = self::absolute_url( $location, $url );
+			if ( '' !== $file ) @unlink( $file );
+		}
 		if ( 'download' === $action && in_array( $code, array( 200, 206 ), true ) ) return array( 'code' => $code, 'file' => $file, 'range' => (string) wp_remote_retrieve_header( $response, 'content-range' ), 'sha256' => strtolower( (string) wp_remote_retrieve_header( $response, 'x-digitalisimo-package-sha256' ) ) );
 		// Con la respuesta en un archivo, un error trae su JSON allí (pequeño).
 		$raw = '' !== $file ? (string) @file_get_contents( $file, false, null, 0, 65536 ) : (string) wp_remote_retrieve_body( $response );
 		$data = json_decode( $raw, true );
-		$message = is_array( $data ) && is_string( $data['message'] ?? null ) ? $data['message'] : 'HTTP ' . $code;
+		// Sólo los errores de la API de migración se muestran: el cuerpo de cualquier otra respuesta (otro servicio, un
+		// proxy, una página de error) nunca llega al administrador.
+		$ours = is_array( $data ) && is_string( $data['code'] ?? null ) && 0 === strpos( $data['code'], 'digitalisimo_backups_migration_' ) && is_string( $data['message'] ?? null );
+		$message = $ours ? substr( $data['message'], 0, 500 ) : 'HTTP ' . $code;
 		if ( $code >= 200 && $code < 300 && is_array( $data ) ) return $data;
 		if ( 429 === $code ) throw new Exception( 'El sitio de origen pide esperar: ' . $message );
 		if ( in_array( $code, array( 400, 401, 403, 404, 409, 410, 416, 422 ), true ) ) {
@@ -848,6 +1077,7 @@ final class Digitalisimo_Backups_Migrate {
 		} finally {
 			Digitalisimo_Backups_Sodium::memzero( $auth );
 		}
+		if ( ! is_string( $view['state'] ?? null ) || ! is_string( $view['key_id'] ?? null ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La dirección de la clave no responde como la API de migración de DIGITALÍSIMO Backups.' );
 		$state = (string) ( $view['state'] ?? '' );
 		$percent = 3 + (int) floor( 0.37 * max( 0, min( 100, (int) ( $view['percent'] ?? 0 ) ) ) );
 		if ( in_array( $state, array( 'failed', 'cancelled', 'missing' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de origen no pudo preparar el paquete: ' . (string) ( $view['message'] ?? $state ) );
@@ -953,7 +1183,8 @@ final class Digitalisimo_Backups_Migrate {
 	 */
 	private static function fetch_piece( array $job, $auth, $start, $end, $size, $sha, $file ) {
 		@unlink( $file );
-		$reply = self::call( $job['spec']['migration'], $auth, (string) $job['id'], 'download', 'GET', array(), 120, array( 'Range' => 'bytes=' . $start . '-' . $end ), $file );
+		// Tope: el largo pedido y un byte más (lo que sobre se detecta abajo como un fragmento que no es el pedido).
+		$reply = self::call( $job['spec']['migration'], $auth, (string) $job['id'], 'download', 'GET', array(), 120, array( 'Range' => 'bytes=' . $start . '-' . $end ), $file, $end - $start + 2 );
 		clearstatcache( true, $file );
 		$got = is_file( $file ) ? (int) filesize( $file ) : -1;
 		if ( 200 === $reply['code'] ) {
@@ -1106,8 +1337,14 @@ final class Digitalisimo_Backups_Migrate {
 	private static function megabytes( $bytes ) { return Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $bytes ); }
 	private static function filter( $hook, $value ) { return function_exists( 'apply_filters' ) ? apply_filters( $hook, $value ) : $value; }
 	private static function event_label( $event ) {
-		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => '«Permitir HTTP» activado', 'lab_off' => '«Permitir HTTP» desactivado', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida' );
+		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => 'Laboratorio activado (HTTP y direcciones internas)', 'lab_off' => 'Laboratorio desactivado', 'taken_over' => 'Otro destino retomó una clave abandonada', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida' );
 		return $labels[ $event ] ?? $event;
+	}
+	/** Peticiones sin una clave válida (agregadas, fuera del registro de usos): cuántas, desde cuándo, la última e IP. */
+	public static function rejected() {
+		$seen = self::state()['rejected'];
+		if ( empty( $seen['count'] ) ) return array( 'count' => 0, 'since' => '', 'last' => '', 'ip' => '' );
+		return array( 'count' => (int) $seen['count'], 'since' => gmdate( 'c', (int) $seen['since'] ), 'last' => gmdate( 'c', (int) ( $seen['last'] ?? 0 ) ), 'ip' => (string) ( $seen['ip'] ?? '' ) );
 	}
 	public static function public_log( $limit = 20 ) {
 		$out = array();
@@ -1126,7 +1363,7 @@ final class Digitalisimo_Backups_Migrate {
 		elseif ( '' !== $status['pull_problem'] ) echo '<p class="notice notice-warning inline">' . esc_html( $status['pull_problem'] ) . '</p>';
 		echo '<form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Reemplazar este sitio por el del origen? Se crea antes una copia previa para deshacerlo.\')">';
 		wp_nonce_field( self::ACTION_PULL );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><input type="password" id="digitalisimo-backups-migration-key" name="migration_key" value="" autocomplete="off" spellcheck="false" class="large-text"></p><p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p><p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
 		if ( $status['active'] ) echo '<p class="description">Migración en curso: ' . esc_html( $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . (int) $status['active']['percent'] . ' %)' ) . '. Su avance está en «Trabajos»; cuando termine, este sitio te pedirá iniciar sesión con un usuario del origen.</p>';
 		if ( $status['undo'] ) {
 			echo '<div class="digitalisimo-backups-migrate-undo"><h3>Deshacer la migración</h3><p>Última migración recibida de <strong>' . esc_html( $status['undo']['from'] ) . '</strong> el ' . esc_html( $status['undo']['date'] ) . '. Deshacerla restaura la copia previa <code>' . esc_html( $status['undo']['file'] ) . '</code> (y antes guarda el estado actual en otra copia previa).</p><form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Deshacer la migración y volver al estado anterior de este sitio?\')">';
@@ -1139,7 +1376,8 @@ final class Digitalisimo_Backups_Migrate {
 		if ( '' !== $status['key_problem'] ) echo '<p class="notice notice-warning inline">' . esc_html( $status['key_problem'] ) . '</p>';
 		echo '<form method="post" action="' . $post . '">';
 		wp_nonce_field( self::ACTION_CREATE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_CREATE ) . '">' . self::context_fields( $network ) . '<p><label>Caduca en <select name="hours"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24" selected>24 horas</option><option value="72">72 horas</option></select></label> <button class="button button-primary"' . disabled( '' !== $status['key_problem'], true, false ) . '>Generar clave de migración</button></p></form>';
+		// Testigo de un solo uso: recargar la página que muestra la clave (que reenvía el formulario) no crea otra.
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_CREATE ) . '"><input type="hidden" name="form_token" value="' . esc_attr( bin2hex( random_bytes( 16 ) ) ) . '">' . self::context_fields( $network ) . '<p><label>Caduca en <select name="hours"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24" selected>24 horas</option><option value="72">72 horas</option></select></label> <button class="button button-primary"' . disabled( '' !== $status['key_problem'], true, false ) . '>Generar clave de migración</button></p></form>';
 		if ( $status['keys'] ) {
 			echo '<table class="widefat striped"><thead><tr><th>Clave</th><th>Estado</th><th>Caduca (UTC)</th><th>Destino</th><th></th></tr></thead><tbody>';
 			foreach ( array_slice( $status['keys'], 0, 10 ) as $key ) {
@@ -1158,8 +1396,9 @@ final class Digitalisimo_Backups_Migrate {
 		echo '<section class="digitalisimo-backups-card"><h2>Copia de pruebas (staging)</h2><p>La migración sirve también para una copia de pruebas en otro dominio o subdominio: genera la clave en producción y migra desde el sitio de pruebas. Para <strong>publicar</strong> la copia de pruebas, haz la migración en sentido contrario: genera la clave en el sitio de pruebas y migra desde producción; producción guarda su copia previa y «Deshacer la migración» la devuelve. No se fusionan cambios entre dos sitios vivos: lo que cambie en producción mientras tanto se reemplaza.</p><p>Las automatizaciones y los destinos remotos del origen llegan con la migración: en una copia de pruebas, revísalos para que no respalde sobre los destinos de producción.</p></section>';
 		echo '<section class="digitalisimo-backups-card"><h2>Laboratorio</h2><form method="post" action="' . $post . '">';
 		wp_nonce_field( self::ACTION_SETTINGS );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SETTINGS ) . '">' . self::context_fields( $network ) . '<p><label><input type="checkbox" name="allow_http" value="1"' . checked( $status['allow_http'], true, false ) . '> Permitir HTTP sin TLS (sólo laboratorio)</label></p><p class="description">Sin HTTPS, la credencial de la clave viaja legible por la red: quien vea el tráfico podría descargar el paquete (que sigue cifrado con una clave que nunca viaja) o interrumpir la migración. Actívalo en los dos sitios sólo para pruebas en una red propia.</p><p><button class="button">Guardar</button></p></form></section>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SETTINGS ) . '">' . self::context_fields( $network ) . '<p><label><input type="checkbox" name="allow_http" value="1"' . checked( $status['allow_http'], true, false ) . '> Permitir HTTP y direcciones internas (sólo laboratorio)</label></p><p class="description">Sin HTTPS, la credencial de la clave viaja legible por la red: quien vea el tráfico podría descargar el paquete (que sigue cifrado con una clave que nunca viaja) o interrumpir la migración. Con direcciones internas, este sitio acepta claves que apunten a loopback, a la red privada o al mismo servidor. Actívalo en los dos sitios sólo para pruebas en una red propia.</p><p><button class="button">Guardar</button></p></form></section>';
 		echo '<section class="digitalisimo-backups-card"><h2>Registro de la migración</h2>';
+		if ( ! empty( $status['rejected']['count'] ) ) echo '<p class="description">Peticiones a la API de migración sin una clave válida (rechazadas, no cuentan como usos): ' . (int) $status['rejected']['count'] . ' desde el ' . esc_html( str_replace( 'T', ' ', substr( (string) $status['rejected']['since'], 0, 16 ) ) ) . ' UTC; la última, el ' . esc_html( str_replace( 'T', ' ', substr( (string) $status['rejected']['last'], 0, 16 ) ) ) . ' UTC desde ' . esc_html( (string) $status['rejected']['ip'] ) . '.</p>';
 		if ( ! $status['log'] ) echo '<p>Aún no hay usos.</p>';
 		else {
 			echo '<table class="widefat striped"><thead><tr><th>Fecha (UTC)</th><th>Clave</th><th>Evento</th><th>IP</th><th>Detalle</th></tr></thead><tbody>';
@@ -1181,6 +1420,8 @@ final class Digitalisimo_Backups_Migrate {
 	 */
 	public static function create_request() {
 		self::guard( self::ACTION_CREATE );
+		$token = isset( $_POST['form_token'] ) && is_string( $_POST['form_token'] ) ? strtolower( (string) $_POST['form_token'] ) : '';
+		if ( ! self::spend_form( $token ) ) Digitalisimo_Backups::redirect( false, '' === $token ? 'Recarga Backups → Migrar y vuelve a generar la clave.' : 'Esa página ya generó una clave (se muestra una sola vez; recargarla no crea otra). Si no la copiaste, revócala aquí y genera otra.', null, 'migrate' );
 		// En una red, la clave se lleva la red entera: esta pantalla es la de la red (alcance explícito, como migrar).
 		$result = Digitalisimo_Backups::service_migration_create_key( array( 'hours' => (int) ( $_POST['hours'] ?? self::DEFAULT_HOURS ), 'network' => is_multisite() ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, $result->get_error_message(), null, 'migrate' );
@@ -1198,6 +1439,16 @@ final class Digitalisimo_Backups_Migrate {
 		echo '<p><button type="button" onclick="var t=document.getElementById(\'clave\');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value);}this.textContent=\'Copiada\'">Copiar</button> · <a href="' . esc_url( $back ) . '">Volver a Backups → Migrar</a></p></body></html>';
 		if ( self::$end ) { call_user_func( self::$end ); return; }
 		exit;
+	}
+	/** Gasta el testigo de un formulario de «Generar clave»: false si falta, no es válido o ya se usó. */
+	private static function spend_form( $token ) {
+		if ( ! preg_match( '/^[0-9a-f]{32}$/D', (string) $token ) ) return false;
+		$hash = hash( 'sha256', (string) $token );
+		return true === self::change( function( &$state ) use ( $hash ) {
+			if ( in_array( $hash, $state['forms'], true ) ) return false;
+			$state['forms'] = array_slice( array_merge( $state['forms'], array( $hash ) ), -self::FORM_TOKENS );
+			return true;
+		} );
 	}
 	public static function revoke_request() {
 		self::guard( self::ACTION_REVOKE );
@@ -1222,7 +1473,7 @@ final class Digitalisimo_Backups_Migrate {
 		self::guard( self::ACTION_SETTINGS );
 		if ( is_multisite() && ! is_main_site() ) Digitalisimo_Backups::redirect( false, 'En una red, la migración se configura desde la administración de red.', null, 'migrate' );
 		self::set_allow_http( ! empty( $_POST['allow_http'] ) );
-		Digitalisimo_Backups::redirect( true, ! empty( $_POST['allow_http'] ) ? '«Permitir HTTP» activado: úsalo sólo en un laboratorio.' : 'La migración vuelve a exigir HTTPS.', null, 'migrate' );
+		Digitalisimo_Backups::redirect( true, ! empty( $_POST['allow_http'] ) ? 'Laboratorio activado (HTTP y direcciones internas): úsalo sólo en un laboratorio.' : 'La migración vuelve a exigir HTTPS y sitios públicos.', null, 'migrate' );
 	}
 }
 // La migración que este sitio tira de otro es un tipo de trabajo de la cola de «Trabajos».

@@ -6,8 +6,8 @@
  *
  *   (a) la clave: se muestra una sola vez; la base de datos guarda la huella de su credencial y nunca la clave; la
  *       clave del paquete vive envuelta en el almacén; nada de eso entra en el SQL de un respaldo;
- *   (b) autenticación: sin credencial o con otra, 401; la clave en la URL, 400; 5 fallos bloquean la clave; muchos
- *       fallos de cualquier origen cierran la API (429);
+ *   (b) autenticación: sin credencial o con otra, 401; la clave en la URL, 400; 5 fallos bloquean la clave; las
+ *       peticiones sin una clave válida nunca cierran la API ni entran en el registro de usos (contador aparte);
  *   (c) caducidad y (d) revocación: 410 y la clave del paquete y el paquete se borran;
  *   (e) una clave atada a una migración no sirve a otra (409);
  *   (f) migración completa por la pantalla de REST: el origen crea el paquete con su motor de trabajos, el destino lo
@@ -132,7 +132,7 @@ mig_case( 'a · la clave se muestra una vez y sólo su huella queda en la base d
 	} );
 } );
 
-mig_case( 'b · credencial ausente, equivocada, en la URL, bloqueo por clave y límite global', function() use ( &$all_needles ) {
+mig_case( 'b · credencial ausente, equivocada, en la URL, bloqueo por clave y sin límite global', function() use ( &$all_needles ) {
 	$second = mig_key();
 	$p = mig_parts( $second['key'] );
 	$all_needles = array_merge( $all_needles, $p['needles'] );
@@ -151,21 +151,18 @@ mig_case( 'b · credencial ausente, equivocada, en la URL, bloqueo por clave y l
 	$reply = mig_source( 'hello', $p['header'] );
 	mig_assert( 410 === $reply[0] && false !== strpos( $reply[1]['message'], 'bloqueó' ), 'Una clave bloqueada siguió sirviendo: ' . json_encode( $reply ) );
 	mig_in( 'origen', function() use ( $p ) { mig_assert( ! is_file( mig_storage() . '/migrations/' . $p['id'] . '.key' ), 'La clave del paquete de una clave bloqueada sigue en el almacén.' ); } );
-	// Límite global: con muchos fallos de cualquier origen la API se cierra, también para una clave válida.
+	// Sin límite global: muchas peticiones sin una clave válida no cierran la API para una clave válida ni entran en el
+	// registro de usos (sólo suman a un contador agregado).
 	$third = mig_key();
 	$q = mig_parts( $third['key'] );
 	$all_needles = array_merge( $all_needles, $q['needles'] );
-	for ( $i = 0; $i < Digitalisimo_Backups_Migrate::GLOBAL_FAILURES; $i++ ) mig_source( 'hello', bin2hex( random_bytes( 8 ) ) . '.' . Digitalisimo_Backups_Keys::b64url_encode( random_bytes( 32 ) ) );
+	$before = count( mig_state()['log'] );
+	$rejected = (int) ( mig_state()['rejected']['count'] ?? 0 );
+	for ( $i = 0; $i < 40; $i++ ) mig_source( 'hello', 0 === $i % 2 ? null : bin2hex( random_bytes( 8 ) ) . '.' . Digitalisimo_Backups_Keys::b64url_encode( random_bytes( 32 ) ) );
 	$reply = mig_source( 'hello', $q['header'] );
-	mig_assert( 429 === $reply[0], 'Tras ' . Digitalisimo_Backups_Migrate::GLOBAL_FAILURES . ' fallos la API siguió abierta: ' . $reply[0] );
-	// Pasada la ventana, vuelve a abrirse.
-	mig_in( 'origen', function() {
-		$state = get_option( 'digitalisimo_backups_vault_migration' );
-		$state['fails'] = array_map( function( $at ) { return $at - Digitalisimo_Backups_Migrate::WINDOW - 1; }, $state['fails'] );
-		update_option( 'digitalisimo_backups_vault_migration', $state );
-	} );
-	$reply = mig_source( 'hello', $q['header'] );
-	mig_assert( 200 === $reply[0], 'Pasada la ventana, la API no volvió a abrirse: ' . $reply[0] );
+	mig_assert( 200 === $reply[0], 'Tras 40 peticiones sin clave válida, la API no atendió a una clave válida: ' . $reply[0] );
+	$state = mig_state();
+	mig_assert( count( $state['log'] ) === $before + 1 && $rejected + 40 === (int) $state['rejected']['count'], 'Las peticiones sin clave válida entraron en el registro de usos o no se contaron aparte: ' . json_encode( array( count( $state['log'] ) - $before, $state['rejected'] ) ) );
 	$log = array_column( mig_state()['log'], 'event' );
 	mig_assert( in_array( 'auth_failed', $log, true ) && in_array( 'blocked', $log, true ) && in_array( 'hello', $log, true ), 'El registro no anota los usos y los fallos.' );
 	$GLOBALS['mig_third'] = $third;

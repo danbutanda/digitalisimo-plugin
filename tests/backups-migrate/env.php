@@ -197,7 +197,7 @@ function get_rest_url( $blog_id = null, $path = '' ) { return rest_url( $path );
 function is_ssl() { return true; }
 function get_bloginfo( $key ) { return '6.8'; }
 function is_multisite() { return (bool) $GLOBALS['bk_multisite']; }
-function is_main_site() { return true; }
+function is_main_site() { return $GLOBALS['mig']['main_site'] ?? true; }
 function is_main_network() { return true; }
 function is_network_admin() { return false; }
 function is_subdomain_install() { return ! empty( $GLOBALS['mig']['sites'][ mig_current() ]['subdomain'] ); }
@@ -365,6 +365,11 @@ function mig_transport( $method, $url, $args ) {
 		if ( null !== $changed ) { $out = $changed; break; }
 	}
 	if ( is_wp_error( $out ) ) return $out;
+	// Como WP_Http con `limit_response_size`: lo que pase del tope no se recibe.
+	if ( isset( $args['limit_response_size'] ) && strlen( (string) $out['body'] ) > (int) $args['limit_response_size'] ) {
+		$out['body'] = substr( (string) $out['body'], 0, (int) $args['limit_response_size'] );
+		$GLOBALS['mig']['truncated'][] = $route;
+	}
 	// Como WP_Http con `stream`: el cuerpo va al archivo pedido y la respuesta no lo lleva.
 	if ( ! empty( $args['stream'] ) && ! empty( $args['filename'] ) ) {
 		file_put_contents( $args['filename'], (string) $out['body'] );
@@ -379,6 +384,8 @@ require_once __DIR__ . '/../../digitalisimo-backups/includes/class-backups-rest.
 if ( class_exists( 'Digitalisimo_Backups_Rest' ) ) Digitalisimo_Backups_Rest::routes();
 if ( class_exists( 'Digitalisimo_Backups_Migrate' ) ) {
 	Digitalisimo_Backups_Migrate::$transport = 'mig_transport';
+	// DNS de las pruebas: cada host resuelve a una dirección pública de documentación salvo lo que fije una prueba.
+	if ( property_exists( 'Digitalisimo_Backups_Migrate', 'resolver' ) ) Digitalisimo_Backups_Migrate::$resolver = function( $host ) { return $GLOBALS['mig']['dns'][ $host ] ?? array( '192.0.2.10' ); };
 	Digitalisimo_Backups_Migrate::$pause = function() {};
 	Digitalisimo_Backups_Migrate::$end = function() { throw new Mig_Exit( 'fin' ); };
 }

@@ -55,6 +55,20 @@ mig_case( 'k · WP-CLI: comandos, ayuda y la clave nunca en la línea de órdene
 	}
 	list( $code, $out ) = digi_wp( $cmd, 'migrate', array(), array( 'yes' => true ) );
 	mig_assert( 1 === $code && false !== strpos( end( $out ), 'Falta la clave' ), 'migrate sin clave no explicó cómo pasarla.' );
+	// Los errores de la clave de migración nombran sus opciones, no las de la frase de un respaldo (P7).
+	list( $code, $out ) = digi_wp( $cmd, 'migrate', array(), array( 'from-key-file' => $GLOBALS['mig_root'] . '/no-existe.txt', 'yes' => true ) );
+	mig_assert( 1 === $code && false !== strpos( end( $out ), '--from-key-file' ) && false === strpos( implode( "\n", $out ), '--secret-file' ), 'El error de --from-key-file habla de otra opción: ' . implode( "\n", $out ) );
+	$empty = $GLOBALS['mig_root'] . '/stdin-vacio.txt';
+	file_put_contents( $empty, '' );
+	Digitalisimo_Backups_Cli::$stdin = $empty;
+	Digitalisimo_Backups_Cli::$tty = false;
+	try {
+		list( $code, $out ) = digi_wp( $cmd, 'migrate', array(), array( 'from-key-stdin' => true, 'yes' => true ) );
+	} finally {
+		Digitalisimo_Backups_Cli::$stdin = 'php://stdin';
+		Digitalisimo_Backups_Cli::$tty = null;
+	}
+	mig_assert( 1 === $code && false !== strpos( end( $out ), 'clave de migración' ) && false === strpos( implode( "\n", $out ), 'frase' ), 'El error de --from-key-stdin habla de la frase de un respaldo: ' . implode( "\n", $out ) );
 	// create-key --key-file: archivo nuevo 0600, sin imprimir la clave; uno que ya existe se rechaza y revoca la clave.
 	mig_use( 'origen' );
 	$file = $GLOBALS['mig_root'] . '/clave.txt';
@@ -106,15 +120,29 @@ mig_case( 'm · pantalla: generar, mostrar una vez, revocar, laboratorio, migrar
 	try { mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE ) ); throw new RuntimeException( 'FALLA: se generó una clave sin permiso.' ); } catch ( Mig_Die $die ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	$GLOBALS['bk_caps'] = array( 'manage_options' => true, 'manage_network_options' => true );
 	$keys_before = count( Digitalisimo_Backups_Migrate::keys() );
-	list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1 ) );
+	list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1, 'form_token' => bin2hex( random_bytes( 16 ) ) ) );
 	mig_assert( null === $ok && preg_match( '/>(DGMIG1\.[A-Za-z0-9_-]+)</', $page, $m ) && false !== strpos( $page, 'Se muestra una sola vez' ) && 1 === substr_count( $page, $m[1] ), 'La clave no se mostró una vez en su propia página.' );
 	$key = $m[1];
 	$secrets[] = $key;
 	mig_assert( count( Digitalisimo_Backups_Migrate::keys() ) === $keys_before + 1, 'La pantalla no generó la clave.' );
+	// Recargar la página de la clave reenvía el formulario con el mismo testigo: no crea otra (P6). Sin testigo, tampoco.
+	$token = bin2hex( random_bytes( 16 ) );
+	list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1, 'form_token' => $token ) );
+	mig_assert( null === $ok && preg_match( '/>(DGMIG1\.[A-Za-z0-9_-]+)</', $page, $again ), 'Un testigo nuevo no generó la clave.' );
+	$secrets[] = $again[1];
+	$count = count( Digitalisimo_Backups_Migrate::keys() );
+	list( $ok, $message ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1, 'form_token' => $token ) );
+	mig_assert( false === $ok && false !== strpos( $message, 'ya generó una clave' ) && count( Digitalisimo_Backups_Migrate::keys() ) === $count, 'Reenviar el formulario creó otra clave viva.' );
+	list( $ok, $message ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1 ) );
+	mig_assert( false === $ok && count( Digitalisimo_Backups_Migrate::keys() ) === $count, 'Un formulario sin testigo creó una clave.' );
+	Digitalisimo_Backups_Migrate::revoke( json_decode( Digitalisimo_Backups_Keys::b64url_decode( substr( $again[1], 7 ) ), true )['i'] );
 	ob_start();
 	Digitalisimo_Backups_Migrate::panel( false, mig_call( 'Digitalisimo_Backups', 'migration_status_data' ) );
 	$html = ob_get_clean();
 	mig_assert( false !== strpos( $html, 'Generar clave de migración' ) && false !== strpos( $html, 'Migrar desde otro sitio' ) && false !== strpos( $html, 'Registro de la migración' ) && false !== strpos( $html, 'Copia de pruebas (staging)' ), 'La pestaña «Migrar» no tiene sus tarjetas.' );
+	// La clave se pega en un área de texto (los gestores de contraseñas no ofrecen guardarla) y el formulario de
+	// «Generar clave» lleva su testigo (P9, P6).
+	mig_assert( preg_match( '/<textarea[^>]*name="migration_key"[^>]*autocomplete="off"/', $html ) && false === strpos( $html, 'type="password"' ) && preg_match( '/name="form_token" value="[0-9a-f]{32}"/', $html ), 'La clave se pega en un campo de contraseña o «Generar clave» no lleva testigo.' );
 	foreach ( $secrets as $secret ) mig_assert( false === strpos( $html, $secret ), 'La pestaña repitió una clave.' );
 	// Revocar y «Permitir HTTP» por admin-post.
 	$id = json_decode( Digitalisimo_Backups_Keys::b64url_decode( substr( $key, 7 ) ), true )['i'];
@@ -125,7 +153,7 @@ mig_case( 'm · pantalla: generar, mostrar una vez, revocar, laboratorio, migrar
 	mig_post( array( $M, 'settings_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_SETTINGS ) );
 	mig_assert( ! Digitalisimo_Backups_Migrate::allow_http(), '«Permitir HTTP» no se desactivó.' );
 	// Migrar desde la pantalla del destino: una clave mal formada no vuelve en la redirección; una buena encola.
-	list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE ) );
+	list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'form_token' => bin2hex( random_bytes( 16 ) ) ) );
 	preg_match( '/>(DGMIG1\.[A-Za-z0-9_-]+)</', $page, $m );
 	$secrets[] = $m[1];
 	mig_use( 'destino' );
@@ -168,7 +196,7 @@ mig_case( 'n · en una red, la pantalla de la red genera la clave (alcance de re
 	mig_use( 'destino' );
 	mig_use( 'origen' );
 	try {
-		list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1 ) );
+		list( $ok, $page ) = mig_post( array( $M, 'create_request' ), array( '_wpnonce' => 'nonce-' . $M::ACTION_CREATE, 'hours' => 1, 'form_token' => bin2hex( random_bytes( 16 ) ) ) );
 		mig_assert( null === $ok && preg_match( '/>(DGMIG1\.[A-Za-z0-9_-]+)</', $page ), 'La pantalla de la red no generó la clave: ' . substr( (string) $page, 0, 200 ) );
 		$reply = mig_rest( 'POST', 'digitalisimo-backups/v1/migration/keys', array() );
 		mig_assert( 400 === $reply[0] && 'digitalisimo_backups_scope' === $reply[1]['code'], 'REST generó una clave de la red sin el alcance de red.' );

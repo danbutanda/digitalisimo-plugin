@@ -54,14 +54,17 @@ final class Digitalisimo_Backups_Cli {
 	 * Frase o clave de un respaldo, tal cual (sólo se quita el salto de línea final). `--secret=<valor>` se rechaza:
 	 * quedaría en la lista de procesos y en el historial del shell.
 	 */
-	public static function secret( $assoc_args ) {
+	public static function secret( $assoc_args, array $words = array() ) {
+		// Textos de la opción que lo pidió: --secret-file/--secret-stdin (frase o clave de un respaldo) por defecto, o los de
+		// la clave de migración (--from-key-file/--from-key-stdin).
+		$words += array( 'file' => '--secret-file', 'stdin' => '--secret-stdin', 'what' => 'frase o clave', 'prompt' => 'Frase o clave del respaldo: ', 'empty' => 'La frase o clave del respaldo está vacía.' );
 		if ( array_key_exists( 'secret', $assoc_args ) ) WP_CLI::error( 'La frase o clave nunca va en la línea de órdenes, donde la verían otros procesos y el historial del shell. Usa --secret-file=<ruta> o --secret-stdin.' );
-		if ( isset( $assoc_args['secret-file'] ) && ! empty( $assoc_args['secret-stdin'] ) ) WP_CLI::error( 'Usa --secret-file o --secret-stdin, no los dos.' );
+		if ( isset( $assoc_args['secret-file'] ) && ! empty( $assoc_args['secret-stdin'] ) ) WP_CLI::error( 'Usa ' . $words['file'] . ' o ' . $words['stdin'] . ', no los dos.' );
 		if ( isset( $assoc_args['secret-file'] ) ) {
 			$path = (string) $assoc_args['secret-file'];
-			if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) WP_CLI::error( 'No se puede leer el archivo de --secret-file.' );
+			if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) WP_CLI::error( 'No se puede leer el archivo de ' . $words['file'] . '.' );
 			$secret = @file_get_contents( $path, false, null, 0, 65537 );
-			if ( false === $secret || strlen( $secret ) > 65536 ) WP_CLI::error( 'El archivo de --secret-file no se puede leer o es demasiado grande para una frase o clave.' );
+			if ( false === $secret || strlen( $secret ) > 65536 ) WP_CLI::error( 'El archivo de ' . $words['file'] . ' no se puede leer o es demasiado grande para una ' . $words['what'] . '.' );
 		} elseif ( ! empty( $assoc_args['secret-stdin'] ) ) {
 			// En una terminal se pide sin eco; por una tubería se lee la primera línea. En los dos casos, la línea tal cual:
 			// \cli\prompt() la recorta (trim), y la pantalla guarda la frase sin recortar, así que una frase con espacios
@@ -69,7 +72,7 @@ final class Digitalisimo_Backups_Cli {
 			$tty = null === self::$tty ? 'php://stdin' === self::$stdin && defined( 'STDIN' ) && function_exists( 'posix_isatty' ) && @posix_isatty( STDIN ) : (bool) self::$tty;
 			$hide = $tty && is_callable( array( 'cli\\Shell', 'hide' ) );
 			$handle = @fopen( self::$stdin, 'rb' );
-			if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, 'Frase o clave del respaldo: ' );
+			if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, $words['prompt'] );
 			if ( $hide ) \cli\Shell::hide();
 			try {
 				$secret = $handle ? fgets( $handle, 65537 ) : false;
@@ -78,12 +81,12 @@ final class Digitalisimo_Backups_Cli {
 				if ( $tty && defined( 'STDERR' ) ) fwrite( STDERR, "\n" );
 				if ( $handle ) fclose( $handle );
 			}
-			if ( false === $secret ) WP_CLI::error( 'No llegó ninguna frase o clave por la entrada estándar.' );
+			if ( false === $secret ) WP_CLI::error( 'No llegó ninguna ' . $words['what'] . ' por la entrada estándar.' );
 		} else {
 			return '';
 		}
 		$secret = preg_replace( '/\r?\n\z/', '', $secret );
-		if ( '' === $secret ) WP_CLI::error( 'La frase o clave del respaldo está vacía.' );
+		if ( '' === $secret ) WP_CLI::error( $words['empty'] );
 		return $secret;
 	}
 	/**
@@ -394,7 +397,7 @@ final class Digitalisimo_Backups_Cli {
 		if ( isset( $assoc_args['from-key-file'] ) ) $mapped['secret-file'] = $assoc_args['from-key-file'];
 		if ( ! empty( $assoc_args['from-key-stdin'] ) ) $mapped['secret-stdin'] = true;
 		if ( ! $mapped ) WP_CLI::error( 'Falta la clave de migración: --from-key-file=<ruta> o --from-key-stdin.' );
-		return self::secret( $mapped );
+		return self::secret( $mapped, array( 'file' => '--from-key-file', 'stdin' => '--from-key-stdin', 'what' => 'clave de migración', 'prompt' => 'Clave de migración: ', 'empty' => 'La clave de migración está vacía.' ) );
 	}
 
 	/**
@@ -581,7 +584,7 @@ final class Digitalisimo_Backups_Cli_Migration {
 		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_status() );
 		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) { WP_CLI::line( wp_json_encode( $status ) ); return; }
 		WP_CLI::line( 'Sitio: ' . $status['site'] . ( $status['multisite'] ? ' (red por ' . ( $status['subdomain_install'] ? 'subdominios' : 'subdirectorios' ) . ')' : '' ) );
-		WP_CLI::line( 'HTTPS: ' . ( $status['https'] ? 'sí' : 'no' ) . ( $status['allow_http'] ? ' · «Permitir HTTP» activado (laboratorio)' : '' ) );
+		WP_CLI::line( 'HTTPS: ' . ( $status['https'] ? 'sí' : 'no' ) . ( $status['allow_http'] ? ' · laboratorio activado (HTTP y direcciones internas)' : '' ) );
 		if ( '' !== $status['key_problem'] ) WP_CLI::warning( 'No puede generar claves: ' . $status['key_problem'] );
 		if ( '' !== $status['pull_problem'] ) WP_CLI::warning( 'No puede recibir una migración: ' . $status['pull_problem'] );
 		if ( $status['active'] ) WP_CLI::line( 'Migración en curso: ' . $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . $status['active']['percent'] . ' %)' );
@@ -613,11 +616,22 @@ final class Digitalisimo_Backups_Cli_Migration {
 		$note = 'Clave ' . substr( $result['id'], 0, 8 ) . ' de ' . $result['source'] . ', de un solo uso; caduca el ' . gmdate( 'Y-m-d H:i', (int) $result['expires'] ) . ' UTC.';
 		if ( isset( $assoc_args['key-file'] ) ) {
 			$path = (string) $assoc_args['key-file'];
+			// El archivo nace sólo legible por su dueño (umask) y se comprueba antes de escribir la clave: si no queda en
+			// 0600 (un sistema de archivos que no lo admite), se borra y la clave se revoca.
+			$mask = umask( 0077 );
 			$handle = '' !== $path ? @fopen( $path, 'xb' ) : false;
+			umask( $mask );
 			if ( ! $handle ) { Digitalisimo_Backups::service_migration_revoke_key( $result['id'] ); WP_CLI::error( 'No se pudo crear ' . $path . ' (debe ser un archivo nuevo). La clave se revocó.' ); }
 			@chmod( $path, 0600 );
-			fwrite( $handle, $result['key'] . "\n" );
+			clearstatcache( true, $path );
+			$private = 0 === ( (int) @fileperms( $path ) & 0077 ) || '\\' === DIRECTORY_SEPARATOR;
+			$written = $private ? fwrite( $handle, $result['key'] . "\n" ) : false;
 			fclose( $handle );
+			if ( ! $private || strlen( $result['key'] ) + 1 !== (int) $written ) {
+				@unlink( $path );
+				Digitalisimo_Backups::service_migration_revoke_key( $result['id'] );
+				WP_CLI::error( ! $private ? 'No se pudo dejar ' . $path . ' sólo legible por su dueño (0600). Se borró y la clave se revocó.' : 'No se pudo escribir la clave en ' . $path . '. Se borró y la clave se revocó.' );
+			}
 			WP_CLI::success( $note . ' Guardada en ' . $path . '.' );
 			return;
 		}

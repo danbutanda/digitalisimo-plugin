@@ -119,6 +119,16 @@ const migration = (overrides) => job(Object.assign({ id: 'cccccccc-dddd-4eee-8ff
 assert.ok(timers.length === 1, 'Tras cancelar, la pantalla sigue dando pasos');
 replies.push({ body: { success: true, data: { result: 'worked', jobs: [migration()] } } });
 await runTimer();
+// Un corte del proxy o el 503 del mantenimiento durante la restauración no es la sesión: se sigue reintentando (P3).
+replies.push({ ok: false, status: 504, body: '<html>Gateway Timeout</html>' });
+await runTimer();
+replies.push({ ok: false, status: 503, body: '<html>Mantenimiento</html>' });
+await runTimer();
+replies.push({ ok: false, status: 502, body: '<html>Bad gateway</html>' });
+await runTimer();
+assert.ok(timers.length === 1 && !texts(ids['digitalisimo-backups-jobs']).includes('inicia sesión'), 'Un corte del proxy o un 503 durante la restauración no deben dar la sesión por perdida ni dejar de sondear');
+replies.push({ body: { success: true, data: { result: 'worked', jobs: [migration()] } } });
+await runTimer();
 replies.push({ ok: false, status: 400, body: '-1' });
 await runTimer();
 assert.ok(timers.length === 1 && !texts(ids['digitalisimo-backups-jobs']).includes('inicia sesión'), 'Un primer fallo todavía se reintenta');
