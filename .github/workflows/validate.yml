@@ -312,6 +312,7 @@ jobs:
           php tests/backups-migrate.php
           php tests/backups-migrate-surfaces.php
           php tests/backups-migrate-hardening.php
+          php tests/backups-migrate-restore.php
           php tests/backups-site-extract.php
           php tests/backups-destinations.php
           php tests/backups-destinations-protocols.php

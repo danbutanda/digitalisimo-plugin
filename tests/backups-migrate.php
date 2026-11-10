@@ -279,7 +279,9 @@ mig_case( 'f · migración en un clic con cortes, reanudación y un byte alterad
 	$post = $GLOBALS['wpdb']->posts[7] ?? null;
 	mig_assert( $post && '<img src="https://destino.test/wp-content/uploads/2026/11/foto-origen.jpg"> origen.test.mx' === $post['post_content'] && 'https://origen.test/?p=7' === $post['guid'], 'El contenido no se reescribió o se tocó el guid o un dominio que sólo contiene al del origen: ' . json_encode( $post ) );
 	$real = $GLOBALS['mig']['sites']['destino']['real'];
-	mig_assert( is_file( $real . '/wp-content/uploads/2026/11/foto-origen.jpg' ) && is_file( $real . '/wp-content/plugins/solo-origen.php' ) && is_file( $real . '/wp-content/uploads/2026/11/solo-destino.txt' ), 'Los archivos del origen no llegaron al destino.' );
+	mig_assert( is_file( $real . '/wp-content/uploads/2026/11/foto-origen.jpg' ) && is_file( $real . '/wp-content/plugins/solo-origen.php' ), 'Los archivos del origen no llegaron al destino.' );
+	// El sitio se reemplaza por completo: un medio que sólo tenía el destino se retira (está en la copia previa).
+	mig_assert( ! is_file( $real . '/wp-content/uploads/2026/11/solo-destino.txt' ), 'Un medio propio del destino siguió tras migrar (el sitio no se reemplazó por completo).' );
 	mig_assert( ! is_file( $real . '/wp-content/uploads/elementor/css/post-7.css' ), 'El CSS generado con las URL del origen siguió en el destino.' );
 	mig_assert( false !== strpos( (string) file_get_contents( $real . '/wp-config.php' ), "'dst_'" ), 'La restauración tocó el wp-config.php del destino.' );
 	// La copia previa, bloqueada y marcada, es la que deshace la migración; el trabajo y la descarga no dejan restos.

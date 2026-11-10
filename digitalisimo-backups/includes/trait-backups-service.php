@@ -717,38 +717,66 @@ trait Digitalisimo_Backups_Service {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		if ( 'DESHACER' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe DESHACER para confirmar: este sitio vuelve al estado anterior a la migración.', 400 );
-		$row = Digitalisimo_Backups_Migrate::undo_target();
-		if ( ! $row ) return self::service_error( 'no_migration', 'No hay ninguna migración que deshacer en este sitio.', 404 );
-		$path = self::service_local_file( (string) $row['file'] );
-		if ( is_wp_error( $path ) ) return self::service_error( 'no_migration', 'La copia previa de la última migración (' . (string) $row['file'] . ') ya no está en el almacén.', 404 );
 		try { self::ensure_ready(); } catch ( Throwable $e ) { return self::service_error( 'not_ready', $e->getMessage(), 422 ); }
-		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 0 );
+		if ( function_exists( 'wp_raise_memory_limit' ) ) wp_raise_memory_limit( 'admin' );
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
+		// Tras una caída (H7): primero el detector de procesos muertos (un trabajo cuyo proceso murió deja de contar como
+		// en curso, o vuelve a la cola) y el cerrojo (que aplica el diario de una restauración interrumpida); después se
+		// decide qué deshacer, con el historial ya repuesto.
+		Digitalisimo_Backups_Jobs::recover_if_idle();
 		$lock = self::service_lock();
 		if ( is_wp_error( $lock ) ) return $lock;
 		$report = null;
+		$copies = self::service_safety_copies();
 		try {
-			if ( Digitalisimo_Backups_Jobs::has_active() ) return self::service_error( 'busy', 'Hay un respaldo o una migración pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de deshacer.', 409 );
+			$active = Digitalisimo_Backups_Jobs::active();
+			if ( $active ) {
+				// La restauración en curso (si la hay) es la que decide la salida: la de la migración o su vuelta a la copia previa.
+				$first = Digitalisimo_Backups_Jobs::restore_active() ?: $active[0];
+				$applying = 'migrate' === ( $first['spec']['kind'] ?? '' ) && in_array( (string) $first['phase'], array( 'restore', 'close' ), true );
+				if ( $applying ) $message = 'La migración se está aplicando (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine (su restauración se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
+				elseif ( Digitalisimo_Backups_Jobs::is_restore( $first ) ) $message = ! empty( $first['spec']['rollback'] ) ? 'El sitio está volviendo a su copia previa (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine.' : 'Hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): si es la de la migración, espera a que termine (se reanuda sola y, si falla, vuelve sola a la copia previa) y después deshazla.';
+				elseif ( 'migrate' === ( $first['spec']['kind'] ?? '' ) ) $message = 'Hay una migración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $first['phase'] ) . '): espera a que termine o cancélala en «Trabajos» antes de deshacer.';
+				else $message = 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de deshacer.';
+				return self::service_error( 'busy', $message, 409, array( 'job' => (string) $first['id'] ) );
+			}
+			$row = Digitalisimo_Backups_Migrate::undo_target();
+			if ( ! $row ) return self::service_error( 'no_migration', 'No hay ninguna migración que deshacer en este sitio.', 404 );
+			$path = self::service_local_file( (string) $row['file'] );
+			if ( is_wp_error( $path ) ) return self::service_error( 'no_migration', 'La copia previa de la última migración (' . (string) $row['file'] . ') ya no está en el almacén.', 404 );
 			try {
 				$report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ) );
 				Digitalisimo_Backups_Security::require_confirmation( $report, 'RESTAURAR' );
 			} catch ( Exception $e ) {
 				return self::service_error( 'invalid', $e->getMessage(), 422 );
 			}
-			$copies = self::service_safety_copies();
+			// Con el motor de «Restaurar» (por pasos, con su propia copia previa del estado migrado) y tablas exactas: lo
+			// que la migración trajo y la copia previa no tiene se retira, en archivos (núcleo, plugins, temas, mu-plugins,
+			// drop-ins, medios) y en tablas (H2). El sitio queda idéntico a su copia previa.
+			$safety_file = self::backup_file_name( 'safety-before-restore-' );
+			$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
 			try {
-				self::restore_digitalisimo_zip( $report['path'], $report );
+				$job = self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'exact_tables' => true, 'exact_files' => true ) );
 			} catch ( Throwable $e ) {
-				return self::service_safety_copies() > $copies ? self::service_error( 'restore_failed', $e->getMessage(), 500 ) : self::service_error( 'restore_rejected', $e->getMessage(), 422 );
+				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
 			}
-			self::history_update( (string) $row['file'], array( 'migration' => array_merge( (array) $row['migration'], array( 'state' => 'undone', 'undone_at' => time() ) ) ) );
+			self::history_update( (string) $row['file'], array( 'migration' => array_merge( (array) $row['migration'], array( 'state' => 'undoing', 'undo' => (string) $job['id'] ) ) ) );
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
 			try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
-		Digitalisimo_Backups_Migrate::note( 'undone', (string) $row['file'] );
-		return array( 'undone' => true, 'file' => (string) $row['file'], 'from' => (string) ( $row['migration']['from'] ?? '' ) );
+		Digitalisimo_Backups_Migrate::note( 'undo', (string) $row['file'] );
+		// Como «Restaurar»: los ticks de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
+		$job = self::restore_drive( $job['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
+		$outcome = self::restore_outcome( $job, $copies );
+		if ( is_wp_error( $outcome ) ) return $outcome;
+		$from = (string) ( $row['migration']['from'] ?? '' );
+		if ( ! empty( $outcome['restored'] ) ) {
+			self::history_update( (string) $row['file'], array( 'migration' => array_merge( (array) $row['migration'], array( 'state' => 'undone', 'undo' => (string) $job['id'], 'undone_at' => time() ) ) ) );
+			Digitalisimo_Backups_Migrate::note( 'undone', (string) $row['file'] );
+		}
+		return array_merge( $outcome, array( 'undone' => ! empty( $outcome['restored'] ), 'file' => (string) $row['file'], 'from' => $from ) );
 	}
 	/**
 	 * API del sitio de origen para el destino. No usa la sesión de WordPress: la autoriza la clave de migración

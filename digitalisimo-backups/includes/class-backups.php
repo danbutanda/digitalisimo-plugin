@@ -217,13 +217,20 @@ final class Digitalisimo_Backups {
 	/** @internal Requisitos de un respaldo completo: la copia previa de una migración y el paquete del origen lo son. */
 	public static function migration_ready() { self::ensure_ready(); }
 	/**
-	 * @internal Restaura el paquete ya abierto de una migración con el motor de «Restaurar»: inspección completa antes de
-	 * la copia previa (marcada con $migration para deshacerla) y recuperación si algo falla después. Este sitio conserva
-	 * su dirección.
+	 * @internal Encola la restauración del paquete ya abierto de una migración con el motor de «Restaurar» (por pasos):
+	 * direcciones de este sitio, copia previa bloqueada y marcada con $tag (la que «Deshacer la migración» restaura) y
+	 * tablas exactas. $except es el trabajo de la migración, que espera el resultado: no cuenta como otro trabajo a medias.
+	 * Lanza Exception si no se puede (otro trabajo en curso: «… en curso …»; o el paquete no sirve aquí).
 	 */
-	public static function migration_restore( array $report, array $migration ) {
-		self::restore_digitalisimo_zip( $report['path'], $report, array( 'safety_extra' => $migration ) );
+	public static function migration_enqueue( array $report, array $tag, $except ) {
+		$safety_file = self::backup_file_name( 'safety-before-restore-' );
+		$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
+		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'except' => (string) $except ) );
 	}
+	/** @internal La vuelta a la copia previa de una restauración que falló, si se encoló; si no, la restauración misma. */
+	public static function migration_followed( array $job ) { return self::restore_followed( $job ); }
+	/** @internal Cambia la marca de migración de la copia previa $file en el historial. */
+	public static function migration_mark( $file, array $tag ) { self::history_update( (string) $file, array( 'migration' => $tag ) ); }
 	/** @internal URL de la pantalla Backups (en el contexto de red si corresponde) con su pestaña. */
 	public static function admin_page_url( $tab = '' ) { $url = self::admin_url(); return '' !== $tab ? add_query_arg( 'tab', $tab, $url ) : $url; }
 	/** Traslada los respaldos anteriores; nunca deja un ZIP parcialmente copiado como válido. */

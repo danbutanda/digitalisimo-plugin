@@ -699,8 +699,9 @@ final class Digitalisimo_Backups_Cli_Migration {
 	 */
 	public function undo( $args, $assoc_args ) {
 		WP_CLI::confirm( '¿Deshacer la última migración y volver al estado anterior?', $assoc_args );
-		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'network' => ! empty( $assoc_args['network'] ) ) ) );
-		WP_CLI::success( 'Migración de ' . $result['from'] . ' deshecha con ' . $result['file'] . '. Revisa los enlaces permanentes.' );
+		// En WP-CLI la restauración de la copia previa avanza hasta terminar en este proceso (con sus reintentos).
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'drive_cli' => true ) ) );
+		WP_CLI::success( 'Migración de ' . $result['from'] . ' deshecha con ' . $result['file'] . '. Revisa los enlaces permanentes.' . ( '' !== (string) ( $result['notice'] ?? '' ) ? ' ' . $result['notice'] : '' ) );
 	}
 }
 

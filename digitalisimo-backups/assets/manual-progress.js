@@ -104,7 +104,7 @@
     card.insertBefore(note, list);
   }
   function update(jobs) {
-    migrating = jobs.some(function (job) { return job.kind === 'migration' && !job.terminal && ['check', 'restore', 'finish'].indexOf(job.phase) !== -1; });
+    migrating = jobs.some(function (job) { return job.kind === 'migration' && !job.terminal && ['check', 'restore', 'close'].indexOf(job.phase) !== -1; });
     renderJobs(jobs);
     showWatched(jobs);
     var active = jobs.filter(function (job) { return !job.terminal; });

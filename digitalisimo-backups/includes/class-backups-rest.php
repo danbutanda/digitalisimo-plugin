@@ -226,7 +226,9 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
 	}
 	public static function migration_undo( $request ) {
-		return self::respond( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) ) );
+		$result = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) );
+		// Como «Restaurar»: 202 si la restauración sigue en segundo plano (su trabajo y el testigo del mantenimiento van en la respuesta).
+		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}
 	private static function migration_action( $request ) {
 		$route = method_exists( $request, 'get_route' ) ? (string) $request->get_route() : (string) ( $request['_route'] ?? '' );

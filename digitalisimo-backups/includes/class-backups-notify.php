@@ -68,7 +68,7 @@ final class Digitalisimo_Backups_Notify {
 	 * clave); la migración que recibe el destino avisa con su propio texto (migration()).
 	 */
 	public static function mark( array $job ) {
-		if ( ! empty( $job['spec']['inline'] ) || 'source' === ( $job['spec']['migration']['role'] ?? '' ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
+		if ( ! empty( $job['spec']['inline'] ) || 'source' === ( $job['spec']['migration']['role'] ?? '' ) || ! empty( $job['spec']['safety_extra']['migration'] ) || ! in_array( $job['status'] ?? '', array( 'success', 'failed' ), true ) ) return $job;
 		$job['notice'] = 'pending';
 		return $job;
 	}
@@ -174,7 +174,7 @@ final class Digitalisimo_Backups_Notify {
 		}
 		$own = class_exists( 'Digitalisimo_Backups_Migrate' ) ? Digitalisimo_Backups_Migrate::job_phase( $phase ) : null;
 		if ( '' !== $phase ) $lines[] = 'Fase: ' . ( 'preflight' === $phase ? 'Conexión con el origen' : ( $own ? $own['label'] : Digitalisimo_Backups_Jobs::phase_label( $phase ) ) );
-		if ( ! in_array( $phase, array( 'restore', 'finish' ), true ) ) $lines[] = 'No se cambió nada de este sitio.';
+		if ( ! in_array( $phase, array( 'restore', 'close' ), true ) ) $lines[] = 'No se cambió nada de este sitio.';
 		$lines[] = 'Motivo: ' . self::clean( (string) ( $job['error']['message'] ?? 'La migración falló.' ) );
 		return self::send( $snapshot, false, 'La migración falló', $lines );
 	}

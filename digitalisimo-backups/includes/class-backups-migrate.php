@@ -76,15 +76,17 @@ final class Digitalisimo_Backups_Migrate {
 
 	/* ------------------------------------------------------------------ Tipo de trabajo `migrate` (Digitalisimo_Backups_Jobs::register_kind) */
 
-	public static function job_phases() { return array( 'preflight', 'remote', 'download', 'check', 'restore', 'finish' ); }
+	public static function job_phases() { return array( 'preflight', 'remote', 'download', 'check', 'restore', 'close' ); }
 	/** Datos de las fases propias (`preflight` es la del respaldo). Una restauración interrumpida no se repite sola. */
 	public static function job_phase( $phase ) {
 		$phases = array(
 			'remote' => array( 'label' => 'Paquete en el origen', 'floor' => 3, 'max' => 5, 'cancellable' => true, 'status' => 'running' ),
 			'download' => array( 'label' => 'Descarga', 'floor' => 40, 'max' => 5, 'cancellable' => true, 'status' => 'transferring' ),
 			'check' => array( 'label' => 'Comprobación del paquete', 'floor' => 75, 'max' => 3, 'cancellable' => true, 'status' => 'verifying' ),
-			'restore' => array( 'label' => 'Restauración', 'floor' => 78, 'max' => 1, 'cancellable' => false, 'status' => 'running', 'interrupted' => ' El sitio pudo quedar a medias: pulsa «Deshacer la migración» en Backups → Migrar (o `wp digitalisimo-backups migration undo`) para volver al estado anterior. Si el hosting corta las peticiones largas, migra con WP-CLI o con el cron del sistema.' ),
-			'finish' => array( 'label' => 'Cierre', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'running' ),
+			// La restauración es un trabajo del motor de restauración por pasos (copia previa, tablas temporales, cambio atómico,
+			// archivos, vuelta automática a la copia previa); esta fase lo encola y espera su resultado (repetirla no lo repite).
+			'restore' => array( 'label' => 'Restauración', 'floor' => 78, 'max' => 3, 'cancellable' => false, 'status' => 'running', 'refusal' => 'La migración ya se está aplicando con la restauración por pasos: su tarjeta en «Trabajos» se puede cancelar mientras no empiece a cambiar el sitio; si falla después, vuelve sola a la copia previa.', 'interrupted' => ' La restauración por pasos sigue sola (o vuelve a la copia previa); si el sitio quedó a medias, «Volver a la copia previa» en Backups lo recupera.' ),
+			'close' => array( 'label' => 'Cierre', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'running', 'refusal' => 'La migración ya se aplicó; sólo falta avisar al sitio de origen. Para volver atrás, usa «Deshacer la migración» en Backups → Migrar.' ),
 		);
 		return $phases[ $phase ] ?? null;
 	}
@@ -163,10 +165,27 @@ final class Digitalisimo_Backups_Migrate {
 	 * restore_digitalisimo_zip() lo guarda antes del SQL y after_restore_sql() lo devuelve (idempotente).
 	 */
 	private static $held = null;
-	public static function before_restore() { self::$held = Digitalisimo_Backups_Keys::get( self::OPTION, null ); }
-	public static function after_restore() {
-		if ( is_array( self::$held ) ) Digitalisimo_Backups_Keys::put( self::OPTION, self::$held );
+	public static function before_restore() {
+		self::$held = Digitalisimo_Backups_Keys::get( self::OPTION, null );
+		// También sellado en el almacén: si el proceso muere entre el cambio de tablas y la reposición, el diario de la
+		// restauración repone lo demás en la operación siguiente (otro proceso) y esto, el estado de la migración.
+		try {
+			if ( is_array( self::$held ) ) self::seal_file( self::held_file(), (string) wp_json_encode( self::$held ) );
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
+		}
 	}
+	public static function after_restore() {
+		$held = self::$held;
+		if ( ! is_array( $held ) ) {
+			$sealed = self::open_file( self::held_file() );
+			$held = is_string( $sealed ) ? json_decode( $sealed, true ) : null;
+		}
+		if ( is_array( $held ) ) Digitalisimo_Backups_Keys::put( self::OPTION, $held );
+		self::$held = null;
+		@unlink( self::held_file() );
+	}
+	private static function held_file() { return self::directory() . '/held.state'; }
 	/** Anota un evento en el registro (lo usan los casos de uso de deshacer). */
 	public static function note( $event, $detail = '' ) { self::log( '', $event, $detail ); }
 	public static function allow_http() { return self::state()['allow_http']; }
@@ -1037,7 +1056,7 @@ final class Digitalisimo_Backups_Migrate {
 			case 'download': return self::download( $job );
 			case 'check': return self::check( $job );
 			case 'restore': return self::restore( $job );
-			case 'finish': return self::finish( $job );
+			case 'close': return self::close( $job );
 		}
 		throw new Digitalisimo_Backups_Permanent_Error( 'La migración está en una fase desconocida.' );
 	}
@@ -1199,7 +1218,12 @@ final class Digitalisimo_Backups_Migrate {
 		if ( $got !== (int) $m[2] - $start + 1 ) throw new Exception( 'El fragmento llegó incompleto.' );
 		return $got;
 	}
-	/** Antes de descifrar: la cabecera DGBK dice que el paquete está cifrado con la clave pegada y su tamaño cuadra. */
+	/**
+	 * Antes de descifrar: la cabecera DGBK dice que el paquete está cifrado con la clave pegada. Y el turno: la migración
+	 * nunca reemplaza el sitio con otro trabajo a medias (H1, como «Restaurar» y «Deshacer»): un respaldo exportaría la
+	 * base de datos de antes y empaquetaría los archivos de después. Mientras otro trabajo esté en curso o en cola, espera
+	 * aquí, sin gastar intentos y todavía cancelable; la restauración que encola después impide que empiece otro.
+	 */
 	private static function check( array $job ) {
 		$final = self::work_dir( $job ) . '/package.dgbk';
 		if ( ! is_file( $final ) ) return array( 'next' => 'download', 'checkpoint' => array( 'missing' => time() ), 'message' => 'El paquete descargado desapareció; se descarga otra vez…' );
@@ -1214,55 +1238,107 @@ final class Digitalisimo_Backups_Migrate {
 			@unlink( $final );
 			throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no está cifrado con la clave de esta migración. No se cambió nada de este sitio.' );
 		}
-		return array( 'next' => 'restore', 'checkpoint' => array( 'at' => time() ), 'message' => 'Descifrando, comprobando la firma y restaurando con la copia previa…' );
+		$other = self::other_job( (string) $job['id'] );
+		if ( $other ) return array( 'next' => 'check', 'checkpoint' => array( 'at' => time(), 'waiting' => (string) $other['id'] ), 'wait' => 30, 'message' => 'Paquete comprobado. Esperando a que termine ' . $other['label'] . ' antes de reemplazar el sitio (una migración nunca convive con otro trabajo a medias)…' );
+		return array( 'next' => 'restore', 'checkpoint' => array( 'at' => time() ), 'message' => 'Descifrando, comprobando la firma y aplicando la migración con la restauración por pasos…' );
+	}
+	/** Otro trabajo sin terminar (en curso o en cola) además de la migración $id, con su nombre para el mensaje; o null. */
+	private static function other_job( $id ) {
+		foreach ( Digitalisimo_Backups_Jobs::active() as $other ) {
+			if ( (string) $other['id'] === (string) $id ) continue;
+			$label = Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'la restauración en curso' : ( 'migrate' === ( $other['spec']['kind'] ?? '' ) ? 'otra migración' : 'el respaldo pendiente o en curso' );
+			return array( 'id' => (string) $other['id'], 'label' => $label . ' (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'] ) . ')' );
+		}
+		return null;
 	}
 	/**
-	 * Descifra y comprueba la firma, y restaura con el mismo motor que «Restaurar»: todo lo que puede rechazar el paquete
-	 * ocurre antes de la copia previa; la copia previa (bloqueada y marcada como la de esta migración) es la que
-	 * «Deshacer la migración» restaura. Este sitio conserva su dirección. No se repite sola si se interrumpe.
+	 * Aplica la migración con el motor de «Restaurar» (la restauración por pasos de 1.0.64), sin camino propio: descifra y
+	 * comprueba la firma con la clave del paquete y encola una restauración del paquete (direcciones de este sitio; su
+	 * copia previa, bloqueada y marcada «restoring» con esta migración; tablas exactas: las de este sitio que el paquete
+	 * no trae se retiran con el cambio). Después espera su resultado: la restauración se reanuda sola tras una muerte y,
+	 * si falla tras empezar el cambio, vuelve sola a la copia previa. La marca pasa a «migrated» sólo si terminó bien
+	 * (H4): una migración que no se aplicó, o que volvió sola a su copia previa, nunca se ofrece para «Deshacer».
 	 */
 	private static function restore( array $job ) {
-		list( $auth, $root ) = self::pull_secrets( $job );
-		$path = self::work_dir( $job ) . '/package.dgbk';
-		$migration = $job['spec']['migration'];
-		$report = null;
-		$tag = array( 'job' => (string) $job['id'], 'from' => (string) ( $migration['source']['home'] ?? $migration['source_host'] ), 'at' => time(), 'state' => 'migrated' );
-		try {
+		$cursor = (array) ( $job['checkpoint']['restore'] ?? array() );
+		$restore_id = (string) ( $cursor['job'] ?? '' );
+		// El proceso pudo morir entre encolar la restauración y guardar el punto de control: nunca se encola dos veces.
+		if ( '' === $restore_id ) $restore_id = self::restore_of( (string) $job['id'] );
+		if ( '' === $restore_id ) {
+			$other = self::other_job( (string) $job['id'] );
+			if ( $other ) return array( 'next' => 'restore', 'checkpoint' => $cursor, 'wait' => 30, 'message' => 'Esperando a que termine ' . $other['label'] . ' antes de reemplazar el sitio…' );
+			$path = self::work_dir( $job ) . '/package.dgbk';
+			if ( ! is_file( $path ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete descargado ya no está en el almacén. No se cambió nada de este sitio: vuelve a pegar la clave.' );
+			list( $auth, $root ) = self::pull_secrets( $job );
+			Digitalisimo_Backups_Sodium::memzero( $auth );
+			$migration = $job['spec']['migration'];
+			$tag = array( 'job' => (string) $job['id'], 'from' => (string) ( $migration['source']['home'] ?? $migration['source_host'] ), 'at' => time(), 'state' => 'restoring' );
+			$report = null;
 			try {
-				$report = Digitalisimo_Backups_Security::open( $path, array(), base64_encode( $root ) );
-			} catch ( Exception $e ) {
-				throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no supera la comprobación de su cifrado o de su firma: ' . $e->getMessage() . ' No se cambió nada de este sitio.' );
-			}
-			if ( 'signed' !== $report['trust'] || 'migration' !== ( $report['key']['source'] ?? '' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no está firmado con la clave de esta migración. No se cambió nada de este sitio.' );
-			// La copia previa se crea con el motor de trabajos (run_inline) dentro de este paso, que queda en pausa.
-			$paused = Digitalisimo_Backups_Jobs::suspend();
-			try {
-				Digitalisimo_Backups::migration_restore( $report, array( 'migration' => $tag ) );
-			} catch ( Throwable $e ) {
-				$started = '' !== self::safety_of( (string) $job['id'] );
-				throw new Digitalisimo_Backups_Permanent_Error( $started ? $e->getMessage() : 'El paquete se rechazó antes de tocar este sitio: ' . $e->getMessage() );
+				try {
+					$report = Digitalisimo_Backups_Security::open( $path, array(), base64_encode( $root ) );
+				} catch ( Exception $e ) {
+					throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no supera la comprobación de su cifrado o de su firma: ' . $e->getMessage() . ' No se cambió nada de este sitio.' );
+				}
+				if ( 'signed' !== $report['trust'] || 'migration' !== ( $report['key']['source'] ?? '' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no está firmado con la clave de esta migración. No se cambió nada de este sitio.' );
+				try {
+					$restore = Digitalisimo_Backups::migration_enqueue( $report, $tag, (string) $job['id'] );
+				} catch ( Exception $e ) {
+					// Otro trabajo se adelantó entre la comprobación y aquí: se espera, nada cambió.
+					if ( false !== strpos( $e->getMessage(), 'en curso' ) ) return array( 'next' => 'restore', 'checkpoint' => $cursor, 'wait' => 30, 'message' => 'Esperando su turno para reemplazar el sitio: ' . $e->getMessage() );
+					throw new Digitalisimo_Backups_Permanent_Error( 'El paquete se rechazó antes de tocar este sitio: ' . $e->getMessage() );
+				}
 			} finally {
-				Digitalisimo_Backups_Jobs::resume( $paused );
+				Digitalisimo_Backups_Security::close( $report );
+				Digitalisimo_Backups_Sodium::memzero( $root );
 			}
-		} finally {
-			Digitalisimo_Backups_Security::close( $report );
-			Digitalisimo_Backups_Sodium::memzero( $root );
+			// El ZIP descifrado pasó al área de trabajo de la restauración; el paquete cifrado ya no hace falta.
+			@unlink( $path );
+			Digitalisimo_Backups_Jobs::schedule();
+			return array( 'next' => 'restore', 'checkpoint' => array( 'job' => (string) $restore['id'] ), 'progress_made' => true, 'wait' => 1, 'message' => 'Aplicando la migración con la restauración por pasos: copia previa, base de datos, archivos y cambio…' );
 		}
-		@unlink( $path );
+		$restore = Digitalisimo_Backups_Jobs::get( $restore_id );
+		if ( ! $restore ) throw new Digitalisimo_Backups_Permanent_Error( 'La restauración de esta migración ya no existe en «Trabajos».' );
+		$followed = Digitalisimo_Backups::migration_followed( $restore );
+		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $followed ) ) {
+			$view = Digitalisimo_Backups_Jobs::view( $followed );
+			$label = ! empty( $followed['spec']['rollback'] ) ? 'Volviendo a la copia previa' : 'Aplicando la migración';
+			Digitalisimo_Backups_Jobs::progress( 78 + (int) floor( 0.2 * max( 0, min( 100, (int) $view['percent'] ) ) ), $label . ': ' . (string) $view['phase_label'] . '…', true );
+			return array( 'next' => 'restore', 'checkpoint' => array( 'job' => $restore_id ), 'wait' => 5, 'message' => $label . ' (' . (string) $view['phase_label'] . ')…' );
+		}
+		if ( 'success' !== $restore['status'] ) {
+			$rolled = $followed !== $restore && 'success' === $followed['status'];
+			self::mark_safety( (string) $job['id'], array( 'state' => $rolled ? 'rolled_back' : 'failed', 'closed_at' => time() ) );
+			$why = is_array( $restore['error'] ?? null ) ? (string) $restore['error']['message'] : (string) ( $restore['progress']['message'] ?? '' );
+			if ( 'cancelled' === $restore['status'] ) throw new Digitalisimo_Backups_Permanent_Error( 'La restauración de la migración se canceló antes de cambiar el sitio. No se cambió nada de este sitio.' );
+			if ( $rolled ) throw new Digitalisimo_Backups_Permanent_Error( 'La migración no se aplicó: la restauración falló a mitad y el sitio volvió solo a su copia previa (' . self::safety_of( (string) $job['id'] ) . '); no hay nada que deshacer. ' . $why );
+			if ( $followed !== $restore ) throw new Digitalisimo_Backups_Permanent_Error( 'La migración falló a mitad y la vuelta a la copia previa también: el sitio sigue en mantenimiento. Usa «Volver a la copia previa» en Backups (o `wp digitalisimo-backups jobs rollback`). ' . ( is_array( $followed['error'] ?? null ) ? (string) $followed['error']['message'] : $why ) );
+			throw new Digitalisimo_Backups_Permanent_Error( 'El paquete se rechazó antes de tocar este sitio: ' . $why );
+		}
+		self::mark_safety( (string) $job['id'], array( 'state' => 'migrated', 'migrated_at' => time() ) );
+		$migration = $job['spec']['migration'];
 		$safety = self::safety_of( (string) $job['id'] );
+		$notice = (string) ( $restore['result']['restore']['notice'] ?? '' );
+		$message = 'Migración terminada: este sitio es ahora una copia de ' . $migration['source_host'] . ' con su propia dirección. Inicia sesión con un usuario del sitio de origen. La copia previa ' . $safety . ' la deshace.';
+		$warnings = '' !== $notice ? array( $notice ) : array();
 		// Tras el SQL la sesión del navegador ya no vale (los usuarios son los del origen): el cierre se intenta aquí mismo.
+		list( $auth ) = self::pull_secrets( $job );
 		$closed = self::close_on_source( $job, $auth );
 		Digitalisimo_Backups_Sodium::memzero( $auth );
-		$message = 'Migración terminada: este sitio es ahora una copia de ' . $migration['source_host'] . ' con su propia dirección. Inicia sesión con un usuario del sitio de origen. La copia previa ' . $safety . ' la deshace.';
 		if ( $closed ) {
 			self::forget_secrets( $job );
 			self::remove_work( $job );
-			return array( 'next' => null, 'checkpoint' => array( 'safety' => $safety, 'closed' => true ), 'result' => array( 'safety' => $safety, 'source' => $migration['source_host'] ), 'message' => $message );
+			return array( 'next' => null, 'checkpoint' => array( 'job' => $restore_id, 'safety' => $safety, 'closed' => true ), 'result' => array( 'safety' => $safety, 'source' => $migration['source_host'], 'restore' => $restore_id ), 'warnings' => $warnings, 'message' => $message );
 		}
-		return array( 'next' => 'finish', 'checkpoint' => array( 'safety' => $safety ), 'result' => array( 'safety' => $safety, 'source' => $migration['source_host'] ), 'message' => $message );
+		return array( 'next' => 'close', 'checkpoint' => array( 'job' => $restore_id, 'safety' => $safety ), 'result' => array( 'safety' => $safety, 'source' => $migration['source_host'], 'restore' => $restore_id ), 'warnings' => $warnings, 'message' => $message );
+	}
+	/** La restauración que ya encoló la migración $id (su copia previa lleva la marca), o ''. */
+	private static function restore_of( $id ) {
+		foreach ( Digitalisimo_Backups_Jobs::all() as $other ) if ( Digitalisimo_Backups_Jobs::is_restore( $other ) && empty( $other['spec']['rollback'] ) && (string) ( $other['spec']['safety_extra']['migration']['job'] ?? '' ) === (string) $id ) return (string) $other['id'];
+		return '';
 	}
 	/** Avisa al origen de que la clave quedó usada. Un fallo después de restaurar nunca deshace nada: la clave caduca sola. */
-	private static function finish( array $job ) {
+	private static function close( array $job ) {
 		list( $auth ) = self::pull_secrets( $job );
 		$closed = false;
 		$error = '';
@@ -1275,7 +1351,7 @@ final class Digitalisimo_Backups_Migrate {
 			$error = $e->getMessage();
 		}
 		Digitalisimo_Backups_Sodium::memzero( $auth );
-		$attempt = (int) ( $job['attempts']['finish'] ?? 0 ) + 1;
+		$attempt = (int) ( $job['attempts']['close'] ?? 0 ) + 1;
 		if ( ! $closed && $attempt < 3 ) throw new Exception( $error );
 		self::forget_secrets( $job );
 		self::remove_work( $job );
@@ -1294,8 +1370,18 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/** Copia previa que creó la restauración del trabajo $job_id ('' si aún no hay). */
 	public static function safety_of( $job_id ) {
-		foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) if ( (string) ( $row['migration']['job'] ?? '' ) === (string) $job_id ) return (string) ( $row['file'] ?? '' );
-		return '';
+		$row = self::safety_row( $job_id );
+		return $row ? (string) ( $row['file'] ?? '' ) : '';
+	}
+	private static function safety_row( $job_id ) {
+		foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) if ( (string) ( $row['migration']['job'] ?? '' ) === (string) $job_id ) return $row;
+		return null;
+	}
+	/** Cambia la marca de la copia previa de la migración $job_id (estado y lo que se añada). */
+	private static function mark_safety( $job_id, array $changes ) {
+		$row = self::safety_row( $job_id );
+		if ( ! $row ) return;
+		Digitalisimo_Backups::migration_mark( (string) $row['file'], array_merge( (array) $row['migration'], $changes ) );
 	}
 	private static function remove_work( array $job ) {
 		try { Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( (string) $job['id'] ) . '/download' ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
@@ -1310,7 +1396,11 @@ final class Digitalisimo_Backups_Migrate {
 	 */
 	public static function on_terminal( array $job, $status, $message ) {
 		try {
-			if ( ! in_array( (string) ( $job['phase'] ?? '' ), array( 'restore', 'finish' ), true ) && ! empty( $job['checkpoint']['preflight'] ) ) {
+			// Si la migración no llegó a aplicarse (antes de restaurar, o la restauración falló o volvió a la copia previa), la
+			// clave vuelve a servir para otro intento.
+			$row = self::safety_row( (string) $job['id'] );
+			$applied = 'close' === (string) ( $job['phase'] ?? '' ) || ( $row && 'migrated' === self::effective_state( $row ) );
+			if ( ! $applied && ! empty( $job['checkpoint']['preflight'] ) ) {
 				list( $auth ) = self::pull_secrets( $job );
 				try { self::call( $job['spec']['migration'], $auth, (string) $job['id'], 'release', 'POST', array(), 10 ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 				Digitalisimo_Backups_Sodium::memzero( $auth );
@@ -1329,10 +1419,31 @@ final class Digitalisimo_Backups_Migrate {
 	public static function undo_target() {
 		foreach ( (array) get_option( Digitalisimo_Backups::HISTORY, array() ) as $row ) {
 			if ( ! is_array( $row['migration'] ?? null ) ) continue;
-			if ( 'migrated' !== ( $row['migration']['state'] ?? '' ) ) return null;
-			return $row;
+			return 'migrated' === self::effective_state( $row ) ? $row : null;
 		}
 		return null;
+	}
+	/**
+	 * Estado real de la migración de una copia previa marcada. La marca se escribe al crear la copia («restoring») y la
+	 * cambia la migración al ver el resultado («migrated», «rolled_back», «failed») o «Deshacer» («undoing», «undone»);
+	 * si nadie la cambió (el trabajo de la migración no volvió a correr), lo dice el trabajo de la restauración: sólo
+	 * una restauración terminada es una migración aplicada (H4), y un «Deshacer» terminado la deshizo.
+	 */
+	public static function effective_state( array $row ) {
+		$tag = (array) ( $row['migration'] ?? array() );
+		$state = (string) ( $tag['state'] ?? '' );
+		if ( 'restoring' === $state ) {
+			$restore = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $row['job'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $row['job'] ) : null;
+			if ( $restore && 'success' === $restore['status'] ) return 'migrated';
+			return $restore && ! Digitalisimo_Backups_Job_Store::is_terminal( $restore ) ? 'restoring' : 'not_applied';
+		}
+		if ( 'undoing' === $state ) {
+			$undo = Digitalisimo_Backups_Job_Store::valid_id( (string) ( $tag['undo'] ?? '' ) ) ? Digitalisimo_Backups_Jobs::get( (string) $tag['undo'] ) : null;
+			if ( $undo && 'success' === $undo['status'] ) return 'undone';
+			// Un «Deshacer» que falló antes del cambio, o que volvió solo a su copia previa, dejó la migración como estaba.
+			return $undo && ! Digitalisimo_Backups_Job_Store::is_terminal( $undo ) ? 'undoing' : 'migrated';
+		}
+		return $state;
 	}
 
 	/* ------------------------------------------------------------------ Pantalla */
@@ -1340,7 +1451,7 @@ final class Digitalisimo_Backups_Migrate {
 	private static function megabytes( $bytes ) { return Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $bytes ); }
 	private static function filter( $hook, $value ) { return function_exists( 'apply_filters' ) ? apply_filters( $hook, $value ) : $value; }
 	private static function event_label( $event ) {
-		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => 'Laboratorio activado (HTTP y direcciones internas)', 'lab_off' => 'Laboratorio desactivado', 'taken_over' => 'Otro destino retomó una clave abandonada', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida' );
+		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => 'Laboratorio activado (HTTP y direcciones internas)', 'lab_off' => 'Laboratorio desactivado', 'taken_over' => 'Otro destino retomó una clave abandonada', 'undo' => 'Deshacer la migración: en curso', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida' );
 		return $labels[ $event ] ?? $event;
 	}
 	/** Peticiones sin una clave válida (agregadas, fuera del registro de usos): cuántas, desde cuándo, la última e IP. */
@@ -1468,8 +1579,9 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	public static function undo_request() {
 		self::guard( self::ACTION_UNDO );
-		$result = Digitalisimo_Backups::service_migration_undo( array( 'network' => is_multisite(), 'confirm' => 'DESHACER' ) );
+		$result = Digitalisimo_Backups::service_migration_undo( array( 'network' => is_multisite(), 'confirm' => 'DESHACER', 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, 'No se deshizo la migración: ' . $result->get_error_message(), null, 'migrate' );
+		if ( ! empty( $result['restoring'] ) ) Digitalisimo_Backups::redirect( true, 'Deshaciendo la migración: la copia previa ' . $result['file'] . ' se está restaurando por pasos (su avance está en «Trabajos»; WP-Cron la continúa). Al terminar, inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
 		Digitalisimo_Backups::redirect( true, 'Migración deshecha: el sitio volvió al estado de ' . $result['file'] . '. Inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
 	}
 	public static function settings_request() {

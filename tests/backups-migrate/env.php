@@ -32,92 +32,76 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 define( 'DAY_IN_SECONDS', 86400 );
 
-/** Base de datos simulada de un sitio: `<prefijo>options` sale de las opciones del sitio en curso y `<prefijo>posts` es suya. */
-class Mig_DB {
-	public $base_prefix;
-	public $prefix;
-	public $last_error = '';
-	public $queries = array();
-	public $posts = array();
-	/** Simula que el proceso muere en esta sentencia (exit no ejecuta ningún finally). */
-	public $fail_on = '';
-	public function __construct( $prefix, array $posts ) { $this->base_prefix = $prefix; $this->prefix = $prefix; $this->posts = $posts; }
-	public function tables() { return array( $this->base_prefix . 'options', $this->base_prefix . 'posts' ); }
-	public function get_col( $query ) {
-		if ( 0 === strpos( $query, 'SHOW TABLES' ) ) return $this->tables();
-		return array();
+require_once __DIR__ . '/../lib/backups-sqlite.php';
+/**
+ * Base de datos de un sitio: SQLite de verdad (Bk_Sqlite_DB, la de las pruebas de E1 y de la restauración por pasos), así
+ * que el motor de restauración crea sus tablas temporales, las cambia con un RENAME TABLE y retira lo que sobra como en
+ * MySQL. `<prefijo>options` es la tabla de las opciones del sitio en curso (las de get_option() de la prueba): antes de
+ * una sentencia que la nombra se vuelca desde las opciones y, después de una que la cambia (o la cambia de nombre), las
+ * opciones salen de ella. `->posts` lee y escribe `<prefijo>posts` (ID, post_content, guid).
+ */
+class Mig_DB extends Bk_Sqlite_DB {
+	public function __construct( $prefix, array $posts ) {
+		parent::__construct( $GLOBALS['mig_root'] . '/db-' . $prefix . bin2hex( random_bytes( 4 ) ) . '.sqlite', $prefix );
+		$this->pdo->exec( 'CREATE TABLE `' . $prefix . 'options` (`option_id` INTEGER PRIMARY KEY, `option_name` varchar(191) NOT NULL UNIQUE, `option_value` longtext NOT NULL)' );
+		$this->pdo->exec( 'CREATE TABLE `' . $prefix . "posts` (`ID` INTEGER PRIMARY KEY, `post_content` longtext, `guid` varchar(255) NOT NULL DEFAULT '')" );
+		$this->posts = $posts;
 	}
-	public function prepare( $query, ...$args ) {
-		foreach ( $args as $arg ) $query = preg_replace( '/%[sd]/', is_int( $arg ) ? (string) $arg : "'" . addslashes( (string) $arg ) . "'", $query, 1 );
-		return $query;
-	}
-	private function table_of( $query ) { preg_match( '/`([^`]+)`/', $query, $m ); return $m[1] ?? ''; }
-	public function get_row( $query, $format = null ) {
-		$this->last_error = '';
-		if ( false !== strpos( $query, 'SHOW TABLE STATUS' ) ) return array( 'Engine' => 'InnoDB' );
-		$table = $this->table_of( $query );
-		if ( $this->base_prefix . 'options' === $table ) return array( $table, "CREATE TABLE `" . $table . "` (\n  `option_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `option_name` varchar(191) NOT NULL DEFAULT '',\n  `option_value` longtext NOT NULL,\n  PRIMARY KEY (`option_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" );
-		return array( $table, "CREATE TABLE `" . $table . "` (\n  `ID` bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  `post_content` longtext,\n  `guid` varchar(255) NOT NULL DEFAULT '',\n  PRIMARY KEY (`ID`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" );
-	}
-	public function option_rows() {
+	public function tables() { return $this->names(); }
+	public function get_blog_prefix( $blog_id = null ) { return $this->base_prefix; }
+	public function __get( $name ) {
+		if ( 'posts' !== $name ) return null;
 		$rows = array();
-		$id = 0;
-		foreach ( $GLOBALS['bk_options'] as $name => $value ) $rows[] = array( 'option_id' => (string) ++$id, 'option_name' => (string) $name, 'option_value' => is_scalar( $value ) ? (string) $value : serialize( $value ) );
+		if ( in_array( $this->base_prefix . 'posts', $this->names(), true ) ) foreach ( $this->rows( $this->base_prefix . 'posts' ) as $row ) $rows[ (int) $row['ID'] ] = array_map( function( $v ) { return null === $v ? null : (string) $v; }, $row );
+		ksort( $rows );
 		return $rows;
 	}
-	public function get_results( $query, $format = null ) {
-		$this->last_error = '';
-		if ( false !== strpos( $query, 'SHOW INDEX' ) ) return array( array( 'Key_name' => 'PRIMARY', 'Column_name' => false !== strpos( $query, 'options' ) ? 'option_id' : 'ID', 'Non_unique' => 0, 'Seq_in_index' => 1 ) );
-		if ( false !== strpos( $query, 'SHOW COLUMNS' ) ) {
-			if ( false !== strpos( $query, 'options' ) ) return array( array( 'Field' => 'option_id', 'Type' => 'bigint(20)', 'Key' => 'PRI' ), array( 'Field' => 'option_name', 'Type' => 'varchar(191)', 'Key' => '' ), array( 'Field' => 'option_value', 'Type' => 'longtext', 'Key' => '' ) );
-			return array( array( 'Field' => 'ID', 'Type' => 'bigint(20)', 'Key' => 'PRI' ), array( 'Field' => 'post_content', 'Type' => 'longtext', 'Key' => '' ), array( 'Field' => 'guid', 'Type' => 'varchar(255)', 'Key' => '' ) );
-		}
-		if ( preg_match( '/LIMIT [1-9]\d*, /', $query ) ) return array();
-		$table = $this->table_of( $query );
-		if ( $this->base_prefix . 'options' === $table ) return $this->option_rows();
-		if ( $this->base_prefix . 'posts' === $table ) return array_values( $this->posts );
-		return array();
+	public function __set( $name, $value ) {
+		if ( 'posts' !== $name ) { $this->$name = $value; return; }
+		$this->pdo->exec( 'DELETE FROM "' . $this->base_prefix . 'posts"' );
+		$this->seed( $this->base_prefix . 'posts', array_values( array_map( function( $row ) { return array( 'ID' => (int) $row['ID'], 'post_content' => (string) ( $row['post_content'] ?? '' ), 'guid' => (string) ( $row['guid'] ?? '' ) ); }, (array) $value ) ) );
 	}
-	public function get_var( $query ) { return 0; }
-	public function db_version() { return '8.0'; }
-	public function suppress_errors( $suppress = true ) { return false; }
-	public function get_blog_prefix( $blog_id = null ) { return $this->base_prefix; }
 	public function query( $sql ) {
-		$this->queries[] = $sql;
-		$this->last_error = '';
-		if ( '' !== $this->fail_on && false !== strpos( $sql, $this->fail_on ) ) { $this->last_error = 'Fallo simulado'; return false; }
-		$options = $this->base_prefix . 'options';
-		$posts = $this->base_prefix . 'posts';
-		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `' . $options . '`' ) ) { $GLOBALS['bk_options'] = array(); return 1; }
-		if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS `' . $posts . '`' ) ) { $this->posts = array(); return 1; }
-		if ( preg_match( '/^INSERT INTO `([^`]+)` \(([^)]*)\) VALUES \((.*)\);?\s*$/s', $sql, $m ) ) {
-			if ( ! in_array( $m[1], array( $options, $posts ), true ) ) { $this->last_error = 'Tabla desconocida ' . $m[1]; return false; }
-			$columns = array_map( function( $c ) { return trim( $c, '` ' ); }, explode( ',', $m[2] ) );
-			preg_match_all( "/'((?:[^'\\\\]|\\\\.)*)'|NULL/s", $m[3], $values );
-			$row = array();
-			foreach ( $columns as $i => $column ) $row[ $column ] = 'NULL' === ( $values[0][ $i ] ?? 'NULL' ) ? null : mig_sql_unescape( $values[1][ $i ] );
-			if ( $options === $m[1] ) {
+		$this->before( $sql );
+		$result = parent::query( $sql );
+		$this->after( $sql );
+		return $result;
+	}
+	public function get_results( $sql, $output = 'OBJECT' ) {
+		$this->before( $sql );
+		return parent::get_results( $sql, $output );
+	}
+	private function options_table() { return $this->base_prefix . 'options'; }
+	private function names_options( $sql ) { return false !== strpos( (string) $sql, $this->options_table() ); }
+	/** Antes de leerla (o de cambiarla de nombre), la tabla tiene las opciones del sitio en curso. */
+	private function before( $sql ) {
+		if ( ! $this->names_options( $sql ) || ! in_array( $this->options_table(), $this->names(), true ) ) return;
+		$table = '"' . $this->options_table() . '"';
+		$this->pdo->exec( 'DELETE FROM ' . $table );
+		$insert = $this->pdo->prepare( 'INSERT INTO ' . $table . ' ("option_name", "option_value") VALUES (?, ?)' );
+		foreach ( $GLOBALS['bk_options'] as $name => $value ) $insert->execute( array( (string) $name, is_scalar( $value ) || null === $value ? (string) $value : serialize( $value ) ) );
+	}
+	/** Después de cambiarla (importar, cambiar tablas, borrar), las opciones del sitio en curso salen de ella. */
+	private function after( $sql ) {
+		if ( ! $this->names_options( $sql ) || ! preg_match( '/^\s*(?:INSERT|UPDATE|DELETE|DROP|CREATE|RENAME|ALTER|REPLACE|TRUNCATE)\b/i', (string) $sql ) ) return;
+		$options = array();
+		if ( in_array( $this->options_table(), $this->names(), true ) ) {
+			foreach ( $this->rows( $this->options_table() ) as $row ) {
 				$value = (string) $row['option_value'];
 				$unserialized = @unserialize( $value );
-				$GLOBALS['bk_options'][ (string) $row['option_name'] ] = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
-			} else {
-				$this->posts[ (int) $row['ID'] ] = $row;
+				$options[ (string) $row['option_name'] ] = false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
 			}
-			return 1;
 		}
-		if ( preg_match( "/^UPDATE `" . preg_quote( $options, '/' ) . "` SET option_value = '((?:[^'\\\\]|\\\\.)*)' WHERE option_name = '((?:[^'\\\\]|\\\\.)*)'$/s", $sql, $m ) ) {
-			$GLOBALS['bk_options'][ stripslashes( $m[2] ) ] = stripslashes( $m[1] );
-			return 1;
-		}
-		return 0 === strpos( $sql, 'DELETE' ) ? 0 : 1;
+		$GLOBALS['bk_options'] = $options;
 	}
 }
 function mig_sql_unescape( $value ) { return strtr( $value, array( '\\\\' => '\\', '\\0' => "\0", '\\n' => "\n", '\\r' => "\r", '\\Z' => "\x1a", "\\'" => "'", '\\"' => '"' ) ); }
 
 /** Los dos sitios: carpeta real, opciones, red y base de datos. */
 $GLOBALS['mig'] = array( 'current' => '', 'sites' => array(), 'requests' => array(), 'faults' => array() );
-function mig_site( $name, $host, $prefix, array $extra_files = array() ) {
-	$real = $GLOBALS['mig_root'] . '/' . $name;
+function mig_site( $name, $host, $prefix, array $extra_files = array(), $suffix = '' ) {
+	// $suffix: otra carpeta para el mismo sitio (una prueba que empieza de cero en cada caso).
+	$real = $GLOBALS['mig_root'] . '/' . $name . $suffix;
 	foreach ( array( 'wp-admin', 'wp-includes', 'wp-content/plugins', 'wp-content/themes/tema', 'wp-content/uploads/2026/11' ) as $dir ) @mkdir( $real . '/' . $dir, 0700, true );
 	$files = array(
 		'wp-config.php' => "<?php\ndefine( 'DB_NAME', 'wordpress_test' );\ndefine( 'AUTH_KEY', '" . AUTH_KEY . "' );\ndefine( 'SECURE_AUTH_KEY', '" . SECURE_AUTH_KEY . "' );\n\$table_prefix = '" . $prefix . "';\n",
@@ -245,6 +229,8 @@ function current_user_can( $cap ) { return ! empty( $GLOBALS['bk_caps'][ $cap ] 
 function wp_get_referer() { return ''; }
 function size_format( $bytes ) { return number_format( $bytes / 1048576, 1 ) . ' MB'; }
 function add_action() { return true; }
+/** Acciones que una prueba engancha (`\$GLOBALS['mig_actions'][ hook ]`), p. ej. el paso de una unidad de la restauración. */
+function do_action( $hook, ...$args ) { if ( isset( $GLOBALS['mig_actions'][ $hook ] ) ) call_user_func_array( $GLOBALS['mig_actions'][ $hook ], $args ); }
 function add_filter() { return true; }
 function nocache_headers() { return true; }
 function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['bk_filters'] ) ? $GLOBALS['bk_filters'][ $hook ] : $value; }

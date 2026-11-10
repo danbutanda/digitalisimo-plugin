@@ -156,9 +156,10 @@ final class Digitalisimo_Backups_Jobs {
 	 * con el trabajo ya creado y antes de soltar el cerrojo (deja en su área de trabajo lo que la petición tiene, como el
 	 * ZIP descifrado); si lanza, el trabajo se retira.
 	 */
-	public static function enqueue_restore( array $spec, $prepare = null ) {
-		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec, $prepare ) {
-			$active = self::active();
+	public static function enqueue_restore( array $spec, $prepare = null, $except = '' ) {
+		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec, $prepare, $except ) {
+			// $except: el trabajo que pide la restauración y espera su resultado (una migración) no cuenta como otro a medias.
+			$active = array_values( array_filter( self::active(), function( $job ) use ( $except ) { return '' === (string) $except || (string) $job['id'] !== (string) $except; } ) );
 			if ( $active ) return array( 'busy' => true, 'job' => $active[0] );
 			$job = Digitalisimo_Backups_Job_Store::create( self::blank( Digitalisimo_Backups_Job_Store::new_id(), $spec, 'queued', 'restore' ) );
 			try {
@@ -656,7 +657,8 @@ final class Digitalisimo_Backups_Jobs {
 			if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return array( 'ok' => false, 'code' => 'terminal', 'message' => 'El trabajo ya terminó.' );
 			if ( ! empty( $job['spec']['inline'] ) ) return array( 'ok' => false, 'code' => 'inline', 'message' => 'La copia previa de una restauración no se puede cancelar.' );
 			if ( self::is_restore( $job ) && ! self::cancellable_phase( $job['phase'], $job ) ) return array( 'ok' => false, 'code' => 'restoring', 'message' => ! empty( $job['spec']['rollback'] ) ? 'La vuelta a la copia previa no se puede cancelar: deja el sitio como estaba antes de restaurar.' : 'La restauración ya está cambiando el sitio; no se puede cancelar a mitad. Termina sola o, si falla, vuelve a la copia previa.' );
-			if ( ! self::cancellable_phase( $job['phase'], $job ) ) return array( 'ok' => false, 'code' => 'verified', 'message' => 'El respaldo ya está verificado y registrado; si no lo quieres, elimínalo desde el historial cuando termine.' );
+			// Un tipo registrado (la migración) explica con su propio texto por qué esa fase no se cancela (H7).
+			if ( ! self::cancellable_phase( $job['phase'], $job ) ) return array( 'ok' => false, 'code' => 'verified', 'message' => (string) ( ( self::kind_handler( (array) $job['spec'] ) ? self::phase_info( (string) $job['phase'] )['refusal'] ?? '' : '' ) ?: 'El respaldo ya está verificado y registrado; si no lo quieres, elimínalo desde el historial cuando termine.' ) );
 			Digitalisimo_Backups_Job_Store::request_cancel( $id );
 			$job['cancel_requested_at'] = time();
 			if ( empty( $job['lease'] ) ) {
