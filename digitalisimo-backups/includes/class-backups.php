@@ -1009,12 +1009,36 @@ final class Digitalisimo_Backups {
 		if ( ! is_array( $tables ) ) return $tables;
 		global $wpdb;
 		$prefix = is_object( $wpdb ) ? (string) ( $wpdb->base_prefix ?? ( $wpdb->prefix ?? '' ) ) : '';
-		return array_values( array_filter( $tables, function( $table ) use ( $prefix ) {
+		// Otra instalación de WordPress en la misma base con un prefijo que empieza por el de este sitio (wp_ y wp_dev_): sus
+		// tablas no son de este sitio y su respaldo no las lleva (la lista que se mira es la que se pasa: la de SHOW TABLES).
+		$neighbors = self::other_installation_prefixes( $tables, $prefix );
+		return array_values( array_filter( $tables, function( $table ) use ( $prefix, $neighbors ) {
 			$table = (string) $table;
+			foreach ( $neighbors as $neighbor ) if ( 0 === strncmp( $table, $neighbor, strlen( $neighbor ) ) ) return false;
 			if ( preg_match( '/(?:^|_)dgbk[ro]_[0-9a-f]{6}_[0-9]{3,}$/D', $table ) ) return false;
 			foreach ( array( 'dgbkr_', 'dgbko_' ) as $temporary ) if ( 0 === strpos( $table, $prefix . $temporary ) ) return false;
 			return true;
 		} ) );
+	}
+	/**
+	 * Prefijos de otras instalaciones de WordPress en la misma base de datos que empiezan por `$base` (`wp_` y `wp_dev_`,
+	 * `dst_` y `dst_otro_`): las que tienen entre `$tables` su `<prefijo>options` con `siteurl`. En una red,
+	 * `<base><número>_` son sus propios subsitios, nunca otra instalación. Una tabla que no se puede leer no cuenta.
+	 */
+	public static function other_installation_prefixes( array $tables, $base ) {
+		global $wpdb;
+		$base = (string) $base;
+		$others = array();
+		if ( '' === $base || ! is_object( $wpdb ) ) return $others;
+		foreach ( $tables as $table ) {
+			if ( ! preg_match( '/^' . preg_quote( $base, '/' ) . '(.+_)options$/D', (string) $table, $m ) ) continue;
+			if ( is_multisite() && preg_match( '/^[0-9]+_$/D', $m[1] ) ) continue;
+			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+			$siteurl = $wpdb->get_var( 'SELECT option_value FROM `' . str_replace( '`', '``', (string) $table ) . "` WHERE option_name = 'siteurl' LIMIT 1" );
+			if ( null !== $suppress ) $wpdb->suppress_errors( $suppress );
+			if ( null !== $siteurl && '' !== (string) $siteurl ) $others[] = $base . $m[1];
+		}
+		return array_values( array_unique( $others ) );
 	}
 	/** @internal Fase «database»: SQL por filas dentro de la instantánea, escrito en el área de trabajo privada. */
 	public static function job_export_database( $path, $spec = null ) {

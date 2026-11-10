@@ -560,9 +560,26 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$own_prefix = (string) ( $data['table_prefix'] ?? '' );
 		$foreign = '' === $own_prefix ? array() : array_values( array_filter( $tables, function( $table ) use ( $own_prefix ) { return 0 !== strncmp( $table, $own_prefix, strlen( $own_prefix ) ); } ) );
 		$tables = array_values( array_diff( $tables, $foreign ) );
-		self::restore_write_json( $job, 'foreign.json', $foreign );
 		$map = $tables;
 		if ( ! $rollback && ! empty( $plan ) && $plan->needed() ) $map = array_values( self::restore_dest_names( $plan, $tables ) );
+		// Otra instalación de WordPress en esta base de datos con un prefijo que empieza por el de este sitio (wp_ y wp_dev_):
+		// sus tablas nunca se restauran ni se tocan, aunque el respaldo las traiga (los anteriores a 1.0.65 respaldaban todas
+		// las tablas de la base y las daban por propias); se informa.
+		$neighbors = self::other_installation_prefixes( (array) $wpdb->get_col( 'SHOW TABLES' ), (string) $wpdb->base_prefix );
+		$neighbor_tables = array();
+		if ( $neighbors ) {
+			$kept_tables = array();
+			$kept_map = array();
+			foreach ( $tables as $n => $table ) {
+				foreach ( $neighbors as $neighbor ) if ( 0 === strncmp( (string) $map[ $n ], $neighbor, strlen( $neighbor ) ) ) { $neighbor_tables[] = $table; continue 2; }
+				$kept_tables[] = $table;
+				$kept_map[] = $map[ $n ];
+			}
+			$tables = $kept_tables;
+			$map = $kept_map;
+		}
+		self::restore_write_json( $job, 'foreign.json', array_merge( $foreign, $neighbor_tables ) );
+		self::restore_write_json( $job, 'neighbors.json', array( 'prefixes' => $neighbors, 'tables' => $neighbor_tables ) );
 		$base = (string) $wpdb->base_prefix;
 		$tag = (string) $job['spec']['tag'];
 		$rows = array();
@@ -2182,7 +2199,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$protected = (array) ( $switch['protected'] ?? array() );
 		foreach ( $protected as $relative => $name ) $notice .= ' Se conservó ' . $relative . ', que el respaldo no tiene, porque ' . $name . ' lo carga (auto_prepend_file o auto_append_file); retíralo junto con esa línea si ya no lo usas.';
-		$foreign = (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() );
+		$neighbors = (array) ( self::restore_read_json( $job, 'neighbors.json', false ) ?? array() );
+		if ( ! empty( $neighbors['prefixes'] ) ) $notice .= ' No se tocaron las tablas de otra instalación de WordPress que comparte la base de datos (' . implode( ', ', array_map( function( $prefix ) { return $prefix . '*'; }, array_slice( (array) $neighbors['prefixes'], 0, 5 ) ) ) . ')' . ( ! empty( $neighbors['tables'] ) ? ': el respaldo traía ' . count( (array) $neighbors['tables'] ) . ' tabla(s) suyas, que no se restauraron' : '' ) . '.';
+		$foreign = array_values( array_diff( (array) ( self::restore_read_json( $job, 'foreign.json', false ) ?? array() ), (array) ( $neighbors['tables'] ?? array() ) ) );
 		if ( $foreign ) $notice .= ' No se restauraron ' . count( $foreign ) . ' tabla(s) de otra aplicación que traía el respaldo (sin el prefijo de este WordPress): ' . implode( ', ', array_slice( $foreign, 0, 10 ) ) . ( count( $foreign ) > 10 ? '…' : '' ) . '.';
 		$safety = ! empty( $spec['rollback'] ) ? basename( (string) $spec['file'] ) : self::restore_safety_file( $job );
 		if ( $count ) $notice .= ' Se retiraron ' . $count . ' archivo(s) que el respaldo no tenía' . ( $kept ? '' : ': están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) ) . '.';
