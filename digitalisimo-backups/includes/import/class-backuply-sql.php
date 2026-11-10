@@ -19,9 +19,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Memoria: una sentencia se lee entera en el búfer (es lo único que ocupa su tamaño) y un INSERT se traduce en una sola
  * pasada sobre ese búfer, sin copiar la sentencia ni decodificar sus valores: cada cadena pasa del escape de Backuply al
- * del exportador por trozos de 256 KB que van directos a la salida. La sentencia más grande que se acepta es un tercio de
- * la memoria que queda libre (menos una reserva), comprobado antes de cada lectura; una mayor se rechaza con un error
- * claro que pide WP-CLI o el cron del sistema, nunca con un error fatal de memoria.
+ * del exportador por trozos de 256 KB que van directos a la salida. La sentencia más grande que se acepta es dos quintos
+ * de la memoria que queda libre (menos una reserva de 3 MB), comprobado antes de cada lectura; una mayor se rechaza con
+ * un error claro que pide WP-CLI o el cron del sistema, nunca con un error fatal de memoria.
  *
  * Por tramos: el punto de control está siempre en una frontera de sentencia (posición en el SQL de entrada, bytes ya
  * escritos, columnas de cada tabla y contadores); tras una muerte se trunca la salida y se sigue desde ahí.
@@ -55,15 +55,15 @@ final class Digitalisimo_Backups_Backuply_Sql {
 	public function state() { return $this->state; }
 
 	/** Reserva de memoria que la traducción nunca toca (lo que necesitan el guardián, el escritor y el motor). */
-	const RESERVE = 4194304;
+	const RESERVE = 3145728;
 	const PIECE = 262144;
 	/**
-	 * Mayor sentencia de entrada que cabe ahora: un tercio de la memoria libre menos la reserva (el búfer, y su copia
-	 * mientras PHP lo agranda), como mucho 64 MB. Sin `memory_limit`, 64 MB.
+	 * Mayor sentencia de entrada que cabe ahora: dos quintos de la memoria libre menos la reserva (el búfer, su copia
+	 * mientras PHP lo agranda y el trozo que se lee), como mucho 64 MB. Sin `memory_limit`, 64 MB.
 	 */
 	public static function max_statement() {
 		$limit = Digitalisimo_Backups_Step_Budget::memory_limit();
-		$max = $limit ? (int) floor( ( $limit - memory_get_usage( true ) - self::RESERVE ) / 3 ) : 67108864;
+		$max = $limit ? (int) floor( ( $limit - memory_get_usage( true ) - self::RESERVE ) * 2 / 5 ) : 67108864;
 		$max = (int) min( 67108864, max( 0, $max ) );
 		return (int) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_import_max_statement', $max ) : $max );
 	}

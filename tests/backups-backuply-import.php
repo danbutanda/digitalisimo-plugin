@@ -26,10 +26,10 @@
  *   B8  nombres reales de Backuply (`wp_midominio.com.mx_…`, `wp_empresa.co.uk_…`) con el sanitize_file_name() de
  *       WordPress (su regla de extensiones intermedias), también en una red sin `tar` en upload_filetypes: «Importar»,
  *       la subida, restaurar y eliminar encuentran el archivo;
- *   B9  memoria: con memory_limit=64M y unos 48 MB ya ocupados (como WordPress y la revisión), una fila de 2 MB con
- *       comillas y barras se importa idéntica, una de 4 MB de texto se importa o se rechaza con el aviso de WP-CLI y una
- *       de 9 MB se rechaza así, nunca con un error fatal (procesos hijos, como la CI); un wp-config.php de 1 MB de
- *       tokens tampoco agota la memoria;
+ *   B9  memoria: con memory_limit=64M y 48 MB ya ocupados (como WordPress y la revisión), una fila de 2 MB con
+ *       comillas y barras se importa idéntica, también con 52 MB ocupados; una de 4 MB de texto se importa o se rechaza
+ *       con el aviso de WP-CLI y una de 9 MB se rechaza así, nunca con un error fatal (procesos hijos, como la CI); un
+ *       wp-config.php de 1 MB de tokens tampoco agota la memoria;
  *   B10 la descompresión no vuelve al principio en cada tramo: con el primer miembro gzip dañado después de pasarlo, la
  *       importación termina;
  *   B11 una red sin MULTISITE en wp-config.php (sus tablas blogs y site) y un respaldo sin wp-config.php (encima de
@@ -324,8 +324,8 @@ function bi_child( $case ) {
 			$file = bi_store_file( 'memoria.tar.gz', bi_gz( bi_tar( bi_entries( 'memoria', array( 'sql' => $sql ) ) ) ) );
 			unset( $sql );
 			gc_collect_cycles();
-			// «apretado»: 4 MB más de lastre (unos 52 MB ocupados): 0301ad78 moría aquí con un error fatal.
-			$ballast = str_repeat( 'w', ( 'apretado' === $case ? 44 : 40 ) * 1048576 );
+			// Lastre hasta 48 MB ocupados (como en la revisión) o, «apretado», 52 MB: 0301ad78 moría ahí con un error fatal.
+			$ballast = str_repeat( 'w', (int) max( 0, ( 'apretado' === $case ? 52 : 48 ) * 1048576 - memory_get_usage( true ) ) );
 			$out['used'] = memory_get_usage( true );
 			$job = bi_import( $file, 'store' );
 			unset( $ballast );
@@ -629,7 +629,7 @@ bi_case( 'B8 nombres reales de Backuply con el sanitize_file_name() de WordPress
 bi_case( 'B9 memoria acotada con memory_limit=64M (procesos hijos)', function() {
 	if ( ! function_exists( 'proc_open' ) || ! is_executable( PHP_BINARY ) ) { echo "  · sin proc_open o PHP_BINARY (php-wasm): se omite\n"; return; }
 	// true: se importa; null: se importa o se rechaza con el aviso de WP-CLI (nunca un error fatal); false: se rechaza.
-	foreach ( array( 'comillas' => true, 'apretado' => null, 'texto' => null, 'grande' => false, 'config' => true ) as $case => $fits ) {
+	foreach ( array( 'comillas' => true, 'apretado' => true, 'texto' => null, 'grande' => false, 'config' => true ) as $case => $fits ) {
 		$proc = proc_open( array( PHP_BINARY, '-d', 'memory_limit=64M', __FILE__, '--memoria=' . $case ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
 		$stdout = stream_get_contents( $pipes[1] );
 		$stderr = stream_get_contents( $pipes[2] );
