@@ -22,7 +22,10 @@
  *   (j) si la clave del servidor de la sesión cambia después de conectar, la siguiente operación se corta sin hacer nada;
  *   (k) revisión P3: un servidor que sólo ofrece hmac-md5 no se acepta;
  *   (l) revisión P1: un borrado que falla por permisos (y stat tampoco ve el archivo) es un error, no «ya no existe»;
- *   (m) revisión P2: sin OpenSSL el cliente incluido no sube un respaldo grande y la pantalla lo avisa.
+ *   (m) revisión P2: sin OpenSSL el cliente incluido no sube un respaldo grande y la pantalla lo avisa;
+ *   (n) H20 del ensayo E3: la subida va por tramos (cada uno hasta su plazo) con el estado en el área del trabajo, cada
+ *       tramo en una conexión nueva (otro tick); una muerte a mitad de un tramo no repite lo que el servidor ya tiene; la
+ *       verificación también va por tramos y al final se publica la copia íntegra.
  * Sin sshd/ssh-keygen sólo corren los casos sin servidor, salvo en la CI (CI=true, el workflow lo instala) o con
  * BK_REQUIRE_SSHD=1.
  */
@@ -290,6 +293,46 @@ if ( '' === $sshd || '' === $keygen ) {
 		}
 		$check( false !== strpos( $outcome, 'OpenSSL' ) && ! glob( $root . '/remote/backups/*' ), 'Sin OpenSSL subió un respaldo grande: ' . $outcome );
 		$check( false !== strpos( $help, 'no tiene la extensión OpenSSL' ), 'La pantalla no avisa de la falta de OpenSSL.' );
+		@unlink( $big );
+	} );
+
+	$case( 'n', function() use ( $check, $base, $key, $context, $sha256, $root, $parts ) {
+		$big = $root . '/digitalisimo-backup-tramos.zip';
+		$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 6; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fwrite( $h, random_bytes( 4321 ) ); fclose( $h );
+		$state_path = $root . '/private/transfer.json';
+		$die = 2;
+		$sliced = array( 'state' => new Digitalisimo_Backups_Transfer_State( $state_path ), 'progress' => function( $percent, $message ) use ( &$die ) { if ( 0 === --$die ) throw new RuntimeException( 'proceso muerto' ); } ) + $context;
+		$receipt = null;
+		$slices = 0;
+		$resumed_at = null;
+		$first_after = null;
+		for ( $i = 0; $i < 60 && ! $receipt; $i++ ) {
+			$before = $parts();
+			$before_size = $before ? filesize( $before[0] ) : 0;
+			$destination = new Digitalisimo_Backups_Destination_Sftp( $base + $key + array( 'sftp_fingerprint' => $sha256['ed25519'] ), $sliced );
+			$destination->set_deadline( microtime( true ) - 1 ); // Plazo vencido: cada tramo avanza el mínimo (un MiB).
+			try {
+				$receipt = $destination->put( $big );
+			} catch ( Digitalisimo_Backups_Transfer_Pending $e ) {
+				$slices++;
+			} catch ( RuntimeException $e ) {
+				if ( 'proceso muerto' !== $e->getMessage() ) throw $e;
+				clearstatcache();
+				$after = $parts();
+				$check( $after && filesize( $after[0] ) > $before_size, 'La muerte simulada no dejó nada nuevo en el servidor.' );
+				$resumed_at = filesize( $after[0] );
+				continue;
+			}
+			if ( null !== $resumed_at && null === $first_after ) {
+				$state = json_decode( (string) @file_get_contents( $state_path ), true );
+				$first_after = (int) ( $state['offset'] ?? 0 );
+				$check( $first_after > $resumed_at && (int) ( $state['sent'] ?? 0 ) <= filesize( $big ), 'Tras la muerte no siguió desde lo que el servidor ya tenía: ' . json_encode( array( $first_after, $resumed_at, $state['sent'] ?? null ) ) );
+			}
+		}
+		clearstatcache();
+		$check( $receipt && $slices >= 4 && null !== $resumed_at && is_file( $receipt['path'] ) && hash_file( 'sha256', $big ) === hash_file( 'sha256', $receipt['path'] ) && hash_file( 'sha256', $big ) === $receipt['sha256'], 'La subida por tramos no publicó la copia verificada: ' . json_encode( array( $slices, $resumed_at, $receipt ) ) );
+		$check( ! $parts() && ! is_file( $state_path ), 'Tras publicar quedó el temporal o el estado de la subida.' );
+		@unlink( $receipt['path'] );
 		@unlink( $big );
 	} );
 

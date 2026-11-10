@@ -207,6 +207,14 @@ abstract class Digitalisimo_Backups_Destination {
 	 * comprobar con el cerrojo del historial que puede borrar, para que el borrado sea una sola petición justo después.
 	 */
 	public function prepare() {}
+	/**
+	 * Plazo (microtime) del tramo de una subida por tramos: el destino que lo admite (SFTP) se detiene ahí con
+	 * Digitalisimo_Backups_Transfer_Pending y sigue en la llamada siguiente desde lo confirmado. INF: hasta terminar.
+	 */
+	public function set_deadline( $deadline ) {
+		$this->context['deadline'] = (float) $deadline;
+		return $this;
+	}
 
 	/** Verificación por defecto: descarga a un temporal privado y compara tamaño y SHA-256. */
 	public function verify( array $remote, $file, array $source ) {

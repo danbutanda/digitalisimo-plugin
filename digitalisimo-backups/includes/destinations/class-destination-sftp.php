@@ -299,6 +299,153 @@ final class Digitalisimo_Backups_Destination_Sftp extends Digitalisimo_Backups_D
 
 	/* ------------------------------------------------------------------ Contrato */
 
+	/**
+	 * Subida por tramos y reanudable (H20 del ensayo E3: 45–55 s para 183–198 MB en un solo tick, y una muerte a mitad
+	 * volvía a subirlo todo). Con los dos motores:
+	 * - el temporal `<nombre>.part-<aleatorio>` y lo hecho viven en el estado reanudable del trabajo;
+	 * - cada llamada sube hasta el plazo del tramo (set_deadline(); sin plazo, hasta terminar), siempre desde el tamaño que
+	 *   el servidor ya tiene del temporal: una muerte no repite lo subido;
+	 * - después compara la copia remota con el ZIP local bloque a bloque, también por tramos y desde donde quedó (el ZIP
+	 *   local tiene el SHA-256 registrado, así que la copia remota tiene el mismo); un bloque distinto descarta el temporal;
+	 * - sólo entonces comprueba el tamaño y renombra al nombre final.
+	 * Un tramo que no termina lanza Digitalisimo_Backups_Transfer_Pending (la fase «transfer» sigue en el tick siguiente).
+	 */
+	public function put( $file, $name = '' ) {
+		$name = '' !== (string) $name ? (string) $name : self::basename( $file );
+		self::client_class(); // Sus excepciones (la copia no coincide) también sirven al motor ssh2.
+		$deadline = isset( $this->context['deadline'] ) ? (float) $this->context['deadline'] : INF;
+		clearstatcache( true, $file );
+		$size = @filesize( $file );
+		$mtime = (int) @filemtime( $file );
+		if ( false === $size ) throw new Exception( 'No se puede verificar el ZIP local antes de subirlo.' );
+		$size = (int) $size;
+		$state = $this->state();
+		$same = ( $state['type'] ?? '' ) === self::TYPE && ( $state['connection'] ?? '' ) === (string) $this->context['connection'] && (int) ( $state['size'] ?? -1 ) === $size && (int) ( $state['mtime'] ?? -1 ) === $mtime && ( $state['name'] ?? '' ) === $name && ! empty( $state['temp']['path'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) ( $state['sha256'] ?? '' ) ) && in_array( $state['stage'] ?? '', array( 'upload', 'verify' ), true );
+		if ( ! $same ) {
+			$source = $this->source( $file );
+			$state = array( 'connection' => (string) $this->context['connection'], 'size' => $size, 'mtime' => $mtime, 'sha256' => $source['sha256'], 'name' => $name, 'temp' => array( 'provider' => self::TYPE, 'path' => self::temporary_name( rtrim( $this->directory(), '/' ) . '/' . $name ) ), 'stage' => 'upload', 'offset' => 0, 'verified' => 0, 'sent' => 0 );
+			$this->save_state( $state );
+		}
+		$temp = $state['temp'];
+		$path = $this->own( $temp );
+		$progress = function( $done ) use ( $size ) { $this->progress( $done, $size ); };
+		try {
+			if ( 'upload' === $state['stage'] ) {
+				$have = $this->size( $temp );
+				$offset = false === $have ? 0 : (int) $have;
+				if ( $offset > $size ) { $this->discard_quietly( $temp ); $offset = 0; }
+				$reached = $this->lib() ? $this->client()->upload_from( $file, $path, $offset, $size, $deadline, $progress ) : $this->ssh2_write_from( $file, $path, $offset, $size, $deadline, $progress );
+				$state['sent'] = (int) ( $state['sent'] ?? 0 ) + max( 0, $reached - $offset );
+				$state['offset'] = $reached;
+				if ( $reached < $size ) {
+					$this->save_state( $state );
+					throw new Digitalisimo_Backups_Transfer_Pending( 'Subidos ' . self::bytes( $reached ) . ' de ' . self::bytes( $size ) . ' a SFTP; sigue en el próximo paso…' );
+				}
+				$state['stage'] = 'verify';
+				$state['verified'] = 0;
+				$this->save_state( $state );
+			}
+			$have = $this->size( $temp );
+			if ( false !== $have && (int) $have !== $size ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no tiene el tamaño del ZIP local.' );
+			$verify = function( $done ) use ( $size ) { $this->progress( $done, $size, 'Verificados' ); };
+			$checked = $this->lib() ? $this->client()->compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify ) : $this->ssh2_compare_from( $file, $path, (int) $state['verified'], $size, $deadline, $verify );
+			if ( $checked < $size ) {
+				$state['verified'] = $checked;
+				$this->save_state( $state );
+				throw new Digitalisimo_Backups_Transfer_Pending( 'Verificados ' . self::bytes( $checked ) . ' de ' . self::bytes( $size ) . ' en SFTP; sigue en el próximo paso…' );
+			}
+		} catch ( Digitalisimo_Backups_Job_Cancelled $e ) {
+			// Cancelado: el temporal no queda en el servidor (otra sesión si la de ahora se cortó a mitad).
+			$this->drop_client();
+			$this->discard_quietly( $temp );
+			$this->forget_state();
+			throw $e;
+		} catch ( Digitalisimo_Backups_Sftp_Mismatch $e ) {
+			$this->discard_quietly( $temp );
+			$this->discard_stale();
+			$this->forget_state();
+			throw new Exception( $e->getMessage() );
+		} catch ( Digitalisimo_Backups_Transfer_Pending $e ) {
+			throw $e;
+		} catch ( Throwable $e ) {
+			// Un corte (red, tiempo agotado): el temporal y lo hecho se quedan para seguir desde ahí.
+			$this->drop_client();
+			throw $e;
+		}
+		$receipt = $this->publish( $temp, $name );
+		$this->discard_stale();
+		$this->forget_state();
+		return $receipt + array( 'provider' => self::TYPE, 'connection' => (string) $this->context['connection'], 'sha256' => (string) $state['sha256'], 'size' => $size );
+	}
+	/** Tramo de subida con la extensión ssh2: desde $offset (sin truncar) hasta $deadline o el final; devuelve lo alcanzado. */
+	private function ssh2_write_from( $file, $path, $offset, $size, $deadline, $tick ) {
+		$this->session();
+		$handle = @fopen( $file, 'rb' );
+		$target = @fopen( $this->url( $path ), $offset > 0 ? 'r+b' : 'wb' );
+		if ( ! $handle || ! $target || ( $offset > 0 && ( 0 !== fseek( $handle, $offset ) || 0 !== fseek( $target, $offset ) ) ) ) {
+			if ( $handle ) fclose( $handle );
+			if ( $target ) fclose( $target );
+			throw new Exception( 'No se pudo abrir el archivo local o el destino SFTP.' );
+		}
+		$position = (int) $offset;
+		$minimum = $position + self::BLOCK;
+		try {
+			while ( $position < $size && ( $position < $minimum || microtime( true ) < $deadline ) ) {
+				$block = fread( $handle, (int) min( self::BLOCK, $size - $position ) );
+				if ( false === $block || '' === $block ) break;
+				$length = strlen( $block );
+				for ( $done = 0; $done < $length; $done += $written ) {
+					$written = @fwrite( $target, 0 === $done ? $block : substr( $block, $done ) );
+					if ( false === $written || 0 === $written ) throw new Exception( 'La transferencia SFTP quedó incompleta.' );
+				}
+				$position += $length;
+				unset( $block );
+				if ( is_callable( $tick ) ) call_user_func( $tick, $position );
+			}
+			if ( ! @fflush( $target ) ) throw new Exception( 'La transferencia SFTP quedó incompleta.' );
+		} finally {
+			fclose( $handle );
+			$closed = fclose( $target );
+		}
+		if ( ! $closed ) throw new Exception( 'La transferencia SFTP quedó incompleta.' );
+		return $position;
+	}
+	/** Tramo de verificación con la extensión ssh2: compara bloque a bloque desde $offset; lanza si un bloque difiere. */
+	private function ssh2_compare_from( $file, $path, $offset, $size, $deadline, $tick ) {
+		$handle = @fopen( $file, 'rb' );
+		$remote = @fopen( $this->url( $path ), 'rb' );
+		if ( ! $handle || ! $remote || ( $offset > 0 && ( 0 !== fseek( $handle, $offset ) || 0 !== fseek( $remote, $offset ) ) ) ) {
+			if ( $handle ) fclose( $handle );
+			if ( $remote ) fclose( $remote );
+			throw new Exception( 'No se pudo leer la copia SFTP para compararla.' );
+		}
+		@stream_set_chunk_size( $remote, self::BLOCK );
+		$position = (int) $offset;
+		$first = true;
+		try {
+			while ( $position < $size && ( $first || microtime( true ) < $deadline ) ) {
+				$first = false;
+				$length = (int) min( self::BLOCK, $size - $position );
+				$local = (string) fread( $handle, $length );
+				$copy = '';
+				while ( strlen( $copy ) < $length && ! feof( $remote ) ) {
+					$part = fread( $remote, $length - strlen( $copy ) );
+					if ( false === $part ) break;
+					$copy .= $part;
+				}
+				if ( strlen( $local ) !== $length || ! hash_equals( $local, $copy ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no coincide con el ZIP local.' );
+				$position += $length;
+				if ( is_callable( $tick ) ) call_user_func( $tick, $position );
+			}
+			// Al final, la copia remota no puede tener nada más.
+			if ( $position >= $size && '' !== (string) fread( $remote, 1 ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP es más larga que el ZIP local.' );
+		} finally {
+			fclose( $handle );
+			fclose( $remote );
+		}
+		return $position;
+	}
+
 	protected function upload( $file, $name, array $source ) {
 		if ( $this->lib() ) return $this->lib_upload( $file, $name, $source );
 		$sftp = $this->session();

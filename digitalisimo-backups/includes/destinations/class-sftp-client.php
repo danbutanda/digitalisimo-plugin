@@ -252,6 +252,66 @@ final class Digitalisimo_Backups_Sftp_Client {
 		if ( ! $ok ) throw new Exception( 'La transferencia SFTP quedó incompleta.' );
 		return $sent;
 	}
+	/**
+	 * Tramo de una subida reanudable (H20): escribe $file en $remote desde $offset (sin truncar) hasta $deadline o el
+	 * final, por paquetes SFTP, y devuelve el desplazamiento alcanzado (lo que el servidor ya tiene). Siempre avanza al
+	 * menos un bloque. $tick( $bytes ) tras cada MiB.
+	 */
+	public function upload_from( $file, $remote, $offset, $size, $deadline, $tick = null ) {
+		if ( ! self::fast() && (int) $size > self::SLOW_LIMIT ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text() );
+		$handle = @fopen( (string) $file, 'rb' );
+		if ( ! $handle ) throw new Exception( 'No se pudo abrir el ZIP local.' );
+		if ( $offset > 0 && 0 !== fseek( $handle, (int) $offset ) ) { fclose( $handle ); throw new Exception( 'No se pudo continuar la lectura del ZIP local.' ); }
+		$position = (int) $offset;
+		$last = $position;
+		$minimum = $position + self::BLOCK;
+		$class = self::NS . 'Net\\SFTP';
+		try {
+			$ok = $this->checked()->put( (string) $remote, function( $length ) use ( $handle, &$position, &$last, $minimum, $size, $deadline, $tick ) {
+				if ( $position >= $size || ( $position >= $minimum && microtime( true ) >= $deadline ) ) return null;
+				$data = fread( $handle, (int) min( $length, $size - $position ) );
+				if ( false === $data || '' === $data ) return null;
+				$position += strlen( $data );
+				if ( $position - $last >= self::BLOCK || $position >= $size ) {
+					$last = $position;
+					$this->guard();
+					if ( is_callable( $tick ) ) call_user_func( $tick, $position );
+				}
+				return $data;
+			}, $class::SOURCE_CALLBACK, (int) $offset );
+		} finally {
+			fclose( $handle );
+		}
+		if ( ! $ok ) throw new Exception( 'La transferencia SFTP quedó incompleta.' );
+		return $position;
+	}
+	/**
+	 * Tramo de la verificación: compara la copia remota con el ZIP local bloque a bloque desde $offset hasta $deadline o
+	 * el final. Devuelve hasta dónde coinciden; lanza si un bloque difiere (la copia no se publica).
+	 */
+	public function compare_from( $file, $remote, $offset, $size, $deadline, $tick = null ) {
+		$handle = @fopen( (string) $file, 'rb' );
+		if ( ! $handle ) throw new Exception( 'No se pudo abrir el ZIP local.' );
+		$position = (int) $offset;
+		try {
+			if ( $position > 0 && 0 !== fseek( $handle, $position ) ) throw new Exception( 'No se pudo continuar la lectura del ZIP local.' );
+			$first = true;
+			while ( $position < $size && ( $first || microtime( true ) < $deadline ) ) {
+				$first = false;
+				$length = (int) min( self::BLOCK, $size - $position );
+				$local = (string) fread( $handle, $length );
+				$copy = $this->checked()->get( (string) $remote, false, $position, $length );
+				if ( false === $copy || strlen( $local ) !== $length || ! hash_equals( $local, (string) $copy ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP no coincide con el ZIP local.' );
+				$position += $length;
+				if ( is_callable( $tick ) ) call_user_func( $tick, $position );
+			}
+			// Al final, la copia remota no puede tener nada más.
+			if ( $position >= $size && '' !== (string) $this->checked()->get( (string) $remote, false, $position, 1 ) ) throw new Digitalisimo_Backups_Sftp_Mismatch( 'La copia SFTP es más larga que el ZIP local.' );
+		} finally {
+			fclose( $handle );
+		}
+		return $position;
+	}
 	/** Descarga $remote a $target por paquetes (memoria acotada). */
 	public function download( $remote, $target, $tick = null ) {
 		if ( ! self::fast() && (int) $this->size( $remote ) > self::SLOW_LIMIT ) throw new Digitalisimo_Backups_Permanent_Error( self::slow_text() );
@@ -313,5 +373,7 @@ final class Digitalisimo_Backups_Sftp_Client {
 	}
 }
 
+/** La copia remota no coincide con el ZIP local: se descarta y la subida empieza de nuevo. */
+final class Digitalisimo_Backups_Sftp_Mismatch extends Exception {}
 /** El servidor no tiene una clave del tipo pedido (se prueba el siguiente). */
 final class Digitalisimo_Backups_Sftp_No_Hostkey extends Exception {}

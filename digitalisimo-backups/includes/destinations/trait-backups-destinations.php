@@ -85,13 +85,13 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	/* ------------------------------------------------------------------ Transferencia */
 
 	/** @internal Fase «transfer»: credenciales leídas ahora, nunca guardadas en el trabajo; estado reanudable en su área. */
-	public static function job_transfer( $file, $destination, $job_id = '' ) {
+	public static function job_transfer( $file, $destination, $job_id = '', $deadline = INF ) {
 		$settings = self::settings();
 		// Credenciales cifradas con otras claves de wp-config.php: repetir no lo arregla, así que el fallo es permanente y dice qué hacer.
 		$problem = self::credentials_problem( $destination );
 		if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem . ' El respaldo local verificado se conserva.' );
 		if ( ! isset( self::manual_destinations( $settings )[ $destination ] ) || 'local' === $destination ) throw new Digitalisimo_Backups_Permanent_Error( 'El destino ' . self::destination_label( $destination ) . ' ya no tiene una conexión completa; el respaldo local verificado se conserva.' );
-		$remote = self::destination( $destination, Digitalisimo_Backups_Destinations::is_connection_id( $destination ) ? null : $settings, $job_id )->put( $file );
+		$remote = self::destination( $destination, Digitalisimo_Backups_Destinations::is_connection_id( $destination ) ? null : $settings, $job_id )->set_deadline( $deadline )->put( $file );
 		if ( ! is_array( $remote ) || empty( $remote['provider'] ) ) throw new Exception( 'El destino remoto no confirmó la copia.' );
 		return $remote;
 	}
