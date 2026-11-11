@@ -653,6 +653,8 @@ trait Digitalisimo_Backups_Service {
 			'rejected' => Digitalisimo_Backups_Migrate::rejected(),
 			'undo' => $undo,
 			'active' => $active,
+			// Las tablas apartadas por las migraciones y sus «Deshacer» (K1), con cuándo se borran solas.
+			'kept_tables' => Digitalisimo_Backups_Migrate::kept_tables(),
 		);
 	}
 	public static function service_migration_status() {
@@ -760,7 +762,7 @@ trait Digitalisimo_Backups_Service {
 			$safety_file = self::backup_file_name( 'safety-before-restore-' );
 			$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
 			try {
-				$job = self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'exact_tables' => true, 'exact_files' => true ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'exact_tables' => true, 'exact_files' => true, 'aside' => array( 'kind' => 'undo', 'migration' => (string) ( $row['migration']['job'] ?? '' ), 'from' => (string) ( $row['migration']['from'] ?? '' ) ) ) );
 			} catch ( Throwable $e ) {
 				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
 			}
@@ -781,6 +783,25 @@ trait Digitalisimo_Backups_Service {
 			Digitalisimo_Backups_Migrate::note( 'undone', (string) $row['file'] );
 		}
 		return array_merge( $outcome, array( 'undone' => ! empty( $outcome['restored'] ), 'file' => (string) $row['file'], 'from' => $from ) );
+	}
+	/**
+	 * «Borrar ya» las tablas apartadas (K1): Backups → Migrar, `POST /migration/cleanup` y
+	 * `wp digitalisimo-backups migration cleanup`. Sólo las del registro de tablas apartadas que no son de una restauración
+	 * en curso, nunca otra tabla; `dry_run` sólo dice cuáles. Borrar pide, en una red, el alcance de red (la base de datos
+	 * es de la red).
+	 */
+	public static function service_migration_cleanup( array $args = array() ) {
+		$dry_run = ! empty( $args['dry_run'] );
+		$allowed = self::service_scope( ! empty( $args['network'] ), ! $dry_run );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		try {
+			$report = Digitalisimo_Backups_Migrate::kept_cleanup( true, $dry_run );
+			$report['message'] = Digitalisimo_Backups_Migrate::kept_message( $report );
+			$report['kept_tables'] = Digitalisimo_Backups_Migrate::kept_tables();
+			return $report;
+		} catch ( Throwable $e ) {
+			return self::service_error( 'storage', $e->getMessage(), 500 );
+		}
 	}
 	/**
 	 * API del sitio de origen para el destino. No usa la sesión de WordPress: la autoriza la clave de migración

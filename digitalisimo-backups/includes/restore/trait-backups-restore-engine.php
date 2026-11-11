@@ -86,6 +86,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			// «Deshacer la migración»: la copia previa es de este mismo sitio, así que lo que no trae (también los drop-ins de
 			// wp-content) es de la migración y se retira.
 			'exact_files' => ! empty( $args['exact_files'] ),
+			// Qué aparta con `exact_tables` (K1): `migration` (las propias que el paquete no trae) o `undo` (las que trajo el
+			// origen), con la migración y su origen, para el registro de tablas apartadas.
+			'aside' => is_array( $args['aside'] ?? null ) ? array_intersect_key( $args['aside'], array_flip( array( 'kind', 'migration', 'from' ) ) ) : array(),
 		);
 		// El trabajo de la migración que encola su restauración espera a que termine: no cuenta como otro trabajo a medias.
 		$queued = Digitalisimo_Backups_Jobs::enqueue_restore( $spec, function( $job ) use ( $report ) {
@@ -604,6 +607,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$suffix = 'dgbkk_' . $tag . '_' . ( 9000 + count( $retire ) );
 				$retire[] = array( 'dest' => (string) $table, 'old' => strlen( $base . $suffix ) <= 64 ? $base . $suffix : $suffix );
 			}
+			// Antes de escribirlo, en el registro de tablas apartadas (K1): sólo lo anotado se borra después (a los
+			// kept_days() días, al confirmarse un «Deshacer» o a mano); si no se puede anotar, esta verificación falla.
+			Digitalisimo_Backups_Migrate::kept_register( $job, $retire );
 			self::restore_write_json( $job, 'retire.json', $retire );
 		}
 		// Memoria (revisión de E1, H4): las sentencias más grandes pasan ahora, sin ejecutarse, por el guardián y la
@@ -2125,7 +2131,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 				foreach ( (array) self::restore_read_json( $job, 'tables.json', false ) as $row ) {
 					foreach ( array( (string) $row['old'], (string) $row['temp'] ) as $table ) if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) ) ) $cursor['warnings'][] = 'No se pudo retirar la tabla ' . $table . '.';
 				}
-				// Las tablas apartadas con `exact_tables` se conservan (N1): el informe las nombra.
+				// Las tablas apartadas con `exact_tables` se conservan (N1) en el registro de tablas apartadas, que las borra a
+				// los kept_days() días; las que trajo el origen y apartó «Deshacer la migración», ya: el deshacer está hecho (K1).
+				try {
+					$cursor['kept_dropped'] = Digitalisimo_Backups_Migrate::kept_confirmed( $job );
+				} catch ( Throwable $e ) {
+					$cursor['kept_dropped'] = array( 'dropped' => 0, 'errors' => array( $e->getMessage() ) );
+				}
+				foreach ( (array) $cursor['kept_dropped']['errors'] as $error ) $cursor['warnings'][] = 'No se pudo borrar una tabla apartada (' . $error . '); queda en el registro de tablas apartadas y se reintenta sola.';
 				$undone_tag = (string) ( $job['spec']['rollback']['tag'] ?? '' );
 				if ( '' !== $undone_tag ) foreach ( self::restore_leftover_tables( (string) $wpdb->base_prefix, array(), true ) as $table ) if ( false !== strpos( $table, '_' . $undone_tag . '_' ) ) $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( $table ) );
 				$cursor['tables'] = true;
@@ -2248,7 +2261,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( $kept_tables ) {
 			$pairs = array();
 			foreach ( array_slice( $kept_tables, 0, 10, true ) as $from => $to ) $pairs[] = $from . ' → ' . $to;
-			$notice .= ' ' . count( $kept_tables ) . ' tabla(s) de este WordPress que el paquete no trae se apartaron con otro nombre y se conservan (' . implode( ', ', $pairs ) . ( count( $kept_tables ) > 10 ? '…' : '' ) . '): también están en la copia previa; bórralas cuando no las necesites.';
+			$pairs = implode( ', ', $pairs ) . ( count( $kept_tables ) > 10 ? '…' : '' );
+			$dropped = (int) ( $cursor['kept_dropped']['dropped'] ?? 0 );
+			// K1: las del origen que apartó «Deshacer la migración» ya se borraron; las propias que no traía el paquete de una
+			// migración se borran solas a los kept_days() días (con su copia previa en el almacén) o antes, a mano.
+			if ( 'undo' === Digitalisimo_Backups_Migrate::kept_kind( $job ) && $dropped >= count( $kept_tables ) ) $notice .= ' ' . count( $kept_tables ) . ' tabla(s) que trajo la migración y la copia previa no tiene se apartaron (' . $pairs . ') y se borraron al terminar el deshacer: sus datos siguen en la copia previa de este deshacer' . ( '' !== $safety ? ' (' . $safety . ')' : '' ) . '.';
+			else $notice .= ' ' . count( $kept_tables ) . ' tabla(s) ' . ( 'undo' === Digitalisimo_Backups_Migrate::kept_kind( $job ) ? 'que trajo la migración y la copia previa no tiene' : 'de este WordPress que el paquete no trae' ) . ' se apartaron con otro nombre (' . $pairs . '): también están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . '. Se borran solas en ' . Digitalisimo_Backups_Migrate::kept_days() . ' días mientras esa copia siga en el almacén; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra antes.';
 		}
 		$old_tables = (array) ( self::restore_read_json( $job, 'old-tables.json', false ) ?? array() );
 		if ( $old_tables ) $notice .= ' Quedan ' . count( $old_tables ) . ' tabla(s) de una restauración anterior que no terminó (' . implode( ', ', array_slice( $old_tables, 0, 5 ) ) . ( count( $old_tables ) > 5 ? '…' : '' ) . '): pueden ser la base de datos de antes de aquella restauración; bórralas sólo si no las necesitas.';

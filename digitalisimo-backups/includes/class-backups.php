@@ -321,7 +321,15 @@ final class Digitalisimo_Backups {
 	public static function migration_enqueue( array $report, array $tag, $except ) {
 		$safety_file = self::backup_file_name( 'safety-before-restore-' );
 		$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
-		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'except' => (string) $except ) );
+		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except ) );
+	}
+	/** @internal Si el respaldo $file (una copia previa) sigue en el almacén privado de este servidor. */
+	public static function migration_safety_present( $file ) {
+		try {
+			return '' !== self::local_path( (string) $file );
+		} catch ( Throwable $e ) {
+			return false;
+		}
 	}
 	/** @internal La vuelta a la copia previa de una restauración que falló, si se encoló; si no, la restauración misma. */
 	public static function migration_followed( array $job ) { return self::restore_followed( $job ); }

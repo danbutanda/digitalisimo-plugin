@@ -148,6 +148,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys/(?P<key>[0-9a-f]{16})/revoke', array( $route( 'POST', 'migration_revoke_key' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/undo', array( $route( 'POST', 'migration_undo', array( 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'DESHACER: el sitio vuelve al estado anterior a la última migración.' ), 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/migration/cleanup', array( $route( 'POST', 'migration_cleanup', array( 'dry_run' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo decir qué tablas apartadas borraría.' ), 'network' => $network ) ) ) );
 		// Migración: API del sitio de origen, autorizada por la clave de migración.
 		foreach ( array( 'hello', 'package', 'step', 'finish', 'release' ) as $action ) {
 			register_rest_route( self::NAMESPACE_V1, '/migrate/source/' . $action, array( array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'migration_source' ), 'permission_callback' => array( __CLASS__, 'migration_source_allowed' ), 'args' => array() ) ) );
@@ -271,6 +272,10 @@ final class Digitalisimo_Backups_Rest {
 		// respuesta, y el testigo también en su cookie).
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
+	}
+	/** Borra ya las tablas apartadas del registro (K1); con `dry_run`, sólo las lista. */
+	public static function migration_cleanup( $request ) {
+		return self::respond( Digitalisimo_Backups::service_migration_cleanup( array( 'dry_run' => (bool) $request['dry_run'], 'network' => (bool) $request['network'] ) ) );
 	}
 	private static function migration_action( $request ) {
 		$route = method_exists( $request, 'get_route' ) ? (string) $request->get_route() : (string) ( $request['_route'] ?? '' );

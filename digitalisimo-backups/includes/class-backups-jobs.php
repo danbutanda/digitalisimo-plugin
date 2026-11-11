@@ -53,6 +53,11 @@ final class Digitalisimo_Backups_Jobs {
 		foreach ( self::$kinds as $class ) { $info = $class::job_phase( $phase ); if ( $info ) return $info; }
 		return null;
 	}
+	/** Lo de la spec del trabajo que dice su tipo (para el paso en curso): sin rutas ni secretos. */
+	private static function current_spec( array $job ) {
+		$spec = (array) ( $job['spec'] ?? array() );
+		return array( 'kind' => (string) ( $spec['kind'] ?? '' ), 'type' => (string) ( $spec['type'] ?? '' ), 'rollback' => ! empty( $spec['rollback'] ), 'destination' => (string) ( $spec['destination'] ?? 'local' ) );
+	}
 	/** Deja en pausa el paso en curso para una copia sincrónica dentro de él (run_inline) y lo devuelve; resume() lo retoma. */
 	public static function suspend() { $current = self::$current; self::$current = null; return $current; }
 	public static function resume( $current ) { self::$current = $current; }
@@ -329,7 +334,8 @@ final class Digitalisimo_Backups_Jobs {
 		} );
 	}
 	private static function run( array $job, $start, $budget ) {
-		self::$current = array( 'kind' => self::is_restore( $job ) ? 'restore' : ( Digitalisimo_Backups_Import_Job::is_import( $job ) ? 'import' : 'backup' ), 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ), 'deadline' => $start + $budget );
+		// `spec` (su tipo, sin secretos): el nombre y los datos de la fase son los de su tipo (K3), también al morir PHP.
+		self::$current = array( 'kind' => self::is_restore( $job ) ? 'restore' : ( Digitalisimo_Backups_Import_Job::is_import( $job ) ? 'import' : 'backup' ), 'spec' => self::current_spec( $job ), 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => 'local' !== ( $job['spec']['destination'] ?? 'local' ), 'inline' => ! empty( $job['spec']['inline'] ), 'deadline' => $start + $budget );
 		self::register_shutdown();
 		@set_time_limit( 0 );
 		if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
@@ -516,7 +522,7 @@ final class Digitalisimo_Backups_Jobs {
 		$job['progress']['message'] = 'Creando la copia previa…';
 		$job = Digitalisimo_Backups_Job_Store::create( $job );
 		Digitalisimo_Backups_Job_Store::event( $job['id'], 'inline', array( 'policy' => $spec['policy'] ) );
-		self::$current = array( 'kind' => 'backup', 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => false, 'inline' => true, 'deadline' => INF );
+		self::$current = array( 'kind' => 'backup', 'spec' => self::current_spec( $job ), 'id' => $job['id'], 'owner' => $job['lease']['owner'], 'phase' => $job['phase'], 'written' => microtime( true ), 'lost' => false, 'abort' => false, 'remote' => false, 'inline' => true, 'deadline' => INF );
 		self::register_shutdown();
 		@set_time_limit( 0 );
 		try {
@@ -787,6 +793,9 @@ final class Digitalisimo_Backups_Jobs {
 				Digitalisimo_Backups_Job_Store::prune();
 				// Subidas de respaldos sin actividad durante 24 h.
 				Digitalisimo_Backups_Uploads::sessions();
+				// Tablas apartadas por una migración o su «Deshacer» que ya toca borrar (K1): plazo cumplido con su copia previa
+				// en el almacén, o «Deshacer» confirmado. Sólo las del registro; nunca otra tabla.
+				if ( class_exists( 'Digitalisimo_Backups_Migrate', false ) ) Digitalisimo_Backups_Migrate::kept_cleanup( false );
 			} catch ( Throwable $e ) {
 				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 			} finally {
