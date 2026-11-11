@@ -6,7 +6,8 @@
 // <dir>/shots/<label>/metrics.json: alto, bloques, encabezados, botones, campos, avisos, palabras y textos más largos.
 // Uso: node shoot.mjs <modo> <puerto> <host> <dir> <label>
 import http from 'node:http';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
 const [mode, port, host, dir, label] = process.argv.slice(2);
@@ -44,7 +45,10 @@ function request(method, path, { headers = {}, body } = {}) {
   });
 }
 
+// Perfil en una ruta corta: con un TMPDIR largo, Chrome muere con «Socket path too long» (su socket de proceso único).
+const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dgb-' : `${tmpdir()}/dgb-`);
 const browser = await puppeteer.launch({
+  userDataDir: profile,
   executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
   headless: true,
   protocolTimeout: 900_000,
@@ -250,6 +254,7 @@ try {
 } finally {
   writeFileSync(`${shots}/metrics.json`, JSON.stringify({ mode, label, versions: setup.versions, width: 1280, dialogs, js_errors: jsErrors, screens: metrics }, null, 1));
   await browser.close();
+  rmSync(profile, { recursive: true, force: true });
 }
 if (jsErrors.length) console.log(`AVISO · errores de JavaScript: ${jsErrors.slice(0, 5).join(' | ')}`);
 console.log(failures ? `FALLA · ${failures} problemas en ${mode}` : `ok · ${mode}: ${metrics.length} capturas`);

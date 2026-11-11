@@ -32,7 +32,9 @@ assert.ok(php.status === 0 && !/Fatal error|Uncaught/.test(php.stdout + php.stde
 const { default: puppeteer } = await import(pathToFileURL(pptr).href);
 let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
-const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu', '--host-resolver-rules=MAP * ~NOTFOUND'] });
+// Perfil en una ruta corta: con un TMPDIR largo, Chrome muere con «Socket path too long».
+const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dgb-' : join(tmpdir(), 'dgb-'));
+const browser = await puppeteer.launch({ userDataDir: profile, executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu', '--host-resolver-rules=MAP * ~NOTFOUND'] });
 const errors = [];
 
 /** Lo que se ve en .wrap: palabras, el texto más largo (bloques sin otros bloques dentro) y campos. */
@@ -101,5 +103,6 @@ try {
 } finally {
   await browser.close();
   rmSync(out, { recursive: true, force: true });
+  rmSync(profile, { recursive: true, force: true });
 }
 console.log(`DIGITALÍSIMO Backups: la pantalla simple cabe a 1 280 y 390 px, con textos cortos y las acciones de cada fila a la vista (${checks} comprobaciones en Chrome).`);
