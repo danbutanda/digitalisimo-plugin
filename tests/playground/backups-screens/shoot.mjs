@@ -122,11 +122,21 @@ async function shot(name, url, { scope = '.wrap', prepare = null, note = '', ful
 }
 
 async function login(path = '/wp-login.php') {
-  await page.goto(base + path, { waitUntil: 'load' });
-  await page.type('#user_login', 'admin');
-  await page.type('#user_pass', 'password');
-  await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('#wp-submit')]);
-  if (!/wp-admin/.test(page.url())) fail(`no se inició sesión (${page.url()})`);
+  // Un intento más: el primer arranque de Playground en red a veces responde al login sin la cookie de sesión.
+  let response = null;
+  for (let attempt = 0; attempt < 2 && !/wp-admin/.test(page.url()); attempt++) {
+    await page.goto(base + path, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
+    if (!(await page.$('#user_login'))) continue;
+    await page.type('#user_login', 'admin');
+    await page.type('#user_pass', 'password');
+    [response] = await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
+  }
+  if (!/wp-admin/.test(page.url())) {
+    fail(`no se inició sesión (${page.url()}, HTTP ${response ? response.status() : '?'})`);
+    writeFileSync(`${shots}/login-falla.html`, await page.content());
+    const cookies = await page.cookies();
+    writeFileSync(`${shots}/login-falla.json`, JSON.stringify({ url: page.url(), status: response ? response.status() : null, headers: response ? response.headers() : null, cookies: cookies.map((c) => c.name) }, null, 1));
+  }
 }
 
 // ── Backuply 1.6.0 ──────────────────────────────────────────────────────────────────────────────────────────────────

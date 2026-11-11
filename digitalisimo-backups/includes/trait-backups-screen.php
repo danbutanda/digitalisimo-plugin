@@ -51,11 +51,29 @@ trait Digitalisimo_Backups_Screen {
 		if ( '' === $plain ) return '';
 		$body = $html ? (string) $text : esc_html( (string) $text );
 		if ( self::text_length( $plain ) <= 140 ) return '<p class="description">' . $body . '</p>';
-		// La primera frase si cabe; si no, sólo «Ayuda» a la vista.
+		return '<p class="description">' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p class="description">' . $body . '</p></details>';
+	}
+	/** Lo que se ve de un texto largo: su primera frase si cabe en 140 caracteres; si no, sus primeras palabras y «…». */
+	private static function text_head( $plain ) {
 		$cut = 0;
 		foreach ( array( '. ', ': ', '; ' ) as $mark ) { $at = strpos( $plain, $mark ); if ( false !== $at && $at > 20 && self::text_length( substr( $plain, 0, $at + 1 ) ) <= 140 && ( ! $cut || $at < $cut ) ) $cut = $at; }
-		$head = $cut ? substr( $plain, 0, $cut + 1 ) : '';
-		return ( '' !== $head ? '<p class="description">' . esc_html( $head ) . '</p>' : '' ) . '<details class="digitalisimo-backups-help"><summary>' . ( '' !== $head ? 'Más' : 'Ayuda' ) . '</summary><p class="description">' . $body . '</p></details>';
+		if ( $cut ) return substr( $plain, 0, $cut + 1 );
+		$head = function_exists( 'mb_substr' ) ? mb_substr( $plain, 0, 125, 'UTF-8' ) : substr( $plain, 0, 125 );
+		$space = strrpos( $head, ' ' );
+		return rtrim( false !== $space ? substr( $head, 0, $space ) : $head, ' ,;:' ) . '…';
+	}
+	/**
+	 * Pliega los párrafos de más de 140 caracteres de un HTML ya escapado (las secciones de «Herramientas», «Cifrado y
+	 * firma», los respaldos en los destinos y las advertencias de un campo): a la vista, su primera frase; el párrafo
+	 * entero, en «Más». Sólo párrafos sin otros bloques ni campos dentro, y nunca uno con id (los scripts lo usan).
+	 */
+	public static function fold_long( $html ) {
+		return (string) preg_replace_callback( '#<p(\s[^>]*)?>((?:(?!</?(?:p|div|form|table|ul|ol|details|section|fieldset|select|textarea|input|button|label|script)\b).)*?)</p>#su', function( $m ) {
+			$attrs = (string) ( $m[1] ?? '' );
+			$plain = trim( preg_replace( '/\s+/u', ' ', html_entity_decode( strip_tags( $m[2] ), ENT_QUOTES, 'UTF-8' ) ) );
+			if ( false !== strpos( $attrs, ' id=' ) || self::text_length( $plain ) <= 140 ) return $m[0];
+			return '<p' . $attrs . '>' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p' . $attrs . '>' . $m[2] . '</p></details>';
+		}, (string) $html );
 	}
 	private static function text_length( $text ) { return function_exists( 'mb_strlen' ) ? mb_strlen( (string) $text, 'UTF-8' ) : strlen( (string) preg_replace( '/[\x80-\xBF]/', '', (string) $text ) ); }
 	/** Fecha del historial sin segundos («2026-11-11 19:07»). */
@@ -301,7 +319,8 @@ trait Digitalisimo_Backups_Screen {
 		Digitalisimo_Backups_Pre_Update::panel( $network, 'pre-update' === $open );
 		echo '</div>';
 		echo '<details class="digitalisimo-backups-section" id="digitalisimo-backups-section-security"' . ( 'security' === $open ? ' open' : '' ) . '><summary><strong>Cifrado y firma</strong> <span class="description">opcional: frase, cifrar los respaldos nuevos, sólo firmados, llavero</span></summary>';
-		Digitalisimo_Backups_Security::panel( $network, $history );
+		ob_start();
+		try { Digitalisimo_Backups_Security::panel( $network, $history ); } finally { echo self::fold_long( (string) ob_get_clean() ); }
 		echo '</details>';
 	}
 	/** La automatización principal: la primera completa y activa (o la primera completa); sin ninguna, se crea. */
@@ -343,7 +362,8 @@ trait Digitalisimo_Backups_Screen {
 		self::migrate_server_catalog();
 		self::servers_panel( $s, $credentials['locked'] );
 		echo '<details class="digitalisimo-backups-section" id="digitalisimo-backups-section-remote"' . ( 'remote' === $open ? ' open' : '' ) . '><summary><strong>Respaldos guardados en los destinos</strong> <span class="description">también los de otros sitios: sincronizar y traer</span></summary>';
-		self::remote_panel();
+		ob_start();
+		try { self::remote_panel(); } finally { echo self::fold_long( (string) ob_get_clean() ); }
 		echo '</details>';
 	}
 
@@ -371,7 +391,8 @@ trait Digitalisimo_Backups_Screen {
 	/** Una sección plegada de «Herramientas»: título, resumen de una línea y su contenido de antes. */
 	private static function tool_section( $id, $title, $summary, $open, callable $body ) {
 		echo '<details class="digitalisimo-backups-section" id="digitalisimo-backups-section-' . esc_attr( $id ) . '"' . ( $open ? ' open' : '' ) . '><summary><strong>' . esc_html( $title ) . '</strong> <span class="description">' . esc_html( $summary ) . '</span></summary>';
-		$body();
+		ob_start();
+		try { $body(); } finally { echo self::fold_long( (string) ob_get_clean() ); }
 		echo '</details>';
 	}
 }

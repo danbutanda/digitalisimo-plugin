@@ -381,7 +381,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	private static function forget_row( $destination, $s, array $locked ) {
 		$fields = Digitalisimo_Backups_Credentials::DESTINATIONS[ $destination ] ?? array();
 		if ( ! array_filter( $fields, function( $field ) use ( $s, $locked ) { return ! empty( $s[ $field ] ) || in_array( $field, $locked, true ); } ) ) return;
-		echo '<tr data-server="' . esc_attr( $destination ) . '"><th></th><td><label><input type="checkbox" name="digitalisimo_backups[forget][' . esc_attr( $destination ) . ']" value="1"> Olvidar las credenciales guardadas de ' . esc_html( self::destination_label( $destination ) ) . '</label><p class="description">Al guardar se retiran del sitio, también las que ya no se pueden abrir. Para un destino que ya no usas; lo que escribas ahora en sus campos sí se guarda.</p></td></tr>';
+		echo '<tr data-server="' . esc_attr( $destination ) . '"><th></th><td><label><input type="checkbox" name="digitalisimo_backups[forget][' . esc_attr( $destination ) . ']" value="1"> Olvidar las credenciales guardadas de ' . esc_html( self::destination_label( $destination ) ) . '</label>' . self::help_html( 'Al guardar se retiran del sitio, también las que ya no se pueden abrir. Para un destino que ya no usas; lo que escribas ahora en sus campos sí se guarda.' ) . '</td></tr>';
 	}
 	/** Pasos para crear las credenciales de cada proveedor; los de OAuth incluyen la URL de redirección exacta. */
 	private static function type_help( $type ) {
@@ -445,7 +445,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . $extra . '>';
 		}
 		if ( ! empty( $spec['help'] ) ) echo self::help_html( (string) $spec['help'] );
-		if ( ! empty( $spec['warning'] ) ) echo '<p class="description digitalisimo-backups-warning">' . esc_html( $spec['warning'] ) . '</p>';
+		if ( ! empty( $spec['warning'] ) ) echo self::fold_long( '<p class="description digitalisimo-backups-warning">' . esc_html( $spec['warning'] ) . '</p>' );
 		echo '</td></tr>';
 	}
 	/** Formulario de una conexión adicional: crear (sin $editing) o editar una existente. */

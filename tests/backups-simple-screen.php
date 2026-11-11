@@ -74,6 +74,7 @@ function ss_visible( $html ) {
 			if ( 'input' === $tag && in_array( strtolower( $child->getAttribute( 'type' ) ), array( 'hidden' ), true ) ) continue;
 			if ( 'span' === $tag && false !== strpos( $child->getAttribute( 'class' ), 'screen-reader-text' ) ) continue;
 			if ( in_array( $tag, array( 'input', 'select', 'textarea' ), true ) && ! in_array( strtolower( $child->getAttribute( 'type' ) ), array( 'submit', 'button' ), true ) ) $out['fields']++;
+			if ( in_array( $tag, array( 'select', 'textarea' ), true ) ) continue;
 			if ( 'button' === $tag || ( 'a' === $tag && false !== strpos( ' ' . $child->getAttribute( 'class' ) . ' ', ' button ' ) ) ) $out['buttons']++;
 			if ( 'form' === $tag ) $out['forms']++;
 			if ( 'details' === $tag && ! $child->hasAttribute( 'open' ) ) {
@@ -190,6 +191,7 @@ try {
 		ss_check( false === strpos( $edit, 'value="' . $B::ACTION_SAVE_CONNECTION . '"' ), '«Editar» de la principal enseña también el formulario de otra conexión.' );
 		ss_check( preg_match( '#<tr data-server="sftp" data-advanced="1"><th><label for="sftp_engine">#', $edit ) && false !== strpos( $edit, '<details class="digitalisimo-backups-advanced"><summary>Opciones avanzadas</summary></details>' ), 'El motor SFTP no va en «Opciones avanzadas».' );
 		ss_check( preg_match( '#<details class="digitalisimo-backups-help"><summary>Cómo obtener SFTP</summary><ol>#', $edit ), '«Cómo obtener SFTP» no está plegado.' );
+		foreach ( array( 'edit' => $edit, 'add' => $add ) as $name => $form ) { $seen = ss_visible( $form ); ss_check( $seen['longest'][0] <= 140, 'El formulario «' . $name . '» enseña un texto de ' . $seen['longest'][0] . ' caracteres: ' . $seen['longest'][1] ); }
 	} );
 
 	$tools = ss_render( 'tools' );
@@ -201,6 +203,11 @@ try {
 		$seen = ss_visible( $tools );
 		ss_check( 0 === $seen['fields'] && $seen['words'] <= 120 && $seen['longest'][0] <= 140, '«Herramientas»: ' . $seen['fields'] . ' campos, ' . $seen['words'] . ' palabras o un texto largo: ' . $seen['longest'][1] );
 		ss_check( preg_match( '#id="digitalisimo-backups-section-automations" open>#', ss_render( 'tools', false, array( 'open' => 'automations' ) ) ), '?open=automations no abre su sección.' );
+		// Abierta, cada sección tampoco enseña textos de más de 140 caracteres: lo largo, en «Más».
+		foreach ( array( 'migrate', 'import', 'upload', 'restore-file', 'automations', 'jobs' ) as $id ) {
+			$seen = ss_visible( ss_render( 'tools', false, array( 'open' => $id ) ) );
+			ss_check( $seen['longest'][0] <= 140, '«' . $id . '» abierta enseña un texto de ' . $seen['longest'][0] . ' caracteres: ' . $seen['longest'][1] );
+		}
 	} );
 
 	ss_case( 'T6 · una sola franja de avisos y sin repetir el aviso del escritorio', function() use ( $B ) {
