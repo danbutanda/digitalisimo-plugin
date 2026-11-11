@@ -287,6 +287,7 @@ final class Digitalisimo_Backups {
 			Digitalisimo_Backups_Credentials::forget( $origin );
 			// La configuración propia de este sitio (H23), después de cifrar las credenciales que trajo el SQL: vuelve la de aquí.
 			if ( is_array( $data['config_kept'] ?? null ) ) self::keep_config_reapply( $data['config_kept'] );
+			try { self::restore_notice_after( is_array( $data['config_kept'] ?? null ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
 		@unlink( $path );
 		// Una restauración por pasos sigue: el trabajo la reanuda, su mantenimiento no se toca y avisará al terminar.
@@ -776,6 +777,8 @@ final class Digitalisimo_Backups {
 		$s = self::settings(); $history = array_slice( (array) get_option( self::HISTORY, array() ), 0, 10 );
 		echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><p>Genera un ZIP integral: archivos de WordPress, plugins, temas, medios y base de datos. El respaldo se crea primero en el hosting y después se copia al destino elegido.</p>';
 		if ( isset( $_GET['backup'] ) ) echo '<div class="notice notice-' . ( 'ok' === $_GET['backup'] ? 'success' : 'error' ) . '"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['message'] ?? '' ) ) ) . '</p></div>';
+		// Tras restaurar (H23): la configuración del respaldo que no se aplicó, o un sitio sin automatizaciones activas.
+		try { echo self::restore_notice_html(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		// Credenciales de los destinos que no se abren o que siguen sin cifrar: qué hacer, sin ningún valor.
 		$credentials = self::credentials_status();
 		if ( '' !== $credentials['notice'] && 'security' !== sanitize_key( $_GET['tab'] ?? 'backups' ) ) echo '<div class="notice notice-warning digitalisimo-backups-credentials" data-state="' . esc_attr( $credentials['state'] ) . '"><p>' . esc_html( $credentials['notice'] ) . '</p></div>';
@@ -2493,6 +2496,8 @@ final class Digitalisimo_Backups {
 		// credenciales (cifradas con las claves de aquí, atadas a sus conexiones), y las automatizaciones a sus eventos.
 		$config = self::keep_config_from_journal();
 		if ( is_array( $config ) ) self::keep_config_reapply( $config );
+		// El aviso tras restaurar: la configuración del respaldo que no se aplicó, o un sitio sin automatizaciones activas.
+		try { self::restore_notice_after( is_array( $config ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 	}
 	private static function validate_zip_entries( $zip ) { Digitalisimo_Backups_Archive_Inspector::entries( $zip, true ); }
 	private static function extract_digitalisimo_files( $zip, &$created_files = null, $transform = null ) {

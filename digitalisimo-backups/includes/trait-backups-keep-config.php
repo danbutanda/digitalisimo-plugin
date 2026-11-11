@@ -89,8 +89,16 @@ trait Digitalisimo_Backups_Keep_Config {
 	 */
 	private static function keep_config_reapply( $snapshot ) {
 		if ( ! is_array( $snapshot ) || 1 !== ( $snapshot['format'] ?? null ) || ! is_array( $snapshot['site'] ?? null ) ) return;
+		// Lo que trajo el respaldo (sus credenciales ya cifradas con las claves de aquí): queda como «configuración del
+		// respaldo pendiente» si traía automatizaciones o conexiones que no se aplican, con un aviso que permite aplicarla.
+		$incoming = self::keep_config_snapshot();
+		self::keep_config_write( $snapshot );
+		self::restore_notice_pending( $incoming, $snapshot );
+	}
+	/** Escribe una foto de configuración (cada opción en su ámbito) y realinea los eventos de las automatizaciones. */
+	private static function keep_config_write( array $snapshot ) {
 		$allowed = array_flip( self::keep_config_options() );
-		foreach ( $snapshot['site'] as $name => $entry ) {
+		foreach ( (array) ( $snapshot['site'] ?? array() ) as $name => $entry ) {
 			if ( ! isset( $allowed[ $name ] ) || ! is_array( $entry ) ) continue;
 			if ( ! empty( $entry['absent'] ) ) delete_option( $name );
 			elseif ( array_key_exists( 'value', $entry ) ) update_option( $name, $entry['value'], false );
@@ -104,6 +112,143 @@ trait Digitalisimo_Backups_Keep_Config {
 		}
 		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
 		self::keep_config_events();
+	}
+
+	/* ------------------------------------------------------------------ Configuración del respaldo pendiente y aviso */
+
+	/** Opción del aviso tras restaurar (de la red en Multisite, como la configuración). */
+	private static function restore_notice_key() { return 'digitalisimo_backups_restore_notice'; }
+	private static function restore_notice() {
+		$value = Digitalisimo_Backups_Keys::get( self::restore_notice_key(), array() );
+		return is_array( $value ) ? $value : array();
+	}
+	private static function restore_notice_save( array $notice ) {
+		if ( empty( $notice['pending'] ) && empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) {
+			if ( is_multisite() ) delete_site_option( self::restore_notice_key() );
+			else delete_option( self::restore_notice_key() );
+			return;
+		}
+		Digitalisimo_Backups_Keys::put( self::restore_notice_key(), $notice );
+	}
+	/** Valor de una opción de una foto (la del sitio, o la de la red en Multisite para las que viven ahí). */
+	private static function keep_config_value( array $snapshot, $name ) {
+		foreach ( array( 'site', 'network' ) as $scope ) {
+			$entry = $snapshot[ $scope ][ $name ] ?? null;
+			if ( is_array( $entry ) && array_key_exists( 'value', $entry ) && ! empty( $entry['value'] ) ) return $entry['value'];
+		}
+		return null;
+	}
+	/** Automatizaciones activas (respaldo completo con programación) de una lista de políticas. */
+	private static function active_policies( $policies ) {
+		return array_values( array_filter( (array) $policies, function( $policy ) { return is_array( $policy ) && ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? 'full' ) && 'disabled' !== (string) ( $policy['schedule'] ?? 'disabled' ); } ) );
+	}
+	/**
+	 * Tras conservar la configuración de aquí: si la del respaldo traía automatizaciones activas o conexiones que no se
+	 * aplicaron, se guarda entera como pendiente (las credenciales ya están cifradas con las claves de este servidor; las
+	 * que no se pudieron abrir siguen sin abrirse) y el aviso lo dice.
+	 */
+	private static function restore_notice_pending( array $incoming, array $kept ) {
+		$local = array();
+		foreach ( (array) self::keep_config_value( $kept, self::POLICIES ) as $policy ) if ( is_array( $policy ) ) $local[ (string) ( $policy['id'] ?? '' ) ] = $policy;
+		$automations = 0;
+		foreach ( self::active_policies( self::keep_config_value( $incoming, self::POLICIES ) ) as $policy ) if ( ( $local[ (string) ( $policy['id'] ?? '' ) ] ?? null ) != $policy ) $automations++;
+		$connections = count( array_diff_key( (array) self::keep_config_value( $incoming, Digitalisimo_Backups_Destinations::CONNECTIONS ), (array) self::keep_config_value( $kept, Digitalisimo_Backups_Destinations::CONNECTIONS ) ) );
+		$notice = array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => false, 'paused' => 0 );
+		if ( $automations || $connections ) $notice = array_merge( $notice, array( 'pending' => $incoming, 'automations' => $automations, 'connections' => $connections ) );
+		self::restore_notice_save( $notice );
+	}
+	/**
+	 * Tras cualquier restauración: si el sitio queda sin ninguna automatización activa, el aviso lo dice. Un aviso que
+	 * llegó con el SQL (el del respaldo) nunca vale: sólo cuenta el que anotó esta restauración.
+	 */
+	private static function restore_notice_after( $fresh ) {
+		$notice = $fresh ? self::restore_notice() : array();
+		$notice += array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'paused' => 0 );
+		$notice['no_active'] = ! self::active_policies( self::policies() );
+		self::restore_notice_save( $notice );
+	}
+	/** El aviso en texto (escritorio, tarjeta de Backups, REST y WP-CLI). '' si no hay nada que decir. */
+	private static function restore_notice_text( array $notice ) {
+		$lines = array();
+		if ( ! empty( $notice['pending'] ) ) {
+			$n = (int) $notice['automations'];
+			$m = (int) $notice['connections'];
+			$what = array();
+			if ( $n ) $what[] = $n . ' ' . ( 1 === $n ? 'automatización' : 'automatizaciones' );
+			if ( $m ) $what[] = $m . ' ' . ( 1 === $m ? 'conexión' : 'conexiones' );
+			$lines[] = 'Este sitio conservó su configuración de Backups; el respaldo restaurado traía ' . implode( ' y ', $what ) . ' del sitio de origen que no se aplicaron.';
+		}
+		if ( ! empty( $notice['paused'] ) ) $lines[] = 'Se aplicó la configuración del respaldo con ' . (int) $notice['paused'] . ' ' . ( 1 === (int) $notice['paused'] ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Backups → Automatizaciones cuando confirmes que no respaldan a la misma carpeta que el sitio de origen.';
+		if ( ! empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) $lines[] = 'Tras la restauración, este sitio no tiene ninguna automatización de respaldo activa.';
+		return implode( ' ', $lines );
+	}
+	/** Estado del aviso (REST y WP-CLI). */
+	public static function service_restore_config() {
+		$allowed = self::service_scope( false, false );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		$notice = self::restore_notice();
+		return array( 'pending' => ! empty( $notice['pending'] ), 'automations' => (int) ( $notice['automations'] ?? 0 ), 'connections' => (int) ( $notice['connections'] ?? 0 ), 'no_active' => ! empty( $notice['no_active'] ), 'paused' => (int) ( $notice['paused'] ?? 0 ), 'message' => self::restore_notice_text( $notice ) );
+	}
+	/**
+	 * «Aplicar la del respaldo»: la configuración que trajo el respaldo pasa a ser la de este sitio, con sus automatizaciones
+	 * EN PAUSA (que no respalden dos sitios a la misma carpeta sin querer) hasta que se activen a mano.
+	 */
+	public static function service_restore_config_apply( array $args = array() ) {
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		$notice = self::restore_notice();
+		$pending = $notice['pending'] ?? null;
+		if ( ! is_array( $pending ) || 1 !== ( $pending['format'] ?? null ) ) return self::service_error( 'no_pending', 'No hay configuración de un respaldo restaurado pendiente de aplicar.', 404 );
+		$paused = 0;
+		foreach ( array( 'site', 'network' ) as $scope ) {
+			if ( ! is_array( $pending[ $scope ][ self::POLICIES ]['value'] ?? null ) ) continue;
+			foreach ( $pending[ $scope ][ self::POLICIES ]['value'] as &$policy ) {
+				if ( ! is_array( $policy ) ) continue;
+				if ( self::active_policies( array( $policy ) ) ) $paused++;
+				$policy['enabled'] = false;
+			}
+			unset( $policy );
+		}
+		self::keep_config_write( $pending );
+		self::restore_notice_save( array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => ! self::active_policies( self::policies() ), 'paused' => $paused ) );
+		return array( 'applied' => true, 'paused' => $paused, 'message' => 'Se aplicó la configuración de Backups del respaldo restaurado' . ( $paused ? ', con ' . $paused . ' ' . ( 1 === $paused ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Automatizaciones' : '' ) . '.' );
+	}
+	/** «Descartar»: se olvida la configuración del respaldo y el aviso (la de este sitio sigue como está). */
+	public static function service_restore_config_discard( array $args = array() ) {
+		$allowed = self::service_scope( ! empty( $args['network'] ), true );
+		if ( is_wp_error( $allowed ) ) return $allowed;
+		self::restore_notice_save( array() );
+		return array( 'discarded' => true, 'message' => 'Se descartó la configuración del respaldo restaurado; la de este sitio sigue como estaba.' );
+	}
+	/** Aviso con sus acciones (escritorio y tarjeta de Backups). */
+	private static function restore_notice_html() {
+		$notice = self::restore_notice();
+		$text = self::restore_notice_text( $notice );
+		if ( '' === $text ) return '';
+		$form = function( $do, $label, $primary ) {
+			$out = '<form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			ob_start();
+			wp_nonce_field( 'digitalisimo_backups_restore_config' );
+			$out .= (string) ob_get_clean();
+			return $out . '<input type="hidden" name="action" value="digitalisimo_backups_restore_config"><input type="hidden" name="do" value="' . esc_attr( $do ) . '">' . ( is_multisite() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form> ';
+		};
+		$actions = ( ! empty( $notice['pending'] ) ? $form( 'apply', 'Aplicar la del respaldo', true ) : '' ) . $form( 'discard', 'Descartar', false );
+		return '<div class="notice notice-warning digitalisimo-backups-restore-notice"><p><strong>Backups:</strong> ' . esc_html( $text ) . '</p><p>' . $actions . '</p></div>';
+	}
+	/** admin_notices y network_admin_notices: sólo a quien gestiona los respaldos, en el sitio principal o la red. */
+	public static function restore_config_admin_notice() {
+		if ( ! self::can_manage() ) return;
+		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! is_main_site() ) return;
+		try { echo self::restore_notice_html(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+	}
+	/** admin-post de las dos acciones del aviso. */
+	public static function restore_config_request() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( 'digitalisimo_backups_restore_config' );
+		$args = array( 'network' => is_multisite() );
+		$result = 'apply' === ( $_POST['do'] ?? '' ) ? self::service_restore_config_apply( $args ) : self::service_restore_config_discard( $args );
+		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
+		self::redirect( true, $result['message'] );
 	}
 	/** Eventos de WP-Cron de las automatizaciones: fuera los de las que no son de este sitio; las suyas, a su hora. */
 	private static function keep_config_events() {
@@ -129,4 +274,10 @@ trait Digitalisimo_Backups_Keep_Config {
 		$data = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
 		return is_array( $data ) && is_array( $data['config_kept'] ?? null ) ? $data['config_kept'] : null;
 	}
+}
+// El aviso tras restaurar (H23): en el escritorio y sus dos acciones.
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_notices', array( 'Digitalisimo_Backups', 'restore_config_admin_notice' ) );
+	add_action( 'network_admin_notices', array( 'Digitalisimo_Backups', 'restore_config_admin_notice' ) );
+	add_action( 'admin_post_digitalisimo_backups_restore_config', array( 'Digitalisimo_Backups', 'restore_config_request' ) );
 }

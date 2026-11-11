@@ -34,6 +34,9 @@ defined( 'ABSPATH' ) || exit;
  * - POST /uploads/<id>/finish               valida el archivo como no confiable y lo deja en el almacén (`secret`); 202
  *                                           mientras otro proceso lo comprueba; repetirlo tras un corte da el mismo resultado
  * - DELETE /uploads/<id>                    cancela la subida y borra lo recibido
+ * - GET  /restore-config · POST /restore-config/apply|discard  tras restaurar el respaldo de otra instalación: la
+ *                                           configuración de Backups que traía y no se aplicó (aplicarla deja sus
+ *                                           automatizaciones en pausa) y si el sitio quedó sin automatizaciones activas
  * - GET  /pre-update                        respaldo antes de actualizar: ajustes por tipo, respaldo reciente válido,
  *                                           actualizaciones automáticas retenidas o pospuestas y el último fallo
  * - POST /pre-update                        guarda los ajustes (`core`, `plugin`, `theme`: all, auto u off; `max_age`)
@@ -161,6 +164,10 @@ final class Digitalisimo_Backups_Rest {
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/pre-update/backup', array( $route( 'POST', 'pre_update_backup', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/pre-update/skip', array( $route( 'POST', 'pre_update_skip', array( 'network' => $network, 'minutes' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Pre_Update::SKIP_MINUTES, 'minimum' => 1, 'maximum' => 60, 'description' => 'Minutos sin respaldo previo para las actualizaciones manuales.' ) ) ) ) );
+		// Tras restaurar el respaldo de otra instalación (H23): la configuración de Backups que trajo y no se aplicó.
+		register_rest_route( self::NAMESPACE_V1, '/restore-config', array( $route( 'GET', 'restore_config' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/restore-config/apply', array( $route( 'POST', 'restore_config_apply', array( 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/restore-config/discard', array( $route( 'POST', 'restore_config_discard', array( 'network' => $network ) ) ) );
 	}
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
@@ -384,4 +391,10 @@ final class Digitalisimo_Backups_Rest {
 		$result = Digitalisimo_Backups::service_remote_fetch( (string) $request['id'], (string) $request['name'], array( 'network' => (bool) $request['network'], 'via' => 'rest', 'drive_cli' => false ) );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['running'] ) ? 202 : 200 );
 	}
+	/** El aviso tras restaurar: configuración del respaldo pendiente y sitio sin automatizaciones activas. */
+	public static function restore_config( $request ) { return self::respond( Digitalisimo_Backups::service_restore_config() ); }
+	/** «Aplicar la del respaldo»: sus automatizaciones quedan en pausa hasta activarlas. */
+	public static function restore_config_apply( $request ) { return self::respond( Digitalisimo_Backups::service_restore_config_apply( array( 'network' => (bool) $request['network'] ) ) ); }
+	/** «Descartar» la configuración del respaldo y el aviso. */
+	public static function restore_config_discard( $request ) { return self::respond( Digitalisimo_Backups::service_restore_config_discard( array( 'network' => (bool) $request['network'] ) ) ); }
 }

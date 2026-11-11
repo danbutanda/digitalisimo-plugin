@@ -31,6 +31,7 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
+		WP_CLI::add_command( 'digitalisimo-backups restore-config', 'Digitalisimo_Backups_Cli_Restore_Config' );
 		WP_CLI::add_command( 'digitalisimo-backups backuply', 'Digitalisimo_Backups_Cli_Backuply' );
 		WP_CLI::add_command( 'digitalisimo-backups migration', 'Digitalisimo_Backups_Cli_Migration' );
 		WP_CLI::add_command( 'digitalisimo-backups pre-update', 'Digitalisimo_Backups_Cli_Pre_Update' );
@@ -1071,6 +1072,52 @@ final class Digitalisimo_Backups_Cli_Backuply {
 	 */
 	public function fetch( $args, $assoc_args ) {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_backuply_fetch( (string) ( $args[0] ?? '' ), (string) ( $args[1] ?? '' ) ) );
+		WP_CLI::success( $result['message'] );
+	}
+}
+
+/**
+ * Tras restaurar el respaldo de otra instalación: la configuración de Backups que traía y no se aplicó (H23).
+ */
+final class Digitalisimo_Backups_Cli_Restore_Config {
+	/**
+	 * Muestra el aviso tras restaurar: la configuración del respaldo pendiente y si el sitio quedó sin automatizaciones activas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table o json.
+	 * ---
+	 * default: table
+	 * ---
+	 */
+	public function status( $args, $assoc_args ) {
+		$status = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_restore_config() );
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) { WP_CLI::line( (string) wp_json_encode( $status ) ); return; }
+		WP_CLI::line( '' !== $status['message'] ? $status['message'] : 'No hay nada pendiente tras la última restauración.' );
+	}
+	/**
+	 * Aplica la configuración de Backups del respaldo restaurado, con sus automatizaciones en pausa hasta activarlas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 */
+	public function apply( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_restore_config_apply( array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
+		WP_CLI::success( $result['message'] );
+	}
+	/**
+	 * Descarta la configuración del respaldo restaurado y el aviso (la de este sitio sigue como está).
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite.
+	 */
+	public function discard( $args, $assoc_args ) {
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_restore_config_discard( array( 'network' => ! empty( $assoc_args['network'] ) ) ) );
 		WP_CLI::success( $result['message'] );
 	}
 }

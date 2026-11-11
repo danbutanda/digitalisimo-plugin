@@ -41,6 +41,8 @@ try {
 	$expected += array( '/migration' => 'GET', '/migration/keys' => 'POST', '/migration/keys/(?P<key>[0-9a-f]{16})/revoke' => 'POST', '/migration/pull' => 'POST', '/migration/undo' => 'POST', '/migrate/source/hello' => 'POST', '/migrate/source/package' => 'POST', '/migrate/source/step' => 'POST', '/migrate/source/finish' => 'POST', '/migrate/source/release' => 'POST', '/migrate/source/download' => 'GET' );
 	// Respaldo antes de actualizar (I1).
 	$expected += array( '/pre-update' => 'GET,POST', '/pre-update/backup' => 'POST', '/pre-update/skip' => 'POST' );
+	// Tras restaurar el respaldo de otra instalación (H23): la configuración que trajo y no se aplicó.
+	$expected += array( '/restore-config' => 'GET', '/restore-config/apply' => 'POST', '/restore-config/discard' => 'POST' );
 	digi_assert( array_map( function( $route ) use ( $ns ) { return $ns . $route; }, array_keys( $expected ) ) === array_keys( $GLOBALS['digi']['routes'] ), 'Las rutas registradas no son las documentadas: ' . implode( ', ', array_keys( $GLOBALS['digi']['routes'] ) ) );
 	foreach ( $expected as $route => $methods ) {
 		$handlers = $GLOBALS['digi']['routes'][ $ns . $route ];
