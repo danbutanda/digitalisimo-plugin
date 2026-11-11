@@ -11,9 +11,9 @@
  *         de 7 días ni con el filtro `digitalisimo_backups_migration_kept_days` más largo; pasado el plazo, sí, salvo que
  *         su copia previa ya no esté en el almacén (nunca se borra solo lo único que queda de esas tablas); consultar el
  *         estado (GET /migration) nunca borra;
- *   (k1c) nunca otra tabla: las de una restauración en curso esperan; una entrada del registro alterada con tablas vivas,
- *         de otra marca o con una marca inválida no borra nada; una tabla con nombre de apartada fuera del registro se
- *         lista como `unregistered` y nunca se toca;
+ *   (k1c) nunca otra tabla: las de una restauración en curso esperan; un borrado que falla deja el juego en el registro;
+ *         una entrada del registro alterada con tablas vivas, de otro prefijo, de otra marca o con una marca inválida no
+ *         borra nada; una tabla con nombre de apartada fuera del registro se lista como `unregistered` y nunca se toca;
  *   (k1d) «Borrar ya» por la pantalla (tarjeta «Tablas apartadas», admin-post con nonce), REST (`POST /migration/cleanup`
  *         con `dry_run`) y WP-CLI (`migration cleanup [--dry-run] [--yes]`); en una red, borrar pide el alcance de red
  *         (listar no) y la pantalla de la red lo da;
@@ -173,20 +173,28 @@ kp_case( 'k1c · nunca otra tabla: ni las de una restauración en curso, ni un r
 	$restore = Digitalisimo_Backups_Jobs::get( (string) $restore['id'] );
 	$restore['status'] = 'success';
 	Digitalisimo_Backups_Job_Store::write( $restore );
-	// Una tabla con nombre de apartada fuera del registro, otra ajena y un registro alterado.
+	// Un borrado que falla deja el juego en el registro, y se dice; el siguiente lo reintenta.
+	$GLOBALS['wpdb']->fail_on = 'DROP TABLE IF EXISTS `' . $aside[0] . '`';
+	$report = Digitalisimo_Backups_Migrate::kept_cleanup( true );
+	$GLOBALS['wpdb']->fail_on = '';
+	mig_assert( 0 === $report['count'] && $report['errors'] && $aside === kp_aside() && isset( kp_registry()[ $tag ] ) && false !== strpos( Digitalisimo_Backups_Migrate::kept_message( $report ), 'No se pudieron borrar' ), 'Un borrado fallido sacó el juego del registro o no se dijo: ' . json_encode( $report ) );
+	// Una tabla con nombre de apartada fuera del registro, otra ajena, otra de otro prefijo con el nombre de una apartada
+	// de esta marca y un registro alterado.
 	$db = $GLOBALS['wpdb'];
 	$db->pdo->exec( 'CREATE TABLE `dst_dgbkk_abcdef_9000` (`id` INTEGER PRIMARY KEY)' );
 	$db->pdo->exec( 'CREATE TABLE `dst_ajena` (`id` INTEGER PRIMARY KEY)' );
+	$db->pdo->exec( 'CREATE TABLE `otra_dgbkk_' . $tag . '_9001` (`id` INTEGER PRIMARY KEY)' );
 	$state = get_option( KP_STATE );
 	$state['kept']['fedcba'] = array( 'kind' => 'undo', 'restore' => '', 'at' => 1, 'safety' => '', 'tables' => array( 'a' => 'dst_posts', 'b' => 'dst_ajena', 'c' => 'dst_dgbkk_abcdef_9000', 'd' => 'dst_options', 'e' => 'dst_dgbkk_fedcba' ) );
 	$state['kept']['zz'] = array( 'kind' => 'undo', 'at' => 1, 'tables' => array( 'x' => 'dst_posts' ) );
 	$state['kept'][ $tag ]['tables']['dst_posts'] = 'dst_posts';
+	$state['kept'][ $tag ]['tables']['otra'] = 'otra_dgbkk_' . $tag . '_9001';
 	update_option( KP_STATE, $state );
 	$before = kp_tables();
 	$report = Digitalisimo_Backups_Migrate::kept_cleanup( true );
 	$left = array_values( array_diff( $before, kp_tables() ) );
 	mig_assert( $aside === $left && $aside === $report['tables'], 'La limpieza borró algo fuera de las tablas apartadas del registro: ' . json_encode( array( $left, $report ) ) );
-	mig_assert( array( 'dst_dgbkk_abcdef_9000' ) === $report['unregistered'] && in_array( 'dst_posts', kp_tables(), true ) && in_array( 'dst_options', kp_tables(), true ) && in_array( 'dst_ajena', kp_tables(), true ) && 'Origen' === get_option( 'blogname' ), 'La limpieza tocó una tabla viva, ajena o sin registro: ' . json_encode( $report ) );
+	mig_assert( array( 'dst_dgbkk_abcdef_9000' ) === $report['unregistered'] && in_array( 'dst_posts', kp_tables(), true ) && in_array( 'dst_options', kp_tables(), true ) && in_array( 'dst_ajena', kp_tables(), true ) && in_array( 'otra_dgbkk_' . $tag . '_9001', kp_tables(), true ) && 'Origen' === get_option( 'blogname' ), 'La limpieza tocó una tabla viva, ajena, de otro prefijo o sin registro: ' . json_encode( $report ) );
 	mig_assert( ! kp_registry() && array( 'dst_dgbkk_abcdef_9000' ) === Digitalisimo_Backups_Migrate::kept_tables()['unregistered'], 'El registro alterado no quedó limpio o la tabla sin registro no se lista: ' . json_encode( kp_registry() ) );
 	mig_assert( false !== strpos( Digitalisimo_Backups_Migrate::kept_message( $report ), 'no están en el registro y no se tocan' ), 'El mensaje no dice que las tablas sin registro no se tocan.' );
 } );

@@ -1549,6 +1549,12 @@ final class Digitalisimo_Backups_Migrate {
 		if ( ! is_string( $name ) || ! is_string( $tag ) || ! preg_match( '/^[0-9a-f]{6}$/D', $tag ) || ! preg_match( '/^(.*)dgbkk_' . $tag . '_9[0-9]{3,}$/D', $name, $m ) ) return false;
 		return '' === $m[1] || ( is_object( $wpdb ) && $m[1] === (string) $wpdb->base_prefix );
 	}
+	/** Si $name tiene el nombre de una tabla apartada de este WordPress, de cualquier marca (para listar las que no están en el registro). */
+	private static function kept_like( $name ) {
+		global $wpdb;
+		if ( ! is_string( $name ) || ! preg_match( '/^(.*)dgbkk_[0-9a-f]{6}_9[0-9]{3,}$/D', $name, $m ) ) return false;
+		return '' === $m[1] || ( is_object( $wpdb ) && $m[1] === (string) $wpdb->base_prefix );
+	}
 	/** Una entrada del registro, normalizada; sus tablas, sólo las que tienen el nombre de una apartada de su marca. */
 	private static function kept_entry( $tag, $entry ) {
 		if ( ! is_array( $entry ) || ! is_string( $tag ) || ! preg_match( '/^[0-9a-f]{6}$/D', $tag ) ) return null;
@@ -1708,7 +1714,7 @@ final class Digitalisimo_Backups_Migrate {
 			);
 		}
 		$unregistered = array();
-		foreach ( array_keys( $live ) as $table ) if ( preg_match( '/(?:^|_)dgbkk_[0-9a-f]{6}_9[0-9]{3,}$/D', (string) $table ) && ! isset( $known[ (string) $table ] ) ) $unregistered[] = (string) $table;
+		foreach ( array_keys( $live ) as $table ) if ( self::kept_like( (string) $table ) && ! isset( $known[ (string) $table ] ) ) $unregistered[] = (string) $table;
 		return array( 'days' => self::kept_days(), 'count' => (int) array_sum( array_column( $sets, 'count' ) ), 'sets' => $sets, 'unregistered' => $unregistered );
 	}
 	/** Borra las tablas $present de un juego (sólo nombres que pasaron kept_entry()). Devuelve [borradas, errores]. */
@@ -1782,7 +1788,7 @@ final class Digitalisimo_Backups_Migrate {
 				if ( ! $errors ) $gone[ $entry['tag'] ] = $entry['at'];
 			}
 			if ( ! $dry_run ) self::kept_forget( $gone );
-			foreach ( array_keys( $live ) as $table ) if ( preg_match( '/(?:^|_)dgbkk_[0-9a-f]{6}_9[0-9]{3,}$/D', (string) $table ) && ! isset( $known[ (string) $table ] ) ) $report['unregistered'][] = (string) $table;
+			foreach ( array_keys( $live ) as $table ) if ( self::kept_like( (string) $table ) && ! isset( $known[ (string) $table ] ) ) $report['unregistered'][] = (string) $table;
 			if ( ! $sized ) $report['bytes'] = null;
 		} catch ( Throwable $e ) {
 			$report['errors'][] = $e->getMessage();
