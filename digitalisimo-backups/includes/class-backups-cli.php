@@ -31,10 +31,10 @@ final class Digitalisimo_Backups_Cli {
 		WP_CLI::add_command( 'digitalisimo-backups jobs', 'Digitalisimo_Backups_Cli_Jobs' );
 		WP_CLI::add_command( 'digitalisimo-backups destinations', 'Digitalisimo_Backups_Cli_Destinations' );
 		WP_CLI::add_command( 'digitalisimo-backups upload', 'Digitalisimo_Backups_Cli_Upload' );
-		WP_CLI::add_command( 'digitalisimo-backups restore-config', 'Digitalisimo_Backups_Cli_Restore_Config' );
 		WP_CLI::add_command( 'digitalisimo-backups backuply', 'Digitalisimo_Backups_Cli_Backuply' );
 		WP_CLI::add_command( 'digitalisimo-backups migration', 'Digitalisimo_Backups_Cli_Migration' );
 		WP_CLI::add_command( 'digitalisimo-backups pre-update', 'Digitalisimo_Backups_Cli_Pre_Update' );
+		WP_CLI::add_command( 'digitalisimo-backups restore-config', 'Digitalisimo_Backups_Cli_Restore_Config' );
 	}
 	/** Termina con el mensaje del motor y código 1. */
 	public static function result( $result ) {
