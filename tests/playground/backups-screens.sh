@@ -88,10 +88,8 @@ for mode in $MODES; do
     cp -a "$ROOT/digitalisimo-backups" "$dir/run/plugin"
     extra=(--mount="$dir/run/plugin:/wordpress/wp-content/plugins/digitalisimo-backups" --mount="$dir/run/store:/digi-store")
   fi
-  # Claves propias en wp-config.php, como un sitio real (sin ellas, Backups avisa de que no puede cifrar credenciales).
-  auth=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9'); secure=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')
   cat > "$dir/run/blueprint.json" <<JSON
-{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_ENVIRONMENT_TYPE":"local","AUTH_KEY":"$auth","SECURE_AUTH_KEY":"$secure"}},$multi
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_ENVIRONMENT_TYPE":"local"}},$multi
 {"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi

@@ -14,6 +14,15 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 $dir = '/digi-probe';
 try {
 	$mode = trim( (string) file_get_contents( $dir . '/mode.txt' ) );
+	// Claves propias en wp-config.php, como un sitio real (con las de ejemplo, Backups avisa de que no puede cifrar las
+	// credenciales de los destinos). Se reescriben las líneas de ejemplo: definirlas otra vez desde el blueprint daría
+	// «Constant already defined» antes de las cabeceras y no se podría iniciar sesión.
+	$config = ABSPATH . 'wp-config.php';
+	if ( is_file( $config ) && is_writable( $config ) ) {
+		$text = (string) file_get_contents( $config );
+		$text = preg_replace_callback( "/define\\(\\s*'(AUTH_KEY|SECURE_AUTH_KEY)'\\s*,\\s*'put your unique phrase here'\\s*\\);/", function( $m ) { return "define( '" . $m[1] . "', '" . bin2hex( random_bytes( 32 ) ) . "' );"; }, $text );
+		file_put_contents( $config, $text );
+	}
 	$network = is_multisite();
 	wp_mkdir_p( WPMU_PLUGIN_DIR );
 	// La petición con la que «Create Backup» de Backuply arranca su primer tramo responde 200 sin hacerse (el ensayo
