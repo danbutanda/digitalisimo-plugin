@@ -260,8 +260,8 @@ capability, nonce o autenticación, sin tareas largas durante el guardado.
 ## Pantalla
 
 Desde @NEXT_BACKUPS@ («interfaz simple») la pantalla imita la sencillez de Backuply sin quitar ninguna función. Antes
-eran cinco pestañas y la inicial medía 4 832 px, con 8 tarjetas, 15 botones, 26 campos y 1 202 palabras; el «Dashboard»
-de Backuply mide 465 px, con 25 palabras. Mediciones y capturas: `tests/playground/backups-screens.sh` (antes y
+eran cinco pestañas y la inicial medía 4 737 px, con 8 tarjetas, 15 botones, 26 campos y 1 180 palabras; ahora mide unos
+760 px, con 58 palabras y ningún campo a la vista. El «Dashboard» de Backuply mide 465 px, con 25 palabras. Mediciones y capturas: `tests/playground/backups-screens.sh` (antes y
 después, sitio y red).
 
 | Pestaña | Qué tiene |
