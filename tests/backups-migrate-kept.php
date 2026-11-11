@@ -318,16 +318,16 @@ kp_case( 'k1f · una tabla de otra aplicación con prefijo anidado apartada al m
 	$stats = kp_kept_value( 'visita-de-la-otra-app' );
 	mig_assert( null !== $stats && ! in_array( 'dst_stats_hits', kp_tables(), true ), 'La tabla de la otra aplicación no se apartó (la prueba lo necesita).' );
 	$tag = (string) key( kp_registry() );
+	// Pasado el plazo (con su copia previa en el almacén), el vigilante no la borra.
+	kp_age( $tag, 8 );
+	Digitalisimo_Backups_Jobs::watchdog();
+	mig_assert( $stats === kp_kept_value( 'visita-de-la-otra-app' ) && isset( kp_registry()[ $tag ] ), 'Pasados 8 días, el vigilante borró la tabla de la otra aplicación que apartó la migración.' );
 	// El aviso y la tarjeta la nombran con su nombre de antes.
 	mig_assert( false !== strpos( implode( ' ', (array) $migration['warnings'] ), 'dst_stats_hits → ' . $stats ), 'El aviso de la migración no nombra la tabla de la otra aplicación: ' . implode( ' ', (array) $migration['warnings'] ) );
 	ob_start();
 	$M::panel( false, mig_call( 'Digitalisimo_Backups', 'migration_status_data' ) );
 	$html = ob_get_clean();
 	mig_assert( false !== strpos( $html, esc_html( 'dst_stats_hits → ' . $stats ) ) && false !== strpos( $html, esc_html( 'dst_solo_destino → ' ) ) && false !== strpos( $html, 'no se borran solas' ), 'La tarjeta no nombra todas las tablas apartadas con su nombre de antes.' );
-	// Pasado el plazo (con su copia previa en el almacén), el vigilante no la borra.
-	kp_age( $tag, 8 );
-	Digitalisimo_Backups_Jobs::watchdog();
-	mig_assert( $stats === kp_kept_value( 'visita-de-la-otra-app' ) && isset( kp_registry()[ $tag ] ), 'Pasados 8 días, el vigilante borró la tabla de la otra aplicación que apartó la migración.' );
 	// «Deshacer» cuyo borrado al terminar falla: su juego (datos del origen) sí lo borra el vigilante; el de la migración, no.
 	$GLOBALS['wpdb']->fail_on = 'DROP TABLE IF EXISTS `dst_dgbkk_';
 	$undo = mig_rest( 'POST', KP_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
