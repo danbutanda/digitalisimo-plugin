@@ -445,7 +445,10 @@ if ( '' === $sshd || '' === $keygen ) {
 			try { $done = $destination->put( $big ); } catch ( Digitalisimo_Backups_Transfer_Pending $e ) { continue; }
 		}
 		$check( $done && is_file( $final ), 'La subida de control no se publicó.' );
-		$h = fopen( $final, 'r+b' ); fseek( $h, 1048576 + 7 ); fwrite( $h, 'X' ); fclose( $h );
+		// Otro contenido, siempre: el byte se invierte (escribir una letra fija coincidía con el original 1 de cada 256 veces,
+		// y entonces el archivo era de verdad este respaldo y la prueba fallaba sin motivo).
+		$h = fopen( $final, 'r+b' ); fseek( $h, 1048576 + 7 ); $byte = fread( $h, 1 ); fseek( $h, 1048576 + 7 ); fwrite( $h, chr( ord( $byte ) ^ 0xFF ) ); fclose( $h );
+		$check( ! hash_equals( hash_file( 'sha256', $big ), hash_file( 'sha256', $final ) ), 'La prueba no llegó a cambiar el archivo final.' );
 		file_put_contents( $state_path, json_encode( $last ) );
 		list( $error, $calls ) = $until_error( $big, $state_path );
 		$check( $error instanceof Digitalisimo_Backups_Permanent_Error && false !== strpos( $error->getMessage(), 'no es este respaldo' ) && $calls <= 6 && is_file( $final ), 'Un archivo final con otro contenido no terminó en un error permanente claro: ' . ( $error ? get_class( $error ) . ': ' . $error->getMessage() : 'sin error' ) . ' en ' . $calls . ' llamadas' );
