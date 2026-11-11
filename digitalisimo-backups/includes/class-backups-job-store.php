@@ -5,6 +5,8 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Backups_Permanent_Error extends Exception {}
 /** El administrador pidió cancelar: la fase en curso deshace lo suyo y el trabajo termina en «cancelado». */
 class Digitalisimo_Backups_Job_Cancelled extends Exception {}
+/** Un tramo de una subida reanudable terminó sin acabar la copia (H20): la fase sigue en el tick siguiente desde ahí. */
+class Digitalisimo_Backups_Transfer_Pending extends Exception {}
 /** Otro proceso tomó el trabajo (almacén compartido entre servidores): éste deja de escribir sin tocar su estado. */
 class Digitalisimo_Backups_Job_Lease_Lost extends Exception {}
 /** Un punto de control ya no describe el área de trabajo: el trabajo vuelve a la fase que lo produjo. */

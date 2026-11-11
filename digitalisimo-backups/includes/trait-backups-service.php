@@ -140,6 +140,12 @@ trait Digitalisimo_Backups_Service {
 			'site' => (string) ( $item['extract']['label'] ?? '' ),
 			'consistency' => (string) ( $item['consistency'] ?? '' ),
 			'notices' => array_values( array_map( function( $notice ) { return (string) ( $notice['text'] ?? '' ); }, (array) ( $item['notices'] ?? array() ) ) ),
+			// «Sólo en el remoto» (I4): el ZIP local se borró a propósito; restaurar exige traerlo (fetch).
+			// Tras «Traer al almacén» el ZIP vuelve a estar aquí: ya no es «sólo en el remoto» (revisión P6).
+			'remote_only' => 'remote-only' === ( $item['local'] ?? '' ) && ! $available,
+			// Retención en el remoto (B6): pending (se borrará), failed (no se pudo; con el motivo) o vacío.
+			'remote_retention' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['state'] ?? ( '' !== (string) ( $item['remote_foreign'] ?? '' ) ? 'foreign' : '' ) ),
+			'remote_retention_error' => (string) ( ( is_array( $item['remote_prune'] ?? null ) ? $item['remote_prune'] : array() )['error'] ?? '' ),
 		);
 	}
 	/** Copias previas a una restauración en el historial: se registran (bloqueadas) justo antes del SQL. */
@@ -253,6 +259,7 @@ trait Digitalisimo_Backups_Service {
 				'time' => self::fixed_time( $policy ),
 				'destination' => (string) ( $policy['destination'] ?? 'local' ),
 				'retain' => (int) ( $policy['retain'] ?? 0 ),
+				'remote_only' => ! empty( $policy['remote_only'] ),
 				'enabled' => $enabled,
 				'next_run' => $next ? gmdate( 'c', (int) $next ) : '',
 			);
@@ -275,7 +282,8 @@ trait Digitalisimo_Backups_Service {
 		}
 		try {
 			self::ensure_ready();
-			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => 'network' === ( $args['context'] ?? ( is_multisite() ? 'network' : 'site' ) ) ) ) );
+			// «Sólo en el remoto» (I4): sin destino remoto no aplica (el spec lo ignora).
+			$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => $destination, 'retain' => (int) $settings['retention'], 'retention' => 'global', 'remote_only' => ! empty( $args['remote_only'] ), 'via' => (string) ( $args['via'] ?? 'rest' ), 'network' => 'network' === ( $args['context'] ?? ( is_multisite() ? 'network' : 'site' ) ) ) ) );
 		} catch ( Throwable $e ) {
 			// Throwable, como hacía el respaldo con avance (AJAX): un fallo del almacén de trabajos es un error claro, no un fatal.
 			return self::service_error( 'not_ready', $e->getMessage(), 422 );

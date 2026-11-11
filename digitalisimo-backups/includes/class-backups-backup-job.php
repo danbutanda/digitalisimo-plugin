@@ -205,8 +205,13 @@ final class Digitalisimo_Backups_Backup_Job {
 		$final = rtrim( Digitalisimo_Backups::storage_directory(), '/\\' ) . '/' . basename( (string) $spec['file'] );
 		if ( ! is_file( $final ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El ZIP local desapareció antes de copiarlo al destino remoto.' );
 		Digitalisimo_Backups_Jobs::progress( 90, 'Copiando a ' . Digitalisimo_Backups::destination_name( $spec['destination'] ) . '…', true );
-		// El estado reanudable de la subida (multipart, sesión, temporal) vive en el área de este trabajo.
-		$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'], $job['id'] );
+		// El estado reanudable de la subida (multipart, sesión, temporal) vive en el área de este trabajo. Un destino por
+		// tramos (SFTP, H20) sube y verifica hasta el plazo del tick y la fase sigue en el siguiente desde lo confirmado.
+		try {
+			$remote = Digitalisimo_Backups::job_transfer( $final, $spec['destination'], $job['id'], Digitalisimo_Backups_Step_Budget::deadline( 1.0 ) );
+		} catch ( Digitalisimo_Backups_Transfer_Pending $e ) {
+			return array( 'next' => 'transfer', 'checkpoint' => array( 'slice' => time() ), 'message' => $e->getMessage() );
+		}
 		Digitalisimo_Backups::history_update( basename( $final ), array( 'transfer_destination' => $spec['destination'], 'remote' => (array) $remote, 'transfer' => 'ok', 'transfer_error' => '' ) );
 		return array( 'next' => 'prune', 'checkpoint' => array( 'provider' => (string) ( $remote['provider'] ?? '' ), 'at' => time() ), 'message' => 'Copia remota verificada; aplicando la retención…' );
 	}

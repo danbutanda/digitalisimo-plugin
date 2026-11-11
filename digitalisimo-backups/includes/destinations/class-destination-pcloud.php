@@ -60,6 +60,7 @@ final class Digitalisimo_Backups_Destination_Pcloud extends Digitalisimo_Backups
 		if ( ! isset( self::HOSTS[ $host ] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Conecta pCloud de nuevo para conocer la región de la cuenta.' );
 		return $host;
 	}
+	public function prepare() { $this->token(); }
 	private function token() {
 		$token = (string) ( $this->s['pcloud_access_token'] ?? '' );
 		if ( '' === $token ) {

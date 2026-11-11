@@ -12,6 +12,7 @@
   var message = document.getElementById('digitalisimo-backups-manual-message');
   var detail = document.getElementById('digitalisimo-backups-manual-detail');
   var destination = form ? form.querySelector('[name="digitalisimo_backup_destination"]') : null;
+  var remoteOnly = form ? form.querySelector('[name="digitalisimo_backup_remote_only"]') : null;
   var button = form ? form.querySelector('button[type="submit"], button:not([type])') : null;
   var watching = '';
   var timer = null;
@@ -156,7 +157,7 @@
     bar.value = 0;
     message.textContent = 'Encolando el respaldo…';
     detail.textContent = 'Verificando requisitos antes de empezar.';
-    request('digitalisimo_backups_manual_start', { destination: destination.value }, config.nonce).then(function (data) {
+    request('digitalisimo_backups_manual_start', { destination: destination.value, remote_only: remoteOnly && remoteOnly.checked ? '1' : '' }, config.nonce).then(function (data) {
       watching = data.id;
       showWatched([data.view]);
       schedule(0);

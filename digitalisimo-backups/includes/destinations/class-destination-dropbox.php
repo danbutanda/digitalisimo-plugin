@@ -58,6 +58,7 @@ final class Digitalisimo_Backups_Destination_Dropbox extends Digitalisimo_Backup
 		return 200 === $response['code'] && ! empty( $data['refresh_token'] ) ? (string) $data['refresh_token'] : '';
 	}
 	/** Token de acceso de corta duración a partir del refresh token (en memoria, nunca guardado). */
+	public function prepare() { $this->token(); }
 	private function token() {
 		if ( '' !== $this->access ) return $this->access;
 		if ( empty( $this->s['dropbox_app_key'] ) || empty( $this->s['dropbox_refresh_token'] ) ) {

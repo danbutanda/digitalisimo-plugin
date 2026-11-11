@@ -51,10 +51,12 @@ defined( 'ABSPATH' ) || exit;
  * - DELETE /backuply/<nombre>               borra un respaldo de Backuply del almacén privado (no los de su carpeta)
  *
  * - GET  /migration                         estado de la migración: claves (sin secretos), registro, la que se puede deshacer
+ *                                            y las tablas apartadas (`kept_tables`)
  * - POST /migration/keys                    genera una clave de migración (`hours`, `network`): 201, la clave sólo esta vez
  * - POST /migration/keys/<id>/revoke        revoca una clave
  * - POST /migration/pull                    «Migrar desde otro sitio» (`key`, `confirm`=MIGRAR, `network`): 202 con el trabajo
  * - POST /migration/undo                    «Deshacer la migración» (`confirm`=DESHACER, `network`)
+ * - POST /migration/cleanup                 borra ya las tablas apartadas del registro (`dry_run`: sólo las lista; `network`)
  *
  * API del sitio de origen para el destino (`/migrate/source/…`): no usa la sesión de WordPress, la autoriza la clave de
  * migración en la cabecera X-Digitalisimo-Migration (nunca en la URL) con su límite de intentos; `download` responde
@@ -88,7 +90,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/status', array( $route( 'GET', 'status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups', array(
 			$route( 'GET', 'backups' ),
-			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, el tipo de una conexión principal (sftp, ftp, webdav, google, onedrive, dropbox, s3, s3compat, pcloud) o el identificador de una conexión adicional (como sftp-0a1b2c3d); ver GET /destinations. Vacío usa el de los ajustes.' ), 'network' => $network ) ),
+			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, el tipo de una conexión principal (sftp, ftp, webdav, google, onedrive, dropbox, s3, s3compat, pcloud) o el identificador de una conexión adicional (como sftp-0a1b2c3d); ver GET /destinations. Vacío usa el de los ajustes.' ), 'remote_only' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo en el remoto: borra el ZIP local cuando la copia remota está verificada (restaurar exigirá POST /backups/<archivo>/fetch). Sin destino remoto no aplica.' ), 'network' => $network ) ),
 		) );
 		$addresses = array( 'type' => 'string', 'default' => 'current', 'enum' => array( 'current', 'backup' ), 'description' => 'Si el respaldo viene de otra dirección: current conserva las de este sitio (por defecto) y backup las del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este sitio.' );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) ) ) );
@@ -192,7 +194,7 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_backups() );
 	}
 	public static function create( $request ) {
-		return self::respond( Digitalisimo_Backups::service_create( array( 'destination' => (string) $request['destination'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
+		return self::respond( Digitalisimo_Backups::service_create( array( 'destination' => (string) $request['destination'], 'remote_only' => (bool) $request['remote_only'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
 	}
 	/** Trae al almacén privado la copia remota de un respaldo del historial, verificada por su SHA-256. */
 	public static function fetch( $request ) {

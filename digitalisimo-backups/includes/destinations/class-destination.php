@@ -202,6 +202,19 @@ abstract class Digitalisimo_Backups_Destination {
 	abstract public function size( array $remote );
 	abstract public function delete( array $remote );
 	abstract public function list();
+	/**
+	 * Prepara la conexión (token de acceso, sesión SFTP) sin tocar ningún archivo: la retención remota la llama antes de
+	 * comprobar con el cerrojo del historial que puede borrar, para que el borrado sea una sola petición justo después.
+	 */
+	public function prepare() {}
+	/**
+	 * Plazo (microtime) del tramo de una subida por tramos: el destino que lo admite (SFTP) se detiene ahí con
+	 * Digitalisimo_Backups_Transfer_Pending y sigue en la llamada siguiente desde lo confirmado. INF: hasta terminar.
+	 */
+	public function set_deadline( $deadline ) {
+		$this->context['deadline'] = (float) $deadline;
+		return $this;
+	}
 
 	/* ------------------------------------------------------------------ Descarga por fragmentos (B1b) */
 

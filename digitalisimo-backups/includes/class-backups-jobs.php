@@ -111,10 +111,14 @@ final class Digitalisimo_Backups_Jobs {
 		$security = Digitalisimo_Backups_Security::job_settings( ! empty( $args['inline'] ) );
 		$file = (string) ( $args['file'] ?? Digitalisimo_Backups::backup_file_name() );
 		if ( $security['encrypt'] && '.zip' === substr( $file, -4 ) ) $file = substr( $file, 0, -4 ) . '.dgbk';
+		$destination = Digitalisimo_Backups_Destinations::exists( $destination ) ? $destination : 'local';
 		return array(
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'type' => 'full',
-			'destination' => Digitalisimo_Backups_Destinations::exists( $destination ) ? $destination : 'local',
+			'destination' => $destination,
+			// «Sólo en el remoto» (I4): el ZIP local se borra cuando la copia remota está verificada. Nunca sin destino remoto
+			// ni en una copia previa o un paquete en línea (se restauran desde el almacén).
+			'remote_only' => ! empty( $args['remote_only'] ) && 'local' !== $destination && empty( $args['inline'] ),
 			'policy' => (string) ( $args['policy'] ?? 'manual' ),
 			'retain' => max( 1, min( 100, (int) ( $args['retain'] ?? 5 ) ) ),
 			'retention' => in_array( $retention, array( 'global', 'policy', 'none' ), true ) ? $retention : 'global',
@@ -283,6 +287,8 @@ final class Digitalisimo_Backups_Jobs {
 			} while ( microtime( true ) - $start < $budget );
 			// Subidas interrumpidas por un fallo o una cancelación: se retiran del destino fuera del cerrojo del registro.
 			Digitalisimo_Backups::job_transfer_abandon_pending();
+			// Copias remotas que la retención retiró (B6): con el cerrojo de operaciones de este tick, con esperas cortas.
+			Digitalisimo_Backups::job_remote_retention_pending( 5, true );
 			if ( $finished ) Digitalisimo_Backups_Job_Store::prune();
 		} catch ( Throwable $e ) {
 			$result = 'error';
@@ -789,6 +795,7 @@ final class Digitalisimo_Backups_Jobs {
 			try {
 				self::recover();
 				Digitalisimo_Backups::job_transfer_abandon_pending();
+				Digitalisimo_Backups::job_remote_retention_pending( 5, true );
 				if ( ! self::has_active() ) self::cleanup_orphans();
 				Digitalisimo_Backups_Job_Store::prune();
 				// Subidas de respaldos sin actividad durante 24 h.

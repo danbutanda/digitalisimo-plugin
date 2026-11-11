@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.253.zip', version: '1.0.253' },
   { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.60.zip', version: '1.0.60' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.30.zip', version: '1.0.30' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.70.zip', version: '1.0.70' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.71.zip', version: '1.0.71' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.37.zip', version: '1.0.37' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.183.zip', version: '4.3.0.183' };
@@ -185,10 +185,13 @@ for (const file of inventoryFiles) {
 }
 for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
-  for (const match of source.matchAll(/(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
-    const name = match[1];
+  // Una clase con espacio de nombres sólo choca con otra del mismo espacio: se compara el nombre completo.
+  const namespace = source.match(/^\s*namespace\s+([A-Za-z_][A-Za-z0-9_\\]*)\s*;/m)?.[1];
+  // Sólo declaraciones al inicio de línea: un comentario («//class X», « * class X») o un texto no declara nada.
+  for (const match of source.matchAll(/^[ \t]*(?:(?:abstract|final|readonly)[ \t]+)*class[ \t]+([A-Za-z_][A-Za-z0-9_]*)/gm)) {
+    const name = namespace ? `${namespace}\\${match[1]}` : match[1];
     if (!declarations.has(name)) declarations.set(name, []);
-    declarations.get(name).push({ file, guarded: source.includes(`class_exists( '${name}' )`) || source.includes(`class_exists('${name}')`) });
+    declarations.get(name).push({ file, guarded: source.includes(`class_exists( '${match[1]}' )`) || source.includes(`class_exists('${match[1]}')`) });
   }
 }
 for (const [name, records] of declarations) {

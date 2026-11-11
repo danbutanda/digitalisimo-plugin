@@ -91,6 +91,51 @@ try {
 	if ( 'La copia SFTP no coincide con el ZIP local.' !== $e->getMessage() ) throw $e;
 }
 if ( glob( $root . '/backups/*' ) ) throw new RuntimeException( 'Una transferencia fallida dejó un archivo visible o temporal.' );
+$GLOBALS['sftp_test_corrupt_reads'] = false;
+
+// H20 del ensayo E3 (con la extensión ssh2): la subida va por tramos hasta el plazo de cada uno, con el estado en el
+// área del trabajo; una muerte a mitad de un tramo no repite lo que el servidor ya tiene.
+if ( ! function_exists( 'ssh2_sftp_stat' ) ) { function ssh2_sftp_stat( $sftp, $path ) { clearstatcache(); $stat = @stat( $GLOBALS['sftp_test_root'] . $path ); return is_array( $stat ) ? array( 'size' => $stat['size'] ) : false; } }
+$big = $root . '/digitalisimo-backup-tramos.zip';
+$h = fopen( $big, 'wb' ); for ( $i = 0; $i < 6; $i++ ) fwrite( $h, random_bytes( 1048576 ) ); fwrite( $h, random_bytes( 4321 ) ); fclose( $h );
+$state_path = $root . '/transfer.json';
+$positions = array();
+$die = 2;
+$context = array( 'temp_dir' => $root, 'connection' => 'sftp', 'state' => new Digitalisimo_Backups_Transfer_State( $state_path ), 'progress' => function( $percent, $message ) use ( &$die ) { if ( 0 === --$die ) throw new RuntimeException( 'proceso muerto' ); } );
+$receipt = null;
+$slices = 0;
+$resumed_at = null;
+for ( $i = 0; $i < 60 && ! $receipt; $i++ ) {
+	$before = glob( $root . '/backups/*.part-*' );
+	$before_size = $before ? filesize( $before[0] ) : 0;
+	$destination = new Digitalisimo_Backups_Destination_Sftp( $settings, $context );
+	$destination->set_deadline( microtime( true ) - 1 ); // Plazo vencido: cada tramo avanza el mínimo (un bloque).
+	try {
+		$receipt = $destination->put( $big );
+	} catch ( Digitalisimo_Backups_Transfer_Pending $e ) {
+		$slices++;
+	} catch ( RuntimeException $e ) {
+		if ( 'proceso muerto' !== $e->getMessage() ) throw $e;
+		clearstatcache();
+		$after = glob( $root . '/backups/*.part-*' );
+		if ( ! $after || filesize( $after[0] ) <= $before_size ) throw new RuntimeException( 'La muerte simulada no dejó nada nuevo en el servidor.' );
+		$resumed_at = filesize( $after[0] ); // Lo que el servidor ya tiene: el tramo siguiente tiene que seguir desde aquí.
+		continue;
+	}
+	if ( null !== $resumed_at && ! isset( $first_after ) ) {
+		clearstatcache();
+		$now = glob( $root . '/backups/*.part-*' );
+		$state = json_decode( (string) @file_get_contents( $state_path ), true );
+		$first_after = (int) ( $state['offset'] ?? 0 );
+		if ( $first_after <= $resumed_at ) throw new RuntimeException( 'Tras la muerte no siguió desde lo que el servidor ya tenía: ' . $first_after . ' ≤ ' . $resumed_at );
+		if ( (int) ( $state['sent'] ?? 0 ) > filesize( $big ) ) throw new RuntimeException( 'Se volvió a subir lo que ya estaba en el servidor.' );
+	}
+}
+clearstatcache();
+if ( ! $receipt || $slices < 4 || null === $resumed_at || ! is_file( $root . $receipt['path'] ) || hash_file( 'sha256', $big ) !== hash_file( 'sha256', $root . $receipt['path'] ) || hash_file( 'sha256', $big ) !== $receipt['sha256'] ) throw new RuntimeException( 'La subida por tramos no publicó la copia verificada: ' . json_encode( array( $slices, $resumed_at, $receipt ) ) );
+if ( glob( $root . '/backups/*.part-*' ) || is_file( $state_path ) ) throw new RuntimeException( 'Tras publicar quedó el temporal o el estado de la subida.' );
+unlink( $root . $receipt['path'] );
+unlink( $big );
 unlink( $file );
 rmdir( $root . '/backups' );
 rmdir( $root );

@@ -160,7 +160,7 @@ try {
   let out = await wp('digitalisimo-backups');
   const usage = out.stdout + out.stderr;
   check(['status', 'list', 'verify <file>', 'automation <command>', 'jobs <command>'].every((name) => usage.includes(`wp digitalisimo-backups ${name}`)) && !out.fatal, 'WP-CLI registra status, list, create, verify, restore, automation y jobs', usage + out.fatal);
-  check(usage.includes('wp digitalisimo-backups restore <file> --confirm=<confirm> [--network] [--secret-file=<path>] [--secret-stdin] [--adopt-secret]') && usage.includes('wp digitalisimo-backups create [--destination=<destination>] [--network] [--async] [--porcelain]'), 'la sinopsis de restore y create sale del PHPDoc', usage);
+  check(usage.includes('wp digitalisimo-backups restore <file> --confirm=<confirm> [--network] [--secret-file=<path>] [--secret-stdin] [--adopt-secret]') && usage.includes('wp digitalisimo-backups create [--destination=<destination>] [--remote-only] [--network] [--async] [--porcelain]'), 'la sinopsis de restore y create sale del PHPDoc', usage);
   out = await wp('digitalisimo-backups', 'automation');
   check(/wp digitalisimo-backups automation list/.test(out.stdout + out.stderr) && /wp digitalisimo-backups automation run <id> \[--network\] \[--async\] \[--porcelain\]/.test(out.stdout + out.stderr), 'WP-CLI registra automation list y run', out.stdout + out.stderr);
   out = await wp('digitalisimo-backups', 'jobs');

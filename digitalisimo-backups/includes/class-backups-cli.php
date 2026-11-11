@@ -209,6 +209,9 @@ final class Digitalisimo_Backups_Cli {
 	 * [--destination=<destination>]
 	 * : Destino conectado (local, sftp, google u onedrive). Sin él, el de los ajustes.
 	 *
+	 * [--remote-only]
+	 * : Sólo en el remoto: borra el ZIP local cuando la copia remota está verificada (restaurar exigirá `fetch`).
+	 *
 	 * [--network]
 	 * : Confirma el alcance de red; obligatorio en Multisite.
 	 *
@@ -225,7 +228,7 @@ final class Digitalisimo_Backups_Cli {
 	 */
 	public function create( $args, $assoc_args ) {
 		$async = ! empty( $assoc_args['async'] );
-		$view = self::result( Digitalisimo_Backups::service_create( array( 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$view = self::result( Digitalisimo_Backups::service_create( array( 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'remote_only' => ! empty( $assoc_args['remote-only'] ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
 		if ( $async ) {
 			self::queued( $view, ! empty( $assoc_args['porcelain'] ) );
 			return;
