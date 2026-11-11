@@ -55,9 +55,11 @@ trait Digitalisimo_Backups_Screen {
 	}
 	/** Lo que se ve de un texto largo: su primera frase si cabe en 140 caracteres; si no, sus primeras palabras y «…». */
 	private static function text_head( $plain ) {
-		$cut = 0;
-		foreach ( array( '. ', ': ', '; ' ) as $mark ) { $at = strpos( $plain, $mark ); if ( false !== $at && $at > 20 && self::text_length( substr( $plain, 0, $at + 1 ) ) <= 140 && ( ! $cut || $at < $cut ) ) $cut = $at; }
-		if ( $cut ) return substr( $plain, 0, $cut + 1 );
+		// Una frase entera antes que media: el primer punto que quepa; si no hay, el primer punto y coma o dos puntos.
+		foreach ( array( '. ', '; ', ': ' ) as $mark ) {
+			$at = strpos( $plain, $mark );
+			if ( false !== $at && $at > 20 && self::text_length( substr( $plain, 0, $at + 1 ) ) <= 140 ) return substr( $plain, 0, $at + 1 );
+		}
 		$head = function_exists( 'mb_substr' ) ? mb_substr( $plain, 0, 125, 'UTF-8' ) : substr( $plain, 0, 125 );
 		$space = strrpos( $head, ' ' );
 		return rtrim( false !== $space ? substr( $head, 0, $space ) : $head, ' ,;:' ) . '…';
