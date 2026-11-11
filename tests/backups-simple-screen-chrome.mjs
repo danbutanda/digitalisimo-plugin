@@ -34,7 +34,7 @@ let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
 // Perfil en una ruta corta: con un TMPDIR largo, Chrome muere con «Socket path too long».
 const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dgb-' : join(tmpdir(), 'dgb-'));
-const browser = await puppeteer.launch({ userDataDir: profile, executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu', '--host-resolver-rules=MAP * ~NOTFOUND'] });
+const browser = await puppeteer.launch({ userDataDir: profile, env: { ...process.env, TMPDIR: existsSync('/tmp') ? '/tmp' : tmpdir() }, executablePath: chrome, headless: true, args: ['--no-sandbox', '--allow-file-access-from-files', '--disable-gpu', '--host-resolver-rules=MAP * ~NOTFOUND'] });
 const errors = [];
 
 /** Lo que se ve en .wrap: palabras, el texto más largo (bloques sin otros bloques dentro) y campos. */

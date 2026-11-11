@@ -49,6 +49,7 @@ function request(method, path, { headers = {}, body } = {}) {
 const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dgb-' : `${tmpdir()}/dgb-`);
 const browser = await puppeteer.launch({
   userDataDir: profile,
+  env: { ...process.env, TMPDIR: existsSync('/tmp') ? '/tmp' : tmpdir() },
   executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
   headless: true,
   protocolTimeout: 900_000,
