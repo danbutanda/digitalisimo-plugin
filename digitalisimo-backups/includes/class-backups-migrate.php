@@ -641,6 +641,17 @@ final class Digitalisimo_Backups_Migrate {
 			// La poda del almacén retira la carpeta del trabajo más adelante.
 		}
 	}
+	/**
+	 * El almacén del origen está ocupado por OTRA operación: el tick no pudo tomarlo y el paquete no está en marcha. Si
+	 * quien lo tiene es el propio trabajo del paquete (otra petición o WP-Cron con su arrendamiento vivo, latiendo), no es
+	 * «otra operación»: el paquete avanza, y el destino lo dice así (observación del ensayo E4).
+	 */
+	private static function source_busy( $tick_busy, $job ) {
+		if ( ! $tick_busy ) return false;
+		$lease = is_array( $job ) ? ( $job['lease'] ?? null ) : null;
+		if ( is_array( $lease ) && time() - (int) ( $lease['heartbeat_at'] ?? 0 ) <= Digitalisimo_Backups_Jobs::STALE_AFTER ) return false;
+		return true;
+	}
 	/** Hace avanzar la cola de este sitio (donde espera el paquete) con el presupuesto de una petición web y responde el estado del paquete. */
 	public static function source_step( array $record ) {
 		$job = Digitalisimo_Backups_Job_Store::valid_id( (string) $record['job'] ) ? Digitalisimo_Backups_Jobs::get( (string) $record['job'] ) : null;
@@ -649,8 +660,8 @@ final class Digitalisimo_Backups_Migrate {
 		if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) {
 			if ( function_exists( 'ignore_user_abort' ) ) ignore_user_abort( true );
 			$tick = Digitalisimo_Backups_Jobs::tick();
-			$busy = 'busy' === $tick['result'];
 			$job = Digitalisimo_Backups_Jobs::get( (string) $job['id'] );
+			$busy = self::source_busy( 'busy' === $tick['result'], $job );
 		}
 		$view = self::source_view( $record, $job );
 		if ( $busy && ! $view['ready'] ) $view['state'] = 'busy';

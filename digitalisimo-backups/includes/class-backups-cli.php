@@ -127,6 +127,17 @@ final class Digitalisimo_Backups_Cli {
 		}
 		WP_CLI::success( ( empty( $view['notices'] ) ? 'Respaldo completo creado y verificado: ' : 'Respaldo completo creado y verificado, con avisos: ' ) . $view['file'] . ' (' . $view['destination_label'] . ( $view['encrypt'] ? ', cifrado' : '' ) . ').' );
 	}
+	/** Un campo compuesto del estado en una línea: `clave: valor` separados por comas (anidados entre paréntesis). */
+	public static function status_text( array $value ) {
+		$parts = array();
+		foreach ( $value as $key => $item ) {
+			if ( is_bool( $item ) ) $item = $item ? 'sí' : 'no';
+			elseif ( is_array( $item ) ) $item = '(' . self::status_text( $item ) . ')';
+			elseif ( null === $item ) $item = '—';
+			$parts[] = ( is_int( $key ) ? '' : $key . ': ' ) . (string) $item;
+		}
+		return implode( ', ', $parts );
+	}
 	/** Encolado sin esperar: el trabajo lo continúan WP-Cron o `wp digitalisimo-backups jobs run`. */
 	public static function queued( array $view, $porcelain ) {
 		if ( $porcelain ) {
@@ -166,6 +177,9 @@ final class Digitalisimo_Backups_Cli {
 			elseif ( 'destinations' === $key ) $value = implode( ', ', array_keys( (array) $value ) );
 			elseif ( 'problems' === $key ) $value = implode( ' | ', (array) $value );
 			elseif ( 'notifications' === $key ) $value = 'fallos: ' . ( empty( $value['failure'] ) ? 'no' : 'sí' ) . ', éxitos: ' . ( empty( $value['success'] ) ? 'no' : 'sí' ) . ', correo: ' . ( 'custom' === ( $value['recipient'] ?? '' ) ? 'configurado' : 'de administración' );
+			// H25: la última restauración (estado y aviso) y cualquier otro campo compuesto, en texto legible (nunca «Array»).
+			elseif ( 'restore' === $key && is_array( $value ) ) $value = trim( (string) ( $value['state'] ?? '' ) . ( '' !== (string) ( $value['notice'] ?? '' ) ? ' · ' . (string) $value['notice'] : '' ) );
+			if ( is_array( $value ) ) $value = self::status_text( $value );
 			$rows[] = array( 'campo' => $key, 'valor' => is_bool( $value ) ? ( $value ? 'sí' : 'no' ) : (string) $value );
 		}
 		WP_CLI\Utils\format_items( 'table', $rows, array( 'campo', 'valor' ) );
