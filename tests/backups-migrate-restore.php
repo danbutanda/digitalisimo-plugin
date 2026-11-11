@@ -8,7 +8,8 @@
  *        termine, así que el respaldo que entra en el historial es coherente (la base de datos y los archivos de antes);
  *   (h2) «Deshacer la migración» deja el destino idéntico a su copia previa: sin el mu-plugin, el drop-in de wp-content,
  *        el plugin ni el medio del origen, con su medio propio de vuelta; y (P1) en tablas: sin la tabla que sólo tenía el
- *        origen y con la que sólo tenía el destino (que la migración retiró, porque el sitio se reemplaza por completo);
+ *        origen (apartada y borrada al terminar el deshacer, K1) y con la que sólo tenía el destino (que la migración
+ *        retiró, porque el sitio se reemplaza por completo);
  *   (h4) una migración cuya restauración falla después del cambio vuelve sola a la copia previa y nunca se ofrece para
  *        «Deshacer» (lo hecho después no se pierde);
  *   (h7) «Deshacer» mientras la restauración de la migración sigue (o se reanuda tras una caída) responde 409 con la
@@ -179,7 +180,9 @@ rs_case( 'h2 · deshacer deja el destino idéntico a su copia previa, en archivo
 	$tables = rs_tables();
 	mig_assert( ! in_array( 'dst_solo_origen', $tables, true ) && in_array( 'dst_solo_destino', $tables, true ) && 'dato del destino' === $GLOBALS['wpdb']->value( 'dst_solo_destino', 'nota', 'id = 1' ), 'Tras deshacer, las tablas no son las de la copia previa: ' . implode( ', ', $tables ) );
 	mig_assert( ! preg_grep( '/dgbk[ro]_/', $tables ), 'Deshacer dejó tablas temporales o apartadas: ' . implode( ', ', preg_grep( '/dgbk[ro]_/', $tables ) ) );
-	mig_assert( 'pedido del origen' === rs_kept_value( 'nota', 'pedido del origen' ), 'La tabla que trajo el origen no se conservó apartada al deshacer.' );
+	// K1: la tabla que trajo el origen se aparta en el cambio y se borra en cuanto el deshacer termina (sus datos no se
+	// quedan en el destino); la propia del destino que apartó la migración sigue apartada hasta su plazo.
+	mig_assert( null === rs_kept_value( 'nota', 'pedido del origen' ) && 'dato del destino' === rs_kept_value( 'nota', 'dato del destino' ), 'Tras deshacer, los datos del origen siguen apartados en el destino o se perdió la tabla apartada por la migración.' );
 	mig_assert( null === Digitalisimo_Backups_Migrate::undo_target(), 'La migración deshecha se sigue ofreciendo para deshacer.' );
 } );
 

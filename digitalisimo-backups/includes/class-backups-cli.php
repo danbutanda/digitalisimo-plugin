@@ -760,6 +760,48 @@ final class Digitalisimo_Backups_Cli_Migration {
 		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_undo( array( 'confirm' => 'DESHACER', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'drive_cli' => true ) ) );
 		WP_CLI::success( 'Migración de ' . $result['from'] . ' deshecha con ' . $result['file'] . '. Revisa los enlaces permanentes.' . ( '' !== (string) ( $result['notice'] ?? '' ) ? ' ' . $result['notice'] : '' ) );
 	}
+	/**
+	 * Lista y borra ya las tablas apartadas por las migraciones y sus «Deshacer» (`<prefijo>dgbkk_…`). Sólo las del
+	 * registro de tablas apartadas, nunca otra tabla ni las de una restauración en curso. Sin ella, las que trajo el
+	 * origen se borran al confirmarse el «Deshacer»; las de una migración no se borran solas (salvo con el filtro
+	 * `digitalisimo_backups_migration_kept_auto`, a los 7 días): revisa sus nombres de antes con --dry-run.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : Sólo lista lo que borraría.
+	 *
+	 * [--network]
+	 * : Confirma el alcance de red; obligatorio en Multisite para borrar.
+	 *
+	 * [--yes]
+	 * : No pide confirmación.
+	 *
+	 * [--format=<format>]
+	 * : table o json.
+	 * ---
+	 * default: table
+	 * ---
+	 */
+	public function cleanup( $args, $assoc_args ) {
+		$dry_run = ! empty( $assoc_args['dry-run'] );
+		$network = ! empty( $assoc_args['network'] );
+		$json = 'json' === ( $assoc_args['format'] ?? 'table' );
+		if ( ! $dry_run ) {
+			Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_check( $network, true ) );
+			$preview = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_cleanup( array( 'dry_run' => true, 'network' => $network ) ) );
+			if ( $preview['count'] ) WP_CLI::confirm( '¿Borrar ya ' . $preview['count'] . ' tabla(s) apartadas? Sus datos siguen en las copias previas de sus migraciones.', $assoc_args );
+		}
+		$result = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_migration_cleanup( array( 'dry_run' => $dry_run, 'network' => $network ) ) );
+		if ( $json ) { WP_CLI::line( wp_json_encode( $result ) ); return; }
+		$rows = array();
+		foreach ( (array) ( $dry_run ? $result['kept_tables']['sets'] : array() ) as $set ) {
+			foreach ( (array) $set['tables'] as $table ) $rows[] = array( 'table' => $table['table'], 'was' => $table['was'], 'kind' => $set['kind'], 'from' => $set['from'], 'at' => $set['at'], 'expires_at' => '' !== (string) $set['expires_at'] ? $set['expires_at'] : $set['note'] );
+		}
+		if ( $rows ) Digitalisimo_Backups_Cli::rows( $rows, array( 'format' => 'table' ), array( 'table', 'was', 'kind', 'from', 'at', 'expires_at' ) );
+		if ( $result['errors'] ) WP_CLI::error( $result['message'] );
+		WP_CLI::success( $result['message'] );
+	}
 }
 
 /** Destinos remotos: listarlos, probarlos y traer una copia remota al almacén. */

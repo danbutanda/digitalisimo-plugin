@@ -286,11 +286,12 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /destinations/<id>/backups` | `wp digitalisimo-backups destinations backups <id> [--format=…]` | Desde 1.0.69: los respaldos de DIGITALÍSIMO del destino, listados ahora: `name`, `size`, `site` y `date` (lo que dice el nombre, una pista), `origin` (`this`, `other`, `unknown`), `registered`, `local` y `state` (`local`, `registered` o `importable`). |
 | `POST /destinations/<id>/backups/<nombre>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <nombre> --from=<id> [--network]` · `wp digitalisimo-backups restore <nombre> --from=<id> --confirm=…` | Desde 1.0.69 (B1b, B2): trae al almacén un respaldo del destino, de este sitio o de otro, con el trabajo `fetch` (por fragmentos y con reanudación). Uno de este sitio se comprueba por el SHA-256 de su historial y entra con su nombre; uno de otro sitio pasa la validación de archivos no confiables y entra «sin registro» (`trust`, `confirmation`, `compatible`, `problems` en la respuesta). `restore --from` lo trae y lo restaura en la misma orden. |
 | `GET /backuply` · `POST /backuply/import` (`name`, `source`) · `POST /backuply/fetch` (`connection`, `name`) · `DELETE /backuply/<nombre>` | `wp digitalisimo-backups backuply list [--format=…]` · `backuply import <nombre> [--source=backuply\|store] [--async] [--porcelain]` · `backuply fetch <destino> <nombre>` · `backuply delete <nombre>` | Desde 1.0.68 (I9): si Backuply está en el sitio (`detected`, `installed`, `active`) y sus respaldos que se pueden importar, de su carpeta (`source: backuply`) y de `backuply/` del almacén (`store`), con fecha, tamaño, si su archivo de información dice base de datos y archivos, la URL de origen y, si ya se importó, el ZIP (`imported`); nunca una ruta. `import` encola la conversión (202 con el trabajo, `kind: import`; 409 si ya se importa o hay una restauración en curso); WP-CLI la hace avanzar hasta terminar e imprime el ZIP y cómo restaurarlo. `fetch` trae un `.tar.gz` de un destino al almacén en una sola petición (los grandes, con WP-CLI). Ver «Importar respaldos de Backuply». |
-| `GET /migration` | `wp digitalisimo-backups migration status [--format=json]` · `migration keys` | Migración: claves (identificador, estado, caducidad y destino; nunca su valor), migración en curso, la que se puede deshacer, «Permitir HTTP» y el registro. |
+| `GET /migration` | `wp digitalisimo-backups migration status [--format=json]` · `migration keys` | Migración: claves (identificador, estado, caducidad y destino; nunca su valor), migración en curso, la que se puede deshacer, «Permitir HTTP», el registro y las tablas apartadas (`kept_tables`: juegos, tamaño y cuándo se borran solas). |
 | `POST /migration/keys` (`hours`, `network`) | `wp digitalisimo-backups migration create-key [--hours=…] [--key-file=…] [--network]` | Genera una clave de migración y la devuelve **una sola vez** (201, `Cache-Control: no-store`); WP-CLI la imprime o la deja en un archivo nuevo 0600. |
 | `POST /migration/keys/<id>/revoke` | `wp digitalisimo-backups migration revoke <id>` | Revoca una clave: deja de servir, su paquete y su clave envuelta se borran y su trabajo se cancela. |
 | `POST /migration/pull` (`key`, `confirm`=`MIGRAR`, `network`) | `wp digitalisimo-backups migrate --from-key-file=…\|--from-key-stdin [--network] [--yes] [--async] [--porcelain]` | «Migrar desde otro sitio»: comprueba la clave con el origen y que los sitios son compatibles, y encola la migración (202); WP-CLI la hace avanzar hasta terminar. La clave sólo en el cuerpo (en la URL, 400 `key_in_url`) o en un archivo o STDIN (`--from-key=` es un error). |
 | `POST /migration/undo` (`confirm`=`DESHACER`, `network`) | `wp digitalisimo-backups migration undo [--network] [--yes]` | «Deshacer la migración»: restaura la copia previa de la última migración recibida. |
+| `POST /migration/cleanup` (`dry_run`, `network`) | `wp digitalisimo-backups migration cleanup [--dry-run] [--network] [--yes] [--format=json]` | Desde 1.0.72: borra ya las tablas apartadas del registro (las de una migración o un «Deshacer»; nunca otra tabla ni las de una restauración en curso) y devuelve las borradas (`tables`, `count`, `bytes`), las que esperan (`kept`), los errores, las que tienen nombre de apartada y no están en el registro (`unregistered`) y lo que queda (`kept_tables`). `dry_run` sólo dice cuáles; borrar pide el alcance de red en una red. WP-CLI pide confirmación sin `--yes`. Ver «Tablas apartadas». |
 | `POST /migrate/source/{hello,package,step,finish,release}` · `GET /migrate/source/download` | — | API del sitio de origen para el destino, autorizada sólo por la clave de migración (cabecera `X-Digitalisimo-Migration: <id>.<credencial>` y `X-Digitalisimo-Migration-Client: <trabajo>`), sin la sesión de WordPress. `download` responde 206 con los bytes del paquete (`Range`, hasta 16 MiB por fragmento, `X-Digitalisimo-Package-Sha256`). |
 | `GET /pre-update` | `wp digitalisimo-backups pre-update status [--format=json]` | Desde 1.0.70, respaldo antes de actualizar: ajustes por tipo (`core`, `plugin`, `theme`: `all`, `auto` u `off`) y `max_age` (horas), el respaldo reciente válido (`fresh`), el trabajo que se espera (`job`), las actualizaciones automáticas retenidas (`retained`, `retained_since`), si están pospuestas por un fallo (`postponed`, `failure`, `failed_at`) y hasta cuándo las manuales no esperan (`skip_until`). |
 | `POST /pre-update` (`core`, `plugin`, `theme`, `max_age`) | `wp digitalisimo-backups pre-update set [--core=…] [--plugin=…] [--theme=…] [--max-age=…]` | Guarda los ajustes; un valor desconocido responde 400 y no cambia nada. `max_age` admite 1, 6, 12, 24, 48 o 168 horas. |
@@ -1110,8 +1111,8 @@ del origen.
    cambio atómico, archivos preparados, mantenimiento, reanudación tras una muerte y vuelta automática a la copia previa
    si falla tras el cambio) y espera su resultado. El sitio queda **idéntico al paquete**: los archivos de las raíces
    gestionadas que el paquete no trae se retiran con el cambio, y las tablas de este WordPress (con su prefijo) que no
-   trae se apartan con otro nombre (`<prefijo>dgbkk_<marca>_9…`, fuera de los respaldos) y se conservan, nunca se
-   borran; todo eso está también en la copia previa. Nunca se tocan las tablas de otra instalación de WordPress que
+   trae se apartan con otro nombre (`<prefijo>dgbkk_<marca>_9…`, fuera de los respaldos) y se conservan hasta «Borrar
+   ya» (ver «Tablas apartadas», abajo); todo eso está también en la copia previa. Nunca se tocan las tablas de otra instalación de WordPress que
    comparte la base con un prefijo que empieza igual (`wp_` y `wp_dev_`: la delata su `<prefijo>options` con `siteurl`;
    en una red, `<prefijo><número>_` son subsitios propios), con el mismo criterio que el respaldo y «Restaurar». Los
    drop-ins de `wp-content` (`db.php`, `object-cache.php`…) y `wp-config.php` del destino son de su servidor y se
@@ -1136,12 +1137,49 @@ existe nunca se ofrece). «Deshacer la migración» (pantalla, `POST /migration/
 `wp digitalisimo-backups migration undo`) sólo se ofrece para una migración aplicada y restaura esa copia con el mismo motor
 por pasos —con su propia copia previa del estado migrado— dejando el sitio **idéntico** a ella: también retira lo que
 trajo el origen y la copia no tiene, en archivos (núcleo, plugins, temas, mu-plugins, drop-ins de `wp-content` y
-medios), y aparta (conservándolas) las tablas que trajo. En la web sigue en segundo plano (202 en REST, «Deshaciendo la
+medios), y aparta las tablas que trajo, que se borran en cuanto el deshacer termina (ver «Tablas apartadas»). En la
+web sigue en segundo plano (202 en REST, «Deshaciendo la
 migración» en la pantalla, con el testigo del mantenimiento); en WP-CLI, hasta terminar. Antes de decidir, pasa por el
 detector de procesos muertos y toma el cerrojo (que aplica el diario de una restauración interrumpida); mientras la
 restauración de la migración siga (o se esté reanudando tras una caída) responde 409 diciendo que hay que esperar. Al
 terminar, la marca queda `undone` y no se puede deshacer dos veces. El origen no cambia nunca: sólo crea el paquete en
 su almacén privado (fuera del historial, de la retención y de Restaurar) y anota el uso de la clave.
+
+**Tablas apartadas.** Desde 1.0.72 (K1 de la revisión de cierre). Cada juego de tablas que aparta una migración (las
+propias que el paquete no trae) o un «Deshacer» (las que trajo el origen) queda en un **registro** dentro de
+`digitalisimo_backups_vault_migration` (nunca viaja en un respaldo y sobrevive a las restauraciones como el resto de ese
+estado): la marca de su restauración, si fue una migración o un deshacer, la migración y su origen, la fecha, su copia
+previa, lo que era cada tabla y su tamaño aproximado (`information_schema`; `—` si el servidor no lo dice). Se anota al
+verificar la restauración, antes de su copia previa y del cambio de tablas: si no se puede anotar, la verificación falla
+y se repite, así que nunca se aparta una tabla sin registro. **Sólo las del registro se borran**, y sólo si siguen con el
+nombre de una apartada de su marca (`<prefijo>dgbkk_<marca>_9…`, o sin prefijo sólo si con él no cabía en 64
+caracteres): una entrada alterada que
+nombre otra tabla no borra nada, y una tabla con ese nombre que no está en el registro se lista como «sin registro» y
+nunca se toca.
+
+- **Las del origen que apartó «Deshacer», en cuanto termina:** su limpieza, con el cambio ya hecho, las borra (son datos
+  del origen que este sitio ya no usa; siguen en la copia previa de ese deshacer y en el origen). El aviso lo dice; lo
+  que no se pudiera borrar queda en el registro y lo reintenta el vigilante.
+- **Las de una migración no se borran solas:** entre las tablas propias que el paquete no trae puede haber una de otra
+  aplicación que comparte la base con un prefijo que empieza por el de este WordPress (`wp_stats_*`, sin
+  `<prefijo>options` con `siteurl`), que no se distingue de la de un plugin; borrarla sola le quitaría sus datos. Se
+  conservan hasta «Borrar ya», y la tarjeta y el aviso de la migración nombran **todas** con su nombre de antes
+  (`wp_stats_hits → wp_dgbkk_…`) para que el administrador las vea. Con el filtro
+  `digitalisimo_backups_migration_kept_auto` (falso por defecto) también se borran solas, a los 7 días
+  (`digitalisimo_backups_migration_kept_days`, de 1 a 365), y entonces la tarjeta y el aviso dicen el día.
+- **El vigilante horario** del motor de trabajos sólo borra solos los juegos de un «Deshacer» (los datos del origen): el
+  que no se pudo borrar al terminar, en cuanto lo ve; el de un deshacer que no terminó bien, a los 7 días. Y los de una
+  migración sólo con el filtro anterior. Siempre **sólo si su copia previa sigue en el almacén** (nunca se borra solo lo
+  único que queda de esas tablas; si falta, la lista lo dice y se borran a mano) y nunca las de una restauración en
+  curso.
+- **Ya, a mano:** la tarjeta «Tablas apartadas» de Backups → Migrar (qué las apartó, fecha, todas las tablas con su
+  nombre de antes, tamaño y cuándo se borran solas o por qué no, con «Borrar ya las tablas apartadas»), `POST /migration/cleanup` (`dry_run` sólo las lista) y
+  `wp digitalisimo-backups migration cleanup [--dry-run] [--yes]`; `GET /migration` y la pestaña las listan
+  (`kept_tables`). Borrar pide la capability de la pantalla y, en una red, el alcance de red (las tablas son de la red);
+  listar, no. Cada borrado queda en el registro de la migración («Tablas apartadas borradas»).
+- Las que apartó una restauración de 1.0.66–1.0.70 (sin registro) se toman de su trabajo mientras siga en el almacén
+  (sólo las tablas con el nombre de su marca, que sólo ese trabajo pudo crear); la consulta no escribe, el vigilante y
+  «Borrar ya» las anotan. Sin su trabajo, quedan «sin registro» y nunca se tocan.
 
 **Staging.** Es la misma migración: para una copia de pruebas (otro dominio o subdominio), la clave se genera en
 producción y se migra desde el sitio de pruebas; para **publicarla**, la clave se genera en el sitio de pruebas y se
@@ -1222,10 +1260,16 @@ viaja en un respaldo: se guarda antes del cambio de tablas (también sellado en 
 cambio y la reposición) y vuelve después; la sesión del navegador del destino termina al cambiar las tablas (los
 usuarios son los del origen) y el cierre con el origen lo hace el tick siguiente (WP-Cron, o la pantalla tras iniciar
 sesión con un usuario del origen); un trabajo de la cola caduca a las 24 h (`EXPIRES_AFTER` del motor), lo que limita un
-paquete enorme cifrado con sodium_compat; la validación de la dirección del origen resuelve el nombre antes de cada
-petición, pero la petición vuelve a resolverlo (un DNS que cambia entre las dos no se detecta); la retirada de tablas
-propias usa el prefijo de este WordPress, igual que la restauración (otra aplicación cuyas tablas empiecen por ese mismo
-prefijo se trataría como propia).
+paquete enorme cifrado con sodium_compat; la conexión va a la IP comprobada sólo con el transporte cURL de WordPress y
+sin proxy (`WP_PROXY_HOST`): con un proxy o con el transporte de streams, la petición vuelve a resolver el nombre (un DNS
+que cambia entre la comprobación y la petición no se detecta), y con cURL se fija la primera dirección resuelta (todas
+se validaron); en el laboratorio no se fija nada; la retirada de tablas propias usa el prefijo de este WordPress, igual
+que la restauración: otra aplicación cuyas tablas empiecen por ese mismo prefijo se trataría como propia, y otra
+instalación de WordPress con un prefijo anidado sin `siteurl` en su `<prefijo>options` (una a medio instalar) no se
+reconoce como tal: sus tablas se apartan al migrar y ese otro sitio (o esa aplicación) deja de funcionar hasta
+reponerlas. Se conservan apartadas, con su nombre de antes en la tarjeta «Tablas apartadas» y en el aviso de la
+migración, y no se borran solas salvo con `digitalisimo_backups_migration_kept_auto`: devolverles su nombre las repone
+(también están en la copia previa de la migración).
 
 Ensayo en WordPress Playground (`tests/playground/backups-migrate.sh`): WordPress 7.1.4, PHP 8.5 sin libsodium nativo
 (el paquete se cifra y se descifra con el sodium_compat de WordPress) y SQLite, dos servidores por modo, A (origen) y B
