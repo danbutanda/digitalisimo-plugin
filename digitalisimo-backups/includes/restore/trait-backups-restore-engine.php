@@ -1586,9 +1586,14 @@ trait Digitalisimo_Backups_Restore_Engine {
 				// Un sitio extraído de una red no trae la configuración de Backups: la de este servidor se conserva. Antes de la
 				// foto, lo que siguiera en claro en los ajustes pasa al almacén cifrado: el diario nunca lo lleva en claro.
 				$kept = null;
+				self::$config_kept = null;
 				if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' ) ) {
 					try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 					$kept = Digitalisimo_Backups_Site_Extract::destination_snapshot();
+				} elseif ( ! self::keep_config_same_installation( (string) ( $job['spec']['file'] ?? '' ) ) && self::keep_config_wanted() ) {
+					// H23: un respaldo de otra instalación no reemplaza la configuración de Backups propia de este sitio. Lo que siguiera en claro pasa antes al almacén cifrado: el diario nunca lo lleva.
+					try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+					self::$config_kept = self::keep_config_snapshot();
 				}
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
@@ -1626,6 +1631,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
 				self::after_restore_sql( $history_before, $vault_before, $origin, $kept, $storage_before );
 				self::remove_restore_journal();
+				self::$config_kept = null;
 			} else {
 				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,
 				// se aplicó al tomar el bloqueo de este tick; las credenciales del respaldo se cifran aquí.
