@@ -87,13 +87,17 @@ trait Digitalisimo_Backups_Keep_Config {
 	 * Tras el SQL (y tras volver a cifrar las credenciales que trajo): la configuración de este sitio vuelve tal cual, la
 	 * del origen se retira y las automatizaciones recuperan sus eventos (los del origen se quitan de `cron`).
 	 */
-	private static function keep_config_reapply( $snapshot ) {
+	private static function keep_config_reapply( $snapshot, $mark = '' ) {
 		if ( ! is_array( $snapshot ) || 1 !== ( $snapshot['format'] ?? null ) || ! is_array( $snapshot['site'] ?? null ) ) return;
 		// Lo que trajo el respaldo (sus credenciales ya cifradas con las claves de aquí): queda como «configuración del
 		// respaldo pendiente» si traía automatizaciones o conexiones que no se aplican, con un aviso que permite aplicarla.
-		$incoming = self::keep_config_snapshot();
+		// Se anota ANTES de devolver la de aquí y marcado con el diario de esta restauración: si el proceso muere después,
+		// la operación siguiente (que vuelve a aplicar el diario y ya ve aquí la configuración de este sitio) no lo
+		// recalcula ni lo borra (revisión D3).
+		$notice = self::restore_notice();
+		$noted = '' !== (string) $mark && is_string( $notice['journal'] ?? null ) && hash_equals( (string) $mark, $notice['journal'] );
+		if ( ! $noted ) self::restore_notice_pending( self::keep_config_snapshot(), $snapshot, (string) $mark );
 		self::keep_config_write( $snapshot );
-		self::restore_notice_pending( $incoming, $snapshot );
 	}
 	/** Escribe una foto de configuración (cada opción en su ámbito) y realinea los eventos de las automatizaciones. */
 	private static function keep_config_write( array $snapshot ) {
@@ -123,7 +127,7 @@ trait Digitalisimo_Backups_Keep_Config {
 		return is_array( $value ) ? $value : array();
 	}
 	private static function restore_notice_save( array $notice ) {
-		if ( empty( $notice['pending'] ) && empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) {
+		if ( empty( $notice['pending'] ) && empty( $notice['automations'] ) && empty( $notice['connections'] ) && empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) {
 			if ( is_multisite() ) delete_site_option( self::restore_notice_key() );
 			else delete_option( self::restore_notice_key() );
 			return;
@@ -143,18 +147,60 @@ trait Digitalisimo_Backups_Keep_Config {
 		return array_values( array_filter( (array) $policies, function( $policy ) { return is_array( $policy ) && ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? 'full' ) && 'disabled' !== (string) ( $policy['schedule'] ?? 'disabled' ); } ) );
 	}
 	/**
-	 * Tras conservar la configuración de aquí: si la del respaldo traía automatizaciones activas o conexiones que no se
-	 * aplicaron, se guarda entera como pendiente (las credenciales ya están cifradas con las claves de este servidor; las
-	 * que no se pudieron abrir siguen sin abrirse) y el aviso lo dice.
+	 * Lo pendiente, cifrado entero con la clave de este servidor (de AUTH_KEY y SECURE_AUTH_KEY, como las credenciales):
+	 * ni el correo de los avisos ni los hosts, usuarios y rutas del origen quedan en claro en la base (revisión I1). null
+	 * si este servidor no puede cifrar.
 	 */
-	private static function restore_notice_pending( array $incoming, array $kept ) {
+	private static function restore_pending_seal( array $pending ) {
+		$json = wp_json_encode( $pending );
+		$key = Digitalisimo_Backups_Credentials::key();
+		if ( ! is_string( $json ) || false === $key ) return null;
+		try {
+			$box = sodium_crypto_generichash( 'DGBK1/restore-pending', $key, 32 );
+			$nonce = random_bytes( 24 );
+			$out = array( 'v' => 1, 'kw' => Digitalisimo_Backups_Credentials::key_id( $key ), 'box' => Digitalisimo_Backups_Keys::b64url_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( $json, 'DGBK1/restore-pending|v1', $nonce, $box ) ) );
+			Digitalisimo_Backups_Sodium::memzero( $box );
+			return $out;
+		} catch ( Throwable $e ) {
+			return null;
+		} finally {
+			Digitalisimo_Backups_Sodium::memzero( $key );
+		}
+	}
+	/** Lo pendiente descifrado, o null si no abre con la clave de este servidor (cambió, o fue alterado). */
+	private static function restore_pending_open( $sealed ) {
+		if ( ! is_array( $sealed ) || 1 !== ( $sealed['v'] ?? null ) ) return null;
+		$key = Digitalisimo_Backups_Credentials::key();
+		if ( false === $key ) return null;
+		$plain = false;
+		try {
+			$raw = Digitalisimo_Backups_Keys::b64url_decode( $sealed['box'] ?? null );
+			if ( false !== $raw && strlen( $raw ) > 24 + 16 && hash_equals( Digitalisimo_Backups_Credentials::key_id( $key ), (string) ( $sealed['kw'] ?? '' ) ) ) {
+				$box = sodium_crypto_generichash( 'DGBK1/restore-pending', $key, 32 );
+				$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, 24 ), 'DGBK1/restore-pending|v1', substr( $raw, 0, 24 ), $box );
+				Digitalisimo_Backups_Sodium::memzero( $box );
+			}
+		} catch ( Throwable $e ) {
+			$plain = false;
+		} finally {
+			Digitalisimo_Backups_Sodium::memzero( $key );
+		}
+		$pending = is_string( $plain ) ? json_decode( $plain, true ) : null;
+		return is_array( $pending ) && 1 === ( $pending['format'] ?? null ) && is_array( $pending['site'] ?? null ) ? $pending : null;
+	}
+	/**
+	 * Tras conservar la configuración de aquí: si la del respaldo traía automatizaciones activas o conexiones que no se
+	 * aplicaron, se guarda entera como pendiente, cifrada (sus credenciales, además, con las claves de este servidor; las
+	 * que no se pudieron abrir siguen sin abrirse), y el aviso lo dice. $mark: el diario de esta restauración.
+	 */
+	private static function restore_notice_pending( array $incoming, array $kept, $mark = '' ) {
 		$local = array();
 		foreach ( (array) self::keep_config_value( $kept, self::POLICIES ) as $policy ) if ( is_array( $policy ) ) $local[ (string) ( $policy['id'] ?? '' ) ] = $policy;
 		$automations = 0;
 		foreach ( self::active_policies( self::keep_config_value( $incoming, self::POLICIES ) ) as $policy ) if ( ( $local[ (string) ( $policy['id'] ?? '' ) ] ?? null ) != $policy ) $automations++;
 		$connections = count( array_diff_key( (array) self::keep_config_value( $incoming, Digitalisimo_Backups_Destinations::CONNECTIONS ), (array) self::keep_config_value( $kept, Digitalisimo_Backups_Destinations::CONNECTIONS ) ) );
-		$notice = array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => false, 'paused' => 0 );
-		if ( $automations || $connections ) $notice = array_merge( $notice, array( 'pending' => $incoming, 'automations' => $automations, 'connections' => $connections ) );
+		$notice = array( 'at' => time(), 'journal' => (string) $mark, 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => false, 'paused' => 0 );
+		if ( $automations || $connections ) $notice = array_merge( $notice, array( 'pending' => self::restore_pending_seal( $incoming ), 'automations' => $automations, 'connections' => $connections ) );
 		self::restore_notice_save( $notice );
 	}
 	/**
@@ -170,13 +216,14 @@ trait Digitalisimo_Backups_Keep_Config {
 	/** El aviso en texto (escritorio, tarjeta de Backups, REST y WP-CLI). '' si no hay nada que decir. */
 	private static function restore_notice_text( array $notice ) {
 		$lines = array();
-		if ( ! empty( $notice['pending'] ) ) {
+		if ( ! empty( $notice['automations'] ) || ! empty( $notice['connections'] ) ) {
 			$n = (int) $notice['automations'];
 			$m = (int) $notice['connections'];
 			$what = array();
 			if ( $n ) $what[] = $n . ' ' . ( 1 === $n ? 'automatización' : 'automatizaciones' );
 			if ( $m ) $what[] = $m . ' ' . ( 1 === $m ? 'conexión' : 'conexiones' );
 			$lines[] = 'Este sitio conservó su configuración de Backups; el respaldo restaurado traía ' . implode( ' y ', $what ) . ' del sitio de origen que no se aplicaron.';
+			if ( empty( $notice['pending'] ) ) $lines[] = 'No se guardó para aplicarla después: este servidor no tiene AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php con las que cifrarla.';
 		}
 		if ( ! empty( $notice['paused'] ) ) $lines[] = 'Se aplicó la configuración del respaldo con ' . (int) $notice['paused'] . ' ' . ( 1 === (int) $notice['paused'] ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Backups → Automatizaciones cuando confirmes que no respaldan a la misma carpeta que el sitio de origen.';
 		if ( ! empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) $lines[] = 'Tras la restauración, este sitio no tiene ninguna automatización de respaldo activa.';
@@ -190,15 +237,20 @@ trait Digitalisimo_Backups_Keep_Config {
 		return array( 'pending' => ! empty( $notice['pending'] ), 'automations' => (int) ( $notice['automations'] ?? 0 ), 'connections' => (int) ( $notice['connections'] ?? 0 ), 'no_active' => ! empty( $notice['no_active'] ), 'paused' => (int) ( $notice['paused'] ?? 0 ), 'message' => self::restore_notice_text( $notice ) );
 	}
 	/**
-	 * «Aplicar la del respaldo»: la configuración que trajo el respaldo pasa a ser la de este sitio, con sus automatizaciones
-	 * EN PAUSA (que no respalden dos sitios a la misma carpeta sin querer) hasta que se activen a mano.
+	 * «Aplicar la del respaldo»: la configuración que trajo el respaldo pasa a ser la de este sitio (ajustes y destino
+	 * manual, conexiones, avisos por correo y automatizaciones), con sus automatizaciones EN PAUSA (que no respalden dos
+	 * sitios a la misma carpeta sin querer) hasta que se activen a mano. Nada se activa sin el usuario: si el respaldo no
+	 * traía la opción de automatizaciones (el origen usaba las de serie), las de serie también quedan en pausa (borrar la
+	 * opción las volvería a activar, revisión D2).
 	 */
 	public static function service_restore_config_apply( array $args = array() ) {
 		$allowed = self::service_scope( ! empty( $args['network'] ), true );
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		$notice = self::restore_notice();
-		$pending = $notice['pending'] ?? null;
-		if ( ! is_array( $pending ) || 1 !== ( $pending['format'] ?? null ) ) return self::service_error( 'no_pending', 'No hay configuración de un respaldo restaurado pendiente de aplicar.', 404 );
+		if ( empty( $notice['pending'] ) ) return self::service_error( 'no_pending', 'No hay configuración de un respaldo restaurado pendiente de aplicar.', 404 );
+		$pending = self::restore_pending_open( $notice['pending'] );
+		if ( null === $pending ) return self::service_error( 'pending_locked', 'La configuración pendiente del respaldo no abre con las claves de este servidor (cambiaron AUTH_KEY o SECURE_AUTH_KEY en wp-config.php): descártala.', 409 );
+		if ( ! is_array( $pending['site'][ self::POLICIES ]['value'] ?? null ) ) $pending['site'][ self::POLICIES ] = array( 'value' => self::default_policies() );
 		$paused = 0;
 		foreach ( array( 'site', 'network' ) as $scope ) {
 			if ( ! is_array( $pending[ $scope ][ self::POLICIES ]['value'] ?? null ) ) continue;
@@ -211,7 +263,7 @@ trait Digitalisimo_Backups_Keep_Config {
 		}
 		self::keep_config_write( $pending );
 		self::restore_notice_save( array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => ! self::active_policies( self::policies() ), 'paused' => $paused ) );
-		return array( 'applied' => true, 'paused' => $paused, 'message' => 'Se aplicó la configuración de Backups del respaldo restaurado' . ( $paused ? ', con ' . $paused . ' ' . ( 1 === $paused ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Automatizaciones' : '' ) . '.' );
+		return array( 'applied' => true, 'paused' => $paused, 'message' => 'Se aplicó la configuración de Backups del respaldo restaurado (ajustes y destino manual, conexiones, avisos por correo y automatizaciones)' . ( $paused ? ', con ' . $paused . ' ' . ( 1 === $paused ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Automatizaciones' : '' ) . '.' );
 	}
 	/** «Descartar»: se olvida la configuración del respaldo y el aviso (la de este sitio sigue como está). */
 	public static function service_restore_config_discard( array $args = array() ) {
@@ -268,11 +320,17 @@ trait Digitalisimo_Backups_Keep_Config {
 			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: automatizaciones tras restaurar: ' . $e->getMessage() );
 		}
 	}
-	/** La foto que anotó el diario de esta restauración (o null). */
-	private static function keep_config_from_journal() {
+	/** La foto que anotó el diario de esta restauración (o null); $mark, la marca de ese diario ('' si no la lleva). */
+	private static function keep_config_from_journal( &$mark = null ) {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		$data = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
+		$mark = self::keep_config_mark( $data );
 		return is_array( $data ) && is_array( $data['config_kept'] ?? null ) ? $data['config_kept'] : null;
+	}
+	/** La marca de un diario de restauración (aleatoria, una por restauración), o ''. */
+	private static function keep_config_mark( $journal ) {
+		$mark = is_array( $journal ) ? ( $journal['restore_id'] ?? '' ) : '';
+		return is_string( $mark ) && preg_match( '/^[0-9a-f]{32}$/D', $mark ) ? $mark : '';
 	}
 }
 // El aviso tras restaurar (H23): en el escritorio y sus dos acciones.

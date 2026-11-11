@@ -9,7 +9,12 @@
  *   2. «Aplicar la del respaldo» deja la configuración del respaldo con sus automatizaciones EN PAUSA (sin eventos de
  *      WP-Cron) y su contraseña descifrable; el aviso dice que están en pausa;
  *   3. «Descartar» (REST y WP-CLI) olvida la configuración del respaldo y deja la de aquí;
- *   4. tras cualquier restauración (también de este mismo sitio) sin ninguna automatización activa, el aviso lo dice.
+ *   4. tras cualquier restauración (también de este mismo sitio) sin ninguna automatización activa, el aviso lo dice;
+ * y lo de la revisión de 7b8a1916 (cada uno se anota por separado, para que la base muestre los tres):
+ *   I1 lo pendiente va cifrado entero: ni nombres de conexiones ni automatizaciones del origen en claro en la base;
+ *   D2 «Aplicar» un respaldo sin la opción de automatizaciones (el origen usaba las de serie) no activa la de serie;
+ *   D3 una muerte entre anotar lo pendiente y retirar el diario no lo pierde (la operación siguiente vuelve a aplicar el
+ *      diario y ya no lo recalcula); y lo pendiente alterado (o con otras claves) no se aplica (409).
  */
 $GLOBALS['rk_cron'] = array();
 function _get_cron_array() { return $GLOBALS['rk_cron']; }
@@ -35,6 +40,8 @@ require __DIR__ . '/lib/backups-env.php';
 require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-rest.php';
 require_once __DIR__ . '/../digitalisimo-backups/includes/class-backups-cli.php';
 function rk_check( $ok, $message ) { if ( ! $ok ) throw new RuntimeException( 'FALLA: ' . $message ); }
+$GLOBALS['rk_fails'] = array();
+function rk_soft( $ok, $message ) { if ( ! $ok ) { $GLOBALS['rk_fails'][] = $message; fwrite( STDERR, 'FALLA: ' . $message . "\n" ); } }
 $B = 'Digitalisimo_Backups';
 $C = 'Digitalisimo_Backups_Credentials';
 $D = 'Digitalisimo_Backups_Destinations';
@@ -73,6 +80,9 @@ try {
 	rk_check( false !== strpos( $html, 'no se aplicaron' ) && false !== strpos( $html, 'Aplicar la del respaldo' ) && false !== strpos( $html, 'Descartar' ) && false !== strpos( $html, 'value="digitalisimo_backups_restore_config"' ), 'El aviso del escritorio no ofrece las dos acciones: ' . $html );
 	$stored = json_encode( array( get_option( 'digitalisimo_backups_restore_notice' ), $GLOBALS['bk_options'] ) );
 	rk_check( false === strpos( $stored, 'Clave-Del-Origen-1' ) && false === strpos( $stored, 'Clave-Del-Destino-2' ), 'La configuración pendiente lleva una contraseña en claro.' );
+	// I1: la configuración del origen tampoco (la conexión con nombre, la automatización): va cifrada entera.
+	$raw_notice = json_encode( get_option( 'digitalisimo_backups_restore_notice' ) );
+	rk_soft( false === strpos( $raw_notice, 'SFTP del sitio perdido' ) && false === strpos( $raw_notice, 'origen-diario' ) && false === strpos( $raw_notice, 'sftp_host' ), 'I1: lo pendiente guarda en claro la configuración del origen: ' . substr( $raw_notice, 0, 300 ) );
 	rk_check( array( 'sftp-bbbbbbbb' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'No se conservó la configuración de este sitio.' );
 	$response = Digitalisimo_Backups_Rest::restore_config( array() );
 	rk_check( $response instanceof WP_REST_Response && true === $response->data['pending'], 'GET /restore-config no informa lo pendiente.' );
@@ -109,6 +119,54 @@ try {
 	$status = $B::service_restore_config();
 	rk_check( false === $status['pending'] && true === $status['no_active'] && false !== strpos( $status['message'], 'no tiene ninguna automatización de respaldo activa' ), 'Tras restaurar sin automatizaciones activas, el aviso no lo dice: ' . json_encode( $status ) );
 	rk_check( false === strpos( $notice_html(), 'Aplicar la del respaldo' ) && false !== strpos( $notice_html(), 'Descartar' ), 'Sin nada pendiente, el aviso ofrece aplicar.' );
+
+	// 5. D2: el respaldo no traía la opción de automatizaciones (el origen usaba las de serie): «Aplicar» no la borra,
+	// porque la de serie volvería ACTIVA y con su evento; queda también en pausa.
+	$configure( 'sftp-cccccccc', 'SFTP del origen sin automatizaciones', 'sftp.otro.test', 'Clave-Del-Origen-3', 'sin-uso' );
+	delete_option( $B::POLICIES );
+	$plain_policies = bk_backup( false );
+	$GLOBALS['rk_cron'] = array();
+	$configure( 'sftp-bbbbbbbb', 'SFTP para traer el respaldo', 'sftp.ejemplo.test', 'Clave-Del-Destino-2', 'monthly-full', false );
+	$restore( $plain_policies );
+	$status = $B::service_restore_config();
+	rk_check( true === $status['pending'] && 1 === $status['connections'], 'El respaldo sin automatizaciones no dejó pendiente su conexión: ' . json_encode( $status ) );
+	$result = $B::service_restore_config_apply();
+	$active = bk_call( $B, 'active_policies', $B::policies() );
+	rk_check( ! is_wp_error( $result ) && array( 'sftp-cccccccc' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), '«Aplicar» no aplicó la configuración del respaldo sin automatizaciones: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	rk_soft( ! $active && 0 === rk_events( 'monthly-full' ) && is_array( get_option( $B::POLICIES, null ) ) && 1 === ( $result['paused'] ?? null ), 'D2: «Aplicar» activó la automatización de serie que este sitio tenía en pausa: ' . json_encode( array( 'activas' => array_column( $active, 'id' ), 'eventos' => rk_events( 'monthly-full' ), 'pausadas' => $result['paused'] ?? null ) ) );
+
+	// 6. D3: el proceso muere después de anotar lo pendiente y antes de retirar el diario (la restauración por pasos, como
+	// en restore/trait-backups-restore-engine.php: foto de aquí en el diario, el SQL, after_restore_sql() y nada más).
+	$GLOBALS['rk_cron'] = array();
+	$configure( 'sftp-bbbbbbbb', 'SFTP para traer el respaldo', 'sftp.ejemplo.test', 'Clave-Del-Destino-2', 'monthly-full', false );
+	$B::service_restore_config_discard();
+	$kept = new ReflectionProperty( $B, 'config_kept' );
+	if ( PHP_VERSION_ID < 80100 ) $kept->setAccessible( true );
+	$kept->setValue( null, bk_call( $B, 'keep_config_snapshot' ) );
+	$history = bk_call( $B, 'fresh_history' );
+	$vault = Digitalisimo_Backups_Keys::snapshot();
+	bk_call( $B, 'write_restore_journal' );
+	$kept->setValue( null, null );
+	$configure( 'sftp-aaaaaaaa', 'SFTP del sitio perdido', 'sftp.ejemplo.test', 'Clave-Del-Origen-1', 'origen-diario' ); // lo que trae el SQL
+	bk_call( $B, 'after_restore_sql', $history, $vault );
+	rk_check( true === $B::service_restore_config()['pending'] && array( 'sftp-bbbbbbbb' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'Tras el SQL simulado no quedó lo pendiente.' );
+	$journal = Digitalisimo_Backups::storage_directory() . '/' . $B::RESTORE_JOURNAL;
+	rk_check( is_file( $journal ), 'La simulación no dejó el diario (la muerte antes de retirarlo).' );
+	bk_call( $B, 'recover_interrupted_restore' );
+	$status = $B::service_restore_config();
+	rk_check( ! is_file( $journal ) && array( 'sftp-bbbbbbbb' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'La operación siguiente no aplicó el diario o no conservó la configuración de aquí.' );
+	rk_soft( true === $status['pending'] && 1 === $status['automations'] && 1 === $status['connections'], 'D3: una muerte entre anotar lo pendiente y retirar el diario perdió la configuración del respaldo: ' . json_encode( $status ) );
+	// Lo pendiente alterado (o sellado con otras claves) no se aplica y no cambia nada.
+	$notice = get_option( 'digitalisimo_backups_restore_notice' );
+	if ( ! is_string( $notice['pending']['box'] ?? null ) ) {
+		rk_soft( false, 'I1: lo pendiente no está sellado: ' . substr( json_encode( $notice['pending'] ?? null ), 0, 120 ) );
+	} else {
+		$notice['pending']['box'] = substr( $notice['pending']['box'], 0, -4 ) . ( 'AAAA' === substr( $notice['pending']['box'], -4 ) ? 'BBBB' : 'AAAA' );
+		update_option( 'digitalisimo_backups_restore_notice', $notice, false );
+		$result = $B::service_restore_config_apply();
+		rk_check( is_wp_error( $result ) && 409 === ( $result->get_error_data()['status'] ?? 0 ) && array( 'sftp-bbbbbbbb' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'Lo pendiente alterado se aplicó o no respondió 409.' );
+	}
+	rk_check( ! $GLOBALS['rk_fails'], count( $GLOBALS['rk_fails'] ) . ' hallazgo(s) de la revisión siguen: ' . implode( ' | ', $GLOBALS['rk_fails'] ) );
 	echo "OK: configuración del respaldo pendiente y aviso tras restaurar (H23)\n";
 } finally {
 	bk_cleanup();

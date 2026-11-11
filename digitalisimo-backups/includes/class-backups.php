@@ -253,7 +253,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'restore_id' => bin2hex( random_bytes( 16 ) ), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -286,7 +286,7 @@ final class Digitalisimo_Backups {
 			self::restore_credentials( $origin );
 			Digitalisimo_Backups_Credentials::forget( $origin );
 			// La configuración propia de este sitio (H23), después de cifrar las credenciales que trajo el SQL: vuelve la de aquí.
-			if ( is_array( $data['config_kept'] ?? null ) ) self::keep_config_reapply( $data['config_kept'] );
+			if ( is_array( $data['config_kept'] ?? null ) ) self::keep_config_reapply( $data['config_kept'], self::keep_config_mark( $data ) );
 			try { self::restore_notice_after( is_array( $data['config_kept'] ?? null ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
 		@unlink( $path );
@@ -2494,8 +2494,8 @@ final class Digitalisimo_Backups {
 		self::restore_credentials( $origin );
 		// La configuración propia de este sitio (H23): la que anotó el diario vuelve sobre la del respaldo, también sus
 		// credenciales (cifradas con las claves de aquí, atadas a sus conexiones), y las automatizaciones a sus eventos.
-		$config = self::keep_config_from_journal();
-		if ( is_array( $config ) ) self::keep_config_reapply( $config );
+		$config = self::keep_config_from_journal( $mark );
+		if ( is_array( $config ) ) self::keep_config_reapply( $config, $mark );
 		// El aviso tras restaurar: la configuración del respaldo que no se aplicó, o un sitio sin automatizaciones activas.
 		try { self::restore_notice_after( is_array( $config ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 	}
