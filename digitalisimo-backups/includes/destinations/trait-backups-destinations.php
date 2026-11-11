@@ -293,7 +293,10 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$principal = sanitize_key( $_GET['edit'] ?? '' );
 		if ( ! Digitalisimo_Backups_Destinations::is_type( $principal ) ) $principal = '';
 		$adding = ! empty( $_GET['add'] );
-		echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations"><div class="digitalisimo-backups-head"><h2>Destinos</h2><a class="button button-primary" href="' . esc_url( add_query_arg( array( 'tab' => 'servers', 'add' => '1' ), self::admin_url() ) . '#digitalisimo-backups-connection' ) . '">Añadir destino</a></div>';
+		// Sin AUTH_KEY y SECURE_AUTH_KEY propias una conexión adicional no puede guardar sus credenciales (sólo cifradas):
+		// «Añadir destino» abre entonces el formulario de la conexión principal, que sí las guarda (sin cifrar, con aviso).
+		$add = Digitalisimo_Backups_Credentials::can_encrypt() ? add_query_arg( array( 'tab' => 'servers', 'add' => '1' ), self::admin_url() ) . '#digitalisimo-backups-connection' : self::principal_form_url();
+		echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations"><div class="digitalisimo-backups-head"><h2>Destinos</h2><a class="button button-primary" href="' . esc_url( $add ) . '">Añadir destino</a></div>';
 		self::connection_table( $s, $locked );
 		echo '</section>';
 		if ( '' !== $principal ) {
@@ -308,6 +311,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			self::connection_form( $editing );
 		}
 	}
+	/** El formulario de la conexión principal (con todos los tipos; abre el primero). */
+	private static function principal_form_url() { return add_query_arg( array( 'tab' => 'servers', 'edit' => (string) array_key_first( Digitalisimo_Backups_Destinations::CLASSES ) ), self::admin_url() ) . '#digitalisimo-backups-principal'; }
 	/** Tabla de conexiones: principal de cada tipo con algo configurado y las adicionales, con su estado. */
 	private static function connection_table( $s, array $locked ) {
 		$rows = array();
@@ -454,7 +459,10 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$current = isset( $connections[ $editing ] ) ? $connections[ $editing ] : null;
 		$settings = $current ? self::connection_settings( $editing ) : array();
 		$locked = $current ? Digitalisimo_Backups_Credentials::locked( self::credential_settings() ) : array();
-		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir destino' ) . '</h2><p class="description">' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Puedes tener varias del mismo tipo, cada una con su nombre.' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
+		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir destino' ) . '</h2><p class="description">' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Puedes tener varias del mismo tipo, cada una con su nombre.' ) . '</p>';
+		// Sin salts propias store_connection() la rechazaría al guardar: el camino es la conexión principal.
+		if ( ! $current && ! Digitalisimo_Backups_Credentials::can_encrypt() ) echo '<p class="description digitalisimo-backups-warning">Sin AUTH_KEY y SECURE_AUTH_KEY propias, otra conexión no puede guardar sus credenciales: usa la <a href="' . esc_url( self::principal_form_url() ) . '">conexión principal</a>.</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
 		wp_nonce_field( self::ACTION_SAVE_CONNECTION );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_CONNECTION ) . '"><input type="hidden" name="connection_id" value="' . esc_attr( $current ? $editing : '' ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="digitalisimo-connection-type">Tipo</label></th><td><select id="digitalisimo-connection-type" class="digitalisimo-backups-type" name="connection_type"' . ( $current ? ' disabled' : '' ) . '>';
 		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) echo '<option value="' . esc_attr( $type ) . '"' . selected( $current ? $current['type'] : '', $type, false ) . '>' . esc_html( $class::label() ) . '</option>';

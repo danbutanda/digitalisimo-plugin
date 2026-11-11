@@ -23,6 +23,27 @@ $status = $B::service_status();
 if ( 'none' !== ( $status['credentials'] ?? null ) || false === strpos( (string) ( $status['credentials_notice'] ?? '' ), 'AUTH_KEY y SECURE_AUTH_KEY propias' ) ) throw new RuntimeException( 'Sin salts propias, el estado no avisa de que hay que definirlas: ' . json_encode( $status ) );
 if ( false !== $C::key() || $C::can_encrypt() || false !== $K::wrap_key() ) throw new RuntimeException( 'Con las salts de ejemplo no debe haber clave de credenciales ni de llavero.' );
 
+// Revisión de 1.0.74: en un sitio nuevo sin salts propias, «Destinos» tal como se abre (sin ?edit= ni ?add=) tiene que
+// llevar a un formulario que sí guarde. Una conexión adicional sólo guarda credenciales cifradas: «Añadir destino» abre
+// la conexión principal, y el formulario de alta (por un enlace guardado) también enlaza a ella.
+$_GET = array( 'page' => 'digitalisimo-backups', 'tab' => 'servers' );
+ob_start();
+bk_call( $B, 'servers_panel', $settings(), array() );
+$list = ob_get_clean();
+if ( ! preg_match( '#<a class="button button-primary" href="([^"]+)">Añadir destino</a>#', $list, $add ) ) throw new RuntimeException( '«Destinos» no tiene «Añadir destino».' );
+parse_str( (string) parse_url( html_entity_decode( $add[1], ENT_QUOTES ), PHP_URL_QUERY ), $followed );
+$_GET = $followed;
+ob_start();
+bk_call( $B, 'servers_panel', $settings(), array() );
+$form = ob_get_clean();
+if ( false === strpos( $form, 'name="action" value="' . $B::ACTION_SAVE . '"' ) || false !== strpos( $form, 'value="' . $B::ACTION_SAVE_CONNECTION . '"' ) || 1 !== substr_count( $form, 'class="digitalisimo-backups-connection-form"' ) ) throw new RuntimeException( 'Sin salts propias, «Añadir destino» (' . $add[1] . ') no abre el formulario de la conexión principal, el único que guarda sin cifrar.' );
+$_GET = array( 'page' => 'digitalisimo-backups', 'tab' => 'servers', 'add' => '1' );
+ob_start();
+bk_call( $B, 'servers_panel', $settings(), array() );
+$adding = ob_get_clean();
+$_GET = array();
+if ( ! preg_match( '#<p class="description digitalisimo-backups-warning">Sin AUTH_KEY y SECURE_AUTH_KEY propias[^<]*<a href="[^"]*tab=servers&amp;edit=sftp[^"]*">conexión principal</a>#', $adding ) ) throw new RuntimeException( 'El formulario de otra conexión no avisa de que sin salts propias no guarda ni enlaza a la conexión principal.' );
+
 // Guardar: se guarda como hasta ahora, con aviso; nunca se pierde un secreto.
 list( $ok, $message ) = bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $fields + $secrets ) );
 if ( ! $ok || false === strpos( $message, 'se guardaron sin cifrar' ) || false === strpos( $message, 'AUTH_KEY y SECURE_AUTH_KEY' ) ) throw new RuntimeException( 'Guardar sin salts propias no avisó: ' . $message );
