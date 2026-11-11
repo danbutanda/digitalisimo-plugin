@@ -132,15 +132,9 @@ try {
 	$third = $backup( array( 'destination' => 'google' ) );
 	digi_assert( ! is_file( $store . '/' . $first ) && is_file( $store . '/' . $second ) && is_file( $store . '/' . $third ), 'La retención local no retiró sólo el primero.' );
 	digi_assert( array( 'DELETE https://www.googleapis.com/drive/v3/files/' . $first_id ) === $deletes() && ! isset( $GLOBALS['drive'][ $first_id ] ), 'La retención no borró la copia remota del primero (o borró otra): ' . json_encode( $deletes() ) );
-	digi_assert( 'pruned' === $row_of( $first )['transfer'] && array() === $row_of( $first )['remote'] && ! isset( $row_of( $first )['remote_prune'] ) && 'ok' === $row_of( $second )['transfer'], 'La fila del primero no quedó como copia remota retirada: ' . json_encode( $row_of( $first ) ) );
-	digi_assert( 0 === strpos( $label_of( $first ), 'Sin copias: el ZIP ya no está en el almacén y la retención borró la copia en Google Drive' ), 'Rótulo de la fila retirada: ' . $label_of( $first ) );
-	$summary = $summary_of( $first );
-	digi_assert( array() === $summary['copies'] && 'pruned' === $summary['transfer'] && false === $summary['restorable'], 'REST anuncia una copia retirada: ' . json_encode( $summary ) );
+	// H22: sin ZIP local ni copia remota, la fila se retira del historial (ya no queda «Sin copias» para siempre).
+	digi_assert( null === $row_of( $first ) && 'ok' === $row_of( $second )['transfer'], 'La fila del primero, sin ninguna copia, sigue en el historial: ' . json_encode( $row_of( $first ) ) );
 	digi_assert( ! preg_grep( '#/drive/v3/files\?q=#', $GLOBALS['http'] ), 'La retención listó el destino: ' . json_encode( $GLOBALS['http'] ) );
-	// «Eliminar» de la fila retirada sólo la quita: no pide nada al destino.
-	$GLOBALS['http'] = array();
-	$query = digi_admin_post( 'delete_backup', $B::ACTION_DELETE, array( 'file' => $first ) );
-	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && null === $row_of( $first ) && ! $deletes(), 'Eliminar la fila retirada llamó al destino: ' . json_encode( array( $query, $GLOBALS['http'] ) ) );
 
 	// (b) Bloqueado, importado y sin trabajo de este sitio: nunca se borran del remoto.
 	$query = digi_admin_post( 'toggle_lock', $B::ACTION_LOCK, array( 'file' => $second, 'locked' => '1' ) );
@@ -164,7 +158,7 @@ try {
 	$fifth = $backup( array( 'destination' => 'google' ) );
 	digi_assert( isset( $GLOBALS['drive'][ $second_id ] ) && 'ok' === $row_of( $second )['transfer'], 'La retención borró del remoto un respaldo bloqueado.' );
 	foreach ( array( $own . '-importado.zip', $own . '-sin-trabajo.zip', $own . '-otro-sha.zip' ) as $name ) digi_assert( isset( $GLOBALS['drive'][ 'ajeno-' . md5( $name ) ] ) && ! isset( $row_of( $name )['remote_prune'] ), 'La retención tocó una copia remota que no registró este sitio: ' . $name );
-	digi_assert( ! isset( $GLOBALS['drive'][ $third_id ] ) && 'pruned' === $row_of( $third )['transfer'], 'El tercero (sin bloquear, fuera de los 2 más recientes) conserva su copia remota.' );
+	digi_assert( ! isset( $GLOBALS['drive'][ $third_id ] ) && null === $row_of( $third ), 'El tercero (sin bloquear, fuera de los 2 más recientes) conserva su copia remota.' );
 	digi_assert( isset( $GLOBALS['drive'][ (string) $row_of( $fourth )['remote']['id'] ] ) && isset( $GLOBALS['drive'][ (string) $row_of( $fifth )['remote']['id'] ] ), 'La retención borró una de las 2 copias más recientes.' );
 
 	// (c) Fallo pasajero: queda pendiente con su motivo, se reintenta y se confirma.
@@ -183,7 +177,7 @@ try {
 	unset( $GLOBALS['delete_fails'] );
 	$set_row( $fourth, array( 'remote_prune' => array_merge( $prune, array( 'next' => time() - 1 ) ) ) );
 	Digitalisimo_Backups_Jobs::watchdog();
-	digi_assert( ! isset( $GLOBALS['drive'][ $fourth_id ] ) && 'pruned' === $row_of( $fourth )['transfer'] && ! isset( $row_of( $fourth )['remote_prune'] ), 'El vigilante no completó el borrado remoto pendiente: ' . json_encode( $row_of( $fourth ) ) );
+	digi_assert( ! isset( $GLOBALS['drive'][ $fourth_id ] ) && null === $row_of( $fourth ), 'El vigilante no completó el borrado remoto pendiente: ' . json_encode( $row_of( $fourth ) ) );
 	// Permanente: la conexión de la copia ya no existe; no se llama al destino y queda a la vista. (Como en una fila que
 	// la retención retiró, sin su ZIP local: con el ZIP en el almacén la retención no borra su copia remota.)
 	@unlink( $store . '/' . $fifth );
@@ -210,7 +204,7 @@ try {
 	$auto1 = $run();
 	$auto1_id = (string) $row_of( $auto1 )['remote']['id'];
 	$auto2 = $run();
-	digi_assert( ! isset( $GLOBALS['drive'][ $auto1_id ] ) && 'pruned' === $row_of( $auto1 )['transfer'] && isset( $GLOBALS['drive'][ (string) $row_of( $auto2 )['remote']['id'] ] ), 'La retención de la automatización no borró su copia remota anterior.' );
+	digi_assert( ! isset( $GLOBALS['drive'][ $auto1_id ] ) && null === $row_of( $auto1 ) && isset( $GLOBALS['drive'][ (string) $row_of( $auto2 )['remote']['id'] ] ), 'La retención de la automatización no borró su copia remota anterior.' );
 	foreach ( $manual_ids as $id ) digi_assert( isset( $GLOBALS['drive'][ $id ] ), 'La retención de una automatización borró la copia remota de un manual.' );
 
 	// (e) «Sólo en el remoto» manual: pantalla (casilla), REST y WP-CLI.

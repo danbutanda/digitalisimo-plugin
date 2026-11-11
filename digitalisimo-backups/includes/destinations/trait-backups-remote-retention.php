@@ -188,7 +188,9 @@ trait Digitalisimo_Backups_Remote_Retention {
 				$destination->prepare();
 				$receipt = json_encode( $remote );
 				self::change_history( function( &$history ) use ( $file, $receipt, $destination, $remote ) {
-					foreach ( $history as &$item ) {
+					$drop = null;
+					$found = false;
+					foreach ( $history as $index => &$item ) {
 						if ( ! is_array( $item ) || ! hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) continue;
 						$same = 'pending' === ( $item['remote_prune']['state'] ?? '' ) && json_encode( (array) ( $item['remote'] ?? array() ) ) === $receipt;
 						if ( ! empty( $item['locked'] ) || ! $same || ! self::remote_owned( $item ) ) {
@@ -201,11 +203,15 @@ trait Digitalisimo_Backups_Remote_Retention {
 						$destination->delete( $remote );
 						$item = array_merge( $item, array( 'transfer' => 'pruned', 'remote' => array(), 'transfer_error' => '', 'remote_pruned_at' => time() ) );
 						unset( $item['remote_prune'] );
-						unset( $item );
-						return true;
+						// H22: sin ZIP en el almacén (sólo en el remoto, o ya retirado por la retención local) la fila se queda sin
+						// ninguna copia: se retira del historial, que con una automatización diaria crecería sin fin.
+						if ( '' === self::local_copy( $item ) ) $drop = $index;
+						$found = true;
+						break;
 					}
 					unset( $item );
-					return false;
+					if ( null !== $drop ) { unset( $history[ $drop ] ); $history = array_values( $history ); }
+					return $found;
 				} );
 			} catch ( Throwable $e ) {
 				self::remote_retention_failed( $file, $prune, $e );
