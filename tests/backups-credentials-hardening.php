@@ -41,7 +41,8 @@ $settings = function() use ( $B ) { return bk_call( $B, 'settings' ); };
 // Los cinco secretos que escribe la prueba (desde la entrega de destinos hay más campos secretos, que quedan vacíos).
 $secret_values = function( array $s ) use ( &$secrets ) { return array_intersect_key( $s, $secrets ); };
 $sql_of = function( $path ) { $zip = new ZipArchive(); $zip->open( $path ); $sql = (string) $zip->getFromName( 'database.sql' ); $zip->close(); return $sql; };
-$panel = function( $s, array $locked = array() ) use ( $B ) { ob_start(); try { bk_call( $B, 'servers_panel', $s, $locked ); } finally { $html = ob_get_clean(); } return $html; };
+// Desde 1.0.74 «Destinos» pinta el formulario de la conexión principal (con los campos de todos los tipos) al pedirlo: ?edit=<tipo>.
+$panel = function( $s, array $locked = array() ) use ( $B ) { $_GET = array( 'edit' => 'sftp' ); ob_start(); try { bk_call( $B, 'servers_panel', $s, $locked ); } finally { $html = ob_get_clean(); $_GET = array(); } return $html; };
 /** Cambia de sitio en una red: cada sitio con sus propias opciones (las de la red, en bk_site_options, son comunes). */
 $on = function( $blog ) {
 	static $stash = array();

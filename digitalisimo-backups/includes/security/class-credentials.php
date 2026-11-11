@@ -471,7 +471,7 @@ final class Digitalisimo_Backups_Credentials {
 			$names[] = '' !== $name ? $label . ' «' . $name . '»' : $label;
 			$actions[] = ( self::REENTRY[ $type ] ?? 'vuelve a escribir sus credenciales' ) . ( '' !== $name ? ' (conexión «' . $name . '»)' : '' );
 		}
-		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php y los datos de su conexión: las claves cambiaron, el sitio se restauró desde otro servidor sin poder leer las suyas, o los datos de su conexión (servidor, usuario, huella, Access key, Client ID o App key) cambiaron fuera de este formulario. En Backups → Servidores, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
+		return 'Las credenciales guardadas de ' . implode( ' y ', $names ) . ' no se pueden abrir con las claves AUTH_KEY y SECURE_AUTH_KEY de este wp-config.php y los datos de su conexión: las claves cambiaron, el sitio se restauró desde otro servidor sin poder leer las suyas, o los datos de su conexión (servidor, usuario, huella, Access key, Client ID o App key) cambiaron fuera de este formulario. En Backups → Destinos, ' . implode( '; ', $actions ) . '. Mientras tanto no se copia ningún respaldo a ' . ( 1 === count( $names ) ? 'ese destino' : 'esos destinos' ) . '.';
 	}
 	/**
 	 * Mensaje para un destino cuyas credenciales no abren ('' si no es el caso). $plain: campos que siguen en claro;

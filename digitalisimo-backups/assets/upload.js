@@ -136,14 +136,14 @@
   }
 
   function summary(result) {
-    if (result.container === 'backuply') return 'Respaldo de Backuply subido: ' + result.file + '. Impórtalo en «Respaldos de Backuply» (recarga la página) para convertirlo en un ZIP de Backups y restaurarlo.';
+    if (result.container === 'backuply') return 'Respaldo de Backuply subido: ' + result.file + '. Impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (recarga la página) para convertirlo en un ZIP de Backups y restaurarlo.';
     var text = 'Respaldo subido y comprobado: ' + result.file + '. ';
     if (result.needs_secret) text += 'Está cifrado con una clave que este sitio no tiene: al restaurarlo escribe su frase o su clave y ';
     else text += 'Para restaurarlo ';
     text += 'escribe ' + result.confirmation + '. ';
     if (result.problems && result.problems.length) text += result.problems.join(' ') + ' ';
     if (result.wp_config && result.wp_config.text) text += result.wp_config.text + ' ';
-    return text + 'Recarga la página para verlo en «Restaurar» como «sin registro».';
+    return text + 'Recarga la página para verlo en Herramientas → «Restaurar un archivo suelto» como «sin registro».';
   }
 
   form.addEventListener('submit', function (event) {

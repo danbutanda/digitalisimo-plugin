@@ -33,7 +33,7 @@ final class Digitalisimo_Backups_Security {
 			if ( $must ) throw new Exception( $e->getMessage() . ' No se creó un respaldo sin cifrar.', 0, $e );
 			$active = null;
 		}
-		if ( $must && ! $active ) throw new Exception( 'El cifrado está activo, pero no hay clave: guarda una frase en Backups → Seguridad o define DIGITALISIMO_BACKUPS_KEY. No se creó un respaldo sin cifrar.' );
+		if ( $must && ! $active ) throw new Exception( 'El cifrado está activo, pero no hay clave: guarda una frase en Backups → Ajustes → Cifrado y firma o define DIGITALISIMO_BACKUPS_KEY. No se creó un respaldo sin cifrar.' );
 		return array( 'root' => $active ? $active[0] : null, 'descriptor' => $active ? $active[1] : null, 'encrypt' => $must );
 	}
 
@@ -65,7 +65,7 @@ final class Digitalisimo_Backups_Security {
 		$descriptor = false === $root ? null : Digitalisimo_Backups_Keys::descriptor_by_id( $key_id );
 		if ( false === $root || ! $descriptor ) {
 			if ( false !== $root ) Digitalisimo_Backups_Sodium::memzero( $root );
-			if ( $encrypt ) throw new Exception( 'La clave ' . Digitalisimo_Backups_Keys::short( $key_id ) . ' con la que se inició este respaldo ya no se puede abrir (se quitó del llavero o cambiaron las claves de wp-config.php). No se creó un respaldo sin cifrar; vuelve a escribir la frase en Backups → Seguridad e inícialo otra vez.' );
+			if ( $encrypt ) throw new Exception( 'La clave ' . Digitalisimo_Backups_Keys::short( $key_id ) . ' con la que se inició este respaldo ya no se puede abrir (se quitó del llavero o cambiaron las claves de wp-config.php). No se creó un respaldo sin cifrar; vuelve a escribir la frase en Backups → Ajustes → Cifrado y firma e inícialo otra vez.' );
 			return $none;
 		}
 		return array( 'root' => $root, 'descriptor' => $descriptor, 'encrypt' => $encrypt );
@@ -205,7 +205,7 @@ final class Digitalisimo_Backups_Security {
 			if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) throw new Exception( 'Escribe RESTAURAR para confirmar una operación destructiva.' );
 			return;
 		}
-		if ( self::settings()['require_signed'] ) throw new Exception( 'Este respaldo no tiene una firma válida y Backups → Seguridad sólo permite restaurar respaldos firmados. No se cambió nada del sitio.' );
+		if ( self::settings()['require_signed'] ) throw new Exception( 'Este respaldo no tiene una firma válida y Backups → Ajustes → Cifrado y firma sólo permite restaurar respaldos firmados. No se cambió nada del sitio.' );
 		if ( 'RESTAURAR SIN FIRMA' !== $confirmation ) {
 			$hint = 'needs_key' === $report['auth'] && ! empty( $report['key']['id'] ) ? ' Si conoces la frase o la clave ' . Digitalisimo_Backups_Keys::short( $report['key']['id'] ) . ' con la que se firmó, escríbela para comprobar su firma.' : '';
 			throw new Exception( 'Este archivo no tiene una firma válida de este sitio ni un registro con su SHA-256: restaurarlo instala su código y sus datos. Revisa su origen y escribe RESTAURAR SIN FIRMA para continuar.' . $hint . ' No se cambió nada del sitio.' );

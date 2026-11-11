@@ -108,14 +108,18 @@ $case( 'a', function() use ( $B, $C, $check, $leak, $save, $fields, $secrets, $s
 } );
 
 $case( 'b', function() use ( $B, $check, $leak, $settings ) {
-	ob_start();
-	try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $html = ob_get_clean(); }
+	// Desde 1.0.74 «Destinos» pinta un solo formulario y sólo al pedirlo: la conexión principal (?edit=<tipo>) o otra
+	// conexión (?add=1). Se comprueban los dos, con lo mismo que antes; la lista sola no tiene ningún campo.
+	$panel = function( array $get ) use ( $B, $settings ) { $_GET = $get; ob_start(); try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $out = ob_get_clean(); $_GET = array(); } return $out; };
+	$list = $panel( array() );
+	$check( false === strpos( $list, '<form method="post" action="https://example.test/wp-admin/admin-post.php" class="digitalisimo-backups-connection-form">' ) && false === strpos( $list, '<input class="regular-text"' ) && false !== strpos( $list, '>Añadir destino</a>' ), 'La lista de destinos pinta formularios o campos sin pedirlos.' );
+	$html = $panel( array( 'edit' => 'sftp' ) ) . $panel( array( 'add' => '1' ) );
 	$check( null === $leak( $html ), 'La pantalla de Servidores muestra un secreto: ' . $leak( $html ) );
 	foreach ( array( 's3_region', 's3_style', 's3_storage_class', 's3compat_provider', 's3compat_do_region', 's3compat_wasabi_region', 's3compat_jurisdiction', 'ftp_security', 'ftp_passive', 'sftp_auth', 'pcloud_host' ) as $select ) $check( false !== strpos( $html, '<select id="' . $select . '" name="digitalisimo_backups[' . $select . ']">' ), 'El campo ' . $select . ' no es un desplegable guiado.' );
 	foreach ( array( 'sftp', 'ftp', 'webdav', 'google', 'onedrive', 'dropbox', 's3', 's3compat', 'pcloud' ) as $type ) $check( false !== strpos( $html, 'name="digitalisimo_backups_test" value="' . $type . '"' ), 'Falta «Probar conexión» de ' . $type . '.' );
 	foreach ( array( 'google', 'onedrive', 'dropbox', 'pcloud' ) as $type ) $check( false !== strpos( $html, 'provider=' . $type ), 'Falta el botón de conectar ' . $type . '.' );
 	$check( false !== strpos( $html, 'data-show="ftp_security=explicit|implicit"' ) && false !== strpos( $html, 'data-show="s3compat_provider=digitalocean"' ) && false !== strpos( $html, 'data-show="sftp_auth=key"' ), 'Los campos dependientes no declaran su condición.' );
-	$check( substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) >= 10 && false !== strpos( $html, 'Añadir otra conexión' ), 'La pantalla no anuncia los secretos guardados o no ofrece otra conexión.' );
+	$check( substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) >= 10 && false !== strpos( $html, '<h2>Añadir destino</h2>' ), 'La pantalla no anuncia los secretos guardados o no ofrece otra conexión.' );
 	$check( false !== strpos( $html, 'digitalisimo-backups-warning' ) && false !== strpos( $html, 'FTP sin cifrar (inseguro)' ), 'Las opciones inseguras no llevan advertencia.' );
 } );
 
@@ -443,8 +447,8 @@ $case( 'm', function() use ( $B, $check, $webdav ) {
 	list( $ok, $message ) = bk_post( array( $B, 'delete_connection' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE_CONNECTION, 'connection_id' => $id ) );
 	$check( $ok && false !== strpos( $message, 'Un respaldo del historial está en ella' ) && false !== strpos( $message, 'sin tocar la copia remota' ), 'Borrar la conexión no avisó de su fila del historial: ' . $message );
 	$fetch = $B::service_fetch( $file );
-	$check( is_wp_error( $fetch ) && 410 === ( $fetch->get_error_data()['status'] ?? 0 ) && false !== strpos( $fetch->get_error_message(), 'se eliminó en «Servidores»' ), '«Traer al almacén» no explica que la conexión ya no existe: ' . ( is_wp_error( $fetch ) ? $fetch->get_error_message() : 'sin error' ) );
-	try { bk_call( $B, 'download_remote', bk_call( $B, 'history_item', $file ) ); throw new LogicException( 'La descarga no se detuvo.' ); } catch ( Bk_Die $die ) { $check( false !== strpos( $die->getMessage(), 'se eliminó en «Servidores»' ), '«Descargar» no explica que la conexión ya no existe: ' . $die->getMessage() ); }
+	$check( is_wp_error( $fetch ) && 410 === ( $fetch->get_error_data()['status'] ?? 0 ) && false !== strpos( $fetch->get_error_message(), 'se eliminó en «Destinos»' ), '«Traer al almacén» no explica que la conexión ya no existe: ' . ( is_wp_error( $fetch ) ? $fetch->get_error_message() : 'sin error' ) );
+	try { bk_call( $B, 'download_remote', bk_call( $B, 'history_item', $file ) ); throw new LogicException( 'La descarga no se detuvo.' ); } catch ( Bk_Die $die ) { $check( false !== strpos( $die->getMessage(), 'se eliminó en «Destinos»' ), '«Descargar» no explica que la conexión ya no existe: ' . $die->getMessage() ); }
 	$calls = count( $webdav->log );
 	list( $ok, $message ) = bk_post( array( $B, 'delete_backup' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE, 'file' => $file ) );
 	$check( $ok && false !== strpos( $message, 'la copia remota no se tocó' ) && ! bk_call( $B, 'history_item', $file ), '«Eliminar» no quitó la fila de una conexión borrada: ' . $message );
@@ -488,8 +492,8 @@ $case( 'h', function() use ( $B, $C, $check, $fields, $secrets, $save ) {
 		list( $ok ) = $save( $fields + $secrets );
 		$check( $ok && isset( $GLOBALS['bk_site_options'][ $C::OPTION ]['items']['sftp_password'] ) && isset( $GLOBALS['bk_site_options'][ $C::OPTION_MORE ]['items']['ftp_password'] ) && isset( $GLOBALS['bk_site_options'][ $C::OPTION_MORE ]['items']['pcloud_access_token'] ), 'En una red los secretos nuevos no viven en sitemeta.' );
 		$_REQUEST['digitalisimo_backups_network'] = '1';
-		ob_start();
-		try { bk_call( $B, 'servers_panel', bk_call( $B, 'settings' ), array() ); } finally { $html = ob_get_clean(); }
+		$html = '';
+		foreach ( array( array( 'edit' => 'sftp' ), array( 'add' => '1' ) ) as $get ) { $_GET = $get; ob_start(); try { bk_call( $B, 'servers_panel', bk_call( $B, 'settings' ), array() ); } finally { $html .= ob_get_clean(); $_GET = array(); } }
 		$check( substr_count( $html, '<input type="hidden" name="digitalisimo_backups_network" value="1">' ) >= 2, 'Los formularios de la red no conservan el contexto de red.' );
 	} finally {
 		$GLOBALS['bk_multisite'] = false;

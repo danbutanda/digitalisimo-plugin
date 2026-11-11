@@ -254,7 +254,7 @@ trait Digitalisimo_Backups_Upload_Service {
 			@chmod( $store . '/' . $file, 0600 );
 			return $file;
 		} );
-		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en «Respaldos de Backuply» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
+		$result = array( 'file' => $file, 'size' => (int) $state['size'], 'registered' => false, 'container' => 'backuply', 'backuply' => array( 'source' => 'store', 'name' => $file ), 'verified' => false, 'trust' => 'untrusted', 'confirmation' => 'RESTAURAR SIN FIRMA', 'needs_secret' => false, 'compatible' => false, 'problems' => array( 'Es un respaldo de Backuply: impórtalo en Herramientas → «Importar de Backuply o UpdraftPlus» (o con wp digitalisimo-backups backuply import ' . $file . ') para convertirlo en un ZIP de Backups y restaurarlo.' ) );
 		$state['phase'] = 'done';
 		$state['result'] = $result;
 		$state['updated_at'] = time();
@@ -344,7 +344,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
 			}
-			if ( 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ) $problems[] = 'Este sitio sólo restaura respaldos firmados (Backups → Seguridad) y este archivo no tiene una firma válida de una clave de este sitio.';
+			if ( 'untrusted' === $report['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ) $problems[] = 'Este sitio sólo restaura respaldos firmados (Backups → Ajustes → Cifrado y firma) y este archivo no tiene una firma válida de una clave de este sitio.';
 			return array_merge( $summary, array(
 				'container' => (string) $report['container'],
 				'verified' => true,

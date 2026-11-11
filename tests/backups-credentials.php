@@ -186,8 +186,10 @@ $case( 'a', function() use ( $B, $C, $check, $leak, $save, $secrets, $plain_sett
 
 // (i) La pantalla de Servidores y el estado no llevan ningún secreto ni la clave.
 $case( 'i', function() use ( $B, $C, $check, $leak, $settings ) {
+	// Desde 1.0.74 «Destinos» pinta el formulario de la conexión principal (con los campos de todos los tipos) al pedirlo.
+	$_GET = array( 'edit' => 'sftp' );
 	ob_start();
-	try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $html = ob_get_clean(); }
+	try { bk_call( $B, 'servers_panel', $settings(), array() ); } finally { $html = ob_get_clean(); $_GET = array(); }
 	$check( null === $leak( $html ), 'La pantalla de Servidores muestra un secreto.' );
 	// Cada uno de los cinco secretos guardados: campo de contraseña vacío con su estado en el placeholder (desde la
 	// entrega de destinos la pantalla tiene más campos de contraseña, de los demás destinos, que van vacíos y sin él).
@@ -247,8 +249,9 @@ $case( 'f', function() use ( $B, $C, $K, $check, $leak, $save, $secrets, $settin
 	$check( '' === $s['sftp_password'] && '' === $s['google_refresh_token'] && 5 === count( $C::locked( $settings() ) ), 'Con otras salts se leyeron credenciales.' );
 	$status = $B::service_status();
 	$check( 'needs_reentry' === $status['credentials'] && false !== strpos( $status['credentials_notice'], 'vuelve a escribir la contraseña de SFTP' ) && false !== strpos( $status['credentials_notice'], 'Google Drive' ) && null === $leak( json_encode( $status ) ), 'El estado no pide volver a escribir las credenciales: ' . json_encode( $status ) );
+	$_GET = array( 'edit' => 'sftp' );
 	ob_start();
-	try { bk_call( $B, 'servers_panel', $s, $C::locked( $settings() ) ); } finally { $html = ob_get_clean(); }
+	try { bk_call( $B, 'servers_panel', $s, $C::locked( $settings() ) ); } finally { $html = ob_get_clean(); $_GET = array(); }
 	$check( 5 === substr_count( $html, 'vuelve a escribirlo' ) && null === $leak( $html ), 'La pantalla no marca los campos que hay que volver a escribir.' );
 	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'sftp', 'retention' => 'none', 'via' => 'test' ) ) );
 	$job = $queued['job'];

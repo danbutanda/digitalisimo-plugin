@@ -31,9 +31,12 @@ if ( array_intersect_key( $settings(), $secrets ) != $secrets || false !== get_o
 $status = $B::service_status();
 if ( 'unprotected' !== $status['credentials'] || false === strpos( $status['credentials_notice'], 'sin cifrar' ) || ! isset( $status['destinations']['sftp'], $status['destinations']['google'] ) ) throw new RuntimeException( 'El estado no avisa de las credenciales sin cifrar: ' . json_encode( $status ) );
 foreach ( $secrets as $value ) if ( false !== strpos( json_encode( $status ), $value ) ) throw new RuntimeException( 'El estado lleva un secreto.' );
+// Desde 1.0.74 «Destinos» pinta el formulario de la conexión principal (con los campos de todos los tipos) al pedirlo: ?edit=<tipo>.
+$_GET = array( 'edit' => 'sftp' );
 ob_start();
 bk_call( $B, 'servers_panel', $settings(), array() );
 $html = ob_get_clean();
+$_GET = array();
 foreach ( $secrets as $value ) if ( false !== strpos( $html, $value ) ) throw new RuntimeException( 'La pantalla muestra un secreto.' );
 if ( 3 !== substr_count( $html, 'placeholder="Guardado · escribe sólo para reemplazar"' ) ) throw new RuntimeException( 'La pantalla no anuncia los secretos guardados.' );
 // La carga del escritorio no puede cifrar: no toca nada ni marca los ajustes como limpios.

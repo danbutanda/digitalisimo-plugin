@@ -671,7 +671,7 @@ final class Digitalisimo_Backups_Cli_Migration {
 	}
 	/**
 	 * Genera una clave de migración de este sitio (o red) y la muestra una sola vez. Pégala en el destino:
-	 * `wp digitalisimo-backups migrate --from-key-file=…` o Backups → Migrar.
+	 * `wp digitalisimo-backups migrate --from-key-file=…` o Backups → Herramientas → Migrar.
 	 *
 	 * ## OPTIONS
 	 *

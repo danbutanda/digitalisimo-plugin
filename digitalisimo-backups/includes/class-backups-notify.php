@@ -171,7 +171,7 @@ final class Digitalisimo_Backups_Notify {
 		$lines = array( 'Origen de la migración: ' . ( '' !== $source ? $source : 'otro sitio' ) . ' (' . self::via_label( (string) ( $spec['origin']['via'] ?? '' ) ) . ')' );
 		$phase = (string) ( $job['phase'] ?? '' );
 		if ( $ok ) {
-			if ( ! empty( $job['result']['safety'] ) ) $lines[] = 'Copia previa bloqueada: ' . basename( (string) $job['result']['safety'] ) . ' («Deshacer la migración» en Backups → Migrar la restaura)';
+			if ( ! empty( $job['result']['safety'] ) ) $lines[] = 'Copia previa bloqueada: ' . basename( (string) $job['result']['safety'] ) . ' («Deshacer la migración» en Backups → Herramientas → Migrar la restaura)';
 			$lines[] = 'Este sitio es ahora una copia del origen con su propia dirección: inicia sesión con un usuario del sitio de origen.';
 			foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( '' !== (string) $warning ) $lines[] = 'Aviso: ' . self::clean( (string) $warning );
 			return self::send( $snapshot, true, 'Migración terminada', $lines );
@@ -338,7 +338,7 @@ final class Digitalisimo_Backups_Notify {
 		if ( is_multisite() && ! $network && ! is_main_site() ) { echo '<p>Los avisos de los respaldos son de toda la red: se configuran desde la administración de red o desde el sitio principal.</p></section>'; return; }
 		$settings = self::settings();
 		$admin = self::admin_email();
-		echo '<p>Un aviso por respaldo, copia remota o restauración terminada. Un fallo sólo avisa cuando es definitivo: los reintentos automáticos no envían correo. El correo nunca lleva contraseñas, claves ni rutas del servidor.</p>';
+		echo '<p>Un correo por respaldo, copia remota o restauración que termina.</p>' . Digitalisimo_Backups::help_html( 'Un fallo sólo avisa cuando es definitivo: los reintentos automáticos no envían correo. El correo nunca lleva contraseñas, claves ni rutas del servidor.' );
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_SAVE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">';

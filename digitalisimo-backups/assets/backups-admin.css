@@ -33,3 +33,59 @@
 .digitalisimo-backups-test-result[data-state="ok"] { color: var(--digi-blue-dark, #164ce4); font-weight: 600; }
 .digitalisimo-backups-test-result[data-state="error"] { color: var(--digi-pink-dark, #c72f91); font-weight: 600; }
 .digitalisimo-backups .digitalisimo-backups-connection-form tr[hidden] { display: none; }
+/* «Interfaz simple» (1.0.74): estado y «Respaldar ahora», lista con acciones por fila, panel de restaurar, franja de
+   avisos y secciones plegadas. Sólo tokens del diseño compartido. */
+.digitalisimo-backups .digitalisimo-backups-tabs { margin: 18px 0; flex-wrap: wrap; }
+.digitalisimo-backups-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.digitalisimo-backups-head h2 { margin: 0; }
+.digitalisimo-backups-head h2 .count { color: var(--digi-text); font-weight: 400; }
+.digitalisimo-backups-home { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; margin: 0 0 20px; }
+.digitalisimo-backups-status { display: grid; gap: 6px; margin: 0; font-size: 14px; }
+.digitalisimo-backups-status > div { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.digitalisimo-backups-status dt { min-width: 130px; font-weight: 700; color: var(--digi-ink); }
+.digitalisimo-backups-status dd { margin: 0; color: var(--digi-text); }
+.digitalisimo-backups-now { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.digitalisimo-backups .digitalisimo-backups-now > details { margin: 0; padding: 0; border: 0; background: none; text-align: right; }
+.digitalisimo-backups .digitalisimo-backups-now > details[open] { text-align: left; }
+.digitalisimo-backups-home .digitalisimo-backups-manual-progress { flex-basis: 100%; margin: 0; }
+.digitalisimo-backups-history { margin: 20px 0; }
+.digitalisimo-backups .digitalisimo-backups-list { margin-top: 12px; }
+.digitalisimo-backups-list td { vertical-align: middle; }
+.digitalisimo-backups-list .digitalisimo-backups-badge { margin: 2px 0; }
+.digitalisimo-backups-actions { text-align: right; white-space: nowrap; }
+.digitalisimo-backups-actions .button, .digitalisimo-backups-actions form { display: inline-block; margin: 2px 0; vertical-align: middle; }
+.digitalisimo-backups .digitalisimo-backups-more { display: inline-block; position: relative; margin: 0; padding: 0; border: 0; background: none; vertical-align: middle; }
+.digitalisimo-backups-more > summary { display: inline-block; padding: 3px 11px; border: 1px solid var(--digi-line); border-radius: var(--digi-radius-control); background: #fff; font-weight: 700; list-style: none; }
+.digitalisimo-backups-more > summary::-webkit-details-marker { display: none; }
+.digitalisimo-backups-more-menu { position: absolute; right: 0; z-index: 20; width: 340px; max-width: 80vw; margin-top: 6px; padding: 12px 14px; text-align: left; white-space: normal; background: #fff; border: 1px solid var(--digi-line); border-radius: 12px; box-shadow: var(--digi-shadow-card); }
+.digitalisimo-backups-more-menu dl { margin: 10px 0 0; }
+.digitalisimo-backups-more-menu dt { font-weight: 700; color: var(--digi-ink); }
+.digitalisimo-backups-more-menu dd { margin: 0 0 8px; overflow-wrap: anywhere; color: var(--digi-text); }
+.digitalisimo-backups-restore-row > td { background: var(--digi-tint); }
+.digitalisimo-backups .digitalisimo-backups-list tr[hidden], .digitalisimo-backups [hidden] { display: none; }
+.digitalisimo-backups-restore-confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.digitalisimo-backups .digitalisimo-backups-restore-options fieldset label { margin-right: 16px; }
+.digitalisimo-backups .digitalisimo-backups-strip ul { margin: 4px 0; padding: 0; list-style: none; display: block; }
+.digitalisimo-backups .digitalisimo-backups-strip li { margin: 6px 0; padding: 0; border: 0; background: none; }
+.digitalisimo-backups-strip li.is-error .digitalisimo-backups-strip-text { color: var(--digi-pink-dark); font-weight: 600; }
+.digitalisimo-backups-strip form { display: inline-block; margin: 0 4px 0 0; }
+.digitalisimo-backups .digitalisimo-backups-section { margin: 12px 0; }
+.digitalisimo-backups .digitalisimo-backups-section > summary { font-size: 15px; padding: 2px 0; }
+.digitalisimo-backups-section > summary .description { margin-left: 6px; font-size: 13px; }
+.digitalisimo-backups .digitalisimo-backups-section > .digitalisimo-backups-card, .digitalisimo-backups .digitalisimo-backups-section > section { margin-top: 14px; }
+.digitalisimo-backups .digitalisimo-backups-help, .digitalisimo-backups .digitalisimo-backups-advanced { margin: 4px 0; padding: 0; border: 0; background: none; }
+.digitalisimo-backups .digitalisimo-backups-help > summary, .digitalisimo-backups .digitalisimo-backups-advanced > summary { color: var(--digi-link); font-size: 13px; }
+.digitalisimo-backups .digitalisimo-backups-connection-form:has(.digitalisimo-backups-advanced:not([open])) tr[data-advanced] { display: none; }
+.digitalisimo-backups-subsite p:first-child { margin-top: 0; }
+@media (max-width: 782px) {
+	.digitalisimo-backups-now { align-items: stretch; }
+	.digitalisimo-backups .digitalisimo-backups-now > details { text-align: left; }
+	.digitalisimo-backups .digitalisimo-backups-list thead { display: none; }
+	.digitalisimo-backups .digitalisimo-backups-list, .digitalisimo-backups .digitalisimo-backups-list tbody, .digitalisimo-backups .digitalisimo-backups-list tr, .digitalisimo-backups .digitalisimo-backups-list td { display: block; width: auto; }
+	.digitalisimo-backups .digitalisimo-backups-list td { padding: 4px 12px; border: 0; }
+	.digitalisimo-backups .digitalisimo-backups-list tr[hidden] { display: none; }
+	.digitalisimo-backups .digitalisimo-backups-list tr { border-bottom: 1px solid var(--digi-line); padding: 6px 0; }
+	.digitalisimo-backups .digitalisimo-backups-list td[data-label]:before { content: attr(data-label) ': '; font-weight: 600; }
+	.digitalisimo-backups-actions { text-align: left; white-space: normal; }
+	.digitalisimo-backups-more-menu { right: auto; left: 0; }
+}

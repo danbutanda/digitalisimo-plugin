@@ -163,13 +163,13 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$connection = (string) ( $remote['connection'] ?? '' );
 		return '' !== $connection && '' !== Digitalisimo_Backups_Destinations::type_of( $connection ) ? $connection : (string) ( $remote['provider'] ?? '' );
 	}
-	/** Una conexión adicional que se eliminó en «Servidores» después de copiar en ella el respaldo de esta fila. */
+	/** Una conexión adicional que se eliminó en «Destinos» después de copiar en ella el respaldo de esta fila. */
 	private static function remote_connection_gone( array $remote ) {
 		$id = self::remote_connection( $remote );
 		return Digitalisimo_Backups_Destinations::is_connection_id( $id ) && ! isset( Digitalisimo_Backups_Destinations::connections()[ $id ] );
 	}
 	private static function gone_text( array $remote ) {
-		return 'La conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' donde se copió este respaldo se eliminó en «Servidores». La copia remota sigue en el servicio: descárgala desde allí. «Eliminar» sólo quita su fila del historial.';
+		return 'La conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' donde se copió este respaldo se eliminó en «Destinos». La copia remota sigue en el servicio: descárgala desde allí. «Borrar» sólo quita su fila del historial.';
 	}
 	/** Filas del historial cuya copia remota vive en la conexión $id. */
 	private static function history_rows_in( $id ) {
@@ -283,21 +283,30 @@ trait Digitalisimo_Backups_Destinations_Screen {
 
 	/* ------------------------------------------------------------------ Pantalla «Servidores» */
 
+	/**
+	 * «Destinos» (1.0.74): la lista de conexiones con «Añadir destino». Un solo formulario a la vista y sólo al pedirlo:
+	 * `add=1` (otra conexión), `connection=<id>` (editarla) o `edit=<tipo>` (la conexión principal de ese tipo, que se
+	 * guarda con todos los tipos en un formulario, como antes).
+	 */
 	private static function servers_panel( $s, array $locked = array() ) {
 		$editing = sanitize_key( $_GET['connection'] ?? '' );
-		echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations"><h2>Servidores y nubes</h2><p>Configura las conexiones disponibles para respaldos. En Backups sólo aparecerán Local y las conexiones que ya estén listas. «Probar conexión» sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra.</p>';
+		$principal = sanitize_key( $_GET['edit'] ?? '' );
+		if ( ! Digitalisimo_Backups_Destinations::is_type( $principal ) ) $principal = '';
+		$adding = ! empty( $_GET['add'] );
+		echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations"><div class="digitalisimo-backups-head"><h2>Destinos</h2><a class="button button-primary" href="' . esc_url( add_query_arg( array( 'tab' => 'servers', 'add' => '1' ), self::admin_url() ) . '#digitalisimo-backups-connection' ) . '">Añadir destino</a></div>';
 		self::connection_table( $s, $locked );
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
-		wp_nonce_field( self::ACTION_SAVE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination">';
-		foreach ( self::destination_choices() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $s['destination'], $value, false ) . '>' . esc_html( 'local' === $value ? 'Hosting / almacenamiento local' : $label ) . '</option>';
-		echo '</select></td></tr>';
-		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) echo '<tr data-server="' . esc_attr( $type ) . '"><th>Nombre ' . esc_html( $class::label() ) . '</th><td><input name="digitalisimo_backups[' . esc_attr( $class::PREFIX ) . 'name]" value="' . esc_attr( (string) ( $s[ $class::PREFIX . 'name' ] ?? '' ) ) . '"></td></tr>';
-		echo '</table>';
-		self::connection_fields( $s, $locked );
-		submit_button( 'Guardar conexiones' );
-		echo '</form></section>';
-		self::connection_form( $editing );
+		echo '</section>';
+		if ( '' !== $principal ) {
+			echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations" id="digitalisimo-backups-principal"><h2>Conexión principal</h2><p class="description">Los secretos guardados no se muestran: deja el campo vacío para conservarlos.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
+			wp_nonce_field( self::ACTION_SAVE );
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination">';
+			foreach ( self::destination_choices() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $s['destination'], $value, false ) . '>' . esc_html( 'local' === $value ? 'Hosting / almacenamiento local' : $label ) . '</option>';
+			echo '</select></td></tr></table>';
+			self::connection_fields( $s, $locked, $principal );
+			echo '<p><button class="button button-primary">Guardar conexiones</button> <a class="button" href="' . esc_url( add_query_arg( 'tab', 'servers', self::admin_url() ) ) . '">Cancelar</a></p></form></section>';
+		} elseif ( $adding || '' !== $editing ) {
+			self::connection_form( $editing );
+		}
 	}
 	/** Tabla de conexiones: principal de cada tipo con algo configurado y las adicionales, con su estado. */
 	private static function connection_table( $s, array $locked ) {
@@ -311,8 +320,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			try { $ready = Digitalisimo_Backups_Destinations::class_of( $connection['type'] )::ready( self::connection_settings( $id ) ); } catch ( Exception $e ) { $ready = false; }
 			$rows[ $id ] = array( $connection['name'], $connection['type'], $ready );
 		}
-		if ( ! $rows ) { echo '<p>Aún no hay conexiones remotas.</p>'; return; }
-		echo '<table class="widefat striped digitalisimo-backups-connections"><thead><tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+		echo '<table class="widefat striped digitalisimo-backups-connections"><thead><tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th><span class="screen-reader-text">Acciones</span></th></tr></thead><tbody>';
+		echo '<tr><td>' . esc_html( self::destination_label( 'local' ) ) . '</td><td>Este servidor</td><td><span class="digitalisimo-secret is-set">Lista</span></td><td></td></tr>';
 		foreach ( $rows as $id => $row ) {
 			list( $name, $type, $ready ) = $row;
 			$problem = self::credentials_problem( $id );
@@ -321,22 +330,29 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			if ( Digitalisimo_Backups_Destinations::is_connection_id( $id ) ) {
 				echo '<a class="button button-small" href="' . esc_url( add_query_arg( array( 'tab' => 'servers', 'connection' => $id ), self::admin_url() ) . '#digitalisimo-backups-connection' ) . '">Editar</a> <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Eliminar esta conexión? Los respaldos ya copiados en ella no se borran.\')">';
 				wp_nonce_field( self::ACTION_DELETE_CONNECTION );
-				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_CONNECTION ) . '"><input type="hidden" name="connection_id" value="' . esc_attr( $id ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small button-link-delete">Eliminar</button></form>';
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DELETE_CONNECTION ) . '"><input type="hidden" name="connection_id" value="' . esc_attr( $id ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small button-link-delete">Borrar</button></form>';
 			} else {
-				echo '<span class="description">Se edita abajo, en «Conexiones externas».</span>';
+				echo '<a class="button button-small" href="' . esc_url( add_query_arg( array( 'tab' => 'servers', 'edit' => $type ), self::admin_url() ) . '#digitalisimo-backups-principal' ) . '">Editar</a>';
 			}
 			echo '</td></tr>';
 		}
 		echo '</tbody></table>';
+		if ( ! $rows ) echo '<p class="description">Aún no hay conexiones remotas.</p>';
 	}
 	/** Campos de la conexión principal de cada tipo (un tipo visible a la vez). */
-	private static function connection_fields( $s, array $locked = array() ) {
-		echo '<h2>Conexiones externas</h2><p>Elige un tipo para ver únicamente sus campos. Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.</p><p><label for="digitalisimo-server-type"><strong>Tipo de servidor</strong><br><select id="digitalisimo-server-type" class="digitalisimo-backups-type">';
-		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) echo '<option value="' . esc_attr( $type ) . '">' . esc_html( $class::label() ) . '</option>';
+	private static function connection_fields( $s, array $locked = array(), $selected = '' ) {
+		echo '<p><label for="digitalisimo-server-type"><strong>Tipo</strong><br><select id="digitalisimo-server-type" class="digitalisimo-backups-type">';
+		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) echo '<option value="' . esc_attr( $type ) . '"' . selected( $selected, $type, false ) . '>' . esc_html( $class::label() ) . '</option>';
 		echo '</select></label></p><table class="form-table">';
-		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) self::type_fields( $type, $s, $locked, 'digitalisimo_backups', '', $type );
-		echo '</table>';
+		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) {
+			echo '<tr data-server="' . esc_attr( $type ) . '"><th><label for="digitalisimo-name-' . esc_attr( $type ) . '">Nombre</label></th><td><input class="regular-text" id="digitalisimo-name-' . esc_attr( $type ) . '" name="digitalisimo_backups[' . esc_attr( $class::PREFIX ) . 'name]" value="' . esc_attr( (string) ( $s[ $class::PREFIX . 'name' ] ?? '' ) ) . '"></td></tr>';
+			self::type_fields( $type, $s, $locked, 'digitalisimo_backups', '', $type );
+		}
+		echo '</table>' . self::advanced_toggle();
 	}
+	/** Campos de ajuste fino que se pliegan en «Opciones avanzadas» (un <details> sin JavaScript; ver backups-admin.css). */
+	private static function advanced_fields() { return array( 'sftp_engine', 'ftp_passive', 's3_style', 's3_storage_class' ); }
+	private static function advanced_toggle() { return '<details class="digitalisimo-backups-advanced"><summary>Opciones avanzadas</summary></details>'; }
 	/**
 	 * Filas de un tipo. $name: nombre del arreglo del formulario; $id_prefix: prefijo de los id (el formulario de una
 	 * conexión adicional los repite); $connection: la conexión que se prueba o se conecta por OAuth.
@@ -347,7 +363,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		foreach ( $class::fields() as $key => $field ) self::field( $key, $field['label'], $s, $field['type'] ?? 'text', $locked, $field, $name, $id_prefix, $type, $connection );
 		if ( 'digitalisimo_backups' === $name ) self::forget_row( $type, $s, $locked );
 		$help = self::type_help( $type );
-		if ( $help ) echo '<tr data-server="' . esc_attr( $type ) . '"><th>Cómo obtener ' . esc_html( $class::label() ) . '</th><td><ol><li>' . implode( '</li><li>', $help ) . '</li></ol></td></tr>';
+		if ( $help ) echo '<tr data-server="' . esc_attr( $type ) . '"><th></th><td><details class="digitalisimo-backups-help"><summary>Cómo obtener ' . esc_html( $class::label() ) . '</summary><ol><li>' . implode( '</li><li>', $help ) . '</li></ol></details></td></tr>';
 		echo '<tr data-server="' . esc_attr( $type ) . '"><th></th><td><p class="digitalisimo-backups-destination-actions">';
 		if ( $class::oauth() && 'digitalisimo_backups_connection' === $name && ! Digitalisimo_Backups_Destinations::is_connection_id( $connection ) ) {
 			// Una conexión adicional aún sin crear no tiene identificador: «Conectar» conectaría la principal.
@@ -399,7 +415,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$field_name = $name . '[' . $key . ']';
 		$value = $secret ? '' : (string) ( $s[ $key ] ?? '' );
 		$show = isset( $spec['show'] ) ? ' data-show="' . esc_attr( $spec['show'] ) . '"' : '';
-		echo '<tr data-server="' . esc_attr( $server ) . '"' . $show . '><th><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
+		$advanced = in_array( $key, self::advanced_fields(), true ) ? ' data-advanced="1"' : '';
+		echo '<tr data-server="' . esc_attr( $server ) . '"' . $show . $advanced . '><th><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
 		switch ( $type ) {
 			case 'select':
 				echo '<select id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '">';
@@ -427,7 +444,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 				if ( ! empty( $spec['readonly'] ) ) $extra .= ' readonly';
 				echo '<input class="regular-text" type="' . esc_attr( $input ) . '" id="' . esc_attr( $id ) . '" name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $value ) . '"' . ( '' !== $placeholder ? ' placeholder="' . esc_attr( $placeholder ) . '"' : '' ) . ( $secret ? ' autocomplete="new-password"' : '' ) . $extra . '>';
 		}
-		if ( ! empty( $spec['help'] ) ) echo '<p class="description">' . esc_html( $spec['help'] ) . '</p>';
+		if ( ! empty( $spec['help'] ) ) echo self::help_html( (string) $spec['help'] );
 		if ( ! empty( $spec['warning'] ) ) echo '<p class="description digitalisimo-backups-warning">' . esc_html( $spec['warning'] ) . '</p>';
 		echo '</td></tr>';
 	}
@@ -437,7 +454,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$current = isset( $connections[ $editing ] ) ? $connections[ $editing ] : null;
 		$settings = $current ? self::connection_settings( $editing ) : array();
 		$locked = $current ? Digitalisimo_Backups_Credentials::locked( self::credential_settings() ) : array();
-		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir otra conexión' ) . '</h2><p>' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Crea varias conexiones del mismo tipo con nombres distintos (por ejemplo, dos servidores SFTP o dos buckets). Cada una aparece como destino propio en Backups y en las automatizaciones.' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
+		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-connection"><h2>' . ( $current ? 'Editar «' . esc_html( $current['name'] ) . '»' : 'Añadir destino' ) . '</h2><p class="description">' . ( $current ? 'Los secretos ya guardados no se muestran; deja el campo vacío para conservarlos.' : 'Puedes tener varias del mismo tipo, cada una con su nombre.' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
 		wp_nonce_field( self::ACTION_SAVE_CONNECTION );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE_CONNECTION ) . '"><input type="hidden" name="connection_id" value="' . esc_attr( $current ? $editing : '' ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="digitalisimo-connection-type">Tipo</label></th><td><select id="digitalisimo-connection-type" class="digitalisimo-backups-type" name="connection_type"' . ( $current ? ' disabled' : '' ) . '>';
 		foreach ( Digitalisimo_Backups_Destinations::CLASSES as $type => $class ) echo '<option value="' . esc_attr( $type ) . '"' . selected( $current ? $current['type'] : '', $type, false ) . '>' . esc_html( $class::label() ) . '</option>';
@@ -446,7 +463,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 			if ( $current && $type !== $current['type'] ) continue;
 			self::type_fields( $type, $current ? $settings : $class::defaults(), $locked, 'digitalisimo_backups_connection', 'connection-', $current ? $editing : '' );
 		}
-		echo '</table><p><button class="button button-primary">' . ( $current ? 'Guardar conexión' : 'Crear conexión' ) . '</button>' . ( $current ? ' <a class="button" href="' . esc_url( add_query_arg( 'tab', 'servers', self::admin_url() ) ) . '">Cancelar</a>' : '' ) . '</p></form></section>';
+		echo '</table>' . self::advanced_toggle() . '<p><button class="button button-primary">' . ( $current ? 'Guardar conexión' : 'Crear conexión' ) . '</button> <a class="button" href="' . esc_url( add_query_arg( 'tab', 'servers', self::admin_url() ) ) . '">Cancelar</a></p></form></section>';
 	}
 
 	/* ------------------------------------------------------------------ Guardar */
@@ -537,7 +554,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		unset( $connections[ $id ] );
 		Digitalisimo_Backups_Destinations::save_connections( $connections );
 		try { Digitalisimo_Backups_Credentials::remove( Digitalisimo_Backups_Credentials::fields_of( $id ) ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		$note = $rows ? ' ' . ( 1 === $rows ? 'Un respaldo del historial está' : $rows . ' respaldos del historial están' ) . ' en ella: siguen en el destino, pero ya no se pueden traer ni descargar desde WordPress; «Eliminar» sólo quitará su fila, sin tocar la copia remota.' : ' Los respaldos ya copiados en ella siguen en el destino.';
+		$note = $rows ? ' ' . ( 1 === $rows ? 'Un respaldo del historial está' : $rows . ' respaldos del historial están' ) . ' en ella: siguen en el destino, pero ya no se pueden traer ni descargar desde WordPress; «Borrar» sólo quitará su fila, sin tocar la copia remota.' : ' Los respaldos ya copiados en ella siguen en el destino.';
 		self::redirect( true, 'Conexión «' . $name . '» eliminada.' . $note, null, 'servers' );
 	}
 

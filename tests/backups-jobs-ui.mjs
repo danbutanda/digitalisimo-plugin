@@ -29,6 +29,9 @@ destination.value = 'google';
 const submit = node('button');
 ids['digitalisimo-backups-manual-form'].selectors = { '[name="digitalisimo_backup_destination"]': destination, 'button[type="submit"], button:not([type])': submit };
 ids['digitalisimo-backups-jobs'].setAttribute('data-active', '1');
+// «Respaldos» (1.0.74): la tarjeta sólo se ve con trabajos en curso que no sigue ya el panel del botón.
+ids['digitalisimo-backups-jobs'].setAttribute('data-hide-idle', '1');
+const reloads = [];
 
 const requests = [];
 const replies = [];
@@ -36,7 +39,7 @@ const timers = [];
 const alerts = [];
 const job = (overrides) => Object.assign({ id: '11111111-2222-4333-8444-555555555555', status: 'running', status_label: 'En curso', phase: 'database', phase_label: 'Base de datos', percent: 10, detail: '<img src=x onerror=alert(1)>', origin_label: 'Respaldo manual', destination_label: 'Google Drive', created_label: '2026-11-05 10:00', can_cancel: true, terminal: false, running: true, retry_in: 0 }, overrides);
 const context = {
-  window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs', context: 'network', login: '/wp-login.php?redirect_to=migrar' }, confirm: () => true, alert: (text) => alerts.push(text) },
+  window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs', context: 'network', login: '/wp-login.php?redirect_to=migrar' }, confirm: () => true, alert: (text) => alerts.push(text), location: { reload: () => reloads.push(true) } },
   document: { getElementById: (id) => ids[id] || null, createElement: node, createTextNode: (text) => ({ textContent: String(text), children: [] }) },
   URLSearchParams, Object, String, Number, Math, Error, JSON,
   setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
@@ -68,6 +71,7 @@ await runTimer();
 assert.ok(requests[0].action === 'digitalisimo_backups_job_tick' && requests[0].nonce === 'nonce-jobs' && requests[0].context === 'network', 'El tick debe usar el nonce de trabajos y el contexto de la pantalla');
 assert.ok(texts(ids['digitalisimo-backups-jobs-list']).includes('<img src=x onerror=alert(1)>'), 'El detalle del servidor debe mostrarse literal, como texto');
 assert.ok(timers.length === 1 && timers[0].delay === 300, 'Tras un paso hecho, el siguiente va enseguida');
+assert.ok(ids['digitalisimo-backups-jobs'].hidden === false, 'Con un trabajo en curso (de una automatización), la tarjeta se ve');
 // Otro proceso trabaja: sólo se consulta cada 3 s. Un reintento lejano: se espera hasta 15 s.
 replies.push({ body: { success: true, data: { result: 'busy', jobs: [job()] } } });
 await runTimer();
@@ -96,6 +100,8 @@ replies.push({ body: { success: true, data: { result: 'worked', jobs: [job({ id:
 await runTimer();
 assert.ok(submit.disabled === false && ids['digitalisimo-backups-manual-detail'].textContent.includes('ZIP verificado') && timers.length === 0, 'Al terminar, la pantalla deja de dar pasos y habilita el botón');
 assert.ok(ids['digitalisimo-backups-jobs'].getAttribute('data-active') === '0', 'Sin trabajos activos la tarjeta se marca inactiva');
+assert.ok(ids['digitalisimo-backups-jobs'].hidden === true, 'Sin trabajos en curso la tarjeta de «Respaldos» se oculta');
+assert.ok(reloads.length === 1 && ids['digitalisimo-backups-manual-detail'].textContent.includes('Actualizando la lista'), 'Al terminar bien, la página se recarga para enseñar el respaldo en la lista');
 
 // Cancelar: con confirmación, su nonce y el identificador del trabajo.
 const cancelButton = node('button');

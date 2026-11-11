@@ -225,7 +225,7 @@ trait Digitalisimo_Backups_Keep_Config {
 			$lines[] = 'Este sitio conservó su configuración de Backups; el respaldo restaurado traía ' . implode( ' y ', $what ) . ' del sitio de origen que no se aplicaron.';
 			if ( empty( $notice['pending'] ) ) $lines[] = 'No se guardó para aplicarla después: este servidor no tiene AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php con las que cifrarla.';
 		}
-		if ( ! empty( $notice['paused'] ) ) $lines[] = 'Se aplicó la configuración del respaldo con ' . (int) $notice['paused'] . ' ' . ( 1 === (int) $notice['paused'] ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Backups → Automatizaciones cuando confirmes que no respaldan a la misma carpeta que el sitio de origen.';
+		if ( ! empty( $notice['paused'] ) ) $lines[] = 'Se aplicó la configuración del respaldo con ' . (int) $notice['paused'] . ' ' . ( 1 === (int) $notice['paused'] ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Backups → Herramientas → Automatizaciones cuando confirmes que no respaldan a la misma carpeta que el sitio de origen.';
 		if ( ! empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) $lines[] = 'Tras la restauración, este sitio no tiene ninguna automatización de respaldo activa.';
 		return implode( ' ', $lines );
 	}
@@ -289,7 +289,8 @@ trait Digitalisimo_Backups_Keep_Config {
 	}
 	/** admin_notices y network_admin_notices: sólo a quien gestiona los respaldos, en el sitio principal o la red. */
 	public static function restore_config_admin_notice() {
-		if ( ! self::can_manage() ) return;
+		// En la pantalla de Backups va en su franja de avisos (no dos veces).
+		if ( ! self::can_manage() || self::is_backups_screen() ) return;
 		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! is_main_site() ) return;
 		try { echo self::restore_notice_html(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	}

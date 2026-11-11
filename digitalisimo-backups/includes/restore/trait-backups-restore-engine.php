@@ -2279,8 +2279,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				$auto = Digitalisimo_Backups_Migrate::kept_auto();
 				$when = gmdate( 'Y-m-d', time() + Digitalisimo_Backups_Migrate::kept_days() * 86400 );
 				$notice .= ' ' . count( $kept_tables ) . ' tabla(s) ' . ( $undo ? 'que trajo la migración y la copia previa no tiene' : 'de este WordPress que el paquete no trae' ) . ' se apartaron con otro nombre (' . $pairs . '): también están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . '.';
-				if ( $undo ) $notice .= ' No se pudieron borrar todas al terminar el deshacer: el vigilante horario de Backups lo reintenta; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra ya.';
-				else $notice .= $auto ? ' Se borran solas el ' . $when . ' (UTC) mientras esa copia siga en el almacén; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra antes.' : ' No se borran solas: si alguna es de otra aplicación que comparte la base de datos, devuélvele su nombre; cuando no las necesites, bórralas en Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`).';
+				if ( $undo ) $notice .= ' No se pudieron borrar todas al terminar el deshacer: el vigilante horario de Backups lo reintenta; Backups → Herramientas → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra ya.';
+				else $notice .= $auto ? ' Se borran solas el ' . $when . ' (UTC) mientras esa copia siga en el almacén; Backups → Herramientas → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra antes.' : ' No se borran solas: si alguna es de otra aplicación que comparte la base de datos, devuélvele su nombre; cuando no las necesites, bórralas en Backups → Herramientas → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`).';
 			}
 		}
 		$old_tables = (array) ( self::restore_read_json( $job, 'old-tables.json', false ) ?? array() );

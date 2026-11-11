@@ -212,7 +212,7 @@ try {
 	ob_start();
 	try { $B::page(); } catch ( Throwable $e ) { echo "\n[render interrumpido: ", $e->getMessage(), ']'; }
 	$html = (string) ob_get_clean();
-	digi_assert( false !== strpos( $html, 'name="digitalisimo_backup_remote_only"' ) && false !== strpos( $html, 'Restaurar exigirá descargarla antes' ), 'La pantalla no ofrece «Sólo en el remoto» con su aviso.' );
+	digi_assert( false !== strpos( $html, 'name="digitalisimo_backup_remote_only"' ) && false !== strpos( $html, 'Restaurar exigirá traerla antes' ), 'La pantalla no ofrece «Sólo en el remoto» con su aviso.' );
 	$only = $backup( array( 'destination' => 'google', 'remote_only' => true ) );
 	$summary = $summary_of( $only );
 	digi_assert( ! is_file( $store . '/' . $only ) && 'remote-only' === $row_of( $only )['local'] && true === $summary['remote_only'] && false === $summary['restorable'] && array( array( 'destination' => 'google', 'state' => 'ok' ) ) === $summary['copies'], '«Sólo en el remoto» conservó el ZIP local o no lo anunció: ' . json_encode( $summary ) );

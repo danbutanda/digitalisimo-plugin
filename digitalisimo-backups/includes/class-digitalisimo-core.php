@@ -20,6 +20,8 @@ final class Digitalisimo_Backups_Core {
 		wp_enqueue_script( 'digitalisimo-backups-destinations', plugins_url( '../assets/destinations.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
 		wp_add_inline_script( 'digitalisimo-backups-destinations', 'window.digitalisimoBackupsDestinations=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'action' => 'digitalisimo_backups_test_destination' ) ) . ';', 'before' );
 		wp_add_inline_script( 'digitalisimo-backups-manual', 'window.digitalisimoBackupsManual=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_manual' ), 'jobsNonce' => wp_create_nonce( 'digitalisimo_backups_jobs' ), 'context' => is_network_admin() ? 'network' : 'site', 'login' => wp_login_url( is_network_admin() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups&tab=migrate' ) : admin_url( 'admin.php?page=digitalisimo-backups&tab=migrate' ) ) ) ) . ';', 'before' );
+		// «Restaurar» bajo su fila y el destino del botón (1.0.74; sin JavaScript, la pantalla funciona igual).
+		wp_enqueue_script( 'digitalisimo-backups-screen', plugins_url( '../assets/screen.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
 		// Subida de un respaldo por fragmentos (tarjeta «Subir un respaldo»).
 		wp_enqueue_script( 'digitalisimo-backups-upload', plugins_url( '../assets/upload.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
 		wp_add_inline_script( 'digitalisimo-backups-upload', 'window.digitalisimoBackupsUpload=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_upload' ), 'context' => is_network_admin() ? 'network' : 'site' ) ) . ';', 'before' );

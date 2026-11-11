@@ -179,7 +179,7 @@ trait Digitalisimo_Backups_Remote_Retention {
 				// («Traer al almacén», un trabajo fetch, que ya terminó): quien lo trajo lo quiere; decidirá la siguiente retención.
 				if ( ! empty( $row['locked'] ) || ! self::remote_owned( $row ) || '' !== self::local_copy( $row ) ) { self::history_update( $file, array( 'remote_prune' => null ) ); continue; }
 				$remote = (array) $row['remote'];
-				if ( self::remote_connection_gone( $remote ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Su conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' se eliminó en «Servidores»: bórrala desde el servicio.' );
+				if ( self::remote_connection_gone( $remote ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Su conexión de ' . Digitalisimo_Backups_Destinations::label( (string) ( $remote['provider'] ?? '' ) ) . ' se eliminó en «Destinos»: bórrala desde el servicio.' );
 				$id = self::remote_connection( $remote );
 				$problem = self::credentials_problem( $id );
 				if ( '' !== $problem ) throw new Digitalisimo_Backups_Permanent_Error( $problem );
@@ -270,6 +270,6 @@ trait Digitalisimo_Backups_Remote_Retention {
 	}
 	/** Casilla «Sólo en el remoto» con su aviso (automatizaciones y respaldo manual). */
 	private static function remote_only_field( $checked, $name = 'digitalisimo_backup_automation[remote_only]' ) {
-		return '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked' : '' ) . '> Sólo en el remoto: no conservar el ZIP en este servidor</label><br><span class="description">El ZIP local se borra en cuanto la copia remota se verifica. <strong>Restaurar exigirá descargarla antes</strong> («Traer al almacén» en «Restaurar», o <code>fetch</code> por REST y WP-CLI), y si el destino falla o se pierde no quedará copia aquí. Si la copia remota falla, el ZIP local se conserva. Con destino local no aplica. La retención («Conservar») borra también las copias remotas que registró este sitio.</span></p>';
+		return '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked' : '' ) . '> Sólo en el remoto: no conservar el ZIP en este servidor</label></p>' . self::help_html( 'El ZIP local se borra en cuanto la copia remota se verifica. Restaurar exigirá traerla antes («Traer al almacén» en la fila del respaldo, o fetch por REST y WP-CLI), y si el destino falla o se pierde no quedará copia aquí. Si la copia remota falla, el ZIP local se conserva. Con destino local no aplica. La retención («Conservar») borra también las copias remotas que registró este sitio.' );
 	}
 }

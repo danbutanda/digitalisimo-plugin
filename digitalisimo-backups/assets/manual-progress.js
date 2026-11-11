@@ -93,13 +93,17 @@
     if (!job.terminal) return;
     watching = '';
     if (button) button.disabled = false;
-    if (job.status === 'success') detail.textContent = job.detail + '. Actualiza la página para verlo en el historial.';
+    /* La lista de respaldos se pinta en PHP: al terminar bien, la página se vuelve a cargar con el respaldo nuevo. */
+    if (job.status === 'success') {
+      detail.textContent = job.detail + '. Actualizando la lista…';
+      if (window.location && typeof window.location.reload === 'function') window.location.reload();
+    }
     else if (job.status === 'failed') detail.textContent = job.detail + ' No se registró ningún respaldo parcial; puedes corregir el error y volver a intentarlo.';
   }
   /* Una migración que llegó a restaurar reemplaza los usuarios: la sesión de este navegador deja de valer. */
   function sessionReplaced() {
     if (!card || card.querySelector('.digitalisimo-backups-migrate-login')) return;
-    var note = element('p', 'La migración reemplazó este sitio y tu sesión ya no vale: inicia sesión con un usuario del sitio de origen para ver el resultado. Si algo salió mal, «Deshacer la migración» en Backups → Migrar lo devuelve a su estado anterior.', { 'class': 'notice notice-info inline digitalisimo-backups-migrate-login', role: 'status' });
+    var note = element('p', 'La migración reemplazó este sitio y tu sesión ya no vale: inicia sesión con un usuario del sitio de origen para ver el resultado. Si algo salió mal, «Deshacer la migración» en Backups → Herramientas → Migrar lo devuelve a su estado anterior.', { 'class': 'notice notice-info inline digitalisimo-backups-migrate-login', role: 'status' });
     var link = element('a', ' Iniciar sesión', { href: config.login || '/wp-login.php' });
     note.appendChild(link);
     card.insertBefore(note, list);
@@ -110,6 +114,8 @@
     showWatched(jobs);
     var active = jobs.filter(function (job) { return !job.terminal; });
     if (card) card.setAttribute('data-active', active.length ? '1' : '0');
+    /* En «Respaldos» la tarjeta sólo se ve con trabajos en curso que no sean el que ya sigue el panel del botón. */
+    if (card && card.getAttribute('data-hide-idle') === '1') card.hidden = !active.filter(function (job) { return job.id !== watching; }).length;
     return active;
   }
   function schedule(delay) {

@@ -153,9 +153,10 @@ try {
 	try { $B::page(); } catch ( Throwable $e ) { echo "\n[render interrumpido: ", $e->getMessage(), ']'; }
 	$html = (string) ob_get_clean();
 	$_GET = array();
-	$at = strpos( $html, '<td>digitalisimo-backup-s4.zip</td>' );
+	// Desde 1.0.74 la fila es <tr … data-file="…"> con «Borrar» (el nombre del archivo va en «⋯»).
+	$at = strpos( $html, 'data-file="digitalisimo-backup-s4.zip"' );
 	$tr = false === $at ? '' : substr( $html, $at, (int) strpos( substr( $html, $at ), '</tr>' ) );
-	digi_assert( '' !== $tr && false !== strpos( $tr, "onsubmit=\"return confirm('¿Eliminar este respaldo?')\">" ) && false !== strpos( $tr, 'name="action" value="' . $B::ACTION_DELETE . '"' ) && false === strpos( $tr, 'Descargar' ) && false === strpos( $tr, 'sin identificador' ), 'La fila sin copias no ofrece «Eliminar» en la pantalla (o ofrece descargar): ' . strip_tags( $tr ) );
+	digi_assert( '' !== $tr && false !== strpos( $tr, "onsubmit=\"return confirm('¿Borrar este respaldo?')\">" ) && false !== strpos( $tr, 'name="action" value="' . $B::ACTION_DELETE . '"' ) && false === strpos( $tr, 'Descargar' ) && false === strpos( $tr, 'sin identificador' ), 'La fila sin copias no ofrece «Eliminar» en la pantalla (o ofrece descargar): ' . strip_tags( $tr ) );
 	$destination = new ReflectionMethod( $B, 'history_destination' );
 	if ( PHP_VERSION_ID < 80100 ) $destination->setAccessible( true );
 	$label = $destination->invoke( null, $row_of( 'digitalisimo-backup-s4.zip' ) );

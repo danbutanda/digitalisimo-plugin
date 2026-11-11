@@ -33,7 +33,7 @@ final class Digitalisimo_Backups_Fetch_Job {
 		$phases = array(
 			'receive' => array( 'label' => 'Descarga del destino', 'floor' => 5, 'max' => 5, 'cancellable' => true, 'status' => 'transferring', 'interrupted' => ' La descarga se cortó varias veces sin avanzar: revisa la conexión con el destino y vuelve a pedirla (con WP-CLI no hay límite de tiempo).' ),
 			'examine' => array( 'label' => 'Comprobación del archivo', 'floor' => 85, 'max' => 3, 'cancellable' => true, 'status' => 'verifying', 'interrupted' => ' La comprobación se cortó varias veces (el tiempo límite del servidor o del proxy): repítela con WP-CLI (wp digitalisimo-backups destinations fetch), que no tiene ese límite.' ),
-			'place' => array( 'label' => 'Entrada en el almacén', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'verifying', 'refusal' => 'El archivo ya está comprobado y entrando en el almacén privado; si no lo quieres, elimínalo de «Restaurar» cuando termine.' ),
+			'place' => array( 'label' => 'Entrada en el almacén', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'verifying', 'refusal' => 'El archivo ya está comprobado y entrando en el almacén privado; si no lo quieres, bórralo en Herramientas → «Restaurar un archivo suelto» cuando termine.' ),
 		);
 		return $phases[ $phase ] ?? null;
 	}

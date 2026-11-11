@@ -316,6 +316,9 @@ jobs:
           php tests/backups-job-compat.php
           php tests/backups-job-kill.php
           node tests/backups-jobs-ui.mjs
+          php tests/backups-simple-screen.php
+          node tests/backups-screen-ui.mjs
+          node tests/backups-simple-screen-chrome.mjs
           php tests/backups-untrusted-archive.php
           php tests/backups-sql-guard.php
           php tests/backups-keys.php

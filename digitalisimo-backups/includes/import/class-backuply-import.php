@@ -779,7 +779,7 @@ final class Digitalisimo_Backups_Backuply_Import {
 		$notices = self::notices( (array) ( $database['notes'] ?? array() ), $scan );
 		$multisite = ! empty( $meta['multisite'] ) || ( in_array( $prefix . 'blogs', $order, true ) && in_array( $prefix . 'site', $order, true ) );
 		$result = array( 'import' => array( 'file' => $file, 'source' => (string) $job['spec']['source']['name'], 'origin' => (string) $job['spec']['source']['origin'], 'files' => (int) ( $scan['files'] ?? 0 ), 'tables' => count( $order ), 'rows' => (int) ( $database['rows'] ?? 0 ), 'prefix' => $prefix, 'site_url' => (string) ( $meta['site_url'] ?? '' ), 'multisite' => $multisite, 'notices' => $notices, 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
-		return array( 'next' => null, 'checkpoint' => array( 'published' => $file ), 'result' => $result, 'message' => 'Respaldo de Backuply importado como ' . $file . ': aparece en «Restaurar respaldo local» como archivo sin firma (escribe RESTAURAR SIN FIRMA para restaurarlo).' . ( $notices ? ' Avisos: ' . implode( ' ', $notices ) : '' ) );
+		return array( 'next' => null, 'checkpoint' => array( 'published' => $file ), 'result' => $result, 'message' => 'Respaldo de Backuply importado como ' . $file . ': aparece en Herramientas → «Restaurar un archivo suelto» como archivo sin firma (escribe RESTAURAR SIN FIRMA para restaurarlo).' . ( $notices ? ' Avisos: ' . implode( ' ', $notices ) : '' ) );
 	}
 	/** Nombre libre en el almacén: ni un archivo ni una fila del historial con ese nombre. */
 	private static function free_name( $wanted ) {

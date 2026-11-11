@@ -194,7 +194,7 @@ final class Digitalisimo_Backups_Keys {
 		$ring = self::keyring();
 		if ( ! $ring['active'] ) return null;
 		$root = self::unwrap( $ring['active'], $ring['keys'][ $ring['active'] ] );
-		if ( false === $root ) throw new Exception( 'La frase de los respaldos (clave ' . self::short( $ring['active'] ) . ') no se puede abrir: las claves de wp-config.php cambiaron o se interrumpió una restauración. Vuelve a escribirla en Backups → Seguridad.' );
+		if ( false === $root ) throw new Exception( 'La frase de los respaldos (clave ' . self::short( $ring['active'] ) . ') no se puede abrir: las claves de wp-config.php cambiaron o se interrumpió una restauración. Vuelve a escribirla en Backups → Ajustes → Cifrado y firma.' );
 		return array( $root, self::descriptor( $ring['active'], 'passphrase', $ring['keys'][ $ring['active'] ]['kdf'] ) );
 	}
 	/** Descriptor público de una clave que este sitio conoce por su huella (constante o llavero), o null. Nunca la clave. */

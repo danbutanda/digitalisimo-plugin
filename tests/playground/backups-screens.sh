@@ -14,6 +14,7 @@
 #   OUT, TMPDIR     resultados (por defecto /var/tmp/digi-bk/backups-screens) y temporales de Playground
 #   MODES           modos (por defecto «backuply single multisite»)
 #   LABEL           subcarpeta de las capturas (por defecto «actual»; p. ej. «antes» o «despues»)
+# El sitio lleva AUTH_KEY y SECURE_AUTH_KEY propias, como uno real: las capturas no llevan el aviso de credenciales.
 #   PORT            primer puerto (por defecto 9591)
 #   BACKUPLY_ZIP    un backuply.1.6.0.zip ya descargado (si no, se descarga de downloads.wordpress.org)
 #   PUPPETEER_PATH  carpeta node_modules con puppeteer-core (si no, se busca en la caché de npx o se instala 25.12.0)
@@ -87,8 +88,10 @@ for mode in $MODES; do
     cp -a "$ROOT/digitalisimo-backups" "$dir/run/plugin"
     extra=(--mount="$dir/run/plugin:/wordpress/wp-content/plugins/digitalisimo-backups" --mount="$dir/run/store:/digi-store")
   fi
+  # Claves propias en wp-config.php, como un sitio real (sin ellas, Backups avisa de que no puede cifrar credenciales).
+  auth=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9'); secure=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')
   cat > "$dir/run/blueprint.json" <<JSON
-{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_ENVIRONMENT_TYPE":"local"}},$multi
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_ENVIRONMENT_TYPE":"local","AUTH_KEY":"$auth","SECURE_AUTH_KEY":"$secure"}},$multi
 {"step":"runPHP","code":"<?php require '/digi-probe/setup.php';"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi

@@ -68,11 +68,14 @@ page.on('dialog', async (d) => {
 /** Medida de lo que ve el usuario dentro de `scope` (sólo elementos visibles). */
 function measure(scope) {
   const root = document.querySelector(scope) || document.querySelector('#wpbody-content') || document.body;
-  const visible = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
+  // checkVisibility(): también lo de un <details> cerrado (content-visibility: hidden) cuenta como no visible.
+  const visible = (el) => { if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ visibilityProperty: true })) return false; const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
   const all = (selector) => [...new Set(root.querySelectorAll(selector))].filter(visible);
   const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const text = clean(root.innerText);
-  const texts = all('p, li, label, td, th, h1, h2, h3, h4, summary, small, legend, .description, .notice').map((e) => clean(e.innerText)).filter(Boolean);
+  // Un texto es un bloque sin otros bloques dentro (un <td> con un formulario no es «un texto»: lo son sus párrafos).
+  const leaf = (e) => !e.querySelector('p, div, ul, ol, table, form, details, section, fieldset, dl');
+  const texts = all('p, li, label, td, th, h1, h2, h3, h4, summary, small, legend, dd, dt, .description').filter(leaf).map((e) => clean(e.innerText)).filter(Boolean);
   const longest = [...new Set(texts)].sort((a, b) => b.length - a.length).slice(0, 8).map((t) => ({ chars: t.length, text: t.slice(0, 500) }));
   return {
     page_height: document.documentElement.scrollHeight,
@@ -173,13 +176,28 @@ async function backuply() {
 }
 
 // ── DIGITALÍSIMO Backups ────────────────────────────────────────────────────────────────────────────────────────────
-const tabs = ['backups', 'servers', 'security', 'notifications', 'migrate'];
+/** Pestañas que ofrece la pantalla (las de antes de 1.0.74 o las de la «interfaz simple»); [] sin navegación. */
+async function screenTabs(adminPath) {
+  await page.goto(`${base}${adminPath}`, { waitUntil: 'load' });
+  return page.$$eval('.digitalisimo-backups-tabs a', (links) => links.map((a) => new URL(a.href).searchParams.get('tab')).filter(Boolean));
+}
 async function backupsScreens(prefix, adminPath, state) {
+  const tabs = await screenTabs(adminPath);
+  const simple = tabs.includes('tools');
   for (const tab of tabs) await shot(`${prefix}-${state}-${tab}`, `${adminPath}&tab=${tab}`, { scope: '.wrap' });
-  // SFTP es el tipo por defecto (ya sale en la captura anterior): aquí, FTP, con sus campos.
-  await shot(`${prefix}-${state}-servers-ftp`, `${adminPath}&tab=servers`, { scope: '.wrap', note: '«Servidores» con FTP elegido en el formulario', prepare: async () => {
+  // El formulario de un destino con FTP (SFTP es el tipo por defecto): antes, en la pestaña; ahora, tras «Añadir destino».
+  await shot(`${prefix}-${state}-servers-ftp`, `${adminPath}&tab=servers${simple ? '&add=1' : ''}`, { scope: '.wrap', note: 'formulario de un destino con FTP elegido', prepare: async () => {
     const select = await page.$('select.digitalisimo-backups-type');
-    if (select) await page.select('select.digitalisimo-backups-type', 'ftp'); else fail(`${prefix}: sin selector de tipo en «Servidores»`);
+    if (select) await page.select('select.digitalisimo-backups-type', 'ftp'); else fail(`${prefix}: sin selector de tipo en el formulario de un destino`);
+  } });
+  if (!simple) return;
+  await shot(`${prefix}-${state}-servers-sftp-abierto`, `${adminPath}&tab=servers&add=1`, { scope: '.wrap', note: '«Añadir destino» con SFTP (el tipo por defecto)' });
+  await shot(`${prefix}-${state}-tools-migrate`, `${adminPath}&tab=tools&open=migrate`, { scope: '.wrap', note: '«Herramientas» con «Migrar» abierto' });
+  if (state !== 'con') return;
+  // «Restaurar» de la primera fila: el panel bajo la fila (JavaScript), sin recargar.
+  await shot(`${prefix}-${state}-restaurar`, `${adminPath}&tab=backups`, { scope: '.wrap', note: '«Restaurar» abierto bajo su fila', prepare: async () => {
+    const link = await page.$('[data-restore-toggle]');
+    if (link) await link.click(); else fail(`${prefix}: la fila no tiene «Restaurar»`);
   } });
 }
 async function backupFromScreen(prefix, adminPath, capture) {
@@ -188,9 +206,13 @@ async function backupFromScreen(prefix, adminPath, capture) {
   const button = await page.$('#digitalisimo-backups-manual-form button');
   if (!button) { fail(`${prefix}: sin botón de respaldo`); return; }
   await button.click();
-  if (capture) { await sleep(5000); await shot(`${prefix}-creando`, null, { scope: '.wrap', note: 'progreso de «Crear respaldo completo»' }); }
+  if (capture) { await sleep(5000); await shot(`${prefix}-creando`, null, { scope: '.wrap', note: 'progreso del respaldo desde el botón' }); }
+  // Antes, «Actualiza la página…»; desde 1.0.74 la página se recarga sola con el respaldo en la lista.
   try {
-    await page.waitForFunction(() => /Actualiza la página|No se registró/.test(document.getElementById('digitalisimo-backups-manual-detail')?.textContent || ''), { timeout: 900_000, polling: 2000 });
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: 'load', timeout: 900_000 }),
+      page.waitForFunction(() => /Actualiza la página|No se registró/.test(document.getElementById('digitalisimo-backups-manual-detail')?.textContent || ''), { timeout: 900_000, polling: 2000 }),
+    ]);
   } catch (e) { fail(`${prefix}: el respaldo desde la pantalla no terminó (${String(e.message || e).slice(0, 200)})`); }
   if (capture) await shot(`${prefix}-terminado`, null, { scope: '.wrap', note: 'al terminar el respaldo' });
 }
@@ -213,8 +235,10 @@ async function backups() {
     await backupFromScreen('backups-red', net, true);
     await backupFromScreen('backups-red', net, false);
     await backupsScreens('backups-red', net, 'con');
-    for (const tab of tabs) await shot(`backups-principal-con-${tab}`, `${main}&tab=${tab}`);
-    for (const tab of tabs) await shot(`backups-subsitio-con-${tab}`, `${sub}&tab=${tab}`);
+    for (const tab of await screenTabs(main)) await shot(`backups-principal-con-${tab}`, `${main}&tab=${tab}`);
+    const subTabs = await screenTabs(sub);
+    if (!subTabs.length) await shot('backups-subsitio-con-backups', sub);
+    for (const tab of subTabs) await shot(`backups-subsitio-con-${tab}`, `${sub}&tab=${tab}`);
   }
 }
 

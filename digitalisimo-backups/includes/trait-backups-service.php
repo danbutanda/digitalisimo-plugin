@@ -793,7 +793,7 @@ trait Digitalisimo_Backups_Service {
 		return array_merge( $outcome, array( 'undone' => ! empty( $outcome['restored'] ), 'file' => (string) $row['file'], 'from' => $from ) );
 	}
 	/**
-	 * «Borrar ya» las tablas apartadas (K1): Backups → Migrar, `POST /migration/cleanup` y
+	 * «Borrar ya» las tablas apartadas (K1): Backups → Herramientas → Migrar, `POST /migration/cleanup` y
 	 * `wp digitalisimo-backups migration cleanup`. Sólo las del registro de tablas apartadas que no son de una restauración
 	 * en curso, nunca otra tabla; `dry_run` sólo dice cuáles. Borrar pide, en una red, el alcance de red (la base de datos
 	 * es de la red).

@@ -26,7 +26,7 @@ trait Digitalisimo_Backups_Backuply_Service {
 			'installed' => $found['installed'],
 			'active' => $found['active'],
 			'backups' => $items,
-			'note' => 'Importar convierte el .tar.gz de Backuply en un ZIP de Backups sin firma (no toca el sitio). Después aparece en «Restaurar respaldo local» y se restaura con la restauración por pasos, escribiendo RESTAURAR SIN FIRMA. Sólo se importan respaldos completos (base de datos y archivos).',
+			'note' => 'Importar convierte el .tar.gz de Backuply en un ZIP de Backups sin firma (no toca el sitio). Después aparece en Herramientas → «Restaurar un archivo suelto» y se restaura con la restauración por pasos, escribiendo RESTAURAR SIN FIRMA. Sólo se importan respaldos completos (base de datos y archivos).',
 		);
 	}
 	/**
@@ -138,7 +138,7 @@ trait Digitalisimo_Backups_Backuply_Service {
 		// El nombre no pasa por sanitize_file_name(): lo cambiaría (`.com.mx` → `.com_.mx`); lo valida la lista blanca del servicio.
 		$result = self::service_backuply_import( (string) wp_unslash( $_POST['backuply_file'] ?? '' ), array( 'source' => sanitize_key( wp_unslash( $_POST['backuply_source'] ?? '' ) ), 'via' => 'admin-post', 'network' => ! empty( $_POST['digitalisimo_backups_network'] ), 'spawn' => true ) );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
-		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance está en «Trabajos». Al terminar, el ZIP aparece en «Restaurar respaldo local».' );
+		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance está en «Trabajos». Al terminar, el ZIP aparece en Herramientas → «Restaurar un archivo suelto».' );
 	}
 	/** Tarjeta «Respaldos de Backuply»: sólo si Backuply está en el sitio o hay respaldos suyos que importar. */
 	private static function backuply_panel( $network ) {
@@ -151,7 +151,7 @@ trait Digitalisimo_Backups_Backuply_Service {
 		}
 		if ( ! $found['installed'] && ! $found['folder'] && ! $items ) return;
 		echo '<section class="digitalisimo-backups-card digitalisimo-backups-backuply" id="digitalisimo-backups-backuply"><h2>Respaldos de Backuply</h2>';
-		echo '<p>' . esc_html( $found['installed'] ? 'Backuply está instalado en este sitio' . ( $found['active'] ? ' y activo' : '' ) . '.' : 'Este sitio tiene respaldos de Backuply.' ) . ' Puedes importar sus respaldos: cada uno se convierte, sin tocar el sitio, en un ZIP de Backups sin firma que aparece en «Restaurar respaldo local» y se restaura con RESTAURAR SIN FIRMA, también en otro dominio. Sólo se importan respaldos completos (base de datos y archivos). Un respaldo de Backuply que está en un destino remoto se trae primero con <code>wp digitalisimo-backups backuply fetch</code>; uno de otro servidor se sube en «Subir un respaldo» (.tar.gz).</p>';
+		echo '<p>' . esc_html( $found['installed'] ? 'Backuply está instalado en este sitio' . ( $found['active'] ? ' y activo' : '' ) . '.' : 'Este sitio tiene respaldos de Backuply.' ) . ' Puedes importar sus respaldos: cada uno se convierte, sin tocar el sitio, en un ZIP de Backups sin firma que aparece en Herramientas → «Restaurar un archivo suelto» y se restaura con RESTAURAR SIN FIRMA, también en otro dominio. Sólo se importan respaldos completos (base de datos y archivos). Un respaldo de Backuply que está en un destino remoto se trae primero con <code>wp digitalisimo-backups backuply fetch</code>; uno de otro servidor se sube en «Subir un respaldo» (.tar.gz).</p>';
 		if ( ! $items ) { echo '<p>No hay respaldos de Backuply en este sitio ni en el almacén privado.</p></section>'; return; }
 		echo '<table class="widefat striped"><thead><tr><th>Fecha</th><th>Archivo</th><th>Origen</th><th>Tamaño</th><th>Contenido</th><th>Acción</th></tr></thead><tbody>';
 		foreach ( $items as $item ) {

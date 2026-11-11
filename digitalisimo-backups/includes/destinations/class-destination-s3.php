@@ -32,7 +32,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 	 */
 	protected function bucket() {
 		$bucket = (string) ( $this->s[ static::PREFIX . 'bucket' ] ?? '' );
-		if ( ! preg_match( self::BUCKET_PATTERN, $bucket ) || false !== strpos( $bucket, '..' ) || filter_var( $bucket, FILTER_VALIDATE_IP ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El bucket de ' . static::label() . ' no es válido; revísalo en Backups → Servidores.' );
+		if ( ! preg_match( self::BUCKET_PATTERN, $bucket ) || false !== strpos( $bucket, '..' ) || filter_var( $bucket, FILTER_VALIDATE_IP ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El bucket de ' . static::label() . ' no es válido; revísalo en Backups → Destinos.' );
 		return $bucket;
 	}
 	protected function prefix() {
@@ -43,7 +43,7 @@ abstract class Digitalisimo_Backups_Destination_S3_Base extends Digitalisimo_Bac
 	/** Estilo de ruta guardado: sólo los tres valores del formulario. */
 	protected function style() {
 		$style = (string) ( $this->s[ static::PREFIX . 'style' ] ?? 'auto' );
-		if ( ! in_array( $style, array( 'auto', 'virtual', 'path' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El estilo de ruta de ' . static::label() . ' no es válido; revísalo en Backups → Servidores.' );
+		if ( ! in_array( $style, array( 'auto', 'virtual', 'path' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El estilo de ruta de ' . static::label() . ' no es válido; revísalo en Backups → Destinos.' );
 		return $style;
 	}
 	/**
@@ -540,13 +540,13 @@ final class Digitalisimo_Backups_Destination_S3_Compatible extends Digitalisimo_
 				break;
 			case 'other':
 				$parts = parse_url( (string) $s['s3compat_endpoint'] );
-				if ( empty( $parts['host'] ) || ! self::valid_host( $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['query'] ) || isset( $parts['fragment'] ) || ( isset( $parts['path'] ) && '/' !== $parts['path'] ) || ! in_array( strtolower( (string) ( $parts['scheme'] ?? '' ) ), array( 'http', 'https' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El endpoint del servicio compatible con S3 no es válido; revísalo en Backups → Servidores.' );
+				if ( empty( $parts['host'] ) || ! self::valid_host( $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['query'] ) || isset( $parts['fragment'] ) || ( isset( $parts['path'] ) && '/' !== $parts['path'] ) || ! in_array( strtolower( (string) ( $parts['scheme'] ?? '' ) ), array( 'http', 'https' ), true ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El endpoint del servicio compatible con S3 no es válido; revísalo en Backups → Destinos.' );
 				$scheme = strtolower( (string) $parts['scheme'] );
 				if ( 'http' === $scheme && empty( $s['s3compat_allow_http'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El endpoint usa http:// sin permitirlo de forma explícita.' );
 				$port = isset( $parts['port'] ) ? (int) $parts['port'] : 0;
 				$host = $parts['host'] . ( $port && ! ( ( 'https' === $scheme && 443 === $port ) || ( 'http' === $scheme && 80 === $port ) ) ? ':' . $port : '' );
 				$signing = (string) ( $s['s3compat_signing_region'] ?: 'us-east-1' );
-				if ( ! preg_match( '/^[a-z0-9-]{1,40}$/D', $signing ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La región para la firma no es válida; revísala en Backups → Servidores.' );
+				if ( ! preg_match( '/^[a-z0-9-]{1,40}$/D', $signing ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La región para la firma no es válida; revísala en Backups → Destinos.' );
 				$verify = empty( $s['s3compat_insecure'] );
 				$ca = $this->ca_file( (string) ( $s['s3compat_ca'] ?? '' ) );
 				break;

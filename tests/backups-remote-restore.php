@@ -211,7 +211,11 @@ try {
 	// 6. Pantalla: «Sincronizar», la lista del índice y «Traer al almacén» (admin-post, nonce propio), sin secretos.
 	$query = digi_admin_post( 'sync_request', $B::ACTION_SYNC, array( 'destination' => '' ) );
 	digi_assert( 'ok' === ( $query['backup'] ?? '' ) && false !== strpos( rawurldecode( (string) $query['message'] ), 'WebDAV: 4 respaldo(s)' ), '«Sincronizar» no respondió lo sincronizado: ' . json_encode( $query ) );
-	$html = $panel();
+	$remote = new ReflectionMethod( $B, 'remote_panel' );
+	if ( PHP_VERSION_ID < 80100 ) $remote->setAccessible( true );
+	ob_start();
+	$remote->invoke( null );
+	$html = $panel() . (string) ob_get_clean();
 	digi_assert( false !== strpos( $html, 'Respaldos en los destinos remotos' ) && false !== strpos( $html, 'value="' . $B::ACTION_SYNC . '"' ) && false !== strpos( $html, 'name="name" value="' . $hostile . '"' ) && false === strpos( $html, 'name="name" value="' . $other . '"' ), 'La pantalla no ofrece traer lo que falta (o lo ofrece de algo que ya está): ' . $html );
 	$clean( $html, 'la pantalla' );
 	$dav->files[ 'respaldos/' . $hostile ] = $last_bytes;

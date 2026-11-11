@@ -90,7 +90,7 @@ final class Digitalisimo_Backups_Migrate {
 			// La restauración es un trabajo del motor de restauración por pasos (copia previa, tablas temporales, cambio atómico,
 			// archivos, vuelta automática a la copia previa); esta fase lo encola y espera su resultado (repetirla no lo repite).
 			'restore' => array( 'label' => 'Restauración', 'floor' => 78, 'max' => 3, 'cancellable' => false, 'status' => 'running', 'refusal' => 'La migración ya se está aplicando con la restauración por pasos: su tarjeta en «Trabajos» se puede cancelar mientras no empiece a cambiar el sitio; si falla después, vuelve sola a la copia previa.', 'interrupted' => ' La restauración por pasos sigue sola (o vuelve a la copia previa); si el sitio quedó a medias, «Volver a la copia previa» en Backups lo recupera.' ),
-			'close' => array( 'label' => 'Cierre', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'running', 'refusal' => 'La migración ya se aplicó; sólo falta avisar al sitio de origen. Para volver atrás, usa «Deshacer la migración» en Backups → Migrar.' ),
+			'close' => array( 'label' => 'Cierre', 'floor' => 98, 'max' => 3, 'cancellable' => false, 'status' => 'running', 'refusal' => 'La migración ya se aplicó; sólo falta avisar al sitio de origen. Para volver atrás, usa «Deshacer la migración» en Backups → Herramientas → Migrar.' ),
 		);
 		return $phases[ $phase ] ?? null;
 	}
@@ -435,7 +435,7 @@ final class Digitalisimo_Backups_Migrate {
 	public static function authenticate( $header, $client, $action ) {
 		$now = time();
 		$state = self::state();
-		if ( ! is_ssl() && 'https' !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_SCHEME ) ) && ! $state['allow_http'] ) return self::error( 'https', 'El sitio de origen exige HTTPS para migrar. En un laboratorio, activa «Permitir HTTP» en Backups → Migrar de los dos sitios.', 403 );
+		if ( ! is_ssl() && 'https' !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_SCHEME ) ) && ! $state['allow_http'] ) return self::error( 'https', 'El sitio de origen exige HTTPS para migrar. En un laboratorio, activa «Permitir HTTP» en Backups → Herramientas → Migrar de los dos sitios.', 403 );
 		// En una red, la API responde sólo en el sitio principal (la presentación lo explica en sus problemas).
 		if ( 'hello' !== $action && is_multisite() && ! is_main_site() ) return self::error( 'not_main', 'La API de migración de una red responde en su sitio principal.', 404 );
 		$header = trim( (string) $header );
@@ -805,7 +805,7 @@ final class Digitalisimo_Backups_Migrate {
 	 */
 	public static function parse_key( $key ) {
 		$key = preg_replace( '/\s+/', '', (string) $key );
-		$invalid = 'La clave de migración no es válida: cópiala completa desde Backups → Migrar del sitio de origen.';
+		$invalid = 'La clave de migración no es válida: cópiala completa desde Backups → Herramientas → Migrar del sitio de origen.';
 		if ( 0 !== strpos( $key, self::KEY_PREFIX ) || strlen( $key ) > 4096 ) throw new InvalidArgumentException( $invalid );
 		$json = Digitalisimo_Backups_Keys::b64url_decode( substr( $key, strlen( self::KEY_PREFIX ) ) );
 		$data = false === $json ? null : json_decode( $json, true );
@@ -874,14 +874,14 @@ final class Digitalisimo_Backups_Migrate {
 		$host = strtolower( trim( (string) wp_parse_url( (string) $url, PHP_URL_HOST ), '[]' ) );
 		if ( '' === $host || ! in_array( $scheme, array( 'http', 'https' ), true ) ) return 'La dirección del sitio de origen no es válida.';
 		$lab = self::allow_http();
-		if ( 'https' !== $scheme && ! $lab ) return 'La clave apunta a un sitio sin HTTPS (' . $host . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP y direcciones internas» en Backups → Migrar de los dos sitios.';
+		if ( 'https' !== $scheme && ! $lab ) return 'La clave apunta a un sitio sin HTTPS (' . $host . '). Activa HTTPS en el origen o, sólo en un laboratorio, «Permitir HTTP y direcciones internas» en Backups → Herramientas → Migrar de los dos sitios.';
 		if ( $lab ) return '';
 		$internal = 'localhost' === $host || '.localhost' === substr( $host, -10 ) || false !== strpos( $host, '%' ) ? $host : '';
 		$addresses = '' === $internal ? self::addresses( $host ) : array();
 		// Un nombre que no resuelve (o un DNS que no contesta) no se da por público (N5).
 		if ( '' === $internal && ! $addresses ) return 'No se pudo resolver la dirección del sitio de origen (' . $host . '): el destino sólo se conecta a un sitio cuya dirección pública puede comprobar.';
 		if ( '' === $internal ) foreach ( $addresses as $ip ) if ( ! self::public_ip( $ip ) ) { $internal = $host === $ip ? $ip : $host . ' → ' . $ip; break; }
-		if ( '' !== $internal ) return 'La clave apunta a una dirección interna (' . $internal . '): loopback, red privada, enlace local o metadatos de la nube. El destino sólo se conecta a sitios públicos; en un laboratorio, activa «Permitir HTTP y direcciones internas» en Backups → Migrar.';
+		if ( '' !== $internal ) return 'La clave apunta a una dirección interna (' . $internal . '): loopback, red privada, enlace local o metadatos de la nube. El destino sólo se conecta a sitios públicos; en un laboratorio, activa «Permitir HTTP y direcciones internas» en Backups → Herramientas → Migrar.';
 		return '';
 	}
 	/** Direcciones IP de un host (la IP misma si lo es; IPv4 y, si se puede, IPv6). Sin resolver, ninguna. */
@@ -1898,7 +1898,7 @@ final class Digitalisimo_Backups_Migrate {
 		}
 		echo '</section>';
 		// Origen.
-		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-migrate-keys"><h2>Generar clave de migración</h2><p>Para llevar este ' . ( is_multisite() ? 'red' : 'sitio' ) . ' a otro servidor o dominio (o a una copia de pruebas), genera una clave y pégala en Backups → Migrar del sitio de destino. Sirve para una sola migración, caduca y se puede revocar; se muestra una sola vez. El paquete viaja cifrado de extremo a extremo y este sitio no cambia.</p>';
+		echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-migrate-keys"><h2>Generar clave de migración</h2><p>Para llevar este ' . ( is_multisite() ? 'red' : 'sitio' ) . ' a otro servidor o dominio (o a una copia de pruebas), genera una clave y pégala en Backups → Herramientas → Migrar del sitio de destino. Sirve para una sola migración, caduca y se puede revocar; se muestra una sola vez. El paquete viaja cifrado de extremo a extremo y este sitio no cambia.</p>';
 		if ( '' !== $status['key_problem'] ) echo '<p class="notice notice-warning inline">' . esc_html( $status['key_problem'] ) . '</p>';
 		echo '<form method="post" action="' . $post . '">';
 		wp_nonce_field( self::ACTION_CREATE );
@@ -1968,7 +1968,7 @@ final class Digitalisimo_Backups_Migrate {
 	public static function create_request() {
 		self::guard( self::ACTION_CREATE );
 		$token = isset( $_POST['form_token'] ) && is_string( $_POST['form_token'] ) ? strtolower( (string) $_POST['form_token'] ) : '';
-		if ( ! self::spend_form( $token ) ) Digitalisimo_Backups::redirect( false, '' === $token ? 'Recarga Backups → Migrar y vuelve a generar la clave.' : 'Esa página ya generó una clave (se muestra una sola vez; recargarla no crea otra). Si no la copiaste, revócala aquí y genera otra.', null, 'migrate' );
+		if ( ! self::spend_form( $token ) ) Digitalisimo_Backups::redirect( false, '' === $token ? 'Recarga Backups → Herramientas → Migrar y vuelve a generar la clave.' : 'Esa página ya generó una clave (se muestra una sola vez; recargarla no crea otra). Si no la copiaste, revócala aquí y genera otra.', null, 'migrate' );
 		// En una red, la clave se lleva la red entera: esta pantalla es la de la red (alcance explícito, como migrar).
 		$result = Digitalisimo_Backups::service_migration_create_key( array( 'hours' => (int) ( $_POST['hours'] ?? self::DEFAULT_HOURS ), 'network' => is_multisite() ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, $result->get_error_message(), null, 'migrate' );
@@ -1981,9 +1981,9 @@ final class Digitalisimo_Backups_Migrate {
 		}
 		$back = Digitalisimo_Backups::admin_page_url( 'migrate' );
 		echo '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Clave de migración</title><style>body{font:15px/1.5 system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 16px;color:#17213a}textarea{width:100%;font:13px/1.4 ui-monospace,monospace;padding:10px;border:1px solid #c6cfe0;border-radius:9px}.aviso{padding:12px 16px;border-left:4px solid #c72f91;background:#fbf2f8}</style></head><body>';
-		echo '<h1>Clave de migración</h1><p class="aviso"><strong>Se muestra una sola vez.</strong> Cópiala ahora y pégala en Backups → Migrar del sitio de destino. Caduca el ' . esc_html( gmdate( 'Y-m-d H:i', (int) $result['expires'] ) ) . ' UTC, sirve para una sola migración y la puedes revocar en esta pantalla. Quien la tenga puede llevarse una copia completa de este sitio: no la envíes por un canal inseguro.</p>';
+		echo '<h1>Clave de migración</h1><p class="aviso"><strong>Se muestra una sola vez.</strong> Cópiala ahora y pégala en Backups → Herramientas → Migrar del sitio de destino. Caduca el ' . esc_html( gmdate( 'Y-m-d H:i', (int) $result['expires'] ) ) . ' UTC, sirve para una sola migración y la puedes revocar en esta pantalla. Quien la tenga puede llevarse una copia completa de este sitio: no la envíes por un canal inseguro.</p>';
 		echo '<textarea id="clave" rows="5" readonly autocomplete="off" spellcheck="false" onclick="this.select()">' . esc_html( $result['key'] ) . '</textarea>';
-		echo '<p><button type="button" onclick="var t=document.getElementById(\'clave\');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value);}this.textContent=\'Copiada\'">Copiar</button> · <a href="' . esc_url( $back ) . '">Volver a Backups → Migrar</a></p></body></html>';
+		echo '<p><button type="button" onclick="var t=document.getElementById(\'clave\');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value);}this.textContent=\'Copiada\'">Copiar</button> · <a href="' . esc_url( $back ) . '">Volver a Backups → Herramientas → Migrar</a></p></body></html>';
 		if ( self::$end ) { call_user_func( self::$end ); return; }
 		exit;
 	}

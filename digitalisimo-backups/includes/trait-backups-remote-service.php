@@ -91,7 +91,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		if ( '' === $id || 'local' === $id || '' === Digitalisimo_Backups_Destinations::type_of( $id ) || ! Digitalisimo_Backups_Destinations::exists( $id ) ) return self::service_error( 'destination', 'El destino «' . $id . '» no existe.', 404 );
 		$problem = self::credentials_problem( $id );
 		if ( '' !== $problem ) return self::service_error( 'credentials', $problem, 409 );
-		if ( ! isset( self::manual_destinations( self::settings() )[ $id ] ) ) return self::service_error( 'destination_incomplete', 'El destino ' . self::destination_label( $id ) . ' no tiene una conexión completa: complétala en «Servidores».', 409 );
+		if ( ! isset( self::manual_destinations( self::settings() )[ $id ] ) ) return self::service_error( 'destination_incomplete', 'El destino ' . self::destination_label( $id ) . ' no tiene una conexión completa: complétala en «Destinos».', 409 );
 		return $id;
 	}
 	/** Los respaldos de DIGITALÍSIMO del destino $id, listados ahora (sin descargarlos). */
@@ -144,7 +144,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		} else {
 			$ids = array_values( array_diff( array_map( 'strval', array_keys( self::manual_destinations( self::settings() ) ) ), array( 'local' ) ) );
 		}
-		if ( ! $ids ) return self::service_error( 'no_destinations', 'No hay destinos remotos con una conexión completa: configúralos en «Servidores».', 409 );
+		if ( ! $ids ) return self::service_error( 'no_destinations', 'No hay destinos remotos con una conexión completa: configúralos en «Destinos».', 409 );
 		$summaries = array();
 		$items = array();
 		$pending = array();
@@ -291,7 +291,7 @@ trait Digitalisimo_Backups_Remote_Service {
 	/* ------------------------------------------------------------------ Pantalla */
 
 	/**
-	 * «Respaldos en los destinos remotos», dentro de «Restaurar»: sincronizar, lo último sincronizado de cada destino y
+	 * «Respaldos en los destinos remotos», en «Destinos» (desde 1.0.74; antes, dentro de «Restaurar»): sincronizar, lo último sincronizado de cada destino y
 	 * «Traer al almacén» de cada respaldo que aún no está en el almacén (de este sitio o de otro).
 	 */
 	private static function remote_panel() {
@@ -300,7 +300,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		if ( is_wp_error( $index ) ) return;
 		if ( ! $ready && ! $index['destinations'] ) return;
 		$network = self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '';
-		echo '<h3 id="digitalisimo-backups-remote">Respaldos en los destinos remotos</h3><p class="description">Sincroniza para ver los respaldos de DIGITALÍSIMO que hay en cada destino, también los de otro sitio que lo comparte (así se migra o se recupera un sitio perdido). Al traer uno al almacén se descarga por fragmentos, se reanuda si se corta y se comprueba: los de este sitio, por el SHA-256 de su historial; los demás, como archivo no confiable (firma, cifrado, entradas y SQL). Después aparece arriba, en la lista para restaurar.</p>';
+		echo '<h3 id="digitalisimo-backups-remote">Respaldos en los destinos remotos</h3>' . self::help_html( 'Sincroniza para ver los respaldos de DIGITALÍSIMO que hay en cada destino, también los de otro sitio que lo comparte. Así se migra o se recupera un sitio perdido. Al traer uno al almacén se descarga por fragmentos, se reanuda si se corta y se comprueba: los de este sitio, por el SHA-256 de su historial; los demás, como archivo no confiable (firma, cifrado, entradas y SQL). Después, los de este sitio vuelven a su fila en «Respaldos» y los demás aparecen en Herramientas → «Restaurar un archivo suelto».' );
 		if ( $ready ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( self::ACTION_SYNC );

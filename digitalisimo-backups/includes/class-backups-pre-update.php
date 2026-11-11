@@ -544,7 +544,7 @@ final class Digitalisimo_Backups_Pre_Update {
 		$skip = self::is_cli() ? ' Para actualizar sin respaldo: wp digitalisimo-backups pre-update skip.' : ' Para actualizar sin respaldo, elige «Actualizar sin respaldo» en Backups.';
 		if ( 'running' === $outcome['state'] ) {
 			$percent = (int) ( $outcome['view']['percent'] ?? 0 );
-			return 'DIGITALÍSIMO Backups está creando un respaldo completo antes de actualizar (' . $percent . ' %). Vuelve a intentar la actualización cuando termine; su avance está en Backups → Trabajos.';
+			return 'DIGITALÍSIMO Backups está creando un respaldo completo antes de actualizar (' . $percent . ' %). Vuelve a intentar la actualización cuando termine; su avance está en Backups → Herramientas → Trabajos.';
 		}
 		return 'No se actualizó: el respaldo previo falló. ' . (string) ( $outcome['message'] ?? '' ) . $skip;
 	}
@@ -616,7 +616,7 @@ final class Digitalisimo_Backups_Pre_Update {
 				$now = call_user_func( self::$clock );
 				$signature = json_encode( array( $view['status'] ?? '', $view['phase'] ?? '', $percent, $view['message'] ?? '', $view['retry_label'] ?? '', $view['attempt'] ?? 0 ) );
 				if ( $signature !== $seen ) { $seen = $signature; $moved = $now; }
-				elseif ( $now - $moved >= self::STALL ) return array( 'state' => 'failed', 'job' => (string) $outcome['job'], 'message' => 'El respaldo previo no avanzó en ' . (int) ( self::STALL / 60 ) . ' minutos (' . ( 'error' === ( $tick['result'] ?? '' ) ? (string) ( $tick['message'] ?? 'la cola no pudo avanzar' ) : 'otra operación ocupa el almacén o espera su reintento' ) . '); sigue en Backups → Trabajos.' );
+				elseif ( $now - $moved >= self::STALL ) return array( 'state' => 'failed', 'job' => (string) $outcome['job'], 'message' => 'El respaldo previo no avanzó en ' . (int) ( self::STALL / 60 ) . ' minutos (' . ( 'error' === ( $tick['result'] ?? '' ) ? (string) ( $tick['message'] ?? 'la cola no pudo avanzar' ) : 'otra operación ocupa el almacén o espera su reintento' ) . '); sigue en Backups → Herramientas → Trabajos.' );
 				if ( 'worked' !== ( $tick['result'] ?? '' ) ) call_user_func( self::$sleep, 1 );
 			}
 			return $outcome;
@@ -731,13 +731,14 @@ final class Digitalisimo_Backups_Pre_Update {
 	public static function origin( $label, $spec = array() ) {
 		return '' === (string) $label && self::POLICY === (string) ( ( (array) $spec )['policy'] ?? '' ) ? 'Respaldo antes de actualizar' : $label;
 	}
-	public static function panel( $network ) {
+	/** «Ajustes» → «Antes de actualizar»: una línea con lo que está activo; el formulario, plegado en «Cambiar» ($open lo abre). */
+	public static function panel( $network, $open = false ) {
 		echo '<section class="digitalisimo-backups-card digitalisimo-backups-pre-update"><h2>Antes de actualizar</h2>';
 		if ( is_multisite() && ! $network && ! is_main_site() ) { echo '<p>El respaldo antes de actualizar es de toda la red: se configura desde la administración de red o el sitio principal.</p></section>'; return; }
 		$status = self::service_status();
 		if ( is_wp_error( $status ) ) { echo '<p>' . esc_html( $status->get_error_message() ) . '</p></section>'; return; }
 		$settings = $status['settings'];
-		echo '<p>Antes de actualizar WordPress, un plugin o un tema se crea un respaldo completo, salvo que ya haya uno reciente y válido. Las actualizaciones automáticas esperan a que termine; si falla, se posponen y llega un aviso por correo, y a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos se hacen igual, sin respaldo, con su aviso. Nunca esperan las actualizaciones menores de seguridad de WordPress, las que fuerza WordPress.org ni la del propio Backups. En las manuales, si el respaldo falla, se pregunta si seguir sin él. En una tienda conviene un respaldo reciente de 1 a 6 h.</p>';
+		echo '<p>' . esc_html( self::summary( $settings ) ) . '</p>' . Digitalisimo_Backups::help_html( 'Antes de actualizar WordPress, un plugin o un tema se crea un respaldo completo, salvo que ya haya uno reciente y válido. Las actualizaciones automáticas esperan a que termine; si falla, se posponen y llega un aviso por correo, y a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos se hacen igual, sin respaldo, con su aviso. Nunca esperan las actualizaciones menores de seguridad de WordPress, las que fuerza WordPress.org ni la del propio Backups. En las manuales, si el respaldo falla, se pregunta si seguir sin él. En una tienda conviene un respaldo reciente de 1 a 6 h.' );
 		if ( $status['fresh'] ) echo '<p class="description">Respaldo reciente válido: <strong>' . esc_html( $status['fresh']['file'] ) . '</strong> (' . esc_html( $status['fresh']['date'] ) . ').</p>';
 		if ( $status['job'] ) echo '<p class="notice notice-info inline">Respaldo previo en curso: ' . esc_html( (string) $status['job']['percent'] ) . ' % · ' . esc_html( (string) $status['job']['message'] ) . '</p>';
 		if ( $status['retained'] ) echo '<p class="notice notice-warning inline">Actualizaciones automáticas ' . ( $status['postponed'] ? 'pospuestas' : 'en espera del respaldo' ) . ': ' . esc_html( implode( ', ', $status['retained'] ) ) . '.</p>';
@@ -751,9 +752,9 @@ final class Digitalisimo_Backups_Pre_Update {
 			echo '<p><button class="button">Actualizar sin respaldo durante ' . (int) self::SKIP_MINUTES . ' minutos</button> <span class="description">Sólo las actualizaciones manuales; las automáticas siguen esperando un respaldo.</span></p></form></div>';
 		}
 		if ( '' !== $status['skip_until'] ) echo '<p class="notice notice-warning inline">Actualizaciones manuales sin respaldo previo hasta ' . esc_html( $status['skip_until'] ) . '.</p>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<details class="digitalisimo-backups-help digitalisimo-backups-pre-update-form"' . ( $open ? ' open' : '' ) . '><summary>Cambiar</summary><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_SAVE );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '"><input type="hidden" name="digitalisimo_backups_return" value="settings:pre-update">';
 		if ( $network ) echo '<input type="hidden" name="digitalisimo_backups_network" value="1">';
 		echo '<table class="form-table">';
 		foreach ( self::TYPES as $type => $label ) {
@@ -764,7 +765,31 @@ final class Digitalisimo_Backups_Pre_Update {
 		echo '<tr><th><label for="digitalisimo-backups-pre-update-age">Respaldo reciente</label></th><td><select id="digitalisimo-backups-pre-update-age" name="digitalisimo_backups_pre_update[max_age]">';
 		foreach ( self::AGES as $age ) echo '<option value="' . (int) $age . '"' . ( $age === $settings['max_age'] ? ' selected="selected"' : '' ) . '>' . esc_html( $age < 48 ? $age . ' h' : ( $age / 24 ) . ' días' ) . '</option>';
 		echo '</select><p class="description">Un respaldo completo y válido de esta antigüedad o menos evita crear otro antes de actualizar.</p></td></tr>';
-		echo '</table><p><button class="button button-primary">Guardar</button></p></form></section>';
+		echo '</table><p><button class="button button-primary">Guardar</button></p></form></details></section>';
+	}
+	/** Una línea: qué tipos se respaldan antes de actualizar y qué antigüedad de respaldo basta. */
+	private static function summary( array $settings ) {
+		$by = array();
+		foreach ( self::TYPES as $type => $label ) $by[ $settings[ $type ] ?? 'off' ][] = array( 'core' => 'WordPress', 'plugin' => 'plugins', 'theme' => 'temas' )[ $type ];
+		if ( empty( $by['all'] ) && empty( $by['auto'] ) ) return 'Desactivado: no se respalda antes de actualizar.';
+		$parts = array();
+		foreach ( array( 'all' => 'manuales y automáticas', 'auto' => 'sólo automáticas' ) as $mode => $text ) if ( ! empty( $by[ $mode ] ) ) $parts[] = self::join( $by[ $mode ] ) . ' (' . $text . ')';
+		$age = (int) ( $settings['max_age'] ?? 24 );
+		return 'Activo para ' . implode( '; ', $parts ) . '. Basta un respaldo de ' . ( $age < 48 ? $age . ' h' : ( $age / 24 ) . ' días' ) . ' o menos.';
+	}
+	private static function join( array $items ) { return count( $items ) > 1 ? implode( ', ', array_slice( $items, 0, -1 ) ) . ' y ' . end( $items ) : (string) reset( $items ); }
+	/**
+	 * La línea de la franja de avisos de la pantalla de Backups: las mismas condiciones que notice() (automáticas
+	 * retenidas o pospuestas, o sin respaldo previo por el tope), en una frase corta; null si no hay nada.
+	 */
+	public static function strip_item() {
+		try { $state = self::state(); } catch ( Throwable $e ) { return null; }
+		if ( empty( $state['auto'] ) && (int) $state['bypass_until'] <= time() ) return null;
+		$status = self::service_status();
+		if ( is_wp_error( $status ) ) return null;
+		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => 'error', 'text' => 'Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . $status['bypass_until'] . '.', 'detail' => (string) $status['bypass_reason'] );
+		if ( ! $status['retained'] ) return null;
+		return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => $status['postponed'] ? 'error' : 'warning', 'text' => $status['postponed'] ? 'Actualizaciones automáticas pospuestas: el respaldo previo falló.' : 'Actualizaciones automáticas en espera del respaldo previo.', 'detail' => implode( ', ', $status['retained'] ) . ( $status['postponed'] ? '. ' . $status['failure'] : '' ) );
 	}
 	public static function save() {
 		if ( ! Digitalisimo_Backups::can_manage_backups() ) wp_die( 'No autorizado.' );
@@ -788,7 +813,7 @@ final class Digitalisimo_Backups_Pre_Update {
 	 * pospuestas, o se hayan actualizado sin respaldo por el tope: no depende del correo.
 	 */
 	public static function notice() {
-		if ( ! Digitalisimo_Backups::can_manage_backups() ) return;
+		if ( ! Digitalisimo_Backups::can_manage_backups() || Digitalisimo_Backups::is_backups_screen() ) return;
 		// Barato en cada pantalla: sin nada retenido ni ventana sin respaldo, no se lee el historial ni el ZIP.
 		try { $state = self::state(); } catch ( Throwable $e ) { return; }
 		if ( empty( $state['auto'] ) && (int) $state['bypass_until'] <= time() ) return;
@@ -799,7 +824,7 @@ final class Digitalisimo_Backups_Pre_Update {
 			return;
 		}
 		if ( is_wp_error( $status ) ) return;
-		$link = '<a href="' . esc_url( is_multisite() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups' ) : admin_url( 'admin.php?page=digitalisimo-backups' ) ) . '">Backups → Antes de actualizar</a>';
+		$link = '<a href="' . esc_url( is_multisite() ? network_admin_url( 'admin.php?page=digitalisimo-network-backups&tab=settings&open=pre-update' ) : admin_url( 'admin.php?page=digitalisimo-backups&tab=settings&open=pre-update' ) ) . '">Backups → Ajustes → Antes de actualizar</a>';
 		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) {
 			echo '<div class="notice notice-error digitalisimo-backups-pre-update-alert"><p><strong>Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . esc_html( $status['bypass_until'] ) . '</strong> (' . esc_html( $status['bypass_reason'] ) . ')' . ( $status['bypassed'] ? '; esperaban: ' . esc_html( implode( ', ', $status['bypassed'] ) ) : '' ) . '. Revisa ' . $link . '.</p></div>';
 			return;
@@ -834,7 +859,7 @@ final class Digitalisimo_Backups_Pre_Update {
 				'running' => 'Creando un respaldo completo antes de actualizar…',
 				'ready' => 'Respaldo listo: actualizando.',
 				'ask' => "El respaldo antes de actualizar falló:\n%s\n\n¿Actualizar de todos modos, sin respaldo?",
-				'declined' => 'No se actualizó: el respaldo previo falló. Revisa Backups → Trabajos.',
+				'declined' => 'No se actualizó: el respaldo previo falló. Revisa Backups → Herramientas → Trabajos.',
 			),
 		);
 	}
