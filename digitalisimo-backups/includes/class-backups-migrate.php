@@ -58,6 +58,7 @@ final class Digitalisimo_Backups_Migrate {
 	const ACTION_PULL = 'digitalisimo_backups_migration_pull';
 	const ACTION_UNDO = 'digitalisimo_backups_migration_undo';
 	const ACTION_SETTINGS = 'digitalisimo_backups_migration_settings';
+	const ACTION_CLEANUP = 'digitalisimo_backups_migration_cleanup';
 	/** Transporte HTTP del destino (sólo pruebas): callable( $method, $url, $args ) con la forma de wp_remote_request(). */
 	public static $transport = null;
 	/** Espera entre reintentos inmediatos de un fragmento (sustituible en las pruebas). */
@@ -73,7 +74,7 @@ final class Digitalisimo_Backups_Migrate {
 
 	public static function init() {
 		add_action( 'http_api_curl', array( __CLASS__, 'pin_curl' ), 10, 3 );
-		foreach ( array( self::ACTION_CREATE => 'create_request', self::ACTION_REVOKE => 'revoke_request', self::ACTION_PULL => 'pull_request', self::ACTION_UNDO => 'undo_request', self::ACTION_SETTINGS => 'settings_request' ) as $action => $method ) add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
+		foreach ( array( self::ACTION_CREATE => 'create_request', self::ACTION_REVOKE => 'revoke_request', self::ACTION_PULL => 'pull_request', self::ACTION_UNDO => 'undo_request', self::ACTION_SETTINGS => 'settings_request', self::ACTION_CLEANUP => 'cleanup_request' ) as $action => $method ) add_action( 'admin_post_' . $action, array( __CLASS__, $method ) );
 		add_action( Digitalisimo_Backups_Jobs::HOOK_WATCHDOG, array( __CLASS__, 'sweep' ), 20 );
 	}
 
@@ -128,6 +129,8 @@ final class Digitalisimo_Backups_Migrate {
 			'log' => is_array( $saved['log'] ?? null ) ? array_values( $saved['log'] ) : array(),
 			'rejected' => is_array( $saved['rejected'] ?? null ) ? $saved['rejected'] : array(),
 			'forms' => is_array( $saved['forms'] ?? null ) ? array_values( $saved['forms'] ) : array(),
+			// Registro de las tablas que apartaron las migraciones y sus «Deshacer» (K1): sólo estas se borran, nunca otra.
+			'kept' => is_array( $saved['kept'] ?? null ) ? $saved['kept'] : array(),
 		);
 	}
 	/** Lee, cambia y guarda el estado con el cerrojo corto del almacén: dos peticiones del destino nunca se pisan. */
@@ -1520,12 +1523,336 @@ final class Digitalisimo_Backups_Migrate {
 		return $resolved;
 	}
 
+	/* ------------------------------------------------------------------ Tablas apartadas (K1) */
+
+	/**
+	 * Días que se conservan las tablas apartadas antes de borrarse solas, cuando se borran solas (filtro
+	 * `digitalisimo_backups_migration_kept_days`, 7; de 1 a 365).
+	 */
+	public static function kept_days() {
+		return max( 1, min( 365, (int) self::filter( 'digitalisimo_backups_migration_kept_days', 7 ) ) );
+	}
+	/**
+	 * Si las tablas propias que apartó una migración también se borran solas (filtro
+	 * `digitalisimo_backups_migration_kept_auto`, falso por defecto). Sin él sólo las borra «Borrar ya»: entre ellas puede
+	 * haber tablas de otra aplicación con un prefijo que empieza por el de este WordPress (que no se distinguen de las de
+	 * un plugin; revisión de K1, H1), y nunca se borran sin que el administrador las vea.
+	 */
+	public static function kept_auto() {
+		return true === (bool) self::filter( 'digitalisimo_backups_migration_kept_auto', false );
+	}
+	/**
+	 * Qué aparta la restauración $job con `exact_tables`: `migration` (las tablas propias que el paquete no trae) o `undo`
+	 * (las que trajo el origen y la copia previa no tiene); '' si no aparta nada.
+	 */
+	public static function kept_kind( array $job ) {
+		if ( empty( $job['spec']['exact_tables'] ) || ! empty( $job['spec']['rollback'] ) ) return '';
+		$kind = (string) ( $job['spec']['aside']['kind'] ?? '' );
+		if ( in_array( $kind, array( 'migration', 'undo' ), true ) ) return $kind;
+		// Encolada por 1.0.66–1.0.70 (sin `aside`): la de una migración lleva su marca y `via: migration`.
+		return 'migration' === (string) ( $job['spec']['origin']['via'] ?? '' ) || ! empty( $job['spec']['safety_extra']['migration'] ) ? 'migration' : 'undo';
+	}
+	/** Si $name es una tabla apartada por la restauración de marca $tag: `<prefijo>dgbkk_<marca>_9…` (o sin prefijo, si no cabía). */
+	private static function kept_name( $name, $tag ) {
+		if ( ! is_string( $name ) || ! is_string( $tag ) || ! preg_match( '/^[0-9a-f]{6}$/D', $tag ) || ! preg_match( '/^(.*)dgbkk_' . $tag . '_9[0-9]{3,}$/D', $name, $m ) ) return false;
+		return self::kept_prefix_ok( $m[1], $name );
+	}
+	/**
+	 * El prefijo de un nombre de tabla apartada: el de este WordPress o, sin prefijo, sólo si con él no cabía en 64
+	 * caracteres (como lo nombra restore_inspect(); revisión de K1, H2).
+	 */
+	private static function kept_prefix_ok( $prefix, $name ) {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) return false;
+		$base = (string) $wpdb->base_prefix;
+		return '' === $prefix ? '' === $base || strlen( $base . $name ) > 64 : $prefix === $base;
+	}
+	/** Si $name tiene el nombre de una tabla apartada de este WordPress, de cualquier marca (para listar las que no están en el registro). */
+	private static function kept_like( $name ) {
+		if ( ! is_string( $name ) || ! preg_match( '/^(.*)dgbkk_[0-9a-f]{6}_9[0-9]{3,}$/D', $name, $m ) ) return false;
+		return self::kept_prefix_ok( $m[1], $name );
+	}
+	/** Una entrada del registro, normalizada; sus tablas, sólo las que tienen el nombre de una apartada de su marca. */
+	private static function kept_entry( $tag, $entry ) {
+		if ( ! is_array( $entry ) || ! is_string( $tag ) || ! preg_match( '/^[0-9a-f]{6}$/D', $tag ) ) return null;
+		$tables = array();
+		foreach ( (array) ( $entry['tables'] ?? array() ) as $dest => $old ) if ( self::kept_name( $old, $tag ) ) $tables[ (string) $dest ] = (string) $old;
+		return array(
+			'tag' => $tag,
+			'kind' => 'undo' === ( $entry['kind'] ?? '' ) ? 'undo' : 'migration',
+			'restore' => (string) ( $entry['restore'] ?? '' ),
+			'migration' => (string) ( $entry['migration'] ?? '' ),
+			'from' => (string) ( $entry['from'] ?? '' ),
+			'safety' => (string) ( $entry['safety'] ?? '' ),
+			'at' => (int) ( $entry['at'] ?? 0 ),
+			'tables' => $tables,
+			'bytes' => isset( $entry['bytes'] ) && is_numeric( $entry['bytes'] ) ? (int) $entry['bytes'] : null,
+			'adopted' => ! empty( $entry['adopted'] ),
+		);
+	}
+	/**
+	 * @internal Anota en el registro, al verificar la restauración $job (antes de su copia previa y del cambio de tablas),
+	 * las tablas que va a apartar ($retire, el de retire.json): qué migración o «Deshacer», cuándo, su copia previa y su
+	 * tamaño. Sólo lo anotado se borra después (por plazo, al confirmarse un «Deshacer» o a mano); si no se puede anotar,
+	 * la verificación falla y se repite, así que nunca se aparta una tabla sin registro.
+	 */
+	public static function kept_register( array $job, array $retire ) {
+		$tag = (string) ( $job['spec']['tag'] ?? '' );
+		$tables = array();
+		foreach ( $retire as $row ) if ( is_array( $row ) && self::kept_name( (string) ( $row['old'] ?? '' ), $tag ) ) $tables[ (string) ( $row['dest'] ?? '' ) ] = (string) $row['old'];
+		$aside = (array) ( $job['spec']['aside'] ?? array() );
+		$extra = (array) ( $job['spec']['safety_extra']['migration'] ?? array() );
+		$entry = array(
+			'tag' => $tag,
+			'kind' => self::kept_kind( $job ),
+			'restore' => (string) ( $job['id'] ?? '' ),
+			'migration' => (string) ( $aside['migration'] ?? ( $extra['job'] ?? '' ) ),
+			'from' => (string) ( $aside['from'] ?? ( $extra['from'] ?? '' ) ),
+			'safety' => (string) ( $job['spec']['safety'] ?? '' ),
+			'at' => time(),
+			'tables' => $tables,
+			// El de las tablas vivas que se apartarán (los mismos datos).
+			'bytes' => self::kept_bytes( array_keys( $tables ) ),
+		);
+		self::change( function( &$state ) use ( $tag, $entry ) {
+			if ( $entry['tables'] ) $state['kept'][ $tag ] = $entry;
+			else unset( $state['kept'][ $tag ] );
+		} );
+	}
+	/** Tamaño aproximado (datos e índices) de $tables según el servidor de base de datos, o null si no lo dice. */
+	private static function kept_bytes( array $tables ) {
+		global $wpdb;
+		$tables = array_values( array_filter( array_map( 'strval', $tables ), 'strlen' ) );
+		if ( ! $tables || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_results' ) || ! method_exists( $wpdb, 'prepare' ) ) return null;
+		$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+		try {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT TABLE_NAME, DATA_LENGTH + INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (' . implode( ', ', array_fill( 0, count( $tables ), '%s' ) ) . ')', ...$tables ), ARRAY_N );
+		} catch ( Throwable $e ) {
+			$rows = null;
+		} finally {
+			if ( null !== $suppress ) $wpdb->suppress_errors( $suppress );
+		}
+		if ( ! is_array( $rows ) || ! $rows ) return null;
+		$bytes = 0;
+		foreach ( $rows as $row ) $bytes += (int) ( is_array( $row ) ? ( $row[1] ?? 0 ) : 0 );
+		return $bytes;
+	}
+	private static function kept_live() {
+		global $wpdb;
+		return array_flip( array_map( 'strval', (array) $wpdb->get_col( 'SHOW TABLES' ) ) );
+	}
+	private static function kept_job( array $entry ) {
+		return Digitalisimo_Backups_Job_Store::valid_id( $entry['restore'] ) ? Digitalisimo_Backups_Jobs::get( $entry['restore'] ) : null;
+	}
+	/**
+	 * Cuándo se borra solo un juego que ya no está en uso, y por qué no si no. Sólo los de un «Deshacer» (las tablas que
+	 * trajo el origen, con sus datos: el motivo de K1): confirmado, en cuanto termina; si no terminó bien, pasados
+	 * kept_days() días. Los de una migración (tablas propias que el paquete no traía, entre las que puede haber una de
+	 * otra aplicación con prefijo anidado: revisión de K1, H1), sólo con kept_auto() y pasados kept_days() días; si no,
+	 * con «Borrar ya». Y siempre sólo si su copia previa sigue en el almacén (nunca se borra solo lo único que queda de
+	 * esas tablas). Devuelve [momento (0: nunca solo), nota].
+	 */
+	private static function kept_term( array $entry, $job ) {
+		if ( 'undo' === $entry['kind'] && is_array( $job ) && 'success' === ( $job['status'] ?? '' ) ) return array( max( 1, $entry['at'] ), 'Las trajo el origen: se borran al confirmarse el «Deshacer».' );
+		if ( 'migration' === $entry['kind'] && ! self::kept_auto() ) return array( 0, 'No se borran solas (podría haber tablas de otra aplicación que comparte la base de datos): revisa los nombres y usa «Borrar ya» cuando no las necesites.' );
+		if ( '' === $entry['safety'] || ! Digitalisimo_Backups::migration_safety_present( $entry['safety'] ) ) return array( 0, 'No se borran solas: su copia previa' . ( '' !== $entry['safety'] ? ' ' . $entry['safety'] : '' ) . ' ya no está en el almacén (bórralas a mano si no las necesitas).' );
+		return array( max( 1, $entry['at'] ) + self::kept_days() * 86400, '' );
+	}
+	/**
+	 * El registro de tablas apartadas, con las que una restauración de 1.0.66–1.0.70 dejó sin anotar: se toman de su
+	 * trabajo, si sigue en el almacén (una restauración con `exact_tables` ya terminada): sólo las tablas que siguen en la
+	 * base de datos con el nombre de una apartada de su marca, que sólo ese trabajo pudo crear; lo que eran, de su
+	 * retire.json si aún lo tiene. Con $persist se guardan en el registro (el vigilante y «Borrar ya»); la consulta nunca
+	 * escribe.
+	 */
+	private static function kept_registry( $persist ) {
+		$registry = self::state()['kept'];
+		try {
+			$live = null;
+			$adopt = array();
+			foreach ( Digitalisimo_Backups_Jobs::all() as $job ) {
+				$tag = (string) ( $job['spec']['tag'] ?? '' );
+				if ( ! Digitalisimo_Backups_Jobs::is_restore( $job ) || '' === self::kept_kind( $job ) || isset( $registry[ $tag ] ) || ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) continue;
+				if ( null === $live ) $live = self::kept_live();
+				$tables = array();
+				foreach ( array_keys( $live ) as $table ) if ( self::kept_name( (string) $table, $tag ) ) $tables[ (string) $table ] = (string) $table;
+				if ( ! $tables ) continue;
+				$path = Digitalisimo_Backups_Job_Store::directory( (string) $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/retire.json';
+				$retire = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
+				foreach ( is_array( $retire ) ? $retire : array() as $row ) {
+					if ( ! is_array( $row ) || ! isset( $tables[ (string) ( $row['old'] ?? '' ) ] ) || '' === (string) ( $row['dest'] ?? '' ) ) continue;
+					unset( $tables[ (string) $row['old'] ] );
+					$tables[ (string) $row['dest'] ] = (string) $row['old'];
+				}
+				$extra = (array) ( $job['spec']['safety_extra']['migration'] ?? array() );
+				$adopt[ $tag ] = array( 'tag' => $tag, 'kind' => self::kept_kind( $job ), 'restore' => (string) $job['id'], 'migration' => (string) ( $extra['job'] ?? '' ), 'from' => (string) ( $extra['from'] ?? '' ), 'safety' => (string) ( $job['spec']['safety'] ?? '' ), 'at' => (int) ( $job['finished_at'] ?? 0 ) ?: time(), 'tables' => $tables, 'bytes' => self::kept_bytes( array_values( $tables ) ), 'adopted' => true );
+			}
+			if ( $adopt && $persist ) self::change( function( &$state ) use ( $adopt ) { foreach ( $adopt as $tag => $entry ) if ( ! isset( $state['kept'][ $tag ] ) ) $state['kept'][ $tag ] = $entry; } );
+			$registry += $adopt;
+		} catch ( Throwable $e ) {
+			if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: tablas apartadas: ' . $e->getMessage() );
+		}
+		return $registry;
+	}
+	/**
+	 * Las tablas apartadas por las migraciones y sus «Deshacer» que siguen en la base de datos: un juego por restauración,
+	 * con qué las apartó, de dónde, cuándo, su tamaño aproximado y cuándo se borran solas (o por qué no). `unregistered`:
+	 * tablas con nombre de apartada que no están en el registro; nunca se tocan.
+	 */
+	public static function kept_tables( $now = null ) {
+		$now = null === $now ? time() : (int) $now;
+		$registry = self::kept_registry( false );
+		$live = self::kept_live();
+		$known = array();
+		$sets = array();
+		foreach ( $registry as $tag => $entry ) {
+			$entry = self::kept_entry( (string) $tag, $entry );
+			if ( ! $entry ) continue;
+			foreach ( $entry['tables'] as $old ) $known[ $old ] = true;
+			$present = array_filter( $entry['tables'], function( $old ) use ( $live ) { return isset( $live[ $old ] ); } );
+			if ( ! $present ) continue;
+			$job = self::kept_job( $entry );
+			$busy = is_array( $job ) && ! Digitalisimo_Backups_Job_Store::is_terminal( $job );
+			list( $due, $note ) = $busy ? array( 0, 'La restauración que las apartó sigue en curso.' ) : self::kept_term( $entry, $job );
+			$tables = array();
+			// Lo que era cada una ('' si no se sabe: una tomada de una restauración anterior al registro sin su retire.json).
+			foreach ( $present as $dest => $old ) $tables[] = array( 'table' => $old, 'was' => (string) $dest === $old ? '' : (string) $dest );
+			$from = '' !== self::host_label( $entry['from'] ) ? self::host_label( $entry['from'] ) : $entry['from'];
+			$sets[] = array(
+				'tag' => $entry['tag'],
+				'kind' => $entry['kind'],
+				'label' => 'undo' === $entry['kind'] ? 'Deshacer la migración' . ( '' !== $from ? ' de ' . $from : '' ) . ': tablas que trajo el origen' : 'Migración' . ( '' !== $from ? ' desde ' . $from : '' ) . ': tablas propias que el paquete no traía',
+				'from' => $entry['from'],
+				'at' => gmdate( 'c', $entry['at'] ),
+				'count' => count( $tables ),
+				'tables' => $tables,
+				'bytes' => $entry['bytes'],
+				'safety' => $entry['safety'],
+				'expires_at' => $due ? gmdate( 'c', max( $due, $now ) ) : '',
+				'note' => $note,
+				'busy' => $busy,
+				'adopted' => $entry['adopted'],
+			);
+		}
+		$unregistered = array();
+		foreach ( array_keys( $live ) as $table ) if ( self::kept_like( (string) $table ) && ! isset( $known[ (string) $table ] ) ) $unregistered[] = (string) $table;
+		return array( 'days' => self::kept_days(), 'auto' => self::kept_auto(), 'count' => (int) array_sum( array_column( $sets, 'count' ) ), 'sets' => $sets, 'unregistered' => $unregistered );
+	}
+	/** Borra las tablas $present de un juego (sólo nombres que pasaron kept_entry()). Devuelve [borradas, errores]. */
+	private static function kept_drop( array $present ) {
+		global $wpdb;
+		$dropped = array();
+		$errors = array();
+		foreach ( $present as $old ) {
+			if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . Digitalisimo_Backups_Relocate::quote_name( (string) $old ) ) ) $errors[] = $old . ': ' . ( '' !== (string) $wpdb->last_error ? (string) $wpdb->last_error : 'no se pudo borrar' );
+			else $dropped[] = (string) $old;
+		}
+		return array( $dropped, $errors );
+	}
+	/** Quita del registro los juegos $gone (marca → `at` de la entrada que se vio; otra anotada después se queda). */
+	private static function kept_forget( array $gone ) {
+		if ( ! $gone ) return;
+		self::change( function( &$state ) use ( $gone ) {
+			$changed = false;
+			foreach ( $gone as $tag => $at ) {
+				if ( ! isset( $state['kept'][ $tag ] ) || ( null !== $at && (int) ( $state['kept'][ $tag ]['at'] ?? 0 ) !== (int) $at ) ) continue;
+				unset( $state['kept'][ $tag ] );
+				$changed = true;
+			}
+			return $changed ? null : false;
+		} );
+	}
+	/**
+	 * Borra tablas apartadas del registro: todas las que no son de una restauración en curso ($all: «Borrar ya» en la
+	 * pantalla, `POST /migration/cleanup` y `wp digitalisimo-backups migration cleanup`) o sólo las que tocan (el vigilante
+	 * horario del motor de trabajos: plazo cumplido con su copia previa en el almacén, o «Deshacer» confirmado). Nunca una
+	 * tabla que no esté en el registro con el nombre de una apartada de su marca. $dry_run sólo dice qué borraría.
+	 */
+	public static function kept_cleanup( $all, $dry_run = false, $now = null ) {
+		$now = null === $now ? time() : (int) $now;
+		$report = array( 'dry_run' => (bool) $dry_run, 'count' => 0, 'tables' => array(), 'bytes' => 0, 'kept' => array(), 'errors' => array(), 'unregistered' => array() );
+		try {
+			$registry = self::kept_registry( ! $dry_run );
+			$live = self::kept_live();
+			$known = array();
+			$gone = array();
+			$sized = true;
+			foreach ( $registry as $tag => $raw ) {
+				$entry = self::kept_entry( (string) $tag, $raw );
+				if ( ! $entry ) { $gone[ (string) $tag ] = null; continue; }
+				foreach ( $entry['tables'] as $old ) $known[ $old ] = true;
+				$job = self::kept_job( $entry );
+				$busy = is_array( $job ) && ! Digitalisimo_Backups_Job_Store::is_terminal( $job );
+				$present = array_filter( $entry['tables'], function( $old ) use ( $live ) { return isset( $live[ $old ] ); } );
+				if ( ! $present ) {
+					// Nada apartado (la restauración no llegó al cambio) o ya borrado: fuera del registro.
+					if ( ! $busy ) $gone[ $entry['tag'] ] = $entry['at'];
+					continue;
+				}
+				if ( $busy ) {
+					$report['kept'][] = array( 'tag' => $entry['tag'], 'count' => count( $present ), 'reason' => 'La restauración que las apartó sigue en curso.' );
+					continue;
+				}
+				if ( ! $all ) {
+					list( $due ) = self::kept_term( $entry, $job );
+					if ( ! $due || $due > $now ) continue;
+				}
+				if ( null === $entry['bytes'] || count( $present ) !== count( $entry['tables'] ) ) $sized = false;
+				else $report['bytes'] += $entry['bytes'];
+				if ( $dry_run ) {
+					$report['tables'] = array_merge( $report['tables'], array_values( $present ) );
+					continue;
+				}
+				list( $dropped, $errors ) = self::kept_drop( $present );
+				$report['tables'] = array_merge( $report['tables'], $dropped );
+				$report['errors'] = array_merge( $report['errors'], $errors );
+				if ( ! $errors ) $gone[ $entry['tag'] ] = $entry['at'];
+			}
+			if ( ! $dry_run ) self::kept_forget( $gone );
+			foreach ( array_keys( $live ) as $table ) if ( self::kept_like( (string) $table ) && ! isset( $known[ (string) $table ] ) ) $report['unregistered'][] = (string) $table;
+			if ( ! $sized ) $report['bytes'] = null;
+		} catch ( Throwable $e ) {
+			$report['errors'][] = $e->getMessage();
+		}
+		$report['count'] = count( $report['tables'] );
+		if ( ! $dry_run && $report['count'] ) self::log( '', 'kept_dropped', $report['count'] . ' tabla(s) ' . ( $all ? 'a mano' : 'por plazo o tras deshacer' ) . ': ' . implode( ', ', array_slice( $report['tables'], 0, 5 ) ) . ( $report['count'] > 5 ? '…' : '' ) );
+		if ( $report['errors'] && function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: tablas apartadas: ' . implode( ' · ', $report['errors'] ) );
+		return $report;
+	}
+	/** Mensaje de un informe de kept_cleanup() para la pantalla, REST y WP-CLI. */
+	public static function kept_message( array $report ) {
+		$size = null !== $report['bytes'] && $report['count'] ? ' (' . self::megabytes( (int) $report['bytes'] ) . ' aprox.)' : '';
+		if ( $report['dry_run'] ) $message = $report['count'] ? 'Se borrarían ' . $report['count'] . ' tabla(s) apartadas' . $size . ': ' . implode( ', ', array_slice( $report['tables'], 0, 10 ) ) . ( $report['count'] > 10 ? '…' : '' ) . '. Sus datos siguen en las copias previas de sus migraciones.' : 'No hay tablas apartadas que borrar.';
+		else $message = $report['count'] ? 'Se borraron ' . $report['count'] . ' tabla(s) apartadas' . $size . '.' : 'No había tablas apartadas que borrar.';
+		foreach ( $report['kept'] as $kept ) $message .= ' Se dejaron ' . (int) $kept['count'] . ': ' . $kept['reason'];
+		if ( $report['errors'] ) $message .= ' No se pudieron borrar: ' . implode( '; ', array_slice( $report['errors'], 0, 3 ) ) . ' (siguen en el registro).';
+		if ( $report['unregistered'] ) $message .= ' ' . count( $report['unregistered'] ) . ' tabla(s) con nombre de apartada no están en el registro y no se tocan (' . implode( ', ', array_slice( $report['unregistered'], 0, 5 ) ) . ( count( $report['unregistered'] ) > 5 ? '…' : '' ) . ').';
+		return $message;
+	}
+	/**
+	 * @internal Al terminar «Deshacer la migración» (su limpieza, con el cambio ya hecho): las tablas que trajo el origen y
+	 * este deshacer apartó se borran ya (K1): son datos del origen que este sitio no usa, y siguen en la copia previa del
+	 * deshacer y en el origen. Devuelve ['dropped' => n, 'errors' => [...]]; lo que no se pudo borrar queda en el registro.
+	 */
+	public static function kept_confirmed( array $job ) {
+		$out = array( 'dropped' => 0, 'errors' => array() );
+		if ( 'undo' !== self::kept_kind( $job ) ) return $out;
+		$tag = (string) ( $job['spec']['tag'] ?? '' );
+		$entry = self::kept_entry( $tag, self::state()['kept'][ $tag ] ?? null );
+		if ( ! $entry || (string) $entry['restore'] !== (string) $job['id'] ) return $out;
+		$live = self::kept_live();
+		list( $dropped, $errors ) = self::kept_drop( array_filter( $entry['tables'], function( $old ) use ( $live ) { return isset( $live[ $old ] ); } ) );
+		if ( ! $errors ) self::kept_forget( array( $tag => $entry['at'] ) );
+		if ( $dropped ) self::log( '', 'kept_dropped', count( $dropped ) . ' tabla(s) del origen al confirmarse el deshacer: ' . implode( ', ', array_slice( $dropped, 0, 5 ) ) . ( count( $dropped ) > 5 ? '…' : '' ) );
+		return array( 'dropped' => count( $dropped ), 'errors' => $errors );
+	}
+
 	/* ------------------------------------------------------------------ Pantalla */
 
 	private static function megabytes( $bytes ) { return Digitalisimo_Backups_Archive_Inspector::megabytes( (int) $bytes ); }
 	private static function filter( $hook, $value ) { return function_exists( 'apply_filters' ) ? apply_filters( $hook, $value ) : $value; }
 	private static function event_label( $event ) {
-		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => 'Laboratorio activado (HTTP y direcciones internas)', 'lab_off' => 'Laboratorio desactivado', 'taken_over' => 'Otro destino retomó una clave abandonada', 'undo' => 'Deshacer la migración: en curso', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida' );
+		$labels = array( 'created' => 'Clave generada', 'hello' => 'El destino se presentó', 'package' => 'Paquete pedido', 'ready' => 'Paquete listo', 'download' => 'Descarga iniciada', 'used' => 'Migración terminada: clave usada', 'released' => 'El destino abandonó: clave liberada', 'revoked' => 'Clave revocada', 'expired' => 'Clave caducada', 'blocked' => 'Clave bloqueada por intentos fallidos', 'auth_failed' => 'Intento fallido', 'other_client' => 'Otro sitio intentó usar una clave en uso', 'lab_on' => 'Laboratorio activado (HTTP y direcciones internas)', 'lab_off' => 'Laboratorio desactivado', 'taken_over' => 'Otro destino retomó una clave abandonada', 'undo' => 'Deshacer la migración: en curso', 'undone' => 'Migración deshecha', 'migrated' => 'Migración recibida', 'kept_dropped' => 'Tablas apartadas borradas' );
 		return $labels[ $event ] ?? $event;
 	}
 	/** Peticiones sin una clave válida (agregadas, fuera del registro de usos): cuántas, desde cuándo, la última e IP. */
@@ -1580,6 +1907,27 @@ final class Digitalisimo_Backups_Migrate {
 			echo '</tbody></table>';
 		}
 		echo '</section></div>';
+		// Tablas apartadas (K1): las del registro, con «Borrar ya».
+		$kept = (array) ( $status['kept_tables'] ?? array() );
+		if ( ! empty( $kept['sets'] ) || ! empty( $kept['unregistered'] ) ) {
+			echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-migrate-kept"><h2>Tablas apartadas</h2><p>Una migración aparta con otro nombre (<code>…dgbkk_…</code>, fuera de los respaldos) las tablas de este WordPress que el paquete no traía, y «Deshacer la migración», las que trajo el origen. Las del origen se borran en cuanto el deshacer termina. Las de una migración ' . ( ! empty( $kept['auto'] ) ? 'se borran solas a los ' . (int) ( $kept['days'] ?? self::kept_days() ) . ' días si su copia previa sigue en el almacén' : 'no se borran solas: revisa sus nombres de antes (una tabla de otra aplicación que comparte la base de datos con un prefijo que empieza por el de este sitio se apartaría también) y bórralas con «Borrar ya» cuando no las necesites' ) . '. Sólo se borran las de esta lista, nunca otra tabla.</p>';
+			if ( ! empty( $kept['sets'] ) ) {
+				echo '<table class="widefat striped"><thead><tr><th>Apartadas por</th><th>Fecha (UTC)</th><th>Tablas</th><th>Tamaño</th><th>Se borran solas</th></tr></thead><tbody>';
+				foreach ( $kept['sets'] as $set ) {
+					$names = array();
+					// Todas, con su nombre de antes: el administrador ve qué se borraría (revisión de K1, H1).
+					foreach ( (array) $set['tables'] as $table ) $names[] = ( '' !== $table['was'] ? $table['was'] . ' → ' : '' ) . $table['table'];
+					echo '<tr><td>' . esc_html( $set['label'] ) . '</td><td>' . esc_html( str_replace( 'T', ' ', substr( (string) $set['at'], 0, 16 ) ) ) . '</td><td>' . (int) $set['count'] . ': <code>' . esc_html( implode( ', ', $names ) ) . '</code></td><td>' . esc_html( null === $set['bytes'] ? '—' : self::megabytes( (int) $set['bytes'] ) ) . '</td><td>' . esc_html( '' !== (string) $set['expires_at'] ? str_replace( 'T', ' ', substr( (string) $set['expires_at'], 0, 16 ) ) : (string) $set['note'] ) . '</td></tr>';
+				}
+				echo '</tbody></table>';
+				$ready = array_filter( (array) $kept['sets'], function( $set ) { return empty( $set['busy'] ); } );
+				echo '<form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Borrar ya las tablas apartadas? Sus datos siguen en las copias previas de sus migraciones.\')">';
+				wp_nonce_field( self::ACTION_CLEANUP );
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_CLEANUP ) . '">' . self::context_fields( $network ) . '<p><button class="button"' . disabled( ! $main || ! $ready, true, false ) . '>Borrar ya las tablas apartadas</button></p></form>';
+			}
+			if ( ! empty( $kept['unregistered'] ) ) echo '<p class="description">' . count( (array) $kept['unregistered'] ) . ' tabla(s) con nombre de apartada no están en el registro y nunca se tocan (bórralas a mano si sabes que sobran): <code>' . esc_html( implode( ', ', array_slice( (array) $kept['unregistered'], 0, 10 ) ) ) . '</code></p>';
+			echo '</section>';
+		}
 		// Staging, laboratorio y registro.
 		echo '<section class="digitalisimo-backups-card"><h2>Copia de pruebas (staging)</h2><p>La migración sirve también para una copia de pruebas en otro dominio o subdominio: genera la clave en producción y migra desde el sitio de pruebas. Para <strong>publicar</strong> la copia de pruebas, haz la migración en sentido contrario: genera la clave en el sitio de pruebas y migra desde producción; producción guarda su copia previa y «Deshacer la migración» la devuelve. No se fusionan cambios entre dos sitios vivos: lo que cambie en producción mientras tanto se reemplaza.</p><p>Las automatizaciones y los destinos remotos del origen llegan con la migración: en una copia de pruebas, revísalos para que no respalde sobre los destinos de producción.</p></section>';
 		echo '<section class="digitalisimo-backups-card"><h2>Laboratorio</h2><form method="post" action="' . $post . '">';
@@ -1658,6 +2006,13 @@ final class Digitalisimo_Backups_Migrate {
 		if ( ! empty( $result['restoring'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) ( $result['maintenance_token'] ?? '' ) );
 		if ( ! empty( $result['restoring'] ) ) Digitalisimo_Backups::redirect( true, 'Deshaciendo la migración: la copia previa ' . $result['file'] . ' se está restaurando por pasos (su avance está en «Trabajos»; WP-Cron la continúa). Al terminar, inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
 		Digitalisimo_Backups::redirect( true, 'Migración deshecha: el sitio volvió al estado de ' . $result['file'] . '. Inicia sesión con un usuario de este sitio anterior a la migración.', null, 'migrate' );
+	}
+	public static function cleanup_request() {
+		self::guard( self::ACTION_CLEANUP );
+		// En una red, las tablas son de la red: esta pantalla es la de la red (alcance explícito, como deshacer).
+		$result = Digitalisimo_Backups::service_migration_cleanup( array( 'network' => is_multisite() ) );
+		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, 'No se borraron las tablas apartadas: ' . $result->get_error_message(), null, 'migrate' );
+		Digitalisimo_Backups::redirect( ! $result['errors'], $result['message'], null, 'migrate' );
 	}
 	public static function settings_request() {
 		self::guard( self::ACTION_SETTINGS );

@@ -68,6 +68,19 @@ class Mig_DB extends Bk_Sqlite_DB {
 		return $result;
 	}
 	public function get_results( $sql, $output = 'OBJECT' ) {
+		// El tamaño de las tablas (information_schema.TABLES de MySQL): en SQLite, la suma del largo de sus valores.
+		if ( preg_match( '/FROM information_schema\.TABLES\b.*\bIN \((.*)\)\s*$/is', (string) $sql, $m ) ) {
+			preg_match_all( "/'((?:[^']|'')*)'/", $m[1], $names );
+			$rows = array();
+			foreach ( $names[1] as $name ) {
+				$name = str_replace( "''", "'", $name );
+				if ( ! in_array( $name, $this->names(), true ) ) continue;
+				$bytes = 0;
+				foreach ( $this->rows( $name ) as $row ) foreach ( $row as $value ) $bytes += strlen( (string) $value );
+				$rows[] = array( $name, $bytes );
+			}
+			return 'ARRAY_N' === $output ? $rows : array_map( function( $row ) { return array( 'TABLE_NAME' => $row[0], 'bytes' => $row[1] ); }, $rows );
+		}
 		$this->before( $sql );
 		return parent::get_results( $sql, $output );
 	}
