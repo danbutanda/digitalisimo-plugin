@@ -187,7 +187,8 @@ for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
   // Una clase con espacio de nombres sólo choca con otra del mismo espacio: se compara el nombre completo.
   const namespace = source.match(/^\s*namespace\s+([A-Za-z_][A-Za-z0-9_\\]*)\s*;/m)?.[1];
-  for (const match of source.matchAll(/(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
+  // Sólo declaraciones al inicio de línea: un comentario («//class X», « * class X») o un texto no declara nada.
+  for (const match of source.matchAll(/^[ \t]*(?:(?:abstract|final|readonly)[ \t]+)*class[ \t]+([A-Za-z_][A-Za-z0-9_]*)/gm)) {
     const name = namespace ? `${namespace}\\${match[1]}` : match[1];
     if (!declarations.has(name)) declarations.set(name, []);
     declarations.get(name).push({ file, guarded: source.includes(`class_exists( '${match[1]}' )`) || source.includes(`class_exists('${match[1]}')`) });
