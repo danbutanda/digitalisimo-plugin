@@ -748,8 +748,8 @@ final class Digitalisimo_Backups_Cli_Migration {
 	/**
 	 * Lista y borra ya las tablas apartadas por las migraciones y sus «Deshacer» (`<prefijo>dgbkk_…`). Sólo las del
 	 * registro de tablas apartadas, nunca otra tabla ni las de una restauración en curso. Sin ella, las que trajo el
-	 * origen se borran al confirmarse el «Deshacer» y las demás a los 7 días (filtro
-	 * `digitalisimo_backups_migration_kept_days`) mientras su copia previa siga en el almacén.
+	 * origen se borran al confirmarse el «Deshacer»; las de una migración no se borran solas (salvo con el filtro
+	 * `digitalisimo_backups_migration_kept_auto`, a los 7 días): revisa sus nombres de antes con --dry-run.
 	 *
 	 * ## OPTIONS
 	 *

@@ -2266,7 +2266,16 @@ trait Digitalisimo_Backups_Restore_Engine {
 			// K1: las del origen que apartó «Deshacer la migración» ya se borraron; las propias que no traía el paquete de una
 			// migración se borran solas a los kept_days() días (con su copia previa en el almacén) o antes, a mano.
 			if ( 'undo' === Digitalisimo_Backups_Migrate::kept_kind( $job ) && $dropped >= count( $kept_tables ) ) $notice .= ' ' . count( $kept_tables ) . ' tabla(s) que trajo la migración y la copia previa no tiene se apartaron (' . $pairs . ') y se borraron al terminar el deshacer: sus datos siguen en la copia previa de este deshacer' . ( '' !== $safety ? ' (' . $safety . ')' : '' ) . '.';
-			else $notice .= ' ' . count( $kept_tables ) . ' tabla(s) ' . ( 'undo' === Digitalisimo_Backups_Migrate::kept_kind( $job ) ? 'que trajo la migración y la copia previa no tiene' : 'de este WordPress que el paquete no trae' ) . ' se apartaron con otro nombre (' . $pairs . '): también están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . '. Se borran solas en ' . Digitalisimo_Backups_Migrate::kept_days() . ' días mientras esa copia siga en el almacén; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra antes.';
+			else {
+				// Revisión de K1, H1: las de una migración (entre las que puede haber una de otra aplicación con prefijo anidado)
+				// sólo se borran solas con `digitalisimo_backups_migration_kept_auto`, y entonces el aviso dice el día.
+				$undo = 'undo' === Digitalisimo_Backups_Migrate::kept_kind( $job );
+				$auto = Digitalisimo_Backups_Migrate::kept_auto();
+				$when = gmdate( 'Y-m-d', time() + Digitalisimo_Backups_Migrate::kept_days() * 86400 );
+				$notice .= ' ' . count( $kept_tables ) . ' tabla(s) ' . ( $undo ? 'que trajo la migración y la copia previa no tiene' : 'de este WordPress que el paquete no trae' ) . ' se apartaron con otro nombre (' . $pairs . '): también están en la copia previa' . ( '' !== $safety ? ' ' . $safety : '' ) . '.';
+				if ( $undo ) $notice .= ' No se pudieron borrar todas al terminar el deshacer: el vigilante horario de Backups lo reintenta; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra ya.';
+				else $notice .= $auto ? ' Se borran solas el ' . $when . ' (UTC) mientras esa copia siga en el almacén; Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`) las borra antes.' : ' No se borran solas: si alguna es de otra aplicación que comparte la base de datos, devuélvele su nombre; cuando no las necesites, bórralas en Backups → Migrar → «Tablas apartadas» (o `wp digitalisimo-backups migration cleanup`).';
+			}
 		}
 		$old_tables = (array) ( self::restore_read_json( $job, 'old-tables.json', false ) ?? array() );
 		if ( $old_tables ) $notice .= ' Quedan ' . count( $old_tables ) . ' tabla(s) de una restauración anterior que no terminó (' . implode( ', ', array_slice( $old_tables, 0, 5 ) ) . ( count( $old_tables ) > 5 ? '…' : '' ) . '): pueden ser la base de datos de antes de aquella restauración; bórralas sólo si no las necesitas.';

@@ -1059,8 +1059,8 @@ del origen.
    cambio atómico, archivos preparados, mantenimiento, reanudación tras una muerte y vuelta automática a la copia previa
    si falla tras el cambio) y espera su resultado. El sitio queda **idéntico al paquete**: los archivos de las raíces
    gestionadas que el paquete no trae se retiran con el cambio, y las tablas de este WordPress (con su prefijo) que no
-   trae se apartan con otro nombre (`<prefijo>dgbkk_<marca>_9…`, fuera de los respaldos) y se conservan 7 días (ver
-   «Tablas apartadas», abajo); todo eso está también en la copia previa. Nunca se tocan las tablas de otra instalación de WordPress que
+   trae se apartan con otro nombre (`<prefijo>dgbkk_<marca>_9…`, fuera de los respaldos) y se conservan hasta «Borrar
+   ya» (ver «Tablas apartadas», abajo); todo eso está también en la copia previa. Nunca se tocan las tablas de otra instalación de WordPress que
    comparte la base con un prefijo que empieza igual (`wp_` y `wp_dev_`: la delata su `<prefijo>options` con `siteurl`;
    en una red, `<prefijo><número>_` son subsitios propios), con el mismo criterio que el respaldo y «Restaurar». Los
    drop-ins de `wp-content` (`db.php`, `object-cache.php`…) y `wp-config.php` del destino son de su servidor y se
@@ -1100,18 +1100,28 @@ estado): la marca de su restauración, si fue una migración o un deshacer, la m
 previa, lo que era cada tabla y su tamaño aproximado (`information_schema`; `—` si el servidor no lo dice). Se anota al
 verificar la restauración, antes de su copia previa y del cambio de tablas: si no se puede anotar, la verificación falla
 y se repite, así que nunca se aparta una tabla sin registro. **Sólo las del registro se borran**, y sólo si siguen con el
-nombre de una apartada de su marca (`<prefijo>dgbkk_<marca>_9…`, o sin prefijo si no cabía): una entrada alterada que
+nombre de una apartada de su marca (`<prefijo>dgbkk_<marca>_9…`, o sin prefijo sólo si con él no cabía en 64
+caracteres): una entrada alterada que
 nombre otra tabla no borra nada, y una tabla con ese nombre que no está en el registro se lista como «sin registro» y
 nunca se toca.
 
 - **Las del origen que apartó «Deshacer», en cuanto termina:** su limpieza, con el cambio ya hecho, las borra (son datos
   del origen que este sitio ya no usa; siguen en la copia previa de ese deshacer y en el origen). El aviso lo dice; lo
   que no se pudiera borrar queda en el registro y lo reintenta el vigilante.
-- **Las demás, a los 7 días** (filtro `digitalisimo_backups_migration_kept_days`, de 1 a 365), las borra el vigilante
-  horario del motor de trabajos, **sólo si su copia previa sigue en el almacén** (nunca se borra solo lo único que queda
-  de esas tablas; si falta, la lista lo dice y se borran a mano). Nunca las de una restauración en curso.
-- **Ya, a mano:** la tarjeta «Tablas apartadas» de Backups → Migrar (qué las apartó, fecha, tablas, tamaño y cuándo se
-  borran solas, con «Borrar ya las tablas apartadas»), `POST /migration/cleanup` (`dry_run` sólo las lista) y
+- **Las de una migración no se borran solas:** entre las tablas propias que el paquete no trae puede haber una de otra
+  aplicación que comparte la base con un prefijo que empieza por el de este WordPress (`wp_stats_*`, sin
+  `<prefijo>options` con `siteurl`), que no se distingue de la de un plugin; borrarla sola le quitaría sus datos. Se
+  conservan hasta «Borrar ya», y la tarjeta y el aviso de la migración nombran **todas** con su nombre de antes
+  (`wp_stats_hits → wp_dgbkk_…`) para que el administrador las vea. Con el filtro
+  `digitalisimo_backups_migration_kept_auto` (falso por defecto) también se borran solas, a los 7 días
+  (`digitalisimo_backups_migration_kept_days`, de 1 a 365), y entonces la tarjeta y el aviso dicen el día.
+- **El vigilante horario** del motor de trabajos sólo borra solos los juegos de un «Deshacer» (los datos del origen): el
+  que no se pudo borrar al terminar, en cuanto lo ve; el de un deshacer que no terminó bien, a los 7 días. Y los de una
+  migración sólo con el filtro anterior. Siempre **sólo si su copia previa sigue en el almacén** (nunca se borra solo lo
+  único que queda de esas tablas; si falta, la lista lo dice y se borran a mano) y nunca las de una restauración en
+  curso.
+- **Ya, a mano:** la tarjeta «Tablas apartadas» de Backups → Migrar (qué las apartó, fecha, todas las tablas con su
+  nombre de antes, tamaño y cuándo se borran solas o por qué no, con «Borrar ya las tablas apartadas»), `POST /migration/cleanup` (`dry_run` sólo las lista) y
   `wp digitalisimo-backups migration cleanup [--dry-run] [--yes]`; `GET /migration` y la pestaña las listan
   (`kept_tables`). Borrar pide la capability de la pantalla y, en una red, el alcance de red (las tablas son de la red);
   listar, no. Cada borrado queda en el registro de la migración («Tablas apartadas borradas»).
@@ -1204,8 +1214,10 @@ que cambia entre la comprobación y la petición no se detecta), y con cURL se f
 se validaron); en el laboratorio no se fija nada; la retirada de tablas propias usa el prefijo de este WordPress, igual
 que la restauración: otra aplicación cuyas tablas empiecen por ese mismo prefijo se trataría como propia, y otra
 instalación de WordPress con un prefijo anidado sin `siteurl` en su `<prefijo>options` (una a medio instalar) no se
-reconoce como tal: sus tablas se apartan al migrar, ese otro sitio deja de funcionar hasta reponerlas, y pasados los 7
-días se borran con las demás apartadas (siguen en la copia previa de la migración, de donde se reponen).
+reconoce como tal: sus tablas se apartan al migrar y ese otro sitio (o esa aplicación) deja de funcionar hasta
+reponerlas. Se conservan apartadas, con su nombre de antes en la tarjeta «Tablas apartadas» y en el aviso de la
+migración, y no se borran solas salvo con `digitalisimo_backups_migration_kept_auto`: devolverles su nombre las repone
+(también están en la copia previa de la migración).
 
 Ensayo en WordPress Playground (`tests/playground/backups-migrate.sh`): WordPress 7.1.4, PHP 8.5 sin libsodium nativo
 (el paquete se cifra y se descifra con el sodium_compat de WordPress) y SQLite, dos servidores por modo, A (origen) y B

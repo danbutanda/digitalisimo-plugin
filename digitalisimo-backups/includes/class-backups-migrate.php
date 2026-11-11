@@ -1526,11 +1526,20 @@ final class Digitalisimo_Backups_Migrate {
 	/* ------------------------------------------------------------------ Tablas apartadas (K1) */
 
 	/**
-	 * Días que se conservan las tablas que apartó una migración antes de borrarse solas (filtro
+	 * Días que se conservan las tablas apartadas antes de borrarse solas, cuando se borran solas (filtro
 	 * `digitalisimo_backups_migration_kept_days`, 7; de 1 a 365).
 	 */
 	public static function kept_days() {
 		return max( 1, min( 365, (int) self::filter( 'digitalisimo_backups_migration_kept_days', 7 ) ) );
+	}
+	/**
+	 * Si las tablas propias que apartó una migración también se borran solas (filtro
+	 * `digitalisimo_backups_migration_kept_auto`, falso por defecto). Sin él sólo las borra «Borrar ya»: entre ellas puede
+	 * haber tablas de otra aplicación con un prefijo que empieza por el de este WordPress (que no se distinguen de las de
+	 * un plugin; revisión de K1, H1), y nunca se borran sin que el administrador las vea.
+	 */
+	public static function kept_auto() {
+		return true === (bool) self::filter( 'digitalisimo_backups_migration_kept_auto', false );
 	}
 	/**
 	 * Qué aparta la restauración $job con `exact_tables`: `migration` (las tablas propias que el paquete no trae) o `undo`
@@ -1545,15 +1554,23 @@ final class Digitalisimo_Backups_Migrate {
 	}
 	/** Si $name es una tabla apartada por la restauración de marca $tag: `<prefijo>dgbkk_<marca>_9…` (o sin prefijo, si no cabía). */
 	private static function kept_name( $name, $tag ) {
-		global $wpdb;
 		if ( ! is_string( $name ) || ! is_string( $tag ) || ! preg_match( '/^[0-9a-f]{6}$/D', $tag ) || ! preg_match( '/^(.*)dgbkk_' . $tag . '_9[0-9]{3,}$/D', $name, $m ) ) return false;
-		return '' === $m[1] || ( is_object( $wpdb ) && $m[1] === (string) $wpdb->base_prefix );
+		return self::kept_prefix_ok( $m[1], $name );
+	}
+	/**
+	 * El prefijo de un nombre de tabla apartada: el de este WordPress o, sin prefijo, sólo si con él no cabía en 64
+	 * caracteres (como lo nombra restore_inspect(); revisión de K1, H2).
+	 */
+	private static function kept_prefix_ok( $prefix, $name ) {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) return false;
+		$base = (string) $wpdb->base_prefix;
+		return '' === $prefix ? '' === $base || strlen( $base . $name ) > 64 : $prefix === $base;
 	}
 	/** Si $name tiene el nombre de una tabla apartada de este WordPress, de cualquier marca (para listar las que no están en el registro). */
 	private static function kept_like( $name ) {
-		global $wpdb;
 		if ( ! is_string( $name ) || ! preg_match( '/^(.*)dgbkk_[0-9a-f]{6}_9[0-9]{3,}$/D', $name, $m ) ) return false;
-		return '' === $m[1] || ( is_object( $wpdb ) && $m[1] === (string) $wpdb->base_prefix );
+		return self::kept_prefix_ok( $m[1], $name );
 	}
 	/** Una entrada del registro, normalizada; sus tablas, sólo las que tienen el nombre de una apartada de su marca. */
 	private static function kept_entry( $tag, $entry ) {
@@ -1628,12 +1645,16 @@ final class Digitalisimo_Backups_Migrate {
 		return Digitalisimo_Backups_Job_Store::valid_id( $entry['restore'] ) ? Digitalisimo_Backups_Jobs::get( $entry['restore'] ) : null;
 	}
 	/**
-	 * Cuándo se borra solo un juego que ya no está en uso, y por qué no si no: el de un «Deshacer» confirmado, en cuanto
-	 * termina (son datos del origen); los demás, pasados kept_days() días y sólo si su copia previa sigue en el almacén
-	 * (nunca se borra solo lo único que queda de esas tablas). Devuelve [momento (0: nunca solo), nota].
+	 * Cuándo se borra solo un juego que ya no está en uso, y por qué no si no. Sólo los de un «Deshacer» (las tablas que
+	 * trajo el origen, con sus datos: el motivo de K1): confirmado, en cuanto termina; si no terminó bien, pasados
+	 * kept_days() días. Los de una migración (tablas propias que el paquete no traía, entre las que puede haber una de
+	 * otra aplicación con prefijo anidado: revisión de K1, H1), sólo con kept_auto() y pasados kept_days() días; si no,
+	 * con «Borrar ya». Y siempre sólo si su copia previa sigue en el almacén (nunca se borra solo lo único que queda de
+	 * esas tablas). Devuelve [momento (0: nunca solo), nota].
 	 */
 	private static function kept_term( array $entry, $job ) {
 		if ( 'undo' === $entry['kind'] && is_array( $job ) && 'success' === ( $job['status'] ?? '' ) ) return array( max( 1, $entry['at'] ), 'Las trajo el origen: se borran al confirmarse el «Deshacer».' );
+		if ( 'migration' === $entry['kind'] && ! self::kept_auto() ) return array( 0, 'No se borran solas (podría haber tablas de otra aplicación que comparte la base de datos): revisa los nombres y usa «Borrar ya» cuando no las necesites.' );
 		if ( '' === $entry['safety'] || ! Digitalisimo_Backups::migration_safety_present( $entry['safety'] ) ) return array( 0, 'No se borran solas: su copia previa' . ( '' !== $entry['safety'] ? ' ' . $entry['safety'] : '' ) . ' ya no está en el almacén (bórralas a mano si no las necesitas).' );
 		return array( max( 1, $entry['at'] ) + self::kept_days() * 86400, '' );
 	}
@@ -1715,7 +1736,7 @@ final class Digitalisimo_Backups_Migrate {
 		}
 		$unregistered = array();
 		foreach ( array_keys( $live ) as $table ) if ( self::kept_like( (string) $table ) && ! isset( $known[ (string) $table ] ) ) $unregistered[] = (string) $table;
-		return array( 'days' => self::kept_days(), 'count' => (int) array_sum( array_column( $sets, 'count' ) ), 'sets' => $sets, 'unregistered' => $unregistered );
+		return array( 'days' => self::kept_days(), 'auto' => self::kept_auto(), 'count' => (int) array_sum( array_column( $sets, 'count' ) ), 'sets' => $sets, 'unregistered' => $unregistered );
 	}
 	/** Borra las tablas $present de un juego (sólo nombres que pasaron kept_entry()). Devuelve [borradas, errores]. */
 	private static function kept_drop( array $present ) {
@@ -1889,13 +1910,14 @@ final class Digitalisimo_Backups_Migrate {
 		// Tablas apartadas (K1): las del registro, con «Borrar ya».
 		$kept = (array) ( $status['kept_tables'] ?? array() );
 		if ( ! empty( $kept['sets'] ) || ! empty( $kept['unregistered'] ) ) {
-			echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-migrate-kept"><h2>Tablas apartadas</h2><p>Una migración aparta con otro nombre (<code>…dgbkk_…</code>, fuera de los respaldos) las tablas de este WordPress que el paquete no traía, y «Deshacer la migración», las que trajo el origen. Las del origen se borran en cuanto el deshacer termina; las demás, solas a los ' . (int) ( $kept['days'] ?? self::kept_days() ) . ' días si su copia previa sigue en el almacén. Sólo se borran las de esta lista, nunca otra tabla.</p>';
+			echo '<section class="digitalisimo-backups-card" id="digitalisimo-backups-migrate-kept"><h2>Tablas apartadas</h2><p>Una migración aparta con otro nombre (<code>…dgbkk_…</code>, fuera de los respaldos) las tablas de este WordPress que el paquete no traía, y «Deshacer la migración», las que trajo el origen. Las del origen se borran en cuanto el deshacer termina. Las de una migración ' . ( ! empty( $kept['auto'] ) ? 'se borran solas a los ' . (int) ( $kept['days'] ?? self::kept_days() ) . ' días si su copia previa sigue en el almacén' : 'no se borran solas: revisa sus nombres de antes (una tabla de otra aplicación que comparte la base de datos con un prefijo que empieza por el de este sitio se apartaría también) y bórralas con «Borrar ya» cuando no las necesites' ) . '. Sólo se borran las de esta lista, nunca otra tabla.</p>';
 			if ( ! empty( $kept['sets'] ) ) {
 				echo '<table class="widefat striped"><thead><tr><th>Apartadas por</th><th>Fecha (UTC)</th><th>Tablas</th><th>Tamaño</th><th>Se borran solas</th></tr></thead><tbody>';
 				foreach ( $kept['sets'] as $set ) {
 					$names = array();
-					foreach ( array_slice( (array) $set['tables'], 0, 5 ) as $table ) $names[] = ( '' !== $table['was'] ? $table['was'] . ' → ' : '' ) . $table['table'];
-					echo '<tr><td>' . esc_html( $set['label'] ) . '</td><td>' . esc_html( str_replace( 'T', ' ', substr( (string) $set['at'], 0, 16 ) ) ) . '</td><td>' . (int) $set['count'] . ': <code>' . esc_html( implode( ', ', $names ) . ( $set['count'] > 5 ? '…' : '' ) ) . '</code></td><td>' . esc_html( null === $set['bytes'] ? '—' : self::megabytes( (int) $set['bytes'] ) ) . '</td><td>' . esc_html( '' !== (string) $set['expires_at'] ? str_replace( 'T', ' ', substr( (string) $set['expires_at'], 0, 16 ) ) : (string) $set['note'] ) . '</td></tr>';
+					// Todas, con su nombre de antes: el administrador ve qué se borraría (revisión de K1, H1).
+					foreach ( (array) $set['tables'] as $table ) $names[] = ( '' !== $table['was'] ? $table['was'] . ' → ' : '' ) . $table['table'];
+					echo '<tr><td>' . esc_html( $set['label'] ) . '</td><td>' . esc_html( str_replace( 'T', ' ', substr( (string) $set['at'], 0, 16 ) ) ) . '</td><td>' . (int) $set['count'] . ': <code>' . esc_html( implode( ', ', $names ) ) . '</code></td><td>' . esc_html( null === $set['bytes'] ? '—' : self::megabytes( (int) $set['bytes'] ) ) . '</td><td>' . esc_html( '' !== (string) $set['expires_at'] ? str_replace( 'T', ' ', substr( (string) $set['expires_at'], 0, 16 ) ) : (string) $set['note'] ) . '</td></tr>';
 				}
 				echo '</tbody></table>';
 				$ready = array_filter( (array) $kept['sets'], function( $set ) { return empty( $set['busy'] ); } );

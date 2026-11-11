@@ -7,10 +7,10 @@
  *         dónde, cuándo, su copia previa y su tamaño) y el aviso dice cuándo se borran; al confirmarse «Deshacer», las
  *         tablas del origen que apartó se borran ya (sus datos no se quedan en el destino) y el registro de la migración
  *         lo anota; las de la migración siguen hasta su plazo;
- *   (k1b) plazo: el vigilante horario del motor de trabajos (Digitalisimo_Backups_Jobs::watchdog()) no las borra antes
- *         de 7 días ni con el filtro `digitalisimo_backups_migration_kept_days` más largo; pasado el plazo, sí, salvo que
- *         su copia previa ya no esté en el almacén (nunca se borra solo lo único que queda de esas tablas); consultar el
- *         estado (GET /migration) nunca borra;
+ *   (k1b) plazo: el vigilante horario del motor de trabajos (Digitalisimo_Backups_Jobs::watchdog()) nunca borra solas
+ *         las de una migración salvo con el filtro `digitalisimo_backups_migration_kept_auto` (revisión de K1, H1); con
+ *         él, no antes de 7 días ni con `digitalisimo_backups_migration_kept_days` más largo, ni sin su copia previa en
+ *         el almacén (nunca se borra solo lo único que queda de esas tablas); consultar el estado nunca borra;
  *   (k1c) nunca otra tabla: las de una restauración en curso esperan; un borrado que falla deja el juego en el registro;
  *         una entrada del registro alterada con tablas vivas, de otro prefijo, de otra marca o con una marca inválida no
  *         borra nada; una tabla con nombre de apartada fuera del registro se lista como `unregistered` y nunca se toca;
@@ -19,9 +19,14 @@
  *         (listar no) y la pantalla de la red lo da;
  *   (k1e) las que apartó una restauración sin registro (1.0.66–1.0.70) se toman de su trabajo (la consulta no escribe; el
  *         vigilante las anota); sin su trabajo, nunca se tocan;
+ *   (k1f) revisión de K1, H1: una tabla de otra aplicación con un prefijo que empieza por el del destino y sin
+ *         `options`/`siteurl` (`dst_stats_hits`) se aparta al migrar, la tarjeta y el aviso la nombran con su nombre de
+ *         antes, y pasado el plazo sigue existiendo; el juego de un «Deshacer» que no se pudo borrar al terminar, sí lo
+ *         borra el vigilante;
  *   (k3)  durante una migración, el nombre de la fase del paso en curso (el del mensaje de una muerte de PHP) es el de la
  *         migración («Descarga»), no el interno.
- * Cada caso escribe «FALLA (x)» si falla. Con el código de de091e03 fallan todos.
+ * Cada caso escribe «FALLA (x)» si falla. Con el código de de091e03 fallan todos; con el de 6d906238, k1a, k1b, k1c
+ * (la forma sin prefijo de H2) y k1f.
  */
 require __DIR__ . '/backups-coverage/cli.php';
 require __DIR__ . '/backups-migrate/env.php';
@@ -114,9 +119,9 @@ kp_case( 'k1a · registro al migrar y, al confirmarse «Deshacer», las tablas d
 	$at = strtotime( $set['at'] );
 	mig_assert( 'migration' === $set['kind'] && false !== strpos( $set['label'], 'origen.test' ) && array( array( 'table' => $aside[0], 'was' => 'dst_solo_destino' ) ) === $set['tables'], 'El juego no dice qué migración lo apartó ni qué tablas: ' . json_encode( $set ) );
 	mig_assert( (string) $restore['spec']['safety'] === $set['safety'] && Digitalisimo_Backups_Migrate::safety_of( (string) $migration['id'] ) === $set['safety'], 'El juego no anota la copia previa de su migración: ' . json_encode( $set ) );
-	mig_assert( is_int( $set['bytes'] ) && $set['bytes'] >= strlen( '1dato del destino' ) && abs( $at - time() ) < 600 && strtotime( $set['expires_at'] ) === $at + 7 * 86400, 'El juego no anota su tamaño, su fecha o su plazo de 7 días: ' . json_encode( $set ) );
+	mig_assert( is_int( $set['bytes'] ) && $set['bytes'] >= strlen( '1dato del destino' ) && abs( $at - time() ) < 600 && '' === $set['expires_at'] && false !== strpos( $set['note'], 'Borrar ya' ), 'El juego no anota su tamaño o su fecha, o dice que se borra solo: ' . json_encode( $set ) );
 	$warnings = implode( ' ', (array) $migration['warnings'] );
-	mig_assert( false !== strpos( $warnings, 'Se borran solas en 7 días' ) && false !== strpos( $warnings, 'migration cleanup' ) && false === strpos( $warnings, 'bórralas cuando no las necesites' ), 'El aviso de la migración no dice cuándo se borran las tablas apartadas: ' . $warnings );
+	mig_assert( false !== strpos( $warnings, 'dst_solo_destino → ' . $aside[0] ) && false !== strpos( $warnings, 'No se borran solas' ) && false !== strpos( $warnings, 'migration cleanup' ) && false === strpos( $warnings, 'Se borran solas el' ), 'El aviso de la migración no nombra las tablas apartadas o dice que se borran solas: ' . $warnings );
 	// «Deshacer»: aparta la tabla que trajo el origen (con sus datos) y la borra en cuanto el deshacer termina.
 	$undo = mig_rest( 'POST', KP_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
 	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'] && 'Destino' === get_option( 'blogname' ), 'No se deshizo: ' . json_encode( $undo ) );
@@ -129,15 +134,22 @@ kp_case( 'k1a · registro al migrar y, al confirmarse «Deshacer», las tablas d
 	mig_assert( in_array( 'kept_dropped', $events, true ), 'El registro de la migración no anota el borrado de las tablas del origen: ' . implode( ', ', $events ) );
 } );
 
-kp_case( 'k1b · el vigilante las borra pasado el plazo y sólo con su copia previa en el almacén', function() {
+kp_case( 'k1b · las de una migración sólo se borran solas con el filtro, pasado el plazo y con su copia previa en el almacén', function() {
 	kp_migrated();
 	$tag = (string) key( kp_registry() );
 	$aside = kp_aside();
 	mig_assert( '' !== $tag && 1 === count( $aside ), 'La migración no dejó su juego en el registro.' );
+	// Sin el filtro, nunca solas (revisión de K1, H1): ni pasado el plazo.
+	kp_age( $tag, 30 );
+	Digitalisimo_Backups_Jobs::watchdog();
+	mig_assert( $aside === kp_aside() && isset( kp_registry()[ $tag ] ) && false === Digitalisimo_Backups_Migrate::kept_tables()['auto'], 'Sin digitalisimo_backups_migration_kept_auto, el vigilante borró las tablas que apartó una migración.' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_migration_kept_auto'] = true;
+	kp_age( $tag, 0 );
 	Digitalisimo_Backups_Jobs::watchdog();
 	kp_age( $tag, 6.9 );
 	Digitalisimo_Backups_Jobs::watchdog();
-	mig_assert( $aside === kp_aside() && isset( kp_registry()[ $tag ] ), 'Se borraron antes del plazo.' );
+	$set = Digitalisimo_Backups_Migrate::kept_tables()['sets'][0] ?? array();
+	mig_assert( $aside === kp_aside() && isset( kp_registry()[ $tag ] ) && abs( strtotime( (string) ( $set['expires_at'] ?? '' ) ) - ( time() + (int) round( 0.1 * 86400 ) ) ) < 600, 'Con el filtro, se borraron antes del plazo o no se dice cuándo: ' . json_encode( $set ) );
 	// El filtro alarga el plazo.
 	$GLOBALS['bk_filters']['digitalisimo_backups_migration_kept_days'] = 30;
 	kp_age( $tag, 8 );
@@ -158,6 +170,7 @@ kp_case( 'k1b · el vigilante las borra pasado el plazo y sólo con su copia pre
 	mig_assert( ! kp_aside() && ! kp_registry() && 'Origen' === get_option( 'blogname' ) && in_array( 'dst_solo_origen', kp_tables(), true ), 'Pasado el plazo, el vigilante no borró sólo las tablas apartadas: ' . implode( ', ', kp_tables() ) );
 	$events = array_column( Digitalisimo_Backups_Migrate::public_log( 50 ), 'event' );
 	mig_assert( in_array( 'kept_dropped', $events, true ), 'El registro de la migración no anota el borrado por plazo.' );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_migration_kept_auto'] );
 } );
 
 kp_case( 'k1c · nunca otra tabla: ni las de una restauración en curso, ni un registro alterado, ni las que no están en él', function() {
@@ -189,14 +202,26 @@ kp_case( 'k1c · nunca otra tabla: ni las de una restauración en curso, ni un r
 	$state['kept']['zz'] = array( 'kind' => 'undo', 'at' => 1, 'tables' => array( 'x' => 'dst_posts' ) );
 	$state['kept'][ $tag ]['tables']['dst_posts'] = 'dst_posts';
 	$state['kept'][ $tag ]['tables']['otra'] = 'otra_dgbkk_' . $tag . '_9001';
+	// La forma sin prefijo sólo vale si con el prefijo no cabía en 64 caracteres (revisión de K1, H2).
+	$db->pdo->exec( 'CREATE TABLE `dgbkk_' . $tag . '_9004` (`id` INTEGER PRIMARY KEY)' );
+	$state['kept'][ $tag ]['tables']['sin'] = 'dgbkk_' . $tag . '_9004';
 	update_option( KP_STATE, $state );
 	$before = kp_tables();
 	$report = Digitalisimo_Backups_Migrate::kept_cleanup( true );
 	$left = array_values( array_diff( $before, kp_tables() ) );
 	mig_assert( $aside === $left && $aside === $report['tables'], 'La limpieza borró algo fuera de las tablas apartadas del registro: ' . json_encode( array( $left, $report ) ) );
-	mig_assert( array( 'dst_dgbkk_abcdef_9000' ) === $report['unregistered'] && in_array( 'dst_posts', kp_tables(), true ) && in_array( 'dst_options', kp_tables(), true ) && in_array( 'dst_ajena', kp_tables(), true ) && in_array( 'otra_dgbkk_' . $tag . '_9001', kp_tables(), true ) && 'Origen' === get_option( 'blogname' ), 'La limpieza tocó una tabla viva, ajena, de otro prefijo o sin registro: ' . json_encode( $report ) );
+	mig_assert( array( 'dst_dgbkk_abcdef_9000' ) === $report['unregistered'] && in_array( 'dst_posts', kp_tables(), true ) && in_array( 'dst_options', kp_tables(), true ) && in_array( 'dst_ajena', kp_tables(), true ) && in_array( 'otra_dgbkk_' . $tag . '_9001', kp_tables(), true ) && in_array( 'dgbkk_' . $tag . '_9004', kp_tables(), true ) && 'Origen' === get_option( 'blogname' ), 'La limpieza tocó una tabla viva, ajena, de otro prefijo, sin prefijo o sin registro: ' . json_encode( $report ) );
 	mig_assert( ! kp_registry() && array( 'dst_dgbkk_abcdef_9000' ) === Digitalisimo_Backups_Migrate::kept_tables()['unregistered'], 'El registro alterado no quedó limpio o la tabla sin registro no se lista: ' . json_encode( kp_registry() ) );
 	mig_assert( false !== strpos( Digitalisimo_Backups_Migrate::kept_message( $report ), 'no están en el registro y no se tocan' ), 'El mensaje no dice que las tablas sin registro no se tocan.' );
+	// Con un prefijo con el que el nombre no cabe en 64 caracteres, la forma sin prefijo sí es la de una apartada.
+	$base = $db->base_prefix;
+	try {
+		$db->base_prefix = str_repeat( 'p', 50 ) . '_';
+		$long = mig_call( 'Digitalisimo_Backups_Migrate', 'kept_name', 'dgbkk_abcdef_9000', 'abcdef' );
+	} finally {
+		$db->base_prefix = $base;
+	}
+	mig_assert( true === $long && false === mig_call( 'Digitalisimo_Backups_Migrate', 'kept_name', 'dgbkk_abcdef_9000', 'abcdef' ), 'La forma sin prefijo no depende de si el nombre con prefijo cabía.' );
 } );
 
 kp_case( 'k1d · «Borrar ya» por la pantalla, REST y WP-CLI, con el alcance de red en una red', function() {
@@ -278,6 +303,38 @@ kp_case( 'k1e · las que apartó una restauración sin registro se toman de su t
 	Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $restore ) );
 	$report = Digitalisimo_Backups_Migrate::kept_cleanup( true );
 	mig_assert( 0 === $report['count'] && $aside === $report['unregistered'] && $aside === kp_aside(), 'Se borró una tabla apartada sin registro ni trabajo: ' . json_encode( $report ) );
+} );
+
+kp_case( 'k1f · una tabla de otra aplicación con prefijo anidado apartada al migrar se nombra y no se borra sola; un juego de «Deshacer» sí', function() {
+	$M = 'Digitalisimo_Backups_Migrate';
+	kp_sites();
+	// Otra aplicación (no WordPress) con tablas que empiezan por el prefijo del destino y sin options/siteurl.
+	$GLOBALS['mig']['sites']['destino']['db']->pdo->exec( 'CREATE TABLE `dst_stats_hits` (`id` INTEGER PRIMARY KEY, `pagina` text)' );
+	$GLOBALS['mig']['sites']['destino']['db']->seed( 'dst_stats_hits', array( array( 'id' => 1, 'pagina' => 'visita-de-la-otra-app' ) ) );
+	$key = mig_in( 'origen', function() { return mig_rest( 'POST', KP_NS . '/migration/keys', array( 'hours' => 24 ) )[1]['key']; } );
+	mig_use( 'destino' );
+	$migration = kp_drive( mig_rest( 'POST', KP_NS . '/migration/pull', array( 'key' => $key, 'confirm' => 'MIGRAR' ) )[1]['id'] );
+	mig_assert( 'success' === $migration['status'], 'La migración no terminó: ' . json_encode( $migration['error'] ) );
+	$stats = kp_kept_value( 'visita-de-la-otra-app' );
+	mig_assert( null !== $stats && ! in_array( 'dst_stats_hits', kp_tables(), true ), 'La tabla de la otra aplicación no se apartó (la prueba lo necesita).' );
+	$tag = (string) key( kp_registry() );
+	// El aviso y la tarjeta la nombran con su nombre de antes.
+	mig_assert( false !== strpos( implode( ' ', (array) $migration['warnings'] ), 'dst_stats_hits → ' . $stats ), 'El aviso de la migración no nombra la tabla de la otra aplicación: ' . implode( ' ', (array) $migration['warnings'] ) );
+	ob_start();
+	$M::panel( false, mig_call( 'Digitalisimo_Backups', 'migration_status_data' ) );
+	$html = ob_get_clean();
+	mig_assert( false !== strpos( $html, esc_html( 'dst_stats_hits → ' . $stats ) ) && false !== strpos( $html, esc_html( 'dst_solo_destino → ' ) ) && false !== strpos( $html, 'no se borran solas' ), 'La tarjeta no nombra todas las tablas apartadas con su nombre de antes.' );
+	// Pasado el plazo (con su copia previa en el almacén), el vigilante no la borra.
+	kp_age( $tag, 8 );
+	Digitalisimo_Backups_Jobs::watchdog();
+	mig_assert( $stats === kp_kept_value( 'visita-de-la-otra-app' ) && isset( kp_registry()[ $tag ] ), 'Pasados 8 días, el vigilante borró la tabla de la otra aplicación que apartó la migración.' );
+	// «Deshacer» cuyo borrado al terminar falla: su juego (datos del origen) sí lo borra el vigilante; el de la migración, no.
+	$GLOBALS['wpdb']->fail_on = 'DROP TABLE IF EXISTS `dst_dgbkk_';
+	$undo = mig_rest( 'POST', KP_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
+	$GLOBALS['wpdb']->fail_on = '';
+	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'] && null !== kp_kept_value( 'dato-personal-del-origen' ) && 2 === count( kp_registry() ) && false !== strpos( (string) $undo[1]['notice'], 'el vigilante horario de Backups lo reintenta' ), 'El deshacer con un borrado fallido no dejó su juego en el registro o no lo dijo: ' . json_encode( array( $undo, kp_registry() ) ) );
+	Digitalisimo_Backups_Jobs::watchdog();
+	mig_assert( null === kp_kept_value( 'dato-personal-del-origen' ) && $stats === kp_kept_value( 'visita-de-la-otra-app' ) && array( $tag ) === array_keys( kp_registry() ), 'El vigilante no borró el juego del deshacer o borró el de la migración: ' . json_encode( array( kp_aside(), kp_registry() ) ) );
 } );
 
 kp_case( 'k3 · el paso en curso de una migración lleva el nombre de su fase', function() {
