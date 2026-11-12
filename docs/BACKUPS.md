@@ -266,8 +266,8 @@ después, sitio y red).
 
 | Pestaña | Qué tiene |
 | --- | --- |
-| Respaldos (`tab=backups`) | «Último respaldo» y «Próximo» (la automatización activa que antes toca, con «Cambiar»), el botón «Respaldar ahora» (su destino y «Sólo en el remoto», plegados en «Destino: …») y la lista: Restaurar, Descargar y Borrar en cada fila; Bloquear, Traer al almacén y los detalles (archivo, tipo, copias, firma o cifrado, avisos) en «⋯». La tarjeta «Trabajos» sólo aparece con trabajos en curso que no sigue ya el botón. |
-| Ajustes (`tab=settings`) | «Programación» (frecuencia, hora, cuántos conservar y destino de la automatización principal: la primera completa y activa, o la primera completa; sin ninguna, el formulario la crea), «Avisos por correo», «Antes de actualizar» (una línea con lo activo y el formulario en «Cambiar») y «Cifrado y firma» plegado. |
+| Respaldos (`tab=backups`) | «Último respaldo» y «Próximo» (la automatización activa que antes toca, con «Cambiar»), el botón «Respaldar ahora» (su destino y «Sólo en el remoto», plegados en «Destino: …») y la lista: Restaurar, Descargar y Borrar en cada fila; Bloquear, Traer al almacén y los detalles (archivo, tipo, copias, firma o cifrado, avisos) en «⋯». La tarjeta «Trabajos» sólo aparece con trabajos en curso que no sigue ya el botón; si uno de ellos termina mal o se cancela, se queda con su estado final, y si todos terminan bien la página se recarga con la lista (sin los `?backup=`, `?message=` ni `?restore=` de antes). «Respaldos (N)» cuenta todo el historial; la lista enseña los 10 últimos. |
+| Ajustes (`tab=settings`) | «Programación» (frecuencia, hora, cuántos conservar y destino de la automatización principal: la primera completa y activa, o la primera completa; sin ninguna, el formulario la crea y no ofrece «Desactivado»; una en pausa enseña su frecuencia y la casilla «Activa» sin marcar, y «Desactivado» deja sin programar sólo esa), «Avisos por correo», «Antes de actualizar» (una línea con lo activo y el formulario en «Cambiar») y «Cifrado y firma» plegado. |
 | Destinos (`tab=servers`) | La lista (el hosting y cada conexión con su estado) con «Añadir destino». Un solo formulario a la vista y sólo al pedirlo: `add=1` (otra conexión), `connection=<id>` (editarla) o `edit=<tipo>` (la conexión principal, que se guarda con todos los tipos, como antes). Los campos de ajuste fino (motor SFTP, modo pasivo FTP, estilo y clase de S3) van en «Opciones avanzadas»; las ayudas largas, en «Cómo obtener …» y «Más». Plegado: «Respaldos guardados en los destinos» (sincronizar y traer). |
 | Herramientas (`tab=tools`) | Plegado, cada uno con su resumen: Migrar, Importar de Backuply o UpdraftPlus, Subir un respaldo, Restaurar un archivo suelto (archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio), Automatizaciones (todas), Extraer un sitio de la red (sólo en la red) y Trabajos y registros. |
 
@@ -285,13 +285,15 @@ después, sitio y red).
   - las actualizaciones automáticas retenidas, pospuestas o sin respaldo previo.
   Los avisos de escritorio de esas dos últimas cosas no se repiten en la pantalla de Backups.
 - **Pestañas de antes.** `security` y `notifications` abren «Ajustes» con su sección; `migrate` abre «Herramientas» con
-  «Migrar» abierto (y `?open=<sección>` abre cualquier sección). Un formulario de «Ajustes» o «Herramientas» lleva
-  `digitalisimo_backups_return` y, al guardar, vuelve a su pestaña y sección; un valor desconocido se ignora.
+  «Migrar» abierto (y `?open=<sección>` abre cualquier sección). Un formulario de «Ajustes», de «Herramientas», de la conexión principal o
+  de «Respaldos guardados en los destinos» lleva `digitalisimo_backups_return` y, al guardar, vuelve a su pestaña y
+  sección; una pestaña desconocida se ignora, y una sección que no es de esa pestaña también.
 - **Subsitio de una red.** Una línea («Los respaldos de esta red se hacen desde la administración de red») y el
   enlace a Backups de la red: antes pintaba 4 179 px con el botón deshabilitado y los ZIP de la red como «sin
   registro».
 - **Textos.** Ningún texto visible por defecto pasa de 140 caracteres: lo largo se pliega en «Más», «Detalle»,
-  «Cómo obtener …» u «Opciones». Los mensajes que nombran la pantalla usan las rutas nuevas («Backups → Herramientas →
+  «Cómo obtener …» u «Opciones». Una advertencia nunca se pliega (con `<strong>`, la clase
+  `digitalisimo-backups-warning` o un `notice`): se lee entera. Los mensajes que nombran la pantalla usan las rutas nuevas («Backups → Herramientas →
   Migrar», «Backups → Ajustes → Cifrado y firma», «Backups → Destinos», «Herramientas → «Restaurar un archivo
   suelto»»); en REST y WP-CLI sólo cambia ese texto, no el código ni la forma de la respuesta.
 - **Sin cambios de fondo.** Los `name`, las acciones de admin-post, los nonces, las capabilities, REST, WP-CLI y las
