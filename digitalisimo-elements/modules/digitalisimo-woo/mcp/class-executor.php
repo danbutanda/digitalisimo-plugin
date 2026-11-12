@@ -126,6 +126,10 @@ final class Executor {
 				$result['notice']  = sprintf( 'WooCommerce aplicó %d de %d elementos del lote; los errores están en batch.errors.', $batch['done'], $batch['done'] + $batch['failed'] );
 			}
 		}
+		if ( 'list' === $plan['action'] && ! isset( $plan['query']['page'] ) && 'reports' !== $tool && is_array( $data ) ) {
+			// Lista que WooCommerce no pagina: todo en una respuesta, sin page, per_page ni total_pages.
+			$result['total'] = count( $data );
+		}
 		if ( 'list' === $plan['action'] && isset( $plan['query']['page'], $plan['query']['per_page'] ) ) {
 			$result['page']     = (int) $plan['query']['page'];
 			$result['per_page'] = (int) $plan['query']['per_page'];

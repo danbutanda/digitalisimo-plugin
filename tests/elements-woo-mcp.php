@@ -948,6 +948,36 @@ namespace {
 		}
 	);
 
+	// R4 · Sólo se pagina donde WooCommerce pagina.
+	review_block(
+		'R4',
+		static function () use ( $admin_caps, $write_mode ) {
+			$paged = array( 'product', 'variation', 'category', 'tag', 'brand', 'attribute_term', 'shipping_class', 'review', 'order', 'refund', 'customer', 'coupon', 'tax_rate' );
+			foreach ( Tools::RESOURCES as $name => $def ) {
+				if ( ! in_array( 'list', $def['actions'], true ) ) {
+					continue;
+				}
+				review( 'R4', in_array( $name, $paged, true ) === ! empty( $def['paged'] ), "RESOURCES marca bien si «{$name}» pagina en WooCommerce 11.2.1." );
+			}
+			$plan = Router::resolve( 'store-settings', array( 'action' => 'list', 'resource' => 'payment_gateway' ) );
+			review( 'R4', ! is_wp_error( $plan ) && array() === $plan['query'], 'Pasarelas: list sin page ni per_page.' );
+			$plan = Router::resolve( 'store-settings', array( 'action' => 'list', 'resource' => 'payment_gateway', 'page' => 1, 'per_page' => 5 ) );
+			review( 'R4', ! is_wp_error( $plan ) && array() === $plan['query'], 'Pasarelas: page 1 y per_page se toleran y no viajan.' );
+			$plan = Router::resolve( 'store-settings', array( 'action' => 'list', 'resource' => 'payment_gateway', 'page' => 2 ) );
+			review( 'R4', is_wp_error( $plan ) && false !== strpos( $plan->get_error_message(), 'no se pagina' ), 'Pasarelas: page 2 se rechaza con un motivo claro.' );
+			foreach ( array( array( 'customers', array( 'action' => 'list', 'resource' => 'download', 'customer_id' => 2 ) ), array( 'store-settings', array( 'action' => 'list', 'resource' => 'setting_group' ) ), array( 'catalog', array( 'action' => 'list', 'resource' => 'attribute' ) ), array( 'orders', array( 'action' => 'list', 'resource' => 'note', 'order_id' => 4 ) ) ) as $case ) {
+				$plan = Router::resolve( $case[0], $case[1] );
+				review( 'R4', ! is_wp_error( $plan ) && array() === $plan['query'], 'Sin paginar: ' . $case[1]['resource'] );
+			}
+			wm_reset( array( 'caps' => $admin_caps, 'options' => $write_mode ) );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/payment_gateways'] = array( 200, array( array( 'id' => 'bacs' ), array( 'id' => 'cod' ) ), array( 'X-WP-Total' => '2', 'X-WP-TotalPages' => '1' ) );
+			$result = Executor::run( 'store-settings', array( 'action' => 'list', 'resource' => 'payment_gateway' ), 'wm_dispatch' );
+			review( 'R4', is_array( $result ) && ! isset( $result['page'] ) && ! isset( $result['per_page'] ) && ! isset( $result['total_pages'] ) && 2 === ( $result['total'] ?? null ), 'Una lista sin paginar no anuncia page, per_page ni total_pages (sí su total).' );
+			$plan = Router::resolve( 'products', array( 'action' => 'list', 'page' => 3 ) );
+			review( 'R4', array( 'page' => 3, 'per_page' => 10 ) === $plan['query'], 'Los productos siguen paginados.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
@@ -956,5 +986,5 @@ namespace {
 		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
 	}
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R3 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R4 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

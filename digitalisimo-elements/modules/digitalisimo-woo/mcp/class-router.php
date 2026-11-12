@@ -154,12 +154,15 @@ final class Router {
 			if ( array_key_exists( 'data', $input ) ) {
 				return self::error( 'digitalisimo_woo_mcp_data', 'data sólo se usa con create, update o batch; los filtros van en query.' );
 			}
-			if ( 'list' === $action ) {
+			if ( 'list' === $action && ! empty( $def['paged'] ) ) {
 				$paging = self::paging( $input );
 				if ( is_wp_error( $paging ) ) {
 					return $paging;
 				}
 				$query = array_merge( $query, $paging );
+			} elseif ( 'list' === $action && array_key_exists( 'page', $input ) && 1 !== $input['page'] ) {
+				// WooCommerce no pagina esta lista: una página 2 repetiría la misma lista entera.
+				return self::error( 'digitalisimo_woo_mcp_page', sprintf( 'El recurso «%s» no se pagina en WooCommerce: list devuelve todos sus elementos en una sola respuesta. Quita page.', $resource ) );
 			}
 			$plan['query'] = $query;
 			return $plan;
