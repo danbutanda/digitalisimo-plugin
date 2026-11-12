@@ -361,6 +361,40 @@ try {
 		foreach ( array( 'Sin verificar el certificado, cualquiera en la red puede suplantar al servidor' ) as $text ) ss_check( false !== strpos( ss_visible( $screens['servers:edit'] )['text'], $text ), 'La advertencia «' . $text . '…» no se lee entera.' );
 	} );
 
+	// Revisión de 1.0.74 (H9): «Programación» enseña el estado real de una automatización en pausa y guardarla no la
+	// reactiva ni pierde su frecuencia; «Desactivado» dice que es sólo esta automatización; sin ninguna, no se ofrece.
+	ss_case( 'T12 · «Programación»: en pausa sigue en pausa con su frecuencia; «Desactivado» sólo esta; sin ninguna, no crea', function() use ( $B ) {
+		$saved = get_option( $B::POLICIES );
+		$schedule = function() { $forms = ss_forms( ss_render( 'settings' ), 'digitalisimo-backups-section-schedule' ); ss_check( 1 === count( $forms ), 'No hay un solo formulario en «Programación».' ); return $forms[0]; };
+		$option = function( DOMElement $form, $value ) { foreach ( $form->getElementsByTagName( 'option' ) as $option ) if ( $value === $option->getAttribute( 'value' ) ) return $option; return null; };
+		try {
+			update_option( $B::POLICIES, array( array( 'id' => 'pausada', 'label' => '', 'type' => 'full', 'schedule' => 'weekly', 'destination' => 'local', 'retain' => 4, 'enabled' => false, 'time' => '02:00', 'remote_only' => false ) ) );
+			$form = $schedule();
+			$weekly = $option( $form, 'weekly' );
+			ss_check( $weekly && $weekly->hasAttribute( 'selected' ), 'Una automatización semanal en pausa no se enseña como «Semanal»: ' . json_encode( ss_submit( $form ) ) );
+			$disabled = $option( $form, 'disabled' );
+			ss_check( $disabled && false !== strpos( $disabled->textContent, 'sólo esta automatización' ), '«Desactivado» no dice que se aplica sólo a esta automatización.' );
+			// Cambiar sólo «Conservar» y guardar, como en el navegador.
+			list( $ok, , $url ) = bk_post( array( $B, 'update_automation' ), ss_submit( $form, array( 'digitalisimo_backup_automation' => array( 'retain' => '7' ) ) ) );
+			$after = $B::policy( 'pausada' );
+			ss_check( $ok && 'settings' === ss_landing( $url )[0] && empty( $after['enabled'] ) && 'weekly' === $after['schedule'] && 7 === (int) $after['retain'] && '02:00' === $after['time'], 'Guardar «Conservar» de una automatización en pausa la cambió: ' . json_encode( $after ) );
+			// Activarla desde ahí: la casilla «Activa» sin tocar la frecuencia.
+			list( $ok ) = bk_post( array( $B, 'update_automation' ), ss_submit( $schedule(), array( 'digitalisimo_backup_automation' => array( 'enabled' => '1' ) ) ) );
+			$after = $B::policy( 'pausada' );
+			ss_check( $ok && ! empty( $after['enabled'] ) && 'weekly' === $after['schedule'], 'Marcar «Activa» no reanudó la automatización semanal: ' . json_encode( $after ) );
+			// Sin ninguna automatización, «Desactivado» no se ofrece (guardar crearía una) y lo que se guarda la crea programada.
+			update_option( $B::POLICIES, array() );
+			$form = $schedule();
+			ss_check( null === $option( $form, 'disabled' ), 'Sin automatizaciones, «Programación» ofrece «Desactivado», que crearía una.' );
+			list( $ok ) = bk_post( array( $B, 'create_automation' ), ss_submit( $form ) );
+			$created = $B::policies();
+			ss_check( $ok && 1 === count( $created ) && 'weekly' === $created[0]['schedule'] && ! empty( $created[0]['enabled'] ), 'Guardar «Programación» sin automatizaciones no creó una semanal: ' . json_encode( $created ) );
+		} finally {
+			update_option( $B::POLICIES, $saved );
+			bk_call( $B, 'sync_policy_schedules' );
+		}
+	} );
+
 	ss_case( 'T6 · una sola franja de avisos y sin repetir el aviso del escritorio', function() use ( $B ) {
 		Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array( 'no_active' => true ) );
 		$html = ss_render( 'backups' );

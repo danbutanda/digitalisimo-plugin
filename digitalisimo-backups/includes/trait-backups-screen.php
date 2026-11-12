@@ -356,16 +356,26 @@ trait Digitalisimo_Backups_Screen {
 		}
 		return $first;
 	}
-	/** «Programación»: frecuencia, hora, cuántos conservar y destino de la automatización principal (mismos handlers). */
+	/**
+	 * «Programación»: frecuencia, hora, cuántos conservar y destino de la automatización principal (mismos handlers y el
+	 * mismo formato: `enabled` y `schedule`). Una en pausa (`enabled` = 0) enseña su frecuencia y la casilla «Activa»
+	 * sin marcar, así que guardar otra cosa no la reactiva ni pierde la frecuencia. «Desactivado» sólo deja sin programar
+	 * esta automatización; sin ninguna no se ofrece, porque guardar crearía una.
+	 */
 	private static function schedule_form() {
 		$policy = self::principal_policy();
 		$schedules = self::schedule_options();
-		$current = $policy ? ( ! empty( $policy['enabled'] ) ? (string) $policy['schedule'] : 'disabled' ) : 'weekly';
+		if ( $policy ) $schedules['disabled'] = 'Desactivado (sólo esta automatización)';
+		else unset( $schedules['disabled'] );
+		$paused = $policy && empty( $policy['enabled'] );
+		$current = $policy ? (string) $policy['schedule'] : 'weekly';
 		$action = $policy ? self::ACTION_UPDATE_AUTOMATION : self::ACTION_CREATE_AUTOMATION;
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-schedule">';
 		wp_nonce_field( $action );
-		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">' . ( $policy ? '<input type="hidden" name="policy_id" value="' . esc_attr( $policy['id'] ) . '">' : '' ) . '<input type="hidden" name="digitalisimo_backup_automation[type]" value="full"><input type="hidden" name="digitalisimo_backup_automation[enabled]" value="1">' . self::return_field( 'settings', 'schedule' );
-		echo '<table class="form-table"><tr><th><label for="digitalisimo-backups-schedule">Respaldar</label></th><td><select id="digitalisimo-backups-schedule" name="digitalisimo_backup_automation[schedule]">';
+		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">' . ( $policy ? '<input type="hidden" name="policy_id" value="' . esc_attr( $policy['id'] ) . '">' : '' ) . '<input type="hidden" name="digitalisimo_backup_automation[type]" value="full">' . ( $paused ? '' : '<input type="hidden" name="digitalisimo_backup_automation[enabled]" value="1">' ) . self::return_field( 'settings', 'schedule' );
+		echo '<table class="form-table">';
+		if ( $paused ) echo '<tr><th>Estado</th><td><label><input type="checkbox" name="digitalisimo_backup_automation[enabled]" value="1"> Activa</label> <span class="description">En pausa: no se ejecuta hasta activarla.</span></td></tr>';
+		echo '<tr><th><label for="digitalisimo-backups-schedule">Respaldar</label></th><td><select id="digitalisimo-backups-schedule" name="digitalisimo_backup_automation[schedule]">';
 		foreach ( $schedules as $value => $label ) echo '<option value="' . esc_attr( $value ) . '"' . selected( $current, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		$zone = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
 		echo '</select> <label>a las <input type="time" step="60" name="digitalisimo_backup_automation[time]" value="' . esc_attr( (string) ( $policy['time'] ?? '' ) ) . '"></label><p class="description">Hora del sitio (' . esc_html( $zone ) . '). Vacía: cuando WP-Cron pueda.</p></td></tr>';
