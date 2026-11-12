@@ -760,8 +760,8 @@ namespace {
 	// =================================================================================================================
 	// 7. Permisos.
 	$roles = array(
-		'administrator' => array( 'edit_products', 'read_private_products', 'publish_products', 'delete_products', 'edit_others_products', 'manage_product_terms', 'edit_product_terms', 'delete_product_terms', 'moderate_comments', 'edit_shop_orders', 'read_private_shop_orders', 'publish_shop_orders', 'delete_shop_orders', 'edit_shop_coupons', 'read_private_shop_coupons', 'publish_shop_coupons', 'delete_shop_coupons', 'list_users', 'create_customers', 'edit_users', 'delete_users', 'manage_woocommerce', 'view_woocommerce_reports' ),
-		'shop_manager'  => array( 'edit_products', 'read_private_products', 'publish_products', 'delete_products', 'edit_others_products', 'manage_product_terms', 'edit_product_terms', 'delete_product_terms', 'moderate_comments', 'edit_shop_orders', 'read_private_shop_orders', 'publish_shop_orders', 'delete_shop_orders', 'edit_shop_coupons', 'read_private_shop_coupons', 'publish_shop_coupons', 'delete_shop_coupons', 'list_users', 'create_customers', 'edit_users', 'manage_woocommerce', 'view_woocommerce_reports' ),
+		'administrator' => array( 'edit_products', 'read_private_products', 'publish_products', 'delete_products', 'edit_others_products', 'manage_product_terms', 'edit_product_terms', 'delete_product_terms', 'moderate_comments', 'edit_shop_orders', 'read_private_shop_orders', 'publish_shop_orders', 'delete_shop_orders', 'edit_shop_coupons', 'read_private_shop_coupons', 'publish_shop_coupons', 'delete_shop_coupons', 'edit_others_shop_coupons', 'edit_others_shop_orders', 'list_users', 'create_customers', 'edit_users', 'delete_users', 'manage_woocommerce', 'view_woocommerce_reports' ),
+		'shop_manager'  => array( 'edit_products', 'read_private_products', 'publish_products', 'delete_products', 'edit_others_products', 'manage_product_terms', 'edit_product_terms', 'delete_product_terms', 'moderate_comments', 'edit_shop_orders', 'read_private_shop_orders', 'publish_shop_orders', 'delete_shop_orders', 'edit_shop_coupons', 'read_private_shop_coupons', 'publish_shop_coupons', 'delete_shop_coupons', 'edit_others_shop_coupons', 'edit_others_shop_orders', 'list_users', 'create_customers', 'edit_users', 'manage_woocommerce', 'view_woocommerce_reports' ),
 		'editor'        => array( 'edit_posts', 'edit_others_posts', 'publish_posts', 'read_private_posts', 'moderate_comments', 'manage_categories', 'read' ),
 		'subscriber'    => array( 'read' ),
 	);
@@ -896,6 +896,36 @@ namespace {
 		}
 	);
 
+	// R2 · Lotes: fields en cada elemento; un error dentro de un elemento no es «ok».
+	review_block(
+		'R2a',
+		static function () use ( $admin_caps, $write_mode ) {
+			wm_reset( array( 'caps' => $admin_caps, 'options' => $write_mode ) );
+			$GLOBALS['wm_rest_responses']['POST /wc/v3/products/7/variations/batch'] = array( 200, array( 'create' => array( array( 'id' => 41, 'name' => 'Rojo', 'price' => '9' ), array( 'id' => 42, 'name' => 'Azul', 'price' => '9' ) ) ), array() );
+			$result = Executor::run( 'products', array( 'action' => 'batch', 'resource' => 'variation', 'product_id' => 7, 'fields' => array( 'name' ), 'data' => array( 'create' => array( array( 'regular_price' => '9' ), array( 'regular_price' => '9' ) ) ) ), 'wm_dispatch' );
+			review( 'R2a', ! is_wp_error( $result ) && isset( $result['data']['create'] ) && array( array( 'id' => 41, 'name' => 'Rojo' ), array( 'id' => 42, 'name' => 'Azul' ) ) === $result['data']['create'], 'fields en un lote recorta cada elemento (con su id): ' . json_encode( is_array( $result ) ? $result['data'] : null ) );
+		}
+	);
+	review_block(
+		'R2b',
+		static function () use ( $admin_caps, $write_mode ) {
+			wm_reset( array( 'caps' => $admin_caps, 'options' => $write_mode ) );
+			$bad = array( 'code' => 'woocommerce_rest_product_invalid_id', 'message' => 'ID no válido.', 'data' => array( 'status' => 400, 'params' => array( 'x' => 'ana@example.test' ) ) );
+			$GLOBALS['wm_rest_responses']['POST /wc/v3/products/batch'] = array( 200, array( 'update' => array( array( 'id' => 5, 'name' => 'A' ), array( 'id' => 0, 'error' => $bad ) ) ), array() );
+			$result = Executor::run( 'products', array( 'action' => 'batch', 'data' => array( 'update' => array( array( 'id' => 5, 'name' => 'A' ), array( 'id' => 99, 'name' => 'B' ) ) ) ), 'wm_dispatch' );
+			review( 'R2b', is_array( $result ) && false === $result['ok'] && true === ( $result['partial'] ?? null ) && 1 === ( $result['batch']['failed'] ?? null ) && 1 === ( $result['batch']['done'] ?? null ), 'Lote con un elemento fallido: ok false, parcial, 1 hecho y 1 fallido.' );
+			review( 'R2b', is_array( $result ) && isset( $result['batch']['errors'][0] ) && array( 'list' => 'update', 'index' => 1, 'id' => 0, 'code' => 'woocommerce_rest_product_invalid_id', 'message' => 'ID no válido.' ) === $result['batch']['errors'][0], 'Cada error del lote, con su lista, posición, código y mensaje (sin los datos de WooCommerce).' );
+			review( 'R2b', 'partial' === Log::entries()[0]['result'] && 'woocommerce_rest_product_invalid_id' === Log::entries()[0]['code'], 'La bitácora anota «partial» con el código real: ' . json_encode( Log::entries()[0] ) );
+			$GLOBALS['wm_rest_responses']['POST /wc/v3/coupons/batch'] = array( 200, array( 'delete' => array( array( 'id' => 9, 'error' => array( 'code' => 'woocommerce_rest_shop_coupon_invalid_id', 'message' => 'ID no válido.' ) ) ) ), array() );
+			$result = Executor::run( 'coupons', array( 'action' => 'batch', 'force' => true, 'data' => array( 'delete' => array( 9 ) ) ), 'wm_dispatch' );
+			review( 'R2b', is_wp_error( $result ) && 'woocommerce_rest_shop_coupon_invalid_id' === $result->get_error_code() && false !== strpos( $result->get_error_message(), 'ningún elemento' ), 'Lote sin ningún elemento aplicado: error con el código del primero.' );
+			review( 'R2b', 'error' === Log::entries()[0]['result'] && 'woocommerce_rest_shop_coupon_invalid_id' === Log::entries()[0]['code'], 'Y en la bitácora como error con ese código.' );
+			$GLOBALS['wm_rest_responses']['POST /wc/v3/coupons/batch'] = array( 200, array( 'create' => array( array( 'id' => 3, 'code' => 'a' ) ) ), array() );
+			$result = Executor::run( 'coupons', array( 'action' => 'batch', 'data' => array( 'create' => array( array( 'code' => 'a' ) ) ) ), 'wm_dispatch' );
+			review( 'R2b', is_array( $result ) && true === $result['ok'] && array( 'done' => 1, 'failed' => 0, 'errors' => array() ) === ( $result['batch'] ?? null ) && 'ok' === Log::entries()[0]['result'], 'Un lote sin errores sigue siendo ok, con su recuento.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
@@ -904,5 +934,5 @@ namespace {
 		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
 	}
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R1 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R2 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

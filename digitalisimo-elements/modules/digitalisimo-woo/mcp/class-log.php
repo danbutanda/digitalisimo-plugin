@@ -8,8 +8,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Una opción del sitio sin carga automática (`OPTION`) con las últimas `MAX` entradas, la más reciente primero. Cada
  * entrada lleva sólo `FIELDS`: fecha (UTC), usuario (su ID), herramienta, acción, recurso, ID y padre (números o claves
- * de la ruta: un pedido, una opción de ajustes, una pasarela), elementos de un lote, resultado (`ok`, `error` o
- * `denied`), el código de error y el estado HTTP. Nunca nombres, correos, direcciones, importes ni valores: `entry()`
+ * de la ruta: un pedido, una opción de ajustes, una pasarela), elementos de un lote, resultado (`ok`, `partial`
+ * —un lote con elementos fallidos—, `error` o `denied`), el código de error y el estado HTTP. Nunca nombres, correos, direcciones, importes ni valores: `entry()`
  * no recibe la entrada del cliente ni la respuesta, sólo el plan del enrutador. Se consulta con la acción `log` de la
  * herramienta de informes.
  */
@@ -22,7 +22,7 @@ final class Log {
 	 * Entrada de la bitácora a partir del plan de `Router::resolve()`.
 	 *
 	 * @param array  $plan   Plan del enrutador (sólo se leen herramienta, acción, recurso, IDs y elementos).
-	 * @param string $result `ok`, `error` o `denied`.
+	 * @param string $result `ok`, `partial`, `error` o `denied`.
 	 * @param string $code   Código de error ('' si fue bien), reducido a `[a-z0-9_]`.
 	 * @param int    $status Estado HTTP.
 	 * @param int    $user   ID del usuario.
@@ -38,7 +38,7 @@ final class Log {
 			'id'       => self::ref( isset( $plan['id'] ) ? $plan['id'] : null ),
 			'parent'   => self::ref( isset( $plan['parent'] ) ? $plan['parent'] : null ),
 			'items'    => isset( $plan['items'] ) ? max( 0, (int) $plan['items'] ) : 0,
-			'result'   => in_array( $result, array( 'ok', 'error', 'denied' ), true ) ? $result : 'error',
+			'result'   => in_array( $result, array( 'ok', 'partial', 'error', 'denied' ), true ) ? $result : 'error',
 			'code'     => substr( (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( $code ) ), 0, 80 ),
 			'status'   => max( 0, $status ),
 		);

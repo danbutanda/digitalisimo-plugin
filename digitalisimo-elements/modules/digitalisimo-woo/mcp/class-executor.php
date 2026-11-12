@@ -89,21 +89,43 @@ final class Executor {
 			}
 			return $error;
 		}
+		// Un lote responde 200 aunque fallen elementos: cada fallo viene dentro, con su `error`.
+		$batch = null;
+		if ( 'batch' === $plan['action'] ) {
+			list( $data, $batch ) = self::batch_summary( $data );
+			if ( $batch['failed'] > 0 && 0 === $batch['done'] ) {
+				$first = $batch['errors'][0];
+				Log::add( Log::entry( $plan, 'error', $first['code'], (int) $status, $user ) );
+				return new \WP_Error(
+					'' !== $first['code'] ? $first['code'] : 'digitalisimo_woo_mcp_batch_failed',
+					sprintf( 'WooCommerce no aplicó ningún elemento del lote (%d con error). El primero (%s, posición %d): %s', $batch['failed'], $first['list'], $first['index'], $first['message'] ),
+					array( 'status' => 400 )
+				);
+			}
+		}
 		if ( 'write' === $plan['kind'] ) {
-			Log::add( Log::entry( $plan, 'ok', '', (int) $status, $user ) );
+			$failed = $batch && $batch['failed'] > 0;
+			Log::add( Log::entry( $plan, $failed ? 'partial' : 'ok', $failed ? $batch['errors'][0]['code'] : '', (int) $status, $user ) );
 		}
 
 		if ( 'store-settings' === $tool ) {
 			$data = Secrets::mask( $data );
 		}
 		$result = array(
-			'ok'       => true,
+			'ok'       => ! ( $batch && $batch['failed'] > 0 ),
 			'tool'     => $tool,
 			'action'   => $plan['action'],
 			'resource' => $plan['resource'],
 			'status'   => (int) $status,
-			'data'     => self::pick_fields( $data, $plan['fields'], 'list' === $plan['action'] || 'reports' === $tool ),
+			'data'     => $batch ? self::pick_batch_fields( $data, $plan['fields'] ) : self::pick_fields( $data, $plan['fields'], 'list' === $plan['action'] || 'reports' === $tool ),
 		);
+		if ( $batch ) {
+			$result['batch'] = $batch;
+			if ( $batch['failed'] > 0 ) {
+				$result['partial'] = true;
+				$result['notice']  = sprintf( 'WooCommerce aplicó %d de %d elementos del lote; los errores están en batch.errors.', $batch['done'], $batch['done'] + $batch['failed'] );
+			}
+		}
 		if ( 'list' === $plan['action'] && isset( $plan['query']['page'], $plan['query']['per_page'] ) ) {
 			$result['page']     = (int) $plan['query']['page'];
 			$result['per_page'] = (int) $plan['query']['per_page'];
@@ -233,6 +255,66 @@ final class Executor {
 	private static function status_of( \WP_Error $error ): int {
 		$data = $error->get_error_data();
 		return is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 500;
+	}
+
+	/**
+	 * Recuento de un lote: elementos hechos y con error (create, update, delete), y cada error con su lista, su posición,
+	 * el ID que trae, el código y el mensaje. Del error se quitan los datos de WooCommerce (pueden repetir lo enviado).
+	 *
+	 * @return array{0:mixed,1:array{done:int,failed:int,errors:array}}
+	 */
+	public static function batch_summary( $data ): array {
+		$summary = array(
+			'done'   => 0,
+			'failed' => 0,
+			'errors' => array(),
+		);
+		if ( ! is_array( $data ) ) {
+			return array( $data, $summary );
+		}
+		foreach ( array( 'create', 'update', 'delete' ) as $list ) {
+			if ( ! isset( $data[ $list ] ) || ! is_array( $data[ $list ] ) ) {
+				continue;
+			}
+			foreach ( $data[ $list ] as $index => $item ) {
+				if ( is_array( $item ) && isset( $item['error'] ) ) {
+					$error                          = is_array( $item['error'] ) ? $item['error'] : array();
+					$code                           = isset( $error['code'] ) && is_string( $error['code'] ) ? $error['code'] : 'digitalisimo_woo_mcp_batch_item';
+					$message                        = isset( $error['message'] ) && is_string( $error['message'] ) ? $error['message'] : '';
+					$data[ $list ][ $index ]['error'] = array(
+						'code'    => $code,
+						'message' => $message,
+					);
+					++$summary['failed'];
+					$summary['errors'][] = array(
+						'list'    => $list,
+						'index'   => (int) $index,
+						'id'      => isset( $item['id'] ) && is_numeric( $item['id'] ) ? (int) $item['id'] : 0,
+						'code'    => $code,
+						'message' => $message,
+					);
+				} else {
+					++$summary['done'];
+				}
+			}
+		}
+		return array( $data, $summary );
+	}
+
+	/** Campos pedidos de cada elemento de cada lista de un lote (siempre con `id` y, si lo trae, su `error`). */
+	public static function pick_batch_fields( $data, array $fields ) {
+		if ( ! $fields || ! is_array( $data ) ) {
+			return $data;
+		}
+		$keep = array_flip( array_merge( array( 'id', 'error' ), $fields ) );
+		foreach ( array( 'create', 'update', 'delete' ) as $list ) {
+			if ( isset( $data[ $list ] ) && is_array( $data[ $list ] ) ) {
+				foreach ( $data[ $list ] as $i => $item ) {
+					$data[ $list ][ $i ] = is_array( $item ) ? array_intersect_key( $item, $keep ) : $item;
+				}
+			}
+		}
+		return $data;
 	}
 
 	/** Campos pedidos de un objeto o de cada objeto de una lista (siempre con `id`). */
