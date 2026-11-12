@@ -787,9 +787,14 @@ final class Digitalisimo_Backups_Pre_Update {
 		if ( empty( $state['auto'] ) && (int) $state['bypass_until'] <= time() ) return null;
 		$status = self::service_status();
 		if ( is_wp_error( $status ) ) return null;
-		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => 'error', 'text' => 'Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . $status['bypass_until'] . '.', 'detail' => (string) $status['bypass_reason'] );
+		// El detalle (plegado en la franja) dice lo mismo que el aviso del escritorio, notice(): el motivo y qué esperaban.
+		if ( $status['bypassed'] || '' !== $status['bypass_reason'] ) {
+			$detail = (string) $status['bypass_reason'];
+			if ( $status['bypassed'] ) $detail .= ( '' !== $detail ? '; ' : '' ) . 'esperaban: ' . implode( ', ', $status['bypassed'] ) . '.';
+			return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => 'error', 'text' => 'Las actualizaciones automáticas se hacen sin respaldo previo hasta ' . $status['bypass_until'] . '.', 'detail' => $detail );
+		}
 		if ( ! $status['retained'] ) return null;
-		return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => $status['postponed'] ? 'error' : 'warning', 'text' => $status['postponed'] ? 'Actualizaciones automáticas pospuestas: el respaldo previo falló.' : 'Actualizaciones automáticas en espera del respaldo previo.', 'detail' => implode( ', ', $status['retained'] ) . ( $status['postponed'] ? '. ' . $status['failure'] : '' ) );
+		return array( 'class' => 'digitalisimo-backups-pre-update-alert', 'level' => $status['postponed'] ? 'error' : 'warning', 'text' => $status['postponed'] ? 'Actualizaciones automáticas pospuestas: el respaldo previo falló.' : 'Actualizaciones automáticas en espera del respaldo previo.', 'detail' => implode( ', ', $status['retained'] ) . ( $status['postponed'] ? '. ' . $status['failure'] : '' ) . '. Se actualizarán igual, sin respaldo, a las ' . (int) ( self::MAX_HOLD / 3600 ) . ' h de la primera espera o tras ' . (int) self::MAX_FAILS . ' fallos seguidos.' );
 	}
 	public static function save() {
 		if ( ! Digitalisimo_Backups::can_manage_backups() ) wp_die( 'No autorizado.' );
