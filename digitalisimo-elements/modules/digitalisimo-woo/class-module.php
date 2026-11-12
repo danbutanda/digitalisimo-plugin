@@ -46,7 +46,12 @@ final class Module {
 		'Store\\Cart_Ajax',
 		// C7, fila O: páginas de la tienda con los widgets propios (estado del sistema y avisos del editor, como con PRO).
 		'Store\\Shop_Pages',
+		// Herramientas de la tienda en el servidor MCP (`mcp/`, docs/ELEMENTS_MCP_WOO.md).
+		'Mcp\\Module',
 	);
+
+	/** Ajuste «WooCommerce en el MCP» de la pantalla «Rendimiento»: con o sin WooCommerce (la red define el modo). */
+	const SETTINGS = 'Mcp\\Settings_Section';
 
 	/** @var bool */
 	private static $initialized = false;
@@ -92,6 +97,10 @@ final class Module {
 		self::register_autoloader();
 		if ( ! function_exists( 'add_action' ) ) {
 			return array();
+		}
+		// Sus guardados (admin-post.php) se enganchan siempre que exista el submódulo; no cuenta como arrancado.
+		if ( '' !== self::file_for( self::NAMESPACE_PREFIX . self::SETTINGS ) ) {
+			self::call( self::SETTINGS, 'init' );
 		}
 		if ( ! self::woocommerce_ok() ) {
 			if ( self::woocommerce_loaded() ) {
