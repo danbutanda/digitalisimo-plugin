@@ -82,8 +82,13 @@ MCP del sitio apagado, no hay herramientas de tienda.
   `api_refund: true` de primer nivel se pide a la pasarela que devuelva el dinero (un `api_refund` dentro de `data` se
   ignora).
 - **Secretos.** En pasarelas, métodos de envío y opciones de ajustes, todo campo de tipo `password` y todo campo cuyo ID
-  nombra una contraseña, un secreto, un token, una firma o una clave de API sale como `••••••••` con `"masked": true`;
-  nunca el valor ni parte de él. Escribirlo sí se permite; un valor vacío o la máscara conservan el guardado.
+  nombra una contraseña (`password`, `passwd`, `passphrase`, `…_pass`), un secreto, un token, una firma, una sal, un
+  HMAC, una credencial o una clave (`key`, `…_key`: `transaction_key`, `merchant_key`, `hash_key`, `webhook_key`…),
+  salvo las claves públicas evidentes (`publishable_key`, `public_key`, `site_key`), sale como `••••••••` con
+  `"masked": true`; nunca el valor ni parte de él. Es una heurística por nombre: un secreto guardado en un campo de texto
+  con un nombre que no lo delata (p. ej. `client_id`, que suele ser público) sale tal cual. Escribirlo sí se permite; un
+  valor vacío o la máscara conservan el guardado. Los `meta_data` de productos, pedidos y clientes no se enmascaran:
+  salen como los devuelve WooCommerce.
 - **Bitácora.** Cada escritura (también las rechazadas por el modo) queda en `digitalisimo_elements_woo_mcp_log`
   (opción del sitio sin carga automática, últimas 200): fecha UTC, ID del usuario, herramienta, acción, recurso, ID y
   padre de la ruta, elementos de un lote, resultado, código de error y estado HTTP. Sin nombres, correos, direcciones,

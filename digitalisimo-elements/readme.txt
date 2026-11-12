@@ -88,7 +88,7 @@ Con WooCommerce, el servidor MCP de DIGITALÍSIMO Elements (apagado por defecto)
 * Cada herramienta actúa con los permisos del usuario que se conecta (una contraseña de aplicación de un administrador o de un gerente de tienda) y con las reglas de WooCommerce: un editor o un suscriptor no puede hacer nada.
 * Sólo lectura por defecto. En la pantalla «Rendimiento», sección «WooCommerce en el MCP», se elige apagado, sólo lectura o lectura y escritura; en una red, la red define el valor que heredan los sitios que no lo cambian.
 * Borrar manda a la papelera salvo que se pida el borrado definitivo, y un reembolso se registra sin devolver dinero salvo que se pida expresamente.
-* Las claves de las pasarelas de pago nunca se muestran, y cada cambio queda en una bitácora sin datos personales.
+* Las contraseñas y claves de las pasarelas de pago, los métodos de envío y los ajustes de la tienda (campos de contraseña o con nombre de clave, token, secreto, firma o sal) se muestran enmascaradas; los metadatos de productos, pedidos y clientes se devuelven como los da WooCommerce. Cada cambio queda en una bitácora sin datos personales.
 
 == Formularios ==
 

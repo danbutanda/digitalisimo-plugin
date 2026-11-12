@@ -978,6 +978,28 @@ namespace {
 		}
 	);
 
+	// R5 · Heurística de secretos.
+	review_block(
+		'R5',
+		static function () {
+			$secret = array( 'transaction_key', 'merchant_key', 'salt', 'api_pass', 'hash_key', 'webhook_key', 'secret_key', 'license_key', 'private_key', 'hmac_key', 'api_password', 'app_secret', 'live_api_salt', 'sandbox_pass', 'key', 'encryption_key', 'merchant_hash_key', 'consumer_secret', 'oauth_token' );
+			$public = array( 'client_id', 'publishable_key', 'public_key', 'site_key', 'live_publishable_key', 'title', 'email', 'merchant_id', 'account_name', 'passive_mode', 'keyword', 'description' );
+			$fields = array();
+			foreach ( array_merge( $secret, $public ) as $id ) {
+				$fields[ $id ] = array( 'id' => $id, 'type' => 'text', 'value' => 'VALOR-' . $id );
+			}
+			$masked = Secrets::mask( array( 'settings' => $fields ) );
+			foreach ( $secret as $id ) {
+				review( 'R5', ! empty( $masked['settings'][ $id ]['masked'] ) && Secrets::MASK === $masked['settings'][ $id ]['value'], "Se enmascara $id." );
+			}
+			foreach ( $public as $id ) {
+				review( 'R5', empty( $masked['settings'][ $id ]['masked'] ) && 'VALOR-' . $id === $masked['settings'][ $id ]['value'], "No se enmascara $id (público)." );
+			}
+			list( $body, $kept ) = Secrets::strip_unchanged( array( 'settings' => array( 'transaction_key' => Secrets::MASK, 'title' => 'T' ) ), array(), 'map' );
+			review( 'R5', array( 'settings' => array( 'title' => 'T' ) ) === $body && 1 === $kept, 'La máscara de transaction_key no se envía.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
@@ -986,5 +1008,5 @@ namespace {
 		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
 	}
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R4 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R5 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

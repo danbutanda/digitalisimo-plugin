@@ -33,7 +33,7 @@ final class Settings {
 		'write' => 'Lectura y escritura',
 	);
 
-	const HELP = 'Con el MCP de DIGITALÍSIMO Elements activo, ofrece a los asistentes conectados siete herramientas para la tienda WooCommerce de este sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas) e informes. Cada una actúa con los permisos del usuario que se conecta. En «Sólo lectura» pueden consultar pero no cambiar nada; en «Lectura y escritura» cada cambio queda en una bitácora sin datos personales. Las claves de las pasarelas nunca se muestran.';
+	const HELP = 'Con el MCP de DIGITALÍSIMO Elements activo, ofrece a los asistentes conectados siete herramientas para la tienda WooCommerce de este sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas) e informes. Cada una actúa con los permisos del usuario que se conecta. En «Sólo lectura» pueden consultar pero no cambiar nada; en «Lectura y escritura» cada cambio queda en una bitácora sin datos personales. Las contraseñas y claves de pasarelas, envíos y ajustes salen enmascaradas (no los metadatos de productos, pedidos y clientes).';
 
 	/** Valores neutros. */
 	public static function defaults(): array {

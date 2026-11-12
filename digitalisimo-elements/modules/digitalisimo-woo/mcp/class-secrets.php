@@ -8,20 +8,41 @@ defined( 'ABSPATH' ) || exit;
  *
  * WooCommerce describe cada campo con `id`, `type` y `value`. Es secreto todo campo de tipo `password` y, por si una
  * extensión guarda una clave en un campo de texto (el `identity_token` de PayPal Standard, p. ej.), todo campo cuyo ID
- * nombra una contraseña, un secreto, un token, una firma o una clave de API. Al leer, su valor se cambia por `MASK` y
- * el campo lleva `"masked": true`; nunca sale el valor ni una parte de él. Al escribir, un valor nuevo se guarda, pero
- * uno vacío o la máscara (lo que el cliente recibió) se quitan del envío: el valor guardado se conserva.
+ * (`is_secret_name()`) nombra una contraseña (`password`, `passwd`, `passphrase`, `…_pass`), un secreto, un token, una
+ * firma, una sal, un HMAC, una credencial o una clave (`…_key`, `key`), salvo las claves públicas evidentes
+ * (`publishable_key`, `public_key`, `site_key`). Al leer, su valor se cambia por `MASK` y el campo lleva
+ * `"masked": true`; nunca sale el valor ni una parte de él. Al escribir, un valor nuevo se guarda, pero uno vacío o la
+ * máscara (lo que el cliente recibió) se quitan del envío: el valor guardado se conserva. Sólo se aplica a ajustes,
+ * pasarelas y métodos de envío: los `meta_data` de productos, pedidos y clientes salen como los da WooCommerce.
  */
 final class Secrets {
 	const MASK = '••••••••';
 
-	const NAME_PATTERN = '/(password|passwd|secret|token|signature|api[_-]?key|private[_-]?key|access[_-]?key|license[_-]?key|auth[_-]?key)/i';
+	/** Palabras de secreto en cualquier parte del ID (token y sal, como palabra: no `tokenization` ni `salted`). */
+	const NAME_PATTERN = '/(password|passwd|passphrase|secret|signature|hmac|credential|token($|[_-])|(^|[_-])salt($|[_-]))/i';
+
+	/** Una contraseña abreviada como palabra: `pass`, `api_pass`, `sandbox_pass_live` (no `passive_mode`). */
+	const PASS_PATTERN = '/(^|[_-])pass($|[_-])/i';
+
+	/** Una clave: `key` o `…_key` (`transaction_key`, `merchant_key`, `hash_key`, `webhook_key`, `api_key`…). */
+	const KEY_PATTERN = '/(^|[_-])key$|(api|private|access|license|auth|secret)[_-]?key/i';
+
+	/** Claves públicas por diseño, que no se enmascaran. */
+	const PUBLIC_PATTERN = '/(^|[_-])(publishable|public|site)[_-]?key$/i';
+
+	/** ¿Nombra este ID un secreto? */
+	public static function is_secret_name( string $id ): bool {
+		if ( '' === $id || 1 === preg_match( self::PUBLIC_PATTERN, $id ) ) {
+			return false;
+		}
+		return 1 === preg_match( self::NAME_PATTERN, $id ) || 1 === preg_match( self::PASS_PATTERN, $id ) || 1 === preg_match( self::KEY_PATTERN, $id );
+	}
 
 	/** ¿Es secreto este campo? `$key` es su clave en el mapa `settings` cuando no trae `id`. */
 	public static function is_secret_field( array $field, string $key = '' ): bool {
 		$type = isset( $field['type'] ) && is_string( $field['type'] ) ? $field['type'] : '';
 		$id   = isset( $field['id'] ) && is_string( $field['id'] ) ? $field['id'] : $key;
-		return 'password' === $type || ( '' !== $id && 1 === preg_match( self::NAME_PATTERN, $id ) );
+		return 'password' === $type || self::is_secret_name( $id );
 	}
 
 	/** Un campo de ajustes de WooCommerce: lleva `type` y `value`. */
@@ -101,7 +122,7 @@ final class Secrets {
 		if ( 'map' === $kind && isset( $body['settings'] ) && is_array( $body['settings'] ) ) {
 			foreach ( $body['settings'] as $key => $value ) {
 				$name = (string) $key;
-				if ( ( in_array( $name, $secret_ids, true ) || 1 === preg_match( self::NAME_PATTERN, $name ) ) && self::keeps_stored( $value ) ) {
+				if ( ( in_array( $name, $secret_ids, true ) || self::is_secret_name( $name ) ) && self::keeps_stored( $value ) ) {
 					unset( $body['settings'][ $key ] );
 					++$kept;
 				}
