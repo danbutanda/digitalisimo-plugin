@@ -245,7 +245,7 @@ final class Digitalisimo_Backups_Uploads {
 				$status = $view['validating'] ? 'comprobándose' : ( isset( $view['error'] ) ? $view['error']['message'] : ( $view['received'] >= $view['size'] ? 'completa, sin cerrar' : 'subiendo' ) );
 				echo '<tr><td>' . esc_html( $view['name'] ) . '</td><td>' . esc_html( Digitalisimo_Backups_Archive_Inspector::megabytes( $view['received'] ) . ' de ' . Digitalisimo_Backups_Archive_Inspector::megabytes( $view['size'] ) ) . '</td><td>' . ( $view['mine'] ? 'la tuya' : 'otra cuenta' ) . '</td><td>' . esc_html( $status ) . '</td><td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'¿Descartar esta subida y borrar lo recibido?\')">';
 				wp_nonce_field( self::ACTION_DISCARD );
-				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DISCARD ) . '"><input type="hidden" name="id" value="' . esc_attr( $view['id'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small">Descartar</button></form></td></tr>';
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_DISCARD ) . '"><input type="hidden" name="id" value="' . esc_attr( $view['id'] ) . '">' . Digitalisimo_Backups::return_field( 'tools', 'upload' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small">Descartar</button></form></td></tr>';
 			}
 			echo '</tbody></table>';
 		}

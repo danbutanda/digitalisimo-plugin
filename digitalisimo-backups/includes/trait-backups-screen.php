@@ -27,16 +27,21 @@ trait Digitalisimo_Backups_Screen {
 		if ( ! isset( self::screen_tabs()[ $tab ] ) ) $tab = 'backups';
 		return array( $tab, $open );
 	}
+	/** Secciones de cada pestaña a las que puede volver un formulario (la lista blanca de return_target()). */
+	private static function screen_sections() { return array( 'backups' => array(), 'settings' => array( 'schedule', 'notifications', 'pre-update', 'security' ), 'servers' => array( 'remote' ), 'tools' => array( 'migrate', 'import', 'upload', 'restore-file', 'automations', 'extract', 'jobs' ) ); }
 	/** Campo oculto con el que un formulario vuelve a su pestaña y sección tras guardar (ver redirect()). */
-	private static function return_field( $tab, $section = '' ) { return '<input type="hidden" name="digitalisimo_backups_return" value="' . esc_attr( $tab . ( '' !== $section ? ':' . $section : '' ) ) . '">'; }
-	/** Pestaña y sección a la que vuelve un formulario enviado (array vacío si no lo pide). */
+	public static function return_field( $tab, $section = '' ) { return '<input type="hidden" name="digitalisimo_backups_return" value="' . esc_attr( $tab . ( '' !== $section ? ':' . $section : '' ) ) . '">'; }
+	/** Pestaña y sección a la que vuelve un formulario enviado (array vacío si no lo pide); una sección desconocida se ignora. */
 	private static function return_target() {
 		$raw = isset( $_POST['digitalisimo_backups_return'] ) && is_string( $_POST['digitalisimo_backups_return'] ) ? (string) wp_unslash( $_POST['digitalisimo_backups_return'] ) : '';
 		if ( '' === $raw ) return array();
 		$parts = explode( ':', $raw, 2 );
 		$tab = sanitize_key( $parts[0] );
 		if ( ! isset( self::screen_tabs()[ $tab ] ) && ! isset( self::screen_aliases()[ $tab ] ) ) return array();
-		return array( $tab, sanitize_key( $parts[1] ?? '' ) );
+		$section = sanitize_key( $parts[1] ?? '' );
+		list( $real ) = self::screen_route( $tab, '' );
+		if ( '' !== $section && ! in_array( $section, self::screen_sections()[ $real ] ?? array(), true ) ) $section = '';
+		return array( $tab, $section );
 	}
 	/** La pantalla de Backups (sitio o red): sus avisos van en la franja, no repetidos por admin_notices. */
 	public static function is_backups_screen() { return in_array( sanitize_key( (string) ( $_GET['page'] ?? '' ) ), array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true ); }

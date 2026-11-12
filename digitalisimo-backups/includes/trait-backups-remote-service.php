@@ -304,7 +304,7 @@ trait Digitalisimo_Backups_Remote_Service {
 		if ( $ready ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( self::ACTION_SYNC );
-			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SYNC ) . '">' . $network . '<p><select name="destination"><option value="">Todos los destinos</option>';
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SYNC ) . '">' . $network . self::return_field( 'servers', 'remote' ) . '<p><select name="destination"><option value="">Todos los destinos</option>';
 			foreach ( $ready as $id ) echo '<option value="' . esc_attr( $id ) . '">' . esc_html( self::destination_label( $id ) ) . '</option>';
 			echo '</select> <button class="button">Sincronizar</button></p></form>';
 		}
@@ -316,7 +316,7 @@ trait Digitalisimo_Backups_Remote_Service {
 			if ( 'local' !== $row['state'] ) {
 				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 				wp_nonce_field( self::ACTION_REMOTE_FETCH );
-				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_REMOTE_FETCH ) . '"><input type="hidden" name="destination" value="' . esc_attr( $row['destination'] ) . '"><input type="hidden" name="name" value="' . esc_attr( $row['name'] ) . '">' . $network . '<button class="button button-small" title="Descarga el respaldo por fragmentos al almacén privado y lo comprueba antes de ofrecerlo para restaurar">Traer al almacén</button></form>';
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_REMOTE_FETCH ) . '"><input type="hidden" name="destination" value="' . esc_attr( $row['destination'] ) . '"><input type="hidden" name="name" value="' . esc_attr( $row['name'] ) . '">' . $network . self::return_field( 'servers', 'remote' ) . '<button class="button button-small" title="Descarga el respaldo por fragmentos al almacén privado y lo comprueba antes de ofrecerlo para restaurar">Traer al almacén</button></form>';
 			}
 			echo '</td></tr>';
 		}

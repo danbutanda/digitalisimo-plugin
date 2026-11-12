@@ -99,6 +99,45 @@ function ss_has_block( DOMElement $element ) {
 	return false;
 }
 function ss_count( $html, $needle ) { return substr_count( $html, $needle ); }
+/** Los formularios POST a admin-post.php dentro del elemento $id (o de toda la página), como DOMElement. */
+function ss_forms( $html, $id = '' ) {
+	$doc = new DOMDocument();
+	libxml_use_internal_errors( true );
+	$doc->loadHTML( '<?xml encoding="utf-8"?><div id="ss-root">' . $html . '</div>' );
+	libxml_clear_errors();
+	$root = $doc->getElementById( '' !== $id ? $id : 'ss-root' );
+	$out = array();
+	if ( $root ) foreach ( $root->getElementsByTagName( 'form' ) as $form ) if ( 'post' === strtolower( $form->getAttribute( 'method' ) ) && false !== strpos( $form->getAttribute( 'action' ), 'admin-post.php' ) ) $out[] = $form;
+	return $out;
+}
+/** Lo que envía un navegador con ese formulario (campos con nombre; casillas marcadas; la opción elegida), con $overrides. */
+function ss_submit( DOMElement $form, array $overrides = array() ) {
+	$pairs = array();
+	foreach ( array( 'input', 'select', 'textarea' ) as $tag ) foreach ( $form->getElementsByTagName( $tag ) as $field ) {
+		$name = $field->getAttribute( 'name' );
+		if ( '' === $name || $field->hasAttribute( 'disabled' ) ) continue;
+		if ( 'select' === $tag ) {
+			$value = null;
+			foreach ( $field->getElementsByTagName( 'option' ) as $option ) { if ( null === $value ) $value = $option->getAttribute( 'value' ); if ( $option->hasAttribute( 'selected' ) ) { $value = $option->getAttribute( 'value' ); break; } }
+			$pairs[] = array( $name, (string) $value );
+		} elseif ( 'textarea' === $tag ) $pairs[] = array( $name, $field->textContent );
+		elseif ( in_array( strtolower( $field->getAttribute( 'type' ) ), array( 'checkbox', 'radio' ), true ) ) { if ( $field->hasAttribute( 'checked' ) ) $pairs[] = array( $name, $field->hasAttribute( 'value' ) ? $field->getAttribute( 'value' ) : 'on' ); }
+		elseif ( ! in_array( strtolower( $field->getAttribute( 'type' ) ), array( 'submit', 'button', 'file' ), true ) ) $pairs[] = array( $name, $field->getAttribute( 'value' ) );
+	}
+	$query = implode( '&', array_map( function( $pair ) { return rawurlencode( $pair[0] ) . '=' . rawurlencode( $pair[1] ); }, $pairs ) );
+	parse_str( $query, $post );
+	return array_replace_recursive( $post, $overrides );
+}
+/** El valor de digitalisimo_backups_return de un formulario ('' si no lo lleva). */
+function ss_return_of( DOMElement $form ) {
+	foreach ( $form->getElementsByTagName( 'input' ) as $input ) if ( 'digitalisimo_backups_return' === $input->getAttribute( 'name' ) ) return $input->getAttribute( 'value' );
+	return '';
+}
+/** La pestaña y la sección de la URL a la que redirigió un handler. */
+function ss_landing( $url ) {
+	parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query );
+	return array( (string) ( $query['tab'] ?? '' ), (string) ( $query['open'] ?? '' ), (string) parse_url( $url, PHP_URL_FRAGMENT ) );
+}
 $B = 'Digitalisimo_Backups';
 $pages = array();
 try {
@@ -207,6 +246,77 @@ try {
 		foreach ( array( 'migrate', 'import', 'upload', 'restore-file', 'automations', 'jobs' ) as $id ) {
 			$seen = ss_visible( ss_render( 'tools', false, array( 'open' => $id ) ) );
 			ss_check( $seen['longest'][0] <= 140, '«' . $id . '» abierta enseña un texto de ' . $seen['longest'][0] . ' caracteres: ' . $seen['longest'][1] );
+		}
+	} );
+
+	// Revisión de 1.0.74 (H2): cada acción de «Herramientas», de «Respaldos guardados en los destinos» y de la conexión
+	// principal vuelve a su pestaña y sección, no a «Respaldos». Con un archivo suelto, un conjunto de UpdraftPlus,
+	// respaldos de Backuply (carpeta y almacén), una subida sin terminar, un trabajo en cola y el índice de un destino.
+	ss_case( 'T9 · las acciones de Herramientas y de los destinos vuelven a su sección', function() use ( $B, $first ) {
+		$store = bk_storage();
+		$loose = 'digitalisimo-suelto-2026.zip';
+		copy( $store . '/' . $first, $store . '/' . $loose );
+		@mkdir( WP_CONTENT_DIR . '/updraft', 0700, true );
+		file_put_contents( WP_CONTENT_DIR . '/updraft/backup_2026-11-01-1000_Sitio_abcdef123456-db.gz', 'x' );
+		@mkdir( WP_CONTENT_DIR . '/backuply/backups-abc', 0700, true );
+		file_put_contents( WP_CONTENT_DIR . '/backuply/backups-abc/backup_sitio_2026.tar.gz', 'x' );
+		$backuply_store = Digitalisimo_Backups_Backuply_Import::store_directory( true );
+		file_put_contents( $backuply_store . '/backup_almacen_2026.tar.gz', 'x' );
+		$upload = $B::service_upload_start( array( 'name' => 'digitalisimo-subida.zip', 'size' => 1024 ) );
+		$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'local', 'retention' => 'none', 'via' => 'test' ) ) );
+		$index = get_option( $B::REMOTE_INDEX );
+		update_option( $B::REMOTE_INDEX, array( 'sftp' => array( 'destination' => 'sftp', 'name' => 'SFTP', 'synced_at' => time(), 'error' => '', 'items' => array( array( 'name' => 'digitalisimo-otro-sitio-2026.zip', 'destination' => 'sftp', 'size' => 1234, 'date' => '2026-11-01 10:00', 'origin' => 'other' ) ) ) ) );
+		try {
+			// Cuántos formularios POST tiene cada sección con estos datos (al menos), y que cada uno pide volver a ella.
+			$want = array( 'tools:import' => 3, 'tools:upload' => 1, 'tools:restore-file' => 2, 'tools:automations' => 4, 'tools:jobs' => 1, 'servers:remote' => 2, 'tools:extract' => 1 );
+			$forms = array();
+			foreach ( $want as $target => $min ) {
+				list( $tab, $id ) = explode( ':', $target );
+				if ( 'extract' === $id ) $GLOBALS['bk_multisite'] = true;
+				try { $html = ss_render( $tab, 'extract' === $id, array( 'open' => $id ) ); } finally { $GLOBALS['bk_multisite'] = false; }
+				$found = ss_forms( $html, 'digitalisimo-backups-section-' . $id );
+				ss_check( count( $found ) >= $min, '«' . $target . '» tiene ' . count( $found ) . ' formularios (se esperaban al menos ' . $min . ').' );
+				foreach ( $found as $form ) ss_check( $target === ss_return_of( $form ), 'Un formulario de «' . $target . '» (' . ss_submit( $form )['action'] . ') no vuelve a su sección: «' . ss_return_of( $form ) . '».' );
+				$forms[ $target ] = $found;
+				// La vuelta que pide cada formulario es válida: redirect() la sigue (pestaña, sección y ancla).
+				list( , , $url ) = bk_post( function() use ( $B ) { $B::redirect( true, 'x' ); }, ss_submit( $found[0] ) );
+				ss_check( array( $tab, $id, 'digitalisimo-backups-section-' . $id ) === ss_landing( $url ), '«' . $target . '» no vuelve a su sección: ' . $url );
+			}
+			$pick = function( $target, $action ) use ( &$forms ) {
+				foreach ( $forms[ $target ] as $form ) if ( $action === ss_submit( $form )['action'] ) return $form;
+				throw new RuntimeException( 'No hay formulario «' . $action . '» en «' . $target . '».' );
+			};
+			// Con los handlers de siempre: una hora inválida en una automatización (error), borrar el archivo suelto,
+			// cancelar el trabajo y descartar la subida.
+			$update = $pick( 'tools:automations', $B::ACTION_UPDATE_AUTOMATION );
+			list( $ok, $message, $url ) = bk_post( array( $B, 'update_automation' ), ss_submit( $update, array( 'digitalisimo_backup_automation' => array( 'time' => '25:00' ) ) ) );
+			ss_check( ! $ok && false !== strpos( $message, 'HH:MM' ) && array( 'tools', 'automations', 'digitalisimo-backups-section-automations' ) === ss_landing( $url ), 'La hora 25:00 no vuelve a Herramientas → Automatizaciones con su error: ' . $url );
+			list( $ok, , $url ) = bk_post( array( $B, 'delete_loose' ), ss_submit( $pick( 'tools:restore-file', $B::ACTION_DELETE_LOOSE ) ) );
+			ss_check( $ok && ! file_exists( $store . '/' . $loose ) && array( 'tools', 'restore-file', 'digitalisimo-backups-section-restore-file' ) === ss_landing( $url ), 'Borrar un archivo suelto no vuelve a «Restaurar un archivo suelto»: ' . $url );
+			list( $ok, , $url ) = bk_post( array( 'Digitalisimo_Backups_Jobs', 'admin_cancel' ), ss_submit( $pick( 'tools:jobs', Digitalisimo_Backups_Jobs::ACTION_CANCEL ) ) );
+			ss_check( $ok && array( 'tools', 'jobs', 'digitalisimo-backups-section-jobs' ) === ss_landing( $url ), 'Cancelar un trabajo no vuelve a «Trabajos y registros»: ' . $url );
+			list( $ok, , $url ) = bk_post( array( 'Digitalisimo_Backups_Uploads', 'discard' ), ss_submit( $pick( 'tools:upload', Digitalisimo_Backups_Uploads::ACTION_DISCARD ) ) );
+			ss_check( $ok && array( 'tools', 'upload', 'digitalisimo-backups-section-upload' ) === ss_landing( $url ), 'Descartar una subida no vuelve a «Subir un respaldo»: ' . $url );
+			// La conexión principal: guardar vuelve a «Destinos» (antes, a «Respaldos»), sin perder lo guardado.
+			$principal = ss_forms( ss_render( 'servers', false, array( 'edit' => 'sftp' ) ), 'digitalisimo-backups-principal' );
+			ss_check( 1 === count( $principal ) && 'servers' === ss_return_of( $principal[0] ), 'El formulario de la conexión principal no vuelve a «Destinos».' );
+			$before = bk_call( $B, 'settings' );
+			list( $ok, , $url ) = bk_post( array( $B, 'save' ), ss_submit( $principal[0] ) );
+			$after = bk_call( $B, 'settings' );
+			ss_check( $ok && 'servers' === ss_landing( $url )[0] && $before['sftp_host'] === $after['sftp_host'] && $before['sftp_password'] === $after['sftp_password'], 'Guardar la conexión principal no vuelve a «Destinos» o cambió lo guardado: ' . $url );
+			// Una sección desconocida o de otra pestaña se ignora (la pestaña, sí).
+			foreach ( array( 'tools:nada' => array( 'tools', '' ), 'servers:migrate' => array( 'servers', '' ), 'settings:schedule' => array( 'settings', 'schedule' ) ) as $raw => $landing ) {
+				list( , , $url ) = bk_post( function() use ( $B ) { $B::redirect( true, 'x' ); }, array( 'digitalisimo_backups_return' => $raw ) );
+				ss_check( $landing === array_slice( ss_landing( $url ), 0, 2 ), 'La vuelta «' . $raw . '» no lleva a ' . json_encode( $landing ) . ': ' . $url );
+			}
+		} finally {
+			@unlink( $store . '/' . $loose );
+			bk_remove_tree( WP_CONTENT_DIR . '/updraft' );
+			bk_remove_tree( WP_CONTENT_DIR . '/backuply' );
+			bk_remove_tree( $backuply_store );
+			try { $B::service_upload_cancel( $upload['id'] ?? '' ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			try { Digitalisimo_Backups_Jobs::cancel( (string) $queued['job']['id'] ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			update_option( $B::REMOTE_INDEX, $index );
 		}
 	} );
 

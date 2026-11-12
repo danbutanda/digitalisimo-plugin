@@ -302,7 +302,7 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		if ( '' !== $principal ) {
 			echo '<section class="digitalisimo-backups-card digitalisimo-backups-destinations" id="digitalisimo-backups-principal"><h2>Conexión principal</h2><p class="description">Los secretos guardados no se muestran: deja el campo vacío para conservarlos.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="digitalisimo-backups-connection-form">';
 			wp_nonce_field( self::ACTION_SAVE );
-			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination">';
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_SAVE ) . '">' . self::return_field( 'servers' ) . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<table class="form-table"><tr><th><label for="destination">Destino predeterminado</label></th><td><select name="digitalisimo_backups[destination]" id="destination">';
 			foreach ( self::destination_choices() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( $s['destination'], $value, false ) . '>' . esc_html( 'local' === $value ? 'Hosting / almacenamiento local' : $label ) . '</option>';
 			echo '</select></td></tr></table>';
 			self::connection_fields( $s, $locked, $principal );
@@ -500,7 +500,8 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		try { $encrypted = self::store_settings( $out ); if ( $forget ) Digitalisimo_Backups_Credentials::remove( array_keys( $forget ) ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); }
 		$forgotten = array_map( array( __CLASS__, 'destination_label' ), array_values( array_unique( $forget ) ) );
 		$unprotected = ! $encrypted && array_filter( array_intersect_key( $out, array_flip( self::secret_fields() ) ), function( $value ) { return is_string( $value ) && '' !== $value; } );
-		self::sync_schedules( $out ); wp_safe_redirect( add_query_arg( array( 'backup' => 'ok', 'message' => rawurlencode( 'Destino y automatizaciones guardados.' . ( $forgotten ? ' Se olvidaron las credenciales de ' . implode( ' y ', $forgotten ) . '.' : '' ) . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) ) ), self::admin_url() ) ); exit;
+		// Vuelve a «Destinos» (el formulario lo pide con digitalisimo_backups_return), como los demás de esa pestaña.
+		self::sync_schedules( $out ); self::redirect( true, 'Destino y automatizaciones guardados.' . ( $forgotten ? ' Se olvidaron las credenciales de ' . implode( ' y ', $forgotten ) . '.' : '' ) . ( $unprotected ? ' Aviso: las credenciales se guardaron sin cifrar porque wp-config.php no define AUTH_KEY y SECURE_AUTH_KEY propias; defínelas para cifrarlas.' : '' ) );
 	}
 	/** Guarda una conexión adicional: valores no secretos en su fila; secretos sólo cifrados en el almacén. */
 	private static function store_connection( $id, $type, $name, array $values ) {

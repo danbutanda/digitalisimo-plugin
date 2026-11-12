@@ -160,11 +160,11 @@ trait Digitalisimo_Backups_Backuply_Service {
 			if ( '' !== $item['imported'] ) echo '<small>Importado como ' . esc_html( $item['imported'] ) . '</small> ';
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
 			wp_nonce_field( self::ACTION_BACKUPLY_IMPORT );
-			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '"><input type="hidden" name="backuply_source" value="' . esc_attr( $item['source'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small"' . ( false === $item['database'] || false === $item['files'] ? ' disabled title="Backups sólo restaura respaldos completos"' : '' ) . '>' . ( '' !== $item['imported'] ? 'Importar de nuevo' : 'Importar' ) . '</button></form>';
+			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_IMPORT ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '"><input type="hidden" name="backuply_source" value="' . esc_attr( $item['source'] ) . '">' . self::return_field( 'tools', 'import' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small"' . ( false === $item['database'] || false === $item['files'] ? ' disabled title="Backups sólo restaura respaldos completos"' : '' ) . '>' . ( '' !== $item['imported'] ? 'Importar de nuevo' : 'Importar' ) . '</button></form>';
 			if ( 'store' === $item['source'] ) {
 				echo ' <form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline" onsubmit="return confirm(\'¿Borrar este respaldo de Backuply del almacén privado?\')">';
 				wp_nonce_field( self::ACTION_BACKUPLY_DELETE );
-				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_DELETE ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '">' . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small button-link-delete">Eliminar</button></form>';
+				echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_BACKUPLY_DELETE ) . '"><input type="hidden" name="backuply_file" value="' . esc_attr( $item['name'] ) . '">' . self::return_field( 'tools', 'import' ) . ( $network ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small button-link-delete">Eliminar</button></form>';
 			}
 			echo '</td></tr>';
 		}
