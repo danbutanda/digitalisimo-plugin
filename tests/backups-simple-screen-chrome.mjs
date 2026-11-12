@@ -4,7 +4,9 @@
 //   - «Respaldos» cabe en 1 000 px con la barra de WordPress, ≤ 150 palabras visibles, ningún texto de más de 140
 //     caracteres, y Restaurar, Descargar y Borrar de cada fila se ven dentro de la tabla (también en el teléfono);
 //   - «Restaurar» abre su panel bajo la fila con el foco en la confirmación y «Cancelar» lo cierra;
-//   - «Ajustes», «Destinos», «Herramientas» y el subsitio cumplen sus límites de palabras y de texto.
+//   - «Ajustes», «Destinos», «Herramientas» y el subsitio cumplen sus límites de palabras y de texto;
+//   - con la configuración de un respaldo pendiente (H26), lo que se pierde al aplicarla se ve y el único campo a la
+//     vista es el de APLICAR, sin salirse de la pantalla.
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH, PUPPETEER_PATH (carpeta node_modules) y PHP_BIN
 // cambian las rutas.
 // Uso: timeout 300 node tests/backups-simple-screen-chrome.mjs
@@ -83,6 +85,22 @@ try {
       }
       await page.close();
     }
+  }
+  // H26: con la configuración de un respaldo pendiente, lo que se pierde al aplicarla se ve (nunca plegado), cabe en 140
+  // caracteres y el único campo a la vista es el de APLICAR, dentro de la pantalla también en el teléfono.
+  for (const width of [1280, 390]) {
+    const page = await open('respaldos-aviso', width);
+    const m = await page.evaluate(measure);
+    const seen = await page.evaluate(() => {
+      const shown = (el) => !!el && (typeof el.checkVisibility !== 'function' || el.checkVisibility({ visibilityProperty: true })) && el.getBoundingClientRect().width > 0;
+      const warning = document.querySelector('.digitalisimo-backups-strip-warning');
+      const field = document.querySelector('input[name="digitalisimo_backups_config_confirmation"]');
+      const button = field && field.form ? field.form.querySelector('button') : null;
+      return { warning: shown(warning) ? warning.innerText.trim() : '', field: shown(field), inside: !!button && button.getBoundingClientRect().right <= window.innerWidth && field.getBoundingClientRect().right <= window.innerWidth };
+    });
+    ok(m.overflow <= 0 && m.longestLength <= 140, `respaldos-aviso a ${width} px se sale ${m.overflow} px o tiene un texto de ${m.longestLength} caracteres: ${m.longest}`);
+    ok(seen.warning.startsWith('Aplicarla reemplaza la de este sitio') && seen.field && seen.inside && m.fields === 1, `respaldos-aviso a ${width} px: lo que se pierde o el campo APLICAR no se ven: ${JSON.stringify(seen)} (${m.fields} campos)`);
+    await page.close();
   }
   // «Restaurar» abre su panel bajo la fila, con el foco en la confirmación; «Cancelar» lo cierra.
   const page = await open('respaldos', 1280);

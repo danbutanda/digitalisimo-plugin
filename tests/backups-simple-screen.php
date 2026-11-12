@@ -14,7 +14,9 @@
  *   T5  «Herramientas»: todo plegado; «Extraer un sitio» sólo en la red; ?open= abre su sección;
  *   T6  una sola franja de avisos (y el aviso de escritorio no se repite en la pantalla);
  *   T7  subsitio: una línea y el enlace a la red, sin formularios;
- *   T8  ningún secreto ni ruta del almacén en el HTML, y los textos de antes que nombraban otra pantalla ya no están.
+ *   T8  ningún secreto ni ruta del almacén en el HTML, y los textos de antes que nombraban otra pantalla ya no están;
+ *   T14 (H26 del ensayo E5) con la configuración de un respaldo pendiente, la franja dice a la vista lo que se pierde al
+ *       aplicarla (≤ 140 caracteres) y «Aplicar la del respaldo» sólo aplica con APLICAR escrito (lo comprueba el handler).
  * Con --fixture <carpeta> deja las pantallas en HTML para tests/backups-simple-screen-chrome.mjs.
  * Uso: php tests/backups-simple-screen.php [--fixture <carpeta>]
  */
@@ -431,6 +433,37 @@ try {
 		ss_check( '' === $mine && false !== strpos( $other, 'digitalisimo-backups-restore-notice' ), 'El aviso del escritorio se repite en la pantalla de Backups o desaparece de las demás.' );
 		Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array() );
 		bk_call( $B, 'restore_notice_save', array() );
+	} );
+
+	// H26 (ensayo E5): con la configuración de un respaldo pendiente, la franja dice a la vista lo que se pierde al aplicarla
+	// y «Aplicar la del respaldo» pide escribir APLICAR, comprobado por el handler (nada de confirm() de JavaScript).
+	ss_case( 'T14 · aviso pendiente: lo que se pierde, a la vista, y APLICAR para aplicar la del respaldo', function() use ( $B, &$pages ) {
+		$D = 'Digitalisimo_Backups_Destinations';
+		$saved = array( get_option( $D::CONNECTIONS, null ), get_option( $B::POLICIES, null ) );
+		try {
+			update_option( $D::CONNECTIONS, array( 'sftp-abcdef12' => array( 'type' => 'sftp', 'name' => 'SFTP de este sitio', 'settings' => array( 'sftp_host' => 'sftp.aqui.test', 'sftp_user' => 'ana' ) ) ), false );
+			update_option( $B::POLICIES, array_merge( $B::default_policies(), array( array( 'id' => 'automation-aqui', 'label' => '', 'type' => 'full', 'schedule' => 'weekly', 'time' => '04:45', 'retain' => 3, 'destination' => 'local', 'enabled' => true ) ) ), false );
+			$origin = array( 'format' => 1, 'site' => array( $B::POLICIES => array( 'value' => array_merge( $B::default_policies(), array( array( 'id' => 'automation-origen', 'label' => '', 'type' => 'full', 'schedule' => 'daily', 'retain' => 2, 'destination' => 'local', 'enabled' => true ) ) ) ), $D::CONNECTIONS => array( 'absent' => true ) ), 'network' => null );
+			Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array( 'at' => time(), 'pending' => bk_call( $B, 'restore_pending_seal', $origin ), 'automations' => 2, 'connections' => 0, 'no_active' => false, 'paused' => 0 ) );
+			$html = ss_render( 'backups' );
+			$pages['respaldos-aviso'] = $html;
+			$loses = 'Aplicarla reemplaza la de este sitio: se pierden 1 conexión («SFTP de este sitio») y 1 automatización («Semanal 04:45»).';
+			$seen = ss_visible( $html );
+			ss_check( false !== strpos( $seen['text'], $loses ), 'La franja no dice a la vista lo que se pierde al aplicar la del respaldo: ' . substr( $seen['text'], 0, 600 ) );
+			ss_check( $seen['longest'][0] <= 140 && 1 === $seen['fields'], 'Con el aviso pendiente se ven ' . $seen['fields'] . ' campos (sólo la confirmación) o un texto de ' . $seen['longest'][0] . ' caracteres: ' . $seen['longest'][1] );
+			ss_check( 1 === ss_count( $html, 'digitalisimo-backups-strip"' ) && preg_match( '#<div class="notice notice-warning digitalisimo-backups-strip".*?</ul></div>#s', $html, $strip ) && false === strpos( $strip[0], 'confirm(' ), 'Más de una franja, o «Aplicar» con confirm() de JavaScript.' );
+			$apply = null;
+			foreach ( ss_forms( $html ) as $form ) if ( 'apply' === ( ss_submit( $form )['do'] ?? '' ) ) $apply = $form;
+			ss_check( $apply && 1 === preg_match( '#<input type="text" name="digitalisimo_backups_config_confirmation"[^>]*required#', $apply->ownerDocument->saveHTML( $apply ) ), '«Aplicar la del respaldo» no tiene el campo para escribir APLICAR.' );
+			// Enviado tal cual (sin la palabra), el handler no cambia nada; con APLICAR, aplica (la misma acción y el mismo nonce).
+			list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), ss_submit( $apply ) );
+			ss_check( ! $ok && false !== strpos( $message, 'Escribe APLICAR' ) && array( 'sftp-abcdef12' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), '«Aplicar la del respaldo» se aplicó sin escribir APLICAR: ' . $message );
+			list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), ss_submit( $apply, array( 'digitalisimo_backups_config_confirmation' => 'APLICAR' ) ) );
+			ss_check( $ok && false !== strpos( $message, 'con 2 automatizaciones en pausa' ) && ! get_option( $D::CONNECTIONS, array() ), 'Con APLICAR no se aplicó la configuración del respaldo: ' . $message );
+		} finally {
+			bk_call( $B, 'restore_notice_save', array() );
+			foreach ( array( $D::CONNECTIONS => $saved[0], $B::POLICIES => $saved[1] ) as $name => $value ) { if ( null === $value ) delete_option( $name ); else update_option( $name, $value, false ); }
+		}
 	} );
 
 	ss_case( 'T8 · sin secretos ni rutas del almacén; textos que nombran la pantalla de antes', function() use ( $secret, $storage, $pages ) {

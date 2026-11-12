@@ -69,6 +69,8 @@
 .digitalisimo-backups .digitalisimo-backups-strip li { margin: 6px 0; padding: 0; border: 0; background: none; }
 .digitalisimo-backups-strip li.is-error .digitalisimo-backups-strip-text { color: var(--digi-pink-dark); font-weight: 600; }
 .digitalisimo-backups-strip form { display: inline-block; margin: 0 4px 0 0; }
+.digitalisimo-backups .digitalisimo-backups-strip .digitalisimo-backups-strip-warning { margin: 4px 0; padding: 0; font-weight: 600; }
+.digitalisimo-backups-strip form input[type="text"] { max-width: 9em; margin-right: 4px; }
 .digitalisimo-backups .digitalisimo-backups-section { margin: 12px 0; }
 .digitalisimo-backups .digitalisimo-backups-section > summary { font-size: 15px; padding: 2px 0; }
 .digitalisimo-backups-section > summary .description { margin-left: 6px; font-size: 13px; }

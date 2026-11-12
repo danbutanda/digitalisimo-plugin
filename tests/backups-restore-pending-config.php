@@ -14,9 +14,18 @@
  *   I1 lo pendiente va cifrado entero: ni nombres de conexiones ni automatizaciones del origen en claro en la base;
  *   D2 «Aplicar» un respaldo sin la opción de automatizaciones (el origen usaba las de serie) no activa la de serie;
  *   D3 una muerte entre anotar lo pendiente y retirar el diario no lo pierde (la operación siguiente vuelve a aplicar el
- *      diario y ya no lo recalcula); y lo pendiente alterado (o con otras claves) no se aplica (409).
+ *      diario y ya no lo recalcula); y lo pendiente alterado (o con otras claves) no se aplica (409);
+ * y H26 del ensayo E5 (el caso real: el sitio tiene su conexión con nombre, su automatización y «Completo mensual»; el
+ * respaldo trae la automatización del origen y «Completo mensual»):
+ *   (a) el aviso concuerda en número («1 automatización … que no se aplicó»; «actívala» con una en pausa);
+ *   (b) el aviso cuenta las automatizaciones como las cuenta «Aplicar» después: las 2 del respaldo, que quedan en pausa;
+ *   (c) antes de aplicar se dice lo que se pierde (su conexión y su automatización, con nombre si cabe en 140
+ *       caracteres) y la pantalla sólo aplica con APLICAR escrito (lo comprueba el handler, misma acción y nonce);
+ *       WP-CLI `apply` sigue sin pedirlo.
  */
 $GLOBALS['rk_cron'] = array();
+// Reprogramar una automatización activa de este sitio tras restaurar (H26, caso del ensayo E5) usa MINUTE_IN_SECONDS.
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) define( 'MINUTE_IN_SECONDS', 60 );
 function _get_cron_array() { return $GLOBALS['rk_cron']; }
 function wp_schedule_event( $timestamp, $recurrence, $hook, $args = array() ) { $GLOBALS['rk_cron'][ (int) $timestamp ][ $hook ][ md5( serialize( $args ) ) ] = array( 'schedule' => $recurrence, 'args' => $args ); return true; }
 function wp_unschedule_event( $timestamp, $hook, $args = array() ) { unset( $GLOBALS['rk_cron'][ (int) $timestamp ][ $hook ][ md5( serialize( $args ) ) ] ); return true; }
@@ -88,7 +97,7 @@ try {
 	rk_check( $response instanceof WP_REST_Response && true === $response->data['pending'], 'GET /restore-config no informa lo pendiente.' );
 
 	// 2. «Aplicar la del respaldo» (pantalla): la del respaldo, con su automatización EN PAUSA y su contraseña descifrable.
-	list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), array( '_wpnonce' => 'nonce-digitalisimo_backups_restore_config', 'do' => 'apply' ) );
+	list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), array( '_wpnonce' => 'nonce-digitalisimo_backups_restore_config', 'do' => 'apply', 'digitalisimo_backups_config_confirmation' => 'APLICAR' ) );
 	rk_check( $ok && false !== strpos( $message, 'en pausa' ), '«Aplicar la del respaldo» no respondió: ' . $message );
 	$policies = (array) get_option( $B::POLICIES, array() );
 	rk_check( array( 'sftp-aaaaaaaa' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ) && 'origen-diario' === ( $policies[0]['id'] ?? '' ) && false === $policies[0]['enabled'], 'No se aplicó la configuración del respaldo con la automatización en pausa: ' . json_encode( $policies ) );
@@ -107,7 +116,9 @@ try {
 	rk_check( true === $B::service_restore_config()['pending'], 'La segunda restauración no dejó pendiente la configuración del respaldo.' );
 	WP_CLI::$out = array();
 	$cli->status( array(), array() );
-	rk_check( false !== strpos( implode( "\n", WP_CLI::$out ), 'no se aplicaron' ), 'wp … restore-config status no muestra el aviso.' );
+	// Sólo la automatización del respaldo es distinta de la de aquí (la conexión ya es la misma): el número concuerda (H26).
+	rk_check( false !== strpos( implode( "\n", WP_CLI::$out ), 'el respaldo restaurado traía 1 automatización' ), 'wp … restore-config status no muestra el aviso: ' . implode( "\n", WP_CLI::$out ) );
+	rk_soft( false !== strpos( implode( "\n", WP_CLI::$out ), 'el respaldo restaurado traía 1 automatización del sitio de origen que no se aplicó.' ), 'H26 (a): wp … restore-config status no concuerda en número: ' . implode( "\n", WP_CLI::$out ) );
 	$response = Digitalisimo_Backups_Rest::restore_config_discard( array( 'network' => false ) );
 	rk_check( $response instanceof WP_REST_Response && ! empty( $response->data['discarded'] ) && false === $B::service_restore_config()['pending'] && false === ( (array) get_option( $B::POLICIES, array() ) )[0]['enabled'], 'POST /restore-config/discard no descartó lo pendiente o cambió la configuración de aquí.' );
 	$response = Digitalisimo_Backups_Rest::restore_config_apply( array( 'network' => false ) );
@@ -166,8 +177,73 @@ try {
 		$result = $B::service_restore_config_apply();
 		rk_check( is_wp_error( $result ) && 409 === ( $result->get_error_data()['status'] ?? 0 ) && array( 'sftp-bbbbbbbb' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'Lo pendiente alterado se aplicó o no respondió 409.' );
 	}
+	// 7. H26 (ensayo E5). (a) El número concuerda, también con una sola en pausa.
+	$one = bk_call( $B, 'restore_notice_text', array( 'automations' => 1, 'connections' => 0, 'pending' => array( 'v' => 1 ), 'no_active' => false, 'paused' => 0 ) );
+	rk_soft( false !== strpos( $one, 'el respaldo restaurado traía 1 automatización del sitio de origen que no se aplicó.' ), 'H26 (a): el aviso no concuerda en número: ' . $one );
+	$one = bk_call( $B, 'restore_notice_text', array( 'paused' => 1 ) );
+	rk_soft( false !== strpos( $one, 'con 1 automatización en pausa: actívala en ' ) && false !== strpos( $one, 'que no respalda a la misma carpeta' ), 'H26 (a): el aviso de una en pausa no concuerda en número: ' . $one );
+	// El caso real: el origen tiene su automatización diaria y «Completo mensual», sin conexiones con nombre.
+	$B::service_restore_config_discard();
+	$GLOBALS['rk_cron'] = array();
+	delete_option( $C::OPTION );
+	delete_option( $C::OPTION_MORE );
+	delete_option( $D::CONNECTIONS );
+	update_option( $B::POLICIES, array_merge( $B::default_policies(), array( array( 'id' => 'automation-origen-e5', 'label' => '', 'type' => 'full', 'schedule' => 'daily', 'retain' => 2, 'destination' => 'local', 'enabled' => true ) ) ), false );
+	$origin_e5 = bk_backup( false );
+	// Este sitio: su conexión con nombre, su automatización semanal y «Completo mensual» (igual que la del origen).
+	$GLOBALS['rk_cron'] = array();
+	$own_e5 = function() use ( $B, $D, $connection ) {
+		update_option( $D::CONNECTIONS, array( 'sftp-dddddddd' => $connection( 'SFTP E5 (destino)', 'sftp.destino.test' ) ), false );
+		update_option( $B::POLICIES, array_merge( $B::default_policies(), array( array( 'id' => 'automation-propia-e5', 'label' => '', 'type' => 'full', 'schedule' => 'weekly', 'time' => '04:45', 'retain' => 3, 'destination' => 'local', 'enabled' => true ) ) ), false );
+	};
+	$own_e5();
+	$restore( $origin_e5 );
+	$status = $B::service_restore_config();
+	rk_check( true === $status['pending'] && array( 'sftp-dddddddd' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ), 'E5: la restauración no conservó la configuración de aquí o no dejó pendiente la del respaldo: ' . json_encode( $status ) );
+	// (b) Cuenta las 2 automatizaciones del respaldo, las mismas que «Aplicar» deja en pausa.
+	rk_soft( 2 === $status['automations'] && false !== strpos( $status['message'], 'el respaldo restaurado traía 2 automatizaciones del sitio de origen que no se aplicaron.' ), 'H26 (b): el aviso no cuenta las automatizaciones que «Aplicar» dejará en pausa: ' . json_encode( array( $status['automations'], $status['message'] ) ) );
+	// (c) Lo que se pierde, antes de aplicar: en el estado (REST y WP-CLI), en el escritorio y en la franja de Backups.
+	$loses = 'Aplicarla reemplaza la de este sitio: se pierden 1 conexión («SFTP E5 (destino)») y 1 automatización («Semanal 04:45»).';
+	rk_soft( false !== strpos( $status['message'], $loses ), 'H26 (c): el estado no dice lo que se pierde al aplicarla: ' . $status['message'] );
+	WP_CLI::$out = array();
+	$cli->status( array(), array() );
+	rk_soft( false !== strpos( implode( "\n", WP_CLI::$out ), $loses ), 'H26 (c): wp … restore-config status no dice lo que se pierde: ' . implode( "\n", WP_CLI::$out ) );
+	$html = $notice_html();
+	rk_soft( false !== strpos( $html, esc_html( $loses ) ) && 1 === preg_match( '#<input type="text" name="digitalisimo_backups_config_confirmation"[^>]*required#', $html ) && false === strpos( $html, 'confirm(' ), 'H26 (c): el aviso del escritorio no dice lo que se pierde o no pide APLICAR: ' . $html );
+	$strip = bk_call( $B, 'restore_config_strip_item' );
+	rk_soft( $loses === ( $strip['warning'] ?? '' ) && mb_strlen( $loses, 'UTF-8' ) <= 140 && false === strpos( (string) $strip['detail'], $loses ) && 1 === preg_match( '#value="apply">.*name="digitalisimo_backups_config_confirmation"#s', (string) $strip['actions'] ) && false === strpos( (string) $strip['actions'], 'confirm(' ), 'H26 (c): la franja no dice a la vista lo que se pierde o no pide APLICAR: ' . json_encode( $strip ) );
+	// (c) Sin APLICAR (o con otra palabra) no cambia nada, con la misma acción y el mismo nonce.
+	foreach ( array( null, 'SI', 'APLICA' ) as $word ) {
+		$post = array( '_wpnonce' => 'nonce-digitalisimo_backups_restore_config', 'action' => 'digitalisimo_backups_restore_config', 'do' => 'apply' );
+		if ( null !== $word ) $post['digitalisimo_backups_config_confirmation'] = $word;
+		list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), $post );
+		$policies = array_column( (array) get_option( $B::POLICIES, array() ), 'id' );
+		rk_soft( ! $ok && false !== strpos( $message, 'Escribe APLICAR' ) && array( 'sftp-dddddddd' ) === array_keys( (array) get_option( $D::CONNECTIONS, array() ) ) && in_array( 'automation-propia-e5', $policies, true ) && true === $B::service_restore_config()['pending'], 'H26 (c): «Aplicar la del respaldo» se aplicó sin escribir APLICAR (' . json_encode( $word ) . '): ' . $message );
+		if ( $ok ) break;
+	}
+	// Con la palabra se aplica; el mensaje y el aviso cuentan las mismas 2 que el aviso de antes.
+	list( $ok, $message ) = bk_post( array( $B, 'restore_config_request' ), array( '_wpnonce' => 'nonce-digitalisimo_backups_restore_config', 'action' => 'digitalisimo_backups_restore_config', 'do' => 'apply', 'digitalisimo_backups_config_confirmation' => ' aplicar ' ) );
+	$after = $B::service_restore_config();
+	$paused = array_values( array_filter( (array) get_option( $B::POLICIES, array() ), function( $policy ) { return empty( $policy['enabled'] ); } ) );
+	rk_soft( $ok && false !== strpos( $message, 'con 2 automatizaciones en pausa: actívalas' ) && 2 === $after['paused'] && false !== strpos( $after['message'], 'con 2 automatizaciones en pausa' ) && array( 'monthly-full', 'automation-origen-e5' ) === array_column( $paused, 'id' ), 'H26 (b): tras aplicar no se cuentan las mismas 2 automatizaciones del aviso: ' . json_encode( array( $ok, $message, $after['paused'], array_column( $paused, 'id' ) ) ) );
+	// WP-CLI `apply` sigue como estaba: aplica sin pedir la palabra.
+	$restore( $origin_e5 );
+	$status = $B::service_restore_config();
+	rk_soft( 2 === $status['automations'] && false !== strpos( $status['message'], 'Aplicarla reemplaza los ajustes y el destino principal de este sitio.' ), 'H26 (c): sin conexiones ni automatizaciones propias que se pierdan, el aviso no lo dice así: ' . $status['message'] );
+	WP_CLI::$out = array();
+	$cli->apply( array(), array() );
+	rk_check( false !== strpos( implode( "\n", WP_CLI::$out ), 'Success: Se aplicó la configuración de Backups del respaldo restaurado' ) && false === $B::service_restore_config()['pending'], 'wp … restore-config apply dejó de aplicar sin confirmación: ' . implode( "\n", WP_CLI::$out ) );
+	// (c) Con nombres que no caben en 140 caracteres, la advertencia los cuenta sin nombrarlos.
+	if ( ! method_exists( $B, 'restore_config_replaces' ) ) {
+		rk_soft( false, 'H26 (c): no hay advertencia de lo que se pierde al aplicar.' );
+	} else {
+		update_option( $D::CONNECTIONS, array( 'sftp-eeeeeeee' => $connection( str_repeat( 'Conexión de nombre larguísimo ', 3 ), 'sftp.largo.test' ) ), false );
+		update_option( $B::POLICIES, array( array( 'id' => 'automation-larga', 'label' => str_repeat( 'Automatización de nombre largo ', 2 ), 'type' => 'full', 'schedule' => 'daily', 'retain' => 2, 'destination' => 'local', 'enabled' => true ) ), false );
+		$long = bk_call( $B, 'restore_config_replaces', array( 'format' => 1, 'site' => array(), 'network' => null ) );
+		rk_soft( 'Aplicarla reemplaza la de este sitio: se pierden 1 conexión y 1 automatización.' === $long, 'H26 (c): con nombres largos la advertencia no se acorta a 140 caracteres: ' . $long );
+	}
 	rk_check( ! $GLOBALS['rk_fails'], count( $GLOBALS['rk_fails'] ) . ' hallazgo(s) de la revisión siguen: ' . implode( ' | ', $GLOBALS['rk_fails'] ) );
-	echo "OK: configuración del respaldo pendiente y aviso tras restaurar (H23)\n";
+	echo "OK: configuración del respaldo pendiente y aviso tras restaurar (H23), con el número, el conteo y la confirmación de H26\n";
 } finally {
 	bk_cleanup();
 }

@@ -183,22 +183,27 @@ trait Digitalisimo_Backups_Screen {
 		echo '<div class="notice notice-' . esc_attr( $worst ) . ' digitalisimo-backups-strip" role="status"><ul>';
 		foreach ( $items as $item ) {
 			echo '<li class="' . esc_attr( $item['class'] ) . ' is-' . esc_attr( $item['level'] ) . '"' . ( isset( $item['state'] ) ? ' data-state="' . esc_attr( $item['state'] ) . '"' : '' ) . '><span class="digitalisimo-backups-strip-text">' . esc_html( $item['text'] ) . '</span>';
+			// Una advertencia (lo que una acción reemplaza) va siempre a la vista, antes de sus botones; nunca plegada.
+			if ( '' !== (string) ( $item['warning'] ?? '' ) ) echo '<p class="digitalisimo-backups-warning digitalisimo-backups-strip-warning">' . esc_html( $item['warning'] ) . '</p>';
 			if ( '' !== (string) ( $item['actions'] ?? '' ) ) echo ' <span class="digitalisimo-backups-strip-actions">' . $item['actions'] . '</span>'; // Marcado propio, ya escapado.
 			if ( '' !== trim( (string) ( $item['detail'] ?? '' ) ) && trim( (string) $item['detail'] ) !== $item['text'] ) echo '<details class="digitalisimo-backups-help"><summary>Detalle</summary><p>' . esc_html( (string) $item['detail'] ) . '</p></details>';
 			echo '</li>';
 		}
 		echo '</ul></div>';
 	}
-	/** La línea de la franja del aviso tras restaurar (H23), con «Aplicar la del respaldo» y «Descartar». */
+	/**
+	 * La línea de la franja del aviso tras restaurar (H23), con «Aplicar la del respaldo» y «Descartar». Con lo pendiente,
+	 * lo que se pierde al aplicarla va a la vista y aplicarla pide escribir APLICAR (H26).
+	 */
 	private static function restore_config_strip_item() {
-		$notice = self::restore_notice();
+		$notice = self::restore_notice_view();
 		$text = self::restore_notice_text( $notice );
 		if ( '' === $text ) return null;
 		$form = function( $do, $label, $primary ) {
 			ob_start();
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( 'digitalisimo_backups_restore_config' );
-			echo '<input type="hidden" name="action" value="digitalisimo_backups_restore_config"><input type="hidden" name="do" value="' . esc_attr( $do ) . '">' . ( is_multisite() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form>';
+			echo '<input type="hidden" name="action" value="digitalisimo_backups_restore_config"><input type="hidden" name="do" value="' . esc_attr( $do ) . '">' . ( is_multisite() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . ( 'apply' === $do ? self::restore_config_confirm_field() : '' ) . '<button class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form>';
 			return (string) ob_get_clean();
 		};
 		if ( ! empty( $notice['pending'] ) ) $short = 'El respaldo restaurado traía su configuración de Backups: no se aplicó.';
@@ -206,7 +211,7 @@ trait Digitalisimo_Backups_Screen {
 		elseif ( ! empty( $notice['automations'] ) || ! empty( $notice['connections'] ) ) $short = 'Este sitio conservó su configuración de Backups al restaurar.';
 		else $short = 'Ninguna automatización activa: el sitio no se respalda solo.';
 		$actions = ( ! empty( $notice['pending'] ) ? $form( 'apply', 'Aplicar la del respaldo', true ) : '' ) . ( ! empty( $notice['no_active'] ) || ! empty( $notice['paused'] ) ? '<a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Programar</a> ' : '' ) . $form( 'discard', 'Descartar', false );
-		return array( 'class' => 'digitalisimo-backups-restore-notice', 'level' => 'warning', 'text' => $short, 'detail' => $text, 'actions' => $actions );
+		return array( 'class' => 'digitalisimo-backups-restore-notice', 'level' => 'warning', 'text' => $short, 'warning' => ! empty( $notice['pending'] ) ? $notice['replaces'] : '', 'detail' => $text, 'actions' => $actions );
 	}
 
 	/* ------------------------------------------------------------------ Respaldos */

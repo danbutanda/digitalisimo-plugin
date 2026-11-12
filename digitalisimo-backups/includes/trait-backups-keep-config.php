@@ -147,6 +147,60 @@ trait Digitalisimo_Backups_Keep_Config {
 		return array_values( array_filter( (array) $policies, function( $policy ) { return is_array( $policy ) && ! empty( $policy['enabled'] ) && 'full' === ( $policy['type'] ?? 'full' ) && 'disabled' !== (string) ( $policy['schedule'] ?? 'disabled' ); } ) );
 	}
 	/**
+	 * Las automatizaciones que «Aplicar la del respaldo» escribe de una foto de configuración, de los dos ámbitos: las de
+	 * serie si el respaldo no traía la opción (revisión D2). El aviso antes de aplicar y el de después cuentan con esta
+	 * misma lista las que quedan en pausa (H26 del ensayo E5: antes uno contaba sólo las distintas de las de aquí y el
+	 * otro, todas).
+	 */
+	private static function restore_config_policies( array $config ) {
+		$out = array();
+		foreach ( array( 'site', 'network' ) as $scope ) {
+			$value = $config[ $scope ][ self::POLICIES ]['value'] ?? null;
+			if ( 'site' === $scope && ! is_array( $value ) ) $value = self::default_policies();
+			if ( is_array( $value ) ) foreach ( $value as $policy ) if ( is_array( $policy ) ) $out[] = $policy;
+		}
+		return $out;
+	}
+	/**
+	 * Lo de este sitio que «Aplicar la del respaldo» reemplaza (H26), en una frase de 140 caracteres como mucho: sus
+	 * conexiones con nombre y sus automatizaciones que la configuración del respaldo no trae, con su nombre si cabe.
+	 */
+	private static function restore_config_replaces( array $pending ) {
+		$theirs = array();
+		foreach ( array( 'site', 'network' ) as $scope ) {
+			$value = $pending[ $scope ][ Digitalisimo_Backups_Destinations::CONNECTIONS ]['value'] ?? null;
+			if ( is_array( $value ) ) $theirs += $value;
+		}
+		$lost = array( 'conexión' => array(), 'automatización' => array() );
+		foreach ( Digitalisimo_Backups_Destinations::connections() as $id => $connection ) if ( ! isset( $theirs[ $id ] ) ) $lost['conexión'][] = (string) $connection['name'];
+		$ids = array();
+		foreach ( self::restore_config_policies( $pending ) as $policy ) $ids[ (string) ( $policy['id'] ?? '' ) ] = true;
+		foreach ( self::policies() as $policy ) if ( is_array( $policy ) && ! isset( $ids[ (string) ( $policy['id'] ?? '' ) ] ) ) $lost['automatización'][] = self::restore_automation_name( $policy );
+		$plural = array( 'conexión' => 'conexiones', 'automatización' => 'automatizaciones' );
+		$counted = array();
+		$named = array();
+		$total = 0;
+		foreach ( $lost as $word => $names ) {
+			$n = count( $names );
+			if ( ! $n ) continue;
+			$total += $n;
+			$counted[] = $n . ' ' . ( 1 === $n ? $word : $plural[ $word ] );
+			$named[] = end( $counted ) . ' (' . implode( ', ', array_map( function( $name ) { return '«' . $name . '»'; }, $names ) ) . ')';
+		}
+		if ( ! $total ) return 'Aplicarla reemplaza los ajustes y el destino principal de este sitio.';
+		$start = 'Aplicarla reemplaza la de este sitio: se ' . ( 1 === $total ? 'pierde ' : 'pierden ' );
+		$long = $start . implode( ' y ', $named ) . '.';
+		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $long, 'UTF-8' ) : strlen( $long );
+		return $length <= 140 ? $long : $start . implode( ' y ', $counted ) . '.';
+	}
+	/** Nombre corto de una automatización: su nombre, o la frecuencia y la hora fija («Semanal 04:45»). */
+	private static function restore_automation_name( array $policy ) {
+		$label = trim( (string) ( $policy['label'] ?? '' ) );
+		if ( '' !== $label ) return $label;
+		$time = self::fixed_time( $policy );
+		return ( self::schedule_options()[ (string) ( $policy['schedule'] ?? '' ) ] ?? 'Automatización' ) . ( '' !== $time ? ' ' . $time : '' );
+	}
+	/**
 	 * Lo pendiente, cifrado entero con la clave de este servidor (de AUTH_KEY y SECURE_AUTH_KEY, como las credenciales):
 	 * ni el correo de los avisos ni los hosts, usuarios y rutas del origen quedan en claro en la base (revisión I1). null
 	 * si este servidor no puede cifrar.
@@ -200,7 +254,9 @@ trait Digitalisimo_Backups_Keep_Config {
 		foreach ( self::active_policies( self::keep_config_value( $incoming, self::POLICIES ) ) as $policy ) if ( ( $local[ (string) ( $policy['id'] ?? '' ) ] ?? null ) != $policy ) $automations++;
 		$connections = count( array_diff_key( (array) self::keep_config_value( $incoming, Digitalisimo_Backups_Destinations::CONNECTIONS ), (array) self::keep_config_value( $kept, Digitalisimo_Backups_Destinations::CONNECTIONS ) ) );
 		$notice = array( 'at' => time(), 'journal' => (string) $mark, 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => false, 'paused' => 0 );
-		if ( $automations || $connections ) $notice = array_merge( $notice, array( 'pending' => self::restore_pending_seal( $incoming ), 'automations' => $automations, 'connections' => $connections ) );
+		// Hay aviso si el respaldo trae algo distinto de lo de aquí; el aviso cuenta sus automatizaciones como las contará
+		// «Aplicar la del respaldo»: todas las activas de su configuración, que quedarían en pausa (H26).
+		if ( $automations || $connections ) $notice = array_merge( $notice, array( 'pending' => self::restore_pending_seal( $incoming ), 'automations' => count( self::active_policies( self::restore_config_policies( $incoming ) ) ), 'connections' => $connections ) );
 		self::restore_notice_save( $notice );
 	}
 	/**
@@ -222,19 +278,38 @@ trait Digitalisimo_Backups_Keep_Config {
 			$what = array();
 			if ( $n ) $what[] = $n . ' ' . ( 1 === $n ? 'automatización' : 'automatizaciones' );
 			if ( $m ) $what[] = $m . ' ' . ( 1 === $m ? 'conexión' : 'conexiones' );
-			$lines[] = 'Este sitio conservó su configuración de Backups; el respaldo restaurado traía ' . implode( ' y ', $what ) . ' del sitio de origen que no se aplicaron.';
+			// El verbo concuerda con lo que se cuenta: «1 automatización … que no se aplicó» (H26).
+			$lines[] = 'Este sitio conservó su configuración de Backups; el respaldo restaurado traía ' . implode( ' y ', $what ) . ' del sitio de origen que no se ' . ( 1 === $n + $m ? 'aplicó' : 'aplicaron' ) . '.';
 			if ( empty( $notice['pending'] ) ) $lines[] = 'No se guardó para aplicarla después: este servidor no tiene AUTH_KEY y SECURE_AUTH_KEY propias en wp-config.php con las que cifrarla.';
+			elseif ( $n ) $lines[] = 1 === $n ? 'Si la aplicas, esa automatización queda en pausa hasta que la actives.' : 'Si la aplicas, esas ' . $n . ' automatizaciones quedan en pausa hasta que las actives.';
 		}
-		if ( ! empty( $notice['paused'] ) ) $lines[] = 'Se aplicó la configuración del respaldo con ' . (int) $notice['paused'] . ' ' . ( 1 === (int) $notice['paused'] ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Backups → Herramientas → Automatizaciones cuando confirmes que no respaldan a la misma carpeta que el sitio de origen.';
+		$p = (int) ( $notice['paused'] ?? 0 );
+		if ( $p ) $lines[] = 'Se aplicó la configuración del respaldo con ' . $p . ' ' . ( 1 === $p ? 'automatización en pausa: actívala en Backups → Herramientas → Automatizaciones cuando confirmes que no respalda' : 'automatizaciones en pausa: actívalas en Backups → Herramientas → Automatizaciones cuando confirmes que no respaldan' ) . ' a la misma carpeta que el sitio de origen.';
 		if ( ! empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) $lines[] = 'Tras la restauración, este sitio no tiene ninguna automatización de respaldo activa.';
 		return implode( ' ', $lines );
 	}
-	/** Estado del aviso (REST y WP-CLI). */
+	/**
+	 * El aviso tal como se enseña (H26). Con lo pendiente abierto, sus automatizaciones se cuentan como las contará
+	 * «Aplicar la del respaldo» (también en un aviso que anotó 1.0.73 o 1.0.74, que sólo contaba las distintas de las de
+	 * aquí) y `replaces` dice lo de este sitio que se pierde al aplicarla. Sin poder abrirlo, lo anotado.
+	 */
+	private static function restore_notice_view() {
+		$notice = self::restore_notice() + array( 'automations' => 0, 'connections' => 0, 'paused' => 0 );
+		$notice['replaces'] = '';
+		$pending = empty( $notice['pending'] ) ? null : self::restore_pending_open( $notice['pending'] );
+		if ( null === $pending ) return $notice;
+		$notice['automations'] = count( self::active_policies( self::restore_config_policies( $pending ) ) );
+		$notice['replaces'] = self::restore_config_replaces( $pending );
+		return $notice;
+	}
+	/** Estado del aviso (REST y WP-CLI); el mensaje dice también lo de este sitio que «Aplicar» reemplaza. */
 	public static function service_restore_config() {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
-		$notice = self::restore_notice();
-		return array( 'pending' => ! empty( $notice['pending'] ), 'automations' => (int) ( $notice['automations'] ?? 0 ), 'connections' => (int) ( $notice['connections'] ?? 0 ), 'no_active' => ! empty( $notice['no_active'] ), 'paused' => (int) ( $notice['paused'] ?? 0 ), 'message' => self::restore_notice_text( $notice ) );
+		$notice = self::restore_notice_view();
+		$message = self::restore_notice_text( $notice );
+		if ( '' !== $message && '' !== $notice['replaces'] ) $message .= ' ' . $notice['replaces'];
+		return array( 'pending' => ! empty( $notice['pending'] ), 'automations' => (int) $notice['automations'], 'connections' => (int) $notice['connections'], 'no_active' => ! empty( $notice['no_active'] ), 'paused' => (int) $notice['paused'], 'message' => $message );
 	}
 	/**
 	 * «Aplicar la del respaldo»: la configuración que trajo el respaldo pasa a ser la de este sitio (ajustes y destino
@@ -251,19 +326,16 @@ trait Digitalisimo_Backups_Keep_Config {
 		$pending = self::restore_pending_open( $notice['pending'] );
 		if ( null === $pending ) return self::service_error( 'pending_locked', 'La configuración pendiente del respaldo no abre con las claves de este servidor (cambiaron AUTH_KEY o SECURE_AUTH_KEY en wp-config.php): descártala.', 409 );
 		if ( ! is_array( $pending['site'][ self::POLICIES ]['value'] ?? null ) ) $pending['site'][ self::POLICIES ] = array( 'value' => self::default_policies() );
-		$paused = 0;
+		// Las mismas que contó el aviso antes de aplicar (H26).
+		$paused = count( self::active_policies( self::restore_config_policies( $pending ) ) );
 		foreach ( array( 'site', 'network' ) as $scope ) {
 			if ( ! is_array( $pending[ $scope ][ self::POLICIES ]['value'] ?? null ) ) continue;
-			foreach ( $pending[ $scope ][ self::POLICIES ]['value'] as &$policy ) {
-				if ( ! is_array( $policy ) ) continue;
-				if ( self::active_policies( array( $policy ) ) ) $paused++;
-				$policy['enabled'] = false;
-			}
+			foreach ( $pending[ $scope ][ self::POLICIES ]['value'] as &$policy ) if ( is_array( $policy ) ) $policy['enabled'] = false;
 			unset( $policy );
 		}
 		self::keep_config_write( $pending );
 		self::restore_notice_save( array( 'at' => time(), 'pending' => null, 'automations' => 0, 'connections' => 0, 'no_active' => ! self::active_policies( self::policies() ), 'paused' => $paused ) );
-		return array( 'applied' => true, 'paused' => $paused, 'message' => 'Se aplicó la configuración de Backups del respaldo restaurado (ajustes y destino manual, conexiones, avisos por correo y automatizaciones)' . ( $paused ? ', con ' . $paused . ' ' . ( 1 === $paused ? 'automatización en pausa' : 'automatizaciones en pausa' ) . ': actívalas en Automatizaciones' : '' ) . '.' );
+		return array( 'applied' => true, 'paused' => $paused, 'message' => 'Se aplicó la configuración de Backups del respaldo restaurado (ajustes y destino manual, conexiones, avisos por correo y automatizaciones)' . ( $paused ? ', con ' . $paused . ' ' . ( 1 === $paused ? 'automatización en pausa: actívala' : 'automatizaciones en pausa: actívalas' ) . ' en Automatizaciones' : '' ) . '.' );
 	}
 	/** «Descartar»: se olvida la configuración del respaldo y el aviso (la de este sitio sigue como está). */
 	public static function service_restore_config_discard( array $args = array() ) {
@@ -272,9 +344,16 @@ trait Digitalisimo_Backups_Keep_Config {
 		self::restore_notice_save( array() );
 		return array( 'discarded' => true, 'message' => 'Se descartó la configuración del respaldo restaurado; la de este sitio sigue como estaba.' );
 	}
+	/**
+	 * «Aplicar la del respaldo» se confirma escribiendo APLICAR (H26), como RESTAURAR o QUITAR: lo comprueba el handler,
+	 * no el navegador. El campo va en el formulario de la acción, en el escritorio y en la franja de Backups.
+	 */
+	private static function restore_config_confirm_field() {
+		return '<input type="text" name="digitalisimo_backups_config_confirmation" placeholder="APLICAR" size="10" autocomplete="off" required aria-label="Escribe APLICAR para confirmar"> ';
+	}
 	/** Aviso con sus acciones (escritorio y tarjeta de Backups). */
 	private static function restore_notice_html() {
-		$notice = self::restore_notice();
+		$notice = self::restore_notice_view();
 		$text = self::restore_notice_text( $notice );
 		if ( '' === $text ) return '';
 		$form = function( $do, $label, $primary ) {
@@ -282,10 +361,13 @@ trait Digitalisimo_Backups_Keep_Config {
 			ob_start();
 			wp_nonce_field( 'digitalisimo_backups_restore_config' );
 			$out .= (string) ob_get_clean();
-			return $out . '<input type="hidden" name="action" value="digitalisimo_backups_restore_config"><input type="hidden" name="do" value="' . esc_attr( $do ) . '">' . ( is_multisite() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form> ';
+			return $out . '<input type="hidden" name="action" value="digitalisimo_backups_restore_config"><input type="hidden" name="do" value="' . esc_attr( $do ) . '">' . ( is_multisite() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . ( 'apply' === $do ? self::restore_config_confirm_field() : '' ) . '<button class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form> ';
 		};
-		$actions = ( ! empty( $notice['pending'] ) ? $form( 'apply', 'Aplicar la del respaldo', true ) : '' ) . $form( 'discard', 'Descartar', false );
-		return '<div class="notice notice-warning digitalisimo-backups-restore-notice"><p><strong>Backups:</strong> ' . esc_html( $text ) . '</p><p>' . $actions . '</p></div>';
+		$pending = ! empty( $notice['pending'] );
+		$actions = ( $pending ? $form( 'apply', 'Aplicar la del respaldo', true ) : '' ) . $form( 'discard', 'Descartar', false );
+		// Lo que se pierde al aplicarla, a la vista antes del botón.
+		$warning = $pending && '' !== $notice['replaces'] ? '<p class="digitalisimo-backups-warning"><strong>' . esc_html( $notice['replaces'] ) . '</strong></p>' : '';
+		return '<div class="notice notice-warning digitalisimo-backups-restore-notice"><p><strong>Backups:</strong> ' . esc_html( $text ) . '</p>' . $warning . '<p>' . $actions . '</p></div>';
 	}
 	/** admin_notices y network_admin_notices: sólo a quien gestiona los respaldos, en el sitio principal o la red. */
 	public static function restore_config_admin_notice() {
@@ -294,12 +376,18 @@ trait Digitalisimo_Backups_Keep_Config {
 		if ( is_multisite() && ! ( function_exists( 'is_network_admin' ) && is_network_admin() ) && ! is_main_site() ) return;
 		try { echo self::restore_notice_html(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	}
-	/** admin-post de las dos acciones del aviso. */
+	/**
+	 * admin-post de las dos acciones del aviso (la misma acción y el mismo nonce). «Aplicar la del respaldo» reemplaza
+	 * las conexiones con nombre y las automatizaciones de este sitio: sin APLICAR escrito no cambia nada (H26). REST y
+	 * WP-CLI no lo piden: su orden ya es explícita y siguen como estaban.
+	 */
 	public static function restore_config_request() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
 		check_admin_referer( 'digitalisimo_backups_restore_config' );
 		$args = array( 'network' => is_multisite() );
-		$result = 'apply' === ( $_POST['do'] ?? '' ) ? self::service_restore_config_apply( $args ) : self::service_restore_config_discard( $args );
+		$apply = 'apply' === ( $_POST['do'] ?? '' );
+		if ( $apply && 'APLICAR' !== strtoupper( trim( (string) wp_unslash( $_POST['digitalisimo_backups_config_confirmation'] ?? '' ) ) ) ) self::redirect( false, 'Escribe APLICAR para confirmar: la configuración del respaldo reemplaza la de este sitio. No se cambió nada.' );
+		$result = $apply ? self::service_restore_config_apply( $args ) : self::service_restore_config_discard( $args );
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		self::redirect( true, $result['message'] );
 	}
