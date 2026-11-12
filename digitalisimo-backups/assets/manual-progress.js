@@ -20,6 +20,9 @@
   var failures = 0;
   var sessionFailures = 0;
   var migrating = false;
+  /* Trabajos en curso (salvo el que sigue el panel del botón) vistos durante esta visita: la tarjeta de «Respaldos». */
+  var seen = {};
+  var reloading = false;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
@@ -42,6 +45,27 @@
         }
         return result.data;
       }); });
+  }
+
+  /* Recarga sin los parámetros de un aviso o de un panel de restaurar viejos (?backup=…&message=…, ?restore=…): la
+     página recargada no debe repetir el resultado de otra acción ni reabrir un panel que ya no corresponde. */
+  function reloadPage() {
+    if (reloading) return;
+    reloading = true;
+    var location = window.location;
+    if (!location) return;
+    var clean = '';
+    try {
+      var url = new URL(location.href);
+      var changed = false;
+      ['backup', 'message', 'restore'].forEach(function (name) { if (url.searchParams.has(name)) { url.searchParams.delete(name); changed = true; } });
+      if (changed) {
+        if (/^#digitalisimo-backups-restore-/.test(url.hash)) url.hash = '';
+        clean = url.toString();
+      }
+    } catch (error) { clean = ''; }
+    if (clean && typeof location.replace === 'function') location.replace(clean);
+    else if (typeof location.reload === 'function') location.reload();
   }
 
   function element(tag, text, attributes) {
@@ -96,7 +120,7 @@
     /* La lista de respaldos se pinta en PHP: al terminar bien, la página se vuelve a cargar con el respaldo nuevo. */
     if (job.status === 'success') {
       detail.textContent = job.detail + '. Actualizando la lista…';
-      if (window.location && typeof window.location.reload === 'function') window.location.reload();
+      reloadPage();
     }
     else if (job.status === 'failed') detail.textContent = job.detail + ' No se registró ningún respaldo parcial; puedes corregir el error y volver a intentarlo.';
   }
@@ -114,8 +138,19 @@
     showWatched(jobs);
     var active = jobs.filter(function (job) { return !job.terminal; });
     if (card) card.setAttribute('data-active', active.length ? '1' : '0');
-    /* En «Respaldos» la tarjeta sólo se ve con trabajos en curso que no sean el que ya sigue el panel del botón. */
-    if (card && card.getAttribute('data-hide-idle') === '1') card.hidden = !active.filter(function (job) { return job.id !== watching; }).length;
+    /* En «Respaldos» la tarjeta sólo se ve con trabajos en curso que no sean el que ya sigue el panel del botón. Uno que
+       estuvo en curso durante la visita y terminó deja la tarjeta con su estado final (un fallo no se pierde); si todos
+       los de la visita terminaron bien, la página se recarga con la lista al día. Sin ninguno, sigue oculta. */
+    if (card && card.getAttribute('data-hide-idle') === '1') {
+      var others = active.filter(function (job) { return job.id !== watching; });
+      others.forEach(function (job) { seen[job.id] = true; });
+      var visited = Object.keys(seen);
+      card.hidden = !others.length && !visited.length;
+      if (!others.length && visited.length) {
+        var finished = jobs.filter(function (job) { return seen[job.id] && job.terminal; });
+        if (finished.length === visited.length && finished.every(function (job) { return job.status === 'success'; })) reloadPage();
+      }
+    }
     return active;
   }
   function schedule(delay) {

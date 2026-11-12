@@ -63,6 +63,102 @@ async function runTimer() {
 }
 const texts = (root) => root.textContent;
 
+// Revisión de 1.0.74 (H3 y H8), cada caso en una pantalla «Respaldos» nueva: la tarjeta «Trabajos» se oculta sólo si en la
+// visita no hubo trabajos (salvo el del botón); uno que termina mal se queda a la vista con su error y uno que termina
+// bien recarga la lista. La recarga quita ?backup=, ?message= y ?restore= (y el ancla de su panel).
+function screen({ active, href }) {
+  const nodes = {};
+  for (const id of ['digitalisimo-backups-manual-form', 'digitalisimo-backups-jobs', 'digitalisimo-backups-jobs-list', 'digitalisimo-backups-manual-progress', 'digitalisimo-backups-manual-bar', 'digitalisimo-backups-manual-message', 'digitalisimo-backups-manual-detail']) nodes[id] = node('div');
+  const select = node('select');
+  select.value = 'local';
+  nodes['digitalisimo-backups-manual-form'].selectors = { '[name="digitalisimo_backup_destination"]': select, 'button[type="submit"], button:not([type])': node('button') };
+  const jobsCard = nodes['digitalisimo-backups-jobs'];
+  jobsCard.setAttribute('data-active', active ? '1' : '0');
+  jobsCard.setAttribute('data-hide-idle', '1');
+  jobsCard.hidden = !active;
+  const own = { replies: [], timers: [], reloads: [], replaced: [] };
+  const location = { reload: () => own.reloads.push(true), replace: (url) => own.replaced.push(url) };
+  if (href) location.href = href;
+  const sandbox = {
+    window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs', context: 'site' }, confirm: () => true, alert: () => {}, location },
+    document: { getElementById: (id) => nodes[id] || null, createElement: node, createTextNode: (text) => ({ textContent: String(text), children: [] }) },
+    URL, URLSearchParams, Object, String, Number, Math, Error, JSON,
+    setTimeout: (callback, delay) => { own.timers.push({ callback, delay }); return own.timers.length; },
+    clearTimeout: () => {},
+    fetch: () => {
+      const reply = own.replies.shift();
+      assert.ok(reply !== undefined, 'Petición inesperada');
+      return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(reply)) });
+    },
+  };
+  sandbox.window.document = sandbox.document;
+  runInNewContext(script, sandbox);
+  own.card = jobsCard;
+  own.list = nodes['digitalisimo-backups-jobs-list'];
+  own.form = nodes['digitalisimo-backups-manual-form'];
+  own.tick = async (jobs) => {
+    own.replies.push({ success: true, data: { result: 'worked', jobs } });
+    const timer = own.timers.shift();
+    assert.ok(timer !== undefined, 'No quedó un paso programado');
+    timer.callback();
+    for (let i = 0; i < 5; i++) await flush();
+  };
+  return own;
+}
+const automation = (overrides) => job(Object.assign({ id: 'dddddddd-eeee-4fff-8000-111111111111', origin_label: 'Automatización semanal', detail: 'Base de datos' }, overrides));
+const ended = (status, label, detail) => automation({ status, status_label: label, detail, terminal: true, running: false, can_cancel: false, percent: 'success' === status ? 100 : 40 });
+
+const failed = [];
+async function scenario(label, test) {
+  try { await test(); console.log('ok · ' + label); } catch (error) { failed.push(label); console.log('FALLA · ' + label + ': ' + error.message); }
+}
+const mine = 'eeeeeeee-ffff-4000-8111-222222222222';
+await scenario('H3 · una automatización que falla deja la tarjeta con «Falló» y su error, sin recargar', async () => {
+  const page = screen({ active: true });
+  await page.tick([automation()]);
+  assert.ok(page.card.hidden === false, 'Con una automatización en curso la tarjeta se ve');
+  await page.tick([ended('failed', 'Falló', 'No queda espacio en el almacén')]);
+  assert.ok(page.card.hidden === false && texts(page.list).includes('Falló') && texts(page.list).includes('No queda espacio en el almacén'), 'la tarjeta se oculta al fallar el trabajo y el error se pierde');
+  assert.ok(page.reloads.length === 0 && page.replaced.length === 0 && page.timers.length === 0, 'un trabajo que falla no debe recargar la página y la cola se detiene');
+});
+await scenario('H3 · una cancelada también queda a la vista', async () => {
+  const page = screen({ active: true });
+  await page.tick([automation()]);
+  await page.tick([ended('cancelled', 'Cancelado', 'Cancelado por el administrador.')]);
+  assert.ok(page.card.hidden === false && texts(page.list).includes('Cancelado') && page.reloads.length === 0, 'la tarjeta se oculta al cancelarse el trabajo');
+});
+await scenario('H3 · la que termina bien recarga la lista una vez', async () => {
+  const page = screen({ active: true, href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups' });
+  await page.tick([automation()]);
+  await page.tick([ended('success', 'Completo', 'ZIP verificado')]);
+  assert.ok(page.reloads.length + page.replaced.length === 1, 'una automatización que termina bien no recarga la lista: ' + JSON.stringify({ reloads: page.reloads, replaced: page.replaced }));
+});
+await scenario('H3 · sin trabajos en la visita (salvo el del botón) la tarjeta sigue oculta', async () => {
+  const page = screen({ active: false, href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups#digitalisimo-backups-history' });
+  page.replies.push({ success: true, data: { id: mine, view: job({ id: mine, status: 'queued', status_label: 'Pendiente', percent: 0 }) } });
+  page.form.listeners.submit({ preventDefault: () => {} });
+  for (let i = 0; i < 5; i++) await flush();
+  await page.tick([job({ id: mine })]);
+  assert.ok(page.card.hidden === true, 'con sólo el respaldo del botón en curso, la tarjeta debe seguir oculta');
+  await page.tick([job({ id: mine, status: 'success', status_label: 'Completo', percent: 100, detail: 'ZIP verificado', terminal: true, running: false, can_cancel: false })]);
+  assert.ok(page.card.hidden === true && page.reloads.length === 1 && page.replaced.length === 0, 'sin trabajos en la visita la tarjeta sigue oculta y la lista se recarga una vez (sin parámetros viejos, un reload())');
+});
+await scenario('H8 · la recarga al terminar una automatización quita ?backup=, ?message=, ?restore= y el ancla del panel', async () => {
+  const page = screen({ active: true, href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups&backup=error&message=No%20se%20pudo&restore=digitalisimo-x.zip#digitalisimo-backups-restore-0' });
+  await page.tick([automation()]);
+  await page.tick([ended('success', 'Completo', 'ZIP verificado')]);
+  assert.deepEqual(page.replaced, ['https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups'], 'la recarga arrastra los parámetros viejos: ' + JSON.stringify({ reloads: page.reloads, replaced: page.replaced }));
+});
+await scenario('H8 · la recarga del botón tampoco repite un aviso viejo', async () => {
+  const page = screen({ active: false, href: 'https://example.test/wp-admin/network/admin.php?page=digitalisimo-network-backups&backup=ok&message=Guardado' });
+  page.replies.push({ success: true, data: { id: mine, view: job({ id: mine, status: 'queued', status_label: 'Pendiente', percent: 0 }) } });
+  page.form.listeners.submit({ preventDefault: () => {} });
+  for (let i = 0; i < 5; i++) await flush();
+  await page.tick([job({ id: mine, status: 'success', status_label: 'Completo', percent: 100, detail: 'ZIP verificado', terminal: true, running: false, can_cancel: false })]);
+  assert.deepEqual(page.replaced, ['https://example.test/wp-admin/network/admin.php?page=digitalisimo-network-backups'], 'la recarga del botón arrastra ?backup= y ?message=: ' + JSON.stringify({ reloads: page.reloads, replaced: page.replaced }));
+});
+if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) de la tarjeta «Trabajos» y la recarga: ' + failed.join(' | '));
+
 runInNewContext(script, context);
 // Al abrir la pantalla con trabajos activos, el navegador da pasos sin que nadie pulse nada.
 assert.ok(timers.length === 1 && timers[0].delay === 500, 'Con trabajos activos, la pantalla debe empezar a avanzar la cola');
@@ -100,7 +196,9 @@ replies.push({ body: { success: true, data: { result: 'worked', jobs: [job({ id:
 await runTimer();
 assert.ok(submit.disabled === false && ids['digitalisimo-backups-manual-detail'].textContent.includes('ZIP verificado') && timers.length === 0, 'Al terminar, la pantalla deja de dar pasos y habilita el botón');
 assert.ok(ids['digitalisimo-backups-jobs'].getAttribute('data-active') === '0', 'Sin trabajos activos la tarjeta se marca inactiva');
-assert.ok(ids['digitalisimo-backups-jobs'].hidden === true, 'Sin trabajos en curso la tarjeta de «Respaldos» se oculta');
+// Revisión de 1.0.74 (H3): el trabajo de la automatización estuvo en curso en esta visita y ya no lo está; su estado final
+// no se esconde (abajo, en una pantalla nueva: se oculta sólo si en la visita no hubo ninguno).
+assert.ok(ids['digitalisimo-backups-jobs'].hidden === false, 'Un trabajo de esta visita terminó: la tarjeta de «Respaldos» no se oculta');
 assert.ok(reloads.length === 1 && ids['digitalisimo-backups-manual-detail'].textContent.includes('Actualizando la lista'), 'Al terminar bien, la página se recarga para enseñar el respaldo en la lista');
 
 // Cancelar: con confirmación, su nonce y el identificador del trabajo.
@@ -143,4 +241,5 @@ await runTimer();
 const card = ids['digitalisimo-backups-jobs'];
 const notice = card.children.find((child) => /digitalisimo-backups-migrate-login/.test(child.getAttribute('class') || ''));
 assert.ok(notice && notice.textContent.includes('inicia sesión con un usuario del sitio de origen') && notice.children[0].getAttribute('href') === '/wp-login.php?redirect_to=migrar' && timers.length === 0, 'Tras restaurar, la tarjeta debe pedir iniciar sesión con un usuario del origen y dejar de reintentar');
-console.log('DIGITALÍSIMO Backups: la pantalla avanza la cola, pinta texto, espera, se detiene al terminar y cancela con su nonce.');
+
+console.log('DIGITALÍSIMO Backups: la pantalla avanza la cola, pinta texto, espera, se detiene al terminar y cancela con su nonce; la tarjeta «Trabajos» conserva el estado final y la recarga no repite avisos viejos.');
