@@ -25,7 +25,7 @@ final class Digitalisimo_Backups_Destination_Webdav extends Digitalisimo_Backups
 			'webdav_password' => array( 'label' => 'Contraseña', 'type' => 'password', 'secret' => true, 'help' => 'Mejor una contraseña de aplicación del servicio que la de la cuenta.' ),
 			'webdav_path' => array( 'label' => 'Carpeta remota', 'type' => 'path', 'default' => '/digitalisimo-backups' ),
 			'webdav_ca' => array( 'label' => 'CA propia (PEM)', 'type' => 'textarea', 'help' => 'Sólo si el servidor usa un certificado de una autoridad propia. Vacío: las autoridades públicas de WordPress.' ),
-			'webdav_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede hacerse pasar por el servidor y leer la contraseña y los respaldos. Usa mejor la CA propia.' ),
+			'webdav_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede suplantar al servidor y leer la contraseña y los respaldos. Usa mejor la CA propia.' ),
 			'webdav_allow_http' => array( 'label' => 'HTTP sin cifrar', 'type' => 'checkbox', 'text' => 'Permitir una URL http:// (inseguro)', 'warning' => 'Por http la contraseña y los respaldos viajan sin cifrar.' ),
 		);
 	}

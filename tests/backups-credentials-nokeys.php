@@ -44,6 +44,15 @@ $adding = ob_get_clean();
 $_GET = array();
 if ( ! preg_match( '#<p class="description digitalisimo-backups-warning">Sin AUTH_KEY y SECURE_AUTH_KEY propias[^<]*<a href="[^"]*tab=servers&amp;edit=sftp[^"]*">conexión principal</a>#', $adding ) ) throw new RuntimeException( 'El formulario de otra conexión no avisa de que sin salts propias no guarda ni enlaza a la conexión principal.' );
 
+// Revisión de 1.0.74 (H5): «Cifrado y firma» (plegado con fold_long() como en «Ajustes») deja a la vista, fuera de «Más»,
+// que este sitio no puede guardar una frase.
+ob_start();
+Digitalisimo_Backups_Security::panel( false, array() );
+$security = $B::fold_long( (string) ob_get_clean() );
+$at = strpos( $security, 'Este sitio no puede guardar una frase' );
+$fold = false === $at ? false : strrpos( substr( $security, 0, $at ), '<details class="digitalisimo-backups-help">' );
+if ( false === $at || ( false !== $fold && false === strpos( substr( $security, $fold, $at - $fold ), '</details>' ) ) ) throw new RuntimeException( 'Sin salts propias, «Cifrado y firma» esconde en «Más» que este sitio no puede guardar una frase.' );
+
 // Guardar: se guarda como hasta ahora, con aviso; nunca se pierde un secreto.
 list( $ok, $message ) = bk_post( array( $B, 'save' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_SAVE, 'digitalisimo_backups' => $fields + $secrets ) );
 if ( ! $ok || false === strpos( $message, 'se guardaron sin cifrar' ) || false === strpos( $message, 'AUTH_KEY y SECURE_AUTH_KEY' ) ) throw new RuntimeException( 'Guardar sin salts propias no avisó: ' . $message );

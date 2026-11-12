@@ -456,7 +456,7 @@ final class Digitalisimo_Backups_Destination_S3_Compatible extends Digitalisimo_
 			's3compat_path' => array( 'label' => 'Carpeta dentro del bucket', 'type' => 'text', 'default' => 'digitalisimo-backups' ),
 			's3compat_style' => array( 'label' => 'Estilo de ruta', 'type' => 'select', 'default' => 'auto', 'options' => array( 'auto' => 'Automático (el que recomienda el proveedor)', 'virtual' => 'Virtual (bucket.servidor)', 'path' => 'De ruta (servidor/bucket)' ) ),
 			's3compat_ca' => array( 'label' => 'CA propia (PEM)', 'type' => 'textarea', 'show' => 's3compat_provider=other', 'help' => 'Sólo si el servidor usa un certificado de una autoridad propia: pega su certificado PEM. Vacío: las autoridades públicas de WordPress.' ),
-			's3compat_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'show' => 's3compat_provider=other', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede hacerse pasar por el servidor y leer las claves y los respaldos. Usa mejor la CA propia.' ),
+			's3compat_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'show' => 's3compat_provider=other', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede suplantar al servidor y leer las claves y los respaldos. Usa mejor la CA propia.' ),
 			's3compat_allow_http' => array( 'label' => 'HTTP sin cifrar', 'type' => 'checkbox', 'text' => 'Permitir un endpoint http:// (inseguro)', 'show' => 's3compat_provider=other', 'warning' => 'Por http la firma no expone la Secret key, pero los respaldos viajan sin cifrar.' ),
 		);
 	}

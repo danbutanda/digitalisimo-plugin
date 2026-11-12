@@ -56,7 +56,7 @@ trait Digitalisimo_Backups_Screen {
 		if ( '' === $plain ) return '';
 		$body = $html ? (string) $text : esc_html( (string) $text );
 		if ( self::text_length( $plain ) <= 140 ) return '<p class="description">' . $body . '</p>';
-		return '<p class="description">' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p class="description">' . $body . '</p></details>';
+		return '<p class="description">' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p class="description" data-folded="1">' . $body . '</p></details>';
 	}
 	/** Lo que se ve de un texto largo: su primera frase si cabe en 140 caracteres; si no, sus primeras palabras y «…». */
 	private static function text_head( $plain ) {
@@ -72,15 +72,28 @@ trait Digitalisimo_Backups_Screen {
 	/**
 	 * Pliega los párrafos de más de 140 caracteres de un HTML ya escapado (las secciones de «Herramientas», «Cifrado y
 	 * firma», los respaldos en los destinos y las advertencias de un campo): a la vista, su primera frase; el párrafo
-	 * entero, en «Más». Sólo párrafos sin otros bloques ni campos dentro, y nunca uno con id (los scripts lo usan).
+	 * entero, en «Más». Sólo párrafos sin otros bloques ni campos dentro y que se pueden plegar (foldable()). Si la
+	 * expresión regular falla (UTF-8 inválido, límite de retroceso), devuelve el HTML tal cual: nunca una cadena vacía.
 	 */
 	public static function fold_long( $html ) {
-		return (string) preg_replace_callback( '#<p(\s[^>]*)?>((?:(?!</?(?:p|div|form|table|ul|ol|details|section|fieldset|select|textarea|input|button|label|script)\b).)*?)</p>#su', function( $m ) {
+		$html = (string) $html;
+		$folded = preg_replace_callback( '#<p(\s[^>]*)?>((?:(?!</?(?:p|div|form|table|ul|ol|details|section|fieldset|select|textarea|input|button|label|script)\b).)*?)</p>#su', function( $m ) {
 			$attrs = (string) ( $m[1] ?? '' );
 			$plain = trim( preg_replace( '/\s+/u', ' ', html_entity_decode( strip_tags( $m[2] ), ENT_QUOTES, 'UTF-8' ) ) );
-			if ( false !== strpos( $attrs, ' id=' ) || self::text_length( $plain ) <= 140 ) return $m[0];
-			return '<p' . $attrs . '>' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p' . $attrs . '>' . $m[2] . '</p></details>';
-		}, (string) $html );
+			if ( self::text_length( $plain ) <= 140 || ! self::foldable( $attrs, $m[2] ) ) return $m[0];
+			return '<p' . $attrs . '>' . esc_html( self::text_head( $plain ) ) . '</p><details class="digitalisimo-backups-help"><summary>Más</summary><p' . $attrs . ' data-folded="1">' . $m[2] . '</p></details>';
+		}, $html );
+		return null === $folded ? $html : $folded;
+	}
+	/**
+	 * Un párrafo que fold_long() puede plegar. Nunca: uno con id (los scripts lo usan), uno ya plegado (`data-folded`: el
+	 * de help_html() o el de fold_long()) ni una advertencia, que se ve entera: `<strong>`, la clase
+	 * `digitalisimo-backups-warning`, `notice…` o cualquier otra de aviso o error, o `role="alert"`.
+	 */
+	private static function foldable( $attrs, $body ) {
+		if ( preg_match( '/\s(?:id|data-folded)=/', $attrs ) || preg_match( '/\srole=["\']alert/', $attrs ) ) return false;
+		if ( preg_match( '/\sclass=["\'][^"\']*\b(?:notice|[a-z-]*warning|[a-z-]*error)\b/', $attrs ) ) return false;
+		return ! preg_match( '#<(?:strong|b)\b#i', $body );
 	}
 	private static function text_length( $text ) { return function_exists( 'mb_strlen' ) ? mb_strlen( (string) $text, 'UTF-8' ) : strlen( (string) preg_replace( '/[\x80-\xBF]/', '', (string) $text ) ); }
 	/** Fecha del historial sin segundos («2026-11-11 19:07»). */

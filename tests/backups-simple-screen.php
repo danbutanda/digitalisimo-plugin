@@ -336,6 +336,31 @@ try {
 		} finally { @unlink( $old ); }
 	} );
 
+	// Revisión de 1.0.74 (H5, H6, H7): fold_long() no pliega advertencias (<strong>, clase de aviso o «notice»), no vuelve
+	// a plegar lo que ya plegó help_html() («Más» dentro de «Más») y, si la expresión regular falla, devuelve el HTML.
+	ss_case( 'T11 · «Más» nunca esconde una advertencia, no se anida y no borra el HTML', function() use ( $B ) {
+		$long = str_repeat( 'Una frase larga de ayuda que sigue. ', 6 );
+		$bad = '<p class="description">' . $long . "\xff</p>";
+		ss_check( $bad === $B::fold_long( $bad ), 'Con UTF-8 inválido fold_long() no devuelve el HTML tal cual: ' . json_encode( substr( (string) $B::fold_long( $bad ), 0, 80 ) ) );
+		ss_check( 1 === substr_count( $B::fold_long( $B::help_html( $long ) ), '<summary>Más</summary>' ) && 1 === substr_count( $B::fold_long( $B::fold_long( '<p>' . $long . '</p>' ) ), '<summary>Más</summary>' ), 'fold_long() vuelve a plegar lo ya plegado («Más» dentro de «Más»).' );
+		foreach ( array( '<p class="description digitalisimo-backups-warning">' . $long . '</p>', '<p class="notice notice-warning inline">' . $long . '</p>', '<p class="description">' . $long . '<strong>sin la frase no se puede restaurar.</strong></p>', '<p role="alert">' . $long . '</p>' ) as $warning ) ss_check( $warning === $B::fold_long( $warning ), 'fold_long() pliega una advertencia: ' . substr( $warning, 0, 60 ) );
+		ss_check( 1 === substr_count( $B::fold_long( '<p class="description">' . $long . '</p>' ), '<summary>Más</summary>' ), 'fold_long() ya no pliega un párrafo largo corriente.' );
+		// En la pantalla: ninguna sección abierta pliega una advertencia ni anida «Más», y las de antes se leen sin abrir nada.
+		$screens = array( 'settings:security' => ss_render( 'settings', false, array( 'open' => 'security' ) ), 'servers:edit' => ss_render( 'servers', false, array( 'edit' => 'sftp' ) ), 'servers:remote' => ss_render( 'servers', false, array( 'open' => 'remote' ) ) );
+		foreach ( array( 'migrate', 'import', 'upload', 'restore-file', 'automations', 'jobs' ) as $id ) $screens[ 'tools:' . $id ] = ss_render( 'tools', false, array( 'open' => $id ) );
+		foreach ( $screens as $name => $html ) {
+			ss_check( ! preg_match( '#<summary>Más</summary>(?:(?!</details>).)*<summary>Más</summary>#s', $html ), '«' . $name . '» tiene un «Más» dentro de otro.' );
+			preg_match_all( '#<details class="digitalisimo-backups-help"><summary>Más</summary>(.*?)</details>#s', $html, $folds );
+			foreach ( $folds[1] as $body ) ss_check( ! preg_match( '#<strong|warning|class="notice#', $body ), '«' . $name . '» pliega una advertencia en «Más»: ' . substr( strip_tags( $body ), 0, 120 ) );
+			ss_check( ss_visible( $html )['longest'][0] <= 140, '«' . $name . '» enseña un texto de más de 140 caracteres: ' . ss_visible( $html )['longest'][1] );
+		}
+		$seen = ss_visible( $screens['settings:security'] )['text'];
+		ss_check( false !== strpos( $seen, 'Sin la frase (o la clave de wp-config.php) no se pueden restaurar: nadie puede recuperarlos, tampoco DIGITALÍSIMO.' ), '«Cifrar los respaldos nuevos» esconde en «Más» que sin la frase no se pueden restaurar.' );
+		$seen = ss_visible( $screens['tools:migrate'] )['text'];
+		ss_check( false !== strpos( $seen, 'se reemplaza por completo con el del origen y conserva su dirección' ) && false !== strpos( $seen, 'No se fusionan cambios entre dos sitios vivos' ), '«Migrar» esconde en «Más» que el sitio se reemplaza o que no se fusionan cambios.' );
+		foreach ( array( 'Sin verificar el certificado, cualquiera en la red puede suplantar al servidor' ) as $text ) ss_check( false !== strpos( ss_visible( $screens['servers:edit'] )['text'], $text ), 'La advertencia «' . $text . '…» no se lee entera.' );
+	} );
+
 	ss_case( 'T6 · una sola franja de avisos y sin repetir el aviso del escritorio', function() use ( $B ) {
 		Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array( 'no_active' => true ) );
 		$html = ss_render( 'backups' );

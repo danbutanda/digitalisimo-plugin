@@ -344,7 +344,7 @@ final class Digitalisimo_Backups_Destination_Ftp extends Digitalisimo_Backups_De
 			'ftp_path' => array( 'label' => 'Carpeta remota', 'type' => 'path', 'default' => '/digitalisimo-backups', 'help' => 'Ruta absoluta; se crea si no existe.' ),
 			'ftp_passive' => array( 'label' => 'Modo de conexión', 'type' => 'select', 'default' => 'passive', 'options' => array( 'passive' => 'Pasivo (recomendado)', 'active' => 'Activo (el servidor se conecta a este hosting)' ) ),
 			'ftp_ca' => array( 'label' => 'CA propia (PEM)', 'type' => 'textarea', 'show' => 'ftp_security=explicit|implicit', 'help' => 'Sólo si el servidor usa un certificado de una autoridad propia. Vacío: las autoridades públicas.' ),
-			'ftp_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'show' => 'ftp_security=explicit|implicit', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede hacerse pasar por el servidor y leer la contraseña y los respaldos. Usa mejor la CA propia.' ),
+			'ftp_insecure' => array( 'label' => 'Verificación TLS', 'type' => 'checkbox', 'text' => 'No verificar el certificado del servidor (inseguro)', 'show' => 'ftp_security=explicit|implicit', 'warning' => 'Sin verificar el certificado, cualquiera en la red puede suplantar al servidor y leer la contraseña y los respaldos. Usa mejor la CA propia.' ),
 		);
 	}
 	public static function help() { return array( 'Pide a tu proveedor el servidor, el usuario y si ofrece FTPS explícito o implícito.', 'Si el servidor exige reutilizar la sesión TLS en el canal de datos (vsftpd con require_ssl_reuse=YES o ProFTPD sin NoSessionReuseRequired), desactiva esa opción para esta cuenta: PHP no puede reutilizarla.' ); }
