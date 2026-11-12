@@ -94,7 +94,7 @@ final class Executor {
 			'status'   => (int) $status,
 			'data'     => self::pick_fields( $data, $plan['fields'], 'list' === $plan['action'] || 'reports' === $tool ),
 		);
-		if ( 'list' === $plan['action'] ) {
+		if ( 'list' === $plan['action'] && isset( $plan['query']['page'], $plan['query']['per_page'] ) ) {
 			$result['page']     = (int) $plan['query']['page'];
 			$result['per_page'] = (int) $plan['query']['per_page'];
 			$total              = self::header( $headers, 'X-WP-Total' );

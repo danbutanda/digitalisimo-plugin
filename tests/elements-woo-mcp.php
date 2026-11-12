@@ -102,7 +102,12 @@ namespace Elementor {
 namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 
-	$GLOBALS['wm_fail'] = 0;
+	// Cualquier aviso o advertencia de PHP es un fallo (un índice que falta, una conversión dudosa…).
+	set_error_handler(
+		static function ( $severity, $message, $file, $line ) {
+			throw new ErrorException( $message . ' en ' . basename( $file ) . ':' . $line, 0, $severity, $file, $line );
+		}
+	);
 	function check( $ok, string $message ) {
 		if ( ! $ok ) {
 			throw new RuntimeException( $message );
@@ -628,6 +633,11 @@ namespace {
 		$result = $run( 'products', $input );
 		check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code(), "Modo read: $action se rechaza." );
 	}
+	$GLOBALS['wm_rest_responses']['GET /wc/v3/reports'] = array( 200, array( array( 'slug' => 'sales', 'description' => 'Ventas' ) ), array() );
+	$result = $run( 'reports', array( 'action' => 'list' ) );
+	check( ! is_wp_error( $result ) && 'sales' === $result['data'][0]['slug'] && ! isset( $result['page'] ), 'reports list (sin paginar) en modo read.' );
+	$result = $run( 'reports', array( 'action' => 'sales', 'query' => array( 'period' => 'month' ) ) );
+	check( ! is_wp_error( $result ) && array( 'GET', '/wc/v3/reports/sales', array( 'period' => 'month' ), null ) === end( $GLOBALS['wm_rest'] ), 'reports sales con su periodo.' );
 	update_option( Settings::OPTION, array( 'mode' => 'off', 'own' => array( 'mode' ) ) );
 	$result = $run( 'products', array( 'action' => 'list' ) );
 	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_off' === $result->get_error_code(), 'Modo off: ni siquiera lee.' );
