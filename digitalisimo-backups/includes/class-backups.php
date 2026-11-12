@@ -103,7 +103,12 @@ final class Digitalisimo_Backups {
 	const ABANDON = 'abandon.json';
 	/** Segundos de espera de cada llamada al retirarla (fuera del cerrojo del registro de trabajos). */
 	const ABANDON_TIMEOUT = 20;
-	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_post_' . self::ACTION_BACKUPLY_IMPORT, array( __CLASS__, 'backuply_import_request' ) ); add_action( 'admin_post_' . self::ACTION_BACKUPLY_DELETE, array( __CLASS__, 'backuply_delete_request' ) ); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Pre_Update::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); }
+	/**
+	 * Versión de los datos de Backups ya puestos al día (upgrade_data()): opción con carga automática, en el mismo ámbito
+	 * que el historial (en una red, el sitio principal).
+	 */
+	const DATA_VERSION = 'digitalisimo_backups_data_version';
+	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_START, array( __CLASS__, 'manual_start' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_WORK, array( __CLASS__, 'manual_work' ) ); add_action( 'wp_ajax_' . self::ACTION_MANUAL_STATUS, array( __CLASS__, 'manual_status' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_CONNECTION, array( __CLASS__, 'save_connection' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_CONNECTION, array( __CLASS__, 'delete_connection' ) ); add_action( 'admin_post_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'test_destination' ) ); add_action( 'wp_ajax_' . self::ACTION_TEST_DESTINATION, array( __CLASS__, 'ajax_test_destination' ) ); add_action( 'admin_post_' . self::ACTION_FETCH, array( __CLASS__, 'fetch_request' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_LOOSE, array( __CLASS__, 'delete_loose' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'realign_policy' ), 5, 2 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); add_action( 'update_option_timezone_string', array( __CLASS__, 'timezone_changed' ) ); add_action( 'init', array( __CLASS__, 'ensure_policy_schedules' ) ); add_action( 'update_option_gmt_offset', array( __CLASS__, 'timezone_changed' ) ); Digitalisimo_Backups_Jobs::init(); Digitalisimo_Backups_Security::init(); Digitalisimo_Backups_Migrate::init(); add_action( 'admin_post_' . self::ACTION_BACKUPLY_IMPORT, array( __CLASS__, 'backuply_import_request' ) ); add_action( 'admin_post_' . self::ACTION_BACKUPLY_DELETE, array( __CLASS__, 'backuply_delete_request' ) ); Digitalisimo_Backups_Notify::init(); Digitalisimo_Backups_Pre_Update::init(); Digitalisimo_Backups_Uploads::init(); add_action( 'admin_init', array( __CLASS__, 'credentials_on_load' ) ); add_action( 'init', array( __CLASS__, 'credentials_on_cron' ) ); add_action( 'init', array( __CLASS__, 'upgrade_data_on_load' ) ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ) + Digitalisimo_Backups_Destinations::defaults(); }
 	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
 	/** Carpeta del almacén ya comprobada en esta petición. */
@@ -2044,6 +2049,77 @@ final class Digitalisimo_Backups {
 			if ( function_exists( 'wp_load_alloptions' ) && array_key_exists( self::HISTORY, (array) wp_load_alloptions() ) ) wp_cache_delete( 'alloptions', 'options' );
 		}
 		return (array) get_option( self::HISTORY, array() );
+	}
+	/**
+	 * Puestas al día de los datos al actualizar, cada una una sola vez: versión de datos => método. El método devuelve
+	 * false si no pudo comprobar lo que necesita (se reintenta en la carga siguiente, sin marcar la versión).
+	 */
+	private static function data_upgrades() {
+		return array( '1.0.75' => 'history_drop_copyless' );
+	}
+	/** Al cargar el escritorio, el cron o WP-CLI (como migrate_credentials()); nunca en una visita al sitio. */
+	public static function upgrade_data_on_load() {
+		if ( ( function_exists( 'is_admin' ) && is_admin() ) || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) self::upgrade_data();
+	}
+	/**
+	 * Corre las puestas al día de data_upgrades() más nuevas que la versión anotada en DATA_VERSION y anota cada una al
+	 * terminarla. Idempotente. En una red, sólo en el sitio principal, donde viven el historial y la marca. Nunca lanza.
+	 */
+	public static function upgrade_data() {
+		if ( Digitalisimo_Backups_Jobs::off_main_site() || ( function_exists( 'wp_installing' ) && wp_installing() ) ) return;
+		$done = (string) get_option( self::DATA_VERSION, '' );
+		foreach ( self::data_upgrades() as $version => $method ) {
+			if ( '' !== $done && version_compare( $done, $version, '>=' ) ) continue;
+			try {
+				if ( false === self::$method() ) return;
+			} catch ( Throwable $e ) {
+				if ( function_exists( 'error_log' ) ) error_log( 'DIGITALÍSIMO Backups: puesta al día de los datos ' . $version . ': ' . $e->getMessage() );
+				return;
+			}
+			update_option( self::DATA_VERSION, $version, true );
+			$done = $version;
+		}
+	}
+	/**
+	 * 1.0.75 (H27 del ensayo E5): desde 1.0.73 la retención retira del historial la fila que se queda sin ninguna copia
+	 * (H22), pero las que 1.0.71 ya había dejado «Sin copias» seguían ahí (con una automatización diaria, decenas). Se
+	 * retiran una vez, sólo las que no tienen ninguna copia: ni ZIP en el almacén (ni un archivo o enlace con su nombre),
+	 * ni copia remota registrada (verificada, anterior a 1.0.59 sin identificador, pendiente de copiar o de borrar).
+	 * Nunca una bloqueada, una con la marca de una migración (sin ella «Deshacer» ofrecería una migración anterior: N3)
+	 * ni la de un trabajo en curso. Sólo con el almacén a la vista, sin trabajos ni restauración en curso y con el
+	 * cerrojo del historial; si no, false (se reintenta). Devuelve cuántas retiró.
+	 */
+	private static function history_drop_copyless() {
+		if ( ! self::fresh_history() ) return 0;
+		$root = realpath( self::local_directory() );
+		if ( false === $root || ! is_dir( $root ) || file_exists( $root . '/' . self::RESTORE_JOURNAL ) || Digitalisimo_Backups_Jobs::active() ) return false;
+		$dropped = 0;
+		$checked = false;
+		self::change_history( function( &$history ) use ( $root, &$dropped, &$checked ) {
+			$busy = self::busy_backup_files();
+			if ( null === $busy ) return false;
+			$checked = true;
+			$keep = array();
+			foreach ( $history as $row ) {
+				if ( self::history_copyless( $row, $root, $busy ) ) $dropped++;
+				else $keep[] = $row;
+			}
+			if ( ! $dropped ) return false;
+			$history = $keep;
+			return true;
+		} );
+		return $checked ? $dropped : false;
+	}
+	/** Una fila del historial sin ninguna copia, que history_drop_copyless() puede retirar. */
+	private static function history_copyless( $row, $root, array $busy ) {
+		if ( ! is_array( $row ) || ! empty( $row['locked'] ) || array_key_exists( 'migration', $row ) ) return false;
+		$file = (string) ( $row['file'] ?? '' );
+		if ( '' === $file || wp_basename( $file ) !== $file || isset( $busy[ $file ] ) ) return false;
+		$path = $root . '/' . $file;
+		if ( '' !== self::local_copy( $row ) || file_exists( $path ) || is_link( $path ) ) return false;
+		if ( ! empty( $row['remote'] ) || ! empty( $row['remote_prune'] ) || self::remote_exists( $row ) ) return false;
+		$remote = self::remote_copy( $row );
+		return ! ( $remote && 'pending' === $remote['state'] );
 	}
 	public static function toggle_lock() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_LOCK ); $file = sanitize_file_name( wp_unslash( $_POST['file'] ?? '' ) ); $locked = ! empty( $_POST['locked'] ); try { self::change_history( function( &$history ) use ( $file, $locked ) { foreach ( $history as &$item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) $item['locked'] = $locked; unset( $item ); } ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage() ); } self::redirect( true, ! empty( $_POST['locked'] ) ? 'Respaldo bloqueado: no se eliminará durante la rotación.' : 'Respaldo desbloqueado.' ); }
 	private static function prune( $dir, $keep ) { Digitalisimo_Backups_Job_Store::with_lock( function() use ( $dir, $keep ) { self::prune_locked( $dir, $keep ); self::retire_remote_global_locked( $keep ); } ); }
