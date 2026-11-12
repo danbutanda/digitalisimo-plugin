@@ -122,6 +122,8 @@ kp_case( 'k1a · registro al migrar y, al confirmarse «Deshacer», las tablas d
 	mig_assert( is_int( $set['bytes'] ) && $set['bytes'] >= strlen( '1dato del destino' ) && abs( $at - time() ) < 600 && '' === $set['expires_at'] && false !== strpos( $set['note'], 'Borrar ya' ), 'El juego no anota su tamaño o su fecha, o dice que se borra solo: ' . json_encode( $set ) );
 	$warnings = implode( ' ', (array) $migration['warnings'] );
 	mig_assert( false !== strpos( $warnings, 'dst_solo_destino → ' . $aside[0] ) && false !== strpos( $warnings, 'No se borran solas' ) && false !== strpos( $warnings, 'migration cleanup' ) && false === strpos( $warnings, 'Se borran solas el' ), 'El aviso de la migración no nombra las tablas apartadas o dice que se borran solas: ' . $warnings );
+	// Revisión de 1.0.74 (H10): la tarjeta está en Herramientas → Migrar, no suelta en «Herramientas».
+	mig_assert( false !== strpos( $warnings, 'Backups → Herramientas → Migrar → «Tablas apartadas»' ), 'El aviso de la migración no lleva a Herramientas → Migrar → «Tablas apartadas»: ' . $warnings );
 	// «Deshacer»: aparta la tabla que trajo el origen (con sus datos) y la borra en cuanto el deshacer termina.
 	$undo = mig_rest( 'POST', KP_NS . '/migration/undo', array( 'confirm' => 'DESHACER' ) );
 	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'] && 'Destino' === get_option( 'blogname' ), 'No se deshizo: ' . json_encode( $undo ) );

@@ -444,7 +444,8 @@ try {
 			if ( ! preg_match( '/\.(php|js)$/', $file->getFilename() ) ) continue;
 			foreach ( file( $file->getPathname() ) as $n => $line ) {
 				if ( preg_match( '#^\s*(\*|//|/\*)#', $line ) ) continue;
-				if ( preg_match( '/Backups → (Migrar|Seguridad|Servidores|Trabajos|Automatizaciones|Antes de actualizar)\b|«(Servidores|Restaurar respaldo local|Respaldos de Backuply|Conexiones externas|Añadir otra conexión)»/u', $line ) ) $old[] = substr( $file->getPathname(), strlen( $root ) + 1 ) . ':' . ( $n + 1 );
+				// También una ruta nueva mal nombrada (revisión de 1.0.74, H10): «Tablas apartadas» está en Herramientas → Migrar.
+				if ( preg_match( '/Backups → (Migrar|Seguridad|Servidores|Trabajos|Automatizaciones|Antes de actualizar)\b|«(Servidores|Restaurar respaldo local|Respaldos de Backuply|Conexiones externas|Añadir otra conexión)»|Herramientas → «Tablas apartadas»/u', $line ) ) $old[] = substr( $file->getPathname(), strlen( $root ) + 1 ) . ':' . ( $n + 1 );
 			}
 		}
 		ss_check( ! $old, 'Quedan textos que nombran la pantalla de antes: ' . implode( ', ', $old ) );

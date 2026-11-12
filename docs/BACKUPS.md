@@ -1213,7 +1213,7 @@ nunca se toca.
   migración sólo con el filtro anterior. Siempre **sólo si su copia previa sigue en el almacén** (nunca se borra solo lo
   único que queda de esas tablas; si falta, la lista lo dice y se borran a mano) y nunca las de una restauración en
   curso.
-- **Ya, a mano:** la tarjeta «Tablas apartadas» de Backups → Migrar (qué las apartó, fecha, todas las tablas con su
+- **Ya, a mano:** la tarjeta «Tablas apartadas» de Backups → Herramientas → Migrar (qué las apartó, fecha, todas las tablas con su
   nombre de antes, tamaño y cuándo se borran solas o por qué no, con «Borrar ya las tablas apartadas»), `POST /migration/cleanup` (`dry_run` sólo las lista) y
   `wp digitalisimo-backups migration cleanup [--dry-run] [--yes]`; `GET /migration` y la pestaña las listan
   (`kept_tables`). Borrar pide la capability de la pantalla y, en una red, el alcance de red (las tablas son de la red);
