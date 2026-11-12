@@ -1000,6 +1000,28 @@ namespace {
 		}
 	);
 
+	// R6 · boot() no lee el modo (opción sin carga automática) si el MCP del sitio está apagado.
+	review_block(
+		'R6',
+		static function () use ( $env ) {
+			foreach ( array( false, true ) as $multisite ) {
+				Mcp::reset();
+				wm_reset( array( 'options' => array(), 'multisite' => $multisite ) );
+				$env->setValue( null, array( 'woocommerce' => true, 'wc_version' => '11.2.1' ) );
+				Mcp::init();
+				$GLOBALS['wm_reads'] = array();
+				Mcp::boot();
+				$reads = $GLOBALS['wm_reads'];
+				review( 'R6', ! in_array( Settings::OPTION, $reads, true ) && ! in_array( 'site:' . Settings::NETWORK_OPTION, $reads, true ), ( $multisite ? 'Red' : 'Sitio' ) . ' con el MCP apagado: boot() no lee el modo (' . implode( ', ', $reads ) . ').' );
+			}
+			Mcp::reset();
+			wm_reset();
+			$GLOBALS['wm_reads'] = array();
+			Mcp::boot();
+			review( 'R6', in_array( Settings::OPTION, $GLOBALS['wm_reads'], true ) && 7 === count( Mcp::abilities() ), 'Con el MCP activo sí lo lee y registra las siete.' );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
@@ -1008,5 +1030,5 @@ namespace {
 		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
 	}
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R5 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R6 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

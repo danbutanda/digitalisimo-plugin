@@ -143,7 +143,10 @@ final class Settings_Section {
 		self::finish( self::process_save_network() );
 	}
 
-	/** Guardar en el sitio: sanea y guarda (sin carga automática: sólo lo leen el MCP y esta pantalla). */
+	/**
+	 * Guardar en el sitio: sanea y guarda sin carga automática. Sólo lo leen esta pantalla y, con el MCP del sitio activo,
+	 * el arranque de las herramientas (`Module::boot()`, que antes comprueba el MCP) y su ejecución.
+	 */
 	public static function process_save(): array {
 		$check = self::check_request( self::ACTION_SAVE, false );
 		if ( $check ) {

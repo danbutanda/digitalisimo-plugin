@@ -46,9 +46,17 @@ final class Module {
 		add_action( 'elementor/init', array( __CLASS__, 'boot' ), 20 );
 	}
 
-	/** En `elementor/init`: el registro del núcleo ya existe y aún no se volcó al servidor (`init` 5). */
+	/**
+	 * En `elementor/init`: el registro del núcleo ya existe y aún no se volcó al servidor (`init` 5). Primero lo que no
+	 * cuesta nada (la Abilities API, el contrato del núcleo y su opción `elementor_mcp_enabled`, que el núcleo ya leyó en
+	 * esta petición); sólo con el MCP del sitio activo se lee el modo, una opción sin carga automática (y, en una red,
+	 * la de red): con el MCP apagado, ninguna petición la consulta.
+	 */
 	public static function boot(): void {
-		if ( 'off' === Settings::mode() || ! function_exists( 'wp_register_ability' ) || ! class_exists( self::CORE_ABILITY ) ) {
+		if ( ! function_exists( 'wp_register_ability' ) || ! class_exists( self::CORE_ABILITY ) || ! self::mcp_enabled() ) {
+			return;
+		}
+		if ( 'off' === Settings::mode() ) {
 			return;
 		}
 		self::$abilities = array();
