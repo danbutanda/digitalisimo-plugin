@@ -43,12 +43,13 @@ try {
 	// C: la retención (2) conserva C y B, borra A y no cuenta ni toca los dos archivos sin registro.
 	$c = digi_backup();
 	digi_assert( true === $available( $c['file'] ) && true === $available( $b['file'] ), 'Un archivo sin registro hizo borrar un respaldo real (B o C).' );
-	digi_assert( false === $available( $a['file'] ), 'La retención global no borró el respaldo más antiguo (A).' );
+	// Desde 1.0.75 la fila de A, sin ninguna copia tras borrar su ZIP, sale del historial (antes quedaba «Sin copias»).
+	digi_assert( ! is_file( $store . '/' . $a['file'] ) && null === $available( $a['file'] ), 'La retención global no borró el respaldo más antiguo (A) o dejó su fila sin copias: ' . json_encode( $available( $a['file'] ) ) );
 	digi_assert( is_file( $store . '/' . $uploaded['file'] ) && is_file( $store . '/digitalisimo-backup-copiado-por-ssh.zip' ), 'La retención borró un archivo sin registro.' );
 	// Muchos archivos sin registro tampoco desplazan nada.
 	for ( $i = 0; $i < 4; $i++ ) copy( $store . '/' . $c['file'], $store . '/digitalisimo-backup-suelto-' . $i . '.zip' );
 	$d = digi_backup();
-	digi_assert( true === $available( $d['file'] ) && true === $available( $c['file'] ) && false === $available( $b['file'] ) && 4 === count( glob( $store . '/digitalisimo-backup-suelto-*.zip' ) ), 'Los archivos sin registro cambiaron lo que conserva la retención.' );
+	digi_assert( true === $available( $d['file'] ) && true === $available( $c['file'] ) && ! is_file( $store . '/' . $b['file'] ) && null === $available( $b['file'] ) && 4 === count( glob( $store . '/digitalisimo-backup-suelto-*.zip' ) ), 'Los archivos sin registro cambiaron lo que conserva la retención.' );
 
 	// «Restaurar» los lista con «Eliminar».
 	$panel = new ReflectionMethod( $B, 'restore_panel' );

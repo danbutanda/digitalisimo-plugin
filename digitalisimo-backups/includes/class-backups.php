@@ -2110,6 +2110,25 @@ final class Digitalisimo_Backups {
 		} );
 		return $checked ? $dropped : false;
 	}
+	/**
+	 * Tras borrar la retención local (la de una automatización o la global de los manuales) los ZIP de $files (nombre =>
+	 * true), dentro de su mismo cerrojo: las filas de esos respaldos que se quedaron sin ninguna copia salen del historial
+	 * (el criterio de history_copyless()), en vez de quedar «Sin copias» (antes sólo lo hacía la retención remota, H22).
+	 * Una fila con copia remota sigue: la retira H22 cuando la retención remota borra esa copia. Nunca toca filas de otros
+	 * archivos (otras automatizaciones, o las que no rotaron en esta pasada).
+	 */
+	private static function retire_copyless_locked( array $files, array $busy ) {
+		if ( ! $files ) return;
+		$root = realpath( self::local_directory() );
+		if ( false === $root || ! is_dir( $root ) ) return;
+		self::change_history( function( &$history ) use ( $files, $busy, $root ) {
+			$keep = array();
+			foreach ( $history as $row ) if ( ! is_array( $row ) || ! isset( $files[ (string) ( $row['file'] ?? '' ) ] ) || ! self::history_copyless( $row, $root, $busy ) ) $keep[] = $row;
+			if ( count( $keep ) === count( $history ) ) return false;
+			$history = $keep;
+			return true;
+		} );
+	}
 	/** Una fila del historial sin ninguna copia, que history_drop_copyless() puede retirar. */
 	private static function history_copyless( $row, $root, array $busy ) {
 		if ( ! is_array( $row ) || ! empty( $row['locked'] ) || array_key_exists( 'migration', $row ) ) return false;
@@ -2145,9 +2164,15 @@ final class Digitalisimo_Backups {
 		// Del más reciente al más antiguo; con la misma fecha (varios en el mismo segundo), el orden del historial.
 		usort( $files, function( $a, $b ) use ( $rank ) { return array( filemtime( $b ), $rank[ wp_basename( $a ) ] ?? PHP_INT_MAX ) <=> array( filemtime( $a ), $rank[ wp_basename( $b ) ] ?? PHP_INT_MAX ); } );
 		$rotating = array_values( array_filter( $files, function( $file ) use ( $registered ) { return isset( $registered[ wp_basename( $file ) ] ); } ) );
-		foreach ( array_slice( $rotating, $keep ) as $file ) if ( ! isset( $busy[ wp_basename( $file ) ] ) ) @unlink( $file );
+		$retired = array();
+		foreach ( array_slice( $rotating, $keep ) as $file ) {
+			if ( isset( $busy[ wp_basename( $file ) ] ) ) continue;
+			@unlink( $file );
+			$retired[ wp_basename( $file ) ] = true;
+		}
+		self::retire_copyless_locked( $retired, $busy );
 	}
-	private static function prune_policy_locked( $policy ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $matching = array_values( array_filter( $history, function( $item ) use ( $policy ) { return ( $item['policy'] ?? '' ) === $policy['id'] && empty( $item['locked'] ); } ) ); $retired = array(); foreach ( array_slice( $matching, (int) $policy['retain'] ) as $item ) { $name = sanitize_file_name( $item['file'] ?? '' ); if ( isset( $busy[ $name ] ) ) continue; $retired[ (string) ( $item['file'] ?? '' ) ] = true; $path = trailingslashit( self::local_directory() ) . $name; if ( is_file( $path ) ) @unlink( $path ); } self::retire_remote_locked( $retired ); }
+	private static function prune_policy_locked( $policy ) { $busy = self::busy_backup_files(); if ( null === $busy ) return; $history = self::fresh_history(); $matching = array_values( array_filter( $history, function( $item ) use ( $policy ) { return ( $item['policy'] ?? '' ) === $policy['id'] && empty( $item['locked'] ); } ) ); $retired = array(); foreach ( array_slice( $matching, (int) $policy['retain'] ) as $item ) { $name = sanitize_file_name( $item['file'] ?? '' ); if ( isset( $busy[ $name ] ) ) continue; $retired[ (string) ( $item['file'] ?? '' ) ] = true; $path = trailingslashit( self::local_directory() ) . $name; if ( is_file( $path ) ) @unlink( $path ); } self::retire_remote_locked( $retired ); self::retire_copyless_locked( $retired, $busy ); }
 	/**
 	 * ZIP que un trabajo sin terminar todavía necesita (el verificado que espera su copia remota, con la transferencia en
 	 * espera de reintento): la retención de otro trabajo nunca los borra; cuentan para el tope y se retiran en una poda
