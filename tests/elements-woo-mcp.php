@@ -44,7 +44,8 @@ namespace Elementor\Modules\Mcp\Abilities {
 			return $result;
 		}
 		public function check_permission(): bool {
-			return true === call_user_func( $this->definition()->permission_callback );
+			// Como el núcleo real (abstract-ability.php): (bool) del callback; un WP_Error valdría true.
+			return (bool) call_user_func( $this->definition()->permission_callback );
 		}
 		public function register(): void {
 			$GLOBALS['wm_core_register'][] = $this->get_id();
@@ -108,6 +109,21 @@ namespace {
 			throw new ErrorException( $message . ' en ' . basename( $file ) . ':' . $line, 0, $severity, $file, $line );
 		}
 	);
+	/** Comprobación de un hallazgo de la revisión (R1…R6): se anota y la prueba sigue; falla al final con la lista. */
+	function review( string $label, $ok, string $message ) {
+		if ( ! $ok ) {
+			$GLOBALS['wm_review'][ $label ][] = $message;
+		}
+		$GLOBALS['wm_review_count'] = ( $GLOBALS['wm_review_count'] ?? 0 ) + 1;
+	}
+	/** Un bloque de la revisión: una excepción o un aviso de PHP dentro cuentan como falla de ese hallazgo. */
+	function review_block( string $label, callable $block ) {
+		try {
+			$block();
+		} catch ( Throwable $e ) {
+			review( $label, false, 'excepción: ' . $e->getMessage() );
+		}
+	}
 	function check( $ok, string $message ) {
 		if ( ! $ok ) {
 			throw new RuntimeException( $message );
@@ -181,6 +197,7 @@ namespace {
 		}
 	}
 	function get_option( $name, $default = false ) {
+		$GLOBALS['wm_reads'][] = $name;
 		return array_key_exists( $name, $GLOBALS['wm']['options'] ) ? $GLOBALS['wm']['options'][ $name ] : $default;
 	}
 	function update_option( $name, $value, $autoload = null ) {
@@ -196,6 +213,7 @@ namespace {
 		return true;
 	}
 	function get_site_option( $name, $default = false ) {
+		$GLOBALS['wm_reads'][] = 'site:' . $name;
 		return array_key_exists( $name, $GLOBALS['wm']['site'] ) ? $GLOBALS['wm']['site'][ $name ] : $default;
 	}
 	function update_site_option( $name, $value ) {
@@ -412,10 +430,10 @@ namespace {
 		array( 'orders', array( 'action' => 'create', 'resource' => 'note', 'order_id' => 5, 'data' => array( 'note' => 'Hola' ) ), 'POST', '/wc/v3/orders/5/notes', array() ),
 		array( 'orders', array( 'action' => 'create', 'resource' => 'refund', 'order_id' => 5, 'data' => array( 'amount' => '10.00' ) ), 'POST', '/wc/v3/orders/5/refunds', array() ),
 		array( 'orders', array( 'action' => 'delete', 'resource' => 'refund', 'order_id' => 5, 'refund_id' => 8, 'force' => true ), 'DELETE', '/wc/v3/orders/5/refunds/8', array( 'force' => true ) ),
-		array( 'customers', array( 'action' => 'list', 'resource' => 'download', 'customer_id' => 2 ), 'GET', '/wc/v3/customers/2/downloads', array( 'page' => 1, 'per_page' => 10 ) ),
+		array( 'customers', array( 'action' => 'list', 'resource' => 'download', 'customer_id' => 2 ), 'GET', '/wc/v3/customers/2/downloads', null ),
 		array( 'customers', array( 'action' => 'delete', 'customer_id' => 2, 'force' => true, 'reassign' => 1 ), 'DELETE', '/wc/v3/customers/2', array( 'force' => true, 'reassign' => 1 ) ),
 		array( 'coupons', array( 'action' => 'create', 'data' => array( 'code' => 'otono', 'amount' => '10' ) ), 'POST', '/wc/v3/coupons', array() ),
-		array( 'store-settings', array( 'action' => 'list', 'resource' => 'setting_group' ), 'GET', '/wc/v3/settings', array( 'page' => 1, 'per_page' => 10 ) ),
+		array( 'store-settings', array( 'action' => 'list', 'resource' => 'setting_group' ), 'GET', '/wc/v3/settings', null ),
 		array( 'store-settings', array( 'action' => 'update', 'resource' => 'setting', 'group_id' => 'general', 'setting_id' => 'woocommerce_currency', 'data' => array( 'value' => 'MXN' ) ), 'PUT', '/wc/v3/settings/general/woocommerce_currency', array() ),
 		array( 'store-settings', array( 'action' => 'batch', 'resource' => 'setting', 'group_id' => 'general', 'data' => array( 'update' => array( array( 'id' => 'woocommerce_currency', 'value' => 'MXN' ) ) ) ), 'POST', '/wc/v3/settings/general/batch', array() ),
 		array( 'store-settings', array( 'action' => 'update', 'resource' => 'shipping_zone_location', 'zone_id' => 3, 'data' => array( 'locations' => array( array( 'code' => 'MX', 'type' => 'country' ) ) ) ), 'PUT', '/wc/v3/shipping/zones/3/locations', array() ),
@@ -431,7 +449,9 @@ namespace {
 		$plan = Router::resolve( $tool, $input );
 		check( ! is_wp_error( $plan ), "Caso $i: plan válido (" . ( is_wp_error( $plan ) ? $plan->get_error_message() : '' ) . ')' );
 		check( $method === $plan['method'] && $route === $plan['route'], "Caso $i: $method $route (salió {$plan['method']} {$plan['route']})" );
-		check( $query == $plan['query'], "Caso $i: consulta " . json_encode( $plan['query'] ) ); // phpcs:ignore -- orden indiferente.
+		if ( null !== $query ) { // null: la consulta de una lista sin paginar se comprueba en R4.
+			check( $query == $plan['query'], "Caso $i: consulta " . json_encode( $plan['query'] ) ); // phpcs:ignore -- orden indiferente.
+		}
 	}
 	$plan = Router::resolve( 'store-settings', array( 'action' => 'update', 'resource' => 'shipping_zone_location', 'zone_id' => 3, 'data' => array( 'locations' => array( array( 'code' => 'MX', 'type' => 'country' ) ) ) ) );
 	check( array( array( 'code' => 'MX', 'type' => 'country' ) ) === $plan['body'], 'Las ubicaciones viajan como la lista JSON que WooCommerce reemplaza.' );
@@ -617,7 +637,7 @@ namespace {
 	$_POST = array();
 
 	// Ejecución por modo: read rechaza escrituras con un error que dice dónde se cambia; off no hace nada.
-	wm_reset( array( 'caps' => array( 'edit_products', 'publish_products', 'read_private_products' ) ) );
+	wm_reset( array( 'caps' => array( 'edit_products', 'publish_products', 'read_private_products', 'delete_products', 'edit_others_products', 'view_woocommerce_reports' ) ) );
 	$result = $run( 'products', array( 'action' => 'create', 'data' => array( 'name' => 'Mesa' ) ) );
 	check( is_wp_error( $result ) && 'digitalisimo_woo_mcp_read_only' === $result->get_error_code(), 'Modo read: create se rechaza.' );
 	check( false !== strpos( $result->get_error_message(), '«Rendimiento»' ) && false !== strpos( $result->get_error_message(), 'page=digitalisimo-elements-front#digitalisimo-woo-mcp' ), 'El error dice dónde se cambia el modo: ' . $result->get_error_message() );
@@ -707,7 +727,7 @@ namespace {
 
 	// =================================================================================================================
 	// 6. Bitácora sin datos personales.
-	wm_reset( array( 'caps' => array( 'list_users', 'create_customers' ), 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
+	wm_reset( array( 'caps' => array( 'list_users', 'create_customers', 'view_woocommerce_reports' ), 'options' => array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) ) ) );
 	$GLOBALS['wm_rest_responses']['POST /wc/v3/customers'] = array( 201, array( 'id' => 44, 'email' => 'ana@example.test', 'first_name' => 'Ana', 'billing' => array( 'address_1' => 'Calle 1', 'phone' => '5555' ) ), array() );
 	$result = $run( 'customers', array( 'action' => 'create', 'data' => array( 'email' => 'ana@example.test', 'first_name' => 'Ana', 'last_name' => 'Pérez', 'password' => 'Secreta-123', 'billing' => array( 'address_1' => 'Calle 1', 'phone' => '5555' ) ) ) );
 	check( ! is_wp_error( $result ) && 'ana@example.test' === $result['data']['email'], 'create de cliente: la respuesta es la de WooCommerce.' );
@@ -813,7 +833,8 @@ namespace {
 	check( false === $args['meta']['show_in_rest'] && false === $args['meta']['mcp']['public'] && 'digitalisimo-woo' === $args['category'], 'register(): fuera de la REST de abilities y del servidor genérico.' );
 	check( array( $products, 'execute_guarded' ) === $args['execute_callback'], 'Se ejecuta por execute_guarded() del núcleo.' );
 	$GLOBALS['wm']['caps'] = $roles['editor'];
-	check( false === $products->check_permission() && is_wp_error( call_user_func( $args['permission_callback'], array( 'action' => 'list' ) ) ), 'Permiso del núcleo y de la ability: un editor no.' );
+	check( is_wp_error( call_user_func( $args['permission_callback'], array( 'action' => 'list' ) ) ), 'Permiso de la ability: un editor no.' );
+	review( 'R1', false === $products->check_permission(), 'check_permission() del núcleo (que hace (bool) del callback) deja pasar a un editor.' );
 	$GLOBALS['wm']['caps'] = $roles['shop_manager'];
 	check( true === $products->check_permission(), 'Permiso del núcleo: un gerente sí.' );
 	$GLOBALS['wm_rest'] = array();
@@ -849,5 +870,39 @@ namespace {
 	do_action( 'wp_abilities_api_categories_init' );
 	check( array() === $GLOBALS['wm_registered'] && array() === $GLOBALS['wm_categories'], 'Con el MCP del sitio apagado: nada registrado.' );
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde.\n";
+	// =================================================================================================================
+	// 9. Revisión adversarial (REVISION.md): cada hallazgo con su etiqueta; todas fallaban con a43c428f.
+	$admin_caps = $roles['administrator'];
+	$write_mode = array( 'elementor_mcp_enabled' => true, Settings::OPTION => array( 'mode' => 'write', 'own' => array( 'mode' ) ) );
+
+	// R1 · run() comprueba el permiso por sí mismo (no sólo WP_Ability), y check_permission() del núcleo no deja pasar.
+	review_block(
+		'R1',
+		static function () use ( $roles, $write_mode ) {
+			wm_reset( array( 'caps' => $roles['editor'], 'options' => $write_mode ) );
+			$result = Executor::run( 'customers', array( 'action' => 'delete', 'customer_id' => 3, 'force' => true ), 'wm_dispatch' );
+			review( 'R1', is_wp_error( $result ) && 'digitalisimo_woo_mcp_forbidden' === $result->get_error_code(), 'run() como editor debe rechazar sin llamar a WooCommerce.' );
+			review( 'R1', array() === $GLOBALS['wm_rest'], 'run() como editor llegó a WooCommerce: ' . json_encode( $GLOBALS['wm_rest'] ) );
+			review( 'R1', isset( Log::entries()[0] ) && 'denied' === Log::entries()[0]['result'] && 'forbidden' === Log::entries()[0]['code'], 'La escritura sin permiso queda como «denied» (forbidden) en la bitácora.' );
+			$GLOBALS['wm']['caps'] = $roles['shop_manager'];
+			$result = Executor::run( 'catalog', array( 'action' => 'list', 'resource' => 'review' ), 'wm_dispatch' );
+			review( 'R1', ! is_wp_error( $result ), 'Un gerente sí lista reseñas por run().' );
+			foreach ( array( 'editor', 'subscriber' ) as $role ) {
+				$GLOBALS['wm']['caps'] = $roles[ $role ];
+				foreach ( Tools::tools() as $tool ) {
+					review( 'R1', false === ( new \Digitalisimo\Elements\Woo\Mcp\Ability( $tool ) )->check_permission(), "check_permission() del núcleo: $role no en $tool." );
+				}
+			}
+		}
+	);
+
+	if ( ! empty( $GLOBALS['wm_review'] ) ) {
+		$lines = array();
+		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
+			$lines[] = $label . ' (' . count( $messages ) . '): ' . $messages[0];
+		}
+		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
+	}
+
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R1 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

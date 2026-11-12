@@ -4,9 +4,10 @@ namespace Digitalisimo\Elements\Woo\Mcp;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Ejecuta una herramienta de tienda: enrutador, modo, secretos, una petición interna a la API REST v3 de WooCommerce
- * (`rest_do_request()`, como el usuario autenticado del MCP: WooCommerce valida, comprueba permisos objeto a objeto y
- * dispara sus ganchos; con HPOS también) y la bitácora de las escrituras.
+ * Ejecuta una herramienta de tienda: enrutador, modo, permiso (también aquí, no sólo en `WP_Ability`), secretos, una
+ * petición interna a la API REST v3 de WooCommerce (`rest_do_request()`, como el usuario autenticado del MCP:
+ * WooCommerce valida, comprueba permisos objeto a objeto y dispara sus ganchos; con HPOS también) y la bitácora de las
+ * escrituras.
  *
  * Nada de SQL propio ni de clases internas de WooCommerce; sin telemetría. Un error de WooCommerce vuelve como
  * `WP_Error` con su código y su mensaje, sin sus datos (pueden repetir lo enviado).
@@ -31,6 +32,15 @@ final class Executor {
 		if ( 'off' === $mode ) {
 			// Apagado no registra las herramientas; si una llega a ejecutarse (el modo cambió a mitad), no hace nada.
 			return new \WP_Error( 'digitalisimo_woo_mcp_off', 'Las herramientas de tienda están apagadas en este sitio («WooCommerce en el MCP»: apagado).', array( 'status' => 403 ) );
+		}
+		// El permiso, también aquí: no depende de que quien llama haya pasado por WP_Ability::check_permissions().
+		$allowed = self::permission( $tool, $input );
+		if ( true !== $allowed ) {
+			$error = is_wp_error( $allowed ) ? $allowed : self::forbidden( Tools::floor( $tool ) );
+			if ( 'write' === $plan['kind'] ) {
+				Log::add( Log::entry( $plan, 'denied', 'forbidden', 403, $user ) );
+			}
+			return $error;
 		}
 		if ( 'write' === $plan['kind'] && 'write' !== $mode ) {
 			Log::add( Log::entry( $plan, 'denied', 'read_mode', 403, $user ) );

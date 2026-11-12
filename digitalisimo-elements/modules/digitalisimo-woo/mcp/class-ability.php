@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
  * - ID sin el prefijo del núcleo (`digitalisimo-woo/products`): el servidor lo acepta (la lista de herramientas son los
  *   IDs del registro) y el adaptador lo publica como `digitalisimo-woo-products`. `is_exposed_via_proxy()` es false: el
  *   proxy del editor supone el prefijo del núcleo y no debe llegar a la tienda.
+ * - `check_permission()` propio: sólo `true` estricto (el del núcleo convierte la negativa, un `WP_Error`, en true).
  * - `register()` propio: la definición de `Tools::definition()` tal cual (fuera de la REST de abilities y del servidor
  *   MCP genérico) y `execute_guarded()` del núcleo como ejecución (disponibilidad y guarda de mutaciones; la entrada no
  *   lleva nunca `post_id`, así que no marca ningún documento del editor).
@@ -55,6 +56,14 @@ final class Ability extends Core_Ability {
 
 	public function is_exposed_via_proxy(): bool {
 		return false;
+	}
+
+	/**
+	 * El núcleo hace `(bool)` del `permission_callback`, y un `WP_Error` (la negativa de `Executor::permission()`) vale
+	 * true: aquí sólo un `true` estricto da permiso.
+	 */
+	public function check_permission(): bool {
+		return true === Executor::permission( $this->tool );
 	}
 
 	public function register(): void {
