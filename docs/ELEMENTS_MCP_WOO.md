@@ -23,9 +23,21 @@ salvo el modo, que la red define y cada sitio hereda o personaliza.
 
 ## Herramientas
 
-Todas llevan `action` (enum) y parámetros cerrados (`additionalProperties: false`); ninguna usa la clave `post_id`. Las
-listas se paginan con `page` y `per_page` (100 como mucho) y `fields` recorta la respuesta a los campos pedidos (siempre
-con `id`). `data` lleva los campos de la API REST v3 de WooCommerce y `query` sus filtros.
+Todas llevan `action` (enum) y parámetros cerrados (`additionalProperties: false`); ninguna usa la clave `post_id`.
+`data` lleva los campos de la API REST v3 de WooCommerce y `query` sus filtros. `fields` recorta la respuesta a los
+campos pedidos (siempre con `id`); en un lote, a los de cada elemento.
+
+**Paginación.** Sólo se pagina lo que WooCommerce 11.2.1 pagina (`paged` en `Tools::RESOURCES`): productos,
+variaciones, categorías, etiquetas, marcas, términos de atributo, clases de envío, reseñas, pedidos, reembolsos,
+clientes, cupones y tasas de impuesto, con `page` y `per_page` (100 como mucho) y `total`/`total_pages`. Las demás listas
+(pasarelas, zonas y sus ubicaciones y métodos, métodos de envío, grupos y opciones de ajustes, clases de impuesto,
+atributos, notas de pedido, descargas) devuelven todo en una respuesta con `total`; `page` mayor que 1 se rechaza.
+
+**Lotes.** `batch` acepta `data` `{"create":[…],"update":[…],"delete":[ids]}`, 100 elementos como mucho. Un parámetro
+de la ruta dentro de un elemento (`group_id` en un lote de ajustes, `product_id` en uno de variaciones) se quita si
+coincide con el de la ruta y, si no, el lote se rechaza: WooCommerce lo mezclaría sobre la URL y ganaría. WooCommerce
+responde 200 aunque fallen elementos; la respuesta lleva `batch` (`done`, `failed`, `errors` con lista, posición, ID,
+código y mensaje). Con algún fallo, `ok` es false y `partial` true; si no se aplicó ninguno, es un error.
 
 | Herramienta (nombre MCP) | Recursos y acciones |
 | --- | --- |
@@ -47,7 +59,8 @@ URL), `force`, `api_refund` y todo lo que empieza por `_`. Nada de SQL propio ni
 se exponen en el servidor de Elements. Las herramientas de tienda tampoco aparecen en la REST de abilities ni en el
 servidor MCP genérico del adaptador.
 
-**Permisos.** Cada herramienta exige la capacidad que la REST de WooCommerce pide para ese recurso y esa acción (las de
+**Permisos.** Cada herramienta (en `WP_Ability`, en `check_permission()` del núcleo con un `true` estricto y otra vez
+al ejecutar) exige la capacidad que la REST de WooCommerce pide para ese recurso y esa acción (las de
 `wc_rest_check_post_permissions`, `wc_rest_check_product_term_permissions`, `wc_rest_check_user_permissions` y
 `wc_rest_check_manager_permissions`) y además un mínimo por herramienta (`edit_products`, `edit_shop_orders`,
 `list_users`, `edit_shop_coupons`, `manage_woocommerce` o `view_woocommerce_reports`). Un editor o un suscriptor no
@@ -68,7 +81,7 @@ leen y cuáles escriben.
 - **Lectura y escritura:** todo, con la bitácora.
 
 Paridad sitio/red como en «Rendimiento»: la red define el valor (sin «Heredar de la red») y cada sitio lo hereda o lo
-personaliza (con «Heredar de la red»). Opciones `digitalisimo_elements_woo_mcp` (sitio, sin carga automática) y
+personaliza (con «Heredar de la red»). Opciones `digitalisimo_elements_woo_mcp` (sitio, sin carga automática; sólo se lee con el MCP del sitio activo) y
 `digitalisimo_elements_woo_mcp_defaults` (red). Sin WooCommerce (o con uno anterior a `Woo\Module::MIN_WC`) o con el
 MCP del sitio apagado, no hay herramientas de tienda.
 
@@ -91,7 +104,7 @@ MCP del sitio apagado, no hay herramientas de tienda.
   salen como los devuelve WooCommerce.
 - **Bitácora.** Cada escritura (también las rechazadas por el modo) queda en `digitalisimo_elements_woo_mcp_log`
   (opción del sitio sin carga automática, últimas 200): fecha UTC, ID del usuario, herramienta, acción, recurso, ID y
-  padre de la ruta, elementos de un lote, resultado, código de error y estado HTTP. Sin nombres, correos, direcciones,
+  padre de la ruta, elementos de un lote, resultado (`ok`, `partial`, `error` o `denied`), código de error y estado HTTP. Sin nombres, correos, direcciones,
   importes ni valores. Se consulta con `reports` → `log`.
 - **Sin telemetría.** Ninguna herramienta emite eventos ni se conecta fuera del sitio.
 

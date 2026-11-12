@@ -175,6 +175,17 @@ async function single() {
   okCall(r, 'dos variaciones creadas en un lote');
   const varIds = (r.data?.data?.create || []).map((v) => v.id);
   check(varIds.length === 2 && varIds.every(Boolean), 'lote con dos IDs', JSON.stringify(r.data?.data).slice(0, 300));
+  check(r.data?.ok === true && r.data?.batch?.done === 2 && r.data?.batch?.failed === 0, 'el lote informa 2 hechos y 0 fallidos', JSON.stringify(r.data?.batch));
+  // Revisión R2/R3: fields por elemento, error parcial y total, y product_id anidado en los elementos.
+  r = await admin.call('products', { action: 'batch', resource: 'variation', product_id: prodId, fields: ['regular_price'], data: { update: [{ id: varIds[0], regular_price: '205.00', product_id: prodId }, { id: varIds[1], regular_price: '225.00' }] } });
+  check(!r.isError && r.data.ok === true && r.data.data.update.length === 2 && r.data.data.update.every((v) => Object.keys(v).sort().join() === 'id,regular_price'), 'lote con fields: cada elemento recortado (id y regular_price), con el mismo product_id anidado quitado', r.text.slice(0, 400));
+  r = await admin.call('products', { action: 'batch', resource: 'variation', product_id: prodId, data: { update: [{ id: varIds[0], regular_price: '199.00' }, { id: 999999, regular_price: '1.00' }] } });
+  check(!r.isError && r.data.ok === false && r.data.partial === true && r.data.batch.done === 1 && r.data.batch.failed === 1 && r.data.batch.errors[0].index === 1 && /^woocommerce_rest_/.test(r.data.batch.errors[0].code), `lote parcial: ok false, 1 hecho y 1 fallido (${r.data?.batch?.errors?.[0]?.code})`, r.text.slice(0, 400));
+  const partialCode = r.data?.batch?.errors?.[0]?.code;
+  r = await admin.call('products', { action: 'batch', resource: 'variation', product_id: prodId, data: { update: [{ id: 999998, regular_price: '1.00' }] } });
+  check(r.isError && /ningún elemento/.test(r.text), 'lote sin ningún elemento aplicado: error', r.text);
+  r = await admin.call('products', { action: 'batch', resource: 'variation', product_id: prodId, data: { update: [{ id: varIds[0], product_id: prodId + 1000, regular_price: '1.00' }] } });
+  check(r.isError && /product_id/.test(r.text), 'un product_id distinto dentro de un elemento del lote se rechaza', r.text);
   r = await admin.call('products', { action: 'update', resource: 'variation', product_id: prodId, variation_id: varIds[0], data: { stock_quantity: 7 } });
   check(!r.isError && r.data.data.stock_quantity === 7, 'stock de una variación actualizado', r.text.slice(0, 300));
   r = await admin.call('products', { action: 'list', resource: 'variation', product_id: prodId, fields: ['stock_quantity', 'price'] });
@@ -252,6 +263,11 @@ async function single() {
   check(!r.isError && r.data.data.some((g) => g.id === 'general'), 'grupos de ajustes', r.text.slice(0, 300));
   r = await admin.call('store-settings', { action: 'update', resource: 'setting', group_id: 'general', setting_id: 'woocommerce_store_city', data: { value: 'Guadalajara' } });
   check(!r.isError && (await probe('option', 'woocommerce_store_city')).value === 'Guadalajara', 'ajuste de la tienda cambiado', r.text.slice(0, 300));
+  // Revisión R3: group_id anidado en un lote de ajustes.
+  r = await admin.call('store-settings', { action: 'batch', resource: 'setting', group_id: 'general', data: { update: [{ id: 'woocommerce_store_city', group_id: 'general', value: 'Monterrey' }] } });
+  check(!r.isError && r.data.ok === true && (await probe('option', 'woocommerce_store_city')).value === 'Monterrey', 'lote de ajustes con el mismo group_id anidado (se quita): aplicado', r.text.slice(0, 300));
+  r = await admin.call('store-settings', { action: 'batch', resource: 'setting', group_id: 'general', data: { update: [{ id: 'woocommerce_store_city', group_id: 'products', value: 'Toluca' }] } });
+  check(r.isError && /group_id/.test(r.text) && (await probe('option', 'woocommerce_store_city')).value === 'Monterrey', 'lote de ajustes con otro group_id anidado: rechazado, nada cambia', r.text);
   r = await admin.call('store-settings', { action: 'create', resource: 'shipping_zone', data: { name: 'México MCP' } });
   okCall(r, 'zona de envío creada');
   const zoneId = r.data?.data?.id;
@@ -283,6 +299,9 @@ async function single() {
   check(!r.raw.includes(key) && !r.raw.includes(tok), 'ni la clave ni el token aparecen en la respuesta');
   r = await admin.call('store-settings', { action: 'list', resource: 'payment_gateway' });
   check(!r.isError && !r.raw.includes(key) && !r.raw.includes(tok), 'tampoco en la lista de pasarelas');
+  check(r.data.page === undefined && r.data.per_page === undefined && r.data.total_pages === undefined && r.data.total === r.data.data.length, `lista de pasarelas sin paginar: sin page ni total_pages, total ${r.data.total}`, JSON.stringify({ page: r.data.page, total: r.data.total, total_pages: r.data.total_pages }));
+  const page2 = await admin.call('store-settings', { action: 'list', resource: 'payment_gateway', page: 2 });
+  check(page2.isError && /no se pagina/.test(page2.text), 'page 2 de una lista que WooCommerce no pagina: rechazada con un motivo claro', page2.text);
   const mask = r.data.data.find((g) => g.id === 'digi_wm_test').settings.api_key.value;
   r = await admin.call('store-settings', { action: 'update', resource: 'payment_gateway', gateway_id: 'digi_wm_test', data: { title: 'Pago renombrado', settings: { api_key: mask, identity_token: '', title: 'Pago renombrado' } } });
   let state = await probe('secret');
@@ -304,6 +323,7 @@ async function single() {
     check(!raw.includes(needle), `la bitácora no lleva «${needle.startsWith('sk_') || needle.startsWith('tok_') ? 'la clave' : needle}»`);
   }
   check(/"result":"denied"/.test(raw) && /"code":"read_mode"/.test(raw), 'la escritura rechazada en modo read quedó como «denied»');
+  check(raw.includes(`"result":"partial","code":"${partialCode}"`) && /"result":"error","code":"woocommerce_rest_/.test(raw), `el lote parcial quedó como «partial» (${partialCode}) y el fallido como «error», con su código real`);
   const auto = (await probe('option', 'autoload')).autoload || [];
   check(auto.length >= 2 && auto.every((row) => ['no', 'off', 'auto-off'].includes(row.autoload)), 'bitácora y modo sin carga automática', JSON.stringify(auto));
 
