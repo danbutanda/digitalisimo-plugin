@@ -395,6 +395,29 @@ try {
 		}
 	} );
 
+	// Revisión de 1.0.74 (H13): «Herramientas» busca una sola vez los respaldos de UpdraftPlus y de Backuply (el resumen y
+	// la sección usan lo mismo; sources() retira además las descargas cortadas), y «Respaldos (N)» cuenta todos.
+	ss_case( 'T13 · una sola búsqueda en «Importar» y el contador con el total', function() use ( $B ) {
+		// Los paneles pintan lo que se les da, sin volver a buscar en el disco (aquí no hay nada de UpdraftPlus ni Backuply).
+		$set = array( 'id' => 'backup_2026-01-01-0000_Dado_0123456789ab', 'files' => array( 'db' => array( array( 'path' => '/no/existe-db.gz', 'part' => 0, 'encrypted' => false ) ) ), 'complete' => true );
+		ob_start(); bk_call( $B, 'updraft_panel', array( $set['id'] => $set ) ); $updraft = (string) ob_get_clean();
+		ss_check( false !== strpos( $updraft, '<option value="' . $set['id'] . '">' ), 'updraft_panel() vuelve a buscar en el disco en lugar de usar los conjuntos que ya calculó tools_tab().' );
+		$item = array( 'source' => 'store', 'name' => 'backup_dado_2026.tar.gz', 'size' => 10, 'created' => time(), 'date' => '2026-01-01 00:00', 'database' => null, 'files' => null, 'site_url' => '', 'imported' => '' );
+		ob_start(); bk_call( $B, 'backuply_panel', false, array( $item ) ); $backuply = (string) ob_get_clean();
+		ss_check( false !== strpos( $backuply, 'value="backup_dado_2026.tar.gz"' ), 'backuply_panel() vuelve a llamar a sources() en lugar de usar los respaldos que ya calculó tools_tab().' );
+		// «Respaldos (12)» con 12 en el historial, aunque la lista enseñe los 10 últimos.
+		$saved = get_option( $B::HISTORY );
+		try {
+			$rows = (array) $saved;
+			for ( $i = count( $rows ); $i < 12; $i++ ) $rows[] = array_merge( (array) $rows[0], array( 'file' => sprintf( 'digitalisimo-backup-antiguo-%02d.zip', $i ), 'locked' => false ) );
+			update_option( $B::HISTORY, $rows );
+			$home = ss_render( 'backups' );
+			ss_check( 10 === ss_count( $home, '<tr class="digitalisimo-backups-row"' ) && false !== strpos( $home, 'Respaldos <span class="count">(12)</span>' ), 'Con 12 respaldos la lista no enseña 10 con el contador en 12: ' . ( preg_match( '#<h2>Respaldos[^<]*<span class="count">\([0-9]+\)#', $home, $m ) ? $m[0] : '' ) );
+			$seen = ss_visible( $home );
+			ss_check( $seen['longest'][0] <= 140, '«Respaldos» con 12 enseña un texto de ' . $seen['longest'][0] . ' caracteres: ' . $seen['longest'][1] );
+		} finally { update_option( $B::HISTORY, $saved ); }
+	} );
+
 	ss_case( 'T6 · una sola franja de avisos y sin repetir el aviso del escritorio', function() use ( $B ) {
 		Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array( 'no_active' => true ) );
 		$html = ss_render( 'backups' );

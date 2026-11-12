@@ -226,7 +226,7 @@ trait Digitalisimo_Backups_Screen {
 		echo '</section>';
 		// Trabajos en curso (automatizaciones, restauraciones, migraciones): sólo mientras haya alguno.
 		self::jobs_panel( $network, true );
-		self::history_panel( $history, $network );
+		self::history_panel( $history, $network, count( $all ) );
 	}
 	/** «Último respaldo» y «Próximo» (la automatización activa que antes toca). */
 	private static function status_block( array $history ) {
@@ -264,16 +264,17 @@ trait Digitalisimo_Backups_Screen {
 		if ( $remote && isset( $states[ $remote['state'] ] ) ) $parts[] = $states[ $remote['state'] ];
 		return $parts ? implode( ' + ', $parts ) : 'Sin copias';
 	}
-	/** Lista de respaldos: Restaurar, Descargar y Borrar en cada fila; lo demás en «⋯». */
-	private static function history_panel( array $history, $network ) {
-		echo '<section class="digitalisimo-backups-card digitalisimo-backups-history" id="digitalisimo-backups-history"><div class="digitalisimo-backups-head"><h2>Respaldos' . ( $history ? ' <span class="count">(' . count( $history ) . ')</span>' : '' ) . '</h2>';
+	/** Lista de respaldos: Restaurar, Descargar y Borrar en cada fila; lo demás en «⋯». $total: cuántos hay (la lista enseña los últimos). */
+	private static function history_panel( array $history, $network, $total = null ) {
+		$total = null === $total ? count( $history ) : max( (int) $total, count( $history ) );
+		echo '<section class="digitalisimo-backups-card digitalisimo-backups-history" id="digitalisimo-backups-history"><div class="digitalisimo-backups-head"><h2>Respaldos' . ( $history ? ' <span class="count">(' . $total . ')</span>' : '' ) . '</h2>';
 		if ( ! is_multisite() || is_main_site() ) echo '<a href="' . esc_url( self::tab_url( 'tools', 'upload' ) ) . '">Subir un respaldo</a>';
 		echo '</div>';
 		if ( ! $history ) { echo '<p>Aún no hay respaldos.</p></section>'; return; }
 		$open = isset( $_GET['restore'] ) ? sanitize_file_name( wp_unslash( (string) $_GET['restore'] ) ) : '';
 		echo '<table class="widefat digitalisimo-backups-list"><thead><tr><th scope="col">Fecha</th><th scope="col">Tamaño</th><th scope="col">Dónde</th><th scope="col"><span class="screen-reader-text">Acciones</span></th></tr></thead><tbody>';
 		foreach ( array_values( $history ) as $index => $item ) self::history_row( (array) $item, $index, $network, $open );
-		echo '</tbody></table></section>';
+		echo '</tbody></table>' . ( $total > count( $history ) ? '<p class="description">Se muestran los ' . count( $history ) . ' más recientes.</p>' : '' ) . '</section>';
 	}
 	private static function history_row( array $item, $index, $network, $open ) {
 		$file = (string) ( $item['file'] ?? '' );
@@ -409,11 +410,12 @@ trait Digitalisimo_Backups_Screen {
 		$migrating = (bool) array_filter( $jobs, function( $view ) { return ! $view['terminal'] && 'migration' === ( $view['kind'] ?? '' ); } );
 		$status = self::migration_status_data();
 		self::tool_section( 'migrate', 'Migrar', 'clave de un solo uso, migrar desde otro sitio, copia de pruebas, deshacer', 'migrate' === $open || $migrating, function() use ( $network, $status ) { Digitalisimo_Backups_Migrate::panel( $network, $status ); } );
-		$updraft = count( self::detect_updraft_sets() );
-		$backuply = 0;
-		try { $backuply = $main ? count( Digitalisimo_Backups_Backuply_Import::sources() ) : 0; } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-		$found = $updraft + $backuply;
-		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open, function() use ( $network ) { self::backuply_panel( $network ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel(); echo '</section>'; } );
+		// Una sola búsqueda para el resumen y la sección (sources() también retira las descargas cortadas).
+		$updraft = self::detect_updraft_sets();
+		$backuply = array();
+		try { $backuply = $main ? Digitalisimo_Backups_Backuply_Import::sources() : array(); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		$found = count( $updraft ) + count( $backuply );
+		self::tool_section( 'import', 'Importar de Backuply o UpdraftPlus', $found ? $found . ' ' . ( 1 === $found ? 'respaldo detectado' : 'respaldos detectados' ) : 'no se detectaron respaldos', 'import' === $open, function() use ( $network, $updraft, $backuply ) { self::backuply_panel( $network, $backuply ); echo '<section class="digitalisimo-backups-card digitalisimo-backups-updraft">'; self::updraft_panel( $updraft ); echo '</section>'; } );
 		if ( $main ) self::tool_section( 'upload', 'Subir un respaldo', '.zip o .dgbk de DIGITALÍSIMO, o .tar.gz de Backuply', 'upload' === $open, function() use ( $network ) { Digitalisimo_Backups_Uploads::panel( $network ); } );
 		self::tool_section( 'restore-file', 'Restaurar un archivo suelto', 'archivos sin registro, de otro servidor o con su frase, y la última restauración en otro dominio', 'restore-file' === $open, function() use ( $history ) { self::restore_panel( $history ); } );
 		$count = count( self::policies() );

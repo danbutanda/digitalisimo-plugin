@@ -140,14 +140,16 @@ trait Digitalisimo_Backups_Backuply_Service {
 		if ( is_wp_error( $result ) ) self::redirect( false, $result->get_error_message() );
 		self::redirect( true, 'Importación de Backuply en cola (trabajo ' . $result['id'] . '): su avance está en «Trabajos». Al terminar, el ZIP aparece en Herramientas → «Restaurar un archivo suelto».' );
 	}
-	/** Tarjeta «Respaldos de Backuply»: sólo si Backuply está en el sitio o hay respaldos suyos que importar. */
-	private static function backuply_panel( $network ) {
+	/** Tarjeta «Respaldos de Backuply»: sólo si Backuply está en el sitio o hay respaldos suyos que importar. $items: los de sources(), si ya se buscaron. */
+	private static function backuply_panel( $network, $items = null ) {
 		if ( is_multisite() && ! is_main_site() ) return;
 		$found = Digitalisimo_Backups_Backuply_Import::detected();
-		try {
-			$items = Digitalisimo_Backups_Backuply_Import::sources();
-		} catch ( Exception $e ) {
-			$items = array();
+		if ( ! is_array( $items ) ) {
+			try {
+				$items = Digitalisimo_Backups_Backuply_Import::sources();
+			} catch ( Exception $e ) {
+				$items = array();
+			}
 		}
 		if ( ! $found['installed'] && ! $found['folder'] && ! $items ) return;
 		echo '<section class="digitalisimo-backups-card digitalisimo-backups-backuply" id="digitalisimo-backups-backuply"><h2>Respaldos de Backuply</h2>';
