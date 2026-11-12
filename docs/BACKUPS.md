@@ -85,6 +85,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **La restauración conserva la configuración de Backups de este sitio (H23 del ensayo E4).** Restaurar el respaldo de otra instalación (traído de un destino remoto o subido: sin fila en el historial de aquí, o con otra identidad) ya no reemplaza la configuración de Backups de este sitio con la del respaldo: siguen los ajustes y destinos, las conexiones con nombre y sus credenciales (cifradas con las claves de este servidor y atadas a sus conexiones, sin mezclarse con las del origen), el catálogo de servidores, las automatizaciones (y sus eventos de WP-Cron: los del origen se retiran), los avisos, el respaldo antes de actualizar y el índice de los destinos. Viaja en el diario de la restauración (`config_kept`) y vuelve tras el SQL, también si el proceso muere. Un sitio sin configuración propia (una instalación nueva donde se recupera un sitio perdido) recibe la del respaldo, y un respaldo de esta misma instalación devuelve la de su momento, como hasta ahora (S4). Lo que el respaldo traía y no se aplicó queda pendiente con un aviso persistente (escritorio, tarjeta de Backups, `GET /restore-config`, `wp digitalisimo-backups restore-config`): «Aplicar la del respaldo» (sus automatizaciones en pausa, también las de serie si el respaldo no traía las suyas) o «Descartar», guardado cifrado entero y sin perderse si el proceso muere antes de retirar el diario; y tras cualquier restauración sin automatizaciones activas, el aviso lo dice. | 1.0.73 | `backups-restore-keeps-config.php`, `backups-restore-pending-config.php` |
 | **Hallazgos del ensayo E4 (H22, H25).** H22: cuando la retención remota borra la copia de un respaldo que ya no tiene ZIP en el almacén («sólo en el remoto», o retirado por la retención local), su fila sale del historial en vez de quedarse para siempre como «Sin copias» (con una automatización diaria el historial crecía sin fin). H25: `wp digitalisimo-backups status` en formato tabla da el campo `restore` (estado y aviso) y cualquier otro campo compuesto en texto legible, sin «Array to string conversion». Y en una migración, el destino ya no dice «otra operación ocupa el almacén del origen» cuando quien lo tiene es el propio trabajo del paquete (otra petición o WP-Cron con su arrendamiento vivo): el paquete avanza. | 1.0.73 | `backups-remote-retention.php`, `backups-e4-findings.php` |
 | **Pantalla simple, como Backuply («interfaz simple»).** Cuatro pestañas: «Respaldos» (estado del último respaldo y del próximo, «Respaldar ahora» y la lista con Restaurar, Descargar y Borrar en cada fila; Bloquear, Traer al almacén y los detalles en «⋯»; restaurar en un panel bajo la fila escribiendo `RESTAURAR`), «Ajustes» (programación de la automatización principal, avisos por correo, antes de actualizar y, plegado, cifrado y firma), «Destinos» (la lista y un solo formulario al pedirlo) y «Herramientas» (todo lo demás, plegado). Una sola franja de avisos. Las pestañas de antes (`servers`, `security`, `notifications`, `migrate`) abren su sitio nuevo; formularios, acciones, nonces, REST, WP-CLI y opciones no cambian. La principal cabe en 1 000 px con ≤ 150 palabras visibles y ningún texto visible pasa de 140 caracteres (ver «Pantalla»). | 1.0.74 | `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-screen-ui.mjs` (fallan con `dede88f9`) |
+| **Hallazgos del ensayo E5 (H26, H27).** H26: el aviso de la configuración del respaldo pendiente concuerda en número («1 automatización … que no se aplicó») y cuenta las automatizaciones como «Aplicar la del respaldo» (las activas de la configuración del respaldo, que quedan en pausa; antes decía 1 y después «2 en pausa»). Antes de aplicarla, la franja (a la vista, nunca plegado), el aviso del escritorio y `restore-config status` dicen lo que se pierde (las conexiones con nombre y las automatizaciones de este sitio que el respaldo no trae, con su nombre si cabe en 140 caracteres), y la pantalla sólo aplica escribiendo `APLICAR` (lo comprueba el handler; REST y WP-CLI siguen igual). H27: al actualizar, una sola vez, salen del historial las filas «Sin copias» que dejó 1.0.71 (sin ZIP ni copia remota registrada; nunca una bloqueada, con la marca de una migración o con algún archivo con su nombre), con la marca `digitalisimo_backups_data_version` en el ámbito del historial. | 1.0.75 | `backups-restore-pending-config.php`, `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-e5-findings.php` (fallan con `fd4423a3`) |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -280,7 +281,8 @@ después, sitio y red).
 - **Franja de avisos.** Una sola `div.notice` arriba reúne, en una línea cada uno y con su detalle plegado:
   - el estado de una restauración (con «Volver a la copia previa» cuando el sitio quedó a medio cambiar);
   - la configuración pendiente o «sin automatizaciones activas» tras restaurar (H23), con «Aplicar la del respaldo»,
-    «Programar» y «Descartar»;
+    «Programar» y «Descartar»; con lo pendiente, lo que se pierde al aplicarla va a la vista (nunca plegado) y aplicarla
+    pide escribir `APLICAR` (H26, 1.0.75);
   - las credenciales de los destinos que no se abren o siguen sin cifrar;
   - las actualizaciones automáticas retenidas, pospuestas o sin respaldo previo.
   Los avisos de escritorio de esas dos últimas cosas no se repiten en la pantalla de Backups.
@@ -324,7 +326,7 @@ restaurar y verificar trabajan en la misma petición.
 | — (pantalla: «Volver a la copia previa») | `wp digitalisimo-backups jobs rollback [--network]` | Desde 1.0.64: recupera un sitio que quedó a medio cambiar (una restauración que falló después del cambio y cuya vuelta a la copia previa no se pudo hacer o falló): encola otra vuelta a su copia previa, sin hacer otra, con el mismo testigo del mantenimiento, y la hace avanzar (WP-CLI hasta terminar). Sin una restauración a medio cambiar responde 409; sin su copia previa en el almacén, 422. |
 | `POST /sites/<id>/extract` (`network`, `super_admins`, `network_secrets`, `destination`; en el cuerpo, `secret`) | `wp digitalisimo-backups extract <id> --network [--super-admins=none\|managing\|all] [--secret-file=…\|--secret-stdin] [--network-secrets] [--destination=…] [--async] [--porcelain]` | «Extraer como WordPress individual» (ver «Extraer un sitio de la red»): sólo en una red, desde el sitio principal, con el alcance de red y, en REST, un superadministrador. `super_admins` es `none` por defecto. La frase propia del paquete (`secret`) sólo en el cuerpo de la petición (en la URL, 400) o por archivo o entrada estándar; con el cifrado de la red activo es obligatoria. REST responde 202 con el trabajo (409 si ese sitio ya tiene una extracción pendiente); WP-CLI lo hace avanzar hasta que queda verificado. `verify` de un paquete así añade `extract` (sitio, usuarios, bloqueados, plugins, mu-plugins, drop-ins, ajustes materializados, claves no copiadas y lo que no viajó). |
 | `POST /uploads` (`name`, `size`, `sha256`) · `GET /uploads` · `GET /uploads/<id>` · `POST\|PUT /uploads/<id>/chunk` (`offset`; cuerpo en bruto o archivo `chunk`) · `POST /uploads/<id>/finish` (`secret`) · `DELETE /uploads/<id>` | `wp digitalisimo-backups upload list [--format=…]` · `upload finish <id> [--secret-file=…\|--secret-stdin]` · `upload cancel <id>` (para subir, se copia el archivo al almacén) | Desde 1.0.63: subir un respaldo por fragmentos al almacén privado. `POST /uploads` responde 201 con `id`, `chunk_size` y `received`; cada fragmento va en `offset` = lo ya recibido (si no, 409 con `received`); `finish` lo valida como archivo no confiable y responde con el nombre en el almacén, la confianza, la palabra de confirmación, `problems`, `relocation` y `wp_config`, o 422 si se descartó; repetido, devuelve lo mismo. Con la subida conservada: 507 `upload_space`, 400 `secret_wrong`, 500 `upload_error`; 202 `upload_validating` mientras otro proceso la comprueba y 504 `upload_timeout` tras tres cortes (se termina con `wp … upload finish`, sin límite de tiempo). `GET /uploads/<id>` dice `phase` (`uploading`, `validating`, `done`, `rejected`), `validating`, `attempts`, `error` y, cerrada, `result`; `GET /uploads` lista las de todas las cuentas (`mine`). La frase de un `.dgbk` sólo va en el cuerpo de `finish`. |
-| `GET /restore-config` · `POST /restore-config/apply` · `POST /restore-config/discard` (`network`) | `wp digitalisimo-backups restore-config status\|apply\|discard [--network]` | Desde 1.0.73 (H23): tras restaurar el respaldo de otra instalación, la configuración de Backups que traía y no se aplicó (automatizaciones y conexiones) y si el sitio quedó sin automatizaciones activas. Aplicar la deja con sus automatizaciones en pausa; descartar la olvida. |
+| `GET /restore-config` · `POST /restore-config/apply` · `POST /restore-config/discard` (`network`) | `wp digitalisimo-backups restore-config status\|apply\|discard [--network]` | Desde 1.0.73 (H23): tras restaurar el respaldo de otra instalación, la configuración de Backups que traía y no se aplicó (automatizaciones y conexiones) y si el sitio quedó sin automatizaciones activas. Aplicar la deja con sus automatizaciones en pausa; descartar la olvida. Desde 1.0.75 (H26), `automations` cuenta las automatizaciones activas de la configuración del respaldo (las que `apply` deja en pausa y cuenta en `paused`) y `message` dice también lo que se pierde al aplicarla; la pantalla pide escribir `APLICAR`, REST y WP-CLI no (su orden ya es explícita). |
 | `POST /destinations/sync` (`destination`) · `GET /destinations/sync` | `wp digitalisimo-backups sync [<destino>] [--format=…]` | Desde 1.0.69 (B2, I13): lista los respaldos de DIGITALÍSIMO de cada destino con conexión completa (o de uno) y guarda el índice que muestra la pantalla; `GET` devuelve lo último sincronizado sin llamar a los destinos. Por destino: nombre, fecha, recuento, `importable`, `registered`, `other_sites` y el error si no respondió (conserva su lista anterior). Ninguna ruta, identificador remoto ni secreto. |
 | `GET /destinations/<id>/backups` | `wp digitalisimo-backups destinations backups <id> [--format=…]` | Desde 1.0.69: los respaldos de DIGITALÍSIMO del destino, listados ahora: `name`, `size`, `site` y `date` (lo que dice el nombre, una pista), `origin` (`this`, `other`, `unknown`), `registered`, `local` y `state` (`local`, `registered` o `importable`). |
 | `POST /destinations/<id>/backups/<nombre>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <nombre> --from=<id> [--network]` · `wp digitalisimo-backups restore <nombre> --from=<id> --confirm=…` | Desde 1.0.69 (B1b, B2): trae al almacén un respaldo del destino, de este sitio o de otro, con el trabajo `fetch` (por fragmentos y con reanudación). Uno de este sitio se comprueba por el SHA-256 de su historial y entra con su nombre; uno de otro sitio pasa la validación de archivos no confiables y entra «sin registro» (`trust`, `confirmation`, `compatible`, `problems` en la respuesta). `restore --from` lo trae y lo restaura en la misma orden. |
@@ -839,15 +841,24 @@ Multisite). Se anota antes de devolver la configuración de aquí y marcada con 
 proceso muere antes de retirar el diario, la operación siguiente no la recalcula ni la borra. Un servidor sin claves
 propias en `wp-config.php` sólo da los recuentos (no la guarda). Un aviso persistente en el escritorio y en la tarjeta
 de Backups dice «Este sitio conservó su configuración de Backups; el respaldo restaurado traía N automatizaciones (y M
-conexiones) del sitio de origen que no se aplicaron», con dos acciones (también `GET /restore-config`,
-`POST /restore-config/apply|discard` y `wp digitalisimo-backups restore-config status|apply|discard`):
+conexiones) del sitio de origen que no se aplicaron» (con una sola, «que no se aplicó»), con dos acciones (también
+`GET /restore-config`, `POST /restore-config/apply|discard` y `wp digitalisimo-backups restore-config status|apply|discard`).
+Desde 1.0.75 (H26 del ensayo E5) N son las automatizaciones activas de la configuración del respaldo, las mismas que
+«Aplicar» deja en pausa y cuenta después (antes contaba sólo las distintas de las de aquí: «1 automatización» y, tras
+aplicar, «2 en pausa» con «Completo mensual»); un aviso que anotó 1.0.73 o 1.0.74 se recuenta al enseñarlo. Antes de
+aplicarla se dice lo que se pierde: «Aplicarla reemplaza la de este sitio: se pierden 1 conexión («…») y 1
+automatización («…»)», las conexiones con nombre y las automatizaciones de aquí que el respaldo no trae, con su nombre
+si la frase cabe en 140 caracteres (si no, sólo cuántas); en la franja de Backups va a la vista, nunca plegada.
 
 - **Aplicar la del respaldo**: pasa a la configuración del respaldo (ajustes y destino manual, conexiones, avisos por
   correo y automatizaciones) con sus automatizaciones **en pausa** (sin eventos de WP-Cron) hasta activarlas a mano, para
   que dos sitios no respalden a la misma carpeta sin querer; el aviso lo recuerda. Nada se activa sin el usuario: si el
   respaldo no traía la opción de automatizaciones (el origen usaba las de serie), las de serie quedan también en pausa.
   Si las claves de este servidor cambiaron desde la restauración, lo pendiente no abre (409 `pending_locked`) y sólo
-  queda «Descartar».
+  queda «Descartar». En la pantalla (la franja y el aviso del escritorio) se confirma escribiendo `APLICAR` en
+  `digitalisimo_backups_config_confirmation`, como `RESTAURAR` o `QUITAR`: lo comprueba el handler de
+  `digitalisimo_backups_restore_config` (la misma acción y el mismo nonce) y, sin la palabra, no cambia nada. REST y
+  `wp … restore-config apply` aplican sin pedirla, como antes.
 - **Descartar**: olvida la configuración del respaldo; la de este sitio sigue como está.
 
 Además, tras cualquier restauración (también de este mismo sitio) que deja el sitio sin ninguna automatización activa,
@@ -1423,6 +1434,22 @@ sólo lista las copias que existen: el ZIP local y la copia remota verificada o 
 pendiente, fallida o cancelada sólo aparece en `transfer`. Si no queda ninguna (la copia falló y la retención borró el
 ZIP), la pantalla la rotula «Sin copias: …» y la fila se elimina sin pedir nada al destino.
 
+### Puesta al día de los datos al actualizar
+
+Desde 1.0.75. `upgrade_data()` corre una sola vez cada puesta al día de datos más nueva que la opción
+`digitalisimo_backups_data_version` (con carga automática, en el mismo ámbito que el historial: en una red, el sitio
+principal; desde un subsitio no hace nada) y la anota al terminarla. Se engancha a `init` al cargar el escritorio, el
+cron o WP-CLI (como la migración de las credenciales), nunca en una visita al sitio, y nunca lanza. Si no puede
+comprobar lo que necesita (el almacén no se resuelve, hay un diario de restauración o un trabajo en curso, el cerrojo
+del historial falla) no cambia nada ni anota la versión: se reintenta en la carga siguiente. Restaurar un respaldo
+anterior trae el SQL sin la marca y vuelve a correrla, lo que es inocuo porque cada paso es idempotente.
+
+- **1.0.75 (H27 del ensayo E5).** Retira del historial, con su cerrojo, las filas «Sin copias» que dejó 1.0.71 (antes
+  de H22): sin ZIP en el almacén ni un archivo o enlace con su nombre, y sin ninguna copia remota registrada (ni
+  verificada, ni anterior a 1.0.59 sin identificador, ni copia o borrado remoto pendientes o fallidos). Nunca una fila
+  bloqueada, una con la marca de una migración (sin ella, «Deshacer» ofrecería una migración anterior) ni la del
+  archivo de un trabajo en curso. Prueba: `backups-e5-findings.php`.
+
 ### Archivos que Backups escribe fuera del almacén
 
 En Webuzo con OpenLiteSpeed, un cron recarga cada 2 minutos el servidor web de **todos** los sitios si algún
@@ -1684,7 +1711,8 @@ Desde 1.0.71 (B6 e I4 frente a Backuply; `trait-backups-remote-retention.php`).
   destino, la fila queda «la retención borró la copia en …» (`transfer` = `pruned`, sin recibo) y «Eliminar» sólo
   quita la fila. Si el ZIP ya no estaba en el almacén («sólo en el remoto», o retirado por la retención local), la fila
   se queda sin ninguna copia y la retención la retira del historial (H22 del ensayo E4: antes quedaba para siempre como
-  «Sin copias» y, con una automatización diaria, el historial crecía sin fin). Un fallo pasajero se reintenta con esperas de 5 min a 6 h (la fila dice «la retención la borrará
+  «Sin copias» y, con una automatización diaria, el historial crecía sin fin). Las que 1.0.71 ya había dejado así salen
+  una sola vez al actualizar a 1.0.75 (H27 del ensayo E5; ver «Puesta al día de los datos al actualizar»). Un fallo pasajero se reintenta con esperas de 5 min a 6 h (la fila dice «la retención la borrará
   (reintento N: motivo)»); uno permanente (conexión eliminada, credenciales que no se abren) queda «la retención no pudo
   borrarla: …» y vuelve a intentarse con la siguiente retención; mientras, «Eliminar» sigue sirviendo. REST y WP-CLI lo
   informan en `remote_retention` y `remote_retention_error`.
