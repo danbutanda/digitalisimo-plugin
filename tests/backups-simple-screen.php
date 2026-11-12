@@ -320,6 +320,22 @@ try {
 		}
 	} );
 
+	// Revisión de 1.0.74 (H4, H17 del ensayo E2): abrir la pantalla, en cualquier pestaña, deja en 0600 un ZIP que una
+	// versión anterior dejó en 0644 (hasta 1.0.73 lo hacía «Restaurar», que se pintaba siempre).
+	ss_case( 'T10 · abrir la pantalla deja el almacén en 0600', function() {
+		if ( DIRECTORY_SEPARATOR !== '/' ) return;
+		$old = bk_storage() . '/digitalisimo-backup-antiguo-20250101-000000-00000001.zip';
+		try {
+			foreach ( array( 'backups', 'settings', 'servers' ) as $tab ) {
+				file_put_contents( $old, 'respaldo de 1.0.60' );
+				chmod( $old, 0644 );
+				ss_render( $tab );
+				clearstatcache( true, $old );
+				ss_check( 0600 === ( fileperms( $old ) & 0777 ), 'Tras abrir «' . $tab . '», el ZIP antiguo sigue en ' . sprintf( '%o', fileperms( $old ) & 0777 ) . '.' );
+			}
+		} finally { @unlink( $old ); }
+	} );
+
 	ss_case( 'T6 · una sola franja de avisos y sin repetir el aviso del escritorio', function() use ( $B ) {
 		Digitalisimo_Backups_Keys::put( bk_call( $B, 'restore_notice_key' ), array( 'no_active' => true ) );
 		$html = ss_render( 'backups' );

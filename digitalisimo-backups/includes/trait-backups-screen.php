@@ -91,6 +91,9 @@ trait Digitalisimo_Backups_Screen {
 	private static function render( $network ) {
 		try { self::local_directory(); }
 		catch ( Throwable $e ) { echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><div class="notice notice-error"><p>' . esc_html( $e->getMessage() ) . '</p></div></div>'; return; }
+		// H17: abrir la pantalla, en cualquier pestaña, deja en 0600 lo que dejó una versión anterior (hasta 1.0.73 lo hacía
+		// «Restaurar», que se pintaba siempre; ahora vive plegado en «Herramientas»).
+		self::private_storage_files( self::local_directory() );
 		delete_option( self::manual_job_key() );
 		// Una restauración interrumpida: al tomar el bloqueo se aplica su diario (si otra operación lo tiene, espera).
 		if ( is_file( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ) ) { try { self::release_operation_lock( self::acquire_operation_lock() ); } catch ( Exception $e ) {} } // phpcs:ignore Generic.CodeAnalysis.EmptyStatement

@@ -2132,8 +2132,7 @@ final class Digitalisimo_Backups {
 	/** Respaldos del historial y archivos sueltos del almacén; un archivo sin registro nunca cuenta como propio. */
 	private static function restore_panel( $history ) {
 		$dir = trailingslashit( self::local_directory() );
-		// Abrir la pantalla tras actualizar ya deja en 0600 lo que dejó una versión anterior (H17), sin esperar a operar.
-		self::private_storage_files( $dir );
+		// Los permisos del almacén (H17) los corrige render() al abrir la pantalla, en cualquier pestaña.
 		// Con su ZIP en el almacén, también los que tienen copia remota (verificada, pendiente o fallida) y las filas antiguas.
 		$local = array_filter( (array) $history, function( $item ) { return self::restorable_item( $item ); } );
 		$known = array_flip( array_map( 'strval', array_column( (array) get_option( self::HISTORY, array() ), 'file' ) ) );
