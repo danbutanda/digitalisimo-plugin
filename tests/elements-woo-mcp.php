@@ -926,6 +926,28 @@ namespace {
 		}
 	);
 
+	// R3 · Parámetros de la ruta dentro de los elementos de un lote.
+	review_block(
+		'R3',
+		static function () use ( $admin_caps, $write_mode ) {
+			$plan = Router::resolve( 'store-settings', array( 'action' => 'batch', 'resource' => 'setting', 'group_id' => 'general', 'data' => array( 'update' => array( array( 'id' => 'license_key', 'group_id' => 'integration', 'value' => Secrets::MASK ) ) ) ) );
+			review( 'R3', is_wp_error( $plan ) && false !== strpos( $plan->get_error_message(), 'group_id' ), 'Un group_id distinto dentro de un elemento del lote de ajustes se rechaza.' );
+			$plan = Router::resolve( 'store-settings', array( 'action' => 'batch', 'resource' => 'setting', 'group_id' => 'general', 'data' => array( 'update' => array( array( 'id' => 'woocommerce_store_city', 'group_id' => 'general', 'value' => 'GDL' ) ) ) ) );
+			review( 'R3', ! is_wp_error( $plan ) && array( 'update' => array( array( 'id' => 'woocommerce_store_city', 'value' => 'GDL' ) ) ) === $plan['body'], 'El mismo group_id (copiado de la opción leída) se quita del elemento.' );
+			$plan = Router::resolve( 'products', array( 'action' => 'batch', 'resource' => 'variation', 'product_id' => 7, 'data' => array( 'update' => array( array( 'id' => 3, 'product_id' => 99, 'regular_price' => '1' ) ) ) ) );
+			review( 'R3', is_wp_error( $plan ), 'Un product_id distinto dentro de un elemento del lote de variaciones se rechaza.' );
+			$plan = Router::resolve( 'products', array( 'action' => 'batch', 'resource' => 'variation', 'product_id' => 7, 'force' => true, 'data' => array( 'delete' => array( array( 'id' => 3, 'product_id' => 99 ) ) ) ) );
+			review( 'R3', is_wp_error( $plan ), 'Los elementos de delete de un lote son IDs enteros, no objetos.' );
+			$plan = Router::resolve( 'products', array( 'action' => 'batch', 'force' => true, 'data' => array( 'delete' => array( 3, '4' ) ) ) );
+			review( 'R3', ! is_wp_error( $plan ) && array( 'delete' => array( 3, 4 ) ) === $plan['body'], 'delete con IDs enteros (o en texto) sí.' );
+			// La prueba de concepto: la máscara ya no pisa la clave de otro grupo.
+			wm_reset( array( 'caps' => $admin_caps, 'options' => $write_mode ) );
+			$GLOBALS['wm_rest_responses']['GET /wc/v3/settings/general'] = array( 200, array( array( 'id' => 'woocommerce_store_city', 'type' => 'text', 'value' => 'GDL', 'group_id' => 'general' ) ), array() );
+			$result = Executor::run( 'store-settings', array( 'action' => 'batch', 'resource' => 'setting', 'group_id' => 'general', 'data' => array( 'update' => array( array( 'id' => 'license_key', 'group_id' => 'integration', 'value' => Secrets::MASK ) ) ) ), 'wm_dispatch' );
+			review( 'R3', is_wp_error( $result ) && array() === array_filter( $GLOBALS['wm_rest'], static function ( $call ) { return 'POST' === $call[0]; } ), 'Ninguna máscara llega a WooCommerce: ' . json_encode( $GLOBALS['wm_rest'] ) );
+		}
+	);
+
 	if ( ! empty( $GLOBALS['wm_review'] ) ) {
 		$lines = array();
 		foreach ( $GLOBALS['wm_review'] as $label => $messages ) {
@@ -934,5 +956,5 @@ namespace {
 		throw new RuntimeException( 'Hallazgos de la revisión sin corregir: ' . implode( ' | ', $lines ) );
 	}
 
-	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R2 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
+	echo "WooCommerce en el MCP de Elements: 7 herramientas, " . count( $cases ) . " rutas, " . count( $bad ) . " rechazos y $fuzz entradas de fuzz sin salir de /wc/v3/; modos, secretos, bitácora y permisos en verde; revisión R1–R3 con {$GLOBALS['wm_review_count']} comprobaciones.\n";
 }

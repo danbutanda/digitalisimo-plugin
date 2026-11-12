@@ -193,10 +193,15 @@ final class Router {
 		}
 		$body = self::clean( $input['data'], $reserved );
 		if ( 'batch' === $action ) {
-			$items = self::batch( $body, 'setting' === $resource ? array( 'update' ) : array( 'create', 'update', 'delete' ), $force );
-			if ( is_wp_error( $items ) ) {
-				return $items;
+			$route_params = array();
+			foreach ( $def['parents'] as $placeholder => $key ) {
+				$route_params[ $placeholder ] = $ids[ $key ];
 			}
+			$batch = self::batch( $body, 'setting' === $resource ? array( 'update' ) : array( 'create', 'update', 'delete' ), $force, $route_params );
+			if ( is_wp_error( $batch ) ) {
+				return $batch;
+			}
+			list( $items, $body ) = $batch;
 			$plan['items']       = $items;
 			$plan['destructive'] = ! empty( $body['delete'] );
 		} elseif ( ! $body ) {
@@ -360,8 +365,18 @@ final class Router {
 		return $out;
 	}
 
-	/** Lote: sólo las claves permitidas, listas, entre 1 y `BATCH_MAX` elementos, y `delete` sólo con `force:true`. */
-	private static function batch( array $body, array $allowed, bool $force ) {
+	/**
+	 * Lote: sólo las claves permitidas, listas, entre 1 y `BATCH_MAX` elementos, y `delete` sólo con `force:true`.
+	 *
+	 * Los elementos de create y update son objetos; un parámetro de la ruta dentro de un elemento (`group_id` en un lote
+	 * de ajustes, `product_id` en uno de variaciones) se quita si coincide con el de la ruta y, si no, el lote se rechaza:
+	 * WooCommerce lo mezcla sobre los de la URL y ganaría (otro grupo esquivaría la protección de secretos). Los de delete
+	 * son IDs enteros. Devuelve [elementos, cuerpo limpio].
+	 *
+	 * @param array $route_params Marcador de la ruta → valor validado.
+	 * @return array|\WP_Error
+	 */
+	private static function batch( array $body, array $allowed, bool $force, array $route_params ) {
 		if ( ! $body || array_diff( array_keys( $body ), $allowed ) ) {
 			return self::error( 'digitalisimo_woo_mcp_batch', 'batch lleva data con ' . implode( ', ', $allowed ) . ' (listas).' );
 		}
@@ -378,7 +393,31 @@ final class Router {
 		if ( ! empty( $body['delete'] ) && ! $force ) {
 			return self::error( 'digitalisimo_woo_mcp_batch_force', 'WooCommerce borra los elementos de un lote para siempre, sin papelera: un batch con delete exige force:true, sólo si el usuario lo pidió. Para mandar a la papelera usa delete con un solo ID.' );
 		}
-		return $count;
+		foreach ( $body as $list => $items ) {
+			foreach ( $items as $index => $item ) {
+				if ( 'delete' === $list ) {
+					$id = is_int( $item ) || ( is_string( $item ) && 1 === preg_match( '/^[0-9]{1,18}$/', $item ) ) ? (int) $item : 0;
+					if ( $id < 1 ) {
+						return self::error( 'digitalisimo_woo_mcp_batch', 'Los elementos de delete de un lote son IDs enteros.' );
+					}
+					$body[ $list ][ $index ] = $id;
+					continue;
+				}
+				if ( ! is_array( $item ) || ( $item && self::is_list( $item ) ) ) {
+					return self::error( 'digitalisimo_woo_mcp_batch', sprintf( 'Cada elemento de %s es un objeto con los campos de WooCommerce.', $list ) );
+				}
+				foreach ( $route_params as $param => $value ) {
+					if ( ! array_key_exists( $param, $item ) ) {
+						continue;
+					}
+					if ( ! is_scalar( $item[ $param ] ) || (string) $item[ $param ] !== (string) $value ) {
+						return self::error( 'digitalisimo_woo_mcp_batch_route', sprintf( '%s va en el parámetro de primer nivel: un lote actúa sobre un solo %s (%s); un elemento con otro valor no se admite.', $param, $param, (string) $value ) );
+					}
+					unset( $body[ $list ][ $index ][ $param ] );
+				}
+			}
+		}
+		return array( $count, $body );
 	}
 
 	private static function scalar_or_list( $value ): bool {
