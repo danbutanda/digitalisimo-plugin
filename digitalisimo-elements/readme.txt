@@ -81,6 +81,15 @@ Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por fa
 * Botón de PayPal y Botón de Stripe, en lugar de los de PRO: el mismo pago (formulario de PayPal; sesión de Stripe creada en el servidor), con modo de prueba, mensajes en español y ninguna clave secreta en la página.
 * Plantilla, en lugar del widget Plantilla de PRO: inserta una plantilla publicada, con las sobrescrituras por clave, y nunca se incluye a sí misma. El widget global de PRO se sustituye por el elemento que guarda su plantilla, que se conserva en la biblioteca.
 
+== WooCommerce en el MCP ==
+
+Con WooCommerce, el servidor MCP de DIGITALÍSIMO Elements (apagado por defecto) ofrece a los asistentes conectados siete herramientas para la tienda del sitio: productos y variaciones, catálogo, pedidos (notas y reembolsos), clientes, cupones, ajustes (envíos, impuestos y pasarelas de pago) e informes.
+
+* Cada herramienta actúa con los permisos del usuario que se conecta (una contraseña de aplicación de un administrador o de un gerente de tienda) y con las reglas de WooCommerce: un editor o un suscriptor no puede hacer nada.
+* Sólo lectura por defecto. En la pantalla «Rendimiento», sección «WooCommerce en el MCP», se elige apagado, sólo lectura o lectura y escritura; en una red, la red define el valor que heredan los sitios que no lo cambian.
+* Borrar manda a la papelera salvo que se pida el borrado definitivo, y un reembolso se registra sin devolver dinero salvo que se pida expresamente.
+* Las claves de las pasarelas de pago nunca se muestran, y cada cambio queda en una bitácora sin datos personales.
+
 == Formularios ==
 
 * Campos condicionales: cada campo del Formulario puede mostrarse sólo si otros campos cumplen unas reglas (es, no es, contiene, está vacío, mayor que, menor que…), todas o alguna. Un campo oculto no se valida, no se guarda y no se envía en el correo ni en los webhooks, aunque el navegador lo mande. Los valores con los que comparan las reglas se ven en el código de la página: no los uses para nada privado.
