@@ -38,10 +38,13 @@ if ( ! function_exists( 'rest_url' ) ) { function rest_url( $path = '' ) { retur
 if ( ! defined( 'ARRAY_A' ) ) define( 'ARRAY_A', 'ARRAY_A' );
 
 $A = 'Digitalisimo_Backups_Restore_Access';
+// Con el código anterior la clase no existe: sus casos fallan diciéndolo y los del motor (i, j) corren igual.
+$GLOBALS['ka_have'] = class_exists( $A );
 $failures = 0;
 function ka_check( $ok, $what ) { if ( ! $ok ) throw new RuntimeException( $what ); }
-function ka_case( $label, callable $test ) {
+function ka_case( $label, callable $test, $engine = false ) {
 	try {
+		if ( ! $engine && ! $GLOBALS['ka_have'] ) throw new RuntimeException( 'No existe Digitalisimo_Backups_Restore_Access (código anterior al arreglo).' );
 		$test();
 		echo 'ok · ' . $label . "\n";
 	} catch ( Throwable $e ) {
@@ -228,6 +231,8 @@ $engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx
 	$GLOBALS['bk_options']['home'] = $home;
 	$GLOBALS['bk_options']['siteurl'] = $home;
 	$GLOBALS['ka_user'] = 1;
+	// Las opciones que deja el SQL de un sitio extraído no traen using_application_passwords (vivía en sitemeta).
+	unset( $GLOBALS['bk_options']['using_application_passwords'] );
 	$args = array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true );
 	if ( null !== $keep ) $args['keep_access'] = $keep;
 	$result = Digitalisimo_Backups::service_restore( $file, $args );
@@ -240,6 +245,7 @@ ka_case( 'i · el motor conserva la cuenta al reubicar (por defecto), no con kee
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ) && KA_HASH === $admin[0]['user_pass'], 'Tras restaurar en otro sitio, «admin» no existe o no tiene su contraseña.' );
 	ka_check( 'digitalisimo' === $db->value( 'wpkx_users', 'user_login', 'ID = 1' ), 'El usuario del respaldo no está.' );
+	ka_check( true === ( $GLOBALS['bk_options']['using_application_passwords'] ?? null ), 'Tras restaurar, using_application_passwords no está activo: las contraseñas de aplicación del respaldo responderían 401 rest_not_logged_in.' );
 	$access = (array) ( $result['access'] ?? array() );
 	ka_check( ! empty( $access['kept'] ) && 'admin' === $access['user'] && ! empty( $access['relocated'] ), 'La respuesta no dice que se conservó el acceso: ' . json_encode( $access ) );
 	ka_check( 0 === strpos( (string) $result['notice'], 'Cómo entrar ahora: ' ), 'El aviso no empieza por cómo entrar: ' . substr( (string) $result['notice'], 0, 200 ) );
@@ -255,7 +261,7 @@ ka_case( 'i · el motor conserva la cuenta al reubicar (por defecto), no con kee
 
 	list( $db, $result ) = $engine( true, 'https://origen.test', 'wp_' );
 	ka_check( 0 === count( $db->rows( 'wp_users', "user_login = 'admin'" ) ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'En el mismo sitio (sin reubicar) se conservó la cuenta de ahora: ' . json_encode( $result['access'] ?? null ) );
-} );
+}, true );
 
 ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario repone la cuenta', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
@@ -281,7 +287,8 @@ ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario rep
 ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer su trabajo', function() use ( $A ) {
 	if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return true; } }
 	$token = Digitalisimo_Backups_Restore_Maintenance::new_token();
-	$reader = $A::new_reader();
+	$new_reader = function() { $token = bin2hex( random_bytes( 24 ) ); return array( 'token' => $token, 'hash' => hash( 'sha256', $token ) ); };
+	$reader = $new_reader();
 	$id = '00000000-0000-4000-8000-000000000000';
 	Digitalisimo_Backups_Restore_Maintenance::hold( $token, true, $id, array( $reader['hash'] ) );
 	$path = Digitalisimo_Backups_Restore_Maintenance::path();
@@ -296,7 +303,7 @@ ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer s
 		return ( time() - $upgrading ) >= 600;
 	};
 	$route = '/wp/wp-json/digitalisimo-backups/v1/jobs/' . $id;
-	ka_check( ! $passes( 'GET', $route, array(), $A::new_reader()['token'] ), 'Una ficha ajena pasa el mantenimiento.' );
+	ka_check( ! $passes( 'GET', $route, array(), $new_reader()['token'] ), 'Una ficha ajena pasa el mantenimiento.' );
 	ka_check( ! $passes( 'POST', $route, array(), $reader['token'] ), 'La ficha pasa para escribir.' );
 	ka_check( ! $passes( 'GET', '/wp/wp-json/digitalisimo-backups/v1/status', array(), $reader['token'] ), 'La ficha pasa para otra ruta.' );
 	ka_check( ! $passes( 'GET', $route, array( 'rest_route' => '/wp/v2/users' ), $reader['token'] ), 'La ficha pasa con otra rest_route en la consulta.' );
@@ -304,7 +311,7 @@ ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer s
 	ka_check( $passes( 'GET', '/wp/?rest_route=' . rawurlencode( '/digitalisimo-backups/v1/jobs/' . $id ), array( 'rest_route' => '/digitalisimo-backups/v1/jobs/' . $id ), $reader['token'] ), 'La ficha no pasa por ?rest_route=.' );
 	ka_check( $passes( 'GET', $route, array(), $reader['token'] ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ), 'La ficha no pasa con WordPress mínimo y sólo de lectura.' );
 	Digitalisimo_Backups_Restore_Maintenance::release();
-} );
+}, true );
 
 bk_cleanup();
 foreach ( glob( $GLOBALS['bk_root'] . '-*.sqlite' ) ?: array() as $sqlite ) @unlink( $sqlite );
