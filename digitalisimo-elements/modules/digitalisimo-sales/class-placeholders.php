@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  * - `texto`: lo demás.
  */
 final class Placeholders {
-	const CLOSE = array( '[día de cierre]', '[mes de cierre]', '[hora de cierre]', '[fecha y hora de cierre]' );
+	const CLOSE = array( '[día de cierre]', '[mes de cierre]', '[hora de cierre]' );
 
 	const KINDS = array( 'cierre', 'enlace', 'precio', 'dato_real', 'texto' );
 

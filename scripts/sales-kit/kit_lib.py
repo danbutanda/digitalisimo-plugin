@@ -52,13 +52,17 @@ PLATAFORMA_SESION = "[plataforma de la sesión]"
 VIDEO_URL = "[enlace del video]"  # el video se pega en el editor; ningún enlace a otro servicio viaja en el kit
 
 # ---------------------------------------------------------------- fecha de cierre
-# Sólo con una fecha real (D-0024): `create-page` llena estos placeholders y los contadores con `close_date`; sin ella,
+# Sólo con una fecha real (D-0024): `create-page` llena estos placeholders y la fecha de los contadores con `close_date`;
+# sin ella,
 # quita los bloques marcados con `urgente()` (la barra de cierre de la 01 y el contador del carrito, como pide el
 # LEEME del kit) y los demás quedan pendientes.
 DIA_CIERRE = "[día de cierre]"
 MES_CIERRE = "[mes de cierre]"
 HORA_CIERRE = "[hora de cierre]"
-FECHA_CIERRE = "[fecha y hora de cierre]"
+# El contador no admite un placeholder (el widget hace `new DateTime()` con su fecha y falla al pintar o al importar), así
+# que la plantilla lleva una fecha ya pasada en lugar de una futura inventada: sin la fecha real, el contador sólo
+# muestra su mensaje de cierre.
+FECHA_CIERRE_MUESTRA = "2000-01-01 00:00"
 
 _rng = random.Random(20261112)
 _usados = set()
@@ -308,8 +312,8 @@ def caja_imagen(titulo_txt, desc, alinear="center"):
 
 def contador(oscuro=False, mensaje="La inscripción ya cerró. Escríbenos por WhatsApp para saber cuándo abre de nuevo.",
              ancho=60):
-    """Cuenta regresiva a la fecha de cierre real (`FECHA_CIERRE`, que llena `create-page` con `close_date`)."""
-    s = {"countdown_type": "due_date", "due_date": FECHA_CIERRE, "custom_labels": "yes", "label_days": "Días",
+    """Cuenta regresiva a la fecha de cierre real (la pone `create-page` con `close_date`; ver FECHA_CIERRE_MUESTRA)."""
+    s = {"countdown_type": "due_date", "due_date": FECHA_CIERRE_MUESTRA, "custom_labels": "yes", "label_days": "Días",
          "label_hours": "Horas", "label_minutes": "Minutos", "label_seconds": "Segundos",
          "box_background_color": CARD_OSC if oscuro else BLANCO, "box_border_border": "solid",
          "box_border_width": caja(1), "box_border_color": "#26313C" if oscuro else BD,

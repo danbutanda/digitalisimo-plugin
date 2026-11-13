@@ -66,8 +66,11 @@ Todo lo demás es el kit v3 genérico tal cual (el validador lo compara al gener
 - **Grupo y redes:** el botón del grupo lleva `#[enlace del grupo]` (sin enlace a otro sitio) y los iconos sociales
   (con enlaces y logotipos de otras empresas) pasan a un texto neutro que dice dónde agregarlos.
 - **Cierre:** los placeholders de la fecha de cierre son propios (`[día de cierre]`, `[mes de cierre]`,
-  `[hora de cierre]`) y los contadores llevan `[fecha y hora de cierre]` en lugar de una fecha fija inventada. La barra
-  de cierre de la 01 y el bloque de urgencia del carrito se marcan como urgencia en el manifiesto.
+  `[hora de cierre]`) y los contadores llevan una fecha ya pasada (`2000-01-01 00:00`) en lugar de una futura inventada:
+  sin la fecha real sólo muestran su mensaje de cierre. No llevan un placeholder porque el widget del contador hace
+  `new DateTime()` con su fecha y un texto lo hace fallar (lo encontró el ensayo: el ZIP del kit con un placeholder ahí
+  terminaba en un error fatal al importar). La barra de cierre de la 01 y el bloque de urgencia del carrito se marcan
+  como urgencia en el manifiesto.
 - **Bloques:** cada sección de primer nivel pertenece a un bloque con clave (`promesa`, `oferta`, `pie`…), en el orden
   de la guía.
 

@@ -473,7 +473,22 @@ namespace {
 	$sp = Placeholders::spans( 'A [Bonus: «[cantidad] [recurso]»] y $[precio] [sin cerrar' );
 	check( 2 === count( $sp ) && '[Bonus: «[cantidad] [recurso]»]' === $sp[0][2] && '[precio]' === $sp[1][2], 'tramos de primer nivel: el anidado es uno solo; uno sin cerrar no cuenta' );
 	$sum = Placeholders::summary( Catalog::load( 'venta-completa', 'sections' )['content'] );
-	check( 'cierre' === $sum['[día de cierre]']['kind'] && 'cierre' === $sum['[fecha y hora de cierre]']['kind'], 'tipo cierre' );
+	check( 'cierre' === $sum['[día de cierre]']['kind'] && 'cierre' === $sum['[hora de cierre]']['kind'], 'tipo cierre' );
+	// Cada contador de cada plantilla lleva una fecha que el widget puede leer (new DateTime() falla con un texto) y ya
+	// pasada (nunca una futura inventada).
+	foreach ( array( 'sections', 'containers' ) as $variant ) {
+		foreach ( $ids8 as $id ) {
+			foreach ( sk_find( Catalog::load( $id, $variant )['content'], static function ( $e ) { return 'countdown' === ( $e['widgetType'] ?? '' ); } ) as $cd ) {
+				$ok = true;
+				try {
+					$at = new DateTime( $cd['settings']['due_date'], new DateTimeZone( 'America/Mexico_City' ) );
+				} catch ( Exception $e ) {
+					$ok = false;
+				}
+				check( $ok && $at->getTimestamp() < strtotime( '2026-01-01' ), "$id/$variant: el contador trae una fecha legible y ya pasada" );
+			}
+		}
+	}
 	check( 'enlace' === $sum['[enlace del video]']['kind'] && 8 === $sum['[enlace del video]']['count'], 'tipo enlace (los ocho videos)' );
 	check( 'precio' === $sum['[precio]']['kind'] && 'precio' === $sum['[X]']['kind'], 'tipo precio' );
 	check( 'dato_real' === $sum['[Nombre real]']['kind'] && 'dato_real' === $sum['[Testimonio real, con permiso: qué logró y en cuánto tiempo.]']['kind'], 'tipo dato real' );

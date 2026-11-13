@@ -186,11 +186,12 @@ final class Builder {
 		// Reemplazos, WhatsApp y cierre, campo por campo.
 		$filled   = 0;
 		$close_ph = $close ? array(
-			'[día de cierre]'          => $close->format( 'j' ),
-			'[mes de cierre]'          => self::MONTHS[ (int) $close->format( 'n' ) - 1 ],
-			'[hora de cierre]'         => $close->format( 'H:i' ),
-			'[fecha y hora de cierre]' => $close->format( 'Y-m-d H:i' ),
+			'[día de cierre]'  => $close->format( 'j' ),
+			'[mes de cierre]'  => self::MONTHS[ (int) $close->format( 'n' ) - 1 ],
+			'[hora de cierre]' => $close->format( 'H:i' ),
 		) : array();
+		// La fecha de los contadores: la plantilla trae una ya pasada (el widget no admite un placeholder).
+		$due = $close ? $close->format( 'Y-m-d H:i' ) : null;
 		$resolver = static function ( string $field ) use ( &$plan, &$filled, $close_ph ) {
 			return static function ( $key ) use ( &$plan, &$filled, $close_ph, $field ) {
 				if ( isset( $close_ph[ $key ] ) ) {
@@ -220,10 +221,10 @@ final class Builder {
 		};
 		$content = Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value ) use ( $resolver, $whatsapp, $close_ph ) {
+			static function ( $owner, $path, $value ) use ( $resolver, $whatsapp, $due ) {
 				$field = Placeholders::field( $owner, $path, $value );
 				if ( 'date' === $field ) {
-					return isset( $close_ph[ $value ] ) ? $close_ph[ $value ] : $value;
+					return 'countdown' === $owner && null !== $due ? $due : $value;
 				}
 				if ( 'url' === $field ) {
 					return $value; // Un enlace del kit (ruta del sitio o placeholder de enlace) no se toca.

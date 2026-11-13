@@ -65,7 +65,7 @@ for i, ex in enumerate(MARCAS["excepciones"]):
     ex["_usos"] = 0
 WHATSAPP = "https://wa.me/52XXXXXXXXXX"
 PLACEHOLDER_URL = re.compile(r"^#?\[[^\[\]]+\]$")
-CIERRE = "[fecha y hora de cierre]"
+CIERRE = "2000-01-01 00:00"  # FECHA_CIERRE_MUESTRA de kit_lib.py: ya pasada, nunca una futura inventada
 
 
 def marca(rel, campo, texto):
@@ -219,7 +219,8 @@ def revisar(rel, d, variante):
                 if w == "video" and s.get("youtube_url") != "[enlace del video]":
                     error(f"{rel}: video con un enlace que no es el placeholder: {s.get('youtube_url')!r}")
                 if w == "countdown" and s.get("due_date") != CIERRE:
-                    error(f"{rel}: contador con una fecha fija ({s.get('due_date')!r}): sólo la fecha real del cierre")
+                    error(f"{rel}: contador con una fecha fija ({s.get('due_date')!r}): la plantilla lleva {CIERRE} "
+                          "(ya pasada) y create-page pone la fecha real del cierre")
             anda(hijos, t, fila=(t == "container" and s.get("flex_direction") == "row"))
 
     anda(d["content"], None)
