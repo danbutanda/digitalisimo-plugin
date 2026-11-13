@@ -2,7 +2,7 @@
 
 El servidor MCP del núcleo incluido (`POST /wp-json/elementor/mcp`, ver `docs/ELEMENTS_MCP_WOO.md` para conectarse)
 escribe documentos con `build-composition`, `manage-elements`, `update-page-settings`, `manage-component` y
-`publish-document`. Desde la versión @NEXT_ELEMENTS@, cada escritura deja el CSS de ese documento listo para
+`publish-document`. Desde la versión 4.3.0.186, cada escritura deja el CSS de ese documento listo para
 regenerarse, como al guardar y publicar en el editor, sin borrar la caché de todo el sitio y sin editar nada de
 `digitalisimo-elements/elementor/`. El código vive en `digitalisimo-elements/modules/digitalisimo-mcp/`.
 
