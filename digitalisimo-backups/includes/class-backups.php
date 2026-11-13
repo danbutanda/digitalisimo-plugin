@@ -2390,7 +2390,7 @@ final class Digitalisimo_Backups {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». Con la pantalla abierta avanza sin pausa; si la cierras, la siguen WP-Cron (las visitas al sitio en mantenimiento lo despiertan) o el cron del sistema; en un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run. Si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
 			}
-			self::redirect( true, 'Restauración terminada. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
+			self::redirect( true, 'Restauración terminada. ' . ( ! empty( $result['access']['kept'] ) ? 'Revisa los enlaces permanentes.' : 'Entra de nuevo y revisa enlaces permanentes.' ) . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
 		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
 		$allowed = self::service_scope( is_multisite(), true );

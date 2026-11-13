@@ -491,11 +491,13 @@ try {
 	digi_assert( ! is_wp_error( $restored ) && true === $restored['restored'], 'La restauración del sitio extraído falló: ' . ( is_wp_error( $restored ) ? $restored->get_error_message() : '' ) );
 	digi_assert( false !== strpos( $restored['notice'], 'red.test/sub2' ) && false !== strpos( $restored['notice'], 'contraseña' ), 'La restauración no dice con qué cuentas se entra: ' . $restored['notice'] );
 	digi_assert( ! isset( $db->tables['wp_2_options'] ) && ! isset( $db->tables['wp_2_users'] ) && isset( $db->tables['dst_users'] ), 'Las tablas no quedaron con el prefijo del destino: ' . json_encode( array_keys( $db->tables ) ) );
-	// Usuarios: contraseña y rol, con el prefijo del destino; la cuenta del destino ya no existe.
+	// Usuarios: contraseña y rol, con el prefijo del destino; de las cuentas del destino sólo queda la de quien restauró
+	// («Conservar mi acceso», encendido por defecto: «destino», la cuenta 1 que lanza la restauración en la prueba).
 	$logins = array();
 	foreach ( $db->rows( 'dst_users' ) as $u ) $logins[ $u['user_login'] ] = $u['user_pass'];
 	ksort( $logins );
-	digi_assert( array( 'cliente' => '$wp$2y$10$hash-de-cliente', 'editora' => '$wp$2y$10$hash-de-editora', 'exautor' => '', 'otro' => '', 'solo2' => '$wp$2y$10$hash-de-solo2', 'spammer' => '' ) === $logins, 'Los usuarios restaurados no son los del sitio con su contraseña: ' . json_encode( $logins ) );
+	digi_assert( array( 'cliente' => '$wp$2y$10$hash-de-cliente', 'destino' => '$wp$2y$10$hash-de-destino', 'editora' => '$wp$2y$10$hash-de-editora', 'exautor' => '', 'otro' => '', 'solo2' => '$wp$2y$10$hash-de-solo2', 'spammer' => '' ) === $logins, 'Los usuarios restaurados no son los del sitio con su contraseña (y quien restauró): ' . json_encode( $logins ) );
+	digi_assert( ! empty( $restored['access']['kept'] ) && 'destino' === $restored['access']['user'] && false !== strpos( $restored['notice'], 'Cómo entrar ahora' ), 'La restauración no dice que quien restauró sigue entrando: ' . json_encode( $restored['access'] ?? null ) );
 	$dum = $db->rows( 'dst_usermeta' );
 	digi_assert( array( 'editor' => true ) === maybe_unserialize( digi_meta_keys( $dum, 2 )['dst_capabilities'] ) && '7' === digi_meta_keys( $dum, 2 )['dst_user_level'] && array( 'author' => true ) === maybe_unserialize( digi_meta_keys( $dum, 3 )['dst_capabilities'] ) && ! isset( digi_meta_keys( $dum, 5 )['dst_capabilities'] ), 'Los roles no quedaron con el prefijo del destino: ' . json_encode( digi_meta_keys( $dum, 2 ) ) );
 	foreach ( $dum as $m ) digi_assert( 0 !== strpos( $m['meta_key'], 'wp_2_' ), 'Quedó una meta con el prefijo de la red: ' . $m['meta_key'] );
@@ -524,7 +526,11 @@ try {
 	digi_assert( is_file( $public . '/wp-content/uploads/2026/11/foto.jpg' ) && ! is_dir( $public . '/wp-content/uploads/sites' ) && is_file( $public . '/wp-content/themes/tema-hijo/style.css' ) && is_file( $public . '/wp-content/plugins/red-plugin/red-plugin.php' ), 'Los archivos del sitio no quedaron en su lugar.' );
 	digi_assert( "<?php // destino\n" === file_get_contents( $public . '/wp-config.php' ), 'La restauración tocó el wp-config.php del destino.' );
 	digi_assert( array( 'digitalisimo-backups/digitalisimo-backups.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'digitalisimo-tools/digitalisimo-tools.php', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'red-plugin/red-plugin.php' ) === get_option( 'active_plugins' ) && 'tema-hijo' === get_option( 'stylesheet' ), 'Los plugins o el tema no quedaron activos.' );
-	digi_assert( 'acceso-red' === get_option( 'digitalisimo_tools_site_options' )['values']['login_slug'], 'Los ajustes materializados no llegaron.' );
+	// Lo materializado llega (el paquete lo lleva, ver arriba), salvo la ruta privada de acceso: el destino conserva la
+	// suya (aquí ninguna), para que nadie quede fuera (incidente de /wp, keep-access).
+	$tools = get_option( 'digitalisimo_tools_site_options' );
+	digi_assert( 1 === $tools['values']['mobile_scroll'] && 0 === $tools['values']['redirect_attachments'], 'Los ajustes materializados no llegaron: ' . json_encode( $tools ) );
+	digi_assert( '' === $tools['values']['login_slug'] && empty( $tools['inherit']['login_slug'] ) && ! empty( $restored['access']['login_path']['backup_differed'] ) && 'standard' === $restored['access']['login_path']['kept'], 'La ruta privada de la red se aplicó en el destino (wp-login.php daría 404): ' . json_encode( $tools ) );
 	// La configuración de Backups es la del destino; su contraseña de SFTP, que estaba en claro, quedó en el almacén
 	// cifrado y no se perdió; el historial conserva la copia previa.
 	$destination_settings = get_option( Digitalisimo_Backups::OPTION );

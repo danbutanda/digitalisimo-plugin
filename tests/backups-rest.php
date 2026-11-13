@@ -47,7 +47,8 @@ try {
 	foreach ( $expected as $route => $methods ) {
 		$handlers = $GLOBALS['digi']['routes'][ $ns . $route ];
 		digi_assert( $methods === implode( ',', array_column( $handlers, 'methods' ) ), 'Métodos inesperados en ' . $route );
-		$permission = 0 === strpos( $route, '/migrate/source/' ) ? 'migration_source_allowed' : 'allowed';
+		// GET /jobs/<id>: la capability o la ficha de lectura de ese trabajo (keep-access).
+		$permission = 0 === strpos( $route, '/migrate/source/' ) ? 'migration_source_allowed' : ( preg_match( '#^/jobs/\(\?P<id>[^)]*\)$#', $route ) ? 'allowed_job' : 'allowed' );
 		foreach ( $handlers as $handler ) digi_assert( array( 'Digitalisimo_Backups_Rest', $permission ) === $handler['permission_callback'], 'La ruta ' . $route . ' no usa su permiso (' . $permission . ').' );
 	}
 	digi_assert( ! preg_match( '@^' . $job_route . '$@', '/jobs/../../wp-config' ) && ! preg_match( '@^' . $job_route . '$@', '/jobs/tick' ), 'El patrón de un trabajo acepta algo que no es un UUID.' );

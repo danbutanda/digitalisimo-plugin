@@ -79,7 +79,7 @@ class Digi_Extract_DB {
 	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) $args = $args[0];
-		foreach ( $args as $arg ) $query = preg_replace( '/%[sd]/', is_int( $arg ) ? (string) $arg : "'" . addslashes( (string) $arg ) . "'", $query, 1 );
+		foreach ( $args as $arg ) $query = preg_replace( '/%[sd]/', str_replace( array( '\\', '$' ), array( '\\\\', '\\$' ), is_int( $arg ) ? (string) $arg : "'" . addslashes( (string) $arg ) . "'" ), $query, 1 );
 		return $query;
 	}
 	public function suppress_errors( $suppress = true ) { return false; }

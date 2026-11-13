@@ -323,7 +323,7 @@ trait Digitalisimo_Backups_Screen {
 	 * aplica (vuelven las cuentas del respaldo): el texto lo dice. El campo oculto distingue «desmarcado» de «sin campo».
 	 */
 	private static function keep_access_field() {
-		return '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"><br><span class="description">Si el respaldo es de otro sitio (otra dirección, carpeta o prefijo, o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo, y este sitio conserva su ruta de acceso. Restaurando el mismo sitio vuelven las cuentas del respaldo.</span></p>';
+		return '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"></p>' . self::help_html( 'Si el respaldo es de otro sitio (otra dirección, carpeta o prefijo, o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo y este sitio conserva su ruta de acceso. Restaurando el mismo sitio vuelven las cuentas del respaldo.' );
 	}
 	/** El panel «Restaurar» bajo su fila: una frase, escribir RESTAURAR y el botón; las opciones, plegadas. */
 	private static function row_restore_form( array $item, $row_id, $shown ) {

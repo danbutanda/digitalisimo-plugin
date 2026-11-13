@@ -234,7 +234,8 @@ final class Digitalisimo_Backups_Restore_Access {
 		// El correo de quien restaura también es de otra cuenta del respaldo: WordPress entraría con una u otra por correo.
 		$email = (string) ( $row['user_email'] ?? '' );
 		if ( '' !== $email ) {
-			$others = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT user_login FROM ' . self::q( $users ) . ' WHERE user_email = %s AND ID <> %d', $email, $id ) ) );
+			$others = array();
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ID, user_login FROM ' . self::q( $users ) . ' WHERE user_email = %s', $email ), ARRAY_A ) as $other ) if ( (int) $other['ID'] !== $id ) $others[] = (string) $other['user_login'];
 			if ( $others ) {
 				$report['shared_email'] = array_slice( $others, 0, 3 );
 				$report['warnings'][] = 'Tu correo también es el de ' . self::names( $report['shared_email'] ) . ' en el respaldo: entra con tu nombre de usuario («' . $login . '»), no con el correo, y cambia uno de los dos correos antes de editar tu perfil.';
