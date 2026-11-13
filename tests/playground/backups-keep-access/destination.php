@@ -1,6 +1,6 @@
 <?php
 /**
- * Destino del ensayo keep-access (último paso runPHP): el WordPress individual de /wp con Backups activo y «admin» con
+ * Destino del ensayo keep-access (último paso runPHP): el WordPress individual (el /wp del incidente) con Backups y «admin» con
  * una contraseña de aplicación (como en el incidente), con el mismo correo que «digitalisimo» de la red (la misma
  * persona: el informe debe avisarlo). Un mu-plugin corta el loopback de WP-Cron (lo hace el ensayo con wp-cron.php,
  * como el cron del sistema) y limita cada petición web a 12 s para que la restauración siga por pasos, como en el

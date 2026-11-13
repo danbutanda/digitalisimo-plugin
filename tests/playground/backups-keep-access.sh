@@ -5,10 +5,14 @@
 #            DIGITALÍSIMO Elements activos en la red, la ruta privada de acceso de la red en Tools, el usuario 1
 #            «digitalisimo» (superadministrador) con contraseña y contraseña de aplicación, y el MCP de Elements
 #            encendido; POST /sites/1/extract por la REST (network, super_admins=none, network_secrets).
-#   destino  (server en http://127.0.0.1:<puerto>/wp, prefijo wpkx_) un WordPress individual con Backups y «admin» con
+#   destino  (server en http://127.0.0.1:<puerto>, prefijo wpkx_) un WordPress individual con Backups y «admin» con
 #            su contraseña de aplicación; check.mjs sube el paquete por /uploads en fragmentos, lo restaura por REST con
 #            addresses=current y sigue el trabajo hasta el final; después comprueba REST, MCP, wp-login.php, la cookie
 #            del navegador y el informe.
+# El /wp del incidente no cabe en Playground 3.1.56: con --site-url=http://127.0.0.1:<puerto>/wp el servidor no arranca
+# («Error connecting to the SQLite database», comprobado el 2026-11-12), así que el destino sirve en la raíz de otro host
+# y puerto. Lo que falló en /wp no depende de la carpeta (la cuenta, la opción de red de las contraseñas de aplicación, la
+# ruta privada de la red y seguir el trabajo); el cambio de ruta lo cubre backups-relocate.php.
 # Uso: bash tests/playground/backups-keep-access.sh
 #   OUT, TMPDIR     resultados (por defecto /var/tmp/digi-bk/backups-keep-access) y temporales de Playground
 #   PORT            puerto del destino (por defecto 9491; si está ocupado, el siguiente libre)
@@ -83,7 +87,7 @@ JSON
 for try in $(seq "$PORT" $(( PORT + 40 ))); do fuser -n tcp "$try" >/dev/null 2>&1 || { PORT="$try"; break; }; done
 if fuser -n tcp "$PORT" >/dev/null 2>&1; then echo "== destino: no hay un puerto libre desde $PORT; usa PORT=…"; exit 1; fi
 begun=$(date +%s)
-$CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT/wp" --blueprint="$DEST/blueprint.json" \
+$CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT" --blueprint="$DEST/blueprint.json" \
   --mount="$DEST/backups:/wordpress/wp-content/plugins/digitalisimo-backups" \
   --mount="$DEST/probe:/digi-probe" \
   --mount="$DEST/store:/digi-store" > "$DEST/server.log" 2>&1 &
@@ -94,12 +98,12 @@ for i in $(seq 1 400); do
   sleep 3
   kill -0 "$SERVER" 2>/dev/null || break
   [ -f "$DEST/probe/setup-error.txt" ] && break
-  if [ -s "$DEST/probe/setup.json" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -m 120 "http://127.0.0.1:$PORT/wp/?rest_route=%2F")" = 200 ]; then ready=1; break; fi
+  if [ -s "$DEST/probe/setup.json" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -m 120 "http://127.0.0.1:$PORT/?rest_route=%2F")" = 200 ]; then ready=1; break; fi
 done
 if [ "$ready" != 1 ]; then
   echo "== destino: no quedó listo"; cat "$DEST/probe/setup-error.txt" 2>/dev/null || true; tail -30 "$DEST/server.log"; exit 1
 fi
-echo "== destino listo en $(( $(date +%s) - begun )) s (puerto $PORT, /wp)"
+echo "== destino listo en $(( $(date +%s) - begun )) s (puerto $PORT)"
 fail=0
 node "$D/check.mjs" "$PORT" "$DEST" "$RED" "$LABEL" || fail=1
 grep -qE 'Fatal error|Uncaught' "$DEST/server.log" && { echo "== destino: errores de PHP en el servidor"; grep -E 'Fatal error|Uncaught' "$DEST/server.log" | head -5; fail=1; }
