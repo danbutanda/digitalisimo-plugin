@@ -27,6 +27,8 @@ final class Preview_Link {
 	const TTL_OPTION  = 'elementor_element_cache_ttl';
 	const LIVE        = array( 'publish', 'private' );
 	const TOKEN_CLASS = 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token';
+	/** Prioridad de `parse_request`: después del manejador de enlaces firmados del núcleo (1). */
+	const PRIORITY    = 2;
 
 	/** @var bool */
 	private static $initialized = false;
@@ -49,7 +51,7 @@ final class Preview_Link {
 			return;
 		}
 		self::$initialized = true;
-		add_action( 'parse_request', array( __CLASS__, 'request' ), 2 );
+		add_action( 'parse_request', array( __CLASS__, 'request' ), self::PRIORITY );
 		add_action( 'shutdown', array( __CLASS__, 'shutdown' ), 0 );
 	}
 

@@ -642,6 +642,34 @@ namespace {
 	do_action( 'save_post', 80, mc_post( 80, 'page', 0, 'publish' ), true );
 	check( array() === Css_Sync::state()['pending'], 'save_post fuera del ámbito no cuenta' );
 
+	// ---------------------------------------------------------------------------------------------------------------
+	// 11. Revisión (BAJA 6): las claves del núcleo que usa el módulo salen de sus constantes (clases reales del núcleo) y
+	//     el valor de respaldo coincide con ellas; la prioridad del enlace firmado va después de la del núcleo. Falla con
+	//     el commit anterior (claves literales, sin referencia a la constante).
+	require_once $root . '/elementor/modules/atomic-widgets/styles/atomic-widget-styles.php';
+	// atomic-global-styles.php no se carga: con PHP 8.4+ emite una obsolescencia al compilarse (parámetro nulo implícito).
+	$global_src   = (string) file_get_contents( $root . '/elementor/modules/global-classes/atomic-global-styles.php' );
+	require_once $root . '/elementor/modules/components/styles/component-styles.php';
+	Css_Sync::reset();
+	$document_src = (string) file_get_contents( $root . '/elementor/core/base/document.php' );
+	$core         = array(
+		'local'   => \Elementor\Modules\AtomicWidgets\Styles\Atomic_Widget_Styles::STYLES_KEY,
+		'global'  => preg_match( "/const STYLES_KEY = '([^']+)'/", $global_src, $m ) ? $m[1] : null,
+		'related' => \Elementor\Modules\Components\Styles\Component_Styles::CACHE_ROOT_KEY,
+		'html'    => preg_match( "/const CACHE_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
+		'data'    => preg_match( "/const ELEMENTOR_DATA_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
+		'token'   => Preview_Token::QUERY_ARG,
+	);
+	foreach ( $core as $name => $value ) {
+		$entry = Css_Sync::KEYS[ $name ] ?? null;
+		check( is_array( $entry ) && 3 === count( $entry ), "la clave $name del módulo nombra su clase y constante del núcleo" );
+		check( is_array( $entry ) && $value === $entry[2], "el respaldo de $name coincide con la constante del núcleo ($value)" );
+		check( $value === Css_Sync::key( $name ), "Css_Sync::key( '$name' ) devuelve la del núcleo ($value)" );
+	}
+	$handler_src = (string) file_get_contents( $root . '/elementor/modules/mcp/preview/public-preview-handler.php' );
+	$core_prio   = preg_match( "/add_action\( 'parse_request', \[ \\\$this, 'maybe_activate' \], (\d+) \)/", $handler_src, $m ) ? (int) $m[1] : null;
+	check( null !== $core_prio && defined( 'Digitalisimo\Elements\Mcp\Preview_Link::PRIORITY' ) && \Digitalisimo\Elements\Mcp\Preview_Link::PRIORITY > $core_prio, 'el enlace firmado se atiende después del manejador del núcleo (prioridad ' . var_export( $core_prio, true ) . ')' );
+
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {
 		echo "CSS del MCP de Elements: $fails fallas de {$GLOBALS['mc_checks']} comprobaciones.\n";

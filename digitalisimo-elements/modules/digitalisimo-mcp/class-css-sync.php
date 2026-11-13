@@ -33,14 +33,17 @@ final class Css_Sync {
 	const PROXY_ROUTE    = '/elementor/v1/mcp-proxy';
 	const VALIDITY_CLASS = 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity';
 
-	/** Claves del núcleo que usa el módulo (nombre interno => valor). */
+	/**
+	 * Claves del núcleo que usa el módulo: nombre interno => clase y constante del núcleo, y el valor de 4.3.5 por si la
+	 * clase no está (`tests/elements-mcp-css.php` comprueba que coinciden).
+	 */
 	const KEYS = array(
-		'local'   => 'local',
-		'global'  => 'global',
-		'related' => 'component-styles-related-posts',
-		'html'    => '_elementor_element_cache',
-		'data'    => '_elementor_data',
-		'token'   => 'elementor_preview_token',
+		'local'   => array( 'Elementor\\Modules\\AtomicWidgets\\Styles\\Atomic_Widget_Styles', 'STYLES_KEY', 'local' ),
+		'global'  => array( 'Elementor\\Modules\\GlobalClasses\\Atomic_Global_Styles', 'STYLES_KEY', 'global' ),
+		'related' => array( 'Elementor\\Modules\\Components\\Styles\\Component_Styles', 'CACHE_ROOT_KEY', 'component-styles-related-posts' ),
+		'html'    => array( 'Elementor\\Core\\Base\\Document', 'CACHE_META_KEY', '_elementor_element_cache' ),
+		'data'    => array( 'Elementor\\Core\\Base\\Document', 'ELEMENTOR_DATA_META_KEY', '_elementor_data' ),
+		'token'   => array( 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token', 'QUERY_ARG', 'elementor_preview_token' ),
 	);
 
 	/** @var bool */
@@ -60,6 +63,9 @@ final class Css_Sync {
 
 	/** @var bool Mientras se refresca: lo que dispara el propio refresco (`wp_update_post()`) no se anota. */
 	private static $flushing = false;
+
+	/** @var array<string, string> Claves ya resueltas (ver `key()`). */
+	private static $keys = array();
 
 	/** Idempotente. */
 	public static function init(): void {
@@ -240,9 +246,22 @@ final class Css_Sync {
 		}
 	}
 
-	/** Una clave del núcleo (ver `KEYS`). */
+	/**
+	 * Una clave del núcleo: su constante si la clase ya está cargada (no se fuerza su carga: con PHP 8.4+ alguna emite
+	 * avisos de obsolescencia al compilarse), si no, la de 4.3.5, que la unitaria comprueba igual a la constante.
+	 */
 	public static function key( string $name ): string {
-		return self::KEYS[ $name ] ?? '';
+		if ( ! isset( self::KEYS[ $name ] ) ) {
+			return '';
+		}
+		if ( ! isset( self::$keys[ $name ] ) ) {
+			list( $class, $const, $fallback ) = self::KEYS[ $name ];
+			if ( ! class_exists( $class, false ) ) {
+				return $fallback;
+			}
+			self::$keys[ $name ] = defined( $class . '::' . $const ) ? (string) constant( $class . '::' . $const ) : $fallback;
+		}
+		return self::$keys[ $name ];
 	}
 
 	/** Para las pruebas: vuelve al estado anterior a `init()`. */
@@ -253,6 +272,7 @@ final class Css_Sync {
 		self::$wrapped     = array();
 		self::$saved       = array();
 		self::$flushing    = false;
+		self::$keys        = array();
 	}
 
 	/** Para las pruebas: documentos anotados y herramientas en curso. */
