@@ -1,13 +1,13 @@
 {
-  "_comentario": "Nombres de otras empresas y servicios en los textos propios del kit de ventas de DIGITALÍSIMO Elements (modules/digitalisimo-sales/: plantillas de las dos variantes, manifiesto, guía y textos de las herramientas MCP). Regla de AGENTS.md: ningún texto propio visible nombra ni enlaza a otras empresas. Cada aparición de un nombre de `nombres` debe caber en una excepción declarada (archivos y campo o texto acotados, con su motivo y su decisión), y una excepción sin uso hace fallar la prueba. Lo leen scripts/sales-kit/kit_validar.py y tests/elements-sales-kit.mjs. Los dominios de los plugins de origen siguen en vendors.json.",
+  "_comentario": "Nombres de otras empresas y servicios en los textos propios del kit de ventas de DIGITALÍSIMO Elements (modules/digitalisimo-sales/: plantillas de las dos variantes, manifiesto, guía y textos de las herramientas MCP). Regla de AGENTS.md: ningún texto propio visible nombra ni enlaza a otras empresas. Cada aparición de un nombre de `nombres` debe caber en una excepción declarada (archivos y campo acotados; `texto`: el texto entero debe empezar o ser como dice; `frases`: CADA aparición del nombre debe estar dentro de una de esas frases), con su motivo y su decisión, y una excepción sin uso hace fallar la prueba (`comprueba`: la prueba que la aplica, si no es el validador). Lo leen scripts/sales-kit/kit_validar.py y tests/elements-sales-kit.mjs. Los dominios de los plugins de origen siguen en vendors.json.",
   "nombres": [
-    { "nombre": "OXXO", "patron": "\\bOXXO\\b" },
+    { "nombre": "OXXO", "patron": "\\bOXXO\\b|\\bOxxo\\b" },
     { "nombre": "SPEI", "patron": "\\bSPEI\\b" },
     { "nombre": "Mercado Pago", "patron": "Mercado\\s*Pago|MercadoPago|mercadopago" },
     { "nombre": "Meta", "patron": "\\bMeta\\b|Meta Platforms" },
     { "nombre": "Google", "patron": "\\bGoogle\\b" },
     { "nombre": "WhatsApp", "patron": "WhatsApp|Whatsapp|whatsapp(?!\\.com)" },
-    { "nombre": "Facebook", "patron": "[Ff]acebook" },
+    { "nombre": "Facebook", "patron": "[Ff]acebook|\\bfb\\.com\\b" },
     { "nombre": "Instagram", "patron": "[Ii]nstagram" },
     { "nombre": "TikTok", "patron": "[Tt]ik[Tt]ok" },
     { "nombre": "YouTube", "patron": "[Yy]ou[Tt]ube|youtu\\.be" },
@@ -15,15 +15,15 @@
     { "nombre": "Zoom", "patron": "\\bZoom\\b|zoom\\.us" },
     { "nombre": "Stripe", "patron": "\\b[Ss]tripe\\b" },
     { "nombre": "PayPal", "patron": "[Pp]ay[Pp]al" },
-    { "nombre": "Telegram", "patron": "\\bTelegram\\b" },
+    { "nombre": "Telegram", "patron": "\\b[Tt]elegram\\b|\\bt\\.me/" },
     { "nombre": "LinkedIn", "patron": "LinkedIn|linkedin" },
     { "nombre": "Pinterest", "patron": "Pinterest" },
-    { "nombre": "Twitter", "patron": "Twitter|twitter\\.com" },
+    { "nombre": "X (Twitter)", "patron": "Twitter|twitter\\.com|\\bx\\.com\\b" },
     { "nombre": "Microsoft", "patron": "Microsoft|\\bClarity\\b" },
     { "nombre": "Hotmart", "patron": "[Hh]otmart" },
     { "nombre": "Udemy", "patron": "[Uu]demy" },
     { "nombre": "Tutellus", "patron": "[Tt]utellus" },
-    { "nombre": "Amazon", "patron": "\\bAmazon\\b" },
+    { "nombre": "Amazon", "patron": "\\bAmazon\\b|\\bamazon\\.com" },
     { "nombre": "Shopify", "patron": "[Ss]hopify" },
     { "nombre": "Kajabi", "patron": "[Kk]ajabi" },
     { "nombre": "Teachable", "patron": "\\bTeachable\\b" },
@@ -39,6 +39,14 @@
     { "nombre": "Mastercard", "patron": "Mastercard|MasterCard" },
     { "nombre": "American Express", "patron": "American Express|\\bAmex\\b" },
     { "nombre": "Apple", "patron": "\\bApple\\b" },
+    { "nombre": "Visa", "patron": "\\bVisa\\b|\\bVISA\\b" },
+    { "nombre": "Clip", "patron": "\\bClip\\b|\\bCLIP\\b" },
+    { "nombre": "Kueski", "patron": "[Kk]ueski" },
+    { "nombre": "Coppel", "patron": "[Cc]oppel" },
+    { "nombre": "Discord", "patron": "\\b[Dd]iscord\\b|discord\\.gg" },
+    { "nombre": "Spotify", "patron": "[Ss]potify" },
+    { "nombre": "Gmail", "patron": "\\bG[Mm]ail\\b|gmail\\.com" },
+    { "nombre": "Notion", "patron": "\\bNotion\\b|notion\\.so" },
     { "nombre": "WooCommerce", "patron": "WooCommerce" },
     { "nombre": "Anthropic", "patron": "Anthropic|\\bClaude\\b" },
     { "nombre": "Elementor", "patron": "\\bElementor\\b" },
@@ -74,9 +82,51 @@
     },
     {
       "nombres": ["WhatsApp"],
-      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/",
-      "motivo": "El llamado a la acción del kit: «Hablar por WhatsApp» del manual de identidad, el número del sitio (https://wa.me/<dígitos>) y el grupo de la clase. Es el canal que el operador eligió para sus sitios, no un enlace hacia la empresa.",
-      "decision": "Candado del brief del kit de ventas (2026-11-13): «llamado a la acción por WhatsApp» y la entrada `whatsapp` de create-page. Pendiente de confirmar por el operador como excepción de marca."
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[1-7]-",
+      "campo": "^(button\\.text|button\\.selected_icon\\.value|icon-box\\.selected_icon\\.value|text-editor\\.editor|accordion\\.tabs\\.tab_content|countdown\\.message_after_expire|form\\.error_message|icon-list\\.icon_list\\.text)$",
+      "frases": "(¿Dudas\\? )?(Hablar|Pregúntanos) por WhatsApp|[Ss]oporte por WhatsApp|Unirme al grupo de WhatsApp|^fab fa-whatsapp$|Escríbenos (a \\[correo de soporte\\] o )?por WhatsApp",
+      "motivo": "El llamado a la acción del kit: los botones «Hablar por WhatsApp» y «Pregúntanos por WhatsApp» (del manual de identidad, al número del sitio, https://wa.me/<dígitos>), su icono, el botón del grupo de la clase y las frases que invitan a escribir por WhatsApp (dudas, soporte, error del formulario, cierre del contador, el bonus de soporte). Cualquier otra mención en una plantilla falla.",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador (no es una excepción suya): el brief del kit (2026-11-13) pide «llamado a la acción por WhatsApp» y la entrada whatsapp de create-page. Si no lo confirma, estos textos pasan a un canal neutro («[canal de mensajes]») en kit_lib.py."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[35]-",
+      "campo": "^form\\.form_fields\\.(field_label|custom_id)$",
+      "frases": "^(Tu WhatsApp \\(para recordarte\\)|WhatsApp|whatsapp)$",
+      "motivo": "El campo del formulario de captación (03) y del carrito (05) donde la persona deja su número para que le escriban por ese canal (el del llamado a la acción).",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[125]-",
+      "campo": "^(section|container)\\._title$",
+      "frases": "WhatsApp con una cara|Dudas de pago y WhatsApp|perfiles y WhatsApp",
+      "motivo": "El nombre en el Navegador del editor (no se ve en la página) de los bloques que llevan el llamado a la acción.",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/manifest\\.json$",
+      "campo": "^manifest\\.(templates\\.(purpose|use_when|blocks\\.key|blocks\\.name)|cases\\.no_falta)$",
+      "frases": "WhatsApp con una cara|Dudas de pago y WhatsApp|«Hablar por WhatsApp»|^whatsapp$|correo, WhatsApp y una pregunta",
+      "motivo": "El catálogo que lee list-templates: el bloque del llamado a la acción («WhatsApp con una cara», clave whatsapp), el llamado del manual y el campo del formulario de captación.",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/guide\\.md$",
+      "campo": "^guide\\.",
+      "frases": "El llamado a la acción es por WhatsApp|«Hablar por WhatsApp»|WhatsApp para quien no se ve en la lista|WhatsApp con una|\\(`whatsapp`\\)|frecuentes, WhatsApp y el pie|ver más historias, WhatsApp|WhatsApp con el número real",
+      "motivo": "La guía de venta: la regla del llamado a la acción y el bloque «WhatsApp con una cara» en el orden de la página.",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/mcp/class-tools\\.php$",
+      "comprueba": "tests/elements-sales-mcp.php",
+      "frases": "llamado a la acción por WhatsApp|Número de WhatsApp del sitio|\\bwhatsapp\\b",
+      "motivo": "Los textos de las herramientas MCP: la entrada whatsapp de create-page (el número del sitio) y la regla del llamado a la acción en la guía.",
+      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
     }
   ]
 }

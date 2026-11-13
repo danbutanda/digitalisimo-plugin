@@ -81,6 +81,9 @@ def marca(rel, campo, texto):
                 continue
             if ex.get("texto") and not re.search(ex["texto"], texto):
                 continue
+            # `frases`: cada aparición del nombre debe estar dentro de una de esas frases.
+            if ex.get("frases") and n["re"].search(re.sub(ex["frases"], "", texto)):
+                continue
             ex["_usos"] += 1
             ok = True
             break
@@ -298,7 +301,7 @@ else:
     error("falta la guía guide.md del módulo")
 
 for i, ex in enumerate(MARCAS["excepciones"]):
-    if not ex["_usos"]:
+    if not ex["_usos"] and not ex.get("comprueba"):  # las de `comprueba` las aplica esa prueba
         error(f"marcas.json: la excepción {i + 1} ({', '.join(ex['nombres'])}) ya no se usa: quítala")
 
 print(f"\nWidgets que Elements registra: {len(nombres)}")

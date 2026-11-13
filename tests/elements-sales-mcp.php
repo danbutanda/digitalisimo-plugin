@@ -494,15 +494,37 @@ namespace {
 	check( preg_match( '/nunca inventes testimonios/', Tools::DESCRIPTIONS['create-page'] ), 'create-page dice que no se inventa nada' );
 	check( array_keys( Tools::input_schema( 'guide' )['properties'] ) === array( 'section' ) && ! isset( Tools::input_schema( 'guide' )['required'] ), 'guide: section opcional' );
 	check( array_keys( Tools::input_schema( 'list-templates' )['properties'] ) === array( 'template' ), 'list-templates: template opcional' );
-	// Nombres de otras empresas en los textos de las herramientas: sólo WhatsApp (excepción declarada).
+	// Nombres de otras empresas en los textos de las herramientas: sólo los de una excepción de marcas.json para
+	// mcp/class-tools.php, y cada aparición dentro de sus `frases` (WhatsApp: la entrada whatsapp y la regla del llamado
+	// a la acción, pendiente de confirmar por el operador).
 	$marcas = json_decode( file_get_contents( __DIR__ . '/playground/brand-audit/marcas.json' ), true );
-	foreach ( Tools::TOOLS as $tool ) {
-		$text = Tools::LABELS[ $tool ] . ' ' . Tools::DESCRIPTIONS[ $tool ] . ' ' . json_encode( Tools::input_schema( $tool ), JSON_UNESCAPED_UNICODE );
-		foreach ( $marcas['nombres'] as $n ) {
-			if ( 'WhatsApp' !== $n['nombre'] ) {
-				check( ! preg_match( '/' . str_replace( '/', '\/', $n['patron'] ) . '/', $text ), "$tool: sin «{$n['nombre']}» en sus textos" );
+	$rx     = static function ( string $pattern ): string {
+		return '/' . str_replace( '/', '\/', $pattern ) . '/u';
+	};
+	$tools_ex = array_values(
+		array_filter(
+			$marcas['excepciones'],
+			static function ( $ex ) use ( $rx ) {
+				return preg_match( $rx( $ex['archivos'] ), 'digitalisimo-elements/modules/digitalisimo-sales/mcp/class-tools.php' );
 			}
+		)
+	);
+	$tools_used = array_fill( 0, count( $tools_ex ), 0 );
+	foreach ( Tools::TOOLS as $tool ) {
+		$text = Tools::LABELS[ $tool ] . ' ' . Tools::DESCRIPTIONS[ $tool ] . ' ' . json_encode( Tools::input_schema( $tool ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		foreach ( $marcas['nombres'] as $n ) {
+			$left = $text;
+			foreach ( $tools_ex as $k => $ex ) {
+				if ( in_array( $n['nombre'], $ex['nombres'], true ) && preg_match( $rx( $n['patron'] ), $left ) ) {
+					$left = (string) preg_replace( $rx( $ex['frases'] ), '', $left );
+					++$tools_used[ $k ];
+				}
+			}
+			check( ! preg_match( $rx( $n['patron'] ), $left ), "$tool: «{$n['nombre']}» en sus textos fuera de una excepción declarada" );
 		}
+	}
+	foreach ( $tools_ex as $k => $ex ) {
+		check( 'tests/elements-sales-mcp.php' === ( $ex['comprueba'] ?? '' ) && $tools_used[ $k ] > 0, 'marcas.json: la excepción de los textos de las herramientas se usa y la aplica esta prueba' );
 	}
 
 	// ================================================================ 2. Catálogo y variantes

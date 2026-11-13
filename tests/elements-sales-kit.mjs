@@ -50,6 +50,10 @@ const roto = (nombre, variante, archivo, cambio, esperado) => {
 const widgets = (els, out = []) => { for (const e of els) { if (e.elType === 'widget') out.push(e); widgets(e.elements || [], out); } return out; };
 const corta = '02-pagina-de-venta-corta.json';
 roto('una marca sin excepción', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Paga con PayPal</p>'; }, /«PayPal» sin excepción declarada/);
+roto('una marca de la lista ampliada (Visa)', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Paga con Visa o en Coppel</p>'; }, /«Visa» sin excepción declarada/);
+roto('una red de la lista ampliada (Discord)', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading').settings.title = 'Únete a nuestro Discord'; }, /«Discord» sin excepción declarada/);
+roto('WhatsApp fuera del llamado a la acción', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading').settings.title = 'Síguenos en WhatsApp'; }, /«WhatsApp» sin excepción declarada/);
+roto('WhatsApp en un botón, pero con otro texto', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'button' && /WhatsApp/.test(w.settings.text)).settings.text = 'Hablar por WhatsApp y síguenos en WhatsApp Business'; }, /«WhatsApp» sin excepción declarada/);
 roto('OXXO fuera de su lugar', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading').settings.title = 'Paga en OXXO'; }, /«OXXO» sin excepción declarada/);
 roto('un enlace a otro sitio', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'button').settings.link.url = 'https://otro.test/'; }, /enlace inesperado/);
 roto('un video de otro servicio', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'video').settings.youtube_url = 'https://www.youtube.com/watch?v=abcdefghijk'; }, /video con un enlace|YouTube/);
@@ -81,6 +85,19 @@ for (const n of marcas.nombres) {
     ok(constantes.length === 0, `«${n.nombre}» no tiene excepción y aun así está en una constante: ${constantes.join(' | ')}`);
   }
 }
+// La lista vigilada incluye estas marcas (cada una con un ejemplo que su patrón reconoce) y ninguna excepción abre el
+// módulo entero: cada una se acota a un campo (o la aplica otra prueba, `comprueba`). WhatsApp no es decisión del
+// operador: cada excepción suya lo dice («PENDIENTE DE CONFIRMAR») y acota sus frases.
+const vigiladas = { Visa: 'Paga con Visa', Mastercard: 'Mastercard', 'American Express': 'American Express', Clip: 'terminal Clip', Kueski: 'Kueski Pay', Coppel: 'en Coppel', Hotmart: 'Hotmart', Discord: 'nuestro Discord', Telegram: 'Telegram', Instagram: 'Instagram', Facebook: 'Facebook', TikTok: 'TikTok', 'X (Twitter)': 'x.com/marca', LinkedIn: 'LinkedIn', Spotify: 'Spotify', Calendly: 'Calendly', Shopify: 'Shopify', Amazon: 'Amazon' };
+for (const [nombre, ejemplo] of Object.entries(vigiladas)) {
+  const n = marcas.nombres.find((x) => x.nombre === nombre);
+  ok(n && new RegExp(n.patron).test(ejemplo), `marcas.json vigila «${nombre}» (y su patrón reconoce «${ejemplo}»)`);
+}
+for (const ex of marcas.excepciones) ok(ex.campo || ex.comprueba, `marcas.json: la excepción de ${ex.nombres.join('/')} en ${ex.archivos} no se acota a un campo`);
+const exWhatsApp = marcas.excepciones.filter((e) => e.nombres.includes('WhatsApp'));
+ok(exWhatsApp.length > 0 && exWhatsApp.every((e) => e.frases && /PENDIENTE DE CONFIRMAR/.test(e.decision) && !/^\^digitalisimo-elements\/modules\/digitalisimo-sales\/\$?$/.test(e.archivos)), 'WhatsApp: pendiente de confirmar por el operador y acotado a sus frases, nunca a todo el módulo');
+const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+ok(/WhatsApp[^.]*pendiente de confirmar/i.test(agents) && !/y WhatsApp como llamado a la acción\. Cada excepción/.test(agents), 'AGENTS.md dice que WhatsApp está pendiente de confirmar por el operador');
 for (const nombre of ['MEDIOS_PAGO', 'MEDIOS_PAGO_FAQ', 'PASARELA', 'PAGO_EFECTIVO', 'AVISO_PLATAFORMAS', 'PLATAFORMA_SESION', 'VIDEO_URL']) {
   ok(new RegExp(`^${nombre} = `, 'm').test(lib) && lib.match(new RegExp(`^${nombre} = `, 'gm')).length === 1, `kit_lib.py define ${nombre} una sola vez`);
 }
