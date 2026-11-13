@@ -164,6 +164,10 @@ function pro_elements_load_plugin_func() {
 	// Servicios y plantillas propios (C9): widgets que sustituyen a los de PRO de la etapa.
 	require_once __DIR__ . '/modules/digitalisimo-services/class-module.php';
 	\Digitalisimo\Elements\Services\Module::init();
+
+	// MCP del constructor: el CSS de cada documento que cambia una herramienta queda al día (docs/ELEMENTS_MCP_CSS.md).
+	require_once __DIR__ . '/modules/digitalisimo-mcp/class-module.php';
+	\Digitalisimo\Elements\Mcp\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {
