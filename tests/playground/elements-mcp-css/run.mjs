@@ -32,11 +32,17 @@ const start = (name) => { section = name; log(`== ${name}`); };
 
 // Las comprobaciones que fallan con DIGITALÍSIMO Elements 4.3.0.185 (núcleo 4.3.5), sin el arreglo.
 const BEFORE_FIX = [
-  'M1.2-css', 'M1.2-ver', 'M1.3-css', 'M1.3-ver',
+  // El incidente: la hoja «frontend» del borrador no se invalida (enlace firmado con el CSS y el ver de la primera).
+  'M1.2-css', 'M1.2-ver', 'M1.2-color', 'M1.3-css', 'M1.3-ver', 'M1.3-color',
   'M2.1-css', 'M2.1-ver', 'M2.2-css', 'M2.2-ver',
-  'M4.2-css', 'M4.3-css',
-  'M6.4-css', 'M6.4-ver',
-  'M9.1-font',
+  // Un enlace viejo deja su HTML (caché del documento) y su CSS en la página.
+  'M4.3a-html', 'M4.3a-css', 'M4.3-css',
+  // La hoja vieja sigue sirviéndose después de update-page-settings y de publicar.
+  'M5.1-css', 'M6.1-css', 'M6.2-css', 'M6.3-html', 'M6.3-css', 'M6.3b-css',
+  // publish-document promueve el autoguardado sin invalidar hojas ni la caché HTML.
+  'M6.4-html', 'M6.4-css', 'M6.4-ver',
+  // font-family con varias familias: comillas anidadas, Chrome descarta la declaración.
+  'M9.1-font', 'M9.3-chrome-font',
 ];
 
 function request(method, path, { headers = {}, body } = {}) {
