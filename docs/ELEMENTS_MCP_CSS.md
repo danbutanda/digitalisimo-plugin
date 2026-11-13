@@ -56,7 +56,9 @@ reconstrucción.
    instantánea.
 7. **El enlace firmado escribe en la página.** Al pintar la instantánea con la hoja `frontend` y la caché HTML de la
    página, si esa hoja estaba inválida la genera con el CSS de la instantánea, y guarda el HTML de la instantánea en la
-   caché del documento: un enlace viejo abierto después de otra escritura dejaba a la página con el CSS y el HTML viejos.
+   caché del documento (`Document::print_elements()` → `set_document_cache()`, sobre el ID de la página): un enlace
+   viejo abierto después de otra escritura dejaba a la página con el CSS y el HTML viejos (en el ensayo, hasta el
+   borrador que abría su administradora mostraba el HTML del enlace viejo).
 
 ## El arreglo (`modules/digitalisimo-mcp/`, cargado desde `pro-elements.php`)
 
@@ -118,9 +120,13 @@ reconstrucción.
 - Las herramientas del núcleo `manage-elements`, `manage-classes`, `reorder-classes` y `manage-global-variable` siguen
   purgando el CSS de todo el sitio, como hace el núcleo: la llamada está dentro de su `execute()` y no tiene filtro. El
   módulo no añade ninguna purga general.
-- El enlace firmado de una página publicada muestra la publicada, no lo que el MCP dejó en su autoguardado
-  (`create-preview-link` toma su instantánea de la entrada principal): para ver esos cambios hay que publicarlos
-  (`publish-document`) o abrir la vista previa del editor.
+- El enlace firmado de una página publicada con cambios pendientes muestra esos cambios: en el ensayo,
+  `create-preview-link` firmó el autoguardado (`<id>-autosave-v1`, la última revisión por ID cuando
+  `wp_save_post_revision()` no crea una nueva). Con el arreglo sale con su propio CSS y la publicada no se queda con él.
+- El enlace firmado de un **borrador** no carga la hoja del documento (`post-<id>.css`: el fondo y los demás ajustes
+  clásicos de la página): el manejador lee `_elementor_css` de la revisión firmada y el ensayo la encontró en `empty`.
+  Es igual con 4.3.0.185 y no depende de las escrituras del MCP; no se corrige aquí. El borrador que abre su
+  administradora y la página publicada sí la cargan.
 - Un guardado hecho fuera del MCP (el editor) sigue la regla del núcleo: un borrador sólo invalida su hoja `preview`.
 - En el lienzo del editor (JavaScript) una lista de familias sigue saliendo como la pinta el núcleo; la corrección es
   del CSS que se sirve. Con una lista, la primera familia no se encola sola desde Google Fonts (el núcleo encola el
