@@ -53,6 +53,14 @@ register_shutdown_function( static function () {
 add_action( 'init', static function () {
 	if ( empty( $_GET['digi_parts'] ) || ! hash_equals( trim( (string) @file_get_contents( '/digi-probe/token.txt' ) ), (string) ( $_GET['token'] ?? '' ) ) ) return;
 	header( 'Content-Type: application/json' );
+	if ( 'options' === $_GET['digi_parts'] ) {
+		// Para explicar una diferencia en wp_options: cada opción (nombre → SHA-256 del valor).
+		global $wpdb;
+		$out = array();
+		foreach ( (array) $wpdb->get_results( "SELECT option_name, option_value FROM {$wpdb->options}", ARRAY_A ) as $row ) $out[ $row['option_name'] ] = hash( 'sha256', (string) $row['option_value'] );
+		echo wp_json_encode( $out );
+		exit;
+	}
 	if ( 'info' === $_GET['digi_parts'] ) {
 		echo wp_json_encode( array( 'home' => get_option( 'home' ), 'siteurl' => get_option( 'siteurl' ), 'blogname' => get_option( 'blogname' ), 'active' => get_option( 'active_plugins' ) ) );
 		exit;

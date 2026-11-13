@@ -131,11 +131,15 @@ async function scenario(file, reference, label, selection, chosen, database, kep
   await probe('mutate', `&round=${round}`);
   await parts('mutate', `&round=${round}`);
   const before = await probe('inventory');
+  const optionsBefore = await parts('options');
   if (extra.failMove) writeFileSync(`${ctl}/fail-move`, '');
   const run = await restoreByWeb(file, label, selection, extra.confirm);
   rmSync(`${ctl}/fail-move`, { force: true });
   const after = await probe('inventory');
-  writeFileSync(`${dir}/inventory-${label.replace(/[^a-z0-9]+/gi, '-')}.json`, JSON.stringify({ before, after }, null, 1));
+  const optionsAfter = await parts('options');
+  const changedOptions = Object.keys({ ...optionsBefore, ...optionsAfter }).filter((k) => optionsBefore?.[k] !== optionsAfter?.[k]);
+  writeFileSync(`${dir}/inventory-${label.replace(/[^a-z0-9]+/gi, '-')}.json`, JSON.stringify({ before, after, changedOptions }, null, 1));
+  log(`· ${label}: opciones distintas antes y después: ${changedOptions.slice(0, 30).join(', ') || 'ninguna'}`);
   if (extra.failMove) {
     check(run.job?.status === 'failed' && run.followed !== run.id && run.last?.status === 'success', `${label}: la falla a mitad del cambio volvió sola a la copia previa`, JSON.stringify({ job: run.job?.status, error: run.job?.error, rollback: run.last?.status, rerror: run.last?.error }));
     check(JSON.stringify(run.last?.spec?.parts) === JSON.stringify(run.job?.spec?.parts), `${label}: la vuelta a la copia previa repone sólo las mismas partes`, JSON.stringify(run.last?.spec?.parts));
