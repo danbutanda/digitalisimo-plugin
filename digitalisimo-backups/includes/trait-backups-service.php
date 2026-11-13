@@ -558,9 +558,9 @@ trait Digitalisimo_Backups_Service {
 				}
 				$chain_job = $started;
 			}
-			if ( isset( $chain_job ) ) {
-				// El resto, después de soltar el bloqueo (abajo).
-			} else {
+			// Un completo (o un archivo suelto): la apertura, la confirmación y el encolado de siempre. Su cuerpo no cambia de
+			// sangría para no tocar sus líneas (la restauración por partes trabaja sobre ellas).
+			if ( ! isset( $chain_job ) ) {
 			try {
 				Digitalisimo_Backups_Security::require_confirmation( $report, $confirmation );
 			} catch ( Exception $e ) {
