@@ -362,7 +362,7 @@ final class Digitalisimo_Backups_Restore_Parts {
 		}
 		$out = '<details class="digitalisimo-backups-restore-parts" data-restore-parts' . ( $items && ! empty( $_GET['parts'] ) ? ' open' : '' ) . '><summary>Qué restaurar: <span data-restore-parts-label>todo</span></summary>';
 		$out .= '<p><label><input type="checkbox" name="restore_all" value="1" checked data-restore-all> Todo (base de datos y archivos)</label><input type="hidden" name="restore_parts_shown" value="1"></p>';
-		$out .= Digitalisimo_Backups::help_html( 'Los respaldos son siempre completos: aquí eliges qué vuelve. Desmarca «Todo» y marca las partes; lo que no marques no se toca. Antes se guarda la copia previa completa y, si algo falla, se vuelve a ella.' );
+		$out .= Digitalisimo_Backups::help_html( 'Los respaldos son siempre completos: aquí eliges qué vuelve. Desmarca «Todo» y marca las partes, o marca un plugin, tema o sitio concreto (sólo eso); lo que no marques no se toca. Antes se guarda la copia previa completa y, si algo falla, se vuelve a ella.' );
 		$out .= '<ul class="digitalisimo-backups-parts-list">';
 		foreach ( $parts::PARTS as $key => $name ) $out .= '<li><label><input type="checkbox" name="restore_parts[]" value="' . esc_attr( $key ) . '" checked data-restore-part> ' . esc_html( ucfirst( $name ) ) . '</label> <span class="description">' . esc_html( $parts::REPLACES[ $key ] ) . '</span></li>';
 		$out .= '</ul>';
