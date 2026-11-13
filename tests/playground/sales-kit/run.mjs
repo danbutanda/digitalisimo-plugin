@@ -95,6 +95,7 @@ const pages = []; // { id, template, variant, preview, widgets }
 
 async function main() {
   start('S0 Servidor MCP y herramientas');
+  const before = await probe('pages');
   const ping = await probe('ping');
   check(ping.ready && ping.mcp && ping.sales, `sitio listo (WordPress ${ping.wp}, PHP ${ping.php}, núcleo ${ping.core}), MCP del sitio activo y el módulo del kit cargado`, JSON.stringify(ping));
   check(ping.container === true, 'el experimento de contenedores viene activo en un sitio nuevo (lo normal en Elements 4.3)', JSON.stringify(ping));
@@ -114,8 +115,11 @@ async function main() {
   const cp = ours.find((t) => t.name === 'digitalisimo-sales-create-page');
   check(JSON.stringify((cp?.inputSchema?.required || []).sort()) === '["template","title"]' && Object.keys(cp?.inputSchema?.properties || {}).join(',') === 'template,title,replacements,omit_blocks,whatsapp,close_date', 'create-page: plantilla, título, reemplazos, bloques, WhatsApp y fecha de cierre', JSON.stringify(cp?.inputSchema?.properties && Object.keys(cp.inputSchema.properties)));
 
+  // Con el código anterior (sin el kit) S1–S6 fallan con una excepción; Chrome y el aviso de importación se prueban igual.
+  let r;
+  try {
   start('S1 list-templates y guide');
-  let r = await admin.call('list-templates', {});
+  r = await admin.call('list-templates', {});
   check(!r.isError && r.data?.ok && r.data.templates.length === 8 && r.data.cases.length >= 10 && r.data.variant === 'containers', 'list-templates: ocho plantillas, la tabla por caso y la variante de este sitio (contenedores)', r.text.slice(0, 400));
   check(JSON.stringify(r.data?.templates?.map((t) => t.id)) === JSON.stringify(TEMPLATES), 'list-templates: en el orden del kit');
   check(r.data?.templates?.[0]?.blocks?.length === 26 && r.data.templates[0].blocks.at(-1).key === 'pie' && r.data.templates[0].blocks.at(-1).required === true, 'list-templates: los 26 bloques de la venta completa, en orden, y el pie obligatorio');
@@ -131,7 +135,6 @@ async function main() {
   start('S2 create-page con contenedores (las ocho)');
   const meta = (await admin.call('list-templates', {})).data.templates;
   const full = Object.fromEntries((await Promise.all(TEMPLATES.map((id) => admin.call('list-templates', { template: id })))).map((x) => [x.data.templates[0].id, x.data.templates[0]]));
-  const before = await probe('pages');
   for (const variant of ['containers', 'sections']) {
     if (variant === 'sections') {
       start('S3 create-page con secciones (las ocho, sin el experimento de contenedores)');
@@ -209,6 +212,10 @@ async function main() {
     const g = await c.call('guide', {});
     const n1 = (await probe('pages')).all;
     check(a.isError && b.isError && g.isError && n0 === n1, `${login} (sin edit_pages) no puede usar el kit ni crear nada`, `${a.text.slice(0, 200)} | tools: ${ts.filter((t) => t.name.startsWith('digitalisimo-sales-')).map((t) => t.name)}`);
+  }
+  } catch (e) {
+    check(false, `${section}: terminó con una excepción`, e.stack || String(e));
+    await probe('container', 'active').catch(() => {});
   }
 
   start('S7 Chrome: cada página creada, con su CSS, a 1280 y 390 px');
