@@ -89,6 +89,7 @@ namespace {
 		$GLOBALS['mc'] = array(
 			'hooks'   => $hooks || ! isset( $GLOBALS['mc']['hooks'] ) ? array() : $GLOBALS['mc']['hooks'],
 			'options' => array(),
+			'site'    => array(),
 			'deleted' => array(),
 			'clears'  => array(),
 			'posts'   => array(),
@@ -139,12 +140,31 @@ namespace {
 		}
 		return array_key_exists( $name, $GLOBALS['mc']['options'] ) ? $GLOBALS['mc']['options'][ $name ] : $default;
 	}
+	/** Como WordPress: `pre_update_option_<opción>` puede devolver lo anterior y entonces no se guarda nada. */
 	function update_option( $name, $value, $autoload = null ) {
+		$old   = get_option( $name );
+		$value = apply_filters( "pre_update_option_{$name}", $value, $old, $name );
+		if ( $value === $old ) {
+			return false;
+		}
 		$GLOBALS['mc']['options'][ $name ] = $value;
 		return true;
 	}
 	function delete_option( $name ) {
+		if ( ! array_key_exists( $name, $GLOBALS['mc']['options'] ) ) {
+			return false;
+		}
 		unset( $GLOBALS['mc']['options'][ $name ] );
+		do_action( 'deleted_option', $name );
+		return true;
+	}
+	function update_site_option( $name, $value ) {
+		$old   = $GLOBALS['mc']['site'][ $name ] ?? false;
+		$value = apply_filters( "pre_update_site_option_{$name}", $value, $old, $name, 1 );
+		if ( $value === $old ) {
+			return false;
+		}
+		$GLOBALS['mc']['site'][ $name ] = $value;
 		return true;
 	}
 	function delete_post_meta( $id, $key ) {
@@ -434,9 +454,9 @@ namespace {
 
 	// ---------------------------------------------------------------------------------------------------------------
 	// 6. Enlace firmado de create-preview-link (token real del núcleo). Revisión (ALTA 1): con la página publicada no se
-	//    invalida ni se escribe nada suyo; sus hojas «frontend» se congelan (las que el núcleo regeneraría se marcan
-	//    válidas sólo para esa petición) y vuelven a inválido al terminar; la caché HTML se apaga durante la petición.
-	//    Falla con d85111be (se invalidaban sus hojas y se borraba su caché HTML antes y después).
+	//    invalida ni se escribe nada suyo; sus hojas «frontend» se congelan (las que el núcleo regeneraría quedan válidas
+	//    sólo para esa petición); la caché HTML se apaga durante la petición. Segunda revisión (MEDIA 1): el congelado va
+	//    sólo en memoria, lo guardado no cambia ni durante la petición ni después.
 	mc_boot();
 	$v = new Cache_Validity();
 	$secret = Preview_Token::secret();
@@ -456,29 +476,30 @@ namespace {
 	$v->validate( array( 'local', 90, 'frontend', 'desktop' ), array( 'should_exist' => true ) );
 	$v->validate( array( 'local', 90, 'frontend', 'mobile' ), array( 'should_exist' => true ) );
 	$v->validate( array( 'component-styles-related-posts', '90' ), array( 7 ) );
+	$stored = $GLOBALS['mc']['options'];
 	$_GET['elementor_preview_token'] = Preview_Token::encode( 90, 91, time() + 300, $secret );
 	check( 'disable' !== get_option( 'elementor_element_cache_ttl', '' ), 'antes del enlace, la caché HTML del documento funciona' );
 	do_action( 'parse_request', null );
 	check( 'disable' === get_option( 'elementor_element_cache_ttl', '' ), 'durante el enlace firmado, la caché HTML del documento está apagada (no se lee ni se guarda)' );
 	check( $v->is_valid( array( 'local', 90, 'frontend' ) ) && 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ), 'la hoja local de la publicada sigue válida con su ver (no se regenera)' );
-	check( $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ) && array( 'should_exist' => true ) === $v->get_meta( array( 'local', 90, 'frontend', 'desktop' ) ), 'escritorio (con archivo): intacto, el núcleo sirve el archivo tal cual' );
 	foreach ( array( 'mobile', 'tablet' ) as $bp ) {
 		check( $v->is_valid( array( 'local', 90, 'frontend', $bp ) ) && array( 'should_exist' => false ) === $v->get_meta( array( 'local', 90, 'frontend', $bp ) ), "$bp (sin archivo): válida sin archivo durante la petición (el núcleo no escribe nada)" );
 	}
 	check( $v->is_valid( array( 'global', 90, 'frontend' ) ) && $v->is_valid( array( 'global', 90, 'frontend', 'desktop' ) ) && array( 'should_exist' => false ) === $v->get_meta( array( 'global', 90, 'frontend', 'desktop' ) ), 'la hoja global (inválida y sin archivo): congelada sin archivo' );
 	check( ! mc_related_valid( 90 ), 'la lista de componentes se recalcula para la instantánea' );
+	check( $stored === $GLOBALS['mc']['options'], 'durante la petición nada de lo guardado cambia (el congelado va en memoria)' );
 	check( array() === $GLOBALS['mc']['deleted'] && 90 === mc_preview_state()['post'] && true === mc_preview_state()['live'], 'no se borra la caché HTML de la publicada' );
 	do_action( 'shutdown' );
 	check( 'disable' !== get_option( 'elementor_element_cache_ttl', '' ), 'al terminar, la caché HTML vuelve a funcionar' );
-	check( $v->is_valid( array( 'local', 90, 'frontend' ) ) && $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ) && 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ), 'al terminar: escritorio sigue válido con el mismo ver (abrir el enlace no regenera la publicada)' );
-	check( ! $v->is_valid( array( 'local', 90, 'frontend', 'mobile' ) ) && ! $v->is_valid( array( 'local', 90, 'frontend', 'tablet' ) ), 'al terminar: lo que se congeló vuelve a inválido' );
-	check( ! $v->is_valid( array( 'global', 90, 'frontend' ) ), 'al terminar: el contexto global que estaba inválido vuelve a inválido' );
+	check( $stored === $GLOBALS['mc']['options'], 'al terminar, lo guardado es idéntico a lo de antes' );
+	check( $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ) && 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ) && $v->is_valid( array( 'local', 90, 'frontend', 'mobile' ) ) && ! $v->is_valid( array( 'local', 90, 'frontend', 'tablet' ) ), 'al terminar: cada hoja como estaba (la copia en memoria se descarta)' );
+	check( ! $v->is_valid( array( 'global', 90, 'frontend' ) ) && mc_related_valid( 90 ), 'al terminar: el contexto global sigue inválido y la lista de componentes de la publicada sigue válida' );
 	check( '.elementor .e-vivo{color:red}' === file_get_contents( $GLOBALS['mc_upload_dir'] . 'css/local-90-frontend-desktop.css' ), 'el archivo de la publicada no cambia' );
-	check( ! mc_related_valid( 90 ) && array() === $GLOBALS['mc']['deleted'] && array() === $GLOBALS['mc']['clears'], 'la lista de componentes se recalcula para la publicada; sin borrados' );
+	check( array() === $GLOBALS['mc']['deleted'] && array() === $GLOBALS['mc']['clears'], 'sin borrados' );
 	// El mismo enlace otra vez: igual (sin regenerar nada de la publicada).
 	do_action( 'parse_request', null );
 	do_action( 'shutdown' );
-	check( 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ) && $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ), 'abrirlo de nuevo tampoco cambia la hoja ni el ver de la publicada' );
+	check( $stored === $GLOBALS['mc']['options'], 'abrirlo de nuevo tampoco cambia nada guardado' );
 	// Un borrador: sus hojas se invalidan antes y después (la instantánea se pinta con su CSS; nadie guarda su HTML).
 	mc_reset();
 	$posts();
@@ -655,6 +676,9 @@ namespace {
 	$core         = array(
 		'local'   => \Elementor\Modules\AtomicWidgets\Styles\Atomic_Widget_Styles::STYLES_KEY,
 		'global'  => preg_match( "/const STYLES_KEY = '([^']+)'/", $global_src, $m ) ? $m[1] : null,
+		'global_related'         => preg_match( "/const RELATED_KEY = '([^']+)'/", $global_src, $m ) ? $m[1] : null,
+		'global_related_reverse' => preg_match( "/const RELATED_REVERSE_KEY = '([^']+)'/", $global_src, $m ) ? $m[1] : null,
+		'validity'               => \Elementor\Modules\AtomicWidgets\Styles\CacheValidity\Cache_Validity_Item::CACHE_KEY_PREFIX,
 		'related' => \Elementor\Modules\Components\Styles\Component_Styles::CACHE_ROOT_KEY,
 		'html'    => preg_match( "/const CACHE_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
 		'data'    => preg_match( "/const ELEMENTOR_DATA_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
@@ -721,6 +745,50 @@ namespace {
 	call_user_func( $inner_cb );
 	check( 0 === Css_Sync::state()['depth'] && array( 'local/81', 'global/81' ) === mc_cleared( 81 )['clears'], 'el envoltorio llamado sin wp_before_execute_ability abre y cierra su ámbito' );
 	check( 'original' === call_user_func( $ours['execute_callback'] ), 'el envoltorio devuelve el resultado del callback' );
+
+	// ---------------------------------------------------------------------------------------------------------------
+	// 13. Segunda revisión (MEDIA 1, ventana de concurrencia): en el enlace firmado de una publicada el congelado y todo
+	//     lo que el núcleo escriba en la validez de la caché atómica va sólo en memoria. Un visitante que llega mientras
+	//     tanto lee lo guardado tal cual (las hojas de la página inválidas tras una promoción: las regenera con sus
+	//     datos), nada se guarda ni como opción de red, y una purga real durante la petición se respeta (la página se
+	//     vuelve a congelar en memoria). Falla con f6d0563c (freeze() escribía la validez en la base al empezar).
+	mc_boot();
+	$v = new Cache_Validity();
+	mc_post( 95, 'page', 0, 'publish' );
+	mc_post( 96, 'revision', 95, 'inherit' );
+	// Tras la promoción, Css_Sync invalidó las hojas de 95; sus archivos (los de antes) siguen ahí.
+	file_put_contents( $GLOBALS['mc_upload_dir'] . 'css/local-95-frontend-desktop.css', '.elementor .e-viejo{color:red}' );
+	file_put_contents( $GLOBALS['mc_upload_dir'] . 'css/global-95-frontend-desktop.css', '.elementor .viejo{color:red}' );
+	$v->invalidate( array( 'local', 95 ) );
+	$v->invalidate( array( 'global', 95 ) );
+	$v->validate( array( 'global_related', 95, 'frontend' ), array() );
+	$stored = $GLOBALS['mc']['options'];
+	$roots  = method_exists( '\\Digitalisimo\\Elements\\Mcp\\Preview_Link', 'sandboxed' ) ? \Digitalisimo\Elements\Mcp\Preview_Link::sandboxed() : array();
+	check( 1 === preg_match( "/return \\\$key \\? self::STYLES_KEY \\. '_' \\. \\\$key : self::STYLES_KEY;/", $global_src ), 'el núcleo compone las raíces de relaciones como global_<clave> (atomic-global-styles.php)' );
+	check( array( 'elementor_atomic_cache_validity__local', 'elementor_atomic_cache_validity__global', 'elementor_atomic_cache_validity__global_related', 'elementor_atomic_cache_validity__global_related-reverse', 'elementor_atomic_cache_validity__component-styles-related-posts' ) === $roots, 'van en memoria las cinco opciones de validez que escribe el render de una página · ' . implode( ',', $roots ) );
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 95, 96, time() + 300, Preview_Token::secret() );
+	do_action( 'parse_request', null );
+	check( $v->is_valid( array( 'local', 95, 'frontend', 'desktop' ) ) && $v->is_valid( array( 'global', 95, 'frontend', 'desktop' ) ), 'dentro de la petición firmada la página está congelada (lecturas de la copia en memoria)' );
+	check( $stored === $GLOBALS['mc']['options'], 'lo guardado no cambia al congelar: un visitante simultáneo ve las hojas de 95 inválidas y las regenera con sus datos' );
+	// Lo que el núcleo escribe mientras pinta la instantánea (validar hojas, relaciones de clases, otra página).
+	$v->validate( array( 'local', 95, 'frontend', 'tablet' ), array( 'should_exist' => true ) );
+	$v->validate( array( 'local', 97, 'frontend', 'desktop' ), array( 'should_exist' => true ) );
+	$v->validate( array( 'global_related', 95, 'frontend' ), array( 123 ) );
+	$v->validate( array( 'component-styles-related-posts', '95' ), array( 123 ) );
+	check( $v->is_valid( array( 'local', 97, 'frontend', 'desktop' ) ) && array( 123 ) === $v->get_meta( array( 'global_related', 95, 'frontend' ) ), 'las escrituras del núcleo se ven dentro de la petición' );
+	check( $stored === $GLOBALS['mc']['options'], 'pero ninguna llega a lo guardado' );
+	check( false === update_site_option( 'elementor_atomic_cache_validity__local', array( 'state' => true ) ) && array() === $GLOBALS['mc']['site'], 'tampoco como opción de red' );
+	check( true === update_option( 'otra_opcion', 1 ) && 1 === $GLOBALS['mc']['options']['otra_opcion'], 'las demás opciones se guardan como siempre' );
+	unset( $GLOBALS['mc']['options']['otra_opcion'] );
+	// Una purga de todo el sitio durante la petición (cron, otro complemento): se borra de verdad y la página sigue congelada.
+	$v->invalidate( array( 'local' ) );
+	check( ! array_key_exists( 'elementor_atomic_cache_validity__local', $GLOBALS['mc']['options'] ), 'una purga real durante la petición se respeta (la opción local se borra)' );
+	check( $v->is_valid( array( 'local', 95, 'frontend', 'desktop' ) ) && ! $v->is_valid( array( 'local', 97, 'frontend', 'desktop' ) ), 'y en la copia la página vuelve a congelarse (lo demás, purgado)' );
+	$purged = $GLOBALS['mc']['options'];
+	do_action( 'shutdown' );
+	check( $purged === $GLOBALS['mc']['options'] && array( 'post' => 0, 'live' => false, 'memory' => array() ) === mc_preview_state(), 'al terminar la copia se descarta sin escribir nada' );
+	check( ! $v->is_valid( array( 'global', 95, 'frontend' ) ) && array() === $v->get_meta( array( 'global_related', 95, 'frontend' ) ), 'y las lecturas vuelven a lo guardado' );
+	check( '.elementor .e-viejo{color:red}' === file_get_contents( $GLOBALS['mc_upload_dir'] . 'css/local-95-frontend-desktop.css' ), 'sin tocar archivos' );
 
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {

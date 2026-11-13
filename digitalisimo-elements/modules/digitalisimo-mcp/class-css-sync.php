@@ -38,12 +38,15 @@ final class Css_Sync {
 	 * clase no está (`tests/elements-mcp-css.php` comprueba que coinciden).
 	 */
 	const KEYS = array(
-		'local'   => array( 'Elementor\\Modules\\AtomicWidgets\\Styles\\Atomic_Widget_Styles', 'STYLES_KEY', 'local' ),
-		'global'  => array( 'Elementor\\Modules\\GlobalClasses\\Atomic_Global_Styles', 'STYLES_KEY', 'global' ),
-		'related' => array( 'Elementor\\Modules\\Components\\Styles\\Component_Styles', 'CACHE_ROOT_KEY', 'component-styles-related-posts' ),
-		'html'    => array( 'Elementor\\Core\\Base\\Document', 'CACHE_META_KEY', '_elementor_element_cache' ),
-		'data'    => array( 'Elementor\\Core\\Base\\Document', 'ELEMENTOR_DATA_META_KEY', '_elementor_data' ),
-		'token'   => array( 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token', 'QUERY_ARG', 'elementor_preview_token' ),
+		'local'                  => array( 'Elementor\\Modules\\AtomicWidgets\\Styles\\Atomic_Widget_Styles', 'STYLES_KEY', 'local' ),
+		'global'                 => array( 'Elementor\\Modules\\GlobalClasses\\Atomic_Global_Styles', 'STYLES_KEY', 'global' ),
+		'global_related'         => array( 'Elementor\\Modules\\GlobalClasses\\Atomic_Global_Styles', 'RELATED_KEY', 'related' ),
+		'global_related_reverse' => array( 'Elementor\\Modules\\GlobalClasses\\Atomic_Global_Styles', 'RELATED_REVERSE_KEY', 'related-reverse' ),
+		'related'                => array( 'Elementor\\Modules\\Components\\Styles\\Component_Styles', 'CACHE_ROOT_KEY', 'component-styles-related-posts' ),
+		'validity'               => array( 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity_Item', 'CACHE_KEY_PREFIX', 'elementor_atomic_cache_validity__' ),
+		'html'                   => array( 'Elementor\\Core\\Base\\Document', 'CACHE_META_KEY', '_elementor_element_cache' ),
+		'data'                   => array( 'Elementor\\Core\\Base\\Document', 'ELEMENTOR_DATA_META_KEY', '_elementor_data' ),
+		'token'                  => array( 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token', 'QUERY_ARG', 'elementor_preview_token' ),
 	);
 
 	/** @var bool */

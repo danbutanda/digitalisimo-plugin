@@ -12,14 +12,17 @@ defined( 'ABSPATH' ) || exit;
  * página) y guarda el HTML de la instantánea 24 h en `_elementor_element_cache`. Aquí, durante una petición con un token
  * válido (firma, vigencia y revisión de esa página, comprobados con `Preview_Token` del núcleo):
  * - la caché HTML del documento se apaga (`pre_option_elementor_element_cache_ttl` → `disable`): ni se lee ni se guarda;
- * - la lista de componentes de la página se invalida antes (la de la instantánea) y después (la de la página);
- * - si la página está publicada (o privada), sus hojas `frontend` (locales y de clases globales) se congelan: las
- *   inválidas se marcan válidas para esta petición (con `should_exist` según haya archivo), así el núcleo sirve los
- *   archivos tal cual o ninguno y no escribe nada; los estilos de la instantánea (locales y de sus clases globales) se
- *   imprimen en línea después, con el renderizador del núcleo; al terminar, lo que se marcó vuelve a inválido. Abrir el
- *   enlace no cambia ningún archivo ni ningún `ver` de la publicada;
- * - si es un borrador (nadie guarda su HTML), sus hojas se invalidan antes y después: la instantánea se pinta con su CSS
- *   y la siguiente visita lo regenera.
+ * - si la página está publicada (o privada), la petición no escribe nada que vean otros: las opciones de validez de la
+ *   caché atómica (`elementor_atomic_cache_validity__*`: estilos locales y globales, relaciones de clases y de
+ *   componentes) se leen y se escriben sólo en memoria (`pre_option_…`, `pre_update_option_…`,
+ *   `pre_update_site_option_…`), y en esa copia las hojas `frontend` de la página se congelan: las que el núcleo
+ *   regeneraría (inválidas, o válidas sin el archivo que deberían tener) quedan válidas con `should_exist` según haya
+ *   archivo, así el núcleo sirve los archivos tal cual o ninguno y no escribe nada; la lista de componentes de la
+ *   instantánea se calcula en esa copia. Los estilos de la instantánea (locales y de sus clases globales) se imprimen en
+ *   línea después, con el renderizador del núcleo. Un visitante que llega mientras tanto lee la base de datos tal cual
+ *   (no hay ventana) y, al terminar, la copia se descarta;
+ * - si es un borrador (nadie guarda su HTML), sus hojas y su lista de componentes se invalidan antes y después: la
+ *   instantánea se pinta con su CSS y la siguiente visita lo regenera.
  */
 final class Preview_Link {
 	const CONTEXT     = 'frontend';
@@ -39,8 +42,8 @@ final class Preview_Link {
 	/** @var bool ¿Estaba publicada al abrir el enlace? */
 	private static $live = false;
 
-	/** @var array<string, array{context: bool, leaves: array<int, array>}> Lo que se congeló, por raíz. */
-	private static $frozen = array();
+	/** @var array<string, mixed> Opciones de validez en memoria (nombre => valor) durante el enlace de una publicada. */
+	private static $memory = array();
 
 	/** @var bool */
 	private static $printed = false;
@@ -70,12 +73,82 @@ final class Preview_Link {
 		self::$post = $id;
 		self::$live = in_array( get_post_status( $id ), self::LIVE, true );
 		add_filter( 'pre_option_' . self::TTL_OPTION, array( __CLASS__, 'no_html_cache' ) );
-		Css_Sync::invalidate_related( $id );
 		if ( self::$live ) {
+			self::sandbox( true );
 			self::freeze( $id );
 			add_action( 'elementor/frontend/after_enqueue_post_styles', array( __CLASS__, 'print_styles' ), 20 );
 		} else {
+			Css_Sync::invalidate_related( $id );
 			Css_Sync::invalidate_styles( $id );
+		}
+	}
+
+	/**
+	 * Las opciones de `Cache_Validity` que escribe el render de una página: sus estilos locales y globales, las
+	 * relaciones de sus clases globales con lo que incrusta y su lista de componentes.
+	 */
+	public static function sandboxed(): array {
+		$prefix = Css_Sync::key( 'validity' );
+		$global = Css_Sync::key( 'global' );
+		return array(
+			$prefix . Css_Sync::key( 'local' ),
+			$prefix . $global,
+			$prefix . $global . '_' . Css_Sync::key( 'global_related' ),
+			$prefix . $global . '_' . Css_Sync::key( 'global_related_reverse' ),
+			$prefix . Css_Sync::key( 'related' ),
+		);
+	}
+
+	/** `pre_option_<opción>`: durante el enlace firmado de una publicada, la copia en memoria. */
+	public static function read( $pre, $option = '' ) {
+		return is_string( $option ) && array_key_exists( $option, self::$memory ) ? self::$memory[ $option ] : $pre;
+	}
+
+	/** `pre_update_option_<opción>`: lo nuevo va a la copia en memoria y a la base vuelve lo anterior (nada se guarda). */
+	public static function write( $value, $old_value = null, $option = '' ) {
+		if ( ! is_string( $option ) || ! array_key_exists( $option, self::$memory ) ) {
+			return $value;
+		}
+		self::$memory[ $option ] = $value;
+		return $old_value;
+	}
+
+	/** `pre_update_site_option_<opción>`: tampoco como opción de red. */
+	public static function keep( $value, $old_value = null ) {
+		return $old_value;
+	}
+
+	/**
+	 * `deleted_option`: una purga de todo el sitio durante la petición (la borra de verdad: no es de este enlace) vacía
+	 * también la copia, y la página se vuelve a congelar en ella.
+	 */
+	public static function deleted( $option ): void {
+		if ( ! is_string( $option ) || ! array_key_exists( $option, self::$memory ) ) {
+			return;
+		}
+		self::$memory[ $option ] = array( 'state' => false );
+		if ( self::$post && in_array( $option, array_slice( self::sandboxed(), 0, 2 ), true ) ) {
+			self::freeze( self::$post );
+		}
+	}
+
+	/** Copia en memoria de las opciones de validez (con lo guardado al empezar) y sus filtros, o fuera. */
+	private static function sandbox( bool $on ): void {
+		$options = self::sandboxed();
+		if ( $on ) {
+			foreach ( $options as $option ) {
+				self::$memory[ $option ] = get_option( $option, array( 'state' => false ) );
+			}
+		}
+		$hook = $on ? 'add_filter' : 'remove_filter';
+		foreach ( $options as $option ) {
+			$hook( 'pre_option_' . $option, array( __CLASS__, 'read' ), PHP_INT_MAX, 2 );
+			$hook( 'pre_update_option_' . $option, array( __CLASS__, 'write' ), PHP_INT_MAX, 3 );
+			$hook( 'pre_update_site_option_' . $option, array( __CLASS__, 'keep' ), PHP_INT_MAX, 2 );
+		}
+		$hook( 'deleted_option', array( __CLASS__, 'deleted' ), 10, 1 );
+		if ( ! $on ) {
+			self::$memory = array();
 		}
 	}
 
@@ -190,17 +263,14 @@ final class Preview_Link {
 		}
 		$id = self::$post;
 		if ( self::$live ) {
-			self::thaw( $id );
+			self::sandbox( false );
 		} else {
 			Css_Sync::invalidate_styles( $id );
+			Css_Sync::invalidate_related( $id );
 		}
-		Css_Sync::invalidate_related( $id );
-		if ( function_exists( 'remove_filter' ) ) {
-			remove_filter( 'pre_option_' . self::TTL_OPTION, array( __CLASS__, 'no_html_cache' ) );
-		}
+		remove_filter( 'pre_option_' . self::TTL_OPTION, array( __CLASS__, 'no_html_cache' ) );
 		self::$post    = 0;
 		self::$live    = false;
-		self::$frozen  = array();
 		self::$printed = false;
 	}
 
@@ -209,22 +279,23 @@ final class Preview_Link {
 		self::$initialized = false;
 		self::$post        = 0;
 		self::$live        = false;
-		self::$frozen      = array();
+		self::$memory      = array();
 		self::$printed     = false;
 	}
 
-	/** Para las pruebas: la página del enlace de esta petición y lo congelado. */
+	/** Para las pruebas: la página del enlace de esta petición y las opciones que van en memoria. */
 	public static function state(): array {
 		return array(
 			'post'   => self::$post,
 			'live'   => self::$live,
-			'frozen' => self::$frozen,
+			'memory' => array_keys( self::$memory ),
 		);
 	}
 
 	/**
-	 * Hojas `frontend` de la página en las raíces local y global: el contexto y cada punto que el núcleo escribiría
-	 * (inválido, o válido con un archivo que debería existir y falta) se marcan válidos para esta petición.
+	 * En la copia en memoria: las hojas `frontend` de la página en las raíces local y global que el núcleo escribiría
+	 * (inválidas, o válidas con un archivo que debería existir y falta) quedan válidas, y su lista de componentes se
+	 * recalcula con la instantánea.
 	 */
 	private static function freeze( int $id ): void {
 		$class = Css_Sync::VALIDITY_CLASS;
@@ -234,11 +305,8 @@ final class Preview_Link {
 		$validity = new $class();
 		foreach ( array( Css_Sync::key( 'local' ), Css_Sync::key( 'global' ) ) as $root ) {
 			$context = array( $root, $id, self::CONTEXT );
-			$state   = array(
-				'context' => $validity->is_valid( $context ),
-				'leaves'  => array(),
-			);
-			if ( ! $state['context'] ) {
+			$valid   = $validity->is_valid( $context );
+			if ( ! $valid ) {
 				$validity->validate( $context, 'preview-' . $id );
 			}
 			foreach ( self::breakpoints() as $breakpoint ) {
@@ -246,32 +314,13 @@ final class Preview_Link {
 				$has    = self::has_file( $leaf );
 				$meta   = $validity->get_meta( $leaf );
 				$should = is_array( $meta ) && array_key_exists( 'should_exist', $meta ) ? (bool) $meta['should_exist'] : null;
-				if ( $state['context'] && $validity->is_valid( $leaf ) && ( false === $should || $has ) ) {
+				if ( $valid && $validity->is_valid( $leaf ) && ( false === $should || $has ) ) {
 					continue;
 				}
 				$validity->validate( $leaf, array( 'should_exist' => $has ) );
-				$state['leaves'][] = $leaf;
-			}
-			self::$frozen[ $root ] = $state;
-		}
-	}
-
-	/** Lo congelado vuelve a inválido (nunca a válido): el siguiente render de la página lo regenera con sus datos. */
-	private static function thaw( int $id ): void {
-		$class = Css_Sync::VALIDITY_CLASS;
-		if ( ! class_exists( $class ) ) {
-			return;
-		}
-		$validity = new $class();
-		foreach ( self::$frozen as $root => $state ) {
-			if ( empty( $state['context'] ) ) {
-				$validity->invalidate( array( $root, $id, self::CONTEXT ) );
-				continue;
-			}
-			foreach ( $state['leaves'] as $leaf ) {
-				$validity->invalidate( $leaf );
 			}
 		}
+		$validity->invalidate( array( Css_Sync::key( 'related' ), (string) $id ) );
 	}
 
 	/** Los puntos que recorre el núcleo (`Atomic_Styles_Manager::get_breakpoints()`): escritorio y los demás. */
