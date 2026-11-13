@@ -135,8 +135,9 @@ for (let i = 0; i < 600 && !final && jobId; i++) {
     if (!follow && r.status === 401 && (await request('GET', `${base}/`)).status === 200) break;
   }
   if (final) break;
-  await request('GET', `${base}/wp-cron.php?doing_wp_cron=${Date.now()}`);
-  await sleep(2000);
+  // Como el cron del sistema: wp-cron.php sin parámetros (con ?doing_wp_cron=… y sin su cerrojo, WP-Cron no corre nada).
+  await request('GET', `${base}/wp-cron.php`);
+  await sleep(1000);
 }
 log(`· respuestas al seguirlo: con la ficha ${JSON.stringify(readerCodes)}; con la contraseña de aplicación de «admin» ${JSON.stringify(adminCodes)}${maintenanceSeen ? ' (503 de mantenimiento mientras dura, como se documenta)' : ''}`);
 check(follow && final && Object.keys(readerCodes).every((code) => code === '200'), 'con la ficha, el estado se lee en cada consulta hasta el final (sin 401 ni 403, también en mantenimiento y tras cambiar las tablas de usuarios)', JSON.stringify(readerCodes));
