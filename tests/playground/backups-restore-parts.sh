@@ -11,6 +11,11 @@
 #   OUT, TMPDIR   resultados (por defecto /var/tmp/digi-bk/backups-restore-parts) y temporales de Playground
 #   MODES         modos (por defecto «single multisite relocate»; relocate necesita el respaldo de single)
 #   PORT          primer puerto (por defecto 9531)
+#   BACKUP_MEMORY límite de las peticiones que crean el respaldo de referencia (por defecto 128M; 64M = el del propietario)
+#   LAB_MEMORY    límite de todas las peticiones, también las de las restauraciones (sin él, 64 MB): en php-wasm la
+#                 lectura de 1 MiB por archivo del empaquetado y de la verificación va al límite con 64 MB también con
+#                 el código de main (docs/BACKUPS.md, «Restaurar por partes» → «Memoria»)
+#   ONLY_BACKUP   sólo crea el respaldo de referencia y anota la memoria de cada petición (diagnóstico)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 D="$ROOT/tests/playground/backups-restore-parts"

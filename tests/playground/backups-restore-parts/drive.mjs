@@ -65,6 +65,7 @@ async function login() {
   return [...cookies.keys()].some((name) => name.startsWith('wordpress_logged_in_'));
 }
 const start = Date.now();
+if (process.env.LAB_MEMORY) writeFileSync(`${ctl}/backup-memory`, process.env.LAB_MEMORY);
 check(await login(), 'inicio de sesión de admin');
 const screen = network ? '/wp-admin/network/admin.php?page=digitalisimo-network-backups' : '/wp-admin/admin.php?page=digitalisimo-backups';
 const page = await request('GET', screen, { headers: { Cookie: cookie() } });
@@ -175,7 +176,8 @@ if (mode === 'relocate') {
   // Respaldo completo desde la pantalla (AJAX y ticks de la cola). Con BACKUP_MEMORY (por defecto 128M), sólo sus
   // peticiones corren con ese límite: con 64 MB, el empaquetado va al límite también con el código de main (ver
   // docs/BACKUPS.md, «Restaurar por partes» → «Memoria»). Con BACKUP_MEMORY=64M, todo con los límites del propietario.
-  const backupMemory = process.env.BACKUP_MEMORY || '128M';
+  // Con LAB_MEMORY, todas las peticiones (también las de las restauraciones) corren con ese límite.
+  const backupMemory = process.env.LAB_MEMORY || process.env.BACKUP_MEMORY || '128M';
   if (backupMemory !== '64M') writeFileSync(`${ctl}/backup-memory`, backupMemory);
   const started = await ajax('digitalisimo_backups_manual_start', config.nonce, { destination: 'local' });
   const backupId = started.json?.data?.id;
@@ -184,7 +186,7 @@ if (mode === 'relocate') {
     const res = i % 4 === 3 ? await request('GET', '/wp-cron.php') : await ajax('digitalisimo_backups_job_tick', config.jobsNonce);
     await sleep(res.json?.data?.result === 'worked' ? 200 : 1500);
   }
-  rmSync(`${ctl}/backup-memory`, { force: true });
+  if (!process.env.LAB_MEMORY) rmSync(`${ctl}/backup-memory`, { force: true });
   const backup = jobFile(backupId);
   const peaks = jsonl(`${ctl}/requests.jsonl`).filter((r) => r.kind === 'digitalisimo_backups_job_tick' || r.kind === 'digitalisimo_backups_manual_start').map((r) => r.peak_mb);
   check(backup?.status === 'success', `respaldo completo creado (pico de memoria de sus peticiones: ${Math.max(0, ...peaks)} MB, límite ${backupMemory})`, JSON.stringify(backup?.error));
@@ -217,7 +219,8 @@ if (mode === 'relocate') {
 }
 // Las restauraciones por partes corrieron con los límites del propietario: 64 MB y 30 s.
 const restoreRequests = jsonl(`${ctl}/requests.jsonl`).filter((r) => r.restore_phase || r.kind === 'rest-restore' || r.kind === 'digitalisimo_backups_restore_tick');
-if (restoreRequests.length) {
+if (restoreRequests.length && process.env.LAB_MEMORY) log(`· las restauraciones corrieron con memory_limit=${process.env.LAB_MEMORY} (LAB_MEMORY)`);
+if (restoreRequests.length && !process.env.LAB_MEMORY) {
   check(restoreRequests.every((r) => r.memory_limit === '64M'), `las ${restoreRequests.length} peticiones de las restauraciones corrieron con memory_limit=64M`, JSON.stringify(restoreRequests.filter((r) => r.memory_limit !== '64M').slice(0, 2)));
   const heaviest = Math.max(0, ...restoreRequests.map((r) => r.peak_mb));
   check(heaviest < 64 && !restoreRequests.some((r) => /Allowed memory|Maximum execution time/.test(r.error || '')), `ninguna petición de las restauraciones agotó la memoria ni el tiempo (pico: ${heaviest} MB)`, JSON.stringify(restoreRequests.filter((r) => r.error).slice(0, 2)));
