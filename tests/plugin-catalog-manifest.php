@@ -66,7 +66,8 @@ $tools_catalog = catalog_entries( 'Digitalisimo\\Tools\\Plugin_Catalog', 'catalo
 $seo_catalog = catalog_entries( 'Digitalisimo_Plugin_Catalog', 'plugins' );
 check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $tools_catalog['digitalisimo-migration']['file'] ?? '' ), 'El catálogo de Tools debe ofrecer DIGITALÍSIMO Migración.' );
 check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $seo_catalog['digitalisimo-migration'][1] ?? '' ), 'El catálogo de SEO debe ofrecer DIGITALÍSIMO Migración.' );
-check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $tools_catalog ) ) && 7 === count( $tools_catalog ) && 7 === count( $seo_catalog ), 'Los dos catálogos deben listar los siete plugins del índice.' );
+check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $tools_catalog ) ) && 7 === count( $tools_catalog ), 'El catálogo de Tools debe listar los siete plugins del índice.' );
+check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $seo_catalog ) ) && 7 === count( $seo_catalog ), 'El catálogo de SEO debe listar los siete plugins del índice.' );
 $catalogs = array(
 	'Digitalisimo_Plugin_Catalog' => array( Digitalisimo_Plugin_Catalog::CACHE_KEY, Digitalisimo_Plugin_Catalog::LAST_KNOWN ),
 	'Digitalisimo\\Tools\\Plugin_Catalog' => array( \Digitalisimo\Tools\Plugin_Catalog::CACHE, \Digitalisimo\Tools\Plugin_Catalog::LAST_KNOWN ),
