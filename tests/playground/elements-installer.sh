@@ -19,7 +19,6 @@
 #   OUT, TMPDIR     resultados (por defecto /var/tmp/digi-el/elements-installer) y temporales de Playground
 #   MODES           modos a correr
 #   PORT            primer puerto de Playground (por defecto 9531; uno por modo); SRV_PORT el del servidor local (9539)
-#   PHP_VERSION     PHP de Playground (por defecto el suyo)
 #   ELEMENTS_ZIP    ZIP de Elements (por defecto el de dist/)
 #   PUPPETEER_PATH  carpeta node_modules con puppeteer-core (si no, se busca en la caché de npx o se instala 25.12.0)
 set -euo pipefail
@@ -34,8 +33,6 @@ CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PORT="${PORT:-9531}"
 SRV_PORT="${SRV_PORT:-9539}"
 MODES="${MODES:-single network site}"
-PHP_ARG=()
-[ -n "${PHP_VERSION:-}" ] && PHP_ARG=(--php="$PHP_VERSION")
 SERVER=''
 SERVER_PORT=''
 SRV=''
@@ -109,7 +106,7 @@ for mode in $MODES; do
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi
   begun=$(date +%s)
-  $CLI server --port="$port" --workers=1 --site-url="http://$host" "${PHP_ARG[@]}" --blueprint="$dir/blueprint.json" \
+  $CLI server --port="$port" --workers=1 --site-url="http://$host" --blueprint="$dir/blueprint.json" \
     --mount="$dir/probe:/digi-probe" > "$dir/server.log" 2>&1 &
   SERVER=$!
   SERVER_PORT="$port"
