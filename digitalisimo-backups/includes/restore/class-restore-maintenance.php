@@ -81,6 +81,8 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 			'hash' => hash( 'sha256', $token ),
 			// Las fichas de lectura del trabajo (sólo sus SHA-256): dejan pasar la consulta de su estado, nada más.
 			'readers' => array_values( array_filter( array_map( 'strval', $readers ), function( $hash ) { return (bool) preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
+			// La ruta pública del sitio (vacía en la raíz, «/wp» en una carpeta): ancla la ruta REST que lee la ficha.
+			'home_path' => rtrim( function_exists( 'home_url' ) ? (string) parse_url( (string) home_url(), PHP_URL_PATH ) : '', '/' ),
 			'until_done' => $until_done,
 			'plugin' => self::plugin(),
 			'cron' => $cron,
@@ -116,7 +118,7 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		if ( $cli || $cron || $known ) return true;
 		// La ficha de lectura del trabajo: sólo GET de su estado por la REST, con WordPress mínimo; también lo despierta.
 		$reader = isset( $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] ) && is_string( $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] ) ? $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] : '';
-		if ( '' !== $reader && ! empty( $config['readers'] ) && in_array( hash( 'sha256', $reader ), (array) $config['readers'], true ) && digitalisimo_backups_restore_reading() ) {
+		if ( '' !== $reader && ! empty( $config['readers'] ) && in_array( hash( 'sha256', $reader ), (array) $config['readers'], true ) && digitalisimo_backups_restore_reading( isset( $config['home_path'] ) ? (string) $config['home_path'] : '' ) ) {
 			digitalisimo_backups_restore_minimal( (string) $config['plugin'] );
 			if ( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) ) define( 'DIGITALISIMO_BACKUPS_RESTORE_READER', true );
 			digitalisimo_backups_restore_kick( (string) $config['cron'], (int) $config['every'] );
@@ -125,14 +127,25 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		digitalisimo_backups_restore_kick( (string) $config['cron'], (int) $config['every'] );
 		return false;
 	}
-	function digitalisimo_backups_restore_reading() {
+	function digitalisimo_backups_restore_reading( $home ) {
 		if ( 'GET' !== ( isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) : '' ) ) return false;
-		$route = '#^/digitalisimo-backups/v1/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?$#D';
-		// rest_route de la cadena de consulta manda sobre la ruta de /wp-json/ (WP::parse_request): si está, es la que cuenta.
-		if ( isset( $_GET['rest_route'] ) ) return is_string( $_GET['rest_route'] ) && (bool) preg_match( $route, $_GET['rest_route'] );
+		// Sólo el index.php de WordPress (el de su carpeta o, con WordPress en su propio directorio, el de una carpeta por
+		// encima), sin PATH_INFO: ni wp-login.php/…, ni admin-ajax.php, ni wp-admin/index.php/… (revisión B2).
+		$script = isset( $_SERVER['SCRIPT_FILENAME'] ) ? str_replace( '\\', '/', (string) $_SERVER['SCRIPT_FILENAME'] ) : '';
+		if ( 'index.php' !== basename( $script ) || ! empty( $_SERVER['PATH_INFO'] ) || ! empty( $_SERVER['ORIG_PATH_INFO'] ) ) return false;
+		$dir = realpath( dirname( $script ) );
+		$root = realpath( ABSPATH );
+		if ( false === $dir || false === $root ) return false;
+		$dir = rtrim( str_replace( '\\', '/', $dir ), '/' ) . '/';
+		$root = rtrim( str_replace( '\\', '/', $root ), '/' ) . '/';
+		if ( 0 !== strpos( $root, $dir ) || false !== strpos( substr( $root, strlen( $dir ) ), 'wp-admin/' ) ) return false;
+		$route = '/digitalisimo-backups/v1/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?';
 		$path = (string) parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH );
-		$at = strpos( $path, '/wp-json/' );
-		return false !== $at && (bool) preg_match( $route, substr( $path, $at + 8 ) );
+		$home = rtrim( (string) $home, '/' );
+		// rest_route de la cadena de consulta manda sobre la ruta de /wp-json/ (WP::parse_request): si está, es la que
+		// cuenta, y sólo en la portada del sitio (<home>/ o <home>/index.php).
+		if ( isset( $_GET['rest_route'] ) ) return in_array( $path, array( $home . '/', $home . '/index.php', '' === $home ? '/' : $home ), true ) && is_string( $_GET['rest_route'] ) && (bool) preg_match( '#^' . $route . '$#D', $_GET['rest_route'] );
+		return (bool) preg_match( '#^' . preg_quote( $home, '#' ) . '/wp-json' . $route . '$#D', $path );
 	}
 	function digitalisimo_backups_restore_minimal( $plugin ) {
 		if ( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) || ! function_exists( 'add_filter' ) ) return;
