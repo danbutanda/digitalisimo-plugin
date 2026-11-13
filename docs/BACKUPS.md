@@ -1077,6 +1077,13 @@ restauración en curso y `digitalisimo_backups_last_restore` nombran la selecci�
 - **Un respaldo cifrado** (`.dgbk`): la pantalla ofrece las partes enteras, pero sus plugins y temas concretos sólo se
   ven al descifrarlo (`verify` por REST o WP-CLI con la frase); se eligen por REST o WP-CLI.
 
+**Memoria (64 MB).** El ensayo de Playground con los límites de la pila del propietario mostró que el empaquetado de un
+respaldo ya iba al límite con el código de main (pico de 62,5 MB de 64, en bloques de 2 MB): unos KB más de código
+compilado en cada petición hacían fallar la fase «Archivos y ZIP» (`Allowed memory size … exhausted`). Por eso la clase
+de las partes se carga sólo cuando se usa (`spl_autoload_register`) y el archivo de WP-CLI (`class-backups-cli.php`,
+65 KB) sólo en WP-CLI, que define `WP_CLI` antes de cargar los plugins: cada petición web carga ahora menos código que
+antes de esta función.
+
 **Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
 el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también
 sin la base de datos (las mismas reglas). Las vistas SQL sólo impiden restaurar la base de datos. No probado en MySQL

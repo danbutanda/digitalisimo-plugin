@@ -235,7 +235,7 @@ final class Digitalisimo_Backups_Restore_Parts {
 			elseif ( 'themes' === $part ) $roots[] = array( (string) $layout['themes'], false );
 			elseif ( 'mu-plugins' === $part ) $roots[] = array( (string) $layout['mu'], false );
 			elseif ( 'uploads' === $part ) $roots[] = array( (string) $layout['uploads'], false );
-			elseif ( 'content' === $part ) $roots[] = array( (string) $layout['content'], false );
+			// El resto de wp-content no se recorre: como en la completa, ahí no se retira nada (no es una raíz gestionada).
 		}
 		foreach ( (array) $selection['plugins'] as $item ) if ( '' !== (string) $layout['plugins'] ) $roots[] = array( $layout['plugins'] . '/' . $item, false );
 		foreach ( (array) $selection['themes'] as $item ) if ( '' !== (string) $layout['themes'] ) $roots[] = array( $layout['themes'] . '/' . $item, false );
@@ -302,6 +302,85 @@ final class Digitalisimo_Backups_Restore_Parts {
 		return $out;
 	}
 
+	/* ------------------------------------------------------------------------------------------- Pantalla */
+
+	/**
+	 * Para la confirmación: qué trae el respaldo (partes, plugins, temas y sitios de la red), qué reemplaza la selección,
+	 * qué no se toca y los avisos de coherencia. $zip abierto (o null si no se puede leer, un `.dgbk` sin descifrar).
+	 */
+	public static function preview( $zip, $parts, array $layout ) {
+		$inventory = $zip instanceof ZipArchive ? self::inventory( $zip, $layout ) : null;
+		$describe = self::describe( $parts, $inventory, $inventory ? self::live( $layout ) : null );
+		return array(
+			'available' => $inventory,
+			'selection' => $parts,
+			'label' => self::label( $parts ),
+			'replaces' => $describe['replaces'],
+			'untouched' => $describe['untouched'],
+			'warnings' => $describe['warnings'],
+			'missing' => $inventory ? self::missing( $parts, $inventory ) : array(),
+			'coherence' => self::coherence( $parts ),
+		);
+	}
+	/**
+	 * «Qué restaurar» (restaurar por partes): plegado y con «Todo» marcado, así que el panel sigue siendo una frase, la
+	 * confirmación y el botón. Dentro, cada parte con lo que reemplaza; con $items (el panel abierto de un ZIP que se
+	 * puede leer), los plugins, temas y sitios de la red que trae el respaldo; si no, $link lleva a ese panel. Los avisos
+	 * de coherencia (Digitalisimo_Backups_Restore_Parts::RULES) se pintan todos: el script deja a la vista sólo los que
+	 * aplican a lo marcado (sin JavaScript se leen todos). El handler sólo mira las partes con «Todo» desmarcado.
+	 */
+	public static function field( $path, $items, $link, array $layout ) {
+		$parts = __CLASS__;
+		$inventory = null;
+		$encrypted = '' !== (string) $path && Digitalisimo_Backups_Encrypted_File::is_encrypted( $path );
+		if ( $items && '' !== (string) $path && ! $encrypted && class_exists( 'ZipArchive' ) && is_file( $path ) ) {
+			$zip = new ZipArchive();
+			if ( true === $zip->open( $path ) ) {
+				$inventory = $parts::inventory( $zip, $layout );
+				$zip->close();
+			}
+		}
+		$out = '<details class="digitalisimo-backups-restore-parts" data-restore-parts' . ( $items && ! empty( $_GET['parts'] ) ? ' open' : '' ) . '><summary>Qué restaurar: <span data-restore-parts-label>todo</span></summary>';
+		$out .= '<p><label><input type="checkbox" name="restore_all" value="1" checked data-restore-all> Todo (base de datos y archivos)</label><input type="hidden" name="restore_parts_shown" value="1"></p>';
+		$out .= Digitalisimo_Backups::help_html( 'Los respaldos son siempre completos: aquí eliges qué vuelve. Desmarca «Todo» y marca las partes; lo que no marques no se toca. Antes se guarda la copia previa completa y, si algo falla, se vuelve a ella.' );
+		$out .= '<ul class="digitalisimo-backups-parts-list">';
+		foreach ( $parts::PARTS as $key => $name ) $out .= '<li><label><input type="checkbox" name="restore_parts[]" value="' . esc_attr( $key ) . '" checked data-restore-part> ' . esc_html( ucfirst( $name ) ) . '</label> <span class="description">' . esc_html( $parts::REPLACES[ $key ] ) . '</span></li>';
+		$out .= '</ul>';
+		if ( $inventory ) {
+			$groups = array( 'plugins' => array( 'restore_plugins[]', 'Plugins concretos', 'plugin-items', 'Sólo se reemplaza la carpeta de cada plugin marcado; los demás no se tocan.' ), 'themes' => array( 'restore_themes[]', 'Temas concretos', 'theme-items', 'Sólo se reemplaza la carpeta de cada tema marcado; los demás no se tocan.' ) );
+			if ( is_multisite() && ! get_site_option( 'ms_files_rewriting' ) ) $groups['sites'] = array( 'restore_sites[]', 'Medios de un sitio de la red', 'site-items', 'Sólo los medios de los sitios marcados (el principal: lo que no está en sites/).' );
+			foreach ( $groups as $kind => $group ) {
+				if ( empty( $inventory[ $kind ] ) ) continue;
+				$whole = 'sites' === $kind ? 'uploads' : $kind;
+				$out .= '<details class="digitalisimo-backups-parts-items"><summary>' . esc_html( $group[1] ) . ' (' . count( $inventory[ $kind ] ) . ')</summary><p class="description">' . esc_html( $group[3] ) . '</p><ul>';
+				foreach ( $inventory[ $kind ] as $item ) $out .= '<li><label><input type="checkbox" name="' . esc_attr( $group[0] ) . '" value="' . esc_attr( (string) $item ) . '" data-restore-item="' . esc_attr( $group[2] ) . '" data-restore-whole="' . esc_attr( $whole ) . '"> ' . esc_html( 'sites' === $kind ? 'Sitio ' . $item : (string) $item ) . '</label></li>';
+				$out .= '</ul></details>';
+			}
+		} elseif ( $encrypted ) {
+			$out .= Digitalisimo_Backups::help_html( 'Respaldo cifrado: sus plugins y temas concretos se eligen por REST o WP-CLI (--plugins, --themes), que lo descifran.' );
+		} elseif ( '' !== (string) $link ) {
+			$out .= '<p><a href="' . esc_url( $link ) . '">Elegir plugins, temas o sitios concretos</a></p>';
+		}
+		$out .= '<ul class="digitalisimo-backups-coherence">';
+		foreach ( $parts::RULES as $code => $rule ) $out .= '<li class="digitalisimo-backups-warning" data-coherence="' . esc_attr( $code ) . '" data-any="' . esc_attr( implode( ' ', $rule['any'] ) ) . '" data-none="' . esc_attr( implode( ' ', (array) ( $rule['none'] ?? array() ) ) ) . '" data-missing="' . esc_attr( implode( ' ', (array) ( $rule['missing'] ?? array() ) ) ) . '"><strong>Aviso:</strong> ' . esc_html( $rule['text'] ) . '</li>';
+		$out .= '</ul></details>';
+		return $out;
+	}
+	/**
+	 * Lo que envió «Qué restaurar» (restaurar por partes) para el caso de uso: nada con «Todo» marcado o sin el campo (un
+	 * formulario de antes); si no, las partes y lo concreto marcado (una lista vacía: no se eligió nada, y se dice).
+	 */
+	public static function from_request( array $post ) {
+		if ( empty( $post['restore_parts_shown'] ) || ! empty( $post['restore_all'] ) ) return array();
+		$list = function( $key ) use ( $post ) {
+			$value = $post[ $key ] ?? array();
+			if ( ! is_array( $value ) ) return array();
+			$out = array();
+			foreach ( $value as $item ) if ( is_scalar( $item ) && '' !== (string) $item ) $out[] = (string) wp_unslash( (string) $item );
+			return $out;
+		};
+		return array( 'parts' => $list( 'restore_parts' ), 'plugins' => $list( 'restore_plugins' ), 'themes' => $list( 'restore_themes' ), 'sites' => $list( 'restore_sites' ) );
+	}
 	/* ------------------------------------------------------------------------------------------- Textos */
 
 	/** «base de datos, plugins (akismet, hello.php) y medios del sitio 3». */

@@ -543,25 +543,8 @@ trait Digitalisimo_Backups_Service {
 			return self::service_error( 'parts', $e->getMessage(), 400 );
 		}
 	}
-	/**
-	 * Para la confirmación: qué trae el respaldo (partes, plugins, temas y sitios de la red), qué reemplaza la selección,
-	 * qué no se toca y los avisos de coherencia. $zip abierto (o null si no se puede leer, un `.dgbk` sin descifrar).
-	 */
-	private static function service_parts_preview( $zip, $parts ) {
-		$layout = self::restore_layout();
-		$inventory = $zip instanceof ZipArchive ? Digitalisimo_Backups_Restore_Parts::inventory( $zip, $layout ) : null;
-		$describe = Digitalisimo_Backups_Restore_Parts::describe( $parts, $inventory, $inventory ? Digitalisimo_Backups_Restore_Parts::live( $layout ) : null );
-		return array(
-			'available' => $inventory,
-			'selection' => $parts,
-			'label' => Digitalisimo_Backups_Restore_Parts::label( $parts ),
-			'replaces' => $describe['replaces'],
-			'untouched' => $describe['untouched'],
-			'warnings' => $describe['warnings'],
-			'missing' => $inventory ? Digitalisimo_Backups_Restore_Parts::missing( $parts, $inventory ) : array(),
-			'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $parts ),
-		);
-	}
+	/** Para la confirmación: ver Digitalisimo_Backups_Restore_Parts::preview(). */
+	private static function service_parts_preview( $zip, $parts ) { return Digitalisimo_Backups_Restore_Parts::preview( $zip, $parts, self::restore_layout() ); }
 	/**
 	 * Resultado de una restauración para la pantalla, REST y WP-CLI. Terminada: el mismo informe de siempre. Fallida: 422
 	 * si se detuvo antes de la copia previa (rechazada), 500 si había empezado (con lo que se recuperó). Sin terminar en

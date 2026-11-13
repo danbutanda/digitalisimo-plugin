@@ -35,7 +35,8 @@
       if (!cb.checked) return;
       on[cb.value] = true;
       var label = cb.closest ? cb.closest('label') : null;
-      names.push(label ? label.textContent.trim().toLowerCase() : cb.value);
+      var text = label ? label.textContent.trim() : cb.value;
+      names.push(text.charAt(0).toLowerCase() + text.slice(1));
     });
     each(box, '[data-restore-item]', function (cb) {
       if (!cb.checked) return;

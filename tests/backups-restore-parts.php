@@ -13,7 +13,8 @@
  *   P4  sólo los medios sin la base: vuelven los del respaldo, se conservan los subidos después y se retira un .php
  *       inyectado; ni una tabla cambia (ningún RENAME);
  *   P5  sólo los temas: vuelve el tema y se retira uno instalado después; los plugins, idénticos;
- *   P6  base de datos y plugins enteros: un plugin instalado después se retira; temas y medios, idénticos;
+ *   P6  base de datos y plugins enteros: un plugin instalado después se retira; temas y medios, idénticos; y el núcleo,
+ *       los mu-plugins y el resto de wp-content (idiomas, drop-ins) sin tocar plugins, temas, medios ni la base;
  *   P7  una falla a mitad del cambio (plugins concretos, uno que ya no existe en el sitio) vuelve sola a la copia previa
  *       y repone sólo esas partes: el sitio queda idéntico a antes de restaurar (también lo no elegido);
  *   P8  lo elegido que el respaldo no trae, una parte desconocida o nada elegido se rechazan sin tocar nada;
@@ -266,6 +267,18 @@ pt_case( 'P6 base de datos y plugins enteros', function() use ( $root, $snapshot
 	pt_check( 'success' === pt_last()['status'], 'No terminó: ' . json_encode( pt_last()['error'] ) );
 	pt_assert_tree( $before, $backup_tree, array( '/wp-content/plugins/demo/demo.php', '/wp-content/plugins/demo/inc/a.php', '/wp-content/plugins/otro/otro.php', '/wp-content/plugins/example.php', '/wp-content/plugins/borrado/borrado.php' ), array( '/wp-content/plugins/demo/inc/extra.php', '/wp-content/plugins/nuevo/nuevo.php' ) );
 	pt_check( $backup_db === pt_db() && 1 === pt_renames(), 'La base de datos no volvió al respaldo.' );
+} );
+
+pt_case( 'P6b núcleo, mu-plugins y resto de wp-content: plugins, temas, medios y base, idénticos', function() use ( $root, $snapshot, $snapshot_options, $backup, $backup_tree ) {
+	list( $before, $db ) = pt_prepare( $root, $snapshot, $snapshot_options );
+	$result = pt_restore( $backup, array( 'parts' => 'core, mu-plugins, content' ) );
+	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	pt_finish();
+	$job = pt_last();
+	pt_check( 'success' === $job['status'], 'No terminó: ' . json_encode( $job['error'] ) );
+	pt_assert_tree( $before, $backup_tree, array( '/wp-load.php', '/wp-admin/index.php', '/wp-content/mu-plugins/mu.php', '/wp-content/languages/es_MX.mo', '/wp-content/object-cache.php' ), array() );
+	pt_check( $db === pt_db() && 0 === pt_renames(), 'La base de datos cambió sin elegirla.' );
+	pt_check( array( 'núcleo de WordPress', 'mu-plugins', 'resto de wp-content' ) === $job['result']['restore']['parts']['restored'], 'El informe no nombra las partes: ' . json_encode( $job['result']['restore']['parts'] ) );
 } );
 
 pt_case( 'P7 una falla a mitad del cambio vuelve a la copia previa sólo en lo elegido', function() use ( $root, $snapshot, $snapshot_options, $backup ) {
