@@ -10,7 +10,8 @@ assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML|document\.write/.test(script)
 
 function node(tag) {
   return {
-    tag, attributes: {}, listeners: {}, hidden: false, disabled: false, value: '', text: '', files: null,
+    tag, attributes: {}, listeners: {}, hidden: false, disabled: false, value: '', text: '', files: null, removed: [],
+    removeAttribute(name) { this.removed.push(name); if (name === 'value') this.value = undefined; },
     set textContent(value) { this.text = String(value); },
     get textContent() { return this.text; },
     setAttribute(name, value) { this.attributes[name] = String(value); },
@@ -23,7 +24,7 @@ const bytes = new Uint8Array(1000);
 for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7) % 251;
 const file = new File([bytes], 'digitalisimo-backup-sitio.zip', { lastModified: 1762650000000 });
 
-function setup({ stored = {}, server }) {
+function setup({ stored = {}, server, statusAfter }) {
   const form = node('form');
   const input = node('input'); input.files = [file];
   const secret = node('input'); secret.value = 'frase <b>secreta</b>';
@@ -35,7 +36,7 @@ function setup({ stored = {}, server }) {
   const storage = { data: { ...stored }, getItem(k) { return k in this.data ? this.data[k] : null; }, setItem(k, v) { this.data[k] = String(v); }, removeItem(k) { delete this.data[k]; } };
   const waits = [];
   const context = {
-    window: { digitalisimoBackupsUpload: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-upload', context: 'site' }, localStorage: storage, setTimeout: (fn, ms) => { waits.push(ms); Promise.resolve().then(fn); } },
+    window: { digitalisimoBackupsUpload: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-upload', context: 'site', ...(statusAfter === undefined ? {} : { statusAfter }) }, localStorage: storage, setTimeout: (fn, ms) => { waits.push(ms); Promise.resolve().then(fn); } },
     document: { getElementById: (id) => (id === 'digitalisimo-backups-upload' ? card : null) },
     FormData, Promise, JSON, Math, Number, String, Object, Error,
     fetch: async (url, options) => {
@@ -98,7 +99,7 @@ assert.equal(ui.requests[0].size, '1000');
 assert.deepEqual(joined(s.received), bytes, 'Los fragmentos no reconstruyen el archivo');
 assert.equal(ui.requests[5].secret, 'frase <b>secreta</b>', 'La frase debe viajar tal cual sólo al terminar');
 assert.ok(!('secret' in ui.requests[1]), 'La frase no viaja con los fragmentos');
-assert.match(ui.status.textContent, /^Respaldo subido y comprobado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR SIN FIRMA\. <img src=x onerror=alert\(1\)> /, 'El resultado no se pintó como texto');
+assert.match(ui.status.textContent, /^Respaldo subido y verificado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR SIN FIRMA\. <img src=x onerror=alert\(1\)> /, 'El resultado no se pintó como texto');
 assert.equal(ui.bar.value, 100);
 assert.deepEqual(Object.keys(ui.storage.data), [], 'Una subida terminada sigue recordada para reanudarse');
 
@@ -155,7 +156,7 @@ for (const cut of ['validating', 'network']) {
   assert.equal(finishes, 1, `Con el cierre cortado (${cut}) se volvió a cerrar en vez de consultar el estado`);
   assert.equal(ui.requests.filter((r) => r.action.endsWith('start')).length, 1, 'Se empezó otra subida');
   assert.ok(polls >= 3, 'No se consultó el estado hasta el resultado');
-  assert.match(ui.status.textContent, /^Respaldo subido y comprobado: digitalisimo-backup-sitio\.zip/);
+  assert.match(ui.status.textContent, /^Respaldo subido y verificado: digitalisimo-backup-sitio\.zip/);
 }
 
 // 6. P1: al volver a elegir el archivo de una subida ya cerrada (el navegador no vio el final), se muestra su resultado.
@@ -166,7 +167,7 @@ ui = setup({ stored: { [key]: 'sesion-1' }, server: (fields) => {
 } });
 await run(ui);
 assert.deepEqual(ui.requests.map((r) => r.action.replace('digitalisimo_backups_upload_', '')), ['status'], 'Una subida ya cerrada se volvió a subir o a cerrar');
-assert.match(ui.status.textContent, /^Respaldo subido y comprobado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR\./);
+assert.match(ui.status.textContent, /^Respaldo subido y verificado: digitalisimo-backup-sitio\.zip\. Para restaurarlo escribe RESTAURAR\./);
 
 // 7. Un error con motivo del servidor (espacio para descifrar, 507) se muestra y no se reintenta en bucle.
 s7 = server({ failures: { 6: () => ({ status: 507, body: { success: false, data: { code: 'digitalisimo_backups_upload_space', message: 'No hay espacio para descifrar el respaldo. La subida se conserva.' } } }) } });
@@ -176,4 +177,47 @@ assert.equal(ui.requests.filter((r) => r.action.endsWith('finish')).length, 1, '
 assert.equal(ui.status.textContent, 'La subida se detuvo: No hay espacio para descifrar el respaldo. La subida se conserva. Vuelve a elegir el mismo archivo para continuar donde se quedó.');
 assert.deepEqual(Object.values(ui.storage.data), ['sesion-1'], 'Una subida conservada se olvidó');
 
-console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar y pinta texto.');
+// 8. Incidente de /wp (2026-11-12): la respuesta del cierre no llega nunca (el proxy retiene la conexión) aunque el
+// servidor ya terminó (GET status: phase=done). La barra llega a 100 % y dice «verificado»; durante la comprobación queda
+// indeterminada (sin valor), no detenida en un número. Con el código anterior la subida no terminaba nunca.
+{
+  const st = server();
+  let finishes = 0;
+  const handle = (fields, n) => {
+    const action = fields.action.replace('digitalisimo_backups_upload_', '');
+    if (action === 'finish') { finishes++; return new Promise(() => {}); }
+    if (action === 'status' && st.total === 1000) return { status: 200, body: { success: true, data: { id: 'sesion-1', size: 1000, received: 1000, chunk_size: 300, phase: 'done', result: { file: 'digitalisimo-backup-sitio.zip', verified: true, confirmation: 'RESTAURAR SIN FIRMA', needs_secret: false, problems: [] } } } };
+    return st.handle(fields, n);
+  };
+  ui = setup({ server: handle, statusAfter: 0 });
+  await run(ui);
+  assert.equal(finishes, 1, 'Se volvió a cerrar una subida que el servidor ya había terminado');
+  assert.ok(ui.bar.removed.includes('value'), 'Durante la comprobación la barra no quedó indeterminada');
+  assert.equal(ui.bar.value, 100, 'La barra no llegó a 100 % con phase=done');
+  assert.match(ui.status.textContent, /^Respaldo subido y verificado: digitalisimo-backup-sitio\.zip\./, 'No dice «verificado»: ' + ui.status.textContent);
+}
+
+// 9. El proceso del servidor que comprobaba murió y el cierre no contesta: el estado dice que nadie la comprueba y se
+// vuelve a cerrar (sin subir de nuevo); el segundo cierre termina.
+{
+  const st = server();
+  let finishes = 0;
+  const handle = (fields, n) => {
+    const action = fields.action.replace('digitalisimo_backups_upload_', '');
+    if (action === 'finish') {
+      finishes++;
+      if (finishes === 1) return new Promise(() => {});
+      return { status: 200, body: { success: true, data: { file: 'digitalisimo-backup-sitio.zip', verified: true, confirmation: 'RESTAURAR SIN FIRMA', needs_secret: false, problems: [] } } };
+    }
+    if (action === 'status' && st.total === 1000) return { status: 200, body: { success: true, data: { id: 'sesion-1', size: 1000, received: 1000, chunk_size: 300, phase: 'validating', validating: false } } };
+    return st.handle(fields, n);
+  };
+  ui = setup({ server: handle, statusAfter: 0 });
+  await run(ui);
+  assert.equal(finishes, 2, 'No se volvió a cerrar una comprobación que nadie hacía');
+  assert.equal(ui.requests.filter((r) => r.action.endsWith('start')).length, 1, 'Se empezó otra subida');
+  assert.equal(ui.bar.value, 100);
+  assert.match(ui.status.textContent, /^Respaldo subido y verificado:/);
+}
+
+console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar, pinta texto y la barra llega a 100 % «verificado» aunque la respuesta del cierre no llegue.');
