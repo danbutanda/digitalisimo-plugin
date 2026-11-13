@@ -555,18 +555,18 @@ namespace {
 		'venta-corta',
 		array(
 			'replacements' => array(
-				'[Beneficio 1]'               => '<b>Dueños</b> de <script>alert(1)</script>negocio',
-				'[La promesa en una frase y por qué ahora.]' => '<strong>Vende más</strong><script>alert(2)</script><img src=x onerror=alert(3)>',
+				'[Beneficio 1]'               => '<b>Dueños</b> de negocio',
+				'[La promesa en una frase y por qué ahora.]' => '<strong>Vende más</strong> <em>hoy</em>',
 			),
 		)
 	);
 	$all = sk_strings( $r['elements'] );
 	check( false !== strpos( $all, '"title_text":"Dueños de negocio"' ) || false !== strpos( $all, "\nDueños de negocio\n" ), 'campo de texto plano: sin etiquetas ni scripts' );
-	check( false === strpos( $all, '<b>Dueños' ) && false === strpos( $all, 'alert(1)' ), 'campo de texto plano: nada del HTML recibido' );
-	check( false !== strpos( $all, '<p><strong>Vende más</strong></p>' ) && false === strpos( $all, '<script>' ) && false === strpos( $all, 'onerror' ), 'campo con HTML: wp_kses_post' );
+	check( false === strpos( $all, '<b>Dueños' ), 'campo de texto plano: nada del HTML recibido' );
+	check( false !== strpos( $all, '<p><strong>Vende más</strong> <em>hoy</em></p>' ), 'campo con HTML: el formato en línea se conserva (wp_kses_post)' );
 
 	// URLs de otros sitios: rechazadas, también sin https:// y dentro de HTML.
-	foreach ( array( 'https://example.com/x', 'http://otro.test', '//evil.test/a', 'www.otro.com', 'Visita otro.mx/oferta', 'javascript:alert(1)', 'data:text/html;base64,AAAA', '<a href="https://evil.test">aquí</a>', 'HTTPS://EVIL.TEST' ) as $bad ) {
+	foreach ( array( 'https://example.com/x', 'http://otro.test', '//evil.test/a', 'www.otro.com', 'Visita otro.mx/oferta', 'javascript:alert(1)', 'data:text/html;base64,AAAA', 'HTTPS://EVIL.TEST' ) as $bad ) {
 		check_error( $build( 'venta-corta', array( 'replacements' => array( '[producto]' => $bad ) ) ), 'digitalisimo_sales_external_url', "URL de otro sitio rechazada: $bad" );
 	}
 	check_error( $build( 'venta-corta', array( 'replacements' => array( '[producto]' => array( 'Bien', 'https://evil.test' ) ) ) ), 'digitalisimo_sales_external_url', 'también dentro de una lista' );
@@ -795,6 +795,71 @@ namespace {
 	check( '' === ob_get_clean(), 'un motivo desconocido no pinta nada' );
 	Import_Notice::init();
 	check( in_array( array( 'wp_ajax_elementor_library_direct_actions', array( Import_Notice::class, 'guard' ), 1 ), $GLOBALS['sk']['hooks'], true ), 'Import_Notice::init: antes que el núcleo (prioridad 1)' );
+
+	// ================================================================ 8. Revisión adversarial (R1–R8)
+	// Cada bloque anota sus fallas y la prueba falla al final con la lista; todos fallan con el código de f61dae87.
+	$GLOBALS['sk_review'] = array();
+	function review( string $label, $ok, string $message ) {
+		++$GLOBALS['sk_count'];
+		if ( ! $ok ) {
+			$GLOBALS['sk_review'][ $label ][] = $message;
+		}
+	}
+	function review_block( string $label, callable $block ) {
+		try {
+			$block();
+		} catch ( Throwable $e ) {
+			review( $label, false, 'excepción: ' . $e->getMessage() );
+		}
+	}
+	sk_reset();
+	$GLOBALS['sk']['containers'] = false;
+
+	// R1 · Ningún enlace ni recurso de otro sitio entra por un reemplazo, ni en HTML (las cargas del revisor).
+	review_block(
+		'R1',
+		static function () use ( $build ) {
+			$bad = array(
+				'<a href="https://evil.ru\\@sitio.test/pago">Paga</a>',
+				'<a href="https:&#47;&#47;evil.ru/pago">Paga</a>',
+				'<a href="https:&#x2F;&#x2F;evil.ru/pago">Paga</a>',
+				'<a href="http:evil.ru/pago">Paga</a>',
+				'<a href="https:\\\\evil.ru/pago">Paga</a>',
+				'<a href="https:/\\evil.ru/pago">Paga</a>',
+				'<img src="https:&#47;&#47;evil.ru/pixel.gif">',
+				'<img src=x onerror=alert(3)>',
+				'<a href="/carrito/">ruta del sitio</a>',
+				'<span style="color:red">rojo</span>',
+				'<strong class="x">clase</strong>',
+				'<form action="/x"><input></form>',
+				'<iframe src="/x"></iframe>',
+				'<script>alert(1)</script>',
+				'<svg onload=alert(1)>',
+				'https:&#47;&#47;evil.ru/pago',
+				'http:evil.ru/x',
+				'https:\\\\evil.ru/y',
+				'https://evil.ru\\@sitio.test/pago',
+				'https://wa.me@evil.ru',
+				'https://wa.me.evil.ru',
+				'JAVASCRIPT:alert(1)',
+				'//evil.com/x',
+			);
+			foreach ( $bad as $v ) {
+				foreach ( array( '[La promesa en una frase y por qué ahora.]', '[producto]', '[Resultado concreto]' ) as $key ) {
+					$r = $build( 'venta-corta', array( 'replacements' => array( $key => $v ) ) );
+					review( 'R1', $r instanceof WP_Error && in_array( $r->get_error_code(), array( 'digitalisimo_sales_markup', 'digitalisimo_sales_external_url' ), true ), "$key: se aceptó $v" );
+				}
+			}
+			$r = $build( 'venta-corta', array( 'replacements' => array( '[La promesa en una frase y por qué ahora.]' => '<strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br />' ) ) );
+			review( 'R1', is_array( $r ) && false !== strpos( sk_strings( $r['elements'] ), '<p><strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br /></p>' ), 'el formato en línea sin atributos se admite' );
+			$r = $build( 'venta-corta', array( 'replacements' => array( '[producto]' => 'Escríbenos a hola@sitio.test o https://wa.me/5218711234567' ) ) );
+			review( 'R1', is_array( $r ), 'un correo y wa.me se admiten' );
+		}
+	);
+
+	if ( $GLOBALS['sk_review'] ) {
+		throw new RuntimeException( 'Revisión: ' . json_encode( $GLOBALS['sk_review'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+	}
 
 	echo 'Kit de ventas en el MCP de Elements: ' . $GLOBALS['sk_count'] . " comprobaciones en verde (PHP " . PHP_VERSION . ").\n";
 }

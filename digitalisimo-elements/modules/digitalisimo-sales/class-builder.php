@@ -11,8 +11,10 @@ defined( 'ABSPATH' ) || exit;
  * - los placeholders de cierre sólo se llenan con `close_date` (una fecha real y futura); sin ella se quitan los
  *   bloques que sólo sirven con un cierre real (los del manifiesto: la barra, el aviso, el contador del carrito);
  * - un enlace (video, grupo, redes) nunca se llena: se pone en el editor;
- * - ningún valor lleva una URL de otro sitio (sólo `wa.me` y el propio sitio); un precio es sólo una cifra (la
- *   plantilla ya escribe `$` y `MXN`);
+ * - un valor sólo lleva texto y formato en línea sin atributos (`strong`, `em`, `b`, `i`, `br`): ningún enlace, imagen,
+ *   formulario ni atributo; los enlaces sólo existen en la plantilla (rutas del sitio y `wa.me`);
+ * - ningún valor lleva una URL de otro sitio (sólo `wa.me` y el propio sitio), tampoco escrita con entidades, barras
+ *   invertidas, usuario (`…@sitio`) o sin `//`; un precio es sólo una cifra (la plantilla ya escribe `$` y `MXN`);
  * - cada valor se sanea según su campo: texto plano (`sanitize_text_field()`) o HTML (`wp_kses_post()`);
  * - todos los identificadores (elementos y elementos de listas) se regeneran: ninguno repite uno de la plantilla;
  * - `omit_blocks` quita bloques enteros del manifiesto (nunca el pie) y nunca reordena: lo que queda sigue en el orden
@@ -94,6 +96,10 @@ final class Builder {
 				return self::error( 'digitalisimo_sales_link_placeholder', sprintf( '«%s» es un enlace (video, grupo o redes): se pone en el editor. Ninguna URL de otro sitio entra por aquí.', $key ) );
 			}
 			foreach ( $values as $one ) {
+				$tag = self::markup_error( $one );
+				if ( '' !== $tag ) {
+					return self::error( 'digitalisimo_sales_markup', sprintf( '«%s» lleva HTML que no se admite (%s): sólo texto y formato en línea sin atributos (strong, em, b, i, br). Los enlaces e imágenes van en la plantilla o en el editor.', $key, $tag ) );
+				}
 				$url = self::external_url( $one, $site );
 				if ( '' !== $url ) {
 					return self::error( 'digitalisimo_sales_external_url', sprintf( '«%s» lleva una URL de otro sitio (%s). Los enlaces del kit son del propio sitio; el WhatsApp va en whatsapp.', $key, $url ) );
@@ -303,8 +309,20 @@ final class Builder {
 	}
 
 	/**
-	 * La URL o la dirección de otro sitio que lleva un valor (con o sin `https://`, `www.` o un esquema peligroso), o
-	 * ''. Se permiten `wa.me` y el propio sitio; un correo (`hola@sitio.com`) no es una URL.
+	 * La primera etiqueta que un valor no puede llevar, o ''. Sólo se admiten `<strong>`, `<em>`, `<b>`, `<i>` (con su
+	 * cierre) y `<br>`, sin atributos: nada de `<a>`, `<img>`, `<form>`, `<iframe>`, `<span style>`…
+	 */
+	public static function markup_error( string $value ): string {
+		$rest = (string) preg_replace( '#</?(?:strong|em|b|i)>|<br\s*/?>#i', '', $value );
+		return preg_match( '#<\s*[a-z!/?][^>]*>?#i', $rest, $m ) ? substr( $m[0], 0, 60 ) : '';
+	}
+
+	/**
+	 * La URL o la dirección de otro sitio que lleva un valor, o ''. Se lee como la leería un navegador: con las entidades
+	 * decodificadas (`&#47;` es `/`) y `\` como `/`. Cuenta `https://otro…` (también con usuario, `…@sitio`), `http:otro`
+	 * (sin `//`), `//otro`, `www.otro`, un esquema peligroso pegado a su contenido (`javascript:…`, `data:…`) y una
+	 * dirección escrita sin esquema (`otro.mx/oferta`). Se permiten `wa.me` y el propio sitio; un correo
+	 * (`hola@sitio.com`) no es una URL.
 	 */
 	public static function external_url( string $value, string $site_host ): string {
 		$site = strtolower( $site_host );
@@ -312,17 +330,32 @@ final class Builder {
 			$host = strtolower( rtrim( $host, '.' ) );
 			return 'wa.me' === $host || ( '' !== $site && ( $host === $site || 'www.' . $site === $host ) );
 		};
-		if ( preg_match( '/\b(?:javascript|data|vbscript|file)\s*:/i', $value, $m ) ) {
+		$text = str_replace( '\\', '/', html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		if ( preg_match( '/\b(?:javascript|data|vbscript|file)\s*:/i', $text, $m ) ) {
 			return $m[0];
 		}
-		if ( preg_match_all( '~(?:[a-z][a-z0-9+.\-]*:)?//([^\s/?#"\'<>]+)[^\s"\'<>]*~i', $value, $all, PREG_SET_ORDER ) ) {
+		// Con esquema: siempre `//`, sin usuario, y el host del sitio o `wa.me`.
+		if ( preg_match_all( '~\b(?:https?|ftp)\s*:\s*([^\s"\'<>]*)~i', $text, $all, PREG_SET_ORDER ) ) {
 			foreach ( $all as $m ) {
-				$host = preg_replace( '/:[0-9]+$/', '', (string) preg_replace( '/^[^@]*@/', '', $m[1] ) );
-				if ( ! $ok( (string) $host ) ) {
+				$rest = $m[1];
+				if ( 0 !== strpos( $rest, '//' ) ) {
+					return $m[0];
+				}
+				$auth = (string) preg_split( '~[/?#]~', substr( $rest, 2 ) )[0];
+				if ( '' === $auth || false !== strpos( $auth, '@' ) || ! $ok( (string) preg_replace( '/:[0-9]*$/', '', $auth ) ) ) {
 					return $m[0];
 				}
 			}
 		}
+		// Sin esquema: `//otro…`.
+		if ( preg_match_all( '~(?<![:/\w])//([^\s/?#"\'<>]+)~', $text, $all, PREG_SET_ORDER ) ) {
+			foreach ( $all as $m ) {
+				if ( false !== strpos( $m[1], '@' ) || ! $ok( (string) preg_replace( '/:[0-9]*$/', '', $m[1] ) ) ) {
+					return $m[0];
+				}
+			}
+		}
+		$value = $text;
 		if ( preg_match_all( '~(?<![@\w.\-/])((?:[a-z0-9\-]+\.)+(?:' . self::TLDS . '))(?![a-z0-9\-])(/[^\s"\'<>]*)?~i', $value, $all, PREG_SET_ORDER ) ) {
 			foreach ( $all as $m ) {
 				if ( ! $ok( $m[1] ) ) {
