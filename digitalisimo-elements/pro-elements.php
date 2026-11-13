@@ -168,6 +168,10 @@ function pro_elements_load_plugin_func() {
 	// MCP del constructor: el CSS de cada documento que cambia una herramienta queda al día (docs/ELEMENTS_MCP_CSS.md).
 	require_once __DIR__ . '/modules/digitalisimo-mcp/class-module.php';
 	\Digitalisimo\Elements\Mcp\Module::init();
+
+	// Kit de ventas (docs/ELEMENTS_SALES_KIT.md): plantillas, guía y herramientas del MCP, y el aviso al importar un ZIP.
+	require_once __DIR__ . '/modules/digitalisimo-sales/class-module.php';
+	\Digitalisimo\Elements\Sales\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

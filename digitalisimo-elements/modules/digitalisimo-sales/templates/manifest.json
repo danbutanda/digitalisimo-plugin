@@ -1,0 +1,1026 @@
+{
+ "_comment": "Generado por scripts/sales-kit/kit_paginas.py: no se edita a mano (tests/elements-sales-kit.mjs).",
+ "kit_version": "3-generico",
+ "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v3/ (generador con --generico, PERSONA_GENERICA)",
+ "guide_source": {
+  "repository": "digitalisimo-brain",
+  "file": "oficio/ventas-en-linea.md",
+  "commit": "06ff42f",
+  "section": "El orden de una página de venta"
+ },
+ "funnel": "anuncio → 03 Captación → 04 Gracias por registrarte → clase o contenido → 01 o 02 → 05 Carrito → pago → 06 Oferta única → 07 Gracias por tu compra",
+ "templates": [
+  {
+   "id": "venta-completa",
+   "number": "01",
+   "name": "Página de venta completa",
+   "library_title": "DIGITALÍSIMO · 01 Página de venta completa",
+   "file": "01-pagina-de-venta-completa.json",
+   "purpose": "La carta de venta larga, en el orden de la guía (26 bloques): barra de cierre, promesa, problema, quién está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona para gente como tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al terminar, bonus con su total, nuestro compromiso, cuánto vale, la oferta (#oferta), garantía y actualización, los caminos, objeciones con la voz de alumnos, lo avala la comunidad (#historias), preguntas frecuentes, WhatsApp con una cara, cierre y pie.",
+   "use_when": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN): antes una clase o un reto (03 y 04), después el carrito (05) con pagos a plazos. Recortada, para un curso de precio medio después de una clase.",
+   "measures": "Vista de página",
+   "sections": 32,
+   "widgets": 234,
+   "widget_types": {
+    "heading": 82,
+    "countdown": 1,
+    "button": 11,
+    "spacer": 6,
+    "video": 8,
+    "text-editor": 45,
+    "icon-list": 21,
+    "image": 25,
+    "icon-box": 31,
+    "divider": 2,
+    "testimonial-carousel": 1,
+    "accordion": 1
+   },
+   "has_countdown": true,
+   "has_form": false,
+   "internal_links": [
+    {
+     "path": "#historias",
+     "for": "ancla del bloque «Lo avala la comunidad» en la misma página (botón «Ver más historias»)"
+    },
+    {
+     "path": "#oferta",
+     "for": "ancla del bloque de la oferta en la misma página"
+    },
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/carrito/",
+     "for": "05 Carrito"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "barra-de-cierre",
+     "name": "Barra de cierre",
+     "required": false,
+     "sections": [
+      "dee898c"
+     ]
+    },
+    {
+     "key": "promesa",
+     "name": "La promesa",
+     "required": false,
+     "sections": [
+      "0cf9fbf"
+     ]
+    },
+    {
+     "key": "problema",
+     "name": "El problema",
+     "required": false,
+     "sections": [
+      "dc893aa"
+     ]
+    },
+    {
+     "key": "quien-esta-detras",
+     "name": "Quién está detrás, corto",
+     "required": false,
+     "sections": [
+      "9015e44"
+     ]
+    },
+    {
+     "key": "te-imaginas",
+     "name": "¿Te imaginas…?",
+     "required": false,
+     "sections": [
+      "214d50a"
+     ]
+    },
+    {
+     "key": "por-que-es-distinto",
+     "name": "Por qué es distinto",
+     "required": false,
+     "sections": [
+      "fdddb80"
+     ]
+    },
+    {
+     "key": "autoridad",
+     "name": "Quién está detrás, la autoridad (con logos)",
+     "required": false,
+     "sections": [
+      "e6991db",
+      "15df821"
+     ]
+    },
+    {
+     "key": "funciona-para-ti",
+     "name": "Funciona para gente como tú",
+     "required": false,
+     "sections": [
+      "87e7889"
+     ]
+    },
+    {
+     "key": "para-quien-es",
+     "name": "Para quién es",
+     "required": false,
+     "sections": [
+      "a738d9e"
+     ]
+    },
+    {
+     "key": "que-es",
+     "name": "Qué es",
+     "required": false,
+     "sections": [
+      "be32e19"
+     ]
+    },
+    {
+     "key": "temario",
+     "name": "Temario",
+     "required": false,
+     "sections": [
+      "d301c68"
+     ]
+    },
+    {
+     "key": "todo-lo-que-incluye",
+     "name": "Todo lo que incluye",
+     "required": false,
+     "sections": [
+      "25b7db0"
+     ]
+    },
+    {
+     "key": "nunca-estaras-solo",
+     "name": "Nunca estarás solo",
+     "required": false,
+     "sections": [
+      "1e24fd8"
+     ]
+    },
+    {
+     "key": "al-terminar",
+     "name": "Lo que te llevas al terminar",
+     "required": false,
+     "sections": [
+      "f98e9a0"
+     ]
+    },
+    {
+     "key": "bonus",
+     "name": "Bonus",
+     "required": false,
+     "sections": [
+      "c3ebc50",
+      "06df251",
+      "8736a11",
+      "88ae9ce",
+      "f67bfe7",
+      "b63bd7d"
+     ]
+    },
+    {
+     "key": "compromiso",
+     "name": "Nuestro compromiso",
+     "required": false,
+     "sections": [
+      "07a0a53"
+     ]
+    },
+    {
+     "key": "cuanto-vale",
+     "name": "Cuánto vale para ti",
+     "required": false,
+     "sections": [
+      "a9a36d0"
+     ]
+    },
+    {
+     "key": "oferta",
+     "name": "La oferta",
+     "required": false,
+     "sections": [
+      "6a43c61"
+     ]
+    },
+    {
+     "key": "garantia",
+     "name": "Garantía y actualización",
+     "required": false,
+     "sections": [
+      "6d2a708"
+     ]
+    },
+    {
+     "key": "caminos",
+     "name": "Los caminos",
+     "required": false,
+     "sections": [
+      "78ae265"
+     ]
+    },
+    {
+     "key": "objeciones",
+     "name": "¿Te funcionará? (objeciones)",
+     "required": false,
+     "sections": [
+      "07c9276"
+     ]
+    },
+    {
+     "key": "comunidad",
+     "name": "Lo avala la comunidad",
+     "required": false,
+     "sections": [
+      "4d18690"
+     ]
+    },
+    {
+     "key": "preguntas-frecuentes",
+     "name": "Preguntas frecuentes",
+     "required": false,
+     "sections": [
+      "0cbda51"
+     ]
+    },
+    {
+     "key": "whatsapp",
+     "name": "WhatsApp con una cara",
+     "required": false,
+     "sections": [
+      "e3eb8ba"
+     ]
+    },
+    {
+     "key": "cierre",
+     "name": "Cierre",
+     "required": false,
+     "sections": [
+      "45cb35e"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "d1fa59f"
+     ]
+    }
+   ],
+   "urgency": [
+    "dee898c"
+   ]
+  },
+  {
+   "id": "venta-corta",
+   "number": "02",
+   "name": "Página de venta corta",
+   "library_title": "DIGITALÍSIMO · 02 Página de venta corta",
+   "file": "02-pagina-de-venta-corta.json",
+   "purpose": "Promesa con video, tres beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta, la garantía y pocas preguntas; el botón se repite.",
+   "use_when": "Producto barato (hasta unos 1 000 MXN) con anuncios, con el carrito (05) y la oferta después de pagar (06); quien ya conoce la marca; un curso de precio medio después de una clase (ampliada); un servicio (sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su fecha real; o un paquete de la tienda.",
+   "measures": "Vista de página",
+   "sections": 8,
+   "widgets": 43,
+   "widget_types": {
+    "heading": 12,
+    "text-editor": 12,
+    "button": 4,
+    "video": 1,
+    "icon-box": 3,
+    "image": 4,
+    "icon-list": 3,
+    "testimonial-carousel": 1,
+    "divider": 2,
+    "accordion": 1
+   },
+   "has_countdown": false,
+   "has_form": false,
+   "internal_links": [
+    {
+     "path": "#oferta",
+     "for": "ancla del bloque de la oferta en la misma página"
+    },
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/carrito/",
+     "for": "05 Carrito"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "promesa",
+     "name": "La promesa",
+     "required": false,
+     "sections": [
+      "43d7d47"
+     ]
+    },
+    {
+     "key": "beneficios",
+     "name": "Beneficios",
+     "required": false,
+     "sections": [
+      "9b6db45"
+     ]
+    },
+    {
+     "key": "quien-esta-detras",
+     "name": "Quién está detrás",
+     "required": false,
+     "sections": [
+      "90c7796"
+     ]
+    },
+    {
+     "key": "para-quien-es",
+     "name": "Para quién es e incluye",
+     "required": false,
+     "sections": [
+      "eecc2c6"
+     ]
+    },
+    {
+     "key": "testimonios",
+     "name": "Testimonios",
+     "required": false,
+     "sections": [
+      "5348f0a"
+     ]
+    },
+    {
+     "key": "oferta",
+     "name": "La oferta",
+     "required": false,
+     "sections": [
+      "d0c5dfe"
+     ]
+    },
+    {
+     "key": "garantia-y-preguntas",
+     "name": "Garantía y preguntas frecuentes",
+     "required": false,
+     "sections": [
+      "18e4e41"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "b3293e7"
+     ]
+    }
+   ],
+   "urgency": []
+  },
+  {
+   "id": "captacion",
+   "number": "03",
+   "name": "Captación",
+   "library_title": "DIGITALÍSIMO · 03 Captación",
+   "file": "03-captacion.json",
+   "purpose": "Registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, WhatsApp y una pregunta de perfil) que guarda cada envío, avisa por correo y lleva a /gracias-registro/.",
+   "use_when": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
+   "measures": "Vista de página",
+   "sections": 6,
+   "widgets": 33,
+   "widget_types": {
+    "heading": 11,
+    "text-editor": 9,
+    "icon-list": 2,
+    "image": 3,
+    "form": 1,
+    "icon-box": 3,
+    "blockquote": 3,
+    "button": 1
+   },
+   "has_countdown": false,
+   "has_form": true,
+   "internal_links": [
+    {
+     "path": "#registro",
+     "for": "ancla del formulario en la misma página"
+    },
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/gracias-registro/",
+     "for": "04 Gracias por registrarte (a donde lleva el formulario de la 03)"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "registro",
+     "name": "Cabecera con formulario",
+     "required": false,
+     "sections": [
+      "62fd07d"
+     ]
+    },
+    {
+     "key": "que-aprenderan",
+     "name": "Qué aprenderán",
+     "required": false,
+     "sections": [
+      "483c3bb"
+     ]
+    },
+    {
+     "key": "quien-la-imparte",
+     "name": "Quién la imparte",
+     "required": false,
+     "sections": [
+      "5a352ac"
+     ]
+    },
+    {
+     "key": "testimonios",
+     "name": "Testimonios o logros",
+     "required": false,
+     "sections": [
+      "c8077a9"
+     ]
+    },
+    {
+     "key": "recordatorio",
+     "name": "Recordatorio",
+     "required": false,
+     "sections": [
+      "6939cb4"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "ebad31e"
+     ]
+    }
+   ],
+   "urgency": []
+  },
+  {
+   "id": "gracias-registro",
+   "number": "04",
+   "name": "Gracias por registrarte",
+   "library_title": "DIGITALÍSIMO · 04 Gracias por registrarte",
+   "file": "04-gracias-por-registrarte.json",
+   "purpose": "Confirmación y los tres pasos después de registrarse: confirmar el correo, agendar la fecha y unirse al grupo.",
+   "use_when": "Después de la 03, en /gracias-registro/. Sin doble confirmación, aquí va el enlace de descarga; con «regalo con oferta en la gracias», un bloque con una oferta barata y relacionada.",
+   "measures": "Registro completado (Lead)",
+   "sections": 4,
+   "widgets": 16,
+   "widget_types": {
+    "icon-box": 4,
+    "heading": 2,
+    "text-editor": 7,
+    "button": 1,
+    "video": 1,
+    "image": 1
+   },
+   "has_countdown": false,
+   "has_form": false,
+   "internal_links": [
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "confirmacion",
+     "name": "Confirmación",
+     "required": false,
+     "sections": [
+      "b4074cf"
+     ]
+    },
+    {
+     "key": "tres-pasos",
+     "name": "Tres pasos",
+     "required": false,
+     "sections": [
+      "fd67d57"
+     ]
+    },
+    {
+     "key": "mientras-tanto",
+     "name": "Mientras tanto",
+     "required": false,
+     "sections": [
+      "bbad035"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "a66878e"
+     ]
+    }
+   ],
+   "urgency": []
+  },
+  {
+   "id": "carrito",
+   "number": "05",
+   "name": "Carrito",
+   "library_title": "DIGITALÍSIMO · 05 Carrito",
+   "file": "05-carrito.json",
+   "purpose": "Formulario de datos y forma de pago junto a la oferta: pago único marcado de entrada, meses sin intereses, el extra de un clic, la garantía y los medios de pago junto al botón, WhatsApp con una cara y, sólo con un cierre real, el contador.",
+   "use_when": "Después de la 01 o la 02 cuando se cobra en el sitio, en /carrito/; su formulario lleva a /pago/.",
+   "measures": "Iniciar pago (InitiateCheckout)",
+   "sections": 6,
+   "widgets": 32,
+   "widget_types": {
+    "heading": 10,
+    "text-editor": 8,
+    "form": 1,
+    "image": 4,
+    "icon-box": 1,
+    "icon-list": 1,
+    "divider": 1,
+    "blockquote": 3,
+    "accordion": 1,
+    "button": 1,
+    "countdown": 1
+   },
+   "has_countdown": true,
+   "has_form": true,
+   "internal_links": [
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/pago/",
+     "for": "el pago: el enlace de la pasarela o el pago de la tienda (a donde lleva el formulario del carrito)"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "encabezado",
+     "name": "Encabezado con el precio",
+     "required": false,
+     "sections": [
+      "acb71f6"
+     ]
+    },
+    {
+     "key": "formulario",
+     "name": "Formulario junto a la oferta",
+     "required": false,
+     "sections": [
+      "7faf963"
+     ]
+    },
+    {
+     "key": "testimonios",
+     "name": "Testimonios",
+     "required": false,
+     "sections": [
+      "5fee887"
+     ]
+    },
+    {
+     "key": "dudas-de-pago",
+     "name": "Dudas de pago y WhatsApp",
+     "required": false,
+     "sections": [
+      "7906dd1"
+     ]
+    },
+    {
+     "key": "urgencia",
+     "name": "Urgencia (sólo con cierre real)",
+     "required": false,
+     "sections": [
+      "ce86e13"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "a40b679"
+     ]
+    }
+   ],
+   "urgency": [
+    "ce86e13"
+   ]
+  },
+  {
+   "id": "oferta-unica",
+   "number": "06",
+   "name": "Oferta única después de la compra",
+   "library_title": "DIGITALÍSIMO · 06 Oferta única después de la compra",
+   "file": "06-oferta-unica-despues-de-la-compra.json",
+   "purpose": "Un complemento, sí o no, justo después de pagar: aviso, video corto, el complemento con su precio de hoy y dos botones.",
+   "use_when": "Entre el pago y la 07 (el pago lleva aquí): producto barato con anuncios o lanzamiento con complemento. «Sí» va a /pago-complemento/ y «No» a /gracias-compra/.",
+   "measures": "Compra del producto principal (Purchase)",
+   "sections": 3,
+   "widgets": 16,
+   "widget_types": {
+    "heading": 4,
+    "text-editor": 7,
+    "video": 1,
+    "image": 2,
+    "icon-list": 1,
+    "button": 1
+   },
+   "has_countdown": false,
+   "has_form": false,
+   "internal_links": [
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/gracias-compra/",
+     "for": "07 Gracias por tu compra (botón «No» de la 06)"
+    },
+    {
+     "path": "/pago-complemento/",
+     "for": "el pago del complemento (botón «Sí» de la 06)"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "aviso-y-video",
+     "name": "Aviso y video",
+     "required": false,
+     "sections": [
+      "afd77ae"
+     ]
+    },
+    {
+     "key": "complemento",
+     "name": "El complemento, sí o no",
+     "required": false,
+     "sections": [
+      "f121d4b"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "6353aab"
+     ]
+    }
+   ],
+   "urgency": []
+  },
+  {
+   "id": "gracias-compra",
+   "number": "07",
+   "name": "Gracias por tu compra",
+   "library_title": "DIGITALÍSIMO · 07 Gracias por tu compra",
+   "file": "07-gracias-por-tu-compra.json",
+   "purpose": "Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la comunidad y soporte.",
+   "use_when": "Al final de toda compra, en /gracias-compra/.",
+   "measures": "Compra con el total final",
+   "sections": 4,
+   "widgets": 17,
+   "widget_types": {
+    "icon-box": 4,
+    "heading": 2,
+    "text-editor": 7,
+    "button": 2,
+    "video": 1,
+    "image": 1
+   },
+   "has_countdown": false,
+   "has_form": false,
+   "internal_links": [
+    {
+     "path": "/acceso/",
+     "for": "la entrada a la plataforma del curso o del servicio"
+    },
+    {
+     "path": "/aviso-de-privacidad/",
+     "for": "aviso de privacidad"
+    },
+    {
+     "path": "/politica-de-reembolso/",
+     "for": "política de reembolso"
+    },
+    {
+     "path": "/terminos-y-condiciones/",
+     "for": "términos y condiciones"
+    }
+   ],
+   "blocks": [
+    {
+     "key": "bienvenida",
+     "name": "Bienvenida",
+     "required": false,
+     "sections": [
+      "094333d"
+     ]
+    },
+    {
+     "key": "que-sigue",
+     "name": "Qué sigue",
+     "required": false,
+     "sections": [
+      "1b658a4"
+     ]
+    },
+    {
+     "key": "soporte",
+     "name": "Soporte y redes",
+     "required": false,
+     "sections": [
+      "c7ceb5c"
+     ]
+    },
+    {
+     "key": "pie",
+     "name": "Pie",
+     "required": true,
+     "sections": [
+      "6eace4b"
+     ]
+    }
+   ],
+   "urgency": []
+  },
+  {
+   "id": "prueba-social",
+   "number": "08",
+   "name": "Bloques de prueba social",
+   "library_title": "DIGITALÍSIMO · 08 Bloques de prueba social",
+   "file": "08-bloques-de-prueba-social.json",
+   "purpose": "Siete bloques para copiar a otra página: muro de videos titulados por resultado, historia de éxito, carrusel, capturas, reseñas, lo que se lleva al terminar y una objeción contestada por un alumno.",
+   "use_when": "Para armar o ampliar las pruebas de otra página; no se publica sola. Sólo con testimonios reales y con permiso.",
+   "measures": "",
+   "sections": 9,
+   "widgets": 55,
+   "widget_types": {
+    "heading": 24,
+    "text-editor": 10,
+    "video": 6,
+    "blockquote": 4,
+    "icon-list": 2,
+    "image": 8,
+    "testimonial-carousel": 1
+   },
+   "has_countdown": false,
+   "has_form": false,
+   "internal_links": [],
+   "blocks": [
+    {
+     "key": "instrucciones",
+     "name": "Instrucciones",
+     "required": false,
+     "sections": [
+      "8204c9d"
+     ]
+    },
+    {
+     "key": "muro",
+     "name": "Muro de video-testimonios",
+     "required": false,
+     "sections": [
+      "f4d040e"
+     ]
+    },
+    {
+     "key": "historia",
+     "name": "Historia de éxito",
+     "required": false,
+     "sections": [
+      "476c871",
+      "5a84484"
+     ]
+    },
+    {
+     "key": "carrusel",
+     "name": "Carrusel",
+     "required": false,
+     "sections": [
+      "ee3bbb6"
+     ]
+    },
+    {
+     "key": "capturas",
+     "name": "Capturas",
+     "required": false,
+     "sections": [
+      "fa4c947"
+     ]
+    },
+    {
+     "key": "resenas",
+     "name": "Reseñas con estrellas",
+     "required": false,
+     "sections": [
+      "a92bdb5"
+     ]
+    },
+    {
+     "key": "al-terminar",
+     "name": "Lo que se lleva al terminar",
+     "required": false,
+     "sections": [
+      "5da9b08"
+     ]
+    },
+    {
+     "key": "objecion",
+     "name": "Objeción contestada por un alumno",
+     "required": false,
+     "sections": [
+      "3334484"
+     ]
+    }
+   ],
+   "urgency": []
+  }
+ ],
+ "cases": [
+  {
+   "caso": "Regalar un recurso para juntar contactos",
+   "plantillas": [
+    "captacion",
+    "gracias-registro"
+   ],
+   "no_falta": "Titular con el resultado, el recurso, tres beneficios y un formulario de dos o tres campos; en la página de gracias, el siguiente paso.",
+   "sobra": "Testimonios largos y temario: menos campos, más registros."
+  },
+  {
+   "caso": "Clase en vivo o webinar",
+   "plantillas": [
+    "captacion",
+    "gracias-registro"
+   ],
+   "no_falta": "Fecha y hora del centro de México, foto del presentador, qué aprenderá y una pregunta que filtre el perfil; en la de gracias, «agéndalo» y el grupo.",
+   "sobra": "Precio y oferta: se venden en la clase."
+  },
+  {
+   "caso": "Reto de varios días",
+   "plantillas": [
+    "captacion",
+    "gracias-registro"
+   ],
+   "no_falta": "Qué pasa cada día y dónde se hace.",
+   "sobra": "Precio y oferta."
+  },
+  {
+   "caso": "Producto barato (hasta unos 1 000 MXN) que se vende siempre, con anuncios",
+   "plantillas": [
+    "venta-corta",
+    "carrito",
+    "oferta-unica"
+   ],
+   "no_falta": "Video corto, para quién es, qué incluye, valor tachado, botón repetido, el extra de un clic y la oferta después de pagar.",
+   "sobra": "Autoridad larga, objeciones y alternativas."
+  },
+  {
+   "caso": "Regalo con oferta en la gracias",
+   "plantillas": [
+    "captacion",
+    "gracias-registro"
+   ],
+   "no_falta": "Una oferta barata y relacionada con lo que se descargó, en la de gracias.",
+   "sobra": ""
+  },
+  {
+   "caso": "Curso de precio medio (unos 1 000 a 6 000 MXN), casi siempre después de una clase",
+   "plantillas": [
+    "venta-corta",
+    "venta-completa",
+    "carrito"
+   ],
+   "no_falta": "La 02 ampliada o la 01 recortada: video, temario, bonus, testimonios, garantía, preguntas frecuentes y meses sin intereses.",
+   "sobra": "La gran idea y las alternativas."
+  },
+  {
+   "caso": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN)",
+   "plantillas": [
+    "captacion",
+    "gracias-registro",
+    "venta-completa",
+    "carrito"
+   ],
+   "no_falta": "Todo: urgencia real con fecha, mensualidades, objeciones, «para quién no es» y muchas pruebas.",
+   "sobra": "Nada."
+  },
+  {
+   "caso": "Servicio de DIGITALÍSIMO (asesoría, hosting, crecimiento digital)",
+   "plantillas": [
+    "venta-corta"
+   ],
+   "no_falta": "Beneficios, casos reales, precio o «desde» y los llamados del manual: «Agendar asesoría» o «Hablar por WhatsApp».",
+   "sobra": "Carrito, contador y oferta después de pagar."
+  },
+  {
+   "caso": "Evento de venta de temporada",
+   "plantillas": [
+    "venta-corta"
+   ],
+   "no_falta": "La fecha real del evento, el descuento de temporada y, si hay cierre real, la cuenta regresiva.",
+   "sobra": "Escasez inventada."
+  },
+  {
+   "caso": "Lanzamiento a la lista de correo",
+   "plantillas": [
+    "venta-completa",
+    "venta-corta"
+   ],
+   "no_falta": "Una copia de la página de venta con un mensaje personal y un descuento sólo para suscriptores.",
+   "sobra": ""
+  },
+  {
+   "caso": "Página sólo para anuncios",
+   "plantillas": [
+    "venta-completa",
+    "venta-corta"
+   ],
+   "no_falta": "Una copia de la página de venta con su propio botón de pago, para saber qué ventas vinieron de los anuncios.",
+   "sobra": ""
+  },
+  {
+   "caso": "Después del cierre",
+   "plantillas": [
+    "venta-completa",
+    "venta-corta"
+   ],
+   "no_falta": "La misma página, cambiada: el precio normal o una lista de espera para la próxima apertura.",
+   "sobra": "El contador y la oferta de lanzamiento."
+  },
+  {
+   "caso": "Paquete de la tienda",
+   "plantillas": [
+    "venta-corta"
+   ],
+   "no_falta": "El paquete (producto, accesorios, envío), un extra en el carrito, entrega y devoluciones, junto a la ficha del producto.",
+   "sobra": "Temario y clase."
+  }
+ ]
+}
