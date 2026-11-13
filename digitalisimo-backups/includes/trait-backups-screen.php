@@ -327,7 +327,7 @@ trait Digitalisimo_Backups_Screen {
 		return '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"></p>' . self::help_html( 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo. Con un respaldo de este mismo sitio vuelven las cuentas del respaldo.' );
 	}
 	/** «Qué restaurar» (restaurar por partes): ver Digitalisimo_Backups_Restore_Parts::field(). */
-	private static function restore_parts_field( $path = '', $items = false, $link = '' ) { return Digitalisimo_Backups_Restore_Parts::field( $path, $items, $link, self::restore_layout() ); }
+	private static function restore_parts_field( $path = '', $items = false, $link = '', $summary = false ) { return Digitalisimo_Backups_Restore_Parts::field( $path, $items, $link, self::restore_layout() ) . ( $summary ? '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>' : '' ); }
 	/** Lo que envió «Qué restaurar»: ver Digitalisimo_Backups_Restore_Parts::from_request(). */
 	private static function restore_request_parts() { return Digitalisimo_Backups_Restore_Parts::from_request( $_POST ); }
 	/** El panel «Restaurar» bajo su fila: una frase, escribir RESTAURAR y el botón; las opciones, plegadas. */

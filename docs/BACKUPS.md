@@ -1084,12 +1084,17 @@ restauración en curso y `digitalisimo_backups_last_restore` nombran la selecci�
   ven al descifrarlo (`verify` por REST o WP-CLI con la frase); se eligen por REST o WP-CLI.
 
 **Memoria (64 MB).** El archivo de WP-CLI (`class-backups-cli.php`, unos 208 KB compilados) se carga sólo en WP-CLI,
-que define `WP_CLI` antes de cargar los plugins: cada petición web carga menos código que antes de esta función. La clase
-de las partes se carga con el plugin, nunca a demanda (revisión A1): el final de una restauración pone en su sitio la
-carpeta de Backups del respaldo, quizá de una versión sin ese archivo, y después todavía escribe el informe. En
-Playground (php-wasm, sin opcache), con los límites del propietario, el empaquetado de un respaldo y la verificación de
-una restauración ya van al límite con el código de main: cada archivo se lee con `fread()` de 1 MiB (`CHUNK`), que pide
-1 MiB contiguo con el montón real en 62,5–64 MB; que quepa depende de cómo quedó fragmentado. Ver «Límites declarados».
+que define `WP_CLI` antes de cargar los plugins. La clase de las partes se carga con el plugin, nunca a demanda (revisión
+A1: el final de una restauración pone en su sitio la carpeta de Backups del respaldo, quizá de una versión sin ese
+archivo, y después todavía escribe el informe), al final de `class-backups.php`, y la lógica de las partes vive en ella:
+en Playground (php-wasm, sin opcache) la clase principal estaba al borde de un escalón de memoria. Medido con WordPress
+cargado: el motor de la restauración (`trait-backups-restore-engine.php`) con entre 20 y 50 sentencias más, o con
+6 KB más de literales, sube 0,8 MB **cada petición** (10,34 → 11,14 MB al incluir los plugins); 6 KB de comentarios
+`//` no cambian nada y, en cambio, los docblocks `/** */` sí cuentan (PHP los guarda con cada método). Con esos 0,8 MB,
+la verificación de una restauración y el empaquetado de un respaldo agotaban los 64 MB (`fread()` de 1 MiB por archivo)
+donde main pasaba. Por eso los comentarios de la segunda mitad del motor son `//`: con todo lo de esta función, la carga
+queda igual que en main (10 337 272 frente a 10 336 648 bytes). Cualquier cambio futuro del motor debe medirse así
+(`tests/playground/backups-restore-parts.sh` anota la memoria de cada petición en `ctl/memory.jsonl`).
 
 **Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
 el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también

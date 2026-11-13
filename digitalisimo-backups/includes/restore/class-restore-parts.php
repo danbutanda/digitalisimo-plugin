@@ -405,6 +405,44 @@ final class Digitalisimo_Backups_Restore_Parts {
 		if ( ! empty( $post['restore_all'] ) ) return $items['plugins'] || $items['themes'] || $items['sites'] ? array( 'parts' => array() ) + $items : array();
 		return array( 'parts' => $list( 'restore_parts' ) ) + $items;
 	}
+	/* ------------------------------------------------------------------------------------------- Motor */
+
+	/** UpdraftPlus se restaura en una sola petición, sin la restauración por pasos: entero. */
+	const UPDRAFT = 'La restauración se detuvo: un respaldo de UpdraftPlus se restaura entero; restaurar por partes es para los respaldos de Backups (también los importados de Backuply).';
+	/**
+	 * Antes de tocar nada: un sitio extraído de una red se restaura entero (sus reglas de usuarios, plugins y ajustes son
+	 * de todo el paquete), y lo elegido (una parte entera, un plugin, un tema, los medios de un sitio) tiene que estar en
+	 * el respaldo, salvo en la vuelta a la copia previa: allí lo que la copia no tiene es lo que trajo la restauración que
+	 * falló, y se retira. Lanza Exception con el motivo.
+	 */
+	public static function check( $zip, $data, $selection, $rollback, array $layout ) {
+		if ( null === $selection ) return;
+		if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ) throw new Exception( 'Un sitio extraído de una red se restaura entero: no admite restaurar por partes. No se cambió nada del sitio.' );
+		if ( $rollback ) return;
+		$missing = self::missing( $selection, self::inventory( $zip, $layout ) );
+		if ( $missing ) throw new Exception( 'El respaldo no tiene ' . self::list_text( $missing, 10 ) . ': elige lo que trae (la lista de plugins y temas del respaldo) o la parte entera. No se cambió nada del sitio.' );
+	}
+	/** La fase «base de datos» sin la base de datos: nada que importar (el mantenimiento empieza igual). */
+	public static function skip_database() {
+		return array( 'next' => 'files', 'checkpoint' => array( 'done' => time(), 'skipped' => true, 'statements' => 0, 'report' => array() ), 'message' => 'La base de datos no se restaura (no se eligió); preparando los archivos…' );
+	}
+	public static function switch_message( $with_database ) { return ( $with_database ? 'Base de datos y código cambiados' : 'Código cambiado' ) . '; moviendo los medios…'; }
+	/** El mensaje del trabajo al terminar (la restauración o su vuelta a la copia previa), con la selección. */
+	public static function finale_message( $rollback, $file, array $parts ) {
+		$partial = ! empty( $parts ) && empty( $parts['all'] );
+		if ( $rollback ) return 'Se volvió a la copia previa ' . $file . ': ' . ( $partial ? 'lo restaurado (' . (string) $parts['label'] . ') está' : 'el sitio está' ) . ' como antes de la restauración que falló.';
+		return 'Restauración terminada desde ' . $file . ( $partial ? ' (por partes: ' . (string) $parts['label'] . ')' : '' ) . '.';
+	}
+	/** « (por partes: …)» para el estado de una restauración en curso, o nada. */
+	public static function status_suffix( array $spec ) {
+		try {
+			$label = self::label( self::from_spec( $spec ) );
+		} catch ( Throwable $e ) {
+			return '';
+		}
+		return 'todo' === $label ? '' : ' (por partes: ' . $label . ')';
+	}
+
 	/* ------------------------------------------------------------------------------------------- Textos */
 
 	/** «base de datos, plugins (akismet, hello.php) y medios del sitio 3». */
