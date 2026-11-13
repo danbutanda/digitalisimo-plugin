@@ -385,6 +385,7 @@ jobs:
           php tests/backups-restore-pending-config.php
           php tests/backups-e4-findings.php
           php tests/backups-e5-findings.php
+          php tests/backups-keep-access.php
           php tests/tools-site-options.php
           php tests/tools-media-svg.php
           php tests/tools-media-webp.php
