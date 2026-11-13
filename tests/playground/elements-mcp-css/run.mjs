@@ -30,7 +30,7 @@ const check = (id, ok, what, detail = '') => {
 const note = (what) => { results.push({ id: 'nota', section, what, ok: true, note: true }); log(`nota · ${what}`); };
 const start = (name) => { section = name; log(`== ${name}`); };
 
-// Las comprobaciones que fallan con DIGITALÍSIMO Elements 4.3.0.185 (núcleo 4.3.5), sin el arreglo.
+// Las comprobaciones que fallan con DIGITALÍSIMO Elements 4.3.0.185 (núcleo 4.3.5), sin el arreglo (30).
 const BEFORE_FIX = [
   // El incidente: la hoja «frontend» del borrador no se invalida (enlace firmado con el CSS y el ver de la primera).
   'M1.2-css', 'M1.2-ver', 'M1.2-color', 'M1.3-css', 'M1.3-ver', 'M1.3-color',
@@ -43,6 +43,10 @@ const BEFORE_FIX = [
   'M6.4-html', 'M6.4-css', 'M6.4-ver',
   // font-family con varias familias: comillas anidadas, Chrome descarta la declaración.
   'M9.1-font', 'M9.3-chrome-font',
+  // Revisión: el enlace firmado sirve el HTML guardado de la publicada en vez de la instantánea (R1.2b, R2b.1); la
+  // promoción sin purga deja HTML y CSS viejos (R2.0, R6.2) y no dispara ganchos de caché de página (R6.1); sin el
+  // módulo nada refresca tras una herramienta que falla (R4.1).
+  'R1.2b', 'R2.0', 'R2b.1', 'R4.1', 'R6.1', 'R6.2',
 ];
 
 function request(method, path, { headers = {}, body } = {}) {
