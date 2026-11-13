@@ -161,6 +161,65 @@ namespace {
 	function add_filter( $hook, $callback, $priority = 10, $args = 1 ) {
 		$GLOBALS['sk']['hooks'][] = array( $hook, $callback, $priority );
 	}
+	function remove_filter( $hook, $callback, $priority = 10 ) {
+		foreach ( $GLOBALS['sk']['hooks'] as $i => $h ) {
+			if ( array( $hook, $callback, $priority ) === $h ) {
+				unset( $GLOBALS['sk']['hooks'][ $i ] );
+			}
+		}
+		$GLOBALS['sk']['hooks'] = array_values( $GLOBALS['sk']['hooks'] );
+		return true;
+	}
+	function apply_filters( $hook, $value, ...$args ) {
+		$hooks = array_values( array_filter( $GLOBALS['sk']['hooks'], static function ( $h ) use ( $hook ) { return $hook === $h[0]; } ) );
+		usort( $hooks, static function ( $a, $b ) { return $a[2] <=> $b[2]; } );
+		foreach ( $hooks as $h ) {
+			$value = call_user_func( $h[1], $value, ...$args );
+		}
+		return $value;
+	}
+	/** Como `Elementor\DB::iterate_data()` del núcleo 4.3.5 (`includes/db.php`). */
+	function sk_iterate_data( $data_container, $callback ) {
+		if ( isset( $data_container['elType'] ) ) {
+			if ( ! empty( $data_container['elements'] ) ) {
+				$data_container['elements'] = sk_iterate_data( $data_container['elements'], $callback );
+			}
+			return call_user_func( $callback, $data_container );
+		}
+		foreach ( $data_container as $element_key => $element_value ) {
+			$element_data = sk_iterate_data( $data_container[ $element_key ], $callback );
+			if ( null === $element_data ) {
+				continue;
+			}
+			$data_container[ $element_key ] = $element_data;
+		}
+		return $data_container;
+	}
+	/**
+	 * Como el saneador del núcleo 4.3.5 (`modules/content-sanitizer/module.php` y `Widget_Heading::sanitize()`): para
+	 * quien no tiene `manage_options`, recorre los datos y lee `widgetType` de cada elemento; a los títulos les quita
+	 * todos los atributos (la precedencia de `! substr(…) === 'data-'` los filtra todos).
+	 */
+	function sk_heading_sanitize( string $title ): string {
+		return (string) preg_replace( '/<([a-z][a-z0-9]*)\b[^>]*?(\/?)>/i', '<$1$2>', $title );
+	}
+	function sk_core_sanitizer( $data, $document = null ) {
+		if ( current_user_can( 'manage_options' ) || empty( $data['elements'] ) ) {
+			return $data;
+		}
+		if ( false === strpos( json_encode( $data ), '"widgetType":"heading"' ) ) {
+			return $data;
+		}
+		return sk_iterate_data(
+			$data,
+			static function ( $element ) {
+				if ( 'heading' === $element['widgetType'] ) {
+					$element['settings']['title'] = sk_heading_sanitize( $element['settings']['title'] );
+				}
+				return $element;
+			}
+		);
+	}
 	function current_user_can( $cap ) {
 		$GLOBALS['sk']['asked'][] = $cap;
 		return in_array( $cap, $GLOBALS['sk']['caps'], true );
@@ -264,8 +323,18 @@ namespace {
 		public function set_is_built_with_elementor( $on ) {
 			$this->built = $on;
 		}
+		public function update_settings( array $settings ) {
+			$GLOBALS['sk']['doc_settings'][ $this->id ] = array_replace_recursive( $GLOBALS['sk']['doc_settings'][ $this->id ] ?? array(), $settings );
+			return $this;
+		}
 		public function save( $data ) {
 			$GLOBALS['sk']['saves'][] = array( $this->id, $data );
+			try {
+				$GLOBALS['sk']['filtered'][] = apply_filters( 'elementor/document/save/data', $data, $this );
+			} catch ( Throwable $e ) {
+				$GLOBALS['sk']['save_error'] = $e->getMessage();
+				throw $e;
+			}
 			if ( ! empty( $GLOBALS['sk']['save_fails'] ) ) {
 				return false;
 			}
@@ -694,7 +763,7 @@ namespace {
 	sk_reset();
 	$p = Pages::create( 'Página', array( array( 'id' => 'abc1234' ) ) );
 	check( 'draft' === $GLOBALS['sk']['inserted'][0]['post_status'] && 'page' === $GLOBALS['sk']['inserted'][0]['post_type'], 'Pages: inserta un borrador' );
-	check( 1 === count( $GLOBALS['sk']['saves'] ) && array( 'template' => 'elementor_canvas' ) === $GLOBALS['sk']['saves'][0][1]['settings'] && array( array( 'id' => 'abc1234' ) ) === $GLOBALS['sk']['saves'][0][1]['elements'], 'Pages: guarda con Document::save (elementos y lienzo)' );
+	check( 1 === count( $GLOBALS['sk']['saves'] ) && array( 'template' => 'elementor_canvas' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ) && array( array( 'id' => 'abc1234' ) ) === $GLOBALS['sk']['saves'][0][1]['elements'], 'Pages: guarda el lienzo (update_settings) y los elementos (Document::save)' );
 	check( \Elementor\Plugin::$instance->documents->docs[101]->built && 'draft' === $p['status'] && false === strpos( $p['preview_url'], 'preview_nonce' ) && false !== strpos( $p['edit_url'], 'action=elementor' ), 'Pages: marcada como del constructor, en borrador, con sus URL' );
 	$GLOBALS['sk']['save_publishes'] = true;
 	$p                               = Pages::create( 'Otra', array() );
@@ -984,6 +1053,28 @@ namespace {
 			review( 'R5', array( 'venta-completa' => true, 'venta-corta' => true, 'captacion' => false, 'gracias-registro' => false, 'carrito' => true, 'oferta-unica' => false, 'gracias-compra' => false, 'prueba-social' => false ) === $by, 'list-templates dice qué plantillas admiten close_date: ' . json_encode( $by ) );
 			review( 'R5', false !== strpos( Tools::DESCRIPTIONS['create-page'], 'venta-corta y carrito' ) && false !== strpos( Tools::input_schema( 'create-page' )['properties']['close_date']['description'], 'venta-corta' ), 'las descripciones dicen que la venta corta admite close_date' );
 			$GLOBALS['sk']['containers'] = false;
+		}
+	);
+
+	// R8 · Guardar como editora (sin manage_options) no deja avisos de PHP del saneador del núcleo: el lienzo va por
+	// update_settings() (dentro de save() el saneador recorre los ajustes: db.php:268) y ningún contenedor llega sin
+	// widgetType (content-sanitizer/module.php:45). El doble del saneador reproduce los dos avisos y el manejador de
+	// errores de esta prueba los vuelve excepción.
+	review_block(
+		'R8',
+		static function () use ( $build ) {
+			foreach ( array( 'sections', 'containers' ) as $variant ) {
+				sk_reset();
+				add_filter( 'elementor/document/save/data', 'sk_core_sanitizer', 10, 2 );
+				$els = $build( 'venta-corta', array(), $variant )['elements'];
+				$p   = Pages::create( 'De la editora', $els );
+				review( 'R8', is_array( $p ) && 'draft' === $p['status'], "$variant: como editora se guarda sin avisos de PHP del núcleo: " . ( $p instanceof WP_Error ? ( $GLOBALS['sk']['save_error'] ?? $p->get_error_message() ) : '' ) );
+				$saved = $GLOBALS['sk']['saves'][0][1] ?? array();
+				review( 'R8', array( 'elements' ) === array_keys( $saved ) && array( 'template' => 'elementor_canvas' ) === ( $GLOBALS['sk']['doc_settings'][101] ?? null ), "$variant: el lienzo va por update_settings(), no por save()" );
+				$after = $GLOBALS['sk']['filtered'][0] ?? array();
+				review( 'R8', isset( $after['elements'] ) && false === strpos( json_encode( $after['elements'] ), '"widgetType":""' ) && sk_widgets( $after['elements'] ) === sk_widgets( $els ), "$variant: el widgetType vacío de los contenedores no sale del filtro" );
+				review( 'R8', ! array_filter( $GLOBALS['sk']['hooks'], static function ( $h ) { return 'elementor/document/save/data' === $h[0] && 'sk_core_sanitizer' !== $h[1]; } ), "$variant: los filtros del guardado se quitan al terminar" );
+			}
 		}
 	);
 
