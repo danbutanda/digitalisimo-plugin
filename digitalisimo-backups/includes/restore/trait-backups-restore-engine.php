@@ -42,8 +42,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// La ficha de lectura (sólo ese trabajo, sólo lectura, con caducidad): su valor va una vez en la respuesta.
 		$reader = Digitalisimo_Backups_Restore_Access::new_reader();
 		self::$restore_reader_token = $reader['token'];
-		$user_id = (int) ( $args['user_id'] ?? 0 );
-		if ( $user_id <= 0 && function_exists( 'get_current_user_id' ) ) $user_id = (int) get_current_user_id();
+		// Quien la lanza: el de la llamada (una migración pasa el suyo, también 0 si se lanzó sin usuario: WP-CLI sin --user)
+		// y nunca quien dé después un tick (revisión B7); si no se dice, el usuario de esta petición.
+		$user_id = array_key_exists( 'user_id', $args ) ? max( 0, (int) $args['user_id'] ) : ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 );
 		$spec = array(
 			'type' => 'restore',
 			'scope' => is_multisite() ? 'network' : 'installation',
@@ -151,16 +152,21 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cli = null === $cli ? 'cli' === PHP_SAPI : (bool) $cli;
 		$job = Digitalisimo_Backups_Jobs::get( $id );
 		$guard = 0;
+		// En la web, la respuesta (con el trabajo, el testigo y la ficha de lectura) sale tras 25 s de trabajo como mucho
+		// (revisión B8): un proxy que corta a los 100 s (Cloudflare) nunca se la come; lo demás sigue por ticks.
+		$until = microtime( true ) + max( 0.0, (float) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_backups_restore_respond_after', 25 ) : 25 ) );
 		while ( $job && $guard++ < 100000 ) {
 			$current = self::restore_followed( $job );
 			if ( Digitalisimo_Backups_Job_Store::is_terminal( $current ) ) break;
 			if ( ! $cli && Digitalisimo_Backups_Step_Budget::request_remaining() < 2 ) break;
+			$left = $until - microtime( true );
+			if ( ! $cli && $left < 1 ) break;
 			$wait = (int) $current['retry_at'] - time();
 			if ( $wait > 0 ) {
 				if ( ! $cli ) break;
 				sleep( min( $wait, 30 ) );
 			}
-			$tick = Digitalisimo_Backups_Jobs::tick( $cli ? PHP_INT_MAX : null );
+			$tick = Digitalisimo_Backups_Jobs::tick( $cli ? PHP_INT_MAX : min( Digitalisimo_Backups_Jobs::budget(), $left ) );
 			if ( 'busy' === $tick['result'] || 'error' === $tick['result'] ) {
 				if ( ! $cli ) break;
 				sleep( 1 );
@@ -1681,10 +1687,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$relocated = ! $rollback && null !== self::restore_plan( $job );
 			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' );
 			$migration = ! empty( $job['spec']['safety_extra']['migration'] );
+			// «Mismo sitio» es la identidad de la instalación (la de H23: el respaldo tiene fila en el historial de aquí con su
+			// identidad), no la dirección (revisión B6): un respaldo propio de antes de cambiar el prefijo sigue siendo de
+			// este sitio, y uno de otra instalación en la misma dirección (otro servidor), no. Sin identidad, otro sitio.
+			$same = ! $rollback && ! $extracted && ! $migration && self::keep_config_same_installation( (string) ( $job['spec']['file'] ?? '' ) );
 			$keep = ! array_key_exists( 'keep_access', (array) $job['spec'] ) || ! empty( $job['spec']['keep_access'] );
 			$user_id = (int) ( $job['spec']['origin']['user_id'] ?? 0 );
-			$entry['state'] = Digitalisimo_Backups_Restore_Access::decide( $keep, $user_id, $relocated, $extracted, $migration, $rollback );
-			$entry['relocated'] = ! $rollback && ( $relocated || $extracted || $migration );
+			$entry['state'] = Digitalisimo_Backups_Restore_Access::decide( $keep, $user_id, ! $same, $rollback );
+			// La ruta de acceso y las claves de la base de este sitio se conservan siempre en otro sitio y al reubicar (B5).
+			$entry['relocated'] = ! $rollback && ( ! $same || $relocated );
 			if ( ! $entry['relocated'] ) return $entry;
 			$user = 'on' === $entry['state'] ? Digitalisimo_Backups_Restore_Access::capture( $user_id ) : null;
 			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'user' => $user, 'login' => Digitalisimo_Backups_Restore_Access::login_capture(), 'salts' => Digitalisimo_Backups_Restore_Access::salts_capture() ) );
@@ -1701,7 +1712,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 	private static function restore_access_apply( $entry ) {
 		$entry = is_array( $entry ) ? $entry : array( 'state' => 'same_site', 'relocated' => false );
 		$secret = is_array( $entry['secret'] ?? null ) ? Digitalisimo_Backups_Restore_Access::open( $entry['secret'] ) : null;
-		$report = Digitalisimo_Backups_Restore_Access::apply( (string) ( $entry['state'] ?? 'same_site' ), $secret, ! empty( $entry['relocated'] ) );
+		// La decisión sobre la cuenta que anotó una pasada anterior (B1): la segunda la sigue tal cual.
+		$plan = is_array( $entry['plan'] ?? null ) ? Digitalisimo_Backups_Restore_Access::open( $entry['plan'] ) : null;
+		if ( is_array( $secret ) && is_array( $plan ) ) $secret['plan'] = $plan;
+		$remember = function( array $plan ) { self::note_restore_journal_plan( Digitalisimo_Backups_Restore_Access::seal( $plan ) ); };
+		$report = Digitalisimo_Backups_Restore_Access::apply( (string) ( $entry['state'] ?? 'same_site' ), $secret, ! empty( $entry['relocated'] ), $remember );
 		if ( '' !== (string) ( $entry['warning'] ?? '' ) ) {
 			$report['warnings'][] = (string) $entry['warning'];
 			$report['text'] = Digitalisimo_Backups_Restore_Access::text( $report );
@@ -1709,12 +1724,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$job = (string) ( $entry['job'] ?? '' );
 		if ( Digitalisimo_Backups_Job_Store::valid_id( $job ) ) {
 			try {
+				// Sólo se aplica con las tablas ya cambiadas (B3) y la decisión sobre la cuenta es la misma en cada pasada: la
+				// última aplicación dice la verdad.
 				$path = Digitalisimo_Backups_Job_Store::staging( $job ) . '/access.json';
-				// La primera aplicación es la que cuenta: repetirla (el diario tras una muerte) diría «ya era tuya».
-				if ( ! is_file( $path ) ) {
-					@file_put_contents( $path, (string) wp_json_encode( $report ) );
-					@chmod( $path, 0600 );
-				}
+				@file_put_contents( $path, (string) wp_json_encode( $report ) );
+				@chmod( $path, 0600 );
 			} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		}
 		if ( ! empty( $report['relocated'] ) ) {
@@ -1726,6 +1740,22 @@ trait Digitalisimo_Backups_Restore_Engine {
 			} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		}
 		return $report;
+	}
+	/**
+	 * Si el cambio de tablas de la restauración del diario $entry ya se hizo (lo dice la base de datos, como en
+	 * restore_swap()): sólo entonces el diario de una restauración interrumpida aplica el acceso; antes del cambio, las
+	 * tablas son todavía las de este sitio y el tick siguiente lo apunta y lo aplica de nuevo (revisión B3).
+	 */
+	private static function restore_access_swapped( $entry ) {
+		if ( ! is_array( $entry ) || ! Digitalisimo_Backups_Job_Store::valid_id( (string) ( $entry['job'] ?? '' ) ) ) return false;
+		try {
+			if ( ! is_dir( Digitalisimo_Backups_Job_Store::directory( (string) $entry['job'] ) ) ) return false;
+			$path = Digitalisimo_Backups_Job_Store::staging( (string) $entry['job'] ) . '/tables.json';
+			$tables = is_file( $path ) && ! is_link( $path ) ? json_decode( (string) @file_get_contents( $path ), true ) : null;
+			return is_array( $tables ) && $tables && 'after' === self::restore_swap_state( $tables );
+		} catch ( Throwable $e ) {
+			return false;
+		}
 	}
 	/** 'rename' (MySQL) o 'copy' (SQLite de WordPress: sin RENAME TABLE). */
 	private static function restore_swap_mode() {

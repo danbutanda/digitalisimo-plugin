@@ -271,6 +271,24 @@ final class Digitalisimo_Backups {
 		}
 	}
 	private static function remove_restore_journal() { @unlink( trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL ); }
+	/**
+	 * Anota en el diario (cifrada) la decisión sobre la cuenta de quien restaura antes de la primera escritura (revisión
+	 * B1): si el proceso muere a mitad, la pasada siguiente la sigue y no decide otra cosa sobre tablas ya tocadas. Sin
+	 * diario (una aplicación fuera de una restauración) no hace nada; con diario y sin poder escribirlo, falla.
+	 */
+	private static function note_restore_journal_plan( $sealed ) {
+		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
+		if ( is_link( $path ) || ! is_file( $path ) ) return;
+		$data = json_decode( (string) @file_get_contents( $path ), true );
+		if ( ! is_array( $data ) || ! is_array( $data['access'] ?? null ) ) return;
+		$data['access']['plan'] = $sealed;
+		$json = wp_json_encode( $data );
+		$temp = $path . '.tmp';
+		if ( ! is_string( $json ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
+			@unlink( $temp );
+			throw new Exception( 'no se pudo anotar en el diario la decisión sobre la cuenta.' );
+		}
+	}
 	/** La instalación dueña del diario: un almacén compartido por DIGITALISIMO_BACKUPS_STORAGE_DIR no mezcla llaveros. */
 	private static function journal_owner() { $root = realpath( ABSPATH ); return wp_normalize_path( false === $root ? ABSPATH : $root ); }
 	/** Aplica el diario de una restauración interrumpida (con el bloqueo tomado, nada más la está usando). */
@@ -299,7 +317,8 @@ final class Digitalisimo_Backups {
 			if ( is_array( $data['config_kept'] ?? null ) ) self::keep_config_reapply( $data['config_kept'], self::keep_config_mark( $data ) );
 			try { self::restore_notice_after( is_array( $data['config_kept'] ?? null ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 			// La cuenta de quien restauró, la ruta de acceso de este sitio y las contraseñas de aplicación, después de todo lo demás.
-			try { self::restore_access_apply( is_array( $data['access'] ?? null ) ? $data['access'] : null ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			// Sólo si el cambio de tablas se hizo (B3): antes, el diario no tiene nada que reponer aquí.
+			try { if ( self::restore_access_swapped( $data['access'] ?? null ) ) self::restore_access_apply( $data['access'] ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
 		@unlink( $path );
 		// Una restauración por pasos sigue: el trabajo la reanuda, su mantenimiento no se toca y avisará al terminar.

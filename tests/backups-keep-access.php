@@ -61,7 +61,7 @@ function ka_db( $name, $prefix ) {
 	return $db;
 }
 function ka_schema( Bk_Sqlite_DB $db, $prefix ) {
-	$db->pdo->exec( "CREATE TABLE `{$prefix}users` (`ID` INTEGER PRIMARY KEY, `user_login` varchar(60) NOT NULL DEFAULT '', `user_pass` varchar(255) NOT NULL DEFAULT '', `user_nicename` varchar(50) NOT NULL DEFAULT '', `user_email` varchar(100) NOT NULL DEFAULT '', `user_url` varchar(100) NOT NULL DEFAULT '', `user_registered` datetime NOT NULL DEFAULT '0000-00-00 00:00:00', `user_activation_key` varchar(255) NOT NULL DEFAULT '', `user_status` int(11) NOT NULL DEFAULT 0, `display_name` varchar(250) NOT NULL DEFAULT '')" );
+	$db->pdo->exec( "CREATE TABLE `{$prefix}users` (`ID` INTEGER PRIMARY KEY, `user_login` varchar(60) NOT NULL DEFAULT '', `user_pass` varchar(255) NOT NULL DEFAULT '', `user_nicename` varchar(50) NOT NULL DEFAULT '', `user_email` varchar(100) NOT NULL DEFAULT '', `user_url` varchar(100) NOT NULL DEFAULT '', `user_registered` datetime NOT NULL DEFAULT '0000-00-00 00:00:00', `user_activation_key` varchar(255) NOT NULL DEFAULT '', `user_status` int(11) NOT NULL DEFAULT 0, `display_name` varchar(250) NOT NULL DEFAULT '', `spam` tinyint(2) NOT NULL DEFAULT 0, `deleted` tinyint(2) NOT NULL DEFAULT 0)" );
 	$db->pdo->exec( "CREATE TABLE `{$prefix}usermeta` (`umeta_id` INTEGER PRIMARY KEY AUTOINCREMENT, `user_id` bigint(20) NOT NULL DEFAULT 0, `meta_key` varchar(255), `meta_value` longtext)" );
 	$db->pdo->exec( "CREATE TABLE `{$prefix}options` (`option_id` INTEGER PRIMARY KEY, `option_name` varchar(191) NOT NULL UNIQUE, `option_value` longtext NOT NULL, `autoload` varchar(20) NOT NULL DEFAULT 'yes')" );
 }
@@ -103,13 +103,12 @@ $capture = function( $user_id = 1 ) use ( $A ) {
 	return $A::seal( array( 'user' => $A::capture( $user_id ), 'login' => $A::login_capture(), 'salts' => $A::salts_capture() ) );
 };
 
-ka_case( 'a · se conserva sólo al reubicar, con un sitio extraído o en una migración, y nunca en el mismo sitio', function() use ( $A ) {
-	ka_check( 'on' === $A::decide( true, 5, true, false, false, false ), 'Con reubicación y usuario no se conserva.' );
-	ka_check( 'on' === $A::decide( true, 5, false, true, false, false ) && 'on' === $A::decide( true, 5, false, false, true, false ), 'Un sitio extraído o una migración no conservan el acceso.' );
-	ka_check( 'same_site' === $A::decide( true, 5, false, false, false, false ), 'En el mismo sitio se conservaría el acceso de ahora (credenciales que pueden estar comprometidas).' );
-	ka_check( 'off' === $A::decide( false, 5, true, false, false, false ), 'Apagado no se respeta.' );
-	ka_check( 'no_user' === $A::decide( true, 0, true, false, false, false ), 'Sin usuario (WP-CLI sin --user) no se dice.' );
-	ka_check( 'rollback' === $A::decide( true, 5, true, true, true, true ), 'La vuelta a la copia previa conservaría acceso.' );
+ka_case( 'a · se conserva sólo con un respaldo de otra instalación, encendido por defecto, y nunca con uno de esta misma ni en la vuelta a la copia previa', function() use ( $A ) {
+	ka_check( 'on' === $A::decide( true, 5, true, false ), 'Con un respaldo de otra instalación y usuario no se conserva.' );
+	ka_check( 'same_site' === $A::decide( true, 5, false, false ), 'Con un respaldo de esta misma instalación se conservaría el acceso de ahora (credenciales que pueden estar comprometidas).' );
+	ka_check( 'off' === $A::decide( false, 5, true, false ), 'Apagado no se respeta.' );
+	ka_check( 'no_user' === $A::decide( true, 0, true, false ), 'Sin usuario (WP-CLI sin --user) no se dice.' );
+	ka_check( 'rollback' === $A::decide( true, 5, true, true ), 'La vuelta a la copia previa conservaría acceso.' );
 } );
 
 ka_case( 'b · el caso de /wp: «admin» sigue entrando, la contraseña de aplicación de «digitalisimo» vale y la ruta es la de este sitio', function() use ( $A, $destination, $package, $capture ) {
@@ -158,27 +157,56 @@ ka_case( 'c · aplicarlo otra vez (el diario tras una muerte) deja lo mismo', fu
 	ka_check( 0 === (int) ( $second['app_passwords']['dropped_from_backup'] ?? 0 ), 'Repetirlo retiró contraseñas propias: ' . json_encode( $second['app_passwords'] ) );
 } );
 
-ka_case( 'd · el mismo usuario en el paquete sin ser administrador: la cuenta (mismo ID) es de quien restaura y sus contraseñas de aplicación se retiran', function() use ( $A, $destination, $package, $capture ) {
+ka_case( 'd · M1: el mismo usuario en el paquete sin ser administrador conserva todo y cambia de usuario; la de quien restaura se crea aparte', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	$sealed = $capture( 1 );
-	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ), 'session_tokens' => ka_sessions( str_repeat( 'b', 64 ) ) ) ) ) );
+	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ), 'session_tokens' => ka_sessions( str_repeat( 'b', 64 ) ), '_two_factor_totp_key' => 'SECRETO-DEL-CLIENTE', 'nsl_google_id' => 'google-del-cliente' ) ) ) );
 	$report = $A::apply( 'on', $A::open( $sealed ), true );
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
-	ka_check( 1 === count( $admin ) && 7 === (int) $admin[0]['ID'] && KA_HASH === $admin[0]['user_pass'] && 'dueno@ejemplo.test' === $admin[0]['user_email'], 'La cuenta del paquete no pasó a ser la de quien restaura con su mismo ID: ' . json_encode( $admin ) );
-	$apps = (array) unserialize( (string) ka_meta( $db, 'wpkx_', 7, '_application_passwords' ) );
-	ka_check( array( 'u-admin' ) === array_column( $apps, 'uuid' ), 'Quedaron contraseñas de aplicación de una cuenta que no era administradora: ' . json_encode( array_column( $apps, 'uuid' ) ) );
-	ka_check( array( str_repeat( 'a', 64 ) ) === array_keys( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 7, 'session_tokens' ) ) ), 'Quedaron las sesiones del paquete.' );
-	ka_check( 'merged' === $report['account'] && 1 === (int) $report['app_passwords']['dropped_from_backup'], 'El informe no lo dice: ' . json_encode( $report ) );
+	ka_check( 1 === count( $admin ) && 8 === (int) $admin[0]['ID'] && KA_HASH === $admin[0]['user_pass'] && 'dueno@ejemplo.test' === $admin[0]['user_email'], 'La cuenta de quien restaura no se creó aparte con su usuario: ' . json_encode( $admin ) );
+	$client = $db->rows( 'wpkx_users', 'ID = 7' )[0];
+	ka_check( 'admin-respaldo' === $client['user_login'] && '$P$suscriptor' === $client['user_pass'] && 'otra@ejemplo.test' === $client['user_email'] && 'admin' === $client['user_nicename'], 'La cuenta del paquete no conservó todo salvo su usuario: ' . json_encode( $client ) );
+	ka_check( array( 'subscriber' => true ) === unserialize( (string) ka_meta( $db, 'wpkx_', 7, 'wpkx_capabilities' ) ) && 'SECRETO-DEL-CLIENTE' === ka_meta( $db, 'wpkx_', 7, '_two_factor_totp_key' ) && 'google-del-cliente' === ka_meta( $db, 'wpkx_', 7, 'nsl_google_id' ), 'La cuenta del paquete cambió de rol o perdió su segundo factor o su inicio social.' );
+	ka_check( array( 'u-ajena' ) === array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 7, '_application_passwords' ) ), 'uuid' ) && array( 'u-admin' ) === array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 8, '_application_passwords' ) ), 'uuid' ), 'Se mezclaron las contraseñas de aplicación de las dos cuentas.' );
+	ka_check( null === ka_meta( $db, 'wpkx_', 8, '_two_factor_totp_key' ) && null === ka_meta( $db, 'wpkx_', 8, 'nsl_google_id' ) && array( str_repeat( 'a', 64 ) ) === array_keys( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 8, 'session_tokens' ) ) ), 'La cuenta de quien restaura heredó credenciales del paquete.' );
+	ka_check( 'renamed' === $report['account'] && 'admin-respaldo' === ( $report['renamed'] ?? '' ) && false !== strpos( $report['text'], '«admin-respaldo»' ), 'El informe no dice que la cuenta del paquete cambió de usuario: ' . json_encode( $report ) );
 } );
 
-ka_case( 'e · el mismo usuario en el paquete y administrador: conserva sus contraseñas de aplicación junto a las de quien restaura', function() use ( $A, $destination, $package, $capture ) {
+ka_case( 'd · B1: una muerte a mitad sigue la decisión anotada en el diario y nunca suma contraseñas ajenas ni renombra dos veces', function() use ( $A, $destination, $package, $capture ) {
+	$db = $destination();
+	$entry = array( 'v' => 1, 'job' => '', 'state' => 'on', 'relocated' => true, 'secret' => $capture( 1 ) );
+	$property = new ReflectionProperty( 'Digitalisimo_Backups', 'access_kept' );
+	if ( PHP_VERSION_ID < 80100 ) $property->setAccessible( true );
+	$property->setValue( null, $entry );
+	bk_call( 'Digitalisimo_Backups', 'write_restore_journal' );
+	$property->setValue( null, null );
+	$package( $db, array( array( 7, 'admin', '$P$suscriptor', 'otra@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'subscriber' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-ajena', 'Ajena' ) ) ) ) ) ) );
+	// La primera pasada muere (una sentencia falla) tras dejar la cuenta nueva sin su rol.
+	$db->fail_on = 'wpkx_capabilities';
+	bk_call( 'Digitalisimo_Backups', 'restore_access_apply', $entry );
+	$journal = json_decode( (string) file_get_contents( bk_storage() . '/' . Digitalisimo_Backups::RESTORE_JOURNAL ), true );
+	ka_check( is_array( $journal['access']['plan'] ?? null ) && false === strpos( json_encode( $journal['access']['plan'] ), 'u-admin' ), 'La decisión sobre la cuenta no quedó anotada (cifrada) en el diario antes de cambiar nada.' );
+	// La segunda pasada, la del diario.
+	$entry['plan'] = $journal['access']['plan'];
+	bk_call( 'Digitalisimo_Backups', 'restore_access_apply', $entry );
+	bk_call( 'Digitalisimo_Backups', 'remove_restore_journal' );
+	$logins = array_column( $db->rows( 'wpkx_users' ), 'user_login', 'ID' );
+	ka_check( array( 1 => 'digitalisimo', 7 => 'admin-respaldo', 8 => 'admin' ) === $logins, 'La segunda pasada renombró o creó otra vez: ' . json_encode( $logins ) );
+	ka_check( array( 'u-admin' ) === array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 8, '_application_passwords' ) ), 'uuid' ) && array( 'administrator' => true ) === unserialize( (string) ka_meta( $db, 'wpkx_', 8, 'wpkx_capabilities' ) ), 'La segunda pasada sumó contraseñas ajenas o no terminó: ' . json_encode( array( ka_meta( $db, 'wpkx_', 8, '_application_passwords' ) ) ) );
+	ka_check( array( 'subscriber' => true ) === unserialize( (string) ka_meta( $db, 'wpkx_', 7, 'wpkx_capabilities' ) ), 'La cuenta del paquete ganó permisos.' );
+} );
+
+ka_case( 'e · el mismo usuario en el paquete y administrador: fusión con sus contraseñas de aplicación y sin marcas de bloqueo (B9)', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	$sealed = $capture( 1 );
 	$package( $db, array( array( 7, 'admin', '$P$otroadmin', 'dueno@ejemplo.test', array( 'wpkx_capabilities' => serialize( array( 'administrator' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-suya', 'Suya' ), ka_app( 'u-admin', 'Misma' ) ) ) ) ) ) );
+	$db->pdo->exec( 'UPDATE wpkx_users SET user_status = 1, spam = 1, deleted = 1 WHERE ID = 7' );
 	$report = $A::apply( 'on', $A::open( $sealed ), true );
 	$uuids = array_column( (array) unserialize( (string) ka_meta( $db, 'wpkx_', 7, '_application_passwords' ) ), 'uuid' );
 	sort( $uuids );
-	ka_check( array( 'u-admin', 'u-suya' ) === $uuids && 1 === (int) $report['app_passwords']['kept_from_backup'], 'No se unieron las contraseñas de aplicación sin repetir: ' . json_encode( $uuids ) );
+	ka_check( 'merged' === $report['account'] && 7 === (int) $report['user_id'] && array( 'u-admin', 'u-suya' ) === $uuids && 1 === (int) $report['app_passwords']['kept_from_backup'], 'No se fusionó con sus contraseñas de aplicación sin repetir: ' . json_encode( $uuids ) );
+	$row = $db->rows( 'wpkx_users', 'ID = 7' )[0];
+	ka_check( 0 === (int) $row['user_status'] && 0 === (int) $row['spam'] && 0 === (int) $row['deleted'] && KA_HASH === $row['user_pass'], 'La cuenta fusionada quedó bloqueada (user_status, spam o deleted): ' . json_encode( $row ) );
 } );
 
 ka_case( 'f · la ruta privada de este sitio se conserva aunque el respaldo no traiga opciones de Tools ni de SEO', function() use ( $A, $destination, $package ) {
@@ -235,8 +263,10 @@ ka_user( $origin, 'wp_', 1, 'digitalisimo', KA_RED, 'red@ejemplo.test', array( '
 ka_options( $origin, 'wp_', array( 'siteurl' => 'https://origen.test', 'home' => 'https://origen.test', 'blogname' => 'Origen', 'active_plugins' => serialize( array( 'digitalisimo-backups/digitalisimo-backups.php' ) ) ) );
 $GLOBALS['wpdb'] = $origin;
 $file = basename( bk_backup() );
-$engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx_' ) use ( $file ) {
-	$db = ka_db( 'motor-' . $prefix . md5( $home ), $prefix );
+// Con su fila y la identidad de esta instalación (H23): un respaldo de este mismo sitio.
+$own = basename( bk_backup( true ) );
+$engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx_', $backup = null, $drive = true ) use ( $file ) {
+	$db = ka_db( 'motor-' . $prefix . md5( $home . (string) $backup . (string) $keep . (string) $drive ), $prefix );
 	ka_user( $db, $prefix, 1, 'admin', KA_HASH, 'dueno@ejemplo.test', array( $prefix . 'capabilities' => serialize( array( 'administrator' => true ) ), '_application_passwords' => serialize( array( ka_app( 'u-admin', 'Cliente REST' ) ) ) ) );
 	ka_options( $db, $prefix, array( 'siteurl' => $home, 'home' => $home, 'blogname' => 'Destino' ) );
 	$GLOBALS['wpdb'] = $db;
@@ -245,14 +275,23 @@ $engine = function( $keep, $home = 'https://digitalisimo.mx/wp', $prefix = 'wpkx
 	$GLOBALS['ka_user'] = 1;
 	// Las opciones que deja el SQL de un sitio extraído no traen using_application_passwords (vivía en sitemeta).
 	unset( $GLOBALS['bk_options']['using_application_passwords'] );
-	$args = array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => true );
+	$args = array( 'confirm' => 'RESTAURAR SIN FIRMA', 'network' => false, 'sync' => true, 'drive_cli' => $drive );
 	if ( null !== $keep ) $args['keep_access'] = $keep;
-	$result = Digitalisimo_Backups::service_restore( $file, $args );
+	$result = Digitalisimo_Backups::service_restore( null === $backup ? $file : $backup, $args );
 	$GLOBALS['ka_user'] = 0;
-	ka_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'La restauración no terminó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
+	if ( $drive ) ka_check( ! is_wp_error( $result ) && ! empty( $result['restored'] ), 'La restauración no terminó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
 	return array( $db, $result );
 };
-ka_case( 'i · el motor conserva la cuenta al reubicar (por defecto), no con keep_access = false y no en el mismo sitio', function() use ( $engine, $file ) {
+/** Un trabajo de restauración con su tables.json: 'after' (las temporales ya no están: el cambio se hizo) o 'before'. */
+function ka_job_tables( Bk_Sqlite_DB $db, $state ) {
+	$id = Digitalisimo_Backups_Job_Store::new_id();
+	$tag = substr( md5( $id ), 0, 6 );
+	$row = array( 'source' => 'wp_users', 'dest' => 'wpkx_users', 'temp' => 'wpkx_dgbkr_' . $tag . '_000', 'old' => 'wpkx_dgbko_' . $tag . '_000' );
+	if ( 'before' === $state ) $db->pdo->exec( 'CREATE TABLE `' . $row['temp'] . '` (`ID` INTEGER PRIMARY KEY)' );
+	file_put_contents( Digitalisimo_Backups_Job_Store::staging( $id ) . '/tables.json', json_encode( array( $row ) ) );
+	return $id;
+}
+ka_case( 'i · el motor conserva la cuenta con un respaldo de otra instalación (por defecto) y no con keep_access = false', function() use ( $engine, $file ) {
 	list( $db, $result ) = $engine( null );
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ) && KA_HASH === $admin[0]['user_pass'], 'Tras restaurar en otro sitio, «admin» no existe o no tiene su contraseña.' );
@@ -267,18 +306,53 @@ ka_case( 'i · el motor conserva la cuenta al reubicar (por defecto), no con kee
 	ka_check( ! is_wp_error( $view ) && 'success' === $view['status'] && ! empty( $view['restore']['result']['access']['kept'] ), 'Con la ficha no se lee el estado final con su informe.' );
 	ka_check( ! file_exists( bk_storage() . '/' . Digitalisimo_Backups::RESTORE_JOURNAL ), 'Quedó el diario.' );
 	ka_check( false === strpos( json_encode( $result ), KA_HASH ), 'La respuesta lleva un hash.' );
-
 	list( $db, $result ) = $engine( false, 'https://otro.test' );
 	ka_check( 0 === count( $db->rows( 'wpkx_users', "user_login = 'admin'" ) ) && 'off' === ( $result['access']['state'] ?? '' ), 'Con keep_access = false se conservó la cuenta.' );
+}, true );
 
+ka_case( 'i · B6: «mismo sitio» es la identidad de la instalación, no la dirección ni el prefijo', function() use ( $engine, $own ) {
+	// Un respaldo propio (su fila con la identidad de aquí) restaurado con otro prefijo: mismo sitio, no se conserva nada.
+	list( $db, $result ) = $engine( true, 'https://origen.test', 'wpkx_', $own );
+	ka_check( 0 === count( $db->rows( 'wpkx_users', "user_login = 'admin'" ) ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'Un respaldo de esta instalación restaurado con otro prefijo conservó la cuenta de ahora: ' . json_encode( $result['access'] ?? null ) );
+	// Uno de otra instalación (sin fila) en la misma dirección y con el mismo prefijo (otro servidor): se conserva.
 	list( $db, $result ) = $engine( true, 'https://origen.test', 'wp_' );
-	ka_check( 0 === count( $db->rows( 'wp_users', "user_login = 'admin'" ) ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'En el mismo sitio (sin reubicar) se conservó la cuenta de ahora: ' . json_encode( $result['access'] ?? null ) );
+	ka_check( 1 === count( $db->rows( 'wp_users', "user_login = 'admin'" ) ) && 'on' === ( $result['access']['state'] ?? '' ), 'Un respaldo de otra instalación en la misma dirección dejó fuera a quien restaura: ' . json_encode( $result['access'] ?? null ) );
+	// Y el propio en la misma dirección y prefijo: mismo sitio.
+	list( $db, $result ) = $engine( true, 'https://origen.test', 'wp_', $own );
+	ka_check( 0 === count( $db->rows( 'wp_users', "user_login = 'admin'" ) ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'El respaldo propio conservó la cuenta de ahora.' );
+}, true );
+
+ka_case( 'i · B8: en la web, la respuesta con la ficha sale pronto y la restauración sigue por ticks', function() use ( $engine ) {
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = 0;
+	try {
+		list( $db, $result ) = $engine( null, 'https://lento.test', 'wpkx_', null, false );
+	} finally {
+		unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+	}
+	ka_check( ! is_wp_error( $result ) && ! empty( $result['restoring'] ) && empty( $result['restored'] ) && 48 === strlen( (string) ( $result['follow']['token'] ?? '' ) ), 'La respuesta esperó a la restauración en vez de salir pronto con la ficha: ' . json_encode( is_wp_error( $result ) ? $result->get_error_message() : array_keys( $result ) ) );
+	for ( $i = 0; $i < 2000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	$view = Digitalisimo_Backups::service_job_follow( $result['follow']['job'], $result['follow']['token'] );
+	ka_check( ! is_wp_error( $view ) && 'success' === $view['status'] && ! empty( $view['restore']['result']['access']['kept'] ), 'Con la ficha no se leyó el final de la restauración seguida por ticks.' );
+}, true );
+
+ka_case( 'i · B7: una migración lanzada sin usuario no conserva a quien da después un tick', function() use ( $file ) {
+	$GLOBALS['ka_user'] = 1;
+	$report = Digitalisimo_Backups_Security::open( bk_storage() . '/' . $file, array(), '' );
+	try {
+		$job = Digitalisimo_Backups::migration_enqueue( $report, array( 'job' => 'x', 'from' => 'https://origen.test', 'at' => time(), 'state' => 'restoring' ), Digitalisimo_Backups_Job_Store::new_id() );
+	} finally {
+		Digitalisimo_Backups_Security::close( $report );
+		$GLOBALS['ka_user'] = 0;
+	}
+	Digitalisimo_Backups_Jobs::cancel( (string) $job['id'] );
+	for ( $i = 0; $i < 50 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	ka_check( 0 === (int) ( $job['spec']['origin']['user_id'] ?? -1 ), 'La restauración de una migración sin usuario tomó al usuario de quien dio el tick: ' . json_encode( $job['spec']['origin'] ?? null ) );
 }, true );
 
 ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario repone la cuenta', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
 	$sealed = $capture( 1 );
-	$entry = array( 'v' => 1, 'job' => '', 'state' => 'on', 'relocated' => true, 'secret' => $sealed );
+	$entry = array( 'v' => 1, 'job' => ka_job_tables( $db, 'after' ), 'state' => 'on', 'relocated' => true, 'secret' => $sealed );
 	$property = new ReflectionProperty( 'Digitalisimo_Backups', 'access_kept' );
 	if ( PHP_VERSION_ID < 80100 ) $property->setAccessible( true );
 	$property->setValue( null, $entry );
@@ -294,6 +368,36 @@ ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario rep
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ) && KA_HASH === $admin[0]['user_pass'], 'Tras una muerte justo después del cambio, «admin» no volvió.' );
 	ka_check( '' === $A::effective_slug(), 'Tras una muerte, la ruta privada del respaldo quedó.' );
+} );
+
+ka_case( 'i · B3: si el proceso muere antes del cambio de tablas, el diario no aplica nada y el informe es el de después del cambio', function() use ( $A, $destination, $package, $capture ) {
+	$db = $destination();
+	$entry = array( 'v' => 1, 'job' => ka_job_tables( $db, 'before' ), 'state' => 'on', 'relocated' => true, 'secret' => $capture( 1 ) );
+	$property = new ReflectionProperty( 'Digitalisimo_Backups', 'access_kept' );
+	if ( PHP_VERSION_ID < 80100 ) $property->setAccessible( true );
+	$property->setValue( null, $entry );
+	bk_call( 'Digitalisimo_Backups', 'write_restore_journal' );
+	$property->setValue( null, null );
+	bk_close_dead_locks();
+	Digitalisimo_Backups::release_operation_lock( Digitalisimo_Backups::try_operation_lock() );
+	$report = Digitalisimo_Backups_Job_Store::staging( $entry['job'] ) . '/access.json';
+	ka_check( ! file_exists( $report ), 'El diario aplicó el acceso sobre las tablas sin cambiar y dejó su informe.' );
+	// El tick siguiente vuelve a apuntar, cambia las tablas y aplica.
+	$entry['secret'] = $capture( 1 );
+	$package( $db );
+	bk_call( 'Digitalisimo_Backups', 'restore_access_apply', $entry );
+	$final = json_decode( (string) file_get_contents( $report ), true );
+	ka_check( 'created' === ( $final['account'] ?? '' ) && in_array( 'digitalisimo', (array) ( $final['admins'] ?? array() ), true ) && 2 === (int) ( $final['users_total'] ?? 0 ), 'El informe no es el de después del cambio de tablas: ' . json_encode( $final ) );
+} );
+
+ka_case( 'l · B5: la casilla, la REST y WP-CLI sólo hablan de la cuenta; la ruta de acceso se conserva siempre', function() {
+	$dir = dirname( __DIR__ ) . '/digitalisimo-backups/includes/';
+	$sources = array( 'class-backups-rest.php', 'class-backups-cli.php', 'trait-backups-screen.php', 'class-backups-migrate.php' );
+	foreach ( $sources as $name ) {
+		$text = (string) file_get_contents( $dir . $name );
+		foreach ( array( 'y el sitio, su ruta de acceso', 'y el sitio su ruta de acceso', 'y este sitio su ruta de acceso', 'y este sitio conserva su ruta de acceso' ) as $phrase ) ka_check( false === strpos( $text, $phrase ), $name . ' dice que «Conservar mi acceso» cubre la ruta de acceso («' . $phrase . '»).' );
+	}
+	ka_check( false !== strpos( (string) file_get_contents( $dir . 'class-backups-rest.php' ), 'La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio, con o sin esta opción.' ), 'La REST no dice que la ruta de acceso se conserva siempre.' );
 } );
 
 ka_case( 'k · tras la puerta, con la ficha sólo responde GET /jobs/<id>; la ficha en la URL se rechaza', function() {
@@ -320,7 +424,7 @@ ka_case( 'k · tras la puerta, con la ficha sólo responde GET /jobs/<id>; la fi
 	ka_check( $out instanceof WP_Error && 400 === ( $out->get_error_data()['status'] ?? 0 ), 'La ficha en la URL no se rechaza con 400.' );
 } );
 
-ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer su trabajo', function() use ( $A ) {
+ka_case( 'j · B2: la puerta del mantenimiento deja pasar la ficha sólo al index.php de WordPress con la ruta exacta de su trabajo', function() {
 	if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { return true; } }
 	$token = Digitalisimo_Backups_Restore_Maintenance::new_token();
 	$new_reader = function() { $token = bin2hex( random_bytes( 24 ) ); return array( 'token' => $token, 'hash' => hash( 'sha256', $token ) ); };
@@ -329,23 +433,32 @@ ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer s
 	Digitalisimo_Backups_Restore_Maintenance::hold( $token, true, $id, array( $reader['hash'] ) );
 	$path = Digitalisimo_Backups_Restore_Maintenance::path();
 	ka_check( false === strpos( (string) file_get_contents( $path ), $reader['token'] ), 'El .maintenance lleva la ficha en claro.' );
-	$passes = function( $method, $uri, array $get, $header ) use ( $path ) {
+	$passes = function( $method, $uri, array $get, $header, $script = 'index.php', $info = '' ) use ( $path ) {
 		$saved = array( $_SERVER, $_COOKIE, $_GET, $_REQUEST );
-		$_SERVER = array( 'REQUEST_METHOD' => $method, 'REQUEST_URI' => $uri, 'SCRIPT_FILENAME' => ABSPATH . 'index.php', 'HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN' => $header ) + $_SERVER;
+		$_SERVER = array( 'REQUEST_METHOD' => $method, 'REQUEST_URI' => $uri, 'SCRIPT_FILENAME' => ABSPATH . $script, 'HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN' => $header ) + $_SERVER;
+		unset( $_SERVER['PATH_INFO'] );
+		if ( '' !== $info ) $_SERVER['PATH_INFO'] = $info;
 		$_COOKIE = array(); $_GET = $get; $_REQUEST = $get;
 		$run = function() use ( $path ) { $upgrading = null; require $path; return $upgrading; };
 		$upgrading = $run();
 		list( $_SERVER, $_COOKIE, $_GET, $_REQUEST ) = $saved;
 		return ( time() - $upgrading ) >= 600;
 	};
-	$route = '/wp/wp-json/digitalisimo-backups/v1/jobs/' . $id;
+	$rest = '/digitalisimo-backups/v1/jobs/' . $id;
+	$route = '/wp-json' . $rest;
 	ka_check( ! $passes( 'GET', $route, array(), $new_reader()['token'] ), 'Una ficha ajena pasa el mantenimiento.' );
 	ka_check( ! $passes( 'POST', $route, array(), $reader['token'] ), 'La ficha pasa para escribir.' );
-	ka_check( ! $passes( 'GET', '/wp/wp-json/digitalisimo-backups/v1/status', array(), $reader['token'] ), 'La ficha pasa para otra ruta.' );
+	ka_check( ! $passes( 'GET', '/wp-json/digitalisimo-backups/v1/status', array(), $reader['token'] ), 'La ficha pasa para otra ruta.' );
 	ka_check( ! $passes( 'GET', $route, array( 'rest_route' => '/wp/v2/users' ), $reader['token'] ), 'La ficha pasa con otra rest_route en la consulta.' );
+	ka_check( ! $passes( 'GET', '/wp-login.php' . $route, array(), $reader['token'] ), 'La ficha pasa por wp-login.php/….' );
+	ka_check( ! $passes( 'GET', '/wp-login.php' . $route, array(), $reader['token'], 'wp-login.php', $route ), 'La ficha pasa por el script wp-login.php.' );
+	ka_check( ! $passes( 'GET', '/wp-admin/admin-ajax.php', array( 'rest_route' => $rest, 'action' => 'x' ), $reader['token'], 'wp-admin/admin-ajax.php' ), 'La ficha pasa por admin-ajax.php con rest_route.' );
+	ka_check( ! $passes( 'GET', '/wp-admin/index.php' . $route, array(), $reader['token'], 'wp-admin/index.php', $route ), 'La ficha pasa por wp-admin/index.php/… (PATH_INFO).' );
+	ka_check( ! $passes( 'GET', '/index.php' . $route, array(), $reader['token'], 'index.php', $route ), 'La ficha pasa con PATH_INFO en el index.php.' );
+	ka_check( ! $passes( 'GET', '/otra/carpeta' . $route, array(), $reader['token'] ), 'La ficha pasa con una ruta que no es la del sitio.' );
 	ka_check( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ), 'Una petición rechazada dejó pasar a un lector.' );
-	ka_check( $passes( 'GET', '/wp/?rest_route=' . rawurlencode( '/digitalisimo-backups/v1/jobs/' . $id ), array( 'rest_route' => '/digitalisimo-backups/v1/jobs/' . $id ), $reader['token'] ), 'La ficha no pasa por ?rest_route=.' );
-	ka_check( $passes( 'GET', $route, array(), $reader['token'] ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ), 'La ficha no pasa con WordPress mínimo y sólo de lectura.' );
+	ka_check( $passes( 'GET', '/?rest_route=' . rawurlencode( $rest ), array( 'rest_route' => $rest ), $reader['token'] ), 'La ficha no pasa por ?rest_route= en la portada.' );
+	ka_check( $passes( 'GET', $route, array(), $reader['token'] ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) && defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ), 'La ficha no pasa por /wp-json/… con WordPress mínimo y sólo de lectura.' );
 	Digitalisimo_Backups_Restore_Maintenance::release();
 }, true );
 

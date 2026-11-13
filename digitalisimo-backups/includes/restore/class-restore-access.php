@@ -58,12 +58,12 @@ final class Digitalisimo_Backups_Restore_Access {
 
 	/**
 	 * Si se conserva el acceso de quien restaura: 'on', o por qué no ('rollback', 'same_site', 'off', 'no_user').
-	 * $relocated: el plan de reubicación cambia URL, ruta o prefijo; $extracted: un sitio extraído de una red; $migration:
-	 * la restauración de una migración.
+	 * $other_site: el respaldo no es de esta instalación (sin su identidad de H23: otro sitio, un sitio extraído o una
+	 * migración); $user_id: quien la lanzó (0 sin usuario, p. ej. WP-CLI sin --user).
 	 */
-	public static function decide( $keep, $user_id, $relocated, $extracted, $migration, $rollback ) {
+	public static function decide( $keep, $user_id, $other_site, $rollback ) {
 		if ( $rollback ) return 'rollback';
-		if ( ! $relocated && ! $extracted && ! $migration ) return 'same_site';
+		if ( ! $other_site ) return 'same_site';
 		if ( ! $keep ) return 'off';
 		if ( (int) $user_id <= 0 ) return 'no_user';
 		return 'on';
@@ -160,7 +160,7 @@ final class Digitalisimo_Backups_Restore_Access {
 	 * muere entre medias): la cuenta de quien restaura, la ruta de acceso de este sitio y las contraseñas de aplicación.
 	 * $state es el de decide(); $secret, lo abierto del diario (array( user, login ) o null). Devuelve el informe público.
 	 */
-	public static function apply( $state, $secret, $relocated ) {
+	public static function apply( $state, $secret, $relocated, $remember = null ) {
 		$report = array( 'state' => (string) $state, 'relocated' => (bool) $relocated, 'user' => '', 'account' => '', 'warnings' => array(), 'app_passwords' => array(), 'login_path' => null, 'login_url' => '', 'admins' => array(), 'admins_total' => 0, 'users_total' => 0, 'text' => '' );
 		$user = is_array( $secret ) && is_array( $secret['user'] ?? null ) ? $secret['user'] : null;
 		$login = is_array( $secret ) && is_array( $secret['login'] ?? null ) ? $secret['login'] : null;
@@ -169,7 +169,16 @@ final class Digitalisimo_Backups_Restore_Access {
 			$report['warnings'][] = 'No se pudo leer la cuenta de quien restauró antes del cambio: entra con un usuario del respaldo.';
 		}
 		try {
-			if ( 'on' === $state && $user ) self::restore_user( $user, $report );
+			if ( 'on' === $state && $user ) {
+				// La decisión de una pasada anterior (el diario tras una muerte) manda; si no hay, se toma ahora y se anota
+				// antes de la primera escritura (B1).
+				$plan = is_array( $secret['plan'] ?? null ) && $user['user']['user_login'] === ( $secret['plan']['login'] ?? null ) ? $secret['plan'] : null;
+				if ( null === $plan ) {
+					$plan = self::plan_user( $user );
+					if ( is_callable( $remember ) ) call_user_func( $remember, $plan );
+				}
+				self::restore_user( $user, $plan, $report );
+			}
 		} catch ( Throwable $e ) {
 			$report['state'] = 'failed';
 			$report['warnings'][] = 'No se pudo conservar la cuenta de quien restauró: ' . $e->getMessage();
@@ -206,13 +215,60 @@ final class Digitalisimo_Backups_Restore_Access {
 		$report['text'] = self::text( $report );
 		return $report;
 	}
-	/** La cuenta de quien restaura en las tablas restauradas (ver la clase): misma por usuario, o una nueva con un ID libre. */
-	private static function restore_user( array $captured, array &$report ) {
+	/**
+	 * Qué se hará con la cuenta de quien restaura, decidido sobre las tablas restauradas ANTES de cambiar nada (revisión M1,
+	 * B1): el paquete tiene una cuenta con el mismo usuario y era administradora (del sitio o superadministradora) →
+	 * `merge`, esa cuenta (mismo ID) pasa a ser la de quien restaura; la tiene pero NO era administradora → `rename`, esa
+	 * cuenta conserva todo (ID, contraseña, correo, metas, rol, inicio social, segundo factor) y sólo cambia su usuario a uno
+	 * libre («<usuario>-respaldo»), y la de quien restaura se crea con el suyo; no la tiene → `create`. También fija el ID
+	 * de la cuenta nueva y las contraseñas de aplicación que tendrá. Va al diario (cifrado) antes de la primera escritura:
+	 * una segunda pasada tras una muerte sigue la misma decisión y nunca suma contraseñas ajenas.
+	 */
+	public static function plan_user( array $captured ) {
+		global $wpdb;
+		$row = (array) ( $captured['user'] ?? array() );
+		$login = (string) ( $row['user_login'] ?? '' );
+		if ( '' === $login ) throw new Exception( 'la cuenta apuntada no tiene usuario.' );
+		$users = $wpdb->base_prefix . 'users';
+		$meta = $wpdb->base_prefix . 'usermeta';
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::q( $users ) . ' WHERE user_login = %s', $login ), ARRAY_A );
+		$mine = array_values( array_filter( self::array_value( (string) ( ( (array) ( $captured['meta'] ?? array() ) )[ self::APP_PASSWORDS ] ?? '' ) ), 'is_array' ) );
+		$plan = array( 'format' => self::FORMAT, 'login' => $login, 'mode' => 'create', 'target' => 0, 'renamed' => 0, 'renamed_to' => '', 'was_admin' => false, 'apps' => $mine, 'kept_from_backup' => 0, 'not_admin_apps' => 0 );
+		$next = (int) $wpdb->get_var( 'SELECT MAX(ID) FROM ' . self::q( $users ) ) + 1;
+		if ( ! is_array( $existing ) ) {
+			$plan['target'] = $next;
+			return $plan;
+		}
+		$id = (int) $existing['ID'];
+		$caps = self::array_value( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . self::q( $meta ) . ' WHERE user_id = %d AND meta_key = %s', $id, $wpdb->base_prefix . 'capabilities' ) ) );
+		$plan['was_admin'] = ! empty( $caps['administrator'] ) || ( is_multisite() && in_array( $login, array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ), true ) );
+		$theirs = array_values( array_filter( self::array_value( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . self::q( $meta ) . ' WHERE user_id = %d AND meta_key = %s', $id, self::APP_PASSWORDS ) ) ), 'is_array' ) );
+		if ( $plan['was_admin'] ) {
+			$plan['mode'] = 'merge';
+			$plan['target'] = $id;
+			$uuids = array();
+			foreach ( $mine as $item ) $uuids[ (string) ( $item['uuid'] ?? '' ) ] = true;
+			foreach ( $theirs as $item ) if ( ! isset( $uuids[ (string) ( $item['uuid'] ?? '' ) ] ) ) { $plan['apps'][] = $item; $plan['kept_from_backup']++; }
+			return $plan;
+		}
+		$plan['mode'] = 'rename';
+		$plan['target'] = $next;
+		$plan['renamed'] = $id;
+		$plan['renamed_to'] = self::free_login( $login, $users );
+		$plan['not_admin_apps'] = count( $theirs );
+		return $plan;
+	}
+	/**
+	 * La cuenta de quien restaura según su plan (ver plan_user()), en las tablas restauradas. Cada paso es idempotente y
+	 * las contraseñas de aplicación (ya filtradas) se escriben primero.
+	 */
+	private static function restore_user( array $captured, array $plan, array &$report ) {
 		global $wpdb;
 		$row = (array) ( $captured['user'] ?? array() );
 		$metas = (array) ( $captured['meta'] ?? array() );
-		$login = (string) ( $row['user_login'] ?? '' );
-		if ( '' === $login ) throw new Exception( 'la cuenta apuntada no tiene usuario.' );
+		$login = (string) $plan['login'];
+		$id = (int) $plan['target'];
+		if ( '' === $login || $id <= 0 || $login !== (string) ( $row['user_login'] ?? '' ) ) throw new Exception( 'el plan de la cuenta no corresponde a la cuenta apuntada.' );
 		$users = $wpdb->base_prefix . 'users';
 		$meta = $wpdb->base_prefix . 'usermeta';
 		$cap_key = $wpdb->base_prefix . 'capabilities';
@@ -220,41 +276,53 @@ final class Digitalisimo_Backups_Restore_Access {
 		$columns = array();
 		foreach ( (array) $wpdb->get_results( 'SHOW COLUMNS FROM ' . self::q( $users ), ARRAY_A ) as $column ) $columns[] = (string) $column['Field'];
 		if ( ! in_array( 'user_login', $columns, true ) ) throw new Exception( 'la tabla de usuarios restaurada no se puede leer.' );
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::q( $users ) . ' WHERE user_login = %s', $login ), ARRAY_A );
-		$mine = self::array_value( $metas[ self::APP_PASSWORDS ] ?? '' );
-		$theirs = array();
-		$was_admin = false;
-		if ( is_array( $existing ) ) {
-			$id = (int) $existing['ID'];
-			// Una pasada anterior de este mismo diario ya la dejó como suya: sigue igual (idempotente).
-			$again = hash_equals( (string) ( $row['user_pass'] ?? '' ), (string) ( $existing['user_pass'] ?? '' ) ) && (string) ( $row['user_email'] ?? '' ) === (string) ( $existing['user_email'] ?? '' );
-			$report['account'] = 'merged';
-			$caps = self::array_value( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . self::q( $meta ) . ' WHERE user_id = %d AND meta_key = %s', $id, $cap_key ) ) );
-			$was_admin = ! empty( $caps['administrator'] ) || ( is_multisite() && in_array( $login, array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ), true ) );
-			$theirs = self::array_value( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT meta_value FROM ' . self::q( $meta ) . ' WHERE user_id = %d AND meta_key = %s', $id, self::APP_PASSWORDS ) ) );
+		// 1. Las contraseñas de aplicación, ya decididas (B1).
+		if ( $plan['apps'] ) self::set_meta( $meta, $id, self::APP_PASSWORDS, serialize( array_values( (array) $plan['apps'] ) ) );
+		else self::delete_meta( $meta, $id, self::APP_PASSWORDS );
+		// 2. La cuenta del paquete que no era administradora cede su usuario y no cambia en nada más (M1).
+		if ( 'rename' === $plan['mode'] ) {
+			$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT user_login FROM ' . self::q( $users ) . ' WHERE ID = %d', (int) $plan['renamed'] ) );
+			if ( $current === $login && false === $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::q( $users ) . ' SET user_login = %s WHERE ID = %d', (string) $plan['renamed_to'], (int) $plan['renamed'] ) ) ) throw new Exception( (string) $wpdb->last_error );
+		}
+		// 3. La fila: la del paquete (fusión) con la contraseña y el correo de quien restaura, sin marcas de bloqueo (B9);
+		// o una nueva con el ID del plan.
+		$flags = array();
+		foreach ( array( 'user_status', 'spam', 'deleted' ) as $flag ) if ( in_array( $flag, $columns, true ) ) $flags[ $flag ] = 0;
+		$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::q( $users ) . ' WHERE ID = %d', $id ) );
+		if ( 'merge' === $plan['mode'] || $exists ) {
 			$set = array( 'user_pass = %s' => (string) ( $row['user_pass'] ?? '' ), 'user_email = %s' => (string) ( $row['user_email'] ?? '' ) );
 			if ( in_array( 'user_activation_key', $columns, true ) ) $set['user_activation_key = %s'] = '';
-			$done = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::q( $users ) . ' SET ' . implode( ', ', array_keys( $set ) ) . ' WHERE ID = %d', array_merge( array_values( $set ), array( $id ) ) ) );
-			if ( false === $done ) throw new Exception( (string) $wpdb->last_error );
-			if ( $again ) $was_admin = true;
+			foreach ( $flags as $flag => $zero ) $set[ self::q( $flag ) . ' = %s' ] = '0';
+			if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::q( $users ) . ' SET ' . implode( ', ', array_keys( $set ) ) . ' WHERE ID = %d', array_merge( array_values( $set ), array( $id ) ) ) ) ) throw new Exception( (string) $wpdb->last_error );
 		} else {
-			$id = (int) $wpdb->get_var( 'SELECT MAX(ID) FROM ' . self::q( $users ) ) + 1;
 			$insert = array();
 			foreach ( $columns as $column ) if ( array_key_exists( $column, $row ) ) $insert[ $column ] = $row[ $column ];
 			$insert['ID'] = $id;
 			if ( in_array( 'user_activation_key', $columns, true ) ) $insert['user_activation_key'] = '';
-			foreach ( array( 'user_status', 'spam', 'deleted' ) as $flag ) if ( in_array( $flag, $columns, true ) ) $insert[ $flag ] = 0;
+			$insert = $flags + $insert;
 			if ( in_array( 'user_nicename', $columns, true ) ) $insert['user_nicename'] = self::free_nicename( (string) ( $row['user_nicename'] ?? $login ), $users );
 			$values = array();
 			foreach ( $insert as $value ) $values[] = null === $value ? '' : (string) $value;
-			$done = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::q( $users ) . ' (' . implode( ', ', array_map( array( __CLASS__, 'q' ), array_keys( $insert ) ) ) . ') VALUES (' . implode( ', ', array_fill( 0, count( $insert ), '%s' ) ) . ')', $values ) );
-			if ( false === $done ) throw new Exception( (string) $wpdb->last_error );
-			$report['account'] = 'created';
+			if ( false === $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::q( $users ) . ' (' . implode( ', ', array_map( array( __CLASS__, 'q' ), array_keys( $insert ) ) ) . ') VALUES (' . implode( ', ', array_fill( 0, count( $insert ), '%s' ) ) . ')', $values ) ) ) throw new Exception( (string) $wpdb->last_error );
 			foreach ( self::PROFILE_META as $key ) if ( array_key_exists( $key, $metas ) ) self::set_meta( $meta, $id, $key, $metas[ $key ] );
 			if ( is_multisite() && function_exists( 'get_main_site_id' ) ) self::set_meta( $meta, $id, 'primary_blog', (string) get_main_site_id() );
 		}
+		// 4. Sus sesiones (la cookie de su navegador sigue valiendo) y administradora (y de la red, si lo era).
+		if ( isset( $metas[ self::SESSIONS ] ) && '' !== (string) $metas[ self::SESSIONS ] ) self::set_meta( $meta, $id, self::SESSIONS, (string) $metas[ self::SESSIONS ] );
+		else self::delete_meta( $meta, $id, self::SESSIONS );
+		self::set_meta( $meta, $id, $cap_key, serialize( array( 'administrator' => true ) ) );
+		self::set_meta( $meta, $id, $level_key, '10' );
+		if ( is_multisite() && ! empty( $captured['super_admin'] ) ) {
+			$admins = array_values( array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ) );
+			if ( ! in_array( $login, $admins, true ) ) { $admins[] = $login; update_site_option( 'site_admins', $admins ); }
+		}
 		$report['user'] = $login;
 		$report['user_id'] = $id;
+		$report['account'] = 'merge' === $plan['mode'] ? 'merged' : ( 'rename' === $plan['mode'] ? 'renamed' : 'created' );
+		if ( 'rename' === $plan['mode'] ) {
+			$report['renamed'] = (string) $plan['renamed_to'];
+			$report['warnings'][] = 'El respaldo tenía otra cuenta «' . $login . '» que no era administradora: conserva todo (su contraseña, su correo, su rol y lo demás) y ahora se llama «' . $plan['renamed_to'] . '» (también entra con su correo); la de quien restauró se creó con su usuario.';
+		}
 		// El correo de quien restaura también es de otra cuenta del respaldo: WordPress entraría con una u otra por correo.
 		$email = (string) ( $row['user_email'] ?? '' );
 		if ( '' !== $email ) {
@@ -265,30 +333,8 @@ final class Digitalisimo_Backups_Restore_Access {
 				$report['warnings'][] = 'Tu correo también es el de ' . self::names( $report['shared_email'] ) . ' en el respaldo: entra con tu nombre de usuario («' . $login . '»), no con el correo, y cambia uno de los dos correos antes de editar tu perfil.';
 			}
 		}
-		// Administradora del sitio (y de la red, si lo era): restaurar lo hace quien administra este WordPress.
-		self::set_meta( $meta, $id, $cap_key, serialize( array( 'administrator' => true ) ) );
-		self::set_meta( $meta, $id, $level_key, '10' );
-		if ( is_multisite() && ! empty( $captured['super_admin'] ) ) {
-			$admins = array_values( array_map( 'strval', (array) get_site_option( 'site_admins', array() ) ) );
-			if ( ! in_array( $login, $admins, true ) ) { $admins[] = $login; update_site_option( 'site_admins', $admins ); }
-		}
-		// Sus sesiones (la cookie de su navegador sigue valiendo) y sus contraseñas de aplicación, más las que la cuenta del
-		// respaldo ya tenía si era administradora (si no, le darían acceso de administrador a quien las tenga).
-		if ( isset( $metas[ self::SESSIONS ] ) && '' !== (string) $metas[ self::SESSIONS ] ) self::set_meta( $meta, $id, self::SESSIONS, (string) $metas[ self::SESSIONS ] );
-		else self::delete_meta( $meta, $id, self::SESSIONS );
-		$uuids = array();
-		foreach ( $mine as $item ) if ( is_array( $item ) && isset( $item['uuid'] ) ) $uuids[ (string) $item['uuid'] ] = true;
-		$kept = 0;
-		$dropped = 0;
-		$merged = array_values( array_filter( $mine, 'is_array' ) );
-		foreach ( $theirs as $item ) {
-			if ( ! is_array( $item ) || isset( $uuids[ (string) ( $item['uuid'] ?? '' ) ] ) ) continue;
-			if ( $was_admin ) { $merged[] = $item; $kept++; } else $dropped++;
-		}
-		if ( $merged ) self::set_meta( $meta, $id, self::APP_PASSWORDS, serialize( $merged ) );
-		else self::delete_meta( $meta, $id, self::APP_PASSWORDS );
-		$report['app_passwords'] = array( 'yours' => count( array_filter( $mine, 'is_array' ) ), 'kept_from_backup' => $kept, 'dropped_from_backup' => $dropped );
-		if ( $dropped ) $report['warnings'][] = 'La cuenta «' . $login . '» del respaldo no era administradora: se retiraron sus ' . $dropped . ' contraseña(s) de aplicación para que no ganen permisos de administrador.';
+		$mine = array_filter( self::array_value( (string) ( $metas[ self::APP_PASSWORDS ] ?? '' ) ), 'is_array' );
+		$report['app_passwords'] = array( 'yours' => count( $mine ), 'kept_from_backup' => (int) $plan['kept_from_backup'], 'left_on_renamed' => (int) $plan['not_admin_apps'] );
 	}
 	/**
 	 * La ruta de acceso de este sitio (la de antes del cambio) en lo restaurado: Tools y SEO (que la aplica mientras Tools
@@ -451,16 +497,16 @@ final class Digitalisimo_Backups_Restore_Access {
 		switch ( (string) $report['state'] ) {
 			case 'on':
 				$yours = (int) ( $app['yours'] ?? 0 );
-				$lines[] = 'Se conservó el acceso de quien restauró: «' . $login . '» entra con su contraseña de siempre' . ( $yours ? ' y sus ' . $yours . ' contraseña(s) de aplicación (REST y MCP)' : '' ) . ', como administrador' . ( 'merged' === ( $report['account'] ?? '' ) ? '; el respaldo ya tenía una cuenta «' . $login . '» y ahora tiene esa contraseña y ese correo (su contenido sigue siendo suyo)' : '; la cuenta no estaba en el respaldo y se creó' ) . '.';
+				$lines[] = 'Se conservó el acceso de quien restauró: «' . $login . '» entra con su contraseña de siempre' . ( $yours ? ' y sus ' . $yours . ' contraseña(s) de aplicación (REST y MCP)' : '' ) . ', como administrador' . ( 'merged' === ( $report['account'] ?? '' ) ? '; el respaldo ya tenía una cuenta administradora «' . $login . '» y ahora tiene esa contraseña y ese correo (su contenido sigue siendo suyo)' : ( 'renamed' === ( $report['account'] ?? '' ) ? '; la cuenta se creó con su usuario' : '; la cuenta no estaba en el respaldo y se creó' ) ) . '.';
 				break;
 			case 'off':
 				$lines[] = 'No se pidió conservar el acceso de quien restauró: entra con un usuario del respaldo.';
 				break;
 			case 'no_user':
-				$lines[] = 'No había un usuario de WordPress que conservar (WP-CLI sin --user): entra con un usuario del respaldo.';
+				$lines[] = 'Se lanzó sin un usuario de WordPress (p. ej. WP-CLI sin --user): no se conservó ninguna cuenta, tampoco la de quien dio después un paso; entra con un usuario del respaldo.';
 				break;
 			case 'same_site':
-				$lines[] = 'Restauración en el mismo sitio: las cuentas, contraseñas y contraseñas de aplicación son las del respaldo (no se reviven las de ahora, que podrían estar comprometidas).';
+				$lines[] = 'El respaldo es de esta misma instalación: las cuentas, contraseñas y contraseñas de aplicación son las del respaldo (no se reviven las de ahora, que podrían estar comprometidas).';
 				break;
 		}
 		if ( ! empty( $report['admins'] ) ) $lines[] = 'Pueden entrar como administradores: ' . self::names( (array) $report['admins'] ) . ( (int) $report['admins_total'] > count( (array) $report['admins'] ) ? ' y ' . ( (int) $report['admins_total'] - count( (array) $report['admins'] ) ) . ' más' : '' ) . ( (int) $report['users_total'] > (int) $report['admins_total'] ? '; hay ' . (int) $report['users_total'] . ' usuarios en total' : '' ) . '.';
@@ -508,6 +554,14 @@ final class Digitalisimo_Backups_Restore_Access {
 	private static function delete_meta( $table, $user_id, $key ) {
 		global $wpdb;
 		if ( false === $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::q( $table ) . ' WHERE user_id = %d AND meta_key = %s', (int) $user_id, (string) $key ) ) ) throw new Exception( (string) $wpdb->last_error );
+	}
+	/** Un usuario libre para la cuenta del paquete que cede el suyo: «<usuario>-respaldo», «…-respaldo-2»… (60 caracteres). */
+	private static function free_login( $login, $table ) {
+		global $wpdb;
+		$base = substr( (string) $login, 0, 48 ) . '-respaldo';
+		$candidate = $base;
+		for ( $n = 2; $n < 100 && null !== $wpdb->get_var( $wpdb->prepare( 'SELECT ID FROM ' . self::q( $table ) . ' WHERE user_login = %s', $candidate ) ); $n++ ) $candidate = $base . '-' . $n;
+		return $candidate;
 	}
 	/** Un user_nicename que no use otra cuenta (el de la URL de autor). */
 	private static function free_nicename( $nicename, $table ) {
