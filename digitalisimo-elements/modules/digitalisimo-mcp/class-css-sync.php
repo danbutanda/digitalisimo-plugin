@@ -56,6 +56,12 @@ final class Css_Sync {
 	/** @var array<string, true> Herramientas cuyo `execute_callback` ya abre y cierra el ámbito (`wrap_ability()`). */
 	private static $wrapped = array();
 
+	/** @var array<int, true> Entradas que ya pasaron por `save_post` en este ámbito (la caché de página ya se enteró). */
+	private static $saved = array();
+
+	/** @var bool Mientras se refresca: lo que dispara el propio refresco (`wp_update_post()`) no se anota. */
+	private static $flushing = false;
+
 	/** Idempotente. */
 	public static function init(): void {
 		if ( self::$initialized || ! function_exists( 'add_action' ) ) {
@@ -71,6 +77,7 @@ final class Css_Sync {
 		add_action( 'added_post_meta', array( __CLASS__, 'meta_written' ), 10, 3 );
 		add_action( 'updated_post_meta', array( __CLASS__, 'meta_written' ), 10, 3 );
 		add_action( 'transition_post_status', array( __CLASS__, 'status_changed' ), 10, 3 );
+		add_action( 'save_post', array( __CLASS__, 'post_saved' ), 10, 1 );
 		add_action( 'parse_request', array( __CLASS__, 'preview_request' ), 2 );
 		add_action( 'shutdown', array( __CLASS__, 'shutdown' ), 0 );
 	}
@@ -129,7 +136,7 @@ final class Css_Sync {
 
 	/** Un guardado del propio documento vivo (no el de su autoguardado: la publicada no cambia). */
 	public static function document_saved( $document ): void {
-		if ( ! self::$depth || ! is_object( $document ) || ! method_exists( $document, 'get_main_id' ) || ! method_exists( $document, 'get_post' ) ) {
+		if ( ! self::$depth || self::$flushing || ! is_object( $document ) || ! method_exists( $document, 'get_main_id' ) || ! method_exists( $document, 'get_post' ) ) {
 			return;
 		}
 		$post = $document->get_post();
@@ -141,7 +148,7 @@ final class Css_Sync {
 
 	/** `_elementor_data` escrito en un documento vivo (p. ej. la promoción del autoguardado de `publish-document`). */
 	public static function meta_written( $meta_id, $object_id, $meta_key ): void {
-		if ( ! self::$depth || self::DATA_META !== $meta_key ) {
+		if ( ! self::$depth || self::$flushing || self::DATA_META !== $meta_key ) {
 			return;
 		}
 		$id = (int) $object_id;
@@ -152,7 +159,7 @@ final class Css_Sync {
 
 	/** Un documento que pasa a `publish` (el editor invalida todos los contextos al publicar). */
 	public static function status_changed( $new_status, $old_status, $post ): void {
-		if ( ! self::$depth || 'publish' !== $new_status || $new_status === $old_status || ! is_object( $post ) || empty( $post->ID ) ) {
+		if ( ! self::$depth || self::$flushing || 'publish' !== $new_status || $new_status === $old_status || ! is_object( $post ) || empty( $post->ID ) ) {
 			return;
 		}
 		if ( ! wp_is_post_revision( (int) $post->ID ) ) {
@@ -160,20 +167,42 @@ final class Css_Sync {
 		}
 	}
 
+	/** `save_post` de una entrada dentro del ámbito: WordPress ya avisó a las cachés de página. */
+	public static function post_saved( $post_id ): void {
+		if ( self::$depth && ! self::$flushing && (int) $post_id > 0 ) {
+			self::$saved[ (int) $post_id ] = true;
+		}
+	}
+
 	/** Refresca lo anotado (al cerrar el ámbito y, por si una herramienta falló a medias, al terminar la petición). */
 	public static function flush(): void {
-		$ids           = array_keys( self::$pending );
-		self::$pending = array();
-		foreach ( $ids as $id ) {
-			self::refresh( (int) $id );
+		if ( self::$flushing ) {
+			return;
+		}
+		$ids            = array_keys( self::$pending );
+		$saved          = self::$saved;
+		self::$pending  = array();
+		self::$saved    = array();
+		self::$flushing = true;
+		try {
+			foreach ( $ids as $id ) {
+				self::refresh( (int) $id, isset( $saved[ $id ] ) );
+			}
+		} finally {
+			self::$flushing = false;
 		}
 	}
 
 	/**
 	 * Lo que el editor deja listo al guardar y publicar un documento: sus estilos locales y de clases globales en todos
-	 * los contextos, la lista de componentes que incrusta y su caché HTML. Se regeneran en el siguiente render.
+	 * los contextos, la lista de componentes que incrusta y su caché HTML (se regeneran en el siguiente render). Y si la
+	 * entrada está publicada y en este ámbito no pasó por `save_post` (la promoción del autoguardado de
+	 * `publish-document` sólo copia metas), un `wp_update_post()` sin cambios: el guardado normal que el editor hace al
+	 * publicar, con todos sus ganchos (`save_post`, `edit_post`, `post_updated`, `clean_post_cache`,
+	 * `wp_after_insert_post`), que es lo que escuchan las cachés de página (LSCache, WP Rocket, W3TC, Cloudflare…) para
+	 * purgar esa URL.
 	 */
-	public static function refresh( int $id ): void {
+	public static function refresh( int $id, bool $notified = false ): void {
 		if ( $id <= 0 ) {
 			return;
 		}
@@ -181,6 +210,9 @@ final class Css_Sync {
 		$class = self::VALIDITY_CLASS;
 		if ( class_exists( $class ) ) {
 			( new $class() )->invalidate( array( self::RELATED_ROOT, (string) $id ) );
+		}
+		if ( ! $notified && 'publish' === get_post_status( $id ) && function_exists( 'wp_update_post' ) ) {
+			wp_update_post( array( 'ID' => $id ) );
 		}
 	}
 
@@ -235,6 +267,8 @@ final class Css_Sync {
 		self::$pending     = array();
 		self::$preview     = 0;
 		self::$wrapped     = array();
+		self::$saved       = array();
+		self::$flushing    = false;
 	}
 
 	/** Para las pruebas: documentos anotados y herramientas en curso. */

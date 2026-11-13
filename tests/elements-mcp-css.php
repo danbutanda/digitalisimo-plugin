@@ -75,6 +75,7 @@ namespace {
 			'deleted' => array(),
 			'clears'  => array(),
 			'posts'   => array(),
+			'updated' => array(),
 		);
 		$_GET = array();
 		if ( function_exists( 'mc_seed' ) && class_exists( 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity', false ) ) {
@@ -127,6 +128,20 @@ namespace {
 	function wp_is_post_revision( $post ) {
 		$p = is_object( $post ) ? $post : get_post( $post );
 		return $p && 'revision' === $p->post_type ? (int) $p->post_parent : false;
+	}
+	function get_post_status( $id ) {
+		$p = get_post( $id );
+		return $p ? $p->post_status : false;
+	}
+	/** Como WordPress: un guardado normal dispara sus ganchos (aquí, save_post, transition_post_status y una meta). */
+	function wp_update_post( $data ) {
+		$id = (int) ( $data['ID'] ?? 0 );
+		$GLOBALS['mc']['updated'][] = $id;
+		$p = get_post( $id );
+		do_action( 'transition_post_status', $p->post_status, $p->post_status, $p );
+		do_action( 'updated_post_meta', 99, $id, '_elementor_data', '[]' );
+		do_action( 'save_post', $id, $p, true );
+		return $id;
 	}
 	function wp_unslash( $value ) {
 		return $value;
@@ -486,6 +501,39 @@ namespace {
 	check( 1 === Css_Sync::state()['depth'], 'una herramienta no envuelta abre el ámbito con wp_before_execute_ability' );
 	do_action( 'wp_after_execute_ability', 'elementor/create-page', array(), array() );
 	check( 0 === Css_Sync::state()['depth'], 'y lo cierra con wp_after_execute_ability' );
+
+	// ---------------------------------------------------------------------------------------------------------------
+	// 10. Revisión (MEDIA 2): la promoción de publish-document sólo copia metas (sin save_post): una entrada publicada que
+	//     cambió y no pasó por save_post en el ámbito recibe un wp_update_post() sin cambios, el guardado normal que
+	//     escuchan las cachés de página. Falla con 962e0136 (no se avisaba).
+	mc_boot();
+	mc_post( 60, 'page', 0, 'publish' );
+	do_action( 'wp_before_execute_ability', 'elementor/publish-document', array( 'post_id' => 60 ) );
+	do_action( 'updated_post_meta', 6, 60, '_elementor_data', '[]' );
+	do_action( 'wp_after_execute_ability', 'elementor/publish-document', array( 'post_id' => 60 ), array( 'status' => 'publish' ) );
+	check( array( 60 ) === $GLOBALS['mc']['updated'], 'la promoción de una publicada llama a wp_update_post( [ ID => 60 ] ) una vez · ' . implode( ',', $GLOBALS['mc']['updated'] ) );
+	check( array() === Css_Sync::state()['pending'] && 0 === Css_Sync::state()['depth'], 'lo que dispara ese guardado (save_post, transition_post_status, la meta) no se vuelve a anotar' );
+	check( array( 'local/60', 'global/60' ) === mc_cleared( 60 )['clears'], 'y sus hojas quedan inválidas como antes' );
+	// Un borrador que publish-document publica pasa por wp_update_post del núcleo (save_post): no se repite.
+	mc_reset();
+	$draft = mc_post( 70 );
+	do_action( 'wp_before_execute_ability', 'elementor/publish-document', array( 'post_id' => 70 ) );
+	$draft->post_status = 'publish';
+	do_action( 'transition_post_status', 'publish', 'draft', $draft );
+	do_action( 'save_post', 70, $draft, true );
+	do_action( 'wp_after_execute_ability', 'elementor/publish-document', array( 'post_id' => 70 ), array() );
+	check( array() === $GLOBALS['mc']['updated'] && array( 'local/70', 'global/70' ) === mc_cleared( 70 )['clears'], 'una entrada que ya pasó por save_post en el ámbito no recibe otro guardado' );
+	// Un borrador que el MCP reescribe no avisa a nadie (las cachés de página no guardan borradores).
+	mc_reset();
+	$draft = mc_post( 50 );
+	do_action( 'wp_before_execute_ability', 'elementor/build-composition', array( 'post_id' => 50 ) );
+	do_action( 'elementor/document/after_save', new Mc_Document( $draft, 50 ), array() );
+	do_action( 'wp_after_execute_ability', 'elementor/build-composition', array(), array() );
+	check( array() === $GLOBALS['mc']['updated'], 'un borrador no recibe wp_update_post' );
+	// Fuera del ámbito, save_post no se anota.
+	mc_reset();
+	do_action( 'save_post', 80, mc_post( 80, 'page', 0, 'publish' ), true );
+	check( array() === Css_Sync::state()['pending'], 'save_post fuera del ámbito no cuenta' );
 
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {
