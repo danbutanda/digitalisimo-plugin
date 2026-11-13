@@ -108,6 +108,11 @@ try {
 		$before = sf_tree();
 		list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $file . '/restore', array( 'confirm' => 'RESTAURAR', 'parts' => 'medios,nada' ) );
 		digi_assert( 400 === $code && 'digitalisimo_backups_parts' === $error['code'], 'Una parte desconocida no respondió 400: ' . json_encode( $error ) );
+		// Revisión M2: una selección presente y vacía no es «todo» (400, sin tocar nada), como en WP-CLI.
+		foreach ( array( array( 'parts' => '' ), array( 'parts' => array() ), array( 'plugins' => '' ), array( 'themes' => array() ) ) as $empty ) {
+			list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $file . '/restore', array( 'confirm' => 'RESTAURAR' ) + $empty );
+			digi_assert( 400 === $code && 'digitalisimo_backups_parts' === $error['code'], 'Una selección vacía no respondió 400: ' . json_encode( $empty ) . ' → ' . $code );
+		}
 		list( $code, $error ) = digi_rest( 'POST', $ns . '/backups/' . $file . '/restore', array( 'confirm' => 'RESTAURAR', 'plugins' => array( 'no-existe' ) ) );
 		digi_assert( 422 === $code && false !== strpos( $error['message'], 'no-existe' ), 'Un plugin que el respaldo no trae no respondió 422: ' . json_encode( $error ) );
 		sf_same( $before, array() );
@@ -138,6 +143,10 @@ try {
 		$before = sf_tree();
 		list( $code, $out ) = digi_wp( $cmd, 'restore', array( $file ), array( 'confirm' => 'RESTAURAR', 'parts' => 'otra' ) );
 		digi_assert( 1 === $code && false !== strpos( end( $out ), 'Parte desconocida' ), 'restore --parts=otra no se detuvo: ' . implode( "\n", $out ) );
+		foreach ( array( 'parts', 'plugins', 'themes' ) as $option ) {
+			list( $code, $out ) = digi_wp( $cmd, 'restore', array( $file ), array( 'confirm' => 'RESTAURAR', $option => '' ) );
+			digi_assert( 1 === $code && false !== strpos( end( $out ), 'al menos una parte' ), 'restore --' . $option . '= (vacío) no se detuvo: ' . implode( "\n", $out ) );
+		}
 		sf_same( $before, array() );
 	} );
 } catch ( Throwable $e ) {

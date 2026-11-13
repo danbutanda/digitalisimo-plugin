@@ -1016,7 +1016,12 @@ principal, cuyos medios son los que no están en `uploads/sites/`), salvo en una
 `blogs.dir` (`ms_files_rewriting`), donde sólo se eligen los medios enteros.
 
 Una parte cuenta por la carpeta real de esta instalación (`restore_layout()`): la raíz más larga gana, así que unos
-medios dentro de wp-content son medios y no «resto»; lo que está fuera de wp-content es núcleo.
+medios dentro de wp-content son medios y no «resto»; lo que está fuera de wp-content es núcleo. Una carpeta que el sitio
+no tiene (un sitio nuevo sin mu-plugins) sigue siendo su parte, por su ruta configurada: sus archivos del respaldo nunca
+cuentan como «resto» (revisión A2). Elegir una parte entera que el respaldo no trae se rechaza (422), como un plugin
+concreto que no trae: retiraría lo de ahora sin traer nada. Una selección presente y vacía (`parts=`, `--plugins=`, la
+pantalla con todo desmarcado) responde 400: nunca es «todo». Con «Todo» marcado, marcar un plugin, tema o sitio
+concreto empieza de cero (sólo eso), en el navegador y sin JavaScript.
 
 **Igual de segura que la completa.** Es la misma restauración por pasos (`Digitalisimo_Backups_Restore_Job`) con la
 selección en la especificación del trabajo (`spec.parts`; null es todo, la de siempre): la restauración de un
@@ -1041,7 +1046,8 @@ selección.
   archivo y de cada tabla antes y después.
 - **Vuelta a la copia previa:** si falla después de empezar el cambio, la vuelta automática (y «Volver a la copia
   previa» o `wp digitalisimo-backups jobs rollback`) restaura desde la copia previa completa **sólo las mismas partes**
-  (hereda `parts`): lo que la restauración trajo y la copia no tiene (un plugin que ya no estaba en el sitio) se retira,
+  (hereda `parts`): lo que la restauración trajo y la copia no tiene (un plugin que ya no estaba en el sitio, un medio
+  borrado antes, también en «medios» sin la base) se retira,
   y lo no elegido no se toca tampoco al volver. Sin la base de datos, el sitio se da por cambiado en cuanto empieza el
   cambio (no hay tablas que lo decidan): ante la duda, se vuelve.
 - **Con la base de datos**, las mismas reglas que la completa: reubicación de E1 (direcciones, rutas, prefijo, red),
@@ -1077,12 +1083,13 @@ restauración en curso y `digitalisimo_backups_last_restore` nombran la selecci�
 - **Un respaldo cifrado** (`.dgbk`): la pantalla ofrece las partes enteras, pero sus plugins y temas concretos sólo se
   ven al descifrarlo (`verify` por REST o WP-CLI con la frase); se eligen por REST o WP-CLI.
 
-**Memoria (64 MB).** El ensayo de Playground con los límites de la pila del propietario mostró que el empaquetado de un
-respaldo ya iba al límite con el código de main (pico de 62,5 MB de 64, en bloques de 2 MB): unos KB más de código
-compilado en cada petición hacían fallar la fase «Archivos y ZIP» (`Allowed memory size … exhausted`). Por eso la clase
-de las partes se carga sólo cuando se usa (`spl_autoload_register`) y el archivo de WP-CLI (`class-backups-cli.php`,
-65 KB) sólo en WP-CLI, que define `WP_CLI` antes de cargar los plugins: cada petición web carga ahora menos código que
-antes de esta función.
+**Memoria (64 MB).** El archivo de WP-CLI (`class-backups-cli.php`, unos 208 KB compilados) se carga sólo en WP-CLI,
+que define `WP_CLI` antes de cargar los plugins: cada petición web carga menos código que antes de esta función. La clase
+de las partes se carga con el plugin, nunca a demanda (revisión A1): el final de una restauración pone en su sitio la
+carpeta de Backups del respaldo, quizá de una versión sin ese archivo, y después todavía escribe el informe. En
+Playground (php-wasm, sin opcache), con los límites del propietario, el empaquetado de un respaldo y la verificación de
+una restauración ya van al límite con el código de main: cada archivo se lee con `fread()` de 1 MiB (`CHUNK`), que pide
+1 MiB contiguo con el montón real en 62,5–64 MB; que quepa depende de cómo quedó fragmentado. Ver «Límites declarados».
 
 **Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
 el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también

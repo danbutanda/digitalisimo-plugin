@@ -1174,6 +1174,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$root = trailingslashit( wp_normalize_path( (string) realpath( ABSPATH ) ) );
 		$relative = function( $path ) use ( $root ) {
 			$real = realpath( (string) $path );
+			// Una carpeta que no existe (un sitio sin mu-plugins o sin medios) sigue siendo su raíz: la ruta configurada, con
+			// la carpeta que la contiene resuelta. Si no, sus archivos del respaldo contarían como sueltos (revisión A2).
+			if ( false === $real && '' !== (string) $path ) {
+				$parent = realpath( dirname( (string) $path ) );
+				if ( false !== $parent ) $real = rtrim( $parent, '/\\' ) . '/' . basename( (string) $path );
+			}
 			$path = false === $real ? '' : trailingslashit( wp_normalize_path( $real ) );
 			return '' !== $path && 0 === strpos( $path, $root ) && $path !== $root ? rtrim( substr( $path, strlen( $root ) ), '/' ) : '';
 		};
@@ -1328,7 +1334,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 						continue;
 					}
 					if ( ! self::restore_managed( $relative, $layout ) || ! $complete ) continue;
-					if ( ! Digitalisimo_Backups_Restore_Parts::removable( $parts, $relative, $layout ) ) continue;
+					if ( ! Digitalisimo_Backups_Restore_Parts::removable( $parts, $relative, $layout, ! empty( $job['spec']['rollback'] ) ) ) continue;
 					if ( false !== $zip->locateName( 'wordpress/' . $relative ) || ( $nocase && false !== $zip->locateName( 'wordpress/' . $relative, ZipArchive::FL_NOCASE ) ) ) continue;
 					// Ajeno al respaldo, dentro de lo que gestiona: se retira (antes, se comprueba que está en la copia previa).
 					if ( '' !== $unit ) {

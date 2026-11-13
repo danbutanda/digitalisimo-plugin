@@ -49,7 +49,7 @@ final class Digitalisimo_Backups_Restore_Parts {
 	 * mismas reglas y su script las evalúa con las casillas marcadas; REST, WP-CLI y el informe usan coherence().
 	 */
 	const RULES = array(
-		'plugins_without_database' => array( 'any' => array( 'plugins', 'plugin-items', 'mu-plugins' ), 'none' => array( 'database' ), 'text' => 'Plugins sin la base de datos: si un plugin del respaldo es de otra versión, sus tablas y ajustes siguen siendo los de ahora y pueden no coincidir. Conviene elegir también la base de datos.' ),
+		'plugins_without_database' => array( 'any' => array( 'plugins', 'plugin-items', 'mu-plugins' ), 'none' => array( 'database' ), 'text' => 'Plugins sin la base de datos: si un plugin del respaldo es de otra versión, sus tablas y ajustes siguen siendo los de ahora y pueden no coincidir (también DIGITALÍSIMO Backups, que puede volver a una versión anterior a sus datos de ahora). Conviene elegir también la base de datos.' ),
 		'themes_without_database' => array( 'any' => array( 'themes', 'theme-items' ), 'none' => array( 'database' ), 'text' => 'Temas sin la base de datos: sus ajustes, menús y widgets siguen siendo los de ahora; si el tema cambió de versión, pueden no coincidir.' ),
 		'core_without_database' => array( 'any' => array( 'core' ), 'none' => array( 'database' ), 'text' => 'Núcleo sin la base de datos: si el WordPress del respaldo es más antiguo que el de ahora, la base de datos puede ser demasiado nueva para él.' ),
 		'uploads_without_database' => array( 'any' => array( 'uploads', 'site-items' ), 'none' => array( 'database' ), 'text' => 'Medios sin la base de datos: vuelven los archivos del respaldo y se conservan los subidos después (la biblioteca de ahora los usa).' ),
@@ -65,19 +65,24 @@ final class Digitalisimo_Backups_Restore_Parts {
 	/**
 	 * La selección pedida, normalizada, o null si es «todo» (también sin `parts` ni concretos: la restauración de siempre).
 	 * $input: `parts` (lista o texto separado por comas; `all` o `todo` es todo), `plugins`, `themes` y `sites` (listas o
-	 * texto separado por comas). Lanza InvalidArgumentException con un mensaje para quien restaura.
+	 * texto separado por comas). Lanza InvalidArgumentException con un mensaje para quien restaura. Una clave presente y
+	 * vacía (`parts=` o `plugins=` sin nada más) no es «todo»: no se eligió nada, y se dice (revisión M2). Con
+	 * $environment = false sólo se valida la forma (lo guardado en un trabajo): las reglas de esta red, sólo al encolar
+	 * (revisión M4: tras el cambio de tablas, la red es la del respaldo).
 	 */
-	public static function normalize( array $input ) {
+	public static function normalize( array $input, $environment = true ) {
 		$raw = $input['parts'] ?? null;
+		$given = false;
+		foreach ( array( 'parts', 'plugins', 'themes', 'sites' ) as $key ) if ( null !== ( $input[ $key ] ?? null ) ) $given = true;
 		$items = array(
 			'plugins' => self::items( $input['plugins'] ?? array(), 'plugins' ),
 			'themes' => self::items( $input['themes'] ?? array(), 'themes' ),
 			'sites' => self::sites( $input['sites'] ?? array() ),
 		);
 		if ( ! self::words( $raw ) && ! $items['plugins'] && ! $items['themes'] && ! $items['sites'] ) {
-			// Sin `parts` (o vacío) ni concretos: todo, la restauración de siempre. Una lista vacía explícita (la pantalla con
-			// «Todo» y cada parte desmarcados) no restaura nada: se dice.
-			if ( is_array( $raw ) ) throw new InvalidArgumentException( 'Elige al menos una parte del respaldo para restaurar (o «Todo»).' );
+			// Sin `parts` ni concretos: todo, la restauración de siempre. Una selección presente y vacía (`parts=`, `parts=[]`, la
+			// pantalla con «Todo» y cada parte desmarcados, `--plugins=`) no restaura nada: se dice.
+			if ( $given ) throw new InvalidArgumentException( 'Elige al menos una parte del respaldo para restaurar (o «Todo»).' );
 			return null;
 		}
 		$parts = array();
@@ -93,17 +98,20 @@ final class Digitalisimo_Backups_Restore_Parts {
 		if ( in_array( 'plugins', $ordered, true ) ) $items['plugins'] = array();
 		if ( in_array( 'themes', $ordered, true ) ) $items['themes'] = array();
 		if ( in_array( 'uploads', $ordered, true ) ) $items['sites'] = array();
-		if ( $items['sites'] && ! ( function_exists( 'is_multisite' ) && is_multisite() ) ) throw new InvalidArgumentException( 'Los medios de un sitio concreto sólo se eligen en una red.' );
-		if ( $items['sites'] && function_exists( 'get_site_option' ) && get_site_option( 'ms_files_rewriting' ) ) throw new InvalidArgumentException( 'Esta red guarda los medios con el sistema antiguo (blogs.dir): elige «medios» entero, no los de un sitio.' );
+		if ( $environment && $items['sites'] && ! ( function_exists( 'is_multisite' ) && is_multisite() ) ) throw new InvalidArgumentException( 'Los medios de un sitio concreto sólo se eligen en una red.' );
+		if ( $environment && $items['sites'] && function_exists( 'get_site_option' ) && get_site_option( 'ms_files_rewriting' ) ) throw new InvalidArgumentException( 'Esta red guarda los medios con el sistema antiguo (blogs.dir): elige «medios» entero, no los de un sitio.' );
 		if ( ! $ordered && ! $items['plugins'] && ! $items['themes'] && ! $items['sites'] ) throw new InvalidArgumentException( 'Elige al menos una parte del respaldo para restaurar (o «Todo»).' );
 		return array( 'parts' => $ordered, 'plugins' => $items['plugins'], 'themes' => $items['themes'], 'sites' => $items['sites'] );
 	}
-	/** La selección guardada en la especificación de un trabajo (null: todo). Se vuelve a validar: nunca se confía en su forma. */
+	/**
+	 * La selección guardada en la especificación de un trabajo (null: todo). Se vuelve a validar su forma (nunca se confía
+	 * en ella), no las reglas de esta red, que se comprobaron al encolar (revisión M4).
+	 */
 	public static function from_spec( array $spec ) {
 		$saved = $spec['parts'] ?? null;
 		if ( ! is_array( $saved ) ) return null;
 		try {
-			return self::normalize( array( 'parts' => (array) ( $saved['parts'] ?? array() ), 'plugins' => (array) ( $saved['plugins'] ?? array() ), 'themes' => (array) ( $saved['themes'] ?? array() ), 'sites' => (array) ( $saved['sites'] ?? array() ) ) );
+			return self::normalize( array( 'parts' => (array) ( $saved['parts'] ?? array() ), 'plugins' => (array) ( $saved['plugins'] ?? array() ), 'themes' => (array) ( $saved['themes'] ?? array() ), 'sites' => (array) ( $saved['sites'] ?? array() ) ), false );
 		} catch ( InvalidArgumentException $e ) {
 			throw new Digitalisimo_Backups_Permanent_Error( 'La selección de partes del trabajo no es válida: ' . $e->getMessage() );
 		}
@@ -200,12 +208,14 @@ final class Digitalisimo_Backups_Restore_Parts {
 	/**
 	 * Un archivo del sitio que el respaldo no tiene, dentro de lo que gestiona (H3), se retira: sólo si está en la
 	 * selección y, en los medios sin la base de datos, sólo si PHP puede ejecutarlo. Los medios subidos después del
-	 * respaldo son de la biblioteca de ahora (que no vuelve): se conservan; un `.php` en los medios nunca es un medio.
+	 * respaldo son de la biblioteca de ahora (que no vuelve): se conservan; un `.php` en los medios nunca es un medio. En
+	 * la vuelta a la copia previa ($rollback), lo que la copia no tiene lo trajo la restauración que falló: se retira todo
+	 * lo elegido (revisión M3).
 	 */
-	public static function removable( $selection, $relative, array $layout ) {
+	public static function removable( $selection, $relative, array $layout, $rollback = false ) {
 		if ( null === $selection ) return true;
 		if ( ! self::selected( $selection, $relative, $layout ) ) return false;
-		if ( self::has_database( $selection ) ) return true;
+		if ( $rollback || self::has_database( $selection ) ) return true;
 		list( $part ) = self::classify( $relative, $layout );
 		return 'uploads' !== $part || (bool) preg_match( '/\.(?:php[0-9]?|phtml|pht|phar|phps)$/i', (string) $relative );
 	}
@@ -260,7 +270,12 @@ final class Digitalisimo_Backups_Restore_Parts {
 			if ( '' === $relative || 'wp-config.php' === $relative ) continue;
 			list( $part, $item ) = self::classify( $relative, $layout );
 			$out['parts'][ $part ] = true;
-			if ( ( 'plugins' === $part || 'themes' === $part ) && '' !== (string) $item && 'index.php' !== $item && ( 'plugins' === $part || false !== strpos( substr( $relative, strlen( $layout['themes'] ) + 1 ), '/' ) ) ) $out[ $part ][ (string) $item ] = true;
+			// Plugins y temas concretos: carpetas y, en plugins, un plugin de un solo archivo (`.php`, salvo el index.php de
+			// relleno); nunca un readme.txt o un .htaccess sueltos (revisión B5).
+			if ( ( 'plugins' === $part || 'themes' === $part ) && '' !== (string) $item && 'index.php' !== $item ) {
+				$folder = false !== strpos( substr( $relative, strlen( (string) $layout[ $part ] ) + 1 ), '/' );
+				if ( $folder || ( 'plugins' === $part && '.php' === strtolower( substr( (string) $item, -4 ) ) ) ) $out[ $part ][ (string) $item ] = true;
+			}
 			if ( 'uploads' === $part ) $out['sites'][ (int) $item ] = true;
 		}
 		foreach ( array( 'plugins', 'themes', 'sites' ) as $key ) {
@@ -270,10 +285,14 @@ final class Digitalisimo_Backups_Restore_Parts {
 		$out['parts'] = array_values( array_intersect( array_keys( self::PARTS ), array_keys( $out['parts'] ) ) );
 		return $out;
 	}
-	/** Lo elegido que el respaldo no trae (un plugin, un tema o los medios de un sitio que no tiene): frases. */
+	/**
+	 * Lo elegido que el respaldo no trae (una parte entera, un plugin, un tema o los medios de un sitio que no tiene): frases.
+	 * Elegir una parte que el respaldo no trae retiraría lo de ahora sin traer nada (revisión A2): se rechaza.
+	 */
 	public static function missing( $selection, array $inventory ) {
 		if ( null === $selection ) return array();
 		$out = array();
+		foreach ( (array) $selection['parts'] as $part ) if ( ! in_array( $part, (array) ( $inventory['parts'] ?? array() ), true ) ) $out[] = 'la parte «' . self::PARTS[ $part ] . '»';
 		foreach ( (array) $selection['plugins'] as $item ) if ( ! in_array( $item, $inventory['plugins'], true ) ) $out[] = 'el plugin «' . $item . '»';
 		foreach ( (array) $selection['themes'] as $item ) if ( ! in_array( $item, $inventory['themes'], true ) ) $out[] = 'el tema «' . $item . '»';
 		foreach ( (array) $selection['sites'] as $site ) if ( ! in_array( (int) $site, $inventory['sites'], true ) ) $out[] = 'medios del sitio ' . (int) $site;
@@ -310,7 +329,8 @@ final class Digitalisimo_Backups_Restore_Parts {
 	 */
 	public static function preview( $zip, $parts, array $layout ) {
 		$inventory = $zip instanceof ZipArchive ? self::inventory( $zip, $layout ) : null;
-		$describe = self::describe( $parts, $inventory, $inventory ? self::live( $layout ) : null );
+		$head = $zip instanceof ZipArchive ? (string) $zip->getFromName( 'manifest.json', 4096 ) : '';
+		$describe = self::describe( $parts, $inventory, $inventory ? self::live( $layout ) : null, ! $zip instanceof ZipArchive || (bool) preg_match( '/"format"\s*:\s*"digitalisimo-backup\\\/v3"|"format"\s*:\s*"digitalisimo-backup\/v3"/', $head ) );
 		return array(
 			'available' => $inventory,
 			'selection' => $parts,
@@ -371,7 +391,7 @@ final class Digitalisimo_Backups_Restore_Parts {
 	 * formulario de antes); si no, las partes y lo concreto marcado (una lista vacía: no se eligió nada, y se dice).
 	 */
 	public static function from_request( array $post ) {
-		if ( empty( $post['restore_parts_shown'] ) || ! empty( $post['restore_all'] ) ) return array();
+		if ( empty( $post['restore_parts_shown'] ) ) return array();
 		$list = function( $key ) use ( $post ) {
 			$value = $post[ $key ] ?? array();
 			if ( ! is_array( $value ) ) return array();
@@ -379,7 +399,11 @@ final class Digitalisimo_Backups_Restore_Parts {
 			foreach ( $value as $item ) if ( is_scalar( $item ) && '' !== (string) $item ) $out[] = (string) wp_unslash( (string) $item );
 			return $out;
 		};
-		return array( 'parts' => $list( 'restore_parts' ), 'plugins' => $list( 'restore_plugins' ), 'themes' => $list( 'restore_themes' ), 'sites' => $list( 'restore_sites' ) );
+		$items = array( 'plugins' => $list( 'restore_plugins' ), 'themes' => $list( 'restore_themes' ), 'sites' => $list( 'restore_sites' ) );
+		// Con «Todo» marcado: todo, salvo que se marcara algo concreto, que empieza de cero (sólo eso), como hace el script
+		// (revisión M1 y B1): nunca se restaura la base y lo demás por haber marcado un plugin.
+		if ( ! empty( $post['restore_all'] ) ) return $items['plugins'] || $items['themes'] || $items['sites'] ? array( 'parts' => array() ) + $items : array();
+		return array( 'parts' => $list( 'restore_parts' ) ) + $items;
 	}
 	/* ------------------------------------------------------------------------------------------- Textos */
 
@@ -409,14 +433,16 @@ final class Digitalisimo_Backups_Restore_Parts {
 	 * respaldo y el del sitio, qué plugins y temas se retiran porque el respaldo no los tiene (y si están activos).
 	 * Devuelve array( 'replaces' => frases, 'untouched' => nombres, 'warnings' => frases de lo que se retira activo ).
 	 */
-	public static function describe( $selection, $inventory = null, $live = null ) {
+	public static function describe( $selection, $inventory = null, $live = null, $complete = true ) {
 		$replaces = array();
 		$warnings = array();
 		$parts = null === $selection ? array_keys( self::PARTS ) : (array) $selection['parts'];
 		foreach ( $parts as $part ) {
 			$text = ucfirst( self::PARTS[ $part ] ) . ': ' . self::REPLACES[ $part ];
 			if ( 'uploads' === $part ) $text .= self::has_database( $selection ) ? '; se retiran los que el respaldo no tiene' : '; se conservan los subidos después (salvo archivos ejecutables)';
-			if ( ( 'plugins' === $part || 'themes' === $part ) && is_array( $inventory ) && is_array( $live ) ) {
+			// Un respaldo anterior al manifiesto v3 no dice qué sobra: con él no se retira nada (revisión B3).
+			if ( ! $complete && in_array( $part, array( 'plugins', 'themes', 'uploads', 'core', 'mu-plugins' ), true ) ) $text = preg_replace( '/[:;] se retiran los que el respaldo no tiene/u', '', $text ) . ' (respaldo anterior al formato v3: no se retira nada que el respaldo no traiga)';
+			if ( $complete && ( 'plugins' === $part || 'themes' === $part ) && is_array( $inventory ) && is_array( $live ) ) {
 				$gone = array_values( array_diff( (array) $live[ $part ], (array) $inventory[ $part ] ) );
 				if ( $gone ) {
 					$text .= ' (' . count( $gone ) . ': ' . self::list_text( $gone, 10 ) . ')';

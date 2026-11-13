@@ -10,8 +10,9 @@ foreach ( array( 'manifest-stream', 'manifest-index', 'restore-maintenance', 're
 require_once __DIR__ . '/class-backups-restore-job.php';
 require_once __DIR__ . '/restore/trait-backups-restore-engine.php';
 // Restaurar por partes: qué se elige de un respaldo completo y qué se avisa (el motor es el de la restauración por pasos).
-// Se carga sólo cuando se usa: cada petición de un tick de 64 MB (la pila del propietario) va justa de memoria.
-spl_autoload_register( function( $class ) { if ( 'Digitalisimo_Backups_Restore_Parts' === $class ) require_once __DIR__ . '/restore/class-restore-parts.php'; } );
+// Se carga al cargar el plugin, nunca a demanda: el final de una restauración pone en su sitio la carpeta de este plugin
+// del respaldo (quizá de una versión sin este archivo) y después todavía escribe el informe (revisión A1).
+require_once __DIR__ . '/restore/class-restore-parts.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
 foreach ( array( 'sodium', 'keys', 'credentials', 'manifest-auth', 'encrypted-file', 'archive-inspector', 'sql-guard', 'security' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/security/class-' . $digitalisimo_backups_part . '.php';
 unset( $digitalisimo_backups_part );

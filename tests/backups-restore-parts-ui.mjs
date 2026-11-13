@@ -80,6 +80,14 @@ assert.deepEqual(visible(), [], 'Con «Todo» no debe verse ningún aviso de coh
 assert.equal(caption.textContent, 'todo');
 assert.equal(summary.hidden, true, 'Con «Todo» el resumen de partes no se ve');
 
+// Revisión M1: con «Todo» marcado, marcar un plugin concreto empieza de cero (sólo ese plugin, nunca la base y lo demás).
+change(input.demo, true);
+assert.ok(Object.keys(parts).every((k) => !input[k].checked) && !input.all.checked, 'Un concreto con «Todo» marcado debe empezar de cero');
+assert.equal(summary.textContent, 'Se restaura sólo: demo. Lo demás no se toca.');
+assert.deepEqual(visible(), ['plugins_without_database']);
+change(input.all, true);
+assert.ok(Object.keys(parts).every((k) => input[k].checked) && !input.demo.checked, '«Todo» debe volver a todo');
+
 // Desmarcar «Todo» desmarca las partes; nada marcado se dice.
 change(input.all, false);
 assert.ok(Object.keys(parts).every((k) => !input[k].checked), 'Desmarcar «Todo» debe desmarcar las partes');

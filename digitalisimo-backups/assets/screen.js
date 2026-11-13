@@ -72,7 +72,9 @@
     } else if (cb.hasAttribute('data-restore-part')) {
       if (cb.checked) each(box, '[data-restore-item][data-restore-whole="' + cb.value + '"]', function (item) { item.checked = false; });
     } else if (cb.hasAttribute('data-restore-item') && cb.checked) {
-      each(box, '[data-restore-part][value="' + cb.getAttribute('data-restore-whole') + '"]', function (part) { part.checked = false; });
+      // Un concreto con «Todo» marcado empieza de cero (sólo eso); si no, excluye su parte entera (revisión M1).
+      if (all && all.checked) each(box, '[data-restore-part]', function (part) { part.checked = false; });
+      else each(box, '[data-restore-part][value="' + cb.getAttribute('data-restore-whole') + '"]', function (part) { part.checked = false; });
     }
     if (all && !cb.hasAttribute('data-restore-all')) {
       var every = true;

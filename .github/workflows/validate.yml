@@ -368,6 +368,7 @@ jobs:
           php tests/backups-keep-access.php
           php tests/backups-restore-parts.php
           php tests/backups-restore-parts-surfaces.php
+          php tests/backups-restore-parts-upgrade.php
           node tests/backups-restore-parts-ui.mjs
           php tests/tools-site-options.php
           php tests/tools-media-svg.php

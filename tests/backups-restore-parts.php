@@ -58,11 +58,13 @@ foreach ( array(
 	'wp-content/plugins/otro/otro.php' => "<?php /* Plugin Name: Otro */\n",
 	'wp-content/plugins/borrado/borrado.php' => "<?php /* Plugin Name: Borrado después */\n",
 	'wp-content/plugins/index.php' => "<?php // Silence is golden.\n",
+	'wp-content/plugins/readme.txt' => "un archivo suelto en plugins: no es un plugin\n",
 	'wp-content/themes/tema/style.css' => "/* Theme Name: Tema */\n",
 	'wp-content/themes/tema/functions.php' => "<?php // funciones originales\n",
 	'wp-content/themes/segundo/style.css' => "/* Theme Name: Segundo */\n",
 	'wp-content/uploads/2026/11/foto.jpg' => str_repeat( "\xff\xd8\xff", 3000 ),
 	'wp-content/uploads/2026/11/nota.txt' => "nota original\n",
+	'wp-content/uploads/2026/11/zeta.txt' => "zeta original\n",
 	'wp-content/mu-plugins/mu.php' => "<?php // mu original\n",
 	'wp-content/languages/es_MX.mo' => "mo original\n",
 	'wp-content/object-cache.php' => "<?php // drop-in original\n",
@@ -107,6 +109,7 @@ function pt_mutate( $root ) {
 		'wp-content/uploads/2026/11/foto.jpg' => str_repeat( "\x00\x01", 500 ),
 		'wp-content/uploads/2026/12/nueva.jpg' => str_repeat( "\xff\xd8", 700 ),
 		'wp-content/uploads/2026/11/inyectado.php' => "<?php system( \$_GET['c'] );\n",
+		'wp-content/uploads/2026/11/zeta.txt' => "zeta cambiado\n",
 		'wp-content/mu-plugins/mu.php' => "<?php // mu cambiado\n",
 		'wp-content/languages/es_MX.mo' => "mo cambiado\n",
 		'wp-content/object-cache.php' => "<?php // drop-in cambiado\n",
@@ -165,7 +168,7 @@ function pt_renames() { return count( preg_grep( '/^RENAME TABLE /', $GLOBALS['w
 $layout = bk_call( $B, 'restore_layout' );
 
 pt_case( 'P1 la selección, las rutas, el inventario y los avisos de coherencia', function() use ( $P, $layout, $backup ) {
-	pt_check( null === $P::normalize( array() ) && null === $P::normalize( array( 'parts' => '' ) ) && null === $P::normalize( array( 'parts' => 'all' ) ) && null === $P::normalize( array( 'parts' => 'database,core,plugins,themes,uploads,mu-plugins,content' ) ), 'Sin selección (o con todas las partes) no es «todo».' );
+	pt_check( null === $P::normalize( array() ) && null === $P::normalize( array( 'parts' => 'all' ) ) && null === $P::normalize( array( 'parts' => 'database,core,plugins,themes,uploads,mu-plugins,content' ) ), 'Sin selección (o con todas las partes) no es «todo».' );
 	$sel = $P::normalize( array( 'parts' => 'media, DB', 'plugins' => 'demo,otro', 'themes' => array( 'tema' ) ) );
 	pt_check( array( 'database', 'uploads' ) === $sel['parts'] && array( 'demo', 'otro' ) === $sel['plugins'] && array( 'tema' ) === $sel['themes'] && array() === $sel['sites'], 'La selección no se normalizó: ' . json_encode( $sel ) );
 	pt_check( array() === $P::normalize( array( 'parts' => 'plugins', 'plugins' => 'demo' ) )['plugins'], 'Un plugin concreto con los plugins enteros no se descartó.' );
@@ -246,7 +249,7 @@ pt_case( 'P4 sólo los medios sin la base: se conservan los subidos después y s
 	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	pt_finish();
 	pt_check( 'success' === pt_last()['status'], 'No terminó: ' . json_encode( pt_last()['error'] ) );
-	pt_assert_tree( $before, $backup_tree, array( '/wp-content/uploads/2026/11/foto.jpg', '/wp-content/uploads/2026/11/nota.txt' ), array( '/wp-content/uploads/2026/11/inyectado.php' ) );
+	pt_assert_tree( $before, $backup_tree, array( '/wp-content/uploads/2026/11/foto.jpg', '/wp-content/uploads/2026/11/nota.txt', '/wp-content/uploads/2026/11/zeta.txt' ), array( '/wp-content/uploads/2026/11/inyectado.php' ) );
 	pt_check( is_file( $root . '/wp-content/uploads/2026/12/nueva.jpg' ), 'Se retiró un medio subido después sin restaurar la base de datos.' );
 	pt_check( $db === pt_db() && 0 === pt_renames(), 'La base de datos cambió sin elegirla.' );
 } );
@@ -365,12 +368,73 @@ pt_case( 'P10 regresión: sin selección, todo vuelve al respaldo', function() u
 	pt_check( false === strpos( (string) $job['result']['restore']['notice'], 'por partes' ), 'El informe de la completa habla de partes.' );
 } );
 
-pt_case( 'P11 memoria: la clase de partes se carga al usarse y WP-CLI sólo en WP-CLI', function() {
+pt_case( 'P11 la clase de partes se carga con el plugin (nunca a demanda) y WP-CLI sólo en WP-CLI', function() {
 	$base = __DIR__ . '/../digitalisimo-backups/';
 	$main = (string) file_get_contents( $base . 'digitalisimo-backups.php' );
 	$core = (string) file_get_contents( $base . 'includes/class-backups.php' );
 	pt_check( preg_match( "#if \\( defined\\( 'WP_CLI' \\) && WP_CLI \\) require_once __DIR__ \\. '/includes/class-backups-cli\\.php';#", $main ) && ! preg_match( "#^require_once __DIR__ \\. '/includes/class-backups-cli\\.php';#m", $main ) && false !== strpos( $main, "class_exists( 'Digitalisimo_Backups_Cli', false )" ), 'Cada petición web carga el archivo de WP-CLI (208 KB compilados con la pila de 64 MB al límite).' );
-	pt_check( false !== strpos( $core, "spl_autoload_register" ) && ! preg_match( "#^require_once __DIR__ \\. '/restore/class-restore-parts\\.php';#m", $core ), 'La clase de partes se carga en cada petición.' );
+	// Revisión A1: a demanda, el final de una restauración (que pone en su sitio la carpeta de este plugin del respaldo,
+	// quizá sin este archivo) no podía cargarla para el informe. Ver también backups-restore-parts-upgrade.php.
+	pt_check( false === strpos( $core, 'spl_autoload_register' ) && preg_match( "#^require_once __DIR__ \\. '/restore/class-restore-parts\\.php';#m", $core ), 'La clase de partes se carga a demanda: el final de una restauración de un respaldo anterior no la encuentra.' );
+} );
+
+pt_case( 'P12 revisión: lo vacío no es todo, la red se valida al encolar, concretos con «Todo», respaldo anterior al v3', function() use ( $P ) {
+	foreach ( array( array( 'parts' => '' ), array( 'plugins' => '' ), array( 'themes' => array() ), array( 'sites' => '' ) ) as $empty ) {
+		try { $P::normalize( $empty ); pt_check( false, 'Una selección presente y vacía se tomó como «todo»: ' . json_encode( $empty ) ); } catch ( InvalidArgumentException $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+	}
+	pt_check( null === $P::normalize( array( 'parts' => null, 'plugins' => null ) ), 'Sin selección (claves nulas) no es «todo».' );
+	// M4: lo guardado en el trabajo sólo se valida en su forma (tras el cambio de tablas, la red es la del respaldo).
+	$GLOBALS['bk_site_options']['ms_files_rewriting'] = 1;
+	$saved = array( 'parts' => array( 'parts' => array(), 'plugins' => array(), 'themes' => array(), 'sites' => array( 3 ) ) );
+	try { $selection = $P::from_spec( $saved ); } catch ( Throwable $e ) { $selection = $e->getMessage(); }
+	unset( $GLOBALS['bk_site_options']['ms_files_rewriting'] );
+	pt_check( is_array( $selection ) && array( 3 ) === $selection['sites'], 'La selección guardada se volvió a validar contra la red de ahora: ' . json_encode( $selection ) );
+	// B1/M1 sin JavaScript: «Todo» marcado con un plugin concreto es sólo ese plugin.
+	pt_check( array( 'parts' => array(), 'plugins' => array( 'demo' ), 'themes' => array(), 'sites' => array() ) === $P::from_request( array( 'restore_parts_shown' => '1', 'restore_all' => '1', 'restore_parts' => array( 'database', 'plugins' ), 'restore_plugins' => array( 'demo' ) ) ), '«Todo» con un plugin concreto no empieza de cero.' );
+	// B3: con un respaldo anterior al v3 no se promete retirar nada.
+	$text = implode( ' ', $P::describe( $P::normalize( array( 'parts' => 'plugins,uploads' ) ), null, null, false )['replaces'] );
+	pt_check( false === strpos( $text, 'se retiran' ) && false !== strpos( $text, 'anterior al formato v3' ), 'La confirmación de un respaldo anterior al v3 promete retirar lo que no trae: ' . $text );
+	// B2: el aviso de plugins sin la base nombra al propio Backups.
+	pt_check( false !== strpos( $P::coherence( $P::normalize( array( 'parts' => 'plugins' ) ) )[0]['text'], 'DIGITALÍSIMO Backups' ), 'El aviso de plugins sin la base no nombra al propio Backups.' );
+} );
+
+pt_case( 'P13 revisión A2: una parte cuya carpeta no existe en el sitio sigue siendo esa parte', function() use ( $root, $snapshot, $snapshot_options, $backup, $backup_tree ) {
+	list( $before, $db ) = pt_prepare( $root, $snapshot, $snapshot_options );
+	bk_remove_tree( $root . '/wp-content/mu-plugins' );
+	$before = bk_tree();
+	pt_check( 'wp-content/mu-plugins' === bk_call( 'Digitalisimo_Backups', 'restore_layout' )['mu'], 'La raíz de mu-plugins se pierde si la carpeta no existe.' );
+	$result = pt_restore( $backup, array( 'parts' => 'content' ) );
+	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	pt_finish();
+	pt_check( 'success' === pt_last()['status'], 'No terminó: ' . json_encode( pt_last()['error'] ) );
+	pt_assert_tree( $before, $backup_tree, array( '/wp-content/languages/es_MX.mo', '/wp-content/object-cache.php' ), array() );
+	pt_check( ! is_file( $root . '/wp-content/mu-plugins/mu.php' ), '«Resto de wp-content» escribió un mu-plugin.' );
+	$result = pt_restore( $backup, array( 'parts' => 'mu-plugins' ) );
+	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	pt_finish();
+	pt_check( 'success' === pt_last()['status'] && is_file( $root . '/wp-content/mu-plugins/mu.php' ) && hash_file( 'sha256', $root . '/wp-content/mu-plugins/mu.php' ) === $backup_tree['/wp-content/mu-plugins/mu.php'], '«mu-plugins» no repuso la carpeta que el sitio no tenía.' );
+	pt_check( $db === pt_db() && 0 === pt_renames(), 'La base de datos cambió sin elegirla.' );
+} );
+
+pt_case( 'P14 revisión: una parte que el respaldo no trae se rechaza; la vuelta de «medios» sin la base retira lo que trajo', function() use ( $root, $snapshot, $snapshot_options, $backup, $P, $layout ) {
+	pt_check( array( 'la parte «mu-plugins»' ) === $P::missing( $P::normalize( array( 'parts' => 'mu-plugins' ) ), array( 'parts' => array( 'database', 'core' ), 'plugins' => array(), 'themes' => array(), 'sites' => array() ) ), 'Una parte entera que el respaldo no trae no se detecta.' );
+	pt_check( $P::removable( $P::normalize( array( 'parts' => 'uploads' ) ), 'wp-content/uploads/x.jpg', $layout, true ), 'En la vuelta a la copia previa, un medio que la copia no tiene no se retira.' );
+	list( $before, $db ) = pt_prepare( $root, $snapshot, $snapshot_options );
+	// La tercera vez que el cambio pone un medio en su sitio falla (disco lleno): foto.jpg y nota.txt (que el sitio ya no
+	// tenía y la copia previa tampoco) ya están.
+	$calls = 0;
+	$GLOBALS['bk_on_mkdir'] = function( $path ) use ( &$calls ) {
+		$job = Digitalisimo_Backups_Jobs::get( Digitalisimo_Backups_Jobs::current_id() );
+		if ( $job && 'restore' === $job['kind'] && empty( $job['spec']['rollback'] ) && 'switch' === $job['phase'] && false !== strpos( (string) $path, '/wp-content/uploads' ) && ++$calls >= 3 ) throw new RuntimeException( 'disco lleno simulado al mover un medio' );
+	};
+	pt_restore( $backup, array( 'parts' => 'uploads' ) );
+	pt_finish();
+	unset( $GLOBALS['bk_on_mkdir'] );
+	pt_check( $calls >= 3, 'La falla simulada no ocurrió (' . $calls . ').' );
+	$rollback = pt_last( true );
+	pt_check( $rollback && 'success' === $rollback['status'], 'La vuelta a la copia previa no terminó: ' . json_encode( $rollback['error'] ?? null ) );
+	pt_assert_tree( $before, $before, array(), array() );
+	pt_check( $db === pt_db(), 'La base de datos cambió.' );
 } );
 
 bk_remove_tree( $snapshot );
