@@ -16,6 +16,23 @@
  * (Cache_Validity, Preview_Token y el transformador de font-family) se cargan de `digitalisimo-elements/elementor/`.
  * Falla con el código anterior: no existe `modules/digitalisimo-mcp/`.
  */
+namespace Elementor\Core\Files {
+	/** La carpeta de las hojas del ensayo (`CSS_Files_Manager` usa `<base>css/<handle>.css`). */
+	class Base {
+		public static function get_base_uploads_dir() {
+			return $GLOBALS['mc_upload_dir'];
+		}
+	}
+}
+
+namespace Elementor {
+	/** Sólo los puntos de corte (`breakpoints->get_breakpoints()`), como en el núcleo. */
+	class Plugin {
+		public static $instance;
+		public $breakpoints;
+	}
+}
+
 namespace Elementor\Modules\AtomicWidgets\PropsResolver {
 	class Props_Resolver_Context {
 	}
@@ -79,7 +96,7 @@ namespace {
 		);
 		$_GET = array();
 		if ( function_exists( 'mc_seed' ) && class_exists( 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity', false ) ) {
-			mc_seed( 50, 60, 70, 80, 81, 82, 90, 999 );
+			mc_seed( 50, 60, 70, 80, 81, 82, 90, 93, 999 );
 		}
 	}
 	mc_reset();
@@ -88,6 +105,14 @@ namespace {
 	}
 	function add_filter( $hook, $callback, $priority = 10, $args = 1 ) {
 		add_action( $hook, $callback, $priority, $args );
+	}
+	function remove_filter( $hook, $callback ) {
+		foreach ( $GLOBALS['mc']['hooks'][ $hook ] ?? array() as $i => $entry ) {
+			if ( $entry[0] === $callback ) {
+				unset( $GLOBALS['mc']['hooks'][ $hook ][ $i ] );
+			}
+		}
+		return true;
 	}
 	function mc_run( string $hook, array $args ) {
 		$value = $args[0] ?? null;
@@ -108,6 +133,10 @@ namespace {
 		return mc_run( $hook, $args );
 	}
 	function get_option( $name, $default = false ) {
+		$pre = apply_filters( "pre_option_{$name}", false, $name, $default );
+		if ( false !== $pre ) {
+			return $pre;
+		}
 		return array_key_exists( $name, $GLOBALS['mc']['options'] ) ? $GLOBALS['mc']['options'][ $name ] : $default;
 	}
 	function update_option( $name, $value, $autoload = null ) {
@@ -190,6 +219,36 @@ namespace {
 		}
 	}
 
+	class Mc_Breakpoint {
+		private $name;
+		public function __construct( string $name ) {
+			$this->name = $name;
+		}
+		public function get_name() {
+			return $this->name;
+		}
+	}
+	class Mc_Breakpoints {
+		public function get_breakpoints() {
+			return array( 'mobile' => new Mc_Breakpoint( 'mobile' ), 'tablet' => new Mc_Breakpoint( 'tablet' ) );
+		}
+	}
+	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
+	\Elementor\Plugin::$instance->breakpoints = new Mc_Breakpoints();
+	$GLOBALS['mc_upload_dir']                  = sys_get_temp_dir() . '/digi-mc-css-' . getmypid() . '/';
+	if ( ! is_dir( $GLOBALS['mc_upload_dir'] . 'css' ) ) {
+		mkdir( $GLOBALS['mc_upload_dir'] . 'css', 0777, true );
+	}
+	register_shutdown_function(
+		static function () {
+			array_map( 'unlink', glob( $GLOBALS['mc_upload_dir'] . 'css/*' ) ?: array() );
+			if ( is_dir( $GLOBALS['mc_upload_dir'] . 'css' ) ) {
+				rmdir( $GLOBALS['mc_upload_dir'] . 'css' );
+				rmdir( $GLOBALS['mc_upload_dir'] );
+			}
+		}
+	);
+
 	// Las clases del núcleo que usa el módulo, tal cual.
 	require $root . '/elementor/modules/atomic-widgets/styles/cache-validity/cache-validity-item.php';
 	require $root . '/elementor/modules/atomic-widgets/styles/cache-validity/cache-validity.php';
@@ -209,6 +268,9 @@ namespace {
 	function mc_boot(): void {
 		mc_reset( true );
 		Css_Sync::reset();
+		if ( class_exists( '\\Digitalisimo\\Elements\\Mcp\\Preview_Link' ) ) {
+			\Digitalisimo\Elements\Mcp\Preview_Link::reset();
+		}
 		Font_Stack::reset();
 		\Digitalisimo\Elements\Mcp\Module::init();
 	}
@@ -247,6 +309,10 @@ namespace {
 		}
 		return array() === $GLOBALS['mc']['clears'];
 	}
+	/** Estado de Preview_Link (vacío si el módulo no lo trae: código anterior). */
+	function mc_preview_state(): array {
+		return class_exists( '\\Digitalisimo\\Elements\\Mcp\\Preview_Link' ) ? \Digitalisimo\Elements\Mcp\Preview_Link::state() : array( 'post' => 0, 'live' => null );
+	}
 	function mc_related_valid( int $id ): bool {
 		return ( new Cache_Validity() )->is_valid( array( 'component-styles-related-posts', (string) $id ) );
 	}
@@ -262,8 +328,9 @@ namespace {
 	check( 100 === $hooks['elementor/document/after_save'][0][1], 'after_save con prioridad 100 (después de los del núcleo, en 10 y 20)' );
 	check( 2 === $hooks['parse_request'][0][1], 'parse_request con prioridad 2 (después del manejador de enlaces firmados del núcleo, en 1)' );
 	check( 20 === $hooks['elementor/atomic-widgets/styles/transformers/register'][0][1], 'el transformador se registra con prioridad 20 (el del núcleo, en 10)' );
+	$counts = array_map( 'count', $GLOBALS['mc']['hooks'] );
 	\Digitalisimo\Elements\Mcp\Module::init();
-	check( 1 === count( $GLOBALS['mc']['hooks']['shutdown'] ), 'init() es idempotente' );
+	check( $counts === array_map( 'count', $GLOBALS['mc']['hooks'] ) && 2 === count( $GLOBALS['mc']['hooks']['shutdown'] ) && 1 === count( $GLOBALS['mc']['hooks']['parse_request'] ), 'init() es idempotente (shutdown: Css_Sync y Preview_Link)' );
 
 	// ---------------------------------------------------------------------------------------------------------------
 	// 2. Fuera de una herramienta del constructor no se anota nada (el editor y lo demás siguen como en el núcleo).
@@ -366,21 +433,61 @@ namespace {
 	check( 0 === Css_Sync::state()['depth'], 'el GET del proxy (recursos, sólo lectura) y otras rutas no abren el ámbito' );
 
 	// ---------------------------------------------------------------------------------------------------------------
-	// 6. Enlace firmado de create-preview-link (token real del núcleo): antes de pintar y al terminar.
+	// 6. Enlace firmado de create-preview-link (token real del núcleo). Revisión (ALTA 1): con la página publicada no se
+	//    invalida ni se escribe nada suyo; sus hojas «frontend» se congelan (las que el núcleo regeneraría se marcan
+	//    válidas sólo para esa petición) y vuelven a inválido al terminar; la caché HTML se apaga durante la petición.
+	//    Falla con d85111be (se invalidaban sus hojas y se borraba su caché HTML antes y después).
 	mc_boot();
-	mc_post( 90, 'page', 0, 'publish' );
-	mc_post( 91, 'revision', 90, 'inherit' );
-	mc_post( 92, 'revision', 99, 'inherit' );
-	mc_post( 93, 'page' );
+	$v = new Cache_Validity();
 	$secret = Preview_Token::secret();
-	$valid  = Preview_Token::encode( 90, 91, time() + 300, $secret );
-	$_GET['elementor_preview_token'] = $valid;
+	$posts  = static function () {
+		mc_post( 90, 'page', 0, 'publish' );
+		mc_post( 91, 'revision', 90, 'inherit' );
+		mc_post( 92, 'revision', 99, 'inherit' );
+		mc_post( 93, 'page' );
+		mc_post( 94, 'revision', 93, 'inherit' );
+	};
+	$posts();
+	// La publicada: escritorio válido con su archivo; móvil válido pero sin archivo; tableta inválida. Global: inválida.
+	file_put_contents( $GLOBALS['mc_upload_dir'] . 'css/local-90-frontend-desktop.css', '.elementor .e-vivo{color:red}' );
+	$v->invalidate( array( 'local', 90 ) );
+	$v->invalidate( array( 'global', 90 ) );
+	$v->validate( array( 'local', 90, 'frontend' ), 'ver-vivo' );
+	$v->validate( array( 'local', 90, 'frontend', 'desktop' ), array( 'should_exist' => true ) );
+	$v->validate( array( 'local', 90, 'frontend', 'mobile' ), array( 'should_exist' => true ) );
+	$v->validate( array( 'component-styles-related-posts', '90' ), array( 7 ) );
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 90, 91, time() + 300, $secret );
+	check( 'disable' !== get_option( 'elementor_element_cache_ttl', '' ), 'antes del enlace, la caché HTML del documento funciona' );
 	do_action( 'parse_request', null );
-	check( array( 'local/90', 'global/90' ) === mc_cleared( 90 )['clears'] && 1 === mc_cleared( 90 )['html'], 'enlace válido: la página se invalida antes de pintar la instantánea' );
-	mc_seed( 90 ); // el render de la instantánea vuelve a generar las hojas de la página
+	check( 'disable' === get_option( 'elementor_element_cache_ttl', '' ), 'durante el enlace firmado, la caché HTML del documento está apagada (no se lee ni se guarda)' );
+	check( $v->is_valid( array( 'local', 90, 'frontend' ) ) && 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ), 'la hoja local de la publicada sigue válida con su ver (no se regenera)' );
+	check( $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ) && array( 'should_exist' => true ) === $v->get_meta( array( 'local', 90, 'frontend', 'desktop' ) ), 'escritorio (con archivo): intacto, el núcleo sirve el archivo tal cual' );
+	foreach ( array( 'mobile', 'tablet' ) as $bp ) {
+		check( $v->is_valid( array( 'local', 90, 'frontend', $bp ) ) && array( 'should_exist' => false ) === $v->get_meta( array( 'local', 90, 'frontend', $bp ) ), "$bp (sin archivo): válida sin archivo durante la petición (el núcleo no escribe nada)" );
+	}
+	check( $v->is_valid( array( 'global', 90, 'frontend' ) ) && $v->is_valid( array( 'global', 90, 'frontend', 'desktop' ) ) && array( 'should_exist' => false ) === $v->get_meta( array( 'global', 90, 'frontend', 'desktop' ) ), 'la hoja global (inválida y sin archivo): congelada sin archivo' );
+	check( ! mc_related_valid( 90 ), 'la lista de componentes se recalcula para la instantánea' );
+	check( array() === $GLOBALS['mc']['deleted'] && 90 === mc_preview_state()['post'] && true === mc_preview_state()['live'], 'no se borra la caché HTML de la publicada' );
 	do_action( 'shutdown' );
-	check( array( 'local/90', 'global/90' ) === mc_cleared( 90 )['clears'] && 2 === mc_cleared( 90 )['html'], 'enlace válido: y otra vez al terminar (la página no se queda con el CSS ni el HTML de la instantánea)' );
-	check( array() === $GLOBALS['mc']['clears'], 'enlace válido: sin borrar archivos (la respuesta ya enviada los enlaza)' );
+	check( 'disable' !== get_option( 'elementor_element_cache_ttl', '' ), 'al terminar, la caché HTML vuelve a funcionar' );
+	check( $v->is_valid( array( 'local', 90, 'frontend' ) ) && $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ) && 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ), 'al terminar: escritorio sigue válido con el mismo ver (abrir el enlace no regenera la publicada)' );
+	check( ! $v->is_valid( array( 'local', 90, 'frontend', 'mobile' ) ) && ! $v->is_valid( array( 'local', 90, 'frontend', 'tablet' ) ), 'al terminar: lo que se congeló vuelve a inválido' );
+	check( ! $v->is_valid( array( 'global', 90, 'frontend' ) ), 'al terminar: el contexto global que estaba inválido vuelve a inválido' );
+	check( '.elementor .e-vivo{color:red}' === file_get_contents( $GLOBALS['mc_upload_dir'] . 'css/local-90-frontend-desktop.css' ), 'el archivo de la publicada no cambia' );
+	check( ! mc_related_valid( 90 ) && array() === $GLOBALS['mc']['deleted'] && array() === $GLOBALS['mc']['clears'], 'la lista de componentes se recalcula para la publicada; sin borrados' );
+	// El mismo enlace otra vez: igual (sin regenerar nada de la publicada).
+	do_action( 'parse_request', null );
+	do_action( 'shutdown' );
+	check( 'ver-vivo' === $v->get_meta( array( 'local', 90, 'frontend' ) ) && $v->is_valid( array( 'local', 90, 'frontend', 'desktop' ) ), 'abrirlo de nuevo tampoco cambia la hoja ni el ver de la publicada' );
+	// Un borrador: sus hojas se invalidan antes y después (la instantánea se pinta con su CSS; nadie guarda su HTML).
+	mc_reset();
+	$posts();
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 93, 94, time() + 300, $secret );
+	do_action( 'parse_request', null );
+	check( array( 'local/93', 'global/93' ) === mc_cleared( 93 )['clears'] && 'disable' === get_option( 'elementor_element_cache_ttl', '' ) && false === mc_preview_state()['live'], 'borrador: sus hojas se invalidan antes de pintar y la caché HTML se apaga' );
+	mc_seed( 93 );
+	do_action( 'shutdown' );
+	check( array( 'local/93', 'global/93' ) === mc_cleared( 93 )['clears'] && 0 === mc_cleared( 93 )['html'], 'borrador: y otra vez al terminar, sin tocar su caché HTML' );
 	foreach ( array(
 		'firma ajena'          => Preview_Token::encode( 90, 91, time() + 300, 'otro secreto' ),
 		'vencido'              => Preview_Token::encode( 90, 91, time() - 1, $secret ),
@@ -391,19 +498,19 @@ namespace {
 		'vacío'                => '',
 	) as $label => $token ) {
 		mc_reset();
-		mc_post( 90, 'page', 0, 'publish' );
-		mc_post( 91, 'revision', 90, 'inherit' );
-		mc_post( 92, 'revision', 99, 'inherit' );
-		mc_post( 93, 'page' );
+		$posts();
 		$_GET['elementor_preview_token'] = $token;
 		do_action( 'parse_request', null );
+		$ttl = get_option( 'elementor_element_cache_ttl', '' );
 		do_action( 'shutdown' );
-		check( mc_untouched( 90 ), "enlace $label: no se invalida nada" );
+		check( mc_untouched( 90 ) && 'disable' !== $ttl && 0 === mc_preview_state()['post'], "enlace $label: no se toca nada" );
 	}
 	mc_reset();
-	$_GET['elementor_preview_token'] = array( $valid );
+	$posts();
+	$_GET['elementor_preview_token'] = array( Preview_Token::encode( 90, 91, time() + 300, $secret ) );
 	do_action( 'parse_request', null );
-	check( mc_untouched( 90 ), 'un token que no es texto se ignora' );
+	check( mc_untouched( 90 ) && 0 === mc_preview_state()['post'], 'un token que no es texto se ignora' );
+	do_action( 'shutdown' );
 
 	// ---------------------------------------------------------------------------------------------------------------
 	// 7. Font_Stack: lista de familias.

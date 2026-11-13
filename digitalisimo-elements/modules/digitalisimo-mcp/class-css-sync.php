@@ -25,21 +25,23 @@ defined( 'ABSPATH' ) || exit;
  *   la lista de componentes que incrusta y su caché HTML (`_elementor_element_cache`): el siguiente render los regenera
  *   con un `ver` nuevo, como al guardar y publicar en el editor. Un cambio que sólo queda en el autoguardado de una
  *   página publicada no toca la publicada.
- * Y en cada apertura de un enlace firmado válido de `create-preview-link` (una instantánea que el núcleo pinta con las
- * hojas y la caché HTML de la página), lo mismo antes de pintar (la instantánea sale con su propio CSS) y al terminar
- * (la página no se queda con el CSS ni el HTML de la instantánea).
+ * Los enlaces firmados de `create-preview-link` los atiende `Preview_Link`.
  * Lo que cambia el kit (clases globales, variables, estilos predeterminados) ya lo regenera el núcleo.
  */
 final class Css_Sync {
 	const ABILITY_PREFIX = 'elementor/';
 	const PROXY_ROUTE    = '/elementor/v1/mcp-proxy';
-	const DATA_META      = '_elementor_data';
-	const HTML_CACHE     = '_elementor_element_cache';
-	const STYLE_ROOTS    = array( 'local', 'global' );
-	const RELATED_ROOT   = 'component-styles-related-posts';
 	const VALIDITY_CLASS = 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity';
-	const TOKEN_CLASS    = 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token';
-	const TOKEN_ARG      = 'elementor_preview_token';
+
+	/** Claves del núcleo que usa el módulo (nombre interno => valor). */
+	const KEYS = array(
+		'local'   => 'local',
+		'global'  => 'global',
+		'related' => 'component-styles-related-posts',
+		'html'    => '_elementor_element_cache',
+		'data'    => '_elementor_data',
+		'token'   => 'elementor_preview_token',
+	);
 
 	/** @var bool */
 	private static $initialized = false;
@@ -49,9 +51,6 @@ final class Css_Sync {
 
 	/** @var array<int, true> Documentos vivos que cambiaron y aún no se refrescaron. */
 	private static $pending = array();
-
-	/** @var int Página de un enlace firmado abierto en esta petición. */
-	private static $preview = 0;
 
 	/** @var array<string, true> Herramientas cuyo `execute_callback` ya abre y cierra el ámbito (`wrap_ability()`). */
 	private static $wrapped = array();
@@ -78,7 +77,6 @@ final class Css_Sync {
 		add_action( 'updated_post_meta', array( __CLASS__, 'meta_written' ), 10, 3 );
 		add_action( 'transition_post_status', array( __CLASS__, 'status_changed' ), 10, 3 );
 		add_action( 'save_post', array( __CLASS__, 'post_saved' ), 10, 1 );
-		add_action( 'parse_request', array( __CLASS__, 'preview_request' ), 2 );
 		add_action( 'shutdown', array( __CLASS__, 'shutdown' ), 0 );
 	}
 
@@ -148,7 +146,7 @@ final class Css_Sync {
 
 	/** `_elementor_data` escrito en un documento vivo (p. ej. la promoción del autoguardado de `publish-document`). */
 	public static function meta_written( $meta_id, $object_id, $meta_key ): void {
-		if ( ! self::$depth || self::$flushing || self::DATA_META !== $meta_key ) {
+		if ( ! self::$depth || self::$flushing || self::key( 'data' ) !== $meta_key ) {
 			return;
 		}
 		$id = (int) $object_id;
@@ -206,58 +204,45 @@ final class Css_Sync {
 		if ( $id <= 0 ) {
 			return;
 		}
-		self::clear_view( $id );
-		$class = self::VALIDITY_CLASS;
-		if ( class_exists( $class ) ) {
-			( new $class() )->invalidate( array( self::RELATED_ROOT, (string) $id ) );
-		}
+		self::invalidate_styles( $id );
+		delete_post_meta( $id, self::key( 'html' ) );
+		self::invalidate_related( $id );
 		if ( ! $notified && 'publish' === get_post_status( $id ) && function_exists( 'wp_update_post' ) ) {
 			wp_update_post( array( 'ID' => $id ) );
 		}
 	}
 
-	/**
-	 * `parse_request` 2 (el manejador del núcleo va en 1): un enlace firmado válido pinta una instantánea con las hojas
-	 * y la caché HTML de la página; se invalidan antes (la instantánea sale con su CSS) y al terminar.
-	 */
-	public static function preview_request( $wp = null ): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- el enlace lleva su propio token firmado.
-		$raw = isset( $_GET[ self::TOKEN_ARG ] ) && is_string( $_GET[ self::TOKEN_ARG ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::TOKEN_ARG ] ) ) : '';
-		if ( '' === $raw ) {
-			return;
-		}
-		$id = self::preview_post( $raw );
-		if ( $id > 0 ) {
-			self::$preview = $id;
-			self::clear_view( $id );
-		}
-	}
-
-	/** La página de un token válido (firma, vigencia y revisión de esa página, como el núcleo), o 0. */
-	public static function preview_post( string $raw ): int {
-		$class = self::TOKEN_CLASS;
-		if ( ! class_exists( $class ) || ! method_exists( $class, 'decode' ) || ! method_exists( $class, 'secret' ) || ! method_exists( $class, 'is_expired' ) ) {
-			return 0;
-		}
-		$claims = $class::decode( $raw, $class::secret() );
-		if ( ! is_array( $claims ) || $class::is_expired( $claims, time() ) ) {
-			return 0;
-		}
-		$id       = isset( $claims['post_id'] ) ? (int) $claims['post_id'] : 0;
-		$revision = isset( $claims['revision_id'] ) ? get_post( (int) $claims['revision_id'] ) : null;
-		if ( $id <= 0 || ! $revision || 'revision' !== $revision->post_type || (int) $revision->post_parent !== $id ) {
-			return 0;
-		}
-		return $id;
-	}
-
 	public static function shutdown(): void {
 		self::flush();
-		if ( self::$preview ) {
-			$id            = self::$preview;
-			self::$preview = 0;
-			self::clear_view( $id );
+	}
+
+	/**
+	 * Hojas locales y de clases globales de la página, en todos los contextos y puntos: se marcan inválidas sin borrar
+	 * sus archivos; el siguiente render las reescribe de forma atómica con un `ver` nuevo, y una respuesta ya enviada que
+	 * las enlaza no se queda sin ellas.
+	 */
+	public static function invalidate_styles( int $id ): void {
+		$class = self::VALIDITY_CLASS;
+		if ( $id <= 0 || ! class_exists( $class ) ) {
+			return;
 		}
+		$validity = new $class();
+		foreach ( array( self::key( 'local' ), self::key( 'global' ) ) as $root ) {
+			$validity->invalidate( array( $root, $id ) );
+		}
+	}
+
+	/** La lista de componentes que incrusta la página (`Component_Styles`): se recalcula en el siguiente render. */
+	public static function invalidate_related( int $id ): void {
+		$class = self::VALIDITY_CLASS;
+		if ( $id > 0 && class_exists( $class ) ) {
+			( new $class() )->invalidate( array( self::key( 'related' ), (string) $id ) );
+		}
+	}
+
+	/** Una clave del núcleo (ver `KEYS`). */
+	public static function key( string $name ): string {
+		return self::KEYS[ $name ] ?? '';
 	}
 
 	/** Para las pruebas: vuelve al estado anterior a `init()`. */
@@ -265,7 +250,6 @@ final class Css_Sync {
 		self::$initialized = false;
 		self::$depth       = 0;
 		self::$pending     = array();
-		self::$preview     = 0;
 		self::$wrapped     = array();
 		self::$saved       = array();
 		self::$flushing    = false;
@@ -276,7 +260,7 @@ final class Css_Sync {
 		return array(
 			'depth'   => self::$depth,
 			'pending' => array_keys( self::$pending ),
-			'preview' => self::$preview,
+			'preview' => class_exists( __NAMESPACE__ . '\\Preview_Link', false ) ? Preview_Link::state()['post'] : 0,
 		);
 	}
 
@@ -285,22 +269,6 @@ final class Css_Sync {
 		if ( 0 === self::$depth ) {
 			self::flush();
 		}
-	}
-
-	/**
-	 * Hojas locales y de clases globales de la página (todos los contextos) y su caché HTML. Las hojas se marcan
-	 * inválidas sin borrar sus archivos: el siguiente render las reescribe de forma atómica con un `ver` nuevo, y una
-	 * respuesta ya enviada que las enlaza (la del propio enlace firmado) no se queda sin ellas.
-	 */
-	private static function clear_view( int $id ): void {
-		$class = self::VALIDITY_CLASS;
-		if ( class_exists( $class ) ) {
-			$validity = new $class();
-			foreach ( self::STYLE_ROOTS as $root ) {
-				$validity->invalidate( array( $root, $id ) );
-			}
-		}
-		delete_post_meta( $id, self::HTML_CACHE );
 	}
 
 	private static function is_builder_ability( $name ): bool {
