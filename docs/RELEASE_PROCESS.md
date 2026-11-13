@@ -30,6 +30,32 @@ distribuye en DIGITALÍSIMO Migración, que se instala sólo mientras dura la mi
 Element Pack vive en `reference/`, ignorada por Git y fuera de todo ZIP. `scripts/verify-release.mjs` comprueba que
 están exactamente los ZIP esperados y que cada uno conserva la carpeta y el archivo principal de los sitios.
 
+### Instalador de DIGITALÍSIMO Elements
+
+`digitalisimo-elements-installer/` es un plugin de pocos KB para los hostings que no dejan subir los 31 MB del ZIP de
+Elements (uso y flujo en «Instalar Elements en un sitio nuevo» del [README](../README.md)). Viaja en cada Release como
+`digitalisimo-elements-installer.zip`, **sin versión en el nombre**, para que exista el enlace permanente
+`https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-elements-installer.zip`.
+
+- **No es uno de los siete plugins.** No tiene actualizador (`Update URI: false`), no entra en el índice
+  `digitalisimo-plugins.json`, ni en `tests/validate-suite.mjs` como paquete versionado, ni sube de versión con las
+  publicaciones: su versión (cabecera y `VERSION`) sólo cambia si cambia él. Sin versión en el nombre, ninguna
+  expresión de assets de los actualizadores, los catálogos, `release-manifest.mjs` ni `verify-release.mjs` lo toma
+  (`tests/elements-installer.php` y `tests/release-manifest.mjs` lo comprueban).
+- **Paquete.** `bash scripts/build-packages.sh <directorio> digitalisimo-elements-installer` (no está en la lista por
+  defecto) con su guarda: carpeta y archivo principal, nada fuera de la carpeta, menos de 1 MiB y ningún dominio de
+  `tests/playground/brand-audit/vendors.json`; imprime `INSTALLER PACKAGE CHECK: PASS`. No se versiona en `dist/` ni
+  se mueve a `rollback/`: cada Release lo construye desde el repositorio.
+- **Release.** `release.yml` lo construye junto a los 8 ZIP, `verify-release.mjs --installer` comprueba que existe, que
+  pesa menos de 1 MB y que contiene `digitalisimo-elements-installer/digitalisimo-elements-installer.php`, y se sube
+  como un asset más: **10 archivos** (8 ZIP, el índice y el instalador). Las notas de la Release llevan el enlace
+  permanente. Un cambio sólo en el instalador no dispara la publicación (no es un directorio de plugin de
+  `release.yml`): sale con la siguiente Release, o con una ejecución manual con la lista vacía.
+- **Origen de pruebas.** El filtro `digitalisimo_elements_installer_test_source` sólo existe para
+  `tests/playground/elements-installer.sh` (índice y ZIP de `dist/` servidos en 127.0.0.1, sin depender de GitHub) y
+  sólo admite una base de bucle local; sin código que lo añada, la lista blanca acepta únicamente
+  `https://github.com/danbutanda/digitalisimo-plugin/releases/download/vAAAA.MM.DD.N/digitalisimo-elements-<versión>.zip`.
+
 ## Actualizadores
 
 Cada plugin trae su actualizador; ninguno necesita a otro plugin activo:
@@ -81,17 +107,18 @@ comprueba que coincidan y que toda prueba de `tests/` esté en ella); validate p
 La publicación detecta qué plugins cambiaron (`scripts/changed-modules.sh`), comprueba que la versión de cada uno
 supera la publicada y crea una Release con etiqueta `vAAAA.MM.DD.N` (`N` es el número de la ejecución). La Release
 contiene **el ZIP vigente de los siete plugins y del tema (8 ZIP)** —los modificados con su versión nueva y los demás con la misma versión
-que ya tenían— y `digitalisimo-plugins.json` (`scripts/release-manifest.mjs`): la clave `plugins` siempre con siete entradas y la clave
-`themes` con la del tema, con `requires` y `requires_php` leídos de su `style.css`. Un índice válido sin `themes`
+que ya tenían—, `digitalisimo-plugins.json` (`scripts/release-manifest.mjs`) y el instalador de Elements
+(`digitalisimo-elements-installer.zip`, ver «Instalador de DIGITALÍSIMO Elements»): 10 archivos. En el índice, la clave `plugins` siempre con siete entradas y la clave
+`themes` con la del tema, con `requires` y `requires_php` leídos de su `style.css`; el instalador no entra. Un índice válido sin `themes`
 significa «tema sin publicar» y no provoca consultas. Sus notas indican qué plugins tienen
-versión nueva. El workflow falla si falta o sobra un ZIP o si una versión modificada no avanzó.
+versión nueva y el enlace permanente del instalador. El workflow falla si falta o sobra un ZIP, si falta el instalador o si una versión modificada no avanzó.
 
 También puede iniciarse a mano desde GitHub Actions: con slugs separados por espacios (`digitalisimo-theme` para el tema) comprueba que esos
-paquetes tienen versión nueva; con la lista vacía vuelve a publicar los 8 ZIP vigentes sin cambiar versiones.
+paquetes tienen versión nueva; con la lista vacía vuelve a publicar los 8 ZIP vigentes sin cambiar versiones (y el instalador, construido de nuevo).
 
 Antes de dar la entrega por terminada, comprobar que **Publicar módulos Digitalisimo** terminó con éxito y que la
-Release pública tiene los siete ZIP de plugins y el del tema, con versión nueva en los modificados, y que
-`digitalisimo-plugins.json` trae `themes.digitalisimo-theme`: los actualizadores y los catálogos de
+Release pública tiene los siete ZIP de plugins y el del tema, con versión nueva en los modificados, el índice y
+`digitalisimo-elements-installer.zip` (10 archivos), y que `digitalisimo-plugins.json` trae `themes.digitalisimo-theme`: los actualizadores y los catálogos de
 plugins de SEO y Tools sólo leen las 50 Releases más recientes. WordPress detecta una actualización cuando la versión
 publicada supera la instalada, en su próxima consulta de actualizaciones.
 
@@ -126,7 +153,10 @@ versión de Elements. El procedimiento completo está en [ELEMENTOR_CORE.md](ELE
 - Suite completa: `bash scripts/build-packages.sh /tmp/digitalisimo-suite` (8 ZIP y `THEME PACKAGE CHECK: PASS`),
   `DIGITALISIMO_PACKAGE_DIR=/tmp/digitalisimo-suite node tests/validate-suite.mjs` y
   `DIGITALISIMO_PACKAGE_DIR=/tmp/digitalisimo-suite node scripts/verify-release.mjs` (exige los 8), más
-  `node tests/release-manifest.mjs`.
+  `node tests/release-manifest.mjs`. Con el instalador, como la Release:
+  `bash scripts/build-packages.sh /tmp/digitalisimo-suite digitalisimo-elements-installer` y `verify-release.mjs --installer`.
+- Instalador de punta a punta: `bash tests/playground/elements-installer.sh` (en la PC, con `pc-run.sh`; ver
+  `tests/playground/README.md`).
 - Un plugin: `bash scripts/build-packages.sh /tmp/digitalisimo-release digitalisimo-tools` y
   `DIGITALISIMO_PACKAGE_DIR=/tmp/digitalisimo-release node scripts/verify-release.mjs --remote digitalisimo-tools`;
   para el tema, lo mismo con `digitalisimo-theme`.

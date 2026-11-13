@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Carpeta del repositorio, archivo principal, slug del ZIP y carpeta dentro del ZIP: la del ZIP es la que tienen los
@@ -15,6 +15,12 @@ const modules = [
   ['digitalisimo-theme', 'style.css', 'digitalisimo-theme', 'digitalisimo-theme'],
 ];
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || 'dist';
+// Instalador de DIGITALÍSIMO Elements: un asset más de la Release, sin versión en el nombre (enlace permanente
+// releases/latest/download/digitalisimo-elements-installer.zip). No es uno de los siete plugins: no cuenta entre los ZIP
+// versionados. Con --installer es obligatorio; si está en la carpeta, se comprueba aunque no se pida.
+const INSTALLER = 'digitalisimo-elements-installer.zip';
+const INSTALLER_MAIN = 'digitalisimo-elements-installer/digitalisimo-elements-installer.php';
+const INSTALLER_MAX = 1024 * 1024;
 const expected = new Map();
 const installed = new Map();
 for (const [directory, mainFile, slug, folder] of modules) {
@@ -27,7 +33,7 @@ for (const [directory, mainFile, slug, folder] of modules) {
 const selected = process.argv.filter((argument) => argument.startsWith('digitalisimo-'));
 for (const slug of selected) if (!expected.has(slug)) throw new Error(`Módulo desconocido: ${slug}`);
 const selectedVersions = selected.length ? [...new Set(selected)].map((slug) => [slug, expected.get(slug)]) : [...expected];
-const actual = readdirSync(packageDir).filter((file) => file.endsWith('.zip')).sort();
+const actual = readdirSync(packageDir).filter((file) => file.endsWith('.zip') && file !== INSTALLER).sort();
 const wanted = selectedVersions.map(([slug, version]) => `${slug}-${version}.zip`).sort();
 if (actual.length !== wanted.length || actual.some((file, index) => file !== wanted[index])) {
   throw new Error(`La entrega exige exactamente estos ZIPs: ${wanted.join(', ')}. Encontrados: ${actual.join(', ')}`);
@@ -40,6 +46,20 @@ for (const [slug, version] of selectedVersions) {
   if (strays.length) throw new Error(`${slug}-${version}.zip tiene archivos fuera de ${folder}/: ${strays.slice(0, 5).join(', ')}`);
 }
 console.log(`Paquetes completos: ${wanted.join(', ')}`);
+
+const installerPath = join(packageDir, INSTALLER);
+if (process.argv.includes('--installer') && !existsSync(installerPath)) throw new Error(`Falta ${INSTALLER}: la Release lleva el instalador de Elements (enlace permanente)`);
+if (existsSync(installerPath)) {
+  const size = statSync(installerPath).size;
+  if (size >= INSTALLER_MAX) throw new Error(`${INSTALLER} pesa ${size} bytes: debe quedar por debajo de 1 MB`);
+  const entries = execFileSync('unzip', ['-Z1', installerPath], { encoding: 'utf8' }).split('\n').filter(Boolean);
+  if (!entries.includes(INSTALLER_MAIN)) throw new Error(`${INSTALLER} debe contener ${INSTALLER_MAIN}`);
+  const strays = entries.filter((entry) => !entry.startsWith('digitalisimo-elements-installer/'));
+  if (strays.length) throw new Error(`${INSTALLER} tiene archivos fuera de digitalisimo-elements-installer/: ${strays.slice(0, 5).join(', ')}`);
+  const header = execFileSync('unzip', ['-p', installerPath, INSTALLER_MAIN], { encoding: 'utf8' });
+  if (!/^ \* Plugin Name: DIGITALÍSIMO Elements · Instalador\s*$/m.test(header)) throw new Error(`${INSTALLER_MAIN} no es el instalador de DIGITALÍSIMO Elements`);
+  console.log(`Instalador de Elements: ${INSTALLER} (${size} bytes)`);
+}
 
 if (process.argv.includes('--remote')) {
   const repository = process.env.GITHUB_REPOSITORY || 'danbutanda/digitalisimo-plugin';

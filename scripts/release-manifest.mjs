@@ -12,7 +12,9 @@ const repository = process.env.GITHUB_REPOSITORY || 'danbutanda/digitalisimo-plu
 const PLUGINS = ['digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
 const THEMES = ['digitalisimo-theme'];
 const plugins = {}, themes = {};
-for (const file of readdirSync(directory).filter((name) => name.endsWith('.zip')).sort()) {
+// El instalador de Elements viaja en la misma carpeta y en la Release, pero no es un paquete versionado: fuera del índice.
+const INSTALLER = 'digitalisimo-elements-installer.zip';
+for (const file of readdirSync(directory).filter((name) => name.endsWith('.zip') && name !== INSTALLER).sort()) {
   const match = file.match(/^(digitalisimo-[a-z]+(?:-[a-z]+)*)-(\d+(?:\.\d+)+)\.zip$/);
   if (!match) throw new Error(`Nombre de paquete inesperado: ${file}`);
   const [, slug, version] = match;

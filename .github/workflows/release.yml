@@ -42,7 +42,7 @@ jobs:
         with:
           php-version: '8.2'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-elements-installer digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: sshd de OpenSSH para la prueba de SFTP sin la extensión ssh2
         run: test -x /usr/sbin/sshd || (sudo apt-get update -qq && sudo apt-get install -y -qq openssh-server)
       - name: Traer main para la higiene
@@ -217,6 +217,7 @@ jobs:
           php tests/elements-products-carousel.php
           php tests/elements-core-loader.php
           php tests/elements-updater-manifest.php
+          php tests/elements-installer.php
           php tests/elements-sibling-updates.php
           php tests/elements-compat-tag-version.php
           php tests/updater-real-folder.php
@@ -540,7 +541,11 @@ jobs:
           fi
           echo "names=${modules[*]}" >> "$GITHUB_OUTPUT"
       - name: Preparar paquetes para validar toda la suite
-        run: bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-suite"
+        # Los 8 ZIP versionados y el instalador de Elements, sin versión en el nombre (enlace permanente
+        # releases/latest/download/digitalisimo-elements-installer.zip; no entra en el índice).
+        run: |
+          bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-suite"
+          bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-suite" digitalisimo-elements-installer
       - name: Validar suite
         env:
           DIGITALISIMO_PACKAGE_DIR: ${{ runner.temp }}/digitalisimo-suite
@@ -554,10 +559,10 @@ jobs:
           read -r -a modules <<< "$MODULES"
           bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-packages" "${modules[@]}"
           DIGITALISIMO_PACKAGE_DIR="$RUNNER_TEMP/digitalisimo-packages" node scripts/verify-release.mjs --remote "${modules[@]}"
-      - name: Comprobar que la Release lleva el ZIP vigente de los siete plugins y del tema
+      - name: Comprobar que la Release lleva el ZIP vigente de los siete plugins y del tema, y el instalador de Elements
         env:
           DIGITALISIMO_PACKAGE_DIR: ${{ runner.temp }}/digitalisimo-suite
-        run: node scripts/verify-release.mjs
+        run: node scripts/verify-release.mjs --installer
       - name: Preparar etiqueta numerada y notas
         id: tag
         env:
@@ -572,6 +577,8 @@ jobs:
             if [[ -n "$MODULES" ]]; then echo "Paquetes con versión nueva: ${MODULES}."; else echo 'Sin versiones nuevas: vuelve a publicar el ZIP vigente de cada plugin y del tema.'; fi
             echo
             echo 'Esta Release incluye siempre el ZIP vigente de los siete plugins Digitalisimo y del tema, para que cada uno y su versión más reciente estén en la última Release.'
+            echo
+            echo "Instalador de DIGITALÍSIMO Elements (pocos KB, para hostings que no dejan subir el ZIP completo): https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/digitalisimo-elements-installer.zip"
             echo 'NOTAS'
           } >> "$GITHUB_OUTPUT"
       - name: Publicar Release y assets
@@ -604,7 +611,7 @@ jobs:
       - name: Validar sintaxis PHP 7.4
         # Los bootstrap80.php de los polyfills de Symfony usan sintaxis de PHP 8 a propósito: su bootstrap.php sólo los
         # carga con PHP >= 8 (tests/repo-hygiene.mjs lo comprueba).
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -not -path '*/symfony/polyfill-*/bootstrap80.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-elements-installer digitalisimo-migration digitalisimo-theme -name '*.php' -not -path '*/symfony/polyfill-*/bootstrap80.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar la suite PHP con PHP 7.4
         # scripts/ci-php74-pendientes.txt: pruebas que aún no corren en 7.4, cada una con su causa; deben seguir
         # fallando, y la que ya pase hace fallar el trabajo para que la lista sólo se acorte.

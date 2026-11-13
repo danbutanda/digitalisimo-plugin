@@ -1,7 +1,9 @@
 // Índice de la Release (scripts/release-manifest.mjs) y comprobación de paquetes (scripts/verify-release.mjs) con el
 // tema: ocho ZIP mínimos cuyos nombres salen de las cabeceras del repositorio (la misma expresión que verify-release),
-// el índice escrito se lee de vuelta y cada caso de error deja el índice sin escribir.
+// el índice escrito se lee de vuelta y cada caso de error deja el índice sin escribir. El instalador de Elements
+// (digitalisimo-elements-installer.zip) va aparte: fuera del índice y comprobado por verify-release --installer.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -106,7 +108,48 @@ try {
     check(0 === selected.status, `verify-release debe aceptar el tema como paquete seleccionado: ${selected.stderr}`);
     check(readdirSync(complete).every((name) => name.endsWith('.zip')), 'verify-release no escribe nada en la carpeta de paquetes.');
   }
+  // (f) Instalador de Elements (digitalisimo-elements-installer.zip, sin versión): viaja en la misma carpeta y en la
+  // Release, pero el índice sigue con siete plugins y el tema, y verify-release lo comprueba aparte (< 1 MB, con su
+  // archivo principal); con --installer es obligatorio.
+  {
+    const built = join(work, 'instalador');
+    mkdirSync(built);
+    const build = spawnSync('bash', [join(ROOT, 'scripts/build-packages.sh'), built, 'digitalisimo-elements-installer'], { cwd: ROOT, encoding: 'utf8' });
+    const installer = join(built, 'digitalisimo-elements-installer.zip');
+    check(0 === build.status && existsSync(installer) && /INSTALLER PACKAGE CHECK: PASS/.test(build.stderr), `build-packages.sh construye el instalador: ${build.stderr}`);
+    check(readdirSync(built).length === 1, 'build-packages.sh con el slug del instalador sólo deja su ZIP, sin versión en el nombre.');
+    const directory = packages('con-instalador', all, [['digitalisimo-elements-installer.zip', installer]]);
+    const run = manifest(directory);
+    check(0 === run.status, `El índice se genera con el instalador en la carpeta: ${run.stderr}`);
+    const written = JSON.parse(readFileSync(index(directory), 'utf8'));
+    check(7 === Object.keys(written.plugins).length && 1 === Object.keys(written.themes).length && !JSON.stringify(written).includes('installer'), 'Con el instalador, el índice sigue con siete plugins y el tema, sin el instalador.');
+    const verify = (dir, ...args) => node([join(ROOT, 'scripts/verify-release.mjs'), ...args], { DIGITALISIMO_PACKAGE_DIR: dir });
+    const ok = verify(directory, '--installer');
+    check(0 === ok.status && /Paquetes completos: .*digitalisimo-theme-/.test(ok.stdout) && /Instalador de Elements: digitalisimo-elements-installer\.zip/.test(ok.stdout), `verify-release --installer acepta los ocho ZIP y el instalador: ${ok.stderr}`);
+    check(0 === verify(directory).status, 'Sin --installer, el instalador presente no cuenta como un noveno ZIP.');
+    const missing = verify(packages('sin-instalador', all), '--installer');
+    check(0 !== missing.status && /Falta digitalisimo-elements-installer\.zip/.test(missing.stderr), 'verify-release --installer exige el instalador.');
+    // Un instalador de 1 MB o más, o sin su archivo principal, se rechaza.
+    const big = join(work, 'grande');
+    mkdirSync(join(big, 'digitalisimo-elements-installer'), { recursive: true });
+    copyFileSync(join(ROOT, 'digitalisimo-elements-installer/digitalisimo-elements-installer.php'), join(big, 'digitalisimo-elements-installer/digitalisimo-elements-installer.php'));
+    writeFileSync(join(big, 'digitalisimo-elements-installer/relleno.bin'), randomBytes(1100 * 1024));
+    execFileSync('zip', ['-qr0', join(work, 'grande.zip'), 'digitalisimo-elements-installer'], { cwd: big });
+    const heavy = verify(packages('instalador-grande', all, [['digitalisimo-elements-installer.zip', join(work, 'grande.zip')]]), '--installer');
+    check(0 !== heavy.status && /debe quedar por debajo de 1 MB/.test(heavy.stderr), 'verify-release rechaza un instalador de 1 MB o más.');
+    const empty = join(work, 'vacio');
+    mkdirSync(join(empty, 'digitalisimo-elements-installer'), { recursive: true });
+    writeFileSync(join(empty, 'digitalisimo-elements-installer/otro.php'), '<?php\n');
+    execFileSync('zip', ['-qr', join(work, 'vacio.zip'), 'digitalisimo-elements-installer'], { cwd: empty });
+    const hollow = verify(packages('instalador-vacio', all, [['digitalisimo-elements-installer.zip', join(work, 'vacio.zip')]]));
+    check(0 !== hollow.status && /debe contener digitalisimo-elements-installer\/digitalisimo-elements-installer\.php/.test(hollow.stderr), 'verify-release rechaza un instalador sin su archivo principal, aunque no se pida.');
+    // Sin versión en el nombre, la expresión de assets de verify-release y del índice no lo toma.
+    for (const script of ['scripts/verify-release.mjs', 'scripts/release-manifest.mjs']) {
+      const pattern = readFileSync(join(ROOT, script), 'utf8').match(/match\((\/\^\(digitalisimo-[^\n]*?\.zip\$\/)\)/)?.[1];
+      check(pattern && !new RegExp(pattern.slice(1, -1)).test('digitalisimo-elements-installer.zip') && new RegExp(pattern.slice(1, -1)).test('digitalisimo-elements-4.3.0.185.zip'), `La expresión de assets de ${script} no toma el instalador (${pattern}).`);
+    }
+  }
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
-console.log('Índice de la Release: siete plugins en «plugins», el tema en «themes» con sus requisitos, y verify-release exige los ocho ZIP.');
+console.log('Índice de la Release: siete plugins en «plugins», el tema en «themes» con sus requisitos, verify-release exige los ocho ZIP y, con --installer, el instalador de Elements (fuera del índice).');
