@@ -26,10 +26,99 @@ namespace Elementor\Core\Files {
 }
 
 namespace Elementor {
-	/** Sólo los puntos de corte (`breakpoints->get_breakpoints()`), como en el núcleo. */
+	/** Sólo los puntos de corte (`breakpoints->get_breakpoints()`), como en el núcleo, y las fuentes que se encolan. */
 	class Plugin {
 		public static $instance;
 		public $breakpoints;
+		public $frontend;
+	}
+	/** Sin PRO (lo que lee `Atomic_Widget_Styles::get_license_based_filtered_styles()`). */
+	class Utils {
+		public static function has_pro() {
+			return false;
+		}
+	}
+}
+
+namespace Elementor\Modules\AtomicWidgets\Utils {
+	/** Recorre los elementos guardados de una entrada (`$GLOBALS['mc']['elements'][ id ]`), como el núcleo. */
+	class Utils {
+		public static function traverse_post_elements( string $post_id, callable $callback ): void {
+			$walk = static function ( array $elements ) use ( &$walk, $callback ) {
+				foreach ( $elements as $element ) {
+					$callback( $element );
+					$walk( $element['elements'] ?? array() );
+				}
+			};
+			$walk( $GLOBALS['mc']['elements'][ (int) $post_id ] ?? array() );
+		}
+		public static function is_atomic( $instance ): bool {
+			return 'atomic' === $instance;
+		}
+	}
+}
+
+namespace Elementor\Modules\GlobalClasses\Utils {
+	/** Elementos `e-*` atómicos; sus clases globales en `settings.classes.value`. */
+	class Atomic_Elements_Utils {
+		public static function get_element_type( $element ) {
+			return $element['widgetType'] ?? $element['elType'] ?? '';
+		}
+		public static function get_element_instance( $type ) {
+			return 0 === strpos( (string) $type, 'e-' ) ? 'atomic' : 'clasico';
+		}
+		public static function collect_class_ids_from_element_data( array $element ): array {
+			return 'atomic' === self::get_element_instance( self::get_element_type( $element ) ) ? (array) ( $element['settings']['classes']['value'] ?? array() ) : array();
+		}
+	}
+}
+
+namespace Elementor\Modules\GlobalClasses {
+	/** Clases globales del kit (`$GLOBALS['mc']['classes']`: id => [etiqueta, variantes]), en el orden del kit. */
+	class Global_Classes_Repository {
+		public static function make() {
+			return new self();
+		}
+		public function all_labels() {
+			return array_map( static function ( $c ) { return $c[0]; }, $GLOBALS['mc']['classes'] );
+		}
+		public function get_by_ids( array $ids ) {
+			$out = array();
+			foreach ( $ids as $id ) {
+				$out[ $id ] = array( 'id' => $id, 'type' => 'class', 'label' => $GLOBALS['mc']['classes'][ $id ][0], 'variants' => $GLOBALS['mc']['classes'][ $id ][1] );
+			}
+			return $out;
+		}
+	}
+}
+
+namespace Elementor\Modules\AtomicWidgets\Styles {
+	/** Como el renderizador del núcleo: cada variante en el orden recibido, envuelta en su consulta de medios. */
+	class Styles_Renderer {
+		private $breakpoints;
+		public static function make( array $breakpoints ) {
+			$r              = new self();
+			$r->breakpoints = $breakpoints;
+			return $r;
+		}
+		public function on_font_enqueue( callable $callback ) {
+			return $this;
+		}
+		public function render( array $styles ): string {
+			$css = '';
+			foreach ( $styles as $style ) {
+				foreach ( $style['variants'] as $variant ) {
+					$props = '';
+					foreach ( $variant['props'] as $k => $v ) {
+						$props .= $k . ':' . $v . ';';
+					}
+					$rule = '.elementor .' . ( $style['cssName'] ?? $style['id'] ) . '{' . $props . '}';
+					$bp   = $variant['meta']['breakpoint'] ?? null;
+					$css .= $bp && isset( $this->breakpoints[ $bp ] ) ? '@media(max-width:' . $this->breakpoints[ $bp ]['value'] . 'px){' . $rule . '}' : $rule;
+				}
+			}
+			return $css;
+		}
 	}
 }
 
@@ -94,7 +183,10 @@ namespace {
 			'clears'  => array(),
 			'posts'   => array(),
 			'updated' => array(),
+			'elements' => array(),
+			'classes'  => array(),
 		);
+		$GLOBALS['mc_styles'] = null;
 		$_GET = array();
 		if ( function_exists( 'mc_seed' ) && class_exists( 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity', false ) ) {
 			mc_seed( 50, 60, 70, 80, 81, 82, 90, 93, 999 );
@@ -204,6 +296,39 @@ namespace {
 	function wp_salt( $scheme = 'auth' ) {
 		return 'sal-del-ensayo-' . $scheme;
 	}
+	/** La cola de estilos de WordPress (`wp_styles()`), con lo registrado y el CSS en línea de cada asa. */
+	class Mc_Styles {
+		public $queue      = array();
+		public $registered = array();
+		public $inline     = array();
+	}
+	function wp_styles() {
+		if ( ! $GLOBALS['mc_styles'] instanceof Mc_Styles ) {
+			$GLOBALS['mc_styles'] = new Mc_Styles();
+		}
+		return $GLOBALS['mc_styles'];
+	}
+	function wp_register_style( $handle, $src, $deps = array(), $ver = false ) {
+		wp_styles()->registered[ $handle ] = array( $src, $deps );
+		return true;
+	}
+	function wp_enqueue_style( $handle ) {
+		if ( ! in_array( $handle, wp_styles()->queue, true ) ) {
+			wp_styles()->queue[] = $handle;
+		}
+	}
+	function wp_add_inline_style( $handle, $css ) {
+		wp_styles()->inline[ $handle ][] = $css;
+		return true;
+	}
+	/** El CSS en línea de la cola, en el orden en que WordPress lo imprimiría. */
+	function mc_inline_css(): string {
+		$css = '';
+		foreach ( wp_styles()->queue as $handle ) {
+			$css .= implode( '', wp_styles()->inline[ $handle ] ?? array() );
+		}
+		return $css;
+	}
 	function mc_post( int $id, string $type = 'page', int $parent = 0, string $status = 'draft' ) {
 		$GLOBALS['mc']['posts'][ $id ] = (object) array( 'ID' => $id, 'post_type' => $type, 'post_parent' => $parent, 'post_status' => $status );
 		return $GLOBALS['mc']['posts'][ $id ];
@@ -252,9 +377,22 @@ namespace {
 		public function get_breakpoints() {
 			return array( 'mobile' => new Mc_Breakpoint( 'mobile' ), 'tablet' => new Mc_Breakpoint( 'tablet' ) );
 		}
+		public function get_breakpoints_config() {
+			return array(
+				'mobile' => array( 'direction' => 'max', 'value' => 767, 'is_enabled' => true ),
+				'tablet' => array( 'direction' => 'max', 'value' => 1024, 'is_enabled' => true ),
+			);
+		}
+	}
+	class Mc_Frontend {
+		public $fonts = array();
+		public function enqueue_font( $font ) {
+			$this->fonts[] = $font;
+		}
 	}
 	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
 	\Elementor\Plugin::$instance->breakpoints = new Mc_Breakpoints();
+	\Elementor\Plugin::$instance->frontend    = new Mc_Frontend();
 	$GLOBALS['mc_upload_dir']                  = sys_get_temp_dir() . '/digi-mc-css-' . getmypid() . '/';
 	if ( ! is_dir( $GLOBALS['mc_upload_dir'] . 'css' ) ) {
 		mkdir( $GLOBALS['mc_upload_dir'] . 'css', 0777, true );
@@ -274,6 +412,7 @@ namespace {
 	require $root . '/elementor/modules/atomic-widgets/styles/cache-validity/cache-validity.php';
 	require $root . '/elementor/modules/mcp/preview/preview-token.php';
 	require $root . '/elementor/modules/atomic-widgets/props-resolver/transformers/styles/font-family-transformer.php';
+	require_once $root . '/elementor/modules/atomic-widgets/styles/atomic-widget-styles.php';
 	require $root . '/modules/digitalisimo-mcp/class-module.php';
 
 	use Digitalisimo\Elements\Mcp\Css_Sync;
@@ -789,6 +928,70 @@ namespace {
 	check( $purged === $GLOBALS['mc']['options'] && array( 'post' => 0, 'live' => false, 'memory' => array() ) === mc_preview_state(), 'al terminar la copia se descarta sin escribir nada' );
 	check( ! $v->is_valid( array( 'global', 95, 'frontend' ) ) && array() === $v->get_meta( array( 'global_related', 95, 'frontend' ) ), 'y las lecturas vuelven a lo guardado' );
 	check( '.elementor .e-viejo{color:red}' === file_get_contents( $GLOBALS['mc_upload_dir'] . 'css/local-95-frontend-desktop.css' ), 'sin tocar archivos' );
+
+	// ---------------------------------------------------------------------------------------------------------------
+	// 14. Segunda revisión (MEDIA 2, orden responsivo): en el enlace firmado de una publicada el núcleo no sirve ninguna
+	//     hoja de la página (válidas sin archivo en la copia en memoria) y el CSS completo de la instantánea va en línea
+	//     partido por punto: escritorio, tableta y celular (de mayor a menor), en cada punto las clases globales antes que
+	//     los estilos locales, y cada hoja en línea donde el núcleo habría puesto la de la página. El MCP guarda
+	//     `padding: 60px; @media(--mobile){padding: 6px}` como [celular, escritorio]: con f6d0563c la regla de escritorio
+	//     quedaba detrás de la de celular (a 375 px la vista previa mostraba 60px). Falla con f6d0563c.
+	mc_boot();
+	$v = new Cache_Validity();
+	mc_post( 100, 'page', 0, 'publish' );
+	mc_post( 101, 'revision', 100, 'inherit' );
+	file_put_contents( $GLOBALS['mc_upload_dir'] . 'css/local-100-frontend-desktop.css', '.elementor .e-publicada{padding:1px}' );
+	$v->validate( array( 'local', 100, 'frontend' ), 'ver-pub' );
+	$v->validate( array( 'local', 100, 'frontend', 'desktop' ), array( 'should_exist' => true ) );
+	$GLOBALS['mc']['classes'] = array(
+		'g-otra'   => array( 'otra', array( array( 'meta' => array( 'breakpoint' => null ), 'props' => array( 'margin' => '0' ) ) ) ),
+		'g-boton'  => array( 'boton', array( array( 'meta' => array( 'breakpoint' => null ), 'props' => array( 'border' => '1px' ) ) ) ),
+		'g-tarjeta' => array( 'tarjeta', array( array( 'meta' => array( 'breakpoint' => 'tablet' ), 'props' => array( 'color' => 'blue' ) ), array( 'meta' => array( 'breakpoint' => null ), 'props' => array( 'color' => 'red' ) ) ) ),
+	);
+	// La instantánea (lo que el manejador del núcleo sirve como _elementor_data de 100) y un componente que incrusta.
+	$GLOBALS['mc']['elements'][100] = array(
+		array(
+			'elType'   => 'e-flexbox',
+			'settings' => array( 'classes' => array( 'value' => array( 'g-tarjeta', 'e-aaa-1' ) ) ),
+			'styles'   => array(
+				'e-aaa-1' => array( 'id' => 'e-aaa-1', 'type' => 'class', 'variants' => array( array( 'meta' => array( 'breakpoint' => 'mobile' ), 'props' => array( 'padding' => '6px' ) ), array( 'meta' => array( 'breakpoint' => 'desktop' ), 'props' => array( 'padding' => '60px' ) ) ) ),
+			),
+			'elements' => array(
+				array( 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'classes' => array( 'value' => array( 'g-otra' ) ) ), 'styles' => array( 'e-clasico' => array( 'id' => 'e-clasico', 'type' => 'class', 'variants' => array( array( 'meta' => array(), 'props' => array( 'x' => '1' ) ) ) ) ) ),
+				array( 'elType' => 'widget', 'widgetType' => 'e-component', 'settings' => array() ),
+			),
+		),
+	);
+	$GLOBALS['mc']['elements'][102] = array( array( 'elType' => 'e-flexbox', 'settings' => array( 'classes' => array( 'value' => array( 'g-boton' ) ) ), 'styles' => array( 'e-comp-1' => array( 'id' => 'e-comp-1', 'type' => 'class', 'variants' => array( array( 'meta' => array(), 'props' => array( 'gap' => '2px' ) ) ) ) ) ) );
+	add_filter( 'elementor/document/related_posts', static function ( $related, $post_id = 0 ) { return 100 === (int) $post_id ? array_merge( $related, array( 102 ) ) : $related; }, 10, 2 );
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 100, 101, time() + 300, Preview_Token::secret() );
+	do_action( 'parse_request', null );
+	foreach ( array( 'local', 'global' ) as $root ) {
+		foreach ( array( 'desktop', 'tablet', 'mobile' ) as $bp ) {
+			check( $v->is_valid( array( $root, 100, 'frontend', $bp ) ) && array( 'should_exist' => false ) === $v->get_meta( array( $root, 100, 'frontend', $bp ) ), "durante el enlace, $root-100-frontend-$bp válida sin archivo: el núcleo no sirve la hoja de la publicada · " . wp_json_encode( $v->get_meta( array( $root, 100, 'frontend', $bp ) ) ) );
+		}
+	}
+	check( 'ver-pub' === $v->get_meta( array( 'local', 100, 'frontend' ) ), 'el contexto local conserva su ver' );
+	// Lo que el núcleo encoló en after_enqueue_post_styles 10 (sin hojas de la página: están congeladas sin archivo).
+	wp_styles()->queue = array( 'elementor-frontend', 'base-desktop', 'default-desktop', 'local-102-frontend-desktop', 'base-tablet', 'base-mobile', 'default-mobile', 'local-102-frontend-mobile', 'tema-final' );
+	do_action( 'elementor/frontend/after_enqueue_post_styles' );
+	$p      = 'digitalisimo-mcp-preview-';
+	$expect = array( 'elementor-frontend', 'base-desktop', 'default-desktop', $p . 'global-desktop', 'local-102-frontend-desktop', $p . 'local-desktop', 'base-tablet', $p . 'global-tablet', 'base-mobile', 'default-mobile', 'local-102-frontend-mobile', $p . 'local-mobile', 'tema-final' );
+	check( $expect === wp_styles()->queue, 'cada hoja en línea de la instantánea va donde el núcleo habría puesto la de la página (punto y raíz) · ' . implode( ' ', wp_styles()->queue ) );
+	$css = mc_inline_css();
+	$at  = static function ( string $needle ) use ( $css ) {
+		$i = strpos( $css, $needle );
+		return false === $i ? -1 : $i;
+	};
+	check( $at( 'padding:60px' ) >= 0 && $at( 'padding:6px' ) > $at( 'padding:60px' ), 'la regla de celular (6px) va después de la de escritorio (60px), como en las hojas del núcleo · ' . $css );
+	check( $at( '.tarjeta{color:red;}' ) >= 0 && $at( '.tarjeta{color:red;}' ) < $at( 'padding:60px' ) && $at( 'color:blue' ) > $at( 'padding:60px' ) && $at( 'color:blue' ) < $at( 'padding:6px' ), 'en cada punto, las clases globales antes que los locales (tarjeta roja, 60px, tarjeta azul en tableta, 6px)' );
+	check( $at( '.boton{border:1px;}' ) > $at( '.tarjeta{color:red;}' ) && $at( '.boton{border:1px;}' ) < $at( 'padding:60px' ), 'las clases del componente incrustado también, en el orden del núcleo (all_labels al revés: tarjeta y después boton)' );
+	check( $at( '.otra{' ) < 0 && $at( 'e-clasico' ) < 0 && $at( 'e-comp-1' ) < 0, 'sólo los estilos locales de los elementos atómicos de la página (el componente tiene su propia hoja) y ninguna clase de un elemento clásico' );
+	$placed = method_exists( '\\Digitalisimo\\Elements\\Mcp\\Preview_Link', 'place' );
+	check( $placed && array( 'a', 'base-desktop', 'x', 'local-5-frontend-mobile', $p . 'local-desktop' ) === \Digitalisimo\Elements\Mcp\Preview_Link::place( array( 'a', 'base-desktop', 'x', 'local-5-frontend-mobile' ), array( $p . 'local-desktop' => array( 0, 3 ) ), array( 'desktop', 'tablet', 'mobile' ) ), 'si las hojas del núcleo no van seguidas en la cola, las de la instantánea van al final' );
+	check( $placed && array( 'a', $p . 'global-desktop' ) === \Digitalisimo\Elements\Mcp\Preview_Link::place( array( 'a' ), array( $p . 'global-desktop' => array( 0, 2 ) ), array( 'desktop' ) ), 'sin hojas atómicas del núcleo en la cola, al final' );
+	do_action( 'shutdown' );
+	check( $v->is_valid( array( 'local', 100, 'frontend', 'desktop' ) ) && array( 'should_exist' => true ) === $v->get_meta( array( 'local', 100, 'frontend', 'desktop' ) ) && ! $v->is_valid( array( 'local', 100, 'frontend', 'mobile' ) ), 'al terminar, la hoja de la publicada vuelve a servirse para los demás (nada guardado cambió)' );
 
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {

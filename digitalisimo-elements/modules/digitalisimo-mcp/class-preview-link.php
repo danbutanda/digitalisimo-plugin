@@ -15,12 +15,12 @@ defined( 'ABSPATH' ) || exit;
  * - si la página está publicada (o privada), la petición no escribe nada que vean otros: las opciones de validez de la
  *   caché atómica (`elementor_atomic_cache_validity__*`: estilos locales y globales, relaciones de clases y de
  *   componentes) se leen y se escriben sólo en memoria (`pre_option_…`, `pre_update_option_…`,
- *   `pre_update_site_option_…`), y en esa copia las hojas `frontend` de la página se congelan: las que el núcleo
- *   regeneraría (inválidas, o válidas sin el archivo que deberían tener) quedan válidas con `should_exist` según haya
- *   archivo, así el núcleo sirve los archivos tal cual o ninguno y no escribe nada; la lista de componentes de la
- *   instantánea se calcula en esa copia. Los estilos de la instantánea (locales y de sus clases globales) se imprimen en
- *   línea después, con el renderizador del núcleo. Un visitante que llega mientras tanto lee la base de datos tal cual
- *   (no hay ventana) y, al terminar, la copia se descarta;
+ *   `pre_update_site_option_…`). En esa copia el contexto `frontend` de la página queda válido y cada hoja suya válida
+ *   sin archivo: el núcleo no sirve ni regenera ninguna hoja `local-<id>-frontend-*` ni `global-<id>-frontend-*`, y la
+ *   lista de componentes de la instantánea se calcula ahí. El CSS completo de la instantánea (sus clases globales y las
+ *   de lo que incrusta, y sus estilos locales) va en línea, partido por punto como en las hojas del núcleo y en su
+ *   posición (escritorio y después de mayor a menor; en cada punto, globales antes que locales). Un visitante que llega
+ *   mientras tanto lee la base de datos tal cual (no hay ventana) y, al terminar, la copia se descarta;
  * - si es un borrador (nadie guarda su HTML), sus hojas y su lista de componentes se invalidan antes y después: la
  *   instantánea se pinta con su CSS y la siguiente visita lo regenera.
  */
@@ -32,6 +32,13 @@ final class Preview_Link {
 	const TOKEN_CLASS = 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token';
 	/** Prioridad de `parse_request`: después del manejador de enlaces firmados del núcleo (1). */
 	const PRIORITY    = 2;
+	/** Raíces de las hojas atómicas del núcleo en el orden en que se registran (`base` 10, `default` 15, `global` 20, `local` 30). */
+	const RANKS = array(
+		'base'    => 0,
+		'default' => 1,
+		'global'  => 2,
+		'local'   => 3,
+	);
 
 	/** @var bool */
 	private static $initialized = false;
@@ -175,48 +182,114 @@ final class Preview_Link {
 		return $id;
 	}
 
-	/** `elementor/frontend/after_enqueue_post_styles` 20 (las hojas del núcleo ya están encoladas): CSS en línea. */
+	/**
+	 * `elementor/frontend/after_enqueue_post_styles` 20 (el núcleo ya encoló sus hojas, sin las de la página): los estilos
+	 * de la instantánea en línea, una hoja por punto y raíz (`digitalisimo-mcp-preview-<global|local>-<punto>`), en la
+	 * posición que tendrían las hojas de la página entre las del núcleo (`place()`).
+	 */
 	public static function print_styles(): void {
-		if ( ! self::$post || ! self::$live || self::$printed || ! function_exists( 'wp_add_inline_style' ) ) {
+		if ( ! self::$post || ! self::$live || self::$printed || ! function_exists( 'wp_add_inline_style' ) || ! function_exists( 'wp_styles' ) ) {
 			return;
 		}
 		self::$printed = true;
-		$css           = self::snapshot_css( self::$post );
-		if ( '' === $css ) {
-			return;
+		$order         = self::breakpoints();
+		$css           = self::snapshot_css( self::$post, $order );
+		$ours          = array();
+		foreach ( $order as $index => $breakpoint ) {
+			foreach ( array( 'global', 'local' ) as $root ) {
+				$text = $css[ $root ][ $breakpoint ] ?? '';
+				if ( '' === $text ) {
+					continue;
+				}
+				$handle = self::HANDLE . '-' . $root . '-' . $breakpoint;
+				wp_register_style( $handle, false, array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+				wp_enqueue_style( $handle );
+				wp_add_inline_style( $handle, (string) preg_replace( '/<\/(style)/i', '<\\\\/$1', $text ) );
+				$ours[ $handle ] = array( $index, self::RANKS[ $root ] );
+			}
 		}
-		wp_register_style( self::HANDLE, false, array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-		wp_enqueue_style( self::HANDLE );
-		wp_add_inline_style( self::HANDLE, (string) preg_replace( '/<\/(style)/i', '<\\\\/$1', $css ) );
+		if ( $ours ) {
+			$styles        = wp_styles();
+			$styles->queue = self::place( (array) $styles->queue, $ours, $order );
+		}
 	}
 
 	/**
-	 * Los estilos de la instantánea (la revisión que el manejador del núcleo sirve como `_elementor_data`): primero los de
-	 * sus clases globales, en el orden del núcleo, y después los locales, como en las hojas del núcleo. '' si falta algo.
+	 * La cola de estilos con las hojas en línea de la instantánea donde el núcleo habría puesto las de la página: el
+	 * núcleo encola sus hojas atómicas seguidas, por punto (`Atomic_Styles_Manager::get_breakpoints()`) y, en cada uno,
+	 * por raíz en el orden en que se registran (`base` 10, `default` 15, `global` 20, `local` 30). La de la instantánea
+	 * va detrás de las de su punto y su raíz. Si la cola no tiene esa forma, van al final (el núcleo las encola al final
+	 * de `after_enqueue_post_styles`).
+	 *
+	 * @param array<int, string>              $queue Cola de `wp_styles()`.
+	 * @param array<string, array{int, int}> $ours  Asa => [ índice del punto en `$order`, rango de la raíz ].
+	 * @param array<int, string>              $order Puntos en el orden del núcleo.
 	 */
-	public static function snapshot_css( int $id ): string {
+	public static function place( array $queue, array $ours, array $order ): array {
+		$queue = array_values( array_diff( $queue, array_keys( $ours ) ) );
+		$index = array_flip( $order );
+		$key   = static function ( $handle ) use ( $index ) {
+			if ( is_string( $handle ) && preg_match( '/^(base|default|global|local)(?:-.+)?-([A-Za-z0-9_]+)$/', $handle, $m ) && isset( $index[ $m[2] ], self::RANKS[ $m[1] ] ) ) {
+				return array( $index[ $m[2] ], self::RANKS[ $m[1] ] );
+			}
+			return null;
+		};
+		$core  = array_keys( array_filter( array_map( $key, $queue ) ) );
+		if ( ! $core || count( $core ) !== max( $core ) - min( $core ) + 1 ) {
+			return array_merge( $queue, array_keys( $ours ) );
+		}
+		$first = min( $core );
+		$block = array();
+		foreach ( array_slice( $queue, $first, count( $core ) ) as $n => $handle ) {
+			$block[] = array( $key( $handle ), 0, $n, $handle );
+		}
+		$n = 0;
+		foreach ( $ours as $handle => $position ) {
+			$block[] = array( array_values( $position ), 1, $n++, $handle );
+		}
+		usort(
+			$block,
+			static function ( $a, $b ) {
+				return array( $a[0][0], $a[0][1], $a[1], $a[2] ) <=> array( $b[0][0], $b[0][1], $b[1], $b[2] );
+			}
+		);
+		return array_merge( array_slice( $queue, 0, $first ), array_column( $block, 3 ), array_slice( $queue, $first + count( $core ) ) );
+	}
+
+	/**
+	 * El CSS de la instantánea (la revisión que el manejador del núcleo sirve como `_elementor_data`) como el de las hojas
+	 * del núcleo: `[ 'global' => [ punto => css ], 'local' => [ punto => css ] ]`, cada estilo partido por punto como
+	 * `Atomic_Styles_Manager::group_by_breakpoint()` y pintado con `Styles_Renderer`. Globales: las clases de la página y
+	 * de lo que incrusta (`elementor/document/related_posts`, como `Atomic_Global_Styles`), en el orden del núcleo.
+	 * Locales: los estilos de sus elementos atómicos. Vacío si falta algo del núcleo.
+	 */
+	public static function snapshot_css( int $id, array $order ): array {
 		$utils    = 'Elementor\\Modules\\AtomicWidgets\\Utils\\Utils';
 		$elements = 'Elementor\\Modules\\GlobalClasses\\Utils\\Atomic_Elements_Utils';
 		$styles   = 'Elementor\\Modules\\AtomicWidgets\\Styles\\Atomic_Widget_Styles';
 		$renderer = 'Elementor\\Modules\\AtomicWidgets\\Styles\\Styles_Renderer';
 		if ( ! class_exists( $utils ) || ! class_exists( $elements ) || ! class_exists( $styles ) || ! class_exists( $renderer ) || ! class_exists( 'Elementor\\Plugin' ) ) {
-			return '';
+			return array();
 		}
 		try {
 			$local   = array();
 			$classes = array();
-			$utils::traverse_post_elements(
-				(string) $id,
-				static function ( $element ) use ( &$local, &$classes, $utils, $elements ) {
-					if ( ! is_array( $element ) || ! $utils::is_atomic( $elements::get_element_instance( $elements::get_element_type( $element ) ) ) ) {
-						return;
+			foreach ( array_merge( array( $id ), self::embedded( $id ) ) as $post_id ) {
+				$found = array();
+				$utils::traverse_post_elements(
+					(string) $post_id,
+					static function ( $element ) use ( &$local, &$found, $utils, $elements, $post_id, $id ) {
+						if ( ! is_array( $element ) ) {
+							return;
+						}
+						$found = array_merge( $found, $elements::collect_class_ids_from_element_data( $element ) );
+						if ( $post_id === $id && ! empty( $element['styles'] ) && is_array( $element['styles'] ) && $utils::is_atomic( $elements::get_element_instance( $elements::get_element_type( $element ) ) ) ) {
+							$local = array_merge( $local, $element['styles'] );
+						}
 					}
-					if ( ! empty( $element['styles'] ) && is_array( $element['styles'] ) ) {
-						$local = array_merge( $local, $element['styles'] );
-					}
-					$classes = array_merge( $classes, $elements::collect_class_ids_from_element_data( $element ) );
-				}
-			);
+				);
+				$classes = array_merge( $classes, (array) apply_filters( 'elementor/global_classes/extract_class_ids_from_post', array_values( array_unique( $found ) ), $post_id ) );
+			}
 			$local  = $styles::get_license_based_filtered_styles( $local );
 			$plugin = \Elementor\Plugin::$instance;
 			$render = $renderer::make( $plugin->breakpoints->get_breakpoints_config() )->on_font_enqueue(
@@ -224,10 +297,64 @@ final class Preview_Link {
 					$plugin->frontend->enqueue_font( $font );
 				}
 			);
-			return $render->render( self::global_styles( array_values( array_unique( $classes ) ) ) ) . $render->render( is_array( $local ) ? $local : array() );
+			$out = array();
+			foreach ( array(
+				'global' => self::global_styles( array_values( array_unique( array_filter( $classes, 'is_string' ) ) ) ),
+				'local'  => is_array( $local ) ? $local : array(),
+			) as $root => $list ) {
+				$groups = self::by_breakpoint( $list );
+				foreach ( $order as $breakpoint ) {
+					$out[ $root ][ $breakpoint ] = empty( $groups[ $breakpoint ] ) ? '' : (string) $render->render( array_values( $groups[ $breakpoint ] ) );
+				}
+			}
+			return $out;
 		} catch ( \Throwable $e ) {
-			return '';
+			return array();
 		}
+	}
+
+	/** Cada estilo partido por punto, como `Atomic_Styles_Manager::group_by_breakpoint()` (sin punto: escritorio). */
+	public static function by_breakpoint( array $styles ): array {
+		$group = array();
+		foreach ( $styles as $style ) {
+			if ( ! is_array( $style ) || ! isset( $style['id'] ) || empty( $style['variants'] ) || ! is_array( $style['variants'] ) ) {
+				continue;
+			}
+			foreach ( $style['variants'] as $variant ) {
+				$breakpoint = is_array( $variant ) && ! empty( $variant['meta']['breakpoint'] ) ? (string) $variant['meta']['breakpoint'] : 'desktop';
+				if ( ! isset( $group[ $breakpoint ][ $style['id'] ] ) ) {
+					$group[ $breakpoint ][ $style['id'] ] = array(
+						'id'       => $style['id'],
+						'type'     => $style['type'] ?? '',
+						'variants' => array(),
+					);
+					if ( isset( $style['cssName'] ) ) {
+						$group[ $breakpoint ][ $style['id'] ]['cssName'] = $style['cssName'];
+					}
+				}
+				$group[ $breakpoint ][ $style['id'] ]['variants'][] = $variant;
+			}
+		}
+		return $group;
+	}
+
+	/** Lo que incrusta la página, de forma transitiva (`elementor/document/related_posts`, como `Atomic_Global_Styles`). */
+	private static function embedded( int $id ): array {
+		$seen  = array( $id => true );
+		$queue = array( $id );
+		$all   = array();
+		while ( $queue ) {
+			$current = array_shift( $queue );
+			foreach ( (array) apply_filters( 'elementor/document/related_posts', array(), $current ) as $related ) {
+				$related = is_numeric( $related ) ? (int) $related : 0;
+				if ( $related > 0 && ! isset( $seen[ $related ] ) ) {
+					$seen[ $related ] = true;
+					$all[]            = $related;
+					$queue[]          = $related;
+				}
+			}
+		}
+		return $all;
 	}
 
 	/** Las clases globales que usa la instantánea, con el orden y las etiquetas del núcleo (`Atomic_Global_Styles`). */
@@ -293,9 +420,10 @@ final class Preview_Link {
 	}
 
 	/**
-	 * En la copia en memoria: las hojas `frontend` de la página en las raíces local y global que el núcleo escribiría
-	 * (inválidas, o válidas con un archivo que debería existir y falta) quedan válidas, y su lista de componentes se
-	 * recalcula con la instantánea.
+	 * En la copia en memoria: el contexto `frontend` de la página en las raíces local y global queda válido (con su `ver`
+	 * si ya lo era) y cada hoja suya válida sin archivo (`should_exist` falso): el núcleo no sirve ni escribe ninguna hoja
+	 * de la página en esta petición (sus estilos van en línea, `print_styles()`), y su lista de componentes se recalcula
+	 * con la instantánea.
 	 */
 	private static function freeze( int $id ): void {
 		$class = Css_Sync::VALIDITY_CLASS;
@@ -305,42 +433,27 @@ final class Preview_Link {
 		$validity = new $class();
 		foreach ( array( Css_Sync::key( 'local' ), Css_Sync::key( 'global' ) ) as $root ) {
 			$context = array( $root, $id, self::CONTEXT );
-			$valid   = $validity->is_valid( $context );
-			if ( ! $valid ) {
+			if ( ! $validity->is_valid( $context ) ) {
 				$validity->validate( $context, 'preview-' . $id );
 			}
 			foreach ( self::breakpoints() as $breakpoint ) {
-				$leaf   = array_merge( $context, array( $breakpoint ) );
-				$has    = self::has_file( $leaf );
-				$meta   = $validity->get_meta( $leaf );
-				$should = is_array( $meta ) && array_key_exists( 'should_exist', $meta ) ? (bool) $meta['should_exist'] : null;
-				if ( $valid && $validity->is_valid( $leaf ) && ( false === $should || $has ) ) {
-					continue;
-				}
-				$validity->validate( $leaf, array( 'should_exist' => $has ) );
+				$validity->validate( array_merge( $context, array( $breakpoint ) ), array( 'should_exist' => false ) );
 			}
 		}
 		$validity->invalidate( array( Css_Sync::key( 'related' ), (string) $id ) );
 	}
 
-	/** Los puntos que recorre el núcleo (`Atomic_Styles_Manager::get_breakpoints()`): escritorio y los demás. */
-	private static function breakpoints(): array {
-		$names = array( 'desktop' );
+	/**
+	 * Los puntos en el orden en que el núcleo pinta sus hojas (`Atomic_Styles_Manager::get_breakpoints()`): escritorio y
+	 * después los activos de mayor a menor (la lista del núcleo, invertida).
+	 */
+	public static function breakpoints(): array {
+		$names = array();
 		if ( class_exists( 'Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->breakpoints ) && is_object( \Elementor\Plugin::$instance->breakpoints ) ) {
 			foreach ( (array) \Elementor\Plugin::$instance->breakpoints->get_breakpoints() as $key => $breakpoint ) {
 				$names[] = is_object( $breakpoint ) && method_exists( $breakpoint, 'get_name' ) ? (string) $breakpoint->get_name() : (string) $key;
 			}
 		}
-		return array_values( array_unique( array_filter( $names, 'strlen' ) ) );
-	}
-
-	/** ¿Existe y no está vacío el archivo de esa hoja? (la ruta de `CSS_Files_Manager`). */
-	private static function has_file( array $path ): bool {
-		$base = class_exists( 'Elementor\\Core\\Files\\Base' ) ? (string) \Elementor\Core\Files\Base::get_base_uploads_dir() : '';
-		if ( '' === $base ) {
-			return false;
-		}
-		$file = $base . 'css/' . preg_replace( '/[^a-zA-Z0-9_-]/', '', implode( '-', $path ) ) . '.css';
-		return is_file( $file ) && filesize( $file ) > 0;
+		return array_values( array_unique( array_filter( array_merge( array( 'desktop' ), array_reverse( $names ) ), 'strlen' ) ) );
 	}
 }
