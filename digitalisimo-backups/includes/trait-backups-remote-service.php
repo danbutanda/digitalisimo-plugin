@@ -404,7 +404,9 @@ trait Digitalisimo_Backups_Remote_Service {
 	}
 	/** Segundos que le quedan al tramo (para que ninguna petición de la descarga espere más), al menos 5. */
 	private static function fetch_time_left( $deadline ) {
-		return is_finite( $deadline ) ? max( 5, (int) floor( $deadline - microtime( true ) ) ) : 120;
+		// Un tick sin límite (WP-CLI: PHP_INT_MAX) da un plazo que no cabe en un entero (PHP 8.5 lo avisa): 120 s.
+		$left = is_finite( $deadline ) ? $deadline - microtime( true ) : INF;
+		return $left < 86400 ? max( 5, (int) floor( $left ) ) : 120;
 	}
 	/** Conexión, copia remota (la del historial o, para un archivo sin fila, la que lista el destino ahora) y espacio. */
 	private static function fetch_preflight( array $job ) {
