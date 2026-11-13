@@ -86,6 +86,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Hallazgos del ensayo E4 (H22, H25).** H22: cuando la retención remota borra la copia de un respaldo que ya no tiene ZIP en el almacén («sólo en el remoto», o retirado por la retención local), su fila sale del historial en vez de quedarse para siempre como «Sin copias» (con una automatización diaria el historial crecía sin fin). H25: `wp digitalisimo-backups status` en formato tabla da el campo `restore` (estado y aviso) y cualquier otro campo compuesto en texto legible, sin «Array to string conversion». Y en una migración, el destino ya no dice «otra operación ocupa el almacén del origen» cuando quien lo tiene es el propio trabajo del paquete (otra petición o WP-Cron con su arrendamiento vivo): el paquete avanza. | 1.0.73 | `backups-remote-retention.php`, `backups-e4-findings.php` |
 | **Pantalla simple, como Backuply («interfaz simple»).** Cuatro pestañas: «Respaldos» (estado del último respaldo y del próximo, «Respaldar ahora» y la lista con Restaurar, Descargar y Borrar en cada fila; Bloquear, Traer al almacén y los detalles en «⋯»; restaurar en un panel bajo la fila escribiendo `RESTAURAR`), «Ajustes» (programación de la automatización principal, avisos por correo, antes de actualizar y, plegado, cifrado y firma), «Destinos» (la lista y un solo formulario al pedirlo) y «Herramientas» (todo lo demás, plegado). Una sola franja de avisos. Las pestañas de antes (`servers`, `security`, `notifications`, `migrate`) abren su sitio nuevo; formularios, acciones, nonces, REST, WP-CLI y opciones no cambian. La principal cabe en 1 000 px con ≤ 150 palabras visibles y ningún texto visible pasa de 140 caracteres (ver «Pantalla»). | 1.0.74 | `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-screen-ui.mjs` (fallan con `dede88f9`) |
 | **Hallazgos del ensayo E5 (H26, H27).** H26: el aviso de la configuración del respaldo pendiente concuerda en número («1 automatización … que no se aplicó») y cuenta las automatizaciones como «Aplicar la del respaldo» (las activas de la configuración del respaldo, que quedan en pausa; antes decía 1 y después «2 en pausa»). Antes de aplicarla, la franja (a la vista, nunca plegado), el aviso del escritorio y `restore-config status` dicen lo que se pierde (las conexiones con nombre y las automatizaciones de este sitio que el respaldo no trae, con su nombre si cabe en 140 caracteres), y la pantalla sólo aplica escribiendo `APLICAR` (lo comprueba el handler; REST y WP-CLI siguen igual). H27: al actualizar, una sola vez, salen del historial las filas «Sin copias» que dejó 1.0.71 (sin ZIP ni copia remota registrada; nunca una bloqueada, con la marca de una migración o con algún archivo con su nombre), con la marca `digitalisimo_backups_data_version` en el ámbito del historial; y para que no vuelvan, la retención local (la de una automatización y la global de los manuales) retira en la misma pasada la fila cuyo ZIP borra si se queda sin ninguna copia (una con copia remota sigue hasta que H22 la retira). | 1.0.75 | `backups-restore-pending-config.php`, `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-e5-findings.php` (fallan con `fd4423a3`) |
+| **Quien restaura en otro sitio sigue entrando (incidente de /wp del 2026-11-12).** Al restaurar con reubicación (otra URL, prefijo o ruta), un sitio extraído de una red o una migración, «Conservar mi acceso» (pantalla, encendido), `keep_access` (REST, por defecto `true`) y `--[no-]keep-access` (WP-CLI, con el usuario de `--user`) conservan la cuenta de quien lanza la restauración: su fila (hash y correo), sus sesiones y sus contraseñas de aplicación se apuntan cifradas en el diario antes del cambio de tablas y vuelven tras el SQL, también si el proceso muere entre medias; queda como administrador (y superadministrador en una red) y la cookie de su navegador sigue valiendo. Sólo esa cuenta. En el mismo sitio no aplica: vuelven las cuentas del respaldo (tras un hackeo no se reviven las credenciales de ahora). La ruta privada de acceso (Tools/SEO) es la de este sitio, nunca la del respaldo, y el informe (pantalla, respuesta REST, `jobs get`, aviso persistente y correo, que sale siempre tras restaurar en otro sitio) empieza por «Cómo entrar ahora: <URL efectiva>» con quién puede entrar y qué cambió. Causa del 401 de las contraseñas de aplicación del paquete: `using_application_passwords` es una opción de red (en una red vive en `sitemeta`) y la extracción no la lleva; sin ella WordPress no mira ninguna contraseña de aplicación (`rest_not_logged_in`). Ahora cualquier restauración la activa si algún usuario las tiene. Ficha de lectura del trabajo (completa H18, que era sólo la cookie): `restore` y `migration/pull` la entregan una vez (`follow`); `GET /jobs/<id>` con la cabecera `X-Digitalisimo-Backups-Job-Token` lee sólo ese trabajo, sin sesión, también durante el mantenimiento (la puerta deja pasar sólo ese GET, con WordPress mínimo) y con otros usuarios, hasta 24 h después de terminar (7 días como mucho); sólo su SHA-256 se guarda. La barra de «Subir un respaldo» consulta el estado mientras se comprueba el archivo y llega a 100 % con «verificado» en cuanto `GET /uploads` dice `phase=done`, aunque la respuesta del cierre no llegue nunca; cada petición tiene plazo. Ver «Quien restaura sigue entrando». | 1.0.76 | `backups-keep-access.php`, `backups-upload-ui.mjs`, `backups-site-extract.php` y, en Playground, `tests/playground/backups-keep-access.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -314,13 +315,13 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /backups` | `wp digitalisimo-backups list [--fields=…] [--format=…]` | Historial, del más reciente al más antiguo: tamaño, SHA-256, destino, alcance, contenedor (`zip` o `dgbk`), firma, huella corta de la clave, si falta la clave (`needs_secret`), bloqueo y si es restaurable aquí. Desde 1.0.63, `copies` enumera las copias (la local, si el ZIP sigue en el almacén, y la remota con su estado: `ok`, `pending`, `failed`, `cancelled` o `legacy`), `destination` es a dónde se envió y `restorable` sólo exige el ZIP local completo (en WP-CLI, la columna `copies`: «local, google»). |
 | `POST /backups` (`destination`, `network`) | `wp digitalisimo-backups create [--destination=…] [--network] [--async] [--porcelain]` | Encola el respaldo completo de la instalación o de la red. REST responde 202 con el trabajo; WP-CLI lo hace avanzar hasta que queda verificado (y copiado, con destino remoto) o, con `--async`, sólo lo encola. |
 | `GET\|POST /backups/<archivo>/verify` (`secret`, `addresses`) | `wp digitalisimo-backups verify <archivo> [--secret-file=…\|--secret-stdin] [--addresses=current\|backup]` | Sin tocar el sitio, las mismas comprobaciones del paquete que la restauración: SHA-256 del historial, firma o registro, descifrado completo de un `.dgbk`, entradas, CRC y SHA-256 de cada una contra el manifiesto, manifiesto v3 estricto y el SQL en seco. Informa la confianza, la confirmación que pedirá, si las condiciones de esta instalación lo admiten (`problems` dice qué cambiar) y, en `relocation`, «Origen → este sitio» y qué se reescribiría al restaurarlo (direcciones, rutas del servidor, prefijo, sitios de la red). Desde 1.0.63, `wp_config`: las constantes de `wp-config.php` que difieren entre el respaldo y este servidor (WP-CLI las lista, sin valores secretos ni rutas). |
-| `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret] [--addresses=current\|backup]` | Restauración por pasos (ver «Restauración por pasos») con la copia previa bloqueada. REST avanza lo que cabe en la petición y responde 202 con `restoring`, el trabajo (`job`) y `maintenance_token` (el testigo que deja pasar sus ticks durante el mantenimiento; también llega como cookie) si sigue, o 200 con el resultado si terminó; `POST /jobs/tick` o la pantalla la terminan. WP-CLI la hace avanzar hasta terminar. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. Un respaldo de otra dirección, carpeta o prefijo se reubica: `addresses` `current` (por defecto, el sitio conserva sus direcciones) o `backup` (conserva las del respaldo); la respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final, y el aviso lo resume. Otro valor responde 400 (`addresses`). |
+| `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`, `keep_access`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret] [--addresses=current\|backup] [--[no-]keep-access]` | Restauración por pasos (ver «Restauración por pasos») con la copia previa bloqueada. REST avanza lo que cabe en la petición y responde 202 con `restoring`, el trabajo (`job`) y `maintenance_token` (el testigo que deja pasar sus ticks durante el mantenimiento; también llega como cookie) si sigue, o 200 con el resultado si terminó; `POST /jobs/tick` o la pantalla la terminan. WP-CLI la hace avanzar hasta terminar. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. Un respaldo de otra dirección, carpeta o prefijo se reubica: `addresses` `current` (por defecto, el sitio conserva sus direcciones) o `backup` (conserva las del respaldo); la respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final, y el aviso lo resume. Otro valor responde 400 (`addresses`). Desde 1.0.76, `keep_access` (por defecto `true`; en WP-CLI, el usuario de `--user`) conserva la cuenta de quien restaura y la ruta de acceso de este sitio al restaurar en otro sitio (ver «Quien restaura sigue entrando»); la respuesta (202 o 200) lleva `follow`, la ficha de lectura del trabajo, y al terminar `access` con «Cómo entrar ahora». |
 | `POST /backups/<archivo>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <archivo> [--from=<destino>] [--network]` | Desde 1.0.62, «Traer al almacén»: descarga en streaming la copia remota de una fila del historial, la compara con su SHA-256 registrado y la deja en el almacén privado para verificarla o restaurarla; si ya está, no hace nada. Escribe en el almacén de toda la instalación: en una red pide el alcance de red, como crear o restaurar, y toma el cerrojo de operaciones (409 si hay otra en curso). Si la conexión de la fila se eliminó, responde 410 con qué hacer. Desde 1.0.69 es un trabajo `fetch` por fragmentos con reanudación: 200 con el resultado si terminó en la petición, 202 con el trabajo si sigue (lo terminan `POST /jobs/tick`, la pantalla o WP-Cron); WP-CLI espera a que termine. |
 | `GET /destinations` | `wp digitalisimo-backups destinations list [--format=…]` | Desde 1.0.62: cada destino remoto (la conexión principal de cada tipo y las adicionales) con su tipo, nombre, si está listo y, si sus credenciales no se abren, qué volver a escribir; nunca un valor secreto. |
 | `POST /destinations/<id>/test` | `wp digitalisimo-backups destinations test <id>` | Desde 1.0.62, «Probar conexión» de una conexión guardada: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra (502 con el motivo si falla). |
 | `GET /automations` | `wp digitalisimo-backups automation list` | Automatizaciones y su próxima ejecución. Con `time`, la hora fija del sitio (vacía si no tiene). |
 | `POST /automations/<id>/run` (`network`) | `wp digitalisimo-backups automation run <id> [--network] [--async] [--porcelain]` | «Ejecutar ahora»: encola la automatización (202), como `create`. |
-| `GET /jobs` (`limit`) · `GET /jobs/<id>` | `wp digitalisimo-backups jobs list [--limit=…] [--fields=…] [--format=…]` | Trabajos sin terminar y los últimos terminados, con la vista de la tarjeta «Trabajos» (estado, fase, avance, reintento, archivo o error) más destino, automatización y si se cifra. |
+| `GET /jobs` (`limit`) · `GET /jobs/<id>` | `wp digitalisimo-backups jobs list [--limit=…] [--fields=…] [--format=…]` · `wp digitalisimo-backups jobs get <id> [--format=json]` | Trabajos sin terminar y los últimos terminados, con la vista de la tarjeta «Trabajos» (estado, fase, avance, reintento, archivo o error) más destino, automatización y si se cifra. Desde 1.0.76, `GET /jobs/<id>` también responde sin sesión a la ficha de lectura que dio `restore` o `migration/pull` (cabecera `X-Digitalisimo-Backups-Job-Token`, sin `Authorization`; en la URL, 400), aunque el sitio esté en mantenimiento o los usuarios hayan cambiado; `jobs get` da el estado y el informe de un trabajo (WP-CLI no depende de los usuarios de WordPress). |
 | `POST /jobs/<id>/cancel` | `wp digitalisimo-backups jobs cancel <id>` | Como «Cancelar»: uno en cola termina ya; uno en curso se detiene en su siguiente punto de control; uno ya verificado y registrado no se cancela (409). |
 | `POST /jobs/tick` | `wp digitalisimo-backups jobs run [--quiet]` | Hace avanzar la cola: REST da un paso con el presupuesto de una petición web, como el navegador con la pantalla abierta; WP-CLI sigue sin límite de tiempo hasta que no queda trabajo listo (sirve para el cron del sistema en un hosting que corta las peticiones largas). |
 | — (pantalla: «Volver a la copia previa») | `wp digitalisimo-backups jobs rollback [--network]` | Desde 1.0.64: recupera un sitio que quedó a medio cambiar (una restauración que falló después del cambio y cuya vuelta a la copia previa no se pudo hacer o falló): encola otra vuelta a su copia previa, sin hacer otra, con el mismo testigo del mantenimiento, y la hace avanzar (WP-CLI hasta terminar). Sin una restauración a medio cambiar responde 409; sin su copia previa en el almacén, 422. |
@@ -651,6 +652,89 @@ escritorio (de la red) y sus permisos: 45 comprobaciones, 574 s, todo correcto. 
 del servidor y la red por subdominios no caben en Playground (sirve en la raíz, con `ABSPATH=/wordpress` y hosts por
 cabecera) y se prueban en `backups-relocate.php`.
 
+### Quien restaura sigue entrando
+
+Desde 1.0.76. El 2026-11-12, en producción, el sitio 1 de la red de digitalisimo.mx se extrajo y se restauró en un
+WordPress limpio en la subcarpeta `/wp` (prefijo `wpkx_`) por REST, con la contraseña de aplicación de «admin». El sitio
+quedó bien, pero quien lo restauró quedó fuera: «admin» ya no existía, la contraseña de aplicación de «digitalisimo» (que
+viajó en el paquete) respondía 401 `rest_not_logged_in`, `/wp/wp-login.php` daba 404 porque viajó la ruta privada de
+acceso de la red y el cliente REST no pudo leer el estado final del trabajo. Lo que se hace ahora
+(`Digitalisimo_Backups_Restore_Access`, `includes/restore/class-restore-access.php`):
+
+- **La cuenta de quien restaura.** Con reubicación (otra URL, prefijo o ruta), un sitio extraído de una red o una
+  migración, «Conservar mi acceso» (pantalla, encendido por defecto; también en «Migrar»), `keep_access` (REST, `true`
+  por defecto, también en `POST /migration/pull`) y `--[no-]keep-access` (WP-CLI `restore` y `migrate`, con el usuario de
+  `--user`) conservan **sólo** la cuenta de quien lanza la restauración (en una migración, quien la empezó, no quien da el
+  tick), nunca la de los demás administradores del destino. Su fila (hash y correo), sus sesiones (`session_tokens`), sus
+  contraseñas de aplicación y su perfil se apuntan en el diario de la restauración antes del cambio de tablas, cifrados
+  con la clave de este servidor (AUTH_KEY y SECURE_AUTH_KEY; sin claves propias, tal cual en el diario, que es `0600` en
+  el almacén privado), y vuelven tras el SQL, también si el proceso muere entre medias (el diario es idempotente). Queda
+  como administrador (y superadministrador en una red, si lo era). Con el mismo hash, las mismas sesiones y las mismas
+  claves de `wp-config.php` (que la restauración nunca escribe), la cookie de su navegador sigue valiendo.
+- **Choques.** *Mismo usuario en el paquete*: esa cuenta pasa a ser la de quien restaura (su contraseña, su correo y sus
+  sesiones; mismo ID, así que el contenido sigue siendo de esa cuenta); sus contraseñas de aplicación se conservan junto a
+  las de quien restaura sólo si ya era administradora en el paquete; si no, se retiran (darían permisos de administrador a
+  quien las tenga) y el informe lo dice. *Mismo correo en otra cuenta del paquete*: la cuenta de quien restaura se crea con
+  su usuario y su correo, y el informe avisa que entre con el nombre de usuario (WordPress entraría por correo con
+  cualquiera de las dos) y que cambie uno antes de editar su perfil. *IDs y autoría*: los IDs del paquete nunca cambian;
+  una cuenta nueva toma el siguiente ID libre (el contenido del destino ya no existe, así que no hay autoría que mover).
+  *Mismo sitio* (sin reubicar: un respaldo de este mismo sitio, p. ej. tras un hackeo): no se conserva nada, vuelven las
+  cuentas, contraseñas y contraseñas de aplicación del respaldo, como siempre, porque las de ahora pueden estar
+  comprometidas; el informe lo dice. La vuelta a la copia previa tampoco conserva nada.
+- **La ruta de acceso.** Al reubicar, el sitio conserva la suya (vacía si no tenía): Tools
+  (`digitalisimo_tools_site_options`) y SEO (`seo_hide_login_slug`, que aplica mientras Tools no está activo) quedan con
+  la de este sitio y la del respaldo no se aplica (en una red, también los valores de la red). Lo que el respaldo no trae
+  no se crea, salvo la ruta de Tools si este sitio tenía una y el respaldo ninguna de las dos opciones. La URL de acceso
+  efectiva (con la constante de emergencia `DIGITALISIMO_HIDE_LOGIN_DISABLE`) va siempre en el informe.
+- **Las contraseñas de aplicación del paquete.** Causa del 401: `WP_Application_Passwords::is_in_use()` lee
+  `using_application_passwords` con `get_network_option()`, que en una red vive en `sitemeta`; la extracción no lleva
+  `sitemeta`, y sin esa opción `wp_authenticate_application_password()` devuelve sin mirar la cabecera (por eso
+  `rest_not_logged_in` y no `incorrect_password`). El hash sí viajaba. Ahora, tras cualquier restauración, si algún
+  usuario tiene contraseñas de aplicación, la opción queda activa (también para paquetes ya extraídos con 1.0.75).
+- **Seguir el trabajo hasta el final.** `POST /backups/<archivo>/restore` y `POST /migration/pull` devuelven una vez
+  `follow`: una ficha de lectura (48 caracteres hexadecimales; sólo se guarda su SHA-256 en el trabajo y en
+  `.maintenance`). Con ella en la cabecera `X-Digitalisimo-Backups-Job-Token` (sin `Authorization`), `GET /jobs/<id>`
+  lee sólo ese trabajo (y su vuelta a la copia previa, o la restauración de esa migración), sin sesión y sin reanudar
+  nada: durante el mantenimiento la puerta deja pasar sólo ese GET (con WordPress mínimo, y el plugin rechaza cualquier
+  otra ruta con 503) y, como una visita, despierta la restauración; después, aunque los usuarios hayan cambiado. Vale
+  mientras el trabajo sigue y 24 h después (7 días como mucho); en la URL responde 400. Completa H18, que sólo servía a la
+  cookie del navegador. WP-CLI no depende de los usuarios de WordPress: `wp digitalisimo-backups jobs get <id>`.
+- **Cómo entrar ahora.** El informe (pantalla, respuesta REST, `jobs get`, el aviso persistente del escritorio y de la
+  franja de Backups, y el correo) empieza por «Cómo entrar ahora: <URL>» y dice si se conservó el acceso de quien
+  restauró, quién puede entrar (los administradores por su usuario y cuántos usuarios hay), qué pasó con la ruta de acceso
+  y con las contraseñas de aplicación. Nunca lleva un hash, una contraseña ni la ruta privada del respaldo. Una
+  restauración en otro sitio avisa por correo siempre al terminar (aunque los avisos de éxito estén apagados), a quien se
+  avisaba en este sitio antes del SQL.
+- **La barra de subida.** El cierre de «Subir un respaldo» comprueba el archivo en el servidor (minutos con 350 MB): si
+  su respuesta no llegaba nunca (un proxy que retiene la conexión), la barra quedaba quieta aunque `GET /uploads` dijera
+  `phase=done`. Ahora el estado se consulta a la vez, la barra queda indeterminada mientras se comprueba y llega a 100 %
+  con «Respaldo subido y verificado» en cuanto el servidor termina; cada petición tiene plazo y, si nadie comprueba ya el
+  archivo (el proceso murió), se vuelve a cerrar sin subirlo otra vez.
+
+**Backuply** (Backuply 1.6.0, ZIP oficial de wordpress.org, SHA-256
+`1bcd6e28750040d2b83bc60198291ee3970b9513cf1678cebef7aa91ff086794`, leído sin instalarlo): no conserva la cuenta del
+destino. Restaura su `wp-config.php` del respaldo (con sus claves) y sólo reescribe en él la base de datos y
+`WP_HOME`/`WP_SITEURL` (`restore_ins.php`, `updating_config_file()`); al terminar una restauración «migrando» guarda una
+clave de sesión de un solo uso con el ID de quien la lanzó (`main/ajax.php`, `backuply_restore_response()`) y el
+navegador que la empezó la canjea por una sesión nueva del usuario **con ese mismo ID en la base restaurada** (o el 1, o
+el primer administrador) en `backuply_creating_session()`. No conserva contraseñas ni contraseñas de aplicación ni ayuda a
+un cliente REST, y su documentación avisa que «you may be asked to login again»
+(https://backuply.com/docs/how-to/how-to-migrate-a-wordpress-site/). Lo pedido aquí (la misma cuenta, su contraseña y sus
+contraseñas de aplicación, también por REST) va más allá y no inicia sesión como otra persona.
+
+Límites: un plugin de segundo factor del paquete puede pedirle a la cuenta conservada que lo configure; la cuenta
+conservada no recupera sus metas de otros plugins (sólo perfil, credenciales y rol); en una red, las rutas privadas
+propias de los subsitios siguen siendo las del respaldo (la del sitio principal y la de la red, las de este sitio); con
+`addresses=backup` la cookie del navegador cambia de nombre (otra dirección) y hay que entrar otra vez, con la misma
+contraseña; mientras dura el mantenimiento, `GET /jobs/<id>` con la contraseña de aplicación (sin ficha) sigue
+respondiendo 503, como cualquier petición sin el testigo.
+
+Pruebas: `tests/backups-keep-access.php` (decisión, el caso de /wp, choques, idempotencia, diario cifrado, muerte tras el
+cambio, ficha y puerta del mantenimiento), `tests/backups-upload-ui.mjs` (la barra) y, en Playground,
+`tests/playground/backups-keep-access.sh` (el incidente de punta a punta: red con la ruta privada, «digitalisimo» con su
+contraseña de aplicación y el MCP de Elements; extracción por REST, subida por `/uploads` en fragmentos y restauración por
+REST en `/wp` con `addresses=current`).
+
 ## Restauración por pasos
 
 Desde 1.0.64. El ensayo en un hosting real (`/var/tmp/digi-wt/bk-lab/LAB.md`: Webuzo con OpenLiteSpeed,
@@ -813,6 +897,9 @@ que se restaura. Se apuntan en el diario de la restauración antes del cambio de
 si el proceso muere entre medias:
 
 - el historial, el llavero, el registro del almacén privado, el estado de la migración y lo traído de un destino;
+- **desde 1.0.76, al restaurar en otro sitio** (reubicación, un sitio extraído o una migración), la cuenta de quien
+  restaura (con «Conservar mi acceso», encendido por defecto) y la ruta privada de acceso de este sitio: ver «Quien
+  restaura sigue entrando»;
 - **desde 1.0.73 (H23 del ensayo E4), la configuración de Backups** al restaurar el respaldo de otra instalación
   (sin fila en el historial de aquí, como uno traído de un destino o subido, o con otra identidad), si este sitio tiene
   una propia: una
@@ -877,7 +964,8 @@ red.test/dos como WordPress individual»), con sus fases, reintentos y verificac
 extraído», se descarga como cualquier respaldo y no aparece en «Restaurar» de la red. En el destino, un WordPress
 individual recién instalado con Backups: se copia a su almacén privado, aparece en «Restaurar» como archivo sin registro y
 se restaura con su frase (`RESTAURAR`) o, sin frase, con `RESTAURAR SIN FIRMA`. Después se entra con un usuario del sitio
-extraído: las cuentas que tenía el destino ya no existen. REST `POST /sites/<id>/extract` y
+extraído y, con «Conservar mi acceso» (por defecto), también con la cuenta de quien restauró; las demás cuentas que
+tenía el destino ya no existen (ver «Quien restaura sigue entrando»). REST `POST /sites/<id>/extract` y
 `wp digitalisimo-backups extract <id> --network` usan el mismo caso de uso (`Digitalisimo_Backups::service_extract()`).
 
 **Quién.** Es una acción de la red: sólo un superadministrador (en WP-CLI, la cuenta del sistema), desde el sitio
@@ -1155,8 +1243,9 @@ del origen.
    presenta al origen y comprueba que la migración es posible (abajo); después el avance está en «Trabajos»
    («Conexión con el origen» → «Paquete en el origen» → «Descarga» → «Comprobación del paquete» → «Restauración» →
    «Cierre»; la restauración, con su propia tarjeta). Con la página abierta el navegador lo hace avanzar; si se cierra, WP-Cron o
-   `wp digitalisimo-backups jobs run`. Al restaurar, los usuarios pasan a ser los del origen: la sesión del navegador
-   deja de valer y la pantalla pide iniciar sesión con un usuario del origen.
+   `wp digitalisimo-backups jobs run`. Al restaurar, los usuarios pasan a ser los del origen salvo quien migró, que con
+   «Conservar mi acceso» (por defecto) sigue entrando con su cuenta y su sesión (ver «Quien restaura sigue entrando»);
+   sin ella, la sesión del navegador deja de valer y la pantalla pide iniciar sesión con un usuario del origen.
 3. El destino conserva **su** dirección: la restauración reescribe URL, rutas del servidor y prefijo de tablas con el
    motor de «Restaurar en otro dominio» (datos serializados, JSON y URL codificadas), vacía el CSS generado de Elements
    y las cachés, y fija `home`/`siteurl` (en una red, también `site`, `blogs` y `sitemeta`).
@@ -1311,7 +1400,7 @@ sitio a medias).
 Límites declarados: un plugin de seguridad que cierre la API REST a visitantes anónimos impide migrar desde ese origen
 (la API del origen no usa la sesión); el estado de la migración del destino (sus propias claves y el registro) nunca
 viaja en un respaldo: se guarda antes del cambio de tablas (también sellado en el almacén, para una muerte entre el
-cambio y la reposición) y vuelve después; la sesión del navegador del destino termina al cambiar las tablas (los
+cambio y la reposición) y vuelve después; sin «Conservar mi acceso», la sesión del navegador del destino termina al cambiar las tablas (los
 usuarios son los del origen) y el cierre con el origen lo hace el tick siguiente (WP-Cron, o la pantalla tras iniciar
 sesión con un usuario del origen); un trabajo de la cola caduca a las 24 h (`EXPIRES_AFTER` del motor), lo que limita un
 paquete enorme cifrado con sodium_compat; la conexión va a la IP comprobada sólo con el transporte cURL de WordPress y
