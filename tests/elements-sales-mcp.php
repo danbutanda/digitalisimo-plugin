@@ -637,7 +637,7 @@ namespace {
 	check( 1 === substr_count( $all, 'Ana López' ) && 1 === substr_count( $all, 'Luis Pérez' ) && $left['[Nombre real]']['count'] === $sum['[Nombre real]']['count'] - 2, 'una lista llena las apariciones en orden y el resto queda pendiente' );
 	check( array( 'placeholder' => '[no existe]', 'reason' => 'No está en esta plantilla (list-templates con template da la lista exacta).' ) === $r['ignored'][0] && '[Marca]' === $r['ignored'][1]['placeholder'], 'un placeholder que no está o un valor vacío se ignoran y se informan' );
 	check( in_array( '[Nombre real]', $r['real_data'], true ) && ! in_array( '[producto]', $r['real_data'], true ), 'los datos reales llenados se piden revisar' );
-	check( false !== strpos( $all, 'Hoy: <span style="color:#00A86B">$1,997 MXN</span>' ), 'el precio queda en pesos' );
+	check( false !== strpos( $all, 'Hoy: <span>$1,997 MXN</span>' ), 'el precio queda en pesos' );
 	check( in_array( '[producto]', $r['filled_keys'], true ) && $r['filled'] > 7, 'filled cuenta lo que se llenó' );
 	check( ! isset( array_column( $r['pending'], 'count', 'placeholder' )['[producto]'] ), 'lo llenado ya no está pendiente' );
 
@@ -1031,6 +1031,37 @@ namespace {
 			$r   = $only ? $build( 'venta-completa', array( 'replacements' => array( $only[0] => 'Solo aqui' ), 'omit_blocks' => array( 'funciona-para-ti' ), 'close_date' => $close ) ) : array();
 			$ign = $only ? $of_name( $r['ignored'], $only[0] ) : array();
 			review( 'R2', 1 === count( $ign ) && false !== strpos( $ign[0]['reason'], 'Sólo aparece en bloques que se quitaron' ) && ! in_array( $only[0], $r['filled_keys'], true ), 'un valor que sólo iba en el bloque quitado se informa: ' . json_encode( $only, JSON_UNESCAPED_UNICODE ) );
+		}
+	);
+
+	// R3 · El color de un título sobrevive a una editora: el núcleo le quita todos los atributos al título que guarda quien
+	// no tiene manage_options (el doble sk_heading_sanitize()), así que ningún título lleva atributos y el color de su
+	// resalte (<span>) va en el CSS propio del widget (custom_css), que el núcleo no toca.
+	review_block(
+		'R3',
+		static function () use ( $build, $ids8 ) {
+			$spans = 0;
+			foreach ( array( 'sections', 'containers' ) as $variant ) {
+				foreach ( $ids8 as $id ) {
+					foreach ( sk_find( Catalog::load( $id, $variant )['content'], static function ( $e ) { return 'heading' === ( $e['widgetType'] ?? '' ); } ) as $h ) {
+						$title = $h['settings']['title'];
+						review( 'R3', sk_heading_sanitize( $title ) === $title, "$id/$variant: un título pierde algo al guardarlo una editora: $title" );
+						if ( false !== strpos( $title, '<span>' ) ) {
+							++$spans;
+							review( 'R3', 1 === preg_match( '/^selector span\{color:#[0-9A-Fa-f]{6};\}$/', $h['settings']['custom_css'] ?? '' ), "$id/$variant: el resalte de «{$title}» sin su color en custom_css" );
+						}
+					}
+				}
+			}
+			review( 'R3', 16 === $spans, "los ocho títulos con resalte de 01 (3), 02 (2), 03, 05 y 06, en las dos variantes: $spans" );
+			// Una página creada por una editora (sin manage_options) con el saneador del núcleo: el título y su color quedan.
+			sk_reset();
+			add_filter( 'elementor/document/save/data', 'sk_core_sanitizer', 10, 2 );
+			$els = $build( 'venta-corta', array( 'replacements' => array( '[precio]' => '1,997' ) ), 'containers' )['elements'];
+			Pages::create( 'De la editora', $els );
+			$saved = sk_find( $GLOBALS['sk']['filtered'][0]['elements'] ?? array(), static function ( $e ) { return 'heading' === ( $e['widgetType'] ?? '' ) && false !== strpos( $e['settings']['title'], '<span>' ); } );
+			review( 'R3', 2 === count( $saved ) && 'Hoy: <span>$1,997 MXN</span>' === $saved[1]['settings']['title'] && 'selector span{color:#00A86B;}' === $saved[1]['settings']['custom_css'], 'venta-corta guardada por una editora: «Hoy: <span>$1,997 MXN</span>» y su color en custom_css' );
+			$GLOBALS['sk']['containers'] = false;
 		}
 	);
 

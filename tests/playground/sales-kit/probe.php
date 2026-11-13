@@ -9,7 +9,8 @@
  *   `ping`, `container` (experimento de contenedores: active o inactive), `page` (estado, lienzo, marcas del
  *   constructor y widgets guardados de una página), `pages` (cuántas páginas hay por estado), `library` (plantillas de
  *   la biblioteca), `unfiltered` (la carga de archivos sin filtrar: 1 o 0), `login` (inicia sesión en el navegador con
- *   un usuario del ensayo) y `abilities` (abilities registradas).
+ *   un usuario del ensayo), `notices` (los avisos de PHP registrados desde una línea) y `abilities` (abilities
+ *   registradas).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -29,16 +30,31 @@ register_shutdown_function(
 function digi_sk_ours( string $text ): bool {
 	return 1 === preg_match( '#modules/digitalisimo-sales/|digitalisimo_sales|digitalisimo-sales/|Elements\\\\Sales\\\\#i', $text );
 }
-set_error_handler(
-	static function ( $severity, $message, $file, $line ) {
-		$text = ( $_SERVER['REQUEST_URI'] ?? '' ) . " · PHP $severity: $message en $file:$line\n";
-		if ( digi_sk_ours( (string) $file ) || digi_sk_ours( (string) $message ) ) {
-			file_put_contents( DIGI_SK_DIR . '/php-errors.log', $text, FILE_APPEND );
-		} elseif ( false !== strpos( (string) $file, 'digitalisimo-elements' ) ) {
-			file_put_contents( DIGI_SK_DIR . '/elements-notices.log', $text, FILE_APPEND );
-		}
-		return false;
+$digi_sk_handler = static function ( $severity, $message, $file, $line ) {
+	$text = ( $_SERVER['REQUEST_URI'] ?? '' ) . " · PHP $severity: $message en $file:$line\n";
+	if ( digi_sk_ours( (string) $file ) || digi_sk_ours( (string) $message ) ) {
+		file_put_contents( DIGI_SK_DIR . '/php-errors.log', $text, FILE_APPEND );
+	} elseif ( false !== strpos( (string) $file, 'digitalisimo-elements' ) ) {
+		file_put_contents( DIGI_SK_DIR . '/elements-notices.log', $text, FILE_APPEND );
 	}
+	return false;
+};
+set_error_handler( $digi_sk_handler );
+// En cada petición REST (el MCP es una) el núcleo pone su propio manejador (`rest_api_init` →
+// `Logger\Manager::register_error_handler()`) y la sonda dejaba de ver los avisos: se vuelve a poner delante, al
+// final de `rest_api_init`, y le pasa cada aviso al del núcleo.
+add_action(
+	'rest_api_init',
+	static function () use ( $digi_sk_handler ) {
+		$prev = null;
+		$prev = set_error_handler(
+			static function ( ...$args ) use ( $digi_sk_handler, &$prev ) {
+				$digi_sk_handler( ...$args );
+				return $prev ? call_user_func_array( $prev, $args ) : false;
+			}
+		);
+	},
+	PHP_INT_MAX
 );
 foreach ( array( 'doing_it_wrong_run', 'deprecated_function_run', 'deprecated_argument_run', 'deprecated_hook_run' ) as $digi_sk_hook ) {
 	add_action(
@@ -134,6 +150,16 @@ add_action(
 				$widgets = array();
 				$ids     = array();
 				digi_sk_walk( is_array( $data ) ? $data : array(), $widgets, $ids );
+				// Los resaltes de los títulos (`<span>…</span>`) y los que todavía llevan atributos.
+				$titles = array();
+				array_walk_recursive(
+					$data,
+					static function ( $v, $k ) use ( &$titles ) {
+						if ( 'title' === $k && is_string( $v ) && false !== strpos( $v, '<span' ) ) {
+							$titles[] = $v;
+						}
+					}
+				);
 				$upload = wp_upload_dir();
 				digi_sk_out(
 					array(
@@ -151,6 +177,8 @@ add_action(
 						'widgets'       => $widgets,
 						'ids'           => $ids,
 						'css_file'      => file_exists( $upload['basedir'] . '/elementor/css/post-' . $id . '.css' ),
+						'spans'         => substr_count( implode( ' ', $titles ), '<span' ),
+						'span_attrs'    => preg_match_all( '/<span\s[^>]*>/', implode( ' ', $titles ) ),
 					)
 				);
 				break;
@@ -178,6 +206,23 @@ add_action(
 				wp_set_current_user( $user->ID );
 				wp_set_auth_cookie( $user->ID, true );
 				digi_sk_out( array( 'ok' => true ) );
+				break;
+			case 'notices':
+				// Los avisos de PHP registrados desde la línea `value` (una por archivo: «kit,elements»).
+				$from = array_map( 'intval', explode( ',', $value . ',' ) );
+				$read = static function ( string $file, int $from ): array {
+					$lines = is_file( $file ) ? file( $file, FILE_IGNORE_NEW_LINES ) : array();
+					return array( count( $lines ), array_slice( $lines, $from ) );
+				};
+				list( $kit_n, $kit_new )           = $read( DIGI_SK_DIR . '/php-errors.log', $from[0] );
+				list( $elements_n, $elements_new ) = $read( DIGI_SK_DIR . '/elements-notices.log', $from[1] );
+				digi_sk_out(
+					array(
+						'at'       => $kit_n . ',' . $elements_n,
+						'kit'      => $kit_new,
+						'elements' => $elements_new,
+					)
+				);
 				break;
 			case 'abilities':
 				$ids = function_exists( 'wp_get_abilities' ) ? array_map( static function ( $a ) { return $a->get_name(); }, wp_get_abilities() ) : array();

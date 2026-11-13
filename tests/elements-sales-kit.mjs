@@ -66,6 +66,8 @@ roto('un contador con fecha fija', 'sections', '05-carrito.json', (d) => { widge
 roto('texto de relleno', 'sections', corta, (d) => { widgets(d.content)[0].settings.title = 'Lorem ipsum'; }, /texto prohibido/);
 roto('el nombre del proveedor del núcleo', 'sections', corta, (d) => { widgets(d.content)[0].settings.title = 'Hecho con Elementor'; }, /proveedor del núcleo/);
 roto('la persona de la versión para los sitios propios', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading' && /Hola, soy/.test(w.settings.title)).settings.title = 'Hola, te saluda Daniel Butanda'; }, /texto prohibido «Daniel»/);
+roto('un título con atributos (el núcleo se los quita a una editora)', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading' && /<span[\s>]/.test(w.settings.title)).settings.title = 'Hoy: <span style="color:#00A86B">$[precio] MXN</span>'; }, /título con atributos/);
+roto('un resalte sin su color en el CSS propio', 'containers', corta, (d) => { delete widgets(d.content).find((w) => w.widgetType === 'heading' && /<span[\s>]/.test(w.settings.title)).settings.custom_css; }, /título con <span> sin su color/);
 roto('una sección fuera de sus bloques', 'sections', corta, (d) => { d.content.splice(1, 0, d.content.splice(3, 1)[0]); }, /bloques del manifiesto no recorren las secciones en orden/);
 
 // 3. Las marcas que quedan viven en las constantes del generador (una línea cada una).

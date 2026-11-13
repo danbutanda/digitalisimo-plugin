@@ -95,7 +95,7 @@ def tarjeta_stack(precio="$[precio] MXN", valor_total="$[valor total] MXN", mese
         separador(100),
         texto(f"<p style=\"text-align:center\">Valor total: <del>{valor_total}</del></p>", color=MUT,
               alinear="center", tam=18),
-        titulo(f"Hoy: <span style=\"color:{JADE}\">{precio}</span>", "h2", color=TX, tam=44, tam_movil=34),
+        titulo(f"Hoy: <span>{precio}</span>", "h2", color=TX, tam=44, tam_movil=34, acento=JADE),
         texto(f"<p style=\"text-align:center\">{meses}</p>", color=MUT, alinear="center", tam=16),
         boton("¡Sí, quiero [producto] ahora!", url="/carrito/", ancho_completo=True, fuente=21),
         texto("<p style=\"text-align:center\">Acceso a [producto] + todos los bonus</p>", color=MUT,
@@ -119,8 +119,8 @@ def venta_completa():
     # 1. La promesa.
     S.append(seccion(
         etiqueta("Si eres [perfil 1], [perfil 2] o [perfil 3]…", color=NEON),
-        titulo(f"[Logra el resultado] y [construye X] <span style=\"color:{NEON}\">sin [el obstáculo]</span> en "
-               "[N días] o menos", "h1", color=BLANCO, tam=50, tam_movil=32),
+        titulo("[Logra el resultado] y [construye X] <span>sin [el obstáculo]</span> en "
+               "[N días] o menos", "h1", color=BLANCO, tam=50, tam_movil=32, acento=NEON),
         espacio(10), video("Video de venta: 3 a 5 minutos"), espacio(10),
         texto("<p style=\"text-align:center\">➜ Descubre [el método con nombre], que funciona sin importar [tu giro "
               "o tu nivel de experiencia].</p>", color=TX_OSC, alinear="center", tam=19),
@@ -485,8 +485,8 @@ def venta_corta():
     S.append(seccion(
         columna(
             etiqueta("[Para quién]", color=NEON, alinear="left"),
-            titulo(f"[Resultado concreto] <span style=\"color:{NEON}\">en [tiempo]</span>", "h1", color=BLANCO,
-                   alinear="left", tam=46),
+            titulo("[Resultado concreto] <span>en [tiempo]</span>", "h1", color=BLANCO,
+                   alinear="left", tam=46, acento=NEON),
             texto("<p>[La promesa en una frase y por qué ahora.]</p>", color=TX_OSC),
             boton("¡Lo quiero!", fondo=NEON, color=NOCHE, alinear="left"),
             tam=50, centro_v=True),
@@ -549,8 +549,8 @@ def captacion():
     S.append(seccion(
         columna(
             etiqueta("[Clase gratuita en vivo / Recurso gratuito]", color=NEON, alinear="left"),
-            titulo(f"[Cómo lograr el resultado] <span style=\"color:{NEON}\">sin [obstáculo]</span>", "h1",
-                   color=BLANCO, alinear="left", tam=44),
+            titulo("[Cómo lograr el resultado] <span>sin [obstáculo]</span>", "h1",
+                   color=BLANCO, alinear="left", tam=44, acento=NEON),
             texto("<p>[Subtítulo: qué se llevan en una frase.]</p>", color=TX_OSC),
             lista([("[Día] de [mes] · [hora] (hora del centro de México)", "far fa-calendar-alt", "fa-regular"),
                    (f"En vivo por {PLATAFORMA_SESION} · [duración]", "fas fa-video")],
@@ -668,7 +668,7 @@ def carrito():
                    ("BONUS 2: [nombre] <strong>(valor $[X] MXN)</strong>", "fas fa-gift")], color_texto=TX),
             separador(100),
             texto("<p>Valor total: <del>$[valor total] MXN</del></p>", tam=17),
-            titulo(f"Hoy: <span style=\"color:{JADE}\">$[precio] MXN</span>", "h2", alinear="left", tam=36),
+            titulo("Hoy: <span>$[precio] MXN</span>", "h2", alinear="left", tam=36, acento=JADE),
             tam=45, fondo=NIEBLA, pad=caja(32), radio=18),
         fondo=BLANCO, pad=(56, 20), nota="2 · Formulario junto a la oferta"))
     S.append(seccion(
@@ -714,8 +714,8 @@ def oferta_unica():
         columna(titulo("[Nombre del complemento]", "h3", alinear="left"),
                 lista(["[Qué incluye 1]", "[Qué incluye 2]", "[Qué incluye 3]"]),
                 texto("<p>Precio normal: <del>$[X] MXN</del></p>", tam=17),
-                titulo(f"Solo hoy: <span style=\"color:{JADE}\">$[precio] MXN</span>", "h2", alinear="left",
-                       tam=36),
+                titulo("Solo hoy: <span>$[precio] MXN</span>", "h2", alinear="left",
+                       tam=36, acento=JADE),
                 boton("Sí, agrégalo a mi pedido", url="/pago-complemento/", ancho_completo=True),
                 texto("<p style=\"text-align:center\"><a href=\"/gracias-compra/\">No, gracias: quiero seguir sin "
                       "el complemento</a></p>", alinear="center", tam=15),

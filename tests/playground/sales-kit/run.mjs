@@ -1,7 +1,8 @@
 // Ensayo de punta a punta del kit de ventas de DIGITALÍSIMO Elements contra el Playground que levantó sales-kit.sh:
 // JSON-RPC real contra /wp-json/elementor/mcp (initialize, notifications/initialized, tools/list y tools/call) con
 // contraseñas de aplicación, la sonda (?digi_sk=…) para leer el estado del sitio sin pasar por el MCP y Chrome real
-// para ver cada página creada (1 280 y 390 px) y el aviso al importar un ZIP de plantillas.
+// para ver cada página creada (1 280 y 390 px; también las de una editora, con el color de sus títulos) y el aviso al
+// importar un ZIP de plantillas.
 // Escribe cada resultado en <dir>/result.txt («ok · …» o «FALLA · …») y <dir>/result.json; sale 1 si algo falla.
 // Ningún secreto (contraseñas de aplicación) se escribe en los resultados.
 // Uso: node run.mjs <puerto> <dir> <zip del kit>   (PUPPETEER_PATH: carpeta node_modules con puppeteer-core)
@@ -91,7 +92,11 @@ const MANIFEST = JSON.parse(readFileSync(new URL('../../../digitalisimo-elements
 const SITIO_EXTERNO = /^https:\/\/(fonts\.(googleapis|gstatic)\.com\/|secure\.gravatar\.com\/avatar\/|s\.w\.org\/images\/core\/emoji\/)/;
 const sameCounts = (a, b) => JSON.stringify(Object.entries(a || {}).sort()) === JSON.stringify(Object.entries(b || {}).sort());
 const TEMPLATES = ['venta-completa', 'venta-corta', 'captacion', 'gracias-registro', 'carrito', 'oferta-unica', 'gracias-compra', 'prueba-social'];
-const pages = []; // { id, template, variant, preview, widgets }
+const pages = []; // { id, template, variant, preview, widgets, ids, spans }
+// Los resaltes de color en los títulos de cada plantilla (`<span>…</span>`; su color va en el CSS propio del widget).
+const RESALTES = { 'venta-completa': 3, 'venta-corta': 2, captacion: 1, 'gracias-registro': 0, carrito: 1, 'oferta-unica': 1, 'gracias-compra': 0, 'prueba-social': 0 };
+// El color de cada resalte: el neón de la promesa y el jade del precio.
+const COLORES_RESALTE = ['rgb(0, 255, 153)', 'rgb(0, 168, 107)'];
 // La fecha de cierre del ensayo: a 30 días de hoy, a las 20:00 (hora del sitio). Nunca una fecha fija: caducaría y
 // create-page la rechazaría por pasada.
 const CIERRE = `${new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)} 20:00`;
@@ -162,7 +167,8 @@ async function main() {
       check(pg.ids.length === new Set(pg.ids).size && pg.ids.every((x) => /^[0-9a-f]{7}$/.test(x)), `${id}: IDs nuevos, sin repetirse`);
       check(!d.whatsapp_pending && Array.isArray(d.pending) && d.pending_count > 0 && /BORRADOR/.test(d.llm_instructions || ''), `${id}: informa lo pendiente (${d.pending_count} apariciones) y que quedó en borrador`);
       check(/[?&]preview=true/.test(d.preview_url || '') && /action=elementor/.test(d.edit_url || ''), `${id}: URL de vista previa y de edición`, `${d.preview_url} ${d.edit_url}`);
-      pages.push({ id: d.id, template: id, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids });
+      check(pg.spans === RESALTES[id], `${id}: sus ${RESALTES[id]} resaltes de título`, JSON.stringify({ spans: pg.spans }));
+      pages.push({ id: d.id, template: id, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
     }
   }
   await probe('container', 'active');
@@ -175,7 +181,7 @@ async function main() {
   r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni oferta', omit_blocks: ['bonus', 'oferta'], close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","oferta"]' && pg.top === 32 - 7 && r.data.broken_anchors.includes('oferta'), 'omit_blocks quita los bloques enteros (seis secciones de bonus y la oferta) e informa los botones que llevaban a #oferta', r.text.slice(0, 300));
-  if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids });
+  if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
   r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta con cierre', close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && r.data.close_date === CIERRE && !r.data.pending.some((p) => /de cierre\]$/.test(p.placeholder)) && pg.status === 'draft' && !pg.widgets?.countdown, 'la venta corta (sin contador) llena sus textos de cierre con close_date', r.text.slice(0, 300));
@@ -206,12 +212,36 @@ async function main() {
   check(count1.all === count0.all, 'ningún rechazo creó una página', JSON.stringify({ count0, count1 }));
   check(count1.publish === before.publish, 'ninguna página del kit se publicó', JSON.stringify({ before, count1 }));
 
-  start('S6 Permisos');
+  start('S6 Permisos, y lo que guarda una editora');
   const editora = new Client('editora');
   await editora.init();
+  const sinHtml = new Client('editora-sin-html');
+  await sinHtml.init();
+  const avisos0 = await probe('notices', '0,0');
   r = await editora.call('create-page', { template: 'venta-corta', title: 'De la editora' });
   check(!r.isError && r.data.status === 'draft', 'una editora (edit_pages) crea un borrador aunque puede publicar', r.text.slice(0, 300));
-  if (r.data?.id) { pg = await probe('page', r.data.id); check(pg.status === 'draft', 'y queda en borrador'); }
+  if (r.data?.id) {
+    pg = await probe('page', r.data.id);
+    check(pg.status === 'draft', 'y queda en borrador');
+    pages.push({ id: r.data.id, template: 'venta-corta-editora', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+  }
+  // Las demás plantillas con un resalte de color en el título, creadas por la editora (sin manage_options: el núcleo le
+  // quita los atributos al título) y por una editora sin unfiltered_html (además, wp_kses_post() en todo): S7 las pinta
+  // y comprueba el color de cada resalte.
+  for (const [c, id] of [[editora, 'venta-completa'], [editora, 'captacion'], [editora, 'carrito'], [editora, 'oferta-unica'], [sinHtml, 'venta-corta'], [sinHtml, 'carrito']]) {
+    const args = { template: id, title: `${id} de ${c.login}`, whatsapp: '5218711234567', replacements: { '[precio]': '1,997' } };
+    if (!full[id].placeholders.some((p) => p.placeholder === '[precio]')) delete args.replacements;
+    if (meta.find((t) => t.id === id).close_date) args.close_date = CIERRE;
+    r = await c.call('create-page', args);
+    pg = r.data?.id ? await probe('page', r.data.id) : {};
+    if (check(!r.isError && r.data.status === 'draft' && pg.status === 'draft' && pg.spans === RESALTES[id] && pg.span_attrs === 0, `${id} creada por ${c.login}: borrador con sus ${RESALTES[id]} resaltes de título, sin atributos`, r.text.slice(0, 300) + JSON.stringify({ spans: pg.spans, span_attrs: pg.span_attrs }))) {
+      pages.push({ id: r.data.id, template: `${id}-${c.login}`, variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+    }
+  }
+  // Guardar como editora no deja avisos de PHP (ni del kit ni del núcleo: el saneador de contenido y db.php).
+  const avisos1 = await probe('notices', avisos0.at);
+  const deMcp = [...avisos1.kit, ...avisos1.elements].filter((l) => /mcp/.test(l.split(' · ')[0]) && !/PHP (8192|16384):/.test(l));
+  check(!deMcp.length, 'guardar como editora no deja avisos de PHP (content-sanitizer, db.php, el kit)', deMcp.slice(0, 4).join(' | '));
   for (const login of ['autora', 'editora-sin-paginas']) {
     const c = new Client(login);
     await c.init();
@@ -286,6 +316,7 @@ async function main() {
             ajenos: [...enCss].filter((id) => !ids.includes(id) && css.includes(`.elementor-${pid} .elementor-element.elementor-element-${id}`)),
             nIds: ids.length,
             textoMuestra: /52XXXXXXXXXX/.test(html),
+            resaltes: [...document.querySelectorAll(`.elementor-${pid} .elementor-heading-title span`)].map((sp) => ({ color: getComputedStyle(sp).color, titulo: getComputedStyle(sp.closest('.elementor-heading-title')).color, texto: sp.textContent.slice(0, 40) })),
           };
         }, p.id);
         await page.screenshot({ path: join(dir, 'capturas', `${p.template}-${p.variant}-${v.nombre}.png`), fullPage: true, captureBeyondViewport: true }).catch(() => {});
@@ -297,6 +328,8 @@ async function main() {
         check(!m.php, `${tag}: sin avisos de PHP en el HTML`, m.php);
         check(m.desborde <= 2, `${tag}: sin desborde horizontal (${m.desborde} px)`);
         check(sameCounts(m.widgets, p.widgets), `${tag}: widgets pintados = guardados`, `${JSON.stringify(m.widgets)} vs ${JSON.stringify(p.widgets)}`);
+        const sinColor = m.resaltes.filter((x) => x.color === x.titulo || !COLORES_RESALTE.includes(x.color));
+        check(m.resaltes.length === (p.spans ?? m.resaltes.length) && !sinColor.length, `${tag}: cada resalte de título con su color (${m.resaltes.length})`, JSON.stringify({ guardados: p.spans, pintados: m.resaltes.length, sinColor: sinColor.slice(0, 3) }));
         check(m.postCss && !m.sinCss.length && !m.ajenos.length, `${tag}: carga su CSS (cada widget y cada sección o contenedor de primer nivel del HTML tiene su regla; ninguna regla de otra versión)`, JSON.stringify({ postCss: m.postCss, sinCss: m.sinCss.slice(0, 5), ajenos: m.ajenos.slice(0, 5) }));
         await page.close();
       }

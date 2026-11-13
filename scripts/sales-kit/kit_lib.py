@@ -16,6 +16,7 @@ declaradas en `tests/playground/brand-audit/marcas.json`. Los nombres que quedan
 que fijar o quitar uno es cambiar una línea.
 """
 import json
+import re
 import random
 
 AZUL = "#1592DA"
@@ -186,13 +187,27 @@ def interior(*columnas, espacio="extended", margen_sup=None):
 
 # ---------------------------------------------------------------- widgets
 
-def titulo(texto, nivel="h2", color=TX, alinear="center", tam=None, tam_movil=None, peso=700, alto=1.2, margen=None):
+def titulo(texto, nivel="h2", color=TX, alinear="center", tam=None, tam_movil=None, peso=700, alto=1.2, margen=None,
+           acento=None):
+    """Un título. `acento`: el color de lo que va entre <span> y </span> en `texto`.
+
+    El color no va en el título (`<span style="color:…">`): el núcleo le quita todos los atributos al título que guarda
+    quien no es administrador (`content-sanitizer` y `Widget_Heading::sanitize()`), y el rol que crea las páginas
+    (`edit_pages`) es el de una editora. Va en el CSS propio del widget (Avanzado → CSS personalizado), que nadie
+    filtra: `selector span{color:…}`.
+    """
     tamanos = {"h1": (48, 32), "h2": (38, 28), "h3": (24, 21), "h4": (19, 18), "h5": (16, 15), "h6": (14, 13)}
     t, tm = tamanos[nivel]
+    if re.search(r"<[a-z][^>]*\s[^>]*>", texto, re.I):
+        raise ValueError(f"un título no lleva atributos (el núcleo se los quita a quien no es administrador): {texto}")
+    if ("<span>" in texto) != bool(acento):
+        raise ValueError(f"<span> y acento van juntos: {texto}")
     s = {"title": texto, "header_size": nivel, "align": alinear, "title_color": color}
     s.update(tipo("typography", tam or t, tam_movil or tm, peso, alto))
     if margen is not None:
         s["_margin"] = caja(0, 0, margen, 0)
+    if acento:
+        s["custom_css"] = f"selector span{{color:{acento};}}"
     return widget("heading", s)
 
 

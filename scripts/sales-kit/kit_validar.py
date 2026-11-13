@@ -11,6 +11,8 @@ Revisa en cada plantilla de `sections/` y `containers/`:
 - que cada widget exista en Elements (los `get_name()` de sus clases de widget);
 - que las dos variantes lleven los mismos widgets, en el mismo orden, con los mismos ajustes e identificadores;
 - los enlaces: sólo rutas y anclas del propio sitio, el WhatsApp de muestra y placeholders (ninguna URL de otro sitio);
+- los títulos: sin atributos (el núcleo se los quita a quien no es administrador) y el color de su resalte (`<span>`)
+  en el CSS propio del widget;
 - los textos prohibidos (relleno, rastros de las fuentes, el proveedor del núcleo) y los nombres de otras empresas,
   que sólo pueden aparecer donde los declara tests/playground/brand-audit/marcas.json (y cada excepción se usa);
 - el manifiesto: plantillas, recuentos, urgencia (IDs que existen y contienen el contador), enlaces y casos;
@@ -219,6 +221,15 @@ def revisar(rel, d, variante):
                     error(f"{rel}: widget {w} fuera de columna o contenedor")
                 if hijos:
                     error(f"{rel}: widget {w} con hijos")
+                if w == "heading":
+                    # El núcleo le quita todos los atributos al título que guarda quien no es administrador
+                    # (content-sanitizer y Widget_Heading::sanitize()): el color de un resalte va en el CSS propio.
+                    for tag in re.findall(r"<[a-z][a-z0-9]*\s[^>]*>", s.get("title", ""), re.I):
+                        error(f"{rel}: título con atributos {tag!r} ({i}): el núcleo se los quita a quien no es "
+                              "administrador; el color de un resalte va en custom_css (selector span{color:…})")
+                    if "<span>" in s.get("title", "") and not re.fullmatch(r"selector span\{color:#[0-9A-Fa-f]{6};\}",
+                                                                          s.get("custom_css", "")):
+                        error(f"{rel}: título con <span> sin su color en el CSS propio del widget ({i})")
                 if w == "video" and s.get("youtube_url") != "[enlace del video]":
                     error(f"{rel}: video con un enlace que no es el placeholder: {s.get('youtube_url')!r}")
                 if w == "countdown" and s.get("due_date") != CIERRE:

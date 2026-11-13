@@ -7,9 +7,12 @@
 #   - create-page de las ocho plantillas con contenedores y, con el experimento de contenedores apagado, con secciones:
 #     borrador, lienzo, todos los widgets, IDs nuevos; sin fecha de cierre (urgencia quitada) y con bloques omitidos;
 #   - los candados (URLs de otros sitios, cierre, enlaces, precios, WhatsApp, otro estado) sin crear nada, y los
-#     permisos (una editora crea borradores; una autora y una editora sin edit_pages no pueden);
-#   - Chrome a 1 280 y 390 px en cada página creada: HTTP 200, sin errores de JavaScript, sin 404/500 del sitio, sin
-#     peticiones fuera del sitio, sin avisos de PHP, sin desborde, widgets pintados = guardados y su CSS cargado;
+#     permisos (una editora crea borradores; una autora y una editora sin edit_pages no pueden); las plantillas con un
+#     resalte de color en el título creadas por una editora y por una editora sin unfiltered_html, sin avisos de PHP
+#     (la sonda también ve los de las peticiones REST, donde el núcleo pone su propio manejador);
+#   - Chrome a 1 280 y 390 px en cada página creada (también las de las editoras): HTTP 200, sin errores de
+#     JavaScript, sin 404/500 del sitio, sin peticiones fuera del sitio, sin avisos de PHP, sin desborde, widgets
+#     pintados = guardados, cada resalte de título con su color y su CSS cargado;
 #   - el aviso al importar un ZIP de plantillas sin la carga de archivos sin filtrar (y que con ella importa las ocho).
 # Uso: bash tests/playground/sales-kit.sh   (en la PC: bash /var/tmp/digi-wt/pc-run.sh <worktree> -- bash tests/playground/sales-kit.sh)
 #   OUT, TMPDIR    resultados (por defecto /var/tmp/digi-sales-kit) y temporales de Playground

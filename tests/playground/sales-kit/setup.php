@@ -3,9 +3,9 @@
  * Preparación del ensayo del kit de ventas (paso runPHP del blueprint de sales-kit.sh): instala la sonda (mu-plugin),
  * activa DIGITALÍSIMO Elements (núcleo incluido, sin el plugin Elementor), enciende el MCP del sitio, deja la zona
  * horaria de la Ciudad de México y los enlaces permanentes, y crea los usuarios del ensayo con su contraseña de
- * aplicación: admin, una editora (edit_pages), una autora (sin edit_pages) y una editora a la que se le quitó
- * edit_pages. Las contraseñas van a /digi-probe/secrets.json (el arnés lo borra). Deja /digi-probe/setup.json; un fallo
- * queda en setup-error.txt.
+ * aplicación: admin, una editora (edit_pages), una autora (sin edit_pages), una editora a la que se le quitó
+ * edit_pages y una editora sin unfiltered_html. Las contraseñas van a /digi-probe/secrets.json (el arnés lo borra).
+ * Deja /digi-probe/setup.json; un fallo queda en setup-error.txt.
  */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -33,6 +33,7 @@ try {
 		'editora'             => 'editor',
 		'autora'              => 'author',
 		'editora-sin-paginas' => 'editor',
+		'editora-sin-html'    => 'editor',
 	);
 	foreach ( $users as $login => $role ) {
 		$user = get_user_by( 'login', $login );
@@ -51,6 +52,11 @@ try {
 			// Una editora a la que el sitio le quitó edit_pages (el rol sigue siendo editor).
 			$wp_user = new WP_User( $id );
 			$wp_user->add_cap( 'edit_pages', false );
+		}
+		if ( 'editora-sin-html' === $login ) {
+			// Una editora sin unfiltered_html (como un editor en una red): el núcleo pasa wp_kses_post() por sus datos.
+			$wp_user = new WP_User( $id );
+			$wp_user->add_cap( 'unfiltered_html', false );
 		}
 		$created = WP_Application_Passwords::create_new_application_password( $id, array( 'name' => 'digi-sales-kit' ) );
 		if ( is_wp_error( $created ) ) {
