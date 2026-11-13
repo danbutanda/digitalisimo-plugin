@@ -58,8 +58,10 @@ final class Digitalisimo_Elements_Installer {
 
 	/** @var string archivo principal del instalador. */
 	private static $file = '';
-	/** @var string URL de «Reintentar» para el mensaje de error fatal. */
-	private static $retry = '';
+	/** @var string ámbito de la instalación en curso, para «Reintentar» tras un error fatal. */
+	private static $retry_scope = 'site';
+	/** @var bool el mensaje de error fatal ya salió (por el manejador de WordPress). */
+	private static $fatal_shown = false;
 	/**
 	 * @var array|null instalación en curso en esta petición: desde cuándo (para reconocer su ZIP temporal) y si ya se
 	 * liberó el cerrojo. La lee la función de cierre (shutdown()).
@@ -471,7 +473,7 @@ final class Digitalisimo_Elements_Installer {
 		ignore_user_abort( true );
 		self::$running = array( 'since' => time(), 'released' => false );
 		register_shutdown_function( array( __CLASS__, 'shutdown' ) );
-		self::$retry = self::start_url( $scope );
+		self::$retry_scope = $scope;
 		add_filter( 'wp_php_error_message', array( __CLASS__, 'fatal_message' ), 10, 2 );
 		try {
 			return self::process( $scope );
@@ -507,17 +509,44 @@ final class Digitalisimo_Elements_Installer {
 
 	/**
 	 * Función de cierre (registrada al empezar): si la petición terminó sin pasar por el `finally` (el navegador cortó
-	 * y PHP la mató, o un error fatal), libera el cerrojo y borra el ZIP temporal.
+	 * y PHP la mató, o un error fatal), libera el cerrojo y borra el ZIP temporal. Si terminó por un error fatal, lo
+	 * explica ella misma: durante activate_plugin() WordPress define WP_SANDBOX_SCRAPING y su manejador de errores
+	 * fatales no hace nada, así que la página quedaría cortada, sin causa ni «Reintentar».
 	 */
 	public static function shutdown() {
+		if ( null === self::$running ) {
+			return;
+		}
+		$finished = self::$running['released'];
 		self::release( true );
+		$error = error_get_last();
+		if ( ! self::$fatal_shown && self::is_fatal( $error ) ) {
+			self::$fatal_shown = true;
+			echo self::fatal_html( $error, $finished ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en fatal_html().
+		}
 	}
 
-	/** Un error fatal (memoria, tiempo) durante la instalación: la causa, la alternativa manual y «Reintentar». */
+	private static function is_fatal( $error ) {
+		return is_array( $error ) && in_array( (int) ( $error['type'] ?? 0 ), array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ), true );
+	}
+
+	/**
+	 * Explicación de un error fatal, escapada: durante la instalación, la causa, la alternativa manual y «Reintentar»;
+	 * después de terminar (`$finished`), sólo que revise Plugins.
+	 */
+	public static function fatal_html( $error, $finished = false ) {
+		$detail = is_array( $error ) && ! empty( $error['message'] ) ? ' (' . esc_html( strtok( (string) $error['message'], "\n" ) ) . ')' : '';
+		if ( $finished ) {
+			return '<div class="notice notice-warning inline"><p><strong>La página se cortó por un error de PHP' . $detail . '</strong> después de la instalación. Revisa en Plugins si DIGITALÍSIMO Elements quedó activo.</p></div>';
+		}
+		return '<div class="notice notice-error inline"><p><strong>La instalación de DIGITALÍSIMO Elements se interrumpió por un error de PHP' . $detail . '</strong>; suele ser falta de memoria o de tiempo en el hosting. El instalador sigue en Plugins.</p>' . self::manual_html() . '</div>' . self::button( self::$retry_scope, 'Reintentar' );
+	}
+
+	/** Un error fatal que atiende WordPress durante la instalación: su mensaje, más la causa, la alternativa y «Reintentar». */
 	public static function fatal_message( $message, $error = array() ) {
 		self::release( true );
-		$detail = is_array( $error ) && ! empty( $error['message'] ) ? ' (' . esc_html( strtok( (string) $error['message'], "\n" ) ) . ')' : '';
-		return $message . '<p><strong>La instalación de DIGITALÍSIMO Elements se interrumpió por un error de PHP' . $detail . '</strong>; suele ser falta de memoria o de tiempo en el hosting. El instalador sigue en Plugins.</p>' . self::manual_html() . ( '' !== self::$retry ? '<p><a class="button" href="' . esc_url( self::$retry ) . '">Reintentar</a></p>' : '' );
+		self::$fatal_shown = true;
+		return $message . self::fatal_html( $error );
 	}
 
 	// ── Pantalla ───────────────────────────────────────────────────────────────────────────────────────────────────

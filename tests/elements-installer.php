@@ -64,6 +64,7 @@ function is_plugin_active_for_network( $file ) { return in_array( $file, $GLOBAL
 function is_plugin_active( $file ) { return in_array( $file, $GLOBALS['active'], true ) || is_plugin_active_for_network( $file ); }
 function activate_plugin( $file, $redirect = '', $network = false, $silent = false ) {
 	$GLOBALS['calls'][] = array( 'activate', $file, $network );
+	if ( ! empty( $GLOBALS['activation_fatal'] ) ) ( $GLOBALS['activation_fatal'] )();
 	if ( $GLOBALS['activation_error'] ) return $GLOBALS['activation_error'];
 	if ( $network ) $GLOBALS['sitewide'][] = $file; else $GLOBALS['active'][] = $file;
 	return null;
@@ -115,7 +116,7 @@ function reset_state( $overrides = array(), $wipe_temp = true ) {
 	$GLOBALS['caps'] = array( 'install_plugins', 'activate_plugins', 'manage_network_plugins' );
 	$GLOBALS['plugins'] = array( SELF_FILE => array( 'Name' => 'DIGITALÍSIMO Elements · Instalador', 'Version' => '1.0.0', 'UpdateURI' => 'false' ) );
 	$GLOBALS['active'] = array( SELF_FILE ); $GLOBALS['sitewide'] = array();
-	$GLOBALS['calls'] = array(); $GLOBALS['transients'] = array(); $GLOBALS['activation_error'] = null; $GLOBALS['lock_free'] = true;
+	$GLOBALS['calls'] = array(); $GLOBALS['transients'] = array(); $GLOBALS['activation_error'] = null; $GLOBALS['activation_fatal'] = null; $GLOBALS['lock_free'] = true;
 	$GLOBALS['fs_credentials'] = true; $GLOBALS['redirected'] = null;
 	$GLOBALS['index_response'] = array( 'code' => 200, 'body' => index_body() );
 	// Instalación correcta: deja Elements en su carpeta.
@@ -148,6 +149,14 @@ if ( isset( $argv[1] ) && '--child' === $argv[1] ) {
 		// Tiempo agotado a mitad de la descarga, con el ZIP temporal ya creado.
 		$GLOBALS['install'] = function () use ( $report, $timeout ) {
 			file_put_contents( get_temp_dir() . 'digitalisimo-elements-4.3.0.185-abc123.tmp', 'ZIP a medias' );
+			register_shutdown_function( $report );
+			$timeout();
+		};
+	} elseif ( 'activacion' === $case ) {
+		// Error fatal al incluir Elements en activate_plugin(), que define WP_SANDBOX_SCRAPING como WordPress: su
+		// manejador de errores fatales no actúa y la causa sólo puede darla la función de cierre del instalador.
+		$GLOBALS['activation_fatal'] = function () use ( $report, $timeout ) {
+			if ( ! defined( 'WP_SANDBOX_SCRAPING' ) ) define( 'WP_SANDBOX_SCRAPING', true );
 			register_shutdown_function( $report );
 			$timeout();
 		};
@@ -398,6 +407,14 @@ list( $text, $calls ) = child( 'descarga' );
 $names = array_map( function ( $c ) { return $c[0]; }, $calls );
 check_installer( false !== strpos( $text, 'Maximum execution time' ) && in_array( 'lock', $names, true ) && in_array( 'install', $names, true ) && in_array( 'unlock', $names, true ), 'Si PHP muere a mitad de la descarga (sin pasar por el finally), la función de cierre libera el cerrojo: ' . substr( $text, -300 ) . ' ' . json_encode( $names ) );
 check_installer( ! is_file( get_temp_dir() . 'digitalisimo-elements-4.3.0.185-abc123.tmp' ) && is_file( get_temp_dir() . 'digitalisimo-elements-4.3.0.184-viejo1.tmp' ), 'Y borra el ZIP temporal de esa descarga, no los anteriores: ' . implode( ', ', array_map( 'basename', (array) glob( get_temp_dir() . '*' ) ) ) );
+// Error fatal durante activate_plugin() (WP_SANDBOX_SCRAPING apaga el manejador de WordPress): la función de cierre
+// imprime, escapados, la causa, la alternativa manual y «Reintentar» (POST con nonce), y libera el cerrojo.
+reset_state();
+list( $text, $calls ) = child( 'activacion' );
+$names = array_map( function ( $c ) { return $c[0]; }, $calls );
+check_installer( false !== strpos( $text, 'se interrumpió por un error de PHP (Maximum execution time of 1 second exceeded)' ) && false !== strpos( $text, 'Alternativa manual' ) && false !== strpos( $text, 'wp-content/plugins/' ), 'Un error fatal al activar Elements explica la causa y la alternativa manual: ' . substr( $text, -400 ) );
+check_installer( (bool) preg_match( '#<form method="post" action="[^"]*page=instalar-digitalisimo-elements[^"]*instalar=1"><input type="hidden" name="_wpnonce" value="nonce-digitalisimo-elements-installer">.*Reintentar</button>#s', $text ), 'Y ofrece «Reintentar» por POST con nonce.' );
+check_installer( in_array( 'activate', $names, true ) && in_array( 'unlock', $names, true ) && ! in_array( 'deactivate', $names, true ) && ! in_array( 'delete', $names, true ), 'Y libera el cerrojo sin retirar el instalador: ' . json_encode( $names ) );
 reset_state();
 $calls = aborted_child();
 $names = array_map( function ( $c ) { return $c[0]; }, (array) $calls );
