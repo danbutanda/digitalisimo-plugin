@@ -59,6 +59,12 @@ $GLOBALS['bk_filters']['digitalisimo_backups_job_backoff'] = 0;
 $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = 5000;
 $started = microtime( true );
 $restore = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false ) );
+// En la web la respuesta sale tras 25 s de trabajo como mucho (keep-access, B8): lo demás sigue por ticks, como en el sitio.
+if ( ! is_wp_error( $restore ) && ! empty( $restore['restoring'] ) ) {
+	for ( $i = 0; $i < 5000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick();
+	$done = Digitalisimo_Backups_Jobs::get( (string) $restore['job']['id'] );
+	if ( $done && 'success' === $done['status'] ) $restore = (array) ( $done['result']['restore'] ?? array() ) + array( 'restored' => true );
+}
 $seconds = microtime( true ) - $started;
 if ( is_wp_error( $restore ) || empty( $restore['restored'] ) ) throw new RuntimeException( 'La restauración del respaldo grande no terminó: ' . ( is_wp_error( $restore ) ? $restore->get_error_message() : json_encode( $restore ) ) );
 $job = null;
