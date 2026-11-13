@@ -489,6 +489,9 @@ jobs:
           php tests/elements-kit-woo-refs.php
           php tests/elements-f7b-module.php
           php tests/elements-f7b-usages.php
+          # Kit de ventas: plantillas generadas y validadas en las dos variantes, y sus herramientas del MCP.
+          node tests/elements-sales-kit.mjs
+          php tests/elements-sales-mcp.php
           php tests/elements-f7b-presentation.php
           node tests/elements-f7b-presentation.mjs
           node tests/elements-f7b-presentation-chrome.mjs

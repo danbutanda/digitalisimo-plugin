@@ -1,36 +1,68 @@
-"""Kit de ventas DIGITALÍSIMO para Elements: ocho plantillas de página.
+"""Kit de ventas DIGITALÍSIMO para Elements: las ocho plantillas de página, en sus dos variantes, y su manifiesto.
 
-Uso: python3 -I kit_paginas.py <carpeta de salida>
+Uso: python3 -I scripts/sales-kit/kit_paginas.py [--check] [<carpeta templates>]
+  Sin carpeta escribe en digitalisimo-elements/modules/digitalisimo-sales/templates/ (sections/, containers/ y
+  manifest.json). Con --check no escribe: compara lo que generaría con lo que hay y sale con 1 si difiere (la CI lo
+  corre en tests/elements-sales-kit.mjs, para que nadie edite a mano una plantilla generada).
+
+Viene del kit de ventas v3 genérico (OneDrive, 2026-11-13: `kit_paginas.py --generico`, con PERSONA_GENERICA),
+probado por la sesión del cerebro; el orden de la página y el método están en `oficio/ventas-en-linea.md` del cerebro
+(commit 06ff42f, «El orden de una página de venta») y en `docs/ELEMENTS_SALES_KIT.md`.
 
 Lo que va entre [corchetes] se reemplaza. Reglas que el kit trae escritas en sus textos guía:
 - testimonios y cifras, solo reales y con permiso (D-0023);
-- la urgencia, solo si el cierre es real: fecha y hora del centro de México;
+- la urgencia, solo si el cierre es real: fecha y hora del centro de México (`urgente()` y los placeholders de cierre);
 - se promete trabajo, no resultados (D-0024): el aviso va en el pie;
 - precios en pesos, meses sin intereses y medios de pago de México.
 """
+import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kit_lib import *  # noqa: E402,F401,F403
+from kit_lib import a_contenedores, limpiar, reiniciar_ids, urgentes, urgente, volcar  # noqa: E402
 
 OSC = dict(oscuro=True)
 
+# =============================================================== Persona detrás de la marca
+# El kit que viaja con Elements es el genérico del kit v3 (`--generico`): la persona detrás de la marca queda como
+# espacio para llenar con los datos reales de cada sitio. La versión con la persona de DIGITALÍSIMO es sólo para los
+# sitios propios y vive en el kit de OneDrive; no entra en Elements (tests/elements-sales-kit.mjs lo comprueba).
+PERSONA_GENERICA = {
+    "marca": "[Marca]",
+    "nombre": "[nombre]",
+    "cargo": "[quién es, en una línea]",
+    "saludo": "Hola, soy [nombre]",
+    "historia": "<p>[Tu historia en tres o cuatro frases, con la fórmula «[esto] me llevó de [un punto de partida "
+                "pequeño] a [un resultado con cifra real]». Sin adornos: la gente compra a personas.]</p>",
+    "autoridad": "Soy [nombre], [cargo] de [marca]",
+    "credenciales": ["[Credencial verificable 1: años, proyectos, clientes]",
+                     "[Credencial verificable 2: un logro con cifra real]",
+                     "[Credencial verificable 3: dónde te han visto o publicado]"],
+    "foto": "Foto de la persona detrás de la marca",
+    "firma": "[Tu nombre, tu cargo y una frase personal]",
+    "atiende": "[nombre real de quien atiende]",
+}
+P = dict(PERSONA_GENERICA)
+
 
 def barra_cierre():
-    return seccion(
-        columna(titulo("La inscripción cierra el [día] de [mes] a las [hora] (hora del centro de México)", "h5",
+    return urgente(seccion(
+        columna(titulo(f"La inscripción cierra el {DIA_CIERRE} de {MES_CIERRE} a las {HORA_CIERRE} (hora del centro de "
+                       "México)", "h5",
                        color=TX_OSC, alinear="left", tam=15, tam_movil=14, peso=600), tam=50, centro_v=True),
         columna(contador(oscuro=True, ancho=100), tam=33, centro_v=True, ocultar_movil=True),
         columna(boton("Inscribirme", fondo=NEON, color=NOCHE, tam="sm", fuente=15, alinear="right"), tam=17,
                 centro_v=True),
-        fondo=NOCHE, pad=(10, 20), pad_movil=(10, 12), nota="Barra de cierre (solo si el cierre es real)")
+        fondo=NOCHE, pad=(10, 20), pad_movil=(10, 12), nota="Barra de cierre (solo si el cierre es real)"))
 
 
 def pie(oscuro=True):
     return seccion(
         imagen(ancho=14, radio=0),
-        texto("<p style=\"text-align:center\">[Marca] · ¿Dudas? Escríbenos por WhatsApp o a [correo de soporte]</p>",
+        texto(f"<p style=\"text-align:center\">{P['marca']} · ¿Dudas? Escríbenos por WhatsApp o a [correo de soporte]</p>",
               color=MUT_OSC, alinear="center", tam=15),
         texto("<p style=\"text-align:center\"><a href=\"/aviso-de-privacidad/\">Aviso de privacidad</a> · "
               "<a href=\"/terminos-y-condiciones/\">Términos y condiciones</a> · "
@@ -38,9 +70,9 @@ def pie(oscuro=True):
               color=MUT_OSC, alinear="center", tam=14),
         texto("<p style=\"text-align:center\"><small>Los resultados dependen del trabajo de cada persona y de su "
               "mercado. No prometemos ingresos ni resultados específicos; los casos que mostramos son reales y "
-              "excepcionales, no típicos. Este sitio no forma parte de Meta Platforms, Inc. ni de Google, y no está "
-              "respaldado por ellos.</small></p>", color=MUT_OSC, alinear="center", tam=13),
-        texto("<p style=\"text-align:center\">© [año] [Marca]. Todos los derechos reservados.</p>",
+              "excepcionales, no típicos. " + AVISO_PLATAFORMAS + "</small></p>", color=MUT_OSC, alinear="center",
+              tam=13),
+        texto(f"<p style=\"text-align:center\">© [año] {P['marca']}. Todos los derechos reservados.</p>",
               color=MUT_OSC, alinear="center", tam=13),
         fondo=NOCHE, pad=(48, 20), nota="Pie: contacto, avisos legales y aviso de resultados")
 
@@ -68,380 +100,279 @@ def tarjeta_stack(precio="$[precio] MXN", valor_total="$[valor total] MXN", mese
         boton("¡Sí, quiero [producto] ahora!", url="/carrito/", ancho_completo=True, fuente=21),
         texto("<p style=\"text-align:center\">Acceso a [producto] + todos los bonus</p>", color=MUT,
               alinear="center", tam=14),
-        texto("<p style=\"text-align:center\">⏰ Este precio y los bonus terminan el [día] a las [hora] (centro de "
-              "México). Solo si es real.</p>", color=TX, alinear="center", tam=14),
-        texto("<p style=\"text-align:center\">🔒 Pago 100 % seguro · Tarjeta, OXXO, SPEI, Mercado Pago o PayPal</p>",
+        texto(f"<p style=\"text-align:center\">⏰ Este precio y los bonus terminan el {DIA_CIERRE} a las {HORA_CIERRE} "
+              "(centro de México). Solo si es real.</p>", color=TX, alinear="center", tam=14),
+        texto(f"<p style=\"text-align:center\">🔒 Pago 100 % seguro · {MEDIOS_PAGO[:1].upper() + MEDIOS_PAGO[1:]}</p>",
               color=MUT, alinear="center", tam=14),
         imagen(ancho=45, radio=0, pie="Logos de los medios de pago que de verdad aceptas"),
         fondo=BLANCO, pad=caja(36, 32), pad_movil=caja(24, 18), radio=18, sombra=True)
 
 
 # =============================================================== 01 · Página de venta completa
+# El orden es el de la página de lanzamiento de la Academia de Consultores (junio de 2020), la referencia que eligió
+# el operador, con sus huecos cubiertos: botón en la promesa, garantía, valor total tachado y urgencia con motivo.
 
 def venta_completa():
     S = []
     S.append(barra_cierre())
 
-    # 1. Cabecera: promesa, video y un solo llamado.
+    # 1. La promesa.
     S.append(seccion(
-        etiqueta("Para [tipo de cliente 1], [tipo 2] y [tipo 3]", color=NEON),
-        titulo(f"[Logra el resultado concreto] <span style=\"color:{NEON}\">sin [el obstáculo principal]</span> en "
-               "[N días] o menos", "h1", color=BLANCO, tam=52, tam_movil=32),
-        texto("<p style=\"text-align:center\">[La promesa en una frase, con el nombre de tu método: qué cambia, en "
-              "cuánto tiempo y por qué esta vez sí funciona.] Sirve sin importar [tu giro o tu nivel de "
-              "experiencia].</p>", color=TX_OSC, alinear="center", tam=20),
+        etiqueta("Si eres [perfil 1], [perfil 2] o [perfil 3]…", color=NEON),
+        titulo(f"[Logra el resultado] y [construye X] <span style=\"color:{NEON}\">sin [el obstáculo]</span> en "
+               "[N días] o menos", "h1", color=BLANCO, tam=50, tam_movil=32),
         espacio(10), video("Video de venta: 3 a 5 minutos"), espacio(10),
+        texto("<p style=\"text-align:center\">➜ Descubre [el método con nombre], que funciona sin importar [tu giro "
+              "o tu nivel de experiencia].</p>", color=TX_OSC, alinear="center", tam=19),
         boton("¡Quiero empezar!", fondo=NEON, color=NOCHE, fuente=20),
-        texto("<p style=\"text-align:center\">Solo abrimos [una vez al año / hasta el día X]: la fecha está en la "
-              "barra de arriba.</p>", color=MUT_OSC, alinear="center", tam=15),
-        degradado=(NOCHE, "#0B2A45", 160), pad=(80, 20), ancho=900, nota="1 · Cabecera: promesa, video y llamado"))
+        degradado=(NOCHE, "#0B2A45", 160), pad=(80, 20), ancho=900, nota="1 · La promesa"))
 
-    # 2. El problema: una advertencia y el contraste viejo/nuevo.
+    # 2. El problema.
     S.append(seccion(
         columna(
-            etiqueta("Antes de seguir, una advertencia"),
-            titulo("[El problema que nadie les dice: por qué lo que hacen hoy ya no alcanza]"),
-            texto("<p>[Describe la situación del cliente con sus palabras: qué intenta, qué le sale mal y qué le "
-                  "cuesta. Que se reconozca.]</p>", alinear="center"),
+            etiqueta("¿Sabías que…?"),
+            titulo("[Un dato real que duele, con su fuente]"),
+            texto("<p style=\"text-align:center\">[Y lo peor: lo que pasa antes de que pase. En las palabras del "
+                  "cliente.]</p>", alinear="center"),
             interior(
-                columna(titulo("Lo que hace casi todos", "h3", color=TX),
-                        lista(["[Práctica vieja 1]", "[Práctica vieja 2]", "[Práctica vieja 3]"],
-                              color_icono="#D64545", ic="fas fa-times-circle"),
+                columna(titulo("Lo que se siente hoy", "h3", color=TX),
+                        lista(["«[Frase de dolor 1, como la diría el cliente]»", "«[Frase de dolor 2]»",
+                               "«[Frase de dolor 3]»"], color_icono="#D64545", ic="fas fa-times-circle"),
                         tam=50, fondo=NIEBLA, pad=caja(28), radio=14, borde=BD),
-                columna(titulo("Lo que funciona hoy", "h3", color=TX),
-                        lista(["[Práctica nueva 1]", "[Práctica nueva 2]", "[Práctica nueva 3]"]),
+                columna(titulo("La buena noticia", "h3", color=TX),
+                        texto("<p><strong>[El giro: ya haces [algo] y no lo sabías / ya tienes lo que hace falta para "
+                              "empezar.]</strong></p>", color=TX),
+                        lista(["[Lo que sí tiene a su favor 1]", "[Lo que sí tiene a su favor 2]"]),
                         tam=50, fondo=BLANCO, pad=caja(28), radio=14, borde=JADE, sombra=True),
-                margen_sup=24),
-            texto("<p style=\"text-align:center\"><strong>[Frase puente: por eso existe este programa.]</strong></p>",
-                  color=TX, alinear="center")),
-        fondo=BLANCO, ancho=1000, nota="2 · El problema y el contraste"))
+                margen_sup=24)),
+        fondo=BLANCO, ancho=1000, nota="2 · El problema y el giro"))
 
-    # 2b. El resultado deseado, en concreto («¿Te imaginas…?»).
+    # 3. Quién está detrás, versión corta: su historia y la oportunidad.
     S.append(seccion(
-        etiqueta("Ahora imagina lo contrario"),
-        titulo("¿Te imaginas lograr esto en [N días] o menos?"),
+        columna(imagen(pie=P["foto"]), tam=40, centro_v=True),
+        columna(
+            etiqueta("Quién está detrás", alinear="left"),
+            titulo(P["saludo"], alinear="left"),
+            texto(P["historia"]),
+            texto("<p><strong>La oportunidad:</strong> [lo que antes solo podían hacer las grandes empresas o los "
+                  "expertos, y hoy está al alcance de [perfil]].</p>", color=TX),
+            tam=60, centro_v=True),
+        fondo=NIEBLA, nota="3 · Quién está detrás (corto) y la oportunidad"))
+
+    # 4. ¿Te imaginas…?
+    S.append(seccion(
+        etiqueta("Ahora imagina"),
+        titulo("¿Te imaginas conseguir esto en [N días] o menos?"),
         interior(*[columna(caja_icono("fas fa-check", f"[Resultado deseado {n}]",
                                       "[Cómo se ve en su día a día, con sus palabras]", alinear="center",
-                                      color=JADE), tam=25, fondo=BLANCO, pad=caja(26), radio=16) for n in (1, 2, 3, 4)],
+                                      color=JADE), tam=25, fondo=NIEBLA, pad=caja(26), radio=16) for n in (1, 2, 3, 4)],
                  margen_sup=10),
-        texto("<p style=\"text-align:center\">[Cuántas personas ya lo lograron con el programa: una cifra real.]</p>",
+        texto("<p style=\"text-align:center\">[Cuántas personas ya lo lograron: una cifra real.]</p>",
               alinear="center"),
-        fondo=NIEBLA, nota="2b · ¿Te imaginas…? El resultado deseado"))
+        fondo=BLANCO, nota="4 · ¿Te imaginas…?"))
 
-    # 3. Quién lo enseña.
-    S.append(seccion(
-        columna(imagen(), tam=40, centro_v=True),
-        columna(
-            etiqueta("Quién te acompaña", alinear="left"),
-            titulo("Hola, soy [nombre]", alinear="left"),
-            texto("<p>[Tu historia en tres o cuatro frases, con la fórmula «[esto] me llevó de [un punto de partida "
-                  "pequeño] a [un resultado con cifra real]». Sin adornos: la gente compra a personas.]</p>"),
-            lista(["[Credencial verificable 1: años, proyectos, clientes]",
-                   "[Credencial verificable 2: un logro con cifra real]",
-                   "[Credencial verificable 3: dónde te han visto o publicado]"], ic="fas fa-award"),
-            tam=60, centro_v=True),
-        fondo=BLANCO, nota="3 · Quién lo enseña"))
-
-    # 4. Autoridad: quiénes ya confiaron.
-    S.append(seccion(
-        columna(
-            etiqueta("Han confiado en nosotros"),
-            titulo("[Empresas, marcas o personas reconocidas que ya trabajaron contigo]", "h3"),
-            interior(*[columna(imagen(ancho=70, radio=0), tam=20) for _ in range(5)], margen_sup=10),
-            interior(*[columna(cita("[Lo que dijo, con sus palabras y con su permiso.]",
-                                    "[Nombre real], [cargo o empresa]"), tam=33, fondo=BLANCO, pad=caja(24),
-                               radio=14, borde=BD) for _ in range(3)], margen_sup=24)),
-        fondo=NIEBLA, nota="4 · Autoridad: logos y citas reales"))
-
-    # 5. La gran idea, con su enemigo.
-    S.append(seccion(
-        columna(
-            etiqueta("La gran idea", color=NEON),
-            titulo("[Tu idea central en una frase: la creencia nueva que lo cambia todo]", color=BLANCO),
-            texto("<p style=\"text-align:center\">[Explícala con un ejemplo que el lector ya conoce: una marca o una "
-                  "industria que pasó de lo viejo a lo nuevo y lo que les pasó a quienes no cambiaron.]</p>",
-                  color=TX_OSC, alinear="center"),
-            interior(
-                columna(caja_icono("fas fa-history", "Antes", "[Cómo se hacía y su costo]", color=NOCHE,
-                                   color_desc="#DCEBFA", **OSC), tam=33),
-                columna(caja_icono("fas fa-bolt", "Ahora", "[Qué cambió en el mercado]", color=AZUL,
-                                   color_desc="#DCEBFA", **OSC), tam=33),
-                columna(caja_icono("fas fa-route", "Por eso", "[Qué significa para el lector]", color=JADE,
-                                   color_desc="#DCEBFA", **OSC), tam=33),
-                margen_sup=24)),
-        fondo=PROFUNDO, nota="5 · La gran idea"))
-
-    # 6. Por qué ahora.
-    S.append(seccion(
-        columna(
-            etiqueta("Por qué ahora", alinear="left"),
-            titulo("[Por qué este es el mejor momento para [tipo de cliente]]", alinear="left"),
-            texto("<p>[Un dato real del mercado, con su fuente, y lo que abre para el lector. Si no hay dato, cuenta "
-                  "un cambio que el lector ya vive.]</p>"),
-            tam=55, centro_v=True),
-        columna(imagen(pie="Gráfica o captura con la fuente del dato"), tam=45, centro_v=True),
-        fondo=BLANCO, nota="6 · Por qué ahora"))
-
-    # 7. Un argumento para cada tipo de cliente.
-    avatares = []
-    for n in (1, 2, 3):
-        cuerpo = columna(
-            etiqueta(f"Si eres [tipo de cliente {n}]", alinear="left"),
-            titulo(f"[Por qué esto es para el cliente {n}: su situación y lo que gana]", "h3", alinear="left",
-                   tam=28),
-            texto(f"<p>[Su dolor concreto y cómo lo resuelve el programa, en sus palabras.]</p>"),
-            lista([f"[Beneficio para el cliente {n}]", f"[Otro beneficio para el cliente {n}]",
-                   f"[Un caso real parecido al cliente {n}]"]),
-            cita("[Testimonio real de alguien como él o ella.]", "[Nombre real], [qué hace]"),
-            tam=60, centro_v=True)
-        foto = columna(imagen(), tam=40, centro_v=True)
-        avatares.append(seccion(*((foto, cuerpo) if n % 2 else (cuerpo, foto)),
-                                fondo=NIEBLA if n % 2 else BLANCO, pad=(60, 20),
-                                nota=f"7.{n} · Argumento para el cliente {n}"))
-    S.append(seccion(
-        etiqueta("¿Esto es para ti?"),
-        titulo("Esto funciona si eres uno de estos tres"),
-        interior(*[columna(caja_imagen(f"[Tipo de cliente {n}]", f"[Su situación en una frase]"), tam=33)
-                   for n in (1, 2, 3)], margen_sup=10),
-        fondo=BLANCO, pad=(80, 20, ), nota="7 · Los tres tipos de cliente"))
-    S.extend(avatares)
-
-    # 8. El obstáculo y el descubrimiento.
-    S.append(seccion(
-        columna(
-            etiqueta("¿Cuál es la trampa?"),
-            titulo("[El obstáculo que hace fracasar a la mayoría]"),
-            interior(
-                columna(caja_icono("fas fa-exclamation-triangle", "[Obstáculo 1]", "[Por qué pasa y qué cuesta]",
-                                   color="#D9822B"), tam=50),
-                columna(caja_icono("fas fa-exclamation-triangle", "[Obstáculo 2]", "[Por qué pasa y qué cuesta]",
-                                   color="#D9822B"), tam=50), margen_sup=10),
-            espacio(28),
-            titulo("Lo que descubrimos", "h3"),
-            texto("<p style=\"text-align:center\">[La diferencia entre quienes fracasan y quienes lo logran. Este es "
-                  "el puente hacia tu método.]</p>", alinear="center")),
-        fondo=BLANCO, ancho=1000, nota="8 · Obstáculo y descubrimiento"))
-
-    # 9. La prueba del método: el caso insignia, con cifras reales.
-    S.append(seccion(
-        columna(
-            etiqueta("Lo probamos y funcionó", color=NEON, alinear="left"),
-            titulo("[El caso insignia: quién, qué hizo y qué logró]", color=BLANCO, alinear="left"),
-            texto("<p>[Cuéntalo como historia: de dónde partió, qué aplicó y qué pasó. Cifras reales y "
-                  "comprobables.]</p>", color=TX_OSC),
-            interior(*[columna(titulo(f"<span style=\"color:{NEON}\">[cifra {n}]</span>", "h2", alinear="left",
-                                      color=BLANCO, tam=40),
-                               texto(f"<p>[qué mide la cifra {n}]</p>", color=MUT_OSC, tam=15), tam=33)
-                       for n in (1, 2, 3)]),
-            tam=55, centro_v=True),
-        columna(video("Video del caso insignia"), tam=45, centro_v=True),
-        fondo=NOCHE, nota="9 · El caso insignia"))
-
-    # 10. Resultados: video-testimonios titulados por su resultado.
-    tarjetas = []
-    for fila in range(2):
-        tarjetas.append(interior(*[columna(
-            video("Video-testimonio real"),
-            titulo(f"De [antes] a [después] en [tiempo]", "h4", alinear="left", margen=4),
-            texto("<p>[Nombre real] · [qué hace]</p>", tam=15), tam=33) for _ in range(3)],
-            margen_sup=0 if fila == 0 else 24))
-    S.append(seccion(
-        etiqueta("Resultados reales"),
-        titulo("Personas reales que ya lo lograron"),
-        texto("<p style=\"text-align:center\">Cada título dice el resultado, no el nombre: es lo que el lector busca. "
-              "Solo testimonios reales y con permiso.</p>", alinear="center", tam=15),
-        *tarjetas,
-        fondo=NIEBLA, nota="10 · Muro de resultados"))
-
-    # 11. El método.
-    S.append(seccion(
-        columna(
-            etiqueta("El método", alinear="left"),
-            titulo("Te presento [nombre del método]", alinear="left"),
-            texto("<p>[Qué es en una frase y por qué es distinto.]</p>"),
-            *[caja_icono("fas fa-check", f"Paso {n}: [nombre]", "[Qué logras en este paso]", posicion="left",
-                         color=AZUL) for n in (1, 2, 3, 4)],
-            tam=55, centro_v=True),
-        columna(imagen(pie="Esquema del método o maqueta en laptop"), tam=45, centro_v=True),
-        fondo=BLANCO, nota="11 · El método"))
-
-    # 12. Qué es exactamente.
-    S.append(seccion(
-        columna(imagen(pie="Maqueta de todo lo que incluye"), tam=45, centro_v=True),
-        columna(
-            etiqueta("Qué es exactamente", color=NEON, alinear="left"),
-            titulo("[Nombre del producto] es [definición en una frase]", color=BLANCO, alinear="left"),
-            lista(["[Formato: lecciones en video cortas, con transcripción]",
-                   "[Ritmo: un módulo por semana / acceso a todo desde el día 1]",
-                   "[Acompañamiento: sesiones en vivo, comunidad, soporte]",
-                   "[Desde dónde: computadora o celular, a tu ritmo]"], color_icono=NEON, color_texto=TX_OSC),
-            tam=55, centro_v=True),
-        fondo=NOCHE, nota="12 · Qué es exactamente"))
-
-    # 12b. Por qué este y no otro: la comparación.
+    # 5. Por qué es distinto.
     filas = [("[9 o 10 meses]", "[90 días]"), ("Casos de libro", "Casos reales, de clientes"),
              ("Acceso por tiempo limitado", "[Acceso de por vida / N meses]"),
              ("Solo teoría", "Plantillas y un plan de acción semana a semana"),
              ("Estudias solo", "[Comunidad, sesiones y soporte]")]
     S.append(seccion(
         etiqueta("Por qué es diferente"),
-        titulo("¿Por qué [producto] y no otro curso o una maestría?"),
+        titulo("¿Por qué [producto] y no otro curso, una maestría o una agencia?"),
         interior(
-            columna(titulo("Otros cursos o una maestría", "h3", color=MUT),
+            columna(titulo("Otras opciones", "h3", color=MUT),
                     lista([a for a, _ in filas], color_icono="#D64545", ic="fas fa-times-circle"),
-                    tam=50, fondo=NIEBLA, pad=caja(28), radio=16),
+                    tam=50, fondo=BLANCO, pad=caja(28), radio=16, borde=BD),
             columna(titulo("[Nombre del producto]", "h3", color=TX),
                     lista([b for _, b in filas]),
                     tam=50, fondo=BLANCO, pad=caja(28), radio=16, borde=JADE, sombra=True),
             margen_sup=10),
-        fondo=BLANCO, ancho=1000, nota="12b · Comparación contra otras opciones"))
+        fondo=NIEBLA, ancho=1000, nota="5 · Por qué es distinto"))
 
-    # 13. Temario.
+    # 6. Quién está detrás, la autoridad completa.
+    S.append(seccion(
+        columna(imagen(pie=P["foto"]), tam=40, centro_v=True),
+        columna(
+            etiqueta("Con quién vas a aprender", alinear="left"),
+            titulo(P["autoridad"], alinear="left"),
+            lista(P["credenciales"], ic="fas fa-award"),
+            texto("<p><strong>[Tu ventaja: lo que haces distinto, en una frase.]</strong></p>"
+                  "<p>[La objeción de fondo, desactivada: «no importa el tamaño de tu negocio / de tu audiencia…»] "
+                  "[Y el plan: qué vas a lograr en [N días].]</p>"),
+            tam=60, centro_v=True),
+        fondo=BLANCO, nota="6 · Quién está detrás (autoridad completa)"))
+    S.append(seccion(
+        etiqueta("Han confiado en nosotros"),
+        interior(*[columna(imagen(ancho=70, radio=0, pie="Logo de un cliente real"), tam=20) for _ in range(5)]),
+        fondo=BLANCO, pad=(10, 20), pad_movil=(10, 16), nota="6b · Logos de clientes reales"))
+
+    # 7. Funciona para gente como tú.
+    S.append(seccion(
+        etiqueta("Resultados reales"),
+        titulo("Esto también puede funcionar para ti"),
+        interior(*[columna(
+            video("Video-testimonio real"),
+            titulo("De [antes] a [después] en [tiempo]", "h4", alinear="left", margen=4),
+            texto("<p>[Nombre real] · [qué hace]</p>", tam=15), tam=33) for _ in range(3)]),
+        espacio(10),
+        boton_secundario("Ver más historias", url="#historias"),
+        fondo=NIEBLA, nota="7 · Funciona para gente como tú"))
+
+    # 8. Para quién es.
+    S.append(seccion(
+        etiqueta("¿Es para ti?"),
+        titulo("Este programa es para ti si…"),
+        interior(
+            columna(lista(["[Situación que encaja 1]", "[Situación que encaja 2]", "[Situación que encaja 3]",
+                           "[Situación que encaja 4]", "[Estás dispuesto a dedicarle [N] horas por semana]"]),
+                    tam=60, fondo=NIEBLA, pad=caja(28), radio=16),
+            columna(titulo("No es para ti si…", "h3", alinear="left"),
+                    lista(["Buscas resultados sin trabajar", "Esperas una fórmula mágica"],
+                          color_icono="#D64545", ic="fas fa-times-circle"),
+                    tam=40, fondo=NIEBLA, pad=caja(28), radio=16),
+            margen_sup=10),
+        interior(*[columna(caja_icono("fas fa-user", f"[Perfil {n}]", "", alinear="center", color=AZUL), tam=25)
+                   for n in (1, 2, 3, 4)], margen_sup=16),
+        interior(*[columna(caja_icono("fas fa-user", f"[Perfil {n}]", "", alinear="center", color=AZUL), tam=25)
+                   for n in (5, 6, 7, 8)]),
+        texto("<p style=\"text-align:center\"><strong>¿No te ves en la lista?</strong> Escríbenos y te decimos con "
+              "honestidad si te sirve o no.</p>", alinear="center", color=TX),
+        boton_whatsapp("Pregúntanos por WhatsApp", "Hola, quiero saber si [producto] es para mí"),
+        fondo=BLANCO, nota="8 · Para quién es, perfiles y WhatsApp"))
+
+    # 9. Qué es.
+    S.append(seccion(
+        columna(imagen(pie="Maqueta de la plataforma en computadora, laptop y celular"), tam=45, centro_v=True),
+        columna(
+            etiqueta("Qué es", color=NEON, alinear="left"),
+            titulo("[Nombre del producto] es [definición en una frase]", color=BLANCO, alinear="left"),
+            texto("<p>Con [el método con nombre] vas a lograr:</p>", color=TX_OSC),
+            lista(["[Resultado 1]", "[Resultado 2]", "[Resultado 3]", "[Resultado 4]",
+                   "[Lo que logras desde la primera semana]"], color_icono=NEON, color_texto=TX_OSC),
+            tam=55, centro_v=True),
+        fondo=NOCHE, nota="9 · Qué es"))
+
+    # 10. Temario, con el botón de compra.
     modulos = []
     for fila in range(3):
         modulos.append(interior(*[columna(
             etiqueta(f"Módulo {fila * 2 + k}", alinear="left"),
             titulo(f"[Nombre del módulo {fila * 2 + k}]", "h3", alinear="left"),
-            lista(["<strong>[Lo que lograrás]</strong>: [en una línea]", "<strong>[Lo que aprenderás]</strong>: "
-                   "[en una línea]", "<strong>[Lo que te llevas]</strong>: [plantilla, guía o ejercicio]"], tam=16),
-            texto(f"<p><em>[Frase que abre el módulo {fila * 2 + k + 1}]</em></p>" if fila * 2 + k < 6 else
-                  "<p><em>[Frase que lleva a los bonus]</em></p>", color=AZUL, tam=15),
+            lista(["<strong>[Crear / Encontrar / Lograr…]</strong>: [lo que se logra, en una línea]",
+                   "<strong>[Verbo de acción]</strong>: [en una línea]",
+                   "<strong>[Lo que te llevas]</strong>: [plantilla, guía o ejercicio]"], tam=16),
             tam=50, fondo=BLANCO, pad=caja(30), radio=16, borde=BD) for k in (1, 2)],
             margen_sup=0 if fila == 0 else 24))
     S.append(seccion(
-        etiqueta("Temario completo"),
+        etiqueta("Temario"),
         titulo("Esto es lo que vas a aprender, módulo por módulo"),
-        texto("<p style=\"text-align:center\">[Una frase de por qué el orden importa.]</p>", alinear="center"),
         *modulos,
         espacio(16),
-        boton("Quiero ver todo lo que incluye", url="#oferta", fuente=17, tam="md"),
-        fondo=NIEBLA, nota="13 · Temario (con un botón a la oferta)"))
+        boton("¡Quiero [producto] ahora!", url="#oferta", fuente=18),
+        fondo=NIEBLA, nota="10 · Temario, con botón de compra"))
 
-    # 14. Bonus, en zigzag, cada uno con su valor y la duda que resuelve.
+    # 11. Todo lo que incluye.
+    rasgos = [("fas fa-play-circle", "[N] lecciones"), ("fas fa-file-alt", "[N] plantillas"),
+              ("fas fa-calendar-check", "Plan semana a semana"), ("fas fa-infinity", "[Acceso de por vida]"),
+              ("fas fa-users", "Comunidad privada"), ("fas fa-video", "Sesiones en vivo"),
+              ("fab fa-whatsapp", "Soporte"), ("fas fa-sync-alt", "Actualizaciones")]
+    S.append(seccion(
+        etiqueta("El formato"),
+        titulo("Todo lo que incluye"),
+        interior(*[columna(caja_icono(i, t, "", alinear="center", lib="fa-brands" if i.startswith("fab") else
+                                      "fa-solid"), tam=25) for i, t in rasgos[:4]]),
+        interior(*[columna(caja_icono(i, t, "", alinear="center", lib="fa-brands" if i.startswith("fab") else
+                                      "fa-solid"), tam=25) for i, t in rasgos[4:]]),
+        fondo=BLANCO, nota="11 · Todo lo que incluye"))
+
+    # 12. Nunca estarás solo.
+    S.append(seccion(
+        etiqueta("No vas solo"),
+        titulo("Un programa donde nunca estarás solo"),
+        interior(
+            columna(caja_icono("fas fa-users", "[Comunidad]", "[Dónde y para qué: preguntas, avances, red]",
+                               alinear="center", color=JADE), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
+            columna(caja_icono("fas fa-video", "[Sesiones o eventos]", "[Cuándo y cómo: frecuencia y duración]",
+                               alinear="center"), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
+            columna(caja_icono("fab fa-whatsapp", "[Soporte y tutores]", "[Por dónde y en cuánto tiempo responden]",
+                               alinear="center", lib="fa-brands"), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
+            margen_sup=10),
+        fondo=NIEBLA, nota="12 · Nunca estarás solo"))
+
+    # 13. Lo que te llevas al terminar.
+    S.append(seccion(
+        columna(imagen(pie="Certificado o sello con «Tu nombre aquí»"), tam=45, centro_v=True),
+        columna(etiqueta("Al terminar", alinear="left"),
+                titulo("[Tu certificado / tu sello / tu plan terminado]", alinear="left"),
+                lista(["[Qué demuestra y ante quién]", "[Qué hay que cumplir para obtenerlo]",
+                       "[Dónde lo puede mostrar]"]),
+                texto("<p><em>Si el producto no da algo así, borra este bloque.</em></p>", tam=14),
+                tam=55, centro_v=True),
+        fondo=BLANCO, nota="13 · Lo que te llevas al terminar (opcional)"))
+
+    # 14. Bonus.
     bonus = [seccion(
-        etiqueta("Además, te llevas"),
-        titulo("Bonus que resuelven lo que normalmente frena"),
-        fondo=BLANCO, pad=(80, 20, ), nota="14 · Bonus: título")]
+        etiqueta("Además, si entras hoy"),
+        titulo("Te llevas estos bonus"),
+        fondo=NIEBLA, pad=(80, 20, ), nota="14 · Bonus: título")]
     for n in (1, 2, 3, 4):
         foto = columna(imagen(pie=f"Maqueta del bonus {n}"), tam=40, centro_v=True)
         cuerpo = columna(
             etiqueta(f"Bonus #{n}", alinear="left", color=JADE),
-            titulo(f"[Nombre del bonus {n}: «[cantidad] [recurso] para [tu X]»]", "h3", alinear="left", tam=28),
-            texto(f"<p>[Qué es y qué duda resuelve: «¿y si no tengo tiempo?», «¿y si no sé de tecnología?»…]</p>"),
+            titulo(f"[Nombre del bonus {n}: «[cantidad] [recurso] para [tu X]»]", "h3", alinear="left", tam=26),
+            texto("<p>[Qué es y qué duda resuelve: «¿y si no tengo tiempo?», «¿y si no sé de tecnología?»…]</p>"),
             texto(f"<p>Valor: <del>$[X] MXN</del> · <strong style=\"color:{JADE}\">Incluido</strong></p>", tam=17,
                   color=TX),
             tam=60, centro_v=True)
-        bonus.append(seccion(*((foto, cuerpo) if n % 2 else (cuerpo, foto)), fondo=BLANCO, pad=(30, 20),
+        bonus.append(seccion(*((foto, cuerpo) if n % 2 else (cuerpo, foto)), fondo=NIEBLA, pad=(30, 20),
                              nota=f"14.{n} · Bonus {n}"))
     bonus.append(seccion(
         texto(f"<p style=\"text-align:center\">Valor total de los bonus: <del>$[suma real de los bonus] MXN</del> · "
               f"<strong style=\"color:{JADE}\">hoy, incluidos</strong></p>", alinear="center", tam=20, color=TX),
-        fondo=BLANCO, pad=(10, 20), pad_movil=(10, 16), nota="14.5 · Valor total de los bonus"))
+        fondo=NIEBLA, pad=(10, 20), pad_movil=(10, 16), nota="14.5 · Valor total de los bonus"))
     S.extend(bonus)
 
-    # 15. Acompañamiento.
+    # 15. Nuestro compromiso.
     S.append(seccion(
-        etiqueta("No vas solo"),
-        titulo("Te acompañamos todo el camino"),
+        etiqueta("Nuestro compromiso"),
+        titulo("Esto es lo que vas a tener"),
         interior(
-            columna(caja_icono("fas fa-video", "[Sesiones en vivo]", "[Cuándo y cómo: frecuencia y duración]",
-                               alinear="center"), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
-            columna(caja_icono("fas fa-users", "[Comunidad]", "[Dónde y para qué: preguntas, avances, red]",
-                               alinear="center", color=JADE), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
-            columna(caja_icono("fab fa-whatsapp", "[Soporte]", "[Por dónde y en cuánto tiempo responden]",
-                               alinear="center", lib="fa-brands"), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
-            margen_sup=10),
-        fondo=NIEBLA, nota="15 · Acompañamiento"))
+            columna(lista(["Tendrás un [sistema] para [resultado 1]", "Tendrás un [plan] para [resultado 2]",
+                           "Tendrás [herramienta] para [resultado 3]"]), tam=50),
+            columna(lista(["Tendrás acompañamiento para [resultado 4]", "Tendrás [comunidad] para [resultado 5]",
+                           "Tendrás [actualizaciones] para [resultado 6]"]), tam=50)),
+        fondo=BLANCO, ancho=1000, nota="15 · Nuestro compromiso"))
 
-    # 16. Para quién es y para quién no.
-    S.append(seccion(
-        columna(titulo("Es para ti si…", "h3", alinear="left"),
-                lista(["[Situación que encaja 1]", "[Situación que encaja 2]", "[Situación que encaja 3]",
-                       "[Estás dispuesto a dedicarle [N] horas por semana]"]),
-                tam=50, fondo=NIEBLA, pad=caja(32), radio=16),
-        columna(titulo("No es para ti si…", "h3", alinear="left"),
-                lista(["Buscas resultados sin trabajar", "[Situación que no encaja 2]", "[Situación que no encaja 3]",
-                       "Esperas una fórmula mágica"], color_icono="#D64545", ic="fas fa-times-circle"),
-                tam=50, fondo=NIEBLA, pad=caja(32), radio=16),
-        fondo=BLANCO, nota="16 · Para quién es y para quién no"))
-    S.append(seccion(
-        texto("<p style=\"text-align:center\"><strong>¿No estás seguro de que sea para ti?</strong> Escríbenos y te "
-              "decimos con honestidad si te sirve o no.</p>", alinear="center", color=TX),
-        boton_whatsapp("Pregúntanos por WhatsApp", "Hola, quiero saber si [producto] es para mí"),
-        fondo=BLANCO, pad=(0, 20, ), pad_movil=(0, 16), nota="16b · ¿Dudas si es para ti? WhatsApp"))
-
-    # 17. Objeciones.
-    objeciones = ["«No tengo tiempo»", "«Soy [perfil], ¿me servirá?»", "«No sé de tecnología»",
-                  "«Ya tengo [experiencia o negocio], ¿qué me aporta?»", "«Puedo aprenderlo gratis en internet»",
-                  "«¿Vale lo que cuesta?»"]
-    filas_obj = []
-    for i in range(0, 6, 2):
-        filas_obj.append(interior(*[columna(
-            titulo(objeciones[i + k], "h3", alinear="left", color=AZUL),
-            texto("<p>[La respuesta honesta, con una prueba. Mejor si la da un alumno con ese perfil, en un audio o "
-                  "video corto (bloque G de la plantilla 08).]</p>"),
-            tam=50, fondo=BLANCO, pad=caja(28), radio=16) for k in (0, 1)], margen_sup=0 if i == 0 else 20))
-    S.append(seccion(
-        etiqueta("¿Funcionará para mí?"),
-        titulo("Las dudas que seguro tienes, respondidas"),
-        *filas_obj,
-        fondo=NIEBLA, nota="17 · Objeciones"))
-
-    # 18. Más resultados: carrusel y capturas.
-    S.append(seccion(
-        etiqueta("Más resultados"),
-        titulo("Lo que dicen quienes ya están dentro"),
-        carrusel_testimonios([("[Testimonio real, con permiso: qué logró y en cuánto tiempo.]", "[Nombre real]",
-                               "[Qué hace]")] * 6),
-        interior(*[columna(imagen(pie="Captura real de un mensaje o resultado"), tam=33) for _ in range(3)],
-                 margen_sup=24),
-        fondo=BLANCO, nota="18 · Carrusel y capturas"))
-
-    # 19. Cuánto vale para ti.
+    # 16. Cuánto vale para ti.
     S.append(seccion(
         etiqueta("Piénsalo así", color=NEON),
-        titulo("¿Cuánto vale para ti [el resultado]?", color=BLANCO),
+        titulo("¿Qué valor tiene para ti [el resultado]?", color=BLANCO),
+        lista(["¿Cómo sería tu [negocio o vida] si ya no tuvieras que [el dolor]?",
+               "¿Qué harías con [el tiempo o el dinero] que hoy pierdes en [X]?",
+               "Imagina [el resultado] dentro de [N meses]."], color_icono=NEON, color_texto=TX_OSC,
+              ic="fas fa-question-circle"),
         interior(*[columna(caja_icono(i, t, d, alinear="center", **OSC), tam=33, fondo=CARD_OSC, pad=caja(28),
                            radio=16)
                    for i, t, d in (("fas fa-user", "Para ti", "[Qué cambia en tu día a día]"),
                                    ("fas fa-handshake", "Para tus clientes", "[Qué reciben ellos]"),
                                    ("fas fa-seedling", "Para tu futuro", "[Qué construyes a largo plazo]"))],
-                 margen_sup=10),
+                 margen_sup=16),
         texto("<p style=\"text-align:center\">[El cálculo honesto: si con lo que aprendes consigues [un cliente de "
               "$X al mes], en un año son $[Y]. Es un ejemplo, no una promesa: el resultado depende de cada "
               "persona.]</p>", color="#DCEBFA", alinear="center", tam=17),
-        fondo=PROFUNDO, nota="19 · Cuánto vale (con el cálculo)"))
+        fondo=PROFUNDO, nota="16 · Cuánto vale para ti"))
 
-    # 20. Las alternativas.
-    S.append(seccion(
-        etiqueta("Tienes opciones"),
-        titulo("Pero solo una tiene sentido"),
-        interior(
-            columna(caja_icono("fas fa-university", "[Alternativa cara]", "[Cuánto cuesta y cuánto tarda: un "
-                               "diplomado, una maestría]", color=MUT, alinear="center"), tam=25, fondo=NIEBLA,
-                    pad=caja(24), radio=16),
-            columna(caja_icono("fas fa-user-tie", "[Contratar a alguien]", "[Cuánto cuesta y qué no aprendes]",
-                               color=MUT, alinear="center"), tam=25, fondo=NIEBLA, pad=caja(24), radio=16),
-            columna(caja_icono("fas fa-random", "[Hacerlo solo]", "[Cuánto tiempo y errores cuesta]", color=MUT,
-                               alinear="center"), tam=25, fondo=NIEBLA, pad=caja(24), radio=16),
-            columna(caja_icono("fas fa-star", "[Nombre del producto]", "[Por qué es la mejor relación de costo, "
-                               "tiempo y acompañamiento]", color=JADE, alinear="center"), tam=25, fondo=BLANCO,
-                    pad=caja(24), radio=16, borde=JADE, sombra=True),
-            margen_sup=10),
-        fondo=BLANCO, nota="20 · Alternativas"))
-
-    # 21. La oferta: el resumen de todo y el precio.
+    # 17. La oferta.
     S.append(seccion(
         columna(
-            etiqueta("Inscríbete hoy", color=NEON),
-            titulo("Esto es todo lo que te llevas", color=BLANCO),
+            etiqueta("Este es el precio y lo que obtienes", color=NEON),
+            titulo("Hoy tienes la oportunidad de entrar a [producto]", color=BLANCO),
             interior(tarjeta_stack(), espacio="no"),
             espacio(20),
             boton_whatsapp("¿Dudas? Pregúntanos por WhatsApp", oscuro=True)),
-        degradado=(NOCHE, "#0B2A45", 180), ancho=760, ident="oferta",
-        nota="21 · Oferta: resumen y precio (ancla #oferta)"))
+        degradado=(NOCHE, "#0B2A45", 180), ancho=760, ident="oferta", nota="17 · La oferta (ancla #oferta)"))
 
-    # 22. Garantía.
+    # 18. Garantía y actualización.
     S.append(seccion(
         columna(caja_icono("fas fa-shield-alt", "", "", color=JADE, alinear="center", tam_icono=56), tam=25,
                 centro_v=True),
@@ -452,9 +383,9 @@ def venta_completa():
                   "<p><strong>Además:</strong> [el contenido se actualiza sin costo durante [tiempo]].</p>"
                   "<p><a href=\"/politica-de-reembolso/\">Lee la política completa</a></p>"),
             tam=75, centro_v=True),
-        fondo=BLANCO, ancho=1000, nota="22 · Garantía"))
+        fondo=BLANCO, ancho=1000, nota="18 · Garantía y actualización"))
 
-    # 22b. La decisión enmarcada: los caminos que tiene, con botón en el recomendado.
+    # 19. Los caminos.
     S.append(seccion(
         etiqueta("Llegó el momento de decidir"),
         titulo("Ahora tienes cuatro caminos"),
@@ -474,54 +405,74 @@ def venta_completa():
                     boton_whatsapp("Quiero aplicar", "Hola, quiero aplicar a [opción premium]"),
                     tam=25, fondo=BLANCO, pad=caja(24), radio=16),
             margen_sup=10),
-        fondo=NIEBLA, nota="22b · Los caminos, con botón en el recomendado"))
+        fondo=NIEBLA, nota="19 · Los caminos, con botón en el recomendado"))
 
-    # 23. Urgencia real.
+    # 20. Objeciones, con la voz de los alumnos.
+    obj = ["«Soy [perfil], ¿me servirá?»", "«No tengo tiempo, ¿podré?»", "«Ya tengo [experiencia o negocio], "
+           "¿qué me aporta?»", "«No sé de tecnología, ¿lo voy a entender?»"]
+    filas_obj = []
+    for i in (0, 2):
+        filas_obj.append(interior(*[columna(
+            titulo(obj[i + k], "h3", alinear="left", color=AZUL),
+            video("Audio o video corto de un alumno real con ese perfil"),
+            texto("<p>[Nombre real] · [qué hace]</p>", tam=15),
+            tam=50, fondo=NIEBLA, pad=caja(24), radio=16) for k in (0, 1)], margen_sup=0 if i == 0 else 20))
     S.append(seccion(
-        etiqueta("Aviso"),
-        titulo("La inscripción cierra el [día] de [mes] a las [hora] (centro de México)"),
-        texto("<p style=\"text-align:center\">[Por qué cierra: grupos, fechas de inicio, cupo del "
-              "acompañamiento.] Después de esa hora el botón deja de funcionar. Sin excepciones.</p>",
-              alinear="center"),
-        contador(ancho=70),
-        fondo=BLANCO, ancho=900, nota="23 · Urgencia: solo si el cierre es real"))
+        etiqueta("¿Te funcionará?"),
+        titulo("Te contestan quienes ya lo hicieron"),
+        *filas_obj,
+        fondo=BLANCO, nota="20 · Objeciones con la voz de los alumnos"))
+
+    # 21. Lo avala la comunidad.
+    S.append(seccion(
+        etiqueta("No lo decimos nosotros"),
+        titulo("Lo avala nuestra comunidad"),
+        interior(*[columna(imagen(pie="Captura real de un mensaje o resultado"), tam=33) for _ in range(3)]),
+        interior(*[columna(imagen(pie="Captura real de un mensaje o resultado"), tam=33) for _ in range(3)],
+                 margen_sup=20),
+        carrusel_testimonios([("[Testimonio real, con permiso: qué logró y en cuánto tiempo.]", "[Nombre real]",
+                               "[Qué hace]")] * 6),
+        fondo=NIEBLA, ident="historias", nota="21 · Lo avala la comunidad (ancla #historias)"))
+
+    # 22. Preguntas frecuentes.
+    S.append(seccion(
+        etiqueta("Preguntas frecuentes"),
+        titulo("Solucionamos tus dudas más frecuentes"),
+        acordeon([
+            ("¿Cuándo empiezo?", "[Al pagar recibes el acceso por correo / el [fecha] empieza el grupo].")
+            , ("¿Cuánto tiempo necesito por semana?", "[N] horas. [Cómo está pensado para alguien ocupado].")
+            , ("¿Por cuánto tiempo tengo acceso?", "[De por vida / un año / mientras dure la membresía].")
+            , ("¿En qué moneda pago y qué medios aceptan?", f"En pesos mexicanos. {MEDIOS_PAGO_FAQ}. [Ajusta a los que "
+               "aceptas].")
+            , ("¿Puedo pagar a meses?", "[Sí, [N] meses sin intereses con tarjetas participantes / No].")
+            , ("¿Me dan factura?", "Sí. Al pagar nos compartes tus datos fiscales y te enviamos tu CFDI.")
+            , ("¿Desde qué dispositivo lo veo?", "Computadora, tableta o celular. El acceso es personal.")
+            , ("¿Qué pasa si no me funciona?", "[La garantía, en una frase, con el enlace a la política].")
+            , ("¿Se actualiza el contenido?", "[Sí, durante [tiempo], sin costo].")
+            , ("¿Tendré soporte?", "[Por dónde, en qué horario y en cuánto tiempo responden].")]),
+        fondo=BLANCO, ancho=860, nota="22 · Preguntas frecuentes"))
+
+    # 23. WhatsApp con una cara.
+    S.append(seccion(
+        interior(columna(avatar(tam=96, alinear="center"), tam=20, centro_v=True),
+                 columna(texto(f"<p><strong>¿Aún tienes dudas?</strong> Escríbenos por WhatsApp: te responde "
+                               f"{P['atiende']}, [horario].</p>", tam=17, color=TX),
+                         boton_whatsapp("Escríbenos aquí", alinear="left"), tam=80, centro_v=True)),
+        fondo=NIEBLA, ancho=860, pad=(48, 20), nota="23 · WhatsApp con una cara"))
 
     # 24. Cierre.
     S.append(seccion(
         columna(
-            titulo("Este es tu momento", color=BLANCO),
-            texto("<p style=\"text-align:center\">[Resume la transformación en dos frases y recuerda lo que pierde si "
-                  "no actúa.]</p>", color=TX_OSC, alinear="center"),
+            titulo("¿Qué esperas?", color=BLANCO),
+            texto("<p style=\"text-align:center\">[Lanza o relanza [lo que el cliente quiere] con [producto]: la "
+                  "transformación en una frase.]</p>", color=TX_OSC, alinear="center"),
             lista(["¿Quieres [resultado 1]?", "¿Quieres [resultado 2]?", "¿Quieres [resultado 3]?",
                    "¿Quieres dejar de [el dolor principal]?"], color_icono=NEON, color_texto=TX_OSC,
                   ic="fas fa-question-circle"),
             espacio(16),
             interior(tarjeta_stack(), espacio="no"),
-            texto("<p style=\"text-align:center\">[Firma: tu nombre y una frase personal]</p>", color=MUT_OSC,
-                  alinear="center", tam=16)),
-        fondo=NOCHE, ancho=760, nota="24 · Cierre con el resumen repetido"))
-
-    # 25. Preguntas frecuentes del producto y del pago.
-    S.append(seccion(
-        etiqueta("Preguntas frecuentes"),
-        titulo("¿Tienes dudas?"),
-        acordeon([
-            ("¿Cuándo empiezo?", "[Al pagar recibes el acceso por correo / el [fecha] empieza el grupo].")
-            , ("¿Cuánto tiempo necesito por semana?", "[N] horas. [Cómo está pensado para alguien ocupado].")
-            , ("¿Por cuánto tiempo tengo acceso?", "[De por vida / un año / mientras dure la membresía].")
-            , ("¿En qué moneda pago y qué medios aceptan?", "En pesos mexicanos. Tarjeta de crédito o débito, OXXO, "
-               "SPEI, Mercado Pago o PayPal. [Ajusta a los que aceptas].")
-            , ("¿Puedo pagar a meses?", "[Sí, [N] meses sin intereses con tarjetas participantes / No].")
-            , ("¿Me dan factura?", "Sí. Al pagar nos compartes tus datos fiscales y te enviamos tu CFDI.")
-            , ("¿Desde qué dispositivo lo veo?", "Computadora, tableta o celular. El acceso es personal.")
-            , ("¿Qué pasa si no me funciona?", "[La garantía, en una frase, con el enlace a la política].")
-            , ("¿Tendré soporte?", "[Por dónde, en qué horario y en cuánto tiempo responden].")
-            , ("¿Y si tengo otra duda?", "Escríbenos por WhatsApp y te respondemos.")]),
-        interior(columna(avatar(alinear="center"), tam=20, centro_v=True),
-                 columna(texto("<p><strong>¿Te quedó una duda?</strong> Te responde [nombre real de quien atiende], "
-                               "[horario].</p>", tam=16), boton_whatsapp(alinear="left"), tam=80, centro_v=True),
-                 margen_sup=24),
-        fondo=BLANCO, ancho=860, nota="25 · Preguntas frecuentes y WhatsApp con una cara"))
+            texto(f"<p style=\"text-align:center\">{P['firma']}</p>", color=MUT_OSC, alinear="center", tam=16)),
+        degradado=(NOCHE, "#0B2A45", 160), ancho=760, nota="24 · Cierre"))
 
     S.append(pie())
     return plantilla("DIGITALÍSIMO · 01 Página de venta completa", S)
@@ -548,6 +499,11 @@ def venta_corta():
         boton("Quiero [producto]"),
         fondo=BLANCO, nota="2 · Beneficios"))
     S.append(seccion(
+        columna(imagen(pie=P["foto"]), tam=35, centro_v=True),
+        columna(etiqueta("Quién está detrás", alinear="left"), titulo(P["saludo"], "h3", alinear="left"),
+                texto(P["historia"]), tam=65, centro_v=True),
+        fondo=NIEBLA, nota="2b · Quién está detrás"))
+    S.append(seccion(
         columna(titulo("Es para ti si…", "h3", alinear="left"),
                 lista(["[Situación 1]", "[Situación 2]", "[Situación 3]"]), tam=50),
         columna(titulo("Incluye", "h3", alinear="left"),
@@ -567,7 +523,7 @@ def venta_corta():
         separador(),
         titulo("Preguntas frecuentes", "h3"),
         acordeon([("¿Cuándo recibo el acceso?", "[Al momento, por correo]."),
-                  ("¿En qué moneda pago?", "En pesos mexicanos: tarjeta, OXXO, SPEI, Mercado Pago o PayPal."),
+                  ("¿En qué moneda pago?", f"En pesos mexicanos: {MEDIOS_PAGO}."),
                   ("¿Me dan factura?", "Sí, te enviamos tu CFDI."),
                   ("¿Y si tengo otra duda?", "Escríbenos por WhatsApp.")]),
         boton_whatsapp(),
@@ -597,10 +553,10 @@ def captacion():
                    color=BLANCO, alinear="left", tam=44),
             texto("<p>[Subtítulo: qué se llevan en una frase.]</p>", color=TX_OSC),
             lista([("[Día] de [mes] · [hora] (hora del centro de México)", "far fa-calendar-alt", "fa-regular"),
-                   ("En vivo por [Zoom / YouTube] · [duración]", "fas fa-video")],
+                   (f"En vivo por {PLATAFORMA_SESION} · [duración]", "fas fa-video")],
                   color_icono=NEON, color_texto=TX_OSC),
             interior(columna(avatar(), tam=25, centro_v=True),
-                     columna(texto("<p><strong>Con [nombre]</strong><br>[quién es, en una línea]</p>", color=TX_OSC,
+                     columna(texto(f"<p><strong>Con {P['nombre']}</strong><br>{P['cargo']}</p>", color=TX_OSC,
                                    tam=16), tam=75, centro_v=True), margen_sup=10),
             tam=55, centro_v=True),
         columna(
@@ -617,9 +573,9 @@ def captacion():
         fondo=BLANCO, nota="2 · Qué aprenderán"))
     S.append(seccion(
         columna(imagen(), tam=40, centro_v=True),
-        columna(etiqueta("Quién la imparte", alinear="left"), titulo("[Nombre]", alinear="left"),
-                texto("<p>[Su historia en tres frases y por qué sabe de esto.]</p>"),
-                lista(["[Credencial verificable 1]", "[Credencial verificable 2]"], ic="fas fa-award"),
+        columna(etiqueta("Quién la imparte", alinear="left"), titulo(P["saludo"], alinear="left"),
+                texto(P["historia"]),
+                lista(P["credenciales"][:3], ic="fas fa-award"),
                 tam=60, centro_v=True),
         fondo=NIEBLA, nota="3 · Quién la imparte"))
     S.append(seccion(
@@ -658,13 +614,13 @@ def gracias_registro():
             columna(caja_icono("fab fa-whatsapp", "Paso 3: únete al grupo",
                                "Ahí mandamos el enlace y el material de la clase.", alinear="center", color=JADE,
                                lib="fa-brands"), tam=33)),
-        boton("Unirme al grupo de WhatsApp", url="https://chat.whatsapp.com/GRUPO", externo=True),
+        boton("Unirme al grupo de WhatsApp", url="#[enlace del grupo]"),
         fondo=BLANCO, nota="2 · Tres pasos"))
     S.append(seccion(
         columna(video("Video corto de bienvenida (opcional)"), tam=50, centro_v=True),
         columna(titulo("Mientras tanto", "h3", alinear="left"),
                 texto("<p>[Un contenido corto para calentar: un video, un artículo o una plantilla.]</p>"),
-                iconos_sociales(), tam=50, centro_v=True),
+                redes(), tam=50, centro_v=True),
         fondo=NIEBLA, nota="3 · Mientras tanto"))
     S.append(pie())
     return plantilla("DIGITALÍSIMO · 04 Gracias por registrarte", S)
@@ -697,8 +653,8 @@ def carrito():
         columna(
             titulo("1. Tus datos y tu forma de pago", "h3", alinear="left"),
             formulario(CAMPOS_CARRITO, "Continuar al pago seguro", "/pago/", nombre="Carrito", color_boton=JADE),
-            texto("<p style=\"text-align:center\">🔒 Pago 100 % seguro. En el siguiente paso pagas con tarjeta, OXXO, "
-                  "SPEI, Mercado Pago o PayPal.</p>", alinear="center", tam=14),
+            texto(f"<p style=\"text-align:center\">🔒 Pago 100 % seguro. En el siguiente paso pagas con {MEDIOS_PAGO}."
+                  "</p>", alinear="center", tam=14),
             imagen(ancho=45, radio=0, pie="Logos de pago seguro y de los medios que aceptas"),
             interior(columna(caja_icono("fas fa-shield-alt", "Garantía [nombre]: [N] días",
                                         "[Cómo funciona, en una frase]", posicion="left", color=JADE), tam=100)),
@@ -722,11 +678,11 @@ def carrito():
         fondo=BLANCO, pad=(40, 20), nota="3 · Testimonios"))
     S.append(seccion(
         titulo("Dudas sobre el pago", "h3"),
-        acordeon([("¿Es seguro pagar aquí?", "Sí. El pago lo procesa [Mercado Pago / Stripe]; nosotros nunca vemos "
-                   "los datos de tu tarjeta."),
-                  ("¿Puedo pagar en OXXO o por SPEI?", "Sí. En el siguiente paso eliges cómo pagar."),
-                  ("¿Cuándo recibo el acceso?", "[Al confirmarse el pago, por correo]. Con OXXO o SPEI puede tardar "
-                   "hasta [N] horas."),
+        acordeon([("¿Es seguro pagar aquí?", f"Sí. El pago lo procesa {PASARELA}; nosotros nunca vemos los datos de "
+                   "tu tarjeta."),
+                  ("¿Puedo pagar en {} o por {}?".format(*PAGO_EFECTIVO), "Sí. En el siguiente paso eliges cómo pagar."),
+                  ("¿Cuándo recibo el acceso?", "[Al confirmarse el pago, por correo]. Con {} o {} puede tardar "
+                   "hasta [N] horas.".format(*PAGO_EFECTIVO)),
                   ("¿Me dan factura?", "Sí, marca la casilla y te pediremos tus datos fiscales."),
                   ("¿Y si no me funciona?", "Tienes la garantía [nombre] de [N] días.")]),
         interior(columna(avatar(alinear="center"), tam=20, centro_v=True),
@@ -734,10 +690,10 @@ def carrito():
                                "[horario].</p>", tam=16), boton_whatsapp(alinear="left"), tam=80, centro_v=True),
                  margen_sup=24),
         fondo=NIEBLA, ancho=860, pad=(48, 20), nota="4 · Dudas de pago y WhatsApp"))
-    S.append(seccion(
-        titulo("Este precio termina el [día] a las [hora] (centro de México)", "h3"),
+    S.append(urgente(seccion(
+        titulo(f"Este precio termina el {DIA_CIERRE} a las {HORA_CIERRE} (centro de México)", "h3"),
         contador(ancho=70),
-        fondo=BLANCO, pad=(40, 20), nota="5 · Urgencia: solo si el cierre es real"))
+        fondo=BLANCO, pad=(40, 20), nota="5 · Urgencia: solo si el cierre es real")))
     S.append(pie())
     return plantilla("DIGITALÍSIMO · 05 Carrito", S)
 
@@ -795,7 +751,7 @@ def gracias_compra():
                 texto("<p>Escríbenos a [correo de soporte] o por WhatsApp, [horario]. Para tu factura, manda tus datos "
                       "fiscales al mismo correo.</p>"),
                 boton_whatsapp("Soporte por WhatsApp", "Hola, ya compré [producto] y necesito ayuda", alinear="left"),
-                iconos_sociales(), tam=50, centro_v=True),
+                redes(), tam=50, centro_v=True),
         fondo=NIEBLA, nota="3 · Soporte y redes"))
     S.append(pie())
     return plantilla("DIGITALÍSIMO · 07 Gracias por tu compra", S)
@@ -875,20 +831,306 @@ def bloques_prueba():
     return plantilla("DIGITALÍSIMO · 08 Bloques de prueba social", S)
 
 
-PAGINAS = [
-    ("01-pagina-de-venta-completa.json", venta_completa),
-    ("02-pagina-de-venta-corta.json", venta_corta),
-    ("03-captacion.json", captacion),
-    ("04-gracias-por-registrarte.json", gracias_registro),
-    ("05-carrito.json", carrito),
-    ("06-oferta-unica-despues-de-la-compra.json", oferta_unica),
-    ("07-gracias-por-tu-compra.json", gracias_compra),
-    ("08-bloques-de-prueba-social.json", bloques_prueba),
+# =============================================================== catálogo
+
+# Para qué sirve cada plantilla y cuándo usarla (LEEME del kit y tabla «Qué landing armar según el caso» del cerebro).
+CATALOGO = [
+    {"id": "venta-completa", "numero": "01", "archivo": "01-pagina-de-venta-completa.json", "fn": venta_completa,
+     "nombre": "Página de venta completa",
+     "para": "La carta de venta larga, en el orden de la guía (26 bloques): barra de cierre, promesa, problema, quién "
+             "está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona para gente como "
+             "tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al terminar, bonus "
+             "con su total, nuestro compromiso, cuánto vale, la oferta (#oferta), garantía y actualización, los "
+             "caminos, objeciones con la voz de alumnos, lo avala la comunidad (#historias), preguntas frecuentes, "
+             "WhatsApp con una cara, cierre y pie.",
+     "bloques": {"Barra": ("barra-de-cierre", "Barra de cierre"), "1": ("promesa", "La promesa"),
+                 "2": ("problema", "El problema"), "3": ("quien-esta-detras", "Quién está detrás, corto"),
+                 "4": ("te-imaginas", "¿Te imaginas…?"), "5": ("por-que-es-distinto", "Por qué es distinto"),
+                 "6": ("autoridad", "Quién está detrás, la autoridad (con logos)"),
+                 "7": ("funciona-para-ti", "Funciona para gente como tú"), "8": ("para-quien-es", "Para quién es"),
+                 "9": ("que-es", "Qué es"), "10": ("temario", "Temario"),
+                 "11": ("todo-lo-que-incluye", "Todo lo que incluye"), "12": ("nunca-estaras-solo", "Nunca estarás solo"),
+                 "13": ("al-terminar", "Lo que te llevas al terminar"), "14": ("bonus", "Bonus"),
+                 "15": ("compromiso", "Nuestro compromiso"), "16": ("cuanto-vale", "Cuánto vale para ti"),
+                 "17": ("oferta", "La oferta"), "18": ("garantia", "Garantía y actualización"),
+                 "19": ("caminos", "Los caminos"), "20": ("objeciones", "¿Te funcionará? (objeciones)"),
+                 "21": ("comunidad", "Lo avala la comunidad"), "22": ("preguntas-frecuentes", "Preguntas frecuentes"),
+                 "23": ("whatsapp", "WhatsApp con una cara"), "24": ("cierre", "Cierre"), "Pie": ("pie", "Pie")},
+     "cuando": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN): antes una clase o un reto (03 y 04), "
+               "después el carrito (05) con pagos a plazos. Recortada, para un curso de precio medio después de una "
+               "clase.",
+     "mide": "Vista de página"},
+    {"id": "venta-corta", "numero": "02", "archivo": "02-pagina-de-venta-corta.json", "fn": venta_corta,
+     "nombre": "Página de venta corta",
+     "para": "Promesa con video, tres beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta, "
+             "la garantía y pocas preguntas; el botón se repite.",
+     "bloques": {"1": ("promesa", "La promesa"), "2": ("beneficios", "Beneficios"),
+                 "2b": ("quien-esta-detras", "Quién está detrás"), "3": ("para-quien-es", "Para quién es e incluye"),
+                 "4": ("testimonios", "Testimonios"), "5": ("oferta", "La oferta"),
+                 "6": ("garantia-y-preguntas", "Garantía y preguntas frecuentes"), "Pie": ("pie", "Pie")},
+     "cuando": "Producto barato (hasta unos 1 000 MXN) con anuncios, con el carrito (05) y la oferta después de pagar "
+               "(06); quien ya conoce la marca; un curso de precio medio después de una clase (ampliada); un servicio "
+               "(sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su "
+               "fecha real; o un paquete de la tienda.",
+     "mide": "Vista de página"},
+    {"id": "captacion", "numero": "03", "archivo": "03-captacion.json", "fn": captacion,
+     "nombre": "Captación",
+     "para": "Registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, "
+             "WhatsApp y una pregunta de perfil) que guarda cada envío, avisa por correo y lleva a /gracias-registro/.",
+     "cuando": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. "
+               "Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
+     "mide": "Vista de página",
+     "bloques": {"1": ("registro", "Cabecera con formulario"), "2": ("que-aprenderan", "Qué aprenderán"),
+                 "3": ("quien-la-imparte", "Quién la imparte"), "4": ("testimonios", "Testimonios o logros"),
+                 "5": ("recordatorio", "Recordatorio"), "Pie": ("pie", "Pie")}},
+    {"id": "gracias-registro", "numero": "04", "archivo": "04-gracias-por-registrarte.json", "fn": gracias_registro,
+     "nombre": "Gracias por registrarte",
+     "para": "Confirmación y los tres pasos después de registrarse: confirmar el correo, agendar la fecha y unirse al "
+             "grupo.",
+     "cuando": "Después de la 03, en /gracias-registro/. Sin doble confirmación, aquí va el enlace de descarga; con "
+               "«regalo con oferta en la gracias», un bloque con una oferta barata y relacionada.",
+     "mide": "Registro completado (Lead)",
+     "bloques": {"1": ("confirmacion", "Confirmación"), "2": ("tres-pasos", "Tres pasos"),
+                 "3": ("mientras-tanto", "Mientras tanto"), "Pie": ("pie", "Pie")}},
+    {"id": "carrito", "numero": "05", "archivo": "05-carrito.json", "fn": carrito,
+     "nombre": "Carrito",
+     "para": "Formulario de datos y forma de pago junto a la oferta: pago único marcado de entrada, meses sin "
+             "intereses, el extra de un clic, la garantía y los medios de pago junto al botón, WhatsApp con una cara "
+             "y, sólo con un cierre real, el contador.",
+     "cuando": "Después de la 01 o la 02 cuando se cobra en el sitio, en /carrito/; su formulario lleva a /pago/.",
+     "mide": "Iniciar pago (InitiateCheckout)",
+     "bloques": {"1": ("encabezado", "Encabezado con el precio"), "2": ("formulario", "Formulario junto a la oferta"),
+                 "3": ("testimonios", "Testimonios"), "4": ("dudas-de-pago", "Dudas de pago y WhatsApp"),
+                 "5": ("urgencia", "Urgencia (sólo con cierre real)"), "Pie": ("pie", "Pie")}},
+    {"id": "oferta-unica", "numero": "06", "archivo": "06-oferta-unica-despues-de-la-compra.json", "fn": oferta_unica,
+     "nombre": "Oferta única después de la compra",
+     "para": "Un complemento, sí o no, justo después de pagar: aviso, video corto, el complemento con su precio de hoy "
+             "y dos botones.",
+     "cuando": "Entre el pago y la 07 (el pago lleva aquí): producto barato con anuncios o lanzamiento con complemento. "
+               "«Sí» va a /pago-complemento/ y «No» a /gracias-compra/.",
+     "mide": "Compra del producto principal (Purchase)",
+     "bloques": {"1": ("aviso-y-video", "Aviso y video"), "2": ("complemento", "El complemento, sí o no"),
+                 "Pie": ("pie", "Pie")}},
+    {"id": "gracias-compra", "numero": "07", "archivo": "07-gracias-por-tu-compra.json", "fn": gracias_compra,
+     "nombre": "Gracias por tu compra",
+     "para": "Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la comunidad y soporte.",
+     "cuando": "Al final de toda compra, en /gracias-compra/.",
+     "mide": "Compra con el total final",
+     "bloques": {"1": ("bienvenida", "Bienvenida"), "2": ("que-sigue", "Qué sigue"), "3": ("soporte", "Soporte y redes"),
+                 "Pie": ("pie", "Pie")}},
+    {"id": "prueba-social", "numero": "08", "archivo": "08-bloques-de-prueba-social.json", "fn": bloques_prueba,
+     "nombre": "Bloques de prueba social",
+     "para": "Siete bloques para copiar a otra página: muro de videos titulados por resultado, historia de éxito, "
+             "carrusel, capturas, reseñas, lo que se lleva al terminar y una objeción contestada por un alumno.",
+     "cuando": "Para armar o ampliar las pruebas de otra página; no se publica sola. Sólo con testimonios reales y con "
+               "permiso.",
+     "mide": "",
+     "bloques": {"Instrucciones": ("instrucciones", "Instrucciones"), "A": ("muro", "Muro de video-testimonios"),
+                 "B": ("historia", "Historia de éxito"), "C": ("carrusel", "Carrusel"), "D": ("capturas", "Capturas"),
+                 "E": ("resenas", "Reseñas con estrellas"), "F": ("al-terminar", "Lo que se lleva al terminar"),
+                 "G": ("objecion", "Objeción contestada por un alumno")}},
 ]
 
+EMBUDO = ("anuncio → 03 Captación → 04 Gracias por registrarte → clase o contenido → 01 o 02 → 05 Carrito → pago → "
+          "06 Oferta única → 07 Gracias por tu compra")
+
+# Qué landing armar según el caso (tabla del cerebro, `oficio/ventas-en-linea.md`). Rangos en pesos y las filas del
+# servicio, el evento y el paquete de tienda: propuesta sin aprobar (inferido).
+CASOS = [
+    {"caso": "Regalar un recurso para juntar contactos", "plantillas": ["captacion", "gracias-registro"],
+     "no_falta": "Titular con el resultado, el recurso, tres beneficios y un formulario de dos o tres campos; en la "
+                 "página de gracias, el siguiente paso.",
+     "sobra": "Testimonios largos y temario: menos campos, más registros."},
+    {"caso": "Clase en vivo o webinar", "plantillas": ["captacion", "gracias-registro"],
+     "no_falta": "Fecha y hora del centro de México, foto del presentador, qué aprenderá y una pregunta que filtre el "
+                 "perfil; en la de gracias, «agéndalo» y el grupo.",
+     "sobra": "Precio y oferta: se venden en la clase."},
+    {"caso": "Reto de varios días", "plantillas": ["captacion", "gracias-registro"],
+     "no_falta": "Qué pasa cada día y dónde se hace.", "sobra": "Precio y oferta."},
+    {"caso": "Producto barato (hasta unos 1 000 MXN) que se vende siempre, con anuncios",
+     "plantillas": ["venta-corta", "carrito", "oferta-unica"],
+     "no_falta": "Video corto, para quién es, qué incluye, valor tachado, botón repetido, el extra de un clic y la "
+                 "oferta después de pagar.",
+     "sobra": "Autoridad larga, objeciones y alternativas."},
+    {"caso": "Regalo con oferta en la gracias", "plantillas": ["captacion", "gracias-registro"],
+     "no_falta": "Una oferta barata y relacionada con lo que se descargó, en la de gracias.", "sobra": ""},
+    {"caso": "Curso de precio medio (unos 1 000 a 6 000 MXN), casi siempre después de una clase",
+     "plantillas": ["venta-corta", "venta-completa", "carrito"],
+     "no_falta": "La 02 ampliada o la 01 recortada: video, temario, bonus, testimonios, garantía, preguntas frecuentes "
+                 "y meses sin intereses.",
+     "sobra": "La gran idea y las alternativas."},
+    {"caso": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN)",
+     "plantillas": ["captacion", "gracias-registro", "venta-completa", "carrito"],
+     "no_falta": "Todo: urgencia real con fecha, mensualidades, objeciones, «para quién no es» y muchas pruebas.",
+     "sobra": "Nada."},
+    {"caso": "Servicio de DIGITALÍSIMO (asesoría, hosting, crecimiento digital)", "plantillas": ["venta-corta"],
+     "no_falta": "Beneficios, casos reales, precio o «desde» y los llamados del manual: «Agendar asesoría» o «Hablar "
+                 "por WhatsApp».",
+     "sobra": "Carrito, contador y oferta después de pagar."},
+    {"caso": "Evento de venta de temporada", "plantillas": ["venta-corta"],
+     "no_falta": "La fecha real del evento, el descuento de temporada y, si hay cierre real, la cuenta regresiva.",
+     "sobra": "Escasez inventada."},
+    {"caso": "Lanzamiento a la lista de correo", "plantillas": ["venta-completa", "venta-corta"],
+     "no_falta": "Una copia de la página de venta con un mensaje personal y un descuento sólo para suscriptores.",
+     "sobra": ""},
+    {"caso": "Página sólo para anuncios", "plantillas": ["venta-completa", "venta-corta"],
+     "no_falta": "Una copia de la página de venta con su propio botón de pago, para saber qué ventas vinieron de los "
+                 "anuncios.",
+     "sobra": ""},
+    {"caso": "Después del cierre", "plantillas": ["venta-completa", "venta-corta"],
+     "no_falta": "La misma página, cambiada: el precio normal o una lista de espera para la próxima apertura.",
+     "sobra": "El contador y la oferta de lanzamiento."},
+    {"caso": "Paquete de la tienda", "plantillas": ["venta-corta"],
+     "no_falta": "El paquete (producto, accesorios, envío), un extra en el carrito, entrega y devoluciones, junto a la "
+                 "ficha del producto.",
+     "sobra": "Temario y clase."},
+]
+
+# A dónde llevan los enlaces internos de las plantillas: la página con esa dirección se crea aparte (o se cambian los
+# enlaces en el editor).
+ENLACES = {
+    "#oferta": "ancla del bloque de la oferta en la misma página",
+    "#registro": "ancla del formulario en la misma página",
+    "#historias": "ancla del bloque «Lo avala la comunidad» en la misma página (botón «Ver más historias»)",
+    "/gracias-registro/": "04 Gracias por registrarte (a donde lleva el formulario de la 03)",
+    "/carrito/": "05 Carrito",
+    "/pago/": "el pago: el enlace de la pasarela o el pago de la tienda (a donde lleva el formulario del carrito)",
+    "/pago-complemento/": "el pago del complemento (botón «Sí» de la 06)",
+    "/gracias-compra/": "07 Gracias por tu compra (botón «No» de la 06)",
+    "/acceso/": "la entrada a la plataforma del curso o del servicio",
+    "/aviso-de-privacidad/": "aviso de privacidad",
+    "/terminos-y-condiciones/": "términos y condiciones",
+    "/politica-de-reembolso/": "política de reembolso",
+}
+
+_HREF = re.compile(r'href=\\?"([^"\\]*)')
+
+
+def enlaces_internos(data):
+    """Rutas y anclas del propio sitio a las que llevan los botones, los formularios y los textos."""
+    vistos = []
+
+    def anda(v, clave=""):
+        if isinstance(v, dict):
+            for k, x in v.items():
+                anda(x, k)
+        elif isinstance(v, list):
+            for x in v:
+                anda(x, clave)
+        elif isinstance(v, str):
+            urls = [v] if clave in ("url", "redirect_to") else _HREF.findall(v)
+            for u in urls:
+                if u.startswith(("/", "#")) and "[" not in u and u not in vistos:
+                    vistos.append(u)
+    anda(data["content"])
+    return sorted(vistos)
+
+
+_PREFIJO = re.compile(r"^(Barra|Pie|Instrucciones|[0-9]+[a-z]?|[A-Z])(?:\.[0-9]+)?\b")
+
+
+def bloques(meta, contenido):
+    """Los bloques de la plantilla, en orden: cada sección de primer nivel cae en el bloque de su nota en el Navegador
+    (`2b` en el suyo si lo declara; si no, en el de `2`; `14.3` en el de `14`). Se pueden quitar, nunca reordenar."""
+    out = []
+    for e in contenido:
+        nota = e["settings"].get("_title", "")
+        m = _PREFIJO.match(nota)
+        if not m:
+            raise SystemExit(f"{meta['archivo']}: la sección {e['id']} no tiene una nota de bloque: {nota!r}")
+        pref = m.group(1)
+        base = re.sub(r"[a-z]$", "", pref)
+        clave, nombre = meta["bloques"].get(pref) or meta["bloques"].get(base) or (None, None)
+        if not clave:
+            raise SystemExit(f"{meta['archivo']}: la nota {nota!r} no tiene bloque en CATALOGO")
+        if out and out[-1]["key"] == clave:
+            out[-1]["sections"].append(e["id"])
+        else:
+            if any(b["key"] == clave for b in out):
+                raise SystemExit(f"{meta['archivo']}: el bloque {clave} aparece en dos lugares")
+            out.append({"key": clave, "name": nombre, "required": clave == "pie", "sections": [e["id"]]})
+    usados = {b["key"] for b in out}
+    sobran = [c for c, _ in meta["bloques"].values() if c not in usados]
+    if sobran:
+        raise SystemExit(f"{meta['archivo']}: bloques declarados sin secciones: {sobran}")
+    return out
+
+
+def contar(elementos, cuenta=None):
+    cuenta = {} if cuenta is None else cuenta
+    for e in elementos:
+        if e["elType"] == "widget":
+            cuenta[e["widgetType"]] = cuenta.get(e["widgetType"], 0) + 1
+        contar(e.get("elements", []), cuenta)
+    return cuenta
+
+
+def generar():
+    """{ruta relativa a templates/: contenido} de las 16 plantillas y el manifiesto."""
+    archivos, plantillas = {}, []
+    for i, meta in enumerate(CATALOGO):
+        reiniciar_ids(20261112 + i)
+        data = meta["fn"]()
+        urg = urgentes(data["content"])
+        limpiar(data["content"])
+        secciones = volcar(data)
+        contenedores = volcar(a_contenedores(json.loads(secciones)))
+        archivos["sections/" + meta["archivo"]] = secciones
+        archivos["containers/" + meta["archivo"]] = contenedores
+        widgets = contar(data["content"])
+        enlaces = enlaces_internos(data)
+        faltan = [u for u in enlaces if u not in ENLACES]
+        if faltan:
+            raise SystemExit(f"{meta['archivo']}: enlaces sin explicar en ENLACES: {faltan}")
+        plantillas.append({
+            "id": meta["id"], "number": meta["numero"], "name": meta["nombre"], "library_title": data["title"],
+            "file": meta["archivo"], "purpose": meta["para"], "use_when": meta["cuando"], "measures": meta["mide"],
+            "sections": len(data["content"]), "widgets": sum(widgets.values()), "widget_types": widgets,
+            "has_countdown": "countdown" in widgets, "has_form": "form" in widgets,
+            "internal_links": [{"path": u, "for": ENLACES[u]} for u in enlaces],
+            "blocks": bloques(meta, data["content"]),
+            "urgency": urg,
+        })
+    manifest = {
+        "_comment": "Generado por scripts/sales-kit/kit_paginas.py: no se edita a mano (tests/elements-sales-kit.mjs).",
+        "kit_version": "3-generico",
+        "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v3/ (generador con "
+                      "--generico, PERSONA_GENERICA)",
+        "guide_source": {"repository": "digitalisimo-brain", "file": "oficio/ventas-en-linea.md", "commit": "06ff42f",
+                         "section": "El orden de una página de venta"},
+        "funnel": EMBUDO,
+        "templates": plantillas,
+        "cases": CASOS,
+    }
+    archivos["manifest.json"] = json.dumps(manifest, ensure_ascii=False, indent=1) + "\n"
+    return archivos
+
+
 if __name__ == "__main__":
-    salida = sys.argv[1]
-    os.makedirs(salida, exist_ok=True)
-    for nombre, fn in PAGINAS:
-        guardar(os.path.join(salida, nombre), fn())
-        print("ok", nombre)
+    args = [a for a in sys.argv[1:] if a != "--check"]
+    destino = args[0] if args else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                                                "digitalisimo-elements", "modules", "digitalisimo-sales", "templates")
+    archivos = generar()
+    if "--check" in sys.argv:
+        distintos = []
+        for rel, contenido in archivos.items():
+            ruta = os.path.join(destino, rel)
+            if not os.path.isfile(ruta) or open(ruta, encoding="utf-8").read() != contenido:
+                distintos.append(rel)
+        sobrantes = []
+        for sub in ("sections", "containers"):
+            d = os.path.join(destino, sub)
+            for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+                if sub + "/" + f not in archivos:
+                    sobrantes.append(sub + "/" + f)
+        if distintos or sobrantes:
+            print("Las plantillas no coinciden con el generador:", ", ".join(distintos + sobrantes))
+            sys.exit(1)
+        print(f"Las {len(archivos)} salidas del generador coinciden con las del repositorio.")
+        sys.exit(0)
+    for rel, contenido in archivos.items():
+        ruta = os.path.join(destino, rel)
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        with open(ruta, "w", encoding="utf-8") as fh:
+            fh.write(contenido)
+        print("ok", rel)

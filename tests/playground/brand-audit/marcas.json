@@ -1,0 +1,82 @@
+{
+  "_comentario": "Nombres de otras empresas y servicios en los textos propios del kit de ventas de DIGITALÍSIMO Elements (modules/digitalisimo-sales/: plantillas de las dos variantes, manifiesto, guía y textos de las herramientas MCP). Regla de AGENTS.md: ningún texto propio visible nombra ni enlaza a otras empresas. Cada aparición de un nombre de `nombres` debe caber en una excepción declarada (archivos y campo o texto acotados, con su motivo y su decisión), y una excepción sin uso hace fallar la prueba. Lo leen scripts/sales-kit/kit_validar.py y tests/elements-sales-kit.mjs. Los dominios de los plugins de origen siguen en vendors.json.",
+  "nombres": [
+    { "nombre": "OXXO", "patron": "\\bOXXO\\b" },
+    { "nombre": "SPEI", "patron": "\\bSPEI\\b" },
+    { "nombre": "Mercado Pago", "patron": "Mercado\\s*Pago|MercadoPago|mercadopago" },
+    { "nombre": "Meta", "patron": "\\bMeta\\b|Meta Platforms" },
+    { "nombre": "Google", "patron": "\\bGoogle\\b" },
+    { "nombre": "WhatsApp", "patron": "WhatsApp|Whatsapp|whatsapp(?!\\.com)" },
+    { "nombre": "Facebook", "patron": "[Ff]acebook" },
+    { "nombre": "Instagram", "patron": "[Ii]nstagram" },
+    { "nombre": "TikTok", "patron": "[Tt]ik[Tt]ok" },
+    { "nombre": "YouTube", "patron": "[Yy]ou[Tt]ube|youtu\\.be" },
+    { "nombre": "Vimeo", "patron": "[Vv]imeo" },
+    { "nombre": "Zoom", "patron": "\\bZoom\\b|zoom\\.us" },
+    { "nombre": "Stripe", "patron": "\\b[Ss]tripe\\b" },
+    { "nombre": "PayPal", "patron": "[Pp]ay[Pp]al" },
+    { "nombre": "Telegram", "patron": "\\bTelegram\\b" },
+    { "nombre": "LinkedIn", "patron": "LinkedIn|linkedin" },
+    { "nombre": "Pinterest", "patron": "Pinterest" },
+    { "nombre": "Twitter", "patron": "Twitter|twitter\\.com" },
+    { "nombre": "Microsoft", "patron": "Microsoft|\\bClarity\\b" },
+    { "nombre": "Hotmart", "patron": "[Hh]otmart" },
+    { "nombre": "Udemy", "patron": "[Uu]demy" },
+    { "nombre": "Tutellus", "patron": "[Tt]utellus" },
+    { "nombre": "Amazon", "patron": "\\bAmazon\\b" },
+    { "nombre": "Shopify", "patron": "[Ss]hopify" },
+    { "nombre": "Kajabi", "patron": "[Kk]ajabi" },
+    { "nombre": "Teachable", "patron": "\\bTeachable\\b" },
+    { "nombre": "ClickFunnels", "patron": "[Cc]lick[Ff]unnels" },
+    { "nombre": "Thrivecart", "patron": "[Tt]hrive[Cc]art" },
+    { "nombre": "Gumroad", "patron": "[Gg]umroad" },
+    { "nombre": "Deadline Funnel", "patron": "Deadline Funnel" },
+    { "nombre": "Hotjar", "patron": "[Hh]otjar" },
+    { "nombre": "Calendly", "patron": "[Cc]alendly" },
+    { "nombre": "Mailchimp", "patron": "[Mm]ailchimp" },
+    { "nombre": "ActiveCampaign", "patron": "ActiveCampaign" },
+    { "nombre": "Canva", "patron": "\\bCanva\\b" },
+    { "nombre": "Mastercard", "patron": "Mastercard|MasterCard" },
+    { "nombre": "American Express", "patron": "American Express|\\bAmex\\b" },
+    { "nombre": "Apple", "patron": "\\bApple\\b" },
+    { "nombre": "WooCommerce", "patron": "WooCommerce" },
+    { "nombre": "Anthropic", "patron": "Anthropic|\\bClaude\\b" },
+    { "nombre": "Elementor", "patron": "\\bElementor\\b" },
+    { "nombre": "Convierte Más", "patron": "[Cc]onvierte\\s*[Mm][aá]s|conviertemas" },
+    { "nombre": "Vilma Núñez", "patron": "Vilma" },
+    { "nombre": "TRIBE", "patron": "\\bTRIBE\\b|Stu McLaren" },
+    { "nombre": "Academia de Consultores", "patron": "Academia de Consultores|\\bADC\\b" }
+  ],
+  "excepciones": [
+    {
+      "nombres": ["OXXO", "SPEI", "Mercado Pago"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[125]-",
+      "campo": "^text-editor\\.editor$",
+      "texto": "^<p[^>]*>🔒 Pago 100 % seguro",
+      "motivo": "La línea «Pago 100 % seguro» del resumen de la oferta (01 y 02) y del carrito (05): en los sitios de México es como paga el comprador.",
+      "decision": "Excepción explícita del operador, 2026-11-13 (vía la sesión del cerebro): OXXO, SPEI y Mercado Pago quedan fijos; cualquier otro medio, placeholder neutro."
+    },
+    {
+      "nombres": ["OXXO", "SPEI", "Mercado Pago"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[125]-",
+      "campo": "^accordion\\.tabs\\.(tab_title|tab_content)$",
+      "texto": "^(<p>)?(En pesos mexicanos|Sí\\. El pago lo procesa|¿Puedo pagar en|\\[Al confirmarse el pago)",
+      "motivo": "Las preguntas frecuentes de pago (moneda y medios, quién procesa el pago, pago en efectivo o por transferencia y cuándo llega el acceso).",
+      "decision": "Excepción explícita del operador, 2026-11-13 (vía la sesión del cerebro), la misma de arriba."
+    },
+    {
+      "nombres": ["Meta", "Google"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[1-7]-",
+      "campo": "^text-editor\\.editor$",
+      "texto": "^<p[^>]*><small>Los resultados dependen del trabajo de cada persona",
+      "motivo": "El aviso legal del pie: que el sitio no forma parte de las plataformas de anuncios ni está respaldado por ellas, como piden sus políticas a las páginas a las que llevan sus anuncios.",
+      "decision": "Operador, 2026-11-13: Meta y Google sólo donde lo exija el aviso legal del pie (regla del brief: «salvo que un texto legal lo exija»)."
+    },
+    {
+      "nombres": ["WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/",
+      "motivo": "El llamado a la acción del kit: «Hablar por WhatsApp» del manual de identidad, el número del sitio (https://wa.me/<dígitos>) y el grupo de la clase. Es el canal que el operador eligió para sus sitios, no un enlace hacia la empresa.",
+      "decision": "Candado del brief del kit de ventas (2026-11-13): «llamado a la acción por WhatsApp» y la entrada `whatsapp` de create-page. Pendiente de confirmar por el operador como excepción de marca."
+    }
+  ]
+}

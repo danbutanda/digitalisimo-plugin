@@ -1,10 +1,19 @@
-"""Piezas para armar plantillas de Elementor (secciones y columnas clásicas, formato de exportación 0.4).
+"""Piezas para armar las plantillas del kit de ventas de DIGITALÍSIMO Elements (formato de exportación 0.4).
 
-Se usan secciones y columnas, no contenedores: el experimento de contenedores viene apagado en los sitios instalados
-antes de Elementor 3.16, y una plantilla de contenedores no se vería ahí. Las secciones se ven en cualquier sitio.
+Cada página se arma una sola vez con secciones y columnas clásicas y de ahí salen las dos variantes que viajan con
+Elements (`digitalisimo-elements/modules/digitalisimo-sales/templates/`):
+- `sections/`: secciones y columnas, para los sitios sin el experimento de contenedores (los instalados antes de 3.16);
+- `containers/`: contenedores flexibles (`a_contenedores()`), para los sitios con contenedores activos, el normal en
+  Elements 4.3. La herramienta MCP `digitalisimo-sales/create-page` elige sola.
+Los identificadores se conservan entre variantes (una sección y su contenedor llevan el mismo), así que el manifiesto
+nombra los elementos de urgencia una sola vez.
 
 Ninguna pieza fija la familia tipográfica: el kit hereda la tipografía global del sitio (en DIGITALÍSIMO, Geist).
 Los colores son los del Manual de identidad v1.0; el verde es acento (botones, cifras, una frase del titular).
+
+Marcas (decisión del operador, 2026-11-13): ningún texto nombra ni enlaza a otras empresas salvo las excepciones
+declaradas en `tests/playground/brand-audit/marcas.json`. Los nombres que quedan viven en las constantes de abajo, así
+que fijar o quitar uno es cambiar una línea.
 """
 import json
 import random
@@ -23,10 +32,43 @@ CARD_OSC = "#161D25"
 TX_OSC = "#E9EEF3"
 MUT_OSC = "#9AA6B2"
 
-WHATSAPP = "https://wa.me/52XXXXXXXXXX"  # se cambia por el número real con Herramientas → Reemplazar URL
+# WhatsApp de muestra: la herramienta `create-page` lo cambia por el número que recibe (sólo dígitos); a mano, con
+# «Reemplazar URL» del constructor. El llamado a la acción por WhatsApp es del manual («Hablar por WhatsApp»).
+WHATSAPP = "https://wa.me/52XXXXXXXXXX"
+
+# ---------------------------------------------------------------- marcas (una línea cada una)
+# Excepción declarada del operador (2026-11-13): OXXO, SPEI y Mercado Pago quedan fijos en las preguntas frecuentes de
+# pago y en la línea «Pago 100 % seguro» (del resumen de la oferta y del carrito): en México es como paga el comprador.
+# Cualquier otro medio va como placeholder neutro.
+MEDIOS_PAGO = "tarjeta, OXXO, SPEI, Mercado Pago o [otro medio de pago]"
+MEDIOS_PAGO_FAQ = "Tarjeta de crédito o débito, OXXO, SPEI, Mercado Pago o [otro medio de pago]"
+PASARELA = "Mercado Pago [u otra pasarela de pago]"
+PAGO_EFECTIVO = ("OXXO", "SPEI")  # pago en efectivo y transferencia de las preguntas del carrito
+# Aviso legal del pie: Meta y Google sólo aquí (lo piden sus políticas de anuncios a las páginas a las que llevan).
+AVISO_PLATAFORMAS = ("Este sitio no forma parte de Meta Platforms, Inc. ni de Google, y no está respaldado por "
+                     "ellos.")
+# Lo demás, neutro: la plataforma de una sesión en vivo, el video y las redes del sitio.
+PLATAFORMA_SESION = "[plataforma de la sesión]"
+VIDEO_URL = "[enlace del video]"  # el video se pega en el editor; ningún enlace a otro servicio viaja en el kit
+
+# ---------------------------------------------------------------- fecha de cierre
+# Sólo con una fecha real (D-0024): `create-page` llena estos placeholders y los contadores con `close_date`; sin ella,
+# quita los bloques marcados con `urgente()` (la barra de cierre de la 01 y el contador del carrito, como pide el
+# LEEME del kit) y los demás quedan pendientes.
+DIA_CIERRE = "[día de cierre]"
+MES_CIERRE = "[mes de cierre]"
+HORA_CIERRE = "[hora de cierre]"
+FECHA_CIERRE = "[fecha y hora de cierre]"
 
 _rng = random.Random(20261112)
 _usados = set()
+
+
+def reiniciar_ids(semilla=20261112):
+    """Cada página empieza con la misma semilla: el generador escribe siempre lo mismo."""
+    global _rng
+    _rng = random.Random(semilla)
+    _usados.clear()
 
 
 def nid():
@@ -35,6 +77,12 @@ def nid():
         if v not in _usados:
             _usados.add(v)
             return v
+
+
+def urgente(elemento):
+    """Marca un elemento que sólo tiene sentido con un cierre real (va al manifiesto, no a la plantilla)."""
+    elemento["__urgente"] = True
+    return elemento
 
 
 def px(v):
@@ -174,6 +222,16 @@ def boton(texto_boton, url="#oferta", fondo=JADE, color=BLANCO, alinear="center"
     return widget("button", s)
 
 
+def boton_secundario(texto_boton, url, alinear="center", oscuro=False):
+    """Botón que no es de compra: contorno, sin el verde, para no confundirse con el principal."""
+    s = {"text": texto_boton, "link": {"url": url, "is_external": "", "nofollow": "", "custom_attributes": ""},
+         "align": alinear, "size": "md", "background_color": "rgba(0,0,0,0)",
+         "button_text_color": TX_OSC if oscuro else AZUL, "border_border": "solid", "border_width": caja(2),
+         "border_color": AZUL, "border_radius": caja(10), "text_padding": caja(14, 26)}
+    s.update(tipo("typography", 16, 15, 600))
+    return widget("button", s)
+
+
 def boton_whatsapp(texto_boton="Hablar por WhatsApp", mensaje="Hola, tengo una pregunta sobre [producto]",
                    alinear="center", oscuro=False):
     url = WHATSAPP + "?text=" + mensaje.replace(" ", "%20")
@@ -187,7 +245,7 @@ def boton_whatsapp(texto_boton="Hablar por WhatsApp", mensaje="Hola, tengo una p
 
 
 def imagen(pie=None, ancho=100, alinear="center", radio=12):
-    """Imagen vacía: Elementor muestra su imagen de muestra hasta que se elige una."""
+    """Imagen vacía: el constructor muestra su imagen de muestra hasta que se elige una."""
     s = {"image_size": "full", "align": alinear, "width": {"unit": "%", "size": ancho, "sizes": []},
          "image_border_radius": caja(radio)}
     if pie:
@@ -203,11 +261,13 @@ def avatar(tam=88, alinear="left"):
 
 
 def video(nota="Video: cámbialo por el tuyo", radio=14):
-    """Video con imagen de portada de muestra, para que el hueco se vea hasta poner el video real."""
-    # Sin `image_overlay`: Elementor pone su imagen de muestra como portada, y así el hueco se ve.
-    return widget("video", {"youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID", "show_image_overlay": "yes",
-                            "show_play_icon": "yes", "play_icon_color": BLANCO, "_border_radius": caja(radio),
-                            "_title": nota})
+    """Video con la portada de muestra, para que el hueco se vea hasta poner el video real.
+
+    El enlace es un placeholder (`VIDEO_URL`), no un video de otro servicio: sin un enlace válido el reproductor no
+    carga nada y la portada de muestra queda a la vista. Se pega en el editor; la herramienta no lo llena."""
+    # Sin `image_overlay`: el constructor pone su imagen de muestra como portada, y así el hueco se ve.
+    return widget("video", {"youtube_url": VIDEO_URL, "show_image_overlay": "yes", "show_play_icon": "yes",
+                            "play_icon_color": BLANCO, "_border_radius": caja(radio), "_title": nota})
 
 
 def lista(items, color_icono=JADE, color_texto=MUT, ic="fas fa-check-circle", tam=17, entre=10, lib="fa-solid"):
@@ -246,10 +306,10 @@ def caja_imagen(titulo_txt, desc, alinear="center"):
     return widget("image-box", s)
 
 
-def contador(fecha="2026-12-31 23:59", oscuro=False, mensaje="La inscripción ya cerró. Escríbenos por WhatsApp para "
-             "saber cuándo abre de nuevo.", ancho=60):
-    """Cuenta regresiva a una fecha fija. Solo se usa si esa fecha de cierre es real."""
-    s = {"countdown_type": "due_date", "due_date": fecha, "custom_labels": "yes", "label_days": "Días",
+def contador(oscuro=False, mensaje="La inscripción ya cerró. Escríbenos por WhatsApp para saber cuándo abre de nuevo.",
+             ancho=60):
+    """Cuenta regresiva a la fecha de cierre real (`FECHA_CIERRE`, que llena `create-page` con `close_date`)."""
+    s = {"countdown_type": "due_date", "due_date": FECHA_CIERRE, "custom_labels": "yes", "label_days": "Días",
          "label_hours": "Horas", "label_minutes": "Minutos", "label_seconds": "Segundos",
          "box_background_color": CARD_OSC if oscuro else BLANCO, "box_border_border": "solid",
          "box_border_width": caja(1), "box_border_color": "#26313C" if oscuro else BD,
@@ -308,15 +368,10 @@ def espacio(alto=24):
     return widget("spacer", {"space": px(alto)})
 
 
-def iconos_sociales(oscuro=False):
-    redes = [("fab fa-facebook-f", "https://facebook.com/"), ("fab fa-instagram", "https://instagram.com/"),
-             ("fab fa-tiktok", "https://tiktok.com/"), ("fab fa-youtube", "https://youtube.com/"),
-             ("fab fa-whatsapp", WHATSAPP)]
-    lista_r = [{"social_icon": icono(i, "fa-brands"), "link": {"url": u, "is_external": "on", "nofollow": ""},
-                "_id": nid()} for i, u in redes]
-    return widget("social-icons", {"social_icon_list": lista_r, "align": "center", "icon_color": "custom",
-                                   "icon_primary_color": AZUL if not oscuro else CARD_OSC,
-                                   "icon_secondary_color": BLANCO, "icon_size": px(18), "icon_spacing": px(10)})
+def redes(oscuro=False):
+    """Dónde poner las redes del sitio. Sin iconos ni enlaces de otras empresas: se agregan en el editor."""
+    return texto("<p>[Tus redes: agrega aquí los enlaces a tus perfiles con el widget de iconos sociales, o borra este "
+                 "texto]</p>", color=MUT_OSC if oscuro else MUT, tam=15, tam_movil=15)
 
 
 def formulario(campos, boton_txt, redirigir, nombre="Registro", color_boton=JADE):
@@ -356,6 +411,115 @@ def plantilla(titulo_plantilla, secciones, lienzo=True):
     return {"content": secciones, "page_settings": ps, "version": "0.4", "title": titulo_plantilla, "type": "page"}
 
 
-def guardar(ruta, data):
-    with open(ruta, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, ensure_ascii=False, separators=(",", ":"))
+# ---------------------------------------------------------------- contenedores
+
+# Separación entre columnas de una sección (relleno de cada columna por lado) → separación de un contenedor.
+SEPARACION = {"no": 0, "narrow": 10, "default": 20, "extended": 30, "wide": 40, "wider": 60}
+# Ajustes de una columna que son sólo de tamaño o de posición: sin ellos, una sección de una columna se vuelve un solo
+# contenedor (sin el nivel de la columna).
+_COLUMNA_NEUTRA = {"_column_size", "_inline_size", "content_position"}
+# Ajustes de estilo que la columna pasa tal cual al contenedor.
+_COLUMNA_ESTILO = ("background_background", "background_color", "padding", "padding_mobile", "border_radius",
+                   "margin", "margin_mobile", "border_border", "border_width", "border_color",
+                   "box_shadow_box_shadow_type", "box_shadow_box_shadow", "hide_mobile")
+
+
+def _flex_gap(espacio):
+    v = SEPARACION.get(espacio, 30)
+    return {"unit": "px", "size": v, "column": str(v), "row": str(v), "isLinked": True}
+
+
+def _ancho_columna(s):
+    tam = s.get("_inline_size") or s["_column_size"]
+    return round(100 / 3, 4) if tam == 33 else (round(200 / 3, 4) if tam == 66 else tam)
+
+
+def _contenedor_columna(col):
+    """Una columna → un contenedor hijo en columna, con su ancho en % (100 % en celular) y su estilo."""
+    s = col["settings"]
+    c = {"content_width": "full", "width": {"unit": "%", "size": _ancho_columna(s), "sizes": []},
+         "width_mobile": {"unit": "%", "size": 100, "sizes": []}, "flex_direction": "column"}
+    if s.get("content_position") == "center":
+        c["flex_justify_content"] = "center"
+    for k in _COLUMNA_ESTILO:
+        if k in s:
+            c[k] = s[k]
+    if "padding" not in c:
+        c["padding"] = caja(0)  # la separación ya la da el contenedor padre
+    return {"id": col["id"], "elType": "container", "settings": c,
+            "elements": [_convertir(e) for e in col["elements"]], "isInner": True}
+
+
+def _convertir(el):
+    if el["elType"] == "widget":
+        return el
+    if el["elType"] != "section":
+        raise ValueError("elemento inesperado " + el["elType"])
+    s = el["settings"]
+    interior_ = bool(el.get("isInner"))
+    cols = el["elements"]
+    c = {}
+    if interior_:
+        c.update({"content_width": "full", "padding": caja(0)})
+        if "margin" in s:
+            c["margin"] = s["margin"]
+    else:
+        c.update({"content_width": "boxed", "boxed_width": s["content_width"]})
+        for k in ("padding", "padding_mobile"):
+            if k in s:
+                c[k] = s[k]
+    for k in ("background_background", "background_color", "background_color_b", "background_gradient_angle",
+              "_element_id", "_title"):
+        if k in s:
+            c[k] = s[k]
+    if len(cols) == 1 and set(cols[0]["settings"]) <= _COLUMNA_NEUTRA:
+        # Una sola columna sin estilo: el contenedor es la columna.
+        c["flex_direction"] = "column"
+        hijos = [_convertir(e) for e in cols[0]["elements"]]
+    elif len(cols) == 1 and interior_:
+        # Una sola columna con estilo dentro de otra (la tarjeta del resumen): un contenedor con el estilo de la columna.
+        col = _contenedor_columna(cols[0])
+        col["id"] = el["id"]
+        if "margin" in s:
+            col["settings"]["margin"] = s["margin"]
+        col["settings"]["width"] = {"unit": "%", "size": 100, "sizes": []}
+        return col
+    else:
+        c.update({"flex_direction": "row", "flex_direction_mobile": "column", "flex_gap": _flex_gap(s.get("gap")),
+                  "flex_align_items": "stretch"})
+        if len(cols) == 1:
+            c["flex_direction_mobile"] = "column"
+        hijos = [_contenedor_columna(col) for col in cols]
+    return {"id": el["id"], "elType": "container", "settings": c, "elements": hijos, "isInner": interior_}
+
+
+def a_contenedores(datos):
+    """La misma plantilla con contenedores: cada sección es un contenedor (en fila si tiene varias columnas, que en
+    celular se apilan como las columnas de una sección) y cada columna un contenedor hijo con su ancho."""
+    out = dict(datos)
+    out["content"] = [_convertir(e) for e in datos["content"]]
+    return out
+
+
+# ---------------------------------------------------------------- salida
+
+def urgentes(elementos):
+    """IDs marcados con `urgente()`, en orden."""
+    ids = []
+    for e in elementos:
+        if e.get("__urgente"):
+            ids.append(e["id"])
+        ids.extend(urgentes(e.get("elements", [])))
+    return ids
+
+
+def limpiar(elementos):
+    """Quita las marcas internas antes de escribir la plantilla."""
+    for e in elementos:
+        e.pop("__urgente", None)
+        limpiar(e.get("elements", []))
+    return elementos
+
+
+def volcar(data):
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
