@@ -54,7 +54,8 @@ function add_query_arg( $args, $value = null, $url = null ) {
 function esc_url( $url ) { return htmlspecialchars( (string) $url, ENT_QUOTES ); }
 function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
 function wp_strip_all_tags( $text ) { return trim( strip_tags( (string) $text ) ); }
-function wp_doing_ajax() { return false; }
+function wp_doing_ajax() { return ! empty( $GLOBALS['ajax'] ); }
+function add_submenu_page( ...$args ) { $GLOBALS['calls'][] = array( 'submenu', $args ); return 'plugins_page_' . $args[4]; }
 function wp_raise_memory_limit( $context ) { return '256M'; }
 function get_site_transient( $key ) { return $GLOBALS['transients'][ $key ] ?? false; }
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['transients'][ $key ] = $value; return true; }
@@ -65,9 +66,11 @@ function is_plugin_active( $file ) { return in_array( $file, $GLOBALS['active'],
 function activate_plugin( $file, $redirect = '', $network = false, $silent = false ) {
 	$GLOBALS['calls'][] = array( 'activate', $file, $network );
 	if ( ! empty( $GLOBALS['activation_fatal'] ) ) ( $GLOBALS['activation_fatal'] )();
-	if ( $GLOBALS['activation_error'] ) return $GLOBALS['activation_error'];
+	// Con «unexpected_output» WordPress deja el plugin activo y sólo avisa de lo que imprimió.
+	$output = is_wp_error( $GLOBALS['activation_error'] ) && 'unexpected_output' === $GLOBALS['activation_error']->get_error_code();
+	if ( $GLOBALS['activation_error'] && ! $output ) return $GLOBALS['activation_error'];
 	if ( $network ) $GLOBALS['sitewide'][] = $file; else $GLOBALS['active'][] = $file;
-	return null;
+	return $output ? $GLOBALS['activation_error'] : null;
 }
 function deactivate_plugins( $plugins, $silent = false, $network = null ) {
 	$GLOBALS['calls'][] = array( 'deactivate', $plugins, $network );
@@ -116,7 +119,7 @@ function reset_state( $overrides = array(), $wipe_temp = true ) {
 	$GLOBALS['caps'] = array( 'install_plugins', 'activate_plugins', 'manage_network_plugins' );
 	$GLOBALS['plugins'] = array( SELF_FILE => array( 'Name' => 'DIGITALÍSIMO Elements · Instalador', 'Version' => '1.0.0', 'UpdateURI' => 'false' ) );
 	$GLOBALS['active'] = array( SELF_FILE ); $GLOBALS['sitewide'] = array();
-	$GLOBALS['calls'] = array(); $GLOBALS['transients'] = array(); $GLOBALS['activation_error'] = null; $GLOBALS['activation_fatal'] = null; $GLOBALS['lock_free'] = true;
+	$GLOBALS['calls'] = array(); $GLOBALS['transients'] = array(); $GLOBALS['activation_error'] = null; $GLOBALS['activation_fatal'] = null; $GLOBALS['lock_free'] = true; $GLOBALS['ajax'] = false;
 	$GLOBALS['fs_credentials'] = true; $GLOBALS['redirected'] = null;
 	$GLOBALS['index_response'] = array( 'code' => 200, 'body' => index_body() );
 	// Instalación correcta: deja Elements en su carpeta.
@@ -420,6 +423,59 @@ $calls = aborted_child();
 $names = array_map( function ( $c ) { return $c[0]; }, (array) $calls );
 check_installer( null !== $calls && in_array( 'activate', $names, true ) && in_array( 'delete', $names, true ) && 'unlock' === end( $names ), 'Si el navegador corta mientras se instala (php -S, el cliente se va), la instalación termina igual y libera el cerrojo: ' . json_encode( $names ) . ' ' . substr( (string) @file_get_contents( ABSPATH . 'aborto.log' ), -300 ) );
 
+// ── 8c. Escapado, aviso, menú, formulario y activación con salida inesperada ─────────────────────────────────────
+reset_state();
+ob_start(); $I::print_result( array( 'status' => 'error', 'code' => 'x', 'cause' => '<script>alert(1)</script>' ), 'site' ); $html = ob_get_clean();
+check_installer( false !== strpos( $html, '&lt;script&gt;alert(1)&lt;/script&gt;' ) && false === strpos( $html, '<script>' ), 'La causa se escapa en la pantalla.' );
+check_installer( (bool) preg_match( '#<form method="post" action="[^"]*instalar=1">#', $html ) && false === stripos( $html, 'method="get"' ), '«Reintentar» va por POST.' );
+$fatal = $I::fatal_html( array( 'type' => E_ERROR, 'message' => "<script>alert(2)</script>\nmás" ) );
+check_installer( false !== strpos( $fatal, '&lt;script&gt;alert(2)&lt;/script&gt;' ) && false === strpos( $fatal, '<script>' ) && false === strpos( $fatal, 'más' ), 'El detalle de un error fatal se escapa (sólo su primera línea).' );
+reset_state();
+$evil = 'digitalisimo-<script>alert(3)</script>/pro-elements.php';
+$GLOBALS['plugins'][ $evil ] = elements_data();
+unset( $_REQUEST['instalar'] );
+ob_start(); $I::render(); $html = ob_get_clean();
+check_installer( false !== strpos( $html, '&lt;script&gt;alert(3)&lt;/script&gt;' ) && false === strpos( $html, '<script>' ) && false !== strpos( $html, 'ya está instalado' ), 'La ruta de un Elements ya instalado se escapa en la pantalla.' );
+// Aviso con botón: sólo para quien puede instalar y activar, y nunca en la propia pantalla.
+reset_state();
+ob_start(); $I::notice(); $html = ob_get_clean();
+check_installer( false !== strpos( $html, 'Instalar DIGITALÍSIMO Elements' ) && false !== strpos( $html, '_wpnonce=nonce-digitalisimo-elements-installer' ), 'El aviso ofrece el botón (con nonce) a quien puede instalar.' );
+foreach ( array( 'sin permisos' => array( 'caps' => array( 'activate_plugins' ) ), 'sin activar plugins' => array( 'caps' => array( 'install_plugins' ) ) ) as $why => $state ) {
+	reset_state( $state );
+	ob_start(); $I::notice(); $html = ob_get_clean();
+	check_installer( '' === $html, "El aviso no sale $why." );
+}
+reset_state();
+$_GET['page'] = $I::PAGE;
+ob_start(); $I::notice(); $html = ob_get_clean();
+check_installer( '' === $html, 'El aviso no sale en la propia pantalla del instalador.' );
+reset_state( array( 'multisite' => true, 'network_admin' => false, 'sitewide' => array( SELF_FILE ), 'active' => array() ) );
+ob_start(); $I::notice(); $html = ob_get_clean();
+check_installer( '' === $html, 'Activo en la red, el aviso no sale en la administración de un sitio.' );
+// Submenú: con su capacidad y sólo en la administración de su ámbito.
+reset_state();
+$I::menu();
+$sub = called( 'submenu' );
+check_installer( 1 === count( $sub ) && 'plugins.php' === $sub[0][1][0] && 'activate_plugins' === $sub[0][1][3] && $I::PAGE === $sub[0][1][4], 'Submenú en Plugins con la capacidad activate_plugins: ' . json_encode( $sub ) );
+reset_state( array( 'multisite' => true, 'network_admin' => true, 'sitewide' => array( SELF_FILE ), 'active' => array() ) );
+$I::menu();
+$sub = called( 'submenu' );
+check_installer( 1 === count( $sub ) && 'manage_network_plugins' === $sub[0][1][3], 'En la red, el submenú pide manage_network_plugins.' );
+reset_state( array( 'multisite' => true, 'network_admin' => true, 'active' => array( SELF_FILE ) ) );
+$I::menu();
+check_installer( ! called( 'submenu' ), 'Activo sólo en un sitio, no hay submenú en la administración de la red.' );
+reset_state( array( 'multisite' => true, 'network_admin' => false, 'sitewide' => array( SELF_FILE ), 'active' => array() ) );
+$I::menu();
+check_installer( ! called( 'submenu' ), 'Activo en la red, no hay submenú en la administración de un sitio.' );
+// En la red, si además estaba activo en el sitio principal, también se desactiva ahí antes de borrarse.
+reset_state( array( 'multisite' => true, 'network_admin' => true, 'sitewide' => array( SELF_FILE ), 'active' => array( SELF_FILE ) ) );
+$result = run_handle();
+check_installer( 'instalado' === $result['status'] && array( array( 'deactivate', SELF_FILE, true ), array( 'deactivate', SELF_FILE, false ) ) === called( 'deactivate' ) && ! in_array( SELF_FILE, $GLOBALS['active'], true ), 'En la red se desactiva en la red y en el sitio donde también estaba activo: ' . json_encode( called( 'deactivate' ) ) );
+// Elements imprime algo al activarse («unexpected_output»): WordPress lo deja activo y la instalación sigue bien.
+reset_state( array( 'activation_error' => new WP_Error( 'unexpected_output', 'The plugin generated unexpected output.', 'x' ) ) );
+$result = run_handle();
+check_installer( 'instalado' === $result['status'] && in_array( ELEMENTS, $GLOBALS['active'], true ) && true === $result['removed'], 'Con «unexpected_output» Elements queda activo y el instalador se retira: ' . json_encode( $result ) );
+
 // ── 9. Redirección a su pantalla tras activarlo ─────────────────────────────────────────────────────────────────────
 reset_state();
 ( $GLOBALS['activation_hook'] )( false );
@@ -445,6 +501,9 @@ check_installer( 0 === strpos( $I::redirect_target(), 'https://example.test/siti
 reset_state( array( 'caps' => array( 'activate_plugins' ) ) );
 ( $GLOBALS['activation_hook'] )( false );
 check_installer( '' === $I::redirect_target(), 'Sin install_plugins no redirige.' );
+reset_state( array( 'ajax' => true ) );
+( $GLOBALS['activation_hook'] )( false );
+check_installer( '' === $I::redirect_target() && false === get_site_transient( $I::REDIRECT ), 'En una petición AJAX no redirige (y la anotación se consume).' );
 
 // ── 10. Su ZIP sin versión no lo toma ninguna expresión de assets de la Release ────────────────────────────────────
 $patterns = array();
