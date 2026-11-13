@@ -83,7 +83,13 @@ function WP_Filesystem( $credentials = false ) { return true; }
 function wp_safe_remote_get( $url, $args = array() ) { $GLOBALS['calls'][] = array( 'get', $url ); return $GLOBALS['index_response']; }
 function wp_remote_retrieve_response_code( $response ) { return $response['code']; }
 function wp_remote_retrieve_body( $response ) { return $response['body']; }
-function wp_safe_redirect( $url ) { $GLOBALS['redirected'] = $url; }
+/** Las redirecciones lanzan una excepción con el destino final, para no llegar al `exit`. */
+class Redirected extends Exception {}
+function home_url( $path = '' ) { return $GLOBALS['home'] . $path; }
+function wp_redirect( $url, $status = 302 ) { throw new Redirected( $url ); }
+/** Como WordPress: un host distinto del de home_url() cae en admin_url(). */
+function wp_safe_redirect( $url, $status = 302 ) { throw new Redirected( parse_url( $url, PHP_URL_HOST ) === parse_url( home_url(), PHP_URL_HOST ) ? $url : admin_url() ); }
+function redirect_to() { try { Digitalisimo_Elements_Installer::maybe_redirect(); } catch ( Redirected $r ) { return $r->getMessage(); } return ''; }
 function get_temp_dir() { return ABSPATH . 'tmp/'; }
 function show_message( $message ) { echo is_wp_error( $message ) ? $message->get_error_message() : $message, "\n"; }
 class WP_Upgrader {
@@ -120,7 +126,7 @@ function reset_state( $overrides = array(), $wipe_temp = true ) {
 	$GLOBALS['plugins'] = array( SELF_FILE => array( 'Name' => 'DIGITALÍSIMO Elements · Instalador', 'Version' => '1.0.0', 'UpdateURI' => 'false' ) );
 	$GLOBALS['active'] = array( SELF_FILE ); $GLOBALS['sitewide'] = array();
 	$GLOBALS['calls'] = array(); $GLOBALS['transients'] = array(); $GLOBALS['activation_error'] = null; $GLOBALS['activation_fatal'] = null; $GLOBALS['lock_free'] = true; $GLOBALS['ajax'] = false;
-	$GLOBALS['fs_credentials'] = true; $GLOBALS['redirected'] = null;
+	$GLOBALS['fs_credentials'] = true; $GLOBALS['home'] = 'https://example.test';
 	$GLOBALS['index_response'] = array( 'code' => 200, 'body' => index_body() );
 	// Instalación correcta: deja Elements en su carpeta.
 	$GLOBALS['install'] = $GLOBALS['install_ok'] = function ( $skin, $package ) { $GLOBALS['plugins'][ ELEMENTS ] = elements_data(); @mkdir( WP_PLUGIN_DIR . '/digitalisimo-elements', 0777, true ); touch( WP_PLUGIN_DIR . '/' . ELEMENTS ); return true; };
@@ -435,7 +441,7 @@ reset_state();
 ob_start(); $I::print_result( array( 'status' => 'error', 'code' => 'x', 'cause' => '<script>alert(1)</script>' ), 'site' ); $html = ob_get_clean();
 check_installer( false !== strpos( $html, '&lt;script&gt;alert(1)&lt;/script&gt;' ) && false === strpos( $html, '<script>' ), 'La causa se escapa en la pantalla.' );
 check_installer( (bool) preg_match( '#<form method="post" action="[^"]*instalar=1">#', $html ) && false === stripos( $html, 'method="get"' ), '«Reintentar» va por POST.' );
-$fatal = $I::fatal_html( array( 'type' => E_ERROR, 'message' => "<script>alert(2)</script>\nmás" ) );
+$fatal = method_exists( $I, 'fatal_html' ) ? $I::fatal_html( array( 'type' => E_ERROR, 'message' => "<script>alert(2)</script>\nmás" ) ) : '';
 check_installer( false !== strpos( $fatal, '&lt;script&gt;alert(2)&lt;/script&gt;' ) && false === strpos( $fatal, '<script>' ) && false === strpos( $fatal, 'más' ), 'El detalle de un error fatal se escapa (sólo su primera línea).' );
 reset_state();
 $evil = 'digitalisimo-<script>alert(3)</script>/pro-elements.php';
@@ -508,6 +514,15 @@ check_installer( 0 === strpos( $I::redirect_target(), 'https://example.test/siti
 reset_state( array( 'caps' => array( 'activate_plugins' ) ) );
 ( $GLOBALS['activation_hook'] )( false );
 check_installer( '' === $I::redirect_target(), 'Sin install_plugins no redirige.' );
+// La redirección real (maybe_redirect): también con siteurl y home en hosts distintos (con y sin www, dominio mapeado).
+foreach ( array( 'https://example.test', 'https://www.example.test', 'https://tienda.example.com' ) as $home ) {
+	reset_state( array( 'home' => $home ) );
+	( $GLOBALS['activation_hook'] )( false );
+	$to = redirect_to();
+	check_installer( 'https://example.test/wp-admin/plugins.php?page=instalar-digitalisimo-elements&instalar=1&_wpnonce=nonce-digitalisimo-elements-installer' === $to, "Tras activarlo redirige a su pantalla con home en $home y siteurl en example.test: $to" );
+}
+reset_state();
+check_installer( '' === redirect_to(), 'Sin activación anotada no redirige.' );
 reset_state( array( 'ajax' => true ) );
 ( $GLOBALS['activation_hook'] )( false );
 check_installer( '' === $I::redirect_target() && false === get_site_transient( $I::REDIRECT ), 'En una petición AJAX no redirige (y la anotación se consume).' );

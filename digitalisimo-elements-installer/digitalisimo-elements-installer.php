@@ -162,10 +162,16 @@ final class Digitalisimo_Elements_Installer {
 		return self::start_url( $scope );
 	}
 
+	/**
+	 * wp_redirect() y no wp_safe_redirect(): el destino sale de admin_url()/network_admin_url(), y wp_safe_redirect()
+	 * sólo admite el host de home_url(), así que con siteurl y home distintos (con y sin www, dominios mapeados)
+	 * acabaría en el Escritorio y la instalación no empezaría sola.
+	 */
 	public static function maybe_redirect() {
 		$target = self::redirect_target();
 		if ( '' !== $target ) {
-			wp_safe_redirect( $target );
+			wp_redirect( $target ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- destino propio de admin_url().
+
 			exit;
 		}
 	}
