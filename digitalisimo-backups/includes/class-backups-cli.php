@@ -400,7 +400,7 @@ final class Digitalisimo_Backups_Cli {
 	 * : Imprime sólo el identificador del trabajo.
 	 *
 	 * [--[no-]keep-access]
-	 * : El usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación, y este sitio su ruta de acceso (encendido por defecto).
+	 * : El usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación (encendido por defecto; sin `--user` no se conserva ninguna cuenta). La ruta de acceso de este sitio se conserva siempre.
 	 * ---
 	 * default: true
 	 * ---
@@ -474,7 +474,7 @@ final class Digitalisimo_Backups_Cli {
 	 * : Restaura desde un destino remoto: primero trae el respaldo al almacén por fragmentos y lo comprueba (el de este sitio por su SHA-256; el de otro sitio, como archivo no confiable), después lo restaura. Ver `wp digitalisimo-backups destinations backups <destino>`.
 	 *
 	 * [--[no-]keep-access]
-	 * : Al restaurar en otro sitio (otra URL, prefijo o ruta, o un sitio extraído de una red), el usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación, y el sitio su ruta de acceso (encendido por defecto; sin `--user` no hay usuario que conservar). En el mismo sitio no aplica: vuelven las cuentas del respaldo.
+	 * : Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), el usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación (encendido por defecto; sin `--user` no se conserva ninguna cuenta). Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio.
 	 * ---
 	 * default: true
 	 * ---
