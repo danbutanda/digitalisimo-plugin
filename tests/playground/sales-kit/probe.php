@@ -2,7 +2,7 @@
 /**
  * Sonda del ensayo del kit de ventas (mu-plugin que copia setup.php).
  *
- * - Sin red hacia fuera (toda petición HTTP a otro host devuelve un error) y sin correo.
+ * - Sin red (toda petición HTTP de PHP devuelve un error, también al propio sitio: ver abajo) y sin correo.
  * - Avisos de PHP, `_doing_it_wrong()` y obsolescencias del kit de ventas → /digi-probe/php-errors.log (el arnés falla
  *   con cualquier línea); los del resto de Elements → elements-notices.log (informativo); los fatales → fatal.log.
  * - `?digi_sk=<paso>&token=<token>` (el de /digi-probe/token.txt) prepara o lee el estado del sitio sin pasar por el MCP:
@@ -55,12 +55,14 @@ foreach ( array( 'doing_it_wrong_run', 'deprecated_function_run', 'deprecated_ar
 	);
 }
 
+// Ninguna petición HTTP sale de PHP, tampoco al propio sitio: Playground corre con un solo proceso y una petición a sí
+// mismo se queda esperando hasta su tiempo límite. Importar plantillas lo hace: el núcleo descarga la imagen de muestra
+// de cada imagen y portada de video sin imagen elegida (`Control_Media::on_import()` con el valor por defecto) con
+// `wp_safe_remote_get()`. Sin red, la imagen queda como estaba (la de muestra).
 add_filter(
 	'pre_http_request',
-	static function ( $pre, $args, $url ) {
-		$host = wp_parse_url( (string) $url, PHP_URL_HOST );
-		$home = wp_parse_url( home_url(), PHP_URL_HOST );
-		return $host && $host !== $home && '127.0.0.1' !== $host && 'localhost' !== $host ? new WP_Error( 'digi_sk_offline', 'Sin red en el ensayo.' ) : $pre;
+	static function () {
+		return new WP_Error( 'digi_sk_offline', 'Sin red en el ensayo.' );
 	},
 	10,
 	3

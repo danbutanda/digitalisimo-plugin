@@ -118,6 +118,7 @@ async function main() {
   // Con el código anterior (sin el kit) S1–S6 fallan con una excepción; Chrome y el aviso de importación se prueban igual.
   let r;
   try {
+  if (process.env.SOLO === 'importar') throw new Error('SOLO=importar: sólo S0 y el aviso de importación');
   start('S1 list-templates y guide');
   r = await admin.call('list-templates', {});
   check(!r.isError && r.data?.ok && r.data.templates.length === 8 && r.data.cases.length >= 10 && r.data.variant === 'containers', 'list-templates: ocho plantillas, la tabla por caso y la variante de este sitio (contenedores)', r.text.slice(0, 400));
@@ -214,7 +215,8 @@ async function main() {
     check(a.isError && b.isError && g.isError && n0 === n1, `${login} (sin edit_pages) no puede usar el kit ni crear nada`, `${a.text.slice(0, 200)} | tools: ${ts.filter((t) => t.name.startsWith('digitalisimo-sales-')).map((t) => t.name)}`);
   }
   } catch (e) {
-    check(false, `${section}: terminó con una excepción`, e.stack || String(e));
+    if (process.env.SOLO === 'importar') log(`(${e.message})`);
+    else check(false, `${section}: terminó con una excepción`, e.stack || String(e));
     await probe('container', 'active').catch(() => {});
   }
 
@@ -301,7 +303,10 @@ async function main() {
       const input = await page.$('#elementor-import-template-form input[type=file]');
       if (!input) return { error: 'sin formulario de importación' };
       await input.uploadFile(zip);
-      await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 180000 }), page.$eval('#elementor-import-template-form', (f) => f.submit())]);
+      // Importar las ocho (la 01 es grande) en un Playground de un solo proceso puede pasar de tres minutos.
+      const t0 = Date.now();
+      await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 900000 }), page.$eval('#elementor-import-template-form', (f) => f.submit())]);
+      log(`  (importación: ${Math.round((Date.now() - t0) / 1000)} s)`);
       return { url: page.url(), aviso: await page.evaluate(() => document.querySelector('.digitalisimo-import-notice')?.innerText || '') };
     };
     let res = await importar();

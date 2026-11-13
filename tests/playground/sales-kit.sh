@@ -16,6 +16,7 @@
 #   PORT           puerto (9641); el bloque 9640–9649 es de este arnés
 #   ELEMENTS_DIR   DIGITALÍSIMO Elements a probar (por defecto digitalisimo-elements/ del repositorio; se copia fijo)
 #   PUPPETEER_PATH node_modules con puppeteer-core (si no, se instala puppeteer-core 25.12.0 para la corrida)
+#   SOLO=importar  sólo S0 (servidor y herramientas) y el aviso de importación (S8), sin crear páginas
 # Deja $OUT/result.txt, result.json, summary.json y capturas/. Al terminar borra los secretos del ensayo y la copia del
 # plugin.
 set -euo pipefail
