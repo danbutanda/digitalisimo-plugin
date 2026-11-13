@@ -172,7 +172,7 @@ final class Digitalisimo_Backups_Notify {
 		$phase = (string) ( $job['phase'] ?? '' );
 		if ( $ok ) {
 			if ( ! empty( $job['result']['safety'] ) ) $lines[] = 'Copia previa bloqueada: ' . basename( (string) $job['result']['safety'] ) . ' («Deshacer la migración» en Backups → Herramientas → Migrar la restaura)';
-			$lines[] = 'Este sitio es ahora una copia del origen con su propia dirección: inicia sesión con un usuario del sitio de origen.';
+			$lines[] = empty( $spec['keep_access'] ) && array_key_exists( 'keep_access', $spec ) ? 'Este sitio es ahora una copia del origen con su propia dirección: inicia sesión con un usuario del sitio de origen.' : 'Este sitio es ahora una copia del origen con su propia dirección; quien migró sigue entrando con su cuenta. El aviso de la restauración dice la URL de acceso.';
 			foreach ( (array) ( $job['warnings'] ?? array() ) as $warning ) if ( '' !== (string) $warning ) $lines[] = 'Aviso: ' . self::clean( (string) $warning );
 			return self::send( $snapshot, true, 'Migración terminada', $lines );
 		}
@@ -233,6 +233,9 @@ final class Digitalisimo_Backups_Notify {
 			// Empezó a cambiar algo (la copia previa existe o es la vuelta a ella): «falló», no «se rechazó sin cambiar nada».
 			'started' => $rollback || ! in_array( (string) ( $job['phase'] ?? '' ), array( 'inspect', 'safety' ), true ),
 		);
+		// Restaurar en otro sitio cambia cómo se entra (usuarios, ruta de acceso): avisa siempre al terminar, aunque los
+		// avisos de éxito estén apagados, a quien se avisaba en este sitio antes del SQL. El aviso empieza por cómo entrar.
+		if ( $ok && ! empty( $result['access']['relocated'] ) ) $snapshot['success'] = true;
 		return self::restore( $snapshot, $ok, $facts );
 	}
 

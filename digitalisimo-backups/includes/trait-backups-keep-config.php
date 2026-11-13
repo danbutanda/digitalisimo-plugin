@@ -127,7 +127,7 @@ trait Digitalisimo_Backups_Keep_Config {
 		return is_array( $value ) ? $value : array();
 	}
 	private static function restore_notice_save( array $notice ) {
-		if ( empty( $notice['pending'] ) && empty( $notice['automations'] ) && empty( $notice['connections'] ) && empty( $notice['no_active'] ) && empty( $notice['paused'] ) ) {
+		if ( empty( $notice['pending'] ) && empty( $notice['automations'] ) && empty( $notice['connections'] ) && empty( $notice['no_active'] ) && empty( $notice['paused'] ) && empty( $notice['access'] ) ) {
 			if ( is_multisite() ) delete_site_option( self::restore_notice_key() );
 			else delete_option( self::restore_notice_key() );
 			return;
@@ -272,6 +272,8 @@ trait Digitalisimo_Backups_Keep_Config {
 	/** El aviso en texto (escritorio, tarjeta de Backups, REST y WP-CLI). '' si no hay nada que decir. */
 	private static function restore_notice_text( array $notice ) {
 		$lines = array();
+		// Tras restaurar en otro sitio (otra URL, prefijo o ruta, un sitio extraído o una migración): cómo se entra ahora.
+		if ( '' !== (string) ( $notice['access'] ?? '' ) ) $lines[] = (string) $notice['access'];
 		if ( ! empty( $notice['automations'] ) || ! empty( $notice['connections'] ) ) {
 			$n = (int) $notice['automations'];
 			$m = (int) $notice['connections'];

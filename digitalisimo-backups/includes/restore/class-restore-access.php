@@ -478,7 +478,7 @@ final class Digitalisimo_Backups_Restore_Access {
 	private static function set_meta( $table, $user_id, $key, $value ) {
 		global $wpdb;
 		self::delete_meta( $table, $user_id, $key );
-		if ( false === $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::q( $table ) . ' (' . self::q( 'user_id' ) . ', ' . self::q( 'meta_key' ) . ', ' . self::q( 'meta_value' ) . ') VALUES (%d, %s, %s)', (int) $user_id, (string) $key, (string) $value ) ) ) throw new Exception( (string) $wpdb->last_error );
+		if ( false === $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::q( $table ) . ' (' . self::q( 'user_id' ) . ', ' . self::q( 'meta_key' ) . ', ' . self::q( 'meta_value' ) . ') VALUES (%s, %s, %s)', (string) (int) $user_id, (string) $key, (string) $value ) ) ) throw new Exception( (string) $wpdb->last_error );
 	}
 	private static function delete_meta( $table, $user_id, $key ) {
 		global $wpdb;

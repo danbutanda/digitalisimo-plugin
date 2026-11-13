@@ -12,7 +12,10 @@ defined( 'ABSPATH' ) || exit;
  *    (`admin-ajax.php?action=digitalisimo_backups_restore_tick`);
  *  - quien trae el testigo de la restauración (cookie `digitalisimo_backups_restore`, que recibe el navegador que la
  *    empezó, o el parámetro del mismo nombre: un cliente de REST); en el archivo sólo va su SHA-256;
- *  - WP-CLI (la vía para terminar o recuperar a mano).
+ *  - WP-CLI (la vía para terminar o recuperar a mano);
+ *  - la lectura del estado de ese trabajo con su ficha de lectura (cabecera X-Digitalisimo-Backups-Job-Token, sólo
+ *    `GET /wp-json/digitalisimo-backups/v1/jobs/<id>`; en el archivo sólo va su SHA-256): carga WordPress mínimo y el
+ *    plugin sólo deja esa ruta (Digitalisimo_Backups_Rest::reader_only()); como una visita, despierta la restauración.
  *
  * Los ticks (y, desde el cambio, todo lo que pasa) cargan WordPress «mínimo»: sólo este plugin, sin los demás, sin
  * mu-plugins y sin el tema (revisión, A3 y P1): a medio cambiar, el código de un plugin no se ejecuta contra la base de
@@ -57,10 +60,10 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	 * Escribe o renueva el mantenimiento. Un `.maintenance` ajeno (de una actualización en curso) o que es un enlace
 	 * simbólico nunca se toca: la restauración sigue sin modo de mantenimiento y lo dice su registro. Devuelve si quedó activo.
 	 */
-	public static function hold( $token, $until_done, $job_id = '' ) {
+	public static function hold( $token, $until_done, $job_id = '', array $readers = array() ) {
 		$path = self::path();
 		if ( is_link( $path ) || ( is_file( $path ) && ! self::ours( $path ) ) ) return false;
-		$content = self::content( (string) $token, (bool) $until_done, (string) $job_id );
+		$content = self::content( (string) $token, (bool) $until_done, (string) $job_id, $readers );
 		$temp = $path . '.tmp-' . bin2hex( random_bytes( 4 ) );
 		if ( strlen( $content ) === @file_put_contents( $temp, $content ) && @rename( $temp, $path ) ) return true;
 		@unlink( $temp );
@@ -72,10 +75,12 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	 * datos y los plugins, donde ya existe add_filter(). Sin rutas ni secretos: el testigo va como SHA-256 y la dirección
 	 * de WP-Cron es pública. Puede incluirse más de una vez en la misma petición.
 	 */
-	private static function content( $token, $until_done, $job_id ) {
+	private static function content( $token, $until_done, $job_id, array $readers = array() ) {
 		$cron = function_exists( 'site_url' ) ? (string) site_url( 'wp-cron.php' ) : '';
 		$config = array(
 			'hash' => hash( 'sha256', $token ),
+			// Las fichas de lectura del trabajo (sólo sus SHA-256): dejan pasar la consulta de su estado, nada más.
+			'readers' => array_values( array_filter( array_map( 'strval', $readers ), function( $hash ) { return (bool) preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
 			'until_done' => $until_done,
 			'plugin' => self::plugin(),
 			'cron' => $cron,
@@ -109,8 +114,25 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		$ours = $cli && ! empty( $GLOBALS['argv'] ) && is_array( $GLOBALS['argv'] ) && in_array( 'digitalisimo-backups', $GLOBALS['argv'], true );
 		if ( $cron || ( $known && ( $tick || $config['until_done'] ) ) || ( $ours && $config['until_done'] ) ) digitalisimo_backups_restore_minimal( (string) $config['plugin'] );
 		if ( $cli || $cron || $known ) return true;
+		// La ficha de lectura del trabajo: sólo GET de su estado por la REST, con WordPress mínimo; también lo despierta.
+		$reader = isset( $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] ) && is_string( $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] ) ? $_SERVER['HTTP_X_DIGITALISIMO_BACKUPS_JOB_TOKEN'] : '';
+		if ( '' !== $reader && ! empty( $config['readers'] ) && in_array( hash( 'sha256', $reader ), (array) $config['readers'], true ) && digitalisimo_backups_restore_reading() ) {
+			digitalisimo_backups_restore_minimal( (string) $config['plugin'] );
+			if ( ! defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) ) define( 'DIGITALISIMO_BACKUPS_RESTORE_READER', true );
+			digitalisimo_backups_restore_kick( (string) $config['cron'], (int) $config['every'] );
+			return true;
+		}
 		digitalisimo_backups_restore_kick( (string) $config['cron'], (int) $config['every'] );
 		return false;
+	}
+	function digitalisimo_backups_restore_reading() {
+		if ( 'GET' !== ( isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) : '' ) ) return false;
+		$route = '#^/digitalisimo-backups/v1/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?$#D';
+		// rest_route de la cadena de consulta manda sobre la ruta de /wp-json/ (WP::parse_request): si está, es la que cuenta.
+		if ( isset( $_GET['rest_route'] ) ) return is_string( $_GET['rest_route'] ) && (bool) preg_match( $route, $_GET['rest_route'] );
+		$path = (string) parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH );
+		$at = strpos( $path, '/wp-json/' );
+		return false !== $at && (bool) preg_match( $route, substr( $path, $at + 8 ) );
 	}
 	function digitalisimo_backups_restore_minimal( $plugin ) {
 		if ( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) || ! function_exists( 'add_filter' ) ) return;

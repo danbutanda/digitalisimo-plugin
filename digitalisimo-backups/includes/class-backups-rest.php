@@ -17,11 +17,14 @@ defined( 'ABSPATH' ) || exit;
  * - GET  /destinations                       destinos remotos y su estado (sin secretos)
  * - POST /destinations/<id>/test             «Probar conexión» de una conexión guardada
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
- * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`)
+ * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`,
+ *                                           `keep_access`): la respuesta lleva `follow`, la ficha de lectura del trabajo
  * - GET  /automations                       automatizaciones y su próxima ejecución
  * - POST /automations/<id>/run              encola la automatización ahora (`network`): 202 con el trabajo
  * - GET  /jobs                              trabajos sin terminar y los últimos terminados
- * - GET  /jobs/<id>                         un trabajo
+ * - GET  /jobs/<id>                         un trabajo; también sin sesión, sólo ese y sólo leerlo, con la ficha de
+ *                                           lectura que dio al empezar (cabecera X-Digitalisimo-Backups-Job-Token, nunca
+ *                                           en la URL), incluso con el sitio en mantenimiento o con otros usuarios
  * - POST /jobs/<id>/cancel                  cancela un trabajo
  * - POST /jobs/tick                         un paso de la cola, como el navegador con la pantalla abierta
  * - POST /sites/<id>/extract                extrae un sitio de la red como WordPress individual (`network`,
@@ -83,6 +86,15 @@ final class Digitalisimo_Backups_Rest {
 	public static function register() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 		add_filter( 'rest_pre_serve_request', array( __CLASS__, 'serve_package' ), 10, 4 );
+		// La puerta del mantenimiento dejó pasar esta petición por una ficha de lectura: sólo puede leer ese trabajo.
+		if ( defined( 'DIGITALISIMO_BACKUPS_RESTORE_READER' ) ) add_filter( 'rest_pre_dispatch', array( __CLASS__, 'reader_only' ), 0, 3 );
+	}
+	/** Con el sitio en mantenimiento, una ficha de lectura sólo abre GET /jobs/<id>: cualquier otra ruta responde 503. */
+	public static function reader_only( $result, $server = null, $request = null ) {
+		$route = is_object( $request ) && method_exists( $request, 'get_route' ) ? (string) $request->get_route() : '';
+		$method = is_object( $request ) && method_exists( $request, 'get_method' ) ? strtoupper( (string) $request->get_method() ) : '';
+		if ( 'GET' === $method && preg_match( '#^/' . preg_quote( self::NAMESPACE_V1, '#' ) . '/jobs/' . self::JOB . '/?$#D', $route ) ) return $result;
+		return new WP_Error( 'digitalisimo_backups_maintenance', 'El sitio está en mantenimiento por una restauración: con la ficha de lectura sólo se consulta el estado de su trabajo.', array( 'status' => 503 ) );
 	}
 	public static function routes() {
 		$network = array( 'type' => 'boolean', 'default' => false, 'description' => 'Confirma el alcance de red (obligatorio en Multisite para crear, restaurar, ejecutar y traer al almacén).' );
@@ -104,6 +116,7 @@ final class Digitalisimo_Backups_Rest {
 				'secret' => $secret,
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
 				'addresses' => $addresses,
+				'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Al restaurar en otro sitio (otra URL, prefijo o ruta, un sitio extraído de una red): quien restaura conserva su usuario, su contraseña y sus contraseñas de aplicación, y el sitio, su ruta de acceso. En el mismo sitio no aplica: vuelven las del respaldo.' ),
 			) ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
@@ -113,7 +126,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/automations/(?P<id>[a-z0-9_-]+)/run', array( $route( 'POST', 'run_automation', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs', array( $route( 'GET', 'jobs', array( 'limit' => array( 'type' => 'integer', 'default' => 8, 'minimum' => 1, 'maximum' => 200, 'description' => 'Cuántos trabajos terminados mostrar además de los que siguen en curso.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/tick', array( $route( 'POST', 'tick' ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB, array( $route( 'GET', 'job' ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB, array( array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'job' ), 'permission_callback' => array( __CLASS__, 'allowed_job' ), 'args' => array() ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/jobs/' . self::JOB . '/cancel', array( $route( 'POST', 'cancel' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/sites/(?P<site>[0-9]+)/extract', array(
 			$route( 'POST', 'extract', array(
@@ -151,7 +164,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys', array( $route( 'POST', 'migration_create_key', array( 'hours' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Migrate::DEFAULT_HOURS, 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Migrate::MAX_HOURS, 'description' => 'Horas hasta que caduca la clave.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys/(?P<key>[0-9a-f]{16})/revoke', array( $route( 'POST', 'migration_revoke_key' ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network, 'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Quien migra conserva su usuario, su contraseña y sus contraseñas de aplicación, y este sitio su ruta de acceso.' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/undo', array( $route( 'POST', 'migration_undo', array( 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'DESHACER: el sitio vuelve al estado anterior a la última migración.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/cleanup', array( $route( 'POST', 'migration_cleanup', array( 'dry_run' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo decir qué tablas apartadas borraría.' ), 'network' => $network ) ) ) );
 		// Migración: API del sitio de origen, autorizada por la clave de migración.
@@ -175,6 +188,20 @@ final class Digitalisimo_Backups_Rest {
 	/** Sin sesión, WordPress responde 401; con una cuenta sin la capability, 403. */
 	public static function allowed() {
 		return Digitalisimo_Backups::service_can_manage();
+	}
+	/**
+	 * GET /jobs/<id>: la capability de siempre o la ficha de lectura de ese trabajo (sólo en su cabecera: en la URL quedaría
+	 * en los registros del servidor y del proxy, así que ahí se rechaza sin usarla).
+	 */
+	public static function allowed_job( $request ) {
+		$query = method_exists( $request, 'get_query_params' ) ? (array) $request->get_query_params() : array();
+		foreach ( array( 'job_token', 'token', 'follow' ) as $name ) if ( array_key_exists( $name, $query ) ) return new WP_Error( 'digitalisimo_backups_token_in_url', 'La ficha de lectura del trabajo nunca va en la URL, donde quedaría en los registros del servidor: va en la cabecera ' . Digitalisimo_Backups_Restore_Access::READER_HEADER . '.', array( 'status' => 400 ) );
+		if ( self::allowed() ) return true;
+		if ( '' !== self::reader( $request ) ) return Digitalisimo_Backups::service_job_reader_ok( (string) $request['id'], self::reader( $request ) ) ? true : new WP_Error( 'digitalisimo_backups_reader_invalid', 'La ficha de lectura no es de este trabajo o caducó.', array( 'status' => 403 ) );
+		return false;
+	}
+	private static function reader( $request ) {
+		return method_exists( $request, 'get_header' ) ? trim( (string) $request->get_header( Digitalisimo_Backups_Restore_Access::READER_HEADER ) ) : '';
 	}
 	private static function respond( $result, $status = 200 ) {
 		if ( is_wp_error( $result ) ) {
@@ -223,7 +250,7 @@ final class Digitalisimo_Backups_Rest {
 		if ( is_wp_error( $secret ) ) return $secret;
 		// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y responde 202 si sigue
 		// (con el trabajo y el testigo del mantenimiento); POST /jobs/tick, la pantalla o WP-Cron la terminan.
-		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) );
+		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) );
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}
@@ -237,6 +264,12 @@ final class Digitalisimo_Backups_Rest {
 		return self::respond( Digitalisimo_Backups::service_jobs( (int) $request['limit'] ) );
 	}
 	public static function job( $request ) {
+		// Con la capability, como siempre; si no, la ficha de lectura (ya comprobada en allowed_job()): sólo ese trabajo.
+		if ( ! self::allowed() && '' !== self::reader( $request ) ) {
+			$response = self::respond( Digitalisimo_Backups::service_job_follow( (string) $request['id'], self::reader( $request ) ) );
+			if ( ! is_wp_error( $response ) && method_exists( $response, 'header' ) ) $response->header( 'Cache-Control', 'no-store' );
+			return $response;
+		}
 		return self::respond( Digitalisimo_Backups::service_job( (string) $request['id'] ) );
 	}
 	public static function cancel( $request ) {
@@ -273,7 +306,7 @@ final class Digitalisimo_Backups_Rest {
 		$body = method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array();
 		if ( ! array_key_exists( 'key', $body ) && method_exists( $request, 'get_body_params' ) ) $body = (array) $request->get_body_params();
 		$key = is_string( $body['key'] ?? null ) ? $body['key'] : '';
-		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'via' => 'rest' ) ), 202 );
+		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest' ) ), 202 );
 	}
 	public static function migration_undo( $request ) {
 		$result = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) );

@@ -6,7 +6,7 @@ require_once __DIR__ . '/class-backups-backup-job.php';
 // Exportación, empaquetado y verificación por tramos (T2).
 foreach ( array( 'step-budget', 'zip-writer', 'sql-export', 'packer' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/steps/class-' . $digitalisimo_backups_part . '.php';
 // Restauración por pasos (H1–H4): manifiesto por partes, trabajo de restauración y su modo de mantenimiento.
-foreach ( array( 'manifest-stream', 'manifest-index', 'restore-maintenance' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/restore/class-' . $digitalisimo_backups_part . '.php';
+foreach ( array( 'manifest-stream', 'manifest-index', 'restore-maintenance', 'restore-access' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/restore/class-' . $digitalisimo_backups_part . '.php';
 require_once __DIR__ . '/class-backups-restore-job.php';
 require_once __DIR__ . '/restore/trait-backups-restore-engine.php';
 // Seguridad: cifrado, firma y validación de archivos no confiables (ver docs/BACKUPS.md).
@@ -54,6 +54,8 @@ final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Keep_Config; // La configuración propia de Backups se conserva al restaurar (H23).
 	/** @internal Foto de la configuración propia que anota el próximo diario de la restauración (H23); null: ninguna. */
 	private static $config_kept = null;
+	/** @internal Acceso de quien restaura y ruta de acceso de este sitio para el próximo diario (cifrado); null: ninguno. */
+	private static $access_kept = null;
 	use Digitalisimo_Backups_Backuply_Service; // Importar los respaldos de Backuply (pantalla, REST y WP-CLI).
 	use Digitalisimo_Backups_Screen; // La pantalla: Respaldos, Ajustes, Destinos y Herramientas.
 	const OPTION = 'digitalisimo_backups_settings';
@@ -261,7 +263,7 @@ final class Digitalisimo_Backups {
 		$path = trailingslashit( self::local_directory() ) . self::RESTORE_JOURNAL;
 		// Las claves de las credenciales del servidor de origen van cifradas con las de este (nunca en claro): si el proceso
 		// muere entre el SQL y su nuevo cifrado, la operación siguiente lo termina.
-		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'restore_id' => bin2hex( random_bytes( 16 ) ), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot() ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
+		$json = wp_json_encode( array( 'version' => 1, 'started' => time(), 'restore_id' => bin2hex( random_bytes( 16 ) ), 'wordpress_root' => self::journal_owner(), 'history' => (array) get_option( self::HISTORY, array() ), 'fetched' => self::fetched_records(), 'config_kept' => self::$config_kept, 'storage' => array( 'record' => self::storage_record() ), 'credentials' => Digitalisimo_Backups_Credentials::journal( $origin ), 'notify' => Digitalisimo_Backups_Notify::snapshot(), 'access' => self::$access_kept ) + ( is_array( $kept ) ? array( 'extract_kept' => Digitalisimo_Backups_Site_Extract::journal_snapshot( $kept ) ) : array() ) + Digitalisimo_Backups_Keys::public_snapshot() );
 		$temp = $path . '.tmp';
 		if ( ! is_string( $json ) || is_link( $path ) || is_link( $temp ) || strlen( $json ) !== @file_put_contents( $temp, $json ) || ! @chmod( $temp, 0600 ) || ! @rename( $temp, $path ) ) {
 			@unlink( $temp );
@@ -296,6 +298,8 @@ final class Digitalisimo_Backups {
 			// La configuración propia de este sitio (H23), después de cifrar las credenciales que trajo el SQL: vuelve la de aquí.
 			if ( is_array( $data['config_kept'] ?? null ) ) self::keep_config_reapply( $data['config_kept'], self::keep_config_mark( $data ) );
 			try { self::restore_notice_after( is_array( $data['config_kept'] ?? null ) ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+			// La cuenta de quien restauró, la ruta de acceso de este sitio y las contraseñas de aplicación, después de todo lo demás.
+			try { self::restore_access_apply( is_array( $data['access'] ?? null ) ? $data['access'] : null ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 		}
 		@unlink( $path );
 		// Una restauración por pasos sigue: el trabajo la reanuda, su mantenimiento no se toca y avisará al terminar.
@@ -339,7 +343,12 @@ final class Digitalisimo_Backups {
 	public static function migration_enqueue( array $report, array $tag, $except ) {
 		$safety_file = self::backup_file_name( 'safety-before-restore-' );
 		$safety_spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) );
-		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except ) );
+		// Quien empezó la migración (no quien da el tick, que puede ser WP-Cron) conserva su acceso, y la ficha de lectura de la
+		// migración sigue también su restauración.
+		$migration = Digitalisimo_Backups_Jobs::get( (string) $except );
+		$spec = is_array( $migration ) ? (array) $migration['spec'] : array();
+		$readers = isset( $spec['reader']['hash'] ) ? array( (string) $spec['reader']['hash'] ) : array();
+		return self::restore_enqueue( $report, array( 'addresses' => 'current', 'via' => 'migration', 'safety_spec' => $safety_spec, 'safety_extra' => array( 'migration' => $tag ), 'exact_tables' => true, 'aside' => array( 'kind' => 'migration', 'migration' => (string) $except, 'from' => (string) ( $tag['from'] ?? '' ) ), 'except' => (string) $except, 'user_id' => (int) ( $spec['origin']['user_id'] ?? 0 ), 'keep_access' => ! array_key_exists( 'keep_access', $spec ) || ! empty( $spec['keep_access'] ), 'readers' => $readers ) );
 	}
 	/** @internal Si el respaldo $file (una copia previa) sigue en el almacén privado de este servidor. */
 	public static function migration_safety_present( $file ) {
@@ -2249,7 +2258,7 @@ final class Digitalisimo_Backups {
 		if ( $local ) { echo '<optgroup label="Historial">'; foreach ( $local as $item ) { $hint = self::relocation_hint( $dir . $item['file'], $here ); echo '<option value="' . esc_attr( $item['file'] ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] . Digitalisimo_Backups_Security::restore_label( $dir . $item['file'], $item ) . $hint['label'] . ( '' !== self::history_notices_text( $item ) ? ' · con avisos' : '' ) ) . '</option>'; } echo '</optgroup>'; }
 		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
 		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si viene de otra dirección, carpeta o prefijo de tablas, se reescribe al restaurar.</p>' . self::help_html( 'Qué se reescribe: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.' );
-		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>';
+		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>' . self::keep_access_field();
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
 		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
 		if ( $loose ) {
@@ -2373,13 +2382,15 @@ final class Digitalisimo_Backups {
 			$addresses = 'backup' === sanitize_key( wp_unslash( $_POST['addresses'] ?? '' ) ) ? 'backup' : 'current';
 			// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y la pantalla (o WP-Cron)
 			// la termina; la cookie del testigo deja a este navegador verla durante el mantenimiento.
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) );
+			// «Conservar mi acceso»: encendido salvo que el formulario lo muestre desmarcado.
+			$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			if ( ! empty( $result['restoring'] ) ) {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 				self::redirect( true, 'Restauración en curso: sigue por pasos y esta pantalla muestra su avance en «Trabajos». Con la pantalla abierta avanza sin pausa; si la cierras, la siguen WP-Cron (las visitas al sitio en mantenimiento lo despiertan) o el cron del sistema; en un sitio sin visitas ni cron, se detiene hasta que vuelvas aquí o ejecutes wp digitalisimo-backups jobs run. Si se interrumpe, se reanuda o vuelve sola a la copia previa ' . (string) $result['safety_backup'] . '.' );
 			}
-			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
+			self::redirect( true, 'Restauración terminada. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
 		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
 		$allowed = self::service_scope( is_multisite(), true );

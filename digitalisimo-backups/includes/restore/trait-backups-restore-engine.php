@@ -23,6 +23,8 @@ defined( 'ABSPATH' ) || exit;
 trait Digitalisimo_Backups_Restore_Engine {
 	/** La restauración en curso retira también los drop-ins de wp-content que el respaldo no tiene (`exact_files`). */
 	private static $restore_exact_files = false;
+	/** @internal La ficha de lectura del último trabajo encolado en esta petición (sólo para su respuesta; nunca se guarda). */
+	private static $restore_reader_token = '';
 
 	/* =========================================================================================== Encolar y conducir */
 
@@ -37,6 +39,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( $report['zip'] instanceof ZipArchive ) self::restore_precheck( $report['zip'] );
 		$file = wp_basename( (string) $report['source'] );
 		$tag = bin2hex( random_bytes( 3 ) );
+		// La ficha de lectura (sólo ese trabajo, sólo lectura, con caducidad): su valor va una vez en la respuesta.
+		$reader = Digitalisimo_Backups_Restore_Access::new_reader();
+		self::$restore_reader_token = $reader['token'];
+		$user_id = (int) ( $args['user_id'] ?? 0 );
+		if ( $user_id <= 0 && function_exists( 'get_current_user_id' ) ) $user_id = (int) get_current_user_id();
 		$spec = array(
 			'type' => 'restore',
 			'scope' => is_multisite() ? 'network' : 'installation',
@@ -67,9 +74,13 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'adopted' => ! empty( $args['adopted'] ),
 			'sync' => ! empty( $args['sync'] ),
 			'site_id' => (int) get_current_blog_id(),
+			// Conservar el acceso de quien la lanza al reubicar (encendido por defecto; ver Digitalisimo_Backups_Restore_Access).
+			'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
+			'reader' => array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] ),
+			'readers' => array_values( array_filter( (array) ( $args['readers'] ?? array() ), function( $hash ) { return is_string( $hash ) && preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
 			'origin' => array(
 				'via' => (string) ( $args['via'] ?? 'admin-post' ),
-				'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
+				'user_id' => $user_id,
 				'blog_id' => (int) get_current_blog_id(),
 				'context' => is_multisite() ? 'network' : 'site',
 			),
@@ -182,7 +193,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		// Desde la base de datos hasta el final, el sitio está en mantenimiento (los ticks con el testigo pasan). Una vuelta a
 		// la copia previa, desde su primera fase y sin caducar: el sitio quedó a medio cambiar (revisión, C2).
 		$rollback = ! empty( $job['spec']['rollback'] );
-		if ( $rollback || in_array( $phase, array( 'database', 'files', 'switch', 'finish', 'cleanup' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], $rollback || self::restore_switched( $job ), $job['id'] );
+		if ( $rollback || in_array( $phase, array( 'database', 'files', 'switch', 'finish', 'cleanup' ), true ) ) Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], $rollback || self::restore_switched( $job ), $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ) );
 		self::$restore_exact_files = ! empty( $job['spec']['exact_files'] );
 		switch ( $phase ) {
 			case 'inspect': return self::restore_inspect( $job );
@@ -1539,7 +1550,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cursor += array( 'step' => 'tables' );
 		$started = microtime( true );
 		$deadline = self::restore_deadline( $job, 'switch', $cursor );
-		Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], true, $job['id'] );
+		Digitalisimo_Backups_Restore_Maintenance::hold( (string) $job['spec']['token'], true, $job['id'], Digitalisimo_Backups_Restore_Access::readers( $job ) );
 		$layout = self::restore_switch_layout( $job );
 		$tree = (string) self::restore_read_json( $job, 'tree.json' )['root'];
 		if ( 'tables' === $cursor['step'] ) {
@@ -1601,6 +1612,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 					try { self::migrate_credentials(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 					self::$config_kept = self::keep_config_snapshot();
 				}
+				// Quien restaura sigue entrando y la ruta de acceso es la de este sitio (con reubicación): al diario, cifrado.
+				self::$access_kept = self::restore_access_capture( $job );
 				$history_before = self::fresh_history();
 				$vault_before = Digitalisimo_Backups_Keys::snapshot();
 				// El estado de la migración de este sitio (sus claves, su registro) nunca viaja en un respaldo: vuelve tras el SQL.
@@ -1636,8 +1649,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 				// El diario sólo se retira cuando el historial, el llavero y las credenciales quedaron repuestos: si esto
 				// falla o el proceso muere, la operación siguiente lo aplica al tomar el bloqueo (revisión, P9).
 				self::after_restore_sql( $history_before, $vault_before, $origin, $kept, $storage_before );
+				// Lo último antes de retirar el diario: si el proceso muere aquí, la operación siguiente lo aplica (idempotente).
+				self::restore_access_apply( self::$access_kept );
 				self::remove_restore_journal();
 				self::$config_kept = null;
+				self::$access_kept = null;
 			} else {
 				// Ya cambiadas (el proceso murió después del RENAME, o un RENAME con error sí se hizo): el diario, si quedaba,
 				// se aplicó al tomar el bloqueo de este tick; las credenciales del respaldo se cifran aquí.
@@ -1646,11 +1662,70 @@ trait Digitalisimo_Backups_Restore_Engine {
 			}
 		} finally {
 			Digitalisimo_Backups_Credentials::forget( $origin );
+			self::$access_kept = null;
 		}
 		// El SQL restaurado trae su propia opción `cron`: esta restauración (y lo que espere) recupera su tick.
 		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		$cursor['swapped_at'] = $cursor['swapped_at'] ?? time();
 		return $cursor;
+	}
+	/**
+	 * Antes del cambio de tablas: si se conserva el acceso de quien lanzó la restauración (con reubicación, un sitio
+	 * extraído o una migración; encendido por defecto), su cuenta y la ruta de acceso de este sitio, cifradas con la clave
+	 * de este servidor para el diario (Digitalisimo_Backups_Restore_Access). Nunca hace fallar la restauración.
+	 */
+	private static function restore_access_capture( array $job ) {
+		$entry = array( 'v' => 1, 'job' => (string) $job['id'], 'state' => 'same_site', 'relocated' => false, 'secret' => null );
+		try {
+			$rollback = ! empty( $job['spec']['rollback'] );
+			$relocated = ! $rollback && null !== self::restore_plan( $job );
+			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( self::restore_read_json( $job, 'metadata.json' )['scope'] ?? '' );
+			$migration = ! empty( $job['spec']['safety_extra']['migration'] );
+			$keep = ! array_key_exists( 'keep_access', (array) $job['spec'] ) || ! empty( $job['spec']['keep_access'] );
+			$user_id = (int) ( $job['spec']['origin']['user_id'] ?? 0 );
+			$entry['state'] = Digitalisimo_Backups_Restore_Access::decide( $keep, $user_id, $relocated, $extracted, $migration, $rollback );
+			$entry['relocated'] = ! $rollback && ( $relocated || $extracted || $migration );
+			if ( ! $entry['relocated'] ) return $entry;
+			$user = 'on' === $entry['state'] ? Digitalisimo_Backups_Restore_Access::capture( $user_id ) : null;
+			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'user' => $user, 'login' => Digitalisimo_Backups_Restore_Access::login_capture() ) );
+		} catch ( Throwable $e ) {
+			$entry['warning'] = 'No se pudo apuntar el acceso de este sitio antes del cambio: ' . $e->getMessage();
+		}
+		return $entry;
+	}
+	/**
+	 * Tras el SQL (o al aplicar el diario de una restauración interrumpida): la cuenta de quien restauró, la ruta de acceso
+	 * de este sitio y, en cualquier restauración, las contraseñas de aplicación activas. Deja el informe público (sin
+	 * secretos) en el área de trabajo del trabajo, una sola vez, y el aviso «Cómo entrar ahora» en el escritorio.
+	 */
+	private static function restore_access_apply( $entry ) {
+		$entry = is_array( $entry ) ? $entry : array( 'state' => 'same_site', 'relocated' => false );
+		$secret = is_array( $entry['secret'] ?? null ) ? Digitalisimo_Backups_Restore_Access::open( $entry['secret'] ) : null;
+		$report = Digitalisimo_Backups_Restore_Access::apply( (string) ( $entry['state'] ?? 'same_site' ), $secret, ! empty( $entry['relocated'] ) );
+		if ( '' !== (string) ( $entry['warning'] ?? '' ) ) {
+			$report['warnings'][] = (string) $entry['warning'];
+			$report['text'] = Digitalisimo_Backups_Restore_Access::text( $report );
+		}
+		$job = (string) ( $entry['job'] ?? '' );
+		if ( Digitalisimo_Backups_Job_Store::valid_id( $job ) ) {
+			try {
+				$path = Digitalisimo_Backups_Job_Store::staging( $job ) . '/access.json';
+				// La primera aplicación es la que cuenta: repetirla (el diario tras una muerte) diría «ya era tuya».
+				if ( ! is_file( $path ) ) {
+					@file_put_contents( $path, (string) wp_json_encode( $report ) );
+					@chmod( $path, 0600 );
+				}
+			} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
+		if ( ! empty( $report['relocated'] ) ) {
+			try {
+				$notice = self::restore_notice();
+				$notice['access'] = (string) $report['text'];
+				$notice['at'] = $notice['at'] ?? time();
+				self::restore_notice_save( $notice );
+			} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+		}
+		return $report;
 	}
 	/** 'rename' (MySQL) o 'copy' (SQLite de WordPress: sin RENAME TABLE). */
 	private static function restore_swap_mode() {
@@ -2245,7 +2320,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			fclose( $handle );
 		}
 		$relocation = self::restore_read_json( $job, 'relocation.json', false );
-		$notice = '';
+		$access = self::restore_read_json( $job, 'access.json', false );
+		// «Cómo entrar ahora» va primero: es lo que hay que leer al terminar una restauración en otro sitio.
+		$notice = is_array( $access ) && ! empty( $access['relocated'] ) ? (string) ( $access['text'] ?? '' ) : '';
 		$config = (array) ( self::restore_read_json( $job, 'config-notes.json', false ) ?? array() );
 		foreach ( $config as $relative => $notes ) $notice .= ' ' . $relative . ': ' . implode( '; ', (array) $notes ) . '.';
 		// Limpieza (revisión de E1, P1): un auto_prepend_file o auto_append_file que haya quedado apuntando a un archivo que
@@ -2316,6 +2393,25 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'foreign_tables' => $foreign,
 			'rollback' => ! empty( $spec['rollback'] ),
 			'wp_config' => (array) ( $spec['wp_config'] ?? array() ),
+			'access' => is_array( $access ) ? self::restore_access_public( $access ) : null,
+		);
+	}
+	/** El informe de acceso tal como lo ven la pantalla, REST, WP-CLI y el correo (sin IDs internos ni secretos). */
+	private static function restore_access_public( array $access ) {
+		return array(
+			'state' => (string) ( $access['state'] ?? '' ),
+			'relocated' => ! empty( $access['relocated'] ),
+			'kept' => 'on' === ( $access['state'] ?? '' ),
+			'user' => (string) ( $access['user'] ?? '' ),
+			'account' => (string) ( $access['account'] ?? '' ),
+			'login_url' => (string) ( $access['login_url'] ?? '' ),
+			'login_path' => is_array( $access['login_path'] ?? null ) ? $access['login_path'] : null,
+			'admins' => array_values( array_map( 'strval', (array) ( $access['admins'] ?? array() ) ) ),
+			'admins_total' => (int) ( $access['admins_total'] ?? 0 ),
+			'users_total' => (int) ( $access['users_total'] ?? 0 ),
+			'app_passwords' => (array) ( $access['app_passwords'] ?? array() ),
+			'warnings' => array_values( array_map( 'strval', (array) ( $access['warnings'] ?? array() ) ) ),
+			'text' => (string) ( $access['text'] ?? '' ),
 		);
 	}
 	/**
@@ -2447,6 +2543,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'origin' => array( 'via' => 'rollback' ) + (array) ( $spec['origin'] ?? array() ),
 			'engine' => $spec['engine'],
 			'notify' => (array) ( $spec['notify'] ?? array() ),
+			// La vuelta a la copia previa la sigue la misma ficha de lectura que la restauración que falló; nunca conserva acceso.
+			'keep_access' => false,
+			'readers' => Digitalisimo_Backups_Restore_Access::readers( $job ),
 		);
 		return Digitalisimo_Backups_Jobs::create_restore( $rollback );
 	}

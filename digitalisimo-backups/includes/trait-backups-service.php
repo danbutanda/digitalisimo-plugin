@@ -362,6 +362,38 @@ trait Digitalisimo_Backups_Service {
 		foreach ( $views as $view ) if ( isset( $by_id[ $view['id'] ] ) ) $out[] = self::service_job_view( $by_id[ $view['id'] ] );
 		return $out;
 	}
+	/** Si $token es la ficha de lectura vigente del trabajo $id (sin sesión: GET /jobs/<id> de REST). */
+	public static function service_job_reader_ok( $id, $token ) {
+		if ( ! Digitalisimo_Backups_Job_Store::valid_id( $id ) ) return false;
+		try {
+			$job = Digitalisimo_Backups_Job_Store::read( $id );
+		} catch ( Throwable $e ) {
+			return false;
+		}
+		return is_array( $job ) && Digitalisimo_Backups_Restore_Access::reader_ok( $job, $token );
+	}
+	/**
+	 * Un trabajo leído con su ficha de lectura: sólo ese, sólo leerlo (no reanuda ni recupera nada), con su informe al
+	 * terminar. Lo que lo hace avanzar sigue siendo la pantalla, WP-Cron, el cron del sistema o WP-CLI.
+	 */
+	public static function service_job_follow( $id, $token ) {
+		if ( ! self::service_job_reader_ok( (string) $id, $token ) ) return self::service_error( 'reader_invalid', 'La ficha de lectura no es de este trabajo o caducó.', 403 );
+		$job = Digitalisimo_Backups_Job_Store::read( (string) $id );
+		return $job ? self::service_job_view( $job ) : self::service_error( 'job_missing', 'El trabajo ya no existe.', 404 );
+	}
+	/** La ficha de lectura del trabajo que encoló esta petición: va una vez en su respuesta (REST y WP-CLI). */
+	private static function service_follow( $job_id, $token ) {
+		if ( '' === (string) $token || ! Digitalisimo_Backups_Job_Store::valid_id( (string) $job_id ) ) return null;
+		$route = '/digitalisimo-backups/v1/jobs/' . $job_id;
+		return array(
+			'job' => (string) $job_id,
+			'token' => (string) $token,
+			'header' => Digitalisimo_Backups_Restore_Access::READER_HEADER,
+			'url' => function_exists( 'rest_url' ) ? (string) rest_url( ltrim( $route, '/' ) ) : $route,
+			'expires' => 'mientras el trabajo sigue y hasta 24 h después de terminar (como mucho 7 días)',
+			'note' => 'Sólo lee el estado de este trabajo, también con el sitio en mantenimiento o con otros usuarios tras restaurar. Envíala sólo en esa cabecera, sin Authorization ni la cookie de sesión, y no la guardes en registros.',
+		);
+	}
 	public static function service_job( $id ) {
 		$allowed = self::service_scope( false, false );
 		if ( is_wp_error( $allowed ) ) return $allowed;
@@ -468,7 +500,10 @@ trait Digitalisimo_Backups_Service {
 				}
 			}
 			try {
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra ) );
+				self::$restore_reader_token = '';
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ) ) );
+				$reader = self::$restore_reader_token;
+				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
 				if ( false === strpos( $e->getMessage(), 'en curso' ) ) $event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
 				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
@@ -484,8 +519,12 @@ trait Digitalisimo_Backups_Service {
 			}
 		}
 		// El resto lo hacen ticks: los de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
-		$job = self::restore_drive( $job['id'], array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
-		return self::restore_outcome( $job, $copies, $adopt_note );
+		$id = (string) $job['id'];
+		$job = self::restore_drive( $id, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
+		$outcome = self::restore_outcome( $job, $copies, $adopt_note );
+		// La ficha de lectura, una sola vez: con ella se sigue el trabajo hasta el final aunque cambien los usuarios.
+		if ( is_array( $outcome ) ) $outcome['follow'] = self::service_follow( $id, $reader );
+		return $outcome;
 	}
 	/**
 	 * Resultado de una restauración para la pantalla, REST y WP-CLI. Terminada: el mismo informe de siempre. Fallida: 422
@@ -711,7 +750,7 @@ trait Digitalisimo_Backups_Service {
 		if ( 'MIGRAR' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe MIGRAR para confirmar: la migración reemplaza este sitio (con una copia previa para deshacerla).', 400 );
 		if ( ! is_string( $key ) || '' === trim( $key ) ) return self::service_error( 'migration_key_invalid', 'Pega la clave de migración que generaste en el sitio de origen.', 400 );
 		try {
-			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ) );
+			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ) ) );
 		} catch ( InvalidArgumentException $e ) {
 			return self::service_error( 'migration_key_invalid', $e->getMessage(), 400 );
 		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
@@ -721,7 +760,7 @@ trait Digitalisimo_Backups_Service {
 		}
 		if ( ! empty( $queued['duplicate'] ) ) return self::service_error( 'duplicate', 'Ya hay una migración pendiente o en curso; su avance está en «Trabajos».', 409, array( 'job' => (string) $queued['job']['id'] ) );
 		Digitalisimo_Backups_Jobs::schedule( ! empty( $args['spawn'] ?? true ) );
-		return self::service_job_view( $queued['job'] ) + array( 'source' => (string) ( $queued['job']['spec']['migration']['source_host'] ?? '' ) );
+		return self::service_job_view( $queued['job'] ) + array( 'source' => (string) ( $queued['job']['spec']['migration']['source_host'] ?? '' ), 'follow' => self::service_follow( (string) $queued['job']['id'], (string) ( $queued['reader_token'] ?? '' ) ) );
 	}
 	/**
 	 * «Deshacer la migración»: restaura la copia previa que creó la última migración recibida, con su propia copia previa

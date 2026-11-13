@@ -50,6 +50,13 @@ final class Digitalisimo_Backups_Cli {
 		if ( 'table' === $format ) $rows = array_map( function( $row ) { return array_map( function( $value ) { return is_bool( $value ) ? ( $value ? 'sí' : 'no' ) : $value; }, $row ); }, $rows );
 		WP_CLI\Utils\format_items( $format, $rows, $fields );
 	}
+	/** Una opción booleana de WP-CLI (`--x`, `--no-x`, `--x=false`) con su valor por defecto. */
+	public static function flag( $assoc_args, $name, $default ) {
+		if ( ! array_key_exists( $name, (array) $assoc_args ) ) return (bool) $default;
+		$value = $assoc_args[ $name ];
+		if ( is_bool( $value ) ) return $value;
+		return ! in_array( strtolower( trim( (string) $value ) ), array( '0', 'false', 'no', 'off', '' ), true );
+	}
 	public static function fields( $assoc_args, array $default ) {
 		return empty( $assoc_args['fields'] ) ? $default : array_map( 'trim', explode( ',', (string) $assoc_args['fields'] ) );
 	}
@@ -392,6 +399,12 @@ final class Digitalisimo_Backups_Cli {
 	 * [--porcelain]
 	 * : Imprime sólo el identificador del trabajo.
 	 *
+	 * [--[no-]keep-access]
+	 * : El usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación, y este sitio su ruta de acceso (encendido por defecto).
+	 * ---
+	 * default: true
+	 * ---
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups migrate --from-key-file=/root/clave-migracion.txt --yes
@@ -401,7 +414,7 @@ final class Digitalisimo_Backups_Cli {
 		$key = self::migration_key( $assoc_args );
 		WP_CLI::confirm( 'La migración reemplaza ' . ( is_multisite() ? 'esta red' : 'este sitio' ) . ' por el del origen (con una copia previa para deshacerla). ¿Continuar?', $assoc_args );
 		$async = ! empty( $assoc_args['async'] );
-		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$view = self::result( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => 'MIGRAR', 'network' => ! empty( $assoc_args['network'] ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'via' => 'cli', 'spawn' => $async ) ) );
 		$key = '';
 		if ( $async ) {
 			WP_CLI::line( ! empty( $assoc_args['porcelain'] ) ? $view['id'] : 'Migración en cola desde ' . $view['source'] . ' (trabajo ' . $view['id'] . '). La continúan WP-Cron o `wp digitalisimo-backups jobs run`.' );
@@ -460,6 +473,12 @@ final class Digitalisimo_Backups_Cli {
 	 * [--from=<destination>]
 	 * : Restaura desde un destino remoto: primero trae el respaldo al almacén por fragmentos y lo comprueba (el de este sitio por su SHA-256; el de otro sitio, como archivo no confiable), después lo restaura. Ver `wp digitalisimo-backups destinations backups <destino>`.
 	 *
+	 * [--[no-]keep-access]
+	 * : Al restaurar en otro sitio (otra URL, prefijo o ruta, o un sitio extraído de una red), el usuario de `--user` conserva su usuario, su contraseña y sus contraseñas de aplicación, y el sitio su ruta de acceso (encendido por defecto; sin `--user` no hay usuario que conservar). En el mismo sitio no aplica: vuelven las cuentas del respaldo.
+	 * ---
+	 * default: true
+	 * ---
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
@@ -474,7 +493,7 @@ final class Digitalisimo_Backups_Cli {
 			WP_CLI::log( $fetched['message'] );
 			$args[0] = $fetched['file'];
 		}
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'via' => 'cli' ) ) );
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'via' => 'cli' ) ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 
@@ -584,6 +603,35 @@ final class Digitalisimo_Backups_Cli_Jobs {
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_jobs( (int) ( $assoc_args['limit'] ?? 8 ) ) );
 		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, Digitalisimo_Backups_Cli::fields( $assoc_args, array( 'id', 'status_label', 'phase_label', 'percent', 'origin_label', 'destination', 'created_label', 'file', 'detail' ) ) );
+	}
+
+	/**
+	 * Estado de un trabajo, con su informe al terminar (en una restauración, también «Cómo entrar ahora»). WP-CLI no
+	 * depende de los usuarios de WordPress: sirve aunque la restauración haya cambiado las cuentas.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : Identificador del trabajo, tal como aparece en `wp digitalisimo-backups jobs list`.
+	 *
+	 * [--format=<format>]
+	 * : table o json.
+	 * ---
+	 * default: table
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp digitalisimo-backups jobs get 0b6f6b8e-3c1d-4f7a-9a1e-2f4d5c6b7a8e --format=json
+	 */
+	public function get( $args, $assoc_args ) {
+		$view = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_job( (string) ( $args[0] ?? '' ) ) );
+		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) { WP_CLI::line( (string) wp_json_encode( $view, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); return; }
+		Digitalisimo_Backups_Cli::rows( array( $view ), array( 'format' => 'table' ), array( 'id', 'status_label', 'phase_label', 'percent', 'origin_label', 'file', 'detail' ) );
+		$restore = is_array( $view['restore'] ?? null ) ? $view['restore'] : array();
+		$access = (array) ( $restore['result']['access'] ?? array() );
+		if ( '' !== (string) ( $access['text'] ?? '' ) ) WP_CLI::log( (string) $access['text'] );
+		elseif ( '' !== (string) ( $restore['result']['notice'] ?? '' ) ) WP_CLI::log( (string) $restore['result']['notice'] );
 	}
 
 	/**

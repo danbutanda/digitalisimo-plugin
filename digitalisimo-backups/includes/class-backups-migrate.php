@@ -828,7 +828,7 @@ final class Digitalisimo_Backups_Migrate {
 	 * impedirla se dice aquí, antes de encolar nada; la clave queda envuelta con las claves de wp-config.php de este
 	 * sitio en el almacén privado mientras dura el trabajo.
 	 */
-	public static function enqueue_pull( $key, $via ) {
+	public static function enqueue_pull( $key, $via, array $options = array() ) {
 		$parsed = self::parse_key( $key );
 		$secret = $parsed['secret'];
 		$auth = self::auth_of( $secret );
@@ -849,7 +849,12 @@ final class Digitalisimo_Backups_Migrate {
 			$migration['source'] = self::source_summary( $hello );
 			$migration['source_host'] = self::host_label( (string) $hello['home'] ) ?: $migration['source_host'];
 			$spec = self::pull_spec( $migration, $via );
+			// Quien migra sigue entrando (encendido por defecto) y puede seguir el trabajo con su ficha de lectura.
+			$spec['keep_access'] = ! array_key_exists( 'keep_access', $options ) || ! empty( $options['keep_access'] );
+			$reader = Digitalisimo_Backups_Restore_Access::new_reader();
+			$spec['reader'] = array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] );
 			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
+			if ( empty( $queued['duplicate'] ) ) $queued['reader_token'] = $reader['token'];
 			if ( ! empty( $queued['duplicate'] ) ) {
 				@unlink( $file );
 				return $queued;
@@ -1380,7 +1385,8 @@ final class Digitalisimo_Backups_Migrate {
 		$migration = $job['spec']['migration'];
 		$safety = self::safety_of( (string) $job['id'] );
 		$notice = (string) ( $restore['result']['restore']['notice'] ?? '' );
-		$message = 'Migración terminada: este sitio es ahora una copia de ' . $migration['source_host'] . ' con su propia dirección. Inicia sesión con un usuario del sitio de origen. La copia previa ' . $safety . ' la deshace.';
+		$access = (array) ( $restore['result']['restore']['access'] ?? array() );
+		$message = 'Migración terminada: este sitio es ahora una copia de ' . $migration['source_host'] . ' con su propia dirección. ' . ( ! empty( $access['kept'] ) ? 'Quien migró sigue entrando con su cuenta («' . (string) $access['user'] . '»)' . ( '' !== (string) ( $access['login_url'] ?? '' ) ? ' por ' . $access['login_url'] : '' ) . '.' : 'Inicia sesión con un usuario del sitio de origen' . ( '' !== (string) ( $access['login_url'] ?? '' ) ? ' por ' . $access['login_url'] : '' ) . '.' ) . ' La copia previa ' . $safety . ' la deshace.';
 		$warnings = '' !== $notice ? array( $notice ) : array();
 		// Tras el SQL la sesión del navegador ya no vale (los usuarios son los del origen): el cierre se intenta aquí mismo.
 		list( $auth ) = self::pull_secrets( $job );
@@ -1889,8 +1895,8 @@ final class Digitalisimo_Backups_Migrate {
 		elseif ( '' !== $status['pull_problem'] ) echo '<p class="notice notice-warning inline">' . esc_html( $status['pull_problem'] ) . '</p>';
 		echo '<form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Reemplazar este sitio por el del origen? Se crea antes una copia previa para deshacerlo.\')">';
 		wp_nonce_field( self::ACTION_PULL );
-		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p><p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
-		if ( $status['active'] ) echo '<p class="description">Migración en curso: ' . esc_html( $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . (int) $status['active']['percent'] . ' %)' ) . '. Su avance está en «Trabajos»; cuando termine, este sitio te pedirá iniciar sesión con un usuario del origen.</p>';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_PULL ) . '">' . self::context_fields( $network ) . '<p><label for="digitalisimo-backups-migration-key">Clave de migración</label><br><textarea id="digitalisimo-backups-migration-key" name="migration_key" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="large-text code"></textarea></p><p><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"><br><span class="description">Tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo después de migrar, y este sitio conserva su ruta de acceso.</span></p><p><button class="button button-primary button-hero"' . disabled( ! $main || '' !== $status['pull_problem'], true, false ) . '>Migrar a este sitio</button></p></form>';
+		if ( $status['active'] ) echo '<p class="description">Migración en curso: ' . esc_html( $status['active']['status_label'] . ' · ' . $status['active']['phase_label'] . ' (' . (int) $status['active']['percent'] . ' %)' ) . '. Su avance está en «Trabajos»; cuando termine, el aviso de Backups dice cómo entrar (con «Conservar mi acceso», tu cuenta sigue sirviendo).</p>';
 		if ( $status['undo'] ) {
 			echo '<div class="digitalisimo-backups-migrate-undo"><h3>Deshacer la migración</h3><p>Última migración recibida de <strong>' . esc_html( $status['undo']['from'] ) . '</strong> el ' . esc_html( $status['undo']['date'] ) . '.</p><p>Deshacerla restaura la copia previa <code>' . esc_html( $status['undo']['file'] ) . '</code> (y antes guarda el estado actual en otra copia previa).</p><form method="post" action="' . $post . '" onsubmit="return confirm(\'¿Deshacer la migración y volver al estado anterior de este sitio?\')">';
 			wp_nonce_field( self::ACTION_UNDO );
@@ -2006,9 +2012,10 @@ final class Digitalisimo_Backups_Migrate {
 		self::guard( self::ACTION_PULL );
 		// La clave se usa tal cual (sanitize_text_field la alteraría) y nunca vuelve en la redirección.
 		$key = isset( $_POST['migration_key'] ) && is_string( $_POST['migration_key'] ) ? (string) wp_unslash( $_POST['migration_key'] ) : '';
-		$result = Digitalisimo_Backups::service_migrate( $key, array( 'network' => is_multisite(), 'confirm' => 'MIGRAR', 'via' => 'admin-post' ) );
+		$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
+		$result = Digitalisimo_Backups::service_migrate( $key, array( 'network' => is_multisite(), 'confirm' => 'MIGRAR', 'keep_access' => $keep, 'via' => 'admin-post' ) );
 		if ( is_wp_error( $result ) ) Digitalisimo_Backups::redirect( false, 'La migración no empezó: ' . $result->get_error_message(), null, 'migrate' );
-		Digitalisimo_Backups::redirect( true, 'Migración en cola desde ' . $result['source'] . '. Su avance aparece en «Trabajos»: deja esta página abierta (o WP-Cron la continúa). Al terminar, inicia sesión con un usuario del sitio de origen.', null, 'migrate' );
+		Digitalisimo_Backups::redirect( true, 'Migración en cola desde ' . $result['source'] . '. Su avance aparece en «Trabajos»: deja esta página abierta (o WP-Cron la continúa). ' . ( $keep ? 'Al terminar sigues entrando con tu cuenta; el aviso de Backups dice la URL de acceso.' : 'Al terminar, inicia sesión con un usuario del sitio de origen.' ), null, 'migrate' );
 	}
 	public static function undo_request() {
 		self::guard( self::ACTION_UNDO );
