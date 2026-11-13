@@ -20,6 +20,7 @@
  *   i · el motor: una restauración con reubicación por service_restore() conserva la cuenta y su informe lo dice; la
  *       misma restauración con keep_access = false no; restaurar en el mismo sitio no la toca; y si el proceso muere
  *       justo después del cambio de tablas, el diario la repone igual;
+ *   k · tras la puerta, el plugin sólo responde a GET /jobs/<id> (503 a todo lo demás) y la ficha en la URL es un 400;
  *   j · la puerta del mantenimiento deja pasar la ficha sólo para leer el estado de su trabajo (al final: define
  *       WordPress mínimo para el resto del proceso).
  * Con el código anterior fallan b (no hay cuenta, ni `using_application_passwords`, y la ruta es la del respaldo), c–i
@@ -293,6 +294,30 @@ ka_case( 'i · si el proceso muere justo tras el cambio de tablas, el diario rep
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
 	ka_check( 1 === count( $admin ) && KA_HASH === $admin[0]['user_pass'], 'Tras una muerte justo después del cambio, «admin» no volvió.' );
 	ka_check( '' === $A::effective_slug(), 'Tras una muerte, la ruta privada del respaldo quedó.' );
+} );
+
+ka_case( 'k · tras la puerta, con la ficha sólo responde GET /jobs/<id>; la ficha en la URL se rechaza', function() {
+	require_once dirname( __DIR__ ) . '/digitalisimo-backups/includes/class-backups-rest.php';
+	$request = function( $method, $route, array $query = array() ) {
+		return new class( $method, $route, $query ) {
+			public $m; public $r; public $q;
+			public function __construct( $m, $r, $q ) { $this->m = $m; $this->r = $r; $this->q = $q; }
+			public function get_method() { return $this->m; }
+			public function get_route() { return $this->r; }
+			public function get_query_params() { return $this->q; }
+			public function get_header( $name ) { return ''; }
+		};
+	};
+	$job = '/digitalisimo-backups/v1/jobs/0b6f6b8e-3c1d-4f7a-9a1e-2f4d5c6b7a8e';
+	ka_check( 'pasa' === Digitalisimo_Backups_Rest::reader_only( 'pasa', null, $request( 'GET', $job ) ), 'Tras la puerta no se lee el estado del trabajo.' );
+	foreach ( array( array( 'POST', $job ), array( 'POST', $job . '/cancel' ), array( 'GET', '/digitalisimo-backups/v1/status' ), array( 'GET', '/wp/v2/users' ), array( 'POST', '/digitalisimo-backups/v1/jobs/tick' ) ) as $pair ) {
+		$out = Digitalisimo_Backups_Rest::reader_only( null, null, $request( $pair[0], $pair[1] ) );
+		ka_check( $out instanceof WP_Error && 503 === ( $out->get_error_data()['status'] ?? 0 ), 'Tras la puerta, la ficha abre ' . $pair[0] . ' ' . $pair[1] . '.' );
+	}
+	$GLOBALS['bk_caps'] = array();
+	$out = Digitalisimo_Backups_Rest::allowed_job( $request( 'GET', $job, array( 'job_token' => str_repeat( 'a', 48 ) ) ) );
+	$GLOBALS['bk_caps'] = array( 'manage_options' => true, 'manage_network_options' => true );
+	ka_check( $out instanceof WP_Error && 400 === ( $out->get_error_data()['status'] ?? 0 ), 'La ficha en la URL no se rechaza con 400.' );
 } );
 
 ka_case( 'j · la puerta del mantenimiento deja pasar la ficha sólo para leer su trabajo', function() use ( $A ) {
