@@ -32,9 +32,6 @@ final class Builder {
 	/** Un precio: 1997, 1,997, 1997.50 o 1,997.50 (la plantilla escribe `$` y `MXN`). */
 	const PRICE = '/^(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]{1,2})?$/';
 
-	/** Dominios de primer nivel que delatan una dirección escrita sin `https://`. */
-	const TLDS = 'com|net|org|mx|lat|io|co|info|biz|app|dev|me|tv|store|shop|online|site|xyz|ly|gl|be|us|es|link|page';
-
 	const MONTHS = array( 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
 
 	/**
@@ -360,11 +357,12 @@ final class Builder {
 	}
 
 	/**
-	 * La URL o la dirección de otro sitio que lleva un valor, o ''. Se lee como la leería un navegador: con las entidades
-	 * decodificadas (`&#47;` es `/`) y `\` como `/`. Cuenta `https://otro…` (también con usuario, `…@sitio`), `http:otro`
-	 * (sin `//`), `//otro`, `www.otro`, un esquema peligroso pegado a su contenido (`javascript:…`, `data:…`) y una
-	 * dirección escrita sin esquema (`otro.mx/oferta`). Se permiten `wa.me` y el propio sitio; un correo
-	 * (`hola@sitio.com`) no es una URL.
+	 * La URL de otro sitio que lleva un valor, o ''. Se lee como la leería un navegador: con las entidades decodificadas
+	 * (`&#47;` es `/`), `\` como `/` y sin tabuladores ni saltos de línea. Sólo cuenta lo que un navegador toma por
+	 * dirección: un esquema pegado a su contenido (`https:otro`, `http://otro…`, también con usuario, `…@sitio`;
+	 * `javascript:…`, `data:…`, `vbscript:…`, `file:…`), `//otro…` y `www.otro…`. Se permiten `wa.me` y el propio sitio.
+	 * Un texto como «Curso de JavaScript: de cero», «ASP.NET», «Socket.io», «hoy.Es» o un correo no es una dirección:
+	 * pasa (un valor no puede llevar enlaces: ver `markup_error()`).
 	 */
 	public static function external_url( string $value, string $site_host ): string {
 		$site = strtolower( $site_host );
@@ -372,12 +370,14 @@ final class Builder {
 			$host = strtolower( rtrim( $host, '.' ) );
 			return 'wa.me' === $host || ( '' !== $site && ( $host === $site || 'www.' . $site === $host ) );
 		};
-		$text = str_replace( '\\', '/', html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
-		if ( preg_match( '/\b(?:javascript|data|vbscript|file)\s*:/i', $text, $m ) ) {
+		$text = html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = str_replace( array( '\\', "\t", "\n", "\r" ), array( '/', '', '', '' ), $text );
+		// Un esquema peligroso pegado a su contenido («JavaScript: de cero» lleva un espacio: no es una dirección).
+		if ( preg_match( '/(?<![a-z0-9+.\-])(?:javascript|data|vbscript|file):(?=\S)/i', $text, $m ) ) {
 			return $m[0];
 		}
 		// Con esquema: siempre `//`, sin usuario, y el host del sitio o `wa.me`.
-		if ( preg_match_all( '~\b(?:https?|ftp)\s*:\s*([^\s"\'<>]*)~i', $text, $all, PREG_SET_ORDER ) ) {
+		if ( preg_match_all( '~(?<![a-z0-9+.\-])(?:https?|ftp):(?=\S)([^\s"\'<>]*)~i', $text, $all, PREG_SET_ORDER ) ) {
 			foreach ( $all as $m ) {
 				$rest = $m[1];
 				if ( 0 !== strpos( $rest, '//' ) ) {
@@ -397,10 +397,10 @@ final class Builder {
 				}
 			}
 		}
-		$value = $text;
-		if ( preg_match_all( '~(?<![@\w.\-/])((?:[a-z0-9\-]+\.)+(?:' . self::TLDS . '))(?![a-z0-9\-])(/[^\s"\'<>]*)?~i', $value, $all, PREG_SET_ORDER ) ) {
+		// `www.otro…`.
+		if ( preg_match_all( '~(?<![\w.\-@/])www\.[^\s/?#"\'<>]*~i', $text, $all, PREG_SET_ORDER ) ) {
 			foreach ( $all as $m ) {
-				if ( ! $ok( $m[1] ) ) {
+				if ( false !== strpos( $m[0], '@' ) || ! $ok( (string) preg_replace( '/:[0-9]*$/', '', $m[0] ) ) ) {
 					return $m[0];
 				}
 			}

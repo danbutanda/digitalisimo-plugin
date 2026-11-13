@@ -565,8 +565,8 @@ namespace {
 	check( false === strpos( $all, '<b>Dueños' ), 'campo de texto plano: nada del HTML recibido' );
 	check( false !== strpos( $all, '<p><strong>Vende más</strong> <em>hoy</em></p>' ), 'campo con HTML: el formato en línea se conserva (wp_kses_post)' );
 
-	// URLs de otros sitios: rechazadas, también sin https:// y dentro de HTML.
-	foreach ( array( 'https://example.com/x', 'http://otro.test', '//evil.test/a', 'www.otro.com', 'Visita otro.mx/oferta', 'javascript:alert(1)', 'data:text/html;base64,AAAA', 'HTTPS://EVIL.TEST' ) as $bad ) {
+	// URLs de otros sitios: rechazadas, con esquema, `//` o `www.` (un dominio suelto en un texto no es un enlace: R4).
+	foreach ( array( 'https://example.com/x', 'http://otro.test', '//evil.test/a', 'www.otro.com', 'Visita www.otro.mx/oferta', 'javascript:alert(1)', 'data:text/html;base64,AAAA', 'HTTPS://EVIL.TEST' ) as $bad ) {
 		check_error( $build( 'venta-corta', array( 'replacements' => array( '[producto]' => $bad ) ) ), 'digitalisimo_sales_external_url', "URL de otro sitio rechazada: $bad" );
 	}
 	check_error( $build( 'venta-corta', array( 'replacements' => array( '[producto]' => array( 'Bien', 'https://evil.test' ) ) ) ), 'digitalisimo_sales_external_url', 'también dentro de una lista' );
@@ -940,6 +940,22 @@ namespace {
 			$r   = $only ? $build( 'venta-completa', array( 'replacements' => array( $only[0] => 'Solo aqui' ), 'omit_blocks' => array( 'funciona-para-ti' ), 'close_date' => $close ) ) : array();
 			$ign = $only ? $of_name( $r['ignored'], $only[0] ) : array();
 			review( 'R2', 1 === count( $ign ) && false !== strpos( $ign[0]['reason'], 'Sólo aparece en bloques que se quitaron' ) && ! in_array( $only[0], $r['filled_keys'], true ), 'un valor que sólo iba en el bloque quitado se informa: ' . json_encode( $only, JSON_UNESCAPED_UNICODE ) );
+		}
+	);
+
+	// R4 · Sólo cuenta como URL un esquema (`http:`, `https:`, `javascript:`, `data:`…), `//` o `www.`: los textos que el
+	// revisor vio rechazados pasan; los enlaces de otro sitio se siguen rechazando.
+	review_block(
+		'R4',
+		static function () use ( $build ) {
+			foreach ( array( 'Curso de JavaScript: de cero a experto', 'Domina ASP.NET y Socket.io', 'Lo logras hoy.Es tu momento', 'Data: lo que aprendes', 'Visita otro.mx/oferta', 'Node.js, Vue.js y Next.js', 'Escríbenos a hola@sitio.test' ) as $good ) {
+				review( 'R4', '' === Builder::external_url( $good, 'sitio.test' ), "external_url rechazó un texto que no es una dirección: $good" );
+				$r = $build( 'venta-corta', array( 'replacements' => array( '[producto]' => $good ) ) );
+				review( 'R4', is_array( $r ) && in_array( '[producto]', $r['filled_keys'], true ), "create-page rechazó: $good" );
+			}
+			foreach ( array( 'https://otro.mx/oferta', 'http:otro.mx', 'www.otro.mx', '//otro.mx', 'javascript:alert(1)', "java\tscript:alert(1)", 'java&#x09;script:alert(1)', 'data:text/html,x', 'Ve a HTTPS://OTRO.MX', 'ftp://otro.mx/a' ) as $bad ) {
+				review( 'R4', '' !== Builder::external_url( $bad, 'sitio.test' ), "external_url aceptó: $bad" );
+			}
 		}
 	);
 
