@@ -131,6 +131,9 @@ function pro_elements_load_plugin_func() {
 	// WooCommerce visual (F4-Woo): sin WooCommerce, sólo el registro oculto del editor y el filtro de partes de kits.
 	require_once __DIR__ . '/modules/digitalisimo-woo/class-module.php';
 	\Digitalisimo\Elements\Woo\Module::init();
+	// MCP del constructor: el CSS de cada documento que cambia una herramienta queda al día (docs/ELEMENTS_MCP_CSS.md).
+	require_once __DIR__ . '/modules/digitalisimo-mcp/class-module.php';
+	\Digitalisimo\Elements\Mcp\Module::init();
 	// Capacidades de F7b (acciones, consultas, anidados…): base de usos y contadores, y cada submódulo sólo si existe.
 	require_once __DIR__ . '/modules/digitalisimo-f7b/class-module.php';
 	\Digitalisimo\Elements\F7b\Module::init();
