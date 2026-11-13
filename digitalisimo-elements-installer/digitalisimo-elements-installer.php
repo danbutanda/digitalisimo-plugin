@@ -60,6 +60,11 @@ final class Digitalisimo_Elements_Installer {
 	private static $file = '';
 	/** @var string URL de «Reintentar» para el mensaje de error fatal. */
 	private static $retry = '';
+	/**
+	 * @var array|null instalación en curso en esta petición: desde cuándo (para reconocer su ZIP temporal) y si ya se
+	 * liberó el cerrojo. La lee la función de cierre (shutdown()).
+	 */
+	private static $running = null;
 
 	public static function boot( $file ) {
 		self::$file = $file;
@@ -458,21 +463,59 @@ final class Digitalisimo_Elements_Installer {
 		}
 		self::admin_includes();
 		if ( ! WP_Upgrader::create_lock( self::LOCK, 10 * MINUTE_IN_SECONDS ) ) {
-			return self::failure( 'en_curso', 'Ya hay una instalación en curso. Espera unos minutos y pulsa «Reintentar».' );
+			return self::failure( 'en_curso', 'Ya hay una instalación en curso (puede ser la de una petición anterior que sigue en el servidor aunque se cerrara la página). Al terminar, DIGITALÍSIMO Elements aparecerá activo en Plugins; si en unos minutos no aparece, pulsa «Reintentar».' );
 		}
+		// Desde aquí la petición sigue aunque el navegador corte (recarga, doble clic, el proxy del hosting que corta tras
+		// un rato sin recibir nada): si PHP la matara a mitad, el `finally` no correría y el cerrojo quedaría 10 minutos.
+		// La función de cierre libera el cerrojo y borra el ZIP temporal si la petición termina sin pasar por él.
+		ignore_user_abort( true );
+		self::$running = array( 'since' => time(), 'released' => false );
+		register_shutdown_function( array( __CLASS__, 'shutdown' ) );
 		self::$retry = self::start_url( $scope );
 		add_filter( 'wp_php_error_message', array( __CLASS__, 'fatal_message' ), 10, 2 );
 		try {
 			return self::process( $scope );
 		} finally {
 			remove_filter( 'wp_php_error_message', array( __CLASS__, 'fatal_message' ), 10 );
-			WP_Upgrader::release_lock( self::LOCK );
+			self::release();
 		}
+	}
+
+	/** Libera el cerrojo una sola vez y, si la instalación no terminó por su camino, borra el ZIP temporal. */
+	private static function release( $interrupted = false ) {
+		if ( null === self::$running || self::$running['released'] ) {
+			return;
+		}
+		self::$running['released'] = true;
+		if ( $interrupted ) {
+			self::clean_downloads( (int) self::$running['since'] );
+		}
+		WP_Upgrader::release_lock( self::LOCK );
+	}
+
+	/**
+	 * Borra los ZIP temporales de una descarga cortada: download_url() los deja en get_temp_dir() como
+	 * `digitalisimo-elements-<versión>-XXXXXX.tmp`. Sólo los creados desde que empezó esta instalación.
+	 */
+	public static function clean_downloads( $since ) {
+		foreach ( (array) glob( get_temp_dir() . 'digitalisimo-elements-*.tmp' ) as $file ) {
+			if ( is_string( $file ) && is_file( $file ) && (int) filemtime( $file ) >= $since - 1 ) {
+				@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			}
+		}
+	}
+
+	/**
+	 * Función de cierre (registrada al empezar): si la petición terminó sin pasar por el `finally` (el navegador cortó
+	 * y PHP la mató, o un error fatal), libera el cerrojo y borra el ZIP temporal.
+	 */
+	public static function shutdown() {
+		self::release( true );
 	}
 
 	/** Un error fatal (memoria, tiempo) durante la instalación: la causa, la alternativa manual y «Reintentar». */
 	public static function fatal_message( $message, $error = array() ) {
-		WP_Upgrader::release_lock( self::LOCK );
+		self::release( true );
 		$detail = is_array( $error ) && ! empty( $error['message'] ) ? ' (' . esc_html( strtok( (string) $error['message'], "\n" ) ) . ')' : '';
 		return $message . '<p><strong>La instalación de DIGITALÍSIMO Elements se interrumpió por un error de PHP' . $detail . '</strong>; suele ser falta de memoria o de tiempo en el hosting. El instalador sigue en Plugins.</p>' . self::manual_html() . ( '' !== self::$retry ? '<p><a class="button" href="' . esc_url( self::$retry ) . '">Reintentar</a></p>' : '' );
 	}

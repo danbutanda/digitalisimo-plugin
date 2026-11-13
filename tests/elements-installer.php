@@ -80,6 +80,7 @@ function wp_safe_remote_get( $url, $args = array() ) { $GLOBALS['calls'][] = arr
 function wp_remote_retrieve_response_code( $response ) { return $response['code']; }
 function wp_remote_retrieve_body( $response ) { return $response['body']; }
 function wp_safe_redirect( $url ) { $GLOBALS['redirected'] = $url; }
+function get_temp_dir() { return ABSPATH . 'tmp/'; }
 function show_message( $message ) { echo is_wp_error( $message ) ? $message->get_error_message() : $message, "\n"; }
 class WP_Upgrader {
 	public static function create_lock( $name, $timeout = null ) { $GLOBALS['calls'][] = array( 'lock', $name ); return $GLOBALS['lock_free']; }
@@ -108,7 +109,7 @@ function index_body( $url = null, $version = '4.3.0.185' ) {
 	return json_encode( array( 'tag' => 'v2026.11.12.481', 'plugins' => array( 'digitalisimo-seo' => array( 'version' => '1.0.253', 'url' => TAG_URL . 'digitalisimo-seo-1.0.253.zip' ), 'digitalisimo-elements' => array( 'version' => $version, 'url' => $url ?? TAG_URL . 'digitalisimo-elements-' . $version . '.zip' ) ), 'themes' => array() ) );
 }
 function elements_data() { return array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.185', 'UpdateURI' => 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements' ); }
-function reset_state( $overrides = array() ) {
+function reset_state( $overrides = array(), $wipe_temp = true ) {
 	$GLOBALS['self_file'] = SELF_FILE;
 	$GLOBALS['multisite'] = false; $GLOBALS['network_admin'] = false; $GLOBALS['blog'] = 1; $GLOBALS['user'] = 7;
 	$GLOBALS['caps'] = array( 'install_plugins', 'activate_plugins', 'manage_network_plugins' );
@@ -118,18 +119,85 @@ function reset_state( $overrides = array() ) {
 	$GLOBALS['fs_credentials'] = true; $GLOBALS['redirected'] = null;
 	$GLOBALS['index_response'] = array( 'code' => 200, 'body' => index_body() );
 	// Instalación correcta: deja Elements en su carpeta.
-	$GLOBALS['install'] = function ( $skin, $package ) { $GLOBALS['plugins'][ ELEMENTS ] = elements_data(); @mkdir( WP_PLUGIN_DIR . '/digitalisimo-elements', 0777, true ); touch( WP_PLUGIN_DIR . '/' . ELEMENTS ); return true; };
+	$GLOBALS['install'] = $GLOBALS['install_ok'] = function ( $skin, $package ) { $GLOBALS['plugins'][ ELEMENTS ] = elements_data(); @mkdir( WP_PLUGIN_DIR . '/digitalisimo-elements', 0777, true ); touch( WP_PLUGIN_DIR . '/' . ELEMENTS ); return true; };
 	$_REQUEST = array( 'instalar' => '1', '_wpnonce' => 'nonce-digitalisimo-elements-installer' ); $_GET = array();
 	foreach ( $overrides as $key => $value ) $GLOBALS[ $key ] = $value;
 	@unlink( WP_PLUGIN_DIR . '/' . ELEMENTS );
+	@mkdir( get_temp_dir(), 0777, true );
+	if ( $wipe_temp ) array_map( 'unlink', (array) glob( get_temp_dir() . '*.tmp' ) );
 }
 function called( $what ) { return array_values( array_filter( $GLOBALS['calls'], function ( $c ) use ( $what ) { return $c[0] === $what; } ) ); }
 /** Corre handle() en su ámbito y devuelve el resultado (la salida del skin se descarta). */
 function run_handle( $scope = null ) { $scope = $scope ?? Digitalisimo_Elements_Installer::scope(); ob_start(); $result = Digitalisimo_Elements_Installer::handle( $scope ); ob_end_clean(); return $result; }
 
-reset_state();
+reset_state( array(), ! ( isset( $argv[1] ) && '--child' === $argv[1] ) ); // un hijo no borra los ZIP temporales del padre
 require $root . '/digitalisimo-elements-installer/digitalisimo-elements-installer.php';
 $I = 'Digitalisimo_Elements_Installer';
+
+// Proceso hijo (--child <caso>): la petición se corta a mitad de la instalación sin pasar por el `finally`, como cuando
+// PHP la mata porque el navegador cortó o por un error fatal; sólo corren las funciones de cierre. El fatal es el de
+// tiempo agotado: tras agotar la memoria, PHP 7.4 no llama a ninguna función de cierre (ni a la del manejador de
+// WordPress), y PHP 8 sí.
+// Las llamadas registradas (cerrojo incluido) quedan en ABSPATH/hijo-<caso>.json.
+if ( isset( $argv[1] ) && '--child' === $argv[1] ) {
+	reset_state( array(), false );
+	$case = (string) ( $argv[2] ?? '' );
+	$report = function () use ( $case ) { file_put_contents( ABSPATH . 'hijo-' . $case . '.json', json_encode( $GLOBALS['calls'] ) ); };
+	$timeout = function () { set_time_limit( 1 ); for ( $i = 0; ; $i++ ) { $GLOBALS['spin'] = $i; } };
+	if ( 'descarga' === $case ) {
+		// Tiempo agotado a mitad de la descarga, con el ZIP temporal ya creado.
+		$GLOBALS['install'] = function () use ( $report, $timeout ) {
+			file_put_contents( get_temp_dir() . 'digitalisimo-elements-4.3.0.185-abc123.tmp', 'ZIP a medias' );
+			register_shutdown_function( $report );
+			$timeout();
+		};
+	} elseif ( 'aborto' === $case ) {
+		// Servida por `php -S`: la instalación escribe y vacía la salida durante ~3 s mientras el cliente ya cortó.
+		$GLOBALS['install'] = function ( $skin, $package ) use ( $report ) {
+			register_shutdown_function( $report );
+			for ( $i = 0; $i < 20; $i++ ) { echo str_repeat( ' ', 8192 ), "\n"; flush(); usleep( 150000 ); }
+			return ( $GLOBALS['install_ok'] )( $skin, $package );
+		};
+	}
+	ob_implicit_flush( true );
+	Digitalisimo_Elements_Installer::handle( 'site' );
+	$report();
+	exit( 0 );
+}
+/** Corre un caso hijo en otro proceso de PHP y devuelve su salida y sus llamadas. */
+function child( $case ) {
+	@unlink( ABSPATH . 'hijo-' . $case . '.json' );
+	$out = array();
+	exec( escapeshellarg( PHP_BINARY ) . ' -d display_errors=1 ' . escapeshellarg( __FILE__ ) . ' --child ' . escapeshellarg( $case ) . ' 2>&1', $out );
+	return array( implode( "\n", $out ), (array) json_decode( (string) @file_get_contents( ABSPATH . 'hijo-' . $case . '.json' ), true ) );
+}
+/**
+ * El caso «aborto» detrás de `php -S`: el cliente lee un poco y corta, como un navegador que recarga o un proxy que se
+ * cansa. Devuelve las llamadas del hijo (null si no se pudo levantar el servidor).
+ */
+function aborted_child() {
+	$dir = ABSPATH . 'aborto/';
+	@mkdir( $dir, 0777, true );
+	@unlink( ABSPATH . 'hijo-aborto.json' );
+	file_put_contents( $dir . 'index.php', '<?php $argv = array( "x", "--child", "aborto" ); require ' . var_export( __FILE__, true ) . ';' );
+	for ( $try = 0; $try < 5; $try++ ) {
+		$port = random_int( 20000, 60000 );
+		$server = proc_open( array( PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $dir ), array( 1 => array( 'file', ABSPATH . 'aborto.log', 'a' ), 2 => array( 'file', ABSPATH . 'aborto.log', 'a' ) ), $pipes );
+		$socket = false;
+		for ( $wait = 0; $wait < 30 && ! $socket; $wait++ ) { usleep( 100000 ); $socket = @fsockopen( '127.0.0.1', $port, $errno, $errstr, 1 ); }
+		if ( ! $socket ) { proc_terminate( $server ); proc_close( $server ); continue; }
+		fwrite( $socket, "GET /index.php HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" );
+		stream_set_timeout( $socket, 2 );
+		fread( $socket, 4096 );
+		fclose( $socket );
+		for ( $wait = 0; $wait < 150 && ! is_file( ABSPATH . 'hijo-aborto.json' ); $wait++ ) usleep( 100000 );
+		usleep( 300000 );
+		proc_terminate( $server );
+		proc_close( $server );
+		return (array) json_decode( (string) @file_get_contents( ABSPATH . 'hijo-aborto.json' ), true );
+	}
+	return null;
+}
 
 // ── 1. Cabecera: nombre visible, versión propia y los mismos requisitos que Elements ───────────────────────────────
 $source = file_get_contents( $root . '/digitalisimo-elements-installer/digitalisimo-elements-installer.php' );
@@ -217,6 +285,7 @@ check_installer( 'nonce' === ( run_handle()['code'] ?? '' ) && ! called( 'get' )
 reset_state( array( 'lock_free' => false ) );
 $result = run_handle();
 check_installer( 'en_curso' === ( $result['code'] ?? '' ) && ! called( 'get' ) && ! called( 'unlock' ), 'Con otra instalación en curso no se empieza otra.' );
+check_installer( false !== strpos( $result['cause'] ?? '', 'aparecerá activo' ), 'Con otra instalación en curso avisa de que, al terminar, Elements aparecerá activo.' );
 
 // ── 5. Instalación correcta en un WordPress individual: activa en el sitio y se borra ──────────────────────────────
 reset_state();
@@ -302,10 +371,37 @@ $GLOBALS['plugins'][ ELEMENTS ] = elements_data();
 check_installer( is_wp_error( $I::remove_self( false ) ) && ! called( 'delete' ), 'Un instalador dentro de la carpeta de Elements nunca se borra solo.' );
 reset_state( array( 'self_file' => 'digitalisimo-elements-installer.php' ) );
 check_installer( is_wp_error( $I::remove_self( false ) ) && ! called( 'delete' ), 'Un instalador suelto en wp-content/plugins no borra nada.' );
-// Error fatal durante la instalación: el mensaje de WordPress explica, ofrece la alternativa y libera el cerrojo.
+// Error fatal que atiende WordPress a mitad de la instalación: su mensaje explica, ofrece la alternativa, libera el
+// cerrojo y borra el ZIP temporal (WordPress termina con wp_die() y la función de cierre ya no correría).
 reset_state();
-$message = $I::fatal_message( '<p>There has been a critical error.</p>', array( 'message' => "Allowed memory size of 134217728 bytes exhausted\nmore" ) );
-check_installer( false !== strpos( $message, 'Allowed memory size' ) && false !== strpos( $message, 'wp-content/plugins/' ) && 1 === count( called( 'unlock' ) ), 'Un error fatal deja la causa, la alternativa manual y el cerrojo libre.' );
+$GLOBALS['install'] = function () {
+	file_put_contents( get_temp_dir() . 'digitalisimo-elements-4.3.0.185-def456.tmp', 'ZIP a medias' );
+	$GLOBALS['fatal_text'] = Digitalisimo_Elements_Installer::fatal_message( '<p>There has been a critical error.</p>', array( 'message' => "Allowed memory size of 134217728 bytes exhausted\nmore" ) );
+	return null;
+};
+run_handle();
+$message = (string) ( $GLOBALS['fatal_text'] ?? '' );
+check_installer( false !== strpos( $message, 'Allowed memory size' ) && false !== strpos( $message, 'wp-content/plugins/' ) && 1 === count( called( 'unlock' ) ), 'Un error fatal deja la causa, la alternativa manual y el cerrojo libre (una sola vez).' );
+check_installer( ! glob( get_temp_dir() . 'digitalisimo-elements-*.tmp' ), 'Un error fatal borra el ZIP temporal de la descarga.' );
+
+// ── 8b. El navegador corta a mitad: la petición sigue y, si PHP la mata, la función de cierre libera el cerrojo ───
+reset_state();
+ignore_user_abort( false );
+run_handle();
+check_installer( 1 === (int) ignore_user_abort() && 1 === count( called( 'unlock' ) ), 'Al empezar, la instalación sigue aunque el navegador corte (ignore_user_abort) y libera el cerrojo al terminar.' );
+if ( method_exists( $I, 'shutdown' ) ) $I::shutdown();
+check_installer( 1 === count( called( 'unlock' ) ), 'Tras terminar bien, la función de cierre no libera otra vez el cerrojo (podría ser ya el de otra petición).' );
+reset_state();
+file_put_contents( get_temp_dir() . 'digitalisimo-elements-4.3.0.184-viejo1.tmp', 'de antes' );
+touch( get_temp_dir() . 'digitalisimo-elements-4.3.0.184-viejo1.tmp', time() - 3600 );
+list( $text, $calls ) = child( 'descarga' );
+$names = array_map( function ( $c ) { return $c[0]; }, $calls );
+check_installer( false !== strpos( $text, 'Maximum execution time' ) && in_array( 'lock', $names, true ) && in_array( 'install', $names, true ) && in_array( 'unlock', $names, true ), 'Si PHP muere a mitad de la descarga (sin pasar por el finally), la función de cierre libera el cerrojo: ' . substr( $text, -300 ) . ' ' . json_encode( $names ) );
+check_installer( ! is_file( get_temp_dir() . 'digitalisimo-elements-4.3.0.185-abc123.tmp' ) && is_file( get_temp_dir() . 'digitalisimo-elements-4.3.0.184-viejo1.tmp' ), 'Y borra el ZIP temporal de esa descarga, no los anteriores: ' . implode( ', ', array_map( 'basename', (array) glob( get_temp_dir() . '*' ) ) ) );
+reset_state();
+$calls = aborted_child();
+$names = array_map( function ( $c ) { return $c[0]; }, (array) $calls );
+check_installer( null !== $calls && in_array( 'activate', $names, true ) && in_array( 'delete', $names, true ) && 'unlock' === end( $names ), 'Si el navegador corta mientras se instala (php -S, el cliente se va), la instalación termina igual y libera el cerrojo: ' . json_encode( $names ) . ' ' . substr( (string) @file_get_contents( ABSPATH . 'aborto.log' ), -300 ) );
 
 // ── 9. Redirección a su pantalla tras activarlo ─────────────────────────────────────────────────────────────────────
 reset_state();
