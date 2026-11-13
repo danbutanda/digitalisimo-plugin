@@ -59,6 +59,14 @@ function api( $plugins ) {
 }
 $slugs = array( 'digitalisimo-seo' => '1.0.224', 'digitalisimo-ia-tools' => '1.0.54', 'digitalisimo-hosting' => '1.0.25', 'digitalisimo-backups' => '1.0.52', 'digitalisimo-tools' => '1.0.28', 'digitalisimo-elements' => '4.3.0.142', 'digitalisimo-migration' => '1.0.8' );
 $api_versions = array_map( function ( $version ) { return $version . '.9'; }, $slugs );
+// Los dos catálogos ofrecen los siete plugins del índice, también DIGITALÍSIMO Migración (pedido del propietario del
+// 2026-11-13: «no veo el plugin de migración»), con su archivo real en los sitios.
+function catalog_entries( $class, $method ) { $m = new ReflectionMethod( $class, $method ); if ( PHP_VERSION_ID < 80100 ) { $m->setAccessible( true ); } return $m->invoke( null ); }
+$tools_catalog = catalog_entries( 'Digitalisimo\\Tools\\Plugin_Catalog', 'catalog' );
+$seo_catalog = catalog_entries( 'Digitalisimo_Plugin_Catalog', 'plugins' );
+check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $tools_catalog['digitalisimo-migration']['file'] ?? '' ), 'El catálogo de Tools debe ofrecer DIGITALÍSIMO Migración.' );
+check_catalog( 'digitalisimo-migration/digitalisimo-migration.php' === ( $seo_catalog['digitalisimo-migration'][1] ?? '' ), 'El catálogo de SEO debe ofrecer DIGITALÍSIMO Migración.' );
+check_catalog( array_keys( $slugs ) == array_intersect( array_keys( $slugs ), array_keys( $tools_catalog ) ) && 7 === count( $tools_catalog ) && 7 === count( $seo_catalog ), 'Los dos catálogos deben listar los siete plugins del índice.' );
 $catalogs = array(
 	'Digitalisimo_Plugin_Catalog' => array( Digitalisimo_Plugin_Catalog::CACHE_KEY, Digitalisimo_Plugin_Catalog::LAST_KNOWN ),
 	'Digitalisimo\\Tools\\Plugin_Catalog' => array( \Digitalisimo\Tools\Plugin_Catalog::CACHE, \Digitalisimo\Tools\Plugin_Catalog::LAST_KNOWN ),
@@ -89,10 +97,10 @@ foreach ( $catalogs as $class => list( $cache_key, $last_known ) ) {
 	$index = releases( $class );
 	check_catalog( $api_versions['digitalisimo-seo'] === ( $index['digitalisimo-seo']['version'] ?? '' ) && $api_versions['digitalisimo-hosting'] === ( $index['digitalisimo-hosting']['version'] ?? '' ) && '1.0.54' === ( $index['digitalisimo-ia-tools']['version'] ?? '' ) && count( $index ) === count( $slugs ) && 1 === api_calls(), $label . ': las versiones que no son numéricas se rechazan y la API completa sólo esos plugins.' );
 	// 3b. Si todos los plugins del catálogo tienen entrada válida, una entrada sobrante inválida no provoca ninguna consulta a la API.
-	reset_all(); $extra = $slugs; $extra['digitalisimo-migration'] = array( 'version' => '1.0.8', 'url' => 'https://example.com/digitalisimo-migration-1.0.8.zip' );
+	reset_all(); $extra = $slugs; $extra['digitalisimo-ajeno'] = array( 'version' => '1.0.8', 'url' => 'https://example.com/digitalisimo-ajeno-1.0.8.zip' );
 	$responses = array( 'manifest' => manifest( $extra ), 'api' => api( $api_versions ) );
 	$index = releases( $class );
-	check_catalog( ! isset( $index['digitalisimo-migration'] ) && count( $index ) === count( $slugs ) - 1 && 0 === api_calls(), $label . ': una entrada ajena de un plugin fuera del catálogo no obliga a consultar la API.' );
+	check_catalog( ! isset( $index['digitalisimo-ajeno'] ) && count( $index ) === count( $slugs ) && 0 === api_calls(), $label . ': una entrada ajena de un plugin fuera del catálogo no obliga a consultar la API.' );
 	// 4. (b) Si ninguna entrada sirve (todo el índice es ajeno) se cae a la API.
 	reset_all(); $foreign = array();
 	foreach ( $slugs as $slug => $version ) $foreign[ $slug ] = array( 'version' => $version, 'url' => 'https://github.com/otro/repo/releases/download/v1/' . $slug . '-' . $version . '.zip' );

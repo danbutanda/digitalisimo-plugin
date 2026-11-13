@@ -58,6 +58,7 @@ final class Digitalisimo_Plugin_Catalog {
 			'digitalisimo-seo' => array( 'DIGITALÍSIMO SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
 			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas, plantillas de red, WebP y ajustes del sitio.' ),
 			'digitalisimo-elements' => array( 'DIGITALÍSIMO Elements', 'digitalisimo-elements/pro-elements.php', 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
+			'digitalisimo-migration' => array( 'DIGITALÍSIMO Migración', 'digitalisimo-migration/digitalisimo-migration.php', 'Pasa un sitio o una red de Element Pack, Prime Slider y Elementor Pro a DIGITALÍSIMO Elements con un botón; se desinstala al terminar. Para Rank Math o Yoast se usa el importador de DIGITALÍSIMO SEO.' ),
 		);
 	}
 

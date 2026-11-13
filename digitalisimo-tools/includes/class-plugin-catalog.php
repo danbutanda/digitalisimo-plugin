@@ -44,6 +44,7 @@ final class Plugin_Catalog {
 		'digitalisimo-backups' => array( 'name' => 'DIGITALÍSIMO Backups', 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'description' => 'Respaldos de sitio y red.' ),
 		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas, plantillas de red, WebP, ajustes del sitio y código PHP propio.' ),
 		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
+		'digitalisimo-migration' => array( 'name' => 'DIGITALÍSIMO Migración', 'file' => 'digitalisimo-migration/digitalisimo-migration.php', 'description' => 'Pasa un sitio o una red de Element Pack, Prime Slider y Elementor Pro a DIGITALÍSIMO Elements con un botón; se desinstala al terminar. Para Rank Math o Yoast se usa el importador de DIGITALÍSIMO SEO.' ),
 	); }
 	private static function releases() {
 		$cached = get_site_transient( self::CACHE ); if ( false !== $cached ) return (array) $cached;
