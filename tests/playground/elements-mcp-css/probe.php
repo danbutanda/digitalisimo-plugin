@@ -114,6 +114,21 @@ add_action(
 	999
 );
 
+// Revisión (MEDIA 2): los ganchos con los que las cachés de página (LSCache, WP Rocket, Cloudflare…) purgan una entrada.
+foreach ( array( 'save_post', 'edit_post', 'post_updated', 'clean_post_cache' ) as $digi_mc_purge ) {
+	add_action(
+		$digi_mc_purge,
+		static function ( $id ) use ( $digi_mc_purge ) {
+			$log   = get_option( 'digi_mc_hooks', array() );
+			$log   = is_array( $log ) ? $log : array();
+			$log[] = $digi_mc_purge . ':' . (int) $id;
+			update_option( 'digi_mc_hooks', array_slice( $log, -100 ), false );
+		},
+		1,
+		1
+	);
+}
+
 function digi_mc_out( array $data, int $status = 200 ) {
 	status_header( $status );
 	header( 'Content-Type: application/json; charset=utf-8' );
@@ -237,6 +252,40 @@ add_action(
 					)
 				);
 				digi_mc_out( array( 'id' => (int) $id ) );
+				break;
+			// Revisión (MEDIA 3): un proceso largo (como el transporte STDIO de wp mcp-adapter serve): una herramienta que
+			// falla y luego una escritura buena en el mismo proceso. ¿Se refresca la segunda al terminar su herramienta?
+			case 'stuck':
+				wp_set_current_user( $admin->ID );
+				$id    = absint( $arg );
+				$v     = new \Elementor\Modules\AtomicWidgets\Styles\CacheValidity\Cache_Validity();
+				$class = '\\Digitalisimo\\Elements\\Mcp\\Css_Sync';
+				$state = static function () use ( $class ) {
+					return class_exists( $class ) ? $class::state() : null;
+				};
+				$v->validate( array( 'local', $id, 'frontend', 'desktop' ), array( 'should_exist' => true ) );
+				$ab = wp_get_ability( 'elementor/build-composition' );
+				$r1 = $ab->execute( array( 'post_id' => 99999999, 'mode' => 'replace_children', 'xml_structure' => '<e-heading configuration-id="T"></e-heading>', 'element_config' => array( 'T' => array( 'title' => 'x' ) ) ) );
+				$s1 = $state();
+				$r2 = $ab->execute( array( 'post_id' => $id, 'mode' => 'replace_children', 'xml_structure' => '<e-heading configuration-id="T"></e-heading>', 'element_config' => array( 'T' => array( 'title' => 'Proceso largo' ) ), 'style' => array( 'T' => 'color: #abcdef;' ) ) );
+				digi_mc_out(
+					array(
+						'r1_error'                => is_wp_error( $r1 ) ? $r1->get_error_code() : gettype( $r1 ),
+						'r2_ok'                   => ! is_wp_error( $r2 ),
+						'after_r1'                => $s1,
+						'after_r2'                => $state(),
+						'frontend_valid_after_r2' => $v->is_valid( array( 'local', $id, 'frontend', 'desktop' ) ),
+					)
+				);
+				break;
+			case 'htmlcache':
+				$cache = get_post_meta( absint( $arg ), '_elementor_element_cache', true );
+				digi_mc_out( array( 'html_cache' => ! empty( $cache ) ) );
+				break;
+			case 'hooks':
+				$log = get_option( 'digi_mc_hooks', array() );
+				delete_option( 'digi_mc_hooks' );
+				digi_mc_out( array( 'hooks' => is_array( $log ) ? $log : array() ) );
 				break;
 			case 'abilog':
 				digi_mc_out( array( 'log' => get_option( 'digi_mc_abilog', array() ) ) );

@@ -404,6 +404,118 @@ async function main() {
   note(`«\\n}» literal en local-${P}-frontend-desktop.css: ${literal} veces (núcleo, styles-renderer.php; ver el informe)`);
   check('M9.2-nested', /& strong\s*\{[^}]*font-weight:\s*800/.test(localCss), 'la regla anidada «& strong» está en el CSS', localCss.slice(0, 400));
   await chromeCheck(pagePath);
+  await review();
+}
+
+// =====================================================================================================================
+// Escenarios de la revisión adversarial (2026-11-13): lo que un HTML ya entregado (el que guarda una caché de página
+// como LSCache o Cloudflare APO) recibe de las hojas que enlaza, sin volver a pintar la página.
+async function cssFor(page) {
+  let css = [...page.html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  for (const l of page.links) { const r = await request('GET', l.path); css += `\n${r.status === 200 ? r.text : ''}`; }
+  return css;
+}
+const missingIn = (page, css) => page.local.filter((c) => !hasRule(css, c));
+const rdesign = (n) => ({
+  xml_structure: '<e-flexbox configuration-id="Seccion"><e-heading configuration-id="Titulo"></e-heading></e-flexbox>',
+  element_config: { Titulo: { title: `Versión R${n}` } },
+  style: { Seccion: `display: flex; padding: ${10 * n}px; background-color: #f${n}f${n}f${n};`, Titulo: `color: #${n}${n}0000; font-size: ${30 + n}px;` },
+});
+
+async function review() {
+  start('R1 Enlace firmado de una publicada con cambios pendientes (revisión, ALTA 1)');
+  let r = await admin.call('create-page', { title: 'RV publicada' });
+  const P = Number(r.data?.id);
+  await admin.call('update-page-settings', { post_id: P, settings: { template: 'elementor_canvas' } });
+  await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...rdesign(1) });
+  r = await admin.call('publish-document', { post_id: P });
+  check('R1.0', r.data?.status === 'publish', `página ${P} publicada`, r.text);
+  const live = await view(`/?page_id=${P}`);
+  check('R1.1', live.local.length > 0 && missingIn(live, await cssFor(live)).length === 0, `publicada, visitante: ${live.local.length} clases con regla (el HTML que guarda una caché de página)`);
+  const liveVer = localSheet(live, P);
+  await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...rdesign(2) });
+  const st = await probe('state', String(P));
+  check('R1.2', st.autosave > 0, `reconstrucción 2 en el autoguardado ${st.autosave}`, JSON.stringify(st));
+  r = await admin.call('create-preview-link', { post_id: P });
+  const snap = await view(pathOf(r.data?.url || '/'));
+  check('R1.2b', snap.html.includes('Versión R2') && snap.local.length > 0 && missingIn(snap, snap.css).length === 0, 'el enlace firmado muestra la instantánea (los cambios pendientes) con una regla para cada clase', `sin regla: ${missingIn(snap, snap.css).join(', ')}`);
+  const miss = missingIn(live, await cssFor(live));
+  check('R1.3', miss.length === 0, 'tras abrir el enlace, el HTML ya entregado (o cacheado) de la publicada sigue teniendo regla para cada clase en las hojas que enlaza', `sin regla: ${miss.join(', ')}`);
+  const html = await probe('htmlcache', String(P));
+  note(`caché HTML de ${P} tras el enlace: ${JSON.stringify(html)}`);
+  const live2 = await view(`/?page_id=${P}`);
+  check('R1.4', live2.html.includes('Versión R1') && missingIn(live2, await cssFor(live2)).length === 0, 'un render nuevo de la publicada muestra la publicada (no la instantánea) con todas sus reglas', `HTML con R2: ${live2.html.includes('Versión R2')}`);
+  check('R1.5', localSheet(live2, P).ver === liveVer.ver && localSheet(live2, P).file === liveVer.file, `abrir el enlace no cambió la hoja ni el ver de la publicada (${liveVer.file}?ver=${liveVer.ver})`, `${localSheet(live2, P).file}?ver=${localSheet(live2, P).ver}`);
+
+  start('R2 Enlace anterior abierto tras publicar (promoción)');
+  r = await admin.call('create-preview-link', { post_id: P });
+  const linkOld = r.data?.url;
+  await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...rdesign(3) });
+  await admin.call('publish-document', { post_id: P });
+  const pub3 = await view(`/?page_id=${P}`);
+  check('R2.0', pub3.html.includes('Versión R3') && missingIn(pub3, await cssFor(pub3)).length === 0, 'publicada con el diseño 3 (promoción), visitante');
+  await view(pathOf(linkOld));
+  const miss2 = missingIn(pub3, await cssFor(pub3));
+  check('R2.1', miss2.length === 0, 'un enlace anterior (aún vigente) abierto tras publicar no cambia las hojas que usa el HTML de la publicada', `sin regla: ${miss2.join(', ')}`);
+
+  start('R2b Enlace de un borrador abierto después de publicarlo');
+  r = await admin.call('create-page', { title: 'RV borrador' });
+  const B = Number(r.data?.id);
+  await admin.call('update-page-settings', { post_id: B, settings: { template: 'elementor_canvas' } });
+  await admin.call('build-composition', { post_id: B, mode: 'replace_children', ...rdesign(1) });
+  r = await admin.call('create-preview-link', { post_id: B });
+  const linkDraft = r.data?.url;
+  await admin.call('build-composition', { post_id: B, mode: 'replace_children', ...rdesign(2) });
+  await admin.call('publish-document', { post_id: B });
+  const pubB = await view(`/?page_id=${B}`);
+  check('R2b.0', pubB.html.includes('Versión R2') && missingIn(pubB, await cssFor(pubB)).length === 0, `borrador ${B} publicado con el diseño 2, visitante`);
+  const old = await view(pathOf(linkDraft));
+  check('R2b.1', old.status === 200 && old.html.includes('Versión R1') && missingIn(old, old.css).length === 0, 'el enlace del borrador (diseño 1), aún vigente, se abre tras publicar con una regla para cada clase', `HTTP ${old.status}; sin regla: ${missingIn(old, old.css).join(', ')}`);
+  const missB = missingIn(pubB, await cssFor(pubB));
+  check('R2b.2', missB.length === 0, 'tras abrirlo, el HTML ya entregado (o cacheado) de la publicada conserva sus reglas', `sin regla: ${missB.join(', ')}`);
+
+  start('R3 Abrir el mismo enlace varias veces (revisión, BAJA 4)');
+  r = await admin.call('create-preview-link', { post_id: P });
+  const vers = [];
+  for (let i = 0; i < 4; i++) { const p = await view(pathOf(r.data?.url || '/')); vers.push(p.links.filter((l) => /^local-\d+-frontend-desktop\.css$/.test(l.file)).map((l) => l.ver).join('') || '(sin hoja)'); }
+  const after = await view(`/?page_id=${P}`);
+  check('R3.1', new Set(vers).size === 1 && localSheet(after, P).ver === localSheet(pub3, P).ver, `el mismo enlace abierto 4 veces no regenera las hojas de la publicada (ver ${[...new Set(vers)].join(', ')}; publicada ${localSheet(after, P).ver})`, `ver: ${vers.join(' → ')} · publicada ${localSheet(pub3, P).ver} → ${localSheet(after, P).ver}`);
+
+  start('R4 Proceso largo tras una herramienta que falla (revisión, MEDIA 3)');
+  r = await admin.call('create-page', { title: 'RV proceso largo' });
+  const stuck = await probe('stuck', String(Number(r.data?.id)));
+  note(`proceso largo: ${JSON.stringify(stuck)}`);
+  check('R4.1', stuck?.r1_error && stuck?.r2_ok && stuck?.frontend_valid_after_r2 === false && stuck?.after_r2?.depth === 0, 'en un mismo proceso, tras una herramienta que falla, la escritura siguiente invalida la hoja al terminar su herramienta y el ámbito queda cerrado', JSON.stringify(stuck));
+
+  start('R5 Componente usado por otra página');
+  r = await admin.call('manage-component', { action: 'create', title: 'Tarjeta RV', xml_structure: '<e-flexbox configuration-id="Raiz"><e-heading configuration-id="CT"></e-heading></e-flexbox>', element_config: { CT: { title: 'Componente v1' } }, style: { Raiz: 'padding: 11px; background-color: #eeeeee;', CT: 'color: #aa1111;' } });
+  const C = Number(r.data?.component_id || r.data?.id);
+  if (check('R5.0', C > 0, `manage-component create: ${C}`, r.text)) {
+    r = await admin.call('create-page', { title: 'RV usa componente' });
+    const Z = Number(r.data?.id);
+    await admin.call('build-composition', { post_id: Z, mode: 'replace_children', xml_structure: '<e-flexbox configuration-id="S"><e-component configuration-id="K"></e-component></e-flexbox>', element_config: { K: { component_id: C } }, style: { S: 'padding: 3px;' } });
+    await admin.call('publish-document', { post_id: Z });
+    const z1 = await view(`/?page_id=${Z}`);
+    check('R5.1', z1.html.includes('Componente v1') && missingIn(z1, await cssFor(z1)).length === 0, `página ${Z} publicada con el componente: ${z1.local.length} clases con regla`);
+    r = await admin.call('manage-component', { action: 'update', component_id: C, xml_structure: '<e-flexbox configuration-id="Raiz"><e-heading configuration-id="CT"></e-heading></e-flexbox>', element_config: { CT: { title: 'Componente v2' } }, style: { Raiz: 'padding: 22px; background-color: #dddddd;', CT: 'color: #11aa11;' } });
+    const z2 = await view(`/?page_id=${Z}`);
+    check('R5.2', z2.html.includes('Componente v2') && missingIn(z2, await cssFor(z2)).length === 0, 'la página que usa el componente muestra su versión nueva con una regla para cada clase', `HTML con v1: ${z2.html.includes('Componente v1')}`);
+  }
+
+  start('R6 La promoción de publish-document avisa a la caché de página (revisión, MEDIA 2)');
+  r = await admin.call('create-page', { title: 'RV promocion' });
+  const Q = Number(r.data?.id);
+  await admin.call('build-composition', { post_id: Q, mode: 'replace_children', ...rdesign(1) });
+  await admin.call('publish-document', { post_id: Q });
+  await view(`/?page_id=${Q}`);
+  await admin.call('build-composition', { post_id: Q, mode: 'replace_children', ...rdesign(2) });
+  await probe('hooks');
+  r = await admin.call('publish-document', { post_id: Q });
+  const hooks = (await probe('hooks')).hooks || [];
+  note(`ganchos durante publish-document (promoción de ${Q}): ${hooks.join(', ') || '(ninguno)'}`);
+  check('R6.1', ['save_post', 'edit_post', 'post_updated', 'clean_post_cache'].every((h) => hooks.includes(`${h}:${Q}`)), `la promoción dispara save_post, edit_post, post_updated y clean_post_cache de ${Q} (lo que escuchan las cachés de página)`, hooks.join(', '));
+  const q2 = await view(`/?page_id=${Q}`);
+  check('R6.2', q2.html.includes('Versión R2') && missingIn(q2, await cssFor(q2)).length === 0, 'la publicada muestra la promoción con todas sus reglas');
 }
 
 // Con Chrome (si hay puppeteer-core): estilos calculados del título y del <strong> anidado en la página publicada.
