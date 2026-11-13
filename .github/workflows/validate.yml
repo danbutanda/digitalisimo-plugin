@@ -504,10 +504,11 @@ jobs:
           mkdir -p dist
           find dist -maxdepth 1 -type f -name '*.zip' -delete
           bash scripts/build-packages.sh dist
+          bash scripts/build-packages.sh dist digitalisimo-elements-installer
       - name: Validar suite y paquetes
         run: |
           DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
-          DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs
+          DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs --installer
 
       - name: Guardar ZIP SEO para pruebas y reversión
         uses: actions/upload-artifact@v4

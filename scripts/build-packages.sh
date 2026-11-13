@@ -46,6 +46,39 @@ check_theme_package() {
   echo 'THEME PACKAGE CHECK: PASS' >&2
 }
 
+# Instalador de DIGITALÍSIMO Elements: un ZIP sin versión en el nombre (digitalisimo-elements-installer.zip), para el
+# enlace permanente releases/latest/download/… de cada Release. No es uno de los siete plugins: no entra en la lista
+# por defecto (sólo con su slug), ni en el índice ni en verify-release como paquete versionado. Su guarda exige la
+# carpeta y el archivo principal, nada fuera de la carpeta, menos de 1 MiB y ningún dominio de un producto de origen
+# (tests/playground/brand-audit/vendors.json); si algo falla, borra el ZIP.
+build_installer() {
+  local folder='digitalisimo-elements-installer'
+  local main_file='digitalisimo-elements-installer.php'
+  local archive="$output_dir/$folder.zip"
+  local problems='' entries size vendor_re hits
+  rm -f "$archive"
+  ( cd "$root_dir" && zip -rq "$archive" "$folder" -x '*/.DS_Store' )
+  unzip -t "$archive" >/dev/null
+  entries="$(unzip -Z1 "$archive")"
+  grep -qxF "$folder/$main_file" <<<"$entries" || problems+="falta $folder/$main_file"$'\n'
+  hits="$(grep -vE "^$folder/" <<<"$entries" || true)"
+  [[ -z "$hits" ]] || problems+="fuera de $folder/: ${hits//$'\n'/, }"$'\n'
+  size="$(wc -c <"$archive" | tr -d '[:space:]')"
+  (( size < 1048576 )) || problems+="pesa $size bytes: debe quedar por debajo de 1 MiB"$'\n'
+  vendor_re="$(python3 -c 'import json,sys; v=json.load(open(sys.argv[1], encoding="utf-8")); print("|".join(h.replace(".", "\\.") for h in v["hosts"] + v.get("future", [])))' "$root_dir/tests/playground/brand-audit/vendors.json")"
+  test -n "$vendor_re"
+  hits="$(unzip -p "$archive" | LC_ALL=C grep -aoiE "(^|[^a-z0-9-])([a-z0-9-]+\.)*($vendor_re)([^a-z0-9-]|$)" | head -5 || true)"
+  [[ -z "$hits" ]] || problems+="dominio de un producto de origen: ${hits//$'\n'/, }"$'\n'
+  if [[ -n "$problems" ]]; then
+    echo "BUILD ABORTED: $archive no cumple la guarda del instalador" >&2
+    printf '%s' "$problems" >&2
+    rm -f "$archive"
+    return 1
+  fi
+  echo "INSTALLER PACKAGE CHECK: PASS ($size bytes)" >&2
+  echo "$archive"
+}
+
 # build_package <carpeta del repositorio> <archivo principal> <prefijo del ZIP> [carpeta dentro del ZIP]
 # La carpeta dentro del ZIP es la que reciben los sitios (wp-content/plugins/<carpeta>/<archivo principal>) y no puede
 # cambiar sin desactivar el plugin instalado; la del repositorio puede llamarse distinto (IA Tools vive en
@@ -135,6 +168,7 @@ for package in "${packages[@]}"; do
     digitalisimo-elements) build_package digitalisimo-elements pro-elements.php "$package" ;;
     digitalisimo-migration) build_package digitalisimo-migration digitalisimo-migration.php "$package" ;;
     digitalisimo-theme) build_package digitalisimo-theme style.css "$package" ;;
+    digitalisimo-elements-installer) build_installer ;;
     *) echo "Módulo desconocido: $package" >&2; exit 1 ;;
   esac
 done
