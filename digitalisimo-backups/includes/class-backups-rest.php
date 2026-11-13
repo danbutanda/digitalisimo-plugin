@@ -19,6 +19,8 @@ defined( 'ABSPATH' ) || exit;
  * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
  * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`,
  *                                           `keep_access`): la respuesta lleva `follow`, la ficha de lectura del trabajo
+ *                                           Restaurar por partes (verify y restore): `parts`, `plugins`, `themes` y
+ *                                           `sites`; verify dice qué trae el respaldo y qué se reemplazaría (`parts`)
  * - GET  /automations                       automatizaciones y su próxima ejecución
  * - POST /automations/<id>/run              encola la automatización ahora (`network`): 202 con el trabajo
  * - GET  /jobs                              trabajos sin terminar y los últimos terminados
@@ -108,7 +110,14 @@ final class Digitalisimo_Backups_Rest {
 			$route( 'POST', 'create', array( 'destination' => array( 'type' => 'string', 'default' => '', 'description' => 'Destino conectado: local, el tipo de una conexión principal (sftp, ftp, webdav, google, onedrive, dropbox, s3, s3compat, pcloud) o el identificador de una conexión adicional (como sftp-0a1b2c3d); ver GET /destinations. Vacío usa el de los ajustes.' ), 'remote_only' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo en el remoto: borra el ZIP local cuando la copia remota está verificada (restaurar exigirá POST /backups/<archivo>/fetch). Sin destino remoto no aplica.' ), 'network' => $network ) ),
 		) );
 		$addresses = array( 'type' => 'string', 'default' => 'current', 'enum' => array( 'current', 'backup' ), 'description' => 'Si el respaldo viene de otra dirección: current conserva las de este sitio (por defecto) y backup las del respaldo. Las rutas del servidor y el prefijo de tablas siguen siempre a este sitio.' );
-		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) ) ) );
+		// Restaurar por partes: sin `parts` ni concretos, todo (como siempre). Lista o texto separado por comas.
+		$parts = array(
+			'parts' => array( 'default' => null, 'description' => 'Restaurar por partes: database, core, plugins, themes, uploads, mu-plugins y content (resto de wp-content), en lista o separadas por comas; sin ellas (o con all), todo. Los respaldos son siempre completos: se elige qué vuelve.' ),
+			'plugins' => array( 'default' => null, 'description' => 'Plugins concretos del respaldo (nombre de su carpeta, o del archivo en un plugin de un solo archivo); sólo esos se reemplazan. Ver `parts.available` de verify.' ),
+			'themes' => array( 'default' => null, 'description' => 'Temas concretos del respaldo (nombre de su carpeta); sólo esos se reemplazan.' ),
+			'sites' => array( 'default' => null, 'description' => 'En una red: los medios de estos sitios (su número; 1 es el principal).' ),
+		);
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) + $parts ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
 			$route( 'POST', 'restore', array(
 				'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'RESTAURAR, o RESTAURAR SIN FIRMA para un archivo sin firma válida ni registro: la restauración reemplaza la base de datos y los archivos.' ),
@@ -117,7 +126,7 @@ final class Digitalisimo_Backups_Rest {
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
 				'addresses' => $addresses,
 				'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), quien restaura conserva su usuario, su contraseña y sus contraseñas de aplicación. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio, con o sin esta opción.' ),
-			) ),
+			) + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/destinations', array( $route( 'GET', 'destinations' ) ) );
@@ -243,16 +252,22 @@ final class Digitalisimo_Backups_Rest {
 	public static function verify( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret, 'addresses' => (string) $request['addresses'] ) ) );
+		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret, 'addresses' => (string) $request['addresses'] ) + self::parts( $request ) ) );
 	}
 	public static function restore( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
 		// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y responde 202 si sigue
 		// (con el trabajo y el testigo del mantenimiento); POST /jobs/tick, la pantalla o WP-Cron la terminan.
-		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) );
+		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
+	}
+	/** Restaurar por partes: `parts`, `plugins`, `themes` y `sites` tal como llegan (los valida el caso de uso). */
+	private static function parts( $request ) {
+		$out = array();
+		foreach ( array( 'parts', 'plugins', 'themes', 'sites' ) as $key ) if ( null !== $request[ $key ] ) $out[ $key ] = $request[ $key ];
+		return $out;
 	}
 	public static function automations( $request ) {
 		return self::respond( Digitalisimo_Backups::service_automations() );

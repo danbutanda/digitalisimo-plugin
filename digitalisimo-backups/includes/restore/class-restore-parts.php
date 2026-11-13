@@ -1,0 +1,405 @@
+<?php
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Restaurar por partes (decisión del propietario del 2026-11-13: «para restaurar únicamente lo que se necesita en un caso
+ * dado»). Los respaldos siguen siendo siempre completos; lo que se elige es qué parte de un respaldo completo vuelve al
+ * sitio: la base de datos, el núcleo de WordPress (todo lo que está fuera de wp-content), y en wp-content los plugins, los
+ * temas, los medios, los mu-plugins y el resto (idiomas, drop-ins, otras carpetas); dentro de plugins y temas, plugins o
+ * temas concretos, y en una red, los medios de un sitio concreto.
+ *
+ * Esta clase sólo decide (qué es cada ruta, qué se eligió, qué se avisa): la restauración por pasos
+ * (Digitalisimo_Backups_Restore_Engine) es la misma que la completa, con la misma verificación del paquete, la copia
+ * previa completa, el mantenimiento, la reanudación y la vuelta a la copia previa; lo que no se eligió no entra en el
+ * recorrido, la comparación, la preparación ni el cambio. La selección viaja en la especificación del trabajo (`parts`):
+ * null es «todo», como siempre.
+ *
+ * Selección normalizada: array( 'parts' => partes enteras (en el orden de PARTS), 'plugins' => carpetas o archivos de
+ * plugins concretos, 'themes' => carpetas de temas concretos, 'sites' => sitios de la red cuyos medios se restauran ).
+ * Un plugin concreto no se lista si se eligieron los plugins enteros (lo mismo con temas y medios).
+ */
+final class Digitalisimo_Backups_Restore_Parts {
+	/** Partes de un respaldo completo, con su nombre en la pantalla, REST, WP-CLI, el informe y el correo. */
+	const PARTS = array(
+		'database' => 'base de datos',
+		'core' => 'núcleo de WordPress',
+		'plugins' => 'plugins',
+		'themes' => 'temas',
+		'uploads' => 'medios',
+		'mu-plugins' => 'mu-plugins',
+		'content' => 'resto de wp-content',
+	);
+	/** Qué reemplaza cada parte (la confirmación lo dice antes de restaurar). */
+	const REPLACES = array(
+		'database' => 'todas las tablas de este WordPress, con las mismas reglas que la restauración completa',
+		'core' => 'wp-admin, wp-includes y lo demás fuera de wp-content (nunca wp-config.php)',
+		'plugins' => 'la carpeta de plugins entera: se retiran los que el respaldo no tiene',
+		'themes' => 'la carpeta de temas entera: se retiran los que el respaldo no tiene',
+		'uploads' => 'los archivos de medios del respaldo',
+		'mu-plugins' => 'la carpeta de mu-plugins entera',
+		'content' => 'idiomas, drop-ins y otras carpetas de wp-content',
+	);
+	/** Otros nombres que aceptan REST y WP-CLI. */
+	const ALIASES = array( 'db' => 'database', 'base' => 'database', 'nucleo' => 'core', 'wordpress' => 'core', 'media' => 'uploads', 'medios' => 'uploads', 'mu' => 'mu-plugins', 'muplugins' => 'mu-plugins', 'resto' => 'content', 'wp-content' => 'content', 'temas' => 'themes' );
+	/** Máximo de plugins, temas o sitios concretos en una selección. */
+	const MAX_ITEMS = 200;
+	/**
+	 * Avisos de coherencia (nunca bloquean): se muestran si está elegida alguna de `any`, ninguna de `none` y falta alguna
+	 * de `missing`. Claves: las partes y `plugin-items`, `theme-items`, `site-items` (concretos). La pantalla pinta estas
+	 * mismas reglas y su script las evalúa con las casillas marcadas; REST, WP-CLI y el informe usan coherence().
+	 */
+	const RULES = array(
+		'plugins_without_database' => array( 'any' => array( 'plugins', 'plugin-items', 'mu-plugins' ), 'none' => array( 'database' ), 'text' => 'Plugins sin la base de datos: si un plugin del respaldo es de otra versión, sus tablas y ajustes siguen siendo los de ahora y pueden no coincidir. Conviene elegir también la base de datos.' ),
+		'themes_without_database' => array( 'any' => array( 'themes', 'theme-items' ), 'none' => array( 'database' ), 'text' => 'Temas sin la base de datos: sus ajustes, menús y widgets siguen siendo los de ahora; si el tema cambió de versión, pueden no coincidir.' ),
+		'core_without_database' => array( 'any' => array( 'core' ), 'none' => array( 'database' ), 'text' => 'Núcleo sin la base de datos: si el WordPress del respaldo es más antiguo que el de ahora, la base de datos puede ser demasiado nueva para él.' ),
+		'uploads_without_database' => array( 'any' => array( 'uploads', 'site-items' ), 'none' => array( 'database' ), 'text' => 'Medios sin la base de datos: vuelven los archivos del respaldo y se conservan los subidos después (la biblioteca de ahora los usa).' ),
+		'database_without_plugins' => array( 'any' => array( 'database' ), 'missing' => array( 'plugins', 'mu-plugins' ), 'text' => 'Base de datos sin todos los plugins: vuelven los plugins activos y sus ajustes del respaldo con el código de ahora; uno instalado o actualizado después puede quedar desactivado o con datos de otra versión. Conviene elegir también los plugins.' ),
+		'database_without_themes' => array( 'any' => array( 'database' ), 'missing' => array( 'themes' ), 'text' => 'Base de datos sin los temas: si el tema activo del respaldo ya no está o es de otra versión, el sitio puede verse distinto. Conviene elegir también los temas.' ),
+		'database_without_core' => array( 'any' => array( 'database' ), 'missing' => array( 'core' ), 'text' => 'Base de datos sin el núcleo: si WordPress cambió de versión después del respaldo, puede pedir «Actualizar la base de datos» o no reconocerla.' ),
+		'database_without_uploads' => array( 'any' => array( 'database' ), 'missing' => array( 'uploads' ), 'text' => 'Base de datos sin los medios: la biblioteca vuelve al respaldo con los archivos de ahora; un medio borrado después aparecerá sin archivo. Conviene elegir también los medios.' ),
+		'content_without_plugins' => array( 'any' => array( 'content' ), 'missing' => array( 'plugins' ), 'text' => 'El resto de wp-content trae los drop-ins del respaldo (object-cache.php, advanced-cache.php, db.php): sin sus plugins pueden no coincidir.' ),
+	);
+
+	/* ------------------------------------------------------------------------------------------- Selección */
+
+	/**
+	 * La selección pedida, normalizada, o null si es «todo» (también sin `parts` ni concretos: la restauración de siempre).
+	 * $input: `parts` (lista o texto separado por comas; `all` o `todo` es todo), `plugins`, `themes` y `sites` (listas o
+	 * texto separado por comas). Lanza InvalidArgumentException con un mensaje para quien restaura.
+	 */
+	public static function normalize( array $input ) {
+		$raw = $input['parts'] ?? null;
+		$items = array(
+			'plugins' => self::items( $input['plugins'] ?? array(), 'plugins' ),
+			'themes' => self::items( $input['themes'] ?? array(), 'themes' ),
+			'sites' => self::sites( $input['sites'] ?? array() ),
+		);
+		if ( ! self::words( $raw ) && ! $items['plugins'] && ! $items['themes'] && ! $items['sites'] ) {
+			// Sin `parts` (o vacío) ni concretos: todo, la restauración de siempre. Una lista vacía explícita (la pantalla con
+			// «Todo» y cada parte desmarcados) no restaura nada: se dice.
+			if ( is_array( $raw ) ) throw new InvalidArgumentException( 'Elige al menos una parte del respaldo para restaurar (o «Todo»).' );
+			return null;
+		}
+		$parts = array();
+		foreach ( self::words( $raw ) as $word ) {
+			$key = strtolower( trim( $word ) );
+			if ( in_array( $key, array( 'all', 'todo', 'everything', 'full' ), true ) ) return null;
+			$key = self::ALIASES[ $key ] ?? $key;
+			if ( ! isset( self::PARTS[ $key ] ) ) throw new InvalidArgumentException( 'Parte desconocida: «' . self::shorten( $word ) . '». Las partes son: ' . implode( ', ', array_keys( self::PARTS ) ) . '.' );
+			$parts[ $key ] = true;
+		}
+		$ordered = array_values( array_intersect( array_keys( self::PARTS ), array_keys( $parts ) ) );
+		if ( count( $ordered ) === count( self::PARTS ) ) return null;
+		if ( in_array( 'plugins', $ordered, true ) ) $items['plugins'] = array();
+		if ( in_array( 'themes', $ordered, true ) ) $items['themes'] = array();
+		if ( in_array( 'uploads', $ordered, true ) ) $items['sites'] = array();
+		if ( $items['sites'] && ! ( function_exists( 'is_multisite' ) && is_multisite() ) ) throw new InvalidArgumentException( 'Los medios de un sitio concreto sólo se eligen en una red.' );
+		if ( $items['sites'] && function_exists( 'get_site_option' ) && get_site_option( 'ms_files_rewriting' ) ) throw new InvalidArgumentException( 'Esta red guarda los medios con el sistema antiguo (blogs.dir): elige «medios» entero, no los de un sitio.' );
+		if ( ! $ordered && ! $items['plugins'] && ! $items['themes'] && ! $items['sites'] ) throw new InvalidArgumentException( 'Elige al menos una parte del respaldo para restaurar (o «Todo»).' );
+		return array( 'parts' => $ordered, 'plugins' => $items['plugins'], 'themes' => $items['themes'], 'sites' => $items['sites'] );
+	}
+	/** La selección guardada en la especificación de un trabajo (null: todo). Se vuelve a validar: nunca se confía en su forma. */
+	public static function from_spec( array $spec ) {
+		$saved = $spec['parts'] ?? null;
+		if ( ! is_array( $saved ) ) return null;
+		try {
+			return self::normalize( array( 'parts' => (array) ( $saved['parts'] ?? array() ), 'plugins' => (array) ( $saved['plugins'] ?? array() ), 'themes' => (array) ( $saved['themes'] ?? array() ), 'sites' => (array) ( $saved['sites'] ?? array() ) ) );
+		} catch ( InvalidArgumentException $e ) {
+			throw new Digitalisimo_Backups_Permanent_Error( 'La selección de partes del trabajo no es válida: ' . $e->getMessage() );
+		}
+	}
+	/** La selección incluye la base de datos (todo, o la parte elegida). */
+	public static function has_database( $selection ) { return null === $selection || in_array( 'database', (array) $selection['parts'], true ); }
+	/** La selección incluye la parte entera $part. */
+	public static function has( $selection, $part ) { return null === $selection || in_array( $part, (array) $selection['parts'], true ); }
+	/** Alguna parte de archivos (entera o concreta). */
+	public static function has_files( $selection ) {
+		if ( null === $selection ) return true;
+		return (bool) array_diff( (array) $selection['parts'], array( 'database' ) ) || $selection['plugins'] || $selection['themes'] || $selection['sites'];
+	}
+	private static function words( $value ) {
+		if ( null === $value || '' === $value ) return array();
+		$list = is_array( $value ) ? $value : explode( ',', (string) $value );
+		$out = array();
+		foreach ( $list as $word ) {
+			if ( ! is_scalar( $word ) ) throw new InvalidArgumentException( 'La lista de partes no es válida.' );
+			$word = trim( (string) $word );
+			if ( '' !== $word ) $out[] = $word;
+		}
+		return $out;
+	}
+	/** Plugins o temas concretos: nombres de carpeta (o de archivo, un plugin de un solo archivo), sin rutas. */
+	private static function items( $value, $kind ) {
+		$out = array();
+		foreach ( self::words( $value ) as $name ) {
+			if ( strlen( $name ) > 190 || '.' === $name[0] || false !== strpbrk( $name, "/\\\0" ) || preg_match( '/[\x00-\x1f\x7f]/', $name ) ) throw new InvalidArgumentException( ( 'plugins' === $kind ? 'Plugin' : 'Tema' ) . ' no válido: «' . self::shorten( $name ) . '». Usa el nombre de su carpeta, sin rutas.' );
+			$out[ $name ] = true;
+		}
+		if ( count( $out ) > self::MAX_ITEMS ) throw new InvalidArgumentException( 'Demasiados ' . ( 'plugins' === $kind ? 'plugins' : 'temas' ) . ' concretos (como mucho ' . self::MAX_ITEMS . '): elige la parte entera.' );
+		$out = array_keys( $out );
+		sort( $out, SORT_STRING );
+		return array_map( 'strval', $out );
+	}
+	private static function sites( $value ) {
+		$out = array();
+		foreach ( self::words( $value ) as $id ) {
+			if ( ! preg_match( '/^[1-9][0-9]{0,9}$/D', $id ) ) throw new InvalidArgumentException( 'Sitio de la red no válido: «' . self::shorten( $id ) . '» (el número del sitio).' );
+			$out[ (int) $id ] = true;
+		}
+		if ( count( $out ) > self::MAX_ITEMS ) throw new InvalidArgumentException( 'Demasiados sitios concretos (como mucho ' . self::MAX_ITEMS . '): elige los medios enteros.' );
+		$out = array_keys( $out );
+		sort( $out );
+		return $out;
+	}
+	private static function shorten( $text ) {
+		$text = preg_replace( '/[\x00-\x1f\x7f]/', '?', (string) $text );
+		return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 60, 'UTF-8' ) : substr( $text, 0, 60 );
+	}
+
+	/* ------------------------------------------------------------------------------------------- Rutas */
+
+	/**
+	 * Parte de una ruta relativa a la raíz de WordPress, con las raíces de esta instalación (`restore_layout()`):
+	 * array( parte, concreto ). El concreto es la carpeta (o el archivo) de un plugin o tema, el sitio de la red de un
+	 * medio (1 fuera de `sites/`) o null. La raíz más larga gana (los medios dentro de wp-content son medios).
+	 */
+	public static function classify( $relative, array $layout ) {
+		$relative = (string) $relative;
+		$best = null;
+		$length = -1;
+		foreach ( array( 'plugins' => 'plugins', 'themes' => 'themes', 'mu-plugins' => 'mu', 'uploads' => 'uploads' ) as $part => $key ) {
+			$base = (string) ( $layout[ $key ] ?? '' );
+			if ( '' === $base || strlen( $base ) <= $length || 0 !== strpos( $relative, $base . '/' ) ) continue;
+			$best = array( $part, $base );
+			$length = strlen( $base );
+		}
+		if ( null !== $best ) {
+			list( $part, $base ) = $best;
+			$rest = substr( $relative, strlen( $base ) + 1 );
+			if ( 'plugins' === $part || 'themes' === $part ) {
+				$slash = strpos( $rest, '/' );
+				return array( $part, false === $slash ? $rest : substr( $rest, 0, $slash ) );
+			}
+			if ( 'uploads' === $part ) return array( $part, preg_match( '#^sites/([1-9][0-9]*)/#', $rest, $m ) ? (int) $m[1] : 1 );
+			return array( $part, null );
+		}
+		$content = (string) ( $layout['content'] ?? '' );
+		if ( '' !== $content && 0 === strpos( $relative, $content . '/' ) ) return array( 'content', null );
+		return array( 'core', null );
+	}
+	/** La ruta (archivo del respaldo o del sitio) entra en la selección. */
+	public static function selected( $selection, $relative, array $layout ) {
+		if ( null === $selection ) return true;
+		list( $part, $item ) = self::classify( $relative, $layout );
+		if ( in_array( $part, (array) $selection['parts'], true ) ) return true;
+		if ( 'plugins' === $part ) return in_array( (string) $item, (array) $selection['plugins'], true );
+		if ( 'themes' === $part ) return in_array( (string) $item, (array) $selection['themes'], true );
+		if ( 'uploads' === $part ) return in_array( (int) $item, (array) $selection['sites'], true );
+		return false;
+	}
+	/**
+	 * Un archivo del sitio que el respaldo no tiene, dentro de lo que gestiona (H3), se retira: sólo si está en la
+	 * selección y, en los medios sin la base de datos, sólo si PHP puede ejecutarlo. Los medios subidos después del
+	 * respaldo son de la biblioteca de ahora (que no vuelve): se conservan; un `.php` en los medios nunca es un medio.
+	 */
+	public static function removable( $selection, $relative, array $layout ) {
+		if ( null === $selection ) return true;
+		if ( ! self::selected( $selection, $relative, $layout ) ) return false;
+		if ( self::has_database( $selection ) ) return true;
+		list( $part ) = self::classify( $relative, $layout );
+		return 'uploads' !== $part || (bool) preg_match( '/\.(?:php[0-9]?|phtml|pht|phar|phps)$/i', (string) $relative );
+	}
+	/**
+	 * El recorrido del sitio entra en esta carpeta: lleva a lo elegido o está dentro (las demás, por ejemplo los medios
+	 * de un sitio enorme al restaurar un plugin, ni se recorren).
+	 */
+	public static function relevant_dir( $selection, $dir, array $layout ) {
+		if ( null === $selection || '' === (string) $dir ) return true;
+		$dir = (string) $dir;
+		foreach ( self::roots( $selection, $layout ) as $root ) {
+			list( $path, $without_sites ) = $root;
+			if ( '' === $path ) continue;
+			if ( $dir === $path || 0 === strpos( $path . '/', $dir . '/' ) ) return true;
+			if ( 0 !== strpos( $dir . '/', $path . '/' ) ) continue;
+			if ( $without_sites && ( $dir === $path . '/sites' || 0 === strpos( $dir, $path . '/sites/' ) ) ) continue;
+			return true;
+		}
+		return false;
+	}
+	/** Carpetas (o archivos) elegidos relativos a la raíz: array( ruta, sin `sites/` ). */
+	private static function roots( array $selection, array $layout ) {
+		$roots = array();
+		foreach ( (array) $selection['parts'] as $part ) {
+			if ( 'core' === $part ) { $roots[] = array( 'wp-admin', false ); $roots[] = array( 'wp-includes', false ); }
+			elseif ( 'plugins' === $part ) $roots[] = array( (string) $layout['plugins'], false );
+			elseif ( 'themes' === $part ) $roots[] = array( (string) $layout['themes'], false );
+			elseif ( 'mu-plugins' === $part ) $roots[] = array( (string) $layout['mu'], false );
+			elseif ( 'uploads' === $part ) $roots[] = array( (string) $layout['uploads'], false );
+			elseif ( 'content' === $part ) $roots[] = array( (string) $layout['content'], false );
+		}
+		foreach ( (array) $selection['plugins'] as $item ) if ( '' !== (string) $layout['plugins'] ) $roots[] = array( $layout['plugins'] . '/' . $item, false );
+		foreach ( (array) $selection['themes'] as $item ) if ( '' !== (string) $layout['themes'] ) $roots[] = array( $layout['themes'] . '/' . $item, false );
+		foreach ( (array) $selection['sites'] as $site ) if ( '' !== (string) $layout['uploads'] ) $roots[] = 1 === (int) $site ? array( (string) $layout['uploads'], true ) : array( $layout['uploads'] . '/sites/' . (int) $site, false );
+		return $roots;
+	}
+
+	/* ------------------------------------------------------------------------------------------- Inventario */
+
+	/**
+	 * Lo que trae un ZIP de respaldo (por los nombres de sus entradas, sin leerlas): qué partes, qué plugins y temas (su
+	 * carpeta o su archivo, sin los `index.php` de relleno) y, en una red, los sitios con medios.
+	 */
+	public static function inventory( $zip, array $layout ) {
+		$out = array( 'parts' => array(), 'plugins' => array(), 'themes' => array(), 'sites' => array() );
+		if ( ! $zip instanceof ZipArchive ) return $out;
+		if ( false !== $zip->locateName( 'database.sql' ) ) $out['parts']['database'] = true;
+		for ( $i = 0, $count = (int) $zip->numFiles; $i < $count; $i++ ) {
+			$name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) );
+			if ( 0 !== strpos( $name, 'wordpress/' ) || '/' === substr( $name, -1 ) ) continue;
+			$relative = substr( $name, 10 );
+			if ( '' === $relative || 'wp-config.php' === $relative ) continue;
+			list( $part, $item ) = self::classify( $relative, $layout );
+			$out['parts'][ $part ] = true;
+			if ( ( 'plugins' === $part || 'themes' === $part ) && '' !== (string) $item && 'index.php' !== $item && ( 'plugins' === $part || false !== strpos( substr( $relative, strlen( $layout['themes'] ) + 1 ), '/' ) ) ) $out[ $part ][ (string) $item ] = true;
+			if ( 'uploads' === $part ) $out['sites'][ (int) $item ] = true;
+		}
+		foreach ( array( 'plugins', 'themes', 'sites' ) as $key ) {
+			$out[ $key ] = array_keys( $out[ $key ] );
+			sort( $out[ $key ] );
+		}
+		$out['parts'] = array_values( array_intersect( array_keys( self::PARTS ), array_keys( $out['parts'] ) ) );
+		return $out;
+	}
+	/** Lo elegido que el respaldo no trae (un plugin, un tema o los medios de un sitio que no tiene): frases. */
+	public static function missing( $selection, array $inventory ) {
+		if ( null === $selection ) return array();
+		$out = array();
+		foreach ( (array) $selection['plugins'] as $item ) if ( ! in_array( $item, $inventory['plugins'], true ) ) $out[] = 'el plugin «' . $item . '»';
+		foreach ( (array) $selection['themes'] as $item ) if ( ! in_array( $item, $inventory['themes'], true ) ) $out[] = 'el tema «' . $item . '»';
+		foreach ( (array) $selection['sites'] as $site ) if ( ! in_array( (int) $site, $inventory['sites'], true ) ) $out[] = 'medios del sitio ' . (int) $site;
+		return $out;
+	}
+	/** Plugins y temas del sitio ahora (carpetas y plugins de un archivo) y cuáles están activos. */
+	public static function live( array $layout ) {
+		$out = array( 'plugins' => array(), 'themes' => array(), 'active_plugins' => array(), 'active_themes' => array() );
+		foreach ( array( 'plugins', 'themes' ) as $kind ) {
+			$base = (string) ( $layout[ $kind ] ?? '' );
+			if ( '' === $base ) continue;
+			$dir = rtrim( (string) $layout['root'], '/' ) . '/' . $base;
+			foreach ( (array) @scandir( $dir ) as $name ) {
+				$name = (string) $name;
+				if ( '' === $name || '.' === $name[0] || 'index.php' === $name || is_link( $dir . '/' . $name ) ) continue;
+				if ( is_dir( $dir . '/' . $name ) || ( 'plugins' === $kind && '.php' === strtolower( substr( $name, -4 ) ) ) ) $out[ $kind ][] = $name;
+			}
+			sort( $out[ $kind ] );
+		}
+		$active = function_exists( 'get_option' ) ? (array) get_option( 'active_plugins', array() ) : array();
+		if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'get_site_option' ) ) $active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+		foreach ( $active as $file ) if ( is_string( $file ) && '' !== $file ) $out['active_plugins'][ false === strpos( $file, '/' ) ? $file : strstr( $file, '/', true ) ] = true;
+		$out['active_plugins'] = array_keys( $out['active_plugins'] );
+		foreach ( array( 'get_stylesheet', 'get_template' ) as $function ) if ( function_exists( $function ) ) $out['active_themes'][] = (string) call_user_func( $function );
+		$out['active_themes'] = array_values( array_unique( array_filter( $out['active_themes'] ) ) );
+		return $out;
+	}
+
+	/* ------------------------------------------------------------------------------------------- Textos */
+
+	/** «base de datos, plugins (akismet, hello.php) y medios del sitio 3». */
+	public static function label( $selection ) {
+		if ( null === $selection ) return 'todo';
+		$names = array();
+		foreach ( (array) $selection['parts'] as $part ) $names[] = self::PARTS[ $part ];
+		if ( $selection['plugins'] ) $names[] = ( 1 === count( $selection['plugins'] ) ? 'el plugin ' : 'los plugins ' ) . self::list_text( $selection['plugins'], 8 );
+		if ( $selection['themes'] ) $names[] = ( 1 === count( $selection['themes'] ) ? 'el tema ' : 'los temas ' ) . self::list_text( $selection['themes'], 8 );
+		if ( $selection['sites'] ) $names[] = 'los medios ' . ( 1 === count( $selection['sites'] ) ? 'del sitio ' : 'de los sitios ' ) . self::list_text( $selection['sites'], 8 );
+		return self::list_text( $names, 20 );
+	}
+	/** Las partes que no se tocan (enteras o con lo concreto que no se eligió). */
+	public static function untouched( $selection ) {
+		if ( null === $selection ) return array();
+		$out = array();
+		foreach ( self::PARTS as $part => $name ) {
+			if ( in_array( $part, (array) $selection['parts'], true ) ) continue;
+			if ( ( 'plugins' === $part && $selection['plugins'] ) || ( 'themes' === $part && $selection['themes'] ) || ( 'uploads' === $part && $selection['sites'] ) ) $out[] = 'los demás ' . ( 'uploads' === $part ? 'medios' : $name );
+			else $out[] = $name;
+		}
+		return $out;
+	}
+	/**
+	 * Qué reemplaza exactamente la selección, una frase por parte, con lo que se puede saber antes: con el inventario del
+	 * respaldo y el del sitio, qué plugins y temas se retiran porque el respaldo no los tiene (y si están activos).
+	 * Devuelve array( 'replaces' => frases, 'untouched' => nombres, 'warnings' => frases de lo que se retira activo ).
+	 */
+	public static function describe( $selection, $inventory = null, $live = null ) {
+		$replaces = array();
+		$warnings = array();
+		$parts = null === $selection ? array_keys( self::PARTS ) : (array) $selection['parts'];
+		foreach ( $parts as $part ) {
+			$text = ucfirst( self::PARTS[ $part ] ) . ': ' . self::REPLACES[ $part ];
+			if ( 'uploads' === $part ) $text .= self::has_database( $selection ) ? '; se retiran los que el respaldo no tiene' : '; se conservan los subidos después (salvo archivos ejecutables)';
+			if ( ( 'plugins' === $part || 'themes' === $part ) && is_array( $inventory ) && is_array( $live ) ) {
+				$gone = array_values( array_diff( (array) $live[ $part ], (array) $inventory[ $part ] ) );
+				if ( $gone ) {
+					$text .= ' (' . count( $gone ) . ': ' . self::list_text( $gone, 10 ) . ')';
+					$active = array_values( array_intersect( $gone, (array) $live[ 'plugins' === $part ? 'active_plugins' : 'active_themes' ] ) );
+					if ( $active ) $warnings[] = ( 'plugins' === $part ? 'Se retirarán plugins activos que el respaldo no tiene: ' : 'Se retirará el tema activo, que el respaldo no tiene: ' ) . self::list_text( $active, 10 ) . ( 'plugins' === $part ? '. WordPress los desactiva al no encontrarlos.' : '. WordPress pasará a otro tema.' );
+				} elseif ( is_array( $inventory ) ) {
+					$text .= ' (ninguno)';
+				}
+			}
+			$replaces[] = $text . '.';
+		}
+		if ( null !== $selection ) {
+			if ( $selection['plugins'] ) $replaces[] = ( 1 === count( $selection['plugins'] ) ? 'El plugin ' : 'Los plugins ' ) . self::list_text( $selection['plugins'], 20 ) . ': su carpeta (o su archivo) entera, como en el respaldo; los demás plugins no se tocan.';
+			if ( $selection['themes'] ) $replaces[] = ( 1 === count( $selection['themes'] ) ? 'El tema ' : 'Los temas ' ) . self::list_text( $selection['themes'], 20 ) . ': su carpeta entera, como en el respaldo; los demás temas no se tocan.';
+			if ( $selection['sites'] ) $replaces[] = 'Los medios ' . ( 1 === count( $selection['sites'] ) ? 'del sitio ' : 'de los sitios ' ) . self::list_text( $selection['sites'], 20 ) . ' de la red (el sitio principal: lo que no está en sites/)' . ( self::has_database( $selection ) ? '; se retiran los que el respaldo no tiene.' : '; se conservan los subidos después (salvo archivos ejecutables).' );
+		}
+		return array( 'replaces' => $replaces, 'untouched' => self::untouched( $selection ), 'warnings' => $warnings );
+	}
+	/** Los avisos de coherencia de la selección (RULES): array( array( code, text ) ). Nunca bloquean. */
+	public static function coherence( $selection ) {
+		if ( null === $selection ) return array();
+		$on = array_fill_keys( (array) $selection['parts'], true );
+		if ( $selection['plugins'] ) $on['plugin-items'] = true;
+		if ( $selection['themes'] ) $on['theme-items'] = true;
+		if ( $selection['sites'] ) $on['site-items'] = true;
+		$out = array();
+		foreach ( self::RULES as $code => $rule ) {
+			if ( ! array_intersect_key( $on, array_flip( $rule['any'] ) ) ) continue;
+			if ( isset( $rule['none'] ) && array_intersect_key( $on, array_flip( $rule['none'] ) ) ) continue;
+			if ( isset( $rule['missing'] ) && ! array_diff( $rule['missing'], array_keys( $on ) ) ) continue;
+			$out[] = array( 'code' => $code, 'text' => $rule['text'] );
+		}
+		return $out;
+	}
+	/**
+	 * El informe de una restauración (pantalla, REST, WP-CLI y correo): qué partes se restauraron y cuáles no. Con todo,
+	 * `all` y ninguna sin restaurar.
+	 */
+	public static function report( $selection ) {
+		$restored = array();
+		if ( null === $selection ) {
+			foreach ( self::PARTS as $name ) $restored[] = $name;
+			return array( 'all' => true, 'selection' => null, 'restored' => $restored, 'not_restored' => array(), 'label' => 'todo', 'text' => '', 'coherence' => array() );
+		}
+		$label = self::label( $selection );
+		$untouched = self::untouched( $selection );
+		return array(
+			'all' => false,
+			'selection' => $selection,
+			'restored' => array_merge( array_map( function( $part ) { return self::PARTS[ $part ]; }, (array) $selection['parts'] ), $selection['plugins'] ? array( 'plugins: ' . implode( ', ', $selection['plugins'] ) ) : array(), $selection['themes'] ? array( 'temas: ' . implode( ', ', $selection['themes'] ) ) : array(), $selection['sites'] ? array( 'medios de los sitios: ' . implode( ', ', $selection['sites'] ) ) : array() ),
+			'not_restored' => $untouched,
+			'label' => $label,
+			'text' => 'Restauración por partes: se restauró ' . $label . '; no se tocó ' . self::list_text( $untouched, 20 ) . '.',
+			'coherence' => self::coherence( $selection ),
+		);
+	}
+	/** «a, b y c» (con «y N más» si pasa de $max). */
+	public static function list_text( array $items, $max = 10 ) {
+		$items = array_values( array_map( 'strval', $items ) );
+		$extra = count( $items ) - $max;
+		if ( $extra > 0 ) $items = array_merge( array_slice( $items, 0, $max ), array( $extra . ' más' ) );
+		if ( count( $items ) < 2 ) return implode( '', $items );
+		return implode( ', ', array_slice( $items, 0, -1 ) ) . ' y ' . end( $items );
+	}
+}

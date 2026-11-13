@@ -347,6 +347,18 @@ final class Digitalisimo_Backups_Cli {
 	 *   - backup
 	 * ---
 	 *
+	 * [--parts=<parts>]
+	 * : Restaurar por partes: database, core, plugins, themes, uploads, mu-plugins y content (resto de wp-content), separadas por comas. Sin esta opción (o con all), todo. Los respaldos son siempre completos: se elige qué vuelve.
+	 *
+	 * [--plugins=<plugins>]
+	 * : Plugins concretos del respaldo, separados por comas (nombre de su carpeta, o del archivo en un plugin de un solo archivo). Ver `verify`.
+	 *
+	 * [--themes=<themes>]
+	 * : Temas concretos del respaldo, separados por comas (nombre de su carpeta).
+	 *
+	 * [--sites=<sites>]
+	 * : En una red: los medios de estos sitios (sus números, separados por comas; 1 es el principal).
+	 *
 	 * [--format=<format>]
 	 * : table o json.
 	 * ---
@@ -354,11 +366,22 @@ final class Digitalisimo_Backups_Cli {
 	 * ---
 	 */
 	public function verify( $args, $assoc_args ) {
-		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) ) );
+		$report = self::result( Digitalisimo_Backups::service_verify( (string) ( $args[0] ?? '' ), array( 'secret' => self::secret( $assoc_args ), 'addresses' => (string) ( $assoc_args['addresses'] ?? '' ) ) + self::parts( $assoc_args ) ) );
 		if ( 'json' === ( $assoc_args['format'] ?? 'table' ) ) {
 			WP_CLI::line( wp_json_encode( $report ) );
 			return;
 		}
+		// Restaurar por partes: qué trae el respaldo y, con --parts, --plugins, --themes o --sites, qué se reemplazaría (antes
+		// del resultado, que sigue siendo la línea de éxito y sus avisos).
+		$parts = (array) ( $report['parts'] ?? array() );
+		$available = is_array( $parts['available'] ?? null ) ? $parts['available'] : array();
+		if ( $available ) {
+			WP_CLI::log( 'Partes del respaldo: ' . implode( ', ', (array) $available['parts'] ) . '.' );
+			WP_CLI::log( 'Plugins (' . count( (array) $available['plugins'] ) . '): ' . ( $available['plugins'] ? implode( ', ', (array) $available['plugins'] ) : 'ninguno' ) . '.' );
+			WP_CLI::log( 'Temas (' . count( (array) $available['themes'] ) . '): ' . ( $available['themes'] ? implode( ', ', (array) $available['themes'] ) : 'ninguno' ) . '.' );
+			if ( is_multisite() ) WP_CLI::log( 'Sitios con medios: ' . implode( ', ', (array) $available['sites'] ) . '.' );
+		}
+		if ( null !== ( $parts['selection'] ?? null ) ) self::parts_preview( $parts );
 		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
@@ -370,6 +393,20 @@ final class Digitalisimo_Backups_Cli {
 			WP_CLI::warning( (string) $config['text'] );
 			foreach ( Digitalisimo_Backups_Config_Diff::lines( (array) $config['differences'] ) as $line ) WP_CLI::log( '  ' . $line );
 		}
+	}
+	/** Restaurar por partes: `--parts`, `--plugins`, `--themes` y `--sites` tal como llegan (los valida el caso de uso). */
+	public static function parts( $assoc_args ) {
+		$out = array();
+		foreach ( array( 'parts', 'plugins', 'themes', 'sites' ) as $key ) if ( isset( $assoc_args[ $key ] ) ) $out[ $key ] = '' === (string) $assoc_args[ $key ] && 'parts' === $key ? array() : (string) $assoc_args[ $key ];
+		return $out;
+	}
+	/** Lo que reemplaza una selección por partes, lo que no toca y sus avisos de coherencia (nunca bloquean). */
+	public static function parts_preview( array $parts ) {
+		WP_CLI::log( 'Se restaura sólo: ' . (string) ( $parts['label'] ?? '' ) . '.' );
+		foreach ( (array) ( $parts['replaces'] ?? array() ) as $line ) WP_CLI::log( '  ' . $line );
+		if ( ! empty( $parts['untouched'] ) ) WP_CLI::log( 'No se toca: ' . Digitalisimo_Backups_Restore_Parts::list_text( (array) $parts['untouched'], 20 ) . '.' );
+		foreach ( (array) ( $parts['warnings'] ?? array() ) as $warning ) WP_CLI::warning( (string) $warning );
+		foreach ( (array) ( $parts['coherence'] ?? array() ) as $rule ) WP_CLI::warning( (string) $rule['text'] );
 	}
 
 	/**
@@ -479,9 +516,23 @@ final class Digitalisimo_Backups_Cli {
 	 * default: true
 	 * ---
 	 *
+	 * [--parts=<parts>]
+	 * : Restaurar por partes: database, core, plugins, themes, uploads, mu-plugins y content (resto de wp-content), separadas por comas. Sin esta opción (o con all), todo. Los respaldos son siempre completos: se elige qué vuelve.
+	 *
+	 * [--plugins=<plugins>]
+	 * : Plugins concretos del respaldo, separados por comas (nombre de su carpeta, o del archivo en un plugin de un solo archivo). Ver `verify`.
+	 *
+	 * [--themes=<themes>]
+	 * : Temas concretos del respaldo, separados por comas (nombre de su carpeta).
+	 *
+	 * [--sites=<sites>]
+	 * : En una red: los medios de estos sitios (sus números, separados por comas; 1 es el principal).
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR
+	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR --parts=database,plugins
+	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.zip --confirm=RESTAURAR --plugins=akismet
 	 *     wp digitalisimo-backups restore digitalisimo-backup-example-com-20261106-120000-1a2b3c4d.dgbk --confirm=RESTAURAR --secret-file=/root/frase.txt
 	 *     wp digitalisimo-backups restore digitalisimo-backup-otro-com-20261106-120000-1a2b3c4d.zip --from=sftp --confirm="RESTAURAR SIN FIRMA"
 	 */
@@ -493,7 +544,20 @@ final class Digitalisimo_Backups_Cli {
 			WP_CLI::log( $fetched['message'] );
 			$args[0] = $fetched['file'];
 		}
-		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'via' => 'cli' ) ) );
+		// Restaurar por partes: antes de empezar, qué se reemplaza, qué no se toca y los avisos de coherencia (no bloquean).
+		$parts = self::parts( $assoc_args );
+		if ( $parts ) {
+			try {
+				$selection = Digitalisimo_Backups_Restore_Parts::normalize( $parts );
+			} catch ( InvalidArgumentException $e ) {
+				WP_CLI::error( $e->getMessage() );
+			}
+			if ( null !== $selection ) {
+				$describe = Digitalisimo_Backups_Restore_Parts::describe( $selection );
+				self::parts_preview( array( 'label' => Digitalisimo_Backups_Restore_Parts::label( $selection ), 'replaces' => $describe['replaces'], 'untouched' => $describe['untouched'], 'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $selection ) ) );
+			}
+		}
+		$result = self::result( Digitalisimo_Backups::service_restore( (string) ( $args[0] ?? '' ), array( 'confirm' => (string) ( $assoc_args['confirm'] ?? '' ), 'network' => ! empty( $assoc_args['network'] ), 'secret' => self::secret( $assoc_args ), 'adopt' => ! empty( $assoc_args['adopt-secret'] ), 'addresses' => (string) ( $assoc_args['addresses'] ?? 'current' ), 'keep_access' => self::flag( $assoc_args, 'keep-access', true ), 'via' => 'cli' ) + $parts ) );
 		WP_CLI::success( 'Restauración terminada desde ' . $result['file'] . '. Copia previa bloqueada: ' . $result['safety_backup'] . '. Revisa los enlaces permanentes.' . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 	}
 

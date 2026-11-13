@@ -447,6 +447,9 @@ trait Digitalisimo_Backups_Service {
 		if ( is_wp_error( $addresses ) ) return $addresses;
 		$confirmation = strtoupper( trim( preg_replace( '/\s+/', ' ', (string) ( $args['confirm'] ?? '' ) ) ) );
 		if ( ! in_array( $confirmation, array( 'RESTAURAR', 'RESTAURAR SIN FIRMA' ), true ) ) return self::service_error( 'confirm', 'Escribe RESTAURAR para confirmar una operación destructiva.', 400 );
+		// Restaurar por partes (`parts`, `plugins`, `themes`, `sites`): sin ellos, todo, como siempre.
+		$parts = self::service_parts( $args );
+		if ( is_wp_error( $parts ) ) return $parts;
 		$path = self::service_local_file( $file );
 		if ( is_wp_error( $path ) ) return $path;
 		$secret = is_string( $args['secret'] ?? null ) ? $args['secret'] : '';
@@ -501,7 +504,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			try {
 				self::$restore_reader_token = '';
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ) ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'parts' => $parts ) );
 				$reader = self::$restore_reader_token;
 				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
@@ -524,7 +527,40 @@ trait Digitalisimo_Backups_Service {
 		$outcome = self::restore_outcome( $job, $copies, $adopt_note );
 		// La ficha de lectura, una sola vez: con ella se sigue el trabajo hasta el final aunque cambien los usuarios.
 		if ( is_array( $outcome ) ) $outcome['follow'] = self::service_follow( $id, $reader );
+		// Qué se restaura (todo o por partes) y los avisos de coherencia, también mientras sigue (202).
+		if ( is_array( $outcome ) && ! isset( $outcome['parts'] ) ) $outcome['parts'] = Digitalisimo_Backups_Restore_Parts::report( $parts );
 		return $outcome;
+	}
+	/**
+	 * La selección de restaurar por partes de una petición (pantalla, REST o WP-CLI): `parts` (lista o texto con comas:
+	 * database, core, plugins, themes, uploads, mu-plugins, content; `all` o nada es todo), `plugins` y `themes` (carpetas
+	 * concretas) y `sites` (medios de sitios de la red). Normalizada (null: todo) o WP_Error 400.
+	 */
+	private static function service_parts( array $args ) {
+		try {
+			return Digitalisimo_Backups_Restore_Parts::normalize( array_intersect_key( $args, array_flip( array( 'parts', 'plugins', 'themes', 'sites' ) ) ) );
+		} catch ( InvalidArgumentException $e ) {
+			return self::service_error( 'parts', $e->getMessage(), 400 );
+		}
+	}
+	/**
+	 * Para la confirmación: qué trae el respaldo (partes, plugins, temas y sitios de la red), qué reemplaza la selección,
+	 * qué no se toca y los avisos de coherencia. $zip abierto (o null si no se puede leer, un `.dgbk` sin descifrar).
+	 */
+	private static function service_parts_preview( $zip, $parts ) {
+		$layout = self::restore_layout();
+		$inventory = $zip instanceof ZipArchive ? Digitalisimo_Backups_Restore_Parts::inventory( $zip, $layout ) : null;
+		$describe = Digitalisimo_Backups_Restore_Parts::describe( $parts, $inventory, $inventory ? Digitalisimo_Backups_Restore_Parts::live( $layout ) : null );
+		return array(
+			'available' => $inventory,
+			'selection' => $parts,
+			'label' => Digitalisimo_Backups_Restore_Parts::label( $parts ),
+			'replaces' => $describe['replaces'],
+			'untouched' => $describe['untouched'],
+			'warnings' => $describe['warnings'],
+			'missing' => $inventory ? Digitalisimo_Backups_Restore_Parts::missing( $parts, $inventory ) : array(),
+			'coherence' => Digitalisimo_Backups_Restore_Parts::coherence( $parts ),
+		);
 	}
 	/**
 	 * Resultado de una restauración para la pantalla, REST y WP-CLI. Terminada: el mismo informe de siempre. Fallida: 422
@@ -551,7 +587,14 @@ trait Digitalisimo_Backups_Service {
 		if ( $followed !== $job ) {
 			$safety = self::restore_safety_file( $job );
 			$why = self::restore_rollback_info( $job['id'] )['cause'] ?: $message;
-			$message = 'success' === $followed['status'] ? 'La restauración falló. Se recuperaron la base de datos y los archivos anteriores desde ' . $safety . ' y se retiraron los archivos nuevos: ' . $why : 'La restauración falló y la reversión también falló. Conserva ' . $safety . ' para recuperación manual: ' . ( is_array( $followed['error'] ?? null ) ? (string) $followed['error']['message'] : $why );
+			// Restaurar por partes: la vuelta repone sólo lo que se estaba restaurando; lo demás no se tocó.
+			try {
+				$parts = Digitalisimo_Backups_Restore_Parts::from_spec( (array) $job['spec'] );
+			} catch ( Throwable $e ) {
+				$parts = null;
+			}
+			$recovered = null === $parts ? 'Se recuperaron la base de datos y los archivos anteriores' : 'Se recuperó lo que se estaba restaurando (' . Digitalisimo_Backups_Restore_Parts::label( $parts ) . '; lo demás no se tocó)';
+			$message = 'success' === $followed['status'] ? 'La restauración falló. ' . $recovered . ' desde ' . $safety . ' y se retiraron los archivos nuevos: ' . $why : 'La restauración falló y la reversión también falló. Conserva ' . $safety . ' para recuperación manual: ' . ( is_array( $followed['error'] ?? null ) ? (string) $followed['error']['message'] : $why );
 		}
 		if ( 'cancelled' === $job['status'] ) return array( 'error' => array( 'restore_cancelled', $message, 409 ) );
 		return array( 'error' => self::service_safety_copies() > $copies ? array( 'restore_failed', $message, 500 ) : array( 'restore_rejected', $message, 422 ) );
@@ -606,6 +649,8 @@ trait Digitalisimo_Backups_Service {
 		if ( is_wp_error( $allowed ) ) return $allowed;
 		$addresses = self::service_addresses( $args );
 		if ( is_wp_error( $addresses ) ) return $addresses;
+		$parts = self::service_parts( $args );
+		if ( is_wp_error( $parts ) ) return $parts;
 		$path = self::service_local_file( $file );
 		if ( is_wp_error( $path ) ) return $path;
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'zip', 'El servidor necesita la extensión PHP ZipArchive para verificar el respaldo.', 500 );
@@ -639,6 +684,10 @@ trait Digitalisimo_Backups_Service {
 				$problems = $plan->problems();
 				$relocation = $plan->summary();
 			}
+			// Restaurar por partes: qué trae, qué reemplazaría la selección pedida y qué se avisa antes de confirmar.
+			$preview = self::service_parts_preview( $zip, $parts );
+			if ( null !== $parts && Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ) $problems[] = 'Un sitio extraído de una red se restaura entero: no admite restaurar por partes.';
+			if ( $preview['missing'] ) $problems[] = 'El respaldo no tiene ' . Digitalisimo_Backups_Restore_Parts::list_text( $preview['missing'], 10 ) . '.';
 			return array(
 				'file' => wp_basename( $path ),
 				'verified' => true,
@@ -663,6 +712,7 @@ trait Digitalisimo_Backups_Service {
 				'relocation' => $relocation,
 				'extract' => Digitalisimo_Backups_Site_Extract::summary( $data ),
 				'wp_config' => self::config_report( $zip ),
+				'parts' => $preview,
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
