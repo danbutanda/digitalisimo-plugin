@@ -158,7 +158,7 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
 ## Pruebas
 
 - `tests/elements-sales-kit.mjs` (en `validate.yml` y `release.yml`; necesita `python3`): el generador con `--check`,
-  el validador sobre las dos variantes, doce plantillas rotas que el validador debe rechazar, las marcas sólo en las
+  el validador sobre las dos variantes, catorce plantillas rotas que el validador debe rechazar (marcas, enlaces, video, IDs, widgets, paridad, filas, contador, relleno, proveedor, la persona propia y bloques), las marcas sólo en las
   constantes del generador y la ausencia de la persona propia en el módulo.
 - `tests/elements-sales-mcp.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): definiciones cerradas,
   catálogo y variantes, guía, placeholders, armado (IDs, reemplazos, saneado, URLs, precios, WhatsApp, cierre,
