@@ -230,7 +230,32 @@ trait Digitalisimo_Backups_Remote_Service {
 	/** Encola (o retoma, si ya hay uno del mismo archivo) el trabajo `fetch` y lo hace avanzar en esta petición. */
 	private static function fetch_start( array $fetch, array $args ) {
 		$via = (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) );
-		$spec = array(
+		$spec = self::fetch_spec( $fetch, $via );
+		try {
+			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
+		} catch ( Throwable $e ) {
+			return self::service_error( 'storage', $e->getMessage(), 500 );
+		}
+		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
+		$cli = array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : 'cli' === PHP_SAPI;
+		$job = self::fetch_drive( (string) $queued['job']['id'], $cli );
+		// Un punto incremental traído «sin registro» encola su cadena (la que falta en el almacén): en WP-CLI, hasta traerla.
+		$chain = $job && 'success' === $job['status'] ? (array) ( $job['result']['chain_jobs'] ?? array() ) : array();
+		$outcome = self::fetch_outcome( $job );
+		if ( $chain && is_array( $outcome ) ) {
+			$links = array();
+			foreach ( $chain as $id ) {
+				$link = self::fetch_drive( (string) $id, $cli );
+				$links[] = array( 'file' => $link ? (string) ( $link['result']['file'] ?? $link['spec']['file'] ?? '' ) : '', 'fetched' => $link && 'success' === $link['status'], 'running' => $link && ! Digitalisimo_Backups_Job_Store::is_terminal( $link ), 'error' => $link && 'failed' === $link['status'] ? (string) ( $link['error']['message'] ?? '' ) : '' );
+			}
+			$outcome['chain'] = $links;
+			if ( array_filter( array_column( $links, 'running' ) ) ) $outcome['running'] = true;
+		}
+		return $outcome;
+	}
+	/** Especificación del trabajo `fetch` de un archivo de un destino. */
+	private static function fetch_spec( array $fetch, $via ) {
+		return array(
 			'scope' => is_multisite() ? 'network' : 'installation',
 			'type' => 'fetch',
 			'kind' => Digitalisimo_Backups_Fetch_Job::KIND,
@@ -245,14 +270,6 @@ trait Digitalisimo_Backups_Remote_Service {
 			'origin' => array( 'via' => $via, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'blog_id' => (int) get_current_blog_id(), 'context' => is_multisite() ? 'network' : 'site' ),
 			'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
 		);
-		try {
-			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
-		} catch ( Throwable $e ) {
-			return self::service_error( 'storage', $e->getMessage(), 500 );
-		}
-		try { Digitalisimo_Backups_Jobs::schedule(); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
-		$cli = array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : 'cli' === PHP_SAPI;
-		return self::fetch_outcome( self::fetch_drive( (string) $queued['job']['id'], $cli ) );
 	}
 	/**
 	 * Hace avanzar el trabajo $id: en WP-CLI hasta terminar (esperando reintentos y a otra operación del almacén, que no
@@ -639,7 +656,31 @@ trait Digitalisimo_Backups_Remote_Service {
 		if ( '' === $registered && ! $deduplicated ) $message .= ' Se borrará del almacén en ' . self::fetched_keep_days() . ' días si no se usa (sigue en el destino).';
 		if ( ! empty( $result['needs_secret'] ) ) $message .= ' Está cifrado con una clave que este sitio no tiene: se comprueba entero al restaurarlo con su frase.';
 		if ( ! empty( $result['problems'] ) && empty( $result['compatible'] ) ) $message .= ' Aviso: ' . implode( ' ', array_map( 'strval', (array) $result['problems'] ) );
+		// Un punto incremental «sin registro»: se trae también lo que su cadena necesita, del mismo destino y por el nombre
+		// que le da su manifiesto (recuperación ante desastre: el historial no está). Cada archivo, con su trabajo y su
+		// comprobación; restaurar el punto comprueba después la cadena entera por sus manifiestos.
+		$jobs = array();
+		if ( '' === $registered && is_array( $result['chain'] ?? null ) ) {
+			$needs = self::loose_chain_needs_names( (array) $result['chain']['links'] );
+			foreach ( $needs as $link ) {
+				if ( ! self::remote_backup_name( $link ) ) continue;
+				$queued = Digitalisimo_Backups_Jobs::enqueue( self::fetch_spec( array( 'connection' => (string) $fetch['connection'], 'name' => $link, 'registered' => '', 'sha256' => '', 'size' => 0 ), (string) ( $job['spec']['origin']['via'] ?? 'rest' ) ) );
+				$jobs[] = (string) $queued['job']['id'];
+			}
+			if ( $jobs ) $message .= ' Es un punto incremental: se traen también ' . count( $jobs ) . ' archivos de su cadena de ' . $from . '.';
+		}
+		$result['chain_jobs'] = $jobs;
 		return array( 'next' => null, 'checkpoint' => array( 'file' => $file ), 'result' => array( 'file' => $file, 'connection' => (string) $fetch['connection'], 'deduplicated' => $deduplicated ) + $result, 'message' => $message );
+	}
+	/** De los archivos de una cadena, los que no están en el almacén. */
+	private static function loose_chain_needs_names( array $names ) {
+		$out = array();
+		foreach ( $names as $name ) {
+			$path = '';
+			try { $path = self::local_path( (string) $name ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			if ( '' === $path ) $out[] = (string) $name;
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Retención de lo traído «sin registro» */

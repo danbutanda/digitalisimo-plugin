@@ -578,6 +578,13 @@ final class Digitalisimo_Backups_Packer {
 		$sample = array();
 		$lookup = new Digitalisimo_Backups_Chain_Lookup( $paths['parent'], $paths['pidx'], $paths['seen'], (int) $chain['count'] );
 		try {
+			// Los borrados salen del inventario confirmado, no de las marcas de los tramos: uno que murió pudo marcar un
+			// archivo que después desapareció antes del reintento.
+			$lookup->reset_seen( (int) $chain['count'] );
+			if ( (int) $chain['inv_size'] > 0 ) foreach ( Digitalisimo_Backups_Chain::records( $paths['inv'], 0, (int) $chain['inv_size'] ) as $row ) {
+				$found = $lookup->find( (string) ( $row[1]['n'] ?? '' ) );
+				if ( $found ) $lookup->seen( (int) $found['r'] );
+			}
 			$number = 0;
 			$buffer = '';
 			foreach ( Digitalisimo_Backups_Chain::records( $paths['parent'], self::chain_header_size( $paths['parent'] ) ) as $row ) {

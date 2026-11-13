@@ -75,8 +75,8 @@ function inc_local( $row ) { return bk_call( 'Digitalisimo_Backups', 'local_copy
 function inc_materialize( $file, $secret = '' ) {
 	return Digitalisimo_Backups_Chain_Restore::materialize( inc_row( $file ), (array) $GLOBALS['bk_options'][ Digitalisimo_Backups::HISTORY ], $secret, bk_storage(), 'inc_local' );
 }
-function inc_restore( $file ) {
-	$result = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+function inc_restore( $file, $confirm = 'RESTAURAR', array $extra = array() ) {
+	$result = Digitalisimo_Backups::service_restore( basename( $file ), array( 'confirm' => $confirm, 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) + $extra );
 	for ( $i = 0; $i < 4000 && ! is_wp_error( $result ); $i++ ) {
 		if ( ! Digitalisimo_Backups_Jobs::active() ) break;
 		Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );

@@ -178,6 +178,10 @@ final class Digitalisimo_Backups_Backup_Job {
 		$staged = Digitalisimo_Backups_Job_Store::directory( $job['id'] ) . '/' . Digitalisimo_Backups_Job_Store::STAGING . '/' . basename( $staged_name );
 		$has_staged = '' !== $staged_name && is_file( $staged );
 		$has_final = is_file( $final );
+		// Un incremental sólo nace si su cadena sigue entera (un eslabón borrado mientras se hacía lo dejaría roto): si no,
+		// el trabajo vuelve a «preflight» y sale un completo.
+		$increment = Digitalisimo_Backups_Chain::job_incremental( $job );
+		if ( $increment && ! $has_final && ! Digitalisimo_Backups::job_chain_links_ok( $increment ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'Un eslabón de la cadena de este incremental ya no está (se borró mientras se hacía): el trabajo vuelve a empezar y hará un respaldo completo.', 'preflight' );
 		if ( $has_staged && $has_final ) throw new Digitalisimo_Backups_Permanent_Error( 'Ya existe un archivo con el nombre final del respaldo; no se sobrescribe.' );
 		if ( $has_staged ) {
 			if ( ! self::same_fingerprint( self::fingerprint( $staged ), $verified ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El ZIP cambió después de verificarse; se empaquetará otra vez.', 'pack' );

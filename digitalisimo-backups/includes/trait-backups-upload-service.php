@@ -335,8 +335,11 @@ trait Digitalisimo_Backups_Upload_Service {
 		try {
 			$report = Digitalisimo_Backups_Security::open( $path, array(), $secret );
 			$source = array();
-			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false, $source );
+			$data = self::inspect_package( $report['zip'], 'untrusted' !== $report['trust'], false, $source, true );
 			$problems = self::package_installation_problems( $data );
+			// Un punto incremental: se conserva y se restaura con su cadena (sus archivos se buscan en el almacén por nombre).
+			$chain = 'incremental' === ( $data['type'] ?? '' ) ? self::loose_chain_needs( $data ) : null;
+			if ( $chain && $chain['missing'] ) $problems[] = 'Es un punto incremental (' . $chain['sequence'] . ' de su cadena): se restaura con su cadena y faltan en el almacén ' . count( $chain['missing'] ) . ' archivos (' . implode( ', ', array_slice( $chain['missing'], 0, 3 ) ) . ( count( $chain['missing'] ) > 3 ? '…' : '' ) . '). Súbelos o tráelos de su destino con ese nombre.';
 			// «Origen → este sitio», como `verify`: qué cambiaría al restaurarlo aquí (o por qué no se puede).
 			$relocation = null;
 			if ( ! $problems ) {
@@ -362,6 +365,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				'plugin_version' => (string) ( $data['plugin_version'] ?? '' ),
 				'relocation' => $relocation,
 				'wp_config' => self::config_report( $report['zip'] ),
+				'chain' => $chain,
 			) );
 		} catch ( Exception $e ) {
 			return self::upload_failure( $e->getMessage() );

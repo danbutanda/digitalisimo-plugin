@@ -29,6 +29,8 @@ final class Digitalisimo_Backups_Chain {
 	const INVENTORY = 'inventory.jsonl';
 	/** Carpeta de los índices laterales dentro del almacén privado. */
 	const DIRECTORY = 'chains';
+	/** Filas que el historial conserva como mínimo (Digitalisimo_Backups::history_cap()). */
+	const HISTORY_ROWS = 100;
 	/** Hasta este tamaño, un archivo del mismo tamaño que en el padre se compara por su SHA-256 antes de copiarlo. */
 	const HASH_FIRST_MAX = 268435456;
 
@@ -87,6 +89,16 @@ final class Digitalisimo_Backups_Chain {
 		if ( ! $chain || self::VERSION !== (int) ( $chain['v'] ?? 0 ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 0 ) return null;
 		if ( ! self::valid_id( $chain['id'] ?? null ) || ! self::valid_id( $chain['backup_id'] ?? null ) || ! self::valid_sha( $chain['manifest_sha256'] ?? null ) ) return null;
 		if ( ! self::valid_links( $chain['links'] ?? null, $chain['sequence'] ) || ! self::valid_file( $row['file'] ?? null ) ) return null;
+		return $chain;
+	}
+	/**
+	 * El bloque `chain` del manifiesto de un eslabón incremental (v3) bien formado, o null: el incremental heredado (v2)
+	 * no tiene cadena.
+	 */
+	public static function manifest_chain( $data ) {
+		if ( ! is_array( $data ) || 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) || 'incremental' !== ( $data['type'] ?? '' ) ) return null;
+		$chain = is_array( $data['chain'] ?? null ) ? $data['chain'] : null;
+		if ( ! $chain || self::VERSION !== ( $chain['version'] ?? null ) || ! self::valid_id( $chain['id'] ?? null ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 1 || ! self::valid_links( $chain['links'] ?? null, $chain['sequence'] ) ) return null;
 		return $chain;
 	}
 	/** Una fila que es un punto incremental (no la base). */
@@ -499,6 +511,10 @@ final class Digitalisimo_Backups_Chain_Lookup {
 	}
 	public function seen( $number ) {
 		if ( 0 !== fseek( $this->seen, (int) $number ) || 1 !== fwrite( $this->seen, "\1" ) ) throw new Exception( 'No se pudo anotar un archivo en el índice del punto anterior.' );
+	}
+	/** Olvida todas las marcas (se vuelven a poner desde el inventario confirmado del punto). */
+	public function reset_seen( $count ) {
+		if ( ! ftruncate( $this->seen, 0 ) || ! ftruncate( $this->seen, max( 0, (int) $count ) ) ) throw new Exception( 'No se pudo preparar el recuento de borrados del punto.' );
 	}
 	public function was_seen( $number ) {
 		if ( 0 !== fseek( $this->seen, (int) $number ) ) return false;

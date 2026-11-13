@@ -531,19 +531,36 @@ trait Digitalisimo_Backups_Service {
 		try {
 			$active = Digitalisimo_Backups_Jobs::active();
 			if ( $active ) return self::service_error( 'busy', Digitalisimo_Backups_Jobs::is_restore( $active[0] ) ? 'Ya hay una restauración en curso. Espera a que termine (la pantalla Backups muestra su avance).' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.', 409, array( 'job' => (string) $active[0]['id'] ) );
-			try {
-				// Un punto incremental: su cadena se comprueba y se reconstruye su respaldo completo, que es lo que se restaura.
-				$report = $point ? self::service_chain_open( $point, $path, $secret ) : Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ), $secret );
-			} catch ( Exception $e ) {
-				$event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
-				return self::service_error( $point ? 'chain_broken' : 'invalid', $e->getMessage(), 422 );
-			}
-			// Un eslabón incremental suelto (sin su fila de punto) nunca se restaura como completo: lo dice claro.
+			$loose = false;
 			if ( ! $point ) {
-				$type = '';
-				try { $type = (string) ( self::package_metadata( $report['zip'] )['type'] ?? '' ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
-				if ( 'incremental' === $type ) return self::service_error( 'chain_required', self::chain_link_text(), 422 );
+				try {
+					$report = Digitalisimo_Backups_Security::open( $path, self::history_item( wp_basename( $path ) ), $secret );
+				} catch ( Exception $e ) {
+					$event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
+					return self::service_error( 'invalid', $e->getMessage(), 422 );
+				}
+				// Un punto incremental sin su fila (base de datos perdida, servidor nuevo, subido o traído de un destino): su
+				// manifiesto nombra su cadena, que se busca en el almacén por nombre y se comprueba por sus manifiestos.
+				try { $point = Digitalisimo_Backups_Chain_Restore::loose_item( $report['zip'], wp_basename( $path ) ); } catch ( Exception $e ) { $point = null; }
+				if ( $point ) {
+					$loose = true;
+					Digitalisimo_Backups_Security::close( $report );
+					$report = null;
+				}
 			}
+			// Un punto incremental: su cadena se comprueba aquí (con la frase, si hace falta) y su respaldo completo se
+			// reconstruye por tramos en un trabajo que, al terminar, encola la restauración de siempre.
+			if ( $point ) {
+				$started = self::service_chain_restore( $point, $path, $secret, $confirmation, $args, $addresses, $loose );
+				if ( is_wp_error( $started ) ) {
+					if ( in_array( $started->get_error_code(), array( 'digitalisimo_backups_chain_broken', 'digitalisimo_backups_chain_incomplete' ), true ) ) $event = array( 'ok' => false, 'started' => false, 'message' => $started->get_error_message() );
+					return $started;
+				}
+				$chain_job = $started;
+			}
+			if ( isset( $chain_job ) ) {
+				// El resto, después de soltar el bloqueo (abajo).
+			} else {
 			try {
 				Digitalisimo_Backups_Security::require_confirmation( $report, $confirmation );
 			} catch ( Exception $e ) {
@@ -560,7 +577,7 @@ trait Digitalisimo_Backups_Service {
 			$extra = is_array( $restored ) && Digitalisimo_Backups_Site_Extract::SCOPE === ( $restored['scope'] ?? '' ) ? Digitalisimo_Backups_Site_Extract::restored_notice( $restored ) : '';
 			// La frase escrita sólo vive en esta petición: si se pidió, firma desde ya los respaldos nuevos.
 			$adopted = false;
-			$adopt_note = $point && ! empty( $report['chain']['summary'] ) ? ' ' . $report['chain']['summary'] : '';
+			$adopt_note = '';
 			if ( ! empty( $args['adopt'] ) && 'secret' === $report['via'] && $report['root'] ) {
 				try {
 					Digitalisimo_Backups_Keys::adopt( $report['root'], $report['key'] );
@@ -579,6 +596,7 @@ trait Digitalisimo_Backups_Service {
 				if ( false === strpos( $e->getMessage(), 'en curso' ) ) $event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
 				return self::service_error( false !== strpos( $e->getMessage(), 'en curso' ) ? 'busy' : 'restore_rejected', $e->getMessage(), false !== strpos( $e->getMessage(), 'en curso' ) ? 409 : 422 );
 			}
+			}
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			self::release_operation_lock( $lock );
@@ -589,6 +607,8 @@ trait Digitalisimo_Backups_Service {
 				try { Digitalisimo_Backups_Notify::restore( $mail, $event['ok'], $event ); } catch ( Throwable $e ) { error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() ); }
 			}
 		}
+		// Un punto incremental: la reconstrucción y después la restauración, por ticks (en WP-CLI, hasta terminar).
+		if ( isset( $chain_job ) ) return self::chain_outcome( $chain_job, $copies, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
 		// El resto lo hacen ticks: los de esta petición (en WP-CLI, hasta terminar) y después la pantalla, WP-Cron o REST.
 		$id = (string) $job['id'];
 		$job = self::restore_drive( $id, array_key_exists( 'drive_cli', $args ) ? (bool) $args['drive_cli'] : null );
@@ -697,12 +717,12 @@ trait Digitalisimo_Backups_Service {
 		return null;
 	}
 	/**
-	 * Abre un punto incremental para restaurarlo o verificarlo: comprueba su cadena y reconstruye su respaldo completo
-	 * (Digitalisimo_Backups_Chain_Restore), y lo abre como cualquier respaldo. El informe lleva `staged` (el ZIP pasa al
-	 * área del trabajo, como un `.dgbk` descifrado), su carpeta (que Security::close() retira) y `chain`.
+	 * Abre un punto incremental para verificarlo (en esta petición, como la verificación de un completo): comprueba su
+	 * cadena y reconstruye su respaldo completo (Digitalisimo_Backups_Chain_Restore::materialize()), y lo abre como
+	 * cualquier respaldo. El informe lleva su carpeta (que Security::close() retira) y `chain`.
 	 */
-	private static function service_chain_open( array $point, $path, $secret ) {
-		$virtual = Digitalisimo_Backups_Chain_Restore::materialize( $point, self::fresh_history(), $secret, self::local_directory(), function( $row ) { return self::local_copy( $row ); } );
+	private static function service_chain_open( array $point, $path, $secret, $loose = false ) {
+		$virtual = Digitalisimo_Backups_Chain_Restore::materialize( $point, self::fresh_history(), $secret, self::local_directory(), function( $row ) { return self::local_copy( $row ); }, $loose );
 		try {
 			$report = Digitalisimo_Backups_Security::open( $virtual['path'], $virtual['item'], $virtual['secret'] );
 		} catch ( Exception $e ) {
@@ -714,6 +734,114 @@ trait Digitalisimo_Backups_Service {
 		$report['staging'] = $virtual['staging'];
 		$report['chain'] = array( 'links' => $virtual['links'], 'files' => $virtual['files'], 'bytes' => $virtual['bytes'], 'trust' => $virtual['trust'], 'summary' => $virtual['summary'] );
 		return $report;
+	}
+	/**
+	 * Restaurar un punto incremental (con el bloqueo de operaciones tomado y sin otros trabajos): comprueba su cadena con la
+	 * frase si hace falta (Chain_Restore::prepare(), en una carpeta nueva de `.staging/`), pide la confirmación de su
+	 * confianza (firmada, registrada aquí o «sin firma») y encola el trabajo `chain`, que reconstruye el punto por tramos y
+	 * lo entrega a la restauración de siempre con los argumentos de esta petición. Devuelve el trabajo o el error.
+	 */
+	private static function service_chain_restore( array $point, $path, $secret, $confirmation, array $args, $addresses, $loose ) {
+		$storage = self::local_directory();
+		$dir = Digitalisimo_Backups_Security::new_staging( $storage );
+		$signer = null;
+		try {
+			try {
+				$plan = Digitalisimo_Backups_Chain_Restore::prepare( $point, self::fresh_history(), $secret, $storage, function( $row ) { return self::local_copy( $row ); }, $dir, $loose, $signer );
+			} catch ( Exception $e ) {
+				return self::service_error( false !== strpos( $e->getMessage(), 'le faltan en el almacén' ) ? 'chain_incomplete' : 'chain_broken', $e->getMessage(), 422 );
+			}
+			$trust = array( 'trust' => (string) $plan['trust'], 'auth' => 'signed' === $plan['trust'] ? 'signed' : 'unsigned', 'key' => $plan['key'] );
+			try {
+				Digitalisimo_Backups_Security::require_confirmation( $trust, $confirmation );
+			} catch ( Exception $e ) {
+				return 'untrusted' === $plan['trust'] && Digitalisimo_Backups_Security::settings()['require_signed'] ? self::service_error( 'signed_only', $e->getMessage(), 403 ) : self::service_error( 'confirm_unsigned', $e->getMessage(), 400 );
+			}
+			// La frase escrita sólo vive en esta petición: si se pidió, firma desde ya los respaldos nuevos.
+			$adopted = false;
+			$note = ' ' . Digitalisimo_Backups_Chain_Restore::summary( $plan, (int) $plan['files'] );
+			if ( ! empty( $args['adopt'] ) && 'secret' === $plan['via'] && $signer && is_array( $plan['key'] ) ) {
+				try {
+					Digitalisimo_Backups_Keys::adopt( $signer, $plan['key'] );
+					$adopted = true;
+					$note .= ' La frase escrita firma ahora los respaldos nuevos (clave ' . Digitalisimo_Backups_Keys::short( $plan['key']['id'] ) . ').';
+				} catch ( Exception $adopt_error ) {
+					$note .= ' No se guardó la frase: ' . $adopt_error->getMessage();
+				}
+			}
+			$safety_file = self::backup_file_name( 'safety-before-restore-' );
+			$reader = Digitalisimo_Backups_Restore_Access::new_reader();
+			$token = Digitalisimo_Backups_Restore_Maintenance::new_token();
+			$via = (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) );
+			$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+			$spec = array(
+				'scope' => is_multisite() ? 'network' : 'installation',
+				'type' => 'chain',
+				'kind' => Digitalisimo_Backups_Chain_Job::KIND,
+				'destination' => 'local',
+				'policy' => 'chain-restore',
+				'retain' => 1,
+				'retention' => 'none',
+				'site_id' => (int) get_current_blog_id(),
+				'file' => wp_basename( $path ),
+				'inline' => false,
+				'token' => $token,
+				'safety' => $safety_file,
+				'reader' => array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] ),
+				'origin' => array( 'via' => $via, 'user_id' => $user, 'blog_id' => (int) get_current_blog_id(), 'context' => is_multisite() ? 'network' : 'site' ),
+				'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
+				// Lo que la restauración recibe al terminar la reconstrucción (nunca la frase).
+				'restore' => array(
+					'addresses' => $addresses,
+					'via' => $via,
+					'adopted' => $adopted,
+					'safety_spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) ),
+					'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
+					'token' => $token,
+					'readers' => array( $reader['hash'] ),
+					'user_id' => $user,
+					'notice' => trim( $note ),
+				),
+			);
+			$queued = Digitalisimo_Backups_Jobs::enqueue( $spec );
+			if ( ! empty( $queued['duplicate'] ) ) return self::service_error( 'busy', 'Ya hay una reconstrucción de un punto en curso.', 409, array( 'job' => (string) $queued['job']['id'] ) );
+			$job = $queued['job'];
+			// Lo comprobado (el plan, el inventario y los eslabones descifrados) pasa al área del trabajo.
+			$staging = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
+			foreach ( (array) @scandir( $dir ) as $name ) {
+				if ( '.' === $name || '..' === $name ) continue;
+				if ( ! @rename( $dir . '/' . $name, $staging . '/' . $name ) ) {
+					Digitalisimo_Backups_Job_Store::remove_tree( Digitalisimo_Backups_Job_Store::directory( $job['id'] ) );
+					return self::service_error( 'storage', 'No se pudo preparar la reconstrucción del punto en el área de trabajo.', 500 );
+				}
+			}
+			foreach ( $plan['links'] as $index => $link ) if ( 0 === strpos( (string) $link['path'], $dir . '/' ) ) $plan['links'][ $index ]['path'] = $staging . '/' . basename( (string) $link['path'] );
+			file_put_contents( $staging . '/' . Digitalisimo_Backups_Chain_Restore::PLAN, wp_json_encode( $plan ) );
+			$job['reader_token'] = $reader['token'];
+			return $job;
+		} finally {
+			if ( $signer ) Digitalisimo_Backups_Sodium::memzero( $signer );
+			Digitalisimo_Backups_Security::remove_tree( $dir );
+		}
+	}
+	/**
+	 * Resultado de restaurar un punto incremental: la reconstrucción y la restauración que encola, por ticks (en WP-CLI,
+	 * hasta terminar). Sin terminar en esta petición: `restoring` con el trabajo en curso y el testigo del mantenimiento.
+	 */
+	private static function chain_outcome( array $chain, $copies, $cli ) {
+		$reader = (string) ( $chain['reader_token'] ?? '' );
+		$id = (string) $chain['id'];
+		$job = self::restore_drive( $id, $cli );
+		$restore_id = (string) ( $job['result']['restore_job'] ?? '' );
+		if ( $job && 'success' === $job['status'] && '' !== $restore_id ) {
+			$restore = self::restore_drive( $restore_id, $cli );
+			$outcome = self::restore_outcome( $restore, $copies );
+			if ( is_array( $outcome ) ) $outcome['follow'] = self::service_follow( $restore_id, $reader );
+			return $outcome;
+		}
+		if ( ! $job ) return self::service_error( 'restore_failed', 'El trabajo de la reconstrucción del punto ya no existe.', 500 );
+		if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) return self::service_error( 'cancelled' === $job['status'] ? 'restore_cancelled' : 'chain_broken', 'El punto no se pudo reconstruir: ' . (string) ( $job['error']['message'] ?? 'la reconstrucción no terminó.' ) . ' No se cambió nada del sitio.', 'cancelled' === $job['status'] ? 409 : 422 );
+		return array( 'file' => basename( (string) $job['spec']['file'] ), 'restored' => false, 'restoring' => true, 'job' => self::service_job_view( $job ), 'notice' => 'Reconstruyendo el punto incremental (' . Digitalisimo_Backups_Jobs::phase_label( (string) $job['phase'], $job ) . '); después sigue la restauración. Las continúan la pantalla Backups, WP-Cron o POST /jobs/tick.', 'safety_backup' => (string) $job['spec']['safety'], 'maintenance_token' => (string) $job['spec']['token'], 'follow' => self::service_follow( $id, $reader ) );
 	}
 	/**
 	 * Comprueba un respaldo local sin tocar el sitio, con las mismas comprobaciones del paquete que la restauración
@@ -746,6 +874,20 @@ trait Digitalisimo_Backups_Service {
 		try {
 			try {
 				$report = $point ? self::service_chain_open( $point, $path, $secret ) : Digitalisimo_Backups_Security::open( $path, $item, $secret );
+				// Un punto incremental sin su fila: su cadena, por sus manifiestos (recuperación ante desastre).
+				if ( ! $point ) {
+					try { $loose = Digitalisimo_Backups_Chain_Restore::loose_item( $report['zip'], wp_basename( $path ) ); } catch ( Exception $e ) { $loose = null; }
+					if ( $loose ) {
+						Digitalisimo_Backups_Security::close( $report );
+						$report = null;
+						$point = $loose;
+						if ( ! $lock ) {
+							$lock = self::service_lock();
+							if ( is_wp_error( $lock ) ) { $busy = $lock; $lock = null; return $busy; }
+						}
+						$report = self::service_chain_open( $loose, $path, $secret, true );
+					}
+				}
 				$zip = $report['zip'];
 				$source = array();
 				$data = self::inspect_package( $zip, 'untrusted' !== $report['trust'], false, $source );

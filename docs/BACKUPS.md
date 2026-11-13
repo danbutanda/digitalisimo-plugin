@@ -1509,26 +1509,49 @@ de datos) y se restaura como cualquier completo; nunca se presenta ni se restaur
 ### Restaurar y verificar un punto
 
 Restaurar (pantalla, `POST /backups/<archivo>/restore`, `wp digitalisimo-backups restore`) y verificar
-(`verify`) un incremental es igual que un completo. Antes de tocar nada, `Digitalisimo_Backups_Chain_Restore`:
+(`verify`) un incremental es igual que un completo. Antes de tocar nada, en la petición que restaura,
+`Digitalisimo_Backups_Chain_Restore::prepare()`:
 
-1. comprueba que cada eslabón está en el historial y en el almacén (si falta alguno: 422 `chain_incomplete` con qué
-   traer; uno que ni siquiera está en el historial: `chain_broken`);
-2. abre cada eslabón como un respaldo (SHA-256 registrado, descifrado con la clave del sitio o la frase escrita, firma);
+1. comprueba que cada eslabón está en el almacén, con su fila del historial (si falta alguno: 422 `chain_incomplete` con
+   qué traer; uno cuya fila no es la que nombra el punto: `chain_broken`) o, sin historial, por el nombre que le da el
+   manifiesto del punto (ver «Recuperación ante desastre»);
+2. abre cada eslabón como un respaldo (SHA-256 registrado si tiene fila, descifrado con la clave del sitio o la frase
+   escrita —lo descifrado queda en el área del trabajo, como un `.dgbk` que se restaura—, firma);
 3. comprueba que el manifiesto del punto es el registrado y que cada antecesor tiene **exactamente** el manifiesto que
-   el punto nombra (SHA-256), su `backup_id`, su lugar en la cadena y la misma cadena (padres correctos y en orden);
-4. reconstruye el respaldo completo del punto en `.staging/` del almacén: su base de datos y cada archivo del
-   inventario, sacado del eslabón que el inventario dice y comprobado contra su tamaño y su SHA-256; el manifiesto es el
-   del punto como completo (`type` `full`, `materialized_from`), firmado con la clave del punto si la cadena estaba
-   firmada.
+   el punto nombra (SHA-256), su `backup_id`, su lugar en la cadena y la misma cadena (padres correctos y en orden), y
+   el espacio: el punto sin comprimir (archivos **y base de datos**), lo descifrado y un margen;
+4. pide la confirmación de la confianza de la cadena (`RESTAURAR`, o `RESTAURAR SIN FIRMA` si no tiene una firma de una
+   clave de este sitio ni filas de aquí).
 
-Ese ZIP completo entra en la restauración de siempre por su punto de entrada (`restore_enqueue()`: `staged`, como un
-`.dgbk` descifrado), que lo vuelve a verificar entrada por entrada y hace la copia previa, el SQL, los archivos y la vuelta
-atrás como con cualquier completo; la restauración por partes trabaja sobre ese mismo punto. La confianza del punto es la
+Después, el trabajo `chain` (`Digitalisimo_Backups_Chain_Job`) reconstruye el respaldo completo del punto **por tramos
+reanudables** (fase `build`: la base de datos y cada archivo del inventario, sacado del eslabón que dice y comprobado
+contra su tamaño y su SHA-256; tras una muerte sigue desde su punto de control), lo cierra con el manifiesto del punto como
+completo (`seal`: `type` `full`, `materialized_from`, firmado con la clave de la cadena si este sitio la tiene) y lo entrega
+(`handoff`) a la restauración de siempre por su punto de entrada (`restore_enqueue()`: `staged`, como un `.dgbk`
+descifrado), con los argumentos, el testigo del mantenimiento y la ficha de lectura que fijó la petición. La restauración
+lo vuelve a verificar entrada por entrada y hace la copia previa, el SQL, los archivos y la vuelta atrás como con
+cualquier completo; la restauración por partes trabaja sobre ese mismo punto. REST responde 202 con el trabajo en curso
+(primero la reconstrucción, después la restauración), la pantalla lo sigue en «Trabajos» y WP-CLI lo hace avanzar hasta
+terminar. Verificar un punto reconstruye y comprueba en la misma petición, como la verificación de un completo. La confianza del punto es la
 de su cadena: firmada, registrada aquí o sin firma (`RESTAURAR SIN FIRMA`). Una cadena rota (un eslabón que falta, alterado,
 otro padre, otro orden) se rechaza con un mensaje que nombra el eslabón («La cadena del punto … está rota: el incremental 1
 (eslabón 2 de 3) …») y **No se cambió nada del sitio**. Los borrados se aplican como en un completo: lo que el punto no
 tiene se retira de las raíces que gestiona la restauración (núcleo, plugins, temas, mu-plugins, medios y los PHP de la
 raíz); fuera de ellas, igual que con un completo, se conserva.
+
+### Recuperación ante desastre
+
+Los eslabones se describen solos: el manifiesto (firmado si hay clave) de cada incremental nombra a sus antecesores por
+archivo, `backup_id` y SHA-256 de su manifiesto. Sin el historial (base de datos perdida, WordPress reinstalado o un
+servidor nuevo que trae los archivos de su destino), un punto se reconoce por su manifiesto y su cadena se busca en el
+almacén por esos nombres:
+- «Traer al almacén» de un punto incremental listado en un destino («Respaldos en los destinos remotos», `POST
+  /destinations/<id>/backups/<nombre>/fetch`, `wp digitalisimo-backups destinations fetch <nombre> --from=<id>`) lo trae
+  como «sin registro» y trae también, del mismo destino y con sus nombres, los archivos de su cadena que faltan (cada uno
+  con su trabajo `fetch` comprobado). Subir un incremental lo comprueba entero y dice qué archivos de su cadena faltan.
+- Verificar y restaurar comprueban la cadena por sus manifiestos igual que con historial; la confianza es la de su firma
+  (con la clave de este sitio o la frase escrita) o, sin ella, «sin firma» (`RESTAURAR SIN FIRMA`), como un completo
+  ajeno. Con los eslabones cifrados hace falta su frase.
 
 ### Retención
 
@@ -1536,8 +1559,11 @@ La retención (local y remota) **cuenta puntos de restauración** y nunca borra 
 punto que se conserva: la de una automatización conserva sus N puntos más recientes y toda la cadena de la que dependen;
 una cadena antigua sale **entera** cuando ya no le queda ningún punto conservado. Lo mismo la retención global de los
 manuales, la de las copias remotas (también la global) y los puntos bloqueados (protegen a sus antecesores). Con «Conservar
-N» y un completo cada M incrementales, el almacén guarda como mucho N + M puntos. «Borrar» un eslabón del que dependen
-puntos posteriores se niega (borra antes los más recientes).
+N» y un completo cada M incrementales, el almacén guarda como mucho N + M puntos; por eso una automatización incremental
+acota «Conservar» a 100 − M (el historial guarda 100 filas, y su tope nunca saca la fila de un eslabón del que depende
+una que se queda). «Borrar» un eslabón del que dependen puntos posteriores, o uno que usa un trabajo en curso (el padre
+del incremental que se está haciendo), se niega; y si un eslabón desaparece mientras se hace un incremental, «publish»
+lo detecta y el trabajo sale como un completo.
 
 ### Automatizaciones y respaldo manual
 
@@ -1574,11 +1600,12 @@ remota borra las copias de una cadena sólo cuando ya no hay puntos que dependan
 
 ### Límites
 
-- Reconstruir un punto (y descifrar sus eslabones cifrados) es un paso dentro de la petición que restaura o verifica, como
-  descifrar un `.dgbk`: en la web con 30 s, un sitio grande necesita WP-CLI. Ocupa temporalmente en el almacén el punto
-  sin comprimir (y lo descifrado): se comprueba el espacio antes.
-- «Descargar» un punto incremental baja su eslabón, que sólo se restaura con su cadena: para llevar un punto a otro
-  servidor, la migración en un clic o un completo. Un eslabón suelto subido o importado se rechaza (falla cerrado).
+- Al restaurar, descifrar los eslabones cifrados es un paso en la petición (como un `.dgbk`); la reconstrucción va por
+  tramos, de un archivo entero por unidad (uno enorme que no quepa en un tramo necesita WP-CLI). Verificar un punto lo
+  reconstruye en una petición, como la verificación de un completo. Ocupa temporalmente en el almacén el punto sin
+  comprimir (y lo descifrado): se comprueba el espacio antes.
+- «Descargar» un punto incremental baja su eslabón: para llevarlo a otro servidor, súbelo (o tráelo de su destino) junto
+  con los archivos de su cadena, o usa la migración en un clic.
 - Un renombrado ocupa como nuevo; no hay deduplicación por contenido entre rutas.
 - Comparar por contenido lee todos los archivos en cada punto (no los comprime ni los escribe): ahorra espacio, no lectura.
 

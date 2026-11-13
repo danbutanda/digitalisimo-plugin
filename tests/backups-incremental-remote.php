@@ -142,6 +142,32 @@ inc_case( 'R3 retención en el remoto: una cadena vieja se borra entera del SFTP
 	foreach ( $kept as $file ) inc_check( isset( $files[ $file ] ), 'Falta en el remoto la copia de ' . $file );
 } );
 
+inc_case( 'R4 recuperación ante desastre desde el SFTP: sin historial ni almacén, «Traer al almacén» del último punto trae su cadena y se restaura idéntico', function() use ( $C, $B, $remote, $root ) {
+	inc_put( 'wp-content/uploads/2026/11/ultimo.txt', 'el último punto' );
+	$GLOBALS['bk_options']['blogname'] = 'Último punto';
+	$job = rem_run( 'remota', 2 );
+	$last = basename( inc_path( $job ) );
+	inc_check( 1 === $C::row_chain( inc_row( $last ) )['sequence'], 'El último punto no es un incremental.' );
+	$tree = inc_files();
+	$db = inc_db();
+	// El desastre: se pierden la base de datos (historial, índices) y el almacén; queda el SFTP. Un sitio «nuevo».
+	$GLOBALS['bk_options'][ $B::HISTORY ] = array();
+	foreach ( glob( rtrim( bk_storage(), '/' ) . '/*' ) as $path ) if ( is_file( $path ) ) unlink( $path );
+	bk_remove_tree( rtrim( bk_storage(), '/' ) . '/chains' );
+	@unlink( rtrim( bk_storage(), '/' ) . '/.installation-id' );
+	inc_put( 'wp-content/plugins/demo/sitio-nuevo.php', "<?php // otro contenido\n" );
+	$GLOBALS['bk_options']['blogname'] = 'Sitio nuevo';
+	$listed = $B::service_remote_backups( 'sftp' );
+	inc_check( ! is_wp_error( $listed ) && in_array( $last, array_column( (array) ( $listed['backups'] ?? $listed ), 'name' ), true ), 'El SFTP no lista el último punto: ' . json_encode( $listed ) );
+	$fetched = $B::service_remote_fetch( 'sftp', $last, array( 'via' => 'test', 'drive_cli' => true ) );
+	inc_check( ! is_wp_error( $fetched ) && ! empty( $fetched['fetched'] ) && 1 === count( (array) ( $fetched['chain'] ?? array() ) ) && ! empty( $fetched['chain'][0]['fetched'] ), '«Traer al almacén» del punto no trajo su cadena: ' . ( is_wp_error( $fetched ) ? $fetched->get_error_message() : json_encode( $fetched ) ) );
+	$result = inc_restore( $last );
+	inc_check( is_wp_error( $result ) && 'digitalisimo_backups_confirm_unsigned' === $result->get_error_code(), 'Sin historial ni firma, «RESTAURAR» no pidió «RESTAURAR SIN FIRMA».' );
+	$result = inc_restore( $last, 'RESTAURAR SIN FIRMA' );
+	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok(), 'El punto traído sin historial no se restauró: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
+	inc_check( $tree === inc_files() && $db === inc_db(), 'El punto traído sin historial y restaurado no es el sitio de su momento.' );
+} );
+
 bk_cleanup();
 echo $failures ? "FALLA: incrementales con destino remoto, {$failures} caso(s) fallido(s).\n" : "DIGITALÍSIMO Backups: cadena de incrementales hacia SFTP real, «Traer al almacén» de la cadena entera y retención remota consciente de cadenas.\n";
 exit( $failures ? 1 : 0 );

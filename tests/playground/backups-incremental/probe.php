@@ -290,6 +290,28 @@ try {
 		list( $ok, $message ) = $restore( $points[2] );
 		$now = array( $files(), $tables() );
 		$check( $ok && $snap[2] === $now, 'R4 el punto traído del SFTP se restauró idéntico (archivos y tablas)' . ( $ok ? '' : ': ' . $message ) . ( $snap[2][0] === $now[0] ? '' : ': ' . $diff( $snap[2][0], $now[0] ) ) );
+		// R5: recuperación ante desastre. Se pierden la base de datos de Backups (historial, índices, identidad) y el almacén:
+		// queda el SFTP. Un sitio «nuevo» trae del destino el último punto, que trae su cadena, y lo restaura idéntico.
+		delete_option( Digitalisimo_Backups::HISTORY );
+		foreach ( glob( $storage() . '/*' ) as $path ) if ( is_file( $path ) ) unlink( $path );
+		foreach ( (array) glob( $storage() . '/chains/*' ) as $path ) @unlink( $path );
+		@unlink( $storage() . '/.installation-id' );
+		$put( 'wp-content/plugins/demo/sitio-nuevo.php', "<?php // otro contenido\n" );
+		update_option( 'demo_opcion', 'sitio nuevo' );
+		$started = microtime( true );
+		list( $ok, $message ) = $submit( array( 'Digitalisimo_Backups', 'remote_fetch_request' ), Digitalisimo_Backups::ACTION_REMOTE_FETCH, array( 'destination' => 'sftp', 'name' => basename( $points[2] ) ) );
+		$drain();
+		$here = 0;
+		foreach ( $points as $point ) if ( is_file( $point ) ) $here++;
+		$check( $ok && 3 === $here, 'R5 sin historial ni almacén, «Traer al almacén» del último punto del SFTP trajo su cadena (' . $here . ' de 3 archivos; ' . mb_substr( $message, 0, 120 ) . '…)' );
+		list( $ok, $message ) = $restore( $points[2] );
+		$check( ! $ok && false !== strpos( $message, 'RESTAURAR SIN FIRMA' ), 'R5 sin historial ni firma, restaurar pide «RESTAURAR SIN FIRMA»' );
+		list( $ok, $message ) = $submit( array( 'Digitalisimo_Backups', 'restore_request' ), Digitalisimo_Backups::ACTION_RESTORE, array( 'backup_file' => basename( $points[2] ), 'confirmation' => 'RESTAURAR SIN FIRMA' ) );
+		if ( $ok ) $drain();
+		wp_cache_flush();
+		wp_set_current_user( 1 );
+		$now = array( $files(), $tables() );
+		$check( $ok && $snap[2] === $now, 'R5 el último punto, traído a un sitio sin historial y restaurado, deja el sitio idéntico (' . round( microtime( true ) - $started ) . ' s)' . ( $ok ? '' : ': ' . $message ) . ( $snap[2][0] === $now[0] ? '' : ': ' . $diff( $snap[2][0], $now[0] ) ) );
 	}
 	$log( 'TERMINADO · ' . $elapsed() );
 } catch ( Throwable $e ) {

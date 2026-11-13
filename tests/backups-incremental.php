@@ -225,6 +225,97 @@ inc_case( 'I4 cadena rota: falta, alterada, padre equivocado o fila que no corre
 	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok(), 'La cadena íntegra no se restauró tras los rechazos: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 } );
 
+inc_case( 'I14 recuperación ante desastre: sin historial ni índices, el punto se verifica y se restaura por sus manifiestos («sin firma»)', function() use ( $B, $root ) {
+	inc_put( 'wp-content/uploads/2026/12/desastre.txt', 'desastre 0' );
+	inc_run( 'desastre' );
+	inc_put( 'wp-content/uploads/2026/12/desastre.txt', 'desastre 1' );
+	inc_put( 'wp-content/plugins/demo/desastre.php', "<?php // punto 1\n" );
+	$i1 = inc_path( inc_run( 'desastre' ) );
+	unlink( $root . '/wp-content/plugins/demo/desastre.php' );
+	$GLOBALS['bk_options']['blogname'] = 'Antes del desastre';
+	$i2 = inc_path( inc_run( 'desastre' ) );
+	$tree = inc_files();
+	$db = inc_db();
+	// El desastre: la base de datos (historial) y los índices laterales se pierden; los archivos siguen (o vuelven de un destino).
+	$history = $GLOBALS['bk_options'][ $B::HISTORY ];
+	$GLOBALS['bk_options'][ $B::HISTORY ] = array();
+	bk_remove_tree( rtrim( bk_storage(), '/' ) . '/chains' );
+	@unlink( rtrim( bk_storage(), '/' ) . '/.installation-id' );
+	inc_put( 'wp-content/plugins/demo/otro-sitio.php', "<?php // el sitio nuevo\n" );
+	$GLOBALS['bk_options']['blogname'] = 'Sitio nuevo';
+	$verify = $B::service_verify( basename( $i2 ) );
+	inc_check( ! is_wp_error( $verify ) && 3 === $verify['chain']['links'] && 'untrusted' === $verify['trust'] && 'RESTAURAR SIN FIRMA' === $verify['confirmation'], 'La verificación sin historial no reconoció la cadena: ' . ( is_wp_error( $verify ) ? $verify->get_error_message() : json_encode( $verify['chain'] ?? null ) ) );
+	$before = bk_tree();
+	$result = inc_restore( $i2 );
+	inc_check( is_wp_error( $result ) && 'digitalisimo_backups_confirm_unsigned' === $result->get_error_code() && bk_tree() === $before, 'Sin historial ni firma, «RESTAURAR» no pidió «RESTAURAR SIN FIRMA»: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : 'aceptado' ) );
+	rename( $i1, $i1 . '.aparte' );
+	// Subido o traído suelto: se comprueba entero como un respaldo y dice qué archivos de su cadena faltan.
+	$inspected = bk_call( 'Digitalisimo_Backups', 'upload_inspect', $i2, '' );
+	inc_check( ! is_wp_error( $inspected ) && ! empty( $inspected['verified'] ) && array( basename( $i1 ) ) === ( $inspected['chain']['missing'] ?? null ) && false === $inspected['compatible'], 'Un incremental subido no se comprobó o no dijo qué falta de su cadena: ' . ( is_wp_error( $inspected ) ? $inspected->get_error_message() : json_encode( $inspected['chain'] ?? null ) ) );
+	$result = inc_restore( $i2, 'RESTAURAR SIN FIRMA' );
+	inc_check( is_wp_error( $result ) && 'digitalisimo_backups_chain_incomplete' === $result->get_error_code() && false !== strpos( $result->get_error_message(), basename( $i1 ) ) && false !== strpos( $result->get_error_message(), 'Súbelos o tráelos' ) && bk_tree() === $before, 'Sin un eslabón no dijo cuál subir o traer: ' . ( is_wp_error( $result ) ? $result->get_error_message() : 'aceptado' ) );
+	rename( $i1 . '.aparte', $i1 );
+	$result = inc_restore( $i2, 'RESTAURAR SIN FIRMA' );
+	inc_check( ! is_wp_error( $result ) && inc_last_restore_ok(), 'El punto no se restauró sin historial: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( $result ) ) );
+	inc_check( $tree === inc_files() && $db === inc_db(), 'Sin historial, el punto restaurado no es el sitio de su momento.' );
+	$GLOBALS['bk_options'][ $B::HISTORY ] = array_merge( (array) $GLOBALS['bk_options'][ $B::HISTORY ], (array) $history );
+} );
+
+inc_case( 'I15 la reconstrucción de un punto va por tramos reanudables en su trabajo y cuenta el SQL sin comprimir en el espacio', function() use ( $B, $C, $root ) {
+	// Una base de datos que comprime mucho: el espacio debe contar su tamaño sin comprimir, no el del ZIP del punto.
+	$GLOBALS['wpdb']->posts[] = array( 'ID' => '90', 'post_content' => str_repeat( 'texto que se comprime muy bien. ', 20000 ) );
+	inc_put( 'wp-content/uploads/2026/12/tramos.txt', 'tramos 0' );
+	inc_run( 'tramos' );
+	for ( $i = 0; $i < 8; $i++ ) inc_put( 'wp-content/uploads/2026/12/tramo-' . $i . '.txt', str_repeat( 'tramo ' . $i, 300 ) );
+	$point = inc_path( inc_run( 'tramos' ) );
+	$tree = inc_files();
+	$row = inc_row( $point );
+	$GLOBALS['bk_filters']['digitalisimo_backups_free_space'] = function( $free ) use ( $row ) { return (float) ( (int) $row['chain']['bytes'] + Digitalisimo_Backups_Chain_Restore::MARGIN + 200000 ); };
+	$result = inc_restore( $point );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_free_space'] );
+	inc_check( is_wp_error( $result ) && false !== strpos( $result->get_error_message(), 'No hay espacio para reconstruir' ), 'El espacio no contó la base de datos sin comprimir: ' . ( is_wp_error( $result ) ? $result->get_error_message() : 'aceptado' ) );
+	inc_put( 'wp-content/uploads/2026/12/tramos.txt', 'después' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function() { return 1; };
+	// La respuesta sale enseguida (como una petición web cortada): el resto lo hacen los ticks.
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { return 0; };
+	$result = Digitalisimo_Backups::service_restore( basename( $point ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+	inc_check( ! is_wp_error( $result ) && ! empty( $result['restoring'] ) && 'chain' === ( $result['job']['kind'] ?? '' ), 'La restauración del punto no empezó por su trabajo de reconstrucción: ' . ( is_wp_error( $result ) ? $result->get_error_message() : json_encode( array_intersect_key( $result, array_flip( array( 'restoring', 'job' ) ) ) ) ) );
+	$chain = $result['job']['id'];
+	$slices = 0;
+	$killed = false;
+	for ( $i = 0; $i < 4000; $i++ ) {
+		$job = Digitalisimo_Backups_Jobs::get( $chain );
+		if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+		if ( 'build' === $job['phase'] && ! empty( $job['checkpoint']['build']['resume']['files'] ) ) {
+			$slices++;
+			if ( ! $killed && $job['checkpoint']['build']['resume']['files'] >= 3 ) { $killed = true; inc_kill( $chain ); }
+		}
+		Digitalisimo_Backups_Jobs::tick( 0 );
+	}
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	$job = Digitalisimo_Backups_Jobs::get( $chain );
+	inc_check( 'success' === $job['status'] && $killed && $slices >= 5 && '' !== (string) ( $job['result']['restore_job'] ?? '' ), 'La reconstrucción no fue por tramos reanudables: ' . json_encode( array( $job['status'], $job['error'], $slices, $killed ) ) );
+	for ( $i = 0; $i < 4000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	inc_check( inc_last_restore_ok() && $tree === inc_files(), 'Tras la reconstrucción por tramos, el punto restaurado no es el de su momento.' );
+	array_pop( $GLOBALS['wpdb']->posts );
+} );
+
+inc_case( 'I16 un incremental heredado (v2, anterior a 1.0.38) conserva su mensaje de paquete parcial', function() {
+	$path = rtrim( bk_storage(), '/' ) . '/digitalisimo-site-1-example-test-incremental-20200101-000000.zip';
+	$zip = new ZipArchive();
+	$zip->open( $path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+	$zip->addFromString( 'database.sql', "SET NAMES utf8mb4;\n" );
+	$zip->addFromString( 'manifest.json', json_encode( array( 'format' => 'digitalisimo-backup/v2', 'scope' => 'site', 'type' => 'incremental', 'policy' => 'vieja' ) ) );
+	$zip->close();
+	$zip = new ZipArchive();
+	$zip->open( $path );
+	$message = bk_expect_failure( 'incremental v2', function() use ( $zip ) { bk_call( 'Digitalisimo_Backups', 'inspect_package', $zip, true, false ); }, 'paquete parcial' );
+	$zip->close();
+	unlink( $path );
+	inc_check( false === strpos( $message, 'eslabón' ), 'El incremental heredado recibe el texto de las cadenas: ' . $message );
+} );
+
 inc_case( 'I5 retención consciente de cadenas: cuenta puntos, nunca rompe una cadena, consolida y no deja índices huérfanos', function() use ( $C, $B ) {
 	$made = array();
 	for ( $i = 0; $i < 7; $i++ ) {
@@ -375,6 +466,150 @@ inc_case( 'I8 superficies: historial con tipo, base y ahorro; automatizaciones c
 	// La copia previa de una restauración y la extracción nunca son incrementales.
 	$spec = Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'inline' => true, 'incremental' => array( 'full_every' => 2 ) ) );
 	inc_check( ! isset( $spec['incremental'] ) && ! $C::job_enabled( $spec ), 'Una copia previa sería incremental.' );
+} );
+
+inc_case( 'I10 borrar el padre de un incremental en curso se niega; si desaparece igual, «publish» vuelve a «preflight» y sale un completo', function() use ( $C, $B ) {
+	inc_put( 'wp-content/uploads/2026/12/d.txt', 'd0' );
+	inc_run( 'borra-padre' );
+	inc_put( 'wp-content/uploads/2026/12/d.txt', 'd1' );
+	$i1 = inc_path( inc_run( 'borra-padre' ) );
+	inc_put( 'wp-content/uploads/2026/12/d.txt', 'd2' );
+	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'borra-padre', 'destination' => 'local', 'retain' => 20, 'retention' => 'policy', 'via' => 'test', 'incremental' => array( 'full_every' => 6 ) ) ) );
+	$id = $queued['job']['id'];
+	for ( $i = 0; $i < 60; $i++ ) {
+		$job = Digitalisimo_Backups_Jobs::get( $id );
+		if ( 'verify' === $job['phase'] || Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+		Digitalisimo_Backups_Jobs::tick( 0.000001 );
+	}
+	inc_check( 'verify' === $job['phase'] && 'incremental' === $C::job_plan( $job )['mode'], 'El incremental no llegó a «verify».' );
+	list( $ok, $message ) = bk_post( array( 'Digitalisimo_Backups', 'delete_backup' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_DELETE, 'file' => basename( $i1 ) ) );
+	inc_check( ! $ok && false !== strpos( $message, 'trabajo en curso' ) && is_file( $i1 ), 'Se borró el padre de un incremental en curso: ' . $message );
+	// Desaparece igual (a mano, por SSH): el punto no puede nacer roto.
+	$row = inc_row( $i1 );
+	bk_call( 'Digitalisimo_Backups', 'remove_history', basename( $i1 ) );
+	unlink( $i1 );
+	for ( $i = 0; $i < 400; $i++ ) {
+		$job = Digitalisimo_Backups_Jobs::get( $id );
+		if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+		Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	}
+	// El trabajo vuelve a «preflight»: el punto nace sobre lo que queda de su cadena (la base), nunca sobre el padre borrado.
+	$plan = $C::job_plan( $job );
+	$point = inc_row( inc_path( $job ) );
+	inc_check( 'success' === $job['status'] && ! in_array( basename( $i1 ), $C::files( $point ), true ) && array() === $B::chain_missing( $point ), 'Sin su padre el punto nació roto: ' . json_encode( array( $job['status'], $plan['mode'] ?? '', $C::files( $point ) ) ) );
+	unset( $row );
+} );
+
+inc_case( 'I11 un eslabón cuyo contenido no es el que exige el inventario firmado del punto se rechaza (SHA-256 de cada archivo copiado)', function() use ( $C, $B ) {
+	inc_put( 'wp-content/uploads/2026/12/m5.txt', 'm5 base' );
+	inc_run( 'm5' );
+	inc_put( 'wp-content/uploads/2026/12/m5.txt', 'm5 punto 1' );
+	$point = inc_path( inc_run( 'm5' ) );
+	// El inventario del punto dice otro contenido (mismo tamaño) para un archivo que hereda de la base; el manifiesto y la
+	// fila del historial se ponen al día, como lo haría un índice lateral equivocado.
+	$zip = new ZipArchive();
+	$zip->open( $point );
+	$lines = explode( "\n", trim( (string) $zip->getFromName( 'inventory.jsonl' ) ) );
+	foreach ( $lines as &$line ) {
+		$record = json_decode( $line, true );
+		if ( 'wordpress/wp-load.php' === ( $record['n'] ?? '' ) ) { $record['h'] = hash( 'sha256', 'otro contenido' ); $line = json_encode( $record, JSON_UNESCAPED_SLASHES ); }
+	}
+	unset( $line );
+	$inventory = implode( "\n", $lines ) . "\n";
+	$manifest = json_decode( (string) $zip->getFromName( 'manifest.json' ), true );
+	$manifest['entries']['inventory.jsonl'] = array( 'size' => strlen( $inventory ), 'sha256' => hash( 'sha256', $inventory ) );
+	$bytes = json_encode( $manifest, JSON_PRETTY_PRINT );
+	$zip->addFromString( 'inventory.jsonl', $inventory );
+	$zip->addFromString( 'manifest.json', $bytes );
+	// Si el sitio firma, se vuelve a firmar con su clave: sólo la comprobación del contenido de cada archivo lo detecta.
+	if ( isset( $manifest['auth']['key']['id'] ) ) {
+		$active = Digitalisimo_Backups_Keys::active();
+		$zip->setArchiveComment( Digitalisimo_Backups_Manifest_Auth::comment( $active[0], $bytes ) );
+	}
+	$zip->close();
+	foreach ( $GLOBALS['bk_options'][ $B::HISTORY ] as &$row ) if ( basename( $point ) === $row['file'] ) { $row['sha256'] = hash_file( 'sha256', $point ); $row['chain']['manifest_sha256'] = hash( 'sha256', $bytes ); }
+	unset( $row );
+	$message = bk_expect_failure( 'contenido distinto del inventario', function() use ( $point ) { inc_materialize( $point ); }, 'con el contenido que el punto exige' );
+	inc_check( false !== strpos( $message, 'wp-load.php' ), 'El rechazo no nombra el archivo: ' . $message );
+} );
+
+inc_case( 'I12 un eslabón sin ninguna copia no se encadena: el siguiente punto es un completo', function() use ( $C ) {
+	inc_put( 'wp-content/uploads/2026/12/m6.txt', 'm6 base' );
+	$base = inc_path( inc_run( 'm6' ) );
+	inc_put( 'wp-content/uploads/2026/12/m6.txt', 'm6 punto 1' );
+	inc_run( 'm6' );
+	unlink( $base ); // Su fila sigue, sin ZIP local ni copia remota.
+	inc_put( 'wp-content/uploads/2026/12/m6.txt', 'm6 punto 2' );
+	$plan = $C::job_plan( inc_run( 'm6' ) );
+	inc_check( 'base' === $plan['mode'] && 'missing_link' === $plan['reason'], 'Se encadenó sobre un eslabón sin copia: ' . json_encode( $plan ) );
+} );
+
+inc_case( 'I13 los borrados salen del inventario confirmado aunque un tramo muerto haya marcado archivos que después desaparecen', function() use ( $C, $root ) {
+	for ( $i = 0; $i < 12; $i++ ) inc_put( 'wp-content/uploads/2026/12/v-' . $i . '.txt', 'visto ' . $i );
+	inc_run( 'vistos' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function() { return 1; };
+	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'vistos', 'destination' => 'local', 'retain' => 20, 'retention' => 'policy', 'via' => 'test', 'incremental' => array( 'full_every' => 6 ) ) ) );
+	$id = $queued['job']['id'];
+	$gone = '';
+	for ( $i = 0; $i < 4000; $i++ ) {
+		$job = Digitalisimo_Backups_Jobs::get( $id );
+		if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+		$resume = $job['checkpoint']['pack']['resume'] ?? null;
+		if ( '' === $gone && is_array( $resume ) && 'write' === $resume['stage'] && $resume['done'] >= 2 ) {
+			// Lo que dejaría un tramo muerto: todos los archivos del padre marcados como «vistos»; y uno que aún no se
+			// procesó desaparece antes del tramo siguiente.
+			$staging = bk_storage() . '/jobs/' . $id . '/staging/package.' . $resume['tag'];
+			file_put_contents( $staging . '.parent.seen', str_repeat( "\1", (int) $resume['chain']['count'] ) );
+			$rest = substr( file_get_contents( $staging . '.files.jsonl' ), (int) $resume['files_read'] );
+			foreach ( explode( "\n", $rest ) as $line ) if ( 0 === strpos( $line, 'wp-content/uploads/2026/12/v-' ) ) { $gone = $line; break; }
+			inc_check( '' !== $gone, 'No quedaba ningún archivo por procesar para la prueba.' );
+			unlink( $root . '/' . $gone );
+		}
+		Digitalisimo_Backups_Jobs::tick( 0 );
+	}
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	$job = Digitalisimo_Backups_Jobs::get( $id );
+	inc_check( 'success' === $job['status'] && '' !== $gone, 'El incremental no terminó: ' . json_encode( $job['error'] ) );
+	$zip = inc_zip( inc_path( $job ) );
+	$deleted = array();
+	foreach ( $zip['inventory'] as $line ) if ( ! empty( $line['x'] ) ) $deleted[] = $line['n'];
+	inc_check( array( 'wordpress/' . $gone ) === $deleted && 1 === $zip['manifest']['chain']['stats']['deleted'], 'El borrado no figura en el inventario: ' . json_encode( $deleted ) );
+} );
+
+inc_case( 'I9 tope del historial: nunca saca la fila de un eslabón del que depende un punto que se queda; «Conservar 100» con un completo cada 6 cabe entero', function() use ( $C, $B ) {
+	// La pantalla no deja que una automatización incremental desborde el historial: Conservar + N ≤ 100.
+	list( $ok, $message ) = bk_post( array( $B, 'create_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_CREATE_AUTOMATION, 'digitalisimo_backup_automation' => array( 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 100, 'mode' => 'incremental', 'full_every' => 6 ) ) );
+	$cien = array_values( array_filter( $B::policies(), function( $p ) { return 'incremental' === ( $p['mode'] ?? '' ) && 6 === (int) ( $p['full_every'] ?? 0 ) && (int) $p['retain'] > 50; } ) );
+	inc_check( $ok && $cien && 94 === (int) $cien[0]['retain'], 'Conservar 100 con un completo cada 6 no se acotó a 94: ' . json_encode( $cien ) );
+	// Una cadena (base, 1, 2) y, después, 98 respaldos de otra automatización: la base queda más allá de la fila 100.
+	inc_put( 'wp-content/uploads/2026/12/tope.txt', 't0' );
+	$base = inc_path( inc_run( 'tope' ) );
+	inc_put( 'wp-content/uploads/2026/12/tope.txt', 't1' );
+	inc_run( 'tope' );
+	inc_put( 'wp-content/uploads/2026/12/tope.txt', 't2' );
+	$head = inc_path( inc_run( 'tope' ) );
+	$GLOBALS['bk_options'][ $B::HISTORY ] = array_values( array_filter( (array) $GLOBALS['bk_options'][ $B::HISTORY ], function( $row ) { return 'tope' === ( $row['policy'] ?? '' ); } ) );
+	for ( $i = 0; $i < 98; $i++ ) {
+		$dummy = rtrim( bk_storage(), '/' ) . '/digitalisimo-backup-example-test-relleno-' . $i . '.zip';
+		file_put_contents( $dummy, 'relleno ' . $i );
+		bk_call( 'Digitalisimo_Backups', 'remember', $dummy, 'local', 'installation', array( 'id' => 'relleno', 'type' => 'full' ), array(), 0, false, array() );
+	}
+	$history = (array) $GLOBALS['bk_options'][ $B::HISTORY ];
+	inc_check( 101 === count( $history ) && inc_row( $base ) && array() === $B::chain_missing( inc_row( $head ) ), 'El tope del historial sacó la base de una cadena que se conserva: ' . count( $history ) . ' filas.' );
+	$virtual = inc_materialize( $head );
+	Digitalisimo_Backups_Security::remove_tree( $virtual['staging'] );
+	// «Conservar 94» (lo que queda de 100) con un completo cada 6: 102 puntos, todos con su cadena y sin ZIP sin fila.
+	$GLOBALS['bk_options'][ $B::HISTORY ] = array();
+	foreach ( glob( rtrim( bk_storage(), '/' ) . '/digitalisimo-*' ) as $old ) unlink( $old );
+	for ( $i = 0; $i < 102; $i++ ) {
+		inc_put( 'wp-content/uploads/2026/12/cien.txt', 'punto ' . $i );
+		inc_run( 'cien', 6, 7, 94 );
+	}
+	$history = (array) $GLOBALS['bk_options'][ $B::HISTORY ];
+	$named = array_flip( array_column( $history, 'file' ) );
+	foreach ( glob( rtrim( bk_storage(), '/' ) . '/digitalisimo-*' ) as $file ) inc_check( isset( $named[ basename( $file ) ] ), 'Quedó un ZIP sin fila: ' . basename( $file ) );
+	foreach ( $history as $row ) inc_check( array() === $B::chain_missing( $row ), 'Un punto conservado perdió su cadena: ' . $row['file'] );
+	inc_check( count( $history ) <= 100 && count( $history ) >= 94, 'Puntos conservados: ' . count( $history ) );
 } );
 
 bk_cleanup();

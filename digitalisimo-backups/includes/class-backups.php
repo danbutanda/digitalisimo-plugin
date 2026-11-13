@@ -6,6 +6,7 @@ require_once __DIR__ . '/class-backups-backup-job.php';
 // Incrementales: cadenas, su índice lateral, su retención y la reconstrucción de un punto (docs/BACKUPS.md, «Incrementales»).
 require_once __DIR__ . '/class-backups-chain.php';
 require_once __DIR__ . '/class-backups-chain-restore.php';
+require_once __DIR__ . '/class-backups-chain-job.php';
 // Exportación, empaquetado y verificación por tramos (T2).
 foreach ( array( 'step-budget', 'zip-writer', 'sql-export', 'packer' ) as $digitalisimo_backups_part ) require_once __DIR__ . '/steps/class-' . $digitalisimo_backups_part . '.php';
 // Restauración por pasos (H1–H4): manifiesto por partes, trabajo de restauración y su modo de mantenimiento.
@@ -1013,6 +1014,10 @@ final class Digitalisimo_Backups {
 		// Un eslabón del que dependen puntos posteriores de su cadena no se borra solo: dejaría esos puntos sin restaurar.
 		$dependents = Digitalisimo_Backups_Chain::dependents( self::fresh_history(), $file );
 		if ( $dependents ) self::redirect( false, 'No se borró: ' . count( $dependents ) . ' punto(s) incremental(es) posteriores dependen de este respaldo. Borra antes los más recientes de su cadena.' );
+		// Un respaldo que usa un trabajo en curso (el padre de un incremental que se está haciendo, el que se restaura, la
+		// copia previa de una restauración) no se borra hasta que termine.
+		$busy = self::busy_backup_files();
+		if ( null === $busy || isset( $busy[ wp_basename( $file ) ] ) ) self::redirect( false, 'No se borró: un trabajo en curso usa este respaldo (por ejemplo, el incremental que se está haciendo sobre él). Vuelve a intentarlo cuando termine.' );
 		$gone = '';
 		try {
 			$path = self::local_path( $file );
@@ -1070,7 +1075,11 @@ final class Digitalisimo_Backups {
 		// Incremental (docs/BACKUPS.md, «Incrementales»): sigue siendo un respaldo completo por punto; sólo guarda lo
 		// nuevo o cambiado y hace un completo nuevo cada `full_every` incrementales o `full_days` días.
 		$chain = Digitalisimo_Backups_Chain::settings( $input );
-		if ( 'incremental' === $chain['mode'] ) $automation += $chain;
+		if ( 'incremental' === $chain['mode'] ) {
+			$automation += $chain;
+			// Sus puntos y la cadena de la que dependen (Conservar + un completo cada N) caben en el historial (100 filas).
+			$automation['retain'] = max( 1, min( (int) $automation['retain'], Digitalisimo_Backups_Chain::HISTORY_ROWS - $chain['full_every'] ) );
+		}
 		return $automation;
 	}
 	public static function create_automation() {
@@ -1478,6 +1487,59 @@ final class Digitalisimo_Backups {
 		return Digitalisimo_Backups_Chain::plan( $spec, self::fresh_history(), time(), $usable, $index_ok );
 	}
 	/**
+	 * @internal Fase «handoff» del trabajo `chain`: el respaldo completo reconstruido de un punto incremental pasa a la
+	 * restauración por pasos de siempre (que lo vuelve a comprobar entrada por entrada), con los argumentos que fijó la
+	 * petición que restaura y la confianza de su cadena: firmado (sellado con la clave de la cadena), registrado aquí o sin
+	 * firma. La confirmación ya se pidió en esa petición.
+	 */
+	public static function chain_handoff( array $job, array $plan ) {
+		$dir = Digitalisimo_Backups_Job_Store::staging( $job['id'] );
+		$target = $dir . '/point.zip';
+		$restore = (array) ( $job['spec']['restore'] ?? array() );
+		$queued = (string) ( $job['checkpoint']['handoff']['restore_job'] ?? '' );
+		// Si el proceso murió justo después de encolarla, la restauración ya está: se reconoce por su ficha de lectura.
+		foreach ( Digitalisimo_Backups_Jobs::active() as $active ) if ( '' === $queued && Digitalisimo_Backups_Jobs::is_restore( $active ) && array_intersect( (array) ( $restore['readers'] ?? array() ), (array) ( $active['spec']['readers'] ?? array() ) ) ) $queued = (string) $active['id'];
+		if ( '' === $queued ) {
+			if ( ! is_file( $target ) || ! Digitalisimo_Backups_Backup_Job::same_fingerprint( Digitalisimo_Backups_Backup_Job::fingerprint( $target ), (array) ( $job['checkpoint']['seal']['fp'] ?? array() ) ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El punto reconstruido cambió o desapareció; se cierra otra vez.', 'seal' );
+			$sha = @hash_file( 'sha256', $target );
+			if ( false === $sha ) throw new Exception( 'No se pudo comprobar el punto reconstruido.' );
+			$report = Digitalisimo_Backups_Security::open( $target, 'untrusted' === ( $plan['trust'] ?? 'untrusted' ) ? array() : array( 'sha256' => $sha, 'origin' => 'created' ) );
+			$report['source'] = rtrim( self::local_directory(), '/\\' ) . '/' . basename( (string) $job['spec']['file'] );
+			$report['staged'] = true;
+			try {
+				$config = self::config_report( $report['zip'] );
+				$restore_job = self::restore_enqueue( $report, array(
+					'addresses' => 'backup' === ( $restore['addresses'] ?? '' ) ? 'backup' : 'current',
+					'via' => (string) ( $restore['via'] ?? 'rest' ),
+					'adopted' => ! empty( $restore['adopted'] ),
+					'safety_spec' => (array) ( $restore['safety_spec'] ?? array() ),
+					'sync' => false,
+					'wp_config' => $config,
+					'notice' => (string) ( $restore['notice'] ?? '' ),
+					'keep_access' => ! array_key_exists( 'keep_access', $restore ) || ! empty( $restore['keep_access'] ),
+					'token' => (string) ( $restore['token'] ?? '' ),
+					'readers' => (array) ( $restore['readers'] ?? array() ),
+					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
+					'except' => (string) $job['id'],
+				) );
+			} finally {
+				Digitalisimo_Backups_Security::close( $report );
+				self::$restore_reader_token = '';
+			}
+			$queued = (string) $restore_job['id'];
+		}
+		return array( 'next' => null, 'checkpoint' => array( 'restore_job' => $queued ), 'result' => array( 'restore_job' => $queued ), 'message' => 'Punto reconstruido y entregado a la restauración (trabajo ' . $queued . ').' );
+	}
+	/** @internal Los eslabones de un plan incremental siguen en el historial, de esta instalación y con alguna copia. */
+	public static function job_chain_links_ok( array $plan ) {
+		$history = self::fresh_history();
+		foreach ( (array) $plan['links'] as $link ) {
+			$row = is_array( $link ) ? Digitalisimo_Backups_Chain::link_row( $history, $link ) : null;
+			if ( ! $row || ( '' === self::local_copy( $row ) && ! self::remote_exists( $row ) ) ) return false;
+		}
+		return true;
+	}
+	/**
 	 * @internal Fase «publish» de un punto de una cadena: escribe su índice lateral desde las listas del área de trabajo
 	 * (la base, desde sus entradas; un incremental, desde su inventario) y devuelve el bloque `chain` de su fila. Si las
 	 * listas ya no están (el proceso murió después de retirarlas), reutiliza el índice que dejó, si es el de este respaldo.
@@ -1861,7 +1923,7 @@ final class Digitalisimo_Backups {
 	 * decodificaba entero y se guardaban todos los nombres, que con 64 MB no cabía en un sitio de ~17 000 archivos. Los
 	 * mensajes y su orden son los de siempre. $on_entry( $i, $name, $chunk ) recibe los bytes de cada entrada.
 	 */
-	private static function verify_zip_contents( $zip, $on_entry = null ) {
+	private static function verify_zip_contents( $zip, $on_entry = null, $link_ok = false ) {
 		$count = (int) $zip->numFiles;
 		$head = null;
 		$manifest_error = null;
@@ -1911,11 +1973,15 @@ final class Digitalisimo_Backups {
 			if ( 'digitalisimo-backup/v3' !== ( $manifest['format'] ?? '' ) ) return;
 			// v3: la instalación (o red) completa, o un sitio extraído de una red (sin el wp-config.php de la red).
 			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $manifest['scope'] ?? '' );
-			if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || ( 'installation' !== ( $manifest['scope'] ?? '' ) && ! $extracted ) || 'full' !== ( $manifest['type'] ?? '' ) || null === $head['entries'] || (int) $head['entries'] !== $observed ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
+			// Un eslabón incremental (subido o traído suelto, `$link_ok`): trae la base de datos y su inventario; los archivos
+			// que no cambiaron están en su cadena.
+			$link = $link_ok && ! $extracted && null !== Digitalisimo_Backups_Chain::manifest_chain( $manifest );
+			if ( $link ) $required = array( 'database.sql', Digitalisimo_Backups_Chain::INVENTORY );
+			if ( 3 !== ( $manifest['backup_format_version'] ?? null ) || ( 'installation' !== ( $manifest['scope'] ?? '' ) && ! $extracted ) || ( 'full' !== ( $manifest['type'] ?? '' ) && ! $link ) || null === $head['entries'] || (int) $head['entries'] !== $observed ) throw new Exception( 'El manifiesto completo no coincide con el ZIP.' );
 			if ( $extracted && ( ! empty( $manifest['multisite'] ) || ! is_array( $manifest['extract'] ?? null ) ) ) throw new Exception( 'El manifiesto del sitio extraído no coincide con el ZIP.' );
 			// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
 			if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
-			foreach ( $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : $required as $file ) if ( $extracted ? false === $zip->locateName( $file ) : ! isset( $present[ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
+			foreach ( $extracted ? Digitalisimo_Backups_Site_Extract::required_entries() : $required as $file ) if ( $extracted || $link ? false === $zip->locateName( $file ) : ! isset( $present[ $file ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $file . ' en el respaldo completo.' );
 			if ( (int) ( $manifest['file_count'] ?? -1 ) !== $observed - 1 || (int) ( $manifest['uncompressed_size'] ?? -1 ) !== $total ) throw new Exception( 'El tamaño o el número de archivos no coincide con el manifiesto.' );
 			if ( null !== $mismatch ) throw new Exception( 'Falló el SHA-256 de ' . $mismatch . ' en el manifiesto.' );
 		} finally {
@@ -2192,8 +2258,28 @@ final class Digitalisimo_Backups {
 			foreach ( $history as $entry ) if ( ( $entry['file'] ?? '' ) === $name && ! empty( $entry['locked'] ) ) $row['locked'] = true;
 			$history = array_values( array_filter( $history, function( $entry ) use ( $name ) { return ( $entry['file'] ?? '' ) !== $name; } ) );
 			array_unshift( $history, $row );
-			$history = array_merge( array_slice( $history, 0, 100 ), array_values( array_filter( array_slice( $history, 100 ), function( $entry ) { return ! empty( $entry['locked'] ); } ) ) );
+			$history = self::history_cap( $history );
 		} );
+	}
+	/**
+	 * Tope del historial: las 100 filas más recientes y, de las anteriores, las bloqueadas y las de los eslabones de los que
+	 * depende una fila que se queda (Digitalisimo_Backups_Chain::pinned()): sin su fila, todos los puntos posteriores de
+	 * esa cadena dejarían de restaurarse. Una automatización incremental cabe entera (Conservar + un completo cada N ≤ 100).
+	 */
+	private static function history_cap( array $history ) {
+		$head = array_slice( $history, 0, 100 );
+		$tail = array_slice( $history, 100 );
+		$keep = array();
+		foreach ( $tail as $index => $entry ) if ( ! empty( $entry['locked'] ) ) $keep[ $index ] = true;
+		for ( $round = 0; $round < 100; $round++ ) {
+			$remaining = array();
+			foreach ( array_merge( $head, array_intersect_key( $tail, $keep ) ) as $entry ) if ( is_array( $entry ) && '' !== (string) ( $entry['file'] ?? '' ) ) $remaining[ (string) $entry['file'] ] = true;
+			$pins = Digitalisimo_Backups_Chain::pinned( array_merge( $head, $tail ), $remaining );
+			$added = false;
+			foreach ( $tail as $index => $entry ) if ( ! isset( $keep[ $index ] ) && isset( $pins[ (string) ( $entry['file'] ?? '' ) ] ) ) { $keep[ $index ] = true; $added = true; }
+			if ( ! $added ) break;
+		}
+		return array_merge( $head, array_values( array_intersect_key( $tail, $keep ) ) );
 	}
 	/**
 	 * Lee el historial de la base de datos, nunca de la caché de esta petición, lo cambia y lo guarda con el cerrojo corto
@@ -2343,6 +2429,22 @@ final class Digitalisimo_Backups {
 		}
 		self::retire_copyless_locked( $retired, $busy );
 		self::chain_sweep();
+	}
+	/**
+	 * Lo que le falta a un punto incremental suelto (subido o traído de un destino) para restaurarse: los archivos de su
+	 * cadena que no están en el almacén. Devuelve array( sequence, links, missing ).
+	 */
+	public static function loose_chain_needs( array $data ) {
+		$chain = Digitalisimo_Backups_Chain::manifest_chain( $data );
+		if ( ! $chain ) return null;
+		$names = array_map( function( $link ) { return (string) $link['file']; }, $chain['links'] );
+		$missing = array();
+		foreach ( $names as $name ) {
+			$path = '';
+			try { $path = self::local_path( $name ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+			if ( '' === $path ) $missing[] = $name;
+		}
+		return array( 'sequence' => (int) $chain['sequence'], 'links' => $names, 'missing' => $missing );
 	}
 	/** Un eslabón incremental suelto (subido, importado, sin su fila): sólo se restaura como punto, con su cadena. */
 	private static function chain_link_text() {
@@ -2661,12 +2763,17 @@ final class Digitalisimo_Backups {
 	 * Devuelve el manifiesto (el estricto si es v3). En $source deja el origen del respaldo para la reubicación: su bloque
 	 * `origin` completado con lo que dice su SQL (Digitalisimo_Backups_Relocate_Probe, en la misma pasada en seco).
 	 */
-	private static function inspect_package( $zip, $trusted, $installation, &$source = null ) {
+	private static function inspect_package( $zip, $trusted, $installation, &$source = null, $link_ok = false ) {
 		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
-		self::verify_zip_contents( $zip );
+		self::verify_zip_contents( $zip, null, $link_ok );
 		$data = self::package_metadata( $zip );
-		if ( 'incremental' === ( $data['type'] ?? '' ) ) throw new Exception( self::chain_link_text() );
-		if ( 'database' === ( $data['type'] ?? '' ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
+		// Un eslabón de una cadena (v3) sólo se restaura como punto, con su cadena; el incremental heredado (v2, anterior a
+		// 1.0.38) o la copia de la base de datos son paquetes parciales, como siempre.
+		// Con `$link_ok` (subir o traer un archivo suelto) un eslabón se comprueba entero como un respaldo, sin restaurarlo.
+		if ( 'incremental' === ( $data['type'] ?? '' ) && Digitalisimo_Backups_Chain::manifest_chain( $data ) && ! $link_ok ) throw new Exception( self::chain_link_text() );
+		if ( 'incremental' === ( $data['type'] ?? '' ) && Digitalisimo_Backups_Chain::manifest_chain( $data ) ) $data['type'] = 'incremental-link';
+		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
+		if ( 'incremental-link' === ( $data['type'] ?? '' ) ) $data['type'] = 'incremental';
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
 		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );

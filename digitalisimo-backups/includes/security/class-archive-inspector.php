@@ -10,7 +10,8 @@ final class Digitalisimo_Backups_Archive_Inspector {
 	const MAX_NAME = 4096;
 	const MAX_SEGMENT = 255;
 	const MARGIN = 67108864;
-	const ROOT_FILES = array( 'manifest.json', 'database.sql', 'migration.json', 'MIGRAR-A-WORDPRESS-UNICO.txt' );
+	/** `inventory.jsonl`: el inventario de un eslabón incremental (docs/BACKUPS.md, «Incrementales»); la restauración no lo extrae. */
+	const ROOT_FILES = array( 'manifest.json', 'database.sql', 'migration.json', 'MIGRAR-A-WORDPRESS-UNICO.txt', 'inventory.jsonl' );
 
 	public static function max_entries() { return defined( 'DIGITALISIMO_BACKUPS_MAX_ENTRIES' ) ? max( 1, (int) DIGITALISIMO_BACKUPS_MAX_ENTRIES ) : 2000000; }
 	private static function shown( $name ) {
