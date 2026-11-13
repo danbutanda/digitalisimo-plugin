@@ -339,7 +339,11 @@ final class Digitalisimo_Elements_Installer {
 		$code = (string) $error->get_error_code();
 		$message = trim( wp_strip_all_tags( (string) $error->get_error_message() ) );
 		if ( in_array( $code, array( 'download_failed', 'http_request_failed', 'http_404', 'http_no_url' ), true ) ) {
-			return 'No se pudo descargar el paquete desde GitHub: ' . $message;
+			// download_package() deja «Download failed.» como mensaje y el motivo real (cURL, HTTP…) en los datos. Se
+			// devuelve como texto: la pantalla lo escapa al pintarlo.
+			$data = $error->get_error_data();
+			$data = is_string( $data ) ? trim( wp_strip_all_tags( $data ) ) : '';
+			return 'No se pudo descargar el paquete desde GitHub: ' . $message . ( '' !== $data ? ' (' . $data . ')' : '' );
 		}
 		if ( 'folder_exists' === $code ) {
 			return 'Ya existe la carpeta wp-content/plugins/digitalisimo-elements, pero WordPress no reconoce dentro un plugin completo (quizá una copia a medias). Bórrala con el administrador de archivos del hosting y pulsa «Reintentar».';

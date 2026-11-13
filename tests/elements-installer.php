@@ -53,7 +53,7 @@ function add_query_arg( $args, $value = null, $url = null ) {
 }
 function esc_url( $url ) { return htmlspecialchars( (string) $url, ENT_QUOTES ); }
 function esc_html( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES ); }
-function wp_strip_all_tags( $text ) { return trim( strip_tags( (string) $text ) ); }
+function wp_strip_all_tags( $text ) { return trim( strip_tags( preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text ) ) ); }
 function wp_doing_ajax() { return ! empty( $GLOBALS['ajax'] ); }
 function add_submenu_page( ...$args ) { $GLOBALS['calls'][] = array( 'submenu', $args ); return 'plugins_page_' . $args[4]; }
 function wp_raise_memory_limit( $context ) { return '256M'; }
@@ -350,7 +350,8 @@ $failures = array(
 	'índice HTTP 404' => array( array( 'index_response' => array( 'code' => 404, 'body' => 'Not Found' ) ), 'indice_http', 'HTTP 404' ),
 	'índice ilegible' => array( array( 'index_response' => array( 'code' => 200, 'body' => '<html>' ) ), 'indice_ilegible', 'no se pudo leer' ),
 	'enlace ajeno en el índice' => array( array( 'index_response' => array( 'code' => 200, 'body' => index_body( $bad['otro host'] ) ) ), 'paquete_rechazado', 'por seguridad' ),
-	'descarga fallida' => array( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'download_failed', 'Not Found' ) ); return null; } ), 'instalar', 'No se pudo descargar' ),
+	'descarga fallida' => array( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'download_failed', 'Download failed.', 'cURL error 28: Operation timed out after 300001 milliseconds <b>con 0 bytes</b>' ) ); return null; } ), 'instalar', 'No se pudo descargar el paquete desde GitHub: Download failed. (cURL error 28: Operation timed out after 300001 milliseconds con 0 bytes)' ),
+	'descarga fallida sin detalle' => array( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'download_failed', 'Download failed.', array( 'code' => 7 ) ) ); return null; } ), 'instalar', 'GitHub: Download failed.' ),
 	'sin permisos de escritura' => array( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'mkdir_failed_copy_dir', 'Could not create directory.' ) ); return null; } ), 'instalar', 'permisos de escritura' ),
 	'carpeta a medias' => array( array( 'install' => function ( $skin ) { $skin->set_result( new WP_Error( 'folder_exists', 'Destination folder already exists.' ) ); return new WP_Error( 'folder_exists', 'Destination folder already exists.' ); } ), 'instalar', 'Ya existe la carpeta' ),
 	'sin espacio' => array( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'disk_full_unzip_file', 'Could not copy files. You may have run out of disk space.' ) ); return null; } ), 'instalar', 'espacio libre' ),
@@ -395,6 +396,12 @@ run_handle();
 $message = (string) ( $GLOBALS['fatal_text'] ?? '' );
 check_installer( false !== strpos( $message, 'Allowed memory size' ) && false !== strpos( $message, 'wp-content/plugins/' ) && 1 === count( called( 'unlock' ) ), 'Un error fatal deja la causa, la alternativa manual y el cerrojo libre (una sola vez).' );
 check_installer( ! glob( get_temp_dir() . 'digitalisimo-elements-*.tmp' ), 'Un error fatal borra el ZIP temporal de la descarga.' );
+
+// La causa de una descarga fallida lleva el motivo real (los datos de download_failed), escapado en la pantalla.
+reset_state( array( 'install' => function ( $skin ) { $skin->error( new WP_Error( 'download_failed', 'Download failed.', 'cURL error 6: Could not resolve host <script>alert(4)</script>' ) ); return null; } ) );
+$result = run_handle();
+ob_start(); $I::print_result( $result, 'site' ); $html = ob_get_clean();
+check_installer( false !== strpos( $html, 'cURL error 6: Could not resolve host' ) && false === strpos( $html, '<script>' ) && false === strpos( $html, 'alert(4)' ), 'La causa de una descarga fallida dice el motivo real, sin etiquetas: ' . strip_tags( $html ) );
 
 // ── 8b. El navegador corta a mitad: la petición sigue y, si PHP la mata, la función de cierre libera el cerrojo ───
 reset_state();
