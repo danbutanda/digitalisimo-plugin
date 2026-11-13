@@ -62,7 +62,7 @@ final class Digitalisimo_Backups_Chain_Restore {
 			$data = array( $top => self::manifest_of( $reports[ $top ]['zip'], $point, $top, $chain['sequence'] ) );
 			$head = $data[ $top ];
 			$block = Digitalisimo_Backups_Chain::manifest_chain( $head );
-			if ( ! $block || $chain['id'] !== $block['id'] || $chain['sequence'] !== $block['sequence'] || $chain['backup_id'] !== ( $head['backup_id'] ?? null ) || ! hash_equals( $chain['manifest_sha256'], $hashes[ $top ] ) || ( ! $loose && $chain['links'] !== $block['links'] ) ) throw new Exception( self::broken( $point, $top, $chain['sequence'], 'no es el que registró el historial (su manifiesto o su cadena no coinciden)', 'Restaura otro punto o el completo de la cadena.' ) );
+			if ( ! $block || $chain['id'] !== $block['id'] || $chain['sequence'] !== $block['sequence'] || $chain['backup_id'] !== ( $head['backup_id'] ?? null ) || ! hash_equals( $chain['manifest_sha256'], $hashes[ $top ] ) || ( empty( $item['loose'] ) && $chain['links'] !== $block['links'] ) ) throw new Exception( self::broken( $point, $top, $chain['sequence'], 'no es el que registró el historial (su manifiesto o su cadena no coinciden)', 'Restaura otro punto o el completo de la cadena.' ) );
 			$links = $block['links'];
 			$declared = array();
 			Digitalisimo_Backups_Manifest_Stream::read( $reports[ $top ]['zip'], function( $name, $entry ) use ( &$declared ) {

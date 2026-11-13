@@ -1695,8 +1695,12 @@ final class Digitalisimo_Backups {
 		if ( ! $chain ) return array();
 		$history = null === $history ? (array) get_option( self::HISTORY, array() ) : $history;
 		$missing = array();
+		$named = array();
+		foreach ( $history as $other ) if ( is_array( $other ) ) $named[ (string) ( $other['file'] ?? '' ) ] = true;
 		foreach ( $chain['links'] as $link ) {
 			$row = Digitalisimo_Backups_Chain::link_row( $history, $link );
+			// Sin fila (salió del historial) pero con su archivo en el almacén: se comprueba por su manifiesto al restaurar.
+			if ( ! $row && ! isset( $named[ (string) $link['file'] ] ) && '' !== self::local_copy( array( 'file' => (string) $link['file'] ) ) ) continue;
 			if ( ! $row || '' === self::local_copy( $row ) ) $missing[ (string) $link['file'] ] = $row;
 		}
 		if ( '' === self::local_copy( $item ) ) $missing[ (string) $item['file'] ] = $item;

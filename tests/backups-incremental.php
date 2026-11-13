@@ -598,6 +598,12 @@ inc_case( 'I9 tope del historial: nunca saca la fila de un eslabón del que depe
 	inc_check( 101 === count( $history ) && inc_row( $base ) && array() === $B::chain_missing( inc_row( $head ) ), 'El tope del historial sacó la base de una cadena que se conserva: ' . count( $history ) . ' filas.' );
 	$virtual = inc_materialize( $head );
 	Digitalisimo_Backups_Security::remove_tree( $virtual['staging'] );
+	// Si aun así la fila de un eslabón sale del historial (a mano, o de una versión anterior), su archivo en el almacén
+	// sigue sirviendo: se busca por nombre y se comprueba por su manifiesto.
+	bk_call( 'Digitalisimo_Backups', 'remove_history', basename( $base ) );
+	inc_check( array() === $B::chain_missing( inc_row( $head ) ), 'Un eslabón sin fila pero en el almacén cuenta como que falta.' );
+	$verify = $B::service_verify( basename( $head ) );
+	inc_check( ! is_wp_error( $verify ) && 3 === $verify['chain']['links'], 'Un punto cuyo completo salió del historial no se verificó por su manifiesto: ' . ( is_wp_error( $verify ) ? $verify->get_error_message() : json_encode( $verify['chain'] ) ) );
 	// «Conservar 94» (lo que queda de 100) con un completo cada 6: 102 puntos, todos con su cadena y sin ZIP sin fila.
 	$GLOBALS['bk_options'][ $B::HISTORY ] = array();
 	foreach ( glob( rtrim( bk_storage(), '/' ) . '/digitalisimo-*' ) as $old ) unlink( $old );

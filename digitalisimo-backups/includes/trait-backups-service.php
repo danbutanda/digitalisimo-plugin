@@ -551,7 +551,7 @@ trait Digitalisimo_Backups_Service {
 			// Un punto incremental: su cadena se comprueba aquí (con la frase, si hace falta) y su respaldo completo se
 			// reconstruye por tramos en un trabajo que, al terminar, encola la restauración de siempre.
 			if ( $point ) {
-				$started = self::service_chain_restore( $point, $path, $secret, $confirmation, $args, $addresses, $loose );
+				$started = self::service_chain_restore( $point, $path, $secret, $confirmation, $args, $addresses, $loose || ! empty( $point['loose_links'] ) );
 				if ( is_wp_error( $started ) ) {
 					if ( in_array( $started->get_error_code(), array( 'digitalisimo_backups_chain_broken', 'digitalisimo_backups_chain_incomplete' ), true ) ) $event = array( 'ok' => false, 'started' => false, 'message' => $started->get_error_message() );
 					return $started;
@@ -696,8 +696,12 @@ trait Digitalisimo_Backups_Service {
 		$item = '' === $name ? array() : self::history_item( $name );
 		if ( ! $item || ! Digitalisimo_Backups_Chain::is_incremental( $item ) ) return null;
 		$missing = self::chain_missing( $item );
-		if ( ! $missing ) return $item;
-		// Un eslabón que ni siquiera está en el historial (o cuya fila no es la que nombra el punto): la cadena está rota.
+		// Un eslabón sin fila (salió del historial) pero con su archivo en el almacén se busca por nombre y se comprueba por
+		// su manifiesto, como sin historial (chain_missing() ya no lo cuenta como que falta).
+		$history = (array) get_option( self::HISTORY, array() );
+		$unrowed = false;
+		foreach ( $item['chain']['links'] as $link ) if ( ! Digitalisimo_Backups_Chain::link_row( $history, $link ) ) $unrowed = true;
+		if ( ! $missing ) return $unrowed ? array( 'loose_links' => true ) + $item : $item;
 		$files = Digitalisimo_Backups_Chain::files( $item );
 		foreach ( $missing as $name => $row ) if ( ! is_array( $row ) ) return self::service_error( 'chain_broken', Digitalisimo_Backups_Chain_Restore::broken( substr( (string) ( $item['date'] ?? '' ), 0, 16 ), (int) array_search( $name, $files, true ), count( $files ) - 1, 'no está en el historial (' . $name . ')', 'Ese punto no se puede restaurar; elige otro.' ), 422 );
 		$remote = count( array_filter( $missing, function( $row ) { return is_array( $row ) && self::remote_exists( $row ); } ) );
@@ -873,7 +877,7 @@ trait Digitalisimo_Backups_Service {
 		$report = null;
 		try {
 			try {
-				$report = $point ? self::service_chain_open( $point, $path, $secret ) : Digitalisimo_Backups_Security::open( $path, $item, $secret );
+				$report = $point ? self::service_chain_open( $point, $path, $secret, ! empty( $point['loose_links'] ) ) : Digitalisimo_Backups_Security::open( $path, $item, $secret );
 				// Un punto incremental sin su fila: su cadena, por sus manifiestos (recuperación ante desastre).
 				if ( ! $point ) {
 					try { $loose = Digitalisimo_Backups_Chain_Restore::loose_item( $report['zip'], wp_basename( $path ) ); } catch ( Exception $e ) { $loose = null; }
