@@ -58,7 +58,11 @@ reconstrucción.
    página, si esa hoja estaba inválida la genera con el CSS de la instantánea, y guarda el HTML de la instantánea en la
    caché del documento (`Document::print_elements()` → `set_document_cache()`, sobre el ID de la página): un enlace
    viejo abierto después de otra escritura dejaba a la página con el CSS y el HTML viejos (en el ensayo, hasta el
-   borrador que abría su administradora mostraba el HTML del enlace viejo).
+   borrador que abría su administradora mostraba el HTML del enlace viejo). Y tras una purga general (la que hacen `manage-elements`,
+   `manage-classes` y `manage-global-variable`), `Post_CSS` regenera `post-<id>.css` y `_elementor_css` de la página con
+   los ajustes de la instantánea (`_elementor_page_settings` de la revisión) y `Assets` guarda en ella los
+   `_elementor_page_assets` de la instantánea: el siguiente visitante de la publicada recibía, por ejemplo, el fondo
+   pendiente.
 
 ## El arreglo (`modules/digitalisimo-mcp/`, cargado desde `pro-elements.php`)
 
@@ -82,20 +86,45 @@ reconstrucción.
 - **`Preview_Link`** (`class-preview-link.php`): cada apertura de un enlace firmado válido de `create-preview-link`
   (firma, vigencia y revisión de esa página, comprobadas con `Preview_Token` del núcleo). Durante esa petición la caché
   HTML del documento se apaga (`pre_option_elementor_element_cache_ttl` → `disable`: ni se lee ni se guarda; antes, el
-  HTML de la instantánea quedaba 24 h en la caché de la publicada) y la lista de componentes se invalida antes y
-  después. Si la página está **publicada** (o privada), sus hojas `frontend` locales y de clases globales se congelan:
-  las que el núcleo regeneraría (inválidas, o válidas sin el archivo que deberían tener) se marcan válidas sólo para esa
-  petición, con `should_exist` según haya archivo, así el núcleo sirve los archivos tal cual o ninguno y no escribe
-  nada; los estilos de la instantánea (sus clases globales en el orden del núcleo y sus estilos locales, con
-  `Styles_Renderer` del núcleo) se imprimen **en línea** detrás; al terminar, lo congelado vuelve a inválido (nunca a
-  válido). Abrir el enlace no cambia ningún archivo ni ningún `ver` de la publicada, y el HTML que guarda una caché de
-  página conserva sus reglas. Si es un **borrador** (nadie guarda su HTML), sus hojas se invalidan antes y después,
-  como antes de la revisión.
-- **Claves del núcleo**: `'local'`, `'global'`, `component-styles-related-posts`, `_elementor_element_cache`,
+  HTML de la instantánea quedaba 24 h en la caché de la publicada). Si la página está **publicada** (o privada), la
+  petición no escribe nada que vean otros, ni opciones, ni metas, ni archivos, ni caché:
+  - **Validez de las hojas, sólo en memoria.** Las cinco opciones de `Cache_Validity` que escribe el render de una
+    página (`elementor_atomic_cache_validity__local`, `__global`, `__global_related`, `__global_related-reverse` y
+    `__component-styles-related-posts`) se leen y se escriben en una copia en memoria (`pre_option_<opción>`,
+    `pre_update_option_<opción>` y `pre_update_site_option_<opción>` devuelven la copia o lo anterior), que se descarta
+    al terminar. En esa copia el contexto `frontend` de la página queda válido y cada hoja suya, local y global, válida
+    sin archivo (`should_exist` falso): el núcleo no sirve ni regenera ninguna `local-<id>-frontend-*.css` ni
+    `global-<id>-frontend-*.css`, y la lista de componentes de la instantánea se calcula ahí. Un visitante que llega
+    mientras tanto lee la base de datos tal cual (no hay ventana: antes el congelado se escribía en la base durante los
+    3-5 s de la petición). Una purga real de todo el sitio durante la petición se respeta y la página se vuelve a
+    congelar en la copia.
+  - **CSS atómico de la instantánea, en línea y en el orden del núcleo.** Sus clases globales (también las de lo que
+    incrusta, `elementor/document/related_posts`, en el orden del kit) y sus estilos locales se parten por punto como
+    `Atomic_Styles_Manager::group_by_breakpoint()` y se pintan con `Styles_Renderer`: una hoja en línea por punto y
+    raíz (`digitalisimo-mcp-preview-<global|local>-<punto>`), colocada en la cola de estilos detrás de las del núcleo
+    de ese punto y esa raíz (escritorio y después de mayor a menor; en cada punto `base`, `default`, globales y
+    locales). Así un `padding: 60px; @media(--mobile){padding: 6px}`, que el MCP guarda como [celular, escritorio],
+    se ve a 375 px con 6px, como la página publicada (antes, 60px).
+  - **CSS de página y metas.** Ninguna meta `_elementor_*` de la página se guarda, se añade ni se borra
+    (`add/update/delete_post_metadata`, salvo el borrado de una meta en todas las entradas de una purga general): ni
+    `_elementor_css`, ni `_elementor_page_assets`, ni el uso de clases globales. Su `_elementor_css` se lee `empty`, así
+    `Post_CSS` del núcleo no sirve ni regenera `post-<id>.css` (antes, tras una purga general, lo regeneraba con el
+    fondo de la instantánea y un visitante lo recibía), y el CSS de página de la instantánea (ajustes de la página,
+    estilos clásicos, CSS propio) va en línea donde el núcleo encola esa hoja (`Snapshot_Post_Css`,
+    `class-snapshot-post-css.php`: el `Post_CSS` del núcleo en memoria y sin archivo, como su `Post_Preview` del
+    editor). Sus assets se calculan con la instantánea (`_elementor_page_assets` se lee vacío) sin guardarse.
+
+  Abrir el enlace de una publicada no cambia ninguna opción, meta ni archivo de la publicada (ni sus hojas atómicas, ni
+  `post-<id>.css`, ni su caché HTML), y el HTML que guarda una caché de página conserva sus reglas. Si es un
+  **borrador** (nadie guarda su HTML), sus hojas y su lista de componentes se invalidan antes y después, como antes de
+  la revisión.
+- **Claves del núcleo**: `'local'`, `'global'`, `'related'`, `'related-reverse'`, `component-styles-related-posts`,
+  `elementor_atomic_cache_validity__`, `_elementor_element_cache`, `_elementor_css`, `_elementor_page_assets`,
   `_elementor_data` y `elementor_preview_token` salen de `Atomic_Widget_Styles::STYLES_KEY`,
-  `Atomic_Global_Styles::STYLES_KEY`, `Component_Styles::CACHE_ROOT_KEY`, `Document::CACHE_META_KEY`,
-  `Document::ELEMENTOR_DATA_META_KEY` y `Preview_Token::QUERY_ARG` (`Css_Sync::key()`), con el valor de 4.3.5 de
-  respaldo; la unitaria comprueba que coinciden.
+  `Atomic_Global_Styles::STYLES_KEY`, `::RELATED_KEY` y `::RELATED_REVERSE_KEY`, `Component_Styles::CACHE_ROOT_KEY`,
+  `Cache_Validity_Item::CACHE_KEY_PREFIX`, `Document::CACHE_META_KEY`, `Post_CSS::META_KEY`,
+  `Assets::ASSETS_META_KEY`, `Document::ELEMENTOR_DATA_META_KEY` y `Preview_Token::QUERY_ARG` (`Css_Sync::key()`),
+  con el valor de 4.3.5 de respaldo; la unitaria comprueba que coinciden.
 - **Lo que cambia el kit** (clases globales, variables, estilos predeterminados) ya lo regenera el núcleo:
   `manage-classes`, `reorder-classes` y `manage-global-variable` purgan el CSS de todo el sitio
   (`files_manager->clear_cache()`), y `manage-default-styles` dispara `elementor/default_styles/update`, que invalida la
@@ -152,9 +181,13 @@ reconstrucción.
 - El enlace firmado de una página publicada con cambios pendientes muestra esos cambios: en el ensayo,
   `create-preview-link` firmó el autoguardado (`<id>-autosave-v1`, la última revisión por ID cuando
   `wp_save_post_revision()` no crea una nueva). Sale con su propio CSS en línea y la publicada no se entera.
-- En ese enlace de una publicada, el CSS en línea de la instantánea va detrás de las hojas de la publicada: si una clase
-  conserva su ID y la instantánea le quitó una propiedad, la de la publicada sigue aplicándose en la vista previa (sólo
-  ahí). Ningún archivo ni `ver` de la publicada cambia.
+- En ese enlace de una publicada, el CSS atómico de la página va en línea en la posición de sus hojas, pero cada hoja
+  en línea va detrás de las de otros documentos del mismo punto y raíz (cabecera, pie, componentes): las reglas de una
+  clase global salen iguales en todas (son del kit) y las locales son de elementos distintos, así que la cascada es la
+  del núcleo. Si la cola de estilos no tiene la forma del núcleo (otra hoja en medio de las atómicas), las hojas en
+  línea van al final. Las demás hojas que pinta esa petición (las de otros documentos, si estaban inválidas) se
+  escriben como en cualquier visita, con los datos de esos documentos, y su validez no se guarda: la siguiente visita
+  las vuelve a escribir.
 - El enlace firmado de un **borrador** no carga la hoja del documento (`post-<id>.css`: el fondo y los demás ajustes
   clásicos de la página): el manejador lee `_elementor_css` de la revisión firmada y el ensayo la encontró en `empty`.
   Es igual con 4.3.0.185 y no depende de las escrituras del MCP; no se corrige aquí. El borrador que abre su

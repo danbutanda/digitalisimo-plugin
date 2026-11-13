@@ -207,6 +207,9 @@ namespace {
 		}
 		return true;
 	}
+	function remove_action( $hook, $callback, $priority = 10 ) {
+		return remove_filter( $hook, $callback, $priority );
+	}
 	function mc_run( string $hook, array $args ) {
 		$value = $args[0] ?? null;
 		foreach ( $GLOBALS['mc']['hooks'][ $hook ] ?? array() as $entry ) {
@@ -301,6 +304,9 @@ namespace {
 		public $queue      = array();
 		public $registered = array();
 		public $inline     = array();
+		public function query( $handle, $what = 'registered' ) {
+			return 'registered' === $what ? isset( $this->registered[ $handle ] ) : in_array( $handle, $this->queue, true );
+		}
 	}
 	function wp_styles() {
 		if ( ! $GLOBALS['mc_styles'] instanceof Mc_Styles ) {
@@ -819,6 +825,8 @@ namespace {
 		'global_related_reverse' => preg_match( "/const RELATED_REVERSE_KEY = '([^']+)'/", $global_src, $m ) ? $m[1] : null,
 		'validity'               => \Elementor\Modules\AtomicWidgets\Styles\CacheValidity\Cache_Validity_Item::CACHE_KEY_PREFIX,
 		'related' => \Elementor\Modules\Components\Styles\Component_Styles::CACHE_ROOT_KEY,
+		'css'     => preg_match( "/const META_KEY = '([^']+)'/", (string) file_get_contents( $root . '/elementor/core/files/css/post.php' ), $m ) ? $m[1] : null,
+		'assets'  => preg_match( "/const ASSETS_META_KEY = '([^']+)'/", (string) file_get_contents( $root . '/elementor/core/base/elements-iteration-actions/assets.php' ), $m ) ? $m[1] : null,
 		'html'    => preg_match( "/const CACHE_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
 		'data'    => preg_match( "/const ELEMENTOR_DATA_META_KEY = '([^']+)'/", $document_src, $m ) ? $m[1] : null,
 		'token'   => Preview_Token::QUERY_ARG,
@@ -992,6 +1000,60 @@ namespace {
 	check( $placed && array( 'a', $p . 'global-desktop' ) === \Digitalisimo\Elements\Mcp\Preview_Link::place( array( 'a' ), array( $p . 'global-desktop' => array( 0, 2 ) ), array( 'desktop' ) ), 'sin hojas atómicas del núcleo en la cola, al final' );
 	do_action( 'shutdown' );
 	check( $v->is_valid( array( 'local', 100, 'frontend', 'desktop' ) ) && array( 'should_exist' => true ) === $v->get_meta( array( 'local', 100, 'frontend', 'desktop' ) ) && ! $v->is_valid( array( 'local', 100, 'frontend', 'mobile' ) ), 'al terminar, la hoja de la publicada vuelve a servirse para los demás (nada guardado cambió)' );
+
+	// ---------------------------------------------------------------------------------------------------------------
+	// 15. Segunda revisión (MEDIA 3): el enlace firmado de una publicada no escribe `post-<id>.css` ni ninguna meta
+	//     `_elementor_*` de la página (tras una purga general, `Post_CSS` regeneraba el archivo y `_elementor_css` con la
+	//     instantánea y `Assets` guardaba sus `_elementor_page_assets`). Su `_elementor_css` se lee `empty` (el núcleo no
+	//     la sirve ni la regenera) y el CSS de página de la instantánea va en línea con `Snapshot_Post_Css` (en memoria,
+	//     sin archivo). Falla con f6d0563c (no había nada de esto).
+	mc_boot();
+	mc_post( 105, 'page', 0, 'publish' );
+	mc_post( 106, 'revision', 105, 'inherit' );
+	mc_post( 107, 'page' );
+	mc_post( 108, 'revision', 107, 'inherit' );
+	$meta = static function ( string $filter, int $id, string $key, $flag = false ) {
+		return apply_filters( $filter, null, $id, $key, 'valor', $flag );
+	};
+	check( null === $meta( 'update_post_metadata', 105, '_elementor_css' ), 'fuera del enlace firmado, las metas de la página se guardan como siempre' );
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 105, 106, time() + 300, Preview_Token::secret() );
+	do_action( 'parse_request', null );
+	check( array( array( 'status' => 'empty' ) ) === apply_filters( 'get_post_metadata', null, 105, '_elementor_css', true ), '_elementor_css de la página se lee «empty»: Post_CSS del núcleo no sirve ni regenera post-105.css' );
+	check( array( '' ) === apply_filters( 'get_post_metadata', null, 105, '_elementor_page_assets', true ), '_elementor_page_assets de la página se lee vacío: los assets se calculan con la instantánea' );
+	check( null === apply_filters( 'get_post_metadata', null, 107, '_elementor_css', true ) && null === apply_filters( 'get_post_metadata', null, 105, '_elementor_data', true ), 'otras entradas y otras metas se leen como siempre (los datos de la instantánea los sirve el manejador del núcleo)' );
+	foreach ( array( '_elementor_css', '_elementor_page_assets', '_elementor_element_cache', '_elementor_used_global_class' ) as $key ) {
+		check( true === $meta( 'update_post_metadata', 105, $key ) && true === $meta( 'add_post_metadata', 105, $key ) && true === $meta( 'delete_post_metadata', 105, $key ), "$key de la página no se guarda, no se añade ni se borra durante el enlace" );
+	}
+	check( null === $meta( 'update_post_metadata', 107, '_elementor_css' ) && null === $meta( 'update_post_metadata', 105, 'contador_de_visitas' ), 'otras entradas y metas ajenas a Elementor se guardan como siempre' );
+	check( null === $meta( 'delete_post_metadata', 0, '_elementor_css', true ) && null === $meta( 'delete_post_metadata', 105, '_elementor_css', true ), 'una purga general (borrar la meta en todas las entradas) se respeta' );
+	check( false === apply_filters( 'update_post_metadata', false, 105, '_elementor_css', 'x', '' ), 'la decisión de otro filtro se respeta' );
+	// El CSS de página de la instantánea (con un doble de Post_Local_Cache que imita Base::enqueue()).
+	$stub = $GLOBALS['mc_upload_dir'] . 'post-local-cache.php';
+	file_put_contents(
+		$stub,
+		'<?php namespace Elementor\\Core\\Files\\CSS; abstract class Post_Local_Cache { private $post_id; public static $log = array();
+		public function __construct( $post_id ) { $this->post_id = $post_id; } public function get_post_id() { return $this->post_id; }
+		abstract protected function get_post_id_for_data(); protected function use_external_file() { return true; }
+		protected function get_file_handle_id() { return "elementor-post-" . $this->post_id; } protected function get_inline_dependency() { return "elementor-frontend"; }
+		public function enqueue() { self::$log[] = array( $this->get_post_id_for_data(), $this->use_external_file(), $this->get_file_handle_id(), $this->get_inline_dependency() );
+		if ( ! $this->use_external_file() ) { wp_add_inline_style( $this->get_inline_dependency(), ".elementor-" . $this->post_id . "{background:#222222}" ); } } }'
+	);
+	require $stub;
+	unlink( $stub );
+	wp_register_style( 'elementor-frontend', 'frontend.css' );
+	wp_styles()->queue = array( 'elementor-frontend' );
+	do_action( 'elementor/frontend/after_enqueue_post_styles' );
+	$log = \Elementor\Core\Files\CSS\Post_Local_Cache::$log;
+	check( array( array( 105, false, 'digitalisimo-mcp-preview-post-105', 'digitalisimo-mcp-preview-post-105' ) ) === $log, 'el CSS de página de la instantánea: datos de 105, sin archivo, en su hoja propia · ' . wp_json_encode( $log ) );
+	check( isset( wp_styles()->registered['digitalisimo-mcp-preview-post-105'] ) && array( 'elementor-frontend' ) === wp_styles()->registered['digitalisimo-mcp-preview-post-105'][1] && array( 'elementor-frontend', 'digitalisimo-mcp-preview-post-105' ) === array_slice( wp_styles()->queue, 0, 2 ), 'esa hoja depende de elementor-frontend y se encola donde el núcleo encola post-105.css' );
+	check( false !== strpos( mc_inline_css(), '.elementor-105{background:#222222}' ), 'y lleva el CSS de página de la instantánea en línea' );
+	do_action( 'shutdown' );
+	check( null === $meta( 'update_post_metadata', 105, '_elementor_css' ) && null === apply_filters( 'get_post_metadata', null, 105, '_elementor_css', true ), 'al terminar, las metas de la página vuelven a leerse y guardarse como siempre' );
+	// Un borrador sigue como antes (sus hojas se invalidan; nadie guarda su HTML).
+	$_GET['elementor_preview_token'] = Preview_Token::encode( 107, 108, time() + 300, Preview_Token::secret() );
+	do_action( 'parse_request', null );
+	check( null === $meta( 'update_post_metadata', 107, '_elementor_css' ), 'el enlace de un borrador no cambia cómo se guardan sus metas' );
+	do_action( 'shutdown' );
 
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {

@@ -45,6 +45,8 @@ final class Css_Sync {
 		'related'                => array( 'Elementor\\Modules\\Components\\Styles\\Component_Styles', 'CACHE_ROOT_KEY', 'component-styles-related-posts' ),
 		'validity'               => array( 'Elementor\\Modules\\AtomicWidgets\\Styles\\CacheValidity\\Cache_Validity_Item', 'CACHE_KEY_PREFIX', 'elementor_atomic_cache_validity__' ),
 		'html'                   => array( 'Elementor\\Core\\Base\\Document', 'CACHE_META_KEY', '_elementor_element_cache' ),
+		'css'                    => array( 'Elementor\\Core\\Files\\CSS\\Post', 'META_KEY', '_elementor_css' ),
+		'assets'                 => array( 'Elementor\\Core\\Base\\Elements_Iteration_Actions\\Assets', 'ASSETS_META_KEY', '_elementor_page_assets' ),
 		'data'                   => array( 'Elementor\\Core\\Base\\Document', 'ELEMENTOR_DATA_META_KEY', '_elementor_data' ),
 		'token'                  => array( 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token', 'QUERY_ARG', 'elementor_preview_token' ),
 	);

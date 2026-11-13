@@ -21,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
  *   de lo que incrusta, y sus estilos locales) va en línea, partido por punto como en las hojas del núcleo y en su
  *   posición (escritorio y después de mayor a menor; en cada punto, globales antes que locales). Un visitante que llega
  *   mientras tanto lee la base de datos tal cual (no hay ventana) y, al terminar, la copia se descarta;
+ * - y tampoco se escribe ninguna meta `_elementor_*` de la página (`_elementor_css`, `_elementor_page_assets`, el uso de
+ *   clases globales…: `add/update/delete_post_metadata`), ni su `post-<id>.css`: su `_elementor_css` se lee `empty`, así
+ *   `Post_CSS` del núcleo no la sirve ni la regenera, y el CSS de página de la instantánea (ajustes de la página y
+ *   estilos clásicos) va en línea donde el núcleo encola esa hoja (`Snapshot_Post_Css`, en memoria, como el
+ *   `Post_Preview` del editor); sus assets se calculan con la instantánea sin guardarse;
  * - si es un borrador (nadie guarda su HTML), sus hojas y su lista de componentes se invalidan antes y después: la
  *   instantánea se pinta con su CSS y la siguiente visita lo regenera.
  */
@@ -32,6 +37,8 @@ final class Preview_Link {
 	const TOKEN_CLASS = 'Elementor\\Modules\\Mcp\\Preview\\Preview_Token';
 	/** Prioridad de `parse_request`: después del manejador de enlaces firmados del núcleo (1). */
 	const PRIORITY    = 2;
+	/** Metas de la página que el render del núcleo escribe como caché (CSS de página, assets, HTML, uso de clases). */
+	const META_PREFIX = '_elementor_';
 	/** Raíces de las hojas atómicas del núcleo en el orden en que se registran (`base` 10, `default` 15, `global` 20, `local` 30). */
 	const RANKS = array(
 		'base'    => 0,
@@ -54,6 +61,9 @@ final class Preview_Link {
 
 	/** @var bool */
 	private static $printed = false;
+
+	/** @var bool */
+	private static $post_printed = false;
 
 	/** Idempotente. */
 	public static function init(): void {
@@ -83,6 +93,8 @@ final class Preview_Link {
 		if ( self::$live ) {
 			self::sandbox( true );
 			self::freeze( $id );
+			self::guard( true );
+			add_action( 'elementor/frontend/after_enqueue_post_styles', array( __CLASS__, 'print_post_css' ), 5 );
 			add_action( 'elementor/frontend/after_enqueue_post_styles', array( __CLASS__, 'print_styles' ), 20 );
 		} else {
 			Css_Sync::invalidate_related( $id );
@@ -137,6 +149,64 @@ final class Preview_Link {
 		if ( self::$post && in_array( $option, array_slice( self::sandboxed(), 0, 2 ), true ) ) {
 			self::freeze( self::$post );
 		}
+	}
+
+	/**
+	 * `get_post_metadata` 20 (después del manejador del núcleo, en 10), sólo de la página: su `_elementor_css` se lee
+	 * `empty`, así `Post_CSS` del núcleo no sirve ni regenera `post-<id>.css` (lo pinta `print_post_css()`), y sus
+	 * `_elementor_page_assets` vacíos, así los assets se calculan con la instantánea.
+	 */
+	public static function read_meta( $value, $object_id = 0, $meta_key = '' ) {
+		if ( ! self::$post || ! self::$live || (int) $object_id !== self::$post ) {
+			return $value;
+		}
+		if ( Css_Sync::key( 'css' ) === $meta_key ) {
+			return array( array( 'status' => 'empty' ) );
+		}
+		return Css_Sync::key( 'assets' ) === $meta_key ? array( '' ) : $value;
+	}
+
+	/** `add_post_metadata` y `update_post_metadata`: ninguna meta `_elementor_*` de la página se guarda (se da por hecha). */
+	public static function keep_meta( $check, $object_id = 0, $meta_key = '' ) {
+		if ( null !== $check || ! self::$post || ! self::$live || (int) $object_id !== self::$post || ! is_string( $meta_key ) || 0 !== strpos( $meta_key, self::META_PREFIX ) ) {
+			return $check;
+		}
+		return true;
+	}
+
+	/** `delete_post_metadata`: tampoco se borra, salvo un borrado de esa meta en todas las entradas (una purga general). */
+	public static function keep_meta_delete( $check, $object_id = 0, $meta_key = '', $meta_value = '', $delete_all = false ) {
+		return $delete_all ? $check : self::keep_meta( $check, $object_id, $meta_key );
+	}
+
+	/**
+	 * `elementor/frontend/after_enqueue_post_styles` 5, donde el núcleo encola `post-<id>.css` (justo antes): el CSS de
+	 * página de la instantánea en línea (`Snapshot_Post_Css`, sin archivo ni meta), en una hoja propia que depende de
+	 * `elementor-frontend` como la del núcleo.
+	 */
+	public static function print_post_css(): void {
+		if ( ! self::$post || ! self::$live || self::$post_printed || ! function_exists( 'wp_styles' ) || ! class_exists( 'Elementor\\Core\\Files\\CSS\\Post_Local_Cache' ) ) {
+			return;
+		}
+		self::$post_printed = true;
+		require_once __DIR__ . '/class-snapshot-post-css.php';
+		try {
+			$handle = Snapshot_Post_Css::HANDLE_PREFIX . self::$post;
+			wp_register_style( $handle, false, wp_styles()->query( 'elementor-frontend', 'registered' ) ? array( 'elementor-frontend' ) : array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+			wp_enqueue_style( $handle );
+			( new Snapshot_Post_Css( self::$post ) )->enqueue();
+		} catch ( \Throwable $e ) {
+			return;
+		}
+	}
+
+	/** Los filtros de las metas de la página durante el enlace firmado de una publicada, o fuera. */
+	private static function guard( bool $on ): void {
+		$hook = $on ? 'add_filter' : 'remove_filter';
+		$hook( 'get_post_metadata', array( __CLASS__, 'read_meta' ), 20, 3 );
+		$hook( 'add_post_metadata', array( __CLASS__, 'keep_meta' ), PHP_INT_MAX, 3 );
+		$hook( 'update_post_metadata', array( __CLASS__, 'keep_meta' ), PHP_INT_MAX, 3 );
+		$hook( 'delete_post_metadata', array( __CLASS__, 'keep_meta_delete' ), PHP_INT_MAX, 5 );
 	}
 
 	/** Copia en memoria de las opciones de validez (con lo guardado al empezar) y sus filtros, o fuera. */
@@ -391,14 +461,18 @@ final class Preview_Link {
 		$id = self::$post;
 		if ( self::$live ) {
 			self::sandbox( false );
+			self::guard( false );
+			remove_action( 'elementor/frontend/after_enqueue_post_styles', array( __CLASS__, 'print_post_css' ), 5 );
+			remove_action( 'elementor/frontend/after_enqueue_post_styles', array( __CLASS__, 'print_styles' ), 20 );
 		} else {
 			Css_Sync::invalidate_styles( $id );
 			Css_Sync::invalidate_related( $id );
 		}
 		remove_filter( 'pre_option_' . self::TTL_OPTION, array( __CLASS__, 'no_html_cache' ) );
-		self::$post    = 0;
-		self::$live    = false;
-		self::$printed = false;
+		self::$post         = 0;
+		self::$live         = false;
+		self::$printed      = false;
+		self::$post_printed = false;
 	}
 
 	/** Para las pruebas. */
@@ -406,8 +480,9 @@ final class Preview_Link {
 		self::$initialized = false;
 		self::$post        = 0;
 		self::$live        = false;
-		self::$memory      = array();
-		self::$printed     = false;
+		self::$memory       = array();
+		self::$printed      = false;
+		self::$post_printed = false;
 	}
 
 	/** Para las pruebas: la página del enlace de esta petición y las opciones que van en memoria. */
