@@ -102,6 +102,7 @@ final class Executor {
 			$data  = Catalog::load( $meta['id'], 'sections' );
 			$found = $data ? Placeholders::summary( $data['content'] ) : array();
 			$entry['placeholders_count'] = count( $found );
+			$entry['close_date']         = Builder::takes_close_date( $meta, $found );
 			if ( '' !== $id ) {
 				$list = array();
 				foreach ( $found as $text => $info ) {

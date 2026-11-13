@@ -599,7 +599,7 @@ namespace {
 	$all = sk_strings( $r['elements'] );
 	check( false !== strpos( $all, 'La inscripción cierra el 15 de diciembre a las 23:59' ) && false === strpos( $all, 'de cierre]' ) && array() === $r['removed_urgency'] && '2026-12-15 23:59' === $r['close_date'], 'close_date llena los textos de cierre y conserva la urgencia' );
 	check( sk_widgets( $r['elements'] ) === Catalog::meta( 'venta-completa' )['widget_types'], 'con close_date, todos los widgets' );
-	check_error( $build( 'venta-corta', array( 'close_date' => '2026-12-15 23:59' ) ), 'digitalisimo_sales_close_date', 'una plantilla sin contador no lleva close_date' );
+	check_error( $build( 'captacion', array( 'close_date' => '2026-12-15 23:59' ) ), 'digitalisimo_sales_close_date', 'una plantilla sin contador ni textos de cierre no lleva close_date' );
 	foreach ( array( '2026-11-01 10:00', '2026-02-30 10:00', '15/12/2026 23:59', '2026-12-15T23:59', '2030-01-01 00:00', '2026-13-01 00:00' ) as $bad ) {
 		check_error( $build( 'carrito', array( 'close_date' => $bad ) ), 'digitalisimo_sales_close_date', "close_date inválida, pasada o lejana: $bad" );
 	}
@@ -956,6 +956,34 @@ namespace {
 			foreach ( array( 'https://otro.mx/oferta', 'http:otro.mx', 'www.otro.mx', '//otro.mx', 'javascript:alert(1)', "java\tscript:alert(1)", 'java&#x09;script:alert(1)', 'data:text/html,x', 'Ve a HTTPS://OTRO.MX', 'ftp://otro.mx/a' ) as $bad ) {
 				review( 'R4', '' !== Builder::external_url( $bad, 'sitio.test' ), "external_url aceptó: $bad" );
 			}
+		}
+	);
+
+	// R5 · La venta corta (02) nombra el cierre sin contador: close_date llena sus textos de cierre; list-templates dice qué
+	// plantillas admiten close_date.
+	review_block(
+		'R5',
+		static function () use ( $build ) {
+			$r = $build( 'venta-corta', array( 'close_date' => '2026-12-15 23:59' ) );
+			review( 'R5', is_array( $r ), 'venta-corta acepta close_date: ' . ( $r instanceof WP_Error ? $r->get_error_message() : '' ) );
+			if ( is_array( $r ) ) {
+				$all  = sk_strings( $r['elements'] );
+				$pend = array_column( $r['pending'], 'count', 'placeholder' );
+				review( 'R5', false !== strpos( $all, 'terminan el 15 a las 23:59' ) && ! isset( $pend['[día de cierre]'] ) && ! isset( $pend['[hora de cierre]'] ) && '2026-12-15 23:59' === $r['close_date'], 'venta-corta: close_date llena [día de cierre] y [hora de cierre]' );
+				review( 'R5', sk_widgets( $r['elements'] ) === Catalog::meta( 'venta-corta' )['widget_types'] && array() === $r['removed_urgency'], 'venta-corta con close_date: los mismos widgets, sin contador ni nada quitado' );
+			}
+			$r = $build( 'venta-corta', array() );
+			review( 'R5', is_array( $r ) && isset( array_column( $r['pending'], 'count', 'placeholder' )['[día de cierre]'] ), 'venta-corta sin close_date: los textos de cierre quedan pendientes' );
+			$r = $build( 'venta-corta', array( 'close_date' => '2026-11-01 10:00' ) );
+			review( 'R5', $r instanceof WP_Error && 'digitalisimo_sales_close_date' === $r->get_error_code(), 'venta-corta: una fecha pasada se sigue rechazando' );
+			$r = $build( 'captacion', array( 'close_date' => '2026-12-15 23:59' ) );
+			review( 'R5', $r instanceof WP_Error && 'digitalisimo_sales_close_date' === $r->get_error_code(), 'captacion (sin contador ni textos de cierre) no lleva close_date' );
+			sk_reset();
+			$list = Executor::run( 'list-templates', array() );
+			$by   = array_column( $list['templates'] ?? array(), 'close_date', 'id' );
+			review( 'R5', array( 'venta-completa' => true, 'venta-corta' => true, 'captacion' => false, 'gracias-registro' => false, 'carrito' => true, 'oferta-unica' => false, 'gracias-compra' => false, 'prueba-social' => false ) === $by, 'list-templates dice qué plantillas admiten close_date: ' . json_encode( $by ) );
+			review( 'R5', false !== strpos( Tools::DESCRIPTIONS['create-page'], 'venta-corta y carrito' ) && false !== strpos( Tools::input_schema( 'create-page' )['properties']['close_date']['description'], 'venta-corta' ), 'las descripciones dicen que la venta corta admite close_date' );
+			$GLOBALS['sk']['containers'] = false;
 		}
 	);
 

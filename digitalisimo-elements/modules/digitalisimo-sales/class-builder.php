@@ -8,8 +8,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Candados (D-0023, D-0024 y el brief del kit):
  * - sólo cambia lo que se pide: un placeholder sin dato se queda tal cual y se informa como pendiente;
- * - los placeholders de cierre sólo se llenan con `close_date` (una fecha real y futura); sin ella se quitan los
- *   bloques que sólo sirven con un cierre real (los del manifiesto: la barra, el aviso, el contador del carrito);
+ * - los placeholders de cierre sólo se llenan con `close_date` (una fecha real y futura), que admiten las plantillas
+ *   con contador o con textos de cierre (01, 02 y 05); sin ella se quitan los bloques que sólo sirven con un cierre
+ *   real (los del manifiesto: la barra, el aviso, el contador del carrito) y los textos de cierre quedan pendientes;
  * - un enlace (video, grupo, redes) nunca se llena: se pone en el editor;
  * - un valor sólo lleva texto y formato en línea sin atributos (`strong`, `em`, `b`, `i`, `br`): ningún enlace, imagen,
  *   formulario ni atributo; los enlaces sólo existen en la plantilla (rutas del sitio y `wa.me`);
@@ -144,11 +145,12 @@ final class Builder {
 			}
 		}
 
-		// Fecha de cierre: real y futura, en la zona del sitio; sólo en plantillas con contador.
+		// Fecha de cierre: real y futura, en la zona del sitio; en las plantillas con contador o con textos de cierre
+		// (la venta corta nombra el cierre sin contador).
 		$close = null;
 		if ( isset( $input['close_date'] ) && '' !== $input['close_date'] ) {
-			if ( empty( $meta['has_countdown'] ) ) {
-				return self::error( 'digitalisimo_sales_close_date', 'Esta plantilla no lleva fecha de cierre: quita close_date.' );
+			if ( ! self::takes_close_date( $meta, $summary ) ) {
+				return self::error( 'digitalisimo_sales_close_date', 'Esta plantilla no lleva fecha de cierre (ni contador ni textos de cierre): quita close_date.' );
 			}
 			$close = self::close_date( $input['close_date'], $env );
 			if ( is_wp_error( $close ) ) {
@@ -331,6 +333,16 @@ final class Builder {
 			'close_date'       => $close ? $close->format( 'Y-m-d H:i' ) : null,
 			'removed_urgency'  => $removed,
 		);
+	}
+
+	/**
+	 * ¿La plantilla admite `close_date`? Si lleva contador o algún placeholder de cierre (`[día de cierre]`…).
+	 *
+	 * @param array $meta    Su entrada del manifiesto.
+	 * @param array $summary `Placeholders::summary()` de la plantilla.
+	 */
+	public static function takes_close_date( array $meta, array $summary ): bool {
+		return ! empty( $meta['has_countdown'] ) || (bool) array_intersect_key( $summary, array_flip( Placeholders::CLOSE ) );
 	}
 
 	private static function sample(): string {
