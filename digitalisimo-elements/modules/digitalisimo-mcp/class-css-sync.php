@@ -55,8 +55,11 @@ final class Css_Sync {
 	/** @var array<int, true> Documentos vivos que cambiaron y aún no se refrescaron. */
 	private static $pending = array();
 
-	/** @var array<string, true> Herramientas cuyo `execute_callback` ya abre y cierra el ámbito (`wrap_ability()`). */
-	private static $wrapped = array();
+	/**
+	 * @var array<int, array{0: string, 1: bool}> Herramientas en curso (pila): nombre y si su `execute_callback`
+	 * envuelto la tomó (entonces la cierra él, en su `finally`).
+	 */
+	private static $frames = array();
 
 	/** @var array<int, true> Entradas que ya pasaron por `save_post` en este ámbito (la caché de página ya se enteró). */
 	private static $saved = array();
@@ -73,7 +76,7 @@ final class Css_Sync {
 			return;
 		}
 		self::$initialized = true;
-		add_filter( 'wp_register_ability_args', array( __CLASS__, 'wrap_ability' ), 10, 2 );
+		add_filter( 'wp_register_ability_args', array( __CLASS__, 'wrap_ability' ), PHP_INT_MAX, 2 );
 		add_action( 'wp_before_execute_ability', array( __CLASS__, 'before_ability' ), 10, 1 );
 		add_action( 'wp_after_execute_ability', array( __CLASS__, 'after_ability' ), 10, 1 );
 		add_filter( 'rest_request_before_callbacks', array( __CLASS__, 'before_rest' ), 10, 3 );
@@ -87,40 +90,59 @@ final class Css_Sync {
 	}
 
 	/**
-	 * `wp_register_ability_args` (Abilities API de WordPress 6.9): el `execute_callback` de cada herramienta del
-	 * constructor abre el ámbito y lo cierra en un `finally`, también si devuelve un `WP_Error` o lanza una excepción.
-	 * `wp_after_execute_ability` no se dispara con un `WP_Error`: con sólo esos ganchos, en un proceso largo (el transporte
-	 * STDIO del adaptador) el ámbito quedaba abierto y nada se refrescaba hasta cerrar la sesión.
+	 * `wp_register_ability_args` (Abilities API de WordPress 6.9), con la última prioridad (envuelve el callback que
+	 * quede tras los demás filtros): el `execute_callback` de cada herramienta del constructor toma el ámbito y lo cierra
+	 * en un `finally`, también si devuelve un `WP_Error` o lanza una excepción. `wp_after_execute_ability` no se dispara
+	 * con un `WP_Error`: con sólo esos ganchos, en un proceso largo (el transporte STDIO del adaptador) el ámbito quedaba
+	 * abierto y nada se refrescaba hasta cerrar la sesión. Si el envoltorio no llega a ejecutarse (otro código cambió el
+	 * callback), `wp_before/after_execute_ability` abren y cierran el ámbito igual.
 	 */
 	public static function wrap_ability( $args, $name = '' ) {
 		if ( ! self::is_builder_ability( $name ) || ! is_array( $args ) || empty( $args['execute_callback'] ) || ! is_callable( $args['execute_callback'] ) ) {
 			return $args;
 		}
 		$inner                    = $args['execute_callback'];
-		self::$wrapped[ $name ]   = true;
-		$args['execute_callback'] = static function ( ...$params ) use ( $inner ) {
-			++self::$depth;
+		$args['execute_callback'] = static function ( ...$params ) use ( $inner, $name ) {
+			self::claim( (string) $name );
 			try {
 				return call_user_func_array( $inner, $params );
 			} finally {
+				array_pop( self::$frames );
 				self::leave();
 			}
 		};
 		return $args;
 	}
 
-	/** `wp_before_execute_ability`: respaldo para una herramienta que no pasó por `wrap_ability()`. */
+	/** `wp_before_execute_ability`: abre el ámbito de la herramienta (el envoltorio, si corre, lo toma y lo cierra). */
 	public static function before_ability( $name ): void {
-		if ( self::is_builder_ability( $name ) && ! isset( self::$wrapped[ $name ] ) ) {
+		if ( self::is_builder_ability( $name ) ) {
+			self::$frames[] = array( (string) $name, false );
 			++self::$depth;
 		}
 	}
 
-	/** `wp_after_execute_ability`: termina bien; al cerrar la última se refresca lo anotado. */
+	/** `wp_after_execute_ability`: cierra el ámbito que abrió `before_ability()` si el envoltorio no lo tomó. */
 	public static function after_ability( $name ): void {
-		if ( self::is_builder_ability( $name ) && ! isset( self::$wrapped[ $name ] ) ) {
+		if ( ! self::is_builder_ability( $name ) || empty( self::$frames ) ) {
+			return;
+		}
+		$top = self::$frames[ count( self::$frames ) - 1 ];
+		if ( $top[0] === $name && ! $top[1] ) {
+			array_pop( self::$frames );
 			self::leave();
 		}
+	}
+
+	/** El envoltorio toma el ámbito que abrió `before_ability()` para esta herramienta, o abre uno propio. */
+	private static function claim( string $name ): void {
+		$last = count( self::$frames ) - 1;
+		if ( $last >= 0 && self::$frames[ $last ][0] === $name && ! self::$frames[ $last ][1] ) {
+			self::$frames[ $last ][1] = true;
+			return;
+		}
+		self::$frames[] = array( $name, true );
+		++self::$depth;
 	}
 
 	/** El proxy del editor ejecuta las herramientas sin la Abilities API: su ruta REST abre el mismo ámbito. */
@@ -269,7 +291,7 @@ final class Css_Sync {
 		self::$initialized = false;
 		self::$depth       = 0;
 		self::$pending     = array();
-		self::$wrapped     = array();
+		self::$frames      = array();
 		self::$saved       = array();
 		self::$flushing    = false;
 		self::$keys        = array();

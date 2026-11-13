@@ -670,6 +670,58 @@ namespace {
 	$core_prio   = preg_match( "/add_action\( 'parse_request', \[ \\\$this, 'maybe_activate' \], (\d+) \)/", $handler_src, $m ) ? (int) $m[1] : null;
 	check( null !== $core_prio && defined( 'Digitalisimo\Elements\Mcp\Preview_Link::PRIORITY' ) && \Digitalisimo\Elements\Mcp\Preview_Link::PRIORITY > $core_prio, 'el enlace firmado se atiende después del manejador del núcleo (prioridad ' . var_export( $core_prio, true ) . ')' );
 
+	// ---------------------------------------------------------------------------------------------------------------
+	// 12. Segunda revisión (BAJA): el envoltorio se registra con la última prioridad y toma el ámbito al ejecutarse; si
+	//     otro filtro cambió el callback (el envoltorio no corre), wp_before/after_execute_ability abren y cierran el
+	//     ámbito igual. Falla con 9bb6c0ab (se marcaba «envuelta» al registrar y los ganchos de respaldo se saltaban).
+	mc_boot();
+	check( PHP_INT_MAX === $GLOBALS['mc']['hooks']['wp_register_ability_args'][0][1], 'wp_register_ability_args con prioridad PHP_INT_MAX' );
+	$ours = apply_filters( 'wp_register_ability_args', array( 'execute_callback' => static function () { return 'original'; } ), 'elementor/manage-elements' );
+	// Otro complemento reemplaza el callback después: el envoltorio no corre.
+	$replaced = static function () {
+		do_action( 'elementor/document/after_save', new Mc_Document( mc_post( 80 ), 80 ), array() );
+		return 'reemplazo';
+	};
+	do_action( 'wp_before_execute_ability', 'elementor/manage-elements', array() );
+	check( 1 === Css_Sync::state()['depth'], 'callback reemplazado: wp_before_execute_ability abre el ámbito' );
+	call_user_func( $replaced );
+	do_action( 'wp_after_execute_ability', 'elementor/manage-elements', array(), 'reemplazo' );
+	check( 0 === Css_Sync::state()['depth'] && array( 'local/80', 'global/80' ) === mc_cleared( 80 )['clears'], 'callback reemplazado: lo guardado se refresca al cerrar con wp_after_execute_ability' );
+	// Anidadas: cada envoltorio toma el ámbito que abrió su propio wp_before_execute_ability.
+	mc_reset();
+	$inner_cb = apply_filters(
+		'wp_register_ability_args',
+		array(
+			'execute_callback' => static function () {
+				do_action( 'elementor/document/after_save', new Mc_Document( mc_post( 81 ), 81 ), array() );
+				return 'inner';
+			},
+		),
+		'elementor/build-composition'
+	)['execute_callback'];
+	$outer_cb = apply_filters(
+		'wp_register_ability_args',
+		array(
+			'execute_callback' => static function () use ( $inner_cb ) {
+				do_action( 'wp_before_execute_ability', 'elementor/build-composition', array() );
+				call_user_func( $inner_cb );
+				do_action( 'wp_after_execute_ability', 'elementor/build-composition', array(), 'inner' );
+				return 'outer';
+			},
+		),
+		'elementor/manage-component'
+	)['execute_callback'];
+	do_action( 'wp_before_execute_ability', 'elementor/manage-component', array() );
+	$depth_inside = null;
+	call_user_func( $outer_cb );
+	do_action( 'wp_after_execute_ability', 'elementor/manage-component', array(), 'outer' );
+	check( 0 === Css_Sync::state()['depth'] && array( 'local/81', 'global/81' ) === mc_cleared( 81 )['clears'], 'anidadas con envoltorio y ganchos: el ámbito se cierra una vez y se refresca' );
+	// El envoltorio sin ganchos (llamado directo) abre y cierra su propio ámbito.
+	mc_reset();
+	call_user_func( $inner_cb );
+	check( 0 === Css_Sync::state()['depth'] && array( 'local/81', 'global/81' ) === mc_cleared( 81 )['clears'], 'el envoltorio llamado sin wp_before_execute_ability abre y cierra su ámbito' );
+	check( 'original' === call_user_func( $ours['execute_callback'] ), 'el envoltorio devuelve el resultado del callback' );
+
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {
 		echo "CSS del MCP de Elements: $fails fallas de {$GLOBALS['mc_checks']} comprobaciones.\n";
