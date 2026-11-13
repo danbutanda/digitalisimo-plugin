@@ -142,7 +142,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		} catch ( Exception $e ) {
 			return;
 		}
-		Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, false, self::restore_layout() );
+		if ( null !== $parts ) Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, false, self::restore_layout() );
 		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
@@ -477,7 +477,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
 		// Restaurar por partes: lo concreto elegido está en el respaldo (salvo en la vuelta a la copia previa).
-		Digitalisimo_Backups_Restore_Parts::check( $zip, $data, self::restore_parts( $job ), ! empty( $job['spec']['rollback'] ), self::restore_layout() );
+		$parts = self::restore_parts( $job );
+		if ( null !== $parts ) Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, ! empty( $job['spec']['rollback'] ), self::restore_layout() );
 		// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
 		if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
 		if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
@@ -1932,6 +1933,11 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$live = $layout['root'] . $unit;
 		if ( is_link( $staged ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El área de trabajo de los archivos tiene un enlace simbólico.' );
 		if ( is_link( $live ) ) throw new Digitalisimo_Backups_Permanent_Error( 'Una carpeta de restauración es un enlace simbólico: ' . $unit );
+		// La carpeta que la contiene puede no existir aquí (un sitio sin carpeta de temas o de mu-plugins, revisión A2): se crea dentro de WordPress.
+		if ( ! is_dir( dirname( $live ) ) ) {
+			self::restore_assert_inside( dirname( $live, 2 ), $layout['root'] );
+			wp_mkdir_p( dirname( $live ) );
+		}
 		self::restore_assert_inside( dirname( $live ), $layout['root'] );
 		$old = dirname( $live ) . '/.digitalisimo-old-' . $layout['tag'] . '-' . basename( $live );
 		$near = dirname( $live ) . '/.digitalisimo-new-' . $layout['tag'] . '-' . basename( $live );

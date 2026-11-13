@@ -413,6 +413,12 @@ pt_case( 'P13 revisión A2: una parte cuya carpeta no existe en el sitio sigue s
 	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
 	pt_finish();
 	pt_check( 'success' === pt_last()['status'] && is_file( $root . '/wp-content/mu-plugins/mu.php' ) && hash_file( 'sha256', $root . '/wp-content/mu-plugins/mu.php' ) === $backup_tree['/wp-content/mu-plugins/mu.php'], '«mu-plugins» no repuso la carpeta que el sitio no tenía.' );
+	// Sin la carpeta de temas (una restauración completa de un respaldo importado, por ejemplo): el tema vuelve a su sitio.
+	bk_remove_tree( $root . '/wp-content/themes' );
+	$result = pt_restore( $backup, array( 'parts' => 'themes' ) );
+	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	pt_finish();
+	pt_check( 'success' === pt_last()['status'] && is_file( $root . '/wp-content/themes/tema/style.css' ) && is_file( $root . '/wp-content/themes/segundo/style.css' ), 'Sin la carpeta de temas, los temas no volvieron: ' . json_encode( pt_last()['error'] ) );
 	pt_check( $db === pt_db() && 0 === pt_renames(), 'La base de datos cambió sin elegirla.' );
 } );
 
