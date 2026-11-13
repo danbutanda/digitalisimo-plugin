@@ -220,4 +220,47 @@ assert.deepEqual(Object.values(ui.storage.data), ['sesion-1'], 'Una subida conse
   assert.match(ui.status.textContent, /^Respaldo subido y verificado:/);
 }
 
+// 10. Revisión B4: al volver a cerrar se aborta el cierre anterior; su rechazo no cuenta (el nuevo sigue en vuelo), así
+// que no hay cierres en cascada. Aquí el fetch simulado SÍ respeta AbortSignal y el servidor tarda en tomar cada cierre.
+{
+  let total = 0;
+  let finishes = 0;
+  let polls = 0;
+  let validatingFrom = Infinity;
+  const form = node('form'); const input = node('input'); input.files = [file];
+  const status = node('p'); const bar = node('progress'); const submit = node('button'); const cancel = node('button');
+  form.selectors = { 'input[type="file"]': input, 'button[type="submit"]': submit, '[data-upload-cancel]': cancel, 'progress': bar, '.digitalisimo-backups-upload-status': status };
+  const card = node('section'); card.selectors = { '.digitalisimo-backups-upload-form': form };
+  const context = {
+    window: { digitalisimoBackupsUpload: { url: '/a', nonce: 'nonce-upload', context: 'site', statusAfter: 0 }, localStorage: null,
+      setTimeout: (fn, ms) => { if (ms >= 45000) return 0; setTimeout(fn, Math.min(ms, 3)); return 1; }, clearTimeout: () => {} },
+    document: { getElementById: (id) => (id === 'digitalisimo-backups-upload' ? card : null) },
+    FormData, Promise, JSON, Math, Number, String, Object, Error, AbortController, Date,
+    fetch: async (url, options) => {
+      const action = options.body.get('action').replace('digitalisimo_backups_upload_', '');
+      const ok = (data) => ({ ok: true, status: 200, text: async () => JSON.stringify({ success: true, data }) });
+      if (action === 'start') return ok({ id: 's1', size: 1000, received: 0, chunk_size: 500 });
+      if (action === 'chunk') { total += 500; return ok({ id: 's1', size: 1000, received: total, chunk_size: 500 }); }
+      if (action === 'finish') {
+        finishes++;
+        // El primero murió en el servidor; los demás tardan dos consultas en empezar a comprobar.
+        if (finishes > 1) validatingFrom = Math.min(validatingFrom, polls + 2);
+        return new Promise((resolve, reject) => { options.signal?.addEventListener('abort', () => reject(new TypeError('aborted'))); });
+      }
+      if (action === 'status') {
+        polls++;
+        if (polls >= validatingFrom + 6) return ok({ id: 's1', size: 1000, received: 1000, phase: 'done', result: { file: 'f.zip', verified: true, confirmation: 'RESTAURAR', needs_secret: false, problems: [] } });
+        return ok({ id: 's1', size: 1000, received: 1000, phase: 'validating', validating: polls >= validatingFrom });
+      }
+      return { ok: false, status: 400, text: async () => '{}' };
+    },
+  };
+  runInNewContext(script, context);
+  form.listeners.submit({ preventDefault() {} });
+  for (let i = 0; i < 600 && submit.disabled; i++) await new Promise((r) => setTimeout(r, 3));
+  assert.equal(submit.disabled, false, 'La subida no terminó');
+  assert.ok(finishes <= 2, `Cierres en cascada: ${finishes} cierres (el rechazo del cierre abortado contó como respuesta)`);
+  assert.match(status.textContent, /^Respaldo subido y verificado: f\.zip/);
+}
+
 console.log('DIGITALÍSIMO Backups: la subida por fragmentos corrige el desplazamiento, reintenta con espera, se reanuda tras recargar, pinta texto y la barra llega a 100 % «verificado» aunque la respuesta del cierre no llegue.');

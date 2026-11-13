@@ -137,6 +137,7 @@
     return new Promise(function (resolve, reject) {
       var settled = false;
       var pending = null;
+      var attempt = 0;
       var answered = true;
       var restarts = 0;
       var idle = 0;
@@ -149,11 +150,14 @@
         callback(value);
       }
       function finish() {
+        var mine = ++attempt;
         answered = false;
         post('finish', { id: session.id, secret: secret ? secret.value : '' }, function (controller) { pending = controller; }).then(function (result) {
-          answered = true;
+          if (mine === attempt) answered = true;
           end(resolve, result);
         }, function (error) {
+          // El rechazo de un cierre anterior (abortado al volver a cerrar) no cuenta: el nuevo sigue en vuelo.
+          if (mine !== attempt) return;
           answered = true;
           var code = error.data && error.data.code || '';
           // 202 «se está comprobando» o un corte: el resultado llegará por el estado.
