@@ -31,6 +31,9 @@ try {
 	$mu = <<<'PHP'
 <?php
 // Ensayo «restaurar por partes» de DIGITALÍSIMO Backups: cambios que el laboratorio de la restauración no hace.
+// Sin pings ni enclosures por WP-Cron: do_all_pings retira las metas _pingme y _encloseme de las entradas que publica el
+// laboratorio, y esas tablas deben quedar idénticas cuando no se restaura la base de datos.
+add_action( 'init', static function () { remove_action( 'do_pings', 'do_all_pings', 10 ); } );
 // Crear el respaldo de referencia no es lo que se ensaya aquí: con la marca /digi-ctl/backup-memory (la pone el ensayo sólo
 // mientras se crea), esas peticiones corren con el límite que dice la marca; las de la restauración, siempre con 64 MB.
 add_action( 'muplugins_loaded', static function () {
