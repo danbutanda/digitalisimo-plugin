@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-elements-installer digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: sshd de OpenSSH para la prueba de SFTP sin la extensión ssh2
         run: test -x /usr/sbin/sshd || (sudo apt-get update -qq && sudo apt-get install -y -qq openssh-server)
       - name: Traer main para la higiene
@@ -196,6 +196,7 @@ jobs:
           php tests/elements-products-carousel.php
           php tests/elements-core-loader.php
           php tests/elements-updater-manifest.php
+          php tests/elements-installer.php
           php tests/elements-sibling-updates.php
           php tests/elements-compat-tag-version.php
           php tests/updater-real-folder.php
@@ -540,7 +541,7 @@ jobs:
       - name: Validar sintaxis PHP 7.4
         # Los bootstrap80.php de los polyfills de Symfony usan sintaxis de PHP 8 a propósito: su bootstrap.php sólo los
         # carga con PHP >= 8 (tests/repo-hygiene.mjs lo comprueba).
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -not -path '*/symfony/polyfill-*/bootstrap80.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-elements-installer digitalisimo-migration digitalisimo-theme -name '*.php' -not -path '*/symfony/polyfill-*/bootstrap80.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar la suite PHP con PHP 7.4
         # scripts/ci-php74-pendientes.txt: pruebas que aún no corren en 7.4, cada una con su causa; deben seguir
         # fallando, y la que ya pase hace fallar el trabajo para que la lista sólo se acorte.
