@@ -158,10 +158,12 @@ reconstrucción.
 
 - `tests/elements-mcp-css.php` (en `validate.yml` y `release.yml`; PHP 7.4, 8.2 y 8.5): ámbito de las herramientas
   (también envuelto con `try/finally`), autoguardado y promoción (con el aviso a la caché de página), herramientas
-  anidadas, una que falla a medias, el proxy, enlaces firmados reales (`Preview_Token` del núcleo: publicada congelada,
-  borrador invalidado, caché HTML apagada), la lista de componentes (`Cache_Validity` del núcleo), las claves frente a
-  las constantes del núcleo y las listas de familias con el transformador real del núcleo. Falla con el código anterior
-  (no existe el módulo).
+  anidadas, una que falla a medias, el proxy, enlaces firmados reales (`Preview_Token` del núcleo: publicada congelada
+  sólo en memoria sin cambiar nada guardado ni a mitad de la petición, con escrituras del núcleo y una purga durante
+  ella; borrador invalidado; caché HTML apagada), el CSS en línea de la instantánea por punto y en la posición de las
+  hojas del núcleo, las metas `_elementor_*` de la publicada que no se escriben y su CSS de página en línea, la lista de
+  componentes (`Cache_Validity` del núcleo), las claves frente a las constantes del núcleo y las listas de familias con
+  el transformador real del núcleo. Falla con el código anterior (no existe el módulo).
 - `tests/validate-suite.mjs` exige los cinco archivos de `modules/digitalisimo-mcp/` en el ZIP de Elements.
 - `tests/playground/elements-mcp-css.sh` (manual, en la PC): Playground con WordPress 7.1, una contraseña de aplicación
   y JSON-RPC real contra `/wp-json/elementor/mcp`, en PHP 7.4, 8.2 y 8.5. Tras cada escritura abre el borrador como su
@@ -169,7 +171,13 @@ reconstrucción.
   del HTML tiene regla en el CSS cargado y que el `ver` cambió. Los escenarios R1–R6 son los de la revisión adversarial:
   lo que recibe el HTML ya entregado de una publicada (el de una caché de página) tras abrir un enlace firmado, un enlace
   viejo abierto después de publicar, el mismo enlace abierto varias veces, un proceso largo tras una herramienta que
-  falla, un componente usado por otra página y los ganchos de purga de la promoción. Con
+  falla, un componente usado por otra página y los ganchos de purga de la promoción. R7a y R7b son los de la segunda
+  revisión, sin y con una purga general antes: la sonda toma la huella de la publicada directo de la base y del disco
+  (sus nodos en las cinco opciones de validez, todas sus metas, sus archivos CSS y su fila) antes, a mitad (`shutdown`
+  de la petición firmada) y después de abrir el enlace, y deben ser iguales; un visitante con la validez de mitad de
+  la petición recibe la publicada con todas sus reglas y sin el fondo pendiente; el enlace muestra la instantánea sin
+  ninguna hoja de la publicada, con su fondo y con la regla de celular después de la de escritorio (Chrome calcula
+  6px a 375 px). Con
   `ELEMENTS_ZIP=dist/digitalisimo-elements-4.3.0.185.zip EXPECT_FAIL=1` comprueba que con el código anterior fallan
   exactamente las comprobaciones esperadas.
 

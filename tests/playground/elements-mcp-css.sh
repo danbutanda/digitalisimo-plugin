@@ -12,6 +12,9 @@
 #   M5  update-page-settings con un cambio de estilo; M6 publish-document y una página publicada (autosave y promoción)
 #   M7  kit: manage-global-variable, manage-classes y manage-default-styles regeneran el CSS global
 #   M8  una página V3 (clásica) no empeora; M9 la observación secundaria (font-family con comillas y `\n` literal)
+#   R1–R6 escenarios de la revisión adversarial; R7a/R7b los de la segunda: el enlace firmado de una publicada (con y sin
+#       purga general antes) no cambia ninguna opción, meta ni archivo de la publicada, ni a mitad de la petición (un
+#       visitante simultáneo recibe sus hojas buenas) ni después, y su CSS en línea respeta el orden responsivo
 # Uso: bash tests/playground/elements-mcp-css.sh   (en la PC: bash /var/tmp/digi-wt/pc-run.sh <worktree> -- bash tests/playground/elements-mcp-css.sh)
 #   PHPS           versiones de PHP de Playground, una corrida por versión (por defecto «7.4 8.2 8.5»)
 #   OUT, TMPDIR    resultados (por defecto /var/tmp/digi-mcp-css) y temporales de Playground
@@ -19,6 +22,7 @@
 #   ELEMENTS_DIR   DIGITALÍSIMO Elements a probar (por defecto digitalisimo-elements/ del repositorio; se copia fijo)
 #   ELEMENTS_ZIP   o un ZIP publicado (p. ej. dist/digitalisimo-elements-4.3.0.185.zip) para ver qué falla antes
 #   EXPECT_FAIL=1  con el código anterior: la corrida termina bien si fallan exactamente las comprobaciones esperadas
+#   ONLY=R7        sólo M0 y los escenarios de la segunda revisión (R7a y R7b)
 # Deja $OUT/php-<versión>/result.txt y result.json y $OUT/summary.json. Al terminar borra la contraseña de aplicación
 # del ensayo y la copia del plugin.
 set -euo pipefail

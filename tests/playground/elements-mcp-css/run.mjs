@@ -4,6 +4,8 @@
 // estado sin pasar por el MCP. Tras cada escritura abre la página (borrador con la sesión de la administradora,
 // publicada como visitante o por el enlace firmado de create-preview-link) y comprueba que cada clase de estilo local
 // (e-xxxxxxxx-xxxx) y global del HTML existe en el CSS que la página carga y que el `ver` de su hoja cambió.
+// R1–R6 son los escenarios de la revisión adversarial y R7a/R7b los de la segunda (huellas de la publicada antes, a
+// mitad y después del enlace firmado, leídas directo de la base por la sonda).
 // Escribe <dir>/result.txt («ok · …», «FALLA · …» o «nota · …») y <dir>/result.json; sale 1 si algo falla.
 // Con EXPECT_FAIL=1 (código anterior al arreglo) sale 0 sólo si fallan exactamente las comprobaciones de BEFORE_FIX.
 // Uso: node run.mjs <puerto> <host> <dir>
@@ -30,7 +32,7 @@ const check = (id, ok, what, detail = '') => {
 const note = (what) => { results.push({ id: 'nota', section, what, ok: true, note: true }); log(`nota · ${what}`); };
 const start = (name) => { section = name; log(`== ${name}`); };
 
-// Las comprobaciones que fallan con DIGITALÍSIMO Elements 4.3.0.185 (núcleo 4.3.5), sin el arreglo (30).
+// Las comprobaciones que fallan con DIGITALÍSIMO Elements 4.3.0.185 (núcleo 4.3.5), sin el arreglo (43).
 const BEFORE_FIX = [
   // El incidente: la hoja «frontend» del borrador no se invalida (enlace firmado con el CSS y el ver de la primera).
   'M1.2-css', 'M1.2-ver', 'M1.2-color', 'M1.3-css', 'M1.3-ver', 'M1.3-color',
@@ -47,6 +49,11 @@ const BEFORE_FIX = [
   // promoción sin purga deja HTML y CSS viejos (R2.0, R6.2) y no dispara ganchos de caché de página (R6.1); sin el
   // módulo nada refresca tras una herramienta que falla (R4.1).
   'R1.2b', 'R2.0', 'R2b.1', 'R4.1', 'R6.1', 'R6.2',
+  // Segunda revisión: el enlace firmado de una publicada carga y regenera sus hojas con la instantánea (R7a.1, R7b.1),
+  // sin CSS en línea (R7a.2, R7b.2) ni su fondo pendiente sin purga (R7a.3), y escribe validez, metas y post-<id>.css de
+  // la publicada (R7a.4, R7b.4), ya a mitad de la petición (R7a.5, R7b.5): el visitante simultáneo y el siguiente
+  // reciben el CSS de la instantánea o el fondo pendiente (R7a.6, R7a.7, R7b.6, R7b.7).
+  'R7a.1', 'R7a.2', 'R7a.3', 'R7a.4', 'R7a.5', 'R7a.6', 'R7a.7', 'R7b.1', 'R7b.2', 'R7b.4', 'R7b.5', 'R7b.6', 'R7b.7',
 ];
 
 function request(method, path, { headers = {}, body } = {}) {
@@ -209,6 +216,8 @@ async function main() {
   // Las administradoras corren las migraciones del constructor al entrar al escritorio (capacidades de clases globales).
   const dash = await request('GET', '/wp-admin/index.php', { headers: { Cookie: cookies } });
   check('M0-admin', dash.status === 200, 'la administradora entra al escritorio (migraciones del constructor)', `HTTP ${dash.status}`);
+  // ONLY=R7: sólo los escenarios de la segunda revisión (tras visitar la portada, como hace M1 con la primera visita).
+  if (process.env.ONLY === 'R7') { await request('GET', '/'); await review2(); return; }
 
   // Tras cada escritura en un borrador: la administradora lo abre (WordPress lo trata como vista previa: hoja local
   // «preview») y se pide un enlace firmado nuevo y se abre como visitante (hoja local «frontend», la del incidente).
@@ -409,6 +418,7 @@ async function main() {
   check('M9.2-nested', /& strong\s*\{[^}]*font-weight:\s*800/.test(localCss), 'la regla anidada «& strong» está en el CSS', localCss.slice(0, 400));
   await chromeCheck(pagePath);
   await review();
+  await review2();
 }
 
 // =====================================================================================================================
@@ -520,6 +530,119 @@ async function review() {
   check('R6.1', ['save_post', 'edit_post', 'post_updated', 'clean_post_cache'].every((h) => hooks.includes(`${h}:${Q}`)), `la promoción dispara save_post, edit_post, post_updated y clean_post_cache de ${Q} (lo que escuchan las cachés de página)`, hooks.join(', '));
   const q2 = await view(`/?page_id=${Q}`);
   check('R6.2', q2.html.includes('Versión R2') && missingIn(q2, await cssFor(q2)).length === 0, 'la publicada muestra la promoción con todas sus reglas');
+}
+
+// =====================================================================================================================
+// Segunda revisión (2026-11-13): el enlace firmado de una publicada no escribe nada que vean otros (opciones, metas,
+// archivos ni caché), ni a mitad de la petición (un visitante simultáneo recibe sus hojas buenas) ni después, con y sin
+// una purga general antes; y su CSS en línea respeta el orden responsivo del núcleo.
+const pdesign = (n, pad, mob) => ({
+  xml_structure: '<e-flexbox configuration-id="Seccion"><e-heading configuration-id="Titulo"></e-heading></e-flexbox>',
+  element_config: { Titulo: { title: `Versión P${n}` } },
+  style: { Seccion: `display: flex; padding: ${pad}px; @media(--mobile) { padding: ${mob}px; }`, Titulo: `color: #${n}${n}0000;` },
+});
+const PREVIEW_STYLE_RE = /<style\b[^>]*\bid=['"]digitalisimo-mcp-preview-[^'"]*-inline-css['"][^>]*>([\s\S]*?)<\/style>/g;
+// Diferencias entre dos huellas de la sonda (`snap`): nodos de la página en la validez, metas, archivos y fila.
+function snapDiff(a, b) {
+  const out = [];
+  if (!a || !b) return ['sin huella'];
+  for (const root of Object.keys({ ...a.options, ...b.options })) {
+    if (JSON.stringify(a.options?.[root]?.page ?? null) !== JSON.stringify(b.options?.[root]?.page ?? null)) out.push(`validez ${root}: ${JSON.stringify(a.options?.[root]?.page ?? null).slice(0, 160)} → ${JSON.stringify(b.options?.[root]?.page ?? null).slice(0, 160)}`);
+  }
+  for (const key of new Set([...Object.keys(a.metas || {}), ...Object.keys(b.metas || {})])) {
+    if (JSON.stringify(a.metas?.[key] ?? null) !== JSON.stringify(b.metas?.[key] ?? null)) out.push(`meta ${key}: ${a.metas?.[key] ? 'cambió' : 'nueva'}${b.metas?.[key] ? '' : ' (borrada)'}`);
+  }
+  for (const file of new Set([...Object.keys(a.files || {}), ...Object.keys(b.files || {})])) {
+    if ((a.files?.[file] ?? null) !== (b.files?.[file] ?? null)) out.push(`archivo ${file}: ${a.files?.[file] ?? '(no)'} → ${b.files?.[file] ?? '(no)'}`);
+  }
+  if (JSON.stringify(a.post) !== JSON.stringify(b.post)) out.push(`entrada: ${JSON.stringify(a.post)} → ${JSON.stringify(b.post)}`);
+  return out;
+}
+const fullDiff = (a, b) => Object.keys(a?.options || {}).filter((root) => a.options[root].md5 !== b?.options?.[root]?.md5);
+
+async function review2() {
+  for (const purge of [false, true]) {
+    const tag = purge ? 'R7b' : 'R7a';
+    start(`${tag} Enlace firmado de una publicada${purge ? ' tras una purga general' : ''}: nada que vean otros (segunda revisión)`);
+    let r = await admin.call('create-page', { title: `RV2 ${tag}` });
+    const P = Number(r.data?.id);
+    await admin.call('update-page-settings', { post_id: P, settings: { template: 'elementor_canvas' } });
+    await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...pdesign(1, 40, 4) });
+    await admin.call('update-page-settings', { post_id: P, settings: { background_background: 'classic', background_color: '#111111' } });
+    r = await admin.call('publish-document', { post_id: P });
+    check(`${tag}.0`, r.data?.status === 'publish', `página ${P} publicada (diseño 1, fondo #111111)`, r.text);
+    await view(`/?page_id=${P}`);
+    // Promoción: la publicada pasa al diseño 2 y sus hojas quedan inválidas (sus archivos son los del diseño 1).
+    await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...pdesign(2, 50, 5) });
+    await admin.call('publish-document', { post_id: P });
+    // Pendiente en el autoguardado: diseño 3 (60px, 6px en celular) y un fondo #222222 (update-page-settings del núcleo
+    // guardaría en la publicada: Document::save(), que además borra el autoguardado; la sonda lo pone en el autoguardado).
+    r = await admin.call('build-composition', { post_id: P, mode: 'replace_children', ...pdesign(3, 60, 6) });
+    const bg = await probe('autosave_bg', String(P));
+    const st = await probe('state', String(P));
+    check(`${tag}.0b`, !r.isError && st.status === 'publish' && st.autosave > 0 && bg.autosave === st.autosave && JSON.stringify(st.autosave_ids) !== JSON.stringify(st.local_ids), `publicada ${P} con el diseño 2 (hojas inválidas tras la promoción); pendiente en el autoguardado ${st.autosave}: diseño 3 y fondo #222222`, `${r.text.slice(0, 200)} · ${JSON.stringify(st)}`);
+    if (purge) {
+      await probe('purge');
+      note(`${tag}: purga general (manage-elements, manage-classes y manage-global-variable del núcleo la hacen en cada llamada)`);
+    }
+    r = await admin.call('create-preview-link', { post_id: P });
+    const before = await probe('snap', String(P));
+    await probe('capture', String(P));
+    const link = await view(pathOf(r.data?.url || '/'));
+    const after = await probe('snap', String(P));
+    const captured = (await probe('captured')).snap;
+    note(`${tag}: huella de ${P} antes del enlace: ${Object.keys(before.files).join(', ') || 'sin archivos'}; metas ${Object.keys(before.metas).filter((k) => k.startsWith('_elementor')).join(', ')}`);
+
+    const own = link.links.filter((l) => new RegExp(`^(local|global)-${P}-|^post-${P}\\.css$`).test(l.file)).map((l) => l.file);
+    check(`${tag}.1`, link.html.includes('Versión P3') && link.local.length > 0 && missingIn(link, link.css).length === 0 && own.length === 0, 'el enlace muestra la instantánea (diseño 3) con una regla en línea para cada clase y sin cargar ninguna hoja de la publicada', `HTML con P3 ${link.html.includes('Versión P3')}; sin regla: ${missingIn(link, link.css).join(', ')}; hojas de la publicada: ${own.join(', ') || 'ninguna'}`);
+    const inline = [...link.html.matchAll(PREVIEW_STYLE_RE)].map((m) => m[1]).join('\n');
+    const iDesk = inline.search(/\{[^{}]*padding:60px/);
+    const iMob = inline.search(/\{[^{}]*padding:6px/);
+    check(`${tag}.2`, iDesk >= 0 && iMob > iDesk, 'en el CSS en línea la regla de celular (6px) va después de la de escritorio (60px), como en las hojas del núcleo', `escritorio en ${iDesk}, celular en ${iMob}: ${inline.slice(0, 400)}`);
+    // (#111111 también es un color del tema, --wp--preset--color--contrast: se mira el fondo de la página.)
+    const bgOf = (css) => [...css.matchAll(/background-color:\s*(#[0-9a-f]{6})/gi)].map((m) => m[1].toLowerCase());
+    check(`${tag}.3`, bgOf(link.css).includes('#222222') && !bgOf(link.css).includes('#111111'), 'el enlace lleva el CSS de página de la instantánea (fondo pendiente #222222, no el publicado)', `fondos: ${bgOf(link.css).join(', ')}`);
+    const changed = snapDiff(before, after);
+    check(`${tag}.4`, changed.length === 0, `abrir el enlace no cambió ninguna opción, meta ni archivo de la publicada ${P}`, changed.join(' · '));
+    const full = fullDiff(before, after);
+    if (full.length) note(`${tag}: opciones de validez que cambiaron enteras (otros documentos u otra petición): ${full.join(', ')}`);
+    const mid = snapDiff(before, captured);
+    check(`${tag}.5`, captured && mid.length === 0, 'a mitad de la petición firmada la base tiene lo mismo que antes (no hay ventana)', mid.join(' · '));
+    // Un visitante que llega durante la petición firmada: con la validez que había entonces en la base.
+    await probe('restore', 'captured');
+    const vis = await view(`/?page_id=${P}`);
+    const visCss = await cssFor(vis);
+    await probe('restore', 'after');
+    const missVis = missingIn(vis, visCss);
+    check(`${tag}.6`, vis.html.includes('Versión P2') && vis.local.length > 0 && missVis.length === 0 && !/222222/.test(visCss), 'un visitante simultáneo recibe la publicada (diseño 2) con sus hojas buenas: una regla para cada clase y sin el fondo pendiente', `HTML con P2 ${vis.html.includes('Versión P2')}; sin regla: ${missVis.join(', ')}; #222222 ${/222222/.test(visCss)}; hojas ${vis.links.map((l) => `${l.file}?ver=${l.ver}`).join(', ')}`);
+    const fresh = await view(`/?page_id=${P}`);
+    const freshCss = await cssFor(fresh);
+    check(`${tag}.7`, fresh.html.includes('Versión P2') && missingIn(fresh, freshCss).length === 0 && bgOf(freshCss).includes('#111111') && !/222222/.test(freshCss), 'después, un visitante nuevo recibe la publicada con todas sus reglas y su fondo #111111 (nada de la instantánea)', `sin regla: ${missingIn(fresh, freshCss).join(', ')}; fondos: ${bgOf(freshCss).join(', ')} · #222222 ${/222222/.test(freshCss)}`);
+    if (!purge) {
+      const cls = (inline.match(/\.(e-[0-9a-f]+-[0-9a-f]+)\{[^{}]*padding:60px/) || [])[1] || '';
+      const px = await chromePadding(pathOf(r.data?.url || '/'), cls, 375);
+      if (px === null) note('sin Chrome: no se mide el padding calculado del enlace a 375 px');
+      else check(`${tag}.8-chrome`, px === '6px', `Chrome: a 375 px el enlace calcula padding ${px} en .${cls} (la publicada tras publicar daría 6px)`, px);
+    }
+  }
+}
+
+async function chromePadding(path, cls, width) {
+  const base = process.env.PUPPETEER_PATH;
+  if (!base || !cls || process.env.CHROME === '0' || !existsSync(`${base}/puppeteer-core/lib/puppeteer/puppeteer-core.js`)) return null;
+  const { default: puppeteer } = await import(pathToFileURL(`${base}/puppeteer-core/lib/puppeteer/puppeteer-core.js`).href);
+  const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dmc-' : `${tmpdir()}/dmc-`);
+  const browser = await puppeteer.launch({ userDataDir: profile, executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
+  try {
+    const tab = await browser.newPage();
+    await tab.setViewport({ width, height: 800 });
+    await tab.goto(`http://${host}${path}`, { waitUntil: 'load', timeout: 300_000 });
+    return await tab.evaluate((c) => { const el = document.querySelector(`.${c}`); return el ? getComputedStyle(el).paddingTop : 'sin elemento'; }, cls);
+  } catch (e) {
+    return `error ${e.message}`;
+  } finally {
+    await browser.close();
+  }
 }
 
 // Con Chrome (si hay puppeteer-core): estilos calculados del título y del <strong> anidado en la página publicada.
