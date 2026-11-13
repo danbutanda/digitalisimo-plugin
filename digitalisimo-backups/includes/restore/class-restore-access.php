@@ -40,6 +40,12 @@ final class Digitalisimo_Backups_Restore_Access {
 	const SEO_OPTION = 'digitalisimo_integrations_options';
 	const SEO_KEY = 'seo_hide_login_slug';
 	const SEO_INHERIT = 'digitalisimo_seo_network_inherit';
+	/**
+	 * Las claves y sales que WordPress guarda en la base cuando wp-config.php no las define (wp_salt(): opciones de red,
+	 * en un sitio individual las del sitio). Son de esta instalación, como wp-config.php: al restaurar en otro sitio se
+	 * conservan, o la cookie de quien restaura y los nonces dejarían de valer.
+	 */
+	const SALTS = array( 'auth_key', 'auth_salt', 'secure_auth_key', 'secure_auth_salt', 'logged_in_key', 'logged_in_salt', 'nonce_key', 'nonce_salt', 'secret_key' );
 	/** Las rutas que Tools y SEO no aceptan (las que se ocultan o reserva WordPress). */
 	const RESERVED = array( 'wp-admin', 'wp-login', 'wp-login-php', 'admin', 'dashboard', 'login', 'wp-content', 'wp-includes', 'wp-json', 'wp-signup', 'wp-activate', 'feed', 'robots-txt', 'sitemap', 'wp-sitemap-xml' );
 	/** Ficha de lectura de un trabajo: cabecera HTTP (nunca la URL, que queda en los registros del servidor). */
@@ -93,6 +99,15 @@ final class Digitalisimo_Backups_Restore_Access {
 			$tools = get_site_option( self::TOOLS_NETWORK, false );
 			$seo = get_site_option( self::SEO_OPTION, false );
 			$out['network'] = array( 'tools' => is_array( $tools ) ? (string) ( $tools['login_slug'] ?? '' ) : '', 'seo' => is_array( $seo ) ? (string) ( $seo[ self::SEO_KEY ] ?? '' ) : '' );
+		}
+		return $out;
+	}
+	/** Las claves y sales de esta instalación guardadas en la base (ver SALTS): nombre => valor; secreto, sólo al diario. */
+	public static function salts_capture() {
+		$out = array();
+		foreach ( self::SALTS as $name ) {
+			$value = get_site_option( $name, '' );
+			if ( is_string( $value ) && '' !== $value ) $out[ $name ] = $value;
 		}
 		return $out;
 	}
@@ -163,6 +178,15 @@ final class Digitalisimo_Backups_Restore_Access {
 			if ( $login ) self::restore_login_path( $login, $report );
 		} catch ( Throwable $e ) {
 			$report['warnings'][] = 'No se pudo conservar la ruta de acceso de este sitio: ' . $e->getMessage();
+		}
+		// Las claves y sales de la base de esta instalación (las de wp-config.php nunca cambian): la cookie de quien
+		// restauró y los nonces siguen valiendo; las del origen no sirven aquí.
+		$salts = is_array( $secret ) && is_array( $secret['salts'] ?? null ) ? $secret['salts'] : array();
+		try {
+			foreach ( $salts as $name => $value ) if ( in_array( $name, self::SALTS, true ) && is_string( $value ) && '' !== $value ) update_site_option( $name, $value );
+			$report['salts_kept'] = count( $salts );
+		} catch ( Throwable $e ) {
+			$report['warnings'][] = 'No se pudieron conservar las claves de la base de este sitio: ' . $e->getMessage();
 		}
 		try {
 			$report['app_passwords'] += self::app_passwords_in_use();

@@ -1687,7 +1687,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$entry['relocated'] = ! $rollback && ( $relocated || $extracted || $migration );
 			if ( ! $entry['relocated'] ) return $entry;
 			$user = 'on' === $entry['state'] ? Digitalisimo_Backups_Restore_Access::capture( $user_id ) : null;
-			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'user' => $user, 'login' => Digitalisimo_Backups_Restore_Access::login_capture() ) );
+			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'user' => $user, 'login' => Digitalisimo_Backups_Restore_Access::login_capture(), 'salts' => Digitalisimo_Backups_Restore_Access::salts_capture() ) );
 		} catch ( Throwable $e ) {
 			$entry['warning'] = 'No se pudo apuntar el acceso de este sitio antes del cambio: ' . $e->getMessage();
 		}

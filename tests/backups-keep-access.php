@@ -99,7 +99,7 @@ $package = function( Bk_Sqlite_DB $db, array $users = array() ) {
 	$GLOBALS['bk_options'] = array( 'home' => 'https://digitalisimo.mx/wp', 'siteurl' => 'https://digitalisimo.mx/wp', 'permalink_structure' => '/%postname%/', 'digitalisimo_tools_site_options' => array( 'values' => array( 'login_slug' => 'acceso-red', 'redirect_attachments' => 1 ), 'inherit' => array( 'login_slug' => true ) ), 'digitalisimo_integrations_options' => array( 'seo_hide_login_slug' => 'acceso-red', 'seo_title' => 'x' ) );
 };
 $capture = function( $user_id = 1 ) use ( $A ) {
-	return $A::seal( array( 'user' => $A::capture( $user_id ), 'login' => $A::login_capture() ) );
+	return $A::seal( array( 'user' => $A::capture( $user_id ), 'login' => $A::login_capture(), 'salts' => $A::salts_capture() ) );
 };
 
 ka_case( 'a · se conserva sólo al reubicar, con un sitio extraído o en una migración, y nunca en el mismo sitio', function() use ( $A ) {
@@ -113,8 +113,13 @@ ka_case( 'a · se conserva sólo al reubicar, con un sitio extraído o en una mi
 
 ka_case( 'b · el caso de /wp: «admin» sigue entrando, la contraseña de aplicación de «digitalisimo» vale y la ruta es la de este sitio', function() use ( $A, $destination, $package, $capture ) {
 	$db = $destination();
+	// Un wp-config.php sin LOGGED_IN_KEY ni LOGGED_IN_SALT: WordPress las guarda en la base (la cookie depende de ellas).
+	$GLOBALS['bk_site_options']['logged_in_key'] = 'sal-del-destino-0123456789';
+	$GLOBALS['bk_site_options']['logged_in_salt'] = 'otra-sal-del-destino-0123456789';
 	$sealed = $capture( 1 );
 	$package( $db );
+	$GLOBALS['bk_site_options']['logged_in_key'] = 'sal-del-origen';
+	unset( $GLOBALS['bk_site_options']['logged_in_salt'] );
 	ka_check( 'acceso-red' === $A::effective_slug(), 'La prueba necesita la ruta privada de la red en el paquete.' );
 	$report = $A::apply( 'on', $A::open( $sealed ), true );
 	$admin = $db->rows( 'wpkx_users', "user_login = 'admin'" );
@@ -127,6 +132,8 @@ ka_case( 'b · el caso de /wp: «admin» sigue entrando, la contraseña de aplic
 	$apps = (array) unserialize( (string) ka_meta( $db, 'wpkx_', $id, '_application_passwords' ) );
 	ka_check( 1 === count( $apps ) && 'u-admin' === $apps[0]['uuid'], 'La contraseña de aplicación de «admin» no volvió: ' . json_encode( $apps ) );
 	ka_check( 'es_MX' === ka_meta( $db, 'wpkx_', $id, 'locale' ), 'El perfil de la cuenta creada no viajó.' );
+	ka_check( 'sal-del-destino-0123456789' === $GLOBALS['bk_site_options']['logged_in_key'] && 'otra-sal-del-destino-0123456789' === $GLOBALS['bk_site_options']['logged_in_salt'], 'Las claves de la base de este sitio no volvieron (la cookie de «admin» dejaría de valer).' );
+	ka_check( false === strpos( json_encode( $report ), 'sal-del-destino' ), 'El informe lleva una clave.' );
 	ka_check( true === ( $GLOBALS['bk_options']['using_application_passwords'] ?? null ), 'using_application_passwords no quedó activo: WordPress no comprobaría ninguna contraseña de aplicación (401 rest_not_logged_in).' );
 	ka_check( ! empty( $report['app_passwords']['enabled_here'] ) && 2 === (int) $report['app_passwords']['users_with'], 'El informe no dice que las contraseñas de aplicación se activaron: ' . json_encode( $report['app_passwords'] ) );
 	ka_check( '' === $A::effective_slug() && '' === $GLOBALS['bk_options']['digitalisimo_tools_site_options']['values']['login_slug'] && '' === $GLOBALS['bk_options']['digitalisimo_integrations_options']['seo_hide_login_slug'], 'La ruta privada de la red quedó (wp-login.php daría 404).' );
@@ -194,7 +201,11 @@ ka_case( 'g · el diario lo lleva cifrado con la clave de este servidor y lo alt
 	$sealed = $capture( 1 );
 	$json = json_encode( $sealed );
 	ka_check( 1 === ( $sealed['v'] ?? null ), 'Con AUTH_KEY y SECURE_AUTH_KEY propias no se cifró.' );
-	foreach ( array( KA_HASH, 'u-admin', 'dueno@ejemplo.test', str_repeat( 'a', 64 ) ) as $secret ) ka_check( false === strpos( $json, $secret ), 'El diario lleva en claro: ' . substr( $secret, 0, 12 ) );
+	$GLOBALS['bk_site_options']['nonce_salt'] = 'sal-de-nonces-0123456789';
+	$sealed = $capture( 1 );
+	$json = json_encode( $sealed );
+	foreach ( array( KA_HASH, 'u-admin', 'dueno@ejemplo.test', str_repeat( 'a', 64 ), 'sal-de-nonces-0123456789' ) as $secret ) ka_check( false === strpos( $json, $secret ), 'El diario lleva en claro: ' . substr( $secret, 0, 12 ) );
+	unset( $GLOBALS['bk_site_options']['nonce_salt'] );
 	ka_check( KA_HASH === $A::open( $sealed )['user']['user']['user_pass'], 'Lo sellado no abre.' );
 	$bad = $sealed;
 	$bad['box'] = substr( $bad['box'], 0, -4 ) . 'AAAA';
