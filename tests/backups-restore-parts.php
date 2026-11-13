@@ -20,7 +20,9 @@
  *   P8  lo elegido que el respaldo no trae, una parte desconocida o nada elegido se rechazan sin tocar nada;
  *   P9  la pantalla: «Qué restaurar» plegado con «Todo» marcado, las partes, los plugins y temas del respaldo y los
  *       avisos; el handler restaura sólo lo marcado y con «Todo» marcado, todo;
- *   P10 regresión: sin selección, la restauración completa de siempre (todo vuelve al respaldo).
+ *   P10 regresión: sin selección, la restauración completa de siempre (todo vuelve al respaldo);
+ *   P11 memoria: con la pila de 64 MB el empaquetado ya iba al límite; la clase de partes se carga al usarse y el archivo
+ *       de WP-CLI sólo en WP-CLI.
  *
  * Deben fallar con el código anterior: no existía Digitalisimo_Backups_Restore_Parts y `parts` se ignoraba (se
  * restauraba todo).
@@ -361,6 +363,14 @@ pt_case( 'P10 regresión: sin selección, todo vuelve al respaldo', function() u
 	foreach ( array( '/wp-content/plugins/nuevo/nuevo.php', '/wp-content/uploads/2026/11/inyectado.php', '/wp-content/themes/nuevo-tema/style.css', '/wp-content/uploads/2026/12/nueva.jpg' ) as $gone ) pt_check( ! isset( $after[ $gone ] ), 'Sobrevivió lo que el respaldo no tenía: ' . $gone );
 	pt_check( $backup_db === pt_db(), 'La base de datos no volvió al respaldo.' );
 	pt_check( false === strpos( (string) $job['result']['restore']['notice'], 'por partes' ), 'El informe de la completa habla de partes.' );
+} );
+
+pt_case( 'P11 memoria: la clase de partes se carga al usarse y WP-CLI sólo en WP-CLI', function() {
+	$base = __DIR__ . '/../digitalisimo-backups/';
+	$main = (string) file_get_contents( $base . 'digitalisimo-backups.php' );
+	$core = (string) file_get_contents( $base . 'includes/class-backups.php' );
+	pt_check( preg_match( "#if \\( defined\\( 'WP_CLI' \\) && WP_CLI \\) require_once __DIR__ \\. '/includes/class-backups-cli\\.php';#", $main ) && ! preg_match( "#^require_once __DIR__ \\. '/includes/class-backups-cli\\.php';#m", $main ) && false !== strpos( $main, "class_exists( 'Digitalisimo_Backups_Cli', false )" ), 'Cada petición web carga el archivo de WP-CLI (208 KB compilados con la pila de 64 MB al límite).' );
+	pt_check( false !== strpos( $core, "spl_autoload_register" ) && ! preg_match( "#^require_once __DIR__ \\. '/restore/class-restore-parts\\.php';#m", $core ), 'La clase de partes se carga en cada petición.' );
 } );
 
 bk_remove_tree( $snapshot );
