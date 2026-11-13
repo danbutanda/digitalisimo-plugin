@@ -97,4 +97,11 @@ for (const variante of ['sections', 'containers']) {
   ok(JSON.stringify(readdirSync(join(templates, variante)).sort()) === JSON.stringify(manifest.templates.map((t) => t.file).sort()), `${variante}/: exactamente los archivos del manifiesto`);
 }
 
+// 5. El ensayo de Playground (tests/playground/sales-kit/run.mjs) no caduca: la fecha de cierre se calcula desde hoy y
+//    las fechas escritas a mano son sólo de las que ya pasaron (para probar que se rechazan).
+const ensayo = readFileSync(join(root, 'tests/playground/sales-kit/run.mjs'), 'utf8');
+ok(/^const CIERRE = .*Date\.now\(\)/m.test(ensayo), 'run.mjs calcula la fecha de cierre desde hoy (const CIERRE con Date.now())');
+const fijas = [...ensayo.matchAll(/'(\d{4})-\d{2}-\d{2} \d{2}:\d{2}'/g)].filter((m) => Number(m[1]) >= 2026).map((m) => m[0]);
+ok(fijas.length === 0, `run.mjs lleva fechas de cierre fijas que caducan: ${fijas.join(', ')}`);
+
 console.log(`Kit de ventas: generador, validador y marcas en verde (${checks} comprobaciones).`);

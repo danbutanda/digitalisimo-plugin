@@ -92,6 +92,9 @@ const SITIO_EXTERNO = /^https:\/\/(fonts\.(googleapis|gstatic)\.com\/|secure\.gr
 const sameCounts = (a, b) => JSON.stringify(Object.entries(a || {}).sort()) === JSON.stringify(Object.entries(b || {}).sort());
 const TEMPLATES = ['venta-completa', 'venta-corta', 'captacion', 'gracias-registro', 'carrito', 'oferta-unica', 'gracias-compra', 'prueba-social'];
 const pages = []; // { id, template, variant, preview, widgets }
+// La fecha de cierre del ensayo: a 30 días de hoy, a las 20:00 (hora del sitio). Nunca una fecha fija: caducaría y
+// create-page la rechazaría por pasada.
+const CIERRE = `${new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)} 20:00`;
 
 async function main() {
   start('S0 Servidor MCP y herramientas');
@@ -147,7 +150,7 @@ async function main() {
       const m = meta.find((t) => t.id === id);
       const args = { template: id, title: `Kit ${id} (${variant})`, whatsapp: '5218711234567', replacements: { '[producto]': 'Curso de prueba' } };
       if (!full[id].placeholders.some((p) => p.placeholder === '[producto]')) delete args.replacements;
-      if (m.has_countdown) args.close_date = '2026-12-20 20:00';
+      if (m.close_date) args.close_date = CIERRE;
       r = await admin.call('create-page', args);
       const d = r.data || {};
       if (!check(!r.isError && d.ok && d.status === 'draft' && d.variant === variant && d.id > 0, `${id}: create-page crea un borrador con ${variant === 'containers' ? 'contenedores' : 'secciones'}`, r.text.slice(0, 500))) continue;
@@ -169,10 +172,15 @@ async function main() {
   let pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && r.data.removed_urgency.length === 1 && !pg.widgets?.countdown && pg.top === 31, 'sin close_date: se quita la barra de cierre y no queda ningún contador', r.text.slice(0, 300));
   check(r.data?.pending?.some((p) => p.placeholder === '[día de cierre]') && r.data.whatsapp_pending === true, 'sin close_date ni whatsapp: los textos de cierre y el número de muestra quedan pendientes');
-  r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni oferta', omit_blocks: ['bonus', 'oferta'], close_date: '2026-12-20 20:00' });
+  r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni oferta', omit_blocks: ['bonus', 'oferta'], close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","oferta"]' && pg.top === 32 - 7 && r.data.broken_anchors.includes('oferta'), 'omit_blocks quita los bloques enteros (seis secciones de bonus y la oferta) e informa los botones que llevaban a #oferta', r.text.slice(0, 300));
   if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids });
+  r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta con cierre', close_date: CIERRE });
+  pg = r.data?.id ? await probe('page', r.data.id) : {};
+  check(!r.isError && r.data.close_date === CIERRE && !r.data.pending.some((p) => /de cierre\]$/.test(p.placeholder)) && pg.status === 'draft' && !pg.widgets?.countdown, 'la venta corta (sin contador) llena sus textos de cierre con close_date', r.text.slice(0, 300));
+  r = await admin.call('list-templates', {});
+  check(JSON.stringify(r.data?.templates?.filter((t) => t.close_date).map((t) => t.id)) === '["venta-completa","venta-corta","carrito"]', 'list-templates: admiten close_date la venta completa, la corta y el carrito', JSON.stringify(r.data?.templates?.map((t) => [t.id, t.close_date])));
   r = await admin.call('create-page', { template: 'venta-completa', title: 'X', omit_blocks: ['pie'] });
   check(r.isError && /avisos legales/.test(r.text), 'el pie no se quita', r.text.slice(0, 300));
 
@@ -180,12 +188,13 @@ async function main() {
   const count0 = await probe('pages');
   for (const [args, what, re] of [
     [{ template: 'venta-corta', title: 'X', replacements: { '[producto]': 'Visita https://otro.example/oferta' } }, 'una URL de otro sitio en un reemplazo', /otro sitio/],
-    [{ template: 'venta-corta', title: 'X', replacements: { '[producto]': '<a href="//otro.example">aquí</a>' } }, 'un enlace sin esquema a otro sitio', /otro sitio/],
+    [{ template: 'venta-corta', title: 'X', replacements: { '[producto]': '<a href="//otro.example">aquí</a>' } }, 'un enlace (HTML) a otro sitio', /HTML que no se admite|otro sitio/],
+    [{ template: 'venta-corta', title: 'X', replacements: { '[producto]': 'Ve a //otro.example/oferta' } }, 'una dirección sin esquema (//) a otro sitio', /otro sitio/],
     [{ template: 'venta-completa', title: 'X', replacements: { '[día de cierre]': '15' } }, 'el cierre por un reemplazo', /close_date/],
     [{ template: 'venta-completa', title: 'X', replacements: { '[enlace del video]': '/video/' } }, 'un enlace del kit por un reemplazo', /editor/],
     [{ template: 'venta-corta', title: 'X', replacements: { '[precio]': '49 USD' } }, 'un precio que no es una cifra en pesos', /pesos/],
     [{ template: 'carrito', title: 'X', close_date: '2020-01-01 00:00' }, 'una fecha de cierre pasada', /pasó|fecha|pattern|close_date/],
-    [{ template: 'venta-corta', title: 'X', close_date: '2026-12-20 20:00' }, 'close_date en una plantilla sin contador', /no lleva fecha de cierre/],
+    [{ template: 'captacion', title: 'X', close_date: CIERRE }, 'close_date en una plantilla sin contador ni textos de cierre', /no lleva fecha de cierre/],
     [{ template: 'venta-corta', title: 'X', whatsapp: '+52 871 123 4567' }, 'un WhatsApp que no son sólo dígitos', /whatsapp|pattern|dígitos/i],
     [{ template: 'venta-corta', title: 'X', status: 'publish' }, 'pedir otro estado (publish)', /status|additional|desconocid/i],
     [{ template: 'otra', title: 'X' }, 'una plantilla que no existe', /template|enum/i],
