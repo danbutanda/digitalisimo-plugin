@@ -1032,7 +1032,7 @@ final class Digitalisimo_Backups {
 				}
 			}
 			self::remove_history( $file );
-			self::chain_sweep();
+			try { Digitalisimo_Backups_Chain::remove_index( self::local_directory(), $item ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		} catch ( Exception $e ) {
 			self::redirect( false, $e->getMessage() );
 		}
@@ -2344,6 +2344,10 @@ final class Digitalisimo_Backups {
 		self::retire_copyless_locked( $retired, $busy );
 		self::chain_sweep();
 	}
+	/** Un eslabón incremental suelto (subido, importado, sin su fila): sólo se restaura como punto, con su cadena. */
+	private static function chain_link_text() {
+		return 'Este archivo es un eslabón de una cadena de incrementales: sólo se restaura como punto completo desde su fila del historial, con su cadena (el completo y los incrementales anteriores). No se cambió nada del sitio.';
+	}
 	/** Retira los índices laterales de las cadenas que ya no son de ninguna fila del historial. Nunca lanza. */
 	private static function chain_sweep() {
 		try { Digitalisimo_Backups_Chain::sweep( self::local_directory(), self::fresh_history() ); } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
@@ -2661,7 +2665,8 @@ final class Digitalisimo_Backups {
 		Digitalisimo_Backups_Archive_Inspector::entries( $zip, $trusted );
 		self::verify_zip_contents( $zip );
 		$data = self::package_metadata( $zip );
-		if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
+		if ( 'incremental' === ( $data['type'] ?? '' ) ) throw new Exception( self::chain_link_text() );
+		if ( 'database' === ( $data['type'] ?? '' ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
 		if ( 'site' === ( $data['scope'] ?? '' ) ) throw new Exception( 'Una exportación anterior de subsitio no puede reemplazar una instalación completa.' );
 		// Un sitio extraído de una red (alcance explícito, sólo con manifiesto v3) se restaura en un WordPress individual.
 		$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' );

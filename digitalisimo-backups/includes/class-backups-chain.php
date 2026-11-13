@@ -312,10 +312,20 @@ final class Digitalisimo_Backups_Chain {
 		foreach ( (array) @scandir( $directory ) as $name ) {
 			if ( ! preg_match( '/^\.?[0-9a-f-]{36}\.(?:jsonl|dgbk)(?:\.[0-9a-f]{8}\.part(?:\.dgbk)?)?$/D', (string) $name ) || isset( $keep[ $name ] ) ) continue;
 			$path = $directory . '/' . $name;
-			// Un índice a medio escribir (.part) es de un trabajo que murió; uno publicado sin fila, de un punto retirado.
-			if ( ( is_file( $path ) || is_link( $path ) ) && ( '.' !== $name[0] || time() - (int) @filemtime( $path ) > 86400 ) && @unlink( $path ) ) $removed++;
+			// Sólo con el cerrojo de operaciones (la retención de un trabajo): ningún otro trabajo publica a la vez. Uno publicado
+			// sin fila es de un punto retirado; uno a medio escribir (.part, de más de una hora), de un trabajo que murió.
+			if ( ( is_file( $path ) || is_link( $path ) ) && ( '.' !== $name[0] || time() - (int) @filemtime( $path ) > 3600 ) && @unlink( $path ) ) $removed++;
 		}
 		return $removed;
+	}
+
+	/** Retira el índice lateral de una fila (al borrarla a mano). */
+	public static function remove_index( $storage, $row ) {
+		$chain = self::row_chain( $row );
+		$name = $chain ? (string) ( $chain['index']['file'] ?? '' ) : '';
+		if ( '' === $name || self::index_name( $chain['backup_id'], ! empty( $chain['index']['encrypted'] ) ) !== $name ) return;
+		$path = rtrim( (string) $storage, '/\\' ) . '/' . self::DIRECTORY . '/' . $name;
+		if ( is_file( $path ) || is_link( $path ) ) @unlink( $path );
 	}
 
 	/* ------------------------------------------------------------------ Retención */

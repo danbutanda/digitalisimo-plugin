@@ -538,6 +538,12 @@ trait Digitalisimo_Backups_Service {
 				$event = array( 'ok' => false, 'started' => false, 'message' => $e->getMessage() );
 				return self::service_error( $point ? 'chain_broken' : 'invalid', $e->getMessage(), 422 );
 			}
+			// Un eslabón incremental suelto (sin su fila de punto) nunca se restaura como completo: lo dice claro.
+			if ( ! $point ) {
+				$type = '';
+				try { $type = (string) ( self::package_metadata( $report['zip'] )['type'] ?? '' ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				if ( 'incremental' === $type ) return self::service_error( 'chain_required', self::chain_link_text(), 422 );
+			}
 			try {
 				Digitalisimo_Backups_Security::require_confirmation( $report, $confirmation );
 			} catch ( Exception $e ) {
@@ -681,7 +687,6 @@ trait Digitalisimo_Backups_Service {
 	}
 	/** Como service_secret_problem(), para cada archivo de la cadena de un punto incremental. */
 	private static function service_chain_secret_problem( array $point, $secret ) {
-		$history = (array) get_option( self::HISTORY, array() );
 		foreach ( Digitalisimo_Backups_Chain::files( $point ) as $name ) {
 			$path = '';
 			try { $path = self::local_path( $name ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
@@ -689,7 +694,6 @@ trait Digitalisimo_Backups_Service {
 			$problem = self::service_secret_problem( $path, $secret );
 			if ( $problem ) return $problem;
 		}
-		unset( $history );
 		return null;
 	}
 	/**

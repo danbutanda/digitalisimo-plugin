@@ -87,6 +87,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Pantalla simple, como Backuply («interfaz simple»).** Cuatro pestañas: «Respaldos» (estado del último respaldo y del próximo, «Respaldar ahora» y la lista con Restaurar, Descargar y Borrar en cada fila; Bloquear, Traer al almacén y los detalles en «⋯»; restaurar en un panel bajo la fila escribiendo `RESTAURAR`), «Ajustes» (programación de la automatización principal, avisos por correo, antes de actualizar y, plegado, cifrado y firma), «Destinos» (la lista y un solo formulario al pedirlo) y «Herramientas» (todo lo demás, plegado). Una sola franja de avisos. Las pestañas de antes (`servers`, `security`, `notifications`, `migrate`) abren su sitio nuevo; formularios, acciones, nonces, REST, WP-CLI y opciones no cambian. La principal cabe en 1 000 px con ≤ 150 palabras visibles y ningún texto visible pasa de 140 caracteres (ver «Pantalla»). | 1.0.74 | `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-screen-ui.mjs` (fallan con `dede88f9`) |
 | **Hallazgos del ensayo E5 (H26, H27).** H26: el aviso de la configuración del respaldo pendiente concuerda en número («1 automatización … que no se aplicó») y cuenta las automatizaciones como «Aplicar la del respaldo» (las activas de la configuración del respaldo, que quedan en pausa; antes decía 1 y después «2 en pausa»). Antes de aplicarla, la franja (a la vista, nunca plegado), el aviso del escritorio y `restore-config status` dicen lo que se pierde (las conexiones con nombre y las automatizaciones de este sitio que el respaldo no trae, con su nombre si cabe en 140 caracteres), y la pantalla sólo aplica escribiendo `APLICAR` (lo comprueba el handler; REST y WP-CLI siguen igual). H27: al actualizar, una sola vez, salen del historial las filas «Sin copias» que dejó 1.0.71 (sin ZIP ni copia remota registrada; nunca una bloqueada, con la marca de una migración o con algún archivo con su nombre), con la marca `digitalisimo_backups_data_version` en el ámbito del historial; y para que no vuelvan, la retención local (la de una automatización y la global de los manuales) retira en la misma pasada la fila cuyo ZIP borra si se queda sin ninguna copia (una con copia remota sigue hasta que H22 la retira). | 1.0.75 | `backups-restore-pending-config.php`, `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-e5-findings.php` (fallan con `fd4423a3`) |
 | **Quien restaura en otro sitio sigue entrando (incidente de /wp del 2026-11-12).** Con el respaldo de otra instalación (sin la identidad de H23: otro sitio, un sitio extraído o una migración), «Conservar mi acceso» (pantalla, encendido), `keep_access` (REST, por defecto `true`) y `--[no-]keep-access` (WP-CLI, con el usuario de `--user`; sin usuario, nadie) conservan la cuenta de quien lanza la restauración (una cuenta del paquete con su usuario que no era administradora sólo cambia de usuario; la decisión va al diario antes de escribir): su fila (hash y correo), sus sesiones y sus contraseñas de aplicación se apuntan cifradas en el diario antes del cambio de tablas y vuelven tras el SQL, también si el proceso muere entre medias; queda como administrador (y superadministrador en una red) y la cookie de su navegador sigue valiendo (las claves y sales que WordPress guarda en la base, si `wp-config.php` no las define, también se conservan). Sólo esa cuenta. En el mismo sitio no aplica: vuelven las cuentas del respaldo (tras un hackeo no se reviven las credenciales de ahora). La ruta privada de acceso (Tools/SEO) es la de este sitio, nunca la del respaldo, y el informe (pantalla, respuesta REST, `jobs get`, aviso persistente y correo, que sale siempre tras restaurar en otro sitio) empieza por «Cómo entrar ahora: <URL efectiva>» con quién puede entrar y qué cambió. Causa del 401 de las contraseñas de aplicación del paquete: `using_application_passwords` es una opción de red (en una red vive en `sitemeta`) y la extracción no la lleva; sin ella WordPress no mira ninguna contraseña de aplicación (`rest_not_logged_in`). Ahora cualquier restauración la activa si algún usuario las tiene. Ficha de lectura del trabajo (completa H18, que era sólo la cookie): `restore` y `migration/pull` la entregan una vez (`follow`); `GET /jobs/<id>` con la cabecera `X-Digitalisimo-Backups-Job-Token` lee sólo ese trabajo, sin sesión, también durante el mantenimiento (la puerta deja pasar sólo ese GET, con WordPress mínimo) y con otros usuarios, hasta 24 h después de terminar (7 días como mucho); sólo su SHA-256 se guarda. La barra de «Subir un respaldo» consulta el estado mientras se comprueba el archivo y llega a 100 % con «verificado» en cuanto `GET /uploads` dice `phase=done`, aunque la respuesta del cierre no llegue nunca; cada petición tiene plazo. Ver «Quien restaura sigue entrando». | 1.0.76 | `backups-keep-access.php`, `backups-upload-ui.mjs`, `backups-site-extract.php` y, en Playground, `tests/playground/backups-keep-access.sh` |
+| **Incrementales confiables (cadena íntegra).** Una automatización (o un respaldo manual pedido así) puede ser incremental: un completo empieza la cadena y cada incremental guarda sólo los archivos nuevos o cambiados (por SHA-256), la lista de borrados, el inventario completo del punto y la base de datos entera; nombra a todos sus antecesores por el SHA-256 de su manifiesto firmado. Cada incremental es un punto de restauración completo: restaurarlo (o verificarlo) comprueba antes la cadena entera y reconstruye el respaldo completo de ese momento, que entra en la restauración de siempre. La retención cuenta puntos y nunca borra un eslabón del que dependa un punto conservado (local, remota y manual); un completo nuevo cada N incrementales o D días; «Traer al almacén» de un punto trae su cadena. Ver «Incrementales». | rama `backups/incremental` (sin publicar) | `backups-incremental.php`, `backups-incremental-remote.php`, `tests/playground/backups-incremental.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -173,7 +174,7 @@ una exportación sin cortes.
 | Migración | Hecha en 1.0.66 (un clic, staging y deshacer). La restauración es la por pasos de 1.0.64 (se reanuda y vuelve sola a la copia previa). Falta: fusión de cambios entre dos sitios vivos (fuera de alcance, declarado); que la copia de pruebas apague sola las automatizaciones y los destinos que trajo del origen; y el ensayo entre dos servidores reales con MySQL y HTTPS (el de Playground usa HTTP con «Permitir HTTP»). |
 | Seguridad | Argon2id opcional para la frase. Botón «Inspeccionar» con el informe de un archivo antes de restaurarlo (hoy la inspección completa ocurre al restaurar, antes de la copia previa). Ensayo del cifrado en un hosting real con libsodium nativo y MySQL. Sin la extensión, sodium_compat es lento: en php-wasm, unos 11 s por MiB (36 MB tardaron unos 11 minutos en cifrarse y comprobarse y unos 6 en descifrarse y restaurarse); la pestaña mide la velocidad del servidor y estima el tiempo del último respaldo. |
 | Restauración (UpdraftPlus) | La ruta de UpdraftPlus ya valida todo antes de cambiar nada, pero aún no crea copia previa ni revierte si falla a medias. Su restauración y el diario de una restauración interrumpida sólo se han probado en php-wasm, sobre la base de datos simulada; falta ensayarlos en WordPress real. |
-| Automatización | Hecho en 1.0.70: respaldo previo a las actualizaciones (I1, ver «Respaldo antes de actualizar»). Quedan incrementales con borrados y cadena íntegra, retención que preserve dependencias y varios destinos por trabajo. |
+| Automatización | Hecho en 1.0.70: respaldo previo a las actualizaciones (I1, ver «Respaldo antes de actualizar»). Hechos en la rama `backups/incremental`: incrementales con borrados y cadena íntegra y retención que preserva dependencias (ver «Incrementales»). Quedan varios destinos por trabajo, el ensayo de las cadenas en un hosting con MySQL y 30 s, y reconstruir un punto por tramos (hoy es un paso, como descifrar un `.dgbk`). |
 | Escala | Bases y archivos grandes reales, BLOBs, objetos SQL especiales y consistencia entre archivos y base de datos (WooCommerce). |
 | Cobertura | Hecho en 1.0.60: REST y WP-CLI sobre los casos de uso de la pantalla, con la cola de «Trabajos» (crear y ejecutar encolan; WP-CLI hace avanzar la cola hasta terminar; listar, consultar, avanzar y cancelar trabajos) y la confianza y el cifrado de «Seguridad» (`.dgbk`, `RESTAURAR SIN FIRMA`, la frase sólo en el cuerpo de REST o por `--secret-file` o STDIN en WP-CLI, y un error claro sin la clave), y rutas externas que funcionan (`wp-config.php`) o fallan antes de exportar con un mensaje claro (carpetas). Falta respaldar de verdad wp-content, plugins, medios o temas fuera de `ABSPATH`, que necesita una raíz nueva del ZIP aceptada por el validador estricto de «Seguridad» y por el empaquetador de «Trabajos». Faltan en REST y WP-CLI bloquear, eliminar y descargar, y los ajustes de «Seguridad» (frase, cifrado y «sólo firmados»), que siguen sólo en la pantalla; también que la pantalla avise al abrirse de una estructura no respaldable y repetir en un hosting con MySQL el ensayo de REST y WP-CLI que ya pasa en Playground. |
 | Ensayos reales | MySQL, Multisite convencional, almacén privado en hosting real, servidor SFTP real y cuentas reales de Google Drive, OneDrive, Dropbox, pCloud, Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, DigitalOcean Spaces, Akamai/Linode y Vultr (hechos: MinIO, FTPS explícito y WebDAV reales, también en Playground). FTPS implícito real. |
@@ -206,6 +207,8 @@ destinos por trabajo y restaurar directamente desde un destino remoto.
 | `includes/security/class-archive-inspector.php` | Reglas de entradas, esquema estricto del manifiesto v3 y espacio en disco. |
 | `includes/security/class-sql-guard.php` | Divisor de sentencias por fragmentos y lista blanca de los dialectos `exporter` y `mysqldump`. Para la reubicación, `rename_tables()` (cambia el identificador exacto que leyó, también en `REFERENCES`) y `on_insert()` (posición de cada literal de un INSERT comprobado). |
 | `includes/security/class-security.php` | Costuras `seal()` (la llama la fase «verify» de un trabajo cifrado) y `open()`; `job_settings()` y `job_plan()`, el cifrado y la huella que fija la especificación de un trabajo y la clave que cada fase abre por esa huella; nivel de confianza y confirmación, pestaña «Seguridad» y sus acciones `admin-post`. |
+| `includes/class-backups-chain.php` | `Digitalisimo_Backups_Chain`: incrementales (ver «Incrementales»): ajustes y plan de cada trabajo (continuar la cadena o consolidar con un completo), índice lateral de cada punto (`chains/`, cifrado si la cadena se cifra), retención consciente de cadenas (`keep_dependencies()`) y dependientes. `Digitalisimo_Backups_Chain_Lookup`: índice en disco del inventario del padre (memoria constante). |
+| `includes/class-backups-chain-restore.php` | `Digitalisimo_Backups_Chain_Restore`: comprueba la cadena de un punto (eslabones, SHA-256, firma, manifiestos de los padres y orden) y reconstruye su respaldo completo v3, que entra en la restauración de siempre. |
 | `assets/manual-progress.js` | Encola, hace avanzar la cola con la pantalla abierta, pinta su estado como texto y cancela. |
 | `includes/class-digitalisimo-core.php` | Integra el menú DIGITALÍSIMO sin exigir otro plugin. |
 | `includes/class-digitalisimo-updater.php` | Actualizador por `Update URI` e índice de la Release, independiente de los demás plugins. |
@@ -243,8 +246,10 @@ Riesgos conocidos del flujo actual:
    varios servidores tras un balanceador, la fase empieza de nuevo en cada cambio y a la tercera falla. El sellado DGBK
    sigue siendo un paso, igual que la exportación y el empaquetado de «Extraer como WordPress individual»; la
    restauración sigue siendo una sola petición larga (fuera de T2).
-2. `create_incremental_site()` selecciona por fecha de modificación y no inventaría borrados ni verifica la cadena; la
-   retención puede borrar la base de incrementales dependientes.
+2. Resuelto en la rama `backups/incremental` (ver «Incrementales»): el `create_incremental_site()` heredado (que elegía
+   por fecha de modificación, no inventariaba borrados ni verificaba la cadena, y cuya retención podía borrar la base)
+   quedó inerte y falla cerrado; los incrementales son ahora puntos de una cadena del motor de trabajos. Reconstruir un
+   punto para restaurarlo es un paso, como descifrar un `.dgbk`: en la web, con 30 s, uno grande necesita WP-CLI.
 3. `restore_digitalisimo_zip()` importa SQL antes de extraer archivos; la recuperación es de mejor esfuerzo, no atómica.
    `restore_updraft_set()` no prueba que estén todas las piezas de WordPress.
 4. `database_sql()` heredado acumula SQL en memoria para exportaciones antiguas; el respaldo integral usa
@@ -313,7 +318,7 @@ restaurar y verificar trabajan en la misma petición.
 | --- | --- | --- |
 | `GET /status` | `wp digitalisimo-backups status [--format=json]` | Si la instalación puede respaldarse completa (y por qué no), operación y trabajos en curso, ubicación de `wp-config.php`, destinos, cifrado, «sólo firmados», origen de la clave (`wp-config`, `passphrase` o `none`), credenciales de los destinos (`credentials`: `none`, `encrypted`, `pending`, `unprotected` o `needs_reentry`, y `credentials_notice` con qué hacer, nunca un valor), último respaldo y automatizaciones. `restoring` y `restore` (`state`: `none`, `running`, `interrupted`, `rollback`, `failed`, `failed_midway`, `rolled_back` o `cancelled`, con fase, avance, copia previa y `notice`) dicen qué pasa con una restauración sin terminar o que no terminó bien. Desde 1.0.63, `notifications`: si avisan los fallos y los éxitos y si el correo es propio (`custom`) o el de administración (nunca la dirección). |
 | `GET /backups` | `wp digitalisimo-backups list [--fields=…] [--format=…]` | Historial, del más reciente al más antiguo: tamaño, SHA-256, destino, alcance, contenedor (`zip` o `dgbk`), firma, huella corta de la clave, si falta la clave (`needs_secret`), bloqueo y si es restaurable aquí. Desde 1.0.63, `copies` enumera las copias (la local, si el ZIP sigue en el almacén, y la remota con su estado: `ok`, `pending`, `failed`, `cancelled` o `legacy`), `destination` es a dónde se envió y `restorable` sólo exige el ZIP local completo (en WP-CLI, la columna `copies`: «local, google»). |
-| `POST /backups` (`destination`, `network`) | `wp digitalisimo-backups create [--destination=…] [--network] [--async] [--porcelain]` | Encola el respaldo completo de la instalación o de la red. REST responde 202 con el trabajo; WP-CLI lo hace avanzar hasta que queda verificado (y copiado, con destino remoto) o, con `--async`, sólo lo encola. |
+| `POST /backups` (`destination`, `network`, `incremental`, `full_every`, `full_days`) | `wp digitalisimo-backups create [--destination=…] [--incremental [--full-every=N] [--full-days=D]] [--network] [--async] [--porcelain]` | Encola el respaldo completo de la instalación o de la red (con `incremental`, un punto incremental de la cadena de los manuales, que también es un punto de restauración completo: ver «Incrementales»). REST responde 202 con el trabajo; WP-CLI lo hace avanzar hasta que queda verificado (y copiado, con destino remoto) o, con `--async`, sólo lo encola. |
 | `GET\|POST /backups/<archivo>/verify` (`secret`, `addresses`) | `wp digitalisimo-backups verify <archivo> [--secret-file=…\|--secret-stdin] [--addresses=current\|backup]` | Sin tocar el sitio, las mismas comprobaciones del paquete que la restauración: SHA-256 del historial, firma o registro, descifrado completo de un `.dgbk`, entradas, CRC y SHA-256 de cada una contra el manifiesto, manifiesto v3 estricto y el SQL en seco. Informa la confianza, la confirmación que pedirá, si las condiciones de esta instalación lo admiten (`problems` dice qué cambiar) y, en `relocation`, «Origen → este sitio» y qué se reescribiría al restaurarlo (direcciones, rutas del servidor, prefijo, sitios de la red). Desde 1.0.63, `wp_config`: las constantes de `wp-config.php` que difieren entre el respaldo y este servidor (WP-CLI las lista, sin valores secretos ni rutas). |
 | `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`, `keep_access`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret] [--addresses=current\|backup] [--[no-]keep-access]` | Restauración por pasos (ver «Restauración por pasos») con la copia previa bloqueada. REST avanza lo que cabe en la petición y responde 202 con `restoring`, el trabajo (`job`) y `maintenance_token` (el testigo que deja pasar sus ticks durante el mantenimiento; también llega como cookie) si sigue, o 200 con el resultado si terminó; `POST /jobs/tick` o la pantalla la terminan. WP-CLI la hace avanzar hasta terminar. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. Un respaldo de otra dirección, carpeta o prefijo se reubica: `addresses` `current` (por defecto, el sitio conserva sus direcciones) o `backup` (conserva las del respaldo); la respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final, y el aviso lo resume. Otro valor responde 400 (`addresses`). Desde 1.0.76, `keep_access` (por defecto `true`; en WP-CLI, el usuario de `--user`) conserva la cuenta de quien restaura con el respaldo de otra instalación; la ruta de acceso de este sitio se conserva siempre en otro sitio (ver «Quien restaura sigue entrando»); la respuesta (202 tras 25 s de trabajo como mucho, o 200) lleva `follow`, la ficha de lectura del trabajo, y al terminar `access` con «Cómo entrar ahora». |
 | `POST /backups/<archivo>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <archivo> [--from=<destino>] [--network]` | Desde 1.0.62, «Traer al almacén»: descarga en streaming la copia remota de una fila del historial, la compara con su SHA-256 registrado y la deja en el almacén privado para verificarla o restaurarla; si ya está, no hace nada. Escribe en el almacén de toda la instalación: en una red pide el alcance de red, como crear o restaurar, y toma el cerrojo de operaciones (409 si hay otra en curso). Si la conexión de la fila se eliminó, responde 410 con qué hacer. Desde 1.0.69 es un trabajo `fetch` por fragmentos con reanudación: 200 con el resultado si terminó en la petición, 202 con el trabajo si sigue (lo terminan `POST /jobs/tick`, la pantalla o WP-Cron); WP-CLI espera a que termine. |
@@ -1453,6 +1458,136 @@ opción y cada archivo de `wp-content`) no cambia ni tras migrar ni tras deshace
 31 y 34 comprobaciones, todo correcto, con unos 1,5 GB de memoria como máximo para los dos servidores. Con
 `ELEMENTS=single`, A lleva además DIGITALÍSIMO Elements y una página suya, y B la muestra con sus medios y su CSS
 regenerado con la dirección de B (paquete de 67 MB). Falta el ensayo entre dos servidores reales con MySQL y HTTPS.
+
+## Incrementales
+
+Decisión del propietario (2026-11-13): incrementales para ahorrar espacio, sin respaldos parciales. **Cada incremental
+es un punto de restauración completo**: con su cadena se reconstruye el respaldo completo de su momento (archivos y base
+de datos) y se restaura como cualquier completo; nunca se presenta ni se restaura como parcial.
+
+### Cadena
+
+- **Base.** Un respaldo completo de siempre (ZIP v3, `type` `full`, sin cambios de formato) empieza la cadena. Su fila
+  del historial lleva el bloque `chain` (`sequence` 0) y su índice lateral.
+- **Incremental.** Un ZIP con manifiesto v3 compatible (`format` `digitalisimo-backup/v3`, `type` `incremental`):
+  - `database.sql`: la base de datos **entera** del punto. No se guardan diferencias de filas: no hay registro de
+    cambios fiable por fila (cualquier plugin escribe en cualquier tabla, sin marcas de tiempo), la restauración importa
+    un SQL completo y comprobado (guardián SQL, reubicación, tablas temporales y un solo cambio) y la base suele ser mucho
+    menor que los archivos;
+  - los archivos **nuevos o cambiados** respecto a su padre, en `wordpress/`, como en un completo;
+  - `inventory.jsonl`: el **inventario completo del punto** (una línea por archivo con su tamaño, su SHA-256 y el
+    eslabón `l` que guarda sus bytes) y, al final, los **borrados** desde el padre (`{"n": …, "x": 1}`). Es una entrada
+    más del manifiesto (con su tamaño y SHA-256), así que la firma lo cubre;
+  - en el manifiesto, el bloque `chain`: `id` (el `backup_id` de la base), `sequence`, `links` (todos los antecesores,
+    del completo al padre, con su archivo, su `backup_id` y el **SHA-256 de su `manifest.json`**, firmado si el sitio tiene
+    clave), `inventory` (archivos, bytes y borrados del punto) y `stats` (nuevos, cambiados, iguales y borrados).
+  Una versión anterior del plugin rechaza un incremental suelto («paquete parcial … sin su cadena»): falla cerrado.
+- **Qué cambió: por contenido.** Un archivo del mismo tamaño que en el padre se compara por su SHA-256 antes de copiarlo
+  (lo que cuesta leerlo: no se comprime ni se escribe); si es igual, el inventario lo hereda con el eslabón que guarda sus
+  bytes. Uno de otro tamaño, nuevo o renombrado se copia. Uno grande (desde 256 MiB) del mismo tamaño se copia sin
+  comprimir por la escritura por tramos de siempre y, si resulta igual, se retira del ZIP. No se usa la fecha de
+  modificación: un archivo reescrito en el mismo segundo, o con su fecha restablecida (`touch`, `rsync -t`, un
+  despliegue), quedaría fuera; y una fecha nueva con el mismo contenido no ocupa espacio. Un renombrado ocupa como uno
+  nuevo (sin deduplicar por contenido).
+- **Índice lateral** (`<almacén>/chains/<backup_id>.jsonl`, `0600`): el inventario del punto, con el que el siguiente
+  incremental compara **sin abrir el ZIP anterior** (que puede estar sólo en el remoto o cifrado). Su SHA-256 va en la
+  fila; si falta o no coincide, el siguiente punto es un completo. En una cadena cifrada el índice es un DGBK con la clave
+  del trabajo (un respaldo cifrado no deja nombres de archivos en claro). La retención retira los índices de las filas que
+  ya no están.
+- **Cuándo se consolida** (un completo nuevo empieza otra cadena): cada `full_every` incrementales (por defecto 6: con
+  una automatización diaria, un completo por semana) o si el completo de la cadena tiene `full_days` días (por defecto 7);
+  y siempre que la cadena anterior no sirva: el último respaldo de esa automatización no es de una cadena, otro alcance,
+  otra clave o se activó o quitó el cifrado, falta un eslabón (sin copia local ni remota verificada, o fuera del
+  historial) o falta su índice. Se decide en «preflight», con los trabajos anteriores de la misma automatización ya
+  terminados, y queda en el punto de control del trabajo (el plan, con sus eslabones, que la retención no toca mientras
+  el trabajo siga activo). Si el índice del padre desaparece después, el trabajo vuelve a «preflight» y sale un completo.
+- **Trabajo por pasos.** El incremental usa las fases y los tramos de T2: el índice del padre se prepara por tramos
+  (tabla de dispersión en disco, memoria constante), el inventario y la escritura retoman tras una muerte y una entrada
+  igual al padre se retira del ZIP sin reescribir lo anterior. Cifrado DGBK, firma, transferencia y «sólo en el remoto»
+  son los de siempre, eslabón a eslabón.
+
+### Restaurar y verificar un punto
+
+Restaurar (pantalla, `POST /backups/<archivo>/restore`, `wp digitalisimo-backups restore`) y verificar
+(`verify`) un incremental es igual que un completo. Antes de tocar nada, `Digitalisimo_Backups_Chain_Restore`:
+
+1. comprueba que cada eslabón está en el historial y en el almacén (si falta alguno: 422 `chain_incomplete` con qué
+   traer; uno que ni siquiera está en el historial: `chain_broken`);
+2. abre cada eslabón como un respaldo (SHA-256 registrado, descifrado con la clave del sitio o la frase escrita, firma);
+3. comprueba que el manifiesto del punto es el registrado y que cada antecesor tiene **exactamente** el manifiesto que
+   el punto nombra (SHA-256), su `backup_id`, su lugar en la cadena y la misma cadena (padres correctos y en orden);
+4. reconstruye el respaldo completo del punto en `.staging/` del almacén: su base de datos y cada archivo del
+   inventario, sacado del eslabón que el inventario dice y comprobado contra su tamaño y su SHA-256; el manifiesto es el
+   del punto como completo (`type` `full`, `materialized_from`), firmado con la clave del punto si la cadena estaba
+   firmada.
+
+Ese ZIP completo entra en la restauración de siempre por su punto de entrada (`restore_enqueue()`: `staged`, como un
+`.dgbk` descifrado), que lo vuelve a verificar entrada por entrada y hace la copia previa, el SQL, los archivos y la vuelta
+atrás como con cualquier completo; la restauración por partes trabaja sobre ese mismo punto. La confianza del punto es la
+de su cadena: firmada, registrada aquí o sin firma (`RESTAURAR SIN FIRMA`). Una cadena rota (un eslabón que falta, alterado,
+otro padre, otro orden) se rechaza con un mensaje que nombra el eslabón («La cadena del punto … está rota: el incremental 1
+(eslabón 2 de 3) …») y **No se cambió nada del sitio**. Los borrados se aplican como en un completo: lo que el punto no
+tiene se retira de las raíces que gestiona la restauración (núcleo, plugins, temas, mu-plugins, medios y los PHP de la
+raíz); fuera de ellas, igual que con un completo, se conserva.
+
+### Retención
+
+La retención (local y remota) **cuenta puntos de restauración** y nunca borra una base ni un eslabón del que dependa un
+punto que se conserva: la de una automatización conserva sus N puntos más recientes y toda la cadena de la que dependen;
+una cadena antigua sale **entera** cuando ya no le queda ningún punto conservado. Lo mismo la retención global de los
+manuales, la de las copias remotas (también la global) y los puntos bloqueados (protegen a sus antecesores). Con «Conservar
+N» y un completo cada M incrementales, el almacén guarda como mucho N + M puntos. «Borrar» un eslabón del que dependen
+puntos posteriores se niega (borra antes los más recientes).
+
+### Automatizaciones y respaldo manual
+
+- **Automatización:** «Respaldo: Completo cada vez / Incremental: sólo lo nuevo o cambiado», con «Un completo cada N
+  incrementales o cada D días» («Programación» y «Herramientas → Automatizaciones»). Se guarda en la automatización
+  (`type` sigue siendo `full`; `mode` `incremental`, `full_every`, `full_days`). Las automatizaciones parciales
+  anteriores a 1.0.38 (`type` `incremental` o `database`) siguen desactivadas.
+- **Manual:** completo, salvo que se pida incremental (`POST /backups` con `incremental`, `full_every` y `full_days`;
+  `wp digitalisimo-backups create --incremental [--full-every=N] [--full-days=D]`): sigue la cadena de los manuales.
+- **No aplica** (falla cerrado: siempre completo): la copia previa de una restauración, el respaldo antes de actualizar,
+  «Extraer como WordPress individual» y el paquete de una migración. **Multisite**: la red completa se respalda en
+  incrementales igual que un sitio (el alcance de la cadena es el de la instalación).
+
+### Destinos remotos
+
+Cada eslabón es un respaldo: se sube y se verifica en el destino como siempre, y con «sólo en el remoto» su ZIP local se
+retira tras verificarlo (el siguiente incremental compara con el índice lateral). «Traer al almacén» de un punto (historial,
+`POST /backups/<archivo>/fetch`, `wp digitalisimo-backups destinations fetch`) trae **lo que su cadena necesita**: cada
+eslabón que falta en el almacén, del completo al punto, con su trabajo `fetch` comprobado por su SHA-256. La retención
+remota borra las copias de una cadena sólo cuando ya no hay puntos que dependan de ella.
+
+### Pantalla, REST y WP-CLI
+
+- **Historial:** cada punto con su tipo (la etiqueta «Incremental» y, en «⋯», «incremental N (punto de restauración
+  completo)», su base, los archivos de su cadena, lo que ocupa, lo que ahorra frente a un completo y cuántos archivos
+  nuevos, cambiados y borrados trae). «Restaurar» aparece cuando la cadena entera está en el almacén; si le falta algo que
+  está en el remoto, «Traer al almacén». Bajo «Último respaldo», el ahorro: «N puntos incrementales ocupan X: ahorran Y
+  frente a respaldos completos».
+- **REST:** `GET /backups` añade `type` (`incremental`) y `chain` (`sequence`, `role`, `base`, `links`, `point_bytes`,
+  `chain_size`, `saved`, `added`, `changed`, `deleted`, `restorable`, `missing`); `GET /status`, `incremental` (`points`,
+  `stored`, `saved`); `verify` de un punto, `chain`; `GET /automations`, `mode`, `full_every`, `full_days`.
+- **WP-CLI:** `list` con las columnas `type` y `chain` («incremental 2 (punto completo) · base … · ahorra …»);
+  `automation list` con `mode` y `full_every`; `create --incremental`.
+
+### Límites
+
+- Reconstruir un punto (y descifrar sus eslabones cifrados) es un paso dentro de la petición que restaura o verifica, como
+  descifrar un `.dgbk`: en la web con 30 s, un sitio grande necesita WP-CLI. Ocupa temporalmente en el almacén el punto
+  sin comprimir (y lo descifrado): se comprueba el espacio antes.
+- «Descargar» un punto incremental baja su eslabón, que sólo se restaura con su cadena: para llevar un punto a otro
+  servidor, la migración en un clic o un completo. Un eslabón suelto subido o importado se rechaza (falla cerrado).
+- Un renombrado ocupa como nuevo; no hay deduplicación por contenido entre rutas.
+- Comparar por contenido lee todos los archivos en cada punto (no los comprime ni los escribe): ahorra espacio, no lectura.
+
+Pruebas: `tests/backups-incremental.php` (cadena, inventario y borrados, reconstrucción, restauración de cada punto,
+cadenas rotas, retención y consolidación, cifrado y firma, reanudación por eslabón, superficies),
+`tests/backups-incremental-remote.php` (cadena hacia un SFTP real de OpenSSH con «sólo en el remoto», «Traer al almacén»
+de la cadena y retención remota) y `tests/playground/backups-incremental.sh` (WordPress real en Playground: cambios y
+borrados de archivos y filas, restauración de cada punto con huellas, cadena rota, retención por días, espacio ahorrado y
+la cadena por SFTP).
 
 ## Almacenamiento local
 

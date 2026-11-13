@@ -315,6 +315,8 @@ jobs:
           php tests/backups-steps.php
           php tests/backups-steps-review.php
           php tests/backups-steps-compat.php
+          php tests/backups-incremental.php
+          php tests/backups-incremental-remote.php
           php tests/backups-relocate.php
           php tests/backups-relocate-interrupted.php
           php tests/backups-restore-steps.php
