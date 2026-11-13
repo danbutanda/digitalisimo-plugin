@@ -83,8 +83,9 @@ final class Placeholders {
 	}
 
 	/**
-	 * Recorre los ajustes de texto de un árbol de elementos y llama a `$visit( $owner, $path, $value )` con cada cadena,
-	 * que devuelve la cadena nueva (o la misma). Devuelve el árbol con las cadenas cambiadas.
+	 * Recorre los ajustes de texto de un árbol de elementos y llama a `$visit( $owner, $path, $value, $id )` con cada
+	 * cadena (`$id`: el del elemento que la lleva), que devuelve la cadena nueva (o la misma). Devuelve el árbol con las
+	 * cadenas cambiadas.
 	 */
 	public static function map_strings( array $elements, callable $visit ): array {
 		foreach ( $elements as $i => $element ) {
@@ -93,7 +94,7 @@ final class Placeholders {
 			}
 			$owner = (string) ( $element['widgetType'] ?? $element['elType'] ?? '' );
 			if ( isset( $element['settings'] ) && is_array( $element['settings'] ) ) {
-				$element['settings'] = self::map_settings( $element['settings'], '', $owner, $visit );
+				$element['settings'] = self::map_settings( $element['settings'], '', $owner, $visit, (string) ( $element['id'] ?? '' ) );
 			}
 			if ( isset( $element['elements'] ) && is_array( $element['elements'] ) ) {
 				$element['elements'] = self::map_strings( $element['elements'], $visit );
@@ -103,13 +104,13 @@ final class Placeholders {
 		return $elements;
 	}
 
-	private static function map_settings( array $settings, string $prefix, string $owner, callable $visit ): array {
+	private static function map_settings( array $settings, string $prefix, string $owner, callable $visit, string $id ): array {
 		foreach ( $settings as $key => $value ) {
 			$path = is_int( $key ) ? $prefix : ( '' === $prefix ? (string) $key : $prefix . '.' . $key );
 			if ( is_array( $value ) ) {
-				$settings[ $key ] = self::map_settings( $value, $path, $owner, $visit );
+				$settings[ $key ] = self::map_settings( $value, $path, $owner, $visit, $id );
 			} elseif ( is_string( $value ) ) {
-				$settings[ $key ] = $visit( $owner, $path, $value );
+				$settings[ $key ] = $visit( $owner, $path, $value, $id );
 			}
 		}
 		return $settings;

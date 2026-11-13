@@ -857,6 +857,92 @@ namespace {
 		}
 	);
 
+	// R2 · Una lista de reemplazos va por aparición en la plantilla entera, también con omit_blocks: cada valor queda en
+	// su bloque (la carga del revisor: 13 «[Nombre real]» y omit_blocks funciona-para-ti); los de un bloque quitado y los
+	// que sobran se informan en ignored.
+	review_block(
+		'R2',
+		static function () use ( $build ) {
+			$tpl   = Catalog::load( 'venta-completa', 'sections' );
+			$meta  = Catalog::meta( 'venta-completa' );
+			$n     = Placeholders::summary( $tpl['content'] )['[Nombre real]']['count'];
+			$names = array();
+			for ( $i = 1; $i <= $n; $i++ ) {
+				$names[] = 'PERSONA' . $i . 'X';
+			}
+			$block_of = array();
+			$sections = array();
+			foreach ( $meta['blocks'] as $b ) {
+				$sections[ $b['key'] ] = $b['sections'];
+				foreach ( $b['sections'] as $s ) {
+					$block_of[ $s ] = $b['key'];
+				}
+			}
+			// Qué nombres quedan en cada bloque: por la posición de las secciones de primer nivel (los IDs se regeneran).
+			$who = static function ( array $elements, array $template_ids ) use ( $block_of ) {
+				$out = array();
+				foreach ( $elements as $i => $top ) {
+					preg_match_all( '/PERSONA([0-9]+)X/', json_encode( $top, JSON_UNESCAPED_UNICODE ), $m );
+					if ( $m[1] ) {
+						$key         = $block_of[ $template_ids[ $i ] ];
+						$out[ $key ] = array_merge( $out[ $key ] ?? array(), array_map( 'intval', $m[1] ) );
+					}
+				}
+				return $out;
+			};
+			$of_name = static function ( array $ignored, string $key ): array {
+				return array_values(
+					array_filter(
+						$ignored,
+						static function ( $x ) use ( $key ) {
+							return $key === $x['placeholder'];
+						}
+					)
+				);
+			};
+			$all   = array_column( $tpl['content'], 'id' );
+			$close = '2026-12-15 23:59';
+			$full  = $build( 'venta-completa', array( 'replacements' => array( '[Nombre real]' => $names ), 'close_date' => $close ) );
+			$ref   = $who( $full['elements'], $all );
+			review( 'R2', 13 === $n && array( 'funciona-para-ti' => array( 1, 2, 3 ), 'objeciones' => array( 4, 5, 6, 7 ), 'comunidad' => range( 8, 13 ) ) === $ref && array() === $full['ignored'], 'la plantilla entera: 3 nombres en funciona-para-ti, 4 en objeciones y 6 en comunidad, nada ignorado: ' . json_encode( $ref ) );
+			foreach ( array( $close, '' ) as $c ) {
+				$input = array(
+					'replacements' => array( '[Nombre real]' => $names ),
+					'omit_blocks'  => array( 'funciona-para-ti' ),
+				);
+				if ( '' !== $c ) {
+					$input['close_date'] = $c;
+				}
+				$r        = $build( 'venta-completa', $input );
+				$gone     = array_merge( $sections['funciona-para-ti'], '' === $c ? $meta['urgency'] : array() );
+				$kept     = array_values( array_diff( $all, $gone ) );
+				$got      = $who( $r['elements'], $kept );
+				$expected = $ref;
+				unset( $expected['funciona-para-ti'] );
+				$tag = '' === $c ? 'sin close_date' : 'con close_date';
+				review( 'R2', count( $r['elements'] ) === count( $kept ) && $expected === $got, "$tag, sin funciona-para-ti: cada nombre en su bloque (objeciones 4-7, comunidad 8-13): " . json_encode( $got ) );
+				$ign = $of_name( $r['ignored'], '[Nombre real]' );
+				review( 'R2', 1 === count( $ign ) && array( 1, 2, 3 ) === ( $ign[0]['values'] ?? null ) && false !== strpos( $ign[0]['reason'], 'bloques que se quitaron' ), "$tag: los tres nombres del bloque quitado se informan en ignored: " . json_encode( $r['ignored'], JSON_UNESCAPED_UNICODE ) );
+				review( 'R2', ! isset( array_column( $r['pending'], 'count', 'placeholder' )['[Nombre real]'] ) && 10 === $r['filled'], "$tag: ningún «[Nombre real]» pendiente y diez llenados ({$r['filled']})" );
+			}
+			// Sobran: 15 valores para 13 apariciones.
+			$r   = $build( 'venta-completa', array( 'replacements' => array( '[Nombre real]' => array_merge( $names, array( 'SOBRA14', 'SOBRA15' ) ) ), 'close_date' => $close ) );
+			$ign = $of_name( $r['ignored'], '[Nombre real]' );
+			review( 'R2', 1 === count( $ign ) && array( 14, 15 ) === $ign[0]['values'] && false !== strpos( $ign[0]['reason'], 'Sobran 2 de 15' ) && false === strpos( sk_strings( $r['elements'] ), 'SOBRA' ), 'los valores que sobran se informan en ignored: ' . json_encode( $r['ignored'], JSON_UNESCAPED_UNICODE ) );
+			// Un valor único de un placeholder que sólo está en el bloque quitado.
+			$only = array();
+			foreach ( Placeholders::summary( array( $tpl['content'][ array_search( $sections['funciona-para-ti'][0], $all, true ) ] ) ) as $key => $info ) {
+				$rest = Placeholders::summary( array_values( array_filter( $tpl['content'], static function ( $e ) use ( $sections ) { return ! in_array( $e['id'], $sections['funciona-para-ti'], true ); } ) ) );
+				if ( 'texto' === $info['kind'] && ! isset( $rest[ $key ] ) ) {
+					$only[] = $key;
+				}
+			}
+			$r   = $only ? $build( 'venta-completa', array( 'replacements' => array( $only[0] => 'Solo aqui' ), 'omit_blocks' => array( 'funciona-para-ti' ), 'close_date' => $close ) ) : array();
+			$ign = $only ? $of_name( $r['ignored'], $only[0] ) : array();
+			review( 'R2', 1 === count( $ign ) && false !== strpos( $ign[0]['reason'], 'Sólo aparece en bloques que se quitaron' ) && ! in_array( $only[0], $r['filled_keys'], true ), 'un valor que sólo iba en el bloque quitado se informa: ' . json_encode( $only, JSON_UNESCAPED_UNICODE ) );
+		}
+	);
+
 	if ( $GLOBALS['sk_review'] ) {
 		throw new RuntimeException( 'Revisión: ' . json_encode( $GLOBALS['sk_review'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 	}

@@ -18,7 +18,10 @@ defined( 'ABSPATH' ) || exit;
  * - cada valor se sanea según su campo: texto plano (`sanitize_text_field()`) o HTML (`wp_kses_post()`);
  * - todos los identificadores (elementos y elementos de listas) se regeneran: ninguno repite uno de la plantilla;
  * - `omit_blocks` quita bloques enteros del manifiesto (nunca el pie) y nunca reordena: lo que queda sigue en el orden
- *   de la plantilla, el de la guía.
+ *   de la plantilla, el de la guía;
+ * - una lista de reemplazos va por aparición en la plantilla entera (el total y el orden de list-templates): se llena
+ *   antes de quitar bloques, así que ningún valor se corre a otro bloque; los que caen en un bloque quitado y los que
+ *   sobran se informan en `ignored`.
  * No toca la base de datos: lo guarda `Pages`.
  */
 final class Builder {
@@ -128,6 +131,7 @@ final class Builder {
 				'list'   => $list,
 				'next'   => 0,
 				'used'   => 0,
+				'gone'   => array(),
 			);
 			if ( 'dato_real' === $kind ) {
 				$real[] = $key;
@@ -179,18 +183,16 @@ final class Builder {
 			}
 		}
 
+		// Lo que se quita: los bloques omitidos y, sin un cierre real, los de urgencia. Se quita DESPUÉS de llenar: una
+		// lista va por aparición en la plantilla entera (el orden y el total de list-templates), así que el valor de
+		// cada aparición es el mismo con o sin bloques quitados; los de un bloque quitado se descartan y se informan.
 		$content = $template['content'];
-		$removed = array();
-		if ( $omit_ids ) {
-			$dropped = array();
-			$content = self::remove( $content, $omit_ids, $dropped );
-		}
-		if ( null === $close && ! empty( $meta['urgency'] ) ) {
-			$content = self::remove( $content, (array) $meta['urgency'], $removed );
-		}
+		$urgency = null === $close && ! empty( $meta['urgency'] ) ? (array) $meta['urgency'] : array();
+		$gone    = self::subtree_ids( $content, array_merge( $omit_ids, $urgency ) );
 
 		// Reemplazos, WhatsApp y cierre, campo por campo.
 		$filled   = 0;
+		$here     = false; // ¿El elemento que se está llenando se quita después?
 		$close_ph = $close ? array(
 			'[día de cierre]'  => $close->format( 'j' ),
 			'[mes de cierre]'  => self::MONTHS[ (int) $close->format( 'n' ) - 1 ],
@@ -198,8 +200,8 @@ final class Builder {
 		) : array();
 		// La fecha de los contadores: la plantilla trae una ya pasada (el widget no admite un placeholder).
 		$due = $close ? $close->format( 'Y-m-d H:i' ) : null;
-		$resolver = static function ( string $field ) use ( &$plan, &$filled, $close_ph ) {
-			return static function ( $key ) use ( &$plan, &$filled, $close_ph, $field ) {
+		$resolver = static function ( string $field ) use ( &$plan, &$filled, &$here, $close_ph ) {
+			return static function ( $key ) use ( &$plan, &$filled, &$here, $close_ph, $field ) {
 				if ( isset( $close_ph[ $key ] ) ) {
 					return $close_ph[ $key ];
 				}
@@ -211,11 +213,16 @@ final class Builder {
 					if ( $entry['next'] >= count( $entry['values'] ) ) {
 						return null;
 					}
-					$raw = $entry['values'][ $entry['next'] ];
+					$index = $entry['next'];
 					++$entry['next'];
 				} else {
-					$raw = $entry['values'][0];
+					$index = 0;
 				}
+				if ( $here ) {
+					$entry['gone'][ $index ] = true;
+					return null;
+				}
+				$raw   = $entry['values'][ $index ];
 				$clean = 'rich' === $field ? wp_kses_post( $raw ) : sanitize_text_field( $raw );
 				if ( '' === trim( (string) $clean ) ) {
 					return null;
@@ -227,7 +234,8 @@ final class Builder {
 		};
 		$content = Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value ) use ( $resolver, $whatsapp, $due ) {
+			static function ( $owner, $path, $value, $id = '' ) use ( $resolver, $whatsapp, $due, $gone, &$here ) {
+				$here  = isset( $gone[ $id ] );
 				$field = Placeholders::field( $owner, $path, $value );
 				if ( 'date' === $field ) {
 					return 'countdown' === $owner && null !== $due ? $due : $value;
@@ -241,6 +249,40 @@ final class Builder {
 				return false === strpos( $value, '[' ) ? $value : Placeholders::fill( $value, $resolver( $field ) );
 			}
 		);
+		$removed = array();
+		if ( $omit_ids ) {
+			$dropped = array();
+			$content = self::remove( $content, $omit_ids, $dropped );
+		}
+		if ( $urgency ) {
+			$content = self::remove( $content, $urgency, $removed );
+		}
+		// Valores que no llegaron a la página: los de un bloque quitado y los que sobran.
+		foreach ( $plan as $key => $entry ) {
+			$gone_at = array_keys( $entry['gone'] );
+			if ( $entry['list'] ) {
+				if ( $gone_at ) {
+					$ignored[] = array(
+						'placeholder' => (string) $key,
+						'reason'      => sprintf( 'Los valores %s iban en bloques que se quitaron (omit_blocks, o la urgencia sin close_date): no están en la página. Una lista va por aparición en la plantilla entera, en el orden de list-templates.', self::positions( $gone_at ) ),
+						'values'      => self::numbers( $gone_at ),
+					);
+				}
+				if ( $entry['next'] < count( $entry['values'] ) ) {
+					$extra     = range( $entry['next'], count( $entry['values'] ) - 1 );
+					$ignored[] = array(
+						'placeholder' => (string) $key,
+						'reason'      => sprintf( 'Sobran %d de %d valores: «%s» aparece %d veces en la plantilla (list-templates con template). Los valores %s no se usaron.', count( $extra ), count( $entry['values'] ), $key, $summary[ $key ]['count'], self::positions( $extra ) ),
+						'values'      => self::numbers( $extra ),
+					);
+				}
+			} elseif ( $gone_at && 0 === $entry['used'] ) {
+				$ignored[] = array(
+					'placeholder' => (string) $key,
+					'reason'      => 'Sólo aparece en bloques que se quitaron (omit_blocks, o la urgencia sin close_date): no está en la página.',
+				);
+			}
+		}
 
 		$ids     = array();
 		$content = self::regenerate_ids( $content, self::template_ids( $template['content'] ), $ids );
@@ -398,6 +440,40 @@ final class Builder {
 			}
 		}
 		return Placeholders::WHATSAPP . $num . ( null !== $query ? '?' . $query : '' );
+	}
+
+	/** Los IDs de los elementos con esos IDs y de todo lo que contienen (ID → true). */
+	private static function subtree_ids( array $elements, array $ids, bool $inside = false, array &$out = array() ): array {
+		foreach ( $elements as $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			$in = $inside || ( isset( $element['id'] ) && in_array( $element['id'], $ids, true ) );
+			if ( $in && isset( $element['id'] ) ) {
+				$out[ (string) $element['id'] ] = true;
+			}
+			if ( isset( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				self::subtree_ids( $element['elements'], $ids, $in, $out );
+			}
+		}
+		return $out;
+	}
+
+	/** Posiciones (desde 1) de los índices de una lista. */
+	private static function numbers( array $indexes ): array {
+		return array_map(
+			static function ( $i ) {
+				return (int) $i + 1;
+			},
+			array_values( $indexes )
+		);
+	}
+
+	/** «1, 2 y 3» (posiciones desde 1). */
+	private static function positions( array $indexes ): string {
+		$n    = self::numbers( $indexes );
+		$last = array_pop( $n );
+		return $n ? implode( ', ', $n ) . ' y ' . $last : (string) $last;
 	}
 
 	/** Quita los elementos con esos IDs (y lo que contienen); anota su ID y su nombre en el Navegador. */
