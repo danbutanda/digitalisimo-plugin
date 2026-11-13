@@ -59,7 +59,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 				'trust' => (string) $report['trust'],
 				'auth' => (string) $report['auth'],
 				'key' => isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '',
-				'staged' => 'dgbk' === $report['container'],
+				// Un `.dgbk` descifrado o el respaldo completo reconstruido de un punto incremental (`staged`) viajan al área del trabajo.
+				'staged' => 'dgbk' === $report['container'] || ! empty( $report['staged'] ),
 				'fp' => array(),
 				// Sólo la envoltura en este proceso (pruebas, compatibilidad) restaura un archivo que no está en el almacén.
 				'path' => ! empty( $args['sync'] ) && '' !== (string) ( $args['path'] ?? '' ) && 'dgbk' !== $report['container'] && dirname( wp_normalize_path( (string) $args['path'] ) ) !== wp_normalize_path( (string) realpath( self::local_directory() ) ) ? (string) $args['path'] : '',
@@ -104,7 +105,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 		);
 		// El trabajo de la migración que encola su restauración espera a que termine: no cuenta como otro trabajo a medias.
 		$queued = Digitalisimo_Backups_Jobs::enqueue_restore( $spec, function( $job ) use ( $report ) {
-			if ( 'dgbk' === $report['container'] ) {
+			if ( 'dgbk' === $report['container'] || ! empty( $report['staged'] ) ) {
 				$target = Digitalisimo_Backups_Job_Store::staging( $job['id'] ) . '/source.zip';
 				if ( ! @rename( (string) $report['path'], $target ) && ! @copy( (string) $report['path'], $target ) ) throw new Exception( 'No se pudo preparar el respaldo descifrado en el área de trabajo.' );
 				if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $target, 0600 );

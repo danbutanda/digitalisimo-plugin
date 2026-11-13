@@ -239,6 +239,32 @@ trait Digitalisimo_Backups_Destinations_Screen {
 		$file = sanitize_file_name( (string) $file );
 		$item = '' !== $file ? self::history_item( $file ) : array();
 		if ( ! $item ) return self::service_error( 'not_found', 'El respaldo no está registrado.', 404 );
+		// Un punto incremental (docs/BACKUPS.md, «Incrementales») se trae con lo que su cadena necesita: cada eslabón que
+		// falta en el almacén, del completo al punto, con su propio trabajo `fetch` verificado por su SHA-256.
+		if ( Digitalisimo_Backups_Chain::is_incremental( $item ) ) return self::service_fetch_chain( $item, $args );
+		return self::service_fetch_one( $item, $file, $args );
+	}
+	/** Trae al almacén los eslabones que le faltan a la cadena de un punto incremental, en orden. */
+	private static function service_fetch_chain( array $item, array $args ) {
+		$missing = self::chain_missing( $item );
+		if ( ! $missing ) return array( 'file' => (string) $item['file'], 'fetched' => false, 'message' => 'El punto y toda su cadena ya están en el almacén privado.', 'chain' => array() );
+		foreach ( $missing as $name => $row ) if ( ! is_array( $row ) || ! self::remote_exists( $row ) ) return self::service_error( 'chain_incomplete', 'Falta ' . $name . ' de la cadena de este punto y no tiene ninguna copia: este punto no se puede restaurar; elige otro.', 422, array( 'missing' => array_keys( $missing ) ) );
+		$results = array();
+		$running = false;
+		foreach ( $missing as $name => $row ) {
+			$result = self::service_fetch_one( $row, $name, $args );
+			if ( is_wp_error( $result ) ) {
+				$data = (array) $result->get_error_data();
+				return new WP_Error( $result->get_error_code(), 'No se pudo traer ' . $name . ' de la cadena de este punto: ' . $result->get_error_message(), $data + array( 'missing' => array_keys( $missing ) ) );
+			}
+			$results[] = array( 'file' => $name ) + array_intersect_key( (array) $result, array_flip( array( 'fetched', 'running', 'message' ) ) );
+			if ( ! empty( $result['running'] ) ) $running = true;
+		}
+		if ( $running ) return array( 'file' => '', 'fetched' => false, 'running' => true, 'message' => 'Trayendo la cadena de este punto (' . count( $missing ) . ' archivos) en segundo plano: la continúan la pantalla, WP-Cron, `POST /jobs/tick` o `wp digitalisimo-backups jobs run`.', 'chain' => $results );
+		return array( 'file' => (string) $item['file'], 'fetched' => true, 'message' => 'Se trajo la cadena de este punto (' . count( $missing ) . ' archivos), cada uno verificado por su SHA-256: ya se puede restaurar.', 'chain' => $results );
+	}
+	/** Trae al almacén la copia remota de una fila del historial (lo de siempre). */
+	private static function service_fetch_one( array $item, $file, array $args ) {
 		if ( empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] ) ) return self::service_error( 'not_remote', 'Este respaldo no tiene una copia remota registrada.', 400 );
 		if ( self::remote_connection_gone( (array) $item['remote'] ) ) return self::service_error( 'connection_gone', self::gone_text( (array) $item['remote'] ), 410 );
 		// Ni un respaldo, ni una restauración, ni otra descarga tocan el almacén a la vez: con otra operación en curso, 409.
@@ -266,8 +292,14 @@ trait Digitalisimo_Backups_Destinations_Screen {
 	/** «Traer al almacén» en el historial: sólo para una copia remota cuyo archivo ya no está en el almacén privado. */
 	private static function fetch_button( $item ) {
 		$file = (string) ( $item['file'] ?? '' );
-		if ( '' === $file || empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] ) ) return;
-		try { if ( '' !== self::local_path( $file ) ) return; } catch ( Exception $e ) { return; }
+		// Un punto incremental se trae con su cadena: el botón aparece si a la cadena le falta algo que está en el remoto.
+		if ( Digitalisimo_Backups_Chain::is_incremental( $item ) ) {
+			$missing = self::chain_missing( $item );
+			if ( ! $missing || array_filter( $missing, function( $row ) { return ! is_array( $row ) || ! self::remote_exists( $row ); } ) ) return;
+		} else {
+			if ( '' === $file || empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] ) ) return;
+			try { if ( '' !== self::local_path( $file ) ) return; } catch ( Exception $e ) { return; }
+		}
 		echo ' <form style="display:inline" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_FETCH );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_FETCH ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '">' . ( self::network_context() ? '<input type="hidden" name="digitalisimo_backups_network" value="1">' : '' ) . '<button class="button button-small" title="Descarga la copia remota al almacén privado y la verifica por SHA-256 para poder restaurarla">Traer al almacén</button></form>';

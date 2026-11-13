@@ -219,7 +219,19 @@ final class Digitalisimo_Backups_Cli {
 		// Los avisos del respaldo (T2), como texto.
 		foreach ( $rows as &$row ) $row['notices'] = implode( ' ', (array) ( $row['notices'] ?? array() ) );
 		unset( $row );
-		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'notices' ) ) );
+		// Incrementales: cada punto es completo; la columna dice su lugar en la cadena, su base y lo que ahorra.
+		if ( 'json' !== ( $assoc_args['format'] ?? 'table' ) ) foreach ( $rows as &$row ) $row['chain'] = self::chain_text( $row['chain'] ?? null );
+		unset( $row );
+		self::rows( $rows, $assoc_args, self::fields( $assoc_args, array( 'file', 'date', 'size', 'type', 'destination', 'copies', 'scope', 'container', 'signed', 'locked', 'restorable', 'needs_secret', 'chain', 'notices' ) ) );
+	}
+	/** La cadena de una fila, como texto: «completo de su cadena» o «incremental 3 · base <archivo> · ahorra 120 MB». */
+	private static function chain_text( $chain ) {
+		if ( ! is_array( $chain ) ) return '';
+		if ( 'base' === ( $chain['role'] ?? '' ) ) return 'completo de su cadena';
+		$text = 'incremental ' . (int) $chain['sequence'] . ' (punto completo) · base ' . (string) $chain['base'];
+		if ( (int) ( $chain['saved'] ?? 0 ) > 0 ) $text .= ' · ahorra ' . size_format( (int) $chain['saved'] );
+		if ( ! empty( $chain['missing'] ) ) $text .= ' · faltan en el almacén ' . count( (array) $chain['missing'] ) . ' (fetch)';
+		return $text;
 	}
 
 	/**
@@ -234,6 +246,16 @@ final class Digitalisimo_Backups_Cli {
 	 * [--remote-only]
 	 * : Sólo en el remoto: borra el ZIP local cuando la copia remota está verificada (restaurar exigirá `fetch`).
 	 *
+	 * [--incremental]
+	 * : Punto de restauración completo que sólo guarda lo nuevo o cambiado desde el último respaldo manual de su cadena
+	 * (con la base de datos entera); el primero, o tras --full-every incrementales, es un completo.
+	 *
+	 * [--full-every=<n>]
+	 * : Con --incremental: un completo nuevo cada N incrementales (por defecto 6).
+	 *
+	 * [--full-days=<d>]
+	 * : Con --incremental: un completo nuevo si el de la cadena tiene más de D días (por defecto 7).
+	 *
 	 * [--network]
 	 * : Confirma el alcance de red; obligatorio en Multisite.
 	 *
@@ -247,10 +269,12 @@ final class Digitalisimo_Backups_Cli {
 	 *
 	 *     wp digitalisimo-backups create
 	 *     wp digitalisimo-backups create --network --destination=sftp
+	 *     wp digitalisimo-backups create --incremental
 	 */
 	public function create( $args, $assoc_args ) {
 		$async = ! empty( $assoc_args['async'] );
-		$view = self::result( Digitalisimo_Backups::service_create( array( 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'remote_only' => ! empty( $assoc_args['remote-only'] ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) ) );
+		$incremental = ! empty( $assoc_args['incremental'] ) ? array( 'incremental' => true, 'full_every' => (int) ( $assoc_args['full-every'] ?? Digitalisimo_Backups_Chain::FULL_EVERY ), 'full_days' => (int) ( $assoc_args['full-days'] ?? Digitalisimo_Backups_Chain::FULL_DAYS ) ) : array();
+		$view = self::result( Digitalisimo_Backups::service_create( array( 'destination' => (string) ( $assoc_args['destination'] ?? '' ), 'remote_only' => ! empty( $assoc_args['remote-only'] ), 'network' => ! empty( $assoc_args['network'] ), 'via' => 'cli', 'spawn' => $async ) + $incremental ) );
 		if ( $async ) {
 			self::queued( $view, ! empty( $assoc_args['porcelain'] ) );
 			return;
@@ -543,7 +567,7 @@ final class Digitalisimo_Backups_Cli_Automation {
 	 */
 	public function list_( $args, $assoc_args ) {
 		$rows = Digitalisimo_Backups_Cli::result( Digitalisimo_Backups::service_automations() );
-		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'destination', 'retain', 'enabled', 'next_run' ) );
+		Digitalisimo_Backups_Cli::rows( $rows, $assoc_args, array( 'id', 'label', 'schedule', 'time', 'mode', 'full_every', 'destination', 'retain', 'enabled', 'next_run' ) );
 	}
 
 	/**

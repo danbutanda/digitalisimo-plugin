@@ -42,6 +42,14 @@ final class Digitalisimo_Backups_Backup_Job {
 			throw new Digitalisimo_Backups_Permanent_Error( $e->getMessage() );
 		}
 		Digitalisimo_Backups_Jobs::progress( 2, 'Requisitos comprobados.', true );
+		// Una automatización incremental (o un respaldo manual pedido así): continuar su cadena o empezar una con un
+		// completo. Se decide aquí, con los trabajos anteriores de la misma política ya terminados, y queda fijado.
+		if ( Digitalisimo_Backups_Chain::job_enabled( $spec ) ) {
+			$chain = Digitalisimo_Backups::job_chain_plan( $spec );
+			$why = Digitalisimo_Backups_Chain::reason_text( $chain['reason'] );
+			$message = 'incremental' === $chain['mode'] ? 'Incremental ' . (int) $chain['sequence'] . ' de su cadena: sólo lo nuevo o cambiado; exportando la base de datos…' : 'Completo que empieza una cadena' . ( '' !== $why ? ' (' . $why . ')' : '' ) . '; exportando la base de datos…';
+			return array( 'next' => 'database', 'checkpoint' => array( 'at' => time(), 'chain' => $chain ), 'message' => $message );
+		}
 		return array( 'next' => 'database', 'checkpoint' => array( 'at' => time() ), 'message' => 'Exportando la base de datos…' );
 	}
 
@@ -180,11 +188,15 @@ final class Digitalisimo_Backups_Backup_Job {
 		if ( ! self::same_fingerprint( self::fingerprint( $final ), $verified ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El archivo con el nombre final no es el ZIP que se verificó; revisa el almacén privado.' );
 		// El respaldo lleva wp-config.php y la base de datos: 0600 aunque venga de un área de trabajo anterior.
 		Digitalisimo_Backups::private_file( $final );
+		// Un punto de una cadena deja su índice lateral (con el que compara el siguiente incremental) antes de que se
+		// retiren las listas del área de trabajo; idempotente si el proceso muere después.
+		$chain_plan = Digitalisimo_Backups_Chain::job_plan( $job );
+		$chain = $chain_plan && ! $migration && empty( $spec['inline'] ) ? Digitalisimo_Backups::job_chain_index( $job, $chain_plan ) : null;
 		// También las listas del inventario (T2): llevan los nombres de los archivos en claro.
 		if ( $encrypted ) self::remove_matching( Digitalisimo_Backups_Job_Store::staging( $job['id'] ), '/^package\./' );
 		if ( ! empty( $spec['inline'] ) ) return array( 'next' => null, 'checkpoint' => array( 'renamed' => true ), 'result' => array( 'file' => basename( $final ), 'size' => (int) @filesize( $final ) ), 'message' => 'Copia previa creada y verificada.' );
 		if ( $migration ) return Digitalisimo_Backups_Migrate::published( $final );
-		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'] );
+		$row = Digitalisimo_Backups::job_register( $final, $spec, $job['id'], $chain );
 		Digitalisimo_Backups::job_record_notices( basename( $final ), $job ); // T2: avisos visibles y coherencia de la base.
 		$remote = 'local' !== $spec['destination'];
 		return array(
@@ -218,6 +230,9 @@ final class Digitalisimo_Backups_Backup_Job {
 
 	private static function prune( array $job ) {
 		Digitalisimo_Backups::job_prune( $job['spec'] );
+		$chain = Digitalisimo_Backups_Chain::job_incremental( $job );
+		// Un incremental también es un punto de restauración completo (su cadena lo reconstruye entero al restaurar).
+		if ( $chain ) return array( 'next' => null, 'checkpoint' => array( 'at' => time() ), 'message' => 'Punto de restauración completo creado y verificado (incremental ' . (int) $chain['sequence'] . ' de su cadena): ' . basename( (string) $job['spec']['file'] ) );
 		return array( 'next' => null, 'checkpoint' => array( 'at' => time() ), 'message' => 'Respaldo completo creado y verificado: ' . basename( (string) $job['spec']['file'] ) );
 	}
 
@@ -244,7 +259,7 @@ final class Digitalisimo_Backups_Backup_Job {
 		$resume = $phase === ( $job['phase'] ?? '' ) ? ( $job['checkpoint'][ $phase ]['resume'] ?? null ) : null;
 		// El SQL de trabajo y, si el proceso murió justo después de darle su nombre final, también ese nombre (T2).
 		if ( is_array( $resume ) && 'database' === $phase ) array_push( $keep, (string) ( $resume['file'] ?? '' ), preg_replace( '/\.part$/', '', (string) ( $resume['file'] ?? '' ) ) );
-		if ( is_array( $resume ) && 'pack' === $phase ) foreach ( array( '.zip', '.dirs.jsonl', '.files.jsonl', '.entries.jsonl', '.code.jsonl' ) as $suffix ) $keep[] = 'package.' . ( $resume['tag'] ?? '' ) . $suffix;
+		if ( is_array( $resume ) && 'pack' === $phase ) foreach ( array( '.zip', '.dirs.jsonl', '.files.jsonl', '.entries.jsonl', '.code.jsonl', '.parent.jsonl', '.parent.idx', '.parent.seen', '.inv.jsonl' ) as $suffix ) $keep[] = 'package.' . ( $resume['tag'] ?? '' ) . $suffix;
 		if ( $index <= 1 ) self::remove_matching( $staging, '/^database\./', $keep );
 		if ( $index <= 2 ) self::remove_matching( $staging, '/^package\./', $keep );
 	}

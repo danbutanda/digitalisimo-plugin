@@ -244,6 +244,9 @@ trait Digitalisimo_Backups_Screen {
 		if ( $next ) echo esc_html( $next['when'] . ' · ' . $next['label'] . ' · se conservan ' . (int) $next['retain'] ) . ' <a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Cambiar</a>';
 		else echo 'Sin programar · <a href="' . esc_url( self::tab_url( 'settings', 'schedule' ) ) . '">Programar</a>';
 		echo '</dd></div></dl>';
+		// Incrementales: cuánto ahorran frente a guardar un completo en cada punto.
+		$saving = self::chain_saving( $history );
+		if ( $saving['points'] > 0 ) echo '<p class="description digitalisimo-backups-saving">' . esc_html( $saving['points'] . ' puntos incrementales ocupan ' . size_format( $saving['stored'] ) . ': ahorran ' . size_format( $saving['saved'] ) . ' frente a respaldos completos.' ) . '</p>';
 	}
 	/** La próxima ejecución de las automatizaciones activas: cuándo (hora del sitio), cuál y cuántas conserva. */
 	private static function next_automation() {
@@ -286,12 +289,20 @@ trait Digitalisimo_Backups_Screen {
 		$has_local = '' !== self::local_copy( $item );
 		$restorable = self::restorable_item( $item, $has_local );
 		$fetchable = ! $has_local && ! empty( ( (array) ( $item['remote'] ?? array() ) )['provider'] );
+		// Un punto incremental se restaura con su cadena: si le falta algo que está en el remoto, «Traer al almacén».
+		$chain = Digitalisimo_Backups_Chain::row_chain( $item );
+		if ( $chain && $chain['sequence'] > 0 && ! $restorable ) {
+			$missing = self::chain_missing( $item );
+			$fetchable = $missing && ! array_filter( $missing, function( $row ) { return ! is_array( $row ) || ! self::remote_exists( $row ); } );
+		}
 		$row_id = 'digitalisimo-backups-restore-' . (int) $index;
 		$scope = (string) ( $item['scope'] ?? 'site' );
 		$extract = Digitalisimo_Backups_Site_Extract::SCOPE === $scope;
 		echo '<tr class="digitalisimo-backups-row" data-file="' . esc_attr( $file ) . '"><td data-label="Fecha"><strong>' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '</strong>';
 		$badges = array();
 		if ( ! empty( $item['locked'] ) ) $badges[] = '<span class="digitalisimo-backups-badge" title="La retención no lo borra">Bloqueado</span>';
+		// Incrementales: un punto de restauración completo que sólo guarda lo nuevo; su base, en «⋯».
+		if ( $chain && $chain['sequence'] > 0 ) $badges[] = '<span class="digitalisimo-backups-badge is-incremental" title="' . esc_attr( 'Punto de restauración completo: se reconstruye con su cadena (' . ( $chain['sequence'] + 1 ) . ' archivos)' ) . '">Incremental</span>';
 		if ( 'dgbk' === ( $item['container'] ?? '' ) ) $badges[] = Digitalisimo_Backups_Security::history_badge( $item );
 		if ( '' !== self::history_notices_text( $item ) ) $badges[] = '<span class="digitalisimo-backups-badge is-warning" title="' . esc_attr( self::history_notices_text( $item ) ) . '">Con avisos</span>';
 		if ( $extract ) $badges[] = '<span class="digitalisimo-backups-badge">Sitio extraído: ' . esc_html( (string) ( $item['extract']['label'] ?? '' ) ) . '</span>';
@@ -311,11 +322,28 @@ trait Digitalisimo_Backups_Screen {
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_LOCK ) . '"><input type="hidden" name="file" value="' . esc_attr( $file ) . '"><input type="hidden" name="locked" value="' . ( empty( $item['locked'] ) ? '1' : '0' ) . '"><button class="button button-small">' . ( empty( $item['locked'] ) ? 'Bloquear' : 'Desbloquear' ) . '</button></form>';
 		if ( $restorable || $extract ) self::fetch_button( $item );
 		$type = 'network' === $scope ? 'Red completa' : ( 'installation' === $scope ? 'Instalación completa' : ( $extract ? 'Sitio extraído: ' . (string) ( $item['extract']['label'] ?? '' ) : 'Exportación anterior de sitio' ) );
-		echo '<dl><dt>Archivo</dt><dd>' . esc_html( $file ) . '</dd><dt>Tipo</dt><dd>' . esc_html( $type ) . '</dd><dt>Copias</dt><dd>' . esc_html( self::history_destination( $item ) ) . '</dd><dt>Seguridad</dt><dd>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</dd>';
+		echo '<dl><dt>Archivo</dt><dd>' . esc_html( $file ) . '</dd><dt>Tipo</dt><dd>' . esc_html( $type . self::chain_type_text( $item ) ) . '</dd><dt>Copias</dt><dd>' . esc_html( self::history_destination( $item ) ) . '</dd><dt>Seguridad</dt><dd>' . Digitalisimo_Backups_Security::history_badge( $item ) . '</dd>';
+		if ( $chain && $chain['sequence'] > 0 ) echo '<dt>Cadena</dt><dd>' . esc_html( self::chain_detail_text( $item ) ) . '</dd>';
 		if ( '' !== self::history_notices_text( $item ) ) echo '<dt>Avisos</dt><dd>' . esc_html( self::history_notices_text( $item ) ) . '</dd>';
 		if ( ! $has_local && ! $fetchable && self::remote_exists( $item ) ) echo '<dt>Copia remota</dt><dd>Respaldo remoto anterior: sin identificador</dd>';
 		echo '</dl></div></details></td></tr>';
 		if ( $restorable ) self::row_restore_form( $item, $row_id, $open === $file );
+	}
+	/** « · completo de una cadena» o « · incremental 3 (punto de restauración completo)» para el tipo de una fila. */
+	private static function chain_type_text( array $item ) {
+		$chain = Digitalisimo_Backups_Chain::row_chain( $item );
+		if ( ! $chain ) return '';
+		return $chain['sequence'] > 0 ? ' · incremental ' . (int) $chain['sequence'] . ' (punto de restauración completo)' : ' · completo de una cadena de incrementales';
+	}
+	/** Base, archivos de la cadena, lo que ocupa este punto y lo que ahorra frente a un completo. */
+	private static function chain_detail_text( array $item ) {
+		$summary = self::service_chain_summary( $item );
+		if ( ! $summary ) return '';
+		$text = 'Base: ' . self::short_date( $summary['base_date'] ) . ' · ' . $summary['links'] . ' archivos · este punto ocupa ' . size_format( (int) ( $item['size'] ?? 0 ) );
+		if ( $summary['saved'] > 0 ) $text .= ' (ahorra ' . size_format( $summary['saved'] ) . ' frente a un completo)';
+		$text .= ' · ' . (int) $summary['added'] . ' nuevos, ' . (int) $summary['changed'] . ' cambiados, ' . (int) $summary['deleted'] . ' borrados';
+		if ( $summary['missing'] ) $text .= ' · faltan en el almacén ' . count( $summary['missing'] ) . ': «Traer al almacén»';
+		return $text;
 	}
 	/**
 	 * «Conservar mi acceso» (encendido): con el respaldo de otra instalación (otro sitio, un sitio extraído de una red),
@@ -395,7 +423,8 @@ trait Digitalisimo_Backups_Screen {
 		foreach ( $schedules as $value => $label ) echo '<option value="' . esc_attr( $value ) . '"' . selected( $current, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		$zone = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
 		echo '</select> <label>a las <input type="time" step="60" name="digitalisimo_backup_automation[time]" value="' . esc_attr( (string) ( $policy['time'] ?? '' ) ) . '"></label><p class="description">Hora del sitio (' . esc_html( $zone ) . '). Vacía: cuando WP-Cron pueda.</p></td></tr>';
-		echo '<tr><th><label for="digitalisimo-backups-retain">Conservar</label></th><td><input id="digitalisimo-backups-retain" type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( (string) ( $policy['retain'] ?? 4 ) ) . '"> respaldos</td></tr>';
+		echo self::mode_fields( (array) $policy, true );
+		echo '<tr><th><label for="digitalisimo-backups-retain">Conservar</label></th><td><input id="digitalisimo-backups-retain" type="number" min="1" max="100" name="digitalisimo_backup_automation[retain]" value="' . esc_attr( (string) ( $policy['retain'] ?? 4 ) ) . '"> ' . ( 'incremental' === ( $policy['mode'] ?? '' ) ? 'puntos de restauración' : 'respaldos' ) . '</td></tr>';
 		echo '<tr><th><label for="digitalisimo-backups-schedule-destination">Destino</label></th><td><select id="digitalisimo-backups-schedule-destination" name="digitalisimo_backup_automation[destination]">';
 		foreach ( array_keys( self::destination_choices() ) as $destination ) echo '<option value="' . esc_attr( $destination ) . '"' . selected( (string) ( $policy['destination'] ?? 'local' ), $destination, false ) . '>' . esc_html( self::destination_label( $destination ) ) . '</option>';
 		echo '</select><details class="digitalisimo-backups-help"><summary>Más opciones</summary>' . self::remote_only_field( ! empty( $policy['remote_only'] ) ) . '</details></td></tr></table>';

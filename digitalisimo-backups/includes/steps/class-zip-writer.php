@@ -184,6 +184,17 @@ final class Digitalisimo_Backups_Zip_Writer {
 		$this->entry = null;
 		return $record;
 	}
+	/**
+	 * Retira la última entrada terminada (un incremental la descarta si resultó igual a la del padre): el archivo vuelve
+	 * a terminar donde empezaba su cabecera local. Sólo la última: lo anterior nunca se reescribe.
+	 */
+	public function drop( array $record ) {
+		if ( $this->entry ) throw new LogicException( 'Hay una entrada abierta en el ZIP.' );
+		$offset = (int) ( $record['o'] ?? -1 );
+		if ( $offset < 0 || $offset > $this->size || $this->size !== self::data_offset( $record ) + (int) ( $record['z'] ?? -1 ) ) throw new LogicException( 'Sólo se puede retirar la última entrada del ZIP.' );
+		if ( ! fflush( $this->handle ) || ! ftruncate( $this->handle, $offset ) || 0 !== fseek( $this->handle, $offset ) ) throw new Exception( 'No se pudo retirar una entrada del ZIP en el área de trabajo.' );
+		$this->size = $offset;
+	}
 	/** Entrada completa desde una cadena (el manifiesto se escribe por partes con begin/data/finish). */
 	public function add_string( $name, $bytes, $mtime ) {
 		$this->begin( $name, $mtime, 0644, strlen( $bytes ), self::method_for( 'x.txt', strlen( $bytes ) ) );

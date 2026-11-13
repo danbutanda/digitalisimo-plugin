@@ -133,7 +133,7 @@ final class Digitalisimo_Backups_Jobs {
 				'context' => ! empty( $args['network'] ) ? 'network' : 'site',
 			),
 			'engine' => array( 'plugin_version' => defined( 'DIGITALISIMO_BACKUPS_VERSION' ) ? DIGITALISIMO_BACKUPS_VERSION : '', 'job_format' => Digitalisimo_Backups_Job_Store::JOB_FORMAT ),
-		);
+		) + ( is_array( $args['incremental'] ?? null ) && empty( $args['inline'] ) ? array( 'incremental' => Digitalisimo_Backups_Chain::spec_value( array( 'mode' => 'incremental' ) + $args['incremental'] ) ) : array() );
 	}
 	/** Encola sin duplicar: una política (o el respaldo manual) nunca tiene dos trabajos sin terminar. */
 	public static function enqueue( array $spec ) {

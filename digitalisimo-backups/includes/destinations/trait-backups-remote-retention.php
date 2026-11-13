@@ -125,7 +125,8 @@ trait Digitalisimo_Backups_Remote_Retention {
 		$rows = array_values( array_filter( self::fresh_history(), function( $item ) { return is_array( $item ) && empty( $item['locked'] ) && self::global_retention_row( $item ) && self::remote_exists( $item ); } ) );
 		$retire = array();
 		foreach ( array_slice( $rows, max( 1, (int) $keep ) ) as $item ) if ( ! isset( $busy[ wp_basename( (string) $item['file'] ) ] ) ) $retire[ (string) $item['file'] ] = true;
-		self::retire_remote_locked( $retire );
+		// Con cadenas de incrementales, nunca la copia remota de un eslabón del que depende un punto que se queda.
+		self::retire_remote_locked( Digitalisimo_Backups_Chain::keep_dependencies( self::fresh_history(), $retire ) );
 	}
 
 	/**
