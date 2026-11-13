@@ -434,6 +434,59 @@ namespace {
 	\Digitalisimo\Elements\Mcp\Font_Stack::register( new stdClass() );
 	check( true, 'un registro inválido se ignora sin errores' );
 
+	// ---------------------------------------------------------------------------------------------------------------
+	// 9. Revisión (MEDIA 3): el `execute_callback` de cada herramienta del constructor abre y cierra el ámbito en un
+	//    `finally` (wp_register_ability_args): una herramienta que devuelve WP_Error (sin wp_after_execute_ability) o lanza
+	//    una excepción no deja el ámbito abierto en un proceso largo (STDIO). Falla con 962e0136 (no se envolvía).
+	mc_boot();
+	$saved_doc = new Mc_Document( mc_post( 50 ), 50 );
+	$fail_cb   = static function ( $input = null ) use ( $saved_doc ) {
+		do_action( 'elementor/document/after_save', $saved_doc, array() );
+		return (object) array( 'error' => 'elementor_forbidden' );
+	};
+	$args    = array( 'label' => 'x', 'execute_callback' => $fail_cb );
+	$wrapped = apply_filters( 'wp_register_ability_args', $args, 'elementor/build-composition' );
+	check( is_array( $wrapped ) && $wrapped['execute_callback'] !== $fail_cb && is_callable( $wrapped['execute_callback'] ), 'wp_register_ability_args envuelve el execute_callback de elementor/build-composition' );
+	check( $args === apply_filters( 'wp_register_ability_args', $args, 'digitalisimo-woo/products' ), 'una herramienta que no es del constructor queda igual' );
+	check( array( 'label' => 'x' ) === apply_filters( 'wp_register_ability_args', array( 'label' => 'x' ), 'elementor/x' ), 'sin execute_callback, igual' );
+	// Como WP_Ability::execute(): wp_before_execute_ability, el callback (WP_Error) y sin wp_after_execute_ability.
+	do_action( 'wp_before_execute_ability', 'elementor/build-composition', array() );
+	$result = call_user_func( $wrapped['execute_callback'], array( 'post_id' => 50 ) );
+	check( is_object( $result ) && 'elementor_forbidden' === $result->error, 'el resultado del callback (un error) sale intacto' );
+	check( 0 === Css_Sync::state()['depth'] && array() === Css_Sync::state()['pending'], 'tras una herramienta que falla el ámbito queda cerrado y vacío · ' . wp_json_encode( Css_Sync::state() ) );
+	check( array( 'local/50', 'global/50' ) === mc_cleared( 50 )['clears'], 'y lo que guardó antes de fallar ya se refrescó (sin esperar al cierre de la petición)' );
+	// La escritura siguiente, en el mismo proceso, se refresca al terminar su herramienta.
+	mc_reset();
+	$ok_cb    = static function ( $input = null ) {
+		do_action( 'elementor/document/after_save', new Mc_Document( mc_post( 60 ), 60 ), array() );
+		return array( 'success' => true );
+	};
+	$wrapped2 = apply_filters( 'wp_register_ability_args', array( 'execute_callback' => $ok_cb ), 'elementor/build-composition' );
+	do_action( 'wp_before_execute_ability', 'elementor/build-composition', array() );
+	call_user_func( $wrapped2['execute_callback'], array( 'post_id' => 60 ) );
+	do_action( 'wp_after_execute_ability', 'elementor/build-composition', array(), array() );
+	check( array( 'local/60', 'global/60' ) === mc_cleared( 60 )['clears'] && 0 === Css_Sync::state()['depth'], 'la escritura siguiente del mismo proceso se refresca al terminar su herramienta' );
+	// Una excepción también cierra el ámbito (y se propaga).
+	mc_reset();
+	$throw_cb = static function () {
+		do_action( 'elementor/document/after_save', new Mc_Document( mc_post( 70 ), 70 ), array() );
+		throw new RuntimeException( 'boom' );
+	};
+	$wrapped3 = apply_filters( 'wp_register_ability_args', array( 'execute_callback' => $throw_cb ), 'elementor/manage-elements' );
+	$thrown   = false;
+	try {
+		call_user_func( $wrapped3['execute_callback'] );
+	} catch ( RuntimeException $e ) {
+		$thrown = 'boom' === $e->getMessage();
+	}
+	check( $thrown && 0 === Css_Sync::state()['depth'] && array( 'local/70', 'global/70' ) === mc_cleared( 70 )['clears'], 'una excepción se propaga y el ámbito queda cerrado y refrescado' );
+	// Sin el filtro (Abilities API sin wp_register_ability_args), los ganchos antes/después siguen abriendo el ámbito.
+	mc_reset();
+	do_action( 'wp_before_execute_ability', 'elementor/create-page', array() );
+	check( 1 === Css_Sync::state()['depth'], 'una herramienta no envuelta abre el ámbito con wp_before_execute_ability' );
+	do_action( 'wp_after_execute_ability', 'elementor/create-page', array(), array() );
+	check( 0 === Css_Sync::state()['depth'], 'y lo cierra con wp_after_execute_ability' );
+
 	$fails = count( $GLOBALS['mc_fail'] );
 	if ( $fails ) {
 		echo "CSS del MCP de Elements: $fails fallas de {$GLOBALS['mc_checks']} comprobaciones.\n";

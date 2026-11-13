@@ -53,12 +53,16 @@ final class Css_Sync {
 	/** @var int Página de un enlace firmado abierto en esta petición. */
 	private static $preview = 0;
 
+	/** @var array<string, true> Herramientas cuyo `execute_callback` ya abre y cierra el ámbito (`wrap_ability()`). */
+	private static $wrapped = array();
+
 	/** Idempotente. */
 	public static function init(): void {
 		if ( self::$initialized || ! function_exists( 'add_action' ) ) {
 			return;
 		}
 		self::$initialized = true;
+		add_filter( 'wp_register_ability_args', array( __CLASS__, 'wrap_ability' ), 10, 2 );
 		add_action( 'wp_before_execute_ability', array( __CLASS__, 'before_ability' ), 10, 1 );
 		add_action( 'wp_after_execute_ability', array( __CLASS__, 'after_ability' ), 10, 1 );
 		add_filter( 'rest_request_before_callbacks', array( __CLASS__, 'before_rest' ), 10, 3 );
@@ -71,16 +75,39 @@ final class Css_Sync {
 		add_action( 'shutdown', array( __CLASS__, 'shutdown' ), 0 );
 	}
 
-	/** `wp_before_execute_ability` (Abilities API de WordPress 6.9): empieza una herramienta del constructor. */
+	/**
+	 * `wp_register_ability_args` (Abilities API de WordPress 6.9): el `execute_callback` de cada herramienta del
+	 * constructor abre el ámbito y lo cierra en un `finally`, también si devuelve un `WP_Error` o lanza una excepción.
+	 * `wp_after_execute_ability` no se dispara con un `WP_Error`: con sólo esos ganchos, en un proceso largo (el transporte
+	 * STDIO del adaptador) el ámbito quedaba abierto y nada se refrescaba hasta cerrar la sesión.
+	 */
+	public static function wrap_ability( $args, $name = '' ) {
+		if ( ! self::is_builder_ability( $name ) || ! is_array( $args ) || empty( $args['execute_callback'] ) || ! is_callable( $args['execute_callback'] ) ) {
+			return $args;
+		}
+		$inner                    = $args['execute_callback'];
+		self::$wrapped[ $name ]   = true;
+		$args['execute_callback'] = static function ( ...$params ) use ( $inner ) {
+			++self::$depth;
+			try {
+				return call_user_func_array( $inner, $params );
+			} finally {
+				self::leave();
+			}
+		};
+		return $args;
+	}
+
+	/** `wp_before_execute_ability`: respaldo para una herramienta que no pasó por `wrap_ability()`. */
 	public static function before_ability( $name ): void {
-		if ( self::is_builder_ability( $name ) ) {
+		if ( self::is_builder_ability( $name ) && ! isset( self::$wrapped[ $name ] ) ) {
 			++self::$depth;
 		}
 	}
 
 	/** `wp_after_execute_ability`: termina bien; al cerrar la última se refresca lo anotado. */
 	public static function after_ability( $name ): void {
-		if ( self::is_builder_ability( $name ) ) {
+		if ( self::is_builder_ability( $name ) && ! isset( self::$wrapped[ $name ] ) ) {
 			self::leave();
 		}
 	}
@@ -207,6 +234,7 @@ final class Css_Sync {
 		self::$depth       = 0;
 		self::$pending     = array();
 		self::$preview     = 0;
+		self::$wrapped     = array();
 	}
 
 	/** Para las pruebas: documentos anotados y herramientas en curso. */
