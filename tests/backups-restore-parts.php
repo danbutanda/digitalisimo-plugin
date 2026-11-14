@@ -443,6 +443,24 @@ pt_case( 'P14 revisión: una parte que el respaldo no trae se rechaza; la vuelta
 	pt_check( $db === pt_db(), 'La base de datos cambió.' );
 } );
 
+pt_case( 'P15 sin tiempo en la petición, la copia previa sigue en la siguiente (no se da por imposible)', function() use ( $root, $snapshot, $snapshot_options, $backup ) {
+	list( $before, $db ) = pt_prepare( $root, $snapshot, $snapshot_options );
+	// Una petición web de 30 s a la que ya no le queda tiempo (la verificación la agotó).
+	$GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] = 30;
+	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 29;
+	$result = pt_restore( $backup, array( 'plugins' => 'demo' ) );
+	pt_check( ! is_wp_error( $result ), 'Se rechazó: ' . ( is_wp_error( $result ) ? $result->get_error_message() : '' ) );
+	for ( $i = 0; $i < 400 && 'safety' !== ( pt_last()['phase'] ?? '' ); $i++ ) { Digitalisimo_Backups_Jobs::tick( 5 ); $GLOBALS['wpdb']->queries = array(); }
+	for ( $i = 0; $i < 5; $i++ ) Digitalisimo_Backups_Jobs::tick( 5 );
+	$job = pt_last();
+	pt_check( 'safety' === $job['phase'] && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) && empty( $job['checkpoint']['safety']['checkpoint'] ), 'Sin tiempo, la copia previa no esperó a la petición siguiente: ' . json_encode( array( $job['status'], $job['phase'], $job['error'] ) ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_request_limit'] );
+	$_SERVER['REQUEST_TIME_FLOAT'] = microtime( true );
+	sleep( 1 );
+	pt_finish();
+	pt_check( 'success' === pt_last()['status'], 'Con tiempo, la restauración no terminó: ' . json_encode( pt_last()['error'] ) );
+} );
+
 bk_remove_tree( $snapshot );
 bk_cleanup();
 echo $failures ? "FALLA: {$failures} caso(s) de restaurar por partes.\n" : "DIGITALÍSIMO Backups: restaurar por partes (base de datos, núcleo, plugins, temas, medios, mu-plugins, resto y concretos) con la misma seguridad que la completa.\n";

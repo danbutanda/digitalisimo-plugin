@@ -476,9 +476,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 		if ( $extracted && 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		if ( ! $extracted && ! in_array( $data['scope'] ?? '', array( 'network', 'installation' ), true ) ) throw new Exception( 'El alcance del respaldo completo no es compatible.' );
 		foreach ( self::package_installation_problems( $data ) as $problem ) throw new Exception( $problem );
-		// Restaurar por partes: lo concreto elegido está en el respaldo (salvo en la vuelta a la copia previa).
+		// Restaurar por partes: un sitio extraído se restaura entero. Que lo elegido esté en el respaldo se comprobó al encolar,
+		// con este mismo archivo (su huella se comprueba al abrirlo): repetir el inventario aquí sólo gastaría la petición.
 		$parts = self::restore_parts( $job );
-		if ( null !== $parts ) Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, ! empty( $job['spec']['rollback'] ), self::restore_layout() );
+		if ( null !== $parts ) Digitalisimo_Backups_Restore_Parts::check( $zip, $data, $parts, true, array() );
 		// Un sitio extraído pasa además el inspector estricto de entradas: sólo las raíces de un respaldo, sin «.» ni «..».
 		if ( $extracted ) Digitalisimo_Backups_Archive_Inspector::entries( $zip, true );
 		if ( 'digitalisimo-backup/v3' === ( $data['format'] ?? '' ) ) $data = Digitalisimo_Backups_Archive_Inspector::manifest( $zip );
@@ -981,6 +982,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		}
 		$cursor += array( 'sub' => 'preflight', 'checkpoint' => array(), 'retries' => 0, 'setbacks' => array(), 'warnings' => array() );
 		unset( $cursor['attempts'] );
+		// Sin tiempo en esta petición (la verificación la agotó), la copia previa sigue en la siguiente: un tramo de su
+		// exportación sin plazo no avanza, y tres seguidos la darían por imposible.
+		if ( min( Digitalisimo_Backups_Step_Budget::request_remaining(), Digitalisimo_Backups_Jobs::step_deadline() - microtime( true ) ) < 2 ) return array( 'next' => 'safety', 'checkpoint' => $cursor, 'wait' => 1, 'message' => 'Copia previa: sigue en la petición siguiente…' );
 		$sub = (string) $cursor['sub'];
 		$spec = (array) $cursor['spec'];
 		// Los intentos de la subfase son los de la fase «safety» de la restauración: el motor los cuenta tras una muerte y
