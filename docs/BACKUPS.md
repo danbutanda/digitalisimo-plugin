@@ -1096,6 +1096,18 @@ donde main pasaba. Por eso los comentarios de la segunda mitad del motor son `//
 queda igual que en main (10 337 272 frente a 10 336 648 bytes). Cualquier cambio futuro del motor debe medirse así
 (`tests/playground/backups-restore-parts.sh` anota la memoria de cada petición en `ctl/memory.jsonl`).
 
+**Ensayo en Playground** (`tests/playground/backups-restore-parts.sh`, WordPress con los límites del propietario: 64 MB y
+30 s, también al crear el respaldo de referencia; respaldo desde la pantalla, restauraciones por REST que avanzan sólo con
+ticks web). Con la huella de cada tabla y de cada archivo antes y después: sólo la base de datos (las tablas como en el
+respaldo, ningún archivo distinto), sólo el plugin «demo», sólo los medios (lo subido después se conserva, el `.php`
+inyectado sale), sólo los temas (sale el instalado después), los plugins con una falla a mitad del cambio (la vuelta a la
+copia previa deja todo idéntico) y, en otro sitio de otra dirección, sólo la base de datos del primero (E1: sus datos con
+las direcciones de este sitio, 0 URL del origen pendientes, ningún archivo distinto, quien restaura sigue entrando).
+Validado en 1 446 s; una petición de la verificación agotó los 64 MB y el trabajo siguió desde su punto de control, como
+pasa con main. Una diferencia en `wp_options` sólo cuenta si no es de las que WordPress escribe solo (cachés,
+`recovery_keys` tras un fatal). En una red: sólo los medios del subsitio (los del principal intactos) y sólo la base de
+datos.
+
 **Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
 el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también
 sin la base de datos (las mismas reglas). Las vistas SQL sólo impiden restaurar la base de datos. No probado en MySQL
