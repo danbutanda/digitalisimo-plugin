@@ -4,15 +4,22 @@
 # JSON-RPC real contra /wp-json/elementor/mcp (initialize, notifications/initialized, tools/list y tools/call) desde
 # sales-kit/run.mjs:
 #   - las tres herramientas (digitalisimo-sales/list-templates, create-page y guide) con su entrada cerrada;
-#   - create-page de las ocho plantillas con contenedores y, con el experimento de contenedores apagado, con secciones:
-#     borrador, lienzo, todos los widgets, IDs nuevos; sin fecha de cierre (urgencia quitada) y con bloques omitidos;
+#   - create-page de las ocho plantillas con contenedores y, con el experimento de contenedores apagado, con secciones,
+#     como administrador y como editora (sin avisos de PHP): borrador, lienzo, todos los widgets, IDs nuevos, los
+#     resaltes sin atributos y, en la 04 y la 07, la revisión que dice que faltan los enlaces de las redes; sin fecha
+#     de cierre (urgencia quitada) y con bloques omitidos; los obligatorios (la promesa, la oferta, la garantía, las
+#     preguntas frecuentes, WhatsApp y el pie) no se quitan, las pruebas sociales sí;
 #   - los candados (URLs de otros sitios, cierre, enlaces, precios, WhatsApp, otro estado) sin crear nada, y los
 #     permisos (una editora crea borradores; una autora y una editora sin edit_pages no pueden); las plantillas con un
-#     resalte de color en el título creadas por una editora y por una editora sin unfiltered_html, sin avisos de PHP
-#     (la sonda también ve los de las peticiones REST, donde el núcleo pone su propio manejador);
-#   - Chrome a 1 280 y 390 px en cada página creada (también las de las editoras): HTTP 200, sin errores de
+#     resalte de color en el título creadas por una editora sin unfiltered_html, sin avisos de PHP (la sonda también
+#     ve los de las peticiones REST, donde el núcleo pone su propio manejador);
+#   - Chrome a 1 280 × 800 y 390 × 844 px en cada página creada (también las de las editoras): HTTP 200, sin errores de
 #     JavaScript, sin 404/500 del sitio, sin peticiones fuera del sitio, sin avisos de PHP, sin desborde, widgets
-#     pintados = guardados, cada resalte de título con su color y su CSS cargado;
+#     pintados = guardados (sin contar la copia que deja la barra fija, `.elementor-sticky__spacer`), cada resalte de
+#     título con su color y su CSS cargado; la portada de 01, 02 y 03 cabe en la primera pantalla, sin video y con su
+#     botón visible sin desplazar (capturas portada-*.png); la barra de cierre de la 01 queda fija arriba al
+#     desplazar, con el logo del evento en escritorio y sin él en celular (barra-fija-*.png); los iconos de redes de la
+#     04 y la 07 con su logo, sin enlazar a las redes;
 #   - el aviso al importar un ZIP de plantillas sin la carga de archivos sin filtrar (y que con ella importa las ocho).
 # Uso: bash tests/playground/sales-kit.sh   (en la PC: bash /var/tmp/digi-wt/pc-run.sh <worktree> -- bash tests/playground/sales-kit.sh)
 #   OUT, TMPDIR    resultados (por defecto /var/tmp/digi-sales-kit) y temporales de Playground

@@ -95,6 +95,9 @@ const TEMPLATES = ['venta-completa', 'venta-corta', 'captacion', 'gracias-regist
 const pages = []; // { id, template, variant, preview, widgets, ids, spans }
 // Los resaltes de color en los títulos de cada plantilla (`<span>…</span>`; su color va en el CSS propio del widget).
 const RESALTES = { 'venta-completa': 3, 'venta-corta': 2, captacion: 1, 'gracias-registro': 0, carrito: 1, 'oferta-unica': 1, 'gracias-compra': 0, 'prueba-social': 0 };
+// Las plantillas con portada (v4: cabe en la primera pantalla, sin video) y con iconos de redes (decisión 2).
+const PORTADAS = ['venta-completa', 'venta-corta', 'captacion'];
+const REDES = ['gracias-registro', 'gracias-compra'];
 // El color de cada resalte: el neón de la promesa y el jade del precio.
 const COLORES_RESALTE = ['rgb(0, 255, 153)', 'rgb(0, 168, 107)'];
 // La fecha de cierre del ensayo: a 30 días de hoy, a las 20:00 (hora del sitio). Nunca una fecha fija: caducaría y
@@ -141,24 +144,29 @@ async function main() {
   r = await admin.call('guide', {});
   check(!r.isError && r.data.content.length > 5000 && !/Daniel|Butanda/.test(r.data.content), 'guide entera, sin la persona de la versión propia');
 
-  start('S2 create-page con contenedores (las ocho)');
+  start('S2 create-page con contenedores (las ocho, como administrador y como editora)');
   const meta = (await admin.call('list-templates', {})).data.templates;
   const full = Object.fromEntries((await Promise.all(TEMPLATES.map((id) => admin.call('list-templates', { template: id })))).map((x) => [x.data.templates[0].id, x.data.templates[0]]));
+  // La editora (edit_pages, sin manage_options: el núcleo le quita los atributos al título) crea también las ocho en las
+  // dos variantes; Chrome las pinta todas.
+  const editora = new Client('editora');
+  await editora.init();
+  const avisosEd0 = await probe('notices', '0,0');
   for (const variant of ['containers', 'sections']) {
     if (variant === 'sections') {
-      start('S3 create-page con secciones (las ocho, sin el experimento de contenedores)');
+      start('S3 create-page con secciones (las ocho, como administrador y como editora, sin el experimento de contenedores)');
       await probe('container', 'inactive');
       const p2 = await probe('ping');
       check(p2.container === false, 'experimento de contenedores apagado', JSON.stringify(p2));
     }
-    for (const id of TEMPLATES) {
+    for (const [cliente, quien] of [[admin, 'admin'], [editora, 'editora']]) for (const id of TEMPLATES) {
       const m = meta.find((t) => t.id === id);
-      const args = { template: id, title: `Kit ${id} (${variant})`, whatsapp: '5218711234567', replacements: { '[producto]': 'Curso de prueba' } };
+      const args = { template: id, title: `Kit ${id} (${variant}, ${quien})`, whatsapp: '5218711234567', replacements: { '[producto]': 'Curso de prueba' } };
       if (!full[id].placeholders.some((p) => p.placeholder === '[producto]')) delete args.replacements;
       if (m.close_date) args.close_date = CIERRE;
-      r = await admin.call('create-page', args);
+      r = await cliente.call('create-page', args);
       const d = r.data || {};
-      if (!check(!r.isError && d.ok && d.status === 'draft' && d.variant === variant && d.id > 0, `${id}: create-page crea un borrador con ${variant === 'containers' ? 'contenedores' : 'secciones'}`, r.text.slice(0, 500))) continue;
+      if (!check(!r.isError && d.ok && d.status === 'draft' && d.variant === variant && d.id > 0, `${id} (${quien}): create-page crea un borrador con ${variant === 'containers' ? 'contenedores' : 'secciones'}`, r.text.slice(0, 500))) continue;
       const pg = await probe('page', d.id);
       check(pg.status === 'draft' && pg.type === 'page' && pg.page_template === 'elementor_canvas' && pg.edit_mode === 'builder' && pg.template_type === 'wp-page', `${id}: guardada como borrador del constructor, con lienzo`, JSON.stringify({ ...pg, ids: undefined, widgets: undefined }));
       check(pg.first_type === (variant === 'containers' ? 'container' : 'section'), `${id}: con la variante elegida (${pg.first_type})`);
@@ -167,21 +175,38 @@ async function main() {
       check(pg.ids.length === new Set(pg.ids).size && pg.ids.every((x) => /^[0-9a-f]{7}$/.test(x)), `${id}: IDs nuevos, sin repetirse`);
       check(!d.whatsapp_pending && Array.isArray(d.pending) && d.pending_count > 0 && /BORRADOR/.test(d.llm_instructions || ''), `${id}: informa lo pendiente (${d.pending_count} apariciones) y que quedó en borrador`);
       check(/[?&]preview=true/.test(d.preview_url || '') && /action=elementor/.test(d.edit_url || ''), `${id}: URL de vista previa y de edición`, `${d.preview_url} ${d.edit_url}`);
-      check(pg.spans === RESALTES[id], `${id}: sus ${RESALTES[id]} resaltes de título`, JSON.stringify({ spans: pg.spans }));
-      pages.push({ id: d.id, template: id, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+      check(pg.spans === RESALTES[id] && pg.span_attrs === 0, `${id} (${quien}): sus ${RESALTES[id]} resaltes de título, sin atributos`, JSON.stringify({ spans: pg.spans, span_attrs: pg.span_attrs }));
+      const redes = (d.review || []).filter((x) => /Faltan los enlaces de las redes/.test(x));
+      check(REDES.includes(id) ? d.social_pending === 4 && redes.length === 1 : d.social_pending === 0 && !redes.length, `${id}: ${REDES.includes(id) ? 'la revisión dice que faltan los enlaces de las cuatro redes' : 'sin iconos de redes'}`, JSON.stringify({ social: d.social_pending, review: d.review }));
+      pages.push({ id: d.id, template: quien === 'admin' ? id : `${id}-editora`, base: id, variant, preview: d.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: !!m.has_countdown && id === 'venta-completa' });
     }
   }
   await probe('container', 'active');
+  const avisosEd1 = await probe('notices', avisosEd0.at);
+  const deMcpEd = [...avisosEd1.kit, ...avisosEd1.elements].filter((l) => /mcp/.test(l.split(' · ')[0]) && !/PHP (8192|16384):/.test(l));
+  check(!deMcpEd.length, 'crear las dieciséis páginas como editora no deja avisos de PHP (content-sanitizer, db.php, el kit)', deMcpEd.slice(0, 4).join(' | '));
 
   start('S4 Fecha de cierre, urgencia y bloques');
   r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin cierre' });
   let pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && r.data.removed_urgency.length === 1 && !pg.widgets?.countdown && pg.top === 30, 'sin close_date: se quita la barra de cierre y no queda ningún contador', r.text.slice(0, 300));
+  if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-cierre', base: 'venta-completa', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: false });
   check(r.data?.pending?.some((p) => p.placeholder === '[día de cierre]') && r.data.whatsapp_pending === true, 'sin close_date ni whatsapp: los textos de cierre y el número de muestra quedan pendientes');
-  r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni oferta', omit_blocks: ['bonus', 'oferta'], close_date: CIERRE });
+  r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni comunidad', omit_blocks: ['bonus', 'comunidad'], close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
-  check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","oferta"]' && pg.top === 31 - 6 && r.data.broken_anchors.includes('oferta'), 'omit_blocks quita los bloques enteros (cinco secciones de bonus y la oferta) e informa los botones que llevaban a #oferta', r.text.slice(0, 300));
-  if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+  check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","comunidad"]' && pg.top === 31 - 6 && r.data.broken_anchors.includes('historias'), 'omit_blocks quita los bloques enteros (cinco secciones de bonus y la comunidad) e informa los botones que llevaban a #historias', r.text.slice(0, 300));
+  if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', base: 'venta-completa', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: true });
+  // Decisión 5 del operador: la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie no se quitan.
+  const n0 = (await probe('pages')).all;
+  for (const [id, bloques] of [['venta-completa', ['oferta']], ['venta-completa', ['promesa', 'garantia', 'preguntas-frecuentes', 'whatsapp']], ['venta-corta', ['garantia-y-preguntas']], ['carrito', ['formulario', 'dudas-de-pago']], ['gracias-compra', ['soporte']]]) {
+    r = await admin.call('create-page', { template: id, title: 'X', omit_blocks: bloques, ...(meta.find((t) => t.id === id).close_date ? { close_date: CIERRE } : {}) });
+    check(r.isError && bloques.every((b) => r.text.includes(`«${b}»`)) && /no se puede quitar/.test(r.text) && /En esta plantilla no se quitan/.test(r.text), `${id}: no deja quitar ${bloques.join(', ')}, y dice cuáles no se quitan`, r.text.slice(0, 400));
+  }
+  check((await probe('pages')).all === n0, 'pedir quitar un bloque obligatorio no crea nada');
+  r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta sin testimonios', omit_blocks: ['testimonios'] });
+  check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["testimonios"]', 'las pruebas sociales sí se quitan', r.text.slice(0, 300));
+  r = await admin.call('list-templates', { template: 'venta-completa' });
+  check(JSON.stringify(r.data?.templates?.[0]?.blocks?.filter((b) => b.required).map((b) => b.key)) === '["promesa","oferta","garantia","preguntas-frecuentes","whatsapp","pie"]' && Object.keys(r.data?.required || {}).length === 6, 'list-templates: los seis bloques obligatorios de la venta completa', JSON.stringify(r.data?.templates?.[0]?.blocks?.map((b) => [b.key, b.required])));
   r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta con cierre', close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
   check(!r.isError && r.data.close_date === CIERRE && !r.data.pending.some((p) => /de cierre\]$/.test(p.placeholder)) && pg.status === 'draft' && !pg.widgets?.countdown, 'la venta corta (sin contador) llena sus textos de cierre con close_date', r.text.slice(0, 300));
@@ -213,8 +238,6 @@ async function main() {
   check(count1.publish === before.publish, 'ninguna página del kit se publicó', JSON.stringify({ before, count1 }));
 
   start('S6 Permisos, y lo que guarda una editora');
-  const editora = new Client('editora');
-  await editora.init();
   const sinHtml = new Client('editora-sin-html');
   await sinHtml.init();
   const avisos0 = await probe('notices', '0,0');
@@ -223,19 +246,18 @@ async function main() {
   if (r.data?.id) {
     pg = await probe('page', r.data.id);
     check(pg.status === 'draft', 'y queda en borrador');
-    pages.push({ id: r.data.id, template: 'venta-corta-editora', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+    pages.push({ id: r.data.id, template: 'venta-corta-editora-sin-datos', base: 'venta-corta', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
   }
-  // Las demás plantillas con un resalte de color en el título, creadas por la editora (sin manage_options: el núcleo le
-  // quita los atributos al título) y por una editora sin unfiltered_html (además, wp_kses_post() en todo): S7 las pinta
-  // y comprueba el color de cada resalte.
-  for (const [c, id] of [[editora, 'venta-completa'], [editora, 'captacion'], [editora, 'carrito'], [editora, 'oferta-unica'], [sinHtml, 'venta-corta'], [sinHtml, 'carrito']]) {
+  // Las plantillas con un resalte de color en el título, creadas por una editora sin unfiltered_html (además,
+  // wp_kses_post() en todo; las de la editora ya están en S2 y S3): S7 las pinta y comprueba el color de cada resalte.
+  for (const [c, id] of [[sinHtml, 'venta-corta'], [sinHtml, 'carrito']]) {
     const args = { template: id, title: `${id} de ${c.login}`, whatsapp: '5218711234567', replacements: { '[precio]': '1,997' } };
     if (!full[id].placeholders.some((p) => p.placeholder === '[precio]')) delete args.replacements;
     if (meta.find((t) => t.id === id).close_date) args.close_date = CIERRE;
     r = await c.call('create-page', args);
     pg = r.data?.id ? await probe('page', r.data.id) : {};
     if (check(!r.isError && r.data.status === 'draft' && pg.status === 'draft' && pg.spans === RESALTES[id] && pg.span_attrs === 0, `${id} creada por ${c.login}: borrador con sus ${RESALTES[id]} resaltes de título, sin atributos`, r.text.slice(0, 300) + JSON.stringify({ spans: pg.spans, span_attrs: pg.span_attrs }))) {
-      pages.push({ id: r.data.id, template: `${id}-${c.login}`, variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
+      pages.push({ id: r.data.id, template: `${id}-${c.login}`, base: id, variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: id === 'venta-completa' });
     }
   }
   // Guardar como editora no deja avisos de PHP (ni del kit ni del núcleo: el saneador de contenido y db.php).
@@ -269,7 +291,7 @@ async function main() {
     await page0.goto(`${base}/?digi_sk=login&token=${token}&value=admin`, { waitUntil: 'load' });
     await page0.close();
     const VISTAS = [
-      { nombre: 'escritorio', width: 1280, height: 900, deviceScaleFactor: 0.5 },
+      { nombre: 'escritorio', width: 1280, height: 800, deviceScaleFactor: 0.5 },
       { nombre: 'celular', width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true },
     ];
     for (const p of pages) {
@@ -287,16 +309,49 @@ async function main() {
         page.on('requestfailed', (req) => { if (req.url().startsWith(base)) fallidos.push(`falló ${req.url()}`); });
         const url = p.preview.replace(/^https?:\/\/[^/]+/, base);
         const resp = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
+        // La portada (v4): cabe en la primera pantalla, sin desplazar; el botón se ve entero. Se mide al cargar, con la
+        // barra de administración (la vista previa pide sesión), que un visitante no tiene: la prueba es más estricta.
+        const portada = PORTADAS.includes(p.base) ? await page.evaluate((pid) => {
+          const tops = [...document.querySelectorAll(`.elementor-${pid} > .elementor-element, .elementor-${pid} > .elementor-section-wrap > .elementor-element`)].filter((el) => !el.classList.contains('elementor-sticky__spacer'));
+          const el = tops.find((x) => x.querySelector('h1.elementor-heading-title'));
+          if (!el) return { error: 'sin portada (h1)' };
+          const r = el.getBoundingClientRect();
+          const btn = el.querySelector('.elementor-widget-button .elementor-button');
+          const b = btn ? btn.getBoundingClientRect() : null;
+          return { fondo: Math.round(r.bottom), alto: window.innerHeight, boton: b && Math.round(b.bottom), botonArriba: b && Math.round(b.top), videos: el.querySelectorAll('.elementor-widget-video, iframe, video').length, imagenes: el.querySelectorAll('.elementor-widget-image img').length, h1: el.querySelectorAll('h1').length, primera: tops.indexOf(el), anclaBoton: btn && btn.getAttribute('href') };
+        }, p.id) : null;
+        if (portada) {
+          await page.screenshot({ path: join(dir, 'capturas', `portada-${p.template}-${p.variant}-${v.nombre}.png`) }).catch(() => {});
+        }
         const alto0 = await page.evaluate(() => document.documentElement.scrollHeight);
         for (let y = 0; y < alto0; y += 700) { await page.evaluate((yy) => window.scrollTo(0, yy), y); await new Promise((res) => setTimeout(res, 40)); }
+        // La barra de cierre (01 con fecha real) queda fija arriba al desplazar.
+        let fija = null;
+        if (p.bar) {
+          await page.evaluate(() => window.scrollTo(0, 2400));
+          await new Promise((res) => setTimeout(res, 700));
+          fija = await page.evaluate((pid) => {
+            const barra = [...document.querySelectorAll(`.elementor-${pid} .elementor-element`)].find((el) => el.querySelector('.elementor-widget-countdown') && !el.classList.contains('elementor-sticky__spacer') && !el.closest('.elementor-sticky__spacer') && (el.classList.contains('elementor-section') || el.classList.contains('e-con')) && !el.parentElement.closest(`.elementor-${pid} .elementor-element`));
+            if (!barra) return { error: 'sin barra' };
+            const r = barra.getBoundingClientRect();
+            const barraAdmin = document.getElementById('wpadminbar');
+            const btn = barra.querySelector('.elementor-widget-button .elementor-button');
+            return { activa: barra.classList.contains('elementor-sticky--active'), arriba: Math.round(r.top), alto: Math.round(r.height), admin: barraAdmin ? Math.round(barraAdmin.getBoundingClientRect().height) : 0, scroll: Math.round(window.scrollY), espaciador: document.querySelectorAll(`.elementor-${pid} .elementor-sticky__spacer`).length, boton: !!btn && btn.getBoundingClientRect().height > 0, logo: (() => { const w = barra.querySelector('.elementor-widget-image'); return !w ? 'sin logo' : (w.getBoundingClientRect().width > 0 ? 'visible' : 'oculto'); })() };
+          }, p.id);
+          await page.screenshot({ path: join(dir, 'capturas', `barra-fija-${p.template}-${p.variant}-${v.nombre}.png`) }).catch(() => {});
+        }
         await page.evaluate(() => window.scrollTo(0, 0));
         await new Promise((res) => setTimeout(res, 600));
         const m = await page.evaluate((pid) => {
           const widgets = {};
+          // El efecto «fijo» deja en su lugar una copia de la barra (`.elementor-sticky__spacer`, invisible y del mismo
+          // alto): sus widgets no cuentan como pintados.
           document.querySelectorAll('.elementor-widget[data-widget_type]').forEach((el) => {
+            if (el.closest('.elementor-sticky__spacer')) return;
             const w = el.getAttribute('data-widget_type').split('.')[0];
             widgets[w] = (widgets[w] || 0) + 1;
           });
+          const redes = [...document.querySelectorAll(`.elementor-${pid} .elementor-social-icon`)].map((a) => ({ href: a.getAttribute('href') || '', icono: !!a.querySelector('svg, i'), visible: a.getBoundingClientRect().width > 0 }));
           let css = '';
           for (const sheet of document.styleSheets) {
             try { for (const rule of sheet.cssRules) css += rule.cssText + '\n'; } catch (e) { /* hoja de otro origen */ }
@@ -316,7 +371,8 @@ async function main() {
             ajenos: [...enCss].filter((id) => !ids.includes(id) && css.includes(`.elementor-${pid} .elementor-element.elementor-element-${id}`)),
             nIds: ids.length,
             textoMuestra: /52XXXXXXXXXX/.test(html),
-            resaltes: [...document.querySelectorAll(`.elementor-${pid} .elementor-heading-title span`)].map((sp) => ({ color: getComputedStyle(sp).color, titulo: getComputedStyle(sp.closest('.elementor-heading-title')).color, texto: sp.textContent.slice(0, 40) })),
+            resaltes: [...document.querySelectorAll(`.elementor-${pid} .elementor-heading-title span`)].filter((sp) => !sp.closest('.elementor-sticky__spacer')).map((sp) => ({ color: getComputedStyle(sp).color, titulo: getComputedStyle(sp.closest('.elementor-heading-title')).color, texto: sp.textContent.slice(0, 40) })),
+            redes,
           };
         }, p.id);
         await page.screenshot({ path: join(dir, 'capturas', `${p.template}-${p.variant}-${v.nombre}.png`), fullPage: true, captureBeyondViewport: true }).catch(() => {});
@@ -331,6 +387,20 @@ async function main() {
         const sinColor = m.resaltes.filter((x) => x.color === x.titulo || !COLORES_RESALTE.includes(x.color));
         check(m.resaltes.length === (p.spans ?? m.resaltes.length) && !sinColor.length, `${tag}: cada resalte de título con su color (${m.resaltes.length})`, JSON.stringify({ guardados: p.spans, pintados: m.resaltes.length, sinColor: sinColor.slice(0, 3) }));
         check(m.postCss && !m.sinCss.length && !m.ajenos.length, `${tag}: carga su CSS (cada widget y cada sección o contenedor de primer nivel del HTML tiene su regla; ninguna regla de otra versión)`, JSON.stringify({ postCss: m.postCss, sinCss: m.sinCss.slice(0, 5), ajenos: m.ajenos.slice(0, 5) }));
+        if (portada) {
+          check(!portada.error && portada.primera === (p.bar ? 1 : 0) && portada.videos === 0 && portada.imagenes === 1 && portada.h1 === 1 && /^#[a-z]/.test(portada.anclaBoton || ''), `${tag}: la portada va ${p.bar ? 'después de la barra' : 'primero'}, con el logo, la promesa y su botón a un bloque de la página, sin video`, JSON.stringify(portada));
+          check(!portada.error && portada.boton !== null && portada.botonArriba >= 0 && portada.boton <= portada.alto && portada.fondo <= portada.alto + 1, `${tag}: la portada cabe en la primera pantalla (${v.width}×${v.height}): el botón termina en ${portada.boton} px y la portada en ${portada.fondo} px`, JSON.stringify(portada));
+        }
+        if (fija) {
+          check(!fija.error && fija.activa && fija.scroll > 1000 && fija.arriba >= 0 && fija.arriba <= fija.admin + 2 && fija.alto > 20 && fija.boton && fija.espaciador === 1, `${tag}: la barra de cierre queda fija arriba al desplazar, con su botón (${fija.arriba} px tras ${fija.scroll} px)`, JSON.stringify(fija));
+          check(fija.logo === (v.nombre === 'celular' ? 'oculto' : 'visible'), `${tag}: el logo del evento en la barra ${v.nombre === 'celular' ? 'se oculta en celular' : 'se ve en escritorio'}`, JSON.stringify(fija));
+        }
+        if (REDES.includes(p.base)) {
+          check(m.redes.length === 5 && m.redes.every((x) => x.icono && x.visible) && m.redes.filter((x) => /^#/.test(x.href)).length === 4 && m.redes.filter((x) => x.href === 'https://wa.me/5218711234567').length === 1, `${tag}: cinco iconos de redes con su logo; los perfiles, con el enlace de muestra del sitio, y WhatsApp al número del sitio`, JSON.stringify(m.redes));
+          check(m.redes.every((x) => /^#/.test(x.href) || /^https:\/\/wa\.me\/[0-9]+$/.test(x.href)), `${tag}: ningún icono de red enlaza a la red`, JSON.stringify(m.redes));
+        } else {
+          check(!m.redes.length, `${tag}: sin iconos de redes`, JSON.stringify(m.redes));
+        }
         await page.close();
       }
     }
