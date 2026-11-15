@@ -984,7 +984,8 @@ trait Digitalisimo_Backups_Restore_Engine {
 		unset( $cursor['attempts'] );
 		// Sin tiempo en esta petición (la verificación la agotó), la copia previa sigue en la siguiente: un tramo de su
 		// exportación sin plazo no avanza, y tres seguidos la darían por imposible.
-		if ( min( Digitalisimo_Backups_Step_Budget::request_remaining(), Digitalisimo_Backups_Jobs::step_deadline() - microtime( true ) ) < 2 ) return array( 'next' => 'safety', 'checkpoint' => $cursor, 'wait' => 1, 'message' => 'Copia previa: sigue en la petición siguiente…' );
+		// Sólo el límite real de la petición: el plazo del tick es blando (cada tramo tiene al menos su mínimo).
+		if ( Digitalisimo_Backups_Step_Budget::request_remaining() < 2 ) return array( 'next' => 'safety', 'checkpoint' => $cursor, 'wait' => 1, 'message' => 'Copia previa: sigue en la petición siguiente…' );
 		$sub = (string) $cursor['sub'];
 		$spec = (array) $cursor['spec'];
 		// Los intentos de la subfase son los de la fase «safety» de la restauración: el motor los cuenta tras una muerte y
