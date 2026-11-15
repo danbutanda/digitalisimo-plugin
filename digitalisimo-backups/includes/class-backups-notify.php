@@ -233,6 +233,11 @@ final class Digitalisimo_Backups_Notify {
 			// Empezó a cambiar algo (la copia previa existe o es la vuelta a ella): «falló», no «se rechazó sin cambiar nada».
 			'started' => $rollback || ! in_array( (string) ( $job['phase'] ?? '' ), array( 'inspect', 'safety' ), true ),
 		);
+		// Restaurar por partes: qué se pidió (al terminar, el informe del aviso dice qué se restauró y qué no).
+		try {
+			$parts = class_exists( 'Digitalisimo_Backups_Restore_Parts' ) ? Digitalisimo_Backups_Restore_Parts::from_spec( $spec ) : null;
+			if ( null !== $parts ) $facts['parts'] = Digitalisimo_Backups_Restore_Parts::label( $parts );
+		} catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 		// Restaurar en otro sitio cambia cómo se entra (usuarios, ruta de acceso): avisa siempre al terminar, aunque los
 		// avisos de éxito estén apagados, a quien se avisaba en este sitio antes del SQL. El aviso empieza por cómo entrar.
 		if ( $ok && ! empty( $result['access']['relocated'] ) ) $snapshot['success'] = true;
@@ -253,6 +258,7 @@ final class Digitalisimo_Backups_Notify {
 			foreach ( (array) ( $facts['notes'] ?? array() ) as $note ) if ( '' !== (string) $note ) $lines[] = self::clean( (string) $note );
 			return self::send( $snapshot, true, 'Restauración terminada', $lines );
 		}
+		if ( '' !== (string) ( $facts['parts'] ?? '' ) ) $lines[] = 'Por partes: se pidió restaurar sólo ' . self::clean( (string) $facts['parts'] ) . '; lo demás no se tocó.';
 		$lines[] = 'Motivo: ' . self::clean( (string) ( $facts['message'] ?? 'La restauración falló.' ) );
 		return self::send( $snapshot, false, ! empty( $facts['started'] ) ? 'La restauración falló' : 'La restauración se rechazó sin cambiar nada', $lines );
 	}

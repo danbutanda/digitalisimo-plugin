@@ -65,6 +65,9 @@
 .digitalisimo-backups .digitalisimo-backups-list tr[hidden], .digitalisimo-backups [hidden] { display: none; }
 .digitalisimo-backups-restore-confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .digitalisimo-backups .digitalisimo-backups-restore-options fieldset label { margin-right: 16px; }
+.digitalisimo-backups .digitalisimo-backups-parts-list, .digitalisimo-backups .digitalisimo-backups-parts-items ul, .digitalisimo-backups .digitalisimo-backups-coherence { margin: 6px 0; padding: 0; list-style: none; }
+.digitalisimo-backups .digitalisimo-backups-parts-list li, .digitalisimo-backups .digitalisimo-backups-parts-items li, .digitalisimo-backups .digitalisimo-backups-coherence li { margin: 4px 0; }
+.digitalisimo-backups .digitalisimo-backups-coherence li, .digitalisimo-backups [data-restore-parts-summary] { color: var(--digi-pink-dark); }
 .digitalisimo-backups .digitalisimo-backups-strip ul { margin: 4px 0; padding: 0; list-style: none; display: block; }
 .digitalisimo-backups .digitalisimo-backups-strip li { margin: 6px 0; padding: 0; border: 0; background: none; }
 .digitalisimo-backups-strip li.is-error .digitalisimo-backups-strip-text { color: var(--digi-pink-dark); font-weight: 600; }

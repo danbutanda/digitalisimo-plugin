@@ -354,6 +354,10 @@ trait Digitalisimo_Backups_Screen {
 	private static function keep_access_field() {
 		return '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"></p>' . self::help_html( 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo. Con un respaldo de este mismo sitio vuelven las cuentas del respaldo.' );
 	}
+	/** «Qué restaurar» (restaurar por partes): ver Digitalisimo_Backups_Restore_Parts::field(). */
+	private static function restore_parts_field( $path = '', $items = false, $link = '', $summary = false ) { return Digitalisimo_Backups_Restore_Parts::field( $path, $items, $link, self::restore_layout() ) . ( $summary ? '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>' : '' ); }
+	/** Lo que envió «Qué restaurar»: ver Digitalisimo_Backups_Restore_Parts::from_request(). */
+	private static function restore_request_parts() { return Digitalisimo_Backups_Restore_Parts::from_request( $_POST ); }
 	/** El panel «Restaurar» bajo su fila: una frase, escribir RESTAURAR y el botón; las opciones, plegadas. */
 	private static function row_restore_form( array $item, $row_id, $shown ) {
 		$file = (string) $item['file'];
@@ -365,7 +369,10 @@ trait Digitalisimo_Backups_Screen {
 		wp_nonce_field( self::ACTION_RESTORE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="backup_file" value="' . esc_attr( $file ) . '">';
 		echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
+		// Restaurar por partes: lo que se reemplaza, a la vista sólo cuando no es todo (lo pone el script).
+		echo '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
+		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';
 		if ( '' !== $hint['label'] ) echo self::help_html( $hint['text'] );
 		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><label><input type="radio" name="addresses" value="current" checked> Las de este sitio</label> <label><input type="radio" name="addresses" value="backup"> Las del respaldo</label></fieldset>';

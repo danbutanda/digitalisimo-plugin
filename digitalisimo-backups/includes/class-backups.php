@@ -2547,7 +2547,9 @@ final class Digitalisimo_Backups {
 		if ( $loose ) { echo '<optgroup label="Archivos del almacén sin registro">'; foreach ( array_slice( $loose, 0, 100 ) as $file ) { $hint = self::relocation_hint( $dir . $file, $here ); echo '<option value="' . esc_attr( $file ) . '" data-relocation="' . esc_attr( $hint['text'] ) . '">' . esc_html( $file . ' · sin registro' . Digitalisimo_Backups_Security::restore_label( $dir . $file ) . $hint['label'] ) . '</option>'; } echo '</optgroup>'; }
 		echo '</select></p><p class="description" id="digitalisimo-backups-relocation" aria-live="polite">Si viene de otra dirección, carpeta o prefijo de tablas, se reescribe al restaurar.</p>' . self::help_html( 'Qué se reescribe: las URL (también en datos serializados, JSON y URL codificadas, con y sin www, http o https), las rutas del servidor, el prefijo de tablas y las claves que lo llevan y, en una red, el dominio y la ruta de cada sitio. No se tocan la columna guid de las entradas ni los correos.' );
 		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><p><label><input type="radio" name="addresses" value="current" checked> Las de este sitio (' . esc_html( $here['home'] ) . '): las del respaldo se cambian por éstas</label></p><p><label><input type="radio" name="addresses" value="backup"> Las del respaldo: el sitio queda en su dirección original</label></p>' . self::help_html( 'Con las del respaldo, las rutas del servidor y el prefijo de tablas siguen siendo los de este servidor.' ) . '</fieldset>' . self::keep_access_field();
-		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
+		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label></p>' . self::help_html( 'Sólo para un respaldo cifrado o firmado con una clave que este sitio no tiene (por ejemplo, al restaurar en otro servidor). No se guarda salvo que marques la casilla.' ) . '<p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p>';
+		// Restaurar por partes: las partes enteras (los plugins y temas concretos se eligen desde la fila del respaldo, REST o WP-CLI).
+		echo self::restore_parts_field( '', false, '', true ) . '<p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form>';
 		echo '<script>document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("digitalisimo-backups-restore-file"),p=document.getElementById("digitalisimo-backups-relocation");if(!s||!p)return;var d=p.textContent;s.addEventListener("change",function(){var o=s.options[s.selectedIndex];p.textContent=o&&o.dataset.relocation?o.dataset.relocation:d})})</script>';
 		if ( $loose ) {
 			// Sin fila no cuentan para la retención (prune_locked()): se eliminan a mano.
@@ -2672,7 +2674,8 @@ final class Digitalisimo_Backups {
 			// la termina; la cookie del testigo deja a este navegador verla durante el mantenimiento.
 			// «Conservar mi acceso»: encendido salvo que el formulario lo muestre desmarcado.
 			$keep = empty( $_POST['keep_access_shown'] ) || ! empty( $_POST['keep_access'] );
-			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) );
+			// «Qué restaurar»: con «Todo» marcado (o un formulario sin el campo), todo; si no, las partes marcadas.
+			$result = self::service_restore( wp_unslash( $_POST['backup_file'] ?? '' ), array( 'confirm' => $confirmation, 'network' => is_multisite(), 'secret' => $secret, 'adopt' => ! empty( $_POST['backup_secret_adopt'] ), 'addresses' => $addresses, 'keep_access' => $keep, 'via' => 'admin-post', 'sync' => false, 'drive_cli' => false ) + self::restore_request_parts() );
 			if ( is_wp_error( $result ) ) self::redirect( false, 'La restauración se detuvo: ' . $result->get_error_message() );
 			if ( ! empty( $result['restoring'] ) ) {
 				Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
@@ -2681,6 +2684,8 @@ final class Digitalisimo_Backups {
 			self::redirect( true, 'Restauración terminada. ' . ( ! empty( $result['access']['kept'] ) ? 'Revisa los enlaces permanentes.' : 'Entra de nuevo y revisa enlaces permanentes.' ) . ( '' !== $result['notice'] ? ' ' . $result['notice'] : '' ) );
 		}
 		// UpdraftPlus reemplaza también la instalación entera: en una red, sólo desde el sitio principal de la red principal.
+		// Su ruta es la de una sola petición (sin la restauración por pasos): no admite restaurar por partes.
+		if ( self::restore_request_parts() ) self::redirect( false, Digitalisimo_Backups_Restore_Parts::UPDRAFT );
 		$allowed = self::service_scope( is_multisite(), true );
 		if ( is_wp_error( $allowed ) ) self::redirect( false, 'La restauración se detuvo: ' . $allowed->get_error_message() );
 		$set = sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) );
@@ -3065,3 +3070,8 @@ final class Digitalisimo_Backups {
 	private static function history_item( $file ) { foreach ( (array) get_option( self::HISTORY, array() ) as $item ) if ( hash_equals( (string) ( $item['file'] ?? '' ), $file ) ) return $item; return array(); }
 	private static function remove_history( $file ) { self::change_history( function( &$history ) use ( $file ) { $history = array_values( array_filter( $history, function( $row ) use ( $file ) { return ! hash_equals( (string) ( $row['file'] ?? '' ), $file ); } ) ); } ); }
 }
+// Restaurar por partes: qué se elige de un respaldo completo y qué se avisa (el motor es el de la restauración por pasos).
+// Se carga con el plugin, nunca a demanda: el final de una restauración pone en su sitio la carpeta de este plugin del
+// respaldo (quizá de una versión sin este archivo) y después todavía escribe el informe (revisión A1). Va al final y su
+// lógica vive en la clase propia: en php-wasm, unos KB más de código en la clase principal suben 0,8 MB cada petición.
+require_once __DIR__ . '/restore/class-restore-parts.php';

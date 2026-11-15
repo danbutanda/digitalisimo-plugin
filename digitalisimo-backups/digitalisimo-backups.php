@@ -14,7 +14,8 @@ require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
 require_once __DIR__ . '/includes/class-digitalisimo-core.php';
 require_once __DIR__ . '/includes/class-digitalisimo-updater.php';
 require_once __DIR__ . '/includes/class-backups-rest.php';
-require_once __DIR__ . '/includes/class-backups-cli.php';
+// WP-CLI sólo en WP-CLI (define WP_CLI antes de cargar los plugins): cada tick web de 64 MB va justo de memoria.
+if ( defined( 'WP_CLI' ) && WP_CLI ) require_once __DIR__ . '/includes/class-backups-cli.php';
 require_once __DIR__ . '/includes/class-backups.php';
 // Al desactivar se retiran los disparadores de la cola; los trabajos se quedan en el almacén y se retoman o caducan.
 register_deactivation_hook( __FILE__, array( 'Digitalisimo_Backups_Jobs', 'deactivate' ) );
@@ -23,5 +24,5 @@ add_action( 'plugins_loaded', function() {
 	Digitalisimo_Backups_Updater::register();
 	Digitalisimo_Backups::init();
 	Digitalisimo_Backups_Rest::register();
-	Digitalisimo_Backups_Cli::register();
+	if ( class_exists( 'Digitalisimo_Backups_Cli', false ) ) Digitalisimo_Backups_Cli::register();
 } );

@@ -9,6 +9,12 @@ Un respaldo es **la instalación completa de WordPress, tratada como una unidad 
 `wp-content`, configuración y base de datos. En Multisite, un respaldo completo incluye la red entera, sus sitios y
 tablas. Un archivo parcial no puede llamarse respaldo completo.
 
+**Decisión del propietario (2026-11-13): no hay respaldos parciales.** La pregunta I2 (respaldos «sólo base de datos» o
+«sólo archivos», como los de Backuply) se cierra con **no**: todo respaldo, manual o automático, es siempre completo.
+Lo que sí se elige es qué parte de un respaldo completo vuelve al sitio: **restaurar por partes** (ver «Restaurar por
+partes»), «para restaurar únicamente lo que se necesita en un caso dado». Los incrementales (rama
+`backups/incremental`) son puntos de restauración completos, nunca respaldos parciales.
+
 El objetivo sigue **abierto** hasta demostrar respaldo, verificación, transferencia, restauración y migración
 completos, incluso a otro servidor o dominio, sin depender del hosting de origen. Cada cambio conserva los datos
 existentes y las funciones utilizables mientras sustituye los caminos inseguros.
@@ -88,6 +94,7 @@ automatización → compatibilidad → rendimiento → experiencia de usuario.
 | **Hallazgos del ensayo E5 (H26, H27).** H26: el aviso de la configuración del respaldo pendiente concuerda en número («1 automatización … que no se aplicó») y cuenta las automatizaciones como «Aplicar la del respaldo» (las activas de la configuración del respaldo, que quedan en pausa; antes decía 1 y después «2 en pausa»). Antes de aplicarla, la franja (a la vista, nunca plegado), el aviso del escritorio y `restore-config status` dicen lo que se pierde (las conexiones con nombre y las automatizaciones de este sitio que el respaldo no trae, con su nombre si cabe en 140 caracteres), y la pantalla sólo aplica escribiendo `APLICAR` (lo comprueba el handler; REST y WP-CLI siguen igual). H27: al actualizar, una sola vez, salen del historial las filas «Sin copias» que dejó 1.0.71 (sin ZIP ni copia remota registrada; nunca una bloqueada, con la marca de una migración o con algún archivo con su nombre), con la marca `digitalisimo_backups_data_version` en el ámbito del historial; y para que no vuelvan, la retención local (la de una automatización y la global de los manuales) retira en la misma pasada la fila cuyo ZIP borra si se queda sin ninguna copia (una con copia remota sigue hasta que H22 la retira). | 1.0.75 | `backups-restore-pending-config.php`, `backups-simple-screen.php`, `backups-simple-screen-chrome.mjs` y `backups-e5-findings.php` (fallan con `fd4423a3`) |
 | **Quien restaura en otro sitio sigue entrando (incidente de /wp del 2026-11-12).** Con el respaldo de otra instalación (sin la identidad de H23: otro sitio, un sitio extraído o una migración), «Conservar mi acceso» (pantalla, encendido), `keep_access` (REST, por defecto `true`) y `--[no-]keep-access` (WP-CLI, con el usuario de `--user`; sin usuario, nadie) conservan la cuenta de quien lanza la restauración (una cuenta del paquete con su usuario que no era administradora sólo cambia de usuario; la decisión va al diario antes de escribir): su fila (hash y correo), sus sesiones y sus contraseñas de aplicación se apuntan cifradas en el diario antes del cambio de tablas y vuelven tras el SQL, también si el proceso muere entre medias; queda como administrador (y superadministrador en una red) y la cookie de su navegador sigue valiendo (las claves y sales que WordPress guarda en la base, si `wp-config.php` no las define, también se conservan). Sólo esa cuenta. En el mismo sitio no aplica: vuelven las cuentas del respaldo (tras un hackeo no se reviven las credenciales de ahora). La ruta privada de acceso (Tools/SEO) es la de este sitio, nunca la del respaldo, y el informe (pantalla, respuesta REST, `jobs get`, aviso persistente y correo, que sale siempre tras restaurar en otro sitio) empieza por «Cómo entrar ahora: <URL efectiva>» con quién puede entrar y qué cambió. Causa del 401 de las contraseñas de aplicación del paquete: `using_application_passwords` es una opción de red (en una red vive en `sitemeta`) y la extracción no la lleva; sin ella WordPress no mira ninguna contraseña de aplicación (`rest_not_logged_in`). Ahora cualquier restauración la activa si algún usuario las tiene. Ficha de lectura del trabajo (completa H18, que era sólo la cookie): `restore` y `migration/pull` la entregan una vez (`follow`); `GET /jobs/<id>` con la cabecera `X-Digitalisimo-Backups-Job-Token` lee sólo ese trabajo, sin sesión, también durante el mantenimiento (la puerta deja pasar sólo ese GET, con WordPress mínimo) y con otros usuarios, hasta 24 h después de terminar (7 días como mucho); sólo su SHA-256 se guarda. La barra de «Subir un respaldo» consulta el estado mientras se comprueba el archivo y llega a 100 % con «verificado» en cuanto `GET /uploads` dice `phase=done`, aunque la respuesta del cierre no llegue nunca; cada petición tiene plazo. Ver «Quien restaura sigue entrando». | 1.0.76 | `backups-keep-access.php`, `backups-upload-ui.mjs`, `backups-site-extract.php` y, en Playground, `tests/playground/backups-keep-access.sh` |
 | **Incrementales confiables (cadena íntegra).** Una automatización (o un respaldo manual pedido así) puede ser incremental: un completo empieza la cadena y cada incremental guarda sólo los archivos nuevos o cambiados (por SHA-256), la lista de borrados, el inventario completo del punto y la base de datos entera; nombra a todos sus antecesores por el SHA-256 de su manifiesto firmado. Cada incremental es un punto de restauración completo: restaurarlo (o verificarlo) comprueba antes la cadena entera y reconstruye por tramos (trabajo `chain`) el respaldo completo de ese momento, que entra en la restauración de siempre; sin historial (recuperación ante desastre) el punto y su cadena se reconocen por sus manifiestos, y «Traer al almacén» de un punto trae su cadena. La retención cuenta puntos y nunca borra un eslabón del que dependa un punto conservado (local, remota y manual); un completo nuevo cada N incrementales o D días; «Traer al almacén» de un punto trae su cadena. Ver «Incrementales». | rama `backups/incremental` (sin publicar) | `backups-incremental.php`, `backups-incremental-remote.php`, `tests/playground/backups-incremental.sh` |
+| **Restaurar por partes (decisión del 2026-11-13).** De un respaldo completo (propio, subido, traído de un destino o importado de Backuply) se elige qué vuelve: base de datos, núcleo de WordPress (todo lo que está fuera de wp-content, nunca `wp-config.php`), plugins, temas, medios, mu-plugins y el resto de wp-content; dentro de plugins y temas, plugins o temas concretos (los que trae el respaldo), y en una red, los medios de un sitio. Es la misma restauración por pasos que la completa (la selección viaja en la especificación del trabajo, `parts`; sin ella, todo): la misma verificación del paquete entero (SHA-256, firma, SQL en seco), la copia previa **completa** bloqueada, el mantenimiento, la reanudación y la vuelta automática a la copia previa, que repone sólo las mismas partes; «Volver a la copia previa» igual. Lo que no se eligió no se recorre, ni se compara, ni se prepara, ni se cambia: sin la base de datos ninguna tabla se toca (ningún `RENAME`) y sin una parte de archivos ninguno de sus archivos. Con la base de datos rigen la reubicación de E1, la configuración de Backups de H23 y el acceso de quien restaura de 1.0.76, como en la completa. Los medios sin la base de datos conservan lo subido después (la biblioteca de ahora lo usa) salvo lo que PHP puede ejecutar. Avisos de coherencia (nunca bloquean) antes de confirmar; pantalla («Qué restaurar», plegado y con «Todo» marcado), REST (`parts`, `plugins`, `themes`, `sites` en `verify` y `restore`) y WP-CLI (`--parts`, `--plugins`, `--themes`, `--sites`) con el mismo caso de uso; el informe, el aviso y el correo dicen qué se restauró y qué no. Ver «Restaurar por partes». | sin publicar (rama `backups/selective-restore`) | `backups-restore-parts.php`, `backups-restore-parts-surfaces.php`, `backups-restore-parts-ui.mjs` y, en Playground, `tests/playground/backups-restore-parts.sh` |
 
 Ensayos en WordPress Playground 7.1.2 (SQLite): respaldo y restauración de un sitio (ZIP de 37 MB, 3792 archivos) y
 de una red con un segundo sitio; en ambos un cambio posterior al respaldo volvió a su valor anterior y el historial
@@ -285,6 +292,13 @@ después, sitio y red).
   dirección. Sin JavaScript, el enlace lleva `?restore=<archivo>` y PHP pinta el panel abierto. El formulario y su
   handler son los de siempre. Clics: respaldar 1; restaurar 2 más escribir la palabra; programar 3 («Ajustes»,
   frecuencia, «Guardar»); descargar 1; añadir un destino 3 más sus campos.
+- **Qué restaurar** (restaurar por partes): entre la confirmación y «Opciones», plegado («Qué restaurar: todo»), así que
+  el panel sigue enseñando sólo la frase, la confirmación y el botón. Dentro, «Todo» marcado y las siete partes con lo
+  que reemplaza cada una; en el panel abierto de un ZIP que se puede leer (`?restore=<archivo>`, o «Elegir plugins, temas
+  o sitios concretos», que lo abre con `parts=1`), los plugins y temas del respaldo y, en una red, sus sitios con medios.
+  El script marca y desmarca («Todo» marca las partes; una parte entera y sus concretos se excluyen), pone el resumen
+  «Se restaura sólo: …. Lo demás no se toca.» junto a la confirmación y deja a la vista sólo los avisos de coherencia que
+  aplican (sin JavaScript se leen todos y manda «Todo»). «Restaurar un archivo suelto» tiene las mismas partes enteras.
 - **Franja de avisos.** Una sola `div.notice` arriba reúne, en una línea cada uno y con su detalle plegado:
   - el estado de una restauración (con «Volver a la copia previa» cuando el sitio quedó a medio cambiar);
   - la configuración pendiente o «sin automatizaciones activas» tras restaurar (H23), con «Aplicar la del respaldo»,
@@ -320,8 +334,8 @@ restaurar y verificar trabajan en la misma petición.
 | `GET /status` | `wp digitalisimo-backups status [--format=json]` | Si la instalación puede respaldarse completa (y por qué no), operación y trabajos en curso, ubicación de `wp-config.php`, destinos, cifrado, «sólo firmados», origen de la clave (`wp-config`, `passphrase` o `none`), credenciales de los destinos (`credentials`: `none`, `encrypted`, `pending`, `unprotected` o `needs_reentry`, y `credentials_notice` con qué hacer, nunca un valor), último respaldo y automatizaciones. `restoring` y `restore` (`state`: `none`, `running`, `interrupted`, `rollback`, `failed`, `failed_midway`, `rolled_back` o `cancelled`, con fase, avance, copia previa y `notice`) dicen qué pasa con una restauración sin terminar o que no terminó bien. Desde 1.0.63, `notifications`: si avisan los fallos y los éxitos y si el correo es propio (`custom`) o el de administración (nunca la dirección). |
 | `GET /backups` | `wp digitalisimo-backups list [--fields=…] [--format=…]` | Historial, del más reciente al más antiguo: tamaño, SHA-256, destino, alcance, contenedor (`zip` o `dgbk`), firma, huella corta de la clave, si falta la clave (`needs_secret`), bloqueo y si es restaurable aquí. Desde 1.0.63, `copies` enumera las copias (la local, si el ZIP sigue en el almacén, y la remota con su estado: `ok`, `pending`, `failed`, `cancelled` o `legacy`), `destination` es a dónde se envió y `restorable` sólo exige el ZIP local completo (en WP-CLI, la columna `copies`: «local, google»). |
 | `POST /backups` (`destination`, `network`, `incremental`, `full_every`, `full_days`) | `wp digitalisimo-backups create [--destination=…] [--incremental [--full-every=N] [--full-days=D]] [--network] [--async] [--porcelain]` | Encola el respaldo completo de la instalación o de la red (con `incremental`, un punto incremental de la cadena de los manuales, que también es un punto de restauración completo: ver «Incrementales»). REST responde 202 con el trabajo; WP-CLI lo hace avanzar hasta que queda verificado (y copiado, con destino remoto) o, con `--async`, sólo lo encola. |
-| `GET\|POST /backups/<archivo>/verify` (`secret`, `addresses`) | `wp digitalisimo-backups verify <archivo> [--secret-file=…\|--secret-stdin] [--addresses=current\|backup]` | Sin tocar el sitio, las mismas comprobaciones del paquete que la restauración: SHA-256 del historial, firma o registro, descifrado completo de un `.dgbk`, entradas, CRC y SHA-256 de cada una contra el manifiesto, manifiesto v3 estricto y el SQL en seco. Informa la confianza, la confirmación que pedirá, si las condiciones de esta instalación lo admiten (`problems` dice qué cambiar) y, en `relocation`, «Origen → este sitio» y qué se reescribiría al restaurarlo (direcciones, rutas del servidor, prefijo, sitios de la red). Desde 1.0.63, `wp_config`: las constantes de `wp-config.php` que difieren entre el respaldo y este servidor (WP-CLI las lista, sin valores secretos ni rutas). |
-| `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`, `keep_access`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret] [--addresses=current\|backup] [--[no-]keep-access]` | Restauración por pasos (ver «Restauración por pasos») con la copia previa bloqueada. REST avanza lo que cabe en la petición y responde 202 con `restoring`, el trabajo (`job`) y `maintenance_token` (el testigo que deja pasar sus ticks durante el mantenimiento; también llega como cookie) si sigue, o 200 con el resultado si terminó; `POST /jobs/tick` o la pantalla la terminan. WP-CLI la hace avanzar hasta terminar. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. Un respaldo de otra dirección, carpeta o prefijo se reubica: `addresses` `current` (por defecto, el sitio conserva sus direcciones) o `backup` (conserva las del respaldo); la respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final, y el aviso lo resume. Otro valor responde 400 (`addresses`). Desde 1.0.76, `keep_access` (por defecto `true`; en WP-CLI, el usuario de `--user`) conserva la cuenta de quien restaura con el respaldo de otra instalación; la ruta de acceso de este sitio se conserva siempre en otro sitio (ver «Quien restaura sigue entrando»); la respuesta (202 tras 25 s de trabajo como mucho, o 200) lleva `follow`, la ficha de lectura del trabajo, y al terminar `access` con «Cómo entrar ahora». |
+| `GET\|POST /backups/<archivo>/verify` (`secret`, `addresses`, `parts`, `plugins`, `themes`, `sites`) | `wp digitalisimo-backups verify <archivo> [--secret-file=…\|--secret-stdin] [--addresses=current\|backup] [--parts=…] [--plugins=…] [--themes=…] [--sites=…]` | Sin tocar el sitio, las mismas comprobaciones del paquete que la restauración: SHA-256 del historial, firma o registro, descifrado completo de un `.dgbk`, entradas, CRC y SHA-256 de cada una contra el manifiesto, manifiesto v3 estricto y el SQL en seco. Informa la confianza, la confirmación que pedirá, si las condiciones de esta instalación lo admiten (`problems` dice qué cambiar) y, en `relocation`, «Origen → este sitio» y qué se reescribiría al restaurarlo (direcciones, rutas del servidor, prefijo, sitios de la red). Desde 1.0.63, `wp_config`: las constantes de `wp-config.php` que difieren entre el respaldo y este servidor (WP-CLI las lista, sin valores secretos ni rutas). Restaurar por partes: `parts` dice qué trae el respaldo (`available`: partes, plugins, temas y, en una red, sitios con medios), qué reemplazaría la selección pedida (`replaces`, con los plugins y temas que se retirarían y si están activos), qué no toca (`untouched`), lo elegido que el respaldo no trae (`missing`, también en `problems`) y los avisos de coherencia (`coherence`); WP-CLI lo imprime antes de la línea de éxito. |
+| `POST /backups/<archivo>/restore` (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`, `keep_access`, `parts`, `plugins`, `themes`, `sites`) | `wp digitalisimo-backups restore <archivo> --confirm=… [--network] [--secret-file=…\|--secret-stdin] [--adopt-secret] [--addresses=current\|backup] [--[no-]keep-access] [--parts=…] [--plugins=…] [--themes=…] [--sites=…]` | Restauración por pasos (ver «Restauración por pasos») con la copia previa bloqueada. REST avanza lo que cabe en la petición y responde 202 con `restoring`, el trabajo (`job`) y `maintenance_token` (el testigo que deja pasar sus ticks durante el mantenimiento; también llega como cookie) si sigue, o 200 con el resultado si terminó; `POST /jobs/tick` o la pantalla la terminan. WP-CLI la hace avanzar hasta terminar. `RESTAURAR` para un archivo firmado o registrado aquí; `RESTAURAR SIN FIRMA` para uno sin firma ni registro. Con `adopt_secret` o `--adopt-secret`, la frase escrita firma y cifra los respaldos nuevos. Un respaldo de otra dirección, carpeta o prefijo se reubica: `addresses` `current` (por defecto, el sitio conserva sus direcciones) o `backup` (conserva las del respaldo); la respuesta lleva `relocation` con lo reescrito por tabla, las cachés vaciadas y la comprobación final, y el aviso lo resume. Otro valor responde 400 (`addresses`). Desde 1.0.76, `keep_access` (por defecto `true`; en WP-CLI, el usuario de `--user`) conserva la cuenta de quien restaura con el respaldo de otra instalación; la ruta de acceso de este sitio se conserva siempre en otro sitio (ver «Quien restaura sigue entrando»); la respuesta (202 tras 25 s de trabajo como mucho, o 200) lleva `follow`, la ficha de lectura del trabajo, y al terminar `access` con «Cómo entrar ahora». Restaurar por partes (ver «Restaurar por partes»): `parts` (lista o texto con comas: `database`, `core`, `plugins`, `themes`, `uploads`, `mu-plugins`, `content`; sin ella o con `all`, todo), `plugins` y `themes` (concretos) y `sites` (medios de sitios de la red); una selección inválida responde 400 (`parts`) y lo concreto que el respaldo no trae, 422, sin tocar nada; la respuesta lleva `parts` (qué se restaura, qué no y los avisos de coherencia). WP-CLI imprime antes qué reemplaza, qué no toca y los avisos. |
 | `POST /backups/<archivo>/fetch` (`network`) | `wp digitalisimo-backups destinations fetch <archivo> [--from=<destino>] [--network]` | Desde 1.0.62, «Traer al almacén»: descarga en streaming la copia remota de una fila del historial, la compara con su SHA-256 registrado y la deja en el almacén privado para verificarla o restaurarla; si ya está, no hace nada. Escribe en el almacén de toda la instalación: en una red pide el alcance de red, como crear o restaurar, y toma el cerrojo de operaciones (409 si hay otra en curso). Si la conexión de la fila se eliminó, responde 410 con qué hacer. Desde 1.0.69 es un trabajo `fetch` por fragmentos con reanudación: 200 con el resultado si terminó en la petición, 202 con el trabajo si sigue (lo terminan `POST /jobs/tick`, la pantalla o WP-Cron); WP-CLI espera a que termine. |
 | `GET /destinations` | `wp digitalisimo-backups destinations list [--format=…]` | Desde 1.0.62: cada destino remoto (la conexión principal de cada tipo y las adicionales) con su tipo, nombre, si está listo y, si sus credenciales no se abren, qué volver a escribir; nunca un valor secreto. |
 | `POST /destinations/<id>/test` | `wp digitalisimo-backups destinations test <id>` | Desde 1.0.62, «Probar conexión» de una conexión guardada: sube un archivo pequeño, lo verifica, lo descarga, lo busca al listar y lo borra (502 con el motivo si falla). |
@@ -981,6 +995,129 @@ si la frase cabe en 140 caracteres (si no, sólo cuántas); en la franja de Back
 
 Además, tras cualquier restauración (también de este mismo sitio) que deja el sitio sin ninguna automatización activa,
 el aviso lo dice.
+
+## Restaurar por partes
+
+Decisión del propietario del 2026-11-13: los respaldos siguen siendo siempre completos (I2 = no, ver «Objetivo») y
+**restaurar por partes, sí**, «para restaurar únicamente lo que se necesita en un caso dado». Se elige qué parte de un
+respaldo completo vuelve al sitio; nunca se crea un archivo parcial.
+
+**Qué se elige** (`Digitalisimo_Backups_Restore_Parts`, la única fuente de las partes, los avisos y el informe):
+
+| Parte (`parts`) | Qué reemplaza |
+| --- | --- |
+| `database` | Todas las tablas de este WordPress, con las mismas reglas que la restauración completa (abajo). |
+| `core` | wp-admin, wp-includes y lo demás fuera de wp-content (los archivos de la raíz, su `.htaccess`); nunca `wp-config.php`. |
+| `plugins` | La carpeta de plugins entera: los que el respaldo no tiene (instalados después) se retiran. |
+| `themes` | La carpeta de temas entera, igual. |
+| `uploads` | Los medios del respaldo; con la base de datos se retira lo que el respaldo no tiene, sin ella se conserva lo subido después (la biblioteca de ahora lo usa) salvo lo que PHP puede ejecutar (`.php`, `.phtml`, `.phar`…), que nunca es un medio. |
+| `mu-plugins` | La carpeta de mu-plugins entera. |
+| `content` | El resto de wp-content: idiomas, drop-ins (`object-cache.php`, `advanced-cache.php`, `db.php`) y otras carpetas. Como en la completa, lo que el respaldo no tiene aquí se conserva. |
+
+Además, **plugins o temas concretos** (`plugins`, `themes`: el nombre de su carpeta o, en un plugin de un solo archivo,
+el del archivo): sólo esa carpeta se reemplaza entera, como en el respaldo; los demás no se tocan. Deben estar en el
+respaldo (la lista sale de las entradas del ZIP: la pantalla la pinta, `verify` la da en `parts.available` y
+`wp … verify` la imprime); si no, 422 antes de tocar nada. Y **en una red, los medios de un sitio** (`sites`: 1 es el
+principal, cuyos medios son los que no están en `uploads/sites/`), salvo en una red con el sistema antiguo de
+`blogs.dir` (`ms_files_rewriting`), donde sólo se eligen los medios enteros.
+
+Una parte cuenta por la carpeta real de esta instalación (`restore_layout()`): la raíz más larga gana, así que unos
+medios dentro de wp-content son medios y no «resto»; lo que está fuera de wp-content es núcleo. Una carpeta que el sitio
+no tiene (un sitio nuevo sin mu-plugins) sigue siendo su parte, por su ruta configurada: sus archivos del respaldo nunca
+cuentan como «resto» (revisión A2). Elegir una parte entera que el respaldo no trae se rechaza (422), como un plugin
+concreto que no trae: retiraría lo de ahora sin traer nada. Una selección presente y vacía (`parts=`, `--plugins=`, la
+pantalla con todo desmarcado) responde 400: nunca es «todo». Con «Todo» marcado, marcar un plugin, tema o sitio
+concreto empieza de cero (sólo eso), en el navegador y sin JavaScript.
+
+**Igual de segura que la completa.** Es la misma restauración por pasos (`Digitalisimo_Backups_Restore_Job`) con la
+selección en la especificación del trabajo (`spec.parts`; null es todo, la de siempre): la restauración de un
+incremental, que primero reconstruye un respaldo completo virtual, entra por el mismo `service_restore()` con la misma
+selección.
+
+- **Verificación:** el paquete se verifica entero, como siempre (entradas, CRC y SHA-256 de cada una contra el
+  manifiesto, firma o registro, el SQL en seco con el guardián, el plan de origen a destino), aunque sólo se use una
+  parte: un paquete con una parte alterada no se restaura por ninguna. El espacio libre cuenta sólo lo elegido. Un
+  sitio extraído de una red se restaura entero (sus reglas de cuentas, plugins y ajustes son del paquete entero): por
+  partes, 422.
+- **Copia previa:** la de siempre, un respaldo **completo** bloqueado en el historial. Contiene lo que se va a
+  reemplazar (y lo demás). Una copia previa sólo de lo elegido sería un archivo parcial, que esta decisión excluye, y
+  exigiría cambiar la creación de respaldos (otra rama en paralelo la está cambiando). Su coste es el de siempre.
+- **Pasos, mantenimiento y reanudación:** las mismas fases, puntos de control, tramos y puerta del mantenimiento.
+  Sin la base de datos, la fase «base de datos» no importa nada (`tables.json` vacío): ninguna tabla temporal, ningún
+  `RENAME`, y el historial, el llavero, las credenciales, la configuración de Backups y las cuentas siguen como están;
+  tampoco se aplica la reubicación de las tablas (son las de este sitio).
+- **Lo que no se eligió no se toca:** ni se recorre (una carpeta que no lleva a lo elegido ni se abre: los medios de
+  un sitio grande no se recorren al restaurar un plugin), ni se compara, ni se prepara, ni se mueve, ni se retira.
+  `tests/backups-restore-parts.php` y `tests/playground/backups-restore-parts.sh` lo comprueban con la huella de cada
+  archivo y de cada tabla antes y después.
+- **Vuelta a la copia previa:** si falla después de empezar el cambio, la vuelta automática (y «Volver a la copia
+  previa» o `wp digitalisimo-backups jobs rollback`) restaura desde la copia previa completa **sólo las mismas partes**
+  (hereda `parts`): lo que la restauración trajo y la copia no tiene (un plugin que ya no estaba en el sitio, un medio
+  borrado antes, también en «medios» sin la base) se retira,
+  y lo no elegido no se toca tampoco al volver. Sin la base de datos, el sitio se da por cambiado en cuanto empieza el
+  cambio (no hay tablas que lo decidan): ante la duda, se vuelve.
+- **Con la base de datos**, las mismas reglas que la completa: reubicación de E1 (direcciones, rutas, prefijo, red),
+  configuración de Backups de este sitio (H23), acceso de quien restaura y ruta de acceso (1.0.76) y el diario de una
+  restauración interrumpida.
+
+**Coherencia.** Restaurar sólo archivos de plugins sin la base, o la base sin archivos, puede dejar un sitio incoherente
+(versiones de plugins y esquema). Antes de confirmar se avisa, sin bloquear (`RULES`): plugins, temas, núcleo o medios
+sin la base de datos; la base sin todos los plugins, sin los temas, sin el núcleo o sin los medios; el resto de
+wp-content (drop-ins) sin los plugins. Cada aviso dice el riesgo y qué conviene elegir junto. Con un ZIP legible, la
+confirmación nombra además los plugins y temas que se retirarían por no estar en el respaldo y avisa si alguno está
+activo. La pantalla evalúa las mismas reglas en el navegador (`tests/backups-restore-parts-ui.mjs` las lee del PHP).
+
+**Superficies.** Pantalla: «Qué restaurar» del panel de cada fila y de «Restaurar un archivo suelto» (ver «Pantalla»).
+REST: `parts`, `plugins`, `themes` y `sites` en `verify` y `restore`. WP-CLI: `--parts`, `--plugins`, `--themes` y
+`--sites` en `verify` y `restore`. Las tres llaman a `service_restore()` y `service_verify()`.
+
+**Informe.** El resultado (pantalla, REST, WP-CLI) lleva `parts`: `all`, `restored` (las partes y los concretos),
+`not_restored`, `label` y `coherence`; el aviso empieza por «Restauración por partes: se restauró …; no se tocó …»,
+que también lleva el correo de una restauración terminada; el de una que falla dice qué se pidió. El estado de una
+restauración en curso y `digitalisimo_backups_last_restore` nombran la selección.
+
+**Fuera, y por qué.**
+
+- **La base de datos de un sitio de la red.** Las tablas de un sitio (`wp_N_*`) dependen de tablas globales que no
+  serían del mismo momento: los usuarios y sus roles en ese sitio (`usermeta`, `wp_N_capabilities`), `blogs`, `site` y
+  `sitemeta`. La reubicación de E1, el cambio atómico de tablas, H23 y la conservación del acceso están pensados para la
+  base entera. Restaurar sólo esas tablas podría dejar entradas con autores que no existen o cuentas sin su rol, sin
+  forma de detectarlo antes; no se ofrece. Los medios de un sitio sí (son archivos), y para recuperar un sitio entero
+  está «Extraer un sitio de la red».
+- **UpdraftPlus** sigue restaurándose en una sola petición (sin la restauración por pasos): entero; por partes se
+  rechaza. Backuply sí, porque su importación deja un ZIP de Backups que se restaura por pasos.
+- **Un respaldo cifrado** (`.dgbk`): la pantalla ofrece las partes enteras, pero sus plugins y temas concretos sólo se
+  ven al descifrarlo (`verify` por REST o WP-CLI con la frase); se eligen por REST o WP-CLI.
+
+**Memoria (64 MB).** El archivo de WP-CLI (`class-backups-cli.php`, unos 208 KB compilados) se carga sólo en WP-CLI,
+que define `WP_CLI` antes de cargar los plugins. La clase de las partes se carga con el plugin, nunca a demanda (revisión
+A1: el final de una restauración pone en su sitio la carpeta de Backups del respaldo, quizá de una versión sin ese
+archivo, y después todavía escribe el informe), al final de `class-backups.php`, y la lógica de las partes vive en ella:
+en Playground (php-wasm, sin opcache) la clase principal estaba al borde de un escalón de memoria. Medido con WordPress
+cargado: el motor de la restauración (`trait-backups-restore-engine.php`) con entre 20 y 50 sentencias más, o con
+6 KB más de literales, sube 0,8 MB **cada petición** (10,34 → 11,14 MB al incluir los plugins); 6 KB de comentarios
+`//` no cambian nada y, en cambio, los docblocks `/** */` sí cuentan (PHP los guarda con cada método). Con esos 0,8 MB,
+la verificación de una restauración y el empaquetado de un respaldo agotaban los 64 MB (`fread()` de 1 MiB por archivo)
+donde main pasaba. Por eso los comentarios de la segunda mitad del motor son `//`: con todo lo de esta función, la carga
+queda igual que en main (10 337 272 frente a 10 336 648 bytes). Cualquier cambio futuro del motor debe medirse así
+(`tests/playground/backups-restore-parts.sh` anota la memoria de cada petición en `ctl/memory.jsonl`).
+
+**Ensayo en Playground** (`tests/playground/backups-restore-parts.sh`, WordPress con los límites del propietario: 64 MB y
+30 s, también al crear el respaldo de referencia; respaldo desde la pantalla, restauraciones por REST que avanzan sólo con
+ticks web). Con la huella de cada tabla y de cada archivo antes y después: sólo la base de datos (las tablas como en el
+respaldo, ningún archivo distinto), sólo el plugin «demo», sólo los medios (lo subido después se conserva, el `.php`
+inyectado sale), sólo los temas (sale el instalado después), los plugins con una falla a mitad del cambio (la vuelta a la
+copia previa deja todo idéntico) y, en otro sitio de otra dirección, sólo la base de datos del primero (E1: sus datos con
+las direcciones de este sitio, 0 URL del origen pendientes, ningún archivo distinto, quien restaura sigue entrando).
+Validado en 1 446 s y, con el código final (a113acd3), en 1 425 s (sitio y otra dirección) y 554 s (red); una petición de la verificación agotó los 64 MB y el trabajo siguió desde su punto de control, como
+pasa con main. Una diferencia en `wp_options` sólo cuenta si no es de las que WordPress escribe solo (cachés,
+`recovery_keys` tras un fatal). En una red: sólo los medios del subsitio (los del principal intactos) y sólo la base de
+datos.
+
+**Límites declarados.** La verificación y la copia previa cuestan lo mismo que en la completa (todo el paquete y todo
+el sitio), aunque se restaure un plugin. El plan de reubicación se calcula y sus problemas rechazan el respaldo también
+sin la base de datos (las mismas reglas). Las vistas SQL sólo impiden restaurar la base de datos. No probado en MySQL
+real ni en el hosting del laboratorio.
 
 ## Extraer un sitio de la red
 
