@@ -355,9 +355,11 @@ def venta_completa():
                                    ("fas fa-handshake", "Para tus clientes", "[Qué reciben ellos]"),
                                    ("fas fa-seedling", "Para tu futuro", "[Qué construyes a largo plazo]"))],
                  margen_sup=16),
-        texto("<p style=\"text-align:center\">[El cálculo honesto: si con lo que aprendes consigues [un cliente de "
-              "$X al mes], en un año son $[Y]. Es un ejemplo, no una promesa: el resultado depende de cada "
-              "persona.]</p>", color="#DCEBFA", alinear="center", tam=17),
+        # Sin cifras con «$»: el precio, y toda cifra en pesos, va sólo en la oferta (la v4 decía «[un cliente de $X al
+        # mes], en un año son $[Y]»).
+        texto("<p style=\"text-align:center\">[El cálculo honesto: si con lo que aprendes consigues [un cliente que te "
+              "paga [cantidad] al mes], en un año son [la cuenta, en pesos]. Es un ejemplo, no una promesa: el "
+              "resultado depende de cada persona.]</p>", color="#DCEBFA", alinear="center", tam=17),
         fondo=PROFUNDO, nota="16 · Cuánto vale para ti"))
 
     # 17. La oferta.
@@ -538,11 +540,20 @@ CAMPOS_REGISTRO = [
 
 def captacion():
     S = []
+    # 1. La portada, como la de la 01 y la 02: cabe en la primera pantalla (logo, promesa, el evento chico debajo y un
+    #    botón). En la v4 la portada de la 03 era la cabecera con el formulario al lado, que en un celular no cabe en
+    #    una pantalla: el formulario va justo después (#registro), y el botón de la portada lleva ahí.
+    S.append(seccion(
+        imagen(ancho=16, radio=0),
+        titulo("[Cómo lograr el resultado] <span>sin [obstáculo]</span>", "h1", color=BLANCO, tam=44, tam_movil=30,
+               acento=NEON),
+        subtitulo("[Clase gratuita en vivo / Recurso gratuito]", oscuro=True),
+        boton("¡Quiero mi lugar!", url="#registro", fondo=NEON, color=NOCHE),
+        degradado=(NOCHE, "#0B2A45", 160), pad=(56, 20), pad_movil=(36, 16), ancho=900,
+        nota="1 · La portada: logo, promesa y botón, sin video"))
+    # 1b. El registro: qué se llevan, la fecha, quién la da y el formulario, junto.
     S.append(seccion(
         columna(
-            titulo("[Cómo lograr el resultado] <span>sin [obstáculo]</span>", "h1",
-                   color=BLANCO, alinear="left", tam=44, acento=NEON),
-            subtitulo("[Clase gratuita en vivo / Recurso gratuito]", oscuro=True, alinear="left"),
             texto("<p>[Subtítulo: qué se llevan en una frase.]</p>", color=TX_OSC),
             lista([("[Día] de [mes] · [hora] (hora del centro de México)", "far fa-calendar-alt", "fa-regular"),
                    (f"En vivo por {PLATAFORMA_SESION} · [duración]", "fas fa-video")],
@@ -557,7 +568,8 @@ def captacion():
             texto("<p style=\"text-align:center\">Sin costo. Tus datos están protegidos.</p>", alinear="center",
                   tam=14),
             tam=45, fondo=BLANCO, pad=caja(32), radio=18, sombra=True),
-        degradado=(NOCHE, "#0B2A45", 160), pad=(80, 20), ident="registro", nota="1 · Cabecera con formulario"))
+        degradado=(NOCHE, "#0B2A45", 200), pad=(40, 20), pad_movil=(32, 16), ident="registro",
+        nota="1b · El registro: fecha, quién la da y formulario (ancla #registro)"))
     S.append(seccion(
         titulo("En esta clase vas a descubrir"),
         interior(*[columna(caja_icono("fas fa-lightbulb", f"[Aprendizaje {n}]", "[Por qué le importa]",
@@ -852,7 +864,8 @@ CATALOGO = [
      "cuando": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN): antes una clase o un reto (03 y 04), "
                "después el carrito (05) con pagos a plazos. Recortada, para un curso de precio medio después de una "
                "clase.",
-     "mide": "Vista de página"},
+     "mide": "Vista de página",
+     "precio": ["oferta", "cierre"]},
     {"id": "venta-corta", "numero": "02", "archivo": "02-pagina-de-venta-corta.json", "fn": venta_corta,
      "nombre": "Página de venta corta",
      "para": "La portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), tres "
@@ -866,15 +879,19 @@ CATALOGO = [
                "(06); quien ya conoce la marca; un curso de precio medio después de una clase (ampliada); un servicio "
                "(sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su "
                "fecha real; o un paquete de la tienda.",
-     "mide": "Vista de página"},
+     "mide": "Vista de página",
+     "precio": ["oferta"]},
     {"id": "captacion", "numero": "03", "archivo": "03-captacion.json", "fn": captacion,
      "nombre": "Captación",
-     "para": "Registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, "
+     "para": "La portada (cabe en la primera pantalla: logo, promesa, el evento chico debajo y un botón al formulario) "
+             "y el registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, "
              "WhatsApp y una pregunta de perfil) que guarda cada envío, avisa por correo y lleva a /gracias-registro/.",
      "cuando": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. "
                "Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
      "mide": "Vista de página",
-     "bloques": {"1": ("registro", "Cabecera con formulario"), "2": ("que-aprenderan", "Qué aprenderán"),
+     "bloques": {"1": ("promesa", "La portada: la promesa"),
+                 "1b": ("registro", "El registro: fecha, quién la da y formulario"),
+                 "2": ("que-aprenderan", "Qué aprenderán"),
                  "3": ("quien-la-imparte", "Quién la imparte"), "4": ("testimonios", "Testimonios o logros"),
                  "5": ("recordatorio", "Recordatorio"), "Pie": ("pie", "Pie")}},
     {"id": "gracias-registro", "numero": "04", "archivo": "04-gracias-por-registrarte.json", "fn": gracias_registro,
@@ -893,6 +910,7 @@ CATALOGO = [
              "y, sólo con un cierre real, el contador.",
      "cuando": "Después de la 01 o la 02 cuando se cobra en el sitio, en /carrito/; su formulario lleva a /pago/.",
      "mide": "Iniciar pago (InitiateCheckout)",
+     "precio": "todo",
      "bloques": {"1": ("encabezado", "Encabezado con el precio"), "2": ("formulario", "Formulario junto a la oferta"),
                  "3": ("testimonios", "Testimonios"), "4": ("dudas-de-pago", "Dudas de pago y WhatsApp"),
                  "5": ("urgencia", "Urgencia (sólo con cierre real)"), "Pie": ("pie", "Pie")}},
@@ -903,6 +921,7 @@ CATALOGO = [
      "cuando": "Entre el pago y la 07 (el pago lleva aquí): producto barato con anuncios o lanzamiento con complemento. "
                "«Sí» va a /pago-complemento/ y «No» a /gracias-compra/.",
      "mide": "Compra del producto principal (Purchase)",
+     "precio": "todo",
      "bloques": {"1": ("aviso-y-video", "Aviso y video"), "2": ("complemento", "El complemento, sí o no"),
                  "Pie": ("pie", "Pie")}},
     {"id": "gracias-compra", "numero": "07", "archivo": "07-gracias-por-tu-compra.json", "fn": gracias_compra,
@@ -1025,7 +1044,11 @@ _PREFIJO = re.compile(r"^(Barra|Pie|Instrucciones|[0-9]+[a-z]?|[A-Z])(?:\.[0-9]+
 
 def bloques(meta, contenido):
     """Los bloques de la plantilla, en orden: cada sección de primer nivel cae en el bloque de su nota en el Navegador
-    (`2b` en el suyo si lo declara; si no, en el de `2`; `14.3` en el de `14`). Se pueden quitar, nunca reordenar."""
+    (`2b` en el suyo si lo declara; si no, en el de `2`; `14.3` en el de `14`). Se pueden quitar, nunca reordenar.
+
+    `price`: si el bloque puede llevar un precio (una cifra con `$` o `MXN`, o un placeholder de precio). El precio se
+    revela tarde (v4): sólo en la oferta, y en el cierre de la 01, que la repite; el carrito y la oferta única son la
+    oferta (`"precio": "todo"`). Lo comprueba el validador."""
     out = []
     for e in contenido:
         nota = e["settings"].get("_title", "")
@@ -1042,7 +1065,9 @@ def bloques(meta, contenido):
         else:
             if any(b["key"] == clave for b in out):
                 raise SystemExit(f"{meta['archivo']}: el bloque {clave} aparece en dos lugares")
-            out.append({"key": clave, "name": nombre, "required": clave == "pie", "sections": [e["id"]]})
+            precio = meta.get("precio", [])
+            out.append({"key": clave, "name": nombre, "required": clave == "pie",
+                        "price": precio == "todo" or clave in precio, "sections": [e["id"]]})
     usados = {b["key"] for b in out}
     sobran = [c for c, _ in meta["bloques"].values() if c not in usados]
     if sobran:

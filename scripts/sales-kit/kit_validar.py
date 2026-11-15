@@ -255,6 +255,72 @@ def revisar(rel, d, variante):
     return ids, cuenta, orden
 
 
+# ---------------------------------------------------------------- reglas de la v4 del kit (2026-11-13)
+# Un precio: una cifra o un placeholder detrás de `$`, o delante de `MXN`.
+PRECIO = re.compile(r"\$\s?[\[\d]|[\d\]]\s?MXN\b")
+# La portada de 01, 02 y 03: logo, la promesa grande (h1), el antetítulo chico debajo y un botón. Nada más.
+PORTADA = ["image", "heading:h1", "heading:p", "button"]
+
+
+def widgets_de(e, out=None):
+    out = [] if out is None else out
+    if e.get("elType") == "widget":
+        out.append(e)
+    for h in e.get("elements", []):
+        widgets_de(h, out)
+    return out
+
+
+def revisar_v4(t, d, variante):
+    """La portada en una pantalla y sin video, el precio sólo en la oferta, los bonus sin precio y la barra fija con
+    el logo del evento (v4 del kit), en las dos variantes."""
+    rel = f"{t['file']} ({variante})"
+    por_id = {e["id"]: e for e in d["content"]}
+    anclas = {s.get("_element_id") for e in d["content"] for s in [e.get("settings", {})]}
+    for b in t["blocks"]:
+        secciones = [por_id[i] for i in b["sections"] if i in por_id]
+        textos = [(c, v) for e in secciones for c, v in cadenas(e)]
+        # El precio se revela tarde: sólo en la oferta (y en el cierre de la 01, que la repite).
+        if not b.get("price"):
+            for campo, valor in textos:
+                m = PRECIO.search(valor)
+                if m:
+                    error(f"{rel}: precio fuera de la oferta en el bloque «{b['key']}» ({campo}): …{valor[max(0, m.start() - 40):m.end() + 20]}…")
+        # Los bonus, sin precio ni valor: su valor va en el resumen de la oferta.
+        if b["key"] == "bonus":
+            for campo, valor in textos:
+                if re.search(r"\b[Vv]alor\b|<del>", valor):
+                    error(f"{rel}: bonus con precio o valor ({campo}): {valor[:80]}")
+        # La portada de 01, 02 y 03.
+        if b["key"] == "promesa" and t["id"] in ("venta-completa", "venta-corta", "captacion"):
+            ws = [w for e in secciones for w in widgets_de(e)]
+            forma = [w["widgetType"] + (":" + w["settings"].get("header_size", "h2") if w["widgetType"] == "heading"
+                                        else "") for w in ws]
+            if len(secciones) != 1 or forma != PORTADA:
+                error(f"{rel}: la portada debe llevar logo, la promesa (h1), el antetítulo chico debajo y un botón, sin "
+                      f"video: {forma}")
+            botones = [w for w in ws if w["widgetType"] == "button"]
+            url = botones[0]["settings"]["link"]["url"] if botones else ""
+            if not url.startswith("#") or url[1:] not in anclas:
+                error(f"{rel}: el botón de la portada debe llevar a un bloque de la página: {url!r}")
+            pos = [x["key"] for x in t["blocks"]].index("promesa")
+            if any(x["key"] != "barra-de-cierre" for x in t["blocks"][:pos]):
+                error(f"{rel}: la portada no es lo primero de la página (sólo la barra de cierre va antes)")
+        # La barra de cierre: fija arriba, con el logo del evento (oculto en celular), el contador y el botón.
+        if b["key"] == "barra-de-cierre":
+            s = secciones[0]["settings"] if len(secciones) == 1 else {}
+            cols = secciones[0].get("elements", []) if len(secciones) == 1 else []
+            ws = [w["widgetType"] for e in secciones for w in widgets_de(e)]
+            if (s.get("sticky") != "top" or not {"desktop", "tablet", "mobile"} <= set(s.get("sticky_on") or [])
+                    or not s.get("z_index")):
+                error(f"{rel}: la barra de cierre no es fija arriba (sticky top en escritorio, tableta y celular)")
+            if (not cols or cols[0].get("settings", {}).get("hide_mobile") != "hidden-mobile" or not ws
+                    or ws[0] != "image"):
+                error(f"{rel}: la barra de cierre no empieza con el logo del evento (oculto en celular)")
+            if "countdown" not in ws or "button" not in ws or secciones[0]["id"] not in t["urgency"]:
+                error(f"{rel}: la barra de cierre lleva el contador y el botón, y sólo va con un cierre real (urgencia)")
+
+
 manifest_path = os.path.join(plantillas, "manifest.json")
 manifest = json.load(open(manifest_path, encoding="utf-8"))
 rel_mod = "digitalisimo-elements/modules/digitalisimo-sales/"
@@ -314,6 +380,8 @@ for t in manifest["templates"]:
             return n
         if contadores(ds["content"]):
             error(f"{t['file']}: un contador queda fuera de los bloques de urgencia")
+    for variante, (dv, *_resto) in datos.items():
+        revisar_v4(t, dv, variante)
     print(f"{t['file']}: {t['sections']} secciones, {t['widgets']} widgets, {len(ids_s)} elementos (secciones) / "
           f"{len(ids_c)} (contenedores), urgencia {len(t['urgency'])}")
 

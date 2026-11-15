@@ -69,6 +69,7 @@
      "key": "barra-de-cierre",
      "name": "Barra fija de cierre",
      "required": false,
+     "price": false,
      "sections": [
       "5a0fc59"
      ]
@@ -77,6 +78,7 @@
      "key": "promesa",
      "name": "La portada: la promesa",
      "required": false,
+     "price": false,
      "sections": [
       "dff654b"
      ]
@@ -85,6 +87,7 @@
      "key": "problema",
      "name": "El problema",
      "required": false,
+     "price": false,
      "sections": [
       "578c8f7"
      ]
@@ -93,6 +96,7 @@
      "key": "quien-esta-detras",
      "name": "Quién está detrás, corto",
      "required": false,
+     "price": false,
      "sections": [
       "75bb6d0"
      ]
@@ -101,6 +105,7 @@
      "key": "te-imaginas",
      "name": "¿Te imaginas…?",
      "required": false,
+     "price": false,
      "sections": [
       "37d6089"
      ]
@@ -109,6 +114,7 @@
      "key": "por-que-es-distinto",
      "name": "Por qué es distinto",
      "required": false,
+     "price": false,
      "sections": [
       "10a5113"
      ]
@@ -117,6 +123,7 @@
      "key": "autoridad",
      "name": "Quién está detrás, la autoridad (con logos)",
      "required": false,
+     "price": false,
      "sections": [
       "af92f7c",
       "4bb9991"
@@ -126,6 +133,7 @@
      "key": "funciona-para-ti",
      "name": "Funciona para gente como tú",
      "required": false,
+     "price": false,
      "sections": [
       "a21ca0d"
      ]
@@ -134,6 +142,7 @@
      "key": "para-quien-es",
      "name": "Para quién es",
      "required": false,
+     "price": false,
      "sections": [
       "45efd99"
      ]
@@ -142,6 +151,7 @@
      "key": "que-es",
      "name": "Qué es",
      "required": false,
+     "price": false,
      "sections": [
       "9157a7c"
      ]
@@ -150,6 +160,7 @@
      "key": "temario",
      "name": "Temario",
      "required": false,
+     "price": false,
      "sections": [
       "e3dd7ff"
      ]
@@ -158,6 +169,7 @@
      "key": "todo-lo-que-incluye",
      "name": "Todo lo que incluye",
      "required": false,
+     "price": false,
      "sections": [
       "b8ee072"
      ]
@@ -166,6 +178,7 @@
      "key": "nunca-estaras-solo",
      "name": "Nunca estarás solo",
      "required": false,
+     "price": false,
      "sections": [
       "d210251"
      ]
@@ -174,6 +187,7 @@
      "key": "al-terminar",
      "name": "Lo que te llevas al terminar",
      "required": false,
+     "price": false,
      "sections": [
       "08f413e"
      ]
@@ -182,6 +196,7 @@
      "key": "bonus",
      "name": "Bonus",
      "required": false,
+     "price": false,
      "sections": [
       "ace2214",
       "671ad30",
@@ -194,6 +209,7 @@
      "key": "compromiso",
      "name": "Nuestro compromiso",
      "required": false,
+     "price": false,
      "sections": [
       "e23280d"
      ]
@@ -202,6 +218,7 @@
      "key": "cuanto-vale",
      "name": "Cuánto vale para ti",
      "required": false,
+     "price": false,
      "sections": [
       "7e2f6f0"
      ]
@@ -210,6 +227,7 @@
      "key": "oferta",
      "name": "La oferta",
      "required": false,
+     "price": true,
      "sections": [
       "1acc154"
      ]
@@ -218,6 +236,7 @@
      "key": "garantia",
      "name": "Garantía y actualización",
      "required": false,
+     "price": false,
      "sections": [
       "4ebeeb5"
      ]
@@ -226,6 +245,7 @@
      "key": "caminos",
      "name": "Los caminos",
      "required": false,
+     "price": false,
      "sections": [
       "2ce366c"
      ]
@@ -234,6 +254,7 @@
      "key": "objeciones",
      "name": "¿Te funcionará? (objeciones)",
      "required": false,
+     "price": false,
      "sections": [
       "864abd6"
      ]
@@ -242,6 +263,7 @@
      "key": "comunidad",
      "name": "Lo avala la comunidad",
      "required": false,
+     "price": false,
      "sections": [
       "c8188c3"
      ]
@@ -250,6 +272,7 @@
      "key": "preguntas-frecuentes",
      "name": "Preguntas frecuentes",
      "required": false,
+     "price": false,
      "sections": [
       "7a6a355"
      ]
@@ -258,6 +281,7 @@
      "key": "whatsapp",
      "name": "WhatsApp con una cara",
      "required": false,
+     "price": false,
      "sections": [
       "965350d"
      ]
@@ -266,6 +290,7 @@
      "key": "cierre",
      "name": "Cierre",
      "required": false,
+     "price": true,
      "sections": [
       "51053f8"
      ]
@@ -274,6 +299,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": false,
      "sections": [
       "485b86f"
      ]
@@ -334,6 +360,7 @@
      "key": "promesa",
      "name": "La portada: la promesa",
      "required": false,
+     "price": false,
      "sections": [
       "ea769f5"
      ]
@@ -342,6 +369,7 @@
      "key": "beneficios",
      "name": "Beneficios",
      "required": false,
+     "price": false,
      "sections": [
       "ffd811f"
      ]
@@ -350,6 +378,7 @@
      "key": "quien-esta-detras",
      "name": "Quién está detrás",
      "required": false,
+     "price": false,
      "sections": [
       "c9f33ab"
      ]
@@ -358,6 +387,7 @@
      "key": "para-quien-es",
      "name": "Para quién es e incluye",
      "required": false,
+     "price": false,
      "sections": [
       "d5ed14f"
      ]
@@ -366,6 +396,7 @@
      "key": "testimonios",
      "name": "Testimonios",
      "required": false,
+     "price": false,
      "sections": [
       "0063275"
      ]
@@ -374,6 +405,7 @@
      "key": "oferta",
      "name": "La oferta",
      "required": false,
+     "price": true,
      "sections": [
       "03beff7"
      ]
@@ -382,6 +414,7 @@
      "key": "garantia-y-preguntas",
      "name": "Garantía y preguntas frecuentes",
      "required": false,
+     "price": false,
      "sections": [
       "b73d0f0"
      ]
@@ -390,6 +423,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": false,
      "sections": [
       "52c6da5"
      ]
@@ -403,20 +437,20 @@
    "name": "Captación",
    "library_title": "DIGITALÍSIMO · 03 Captación",
    "file": "03-captacion.json",
-   "purpose": "Registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, WhatsApp y una pregunta de perfil) que guarda cada envío, avisa por correo y lleva a /gracias-registro/.",
+   "purpose": "La portada (cabe en la primera pantalla: logo, promesa, el evento chico debajo y un botón al formulario) y el registro a una clase gratuita, un reto o la descarga de un recurso, con un formulario (nombre, correo, WhatsApp y una pregunta de perfil) que guarda cada envío, avisa por correo y lleva a /gracias-registro/.",
    "use_when": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
    "measures": "Vista de página",
-   "sections": 6,
-   "widgets": 33,
+   "sections": 7,
+   "widgets": 35,
    "widget_types": {
+    "image": 4,
     "heading": 11,
+    "button": 2,
     "text-editor": 9,
     "icon-list": 2,
-    "image": 3,
     "form": 1,
     "icon-box": 3,
-    "blockquote": 3,
-    "button": 1
+    "blockquote": 3
    },
    "has_countdown": false,
    "has_form": true,
@@ -444,51 +478,66 @@
    ],
    "blocks": [
     {
-     "key": "registro",
-     "name": "Cabecera con formulario",
+     "key": "promesa",
+     "name": "La portada: la promesa",
      "required": false,
+     "price": false,
      "sections": [
-      "62fd07d"
+      "0c92e4b"
+     ]
+    },
+    {
+     "key": "registro",
+     "name": "El registro: fecha, quién la da y formulario",
+     "required": false,
+     "price": false,
+     "sections": [
+      "3ff2d24"
      ]
     },
     {
      "key": "que-aprenderan",
      "name": "Qué aprenderán",
      "required": false,
+     "price": false,
      "sections": [
-      "483c3bb"
+      "39c80da"
      ]
     },
     {
      "key": "quien-la-imparte",
      "name": "Quién la imparte",
      "required": false,
+     "price": false,
      "sections": [
-      "5a352ac"
+      "4beed83"
      ]
     },
     {
      "key": "testimonios",
      "name": "Testimonios o logros",
      "required": false,
+     "price": false,
      "sections": [
-      "c8077a9"
+      "b973e5a"
      ]
     },
     {
      "key": "recordatorio",
      "name": "Recordatorio",
      "required": false,
+     "price": false,
      "sections": [
-      "6939cb4"
+      "a4a1a4b"
      ]
     },
     {
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": false,
      "sections": [
-      "ebad31e"
+      "823043d"
      ]
     }
    ],
@@ -534,6 +583,7 @@
      "key": "confirmacion",
      "name": "Confirmación",
      "required": false,
+     "price": false,
      "sections": [
       "b4074cf"
      ]
@@ -542,6 +592,7 @@
      "key": "tres-pasos",
      "name": "Tres pasos",
      "required": false,
+     "price": false,
      "sections": [
       "fd67d57"
      ]
@@ -550,6 +601,7 @@
      "key": "mientras-tanto",
      "name": "Mientras tanto",
      "required": false,
+     "price": false,
      "sections": [
       "bbad035"
      ]
@@ -558,6 +610,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": false,
      "sections": [
       "a66878e"
      ]
@@ -614,6 +667,7 @@
      "key": "encabezado",
      "name": "Encabezado con el precio",
      "required": false,
+     "price": true,
      "sections": [
       "acb71f6"
      ]
@@ -622,6 +676,7 @@
      "key": "formulario",
      "name": "Formulario junto a la oferta",
      "required": false,
+     "price": true,
      "sections": [
       "7faf963"
      ]
@@ -630,6 +685,7 @@
      "key": "testimonios",
      "name": "Testimonios",
      "required": false,
+     "price": true,
      "sections": [
       "5fee887"
      ]
@@ -638,6 +694,7 @@
      "key": "dudas-de-pago",
      "name": "Dudas de pago y WhatsApp",
      "required": false,
+     "price": true,
      "sections": [
       "7906dd1"
      ]
@@ -646,6 +703,7 @@
      "key": "urgencia",
      "name": "Urgencia (sólo con cierre real)",
      "required": false,
+     "price": true,
      "sections": [
       "ce86e13"
      ]
@@ -654,6 +712,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": true,
      "sections": [
       "a40b679"
      ]
@@ -711,6 +770,7 @@
      "key": "aviso-y-video",
      "name": "Aviso y video",
      "required": false,
+     "price": true,
      "sections": [
       "afd77ae"
      ]
@@ -719,6 +779,7 @@
      "key": "complemento",
      "name": "El complemento, sí o no",
      "required": false,
+     "price": true,
      "sections": [
       "f121d4b"
      ]
@@ -727,6 +788,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": true,
      "sections": [
       "6353aab"
      ]
@@ -778,6 +840,7 @@
      "key": "bienvenida",
      "name": "Bienvenida",
      "required": false,
+     "price": false,
      "sections": [
       "094333d"
      ]
@@ -786,6 +849,7 @@
      "key": "que-sigue",
      "name": "Qué sigue",
      "required": false,
+     "price": false,
      "sections": [
       "1b658a4"
      ]
@@ -794,6 +858,7 @@
      "key": "soporte",
      "name": "Soporte y redes",
      "required": false,
+     "price": false,
      "sections": [
       "c7ceb5c"
      ]
@@ -802,6 +867,7 @@
      "key": "pie",
      "name": "Pie",
      "required": true,
+     "price": false,
      "sections": [
       "6eace4b"
      ]
@@ -837,6 +903,7 @@
      "key": "instrucciones",
      "name": "Instrucciones",
      "required": false,
+     "price": false,
      "sections": [
       "8204c9d"
      ]
@@ -845,6 +912,7 @@
      "key": "muro",
      "name": "Muro de video-testimonios",
      "required": false,
+     "price": false,
      "sections": [
       "f4d040e"
      ]
@@ -853,6 +921,7 @@
      "key": "historia",
      "name": "Historia de éxito",
      "required": false,
+     "price": false,
      "sections": [
       "476c871",
       "5a84484"
@@ -862,6 +931,7 @@
      "key": "carrusel",
      "name": "Carrusel",
      "required": false,
+     "price": false,
      "sections": [
       "ee3bbb6"
      ]
@@ -870,6 +940,7 @@
      "key": "capturas",
      "name": "Capturas",
      "required": false,
+     "price": false,
      "sections": [
       "fa4c947"
      ]
@@ -878,6 +949,7 @@
      "key": "resenas",
      "name": "Reseñas con estrellas",
      "required": false,
+     "price": false,
      "sections": [
       "a92bdb5"
      ]
@@ -886,6 +958,7 @@
      "key": "al-terminar",
      "name": "Lo que se lleva al terminar",
      "required": false,
+     "price": false,
      "sections": [
       "5da9b08"
      ]
@@ -894,6 +967,7 @@
      "key": "objecion",
      "name": "Objeción contestada por un alumno",
      "required": false,
+     "price": false,
      "sections": [
       "3334484"
      ]

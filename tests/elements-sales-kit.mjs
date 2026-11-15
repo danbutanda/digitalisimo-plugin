@@ -69,6 +69,25 @@ roto('la persona de la versión para los sitios propios', 'containers', corta, (
 roto('un título con atributos (el núcleo se los quita a una editora)', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading' && /<span[\s>]/.test(w.settings.title)).settings.title = 'Hoy: <span style="color:#00A86B">$[precio] MXN</span>'; }, /título con atributos/);
 roto('un resalte sin su color en el CSS propio', 'containers', corta, (d) => { delete widgets(d.content).find((w) => w.widgetType === 'heading' && /<span[\s>]/.test(w.settings.title)).settings.custom_css; }, /título con <span> sin su color/);
 roto('una sección fuera de sus bloques', 'sections', corta, (d) => { d.content.splice(1, 0, d.content.splice(3, 1)[0]); }, /bloques del manifiesto no recorren las secciones en orden/);
+// La v4 del kit (2026-11-13): la portada en una pantalla y sin video, el precio sólo en la oferta, los bonus sin precio
+// y la barra de cierre fija con el logo del evento.
+const completa = '01-pagina-de-venta-completa.json';
+const seccionDe = (d, archivo, clave) => { const ids = manifest.templates.find((t) => t.file === archivo).blocks.find((b) => b.key === clave).sections; return d.content.filter((s) => ids.includes(s.id)); };
+const video = { id: 'f00dcaf', elType: 'widget', widgetType: 'video', settings: { youtube_url: '[enlace del video]' }, elements: [] };
+roto('una portada con video', 'sections', completa, (d) => { seccionDe(d, completa, 'promesa')[0].elements[0].elements.splice(2, 0, video); }, /la portada debe llevar logo, la promesa/);
+roto('una portada con video (contenedores)', 'containers', '03-captacion.json', (d) => { seccionDe(d, '03-captacion.json', 'promesa')[0].elements.push(video); }, /la portada debe llevar logo, la promesa/);
+roto('una portada sin botón', 'containers', corta, (d) => { const s = seccionDe(d, corta, 'promesa')[0]; s.elements = s.elements.filter((w) => w.widgetType !== 'button'); }, /la portada debe llevar logo, la promesa/);
+roto('una portada sin el antetítulo chico', 'sections', corta, (d) => { const c = seccionDe(d, corta, 'promesa')[0].elements[0]; c.elements = c.elements.filter((w) => w.settings.header_size !== 'p'); }, /la portada debe llevar logo, la promesa/);
+roto('el botón de la portada sin destino', 'sections', '03-captacion.json', (d) => { widgets(seccionDe(d, '03-captacion.json', 'promesa')).find((w) => w.widgetType === 'button').settings.link.url = '#nada'; }, /botón de la portada debe llevar a un bloque/);
+roto('un precio en la portada', 'containers', completa, (d) => { widgets(seccionDe(d, completa, 'promesa')).find((w) => w.settings.header_size === 'p').settings.title = 'Hoy, por $1,997 MXN'; }, /precio fuera de la oferta en el bloque «promesa»/);
+roto('un precio en los beneficios', 'sections', corta, (d) => { widgets(seccionDe(d, corta, 'beneficios')).find((w) => w.widgetType === 'icon-box').settings.description_text = 'Desde $[precio]'; }, /precio fuera de la oferta en el bloque «beneficios»/);
+roto('un precio en MXN en el problema', 'sections', completa, (d) => { widgets(seccionDe(d, completa, 'problema')).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Cuesta [precio] MXN</p>'; }, /precio fuera de la oferta en el bloque «problema»/);
+roto('un precio en la captación', 'containers', '03-captacion.json', (d) => { widgets(seccionDe(d, '03-captacion.json', 'recordatorio')).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Valor: $497</p>'; }, /precio fuera de la oferta/);
+roto('un bonus con su valor', 'sections', completa, (d) => { widgets(seccionDe(d, completa, 'bonus')).find((w) => /Incluido/.test(w.settings.editor || '')).settings.editor = '<p>Valor: <del>[valor del bonus]</del> · Incluido</p>'; }, /bonus con precio o valor/);
+roto('una barra de cierre que no es fija', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky; }, /la barra de cierre no es fija arriba/);
+roto('una barra de cierre fija sólo en escritorio', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky_on = ['desktop']; }, /la barra de cierre no es fija arriba/);
+roto('una barra de cierre sin el logo del evento', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].elements[0].elements = []; }, /la barra de cierre no empieza con el logo/);
+roto('una barra de cierre que no se acomoda en celular', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.flex_wrap_mobile; }, /no se apila en celular/);
 
 // 3. Las marcas que quedan viven en las constantes del generador (una línea cada una).
 const lib = readFileSync(join(kit, 'kit_lib.py'), 'utf8');
