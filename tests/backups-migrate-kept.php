@@ -25,6 +25,8 @@
  *         borra el vigilante;
  *   (k3)  durante una migración, el nombre de la fase del paso en curso (el del mensaje de una muerte de PHP) es el de la
  *         migración («Descarga»), no el interno.
+ * La marca de un juego son 6 caracteres hexadecimales al azar: si salen sólo cifras («791448»), PHP la guarda como clave
+ * entera del registro; las comparaciones estrictas con array_keys() la pasan a texto (falló así en la CI de b73fa18c).
  * Cada caso escribe «FALLA (x)» si falla. Con el código de de091e03 fallan todos; con el de 6d906238, k1a, k1b, k1c
  * (la forma sin prefijo de H2) y k1f.
  */
@@ -336,7 +338,7 @@ kp_case( 'k1f · una tabla de otra aplicación con prefijo anidado apartada al m
 	$GLOBALS['wpdb']->fail_on = '';
 	mig_assert( 200 === $undo[0] && true === $undo[1]['undone'] && null !== kp_kept_value( 'dato-personal-del-origen' ) && 2 === count( kp_registry() ) && false !== strpos( (string) $undo[1]['notice'], 'el vigilante horario de Backups lo reintenta' ), 'El deshacer con un borrado fallido no dejó su juego en el registro o no lo dijo: ' . json_encode( array( $undo, kp_registry() ) ) );
 	Digitalisimo_Backups_Jobs::watchdog();
-	mig_assert( null === kp_kept_value( 'dato-personal-del-origen' ) && $stats === kp_kept_value( 'visita-de-la-otra-app' ) && array( $tag ) === array_keys( kp_registry() ), 'El vigilante no borró el juego del deshacer o borró el de la migración: ' . json_encode( array( kp_aside(), kp_registry() ) ) );
+	mig_assert( null === kp_kept_value( 'dato-personal-del-origen' ) && $stats === kp_kept_value( 'visita-de-la-otra-app' ) && array( $tag ) === array_map( 'strval', array_keys( kp_registry() ) ), 'El vigilante no borró el juego del deshacer o borró el de la migración: ' . json_encode( array( kp_aside(), kp_registry() ) ) );
 } );
 
 kp_case( 'k3 · el paso en curso de una migración lleva el nombre de su fase', function() {
