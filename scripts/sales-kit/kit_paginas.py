@@ -865,6 +865,8 @@ CATALOGO = [
                "después el carrito (05) con pagos a plazos. Recortada, para un curso de precio medio después de una "
                "clase.",
      "mide": "Vista de página",
+     "obligatorios": {"promesa": ["promesa"], "oferta": ["oferta"], "garantia": ["garantia"],
+                     "preguntas-frecuentes": ["preguntas-frecuentes"], "whatsapp": ["whatsapp"], "pie": ["pie"]},
      "precio": ["oferta", "cierre"]},
     {"id": "venta-corta", "numero": "02", "archivo": "02-pagina-de-venta-corta.json", "fn": venta_corta,
      "nombre": "Página de venta corta",
@@ -880,6 +882,8 @@ CATALOGO = [
                "(sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su "
                "fecha real; o un paquete de la tienda.",
      "mide": "Vista de página",
+     "obligatorios": {"promesa": ["promesa"], "oferta": ["oferta"],
+                     "garantia-y-preguntas": ["garantia", "preguntas-frecuentes", "whatsapp"], "pie": ["pie"]},
      "precio": ["oferta"]},
     {"id": "captacion", "numero": "03", "archivo": "03-captacion.json", "fn": captacion,
      "nombre": "Captación",
@@ -889,6 +893,7 @@ CATALOGO = [
      "cuando": "Para quien llega frío, de un anuncio: regalar un recurso, una clase en vivo o un reto de varios días. "
                "Siempre con la 04. Sin precio ni oferta: se venden en la clase.",
      "mide": "Vista de página",
+     "obligatorios": {"promesa": ["promesa"], "pie": ["pie"]},
      "bloques": {"1": ("promesa", "La portada: la promesa"),
                  "1b": ("registro", "El registro: fecha, quién la da y formulario"),
                  "2": ("que-aprenderan", "Qué aprenderán"),
@@ -901,6 +906,7 @@ CATALOGO = [
      "cuando": "Después de la 03, en /gracias-registro/. Sin doble confirmación, aquí va el enlace de descarga; con "
                "«regalo con oferta en la gracias», un bloque con una oferta barata y relacionada.",
      "mide": "Registro completado (Lead)",
+     "obligatorios": {"pie": ["pie"]},
      "bloques": {"1": ("confirmacion", "Confirmación"), "2": ("tres-pasos", "Tres pasos"),
                  "3": ("mientras-tanto", "Mientras tanto"), "Pie": ("pie", "Pie")}},
     {"id": "carrito", "numero": "05", "archivo": "05-carrito.json", "fn": carrito,
@@ -910,6 +916,8 @@ CATALOGO = [
              "y, sólo con un cierre real, el contador.",
      "cuando": "Después de la 01 o la 02 cuando se cobra en el sitio, en /carrito/; su formulario lleva a /pago/.",
      "mide": "Iniciar pago (InitiateCheckout)",
+     "obligatorios": {"encabezado": ["promesa"], "formulario": ["oferta", "garantia"],
+                     "dudas-de-pago": ["preguntas-frecuentes", "whatsapp"], "pie": ["pie"]},
      "precio": "todo",
      "bloques": {"1": ("encabezado", "Encabezado con el precio"), "2": ("formulario", "Formulario junto a la oferta"),
                  "3": ("testimonios", "Testimonios"), "4": ("dudas-de-pago", "Dudas de pago y WhatsApp"),
@@ -921,6 +929,7 @@ CATALOGO = [
      "cuando": "Entre el pago y la 07 (el pago lleva aquí): producto barato con anuncios o lanzamiento con complemento. "
                "«Sí» va a /pago-complemento/ y «No» a /gracias-compra/.",
      "mide": "Compra del producto principal (Purchase)",
+     "obligatorios": {"aviso-y-video": ["promesa"], "complemento": ["oferta"], "pie": ["pie"]},
      "precio": "todo",
      "bloques": {"1": ("aviso-y-video", "Aviso y video"), "2": ("complemento", "El complemento, sí o no"),
                  "Pie": ("pie", "Pie")}},
@@ -929,6 +938,7 @@ CATALOGO = [
      "para": "Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la comunidad y soporte.",
      "cuando": "Al final de toda compra, en /gracias-compra/.",
      "mide": "Compra con el total final",
+     "obligatorios": {"soporte": ["whatsapp"], "pie": ["pie"]},
      "bloques": {"1": ("bienvenida", "Bienvenida"), "2": ("que-sigue", "Qué sigue"), "3": ("soporte", "Soporte y redes"),
                  "Pie": ("pie", "Pie")}},
     {"id": "prueba-social", "numero": "08", "archivo": "08-bloques-de-prueba-social.json", "fn": bloques_prueba,
@@ -938,6 +948,7 @@ CATALOGO = [
      "cuando": "Para armar o ampliar las pruebas de otra página; no se publica sola. Sólo con testimonios reales y con "
                "permiso.",
      "mide": "",
+     "obligatorios": {},
      "bloques": {"Instrucciones": ("instrucciones", "Instrucciones"), "A": ("muro", "Muro de video-testimonios"),
                  "B": ("historia", "Historia de éxito"), "C": ("carrusel", "Carrusel"), "D": ("capturas", "Capturas"),
                  "E": ("resenas", "Reseñas con estrellas"), "F": ("al-terminar", "Lo que se lleva al terminar"),
@@ -1039,12 +1050,22 @@ def enlaces_internos(data):
     return sorted(vistos)
 
 
+# Lo que no se quita de una página (decisión 5 del operador, 2026-11-13), con el nombre que dan los errores.
+OBLIGATORIOS = {"promesa": "la promesa", "oferta": "la oferta", "garantia": "la garantía",
+                "preguntas-frecuentes": "las preguntas frecuentes", "whatsapp": "WhatsApp",
+                "pie": "el pie (avisos legales)"}
+
 _PREFIJO = re.compile(r"^(Barra|Pie|Instrucciones|[0-9]+[a-z]?|[A-Z])(?:\.[0-9]+)?\b")
 
 
 def bloques(meta, contenido):
     """Los bloques de la plantilla, en orden: cada sección de primer nivel cae en el bloque de su nota en el Navegador
     (`2b` en el suyo si lo declara; si no, en el de `2`; `14.3` en el de `14`). Se pueden quitar, nunca reordenar.
+
+    `required` y `required_for`: el bloque no se quita (`omit_blocks` de create-page) porque lleva algo de lo que el
+    operador decidió que no falta nunca (2026-11-13, decisión 5): la promesa, la oferta, la garantía, las preguntas
+    frecuentes, WhatsApp o el pie, en las plantillas que los tienen (`obligatorios` de CATALOGO). Las pruebas sociales
+    siguen siendo opcionales.
 
     `price`: si el bloque puede llevar un precio (una cifra con `$` o `MXN`, o un placeholder de precio). El precio se
     revela tarde (v4): sólo en la oferta, y en el cierre de la 01, que la repite; el carrito y la oferta única son la
@@ -1066,12 +1087,16 @@ def bloques(meta, contenido):
             if any(b["key"] == clave for b in out):
                 raise SystemExit(f"{meta['archivo']}: el bloque {clave} aparece en dos lugares")
             precio = meta.get("precio", [])
-            out.append({"key": clave, "name": nombre, "required": clave == "pie",
+            lleva = meta["obligatorios"].get(clave, [])
+            out.append({"key": clave, "name": nombre, "required": bool(lleva), "required_for": lleva,
                         "price": precio == "todo" or clave in precio, "sections": [e["id"]]})
     usados = {b["key"] for b in out}
     sobran = [c for c, _ in meta["bloques"].values() if c not in usados]
     if sobran:
         raise SystemExit(f"{meta['archivo']}: bloques declarados sin secciones: {sobran}")
+    ajenos = [c for c, lleva in meta["obligatorios"].items() if c not in usados or not set(lleva) <= set(OBLIGATORIOS)]
+    if ajenos:
+        raise SystemExit(f"{meta['archivo']}: bloques obligatorios que no existen o con un motivo desconocido: {ajenos}")
     return out
 
 
@@ -1122,6 +1147,8 @@ def generar():
         "funnel": EMBUDO,
         "templates": plantillas,
         "cases": CASOS,
+        # Lo que omit_blocks no quita, con su nombre (decisión 5 del operador, 2026-11-13).
+        "required_kinds": OBLIGATORIOS,
     }
     archivos["manifest.json"] = json.dumps(manifest, ensure_ascii=False, indent=1) + "\n"
     return archivos

@@ -91,9 +91,10 @@ final class Executor {
 				'blocks'         => array_map(
 					static function ( $block ) {
 						return array(
-							'key'      => $block['key'],
-							'name'     => $block['name'],
-							'required' => (bool) $block['required'],
+							'key'          => $block['key'],
+							'name'         => $block['name'],
+							'required'     => (bool) $block['required'],
+							'required_for' => array_values( (array) ( $block['required_for'] ?? array() ) ),
 						);
 					},
 					(array) ( $meta['blocks'] ?? array() )
@@ -125,7 +126,8 @@ final class Executor {
 			'variant'   => Catalog::variant(),
 			'funnel'    => $manifest['funnel'] ?? '',
 			'templates' => $templates,
-			'rules'     => 'Las páginas se crean en borrador; nada se inventa (testimonios, cifras y fechas sólo reales); urgencia sólo con un cierre real; precios en MXN; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar. Detalle: digitalisimo-sales/guide.',
+			'rules'     => 'Las páginas se crean en borrador; nada se inventa (testimonios, cifras y fechas sólo reales); urgencia sólo con un cierre real; precios en MXN y sólo en la oferta; llamado a la acción por WhatsApp; enlaces del propio sitio; los bloques se pueden quitar, nunca reordenar, salvo los obligatorios (required: true): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp y el pie no se quitan; las pruebas sociales sí. Detalle: digitalisimo-sales/guide.',
+			'required'  => $manifest['required_kinds'] ?? array(),
 		);
 		if ( '' === $id ) {
 			$out['cases']  = $manifest['cases'] ?? array();
@@ -204,6 +206,9 @@ final class Executor {
 		if ( $built['broken_anchors'] ) {
 			$review[] = 'Hay botones que llevan a un bloque que ya no está (#' . implode( ', #', $built['broken_anchors'] ) . '): cámbialos o bórralos en el editor.';
 		}
+		if ( $built['social_pending'] ) {
+			$review[] = sprintf( 'Faltan los enlaces de las redes: %d iconos de redes llevan el enlace de muestra %s. Pon en el editor el de cada perfil del sitio (el icono → Enlace) o quita los que no uses; por aquí no entra ninguna URL de otro sitio.', $built['social_pending'], Builder::PROFILE_SAMPLE );
+		}
 		return array(
 			'ok'               => true,
 			'tool'             => 'create-page',
@@ -225,6 +230,7 @@ final class Executor {
 			'removed_urgency'  => $built['removed_urgency'],
 			'omitted_blocks'   => $built['omitted_blocks'],
 			'broken_anchors'   => $built['broken_anchors'],
+			'social_pending'   => $built['social_pending'],
 			'pages_to_create'  => $links,
 			'review'           => $review,
 			'llm_instructions' => 'La página quedó en BORRADOR. Muestra al usuario la vista previa (' . (string) $page['preview_url'] . ') y lo que falta revisar; publicarla le toca a una persona.',

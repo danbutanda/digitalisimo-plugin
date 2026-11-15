@@ -260,6 +260,8 @@ def revisar(rel, d, variante):
 PRECIO = re.compile(r"\$\s?[\[\d]|[\d\]]\s?MXN\b")
 # La portada de 01, 02 y 03: logo, la promesa grande (h1), el antetítulo chico debajo y un botón. Nada más.
 PORTADA = ["image", "heading:h1", "heading:p", "button"]
+# Los iconos de redes del kit (excepción acotada en marcas.json).
+ICONOS_REDES = ["fab fa-facebook-f", "fab fa-instagram", "fab fa-tiktok", "fab fa-youtube", "fab fa-whatsapp"]
 
 
 def widgets_de(e, out=None):
@@ -275,6 +277,19 @@ def revisar_v4(t, d, variante):
     """La portada en una pantalla y sin video, el precio sólo en la oferta, los bonus sin precio y la barra fija con
     el logo del evento (v4 del kit), en las dos variantes."""
     rel = f"{t['file']} ({variante})"
+    # Los iconos de las redes (decisión 2 del operador): sólo en la 04 y la 07, con su logo y sin enlazar a las redes.
+    sociales = [w for e in d["content"] for w in widgets_de(e) if w.get("widgetType") == "social-icons"]
+    if len(sociales) != (1 if t["id"] in ("gracias-registro", "gracias-compra") else 0):
+        error(f"{rel}: iconos de redes donde no van ({len(sociales)}): sólo uno en la 04 y uno en la 07")
+    for w in sociales:
+        items = w["settings"].get("social_icon_list", [])
+        if sorted(it.get("social_icon", {}).get("value") for it in items) != sorted(ICONOS_REDES):
+            error(f"{rel}: iconos de redes distintos de los del kit: {[it.get('social_icon') for it in items]}")
+        for it in items:
+            v, u = it.get("social_icon", {}).get("value"), it.get("link", {}).get("url", "")
+            if (u != WHATSAPP) if v == "fab fa-whatsapp" else not (u.startswith("#[") and PLACEHOLDER_URL.match(u)):
+                error(f"{rel}: el icono {v} enlaza a {u!r}: las redes llevan un placeholder del sitio (se pone en el "
+                      "editor) y WhatsApp el número del sitio, nunca la red")
     por_id = {e["id"]: e for e in d["content"]}
     anclas = {s.get("_element_id") for e in d["content"] for s in [e.get("settings", {})]}
     for b in t["blocks"]:
@@ -361,8 +376,38 @@ for t in manifest["templates"]:
         error(f"{t['file']}: los bloques del manifiesto no recorren las secciones en orden")
     if len(set(claves)) != len(claves) or any(not re.fullmatch(r"[a-z0-9-]+", c) for c in claves):
         error(f"{t['file']}: claves de bloque repetidas o mal formadas")
-    if [b["key"] for b in t["blocks"] if b["required"]] != (["pie"] if "pie" in claves else []):
-        error(f"{t['file']}: sólo el pie (avisos legales) es obligatorio")
+    # Bloques que omit_blocks no quita (decisión 5 del operador): los que llevan la promesa, la oferta, la garantía, las
+    # preguntas frecuentes, WhatsApp o el pie. Las pruebas sociales nunca son obligatorias.
+    tipos = manifest.get("required_kinds", {})
+    if set(tipos) != {"promesa", "oferta", "garantia", "preguntas-frecuentes", "whatsapp", "pie"}:
+        error(f"manifest.json: lo que no se quita es la promesa, la oferta, la garantía, las preguntas frecuentes, "
+              f"WhatsApp y el pie: {sorted(tipos)}")
+    por_seccion = {e["id"]: e for e in ds["content"]}
+    for b in t["blocks"]:
+        lleva = b.get("required_for", [])
+        if b["required"] != bool(lleva) or not set(lleva) <= set(tipos):
+            error(f"{t['file']}: el bloque {b['key']} es obligatorio sin motivo, o con uno desconocido: {lleva}")
+        cuerpo = json.dumps([por_seccion[i] for i in b["sections"] if i in por_seccion], ensure_ascii=False,
+                            separators=(",", ":"))
+        debe = set()
+        if "Los resultados dependen del trabajo de cada persona" in cuerpo:
+            debe.add("pie")
+        if any(por_seccion[i]["settings"].get("_element_id") == "oferta" for i in b["sections"] if i in por_seccion):
+            debe.add("oferta")
+        if '"widgetType":"accordion"' in cuerpo and t["id"] != "prueba-social":
+            debe.add("preguntas-frecuentes")
+        if b["key"] in ("promesa", "oferta", "whatsapp", "pie", "garantia"):
+            debe.add({"garantia": "garantia"}.get(b["key"], b["key"]))
+        if not debe <= set(lleva):
+            error(f"{t['file']}: el bloque {b['key']} lleva {sorted(debe - set(lleva))} y omit_blocks lo dejaría quitar")
+        social = ('"widgetType":"testimonial-carousel"' in cuerpo or '"widgetType":"blockquote"' in cuerpo
+                  or "[Nombre real]" in cuerpo)
+        if social and b["required"]:
+            error(f"{t['file']}: el bloque {b['key']} lleva pruebas sociales, que siempre se pueden quitar")
+    if t["id"] in ("venta-completa", "venta-corta"):
+        cubiertos = {k for b in t["blocks"] for k in b.get("required_for", [])}
+        if cubiertos != set(tipos):
+            error(f"{t['file']}: a la página de venta le falta un bloque obligatorio: {sorted(set(tipos) - cubiertos)}")
     if t["has_countdown"] != ("countdown" in cuenta_s) or t["has_form"] != ("form" in cuenta_s):
         error(f"{t['file']}: has_countdown o has_form no coinciden con la plantilla")
     for u in t["urgency"]:

@@ -87,6 +87,14 @@ roto('un bonus con su valor', 'sections', completa, (d) => { widgets(seccionDe(d
 roto('una barra de cierre que no es fija', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky; }, /la barra de cierre no es fija arriba/);
 roto('una barra de cierre fija sólo en escritorio', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].settings.sticky_on = ['desktop']; }, /la barra de cierre no es fija arriba/);
 roto('una barra de cierre sin el logo del evento', 'sections', completa, (d) => { seccionDe(d, completa, 'barra-de-cierre')[0].elements[0].elements = []; }, /la barra de cierre no empieza con el logo/);
+// Los iconos de redes (decisión 2): con su logo, sólo en la 04 y la 07 y sin enlazar a las redes.
+const compra = '07-gracias-por-tu-compra.json';
+const iconos = (d) => widgets(d.content).find((w) => w.widgetType === 'social-icons');
+roto('iconos de redes en otra plantilla', 'sections', corta, (d) => { const fuente = JSON.parse(readFileSync(join(templates, 'sections', compra), 'utf8')); widgets(seccionDe(d, corta, 'beneficios'))[0].settings.title = 'Síguenos'; seccionDe(d, corta, 'beneficios')[0].elements[0].elements.push({ ...iconos(fuente), id: 'abc1234' }); }, /iconos de redes donde no van/);
+roto('un icono de red que enlaza a la red', 'containers', compra, (d) => { iconos(d).settings.social_icon_list[0].link.url = 'https://facebook.com/marca'; }, /el icono fab fa-facebook-f enlaza a/);
+roto('el icono de WhatsApp a otro número que el del sitio', 'sections', '04-gracias-por-registrarte.json', (d) => { iconos(d).settings.social_icon_list[4].link.url = '#[enlace de tu perfil]'; }, /el icono fab fa-whatsapp enlaza a/);
+roto('el icono de otra red', 'sections', '04-gracias-por-registrarte.json', (d) => { iconos(d).settings.social_icon_list[1].social_icon.value = 'fab fa-linkedin'; }, /iconos de redes distintos de los del kit|«LinkedIn» sin excepción/);
+roto('el nombre de una red fuera de los iconos', 'containers', compra, (d) => { widgets(d.content).find((w) => w.widgetType === 'text-editor').settings.editor = '<p>Síguenos en Instagram</p>'; }, /«Instagram» sin excepción declarada/);
 roto('una barra de cierre que no se acomoda en celular', 'containers', completa, (d) => { delete seccionDe(d, completa, 'barra-de-cierre')[0].settings.flex_wrap_mobile; }, /no se apila en celular/);
 
 // 3. Las marcas que quedan viven en las constantes del generador (una línea cada una).
@@ -107,8 +115,8 @@ for (const n of marcas.nombres) {
   }
 }
 // La lista vigilada incluye estas marcas (cada una con un ejemplo que su patrón reconoce) y ninguna excepción abre el
-// módulo entero: cada una se acota a un campo (o la aplica otra prueba, `comprueba`). WhatsApp no es decisión del
-// operador: cada excepción suya lo dice («PENDIENTE DE CONFIRMAR») y acota sus frases.
+// módulo entero: cada una se acota a un campo (o la aplica otra prueba, `comprueba`). WhatsApp es excepción declarada
+// del operador (2026-11-13, decisión 1), acotada a sus frases como las demás.
 const vigiladas = { Visa: 'Paga con Visa', Mastercard: 'Mastercard', 'American Express': 'American Express', Clip: 'terminal Clip', Kueski: 'Kueski Pay', Coppel: 'en Coppel', Hotmart: 'Hotmart', Discord: 'nuestro Discord', Telegram: 'Telegram', Instagram: 'Instagram', Facebook: 'Facebook', TikTok: 'TikTok', 'X (Twitter)': 'x.com/marca', LinkedIn: 'LinkedIn', Spotify: 'Spotify', Calendly: 'Calendly', Shopify: 'Shopify', Amazon: 'Amazon' };
 for (const [nombre, ejemplo] of Object.entries(vigiladas)) {
   const n = marcas.nombres.find((x) => x.nombre === nombre);
@@ -116,9 +124,12 @@ for (const [nombre, ejemplo] of Object.entries(vigiladas)) {
 }
 for (const ex of marcas.excepciones) ok(ex.campo || ex.comprueba, `marcas.json: la excepción de ${ex.nombres.join('/')} en ${ex.archivos} no se acota a un campo`);
 const exWhatsApp = marcas.excepciones.filter((e) => e.nombres.includes('WhatsApp'));
-ok(exWhatsApp.length > 0 && exWhatsApp.every((e) => e.frases && /PENDIENTE DE CONFIRMAR/.test(e.decision) && !/^\^digitalisimo-elements\/modules\/digitalisimo-sales\/\$?$/.test(e.archivos)), 'WhatsApp: pendiente de confirmar por el operador y acotado a sus frases, nunca a todo el módulo');
+ok(exWhatsApp.length > 0 && exWhatsApp.every((e) => e.frases && /Excepción explícita del operador, 2026-11-13/.test(e.decision) && !/pendiente/i.test(e.decision) && !/^\^digitalisimo-elements\/modules\/digitalisimo-sales\/\$?$/.test(e.archivos)), 'WhatsApp: excepción declarada del operador, acotada a sus frases, nunca a todo el módulo');
+// Los logos de las redes (decisión 2): sólo el valor del icono del widget de iconos sociales, sólo en la 04 y la 07.
+const exRedes = marcas.excepciones.filter((e) => e.nombres.includes('Facebook'));
+ok(exRedes.length === 1 && /0\[47\]-/.test(exRedes[0].archivos) && exRedes[0].campo === '^social-icons\\.social_icon_list\\.social_icon\\.value$' && /decisión 2/.test(exRedes[0].decision) && ['Facebook', 'Instagram', 'TikTok', 'YouTube', 'WhatsApp'].every((n) => exRedes[0].nombres.includes(n)), 'marcas.json: los logos de las redes, sólo en el icono del widget de iconos sociales de la 04 y la 07');
 const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
-ok(/WhatsApp[^.]*pendiente de confirmar/i.test(agents) && !/y WhatsApp como llamado a la acción\. Cada excepción/.test(agents), 'AGENTS.md dice que WhatsApp está pendiente de confirmar por el operador');
+ok(/WhatsApp en el llamado a la acción/.test(agents) && /logos de las redes/.test(agents) && !/pendiente de confirmar/i.test(agents), 'AGENTS.md dice que WhatsApp y los logos de las redes son excepciones declaradas del operador');
 for (const nombre of ['MEDIOS_PAGO', 'MEDIOS_PAGO_FAQ', 'PASARELA', 'PAGO_EFECTIVO', 'AVISO_PLATAFORMAS', 'PLATAFORMA_SESION', 'VIDEO_URL']) {
   ok(new RegExp(`^${nombre} = `, 'm').test(lib) && lib.match(new RegExp(`^${nombre} = `, 'gm')).length === 1, `kit_lib.py define ${nombre} una sola vez`);
 }

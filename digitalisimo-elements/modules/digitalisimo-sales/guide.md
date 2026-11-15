@@ -2,8 +2,9 @@
 
 Cómo se arma una página de venta con el kit de DIGITALÍSIMO Elements: las reglas, qué plantilla usar según el caso, el
 orden de una página de venta y las fórmulas para llenar sus textos. Es el método de DIGITALÍSIMO (cerebro,
-`oficio/ventas-en-linea.md`, commit `06ff42f`, 2026-11-13, sobre todo «El orden de una página de venta»), con las
-plantillas del kit v3 genérico; las cifras y los rangos en pesos son una propuesta, sin aprobar todavía.
+`oficio/ventas-en-linea.md`, commit `06ff42f`, 2026-11-13, sobre todo «El orden de una página de venta», con las
+correcciones del operador de la versión 4 del kit: la portada, los encabezados y el precio), con las plantillas del
+kit v4 genérico; las cifras y los rangos en pesos son una propuesta, sin aprobar todavía.
 
 ## Reglas
 
@@ -22,13 +23,23 @@ Lo que no se rompe nunca, ni al llenar una plantilla ni al pedírselo a un asist
   resultados dependen de cada persona y los casos se pueden verificar.
 - **Precios en pesos mexicanos.** La plantilla ya escribe `$` y `MXN`: un precio se llena sólo con la cifra
   (`1,997` o `1997.50`), con su valor tachado real y los meses sin intereses sólo si la pasarela los da.
+- **El precio se revela tarde.** Sólo en la oferta (y en el cierre, que la repite); el carrito y la oferta única son
+  la oferta. Ni la portada, ni el problema, la autoridad, para quién es, qué incluye o los bonus llevan precio: primero
+  el valor, luego el ancla (cuánto vale para ti) y el precio en la oferta.
+- **La portada cabe en la primera pantalla**, en escritorio y en celular, y va sin video: el logo, la promesa grande, el
+  antetítulo chico debajo y un botón. Lo demás va al scroll.
+- **En cada sección, el título corto va grande y la frase de venta chica, debajo.**
 - **El llamado a la acción es por WhatsApp** («Hablar por WhatsApp»), con el número del sitio en sólo dígitos, con la
   clave del país (México: 52).
 - **Los enlaces son del propio sitio.** Los botones llevan a rutas del sitio (`/carrito/`, `/pago/`,
   `/gracias-registro/`, `/gracias-compra/`, `/acceso/` y los avisos legales); la página con esa dirección se crea
-  aparte. Videos, grupos y redes se pegan en el editor: ningún enlace a otro sitio viaja en un texto.
+  aparte. Videos, grupos y los perfiles de los iconos de redes (04 y 07) se pegan en el editor: ningún enlace a otro
+  sitio viaja en un texto, y los iconos de redes llevan el logo de cada red, pero no enlazan a ella.
 - **El orden de los bloques no se cambia.** Se puede quitar un bloque que no aplique (`omit_blocks`), nunca
-  reordenarlos ni mezclar los de dos plantillas en otro orden. El pie, con los avisos legales, no se quita.
+  reordenarlos ni mezclar los de dos plantillas en otro orden.
+- **Lo que no se quita** (decisión del operador, 2026-11-13): la promesa, la oferta, la garantía, las preguntas
+  frecuentes, WhatsApp y el pie, en las plantillas que los tienen (`required: true` en `list-templates`; `create-page`
+  da un error que dice cuáles). Las pruebas sociales (testimonios, historias, capturas) sí se quitan si no hay reales.
 - **Quién está detrás es una persona real.** La de la marca del sitio, con sus datos reales y verificables: nombre,
   historia, credenciales y foto. Si no se tienen, sus placeholders se quedan.
 - **La página primero convence y después vende.** Botones de compra en la promesa, después del temario, en la oferta,
@@ -78,8 +89,8 @@ orden.
 
 | # | Bloque | La pregunta que responde | Lo que lleva |
 |---|---|---|---|
-| 1 | Barra de cierre (`barra-de-cierre`) | ¿Hasta cuándo? | Fecha, hora y contador, y un botón. Sólo si el cierre es real |
-| 2 | La promesa (`promesa`) | ¿Qué gano? | Antetítulo que nombra al lector («Si eres…»), resultado con plazo, video, el método con nombre «sin importar tu giro o tu nivel» y un botón |
+| 1 | Barra fija de cierre (`barra-de-cierre`) | ¿Hasta cuándo? | El logo del evento, si lo hay, la fecha, el contador y un botón; queda fija arriba al desplazar. Sólo si el cierre es real |
+| 2 | La portada (`promesa`) | ¿Qué gano? | Cabe en la primera pantalla y va sin video: el logo, la promesa grande con su plazo, el antetítulo chico debajo («Si eres…» y el método «sin importar tu giro o tu nivel») y un botón. No se quita |
 | 3 | El problema (`problema`) | ¿Me entiendes? | Un dato que duele, los dolores en las palabras del cliente y un giro («ya haces esto y no lo sabías») |
 | 4 | Quién está detrás, corto (`quien-esta-detras`) | ¿Quién me lo dice? | La historia de la persona detrás de la marca y la oportunidad: lo que antes era de pocos y hoy está al alcance del lector (aquí van la gran idea y el porqué de ahora) |
 | 5 | ¿Te imaginas…? (`te-imaginas`) | ¿Cómo sería? | Cuatro resultados deseados, en concreto, y cuántos ya lo lograron |
@@ -92,21 +103,37 @@ orden.
 | 12 | Todo lo que incluye (`todo-lo-que-incluye`) | ¿En qué formato? | El formato en iconos: lecciones, plantillas, plan, acceso, comunidad, sesiones, soporte y actualizaciones |
 | 13 | Nunca estarás solo (`nunca-estaras-solo`) | ¿Me van a dejar solo? | Comunidad, sesiones o eventos, soporte y tutores |
 | 14 | Lo que te llevas al terminar (`al-terminar`) | ¿Qué me queda? | El certificado o el sello, si existe |
-| 15 | Bonus (`bonus`) | ¿Qué más me llevo? | Cada uno con su valor tachado y la duda que resuelve, y el valor total tachado; ninguno vale más que el producto |
+| 15 | Bonus (`bonus`) | ¿Qué más me llevo? | Cada uno con la duda que resuelve, sin precio: su valor va en el resumen de la oferta, no aquí (el precio se revela tarde); ninguno vale más que el producto |
 | 16 | Nuestro compromiso (`compromiso`) | ¿Qué voy a tener? | El repaso de beneficios: «Tendrás un…» |
-| 17 | Cuánto vale para ti (`cuanto-vale`) | ¿Lo vale? | La proyección («¿Cómo sería tu negocio si…?») y el cálculo honesto (un ejemplo, no una promesa) |
-| 18 | La oferta (`oferta`) | ¿Cuánto cuesta? | Todo lo que se lleva, el valor total tachado, el precio en la unidad más baja, el botón «¡Sí, quiero… ahora!», los medios de pago y la fecha de cierre junto al precio |
-| 19 | Garantía y actualización (`garantia`) | ¿Y si no me funciona? | La garantía con nombre y la política de actualización |
+| 17 | Cuánto vale para ti (`cuanto-vale`) | ¿Lo vale? | La proyección («¿Cómo sería tu negocio si…?») y el cálculo honesto (un ejemplo, no una promesa), todavía sin precio |
+| 18 | La oferta (`oferta`) | ¿Cuánto cuesta? | Todo lo que se lleva, con el valor de cada parte y de los bonus, el valor total tachado, el precio en la unidad más baja, el botón «¡Sí, quiero… ahora!», los medios de pago y la fecha de cierre junto al precio. Es el primer lugar con precio. No se quita |
+| 19 | Garantía y actualización (`garantia`) | ¿Y si no me funciona? | La garantía con nombre y la política de actualización. No se quita |
 | 20 | Los caminos (`caminos`) | ¿Qué hago ahora? | No hacer nada, hacerlo solo, el producto (con su botón) y una opción premium si existe |
 | 21 | ¿Te funcionará? (`objeciones`) | ¿Y en mi caso? | Las objeciones dichas como el comprador y contestadas por alumnos con ese perfil, en audio o video |
 | 22 | Lo avala la comunidad (`comunidad`) | ¿Es real? | Capturas reales de mensajes y resultados |
-| 23 | Preguntas frecuentes (`preguntas-frecuentes`) | Dudas de logística | Pago, moneda, meses, factura, acceso, dispositivos, actualización y soporte |
-| 24 | WhatsApp con una cara (`whatsapp`) | ¿Hay alguien? | La foto y el nombre de quien responde, y el botón |
+| 23 | Preguntas frecuentes (`preguntas-frecuentes`) | Dudas de logística | Pago, moneda, meses, factura, acceso, dispositivos, actualización y soporte. No se quita |
+| 24 | WhatsApp con una cara (`whatsapp`) | ¿Hay alguien? | La foto y el nombre de quien responde, y el botón. No se quita |
 | 25 | Cierre (`cierre`) | El último empujón | «¿Qué esperas?», tres o cuatro «¿Quieres…?», la oferta repetida y la firma |
 | 26 | Pie (`pie`) | Lo legal | Avisos legales y el aviso de que no se prometen resultados. No se quita |
 
 **Lo que no falta nunca**, ni en la página de un producto barato: la promesa, quién está detrás, las pruebas, qué es,
-qué incluye, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie. Lo demás crece con el precio.
+qué incluye, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie. Lo demás crece con el precio. De esa
+lista, `create-page` no deja quitar la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie;
+quién está detrás, las pruebas sociales, qué es y qué incluye se quitan si no hay datos reales.
+
+**La portada de una landing de DIGITALÍSIMO** (correcciones del operador, 2026-11-13):
+
+- Cabe entera en la primera pantalla, sin scroll, en escritorio y en celular: barra, logo, promesa y botón. Lo demás
+  va al scroll.
+- Sin video. La promesa va sin él.
+- El título grande es la promesa, y el evento o el antetítulo van chicos debajo. En cada sección, el título corto va
+  grande y la frase de venta chica: «van al revés».
+- El logo del evento (por ejemplo, el de una temporada de ofertas) va en la barra superior fija, no en la portada.
+
+**El precio se revela tarde.** No va en la portada ni en el problema, la autoridad, para quién es, qué incluye o los
+bonus: primero el valor, luego el ancla (cuánto vale para ti, lo que costaría por separado) y el precio sólo en la
+oferta. Hay que llevar de la mano al lector, no lanzar el precio en cada bloque. En un anuncio es al revés: ahí el
+precio filtra.
 
 **Los botones de compra** van en la promesa, después del temario, en la oferta, en el camino recomendado y en el cierre.
 Los demás botones (ver más historias, WhatsApp) son secundarios y de otro color. Nunca se deja sin botón la opción
@@ -118,14 +145,14 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 
 | Para | Fórmula |
 |---|---|
-| El antetítulo | «Si eres [perfil 1], [perfil 2] o [perfil 3]…» |
+| El antetítulo | «Si eres [perfil 1], [perfil 2] o [perfil 3]…», chico, debajo de la promesa |
 | La promesa | «[Logra X] y [resultado] sin [obstáculo] en [N días] o menos», con el método con nombre |
 | La duda del nicho | «Sirve sin importar [tu giro o tu nivel]» |
 | La autoridad | «[Esto] me llevó de [un punto de partida pequeño] a [un resultado con cifra real]» |
 | Un beneficio | «Tendrás un [sistema, plan o método] para [resultado]»; en el temario, verbos de acción |
 | Un testimonio | «De [antes] a [después] en [tiempo]», titulado con el resultado y no con el nombre |
 | Una objeción | «Soy [perfil], ¿me servirá?», en la voz del comprador |
-| Un bonus | «[Cantidad] [recurso] para [tu X]», con valor tachado e «incluido» |
+| Un bonus | «[Cantidad] [recurso] para [tu X]» e «incluido»; su valor tachado va en el resumen de la oferta |
 | El deseo | «¿Cómo sería tu [vida o negocio] si…?», «¿Te imaginas…?» |
 | El precio | «Hoy: $X MXN» o «N meses de $Y MXN», después del cálculo de cuánto vale |
 | El botón | «¡Sí, quiero [producto] ahora!», con un subtexto que recuerda lo que se lleva |
@@ -136,14 +163,16 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 
 ## Las páginas, una por una
 
-- **03 Captación.** Titular que filtre a la audiencia, subtítulo, fecha y hora si es en vivo, foto o video del
-  presentador, formulario con una pregunta de perfil, beneficios, quién lo imparte, pruebas y un recordatorio con
-  botón.
-- **04 Gracias por registrarte.** Felicitación y tres pasos: confirmar el correo, agendar la fecha y unirse al grupo. Si
-  no hay doble confirmación, aquí va el enlace de descarga.
-- **01 Venta completa.** Los 26 bloques de «El orden de una página de venta», en ese orden (32 secciones), con la
+- **03 Captación.** La portada, como la de una venta: el logo, el titular que filtra a la audiencia (la promesa), el
+  evento chico debajo y un botón que lleva al registro. Justo después, el registro: qué se llevan, fecha y hora si es
+  en vivo, foto del presentador y el formulario con una pregunta de perfil. Luego beneficios, quién lo imparte, pruebas
+  y un recordatorio con botón.
+- **04 Gracias por registrarte.** Felicitación y tres pasos: confirmar el correo, agendar la fecha y unirse al grupo;
+  mientras tanto, un contenido corto y los iconos de las redes del sitio (sus enlaces se ponen en el editor). Si no hay
+  doble confirmación, aquí va el enlace de descarga.
+- **01 Venta completa.** Los 26 bloques de «El orden de una página de venta», en ese orden (31 secciones), con la
   oferta en el ancla `#oferta` y las pruebas de la comunidad en `#historias`.
-- **02 Venta corta.** El mismo orden, con los bloques que no faltan nunca: promesa con video, beneficios, quién está
+- **02 Venta corta.** El mismo orden, con los bloques que no faltan nunca: la portada sin video, beneficios, quién está
   detrás, para quién es, qué incluye, testimonios, la oferta, la garantía y pocas preguntas. Aquí sí se repite el
   botón.
 - **05 Carrito.** El formulario va arriba y junto a la oferta; el pago único marcado de entrada y más barato que a
@@ -152,12 +181,15 @@ Se escriben con la voz de DIGITALÍSIMO, sin promesas de ingresos y con cifras q
 - **06 Oferta única.** «¡Espera! Tu pedido casi está listo», un video corto, el complemento con su precio de hoy y un
   sí o un no.
 - **07 Gracias por tu compra.** Bienvenida, revisar el correo de acceso, entrar a la plataforma, presentarse en la
-  comunidad y soporte. Aquí va el evento de compra.
+  comunidad, soporte y los iconos de las redes del sitio. Aquí va el evento de compra.
 
 ## Antes de publicar
 
 - Todo lo que está entre `[corchetes]` se reemplazó o se borró su bloque (`create-page` dice cuáles quedan).
-- WhatsApp con el número real; videos, grupo y redes pegados en el editor.
+- WhatsApp con el número real; videos, grupo y los enlaces de los iconos de redes (los perfiles del sitio) pegados en
+  el editor, y quitados los iconos de las redes que el sitio no usa.
+- La portada se ve entera en la primera pantalla, en celular y en escritorio; el logo del evento en la barra fija, si
+  lo hay (si no, se quita la imagen de muestra).
 - Imágenes reales en cada hueco; ninguna generada que se haga pasar por real.
 - Testimonios, cifras y casos reales y con permiso; si no hay, se quita el bloque.
 - Contador sólo con una fecha de cierre real y el sitio en la zona horaria de la Ciudad de México.

@@ -18,8 +18,12 @@ defined( 'ABSPATH' ) || exit;
  *   invertidas, usuario (`…@sitio`) o sin `//`; un precio es sólo una cifra (la plantilla ya escribe `$` y `MXN`);
  * - cada valor se sanea según su campo: texto plano (`sanitize_text_field()`) o HTML (`wp_kses_post()`);
  * - todos los identificadores (elementos y elementos de listas) se regeneran: ninguno repite uno de la plantilla;
- * - `omit_blocks` quita bloques enteros del manifiesto (nunca el pie) y nunca reordena: lo que queda sigue en el orden
- *   de la plantilla, el de la guía;
+ * - `omit_blocks` quita bloques enteros del manifiesto y nunca reordena: lo que queda sigue en el orden de la
+ *   plantilla, el de la guía. Nunca quita un bloque obligatorio (`required`, decisión 5 del operador): la promesa, la
+ *   oferta, la garantía, las preguntas frecuentes, WhatsApp y el pie, en las plantillas que los tienen; las pruebas
+ *   sociales sí se quitan;
+ * - los iconos de redes (04 y 07) llevan su logo y un enlace de muestra del sitio (`#[enlace de tu perfil]`) que se pone
+ *   en el editor: se informa cuántos quedan (`social_pending`);
  * - una lista de reemplazos va por aparición en la plantilla entera (el total y el orden de list-templates): se llena
  *   antes de quitar bloques, así que ningún valor se corre a otro bloque; los que caen en un bloque quitado y los que
  *   sobran se informan en `ignored`.
@@ -34,6 +38,22 @@ final class Builder {
 	const PRICE = '/^(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]{1,2})?$/';
 
 	const MONTHS = array( 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
+
+	/**
+	 * Lo que `omit_blocks` no quita, con su nombre (decisión 5 del operador, 2026-11-13; `required_kinds` del
+	 * manifiesto, que la prueba compara): un bloque que lleva algo de esto es `required` en el manifiesto.
+	 */
+	const REQUIRED = array(
+		'promesa'              => 'la promesa',
+		'oferta'               => 'la oferta',
+		'garantia'             => 'la garantía',
+		'preguntas-frecuentes' => 'las preguntas frecuentes',
+		'whatsapp'             => 'WhatsApp',
+		'pie'                  => 'el pie (avisos legales)',
+	);
+
+	/** El enlace de muestra de los iconos de redes de la 04 y la 07: se pone en el editor (kit_lib.py, PERFIL_URL). */
+	const PROFILE_SAMPLE = '#[enlace de tu perfil]';
 
 	/**
 	 * @param array $template Plantilla (formato 0.4, con `content`).
@@ -169,13 +189,19 @@ final class Builder {
 		}
 		$omit_ids = array();
 		$omitted  = array();
+		$kept     = array();
 		foreach ( $omit as $key ) {
 			if ( ! is_string( $key ) || ! isset( $blocks[ $key ] ) ) {
 				return self::error( 'digitalisimo_sales_omit_blocks', sprintf( 'omit_blocks: «%s» no es un bloque de esta plantilla. Bloques, en orden: %s.', is_scalar( $key ) ? (string) $key : '?', implode( ', ', array_keys( $blocks ) ) ) );
 			}
-			if ( ! empty( $blocks[ $key ]['required'] ) ) {
-				return self::error( 'digitalisimo_sales_omit_blocks', sprintf( 'El bloque «%s» no se quita: lleva los avisos legales.', $key ) );
+			if ( ! empty( $blocks[ $key ]['required'] ) && ! in_array( $key, $kept, true ) ) {
+				$kept[] = $key;
 			}
+		}
+		if ( $kept ) {
+			return self::error( 'digitalisimo_sales_omit_blocks', self::required_message( $kept, $blocks ) );
+		}
+		foreach ( $omit as $key ) {
 			if ( ! in_array( $key, $omitted, true ) ) {
 				$omitted[] = $key;
 				$omit_ids  = array_merge( $omit_ids, (array) $blocks[ $key ]['sections'] );
@@ -303,15 +329,20 @@ final class Builder {
 			}
 		}
 		// Anclas (#oferta, #historias…) a las que un botón lleva y que ya no están en la página.
+		// Y los iconos de redes (04 y 07) que siguen con el enlace de muestra: el de cada perfil se pone en el editor.
 		$targets = array();
 		$anchors = array();
+		$social  = 0;
 		Placeholders::map_strings(
 			$content,
-			static function ( $owner, $path, $value ) use ( &$targets, &$anchors ) {
+			static function ( $owner, $path, $value ) use ( &$targets, &$anchors, &$social ) {
 				if ( '_element_id' === $path ) {
 					$targets[ $value ] = true;
 				} elseif ( 'url' === Placeholders::field( $owner, $path, $value ) && preg_match( '/^#([A-Za-z][A-Za-z0-9_-]*)$/', $value, $m ) ) {
 					$anchors[ $m[1] ] = true;
+				}
+				if ( 'social-icons' === $owner && 'social_icon_list.link.url' === $path && self::PROFILE_SAMPLE === $value ) {
+					++$social;
 				}
 				return $value;
 			}
@@ -332,6 +363,7 @@ final class Builder {
 			'whatsapp_pending' => self::contains( $content, self::sample() ),
 			'close_date'       => $close ? $close->format( 'Y-m-d H:i' ) : null,
 			'removed_urgency'  => $removed,
+			'social_pending'   => $social,
 		);
 	}
 
@@ -343,6 +375,41 @@ final class Builder {
 	 */
 	public static function takes_close_date( array $meta, array $summary ): bool {
 		return ! empty( $meta['has_countdown'] ) || (bool) array_intersect_key( $summary, array_flip( Placeholders::CLOSE ) );
+	}
+
+	/**
+	 * El error de `omit_blocks` cuando pide quitar bloques obligatorios: cuáles, qué llevan y todos los que no se quitan
+	 * en esa plantilla.
+	 *
+	 * @param string[] $asked  Claves obligatorias pedidas.
+	 * @param array    $blocks Bloques de la plantilla por clave (manifiesto).
+	 */
+	private static function required_message( array $asked, array $blocks ): string {
+		$parts = array();
+		foreach ( $asked as $key ) {
+			$what = array();
+			foreach ( (array) ( $blocks[ $key ]['required_for'] ?? array( 'pie' ) ) as $kind ) {
+				$what[] = self::REQUIRED[ $kind ] ?? (string) $kind;
+			}
+			$parts[] = sprintf( '«%s» (lleva %s)', $key, self::enumerate( $what, ' y ' ) );
+		}
+		$all = array();
+		foreach ( $blocks as $key => $block ) {
+			if ( ! empty( $block['required'] ) ) {
+				$all[] = (string) $key;
+			}
+		}
+		return sprintf(
+			'omit_blocks: no se puede quitar %s. En esta plantilla no se quitan: %s (required: true en list-templates): la promesa, la oferta, la garantía, las preguntas frecuentes, el bloque whatsapp y el pie no faltan nunca (decisión del operador). Los demás bloques sí se quitan, también las pruebas sociales; el orden no se cambia.',
+			self::enumerate( $parts, ' ni ' ),
+			implode( ', ', $all )
+		);
+	}
+
+	/** «a, b y c» (o «a, b ni c»). */
+	private static function enumerate( array $items, string $last ): string {
+		$tail = array_pop( $items );
+		return $items ? implode( ', ', $items ) . $last . $tail : (string) $tail;
 	}
 
 	private static function sample(): string {

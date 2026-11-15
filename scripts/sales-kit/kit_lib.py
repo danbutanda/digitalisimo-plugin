@@ -48,9 +48,14 @@ PAGO_EFECTIVO = ("OXXO", "SPEI")  # pago en efectivo y transferencia de las preg
 # Aviso legal del pie: Meta y Google sólo aquí (lo piden sus políticas de anuncios a las páginas a las que llevan).
 AVISO_PLATAFORMAS = ("Este sitio no forma parte de Meta Platforms, Inc. ni de Google, y no está respaldado por "
                      "ellos.")
-# Lo demás, neutro: la plataforma de una sesión en vivo, el video y las redes del sitio.
+# Lo demás, neutro: la plataforma de una sesión en vivo y el video.
 PLATAFORMA_SESION = "[plataforma de la sesión]"
 VIDEO_URL = "[enlace del video]"  # el video se pega en el editor; ningún enlace a otro servicio viaja en el kit
+# Los iconos de las redes del sitio, con su logo (decisión del operador, 2026-11-13): sólo en la 04 y la 07 (excepción
+# acotada en marcas.json). Sus enlaces no van a las redes: llevan PERFIL_URL, que el dueño cambia en el editor por el
+# de su perfil; el de WhatsApp lleva el número del sitio.
+REDES = ("fab fa-facebook-f", "fab fa-instagram", "fab fa-tiktok", "fab fa-youtube")
+PERFIL_URL = "#[enlace de tu perfil]"
 
 # ---------------------------------------------------------------- fecha de cierre
 # Sólo con una fecha real (D-0024): `create-page` llena estos placeholders y la fecha de los contadores con `close_date`;
@@ -414,9 +419,18 @@ def espacio(alto=24):
 
 
 def redes(oscuro=False):
-    """Dónde poner las redes del sitio. Sin iconos ni enlaces de otras empresas: se agregan en el editor."""
-    return texto("<p>[Tus redes: agrega aquí los enlaces a tus perfiles con el widget de iconos sociales, o borra este "
-                 "texto]</p>", color=MUT_OSC if oscuro else MUT, tam=15, tam_movil=15)
+    """Los iconos de las redes del sitio, con su logo, como en el kit v3 y v4 (decisión del operador, 2026-11-13).
+
+    Ningún enlace va a otra empresa: cada red lleva `PERFIL_URL`, un placeholder de tipo enlace que el dueño cambia en
+    el editor por el de su perfil (create-page no acepta URLs de otros sitios y avisa que faltan), y WhatsApp lleva el
+    número del sitio (la entrada `whatsapp` de create-page). Los logos son una excepción acotada en marcas.json: este
+    widget, este campo, la 04 y la 07."""
+    iconos = [(i, PERFIL_URL) for i in REDES] + [("fab fa-whatsapp", WHATSAPP)]
+    lista_r = [{"social_icon": icono(i, "fa-brands"), "link": {"url": u, "is_external": "on", "nofollow": ""},
+                "_id": nid()} for i, u in iconos]
+    return widget("social-icons", {"social_icon_list": lista_r, "align": "center", "icon_color": "custom",
+                                   "icon_primary_color": AZUL if not oscuro else CARD_OSC,
+                                   "icon_secondary_color": BLANCO, "icon_size": px(18), "icon_spacing": px(10)})
 
 
 def formulario(campos, boton_txt, redirigir, nombre="Registro", color_boton=JADE):

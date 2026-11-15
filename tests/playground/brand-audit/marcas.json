@@ -86,7 +86,7 @@
       "campo": "^(button\\.text|button\\.selected_icon\\.value|icon-box\\.selected_icon\\.value|text-editor\\.editor|accordion\\.tabs\\.tab_content|countdown\\.message_after_expire|form\\.error_message|icon-list\\.icon_list\\.text)$",
       "frases": "(¿Dudas\\? )?(Hablar|Pregúntanos) por WhatsApp|[Ss]oporte por WhatsApp|Unirme al grupo de WhatsApp|^fab fa-whatsapp$|Escríbenos (a \\[correo de soporte\\] o )?por WhatsApp",
       "motivo": "El llamado a la acción del kit: los botones «Hablar por WhatsApp» y «Pregúntanos por WhatsApp» (del manual de identidad, al número del sitio, https://wa.me/<dígitos>), su icono, el botón del grupo de la clase y las frases que invitan a escribir por WhatsApp (dudas, soporte, error del formulario, cierre del contador, el bonus de soporte). Cualquier otra mención en una plantilla falla.",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador (no es una excepción suya): el brief del kit (2026-11-13) pide «llamado a la acción por WhatsApp» y la entrada whatsapp de create-page. Si no lo confirma, estos textos pasan a un canal neutro («[canal de mensajes]») en kit_lib.py."
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1 de las cinco, vía la sesión del cerebro): WhatsApp es excepción de marca declarada, como OXXO, SPEI y Mercado Pago, y se acota igual: al llamado a la acción y a estos campos y frases, nunca a todo el módulo."
     },
     {
       "nombres": ["WhatsApp"],
@@ -94,7 +94,7 @@
       "campo": "^form\\.form_fields\\.(field_label|custom_id)$",
       "frases": "^(Tu WhatsApp \\(para recordarte\\)|WhatsApp|whatsapp)$",
       "motivo": "El campo del formulario de captación (03) y del carrito (05) donde la persona deja su número para que le escriban por ese canal (el del llamado a la acción).",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
     },
     {
       "nombres": ["WhatsApp"],
@@ -102,15 +102,23 @@
       "campo": "^(section|container)\\._title$",
       "frases": "WhatsApp con una cara|Dudas de pago y WhatsApp|perfiles y WhatsApp",
       "motivo": "El nombre en el Navegador del editor (no se ve en la página) de los bloques que llevan el llamado a la acción.",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
+    },
+    {
+      "nombres": ["Facebook", "Instagram", "TikTok", "YouTube", "WhatsApp"],
+      "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[47]-",
+      "campo": "^social-icons\\.social_icon_list\\.social_icon\\.value$",
+      "frases": "^fab fa-(facebook-f|instagram|tiktok|youtube|whatsapp)$",
+      "motivo": "Los iconos de las redes del sitio, con su logo, en «Mientras tanto» de la 04 y en «Soporte y redes» de la 07, como en el kit v3 y v4: sólo el icono (el valor del icono del widget de iconos sociales). Sus enlaces no van a esas empresas: cada red lleva el placeholder #[enlace de tu perfil], que el dueño cambia en el editor por su perfil, y WhatsApp el número del sitio; el validador rechaza cualquier otro enlace, y create-page sigue sin aceptar URLs de otros sitios y avisa en «review» que faltan los enlaces de las redes.",
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 2 de las cinco): vuelven los iconos de redes con su logo en las plantillas 04 y 07. Sólo el logo; los enlaces son placeholders del sitio, nunca a la red."
     },
     {
       "nombres": ["WhatsApp"],
       "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/manifest\\.json$",
-      "campo": "^manifest\\.(templates\\.(purpose|use_when|blocks\\.key|blocks\\.name)|cases\\.no_falta)$",
-      "frases": "WhatsApp con una cara|Dudas de pago y WhatsApp|«Hablar por WhatsApp»|^whatsapp$|correo, WhatsApp y una pregunta",
-      "motivo": "El catálogo que lee list-templates: el bloque del llamado a la acción («WhatsApp con una cara», clave whatsapp), el llamado del manual y el campo del formulario de captación.",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+      "campo": "^manifest\\.(templates\\.(purpose|use_when|blocks\\.key|blocks\\.name|blocks\\.required_for)|cases\\.no_falta|required_kinds\\.whatsapp)$",
+      "frases": "WhatsApp con una cara|Dudas de pago y WhatsApp|«Hablar por WhatsApp»|^whatsapp$|^WhatsApp$|correo, WhatsApp y una pregunta",
+      "motivo": "El catálogo que lee list-templates: el bloque del llamado a la acción («WhatsApp con una cara», clave whatsapp), el llamado del manual, el campo del formulario de captación y WhatsApp entre lo que omit_blocks no quita (decisión 5).",
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
     },
     {
       "nombres": ["WhatsApp"],
@@ -118,7 +126,7 @@
       "campo": "^guide\\.",
       "frases": "El llamado a la acción es por WhatsApp|«Hablar por WhatsApp»|WhatsApp para quien no se ve en la lista|WhatsApp con una|\\(`whatsapp`\\)|frecuentes, WhatsApp y el pie|ver más historias, WhatsApp|WhatsApp con el número real",
       "motivo": "La guía de venta: la regla del llamado a la acción y el bloque «WhatsApp con una cara» en el orden de la página.",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
     },
     {
       "nombres": ["WhatsApp"],
@@ -126,7 +134,7 @@
       "comprueba": "tests/elements-sales-mcp.php",
       "frases": "llamado a la acción por WhatsApp|Número de WhatsApp del sitio|\\bwhatsapp\\b",
       "motivo": "Los textos de las herramientas MCP: la entrada whatsapp de create-page (el número del sitio) y la regla del llamado a la acción en la guía.",
-      "decision": "PENDIENTE DE CONFIRMAR por el operador, con el llamado a la acción."
+      "decision": "Excepción explícita del operador, 2026-11-13 (decisión 1), la misma de arriba, acotada a este campo y estas frases."
     }
   ]
 }
