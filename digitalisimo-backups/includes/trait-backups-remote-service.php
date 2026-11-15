@@ -664,8 +664,17 @@ trait Digitalisimo_Backups_Remote_Service {
 		$jobs = array();
 		if ( '' === $registered && is_array( $result['chain'] ?? null ) ) {
 			$needs = self::loose_chain_needs_names( (array) $result['chain']['links'] );
+			// Sólo los nombres que el destino lista de verdad (el manifiesto viene de fuera).
+			$listed = array();
+			if ( $needs ) {
+				try {
+					foreach ( (array) self::destination( (string) $fetch['connection'] )->list() as $item ) $listed[ (string) ( $item['name'] ?? '' ) ] = true;
+				} catch ( Exception $e ) {
+					$message .= ' No se pudo listar ' . $from . ' para traer su cadena: ' . Digitalisimo_Backups_Http::redact( $e->getMessage() );
+				}
+			}
 			foreach ( $needs as $link ) {
-				if ( ! self::remote_backup_name( $link ) ) continue;
+				if ( ! self::remote_backup_name( $link ) || ! isset( $listed[ $link ] ) ) continue;
 				$queued = Digitalisimo_Backups_Jobs::enqueue( self::fetch_spec( array( 'connection' => (string) $fetch['connection'], 'name' => $link, 'registered' => '', 'sha256' => '', 'size' => 0 ), (string) ( $job['spec']['origin']['via'] ?? 'rest' ) ) );
 				$jobs[] = (string) $queued['job']['id'];
 			}

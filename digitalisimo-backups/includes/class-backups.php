@@ -56,6 +56,8 @@ final class Digitalisimo_Backups {
 	use Digitalisimo_Backups_Remote_Retention; // Retención en el destino remoto (B6) y «sólo en el remoto» (I4).
 	use Digitalisimo_Backups_Remote_Service; // Respaldos en los destinos: listar, sincronizar y traer (B1b, B2, I13).
 	use Digitalisimo_Backups_Keep_Config; // La configuración propia de Backups se conserva al restaurar (H23).
+	/** @internal Lo que la última automatización guardada ajustó («Conservar» recortado), para el mensaje de la pantalla. */
+	private static $automation_notice = '';
 	/** @internal Foto de la configuración propia que anota el próximo diario de la restauración (H23); null: ninguna. */
 	private static $config_kept = null;
 	/** @internal Acceso de quien restaura y ruta de acceso de este sitio para el próximo diario (cifrado); null: ninguno. */
@@ -905,7 +907,7 @@ final class Digitalisimo_Backups {
 			$incremental = 'incremental' === ( $policy['mode'] ?? '' );
 			$select = '<select name="digitalisimo_backup_automation[mode]"><option value="full"' . selected( $incremental, false, false ) . '>Completo cada vez</option><option value="incremental"' . selected( $incremental, true, false ) . '>Incremental: sólo lo nuevo o cambiado</option></select>';
 			$numbers = '<label>Un completo cada <input type="number" min="1" max="' . Digitalisimo_Backups_Chain::MAX_FULL_EVERY . '" name="digitalisimo_backup_automation[full_every]" value="' . esc_attr( (string) $chain['full_every'] ) . '"> incrementales</label> <label>o cada <input type="number" min="1" max="' . Digitalisimo_Backups_Chain::MAX_FULL_DAYS . '" name="digitalisimo_backup_automation[full_days]" value="' . esc_attr( (string) $chain['full_days'] ) . '"> días</label>';
-			$help = self::help_html( 'Cada incremental es un punto de restauración completo: guarda la base de datos entera y sólo los archivos nuevos o cambiados (y los borrados) desde el anterior, y restaurarlo reconstruye antes el respaldo completo de ese momento con su cadena. Ahorra espacio; un completo nuevo cada N incrementales o D días mantiene las cadenas cortas. La retención («Conservar») cuenta puntos y nunca borra un respaldo del que dependa otro que se conserva.' );
+			$help = self::help_html( 'Cada incremental es un punto de restauración completo: guarda la base de datos entera y sólo los archivos nuevos o cambiados (y los borrados) desde el anterior, y restaurarlo reconstruye antes el respaldo completo de ese momento con su cadena. Ahorra espacio; un completo nuevo cada N incrementales o D días mantiene las cadenas cortas. La retención («Conservar») cuenta puntos y nunca borra un respaldo del que dependa otro que se conserva; con un completo cada N, «Conservar» llega como mucho a 100 − N.' );
 			if ( $row ) return '<tr><th><label>Respaldo</label></th><td>' . $select . '<p>' . $numbers . '</p>' . $help . '</td></tr>';
 			return '<p><label>Respaldo<br>' . $select . '</label> ' . $numbers . '</p>' . $help;
 		}
@@ -1078,21 +1080,24 @@ final class Digitalisimo_Backups {
 		if ( 'incremental' === $chain['mode'] ) {
 			$automation += $chain;
 			// Sus puntos y la cadena de la que dependen (Conservar + un completo cada N) caben en el historial (100 filas).
-			$automation['retain'] = max( 1, min( (int) $automation['retain'], Digitalisimo_Backups_Chain::HISTORY_ROWS - $chain['full_every'] ) );
+			$cap = max( 1, Digitalisimo_Backups_Chain::HISTORY_ROWS - $chain['full_every'] );
+			if ( (int) $automation['retain'] > $cap ) self::$automation_notice = ' «Conservar» quedó en ' . $cap . ': con un completo cada ' . $chain['full_every'] . ' incrementales, sus puntos y su cadena caben así en el historial.';
+			$automation['retain'] = max( 1, min( (int) $automation['retain'], $cap ) );
 		}
 		return $automation;
 	}
 	public static function create_automation() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_CREATE_AUTOMATION );
 		$input = (array) ( $_POST['digitalisimo_backup_automation'] ?? array() ); $input['enabled'] = 1;
+		self::$automation_notice = '';
 		$automation = self::automation_input( $input ); if ( is_wp_error( $automation ) ) self::redirect( false, $automation->get_error_message() );
-		$policies = self::policies(); $policies[] = $automation; update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización creada.' );
+		$policies = self::policies(); $policies[] = $automation; update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización creada.' . self::$automation_notice );
 	}
 	public static function update_automation() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_UPDATE_AUTOMATION );
-		$id = sanitize_key( $_POST['policy_id'] ?? '' ); $policies = self::policies(); $found = false;
+		$id = sanitize_key( $_POST['policy_id'] ?? '' ); $policies = self::policies(); $found = false; self::$automation_notice = '';
 		foreach ( $policies as $index => $policy ) if ( $id === ( $policy['id'] ?? '' ) ) { $input = (array) ( $_POST['digitalisimo_backup_automation'] ?? array() ); if ( ! array_key_exists( 'mode', $input ) ) $input += array_intersect_key( (array) $policy, array_flip( array( 'mode', 'full_every', 'full_days' ) ) ); $automation = self::automation_input( $input, $id, $policy['type'] ); if ( is_wp_error( $automation ) ) self::redirect( false, $automation->get_error_message() ); $policies[ $index ] = $automation; $found = true; break; }
-		if ( ! $found ) self::redirect( false, 'La automatización ya no existe.' ); update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización guardada.' );
+		if ( ! $found ) self::redirect( false, 'La automatización ya no existe.' ); update_option( self::POLICIES, $policies, false ); self::sync_policy_schedules(); self::redirect( true, 'Automatización guardada.' . self::$automation_notice );
 	}
 	public static function delete_automation() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_DELETE_AUTOMATION );
@@ -1497,9 +1502,18 @@ final class Digitalisimo_Backups {
 		$target = $dir . '/point.zip';
 		$restore = (array) ( $job['spec']['restore'] ?? array() );
 		$queued = (string) ( $job['checkpoint']['handoff']['restore_job'] ?? '' );
-		// Si el proceso murió justo después de encolarla, la restauración ya está: se reconoce por su ficha de lectura.
-		foreach ( Digitalisimo_Backups_Jobs::active() as $active ) if ( '' === $queued && Digitalisimo_Backups_Jobs::is_restore( $active ) && array_intersect( (array) ( $restore['readers'] ?? array() ), (array) ( $active['spec']['readers'] ?? array() ) ) ) $queued = (string) $active['id'];
+		// Si el proceso murió justo después de encolarla, la restauración ya está (en curso o terminada): se reconoce por su
+		// ficha de lectura, que sólo tiene ella.
+		foreach ( Digitalisimo_Backups_Jobs::all() as $other ) if ( '' === $queued && Digitalisimo_Backups_Jobs::is_restore( $other ) && array_intersect( (array) ( $restore['readers'] ?? array() ), (array) ( $other['spec']['readers'] ?? array() ) ) ) $queued = (string) $other['id'];
 		if ( '' === $queued ) {
+			// Un respaldo que sólo espera en la cola (una automatización encolada durante la reconstrucción) no la impide: no
+			// empieza mientras la restauración no termina. Uno que ya corre (no debería) se espera sin gastar intentos.
+			$except = array( (string) $job['id'] );
+			foreach ( Digitalisimo_Backups_Jobs::active() as $other ) {
+				if ( (string) $other['id'] === (string) $job['id'] ) continue;
+				if ( Digitalisimo_Backups_Jobs::restore_like( $other ) || ! empty( $other['lease'] ) || ! empty( $other['started_at'] ) ) return array( 'next' => 'handoff', 'wait' => 60, 'checkpoint' => array( 'waiting' => (string) $other['id'] ), 'message' => 'El punto está reconstruido; espera a que termine otro trabajo para pasar a la restauración…' );
+				$except[] = (string) $other['id'];
+			}
 			if ( ! is_file( $target ) || ! Digitalisimo_Backups_Backup_Job::same_fingerprint( Digitalisimo_Backups_Backup_Job::fingerprint( $target ), (array) ( $job['checkpoint']['seal']['fp'] ?? array() ) ) ) throw new Digitalisimo_Backups_Checkpoint_Invalid( 'El punto reconstruido cambió o desapareció; se cierra otra vez.', 'seal' );
 			$sha = @hash_file( 'sha256', $target );
 			if ( false === $sha ) throw new Exception( 'No se pudo comprobar el punto reconstruido.' );
@@ -1520,7 +1534,7 @@ final class Digitalisimo_Backups {
 					'token' => (string) ( $restore['token'] ?? '' ),
 					'readers' => (array) ( $restore['readers'] ?? array() ),
 					'user_id' => (int) ( $restore['user_id'] ?? 0 ),
-					'except' => (string) $job['id'],
+					'except' => $except,
 				) );
 			} finally {
 				Digitalisimo_Backups_Security::close( $report );

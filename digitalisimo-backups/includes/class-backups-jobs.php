@@ -180,8 +180,10 @@ final class Digitalisimo_Backups_Jobs {
 	 */
 	public static function enqueue_restore( array $spec, $prepare = null, $except = '' ) {
 		return Digitalisimo_Backups_Job_Store::with_lock( function() use ( $spec, $prepare, $except ) {
-			// $except: el trabajo que pide la restauración y espera su resultado (una migración) no cuenta como otro a medias.
-			$active = array_values( array_filter( self::active(), function( $job ) use ( $except ) { return '' === (string) $except || (string) $job['id'] !== (string) $except; } ) );
+			// $except: el trabajo que pide la restauración y espera su resultado (una migración) no cuenta como otro a medias;
+			// puede ser una lista (la reconstrucción de un punto y los respaldos que sólo esperan en la cola).
+			$skip = array_map( 'strval', is_array( $except ) ? $except : array( $except ) );
+			$active = array_values( array_filter( self::active(), function( $job ) use ( $skip ) { return ! in_array( (string) $job['id'], $skip, true ); } ) );
 			if ( $active ) return array( 'busy' => true, 'job' => $active[0] );
 			$job = Digitalisimo_Backups_Job_Store::create( self::blank( Digitalisimo_Backups_Job_Store::new_id(), $spec, 'queued', 'restore' ) );
 			try {
@@ -223,6 +225,11 @@ final class Digitalisimo_Backups_Jobs {
 		return null;
 	}
 	public static function is_restore( $job ) { return is_array( $job ) && 'restore' === ( $job['kind'] ?? 'backup' ); }
+	/**
+	 * Una restauración o lo que la prepara (el trabajo `chain` que reconstruye un punto incremental, ya confirmado): mientras
+	 * no termina, ningún respaldo empieza.
+	 */
+	public static function restore_like( $job ) { return self::is_restore( $job ) || ( is_array( $job ) && 'chain' === ( $job['spec']['kind'] ?? '' ) ); }
 	/** Fases del tipo de trabajo. */
 	public static function phases( $job ) {
 		if ( self::is_restore( $job ) ) return Digitalisimo_Backups_Restore_Job::PHASES;
@@ -312,10 +319,10 @@ final class Digitalisimo_Backups_Jobs {
 			$jobs = Digitalisimo_Backups_Job_Store::all();
 			// Mientras una restauración no termina, ningún respaldo empieza: copiaría un sitio a medio restaurar.
 			$restoring = false;
-			foreach ( $jobs as $job ) if ( self::is_restore( $job ) && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) $restoring = true;
+			foreach ( $jobs as $job ) if ( self::restore_like( $job ) && ! Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) $restoring = true;
 			foreach ( $jobs as $job ) {
 				if ( Digitalisimo_Backups_Job_Store::is_terminal( $job ) || ! empty( $job['lease'] ) ) continue;
-				if ( $restoring && ! self::is_restore( $job ) ) continue;
+				if ( $restoring && ! self::restore_like( $job ) ) continue;
 				// Un trabajo puede pedir más plazo (el respaldo antes de actualizar, en un hosting lento), nunca menos.
 				$expiry = (int) self::filter( 'digitalisimo_backups_job_expiry', max( self::EXPIRES_AFTER, (int) ( $job['spec']['expires_after'] ?? 0 ) ) );
 				if ( $now - (int) $job['created_at'] > $expiry ) {

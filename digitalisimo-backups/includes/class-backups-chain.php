@@ -86,7 +86,7 @@ final class Digitalisimo_Backups_Chain {
 	/** El bloque `chain` de una fila del historial, si es un punto de una cadena de este formato; si no, null. */
 	public static function row_chain( $row ) {
 		$chain = is_array( $row ) && is_array( $row['chain'] ?? null ) ? $row['chain'] : null;
-		if ( ! $chain || self::VERSION !== (int) ( $chain['v'] ?? 0 ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 0 ) return null;
+		if ( ! $chain || self::VERSION !== (int) ( $chain['v'] ?? 0 ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 0 || $chain['sequence'] > self::MAX_FULL_EVERY ) return null;
 		if ( ! self::valid_id( $chain['id'] ?? null ) || ! self::valid_id( $chain['backup_id'] ?? null ) || ! self::valid_sha( $chain['manifest_sha256'] ?? null ) ) return null;
 		if ( ! self::valid_links( $chain['links'] ?? null, $chain['sequence'] ) || ! self::valid_file( $row['file'] ?? null ) ) return null;
 		return $chain;
@@ -98,7 +98,8 @@ final class Digitalisimo_Backups_Chain {
 	public static function manifest_chain( $data ) {
 		if ( ! is_array( $data ) || 'digitalisimo-backup/v3' !== ( $data['format'] ?? '' ) || 'incremental' !== ( $data['type'] ?? '' ) ) return null;
 		$chain = is_array( $data['chain'] ?? null ) ? $data['chain'] : null;
-		if ( ! $chain || self::VERSION !== ( $chain['version'] ?? null ) || ! self::valid_id( $chain['id'] ?? null ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 1 || ! self::valid_links( $chain['links'] ?? null, $chain['sequence'] ) ) return null;
+		// Ninguna cadena tiene más eslabones que el tope de «un completo cada N»: un manifiesto ajeno no hace buscar miles.
+		if ( ! $chain || self::VERSION !== ( $chain['version'] ?? null ) || ! self::valid_id( $chain['id'] ?? null ) || ! is_int( $chain['sequence'] ?? null ) || $chain['sequence'] < 1 || $chain['sequence'] > self::MAX_FULL_EVERY || ! self::valid_links( $chain['links'] ?? null, $chain['sequence'] ) ) return null;
 		return $chain;
 	}
 	/** Una fila que es un punto incremental (no la base). */

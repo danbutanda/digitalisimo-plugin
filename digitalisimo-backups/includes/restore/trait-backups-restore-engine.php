@@ -112,7 +112,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 			}
 			$job['spec']['source']['fp'] = Digitalisimo_Backups_Backup_Job::fingerprint( self::restore_source_path( $job ) );
 			return Digitalisimo_Backups_Job_Store::write( $job );
-		}, (string) ( $args['except'] ?? '' ) );
+		}, is_array( $args['except'] ?? null ) ? $args['except'] : (string) ( $args['except'] ?? '' ) );
 		if ( ! empty( $queued['busy'] ) ) {
 			$other = $queued['job'];
 			throw new Exception( Digitalisimo_Backups_Jobs::is_restore( $other ) ? 'Ya hay una restauración en curso (' . Digitalisimo_Backups_Jobs::phase_label( (string) $other['phase'], $other ) . '). Espera a que termine.' : 'Hay un respaldo pendiente o en curso. Cancélalo en «Trabajos» o espera a que termine antes de restaurar.' );

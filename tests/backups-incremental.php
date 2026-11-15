@@ -576,6 +576,74 @@ inc_case( 'I13 los borrados salen del inventario confirmado aunque un tramo muer
 	inc_check( array( 'wordpress/' . $gone ) === $deleted && 1 === $zip['manifest']['chain']['stats']['deleted'], 'El borrado no figura en el inventario: ' . json_encode( $deleted ) );
 } );
 
+inc_case( 'I17 un respaldo que una automatización encola mientras se reconstruye el punto no tumba la restauración confirmada', function() use ( $C ) {
+	inc_put( 'wp-content/uploads/2026/12/cola.txt', 'cola 0' );
+	inc_run( 'cola' );
+	for ( $i = 0; $i < 6; $i++ ) inc_put( 'wp-content/uploads/2026/12/cola-' . $i . '.txt', str_repeat( 'cola ' . $i, 100 ) );
+	$point = inc_path( inc_run( 'cola' ) );
+	$tree = inc_files();
+	inc_put( 'wp-content/uploads/2026/12/cola.txt', 'después' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { return 0; };
+	$GLOBALS['bk_filters']['digitalisimo_backups_step_units'] = function() { return 1; };
+	$result = Digitalisimo_Backups::service_restore( basename( $point ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+	inc_check( ! is_wp_error( $result ) && 'chain' === ( $result['job']['kind'] ?? '' ), 'La restauración no empezó por su reconstrucción.' );
+	$chain = $result['job']['id'];
+	Digitalisimo_Backups_Jobs::tick( 0 );
+	Digitalisimo_Backups_Jobs::tick( 0 );
+	// WP-Cron encola una automatización mientras tanto.
+	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'cola-cron', 'destination' => 'local', 'retain' => 20, 'retention' => 'policy', 'via' => 'cron' ) ) );
+	inc_check( empty( $queued['duplicate'] ), 'No se encoló el respaldo de la automatización.' );
+	for ( $i = 0; $i < 4000 && Digitalisimo_Backups_Jobs::active(); $i++ ) {
+		$backup = Digitalisimo_Backups_Jobs::get( $queued['job']['id'] );
+		$job = Digitalisimo_Backups_Jobs::get( $chain );
+		inc_check( 'queued' === $backup['status'] || Digitalisimo_Backups_Job_Store::is_terminal( $job ), 'El respaldo empezó mientras se reconstruía el punto.' );
+		Digitalisimo_Backups_Jobs::tick( 0 );
+	}
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_step_units'] );
+	$job = Digitalisimo_Backups_Jobs::get( $chain );
+	inc_check( 'success' === $job['status'] && inc_last_restore_ok() && $tree === inc_files(), 'La restauración confirmada cayó por el respaldo encolado: ' . json_encode( array( $job['status'], $job['error'] ) ) );
+	inc_check( 'success' === Digitalisimo_Backups_Jobs::get( $queued['job']['id'] )['status'], 'El respaldo encolado no se hizo después de la restauración.' );
+} );
+
+inc_case( 'I18 si el proceso muere justo después de encolar la restauración, la reconstrucción no dice que no cambió nada', function() {
+	inc_put( 'wp-content/uploads/2026/12/muere.txt', 'muere 0' );
+	inc_run( 'muere' );
+	inc_put( 'wp-content/uploads/2026/12/muere.txt', 'muere 1' );
+	$point = inc_path( inc_run( 'muere' ) );
+	$tree = inc_files();
+	inc_put( 'wp-content/uploads/2026/12/muere.txt', 'después' );
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { return 0; };
+	$result = Digitalisimo_Backups::service_restore( basename( $point ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'test' ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+	$chain = $result['job']['id'];
+	for ( $i = 0; $i < 200; $i++ ) {
+		$job = Digitalisimo_Backups_Jobs::get( $chain );
+		if ( 'handoff' === $job['phase'] || Digitalisimo_Backups_Job_Store::is_terminal( $job ) ) break;
+		Digitalisimo_Backups_Jobs::tick( 0 );
+	}
+	inc_check( 'handoff' === $job['phase'], 'La reconstrucción no llegó a la entrega.' );
+	// La entrega encola la restauración y el proceso muere antes de anotarlo.
+	$plan = json_decode( file_get_contents( Digitalisimo_Backups_Job_Store::staging( $chain ) . '/plan.json' ), true );
+	Digitalisimo_Backups::chain_handoff( $job, $plan );
+	inc_kill( $chain );
+	for ( $i = 0; $i < 4000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	$job = Digitalisimo_Backups_Jobs::get( $chain );
+	inc_check( 'success' === $job['status'] && '' !== (string) ( $job['result']['restore_job'] ?? '' ) && inc_last_restore_ok() && $tree === inc_files(), 'Tras morir en la entrega, la reconstrucción no reconoce la restauración que ya hizo: ' . json_encode( array( $job['status'], $job['error']['message'] ?? '' ) ) );
+} );
+
+inc_case( 'I19 una cadena de más eslabones que el tope no se acepta; «Conservar» recortado se avisa', function() use ( $C, $B ) {
+	$links = array();
+	for ( $i = 0; $i <= $C::MAX_FULL_EVERY; $i++ ) $links[] = array( 'sequence' => $i, 'file' => 'digitalisimo-backup-x-' . $i . '.zip', 'backup_id' => '00000000-0000-4000-8000-' . sprintf( '%012d', $i ), 'manifest_sha256' => str_repeat( 'a', 64 ) );
+	$data = array( 'format' => 'digitalisimo-backup/v3', 'type' => 'incremental', 'chain' => array( 'version' => 1, 'id' => '00000000-0000-4000-8000-000000000000', 'sequence' => count( $links ), 'links' => $links ) );
+	inc_check( null === $C::manifest_chain( $data ), 'Se aceptó una cadena de ' . count( $links ) . ' eslabones (el tope es ' . $C::MAX_FULL_EVERY . ').' );
+	array_pop( $data['chain']['links'] );
+	$data['chain']['sequence']--;
+	inc_check( null !== $C::manifest_chain( $data ), 'Se rechazó una cadena dentro del tope.' );
+	list( $ok, $message ) = bk_post( array( $B, 'create_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_CREATE_AUTOMATION, 'digitalisimo_backup_automation' => array( 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 100, 'mode' => 'incremental', 'full_every' => 30 ) ) );
+	inc_check( $ok && false !== strpos( $message, '«Conservar» quedó en 70' ), 'El recorte de «Conservar» no se avisó: ' . $message );
+} );
+
 inc_case( 'I9 tope del historial: nunca saca la fila de un eslabón del que depende un punto que se queda; «Conservar 100» con un completo cada 6 cabe entero', function() use ( $C, $B ) {
 	// La pantalla no deja que una automatización incremental desborde el historial: Conservar + N ≤ 100.
 	list( $ok, $message ) = bk_post( array( $B, 'create_automation' ), array( '_wpnonce' => 'nonce-' . $B::ACTION_CREATE_AUTOMATION, 'digitalisimo_backup_automation' => array( 'type' => 'full', 'schedule' => 'daily', 'destination' => 'local', 'retain' => 100, 'mode' => 'incremental', 'full_every' => 6 ) ) );
