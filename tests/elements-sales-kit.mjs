@@ -56,7 +56,7 @@ roto('WhatsApp fuera del llamado a la acción', 'sections', corta, (d) => { widg
 roto('WhatsApp en un botón, pero con otro texto', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'button' && /WhatsApp/.test(w.settings.text)).settings.text = 'Hablar por WhatsApp y síguenos en WhatsApp Business'; }, /«WhatsApp» sin excepción declarada/);
 roto('OXXO fuera de su lugar', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'heading').settings.title = 'Paga en OXXO'; }, /«OXXO» sin excepción declarada/);
 roto('un enlace a otro sitio', 'sections', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'button').settings.link.url = 'https://otro.test/'; }, /enlace inesperado/);
-roto('un video de otro servicio', 'containers', corta, (d) => { widgets(d.content).find((w) => w.widgetType === 'video').settings.youtube_url = 'https://www.youtube.com/watch?v=abcdefghijk'; }, /video con un enlace|YouTube/);
+roto('un video de otro servicio', 'containers', '06-oferta-unica-despues-de-la-compra.json', (d) => { widgets(d.content).find((w) => w.widgetType === 'video').settings.youtube_url = 'https://www.youtube.com/watch?v=abcdefghijk'; }, /video con un enlace|YouTube/);
 roto('un id repetido', 'sections', corta, (d) => { d.content[1].id = d.content[0].id; }, /id repetido/);
 roto('un widget que no existe', 'containers', corta, (d) => { widgets(d.content)[0].widgetType = 'no-existe'; }, /no existe en Elements/);
 roto('variantes distintas', 'containers', corta, (d) => { widgets(d.content)[0].settings.title = 'Otro texto'; }, /mismos widgets en el mismo orden/);
@@ -105,7 +105,7 @@ for (const nombre of ['MEDIOS_PAGO', 'MEDIOS_PAGO_FAQ', 'PASARELA', 'PAGO_EFECTI
 }
 
 // 4. El manifiesto y los archivos coinciden.
-ok(manifest.templates.length === 8 && manifest.guide_source.commit === '06ff42f' && manifest.kit_version === '3-generico', 'manifiesto: ocho plantillas del kit v3 genérico y la guía del cerebro en 06ff42f');
+ok(manifest.templates.length === 8 && manifest.guide_source.commit === '06ff42f' && /v4/.test(manifest.kit_source) && manifest.kit_version === '4-generico', 'manifiesto: ocho plantillas del kit v4 genérico y la guía del cerebro en 06ff42f (con la v4 de la copia de trabajo)');
 // La versión con la persona de DIGITALÍSIMO es sólo para los sitios propios: ni en el generador del repositorio ni en el módulo.
 ok(!/Daniel|Butanda|PERSONA_DIGITALISIMO/.test(lib + paginas), 'el generador del repositorio sólo trae la persona genérica');
 const modulo = join(templates, '..');

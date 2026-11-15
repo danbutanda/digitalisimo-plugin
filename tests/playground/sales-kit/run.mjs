@@ -176,11 +176,11 @@ async function main() {
   start('S4 Fecha de cierre, urgencia y bloques');
   r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin cierre' });
   let pg = r.data?.id ? await probe('page', r.data.id) : {};
-  check(!r.isError && r.data.removed_urgency.length === 1 && !pg.widgets?.countdown && pg.top === 31, 'sin close_date: se quita la barra de cierre y no queda ningún contador', r.text.slice(0, 300));
+  check(!r.isError && r.data.removed_urgency.length === 1 && !pg.widgets?.countdown && pg.top === 30, 'sin close_date: se quita la barra de cierre y no queda ningún contador', r.text.slice(0, 300));
   check(r.data?.pending?.some((p) => p.placeholder === '[día de cierre]') && r.data.whatsapp_pending === true, 'sin close_date ni whatsapp: los textos de cierre y el número de muestra quedan pendientes');
   r = await admin.call('create-page', { template: 'venta-completa', title: 'Kit sin bonus ni oferta', omit_blocks: ['bonus', 'oferta'], close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};
-  check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","oferta"]' && pg.top === 32 - 7 && r.data.broken_anchors.includes('oferta'), 'omit_blocks quita los bloques enteros (seis secciones de bonus y la oferta) e informa los botones que llevaban a #oferta', r.text.slice(0, 300));
+  check(!r.isError && JSON.stringify(r.data.omitted_blocks) === '["bonus","oferta"]' && pg.top === 31 - 6 && r.data.broken_anchors.includes('oferta'), 'omit_blocks quita los bloques enteros (cinco secciones de bonus y la oferta) e informa los botones que llevaban a #oferta', r.text.slice(0, 300));
   if (r.data?.id) pages.push({ id: r.data.id, template: 'venta-completa-sin-bonus', variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans });
   r = await admin.call('create-page', { template: 'venta-corta', title: 'Kit venta corta con cierre', close_date: CIERRE });
   pg = r.data?.id ? await probe('page', r.data.id) : {};

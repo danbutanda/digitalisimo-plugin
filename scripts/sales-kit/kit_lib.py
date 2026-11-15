@@ -124,8 +124,10 @@ def widget(nombre, settings):
 
 
 def columna(*hijos, tam=100, fondo=None, pad=None, radio=None, sombra=False, centro_v=False, borde=None,
-            pad_movil=None, interior=False, ocultar_movil=False):
+            pad_movil=None, interior=False, ocultar_movil=False, tam_movil=None):
     s = {"_column_size": tam}
+    if tam_movil:
+        s["_inline_size_mobile"] = tam_movil
     if ocultar_movil:
         s["hide_mobile"] = "hidden-mobile"
     if tam not in (100, 50, 33, 25, 66, 20):
@@ -152,7 +154,7 @@ def columna(*hijos, tam=100, fondo=None, pad=None, radio=None, sombra=False, cen
 
 
 def seccion(*columnas, fondo=None, degradado=None, pad=(90, 20), pad_movil=(56, 16), ancho=1140, ident=None,
-            interior=False, espacio="extended", nota=None):
+            interior=False, espacio="extended", nota=None, extra=None):
     """Una sección. `columnas` son columnas; si se pasan widgets sueltos, van en una sola columna."""
     cols = [c if c.get("elType") == "column" else None for c in columnas]
     if any(c is None for c in cols):
@@ -175,6 +177,8 @@ def seccion(*columnas, fondo=None, degradado=None, pad=(90, 20), pad_movil=(56, 
         s["_title"] = nota  # nombre visible en el Navegador del editor
     if len(cols) > 1:
         s["structure"] = str(len(cols)) + "0"
+    if extra:
+        s.update(extra)
     return {"id": nid(), "elType": "section", "settings": s, "elements": cols, "isInner": interior}
 
 
@@ -211,6 +215,23 @@ def titulo(texto, nivel="h2", color=TX, alinear="center", tam=None, tam_movil=No
     return widget("heading", s)
 
 
+def subtitulo(texto_sub, oscuro=False, alinear="center", tam=19, tam_movil=17):
+    """La frase de venta, chica, debajo del título corto."""
+    s = {"title": texto_sub, "header_size": "p", "align": alinear, "title_color": TX_OSC if oscuro else MUT}
+    s.update(tipo("typography", tam, tam_movil, 500, 1.45))
+    s["_margin"] = caja(0, 0, 8, 0)
+    return widget("heading", s)
+
+
+def cabecera(corto, frase=None, alinear="center", oscuro=False, nivel="h2", tam=None, tam_movil=None):
+    """El título corto va grande y la frase de venta chica, debajo: «van al revés» (el operador, 2026-11-13)."""
+    ws = [titulo(corto, nivel, color=BLANCO if oscuro else TX, alinear=alinear, tam=tam, tam_movil=tam_movil,
+                 margen=6)]
+    if frase:
+        ws.append(subtitulo(frase, oscuro=oscuro, alinear=alinear))
+    return ws
+
+
 def etiqueta(texto, color=AZUL, alinear="center"):
     """Antetítulo corto en mayúsculas."""
     s = {"title": texto, "header_size": "p", "align": alinear, "title_color": color}
@@ -227,15 +248,17 @@ def texto(html, color=MUT, alinear="left", tam=18, tam_movil=16):
 
 
 def boton(texto_boton, url="#oferta", fondo=JADE, color=BLANCO, alinear="center", tam="lg", icono_der=True,
-          ancho_completo=False, fuente=19, externo=False):
+          ancho_completo=False, fuente=19, externo=False, relleno=(18, 34), relleno_movil=None, fuente_movil=17):
     s = {"text": texto_boton, "link": {"url": url, "is_external": "on" if externo else "", "nofollow": "",
                                          "custom_attributes": ""},
          "align": "justify" if ancho_completo else alinear, "size": tam, "background_color": fondo,
-         "button_text_color": color, "border_radius": caja(10), "text_padding": caja(18, 34),
+         "button_text_color": color, "border_radius": caja(10), "text_padding": caja(*relleno),
          "button_box_shadow_box_shadow_type": "yes",
          "button_box_shadow_box_shadow": {"horizontal": 0, "vertical": 8, "blur": 22, "spread": 0,
                                           "color": "rgba(0, 168, 107, 0.30)"}}
-    s.update(tipo("typography", fuente, 17, 700))
+    s.update(tipo("typography", fuente, fuente_movil, 700))
+    if relleno_movil:
+        s["text_padding_mobile"] = caja(*relleno_movil)
     if icono_der:
         s.update({"selected_icon": icono("fas fa-arrow-right"), "icon_align": "right", "icon_indent": px(10)})
     return widget("button", s)
@@ -327,7 +350,10 @@ def caja_imagen(titulo_txt, desc, alinear="center"):
 
 def contador(oscuro=False, mensaje="La inscripción ya cerró. Escríbenos por WhatsApp para saber cuándo abre de nuevo.",
              ancho=60):
-    """Cuenta regresiva a la fecha de cierre real (la pone `create-page` con `close_date`; ver FECHA_CIERRE_MUESTRA)."""
+    """Cuenta regresiva a la fecha de cierre real (la pone `create-page` con `close_date`; ver FECHA_CIERRE_MUESTRA).
+
+    La de muestra ya venció (también la v4 del kit lo hace así): nunca se publica un cierre falso, y un texto en ese
+    campo rompería la importación."""
     s = {"countdown_type": "due_date", "due_date": FECHA_CIERRE_MUESTRA, "custom_labels": "yes", "label_days": "Días",
          "label_hours": "Horas", "label_minutes": "Minutos", "label_seconds": "Segundos",
          "box_background_color": CARD_OSC if oscuro else BLANCO, "box_border_border": "solid",
@@ -441,6 +467,8 @@ _COLUMNA_NEUTRA = {"_column_size", "_inline_size", "content_position"}
 _COLUMNA_ESTILO = ("background_background", "background_color", "padding", "padding_mobile", "border_radius",
                    "margin", "margin_mobile", "border_border", "border_width", "border_color",
                    "box_shadow_box_shadow_type", "box_shadow_box_shadow", "hide_mobile")
+# Lo que hace fija una sección (la barra de cierre, `extra` de `seccion()`): pasa tal cual al contenedor.
+_FIJA = ("sticky", "sticky_on", "sticky_offset", "z_index")
 
 
 def _flex_gap(espacio):
@@ -454,10 +482,12 @@ def _ancho_columna(s):
 
 
 def _contenedor_columna(col):
-    """Una columna → un contenedor hijo en columna, con su ancho en % (100 % en celular) y su estilo."""
+    """Una columna → un contenedor hijo en columna, con su ancho en % (100 % en celular, o el de `tam_movil`) y su
+    estilo."""
     s = col["settings"]
     c = {"content_width": "full", "width": {"unit": "%", "size": _ancho_columna(s), "sizes": []},
-         "width_mobile": {"unit": "%", "size": 100, "sizes": []}, "flex_direction": "column"}
+         "width_mobile": {"unit": "%", "size": s.get("_inline_size_mobile", 100), "sizes": []},
+         "flex_direction": "column"}
     if s.get("content_position") == "center":
         c["flex_justify_content"] = "center"
     for k in _COLUMNA_ESTILO:
@@ -488,7 +518,7 @@ def _convertir(el):
             if k in s:
                 c[k] = s[k]
     for k in ("background_background", "background_color", "background_color_b", "background_gradient_angle",
-              "_element_id", "_title"):
+              "_element_id", "_title") + _FIJA:
         if k in s:
             c[k] = s[k]
     if len(cols) == 1 and set(cols[0]["settings"]) <= _COLUMNA_NEUTRA:
@@ -506,8 +536,10 @@ def _convertir(el):
     else:
         c.update({"flex_direction": "row", "flex_direction_mobile": "column", "flex_gap": _flex_gap(s.get("gap")),
                   "flex_align_items": "stretch"})
-        if len(cols) == 1:
-            c["flex_direction_mobile"] = "column"
+        if len(cols) > 1 and any("_inline_size_mobile" in col["settings"] for col in cols):
+            # Columnas con su ancho en celular (`tam_movil`, la barra de cierre): siguen en fila y sin saltar de línea,
+            # como las columnas de una sección con ese ancho (el contenedor salta de línea en celular por defecto).
+            c.update({"flex_direction_mobile": "row", "flex_wrap_mobile": "nowrap"})
         hijos = [_contenedor_columna(col) for col in cols]
     return {"id": el["id"], "elType": "container", "settings": c, "elements": hijos, "isInner": interior_}
 

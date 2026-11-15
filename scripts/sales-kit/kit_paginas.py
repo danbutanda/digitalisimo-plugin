@@ -5,9 +5,12 @@ Uso: python3 -I scripts/sales-kit/kit_paginas.py [--check] [<carpeta templates>]
   manifest.json). Con --check no escribe: compara lo que generaría con lo que hay y sale con 1 si difiere (la CI lo
   corre en tests/elements-sales-kit.mjs, para que nadie edite a mano una plantilla generada).
 
-Viene del kit de ventas v3 genérico (OneDrive, 2026-11-13: `kit_paginas.py --generico`, con PERSONA_GENERICA),
-probado por la sesión del cerebro; el orden de la página y el método están en `oficio/ventas-en-linea.md` del cerebro
-(commit 06ff42f, «El orden de una página de venta») y en `docs/ELEMENTS_SALES_KIT.md`.
+Viene del kit de ventas v4 genérico (OneDrive, 2026-11-13: `kit_paginas.py --generico`, con PERSONA_GENERICA),
+fusionado a tres vías sobre la adaptación del v3 (`git merge-file`, v3 como base): la portada en una pantalla y sin
+video, el título corto grande y la frase chica (`cabecera()`), los bonus sin precio, la barra de cierre fija con el
+logo del evento y los anchos de columna en celular (`tam_movil`). El orden de la página y el método están en
+`oficio/ventas-en-linea.md` del cerebro (commit 06ff42f, «El orden de una página de venta», más la v4 del 2026-11-13:
+«La portada de una landing de DIGITALÍSIMO» y «El precio se revela tarde») y en `docs/ELEMENTS_SALES_KIT.md`.
 
 Lo que va entre [corchetes] se reemplaza. Reglas que el kit trae escritas en sus textos guía:
 - testimonios y cifras, solo reales y con permiso (D-0023);
@@ -27,7 +30,7 @@ from kit_lib import a_contenedores, limpiar, reiniciar_ids, urgentes, urgente, v
 OSC = dict(oscuro=True)
 
 # =============================================================== Persona detrás de la marca
-# El kit que viaja con Elements es el genérico del kit v3 (`--generico`): la persona detrás de la marca queda como
+# El kit que viaja con Elements es el genérico del kit v4 (`--generico`): la persona detrás de la marca queda como
 # espacio para llenar con los datos reales de cada sitio. La versión con la persona de DIGITALÍSIMO es sólo para los
 # sitios propios y vive en el kit de OneDrive; no entra en Elements (tests/elements-sales-kit.mjs lo comprueba).
 PERSONA_GENERICA = {
@@ -48,15 +51,30 @@ PERSONA_GENERICA = {
 P = dict(PERSONA_GENERICA)
 
 
+def logo_barra():
+    """El logo del evento (por ejemplo, el calendario de una temporada de ofertas) va en la barra fija, no en la
+    portada. Sin logo del evento, se borra o se deja vacío (la imagen de muestra no se publica)."""
+    return widget("image", {"image_size": "full", "align": "left", "width": px(120), "height": px(44),
+                            "object-fit": "contain", "_title": "Logo del evento, si aplica"})
+
+
 def barra_cierre():
+    """Barra fija arriba: logo del evento, la fecha de cierre, el contador y un botón. Solo si el cierre es real
+    (`urgente()`: sin `close_date`, `create-page` la quita). Fija al desplazar (`extra`: el efecto «fijo» del
+    constructor, que deja un `.elementor-sticky__spacer` del mismo alto en su lugar). En celular quedan el texto y el
+    botón, en una fila (`tam_movil`)."""
     return urgente(seccion(
+        columna(logo_barra(), tam=12, centro_v=True, ocultar_movil=True),
         columna(titulo(f"La inscripción cierra el {DIA_CIERRE} de {MES_CIERRE} a las {HORA_CIERRE} (hora del centro de "
-                       "México)", "h5",
-                       color=TX_OSC, alinear="left", tam=15, tam_movil=14, peso=600), tam=50, centro_v=True),
-        columna(contador(oscuro=True, ancho=100), tam=33, centro_v=True, ocultar_movil=True),
-        columna(boton("Inscribirme", fondo=NEON, color=NOCHE, tam="sm", fuente=15, alinear="right"), tam=17,
+                       "México)", "h5", color=TX_OSC, alinear="left", tam=15, tam_movil=13, peso=600), tam=40,
+                tam_movil=58, centro_v=True),
+        columna(contador(oscuro=True, ancho=100, mensaje="Inscripción cerrada."), tam=30, centro_v=True,
+                ocultar_movil=True),
+        columna(boton("Inscribirme", fondo=NEON, color=NOCHE, tam="sm", fuente=15, fuente_movil=13, alinear="right",
+                      icono_der=False, relleno=(12, 22), relleno_movil=(10, 12)), tam=18, tam_movil=42,
                 centro_v=True),
-        fondo=NOCHE, pad=(10, 20), pad_movil=(10, 12), nota="Barra de cierre (solo si el cierre es real)"))
+        fondo=NOCHE, pad=(10, 20), pad_movil=(8, 12), nota="Barra fija: logo del evento y cierre (solo si es real)",
+        extra={"sticky": "top", "sticky_on": ["desktop", "tablet", "mobile"], "sticky_offset": 0, "z_index": 99}))
 
 
 def pie(oscuro=True):
@@ -116,22 +134,21 @@ def venta_completa():
     S = []
     S.append(barra_cierre())
 
-    # 1. La promesa.
+    # 1. La portada: cabe en la primera pantalla. Logo, promesa, antetítulo chico y botón; sin video.
     S.append(seccion(
-        etiqueta("Si eres [perfil 1], [perfil 2] o [perfil 3]…", color=NEON),
-        titulo("[Logra el resultado] y [construye X] <span>sin [el obstáculo]</span> en "
-               "[N días] o menos", "h1", color=BLANCO, tam=50, tam_movil=32, acento=NEON),
-        espacio(10), video("Video de venta: 3 a 5 minutos"), espacio(10),
-        texto("<p style=\"text-align:center\">➜ Descubre [el método con nombre], que funciona sin importar [tu giro "
-              "o tu nivel de experiencia].</p>", color=TX_OSC, alinear="center", tam=19),
+        imagen(ancho=16, radio=0),
+        titulo("[Logra el resultado] y [construye X] <span>sin [el obstáculo]</span> en [N días] o menos", "h1",
+               color=BLANCO, tam=48, tam_movil=30, acento=NEON),
+        subtitulo("Si eres [perfil 1], [perfil 2] o [perfil 3]: [el método con nombre], sin importar [tu giro o tu "
+                  "nivel de experiencia].", oscuro=True),
         boton("¡Quiero empezar!", fondo=NEON, color=NOCHE, fuente=20),
-        degradado=(NOCHE, "#0B2A45", 160), pad=(80, 20), ancho=900, nota="1 · La promesa"))
+        degradado=(NOCHE, "#0B2A45", 160), pad=(56, 20), pad_movil=(36, 16), ancho=900,
+        nota="1 · La portada: logo, promesa y botón, sin video"))
 
     # 2. El problema.
     S.append(seccion(
         columna(
-            etiqueta("¿Sabías que…?"),
-            titulo("[Un dato real que duele, con su fuente]"),
+            *cabecera("¿Sabías que…?", "[Un dato real que duele, con su fuente]"),
             texto("<p style=\"text-align:center\">[Y lo peor: lo que pasa antes de que pase. En las palabras del "
                   "cliente.]</p>", alinear="center"),
             interior(
@@ -151,8 +168,7 @@ def venta_completa():
     S.append(seccion(
         columna(imagen(pie=P["foto"]), tam=40, centro_v=True),
         columna(
-            etiqueta("Quién está detrás", alinear="left"),
-            titulo(P["saludo"], alinear="left"),
+            *cabecera(P["saludo"], "Quién está detrás de " + P["marca"], alinear="left"),
             texto(P["historia"]),
             texto("<p><strong>La oportunidad:</strong> [lo que antes solo podían hacer las grandes empresas o los "
                   "expertos, y hoy está al alcance de [perfil]].</p>", color=TX),
@@ -161,8 +177,7 @@ def venta_completa():
 
     # 4. ¿Te imaginas…?
     S.append(seccion(
-        etiqueta("Ahora imagina"),
-        titulo("¿Te imaginas conseguir esto en [N días] o menos?"),
+        *cabecera("¿Te imaginas…?", "[Lo que podrías conseguir en [N días] o menos]"),
         interior(*[columna(caja_icono("fas fa-check", f"[Resultado deseado {n}]",
                                       "[Cómo se ve en su día a día, con sus palabras]", alinear="center",
                                       color=JADE), tam=25, fondo=NIEBLA, pad=caja(26), radio=16) for n in (1, 2, 3, 4)],
@@ -177,8 +192,7 @@ def venta_completa():
              ("Solo teoría", "Plantillas y un plan de acción semana a semana"),
              ("Estudias solo", "[Comunidad, sesiones y soporte]")]
     S.append(seccion(
-        etiqueta("Por qué es diferente"),
-        titulo("¿Por qué [producto] y no otro curso, una maestría o una agencia?"),
+        *cabecera("Por qué es diferente", "¿Por qué [producto] y no otro curso, una maestría o una agencia?"),
         interior(
             columna(titulo("Otras opciones", "h3", color=MUT),
                     lista([a for a, _ in filas], color_icono="#D64545", ic="fas fa-times-circle"),
@@ -193,8 +207,7 @@ def venta_completa():
     S.append(seccion(
         columna(imagen(pie=P["foto"]), tam=40, centro_v=True),
         columna(
-            etiqueta("Con quién vas a aprender", alinear="left"),
-            titulo(P["autoridad"], alinear="left"),
+            *cabecera(P["autoridad"], "Con quién vas a aprender", alinear="left"),
             lista(P["credenciales"], ic="fas fa-award"),
             texto("<p><strong>[Tu ventaja: lo que haces distinto, en una frase.]</strong></p>"
                   "<p>[La objeción de fondo, desactivada: «no importa el tamaño de tu negocio / de tu audiencia…»] "
@@ -202,14 +215,13 @@ def venta_completa():
             tam=60, centro_v=True),
         fondo=BLANCO, nota="6 · Quién está detrás (autoridad completa)"))
     S.append(seccion(
-        etiqueta("Han confiado en nosotros"),
+        *cabecera("Han confiado en nosotros", nivel="h3"),
         interior(*[columna(imagen(ancho=70, radio=0, pie="Logo de un cliente real"), tam=20) for _ in range(5)]),
         fondo=BLANCO, pad=(10, 20), pad_movil=(10, 16), nota="6b · Logos de clientes reales"))
 
     # 7. Funciona para gente como tú.
     S.append(seccion(
-        etiqueta("Resultados reales"),
-        titulo("Esto también puede funcionar para ti"),
+        *cabecera("Resultados reales", "Esto también puede funcionar para ti"),
         interior(*[columna(
             video("Video-testimonio real"),
             titulo("De [antes] a [después] en [tiempo]", "h4", alinear="left", margen=4),
@@ -220,8 +232,7 @@ def venta_completa():
 
     # 8. Para quién es.
     S.append(seccion(
-        etiqueta("¿Es para ti?"),
-        titulo("Este programa es para ti si…"),
+        *cabecera("¿Es para ti?", "Este programa es para ti si…"),
         interior(
             columna(lista(["[Situación que encaja 1]", "[Situación que encaja 2]", "[Situación que encaja 3]",
                            "[Situación que encaja 4]", "[Estás dispuesto a dedicarle [N] horas por semana]"]),
@@ -244,8 +255,7 @@ def venta_completa():
     S.append(seccion(
         columna(imagen(pie="Maqueta de la plataforma en computadora, laptop y celular"), tam=45, centro_v=True),
         columna(
-            etiqueta("Qué es", color=NEON, alinear="left"),
-            titulo("[Nombre del producto] es [definición en una frase]", color=BLANCO, alinear="left"),
+            *cabecera("Qué es", "[Nombre del producto] es [definición en una frase]", alinear="left", oscuro=True),
             texto("<p>Con [el método con nombre] vas a lograr:</p>", color=TX_OSC),
             lista(["[Resultado 1]", "[Resultado 2]", "[Resultado 3]", "[Resultado 4]",
                    "[Lo que logras desde la primera semana]"], color_icono=NEON, color_texto=TX_OSC),
@@ -264,8 +274,7 @@ def venta_completa():
             tam=50, fondo=BLANCO, pad=caja(30), radio=16, borde=BD) for k in (1, 2)],
             margen_sup=0 if fila == 0 else 24))
     S.append(seccion(
-        etiqueta("Temario"),
-        titulo("Esto es lo que vas a aprender, módulo por módulo"),
+        *cabecera("Temario", "Esto es lo que vas a aprender, módulo por módulo"),
         *modulos,
         espacio(16),
         boton("¡Quiero [producto] ahora!", url="#oferta", fuente=18),
@@ -277,8 +286,7 @@ def venta_completa():
               ("fas fa-users", "Comunidad privada"), ("fas fa-video", "Sesiones en vivo"),
               ("fab fa-whatsapp", "Soporte"), ("fas fa-sync-alt", "Actualizaciones")]
     S.append(seccion(
-        etiqueta("El formato"),
-        titulo("Todo lo que incluye"),
+        *cabecera("Todo lo que incluye", "El formato, de un vistazo"),
         interior(*[columna(caja_icono(i, t, "", alinear="center", lib="fa-brands" if i.startswith("fab") else
                                       "fa-solid"), tam=25) for i, t in rasgos[:4]]),
         interior(*[columna(caja_icono(i, t, "", alinear="center", lib="fa-brands" if i.startswith("fab") else
@@ -287,8 +295,7 @@ def venta_completa():
 
     # 12. Nunca estarás solo.
     S.append(seccion(
-        etiqueta("No vas solo"),
-        titulo("Un programa donde nunca estarás solo"),
+        *cabecera("Nunca estarás solo", "[Comunidad, sesiones y soporte durante todo el programa]"),
         interior(
             columna(caja_icono("fas fa-users", "[Comunidad]", "[Dónde y para qué: preguntas, avances, red]",
                                alinear="center", color=JADE), tam=33, fondo=BLANCO, pad=caja(28), radio=16),
@@ -302,8 +309,7 @@ def venta_completa():
     # 13. Lo que te llevas al terminar.
     S.append(seccion(
         columna(imagen(pie="Certificado o sello con «Tu nombre aquí»"), tam=45, centro_v=True),
-        columna(etiqueta("Al terminar", alinear="left"),
-                titulo("[Tu certificado / tu sello / tu plan terminado]", alinear="left"),
+        columna(*cabecera("Al terminar", "[Tu certificado / tu sello / tu plan terminado]", alinear="left"),
                 lista(["[Qué demuestra y ante quién]", "[Qué hay que cumplir para obtenerlo]",
                        "[Dónde lo puede mostrar]"]),
                 texto("<p><em>Si el producto no da algo así, borra este bloque.</em></p>", tam=14),
@@ -312,8 +318,7 @@ def venta_completa():
 
     # 14. Bonus.
     bonus = [seccion(
-        etiqueta("Además, si entras hoy"),
-        titulo("Te llevas estos bonus"),
+        *cabecera("Bonus", "Además, si entras hoy, te llevas esto"),
         fondo=NIEBLA, pad=(80, 20, ), nota="14 · Bonus: título")]
     for n in (1, 2, 3, 4):
         foto = columna(imagen(pie=f"Maqueta del bonus {n}"), tam=40, centro_v=True)
@@ -321,21 +326,15 @@ def venta_completa():
             etiqueta(f"Bonus #{n}", alinear="left", color=JADE),
             titulo(f"[Nombre del bonus {n}: «[cantidad] [recurso] para [tu X]»]", "h3", alinear="left", tam=26),
             texto("<p>[Qué es y qué duda resuelve: «¿y si no tengo tiempo?», «¿y si no sé de tecnología?»…]</p>"),
-            texto(f"<p>Valor: <del>$[X] MXN</del> · <strong style=\"color:{JADE}\">Incluido</strong></p>", tam=17,
-                  color=TX),
+            texto("<p><strong>Incluido</strong> si entras hoy.</p>", tam=17, color=TX),
             tam=60, centro_v=True)
         bonus.append(seccion(*((foto, cuerpo) if n % 2 else (cuerpo, foto)), fondo=NIEBLA, pad=(30, 20),
                              nota=f"14.{n} · Bonus {n}"))
-    bonus.append(seccion(
-        texto(f"<p style=\"text-align:center\">Valor total de los bonus: <del>$[suma real de los bonus] MXN</del> · "
-              f"<strong style=\"color:{JADE}\">hoy, incluidos</strong></p>", alinear="center", tam=20, color=TX),
-        fondo=NIEBLA, pad=(10, 20), pad_movil=(10, 16), nota="14.5 · Valor total de los bonus"))
     S.extend(bonus)
 
     # 15. Nuestro compromiso.
     S.append(seccion(
-        etiqueta("Nuestro compromiso"),
-        titulo("Esto es lo que vas a tener"),
+        *cabecera("Nuestro compromiso", "Esto es lo que vas a tener"),
         interior(
             columna(lista(["Tendrás un [sistema] para [resultado 1]", "Tendrás un [plan] para [resultado 2]",
                            "Tendrás [herramienta] para [resultado 3]"]), tam=50),
@@ -345,8 +344,7 @@ def venta_completa():
 
     # 16. Cuánto vale para ti.
     S.append(seccion(
-        etiqueta("Piénsalo así", color=NEON),
-        titulo("¿Qué valor tiene para ti [el resultado]?", color=BLANCO),
+        *cabecera("¿Cuánto vale para ti?", "[El valor de [el resultado], antes de hablar de precio]", oscuro=True),
         lista(["¿Cómo sería tu [negocio o vida] si ya no tuvieras que [el dolor]?",
                "¿Qué harías con [el tiempo o el dinero] que hoy pierdes en [X]?",
                "Imagina [el resultado] dentro de [N meses]."], color_icono=NEON, color_texto=TX_OSC,
@@ -365,8 +363,7 @@ def venta_completa():
     # 17. La oferta.
     S.append(seccion(
         columna(
-            etiqueta("Este es el precio y lo que obtienes", color=NEON),
-            titulo("Hoy tienes la oportunidad de entrar a [producto]", color=BLANCO),
+            *cabecera("La oferta", "Hoy tienes la oportunidad de entrar a [producto]", oscuro=True),
             interior(tarjeta_stack(), espacio="no"),
             espacio(20),
             boton_whatsapp("¿Dudas? Pregúntanos por WhatsApp", oscuro=True)),
@@ -387,8 +384,7 @@ def venta_completa():
 
     # 19. Los caminos.
     S.append(seccion(
-        etiqueta("Llegó el momento de decidir"),
-        titulo("Ahora tienes cuatro caminos"),
+        *cabecera("Tus caminos", "Llegó el momento de decidir"),
         interior(
             columna(caja_icono("fas fa-pause", "A · No hacer nada", "Arriesgado: [lo que sigue pasando si no "
                                "cambia nada].", color=MUT, alinear="center"), tam=25, fondo=BLANCO, pad=caja(24),
@@ -418,15 +414,13 @@ def venta_completa():
             texto("<p>[Nombre real] · [qué hace]</p>", tam=15),
             tam=50, fondo=NIEBLA, pad=caja(24), radio=16) for k in (0, 1)], margen_sup=0 if i == 0 else 20))
     S.append(seccion(
-        etiqueta("¿Te funcionará?"),
-        titulo("Te contestan quienes ya lo hicieron"),
+        *cabecera("¿Te funcionará?", "Te contestan quienes ya lo hicieron"),
         *filas_obj,
         fondo=BLANCO, nota="20 · Objeciones con la voz de los alumnos"))
 
     # 21. Lo avala la comunidad.
     S.append(seccion(
-        etiqueta("No lo decimos nosotros"),
-        titulo("Lo avala nuestra comunidad"),
+        *cabecera("Lo avala la comunidad", "No lo decimos nosotros"),
         interior(*[columna(imagen(pie="Captura real de un mensaje o resultado"), tam=33) for _ in range(3)]),
         interior(*[columna(imagen(pie="Captura real de un mensaje o resultado"), tam=33) for _ in range(3)],
                  margen_sup=20),
@@ -436,8 +430,7 @@ def venta_completa():
 
     # 22. Preguntas frecuentes.
     S.append(seccion(
-        etiqueta("Preguntas frecuentes"),
-        titulo("Solucionamos tus dudas más frecuentes"),
+        *cabecera("Preguntas frecuentes", "Solucionamos tus dudas más frecuentes"),
         acordeon([
             ("¿Cuándo empiezo?", "[Al pagar recibes el acceso por correo / el [fecha] empieza el grupo].")
             , ("¿Cuánto tiempo necesito por semana?", "[N] horas. [Cómo está pensado para alguien ocupado].")
@@ -482,16 +475,15 @@ def venta_completa():
 
 def venta_corta():
     S = []
+    # 1. La portada: cabe en la primera pantalla. Logo, promesa, antetítulo chico y botón; sin video.
     S.append(seccion(
-        columna(
-            etiqueta("[Para quién]", color=NEON, alinear="left"),
-            titulo("[Resultado concreto] <span>en [tiempo]</span>", "h1", color=BLANCO,
-                   alinear="left", tam=46, acento=NEON),
-            texto("<p>[La promesa en una frase y por qué ahora.]</p>", color=TX_OSC),
-            boton("¡Lo quiero!", fondo=NEON, color=NOCHE, alinear="left"),
-            tam=50, centro_v=True),
-        columna(video("Video corto: 1 a 3 minutos"), tam=50, centro_v=True),
-        degradado=(NOCHE, "#0B2A45", 160), pad=(80, 20), nota="1 · Cabecera"))
+        imagen(ancho=16, radio=0),
+        titulo("[Resultado concreto] <span>en [tiempo]</span>", "h1", color=BLANCO, tam=46, tam_movil=30,
+               acento=NEON),
+        subtitulo("[Para quién]: [la promesa en una frase y por qué ahora].", oscuro=True),
+        boton("¡Lo quiero!", fondo=NEON, color=NOCHE),
+        degradado=(NOCHE, "#0B2A45", 160), pad=(56, 20), pad_movil=(36, 16), ancho=900,
+        nota="1 · La portada: logo, promesa y botón, sin video"))
     S.append(seccion(
         titulo("Lo que vas a lograr"),
         interior(*[columna(caja_icono(i, f"[Beneficio {n}]", "[Qué gana, en una frase]", alinear="center"), tam=33)
@@ -500,7 +492,7 @@ def venta_corta():
         fondo=BLANCO, nota="2 · Beneficios"))
     S.append(seccion(
         columna(imagen(pie=P["foto"]), tam=35, centro_v=True),
-        columna(etiqueta("Quién está detrás", alinear="left"), titulo(P["saludo"], "h3", alinear="left"),
+        columna(*cabecera(P["saludo"], "Quién está detrás de " + P["marca"], alinear="left", nivel="h3"),
                 texto(P["historia"]), tam=65, centro_v=True),
         fondo=NIEBLA, nota="2b · Quién está detrás"))
     S.append(seccion(
@@ -548,9 +540,9 @@ def captacion():
     S = []
     S.append(seccion(
         columna(
-            etiqueta("[Clase gratuita en vivo / Recurso gratuito]", color=NEON, alinear="left"),
             titulo("[Cómo lograr el resultado] <span>sin [obstáculo]</span>", "h1",
                    color=BLANCO, alinear="left", tam=44, acento=NEON),
+            subtitulo("[Clase gratuita en vivo / Recurso gratuito]", oscuro=True, alinear="left"),
             texto("<p>[Subtítulo: qué se llevan en una frase.]</p>", color=TX_OSC),
             lista([("[Día] de [mes] · [hora] (hora del centro de México)", "far fa-calendar-alt", "fa-regular"),
                    (f"En vivo por {PLATAFORMA_SESION} · [duración]", "fas fa-video")],
@@ -573,7 +565,7 @@ def captacion():
         fondo=BLANCO, nota="2 · Qué aprenderán"))
     S.append(seccion(
         columna(imagen(), tam=40, centro_v=True),
-        columna(etiqueta("Quién la imparte", alinear="left"), titulo(P["saludo"], alinear="left"),
+        columna(*cabecera(P["saludo"], "Quién la imparte", alinear="left"),
                 texto(P["historia"]),
                 lista(P["credenciales"][:3], ic="fas fa-award"),
                 tam=60, centro_v=True),
@@ -703,8 +695,8 @@ def carrito():
 def oferta_unica():
     S = []
     S.append(seccion(
-        etiqueta("¡Espera! Tu pedido casi está listo", color=NEON),
         titulo("Una oferta que solo verás una vez", "h1", color=BLANCO, tam=42),
+        subtitulo("¡Espera! Tu pedido casi está listo.", oscuro=True),
         texto("<p style=\"text-align:center\">[Por qué este complemento hace que el producto que compraste funcione "
               "mejor o más rápido.]</p>", color=TX_OSC, alinear="center"),
         video("Video de 2 minutos explicando el complemento"),
@@ -837,13 +829,14 @@ def bloques_prueba():
 CATALOGO = [
     {"id": "venta-completa", "numero": "01", "archivo": "01-pagina-de-venta-completa.json", "fn": venta_completa,
      "nombre": "Página de venta completa",
-     "para": "La carta de venta larga, en el orden de la guía (26 bloques): barra de cierre, promesa, problema, quién "
-             "está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona para gente como "
-             "tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al terminar, bonus "
-             "con su total, nuestro compromiso, cuánto vale, la oferta (#oferta), garantía y actualización, los "
-             "caminos, objeciones con la voz de alumnos, lo avala la comunidad (#historias), preguntas frecuentes, "
-             "WhatsApp con una cara, cierre y pie.",
-     "bloques": {"Barra": ("barra-de-cierre", "Barra de cierre"), "1": ("promesa", "La promesa"),
+     "para": "La carta de venta larga, en el orden de la guía (26 bloques): barra fija de cierre (con el logo del "
+             "evento), la portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), "
+             "problema, quién está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona "
+             "para gente como tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al "
+             "terminar, bonus (sin precio), nuestro compromiso, cuánto vale, la oferta (#oferta, el único lugar con "
+             "precio antes del cierre), garantía y actualización, los caminos, objeciones con la voz de alumnos, lo "
+             "avala la comunidad (#historias), preguntas frecuentes, WhatsApp con una cara, cierre y pie.",
+     "bloques": {"Barra": ("barra-de-cierre", "Barra fija de cierre"), "1": ("promesa", "La portada: la promesa"),
                  "2": ("problema", "El problema"), "3": ("quien-esta-detras", "Quién está detrás, corto"),
                  "4": ("te-imaginas", "¿Te imaginas…?"), "5": ("por-que-es-distinto", "Por qué es distinto"),
                  "6": ("autoridad", "Quién está detrás, la autoridad (con logos)"),
@@ -862,9 +855,10 @@ CATALOGO = [
      "mide": "Vista de página"},
     {"id": "venta-corta", "numero": "02", "archivo": "02-pagina-de-venta-corta.json", "fn": venta_corta,
      "nombre": "Página de venta corta",
-     "para": "Promesa con video, tres beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta, "
-             "la garantía y pocas preguntas; el botón se repite.",
-     "bloques": {"1": ("promesa", "La promesa"), "2": ("beneficios", "Beneficios"),
+     "para": "La portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), tres "
+             "beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta (el único lugar con "
+             "precio), la garantía y pocas preguntas; el botón se repite.",
+     "bloques": {"1": ("promesa", "La portada: la promesa"), "2": ("beneficios", "Beneficios"),
                  "2b": ("quien-esta-detras", "Quién está detrás"), "3": ("para-quien-es", "Para quién es e incluye"),
                  "4": ("testimonios", "Testimonios"), "5": ("oferta", "La oferta"),
                  "6": ("garantia-y-preguntas", "Garantía y preguntas frecuentes"), "Pie": ("pie", "Pie")},
@@ -1093,11 +1087,13 @@ def generar():
         })
     manifest = {
         "_comment": "Generado por scripts/sales-kit/kit_paginas.py: no se edita a mano (tests/elements-sales-kit.mjs).",
-        "kit_version": "3-generico",
-        "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v3/ (generador con "
-                      "--generico, PERSONA_GENERICA)",
+        "kit_version": "4-generico",
+        "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v4/ (generador con "
+                      "--generico, PERSONA_GENERICA), fusionado sobre la adaptación del v3",
         "guide_source": {"repository": "digitalisimo-brain", "file": "oficio/ventas-en-linea.md", "commit": "06ff42f",
-                         "section": "El orden de una página de venta"},
+                         "section": "El orden de una página de venta",
+                         "v4": "copia de trabajo del 2026-11-13, sin commit: «La portada de una landing de DIGITALÍSIMO» y "
+                               "«El precio se revela tarde»"},
         "funnel": EMBUDO,
         "templates": plantillas,
         "cases": CASOS,

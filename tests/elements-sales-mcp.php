@@ -580,7 +580,7 @@ namespace {
 			}
 		}
 	}
-	check( 'enlace' === $sum['[enlace del video]']['kind'] && 8 === $sum['[enlace del video]']['count'], 'tipo enlace (los ocho videos)' );
+	check( 'enlace' === $sum['[enlace del video]']['kind'] && 7 === $sum['[enlace del video]']['count'], 'tipo enlace (los siete videos: la portada de la v4 va sin video)' );
 	check( 'precio' === $sum['[precio]']['kind'] && 'precio' === $sum['[X]']['kind'], 'tipo precio' );
 	check( 'dato_real' === $sum['[Nombre real]']['kind'] && 'dato_real' === $sum['[Testimonio real, con permiso: qué logró y en cuánto tiempo.]']['kind'], 'tipo dato real' );
 	check( 'texto' === $sum['[producto]']['kind'] && $sum['[producto]']['count'] >= 5, 'tipo texto, contado también en el mensaje de WhatsApp' );
@@ -647,14 +647,14 @@ namespace {
 		array(
 			'replacements' => array(
 				'[Beneficio 1]'               => '<b>Dueños</b> de negocio',
-				'[La promesa en una frase y por qué ahora.]' => '<strong>Vende más</strong> <em>hoy</em>',
+				'[Cómo funciona, en dos frases.]' => '<strong>Vende más</strong> <em>hoy</em>',
 			),
 		)
 	);
 	$all = sk_strings( $r['elements'] );
 	check( false !== strpos( $all, '"title_text":"Dueños de negocio"' ) || false !== strpos( $all, "\nDueños de negocio\n" ), 'campo de texto plano: sin etiquetas ni scripts' );
 	check( false === strpos( $all, '<b>Dueños' ), 'campo de texto plano: nada del HTML recibido' );
-	check( false !== strpos( $all, '<p><strong>Vende más</strong> <em>hoy</em></p>' ), 'campo con HTML: el formato en línea se conserva (wp_kses_post)' );
+	check( false !== strpos( $all, '<p style="text-align:center"><strong>Vende más</strong> <em>hoy</em></p>' ), 'campo con HTML: el formato en línea se conserva (wp_kses_post)' );
 
 	// URLs de otros sitios: rechazadas, con esquema, `//` o `www.` (un dominio suelto en un texto no es un enlace: R4).
 	foreach ( array( 'https://example.com/x', 'http://otro.test', '//evil.test/a', 'www.otro.com', 'Visita www.otro.mx/oferta', 'javascript:alert(1)', 'data:text/html;base64,AAAA', 'HTTPS://EVIL.TEST' ) as $bad ) {
@@ -936,13 +936,13 @@ namespace {
 				'//evil.com/x',
 			);
 			foreach ( $bad as $v ) {
-				foreach ( array( '[La promesa en una frase y por qué ahora.]', '[producto]', '[Resultado concreto]' ) as $key ) {
+				foreach ( array( '[Cómo funciona, en dos frases.]', '[producto]', '[Resultado concreto]' ) as $key ) {
 					$r = $build( 'venta-corta', array( 'replacements' => array( $key => $v ) ) );
 					review( 'R1', $r instanceof WP_Error && in_array( $r->get_error_code(), array( 'digitalisimo_sales_markup', 'digitalisimo_sales_external_url' ), true ), "$key: se aceptó $v" );
 				}
 			}
-			$r = $build( 'venta-corta', array( 'replacements' => array( '[La promesa en una frase y por qué ahora.]' => '<strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br />' ) ) );
-			review( 'R1', is_array( $r ) && false !== strpos( sk_strings( $r['elements'] ), '<p><strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br /></p>' ), 'el formato en línea sin atributos se admite' );
+			$r = $build( 'venta-corta', array( 'replacements' => array( '[Cómo funciona, en dos frases.]' => '<strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br />' ) ) );
+			review( 'R1', is_array( $r ) && false !== strpos( sk_strings( $r['elements'] ), '<p style="text-align:center"><strong>Vende</strong> <em>más</em><br><b>hoy</b> <i>ya</i><br /></p>' ), 'el formato en línea sin atributos se admite' );
 			$r = $build( 'venta-corta', array( 'replacements' => array( '[producto]' => 'Escríbenos a hola@sitio.test o https://wa.me/5218711234567' ) ) );
 			review( 'R1', is_array( $r ), 'un correo y wa.me se admiten' );
 		}

@@ -192,6 +192,11 @@ def revisar(rel, d, variante):
                                for c in hijos if c.get("elType") == "column")
                     if suma > 100.5:
                         error(f"{rel}: sección {i} con columnas que suman {suma}")
+                    movil = [float(c["settings"]["_inline_size_mobile"]) for c in hijos
+                             if c.get("elType") == "column" and "_inline_size_mobile" in c["settings"]
+                             and c["settings"].get("hide_mobile") != "hidden-mobile"]
+                    if sum(movil) > 100.5:
+                        error(f"{rel}: sección {i} con columnas que en celular suman {sum(movil)}")
                 elif t == "column":
                     if padre != "section":
                         error(f"{rel}: columna fuera de sección")
@@ -206,7 +211,15 @@ def revisar(rel, d, variante):
                     if s.get("flex_direction") not in ("row", "column"):
                         error(f"{rel}: contenedor {i} sin dirección")
                     if s.get("flex_direction") == "row" and s.get("flex_direction_mobile") != "column":
-                        error(f"{rel}: fila {i} que no se apila en celular")
+                        # Sólo sigue en fila en celular la que da a cada hijo visible su ancho en celular (`tam_movil`,
+                        # la barra de cierre), sin saltar de línea y sin pasar del 100 %.
+                        visibles = [c.get("settings", {}) for c in hijos
+                                    if c.get("settings", {}).get("hide_mobile") != "hidden-mobile"]
+                        anchos = [(v.get("width_mobile") or {}).get("size") for v in visibles]
+                        if (s.get("flex_direction_mobile") != "row" or s.get("flex_wrap_mobile") != "nowrap"
+                                or not anchos or any(not isinstance(a, (int, float)) or a >= 100 for a in anchos)
+                                or sum(anchos) > 100.5):
+                            error(f"{rel}: fila {i} que no se apila en celular")
                     if padre is None and s.get("content_width") != "boxed":
                         error(f"{rel}: contenedor de primer nivel {i} sin ancho de contenido")
                 elif t != "widget":

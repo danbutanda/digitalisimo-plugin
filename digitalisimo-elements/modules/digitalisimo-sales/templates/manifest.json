@@ -1,12 +1,13 @@
 {
  "_comment": "Generado por scripts/sales-kit/kit_paginas.py: no se edita a mano (tests/elements-sales-kit.mjs).",
- "kit_version": "3-generico",
- "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v3/ (generador con --generico, PERSONA_GENERICA)",
+ "kit_version": "4-generico",
+ "kit_source": "OneDrive: DIGITALISIMO/Plantillas/Landing Page Ventas/Kit de ventas DIGITALISIMO v4/ (generador con --generico, PERSONA_GENERICA), fusionado sobre la adaptación del v3",
  "guide_source": {
   "repository": "digitalisimo-brain",
   "file": "oficio/ventas-en-linea.md",
   "commit": "06ff42f",
-  "section": "El orden de una página de venta"
+  "section": "El orden de una página de venta",
+  "v4": "copia de trabajo del 2026-11-13, sin commit: «La portada de una landing de DIGITALÍSIMO» y «El precio se revela tarde»"
  },
  "funnel": "anuncio → 03 Captación → 04 Gracias por registrarte → clase o contenido → 01 o 02 → 05 Carrito → pago → 06 Oferta única → 07 Gracias por tu compra",
  "templates": [
@@ -16,21 +17,21 @@
    "name": "Página de venta completa",
    "library_title": "DIGITALÍSIMO · 01 Página de venta completa",
    "file": "01-pagina-de-venta-completa.json",
-   "purpose": "La carta de venta larga, en el orden de la guía (26 bloques): barra de cierre, promesa, problema, quién está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona para gente como tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al terminar, bonus con su total, nuestro compromiso, cuánto vale, la oferta (#oferta), garantía y actualización, los caminos, objeciones con la voz de alumnos, lo avala la comunidad (#historias), preguntas frecuentes, WhatsApp con una cara, cierre y pie.",
+   "purpose": "La carta de venta larga, en el orden de la guía (26 bloques): barra fija de cierre (con el logo del evento), la portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), problema, quién está detrás (corto), ¿te imaginas…?, por qué es distinto, autoridad con logos, funciona para gente como tú, para quién es, qué es, temario con botón, todo lo que incluye, nunca estarás solo, al terminar, bonus (sin precio), nuestro compromiso, cuánto vale, la oferta (#oferta, el único lugar con precio antes del cierre), garantía y actualización, los caminos, objeciones con la voz de alumnos, lo avala la comunidad (#historias), preguntas frecuentes, WhatsApp con una cara, cierre y pie.",
    "use_when": "Programa caro o lanzamiento con cierre (más de unos 6 000 MXN): antes una clase o un reto (03 y 04), después el carrito (05) con pagos a plazos. Recortada, para un curso de precio medio después de una clase.",
    "measures": "Vista de página",
-   "sections": 32,
-   "widgets": 234,
+   "sections": 31,
+   "widgets": 231,
    "widget_types": {
+    "image": 27,
     "heading": 82,
     "countdown": 1,
     "button": 11,
-    "spacer": 6,
-    "video": 8,
-    "text-editor": 45,
+    "text-editor": 43,
     "icon-list": 21,
-    "image": 25,
     "icon-box": 31,
+    "video": 7,
+    "spacer": 4,
     "divider": 2,
     "testimonial-carousel": 1,
     "accordion": 1
@@ -66,18 +67,18 @@
    "blocks": [
     {
      "key": "barra-de-cierre",
-     "name": "Barra de cierre",
+     "name": "Barra fija de cierre",
      "required": false,
      "sections": [
-      "dee898c"
+      "5a0fc59"
      ]
     },
     {
      "key": "promesa",
-     "name": "La promesa",
+     "name": "La portada: la promesa",
      "required": false,
      "sections": [
-      "0cf9fbf"
+      "dff654b"
      ]
     },
     {
@@ -85,7 +86,7 @@
      "name": "El problema",
      "required": false,
      "sections": [
-      "dc893aa"
+      "578c8f7"
      ]
     },
     {
@@ -93,7 +94,7 @@
      "name": "Quién está detrás, corto",
      "required": false,
      "sections": [
-      "9015e44"
+      "75bb6d0"
      ]
     },
     {
@@ -101,7 +102,7 @@
      "name": "¿Te imaginas…?",
      "required": false,
      "sections": [
-      "214d50a"
+      "37d6089"
      ]
     },
     {
@@ -109,7 +110,7 @@
      "name": "Por qué es distinto",
      "required": false,
      "sections": [
-      "fdddb80"
+      "10a5113"
      ]
     },
     {
@@ -117,8 +118,8 @@
      "name": "Quién está detrás, la autoridad (con logos)",
      "required": false,
      "sections": [
-      "e6991db",
-      "15df821"
+      "af92f7c",
+      "4bb9991"
      ]
     },
     {
@@ -126,7 +127,7 @@
      "name": "Funciona para gente como tú",
      "required": false,
      "sections": [
-      "87e7889"
+      "a21ca0d"
      ]
     },
     {
@@ -134,7 +135,7 @@
      "name": "Para quién es",
      "required": false,
      "sections": [
-      "a738d9e"
+      "45efd99"
      ]
     },
     {
@@ -142,7 +143,7 @@
      "name": "Qué es",
      "required": false,
      "sections": [
-      "be32e19"
+      "9157a7c"
      ]
     },
     {
@@ -150,7 +151,7 @@
      "name": "Temario",
      "required": false,
      "sections": [
-      "d301c68"
+      "e3dd7ff"
      ]
     },
     {
@@ -158,7 +159,7 @@
      "name": "Todo lo que incluye",
      "required": false,
      "sections": [
-      "25b7db0"
+      "b8ee072"
      ]
     },
     {
@@ -166,7 +167,7 @@
      "name": "Nunca estarás solo",
      "required": false,
      "sections": [
-      "1e24fd8"
+      "d210251"
      ]
     },
     {
@@ -174,7 +175,7 @@
      "name": "Lo que te llevas al terminar",
      "required": false,
      "sections": [
-      "f98e9a0"
+      "08f413e"
      ]
     },
     {
@@ -182,12 +183,11 @@
      "name": "Bonus",
      "required": false,
      "sections": [
-      "c3ebc50",
-      "06df251",
-      "8736a11",
-      "88ae9ce",
-      "f67bfe7",
-      "b63bd7d"
+      "ace2214",
+      "671ad30",
+      "bfaeec6",
+      "cc8409f",
+      "e978bc7"
      ]
     },
     {
@@ -195,7 +195,7 @@
      "name": "Nuestro compromiso",
      "required": false,
      "sections": [
-      "07a0a53"
+      "e23280d"
      ]
     },
     {
@@ -203,7 +203,7 @@
      "name": "Cuánto vale para ti",
      "required": false,
      "sections": [
-      "a9a36d0"
+      "7e2f6f0"
      ]
     },
     {
@@ -211,7 +211,7 @@
      "name": "La oferta",
      "required": false,
      "sections": [
-      "6a43c61"
+      "1acc154"
      ]
     },
     {
@@ -219,7 +219,7 @@
      "name": "Garantía y actualización",
      "required": false,
      "sections": [
-      "6d2a708"
+      "4ebeeb5"
      ]
     },
     {
@@ -227,7 +227,7 @@
      "name": "Los caminos",
      "required": false,
      "sections": [
-      "78ae265"
+      "2ce366c"
      ]
     },
     {
@@ -235,7 +235,7 @@
      "name": "¿Te funcionará? (objeciones)",
      "required": false,
      "sections": [
-      "07c9276"
+      "864abd6"
      ]
     },
     {
@@ -243,7 +243,7 @@
      "name": "Lo avala la comunidad",
      "required": false,
      "sections": [
-      "4d18690"
+      "c8188c3"
      ]
     },
     {
@@ -251,7 +251,7 @@
      "name": "Preguntas frecuentes",
      "required": false,
      "sections": [
-      "0cbda51"
+      "7a6a355"
      ]
     },
     {
@@ -259,7 +259,7 @@
      "name": "WhatsApp con una cara",
      "required": false,
      "sections": [
-      "e3eb8ba"
+      "965350d"
      ]
     },
     {
@@ -267,7 +267,7 @@
      "name": "Cierre",
      "required": false,
      "sections": [
-      "45cb35e"
+      "51053f8"
      ]
     },
     {
@@ -275,12 +275,12 @@
      "name": "Pie",
      "required": true,
      "sections": [
-      "d1fa59f"
+      "485b86f"
      ]
     }
    ],
    "urgency": [
-    "dee898c"
+    "5a0fc59"
    ]
   },
   {
@@ -289,18 +289,17 @@
    "name": "Página de venta corta",
    "library_title": "DIGITALÍSIMO · 02 Página de venta corta",
    "file": "02-pagina-de-venta-corta.json",
-   "purpose": "Promesa con video, tres beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta, la garantía y pocas preguntas; el botón se repite.",
+   "purpose": "La portada (cabe en la primera pantalla: logo, promesa, antetítulo chico y botón, sin video), tres beneficios, quién está detrás, para quién es, qué incluye, testimonios, la oferta (el único lugar con precio), la garantía y pocas preguntas; el botón se repite.",
    "use_when": "Producto barato (hasta unos 1 000 MXN) con anuncios, con el carrito (05) y la oferta después de pagar (06); quien ya conoce la marca; un curso de precio medio después de una clase (ampliada); un servicio (sin carrito, con «Agendar asesoría» o «Hablar por WhatsApp»); un evento de venta de temporada con su fecha real; o un paquete de la tienda.",
    "measures": "Vista de página",
    "sections": 8,
-   "widgets": 43,
+   "widgets": 42,
    "widget_types": {
+    "image": 5,
     "heading": 12,
-    "text-editor": 12,
     "button": 4,
-    "video": 1,
     "icon-box": 3,
-    "image": 4,
+    "text-editor": 11,
     "icon-list": 3,
     "testimonial-carousel": 1,
     "divider": 2,
@@ -333,10 +332,10 @@
    "blocks": [
     {
      "key": "promesa",
-     "name": "La promesa",
+     "name": "La portada: la promesa",
      "required": false,
      "sections": [
-      "43d7d47"
+      "ea769f5"
      ]
     },
     {
@@ -344,7 +343,7 @@
      "name": "Beneficios",
      "required": false,
      "sections": [
-      "9b6db45"
+      "ffd811f"
      ]
     },
     {
@@ -352,7 +351,7 @@
      "name": "Quién está detrás",
      "required": false,
      "sections": [
-      "90c7796"
+      "c9f33ab"
      ]
     },
     {
@@ -360,7 +359,7 @@
      "name": "Para quién es e incluye",
      "required": false,
      "sections": [
-      "eecc2c6"
+      "d5ed14f"
      ]
     },
     {
@@ -368,7 +367,7 @@
      "name": "Testimonios",
      "required": false,
      "sections": [
-      "5348f0a"
+      "0063275"
      ]
     },
     {
@@ -376,7 +375,7 @@
      "name": "La oferta",
      "required": false,
      "sections": [
-      "d0c5dfe"
+      "03beff7"
      ]
     },
     {
@@ -384,7 +383,7 @@
      "name": "Garantía y preguntas frecuentes",
      "required": false,
      "sections": [
-      "18e4e41"
+      "b73d0f0"
      ]
     },
     {
@@ -392,7 +391,7 @@
      "name": "Pie",
      "required": true,
      "sections": [
-      "b3293e7"
+      "52c6da5"
      ]
     }
    ],
