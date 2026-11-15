@@ -178,7 +178,9 @@ final class Builder {
 			}
 		}
 
-		// Bloques que se quitan: claves del manifiesto, nunca el pie; lo demás queda en su orden.
+		// Bloques que se quitan: claves del manifiesto, nunca uno obligatorio (la promesa, la oferta, la garantía, las
+		// preguntas frecuentes, WhatsApp o el pie); lo demás queda en su orden. Un solo error nombra todos los
+		// obligatorios pedidos.
 		$omit = $input['omit_blocks'] ?? array();
 		if ( ! is_array( $omit ) || count( $omit ) > 40 ) {
 			return self::error( 'digitalisimo_sales_omit_blocks', 'omit_blocks debe ser una lista de claves de bloque (list-templates con template).' );
@@ -189,7 +191,7 @@ final class Builder {
 		}
 		$omit_ids = array();
 		$omitted  = array();
-		$kept     = array();
+		$kept     = array(); // Obligatorios pedidos: se quedan.
 		foreach ( $omit as $key ) {
 			if ( ! is_string( $key ) || ! isset( $blocks[ $key ] ) ) {
 				return self::error( 'digitalisimo_sales_omit_blocks', sprintf( 'omit_blocks: «%s» no es un bloque de esta plantilla. Bloques, en orden: %s.', is_scalar( $key ) ? (string) $key : '?', implode( ', ', array_keys( $blocks ) ) ) );
