@@ -1531,7 +1531,10 @@ completo (`seal`: `type` `full`, `materialized_from`, firmado con la clave de la
 (`handoff`) a la restauración de siempre por su punto de entrada (`restore_enqueue()`: `staged`, como un `.dgbk`
 descifrado), con los argumentos, el testigo del mantenimiento y la ficha de lectura que fijó la petición. La restauración
 lo vuelve a verificar entrada por entrada y hace la copia previa, el SQL, los archivos y la vuelta atrás como con
-cualquier completo; la restauración por partes trabaja sobre ese mismo punto. REST responde 202 con el trabajo en curso
+cualquier completo; la restauración por partes trabaja sobre ese mismo punto. Mientras dura la reconstrucción ningún
+respaldo empieza (cuenta como una restauración); uno que una automatización encola entretanto espera en la cola y no
+impide la entrega, y si el proceso muere justo después de entregar, la reconstrucción reconoce la restauración que ya
+encoló (por su ficha de lectura). REST responde 202 con el trabajo en curso
 (primero la reconstrucción, después la restauración), la pantalla lo sigue en «Trabajos» y WP-CLI lo hace avanzar hasta
 terminar. Verificar un punto reconstruye y comprueba en la misma petición, como la verificación de un completo. La confianza del punto es la
 de su cadena: firmada, registrada aquí o sin firma (`RESTAURAR SIN FIRMA`). Una cadena rota (un eslabón que falta, alterado,
@@ -1546,9 +1549,11 @@ Los eslabones se describen solos: el manifiesto (firmado si hay clave) de cada i
 archivo, `backup_id` y SHA-256 de su manifiesto. Sin el historial (base de datos perdida, WordPress reinstalado o un
 servidor nuevo que trae los archivos de su destino), un punto se reconoce por su manifiesto y su cadena se busca en el
 almacén por esos nombres:
+- Una cadena nunca tiene más eslabones que el tope de «un completo cada N» (60): un manifiesto que nombra más se trata
+  como un archivo cualquiera.
 - «Traer al almacén» de un punto incremental listado en un destino («Respaldos en los destinos remotos», `POST
   /destinations/<id>/backups/<nombre>/fetch`, `wp digitalisimo-backups destinations fetch <nombre> --from=<id>`) lo trae
-  como «sin registro» y trae también, del mismo destino y con sus nombres, los archivos de su cadena que faltan (cada uno
+  como «sin registro» y trae también, del mismo destino y con sus nombres (sólo los que el destino lista), los archivos de su cadena que faltan (cada uno
   con su trabajo `fetch` comprobado). Subir un incremental lo comprueba entero y dice qué archivos de su cadena faltan.
 - Verificar y restaurar comprueban la cadena por sus manifiestos igual que con historial; la confianza es la de su firma
   (con la clave de este sitio o la frase escrita) o, sin ella, «sin firma» (`RESTAURAR SIN FIRMA`), como un completo
@@ -1561,7 +1566,7 @@ punto que se conserva: la de una automatización conserva sus N puntos más reci
 una cadena antigua sale **entera** cuando ya no le queda ningún punto conservado. Lo mismo la retención global de los
 manuales, la de las copias remotas (también la global) y los puntos bloqueados (protegen a sus antecesores). Con «Conservar
 N» y un completo cada M incrementales, el almacén guarda como mucho N + M puntos; por eso una automatización incremental
-acota «Conservar» a 100 − M (el historial guarda 100 filas, y su tope nunca saca la fila de un eslabón del que depende
+acota «Conservar» a 100 − M, y lo avisa al guardarla (el historial guarda 100 filas, y su tope nunca saca la fila de un eslabón del que depende
 una que se queda). «Borrar» un eslabón del que dependen puntos posteriores, o uno que usa un trabajo en curso (el padre
 del incremental que se está haciendo), se niega; y si un eslabón desaparece mientras se hace un incremental, «publish»
 lo detecta y el trabajo sale como un completo.
