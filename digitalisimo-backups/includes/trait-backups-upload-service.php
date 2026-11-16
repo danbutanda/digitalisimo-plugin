@@ -382,8 +382,9 @@ trait Digitalisimo_Backups_Upload_Service {
 	 * `secret_wrong`, `upload_space` o `upload_error` (no se pudo comprobar: se conserva).
 	 */
 	private static function upload_inspect( $path, $secret ) {
-		// Lo que aquí se valida queda en la lista: la confirmación será la de un respaldo subido (RESTAURAR).
-		$summary = array( 'container' => 'zip', 'verified' => false, 'needs_secret' => false, 'trust' => 'untrusted', 'signature' => 'unsigned', 'key' => '', 'confirmation' => 'RESTAURAR', 'compatible' => false, 'problems' => array() );
+		// La confirmación de un archivo suelto (lo traído de un destino); la subida y «Agregar al listado» la cambian por la
+		// de un respaldo subido (RESTAURAR) al registrarlo (upload_done(), service_register()).
+		$summary = array( 'container' => 'zip', 'verified' => false, 'needs_secret' => false, 'trust' => 'untrusted', 'signature' => 'unsigned', 'key' => '', 'confirmation' => 'RESTAURAR SIN FIRMA', 'compatible' => false, 'problems' => array() );
 		if ( ! class_exists( 'ZipArchive' ) ) return self::service_error( 'upload_error', 'El servidor necesita la extensión PHP ZipArchive para comprobar el respaldo; la subida se conserva.', 500 );
 		if ( Digitalisimo_Backups_Encrypted_File::is_encrypted( $path ) ) {
 			try {
@@ -444,7 +445,7 @@ trait Digitalisimo_Backups_Upload_Service {
 				'trust' => (string) $report['trust'],
 				'signature' => (string) $report['auth'],
 				'key' => isset( $report['key']['id'] ) ? Digitalisimo_Backups_Keys::short( $report['key']['id'] ) : '',
-				'confirmation' => 'RESTAURAR',
+				'confirmation' => 'untrusted' === $report['trust'] ? 'RESTAURAR SIN FIRMA' : 'RESTAURAR',
 				'compatible' => ! $problems,
 				'problems' => $problems,
 				'entries' => (int) $report['zip']->numFiles,
