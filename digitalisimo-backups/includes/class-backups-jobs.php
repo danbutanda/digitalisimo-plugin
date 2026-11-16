@@ -870,7 +870,8 @@ final class Digitalisimo_Backups_Jobs {
 			// que la siguió (el testigo en su cookie, nunca en la URL como el de WP-Cron) y sólo durante FINISHED_ANSWER
 			// segundos tras terminar, con el estado y un texto general, sin el error ni el archivo (revisión C4).
 			$done = self::restore_finished_for_request( ! $manager );
-			// Terminada, la cookie ya no sirve (salvo la de la reconstrucción de un punto, que sigue): se borra (revisión N5).
+			// Terminada, la cookie sirve aún los FINISHED_ANSWER segundos del resultado (o la de la reconstrucción de un punto,
+			// que sigue); después se borra (N5, verificación final).
 			self::renew_cookie();
 			if ( $done && ( $manager || time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) ) {
 				$view = $manager ? self::screen_view( $done ) : self::token_view( $done );
@@ -879,24 +880,32 @@ final class Digitalisimo_Backups_Jobs {
 			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
 		}
 		$result = self::tick();
-		// La cookie dura lo que dura la restauración: cada tick la renueva y, si terminó (sin una vuelta a la copia previa
-		// con el mismo testigo), se borra.
+		// La cookie dura lo que dura la restauración: cada tick la renueva (terminada, ver renew_cookie()).
 		self::renew_cookie();
 		// Sin sesión de gestión (revisión M4), sólo esa restauración y lo que la sigue con el mismo testigo (su vuelta a la
 		// copia previa), sin otros trabajos, rutas, errores ni archivos: fase, %, paso, partes y tiempo.
-		if ( ! $manager ) {
-			$views = array();
-			$now = self::get( (string) $job['id'] );
-			$next = self::restore_active();
-			if ( $next && hash_equals( $token, (string) ( $next['spec']['token'] ?? '' ) ) ) $views[] = self::token_view( $next );
-			if ( $now && ( ! $next || $next['id'] !== $now['id'] ) ) $views[] = self::token_view( $now );
-			// La restauración de una migración: también la migración que la espera (lo que sigue «Migrar»).
-			$owner = 'migration' === ( $job['spec']['aside']['kind'] ?? '' ) ? self::get( (string) ( $job['spec']['aside']['migration'] ?? '' ) ) : null;
-			if ( $owner ) $views[] = self::token_view( $owner );
-			wp_send_json_success( array( 'result' => $result['result'], 'message' => '', 'jobs' => $views, 'nonces' => array(), 'manager' => false ) );
-		}
+		if ( ! $manager ) wp_send_json_success( array( 'result' => $result['result'], 'message' => '', 'jobs' => self::token_views( $job, $token ), 'nonces' => array(), 'manager' => false ) );
 		// `manager`: quien sigue la restauración conserva su sesión de gestión (sin ella, al terminar se le pide entrar).
 		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces(), 'manager' => true ) );
+	}
+	// Lo que recibe del tick por testigo, tras su paso, quien no gestiona Backups: esa restauración ($job, la que estaba en
+	// curso) y lo que la sigue con el mismo testigo: la que sigue en curso (su vuelta a la copia previa) o, si la vuelta
+	// también terminó en este mismo tick, ésta (así la pestaña ve que el sitio quedó a medio cambiar y que puede volver a
+	// la copia previa; verificación final N9), y en una migración, la migración que la espera (lo que sigue «Migrar»).
+	private static function token_views( array $job, $token ) {
+		$views = array();
+		$now = self::get( (string) $job['id'] );
+		$next = self::restore_active();
+		if ( $next && hash_equals( (string) $token, (string) ( $next['spec']['token'] ?? '' ) ) ) $views[] = self::token_view( $next );
+		if ( $now && ( ! $next || $next['id'] !== $now['id'] ) ) {
+			$view = self::token_view( $now );
+			$then = ! $next && '' !== (string) ( $view['followed_by'] ?? '' ) ? self::get( (string) $view['followed_by'] ) : null;
+			if ( $then && hash_equals( (string) $token, (string) ( $then['spec']['token'] ?? '' ) ) ) $views[] = self::token_view( $then );
+			$views[] = $view;
+		}
+		$owner = 'migration' === ( $job['spec']['aside']['kind'] ?? '' ) ? self::get( (string) ( $job['spec']['aside']['migration'] ?? '' ) ) : null;
+		if ( $owner ) $views[] = self::token_view( $owner );
+		return $views;
 	}
 	// Tras el cambio de tablas la sesión puede seguir valiendo («Conservar mi acceso») con otro ID o con otras sales: los
 	// nonces que la pantalla recibió al cargarse ya no valen. Quien sigue gestionando Backups recibe los nuevos con el tick
@@ -907,11 +916,14 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	// La cookie del testigo sólo la tiene el navegador que empezó la restauración: nadie más la recibe, ni al abrir la
 	// pantalla ni en el sondeo (revisión N1); las demás pestañas la siguen con su sesión. Cada tick de esa restauración (o
-	// de la reconstrucción de su punto) que la trae la renueva, con sesión o con testigo; si ya no hay ninguna en curso con
-	// ese testigo, se borra (revisión N5).
-	private static function renew_cookie() {
+	// de la reconstrucción de su punto) que la trae la renueva, con sesión o con testigo (N5). Terminada, se queda los
+	// FINISHED_ANSWER segundos en que sus pestañas (todas, también otra del mismo navegador) reciben el resultado y se borra
+	// después, o al abrir la pantalla ($screen: con sesión, ahí se ve el resultado). Si esta misma respuesta ya manda un
+	// testigo (la migración que encola su restauración), no se toca (verificación final).
+	private static function renew_cookie( $screen = false ) {
 		$have = $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ?? '';
-		if ( ! is_string( $have ) || '' === $have ) return;
+		$sent = Digitalisimo_Backups_Restore_Maintenance::$sent;
+		if ( ! is_string( $have ) || '' === $have || ( is_string( $sent ) && '' !== $sent ) ) return;
 		try {
 			foreach ( self::active() as $job ) {
 				$token = (string) ( $job['spec']['token'] ?? '' );
@@ -920,14 +932,23 @@ final class Digitalisimo_Backups_Jobs {
 					return;
 				}
 			}
+			// Un sitio a medio cambiar sigue en el mantenimiento de ese testigo: lo necesita para llegar a Backups y volver a la
+			// copia previa (verificación final N9).
+			if ( Digitalisimo_Backups_Restore_Maintenance::held_for( $have ) ) {
+				Digitalisimo_Backups_Restore_Maintenance::send_cookie( $have );
+				return;
+			}
+			$done = $screen ? null : self::restore_finished_for_request( true );
+			if ( $done && time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) return;
 		} catch ( Throwable $e ) {
 			return;
 		}
 		Digitalisimo_Backups_Restore_Maintenance::clear_cookie();
 	}
-	// Al abrir la pantalla Backups: la cookie de este navegador se renueva o, si ya no sirve, se borra. Nunca da el testigo.
+	// Al abrir la pantalla Backups: la cookie de este navegador se renueva o, si ya no sirve (también una restauración que
+	// acaba de terminar: el panel enseña su resultado), se borra. Nunca da el testigo.
 	public static function screen_cookie() {
-		if ( Digitalisimo_Backups::is_backups_screen() && ! self::off_main_site() ) self::renew_cookie();
+		if ( Digitalisimo_Backups::is_backups_screen() && ! self::off_main_site() ) self::renew_cookie( true );
 	}
 	/** Segundos tras terminar en los que la pestaña que siguió una restauración, sin sesión, recibe su estado final (C4). */
 	const FINISHED_ANSWER = 900;

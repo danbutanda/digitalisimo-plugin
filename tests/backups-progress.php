@@ -331,6 +331,7 @@ function bp_restore_tick( $token, $where, $logged, $manager ) {
 	$was = $GLOBALS['bp_logged_in'];
 	$GLOBALS['bk_caps'] = $manager ? $caps : array();
 	$GLOBALS['bp_logged_in'] = $logged;
+	Digitalisimo_Backups_Restore_Maintenance::$sent = null;
 	if ( 'cookie' === $where ) $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
 	if ( 'post' === $where ) $_POST[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] = $token;
 	if ( 'get' === $where ) $_GET[ Digitalisimo_Backups_Restore_Maintenance::PARAM ] = $token;
@@ -421,11 +422,36 @@ bp_case( 'R9 · el testigo sólo lo tiene el navegador que empezó la restauraci
 		bp_check( $token === $call( $method, $post, $token ) && abs( $M::$sent_until - ( time() + 172800 ) ) <= 5, $method . ' no renueva por 48 h la cookie de quien empezó la restauración: ' . json_encode( array( $M::$sent, $M::$sent_until ? $M::$sent_until - time() : null ) ) );
 	}
 	bp_check( $token === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ), 'Al abrir la pantalla, la cookie de quien empezó la restauración no se renueva.' );
-	// Terminada: el tick que lo ve (por testigo o con nonce) y la pantalla la borran.
+	// La cookie de otra restauración (o una vieja) nunca se cambia por el testigo de la que está en curso: se borra.
+	bp_check( '' === $call( 'ajax_tick', $nonce, str_repeat( '3b', 32 ) ), 'Con la cookie de otra restauración, el tick le da el testigo de la que está en curso (o no la borra).' );
+	// Si esta misma respuesta ya manda un testigo nuevo (la migración que encola su restauración), renew_cookie() no lo pisa.
+	$_COOKIE = array( $M::COOKIE => str_repeat( '3b', 32 ) );
+	$M::$sent = null;
+	try { $M::send_cookie( str_repeat( '4c', 32 ) ); bk_call( $J, 'renew_cookie' ); } finally { $_COOKIE = array(); }
+	bp_check( str_repeat( '4c', 32 ) === $M::$sent, 'renew_cookie() borra el testigo nuevo que manda la misma respuesta: ' . json_encode( $M::$sent ) );
+	// Terminada: sus pestañas sin sesión (también una segunda del mismo navegador) reciben el resultado durante
+	// FINISHED_ANSWER segundos, así que la cookie se queda; abrir la pantalla (con sesión: ahí se ve el resultado) o
+	// cualquier tick pasado ese tiempo la borran.
 	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'success', 'phase' => 'cleanup', 'finished_at' => time() - 60, 'retry_at' => 0 ) ) );
-	bp_check( '' === $call( 'ajax_restore_tick', array(), $token ), 'Terminada, el tick por testigo no borra la cookie.' );
-	bp_check( '' === $call( 'ajax_tick', $nonce, $token ), 'Terminada, el tick con nonce no borra la cookie.' );
+	foreach ( array( 'la primera pestaña', 'una segunda pestaña del mismo navegador' ) as $tab ) {
+		$answer = bp_restore_tick( $token, 'cookie', false, false );
+		bp_check( $answer && $answer->success && 'finished' === ( $answer->payload['result'] ?? '' ) && null === $M::$sent, 'Terminada, ' . $tab . ' no recibe el resultado o se borra la cookie: ' . json_encode( array( $answer ? $answer->payload : null, $M::$sent ) ) );
+	}
+	bp_check( null === $call( 'ajax_tick', $nonce, $token ), 'Terminada hace un minuto, el tick con nonce borra la cookie de la que la siguió.' );
 	bp_check( '' === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ), 'Terminada, abrir la pantalla no borra la cookie.' );
+	// Pero si terminó mal y el sitio quedó a medio cambiar (el mantenimiento sigue con ese testigo), la cookie se queda: con
+	// ella el navegador llega a Backups y vuelve a la copia previa (verificación final N9).
+	$M::hold( $token, true, $restore['id'] );
+	try {
+		bp_check( $token === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ) && $token === $call( 'ajax_tick', $nonce, $token ), 'Con el sitio a medio cambiar, abrir la pantalla o el tick borran la cookie que lleva a «Volver a la copia previa».' );
+		bp_check( '' === $call( 'screen_cookie', array(), str_repeat( '3b', 32 ), array( 'page' => 'digitalisimo-backups' ) ), 'Con el sitio a medio cambiar, se renueva la cookie de otra restauración.' );
+	} finally {
+		$M::release();
+	}
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'finished_at' => time() - 2 * $J::FINISHED_ANSWER ) ) );
+	bp_check( '' === $call( 'ajax_restore_tick', array(), $token ), 'Pasada la ventana del resultado, el tick por testigo no borra la cookie.' );
+	bp_check( '' === $call( 'ajax_tick', $nonce, $token ), 'Pasada la ventana del resultado, el tick con nonce no borra la cookie.' );
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'finished_at' => time() - 60 ) ) );
 	bp_check( null === $call( 'screen_cookie', array(), $token, array( 'page' => 'otra-pantalla' ) ), 'Otra pantalla del escritorio toca la cookie.' );
 	// La reconstrucción de un punto incremental sigue con el mismo testigo: su cookie no se borra.
 	$chain = bp_job( 'backup', array( 'type' => 'chain', 'kind' => 'chain', 'destination' => 'local', 'policy' => 'chain-restore', 'file' => 'p.zip', 'token' => $token ), array( 'phase' => 'build', 'status' => 'running', 'retry_at' => time() + 3600 ) );
@@ -463,6 +489,10 @@ bp_case( 'R10 · sin sesión, un reintento no lleva el error (N4); la marca de l
 	// Con la sesión de gestión, el texto entero.
 	$manager = bp_restore_tick( $token, 'cookie', true, true );
 	bp_check( false !== strpos( json_encode( $manager->payload, JSON_UNESCAPED_UNICODE ), 'clientes_prod.wp_options' ), 'Con la sesión de gestión, el paso no trae su texto.' );
+	// Un paso normal: los nombres de tabla (con guion bajo) quedan en «…», el avance no.
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'progress' => array( 'percent' => 54, 'message' => 'Importando la tabla wp_clientes_pedidos a tablas temporales (3 de 9)…' ) ) ) );
+	$view = bp_restore_tick( $token, 'cookie', false, false )->payload['jobs'][0] ?? array();
+	bp_check( false === strpos( json_encode( $view ), 'clientes_pedidos' ) && false !== strpos( (string) ( $view['detail'] ?? '' ), '(3 de 9)' ), 'Sin sesión, un paso normal lleva el nombre de una tabla (o pierde su avance): ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
 	// La vuelta a la copia previa pedida a mano: conserva la causa y la anota aparte.
 	$failed = Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'failed', 'phase' => 'switch', 'finished_at' => time() ) ) );
 	$back = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'file' => 'safety-before-restore-20261115.zip', 'safety' => '', 'rollback' => array( 'of' => $failed['id'], 'file' => 'digitalisimo-sitio-2026-11-15.zip' ) ) ), array( 'phase' => 'database', 'status' => 'running', 'retry_at' => time() + 3600 ) );
@@ -478,6 +508,11 @@ bp_case( 'R10 · sin sesión, un reintento no lleva el error (N4); la marca de l
 	// Cuánto hace que terminó (la pantalla sólo enseña como recién terminada la de hace minutos, N2).
 	$ago = $J::screen_view( Digitalisimo_Backups_Job_Store::write( array_replace( $failed, array( 'finished_at' => time() - 3 * 86400 ) ) ) )['finished_ago'];
 	bp_check( $ago >= 3 * 86400 && $ago < 3 * 86400 + 30 && null === $J::screen_view( Digitalisimo_Backups_Jobs::get( $back['id'] ) )['finished_ago'], 'La vista no dice cuánto hace que terminó: ' . json_encode( $ago ) );
+	// La restauración y su vuelta a la copia previa terminan en el mismo tick (las dos fallan): sin sesión, el tick por
+	// testigo da también la vuelta, a medio cambiar (con «Volver a la copia previa»; verificación final N9).
+	$lost = Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $back['id'] ), array( 'status' => 'failed', 'phase' => 'switch', 'finished_at' => time(), 'retry_at' => 0 ) ) );
+	$views = bk_call( $J, 'token_views', $failed, $token );
+	bp_check( array( $lost['id'], $failed['id'] ) === array_column( $views, 'id' ) && true === $views[0]['midway'], 'Sin sesión, cuando la vuelta a la copia previa termina en el mismo tick, el tick por testigo no la da (ni que quedó a medio cambiar): ' . json_encode( array_column( $views, 'midway', 'id' ) ) );
 	bp_clear_jobs();
 	// La consulta ligera del estado (cada 30 s) sólo lee: no pasa por el detector, que sí corre en la consulta normal (N6).
 	$stuck = bp_job( 'backup', $J::spec( array( 'policy' => 'manual', 'destination' => 'local' ) ), array( 'phase' => 'pack', 'status' => 'running', 'lease' => array( 'owner' => 'otro-proceso', 'host' => bk_call( $J, 'host' ), 'heartbeat_at' => time() ) ) );

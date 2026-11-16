@@ -37,3 +37,12 @@ add_action( 'init', static function () {
 		if ( preg_match( '/^[0-9a-f]{64}$/D', $token ) ) Digitalisimo_Backups_Restore_Maintenance::hold( $token, false, '' );
 	}
 }, 1 );
+// La vuelta a la copia previa también falla, antes de su cambio (en su base de datos): el sitio queda a medio cambiar, en
+// un mantenimiento que no caduca (verificación final N9). Con /digi-ctl/fail-rollback.
+add_filter( 'digitalisimo_backups_step_units', static function ( $units ) {
+	if ( ! is_file( '/digi-ctl/fail-rollback' ) || ! class_exists( 'Digitalisimo_Backups_Jobs', false ) ) return $units;
+	$id = Digitalisimo_Backups_Jobs::current_id();
+	$job = '' !== $id ? Digitalisimo_Backups_Jobs::get( $id ) : null;
+	if ( $job && 'restore' === $job['kind'] && ! empty( $job['spec']['rollback'] ) && 'database' === $job['phase'] ) throw new Digitalisimo_Backups_Permanent_Error( 'fallo inyectado en la vuelta a la copia previa' );
+	return $units;
+}, 30 );

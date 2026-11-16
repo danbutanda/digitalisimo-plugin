@@ -375,9 +375,13 @@ después, sitio y red).
   cuerpo `POST` de la pantalla, nunca en la URL: el de la URL del tick de WP-Cron queda en los registros de acceso.
 - **Cuánto dura la cookie.** 48 horas, y cada tick de esa restauración (o de la reconstrucción de su punto) que la trae la
   renueva, con sesión (el tick de la cola, la consulta del estado, abrir la pantalla) o con el testigo: así quien vuelve a
-  una restauración que se quedó en mantenimiento sin visitas ni cron la sigue viendo. Se borra al terminar (el primer tick
-  que ya no la encuentra en curso), si la restauración no llega a empezar (un archivo que no está, un paquete que no
-  sirve) o termina en la misma petición, al abrir la pantalla si ya no sirve y al cerrar sesión.
+  una restauración que se quedó en mantenimiento sin visitas ni cron la sigue viendo. Terminada, se queda los 15 minutos
+  en que sus pestañas sin sesión (también otra del mismo navegador) reciben el resultado y se borra en el primer tick
+  después, o antes al abrir la pantalla (con sesión: el panel enseña el resultado). También se borra si la restauración no
+  llega a empezar (un archivo que no está, un paquete que no sirve) o termina en la misma petición, y al cerrar sesión.
+  Pero si terminó mal y el sitio quedó a medio cambiar (el mantenimiento sigue puesto con ese testigo), no se borra: la
+  pantalla y los ticks la renuevan, porque con ella el navegador entra, llega a Backups y vuelve a la copia previa. Una
+  respuesta que ya manda un testigo nuevo (la migración que encola su restauración) no lo borra.
 - **Qué restaurar** (restaurar por partes): entre la confirmación y «Opciones», plegado («Qué restaurar: todo»), así que
   el panel sigue enseñando sólo la frase, la confirmación y el botón. Dentro, «Todo» marcado y las siete partes con lo
   que reemplaza cada una; en el panel abierto de un ZIP que se puede leer (`?restore=<archivo>`, o «Elegir plugins, temas
@@ -926,9 +930,13 @@ puerta: deja pasar `wp-cron.php` (sin testigo: el cron del sistema o el loopback
 respaldo), a quien trae el testigo (la cookie `digitalisimo_backups_restore` del navegador que la empezó, o el parámetro
 del mismo nombre, como `maintenance_token` de REST; en el archivo sólo va su SHA-256), y a ése sólo a la pantalla de
 Backups (`admin.php?page=digitalisimo-backups` o la de la red) y sus llamadas (`admin-ajax.php` y `admin-post.php` con
-una acción `digitalisimo_backups_…`, y su REST `/wp-json/digitalisimo-backups/v1/…`): el resto del escritorio y el sitio
-responden 503 también con el testigo, porque antes del cambio guardarían en la base de datos que el cambio de tablas va a
-reemplazar (y después se servirían a medio cambiar); y WP-CLI. El 503 de la puerta lleva la cabecera
+una de las acciones que registra Backups —la lista exacta, sacada de los ganchos de WordPress al poner el mantenimiento,
+no el prefijo— y su REST `/wp-json/digitalisimo-backups/v1/…`) y a `wp-login.php` sólo para entrar y salir (el
+formulario, su POST y `action=logout`; nunca `register`, `lostpassword` ni otra acción): sin la sesión, que el cambio de
+tablas puede haber dejado sin valor, la pantalla lleva ahí, y «Volver a la copia previa» de un sitio a medio cambiar la
+necesita; al entrar, `redirect_to` vuelve a Backups (y no se pide confirmar el correo del administrador, que es otra
+acción). El resto del escritorio y el sitio responden 503 también con el testigo, porque antes del cambio guardarían en la
+base de datos que el cambio de tablas va a reemplazar (y después se servirían a medio cambiar); y WP-CLI. El 503 de la puerta lleva la cabecera
 `X-Digitalisimo-Backups-Restore: maintenance`. Esas peticiones cargan
 WordPress **mínimo**: sólo este plugin, sin los demás, sin mu-plugins (salvo `DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS` en
 `wp-config.php`, para un hosting que los necesite) y sin el tema; así ningún código de un plugin corre contra la base de

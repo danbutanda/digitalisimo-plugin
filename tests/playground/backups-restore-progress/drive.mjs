@@ -12,7 +12,10 @@
 //                 un plugin) y «Volver a la copia previa» abre la copia previa con sólo «Plugins» marcado: restaurarla
 //                 devuelve los plugins a los de antes y la base de datos no cambia (huellas de cada tabla; revisión M1);
 //              4) restauración (plugins) con una falla inyectada al mover el código (1 280 px): el panel sigue la vuelta
-//                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló.
+//                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló;
+//              5) restauración entera de un respaldo anterior a la sesión, que falla a mitad del cambio con la vuelta
+//                 también fallida: sin la sesión, este navegador (con el testigo) entra por wp-login.php, llega a Backups y
+//                 vuelve a la copia previa (verificación final N9).
 //   los dos    tras 1), la puerta del mantenimiento con un testigo conocido: un visitante recibe 503 con la cabecera de
 //                 Backups; con el testigo, sólo la pantalla de Backups pasa (el escritorio, las entradas y la portada no);
 //   multisite  1) y 3) (con «Volver a la copia previa») en la administración de la red.
@@ -70,6 +73,10 @@ await page.setViewport({ width: 1280, height: 900 });
 const jsErrors = [];
 // Las transiciones de vista entre documentos del escritorio de WordPress (Chrome) no son de esta pantalla.
 page.on('pageerror', (e) => { const text = String(e.message || e); if (!/ViewTransition|Transition was aborted/.test(text)) jsErrors.push(`${page.url()} · ${text.slice(0, 300)}${e && e.stack ? ' · ' + String(e.stack).replace(/\s+/g, ' ').slice(0, 400) : ''}`); });
+// Las llamadas de la página que la puerta del mantenimiento deja fuera con el testigo (503 con su cabecera): las de
+// WordPress (su REST) desde la pantalla de Backups, que la puerta no deja pasar a propósito (revisión N1).
+const blockedCalls = [];
+page.on('response', (r) => { try { if (r.status() === 503 && r.headers()['x-digitalisimo-backups-restore'] && r.request().resourceType() !== 'document') blockedCalls.push(r.url()); } catch { /* sin cabeceras */ } });
 page.on('dialog', async (d) => { log(`· diálogo: ${d.message().slice(0, 200)}`); await d.accept(); });
 const samples = {};
 
@@ -305,6 +312,68 @@ async function gate() {
   check(after.status === 200 && !existsSync(`${dir}/ctl/gate-release`), 'puerta: al quitarla, el sitio vuelve', `${after.status}`);
 }
 
+/**
+ * Verificación final N9: una restauración del sitio entero de un respaldo anterior a la sesión de ahora (el de 1), que
+ * falla a mitad del cambio, y cuya vuelta a la copia previa también falla (antes de su cambio): el sitio queda a medio
+ * cambiar, en un mantenimiento que no caduca. Tras el cambio de tablas la sesión de este navegador ya no vale (las
+ * sesiones son las del respaldo); con el testigo, la puerta deja pasar wp-login.php para entrar y la pantalla de Backups,
+ * donde «Volver a la copia previa» recupera el sitio.
+ */
+async function halfChanged() {
+  await lab('mutate', '&round=7');
+  const beforeMid = await lab('inventory');
+  await page.deleteCookie(...(await page.cookies(base)));
+  check(await login(), 'medio: otra sesión, posterior al respaldo que se restaura');
+  writeFileSync(`${dir}/ctl/fail-move`, '1');
+  writeFileSync(`${dir}/ctl/fail-rollback`, '1');
+  let mid = null;
+  try {
+    if ('landed' !== await restoreFromRow(null, { label: 'medio' })) return;
+    mid = await follow('medio', (s) => ended(s) && s.kind === 'rollback');
+  } finally {
+    for (const flag of ['fail-move', 'fail-rollback']) if (existsSync(`${dir}/ctl/${flag}`)) unlinkSync(`${dir}/ctl/${flag}`);
+  }
+  check(mid && mid.last && mid.last.title === 'La vuelta a la copia previa no terminó' && mid.last.actions.includes('rollback'), 'medio: la vuelta a la copia previa también falla y el panel ofrece «Volver a la copia previa»', JSON.stringify(mid && mid.last));
+  await shot('medio-a-medio-cambiar');
+  const visitor = await request('GET', '/');
+  check(visitor.status === 503 && visitor.headers?.['x-digitalisimo-backups-restore'] === 'maintenance', 'medio: el sitio sigue en mantenimiento (a medio cambiar)', `${visitor.status}`);
+  // Sin sesión, la pantalla de Backups lleva a wp-login.php, que con el testigo pasa (antes, 503).
+  await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+  let atLogin = /wp-login\.php/.test(page.url()) && !!(await page.$('#user_login'));
+  if (!atLogin) {
+    // Si Playground conservara la sesión, se quita la del navegador (el testigo se queda), como tras el cambio de tablas.
+    log(`· medio: la sesión siguió valiendo tras el cambio de tablas (${page.url()}); se quita la del navegador`);
+    for (const cookie of await page.cookies(base)) if (/^wordpress_/.test(cookie.name)) await page.deleteCookie({ name: cookie.name, url: base });
+    await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+    atLogin = /wp-login\.php/.test(page.url()) && !!(await page.$('#user_login'));
+  }
+  check(atLogin, 'medio: sin la sesión, Backups lleva a wp-login.php y, con el testigo, se puede entrar (verificación final N9)', `${page.url()} · ${(await page.evaluate(() => document.title).catch(() => ''))}`);
+  if (!atLogin) return;
+  await shot('medio-entrar', false);
+  // Los valores directamente: el foco que pone wp-login.php a los 200 ms (y su select()) puede comerse lo que se teclea.
+  await sleep(500);
+  await page.evaluate(() => { document.getElementById('user_login').value = 'admin'; document.getElementById('user_pass').value = 'password'; });
+  await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
+  const back = await page.evaluate(() => {
+    const panelForm = document.getElementById('digitalisimo-backups-progress-rollback');
+    const strip = document.querySelector('form input[name="rollback_retry"]');
+    return { url: location.href, panel: !!panelForm && !panelForm.hidden, strip: !!strip };
+  }).catch(() => null);
+  check(back && /page=digitalisimo-(network-)?backups/.test(back.url) && (back.panel || back.strip), 'medio: al entrar, el navegador vuelve a Backups con «Volver a la copia previa»', JSON.stringify(back));
+  await shot('medio-de-vuelta');
+  if (!back || !(back.panel || back.strip)) return;
+  // «Volver a la copia previa» (la del panel o la de la franja: la misma acción).
+  labMemory(RESTORE_MEMORY);
+  const selector = back.panel ? '#digitalisimo-backups-progress-rollback button' : 'form:has(input[name="rollback_retry"]) button';
+  await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null), page.click(selector)]);
+  const recovered = await follow('medio-vuelta', (s) => ended(s) && s.kind === 'rollback');
+  labMemory('64M');
+  check(recovered.last && recovered.last.title === 'El sitio volvió a la copia previa', 'medio: desde el navegador, el sitio vuelve a la copia previa', JSON.stringify(recovered.last));
+  await shot('medio-recuperado');
+  const after = await lab('inventory');
+  check(after && beforeMid && after.blogname === beforeMid.blogname && (await request('GET', '/')).status === 200, `medio: el sitio volvió a como estaba antes de restaurar (título «${after?.blogname}») y salió del mantenimiento`);
+}
+
 const start = Date.now();
 let memoryMark = 0;
 let memorySwitch = 0;
@@ -505,6 +574,7 @@ try {
     } finally {
       if (existsSync(`${dir}/ctl/fail-move`)) unlinkSync(`${dir}/ctl/fail-move`);
     }
+    await halfChanged();
   }
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
@@ -519,7 +589,13 @@ try {
   // Salvo la de la petición que empieza la primera restauración con 64 MB (php-wasm, también con main), ninguna.
   const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').split('\n').filter(Boolean).slice(fatalMark).join('\n') : '';
   check(!fatals, `ninguna otra petición terminó en error fatal (la esperada: ${fatalMark})`, fatals.slice(0, 1500));
-  check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));
+  // Un «Object» (una promesa rechazada con la respuesta de apiFetch) de WordPress por una llamada a su REST que la puerta
+  // dejó fuera: se dice, no cuenta como error del panel. Cualquier otro error, sí.
+  const blockedRest = [...new Set(blockedCalls.filter((u) => /wp-json|rest_route/.test(u) && !/digitalisimo-backups/.test(u)).map((u) => u.replace(/[?#].*$/, '')))];
+  if (blockedCalls.length) log(`· la puerta dejó fuera ${blockedCalls.length} llamada(s) de la página durante el mantenimiento: ${[...new Set(blockedCalls.map((u) => u.replace(/[?#].*$/, '')))].join(', ')}`);
+  const panelErrors = blockedRest.length ? jsErrors.filter((e) => !/ · Object(?: · Object: Object)?$/.test(e)) : jsErrors;
+  if (panelErrors.length < jsErrors.length) log(`· ${jsErrors.length - panelErrors.length} error(es) «Object» de WordPress (apiFetch) por esas llamadas a su REST`);
+  check(panelErrors.length === 0, 'sin errores de JavaScript en la página', panelErrors.join(' | '));
 } catch (e) {
   check(false, 'el ensayo terminó con una excepción', String(e.stack || e).slice(0, 1500));
 } finally {
