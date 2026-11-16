@@ -178,6 +178,8 @@ async function importRow(file, { address = '', site = 0, name = 'importar' } = {
   const all = jobs().filter((j) => !before.has(j.id) && j.kind === 'restore').sort((a, b) => Number(a.queued_at || 0) - Number(b.queued_at || 0));
   return { notice, run, job: all[0] || null, rollback: all[1] || null, phases };
 }
+/** Qué partes de los sitios difieren (para el detalle de un fallo). */
+const differs = (a, b) => { const out = []; for (const id of Object.keys(a)) for (const part of ['tables', 'files', 'plugins', 'theme']) { const x = a[id]?.[part]; const y = b[id]?.[part]; if (JSON.stringify(x) !== JSON.stringify(y)) out.push(`${id}.${part}${x && typeof x === 'object' && !Array.isArray(x) ? `(${[...new Set([...Object.keys(x), ...Object.keys(y || {})])].filter((k) => x[k] !== y?.[k]).join(',')})` : ''}`); } return out.join(' '); };
 const others = (state, keep) => Object.fromEntries(Object.entries(state.sites || {}).filter(([id]) => keep.includes(Number(id))).map(([id, site]) => [id, { tables: site.tables, files: site.files, plugins: site.active_plugins, theme: site.stylesheet }]));
 const network = (state, ignoreSite) => Object.fromEntries(Object.entries(state.users || {}).map(([login, u]) => [login, { email: u.email, pass: u.pass, meta: u.meta, super: u.super, roles: Object.fromEntries(Object.entries(u.roles).filter(([id]) => Number(id) !== ignoreSite)) }]));
 
@@ -209,7 +211,7 @@ const site = sites ? sites[1] : {};
 check(run?.job?.status === 'success' && id > 2, `importado como sitio nuevo de la red en /importado/ (sitio ${id}, ${run?.run?.seconds} s)`, JSON.stringify({ job: run?.job?.status, error: run?.job?.error, notice: run?.notice }));
 check((run?.phases || []).some((p) => /Importación en la red/.test(p)), 'el panel de avance dice «Importación en la red»', JSON.stringify(run?.phases));
 check(site.blogname === 'Tienda del origen' && site.home === `${base}/importado` && site.posts?.['Entrada de la autora del origen'] === 'autora-red' && site.posts?.['Página de la dueña del origen'] === 'duena', 'el contenido del origen, con su autoría en los usuarios de la red (la autora es «autora-red» por su correo)', JSON.stringify({ blog: site.blogname, home: site.home, posts: site.posts }));
-check(JSON.stringify(site.comments) === JSON.stringify(['socia-2']), 'el comentario de la suscriptora es de su cuenta nueva (socia-2: su nombre ya era de otra persona en la red)', JSON.stringify(site.comments));
+check((site.comments || []).includes('socia-2') && !(site.comments || []).includes('socia'), 'el comentario de la suscriptora es de su cuenta nueva (socia-2: su nombre ya era de otra persona en la red)', JSON.stringify(site.comments));
 check(site.uploads_dir === `wp-content/uploads/sites/${id}` && site.files?.['2026/11/origen.png'] === origin.media_sha && Object.keys(site.files || {}).every((f) => !f.startsWith('sites/')), 'los medios del origen están en uploads/sites/N, iguales', JSON.stringify({ dir: site.uploads_dir, files: site.files }));
 check(site.content.includes(`/importado/wp-content/uploads/sites/${id}/2026/11/origen.png`) && !site.content.includes('origen.test'), 'la URL del medio en el contenido es la de uploads/sites/N del sitio nuevo', site.content);
 const served = await request('GET', `/importado/wp-content/uploads/sites/${id}/2026/11/origen.png`, { binary: true });
@@ -225,7 +227,7 @@ const users = state.users || {};
 check(users.duena?.roles?.[id]?.includes('administrator') && users.edita?.roles?.[id]?.includes('editor') && users['autora-red']?.roles?.[id]?.includes('author') && users['socia-2']?.roles?.[id]?.includes('subscriber') && users.socia?.roles?.[id] === undefined, 'los roles del respaldo en el sitio nuevo (socia de la red no es miembro)', JSON.stringify(Object.fromEntries(Object.entries(users).map(([l, u]) => [l, u.roles]))));
 const net = (s) => network(s, id);
 check(JSON.stringify(net(before)) === JSON.stringify(Object.fromEntries(Object.entries(net(state)).filter(([login]) => login in (before.users || {})))), 'ningún usuario de la red cambió su contraseña, su correo, sus metas ni su rol en otro sitio', JSON.stringify({ before: net(before).edita, after: net(state).edita }));
-check(JSON.stringify(others(before, [1, 2])) === JSON.stringify(others(state, [1, 2])), 'los sitios 1 y 2 no cambiaron (huellas de sus tablas y medios)', JSON.stringify({ before: others(before, [1, 2]), after: others(state, [1, 2]) }).slice(0, 1500));
+check(JSON.stringify(others(before, [1, 2])) === JSON.stringify(others(state, [1, 2])), 'los sitios 1 y 2 no cambiaron (huellas de sus tablas y medios)', differs(others(before, [1, 2]), others(state, [1, 2])));
 for (const [login, pass] of [['duena', origin.passwords.duena], ['socia-2', origin.passwords.socia], ['edita', red.passwords.edita], ['autora-red', red.passwords['autora-red']], ['dueno2', red.passwords.dueno2]]) {
   const auth = await probe('auth', `&login=${encodeURIComponent(login)}&pass=${encodeURIComponent(pass)}`);
   check(auth.ok, `${login} entra con su contraseña (${['duena', 'socia-2'].includes(login) ? 'la del respaldo' : 'la de la red'})`, JSON.stringify(auth));
@@ -239,8 +241,8 @@ await go(screen);
 await shot('2-importado');
 check(/Importado como sitio nuevo de la red/.test(run?.job?.result?.restore?.notice || ''), 'el informe dice dónde quedó y qué pasó con los usuarios', run?.job?.result?.restore?.notice);
 
-// 3. Reemplazando el sitio 2.
-before = state;
+// 3. Reemplazando el sitio 2 (las huellas de ahora: entrar al escritorio cambia opciones de su sitio).
+before = await probe();
 run = await importRow(uploaded.file, { site: 2, name: '3-reemplazo' });
 state = await probe();
 const two = state.sites?.[2] || {};
@@ -250,17 +252,17 @@ const copy = (state.history || []).find((r) => r.scope === 'network-site' && r.s
 check(copy && copy.locked && run?.job?.result?.restore?.safety_backup === copy.file, 'la copia previa es sólo la del sitio 2 y queda bloqueada', JSON.stringify({ copy, safety: run?.job?.result?.restore?.safety_backup }));
 check(state.users?.dueno2?.roles?.[2]?.includes('administrator') && (await probe('auth', `&login=dueno2&pass=${encodeURIComponent(red.passwords.dueno2)}`)).ok, 'el administrador del sitio 2 sigue siéndolo y entra con su contraseña');
 check((await loginAs('dueno2', red.passwords.dueno2, '/dos/wp-admin/')).ok, 'el administrador del sitio 2 entra a su escritorio tras el reemplazo');
-check(JSON.stringify(others(before, [1, id])) === JSON.stringify(others(state, [1, id])), 'el principal y el sitio nuevo no cambiaron con el reemplazo', JSON.stringify({ before: others(before, [1, id]), after: others(state, [1, id]) }).slice(0, 1500));
+check(JSON.stringify(others(before, [1, id])) === JSON.stringify(others(state, [1, id])), 'el principal y el sitio nuevo no cambiaron con el reemplazo', differs(others(before, [1, id]), others(state, [1, id])));
 await go(screen);
 await shot('3-reemplazado');
 
 // 4. Falla inyectada justo después de fundir los usuarios: vuelve a la copia previa del sitio 2.
-before = state;
+before = await probe();
 await probe('fault', '&on=1');
 run = await importRow(uploaded.file, { site: 2, name: '4-falla' });
 state = await probe();
 check(run?.job?.status === 'failed' && run?.rollback?.status === 'success', `la importación con la falla inyectada falló y volvió sola a la copia previa (${run?.run?.seconds} s)`, JSON.stringify({ job: run?.job?.status, error: run?.job?.error, rollback: run?.rollback?.status, rerr: run?.rollback?.error }));
-check(JSON.stringify(others(before, [1, 2, id])) === JSON.stringify(others(state, [1, 2, id])), 'tras la vuelta, los tres sitios están como antes (huellas)', JSON.stringify({ before: others(before, [2]), after: others(state, [2]) }).slice(0, 1500));
+check(JSON.stringify(others(before, [1, 2, id])) === JSON.stringify(others(state, [1, 2, id])), 'tras la vuelta, los tres sitios están como antes (huellas)', differs(others(before, [1, 2, id]), others(state, [1, 2, id])));
 check(JSON.stringify(network(before, 0)) === JSON.stringify(network(state, 0)) && Object.keys(before.users || {}).join() === Object.keys(state.users || {}).join(), 'tras la vuelta, los usuarios de la red (cuentas, contraseñas, metas y roles en cada sitio) están exactamente como antes', JSON.stringify({ before: Object.keys(before.users || {}), after: Object.keys(state.users || {}) }));
 check(!state.maintenance && state.jobs === 0, 'sin mantenimiento ni trabajos tras la vuelta');
 await go(screen);

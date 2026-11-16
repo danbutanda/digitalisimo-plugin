@@ -27,10 +27,14 @@ function digi_si_print( $table, $volatile = false ) {
 	$rows = $wpdb->get_results( 'SELECT * FROM `' . $table . '`' . $where . ' ORDER BY 1', ARRAY_A );
 	return hash( 'sha256', wp_json_encode( $rows ) );
 }
-function digi_si_files( $dir ) {
+function digi_si_files( $dir, $main = false ) {
 	$out = array();
 	if ( ! is_dir( $dir ) ) return $out;
-	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) ) as $file ) if ( $file->isFile() ) $out[ substr( $file->getPathname(), strlen( $dir ) + 1 ) ] = hash_file( 'sha256', $file->getPathname() );
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+		$relative = substr( $file->getPathname(), strlen( $dir ) + 1 );
+		// Los medios del principal no incluyen los de los demás sitios (uploads/sites/N).
+		if ( $file->isFile() && ! ( $main && 0 === strpos( $relative, 'sites/' ) ) ) $out[ $relative ] = hash_file( 'sha256', $file->getPathname() );
+	}
 	ksort( $out );
 	return $out;
 }
@@ -80,7 +84,7 @@ add_action( 'init', static function () {
 					'upload_path' => (string) get_option( 'upload_path' ), 'uploads_dir' => str_replace( ABSPATH, '', (string) $uploads['basedir'] ), 'uploads_url' => (string) $uploads['baseurl'],
 					'backups_options' => (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$prefix}options` WHERE option_name LIKE 'digitalisimo\\_backups\\_%'" ),
 					'posts' => $posts, 'comments' => $comments, 'content' => (string) $wpdb->get_var( "SELECT post_content FROM `{$prefix}posts` WHERE post_title = 'Entrada de la autora del origen' LIMIT 1" ),
-					'files' => digi_si_files( (string) $uploads['basedir'] ), 'tables' => $print,
+					'files' => digi_si_files( (string) $uploads['basedir'], 1 === $id ), 'tables' => $print,
 				);
 				restore_current_blog();
 			}
