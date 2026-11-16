@@ -184,6 +184,8 @@ check(!existsSync(`${store}/${made}`), '«Borrar» lo quita del almacén y de la
 // 2. Subirlo con los fragmentos frenados, recargando a media subida y a media comprobación.
 setCtl('chunk-delay-ms', 350);
 setCtl('check-delay', 15);
+setCtl('check-every', '0.5');
+setCtl('check-pauses', 4);
 await go(`${screen}&tab=tools&open=upload`);
 let startShot = false;
 await chooseAndSend(source);
@@ -223,7 +225,7 @@ const done = await sampleUntil((s) => terminal(s), { label: 'comprobacion', seco
 check(done && done.state === 'success' && done.title === 'Respaldo subido y verificado' && done.percent === '100 %' && done.phases === 'upload:done,check:done,register:done', 'la subida termina «Respaldo subido y verificado» al 100 % con sus tres fases', JSON.stringify(done));
 check(done && /Ya está en la lista de respaldos, arriba, marcado «Subido»/.test(done.result) && /Su fila: \d{4}-\d{2}-\d{2} \d{2}:\d{2} · /.test(done.result) && /Para restaurarlo escribe RESTAURAR\./.test(done.result) && /^Restaurarlo .*tab=backups.*restore=/.test(done.go), 'el resultado dice su fila en la lista y ofrece «Restaurarlo»', JSON.stringify(done));
 const steps = samples.filter((s) => s.label === 'comprobacion' && s.waiting).map((s) => s.detail);
-check(steps.some((d) => /Verificando archivo \d+ de \d+|Comprobando cada archivo|Abriendo el ZIP|Registrándolo|registrándolo/.test(d)), 'durante la comprobación el panel dice en qué paso va', JSON.stringify([...new Set(steps)].slice(0, 8)));
+check(steps.some((d) => /^Comprobando cada archivo contra el manifiesto .* · Verificando archivo \d+ de \d+/.test(d)) && steps.some((d) => /registrándolo en la lista/i.test(d)), 'durante la comprobación el panel dice en qué paso va («Verificando archivo N de M», el registro)', JSON.stringify([...new Set(steps)].slice(0, 8)));
 await shot('resultado-1280');
 await shot('resultado-390', { width: 390 });
 const run = samples.filter((s) => ['subida', 'subida-2', 'comprobacion'].includes(s.label)).map(pct).filter((n) => !Number.isNaN(n));
@@ -245,18 +247,20 @@ await shot('fila-1280');
 // 3. Importar un respaldo de Backuply: desde su carpeta y, otro, subido y con «Importarlo ahora».
 setCtl('chunk-delay-ms', 0);
 setCtl('check-delay', 0);
-setCtl('tick-budget', 3);
+setCtl('tick-budget', 1);
+setCtl('step-units', 2);
 async function followImport(label) {
   let shotTaken = false;
   const end = await sampleUntil((s) => terminal(s), {
     label,
     seconds: 900,
-    onSample: async (s) => { if (!shotTaken && !s.hidden && /files:current|database:current/.test(s.phases)) { shotTaken = true; await shot(`${label}-en-curso-1280`); await shot(`${label}-en-curso-390`, { width: 390 }); } },
+    onSample: async (s) => { if (!shotTaken && !s.hidden && /scan:current|database:current|files:current/.test(s.phases)) { shotTaken = true; await shot(`${label}-en-curso-1280`); await shot(`${label}-en-curso-390`, { width: 390 }); } },
   });
   const seen = samples.filter((s) => s.label === label);
   const percents = seen.map(pct).filter((n) => !Number.isNaN(n));
   check(seen.length && seen.every((s) => s.slot === 'import'), `${label}: el panel la sigue en la sección «Importar»`, JSON.stringify(seen.map((s) => s.slot)));
-  check(seen.some((s) => s.title === 'Importación en curso' && /fase \d de 5/.test(s.message)) && monotonic(percents), `${label}: se ve por sus fases y la barra no retrocede`, JSON.stringify({ percents, phases: [...new Set(seen.map((s) => s.phases))] }));
+  const current = [...new Set(seen.filter((s) => s.title === 'Importación en curso').map((s) => (s.phases.match(/(\w+):current/) || [])[1]).filter(Boolean))];
+  check(current.length >= 3 && seen.some((s) => s.title === 'Importación en curso' && /fase [2-5] de 5/.test(s.message) && s.detail) && shotTaken && monotonic(percents), `${label}: se ve por sus fases (${current.join(', ')}) con su paso y la barra no retrocede`, JSON.stringify({ percents, phases: [...new Set(seen.map((s) => s.phases))] }));
   check(end && end.title === 'Importación terminada' && /importado como digitalisimo-backuply-/.test(end.result) && /^Ver en «Restaurar un archivo suelto» .*open=restore-file/.test(end.go), `${label}: termina con lo importado y dónde quedó`, JSON.stringify(end));
   await shot(`${label}-terminada-1280`);
   return end;

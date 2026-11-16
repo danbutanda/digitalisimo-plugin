@@ -440,5 +440,16 @@ await scenario('U19 · con una restauración en curso el panel no se tapa: la su
   ok(page.requests.length === 0 && /Hay una restauración en curso/.test(page.text(page.status)) && page.text(page.ui.title) === 'Restauración en curso' && !page.submit.disabled, 'La subida tapó la restauración en el panel');
 });
 
+await scenario('U21 · el reloj del panel corre mientras un fragmento tarda en llegar', async () => {
+  const s = server();
+  const page = setup({ server: (fields, n) => (fields.action.endsWith('chunk') ? { pending: true } : s.handle(fields, n)) });
+  page.form.listeners.submit[0]({ preventDefault() {} });
+  await settle();
+  const before = page.text(page.ui.time);
+  page.clock.now += 65000;
+  for (const tick of page.intervals) tick();
+  ok(/lleva \d+ s$/.test(before) && /lleva 1 min \d+ s$/.test(page.text(page.ui.time)), 'El reloj del panel no corre durante la subida: ' + before + ' → ' + page.text(page.ui.time));
+});
+
 if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) de la subida con el panel de avance: ' + failed.join(' | '));
 console.log(`DIGITALÍSIMO Backups: la subida usa el mismo panel de avance que el respaldo (fases Subida, Comprobación y Registro; bytes, velocidad, tiempo restante, reintentos, 202, 504, cancelar, recargar a mitad y resultado con su fila), sin perder su robustez (${checks} comprobaciones).`);

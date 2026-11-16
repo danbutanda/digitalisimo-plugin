@@ -666,17 +666,20 @@ await scenario('P29 · una importación de Backuply se sigue en el mismo panel, 
   ok(result.includes('importado como digitalisimo-backuply-backup_sitio_2026.zip') && result.includes('Avisos: No se importaron vistas'), 'El resultado no dice qué se importó, dónde quedó ni sus avisos: ' + result);
   const go = new URL(page.ui.go.getAttribute('href'));
   ok(!page.ui.go.hidden && page.text(page.ui.go) === 'Ver en «Restaurar un archivo suelto»' && go.searchParams.get('tab') === 'tools' && go.searchParams.get('open') === 'restore-file' && go.hash === '#digitalisimo-backups-section-restore-file' && !go.searchParams.has('job') && !go.searchParams.has('message'), 'El resultado no lleva a «Restaurar un archivo suelto»: ' + page.ui.go.getAttribute('href'));
-  ok(page.reloads + page.replaced.length === 0 && page.timers.size === 0, 'Al terminar la importación la página se recargó (y se perdió el resultado) o sigue consultando');
+  ok(page.reloads + page.replaced.length === 0 && page.timers.size === 0 && page.ui.reload.hidden, 'Al terminar la importación la página se recargó (y se perdió el resultado), sigue consultando u ofrece recargar la lista (que no cambió)');
 });
 
 await scenario('P30 · «Traer al almacén»: bajo el botón, con su destino, sus cortes, su resultado y la fila para restaurarlo', async () => {
-  const page = screen({ view: fetchView('receive', 40) });
+  const page = screen({ view: fetchView('receive', 40), href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&backup=ok&message=Copia&job=' + FET });
   ok(page.panel.parentNode.getAttribute('class').includes('digitalisimo-backups-home') && page.text(page.ui.title) === 'Trayendo el respaldo del destino' && page.text(page.ui.what) === 'Traer de un destino remoto · digitalisimo-sitio-2026-11-10.zip desde SFTP', 'La descarga no se sigue bajo «Respaldar ahora»: ' + page.text(page.ui.what));
   ok(JSON.stringify(page.phases()) === JSON.stringify(['preflight:done', 'receive:current', 'examine:pending', 'place:pending']) && page.text(page.message) === 'Transfiriendo · Descarga del destino (fase 2 de 4)', 'Las fases de «Traer al almacén» no se ven: ' + page.phases());
   await page.next(page.jobsReply([fetchView('examine', 88, { detail: 'Comprobando el archivo como no confiable…' })]));
   await page.next(page.jobsReply([fetchView('place', 100, { status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-sitio-2026-11-10.zip', detail: 'Copia de SFTP descargada al almacén privado y verificada por el SHA-256 de su historial: digitalisimo-sitio-2026-11-10.zip. Ya se puede restaurar.' })]));
   const go = new URL(page.ui.go.getAttribute('href'));
   ok(page.text(page.ui.title) === 'Respaldo traído al almacén' && /Ya se puede restaurar/.test(page.text(page.ui.result)) && page.text(page.ui.go) === 'Restaurarlo' && go.searchParams.get('restore') === 'digitalisimo-sitio-2026-11-10.zip' && go.searchParams.get('tab') === 'backups' && !page.ui.reload.hidden && page.reloads + page.replaced.length === 0, 'Traído, el panel no lleva a su fila para restaurarlo: ' + page.ui.go.getAttribute('href'));
+  // «Ver la lista actualizada» recarga sin el aviso ni el trabajo de la acción (?job=): la página no lo enseñaría otra vez.
+  page.ui.reload.listeners.click[0]({});
+  ok(page.replaced.length === 1 && !/job=|message=|backup=/.test(page.replaced[0]), '«Ver la lista actualizada» conserva el aviso o el trabajo de la acción: ' + page.replaced[0]);
   // Sin registro (de otro sitio): a «Restaurar un archivo suelto».
   const other = screen({ view: fetchView('place', 99, { fetch: { name: 'digitalisimo-otro.zip', connection: 'sftp', registered: false } }) });
   await other.next(other.jobsReply([fetchView('place', 100, { fetch: { name: 'digitalisimo-otro.zip', connection: 'sftp', registered: false }, status: 'success', status_label: 'Completo', phase_label: '', terminal: true, running: false, can_cancel: false, file: 'digitalisimo-otro.zip', detail: 'Respaldo de SFTP traído al almacén como «sin registro»…' })]));
@@ -738,4 +741,4 @@ await scenario('P33 · importar, traer, enviar o agregar al listado: el panel di
 });
 
 if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) del panel de avance: ' + failed.join(' | '));
-console.log(`DIGITALÍSIMO Backups: un solo panel de avance a todo lo ancho para respaldo y restauración (fases, %, paso, tiempo y resultado), que sobrevive al 503, a cortes, a un nonce nuevo y a recargar (${checks} comprobaciones).`);
+console.log(`DIGITALÍSIMO Backups: un solo panel de avance a todo lo ancho para respaldo, restauración, importación, «Traer al almacén» y envío (fases, %, paso, tiempo y resultado, en el lugar de la acción), que sobrevive al 503, a cortes, a un nonce nuevo y a recargar (${checks} comprobaciones).`);

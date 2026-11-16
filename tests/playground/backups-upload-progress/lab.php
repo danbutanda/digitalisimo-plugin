@@ -5,7 +5,11 @@
  *   chunk-delay-ms  cada fragmento de la subida espera esos milisegundos (fragmentos de 1 MiB): así se ve su avance;
  *   check-delay     la comprobación de una subida espera esos segundos al empezar (con el cerrojo de su sesión y en
  *                   `validating`): así se ve y se puede recargar la página a mitad;
- *   tick-budget     segundos de trabajo de cada tick (la importación avanza por fases que se ven);
+ *   check-every     cada cuántos segundos anota la comprobación lo que va diciendo la validación;
+ *   check-pauses    las primeras N veces que lo anota («Verificando archivo N de M»), la comprobación espera 2 s: en un
+ *                   sitio pequeño, sin eso, verificar el ZIP entero dura menos que una consulta del estado;
+ *   tick-budget     segundos de trabajo de cada tick y step-units, unidades por tramo (la importación avanza por fases
+ *                   que se ven);
  * y anota en /digi-ctl/chunks.log el desplazamiento de cada fragmento que llega. `/?digi_upbar=state&token=<testigo>`
  * (el de /digi-probe/token.txt): las filas del historial (sin rutas), las subidas, los trabajos y los archivos del almacén.
  */
@@ -24,7 +28,21 @@ add_action( 'wp_ajax_digitalisimo_backups_upload_chunk', static function () {
 add_filter( 'digitalisimo_backups_upload_check_every', static function ( $every ) {
 	$seconds = (int) @file_get_contents( '/digi-ctl/check-delay' );
 	if ( $seconds > 0 ) sleep( $seconds );
-	return $every;
+	$custom = trim( (string) @file_get_contents( '/digi-ctl/check-every' ) );
+	return '' !== $custom ? (float) $custom : $every;
+} );
+add_action( 'plugins_loaded', static function () {
+	if ( ! class_exists( 'Digitalisimo_Backups_Uploads' ) ) return;
+	Digitalisimo_Backups_Uploads::$on_check = static function ( $state ) {
+		static $paused = 0;
+		if ( '' === (string) ( $state['check']['detail'] ?? '' ) || $paused >= (int) @file_get_contents( '/digi-ctl/check-pauses' ) ) return;
+		$paused++;
+		sleep( 2 );
+	};
+} );
+add_filter( 'digitalisimo_backups_step_units', static function ( $units ) {
+	$custom = (int) @file_get_contents( '/digi-ctl/step-units' );
+	return $custom > 0 ? $custom : $units;
 } );
 add_filter( 'digitalisimo_backups_job_budget', static function ( $budget ) {
 	$seconds = (int) @file_get_contents( '/digi-ctl/tick-budget' );
