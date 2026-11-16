@@ -315,7 +315,7 @@ async function gate() {
  * sesiones son las del respaldo); con el testigo, la puerta deja pasar wp-login.php para entrar y la pantalla de Backups,
  * donde «Volver a la copia previa» recupera el sitio.
  */
-async function midway() {
+async function halfChanged() {
   await lab('mutate', '&round=7');
   const beforeMid = await lab('inventory');
   await page.deleteCookie(...(await page.cookies(base)));
@@ -570,7 +570,7 @@ try {
     } finally {
       if (existsSync(`${dir}/ctl/fail-move`)) unlinkSync(`${dir}/ctl/fail-move`);
     }
-    await midway();
+    await halfChanged();
   }
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
