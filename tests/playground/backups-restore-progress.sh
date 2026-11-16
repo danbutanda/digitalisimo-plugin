@@ -71,7 +71,7 @@ for mode in ${MODES:-single}; do
   echo "${TICK_BUDGET:-5}" > "$dir/ctl/tick-budget"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
   cat > "$dir/blueprint.json" <<JSON
-{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true,"WP_DEBUG":true,"WP_DEBUG_LOG":"/digi-ctl/debug.log","WP_DEBUG_DISPLAY":false,"WP_DISABLE_FATAL_ERROR_HANDLER":true}},$multi
+{"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true,"WP_DISABLE_FATAL_ERROR_HANDLER":true}},$multi
 {"step":"runPHP","code":"<?php putenv('DIGI_RESTORE_POSTS=$DIGI_RESTORE_POSTS'); putenv('DIGI_RESTORE_FILES=$DIGI_RESTORE_FILES'); require '/digi-probe/setup.php';"},
 {"step":"runPHP","code":"<?php require '/digi-probe/parts-setup.php';"},
 {"step":"runPHP","code":"<?php copy( '/digi-probe/progress-lab.php', '/wordpress/wp-content/mu-plugins/digi-progress-lab.php' );"}]}

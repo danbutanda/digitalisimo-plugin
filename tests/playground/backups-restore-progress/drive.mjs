@@ -328,8 +328,8 @@ try {
       const last = lost.last;
       check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.actions.includes('login') && /perdió la sesión|Entra al escritorio/.test(last.result), 'sesión: el cambio de tablas dejó la sesión sin valor y el panel lo dice al terminar, con «Iniciar sesión»', JSON.stringify(last));
       await shot('sesion-terminada-sin-sesion');
-      await page.click('#digitalisimo-backups-progress-login');
-      await page.waitForNavigation({ waitUntil: 'load' }).catch(() => {});
+      if (last && last.actions.includes('login')) await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => {}), page.click('#digitalisimo-backups-progress-login')]);
+      else await page.goto(`${base}/wp-login.php`, { waitUntil: 'load' });
       check(await login(), 'sesión: entrar otra vez tras la restauración');
       if (!/digitalisimo-backups/.test(page.url())) await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
       await sleep(1200);
