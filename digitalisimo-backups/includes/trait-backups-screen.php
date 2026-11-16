@@ -368,13 +368,45 @@ trait Digitalisimo_Backups_Screen {
 		return $text;
 	}
 	/**
-	 * «Conservar mi acceso» (encendido): con el respaldo de otra instalación (otro sitio, un sitio extraído de una red),
-	 * quien restaura sigue entrando con su cuenta. Con uno de esta misma instalación no aplica (vuelven las cuentas del
-	 * respaldo): el texto lo dice. La ruta de acceso de este sitio se conserva siempre, no depende de la casilla. El campo
-	 * oculto distingue «desmarcado» de «sin campo».
+	 * «Conservar mi acceso» y «Conservar los administradores de este sitio» (encendidos): con el respaldo de otra
+	 * instalación (otro sitio, un sitio extraído de una red, una migración), quien restaura y los administradores de este
+	 * sitio (en una red, los superadministradores y los del sitio principal) siguen entrando con su cuenta; la casilla nombra
+	 * a esos administradores (sólo su usuario). Con uno de esta misma instalación no aplica (vuelven las cuentas del
+	 * respaldo): el texto lo dice. La ruta de acceso de este sitio se conserva siempre, no depende de las casillas. Los campos
+	 * ocultos distinguen «desmarcado» de «sin campo». $help: el texto de ayuda (la migración dice el suyo).
 	 */
-	private static function keep_access_field() {
-		return '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso</label><input type="hidden" name="keep_access_shown" value="1"></p>' . self::help_html( 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo. Con un respaldo de este mismo sitio vuelven las cuentas del respaldo.' );
+	public static function keep_access_fields( $help = '' ) {
+		$preview = self::keep_access_preview();
+		$names = implode( ', ', array_map( function( $login ) { return '«' . $login . '»'; }, $preview['admins'] ) ) . ( $preview['admins_total'] > count( $preview['admins'] ) ? ' y ' . ( $preview['admins_total'] - count( $preview['admins'] ) ) . ' más' : '' );
+		$html = '<p class="digitalisimo-backups-keep-access"><label><input type="checkbox" name="keep_access" value="1" checked> Conservar mi acceso' . ( '' !== $preview['you'] ? ' (' . esc_html( '«' . $preview['you'] . '»' ) . ')' : '' ) . '</label><input type="hidden" name="keep_access_shown" value="1"></p>';
+		$html .= '<p class="digitalisimo-backups-keep-admins"><label><input type="checkbox" name="keep_admins" value="1" checked> ' . esc_html( ( is_multisite() ? 'Conservar los superadministradores y los administradores del sitio principal' : 'Conservar los administradores de este sitio' ) . ( '' !== $names ? ': ' . $names : ' (no hay otros)' ) ) . '</label><input type="hidden" name="keep_admins_shown" value="1"></p>';
+		return $html . self::help_html( '' !== (string) $help ? (string) $help . ' Los demás administradores de este sitio también siguen entrando con su usuario y su contraseña, como administradores.' : 'Si el respaldo es de otro sitio (o un sitio extraído de una red), tu usuario, tu contraseña y tus contraseñas de aplicación siguen sirviendo, y los demás administradores de este sitio siguen entrando con los suyos, como administradores (si el respaldo tiene una cuenta administradora con el mismo usuario, se funden en una sola con su contenido). Con un respaldo de este mismo sitio vuelven las cuentas del respaldo.' );
+	}
+	private static function keep_access_field() { return self::keep_access_fields(); }
+	/** Quién conservaría su acceso (ver Digitalisimo_Backups_Restore_Access::preview()): sólo nombres de usuario. */
+	private static function keep_access_preview() {
+		try {
+			return Digitalisimo_Backups_Restore_Access::preview( function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, null, 10 );
+		} catch ( Throwable $e ) {
+			return array( 'you' => '', 'admins' => array(), 'admins_total' => 0 );
+		}
+	}
+	/**
+	 * La línea de la confirmación con el respaldo $file de otra instalación (sin la identidad de H23): quiénes siguen
+	 * entrando con su cuenta si se dejan las casillas como están. Vacía con uno de esta misma instalación.
+	 */
+	private static function keep_access_summary( $file ) {
+		try {
+			if ( self::keep_config_same_installation( (string) $file ) ) return '';
+		} catch ( Throwable $e ) {
+			return '';
+		}
+		$preview = self::keep_access_preview();
+		$names = array();
+		if ( '' !== $preview['you'] ) $names[] = '«' . $preview['you'] . '» (tú)';
+		foreach ( $preview['admins'] as $login ) $names[] = '«' . $login . '»';
+		if ( ! $names ) return '';
+		return 'Es el respaldo de otra instalación: siguen entrando con su usuario y su contraseña, como administradores, ' . implode( ', ', $names ) . ( $preview['admins_total'] > count( $preview['admins'] ) ? ' y ' . ( $preview['admins_total'] - count( $preview['admins'] ) ) . ' más' : '' ) . ' (en «Opciones» puedes cambiarlo).';
 	}
 	/** «Qué restaurar» (restaurar por partes): ver Digitalisimo_Backups_Restore_Parts::field(). */
 	private static function restore_parts_field( $path = '', $items = false, $link = '', $summary = false ) { return Digitalisimo_Backups_Restore_Parts::field( $path, $items, $link, self::restore_layout() ) . ( $summary ? '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>' : '' ); }
@@ -398,6 +430,9 @@ trait Digitalisimo_Backups_Screen {
 		echo '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>';
 		// «Volver a la copia previa» desde el panel de avance (?undo=…): qué vuelve y qué no se toca (lo pone el script).
 		echo '<p class="digitalisimo-backups-warning" data-restore-undo hidden></p>';
+		// Con el respaldo de otra instalación: quiénes siguen entrando (quien restaura y los administradores de este sitio).
+		$keep_summary = self::keep_access_summary( $file );
+		if ( '' !== $keep_summary ) echo '<p class="digitalisimo-backups-keep-summary">' . esc_html( $keep_summary ) . '</p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';

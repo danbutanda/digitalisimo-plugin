@@ -83,8 +83,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'adopted' => ! empty( $args['adopted'] ),
 			'sync' => ! empty( $args['sync'] ),
 			'site_id' => (int) get_current_blog_id(),
-			// Conservar el acceso de quien la lanza al reubicar (encendido por defecto; ver Digitalisimo_Backups_Restore_Access).
+			// Conservar el acceso de quien la lanza y de los administradores de este sitio con el respaldo de otra instalación
+			// (encendidos por defecto; ver Digitalisimo_Backups_Restore_Access).
 			'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
+			'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ),
 			'reader' => array( 'hash' => $reader['hash'], 'issued' => $reader['issued'] ),
 			'readers' => array_values( array_filter( (array) ( $args['readers'] ?? array() ), function( $hash ) { return is_string( $hash ) && preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
 			'origin' => array(
@@ -1713,11 +1715,12 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$cursor['swapped_at'] = $cursor['swapped_at'] ?? time();
 		return $cursor;
 	}
-	// Antes del cambio de tablas: si se conserva el acceso de quien lanzó la restauración (con reubicación, un sitio
-	// extraído o una migración; encendido por defecto), su cuenta y la ruta de acceso de este sitio, cifradas con la clave
-	// de este servidor para el diario (Digitalisimo_Backups_Restore_Access). Nunca hace fallar la restauración.
+	// Antes del cambio de tablas: con el respaldo de otra instalación (otro sitio, un sitio extraído o una migración), las
+	// cuentas que se conservan (quien lanzó la restauración y los administradores de este sitio, encendidos por defecto) y
+	// la ruta de acceso de este sitio, cifradas con la clave de este servidor para el diario
+	// (Digitalisimo_Backups_Restore_Access). Nunca hace fallar la restauración.
 	private static function restore_access_capture( array $job ) {
-		$entry = array( 'v' => 1, 'job' => (string) $job['id'], 'state' => 'same_site', 'relocated' => false, 'secret' => null );
+		$entry = array( 'v' => 1, 'job' => (string) $job['id'], 'state' => 'same_site', 'admins' => 'same_site', 'relocated' => false, 'secret' => null );
 		try {
 			$rollback = ! empty( $job['spec']['rollback'] );
 			$relocated = ! $rollback && null !== self::restore_plan( $job );
@@ -1728,19 +1731,30 @@ trait Digitalisimo_Backups_Restore_Engine {
 			// este sitio, y uno de otra instalación en la misma dirección (otro servidor), no. Sin identidad, otro sitio.
 			$same = ! $rollback && ! $extracted && ! $migration && self::keep_config_same_installation( (string) ( $job['spec']['file'] ?? '' ) );
 			$keep = ! array_key_exists( 'keep_access', (array) $job['spec'] ) || ! empty( $job['spec']['keep_access'] );
+			$keep_admins = ! array_key_exists( 'keep_admins', (array) $job['spec'] ) || ! empty( $job['spec']['keep_admins'] );
 			$user_id = (int) ( $job['spec']['origin']['user_id'] ?? 0 );
 			$entry['state'] = Digitalisimo_Backups_Restore_Access::decide( $keep, $user_id, ! $same, $rollback );
+			$entry['admins'] = Digitalisimo_Backups_Restore_Access::decide_admins( $keep_admins, ! $same, $rollback );
 			// La ruta de acceso y las claves de la base de este sitio se conservan siempre en otro sitio y al reubicar (B5).
 			$entry['relocated'] = ! $rollback && ( ! $same || $relocated );
 			if ( ! $entry['relocated'] ) return $entry;
-			$user = 'on' === $entry['state'] ? Digitalisimo_Backups_Restore_Access::capture( $user_id ) : null;
-			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'user' => $user, 'login' => Digitalisimo_Backups_Restore_Access::login_capture(), 'salts' => Digitalisimo_Backups_Restore_Access::salts_capture() ) );
+			// Quien restaura (si se conserva) y los administradores de este sitio; con «Conservar mi acceso» apagado, quien
+			// restaura no entra tampoco como administrador.
+			$users = Digitalisimo_Backups_Restore_Access::capture_accounts( 'on' === $entry['state'] ? $user_id : 0, 'on' === $entry['admins'], self::restore_access_blog_prefix( $job ), 'off' === $entry['state'] ? $user_id : 0 );
+			$entry['secret'] = Digitalisimo_Backups_Restore_Access::seal( array( 'users' => $users, 'login' => Digitalisimo_Backups_Restore_Access::login_capture(), 'salts' => Digitalisimo_Backups_Restore_Access::salts_capture() ) );
 		} catch ( Throwable $e ) {
 			$entry['warning'] = 'No se pudo apuntar el acceso de este sitio antes del cambio: ' . $e->getMessage();
 		}
 		return $entry;
 	}
-	// Tras el SQL (o al aplicar el diario de una restauración interrumpida): la cuenta de quien restauró, la ruta de acceso
+	// En una red, los administradores «de este sitio» son los del sitio desde el que se lanzó la restauración (con los
+	// superadministradores); en un individual, los del sitio (null: el prefijo en curso).
+	private static function restore_access_blog_prefix( array $job ) {
+		global $wpdb;
+		if ( ! is_multisite() || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_blog_prefix' ) ) return null;
+		return (string) $wpdb->get_blog_prefix( max( 1, (int) ( $job['spec']['site_id'] ?? 1 ) ) );
+	}
+	// Tras el SQL (o al aplicar el diario de una restauración interrumpida): las cuentas que se conservan, la ruta de acceso
 	// de este sitio y, en cualquier restauración, las contraseñas de aplicación activas. Deja el informe público (sin
 	// secretos) en el área de trabajo del trabajo, una sola vez, y el aviso «Cómo entrar ahora» en el escritorio.
 	private static function restore_access_apply( $entry ) {
@@ -1750,7 +1764,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		$plan = is_array( $entry['plan'] ?? null ) ? Digitalisimo_Backups_Restore_Access::open( $entry['plan'] ) : null;
 		if ( is_array( $secret ) && is_array( $plan ) ) $secret['plan'] = $plan;
 		$remember = function( array $plan ) { self::note_restore_journal_plan( Digitalisimo_Backups_Restore_Access::seal( $plan ) ); };
-		$report = Digitalisimo_Backups_Restore_Access::apply( (string) ( $entry['state'] ?? 'same_site' ), $secret, ! empty( $entry['relocated'] ), $remember );
+		// Un diario de antes de conservar a los administradores (1.0.78 o anterior) no trae `admins`: no se conserva a nadie más.
+		$states = array( 'access' => (string) ( $entry['state'] ?? 'same_site' ), 'admins' => (string) ( $entry['admins'] ?? ( 'on' === ( $entry['state'] ?? '' ) || 'off' === ( $entry['state'] ?? '' ) || 'no_user' === ( $entry['state'] ?? '' ) ? 'off' : ( $entry['state'] ?? 'same_site' ) ) ) );
+		$report = Digitalisimo_Backups_Restore_Access::apply( $states, $secret, ! empty( $entry['relocated'] ), $remember );
 		if ( '' !== (string) ( $entry['warning'] ?? '' ) ) {
 			$report['warnings'][] = (string) $entry['warning'];
 			$report['text'] = Digitalisimo_Backups_Restore_Access::text( $report );
@@ -2455,6 +2471,15 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'login_path' => is_array( $access['login_path'] ?? null ) ? $access['login_path'] : null,
 			'admins' => array_values( array_map( 'strval', (array) ( $access['admins'] ?? array() ) ) ),
 			'admins_total' => (int) ( $access['admins_total'] ?? 0 ),
+			// Los administradores de este sitio (`keep_admins`): quiénes conservaron su acceso, quiénes se fusionaron con la
+			// cuenta administradora del mismo usuario del respaldo, quiénes se crearon y qué cuentas del respaldo cedieron su
+			// usuario. Sólo nombres de usuario.
+			'admins_state' => (string) ( $access['admins_state'] ?? '' ),
+			'admins_kept' => 'on' === ( $access['admins_state'] ?? '' ),
+			'kept_accounts' => array_values( array_map( 'strval', (array) ( $access['kept_accounts'] ?? array() ) ) ),
+			'merged_accounts' => array_values( array_map( 'strval', (array) ( $access['merged_accounts'] ?? array() ) ) ),
+			'created_accounts' => array_values( array_map( 'strval', (array) ( $access['created_accounts'] ?? array() ) ) ),
+			'renamed_backup' => array_values( array_map( function( $pair ) { return array( 'from' => (string) ( $pair['from'] ?? '' ), 'to' => (string) ( $pair['to'] ?? '' ) ); }, array_filter( (array) ( $access['renamed_backup'] ?? array() ), 'is_array' ) ) ),
 			'users_total' => (int) ( $access['users_total'] ?? 0 ),
 			'app_passwords' => (array) ( $access['app_passwords'] ?? array() ),
 			'warnings' => array_values( array_map( 'strval', (array) ( $access['warnings'] ?? array() ) ) ),
@@ -2582,8 +2607,10 @@ trait Digitalisimo_Backups_Restore_Engine {
 			'origin' => array( 'via' => 'rollback' ) + (array) ( $spec['origin'] ?? array() ),
 			'engine' => $spec['engine'],
 			'notify' => (array) ( $spec['notify'] ?? array() ),
-			// La vuelta a la copia previa la sigue la misma ficha de lectura que la restauración que falló; nunca conserva acceso.
+			// La vuelta a la copia previa la sigue la misma ficha de lectura que la restauración que falló; nunca conserva acceso
+			// (ni de quien restauró ni de los administradores).
 			'keep_access' => false,
+			'keep_admins' => false,
 			// Restaurar por partes: la copia previa es completa, pero la vuelta repone sólo lo que la restauración cambió.
 			'parts' => is_array( $spec['parts'] ?? null ) ? $spec['parts'] : null,
 			'readers' => Digitalisimo_Backups_Restore_Access::readers( $job ),

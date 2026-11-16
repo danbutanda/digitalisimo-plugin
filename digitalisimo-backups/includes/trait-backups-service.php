@@ -597,7 +597,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			try {
 				self::$restore_reader_token = '';
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
 				$reader = self::$restore_reader_token;
 				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
@@ -838,6 +838,7 @@ trait Digitalisimo_Backups_Service {
 					'adopted' => $adopted,
 					'safety_spec' => Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'pre-restore', 'destination' => 'local', 'retain' => 1, 'retention' => 'none', 'via' => 'restore', 'file' => $safety_file, 'inline' => true ) ),
 					'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ),
+					'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ),
 					'token' => $token,
 					'readers' => array( $reader['hash'] ),
 					'user_id' => $user,
@@ -980,11 +981,39 @@ trait Digitalisimo_Backups_Service {
 				// Un punto incremental: se verificó su cadena entera y el respaldo completo que reconstruye.
 				'chain' => $point ? array( 'sequence' => (int) $point['chain']['sequence'], 'links' => (int) $report['chain']['links'], 'files' => (int) $report['chain']['files'], 'trust' => (string) $report['chain']['trust'], 'summary' => (string) $report['chain']['summary'] ) : null,
 				'parts' => $preview,
+				// Antes de confirmar: quiénes conservarían su acceso si se restaura aquí (sólo nombres de usuario).
+				'access' => self::service_access_preview( wp_basename( $path ), $data ),
 			);
 		} finally {
 			Digitalisimo_Backups_Security::close( $report );
 			if ( $lock ) self::release_operation_lock( $lock );
 		}
+	}
+	/**
+	 * Para la confirmación (`verify`, WP-CLI): si el respaldo $file es de otra instalación (como lo decide la restauración:
+	 * sin la identidad de H23, o un sitio extraído de una red), quiénes siguen entrando con su cuenta con `keep_access` y
+	 * `keep_admins` encendidos: quien pregunta (`you`) y los administradores de este sitio (`admins`). Sólo nombres de
+	 * usuario; nunca falla la verificación.
+	 */
+	private static function service_access_preview( $file, array $manifest ) {
+		$out = array( 'applies' => false, 'you' => '', 'admins' => array(), 'admins_total' => 0, 'text' => '' );
+		try {
+			$extracted = Digitalisimo_Backups_Site_Extract::SCOPE === ( $manifest['scope'] ?? '' );
+			$out['applies'] = $extracted || ! self::keep_config_same_installation( (string) $file );
+			if ( ! $out['applies'] ) {
+				$out['text'] = 'El respaldo es de esta misma instalación: al restaurarlo vuelven las cuentas, contraseñas y contraseñas de aplicación del respaldo.';
+				return $out;
+			}
+			$preview = Digitalisimo_Backups_Restore_Access::preview( function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, null, 50 );
+			$out = array_merge( $out, $preview );
+			$names = array();
+			if ( '' !== $preview['you'] ) $names[] = '«' . $preview['you'] . '» (keep_access)';
+			foreach ( array_slice( $preview['admins'], 0, 10 ) as $login ) $names[] = '«' . $login . '»';
+			$out['text'] = $names ? 'Es el respaldo de otra instalación: con keep_access y keep_admins (por defecto) siguen entrando con su usuario y su contraseña, como administradores, ' . implode( ', ', $names ) . ( $preview['admins_total'] > 10 ? ' y ' . ( $preview['admins_total'] - 10 ) . ' más' : '' ) . '.' : 'Es el respaldo de otra instalación: este sitio no tiene administradores que conservar (sin --user, WP-CLI no tiene una cuenta de quien restaura).';
+		} catch ( Throwable $e ) {
+			$out['text'] = '';
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Migración (Digitalisimo_Backups_Migrate) */
@@ -1067,7 +1096,7 @@ trait Digitalisimo_Backups_Service {
 		if ( 'MIGRAR' !== strtoupper( trim( (string) ( $args['confirm'] ?? '' ) ) ) ) return self::service_error( 'confirm', 'Escribe MIGRAR para confirmar: la migración reemplaza este sitio (con una copia previa para deshacerla).', 400 );
 		if ( ! is_string( $key ) || '' === trim( $key ) ) return self::service_error( 'migration_key_invalid', 'Pega la clave de migración que generaste en el sitio de origen.', 400 );
 		try {
-			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ) ) );
+			$queued = Digitalisimo_Backups_Migrate::enqueue_pull( $key, (string) ( $args['via'] ?? 'rest' ), array( 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'keep_admins' => ! array_key_exists( 'keep_admins', $args ) || ! empty( $args['keep_admins'] ) ) );
 		} catch ( InvalidArgumentException $e ) {
 			return self::service_error( 'migration_key_invalid', $e->getMessage(), 400 );
 		} catch ( Digitalisimo_Backups_Permanent_Error $e ) {
