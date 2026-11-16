@@ -379,7 +379,9 @@ después, sitio y red).
   en que sus pestañas sin sesión (también otra del mismo navegador) reciben el resultado y se borra en el primer tick
   después, o antes al abrir la pantalla (con sesión: el panel enseña el resultado). También se borra si la restauración no
   llega a empezar (un archivo que no está, un paquete que no sirve) o termina en la misma petición, y al cerrar sesión.
-  Una respuesta que ya manda un testigo nuevo (la migración que encola su restauración) no lo borra.
+  Pero si terminó mal y el sitio quedó a medio cambiar (el mantenimiento sigue puesto con ese testigo), no se borra: la
+  pantalla y los ticks la renuevan, porque con ella el navegador entra, llega a Backups y vuelve a la copia previa. Una
+  respuesta que ya manda un testigo nuevo (la migración que encola su restauración) no lo borra.
 - **Qué restaurar** (restaurar por partes): entre la confirmación y «Opciones», plegado («Qué restaurar: todo»), así que
   el panel sigue enseñando sólo la frase, la confirmación y el botón. Dentro, «Todo» marcado y las siete partes con lo
   que reemplaza cada una; en el panel abierto de un ZIP que se puede leer (`?restore=<archivo>`, o «Elegir plugins, temas
