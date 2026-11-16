@@ -12,8 +12,8 @@ defined( 'ABSPATH' ) || exit;
  *    (`admin-ajax.php?action=digitalisimo_backups_restore_tick`);
  *  - quien trae el testigo de la restauración (cookie `digitalisimo_backups_restore`, que recibe sólo el navegador que
  *    la empezó, o el parámetro del mismo nombre: un cliente de REST), y sólo a la pantalla de Backups y sus llamadas
- *    (AJAX y admin-post de Backups, su REST): nunca el resto del escritorio ni el sitio (revisión N1); en el archivo sólo
- *    va su SHA-256;
+ *    (las acciones de AJAX y admin-post que registra Backups, su REST) y a wp-login.php para entrar y salir: nunca el
+ *    resto del escritorio ni el sitio (revisión N1, verificación final N9); en el archivo sólo va su SHA-256;
  *  - WP-CLI (la vía para terminar o recuperar a mano);
  *  - la lectura del estado de ese trabajo con su ficha de lectura (cabecera X-Digitalisimo-Backups-Job-Token, sólo
  *    `GET /wp-json/digitalisimo-backups/v1/jobs/<id>`; en el archivo sólo va su SHA-256): carga WordPress mínimo y el
@@ -89,6 +89,8 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 			'plugin' => self::plugin(),
 			'cron' => $cron,
 			'every' => self::KICK_EVERY,
+			// Las acciones de AJAX y admin-post que registra Backups: con el testigo, sólo ésas (verificación final).
+			'actions' => self::screen_actions(),
 		);
 		$what = $until_done
 			? 'El sitio está cambiando: sigue en mantenimiento hasta que termine o vuelva a la copia previa; las visitas, WP-Cron, el cron del sistema y WP-CLI (wp digitalisimo-backups jobs run) la hacen avanzar. Si se quedara así, revisa Backups antes de borrar este archivo.'
@@ -116,7 +118,10 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		$tick = 'admin-ajax.php' === $script && 'digitalisimo_backups_restore_tick' === $read( $_REQUEST, 'action' );
 		// Con el testigo, sólo la pantalla de Backups y sus llamadas: el resto del escritorio o del sitio guardaría en la base
 		// de datos que el cambio de tablas va a reemplazar, o se serviría a medio cambiar (revisión N1).
-		$known = $known && digitalisimo_backups_restore_screen( $script, isset( $config['home_path'] ) ? (string) $config['home_path'] : '' );
+		$known = $known && digitalisimo_backups_restore_screen( $script, $config );
+		// Para entrar durante el mantenimiento basta wp-login.php: sin la confirmación periódica del correo del administrador,
+		// que es otra acción (verificación final N9).
+		if ( $known && 'wp-login.php' === $script && function_exists( 'add_filter' ) ) add_filter( 'admin_email_check_interval', '__return_zero', PHP_INT_MAX );
 		$cli = defined( 'WP_CLI' ) && WP_CLI;
 		$ours = $cli && ! empty( $GLOBALS['argv'] ) && is_array( $GLOBALS['argv'] ) && in_array( 'digitalisimo-backups', $GLOBALS['argv'], true );
 		if ( $cron || ( $known && ( $tick || $config['until_done'] ) ) || ( $ours && $config['until_done'] ) ) digitalisimo_backups_restore_minimal( (string) $config['plugin'] );
@@ -137,14 +142,17 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		return false;
 	}
 	// La pantalla de Backups (admin.php?page=… del escritorio o de la red) y sus llamadas: admin-ajax.php y admin-post.php
-	// con una acción de Backups y su REST.
-	function digitalisimo_backups_restore_screen( $script, $home ) {
+	// con una de las acciones que registra Backups, su REST, y wp-login.php sólo para entrar y salir (sin la sesión, la
+	// pantalla lleva ahí, y «Volver a la copia previa» la necesita; verificación final N9).
+	function digitalisimo_backups_restore_screen( $script, $config ) {
+		$home = isset( $config['home_path'] ) ? (string) $config['home_path'] : '';
 		$path = isset( $_SERVER['SCRIPT_FILENAME'] ) ? realpath( dirname( (string) $_SERVER['SCRIPT_FILENAME'] ) ) : false;
 		$admin = realpath( rtrim( ABSPATH, '/\\' ) . '/wp-admin' );
 		$in_admin = false !== $path && false !== $admin && ( $path === $admin || ( dirname( $path ) === $admin && in_array( basename( $path ), array( 'network', 'user' ), true ) ) );
 		$value = function( $source, $key ) { return isset( $source[ $key ] ) && is_string( $source[ $key ] ) ? $source[ $key ] : ''; };
-		if ( 'admin-ajax.php' === $script || 'admin-post.php' === $script ) return $in_admin && 0 === strpos( $value( $_REQUEST, 'action' ), 'digitalisimo_backups_' );
+		if ( 'admin-ajax.php' === $script || 'admin-post.php' === $script ) return $in_admin && in_array( $value( $_REQUEST, 'action' ), (array) ( isset( $config['actions'] ) ? $config['actions'] : array() ), true );
 		if ( 'admin.php' === $script ) return $in_admin && in_array( $value( $_GET, 'page' ), array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true );
+		if ( 'wp-login.php' === $script ) return false !== $path && realpath( ABSPATH ) === $path && in_array( $value( $_REQUEST, 'action' ), array( '', 'login', 'logout' ), true );
 		return digitalisimo_backups_restore_rest( $home, '/digitalisimo-backups/v1(?:/.*)?' );
 	}
 	function digitalisimo_backups_restore_reading( $home ) {
@@ -200,6 +208,24 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	}
 
 PHP;
+	}
+	/**
+	 * Las acciones de admin-ajax.php y admin-post.php que registra Backups (sus funciones son de una clase
+	 * Digitalisimo_Backups…), además de las que registra siempre: la puerta las compara con la lista exacta, no por prefijo.
+	 */
+	public static function screen_actions() {
+		$out = array();
+		foreach ( array( Digitalisimo_Backups_Jobs::AJAX_TICK, Digitalisimo_Backups_Jobs::AJAX_STATUS, Digitalisimo_Backups_Jobs::ACTION_CANCEL, Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK, Digitalisimo_Backups::ACTION_RESTORE, Digitalisimo_Backups::ACTION_MANUAL_START, Digitalisimo_Backups::ACTION_MANUAL_WORK, Digitalisimo_Backups::ACTION_MANUAL_STATUS ) as $action ) $out[ $action ] = true;
+		foreach ( (array) ( $GLOBALS['wp_filter'] ?? array() ) as $hook => $wp_hook ) {
+			if ( ! preg_match( '/^(?:wp_ajax_(?:nopriv_)?|admin_post_(?:nopriv_)?)(digitalisimo_backups_[a-z0-9_]+)$/D', (string) $hook, $m ) || ! is_object( $wp_hook ) || ! isset( $wp_hook->callbacks ) ) continue;
+			foreach ( (array) $wp_hook->callbacks as $callbacks ) foreach ( (array) $callbacks as $callback ) {
+				$function = is_array( $callback ) ? ( $callback['function'] ?? null ) : null;
+				$class = is_array( $function ) && isset( $function[0] ) ? ( is_object( $function[0] ) ? get_class( $function[0] ) : (string) $function[0] ) : '';
+				if ( 0 === strpos( $class, 'Digitalisimo_Backups' ) ) $out[ $m[1] ] = true;
+			}
+		}
+		ksort( $out );
+		return array_keys( $out );
 	}
 	/** Retira el mantenimiento si es de una restauración (nunca el de una actualización de WordPress). */
 	public static function release() {
