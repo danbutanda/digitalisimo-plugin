@@ -846,6 +846,11 @@ final class Digitalisimo_Backups_Migrate {
 			self::seal_file( $file, $auth . $root );
 			$hello = self::call( $migration, $auth, '', 'hello', 'POST', array( 'site' => home_url() ), 30 );
 			self::compatible( $hello );
+			// De una red a un WordPress individual se migra un sitio de la red (`site`; por defecto el principal), convertido
+			// como al restaurar su respaldo aquí (Digitalisimo_Backups::migration_convert()).
+			$site = (int) ( $options['site'] ?? 0 );
+			if ( $site > 0 && ( empty( $hello['multisite'] ) || is_multisite() ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El sitio de la red (`site`) sólo se elige al migrar una red a un WordPress individual.' );
+			$migration['site'] = $site;
 			$migration['source'] = self::source_summary( $hello );
 			$migration['source_host'] = self::host_label( (string) $hello['home'] ) ?: $migration['source_host'];
 			$spec = self::pull_spec( $migration, $via );
@@ -1009,8 +1014,8 @@ final class Digitalisimo_Backups_Migrate {
 		return array( 'home' => (string) ( $hello['home'] ?? '' ), 'siteurl' => (string) ( $hello['siteurl'] ?? '' ), 'multisite' => ! empty( $hello['multisite'] ), 'subdomain_install' => ! empty( $hello['subdomain_install'] ), 'table_prefix' => (string) ( $hello['table_prefix'] ?? '' ), 'wordpress_version' => (string) ( $hello['wordpress_version'] ?? '' ), 'plugin_version' => (string) ( $hello['plugin_version'] ?? '' ) );
 	}
 	/**
-	 * Individual → individual y red → red del mismo tipo. Si el origen es una red y este WordPress no la declara en
-	 * wp-config.php, el mensaje dice qué definir; nada se descarga ni se toca antes.
+	 * Individual → individual, red → red del mismo tipo y red → individual (un sitio de la red, convertido: el destino lo
+	 * elige con `site`). Nada se descarga ni se toca antes.
 	 */
 	public static function compatible( array $hello ) {
 		if ( 1 !== ( $hello['version'] ?? null ) || ! is_string( $hello['instance'] ?? null ) || ! preg_match( '/^[0-9a-f]{16}$/D', $hello['instance'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'La dirección de la clave no responde como la API de migración de DIGITALÍSIMO Backups.' );
@@ -1018,9 +1023,8 @@ final class Digitalisimo_Backups_Migrate {
 		if ( (string) ( $hello['instance'] ?? '' ) === self::instance() ) throw new Digitalisimo_Backups_Permanent_Error( 'Esta clave es de este mismo sitio: pégala en el sitio de destino.' );
 		$source_network = ! empty( $hello['multisite'] );
 		$source_type = ! empty( $hello['subdomain_install'] ) ? 'subdominios' : 'subdirectorios';
-		if ( $source_network && ! is_multisite() ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es una red de WordPress (por ' . $source_type . ') y el wp-config.php de este sitio no declara una red. Conviértelo antes en una red del mismo tipo: define WP_ALLOW_MULTISITE, crea la red en Herramientas → Configuración de la red y añade a wp-config.php MULTISITE, SUBDOMAIN_INSTALL (' . ( ! empty( $hello['subdomain_install'] ) ? 'true' : 'false' ) . '), DOMAIN_CURRENT_SITE y PATH_CURRENT_SITE con la dirección de este sitio. Después vuelve a pegar la clave.' );
 		if ( ! $source_network && is_multisite() ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es un WordPress individual y este sitio es una red: una migración sólo va de sitio individual a sitio individual o de red a red.' );
-		if ( $source_network ) {
+		if ( $source_network && is_multisite() ) {
 			$here = function_exists( 'is_subdomain_install' ) && is_subdomain_install();
 			if ( $here !== ! empty( $hello['subdomain_install'] ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El origen es una red por ' . $source_type . ' y esta red es por ' . ( $here ? 'subdominios' : 'subdirectorios' ) . ': las dos deben ser del mismo tipo (SUBDOMAIN_INSTALL en wp-config.php).' );
 		}
@@ -1327,6 +1331,17 @@ final class Digitalisimo_Backups_Migrate {
 		$restore_id = (string) ( $cursor['job'] ?? '' );
 		// El proceso pudo morir entre encolar la restauración y guardar el punto de control: nunca se encola dos veces.
 		if ( '' === $restore_id ) $restore_id = self::restore_of( (string) $job['id'] );
+		// De una red a un WordPress individual: primero la conversión del sitio elegido (trabajo `convert`), que encola la
+		// restauración al terminar.
+		$convert_id = (string) ( $cursor['convert'] ?? '' );
+		if ( '' === $restore_id && '' !== $convert_id ) {
+			$convert = Digitalisimo_Backups_Jobs::get( $convert_id );
+			if ( ! $convert ) throw new Digitalisimo_Backups_Permanent_Error( 'La conversión del sitio de esta migración ya no existe en «Trabajos». No se cambió nada de este sitio: vuelve a pegar la clave.' );
+			if ( ! Digitalisimo_Backups_Job_Store::is_terminal( $convert ) ) return array( 'next' => 'restore', 'checkpoint' => $cursor, 'wait' => 5, 'message' => 'Convirtiendo el sitio de la red en este WordPress (' . Digitalisimo_Backups_Jobs::phase_label( (string) $convert['phase'], $convert ) . ')…' );
+			if ( 'success' !== $convert['status'] ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete se rechazó antes de tocar este sitio: ' . (string) ( $convert['error']['message'] ?? 'la conversión del sitio no terminó.' ) );
+			$restore_id = (string) ( $convert['result']['restore_job'] ?? '' );
+			if ( '' === $restore_id ) throw new Digitalisimo_Backups_Permanent_Error( 'La conversión del sitio terminó sin entregar su restauración. No se cambió nada de este sitio: vuelve a pegar la clave.' );
+		}
 		if ( '' === $restore_id ) {
 			$other = self::other_job( (string) $job['id'] );
 			if ( $other ) return array( 'next' => 'restore', 'checkpoint' => $cursor, 'wait' => 30, 'message' => 'Esperando a que termine ' . $other['label'] . ' antes de reemplazar el sitio…' );
@@ -1344,6 +1359,17 @@ final class Digitalisimo_Backups_Migrate {
 					throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no supera la comprobación de su cifrado o de su firma: ' . $e->getMessage() . ' No se cambió nada de este sitio.' );
 				}
 				if ( 'signed' !== $report['trust'] || 'migration' !== ( $report['key']['source'] ?? '' ) ) throw new Digitalisimo_Backups_Permanent_Error( 'El paquete no está firmado con la clave de esta migración. No se cambió nada de este sitio.' );
+				$network = null;
+				try { $network = Digitalisimo_Backups_Archive_Inspector::manifest( $report['zip'] ); } catch ( Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+				if ( Digitalisimo_Backups::network_converts( $network ) ) {
+					try {
+						$convert = Digitalisimo_Backups::migration_convert( $report, $tag, (string) $job['id'], (int) ( $migration['site'] ?? 0 ) );
+					} catch ( Exception $e ) {
+						throw new Digitalisimo_Backups_Permanent_Error( 'El paquete se rechazó antes de tocar este sitio: ' . $e->getMessage() );
+					}
+					@unlink( $path );
+					return array( 'next' => 'restore', 'checkpoint' => array( 'convert' => (string) $convert['id'] ), 'progress_made' => true, 'wait' => 1, 'message' => 'Convirtiendo el sitio de la red en este WordPress; después, la restauración por pasos…' );
+				}
 				try {
 					$restore = Digitalisimo_Backups::migration_enqueue( $report, $tag, (string) $job['id'] );
 				} catch ( Exception $e ) {

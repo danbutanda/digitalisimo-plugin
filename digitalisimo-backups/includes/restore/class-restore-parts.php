@@ -417,7 +417,8 @@ final class Digitalisimo_Backups_Restore_Parts {
 	 */
 	public static function check( $zip, $data, $selection, $rollback, array $layout ) {
 		if ( null === $selection ) return;
-		if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) ) throw new Exception( 'Un sitio extraído de una red se restaura entero: no admite restaurar por partes. No se cambió nada del sitio.' );
+		// Salvo el sitio convertido de un respaldo de red (`converted_from`): es el respaldo de quien restaura, por partes como cualquiera.
+		if ( Digitalisimo_Backups_Site_Extract::SCOPE === ( $data['scope'] ?? '' ) && empty( $data['converted_from'] ) ) throw new Exception( 'Un sitio extraído de una red se restaura entero: no admite restaurar por partes. No se cambió nada del sitio.' );
 		if ( $rollback ) return;
 		$missing = self::missing( $selection, self::inventory( $zip, $layout ) );
 		if ( $missing ) throw new Exception( 'El respaldo no tiene ' . self::list_text( $missing, 10 ) . ': elige lo que trae (la lista de plugins y temas del respaldo) o la parte entera. No se cambió nada del sitio.' );

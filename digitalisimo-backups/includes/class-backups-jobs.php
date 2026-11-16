@@ -230,10 +230,11 @@ final class Digitalisimo_Backups_Jobs {
 	}
 	public static function is_restore( $job ) { return is_array( $job ) && 'restore' === ( $job['kind'] ?? 'backup' ); }
 	/**
-	 * Una restauración o lo que la prepara (el trabajo `chain` que reconstruye un punto incremental, ya confirmado): mientras
+	 * Una restauración o lo que la prepara (el trabajo `chain` que reconstruye un punto incremental, o el `convert` que
+	 * convierte el sitio de un respaldo de red en un WordPress individual, ya confirmados): mientras
 	 * no termina, ningún respaldo empieza.
 	 */
-	public static function restore_like( $job ) { return self::is_restore( $job ) || ( is_array( $job ) && 'chain' === ( $job['spec']['kind'] ?? '' ) ); }
+	public static function restore_like( $job ) { return self::is_restore( $job ) || ( is_array( $job ) && in_array( (string) ( $job['spec']['kind'] ?? '' ), array( 'chain', 'convert' ), true ) ); }
 	/** Fases del tipo de trabajo. */
 	public static function phases( $job ) {
 		if ( self::is_restore( $job ) ) return Digitalisimo_Backups_Restore_Job::PHASES;

@@ -26,6 +26,9 @@ defined( 'ABSPATH' ) || exit;
  *                                           `keep_access`): la respuesta lleva `follow`, la ficha de lectura del trabajo
  *                                           Restaurar por partes (verify y restore): `parts`, `plugins`, `themes` y
  *                                           `sites`; verify dice qué trae el respaldo y qué se reemplazaría (`parts`)
+ *                                           El respaldo de una red en un WordPress individual (verify y restore):
+ *                                           `site` (el sitio de la red; por defecto el principal), `super_admins` y
+ *                                           `network_secrets`; verify lo describe en `convert`
  * - GET  /automations                       automatizaciones y su próxima ejecución
  * - POST /automations/<id>/run              encola la automatización ahora (`network`): 202 con el trabajo
  * - GET  /jobs                              trabajos sin terminar y los últimos terminados
@@ -68,7 +71,8 @@ defined( 'ABSPATH' ) || exit;
  *                                            y las tablas apartadas (`kept_tables`)
  * - POST /migration/keys                    genera una clave de migración (`hours`, `network`): 201, la clave sólo esta vez
  * - POST /migration/keys/<id>/revoke        revoca una clave
- * - POST /migration/pull                    «Migrar desde otro sitio» (`key`, `confirm`=MIGRAR, `network`): 202 con el trabajo
+ * - POST /migration/pull                    «Migrar desde otro sitio» (`key`, `confirm`=MIGRAR, `network`; de una red a
+ *                                           un WordPress individual, `site`): 202 con el trabajo
  * - POST /migration/undo                    «Deshacer la migración» (`confirm`=DESHACER, `network`)
  * - POST /migration/cleanup                 borra ya las tablas apartadas del registro (`dry_run`: sólo las lista; `network`)
  *
@@ -122,6 +126,10 @@ final class Digitalisimo_Backups_Rest {
 			'plugins' => array( 'default' => null, 'description' => 'Plugins concretos del respaldo (nombre de su carpeta, o del archivo en un plugin de un solo archivo); sólo esos se reemplazan. Ver `parts.available` de verify.' ),
 			'themes' => array( 'default' => null, 'description' => 'Temas concretos del respaldo (nombre de su carpeta); sólo esos se reemplazan.' ),
 			'sites' => array( 'default' => null, 'description' => 'En una red: los medios de estos sitios (su número; 1 es el principal).' ),
+			// El respaldo de una red en un WordPress individual: qué sitio suyo se restaura como este WordPress.
+			'site' => array( 'default' => null, 'description' => 'Sólo el respaldo de una red en un WordPress individual: el sitio de la red que se restaura como este WordPress (su número; por defecto, el principal). Ver `convert.sites` de verify.' ),
+			'super_admins' => array( 'default' => null, 'description' => 'Con `site`: los superadministradores de la red que no son miembros del sitio (none, por defecto; managing; all), como al extraer un sitio.' ),
+			'network_secrets' => array( 'default' => null, 'description' => 'Con `site`: copiar también las claves y cuentas que el sitio hereda de la red (falso por defecto), como al extraer un sitio.' ),
 		);
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) + $parts ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
@@ -181,7 +189,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys', array( $route( 'POST', 'migration_create_key', array( 'hours' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Migrate::DEFAULT_HOURS, 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Migrate::MAX_HOURS, 'description' => 'Horas hasta que caduca la clave.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys/(?P<key>[0-9a-f]{16})/revoke', array( $route( 'POST', 'migration_revoke_key' ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network, 'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Quien migra conserva su usuario, su contraseña y sus contraseñas de aplicación.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network, 'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Quien migra conserva su usuario, su contraseña y sus contraseñas de aplicación.' ), 'site' => array( 'default' => null, 'description' => 'Si el origen es una red y este WordPress es individual: el sitio de la red que se migra (su número; por defecto, el principal).' ) ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/undo', array( $route( 'POST', 'migration_undo', array( 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'DESHACER: el sitio vuelve al estado anterior a la última migración.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/cleanup', array( $route( 'POST', 'migration_cleanup', array( 'dry_run' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo decir qué tablas apartadas borraría.' ), 'network' => $network ) ) ) );
 		// Migración: API del sitio de origen, autorizada por la clave de migración.
@@ -285,7 +293,7 @@ final class Digitalisimo_Backups_Rest {
 	/** Restaurar por partes: `parts`, `plugins`, `themes` y `sites` tal como llegan (los valida el caso de uso). */
 	private static function parts( $request ) {
 		$out = array();
-		foreach ( array( 'parts', 'plugins', 'themes', 'sites' ) as $key ) if ( null !== $request[ $key ] ) $out[ $key ] = $request[ $key ];
+		foreach ( array( 'parts', 'plugins', 'themes', 'sites', 'site', 'super_admins', 'network_secrets' ) as $key ) if ( null !== $request[ $key ] ) $out[ $key ] = $request[ $key ];
 		return $out;
 	}
 	public static function automations( $request ) {
@@ -340,7 +348,7 @@ final class Digitalisimo_Backups_Rest {
 		$body = method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array();
 		if ( ! array_key_exists( 'key', $body ) && method_exists( $request, 'get_body_params' ) ) $body = (array) $request->get_body_params();
 		$key = is_string( $body['key'] ?? null ) ? $body['key'] : '';
-		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest' ) ), 202 );
+		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'site' => $request['site'], 'via' => 'rest' ) ), 202 );
 	}
 	public static function migration_undo( $request ) {
 		$result = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) );

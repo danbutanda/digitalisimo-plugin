@@ -145,6 +145,15 @@
     undoInit();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', partsInit); else partsInit();
+  /* El respaldo de una red en un WordPress individual: la frase de la confirmación dice el sitio elegido (como texto). */
+  document.addEventListener('change', function (event) {
+    var site = event.target;
+    if (!site || !site.hasAttribute || !site.hasAttribute('data-network-site') || !site.form) return;
+    var label = site.form.querySelector('[data-network-site-label]');
+    if (!label) return;
+    var option = site.options ? site.options[site.selectedIndex] : null;
+    label.textContent = option ? 'el sitio ' + option.text.replace(/ \(ID [0-9]+(, principal)?\)$/, '') : 'el sitio ' + site.value;
+  });
   document.addEventListener('change', function (event) {
     var select = event.target;
     if (!select || select.name !== 'digitalisimo_backup_destination' || !select.form) return;
