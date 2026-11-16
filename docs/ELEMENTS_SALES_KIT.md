@@ -30,7 +30,7 @@ generada: la CI corre el generador con `--check`.
 | Id | Plantilla | Para qué |
 | --- | --- | --- |
 | `venta-completa` | 01 Página de venta completa | La carta de venta larga: los 26 bloques de la guía en su orden (31 secciones), con `#oferta` y `#historias` |
-| `venta-corta` | 02 Página de venta corta | La portada, beneficios, quién está detrás, para quién es, testimonios, oferta, garantía y preguntas |
+| `venta-corta` | 02 Página de venta corta | Con un cierre real, la barra fija de cierre; la portada, beneficios, quién está detrás, para quién es, testimonios, oferta, garantía y preguntas |
 | `captacion` | 03 Captación | La portada y, justo después (`#registro`), el registro a una clase, un reto o un recurso, con formulario (guarda, avisa por correo y lleva a `/gracias-registro/`) |
 | `gracias-registro` | 04 Gracias por registrarte | Los tres pasos después del registro y los iconos de las redes del sitio |
 | `carrito` | 05 Carrito | Formulario y forma de pago junto a la oferta, con el extra de un clic (lleva a `/pago/`) |
@@ -79,7 +79,13 @@ El generador del repositorio era el del kit v3 adaptado (variantes, manifiesto, 
 - **La barra de cierre** de la 01 queda fija arriba (`sticky` en escritorio, tableta y celular), con el logo del
   evento (oculto en celular), el texto y el botón en una fila en celular (`tam_movil`: en contenedores, fila sin saltos
   de línea) y el mensaje corto «Inscripción cerrada.». El efecto «fijo» deja en su lugar una copia invisible
-  (`.elementor-sticky__spacer`), que el ensayo no cuenta como widgets pintados.
+  (`.elementor-sticky__spacer`), que el ensayo no cuenta como widgets pintados. Lleva el margen de las anclas
+  (`sticky_anchor_link_offset`, 130 px): el núcleo sólo da `scroll-margin-top` a las anclas que quedan bajo un elemento
+  fijo con ese ajuste, y sin él la barra tapaba el título de «La oferta» o de «Lo avala la comunidad» al llegar por un
+  botón (revisión M1). Sus columnas van sin separación y sin relleno arriba y abajo, así que mide lo mismo con secciones
+  que con contenedores (antes, 30 px más con secciones). La 02 lleva la misma barra, opcional (texto «Esta oferta
+  termina…» y botón «¡Lo quiero!»), para el caso «Evento de venta de temporada»; las dos sólo aparecen con
+  `close_date` (revisión B3).
 
 `kit_validar.py` comprueba estas reglas en las dos variantes: portada con logo, h1, antetítulo y un botón a un bloque
 de la página, sin video y primera (sólo la barra va antes); ningún precio fuera de los bloques que pueden llevarlo
@@ -97,8 +103,10 @@ Todo lo demás es el kit v4 genérico tal cual (el validador lo compara al gener
   enlace válido el reproductor no carga nada y la portada de muestra queda a la vista. Se pega en el editor.
 - **Grupo:** el botón del grupo lleva `#[enlace del grupo]` (sin enlace a otro sitio).
 - **Redes:** los iconos de redes de la 04 y la 07 conservan su logo (decisión del operador del 2026-11-13; de
-  4.3.0.186 a esta versión fueron un texto neutro), pero no enlazan a las redes: cada perfil lleva el placeholder
-  `#[enlace de tu perfil]` (tipo `enlace`: se pone en el editor) y WhatsApp el número del sitio.
+  4.3.0.186 a esta versión fueron un texto neutro), pero los de perfil no enlazan a las redes: cada uno lleva el
+  placeholder `#[enlace de tu perfil]` (tipo `enlace`: se pone en el editor), que abre en la misma pestaña para que,
+  si se publica sin cambiar, no abra otra con la misma página. El de WhatsApp sí lleva a `wa.me`, con el número del
+  sitio, como los botones del llamado a la acción.
 - **Cierre:** los placeholders de la fecha de cierre son propios (`[día de cierre]`, `[mes de cierre]`,
   `[hora de cierre]`) y los contadores llevan una fecha ya pasada (`2000-01-01 00:00`) en lugar de una futura inventada:
   sin la fecha real sólo muestran su mensaje de cierre. No llevan un placeholder porque el widget del contador hace
@@ -137,9 +145,10 @@ campo o texto, con su motivo y su decisión; una aparición fuera de ellas, o un
 - **Los logos de las redes** (Facebook, Instagram, TikTok, YouTube y WhatsApp) — excepción explícita del operador
   (2026-11-13, decisión 2): sólo el valor del icono del widget de iconos sociales (`fab fa-facebook-f`…), sólo en la 04
   y la 07. Para cumplir también la regla de no enlazar a otras empresas, los enlaces de esos iconos son de muestra del
-  propio sitio (`#[enlace de tu perfil]`), que el dueño cambia en el editor por sus perfiles, y el de WhatsApp lleva el
-  número del sitio. El validador rechaza iconos en otra plantilla, otra red, un icono que enlace a la red y el nombre
-  de una red en cualquier otro texto. `create-page` sigue sin aceptar URLs de otros sitios: no hay una entrada para los
+  propio sitio (`#[enlace de tu perfil]`, sin abrir otra pestaña), que el dueño cambia en el editor por sus perfiles,
+  y el de WhatsApp lleva a `wa.me` con el número del sitio (la excepción del llamado a la acción). El validador rechaza
+  iconos en otra plantilla, otra red, un icono de perfil que enlace a la red o abra otra pestaña con el enlace de
+  muestra, y el nombre de una red en cualquier otro texto. `create-page` sigue sin aceptar URLs de otros sitios: no hay una entrada para los
   perfiles (abriría la puerta a enlaces de otros sitios por el MCP; ver «Límites»), y su `review` dice que faltan.
 
 La lista vigilada (`nombres`) es amplia: pagos (Visa, Mastercard, American Express, Clip, Kueski, Coppel, PayPal,
@@ -203,27 +212,37 @@ abilities y del servidor genérico. En el cliente se llaman `digitalisimo-sales-
   (no son enlaces: un valor no puede llevar uno).
   Los placeholders de tipo `enlace` (video, grupo) no se llenan por aquí: se ponen en el editor.
 - **Precios en MXN:** un placeholder de tipo `precio` (detrás de `$`) sólo acepta una cifra (`1,997`, `1997.50`).
+- **El precio, sólo en la oferta** (revisión M2): un valor con `$`, `MXN`, «peso(s)», una cifra con centavos
+  (`1997.50`, `49,90`) o una cifra justo después de «precio» o «cuesta» se rechaza
+  (`digitalisimo_sales_price_outside_offer`, con el bloque en el mensaje) si cae en un bloque sin `price_values`. Lo
+  admiten la oferta y el cierre de la 01 (que la repite), los caminos y «Cuánto vale para ti» (el ancla habla en pesos a
+  propósito), la oferta de la 02 y el carrito y la oferta única enteros; `list-templates` lo dice con `price` en cada
+  bloque. En una lista se mira por aparición (la de un bloque quitado no cuenta). Una cifra suelta con separador de
+  miles («1,250 alumnos») no cuenta como precio: puede ser un dato real de otro tipo.
 - **`whatsapp`:** sólo dígitos (8 a 15, con la clave del país); cambia el número de todos los botones
   (`https://wa.me/<dígitos>`). Sin él, queda el de muestra y se informa.
 - **`close_date`** («AAAA-MM-DD HH:MM» en la hora del sitio), en las plantillas con contador o con textos de cierre
   (01, 02 y 05; `close_date: true` en `list-templates`): una fecha válida, futura y a menos de dos años; llena los
-  contadores que haya y los placeholders de cierre (la 02 no tiene contador, pero su oferta dice «terminan el [día de
-  cierre] a las [hora de cierre]»). Los de cierre no se llenan
-  con `replacements`. **Sin `close_date`** se quitan los bloques de urgencia del manifiesto (la barra de cierre de la
-  01 y el contador del carrito), como pide el LEEME del kit; los textos que nombran el cierre quedan pendientes.
+  contadores y los placeholders de cierre. Los de cierre no se llenan con `replacements`. **Sin `close_date`** se
+  quitan los bloques de urgencia del manifiesto (las barras de cierre de la 01 y la 02 y el contador del carrito), como
+  pide el LEEME del kit; los textos que nombran el cierre quedan pendientes. Con la barra, `review` avisa que el logo
+  del evento sigue siendo la imagen de muestra (`event_logo`, revisión B4).
 - **`omit_blocks`:** claves de bloques que no aplican; se quitan enteros y lo demás queda en el orden de la guía (se
   puede quitar un bloque, pero no cambiar el orden). **No se quitan** (decisión 5 del operador, 2026-11-13) los bloques
   que llevan la promesa, la oferta, la garantía, las preguntas frecuentes, WhatsApp o el pie, en las plantillas que los
-  tienen (`required: true` y `required_for` en el manifiesto y en `list-templates`; `required_kinds` los nombra): en la
-  01, `promesa`, `oferta`, `garantia`, `preguntas-frecuentes`, `whatsapp` y `pie`; en la 02, `promesa`, `oferta`,
-  `garantia-y-preguntas` y `pie`; en la 03, `promesa` y `pie`; en la 05, `encabezado`, `formulario`, `dudas-de-pago` y
-  `pie`; en la 06, `aviso-y-video`, `complemento` y `pie`; en la 07, `soporte` y `pie`; en la 04, `pie`; la 08 no tiene
-  ninguno. Pedir uno da un solo error que nombra todos los obligatorios pedidos, qué lleva cada uno y cuáles no se
+  tienen, ni (decisiones del operador sobre la revisión, 2026-11-15) el formulario y el último enlace a WhatsApp
+  (`required: true` y `required_for` en el manifiesto y en `list-templates`; `required_kinds` los nombra): en la 01,
+  `promesa`, `oferta`, `garantia`, `preguntas-frecuentes`, `whatsapp` y `pie`; en la 02, `promesa`, `oferta`,
+  `garantia-y-preguntas` y `pie`; en la 03, `promesa`, `registro` (el formulario: una captación sin formulario no capta)
+  y `pie`; en la 04, `mientras-tanto` (su único enlace a WhatsApp, el icono) y `pie`; en la 05, `encabezado`,
+  `formulario`, `dudas-de-pago` y `pie`; en la 06, `aviso-y-video`, `complemento` y `pie`; en la 07, `soporte` y `pie`;
+  la 08 no tiene ninguno. El validador reconoce WhatsApp por los enlaces `wa.me`: si una plantilla tiene uno, un bloque
+  obligatorio por WhatsApp lo lleva. Pedir uno da un solo error que nombra todos los obligatorios pedidos, qué lleva cada uno y cuáles no se
   quitan en esa plantilla. Las pruebas sociales (testimonios, historias, capturas, objeciones) siguen siendo
   opcionales. Si un botón llevaba a un ancla quitada (`#historias`), se informa.
 - **Redes:** en la 04 y la 07, los cuatro iconos de perfil llevan `#[enlace de tu perfil]` (un placeholder de tipo
-  `enlace`, que no se llena por aquí) y el de WhatsApp el número de `whatsapp`; `social_pending` cuenta los que siguen
-  con el enlace de muestra y `review` dice que faltan y dónde se ponen.
+  `enlace`, que no se llena por aquí, y abre en la misma pestaña) y el de WhatsApp el número de `whatsapp`;
+  `social_pending` cuenta los que siguen con el enlace de muestra y `review` dice que faltan y dónde se ponen.
 - **IDs:** todos los de los elementos y de los elementos de listas se regeneran (siete hexadecimales, sin repetirse y
   sin repetir uno de la plantilla).
 - **Variante:** la que diga el experimento de contenedores del sitio en ese momento.
@@ -243,12 +262,15 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
 ## Pruebas
 
 - `tests/elements-sales-kit.mjs` (en `validate.yml` y `release.yml`; necesita `python3`): el generador con `--check`,
-  el validador sobre las dos variantes, treinta y nueve plantillas rotas que el validador debe rechazar (marcas, también las de
+  el validador sobre las dos variantes, cuarenta y nueve plantillas y manifiestos rotos que el validador debe rechazar (marcas, también las de
   la lista ampliada y WhatsApp fuera del llamado a la acción, enlaces, video, IDs, widgets, paridad, filas, contador,
   relleno, proveedor, la persona propia, títulos con atributos o sin el color de su resalte, y bloques; y de la v4: una
   portada con video, sin botón o sin el antetítulo, un botón de portada sin destino, precios fuera de la oferta, un
   bonus con su valor, una barra de cierre que no es fija, sin logo o que no se acomoda en celular, iconos de redes en
-  otra plantilla, que enlazan a la red, de otra red o el nombre de una red fuera de ellos), las marcas vigiladas y sus
+  otra plantilla, que enlazan a la red, de otra red o el nombre de una red fuera de ellos; y de la revisión: una barra sin
+  el margen de las anclas o que no mide lo mismo en las dos variantes, el formulario o el último enlace a WhatsApp que
+  se podrían quitar, un bloque «de WhatsApp» sin enlace a WhatsApp, un icono de perfil de muestra que abre otra pestaña
+  y una oferta donde create-page no dejaría poner el precio), las marcas vigiladas y sus
   excepciones acotadas (WhatsApp y los logos de las redes, decisión del operador), las marcas sólo en las constantes
   del generador, la ausencia de la persona propia en el módulo y que el ensayo de Playground no lleve fechas de cierre
   fijas.
@@ -260,13 +282,18 @@ con un JSON suelto, no hace nada. El editor del constructor ya pregunta antes de
   decisiones del operador: WhatsApp como excepción declarada, los iconos de redes de la 04 y la 07 (con su logo, sin
   enlazar a la red, `social_pending` y la revisión), el aviso de Meta y Google en el pie de toda plantilla con pie, la
   fecha vencida de los contadores y los bloques obligatorios (cada uno da error, las pruebas sociales se quitan), más el
-  precio sólo en los bloques que pueden llevarlo.
+  precio sólo en los bloques que pueden llevarlo; y los arreglos de la revisión: el candado del precio en lo que llena
+  create-page (por bloque y por aparición), el formulario de la 03 y el último enlace a WhatsApp de cada plantilla, la
+  barra de la 02, el aviso del logo de muestra, los perfiles en la misma pestaña y las marcas en todas las cadenas de
+  texto del PHP del módulo (no sólo en las definiciones de las herramientas).
 - `tests/playground/sales-kit.sh` (manual, en la PC): Playground con JSON-RPC real y Chrome (ver su cabecera); crea
   las ocho en las dos variantes como administrador y como editora y las pinta a 1 280 × 800 y 390 × 844 px, también
   las de una editora sin `unfiltered_html`; comprueba el color de cada resalte de título, que guardar como editora no
   deje avisos de PHP, que la portada de 01, 02 y 03 quepa en la primera pantalla con su botón visible sin desplazar,
   que la barra de cierre quede fija al desplazar (con el logo en escritorio y sin él en celular), los iconos de redes
-  de la 04 y la 07 y que los bloques obligatorios no se quiten. Los widgets pintados se cuentan sin la copia que deja la
+  de la 04 y la 07 y que los bloques obligatorios no se quiten; como visitante (sin la barra de administración), un clic
+  en el botón de la portada, en el de la barra y en «Ver más historias» deja el título del bloque al que llevan a la
+  vista, bajo la barra fija, a 1 280 × 800 y 390 × 844, y la barra mide lo mismo con contenedores que con secciones. Los widgets pintados se cuentan sin la copia que deja la
   barra fija (`.elementor-sticky__spacer`). La sonda ve los avisos de las peticiones REST (el MCP es una), donde el
   núcleo pone su propio manejador de errores. La fecha de cierre del ensayo se calcula desde hoy.
 

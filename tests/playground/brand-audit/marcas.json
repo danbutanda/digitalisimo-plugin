@@ -109,7 +109,7 @@
       "archivos": "^digitalisimo-elements/modules/digitalisimo-sales/templates/(sections|containers)/0[47]-",
       "campo": "^social-icons\\.social_icon_list\\.social_icon\\.value$",
       "frases": "^fab fa-(facebook-f|instagram|tiktok|youtube|whatsapp)$",
-      "motivo": "Los iconos de las redes del sitio, con su logo, en «Mientras tanto» de la 04 y en «Soporte y redes» de la 07, como en el kit v3 y v4: sólo el icono (el valor del icono del widget de iconos sociales). Sus enlaces no van a esas empresas: cada red lleva el placeholder #[enlace de tu perfil], que el dueño cambia en el editor por su perfil, y WhatsApp el número del sitio; el validador rechaza cualquier otro enlace, y create-page sigue sin aceptar URLs de otros sitios y avisa en «review» que faltan los enlaces de las redes.",
+      "motivo": "Los iconos de las redes del sitio, con su logo, en «Mientras tanto» de la 04 y en «Soporte y redes» de la 07, como en el kit v3 y v4: sólo el icono (el valor del icono del widget de iconos sociales). Los de perfil no enlazan a esas empresas: cada uno lleva el placeholder #[enlace de tu perfil] (en la misma pestaña), que el dueño cambia en el editor por su perfil; el de WhatsApp lleva a wa.me con el número del sitio, como el llamado a la acción; el validador rechaza cualquier otro enlace, y create-page sigue sin aceptar URLs de otros sitios y avisa en «review» que faltan los enlaces de las redes.",
       "decision": "Excepción explícita del operador, 2026-11-13 (decisión 2 de las cinco): vuelven los iconos de redes con su logo en las plantillas 04 y 07. Sólo el logo; los enlaces son placeholders del sitio, nunca a la red."
     },
     {
