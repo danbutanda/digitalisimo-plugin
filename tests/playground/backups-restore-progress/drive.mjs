@@ -131,8 +131,11 @@ async function follow(label, until, { minutes = 25, onSample = null } = {}) {
   const seen = [];
   const deadline = Date.now() + minutes * 60_000;
   let last = '';
+  let away = 0;
   while (Date.now() < deadline) {
     const s = await panel();
+    // Sin el panel (otra página, la de error crítico) más de 90 s seguidos: no hay nada que seguir.
+    if (!s || s.absent) { away = away || Date.now(); if (Date.now() - away > 90_000) break; } else away = 0;
     if (s && !s.absent) {
       const key = [s.state, s.title, s.percent, s.phase, s.note, s.result ? 1 : 0].join('|');
       if (key !== last) {
@@ -181,6 +184,9 @@ async function restoreFromRow(parts) {
   await shot(`${parts ? 'partes' : 'completa'}-empieza`);
   await navigation;
   const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
+  // Tras enviar, la pantalla vuelve con el panel (no la página de error crítico, ni otra).
+  const landed = await page.$('#digitalisimo-backups-manual-progress');
+  if (!check(!!landed, 'tras enviar «Restaurar», la pantalla vuelve con el panel de avance', `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''}`)) return false;
   check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
   return true;
 }
@@ -299,12 +305,14 @@ try {
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   const restoring = memory.filter((r) => r.action === 'digitalisimo_backups_restore_tick');
   check(restoring.length > 0 && restoring.every((r) => r.limit === '64M'), `las ${restoring.length} peticiones del tick por testigo corrieron con memory_limit=64M (pico ${Math.max(0, ...restoring.map((r) => r.peak_real)) / 1048576} MB)`);
+  const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').trim() : '';
+  check(!fatals, 'ninguna petición terminó en la página de error crítico de WordPress', fatals.slice(0, 1500));
   check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));
 } catch (e) {
   check(false, 'el ensayo terminó con una excepción', String(e.stack || e).slice(0, 1500));
 } finally {
   writeFileSync(`${shots}/samples.json`, JSON.stringify(samples, null, 1));
-  for (const name of ['requests.jsonl', 'memory.jsonl']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
+  for (const name of ['requests.jsonl', 'memory.jsonl', 'fatal.jsonl']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
   await browser.close();
   rmSync(profile, { recursive: true, force: true });
 }

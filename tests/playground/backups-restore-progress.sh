@@ -66,6 +66,7 @@ for mode in ${MODES:-single}; do
   cp "$R/setup.php" "$R/lab.php" "$dir/probe/"
   # El de «restaurar por partes»: sin los archivos de 1 MiB del laboratorio y con el límite de memoria del respaldo.
   cp "$Q/setup.php" "$dir/probe/parts-setup.php"
+  cp "$D/lab.php" "$dir/probe/progress-lab.php"
   echo a > "$dir/probe/site.txt"
   echo "${TICK_BUDGET:-5}" > "$dir/ctl/tick-budget"
   head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$dir/probe/token.txt"
@@ -73,7 +74,7 @@ for mode in ${MODES:-single}; do
 {"steps":[{"step":"defineWpConfigConsts","method":"rewrite-wp-config","consts":{"DIGITALISIMO_BACKUPS_STORAGE_DIR":"/digi-store","WP_MEMORY_LIMIT":"64M","WP_MAX_MEMORY_LIMIT":"64M","WP_ENVIRONMENT_TYPE":"local","DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS":true}},$multi
 {"step":"runPHP","code":"<?php putenv('DIGI_RESTORE_POSTS=$DIGI_RESTORE_POSTS'); putenv('DIGI_RESTORE_FILES=$DIGI_RESTORE_FILES'); require '/digi-probe/setup.php';"},
 {"step":"runPHP","code":"<?php require '/digi-probe/parts-setup.php';"},
-{"step":"writeFile","path":"/wordpress/wp-content/mu-plugins/digi-progress-lab.php","data":"<?php // Ensayo del panel de avance: ticks de /digi-ctl/tick-budget segundos (después del laboratorio, que pone 15).\nadd_filter( 'digitalisimo_backups_job_budget', static function ( \$budget ) { \$s = (int) @file_get_contents( '/digi-ctl/tick-budget' ); return \$s > 0 ? \$s : \$budget; }, 20 );\n"}]}
+{"step":"runPHP","code":"<?php copy( '/digi-probe/progress-lab.php', '/wordpress/wp-content/mu-plugins/digi-progress-lab.php' );"}]}
 JSON
   if fuser -n tcp "$port" >/dev/null 2>&1; then echo "el puerto $port está ocupado; usa PORT=…"; exit 1; fi
   begun=$(date +%s)
