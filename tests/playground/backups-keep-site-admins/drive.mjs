@@ -84,7 +84,8 @@ async function newPage(context = null) {
 }
 const page = await newPage();
 const screen = '/wp-admin/admin.php?page=digitalisimo-backups';
-const cookieHeader = async (p = page) => (await p.cookies(base)).map((c) => `${c.name}=${c.value}`).join('; ');
+// Las de /wp-admin/: la cookie de autenticación de WordPress tiene esa ruta y no sale con las de la portada.
+const cookieHeader = async (p = page) => (await p.cookies(`${base}/wp-admin/`)).map((c) => `${c.name}=${c.value}`).join('; ');
 
 async function shot(p, name) {
   await p.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
