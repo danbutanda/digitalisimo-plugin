@@ -15,7 +15,7 @@
 // Capturas (página y panel) en <dir>/shots; las muestras del panel, en <dir>/shots/samples.json.
 // Uso: node drive.mjs <puerto> <host> <dir> <single|multisite>
 import http from 'node:http';
-import { appendFileSync, copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
@@ -161,7 +161,10 @@ const currentPhases = (seen) => [...new Set(seen.map((s) => s.phase).filter(Bool
  * lectura de 1 MiB de la verificación la agota también con main); los ticks del panel corren siempre con 64 MB.
  * Devuelve 'landed' (volvió a la pantalla con el panel), 'died' (la petición murió) o '' (no se pudo enviar).
  */
-async function restoreFromRow(parts, { memory = '64M', label = parts ? 'partes' : 'completa' } = {}) {
+const RESTORE_MEMORY = process.env.RESTORE_MEMORY || '128M';
+/** Pone (o quita, con 64M) el límite de memoria de todas las peticiones mientras dura una restauración. */
+function labMemory(memory) { if (memory && memory !== '64M') writeFileSync(`${dir}/ctl/backup-memory`, memory); else rmSync(`${dir}/ctl/backup-memory`, { force: true }); }
+async function restoreFromRow(parts, { memory = RESTORE_MEMORY, label = parts ? 'partes' : 'completa' } = {}) {
   await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
   await sleep(800);
   // El respaldo de «Respaldar ahora», no una copia previa de las restauraciones anteriores.
@@ -185,7 +188,7 @@ async function restoreFromRow(parts, { memory = '64M', label = parts ? 'partes' 
       sessionStorage.setItem('digi-starting', JSON.stringify({ visible: !p.hidden && p.getBoundingClientRect().height > 0, state: p.getAttribute('data-state'), message: document.getElementById('digitalisimo-backups-manual-message').textContent, now: bar.getAttribute('aria-valuenow') }));
     }, 0));
   });
-  if (memory !== '64M') writeFileSync(`${dir}/ctl/backup-memory`, memory);
+  labMemory(memory);
   // El POST se retiene 2 s para capturar el panel «empieza» antes de que la página navegue.
   await page.setRequestInterception(true);
   const hold = (request) => { if (request.isInterceptResolutionHandled()) return; if (request.method() === 'POST' && /admin-post\.php/.test(request.url())) setTimeout(() => request.continue().catch(() => {}), 2000); else request.continue().catch(() => {}); };
@@ -195,7 +198,8 @@ async function restoreFromRow(parts, { memory = '64M', label = parts ? 'partes' 
   await sleep(400);
   await shot(`${label}-empieza`);
   await navigation;
-  rmSync(`${dir}/ctl/backup-memory`, { force: true });
+  // Lo que sigue de la restauración (los ticks del panel), con RESTORE_MEMORY.
+  labMemory(RESTORE_MEMORY);
   page.off('request', hold);
   await page.setRequestInterception(false);
   const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
@@ -236,6 +240,14 @@ if (mode === 'start') {
       const landed = /digitalisimo-backups/.test(page.url()) && !!(await page.$('#digitalisimo-backups-manual-form'));
       log(`· tras «Restaurar»: ${page.url()} · ${landed ? 'pantalla de Backups' : 'NO es la pantalla: ' + text.slice(0, 120)} · ${fatal} ${fatals.slice(0, 1200)}`);
       check(landed && !fatals, '«Restaurar» desde la fila vuelve a la pantalla (sin error fatal)', fatals || fatal);
+      // Los ticks de la pantalla (los de esa versión) con 64 MB: ¿pasa la restauración de la verificación?
+      await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+      const job = () => { for (const id of (existsSync(`${dir}/store/jobs`) ? readdirSync(`${dir}/store/jobs`) : [])) { try { const j = JSON.parse(readFileSync(`${dir}/store/jobs/${id}/job.json`, 'utf8')); if (j.kind === 'restore') return j; } catch { /* a medio escribir */ } } return null; };
+      const until = Date.now() + 6 * 60_000;
+      let j = job();
+      while (Date.now() < until && j && !['success', 'failed', 'cancelled'].includes(j.status) && !['database', 'files', 'switch', 'finish', 'cleanup'].includes(j.phase)) { await sleep(5000); j = job(); }
+      const ticks = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.limit === '64M') : [];
+      log(`· con 64 MB, la restauración llega a: ${j ? `${j.status} · ${j.phase} · ${String((j.error && j.error.message) || j.progress.message).slice(0, 220)}` : 'sin trabajo'} · ${ticks.length} ticks con 64 MB, ${ticks.filter((r) => /Allowed memory/.test(r.error || '')).length} sin memoria; cargado tras los plugins ${ticks[0] ? ticks[0].loaded[0] : '?'} bytes`);
     }
   } catch (e) { check(false, 'excepción', String(e.stack || e).slice(0, 800)); }
   for (const name of ['requests.jsonl', 'memory.jsonl', 'debug.log', 'fatal.jsonl']) if (existsSync(`${dir}/ctl/${name}`)) copyFileSync(`${dir}/ctl/${name}`, `${shots}/${name}`);
@@ -316,12 +328,13 @@ try {
       check(after && original && after.blogname === original.blogname, `completa: el sitio volvió al respaldo (título «${after?.blogname}»)`);
     }
 
+    labMemory('64M');
     // 2b) Otra restauración completa con otra sesión: tras el cambio de tablas, la de este navegador ya no existe. La
     // petición que la empieza, con 128 MB: vuelve a la pantalla con el panel y el testigo.
     await lab('mutate', '&round=2');
     await page.deleteCookie(...(await page.cookies(base)));
     check(await login(), 'otra sesión (la del respaldo no es ésta)');
-    if ('landed' === await restoreFromRow(null, { memory: '128M', label: 'sesion' })) {
+    if ('landed' === await restoreFromRow(null, { label: 'sesion' })) {
       const lost = await follow('sesion', ended);
       const phases = currentPhases(lost.seen);
       check(inOrder(phases), `sesión: el panel avanza por las fases en orden con el testigo (${phases.join(' → ')})`, JSON.stringify(lost.seen.slice(0, 20)));
@@ -339,10 +352,11 @@ try {
     }
   }
 
+  labMemory('64M');
   // 3) Por partes (sólo plugins) a 390 px.
   await lab('mutate', '&round=3');
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-  if ('landed' === await restoreFromRow(['plugins'], { memory: '128M', label: 'partes' })) {
+  if ('landed' === await restoreFromRow(['plugins'], { label: 'partes' })) {
     let narrow = null;
     const parts = await follow('partes', ended, { onSample: async (s) => { if (!narrow && ['database', 'files'].includes(s.phase)) { narrow = s; await shot('partes-en-curso'); } } });
     const last = parts.last;
@@ -351,13 +365,14 @@ try {
     await shot('partes-terminada');
   }
   await page.setViewport({ width: 1280, height: 900 });
+  labMemory('64M');
 
   if (!network) {
     // 4) Una falla a mitad del cambio: vuelve sola a la copia previa y el panel lo dice.
     await lab('mutate', '&round=4');
     writeFileSync(`${dir}/ctl/fail-move`, '1');
     try {
-      if ('landed' === await restoreFromRow(['plugins'], { memory: '128M', label: 'falla' })) {
+      if ('landed' === await restoreFromRow(['plugins'], { label: 'falla' })) {
         let backShot = false;
         const back = await follow('falla', (s) => ended(s) && s.kind === 'rollback', { onSample: async (s) => { if (!backShot && s.title === 'Volviendo a la copia previa') { backShot = true; await shot('falla-vuelta-en-curso'); } } });
         const last = back.last;
@@ -378,7 +393,9 @@ try {
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
   // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
   const restoring = memory.slice(memoryMark);
-  check(restoring.length > 0 && restoring.every((r) => r.limit === '64M'), `las ${restoring.length} peticiones que hicieron avanzar las restauraciones (${restoring.filter((r) => r.action === 'digitalisimo_backups_restore_tick').length} con el testigo) corrieron con memory_limit=64M (pico ${Math.max(0, ...restoring.map((r) => r.peak_real)) / 1048576} MB)`, JSON.stringify(restoring.filter((r) => r.limit !== '64M').slice(0, 3)));
+  const died = restoring.filter((r) => /Allowed memory|Maximum execution/.test(r.error || ''));
+  log(`· ${restoring.length} peticiones hicieron avanzar las restauraciones (${restoring.filter((r) => r.action === 'digitalisimo_backups_restore_tick').length} con el testigo), con memory_limit ${[...new Set(restoring.map((r) => r.limit))].join('/')}; pico ${Math.max(0, ...restoring.map((r) => r.peak)) / 1048576} MB; ${died.length} murieron por memoria o tiempo`);
+  check(restoring.length > 0 && restoring.every((r) => r.limit === RESTORE_MEMORY), `las peticiones de las restauraciones corrieron con memory_limit=${RESTORE_MEMORY}`, JSON.stringify(restoring.filter((r) => r.limit !== RESTORE_MEMORY).slice(0, 3)));
   const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').trim() : '';
   check(!fatals, 'ninguna petición terminó en la página de error crítico de WordPress', fatals.slice(0, 1500));
   check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));

@@ -12,6 +12,9 @@
 #   PORT            primer puerto (por defecto 9561)
 #   TICK_BUDGET     segundos de trabajo de cada tick (por defecto 5; en el hosting, 15): en un sitio pequeño, con 15 s un
 #                   respaldo entero cabe en un tick y el panel no tendría avance intermedio que enseñar
+#   RESTORE_MEMORY  límite de las peticiones mientras dura cada restauración (por defecto 128M): en php-wasm, con 64M,
+#                   la lectura de 1 MiB de la verificación y de la copia previa agota la memoria con 1.0.77 (también main;
+#                   MODES=start lo mide con 64M). La primera petición de la primera restauración va siempre con 64M
 #   BACKUP_MEMORY   límite de las peticiones de «Respaldar ahora» (por defecto 128M, como el respaldo de referencia de
 #                   backups-restore-parts.sh: en php-wasm el empaquetado va al límite de 64 MB también con main; las
 #                   restauraciones, su copia previa incluida, corren siempre con 64 MB)
