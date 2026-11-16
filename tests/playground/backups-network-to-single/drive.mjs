@@ -92,17 +92,19 @@ async function shot(name, { width = 1280 } = {}) {
   if (width !== 1280) await page.setViewport({ width: 1280, height: 900 });
   log(`captura · ${name}.png`);
 }
+// Dentro del escritorio por la ruta (no por un `redirect_to=…wp-admin…` de wp-login.php).
+const inAdmin = () => { try { return new URL(page.url()).pathname.includes('/wp-admin/'); } catch { return false; } };
 async function login() {
   // Con la sesión de antes (quien restaura la conserva), ya está dentro.
   await page.goto(`${base}${screen}`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
-  for (let attempt = 0; attempt < 2 && !/wp-admin/.test(page.url()); attempt++) {
+  for (let attempt = 0; attempt < 2 && !inAdmin(); attempt++) {
     await page.goto(`${base}/wp-login.php`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
     if (!(await page.$('#user_login'))) continue;
     await page.type('#user_login', 'admin');
     await page.type('#user_pass', 'password');
     await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
   }
-  return check(/wp-admin/.test(page.url()), 'inicio de sesión de admin en el destino', page.url());
+  return check(inAdmin(), 'inicio de sesión de admin en el destino', page.url());
 }
 async function go(path) {
   const res = await page.goto(base + path, { waitUntil: 'load' });
@@ -237,7 +239,7 @@ let home = await front('tema-dos', ['red-plugin', 'plugin-dos'], 'portada-2.png'
 check(home.ok && home.mediaOk, 'la portada carga sin errores con su tema y sus plugins, y su medio se sirve desde uploads/ con los bytes de la red', JSON.stringify(home));
 await page.goto(base + '/', { waitUntil: 'load' });
 await shot('sitio-2-portada');
-check(/wp-admin/.test((await page.goto(base + screen, { waitUntil: 'load' }), page.url())), 'quien restauró sigue dentro del escritorio', page.url());
+check((await page.goto(base + screen, { waitUntil: 'load' }), inAdmin()), 'quien restauró sigue dentro del escritorio', page.url());
 
 // 4. El sitio principal.
 const one = inventory['1'];
