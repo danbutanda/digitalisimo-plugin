@@ -39,12 +39,14 @@ try {
 	// Un plugin y un tema que la red no tiene, activos en el origen.
 	wp_mkdir_p( WP_PLUGIN_DIR . '/plugin-origen' );
 	file_put_contents( WP_PLUGIN_DIR . '/plugin-origen/plugin-origen.php', "<?php\n/*\nPlugin Name: Plugin del origen\nVersion: 1.0\n*/\nadd_action( 'wp_footer', function() { echo '<!-- plugin-origen activo -->'; } );\n" );
+	wp_clean_plugins_cache( false );
 	$activated = activate_plugin( 'plugin-origen/plugin-origen.php' );
 	if ( is_wp_error( $activated ) ) throw new RuntimeException( 'No se activó el plugin del origen: ' . $activated->get_error_message() );
 	$theme = get_theme_root() . '/tema-origen';
 	wp_mkdir_p( $theme );
 	file_put_contents( $theme . '/style.css', "/*\nTheme Name: Tema del origen\nVersion: 1.0\n*/\n" );
 	file_put_contents( $theme . '/index.php', "<!doctype html><html><head><?php wp_head(); ?></head><body><!-- tema-origen --><?php while ( have_posts() ) { the_post(); echo '<h2>'; the_title(); echo '</h2>'; the_content(); } wp_footer(); ?></body></html>\n" );
+	if ( function_exists( 'wp_clean_themes_cache' ) ) wp_clean_themes_cache( false );
 	switch_theme( 'tema-origen' );
 	// El respaldo completo, con el motor de trabajos (como «Respaldar ahora»).
 	$queued = Digitalisimo_Backups_Jobs::enqueue( Digitalisimo_Backups_Jobs::spec( array( 'policy' => 'manual', 'destination' => 'local', 'retention' => 'none', 'via' => 'test' ) ) );

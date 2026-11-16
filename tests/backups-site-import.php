@@ -305,7 +305,7 @@ si_case( 'e · usuarios (reemplazo): misma cuenta, por correo, otra persona con 
 	si_check( $users === count( $db->rows( 'wp_users' ) ), 'Repetir la fusión duplica usuarios.' );
 	// Deshacer lo añadido (la vuelta de un reemplazo): los creados salen con sus metas; nadie de la red.
 	$undo = $I::undo_additions( $journal['created'], array(), ABSPATH );
-	si_check( 2 === $undo['users'] && null === si_user( $db, 'nuevo' ) && null === si_user( $db, 'carla-2' ) && null !== si_user( $db, 'carla' ) && ! $db->rows( 'wp_usermeta', 'user_id = ' . (int) $map[4] ), 'Deshacer no quita (sólo) a los creados.' );
+	si_check( 3 === $undo['users'] && null === si_user( $db, 'nuevo' ) && null === si_user( $db, 'carla-2' ) && null === si_user( $db, 'autora' ) && null !== si_user( $db, 'carla' ) && null !== si_user( $db, 'ana' ) && ! $db->rows( 'wp_usermeta', 'user_id = ' . (int) $map[4] ), 'Deshacer no quita (sólo) a los creados: ' . json_encode( $undo ) );
 } );
 
 si_case( 'e · usuarios: una muerte entre el INSERT y su anotación no crea dos veces; sitio nuevo; vuelta exacta a la copia', function() use ( $I ) {
@@ -476,6 +476,46 @@ si_case( 'j · falla inyectada justo después de fundir los usuarios: deshacer d
 	file_put_contents( Digitalisimo_Backups_Job_Store::staging( $id ) . '/users.json', json_encode( $journal ) );
 	$job = array( 'id' => $id, 'phase' => 'switch', 'checkpoint' => array(), 'spec' => array( 'into' => array( 'mode' => 'replace', 'site_id' => 2 ) ) );
 	si_check( true === Digitalisimo_Backups::restore_changed( $job ), 'Con los usuarios ya fundidos, el motor cree que no cambió nada.' );
+} );
+
+/* ------------------------------------------------------------------ k · por partes, migración e incrementales */
+
+si_case( 'k · por partes (sólo base, medios, plugins y temas), la migración con clave de individual a red y el punto incremental', function() use ( $I ) {
+	si_network();
+	$path = $GLOBALS['bk_root'] . '-partes.zip';
+	$zip = new ZipArchive();
+	$zip->open( $path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+	foreach ( array( 'database.sql' => 'SELECT 1;', 'manifest.json' => json_encode( array( 'format' => 'digitalisimo-backup/v3', 'scope' => 'installation', 'type' => 'full', 'multisite' => false, 'home_url' => 'https://tienda.com', 'table_prefix' => 'wp_' ) ), 'wordpress/wp-admin/index.php' => '<?php', 'wordpress/wp-content/uploads/a.jpg' => 'jpg', 'wordpress/wp-content/plugins/x/x.php' => '<?php', 'wordpress/wp-content/themes/t/style.css' => '/* */' ) as $name => $body ) $zip->addFromString( $name, $body );
+	$zip->close();
+	$zip->open( $path );
+	$new = array( 'mode' => 'new' );
+	$replace = array( 'mode' => 'replace', 'site_id' => 2 );
+	$parts = function( array $list ) { return Digitalisimo_Backups_Restore_Parts::normalize( array( 'parts' => $list ) ); };
+	try {
+		$ok = function( $selection, $into ) use ( $zip ) { try { bk_call( 'Digitalisimo_Backups', 'restore_precheck', $zip, $selection, $into ); return ''; } catch ( Exception $e ) { return $e->getMessage(); } };
+		si_check( '' === $ok( null, $new ) && '' === $ok( $parts( array( 'database', 'uploads' ) ), $new ) && '' === $ok( $parts( array( 'uploads', 'plugins' ) ), $replace ), 'Una selección válida de la importación se rechazó.' );
+		si_check( false !== strpos( $ok( $parts( array( 'core' ) ), $replace ), 'núcleo' ) && false !== strpos( $ok( $parts( array( 'database', 'mu-plugins' ) ), $new ), 'núcleo' ), 'Se aceptó mezclar en la red el núcleo o los mu-plugins del respaldo.' );
+		si_check( false !== strpos( $ok( $parts( array( 'uploads' ) ), $new ), 'base de datos' ), 'Un sitio nuevo se aceptó sin su base de datos.' );
+		si_check( false !== strpos( $ok( null, null ), 'into=new' ), 'Sin destino, la restauración de un individual en una red no pide elegirlo.' );
+	} finally {
+		$zip->close();
+		@unlink( $path );
+	}
+	// La migración con clave: de un individual a una red ya no se rechaza (se importa); sin pedirlo, se dice qué elegir.
+	$hello = array( 'version' => 1, 'instance' => '0123456789abcdef', 'ready' => true, 'multisite' => false, 'home' => 'https://tienda.com' );
+	si_check( true === Digitalisimo_Backups_Migrate::compatible( $hello ), 'La migración con clave de un individual a una red se rechaza.' );
+	$refused = '';
+	try { Digitalisimo_Backups_Migrate::compatible( $hello, false ); } catch ( Exception $e ) { $refused = $e->getMessage(); }
+	si_check( false !== strpos( $refused, 'sitio nuevo' ), 'Sin importar, la migración no dice qué elegir: ' . $refused );
+	$migrate = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups-migrate.php' );
+	si_check( false !== strpos( $migrate, "\$spec['into'] = \$into;" ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups.php' ), "'into' => \$into, 'safety_extra'" ), 'La migración no lleva el destino a su restauración.' );
+	// El punto incremental de un individual: su destino viaja a la restauración que encola la reconstrucción.
+	$service = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/trait-backups-service.php' );
+	$core = (string) file_get_contents( __DIR__ . '/../digitalisimo-backups/includes/class-backups.php' );
+	si_check( false !== strpos( $service, "'into' => is_array( \$args['into_spec'] ?? null )" ) && false !== strpos( $core, "'into' => is_array( \$restore['into'] ?? null ) ? \$restore['into'] : null" ), 'El punto incremental no lleva su destino a la restauración.' );
+	$into = bk_call( 'Digitalisimo_Backups', 'service_import_into', array( 'into' => 'new', 'address' => 'puntos' ), array( 'scope' => 'installation', 'multisite' => false, 'home_url' => 'https://tienda.com' ) );
+	si_check( is_array( $into ) && '/puntos/' === $into['path'], 'El destino de un punto de un individual no se calcula: ' . json_encode( $into ) );
+	si_check( null === bk_call( 'Digitalisimo_Backups', 'service_import_into', array(), array( 'scope' => 'installation', 'multisite' => true ) ), 'El respaldo de una red se trató como importación.' );
 } );
 
 bk_cleanup();

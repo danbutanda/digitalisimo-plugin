@@ -95,10 +95,10 @@ final class Digitalisimo_Backups_Site_Import {
 	}
 	// Un sitio de la red que se puede reemplazar: existe, es de la red principal y no es el sitio principal.
 	public static function existing_target( $site_id ) {
+		if ( (int) $site_id === (int) get_main_site_id() ) return new WP_Error( 'digitalisimo_backups_into_main', 'El sitio principal de la red no se reemplaza con el respaldo de un sitio: sus tablas y sus medios son los de la red. Impórtalo como sitio nuevo o elige otro sitio.', array( 'status' => 400 ) );
 		$site = self::site_row( $site_id );
 		if ( ! $site ) return new WP_Error( 'digitalisimo_backups_into_site', 'El sitio ' . (int) $site_id . ' no existe en esta red.', array( 'status' => 404 ) );
 		if ( function_exists( 'get_main_network_id' ) && (int) $site->site_id !== (int) get_main_network_id() ) return new WP_Error( 'digitalisimo_backups_into_site', 'El sitio ' . (int) $site_id . ' es de otra red de esta instalación.', array( 'status' => 400 ) );
-		if ( (int) $site_id === (int) get_main_site_id() ) return new WP_Error( 'digitalisimo_backups_into_main', 'El sitio principal de la red no se reemplaza con el respaldo de un sitio: sus tablas y sus medios son los de la red. Impórtalo como sitio nuevo o elige otro sitio.', array( 'status' => 400 ) );
 		$domain = strtolower( (string) $site->domain );
 		$path = self::slash( (string) $site->path );
 		return array( 'mode' => 'replace', 'site_id' => (int) $site_id, 'domain' => $domain, 'path' => $path, 'url' => self::site_url( $domain, $path, (int) $site_id ), 'label' => rtrim( $domain . $path, '/' ) );

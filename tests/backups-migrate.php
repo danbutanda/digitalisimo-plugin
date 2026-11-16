@@ -391,7 +391,9 @@ mig_case( 'h · deshacer la migración', function() use ( $NS, $destination_befo
 mig_case( 'i · tipos de sitio incompatibles y HTTP sin laboratorio, antes de descargar', function() use ( &$all_needles, $NS ) {
 	$cases = array(
 		array( true, false, false, 'no declara una red', 'MULTISITE' ),
-		array( false, true, false, 'sitio individual a sitio individual o de red a red', '' ),
+		// Un individual en una red se importa como un sitio de la red (backups-site-import.php): el destino que no vale
+		// (el sitio principal) se rechaza igual, antes de descargar nada.
+		array( false, true, false, 'sitio principal', '' ),
 		array( true, true, true, 'mismo tipo', 'SUBDOMAIN_INSTALL' ),
 	);
 	foreach ( $cases as $case ) {
@@ -405,7 +407,7 @@ mig_case( 'i · tipos de sitio incompatibles y HTTP sin laboratorio, antes de de
 		$GLOBALS['mig']['sites']['destino']['multisite'] = $destination_network;
 		$before = count( $GLOBALS['mig']['requests'] );
 		mig_use( 'destino' );
-		$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR', 'network' => $destination_network ) );
+		$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR', 'network' => $destination_network ) + ( ! $origin_network && $destination_network ? array( 'into' => '1' ) : array() ) );
 		$routes = array_column( array_slice( $GLOBALS['mig']['requests'], $before ), 'route' );
 		mig_assert( 422 === $reply[0] && false !== strpos( $reply[1]['message'], $expected ) && ( '' === $config || false !== strpos( $reply[1]['message'], $config ) ), 'La incompatibilidad no se explicó: ' . json_encode( $reply ) );
 		mig_assert( array( '/digitalisimo-backups/v1/migrate/source/hello' ) === $routes && ! array_filter( Digitalisimo_Backups_Jobs::active(), function( $job ) { return 'migrate' === ( $job['spec']['kind'] ?? '' ); } ), 'Se pidió o se encoló algo más que la presentación: ' . json_encode( $routes ) );
