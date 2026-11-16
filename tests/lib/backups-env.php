@@ -203,7 +203,8 @@ function check_admin_referer( $action ) { $GLOBALS['bk_nonces'][] = $action; if 
 function current_user_can( $cap ) { return ! empty( $GLOBALS['bk_caps'][ $cap ] ); }
 function wp_get_referer() { return ''; }
 function size_format( $bytes ) { return number_format( $bytes / 1048576, 1 ) . ' MB'; }
-function add_action() { return true; }
+/** Anota cada add_action() (gancho y función) para las pruebas que comprueban un registro. */
+function add_action( $hook = '', $callback = null ) { $GLOBALS['bk_actions'][] = array( $hook, $callback ); return true; }
 /** Un filtro de la prueba es un valor fijo o una función (que recibe el valor y los argumentos de apply_filters). */
 function apply_filters( $hook, $value, ...$args ) {
 	if ( ! array_key_exists( $hook, $GLOBALS['bk_filters'] ) ) return $value;

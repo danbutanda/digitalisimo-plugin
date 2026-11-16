@@ -10,8 +10,10 @@ defined( 'ABSPATH' ) || exit;
  *  - los ticks de la restauración: `wp-cron.php` (el cron del sistema o el loopback, sin testigo: sólo corre el evento
  *    de la restauración, ver Digitalisimo_Backups_Jobs::restore_cron_jobs()) y el tick por testigo de la pantalla
  *    (`admin-ajax.php?action=digitalisimo_backups_restore_tick`);
- *  - quien trae el testigo de la restauración (cookie `digitalisimo_backups_restore`, que recibe el navegador que la
- *    empezó, o el parámetro del mismo nombre: un cliente de REST); en el archivo sólo va su SHA-256;
+ *  - quien trae el testigo de la restauración (cookie `digitalisimo_backups_restore`, que recibe sólo el navegador que
+ *    la empezó, o el parámetro del mismo nombre: un cliente de REST), y sólo a la pantalla de Backups y sus llamadas
+ *    (AJAX y admin-post de Backups, su REST): nunca el resto del escritorio ni el sitio (revisión N1); en el archivo sólo
+ *    va su SHA-256;
  *  - WP-CLI (la vía para terminar o recuperar a mano);
  *  - la lectura del estado de ese trabajo con su ficha de lectura (cabecera X-Digitalisimo-Backups-Job-Token, sólo
  *    `GET /wp-json/digitalisimo-backups/v1/jobs/<id>`; en el archivo sólo va su SHA-256): carga WordPress mínimo y el
@@ -112,6 +114,9 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		$script = isset( $_SERVER['SCRIPT_FILENAME'] ) ? basename( (string) $_SERVER['SCRIPT_FILENAME'] ) : '';
 		$cron = 'wp-cron.php' === $script;
 		$tick = 'admin-ajax.php' === $script && 'digitalisimo_backups_restore_tick' === $read( $_REQUEST, 'action' );
+		// Con el testigo, sólo la pantalla de Backups y sus llamadas: el resto del escritorio o del sitio guardaría en la base
+		// de datos que el cambio de tablas va a reemplazar, o se serviría a medio cambiar (revisión N1).
+		$known = $known && digitalisimo_backups_restore_screen( $script, isset( $config['home_path'] ) ? (string) $config['home_path'] : '' );
 		$cli = defined( 'WP_CLI' ) && WP_CLI;
 		$ours = $cli && ! empty( $GLOBALS['argv'] ) && is_array( $GLOBALS['argv'] ) && in_array( 'digitalisimo-backups', $GLOBALS['argv'], true );
 		if ( $cron || ( $known && ( $tick || $config['until_done'] ) ) || ( $ours && $config['until_done'] ) ) digitalisimo_backups_restore_minimal( (string) $config['plugin'] );
@@ -125,10 +130,29 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 			return true;
 		}
 		digitalisimo_backups_restore_kick( (string) $config['cron'], (int) $config['every'] );
+		// La página de mantenimiento (503) de una restauración de Backups lo dice en una cabecera propia: la pantalla sólo
+		// atribuye a una restauración el 503 que la trae (revisión N2).
+		$GLOBALS['digitalisimo_backups_restore_blocked'] = true;
+		if ( ! headers_sent() ) header( 'X-Digitalisimo-Backups-Restore: maintenance' );
 		return false;
+	}
+	// La pantalla de Backups (admin.php?page=… del escritorio o de la red) y sus llamadas: admin-ajax.php y admin-post.php
+	// con una acción de Backups y su REST.
+	function digitalisimo_backups_restore_screen( $script, $home ) {
+		$path = isset( $_SERVER['SCRIPT_FILENAME'] ) ? realpath( dirname( (string) $_SERVER['SCRIPT_FILENAME'] ) ) : false;
+		$admin = realpath( rtrim( ABSPATH, '/\\' ) . '/wp-admin' );
+		$in_admin = false !== $path && false !== $admin && ( $path === $admin || ( dirname( $path ) === $admin && in_array( basename( $path ), array( 'network', 'user' ), true ) ) );
+		$value = function( $source, $key ) { return isset( $source[ $key ] ) && is_string( $source[ $key ] ) ? $source[ $key ] : ''; };
+		if ( 'admin-ajax.php' === $script || 'admin-post.php' === $script ) return $in_admin && 0 === strpos( $value( $_REQUEST, 'action' ), 'digitalisimo_backups_' );
+		if ( 'admin.php' === $script ) return $in_admin && in_array( $value( $_GET, 'page' ), array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true );
+		return digitalisimo_backups_restore_rest( $home, '/digitalisimo-backups/v1(?:/.*)?' );
 	}
 	function digitalisimo_backups_restore_reading( $home ) {
 		if ( 'GET' !== ( isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) : '' ) ) return false;
+		return digitalisimo_backups_restore_rest( $home, '/digitalisimo-backups/v1/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?' );
+	}
+	// Una ruta REST ($route, expresión regular) por el index.php de WordPress.
+	function digitalisimo_backups_restore_rest( $home, $route ) {
 		// Sólo el index.php de WordPress (el de su carpeta o, con WordPress en su propio directorio, el de una carpeta por
 		// encima), sin PATH_INFO: ni wp-login.php/…, ni admin-ajax.php, ni wp-admin/index.php/… (revisión B2).
 		$script = isset( $_SERVER['SCRIPT_FILENAME'] ) ? str_replace( '\\', '/', (string) $_SERVER['SCRIPT_FILENAME'] ) : '';
@@ -139,7 +163,6 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		$dir = rtrim( str_replace( '\\', '/', $dir ), '/' ) . '/';
 		$root = rtrim( str_replace( '\\', '/', $root ), '/' ) . '/';
 		if ( 0 !== strpos( $root, $dir ) || false !== strpos( substr( $root, strlen( $dir ) ), 'wp-admin/' ) ) return false;
-		$route = '/digitalisimo-backups/v1/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?';
 		$path = (string) parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH );
 		$home = rtrim( (string) $home, '/' );
 		// rest_route de la cadena de consulta manda sobre la ruta de /wp-json/ (WP::parse_request): si está, es la que
@@ -200,17 +223,20 @@ PHP;
 		}
 		return false;
 	}
-	// Lo último que esta petición mandó en la cookie (el testigo, '' si la borró, null si nada): lo comprueban las pruebas.
+	// Lo último que esta petición mandó en la cookie (el testigo, '' si la borró, null si nada) y hasta cuándo vale: lo
+	// comprueban las pruebas.
 	public static $sent = null;
-	// Horas que dura la cookie: cada tick de la pantalla durante la restauración la renueva; al terminar se borra.
-	const COOKIE_TTL = 43200;
+	public static $sent_until = null;
+	// Lo que dura la cookie (48 horas, docs/BACKUPS.md): cada tick de esa restauración la renueva; al terminar se borra.
+	const COOKIE_TTL = 172800;
 	/** Cookie para el navegador que empezó la restauración: con ella ve la pantalla y la hace avanzar durante el mantenimiento. */
 	public static function send_cookie( $token, $expires = null ) {
 		self::$sent = '' === (string) $token ? '' : (string) $token;
+		$expires = null === $expires ? time() + self::COOKIE_TTL : (int) $expires;
+		self::$sent_until = $expires;
 		if ( headers_sent() || ! function_exists( 'setcookie' ) ) return false;
 		$secure = function_exists( 'is_ssl' ) && is_ssl();
 		$path = defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/';
-		$expires = null === $expires ? time() + self::COOKIE_TTL : (int) $expires;
 		if ( PHP_VERSION_ID >= 70300 ) return setcookie( self::COOKIE, (string) $token, array( 'expires' => $expires, 'path' => $path, 'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax' ) );
 		return setcookie( self::COOKIE, (string) $token, $expires, $path . '; samesite=Lax', '', $secure, true );
 	}
