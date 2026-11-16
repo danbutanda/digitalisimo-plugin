@@ -140,6 +140,7 @@ final class Digitalisimo_Backups_Site_Import {
 		$out = array();
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT blog_id, domain, path FROM ' . Digitalisimo_Backups_Relocate::quote_name( $wpdb->base_prefix . 'blogs' ) . ' WHERE site_id = %d AND deleted = 0 ORDER BY blog_id LIMIT %d', function_exists( 'get_main_network_id' ) ? (int) get_main_network_id() : 1, (int) $limit ), ARRAY_A );
 		foreach ( $rows as $site ) {
+			if ( ! is_array( $site ) || ! isset( $site['blog_id'], $site['domain'], $site['path'] ) ) continue;
 			$id = (int) $site['blog_id'];
 			if ( $id <= 0 || $id === (int) get_main_site_id() ) continue;
 			$out[ $id ] = rtrim( strtolower( (string) $site['domain'] ) . self::slash( (string) $site['path'] ), '/' );
@@ -152,7 +153,7 @@ final class Digitalisimo_Backups_Site_Import {
 		$site_id = (int) $site_id;
 		if ( $site_id <= 0 ) return null;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT blog_id, site_id, domain, path FROM ' . Digitalisimo_Backups_Relocate::quote_name( $wpdb->base_prefix . 'blogs' ) . ' WHERE blog_id = %d', $site_id ), ARRAY_A );
-		return is_array( $row ) && $row ? (object) $row : null;
+		return is_array( $row ) && isset( $row['blog_id'], $row['domain'] ) && (int) $row['blog_id'] === $site_id ? (object) ( $row + array( 'site_id' => 1, 'path' => '/' ) ) : null;
 	}
 	private static function slug( $text ) {
 		$text = strtolower( trim( (string) $text ) );
@@ -449,6 +450,7 @@ final class Digitalisimo_Backups_Site_Import {
 			if ( ! $olds ) { $journal['step'] = 'others'; $save( $journal ); break; }
 			foreach ( $olds as $old ) {
 				$new = (int) $journal['map'][ $old ];
+				$journal['meta_cursor'] = $old;
 				if ( $new <= 0 ) continue;
 				$created = in_array( $new, (array) $journal['created'], true );
 				$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT meta_key, meta_value FROM ' . call_user_func( $q, $a['usermeta'] ) . ' WHERE user_id = %d ORDER BY umeta_id', $old ), ARRAY_A );
