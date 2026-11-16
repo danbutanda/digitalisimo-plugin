@@ -33,6 +33,10 @@ defined( 'ABSPATH' ) || exit;
  * termina, porque un sitio a medio cambiar no debe servirse. No es un `.htaccess`: no hace recargar el servidor web (H6).
  * Usa la misma marca que el modo de mantenimiento de la restauración en una sola petición, así que cualquiera de los dos
  * reconoce el del otro.
+ *
+ * Sólo un sitio de la red (`$site`, al importar un sitio en una red: Digitalisimo_Backups_Site_Import): la puerta sólo
+ * actúa en las peticiones a ese sitio (su dominio y, en una red por subdirectorios, su ruta); el resto de la red se sirve
+ * con normalidad y su WP-Cron no se limita, porque sus tablas y archivos no cambian.
  */
 final class Digitalisimo_Backups_Restore_Maintenance {
 	const MARKER = 'DIGITALISIMO_BACKUPS_RESTORE';
@@ -62,10 +66,10 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	 * Escribe o renueva el mantenimiento. Un `.maintenance` ajeno (de una actualización en curso) o que es un enlace
 	 * simbólico nunca se toca: la restauración sigue sin modo de mantenimiento y lo dice su registro. Devuelve si quedó activo.
 	 */
-	public static function hold( $token, $until_done, $job_id = '', array $readers = array() ) {
+	public static function hold( $token, $until_done, $job_id = '', array $readers = array(), array $site = array() ) {
 		$path = self::path();
 		if ( is_link( $path ) || ( is_file( $path ) && ! self::ours( $path ) ) ) return false;
-		$content = self::content( (string) $token, (bool) $until_done, (string) $job_id, $readers );
+		$content = self::content( (string) $token, (bool) $until_done, (string) $job_id, $readers, $site );
 		$temp = $path . '.tmp-' . bin2hex( random_bytes( 4 ) );
 		if ( strlen( $content ) === @file_put_contents( $temp, $content ) && @rename( $temp, $path ) ) return true;
 		@unlink( $temp );
@@ -77,9 +81,12 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	 * datos y los plugins, donde ya existe add_filter(). Sin rutas ni secretos: el testigo va como SHA-256 y la dirección
 	 * de WP-Cron es pública. Puede incluirse más de una vez en la misma petición.
 	 */
-	private static function content( $token, $until_done, $job_id, array $readers = array() ) {
+	private static function content( $token, $until_done, $job_id, array $readers = array(), array $site = array() ) {
 		$cron = function_exists( 'site_url' ) ? (string) site_url( 'wp-cron.php' ) : '';
+		$host = strtolower( (string) ( $site['domain'] ?? '' ) );
 		$config = array(
+			// Sólo este sitio de la red (dominio y ruta); vacío: toda la instalación.
+			'site' => '' !== $host ? array( 'host' => $host, 'path' => '/' . trim( (string) ( $site['path'] ?? '/' ), '/' ) ) : array(),
 			'hash' => hash( 'sha256', $token ),
 			// Las fichas de lectura del trabajo (sólo sus SHA-256): dejan pasar la consulta de su estado, nada más.
 			'readers' => array_values( array_filter( array_map( 'strval', $readers ), function( $hash ) { return (bool) preg_match( '/^[0-9a-f]{64}$/D', $hash ); } ) ),
@@ -108,6 +115,8 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 	function digitalisimo_backups_restore_gate( $config, $upgrading ) {
 		// Caducado (antes del cambio, sin ticks en 10 minutos): WordPress ya no está en mantenimiento y nada cambia.
 		if ( empty( $config['until_done'] ) && time() - (int) $upgrading >= 600 ) return false;
+		// Sólo un sitio de la red cambia: lo demás (otros sitios, la administración de la red, WP-CLI, WP-Cron) pasa como siempre.
+		if ( ! empty( $config['site'] ) && ! digitalisimo_backups_restore_targets( (array) $config['site'] ) ) return true;
 		$read = function( $source, $key ) { return isset( $source[ $key ] ) && is_string( $source[ $key ] ) ? $source[ $key ] : ''; };
 		$token = $read( $_COOKIE, 'digitalisimo_backups_restore' );
 		if ( '' === $token ) $token = $read( $_GET, 'digitalisimo_backups_restore' );
@@ -191,6 +200,19 @@ final class Digitalisimo_Backups_Restore_Maintenance {
 		// Un hosting que necesita sus mu-plugins para cargar WordPress (o un ensayo) lo dice en wp-config.php.
 		if ( ! defined( 'WPMU_PLUGIN_DIR' ) && ! ( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS' ) && DIGITALISIMO_BACKUPS_RESTORE_MU_PLUGINS ) ) define( 'WPMU_PLUGIN_DIR', $none );
 	}
+	// La petición es al sitio que cambia: su dominio (sin el puerto si el sitio no lo lleva) y, si el sitio tiene ruta, la
+	// ruta de la petición empieza por ella.
+	function digitalisimo_backups_restore_targets( $site ) {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) return false;
+		$host = strtolower( isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '' );
+		$want = strtolower( (string) $site['host'] );
+		if ( false === strpos( $want, ':' ) ) $host = preg_replace( '/:[0-9]+$/', '', $host );
+		if ( $host !== $want ) return false;
+		$base = rtrim( (string) $site['path'], '/' );
+		if ( '' === $base ) return true;
+		$path = (string) parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/', PHP_URL_PATH );
+		return $path === $base || 0 === strpos( $path, $base . '/' );
+	}
 	function digitalisimo_backups_restore_kick( $url, $every ) {
 		$self = rtrim( ABSPATH, '/\\' ) . '/.maintenance';
 		$last = @filemtime( $self );
@@ -236,6 +258,11 @@ PHP;
 		$path = self::path();
 		if ( ! is_string( $token ) || '' === $token || ! self::ours( $path ) ) return false;
 		return false !== strpos( (string) @file_get_contents( $path, false, null, 0, 65536 ), "'hash' => '" . hash( 'sha256', $token ) . "'" );
+	}
+	/** El mantenimiento es sólo de un sitio de la red (la importación de un sitio): el resto de la red sigue igual. */
+	public static function site_only( $path = null ) {
+		$path = null === $path ? self::path() : $path;
+		return self::ours( $path ) && (bool) preg_match( "/'site' =>\s*array \(\s*'host' =>/", (string) @file_get_contents( $path, false, null, 0, 65536 ) );
 	}
 	/** Retira el mantenimiento si es de una restauración (nunca el de una actualización de WordPress). */
 	public static function release() {

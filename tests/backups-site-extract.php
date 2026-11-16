@@ -345,13 +345,14 @@ try {
 	// La URL que da WordPress al trabajo (que corre en el principal) es la del principal; la del propio sitio va como alias.
 	digi_assert( array( 'https://red.test/sub2/wp-content/uploads/sites/2' ) === $report['uploads']['aliases'] && 'https://red.test/wp-content/uploads/sites/2' === $report['uploads']['baseurl'], 'El informe no lleva las dos URL de los medios del sitio: ' . json_encode( $report['uploads'] ) );
 	$summary = $S::service_verify( $done['file'] );
-	digi_assert( ! is_wp_error( $summary ) && 'extracted-site' === $summary['scope'] && false === $summary['compatible'] && 'red.test/sub2' === $summary['extract']['site'] && 2 === $summary['extract']['blocked_users'] && array( 'mu.php' ) === $summary['extract']['mu_plugins'], 'verify no describe el sitio extraído: ' . json_encode( is_wp_error( $summary ) ? $summary->get_error_message() : $summary ) );
-	digi_assert( false !== strpos( implode( ' ', $summary['problems'] ), 'WordPress individual' ), 'verify no dice que se restaura en un WordPress individual.' );
+	// En una red, un sitio extraído se importa como un sitio de la red (backups-site-import.php): verify dice cómo.
+	digi_assert( ! is_wp_error( $summary ) && 'extracted-site' === $summary['scope'] && true === $summary['compatible'] && 'new' === ( $summary['import']['mode'] ?? '' ) && 'red.test/sub2' === $summary['extract']['site'] && 2 === $summary['extract']['blocked_users'] && array( 'mu.php' ) === $summary['extract']['mu_plugins'], 'verify no describe el sitio extraído: ' . json_encode( is_wp_error( $summary ) ? $summary->get_error_message() : $summary ) );
+	digi_assert( false !== strpos( (string) $summary['import']['text'], 'sitio nuevo de la red' ), 'verify no dice que se importa como un sitio de la red.' );
 
-	// En la red no se restaura (antes de tocar nada).
+	// En la red nunca reemplaza el sitio principal (se rechaza antes de tocar nada).
 	$copies = count( glob( $store . '/safety-before-restore-*' ) ?: array() );
-	$rejected = $S::service_restore( $done['file'], array( 'confirm' => 'RESTAURAR', 'network' => true ) );
-	digi_assert( is_wp_error( $rejected ) && 422 === $rejected->get_error_data()['status'] && $copies === count( glob( $store . '/safety-before-restore-*' ) ?: array() ), 'La red aceptó restaurar un sitio extraído: ' . json_encode( is_wp_error( $rejected ) ? $rejected->get_error_message() : $rejected ) );
+	$rejected = $S::service_restore( $done['file'], array( 'confirm' => 'RESTAURAR', 'network' => true, 'into' => '1' ) );
+	digi_assert( is_wp_error( $rejected ) && 400 === $rejected->get_error_data()['status'] && $copies === count( glob( $store . '/safety-before-restore-*' ) ?: array() ), 'La red aceptó reemplazar su sitio principal con un sitio extraído: ' . json_encode( is_wp_error( $rejected ) ? $rejected->get_error_message() : $rejected ) );
 
 	/* ---- Superadministradores: «managing» sólo por el correo de administración; «all», todos ---- */
 	$managing = digi_extract( 2, array( 'super_admins' => 'managing' ) );

@@ -32,6 +32,12 @@ final class Digitalisimo_Backups_Restore_Job {
 	/** Fases en las que la restauración aún no cambió el sitio: se puede cancelar y una muerte no deja nada a medias. */
 	const BEFORE_SWITCH = array( 'inspect', 'safety', 'database', 'files' );
 
+	/** Al importar un sitio en una red (`into`), el cambio es «Importación en la red» (usuarios fundidos y tablas del sitio). */
+	const IMPORT_LABELS = array( 'safety' => 'Copia previa del sitio', 'switch' => 'Importación en la red' );
+	public static function label( $phase, array $job ) {
+		if ( ! empty( $job['spec']['into'] ) && isset( self::IMPORT_LABELS[ $phase ] ) ) return self::IMPORT_LABELS[ $phase ];
+		return self::LABELS[ $phase ] ?? null;
+	}
 	public static function run_phase( $phase, array $job ) { return Digitalisimo_Backups::restore_phase( $phase, $job ); }
 	public static function on_terminal( array $job, $status, $message ) { return Digitalisimo_Backups::restore_on_terminal( $job, $status, $message ); }
 	public static function discard( array $job, $phase ) {} // Cada fase empieza comprobando su punto de control.

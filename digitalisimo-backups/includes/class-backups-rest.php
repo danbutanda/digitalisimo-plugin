@@ -21,7 +21,9 @@ defined( 'ABSPATH' ) || exit;
  *                                           AGREGAR SIN FIRMA, `network`; `secret` en el cuerpo)
  * - GET  /destinations                       destinos remotos y su estado (sin secretos)
  * - POST /destinations/<id>/test             «Probar conexión» de una conexión guardada
- * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST)
+ * - GET|POST /backups/<archivo>/verify      integridad sin tocar el sitio (`secret` sólo en el cuerpo de un POST); en
+ *                                           una red, el respaldo de un sitio dice cómo se importaría (`into`, `address`,
+ *                                           y la respuesta `import`)
  * - POST /backups/<archivo>/restore         restauración (`confirm`, `network`, `secret`, `adopt_secret`, `addresses`,
  *                                           `keep_access`): la respuesta lleva `follow`, la ficha de lectura del trabajo
  *                                           Restaurar por partes (verify y restore): `parts`, `plugins`, `themes` y
@@ -123,7 +125,12 @@ final class Digitalisimo_Backups_Rest {
 			'themes' => array( 'default' => null, 'description' => 'Temas concretos del respaldo (nombre de su carpeta); sólo esos se reemplazan.' ),
 			'sites' => array( 'default' => null, 'description' => 'En una red: los medios de estos sitios (su número; 1 es el principal).' ),
 		);
-		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) + $parts ) ) );
+		// Importar un sitio en una red: el respaldo de un sitio entra como sitio nuevo (`into=new`, con `address`) o reemplaza uno.
+		$import = array(
+			'into' => array( 'type' => 'string', 'default' => '', 'description' => 'En una red, el respaldo de un WordPress individual (o un sitio extraído) se importa como un sitio de la red: new (sitio nuevo, por defecto) o el número del sitio que se reemplaza (nunca el principal).' ),
+			'address' => array( 'type' => 'string', 'default' => '', 'description' => 'Con into=new: la dirección del sitio nuevo (letras, números y guiones; la ruta en una red por subdirectorios o el subdominio en una por subdominios). Vacía: la sugerida desde el respaldo.' ),
+		);
+		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/verify', array( $route( 'GET, POST', 'verify', array( 'secret' => $secret, 'addresses' => $addresses ) + $import + $parts ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/restore', array(
 			$route( 'POST', 'restore', array(
 				'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'RESTAURAR, o RESTAURAR SIN FIRMA para un archivo sin firma válida ni registro: la restauración reemplaza la base de datos y los archivos.' ),
@@ -132,7 +139,7 @@ final class Digitalisimo_Backups_Rest {
 				'adopt_secret' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Usar la frase escrita para firmar y cifrar los respaldos nuevos.' ),
 				'addresses' => $addresses,
 				'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Si el respaldo es de otra instalación (otro sitio, un sitio extraído de una red), quien restaura conserva su usuario, su contraseña y sus contraseñas de aplicación. Con un respaldo de esta misma instalación vuelven las cuentas del respaldo. La ruta de acceso de este sitio se conserva siempre al restaurar en otro sitio, con o sin esta opción.' ),
-			) + $parts ),
+			) + $import + $parts ),
 		) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/fetch', array( $route( 'POST', 'fetch', array( 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/backups/' . self::FILE . '/register', array( $route( 'POST', 'register_backup', array( 'secret' => $secret, 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'AGREGAR SIN FIRMA: no se sabe quién puso el archivo en el almacén (AGREGAR basta si está firmado con una clave de este sitio).' ), 'network' => $network ) ) ) );
@@ -181,7 +188,7 @@ final class Digitalisimo_Backups_Rest {
 		register_rest_route( self::NAMESPACE_V1, '/migration', array( $route( 'GET', 'migration_status' ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys', array( $route( 'POST', 'migration_create_key', array( 'hours' => array( 'type' => 'integer', 'default' => Digitalisimo_Backups_Migrate::DEFAULT_HOURS, 'minimum' => 1, 'maximum' => Digitalisimo_Backups_Migrate::MAX_HOURS, 'description' => 'Horas hasta que caduca la clave.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/keys/(?P<key>[0-9a-f]{16})/revoke', array( $route( 'POST', 'migration_revoke_key' ) ) );
-		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network, 'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Quien migra conserva su usuario, su contraseña y sus contraseñas de aplicación.' ) ) ) ) );
+		register_rest_route( self::NAMESPACE_V1, '/migration/pull', array( $route( 'POST', 'migration_pull', array( 'key' => array( 'type' => 'string', 'default' => '', 'description' => 'Clave de migración del sitio de origen. Sólo en el cuerpo de la petición; nunca se devuelve.' ), 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'MIGRAR: la migración reemplaza este sitio (con una copia previa para deshacerla).' ), 'network' => $network, 'keep_access' => array( 'type' => 'boolean', 'default' => true, 'description' => 'Quien migra conserva su usuario, su contraseña y sus contraseñas de aplicación.' ) ) + $import ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/undo', array( $route( 'POST', 'migration_undo', array( 'confirm' => array( 'type' => 'string', 'required' => true, 'description' => 'DESHACER: el sitio vuelve al estado anterior a la última migración.' ), 'network' => $network ) ) ) );
 		register_rest_route( self::NAMESPACE_V1, '/migration/cleanup', array( $route( 'POST', 'migration_cleanup', array( 'dry_run' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Sólo decir qué tablas apartadas borraría.' ), 'network' => $network ) ) ) );
 		// Migración: API del sitio de origen, autorizada por la clave de migración.
@@ -271,14 +278,14 @@ final class Digitalisimo_Backups_Rest {
 	public static function verify( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
-		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret, 'addresses' => (string) $request['addresses'] ) + self::parts( $request ) ) );
+		return self::respond( Digitalisimo_Backups::service_verify( (string) $request['file'], array( 'secret' => $secret, 'addresses' => (string) $request['addresses'], 'into' => (string) $request['into'], 'address' => (string) $request['address'] ) + self::parts( $request ) ) );
 	}
 	public static function restore( $request ) {
 		$secret = self::secret( $request );
 		if ( is_wp_error( $secret ) ) return $secret;
 		// La restauración es un trabajo por pasos: esta petición avanza lo que cabe en su tiempo y responde 202 si sigue
 		// (con el trabajo y el testigo del mantenimiento); POST /jobs/tick, la pantalla o WP-Cron la terminan.
-		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
+		$result = Digitalisimo_Backups::service_restore( (string) $request['file'], array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'secret' => $secret, 'adopt' => (bool) $request['adopt_secret'], 'addresses' => (string) $request['addresses'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest', 'sync' => false, 'drive_cli' => false ) + self::parts( $request ) );
 		if ( is_array( $result ) && ! empty( $result['maintenance_token'] ) ) Digitalisimo_Backups_Restore_Maintenance::send_cookie( (string) $result['maintenance_token'] );
 		return self::respond( $result, is_array( $result ) && ! empty( $result['restoring'] ) ? 202 : 200 );
 	}
@@ -340,7 +347,7 @@ final class Digitalisimo_Backups_Rest {
 		$body = method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array();
 		if ( ! array_key_exists( 'key', $body ) && method_exists( $request, 'get_body_params' ) ) $body = (array) $request->get_body_params();
 		$key = is_string( $body['key'] ?? null ) ? $body['key'] : '';
-		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'via' => 'rest' ) ), 202 );
+		return self::respond( Digitalisimo_Backups::service_migrate( $key, array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'], 'keep_access' => null === $request['keep_access'] ? true : (bool) $request['keep_access'], 'into' => (string) $request['into'], 'address' => (string) $request['address'], 'via' => 'rest' ) ), 202 );
 	}
 	public static function migration_undo( $request ) {
 		$result = Digitalisimo_Backups::service_migration_undo( array( 'confirm' => (string) $request['confirm'], 'network' => (bool) $request['network'] ) );

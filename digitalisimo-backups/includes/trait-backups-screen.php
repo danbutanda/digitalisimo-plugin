@@ -390,7 +390,10 @@ trait Digitalisimo_Backups_Screen {
 		echo '<tr class="digitalisimo-backups-restore-row" id="' . esc_attr( $row_id ) . '"' . ( $shown ? '' : ' hidden' ) . '><td colspan="4"><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( self::ACTION_RESTORE );
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><input type="hidden" name="backup_file" value="' . esc_attr( $file ) . '">';
-		echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
+		// En una red, el respaldo de un sitio se importa como un sitio de la red (Digitalisimo_Backups_Site_Import).
+		$import = Digitalisimo_Backups_Site_Import::row_applies( $item );
+		if ( $import ) echo '<p><strong>Importar en la red el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '' . ( '' !== (string) ( $item['upload']['home'] ?? '' ) ? ' (' . esc_html( (string) $item['upload']['home'] ) . ')' : '' ) . '.</strong> Elige si entra como sitio nuevo o reemplazando uno; escribe RESTAURAR para confirmar.</p>' . Digitalisimo_Backups_Site_Import::field( Digitalisimo_Backups_Site_Import::suggest( (string) ( $item['upload']['home'] ?? '' ) ), $row_id . '-into' );
+		else echo '<p><strong>Restaurar el respaldo del ' . esc_html( self::short_date( $item['date'] ?? '' ) ) . '.</strong> Antes se guarda una copia del sitio actual; escribe RESTAURAR para confirmar.</p>';
 		// Uno subido sin firma con «sólo firmados»: se dice antes de escribir nada (la restauración lo rechazaría).
 		$signed_only = self::uploaded_signed_only_text( $item );
 		if ( '' !== $signed_only ) echo '<p class="digitalisimo-backups-warning">' . esc_html( $signed_only ) . '</p>';
@@ -402,8 +405,8 @@ trait Digitalisimo_Backups_Screen {
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';
 		if ( '' !== $hint['label'] ) echo self::help_html( $hint['text'] );
-		echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><label><input type="radio" name="addresses" value="current" checked> Las de este sitio</label> <label><input type="radio" name="addresses" value="backup"> Las del respaldo</label></fieldset>';
-		echo self::keep_access_field();
+		// Al importar en la red, las direcciones son las del sitio de la red y nadie de la red pierde su acceso.
+		if ( ! $import ) echo '<fieldset><legend>Direcciones del sitio después de restaurar</legend><label><input type="radio" name="addresses" value="current" checked> Las de este sitio</label> <label><input type="radio" name="addresses" value="backup"> Las del respaldo</label></fieldset>' . self::keep_access_field();
 		echo '<p><label>Frase o clave del respaldo <input type="password" name="backup_secret" value="" autocomplete="off"></label>' . ( $needs_key ? '<br><span class="description">Este respaldo está cifrado con una clave que este sitio no tiene.</span>' : '' ) . '</p><p><label><input type="checkbox" name="backup_secret_adopt" value="1"> Usar esta frase para los respaldos nuevos</label></p></details>';
 		echo '</form></td></tr>';
 	}

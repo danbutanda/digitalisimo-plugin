@@ -417,7 +417,8 @@ Digitalisimo_Backups::download();' );
 		digi_assert( 200 === $code && $file === $again['file'] && true === $again['listed'] && $row && 'uploaded' === $row['origin'] && hash( 'sha256', $crash_bytes ) === $row['sha256'] && 1 === count( array_filter( (array) get_option( $B::HISTORY ), function( $r ) use ( $file ) { return $r['file'] === $file; } ) ) && 'done' === $U::read( $session_id )['phase'] && ! isset( $U::read( $session_id )['placing'] ), 'Tras un corte (' . $when . '), cerrar otra vez no terminó la fila: ' . json_encode( array( $code, $again, $row ) ) );
 	}
 
-	// (i) Una red: lo subido queda en la lista de la red; uno de un sitio individual se lista pero no se restaura aquí.
+	// (i) Una red: lo subido queda en la lista de la red; uno de un sitio individual se lista y se importa como un sitio de
+	// la red (pedido del propietario del 2026-11-16: ya no dice «No se restaura aquí»; ver backups-site-import.php).
 	$single = $fresh()[1];
 	$GLOBALS['digi']['multisite'] = true;
 	$GLOBALS['digi']['caps'] = array( 'manage_network_options' => true );
@@ -432,11 +433,13 @@ Digitalisimo_Backups::download();' );
 	digi_assert( 200 === $code && true === $restored['restored'], 'En una red, el subido no se restauró con RESTAURAR: ' . json_encode( $restored ) );
 	list( $code, $single_up ) = $upload( 'digitalisimo-backup-individual.zip', $single );
 	$summary = $summary_of( $single_up['file'] );
-	digi_assert( 200 === $code && $summary && 'installation' === $row_of( $single_up['file'] )['scope'] && false === $summary['restorable'] && false === $summary['uploaded']['restorable_here'], 'En una red, el subido de un sitio individual se dio por restaurable: ' . json_encode( $summary ) );
+	digi_assert( 200 === $code, 'En una red, la subida del respaldo de un sitio individual falló: ' . json_encode( $single_up ) );
+	digi_assert( 200 === $code && $summary && 'installation' === $row_of( $single_up['file'] )['scope'] && true === $summary['restorable'] && true === $summary['uploaded']['restorable_here'], 'En una red, el subido de un sitio individual no se puede importar: ' . json_encode( $summary ) );
 	$html = $screen();
-	digi_assert( false !== strpos( $html, 'No se restaura aquí' ) && false !== strpos( $html, 'este WordPress es una red' ), 'La pantalla no dice por qué el subido de un sitio individual no se restaura en la red.' );
-	list( $code ) = $restore( $single_up['file'], 'RESTAURAR', array( 'network' => true ) );
-	digi_assert( 422 === $code, 'En una red se restauró el respaldo de un sitio individual.' );
+	digi_assert( false === strpos( $html, 'No se restaura aquí' ) && false !== strpos( $html, 'Importar en la red' ) && false !== strpos( $html, 'Como sitio nuevo de la red' ), 'La pantalla no ofrece importar en la red el subido de un sitio individual.' );
+	// El sitio principal de la red nunca se reemplaza con el respaldo de un sitio.
+	list( $code ) = $restore( $single_up['file'], 'RESTAURAR', array( 'network' => true, 'into' => '1' ) );
+	digi_assert( 400 === $code, 'En una red se reemplazó el sitio principal con el respaldo de un sitio individual.' );
 	// B2 de la revisión: en una red, «Agregar al listado» escribe en la lista de la red y pide su alcance, como «Traer» o
 	// «Enviar»; un administrador de un sitio (sin la capability de la red) no puede.
 	list( , $network_loose ) = $fresh( array( 'network' => true ) );

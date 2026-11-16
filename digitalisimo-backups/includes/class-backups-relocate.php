@@ -109,6 +109,8 @@ final class Digitalisimo_Backups_Relocate {
 	/** Avisos de los archivos de configuración del servidor ajustados al extraerlos. */
 	private $server_notes = array();
 	private $report = array();
+	/** Un sitio que se importa en una red (Digitalisimo_Backups_Site_Import): las cachés y reglas compartidas de la red no se tocan. */
+	private $site_scope = false;
 
 	/**
 	 * Reescritor vacío. `$args`: `max_value` (bytes; por defecto MAX_VALUE). Se configura con add_url(), add_path() y
@@ -732,6 +734,11 @@ final class Digitalisimo_Backups_Relocate {
 		$mib = function( $bytes ) { return number_format( $bytes / 1048576, 1, ',', '.' ) . ' MiB'; };
 		return 'Un valor de ' . $table . '.' . $column . ' (' . $mib( $size ) . ') menciona el origen y no cabe en la memoria de PHP para reescribirlo (con memory_limit ' . ini_get( 'memory_limit' ) . ' se pueden reescribir valores de hasta ' . $mib( $budget ) . '; hacen falta unos ' . $mib( $size * self::MEMORY_FACTOR ) . ' libres): sube memory_limit (WP_MAX_MEMORY_LIMIT en wp-config.php) o restaura desde WP-CLI con más memoria.';
 	}
+	/**
+	 * El destino es un sitio de una red que recibe el paquete de un sitio (Digitalisimo_Backups_Site_Import): la caché de
+	 * página de wp-content y las reglas del servidor son de toda la red, así que finish() no las vacía ni las regenera.
+	 */
+	public function site_scope() { $this->site_scope = true; return $this; }
 	/** Lo que impide aplicar el plan, con qué cambiar (vacío si se puede). */
 	public function problems() { return $this->problems; }
 	/** true si la base de datos importada necesita algún cambio. */
@@ -955,7 +962,7 @@ final class Digitalisimo_Backups_Relocate {
 	 * enlaces permanentes; en una red o con otro servidor (nginx) se avisa.
 	 */
 	private function rewrite_rules_file( array &$report ) {
-		if ( 'current' !== $this->mode ) return;
+		if ( 'current' !== $this->mode || $this->site_scope ) return;
 		$from = self::parse_url( $this->origin['home'] );
 		$to = self::parse_url( $this->destination['home'] );
 		$moved = $this->origin['multisite'] ? $this->origin['network']['path'] !== $this->destination['network']['path'] : ( $from && $to && $from['path'] !== $to['path'] );
@@ -1063,7 +1070,7 @@ final class Digitalisimo_Backups_Relocate {
 		// Cachés de página y de recursos optimizados (WP Super Cache, W3TC, WP Rocket, Autoptimize, LiteSpeed): viajan en el
 		// respaldo con las direcciones del origen. Con otras direcciones se vacían (los plugins las regeneran).
 		$out['page_cache_files'] = 0;
-		if ( $this->changing && '' !== $this->destination['content_dir'] ) {
+		if ( $this->changing && ! $this->site_scope && '' !== $this->destination['content_dir'] ) {
 			foreach ( array( 'cache', 'litespeed' ) as $folder ) {
 				$dir = $this->destination['content_dir'] . '/' . $folder;
 				if ( is_dir( $dir ) && ! is_link( $dir ) ) self::empty_dir( $dir, $out['page_cache_files'], $warnings );
