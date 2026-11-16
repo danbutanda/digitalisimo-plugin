@@ -155,12 +155,18 @@ async function follow(label, until, { minutes = 25, onSample = null } = {}) {
 const ended = (s) => ['success', 'failed', 'cancelled', 'lost'].includes(s.state) && !!s.result;
 const currentPhases = (seen) => [...new Set(seen.map((s) => s.phase).filter(Boolean))];
 /** Abre «Restaurar» de la primera fila, elige las partes (null: todo), escribe RESTAURAR y lo envía. */
-async function restoreFromRow(parts) {
+/**
+ * Abre «Restaurar» de la fila del respaldo, elige las partes (null: todo), escribe RESTAURAR y lo envía. `memory`: el
+ * límite de la petición admin-post que encola la restauración y trabaja sus primeros 25 s (en php-wasm, con 64 MB, la
+ * lectura de 1 MiB de la verificación la agota también con main); los ticks del panel corren siempre con 64 MB.
+ * Devuelve 'landed' (volvió a la pantalla con el panel), 'died' (la petición murió) o '' (no se pudo enviar).
+ */
+async function restoreFromRow(parts, { memory = '64M', label = parts ? 'partes' : 'completa' } = {}) {
   await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
   await sleep(800);
   // El respaldo de «Respaldar ahora», no una copia previa de las restauraciones anteriores.
   const toggle = await page.$('tr.digitalisimo-backups-row[data-file^="digitalisimo-"] [data-restore-toggle]');
-  if (!check(!!toggle, 'la fila del respaldo tiene «Restaurar»')) return false;
+  if (!check(!!toggle, 'la fila del respaldo tiene «Restaurar»')) return '';
   const row = await toggle.evaluate((a) => a.getAttribute('data-restore-toggle'));
   await toggle.click();
   await sleep(300);
@@ -179,6 +185,7 @@ async function restoreFromRow(parts) {
       sessionStorage.setItem('digi-starting', JSON.stringify({ visible: !p.hidden && p.getBoundingClientRect().height > 0, state: p.getAttribute('data-state'), message: document.getElementById('digitalisimo-backups-manual-message').textContent, now: bar.getAttribute('aria-valuenow') }));
     }, 0));
   });
+  if (memory !== '64M') writeFileSync(`${dir}/ctl/backup-memory`, memory);
   // El POST se retiene 2 s para capturar el panel «empieza» antes de que la página navegue.
   await page.setRequestInterception(true);
   const hold = (request) => { if (request.isInterceptResolutionHandled()) return; if (request.method() === 'POST' && /admin-post\.php/.test(request.url())) setTimeout(() => request.continue().catch(() => {}), 2000); else request.continue().catch(() => {}); };
@@ -186,19 +193,26 @@ async function restoreFromRow(parts) {
   const navigation = page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null);
   await page.click(`#${row} .digitalisimo-backups-restore-confirm button`);
   await sleep(400);
-  await shot(`${parts ? 'partes' : 'completa'}-empieza`);
+  await shot(`${label}-empieza`);
   await navigation;
+  rmSync(`${dir}/ctl/backup-memory`, { force: true });
   page.off('request', hold);
   await page.setRequestInterception(false);
   const starting = await page.evaluate(() => JSON.parse(sessionStorage.getItem('digi-starting') || 'null')).catch(() => null);
   // Tras enviar, la pantalla vuelve con el panel (no la página de error crítico, ni otra).
+  check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, `${label}: al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)`, JSON.stringify(starting));
   const landed = await page.$('#digitalisimo-backups-manual-progress');
-  if (!check(!!landed, 'tras enviar «Restaurar», la pantalla vuelve con el panel de avance', `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''} · ${existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : ''}`)) return false;
-  check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
-  return true;
+  if (memory === '64M' && !landed) {
+    const fatal = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').trim().split('\n').pop() : '';
+    log(`· ${label}: la petición que empieza la restauración murió con 64 MB (como con main en php-wasm): ${fatal.slice(0, 300)}`);
+    return 'died';
+  }
+  if (!check(!!landed, `${label}: tras enviar «Restaurar», la pantalla vuelve con el panel de avance`, `${page.url()} · ${(await page.evaluate(() => document.body.innerText).catch(() => '')).slice(0, 200)} · ${existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').slice(-800) : ''} · ${existsSync(`${dir}/ctl/debug.log`) ? readFileSync(`${dir}/ctl/debug.log`, 'utf8').split('\n').filter((l) => /Fatal|Allowed memory|Uncaught/.test(l)).slice(-3).join(' | ') : ''}`)) return false;
+  return 'landed';
 }
 
 const start = Date.now();
+let memoryMark = 0;
 // Modo «start» (para comparar con otra versión del plugin, sin el panel nuevo): un respaldo con el botón y «Restaurar»
 // desde su fila; anota a qué página llega el navegador y los errores fatales de PHP.
 if (mode === 'start') {
@@ -254,16 +268,26 @@ try {
   check(shown(backup.seen).every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10)), 'respaldo: el porcentaje nunca retrocede');
   check(await reloaded, 'respaldo: al terminar, la lista se recarga con él');
   rmSync(`${dir}/ctl/backup-memory`, { force: true });
+  memoryMark = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).length : 0;
   await sleep(1500);
   const rows = await page.$$eval('.digitalisimo-backups-row', (list) => list.length);
   check(rows >= 1, `la lista tiene el respaldo (${rows} fila)`);
 
   if (!network) {
-    // 2) Restauración completa con otra sesión: tras el cambio de tablas, la de este navegador ya no existe.
+    // 2a) Restauración completa con 64 MB también en la petición que la empieza y con la sesión del respaldo (sigue valiendo).
+    // En php-wasm esa petición agota los 64 MB (también con main): volver a Backups enseña el panel y lo retoma.
+    const order = ['inspect', 'safety', 'database', 'files', 'switch', 'finish', 'cleanup'];
+    const inOrder = (phases) => phases.length >= 3 && phases.every((p, i) => i === 0 || order.indexOf(p) > order.indexOf(phases[i - 1])) && (phases.includes('database') || phases.includes('files'));
     await lab('mutate', '&round=1');
-    await page.deleteCookie(...(await page.cookies(base)));
-    check(await login(), 'otra sesión (la del respaldo no es ésta)');
-    if (await restoreFromRow(null)) {
+    const first = await restoreFromRow(null, { memory: '64M', label: 'completa' });
+    if (first) {
+      if (first === 'died') {
+        await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+        await sleep(800);
+        const again = await panel();
+        check(again && again.visible && again.view && again.title === 'Restauración en curso', 'completa: muerta la petición que la empezó, volver a Backups enseña el panel de la restauración y la retoma', JSON.stringify(again));
+        await shot('completa-retoma');
+      }
       let reload = false;
       let maintenance = null;
       const full = await follow('completa', ended, { onSample: async (s) => {
@@ -274,39 +298,51 @@ try {
           await page.reload({ waitUntil: 'load' });
           await sleep(500);
           const again = await panel();
-          check(again && again.visible && again.view && again.phase && again.title === 'Restauración en curso', `al recargar la página a mitad (en mantenimiento), el panel vuelve a la restauración (${again && again.phase})`, JSON.stringify(again));
-          check(again && !again.strip, 'la franja no repite el estado que enseña el panel');
+          check(again && again.visible && again.view && again.phase && again.title === 'Restauración en curso', `completa: al recargar la página a mitad (en mantenimiento), el panel vuelve a la restauración (${again && again.phase})`, JSON.stringify(again));
+          check(again && !again.strip, 'completa: la franja no repite el estado que enseña el panel');
         }
         if (s.phase === 'files' && !samples.filesShot) { samples.filesShot = true; await shot('completa-archivos'); }
         if (s.phase === 'switch' && !samples.switchShot) { samples.switchShot = true; await shot('completa-cambio'); }
       } });
       const phases = currentPhases(full.seen);
-      const order = ['inspect', 'safety', 'database', 'files', 'switch', 'finish', 'cleanup'];
-      check(phases.length >= 3 && phases.every((p, i) => i === 0 || order.indexOf(p) > order.indexOf(phases[i - 1])) && (phases.includes('database') || phases.includes('files')), `completa: el panel avanza por las fases en orden (${phases.join(' → ')})`, JSON.stringify(full.seen.slice(0, 20)));
+      check(inOrder(phases), `completa: el panel avanza por las fases en orden (${phases.join(' → ')})`, JSON.stringify(full.seen.slice(0, 20)));
       check(maintenance === 503, `completa: el sitio estaba en mantenimiento para los visitantes (${maintenance}) mientras el panel seguía`);
       check(stepper(full.seen) && shown(full.seen).every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10)), 'completa: el porcentaje nunca retrocede y cada fase marca hechas las anteriores');
       const last = full.last;
       check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.now === '100' && last.phases.every((p) => p.endsWith(':done')), 'completa: termina al 100 % con todas sus fases hechas', JSON.stringify(last));
-      check(last && last.actions.includes('login') && /Entra al escritorio|resultado/.test(last.result), 'completa: sin sesión (la del respaldo no era ésta), el panel lo dice y ofrece «Iniciar sesión»', JSON.stringify(last));
-      await shot('completa-terminada-sin-sesion');
+      check(last && /Restauración terminada desde/.test(last.result) && /copia previa/.test(last.result) && last.actions.includes('safety') && last.actions.includes('reload') && !last.actions.includes('login'), 'completa: con la sesión del respaldo, el resultado completo con «Volver a la copia previa» (sin pedir entrar)', JSON.stringify(last));
+      await shot('completa-terminada');
       const after = await lab('inventory');
       check(after && original && after.blogname === original.blogname, `completa: el sitio volvió al respaldo (título «${after?.blogname}»)`);
-      // Entrar otra vez: la pantalla enseña el resultado completo de la restauración que acaba de terminar.
+    }
+
+    // 2b) Otra restauración completa con otra sesión: tras el cambio de tablas, la de este navegador ya no existe. La
+    // petición que la empieza, con 128 MB: vuelve a la pantalla con el panel y el testigo.
+    await lab('mutate', '&round=2');
+    await page.deleteCookie(...(await page.cookies(base)));
+    check(await login(), 'otra sesión (la del respaldo no es ésta)');
+    if ('landed' === await restoreFromRow(null, { memory: '128M', label: 'sesion' })) {
+      const lost = await follow('sesion', ended);
+      const phases = currentPhases(lost.seen);
+      check(inOrder(phases), `sesión: el panel avanza por las fases en orden con el testigo (${phases.join(' → ')})`, JSON.stringify(lost.seen.slice(0, 20)));
+      const last = lost.last;
+      check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.actions.includes('login') && /perdió la sesión|Entra al escritorio/.test(last.result), 'sesión: el cambio de tablas dejó la sesión sin valor y el panel lo dice al terminar, con «Iniciar sesión»', JSON.stringify(last));
+      await shot('sesion-terminada-sin-sesion');
       await page.click('#digitalisimo-backups-progress-login');
       await page.waitForNavigation({ waitUntil: 'load' }).catch(() => {});
-      check(await login(), 'entrar otra vez tras la restauración');
+      check(await login(), 'sesión: entrar otra vez tras la restauración');
       if (!/digitalisimo-backups/.test(page.url())) await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
       await sleep(1200);
       const result = await panel();
-      check(result && result.visible && result.title === 'Restauración terminada' && /Restauración terminada desde/.test(result.result) && /copia previa/.test(result.result) && result.actions.includes('safety') && result.actions.includes('reload'), 'al entrar otra vez, el panel enseña el resultado completo con «Volver a la copia previa»', JSON.stringify(result));
-      await shot('completa-resultado');
+      check(result && result.visible && result.title === 'Restauración terminada' && /Restauración terminada desde/.test(result.result) && result.actions.includes('safety'), 'sesión: al entrar otra vez, el panel enseña el resultado completo con «Volver a la copia previa»', JSON.stringify(result));
+      await shot('sesion-resultado');
     }
   }
 
   // 3) Por partes (sólo plugins) a 390 px.
-  await lab('mutate', '&round=2');
+  await lab('mutate', '&round=3');
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-  if (await restoreFromRow(['plugins'])) {
+  if ('landed' === await restoreFromRow(['plugins'], { memory: '128M', label: 'partes' })) {
     let narrow = null;
     const parts = await follow('partes', ended, { onSample: async (s) => { if (!narrow && ['database', 'files'].includes(s.phase)) { narrow = s; await shot('partes-en-curso'); } } });
     const last = parts.last;
@@ -318,10 +354,10 @@ try {
 
   if (!network) {
     // 4) Una falla a mitad del cambio: vuelve sola a la copia previa y el panel lo dice.
-    await lab('mutate', '&round=3');
+    await lab('mutate', '&round=4');
     writeFileSync(`${dir}/ctl/fail-move`, '1');
     try {
-      if (await restoreFromRow(['plugins'])) {
+      if ('landed' === await restoreFromRow(['plugins'], { memory: '128M', label: 'falla' })) {
         let backShot = false;
         const back = await follow('falla', (s) => ended(s) && s.kind === 'rollback', { onSample: async (s) => { if (!backShot && s.title === 'Volviendo a la copia previa') { backShot = true; await shot('falla-vuelta-en-curso'); } } });
         const last = back.last;
@@ -340,8 +376,9 @@ try {
     }
   }
   const memory = existsSync(`${dir}/ctl/memory.jsonl`) ? readFileSync(`${dir}/ctl/memory.jsonl`, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
-  const restoring = memory.filter((r) => r.action === 'digitalisimo_backups_restore_tick');
-  check(restoring.length > 0 && restoring.every((r) => r.limit === '64M'), `las ${restoring.length} peticiones del tick por testigo corrieron con memory_limit=64M (pico ${Math.max(0, ...restoring.map((r) => r.peak_real)) / 1048576} MB)`);
+  // Los ticks de las restauraciones (con nonce o con el testigo): todos con los 64 MB del propietario.
+  const restoring = memory.slice(memoryMark);
+  check(restoring.length > 0 && restoring.every((r) => r.limit === '64M'), `las ${restoring.length} peticiones que hicieron avanzar las restauraciones (${restoring.filter((r) => r.action === 'digitalisimo_backups_restore_tick').length} con el testigo) corrieron con memory_limit=64M (pico ${Math.max(0, ...restoring.map((r) => r.peak_real)) / 1048576} MB)`, JSON.stringify(restoring.filter((r) => r.limit !== '64M').slice(0, 3)));
   const fatals = existsSync(`${dir}/ctl/fatal.jsonl`) ? readFileSync(`${dir}/ctl/fatal.jsonl`, 'utf8').trim() : '';
   check(!fatals, 'ninguna petición terminó en la página de error crítico de WordPress', fatals.slice(0, 1500));
   check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));
