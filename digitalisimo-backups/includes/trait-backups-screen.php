@@ -385,8 +385,12 @@ trait Digitalisimo_Backups_Screen {
 	private static function keep_access_field() { return self::keep_access_fields(); }
 	/** Quién conservaría su acceso (ver Digitalisimo_Backups_Restore_Access::preview()): sólo nombres de usuario. */
 	private static function keep_access_preview() {
+		// Una vez por petición y usuario: la lista pinta las casillas en el panel de cada fila.
+		static $cache = array();
+		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+		if ( isset( $cache[ $user ] ) ) return $cache[ $user ];
 		try {
-			return Digitalisimo_Backups_Restore_Access::preview( function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0, null, 10 );
+			return $cache[ $user ] = Digitalisimo_Backups_Restore_Access::preview( $user, null, 10 );
 		} catch ( Throwable $e ) {
 			return array( 'you' => '', 'admins' => array(), 'admins_total' => 0 );
 		}

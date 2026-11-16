@@ -135,7 +135,8 @@ final class Digitalisimo_Backups_Restore_Access {
 		$users = $wpdb->base_prefix . 'users';
 		$meta = $wpdb->base_prefix . 'usermeta';
 		$ids = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT user_id, meta_value FROM ' . self::q( $meta ) . ' WHERE meta_key = %s', $prefix . 'capabilities' ), ARRAY_A ) as $row ) {
+		// Sólo las filas que mencionan el rol (un sitio puede tener miles de usuarios); el rol se comprueba después.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT user_id, meta_value FROM ' . self::q( $meta ) . ' WHERE meta_key = %s AND meta_value LIKE %s', $prefix . 'capabilities', '%' . $wpdb->esc_like( '"administrator"' ) . '%' ), ARRAY_A ) as $row ) {
 			$caps = self::array_value( (string) ( $row['meta_value'] ?? '' ) );
 			if ( ! empty( $caps['administrator'] ) ) $ids[ (int) $row['user_id'] ] = true;
 		}
