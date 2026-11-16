@@ -13,6 +13,8 @@
 //                 devuelve los plugins a los de antes y la base de datos no cambia (huellas de cada tabla; revisión M1);
 //              4) restauración (plugins) con una falla inyectada al mover el código (1 280 px): el panel sigue la vuelta
 //                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló.
+//   los dos    0) la puerta del mantenimiento con un testigo conocido: un visitante recibe 503 con la cabecera de
+//                 Backups; con el testigo, sólo la pantalla de Backups pasa (el escritorio, las entradas y la portada no);
 //   multisite  1) y 3) (con «Volver a la copia previa») en la administración de la red.
 // Capturas (página y panel) en <dir>/shots; las muestras del panel, en <dir>/shots/samples.json.
 // Uso: node drive.mjs <puerto> <host> <dir> <single|multisite>
@@ -274,6 +276,33 @@ const VOLATILE = /^(_site_transient_|_transient_|cron$|digitalisimo_backups_|rew
 const optionDiff = (a, b) => Object.keys({ ...(a || {}), ...(b || {}) }).filter((k) => !VOLATILE.test(k) && (a || {})[k] !== (b || {})[k]);
 let beforeParts = null;
 
+/**
+ * Verificación N1 y N2: la puerta del mantenimiento con un testigo conocido (lab.php la pone y la quita). Un visitante
+ * recibe 503 con la cabecera de Backups; este navegador, con el testigo en su cookie, abre la pantalla de Backups pero no
+ * el escritorio (503 con la cabecera); sin la cookie, tampoco Backups. Al quitarla, el sitio vuelve.
+ */
+async function gate() {
+  const known = 'ab'.repeat(32);
+  writeFileSync(`${dir}/ctl/gate-hold`, known);
+  await request('GET', '/');
+  const visitor = await request('GET', '/');
+  check(visitor.status === 503 && visitor.headers?.['x-digitalisimo-backups-restore'] === 'maintenance', 'puerta: un visitante recibe 503 con la cabecera X-Digitalisimo-Backups-Restore (N2)', `${visitor.status} ${JSON.stringify(visitor.headers?.['x-digitalisimo-backups-restore'] || null)}`);
+  const probe = () => page.evaluate(async (screenPath) => {
+    const one = async (url) => { try { const r = await fetch(url, { credentials: 'same-origin' }); return [r.status, r.headers.get('X-Digitalisimo-Backups-Restore') || '']; } catch (e) { return [0, String(e)]; } };
+    return { backups: await one(screenPath + '&tab=settings'), dashboard: await one('/wp-admin/index.php'), posts: await one('/wp-admin/edit.php'), front: await one('/') };
+  }, screen).catch((e) => ({ error: String(e) }));
+  const without = await probe();
+  await page.setCookie({ name: 'digitalisimo_backups_restore', value: known, url: base });
+  const withToken = await probe();
+  await page.deleteCookie({ name: 'digitalisimo_backups_restore', url: base });
+  check(without.backups?.[0] === 503 && without.dashboard?.[0] === 503, 'puerta: sin el testigo, el escritorio y la pantalla de Backups reciben 503', JSON.stringify(without));
+  check(withToken.backups?.[0] === 200 && withToken.dashboard?.[0] === 503 && withToken.dashboard?.[1] === 'maintenance' && withToken.posts?.[0] === 503 && withToken.front?.[0] === 503, 'puerta: con el testigo, sólo la pantalla de Backups; el escritorio, las entradas y la portada, 503 con la cabecera (N1)', JSON.stringify(withToken));
+  writeFileSync(`${dir}/ctl/gate-release`, '1');
+  await request('GET', '/wp-cron.php');
+  const after = await request('GET', '/');
+  check(after.status === 200 && !existsSync(`${dir}/ctl/gate-release`), 'puerta: al quitarla, el sitio vuelve', `${after.status}`);
+}
+
 const start = Date.now();
 let memoryMark = 0;
 let fatalMark = 0;
@@ -318,6 +347,8 @@ if (mode === 'start') {
 try {
   check(await login(), 'inicio de sesión de admin');
   const original = await lab('inventory');
+  // 0) La puerta del mantenimiento con el testigo (verificación N1 y N2), antes de que haya ninguna restauración.
+  await gate();
 
   // 1) Respaldar ahora. Sus peticiones, con BACKUP_MEMORY (128M por defecto, como el respaldo de referencia de
   // backups-restore-parts.sh); las restauraciones, con los 64 MB del propietario.
@@ -364,7 +395,6 @@ try {
       let reload = false;
       let maintenance = null;
       let gateMark = '';
-      let gateBrowser = null;
       const full = await follow('completa', ended, { onSample: async (s) => {
         if (['database', 'files'].includes(s.phase) && !reload) {
           reload = true;
@@ -372,11 +402,6 @@ try {
           const visitor = await request('GET', '/');
           maintenance = visitor.status;
           gateMark = String(visitor.headers?.['x-digitalisimo-backups-restore'] || '');
-          // Con el testigo (este navegador), la puerta sólo abre la pantalla de Backups y sus llamadas (verificación N1).
-          gateBrowser = await page.evaluate(async () => {
-            const probe = async (url) => { try { const r = await fetch(url, { credentials: 'same-origin' }); return [r.status, r.headers.get('X-Digitalisimo-Backups-Restore') || '']; } catch (e) { return [0, String(e)]; } };
-            return { dashboard: await probe('/wp-admin/index.php'), backups: await probe(location.pathname + '?page=' + new URLSearchParams(location.search).get('page') + '&tab=settings') };
-          }).catch((e) => ({ error: String(e) }));
           await shot('completa-base-de-datos');
           await page.reload({ waitUntil: 'load' });
           await sleep(500);
@@ -390,9 +415,10 @@ try {
       } });
       const phases = currentPhases(full.seen);
       check(inOrder(phases), `completa: el panel avanza por las fases en orden (${phases.join(' → ')})`, JSON.stringify(full.seen.slice(0, 20)));
-      check(maintenance === 503, `completa: el sitio estaba en mantenimiento para los visitantes (${maintenance}) mientras el panel seguía`);
-      check(gateMark === 'maintenance', 'completa: el 503 de la puerta lleva su cabecera X-Digitalisimo-Backups-Restore (verificación N2)', gateMark);
-      check(gateBrowser && gateBrowser.dashboard?.[0] === 503 && gateBrowser.dashboard?.[1] === 'maintenance' && gateBrowser.backups?.[0] === 200, 'completa: con el testigo, la puerta abre la pantalla de Backups pero no el escritorio (verificación N1)', JSON.stringify(gateBrowser));
+      // Con un solo proceso de PHP, la visita espera al tick en curso y a veces llega con la restauración ya terminada (la
+      // puerta se prueba aparte, con un mantenimiento que no se acaba solo: gate()).
+      if (maintenance === 503) check(gateMark === 'maintenance', 'completa: el sitio estaba en mantenimiento para los visitantes (503, con la cabecera de la puerta) mientras el panel seguía', gateMark);
+      else log(`· completa: la visita llegó con la restauración ya terminada (${maintenance}); la puerta se comprueba en «puerta»`);
       check(stepper(full.seen) && shown(full.seen).every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10)), 'completa: el porcentaje nunca retrocede y cada fase marca hechas las anteriores');
       const last = full.last;
       check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.now === '100' && last.phases.every((p) => p.endsWith(':done')), 'completa: termina al 100 % con todas sus fases hechas', JSON.stringify(last));

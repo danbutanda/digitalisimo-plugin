@@ -26,3 +26,14 @@ register_shutdown_function( static function () {
 	if ( ! $error || ! in_array( $error['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ), true ) ) return;
 	@file_put_contents( '/digi-ctl/fatal.jsonl', json_encode( array( 'uri' => (string) ( $_SERVER['REQUEST_URI'] ?? '' ), 'method' => (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 'action' => (string) ( $_REQUEST['action'] ?? '' ), 'error' => $error, 'peak' => memory_get_peak_usage( true ), 'limit' => ini_get( 'memory_limit' ) ), JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR ) . "\n", FILE_APPEND );
 } );
+// La puerta del mantenimiento con un testigo conocido, sin restauración (verificación N1 y N2): /digi-ctl/gate-hold (con
+// el testigo) la pone en la petición siguiente; /digi-ctl/gate-release la quita en la siguiente que pase (wp-cron.php).
+add_action( 'init', static function () {
+	if ( ! class_exists( 'Digitalisimo_Backups_Restore_Maintenance' ) ) return;
+	if ( is_file( '/digi-ctl/gate-release' ) && @unlink( '/digi-ctl/gate-release' ) ) Digitalisimo_Backups_Restore_Maintenance::release();
+	if ( is_file( '/digi-ctl/gate-hold' ) ) {
+		$token = trim( (string) @file_get_contents( '/digi-ctl/gate-hold' ) );
+		@unlink( '/digi-ctl/gate-hold' );
+		if ( preg_match( '/^[0-9a-f]{64}$/D', $token ) ) Digitalisimo_Backups_Restore_Maintenance::hold( $token, false, '' );
+	}
+}, 1 );
