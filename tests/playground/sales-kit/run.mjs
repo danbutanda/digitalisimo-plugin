@@ -264,7 +264,7 @@ async function main() {
     r = await c.call('create-page', args);
     pg = r.data?.id ? await probe('page', r.data.id) : {};
     if (check(!r.isError && r.data.status === 'draft' && pg.status === 'draft' && pg.spans === RESALTES[id] && pg.span_attrs === 0, `${id} creada por ${c.login}: borrador con sus ${RESALTES[id]} resaltes de título, sin atributos`, r.text.slice(0, 300) + JSON.stringify({ spans: pg.spans, span_attrs: pg.span_attrs }))) {
-      pages.push({ id: r.data.id, template: `${id}-${c.login}`, base: id, variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: id === 'venta-completa' });
+      pages.push({ id: r.data.id, template: `${id}-${c.login}`, base: id, variant: 'containers', preview: r.data.preview_url, widgets: pg.widgets, ids: pg.ids, spans: pg.spans, bar: BARRAS.includes(id) && !!args.close_date });
     }
   }
   // Guardar como editora no deja avisos de PHP (ni del kit ni del núcleo: el saneador de contenido y db.php).
