@@ -27,7 +27,10 @@
  *       renombrar dos veces; y si muere justo tras el cambio de tablas, el diario repone a todos;
  *   l · nada sensible en registros, eventos de los trabajos, informes ni respuestas (ningún hash, correo, sesión ni
  *       contraseña de aplicación), y el diario lo lleva cifrado;
- *   m · la confirmación (pantalla y `verify`), REST y WP-CLI: quiénes conservarán su acceso y la opción `keep_admins`.
+ *   m · la confirmación (pantalla y `verify`), REST y WP-CLI: quiénes conservarán su acceso y la opción `keep_admins`;
+ *   n · el prefijo final (estudio de UpdraftPlus, brecha 3): con el respaldo de un sitio `wp_` en uno `wpkx_`, lo
+ *       conservado (también una cuenta fusionada) se escribe como `wpkx_capabilities` y `wpkx_user_level` y no queda
+ *       ninguna meta con el prefijo del respaldo; en una red, los superadministradores quedan en `site_admins` (i).
  * Con el código anterior (1.0.78) fallan todos: no existen decide_admins()/capture_accounts()/preview() y el motor sólo
  * conserva a quien restaura. Base de datos SQLite de verdad (tests/lib/backups-sqlite.php). Escribe «FALLA ·».
  */
@@ -272,7 +275,10 @@ ksa_case( 'i · red: siguen los superadministradores y los administradores del s
 	$report = $A::apply( $on, $A::open( $sealed ), true );
 	$admins = (array) $GLOBALS['bk_site_options']['site_admins'];
 	sort( $admins );
-	ksa_check( array( 'red-admin', 'red-origen', 'super-sin-rol' ) === $admins, 'Los superadministradores de esta red no siguen siéndolo (o se perdió el del respaldo): ' . json_encode( $admins ) );
+	ksa_check( array( 'red-admin', 'red-origen', 'super-sin-rol' ) === $admins, 'Los superadministradores de esta red no quedaron en site_admins de sitemeta (o se perdió el del respaldo): ' . json_encode( $admins ) );
+	// Aplicarlo otra vez (el diario tras una muerte) no repite a nadie en site_admins.
+	$A::apply( $on, $A::open( $sealed ), true );
+	ksa_check( 3 === count( (array) $GLOBALS['bk_site_options']['site_admins'] ), 'Repetirlo duplicó superadministradores: ' . json_encode( $GLOBALS['bk_site_options']['site_admins'] ) );
 	foreach ( array( 'red-admin', 'sitio-admin', 'super-sin-rol' ) as $login ) { $row = ksa_row( $db, 'wp_', $login ); ksa_check( $row && ksa_is_admin( $db, 'wp_', (int) $row['ID'] ) && '1' === ksa_meta( $db, 'wp_', (int) $row['ID'], 'primary_blog' ), '«' . $login . '» no sigue como administrador del sitio principal.' ); }
 	ksa_check( null === ksa_row( $db, 'wp_', 'otro-sitio' ), 'Se conservó a un administrador de otro sitio de la red.' );
 	ksa_check( ! in_array( 'sitio-admin', $admins, true ), 'Un administrador del sitio se volvió superadministrador.' );
@@ -292,11 +298,12 @@ $GLOBALS['wpdb'] = $origin;
 $file = basename( bk_backup() );
 $own = basename( bk_backup( true ) );
 /** Restaurar por el motor (service_restore) en este sitio, con «admin» (1) lanzándola. */
-$engine = function( array $args, $home = 'https://destino.test', $prefix = 'wpkx_', $backup = null ) use ( $file ) {
-	$db = ksa_db( 'motor-' . md5( json_encode( $args ) . $home . $prefix . (string) $backup ), $prefix );
+$engine = function( array $args, $home = 'https://destino.test', $prefix = 'wpkx_', $backup = null, array $extra = array() ) use ( $file ) {
+	$db = ksa_db( 'motor-' . md5( json_encode( array( $args, $extra ) ) . $home . $prefix . (string) $backup ), $prefix );
 	ksa_user( $db, $prefix, 1, 'admin', KSA_ADMIN, 'admin@destino.test', 'administrator', array( 'session_tokens' => ksa_sessions( str_repeat( 'a', 64 ) ), '_application_passwords' => ksa_apps( array( 'u-admin' ) ) ) );
 	ksa_user( $db, $prefix, 2, 'soporte', KSA_SOPORTE, 'soporte@destino.test', 'administrator', array( 'session_tokens' => ksa_sessions( str_repeat( 'b', 64 ) ), '_application_passwords' => ksa_apps( array( 'u-soporte' ) ) ) );
 	ksa_user( $db, $prefix, 3, 'colaborador', KSA_EDITOR, 'colaborador@destino.test', 'editor' );
+	foreach ( $extra as $user ) ksa_user( $db, $prefix, $user[0], $user[1], $user[2], $user[3], $user[4], $user[5] ?? array() );
 	ksa_options( $db, $prefix, array( 'siteurl' => $home, 'home' => $home, 'blogname' => 'Destino' ) );
 	$GLOBALS['wpdb'] = $db;
 	$GLOBALS['bk_options']['home'] = $home;
@@ -322,6 +329,12 @@ ksa_case( 'j · el motor: con el respaldo de otra instalación, los administrado
 	ksa_check( ! is_wp_error( $view ) && array( 'admin', 'soporte' ) === ( $view['restore']['result']['access']['kept_accounts'] ?? null ), 'El estado del trabajo no dice quiénes conservaron su acceso.' );
 	$json = json_encode( $result ) . json_encode( $view );
 	foreach ( $secrets as $secret ) ksa_check( false === strpos( $json, $secret ), 'La respuesta lleva un secreto o un correo: ' . substr( $secret, 0, 14 ) );
+	// El prefijo final (revisión de UpdraftPlus, brecha 3): el respaldo es de un sitio `wp_` y éste es `wpkx_`; lo
+	// conservado se escribe con `wpkx_` y no queda ninguna meta con el prefijo del respaldo.
+	$keys = array_column( $db->rows( 'wpkx_usermeta' ), 'meta_key' );
+	$stale = array_values( array_filter( $keys, function( $key ) { return 0 === strpos( $key, 'wp_' ); } ) );
+	ksa_check( ! $stale, 'Quedaron metas con el prefijo del respaldo: ' . json_encode( $stale ) );
+	foreach ( array( 'admin', 'soporte' ) as $login ) { $id = (int) ksa_row( $db, 'wpkx_', $login )['ID']; ksa_check( ksa_is_admin( $db, 'wpkx_', $id ) && '10' === ksa_meta( $db, 'wpkx_', $id, 'wpkx_user_level' ), '«' . $login . '» no quedó con wpkx_capabilities y wpkx_user_level.' ); }
 	list( $db, $result ) = $engine( array( 'keep_admins' => false ), 'https://otro.test' );
 	ksa_check( null === ksa_row( $db, 'wpkx_', 'soporte' ) && null !== ksa_row( $db, 'wpkx_', 'admin' ) && 'off' === ( $result['access']['admins_state'] ?? '' ), 'Con keep_admins = false se conservó a «soporte» (o no a quien restaura).' );
 }, true );
@@ -334,6 +347,16 @@ ksa_case( 'j · el motor: con keep_access = false sigue el otro administrador y 
 	ksa_check( null === ksa_row( $db, 'wpkx_', 'soporte' ) && null === ksa_row( $db, 'wpkx_', 'admin' ) && 'same_site' === ( $result['access']['admins_state'] ?? '' ) && 'same_site' === ( $result['access']['state'] ?? '' ), 'Con un respaldo de esta misma instalación se conservaron cuentas de ahora: ' . json_encode( $result['access'] ?? null ) );
 	list( $db, $result ) = $engine( array(), 'https://origen.test', 'wp_', $own );
 	ksa_check( null === ksa_row( $db, 'wp_', 'soporte' ) && 'same_site' === ( $result['access']['admins_state'] ?? '' ), 'El respaldo propio en la misma dirección conservó a «soporte».' );
+}, true );
+
+ksa_case( 'n · el motor, prefijo final: un administrador de aquí con el mismo usuario que el administrador del respaldo (otro prefijo) queda como una sola cuenta con wpkx_capabilities y wpkx_user_level', function() use ( $engine ) {
+	list( $db, $result ) = $engine( array(), 'https://prefijo.test', 'wpkx_', null, array( array( 4, 'dueno', KSA_TECNICO, 'tecnico@destino.test', 'administrator' ) ) );
+	$dueno = $db->rows( 'wpkx_users', "user_login = 'dueno'" );
+	ksa_check( 1 === count( $dueno ) && 1 === (int) $dueno[0]['ID'] && KSA_TECNICO === $dueno[0]['user_pass'] && 'tecnico@destino.test' === $dueno[0]['user_email'], '«dueno» no quedó como una sola cuenta con el ID del respaldo y las credenciales de este sitio: ' . json_encode( array_map( function( $row ) { return $row['ID']; }, $dueno ) ) );
+	$metas = array_column( $db->rows( 'wpkx_usermeta', 'user_id = 1' ), 'meta_value', 'meta_key' );
+	ksa_check( array( 'administrator' => true ) === @unserialize( (string) ( $metas['wpkx_capabilities'] ?? '' ) ) && '10' === ( $metas['wpkx_user_level'] ?? null ) && ! isset( $metas['wp_capabilities'] ) && ! isset( $metas['wp_user_level'] ), 'La cuenta fusionada no tiene sus permisos con el prefijo final: ' . json_encode( array_keys( $metas ) ) );
+	ksa_check( 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 1 AND meta_key = 'wpkx_capabilities'" ) ) && 1 === count( $db->rows( 'wpkx_usermeta', "user_id = 1 AND meta_key = 'wpkx_user_level'" ) ), 'La cuenta fusionada tiene permisos repetidos.' );
+	ksa_check( array( 'dueno' ) === ( $result['access']['merged_accounts'] ?? null ), 'El informe no dice que «dueno» se fusionó: ' . json_encode( $result['access'] ?? null ) );
 }, true );
 
 /* ------------------------------------------------------------------------------------------------- k · muertes */

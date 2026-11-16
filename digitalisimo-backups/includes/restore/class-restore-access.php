@@ -302,6 +302,8 @@ final class Digitalisimo_Backups_Restore_Access {
 	 */
 	public static function apply( $state, $secret, $relocated, $remember = null, array $options = array() ) {
 		$states = self::states( $state );
+		// Las tablas acaban de cambiar: lo que la caché de objetos tenga (`site_admins`, roles, usuarios) es de antes.
+		if ( function_exists( 'wp_cache_flush' ) ) wp_cache_flush();
 		$report = array( 'state' => $states['access'], 'admins_state' => $states['admins'], 'relocated' => (bool) $relocated, 'user' => '', 'account' => '', 'kept_accounts' => array(), 'merged_accounts' => array(), 'created_accounts' => array(), 'renamed_backup' => array(), 'shared_emails' => array(), 'warnings' => array(), 'app_passwords' => array(), 'login_path' => null, 'login_url' => '', 'admins' => array(), 'admins_total' => 0, 'users_total' => 0, 'text' => '' );
 		$accounts = self::accounts_of( $secret, $states );
 		$login = is_array( $secret ) && is_array( $secret['login'] ?? null ) ? $secret['login'] : null;
