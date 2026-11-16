@@ -1110,7 +1110,9 @@ final class Digitalisimo_Backups_Jobs {
 		if ( 'import' === ( $spec['type'] ?? '' ) ) return Digitalisimo_Backups_Import_Job::FLOORS[ $phase ] ?? 0;
 		$info = self::phase_info( $phase, $spec ? $spec : null );
 		if ( $info ) return (int) $info['floor'];
-		$floors = array( 'preflight' => 0, 'database' => 3, 'pack' => 40, 'verify' => 81, 'publish' => 98, 'transfer' => 99, 'prune' => 99 );
+		// La transferencia empieza en el 90 % (su tramo, 90-99, lo da el destino según lo subido): con 99 la barra saltaba al
+		// 98 % al empezar y se quedaba quieta toda la subida.
+		$floors = array( 'preflight' => 0, 'database' => 3, 'pack' => 40, 'verify' => 81, 'publish' => 98, 'transfer' => 90, 'prune' => 99 );
 		return $floors[ $phase ] ?? 0;
 	}
 	/** Con destino remoto, lo local ocupa el 90 % de la barra y la transferencia el resto. */
