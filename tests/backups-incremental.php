@@ -632,6 +632,27 @@ inc_case( 'I18 si el proceso muere justo después de encolar la restauración, l
 	inc_check( 'success' === $job['status'] && '' !== (string) ( $job['result']['restore_job'] ?? '' ) && inc_last_restore_ok() && $tree === inc_files(), 'Tras morir en la entrega, la reconstrucción no reconoce la restauración que ya hizo: ' . json_encode( array( $job['status'], $job['error']['message'] ?? '' ) ) );
 } );
 
+// Revisión M5 (PD) de backups/restore-progress: la restauración de un punto pedida desde la pantalla usa el testigo que la
+// pantalla ya mandó en la cookie (antes de empezar): la reconstrucción y la restauración que la sigue llevan ese mismo.
+inc_case( 'I20 el testigo que da la pantalla es el de la reconstrucción del punto y el de su restauración', function() {
+	inc_put( 'wp-content/uploads/2026/12/testigo.txt', 'testigo 0' );
+	inc_run( 'testigo' );
+	inc_put( 'wp-content/uploads/2026/12/testigo.txt', 'testigo 1' );
+	$point = inc_path( inc_run( 'testigo' ) );
+	$given = str_repeat( 'e7', 32 );
+	$GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] = function() { return 0; };
+	$result = Digitalisimo_Backups::service_restore( basename( $point ), array( 'confirm' => 'RESTAURAR', 'sync' => false, 'drive_cli' => false, 'via' => 'admin-post', 'token' => $given ) );
+	unset( $GLOBALS['bk_filters']['digitalisimo_backups_restore_respond_after'] );
+	inc_check( ! is_wp_error( $result ) && 'chain' === ( $result['job']['kind'] ?? '' ), 'La restauración del punto no empezó por su reconstrucción.' );
+	$chain = $result['job']['id'];
+	inc_check( $given === (string) ( Digitalisimo_Backups_Jobs::get( $chain )['spec']['token'] ?? '' ), 'La reconstrucción del punto no lleva el testigo de la pantalla (el de su cookie).' );
+	for ( $i = 0; $i < 4000 && Digitalisimo_Backups_Jobs::active(); $i++ ) Digitalisimo_Backups_Jobs::tick( PHP_INT_MAX );
+	$job = Digitalisimo_Backups_Jobs::get( $chain );
+	$restore = Digitalisimo_Backups_Jobs::get( (string) ( $job['result']['restore_job'] ?? '' ) );
+	inc_check( 'success' === $job['status'] && $restore && $given === (string) ( $restore['spec']['token'] ?? '' ), 'La restauración que sigue al punto no lleva el testigo de la pantalla: ' . json_encode( array( $job['status'], $restore['spec']['token'] ?? null ) ) );
+	inc_check( true === Digitalisimo_Backups_Jobs::screen_view( $restore )['from_point'] && empty( Digitalisimo_Backups_Jobs::screen_view( Digitalisimo_Backups_Jobs::get( $chain ) )['from_point'] ), 'La vista de pantalla no dice que la restauración viene del punto reconstruido (su tramo de la barra).' );
+} );
+
 inc_case( 'I19 una cadena de más eslabones que el tope no se acepta; «Conservar» recortado se avisa', function() use ( $C, $B ) {
 	$links = array();
 	for ( $i = 0; $i <= $C::MAX_FULL_EVERY; $i++ ) $links[] = array( 'sequence' => $i, 'file' => 'digitalisimo-backup-x-' . $i . '.zip', 'backup_id' => '00000000-0000-4000-8000-' . sprintf( '%012d', $i ), 'manifest_sha256' => str_repeat( 'a', 64 ) );

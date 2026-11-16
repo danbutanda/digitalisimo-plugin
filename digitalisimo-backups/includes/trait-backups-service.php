@@ -597,7 +597,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			try {
 				self::$restore_reader_token = '';
-				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'parts' => $parts ) );
+				$job = self::restore_enqueue( $report, array( 'addresses' => $addresses, 'via' => (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) ), 'adopted' => $adopted, 'safety_spec' => $safety_spec, 'sync' => ! empty( $args['sync'] ), 'wp_config' => $config, 'notice' => $extra, 'keep_access' => ! array_key_exists( 'keep_access', $args ) || ! empty( $args['keep_access'] ), 'parts' => $parts, 'token' => self::service_token( $args ) ) );
 				$reader = self::$restore_reader_token;
 				self::$restore_reader_token = '';
 			} catch ( Throwable $e ) {
@@ -639,6 +639,9 @@ trait Digitalisimo_Backups_Service {
 			return self::service_error( 'parts', $e->getMessage(), 400 );
 		}
 	}
+	// El testigo que la pantalla ya mandó en su cookie antes de pedir la restauración (restore_request()): así el navegador
+	// la sigue aunque la petición que la empieza muera en sus primeros tramos. null: uno nuevo.
+	private static function service_token( array $args ) { return isset( $args['token'] ) && is_string( $args['token'] ) && preg_match( '/^[0-9a-f]{64}$/D', $args['token'] ) ? $args['token'] : null; }
 	/** Para la confirmación: ver Digitalisimo_Backups_Restore_Parts::preview(). */
 	private static function service_parts_preview( $zip, $parts ) { return Digitalisimo_Backups_Restore_Parts::preview( $zip, $parts, self::restore_layout() ); }
 	/**
@@ -809,7 +812,7 @@ trait Digitalisimo_Backups_Service {
 			}
 			$safety_file = self::backup_file_name( 'safety-before-restore-' );
 			$reader = Digitalisimo_Backups_Restore_Access::new_reader();
-			$token = Digitalisimo_Backups_Restore_Maintenance::new_token();
+			$token = self::service_token( $args ) ?? Digitalisimo_Backups_Restore_Maintenance::new_token();
 			$via = (string) ( $args['via'] ?? ( defined( 'WP_CLI' ) && WP_CLI ? 'cli' : 'rest' ) );
 			$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 			$spec = array(

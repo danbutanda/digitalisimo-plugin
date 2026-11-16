@@ -84,7 +84,66 @@
     }
     partsRefresh(box);
   });
-  function partsInit() { if (document.querySelectorAll) each(document, '[data-restore-parts]', partsRefresh); }
+  /* «Volver a la copia previa» desde el panel de avance (?restore=<copia previa>&undo=<trabajo>&undo_parts=…): la copia
+     previa se abre con lo mismo que se restauró ya marcado (por partes, sólo esas partes, plugins, temas o sitios; nunca
+     «Todo») y el aviso dice qué vuelve y qué no se toca; restaurada entera, que vuelve todo y se pierde lo de después. */
+  function undoInit() {
+    var location = typeof window !== 'undefined' && window.location ? window.location : null;
+    if (!location || typeof URLSearchParams !== 'function') return;
+    var query = new URLSearchParams(location.search || '');
+    var file = query.get('restore');
+    if (!query.get('undo') || !file) return;
+    var list = function (name) { return (query.get('undo_' + name) || '').split(',').filter(function (w) { return w; }); };
+    var spec = { parts: list('parts'), plugins: list('plugins'), themes: list('themes'), sites: list('sites') };
+    var partial = spec.parts.length + spec.plugins.length + spec.themes.length + spec.sites.length > 0;
+    each(document, '[data-restore-parts]', function (box) {
+      var form = box.closest ? box.closest('form') : null;
+      var field = form ? form.querySelector('input[name="backup_file"]') : null;
+      if (!field || field.value !== file) return;
+      var missing = [];
+      if (partial) {
+        var all = box.querySelector('[data-restore-all]');
+        if (all) all.checked = false;
+        each(box, '[data-restore-part]', function (cb) { cb.checked = spec.parts.indexOf(cb.value) !== -1; });
+        each(box, '[data-restore-item]', function (cb) { cb.checked = false; });
+        [['plugins', 'plugin-items', 'el plugin '], ['themes', 'theme-items', 'el tema '], ['sites', 'site-items', 'los medios del sitio ']].forEach(function (group) {
+          spec[group[0]].forEach(function (value) {
+            var found = null;
+            each(box, '[data-restore-item="' + group[1] + '"]', function (cb) { if (cb.value === value) found = cb; });
+            if (!found) { missing.push(group[2] + value); return; }
+            found.checked = true;
+            var holder = found.closest ? found.closest('details') : null;
+            if (holder) holder.open = true;
+          });
+        });
+        box.open = true;
+      }
+      partsRefresh(box);
+      var undo = form.querySelector('[data-restore-undo]');
+      if (!undo) return;
+      var kept = [];
+      each(box, '[data-restore-part]', function (cb) {
+        if (cb.checked) return;
+        var label = cb.closest ? cb.closest('label') : null;
+        var name = (label ? label.textContent.trim() : cb.value);
+        name = name.charAt(0).toLowerCase() + name.slice(1);
+        var some = false;
+        each(box, '[data-restore-item][data-restore-whole="' + cb.value + '"]', function (item) { if (item.checked) some = true; });
+        kept.push(some ? 'los demás ' + (cb.value === 'uploads' ? 'medios' : name) : name);
+      });
+      var text = partial
+        ? 'Deshaces sólo lo que se restauró: eso vuelve a como estaba antes.' + (spec.parts.indexOf('database') !== -1 ? ' La base de datos vuelve entera: se pierde lo que cambió en ella después (pedidos, comentarios, entradas o usuarios nuevos).' : '') + (kept.length ? ' No se toca: ' + kept.join(', ') + '.' : '')
+        : 'Vuelve el sitio entero a como estaba antes de esa restauración: se pierde lo que cambió después (pedidos, comentarios, entradas o usuarios nuevos).';
+      if (missing.length) text += ' La copia previa no tiene ' + missing.join(', ') + ' (lo trajo la restauración): esta vuelta no lo retira; si no lo quieres, bórralo en Plugins o Apariencia.';
+      undo.textContent = text;
+      undo.hidden = false;
+    });
+  }
+  function partsInit() {
+    if (!document.querySelectorAll) return;
+    each(document, '[data-restore-parts]', partsRefresh);
+    undoInit();
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', partsInit); else partsInit();
   document.addEventListener('change', function (event) {
     var select = event.target;

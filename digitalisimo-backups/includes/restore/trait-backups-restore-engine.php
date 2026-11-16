@@ -241,7 +241,7 @@ trait Digitalisimo_Backups_Restore_Engine {
 	 * sigue como estaba sólo si todas las tablas temporales siguen ahí y ninguna vieja; ante la duda, cambió. Una vuelta a
 	 * la copia previa trata el sitio como cambiado desde su primera fase: la restauración que deshace ya lo cambió (C2).
 	 */
-	private static function restore_changed( array $job ) {
+	public static function restore_changed( array $job ) {
 		if ( ! empty( $job['spec']['rollback'] ) ) return true;
 		if ( ! self::restore_switched( $job ) ) return false;
 		// Sin la base de datos (restaurar por partes) no hay tablas que miren: en el cambio, los archivos pueden haber
@@ -2616,7 +2616,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 			$recover = $last ? self::restore_recoverable( $last ) : null;
 			if ( ! $recover ) return self::service_error( 'safety_missing', 'La copia previa de esa restauración ya no está en el almacén: restaura a mano otro respaldo completo (sigue en mantenimiento).', 422 );
 			$rollback = self::restore_rollback_job( $recover['job'] );
-			self::restore_note_rollback( $recover['job']['id'], $rollback['id'], 'Vuelta a la copia previa pedida a mano tras una que no terminó.' );
+			// La causa sigue siendo la de la restauración que falló; que la vuelta se pidió a mano se anota aparte (revisión B9).
+			$cause = self::restore_rollback_info( $recover['job']['id'] )['cause'];
+			self::restore_note_rollback( $recover['job']['id'], $rollback['id'], '' !== $cause ? $cause : (string) ( $recover['job']['error']['message'] ?? '' ), true );
 			Digitalisimo_Backups_Job_Store::event( $recover['job']['id'], 'rollback', array( 'job' => $rollback['id'], 'file' => $recover['file'], 'manual' => true ) );
 		} catch ( Throwable $e ) {
 			return self::service_error( 'rollback_failed', $e->getMessage(), 500 );
@@ -2631,9 +2633,9 @@ trait Digitalisimo_Backups_Restore_Engine {
 		return self::service_error( 'rollback_failed', is_array( $job['error'] ?? null ) ? (string) $job['error']['message'] : 'La vuelta a la copia previa no terminó.', 500 );
 	}
 	// El trabajo que falló guarda el de su vuelta a la copia previa y la causa (lo siguen la pantalla, REST y WP-CLI).
-	private static function restore_note_rollback( $id, $rollback, $cause ) {
+	private static function restore_note_rollback( $id, $rollback, $cause, $manual = false ) {
 		$path = Digitalisimo_Backups_Job_Store::directory( $id ) . '/rollback.json';
-		@file_put_contents( $path, (string) wp_json_encode( array( 'job' => (string) $rollback, 'cause' => (string) $cause ) ) );
+		@file_put_contents( $path, (string) wp_json_encode( array( 'job' => (string) $rollback, 'cause' => (string) $cause ) + ( $manual ? array( 'manual' => true ) : array() ) ) );
 		if ( DIRECTORY_SEPARATOR === '/' ) @chmod( $path, 0600 );
 	}
 

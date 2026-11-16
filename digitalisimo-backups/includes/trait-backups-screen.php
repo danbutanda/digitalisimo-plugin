@@ -121,6 +121,8 @@ trait Digitalisimo_Backups_Screen {
 		$credentials = self::credentials_status();
 		self::notice_strip( $network, $credentials );
 		self::tabs_nav( $tab );
+		// Una restauración en curso (o recién terminada) se sigue en su panel también desde las demás pestañas.
+		if ( 'backups' !== $tab ) self::progress_panel( $network, false );
 		if ( 'settings' === $tab ) self::settings_tab( $network, $all, $open );
 		elseif ( 'servers' === $tab ) self::destinations_tab( $s, $credentials, $open );
 		elseif ( 'tools' === $tab ) self::tools_tab( $network, $s, $history, $open );
@@ -165,8 +167,10 @@ trait Digitalisimo_Backups_Screen {
 			}
 			$items[] = array( 'class' => 'digitalisimo-backups-restore-state', 'state' => $restore['state'], 'level' => $level, 'text' => $titles[ $restore['state'] ] ?? '', 'detail' => (string) $restore['notice'], 'actions' => $actions );
 			$active = Digitalisimo_Backups_Jobs::restore_active();
-			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada).
-			if ( $active && Digitalisimo_Backups_Restore_Maintenance::request_has( (string) $active['spec']['token'] ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'token' => (string) $active['spec']['token'], 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
+			// La pantalla sigue la restauración con su testigo (vale aunque la sesión cambie con la base de datos restaurada): lo
+			// lleva la cookie de este navegador (la de esta petición o la que acaba de recibir), nunca la página (revisión B8).
+			$token = $active ? (string) $active['spec']['token'] : '';
+			if ( '' !== $token && ( Digitalisimo_Backups_Restore_Maintenance::request_has( $token ) || Digitalisimo_Backups_Restore_Maintenance::$sent === $token ) ) echo '<script>window.digitalisimoBackupsRestore=' . wp_json_encode( array( 'action' => Digitalisimo_Backups_Jobs::AJAX_RESTORE_TICK ) ) . ';</script>';
 		}
 		// Tras restaurar (H23): la configuración del respaldo que no se aplicó, o un sitio sin automatizaciones activas.
 		try { $config = self::restore_config_strip_item(); if ( $config ) $items[] = $config; } catch ( Throwable $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
@@ -227,11 +231,18 @@ trait Digitalisimo_Backups_Screen {
 		$current = isset( $choices[ $s['destination'] ] ) ? $s['destination'] : 'local';
 		echo '<button class="button button-primary button-hero" title="' . esc_attr( is_multisite() ? 'Respaldo completo de la red: todos sus sitios, archivos y base de datos.' : 'Respaldo completo: archivos de WordPress, plugins, temas, medios y base de datos.' ) . '">Respaldar ahora</button>';
 		echo '<details class="digitalisimo-backups-destination-choice"><summary>Destino: <span data-destination-label>' . esc_html( $choices[ $current ] ) . '</span></summary><p>' . self::manual_destination_select( $s ) . '</p>' . self::remote_only_field( false, 'digitalisimo_backup_remote_only' ) . '</details>';
-		echo '</form><div id="digitalisimo-backups-manual-progress" class="digitalisimo-backups-manual-progress" hidden><p id="digitalisimo-backups-manual-message" role="status" aria-live="polite"></p><progress id="digitalisimo-backups-manual-bar" max="100" value="0"></progress><p id="digitalisimo-backups-manual-detail" aria-live="polite"></p></div>';
+		echo '</form>';
+		// El panel de avance, a todo lo ancho bajo el botón: el del respaldo y el de una restauración en curso.
+		$watched = self::progress_panel( $network, true );
 		echo '</section>';
-		// Trabajos en curso (automatizaciones, restauraciones, migraciones): sólo mientras haya alguno.
-		self::jobs_panel( $network, true );
+		// Trabajos en curso (automatizaciones, restauraciones, migraciones) que no sigue ya el panel: sólo mientras haya alguno.
+		self::jobs_panel( $network, true, $watched );
 		self::history_panel( $history, $network, count( $all ) );
+	}
+	// El panel de avance (Digitalisimo_Backups_Progress, que sólo carga la pantalla): el identificador del trabajo que sigue.
+	private static function progress_panel( $network, $home ) {
+		require_once __DIR__ . '/class-backups-progress.php';
+		return Digitalisimo_Backups_Progress::panel( $network, $home );
 	}
 	/** «Último respaldo» (el último de este sitio: no uno subido) y «Próximo» (la automatización activa que antes toca). */
 	private static function status_block( array $history ) {
@@ -385,6 +396,8 @@ trait Digitalisimo_Backups_Screen {
 		if ( '' !== $signed_only ) echo '<p class="digitalisimo-backups-warning">' . esc_html( $signed_only ) . '</p>';
 		// Restaurar por partes: lo que se reemplaza, a la vista sólo cuando no es todo (lo pone el script).
 		echo '<p class="digitalisimo-backups-warning" data-restore-parts-summary hidden></p>';
+		// «Volver a la copia previa» desde el panel de avance (?undo=…): qué vuelve y qué no se toca (lo pone el script).
+		echo '<p class="digitalisimo-backups-warning" data-restore-undo hidden></p>';
 		echo '<p class="digitalisimo-backups-restore-confirm"><label><span class="screen-reader-text">Confirmación</span><input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off" required></label> <button class="button button-primary">Restaurar</button> <a class="digitalisimo-backups-cancel" data-restore-cancel="' . esc_attr( $row_id ) . '" href="' . esc_url( self::tab_url( 'backups' ) ) . '">Cancelar</a></p>';
 		echo self::restore_parts_field( $path, $shown, self::tab_url( 'backups', '', array( 'restore' => rawurlencode( $file ), 'parts' => 1 ) ) . '#' . $row_id );
 		echo '<details class="digitalisimo-backups-restore-options"' . ( $needs_key || '' !== $hint['label'] ? ' open' : '' ) . '><summary>Opciones</summary>';

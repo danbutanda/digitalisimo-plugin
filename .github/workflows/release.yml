@@ -317,6 +317,8 @@ jobs:
           php tests/backups-job-compat.php
           php tests/backups-job-kill.php
           node tests/backups-jobs-ui.mjs
+          node tests/backups-progress-ui.mjs
+          php tests/backups-progress.php
           php tests/backups-simple-screen.php
           node tests/backups-screen-ui.mjs
           node tests/backups-simple-screen-chrome.mjs
