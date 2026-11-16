@@ -389,13 +389,15 @@ mig_case( 'h · deshacer la migración', function() use ( $NS, $destination_befo
 } );
 
 mig_case( 'i · tipos de sitio incompatibles y HTTP sin laboratorio, antes de descargar', function() use ( &$all_needles, $NS ) {
+	// Desde la rama backups/network-to-single, red → individual se acepta (se migra un sitio de la red, abajo); `site` sólo
+	// vale en ese caso.
 	$cases = array(
-		array( true, false, false, 'no declara una red', 'MULTISITE' ),
-		array( false, true, false, 'sitio individual a sitio individual o de red a red', '' ),
-		array( true, true, true, 'mismo tipo', 'SUBDOMAIN_INSTALL' ),
+		array( false, false, false, 'sólo se elige al migrar una red a un WordPress individual', '', array( 'site' => 2 ) ),
+		array( false, true, false, 'sitio individual a sitio individual o de red a red', '', array() ),
+		array( true, true, true, 'mismo tipo', 'SUBDOMAIN_INSTALL', array() ),
 	);
 	foreach ( $cases as $case ) {
-		list( $origin_network, $destination_network, $origin_subdomain, $expected, $config ) = $case;
+		list( $origin_network, $destination_network, $origin_subdomain, $expected, $config, $extra ) = $case;
 		$GLOBALS['mig']['sites']['origen']['multisite'] = $origin_network;
 		$GLOBALS['mig']['sites']['origen']['subdomain'] = $origin_subdomain;
 		mig_use( 'destino' );
@@ -405,13 +407,26 @@ mig_case( 'i · tipos de sitio incompatibles y HTTP sin laboratorio, antes de de
 		$GLOBALS['mig']['sites']['destino']['multisite'] = $destination_network;
 		$before = count( $GLOBALS['mig']['requests'] );
 		mig_use( 'destino' );
-		$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR', 'network' => $destination_network ) );
+		$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR', 'network' => $destination_network ) + $extra );
 		$routes = array_column( array_slice( $GLOBALS['mig']['requests'], $before ), 'route' );
 		mig_assert( 422 === $reply[0] && false !== strpos( $reply[1]['message'], $expected ) && ( '' === $config || false !== strpos( $reply[1]['message'], $config ) ), 'La incompatibilidad no se explicó: ' . json_encode( $reply ) );
 		mig_assert( array( '/digitalisimo-backups/v1/migrate/source/hello' ) === $routes && ! array_filter( Digitalisimo_Backups_Jobs::active(), function( $job ) { return 'migrate' === ( $job['spec']['kind'] ?? '' ); } ), 'Se pidió o se encoló algo más que la presentación: ' . json_encode( $routes ) );
 		$GLOBALS['mig']['sites']['destino']['multisite'] = false;
 		mig_use( 'origen' );
 	}
+	// Una red a este WordPress individual ya no se rechaza: se encola, con el sitio que se eligió (por defecto el principal).
+	$GLOBALS['mig']['sites']['origen']['multisite'] = true;
+	mig_use( 'destino' );
+	mig_use( 'origen' );
+	$key = mig_key();
+	$all_needles = array_merge( $all_needles, mig_parts( $key['key'] )['needles'] );
+	mig_use( 'destino' );
+	$reply = mig_rest( 'POST', $NS . '/migration/pull', array( 'key' => $key['key'], 'confirm' => 'MIGRAR', 'site' => '2' ) );
+	mig_assert( 202 === $reply[0] && ! empty( $reply[1]['id'] ), 'Una red a un WordPress individual se rechazó: ' . json_encode( $reply ) );
+	$job = Digitalisimo_Backups_Jobs::get( (string) $reply[1]['id'] );
+	mig_assert( $job && 2 === (int) ( $job['spec']['migration']['site'] ?? 0 ), 'La migración no guarda el sitio de la red que se migra: ' . json_encode( $job['spec']['migration'] ?? null ) );
+	Digitalisimo_Backups_Jobs::cancel( (string) $reply[1]['id'] );
+	mig_use( 'origen' );
 	$GLOBALS['mig']['sites']['origen']['multisite'] = false;
 	$GLOBALS['mig']['sites']['origen']['subdomain'] = false;
 	mig_use( 'destino' );

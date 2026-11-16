@@ -27,6 +27,7 @@ $out['jobs'] = class_exists( 'Digitalisimo_Backups_Jobs' ) ? count( Digitalisimo
 $out['history'] = array_map( static function ( $row ) { return array( 'file' => (string) ( $row['file'] ?? '' ), 'policy' => (string) ( $row['policy'] ?? '' ), 'origin' => (string) ( $row['origin'] ?? '' ), 'scope' => (string) ( $row['scope'] ?? '' ) ); }, (array) get_option( 'digitalisimo_backups_history', array() ) );
 // Restos de la red: valores que nombran red.test (salvo guid, el informe de la reubicación y la lista de respaldos, que la nombran a propósito).
 $out['leftovers'] = array();
+$out['declared'] = array();
 foreach ( $out['tables'] as $table ) {
 	foreach ( (array) $wpdb->get_results( 'SHOW COLUMNS FROM `' . $table . '`', ARRAY_A ) as $column ) {
 		$name = $column['Field'];
@@ -34,8 +35,12 @@ foreach ( $out['tables'] as $table ) {
 		foreach ( (array) $wpdb->get_results( 'SELECT * FROM `' . $table . '` WHERE `' . $name . "` LIKE '%red.test%'", ARRAY_A ) as $row ) {
 			if ( 0 === strpos( (string) ( $row['option_name'] ?? '' ), 'digitalisimo_backups_' ) ) continue;
 			$value = str_replace( '\\/', '/', (string) $row[ $name ] );
-			if ( false !== strpos( $value, '@red.test' ) && false === strpos( $value, '//red.test' ) ) continue; // un correo
-			$out['leftovers'][] = $table . '.' . $name . ': ' . substr( $value, max( 0, strpos( $value, 'red.test' ) - 60 ), 160 );
+			// Restos del sitio en la red: su dirección o sus medios en la red. La portada de la red (un enlace a red.test/) y los
+			// correos son lo declarado: se cuentan aparte.
+			$hit = '';
+			foreach ( array( 'red.test/dos', 'red.test/tres', 'uploads/sites/' ) as $needle ) if ( false !== strpos( $value, $needle ) ) { $hit = $needle; break; }
+			if ( '' === $hit ) { $out['declared'][] = $table . '.' . $name; continue; }
+			$out['leftovers'][] = $table . '.' . $name . ': ' . substr( $value, max( 0, strpos( $value, $hit ) - 60 ), 160 );
 		}
 	}
 }

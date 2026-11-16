@@ -35,6 +35,8 @@ const check = (ok, what, detail = '') => {
   return ok;
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// `rollback` de una restauración normal es una lista vacía (`[]` en el JSON del trabajo, que en JavaScript es verdadera).
+const isRollback = (job) => Boolean(job?.spec?.rollback) && !(Array.isArray(job.spec.rollback) && !job.spec.rollback.length);
 
 function request(method, path, { headers = {}, body, binary = false } = {}) {
   return new Promise((resolve) => {
@@ -91,6 +93,8 @@ async function shot(name, { width = 1280 } = {}) {
   log(`captura · ${name}.png`);
 }
 async function login() {
+  // Con la sesión de antes (quien restaura la conserva), ya está dentro.
+  await page.goto(`${base}${screen}`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
   for (let attempt = 0; attempt < 2 && !/wp-admin/.test(page.url()); attempt++) {
     await page.goto(`${base}/wp-login.php`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
     if (!(await page.$('#user_login'))) continue;
@@ -163,16 +167,20 @@ async function restoreSite(file, site, label) {
   await shot(`${label}-confirmacion`);
   await page.type(`${panel} input[name=confirmation]`, 'RESTAURAR');
   await Promise.all([page.waitForNavigation({ waitUntil: 'load' }).catch(() => null), page.click(`${panel} button.button-primary`)]);
+  // La petición responde enseguida (falla.php, con /digi-probe/lento): el panel de avance sigue la conversión.
+  await sleep(1500);
+  await shot(`${label}-avance`);
+  const during = await page.$eval('#digitalisimo-backups-manual-progress', (p) => p.innerText).catch(() => '');
   const run = await drive(label);
   const created = jobs().filter((j) => !before.has(j.id));
   const convert = created.find((j) => j.spec?.kind === 'convert') || null;
-  const restore = created.filter((j) => j.kind === 'restore' && !j.spec?.rollback).sort((a, b) => Number(a.queued_at || 0) - Number(b.queued_at || 0))[0] || null;
-  const rollback = created.find((j) => j.kind === 'restore' && j.spec?.rollback) || null;
+  const restore = created.filter((j) => j.kind === 'restore' && !isRollback(j)).sort((a, b) => Number(a.queued_at || 0) - Number(b.queued_at || 0))[0] || null;
+  const rollback = created.find((j) => j.kind === 'restore' && isRollback(j)) || null;
   await go(screen);
   await sleep(3000);
   await shot(`${label}-resultado`);
-  const panelText = await page.$eval('#digitalisimo-backups-progress', (p) => p.innerText).catch(() => '');
-  return { run, convert, restore, rollback, panelText };
+  const panelText = await page.$eval('#digitalisimo-backups-manual-progress', (p) => p.innerText).catch(() => '');
+  return { run, convert, restore, rollback, panelText, during };
 }
 /** La portada y un medio servido, por HTTP, como un visitante. */
 async function front(expectTheme, expectPlugins, mediaName, mediaHash) {
@@ -188,6 +196,11 @@ async function canLogin(login) {
   const body = new URLSearchParams({ log: login, pwd: network.passwords[login], 'wp-submit': 'Acceder', redirect_to: `${base}/wp-admin/`, testcookie: '1' }).toString();
   const res = await request('POST', '/wp-login.php', { headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: 'wordpress_test_cookie=WP%20Cookie%20check' }, body });
   return res.status === 302 && /wp-admin/.test(String(res.headers.location || '')) && String(res.headers['set-cookie'] || '').includes('wordpress_logged_in');
+}
+async function canLoginAs(login, password) {
+  const body = new URLSearchParams({ log: login, pwd: password, 'wp-submit': 'Acceder', redirect_to: `${base}/wp-admin/`, testcookie: '1' }).toString();
+  const res = await request('POST', '/wp-login.php', { headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: 'wordpress_test_cookie=WP%20Cookie%20check' }, body });
+  return res.status === 302 && String(res.headers['set-cookie'] || '').includes('wordpress_logged_in');
 }
 const networkTables = (tables) => tables.filter((t) => /(?:blogs|blogmeta|site|sitemeta|signups|registration_log)$/.test(t) || /_[0-9]+_/.test(t));
 
@@ -206,17 +219,20 @@ await shot('lista-390', { width: 390 });
 
 // 2-3. El sitio 2 como este WordPress.
 const two = inventory['2'];
+writeFileSync(`${dir}/probe/lento`, '1');
 let run = await restoreSite(file, 2, 'sitio-2');
+try { (await import('node:fs')).unlinkSync(`${dir}/probe/lento`); } catch { /* ya no está */ }
 st = await state();
 check(run?.convert?.status === 'success' && run?.restore?.status === 'success' && !run?.rollback, `la conversión del sitio 2 y su restauración terminan (${run?.run?.seconds} s)`, JSON.stringify({ convert: run?.convert?.status, error: run?.convert?.error || run?.restore?.error, restore: run?.restore?.status }));
-check(/Restauración terminada|Se restauró el sitio red\.test\/dos/.test(run?.panelText || '') || /Se restauró el sitio red\.test\/dos/.test(JSON.stringify(run?.restore?.result || {})), 'el panel de avance dice que se restauró el sitio de la red', run?.panelText);
+check(/Convirtiendo el sitio de la red|Lectura del sitio|Conversión de|Restauración en curso/.test(run?.during || ''), 'el panel de avance sigue la conversión del sitio de la red', run?.during);
+check(/Se restauró el sitio red\.test\/dos \(ID 2\) del respaldo de la red/.test(run?.panelText || '') || /Se restauró el sitio red\.test\/dos/.test(JSON.stringify(run?.restore?.result || {})), 'el resultado dice qué sitio de la red se restauró', run?.panelText);
 check(same(Object.values(st.posts || {}).sort(), Object.values(two.posts).sort()), 'las entradas, páginas y medios son los del sitio 2', JSON.stringify({ aqui: st.posts, red: two.posts }));
 check(same(st.uploads?.files, two.files), 'los medios del sitio 2 están en uploads/ con sus mismos bytes (SHA-256)', JSON.stringify({ aqui: st.uploads?.files, red: two.files }));
 check(st.stylesheet === 'tema-dos' && st.template === 'tema-base' && same([...st.plugins].sort(), ['digitalisimo-backups/digitalisimo-backups.php', 'plugin-dos/plugin-dos.php', 'red-plugin/red-plugin.php']), 'su tema (hijo) y los plugins (el de la red, el suyo y Backups) quedan activos', JSON.stringify({ tema: st.stylesheet, plugins: st.plugins }));
 check(!networkTables(st.tables || []).length && st.multisite === false, 'no queda ninguna tabla de la red ni de otros sitios', JSON.stringify(st.tables));
 check(same(st.users?.editora?.roles, ['editor']) && same(st.users?.autora?.roles, ['author']) && same(st.users?.suscriptor?.roles, ['subscriber']) && st.users?.editora?.network_password && st.users?.autora?.network_password && !st.users?.solo3 && !st.users?.jefa && same(st.users?.admin?.roles, ['administrator']), 'los miembros del sitio 2 con sus roles y su contraseña de la red; los de otros sitios no; quien restauró sigue', JSON.stringify(st.users));
 check(await canLogin('editora') && await canLogin('autora'), 'la editora y la autora entran por wp-login.php con su contraseña de la red');
-check(!(st.leftovers || []).length, 'ningún valor de la base de datos apunta a red.test', JSON.stringify(st.leftovers));
+check(!(st.leftovers || []).length, 'ningún valor de la base de datos apunta al sitio 2 en la red (red.test/dos) ni a uploads/sites/ (los enlaces a la portada de la red quedan, como al extraer)', JSON.stringify(st.leftovers));
 let home = await front('tema-dos', ['red-plugin', 'plugin-dos'], 'portada-2.png', Object.entries(two.files).find(([name]) => name.endsWith('portada-2.png'))?.[1]);
 check(home.ok && home.mediaOk, 'la portada carga sin errores con su tema y sus plugins, y su medio se sirve desde uploads/ con los bytes de la red', JSON.stringify(home));
 await page.goto(base + '/', { waitUntil: 'load' });
@@ -230,7 +246,9 @@ st = await state();
 check(run?.convert?.status === 'success' && run?.restore?.status === 'success', `la conversión del sitio principal y su restauración terminan (${run?.run?.seconds} s)`, JSON.stringify({ convert: run?.convert?.status, error: run?.convert?.error || run?.restore?.error }));
 check(same(Object.values(st.posts || {}).sort(), Object.values(one.posts).sort()) && same(st.uploads?.files, one.files), 'el contenido y los medios son los del principal (sin sites/)', JSON.stringify({ posts: st.posts, files: st.uploads?.files, red: one.files }));
 check(st.stylesheet === 'tema-uno' && same([...st.plugins].sort(), ['digitalisimo-backups/digitalisimo-backups.php', 'plugin-uno/plugin-uno.php', 'red-plugin/red-plugin.php']) && !networkTables(st.tables || []).length, 'el tema y los plugins del principal, sin tablas de la red', JSON.stringify({ tema: st.stylesheet, plugins: st.plugins, tables: st.tables }));
-check(same(st.users?.jefa?.roles, ['editor']) && st.users?.jefa?.network_password && same(st.users?.admin?.roles, ['administrator']) && !st.users?.autora, 'los usuarios del principal con sus roles (la jefa con su contraseña) y quien restauró', JSON.stringify(st.users));
+const roled = Object.entries(st.users || {}).filter(([, u]) => (u.roles || []).length).map(([login]) => login).sort();
+check(same(st.users?.jefa?.roles, ['editor']) && st.users?.jefa?.network_password && same(st.users?.admin?.roles, ['administrator']) && same(roled, ['admin', 'jefa']), 'los usuarios del principal con sus roles (la jefa con su contraseña de la red), los demás miembros sin rol como en la red, y quien restauró', JSON.stringify(st.users));
+check(await canLoginAs('admin', 'password'), 'quien restauró sigue entrando con su contraseña de aquí');
 home = await front('tema-uno', ['red-plugin', 'plugin-uno'], 'portada-1.png', Object.entries(one.files).find(([name]) => name.endsWith('portada-1.png'))?.[1]);
 check(home.ok && home.mediaOk, 'la portada del principal carga sin errores y su medio se sirve desde uploads/', JSON.stringify(home));
 await page.goto(base + '/', { waitUntil: 'load' });
@@ -246,7 +264,7 @@ check(existsSync(`${dir}/probe/falla-hecha`), 'la falla después del cambio ocur
 check(run?.restore?.status === 'failed' && run?.rollback?.status === 'success', 'la restauración con la falla vuelve sola a la copia previa', JSON.stringify({ restore: run?.restore?.status, error: run?.restore?.error, rollback: run?.rollback?.status }));
 const keys = ['posts', 'stylesheet', 'template', 'plugins', 'tables', 'plugin_dirs', 'theme_dirs'];
 check(keys.every((k) => same(before[k], after[k])) && same(before.uploads?.files, after.uploads?.files) && same(Object.keys(before.users || {}).sort(), Object.keys(after.users || {}).sort()), 'tras la vuelta, el sitio es el de antes (entradas, tema, plugins, tablas, archivos y usuarios)', JSON.stringify(keys.filter((k) => !same(before[k], after[k]))));
-check(/volvió|copia previa/i.test(run?.panelText || ''), 'el panel dice que el sitio volvió a la copia previa y por qué', run?.panelText);
+check(/volvió|copia previa/i.test(run?.panelText || '') && /falla simulada/.test(run?.panelText || ''), 'el panel dice que el sitio volvió a la copia previa y por qué', run?.panelText);
 
 check(!jsErrors.length, 'sin errores de JavaScript en la pantalla', jsErrors.join(' | '));
 await browser.close();
