@@ -449,12 +449,13 @@ final class Digitalisimo_Backups_Cli {
 			if ( is_multisite() ) WP_CLI::log( 'Sitios con medios: ' . implode( ', ', (array) $available['sites'] ) . '.' );
 		}
 		if ( null !== ( $parts['selection'] ?? null ) ) self::parts_preview( $parts );
+		// Con el respaldo de otra instalación: quiénes conservarían su acceso al restaurarlo aquí (antes del resultado, que
+		// sigue siendo la línea final).
+		if ( ! empty( $report['compatible'] ) && ! empty( $report['access']['applies'] ) && '' !== (string) ( $report['access']['text'] ?? '' ) ) WP_CLI::log( (string) $report['access']['text'] );
 		$trust = array( 'signed' => 'firmado' . ( '' !== $report['key'] ? ' con la clave ' . $report['key'] : '' ), 'provenance' => 'registrado en este sitio', 'untrusted' => 'uploaded' === ( $report['vouched'] ?? '' ) ? 'subido y en la lista, sin firma: se restaura con RESTAURAR' : 'sin firma ni registro: restaurarlo pide RESTAURAR SIN FIRMA' );
 		WP_CLI::success( 'Respaldo íntegro: ' . $report['file'] . ' (' . ( 'dgbk' === $report['container'] ? 'cifrado, ' : '' ) . $report['entries'] . ' entradas, SHA-256 ' . $report['sha256'] . ', ' . ( $trust[ $report['trust'] ] ?? $report['trust'] ) . ').' );
 		if ( empty( $report['compatible'] ) ) WP_CLI::warning( 'No se puede restaurar en esta instalación: ' . implode( ' ', (array) $report['problems'] ) );
 		elseif ( ! empty( $report['relocation']['needed'] ) ) WP_CLI::log( $report['relocation']['text'] );
-		// Quiénes conservarían su acceso al restaurarlo aquí (con el respaldo de otra instalación).
-		if ( ! empty( $report['compatible'] ) && '' !== (string) ( $report['access']['text'] ?? '' ) ) WP_CLI::log( (string) $report['access']['text'] );
 		// wp-config.php no se restaura: qué constantes del respaldo faltan o difieren aquí (los valores secretos nunca se
 		// muestran). Va después y aparte de «Origen → este sitio»: un respaldo de otro servidor suele traer las dos cosas.
 		$config = (array) ( $report['wp_config'] ?? array() );

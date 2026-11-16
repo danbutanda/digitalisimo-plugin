@@ -97,12 +97,17 @@ async function login(p, user, password) {
   for (let attempt = 0; attempt < 2 && !/\/wp-admin\//.test(p.url()); attempt++) {
     await p.goto(`${base}/wp-login.php`, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
     if (!(await p.$('#user_login'))) continue;
-    await p.$eval('#user_login', (i) => { i.value = ''; });
-    await p.type('#user_login', user);
-    await p.type('#user_pass', password);
+    // wp-login.php enfoca y selecciona el campo de usuario a los 200 ms de cargar: si eso cae mientras se teclea, lo que
+    // sigue reemplaza lo seleccionado y el usuario llega cortado. Se espera a que pase y se ponen los valores enteros.
+    await sleep(700);
+    await p.$eval('#user_login', (i, v) => { i.value = v; }, user);
+    await p.$eval('#user_pass', (i, v) => { i.value = v; }, password);
+    const typed = await p.$eval('#user_login', (i) => i.value);
+    if (typed !== user) continue;
     await Promise.all([p.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), p.click('#wp-submit')]);
     if (await p.$('#login_error')) break;
   }
+  if (!/\/wp-admin\//.test(p.url())) p.loginError = await p.$eval('#login_error', (e) => e.textContent.trim()).catch(() => '');
   return /\/wp-admin\//.test(p.url());
 }
 /** Un navegador aparte (sin las cookies de los demás) para entrar como $user. */
@@ -164,7 +169,7 @@ if (phase === 'a') {
   // 0. Antes: «admin» entra (el navegador que restaura) y «soporte» tiene su sesión abierta en otro navegador.
   check(await login(page, 'admin', secrets.admin), 'antes: «admin» entra en el sitio B', page.url());
   const soporteBefore = await asUser('soporte', secrets.soporte);
-  check(soporteBefore.ok && (await administers(soporteBefore.page)), 'antes: «soporte» entra en el sitio B y lo administra');
+  check(soporteBefore.ok && (await administers(soporteBefore.page)), 'antes: «soporte» entra en el sitio B y lo administra', soporteBefore.page.loginError || soporteBefore.page.url());
   const soporteCookie = await cookieHeader(soporteBefore.page);
   await soporteBefore.context.close();
   const appAuth = { Authorization: `Basic ${Buffer.from(`soporte:${secrets.soporte_app}`).toString('base64')}` };
@@ -235,7 +240,7 @@ if (phase === 'a') {
     if (!password) { check(false, `falta la contraseña de «${user}» para el ensayo`); continue; }
     const session = await asUser(user, password);
     const isAdmin = session.ok ? await administers(session.page) : false;
-    check(session.ok && isAdmin === admin, `«${user}» entra con su contraseña${admin ? ' y administra el sitio (Ajustes → Generales)' : ' y no administra el sitio'}`, `${session.page.url()} ${isAdmin}`);
+    check(session.ok && isAdmin === admin, `«${user}» entra con su contraseña${admin ? ' y administra el sitio (Ajustes → Generales)' : ' y no administra el sitio'}`, `${session.page.url()} ${isAdmin} ${session.page.loginError || ''}`);
     if (session.ok) { await go('/wp-admin/', session.page); await shot(session.page, `entra-${user}`); }
     await session.context.close();
   }
