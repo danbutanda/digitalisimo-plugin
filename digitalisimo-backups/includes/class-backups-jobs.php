@@ -864,12 +864,13 @@ final class Digitalisimo_Backups_Jobs {
 			$done = self::restore_finished_for_request( ! $manager );
 			if ( $done && ( $manager || time() - (int) ( $done['finished_at'] ?? 0 ) <= self::FINISHED_ANSWER ) ) {
 				$view = $manager ? self::screen_view( $done ) : self::finished_view( $done );
-				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ), 'nonces' => self::fresh_nonces() ) );
+				wp_send_json_success( array( 'result' => 'finished', 'message' => (string) $view['detail'], 'jobs' => array( $view ), 'nonces' => self::fresh_nonces(), 'manager' => $manager ) );
 			}
 			wp_send_json_error( array( 'message' => 'No hay una restauración en curso con este testigo.' ), 403 );
 		}
 		$result = self::tick();
-		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces() ) );
+		// `manager`: si quien sigue la restauración conserva su sesión de gestión (sin ella, al terminar se le pide entrar).
+		wp_send_json_success( array( 'result' => $result['result'], 'message' => $result['message'] ?? '', 'jobs' => self::views( 8, true ), 'nonces' => self::fresh_nonces(), 'manager' => (bool) Digitalisimo_Backups::can_manage_backups() ) );
 	}
 	// Tras el cambio de tablas la sesión puede seguir valiendo («Conservar mi acceso») con otro ID o con otras sales: los
 	// nonces que la pantalla recibió al cargarse ya no valen. Quien sigue gestionando Backups recibe los nuevos con el tick

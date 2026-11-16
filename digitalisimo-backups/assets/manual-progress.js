@@ -43,6 +43,8 @@
   var tickMode = restore ? 'restore' : 'jobs';
   /* Lo que el panel recuerda del sondeo mientras todo va bien (p. ej., que la sesión cambió y se sigue con el testigo). */
   var modeNote = '';
+  /* El tick por testigo dice si esta pestaña conserva su sesión de gestión: sin ella, al terminar se pide entrar. */
+  var sessionLost = false;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
@@ -274,6 +276,7 @@
       if (report.removed) paragraph('Se retiraron ' + report.removed + ' archivos que el respaldo no tenía' + (report.kept ? ' (' + report.kept + ' cambiados después se apartaron en el almacén)' : '') + '.');
     } else if (job.notices && job.notices.length) paragraph('Avisos: ' + job.notices.join(' '), 'digitalisimo-backups-warning');
     if (kind === 'restore' && job.status === 'success' && job.safety) paragraph('La copia previa ' + job.safety + ' queda bloqueada en el historial: si algo no quedó bien, «Volver a la copia previa» la restaura.');
+    if (sessionLost) paragraph('Esta pestaña perdió la sesión con el cambio de tablas (la restauración repuso los usuarios del respaldo): inicia sesión para ver el resultado completo.', 'digitalisimo-backups-warning');
     show(ui.result, ui.result.firstChild !== null);
   }
   /* Pinta un trabajo en el panel. */
@@ -291,7 +294,10 @@
     panel.hidden = false;
     panel.setAttribute('data-state', state);
     panel.setAttribute('data-kind', kind);
-    var percent = Math.max(0, Math.min(100, Number(job.percent) || 0));
+    /* Un reintento devuelve el % al comienzo de su fase aunque se retome desde su punto de control: la barra no retrocede. */
+    var percent = Math.max(watch.top || 0, Math.min(100, Number(job.percent) || 0));
+    if (!job.terminal || job.status === 'success') watch.top = percent;
+    if (job.terminal && job.status !== 'success') percent = Math.max(0, Math.min(100, Number(job.percent) || percent));
     var at = -1;
     track.forEach(function (item, index) { if (item[0] === job.phase) at = index; });
     setText(ui.title, title(kind, job));
@@ -320,7 +326,8 @@
     if (kind === 'restore' && job.status === 'success') safetyLink(job.safety);
     show(ui.rollback, job.status === 'failed' && !!job.midway);
     /* Sin sesión, el tick por testigo sólo da el estado y un texto general: el resultado se ve al entrar. */
-    show(ui.login, !job.track && !job.result && /Entra al escritorio/.test(job.detail || ''));
+    show(ui.login, sessionLost || (!job.track && !job.result && /Entra al escritorio/.test(job.detail || '')));
+    if (ui.safety && sessionLost) show(ui.safety, false);
   }
   /* El trabajo que sigue al que el panel seguía: la vuelta a la copia previa de una restauración que falló a mitad del cambio
      o la restauración de un punto incremental ya reconstruido. */
@@ -430,6 +437,7 @@
       lastOk = Date.now();
       applyNonces(data.nonces);
       if (data.nonces && data.nonces.jobs) modeNote = '';
+      if (data.manager === false || data.manager === true) sessionLost = !data.manager;
       var follow = following();
       if (follow) note(data.result === 'busy' ? 'Otro proceso (WP-Cron o WP-CLI) está con este paso: esta pestaña sólo consulta su avance.' : modeNote);
       var active = update(data.jobs || [], data.result === 'finished');

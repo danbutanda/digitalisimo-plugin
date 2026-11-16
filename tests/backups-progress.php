@@ -159,8 +159,9 @@ bp_case( 'R3 · tick por testigo: vistas de pantalla, nonces nuevos con sesión;
 	$view = $answer && $answer->success ? ( $answer->payload['jobs'][0] ?? array() ) : array();
 	bp_check( $answer && $answer->success && $restore['id'] === ( $view['id'] ?? '' ) && 7 === count( (array) ( $view['track'] ?? array() ) ) && isset( $view['elapsed'] ), 'El tick por testigo no da la vista de pantalla: ' . json_encode( $answer ? $answer->payload : null ) );
 	bp_check( array( 'jobs' => 'nonce-digitalisimo_backups_jobs-b', 'restore' => 'nonce-' . Digitalisimo_Backups::ACTION_RESTORE . '-b' ) === ( $answer->payload['nonces'] ?? null ), 'Con la sesión de gestión el tick no trae nonces nuevos: ' . json_encode( $answer->payload['nonces'] ?? null ) );
+	bp_check( true === ( $answer->payload['manager'] ?? null ), 'El tick por testigo no dice que la pestaña conserva su sesión de gestión.' );
 	$answer = $tick( false );
-	bp_check( $answer && $answer->success && array() === ( $answer->payload['nonces'] ?? null ), 'Sin sesión el tick por testigo dio nonces: ' . json_encode( $answer ? $answer->payload : null ) );
+	bp_check( $answer && $answer->success && array() === ( $answer->payload['nonces'] ?? null ) && false === ( $answer->payload['manager'] ?? null ), 'Sin sesión el tick por testigo dio nonces o no dice que la sesión se perdió: ' . json_encode( $answer ? $answer->payload : null ) );
 	// Terminada: con sesión, la vista de pantalla con su informe; sin ella, la mínima de siempre (C4).
 	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'success', 'phase' => 'cleanup', 'finished_at' => time(), 'retry_at' => 0, 'result' => array( 'restore' => array( 'notice' => 'Cómo entrar ahora: https://example.test/wp-login.php' ) ), 'progress' => array( 'percent' => 100, 'message' => 'Restauración terminada desde digitalisimo-sitio-2026-11-15.zip.' ) ) ) );
 	$answer = $tick( true );

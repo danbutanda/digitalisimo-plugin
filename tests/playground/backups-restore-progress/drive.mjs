@@ -1,0 +1,289 @@
+// Ensayo del panel de avance (backups-restore-progress.sh) con Chrome sin interfaz contra el Playground que levantó el
+// script: todo desde la pantalla Backups, como un usuario, y nada más hace avanzar la cola (sin loopback de WP-Cron).
+//   single     1) «Respaldar ahora» (1 280 px): el panel grande aparece bajo el botón, avanza por las fases del respaldo
+//                 y la lista se recarga con el respaldo;
+//              2) restauración completa desde su fila (1 280 px), con otra sesión que el cambio de tablas deja sin valor:
+//                 el panel dice al instante que empieza, avanza fase por fase (Verificación del respaldo … Limpieza),
+//                 vuelve tras recargar la página a mitad (en «Base de datos», ya en mantenimiento), sigue con el testigo
+//                 tras el cambio de tablas y termina con «Restauración terminada»; sin sesión ofrece «Iniciar sesión» y, al
+//                 entrar otra vez, la pantalla enseña el resultado completo;
+//              3) restauración por partes (sólo plugins) a 390 px: sin desplazamiento horizontal, dice qué se restaura y
+//                 termina con el resultado y «Volver a la copia previa»;
+//              4) restauración (plugins) con una falla inyectada al mover el código (1 280 px): el panel sigue la vuelta
+//                 a la copia previa y termina diciendo que el sitio volvió a como estaba y por qué falló.
+//   multisite  1) y 3) en la administración de la red.
+// Capturas (página y panel) en <dir>/shots; las muestras del panel, en <dir>/shots/samples.json.
+// Uso: node drive.mjs <puerto> <host> <dir> <single|multisite>
+import http from 'node:http';
+import { appendFileSync, copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
+
+const [port, host, dir, mode] = process.argv.slice(2);
+const network = mode === 'multisite';
+const shots = `${dir}/shots`;
+const base = `http://${host}`;
+const screen = network ? '/wp-admin/network/admin.php?page=digitalisimo-network-backups' : '/wp-admin/admin.php?page=digitalisimo-backups';
+const token = readFileSync(`${dir}/probe/token.txt`, 'utf8').trim();
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let failures = 0;
+const log = (line) => { appendFileSync(`${shots}/result.txt`, `${line}\n`); console.log(line); };
+const check = (ok, what, detail = '') => {
+  if (ok) log(`ok · ${what}`);
+  else { failures++; log(`FALLA · ${what}${detail ? ` · ${String(detail).slice(0, 1500)}` : ''}`); }
+  return ok;
+};
+function request(method, path) {
+  return new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port: Number(port), method, path, headers: { Host: host }, timeout: 120_000 }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => { const text = Buffer.concat(chunks).toString('utf8'); let json = null; try { json = JSON.parse(text); } catch { /* página */ } resolve({ status: res.statusCode, text, json }); });
+    });
+    req.on('error', (error) => resolve({ status: 0, text: String(error.message), json: null }));
+    req.on('timeout', () => req.destroy(new Error('tiempo agotado')));
+    req.end();
+  });
+}
+const lab = async (what, extra = '') => (await request('GET', `/?digi_lab=${what}&token=${token}${extra}`)).json;
+
+const pptr = `${String(process.env.PUPPETEER_PATH || '').replace(/\/$/, '')}/puppeteer-core/lib/puppeteer/puppeteer-core.js`;
+const { default: puppeteer } = await import(pathToFileURL(pptr).href);
+// Perfil en una ruta corta: con un TMPDIR largo, Chrome muere con «Socket path too long».
+const profile = mkdtempSync(existsSync('/tmp') ? '/tmp/dgp-' : `${tmpdir()}/dgp-`);
+const browser = await puppeteer.launch({
+  userDataDir: profile,
+  env: { ...process.env, TMPDIR: existsSync('/tmp') ? '/tmp' : tmpdir() },
+  executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
+  headless: true,
+  protocolTimeout: 900_000,
+  args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none', `--host-resolver-rules=MAP ${host} 127.0.0.1:${port}, MAP * ~NOTFOUND`],
+});
+const page = await browser.newPage();
+page.setDefaultTimeout(300_000);
+page.setDefaultNavigationTimeout(300_000);
+await page.setViewport({ width: 1280, height: 900 });
+const jsErrors = [];
+page.on('pageerror', (e) => jsErrors.push(String(e.message || e).slice(0, 300)));
+page.on('dialog', async (d) => { log(`· diálogo: ${d.message().slice(0, 200)}`); await d.accept(); });
+const samples = {};
+
+async function login(path = '/wp-login.php') {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!/wp-login\.php/.test(page.url())) await page.goto(base + path, { waitUntil: 'load', timeout: 120_000 }).catch(() => {});
+    if (!(await page.$('#user_login'))) { if (/wp-admin/.test(page.url())) return true; continue; }
+    await page.$eval('#user_login', (input) => { input.value = ''; });
+    await page.type('#user_login', 'admin');
+    await page.type('#user_pass', 'password');
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120_000 }).catch(() => null), page.click('#wp-submit')]);
+    if (/wp-admin/.test(page.url())) return true;
+  }
+  return false;
+}
+/** Lo que enseña el panel ahora mismo (null si la página está cambiando). */
+async function panel() {
+  try {
+    return await page.evaluate(() => {
+      const p = document.getElementById('digitalisimo-backups-manual-progress');
+      if (!p) return { absent: true, url: location.href };
+      const q = (id) => document.getElementById(id);
+      const shown = (el) => !!el && !el.hidden && el.getBoundingClientRect().height > 0;
+      const bar = q('digitalisimo-backups-manual-bar');
+      const current = p.querySelector('#digitalisimo-backups-progress-phases li[data-state="current"]');
+      const box = p.getBoundingClientRect();
+      const wrap = document.querySelector('.wrap').getBoundingClientRect();
+      return {
+        url: location.href, visible: shown(p), state: p.getAttribute('data-state'), kind: p.getAttribute('data-kind'),
+        title: q('digitalisimo-backups-progress-title').textContent, percent: q('digitalisimo-backups-progress-percent').textContent,
+        now: bar.getAttribute('aria-valuenow'), role: bar.getAttribute('role'), live: q('digitalisimo-backups-manual-message').getAttribute('role'),
+        phase: current ? current.getAttribute('data-phase') : '',
+        phases: [...p.querySelectorAll('#digitalisimo-backups-progress-phases li')].map((li) => `${li.getAttribute('data-phase')}:${li.getAttribute('data-state')}`),
+        what: q('digitalisimo-backups-progress-what').textContent, message: q('digitalisimo-backups-manual-message').textContent, detail: q('digitalisimo-backups-manual-detail').textContent,
+        time: q('digitalisimo-backups-progress-time').textContent, note: shown(q('digitalisimo-backups-progress-note')) ? q('digitalisimo-backups-progress-note').textContent : '',
+        result: shown(q('digitalisimo-backups-progress-result')) ? q('digitalisimo-backups-progress-result').innerText : '',
+        actions: ['cancel', 'reload', 'safety', 'login', 'rollback'].filter((name) => shown(q('digitalisimo-backups-progress-' + name))),
+        width: Math.round(box.width), wrap: Math.round(wrap.width), bar: Math.round(bar.getBoundingClientRect().width), fill: Math.round(q('digitalisimo-backups-progress-fill').getBoundingClientRect().width),
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        strip: shown(document.querySelector('.digitalisimo-backups-strip .digitalisimo-backups-restore-state')),
+        view: (() => { try { return JSON.parse(p.getAttribute('data-view') || 'null')?.id || ''; } catch { return ''; } })(),
+      };
+    });
+  } catch { return null; }
+}
+async function shot(name, element = true) {
+  const width = page.viewport().width;
+  try {
+    await page.screenshot({ path: `${shots}/${name}-${width}.png`, fullPage: true });
+    const handle = element ? await page.$('#digitalisimo-backups-manual-progress') : null;
+    if (handle && await handle.evaluate((el) => !el.hidden)) await handle.screenshot({ path: `${shots}/${name}-${width}-panel.png` });
+    log(`· captura ${name}-${width}`);
+  } catch (e) { log(`· sin captura ${name}: ${String(e.message || e).slice(0, 200)}`); }
+}
+/**
+ * Sigue el panel hasta `until(muestra)` (o `minutes`). Anota cada cambio (fase, %, título, nota) y llama a `onSample` con
+ * cada muestra nueva (para recargar, capturar…). Devuelve las muestras.
+ */
+async function follow(label, until, { minutes = 25, onSample = null } = {}) {
+  const seen = [];
+  const deadline = Date.now() + minutes * 60_000;
+  let last = '';
+  while (Date.now() < deadline) {
+    const s = await panel();
+    if (s && !s.absent) {
+      const key = [s.state, s.title, s.percent, s.phase, s.note, s.result ? 1 : 0].join('|');
+      if (key !== last) {
+        last = key;
+        seen.push({ t: Math.round((Date.now() - (seen[0]?.at || Date.now())) / 1000), at: Date.now(), state: s.state, title: s.title, percent: s.percent, now: s.now, phase: s.phase, note: s.note.slice(0, 160), detail: s.detail.slice(0, 160) });
+        if (onSample) await onSample(s, seen);
+      }
+      if (until(s)) { samples[label] = seen.map(({ at, ...rest }) => rest); return { seen, last: s }; }
+    }
+    await sleep(700);
+  }
+  samples[label] = seen.map(({ at, ...rest }) => rest);
+  check(false, `${label}: el panel no llegó al final en ${minutes} min`, JSON.stringify(seen.slice(-5)));
+  return { seen, last: await panel() };
+}
+const ended = (s) => ['success', 'failed', 'cancelled', 'lost'].includes(s.state) && !!s.result;
+const currentPhases = (seen) => [...new Set(seen.map((s) => s.phase).filter(Boolean))];
+/** Abre «Restaurar» de la primera fila, elige las partes (null: todo), escribe RESTAURAR y lo envía. */
+async function restoreFromRow(parts) {
+  await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+  await sleep(800);
+  // El respaldo de «Respaldar ahora», no una copia previa de las restauraciones anteriores.
+  const toggle = await page.$('tr.digitalisimo-backups-row[data-file^="digitalisimo-"] [data-restore-toggle]');
+  if (!check(!!toggle, 'la fila del respaldo tiene «Restaurar»')) return false;
+  const row = await toggle.evaluate((a) => a.getAttribute('data-restore-toggle'));
+  await toggle.click();
+  await sleep(300);
+  if (parts) {
+    await page.click(`#${row} details[data-restore-parts] > summary`);
+    await page.$eval(`#${row} [data-restore-all]`, (box) => { if (box.checked) box.click(); });
+    for (const part of parts) await page.$eval(`#${row} [data-restore-part][value="${part}"]`, (box) => { if (!box.checked) box.click(); });
+  }
+  await page.type(`#${row} input[name="confirmation"]`, 'RESTAURAR');
+  const navigation = page.waitForNavigation({ waitUntil: 'load', timeout: 300_000 }).catch(() => null);
+  await page.click(`#${row} .digitalisimo-backups-restore-confirm button`);
+  await sleep(250);
+  const starting = await panel();
+  check(starting && starting.visible && starting.state === 'starting' && /Empezando la restauración/.test(starting.message) && starting.now === null, 'al confirmar «Restaurar», el panel dice al instante que empieza (barra indeterminada)', JSON.stringify(starting));
+  await shot(`${parts ? 'partes' : 'completa'}-empieza`);
+  await navigation;
+  return true;
+}
+
+const start = Date.now();
+try {
+  check(await login(), 'inicio de sesión de admin');
+  const original = await lab('inventory');
+
+  // 1) Respaldar ahora.
+  await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+  await sleep(800);
+  const reloaded = page.waitForNavigation({ waitUntil: 'load', timeout: 1_200_000 }).then(() => true).catch(() => false);
+  await page.click('#digitalisimo-backups-manual-form button');
+  let midway = null;
+  let running = false;
+  // Al terminar bien, la página se recarga enseguida: el panel vuelve vacío (oculto).
+  const backup = await follow('respaldo', (s) => s.title === 'Respaldo terminado' || s.state === 'failed' || (running && !s.visible), { onSample: async (s) => { if (s.title === 'Respaldo en curso') running = true; if (!midway && parseInt(s.percent, 10) >= 40) { midway = s; await shot('respaldo-en-curso'); } } });
+  check(midway && midway.overflow <= 0 && midway.width >= midway.wrap - 90 && midway.bar >= midway.width - 50 && midway.role === 'progressbar' && midway.now === String(parseInt(midway.percent, 10)) && midway.live === 'status', 'respaldo: el panel va a todo lo ancho, con la barra accesible y su valor', JSON.stringify(midway && { width: midway.width, wrap: midway.wrap, bar: midway.bar, now: midway.now, percent: midway.percent }));
+  const phasesBackup = currentPhases(backup.seen);
+  check(backup.seen.some((s) => s.title === 'Respaldo en curso') && ['database', 'pack', 'verify'].every((p) => phasesBackup.includes(p)), `respaldo: el panel avanza por sus fases (${phasesBackup.join(' → ')})`, JSON.stringify(backup.seen.slice(0, 12)));
+  check(backup.seen.every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10) || s.percent === '…' || all[i - 1].percent === '…'), 'respaldo: el porcentaje nunca retrocede');
+  check(await reloaded, 'respaldo: al terminar, la lista se recarga con él');
+  await sleep(1500);
+  const rows = await page.$$eval('.digitalisimo-backups-row', (list) => list.length);
+  check(rows >= 1, `la lista tiene el respaldo (${rows} fila)`);
+
+  if (!network) {
+    // 2) Restauración completa con otra sesión: tras el cambio de tablas, la de este navegador ya no existe.
+    await lab('mutate', '&round=1');
+    await page.deleteCookie(...(await page.cookies(base)));
+    check(await login(), 'otra sesión (la del respaldo no es ésta)');
+    if (await restoreFromRow(null)) {
+      let reload = false;
+      let maintenance = null;
+      const full = await follow('completa', ended, { onSample: async (s) => {
+        if (['database', 'files'].includes(s.phase) && !reload) {
+          reload = true;
+          maintenance = (await request('GET', '/')).status;
+          await shot('completa-base-de-datos');
+          await page.reload({ waitUntil: 'load' });
+          await sleep(500);
+          const again = await panel();
+          check(again && again.visible && again.view && again.phase && again.title === 'Restauración en curso', `al recargar la página a mitad (en mantenimiento), el panel vuelve a la restauración (${again && again.phase})`, JSON.stringify(again));
+          check(again && !again.strip, 'la franja no repite el estado que enseña el panel');
+        }
+        if (s.phase === 'files' && !samples.filesShot) { samples.filesShot = true; await shot('completa-archivos'); }
+        if (s.phase === 'switch' && !samples.switchShot) { samples.switchShot = true; await shot('completa-cambio'); }
+      } });
+      const phases = currentPhases(full.seen);
+      const order = ['inspect', 'safety', 'database', 'files', 'switch', 'finish', 'cleanup'];
+      check(phases.length >= 3 && phases.every((p, i) => i === 0 || order.indexOf(p) > order.indexOf(phases[i - 1])) && (phases.includes('database') || phases.includes('files')), `completa: el panel avanza por las fases en orden (${phases.join(' → ')})`, JSON.stringify(full.seen.slice(0, 20)));
+      check(maintenance === 503, `completa: el sitio estaba en mantenimiento para los visitantes (${maintenance}) mientras el panel seguía`);
+      check(full.seen.filter((s) => s.percent !== '…').every((s, i, all) => i === 0 || parseInt(s.percent, 10) >= parseInt(all[i - 1].percent, 10)), 'completa: el porcentaje nunca retrocede');
+      const last = full.last;
+      check(last && last.title === 'Restauración terminada' && last.percent === '100 %' && last.now === '100' && last.phases.every((p) => p.endsWith(':done')), 'completa: termina al 100 % con todas sus fases hechas', JSON.stringify(last));
+      check(last && last.actions.includes('login') && /Entra al escritorio|resultado/.test(last.result), 'completa: sin sesión (la del respaldo no era ésta), el panel lo dice y ofrece «Iniciar sesión»', JSON.stringify(last));
+      await shot('completa-terminada-sin-sesion');
+      const after = await lab('inventory');
+      check(after && original && after.blogname === original.blogname, `completa: el sitio volvió al respaldo (título «${after?.blogname}»)`);
+      // Entrar otra vez: la pantalla enseña el resultado completo de la restauración que acaba de terminar.
+      await page.click('#digitalisimo-backups-progress-login');
+      await page.waitForNavigation({ waitUntil: 'load' }).catch(() => {});
+      check(await login(), 'entrar otra vez tras la restauración');
+      if (!/digitalisimo-backups/.test(page.url())) await page.goto(`${base}${screen}&tab=backups`, { waitUntil: 'load' });
+      await sleep(1200);
+      const result = await panel();
+      check(result && result.visible && result.title === 'Restauración terminada' && /Restauración terminada desde/.test(result.result) && /copia previa/.test(result.result) && result.actions.includes('safety') && result.actions.includes('reload'), 'al entrar otra vez, el panel enseña el resultado completo con «Volver a la copia previa»', JSON.stringify(result));
+      await shot('completa-resultado');
+    }
+  }
+
+  // 3) Por partes (sólo plugins) a 390 px.
+  await lab('mutate', '&round=2');
+  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+  if (await restoreFromRow(['plugins'])) {
+    let narrow = null;
+    const parts = await follow('partes', ended, { onSample: async (s) => { if (!narrow && ['database', 'files'].includes(s.phase)) { narrow = s; await shot('partes-en-curso'); } } });
+    const last = parts.last;
+    check(narrow && narrow.overflow <= 0 && narrow.bar >= narrow.width - 60 && narrow.width >= narrow.wrap - 70, 'a 390 px el panel ocupa todo el ancho sin desplazamiento horizontal', JSON.stringify(narrow && { overflow: narrow.overflow, width: narrow.width, wrap: narrow.wrap, bar: narrow.bar }));
+    check(last && /se restaura sólo: plugins/.test(last.what) && last.title === 'Restauración terminada' && /por partes: plugins/.test(last.result) && last.actions.includes('safety') && last.overflow <= 0, 'por partes: dice qué se restaura y termina con el resultado y «Volver a la copia previa»', JSON.stringify(last));
+    await shot('partes-terminada');
+  }
+  await page.setViewport({ width: 1280, height: 900 });
+
+  if (!network) {
+    // 4) Una falla a mitad del cambio: vuelve sola a la copia previa y el panel lo dice.
+    await lab('mutate', '&round=3');
+    writeFileSync(`${dir}/ctl/fail-move`, '1');
+    try {
+      if (await restoreFromRow(['plugins'])) {
+        let backShot = false;
+        const back = await follow('falla', (s) => ended(s) && s.kind === 'rollback', { onSample: async (s) => { if (!backShot && s.title === 'Volviendo a la copia previa') { backShot = true; await shot('falla-vuelta-en-curso'); } } });
+        const last = back.last;
+        check(back.seen.some((s) => s.title === 'Volviendo a la copia previa'), 'falla: el panel sigue la vuelta a la copia previa', JSON.stringify(back.seen.slice(-8)));
+        check(last && last.title === 'El sitio volvió a la copia previa' && /falló a mitad del cambio/.test(last.result) && /fallo inyectado al mover los archivos/.test(last.result) && /como antes/.test(last.result), 'falla: termina diciendo que el sitio volvió a como estaba y por qué falló', JSON.stringify(last));
+        await shot('falla-vuelta-terminada');
+        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+        await sleep(500);
+        const narrow = await panel();
+        check(narrow && narrow.overflow <= 0, 'falla: a 390 px el resultado cabe sin desplazamiento horizontal', JSON.stringify(narrow && narrow.overflow));
+        await shot('falla-vuelta-terminada');
+        await page.setViewport({ width: 1280, height: 900 });
+      }
+    } finally {
+      if (existsSync(`${dir}/ctl/fail-move`)) unlinkSync(`${dir}/ctl/fail-move`);
+    }
+  }
+  check(jsErrors.length === 0, 'sin errores de JavaScript en la página', jsErrors.join(' | '));
+} catch (e) {
+  check(false, 'el ensayo terminó con una excepción', String(e.stack || e).slice(0, 1500));
+} finally {
+  writeFileSync(`${shots}/samples.json`, JSON.stringify(samples, null, 1));
+  if (existsSync(`${dir}/ctl/requests.jsonl`)) copyFileSync(`${dir}/ctl/requests.jsonl`, `${shots}/requests.jsonl`);
+  await browser.close();
+  rmSync(profile, { recursive: true, force: true });
+}
+log(`${failures ? 'FALLA' : 'ok'} · ensayo del panel de avance (${mode}) en ${Math.round((Date.now() - start) / 1000)} s`);
+process.exit(failures ? 1 : 0);

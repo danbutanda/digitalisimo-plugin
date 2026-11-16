@@ -266,6 +266,9 @@ await scenario('P4 · 503 del mantenimiento, corte de red y 502: lo dice, sigue 
   ok(/HTTP 502/.test(page.text(page.ui.note)) && /recarga esta página/.test(page.text(page.ui.note)) && page.ui.note.getAttribute('data-level') === 'error', 'Tras 5 fallos no dice qué hacer: ' + page.text(page.ui.note));
   await page.next(page.jobsReply([restoreView('database', 52)]));
   ok(page.ui.note.hidden && page.text(page.ui.percent) === '52 %', 'Al volver la conexión la nota no se va o el avance no sigue');
+  // Un reintento devuelve el % al comienzo de la fase (se retoma desde su punto de control): la barra no retrocede.
+  await page.next(page.jobsReply([restoreView('database', 40, { running: false, retry_in: 8, detail: 'Reintento a las 10:20 (2 de 5)' })], { result: 'idle' }));
+  ok(page.text(page.ui.percent) === '52 %' && /Reintento a las 10:20/.test(page.text(page.detail)) && page.pending()[0].delay === 8000, 'Un reintento hace retroceder la barra o no dice cuándo sigue: ' + page.text(page.ui.percent));
 });
 
 await scenario('P5 · un nonce que dejó de valer pasa al tick por testigo y toma los nonces nuevos', async () => {
@@ -312,8 +315,11 @@ await scenario('P9 · sin sesión ni testigo lo dice y para; terminada sin sesi�
   await lost.next({ status: 403, body: { success: false, data: { message: 'No hay una restauración en curso con este testigo.' } } });
   ok(/No se puede seguir el avance/.test(lost.text(lost.ui.note)) && !lost.ui.login.hidden && lost.timers.size === 0 && lost.panel.getAttribute('data-state') === 'lost', 'Sin sesión ni testigo el panel no lo dice o sigue consultando sin fin');
   const done = screen({ view: restoreView('cleanup', 98), token: 't' });
-  await done.next({ body: { success: true, data: { result: 'finished', message: 'Restauración terminada. Entra al escritorio para ver el resultado.', jobs: [{ id: RID, kind: 'restore', status: 'success', status_label: 'Completo', phase: '', phase_label: '', percent: 100, message: '', detail: 'Restauración terminada. Entra al escritorio para ver el resultado.', terminal: true, running: false, retry_in: 0, can_cancel: false, origin_label: 'Restauración', destination_label: '', created_label: '' }] } } });
+  await done.next({ body: { success: true, data: { result: 'finished', manager: false, message: 'Restauración terminada. Entra al escritorio para ver el resultado.', jobs: [{ id: RID, kind: 'restore', status: 'success', status_label: 'Completo', phase: '', phase_label: '', percent: 100, message: '', detail: 'Restauración terminada. Entra al escritorio para ver el resultado.', terminal: true, running: false, retry_in: 0, can_cancel: false, origin_label: 'Restauración', destination_label: '', created_label: '' }] } } });
   ok(done.text(done.ui.title) === 'Restauración terminada' && !done.ui.login.hidden && done.text(done.ui.result).includes('Entra al escritorio') && done.timers.size === 0, 'Terminada por otro proceso sin sesión, el panel no lo dice con «Iniciar sesión»');
+  const ticked = screen({ view: restoreView('cleanup', 98), token: 't' });
+  await ticked.next(ticked.jobsReply([restoreDone({ result: undefined })], { manager: false }));
+  ok(ticked.text(ticked.ui.title) === 'Restauración terminada' && !ticked.ui.login.hidden && ticked.ui.safety.hidden && /perdió la sesión/.test(ticked.text(ticked.ui.result)), 'Terminada en su tick con la sesión perdida, el panel no pide entrar para ver el resultado');
 });
 
 await scenario('P10 · un punto incremental: la reconstrucción y después la restauración en el mismo panel', async () => {
