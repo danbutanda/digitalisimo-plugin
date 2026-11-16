@@ -75,8 +75,17 @@ final class Digitalisimo_Backups_Progress {
 		$view['destination_label'] = $terminal ? '' : (string) $full['destination_label'];
 		$view['message'] = $terminal ? '' : self::public_text( $full['message'], $view['destination_label'] );
 		$view['detail'] = $terminal ? ( $texts[ (string) $job['status'] ] ?? 'La restauración terminó. Entra al escritorio para ver el detalle.' ) : self::public_text( $full['detail'], $view['destination_label'] );
+		// Un reintento (o un paso que cuenta un error) lleva el texto del error, que puede ser de MySQL con datos del sitio:
+		// sin sesión, sólo un texto general (revisión N4).
+		$retry = ! $terminal && ( ! empty( $job['error'] ) || (int) ( $full['retry_in'] ?? 0 ) > 0 );
+		if ( ! $terminal && ( $retry || preg_match( self::ERRORISH, $view['message'] . ' ' . $view['detail'] ) ) ) {
+			$view['message'] = $retry ? 'Se reintentará (' . (int) ( $full['attempt'] ?? 1 ) . ' de ' . (int) ( $full['max_attempts'] ?? 1 ) . ')' . ( '' !== (string) ( $full['retry_label'] ?? '' ) ? ' a las ' . $full['retry_label'] : '' ) . '.' : 'En curso: ' . lcfirst( (string) $full['phase_label'] ) . '.';
+			$view['detail'] = $view['message'];
+		}
 		return $view;
 	}
+	// Lo que delata el texto de un error (del motor, de MySQL o de PHP) en el paso de una restauración.
+	const ERRORISH = '/no se pudo|error|fall[oóaei]|duplicate|denied|sqlstate|mysql|exception|uncaught|warning|reintent|exist|for key|\'[^\']+\'/iu';
 	// Un texto del motor sin rutas del servidor ni nombres de archivo (salvo $allow, el del respaldo que se restaura): el
 	// almacén se nombra y cualquier otra ruta (con alguna barra) o nombre de archivo queda en «…».
 	private static function public_text( $text, $allow = '' ) {
@@ -87,7 +96,7 @@ final class Digitalisimo_Backups_Progress {
 			$store = '';
 		}
 		if ( strlen( $store ) > 1 ) $text = (string) preg_replace( '#' . preg_quote( $store, '#' ) . '(?:[/\\\\][^\s\'"«»<>,;()]*)?#u', 'el almacén privado', $text );
-		$clean = preg_replace_callback( '#[^\s\'"«»<>,;()]*(?:[/\\\\][^\s\'"«»<>,;()]*)+|[\w.-]+\.(?:zip|dgbk|sql|gz|php|json|log|txt|htaccess)\b#u', function( $m ) use ( $allow ) { return '' !== $allow && $m[0] === $allow ? $m[0] : '…'; }, $text );
+		$clean = preg_replace_callback( '#[^\s\'"«»<>,;()]*(?:[/\\\\][^\s\'"«»<>,;()]*)+|[\w.-]+\.(?:zip|dgbk|sql|gz|php|json|log|txt|htaccess)\b|\b\w+_\w+\b#u', function( $m ) use ( $allow ) { return '' !== $allow && $m[0] === $allow ? $m[0] : '…'; }, $text );
 		return null === $clean ? '' : $clean;
 	}
 }

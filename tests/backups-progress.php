@@ -24,9 +24,12 @@
  *       partes y tramos), nunca otros trabajos, errores ni nonces; el testigo de la URL no basta; terminada, su fase
  *       (M4, B5, PB); el tick con nonce da los tramos (PC); una vista con un id inválido no rompe (B11); un reintento no
  *       baja el % (B4);
- *   R9  quien gestiona Backups recibe el testigo de una restauración que empezó en otra pestaña, por REST o WP-CLI (en el
- *       sondeo o al abrir la pantalla) y la cookie que ya no sirve se borra (M2, M3, B8); la vuelta a la copia previa
- *       pedida a mano conserva la causa (B9).
+ *   R9  el testigo sólo lo tiene el navegador que empezó la restauración: ni el sondeo, ni la consulta del estado, ni
+ *       abrir la pantalla lo dan a nadie (tampoco a un suscriptor); cada tick de esa restauración lo renueva por 48 h
+ *       (lo que dice la documentación); al terminar, al abrir la pantalla si ya no sirve y al cerrar sesión se borra
+ *       (verificación N1, N5, N8);
+ *   R10 sin sesión, un reintento o un paso con un error dicen un texto general, sin el error de MySQL (N4); la vuelta
+ *       pedida a mano conserva la causa y se anota aparte (B9); el testigo no va en el HTML de la pantalla (N8).
  * Debe fallar con 1.0.77 (77678f25). Uso: php tests/backups-progress.php
  */
 require __DIR__ . '/lib/backups-env.php';
@@ -385,55 +388,107 @@ bp_case( 'R8 · sin sesión de gestión, el tick por testigo sólo da esa restau
 	bp_clear_jobs();
 } );
 
-bp_case( 'R9 · el testigo para quien gestiona Backups en una restauración que no empezó en esta pestaña; la cookie que no sirve se borra (M3, B8, B9)', function() use ( $J ) {
+bp_case( 'R9 · el testigo sólo lo tiene el navegador que empezó la restauración: nadie más lo recibe; cada tick lo renueva 48 h y al terminar se borra (N1, N5, N8)', function() use ( $J ) {
 	bp_clear_jobs();
 	$M = 'Digitalisimo_Backups_Restore_Maintenance';
 	$token = str_repeat( '9a', 32 );
-	// Empezada por REST o WP-CLI (o en otra pestaña): el sondeo de la pantalla (estado y tick con nonce) la ve y le da la cookie.
+	$nonce = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+	$call = function( $method, array $post = array(), $cookie = null, array $get = array(), $caps = null ) use ( $J, $M ) {
+		$saved = array( $_POST, $_GET, $_COOKIE, $GLOBALS['bk_caps'] );
+		$_POST = $post;
+		$_GET = $get;
+		$_COOKIE = null === $cookie ? array() : array( $M::COOKIE => $cookie );
+		if ( null !== $caps ) $GLOBALS['bk_caps'] = $caps;
+		$M::$sent = null;
+		$M::$sent_until = null;
+		try { $J::$method(); } catch ( Bp_Json $json ) { unset( $json ); } finally { list( $_POST, $_GET, $_COOKIE, $GLOBALS['bk_caps'] ) = $saved; }
+		return $M::$sent;
+	};
+	// Una restauración que empezó otro navegador (otra pestaña de otro administrador, REST o WP-CLI): ni el sondeo de la
+	// cola, ni la consulta del estado, ni abrir la pantalla dan su testigo, a nadie (es un pase del mantenimiento).
 	$restore = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'origin' => array( 'via' => 'rest' ) ) ), array( 'phase' => 'safety', 'status' => 'running', 'retry_at' => time() + 3600 ) );
-	foreach ( array( 'ajax_status', 'ajax_tick' ) as $action ) {
-		$M::$sent = null;
-		$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
-		try { $J::$action(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); }
-		bp_check( $token === $M::$sent, $action . ' no da a quien gestiona Backups el testigo de la restauración en curso: ' . json_encode( $M::$sent ) );
-		// Con la cookie ya puesta, no se repite.
-		$M::$sent = null;
-		$_COOKIE[ $M::COOKIE ] = $token;
-		$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
-		try { $J::$action(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); unset( $_COOKIE[ $M::COOKIE ] ); }
-		bp_check( null === $M::$sent, $action . ' repite la cookie que el navegador ya tiene.' );
+	foreach ( array( 'ajax_status' => $nonce, 'ajax_tick' => $nonce ) as $method => $post ) {
+		bp_check( null === $call( $method, $post ), $method . ' da el testigo de la restauración a quien no la empezó.' );
+		bp_check( null === $call( $method, $post + array( 'peek' => '1' ) ), $method . ' (consulta ligera) da el testigo.' );
 	}
-	// Sin el nonce de quien gestiona Backups, nada.
+	foreach ( array( 'administrador' => array( 'manage_options' => true ), 'suscriptor' => array() ) as $who => $caps ) {
+		bp_check( null === $call( 'screen_cookie', array(), null, array( 'page' => 'digitalisimo-backups' ), $caps ), 'Al abrir la pantalla, un ' . $who . ' recibe el testigo de la restauración.' );
+	}
+	// Quien la empezó (su cookie): cada tick de esa restauración, con sesión o con testigo, la renueva por 48 horas, las
+	// mismas que dice docs/BACKUPS.md.
+	bp_check( 172800 === $M::COOKIE_TTL && false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/docs/BACKUPS.md' ), 'Cuánto dura la cookie.** 48 horas' ), 'La cookie no dura 48 horas o la documentación dice otra cosa.' );
+	foreach ( array( 'ajax_tick' => $nonce, 'ajax_status' => $nonce + array( 'peek' => '1' ), 'ajax_restore_tick' => array() ) as $method => $post ) {
+		bp_check( $token === $call( $method, $post, $token ) && abs( $M::$sent_until - ( time() + 172800 ) ) <= 5, $method . ' no renueva por 48 h la cookie de quien empezó la restauración: ' . json_encode( array( $M::$sent, $M::$sent_until ? $M::$sent_until - time() : null ) ) );
+	}
+	bp_check( $token === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ), 'Al abrir la pantalla, la cookie de quien empezó la restauración no se renueva.' );
+	// Terminada: el tick que lo ve (por testigo o con nonce) y la pantalla la borran.
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'success', 'phase' => 'cleanup', 'finished_at' => time() - 60, 'retry_at' => 0 ) ) );
+	bp_check( '' === $call( 'ajax_restore_tick', array(), $token ), 'Terminada, el tick por testigo no borra la cookie.' );
+	bp_check( '' === $call( 'ajax_tick', $nonce, $token ), 'Terminada, el tick con nonce no borra la cookie.' );
+	bp_check( '' === $call( 'screen_cookie', array(), $token, array( 'page' => 'digitalisimo-backups' ) ), 'Terminada, abrir la pantalla no borra la cookie.' );
+	bp_check( null === $call( 'screen_cookie', array(), $token, array( 'page' => 'otra-pantalla' ) ), 'Otra pantalla del escritorio toca la cookie.' );
+	// La reconstrucción de un punto incremental sigue con el mismo testigo: su cookie no se borra.
+	$chain = bp_job( 'backup', array( 'type' => 'chain', 'kind' => 'chain', 'destination' => 'local', 'policy' => 'chain-restore', 'file' => 'p.zip', 'token' => $token ), array( 'phase' => 'build', 'status' => 'running', 'retry_at' => time() + 3600 ) );
+	bp_check( $token === $call( 'ajax_restore_tick', array(), $token ), 'Durante la reconstrucción de un punto, el tick por testigo borra su cookie.' );
+	bk_remove_tree( Digitalisimo_Backups_Job_Store::directory( $chain['id'] ) );
+	// Al cerrar sesión (registrado en wp_logout), también: el siguiente usuario de un navegador compartido no la hereda.
+	if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+	$GLOBALS['bk_actions'] = array();
+	$J::init();
+	$logout = array_values( array_filter( $GLOBALS['bk_actions'], function( $hook ) { return 'wp_logout' === $hook[0]; } ) );
+	bp_check( 1 === count( $logout ) && is_callable( $logout[0][1] ), 'Cerrar sesión no borra la cookie del testigo (wp_logout).' );
+	$_COOKIE = array( $M::COOKIE => $token );
 	$M::$sent = null;
-	$caps = $GLOBALS['bk_caps'];
-	$GLOBALS['bk_caps'] = array();
-	$_POST = array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
-	try { $J::ajax_status(); } catch ( Throwable $e ) { unset( $e ); } finally { $_POST = array(); $GLOBALS['bk_caps'] = $caps; }
-	bp_check( null === $M::$sent, 'Quien no gestiona Backups recibe el testigo de la restauración.' );
-	// Al abrir la pantalla: la cookie de la restauración en curso; sin ninguna, se borra la que ya no sirve.
-	$_GET = array( 'page' => 'digitalisimo-backups' );
-	try {
-		$M::$sent = null;
-		$J::screen_cookie();
-		bp_check( $token === $M::$sent, 'Al abrir la pantalla, quien gestiona Backups no recibe el testigo de la restauración en curso.' );
-		Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'success', 'phase' => 'cleanup', 'finished_at' => time() - 60, 'retry_at' => 0 ) ) );
-		$_COOKIE[ $M::COOKIE ] = $token;
-		$M::$sent = null;
-		$J::screen_cookie();
-		bp_check( null === $M::$sent, 'La cookie de una restauración que acaba de terminar se borra (la pestaña que la siguió aún pide su estado).' );
-		Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'finished_at' => time() - 2 * $J::FINISHED_ANSWER ) ) );
-		$J::screen_cookie();
-		bp_check( '' === $M::$sent, 'La cookie de una restauración que terminó hace rato no se borra.' );
-		// Al cerrar sesión, también (el siguiente usuario de un navegador compartido no la hereda).
-		$M::$sent = null;
-		$M::clear_cookie();
-		bp_check( '' === $M::$sent, 'clear_cookie() no borra la cookie del testigo.' );
-	} finally {
-		$_GET = array();
-		unset( $_COOKIE[ $M::COOKIE ] );
-	}
+	try { call_user_func( $logout[0][1], 1 ); } finally { $_COOKIE = array(); }
+	bp_check( '' === $M::$sent, 'Al cerrar sesión no se borra la cookie del testigo.' );
 	$M::$sent = null;
 	bp_check( false === $M::clear_cookie() && null === $M::$sent, 'Sin cookie ni testigo mandado, clear_cookie() manda una cookie.' );
+	bp_clear_jobs();
+} );
+
+bp_case( 'R10 · sin sesión, un reintento no lleva el error (N4); la marca de la vuelta pedida a mano (B9); el testigo no va en la página (N8)', function() use ( $J ) {
+	bp_clear_jobs();
+	$token = str_repeat( '7c', 32 );
+	$retry = 'Se reintentará (2 de 5): No se pudo importar la base de datos: Duplicate entry \'ana.perez@example.com\' for key \'user_email\' (tabla \'clientes_prod.wp_users\', usuario de MySQL \'clientes_admin\')';
+	$restore = bp_job( 'restore', bp_restore_spec( array( 'token' => $token ) ), array( 'phase' => 'database', 'status' => 'queued', 'retry_at' => time() + 3600, 'attempts' => array( 'database' => 1 ), 'progress' => array( 'percent' => 52, 'message' => $retry ), 'error' => array( 'code' => 'retry', 'message' => 'x', 'phase' => 'database', 'permanent' => false ) ) );
+	$answer = bp_restore_tick( $token, 'cookie', false, false );
+	$view = $answer && $answer->success ? ( $answer->payload['jobs'][0] ?? array() ) : array();
+	$json = json_encode( $answer ? $answer->payload : null, JSON_UNESCAPED_UNICODE );
+	foreach ( array( 'Duplicate', 'ana.perez', 'clientes_prod', 'clientes_admin', 'MySQL', 'importar' ) as $secret ) bp_check( false === strpos( $json, $secret ), 'Sin sesión, el reintento lleva «' . $secret . '»: ' . $json );
+	bp_check( (bool) preg_match( '/^Se reintentará \(2 de \d+\) a las \d{2}:\d{2}\.$/u', (string) ( $view['detail'] ?? '' ) ) && $view['detail'] === $view['message'], 'Sin sesión, el reintento no dice un texto general: ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
+	// Un paso que trae un error sin estar en reintento, tampoco.
+	Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'running', 'retry_at' => time() + 3600, 'error' => null, 'progress' => array( 'percent' => 53, 'message' => 'Copia previa: Table \'clientes_prod.wp_options\' doesn\'t exist' ) ) ) );
+	$view = bp_restore_tick( $token, 'cookie', false, false )->payload['jobs'][0] ?? array();
+	bp_check( 'En curso: base de datos.' === ( $view['detail'] ?? '' ) && false === strpos( json_encode( $view ), 'clientes_prod' ), 'Sin sesión, un paso con un error lo lleva: ' . json_encode( $view, JSON_UNESCAPED_UNICODE ) );
+	// Con la sesión de gestión, el texto entero.
+	$manager = bp_restore_tick( $token, 'cookie', true, true );
+	bp_check( false !== strpos( json_encode( $manager->payload, JSON_UNESCAPED_UNICODE ), 'clientes_prod.wp_options' ), 'Con la sesión de gestión, el paso no trae su texto.' );
+	// La vuelta a la copia previa pedida a mano: conserva la causa y la anota aparte.
+	$failed = Digitalisimo_Backups_Job_Store::write( array_replace( Digitalisimo_Backups_Jobs::get( $restore['id'] ), array( 'status' => 'failed', 'phase' => 'switch', 'finished_at' => time() ) ) );
+	$back = bp_job( 'restore', bp_restore_spec( array( 'token' => $token, 'file' => 'safety-before-restore-20261115.zip', 'safety' => '', 'rollback' => array( 'of' => $failed['id'], 'file' => 'digitalisimo-sitio-2026-11-15.zip' ) ) ), array( 'phase' => 'database', 'status' => 'running', 'retry_at' => time() + 3600 ) );
+	bk_call( 'Digitalisimo_Backups', 'restore_note_rollback', $failed['id'], $back['id'], 'disco lleno al mover', true );
+	$view = $J::screen_view( Digitalisimo_Backups_Jobs::get( $back['id'] ) );
+	bp_check( 'disco lleno al mover' === $view['rollback_cause'] && true === $view['rollback_manual'], 'La vuelta pedida a mano no conserva la causa o no se anota: ' . json_encode( array( $view['rollback_cause'], $view['rollback_manual'] ), JSON_UNESCAPED_UNICODE ) );
+	bk_call( 'Digitalisimo_Backups', 'restore_note_rollback', $failed['id'], $back['id'], 'disco lleno al mover' );
+	bp_check( false === $J::screen_view( Digitalisimo_Backups_Jobs::get( $back['id'] ) )['rollback_manual'], 'La vuelta automática se anota como pedida a mano.' );
+	// La pantalla de quien la empezó (su cookie): el script sigue con el tick por testigo, pero el testigo no va en el HTML.
+	$_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] = $token;
+	try { $html = bp_render( 'backups' ); } finally { unset( $_COOKIE[ Digitalisimo_Backups_Restore_Maintenance::COOKIE ] ); }
+	bp_check( false !== strpos( $html, 'window.digitalisimoBackupsRestore' ) && false === strpos( $html, $token ), 'La pantalla copia el testigo al HTML (o no sigue con el tick por testigo).' );
+	// Cuánto hace que terminó (la pantalla sólo enseña como recién terminada la de hace minutos, N2).
+	$ago = $J::screen_view( Digitalisimo_Backups_Job_Store::write( array_replace( $failed, array( 'finished_at' => time() - 3 * 86400 ) ) ) )['finished_ago'];
+	bp_check( $ago >= 3 * 86400 && $ago < 3 * 86400 + 30 && null === $J::screen_view( Digitalisimo_Backups_Jobs::get( $back['id'] ) )['finished_ago'], 'La vista no dice cuánto hace que terminó: ' . json_encode( $ago ) );
+	bp_clear_jobs();
+	// La consulta ligera del estado (cada 30 s) sólo lee: no pasa por el detector, que sí corre en la consulta normal (N6).
+	$stuck = bp_job( 'backup', $J::spec( array( 'policy' => 'manual', 'destination' => 'local' ) ), array( 'phase' => 'pack', 'status' => 'running', 'lease' => array( 'owner' => 'otro-proceso', 'host' => bk_call( $J, 'host' ), 'heartbeat_at' => time() ) ) );
+	$status = function( array $post ) use ( $J ) {
+		$_POST = $post + array( 'nonce' => 'nonce-digitalisimo_backups_jobs-a', 'context' => 'site' );
+		try { $J::ajax_status(); } catch ( Bp_Json $json ) { unset( $json ); } finally { $_POST = array(); }
+	};
+	$status( array( 'peek' => '1' ) );
+	bp_check( ! empty( Digitalisimo_Backups_Jobs::get( $stuck['id'] )['lease'] ), 'La consulta ligera del estado pasa por el detector (toma el cerrojo y cambia trabajos).' );
+	$status( array() );
+	bp_check( empty( Digitalisimo_Backups_Jobs::get( $stuck['id'] )['lease'] ), 'La consulta normal del estado ya no pasa por el detector (el control de esta prueba).' );
 	bp_clear_jobs();
 } );
 

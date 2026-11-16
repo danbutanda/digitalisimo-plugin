@@ -506,6 +506,34 @@ rr_case( 'A1 P1 el mantenimiento deja pasar WP-Cron y el tick, despierta la rest
 	rr_check( time() - filemtime( $path ) < 60, 'Un visitante no despertó la restauración.' );
 	rr_check( ! $passes( array( 'SCRIPT_FILENAME' => $root . '/wp-admin/index.php' ), array( 'wordpress_logged_in_x' => 'y' ), array() ), 'Otro administrador pasa el mantenimiento.' );
 	rr_check( $passes( array( 'SCRIPT_FILENAME' => $root . '/wp-admin/admin-ajax.php' ), array(), array( 'digitalisimo_backups_restore' => $token ), array( 'action' => 'digitalisimo_backups_restore_tick' ) ), 'El tick por testigo no pasa.' );
+	// Con el testigo, sólo la pantalla de Backups y sus llamadas; el resto del escritorio y el sitio, 503 con la marca de
+	// la puerta (verificación N1 y N2 de backups/restore-progress): antes del cambio guardarían en la base de datos que
+	// el cambio de tablas reemplaza.
+	$with = array( 'digitalisimo_backups_restore' => $token );
+	$admin = function( $script, array $get = array(), array $request = array() ) use ( $root ) { return array( array( 'SCRIPT_FILENAME' => $root . '/wp-admin/' . $script, 'REQUEST_URI' => '/wp-admin/' . $script, 'REQUEST_METHOD' => 'POST' ), $get, $request ); };
+	$front = function( $uri, array $get = array() ) use ( $root ) { return array( array( 'SCRIPT_FILENAME' => $root . '/index.php', 'REQUEST_URI' => $uri, 'REQUEST_METHOD' => 'GET' ), $get, array() ); };
+	foreach ( array(
+		'la pantalla de Backups' => array( $admin( 'admin.php', array( 'page' => 'digitalisimo-backups', 'tab' => 'backups' ) ), true ),
+		'la pantalla de Backups de la red' => array( $admin( 'admin.php', array( 'page' => 'digitalisimo-network-backups' ) ), true ),
+		'el tick de la cola' => array( $admin( 'admin-ajax.php', array(), array( 'action' => 'digitalisimo_backups_job_tick' ) ), true ),
+		'«Volver a la copia previa» (admin-post)' => array( $admin( 'admin-post.php', array(), array( 'action' => 'digitalisimo_backups_restore' ) ), true ),
+		'la REST de Backups' => array( $front( '/wp-json/digitalisimo-backups/v1/status' ), true ),
+		'la REST de Backups por rest_route' => array( $front( '/', array( 'rest_route' => '/digitalisimo-backups/v1/jobs/tick' ) ), true ),
+		'el escritorio' => array( $admin( 'index.php' ), false ),
+		'otra pantalla del escritorio' => array( $admin( 'admin.php', array( 'page' => 'woocommerce' ) ), false ),
+		'editar una entrada' => array( $admin( 'post.php', array( 'post' => '1', 'action' => 'edit' ) ), false ),
+		'el AJAX de otro plugin' => array( $admin( 'admin-ajax.php', array(), array( 'action' => 'heartbeat' ) ), false ),
+		'el admin-post de otro plugin' => array( $admin( 'admin-post.php', array(), array( 'action' => 'otro_guardar' ) ), false ),
+		'la portada' => array( $front( '/' ), false ),
+		'otra REST' => array( $front( '/wp-json/wp/v2/posts' ), false ),
+		'la REST de Backups por el escritorio' => array( array( array( 'SCRIPT_FILENAME' => $root . '/wp-admin/index.php', 'REQUEST_URI' => '/wp-admin/', 'REQUEST_METHOD' => 'GET' ), array( 'rest_route' => '/digitalisimo-backups/v1/status' ), array() ), false ),
+	) as $what => $case ) {
+		list( $request, $want ) = $case;
+		unset( $GLOBALS['digitalisimo_backups_restore_blocked'] );
+		$got = $passes( $request[0], $with, $request[1], $request[2] );
+		rr_check( $want === $got, 'Con el testigo, ' . $what . ( $want ? ' no pasa el mantenimiento.' : ' pasa el mantenimiento.' ) );
+		rr_check( $want === empty( $GLOBALS['digitalisimo_backups_restore_blocked'] ), 'El 503 de ' . $what . ( $want ? ' lleva' : ' no lleva' ) . ' la marca de la puerta de Backups.' );
+	}
 	rr_check( $passes( array( 'SCRIPT_FILENAME' => $root . '/wp-cron.php' ), array(), array() ), 'wp-cron.php (el cron del sistema) no pasa.' );
 	rr_check( defined( 'DIGITALISIMO_BACKUPS_RESTORE_MINIMAL' ) && ! empty( $GLOBALS['rr_added']['option_active_plugins'] ), 'wp-cron.php no carga WordPress mínimo.' );
 	$only = end( $GLOBALS['rr_added']['option_active_plugins'] );

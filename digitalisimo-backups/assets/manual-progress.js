@@ -57,6 +57,12 @@
   var lastPoll = Date.now();
   var startedAt = 0;
   var IDLE_POLL = 30000;
+  /* Minutos tras terminar en los que una restauración que esta pestaña no seguía se enseña como recién terminada (los del
+     panel al cargar la página, Digitalisimo_Backups_Progress::RECENT). */
+  var RECENT = 900;
+  /* El formulario de «Restaurar» enviado y cuándo: si la navegación se cancela, a los 60 s vuelve a estar disponible. */
+  var sentForm = null;
+  var sentAt = 0;
 
   function request(action, fields, nonce) {
     var body = new URLSearchParams(Object.assign({ action: action, nonce: nonce, context: config.context }, fields || {}));
@@ -66,10 +72,13 @@
         /* La sesión ya no vale: 401/403, o admin-ajax responde «-1» (nonce) o «0» (sin sesión). Un corte del proxy, un
            502/504 o el 503 del mantenimiento durante la restauración no lo son. */
         var session = response.status === 401 || response.status === 403 || ['-1', '0'].indexOf(text.trim()) !== -1;
+        /* El 503 de la página de mantenimiento de una restauración de Backups trae su cabecera; cualquier otro, no. */
+        var restoreGate = !!(response.headers && typeof response.headers.get === 'function' && response.headers.get('X-Digitalisimo-Backups-Restore'));
         try { result = JSON.parse(text); } catch (error) {
-          var broken = new Error(response.status === 503 ? 'El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)' : 'El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.');
+          var broken = new Error(response.status === 503 && restoreGate ? 'El sitio está en mantenimiento mientras se aplica la restauración (HTTP 503)' : (response.status === 503 ? 'El servidor no responde (HTTP 503)' : 'El servidor no devolvió JSON (HTTP ' + response.status + '). Revisa el registro de PHP o el firewall del servidor.'));
           broken.session = session;
           broken.status = response.status;
+          broken.restore = restoreGate;
           throw broken;
         }
         if (!response.ok || !result.success) {
@@ -77,6 +86,7 @@
           failure.data = result.data || {};
           failure.session = session;
           failure.status = response.status;
+          failure.restore = restoreGate;
           throw failure;
         }
         return result.data;
@@ -425,7 +435,9 @@
   function adopt(jobs, ended) {
     if (watching || !panel) return;
     var found = null;
-    jobs.forEach(function (job) { if (!found && (ended || !job.terminal) && !job.aside && restoring(kindOf(job))) found = job; });
+    /* Terminada, sólo si acaba de terminar: una de hace días nunca se enseña como recién terminada (revisión N2). */
+    var fresh = function (job) { return !job.terminal || (ended && job.finished_ago !== null && job.finished_ago !== undefined && Number(job.finished_ago) <= RECENT); };
+    jobs.forEach(function (job) { if (!found && fresh(job) && !job.aside && restoring(kindOf(job))) found = job; });
     if (!found) return;
     watch = null;
     watching = found.id;
@@ -472,7 +484,7 @@
     pendingStep = false;
     stopped = true;
     show(ui.cancel, false);
-    note('No se puede seguir el avance desde esta pestaña: tu sesión ya no vale (la restauración repuso los usuarios del respaldo) y este navegador no tiene su testigo, o terminó hace rato. La restauración sigue en el servidor: inicia sesión para ver cómo terminó.', 'error');
+    note('No se puede seguir el avance desde esta pestaña: tras el cambio de tablas su sesión o sus nonces ya no valen y este navegador no tiene el testigo de la restauración (sólo lo tiene el que la empezó), o terminó hace rato. La restauración sigue en el servidor: recarga esta página o, si te lo pide, inicia sesión para ver cómo va o cómo terminó.', 'error');
     show(ui.login, true);
     show(ui.reload, true);
     if (panel) panel.setAttribute('data-state', 'lost');
@@ -480,10 +492,11 @@
   function connectionNote(error) {
     var since = clock(lastOk);
     var text;
-    var maintenance = error && error.status === 503;
-    if (maintenance) text = 'El sitio está en mantenimiento por la restauración y esta pestaña no tiene su testigo (la empezó otro navegador, la petición que la empezó no llegó a responder o se borraron sus cookies): no ve el avance hasta que termine. La restauración sigue sola; se vuelve a consultar cada 30 s.';
+    /* Sólo el 503 de la página de mantenimiento de Backups es el de una restauración; otro es el servidor (revisión N2). */
+    var maintenance = error && error.status === 503 && error.restore;
+    if (maintenance) text = 'El sitio está en mantenimiento por la restauración y esta pestaña no tiene su testigo (sólo lo recibe el navegador que la empezó, si la petición que la empezó llegó a responder): no ve el avance hasta que termine. La restauración sigue sola; se vuelve a consultar cada 30 s y, al terminar, el panel dice cómo acabó o que hay que recargar o iniciar sesión.';
     else if (!error || !error.status) text = 'Sin conexión con el servidor desde las ' + since + ' (' + failures + (failures === 1 ? ' intento' : ' intentos') + '): se reintenta solo. La restauración sigue en el servidor aunque esta pestaña no la vea.';
-    else text = 'El servidor no respondió bien (HTTP ' + error.status + '; ' + failures + (failures === 1 ? ' intento' : ' intentos') + ' desde las ' + since + '): se reintenta solo.';
+    else text = 'El servidor no responde (HTTP ' + error.status + '; ' + failures + (failures === 1 ? ' intento' : ' intentos') + ' desde las ' + since + '): se reintenta solo.';
     /* Recargar durante el mantenimiento da la página de mantenimiento de WordPress y se pierde este panel: no se aconseja. */
     if (failures >= 5) text += maintenance ? ' No recargues esta página mientras dure: la terminan WP-Cron, las visitas al sitio o «wp digitalisimo-backups jobs run».' : ' Si sigue así, recarga esta página; si no carga, la terminan WP-Cron, las visitas al sitio o «wp digitalisimo-backups jobs run».';
     note(text, failures >= 5 ? 'error' : 'warning');
@@ -491,7 +504,9 @@
   /* Un tick por petición: si otro proceso trabaja (busy) sólo se consulta; si se espera un reintento, se espera. */
   function step() {
     pendingStep = false;
-    if (busy) return;
+    /* Otra petición en vuelo (la consulta del estado, p. ej. justo al pulsar «Respaldar ahora»): el paso se aplaza, nunca
+       se pierde (revisión N3). */
+    if (busy) { schedule(500); return; }
     busy = true;
     busySince = Date.now();
     lastPoll = busySince;
@@ -542,7 +557,7 @@
       }
       if (follow) { show(ui.cancel, false); connectionNote(error); }
       else if (watching && detail) detail.textContent = 'No se pudo avanzar ahora: ' + error.message + '. Se reintentará; WP-Cron también lo continúa.';
-      schedule(follow && error && error.status === 503 ? 30000 : Math.min(30000, 2000 * failures));
+      schedule(follow && error && error.status === 503 && error.restore ? 30000 : Math.min(30000, 2000 * failures));
     });
   }
   function cancelJob(id, target, kind) {
@@ -599,6 +614,8 @@
     /* Un doble clic manda una sola restauración: la segunda petición sólo diría «ya hay una en curso». */
     if (target.getAttribute('data-sent')) { if (event.preventDefault) event.preventDefault(); return; }
     target.setAttribute('data-sent', '1');
+    sentForm = target;
+    sentAt = Date.now();
     if (target.querySelectorAll) Array.prototype.forEach.call(target.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'), function (control) { control.setAttribute('aria-disabled', 'true'); });
     watch = null;
     var back = !!target.querySelector('input[name="rollback_retry"]');
@@ -619,7 +636,15 @@
     /* La petición que empieza la restauración trabaja hasta 25 s antes de responder: si tarda más, se dice qué hacer. */
     if (panel && startedAt && panel.getAttribute('data-state') === 'starting' && Date.now() - startedAt > 40000 && ui.note && !ui.note.textContent) note('La petición que empieza la restauración tarda más de lo normal. Si el navegador muestra un error (504, «se agotó el tiempo»), vuelve a Backups: la restauración sigue en el servidor y este panel la retoma. Si la pantalla muestra la página de mantenimiento, espera: la terminan WP-Cron y las visitas al sitio, o «wp digitalisimo-backups jobs run».', 'warning');
     /* Sin trabajos que seguir, el estado de la cola cada 30 s: una restauración que empezó fuera de esta pestaña se ve. */
-    if (!busy && !pendingStep && !stopped && !sessionLost && !reloading && !watching && Date.now() - lastPoll >= IDLE_POLL) poll();
+    /* La navegación de «Restaurar» se canceló (Esc, «Detener»): a los 60 s el formulario vuelve a estar disponible. */
+    if (sentForm && Date.now() - sentAt > 60000) {
+      sentForm.removeAttribute('data-sent');
+      if (sentForm.querySelectorAll) Array.prototype.forEach.call(sentForm.querySelectorAll('[aria-disabled="true"]'), function (control) { control.removeAttribute('aria-disabled'); });
+      sentForm = null;
+    }
+    /* Sólo con la pestaña a la vista (revisión N6). */
+    var visible = typeof document.visibilityState !== 'string' || document.visibilityState === 'visible';
+    if (visible && !busy && !pendingStep && !stopped && !sessionLost && !reloading && !watching && Date.now() - lastPoll >= IDLE_POLL) poll();
     if (!watch || watch.end || !watching) return;
     paintTime();
     if (busy && !workingNote && Date.now() - busySince > 4000 && ui.note && !ui.note.textContent) {
@@ -631,7 +656,7 @@
   function poll() {
     busy = true;
     lastPoll = Date.now();
-    request('digitalisimo_backups_job_status', {}, config.jobsNonce).then(function (data) {
+    request('digitalisimo_backups_job_status', { peek: '1' }, config.jobsNonce).then(function (data) {
       busy = false;
       /* Terminó el mantenimiento que esta pestaña no veía: el panel enseña cómo acabó esa restauración (la más reciente). */
       if (panel && panel.getAttribute('data-state') === 'maintenance') {
@@ -646,7 +671,7 @@
       /* Tras el mantenimiento, la sesión ya no vale (la restauración repuso otras cuentas): se dice y se para. */
       if (error && error.session && panel && panel.getAttribute('data-state') === 'maintenance') { lost(error); return; }
       /* El mantenimiento de una restauración que esta pestaña no ve: se dice en el panel y se sigue consultando. */
-      if (error && error.status === 503 && panel) {
+      if (error && error.status === 503 && error.restore && panel) {
         if (panel.getAttribute('data-state') !== 'maintenance') {
           starting('Sitio en mantenimiento', 'Sin avance a la vista', '');
           panel.setAttribute('data-state', 'maintenance');

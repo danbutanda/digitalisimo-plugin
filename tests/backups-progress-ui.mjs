@@ -32,6 +32,12 @@
 //   P19 con 503 no aconseja recargar (B6);  P20 «Volver a la copia previa» con las partes restauradas y, entera, el aviso
 //       de lo que se pierde (M1);  P21 región y regiones vivas siempre presentes (B7);  P22 doble clic (B10);
 //   P23 «finished» con la restauración del punto reconstruido (J13).
+// Y lo de la verificación de los arreglos (fallan con 99a5a73f):
+//   P24 sólo el 503 de la puerta de Backups (su cabecera) es de una restauración, otro es «el servidor no responde»; una
+//       restauración de hace días nunca se enseña como recién terminada (N2);  P25 «Respaldar ahora» con la consulta del
+//       estado en vuelo no pierde su primer paso (N3);  P26 la consulta cada 30 s, sólo a la vista y ligera (N6);
+//   P27 «Restaurar» vuelve a estar disponible a los 60 s si la navegación se cancela y a los 40 s dice qué hacer (N7);
+//   P28 la nota se ve aunque el marcado la traiga oculta.
 // Uso: node tests/backups-progress-ui.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -88,11 +94,14 @@ function matches(node, selector, scope = null) {
   });
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+/* El 503 de la página de mantenimiento de una restauración de Backups (con la cabecera de su puerta) y otro cualquiera. */
+const GATE = () => ({ status: 503, body: '<html>Mantenimiento</html>', headers: { 'X-Digitalisimo-Backups-Restore': 'maintenance' } });
+const OTHER503 = () => ({ status: 503, body: '<html>Briefly unavailable for scheduled maintenance. Check back in a minute.</html>' });
 const settle = async () => { for (let i = 0; i < 8; i++) await flush(); };
 
 /* ------------------------------------------------------------------ La pantalla */
 const IDS = ['title', 'percent', 'what', 'fill', 'ticks', 'phases', 'time', 'note', 'result', 'cancel', 'reload', 'safety', 'login', 'rollback', 'help'];
-function screen({ view = null, token = '', strip = false, card = true, active = false } = {}) {
+function screen({ view = null, token = '', strip = false, card = true, active = false, visibility } = {}) {
   const document = new El('html');
   const body = document.appendChild(new El('body'));
   const wrap = body.appendChild(new El('div', { class: 'wrap digitalisimo-backups' }));
@@ -149,6 +158,7 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
     querySelector: (selector) => document.querySelector(selector),
     addEventListener: (type, listener) => document.addEventListener(type, listener),
   };
+  if (visibility) documentApi.visibilityState = visibility;
   const sandbox = {
     window: { digitalisimoBackupsManual: { url: '/wp-admin/admin-ajax.php', nonce: 'nonce-manual', jobsNonce: 'nonce-jobs-vieja', context: 'site', login: '/wp-login.php?migrar' }, confirm: (text) => { own.confirms.push(text); return true; }, alert: (text) => own.alerts.push(text), location: { href: 'https://example.test/wp-admin/admin.php?page=digitalisimo-backups&tab=backups&backup=ok&message=Restauraci%C3%B3n%20en%20curso', reload: () => own.reloads++, replace: (url) => own.replaced.push(url) } },
     document: documentApi,
@@ -163,7 +173,9 @@ function screen({ view = null, token = '', strip = false, card = true, active = 
       if (reply === undefined) throw new Error('Petición inesperada: ' + body.action);
       if (reply.reject) return Promise.reject(new TypeError('Failed to fetch'));
       if (reply.pending) return new Promise(() => {});
-      return Promise.resolve({ ok: (reply.status || 200) < 400, status: reply.status || 200, text: () => Promise.resolve(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body)) });
+      if (reply.defer) return reply.defer;
+      const headers = Object.fromEntries(Object.entries(reply.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+      return Promise.resolve({ ok: (reply.status || 200) < 400, status: reply.status || 200, headers: { get: (name) => headers[String(name).toLowerCase()] ?? null }, text: () => Promise.resolve(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body)) });
     },
   };
   if (token) sandbox.window.digitalisimoBackupsRestore = { token, action: 'digitalisimo_backups_restore_tick' };
@@ -279,7 +291,7 @@ await scenario('P3 · por partes: dice qué se restaura', async () => {
 await scenario('P4 · 503 del mantenimiento, corte de red y 502: lo dice, sigue consultando y la nota se va al volver', async () => {
   const page = screen({ view: restoreView('database', 45) });
   ok(page.pending().length === 1, 'Al cargar con una restauración en curso no se programa el sondeo');
-  let delay = await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  let delay = await page.next(GATE());
   ok(page.requests[0].action === 'digitalisimo_backups_job_tick' && !page.ui.note.hidden && /mantenimiento/.test(page.text(page.ui.note)) && page.pending()[0].delay === 30000 && !/recarga esta página/.test(page.text(page.ui.note)), 'Un 503 no se explica o no se consulta cada 30 s: ' + page.text(page.ui.note));
   ok(page.text(page.ui.percent) === '45 %', 'La barra cambió con el 503');
   for (let i = 0; i < 3; i++) delay = await page.next({ reject: true });
@@ -393,19 +405,19 @@ await scenario('P13 · una restauración que empezó fuera de esta pestaña la t
   // Si ya está en mantenimiento (503 sin testigo), el panel lo dice y qué hacer, sin barra quieta y sin pedir recargar.
   const late = screen({ card: true, active: false });
   late.clock.now += 31000;
-  late.replies.push({ status: 503, body: '<html>Mantenimiento</html>' });
+  late.replies.push(GATE());
   for (const run of late.intervals) run();
   await settle();
   ok(!late.panel.hidden && late.panel.getAttribute('data-state') === 'maintenance' && /mantenimiento/.test(late.text(late.ui.note)) && /testigo/.test(late.text(late.ui.note)) && !late.bar.hasAttribute('aria-valuenow'), 'Un 503 en la consulta del estado no se explica en el panel: ' + late.text(late.ui.note));
   // Al terminar el mantenimiento, el panel enseña cómo acabó; si la sesión ya no vale, lo dice y para.
   late.clock.now += 31000;
-  late.replies.push(late.jobsReply([restoreDone()]));
+  late.replies.push(late.jobsReply([restoreDone({ finished_ago: 40 })]));
   for (const run of late.intervals) run();
   await settle();
   ok(late.text(late.ui.title) === 'Restauración terminada' && late.text(late.ui.note) === '' && !late.ui.result.hidden && late.text(late.ui.result).includes('Restauración terminada desde'), 'Terminado el mantenimiento, el panel no enseña cómo acabó la restauración: ' + late.text(late.ui.title));
   const gone = screen({ card: true, active: false });
   gone.clock.now += 31000;
-  gone.replies.push({ status: 503, body: '<html>Mantenimiento</html>' });
+  gone.replies.push(GATE());
   for (const run of gone.intervals) run();
   await settle();
   gone.clock.now += 31000;
@@ -467,7 +479,7 @@ await scenario('P17 · «Cancelar» sólo cuando sirve: no sin sesión de gesti�
   ok(page.ui.cancel.hidden, '«Cancelar» visible sin sesión de gestión');
   await page.next(page.jobsReply([restoreView('database', 52)], { manager: true }));
   ok(!page.ui.cancel.hidden, '«Cancelar» no vuelve con la sesión');
-  await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  await page.next(GATE());
   ok(page.ui.cancel.hidden, '«Cancelar» visible mientras el sitio responde 503');
 });
 
@@ -485,7 +497,7 @@ await scenario('P18 · tras terminar con nonces nuevos, «Respaldar ahora» enco
 
 await scenario('P19 · cinco 503 seguidos: no aconseja recargar (B6)', async () => {
   const page = screen({ view: restoreView('database', 45) });
-  for (let i = 0; i < 5; i++) await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  for (let i = 0; i < 5; i++) await page.next(GATE());
   ok(!/recarga esta página/.test(page.text(page.ui.note)) && /No recargues/.test(page.text(page.ui.note)) && page.ui.note.getAttribute('data-level') === 'error', 'Tras cinco 503 aconseja recargar (y perder el panel): ' + page.text(page.ui.note));
 });
 
@@ -505,7 +517,7 @@ await scenario('P21 · accesibilidad: el panel es una región; la nota y el resu
   ok(/id="digitalisimo-backups-manual-progress"[^>]*role="region" aria-labelledby=/.test(markup.replace(/' \. \$id \. '/g, 'digitalisimo-backups-progress').replace(/' \. \( [^)]*\) \. '/g, '')) || /data-state="idle" role="region" aria-labelledby=/.test(markup), 'El panel no tiene role="region" con su nombre');
   ok(/-note" class="[^"]*" role="status" aria-live="polite"><\/p>/.test(markup) && /-result" class="[^"]*" aria-live="polite"><\/div>/.test(markup), 'La nota o el resultado (regiones vivas) se pintan ocultos');
   const page = screen({ view: restoreView('database', 45), token: 't' });
-  await page.next({ status: 503, body: '<html>Mantenimiento</html>' });
+  await page.next(GATE());
   ok(!page.ui.note.hidden && page.text(page.ui.note) !== '', 'La nota se escribe en una región oculta');
   await page.next(page.jobsReply([restoreDone()]));
   ok(!page.ui.result.hidden && page.text(page.ui.result) !== '' && page.text(page.ui.note) === '' && !page.ui.note.hidden, 'El resultado se escribe oculto o la nota se oculta al vaciarse');
@@ -527,6 +539,86 @@ await scenario('P23 · «finished» con otra restauración del mismo testigo (la
   const page = screen({ view: chainView, token: 't' });
   await page.next({ body: { success: true, data: { result: 'finished', manager: true, nonces: {}, message: '', jobs: [restoreDone({ from_point: true })] } } });
   ok(page.text(page.ui.title) === 'Restauración terminada' && page.text(page.ui.percent) === '100 %', 'Terminada la restauración del punto por otro proceso, el panel sigue en la reconstrucción: ' + page.text(page.ui.title));
+});
+
+/* ------------------------------------------------------------------ Verificación de los arreglos (N1–N8) */
+
+const runIntervals = async (page, ms) => { page.clock.now += ms; for (const run of page.intervals) run(); await settle(); };
+
+await scenario('P24 · sólo el 503 de la puerta de Backups es de una restauración; otro, «el servidor no responde»; una de hace días no se enseña (N2)', async () => {
+  // Siguiendo una restauración: un 503 sin la marca (el hosting, una actualización de WordPress) no se atribuye a ella.
+  const page = screen({ view: restoreView('database', 45) });
+  await page.next(OTHER503());
+  ok(/El servidor no responde \(HTTP 503/.test(page.text(page.ui.note)) && !/mantenimiento/.test(page.text(page.ui.note)) && page.pending()[0].delay === 2000, 'Un 503 sin la marca de Backups se atribuye a la restauración: ' + page.text(page.ui.note));
+  await page.next(GATE());
+  ok(/mantenimiento por la restauración/.test(page.text(page.ui.note)) && /sólo lo recibe el navegador que la empezó/.test(page.text(page.ui.note)) && page.pending()[0].delay === 30000, 'El 503 de la puerta de Backups no se explica como el de la restauración: ' + page.text(page.ui.note));
+  // Sin trabajos: un 503 ajeno en la consulta no abre el panel; a los 30 s, la lista con una restauración de hace días tampoco.
+  const idle = screen({ card: true, active: false });
+  idle.replies.push(OTHER503());
+  await runIntervals(idle, 31000);
+  ok(idle.panel.hidden && idle.text(idle.ui.note) === '', 'Un 503 ajeno en la consulta del estado abre el panel de la restauración: ' + idle.text(idle.ui.title));
+  idle.replies.push(GATE());
+  await runIntervals(idle, 31000);
+  ok(!idle.panel.hidden && idle.panel.getAttribute('data-state') === 'maintenance', 'El 503 de la puerta de Backups en la consulta no se dice');
+  const old = restoreDone({ id: '99999999-8888-4777-8666-555555555555', created_label: '2026-11-12 09:00', elapsed: 300, finished_ago: 3 * 86400 });
+  idle.replies.push(idle.jobsReply([old]));
+  await runIntervals(idle, 31000);
+  ok(idle.panel.hidden && idle.text(idle.ui.title) !== 'Restauración terminada', 'Tras el mantenimiento, el panel enseña como recién terminada una restauración de hace días: ' + idle.text(idle.ui.title));
+});
+
+await scenario('P25 · «Respaldar ahora» con la consulta del estado en vuelo: el primer paso se aplaza, no se pierde (N3)', async () => {
+  const page = screen({ card: true, active: false });
+  let release;
+  page.replies.push({ defer: new Promise((resolve) => { release = resolve; }) });
+  await runIntervals(page, 31000);
+  ok(page.requests.length === 1 && page.requests[0].action === 'digitalisimo_backups_job_status', 'La consulta del estado no salió');
+  page.replies.push({ body: { success: true, data: { id: MINE, view: backupView('preflight', 0, { status: 'queued', status_label: 'Pendiente', running: false, detail: 'En cola.' }) } } });
+  page.form.listeners.submit[0]({ preventDefault() {} });
+  await settle();
+  const first = await page.next();
+  ok(first === 0 && page.pending().length === 1 && page.pending()[0].delay === 500, 'El primer paso del respaldo, con la consulta en vuelo, se perdió: ' + JSON.stringify(page.pending()));
+  release({ ok: true, status: 200, headers: { get: () => null }, text: () => Promise.resolve(JSON.stringify({ success: true, data: { jobs: [] } })) });
+  await settle();
+  ok(page.pending().length === 1, 'Al volver la consulta (sin el respaldo todavía), no queda un paso programado');
+  await page.next(page.jobsReply([backupView('database', 12)]));
+  ok(page.requests.filter((r) => r.action === 'digitalisimo_backups_job_tick').length === 1 && page.text(page.ui.percent) === '12 %', 'El respaldo no avanza tras la consulta: ' + page.text(page.message));
+});
+
+await scenario('P26 · la consulta del estado: cada 30 s, sólo con la pestaña a la vista y ligera (N6, K12)', async () => {
+  const page = screen({ card: true, active: false });
+  await runIntervals(page, 29000);
+  ok(page.requests.length === 0, 'La consulta del estado sale antes de los 30 s');
+  page.replies.push(page.jobsReply([]));
+  await runIntervals(page, 1500);
+  ok(page.requests.length === 1 && page.requests[0].action === 'digitalisimo_backups_job_status' && page.requests[0].peek === '1', 'La consulta del estado no sale a los 30 s o no es la ligera: ' + JSON.stringify(page.requests));
+  const hidden = screen({ card: true, active: false, visibility: 'hidden' });
+  await runIntervals(hidden, 120000);
+  ok(hidden.requests.length === 0, 'Con la pestaña oculta la pantalla sigue consultando el estado');
+});
+
+await scenario('P27 · «Restaurar»: si la navegación se cancela, a los 60 s vuelve a estar disponible (N7); a los 40 s, qué hacer (K15)', async () => {
+  const page = screen();
+  const restoreForm = page.document.children[0].appendChild(new El('form'));
+  restoreForm.appendChild(new El('input', { type: 'hidden', name: 'action', value: 'digitalisimo_backups_restore' }));
+  const button = restoreForm.appendChild(new El('button', { class: 'button button-primary' }));
+  const send = () => { const event = { target: restoreForm, defaultPrevented: false, prevented: false, preventDefault() { this.prevented = true; } }; for (const listener of page.document.listeners.submit || []) listener(event); return event; };
+  send();
+  // Mientras tanto la consulta del estado sigue (cada 30 s): si la restauración empezó, el panel la tomaría.
+  for (let i = 0; i < 3; i++) page.replies.push(page.jobsReply([]));
+  await runIntervals(page, 39000);
+  ok(page.text(page.ui.note) === '', 'La nota de «tarda más de lo normal» sale antes de los 40 s');
+  await runIntervals(page, 2000);
+  ok(/tarda más de lo normal/.test(page.text(page.ui.note)), 'Pasados 40 s, el panel no dice qué hacer si la petición no vuelve');
+  ok(send().prevented && restoreForm.getAttribute('data-sent') === '1', 'Antes de 60 s, un segundo envío no se detiene');
+  await runIntervals(page, 20000);
+  ok(!restoreForm.hasAttribute('data-sent') && !button.hasAttribute('aria-disabled') && !send().prevented, 'Cancelada la navegación, «Restaurar» sigue bloqueado');
+});
+
+await scenario('P28 · la nota se ve aunque el marcado la traiga oculta (una página en caché; K10)', async () => {
+  const page = screen({ view: restoreView('database', 45) });
+  page.ui.note.hidden = true;
+  await page.next(GATE());
+  ok(!page.ui.note.hidden && /mantenimiento/.test(page.text(page.ui.note)), 'La nota se escribe en una región oculta');
 });
 
 if (failed.length) throw new Error('FALLA: ' + failed.length + ' caso(s) del panel de avance: ' + failed.join(' | '));
